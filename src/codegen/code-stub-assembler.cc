@@ -2891,12 +2891,10 @@ void CodeStubAssembler::TryStoreArrayElement(ElementsKind kind, Label* bailout,
     GotoIfNotNumber(value, bailout);
   }
 
-  ParameterMode mode = OptimalParameterMode();
   if (IsDoubleElementsKind(kind)) {
-    StoreElement(elements, kind, index, ChangeNumberToFloat64(CAST(value)),
-                 mode);
+    StoreElement(elements, kind, index, ChangeNumberToFloat64(CAST(value)));
   } else {
-    StoreElement(elements, kind, index, value, mode);
+    StoreElement(elements, kind, index, value);
   }
 }
 
@@ -9467,11 +9465,16 @@ MachineRepresentation ElementsKindToMachineRepresentation(ElementsKind kind) {
 
 }  // namespace
 
+template <typename TIndex>
 void CodeStubAssembler::StoreElement(Node* elements, ElementsKind kind,
-                                     Node* index, Node* value,
-                                     ParameterMode mode) {
+                                     TNode<TIndex> index, Node* value) {
+  // TODO(v8:9708): Do we want to keep both IntPtrT and UintPtrT variants?
+  static_assert(std::is_same<TIndex, Smi>::value ||
+                    std::is_same<TIndex, UintPtrT>::value ||
+                    std::is_same<TIndex, IntPtrT>::value,
+                "Only Smi, UintPtrT or IntPtrT index is allowed");
   if (kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS) {
-    TNode<IntPtrT> offset = ElementOffsetFromIndex(index, kind, mode, 0);
+    TNode<IntPtrT> offset = ElementOffsetFromIndex(index, kind, 0);
     TVARIABLE(UintPtrT, var_low);
     // Only used on 32-bit platforms.
     TVARIABLE(UintPtrT, var_high);
@@ -9500,21 +9503,34 @@ void CodeStubAssembler::StoreElement(Node* elements, ElementsKind kind,
       CSA_ASSERT(this, Word32Equal(UncheckedCast<Word32T>(value),
                                    Word32And(Int32Constant(0xFF), value)));
     }
-    TNode<IntPtrT> offset = ElementOffsetFromIndex(index, kind, mode, 0);
+    TNode<IntPtrT> offset = ElementOffsetFromIndex(index, kind, 0);
     // TODO(cbruni): Add OOB check once typed.
     MachineRepresentation rep = ElementsKindToMachineRepresentation(kind);
     StoreNoWriteBarrier(rep, elements, offset, value);
     return;
   } else if (IsDoubleElementsKind(kind)) {
     TNode<Float64T> value_float64 = UncheckedCast<Float64T>(value);
+    const ParameterMode mode =
+        std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
     StoreFixedDoubleArrayElement(CAST(elements), index, value_float64, mode);
   } else {
     WriteBarrierMode barrier_mode = IsSmiElementsKind(kind)
                                         ? UNSAFE_SKIP_WRITE_BARRIER
                                         : UPDATE_WRITE_BARRIER;
+    const ParameterMode mode =
+        std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
     StoreFixedArrayElement(CAST(elements), index, value, barrier_mode, 0, mode);
   }
 }
+
+template V8_EXPORT_PRIVATE void CodeStubAssembler::StoreElement<Smi>(
+    Node*, ElementsKind, TNode<Smi>, Node*);
+
+template V8_EXPORT_PRIVATE void CodeStubAssembler::StoreElement<IntPtrT>(
+    Node*, ElementsKind, TNode<IntPtrT>, Node*);
+
+template V8_EXPORT_PRIVATE void CodeStubAssembler::StoreElement<UintPtrT>(
+    Node*, ElementsKind, TNode<UintPtrT>, Node*);
 
 TNode<Uint8T> CodeStubAssembler::Int32ToUint8Clamped(
     TNode<Int32T> int32_value) {
@@ -9786,8 +9802,7 @@ void CodeStubAssembler::EmitElementStore(
     GotoIf(IsFixedCOWArrayMap(LoadMap(elements)), bailout);
   }
 
-  // TODO(ishell): introduce TryToIntPtrOrSmi() and use OptimalParameterMode().
-  ParameterMode parameter_mode = INTPTR_PARAMETERS;
+  // TODO(ishell): introduce TryToIntPtrOrSmi() and use BInt.
   TNode<IntPtrT> intptr_key = TryToIntptr(key, bailout);
 
   // TODO(rmcilroy): TNodify the converted value once this funciton and
@@ -9828,8 +9843,7 @@ void CodeStubAssembler::EmitElementStore(
     }
 
     TNode<RawPtrT> data_ptr = LoadJSTypedArrayDataPtr(typed_array);
-    StoreElement(data_ptr, elements_kind, intptr_key, converted_value,
-                 parameter_mode);
+    StoreElement(data_ptr, elements_kind, intptr_key, converted_value);
     Goto(&done);
 
     BIND(&update_value_and_bailout);
@@ -9953,8 +9967,7 @@ void CodeStubAssembler::EmitElementStore(
   }
 
   CSA_ASSERT(this, Word32BinaryNot(IsFixedCOWArrayMap(LoadMap(elements))));
-  StoreElement(elements, elements_kind, intptr_key, converted_value,
-               parameter_mode);
+  StoreElement(elements, elements_kind, intptr_key, converted_value);
 }
 
 TNode<FixedArrayBase> CodeStubAssembler::CheckForCapacityGrow(

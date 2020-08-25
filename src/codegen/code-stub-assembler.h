@@ -3106,12 +3106,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // TODO(turbofan): For BIGINT64_ELEMENTS and BIGUINT64_ELEMENTS
   // we pass {value} as BigInt object instead of int64_t. We should
   // teach TurboFan to handle int64_t on 32-bit platforms eventually.
-  void StoreElement(Node* elements, ElementsKind kind, Node* index, Node* value,
-                    ParameterMode mode);
-  void StoreElement(TNode<RawPtrT> elements, ElementsKind kind,
-                    TNode<UintPtrT> index, Node* value) {
-    return StoreElement(elements, kind, index, value, INTPTR_PARAMETERS);
-  }
+  template <typename TIndex>
+  void StoreElement(Node* elements, ElementsKind kind, TNode<TIndex> index,
+                    Node* value);
 
   // Implements the BigInt part of
   // https://tc39.github.io/proposal-bigint/#sec-numbertorawbytes,
