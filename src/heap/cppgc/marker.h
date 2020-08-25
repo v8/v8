@@ -22,10 +22,12 @@ namespace cppgc {
 namespace internal {
 
 class HeapBase;
+class MarkerFactory;
 
 // Marking algorithm. Example for a valid call sequence creating the marking
 // phase:
-// 1. StartMarking()
+// 1. StartMarking() [Called implicitly when creating a Marker using
+//                    MarkerFactory]
 // 2. AdvanceMarkingWithDeadline() [Optional, depending on environment.]
 // 3. EnterAtomicPause()
 // 4. AdvanceMarkingWithDeadline()
@@ -57,10 +59,6 @@ class V8_EXPORT_PRIVATE MarkerBase {
 
   MarkerBase(const MarkerBase&) = delete;
   MarkerBase& operator=(const MarkerBase&) = delete;
-
-  // Initialize marking according to the given config. This method will
-  // trigger incremental/concurrent marking if needed.
-  void StartMarking();
 
   // Signals entering the atomic marking pause. The method
   // - stops incremental/concurrent marking;
@@ -122,7 +120,17 @@ class V8_EXPORT_PRIVATE MarkerBase {
       v8::base::TimeDelta::FromMilliseconds(2);
   static constexpr size_t kMinimumMarkedBytesPerIncrementalStep = 64 * kKB;
 
-  MarkerBase(HeapBase&, cppgc::Platform*, MarkingConfig);
+  class Key {
+   private:
+    Key() = default;
+    friend class MarkerFactory;
+  };
+
+  MarkerBase(Key, HeapBase&, cppgc::Platform*, MarkingConfig);
+
+  // Initialize marking according to the given config. This method will
+  // trigger incremental/concurrent marking if needed.
+  void StartMarking();
 
   virtual cppgc::Visitor& visitor() = 0;
   virtual ConservativeTracingVisitor& conservative_visitor() = 0;
@@ -148,11 +156,27 @@ class V8_EXPORT_PRIVATE MarkerBase {
   MarkingWorklists marking_worklists_;
   MarkingState mutator_marking_state_;
   bool is_marking_started_ = false;
+
+  friend class MarkerFactory;
+};
+
+class V8_EXPORT_PRIVATE MarkerFactory {
+ public:
+  template <typename T, typename... Args>
+  static std::unique_ptr<T> Create(Args&&... args) {
+    static_assert(std::is_base_of<MarkerBase, T>::value,
+                  "MarkerFactory can only create subclasses of MarkerBase");
+    std::unique_ptr<T> marker =
+        std::make_unique<T>(MarkerBase::Key(), std::forward<Args>(args)...);
+    marker->StartMarking();
+    return marker;
+  }
 };
 
 class V8_EXPORT_PRIVATE Marker final : public MarkerBase {
  public:
-  Marker(HeapBase&, cppgc::Platform*, MarkingConfig = MarkingConfig::Default());
+  Marker(Key, HeapBase&, cppgc::Platform*,
+         MarkingConfig = MarkingConfig::Default());
 
  protected:
   cppgc::Visitor& visitor() final { return marking_visitor_; }

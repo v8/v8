@@ -21,9 +21,7 @@ namespace {
 
 class IncrementalMarkingScope {
  public:
-  explicit IncrementalMarkingScope(MarkerBase* marker) : marker_(marker) {
-    marker_->StartMarking();
-  }
+  explicit IncrementalMarkingScope(MarkerBase* marker) : marker_(marker) {}
 
   ~IncrementalMarkingScope() V8_NOEXCEPT {
     marker_->FinishMarking(kIncrementalConfig.stack_state);
@@ -149,9 +147,9 @@ class GCed : public GarbageCollected<GCed> {
 class WriteBarrierTest : public testing::TestWithHeap {
  public:
   WriteBarrierTest() : internal_heap_(Heap::From(GetHeap())) {
-    GetMarkerRef() =
-        std::make_unique<Marker>(*internal_heap_, GetPlatformHandle().get(),
-                                 IncrementalMarkingScope::kIncrementalConfig);
+    GetMarkerRef() = MarkerFactory::Create<Marker>(
+        *internal_heap_, GetPlatformHandle().get(),
+        IncrementalMarkingScope::kIncrementalConfig);
     marker_ = GetMarkerRef().get();
   }
 
@@ -166,6 +164,8 @@ class WriteBarrierTest : public testing::TestWithHeap {
   Heap* internal_heap_;
   MarkerBase* marker_;
 };
+
+class NoWriteBarrierTest : public testing::TestWithHeap {};
 
 // =============================================================================
 // Basic support. ==============================================================
@@ -189,7 +189,7 @@ TEST_F(WriteBarrierTest, TriggersWhenMarkingIsOn) {
   }
 }
 
-TEST_F(WriteBarrierTest, BailoutWhenMarkingIsOff) {
+TEST_F(NoWriteBarrierTest, BailoutWhenMarkingIsOff) {
   auto* object1 = MakeGarbageCollected<GCed>(GetAllocationHandle());
   auto* object2 = MakeGarbageCollected<GCed>(GetAllocationHandle());
   EXPECT_FALSE(object1->IsMarked());
