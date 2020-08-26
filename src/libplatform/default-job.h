@@ -73,7 +73,7 @@ class V8_PLATFORM_EXPORT DefaultJobState
   // job.
   size_t CappedMaxConcurrency(size_t worker_count) const;
 
-  void CallOnWorkerThread(std::unique_ptr<Task> task);
+  void CallOnWorkerThread(TaskPriority priority, std::unique_ptr<Task> task);
 
   Platform* const platform_;
   std::unique_ptr<JobTask> job_task_;

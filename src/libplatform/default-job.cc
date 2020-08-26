@@ -43,6 +43,7 @@ void DefaultJobState::NotifyConcurrencyIncrease() {
   if (is_canceled_.load(std::memory_order_relaxed)) return;
 
   size_t num_tasks_to_post = 0;
+  TaskPriority priority;
   {
     base::MutexGuard guard(&mutex_);
     const size_t max_concurrency = CappedMaxConcurrency(active_workers_);
@@ -51,11 +52,12 @@ void DefaultJobState::NotifyConcurrencyIncrease() {
       num_tasks_to_post = max_concurrency - active_workers_ - pending_tasks_;
       pending_tasks_ += num_tasks_to_post;
     }
+    priority = priority_;
   }
   // Post additional worker tasks to reach |max_concurrency|.
   for (size_t i = 0; i < num_tasks_to_post; ++i) {
-    CallOnWorkerThread(std::make_unique<DefaultJobWorker>(shared_from_this(),
-                                                          job_task_.get()));
+    CallOnWorkerThread(priority, std::make_unique<DefaultJobWorker>(
+                                     shared_from_this(), job_task_.get()));
   }
 }
 
@@ -136,6 +138,7 @@ bool DefaultJobState::CanRunFirstTask() {
 
 bool DefaultJobState::DidRunTask() {
   size_t num_tasks_to_post = 0;
+  TaskPriority priority;
   {
     base::MutexGuard guard(&mutex_);
     const size_t max_concurrency = CappedMaxConcurrency(active_workers_ - 1);
@@ -151,6 +154,7 @@ bool DefaultJobState::DidRunTask() {
       num_tasks_to_post = max_concurrency - active_workers_ - pending_tasks_;
       pending_tasks_ += num_tasks_to_post;
     }
+    priority = priority_;
   }
   // Post additional worker tasks to reach |max_concurrency| in the case that
   // max concurrency increased. This is not strictly necessary, since
@@ -158,8 +162,8 @@ bool DefaultJobState::DidRunTask() {
   // users of PostJob() batch work and tend to call NotifyConcurrencyIncrease()
   // late. Posting here allows us to spawn new workers sooner.
   for (size_t i = 0; i < num_tasks_to_post; ++i) {
-    CallOnWorkerThread(std::make_unique<DefaultJobWorker>(shared_from_this(),
-                                                          job_task_.get()));
+    CallOnWorkerThread(priority, std::make_unique<DefaultJobWorker>(
+                                     shared_from_this(), job_task_.get()));
   }
   return true;
 }
@@ -183,8 +187,9 @@ size_t DefaultJobState::CappedMaxConcurrency(size_t worker_count) const {
                   num_worker_threads_);
 }
 
-void DefaultJobState::CallOnWorkerThread(std::unique_ptr<Task> task) {
-  switch (priority_) {
+void DefaultJobState::CallOnWorkerThread(TaskPriority priority,
+                                         std::unique_ptr<Task> task) {
+  switch (priority) {
     case TaskPriority::kBestEffort:
       return platform_->CallLowPriorityTaskOnWorkerThread(std::move(task));
     case TaskPriority::kUserVisible:
