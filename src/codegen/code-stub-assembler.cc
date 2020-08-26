@@ -9517,9 +9517,7 @@ void CodeStubAssembler::StoreElement(Node* elements, ElementsKind kind,
     WriteBarrierMode barrier_mode = IsSmiElementsKind(kind)
                                         ? UNSAFE_SKIP_WRITE_BARRIER
                                         : UPDATE_WRITE_BARRIER;
-    const ParameterMode mode =
-        std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
-    StoreFixedArrayElement(CAST(elements), index, value, barrier_mode, 0, mode);
+    StoreFixedArrayElement(CAST(elements), index, value, barrier_mode, 0);
   }
 }
 
