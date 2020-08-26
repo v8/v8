@@ -465,10 +465,6 @@
 
 ##############################################################################
 # The stack unwinder API is only supported on x64, arm64 and arm.
-['arch != x64 and arch != arm64', {
-  'test-unwinder/*': [SKIP]
-}],
-
 ['arch != x64 and arch != arm64 and arch != arm', {
   'test-unwinder-code-pages/*': [SKIP]
 }],
@@ -561,8 +557,6 @@
   'test-run-variables/*': [SKIP],
   'test-serialize/*': [SKIP],
   'test-torque/*': [SKIP],
-  'test-unwinder/PCIsInV8_InCodeOrEmbeddedRange': [SKIP],
-  'test-unwinder/PCIsInV8_LargeCodeObject': [SKIP],
   'test-unwinder-code-pages/PCIsInV8_LargeCodeObject_CodePagesAPI': [SKIP],
 
   # Field representation tracking is disabled in jitless mode.
