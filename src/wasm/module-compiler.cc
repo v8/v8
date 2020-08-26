@@ -3039,11 +3039,7 @@ void CompilationStateImpl::ScheduleCompileJobForNewUnits(int new_units) {
   // In that case, we need to notify the compile job about the increased
   // concurrency.
   DCHECK_LT(0, new_units);
-  int old_units = current_compile_concurrency_->load();
-  while (!current_compile_concurrency_->compare_exchange_weak(
-      old_units, old_units + new_units)) {
-    // Retry with updated {old_units}.
-  }
+  int old_units = current_compile_concurrency_->fetch_add(new_units);
   bool concurrency_increased = old_units < max_compile_concurrency_;
 
   base::MutexGuard guard(&mutex_);
@@ -3078,9 +3074,7 @@ size_t CompilationStateImpl::NumOutstandingCompilations() const {
 }
 
 void CompilationStateImpl::SetError() {
-  bool expected = false;
-  if (!compile_failed_.compare_exchange_strong(expected, true,
-                                               std::memory_order_relaxed)) {
+  if (compile_failed_.exchange(true, std::memory_order_relaxed)) {
     return;  // Already failed before.
   }
 
