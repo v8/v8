@@ -1814,6 +1814,9 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
     DCHECK_GE(kMaxInt, jump_table_diff);
     jump_table_offset = static_cast<int>(jump_table_diff);
   }
+  const wasm::FunctionSig* sig = instance->module()->functions[func_index].sig;
+  Handle<Foreign> sig_foreign =
+      isolate->factory()->NewForeign(reinterpret_cast<Address>(sig));
   Handle<WasmExportedFunctionData> function_data =
       Handle<WasmExportedFunctionData>::cast(isolate->factory()->NewStruct(
           WASM_EXPORTED_FUNCTION_DATA_TYPE, AllocationType::kOld));
@@ -1824,9 +1827,7 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   function_data->set_c_wrapper_code(Smi::zero(), SKIP_WRITE_BARRIER);
   function_data->set_wasm_call_target(Smi::zero(), SKIP_WRITE_BARRIER);
   function_data->set_packed_args_size(0);
-  const wasm::FunctionSig* sig = instance->module()->functions[func_index].sig;
-  sig->parameters().empty() ? function_data->set_signature_type(0)
-                            : function_data->set_signature_type(1);
+  function_data->set_signature(*sig_foreign);
 
   MaybeHandle<String> maybe_name;
   bool is_asm_js_module = instance->module_object().is_asm_js();

@@ -14,7 +14,7 @@ extern class WasmExportedFunctionData extends Struct {
   c_wrapper_code: Object;
   wasm_call_target: Smi|Foreign;
   packed_args_size: Smi;
-  signature_type: Smi;
+  signature: Foreign;
 }
 
 extern class WasmJSFunctionData extends Struct {

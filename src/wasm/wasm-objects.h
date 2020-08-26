@@ -768,7 +768,7 @@ class WasmExportedFunctionData : public Struct {
   DECL_ACCESSORS(c_wrapper_code, Object)
   DECL_ACCESSORS(wasm_call_target, Object)
   DECL_INT_ACCESSORS(packed_args_size)
-  DECL_INT_ACCESSORS(signature_type)
+  DECL_ACCESSORS(signature, Foreign)
 
   DECL_CAST(WasmExportedFunctionData)
 

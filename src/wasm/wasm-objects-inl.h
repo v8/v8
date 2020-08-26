@@ -330,7 +330,7 @@ ACCESSORS(WasmExportedFunctionData, c_wrapper_code, Object, kCWrapperCodeOffset)
 ACCESSORS(WasmExportedFunctionData, wasm_call_target, Object,
           kWasmCallTargetOffset)
 SMI_ACCESSORS(WasmExportedFunctionData, packed_args_size, kPackedArgsSizeOffset)
-SMI_ACCESSORS(WasmExportedFunctionData, signature_type, kSignatureTypeOffset)
+ACCESSORS(WasmExportedFunctionData, signature, Foreign, kSignatureOffset)
 
 // WasmJSFunction
 WasmJSFunction::WasmJSFunction(Address ptr) : JSFunction(ptr) {

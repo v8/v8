@@ -3271,20 +3271,36 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
       MemOperand(function_data,
                  WasmExportedFunctionData::kInstanceOffset - kHeapObjectTag));
 
-  // Int signature_type gives the number of int32 params (can be only 0 or 1).
-  Register signature_type = r9;
-  __ SmiUntagField(
-      signature_type,
-      MemOperand(function_data, WasmExportedFunctionData::kSignatureTypeOffset -
-                                    kHeapObjectTag));
+  // Get the signature for the parameter count.
+  Register foreign_signature = r9;
 
-  __ cmpl(signature_type, Immediate(0));
+  __ LoadAnyTaggedField(
+      foreign_signature,
+      MemOperand(function_data,
+                 WasmExportedFunctionData::kSignatureOffset - kHeapObjectTag));
+  Register signature = r9;
+  __ movq(signature,
+          MemOperand(foreign_signature, wasm::ObjectAccess::ToTagged(
+                                            Foreign::kForeignAddressOffset)));
+  foreign_signature = no_reg;
+
+  Register param_count = r9;
+  __ movq(param_count,
+          MemOperand(signature, wasm::FunctionSig::kParameterCountOffset));
+  signature = no_reg;
+
+  __ cmpl(param_count, Immediate(0));
 
   // In 0 param case jump through parameter handling.
   Label params_done;
   __ j(equal, &params_done);
 
-  // Param handling.
+  // 1 Param handling.
+  // Make sure we have exactly one argument in order to be able to load the
+  // argument using static offsets below.
+  __ cmpl(kJavaScriptCallArgCountRegister, Immediate(1));
+  __ Check(equal, AbortReason::kInvalidNumberOfJsArgs);
+
   Register param = rax;
 #ifdef V8_REVERSE_JSARGS
   const int firstParamOffset = kFPOnStackSize + kPCOnStackSize +
@@ -3331,12 +3347,12 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   jump_table_offset = no_reg;
   jump_table_start = no_reg;
 
-  __ pushq(signature_type);
+  __ pushq(param_count);
 
   __ call(function_entry);
   function_entry = no_reg;
 
-  __ popq(signature_type);
+  __ popq(param_count);
 
   // Unset thread_in_wasm_flag.
   thread_in_wasm_flag_addr = r8;
@@ -3351,7 +3367,7 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // Deconstrunct the stack frame.
   __ LeaveFrame(StackFrame::JS_TO_WASM);
 
-  __ cmpl(signature_type, Immediate(0));
+  __ cmpl(param_count, Immediate(0));
 
   Label ret_0_param;
   __ j(equal, &ret_0_param);
@@ -3366,7 +3382,7 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
 
   // The order of pushes is important. We want the heap objects, that should be
   // scanned by GC, to be on the top of the stack.
-  __ pushq(signature_type);
+  __ pushq(param_count);
   __ pushq(wasm_instance);
   __ pushq(function_data);
   __ LoadAnyTaggedField(
@@ -3380,7 +3396,7 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
 
   __ popq(function_data);
   __ popq(wasm_instance);
-  __ popq(signature_type);
+  __ popq(param_count);
 
   __ jmp(&params_done);
 }
