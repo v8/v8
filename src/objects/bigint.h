@@ -203,7 +203,8 @@ class BigInt : public BigIntBase {
   static MaybeHandle<BigInt> AsUintN(Isolate* isolate, uint64_t n,
                                      Handle<BigInt> x);
 
-  static Handle<BigInt> FromInt64(Isolate* isolate, int64_t n);
+  V8_EXPORT_PRIVATE static Handle<BigInt> FromInt64(Isolate* isolate,
+                                                    int64_t n);
   static Handle<BigInt> FromUint64(Isolate* isolate, uint64_t n);
   static MaybeHandle<BigInt> FromWords64(Isolate* isolate, int sign_bit,
                                          int words64_count,

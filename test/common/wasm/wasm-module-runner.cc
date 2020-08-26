@@ -41,12 +41,11 @@ MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
       isolate, thrower, module.ToHandleChecked(), {}, {});
 }
 
-std::unique_ptr<WasmValue[]> MakeDefaultArguments(Isolate* isolate,
-                                                  const FunctionSig* sig) {
+OwnedVector<WasmValue> MakeDefaultInterpreterArguments(Isolate* isolate,
+                                                       const FunctionSig* sig) {
   size_t param_count = sig->parameter_count();
-  auto arguments = std::make_unique<WasmValue[]>(param_count);
+  auto arguments = OwnedVector<WasmValue>::New(param_count);
 
-  // Fill the parameters up with default values.
   for (size_t i = 0; i < param_count; ++i) {
     switch (sig->GetParam(i).kind()) {
       case ValueType::kI32:
@@ -64,6 +63,38 @@ std::unique_ptr<WasmValue[]> MakeDefaultArguments(Isolate* isolate,
       case ValueType::kOptRef:
         arguments[i] =
             WasmValue(Handle<Object>::cast(isolate->factory()->null_value()));
+        break;
+      case ValueType::kRef:
+      case ValueType::kRtt:
+      case ValueType::kI8:
+      case ValueType::kI16:
+      case ValueType::kStmt:
+      case ValueType::kBottom:
+      case ValueType::kS128:
+        UNREACHABLE();
+    }
+  }
+
+  return arguments;
+}
+
+OwnedVector<Handle<Object>> MakeDefaultArguments(Isolate* isolate,
+                                                 const FunctionSig* sig) {
+  size_t param_count = sig->parameter_count();
+  auto arguments = OwnedVector<Handle<Object>>::New(param_count);
+
+  for (size_t i = 0; i < param_count; ++i) {
+    switch (sig->GetParam(i).kind()) {
+      case ValueType::kI32:
+      case ValueType::kF32:
+      case ValueType::kF64:
+        arguments[i] = handle(Smi::zero(), isolate);
+        break;
+      case ValueType::kI64:
+        arguments[i] = BigInt::FromInt64(isolate, 0);
+        break;
+      case ValueType::kOptRef:
+        arguments[i] = isolate->factory()->null_value();
         break;
       case ValueType::kRef:
       case ValueType::kRtt:

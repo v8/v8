@@ -55,13 +55,14 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
     return;
   }
 
-  std::unique_ptr<WasmValue[]> arguments =
-      testing::MakeDefaultArguments(isolate, main_function->sig());
+  OwnedVector<WasmValue> arguments =
+      testing::MakeDefaultInterpreterArguments(isolate, main_function->sig());
 
   // Now interpret.
   testing::WasmInterpretationResult interpreter_result =
-      testing::InterpretWasmModule(
-          isolate, instance, main_function->function_index(), arguments.get());
+      testing::InterpretWasmModule(isolate, instance,
+                                   main_function->function_index(),
+                                   arguments.begin());
   if (interpreter_result.failed()) return;
 
   // The WebAssembly spec allows the sign bit of NaN to be non-deterministic.
@@ -82,9 +83,13 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
               .ToHandle(&instance));
   }
 
+  OwnedVector<Handle<Object>> compiled_args =
+      testing::MakeDefaultArguments(isolate, main_function->sig());
+
   bool exception = false;
   int32_t result_compiled = testing::CallWasmFunctionForTesting(
-      isolate, instance, "main", 0, nullptr, &exception);
+      isolate, instance, "main", static_cast<int>(compiled_args.size()),
+      compiled_args.begin(), &exception);
   if (interpreter_result.trapped() != exception) {
     const char* exception_text[] = {"no exception", "exception"};
     FATAL("interpreter: %s; compiled: %s",
