@@ -1570,16 +1570,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                            UNSAFE_SKIP_WRITE_BARRIER, additional_offset);
   }
 
+  template <typename TIndex>
   void StoreFixedDoubleArrayElement(
-      TNode<FixedDoubleArray> object, Node* index, TNode<Float64T> value,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS,
-      CheckBounds check_bounds = CheckBounds::kAlways);
-
-  void StoreFixedDoubleArrayElementSmi(TNode<FixedDoubleArray> object,
-                                       TNode<Smi> index,
-                                       TNode<Float64T> value) {
-    StoreFixedDoubleArrayElement(object, index, value, SMI_PARAMETERS);
-  }
+      TNode<FixedDoubleArray> object, TNode<TIndex> index,
+      TNode<Float64T> value, CheckBounds check_bounds = CheckBounds::kAlways);
 
   void StoreDoubleHole(TNode<HeapObject> object, TNode<IntPtrT> offset);
   void StoreFixedDoubleArrayHole(TNode<FixedDoubleArray> array,

@@ -2755,21 +2755,31 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
   }
 }
 
+template <typename TIndex>
 void CodeStubAssembler::StoreFixedDoubleArrayElement(
-    TNode<FixedDoubleArray> object, Node* index_node, TNode<Float64T> value,
-    ParameterMode parameter_mode, CheckBounds check_bounds) {
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
+    TNode<FixedDoubleArray> object, TNode<TIndex> index, TNode<Float64T> value,
+    CheckBounds check_bounds) {
+  // TODO(v8:9708): Do we want to keep both IntPtrT and UintPtrT variants?
+  static_assert(std::is_same<TIndex, Smi>::value ||
+                    std::is_same<TIndex, UintPtrT>::value ||
+                    std::is_same<TIndex, IntPtrT>::value,
+                "Only Smi, UintPtrT or IntPtrT index is allowed");
   if (NeedsBoundsCheck(check_bounds)) {
-    FixedArrayBoundsCheck(object, index_node, 0, parameter_mode);
+    const ParameterMode mode =
+        std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
+    FixedArrayBoundsCheck(object, index, 0, mode);
   }
-  TNode<IntPtrT> offset =
-      ElementOffsetFromIndex(index_node, PACKED_DOUBLE_ELEMENTS, parameter_mode,
-                             FixedArray::kHeaderSize - kHeapObjectTag);
+  TNode<IntPtrT> offset = ElementOffsetFromIndex(
+      index, PACKED_DOUBLE_ELEMENTS, FixedArray::kHeaderSize - kHeapObjectTag);
   MachineRepresentation rep = MachineRepresentation::kFloat64;
   // Make sure we do not store signalling NaNs into double arrays.
   TNode<Float64T> value_silenced = Float64SilenceNaN(value);
   StoreNoWriteBarrier(rep, object, offset, value_silenced);
 }
+
+// Export the Smi version which is used outside of code-stub-assembler.
+template V8_EXPORT_PRIVATE void CodeStubAssembler::StoreFixedDoubleArrayElement<
+    Smi>(TNode<FixedDoubleArray>, TNode<Smi>, TNode<Float64T>, CheckBounds);
 
 void CodeStubAssembler::StoreFeedbackVectorSlot(
     TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot,
@@ -9510,9 +9520,7 @@ void CodeStubAssembler::StoreElement(Node* elements, ElementsKind kind,
     return;
   } else if (IsDoubleElementsKind(kind)) {
     TNode<Float64T> value_float64 = UncheckedCast<Float64T>(value);
-    const ParameterMode mode =
-        std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
-    StoreFixedDoubleArrayElement(CAST(elements), index, value_float64, mode);
+    StoreFixedDoubleArrayElement(CAST(elements), index, value_float64);
   } else {
     WriteBarrierMode barrier_mode = IsSmiElementsKind(kind)
                                         ? UNSAFE_SKIP_WRITE_BARRIER
