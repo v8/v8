@@ -221,6 +221,17 @@ void LocalContext::Initialize(v8::Isolate* isolate,
   isolate_ = isolate;
 }
 
+void LocalContext::AddGlobalFunction(const char* name,
+                                     v8::FunctionCallback callback) {
+  v8::Local<v8::Context> context = this->local();
+  v8::Local<v8::FunctionTemplate> func_template =
+      v8::FunctionTemplate::New(isolate_, callback);
+  v8::Local<v8::Function> func =
+      func_template->GetFunction(context).ToLocalChecked();
+  func->SetName(v8_str(name));
+  context->Global()->Set(context, v8_str(name), func).FromJust();
+}
+
 // This indirection is needed because HandleScopes cannot be heap-allocated, and
 // we don't want any unnecessary #includes in cctest.h.
 class InitializedHandleScopeImpl {

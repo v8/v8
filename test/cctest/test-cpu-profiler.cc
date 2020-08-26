@@ -3096,6 +3096,90 @@ TEST(MultipleIsolates) {
   thread2.Join();
 }
 
+void ProfileSomeUnlockingCode(v8::Isolate* isolate) {
+  v8::CpuProfiler* profiler = v8::CpuProfiler::New(isolate);
+  v8::Local<v8::String> profile_name = v8_str("1");
+  profiler->StartProfiling(profile_name);
+  const char* source = R"(
+      function bar(depth) {
+        if (depth == 0) {
+          YieldIsolate();
+        } else {
+          depth += bar(--depth);
+        }
+        return depth;
+      }
+      function foo() {
+        const startTime = Date.now();
+        let x = 0;
+        for (let i = 0; i < 1e6; i++) {
+          for (let j = 0; j < 100  ; j++) {
+            x = i * j;
+          }
+          bar(Math.trunc(10 * Math.random()));
+          if ((Date.now() - startTime) > 50) break;
+        }
+        return x;
+      }
+      foo();
+    )";
+
+  CompileRun(source);
+  profiler->StopProfiling(profile_name);
+  profiler->Dispose();
+}
+
+class UnlockingThread : public v8::base::Thread {
+ public:
+  explicit UnlockingThread(LocalContext* context)
+      : Thread(Options("UnlockingThread")), context_(context) {}
+
+  void Run() override {
+    v8::Isolate* isolate = context_->isolate();
+    v8::Locker locker(isolate);
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> context = context_->local();
+    v8::Context::Scope context_scope(context);
+    ProfileSomeUnlockingCode(isolate);
+  }
+
+ private:
+  LocalContext* context_;
+};
+
+// Checking for crashes with multiple thread/single Isolate profiling.
+TEST(MultipleThreadsSingleIsolate) {
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  {
+    v8::Locker locker(isolate);
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope scope(isolate);
+    LocalContext context(isolate);
+    context.AddGlobalFunction(
+        "YieldIsolate", [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+          v8::Unlocker(info.GetIsolate());
+        });
+    UnlockingThread thread1(&context);
+    UnlockingThread thread2(&context);
+
+    CHECK(thread1.Start());
+    CHECK(thread2.Start());
+
+    // For good measure, profile on our own thread
+    ProfileSomeUnlockingCode(isolate);
+
+    {
+      v8::Unlocker unlocker(isolate);
+      thread1.Join();
+      thread2.Join();
+    }
+  }
+  isolate->Dispose();
+}
+
 // Tests that StopProfiling doesn't wait for the next sample tick in order to
 // stop, but rather exits early before a given wait threshold.
 TEST(FastStopProfiling) {

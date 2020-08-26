@@ -11,6 +11,7 @@
 #include "src/base/template-utils.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
+#include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/libsampler/sampler.h"
 #include "src/logging/counters.h"
@@ -28,12 +29,16 @@ class CpuSampler : public sampler::Sampler {
  public:
   CpuSampler(Isolate* isolate, SamplingEventsProcessor* processor)
       : sampler::Sampler(reinterpret_cast<v8::Isolate*>(isolate)),
-        processor_(processor) {}
+        processor_(processor),
+        threadId_(ThreadId::Current()) {}
 
   void SampleStack(const v8::RegisterState& regs) override {
+    Isolate* isolate = reinterpret_cast<Isolate*>(this->isolate());
+    if (v8::Locker::IsActive() &&
+        !isolate->thread_manager()->IsLockedByThread(threadId_))
+      return;
     TickSample* sample = processor_->StartTickSample();
     if (sample == nullptr) return;
-    Isolate* isolate = reinterpret_cast<Isolate*>(this->isolate());
     sample->Init(isolate, regs, TickSample::kIncludeCEntryFrame,
                  /* update_stats */ true,
                  /* use_simulator_reg_state */ true, processor_->period());
@@ -46,6 +51,7 @@ class CpuSampler : public sampler::Sampler {
 
  private:
   SamplingEventsProcessor* processor_;
+  ThreadId threadId_;
 };
 
 ProfilingScope::ProfilingScope(Isolate* isolate, ProfilerListener* listener)

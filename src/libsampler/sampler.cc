@@ -238,7 +238,6 @@ void SamplerManager::DoSample(const v8::RegisterState& state) {
     Isolate* isolate = sampler->isolate();
     // We require a fully initialized and entered isolate.
     if (isolate == nullptr || !isolate->IsInUse()) continue;
-    if (v8::Locker::IsActive() && !Locker::IsLocked(isolate)) continue;
     sampler->SampleStack(state);
   }
 }
