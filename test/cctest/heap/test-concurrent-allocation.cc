@@ -8,10 +8,6 @@
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
-#include "src/codegen/assembler-inl.h"
-#include "src/codegen/assembler.h"
-#include "src/codegen/macro-assembler-inl.h"
-#include "src/codegen/macro-assembler.h"
 #include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/local-handles-inl.h"
@@ -290,8 +286,7 @@ UNINITIALIZED_TEST(ConcurrentWriteBarrier) {
     HandleScope handle_scope(i_isolate);
     Handle<FixedArray> fixed_array_handle(
         i_isolate->factory()->NewFixedArray(1));
-    Handle<HeapNumber> value_handle(
-        i_isolate->factory()->NewHeapNumber<AllocationType::kOld>(1.1));
+    Handle<HeapNumber> value_handle(i_isolate->factory()->NewHeapNumber(1.1));
     fixed_array = *fixed_array_handle;
     value = *value_handle;
   }
@@ -306,80 +301,6 @@ UNINITIALIZED_TEST(ConcurrentWriteBarrier) {
   thread->Join();
 
   CHECK(heap->incremental_marking()->marking_state()->IsBlackOrGrey(value));
-  heap::InvokeMarkSweep(i_isolate);
-
-  isolate->Dispose();
-}
-
-class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
- public:
-  explicit ConcurrentRecordRelocSlotThread(Heap* heap, Code code,
-                                           HeapObject value)
-      : v8::base::Thread(base::Thread::Options("ThreadWithLocalHeap")),
-        heap_(heap),
-        code_(code),
-        value_(value) {}
-
-  void Run() override {
-    LocalHeap local_heap(heap_);
-    int mode_mask = RelocInfo::EmbeddedObjectModeMask();
-    for (RelocIterator it(code_, mode_mask); !it.done(); it.next()) {
-      DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
-      it.rinfo()->set_target_object(heap_, value_);
-    }
-  }
-
-  Heap* heap_;
-  Code code_;
-  HeapObject value_;
-};
-
-UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
-  FLAG_manual_evacuation_candidates_selection = true;
-  ManualGCScope manual_gc_scope;
-  FLAG_concurrent_allocation = true;
-  FLAG_local_heaps = true;
-
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
-  Heap* heap = i_isolate->heap();
-
-  Code code;
-  HeapObject value;
-  {
-    HandleScope handle_scope(i_isolate);
-    i::byte buffer[i::Assembler::kDefaultBufferSize];
-    MacroAssembler masm(i_isolate, v8::internal::CodeObjectRequired::kYes,
-                        ExternalAssemblerBuffer(buffer, sizeof(buffer)));
-    masm.Push(ReadOnlyRoots(heap).undefined_value_handle());
-    CodeDesc desc;
-    masm.GetCode(i_isolate, &desc);
-    Handle<Code> code_handle =
-        Factory::CodeBuilder(i_isolate, desc, CodeKind::STUB).Build();
-    heap::AbandonCurrentlyFreeMemory(heap->old_space());
-    Handle<HeapNumber> value_handle(
-        i_isolate->factory()->NewHeapNumber<AllocationType::kOld>(1.1));
-    heap::ForceEvacuationCandidate(Page::FromHeapObject(*value_handle));
-    code = *code_handle;
-    value = *value_handle;
-  }
-  heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
-                                i::GarbageCollectionReason::kTesting);
-  CHECK(heap->incremental_marking()->marking_state()->IsWhite(value));
-
-  {
-    CodeSpaceMemoryModificationScope modification_scope(heap);
-    auto thread =
-        std::make_unique<ConcurrentRecordRelocSlotThread>(heap, code, value);
-    CHECK(thread->Start());
-
-    thread->Join();
-  }
-
-  CHECK(heap->incremental_marking()->marking_state()->IsBlackOrGrey(value));
-  heap::InvokeMarkSweep(i_isolate);
 
   isolate->Dispose();
 }

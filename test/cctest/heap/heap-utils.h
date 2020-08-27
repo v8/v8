@@ -66,9 +66,9 @@ void GcAndSweep(Heap* heap, AllocationSpace space);
 
 void ForceEvacuationCandidate(Page* page);
 
-void InvokeScavenge(Isolate* isolate = nullptr);
+void InvokeScavenge();
 
-void InvokeMarkSweep(Isolate* isolate = nullptr);
+void InvokeMarkSweep();
 
 template <typename GlobalOrPersistent>
 bool InYoungGeneration(v8::Isolate* isolate, const GlobalOrPersistent& global) {
