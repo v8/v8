@@ -2921,6 +2921,7 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
     // If we have a leading spread, use CreateArrayFromIterable to create
     // an array from it and then add the remaining components to that array.
     VisitForAccumulatorValue(*current);
+    builder()->SetExpressionPosition((*current)->AsSpread()->expression());
     builder()->CreateArrayFromIterable().StoreAccumulatorInRegister(array);
 
     if (++current != end) {
@@ -3021,6 +3022,7 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
       builder()->SetExpressionAsStatementPosition(
           subexpr->AsSpread()->expression());
       VisitForAccumulatorValue(subexpr->AsSpread()->expression());
+      builder()->SetExpressionPosition(subexpr->AsSpread()->expression());
       IteratorRecord iterator = BuildGetIteratorRecord(IteratorType::kNormal);
 
       Register value = register_allocator()->NewRegister();
