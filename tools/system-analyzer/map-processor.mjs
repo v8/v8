@@ -337,7 +337,7 @@ class MapLogEvent extends Event {
 
   position(chunks) {
     let index = this.chunkIndex(chunks);
-    let xFrom = (index + 0.5) * kChunkWidth;
+    let xFrom = (index + 1.5) * kChunkWidth;
     let yFrom = kChunkHeight - chunks[index].yOffset(this);
     return [xFrom, yFrom];
   }
