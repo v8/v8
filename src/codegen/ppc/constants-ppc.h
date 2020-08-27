@@ -2342,7 +2342,9 @@ using Instr = uint32_t;
   /* Vector Average Unsigned Byte */                       \
   V(vavgub, VAVGUB, 0x10000402)                            \
   /* Vector Average Unsigned Halfword */                   \
-  V(vavguh, VAVGUH, 0x10000442)
+  V(vavguh, VAVGUH, 0x10000442)                            \
+  /* Vector Logical AND with Complement */                 \
+  V(vandc, VANDC, 0x10000444)
 
 #define PPC_VX_OPCODE_C_FORM_LIST(V)       \
   /* Vector Unpack Low Signed Halfword */  \
@@ -2373,8 +2375,6 @@ using Instr = uint32_t;
   V(vadduqm, VADDUQM, 0x10000100)                                         \
   /* Vector Add Unsigned Word Saturate */                                 \
   V(vadduws, VADDUWS, 0x10000280)                                         \
-  /* Vector Logical AND with Complement */                                \
-  V(vandc, VANDC, 0x10000444)                                             \
   /* Vector Average Signed Byte */                                        \
   V(vavgsb, VAVGSB, 0x10000502)                                           \
   /* Vector Average Signed Halfword */                                    \

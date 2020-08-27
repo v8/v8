@@ -354,6 +354,7 @@ namespace compiler {
   V(PPC_S128Zero)                    \
   V(PPC_S128Not)                     \
   V(PPC_S128Select)                  \
+  V(PPC_S128AndNot)                  \
   V(PPC_StoreCompressTagged)         \
   V(PPC_LoadDecompressTaggedSigned)  \
   V(PPC_LoadDecompressTaggedPointer) \

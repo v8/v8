@@ -2222,10 +2222,11 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16AddSaturateU)     \
   V(I8x16SubSaturateU)     \
   V(I8x16RoundingAverageU) \
+  V(S8x16Swizzle)          \
   V(S128And)               \
   V(S128Or)                \
   V(S128Xor)               \
-  V(S8x16Swizzle)
+  V(S128AndNot)
 
 #define SIMD_UNOP_LIST(V)   \
   V(F64x2Abs)               \
@@ -2399,8 +2400,6 @@ void InstructionSelector::VisitS128Select(Node* node) {
 }
 
 void InstructionSelector::VisitS128Const(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitS128AndNot(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16BitMask(Node* node) { UNIMPLEMENTED(); }
 

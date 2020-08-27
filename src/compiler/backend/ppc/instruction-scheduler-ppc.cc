@@ -277,6 +277,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_S128Zero:
     case kPPC_S128Not:
     case kPPC_S128Select:
+    case kPPC_S128AndNot:
       return kNoOpcodeFlags;
 
     case kPPC_LoadWordS8:
