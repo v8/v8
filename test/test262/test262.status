@@ -453,6 +453,9 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7472
   'intl402/NumberFormat/currency-digits': [FAIL],
 
+  # http://crbug/v8/10844
+  'intl402/NumberFormat/dft-currency-mnfd-range-check-mxfd': [FAIL],
+
   # http://crbug/v8/10836
   'intl402/DateTimeFormat/constructor-options-order-fractionalSecondDigits': [FAIL],
 
