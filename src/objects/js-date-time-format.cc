@@ -568,8 +568,8 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
   //    [[Hour]]             "hour"
   //    [[Minute]]           "minute"
   //    [[Second]]           "second"
-  //    [[TimeZoneName]]     "timeZoneName"
   //    [[FractionalSecondDigits]]     "fractionalSecondDigits"
+  //    [[TimeZoneName]]     "timeZoneName"
   Maybe<bool> maybe_create_locale = JSReceiver::CreateDataProperty(
       isolate, options, factory->locale_string(), locale, Just(kDontThrow));
   DCHECK(maybe_create_locale.FromJust());
@@ -636,6 +636,18 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
   if (date_time_format->date_style() == DateTimeStyle::kUndefined &&
       date_time_format->time_style() == DateTimeStyle::kUndefined) {
     for (const auto& item : GetPatternItems()) {
+      // fractionalSecondsDigits need to be added before timeZoneName
+      if (item.property == "timeZoneName") {
+        int fsd = FractionalSecondDigitsFromPattern(pattern);
+        if (fsd > 0) {
+          Maybe<bool> maybe_create_fractional_seconds_digits =
+              JSReceiver::CreateDataProperty(
+                  isolate, options, factory->fractionalSecondDigits_string(),
+                  factory->NewNumberFromInt(fsd), Just(kDontThrow));
+          DCHECK(maybe_create_fractional_seconds_digits.FromJust());
+          USE(maybe_create_fractional_seconds_digits);
+        }
+      }
       for (const auto& pair : item.pairs) {
         if (pattern.find(pair.pattern) != std::string::npos) {
           Maybe<bool> maybe_create_property = JSReceiver::CreateDataProperty(
@@ -648,15 +660,6 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
           break;
         }
       }
-    }
-    int fsd = FractionalSecondDigitsFromPattern(pattern);
-    if (fsd > 0) {
-      Maybe<bool> maybe_create_fractional_seconds_digits =
-          JSReceiver::CreateDataProperty(
-              isolate, options, factory->fractionalSecondDigits_string(),
-              factory->NewNumberFromInt(fsd), Just(kDontThrow));
-      DCHECK(maybe_create_fractional_seconds_digits.FromJust());
-      USE(maybe_create_fractional_seconds_digits);
     }
   }
 
@@ -1653,6 +1656,19 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   bool has_hour_option = false;
   std::string skeleton;
   for (const PatternData& item : GetPatternData(hc)) {
+    // Need to read fractionalSecondDigits before reading the timeZoneName
+    if (item.property == "timeZoneName") {
+      // Let _value_ be ? GetNumberOption(options, "fractionalSecondDigits", 1,
+      // 3, *undefined*). The *undefined* is represented by value 0 here.
+      Maybe<int> maybe_fsd = Intl::GetNumberOption(
+          isolate, options, factory->fractionalSecondDigits_string(), 1, 3, 0);
+      MAYBE_RETURN(maybe_fsd, MaybeHandle<JSDateTimeFormat>());
+      // Convert fractionalSecondDigits to skeleton.
+      int fsd = maybe_fsd.FromJust();
+      for (int i = 0; i < fsd; i++) {
+        skeleton += "S";
+      }
+    }
     std::unique_ptr<char[]> input;
     // i. Let prop be the name given in the Property column of the row.
     // ii. Let value be ? GetOption(options, prop, "string", « the strings
@@ -1669,16 +1685,6 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
       // iii. Set opt.[[<prop>]] to value.
       skeleton += item.map.find(input.get())->second;
     }
-  }
-  // Let _value_ be ? GetNumberOption(options, "fractionalSecondDigits", 1, 3,
-  // *undefined*). The *undefined* is represented by value 0 here.
-  Maybe<int> maybe_fsd = Intl::GetNumberOption(
-      isolate, options, factory->fractionalSecondDigits_string(), 1, 3, 0);
-  MAYBE_RETURN(maybe_fsd, MaybeHandle<JSDateTimeFormat>());
-  // Convert fractionalSecondDigits to skeleton.
-  int fsd = maybe_fsd.FromJust();
-  for (int i = 0; i < fsd; i++) {
-    skeleton += "S";
   }
 
   // 29. Let matcher be ? GetOption(options, "formatMatcher", "string", «
