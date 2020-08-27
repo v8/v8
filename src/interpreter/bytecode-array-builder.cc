@@ -830,6 +830,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedProperty(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedPropertyFromSuper(
+    Register object, const AstRawString* name) {
+  size_t name_index = GetConstantPoolEntry(name);
+  OutputLdaNamedPropertyFromSuper(object, name_index);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedPropertyNoFeedback(
     Register object, const AstRawString* name) {
   size_t name_index = GetConstantPoolEntry(name);

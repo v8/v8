@@ -315,6 +315,13 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
   }
 }
 
+void JSGenericLowering::LowerJSLoadNamedFromSuper(Node* node) {
+  JSLoadNamedFromSuperNode n(node);
+  NamedAccess const& p = n.Parameters();
+  node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.name()));
+  ReplaceWithRuntimeCall(node, Runtime::kLoadFromSuper);
+}
+
 void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
   JSLoadGlobalNode n(node);
   const LoadGlobalParameters& p = n.Parameters();

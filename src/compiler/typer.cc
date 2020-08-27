@@ -1307,6 +1307,10 @@ Type Typer::Visitor::TypeJSLoadProperty(Node* node) {
 
 Type Typer::Visitor::TypeJSLoadNamed(Node* node) { return Type::NonInternal(); }
 
+Type Typer::Visitor::TypeJSLoadNamedFromSuper(Node* node) {
+  return Type::NonInternal();
+}
+
 Type Typer::Visitor::TypeJSLoadGlobal(Node* node) {
   return Type::NonInternal();
 }

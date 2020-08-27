@@ -1996,6 +1996,20 @@ void BytecodeGraphBuilder::VisitLdaNamedPropertyNoFeedback() {
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
+void BytecodeGraphBuilder::VisitLdaNamedPropertyFromSuper() {
+  PrepareEagerCheckpoint();
+  Node* receiver =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* home_object = environment()->LookupAccumulator();
+  NameRef name(broker(),
+               bytecode_iterator().GetConstantForIndexOperand(1, isolate()));
+  const Operator* op = javascript()->LoadNamedFromSuper(name.object());
+  // TODO(marja, v8:9237): Use lowering.
+
+  Node* node = NewNode(op, receiver, home_object);
+  environment()->BindAccumulator(node, Environment::kAttachFrameState);
+}
+
 void BytecodeGraphBuilder::VisitLdaKeyedProperty() {
   PrepareEagerCheckpoint();
   Node* key = environment()->LookupAccumulator();

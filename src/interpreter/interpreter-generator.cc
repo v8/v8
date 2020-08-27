@@ -539,15 +539,32 @@ IGNITION_HANDLER(LdaNamedProperty, InterpreterAssembler) {
   }
 }
 
-// LdaNamedPropertyNoFeedback <object> <name>
+// LdaNamedPropertyNoFeedback <object> <name_index>
 //
-// Calls the GetProperty builtin for <object> and the key <name>.
+// Calls the GetProperty builtin for <object> and the name at
+// constant pool entry <name_index>.
 IGNITION_HANDLER(LdaNamedPropertyNoFeedback, InterpreterAssembler) {
   TNode<Object> object = LoadRegisterAtOperandIndex(0);
   TNode<Name> name = CAST(LoadConstantPoolEntryAtOperandIndex(1));
   TNode<Context> context = GetContext();
   TNode<Object> result =
       CallBuiltin(Builtins::kGetProperty, context, object, name);
+  SetAccumulator(result);
+  Dispatch();
+}
+
+// LdaNamedPropertyFromSuper <receiver> <name_index>
+//
+// Calls the LoadFromSuper runtime function for <receiver>, home object (in the
+// accumulator) and the name at constant pool entry <name_index>.
+IGNITION_HANDLER(LdaNamedPropertyFromSuper, InterpreterAssembler) {
+  TNode<Object> receiver = LoadRegisterAtOperandIndex(0);
+  TNode<Object> home_object = GetAccumulator();
+  TNode<Object> name = LoadConstantPoolEntryAtOperandIndex(1);
+  TNode<Context> context = GetContext();
+
+  TNode<Object> result = CallRuntime(Runtime::kLoadFromSuper, context, receiver,
+                                     home_object, name);
   SetAccumulator(result);
   Dispatch();
 }

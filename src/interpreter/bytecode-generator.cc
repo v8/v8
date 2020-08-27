@@ -4718,19 +4718,32 @@ void BytecodeGenerator::VisitNamedSuperPropertyLoad(Property* property,
   RegisterAllocationScope register_scope(this);
   SuperPropertyReference* super_property =
       property->obj()->AsSuperPropertyReference();
-  RegisterList args = register_allocator()->NewRegisterList(3);
-  BuildThisVariableLoad();
-  builder()->StoreAccumulatorInRegister(args[0]);
-  VisitForRegisterValue(super_property->home_object(), args[1]);
+  if (FLAG_super_ic) {
+    Register receiver = register_allocator()->NewRegister();
+    BuildThisVariableLoad();
+    builder()->StoreAccumulatorInRegister(receiver);
+    VisitForAccumulatorValue(super_property->home_object());
+    builder()->SetExpressionPosition(property);
+    builder()->LoadNamedPropertyFromSuper(
+        receiver, property->key()->AsLiteral()->AsRawPropertyName());
+    if (opt_receiver_out.is_valid()) {
+      builder()->MoveRegister(receiver, opt_receiver_out);
+    }
+  } else {
+    RegisterList args = register_allocator()->NewRegisterList(3);
+    BuildThisVariableLoad();
+    builder()->StoreAccumulatorInRegister(args[0]);
+    VisitForRegisterValue(super_property->home_object(), args[1]);
 
-  builder()->SetExpressionPosition(property);
-  builder()
-      ->LoadLiteral(property->key()->AsLiteral()->AsRawPropertyName())
-      .StoreAccumulatorInRegister(args[2])
-      .CallRuntime(Runtime::kLoadFromSuper, args);
+    builder()->SetExpressionPosition(property);
+    builder()
+        ->LoadLiteral(property->key()->AsLiteral()->AsRawPropertyName())
+        .StoreAccumulatorInRegister(args[2])
+        .CallRuntime(Runtime::kLoadFromSuper, args);
 
-  if (opt_receiver_out.is_valid()) {
-    builder()->MoveRegister(args[0], opt_receiver_out);
+    if (opt_receiver_out.is_valid()) {
+      builder()->MoveRegister(args[0], opt_receiver_out);
+    }
   }
 }
 
