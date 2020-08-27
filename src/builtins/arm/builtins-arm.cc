@@ -532,6 +532,13 @@ constexpr int kPushedStackSpace = kNumCalleeSaved * kPointerSize +
                                   4 * kPointerSize /* r5, r6, r7, scratch */ +
                                   EntryFrameConstants::kCallerFPOffset;
 
+// Assert that the EntryFrameConstants are in sync with the builtin.
+static_assert(kPushedStackSpace == EntryFrameConstants::kDirectCallerSPOffset +
+                                       3 * kPointerSize /* r5, r6, r7*/ +
+                                       EntryFrameConstants::kCallerFPOffset,
+              "Pushed stack space and frame constants do not match. See "
+              "frame-constants-arm.h");
+
 // Called with the native C calling convention. The corresponding function
 // signature is either:
 //

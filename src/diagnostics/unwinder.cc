@@ -68,7 +68,7 @@ i::Address Load(i::Address address) {
 void* GetReturnAddressFromFP(void* fp, void* pc,
                              const JSEntryStubs& entry_stubs) {
   int caller_pc_offset = i::CommonFrameConstants::kCallerPCOffset;
-#ifdef V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
   if (IsInJSEntryRange(entry_stubs, pc)) {
     caller_pc_offset = i::EntryFrameConstants::kDirectCallerPCOffset;
   }
@@ -80,7 +80,7 @@ void* GetReturnAddressFromFP(void* fp, void* pc,
 
 void* GetCallerFPFromFP(void* fp, void* pc, const JSEntryStubs& entry_stubs) {
   int caller_fp_offset = i::CommonFrameConstants::kCallerFPOffset;
-#ifdef V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
   if (IsInJSEntryRange(entry_stubs, pc)) {
     caller_fp_offset = i::EntryFrameConstants::kDirectCallerFPOffset;
   }
@@ -91,7 +91,7 @@ void* GetCallerFPFromFP(void* fp, void* pc, const JSEntryStubs& entry_stubs) {
 
 void* GetCallerSPFromFP(void* fp, void* pc, const JSEntryStubs& entry_stubs) {
   int caller_sp_offset = i::CommonFrameConstants::kCallerSPOffset;
-#ifdef V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
   if (IsInJSEntryRange(entry_stubs, pc)) {
     caller_sp_offset = i::EntryFrameConstants::kDirectCallerSPOffset;
   }
