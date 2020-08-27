@@ -318,14 +318,6 @@ TNode<IntPtrT> CodeStubAssembler::IntPtrRoundUpToPowerOfTwo32(
   return Signed(IntPtrAdd(value, IntPtrConstant(1)));
 }
 
-Node* CodeStubAssembler::MatchesParameterMode(Node* value, ParameterMode mode) {
-  if (mode == SMI_PARAMETERS) {
-    return TaggedIsSmi(value);
-  } else {
-    return Int32Constant(1);
-  }
-}
-
 TNode<BoolT> CodeStubAssembler::WordIsPowerOfTwo(SloppyTNode<IntPtrT> value) {
   intptr_t constant;
   if (ToIntPtrConstant(value, &constant)) {
@@ -2700,13 +2692,15 @@ void CodeStubAssembler::StoreObjectFieldRoot(TNode<HeapObject> object,
   }
 }
 
+template <typename TIndex>
 void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
-    TNode<UnionT<FixedArray, PropertyArray>> object, Node* index_node,
-    TNode<Object> value, WriteBarrierMode barrier_mode, int additional_offset,
-    ParameterMode parameter_mode) {
-  CSA_SLOW_ASSERT(
-      this, Word32Or(IsFixedArraySubclass(object), IsPropertyArray(object)));
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
+    TNode<UnionT<FixedArray, PropertyArray>> object, TNode<TIndex> index_node,
+    TNode<Object> value, WriteBarrierMode barrier_mode, int additional_offset) {
+  // TODO(v8:9708): Do we want to keep both IntPtrT and UintPtrT variants?
+  static_assert(std::is_same<TIndex, Smi>::value ||
+                    std::is_same<TIndex, UintPtrT>::value ||
+                    std::is_same<TIndex, IntPtrT>::value,
+                "Only Smi, UintPtrT or IntPtrT index is allowed");
   DCHECK(barrier_mode == SKIP_WRITE_BARRIER ||
          barrier_mode == UNSAFE_SKIP_WRITE_BARRIER ||
          barrier_mode == UPDATE_WRITE_BARRIER ||
@@ -2716,8 +2710,8 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
                 static_cast<int>(PropertyArray::kHeaderSize));
   int header_size =
       FixedArray::kHeaderSize + additional_offset - kHeapObjectTag;
-  TNode<IntPtrT> offset = ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS,
-                                                 parameter_mode, header_size);
+  TNode<IntPtrT> offset =
+      ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS, header_size);
   STATIC_ASSERT(static_cast<int>(FixedArrayBase::kLengthOffset) ==
                 static_cast<int>(WeakFixedArray::kLengthOffset));
   STATIC_ASSERT(static_cast<int>(FixedArrayBase::kLengthOffset) ==
@@ -2752,6 +2746,21 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
     Store(object, offset, value);
   }
 }
+
+template V8_EXPORT_PRIVATE void
+CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement<Smi>(
+    TNode<UnionT<FixedArray, PropertyArray>>, TNode<Smi>, TNode<Object>,
+    WriteBarrierMode, int);
+
+template V8_EXPORT_PRIVATE void
+CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement<IntPtrT>(
+    TNode<UnionT<FixedArray, PropertyArray>>, TNode<IntPtrT>, TNode<Object>,
+    WriteBarrierMode, int);
+
+template V8_EXPORT_PRIVATE void
+CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement<UintPtrT>(
+    TNode<UnionT<FixedArray, PropertyArray>>, TNode<UintPtrT>, TNode<Object>,
+    WriteBarrierMode, int);
 
 template <typename TIndex>
 void CodeStubAssembler::StoreFixedDoubleArrayElement(
@@ -9160,21 +9169,6 @@ TNode<Oddball> CodeStubAssembler::OrdinaryHasInstance(
 
   BIND(&return_result);
   return var_result.value();
-}
-
-TNode<IntPtrT> CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
-                                                         ElementsKind kind,
-                                                         ParameterMode mode,
-                                                         int base_size) {
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, mode));
-  if (mode == SMI_PARAMETERS) {
-    return ElementOffsetFromIndex(ReinterpretCast<Smi>(index_node), kind,
-                                  base_size);
-  } else {
-    DCHECK(mode == INTPTR_PARAMETERS);
-    return ElementOffsetFromIndex(ReinterpretCast<IntPtrT>(index_node), kind,
-                                  base_size);
-  }
 }
 
 template <typename TIndex>

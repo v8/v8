@@ -318,24 +318,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   using AllocationFlags = base::Flags<AllocationFlag>;
 
-  enum ParameterMode { SMI_PARAMETERS, INTPTR_PARAMETERS };
-
-  // On 32-bit platforms, there is a slight performance advantage to doing all
-  // of the array offset/index arithmetic with SMIs, since it's possible
-  // to save a few tag/untag operations without paying an extra expense when
-  // calculating array offset (the smi math can be folded away) and there are
-  // fewer live ranges. Thus only convert indices to untagged value on 64-bit
-  // platforms.
-  ParameterMode OptimalParameterMode() const {
-#if defined(BINT_IS_SMI)
-    return SMI_PARAMETERS;
-#elif defined(BINT_IS_INTPTR)
-    return INTPTR_PARAMETERS;
-#else
-#error Unknown BInt type.
-#endif
-  }
-
   TNode<IntPtrT> ParameterToIntPtr(TNode<Smi> value) { return SmiUntag(value); }
   TNode<IntPtrT> ParameterToIntPtr(TNode<IntPtrT> value) { return value; }
   TNode<IntPtrT> ParameterToIntPtr(TNode<UintPtrT> value) {
@@ -457,8 +439,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     GotoIfNot(IsJSFunctionWithPrototypeSlot(heap_object), fail);
     return CAST(heap_object);
   }
-
-  Node* MatchesParameterMode(Node* value, ParameterMode mode);
 
 #define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName)                    \
   TNode<Smi> OpName(TNode<Smi> a, TNode<Smi> b) { return SmiOpName(a, b); } \
@@ -1523,13 +1503,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                       std::is_same<TIndex, UintPtrT>::value ||
                       std::is_same<TIndex, IntPtrT>::value,
                   "Only Smi, UintPtrT or IntPtrT index is allowed");
-    const ParameterMode mode =
-        std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
     if (NeedsBoundsCheck(check_bounds)) {
       FixedArrayBoundsCheck(array, index, additional_offset);
     }
     StoreFixedArrayOrPropertyArrayElement(array, index, value, barrier_mode,
-                                          additional_offset, mode);
+                                          additional_offset);
   }
   // This doesn't emit a bounds-check. As part of the security-performance
   // tradeoff, only use it if it is performance critical.
@@ -1551,8 +1529,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void StorePropertyArrayElement(TNode<PropertyArray> array,
                                  TNode<IntPtrT> index, TNode<Object> value) {
-    StoreFixedArrayOrPropertyArrayElement(
-        array, index, value, UPDATE_WRITE_BARRIER, 0, INTPTR_PARAMETERS);
+    StoreFixedArrayOrPropertyArrayElement(array, index, value,
+                                          UPDATE_WRITE_BARRIER);
   }
 
   void StoreFixedArrayElement(
@@ -3347,9 +3325,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <typename TIndex>
   TNode<IntPtrT> ElementOffsetFromIndex(TNode<TIndex> index, ElementsKind kind,
                                         int base_size = 0);
-  // TODO(v8:9708): remove once all uses are ported.
-  TNode<IntPtrT> ElementOffsetFromIndex(Node* index, ElementsKind kind,
-                                        ParameterMode mode, int base_size = 0);
 
   // Check that a field offset is within the bounds of the an object.
   TNode<BoolT> IsOffsetInBounds(SloppyTNode<IntPtrT> offset,
@@ -3659,11 +3634,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CodeAssembler::LoadRoot(root_index);
   }
 
+  template <typename TIndex>
   void StoreFixedArrayOrPropertyArrayElement(
-      TNode<UnionT<FixedArray, PropertyArray>> array, Node* index,
+      TNode<UnionT<FixedArray, PropertyArray>> array, TNode<TIndex> index,
       TNode<Object> value, WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
-      int additional_offset = 0,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS);
+      int additional_offset = 0);
 };
 
 class V8_EXPORT_PRIVATE CodeStubArguments {
