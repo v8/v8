@@ -1965,10 +1965,8 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayElement(
   CSA_ASSERT(this, IsFixedArraySubclass(object));
   CSA_ASSERT(this, IsNotWeakFixedArraySubclass(object));
 
-  ParameterMode parameter_mode =
-      std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
   if (NeedsBoundsCheck(check_bounds)) {
-    FixedArrayBoundsCheck(object, index, additional_offset, parameter_mode);
+    FixedArrayBoundsCheck(object, index, additional_offset);
   }
   TNode<MaybeObject> element =
       LoadArrayElement(object, FixedArray::kHeaderSize, index,
@@ -1991,33 +1989,33 @@ CodeStubAssembler::LoadFixedArrayElement<IntPtrT>(TNode<FixedArray>,
                                                   LoadSensitivity, CheckBounds);
 
 void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
-                                              Node* index,
-                                              int additional_offset,
-                                              ParameterMode parameter_mode) {
+                                              TNode<Smi> index,
+                                              int additional_offset) {
   if (!FLAG_fixed_array_bounds_checks) return;
   DCHECK(IsAligned(additional_offset, kTaggedSize));
-  if (parameter_mode == ParameterMode::SMI_PARAMETERS) {
-    TNode<Smi> effective_index;
-    Smi constant_index;
-    bool index_is_constant = ToSmiConstant(index, &constant_index);
-    if (index_is_constant) {
-      effective_index = SmiConstant(Smi::ToInt(constant_index) +
-                                    additional_offset / kTaggedSize);
-    } else if (additional_offset != 0) {
-      effective_index =
-          SmiAdd(CAST(index), SmiConstant(additional_offset / kTaggedSize));
-    } else {
-      effective_index = CAST(index);
-    }
-    CSA_CHECK(this, SmiBelow(effective_index, LoadFixedArrayBaseLength(array)));
+  TNode<Smi> effective_index;
+  Smi constant_index;
+  bool index_is_constant = ToSmiConstant(index, &constant_index);
+  if (index_is_constant) {
+    effective_index = SmiConstant(Smi::ToInt(constant_index) +
+                                  additional_offset / kTaggedSize);
   } else {
-    // IntPtrAdd does constant-folding automatically.
-    TNode<IntPtrT> effective_index =
-        IntPtrAdd(UncheckedCast<IntPtrT>(index),
-                  IntPtrConstant(additional_offset / kTaggedSize));
-    CSA_CHECK(this, UintPtrLessThan(effective_index,
-                                    LoadAndUntagFixedArrayBaseLength(array)));
+    effective_index =
+        SmiAdd(index, SmiConstant(additional_offset / kTaggedSize));
   }
+  CSA_CHECK(this, SmiBelow(effective_index, LoadFixedArrayBaseLength(array)));
+}
+
+void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
+                                              TNode<IntPtrT> index,
+                                              int additional_offset) {
+  if (!FLAG_fixed_array_bounds_checks) return;
+  DCHECK(IsAligned(additional_offset, kTaggedSize));
+  // IntPtrAdd does constant-folding automatically.
+  TNode<IntPtrT> effective_index =
+      IntPtrAdd(index, IntPtrConstant(additional_offset / kTaggedSize));
+  CSA_CHECK(this, UintPtrLessThan(effective_index,
+                                  LoadAndUntagFixedArrayBaseLength(array)));
 }
 
 TNode<Object> CodeStubAssembler::LoadPropertyArrayElement(
@@ -2765,9 +2763,7 @@ void CodeStubAssembler::StoreFixedDoubleArrayElement(
                     std::is_same<TIndex, IntPtrT>::value,
                 "Only Smi, UintPtrT or IntPtrT index is allowed");
   if (NeedsBoundsCheck(check_bounds)) {
-    const ParameterMode mode =
-        std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
-    FixedArrayBoundsCheck(object, index, 0, mode);
+    FixedArrayBoundsCheck(object, index, 0);
   }
   TNode<IntPtrT> offset = ElementOffsetFromIndex(
       index, PACKED_DOUBLE_ELEMENTS, FixedArray::kHeaderSize - kHeapObjectTag);

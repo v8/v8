@@ -1271,9 +1271,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<MaybeObject> MakeWeak(TNode<HeapObject> value);
 
-  void FixedArrayBoundsCheck(TNode<FixedArrayBase> array, Node* index,
-                             int additional_offset = 0,
-                             ParameterMode parameter_mode = INTPTR_PARAMETERS);
+  void FixedArrayBoundsCheck(TNode<FixedArrayBase> array, TNode<Smi> index,
+                             int additional_offset);
+
+  void FixedArrayBoundsCheck(TNode<FixedArrayBase> array, TNode<IntPtrT> index,
+                             int additional_offset);
+
+  void FixedArrayBoundsCheck(TNode<FixedArrayBase> array, TNode<UintPtrT> index,
+                             int additional_offset) {
+    FixedArrayBoundsCheck(array, Signed(index), additional_offset);
+  }
 
   // Array is any array-like type that has a fixed header followed by
   // tagged elements.
@@ -1519,7 +1526,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     const ParameterMode mode =
         std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
     if (NeedsBoundsCheck(check_bounds)) {
-      FixedArrayBoundsCheck(array, index, additional_offset, mode);
+      FixedArrayBoundsCheck(array, index, additional_offset);
     }
     StoreFixedArrayOrPropertyArrayElement(array, index, value, barrier_mode,
                                           additional_offset, mode);
