@@ -1717,6 +1717,7 @@ void RecompileNativeModule(NativeModule* native_module,
   // Install a callback to notify us once background recompilation finished.
   auto recompilation_finished_semaphore = std::make_shared<base::Semaphore>(0);
   auto* compilation_state = Impl(native_module->compilation_state());
+
   // The callback captures a shared ptr to the semaphore.
   // Initialize the compilation units and kick off background compile tasks.
   compilation_state->InitializeRecompilation(
@@ -2843,8 +2844,19 @@ void CompilationStateImpl::InitializeRecompilation(
     CompilationState::callback_t recompilation_finished_callback) {
   DCHECK(!failed());
 
-  // Generate necessary compilation units on the fly.
-  CompilationUnitBuilder builder(native_module_);
+  // Hold the mutex as long as possible, to synchronize between multiple
+  // recompilations that are triggered at the same time (e.g. when the profiler
+  // is disabled).
+  base::Optional<base::MutexGuard> guard(&callbacks_mutex_);
+
+  while (NumOutstandingCompilations() > 0) {
+    // Take part in compilation, after releasing the mutex.
+    guard.reset();
+    constexpr JobDelegate* kNoDelegate = nullptr;
+    ExecuteCompilationUnits(background_compile_token_, async_counters_.get(),
+                            kNoDelegate, kBaselineOrTopTier);
+    guard.emplace(&callbacks_mutex_);
+  }
 
   // Information about compilation progress is shared between this class and the
   // NativeModule. Before updating information here, consult the NativeModule to
@@ -2856,48 +2868,44 @@ void CompilationStateImpl::InitializeRecompilation(
   std::vector<int> recompile_function_indexes =
       native_module_->FindFunctionsToRecompile(new_tiering_state);
 
-  {
-    base::MutexGuard guard(&callbacks_mutex_);
+  callbacks_.emplace_back(std::move(recompilation_finished_callback));
+  tiering_state_ = new_tiering_state;
 
-    callbacks_.emplace_back(std::move(recompilation_finished_callback));
-    tiering_state_ = new_tiering_state;
-
-    // If compilation progress is not initialized yet, then compilation didn't
-    // start yet, and new code will be kept tiered-down from the start. For
-    // streaming compilation, there is a special path to tier down later, when
-    // the module is complete. In any case, we don't need to recompile here.
-    if (compilation_progress_.size() > 0) {
-      const WasmModule* module = native_module_->module();
-      DCHECK_EQ(module->num_declared_functions, compilation_progress_.size());
-      DCHECK_GE(module->num_declared_functions,
-                recompile_function_indexes.size());
-      outstanding_recompilation_functions_ =
-          static_cast<int>(recompile_function_indexes.size());
-      // Restart recompilation if another recompilation is already happening.
-      for (auto& progress : compilation_progress_) {
-        progress = MissingRecompilationField::update(progress, false);
-      }
-      auto new_tier = new_tiering_state == kTieredDown
-                          ? ExecutionTier::kLiftoff
-                          : ExecutionTier::kTurbofan;
-      int imported = module->num_imported_functions;
-      for (int function_index : recompile_function_indexes) {
-        DCHECK_LE(imported, function_index);
-        int slot_index = function_index - imported;
-        auto& progress = compilation_progress_[slot_index];
-        progress = MissingRecompilationField::update(progress, true);
-        builder.AddRecompilationUnit(function_index, new_tier);
-      }
+  // If compilation progress is not initialized yet, then compilation didn't
+  // start yet, and new code will be kept tiered-down from the start. For
+  // streaming compilation, there is a special path to tier down later, when
+  // the module is complete. In any case, we don't need to recompile here.
+  if (compilation_progress_.size() > 0) {
+    const WasmModule* module = native_module_->module();
+    DCHECK_EQ(module->num_declared_functions, compilation_progress_.size());
+    DCHECK_GE(module->num_declared_functions,
+              recompile_function_indexes.size());
+    outstanding_recompilation_functions_ =
+        static_cast<int>(recompile_function_indexes.size());
+    // Restart recompilation if another recompilation is already happening.
+    for (auto& progress : compilation_progress_) {
+      progress = MissingRecompilationField::update(progress, false);
     }
-
-    // Trigger callback if module needs no recompilation.
-    if (outstanding_recompilation_functions_ == 0) {
-      TriggerCallbacks(base::EnumSet<CompilationEvent>(
-          {CompilationEvent::kFinishedRecompilation}));
+    auto new_tier = new_tiering_state == kTieredDown ? ExecutionTier::kLiftoff
+                                                     : ExecutionTier::kTurbofan;
+    int imported = module->num_imported_functions;
+    // Generate necessary compilation units on the fly.
+    CompilationUnitBuilder builder(native_module_);
+    for (int function_index : recompile_function_indexes) {
+      DCHECK_LE(imported, function_index);
+      int slot_index = function_index - imported;
+      auto& progress = compilation_progress_[slot_index];
+      progress = MissingRecompilationField::update(progress, true);
+      builder.AddRecompilationUnit(function_index, new_tier);
     }
+    builder.Commit();
   }
 
-  builder.Commit();
+  // Trigger callback if module needs no recompilation.
+  if (outstanding_recompilation_functions_ == 0) {
+    TriggerCallbacks(base::EnumSet<CompilationEvent>(
+        {CompilationEvent::kFinishedRecompilation}));
+  }
 }
 
 void CompilationStateImpl::AddCallback(CompilationState::callback_t callback) {
