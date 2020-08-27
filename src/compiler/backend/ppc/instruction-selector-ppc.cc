@@ -2402,6 +2402,12 @@ void InstructionSelector::VisitS128Const(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS128AndNot(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitI8x16BitMask(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI16x8BitMask(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI32x4BitMask(Node* node) { UNIMPLEMENTED(); }
+
 void InstructionSelector::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,
     Node* node) {
