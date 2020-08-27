@@ -157,7 +157,9 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
 
     positionToTime(posX) {
       let rect = this.timeline.getBoundingClientRect();
-      let posClickedX = posX - rect.left + this.timeline.scrollLeft;
+      let timeStartOffset = this.data.startTime * this.#timeToPixel;
+      let posClickedX =
+        posX - rect.left + this.timeline.scrollLeft + timeStartOffset;
       let selectedTime = posClickedX / this.#timeToPixel;
       return selectedTime;
     }

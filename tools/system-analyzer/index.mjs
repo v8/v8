@@ -106,7 +106,12 @@ class App {
     console.log("source positions: ", sourcePositions);
   }
   handleFileUpload(e) {
+    this.restartApp();
     $("#container").className = "initial";
+  }
+  restartApp() {
+    this.#state = new State();
+    this.#navigation = new Navigation(this.#state, this.#view);
   }
   // Map event log processing
   handleLoadTextMapProcessor(text) {
