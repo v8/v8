@@ -811,6 +811,11 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
         std::make_unique<WasmCode*[]>(module_->num_declared_functions);
     num_liftoff_function_calls_ =
         std::make_unique<uint32_t[]>(module_->num_declared_functions);
+
+    // Start counter at 4 to avoid runtime calls for smaller numbers.
+    constexpr int kCounterStart = 4;
+    std::fill_n(num_liftoff_function_calls_.get(),
+                module_->num_declared_functions, kCounterStart);
   }
   code_allocator_.Init(this);
 }

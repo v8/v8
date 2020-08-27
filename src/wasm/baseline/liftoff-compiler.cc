@@ -637,21 +637,24 @@ class LiftoffCompiler {
           kInt32Size * declared_function_index(env_->module, func_index_);
 
       // Get the number of calls and update it.
-      LiftoffRegister number_of_calls =
+      LiftoffRegister old_number_of_calls =
           pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      __ Load(number_of_calls, array_address.gp(), no_reg, offset,
+      LiftoffRegister new_number_of_calls =
+          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      __ Load(old_number_of_calls, array_address.gp(), no_reg, offset,
               LoadType::kI32Load, pinned);
-      __ emit_i32_addi(number_of_calls.gp(), number_of_calls.gp(), 1);
-      __ Store(array_address.gp(), no_reg, offset, number_of_calls,
+      __ emit_i32_addi(new_number_of_calls.gp(), old_number_of_calls.gp(), 1);
+      __ Store(array_address.gp(), no_reg, offset, new_number_of_calls,
                StoreType::kI32Store, pinned);
 
       // Emit the runtime call if necessary.
       Label no_tierup;
-      constexpr int kTierUpLimit = 5;
-      __ emit_i32_addi(number_of_calls.gp(), number_of_calls.gp(),
-                       -kTierUpLimit);
+      // Check if the number of calls is a power of 2.
+      __ emit_i32_and(old_number_of_calls.gp(), old_number_of_calls.gp(),
+                      new_number_of_calls.gp());
       // Unary "unequal" means "different from zero".
-      __ emit_cond_jump(kUnequal, &no_tierup, kWasmI32, number_of_calls.gp());
+      __ emit_cond_jump(kUnequal, &no_tierup, kWasmI32,
+                        old_number_of_calls.gp());
       TierUpFunction(decoder);
       __ bind(&no_tierup);
     }

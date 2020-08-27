@@ -190,13 +190,20 @@ enum CompileBaselineOnly : bool {
 // runs empty.
 class CompilationUnitQueues {
  public:
-  explicit CompilationUnitQueues(int max_tasks) : queues_(max_tasks) {
+  explicit CompilationUnitQueues(int max_tasks, int num_declared_functions)
+      : queues_(max_tasks), top_tier_priority_units_queues_(max_tasks) {
     DCHECK_LT(0, max_tasks);
     for (int task_id = 0; task_id < max_tasks; ++task_id) {
       queues_[task_id].next_steal_task_id = next_task_id(task_id);
     }
     for (auto& atomic_counter : num_units_) {
       std::atomic_init(&atomic_counter, size_t{0});
+    }
+
+    treated_ = std::make_unique<std::atomic<bool>[]>(num_declared_functions);
+
+    for (int i = 0; i < num_declared_functions; i++) {
+      std::atomic_init(&treated_.get()[i], false);
     }
   }
 
@@ -257,6 +264,25 @@ class CompilationUnitQueues {
     }
   }
 
+  void AddTopTierPriorityUnit(WasmCompilationUnit unit, size_t priority) {
+    // Add to the individual queues in a round-robin fashion. No special care is
+    // taken to balance them; they will be balanced by work stealing. We use
+    // the same counter for this reason.
+    int queue_to_add = next_queue_to_add.load(std::memory_order_relaxed);
+    while (!next_queue_to_add.compare_exchange_weak(
+        queue_to_add, next_task_id(queue_to_add), std::memory_order_relaxed)) {
+      // Retry with updated {queue_to_add}.
+    }
+
+    TopTierPriorityUnitsQueue* queue =
+        &top_tier_priority_units_queues_[queue_to_add];
+    base::MutexGuard guard(&queue->mutex);
+
+    num_priority_units_.fetch_add(1, std::memory_order_relaxed);
+    num_units_[kTopTier].fetch_add(1, std::memory_order_relaxed);
+    queue->units.emplace(priority, unit);
+  }
+
   // Get the current total number of units in all queues. This is only a
   // momentary snapshot, it's not guaranteed that {GetNextUnit} returns a unit
   // if this method returns non-zero.
@@ -299,6 +325,18 @@ class CompilationUnitQueues {
     }
   };
 
+  struct TopTierPriorityUnit {
+    TopTierPriorityUnit(int priority, WasmCompilationUnit unit)
+        : priority(priority), unit(unit) {}
+
+    size_t priority;
+    WasmCompilationUnit unit;
+
+    bool operator<(const TopTierPriorityUnit& other) const {
+      return priority < other.priority;
+    }
+  };
+
   struct BigUnitsQueue {
     BigUnitsQueue() {
       for (auto& atomic : has_units) std::atomic_init(&atomic, false);
@@ -313,10 +351,23 @@ class CompilationUnitQueues {
     std::priority_queue<BigUnit> units[kNumTiers];
   };
 
+  struct TopTierPriorityUnitsQueue {
+    base::Mutex mutex;
+
+    // Protected by {mutex}:
+    std::priority_queue<TopTierPriorityUnit> units;
+    int next_steal_task_id;
+    // End of fields protected by {mutex}.
+  };
+
   std::vector<Queue> queues_;
   BigUnitsQueue big_units_queue_;
 
+  std::vector<TopTierPriorityUnitsQueue> top_tier_priority_units_queues_;
+
   std::atomic<size_t> num_units_[kNumTiers];
+  std::atomic<size_t> num_priority_units_{0};
+  std::unique_ptr<std::atomic<bool>[]> treated_;
   std::atomic<int> next_queue_to_add{0};
 
   int next_task_id(int task_id) const {
@@ -333,10 +384,19 @@ class CompilationUnitQueues {
 
   base::Optional<WasmCompilationUnit> GetNextUnitOfTier(int task_id, int tier) {
     Queue* queue = &queues_[task_id];
-    // First check whether there is a big unit of that tier. Execute that first.
+
+    // First check whether there is a priority unit. Execute that
+    // first.
+    if (tier == kTopTier) {
+      if (auto unit = GetTopTierPriorityUnit(task_id)) {
+        return unit;
+      }
+    }
+
+    // Then check whether there is a big unit of that tier.
     if (auto unit = GetBigUnitOfTier(tier)) return unit;
 
-    // Then check whether our own queue has a unit of the wanted tier. If
+    // Finally check whether our own queue has a unit of the wanted tier. If
     // so, return it, otherwise get the task id to steal from.
     int steal_task_id;
     {
@@ -379,6 +439,46 @@ class CompilationUnitQueues {
     return unit;
   }
 
+  base::Optional<WasmCompilationUnit> GetTopTierPriorityUnit(int task_id) {
+    // Fast-path without locking.
+    if (num_priority_units_.load(std::memory_order_relaxed) == 0) {
+      return {};
+    }
+
+    TopTierPriorityUnitsQueue* queue =
+        &top_tier_priority_units_queues_[task_id];
+
+    int steal_task_id;
+    {
+      base::MutexGuard mutex_guard(&queue->mutex);
+      while (!queue->units.empty()) {
+        auto unit = queue->units.top().unit;
+        queue->units.pop();
+        num_priority_units_.fetch_sub(1, std::memory_order_relaxed);
+
+        if (!treated_[unit.func_index()].exchange(true,
+                                                  std::memory_order_relaxed)) {
+          return unit;
+        }
+        num_units_[kTopTier].fetch_sub(1, std::memory_order_relaxed);
+      }
+      steal_task_id = queue->next_steal_task_id;
+    }
+
+    // Try to steal from all other queues. If this succeeds, return one of the
+    // stolen units.
+    size_t steal_trials = queues_.size();
+    for (; steal_trials > 0;
+         --steal_trials, steal_task_id = next_task_id(steal_task_id)) {
+      if (steal_task_id == task_id) continue;
+      if (auto unit = StealTopTierPriorityUnit(task_id, steal_task_id)) {
+        return unit;
+      }
+    }
+
+    return {};
+  }
+
   // Steal units of {wanted_tier} from {steal_from_task_id} to {task_id}. Return
   // first stolen unit (rest put in queue of {task_id}), or {nullopt} if
   // {steal_from_task_id} had no units of {wanted_tier}.
@@ -402,6 +502,39 @@ class CompilationUnitQueues {
     base::MutexGuard guard(&queue->mutex);
     auto* target_queue = &queue->units[wanted_tier];
     target_queue->insert(target_queue->end(), stolen.begin(), stolen.end());
+    queue->next_steal_task_id = next_task_id(steal_from_task_id);
+    return returned_unit;
+  }
+
+  // Steal one priority unit from {steal_from_task_id} to {task_id}. Return
+  // stolen unit, or {nullopt} if {steal_from_task_id} had no priority units.
+  base::Optional<WasmCompilationUnit> StealTopTierPriorityUnit(
+      int task_id, int steal_from_task_id) {
+    DCHECK_NE(task_id, steal_from_task_id);
+
+    base::Optional<WasmCompilationUnit> returned_unit;
+    {
+      TopTierPriorityUnitsQueue* steal_queue =
+          &top_tier_priority_units_queues_[steal_from_task_id];
+      base::MutexGuard guard(&steal_queue->mutex);
+      while (true) {
+        if (steal_queue->units.empty()) return {};
+
+        auto unit = steal_queue->units.top().unit;
+        steal_queue->units.pop();
+        num_priority_units_.fetch_sub(1, std::memory_order_relaxed);
+
+        if (!treated_[unit.func_index()].exchange(true,
+                                                  std::memory_order_relaxed)) {
+          returned_unit = unit;
+          break;
+        }
+        num_units_[kTopTier].fetch_sub(1, std::memory_order_relaxed);
+      }
+    }
+    TopTierPriorityUnitsQueue* queue =
+        &top_tier_priority_units_queues_[task_id];
+    base::MutexGuard guard(&queue->mutex);
     queue->next_steal_task_id = next_task_id(steal_from_task_id);
     return returned_unit;
   }
@@ -483,6 +616,7 @@ class CompilationStateImpl {
       Vector<std::shared_ptr<JSToWasmWrapperCompilationUnit>>
           js_to_wasm_wrapper_units);
   void AddTopTierCompilationUnit(WasmCompilationUnit);
+  void AddTopTierPriorityCompilationUnit(WasmCompilationUnit, size_t);
   base::Optional<WasmCompilationUnit> GetNextCompilationUnit(
       int task_id, CompileBaselineOnly baseline_only);
 
@@ -1054,7 +1188,14 @@ void TriggerTierUp(Isolate* isolate, NativeModule* native_module,
       Impl(native_module->compilation_state());
   WasmCompilationUnit tiering_unit{func_index, ExecutionTier::kTurbofan,
                                    kNoDebugging};
-  compilation_state->AddTopTierCompilationUnit(tiering_unit);
+
+  uint32_t* call_array = native_module->num_liftoff_function_calls_array();
+  int offset =
+      wasm::declared_function_index(native_module->module(), func_index);
+
+  size_t priority =
+      base::Relaxed_Load(reinterpret_cast<int*>(&call_array[offset]));
+  compilation_state->AddTopTierPriorityCompilationUnit(tiering_unit, priority);
 }
 
 namespace {
@@ -2604,7 +2745,8 @@ CompilationStateImpl::CompilationStateImpl(
       max_compile_concurrency_(std::max(GetMaxCompileConcurrency(), 1)),
       // Add one to the allowed number of parallel tasks, because the foreground
       // task sometimes also contributes.
-      compilation_unit_queues_(max_compile_concurrency_ + 1),
+      compilation_unit_queues_(max_compile_concurrency_ + 1,
+                               native_module->num_functions()),
       available_task_ids_(max_compile_concurrency_ + 1) {
   for (int i = 0; i <= max_compile_concurrency_; ++i) {
     // Ids are popped on task creation, so reverse this list. This ensures that
@@ -2796,6 +2938,12 @@ void CompilationStateImpl::AddCompilationUnits(
 
 void CompilationStateImpl::AddTopTierCompilationUnit(WasmCompilationUnit unit) {
   AddCompilationUnits({}, {&unit, 1}, {});
+}
+
+void CompilationStateImpl::AddTopTierPriorityCompilationUnit(
+    WasmCompilationUnit unit, size_t priority) {
+  compilation_unit_queues_.AddTopTierPriorityUnit(unit, priority);
+  ScheduleCompileJobForNewUnits(1);
 }
 
 std::shared_ptr<JSToWasmWrapperCompilationUnit>
