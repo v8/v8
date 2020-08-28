@@ -255,6 +255,7 @@
   'regress/regress-crbug-137689': [SKIP],
   'regress/regress-trap-allocation-memento': [SKIP],
   'regress/regress-2249': [SKIP],
+  'regress/regress-3709': [SKIP],
   'regress/regress-4121': [SKIP],
   'regress/regress-6989': [SKIP],
   'compare-known-objects-slow': [SKIP],
