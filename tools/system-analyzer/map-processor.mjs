@@ -54,6 +54,10 @@ class MapProcessor extends LogReader {
         ],
         processor: this.processV8Version
       },
+      'script-source': {
+        parsers: [parseInt, parseString, parseString],
+        processor: this.processScriptSource
+      },
       'code-move': {
         parsers: [parseInt, parseInt],
         'sfi-move':
@@ -184,6 +188,10 @@ class MapProcessor extends LogReader {
     }
   }
 
+  processScriptSource(scriptId, url, source) {
+    this.#profile.addScriptSource(scriptId, url, source);
+  }
+
   processCodeMove(from, to) {
     this.#profile.moveCode(from, to);
   }
@@ -211,6 +219,12 @@ class MapProcessor extends LogReader {
     }
     return entry + ':' + line + ':' + column;
   }
+  processFileName(filePositionLine) {
+    if (!(/\s/.test(filePositionLine))) return;
+    filePositionLine = filePositionLine.split(' ');
+    let file = filePositionLine[1].split(':')[0];
+    return file;
+  }
 
   processMap(type, time, from, to, pc, line, column, reason, name) {
     let time_ = parseInt(time);
@@ -219,6 +233,8 @@ class MapProcessor extends LogReader {
     let to_ = this.getExistingMap(to, time_);
     let edge = new Edge(type, name, reason, time, from_, to_);
     to_.filePosition = this.formatPC(pc, line, column);
+    let fileName = this.processFileName(to_.filePosition);
+    to_.script = this.getScript(fileName);
     edge.finishSetup();
   }
 
@@ -254,6 +270,10 @@ class MapProcessor extends LogReader {
     };
     return map;
   }
+
+  getScript(url) {
+    return this.#profile.getScript(url);
+  }
 }
 
 // ===========================================================================
@@ -268,6 +288,7 @@ class MapLogEvent extends Event {
   leftId = 0;
   rightId = 0;
   filePosition = '';
+  script = '';
   id = -1;
   constructor(id, time) {
     if (!time) throw new Error('Invalid time');

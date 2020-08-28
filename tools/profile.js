@@ -38,6 +38,8 @@ function Profile() {
   this.bottomUpTree_ = new CallTree();
   this.c_entries_ = {};
   this.ticks_ = [];
+  this.scripts_ = [];
+  this.urlToScript_ = new Map();
 };
 
 
@@ -226,8 +228,21 @@ Profile.prototype.addSourcePositions = function (
 /**
  * Adds script source code.
  */
-Profile.prototype.addScriptSource = function (script, source) {
-  // CLI does not need source code => ignore.
+Profile.prototype.addScriptSource = function (scriptId, url, source) {
+  this.scripts_[scriptId] = {
+    scriptId: scriptId,
+    name: url,
+    source: source
+  };
+  this.urlToScript_.set(url, source);
+};
+
+
+/**
+ * Adds script source code.
+ */
+Profile.prototype.getScript = function (url) {
+  return this.urlToScript_.get(url);
 };
 
 /**
@@ -1018,8 +1033,9 @@ JsonProfile.prototype.addSourcePositions = function (
   };
 };
 
-JsonProfile.prototype.addScriptSource = function (script, url, source) {
-  this.scripts_[script] = {
+JsonProfile.prototype.addScriptSource = function (scriptId, url, source) {
+  this.scripts_[scriptId] = {
+    scriptId: scriptId,
     name: url,
     source: source
   };

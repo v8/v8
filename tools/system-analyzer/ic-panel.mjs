@@ -5,12 +5,12 @@
 import { Group } from './ic-model.mjs';
 import CustomIcProcessor from "./ic-processor.mjs";
 import { MapLogEvent } from "./map-processor.mjs";
+import { SourcePositionLogEvent } from './event.mjs';
 import { FocusEvent, SelectTimeEvent, SelectionEvent } from './events.mjs';
 import { defineCustomElement, V8CustomElement } from './helper.mjs';
 
 defineCustomElement('ic-panel', (templateText) =>
   class ICPanel extends V8CustomElement {
-    //TODO(zcankara) Entries never set
     #selectedLogEvents;
     #timeline;
     constructor() {
@@ -29,8 +29,6 @@ defineCustomElement('ic-panel', (templateText) =>
       this.selectedLogEvents = this.timeline.all;
       this.updateCount();
     }
-
-
     get groupKey() {
       return this.$('#group-key');
     }
@@ -105,26 +103,38 @@ defineCustomElement('ic-panel', (templateText) =>
     }
 
     handleMapClick(e) {
-      let entry = e.target.parentNode.entry;
-      let id = entry.key;
-      let selectedMapLofEvents =
+      const entry = e.target.parentNode.entry;
+      const id = entry.key;
+      const selectedMapLogEvents =
         this.searchIcLogEventToMapLogEvent(id, entry.entries);
-      this.dispatchEvent(new SelectionEvent(selectedMapLofEvents));
+      this.dispatchEvent(new SelectionEvent(selectedMapLogEvents));
     }
 
     searchIcLogEventToMapLogEvent(id, icLogEvents) {
       // searches for mapLogEvents using the id, time
-      let selectedMapLogEventsSet = new Set();
+      const selectedMapLogEventsSet = new Set();
       for (const icLogEvent of icLogEvents) {
-        let time = icLogEvent.time;
-        let selectedMap = MapLogEvent.get(id, time);
+        const time = icLogEvent.time;
+        const selectedMap = MapLogEvent.get(id, time);
         selectedMapLogEventsSet.add(selectedMap);
       }
       return Array.from(selectedMapLogEventsSet);
     }
 
     handleFilePositionClick(e) {
-      this.dispatchEvent(new FocusEvent(e.target.parentNode.entry.key));
+      const entry = e.target.parentNode.entry;
+      const filePosition =
+        this.createSourcePositionLogEvent(
+          entry.entries[0].type, entry.entries[0].time, entry.key,
+          entry.entries[0].script);
+      this.dispatchEvent(new FocusEvent(filePosition));
+    }
+
+    createSourcePositionLogEvent(type, time, filePositionLine, script) {
+      const [file, line, col] = filePositionLine.split(':');
+      const filePosition = new SourcePositionLogEvent(type, time,
+        file, line, col, script);
+      return filePosition
     }
 
     render(entries, parent) {

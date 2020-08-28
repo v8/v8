@@ -135,6 +135,10 @@ button {
   background-color: var(--error-color);
 }
 
+.highlight {
+  background-color: var(--primary-color);
+  color: var(--on-primary-color);
+}
 .clickable:hover,
 .clickable:active {
   background-color: var(--primary-color);

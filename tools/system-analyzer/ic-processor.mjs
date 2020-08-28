@@ -44,6 +44,10 @@ class IcProcessor extends LogReader {
         ],
         processor: this.processV8Version
       },
+      'script-source': {
+        parsers: [parseInt, parseString, parseString],
+        processor: this.processScriptSource
+      },
       'code-move':
         { parsers: [parseInt, parseInt], processor: this.processCodeMove },
       'code-delete': { parsers: [parseInt], processor: this.processCodeDelete },
@@ -122,6 +126,9 @@ class IcProcessor extends LogReader {
         `Please use the matching tool for given the V8 version.`);
     }
   }
+  processScriptSource(scriptId, url, script) {
+    this.#profile.addScriptSource(scriptId, url, script);
+  }
   processLogFile(fileName) {
     this.collectEntries = true;
     this.lastLogFileName_ = fileName;
@@ -181,6 +188,11 @@ class IcProcessor extends LogReader {
       ' (map 0x' + map.toString(16) + ')' +
       (slow_reason ? ' ' + slow_reason : '') + 'time: ' + time);
   }
+
+  getScript(url) {
+    return this.#profile.getScript(url);
+  }
+
 }
 
 // ================
@@ -209,9 +221,12 @@ class CustomIcProcessor extends IcProcessor {
     type, pc, time, line, column, old_state, new_state, map, key, modifier,
     slow_reason) {
     let fnName = this.functionName(pc);
+    let parts = fnName.split(' ');
+    let fileName = parts[1];
+    let script = this.getScript(fileName);
     let entry = new IcLogEvent(
       type, fnName, time, line, column, key, old_state, new_state, map,
-      slow_reason);
+      slow_reason, script);
     this.#timeline.push(entry);
   }
 
@@ -229,7 +244,7 @@ class CustomIcProcessor extends IcProcessor {
 class IcLogEvent extends Event {
   constructor(
     type, fn_file, time, line, column, key, oldState, newState, map, reason,
-    additional) {
+    script, additional) {
     super(type, time);
     this.category = 'other';
     if (this.type.indexOf('Store') !== -1) {
@@ -249,6 +264,7 @@ class IcLogEvent extends Event {
     this.map = map;
     this.reason = reason;
     this.additional = additional;
+    this.script = script;
   }
 
 

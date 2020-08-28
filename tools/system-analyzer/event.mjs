@@ -18,4 +18,14 @@ class Event {
   }
 }
 
-export { Event };
+class SourcePositionLogEvent extends Event {
+  constructor(type, time, file, line, col, script) {
+    super(type, time);
+    this.file = file;
+    this.line = line;
+    this.col = col;
+    this.script = script;
+  }
+}
+
+export { Event, SourcePositionLogEvent };

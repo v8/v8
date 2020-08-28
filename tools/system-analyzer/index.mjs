@@ -8,17 +8,19 @@ import { IcLogEvent } from "./ic-processor.mjs";
 import { State } from "./app-model.mjs";
 import { MapProcessor, MapLogEvent } from "./map-processor.mjs";
 import { SelectTimeEvent } from "./events.mjs";
+import { SourcePositionLogEvent } from "./event.mjs";
 import { $ } from "./helper.mjs";
 import "./ic-panel.mjs";
 import "./timeline-panel.mjs";
 import "./map-panel.mjs";
 import "./log-file-reader.mjs";
+import "./source-panel.mjs";
 class App {
   #state;
   #view;
   #navigation;
   constructor(fileReaderId, mapPanelId, timelinePanelId,
-    icPanelId, mapTrackId, icTrackId) {
+    icPanelId, mapTrackId, icTrackId, sourcePanelId) {
     this.#view = {
       logFileReader: $(fileReaderId),
       icPanel: $(icPanelId),
@@ -26,6 +28,7 @@ class App {
       timelinePanel: $(timelinePanelId),
       mapTrack: $(mapTrackId),
       icTrack: $(icTrackId),
+      sourcePanel: $(sourcePanelId)
     };
     this.#state = new State();
     this.#navigation = new Navigation(this.#state, this.#view);
@@ -53,6 +56,8 @@ class App {
       this.showMapEntries(e.entries);
     } else if (e.entries[0] instanceof IcLogEvent) {
       this.showIcEntries(e.entries);
+    } else if (e.entries[0] instanceof SourcePositionLogEvent) {
+      this.showSourcePositionEntries(e.entries);
     } else {
       console.error("Undefined selection!");
     }
@@ -65,6 +70,10 @@ class App {
     this.#state.selectedIcLogEvents = entries;
     this.#view.icPanel.selectedLogEvents = this.#state.selectedIcLogEvents;
   }
+  showSourcePositionEntries(entries) {
+    //TODO(zcankara) Handle multiple source position selection events
+    this.#view.sourcePanel.selectedSourcePositions = entries;
+  }
 
   handleTimeRangeSelect(e) {
     this.selectTimeRange(e.start, e.end);
@@ -74,15 +83,11 @@ class App {
       this.selectMapLogEvent(e.entry);
     } else if (e.entry instanceof IcLogEvent) {
       this.selectICLogEvent(e.entry);
-    } else if (typeof e.entry === 'string') {
+    } else if (e.entry instanceof SourcePositionLogEvent) {
       this.selectSourcePositionEvent(e.entry);
     } else {
       console.log("undefined");
     }
-  }
-  handleClickSourcePositions(e) {
-    //TODO(zcankara) Handle source position
-    console.log("Entry containing source position: ", e.entries);
   }
   selectTimeRange(start, end) {
     this.#state.timeSelection.start = start;
@@ -103,8 +108,11 @@ class App {
     this.#view.icPanel.selectedLogEvents = [entry];
   }
   selectSourcePositionEvent(sourcePositions) {
+    if (!sourcePositions.script) return;
     console.log("source positions: ", sourcePositions);
+    this.#view.sourcePanel.selectedSourcePositions = [sourcePositions];
   }
+
   handleFileUpload(e) {
     this.restartApp();
     $("#container").className = "initial";
