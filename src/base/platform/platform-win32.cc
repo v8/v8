@@ -1397,9 +1397,11 @@ void OS::AdjustSchedulingParams() {}
 // static
 void* Stack::GetStackStart() {
 #if defined(V8_TARGET_ARCH_X64)
-  return reinterpret_cast<void*>(__readgsqword(offsetof(NT_TIB64, StackBase)));
+  return reinterpret_cast<void*>(
+      reinterpret_cast<NT_TIB64*>(NtCurrentTeb())->StackBase);
 #elif defined(V8_TARGET_ARCH_32_BIT)
-  return reinterpret_cast<void*>(__readfsdword(offsetof(NT_TIB, StackBase)));
+  return reinterpret_cast<void*>(
+      reinterpret_cast<NT_TIB*>(NtCurrentTeb())->StackBase);
 #elif defined(V8_TARGET_ARCH_ARM64)
   // Windows 8 and later, see
   // https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getcurrentthreadstacklimits
