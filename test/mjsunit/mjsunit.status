@@ -1443,4 +1443,10 @@
   'compiler/serializer-transition-propagation': [SKIP],
 }],  # variant == nci or variant == nci_as_midtier
 
+['nosse41', {
+  # Requires scalar lowering for 64x2 SIMD instructions, which are not
+  # implemented yet.
+  'regress/wasm/regress-10831': [SKIP],
+}],  # nosse3
+
 ]
