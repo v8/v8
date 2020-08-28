@@ -90,11 +90,11 @@ Heap::~Heap() {
 
 void Heap::CollectGarbage(Config config) {
   DCHECK_EQ(Config::MarkingType::kAtomic, config.marking_type);
-
   CheckConfig(config);
-  config_ = config;
 
   if (in_no_gc_scope()) return;
+
+  config_ = config;
 
   if (!gc_in_progress_) StartGarbageCollection(config);
 
@@ -104,13 +104,12 @@ void Heap::CollectGarbage(Config config) {
 }
 
 void Heap::StartIncrementalGarbageCollection(Config config) {
-  DCHECK(!gc_in_progress_);
   DCHECK_NE(Config::MarkingType::kAtomic, config.marking_type);
-
   CheckConfig(config);
-  config_ = config;
 
-  if (in_no_gc_scope()) return;
+  if (gc_in_progress_ || in_no_gc_scope()) return;
+
+  config_ = config;
 
   StartGarbageCollection(config);
 }

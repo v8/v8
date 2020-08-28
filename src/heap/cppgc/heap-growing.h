@@ -40,7 +40,8 @@ class V8_EXPORT_PRIVATE HeapGrowing final {
   HeapGrowing(const HeapGrowing&) = delete;
   HeapGrowing& operator=(const HeapGrowing&) = delete;
 
-  size_t limit() const;
+  size_t limit_for_atomic_gc() const;
+  size_t limit_for_incremental_gc() const;
 
  private:
   class HeapGrowingImpl;

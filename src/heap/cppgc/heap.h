@@ -33,7 +33,7 @@ class V8_EXPORT_PRIVATE Heap final : public HeapBase,
   const HeapBase& AsBase() const { return *this; }
 
   void CollectGarbage(Config) final;
-  void StartIncrementalGarbageCollection(Config);
+  void StartIncrementalGarbageCollection(Config) final;
   void FinalizeIncrementalGarbageCollectionIfRunning(Config);
 
   size_t epoch() const final { return epoch_; }
