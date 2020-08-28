@@ -8167,7 +8167,7 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
           {
             Label slow_load(this, Label::kDeferred);
 
-            var_value = CallGetterIfAccessor(var_value.value(),
+            var_value = CallGetterIfAccessor(var_value.value(), object,
                                              var_details.value(), context,
                                              object, &slow_load, kCallJSGetter);
             Goto(&callback);
@@ -8569,12 +8569,14 @@ void CodeStubAssembler::LoadPropertyFromGlobalDictionary(
   Comment("] LoadPropertyFromGlobalDictionary");
 }
 
-// |value| is the property backing store's contents, which is either a value
-// or an accessor pair, as specified by |details|.
-// Returns either the original value, or the result of the getter call.
+// |value| is the property backing store's contents, which is either a value or
+// an accessor pair, as specified by |details|. |holder| is a JSObject or a
+// PropertyCell (TODO: use UnionT). Returns either the original value, or the
+// result of the getter call.
 TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
-    TNode<Object> value, TNode<Uint32T> details, TNode<Context> context,
-    TNode<Object> receiver, Label* if_bailout, GetOwnPropertyMode mode) {
+    TNode<Object> value, TNode<HeapObject> holder, TNode<Uint32T> details,
+    TNode<Context> context, TNode<Object> receiver, Label* if_bailout,
+    GetOwnPropertyMode mode) {
   TVARIABLE(Object, var_value, value);
   Label done(this), if_accessor_info(this, Label::kDeferred);
 
@@ -8614,7 +8616,7 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
         GotoIfNot(IsTheHole(cached_property_name), if_bailout);
 
         TNode<NativeContext> creation_context =
-            GetCreationContext(CAST(receiver), if_bailout);
+            GetCreationContext(CAST(holder), if_bailout);
         var_value = CallBuiltin(
             Builtins::kCallFunctionTemplate_CheckAccessAndCompatibleReceiver,
             creation_context, getter, IntPtrConstant(0), receiver);
@@ -8628,17 +8630,16 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
   // AccessorInfo case.
   BIND(&if_accessor_info);
   {
-    CSA_ASSERT(this, TaggedIsNotSmi(receiver));
     TNode<AccessorInfo> accessor_info = CAST(value);
     Label if_array(this), if_function(this), if_wrapper(this);
 
-    // Dispatch based on {receiver} instance type.
-    TNode<Map> receiver_map = LoadMap(CAST(receiver));
-    TNode<Uint16T> receiver_instance_type = LoadMapInstanceType(receiver_map);
-    GotoIf(IsJSArrayInstanceType(receiver_instance_type), &if_array);
-    GotoIf(IsJSFunctionInstanceType(receiver_instance_type), &if_function);
-    Branch(IsJSPrimitiveWrapperInstanceType(receiver_instance_type),
-           &if_wrapper, if_bailout);
+    // Dispatch based on {holder} instance type.
+    TNode<Map> holder_map = LoadMap(holder);
+    TNode<Uint16T> holder_instance_type = LoadMapInstanceType(holder_map);
+    GotoIf(IsJSArrayInstanceType(holder_instance_type), &if_array);
+    GotoIf(IsJSFunctionInstanceType(holder_instance_type), &if_function);
+    Branch(IsJSPrimitiveWrapperInstanceType(holder_instance_type), &if_wrapper,
+           if_bailout);
 
     // JSArray AccessorInfo case.
     BIND(&if_array);
@@ -8647,7 +8648,7 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
       GotoIfNot(IsLengthString(
                     LoadObjectField(accessor_info, AccessorInfo::kNameOffset)),
                 if_bailout);
-      TNode<JSArray> array = CAST(receiver);
+      TNode<JSArray> array = CAST(holder);
       var_value = LoadJSArrayLength(array);
       Goto(&done);
     }
@@ -8660,9 +8661,9 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
                     LoadObjectField(accessor_info, AccessorInfo::kNameOffset)),
                 if_bailout);
 
-      GotoIfPrototypeRequiresRuntimeLookup(CAST(receiver), receiver_map,
-                                           if_bailout);
-      var_value = LoadJSFunctionPrototype(CAST(receiver), if_bailout);
+      TNode<JSFunction> function = CAST(holder);
+      GotoIfPrototypeRequiresRuntimeLookup(function, holder_map, if_bailout);
+      var_value = LoadJSFunctionPrototype(function, if_bailout);
       Goto(&done);
     }
 
@@ -8674,11 +8675,10 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
       GotoIfNot(IsLengthString(
                     LoadObjectField(accessor_info, AccessorInfo::kNameOffset)),
                 if_bailout);
-      TNode<Object> receiver_value =
-          LoadJSPrimitiveWrapperValue(CAST(receiver));
-      GotoIfNot(TaggedIsNotSmi(receiver_value), if_bailout);
-      GotoIfNot(IsString(CAST(receiver_value)), if_bailout);
-      var_value = LoadStringLengthAsSmi(CAST(receiver_value));
+      TNode<Object> holder_value = LoadJSPrimitiveWrapperValue(CAST(holder));
+      GotoIfNot(TaggedIsNotSmi(holder_value), if_bailout);
+      GotoIfNot(IsString(CAST(holder_value)), if_bailout);
+      var_value = LoadStringLengthAsSmi(CAST(holder_value));
       Goto(&done);
     }
   }
@@ -8754,8 +8754,8 @@ void CodeStubAssembler::TryGetOwnProperty(
       *var_raw_value = *var_value;
     }
     TNode<Object> value =
-        CallGetterIfAccessor(var_value->value(), var_details->value(), context,
-                             receiver, if_bailout, mode);
+        CallGetterIfAccessor(var_value->value(), object, var_details->value(),
+                             context, receiver, if_bailout, mode);
     *var_value = value;
     Goto(if_found_value);
   }

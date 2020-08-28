@@ -3527,6 +3527,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     Label* bailout);
 
   TNode<Object> CallGetterIfAccessor(TNode<Object> value,
+                                     TNode<HeapObject> holder,
                                      TNode<Uint32T> details,
                                      TNode<Context> context,
                                      TNode<Object> receiver, Label* if_bailout,
