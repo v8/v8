@@ -368,6 +368,15 @@ DEFINE_BOOL_READONLY(
 DEFINE_NEG_IMPLICATION(single_generation, inline_new)
 DEFINE_NEG_IMPLICATION(single_generation, turbo_allocation_folding)
 
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#define V8_ENABLE_CONSERVATIVE_STACK_SCANNING_BOOL true
+#else
+#define V8_ENABLE_CONSERVATIVE_STACK_SCANNING_BOOL false
+#endif
+DEFINE_BOOL_READONLY(conservative_stack_scanning,
+                     V8_ENABLE_CONSERVATIVE_STACK_SCANNING_BOOL,
+                     "use conservative stack scanning")
+
 #ifdef V8_ENABLE_FUTURE
 #define FUTURE_BOOL true
 #else

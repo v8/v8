@@ -337,6 +337,10 @@ v8_source_set("unittests_sources") {
     sources += [ "wasm/wasm-gdbserver-unittest.cc" ]
   }
 
+  if (v8_enable_conservative_stack_scanning) {
+    sources += [ "heap/object-start-bitmap-unittest.cc" ]
+  }
+
   if (v8_current_cpu == "arm") {
     sources += [
       "assembler/turbo-assembler-arm-unittest.cc",

@@ -368,6 +368,9 @@ if (v8_enable_single_generation == true) {
       "Requires unconditional write barriers or none (which disables incremental marking)")
 }
 
+assert(!v8_enable_conservative_stack_scanning || v8_enable_single_generation,
+       "Conservative stack scanning requires single generation")
+
 v8_random_seed = "314159265"
 v8_toolset_for_shell = "host"
 
@@ -588,6 +591,9 @@ config("features") {
   }
   if (v8_enable_single_generation) {
     defines += [ "V8_ENABLE_SINGLE_GENERATION" ]
+  }
+  if (v8_enable_conservative_stack_scanning) {
+    defines += [ "V8_ENABLE_CONSERVATIVE_STACK_SCANNING" ]
   }
   if (v8_disable_write_barriers) {
     defines += [ "V8_DISABLE_WRITE_BARRIERS" ]
@@ -3348,6 +3354,10 @@ v8_source_set("v8_base_without_compiler") {
     sources += v8_third_party_heap_files
   } else {
     sources += [ "src/heap/third-party/heap-api-stub.cc" ]
+  }
+
+  if (v8_enable_conservative_stack_scanning) {
+    sources += [ "src/heap/object-start-bitmap.h" ]
   }
 
   if (v8_enable_wasm_gdb_remote_debugging) {
