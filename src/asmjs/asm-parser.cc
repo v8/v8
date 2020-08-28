@@ -459,9 +459,15 @@ void AsmJsParser::ValidateModuleVar(bool mutable_variable) {
       if (uvalue > 0x7FFFFFFF) {
         FAIL("Numeric literal out of range");
       }
-      DeclareGlobal(info, mutable_variable,
-                    mutable_variable ? AsmType::Int() : AsmType::Signed(),
-                    kWasmI32, WasmInitExpr(-static_cast<int32_t>(uvalue)));
+      if (uvalue == 0) {
+        // '-0' is treated as float.
+        DeclareGlobal(info, mutable_variable, AsmType::Float(), kWasmF32,
+                      WasmInitExpr(-0.f));
+      } else {
+        DeclareGlobal(info, mutable_variable,
+                      mutable_variable ? AsmType::Int() : AsmType::Signed(),
+                      kWasmI32, WasmInitExpr(-static_cast<int32_t>(uvalue)));
+      }
     } else {
       FAIL("Expected numeric literal");
     }

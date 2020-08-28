@@ -345,6 +345,7 @@
   'asm/call-annotation': [SKIP],
   'asm/global-imports': [SKIP],
   'asm/regress-1027595': [SKIP],
+  'asm/regress-1069173': [SKIP],
   'asm/regress-913822': [SKIP],
   'asm/regress-937650': [SKIP],
   'asm/regress-9531': [SKIP],
