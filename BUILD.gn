@@ -3363,7 +3363,11 @@ v8_source_set("v8_base_without_compiler") {
   }
 
   if (v8_enable_conservative_stack_scanning) {
-    sources += [ "src/heap/object-start-bitmap.h" ]
+    sources += [
+      "src/heap/conservative-stack-visitor.cc",
+      "src/heap/conservative-stack-visitor.h",
+      "src/heap/object-start-bitmap.h",
+    ]
   }
 
   if (v8_enable_wasm_gdb_remote_debugging) {
@@ -3704,6 +3708,7 @@ v8_source_set("v8_base_without_compiler") {
   deps = [
     ":cppgc_base",
     ":torque_generated_definitions",
+    ":v8_cppgc_shared",
     ":v8_headers",
     ":v8_libbase",
     ":v8_libsampler",

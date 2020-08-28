@@ -99,6 +99,10 @@
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif  // V8_OS_WIN64
 
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#include "src/heap/conservative-stack-visitor.h"
+#endif
+
 extern "C" const uint8_t* v8_Default_embedded_blob_code_;
 extern "C" uint32_t v8_Default_embedded_blob_code_size_;
 extern "C" const uint8_t* v8_Default_embedded_blob_metadata_;
@@ -504,6 +508,11 @@ void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
         Root::kTop, nullptr,
         FullObjectSlot(reinterpret_cast<Address>(&(block->message_obj_))));
   }
+
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  ConservativeStackVisitor stack_visitor(this, v);
+  thread_local_top()->stack_.IteratePointers(&stack_visitor);
+#endif
 
   // Iterate over pointers on native execution stack.
   wasm::WasmCodeRefScope wasm_code_ref_scope;

@@ -750,6 +750,11 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     } else {
       pages.push_back(std::make_pair(p->allocated_bytes(), p));
     }
+
+    // Unpin pages for the next GC
+    if (p->IsFlagSet(MemoryChunk::PINNED)) {
+      p->ClearFlag(MemoryChunk::PINNED);
+    }
   }
 
   int candidate_count = 0;

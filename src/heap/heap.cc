@@ -31,6 +31,7 @@
 #include "src/handles/global-handles.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/barrier.h"
+#include "src/heap/base/stack.h"
 #include "src/heap/code-object-registry.h"
 #include "src/heap/code-stats.h"
 #include "src/heap/combined-heap.h"
@@ -88,6 +89,10 @@
 #include "src/tracing/trace-event.h"
 #include "src/utils/utils-inl.h"
 #include "src/utils/utils.h"
+
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#include "src/heap/conservative-stack-visitor.h"
+#endif
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -4534,8 +4539,10 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
 
     // Iterate over local handles in handle scopes.
     FixStaleLeftTrimmedHandlesVisitor left_trim_visitor(this);
+#ifndef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
     isolate_->handle_scope_implementer()->Iterate(&left_trim_visitor);
     isolate_->handle_scope_implementer()->Iterate(v);
+#endif
 
     if (FLAG_local_heaps) {
       safepoint_->Iterate(&left_trim_visitor);
