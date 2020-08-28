@@ -159,7 +159,7 @@ void MarkerBase::IncrementalMarkingTask::Run() {
   }
 }
 
-MarkerBase::MarkerBase(HeapBase& heap, cppgc::Platform* platform,
+MarkerBase::MarkerBase(Key, HeapBase& heap, cppgc::Platform* platform,
                        MarkingConfig config)
     : heap_(heap),
       config_(config),
@@ -380,8 +380,9 @@ void MarkerBase::ClearAllWorklistsForTesting() {
   marking_worklists_.ClearForTesting();
 }
 
-Marker::Marker(HeapBase& heap, cppgc::Platform* platform, MarkingConfig config)
-    : MarkerBase(heap, platform, config),
+Marker::Marker(Key key, HeapBase& heap, cppgc::Platform* platform,
+               MarkingConfig config)
+    : MarkerBase(key, heap, platform, config),
       marking_visitor_(heap, mutator_marking_state_),
       conservative_marking_visitor_(heap, mutator_marking_state_,
                                     marking_visitor_) {}
