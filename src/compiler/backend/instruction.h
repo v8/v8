@@ -1430,6 +1430,7 @@ class V8_EXPORT_PRIVATE InstructionBlock final
     return loop_end_;
   }
   inline bool IsLoopHeader() const { return loop_end_.IsValid(); }
+  bool IsInLoop() const { return IsLoopHeader() || loop_header().IsValid(); }
   inline bool IsSwitchTarget() const { return switch_target_; }
   inline bool ShouldAlign() const { return alignment_; }
 

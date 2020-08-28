@@ -40,12 +40,12 @@ void SpillPlacer::Add(TopLevelLiveRange* range) {
   //   the earliest deferred block as the insertion point would cause
   //   incorrect behavior, so the value must be spilled at the definition.
   // - We haven't seen any indication of performance improvements from seeking
-  //   optimal spilling positions except on loop-top phi values, so spill
-  //   any value that isn't a loop-top phi at the definition to avoid
-  //   increasing the code size for no benefit.
+  //   optimal spilling positions for values defined outside loops, so spill
+  //   those values at the definition to avoid increasing the code size for no
+  //   benefit.
   if (range->GetSpillMoveInsertionLocations(data()) == nullptr ||
       range->spilled() || top_start_block->IsDeferred() ||
-      (!FLAG_stress_turbo_late_spilling && !range->is_loop_phi())) {
+      (!FLAG_stress_turbo_late_spilling && !top_start_block->IsInLoop())) {
     range->CommitSpillMoves(data(), spill_operand);
     return;
   }
