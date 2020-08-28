@@ -1483,6 +1483,54 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobWithWarmup) {
   FreeCurrentEmbeddedBlob();
 }
 
+namespace {
+v8::StartupData CreateCustomSnapshotWithKeep() {
+  v8::SnapshotCreator creator;
+  v8::Isolate* isolate = creator.GetIsolate();
+  {
+    v8::HandleScope handle_scope(isolate);
+    {
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      v8::Local<v8::String> source_str = v8_str(
+          "function f() { return Math.abs(1); }\n"
+          "function g() { return String.raw(1); }");
+      v8::ScriptOrigin origin(v8_str("test"));
+      v8::ScriptCompiler::Source source(source_str, origin);
+      CompileRun(isolate->GetCurrentContext(), &source,
+                 v8::ScriptCompiler::kEagerCompile);
+      creator.SetDefaultContext(context);
+    }
+  }
+  return creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kKeep);
+}
+}  // namespace
+
+UNINITIALIZED_TEST(CustomSnapshotDataBlobWithKeep) {
+  DisableAlwaysOpt();
+  DisableEmbeddedBlobRefcounting();
+  v8::StartupData blob = CreateCustomSnapshotWithKeep();
+
+  {
+    v8::Isolate::CreateParams params;
+    params.snapshot_blob = &blob;
+    params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    // Test-appropriate equivalent of v8::Isolate::New.
+    v8::Isolate* isolate = TestSerializer::NewIsolate(params);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      CHECK(IsCompiled("f"));
+      CHECK(IsCompiled("g"));
+    }
+    isolate->Dispose();
+  }
+  delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
+}
+
 UNINITIALIZED_TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
   DisableAlwaysOpt();
   // Flood the startup snapshot with shared function infos. If they are
