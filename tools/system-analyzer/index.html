@@ -41,9 +41,8 @@ found in the LICENSE file. -->
       white-space: nowrap;
     }
 
-    /*Simple css to style it like a toggle switch*/
     .theme-switch-wrapper {
-      display: flex;
+      display: inline-block;
       align-items: center;
     }
 
@@ -129,6 +128,12 @@ found in the LICENSE file. -->
       <log-file-reader id="log-file-reader"></log-file-reader>
       <br></br>
     </section>
+    <div class="theme-switch-wrapper">
+      <label class="theme-switch" for="checkbox">
+        <input type="checkbox" id="checkbox" />
+        <div class="slider round"></div>
+      </label>
+    </div>
     <div id="container" class="initial">
       <timeline-panel id="timeline-panel">
         <timeline-track id="map-track"></timeline-track>
@@ -137,12 +142,6 @@ found in the LICENSE file. -->
       <map-panel id="map-panel"></map-panel>
       <ic-panel id="ic-panel" onchange="app.handleSelectIc(event)"></ic-panel>
     </div>
-  </div>
-  <div class="theme-switch-wrapper">
-    <label class="theme-switch" for="checkbox">
-      <input type="checkbox" id="checkbox" />
-      <div class="slider round"></div>
-    </label>
   </div>
   <div id="instructions">
     <h2>Instructions</h2>

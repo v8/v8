@@ -120,16 +120,20 @@ function typeToColor(type) {
       return CSSColor.red;
     case 'LoadGlobalIC':
       return CSSColor.green;
+    case 'LoadIC':
+      return CSSColor.primaryColor;
     case 'StoreInArrayLiteralIC':
       return CSSColor.violet;
+    case 'StoreGlobalIC':
+      return CSSColor.blue;
     case 'StoreIC':
       return CSSColor.orange;
     case 'KeyedLoadIC':
       return CSSColor.red;
     case 'KeyedStoreIC':
-      return CSSColor.primaryColor;
+      return CSSColor.yellow;
   }
-  return CSSColor.primaryColor;
+  return CSSColor.secondaryColor;
 }
 
 

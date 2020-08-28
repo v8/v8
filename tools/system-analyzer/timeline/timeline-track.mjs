@@ -420,7 +420,6 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
         ctx.lineTo(xTo, yTo);
       }
       if (!showLabel) {
-        ctx.strokeStyle = CSSColor.onBackgroundColor;
         ctx.stroke();
       } else {
         let centerX, centerY;
@@ -431,12 +430,11 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
           centerX = xTo;
           centerY = yTo;
         }
-        ctx.strokeStyle = CSSColor.onBackgroundColor;
         ctx.moveTo(centerX, centerY);
         ctx.lineTo(centerX + offsetX, centerY - labelOffset);
         ctx.stroke();
         ctx.textAlign = 'left';
-        ctx.fillStyle = CSSColor.onBackgroundColor;
+        ctx.fillStyle = typeToColor(edge.type);
         ctx.fillText(
           edge.toString(), centerX + offsetX + 2, centerY - labelOffset);
       }
@@ -448,7 +446,6 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       if (depth >= max) return;
       ctx.globalAlpha = 0.5 - depth * (0.3 / max);
       ctx.strokeStyle = CSSColor.timelineBackgroundColor;
-
       const limit = Math.min(map.children.length, 100)
       for (let i = 0; i < limit; i++) {
         let edge = map.children[i];
