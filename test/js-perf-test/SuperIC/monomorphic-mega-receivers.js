@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 const DETERMINISTIC_RUNS = 10000;
-new BenchmarkSuite('Monomorphic-MegaReceivers', [1000], [
-  new Benchmark('Monomorphic-MegaReceivers', false, false, DETERMINISTIC_RUNS,
+new BenchmarkSuite(BENCHMARK_NAME, [1000], [
+  new Benchmark(BENCHMARK_NAME, false, false, DETERMINISTIC_RUNS,
                 runBenchmark)
 ]);
 

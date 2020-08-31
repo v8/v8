@@ -3,9 +3,8 @@
 // found in the LICENSE file.
 
 const DETERMINISTIC_RUNS = 10000;
-new BenchmarkSuite('Polymorphic-Mixin-MegaReceivers-Getter', [1000], [
-  new Benchmark('Polymorphic-Mixin-MegaReceivers-Getter', false, false,
-                DETERMINISTIC_RUNS, runBenchmark)
+new BenchmarkSuite(BENCHMARK_NAME, [1000], [
+  new Benchmark(BENCHMARK_NAME, false, false, DETERMINISTIC_RUNS, runBenchmark)
 ]);
 
 

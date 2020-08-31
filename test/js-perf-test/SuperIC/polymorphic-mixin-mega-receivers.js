@@ -3,11 +3,9 @@
 // found in the LICENSE file.
 
 const DETERMINISTIC_RUNS = 10000;
-new BenchmarkSuite('Polymorphic-Mixin-MegaReceivers', [1000], [
-  new Benchmark('Polymorphic-Mixin-MegaReceivers', false, false,
-                DETERMINISTIC_RUNS, runBenchmark)
+new BenchmarkSuite(BENCHMARK_NAME, [1000], [
+  new Benchmark(BENCHMARK_NAME, false, false, DETERMINISTIC_RUNS, runBenchmark)
 ]);
-
 
 function createSubclass() {
   class A { };

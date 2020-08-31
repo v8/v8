@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 const DETERMINISTIC_RUNS = 10000;
-new BenchmarkSuite('Monomorphic', [1000], [
-  new Benchmark('Monomorphic', false, false, DETERMINISTIC_RUNS, runBenchmark)
+new BenchmarkSuite(BENCHMARK_NAME, [1000], [
+  new Benchmark(BENCHMARK_NAME, false, false, DETERMINISTIC_RUNS, runBenchmark)
 ]);
 
 class A { };

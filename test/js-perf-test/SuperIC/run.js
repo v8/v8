@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 load('../base.js');
+
+BENCHMARK_NAME = arguments[1];
 load(arguments[0] + '.js');
 
 var success = true;
