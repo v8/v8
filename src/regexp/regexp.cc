@@ -174,13 +174,10 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
 
   bool has_been_compiled = false;
 
-  if (FLAG_enable_experimental_regexp_engine && parse_result.simple &&
-      !IgnoreCase(flags) && !IsSticky(flags)) {
-    // Parse-tree is a single atom that is equal to the pattern. For now we let
-    // the experimental regexp engine deal with this case instead of string
-    // search via ATOM (modulo some performance-related heuristic).
-    int capture_count = 0;
-    ExperimentalRegExp::Initialize(isolate, re, pattern, flags, capture_count);
+  if (FLAG_enable_experimental_regexp_engine &&
+      ExperimentalRegExp::CanBeHandled(parse_result.tree, flags, &zone)) {
+    ExperimentalRegExp::Initialize(isolate, re, pattern, flags,
+                                   parse_result.capture_count);
     has_been_compiled = true;
   } else if (parse_result.simple && !IgnoreCase(flags) && !IsSticky(flags) &&
              !HasFewDifferentCharacters(pattern)) {
@@ -979,7 +976,7 @@ int32_t* RegExpGlobalCache::FetchNext() {
                                     register_array_, register_array_size_);
         break;
       case JSRegExp::EXPERIMENTAL: {
-        if (!ExperimentalRegExp::IsCompiled(regexp_)) {
+        if (!ExperimentalRegExp::IsCompiled(regexp_, isolate_)) {
           ExperimentalRegExp::Compile(isolate_, regexp_);
         }
         DisallowHeapAllocation no_gc;

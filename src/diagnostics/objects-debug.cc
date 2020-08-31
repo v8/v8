@@ -1223,23 +1223,23 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
 
       Object latin1_code = arr.get(JSRegExp::kIrregexpLatin1CodeIndex);
       Object uc16_code = arr.get(JSRegExp::kIrregexpUC16CodeIndex);
-      Object experimental_pattern =
-          arr.get(JSRegExp::kExperimentalPatternIndex);
-      if (latin1_code.IsCode()) {
-        // `this` should be a compiled regexp.
-        CHECK(latin1_code.IsCode());
+      Object latin1_bytecode = arr.get(JSRegExp::kIrregexpLatin1BytecodeIndex);
+      Object uc16_bytecode = arr.get(JSRegExp::kIrregexpUC16BytecodeIndex);
+
+      bool is_compiled = latin1_code.IsCode();
+      if (is_compiled) {
         CHECK_EQ(Code::cast(latin1_code).builtin_index(),
                  Builtins::kRegExpExperimentalTrampoline);
+        CHECK_EQ(uc16_code, latin1_code);
 
-        CHECK(uc16_code.IsCode());
-        CHECK_EQ(Code::cast(uc16_code).builtin_index(),
-                 Builtins::kRegExpExperimentalTrampoline);
-
-        CHECK(experimental_pattern.IsString());
+        CHECK(latin1_bytecode.IsByteArray());
+        CHECK_EQ(uc16_bytecode, latin1_bytecode);
       } else {
         CHECK_EQ(latin1_code, uninitialized);
         CHECK_EQ(uc16_code, uninitialized);
-        CHECK_EQ(experimental_pattern, uninitialized);
+
+        CHECK_EQ(latin1_bytecode, uninitialized);
+        CHECK_EQ(uc16_bytecode, uninitialized);
       }
 
       CHECK_EQ(arr.get(JSRegExp::kIrregexpMaxRegisterCountIndex),

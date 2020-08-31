@@ -1254,6 +1254,28 @@ RUNTIME_FUNCTION(Runtime_RegexpHasNativeCode) {
   return isolate->heap()->ToBoolean(result);
 }
 
+RUNTIME_FUNCTION(Runtime_RegexpTypeTag) {
+  HandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
+  const char* type_str;
+  switch (regexp.TypeTag()) {
+    case JSRegExp::NOT_COMPILED:
+      type_str = "NOT_COMPILED";
+      break;
+    case JSRegExp::ATOM:
+      type_str = "ATOM";
+      break;
+    case JSRegExp::IRREGEXP:
+      type_str = "IRREGEXP";
+      break;
+    case JSRegExp::EXPERIMENTAL:
+      type_str = "EXPERIMENTAL";
+      break;
+  }
+  return *isolate->factory()->NewStringFromAsciiChecked(type_str);
+}
+
 #define ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(Name)      \
   RUNTIME_FUNCTION(Runtime_Has##Name) {                 \
     CONVERT_ARG_CHECKED(JSObject, obj, 0);              \

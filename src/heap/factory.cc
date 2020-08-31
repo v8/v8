@@ -3347,7 +3347,6 @@ void Factory::SetRegExpExperimentalData(Handle<JSRegExp> regexp,
   store->set(JSRegExp::kIrregexpCaptureNameMapIndex, uninitialized);
   store->set(JSRegExp::kIrregexpTicksUntilTierUpIndex, uninitialized);
   store->set(JSRegExp::kIrregexpBacktrackLimit, uninitialized);
-  store->set(JSRegExp::kExperimentalPatternIndex, uninitialized);
   regexp->set_data(*store);
 }
 
