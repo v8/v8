@@ -227,6 +227,7 @@ void SamplerManager::RemoveSampler(Sampler* sampler) {
 
 void SamplerManager::DoSample(const v8::RegisterState& state) {
   AtomicGuard atomic_guard(&samplers_access_counter_, false);
+  // TODO(petermarshall): Add stat counters for the bailouts here.
   if (!atomic_guard.is_success()) return;
   pthread_t thread_id = pthread_self();
   auto it = sampler_map_.find(thread_id);

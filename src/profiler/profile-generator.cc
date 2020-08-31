@@ -10,6 +10,7 @@
 #include "src/objects/shared-function-info-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
+#include "src/profiler/profiler-stats.h"
 #include "src/tracing/trace-event.h"
 #include "src/tracing/traced-value.h"
 
@@ -331,8 +332,7 @@ void ProfileNode::Print(int indent) const {
   if (entry_->resource_name()[0] != '\0')
     base::OS::Print(" %s:%d", entry_->resource_name(), entry_->line_number());
   base::OS::Print("\n");
-  for (size_t i = 0; i < deopt_infos_.size(); ++i) {
-    const CpuProfileDeoptInfo& info = deopt_infos_[i];
+  for (const CpuProfileDeoptInfo& info : deopt_infos_) {
     base::OS::Print(
         "%*s;;; deopted at script_id: %d position: %zu with reason '%s'.\n",
         indent + 10, "", info.stack[0].script_id, info.stack[0].position,
@@ -661,9 +661,11 @@ void CpuProfile::FinishProfile() {
                               "ProfileChunk", id_, "data", std::move(value));
 }
 
-void CpuProfile::Print() {
+void CpuProfile::Print() const {
   base::OS::Print("[Top down]:\n");
   top_down_.Print();
+  ProfilerStats::Instance()->Print();
+  ProfilerStats::Instance()->Clear();
 }
 
 CodeMap::CodeMap() = default;
@@ -935,6 +937,8 @@ void ProfileGenerator::SymbolizeTickSample(const TickSample& sample) {
           // former case we don't so we simply replace the frame with
           // 'unresolved' entry.
           if (!sample.has_external_callback) {
+            ProfilerStats::Instance()->AddReason(
+                ProfilerStats::Reason::kInCallOrApply);
             stack_trace.push_back(
                 {{CodeEntry::unresolved_entry(), no_line_info},
                  kNullAddress,
@@ -1007,6 +1011,12 @@ void ProfileGenerator::SymbolizeTickSample(const TickSample& sample) {
     }
     // If no frames were symbolized, put the VM state entry in.
     if (no_symbolized_entries) {
+      if (sample.pc == nullptr) {
+        ProfilerStats::Instance()->AddReason(ProfilerStats::Reason::kNullPC);
+      } else {
+        ProfilerStats::Instance()->AddReason(
+            ProfilerStats::Reason::kNoSymbolizedFrames);
+      }
       stack_trace.push_back(
           {{EntryForVMState(sample.state), no_line_info}, kNullAddress, false});
     }

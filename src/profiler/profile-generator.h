@@ -348,9 +348,7 @@ class V8_EXPORT_PRIVATE ProfileTree {
   ProfileNode* root() const { return root_; }
   unsigned next_node_id() { return next_node_id_++; }
 
-  void Print() {
-    root_->Print(0);
-  }
+  void Print() const { root_->Print(0); }
 
   Isolate* isolate() const { return isolate_; }
 
@@ -412,7 +410,7 @@ class CpuProfile {
 
   void UpdateTicksScale();
 
-  V8_EXPORT_PRIVATE void Print();
+  V8_EXPORT_PRIVATE void Print() const;
 
  private:
   void StreamPendingTraceEvents();

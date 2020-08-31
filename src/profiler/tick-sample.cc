@@ -12,6 +12,7 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/heap-inl.h"  // For Heap::code_range.
 #include "src/logging/counters.h"
+#include "src/profiler/profiler-stats.h"
 #include "src/sanitizer/asan.h"
 #include "src/sanitizer/msan.h"
 
@@ -223,7 +224,11 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
 
 #if defined(USE_SIMULATOR)
   if (use_simulator_reg_state) {
-    if (!i::SimulatorHelper::FillRegisters(isolate, regs)) return false;
+    if (!i::SimulatorHelper::FillRegisters(isolate, regs)) {
+      i::ProfilerStats::Instance()->AddReason(
+          i::ProfilerStats::Reason::kSimulatorFillRegistersFailed);
+      return false;
+    }
   }
 #else
   USE(use_simulator_reg_state);
@@ -232,11 +237,15 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
 
   // Check whether we interrupted setup/teardown of a stack frame in JS code.
   // Avoid this check for C++ code, as that would trigger false positives.
+  // TODO(petermarshall): Code range is always null on ia32 so this check for
+  // IsNoFrameRegion will never actually run there.
   if (regs->pc &&
       isolate->heap()->memory_allocator()->code_range().contains(
           reinterpret_cast<i::Address>(regs->pc)) &&
       IsNoFrameRegion(reinterpret_cast<i::Address>(regs->pc))) {
     // The frame is not setup, so it'd be hard to iterate the stack. Bailout.
+    i::ProfilerStats::Instance()->AddReason(
+        i::ProfilerStats::Reason::kNoFrameRegion);
     return false;
   }
 
