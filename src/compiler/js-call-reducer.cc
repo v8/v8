@@ -2230,6 +2230,15 @@ Reduction JSCallReducer::ReplaceWithSubgraph(JSCallReducerAssembler* gasm,
                      handler_effect, handler_control);
   }
 
+  // TODO(jgruber): This is a hack around the issue described at crbug/1123379,
+  // i.e.: MergeControlToEnd, used by GraphAssembler::Unreachable, currently
+  // doesn't interact well when used inside a compiler phase based on the
+  // GraphReducer framework. What happens is that control is merged to the
+  // graph end, but the reducer is not notified and does not know to revisit
+  // the end node. We thus do this manually here. A proper fix would be to add
+  // support either inside GraphAssembler, or in a GraphAssembler wrapper.
+  Revisit(graph()->end());
+
   return Replace(subgraph);
 }
 
