@@ -1444,9 +1444,11 @@
   'compiler/serializer-transition-propagation': [SKIP],
 }],  # variant == nci or variant == nci_as_midtier
 
-['nosse41', {
+['nosse41 or ((arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips)', {
   # Requires scalar lowering for 64x2 SIMD instructions, which are not
   # implemented yet.
+  # Also skip tests on MIPS arch that don't support SIMD and lowering doesn't yet work correctly.
+  # Condition copied from cctest.status.
   'regress/wasm/regress-10831': [SKIP],
 }],  # nosse3
 
