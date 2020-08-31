@@ -246,6 +246,7 @@ class StringToIntHelper {
   void set_state(State state) { state_ = state; }
 
  private:
+  bool CheckTermination();
   template <class Char>
   void DetectRadixInternal(Char current, int length);
   template <class Char>
@@ -293,6 +294,18 @@ void StringToIntHelper<LocalIsolate>::ParseInt() {
     }
   }
   DCHECK_NE(state_, State::kRunning);
+}
+
+template <typename LocalIsolate>
+bool StringToIntHelper<LocalIsolate>::CheckTermination() {
+  return false;
+}
+
+template <>
+bool StringToIntHelper<Isolate>::CheckTermination() {
+  StackLimitCheck interrupt_check(isolate());
+  return interrupt_check.InterruptRequested() &&
+         isolate()->stack_guard()->HandleInterrupts().IsException(isolate());
 }
 
 template <typename LocalIsolate>
@@ -378,8 +391,9 @@ void StringToIntHelper<LocalIsolate>::DetectRadixInternal(Char current,
 template <typename LocalIsolate>
 template <class Char>
 void StringToIntHelper<LocalIsolate>::ParseInternal(Char start) {
+  int length = length_;
   Char current = start + cursor_;
-  Char end = start + length_;
+  Char end = start + length;
 
   // The following code causes accumulating rounding error for numbers greater
   // than ~2^56. It's explicitly allowed in the spec: "if R is not 2, 4, 8, 10,
@@ -433,6 +447,11 @@ void StringToIntHelper<LocalIsolate>::ParseInternal(Char start) {
 
     // Update the value and skip the part in the string.
     ResultMultiplyAdd(multiplier, part);
+
+    // Check for interrupts while parsing very large strings
+    if (length > 25000 && CheckTermination()) {
+      return set_state(State::kError);
+    }
   } while (!done);
 
   if (!allow_trailing_junk_ && AdvanceToNonspace(&current, end)) {
