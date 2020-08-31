@@ -1,3 +1,7 @@
+# Copyright 2020 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
 FAILED_STEPS_EXCLUDE = [
     "bot_update",
     "isolate tests",
@@ -87,6 +91,7 @@ BRANCH_BUIDLERS = [
     "V8 Linux - ppc64 - sim",
     "V8 Linux - s390x - sim",
 ]
+
 luci.notifier(
     name = "beta/stable notifier",
     on_occurrence = ["FAILURE"],

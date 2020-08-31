@@ -1,3 +1,7 @@
+# Copyright 2020 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
 waterfall_acls = [
     acl.entry(
         roles = acl.BUILDBUCKET_TRIGGERER,
@@ -43,6 +47,7 @@ defaults_try = {
     "execution_timeout": 1800,
     "properties": {"mastername": "tryserver.v8"},
 }
+
 defaults_triggered = {
     "executable": {"name": "v8", "cipd_package": "infra/recipe_bundles/chromium.googlesource.com/chromium/tools/build", "cipd_version": "refs/heads/master"},
     "swarming_tags": ["vpython:native-python-wrapper"],
@@ -87,27 +92,44 @@ multibot_caches = [
     ),
 ]
 
-def v8_try_builder(**kv_args):
-    v8_builder(**kv_args)
+def v8_builder(defaults = None, **kwargs):
+    bucket_name = kwargs["bucket"]
+    in_console = kwargs.pop("in_console", None)
+    in_list = kwargs.pop("in_list", None)
+    defaults = defaults or defaults_dict[bucket_name]
+    v8_basic_builder(defaults, **kwargs)
+    if in_console:
+        splited = in_console.split("/")
+        console_name = splited[0]
+        category_name = None
+        if len(splited) > 1:
+            category_name = splited[1]
+        luci.console_view_entry(
+            console_view = console_name,
+            builder = "%s/%s" % (bucket_name, kwargs["name"]),
+            category = category_name,
+        )
+    if in_list:
+        luci.list_view_entry(
+            list_view = in_list,
+            builder = kwargs["name"],
+        )
+    return kwargs["name"]
 
-def v8_builder(**kv_args):
-    bucket_name = kv_args["bucket"]
-    v8_basic_builder(defaults_dict[bucket_name], **kv_args)
-
-def v8_basic_builder(defaults, **kv_args):
-    cq_properties = kv_args.pop("cq_properties", None)
+def v8_basic_builder(defaults, **kwargs):
+    cq_properties = kwargs.pop("cq_properties", None)
     if cq_properties:
         luci.cq_tryjob_verifier(
-            kv_args["name"],
+            kwargs["name"],
             cq_group = "v8-cq",
             **cq_properties
         )
-    use_goma = kv_args.pop("use_goma", None)
+    use_goma = kwargs.pop("use_goma", None)
     if use_goma:
-        properties = dict((kv_args.pop("properties", {})).items() + use_goma.items())
-        kv_args["properties"] = properties
-    kv_args = fix_args(defaults, **kv_args)
-    luci.builder(**kv_args)
+        properties = dict((kwargs.pop("properties", {})).items() + use_goma.items())
+        kwargs["properties"] = properties
+    kwargs = fix_args(defaults, **kwargs)
+    luci.builder(**kwargs)
 
 branch_console_dict = {
     ("ci", "main"): "main",
@@ -118,51 +140,18 @@ branch_console_dict = {
     ("ci.br.stable", "ports"): "br.stable.ports",
 }
 
-def v8_branch_coverage_builder(**kv_args):
+def branch_coverage_builder(**kwargs):
     for bucket_name in ["ci", "ci.br.beta", "ci.br.stable"]:
-        args = dict(kv_args)
+        args = dict(kwargs)
         triggered_by_gitiles = args.pop("triggered_by_gitiles")
         if triggered_by_gitiles:
             args["triggered_by"] = [trigger_dict[bucket_name]]
         v8_basic_builder(defaults_ci, bucket = bucket_name, **args)
+    return kwargs["name"]
 
-def v8_try_ng_pair(name, **kv_args):
-    triggered_timeout = kv_args.pop("triggered_timeout", None)
-    kv_args["properties"]["triggers"] = [name + "_ng_triggered"]
-    cq_tg = kv_args.pop("cq_properties_trigger", None)
-    cq_td = kv_args.pop("cq_properties_triggered", None)
-    v8_basic_builder(defaults_try, name = name + "_ng", bucket = "try", cq_properties = cq_tg, **kv_args)
-    v8_basic_builder(
-        defaults_triggered,
-        name = name + "_ng_triggered",
-        bucket = "try.triggered",
-        execution_timeout = triggered_timeout,
-        cq_properties = cq_td,
-    )
-
-def v8_auto(name, recipe, cipd_package = None, cipd_version = None, execution_timeout = None, properties = None, **kv_args):
-    properties = dict((properties or {}).items() + goma_props.items())
-    executable = dict()
-    executable["name"] = recipe
-    if cipd_package:
-        executable["cipd_package"] = cipd_package
-    if cipd_version:
-        executable["cipd_version"] = cipd_version
-    v8_basic_builder(
-        defaults_ci,
-        name = name,
-        bucket = "ci",
-        executable = executable,
-        dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        service_account = "v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceaccount.com",
-        execution_timeout = execution_timeout,
-        properties = properties,
-        **kv_args
-    )
-
-def v8_perf_builder(**kv_args):
+def perf_builder(**kwargs):
     properties = {"triggers_proxy": True, "build_config": "Release", "mastername": "client.v8.perf"}
-    extra_properties = kv_args.pop("properties", None)
+    extra_properties = kwargs.pop("properties", None)
     if extra_properties:
         properties.update(extra_properties)
     v8_builder(
@@ -175,11 +164,11 @@ def v8_perf_builder(**kv_args):
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
         properties = properties,
         use_goma = GOMA.DEFAULT,
-        **kv_args
+        **kwargs
     )
 
-def fix_args(defaults, **kv_args):
-    args = dict(kv_args)
+def fix_args(defaults, **kwargs):
+    args = dict(kwargs)
     recipe_name = args.pop("recipe_name", None)
     if recipe_name:
         args["executable"] = {"name": recipe_name}
@@ -220,3 +209,32 @@ def merge_defaults(defaults, args, key):
 
 def clean_dict_items(dictionary, key):
     return {k: v for k, v in dictionary.get(key, {}).items() if v != None}.items()
+
+branches = [
+    "ci",
+    "ci.br.stable",
+    "ci.br.beta",
+]
+
+def in_branch_console(console_id, *builders):
+    def in_category(category_name, *builders):
+        for branch in branches:
+            for builder in builders:
+                luci.console_view_entry(
+                    console_view = branch_console_dict[branch, console_id],
+                    builder = "%s/%s" % (branch, builder),
+                    category = category_name,
+                )
+
+    return in_category
+
+def in_console(console_id, *builders):
+    def in_category(category_name, *builders):
+        for builder in builders:
+            luci.console_view_entry(
+                console_view = console_id,
+                builder = builder,
+                category = category_name,
+            )
+
+    return in_category
