@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <type_traits>
