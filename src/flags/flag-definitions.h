@@ -239,11 +239,10 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
   V(harmony_atomics_waitasync, "harmony Atomics.waitAsync")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_STAGED(V)                                  \
-  HARMONY_STAGED_BASE(V)                                   \
-  V(harmony_intl_dateformat_day_period,                    \
-    "Add dayPeriod option to DateTimeFormat")              \
-  V(harmony_intl_segmenter, "Intl.Segmenter")
+#define HARMONY_STAGED(V)               \
+  HARMONY_STAGED_BASE(V)                \
+  V(harmony_intl_dateformat_day_period, \
+    "Add dayPeriod option to DateTimeFormat")
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
 #endif
@@ -262,7 +261,13 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
   V(harmony_string_replaceall, "harmony String.prototype.replaceAll")     \
   V(harmony_logical_assignment, "harmony logical assignment")
 
+#ifdef V8_INTL_SUPPORT
+#define HARMONY_SHIPPING(V) \
+  HARMONY_SHIPPING_BASE(V)  \
+  V(harmony_intl_segmenter, "Intl.Segmenter")
+#else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
+#endif
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,
