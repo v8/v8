@@ -76,8 +76,8 @@ class SerializerDeserializer : public RootVisitor {
 // clang-format off
 #define UNUSED_SERIALIZER_BYTE_CODES(V)                           \
   V(0x06) V(0x07) V(0x0e) V(0x0f)                                 \
-  /* Free range 0x28..0x2f */                                     \
-  V(0x28) V(0x29) V(0x2a) V(0x2b) V(0x2c) V(0x2d) V(0x2e) V(0x2f) \
+  /* Free range 0x2b..0x2f */                                     \
+  V(0x2b) V(0x2c) V(0x2d) V(0x2e) V(0x2f)                         \
   /* Free range 0x30..0x3f */                                     \
   V(0x30) V(0x31) V(0x32) V(0x33) V(0x34) V(0x35) V(0x36) V(0x37) \
   V(0x38) V(0x39) V(0x3a) V(0x3b) V(0x3c) V(0x3d) V(0x3e) V(0x3f) \
@@ -189,6 +189,19 @@ class SerializerDeserializer : public RootVisitor {
     kWeakPrefix,
     // Encodes an off-heap instruction stream target.
     kOffHeapTarget,
+    // Registers the current slot as a "pending" forward reference, to be later
+    // filled by a corresponding resolution bytecode.
+    kRegisterPendingForwardRef,
+    // Resolves an existing "pending" forward reference to point to the current
+    // object.
+    kResolvePendingForwardRef,
+    // Special construction bytecode for the metamap. In theory we could re-use
+    // forward-references for this, but then the forward reference would be
+    // registered during object map deserialization, before the object is
+    // allocated, so there wouldn't be a allocated object whose map field we can
+    // register as the pending field. We could either hack around this, or
+    // simply introduce this new bytecode.
+    kNewMetaMap,
 
     //
     // ---------- byte code range 0x40..0x7f ----------

@@ -164,6 +164,17 @@ bool Serializer::SerializeBackReference(HeapObject obj) {
   return true;
 }
 
+bool Serializer::SerializePendingObject(HeapObject obj) {
+  auto it = forward_refs_per_pending_object_.find(obj);
+  if (it == forward_refs_per_pending_object_.end()) {
+    return false;
+  }
+
+  int forward_ref_id = PutPendingForwardReference();
+  it->second.push_back(forward_ref_id);
+  return true;
+}
+
 bool Serializer::ObjectIsBytecodeHandler(HeapObject obj) const {
   if (!obj.IsCode()) return false;
   return (Code::cast(obj).kind() == CodeKind::BYTECODE_HANDLER);
@@ -260,6 +271,45 @@ void Serializer::PutRepeat(int repeat_count) {
   }
 }
 
+int Serializer::PutPendingForwardReference() {
+  sink_.Put(kRegisterPendingForwardRef, "RegisterPendingForwardRef");
+  unresolved_forward_refs_++;
+  return next_forward_ref_id_++;
+}
+
+void Serializer::ResolvePendingForwardReference(int forward_reference_id) {
+  sink_.Put(kResolvePendingForwardRef, "ResolvePendingForwardRef");
+  sink_.PutInt(forward_reference_id, "with this index");
+  unresolved_forward_refs_--;
+
+  // If there are no more unresolved forward refs, reset the forward ref id to
+  // zero so that future forward refs compress better.
+  if (unresolved_forward_refs_ == 0) {
+    next_forward_ref_id_ = 0;
+  }
+}
+
+Serializer::PendingObjectReference Serializer::RegisterObjectIsPending(
+    HeapObject obj) {
+  // Add the given object to the pending objects -> forward refs map.
+  auto forward_refs_entry_insertion =
+      forward_refs_per_pending_object_.emplace(obj, std::vector<int>());
+
+  // Make sure the above emplace actually added the object, rather than
+  // overwriting an existing entry.
+  DCHECK(forward_refs_entry_insertion.second);
+
+  // return the iterator into the map as the reference.
+  return forward_refs_entry_insertion.first;
+}
+
+void Serializer::ResolvePendingObject(Serializer::PendingObjectReference ref) {
+  for (int index : ref->second) {
+    ResolvePendingForwardReference(index);
+  }
+  forward_refs_per_pending_object_.erase(ref);
+}
+
 void Serializer::Pad(int padding_offset) {
   // The non-branching GetInt will read up to 3 bytes too far, so we need
   // to pad the snapshot to make sure we don't read over the end.
@@ -299,23 +349,52 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
   }
 
   const int space_number = static_cast<int>(space);
+
   SerializerReference back_reference;
-  if (space == SnapshotSpace::kLargeObject) {
-    sink_->Put(kNewObject + space_number, "NewLargeObject");
-    sink_->PutInt(size >> kObjectAlignmentBits, "ObjectSizeInWords");
-    CHECK(!object_.IsCode());
-    back_reference = serializer_->allocator()->AllocateLargeObject(size);
-  } else if (space == SnapshotSpace::kMap) {
-    DCHECK_EQ(Map::kSize, size);
-    back_reference = serializer_->allocator()->AllocateMap();
-    sink_->Put(kNewObject + space_number, "NewMap");
-    // This is redundant, but we include it anyways.
-    sink_->PutInt(size >> kObjectAlignmentBits, "ObjectSizeInWords");
+  if (map == object_) {
+    DCHECK_EQ(object_, ReadOnlyRoots(serializer_->isolate()).meta_map());
+    DCHECK_EQ(space, SnapshotSpace::kReadOnlyHeap);
+    sink_->Put(kNewMetaMap, "NewMetaMap");
+
+    DCHECK_EQ(size, Map::kSize);
+    back_reference = serializer_->allocator()->Allocate(space, size);
   } else {
-    int fill = serializer_->PutAlignmentPrefix(object_);
-    back_reference = serializer_->allocator()->Allocate(space, size + fill);
     sink_->Put(kNewObject + space_number, "NewObject");
+
+    // TODO(leszeks): Skip this when the map has a fixed size.
     sink_->PutInt(size >> kObjectAlignmentBits, "ObjectSizeInWords");
+
+    // Until the space for the object is allocated, it is considered "pending".
+    auto pending_object_ref = serializer_->RegisterObjectIsPending(object_);
+
+    // Serialize map (first word of the object) before anything else, so that
+    // the deserializer can access it when allocating. Make sure that the map
+    // isn't a pending object.
+    DCHECK_EQ(serializer_->forward_refs_per_pending_object_.count(map), 0);
+    DCHECK(map.IsMap());
+    serializer_->SerializeObject(map);
+
+    // Make sure the map serialization didn't accidentally recursively serialize
+    // this object.
+    DCHECK(!serializer_->reference_map()
+                ->LookupReference(reinterpret_cast<void*>(object_.ptr()))
+                .is_valid());
+
+    // Allocate the object after the map is serialized.
+    if (space == SnapshotSpace::kLargeObject) {
+      CHECK(!object_.IsCode());
+      back_reference = serializer_->allocator()->AllocateLargeObject(size);
+    } else if (space == SnapshotSpace::kMap) {
+      back_reference = serializer_->allocator()->AllocateMap();
+      DCHECK_EQ(Map::kSize, size);
+    } else {
+      int fill = serializer_->PutAlignmentPrefix(object_);
+      back_reference = serializer_->allocator()->Allocate(space, size + fill);
+    }
+
+    // Now that the object is allocated, we can resolve pending references to
+    // it.
+    serializer_->ResolvePendingObject(pending_object_ref);
   }
 
 #ifdef OBJECT_PRINT
@@ -327,9 +406,6 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
   // Mark this object as already serialized.
   serializer_->reference_map()->Add(reinterpret_cast<void*>(object_.ptr()),
                                     back_reference);
-
-  // Serialize the map (first word of the object).
-  serializer_->SerializeObject(map);
 }
 
 uint32_t Serializer::ObjectSerializer::SerializeBackingStore(
@@ -679,6 +755,12 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
     HeapObjectReferenceType reference_type;
     while (current < end &&
            (*current)->GetHeapObject(&current_contents, &reference_type)) {
+      if (serializer_->SerializePendingObject(current_contents)) {
+        bytes_processed_so_far_ += kTaggedSize;
+        ++current;
+        continue;
+      }
+
       RootIndex root_index;
       // Compute repeat count and write repeat prefix if applicable.
       // Repeats are not subject to the write barrier so we can only use

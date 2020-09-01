@@ -39,6 +39,11 @@ class SnapshotByteSource final {
     return data_[position_++];
   }
 
+  byte Peek() const {
+    DCHECK(position_ < length_);
+    return data_[position_];
+  }
+
   void Advance(int by) { position_ += by; }
 
   void CopyRaw(void* to, int number_of_bytes) {

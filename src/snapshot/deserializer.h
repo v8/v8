@@ -150,6 +150,7 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   inline Address ReadExternalReferenceCase();
 
   HeapObject ReadObject(SnapshotSpace space_number);
+  HeapObject ReadMetaMap();
   void ReadCodeObjectBody(SnapshotSpace space_number,
                           Address code_object_address);
 
@@ -188,6 +189,15 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   std::vector<Handle<Script>> new_scripts_;
   std::vector<Handle<JSArrayBuffer>> new_off_heap_array_buffers_;
   std::vector<std::shared_ptr<BackingStore>> backing_stores_;
+
+  // Unresolved forward references (registered with kRegisterPendingForwardRef)
+  // are collected in order as (object, field offset) pairs. The subsequent
+  // forward ref resolution (with kResolvePendingForwardRef) accesses this
+  // vector by index.
+  //
+  // The vector is cleared when there are no more unresolved forward refs.
+  std::vector<std::pair<HeapObject, int>> unresolved_forward_refs_;
+  int num_unresolved_forward_refs_ = 0;
 
   DeserializerAllocator allocator_;
   const bool deserializing_user_code_;

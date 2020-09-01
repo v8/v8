@@ -386,6 +386,29 @@ HeapObject Deserializer::ReadObject(SnapshotSpace space) {
 
   const int size = source_.GetInt() << kObjectAlignmentBits;
 
+  // The map can't be a forward ref. If you want the map to be a forward ref,
+  // then you're probably serializing the meta-map, in which case you want to
+  // use the kNewMetaMap bytecode.
+  DCHECK_NE(source()->Peek(), kRegisterPendingForwardRef);
+  Map map = Map::cast(ReadObject());
+
+  // The serializer allocated the object now, so the next bytecodes might be an
+  // alignment prefix and/or a next chunk
+  if (base::IsInRange<byte, byte>(source()->Peek(), kAlignmentPrefix,
+                                  kAlignmentPrefix + 2)) {
+    int alignment = source()->Get() - (kAlignmentPrefix - 1);
+    allocator()->SetAlignment(static_cast<AllocationAlignment>(alignment));
+  }
+  if (source()->Peek() == kNextChunk) {
+    source()->Advance(1);
+    // The next byte is the space for the next chunk -- it should match the
+    // current space.
+    // TODO(leszeks): Remove the next chunk space entirely.
+    DCHECK_EQ(static_cast<SnapshotSpace>(source()->Peek()), space);
+    source()->Advance(1);
+    allocator()->MoveToNextChunk(space);
+  }
+
   Address address = allocator()->Allocate(space, size);
   HeapObject obj = HeapObject::FromAddress(address);
 
@@ -393,7 +416,8 @@ HeapObject Deserializer::ReadObject(SnapshotSpace space) {
   MaybeObjectSlot current(address);
   MaybeObjectSlot limit(address + size);
 
-  if (ReadData(current, limit, space, address)) {
+  current.store(MaybeObject::FromObject(map));
+  if (ReadData(current + 1, limit, space, address)) {
     // Only post process if object content has not been deferred.
     obj = PostProcessNewObject(obj, space);
   }
@@ -406,6 +430,28 @@ HeapObject Deserializer::ReadObject(SnapshotSpace space) {
     DCHECK_NE(space, SnapshotSpace::kCode);
   }
 #endif  // DEBUG
+  return obj;
+}
+
+HeapObject Deserializer::ReadMetaMap() {
+  DisallowHeapAllocation no_gc;
+
+  const SnapshotSpace space = SnapshotSpace::kReadOnlyHeap;
+  const int size = Map::kSize;
+
+  Address address = allocator()->Allocate(space, size);
+  HeapObject obj = HeapObject::FromAddress(address);
+
+  isolate()->heap()->OnAllocationEvent(obj, size);
+  MaybeObjectSlot current(address);
+  MaybeObjectSlot limit(address + size);
+
+  current.store(MaybeObject(current.address() + kHeapObjectTag));
+  // Set the instance-type manually, to allow backrefs to read it.
+  Map::unchecked_cast(obj).set_instance_type(MAP_TYPE);
+  // The meta map's contents cannot be deferred.
+  CHECK(ReadData(current + 1, limit, space, address));
+
   return obj;
 }
 
@@ -585,6 +631,10 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
       // the current object.
       case kAttachedReference:
         READ_DATA_CASE_BODY(kAttachedReference)
+      // Deserialize a new meta-map and write a pointer to it to the current
+      // object.
+      case kNewMetaMap:
+        READ_DATA_CASE_BODY(kNewMetaMap)
 
 #undef READ_DATA_CASE_BODY
 
@@ -625,14 +675,14 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
       case kNop:
         break;
 
+      // NextChunk should only be seen during object allocation.
       case kNextChunk: {
-        int space = source_.Get();
-        allocator()->MoveToNextChunk(static_cast<SnapshotSpace>(space));
+        UNREACHABLE();
         break;
       }
 
       case kDeferred: {
-        // Deferred can only occur right after the heap object header.
+        // Deferred can only occur right after the heap object's map field.
         DCHECK_EQ(current.address(), current_object_address + kTaggedSize);
         HeapObject obj = HeapObject::FromAddress(current_object_address);
         // If the deferred object is a map, its instance type may be used
@@ -640,6 +690,37 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
         if (obj.IsMap()) Map::cast(obj).set_instance_type(FILLER_TYPE);
         current = limit;
         return false;
+      }
+
+      case kRegisterPendingForwardRef: {
+        HeapObject obj = HeapObject::FromAddress(current_object_address);
+        unresolved_forward_refs_.emplace_back(
+            obj, current.address() - current_object_address);
+        num_unresolved_forward_refs_++;
+        current++;
+        break;
+      }
+
+      case kResolvePendingForwardRef: {
+        // Pending forward refs can only be resolved after the heap object's map
+        // field is deserialized; currently they only appear immediately after
+        // the map field.
+        DCHECK_EQ(current.address(), current_object_address + kTaggedSize);
+        HeapObject obj = HeapObject::FromAddress(current_object_address);
+        int index = source_.GetInt();
+        auto& forward_ref = unresolved_forward_refs_[index];
+        TaggedField<HeapObject>::store(forward_ref.first, forward_ref.second,
+                                       obj);
+        num_unresolved_forward_refs_--;
+        if (num_unresolved_forward_refs_ == 0) {
+          // If there's no more pending fields, clear the entire pending field
+          // vector.
+          unresolved_forward_refs_.clear();
+        } else {
+          // Otherwise, at least clear the pending field.
+          forward_ref.first = HeapObject();
+        }
+        break;
       }
 
       case kSynchronize:
@@ -830,6 +911,9 @@ TSlot Deserializer::ReadDataCase(TSlot current, Address current_object_address,
     SnapshotSpace space = static_cast<SnapshotSpace>(data & kSpaceMask);
     heap_object = GetBackReferencedObject(space);
     emit_write_barrier = (space == SnapshotSpace::kNew);
+  } else if (bytecode == kNewMetaMap) {
+    heap_object = ReadMetaMap();
+    emit_write_barrier = false;
   } else if (bytecode == kRootArray) {
     int id = source_.GetInt();
     RootIndex root_index = static_cast<RootIndex>(id);

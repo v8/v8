@@ -210,6 +210,13 @@ class Serializer : public SerializerDeserializer {
   void PutNextChunk(SnapshotSpace space);
   void PutRepeat(int repeat_count);
 
+  // Emit a marker noting that this slot is a forward reference to the an
+  // object which has not yet been serialized.
+  int PutPendingForwardReference();
+  // Resolve the given previously registered forward reference to the current
+  // object.
+  void ResolvePendingForwardReference(int obj);
+
   // Returns true if the object was successfully serialized as a root.
   bool SerializeRoot(HeapObject obj);
 
@@ -218,6 +225,9 @@ class Serializer : public SerializerDeserializer {
 
   // Returns true if the object was successfully serialized as back reference.
   bool SerializeBackReference(HeapObject obj);
+
+  // Returns true if the object was successfully serialized as pending object.
+  bool SerializePendingObject(HeapObject obj);
 
   // Returns true if the given heap object is a bytecode handler code object.
   bool ObjectIsBytecodeHandler(HeapObject obj) const;
@@ -246,6 +256,17 @@ class Serializer : public SerializerDeserializer {
     deferred_objects_.push_back(obj);
   }
 
+  using PendingObjectReference =
+      std::map<HeapObject, std::vector<int>>::iterator;
+
+  // Register that the the given object shouldn't be immediately serialized, but
+  // will be serialized later and any references to it should be pending forward
+  // references.
+  PendingObjectReference RegisterObjectIsPending(HeapObject obj);
+
+  // Resolve the given pending object reference with the current object.
+  void ResolvePendingObject(PendingObjectReference ref);
+
   void OutputStatistics(const char* name);
 
 #ifdef OBJECT_PRINT
@@ -273,6 +294,10 @@ class Serializer : public SerializerDeserializer {
   }
 
  private:
+  // Disallow GC during serialization.
+  // TODO(leszeks, v8:10815): Remove this constraint.
+  DisallowHeapAllocation no_gc;
+
   Isolate* isolate_;
   SerializerReferenceMap reference_map_;
   ExternalReferenceEncoder external_reference_encoder_;
@@ -280,6 +305,22 @@ class Serializer : public SerializerDeserializer {
   std::unique_ptr<CodeAddressMap> code_address_map_;
   std::vector<byte> code_buffer_;
   std::vector<HeapObject> deferred_objects_;  // To handle stack overflow.
+
+  // Objects which have started being serialized, but haven't yet been allocated
+  // with the allocator, are considered "pending". References to them don't have
+  // an allocation to backref to, so instead they are registered as pending
+  // forward references, which are resolved once the object is allocated.
+  //
+  // Forward references are registered in a deterministic order, and can
+  // therefore be identified by an incrementing integer index, which is
+  // effectively an index into a vector of the currently registered forward
+  // refs. The references in this vector might not be resolved in order, so we
+  // can only clear it (and reset the indices) when there are no unresolved
+  // forward refs remaining.
+  int next_forward_ref_id_ = 0;
+  int unresolved_forward_refs_ = 0;
+  std::map<HeapObject, std::vector<int>> forward_refs_per_pending_object_;
+
   int recursion_depth_ = 0;
   const Snapshot::SerializerFlags flags_;
   SerializerAllocator allocator_;
