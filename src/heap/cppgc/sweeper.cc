@@ -401,7 +401,7 @@ class ConcurrentSweepTask final : public v8::JobTask,
     is_completed_.store(true, std::memory_order_relaxed);
   }
 
-  size_t GetMaxConcurrency() const final {
+  size_t GetMaxConcurrency(size_t /* active_worker_count */) const final {
     return is_completed_.load(std::memory_order_relaxed) ? 0 : 1;
   }
 

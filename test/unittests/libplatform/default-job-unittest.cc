@@ -36,7 +36,7 @@ TEST(DefaultJobTest, CancelJob) {
       }
     }
 
-    size_t GetMaxConcurrency() const override {
+    size_t GetMaxConcurrency(size_t /* worker_count */) const override {
       return max_concurrency.load(std::memory_order_relaxed);
     }
 
@@ -83,7 +83,7 @@ TEST(DefaultJobTest, JoinJobContributes) {
       --max_concurrency;
     }
 
-    size_t GetMaxConcurrency() const override {
+    size_t GetMaxConcurrency(size_t /* worker_count */) const override {
       return max_concurrency.load(std::memory_order_relaxed);
     }
 
@@ -119,11 +119,6 @@ TEST(DefaultJobTest, WorkerCount) {
     void Run(JobDelegate* delegate) override {
       base::MutexGuard guard(&mutex);
       if (max_concurrency > 0) --max_concurrency;
-    }
-
-    size_t GetMaxConcurrency() const override {
-      DCHECK(false);  // not called.
-      return 0;
     }
 
     size_t GetMaxConcurrency(size_t worker_count) const override {
@@ -166,7 +161,7 @@ TEST(DefaultJobTest, JobNotifyConcurrencyIncrease) {
       --max_concurrency;
     }
 
-    size_t GetMaxConcurrency() const override {
+    size_t GetMaxConcurrency(size_t /* worker_count */) const override {
       return max_concurrency.load(std::memory_order_relaxed);
     }
 
@@ -217,7 +212,7 @@ TEST(DefaultJobTest, FinishBeforeJoin) {
       --max_concurrency;
     }
 
-    size_t GetMaxConcurrency() const override {
+    size_t GetMaxConcurrency(size_t /* worker_count */) const override {
       return max_concurrency.load(std::memory_order_relaxed);
     }
 
@@ -254,7 +249,9 @@ TEST(DefaultJobTest, LeakHandle) {
 
     void Run(JobDelegate* delegate) override {}
 
-    size_t GetMaxConcurrency() const override { return 0; }
+    size_t GetMaxConcurrency(size_t /* worker_count */) const override {
+      return 0;
+    }
   };
 
   DefaultPlatform platform(0);
@@ -275,7 +272,9 @@ TEST(DefaultJobTest, AcquireTaskId) {
 
     void Run(JobDelegate* delegate) override {}
 
-    size_t GetMaxConcurrency() const override { return 0; }
+    size_t GetMaxConcurrency(size_t /* worker_count */) const override {
+      return 0;
+    }
   };
 
   DefaultPlatform platform(0);
