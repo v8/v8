@@ -604,8 +604,9 @@ void CheckFloatResult(float x, float y, float expected, float actual,
 static constexpr uint32_t nan_test_array[] = {
     // Bit patterns of quiet NaNs and signaling NaNs, with or without
     // additional payload.
-    0x7FC00000, 0xFFC00000, 0x7FFFFFFF, 0x7F800000, 0xFF800000, 0x7F876543,
-    0xFF876543,
+    0x7FC00000, 0xFFC00000, 0x7FFFFFFF, 0xFFFFFFFF, 0x7F876543, 0xFF876543,
+    // NaN with top payload bit unset.
+    0x7FA00000,
     // Both Infinities.
     0x7F800000, 0xFF800000,
     // Some "normal" numbers, 1 and -1.
