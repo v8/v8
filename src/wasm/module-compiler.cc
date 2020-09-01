@@ -2849,12 +2849,19 @@ void CompilationStateImpl::InitializeRecompilation(
   // is disabled).
   base::Optional<base::MutexGuard> guard(&callbacks_mutex_);
 
-  while (NumOutstandingCompilations() > 0) {
-    // Take part in compilation, after releasing the mutex.
+  // For now, we cannot contribute to compilation here, because this would bump
+  // the number of workers above the expected maximum concurrency. This can be
+  // fixed once we grow the number of compilation unit queues dynamically.
+  // TODO(clemensb): Contribute to compilation once the queues grow dynamically.
+  while (outstanding_recompilation_functions_ > 0) {
+    auto semaphore = std::make_shared<base::Semaphore>(0);
+    callbacks_.emplace_back([semaphore](CompilationEvent event) {
+      if (event == CompilationEvent::kFinishedRecompilation) {
+        semaphore->Signal();
+      }
+    });
     guard.reset();
-    constexpr JobDelegate* kNoDelegate = nullptr;
-    ExecuteCompilationUnits(background_compile_token_, async_counters_.get(),
-                            kNoDelegate, kBaselineOrTopTier);
+    semaphore->Wait();
     guard.emplace(&callbacks_mutex_);
   }
 
