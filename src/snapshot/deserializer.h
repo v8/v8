@@ -142,8 +142,7 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
 
   // A helper function for ReadData, templatized on the bytecode for efficiency.
   // Returns the new value of {current}.
-  template <typename TSlot, Bytecode bytecode,
-            SnapshotSpace space_number_if_any>
+  template <typename TSlot, Bytecode bytecode>
   inline TSlot ReadDataCase(TSlot current, Address current_object_address,
                             byte data, bool write_barrier_needed);
 

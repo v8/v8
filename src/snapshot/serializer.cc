@@ -5,6 +5,7 @@
 #include "src/snapshot/serializer.h"
 
 #include "src/codegen/assembler-inl.h"
+#include "src/common/globals.h"
 #include "src/heap/heap-inl.h"  // For Space::identity().
 #include "src/heap/memory-chunk-inl.h"
 #include "src/heap/read-only-heap.h"
@@ -123,7 +124,7 @@ bool Serializer::SerializeHotObject(HeapObject obj) {
   // Encode a reference to a hot object by its index in the working set.
   int index = hot_objects_.Find(obj);
   if (index == HotObjectsList::kNotFound) return false;
-  DCHECK(index >= 0 && index < kNumberOfHotObjects);
+  DCHECK(index >= 0 && index < kHotObjectCount);
   if (FLAG_trace_serializer) {
     PrintF(" Encoding hot object %d:", index);
     obj.ShortPrint();
@@ -179,10 +180,10 @@ void Serializer::PutRoot(RootIndex root, HeapObject object) {
   // Assert that the first 32 root array items are a conscious choice. They are
   // chosen so that the most common ones can be encoded more efficiently.
   STATIC_ASSERT(static_cast<int>(RootIndex::kArgumentsMarker) ==
-                kNumberOfRootArrayConstants - 1);
+                kRootArrayConstantsCount - 1);
 
   // TODO(ulan): Check that it works with young large objects.
-  if (root_index < kNumberOfRootArrayConstants &&
+  if (root_index < kRootArrayConstantsCount &&
       !Heap::InYoungGeneration(object)) {
     sink_.Put(kRootArrayConstants + root_index, "RootConstant");
   } else {
@@ -200,13 +201,11 @@ void Serializer::PutSmiRoot(FullObjectSlot slot) {
   STATIC_ASSERT(decltype(slot)::kSlotDataSize == kSystemPointerSize);
   static constexpr int bytes_to_output = decltype(slot)::kSlotDataSize;
   static constexpr int size_in_tagged = bytes_to_output >> kTaggedSizeLog2;
-  sink_.PutSection(kFixedRawDataStart + size_in_tagged, "Smi");
+  sink_.PutSection(EncodeFixedRawDataSize(size_in_tagged), "Smi");
 
   Address raw_value = Smi::cast(*slot).ptr();
   const byte* raw_value_as_bytes = reinterpret_cast<const byte*>(&raw_value);
-  for (size_t i = 0; i < bytes_to_output; i++) {
-    sink_.Put(raw_value_as_bytes[i], "Byte");
-  }
+  sink_.PutRaw(raw_value_as_bytes, bytes_to_output, "Bytes");
 }
 
 void Serializer::PutBackReference(HeapObject object,
@@ -464,9 +463,9 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   sink_->PutInt(bytes_to_output, "length");
 
   // Serialize string header (except for map).
-  uint8_t* string_start = reinterpret_cast<uint8_t*>(string.address());
+  byte* string_start = reinterpret_cast<byte*>(string.address());
   for (int i = HeapObject::kHeaderSize; i < SeqString::kHeaderSize; i++) {
-    sink_->PutSection(string_start[i], "StringHeader");
+    sink_->Put(string_start[i], "StringHeader");
   }
 
   // Serialize string content.
@@ -741,9 +740,9 @@ void Serializer::ObjectSerializer::OutputExternalReference(Address target,
     // references verbatim.
     CHECK(serializer_->allow_unknown_external_references_for_testing());
     CHECK(IsAligned(target_size, kObjectAlignment));
-    CHECK_LE(target_size, kNumberOfFixedRawData * kTaggedSize);
+    CHECK_LE(target_size, kFixedRawDataCount * kTaggedSize);
     int size_in_tagged = target_size >> kTaggedSizeLog2;
-    sink_->PutSection(kFixedRawDataStart + size_in_tagged, "FixedRawData");
+    sink_->PutSection(EncodeFixedRawDataSize(size_in_tagged), "FixedRawData");
     sink_->PutRaw(reinterpret_cast<byte*>(&target), target_size, "Bytes");
   } else if (encoded_reference.is_from_api()) {
     if (V8_HEAP_SANDBOX_BOOL && sandboxify) {
@@ -856,9 +855,9 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
   if (bytes_to_output != 0) {
     DCHECK(to_skip == bytes_to_output);
     if (IsAligned(bytes_to_output, kObjectAlignment) &&
-        bytes_to_output <= kNumberOfFixedRawData * kTaggedSize) {
+        bytes_to_output <= kFixedRawDataCount * kTaggedSize) {
       int size_in_tagged = bytes_to_output >> kTaggedSizeLog2;
-      sink_->PutSection(kFixedRawDataStart + size_in_tagged, "FixedRawData");
+      sink_->PutSection(EncodeFixedRawDataSize(size_in_tagged), "FixedRawData");
     } else {
       sink_->Put(kVariableRawData, "VariableRawData");
       sink_->PutInt(bytes_to_output, "length");

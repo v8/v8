@@ -5,6 +5,7 @@
 #ifndef V8_SNAPSHOT_SERIALIZER_DESERIALIZER_H_
 #define V8_SNAPSHOT_SERIALIZER_DESERIALIZER_H_
 
+#include "src/base/logging.h"
 #include "src/objects/visitors.h"
 #include "src/snapshot/references.h"
 
@@ -110,21 +111,23 @@ class SerializerDeserializer : public RootVisitor {
   STATIC_ASSERT(kNumberOfSpaces <= kSpaceMask + 1);
 
   // First 32 root array items.
-  static const int kNumberOfRootArrayConstants = 0x20;
+  static const int kRootArrayConstantsCount = 0x20;
   static const int kRootArrayConstantsMask = 0x1f;
 
   // 32 common raw data lengths.
-  static const int kNumberOfFixedRawData = 0x20;
-
+  static const int kFixedRawDataCount = 0x20;
   // 16 repeats lengths.
-  static const int kNumberOfFixedRepeat = 0x10;
+  static const int kFixedRepeatCount = 0x10;
 
   // 8 hot (recently seen or back-referenced) objects with optional skip.
-  static const int kNumberOfHotObjects = 8;
-  STATIC_ASSERT(kNumberOfHotObjects == HotObjectsList::kSize);
+  static const int kHotObjectCount = 8;
+  STATIC_ASSERT(kHotObjectCount == HotObjectsList::kSize);
   static const int kHotObjectMask = 0x07;
 
-  enum Bytecode {
+  // 3 alignment prefixes
+  static const int kAlignmentPrefixCount = 3;
+
+  enum Bytecode : byte {
     //
     // ---------- byte code range 0x00..0x0f ----------
     //
@@ -196,7 +199,6 @@ class SerializerDeserializer : public RootVisitor {
 
     // 0x60..0x7f
     kFixedRawData = 0x60,
-    kFixedRawDataStart = kFixedRawData - 1,
 
     //
     // ---------- byte code range 0x80..0x9f ----------
@@ -209,6 +211,14 @@ class SerializerDeserializer : public RootVisitor {
     kHotObject = 0x90,
   };
 
+  template <SnapshotSpace space>
+  static constexpr byte BytecodeWithSpace(Bytecode bytecode) {
+    STATIC_ASSERT(
+        (static_cast<int>(space) & ~SerializerDeserializer::kSpaceMask) == 0);
+    CONSTEXPR_DCHECK((bytecode & kSpaceMask) == 0);
+    return bytecode + static_cast<int>(space);
+  }
+
   //
   // Some other constants.
   //
@@ -217,36 +227,57 @@ class SerializerDeserializer : public RootVisitor {
   // Sentinel after a new object to indicate that double alignment is needed.
   static const int kDoubleAlignmentSentinel = 0;
 
+  // Raw data size encoding helpers.
+  static const int kFirstEncodableFixedRawDataSize = 1;
+  static const int kLastEncodableFixedRawDataSize =
+      kFirstEncodableFixedRawDataSize + kFixedRawDataCount - 1;
+
+  // Encodes raw data size into a fixed raw data bytecode.
+  static constexpr byte EncodeFixedRawDataSize(int size_in_tagged) {
+    CONSTEXPR_DCHECK(base::IsInRange(size_in_tagged,
+                                     kFirstEncodableFixedRawDataSize,
+                                     kLastEncodableFixedRawDataSize));
+    return kFixedRawData + size_in_tagged - kFirstEncodableFixedRawDataSize;
+  }
+
+  // Decodes raw data size from a fixed raw data bytecode.
+  static constexpr int DecodeFixedRawDataSize(byte bytecode) {
+    CONSTEXPR_DCHECK(base::IsInRange(static_cast<int>(bytecode),
+                                     kFixedRawData + 0,
+                                     kFixedRawData + kFixedRawDataCount));
+    return bytecode - kFixedRawData + kFirstEncodableFixedRawDataSize;
+  }
+
   // Repeat count encoding helpers.
   static const int kFirstEncodableRepeatCount = 2;
   static const int kLastEncodableFixedRepeatCount =
-      kFirstEncodableRepeatCount + kNumberOfFixedRepeat - 1;
+      kFirstEncodableRepeatCount + kFixedRepeatCount - 1;
   static const int kFirstEncodableVariableRepeatCount =
       kLastEncodableFixedRepeatCount + 1;
 
   // Encodes repeat count into a fixed repeat bytecode.
-  static int EncodeFixedRepeat(int repeat_count) {
-    DCHECK(base::IsInRange(repeat_count, kFirstEncodableRepeatCount,
-                           kLastEncodableFixedRepeatCount));
+  static constexpr byte EncodeFixedRepeat(int repeat_count) {
+    CONSTEXPR_DCHECK(base::IsInRange(repeat_count, kFirstEncodableRepeatCount,
+                                     kLastEncodableFixedRepeatCount));
     return kFixedRepeat + repeat_count - kFirstEncodableRepeatCount;
   }
 
   // Decodes repeat count from a fixed repeat bytecode.
-  static int DecodeFixedRepeatCount(int bytecode) {
-    DCHECK(base::IsInRange(bytecode, kFixedRepeat + 0,
-                           kFixedRepeat + kNumberOfFixedRepeat));
+  static constexpr int DecodeFixedRepeatCount(int bytecode) {
+    CONSTEXPR_DCHECK(base::IsInRange(bytecode, kFixedRepeat + 0,
+                                     kFixedRepeat + kFixedRepeatCount));
     return bytecode - kFixedRepeat + kFirstEncodableRepeatCount;
   }
 
   // Encodes repeat count into a serialized variable repeat count value.
-  static int EncodeVariableRepeatCount(int repeat_count) {
-    DCHECK_LE(kFirstEncodableVariableRepeatCount, repeat_count);
+  static constexpr int EncodeVariableRepeatCount(int repeat_count) {
+    CONSTEXPR_DCHECK(kFirstEncodableVariableRepeatCount <= repeat_count);
     return repeat_count - kFirstEncodableVariableRepeatCount;
   }
 
   // Decodes repeat count from a serialized variable repeat count value.
-  static int DecodeVariableRepeatCount(int value) {
-    DCHECK_LE(0, value);
+  static constexpr int DecodeVariableRepeatCount(int value) {
+    CONSTEXPR_DCHECK(0 <= value);
     return value + kFirstEncodableVariableRepeatCount;
   }
 

@@ -25,6 +25,7 @@
 #include "src/objects/string.h"
 #include "src/roots/roots.h"
 #include "src/snapshot/embedded/embedded-data.h"
+#include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tracing/trace-event.h"
 #include "src/tracing/traced-value.h"
@@ -508,13 +509,25 @@ TSlot Deserializer::ReadRepeatedObject(TSlot current, int repeat_count) {
   return current;
 }
 
-static void NoExternalReferencesCallback() {
+namespace {
+
+void NoExternalReferencesCallback() {
   // The following check will trigger if a function or object template
   // with references to native functions have been deserialized from
   // snapshot, but no actual external references were provided when the
   // isolate was created.
-  CHECK_WITH_MSG(false, "No external references provided via API");
+  FATAL("No external references provided via API");
 }
+
+// Template used by the below CASE_RANGE macro to statically verify that the
+// given number of cases matches the number of expected cases for that bytecode.
+template <int byte_code_count, int expected>
+constexpr byte VerifyBytecodeCount(byte bytecode) {
+  STATIC_ASSERT(byte_code_count == expected);
+  return bytecode;
+}
+
+}  // namespace
 
 template <typename TSlot>
 bool Deserializer::ReadData(TSlot current, TSlot limit,
@@ -530,47 +543,22 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
   while (current < limit) {
     byte data = source_.Get();
     switch (data) {
-#define CASE_STATEMENT(bytecode, snapshot_space)    \
-  case bytecode + static_cast<int>(snapshot_space): \
-    STATIC_ASSERT((static_cast<int>(snapshot_space) & ~kSpaceMask) == 0);
-
-#define CASE_BODY(bytecode, space_number_if_any)                    \
-  current = ReadDataCase<TSlot, bytecode, space_number_if_any>(     \
-      current, current_object_address, data, write_barrier_needed); \
+#define READ_DATA_CASE_BODY(bytecode)                                      \
+  current = ReadDataCase<TSlot, bytecode>(current, current_object_address, \
+                                          data, write_barrier_needed);     \
   break;
 
 // This generates a case and a body for the new space (which has to do extra
 // write barrier handling) and handles the other spaces with fall-through cases
 // and one body.
-#define ALL_SPACES(bytecode)                             \
-  CASE_STATEMENT(bytecode, SnapshotSpace::kNew)          \
-  CASE_BODY(bytecode, SnapshotSpace::kNew)               \
-  CASE_STATEMENT(bytecode, SnapshotSpace::kOld)          \
-  V8_FALLTHROUGH;                                        \
-  CASE_STATEMENT(bytecode, SnapshotSpace::kCode)         \
-  V8_FALLTHROUGH;                                        \
-  CASE_STATEMENT(bytecode, SnapshotSpace::kMap)          \
-  V8_FALLTHROUGH;                                        \
-  CASE_STATEMENT(bytecode, SnapshotSpace::kLargeObject)  \
-  V8_FALLTHROUGH;                                        \
-  CASE_STATEMENT(bytecode, SnapshotSpace::kReadOnlyHeap) \
-  CASE_BODY(bytecode, kAnyOldSpace)
-
-#define FOUR_CASES(byte_code) \
-  case byte_code:             \
-  case byte_code + 1:         \
-  case byte_code + 2:         \
-  case byte_code + 3:
-
-#define SIXTEEN_CASES(byte_code) \
-  FOUR_CASES(byte_code)          \
-  FOUR_CASES(byte_code + 4)      \
-  FOUR_CASES(byte_code + 8)      \
-  FOUR_CASES(byte_code + 12)
-
-#define SINGLE_CASE(bytecode, space) \
-  CASE_STATEMENT(bytecode, space)    \
-  CASE_BODY(bytecode, space)
+#define ALL_SPACES(bytecode)                                      \
+  case BytecodeWithSpace<SnapshotSpace::kNew>(bytecode):          \
+  case BytecodeWithSpace<SnapshotSpace::kOld>(bytecode):          \
+  case BytecodeWithSpace<SnapshotSpace::kCode>(bytecode):         \
+  case BytecodeWithSpace<SnapshotSpace::kMap>(bytecode):          \
+  case BytecodeWithSpace<SnapshotSpace::kLargeObject>(bytecode):  \
+  case BytecodeWithSpace<SnapshotSpace::kReadOnlyHeap>(bytecode): \
+    READ_DATA_CASE_BODY(bytecode)
 
       // Deserialize a new object and write a pointer to it to the current
       // object.
@@ -578,22 +566,40 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
       // Find a recently deserialized object using its offset from the current
       // allocation point and write a pointer to it to the current object.
       ALL_SPACES(kBackref)
+
+#undef ALL_SPACES
+
       // Find an object in the roots array and write a pointer to it to the
       // current object.
-      SINGLE_CASE(kRootArray, SnapshotSpace::kReadOnlyHeap)
+      case kRootArray:
+        READ_DATA_CASE_BODY(kRootArray)
       // Find an object in the startup object cache and write a pointer to it
       // to the current object.
-      SINGLE_CASE(kStartupObjectCache, SnapshotSpace::kReadOnlyHeap)
+      case kStartupObjectCache:
+        READ_DATA_CASE_BODY(kStartupObjectCache)
       // Find an object in the read-only object cache and write a pointer to it
       // to the current object.
-      SINGLE_CASE(kReadOnlyObjectCache, SnapshotSpace::kReadOnlyHeap)
+      case kReadOnlyObjectCache:
+        READ_DATA_CASE_BODY(kReadOnlyObjectCache)
       // Find an object in the attached references and write a pointer to it to
       // the current object.
-      SINGLE_CASE(kAttachedReference, SnapshotSpace::kReadOnlyHeap)
+      case kAttachedReference:
+        READ_DATA_CASE_BODY(kAttachedReference)
 
-#undef CASE_STATEMENT
-#undef CASE_BODY
-#undef ALL_SPACES
+#undef READ_DATA_CASE_BODY
+
+// Helper macro (and its implementation detail) for specifying a range of cases.
+// Use as "case CASE_RANGE(byte_code, num_bytecodes):"
+#define CASE_RANGE(byte_code, num_bytecodes) \
+  CASE_R##num_bytecodes(                     \
+      (VerifyBytecodeCount<byte_code##Count, num_bytecodes>(byte_code)))
+#define CASE_R1(byte_code) byte_code
+#define CASE_R2(byte_code) CASE_R1(byte_code) : case CASE_R1(byte_code + 1)
+#define CASE_R3(byte_code) CASE_R2(byte_code) : case CASE_R1(byte_code + 2)
+#define CASE_R4(byte_code) CASE_R2(byte_code) : case CASE_R2(byte_code + 2)
+#define CASE_R8(byte_code) CASE_R4(byte_code) : case CASE_R4(byte_code + 4)
+#define CASE_R16(byte_code) CASE_R8(byte_code) : case CASE_R8(byte_code + 8)
+#define CASE_R32(byte_code) CASE_R16(byte_code) : case CASE_R16(byte_code + 16)
 
       // Find an external reference and write a pointer to it to the current
       // object.
@@ -717,23 +723,20 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
         allocator()->set_next_reference_is_weak(true);
         break;
 
-      case kAlignmentPrefix:
-      case kAlignmentPrefix + 1:
-      case kAlignmentPrefix + 2: {
+      case CASE_RANGE(kAlignmentPrefix, 3): {
         int alignment = data - (SerializerDeserializer::kAlignmentPrefix - 1);
         allocator()->SetAlignment(static_cast<AllocationAlignment>(alignment));
         break;
       }
 
-      // First kNumberOfRootArrayConstants roots are guaranteed to be in
-      // the old space.
-      STATIC_ASSERT(
-          static_cast<int>(RootIndex::kFirstImmortalImmovableRoot) == 0);
-      STATIC_ASSERT(kNumberOfRootArrayConstants <=
-                    static_cast<int>(RootIndex::kLastImmortalImmovableRoot));
-      STATIC_ASSERT(kNumberOfRootArrayConstants == 32);
-      SIXTEEN_CASES(kRootArrayConstants)
-      SIXTEEN_CASES(kRootArrayConstants + 16) {
+      case CASE_RANGE(kRootArrayConstants, 32): {
+        // First kRootArrayConstantsCount roots are guaranteed to be in
+        // the old space.
+        STATIC_ASSERT(
+            static_cast<int>(RootIndex::kFirstImmortalImmovableRoot) == 0);
+        STATIC_ASSERT(kRootArrayConstantsCount <=
+                      static_cast<int>(RootIndex::kLastImmortalImmovableRoot));
+
         int id = data & kRootArrayConstantsMask;
         RootIndex root_index = static_cast<RootIndex>(id);
         MaybeObject object =
@@ -743,9 +746,7 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
         break;
       }
 
-      STATIC_ASSERT(kNumberOfHotObjects == 8);
-      FOUR_CASES(kHotObject)
-      FOUR_CASES(kHotObject + 4) {
+      case CASE_RANGE(kHotObject, 8): {
         int index = data & kHotObjectMask;
         Object hot_object = hot_objects_.Get(index);
         MaybeObject hot_maybe_object = MaybeObject::FromObject(hot_object);
@@ -766,11 +767,9 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
         break;
       }
 
-      // Deserialize raw data of fixed length from 1 to 32 times kTaggedSize.
-      STATIC_ASSERT(kNumberOfFixedRawData == 32);
-      SIXTEEN_CASES(kFixedRawData)
-      SIXTEEN_CASES(kFixedRawData + 16) {
-        int size_in_tagged = data - kFixedRawDataStart;
+      case CASE_RANGE(kFixedRawData, 32): {
+        // Deserialize raw data of fixed length from 1 to 32 times kTaggedSize.
+        int size_in_tagged = DecodeFixedRawDataSize(data);
         source_.CopyRaw(current.ToVoidPtr(), size_in_tagged * kTaggedSize);
 
         int size_in_bytes = size_in_tagged * kTaggedSize;
@@ -780,8 +779,7 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
         break;
       }
 
-      STATIC_ASSERT(kNumberOfFixedRepeat == 16);
-      SIXTEEN_CASES(kFixedRepeat) {
+      case CASE_RANGE(kFixedRepeat, 16): {
         int repeats = DecodeFixedRepeatCount(data);
         current = ReadRepeatedObject(current, repeats);
         break;
@@ -791,13 +789,18 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
 #define UNUSED_CASE(byte_code) \
   case byte_code:              \
     UNREACHABLE();
-      UNUSED_SERIALIZER_BYTE_CODES(UNUSED_CASE)
+        UNUSED_SERIALIZER_BYTE_CODES(UNUSED_CASE)
 #endif
 #undef UNUSED_CASE
 
-#undef SIXTEEN_CASES
-#undef FOUR_CASES
-#undef SINGLE_CASE
+#undef CASE_RANGE
+#undef CASE_R32
+#undef CASE_R16
+#undef CASE_R8
+#undef CASE_R4
+#undef CASE_R3
+#undef CASE_R2
+#undef CASE_R1
     }
   }
   CHECK_EQ(limit, current);
@@ -809,15 +812,10 @@ Address Deserializer::ReadExternalReferenceCase() {
   return isolate()->external_reference_table()->address(reference_id);
 }
 
-template <typename TSlot, SerializerDeserializer::Bytecode bytecode,
-          SnapshotSpace space_number_if_any>
+template <typename TSlot, SerializerDeserializer::Bytecode bytecode>
 TSlot Deserializer::ReadDataCase(TSlot current, Address current_object_address,
                                  byte data, bool write_barrier_needed) {
   bool emit_write_barrier = false;
-  SnapshotSpace space = static_cast<SnapshotSpace>(
-      space_number_if_any == kAnyOldSpace
-          ? static_cast<SnapshotSpace>(data & kSpaceMask)
-          : space_number_if_any);
   HeapObject heap_object;
   HeapObjectReferenceType reference_type =
       allocator()->GetAndClearNextReferenceIsWeak()
@@ -825,9 +823,11 @@ TSlot Deserializer::ReadDataCase(TSlot current, Address current_object_address,
           : HeapObjectReferenceType::STRONG;
 
   if (bytecode == kNewObject) {
+    SnapshotSpace space = static_cast<SnapshotSpace>(data & kSpaceMask);
     heap_object = ReadObject(space);
     emit_write_barrier = (space == SnapshotSpace::kNew);
   } else if (bytecode == kBackref) {
+    SnapshotSpace space = static_cast<SnapshotSpace>(data & kSpaceMask);
     heap_object = GetBackReferencedObject(space);
     emit_write_barrier = (space == SnapshotSpace::kNew);
   } else if (bytecode == kRootArray) {
