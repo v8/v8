@@ -473,8 +473,6 @@
 # Arm. They are disabled because the stack is not being set up the way it does
 # in the wild.
 ['arch == arm64 or arch == arm', {
-  'test-unwinder-code-pages/Unwind_BuiltinPCInMiddle_Success_CodePagesAPI': [SKIP],
-  'test-unwinder-code-pages/Unwind_BuiltinPCAtStart_Success_CodePagesAPI': [SKIP],
   'test-unwinder-code-pages/Unwind_CodeObjectPCInMiddle_Success_CodePagesAPI': [SKIP],
   'test-unwinder-code-pages/Unwind_JSEntryBeforeFrame_Fail_CodePagesAPI': [SKIP],
   'test-unwinder-code-pages/Unwind_OneJSFrame_Success_CodePagesAPI': [SKIP],
