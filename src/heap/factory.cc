@@ -3099,7 +3099,6 @@ Handle<StackTraceFrame> Factory::NewStackTraceFrame(
   frame->set_frame_index(index);
   frame->set_frame_info(*undefined_value());
 
-  frame->set_id(isolate()->GetNextStackFrameInfoId());
   return frame;
 }
 

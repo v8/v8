@@ -10115,9 +10115,8 @@ debug::ConsoleCallArguments::ConsoleCallArguments(
           args.length() > 1 ? args.address_of_first_argument() : nullptr,
           args.length() - 1) {}
 
-int debug::GetStackFrameId(v8::Local<v8::StackFrame> frame) {
-  return Utils::OpenHandle(*frame)->id();
-}
+// Marked V8_DEPRECATED.
+int debug::GetStackFrameId(v8::Local<v8::StackFrame> frame) { return 0; }
 
 v8::Local<v8::StackTrace> debug::GetDetailedStackTrace(
     Isolate* v8_isolate, v8::Local<v8::Object> v8_error) {

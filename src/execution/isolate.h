@@ -443,7 +443,6 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   /* Current code coverage mode */                                             \
   V(debug::CoverageMode, code_coverage_mode, debug::CoverageMode::kBestEffort) \
   V(debug::TypeProfileMode, type_profile_mode, debug::TypeProfileMode::kNone)  \
-  V(int, last_stack_frame_info_id, 0)                                          \
   V(int, last_console_context_id, 0)                                           \
   V(v8_inspector::V8Inspector*, inspector, nullptr)                            \
   V(bool, next_v8_call_is_safe_for_termination, false)                         \
@@ -1310,8 +1309,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   static std::string GetTurboCfgFileName(Isolate* isolate);
 
   int GetNextScriptId();
-
-  int GetNextStackFrameInfoId();
 
 #if V8_SFI_HAS_UNIQUE_ID
   int GetNextUniqueSharedFunctionInfoId() {

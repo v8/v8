@@ -250,6 +250,7 @@ Local<Function> GetBuiltin(Isolate* isolate, Builtin builtin);
 V8_EXPORT_PRIVATE void SetConsoleDelegate(Isolate* isolate,
                                           ConsoleDelegate* delegate);
 
+V8_DEPRECATED("See http://crbug.com/v8/10566.")
 int GetStackFrameId(v8::Local<v8::StackFrame> frame);
 
 v8::Local<v8::StackTrace> GetDetailedStackTrace(Isolate* isolate,

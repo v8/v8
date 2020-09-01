@@ -4382,13 +4382,6 @@ void Isolate::CountUsage(v8::Isolate::UseCounterFeature feature) {
 
 int Isolate::GetNextScriptId() { return heap()->NextScriptId(); }
 
-int Isolate::GetNextStackFrameInfoId() {
-  int id = last_stack_frame_info_id();
-  int next_id = id == Smi::kMaxValue ? 0 : (id + 1);
-  set_last_stack_frame_info_id(next_id);
-  return next_id;
-}
-
 // static
 std::string Isolate::GetTurboCfgFileName(Isolate* isolate) {
   if (FLAG_trace_turbo_cfg_file == nullptr) {

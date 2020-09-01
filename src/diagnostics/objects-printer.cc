@@ -2205,7 +2205,6 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
 void StackTraceFrame::StackTraceFramePrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "StackTraceFrame");
   os << "\n - frame_index: " << frame_index();
-  os << "\n - id: " << id();
   os << "\n - frame_info: " << Brief(frame_info());
   os << "\n";
 }
