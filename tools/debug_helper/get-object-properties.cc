@@ -331,7 +331,7 @@ class ReadStringVisitor : public TqObjectVisitor {
           Isolate::FromRoot(GetIsolateRoot(heap_addresses_.any_heap_pointer)),
           resource_data));
 #else
-      uintptr_t data_address = static_cast<uintptr_t>(resource_data);
+      uintptr_t data_address = reinterpret_cast<uintptr_t>(resource_data);
 #endif  // V8_COMPRESS_POINTERS
       if (done_) return;
       ReadStringCharacters<TChar>(object, data_address);

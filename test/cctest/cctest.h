@@ -317,13 +317,9 @@ class LocalContext {
   v8::Context* operator*() { return operator->(); }
   bool IsReady() { return !context_.IsEmpty(); }
 
-  v8::Local<v8::Context> local() const {
+  v8::Local<v8::Context> local() {
     return v8::Local<v8::Context>::New(isolate_, context_);
   }
-
-  v8::Isolate* isolate() const { return isolate_; }
-
-  void AddGlobalFunction(const char* name, v8::FunctionCallback callback);
 
  private:
   void Initialize(v8::Isolate* isolate, v8::ExtensionConfiguration* extensions,

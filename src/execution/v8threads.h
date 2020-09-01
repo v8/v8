@@ -73,9 +73,6 @@ class ThreadManager {
   bool IsLockedByCurrentThread() const {
     return mutex_owner_.load(std::memory_order_relaxed) == ThreadId::Current();
   }
-  bool IsLockedByThread(ThreadId id) const {
-    return mutex_owner_.load(std::memory_order_relaxed) == id;
-  }
 
   ThreadId CurrentId();
 
