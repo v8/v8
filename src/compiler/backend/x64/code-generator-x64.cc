@@ -194,94 +194,6 @@ class OutOfLineLoadFloat64NaN final : public OutOfLineCode {
   XMMRegister const result_;
 };
 
-class OutOfLineF32x4Min final : public OutOfLineCode {
- public:
-  OutOfLineF32x4Min(CodeGenerator* gen, XMMRegister result, XMMRegister error)
-      : OutOfLineCode(gen), result_(result), error_(error) {}
-
-  void Generate() final {
-    // |result| is the partial result, |kScratchDoubleReg| is the error.
-    // propagate -0's and NaNs (possibly non-canonical) from the error.
-    __ Orps(error_, result_);
-    // Canonicalize NaNs by quieting and clearing the payload.
-    __ Cmpps(result_, error_, int8_t{3});
-    __ Orps(error_, result_);
-    __ Psrld(result_, byte{10});
-    __ Andnps(result_, error_);
-  }
-
- private:
-  XMMRegister const result_;
-  XMMRegister const error_;
-};
-
-class OutOfLineF64x2Min final : public OutOfLineCode {
- public:
-  OutOfLineF64x2Min(CodeGenerator* gen, XMMRegister result, XMMRegister error)
-      : OutOfLineCode(gen), result_(result), error_(error) {}
-
-  void Generate() final {
-    // |result| is the partial result, |kScratchDoubleReg| is the error.
-    // propagate -0's and NaNs (possibly non-canonical) from the error.
-    __ Orpd(error_, result_);
-    // Canonicalize NaNs by quieting and clearing the payload.
-    __ Cmppd(result_, error_, int8_t{3});
-    __ Orpd(error_, result_);
-    __ Psrlq(result_, 13);
-    __ Andnpd(result_, error_);
-  }
-
- private:
-  XMMRegister const result_;
-  XMMRegister const error_;
-};
-
-class OutOfLineF32x4Max final : public OutOfLineCode {
- public:
-  OutOfLineF32x4Max(CodeGenerator* gen, XMMRegister result, XMMRegister error)
-      : OutOfLineCode(gen), result_(result), error_(error) {}
-
-  void Generate() final {
-    // |result| is the partial result, |kScratchDoubleReg| is the error.
-    // Propagate NaNs (possibly non-canonical).
-    __ Orps(result_, error_);
-    // Propagate sign errors and (subtle) quiet NaNs.
-    __ Subps(result_, error_);
-    // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
-    __ Cmpps(error_, result_, int8_t{3});
-    __ Psrld(error_, byte{10});
-    __ Andnps(error_, result_);
-    __ Movaps(result_, error_);
-  }
-
- private:
-  XMMRegister const result_;
-  XMMRegister const error_;
-};
-
-class OutOfLineF64x2Max final : public OutOfLineCode {
- public:
-  OutOfLineF64x2Max(CodeGenerator* gen, XMMRegister result, XMMRegister error)
-      : OutOfLineCode(gen), result_(result), error_(error) {}
-
-  void Generate() final {
-    // |result| is the partial result, |kScratchDoubleReg| is the error.
-    // Propagate NaNs (possibly non-canonical).
-    __ Orpd(result_, error_);
-    // Propagate sign errors and (subtle) quiet NaNs.
-    __ Subpd(result_, error_);
-    // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
-    __ Cmppd(error_, result_, int8_t{3});
-    __ Psrlq(error_, byte{13});
-    __ Andnpd(error_, result_);
-    __ Movapd(result_, error_);
-  }
-
- private:
-  XMMRegister const result_;
-  XMMRegister const error_;
-};
-
 class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
  public:
   OutOfLineTruncateDoubleToI(CodeGenerator* gen, Register result,
@@ -2419,18 +2331,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister src1 = i.InputSimd128Register(1),
                   dst = i.OutputSimd128Register();
       DCHECK_EQ(dst, i.InputSimd128Register(0));
-      // The minpd instruction doesn't propagate NaNs and -0's in its first
-      // operand. Perform minpd in both orders and compare results. Handle the
-      // unlikely case of discrepancies out of line.
+      // The minpd instruction doesn't propagate NaNs and +0's in its first
+      // operand. Perform minpd in both orders, merge the resuls, and adjust.
       __ Movapd(kScratchDoubleReg, src1);
       __ Minpd(kScratchDoubleReg, dst);
       __ Minpd(dst, src1);
-      // Most likely there is no difference and we're done.
-      __ Xorpd(kScratchDoubleReg, dst);
-      __ Ptest(kScratchDoubleReg, kScratchDoubleReg);
-      auto ool = zone()->New<OutOfLineF64x2Min>(this, dst, kScratchDoubleReg);
-      __ j(not_zero, ool->entry());
-      __ bind(ool->exit());
+      // propagate -0's and NaNs, which may be non-canonical.
+      __ Orpd(kScratchDoubleReg, dst);
+      // Canonicalize NaNs by quieting and clearing the payload.
+      __ Cmppd(dst, kScratchDoubleReg, int8_t{3});
+      __ Orpd(kScratchDoubleReg, dst);
+      __ Psrlq(dst, 13);
+      __ Andnpd(dst, kScratchDoubleReg);
       break;
     }
     case kX64F64x2Max: {
@@ -2438,17 +2350,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   dst = i.OutputSimd128Register();
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       // The maxpd instruction doesn't propagate NaNs and +0's in its first
-      // operand. Perform maxpd in both orders and compare results. Handle the
-      // unlikely case of discrepancies out of line.
+      // operand. Perform maxpd in both orders, merge the resuls, and adjust.
       __ Movapd(kScratchDoubleReg, src1);
       __ Maxpd(kScratchDoubleReg, dst);
       __ Maxpd(dst, src1);
-      // Most likely there is no difference and we're done.
-      __ Xorpd(kScratchDoubleReg, dst);
-      __ Ptest(kScratchDoubleReg, kScratchDoubleReg);
-      auto ool = zone()->New<OutOfLineF64x2Max>(this, dst, kScratchDoubleReg);
-      __ j(not_zero, ool->entry());
-      __ bind(ool->exit());
+      // Find discrepancies.
+      __ Xorpd(dst, kScratchDoubleReg);
+      // Propagate NaNs, which may be non-canonical.
+      __ Orpd(kScratchDoubleReg, dst);
+      // Propagate sign discrepancy and (subtle) quiet NaNs.
+      __ Subpd(kScratchDoubleReg, dst);
+      // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
+      __ Cmppd(dst, kScratchDoubleReg, int8_t{3});
+      __ Psrlq(dst, 13);
+      __ Andnpd(dst, kScratchDoubleReg);
       break;
     }
     case kX64F64x2Eq: {
@@ -2612,18 +2527,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister src1 = i.InputSimd128Register(1),
                   dst = i.OutputSimd128Register();
       DCHECK_EQ(dst, i.InputSimd128Register(0));
-      // The minps instruction doesn't propagate NaNs and -0's in its first
-      // operand. Perform minps in both orders and compare results. Handle the
-      // unlikely case of discrepancies out of line.
+      // The minps instruction doesn't propagate NaNs and +0's in its first
+      // operand. Perform minps in both orders, merge the resuls, and adjust.
       __ Movaps(kScratchDoubleReg, src1);
       __ Minps(kScratchDoubleReg, dst);
       __ Minps(dst, src1);
-      // Most likely there is no difference and we're done.
-      __ Xorps(kScratchDoubleReg, dst);
-      __ Ptest(kScratchDoubleReg, kScratchDoubleReg);
-      auto ool = zone()->New<OutOfLineF32x4Min>(this, dst, kScratchDoubleReg);
-      __ j(not_zero, ool->entry());
-      __ bind(ool->exit());
+      // propagate -0's and NaNs, which may be non-canonical.
+      __ Orps(kScratchDoubleReg, dst);
+      // Canonicalize NaNs by quieting and clearing the payload.
+      __ Cmpps(dst, kScratchDoubleReg, int8_t{3});
+      __ Orps(kScratchDoubleReg, dst);
+      __ Psrld(dst, byte{10});
+      __ Andnps(dst, kScratchDoubleReg);
       break;
     }
     case kX64F32x4Max: {
@@ -2631,17 +2546,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   dst = i.OutputSimd128Register();
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       // The maxps instruction doesn't propagate NaNs and +0's in its first
-      // operand. Perform maxps in both orders and compare results. Handle the
-      // unlikely case of discrepancies out of line.
+      // operand. Perform maxps in both orders, merge the resuls, and adjust.
       __ Movaps(kScratchDoubleReg, src1);
       __ Maxps(kScratchDoubleReg, dst);
       __ Maxps(dst, src1);
-      // Most likely there is no difference and we're done.
-      __ Xorps(kScratchDoubleReg, dst);
-      __ Ptest(kScratchDoubleReg, kScratchDoubleReg);
-      auto ool = zone()->New<OutOfLineF32x4Max>(this, dst, kScratchDoubleReg);
-      __ j(not_zero, ool->entry());
-      __ bind(ool->exit());
+      // Find discrepancies.
+      __ Xorps(dst, kScratchDoubleReg);
+      // Propagate NaNs, which may be non-canonical.
+      __ Orps(kScratchDoubleReg, dst);
+      // Propagate sign discrepancy and (subtle) quiet NaNs.
+      __ Subps(kScratchDoubleReg, dst);
+      // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
+      __ Cmpps(dst, kScratchDoubleReg, int8_t{3});
+      __ Psrld(dst, byte{10});
+      __ Andnps(dst, kScratchDoubleReg);
       break;
     }
     case kX64F32x4Eq: {
