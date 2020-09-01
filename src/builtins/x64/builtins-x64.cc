@@ -3250,7 +3250,7 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::JS_TO_WASM);
 
   Register closure = rdi;
-  Register shared_function_info = rbx;
+  Register shared_function_info = closure;
   __ LoadAnyTaggedField(
       shared_function_info,
       MemOperand(
@@ -3272,22 +3272,37 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
                  WasmExportedFunctionData::kInstanceOffset - kHeapObjectTag));
 
   // Get the signature for the parameter count.
-  Register foreign_signature = r9;
+  Register foreign_signature = r11;
 
   __ LoadAnyTaggedField(
       foreign_signature,
       MemOperand(function_data,
                  WasmExportedFunctionData::kSignatureOffset - kHeapObjectTag));
-  Register signature = r9;
+  Register signature = foreign_signature;
   __ movq(signature,
           MemOperand(foreign_signature, wasm::ObjectAccess::ToTagged(
                                             Foreign::kForeignAddressOffset)));
   foreign_signature = no_reg;
 
-  Register param_count = r9;
+  Register param_count = signature;
   __ movq(param_count,
           MemOperand(signature, wasm::FunctionSig::kParameterCountOffset));
   signature = no_reg;
+
+  // We store values on the stack to restore them after function calls.
+  // We cannot push values onto the stack right before the wasm call. The wasm
+  // function expects the parameters, that didn't fit into the registers, on the
+  // top of the stack.
+  // We will have to save a value indicating the GC the number
+  // of values on the top of the stack that have to be scanned before calling
+  // the Wasm function.
+  constexpr int kFrameMarkerOffset = -kSystemPointerSize;
+  constexpr int kGCScanSlotCountOffset =
+      kFrameMarkerOffset - kSystemPointerSize;
+  constexpr int kParamCountOffset = kGCScanSlotCountOffset - kSystemPointerSize;
+  constexpr int kNumSpillSlots = 2;
+  __ subq(rsp, Immediate(kNumSpillSlots * kSystemPointerSize));
+  __ movq(MemOperand(rbp, kParamCountOffset), param_count);
 
   __ cmpl(param_count, Immediate(0));
 
@@ -3295,20 +3310,59 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   Label params_done;
   __ j(equal, &params_done);
 
-  // 1 Param handling.
-  // Make sure we have exactly one argument in order to be able to load the
-  // argument using static offsets below.
-  __ cmpl(kJavaScriptCallArgCountRegister, Immediate(1));
+  // Param handling.
+
+  // Make sure we have the same number of arguments in order to be able to load
+  // the arguments using static offsets below.
+  __ cmpl(kJavaScriptCallArgCountRegister, param_count);
   __ Check(equal, AbortReason::kInvalidNumberOfJsArgs);
 
-  Register param = rax;
+  // We have to put the first 5 parameters into the proper registers before the
+  // wasm call. By reserving 5 slots on the stack we can always pop the top 5
+  // values to these registers without popping unwanted slots from the stack.
+  // We make sure all reserved slots are freed later by restoring the stack
+  // pointer.
+  __ subq(rsp, Immediate(5 * kSystemPointerSize));
+
+  // Looping through the params, starting with the n-th param.
+  //      Not reversed                Reversed
+  //   +-----------------+------+-----------------+---------------
+  //   |    receiver     |      |     param n     |
+  //   |- - - - - - - - -|      |- - - - - - - - -|
+  //   |      param 1    |      |    param n-1    |   Caller
+  //   |       ...       |      |       ...       | frame slots
+  //   |    param n-1    |      |     param 1     |
+  //   |- - - - - - - - -|      |- - - - - - - - -|
+  //   |     param n     |      |    receiver     |
+  //  -+-----------------+------+-----------------+---------------
+  //   |  return addr    |      |  return addr    |
+  //   |- - - - - - - - -|<-FP->|- - - - - - - - -|
+  //   |      rbp        |      |      rbp        |   Spill slots
+  //   |- - - - - - - - -|      |- - - - - - - - -|
+  //
+  // [rbp + current_param] gives us the parameter we are processing
+  // We iterate through half-open interval <n-th param, [rbp + param_limit])
+  Register current_param = r14;
+  Register param_limit = r15;
 #ifdef V8_REVERSE_JSARGS
-  const int firstParamOffset = kFPOnStackSize + kPCOnStackSize +
-                               kSystemPointerSize;  // Skips the receiver.
+  __ movq(current_param, param_count);
+  __ shlq(current_param, Immediate(kSystemPointerSizeLog2));
+  __ addq(current_param, Immediate(kFPOnStackSize + kPCOnStackSize));
+  __ movq(param_limit, Immediate(kFPOnStackSize + kPCOnStackSize));
+  const int increment = -kSystemPointerSize;
 #else
-  const int firstParamOffset = kFPOnStackSize + kPCOnStackSize;
+  __ movq(current_param, Immediate(kFPOnStackSize + kPCOnStackSize));
+  __ movq(param_limit, param_count);
+  __ shlq(param_limit, Immediate(kSystemPointerSizeLog2));
+  __ addq(param_limit, Immediate(kFPOnStackSize + kPCOnStackSize));
+  const int increment = kSystemPointerSize;
 #endif
-  __ movq(param, MemOperand(rbp, firstParamOffset));
+  Register param = rax;
+  Label loop;
+  __ bind(&loop);
+
+  __ movq(param, MemOperand(rbp, current_param, times_1, 0));
+  __ addq(current_param, Immediate(increment));
 
   Label not_smi;
   __ JumpIfNotSmi(param, &not_smi);
@@ -3316,10 +3370,25 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // Change from smi to int32.
   __ SmiUntag(param);
 
+  Label conversion_done;
+  __ bind(&conversion_done);
+
+  __ pushq(param);
+
+  __ cmpq(current_param, param_limit);
+  __ j(not_equal, &loop);
+
+  // We pop the top 5 parameters into the proper param registers.
+  __ popq(rax);
+  __ popq(rdx);
+  __ popq(rcx);
+  __ popq(rbx);
+  __ popq(r9);
+
   __ bind(&params_done);
 
   // Set thread_in_wasm_flag.
-  Register thread_in_wasm_flag_addr = rdx;
+  Register thread_in_wasm_flag_addr = r12;
   __ movq(
       thread_in_wasm_flag_addr,
       MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
@@ -3347,12 +3416,18 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   jump_table_offset = no_reg;
   jump_table_start = no_reg;
 
-  __ pushq(param_count);
+  // We set the indicating value for the GC to the proper one for Wasm call.
+  constexpr int kWasmCallGCScanSlotCount = 0;
+  __ movq(MemOperand(rbp, kGCScanSlotCountOffset),
+          Immediate(kWasmCallGCScanSlotCount));
 
   __ call(function_entry);
   function_entry = no_reg;
 
-  __ popq(param_count);
+  // Restore rsp to free the reserved stack slots for 5 param Registers.
+  constexpr int kLastSpillOffset = kParamCountOffset;
+  __ leaq(rsp, MemOperand(rbp, kLastSpillOffset));
+  __ movq(param_count, MemOperand(rbp, kParamCountOffset));
 
   // Unset thread_in_wasm_flag.
   thread_in_wasm_flag_addr = r8;
@@ -3363,26 +3438,38 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
 
   Register return_reg = rax;
   __ LoadRoot(return_reg, RootIndex::kUndefinedValue);
-
   // Deconstrunct the stack frame.
   __ LeaveFrame(StackFrame::JS_TO_WASM);
 
-  __ cmpl(param_count, Immediate(0));
-
-  Label ret_0_param;
-  __ j(equal, &ret_0_param);
-
-  __ ret(16);
-
-  __ bind(&ret_0_param);
-  __ ret(8);
+  // We have to remove the caller frame slots:
+  //  - JS arguments
+  //  - the receiver
+  // and transfer the control to the return address (the return address is
+  // expected to be on the top of the stack).
+  // We cannot use just the ret instruction for this, because we cannot pass the
+  // number of slots to remove in a Register as an argument.
+  Register return_addr = rbx;
+  __ popq(return_addr);
+  Register caller_frame_slots_count = param_count;
+  __ addq(caller_frame_slots_count, Immediate(1));
+  __ shlq(caller_frame_slots_count, Immediate(kSystemPointerSizeLog2));
+  __ addq(rsp, caller_frame_slots_count);
+  __ pushq(return_addr);
+  __ ret(0);
 
   // Handle the conversion to int32 when the param is not a smi.
   __ bind(&not_smi);
 
   // The order of pushes is important. We want the heap objects, that should be
   // scanned by GC, to be on the top of the stack.
-  __ pushq(param_count);
+  // We have to set the indicating value for the GC to the number of values on
+  // the top of the stack that have to be scanned before calling the builtin
+  // function.
+  constexpr int kBuiltinCallGCScanSlotCount = 2;
+  __ movq(MemOperand(rbp, kGCScanSlotCountOffset),
+          Immediate(kBuiltinCallGCScanSlotCount));
+  __ pushq(current_param);
+  __ pushq(param_limit);
   __ pushq(wasm_instance);
   __ pushq(function_data);
   __ LoadAnyTaggedField(
@@ -3396,9 +3483,11 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
 
   __ popq(function_data);
   __ popq(wasm_instance);
-  __ popq(param_count);
+  __ popq(param_limit);
+  __ popq(current_param);
+  __ movq(param_count, MemOperand(rbp, kParamCountOffset));
 
-  __ jmp(&params_done);
+  __ jmp(&conversion_done);
 }
 
 namespace {

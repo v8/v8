@@ -1964,17 +1964,17 @@ void JsToWasmFrame::Iterate(RootVisitor* v) const {
   //  GenericJSToWasmWrapper stack layout
   //  ------+-----------------+----------------------
   //        |  return addr    |
-  //    rbp |- - - - - - - - -| <-fp() -------------|
-  //        |      rbp        |                     |
-  //  rbp-p |- - - - - - - - -|                     |
+  //    fp  |- - - - - - - - -|  -------------------|
+  //        |       fp        |                     |
+  //   fp-p |- - - - - - - - -|                     |
   //        |  frame marker   |                     | no GC scan
-  // rbp-2p | - - - - - - - - | <- spill_slot_limit |
-  //        |  signature_type |                     |
-  // rbp-3p |- - - - - - - - -|  -------------------|
-  //        |      ....       |                     |
-  //        |   spill slots   |                     | GC scan
-  //        |      ....       |<- spill_slot_base   |
-  //        |- - - - - - - - -|  -------------------|
+  //  fp-2p |- - - - - - - - -|                     |
+  //        |   scan_count    |                     |
+  //  fp-3p |- - - - - - - - -|  -------------------|
+  //        |      ....       | <- spill_slot_limit |
+  //        |   spill slots   |                     | GC scan scan_count slots
+  //        |      ....       | <- spill_slot_base--|
+  //        |- - - - - - - - -|                     |
   if (code.is_null() || !code.is_builtin() ||
       code.builtin_index() != Builtins::kGenericJSToWasmWrapper) {
     // If it's not the  GenericJSToWasmWrapper, then it's the TurboFan compiled
@@ -1982,9 +1982,14 @@ void JsToWasmFrame::Iterate(RootVisitor* v) const {
     IterateCompiledFrame(v);
     return;
   }
+  // The [fp - 2*kSystemPointerSize] on the stack is a value indicating how
+  // many values should be scanned from the top.
+  intptr_t scan_count =
+      *reinterpret_cast<intptr_t*>(fp() - 2 * kSystemPointerSize);
+
   FullObjectSlot spill_slot_base(&Memory<Address>(sp()));
   FullObjectSlot spill_slot_limit(
-      &Memory<Address>(fp() - 2 * kSystemPointerSize));
+      &Memory<Address>(sp() + scan_count * kSystemPointerSize));
   v->VisitRootPointers(Root::kTop, nullptr, spill_slot_base, spill_slot_limit);
 }
 
