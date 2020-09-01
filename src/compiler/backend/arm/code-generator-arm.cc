@@ -2150,7 +2150,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmI64x2Neg: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vmov(dst, uint64_t{0});
-      __ vqsub(NeonS64, dst, dst, i.InputSimd128Register(0));
+      __ vsub(Neon64, dst, dst, i.InputSimd128Register(0));
       break;
     }
     case kArmI64x2Shl: {

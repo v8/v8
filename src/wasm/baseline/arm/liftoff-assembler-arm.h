@@ -2488,8 +2488,8 @@ void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
   QwNeonRegister zero =
       dst == src ? temps.AcquireQ() : liftoff::GetSimd128Register(dst);
   vmov(zero, uint64_t{0});
-  vqsub(NeonS64, liftoff::GetSimd128Register(dst), zero,
-        liftoff::GetSimd128Register(src));
+  vsub(Neon64, liftoff::GetSimd128Register(dst), zero,
+       liftoff::GetSimd128Register(src));
 }
 
 void LiftoffAssembler::emit_i64x2_shl(LiftoffRegister dst, LiftoffRegister lhs,
