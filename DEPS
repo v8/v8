@@ -293,6 +293,10 @@ deps = {
     'url': Var('chromium_url') + '/external/github.com/intel/ittapi' + '@' + 'b4ae0122ba749163096058b4f1bb065bf4a7de94',
     'condition': "checkout_ittapi or check_v8_header_includes",
   },
+  'third_party/requests': {
+      'url': Var('chromium_url') + '/external/github.com/kennethreitz/requests.git' + '@' + 'refs/tags/v2.23.0',
+      'condition': 'checkout_android',
+  },
 }
 
 include_rules = [
