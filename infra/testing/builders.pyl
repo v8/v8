@@ -1149,7 +1149,7 @@
       {
         'name': 'v8testing',
         'test_args': ['--extra-flags=--stress-incremental-marking'],
-        'shards': 4,
+        'shards': 6,
       },
     ],
   },
