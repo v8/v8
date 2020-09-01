@@ -86,11 +86,10 @@ class SnapshotByteSource final {
   DISALLOW_COPY_AND_ASSIGN(SnapshotByteSource);
 };
 
-
 /**
  * Sink to write snapshot files to.
  *
- * Subclasses must implement actual storage or i/o.
+ * Users must implement actual storage or i/o.
  */
 class SnapshotByteSink {
  public:
@@ -100,11 +99,6 @@ class SnapshotByteSink {
   ~SnapshotByteSink() = default;
 
   void Put(byte b, const char* description) { data_.push_back(b); }
-
-  void PutSection(int b, const char* description) {
-    DCHECK_LE(b, kMaxUInt8);
-    Put(static_cast<byte>(b), description);
-  }
 
   void PutInt(uintptr_t integer, const char* description);
   void PutRaw(const byte* data, int number_of_bytes, const char* description);

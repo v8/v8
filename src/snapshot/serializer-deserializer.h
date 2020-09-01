@@ -5,7 +5,6 @@
 #ifndef V8_SNAPSHOT_SERIALIZER_DESERIALIZER_H_
 #define V8_SNAPSHOT_SERIALIZER_DESERIALIZER_H_
 
-#include "src/base/logging.h"
 #include "src/objects/visitors.h"
 #include "src/snapshot/references.h"
 
@@ -67,9 +66,6 @@ class SerializerDeserializer : public RootVisitor {
   void RestoreExternalReferenceRedirectors(
       Isolate* isolate, const std::vector<CallHandlerInfo>& call_handler_infos);
 
-  static const int kNumberOfPreallocatedSpaces =
-      static_cast<int>(SnapshotSpace::kNumberOfPreallocatedSpaces);
-
   static const int kNumberOfSpaces =
       static_cast<int>(SnapshotSpace::kNumberOfSpaces);
 
@@ -107,12 +103,9 @@ class SerializerDeserializer : public RootVisitor {
   // changed. If that happens, update the kNewObject and kBackref bytecode
   // ranges in the comments below.
   STATIC_ASSERT(6 == kNumberOfSpaces);
-  static const int kSpaceMask = 7;
-  STATIC_ASSERT(kNumberOfSpaces <= kSpaceMask + 1);
 
   // First 32 root array items.
   static const int kRootArrayConstantsCount = 0x20;
-  static const int kRootArrayConstantsMask = 0x1f;
 
   // 32 common raw data lengths.
   static const int kFixedRawDataCount = 0x20;
@@ -122,7 +115,6 @@ class SerializerDeserializer : public RootVisitor {
   // 8 hot (recently seen or back-referenced) objects with optional skip.
   static const int kHotObjectCount = 8;
   STATIC_ASSERT(kHotObjectCount == HotObjectsList::kSize);
-  static const int kHotObjectMask = 0x07;
 
   // 3 alignment prefixes
   static const int kAlignmentPrefixCount = 3;
@@ -224,13 +216,35 @@ class SerializerDeserializer : public RootVisitor {
     kHotObject = 0x90,
   };
 
-  template <SnapshotSpace space>
-  static constexpr byte BytecodeWithSpace(Bytecode bytecode) {
-    STATIC_ASSERT(
-        (static_cast<int>(space) & ~SerializerDeserializer::kSpaceMask) == 0);
-    CONSTEXPR_DCHECK((bytecode & kSpaceMask) == 0);
-    return bytecode + static_cast<int>(space);
-  }
+  // Helper class for encoding and decoding a value into and from a bytecode.
+  template <Bytecode kBytecode, int kMinValue, int kMaxValue,
+            typename TValue = int>
+  struct BytecodeValueEncoder {
+    STATIC_ASSERT((kBytecode + kMaxValue - kMinValue) <= kMaxUInt8);
+
+    static constexpr bool IsEncodable(TValue value) {
+      return base::IsInRange(static_cast<int>(value), kMinValue, kMaxValue);
+    }
+
+    static constexpr byte Encode(TValue value) {
+      CONSTEXPR_DCHECK(IsEncodable(value));
+      return static_cast<byte>(kBytecode + static_cast<int>(value) - kMinValue);
+    }
+
+    static constexpr TValue Decode(byte bytecode) {
+      CONSTEXPR_DCHECK(base::IsInRange(bytecode,
+                                       Encode(static_cast<TValue>(kMinValue)),
+                                       Encode(static_cast<TValue>(kMaxValue))));
+      return static_cast<TValue>(bytecode - kBytecode + kMinValue);
+    }
+  };
+
+  template <Bytecode bytecode>
+  using SpaceEncoder =
+      BytecodeValueEncoder<bytecode, 0, kNumberOfSpaces, SnapshotSpace>;
+
+  using NewObject = SpaceEncoder<kNewObject>;
+  using BackRef = SpaceEncoder<kBackref>;
 
   //
   // Some other constants.
@@ -245,21 +259,9 @@ class SerializerDeserializer : public RootVisitor {
   static const int kLastEncodableFixedRawDataSize =
       kFirstEncodableFixedRawDataSize + kFixedRawDataCount - 1;
 
-  // Encodes raw data size into a fixed raw data bytecode.
-  static constexpr byte EncodeFixedRawDataSize(int size_in_tagged) {
-    CONSTEXPR_DCHECK(base::IsInRange(size_in_tagged,
-                                     kFirstEncodableFixedRawDataSize,
-                                     kLastEncodableFixedRawDataSize));
-    return kFixedRawData + size_in_tagged - kFirstEncodableFixedRawDataSize;
-  }
-
-  // Decodes raw data size from a fixed raw data bytecode.
-  static constexpr int DecodeFixedRawDataSize(byte bytecode) {
-    CONSTEXPR_DCHECK(base::IsInRange(static_cast<int>(bytecode),
-                                     kFixedRawData + 0,
-                                     kFixedRawData + kFixedRawDataCount));
-    return bytecode - kFixedRawData + kFirstEncodableFixedRawDataSize;
-  }
+  using FixedRawDataWithSize =
+      BytecodeValueEncoder<kFixedRawData, kFirstEncodableFixedRawDataSize,
+                           kLastEncodableFixedRawDataSize>;
 
   // Repeat count encoding helpers.
   static const int kFirstEncodableRepeatCount = 2;
@@ -268,31 +270,31 @@ class SerializerDeserializer : public RootVisitor {
   static const int kFirstEncodableVariableRepeatCount =
       kLastEncodableFixedRepeatCount + 1;
 
-  // Encodes repeat count into a fixed repeat bytecode.
-  static constexpr byte EncodeFixedRepeat(int repeat_count) {
-    CONSTEXPR_DCHECK(base::IsInRange(repeat_count, kFirstEncodableRepeatCount,
-                                     kLastEncodableFixedRepeatCount));
-    return kFixedRepeat + repeat_count - kFirstEncodableRepeatCount;
-  }
+  using FixedRepeatWithCount =
+      BytecodeValueEncoder<kFixedRepeat, kFirstEncodableRepeatCount,
+                           kLastEncodableFixedRepeatCount>;
 
-  // Decodes repeat count from a fixed repeat bytecode.
-  static constexpr int DecodeFixedRepeatCount(int bytecode) {
-    CONSTEXPR_DCHECK(base::IsInRange(bytecode, kFixedRepeat + 0,
-                                     kFixedRepeat + kFixedRepeatCount));
-    return bytecode - kFixedRepeat + kFirstEncodableRepeatCount;
-  }
+  // Encodes/decodes repeat count into a serialized variable repeat count
+  // value.
+  struct VariableRepeatCount {
+    static constexpr bool IsEncodable(int repeat_count) {
+      return repeat_count >= kFirstEncodableVariableRepeatCount;
+    }
 
-  // Encodes repeat count into a serialized variable repeat count value.
-  static constexpr int EncodeVariableRepeatCount(int repeat_count) {
-    CONSTEXPR_DCHECK(kFirstEncodableVariableRepeatCount <= repeat_count);
-    return repeat_count - kFirstEncodableVariableRepeatCount;
-  }
+    static constexpr int Encode(int repeat_count) {
+      CONSTEXPR_DCHECK(IsEncodable(repeat_count));
+      return repeat_count - kFirstEncodableVariableRepeatCount;
+    }
 
-  // Decodes repeat count from a serialized variable repeat count value.
-  static constexpr int DecodeVariableRepeatCount(int value) {
-    CONSTEXPR_DCHECK(0 <= value);
-    return value + kFirstEncodableVariableRepeatCount;
-  }
+    static constexpr int Decode(int value) {
+      return value + kFirstEncodableVariableRepeatCount;
+    }
+  };
+
+  using RootArrayConstant =
+      BytecodeValueEncoder<kRootArrayConstants, 0, kRootArrayConstantsCount - 1,
+                           RootIndex>;
+  using HotObject = BytecodeValueEncoder<kHotObject, 0, kHotObjectCount - 1>;
 
   // ---------- member variable ----------
   HotObjectsList hot_objects_;

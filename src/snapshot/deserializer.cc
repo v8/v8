@@ -126,10 +126,7 @@ void Deserializer::DeserializeDeferredObjects() {
         break;
       }
       default: {
-        const int space_number = code & kSpaceMask;
-        DCHECK_LE(space_number, kNumberOfSpaces);
-        DCHECK_EQ(code - space_number, kNewObject);
-        SnapshotSpace space = static_cast<SnapshotSpace>(space_number);
+        SnapshotSpace space = NewObject::Decode(code);
         HeapObject object = GetBackReferencedObject(space);
         int size = source_.GetInt() << kTaggedSizeLog2;
         Address obj_address = object.address();
@@ -597,13 +594,13 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
 // This generates a case and a body for the new space (which has to do extra
 // write barrier handling) and handles the other spaces with fall-through cases
 // and one body.
-#define ALL_SPACES(bytecode)                                      \
-  case BytecodeWithSpace<SnapshotSpace::kNew>(bytecode):          \
-  case BytecodeWithSpace<SnapshotSpace::kOld>(bytecode):          \
-  case BytecodeWithSpace<SnapshotSpace::kCode>(bytecode):         \
-  case BytecodeWithSpace<SnapshotSpace::kMap>(bytecode):          \
-  case BytecodeWithSpace<SnapshotSpace::kLargeObject>(bytecode):  \
-  case BytecodeWithSpace<SnapshotSpace::kReadOnlyHeap>(bytecode): \
+#define ALL_SPACES(bytecode)                                         \
+  case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kNew):          \
+  case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kOld):          \
+  case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kCode):         \
+  case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kMap):          \
+  case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kLargeObject):  \
+  case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kReadOnlyHeap): \
     READ_DATA_CASE_BODY(bytecode)
 
       // Deserialize a new object and write a pointer to it to the current
@@ -619,8 +616,8 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
       // current object.
       case kRootArray:
         READ_DATA_CASE_BODY(kRootArray)
-      // Find an object in the startup object cache and write a pointer to it
-      // to the current object.
+      // Find an object in the startup object cache and write a pointer to it to
+      // the current object.
       case kStartupObjectCache:
         READ_DATA_CASE_BODY(kStartupObjectCache)
       // Find an object in the read-only object cache and write a pointer to it
@@ -756,7 +753,7 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
       }
 
       case kVariableRepeat: {
-        int repeats = DecodeVariableRepeatCount(source_.GetInt());
+        int repeats = VariableRepeatCount::Decode(source_.GetInt());
         current = ReadRepeatedObject(current, repeats);
         break;
       }
@@ -818,8 +815,7 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
         STATIC_ASSERT(kRootArrayConstantsCount <=
                       static_cast<int>(RootIndex::kLastImmortalImmovableRoot));
 
-        int id = data & kRootArrayConstantsMask;
-        RootIndex root_index = static_cast<RootIndex>(id);
+        RootIndex root_index = RootArrayConstant::Decode(data);
         MaybeObject object =
             MaybeObject(ReadOnlyRoots(isolate()).at(root_index));
         DCHECK(!Heap::InYoungGeneration(object));
@@ -828,7 +824,7 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
       }
 
       case CASE_RANGE(kHotObject, 8): {
-        int index = data & kHotObjectMask;
+        int index = HotObject::Decode(data);
         Object hot_object = hot_objects_.Get(index);
         MaybeObject hot_maybe_object = MaybeObject::FromObject(hot_object);
         if (allocator()->GetAndClearNextReferenceIsWeak()) {
@@ -850,7 +846,7 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
 
       case CASE_RANGE(kFixedRawData, 32): {
         // Deserialize raw data of fixed length from 1 to 32 times kTaggedSize.
-        int size_in_tagged = DecodeFixedRawDataSize(data);
+        int size_in_tagged = FixedRawDataWithSize::Decode(data);
         source_.CopyRaw(current.ToVoidPtr(), size_in_tagged * kTaggedSize);
 
         int size_in_bytes = size_in_tagged * kTaggedSize;
@@ -861,7 +857,7 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
       }
 
       case CASE_RANGE(kFixedRepeat, 16): {
-        int repeats = DecodeFixedRepeatCount(data);
+        int repeats = FixedRepeatWithCount::Decode(data);
         current = ReadRepeatedObject(current, repeats);
         break;
       }
@@ -904,11 +900,11 @@ TSlot Deserializer::ReadDataCase(TSlot current, Address current_object_address,
           : HeapObjectReferenceType::STRONG;
 
   if (bytecode == kNewObject) {
-    SnapshotSpace space = static_cast<SnapshotSpace>(data & kSpaceMask);
+    SnapshotSpace space = SpaceEncoder<bytecode>::Decode(data);
     heap_object = ReadObject(space);
     emit_write_barrier = (space == SnapshotSpace::kNew);
   } else if (bytecode == kBackref) {
-    SnapshotSpace space = static_cast<SnapshotSpace>(data & kSpaceMask);
+    SnapshotSpace space = SpaceEncoder<bytecode>::Decode(data);
     heap_object = GetBackReferencedObject(space);
     emit_write_barrier = (space == SnapshotSpace::kNew);
   } else if (bytecode == kNewMetaMap) {

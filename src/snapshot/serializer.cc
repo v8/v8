@@ -130,7 +130,7 @@ bool Serializer::SerializeHotObject(HeapObject obj) {
     obj.ShortPrint();
     PrintF("\n");
   }
-  sink_.Put(kHotObject + index, "HotObject");
+  sink_.Put(HotObject::Encode(index), "HotObject");
   return true;
 }
 
@@ -158,7 +158,7 @@ bool Serializer::SerializeBackReference(HeapObject obj) {
 
     PutAlignmentPrefix(obj);
     SnapshotSpace space = reference.space();
-    sink_.Put(kBackref + static_cast<int>(space), "BackRef");
+    sink_.Put(BackRef::Encode(space), "BackRef");
     PutBackReference(obj, reference);
   }
   return true;
@@ -196,7 +196,7 @@ void Serializer::PutRoot(RootIndex root, HeapObject object) {
   // TODO(ulan): Check that it works with young large objects.
   if (root_index < kRootArrayConstantsCount &&
       !Heap::InYoungGeneration(object)) {
-    sink_.Put(kRootArrayConstants + root_index, "RootConstant");
+    sink_.Put(RootArrayConstant::Encode(root), "RootConstant");
   } else {
     sink_.Put(kRootArray, "RootSerialization");
     sink_.PutInt(root_index, "root_index");
@@ -212,7 +212,7 @@ void Serializer::PutSmiRoot(FullObjectSlot slot) {
   STATIC_ASSERT(decltype(slot)::kSlotDataSize == kSystemPointerSize);
   static constexpr int bytes_to_output = decltype(slot)::kSlotDataSize;
   static constexpr int size_in_tagged = bytes_to_output >> kTaggedSizeLog2;
-  sink_.PutSection(EncodeFixedRawDataSize(size_in_tagged), "Smi");
+  sink_.Put(FixedRawDataWithSize::Encode(size_in_tagged), "Smi");
 
   Address raw_value = Smi::cast(*slot).ptr();
   const byte* raw_value_as_bytes = reinterpret_cast<const byte*>(&raw_value);
@@ -259,15 +259,15 @@ int Serializer::PutAlignmentPrefix(HeapObject object) {
 
 void Serializer::PutNextChunk(SnapshotSpace space) {
   sink_.Put(kNextChunk, "NextChunk");
-  sink_.Put(static_cast<int>(space), "NextChunkSpace");
+  sink_.Put(static_cast<byte>(space), "NextChunkSpace");
 }
 
 void Serializer::PutRepeat(int repeat_count) {
   if (repeat_count <= kLastEncodableFixedRepeatCount) {
-    sink_.Put(EncodeFixedRepeat(repeat_count), "FixedRepeat");
+    sink_.Put(FixedRepeatWithCount::Encode(repeat_count), "FixedRepeat");
   } else {
     sink_.Put(kVariableRepeat, "VariableRepeat");
-    sink_.PutInt(EncodeVariableRepeatCount(repeat_count), "repeat count");
+    sink_.PutInt(VariableRepeatCount::Encode(repeat_count), "repeat count");
   }
 }
 
@@ -348,8 +348,6 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
         CodeNameEvent(object_.address(), sink_->Position(), code_name));
   }
 
-  const int space_number = static_cast<int>(space);
-
   SerializerReference back_reference;
   if (map == object_) {
     DCHECK_EQ(object_, ReadOnlyRoots(serializer_->isolate()).meta_map());
@@ -359,7 +357,7 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
     DCHECK_EQ(size, Map::kSize);
     back_reference = serializer_->allocator()->Allocate(space, size);
   } else {
-    sink_->Put(kNewObject + space_number, "NewObject");
+    sink_->Put(NewObject::Encode(space), "NewObject");
 
     // TODO(leszeks): Skip this when the map has a fixed size.
     sink_->PutInt(size >> kObjectAlignmentBits, "ObjectSizeInWords");
@@ -551,7 +549,8 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   // maybe left-over bytes that need to be padded.
   int padding_size = allocation_size - SeqString::kHeaderSize - content_size;
   DCHECK(0 <= padding_size && padding_size < kObjectAlignment);
-  for (int i = 0; i < padding_size; i++) sink_->PutSection(0, "StringPadding");
+  for (int i = 0; i < padding_size; i++)
+    sink_->Put(static_cast<byte>(0), "StringPadding");
 }
 
 // Clear and later restore the next link in the weak cell or allocation site.
@@ -702,8 +701,7 @@ void Serializer::ObjectSerializer::SerializeDeferred() {
   bytes_processed_so_far_ = kTaggedSize;
 
   serializer_->PutAlignmentPrefix(object_);
-  sink_->Put(kNewObject + static_cast<int>(back_reference.space()),
-             "deferred object");
+  sink_->Put(NewObject::Encode(back_reference.space()), "deferred object");
   serializer_->PutBackReference(object_, back_reference);
   sink_->PutInt(size >> kTaggedSizeLog2, "deferred object size");
 
@@ -824,7 +822,7 @@ void Serializer::ObjectSerializer::OutputExternalReference(Address target,
     CHECK(IsAligned(target_size, kObjectAlignment));
     CHECK_LE(target_size, kFixedRawDataCount * kTaggedSize);
     int size_in_tagged = target_size >> kTaggedSizeLog2;
-    sink_->PutSection(EncodeFixedRawDataSize(size_in_tagged), "FixedRawData");
+    sink_->Put(FixedRawDataWithSize::Encode(size_in_tagged), "FixedRawData");
     sink_->PutRaw(reinterpret_cast<byte*>(&target), target_size, "Bytes");
   } else if (encoded_reference.is_from_api()) {
     if (V8_HEAP_SANDBOX_BOOL && sandboxify) {
@@ -939,7 +937,7 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
     if (IsAligned(bytes_to_output, kObjectAlignment) &&
         bytes_to_output <= kFixedRawDataCount * kTaggedSize) {
       int size_in_tagged = bytes_to_output >> kTaggedSizeLog2;
-      sink_->PutSection(EncodeFixedRawDataSize(size_in_tagged), "FixedRawData");
+      sink_->Put(FixedRawDataWithSize::Encode(size_in_tagged), "FixedRawData");
     } else {
       sink_->Put(kVariableRawData, "VariableRawData");
       sink_->PutInt(bytes_to_output, "length");
