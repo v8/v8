@@ -19,13 +19,17 @@ namespace testing {
 class TestTaskRunner : public v8::TaskRunner {
  public:
   void PostTask(std::unique_ptr<v8::Task> task) override;
-  void PostNonNestableTask(std::unique_ptr<v8::Task> task) override;
   void PostDelayedTask(std::unique_ptr<v8::Task> task, double) override;
+
+  bool NonNestableTasksEnabled() const override { return true; }
+  void PostNonNestableTask(std::unique_ptr<v8::Task> task) override;
+
+  bool NonNestableDelayedTasksEnabled() const override { return true; }
   void PostNonNestableDelayedTask(std::unique_ptr<v8::Task> task,
                                   double) override;
 
-  void PostIdleTask(std::unique_ptr<v8::IdleTask> task) override;
   bool IdleTasksEnabled() override { return true; }
+  void PostIdleTask(std::unique_ptr<v8::IdleTask> task) override;
 
   bool RunSingleTask();
   bool RunSingleIdleTask(double duration_in_seconds);

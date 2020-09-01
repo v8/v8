@@ -6,6 +6,7 @@
 
 #include "include/cppgc/platform.h"
 #include "src/heap/cppgc/heap.h"
+#include "test/unittests/heap/cppgc/test-platform.h"
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -83,7 +84,7 @@ TEST(GCInvokerTest, ConservativeGCIsInvokedSynchronouslyWhenSupported) {
   invoker.CollectGarbage(GarbageCollector::Config::ConservativeAtomicConfig());
 }
 
-TEST(GCInvokerTest, ConservativeGCIsInvokedAsPreciseGCViaPlatform) {
+TEST(GCInvokerTest, ConservativeGCIsScheduledAsPreciseGCViaPlatform) {
   std::shared_ptr<cppgc::TaskRunner> runner =
       std::shared_ptr<cppgc::TaskRunner>(new MockTaskRunner());
   MockPlatform platform(runner);
@@ -94,6 +95,17 @@ TEST(GCInvokerTest, ConservativeGCIsInvokedAsPreciseGCViaPlatform) {
   EXPECT_CALL(*static_cast<MockTaskRunner*>(runner.get()),
               PostNonNestableTask(::testing::_));
   invoker.CollectGarbage(GarbageCollector::Config::ConservativeAtomicConfig());
+}
+
+TEST(GCInvokerTest, ConservativeGCIsInvokedAsPreciseGCViaPlatform) {
+  testing::TestPlatform platform;
+  MockGarbageCollector gc;
+  GCInvoker invoker(&gc, &platform,
+                    cppgc::Heap::StackSupport::kNoConservativeStackScan);
+  EXPECT_CALL(gc, epoch).WillRepeatedly(::testing::Return(0));
+  EXPECT_CALL(gc, CollectGarbage);
+  invoker.CollectGarbage(GarbageCollector::Config::ConservativeAtomicConfig());
+  platform.WaitAllForegroundTasks();
 }
 
 TEST(GCInvokerTest, IncrementalGCIsStarted) {

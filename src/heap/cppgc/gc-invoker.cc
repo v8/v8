@@ -38,7 +38,9 @@ class GCInvoker::GCInvokerImpl final : public GarbageCollector {
     }
 
     explicit GCTask(GarbageCollector* collector)
-        : collector_(collector), saved_epoch_(collector->epoch()) {}
+        : collector_(collector),
+          handle_(Handle::NonEmptyTag{}),
+          saved_epoch_(collector->epoch()) {}
 
    private:
     void Run() final {
