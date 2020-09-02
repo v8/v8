@@ -251,8 +251,8 @@ void Snapshot::ClearReconstructableDataForSerialization(
       continue;  // Don't clear extensions, they cannot be recompiled.
     }
 
-    // Also, clear out feedback vectors and any optimized code.
-    if (CodeKindIsJSFunction(fun.code().kind())) {
+    // Also, clear out feedback vectors and recompilable code.
+    if (fun.CanDiscardCompiled()) {
       fun.set_code(*BUILTIN_CODE(isolate, CompileLazy));
     }
     if (!fun.raw_feedback_cell().value().IsUndefined()) {
