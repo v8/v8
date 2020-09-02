@@ -82,7 +82,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '482dd77bef48ab9b3966d3e3f715b2ac2841174e',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6d55754671ea57d13b21f85e4f64ed8fea64c0fa',
   'third_party/depot_tools':
     Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ed15af5c4eedfedd144fc9b3557dda1a977758c7',
   'third_party/icu':
@@ -178,7 +178,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '1eb42f5ea752da2ee15a8853a801affaa458d5fb',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '156bfc1f22a06372813336183fef868a1d3f39d7',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -250,7 +250,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'fcef86e30a0ab061b982b5c9d91bb060df8f5269',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '03bacc323567b1f522fdf52f03a315b587da1826',
   'tools/luci-go': {
       'packages': [
         {
@@ -284,7 +284,7 @@ deps = {
   'third_party/protobuf':
     Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + 'b68a347f56137b4b1a746e8c7438495a6ac1bd91',
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'd53accfbd0382a98ad7378045631866449b5f92e',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '59187e10e96157e9135da61e95cec25a9baf9cd3',
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '645250b6690785be60ab6780ce4b58698d884d11',
   'third_party/ittapi': {
@@ -294,7 +294,7 @@ deps = {
     'condition': "checkout_ittapi or check_v8_header_includes",
   },
   'third_party/requests': {
-      'url': Var('chromium_url') + '/external/github.com/kennethreitz/requests.git' + '@' + 'refs/tags/v2.23.0',
+      'url': Var('chromium_url') + '/external/github.com/kennethreitz/requests.git' + '@' + 'bfb93d4b7d269a8735f1b216093e7e9a9fdc4517',
       'condition': 'checkout_android',
   },
 }
