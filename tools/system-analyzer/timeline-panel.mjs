@@ -3,10 +3,12 @@
 // found in the LICENSE file.
 
 import { defineCustomElement, V8CustomElement } from './helper.mjs';
+import { SynchronizeSelectionEvent } from './events.mjs';
 import './timeline/timeline-track.mjs';
 
 defineCustomElement('timeline-panel', (templateText) =>
   class TimelinePanel extends V8CustomElement {
+    #timeSelection = { start: 0, end: Infinity };
     constructor() {
       super(templateText);
       this.timelineOverview.addEventListener(
@@ -15,6 +17,8 @@ defineCustomElement('timeline-panel', (templateText) =>
         'overviewupdate', e => this.handleOverviewBackgroundUpdate(e));
       this.addEventListener(
         'scrolltrack', e => this.handleTrackScroll(e));
+      this.addEventListener(
+        SynchronizeSelectionEvent.name, e => this.handleMouseMoveSelection(e));
       this.backgroundCanvas = document.createElement('canvas');
       this.isLocked = false;
     }
@@ -27,10 +31,11 @@ defineCustomElement('timeline-panel', (templateText) =>
       return this.$('#timelineOverviewIndicator');
     }
 
+    //TODO(zcankara) Remove dependency to timelineCanvas here
     get timelineCanvas() {
       return this.timelineTracks[0].timelineCanvas;
     }
-
+    //TODO(zcankara) Remove dependency to timeline here
     get timeline() {
       return this.timelineTracks[0].timeline;
     }
@@ -52,6 +57,18 @@ defineCustomElement('timeline-panel', (templateText) =>
         track.scrollLeft = event.detail;
       }
     }
+
+    handleMouseMoveSelection(event) {
+      this.selectionMouseMove(event.start, event.end);
+    }
+
+    selectionMouseMove(start, end) {
+      for (const track of this.timelineTracks) {
+        track.startTime = start;
+        track.endTime = end;
+      }
+    }
+
     handleTimelineIndicatorMove(event) {
       if (event.buttons == 0) return;
       let timelineTotalWidth = this.timelineCanvas.offsetWidth;

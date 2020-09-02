@@ -15,11 +15,6 @@ found in the LICENSE file. -->
     background-color: var(--timeline-background-color);
   }
 
-  #timeline::-webkit-scrollbar {
-    width: 0;
-    background-color: transparent;
-  }
-
   #timelineLabel {
     transform: rotate(90deg);
     transform-origin: left bottom 0;
@@ -85,6 +80,23 @@ found in the LICENSE file. -->
   .timeline {
     background-color: var(--timeline-background-color);
   }
+
+  #timeline .rightHandle,
+  #timeline .leftHandle {
+    background-color: rgba(200, 200, 200, 0.5);
+    height: 100%;
+    width: 5px;
+    position: absolute;
+    z-index: 3;
+    cursor: col-resize;
+  }
+
+  #timeline .selection {
+    background-color: rgba(133, 68, 163, 0.5);
+    height: 100%;
+    position: absolute;
+    z-index: 2;
+  }
 </style>
 <div class="timeline">
   <div id="legend">
@@ -102,6 +114,9 @@ found in the LICENSE file. -->
     </table>
   </div>
   <div id="timeline">
+    <div class="leftHandle"></div>
+    <div class="selection"></div>
+    <div class="rightHandle"></div>
     <div id="timelineLabel">Frequency</div>
     <div id="timelineChunks"></div>
     <canvas id="timelineCanvas"></canvas>

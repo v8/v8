@@ -7,26 +7,133 @@ import {
   typeToColor, CSSColor
 } from '../helper.mjs';
 import { kChunkWidth, kChunkHeight } from '../map-processor.mjs';
-import { SelectionEvent, FocusEvent, SelectTimeEvent } from '../events.mjs';
+import {
+  SelectionEvent, FocusEvent, SelectTimeEvent,
+  SynchronizeSelectionEvent
+} from '../events.mjs';
 
 defineCustomElement('./timeline/timeline-track', (templateText) =>
   class TimelineTrack extends V8CustomElement {
+    static SELECTION_OFFSET = 20;
     #timeline;
     #nofChunks = 400;
     #chunks;
     #selectedEntry;
     #timeToPixel;
     #timeSelection = { start: 0, end: Infinity };
+    #isSelected = false;
+    #timeStartOffset;
+    #mouseDownTime;
     constructor() {
       super(templateText);
-      this.timeline.addEventListener("mousedown",
-        e => this.handleTimeRangeSelectionStart(e));
-      this.timeline.addEventListener("mouseup",
-        e => this.handleTimeRangeSelectionEnd(e));
       this.timeline.addEventListener("scroll",
         e => this.handleTimelineScroll(e));
+      this.timeline.addEventListener("mousedown",
+        e => this.handleTimeSelectionMouseDown(e));
+      this.timeline.addEventListener("mouseup",
+        e => this.handleTimeSelectionMouseUp(e));
+      this.timeline.addEventListener("mousemove",
+        e => this.handleTimeSelectionMouseMove(e));
       this.backgroundCanvas = document.createElement('canvas');
       this.isLocked = false;
+    }
+
+    handleTimeSelectionMouseDown(e) {
+      if (e.target.className === "chunk") return;
+      this.#isSelected = true;
+      this.#mouseDownTime = this.positionToTime(e.clientX);
+    }
+    handleTimeSelectionMouseMove(e) {
+      if (!this.#isSelected) return;
+      let mouseMoveTime = this.positionToTime(e.clientX);
+      let startTime = this.#mouseDownTime;
+      let endTime = mouseMoveTime;
+      if (this.isOnLeftHandle(e.clientX)) {
+        startTime = mouseMoveTime;
+        endTime = this.positionToTime(this.rightHandlePosX);
+      } else if (this.isOnRightHandle(e.clientX)) {
+        startTime = this.positionToTime(this.leftHandlePosX);
+        endTime = mouseMoveTime;
+      }
+      this.dispatchEvent(new SynchronizeSelectionEvent(
+        Math.min(startTime, endTime),
+        Math.max(startTime, endTime)));
+    }
+    handleTimeSelectionMouseUp(e) {
+      this.#isSelected = false;
+      this.dispatchEvent(new SelectTimeEvent(this.#timeSelection.start,
+        this.#timeSelection.end));
+    }
+    isOnLeftHandle(posX) {
+      return (Math.abs(this.leftHandlePosX - posX)
+        <= TimelineTrack.SELECTION_OFFSET);
+    }
+    isOnRightHandle(posX) {
+      return (Math.abs(this.rightHandlePosX - posX)
+        <= TimelineTrack.SELECTION_OFFSET);
+    }
+
+
+    set startTime(value) {
+      console.assert(
+        value <= this.#timeSelection.end,
+        "Selection start time greater than end time!");
+      this.#timeSelection.start = value;
+      this.updateSelection();
+    }
+    set endTime(value) {
+      console.assert(
+        value > this.#timeSelection.start,
+        "Selection end time smaller than start time!");
+      this.#timeSelection.end = value;
+      this.updateSelection();
+    }
+
+    updateSelection() {
+      let startTimePos = this.timeToPosition(this.#timeSelection.start);
+      let endTimePos = this.timeToPosition(this.#timeSelection.end);
+      this.leftHandle.style.left = startTimePos + "px";
+      this.selection.style.left = startTimePos + "px";
+      this.rightHandle.style.left = endTimePos + "px";
+      this.selection.style.width =
+        Math.abs(this.rightHandlePosX - this.leftHandlePosX) + "px";
+    }
+
+    get leftHandlePosX() {
+      let leftHandlePosX = this.leftHandle.getBoundingClientRect().x;
+      return leftHandlePosX;
+    }
+    get rightHandlePosX() {
+      let rightHandlePosX = this.rightHandle.getBoundingClientRect().x;
+      return rightHandlePosX;
+    }
+
+    // Maps the clicked x position to the x position on timeline canvas
+    positionOnTimeline(posX) {
+      let rect = this.timeline.getBoundingClientRect();
+      let posClickedX = posX - rect.left + this.timeline.scrollLeft;
+      return posClickedX;
+    }
+
+    positionToTime(posX) {
+      let posTimelineX = this.positionOnTimeline(posX) + this.#timeStartOffset;
+      return posTimelineX / this.#timeToPixel;
+    }
+
+    timeToPosition(time) {
+      let posX = time * this.#timeToPixel;
+      posX -= this.#timeStartOffset
+      return posX;
+    }
+
+    get leftHandle() {
+      return this.$('.leftHandle');
+    }
+    get rightHandle() {
+      return this.$('.rightHandle');
+    }
+    get selection() {
+      return this.$('.selection');
     }
 
     get timelineCanvas() {
@@ -144,26 +251,6 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       this.timeline.scrollLeft += offset;
     }
 
-    handleTimeRangeSelectionStart(e) {
-      this.#timeSelection.start = this.positionToTime(e.clientX);
-    }
-
-    handleTimeRangeSelectionEnd(e) {
-      this.#timeSelection.end = this.positionToTime(e.clientX);
-      this.dispatchEvent(new SelectTimeEvent(
-        Math.min(this.#timeSelection.start, this.#timeSelection.end),
-        Math.max(this.#timeSelection.start, this.#timeSelection.end)));
-    }
-
-    positionToTime(posX) {
-      let rect = this.timeline.getBoundingClientRect();
-      let timeStartOffset = this.data.startTime * this.#timeToPixel;
-      let posClickedX =
-        posX - rect.left + this.timeline.scrollLeft + timeStartOffset;
-      let selectedTime = posClickedX / this.#timeToPixel;
-      return selectedTime;
-    }
-
     handleTimelineScroll(e) {
       let horizontal = e.currentTarget.scrollLeft;
       this.dispatchEvent(new CustomEvent(
@@ -228,6 +315,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       let end = this.data.endTime;
       let duration = end - start;
       this.#timeToPixel = chunks.length * kChunkWidth / duration;
+      this.#timeStartOffset = start * this.#timeToPixel;
       let addTimestamp = (time, name) => {
         let timeNode = this.div('timestamp');
         timeNode.innerText = name;

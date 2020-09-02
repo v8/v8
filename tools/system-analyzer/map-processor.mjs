@@ -356,6 +356,7 @@ class MapLogEvent extends Event {
     return -1;
   }
 
+  //TODO(zcankara) Add tests for the chunk positions
   position(chunks) {
     let index = this.chunkIndex(chunks);
     let xFrom = (index + 1.5) * kChunkWidth;
