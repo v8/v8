@@ -11,6 +11,7 @@
 #include "src/base/bit-field.h"
 #include "src/base/platform/time.h"
 #include "src/common/globals.h"
+#include "src/handles/handles.h"
 #include "src/objects/elements-kind.h"
 #include "src/strings/unicode.h"
 #include "src/utils/allocation.h"
@@ -304,7 +305,7 @@ namespace internal {
   F(GetFunctionName, 1, 1)                                      \
   F(GetOwnPropertyDescriptor, 2, 1)                             \
   F(GetOwnPropertyKeys, 2, 1)                                   \
-  F(GetProperty, 2, 1)                                          \
+  F(GetProperty, -1 /* [2, 3] */, 1)                            \
   F(HasFastPackedElements, 1, 1)                                \
   F(HasInPrototypeChain, 2, 1)                                  \
   I(HasProperty, 2, 1)                                          \
@@ -754,9 +755,11 @@ class Runtime : public AllStatic {
                     Handle<Object> value, StoreOrigin store_origin,
                     Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>());
 
+  // When "receiver" is not passed, it defaults to "holder".
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
-  GetObjectProperty(Isolate* isolate, Handle<Object> object, Handle<Object> key,
-                    bool* is_found_out = nullptr);
+  GetObjectProperty(Isolate* isolate, Handle<Object> holder, Handle<Object> key,
+                    Handle<Object> receiver = Handle<Object>(),
+                    bool* is_found = nullptr);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> HasProperty(
       Isolate* isolate, Handle<Object> object, Handle<Object> key);

@@ -651,8 +651,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
                                     p->name(), p->slot(), p->vector());
 
     } else {
-      exit_point->ReturnCallRuntime(Runtime::kGetProperty, p->context(),
-                                    p->receiver(), p->name());
+      exit_point->ReturnCallRuntime(Runtime::kGetProperty, p->context(), holder,
+                                    p->name(), p->receiver());
     }
   }
 
@@ -3230,8 +3230,8 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
     Comment("KeyedLoadGeneric_slow");
     IncrementCounter(isolate()->counters()->ic_keyed_load_generic_slow(), 1);
     // TODO(jkummerow): Should we use the GetProperty TF stub instead?
-    TailCallRuntime(Runtime::kGetProperty, p->context(), p->receiver(),
-                    var_name.value());
+    TailCallRuntime(Runtime::kGetProperty, p->context(),
+                    p->receiver_and_lookup_start_object(), var_name.value());
   }
 }
 
