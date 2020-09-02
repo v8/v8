@@ -404,7 +404,10 @@ bool Heap::CanExpandOldGeneration(size_t size) {
 
 bool Heap::CanExpandOldGenerationBackground(size_t size) {
   if (force_oom_) return false;
-  return memory_allocator()->Size() + size <= MaxReserved();
+  // When the heap is tearing down, then GC requests from background threads
+  // are not served and the threads are allowed to expand the heap to avoid OOM.
+  return gc_state() == TEAR_DOWN ||
+         memory_allocator()->Size() + size <= MaxReserved();
 }
 
 bool Heap::HasBeenSetUp() const {
