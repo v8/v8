@@ -709,8 +709,6 @@ class BaseTestRunner(object):
       "verify_csa": self.build_config.verify_csa,
       "lite_mode": self.build_config.lite_mode,
       "pointer_compression": self.build_config.pointer_compression,
-      "nosse41": "--no-enable-sse4_1" in options.extra_flags or
-        "--noenable-sse4-1" in options.extra_flags
     }
 
   def _runner_flags(self):
