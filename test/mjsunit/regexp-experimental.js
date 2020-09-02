@@ -5,10 +5,10 @@
 // Flags: --allow-natives-syntax --enable-experimental-regexp-engine
 
 function Test(regexp, subject, expectedResult, expectedLastIndex) {
-  //assertEquals(%RegexpTypeTag(regexp), "EXPERIMENTAL");
+  assertEquals(%RegexpTypeTag(regexp), "EXPERIMENTAL");
   var result = regexp.exec(subject);
-  assertArrayEquals(result, expectedResult);
-  assertEquals(regexp.lastIndex, expectedLastIndex);
+  assertArrayEquals(expectedResult, result);
+  assertEquals(expectedLastIndex, regexp.lastIndex);
 }
 
 // The empty regexp.
@@ -39,6 +39,7 @@ Test(/[💩]/, "f💩", [String.fromCodePoint(0xD83D)], 0);
 
 // Greedy quantifier for 0 or more matches.
 Test(/x*/, "asdfxk", [""], 0);
+Test(/xx*a/, "xxa", ["xxa"], 0);
 Test(/asdf*/, "aasdfffk", ["asdfff"], 0);
 
 // Non-capturing groups and nested operators.

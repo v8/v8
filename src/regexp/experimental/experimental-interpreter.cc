@@ -138,7 +138,7 @@ class NfaInterpreter {
     DCHECK_EQ(best_match_, base::nullopt);
 
     // All threads start at bytecode 0.
-    PushActiveThreadUnchecked(InterpreterThread{0, input_index_});
+    active_threads_.emplace_back(InterpreterThread{0, input_index_});
     // Run the initial thread, potentially forking new threads, until every
     // thread is blocked without further input.
     RunActiveThreads();
@@ -186,6 +186,9 @@ class NfaInterpreter {
   //   the current input index. All remaining `active_threads_` are discarded.
   void RunActiveThread(InterpreterThread t) {
     while (true) {
+      if (IsPcProcessed(t.pc)) return;
+      MarkPcProcessed(t.pc);
+
       RegExpInstruction inst = bytecode_[t.pc];
       switch (inst.opcode) {
         case RegExpInstruction::CONSUME_RANGE: {
@@ -195,26 +198,12 @@ class NfaInterpreter {
         case RegExpInstruction::FORK: {
           InterpreterThread fork = t;
           fork.pc = inst.payload.pc;
+          active_threads_.emplace_back(fork);
           ++t.pc;
-
-          // t has higher priority than fork.  If t.pc hasn't been processed,we
-          // push fork on the active_thread_ stack and continue directly with
-          // t.  Otherwise we continue directly with fork if possible.
-          if (!IsPcProcessed(t.pc)) {
-            MarkPcProcessed(t.pc);
-            PushActiveThread(fork);
-            break;
-          } else if (!IsPcProcessed(fork.pc)) {
-            t = fork;
-            MarkPcProcessed(t.pc);
-            break;
-          }
-          return;
+          break;
         }
         case RegExpInstruction::JMP:
           t.pc = inst.payload.pc;
-          if (IsPcProcessed(t.pc)) return;
-          MarkPcProcessed(t.pc);
           break;
         case RegExpInstruction::ACCEPT:
           best_match_ = MatchRange{t.match_begin, input_index_};
@@ -254,7 +243,7 @@ class NfaInterpreter {
       RegExpInstruction::Uc16Range range = inst.payload.consume_range;
       if (input_char >= range.min && input_char <= range.max) {
         ++t.pc;
-        PushActiveThreadUnchecked(t);
+        active_threads_.emplace_back(t);
       }
     }
     blocked_threads_.clear();
@@ -282,22 +271,6 @@ class NfaInterpreter {
   void MarkPcProcessed(int pc) {
     DCHECK_LE(pc_last_input_index_[pc], input_index_);
     pc_last_input_index_[pc] = input_index_;
-  }
-
-  // Functions to push a thread `t` onto the list of active threads, but only
-  // if `t.pc` was not already the pc of some other thread at the current
-  // subject index.
-  void PushActiveThreadUnchecked(InterpreterThread t) {
-    DCHECK(!IsPcProcessed(t.pc));
-
-    MarkPcProcessed(t.pc);
-    active_threads_.emplace_back(t);
-  }
-  void PushActiveThread(InterpreterThread t) {
-    if (IsPcProcessed(t.pc)) {
-      return;
-    }
-    PushActiveThreadUnchecked(t);
   }
 
   Vector<const RegExpInstruction> bytecode_;
