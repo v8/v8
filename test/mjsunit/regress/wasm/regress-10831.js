@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-simd
+// Flags: --experimental-wasm-simd --enable-sse4-1
 
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
