@@ -60,13 +60,13 @@
 // We produce the code to set flags when it is implied by another flag.
 #elif defined(FLAG_MODE_DEFINE_IMPLICATIONS)
 #define DEFINE_VALUE_IMPLICATION(whenflag, thenflag, value) \
-  if (FLAG_##whenflag) FLAG_##thenflag = value;
+  if (FLAG_##whenflag && FLAG_##thenflag != (value)) FLAG_##thenflag = (value);
 
 #define DEFINE_GENERIC_IMPLICATION(whenflag, statement) \
   if (FLAG_##whenflag) statement;
 
 #define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value) \
-  if (!FLAG_##whenflag) FLAG_##thenflag = value;
+  if (!FLAG_##whenflag && FLAG_##thenflag != (value)) FLAG_##thenflag = (value);
 
 // We apply a generic macro to the flags.
 #elif defined(FLAG_MODE_APPLY)
@@ -1078,8 +1078,8 @@ DEFINE_INT(stress_marking, 0,
 DEFINE_INT(stress_scavenge, 0,
            "force scavenge at random points between 0 and X (inclusive) "
            "percent of the new space capacity")
-DEFINE_IMPLICATION(fuzzer_gc_analysis, stress_marking)
-DEFINE_IMPLICATION(fuzzer_gc_analysis, stress_scavenge)
+DEFINE_VALUE_IMPLICATION(fuzzer_gc_analysis, stress_marking, 99)
+DEFINE_VALUE_IMPLICATION(fuzzer_gc_analysis, stress_scavenge, 99)
 DEFINE_BOOL(
     reclaim_unmodified_wrappers, true,
     "reclaim otherwise unreachable unmodified wrapper objects when possible")
