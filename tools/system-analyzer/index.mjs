@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import CustomIcProcessor from "./ic-processor.mjs";
-import { SelectionEvent, FocusEvent } from "./events.mjs";
-import { IcLogEvent } from "./ic-processor.mjs";
+import { SelectionEvent, FocusEvent, SelectTimeEvent } from "./events.mjs";
 import { State } from "./app-model.mjs";
-import { MapProcessor, MapLogEvent } from "./map-processor.mjs";
-import { SelectTimeEvent } from "./events.mjs";
-import { SourcePositionLogEvent } from "./event.mjs";
+import { SourcePositionLogEvent } from "./log/sourcePosition.mjs";
+import { MapLogEvent } from "./log/map.mjs";
+import { IcLogEvent } from "./log/ic.mjs";
+import Processor from "./processor.mjs";
 import { $ } from "./helper.mjs";
 import "./ic-panel.mjs";
 import "./timeline-panel.mjs";
@@ -121,22 +120,11 @@ class App {
     this.#state = new State();
     this.#navigation = new Navigation(this.#state, this.#view);
   }
-  // Map event log processing
-  handleLoadTextMapProcessor(text) {
-    let mapProcessor = new MapProcessor();
-    return mapProcessor.processString(text);
-  }
-  // IC event file reading and log processing
-  loadICLogFile(fileData) {
-    let reader = new FileReader();
-    reader.onload = (evt) => {
-      let icProcessor = new CustomIcProcessor();
-      this.#state.icTimeline = icProcessor.processString(fileData.chunk);
-      this.#view.icPanel.timeline = this.#state.icTimeline;
-      this.#view.icTrack.data = this.#state.icTimeline;
-    };
-    reader.readAsText(fileData.file);
-    this.#view.icPanel.initGroupKeySelect();
+  // Event log processing
+  handleLoadTextProcessor(text) {
+    let logProcessor = new Processor();
+    logProcessor.processString(text);
+    return logProcessor;
   }
 
   // call when a new file uploaded
@@ -146,17 +134,25 @@ class App {
     // instantiate the app logic
     let fileData = e.detail;
     try {
-      const timeline = this.handleLoadTextMapProcessor(fileData.chunk);
+      const processor = this.handleLoadTextProcessor(fileData.chunk);
+      const mapTimeline = processor.mapTimeline;
+      const icTimeline = processor.icTimeline;
+      //TODO(zcankara) Make sure only one instance of src event map ic id match
+      // Load map log events timeline.
+      this.#state.mapTimeline = mapTimeline;
       // Transitions must be set before timeline for stats panel.
-      this.#state.mapTimeline = timeline;
       this.#view.mapPanel.transitions = this.#state.mapTimeline.transitions;
-      this.#view.mapTrack.data = this.#state.mapTimeline;
+      this.#view.mapTrack.data = mapTimeline;
       this.#state.chunks = this.#view.mapTrack.chunks;
-      this.#view.mapPanel.timeline = this.#state.mapTimeline;
+      this.#view.mapPanel.timeline = mapTimeline;
+      // Load ic log events timeline.
+      this.#state.icTimeline = icTimeline;
+      this.#view.icPanel.timeline = icTimeline;
+      this.#view.icTrack.data = icTimeline;
+      // TODO(zcankara) Load source position log events timeline.
     } catch (error) {
       console.log(error);
     }
-    this.loadICLogFile(fileData);
     this.fileLoaded = true;
   }
 

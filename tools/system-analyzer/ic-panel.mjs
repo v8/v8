@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 import { Group } from './ic-model.mjs';
-import CustomIcProcessor from "./ic-processor.mjs";
-import { MapLogEvent } from "./map-processor.mjs";
-import { SourcePositionLogEvent } from './event.mjs';
+import Processor from "./processor.mjs";
+import { SourcePositionLogEvent } from "./log/sourcePosition.mjs";
+import { MapLogEvent } from "./log/map.mjs";
 import { FocusEvent, SelectTimeEvent, SelectionEvent } from './events.mjs';
 import { defineCustomElement, V8CustomElement } from './helper.mjs';
 
@@ -15,18 +15,16 @@ defineCustomElement('ic-panel', (templateText) =>
     #timeline;
     constructor() {
       super(templateText);
+      this.initGroupKeySelect();
       this.groupKey.addEventListener(
         'change', e => this.updateTable(e));
       this.$('#filterICTimeBtn').addEventListener(
         'click', e => this.handleICTimeFilter(e));
     }
-    get timeline() {
-      return this.#timeline;
-    }
     set timeline(value) {
       console.assert(value !== undefined, "timeline undefined!");
       this.#timeline = value;
-      this.selectedLogEvents = this.timeline.all;
+      this.selectedLogEvents = this.#timeline.all;
       this.updateCount();
     }
     get groupKey() {
@@ -121,6 +119,7 @@ defineCustomElement('ic-panel', (templateText) =>
       return Array.from(selectedMapLogEventsSet);
     }
 
+    //TODO(zcankara) Handle in the processor for events with source positions.
     handleFilePositionClick(e) {
       const entry = e.target.parentNode.entry;
       const filePosition =
@@ -221,9 +220,9 @@ defineCustomElement('ic-panel', (templateText) =>
     initGroupKeySelect() {
       let select = this.groupKey;
       select.options.length = 0;
-      for (let i in CustomIcProcessor.kProperties) {
+      for (let i in Processor.kProperties) {
         let option = document.createElement("option");
-        option.text = CustomIcProcessor.kProperties[i];
+        option.text = Processor.kProperties[i];
         select.add(option);
       }
     }

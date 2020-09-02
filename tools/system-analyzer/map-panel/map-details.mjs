@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 import { V8CustomElement, defineCustomElement } from "../helper.mjs";
 import { FocusEvent } from "../events.mjs";
-import { SourcePositionLogEvent } from '../event.mjs';
+import { SourcePositionLogEvent } from "../log/sourcePosition.mjs";
 
 defineCustomElement(
   "./map-panel/map-details",

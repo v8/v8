@@ -65,6 +65,7 @@ defineCustomElement(
           let line = sourcePosition.line;
           let col = sourcePosition.col;
           let script = sourcePosition.script;
+          if (!(line && col && script)) continue;
           this.highlightSourcePosition(line, col, script);
         }
       }

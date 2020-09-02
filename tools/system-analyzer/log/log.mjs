@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 class Event {
   #time;
   #type;
@@ -18,14 +19,4 @@ class Event {
   }
 }
 
-class SourcePositionLogEvent extends Event {
-  constructor(type, time, file, line, col, script) {
-    super(type, time);
-    this.file = file;
-    this.line = line;
-    this.col = col;
-    this.script = script;
-  }
-}
-
-export { Event, SourcePositionLogEvent };
+export { Event };

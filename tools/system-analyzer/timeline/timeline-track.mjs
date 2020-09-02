@@ -6,7 +6,7 @@ import {
   defineCustomElement, V8CustomElement,
   typeToColor, CSSColor
 } from '../helper.mjs';
-import { kChunkWidth, kChunkHeight } from '../map-processor.mjs';
+import { kChunkWidth, kChunkHeight } from "../log/map.mjs";
 import {
   SelectionEvent, FocusEvent, SelectTimeEvent,
   SynchronizeSelectionEvent
@@ -318,7 +318,8 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
         if (chunk.isEmpty()) continue;
         let node = this.div();
         node.className = 'chunk';
-        node.style.left = ((chunks[i].start - start) * this.#timeToPixel) + 'px';
+        node.style.left =
+          ((chunks[i].start - start) * this.#timeToPixel) + 'px';
         node.style.height = height + 'px';
         node.chunk = chunk;
         node.addEventListener('mousemove', e => this.handleChunkMouseMove(e));
