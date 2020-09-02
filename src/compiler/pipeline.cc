@@ -881,7 +881,8 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
   const bool print_code =
       FLAG_print_code ||
       (info->IsOptimizing() && FLAG_print_opt_code &&
-       info->shared_info()->PassesFilter(FLAG_print_opt_code_filter));
+       info->shared_info()->PassesFilter(FLAG_print_opt_code_filter)) ||
+      (info->IsNativeContextIndependent() && FLAG_print_nci_code);
   if (print_code) {
     std::unique_ptr<char[]> debug_name = info->GetDebugName();
     CodeTracer::StreamScope tracing_scope(isolate->GetCodeTracer());
