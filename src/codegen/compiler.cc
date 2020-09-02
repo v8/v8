@@ -1026,8 +1026,8 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   // turbo_filter.
   if (!FLAG_opt || !shared->PassesFilter(FLAG_turbo_filter)) return {};
 
-  // If code was pending optimization for testing, delete remove the entry
-  // from the table that was preventing the bytecode from being flushed
+  // If code was pending optimization for testing, remove the entry from the
+  // table that was preventing the bytecode from being flushed.
   if (V8_UNLIKELY(FLAG_testing_d8_test_runner)) {
     PendingOptimizationTable::FunctionWasOptimized(isolate, function);
   }
@@ -1073,7 +1073,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
                                             has_script, osr_offset, osr_frame));
   OptimizedCompilationInfo* compilation_info = job->compilation_info();
 
-  // Prepare the job and launch cocncurrent compilation, or compile now.
+  // Prepare the job and launch concurrent compilation, or compile now.
   if (mode == ConcurrencyMode::kConcurrent) {
     if (GetOptimizedCodeLater(std::move(job), isolate, compilation_info,
                               code_kind, function)) {

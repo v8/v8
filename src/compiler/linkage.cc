@@ -103,6 +103,7 @@ int CallDescriptor::GetStackParameterDelta(
       // of padding.
       ++stack_param_delta;
     } else {
+      DCHECK_NE(tail_caller_slots_above_sp % 2, 0);
       // The delta is odd because of the caller. We already have one slot of
       // padding that we can reuse for arguments, so we will need one fewer
       // slot.

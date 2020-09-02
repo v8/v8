@@ -80,7 +80,7 @@ void TraceInOptimizationQueue(JSFunction function) {
   if (FLAG_trace_opt_verbose) {
     PrintF("[function ");
     function.PrintName();
-    PrintF(" has been marked manually for optimization]\n");
+    PrintF(" is already in optimization queue]\n");
   }
 }
 
