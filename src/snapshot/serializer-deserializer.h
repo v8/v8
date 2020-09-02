@@ -217,6 +217,14 @@ class SerializerDeserializer : public RootVisitor {
   };
 
   // Helper class for encoding and decoding a value into and from a bytecode.
+  //
+  // The value is encoded by allocating an entire bytecode range, and encoding
+  // the value as an index in that range, starting at kMinValue; thus the range
+  // of values
+  //   [kMinValue, kMinValue + 1, ... , kMaxValue]
+  // is encoded as
+  //   [kBytecode, kBytecode + 1, ... , kBytecode + (N - 1)]
+  // where N is the number of values, i.e. kMaxValue - kMinValue + 1.
   template <Bytecode kBytecode, int kMinValue, int kMaxValue,
             typename TValue = int>
   struct BytecodeValueEncoder {
@@ -241,7 +249,7 @@ class SerializerDeserializer : public RootVisitor {
 
   template <Bytecode bytecode>
   using SpaceEncoder =
-      BytecodeValueEncoder<bytecode, 0, kNumberOfSpaces, SnapshotSpace>;
+      BytecodeValueEncoder<bytecode, 0, kNumberOfSpaces - 1, SnapshotSpace>;
 
   using NewObject = SpaceEncoder<kNewObject>;
   using BackRef = SpaceEncoder<kBackref>;
