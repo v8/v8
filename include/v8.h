@@ -3113,7 +3113,7 @@ class V8_EXPORT String : public Name {
   V8_INLINE static Local<String> Empty(Isolate* isolate);
 
   /**
-   * Returns true if the string is external one-byte.
+   * Returns true if the string is external two-byte.
    *
    */
   V8_DEPRECATE_SOON(
