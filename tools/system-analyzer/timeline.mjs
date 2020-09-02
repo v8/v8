@@ -5,6 +5,7 @@
 class Timeline {
   #values;
   #selection;
+  #uniqueTypes;
   constructor() {
     this.#values = [];
     this.startTime = 0;
@@ -84,6 +85,24 @@ class Timeline {
 
   duration() {
     return this.last().time - this.first().time;
+  }
+
+  groupByTypes() {
+    this.#uniqueTypes = new Map();
+    for (const entry of this.all) {
+      if (!this.#uniqueTypes.has(entry.type)) {
+        this.#uniqueTypes.set(entry.type, [entry]);
+      } else {
+        this.#uniqueTypes.get(entry.type).push(entry);
+      }
+    }
+  }
+
+  get uniqueTypes() {
+    if (this.#uniqueTypes === undefined) {
+      this.groupByTypes();
+    }
+    return this.#uniqueTypes;
   }
 
   forEachChunkSize(count, fn) {

@@ -159,7 +159,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       this.#timeline = value;
       this.updateChunks();
       this.updateTimeline();
-      this.updateLegend();
+      this.renderLegend();
     }
 
     get data() {
@@ -191,20 +191,8 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
     set scrollLeft(offset) {
       this.timeline.scrollLeft = offset;
     }
-    //TODO(zcankara) Carry to the Model, nothing UI related
-    updateLegend() {
-      const uniqueTypes = new Map();
-      for (const entry of this.data.all) {
-        if (!uniqueTypes.has(entry.type)) {
-          uniqueTypes.set(entry.type, [entry]);
-        } else {
-          uniqueTypes.get(entry.type).push(entry);
-        }
-      }
-      this.renderLegend(uniqueTypes);
-    }
 
-    renderLegend(uniqueTypes) {
+    renderLegend() {
       let timelineLegend = this.timelineLegend;
       let timelineLegendContent = this.timelineLegendContent;
       this.removeAllChildren(timelineLegendContent);
@@ -219,7 +207,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       row.appendChild(this.td("100%"));
       timelineLegendContent.appendChild(row);
       let colorIterator = 0;
-      uniqueTypes.forEach((entries, type) => {
+      this.#timeline.uniqueTypes.forEach((entries, type) => {
         let row = this.tr();
         row.entries = entries;
         row.classList.add('clickable');

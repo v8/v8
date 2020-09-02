@@ -47,6 +47,7 @@ defineCustomElement(
 
       selectMap(map) {
         this.currentMap = map;
+        this.showMap();
         this.dispatchEvent(new FocusEvent(map));
       }
 
