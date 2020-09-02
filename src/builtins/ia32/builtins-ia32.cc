@@ -41,23 +41,29 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address) {
 static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
                                            Runtime::FunctionId function_id) {
   // ----------- S t a t e -------------
+  //  -- eax : actual argument count
   //  -- edx : new target (preserved for callee)
   //  -- edi : target function (preserved for callee)
   // -----------------------------------
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    // Push a copy of the target function and the new target.
-    __ push(edi);
-    __ push(edx);
+    // Push a copy of the target function, the new target and the actual
+    // argument count.
+    __ push(kJavaScriptCallTargetRegister);
+    __ push(kJavaScriptCallNewTargetRegister);
+    __ SmiTag(kJavaScriptCallArgCountRegister);
+    __ push(kJavaScriptCallArgCountRegister);
     // Function is also the parameter to the runtime call.
-    __ push(edi);
+    __ push(kJavaScriptCallTargetRegister);
 
     __ CallRuntime(function_id, 1);
     __ mov(ecx, eax);
 
-    // Restore target function and new target.
-    __ pop(edx);
-    __ pop(edi);
+    // Restore target function, new target and actual argument count.
+    __ pop(kJavaScriptCallArgCountRegister);
+    __ SmiUntag(kJavaScriptCallArgCountRegister);
+    __ pop(kJavaScriptCallNewTargetRegister);
+    __ pop(kJavaScriptCallTargetRegister);
   }
 
   static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
@@ -831,6 +837,7 @@ static void TailCallRuntimeIfMarkerEquals(MacroAssembler* masm,
 static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
                                       Register optimized_code_entry) {
   // ----------- S t a t e -------------
+  //  -- eax : actual argument count
   //  -- edx : new target (preserved for callee if needed, and caller)
   //  -- edi : target function (preserved for callee if needed, and caller)
   // -----------------------------------
@@ -868,6 +875,7 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 static void MaybeOptimizeCode(MacroAssembler* masm,
                               Register optimization_marker) {
   // ----------- S t a t e -------------
+  //  -- eax : actual argument count
   //  -- edx : new target (preserved for callee if needed, and caller)
   //  -- edi : target function (preserved for callee if needed, and caller)
   //  -- optimization_marker : a Smi containing a non-zero optimization marker.
@@ -985,10 +993,10 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 
 // Generate code for entering a JS function with the interpreter.
 // On entry to the function the receiver and arguments have been pushed on the
-// stack left to right.  The actual argument count matches the formal parameter
-// count expected by the function.
+// stack left to right.
 //
 // The live registers are:
+//   o eax: actual argument count (not including the receiver)
 //   o edi: the JS function object being called
 //   o edx: the incoming new target or generator object
 //   o esi: our context
@@ -999,6 +1007,8 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 // frames.h for its layout.
 void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   Register closure = edi;
+
+  __ movd(xmm0, eax);  // Spill actual argument count.
 
   // The bytecode array could have been flushed from the shared function info,
   // if so, call into CompileLazy.
@@ -1050,8 +1060,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ push(ebp);  // Caller's frame pointer.
   __ mov(ebp, esp);
-  __ push(esi);  // Callee's context.
-  __ push(edi);  // Callee's JS function.
+  __ push(kContextRegister);               // Callee's context.
+  __ push(kJavaScriptCallTargetRegister);  // Callee's JS function.
+  __ movd(kJavaScriptCallArgCountRegister, xmm0);
+  __ push(kJavaScriptCallArgCountRegister);  // Actual argument count.
 
   // Get the bytecode array from the function object and load it into
   // kInterpreterBytecodeArrayRegister.
@@ -1204,6 +1216,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   __ bind(&optimized_code_slot_not_empty);
   Label maybe_has_optimized_code;
+  // Restore actual argument count.
+  __ movd(eax, xmm0);
   // Check if optimized code marker is actually a weak reference to the
   // optimized code as opposed to an optimization marker.
   __ JumpIfNotSmi(optimized_code_entry, &maybe_has_optimized_code);
@@ -1218,6 +1232,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   TailCallOptimizedCodeSlot(masm, optimized_code_entry);
 
   __ bind(&compile_lazy);
+  // Restore actual argument count.
+  __ movd(eax, xmm0);
   GenerateTailCallToReturnedCode(masm, Runtime::kCompileLazy);
 
   __ bind(&stack_overflow);

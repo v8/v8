@@ -541,6 +541,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
       caller_pc_(0),
       caller_constant_pool_(0),
       input_frame_context_(0),
+      actual_argument_count_(0),
       stack_fp_(0),
       trace_scope_(nullptr) {
   if (isolate->deoptimizer_lazy_throw()) {
@@ -768,6 +769,8 @@ void Deoptimizer::DoComputeOutputFrames() {
         Memory<intptr_t>(fp_address + CommonFrameConstants::kCallerPCOffset);
     input_frame_context_ = Memory<intptr_t>(
         fp_address + CommonFrameConstants::kContextOrFrameTypeOffset);
+    actual_argument_count_ =
+        Memory<intptr_t>(fp_address + StandardFrameConstants::kArgCOffset);
 
     if (FLAG_enable_embedded_constant_pool) {
       caller_constant_pool_ = Memory<intptr_t>(
@@ -1026,6 +1029,9 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
 
   // The function was mentioned explicitly in the BEGIN_FRAME.
   frame_writer.PushTranslatedValue(function_iterator, "function");
+
+  // Actual argument count.
+  frame_writer.PushRawValue(actual_argument_count_, "actual argument count\n");
 
   // Set the bytecode array pointer.
   Object bytecode_array = shared.HasBreakInfo()

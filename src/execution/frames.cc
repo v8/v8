@@ -952,7 +952,8 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
   int frame_header_size = StandardFrameConstants::kFixedFrameSizeFromFp;
   intptr_t marker =
       Memory<intptr_t>(fp() + CommonFrameConstants::kContextOrFrameTypeOffset);
-  if (StackFrame::IsTypeMarker(marker)) {
+  bool typed_frame = StackFrame::IsTypeMarker(marker);
+  if (typed_frame) {
     StackFrame::Type candidate = StackFrame::MarkerToType(marker);
     switch (candidate) {
       case ENTRY:
@@ -1062,6 +1063,11 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
   // If this frame has JavaScript ABI, visit the context (in stub and JS
   // frames) and the function (in JS frames). If it has WebAssembly ABI, visit
   // the instance object.
+  if (!typed_frame) {
+    // JavaScript ABI frames also contain arguments count value which is stored
+    // untagged, we don't need to visit it.
+    frame_header_base += 1;
+  }
   v->VisitRootPointers(Root::kTop, nullptr, frame_header_base,
                        frame_header_limit);
 }
@@ -1112,7 +1118,7 @@ int OptimizedFrame::ComputeParametersCount() const {
   Code code = LookupCode();
   if (code.kind() == CodeKind::BUILTIN) {
     return static_cast<int>(
-        Memory<intptr_t>(fp() + OptimizedBuiltinFrameConstants::kArgCOffset));
+        Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset));
   } else {
     return JavaScriptFrame::ComputeParametersCount();
   }
@@ -1636,7 +1642,7 @@ Object OptimizedFrame::receiver() const {
   Code code = LookupCode();
   if (code.kind() == CodeKind::BUILTIN) {
     intptr_t argc = static_cast<int>(
-        Memory<intptr_t>(fp() + OptimizedBuiltinFrameConstants::kArgCOffset));
+        Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset));
     intptr_t args_size =
         (StandardFrameConstants::kFixedSlotCountAboveFp + argc) *
         kSystemPointerSize;
@@ -1794,7 +1800,8 @@ void InterpretedFrame::Summarize(std::vector<FrameSummary>* functions) const {
 }
 
 int ArgumentsAdaptorFrame::ComputeParametersCount() const {
-  return Smi::ToInt(GetExpression(0));
+  const int offset = ArgumentsAdaptorFrameConstants::kLengthOffset;
+  return Smi::ToInt(Object(base::Memory<Address>(fp() + offset)));
 }
 
 Code ArgumentsAdaptorFrame::unchecked_code() const {
@@ -1802,7 +1809,8 @@ Code ArgumentsAdaptorFrame::unchecked_code() const {
 }
 
 int BuiltinFrame::ComputeParametersCount() const {
-  return Smi::ToInt(GetExpression(0));
+  const int offset = BuiltinFrameConstants::kLengthOffset;
+  return Smi::ToInt(Object(base::Memory<Address>(fp() + offset)));
 }
 
 void BuiltinFrame::PrintFrameKind(StringStream* accumulator) const {
@@ -2179,10 +2187,21 @@ void EntryFrame::Iterate(RootVisitor* v) const {
 }
 
 void StandardFrame::IterateExpressions(RootVisitor* v) const {
-  const int offset = StandardFrameConstants::kLastObjectOffset;
+  const int last_object_offset = StandardFrameConstants::kLastObjectOffset;
+  intptr_t marker =
+      Memory<intptr_t>(fp() + CommonFrameConstants::kContextOrFrameTypeOffset);
   FullObjectSlot base(&Memory<Address>(sp()));
-  FullObjectSlot limit(&Memory<Address>(fp() + offset) + 1);
-  v->VisitRootPointers(Root::kTop, nullptr, base, limit);
+  FullObjectSlot limit(&Memory<Address>(fp() + last_object_offset) + 1);
+  if (StackFrame::IsTypeMarker(marker)) {
+    v->VisitRootPointers(Root::kTop, nullptr, base, limit);
+  } else {
+    // The frame contains the actual argument count (intptr) that should not be
+    // visited.
+    FullObjectSlot argc(
+        &Memory<Address>(fp() + StandardFrameConstants::kArgCOffset));
+    v->VisitRootPointers(Root::kTop, nullptr, base, argc);
+    v->VisitRootPointers(Root::kTop, nullptr, argc + 1, limit);
+  }
 }
 
 void JavaScriptFrame::Iterate(RootVisitor* v) const {

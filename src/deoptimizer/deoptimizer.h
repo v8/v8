@@ -609,6 +609,7 @@ class Deoptimizer : public Malloced {
   intptr_t caller_pc_;
   intptr_t caller_constant_pool_;
   intptr_t input_frame_context_;
+  intptr_t actual_argument_count_;
 
   // Key for lookup of previously materialized objects
   intptr_t stack_fp_;

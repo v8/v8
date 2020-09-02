@@ -147,9 +147,7 @@ bool CallDescriptor::CanTailCall(const CallDescriptor* callee) const {
 int CallDescriptor::CalculateFixedFrameSize(CodeKind code_kind) const {
   switch (kind_) {
     case kCallJSFunction:
-      return PushArgumentCount()
-                 ? OptimizedBuiltinFrameConstants::kFixedSlotCount
-                 : StandardFrameConstants::kFixedSlotCount;
+      return StandardFrameConstants::kFixedSlotCount;
     case kCallAddress:
       if (code_kind == CodeKind::C_WASM_ENTRY) {
         return CWasmEntryFrameConstants::kFixedSlotCount;

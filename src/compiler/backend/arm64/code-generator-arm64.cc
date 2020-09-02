@@ -2911,7 +2911,12 @@ void CodeGenerator::AssembleConstructFrame() {
   if (frame_access_state()->has_frame()) {
     // Link the frame
     if (call_descriptor->IsJSFunctionCall()) {
+      STATIC_ASSERT(InterpreterFrameConstants::kFixedFrameSize % 16 == 8);
+      DCHECK_EQ(required_slots % 2, 1);
       __ Prologue();
+      // Update required_slots count since we have just claimed one extra slot.
+      STATIC_ASSERT(TurboAssembler::kExtraSlotClaimedByPrologue == 1);
+      required_slots -= TurboAssembler::kExtraSlotClaimedByPrologue;
     } else {
       __ Push<TurboAssembler::kSignLR>(lr, fp);
       __ Mov(fp, sp);
@@ -2929,7 +2934,13 @@ void CodeGenerator::AssembleConstructFrame() {
       // to allocate the remaining stack slots.
       if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
       osr_pc_offset_ = __ pc_offset();
-      required_slots -= osr_helper()->UnoptimizedFrameSlots();
+      size_t unoptimized_frame_slots = osr_helper()->UnoptimizedFrameSlots();
+      DCHECK(call_descriptor->IsJSFunctionCall());
+      DCHECK_EQ(unoptimized_frame_slots % 2, 1);
+      // One unoptimized frame slot has already been claimed when the actual
+      // arguments count was pushed.
+      required_slots -=
+          unoptimized_frame_slots - TurboAssembler::kExtraSlotClaimedByPrologue;
       ResetSpeculationPoison();
     }
 
@@ -2984,13 +2995,7 @@ void CodeGenerator::AssembleConstructFrame() {
     // recording their argument count.
     switch (call_descriptor->kind()) {
       case CallDescriptor::kCallJSFunction:
-        if (call_descriptor->PushArgumentCount()) {
-          __ Claim(required_slots + 1);  // Claim extra slot for argc.
-          __ Str(kJavaScriptCallArgCountRegister,
-                 MemOperand(fp, OptimizedBuiltinFrameConstants::kArgCOffset));
-        } else {
-          __ Claim(required_slots);
-        }
+        __ Claim(required_slots);
         break;
       case CallDescriptor::kCallCodeObject: {
         UseScratchRegisterScope temps(tasm());
