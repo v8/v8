@@ -1381,14 +1381,6 @@ Node* CodeStubAssembler::LoadObjectField(TNode<HeapObject> object, int offset,
   return LoadFromObject(type, object, IntPtrConstant(offset - kHeapObjectTag));
 }
 
-Node* CodeStubAssembler::LoadObjectField(TNode<HeapObject> object,
-                                         TNode<IntPtrT> offset,
-                                         MachineType type) {
-  CSA_ASSERT(this, IsStrong(object));
-  return LoadFromObject(type, object,
-                        IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)));
-}
-
 TNode<IntPtrT> CodeStubAssembler::LoadAndUntagObjectField(
     SloppyTNode<HeapObject> object, int offset) {
   if (SmiValuesAre32Bits()) {
@@ -3060,8 +3052,7 @@ TNode<UintPtrT> CodeStubAssembler::LoadBigIntDigit(TNode<BigInt> bigint,
   TNode<IntPtrT> offset =
       IntPtrAdd(IntPtrConstant(BigInt::kDigitsOffset),
                 IntPtrMul(digit_index, IntPtrConstant(kSystemPointerSize)));
-  return UncheckedCast<UintPtrT>(
-      LoadObjectField(bigint, offset, MachineType::UintPtr()));
+  return LoadObjectField<UintPtrT>(bigint, offset);
 }
 
 TNode<ByteArray> CodeStubAssembler::AllocateByteArray(TNode<UintPtrT> length,

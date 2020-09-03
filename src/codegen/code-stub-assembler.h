@@ -1024,14 +1024,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Object> LoadObjectField(TNode<HeapObject> object,
                                 TNode<IntPtrT> offset) {
     return UncheckedCast<Object>(
-        LoadObjectField(object, offset, MachineType::AnyTagged()));
+        LoadFromObject(MachineType::AnyTagged(), object,
+                       IntPtrSub(offset, IntPtrConstant(kHeapObjectTag))));
   }
   template <class T, typename std::enable_if<
                          std::is_convertible<TNode<T>, TNode<UntaggedT>>::value,
                          int>::type = 0>
   TNode<T> LoadObjectField(TNode<HeapObject> object, TNode<IntPtrT> offset) {
     return UncheckedCast<T>(
-        LoadObjectField(object, offset, MachineTypeOf<T>::value));
+        LoadFromObject(MachineTypeOf<T>::value, object,
+                       IntPtrSub(offset, IntPtrConstant(kHeapObjectTag))));
   }
   // Load a SMI field and untag it.
   TNode<IntPtrT> LoadAndUntagObjectField(SloppyTNode<HeapObject> object,
@@ -3618,8 +3620,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   TVariable<Smi>* var_feedback = nullptr);
 
   Node* LoadObjectField(TNode<HeapObject> object, int offset, MachineType type);
-  Node* LoadObjectField(TNode<HeapObject> object, TNode<IntPtrT> offset,
-                        MachineType type);
 
   // Low-level accessors for Descriptor arrays.
   template <typename T>
