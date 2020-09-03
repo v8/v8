@@ -644,6 +644,8 @@ class ManualGCScope {
   ManualGCScope()
       : flag_concurrent_marking_(i::FLAG_concurrent_marking),
         flag_concurrent_sweeping_(i::FLAG_concurrent_sweeping),
+        flag_stress_concurrent_allocation_(
+            i::FLAG_stress_concurrent_allocation),
         flag_stress_incremental_marking_(i::FLAG_stress_incremental_marking),
         flag_parallel_marking_(i::FLAG_parallel_marking),
         flag_detect_ineffective_gcs_near_heap_limit_(
@@ -651,6 +653,7 @@ class ManualGCScope {
     i::FLAG_concurrent_marking = false;
     i::FLAG_concurrent_sweeping = false;
     i::FLAG_stress_incremental_marking = false;
+    i::FLAG_stress_concurrent_allocation = false;
     // Parallel marking has a dependency on concurrent marking.
     i::FLAG_parallel_marking = false;
     i::FLAG_detect_ineffective_gcs_near_heap_limit = false;
@@ -658,6 +661,7 @@ class ManualGCScope {
   ~ManualGCScope() {
     i::FLAG_concurrent_marking = flag_concurrent_marking_;
     i::FLAG_concurrent_sweeping = flag_concurrent_sweeping_;
+    i::FLAG_stress_concurrent_allocation = flag_stress_concurrent_allocation_;
     i::FLAG_stress_incremental_marking = flag_stress_incremental_marking_;
     i::FLAG_parallel_marking = flag_parallel_marking_;
     i::FLAG_detect_ineffective_gcs_near_heap_limit =
@@ -667,6 +671,7 @@ class ManualGCScope {
  private:
   bool flag_concurrent_marking_;
   bool flag_concurrent_sweeping_;
+  bool flag_stress_concurrent_allocation_;
   bool flag_stress_incremental_marking_;
   bool flag_parallel_marking_;
   bool flag_detect_ineffective_gcs_near_heap_limit_;
