@@ -687,15 +687,13 @@ void SimdScalarLowering::LowerCompareOp(Node* node, SimdType input_rep_type,
     } else {
       cmp_result = graph()->NewNode(op, rep_left[i], rep_right[i]);
     }
-    Diamond d_cmp(graph(), common(),
-                  graph()->NewNode(machine()->Word32Equal(), cmp_result,
-                                   mcgraph_->Int32Constant(0)));
+    Diamond d_cmp(graph(), common(), cmp_result);
     MachineRepresentation rep =
         (input_rep_type == SimdType::kFloat32x4)
             ? MachineRepresentation::kWord32
             : MachineTypeFrom(input_rep_type).representation();
     rep_node[i] =
-        d_cmp.Phi(rep, mcgraph_->Int32Constant(0), mcgraph_->Int32Constant(-1));
+        d_cmp.Phi(rep, mcgraph_->Int32Constant(-1), mcgraph_->Int32Constant(0));
   }
   ReplaceNode(node, rep_node, num_lanes);
 }
