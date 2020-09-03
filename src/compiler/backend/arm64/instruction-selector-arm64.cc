@@ -1775,10 +1775,9 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
   VisitRR(this, kArm64Sxtw, node);
 }
 
-void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
-  Arm64OperandGenerator g(this);
-  Node* value = node->InputAt(0);
-  switch (value->opcode()) {
+bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(Node* node) {
+  DCHECK_NE(node->opcode(), IrOpcode::kPhi);
+  switch (node->opcode()) {
     case IrOpcode::kWord32And:
     case IrOpcode::kWord32Or:
     case IrOpcode::kWord32Xor:
@@ -1805,26 +1804,31 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
       // 32-bit operations will write their result in a W register (implicitly
       // clearing the top 32-bit of the corresponding X register) so the
       // zero-extension is a no-op.
-      EmitIdentity(node);
-      return;
+      return true;
     }
     case IrOpcode::kLoad: {
       // As for the operations above, a 32-bit load will implicitly clear the
       // top 32 bits of the destination register.
-      LoadRepresentation load_rep = LoadRepresentationOf(value->op());
+      LoadRepresentation load_rep = LoadRepresentationOf(node->op());
       switch (load_rep.representation()) {
         case MachineRepresentation::kWord8:
         case MachineRepresentation::kWord16:
         case MachineRepresentation::kWord32:
-          EmitIdentity(node);
-          return;
+          return true;
         default:
-          break;
+          return false;
       }
-      break;
     }
     default:
-      break;
+      return false;
+  }
+}
+
+void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
+  Arm64OperandGenerator g(this);
+  Node* value = node->InputAt(0);
+  if (ZeroExtendsWord32ToWord64(value)) {
+    return EmitIdentity(node);
   }
   Emit(kArm64Mov32, g.DefineAsRegister(node), g.UseRegister(value));
 }

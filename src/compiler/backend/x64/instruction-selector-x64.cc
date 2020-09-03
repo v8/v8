@@ -1297,9 +1297,9 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
   }
 }
 
-namespace {
-
-bool ZeroExtendsWord32ToWord64(Node* node) {
+bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(Node* node) {
+  X64OperandGenerator g(this);
+  DCHECK_NE(node->opcode(), IrOpcode::kPhi);
   switch (node->opcode()) {
     case IrOpcode::kWord32And:
     case IrOpcode::kWord32Or:
@@ -1353,12 +1353,19 @@ bool ZeroExtendsWord32ToWord64(Node* node) {
           return false;
       }
     }
+    case IrOpcode::kInt32Constant:
+    case IrOpcode::kInt64Constant:
+      // Constants are loaded with movl or movq, or xorl for zero; see
+      // CodeGenerator::AssembleMove. So any non-negative constant that fits
+      // in a 32-bit signed integer is zero-extended to 64 bits.
+      if (g.CanBeImmediate(node)) {
+        return g.GetImmediateIntegerValue(node) >= 0;
+      }
+      return false;
     default:
       return false;
   }
 }
-
-}  // namespace
 
 void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
   X64OperandGenerator g(this);

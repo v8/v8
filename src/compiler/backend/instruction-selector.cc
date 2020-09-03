@@ -62,7 +62,12 @@ InstructionSelector::InstructionSelector(
       trace_turbo_(trace_turbo),
       tick_counter_(tick_counter),
       max_unoptimized_frame_height_(max_unoptimized_frame_height),
-      max_pushed_argument_count_(max_pushed_argument_count) {
+      max_pushed_argument_count_(max_pushed_argument_count)
+#if V8_TARGET_ARCH_64_BIT
+      ,
+      phi_states_(node_count, Upper32BitsState::kNotYetChecked, zone)
+#endif
+{
   DCHECK_EQ(*max_unoptimized_frame_height, 0);  // Caller-initialized.
 
   instructions_.reserve(node_count);
@@ -3125,6 +3130,54 @@ bool InstructionSelector::CanProduceSignalingNaN(Node* node) {
   }
   return true;
 }
+
+#if V8_TARGET_ARCH_64_BIT
+bool InstructionSelector::ZeroExtendsWord32ToWord64(Node* node,
+                                                    int recursion_depth) {
+  // To compute whether a Node sets its upper 32 bits to zero, there are three
+  // cases.
+  // 1. Phi node, with a computed result already available in phi_states_:
+  //    Read the value from phi_states_.
+  // 2. Phi node, with no result available in phi_states_ yet:
+  //    Recursively check its inputs, and store the result in phi_states_.
+  // 3. Anything else:
+  //    Call the architecture-specific ZeroExtendsWord32ToWord64NoPhis.
+
+  // Limit recursion depth to avoid the possibility of stack overflow on very
+  // large functions.
+  const int kMaxRecursionDepth = 100;
+
+  if (node->opcode() == IrOpcode::kPhi) {
+    Upper32BitsState current = phi_states_[node->id()];
+    if (current != Upper32BitsState::kNotYetChecked) {
+      return current == Upper32BitsState::kUpperBitsGuaranteedZero;
+    }
+
+    // If further recursion is prevented, we can't make any assumptions about
+    // the output of this phi node.
+    if (recursion_depth >= kMaxRecursionDepth) {
+      return false;
+    }
+
+    // Mark the current node so that we skip it if we recursively visit it
+    // again. Or, said differently, we compute a largest fixed-point so we can
+    // be optimistic when we hit cycles.
+    phi_states_[node->id()] = Upper32BitsState::kUpperBitsGuaranteedZero;
+
+    int input_count = node->op()->ValueInputCount();
+    for (int i = 0; i < input_count; ++i) {
+      Node* input = NodeProperties::GetValueInput(node, i);
+      if (!ZeroExtendsWord32ToWord64(input, recursion_depth + 1)) {
+        phi_states_[node->id()] = Upper32BitsState::kNoGuarantee;
+        return false;
+      }
+    }
+
+    return true;
+  }
+  return ZeroExtendsWord32ToWord64NoPhis(node);
+}
+#endif  // V8_TARGET_ARCH_64_BIT
 
 namespace {
 

@@ -1200,6 +1200,10 @@ void InstructionSelector::VisitSignExtendWord32ToInt64(Node* node) {
   VisitRR(this, kPPC_ExtendSignWord32, node);
 }
 
+bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(Node* node) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
   // TODO(mbrandy): inspect input to see if nop is appropriate.
   VisitRR(this, kPPC_Uint32ToUint64, node);
