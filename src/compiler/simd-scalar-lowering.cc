@@ -1187,6 +1187,24 @@ void SimdScalarLowering::LowerNode(Node* node) {
       break;
     }
     case IrOpcode::kReturn: {
+      // V128 return types are lowered to i32x4, so if the inputs to kReturn are
+      // not Word32, we need to cast them.
+      int return_arity = static_cast<int>(signature()->return_count());
+      for (int i = 0; i < return_arity; i++) {
+        if (signature()->GetReturn(i) != MachineRepresentation::kSimd128) {
+          continue;
+        }
+        // Input 1 of kReturn is not used.
+        Node* input = node->InputAt(i + 1);
+        if (HasReplacement(0, input)) {
+          // f64x2 isn't handled anywhere yet, so we ignore it here for now.
+          Replacement rep = replacements_[input->id()];
+          if (rep.type == SimdType::kFloat32x4) {
+            Node** rep = GetReplacementsWithType(input, rep_type);
+            ReplaceNode(input, rep, NumLanes(rep_type));
+          }
+        }
+      }
       DefaultLowering(node);
       int new_return_count = GetReturnCountAfterLoweringSimd128(signature());
       if (static_cast<int>(signature()->return_count()) != new_return_count) {
@@ -1214,6 +1232,21 @@ void SimdScalarLowering::LowerNode(Node* node) {
       }
 
       size_t return_arity = call_descriptor->ReturnCount();
+
+      if (return_arity == 1) {
+        // We access the additional return values through projections.
+        // Special case for return_arity 1, with multi-returns, we would have
+        // already built projections for each return value, and will be handled
+        // by the following code.
+        Node* rep_node[kNumLanes32];
+        for (int i = 0; i < kNumLanes32; ++i) {
+          rep_node[i] =
+              graph()->NewNode(common()->Projection(i), node, graph()->start());
+        }
+        ReplaceNode(node, rep_node, kNumLanes32);
+        break;
+      }
+
       ZoneVector<Node*> projections(return_arity, zone());
       NodeProperties::CollectValueProjections(node, projections.data(),
                                               return_arity);
