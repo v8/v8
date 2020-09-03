@@ -65,6 +65,27 @@ WASM_SIMD_TEST(F32x4) {
   CHECK_EQ(0x80000001, r.Call(1));
 }
 
+WASM_SIMD_TEST(I8x16Eq_ToTest_S128Const) {
+  // Test implementation of S128Const in scalar lowering, this test case was
+  // causing a crash.
+  TestSignatures sigs;
+  WasmRunner<uint32_t> r(execution_tier, lower_simd);
+
+  byte c1[16] = {0x00, 0x00, 0x80, 0xbf, 0x00, 0x00, 0x00, 0x00,
+                 0x00, 0x00, 0x80, 0x3f, 0x00, 0x00, 0x00, 0x40};
+  byte c2[16] = {0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
+                 0x01, 0x01, 0x01, 0x01, 0x02, 0x02, 0x02, 0x02};
+  byte c3[16] = {0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
+                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+  BUILD(r,
+        WASM_SIMD_BINOP(kExprI8x16Eq, WASM_SIMD_CONSTANT(c1),
+                        WASM_SIMD_CONSTANT(c2)),
+        WASM_SIMD_CONSTANT(c3), WASM_SIMD_OP(kExprI8x16Eq),
+        WASM_SIMD_OP(kExprI8x16ExtractLaneS), TO_BYTE(4));
+  CHECK_EQ(0xffffffff, r.Call());
+}
+
 }  // namespace test_run_wasm_simd
 }  // namespace wasm
 }  // namespace internal

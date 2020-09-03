@@ -5,6 +5,7 @@
 #include "src/compiler/simd-scalar-lowering.h"
 
 #include "src/codegen/machine-type.h"
+#include "src/common/globals.h"
 #include "src/compiler/diamond.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
@@ -1095,16 +1096,45 @@ void SimdScalarLowering::LowerNode(Node* node) {
   int num_lanes = NumLanes(rep_type);
   switch (node->opcode()) {
     case IrOpcode::kS128Const: {
-      // Lower 128.const to 4 Int32Constant.
+      // We could use GetReplacementsWithType for all this, but it adds a lot of
+      // nodes, so sign extend the immediates ourselves here.
       DCHECK_EQ(0, node->InputCount());
-      constexpr int kNumLanes = kSimd128Size / sizeof(uint32_t);
-      uint32_t val[kNumLanes];
-      memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
-      Node** rep_node = zone()->NewArray<Node*>(kNumLanes);
-      for (int i = 0; i < kNumLanes; ++i) {
-        rep_node[i] = mcgraph_->Int32Constant(val[i]);
+      Node** rep_node = zone()->NewArray<Node*>(num_lanes);
+      S128ImmediateParameter params = S128ImmediateParameterOf(node->op());
+
+      // For all the small ints below, we have a choice of static_cast or bit
+      // twiddling, clang seems to be able to optimize either
+      // (https://godbolt.org/z/9c65o8) so use static_cast for clarity.
+      switch (rep_type) {
+        case SimdType::kInt8x16: {
+          for (int i = 0; i < num_lanes; ++i) {
+            rep_node[i] = mcgraph_->Int32Constant(
+                static_cast<int32_t>(static_cast<int8_t>(params.data()[i])));
+          }
+          break;
+        }
+        case SimdType::kInt16x8: {
+          int16_t val[kNumLanes16];
+          memcpy(val, params.data(), kSimd128Size);
+          for (int i = 0; i < num_lanes; ++i) {
+            rep_node[i] = mcgraph_->Int32Constant(static_cast<int32_t>(val[i]));
+          }
+          break;
+        }
+        case SimdType::kInt32x4:
+        case SimdType::kFloat32x4: {
+          uint32_t val[kNumLanes32];
+          memcpy(val, params.data(), kSimd128Size);
+          for (int i = 0; i < num_lanes; ++i) {
+            rep_node[i] = mcgraph_->Int32Constant(val[i]);
+          }
+          break;
+        }
+        default: {
+          UNIMPLEMENTED();
+        }
       }
-      ReplaceNode(node, rep_node, kNumLanes);
+      ReplaceNode(node, rep_node, num_lanes);
       break;
     }
     case IrOpcode::kStart: {
