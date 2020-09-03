@@ -10244,6 +10244,14 @@ int64_t debug::GetNextRandomInt64(v8::Isolate* v8_isolate) {
       ->NextInt64();
 }
 
+void debug::EnumerateRuntimeCallCounters(v8::Isolate* v8_isolate,
+                                         RuntimeCallCounterCallback callback) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  if (isolate->counters()) {
+    isolate->counters()->runtime_call_stats()->EnumerateCounters(callback);
+  }
+}
+
 int debug::GetDebuggingId(v8::Local<v8::Function> function) {
   i::Handle<i::JSReceiver> callable = v8::Utils::OpenHandle(*function);
   if (!callable->IsJSFunction()) return i::DebugInfo::kNoDebuggingId;

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 let {session, contextGroup, Protocol} = InspectorTest.start(
-    'Test RunTimeCallStats collection using Profiler.getRuntimeCallStats.');
+    'Test Counters collection using Profiler.getCounters.');
 
 var source =
 `
@@ -60,21 +60,21 @@ function compareCounterMaps(counterMap, counterMap2) {
 
 (async function test() {
   await Protocol.Runtime.enable();
-  await Protocol.Profiler.enableRuntimeCallStats();
+  await Protocol.Profiler.enableCounters();
 
-  let counterMap = buildCounterMap(await Protocol.Profiler.getRuntimeCallStats());
+  let counterMap = buildCounterMap(await Protocol.Profiler.getCounters());
 
   await Protocol.Runtime.evaluate({ expression: source, sourceURL: arguments.callee.name, persistScript: true });
 
-  let counterMap2 = buildCounterMap(await Protocol.Profiler.getRuntimeCallStats());
+  let counterMap2 = buildCounterMap(await Protocol.Profiler.getCounters());
   const check1 = compareCounterMaps(counterMap, counterMap2);
 
   await Protocol.Runtime.evaluate({ expression: source, sourceURL: arguments.callee.name, persistScript: true });
 
-  let counterMap3 = buildCounterMap(await Protocol.Profiler.getRuntimeCallStats());
+  let counterMap3 = buildCounterMap(await Protocol.Profiler.getCounters());
   const check2 = compareCounterMaps(counterMap2, counterMap3);
 
-  await Protocol.Profiler.disableRuntimeCallStats();
+  await Protocol.Profiler.disableCounters();
   await Protocol.Runtime.disable();
 
   InspectorTest.log(check1 && check2 ? 'PASSED' : 'FAILED');
