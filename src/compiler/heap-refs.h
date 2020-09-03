@@ -100,6 +100,8 @@ enum class OddballType : uint8_t {
   /* Subtypes of Object */                    \
   V(HeapObject)
 
+// Classes on this list will skip serialization when
+// FLAG_turbo_direct_heap_access is on. Otherwise, they might get serialized.
 #define HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(V)
 
 class CompilationDependencies;

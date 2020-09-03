@@ -46,6 +46,9 @@ namespace compiler {
 
 #define FORWARD_DECL(Name) class Name##Data;
 HEAP_BROKER_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
+// TODO(solanes, v8:10866): Remove once FLAG_turbo_direct_heap_access is
+// removed.
+HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
 #undef FORWARD_DECL
 
 // There are three kinds of ObjectData values.
@@ -167,6 +170,9 @@ class ObjectData : public ZoneObject {
 
 #define DECLARE_AS(Name) Name##Data* As##Name();
   HEAP_BROKER_SERIALIZED_OBJECT_LIST(DECLARE_AS)
+  // TODO(solanes, v8:10866): Remove once FLAG_turbo_direct_heap_access is
+  // removed.
+  HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(DECLARE_AS)
 #undef DECLARE_AS
 
   Handle<Object> object() const { return object_; }
@@ -2037,6 +2043,18 @@ HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(DEFINE_IS)
 HEAP_BROKER_SERIALIZED_OBJECT_LIST(DEFINE_AS)
 #undef DEFINE_AS
 
+// TODO(solanes, v8:10866): Remove once FLAG_turbo_direct_heap_access is
+// removed.
+// This macro defines the Asxxx methods for NeverSerialized objects, which
+// should only be used with direct heap access off.
+#define DEFINE_AS_DIRECT_ACCESS(Name)                    \
+  Name##Data* ObjectData::As##Name() {                   \
+    CHECK(Is##Name() && !FLAG_turbo_direct_heap_access); \
+    return static_cast<Name##Data*>(this);               \
+  }
+HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(DEFINE_AS_DIRECT_ACCESS)
+#undef DEFINE_AS_DIRECT_ACCESS
+
 const JSObjectField& JSObjectData::GetInobjectField(int property_index) const {
   CHECK_LT(static_cast<size_t>(property_index), inobject_fields_.size());
   return inobject_fields_[property_index];
@@ -2709,10 +2727,19 @@ ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object) {
     } else if (IsReadOnlyHeapObject(*object)) {
       object_data = zone()->New<ObjectData>(this, data_storage, object,
                                             kUnserializedReadOnlyHeapObject);
-#define CREATE_DATA_FOR_DIRECT_READ(name)    \
-    } else if (object->Is##name()) {         \
-      object_data = zone()->New<ObjectData>( \
-          this, data_storage, object, kNeverSerializedHeapObject);
+// TODO(solanes, v8:10866): Remove the if/else in this macro once we remove the
+// FLAG_turbo_direct_heap_access.
+#define CREATE_DATA_FOR_DIRECT_READ(name)                                  \
+    } else if (object->Is##name()) {                                       \
+      if (FLAG_turbo_direct_heap_access) {                                 \
+        object_data = zone()->New<ObjectData>(                             \
+          this, data_storage, object, kNeverSerializedHeapObject);         \
+      } else {                                                             \
+        CHECK(SerializingAllowed());                                       \
+        AllowHandleAllocation handle_allocation;                           \
+        object_data = zone()->New<name##Data>(this, data_storage,          \
+                                              Handle<name>::cast(object)); \
+      }
     HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(CREATE_DATA_FOR_DIRECT_READ)
 #undef CREATE_DATA_FOR_DIRECT_READ
 #define CREATE_DATA_FOR_SERIALIZATION(name)                     \
