@@ -2562,7 +2562,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                       src1 = i.InputSimd128Register(1).V16B();
       // Unary shuffle table is in src0, binary shuffle table is in src0, src1,
       // which must be consecutive.
-      int64_t mask = 0;
+      uint32_t mask = 0;
       if (src0 == src1) {
         mask = 0x0F0F0F0F;
       } else {
