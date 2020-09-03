@@ -1903,8 +1903,6 @@ class Heap {
       LocalHeap* local_heap = nullptr);
   bool IsRetryOfFailedAllocation(LocalHeap* local_heap);
 
-  void AlwaysAllocateAfterTearDownStarted();
-
   HeapGrowingMode CurrentHeapGrowingMode();
 
   double PercentToOldGenerationLimit();

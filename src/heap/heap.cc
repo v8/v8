@@ -4920,6 +4920,10 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap) {
   if (always_allocate() || OldGenerationSpaceAvailable() > 0) return true;
   // We reached the old generation allocation limit.
 
+  // Background threads need to be allowed to allocate without GC after teardown
+  // was initiated.
+  if (gc_state() == TEAR_DOWN) return true;
+
   // Ensure that retry of allocation on background thread succeeds
   if (IsRetryOfFailedAllocation(local_heap)) return true;
 
@@ -4942,11 +4946,6 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap) {
 bool Heap::IsRetryOfFailedAllocation(LocalHeap* local_heap) {
   if (!local_heap) return false;
   return local_heap->allocation_failed_;
-}
-
-void Heap::AlwaysAllocateAfterTearDownStarted() {
-  always_allocate_scope_count_++;
-  collection_barrier_.ShutdownRequested();
 }
 
 Heap::HeapGrowingMode Heap::CurrentHeapGrowingMode() {
@@ -5507,7 +5506,7 @@ void Heap::StartTearDown() {
   // process the event queue anymore. Avoid this deadlock by allowing all
   // allocations after tear down was requested to make sure all background
   // threads finish.
-  AlwaysAllocateAfterTearDownStarted();
+  collection_barrier_.ShutdownRequested();
 
 #ifdef VERIFY_HEAP
   // {StartTearDown} is called fairly early during Isolate teardown, so it's
