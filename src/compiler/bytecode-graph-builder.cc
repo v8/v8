@@ -1141,7 +1141,8 @@ void BytecodeGraphBuilder::CreateGraph() {
   // Set up the basic structure of the graph. Outputs for {Start} are the formal
   // parameters (including the receiver) plus new target, number of arguments,
   // context and closure.
-  int actual_parameter_count = bytecode_array().parameter_count() + 4;
+  int actual_parameter_count = StartNode::OutputArityForFormalParameterCount(
+      bytecode_array().parameter_count());
   graph()->SetStart(graph()->NewNode(common()->Start(actual_parameter_count)));
 
   Environment env(this, bytecode_array().register_count(),
