@@ -3295,6 +3295,10 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
                                             Foreign::kForeignAddressOffset)));
   foreign_signature = no_reg;
 
+  Register return_count = r8;
+  __ movq(return_count,
+          MemOperand(signature, wasm::FunctionSig::kReturnCountOffset));
+
   Register param_count = signature;
   __ movq(param_count,
           MemOperand(signature, wasm::FunctionSig::kParameterCountOffset));
@@ -3311,9 +3315,11 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   constexpr int kGCScanSlotCountOffset =
       kFrameMarkerOffset - kSystemPointerSize;
   constexpr int kParamCountOffset = kGCScanSlotCountOffset - kSystemPointerSize;
-  constexpr int kNumSpillSlots = 2;
+  constexpr int kReturnCountOffset = kParamCountOffset - kSystemPointerSize;
+  constexpr int kNumSpillSlots = 3;
   __ subq(rsp, Immediate(kNumSpillSlots * kSystemPointerSize));
   __ movq(MemOperand(rbp, kParamCountOffset), param_count);
+  __ movq(MemOperand(rbp, kReturnCountOffset), return_count);
 
   __ cmpl(param_count, Immediate(0));
 
@@ -3375,14 +3381,14 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ movq(param, MemOperand(rbp, current_param, times_1, 0));
   __ addq(current_param, Immediate(increment));
 
-  Label not_smi;
-  __ JumpIfNotSmi(param, &not_smi);
+  Label param_not_smi;
+  __ JumpIfNotSmi(param, &param_not_smi);
 
   // Change from smi to int32.
   __ SmiUntag(param);
 
-  Label conversion_done;
-  __ bind(&conversion_done);
+  Label param_conversion_done;
+  __ bind(&param_conversion_done);
 
   __ pushq(param);
 
@@ -3436,7 +3442,8 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   function_entry = no_reg;
 
   // Restore rsp to free the reserved stack slots for 5 param Registers.
-  constexpr int kLastSpillOffset = kParamCountOffset;
+  constexpr int kLastSpillOffset =
+      kFrameMarkerOffset - kNumSpillSlots * kSystemPointerSize;
   __ leaq(rsp, MemOperand(rbp, kLastSpillOffset));
   __ movq(param_count, MemOperand(rbp, kParamCountOffset));
 
@@ -3446,9 +3453,23 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
       thread_in_wasm_flag_addr,
       MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
   __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(0));
+  thread_in_wasm_flag_addr = no_reg;
 
+  // Handle returns.
+  __ movq(return_count, MemOperand(rbp, kReturnCountOffset));
   Register return_reg = rax;
+
+  // If we have 1 return value, then jump to conversion.
+  __ cmpl(return_count, Immediate(1));
+  Label convert_return;
+  __ j(equal, &convert_return);
+
+  // Otherwise load undefined.
   __ LoadRoot(return_reg, RootIndex::kUndefinedValue);
+
+  Label return_done;
+  __ bind(&return_done);
+
   // Deconstrunct the stack frame.
   __ LeaveFrame(StackFrame::JS_TO_WASM);
 
@@ -3469,7 +3490,7 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ ret(0);
 
   // Handle the conversion to int32 when the param is not a smi.
-  __ bind(&not_smi);
+  __ bind(&param_not_smi);
 
   // The order of pushes is important. We want the heap objects, that should be
   // scanned by GC, to be on the top of the stack.
@@ -3497,8 +3518,38 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ popq(param_limit);
   __ popq(current_param);
   __ movq(param_count, MemOperand(rbp, kParamCountOffset));
+  __ jmp(&param_conversion_done);
 
-  __ jmp(&conversion_done);
+  __ bind(&convert_return);
+
+  Label to_heapnumber;
+  // If pointer compression is disabled, we can convert the return to a smi.
+  if (SmiValuesAre32Bits()) {
+    __ SmiTag(return_reg);
+  } else {
+    Register temp = rbx;
+    __ movq(temp, return_reg);
+    // Double the return value to test if it can be a Smi.
+    __ addl(temp, return_reg);
+    // If there was overflow, convert the return value to a HeapNumber.
+    __ j(overflow, &to_heapnumber);
+    // If there was no overflow, we can convert to Smi.
+    __ SmiTag(return_reg);
+  }
+  __ jmp(&return_done);
+
+  // Handle the conversion of the return value to HeapNumber when it cannot be a
+  // smi.
+  __ bind(&to_heapnumber);
+  // We have to make sure that the kGCScanSlotCount is set correctly. For this
+  // builtin it's the same as for the Wasm call = 0, so we don't have to reset
+  // it.
+  // We don't need the JS context for this builtin call.
+  __ Call(BUILTIN_CODE(masm->isolate(), WasmInt32ToHeapNumber),
+          RelocInfo::CODE_TARGET);
+  // We will need the parameter_count later.
+  __ movq(param_count, MemOperand(rbp, kParamCountOffset));
+  __ jmp(&return_done);
 }
 
 namespace {

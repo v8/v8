@@ -267,14 +267,21 @@ void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
 
 namespace {
 bool UseGenericWrapper(const FunctionSig* sig) {
-// Work only for int32 parameters and no return values for now.
+// Work only for int32 parameters and 1 or 0 return value for now.
 #if V8_TARGET_ARCH_X64
+  if (sig->returns().size() > 1) {
+    return false;
+  }
+  if (sig->returns().size() == 1 &&
+      sig->GetReturn(0).kind() != ValueType::kI32) {
+    return false;
+  }
   for (ValueType type : sig->parameters()) {
     if (type.kind() != ValueType::kI32) {
       return false;
     }
   }
-  return FLAG_wasm_generic_wrapper && sig->returns().empty();
+  return FLAG_wasm_generic_wrapper;
 #else
   return false;
 #endif

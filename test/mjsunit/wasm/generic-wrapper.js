@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-generic-wrapper --expose-gc
+// Flags: --wasm-generic-wrapper --expose-gc --allow-natives-syntax
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -74,7 +74,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   }
 
   let instance = builder.instantiate({ mod: { func: import_func } });
-  instance.exports.main(5);
+  assertEquals(undefined, instance.exports.main(5));
   assertEquals(17, x);
 })();
 
@@ -97,7 +97,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   let y = { valueOf: () => { print("Hello!"); gc(); return 24; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
-  instance.exports.main(y);
+  assertEquals(undefined, instance.exports.main(y));
   assertEquals(36, x);
 })();
 
@@ -125,7 +125,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let param2 = { valueOf: () => { gc(); return 6; } };
   let param3 = { valueOf: () => { gc(); return 3; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
-  instance.exports.main(9, param2, param3, 0);
+  assertEquals(undefined, instance.exports.main(9, param2, param3, 0));
   assertEquals(60, x);
 })();
 
@@ -164,7 +164,7 @@ let kSig_v_iiiiiiii = makeSig([kWasmI32, kWasmI32, kWasmI32, kWasmI32,
   let param6 = { valueOf: () => { gc(); return 10; } };
   let param8 = { valueOf: () => { gc(); return 12; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
-  instance.exports.main(param1, 6, 7, param4, 9, param6, 11, param8);
+  assertEquals(undefined, instance.exports.main(param1, 6, 7, param4, 9, param6, 11, param8));
   assertEquals(360, x);
 })();
 
@@ -192,7 +192,7 @@ let kSig_v_iiiiiiii = makeSig([kWasmI32, kWasmI32, kWasmI32, kWasmI32,
 
   let param2 = { valueOf: () => { gc(); return 3; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
-  instance.exports.main(5, param2);
+  assertEquals(undefined, instance.exports.main(5, param2));
   assertEquals(20, x);
 })();
 
@@ -221,6 +221,49 @@ let kSig_v_iiiiiiii = makeSig([kWasmI32, kWasmI32, kWasmI32, kWasmI32,
   let param2 = { valueOf: () => { gc(); return 3; } };
   let param3 = { valueOf: () => { gc(); return 6; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
-  instance.exports.main(5, param2, param3, 7, 200, 300, 400);
+  assertEquals(undefined, instance.exports.main(5, param2, param3, 7, 200, 300, 400));
   assertEquals(33, x);
+})();
+
+(function testGenericWrapper1ReturnSmi() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig_index = builder.addType(kSig_i_i);
+  let func_index = builder.addImport("mod", "func", sig_index);
+  builder.addFunction("main", sig_index)
+    .addBody([
+      kExprLocalGet, 0, kExprCallFunction, func_index
+    ])
+    .exportFunc();
+
+  let x = 12;
+  function import_func(param) {
+    gc();
+    return x + param;
+  }
+
+  let instance = builder.instantiate({ mod: { func: import_func } });
+  assertEquals(17, instance.exports.main(5));
+})();
+
+(function testGenericWrapper1ReturnHeapNumber() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig_index = builder.addType(kSig_i_i);
+  let func_index = builder.addImport("mod", "func", sig_index);
+  builder.addFunction("main", sig_index)
+    .addBody([
+      kExprLocalGet, 0, kExprCallFunction, func_index
+    ])
+    .exportFunc();
+
+  let x = 2147483640;
+  function import_func(param) {
+    let result = x + param;
+    %SimulateNewspaceFull();
+    return result;
+  }
+
+  let instance = builder.instantiate({ mod: { func: import_func } });
+  assertEquals(2147483645, instance.exports.main(5));
 })();
