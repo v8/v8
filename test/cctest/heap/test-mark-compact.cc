@@ -53,6 +53,7 @@ namespace heap {
 
 TEST(Promotion) {
   if (FLAG_single_generation) return;
+  FLAG_stress_concurrent_allocation = false;  // For SealCurrentObjects.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   {
@@ -74,6 +75,7 @@ TEST(Promotion) {
 
 HEAP_TEST(NoPromotion) {
   if (FLAG_always_promote_young_mc) return;
+  FLAG_stress_concurrent_allocation = false;  // For SealCurrentObjects.
   // Page promotion allows pages to be moved to old space even in the case of
   // OOM scenarios.
   FLAG_page_promotion = false;
@@ -425,6 +427,7 @@ UNINITIALIZED_TEST(RegressJoinThreadsOnIsolateDeinit) {
 }
 
 TEST(Regress5829) {
+  FLAG_stress_concurrent_allocation = false;  // For SealCurrentObjects.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope sc(CcTest::isolate());

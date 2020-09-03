@@ -23,6 +23,10 @@ void InvokeScavenge() { CcTest::CollectGarbage(i::NEW_SPACE); }
 void InvokeMarkSweep() { CcTest::CollectAllGarbage(); }
 
 void SealCurrentObjects(Heap* heap) {
+  // If you see this check failing, disable the flag at the start of your test:
+  // FLAG_stress_concurrent_allocation = false;
+  // Background thread allocating concurrently interferes with this function.
+  CHECK(!FLAG_stress_concurrent_allocation);
   CcTest::CollectAllGarbage();
   CcTest::CollectAllGarbage();
   heap->mark_compact_collector()->EnsureSweepingCompleted();
@@ -154,6 +158,10 @@ bool FillCurrentPageButNBytes(v8::internal::NewSpace* space, int extra_bytes,
 
 void SimulateFullSpace(v8::internal::NewSpace* space,
                        std::vector<Handle<FixedArray>>* out_handles) {
+  // If you see this check failing, disable the flag at the start of your test:
+  // FLAG_stress_concurrent_allocation = false;
+  // Background thread allocating concurrently interferes with this function.
+  CHECK(!FLAG_stress_concurrent_allocation);
   while (heap::FillCurrentPage(space, out_handles) || space->AddFreshPage()) {
   }
 }
@@ -190,7 +198,10 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
 }
 
 void SimulateFullSpace(v8::internal::PagedSpace* space) {
-  SafepointScope scope(space->heap());
+  // If you see this check failing, disable the flag at the start of your test:
+  // FLAG_stress_concurrent_allocation = false;
+  // Background thread allocating concurrently interferes with this function.
+  CHECK(!FLAG_stress_concurrent_allocation);
   CodeSpaceMemoryModificationScope modification_scope(space->heap());
   i::MarkCompactCollector* collector = space->heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
