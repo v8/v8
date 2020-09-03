@@ -807,6 +807,7 @@ void TurboAssembler::PushStandardFrame(Register function_reg) {
     }
   }
   addi(fp, sp, Operand(fp_delta * kSystemPointerSize));
+  Push(kJavaScriptCallArgCountRegister);
 }
 
 void TurboAssembler::RestoreFrameStateForTailCall() {
