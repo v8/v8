@@ -200,6 +200,7 @@ void PagedSpace::MergeLocalSpace(LocalSpace* other) {
 size_t PagedSpace::CommittedPhysicalMemory() {
   if (!base::OS::HasLazyCommits()) return CommittedMemory();
   BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
+  base::MutexGuard guard(mutex());
   size_t size = 0;
   for (Page* page : *this) {
     size += page->CommittedPhysicalMemory();

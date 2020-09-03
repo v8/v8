@@ -8543,20 +8543,33 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   i::Heap* heap = isolate->heap();
 
-  heap_statistics->total_heap_size_ = heap->CommittedMemory();
-  heap_statistics->total_physical_size_ = heap->CommittedPhysicalMemory();
-  heap_statistics->total_available_size_ = heap->Available();
-  heap_statistics->used_heap_size_ = heap->SizeOfObjects();
-  heap_statistics->total_global_handles_size_ = heap->TotalGlobalHandlesSize();
+  // The order of acquiring memory statistics is important here. We query in
+  // this order because of concurrent allocation: 1) used memory 2) comitted
+  // physical memory 3) committed memory. Therefore the condition used <=
+  // committed physical <= committed should hold.
   heap_statistics->used_global_handles_size_ = heap->UsedGlobalHandlesSize();
+  heap_statistics->total_global_handles_size_ = heap->TotalGlobalHandlesSize();
+  DCHECK_LE(heap_statistics->used_global_handles_size_,
+            heap_statistics->total_global_handles_size_);
+
+  heap_statistics->used_heap_size_ = heap->SizeOfObjects();
+  heap_statistics->total_physical_size_ = heap->CommittedPhysicalMemory();
+  heap_statistics->total_heap_size_ = heap->CommittedMemory();
+
+  heap_statistics->total_available_size_ = heap->Available();
 
   if (!i::ReadOnlyHeap::IsReadOnlySpaceShared()) {
     i::ReadOnlySpace* ro_space = heap->read_only_space();
-    heap_statistics->total_heap_size_ += ro_space->CommittedMemory();
+    heap_statistics->used_heap_size_ += ro_space->Size();
     heap_statistics->total_physical_size_ +=
         ro_space->CommittedPhysicalMemory();
-    heap_statistics->used_heap_size_ += ro_space->Size();
+    heap_statistics->total_heap_size_ += ro_space->CommittedMemory();
   }
+
+  // TODO(dinfuehr): Right now used <= committed physical does not hold. Fix
+  // this and add DCHECK.
+  DCHECK_LE(heap_statistics->used_heap_size_,
+            heap_statistics->total_heap_size_);
 
   heap_statistics->total_heap_size_executable_ =
       heap->CommittedMemoryExecutable();
