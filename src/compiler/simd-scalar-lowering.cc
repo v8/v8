@@ -128,15 +128,15 @@ void SimdScalarLowering::LowerGraph() {
   V(I32x4Eq)                      \
   V(I32x4Ne)                      \
   V(I32x4LtS)                     \
-  V(I32x4LeS)                     \
+  V(I32x4LtU)                     \
   V(I32x4GtS)                     \
+  V(I32x4GtU)                     \
+  V(I32x4LeS)                     \
+  V(I32x4LeU)                     \
   V(I32x4GeS)                     \
+  V(I32x4GeU)                     \
   V(I32x4UConvertI16x8Low)        \
   V(I32x4UConvertI16x8High)       \
-  V(I32x4LtU)                     \
-  V(I32x4LeU)                     \
-  V(I32x4GtU)                     \
-  V(I32x4GeU)                     \
   V(I32x4Abs)                     \
   V(S128And)                      \
   V(S128Or)                       \
@@ -209,9 +209,13 @@ void SimdScalarLowering::LowerGraph() {
   V(I16x8Eq)                      \
   V(I16x8Ne)                      \
   V(I16x8LtS)                     \
-  V(I16x8LeS)                     \
   V(I16x8LtU)                     \
+  V(I16x8GtS)                     \
+  V(I16x8GtU)                     \
+  V(I16x8LeS)                     \
   V(I16x8LeU)                     \
+  V(I16x8GeS)                     \
+  V(I16x8GeU)                     \
   V(I16x8RoundingAverageU)        \
   V(I16x8Abs)                     \
   V(I16x8BitMask)
@@ -241,9 +245,13 @@ void SimdScalarLowering::LowerGraph() {
   V(I8x16Eq)                      \
   V(I8x16Ne)                      \
   V(I8x16LtS)                     \
-  V(I8x16LeS)                     \
   V(I8x16LtU)                     \
+  V(I8x16GtS)                     \
+  V(I8x16GtU)                     \
+  V(I8x16LeS)                     \
   V(I8x16LeU)                     \
+  V(I8x16GeS)                     \
+  V(I8x16GeU)                     \
   V(S8x16Swizzle)                 \
   V(S8x16Shuffle)                 \
   V(I8x16RoundingAverageU)        \
