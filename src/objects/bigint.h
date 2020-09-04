@@ -189,11 +189,12 @@ class BigInt : public BigIntBase {
 
   bool IsNegative() const { return sign(); }
 
-  static bool EqualToString(Isolate* isolate, Handle<BigInt> x,
-                            Handle<String> y);
+  static Maybe<bool> EqualToString(Isolate* isolate, Handle<BigInt> x,
+                                   Handle<String> y);
   static bool EqualToNumber(Handle<BigInt> x, Handle<Object> y);
-  static ComparisonResult CompareToString(Isolate* isolate, Handle<BigInt> x,
-                                          Handle<String> y);
+  static Maybe<ComparisonResult> CompareToString(Isolate* isolate,
+                                                 Handle<BigInt> x,
+                                                 Handle<String> y);
   static ComparisonResult CompareToNumber(Handle<BigInt> x, Handle<Object> y);
   // Exposed for tests, do not call directly. Use CompareToNumber() instead.
   V8_EXPORT_PRIVATE static ComparisonResult CompareToDouble(Handle<BigInt> x,

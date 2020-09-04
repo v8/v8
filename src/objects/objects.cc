@@ -671,12 +671,18 @@ Maybe<ComparisonResult> Object::Compare(Isolate* isolate, Handle<Object> x,
                                 Handle<String>::cast(y)));
   }
   if (x->IsBigInt() && y->IsString()) {
-    return Just(BigInt::CompareToString(isolate, Handle<BigInt>::cast(x),
-                                        Handle<String>::cast(y)));
+    return BigInt::CompareToString(isolate, Handle<BigInt>::cast(x),
+                                   Handle<String>::cast(y));
   }
   if (x->IsString() && y->IsBigInt()) {
-    return Just(Reverse(BigInt::CompareToString(
-        isolate, Handle<BigInt>::cast(y), Handle<String>::cast(x))));
+    Maybe<ComparisonResult> maybe_result = BigInt::CompareToString(
+        isolate, Handle<BigInt>::cast(y), Handle<String>::cast(x));
+    ComparisonResult result;
+    if (maybe_result.To(&result)) {
+      return Just(Reverse(result));
+    } else {
+      return Nothing<ComparisonResult>();
+    }
   }
   // ES6 section 7.2.11 Abstract Relational Comparison step 6.
   if (!Object::ToNumeric(isolate, x).ToHandle(&x) ||
@@ -735,8 +741,8 @@ Maybe<bool> Object::Equals(Isolate* isolate, Handle<Object> x,
         return Just(
             StrictNumberEquals(*x, Handle<Oddball>::cast(y)->to_number()));
       } else if (y->IsBigInt()) {
-        return Just(BigInt::EqualToString(isolate, Handle<BigInt>::cast(y),
-                                          Handle<String>::cast(x)));
+        return BigInt::EqualToString(isolate, Handle<BigInt>::cast(y),
+                                     Handle<String>::cast(x));
       } else if (y->IsJSReceiver()) {
         if (!JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(y))
                  .ToHandle(&y)) {
