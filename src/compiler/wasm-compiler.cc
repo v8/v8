@@ -7420,8 +7420,8 @@ bool BuildGraphForWasmFunction(AccountingAllocator* allocator,
     return false;
   }
 
-  builder.LowerInt64(WasmWrapperGraphBuilder::kCalledFromWasm);
-
+  // Lower SIMD first, i64x2 nodes will be lowered to int64 nodes, then int64
+  // lowering will take care of them.
   if (builder.has_simd() &&
       (!CpuFeatures::SupportsWasmSimd128() || env->lower_simd)) {
     SimdScalarLowering(
@@ -7429,6 +7429,8 @@ bool BuildGraphForWasmFunction(AccountingAllocator* allocator,
                                         WasmGraphBuilder::kCalledFromWasm))
         .LowerGraph();
   }
+
+  builder.LowerInt64(WasmWrapperGraphBuilder::kCalledFromWasm);
 
   if (func_index >= FLAG_trace_wasm_ast_start &&
       func_index < FLAG_trace_wasm_ast_end) {
