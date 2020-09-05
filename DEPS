@@ -82,9 +82,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a9ca7285682829299b2db1d24c894407411fdf2d',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '2b8377b5b8a7f40e409e3f83348dda5eb910cfb7',
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '5dba9c97fbc3b373423acbb7a0e623854550c177',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'a070dd18d79dfa236d16ece74e0dcd514851331f',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '79326efe26e5440f530963704c3c0ff965b3a4ac',
   'third_party/instrumented_libraries':
@@ -284,7 +284,7 @@ deps = {
   'third_party/protobuf':
     Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + 'b68a347f56137b4b1a746e8c7438495a6ac1bd91',
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '59187e10e96157e9135da61e95cec25a9baf9cd3',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'aec16ef74550b35e0c7a8ad630194e06cdfef82f',
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '645250b6690785be60ab6780ce4b58698d884d11',
   'third_party/ittapi': {
