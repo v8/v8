@@ -4838,15 +4838,10 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     case MoveType::kRegisterToStack: {
       if (source->IsRegister()) {
         Register src = g.ToRegister(source);
-        __ pushq(src);
-        frame_access_state()->IncreaseSPDelta(1);
-        unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         kSystemPointerSize);
-        __ movq(src, g.ToOperand(destination));
-        frame_access_state()->IncreaseSPDelta(-1);
-        __ popq(g.ToOperand(destination));
-        unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         -kSystemPointerSize);
+        Operand dst = g.ToOperand(destination);
+        __ movq(kScratchRegister, src);
+        __ movq(src, dst);
+        __ movq(dst, kScratchRegister);
       } else {
         DCHECK(source->IsFPRegister());
         XMMRegister src = g.ToDoubleRegister(source);
