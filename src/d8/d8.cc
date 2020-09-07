@@ -1197,15 +1197,15 @@ size_t PerIsolateData::GetUnhandledPromiseCount() {
 int PerIsolateData::HandleUnhandledPromiseRejections() {
   v8::HandleScope scope(isolate_);
   // Ignore promises that get added during error reporting.
-  size_t unhandled_promises_count = unhandled_promises_.size();
-  for (size_t i = 0; i < unhandled_promises_count; i++) {
+  size_t i = 0;
+  for (; i < unhandled_promises_.size(); i++) {
     const auto& tuple = unhandled_promises_[i];
     Local<v8::Message> message = std::get<1>(tuple).Get(isolate_);
     Local<v8::Value> value = std::get<2>(tuple).Get(isolate_);
     Shell::ReportException(isolate_, message, value);
   }
   unhandled_promises_.clear();
-  return static_cast<int>(unhandled_promises_count);
+  return static_cast<int>(i);
 }
 
 PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
