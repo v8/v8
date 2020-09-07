@@ -121,6 +121,12 @@
   V8_EXPORT_PRIVATE void set_##name(         \
       type value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
+// TODO(solanes, neis): Unify naming for synchronized accessor uses.
+#define DECL_SYNCHRONIZED_ACCESSORS(name, type) \
+  DECL_GETTER(synchronized_##name, type)        \
+  inline void set_synchronized_##name(          \
+      type value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
 #define DECL_CAST_NONINLINE(Type)                    \
   V8_EXPORT_PRIVATE static Type cast(Object object); \
   inline static Type unchecked_cast(Object object) { \

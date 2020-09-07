@@ -250,7 +250,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::DoFinalizeJobImpl(
       SourcePositionTableBuilder::RecordingMode::RECORD_SOURCE_POSITIONS) {
     Handle<ByteArray> source_position_table =
         generator()->FinalizeSourcePositionTable(isolate);
-    bytecodes->set_source_position_table(*source_position_table);
+    bytecodes->set_synchronized_source_position_table(*source_position_table);
   }
 
   if (ShouldPrintBytecode(shared_info)) {

@@ -1655,7 +1655,7 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
       shared_info->GetDebugInfo().HasInstrumentedBytecodeArray()) {
     ByteArray source_position_table =
         job->compilation_info()->bytecode_array()->SourcePositionTable();
-    shared_info->GetDebugBytecodeArray().set_source_position_table(
+    shared_info->GetDebugBytecodeArray().set_synchronized_source_position_table(
         source_position_table);
   }
 

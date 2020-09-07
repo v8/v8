@@ -712,8 +712,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
 
   {
     SourcePositionTableIterator it(
-        SourcePositionTableIfCollected(),
-        SourcePositionTableIterator::kJavaScriptOnly);
+        SourcePositionTable(), SourcePositionTableIterator::kJavaScriptOnly);
     if (!it.done()) {
       os << "Source positions:\n pc offset  position\n";
       for (; !it.done(); it.Advance()) {
@@ -726,7 +725,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   }
 
   {
-    SourcePositionTableIterator it(SourcePositionTableIfCollected(),
+    SourcePositionTableIterator it(SourcePositionTable(),
                                    SourcePositionTableIterator::kExternalOnly);
     if (!it.done()) {
       os << "External Source positions:\n pc offset  fileid  line\n";
@@ -808,8 +807,7 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   os << "Frame size " << frame_size() << "\n";
 
   Address base_address = GetFirstBytecodeAddress();
-  SourcePositionTableIterator source_positions(
-      SourcePositionTableIfCollected());
+  SourcePositionTableIterator source_positions(SourcePositionTable());
 
   // Storage for backing the handle passed to the iterator. This handle won't be
   // updated by the gc, but that's ok because we've disallowed GCs anyway.
@@ -868,11 +866,12 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   }
 #endif
 
-  os << "Source Position Table (size = "
-     << SourcePositionTableIfCollected().length() << ")\n";
+  ByteArray source_position_table = SourcePositionTable();
+  os << "Source Position Table (size = " << source_position_table.length()
+     << ")\n";
 #ifdef OBJECT_PRINT
-  if (SourcePositionTableIfCollected().length() > 0) {
-    os << Brief(SourcePositionTableIfCollected()) << std::endl;
+  if (source_position_table.length() > 0) {
+    os << Brief(source_position_table) << std::endl;
   }
 #endif
 }

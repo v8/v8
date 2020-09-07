@@ -291,9 +291,9 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
   CHECK(IsBytecodeArray());
   CHECK(constant_pool().IsFixedArray());
   VerifyHeapPointer(isolate, constant_pool());
-  CHECK(source_position_table().IsUndefined() ||
-        source_position_table().IsException() ||
-        source_position_table().IsByteArray());
+  CHECK(synchronized_source_position_table().IsUndefined() ||
+        synchronized_source_position_table().IsException() ||
+        synchronized_source_position_table().IsByteArray());
   CHECK(handler_table().IsByteArray());
 }
 

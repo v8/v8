@@ -3299,9 +3299,8 @@ void BytecodeArrayRef::SerializeForCompilation() {
   data()->AsBytecodeArray()->SerializeForCompilation(broker());
 }
 
-Handle<ByteArray> BytecodeArrayRef::source_positions() const {
-  return broker()->CanonicalPersistentHandle(
-      object()->SourcePositionTableIfCollected());
+Handle<ByteArray> BytecodeArrayRef::SourcePositionTable() const {
+  return broker()->CanonicalPersistentHandle(object()->SourcePositionTable());
 }
 
 Address BytecodeArrayRef::handler_table_address() const {
