@@ -1974,13 +1974,16 @@ void Logger::LogAllMaps() {
   }
 }
 
-static void AddIsolateIdIfNeeded(std::ostream& os, Isolate* isolate) {
-  if (!FLAG_logfile_per_isolate) return;
-  os << "isolate-" << isolate << "-" << base::OS::GetCurrentProcessId() << "-";
+static void AddIsolateIdIfNeeded(std::ostream& os,  // NOLINT
+                                 Isolate* isolate) {
+  if (FLAG_logfile_per_isolate) {
+    os << "isolate-" << isolate << "-" << base::OS::GetCurrentProcessId()
+       << "-";
+  }
 }
 
-static void PrepareLogFileName(std::ostream& os, Isolate* isolate,
-                               const char* file_name) {
+static void PrepareLogFileName(std::ostream& os,  // NOLINT
+                               Isolate* isolate, const char* file_name) {
   int dir_separator_count = 0;
   for (const char* p = file_name; *p; p++) {
     if (base::OS::isDirectorySeparator(*p)) dir_separator_count++;
@@ -2029,8 +2032,9 @@ bool Logger::SetUp(Isolate* isolate) {
   is_initialized_ = true;
 
   std::ostringstream log_file_name;
+  std::ostringstream source_log_file_name;
   PrepareLogFileName(log_file_name, isolate, FLAG_logfile);
-  log_ = std::make_unique<Log>(log_file_name.str());
+  log_ = std::make_unique<Log>(this, log_file_name.str().c_str());
 
 #if V8_OS_LINUX
   if (FLAG_perf_basic_prof) {
@@ -2059,7 +2063,9 @@ bool Logger::SetUp(Isolate* isolate) {
 
   ticker_ = std::make_unique<Ticker>(isolate, FLAG_prof_sampling_interval);
 
-  if (Log::InitLogAtStart()) is_logging_ = true;
+  if (Log::InitLogAtStart()) {
+    is_logging_ = true;
+  }
 
   timer_.Start();
 
@@ -2069,7 +2075,9 @@ bool Logger::SetUp(Isolate* isolate) {
     profiler_->Engage();
   }
 
-  if (is_logging_) AddCodeEventListener(this);
+  if (is_logging_) {
+    AddCodeEventListener(this);
+  }
 
   return true;
 }
@@ -2096,7 +2104,6 @@ void Logger::SetCodeEventHandler(uint32_t options,
 }
 
 sampler::Sampler* Logger::sampler() { return ticker_.get(); }
-std::string Logger::file_name() const { return log_.get()->file_name(); }
 
 void Logger::StopProfilerThread() {
   if (profiler_ != nullptr) {
@@ -2105,16 +2112,14 @@ void Logger::StopProfilerThread() {
   }
 }
 
-FILE* Logger::TearDownAndGetLogFile() {
+FILE* Logger::TearDown() {
   if (!is_initialized_) return nullptr;
   is_initialized_ = false;
-  is_logging_ = false;
 
   // Stop the profiler thread before closing the file.
   StopProfilerThread();
 
   ticker_.reset();
-  timer_.Stop();
 
 #if V8_OS_LINUX
   if (perf_basic_logger_) {
