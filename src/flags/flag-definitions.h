@@ -1627,6 +1627,9 @@ DEFINE_BOOL(trace_wasm_gdb_remote, false, "trace Webassembly GDB-remote server")
 #define FLAG FLAG_FULL
 
 // log.cc
+DEFINE_STRING(logfile, "v8.log", "Specify the name of the log file.")
+DEFINE_BOOL(logfile_per_isolate, true, "Separate log files for each isolate.")
+
 DEFINE_BOOL(log, false,
             "Minimal logging (no API, code, GC, suspect, or handles samples).")
 DEFINE_BOOL(log_all, false, "Log all events to the log file.")
@@ -1639,8 +1642,13 @@ DEFINE_BOOL(log_source_code, false, "Log source code.")
 DEFINE_BOOL(log_function_events, false,
             "Log function events "
             "(parse, compile, execute) separately.")
-DEFINE_BOOL(prof, false,
-            "Log statistical profiling information (implies --log-code).")
+
+DEFINE_IMPLICATION(log_all, log_api)
+DEFINE_IMPLICATION(log_all, log_code)
+DEFINE_IMPLICATION(log_all, log_suspect)
+DEFINE_IMPLICATION(log_all, log_handles)
+DEFINE_IMPLICATION(log_all, log_internal_timer_events)
+DEFINE_IMPLICATION(log_all, log_function_events)
 
 DEFINE_BOOL(detailed_line_info, false,
             "Always generate detailed line information for CPU profiling.")
@@ -1657,11 +1665,14 @@ DEFINE_INT(prof_sampling_interval, DEFAULT_PROF_SAMPLING_INTERVAL,
 #undef DEFAULT_PROF_SAMPLING_INTERVAL
 
 DEFINE_BOOL(prof_cpp, false, "Like --prof, but ignore generated code.")
-DEFINE_IMPLICATION(prof, prof_cpp)
 DEFINE_BOOL(prof_browser_mode, true,
             "Used with --prof, turns on browser-compatible mode for profiling.")
-DEFINE_STRING(logfile, "v8.log", "Specify the name of the log file.")
-DEFINE_BOOL(logfile_per_isolate, true, "Separate log files for each isolate.")
+
+DEFINE_BOOL(prof, false,
+            "Log statistical profiling information (implies --log-code).")
+DEFINE_IMPLICATION(prof, prof_cpp)
+DEFINE_IMPLICATION(prof, log_code)
+
 DEFINE_BOOL(ll_prof, false, "Enable low-level linux profiler.")
 
 #if V8_OS_LINUX

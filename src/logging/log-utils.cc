@@ -42,18 +42,6 @@ Log::Log(Logger* logger, const char* file_name)
       is_enabled_(output_handle_ != nullptr),
       format_buffer_(NewArray<char>(kMessageBufferSize)),
       logger_(logger) {
-  // --log-all enables all the log flags.
-  if (FLAG_log_all) {
-    FLAG_log_api = true;
-    FLAG_log_code = true;
-    FLAG_log_suspect = true;
-    FLAG_log_handles = true;
-    FLAG_log_internal_timer_events = true;
-    FLAG_log_function_events = true;
-  }
-
-  // --prof implies --log-code.
-  if (FLAG_prof) FLAG_log_code = true;
 
   if (output_handle_ == nullptr) return;
   Log::MessageBuilder msg(this);
