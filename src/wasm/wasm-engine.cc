@@ -117,15 +117,9 @@ class WasmGCForegroundTask : public CancelableTask {
 
   void RunInternal() final {
     WasmEngine* engine = isolate_->wasm_engine();
-    // If the foreground task is executing, there is no wasm code active. Just
-    // report an empty set of live wasm code.
-#ifdef ENABLE_SLOW_DCHECKS
-    for (StackFrameIterator it(isolate_); !it.done(); it.Advance()) {
-      DCHECK_NE(StackFrame::WASM, it.frame()->type());
-    }
-#endif
-    CheckNoArchivedThreads(isolate_);
-    engine->ReportLiveCodeForGC(isolate_, Vector<WasmCode*>{});
+    // The stack can contain live frames, for instance when this is invoked
+    // during a pause or a breakpoint.
+    engine->ReportLiveCodeFromStackForGC(isolate_);
   }
 
  private:
