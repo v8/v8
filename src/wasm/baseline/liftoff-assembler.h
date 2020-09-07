@@ -135,6 +135,8 @@ class LiftoffAssembler : public TurboAssembler {
     // Disallow copy construction.
     CacheState(const CacheState&) = delete;
 
+    void DefineSafepoint(Safepoint& safepoint);
+
     base::SmallVector<VarState, 8> stack_state;
     LiftoffRegList used_registers;
     uint32_t register_use_count[kAfterMaxLiftoffRegCode] = {0};
@@ -1119,9 +1121,12 @@ class LiftoffAssembler : public TurboAssembler {
   uint32_t num_locals() const { return num_locals_; }
   void set_num_locals(uint32_t num_locals);
 
-  int GetTotalFrameSlotCount() const {
-    // TODO(zhin): Temporary for migration from index to offset.
-    return ((max_used_spill_offset_ + kStackSlotSize - 1) / kStackSlotSize);
+  int GetTotalFrameSlotCountForGC() const {
+    // The GC does not care about the actual number of spill slots, just about
+    // the number of references that could be there in the spilling area. Note
+    // that the offset of the first spill slot is kSystemPointerSize and not
+    // '0'. Therefore we don't have to add '+1' here.
+    return max_used_spill_offset_ / kSystemPointerSize;
   }
 
   int GetTotalFrameSize() const { return max_used_spill_offset_; }
