@@ -503,6 +503,10 @@ STATIC_ASSERT(kMaxTFSBuiltinRegisterParams <= kMaxBuiltinRegisterParams);
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged() /* result */, \
                                     ##__VA_ARGS__)
 
+// When the extra arguments described here are located in the stack, they are
+// just above the return address in the frame. Therefore, they are either the
+// first arguments when V8_REVERSE_JSARGS is enabled, or otherwise the last
+// arguments.
 #define DEFINE_JS_PARAMETERS(...)                           \
   static constexpr int kDescriptorFlags =                   \
       CallInterfaceDescriptorData::kAllowVarArgs;           \
