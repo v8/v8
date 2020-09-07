@@ -23,25 +23,35 @@ const char* const Log::kLogToTemporaryFile = "&";
 const char* const Log::kLogToConsole = "-";
 
 // static
-FILE* Log::CreateOutputHandle(const char* file_name) {
+FILE* Log::CreateOutputHandle(std::string file_name) {
   // If we're logging anything, we need to open the log file.
   if (!Log::InitLogAtStart()) {
     return nullptr;
-  } else if (strcmp(file_name, kLogToConsole) == 0) {
+  } else if (Log::IsLoggingToConsole(file_name)) {
     return stdout;
-  } else if (strcmp(file_name, kLogToTemporaryFile) == 0) {
+  } else if (Log::IsLoggingToTemporaryFile(file_name)) {
     return base::OS::OpenTemporaryFile();
   } else {
-    return base::OS::FOpen(file_name, base::OS::LogFileOpenMode);
+    return base::OS::FOpen(file_name.c_str(), base::OS::LogFileOpenMode);
   }
 }
 
-Log::Log(Logger* logger, const char* file_name)
-    : output_handle_(Log::CreateOutputHandle(file_name)),
+// static
+bool Log::IsLoggingToConsole(std::string file_name) {
+  return file_name.compare(Log::kLogToConsole) == 0;
+}
+
+// static
+bool Log::IsLoggingToTemporaryFile(std::string file_name) {
+  return file_name.compare(Log::kLogToTemporaryFile) == 0;
+}
+
+Log::Log(std::string file_name)
+    : file_name_(file_name),
+      output_handle_(Log::CreateOutputHandle(file_name)),
       os_(output_handle_ == nullptr ? stdout : output_handle_),
       is_enabled_(output_handle_ != nullptr),
-      format_buffer_(NewArray<char>(kMessageBufferSize)),
-      logger_(logger) {
+      format_buffer_(NewArray<char>(kMessageBufferSize)) {
   // --log-all enables all the log flags.
   if (FLAG_log_all) {
     FLAG_log_api = true;
@@ -56,7 +66,13 @@ Log::Log(Logger* logger, const char* file_name)
   if (FLAG_prof) FLAG_log_code = true;
 
   if (output_handle_ == nullptr) return;
-  Log::MessageBuilder msg(this);
+  WriteLogHeader();
+}
+
+void Log::WriteLogHeader() {
+  std::unique_ptr<Log::MessageBuilder> msg_ptr = NewMessageBuilder();
+  if (!msg_ptr) return;
+  Log::MessageBuilder& msg = *msg_ptr.get();
   LogSeparator kNext = LogSeparator::kSeparator;
   msg << "v8-version" << kNext << Version::GetMajor() << kNext
       << Version::GetMinor() << kNext << Version::GetBuild() << kNext
@@ -83,19 +99,16 @@ FILE* Log::Close() {
   base::MutexGuard guard(&mutex_);
   FILE* result = nullptr;
   if (output_handle_ != nullptr) {
-    if (strcmp(FLAG_logfile, kLogToTemporaryFile) != 0) {
-      fclose(output_handle_);
-    } else {
-      result = output_handle_;
-    }
+    fflush(output_handle_);
+    result = output_handle_;
   }
   output_handle_ = nullptr;
-
   format_buffer_.reset();
-
   is_enabled_.store(false, std::memory_order_relaxed);
   return result;
 }
+
+std::string Log::file_name() const { return file_name_; }
 
 Log::MessageBuilder::MessageBuilder(Log* log)
     : log_(log), lock_guard_(&log_->mutex_) {
