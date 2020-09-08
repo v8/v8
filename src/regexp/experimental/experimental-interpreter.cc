@@ -6,6 +6,7 @@
 
 #include "src/base/optional.h"
 #include "src/base/small-vector.h"
+#include "src/regexp/experimental/experimental.h"
 
 namespace v8 {
 namespace internal {
@@ -84,15 +85,33 @@ class NfaInterpreter {
   // `matches_out`.  The search begins at the current input index.  Returns the
   // number of matches found.
   int FindMatches(MatchRange* matches_out, int max_match_num) {
-    int match_num;
-    for (match_num = 0; match_num != max_match_num; ++match_num) {
+    int match_num = 0;
+    while (match_num != max_match_num) {
       base::Optional<MatchRange> match = FindNextMatch();
       if (!match.has_value()) {
         break;
       }
 
       matches_out[match_num] = *match;
-      SetInputIndex(match->end);
+      ++match_num;
+
+      int match_length = match->end - match->begin;
+      if (match_length != 0) {
+        SetInputIndex(match->end);
+      } else if (match->end == input_.length()) {
+        // Zero-length match, input exhausted.
+        SetInputIndex(match->end);
+        break;
+      } else {
+        // Zero-length match, more input.  We don't want to report more matches
+        // here endlessly, so we advance by 1.
+        SetInputIndex(match->end + 1);
+
+        // TODO(mbid,v8:10765): If we're in unicode mode, we have to advance to
+        // the next codepoint, not to the next code unit. See also
+        // `RegExpUtils::AdvanceStringIndex`.
+        STATIC_ASSERT(!ExperimentalRegExp::kSupportsUnicode);
+      }
     }
     return match_num;
   }

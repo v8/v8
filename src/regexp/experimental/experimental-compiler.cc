@@ -4,6 +4,7 @@
 
 #include "src/regexp/experimental/experimental-compiler.h"
 
+#include "src/regexp/experimental/experimental.h"
 #include "src/zone/zone-list-inl.h"
 
 namespace v8 {
@@ -34,8 +35,10 @@ class CanBeHandledVisitor final : private RegExpVisitor {
   static bool AreSuitableFlags(JSRegExp::Flags flags) {
     // TODO(mbid, v8:10765): We should be able to support all flags in the
     // future.
-    static constexpr JSRegExp::Flags allowed_flags = JSRegExp::kGlobal;
-    return (flags & ~allowed_flags) == 0;
+    static constexpr JSRegExp::Flags kAllowedFlags = JSRegExp::kGlobal;
+    STATIC_ASSERT(!ExperimentalRegExp::kSupportsUnicode ||
+                  (kAllowedFlags & JSRegExp::kUnicode) == 0);
+    return (flags & ~kAllowedFlags) == 0;
   }
 
   void* VisitDisjunction(RegExpDisjunction* node, void*) override {
