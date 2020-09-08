@@ -3341,7 +3341,9 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // pointer.
   __ subq(rsp, Immediate(5 * kSystemPointerSize));
 
-  // Looping through the params, starting with the n-th param.
+  // Looping through the params, starting with the 1st param.
+  // The order of processing the params is important. We have to evaluate them
+  // in an increasing order.
   //      Not reversed                Reversed
   //   +-----------------+------+-----------------+---------------
   //   |    receiver     |      |     param n     |
@@ -3357,22 +3359,38 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   //   |      rbp        |      |      rbp        |   Spill slots
   //   |- - - - - - - - -|      |- - - - - - - - -|
   //
-  // [rbp + current_param] gives us the parameter we are processing
-  // We iterate through half-open interval <n-th param, [rbp + param_limit])
+  // [rbp + current_param] gives us the parameter we are processing.
+  // We iterate through half-open interval <1st param, [rbp + param_limit]).
+
+  // The Wasm function expects that the params can be popped from the top of the
+  // stack in an increasing order. As we have to process the params in an
+  // increasing order too, we have to reserve param_count slots where we will
+  // move the processed parameters so that they can be popped in an increasing
+  // order.
+  Register js_arguments_size_in_bytes = kJavaScriptCallArgCountRegister;
+  __ shlq(js_arguments_size_in_bytes, Immediate(kSystemPointerSizeLog2));
+  __ subq(rsp, js_arguments_size_in_bytes);
+  js_arguments_size_in_bytes = no_reg;
+  Register current_param_slot = r8;
+  __ movq(current_param_slot, rsp);
+
   Register current_param = r14;
   Register param_limit = r15;
 #ifdef V8_REVERSE_JSARGS
-  __ movq(current_param, param_count);
-  __ shlq(current_param, Immediate(kSystemPointerSizeLog2));
-  __ addq(current_param, Immediate(kFPOnStackSize + kPCOnStackSize));
-  __ movq(param_limit, Immediate(kFPOnStackSize + kPCOnStackSize));
-  const int increment = -kSystemPointerSize;
-#else
-  __ movq(current_param, Immediate(kFPOnStackSize + kPCOnStackSize));
+  constexpr int kReceiverOnStackSize = kSystemPointerSize;
+  __ movq(current_param,
+          Immediate(kFPOnStackSize + kPCOnStackSize + kReceiverOnStackSize));
   __ movq(param_limit, param_count);
   __ shlq(param_limit, Immediate(kSystemPointerSizeLog2));
-  __ addq(param_limit, Immediate(kFPOnStackSize + kPCOnStackSize));
+  __ addq(param_limit,
+          Immediate(kFPOnStackSize + kPCOnStackSize + kReceiverOnStackSize));
   const int increment = kSystemPointerSize;
+#else
+  __ movq(current_param, param_count);
+  __ shlq(current_param, Immediate(kSystemPointerSizeLog2));
+  __ addq(current_param, Immediate(kFPOnStackSize));
+  __ movq(param_limit, Immediate(kFPOnStackSize));
+  const int increment = -kSystemPointerSize;
 #endif
   Register param = rax;
   Label loop;
@@ -3390,7 +3408,8 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   Label param_conversion_done;
   __ bind(&param_conversion_done);
 
-  __ pushq(param);
+  __ movq(MemOperand(current_param_slot, 0), param);
+  __ addq(current_param_slot, Immediate(kSystemPointerSize));
 
   __ cmpq(current_param, param_limit);
   __ j(not_equal, &loop);
@@ -3502,6 +3521,7 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
           Immediate(kBuiltinCallGCScanSlotCount));
   __ pushq(current_param);
   __ pushq(param_limit);
+  __ pushq(current_param_slot);
   __ pushq(wasm_instance);
   __ pushq(function_data);
   __ LoadAnyTaggedField(
@@ -3515,6 +3535,7 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
 
   __ popq(function_data);
   __ popq(wasm_instance);
+  __ popq(current_param_slot);
   __ popq(param_limit);
   __ popq(current_param);
   __ movq(param_count, MemOperand(rbp, kParamCountOffset));

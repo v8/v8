@@ -127,6 +127,18 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let instance = builder.instantiate({ mod: { func: import_func } });
   assertEquals(undefined, instance.exports.main(9, param2, param3, 0));
   assertEquals(60, x);
+  // Now we test if the evaluation order of the parameters is correct.
+  x = 12;
+  param3 = {
+    valueOf: () => {
+      Object.defineProperty(param2, 'valueOf', {
+        value: () => 30
+      })
+      return 3;
+    }
+  };
+  assertEquals(undefined, instance.exports.main(9, param2, param3, 0));
+  assertEquals(60, x);
 })();
 
 let kSig_v_iiiiiiii = makeSig([kWasmI32, kWasmI32, kWasmI32, kWasmI32,
