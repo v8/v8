@@ -1122,6 +1122,7 @@ torque_files = [
   "src/builtins/array-splice.tq",
   "src/builtins/array-unshift.tq",
   "src/builtins/array.tq",
+  "src/builtins/arraybuffer.tq",
   "src/builtins/base.tq",
   "src/builtins/bigint.tq",
   "src/builtins/boolean.tq",
