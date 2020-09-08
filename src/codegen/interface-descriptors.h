@@ -78,6 +78,7 @@ namespace internal {
   V(LoadGlobalWithVector)                \
   V(LoadNoFeedback)                      \
   V(LoadWithVector)                      \
+  V(LoadWithReceiverAndVector)           \
   V(NoContext)                           \
   V(RecordWrite)                         \
   V(ResumeGenerator)                     \
@@ -810,6 +811,34 @@ class LoadWithVectorDescriptor : public LoadDescriptor {
   DECLARE_DESCRIPTOR(LoadWithVectorDescriptor, LoadDescriptor)
 
   static const Register VectorRegister();
+
+#if V8_TARGET_ARCH_IA32
+  static const bool kPassLastArgsOnStack = true;
+#else
+  static const bool kPassLastArgsOnStack = false;
+#endif
+
+  // Pass vector through the stack.
+  static const int kStackArgumentsCount = kPassLastArgsOnStack ? 1 : 0;
+};
+
+// Like LoadWithVectorDescriptor, except we pass the receiver (the object which
+// should be used as the receiver for accessor function calls) and the lookup
+// start object separately.
+class LoadWithReceiverAndVectorDescriptor : public LoadWithVectorDescriptor {
+ public:
+  // TODO(v8:9497): Revert the Machine type for kSlot to the
+  // TaggedSigned once Torque can emit better call descriptors
+  DEFINE_PARAMETERS(kReceiver, kLookupStartObject, kName, kSlot, kVector)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kReceiver
+                         MachineType::AnyTagged(),  // kLookupStartObject
+                         MachineType::AnyTagged(),  // kName
+                         MachineType::AnyTagged(),  // kSlot
+                         MachineType::AnyTagged())  // kVector
+  DECLARE_DESCRIPTOR(LoadWithReceiverAndVectorDescriptor,
+                     LoadWithVectorDescriptor)
+
+  static const Register LookupStartObjectRegister();
 
 #if V8_TARGET_ARCH_IA32
   static const bool kPassLastArgsOnStack = true;

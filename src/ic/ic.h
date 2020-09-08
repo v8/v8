@@ -184,9 +184,10 @@ class LoadIC : public IC {
     return ShouldThrowReferenceError(kind());
   }
 
-  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Load(Handle<Object> object,
-                                                 Handle<Name> name,
-                                                 bool update_feedback = true);
+  // If receiver is empty, use object as the receiver.
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Load(
+      Handle<Object> object, Handle<Name> name, bool update_feedback = true,
+      Handle<Object> receiver = Handle<Object>());
 
  protected:
   // Update the inline cache and the global stub cache based on the

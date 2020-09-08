@@ -860,6 +860,7 @@ class BytecodeGenerator::FeedbackSlotCache : public ZoneObject {
     kStoreNamedStrict,
     kStoreNamedSloppy,
     kLoadProperty,
+    kLoadSuperProperty,
     kLoadGlobalNotInsideTypeof,
     kLoadGlobalInsideTypeof,
     kClosureFeedbackCell
@@ -877,6 +878,9 @@ class BytecodeGenerator::FeedbackSlotCache : public ZoneObject {
            int slot_index) {
     PutImpl(slot_kind, variable_index, name, slot_index);
   }
+  void Put(SlotKind slot_kind, const AstRawString* name, int slot_index) {
+    PutImpl(slot_kind, 0, name, slot_index);
+  }
 
   int Get(SlotKind slot_kind, Variable* variable) const {
     return GetImpl(slot_kind, 0, variable);
@@ -887,6 +891,9 @@ class BytecodeGenerator::FeedbackSlotCache : public ZoneObject {
   int Get(SlotKind slot_kind, int variable_index,
           const AstRawString* name) const {
     return GetImpl(slot_kind, variable_index, name);
+  }
+  int Get(SlotKind slot_kind, const AstRawString* name) const {
+    return GetImpl(slot_kind, 0, name);
   }
 
  private:
@@ -4726,8 +4733,9 @@ void BytecodeGenerator::VisitNamedSuperPropertyLoad(Property* property,
     builder()->StoreAccumulatorInRegister(receiver);
     VisitForAccumulatorValue(super_property->home_object());
     builder()->SetExpressionPosition(property);
-    builder()->LoadNamedPropertyFromSuper(
-        receiver, property->key()->AsLiteral()->AsRawPropertyName());
+    auto name = property->key()->AsLiteral()->AsRawPropertyName();
+    FeedbackSlot slot = GetCachedLoadSuperICSlot(name);
+    builder()->LoadNamedPropertyFromSuper(receiver, name, feedback_index(slot));
     if (opt_receiver_out.is_valid()) {
       builder()->MoveRegister(receiver, opt_receiver_out);
     }
@@ -6568,6 +6576,7 @@ FeedbackSlot BytecodeGenerator::GetCachedStoreGlobalICSlot(
 
 FeedbackSlot BytecodeGenerator::GetCachedLoadICSlot(const Expression* expr,
                                                     const AstRawString* name) {
+  DCHECK(!expr->IsSuperPropertyReference());
   if (!FLAG_ignition_share_named_property_feedback) {
     return feedback_spec()->AddLoadICSlot();
   }
@@ -6585,6 +6594,23 @@ FeedbackSlot BytecodeGenerator::GetCachedLoadICSlot(const Expression* expr,
   slot = feedback_spec()->AddLoadICSlot();
   feedback_slot_cache()->Put(slot_kind, proxy->var()->index(), name,
                              feedback_index(slot));
+  return slot;
+}
+
+FeedbackSlot BytecodeGenerator::GetCachedLoadSuperICSlot(
+    const AstRawString* name) {
+  if (!FLAG_ignition_share_named_property_feedback) {
+    return feedback_spec()->AddLoadICSlot();
+  }
+  FeedbackSlotCache::SlotKind slot_kind =
+      FeedbackSlotCache::SlotKind::kLoadSuperProperty;
+
+  FeedbackSlot slot(feedback_slot_cache()->Get(slot_kind, name));
+  if (!slot.IsInvalid()) {
+    return slot;
+  }
+  slot = feedback_spec()->AddLoadICSlot();
+  feedback_slot_cache()->Put(slot_kind, name, feedback_index(slot));
   return slot;
 }
 

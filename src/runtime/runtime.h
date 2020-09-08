@@ -605,6 +605,8 @@ namespace internal {
   F(LoadGlobalIC_Slow, 3, 1)                 \
   F(LoadIC_Miss, 4, 1)                       \
   F(LoadNoFeedbackIC_Miss, 4, 1)             \
+  F(LoadWithReceiverIC_Miss, 5, 1)           \
+  F(LoadWithReceiverNoFeedbackIC_Miss, 3, 1) \
   F(LoadPropertyWithInterceptor, 5, 1)       \
   F(StoreCallbackProperty, 5, 1)             \
   F(StoreGlobalIC_Miss, 4, 1)                \

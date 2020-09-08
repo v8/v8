@@ -2358,7 +2358,7 @@ void AccessorAssembler::GenericPropertyLoad(
     TNode<HeapObject> lookup_start_object, TNode<Map> lookup_start_object_map,
     TNode<Int32T> lookup_start_object_instance_type, const LoadICParameters* p,
     Label* slow, UseStubCache use_stub_cache) {
-  DCHECK_EQ(lookup_start_object, p->receiver_and_lookup_start_object());
+  DCHECK_EQ(lookup_start_object, p->lookup_start_object());
   ExitPoint direct_exit(this);
 
   Comment("key is unique name");
@@ -2400,6 +2400,7 @@ void AccessorAssembler::GenericPropertyLoad(
   }
 
   if (use_stub_cache == kUseStubCache) {
+    DCHECK_EQ(lookup_start_object, p->receiver_and_lookup_start_object());
     Label stub_cache(this);
     BIND(&try_stub_cache);
     // When there is no feedback vector don't use stub cache.
@@ -2780,6 +2781,59 @@ void AccessorAssembler::LoadIC(const LoadICParameters* p) {
                                 p->name(), p->slot(), p->vector());
 }
 
+void AccessorAssembler::LoadSuperIC(const LoadICParameters* p) {
+  ExitPoint direct_exit(this);
+
+  TVARIABLE(MaybeObject, var_handler);
+  Label if_handler(this, &var_handler), no_feedback(this),
+      non_inlined(this, Label::kDeferred), try_polymorphic(this),
+      miss(this, Label::kDeferred);
+
+  GotoIf(IsUndefined(p->vector()), &no_feedback);
+
+  // The lookup start object cannot be a SMI, since it's the home object's
+  // prototype, and it's not possible to set SMIs as prototypes.
+  TNode<Map> lookup_start_object_map =
+      LoadReceiverMap(p->lookup_start_object());
+  GotoIf(IsDeprecatedMap(lookup_start_object_map), &miss);
+
+  TNode<MaybeObject> feedback =
+      TryMonomorphicCase(p->slot(), CAST(p->vector()), lookup_start_object_map,
+                         &if_handler, &var_handler, &try_polymorphic);
+
+  BIND(&if_handler);
+  {
+    LazyLoadICParameters lazy_p(p);
+    HandleLoadICHandlerCase(&lazy_p, CAST(var_handler.value()), &miss,
+                            &direct_exit);
+  }
+
+  BIND(&no_feedback);
+  { LoadSuperIC_NoFeedback(p); }
+
+  BIND(&try_polymorphic);
+  TNode<HeapObject> strong_feedback = GetHeapObjectIfStrong(feedback, &miss);
+  {
+    Comment("LoadSuperIC_try_polymorphic");
+    GotoIfNot(IsWeakFixedArrayMap(LoadMap(strong_feedback)), &non_inlined);
+    HandlePolymorphicCase(lookup_start_object_map, CAST(strong_feedback),
+                          &if_handler, &var_handler, &miss);
+  }
+
+  BIND(&non_inlined);
+  {
+    // LoadIC_Noninlined can be used here, since it handles the
+    // lookup_start_object != receiver case gracefully.
+    LoadIC_Noninlined(p, lookup_start_object_map, strong_feedback, &var_handler,
+                      &if_handler, &miss, &direct_exit);
+  }
+
+  BIND(&miss);
+  direct_exit.ReturnCallRuntime(Runtime::kLoadWithReceiverIC_Miss, p->context(),
+                                p->receiver(), p->lookup_start_object(),
+                                p->name(), p->slot(), p->vector());
+}
+
 void AccessorAssembler::LoadIC_Noninlined(const LoadICParameters* p,
                                           TNode<Map> lookup_start_object_map,
                                           TNode<HeapObject> feedback,
@@ -2834,6 +2888,27 @@ void AccessorAssembler::LoadIC_NoFeedback(const LoadICParameters* p,
   {
     TailCallRuntime(Runtime::kLoadNoFeedbackIC_Miss, p->context(),
                     p->receiver(), p->name(), ic_kind);
+  }
+}
+
+void AccessorAssembler::LoadSuperIC_NoFeedback(const LoadICParameters* p) {
+  Label miss(this, Label::kDeferred);
+  TNode<Object> lookup_start_object = p->lookup_start_object();
+
+  // The lookup start object cannot be a SMI, since it's the home object's
+  // prototype, and it's not possible to set SMIs as prototypes.
+  TNode<Map> lookup_start_object_map = LoadMap(CAST(lookup_start_object));
+  GotoIf(IsDeprecatedMap(lookup_start_object_map), &miss);
+
+  TNode<Uint16T> instance_type = LoadMapInstanceType(lookup_start_object_map);
+
+  GenericPropertyLoad(CAST(lookup_start_object), lookup_start_object_map,
+                      instance_type, p, &miss, kDontUseStubCache);
+
+  BIND(&miss);
+  {
+    TailCallRuntime(Runtime::kLoadWithReceiverNoFeedbackIC_Miss, p->context(),
+                    p->receiver(), p->lookup_start_object(), p->name());
   }
 }
 
@@ -3758,6 +3833,22 @@ void AccessorAssembler::GenerateLoadICTrampoline_Megamorphic() {
 
   TailCallBuiltin(Builtins::kLoadIC_Megamorphic, context, receiver, name, slot,
                   vector);
+}
+
+void AccessorAssembler::GenerateLoadSuperIC() {
+  using Descriptor = LoadWithReceiverAndVectorDescriptor;
+
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  TNode<Object> lookup_start_object =
+      CAST(Parameter(Descriptor::kLookupStartObject));
+  TNode<Object> name = CAST(Parameter(Descriptor::kName));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<HeapObject> vector = CAST(Parameter(Descriptor::kVector));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+
+  LoadICParameters p(context, receiver, name, slot, vector,
+                     lookup_start_object);
+  LoadSuperIC(&p);
 }
 
 void AccessorAssembler::GenerateLoadGlobalIC_NoFeedback() {

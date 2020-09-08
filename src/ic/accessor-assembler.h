@@ -32,6 +32,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void GenerateLoadGlobalIC_NoFeedback();
   void GenerateLoadICTrampoline();
   void GenerateLoadICTrampoline_Megamorphic();
+  void GenerateLoadSuperIC();
   void GenerateKeyedLoadIC();
   void GenerateKeyedLoadIC_Megamorphic();
   void GenerateKeyedLoadIC_PolymorphicName();
@@ -250,11 +251,15 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   // LoadIC contains the full LoadIC logic, while LoadIC_Noninlined contains
   // logic not inlined into Ignition bytecode handlers.
   void LoadIC(const LoadICParameters* p);
+
+  // Can be used in the receiver != lookup_start_object case.
   void LoadIC_Noninlined(const LoadICParameters* p,
                          TNode<Map> lookup_start_object_map,
                          TNode<HeapObject> feedback,
                          TVariable<MaybeObject>* var_handler, Label* if_handler,
                          Label* miss, ExitPoint* exit_point);
+
+  void LoadSuperIC(const LoadICParameters* p);
 
   TNode<Object> LoadDescriptorValue(TNode<Map> map,
                                     TNode<IntPtrT> descriptor_entry);
@@ -262,6 +267,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
       TNode<Map> map, TNode<IntPtrT> descriptor_entry);
 
   void LoadIC_NoFeedback(const LoadICParameters* p, TNode<Smi> smi_typeof_mode);
+  void LoadSuperIC_NoFeedback(const LoadICParameters* p);
   void LoadGlobalIC_NoFeedback(TNode<Context> context, TNode<Object> name,
                                TNode<Smi> smi_typeof_mode);
 

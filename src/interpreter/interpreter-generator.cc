@@ -553,18 +553,23 @@ IGNITION_HANDLER(LdaNamedPropertyNoFeedback, InterpreterAssembler) {
   Dispatch();
 }
 
-// LdaNamedPropertyFromSuper <receiver> <name_index>
+// LdaNamedPropertyFromSuper <receiver> <name_index> <slot>
 //
-// Calls the LoadFromSuper runtime function for <receiver>, home object (in the
-// accumulator) and the name at constant pool entry <name_index>.
+// Calls the LoadSuperIC at FeedBackVector slot <slot> for <receiver>, home
+// object's prototype (home object in the accumulator) and the name at constant
+// pool entry <name_index>.
 IGNITION_HANDLER(LdaNamedPropertyFromSuper, InterpreterAssembler) {
   TNode<Object> receiver = LoadRegisterAtOperandIndex(0);
-  TNode<Object> home_object = GetAccumulator();
+  TNode<HeapObject> home_object = CAST(GetAccumulator());
+  TNode<Object> home_object_prototype = LoadMapPrototype(LoadMap(home_object));
   TNode<Object> name = LoadConstantPoolEntryAtOperandIndex(1);
+  TNode<TaggedIndex> slot = BytecodeOperandIdxTaggedIndex(2);
+  TNode<HeapObject> feedback_vector = LoadFeedbackVector();
   TNode<Context> context = GetContext();
 
-  TNode<Object> result = CallRuntime(Runtime::kLoadFromSuper, context, receiver,
-                                     home_object, name);
+  TNode<Object> result =
+      CallBuiltin(Builtins::kLoadSuperIC, context, receiver,
+                  home_object_prototype, name, slot, feedback_vector);
   SetAccumulator(result);
   Dispatch();
 }

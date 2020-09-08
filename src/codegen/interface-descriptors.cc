@@ -221,6 +221,16 @@ void LoadGlobalWithVectorDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void LoadWithReceiverAndVectorDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DCHECK(!AreAliased(ReceiverRegister(), LookupStartObjectRegister(),
+                     NameRegister(), SlotRegister(), VectorRegister()));
+  Register registers[] = {ReceiverRegister(), LookupStartObjectRegister(),
+                          NameRegister(), SlotRegister(), VectorRegister()};
+  int len = arraysize(registers) - kStackArgumentsCount;
+  data->InitializePlatformSpecific(len, registers);
+}
+
 void StoreGlobalDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {NameRegister(), ValueRegister(), SlotRegister()};

@@ -383,8 +383,13 @@ void IC::ConfigureVectorState(
 }
 
 MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name,
-                                 bool update_feedback) {
+                                 bool update_feedback,
+                                 Handle<Object> receiver) {
   bool use_ic = (state() != NO_FEEDBACK) && FLAG_use_ic && update_feedback;
+
+  if (receiver.is_null()) {
+    receiver = object;
+  }
 
   // If the object is undefined or null it's illegal to try to get any
   // of its properties; throw a TypeError in that case.
@@ -418,7 +423,8 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name,
   update_receiver_map(object);
 
   LookupIterator::Key key(isolate(), name);
-  LookupIterator it(isolate(), object, key);
+  LookupIterator it =
+      LookupIterator::LookupWithReceiver(isolate(), receiver, key, object);
 
   // Named lookup in the object.
   LookupForRead(&it, IsAnyHas());
@@ -2338,6 +2344,21 @@ RUNTIME_FUNCTION(Runtime_LoadNoFeedbackIC_Miss) {
   RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
 }
 
+RUNTIME_FUNCTION(Runtime_LoadWithReceiverNoFeedbackIC_Miss) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  // Runtime functions don't follow the IC's calling convention.
+  Handle<Object> receiver = args.at(0);
+  Handle<Object> object = args.at(1);
+  Handle<Name> key = args.at<Name>(2);
+
+  Handle<FeedbackVector> vector = Handle<FeedbackVector>();
+  FeedbackSlot vector_slot = FeedbackSlot::Invalid();
+  LoadIC ic(isolate, vector, vector_slot, FeedbackSlotKind::kLoadProperty);
+  ic.UpdateState(object, key);
+  RETURN_RESULT_OR_FAILURE(isolate, ic.Load(object, key, true, receiver));
+}
+
 RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
@@ -2381,6 +2402,23 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Slow) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, ic.Load(name, false));
   return *result;
+}
+
+RUNTIME_FUNCTION(Runtime_LoadWithReceiverIC_Miss) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(5, args.length());
+  // Runtime functions don't follow the IC's calling convention.
+  Handle<Object> receiver = args.at(0);
+  Handle<Object> object = args.at(1);
+  Handle<Name> key = args.at<Name>(2);
+  Handle<TaggedIndex> slot = args.at<TaggedIndex>(3);
+  Handle<FeedbackVector> vector = args.at<FeedbackVector>(4);
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
+
+  DCHECK(IsLoadICKind(vector->GetKind(vector_slot)));
+  LoadIC ic(isolate, vector, vector_slot, FeedbackSlotKind::kLoadProperty);
+  ic.UpdateState(object, key);
+  RETURN_RESULT_OR_FAILURE(isolate, ic.Load(object, key, true, receiver));
 }
 
 RUNTIME_FUNCTION(Runtime_KeyedLoadIC_Miss) {
