@@ -79,13 +79,7 @@ int LiftoffAssembler::SlotSizeForType(ValueType type) {
 }
 
 bool LiftoffAssembler::NeedsAlignment(ValueType type) {
-  switch (type.kind()) {
-    case ValueType::kS128:
-      return true;
-    default:
-      // No alignment because all other types are kStackSlotSize.
-      return false;
-  }
+  return (type.kind() == ValueType::kS128 || type.is_reference_type());
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
