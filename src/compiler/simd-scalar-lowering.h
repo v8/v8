@@ -6,6 +6,7 @@
 #define V8_COMPILER_SIMD_SCALAR_LOWERING_H_
 
 #include "src/compiler/common-operator.h"
+#include "src/compiler/diamond.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/machine-graph.h"
 #include "src/compiler/machine-operator.h"
@@ -89,6 +90,8 @@ class SimdScalarLowering {
   void LowerStoreOp(Node* node);
   void LowerBinaryOp(Node* node, SimdType input_rep_type, const Operator* op,
                      bool not_horizontal = true);
+  Node* ConstructPhiForComparison(Diamond d, SimdType rep_type, int true_value,
+                                  int false_value);
   void LowerCompareOp(Node* node, SimdType input_rep_type, const Operator* op,
                       bool invert_inputs = false);
   Node* FixUpperBits(Node* input, int32_t shift);
