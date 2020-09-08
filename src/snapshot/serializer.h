@@ -176,6 +176,9 @@ class Serializer : public SerializerDeserializer {
   Isolate* isolate() const { return isolate_; }
 
  protected:
+  using PendingObjectReference =
+      std::map<HeapObject, std::vector<int>>::iterator;
+
   class ObjectSerializer;
   class RecursionScope {
    public:
@@ -212,7 +215,7 @@ class Serializer : public SerializerDeserializer {
 
   // Emit a marker noting that this slot is a forward reference to the an
   // object which has not yet been serialized.
-  int PutPendingForwardReference();
+  void PutPendingForwardReferenceTo(PendingObjectReference reference);
   // Resolve the given previously registered forward reference to the current
   // object.
   void ResolvePendingForwardReference(int obj);
@@ -251,13 +254,10 @@ class Serializer : public SerializerDeserializer {
   Code CopyCode(Code code);
 
   void QueueDeferredObject(HeapObject obj) {
-    DCHECK(reference_map_.LookupReference(reinterpret_cast<void*>(obj.ptr()))
-               .is_back_reference());
+    DCHECK(!reference_map_.LookupReference(reinterpret_cast<void*>(obj.ptr()))
+                .is_valid());
     deferred_objects_.push_back(obj);
   }
-
-  using PendingObjectReference =
-      std::map<HeapObject, std::vector<int>>::iterator;
 
   // Register that the the given object shouldn't be immediately serialized, but
   // will be serialized later and any references to it should be pending forward
