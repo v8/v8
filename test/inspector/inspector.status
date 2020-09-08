@@ -22,6 +22,12 @@
 }],  # ALWAYS
 
 ##############################################################################
+['arch == x64 and mode == debug', {
+  # https://crbug.com/v8/10876
+  'debugger/pause-on-oom-extrawide': [SKIP],
+}],  # 'arch == x64 and mode == debug'
+
+##############################################################################
 ['system == android', {
   # https://crbug.com/v8/8197
   'debugger/get-possible-breakpoints-class-fields': [SKIP],
