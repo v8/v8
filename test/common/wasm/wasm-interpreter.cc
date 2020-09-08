@@ -3268,6 +3268,9 @@ class WasmInterpreterInternals {
         } break;
 
         case kExprReturnCall: {
+          // Make return calls more expensive, so that return call recursions
+          // don't cause a timeout.
+          if (max > 0) max = std::max(0, max - 100);
           CallFunctionImmediate<Decoder::kNoValidate> imm(&decoder,
                                                           code->at(pc + 1));
           InterpreterCode* target = codemap_.GetCode(imm.index);
@@ -3280,6 +3283,9 @@ class WasmInterpreterInternals {
         } break;
 
         case kExprReturnCallIndirect: {
+          // Make return calls more expensive, so that return call recursions
+          // don't cause a timeout.
+          if (max > 0) max = std::max(0, max - 100);
           CallIndirectImmediate<Decoder::kNoValidate> imm(
               WasmFeatures::All(), &decoder, code->at(pc + 1));
           uint32_t entry_index = Pop().to<uint32_t>();
