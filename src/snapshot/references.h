@@ -17,7 +17,6 @@ namespace internal {
 // and CODE_LO_SPACE) are not supported.
 enum class SnapshotSpace : byte {
   kReadOnlyHeap = RO_SPACE,
-  kNew = NEW_SPACE,
   kOld = OLD_SPACE,
   kCode = CODE_SPACE,
   kMap = MAP_SPACE,

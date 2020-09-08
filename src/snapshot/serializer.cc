@@ -662,7 +662,7 @@ SnapshotSpace GetSnapshotSpace(HeapObject object) {
     } else if (object.IsMap()) {
       return SnapshotSpace::kMap;
     } else {
-      return SnapshotSpace::kNew;  // avoid new/young distinction in TPH
+      return SnapshotSpace::kOld;  // avoid new/young distinction in TPH
     }
   } else if (ReadOnlyHeap::Contains(object)) {
     return SnapshotSpace::kReadOnlyHeap;
