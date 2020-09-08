@@ -659,15 +659,6 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                         offset_imm, LoadType::kI32Load, pinned);
 }
 
-void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
-                                          Register offset_reg,
-                                          int32_t offset_imm,
-                                          LiftoffRegister src,
-                                          LiftoffRegList pinned) {
-  STATIC_ASSERT(kTaggedSize == kInt32Size);
-  Store(dst_addr, offset_reg, offset_imm, src, StoreType::kI32Store, pinned);
-}
-
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LiftoffRegList pinned,

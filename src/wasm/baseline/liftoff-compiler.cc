@@ -1813,30 +1813,8 @@ class LiftoffCompiler {
   void GlobalGet(FullDecoder* decoder, Value* result,
                  const GlobalIndexImmediate<validate>& imm) {
     const auto* global = &env_->module->globals[imm.index];
-    if (!CheckSupportedType(decoder,
-                            FLAG_liftoff_extern_ref
-                                ? kSupportedTypes
-                                : kSupportedTypesWithoutRefs,
-                            global->type, "global")) {
-      return;
-    }
-
-    if (global->type.is_reference_type()) {
-      if (global->mutability && global->imported) {
-        unsupported(decoder, kRefTypes, "imported mutable globals");
-        return;
-      }
-
-      LiftoffRegList pinned;
-      Register globals_buffer =
-          pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-      LOAD_TAGGED_PTR_INSTANCE_FIELD(globals_buffer, TaggedGlobalsBuffer);
-      Register value = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-      __ LoadTaggedPointer(value, globals_buffer, no_reg,
-                           wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
-                               imm.global->offset),
-                           pinned);
-      __ PushRegister(global->type, LiftoffRegister(value));
+    if (!CheckSupportedType(decoder, kSupportedTypesWithoutRefs, global->type,
+                            "global")) {
       return;
     }
     LiftoffRegList pinned;
@@ -1852,31 +1830,9 @@ class LiftoffCompiler {
   void GlobalSet(FullDecoder* decoder, const Value& value,
                  const GlobalIndexImmediate<validate>& imm) {
     auto* global = &env_->module->globals[imm.index];
-    if (!CheckSupportedType(decoder,
-                            FLAG_liftoff_extern_ref
-                                ? kSupportedTypes
-                                : kSupportedTypesWithoutRefs,
-                            global->type, "global")) {
+    if (!CheckSupportedType(decoder, kSupportedTypesWithoutRefs, global->type,
+                            "global"))
       return;
-    }
-
-    if (global->type.is_reference_type()) {
-      if (global->mutability && global->imported) {
-        unsupported(decoder, kRefTypes, "imported mutable globals");
-        return;
-      }
-
-      LiftoffRegList pinned;
-      Register globals_buffer =
-          pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-      LOAD_TAGGED_PTR_INSTANCE_FIELD(globals_buffer, TaggedGlobalsBuffer);
-      LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
-      __ StoreTaggedPointer(globals_buffer, no_reg,
-                            wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
-                                imm.global->offset),
-                            value, pinned);
-      return;
-    }
     LiftoffRegList pinned;
     uint32_t offset = 0;
     Register addr = GetGlobalBaseAndOffset(global, &pinned, &offset);
