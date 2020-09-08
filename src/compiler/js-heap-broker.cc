@@ -696,7 +696,9 @@ class HeapNumberData : public HeapObjectData {
  public:
   HeapNumberData(JSHeapBroker* broker, ObjectData** storage,
                  Handle<HeapNumber> object)
-      : HeapObjectData(broker, storage, object), value_(object->value()) {}
+      : HeapObjectData(broker, storage, object), value_(object->value()) {
+    DCHECK(!FLAG_turbo_direct_heap_access);
+  }
 
   double value() const { return value_; }
 
@@ -3318,8 +3320,13 @@ Handle<Object> JSHeapBroker::GetRootHandle(Object object) {
   return Handle<Object>(isolate()->root_handle(root_index).location());
 }
 
+// We can special case kNeverSerializedHeapObject (which is included in
+// data_->should_access_heap()) to avoid the Allow scopes that we need for the
+// other kinds accepted in should_access_heap().
 #define IF_ACCESS_FROM_HEAP_C(name)                                      \
-  if (data_->should_access_heap()) {                                     \
+  if (data_->kind() == ObjectDataKind::kNeverSerializedHeapObject) {     \
+    return object()->name();                                             \
+  } else if (data_->should_access_heap()) {                              \
     AllowHandleAllocationIf handle_allocation(data_->kind(),             \
                                               broker()->mode());         \
     AllowHandleDereferenceIf allow_handle_dereference(data_->kind(),     \
@@ -3388,6 +3395,8 @@ BIMODAL_ACCESSOR(Cell, Object, value)
 BIMODAL_ACCESSOR_C(FeedbackVector, double, invocation_count)
 
 BIMODAL_ACCESSOR(HeapObject, Map, map)
+
+BIMODAL_ACCESSOR_C(HeapNumber, double, value)
 
 BIMODAL_ACCESSOR(JSArray, Object, length)
 
@@ -3927,11 +3936,6 @@ base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
       data()->AsJSArray()->GetOwnElement(broker(), index, policy);
   if (element == nullptr) return base::nullopt;
   return ObjectRef(broker(), element);
-}
-
-double HeapNumberRef::value() const {
-  IF_ACCESS_FROM_HEAP_C(value);
-  return data()->AsHeapNumber()->value();
 }
 
 uint64_t BigIntRef::AsUint64() const {

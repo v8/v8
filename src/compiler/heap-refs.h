@@ -56,7 +56,9 @@ enum class OddballType : uint8_t {
 // FLAG_turbo_direct_heap_access is on. Otherwise, they might get serialized.
 #define HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(V) \
   /* Subtypes of FixedArrayBase */                  \
-  V(FixedDoubleArray)
+  V(FixedDoubleArray)                               \
+  /* Subtypes of HeapObject */                      \
+  V(HeapNumber)
 
 // This list is sorted such that subtypes appear before their supertypes.
 // DO NOT VIOLATE THIS PROPERTY!
@@ -99,7 +101,6 @@ enum class OddballType : uint8_t {
   V(FeedbackVector)                           \
   V(FixedArrayBase)                           \
   V(FunctionTemplateInfo)                     \
-  V(HeapNumber)                               \
   V(JSReceiver)                               \
   V(Map)                                      \
   V(Name)                                     \
