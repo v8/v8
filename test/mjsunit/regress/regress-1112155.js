@@ -17,3 +17,16 @@ v.b = {x: 20};
 assertEquals(f(v).x, 20);
 // Must deoptimize because of field-rep changes for field 'b'
 assertUnoptimized(f);
+
+function f0(v) {
+  return v.b;
+}
+var v0 = { b: 10.23 };
+%PrepareFunctionForOptimization(f0);
+f0(v0);
+// Transition the field to an Smi field.
+v0.b = {};
+v0.b = 0;
+%OptimizeFunctionOnNextCall(f0);
+f0(v0);
+assertEquals(f0(v0), 0);

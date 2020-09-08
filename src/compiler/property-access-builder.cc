@@ -199,18 +199,19 @@ Node* PropertyAccessBuilder::BuildLoadDataField(NameRef const& name,
       MachineRepresentation::kFloat64) {
     bool const is_heapnumber = !is_inobject || !FLAG_unbox_double_fields;
     if (is_heapnumber) {
-      FieldAccess const storage_access = {kTaggedBase,
-                                          field_access.offset,
-                                          name.object(),
-                                          MaybeHandle<Map>(),
-                                          Type::OtherInternal(),
-                                          MachineType::TaggedPointer(),
-                                          kPointerWriteBarrier,
-                                          LoadSensitivity::kCritical,
-                                          field_access.const_field_info};
-      storage = *effect = graph()->NewNode(
-          simplified()->LoadField(storage_access), storage, *effect, *control);
       if (dependencies() == nullptr) {
+        FieldAccess const storage_access = {kTaggedBase,
+                                            field_access.offset,
+                                            name.object(),
+                                            MaybeHandle<Map>(),
+                                            Type::Any(),
+                                            MachineType::AnyTagged(),
+                                            kPointerWriteBarrier,
+                                            LoadSensitivity::kCritical,
+                                            field_access.const_field_info};
+        storage = *effect =
+            graph()->NewNode(simplified()->LoadField(storage_access), storage,
+                             *effect, *control);
         // We expect the loaded value to be a heap number here. With
         // in-place field representation changes it is possible this is a
         // no longer a heap number without map transitions. If we haven't taken
@@ -227,6 +228,19 @@ Node* PropertyAccessBuilder::BuildLoadDataField(NameRef const& name,
         *effect = graph()->NewNode(
             simplified()->CheckIf(DeoptimizeReason::kNotAHeapNumber),
             is_heap_number, *effect, *control);
+      } else {
+        FieldAccess const storage_access = {kTaggedBase,
+                                            field_access.offset,
+                                            name.object(),
+                                            MaybeHandle<Map>(),
+                                            Type::OtherInternal(),
+                                            MachineType::TaggedPointer(),
+                                            kPointerWriteBarrier,
+                                            LoadSensitivity::kCritical,
+                                            field_access.const_field_info};
+        storage = *effect =
+            graph()->NewNode(simplified()->LoadField(storage_access), storage,
+                             *effect, *control);
       }
       field_access.offset = HeapNumber::kValueOffset;
       field_access.name = MaybeHandle<Name>();
