@@ -37,10 +37,22 @@ Test(/\w\d/, "?a??a3!!!", ["a3"], 0);
 // surrogate characters that make up 💩.  The leading surrogate is 0xD83D.
 Test(/[💩]/, "f💩", [String.fromCodePoint(0xD83D)], 0);
 
-// Greedy quantifier for 0 or more matches.
+// Greedy and non-greedy quantifiers.
 Test(/x*/, "asdfxk", [""], 0);
 Test(/xx*a/, "xxa", ["xxa"], 0);
-Test(/asdf*/, "aasdfffk", ["asdfff"], 0);
+Test(/x*[xa]/, "xxaa", ["xxa"], 0);
+Test(/x*?[xa]/, "xxaa", ["x"], 0);
+Test(/x*?a/, "xxaa", ["xxa"], 0);
+Test(/x+a/, "axxa", ["xxa"], 0);
+Test(/x+?[ax]/, "axxa", ["xx"], 0);
+Test(/xx?[xa]/, "xxaa", ["xxa"], 0);
+Test(/xx??[xa]/, "xxaa", ["xx"], 0);
+Test(/xx??a/, "xxaa", ["xxa"], 0);
+Test(/x{4}/, "xxxxxxxxx", ["xxxx"], 0);
+Test(/x{4,}/, "xxxxxxxxx", ["xxxxxxxxx"], 0);
+Test(/x{4,}?/, "xxxxxxxxx", ["xxxx"], 0);
+Test(/x{2,4}/, "xxxxxxxxx", ["xxxx"], 0);
+Test(/x{2,4}?/, "xxxxxxxxx", ["xx"], 0);
 
 // Non-capturing groups and nested operators.
 Test(/(?:)/, "asdf", [""], 0);
