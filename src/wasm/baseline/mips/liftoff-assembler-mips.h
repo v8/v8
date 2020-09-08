@@ -61,8 +61,6 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
   MemOperand src(base, offset);
   switch (type.kind()) {
     case ValueType::kI32:
-    case ValueType::kRef:
-    case ValueType::kOptRef:
       assm->lw(dst.gp(), src);
       break;
     case ValueType::kI64:
@@ -332,7 +330,13 @@ int LiftoffAssembler::SlotSizeForType(ValueType type) {
 }
 
 bool LiftoffAssembler::NeedsAlignment(ValueType type) {
-  return type.kind() == ValueType::kS128 || type.is_reference_type();
+  switch (type.kind()) {
+    case ValueType::kS128:
+      return true;
+    default:
+      // No alignment because all other types are kStackSlotSize.
+      return false;
+  }
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
@@ -647,8 +651,6 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
   MemOperand dst = liftoff::GetStackSlot(offset);
   switch (type.kind()) {
     case ValueType::kI32:
-    case ValueType::kRef:
-    case ValueType::kOptRef:
       sw(reg.gp(), dst);
       break;
     case ValueType::kI64:
@@ -699,8 +701,6 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueType type) {
   MemOperand src = liftoff::GetStackSlot(offset);
   switch (type.kind()) {
     case ValueType::kI32:
-    case ValueType::kRef:
-    case ValueType::kOptRef:
       lw(reg.gp(), src);
       break;
     case ValueType::kI64:

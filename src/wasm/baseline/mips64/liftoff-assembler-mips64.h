@@ -53,8 +53,6 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
       assm->lw(dst.gp(), src);
       break;
     case ValueType::kI64:
-    case ValueType::kRef:
-    case ValueType::kOptRef:
       assm->ld(dst.gp(), src);
       break;
     case ValueType::kF32:
@@ -297,7 +295,13 @@ int LiftoffAssembler::SlotSizeForType(ValueType type) {
 }
 
 bool LiftoffAssembler::NeedsAlignment(ValueType type) {
-  return type.kind() == ValueType::kS128 || type.is_reference_type();
+  switch (type.kind()) {
+    case ValueType::kS128:
+      return true;
+    default:
+      // No alignment because all other types are kStackSlotSize.
+      return false;
+  }
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
@@ -584,8 +588,6 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
       Sw(reg.gp(), dst);
       break;
     case ValueType::kI64:
-    case ValueType::kRef:
-    case ValueType::kOptRef:
       Sd(reg.gp(), dst);
       break;
     case ValueType::kF32:
@@ -612,9 +614,7 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
       sw(tmp.gp(), dst);
       break;
     }
-    case ValueType::kI64:
-    case ValueType::kRef:
-    case ValueType::kOptRef: {
+    case ValueType::kI64: {
       LiftoffRegister tmp = GetUnusedRegister(kGpReg, {});
       TurboAssembler::li(tmp.gp(), value.to_i64());
       sd(tmp.gp(), dst);
@@ -634,8 +634,6 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueType type) {
       Lw(reg.gp(), src);
       break;
     case ValueType::kI64:
-    case ValueType::kRef:
-    case ValueType::kOptRef:
       Ld(reg.gp(), src);
       break;
     case ValueType::kF32:

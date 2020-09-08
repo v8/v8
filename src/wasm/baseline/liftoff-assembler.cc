@@ -488,21 +488,6 @@ void LiftoffAssembler::CacheState::Split(const CacheState& source) {
   *this = source;
 }
 
-void LiftoffAssembler::CacheState::DefineSafepoint(Safepoint& safepoint) {
-  for (auto slot : stack_state) {
-    DCHECK(!slot.is_reg());
-
-    if (slot.type().is_reference_type()) {
-      // index = 0 is for the stack slot at 'fp - kSystemPointerSize', the
-      // location of the current stack slot is 'fp - slot.offset()'.
-      // The index we need is therefore '(fp - kSystemPointerSize) - (fp -
-      // slot.offset())' = 'slot.offset() - kSystemPointerSize'.
-      auto index = (slot.offset() - kSystemPointerSize) / kSystemPointerSize;
-      safepoint.DefinePointerSlot(index);
-    }
-  }
-}
-
 namespace {
 
 constexpr AssemblerOptions DefaultLiftoffOptions() {

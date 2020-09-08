@@ -50,8 +50,6 @@ inline CPURegister GetRegFromType(const LiftoffRegister& reg, ValueType type) {
     case ValueType::kI32:
       return reg.gp().W();
     case ValueType::kI64:
-    case ValueType::kRef:
-    case ValueType::kOptRef:
       return reg.gp().X();
     case ValueType::kF32:
       return reg.fp().S();
@@ -278,7 +276,13 @@ int LiftoffAssembler::SlotSizeForType(ValueType type) {
 }
 
 bool LiftoffAssembler::NeedsAlignment(ValueType type) {
-  return type.kind() == ValueType::kS128 || type.is_reference_type();
+  switch (type.kind()) {
+    case ValueType::kS128:
+      return true;
+    default:
+      // No alignment because all other types are kStackSlotSize.
+      return false;
+  }
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
@@ -731,7 +735,7 @@ void LiftoffAssembler::Move(Register dst, Register src, ValueType type) {
   if (type == kWasmI32) {
     Mov(dst.W(), src.W());
   } else {
-    DCHECK(kWasmI64 == type || type.is_reference_type());
+    DCHECK_EQ(kWasmI64, type);
     Mov(dst.X(), src.X());
   }
 }

@@ -120,16 +120,10 @@ compiler::CallDescriptor* GetLoweredCallDescriptor(
              : call_desc;
 }
 
-constexpr ValueType kSupportedTypesArr[] = {
-    kWasmI32,  kWasmI64,       kWasmF32,    kWasmF64,
-    kWasmS128, kWasmExternRef, kWasmFuncRef};
+constexpr ValueType kSupportedTypesArr[] = {kWasmI32, kWasmI64, kWasmF32,
+                                            kWasmF64, kWasmS128};
 constexpr Vector<const ValueType> kSupportedTypes =
     ArrayVector(kSupportedTypesArr);
-
-constexpr ValueType kSupportedTypesWithoutRefsArr[] = {
-    kWasmI32, kWasmI64, kWasmF32, kWasmF64, kWasmS128};
-constexpr Vector<const ValueType> kSupportedTypesWithoutRefs =
-    ArrayVector(kSupportedTypesWithoutRefsArr);
 
 constexpr Condition GetCompareCondition(WasmOpcode opcode) {
   switch (opcode) {
@@ -377,8 +371,8 @@ class LiftoffCompiler {
         Vector<const uint8_t>::cast(VectorOf(protected_instructions_)));
   }
 
-  uint32_t GetTotalFrameSlotCountForGC() const {
-    return __ GetTotalFrameSlotCountForGC();
+  uint32_t GetTotalFrameSlotCount() const {
+    return __ GetTotalFrameSlotCount();
   }
 
   void unsupported(FullDecoder* decoder, LiftoffBailoutReason reason,
@@ -541,7 +535,7 @@ class LiftoffCompiler {
 
   void TierUpFunction(FullDecoder* decoder) {
     __ CallRuntimeStub(WasmCode::kWasmTriggerTierUp);
-    DefineSafepoint();
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
   }
 
   void TraceFunctionEntry(FullDecoder* decoder) {
@@ -550,16 +544,13 @@ class LiftoffCompiler {
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(decoder->position()), false);
     __ CallRuntimeStub(WasmCode::kWasmTraceEnter);
-    DefineSafepoint();
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
   }
 
   void StartFunctionBody(FullDecoder* decoder, Control* block) {
     for (uint32_t i = 0; i < __ num_locals(); ++i) {
-      if (!CheckSupportedType(decoder,
-                              FLAG_liftoff_extern_ref
-                                  ? kSupportedTypes
-                                  : kSupportedTypesWithoutRefs,
-                              __ local_type(i), "param"))
+      if (!CheckSupportedType(decoder, kSupportedTypes, __ local_type(i),
+                              "param"))
         return;
     }
 
@@ -620,25 +611,6 @@ class LiftoffCompiler {
       }
     }
 
-    if (FLAG_liftoff_extern_ref) {
-      // Initialize all reference type locals with ref.null.
-      for (uint32_t param_idx = num_params; param_idx < __ num_locals();
-           ++param_idx) {
-        ValueType type = decoder->local_type(param_idx);
-        if (type.is_reference_type()) {
-          Register isolate_root = __ GetUnusedRegister(kGpReg, {}).gp();
-          // We can re-use the isolate_root register as result register.
-          Register result = isolate_root;
-
-          LOAD_INSTANCE_FIELD(isolate_root, IsolateRoot, kSystemPointerSize);
-          __ LoadTaggedPointer(
-              result, isolate_root, no_reg,
-              IsolateData::root_slot_offset(RootIndex::kNullValue), {});
-          __ Spill(__ cache_state()->stack_state.back().offset(),
-                   LiftoffRegister(result), type);
-        }
-      }
-    }
     DCHECK_EQ(__ num_locals(), __ cache_state()->stack_height());
 
     if (V8_UNLIKELY(debug_sidetable_builder_)) {
@@ -756,12 +728,11 @@ class LiftoffCompiler {
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(ool->position), true);
     __ CallRuntimeStub(ool->stub);
-    // TODO(ahaas): Define a proper safepoint here.
-    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
     DCHECK_EQ(!debug_sidetable_builder_, !ool->debug_sidetable_entry_builder);
     if (V8_UNLIKELY(ool->debug_sidetable_entry_builder)) {
       ool->debug_sidetable_entry_builder->set_pc_offset(__ pc_offset());
     }
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
     DCHECK_EQ(ool->continuation.get()->is_bound(), is_stack_check);
     if (!ool->regs_to_save.is_empty()) __ PopRegisters(ool->regs_to_save);
     if (is_stack_check) {
@@ -785,7 +756,7 @@ class LiftoffCompiler {
     __ PatchPrepareStackFrame(pc_offset_stack_frame_construction_,
                               __ GetTotalFrameSize());
     __ FinishCode();
-    safepoint_table_builder_.Emit(&asm_, __ GetTotalFrameSlotCountForGC());
+    safepoint_table_builder_.Emit(&asm_, __ GetTotalFrameSlotCount());
     __ MaybeEmitOutOfLineConstantPool();
     // The previous calls may have also generated a bailout.
     DidAssemblerBailout(decoder);
@@ -854,9 +825,8 @@ class LiftoffCompiler {
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(decoder->position()), true);
     __ CallRuntimeStub(WasmCode::kWasmDebugBreak);
-    // TODO(ahaas): Define a proper safepoint here.
-    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
     RegisterDebugSideTableEntry(DebugSideTableBuilder::kAllowRegisters);
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
   }
 
   void Block(FullDecoder* decoder, Control* block) {}
@@ -1631,10 +1601,6 @@ class LiftoffCompiler {
   }
 
   void RefNull(FullDecoder* decoder, ValueType type, Value*) {
-    if (!FLAG_liftoff_extern_ref) {
-      unsupported(decoder, kRefTypes, "ref_null");
-      return;
-    }
     Register isolate_root = __ GetUnusedRegister(kGpReg, {}).gp();
     // We can re-use the isolate_root register as result register.
     Register result = isolate_root;
@@ -1692,7 +1658,7 @@ class LiftoffCompiler {
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(decoder->position()), false);
     __ CallRuntimeStub(WasmCode::kWasmTraceExit);
-    DefineSafepoint();
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
 
     __ DeallocateStackSlot(sizeof(int64_t));
   }
@@ -1813,10 +1779,8 @@ class LiftoffCompiler {
   void GlobalGet(FullDecoder* decoder, Value* result,
                  const GlobalIndexImmediate<validate>& imm) {
     const auto* global = &env_->module->globals[imm.index];
-    if (!CheckSupportedType(decoder, kSupportedTypesWithoutRefs, global->type,
-                            "global")) {
+    if (!CheckSupportedType(decoder, kSupportedTypes, global->type, "global"))
       return;
-    }
     LiftoffRegList pinned;
     uint32_t offset = 0;
     Register addr = GetGlobalBaseAndOffset(global, &pinned, &offset);
@@ -1830,8 +1794,7 @@ class LiftoffCompiler {
   void GlobalSet(FullDecoder* decoder, const Value& value,
                  const GlobalIndexImmediate<validate>& imm) {
     auto* global = &env_->module->globals[imm.index];
-    if (!CheckSupportedType(decoder, kSupportedTypesWithoutRefs, global->type,
-                            "global"))
+    if (!CheckSupportedType(decoder, kSupportedTypes, global->type, "global"))
       return;
     LiftoffRegList pinned;
     uint32_t offset = 0;
@@ -2172,7 +2135,7 @@ class LiftoffCompiler {
     source_position_table_builder_.AddPosition(__ pc_offset(),
                                                SourcePosition(position), false);
     __ CallRuntimeStub(WasmCode::kWasmTraceMemory);
-    DefineSafepoint();
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
 
     __ DeallocateStackSlot(sizeof(MemoryTracingInfo));
   }
@@ -2348,8 +2311,8 @@ class LiftoffCompiler {
     if (input.gp() != param_reg) __ Move(param_reg, input.gp(), kWasmI32);
 
     __ CallRuntimeStub(WasmCode::kWasmMemoryGrow);
-    DefineSafepoint();
     RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
 
     if (kReturnRegister0 != result.gp()) {
       __ Move(result.gp(), kReturnRegister0, kWasmI32);
@@ -3185,11 +3148,12 @@ class LiftoffCompiler {
     __ PrepareBuiltinCall(&sig, call_descriptor,
                           {index, expected_value, timeout});
     __ CallRuntimeStub(target);
-    DefineSafepoint();
+
     // Pop parameters from the value stack.
     __ cache_state()->stack_state.pop_back(3);
 
     RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
 
     __ PushRegister(kWasmI32, LiftoffRegister(kReturnRegister0));
   }
@@ -3221,8 +3185,8 @@ class LiftoffCompiler {
          {descriptor.GetRegisterParameter(1), count, kWasmI32}});
 
     __ CallRuntimeStub(WasmCode::kWasmAtomicNotify);
-    DefineSafepoint();
     RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
 
     __ PushRegister(kWasmI32, LiftoffRegister(kReturnRegister0));
   }
@@ -3492,12 +3456,12 @@ class LiftoffCompiler {
     __ PrepareBuiltinCall(&sig, call_descriptor,
                           {dst, src, size, table_index, segment_index});
     __ CallRuntimeStub(target);
-    DefineSafepoint();
 
     // Pop parameters from the value stack.
     __ cache_state()->stack_state.pop_back(3);
 
     RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
   }
 
   void ElemDrop(FullDecoder* decoder, const ElemDropImmediate<validate>& imm) {
@@ -3562,12 +3526,12 @@ class LiftoffCompiler {
     __ PrepareBuiltinCall(&sig, call_descriptor,
                           {dst, src, size, table_dst_index, table_src_index});
     __ CallRuntimeStub(target);
-    DefineSafepoint();
 
     // Pop parameters from the value stack.
     __ cache_state()->stack_state.pop_back(3);
 
     RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
   }
 
   void TableGrow(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
@@ -3690,11 +3654,7 @@ class LiftoffCompiler {
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[], Value returns[], CallKind call_kind) {
     for (ValueType ret : imm.sig->returns()) {
-      if (!CheckSupportedType(decoder,
-                              FLAG_liftoff_extern_ref
-                                  ? kSupportedTypes
-                                  : kSupportedTypesWithoutRefs,
-                              ret, "return")) {
+      if (!CheckSupportedType(decoder, kSupportedTypes, ret, "return")) {
         // TODO(7581): Remove this once reference-types are full supported.
         if (!ret.is_reference_type()) {
           return;
@@ -3759,8 +3719,8 @@ class LiftoffCompiler {
       }
     }
 
-    DefineSafepoint();
     RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
 
     __ FinishCall(imm.sig, call_descriptor);
   }
@@ -3772,11 +3732,7 @@ class LiftoffCompiler {
       return unsupported(decoder, kRefTypes, "table index != 0");
     }
     for (ValueType ret : imm.sig->returns()) {
-      if (!CheckSupportedType(decoder,
-                              FLAG_liftoff_extern_ref
-                                  ? kSupportedTypes
-                                  : kSupportedTypesWithoutRefs,
-                              ret, "return")) {
+      if (!CheckSupportedType(decoder, kSupportedTypes, ret, "return")) {
         return;
       }
     }
@@ -3900,8 +3856,8 @@ class LiftoffCompiler {
       __ CallIndirect(imm.sig, call_descriptor, target);
     }
 
-    DefineSafepoint();
     RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
 
     __ FinishCall(imm.sig, call_descriptor);
   }
@@ -3959,12 +3915,6 @@ class LiftoffCompiler {
       if (control_depth != -1) PrintF("; ");
     }
     os << "\n";
-  }
-
-  void DefineSafepoint() {
-    Safepoint safepoint = safepoint_table_builder_.DefineSafepoint(
-        &asm_, Safepoint::kNoLazyDeopt);
-    __ cache_state()->DefineSafepoint(safepoint);
   }
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(LiftoffCompiler);
@@ -4034,8 +3984,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   result.instr_buffer = instruction_buffer->ReleaseBuffer();
   result.source_positions = compiler->GetSourcePositionTable();
   result.protected_instructions_data = compiler->GetProtectedInstructionsData();
-  result.frame_slot_count = compiler->GetTotalFrameSlotCountForGC() +
-                            StandardFrameConstants::kFixedSlotCountAboveFp;
+  result.frame_slot_count = compiler->GetTotalFrameSlotCount();
   result.tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
   result.func_index = func_index;
   result.result_tier = ExecutionTier::kLiftoff;

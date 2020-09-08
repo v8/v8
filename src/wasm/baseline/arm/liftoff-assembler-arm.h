@@ -272,8 +272,6 @@ inline void Store(LiftoffAssembler* assm, LiftoffRegister src, MemOperand dst,
 #endif
   switch (type.kind()) {
     case ValueType::kI32:
-    case ValueType::kOptRef:
-    case ValueType::kRef:
       assm->str(src.gp(), dst);
       break;
     case ValueType::kI64:
@@ -305,8 +303,6 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
                  ValueType type) {
   switch (type.kind()) {
     case ValueType::kI32:
-    case ValueType::kOptRef:
-    case ValueType::kRef:
       assm->ldr(dst.gp(), src);
       break;
     case ValueType::kI64:
@@ -501,7 +497,13 @@ int LiftoffAssembler::SlotSizeForType(ValueType type) {
 }
 
 bool LiftoffAssembler::NeedsAlignment(ValueType type) {
-  return (type.kind() == ValueType::kS128 || type.is_reference_type());
+  switch (type.kind()) {
+    case ValueType::kS128:
+      return true;
+    default:
+      // No alignment because all other types are kStackSlotSize.
+      return false;
+  }
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
@@ -1281,7 +1283,7 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
 
 void LiftoffAssembler::Move(Register dst, Register src, ValueType type) {
   DCHECK_NE(dst, src);
-  DCHECK(type == kWasmI32 || type.is_reference_type());
+  DCHECK_EQ(type, kWasmI32);
   TurboAssembler::Move(dst, src);
 }
 

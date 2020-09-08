@@ -62,8 +62,6 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Operand src,
       assm->movl(dst.gp(), src);
       break;
     case ValueType::kI64:
-    case ValueType::kOptRef:
-    case ValueType::kRef:
       assm->movq(dst.gp(), src);
       break;
     case ValueType::kF32:
@@ -203,9 +201,7 @@ int LiftoffAssembler::SlotSizeForType(ValueType type) {
   return type.element_size_bytes();
 }
 
-bool LiftoffAssembler::NeedsAlignment(ValueType type) {
-  return type.is_reference_type();
-}
+bool LiftoffAssembler::NeedsAlignment(ValueType type) { return false; }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
@@ -750,7 +746,7 @@ void LiftoffAssembler::Move(Register dst, Register src, ValueType type) {
   if (type == kWasmI32) {
     movl(dst, src);
   } else {
-    DCHECK(kWasmI64 == type || type.is_reference_type());
+    DCHECK_EQ(kWasmI64, type);
     movq(dst, src);
   }
 }
@@ -776,8 +772,6 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
       movl(dst, reg.gp());
       break;
     case ValueType::kI64:
-    case ValueType::kOptRef:
-    case ValueType::kRef:
       movq(dst, reg.gp());
       break;
     case ValueType::kF32:

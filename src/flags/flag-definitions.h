@@ -765,8 +765,6 @@ DEFINE_INT(trace_wasm_ast_start, 0,
 DEFINE_INT(trace_wasm_ast_end, 0, "end function for wasm AST trace (exclusive)")
 DEFINE_BOOL(liftoff, true,
             "enable Liftoff, the baseline compiler for WebAssembly")
-DEFINE_BOOL(liftoff_extern_ref, false,
-            "enable support for externref in Liftoff")
 // We can't tier up (from Liftoff to TurboFan) in single-threaded mode, hence
 // disable Liftoff in that configuration for now. The alternative is disabling
 // TurboFan, which would reduce peak performance considerably.
