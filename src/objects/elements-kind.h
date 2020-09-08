@@ -364,7 +364,7 @@ enum class CompactElementsKind : uint8_t {
 };
 
 inline CompactElementsKind ToCompactElementsKind(ElementsKind kind) {
-  if (base::IsInRange(kind, PACKED_ELEMENTS, HOLEY_DOUBLE_ELEMENTS)) {
+  if (base::IsInRange(kind, PACKED_SMI_ELEMENTS, HOLEY_DOUBLE_ELEMENTS)) {
     return static_cast<CompactElementsKind>(kind);
   }
 
