@@ -297,8 +297,6 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
   CHECK(handler_table().IsByteArray());
 }
 
-USE_TORQUE_VERIFIER(FeedbackVector)
-
 USE_TORQUE_VERIFIER(JSReceiver)
 
 bool JSObject::ElementsAreSafeToExamine(const Isolate* isolate) const {

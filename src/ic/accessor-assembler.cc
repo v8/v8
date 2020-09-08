@@ -72,7 +72,8 @@ TNode<MaybeObject> AccessorAssembler::TryMonomorphicCase(
 
   // TODO(ishell): add helper class that hides offset computations for a series
   // of loads.
-  int32_t header_size = FeedbackVector::kFeedbackSlotsOffset - kHeapObjectTag;
+  int32_t header_size =
+      FeedbackVector::kRawFeedbackSlotsOffset - kHeapObjectTag;
   // Adding |header_size| with a separate IntPtrAdd rather than passing it
   // into ElementOffsetFromIndex() allows it to be folded into a single
   // [base, index, offset] indirect memory access on x64.

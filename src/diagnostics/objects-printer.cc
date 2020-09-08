@@ -950,8 +950,9 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
     int entry_size = iter.entry_size();
     if (entry_size > 0) os << " {";
     for (int i = 0; i < entry_size; i++) {
-      int index = GetIndex(slot) + i;
-      os << "\n     [" << index << "]: " << Brief(get(index));
+      FeedbackSlot slot_with_offset = slot.WithOffset(i);
+      os << "\n     [" << slot_with_offset.ToInt()
+         << "]: " << Brief(Get(slot_with_offset));
     }
     if (entry_size > 0) os << "\n  }";
   }

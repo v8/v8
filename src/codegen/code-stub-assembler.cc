@@ -2305,8 +2305,8 @@ template <typename TIndex>
 TNode<MaybeObject> CodeStubAssembler::LoadFeedbackVectorSlot(
     TNode<FeedbackVector> feedback_vector, TNode<TIndex> slot,
     int additional_offset) {
-  int32_t header_size =
-      FeedbackVector::kFeedbackSlotsOffset + additional_offset - kHeapObjectTag;
+  int32_t header_size = FeedbackVector::kRawFeedbackSlotsOffset +
+                        additional_offset - kHeapObjectTag;
   TNode<IntPtrT> offset =
       ElementOffsetFromIndex(slot, HOLEY_ELEMENTS, header_size);
   CSA_SLOW_ASSERT(
@@ -2783,8 +2783,8 @@ void CodeStubAssembler::StoreFeedbackVectorSlot(
   DCHECK(barrier_mode == SKIP_WRITE_BARRIER ||
          barrier_mode == UNSAFE_SKIP_WRITE_BARRIER ||
          barrier_mode == UPDATE_WRITE_BARRIER);
-  int header_size =
-      FeedbackVector::kFeedbackSlotsOffset + additional_offset - kHeapObjectTag;
+  int header_size = FeedbackVector::kRawFeedbackSlotsOffset +
+                    additional_offset - kHeapObjectTag;
   TNode<IntPtrT> offset =
       ElementOffsetFromIndex(Signed(slot), HOLEY_ELEMENTS, header_size);
   // Check that slot <= feedback_vector.length.

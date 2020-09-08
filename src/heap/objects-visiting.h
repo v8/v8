@@ -30,7 +30,6 @@ namespace internal {
   V(EphemeronHashTable)                \
   V(FeedbackCell)                      \
   V(FeedbackMetadata)                  \
-  V(FeedbackVector)                    \
   V(FixedDoubleArray)                  \
   V(JSArrayBuffer)                     \
   V(JSDataView)                        \

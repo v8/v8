@@ -42,7 +42,6 @@ enum InstanceType : uint16_t;
   V(EmbedderDataArray)                 \
   V(EphemeronHashTable)                \
   V(FeedbackCell)                      \
-  V(FeedbackVector)                    \
   V(FreeSpace)                         \
   V(JSApiObject)                       \
   V(JSArrayBuffer)                     \
