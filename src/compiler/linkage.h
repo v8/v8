@@ -205,6 +205,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     kCallBuiltinPointer,     // target is a builtin pointer
   };
 
+  // NOTE: The lowest 10 bits of the Flags field are encoded in InstructionCode
+  // (for use in the code generator). All higher bits are lost.
+  static constexpr int kFlagsBitsEncodedInInstructionCode = 10;
   enum Flag {
     kNoFlags = 0u,
     kNeedsFrameState = 1u << 0,
@@ -226,6 +229,10 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     // AIX has a function descriptor by default but it can be disabled for a
     // certain CFunction call (only used for Kind::kCallAddress).
     kNoFunctionDescriptor = 1u << 9,
+
+    // Flags past here are *not* encoded in InstructionCode and are thus not
+    // accessible from the code generator. See also
+    // kFlagsBitsEncodedInInstructionCode.
   };
   using Flags = base::Flags<Flag>;
 

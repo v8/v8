@@ -973,15 +973,13 @@ Label* CodeGenerator::AddJumpTable(Label** targets, size_t target_count) {
 }
 
 void CodeGenerator::RecordCallPosition(Instruction* instr) {
-  CallDescriptor::Flags flags(MiscField::decode(instr->opcode()));
-
-  bool needs_frame_state = (flags & CallDescriptor::kNeedsFrameState);
-
+  const bool needs_frame_state =
+      HasCallDescriptorFlag(instr, CallDescriptor::kNeedsFrameState);
   RecordSafepoint(instr->reference_map(), needs_frame_state
                                               ? Safepoint::kLazyDeopt
                                               : Safepoint::kNoLazyDeopt);
 
-  if (flags & CallDescriptor::kHasExceptionHandler) {
+  if (HasCallDescriptorFlag(instr, CallDescriptor::kHasExceptionHandler)) {
     InstructionOperandConverter i(this, instr);
     RpoNumber handler_rpo = i.InputRpo(instr->InputCount() - 1);
     DCHECK(instructions()->InstructionBlockAt(handler_rpo)->IsHandler());
