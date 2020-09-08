@@ -131,28 +131,25 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   template <typename TSlot>
   inline TSlot WriteExternalPointer(TSlot dest, Address value);
 
-  // Fills in some heap data in an area from start to end (non-inclusive).  The
-  // space id is used for the write barrier.  The object_address is the address
-  // of the object we are writing into, or nullptr if we are not writing into an
-  // object, i.e. if we are writing a series of tagged values that are not on
-  // the heap.
+  // Fills in some heap data in an area from start to end (non-inclusive). The
+  // object_address is the address of the object we are writing into, or nullptr
+  // if we are not writing into an object, i.e. if we are writing a series of
+  // tagged values that are not on the heap.
   template <typename TSlot>
-  void ReadData(TSlot start, TSlot end, SnapshotSpace space,
-                Address object_address);
+  void ReadData(TSlot start, TSlot end, Address object_address);
 
   // A helper function for ReadData, templatized on the bytecode for efficiency.
   // Returns the new value of {current}.
   template <typename TSlot, Bytecode bytecode>
   inline TSlot ReadDataCase(TSlot current, Address current_object_address,
-                            byte data, bool write_barrier_needed);
+                            byte data);
 
   // A helper function for ReadData for reading external references.
   inline Address ReadExternalReferenceCase();
 
   HeapObject ReadObject(SnapshotSpace space_number);
   HeapObject ReadMetaMap();
-  void ReadCodeObjectBody(SnapshotSpace space_number,
-                          Address code_object_address);
+  void ReadCodeObjectBody(Address code_object_address);
 
  protected:
   HeapObject ReadObject();

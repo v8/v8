@@ -71,7 +71,7 @@ class SerializerDeserializer : public RootVisitor {
 
 // clang-format off
 #define UNUSED_SERIALIZER_BYTE_CODES(V)                           \
-  V(0x06) V(0x07) V(0x0e) V(0x0f)                                 \
+  V(0x05) V(0x06) V(0x07) V(0x0d) V(0x0e) V(0x0f)                 \
   /* Free range 0x2a..0x2f */                                     \
   V(0x2a) V(0x2b) V(0x2c) V(0x2d) V(0x2e) V(0x2f)                 \
   /* Free range 0x30..0x3f */                                     \
@@ -102,7 +102,7 @@ class SerializerDeserializer : public RootVisitor {
   // The static assert below will trigger when the number of preallocated spaces
   // changed. If that happens, update the kNewObject and kBackref bytecode
   // ranges in the comments below.
-  STATIC_ASSERT(6 == kNumberOfSpaces);
+  STATIC_ASSERT(5 == kNumberOfSpaces);
 
   // First 32 root array items.
   static const int kRootArrayConstantsCount = 0x20;
@@ -124,9 +124,9 @@ class SerializerDeserializer : public RootVisitor {
     // ---------- byte code range 0x00..0x0f ----------
     //
 
-    // 0x00..0x05  Allocate new object, in specified space.
+    // 0x00..0x04  Allocate new object, in specified space.
     kNewObject = 0x00,
-    // 0x08..0x0d  Reference to previous object from specified space.
+    // 0x08..0x0c  Reference to previous object from specified space.
     kBackref = 0x08,
 
     //
