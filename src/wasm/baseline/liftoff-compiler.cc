@@ -339,7 +339,7 @@ class LiftoffCompiler {
                   std::unique_ptr<AssemblerBuffer> buffer,
                   DebugSideTableBuilder* debug_sidetable_builder,
                   ForDebugging for_debugging, int func_index,
-                  Vector<int> breakpoints = {})
+                  Vector<int> breakpoints = {}, int dead_breakpoint = 0)
       : asm_(std::move(buffer)),
         descriptor_(
             GetLoweredCallDescriptor(compilation_zone, call_descriptor)),
@@ -353,7 +353,8 @@ class LiftoffCompiler {
         compilation_zone_(compilation_zone),
         safepoint_table_builder_(compilation_zone_),
         next_breakpoint_ptr_(breakpoints.begin()),
-        next_breakpoint_end_(breakpoints.end()) {
+        next_breakpoint_end_(breakpoints.end()),
+        dead_breakpoint_(dead_breakpoint) {
     if (breakpoints.empty()) {
       next_breakpoint_ptr_ = next_breakpoint_end_ = nullptr;
     }
@@ -818,6 +819,18 @@ class LiftoffCompiler {
           EmitBreakpoint(decoder);
         }
       }
+    }
+    if (dead_breakpoint_ == decoder->position()) {
+      DCHECK(!next_breakpoint_ptr_ ||
+             *next_breakpoint_ptr_ != dead_breakpoint_);
+      // The top frame is paused at this position, but the breakpoint was
+      // removed. Adding a dead breakpoint here ensures that the source position
+      // exists, and that the offset to the return address is the same as in the
+      // old code.
+      Label cont;
+      __ emit_jump(&cont);
+      EmitBreakpoint(decoder);
+      __ bind(&cont);
     }
   }
 
@@ -3919,6 +3932,10 @@ class LiftoffCompiler {
   int* next_breakpoint_ptr_ = nullptr;
   int* next_breakpoint_end_ = nullptr;
 
+  // Introduce a dead breakpoint to ensure that the calculation of the return
+  // address in OSR is correct.
+  int dead_breakpoint_ = 0;
+
   bool has_outstanding_op() const {
     return outstanding_op_ != kNoOutstandingOp;
   }
@@ -3953,7 +3970,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
     AccountingAllocator* allocator, CompilationEnv* env,
     const FunctionBody& func_body, int func_index, ForDebugging for_debugging,
     Counters* counters, WasmFeatures* detected, Vector<int> breakpoints,
-    std::unique_ptr<DebugSideTable>* debug_sidetable) {
+    std::unique_ptr<DebugSideTable>* debug_sidetable, int dead_breakpoint) {
   int func_body_size = static_cast<int>(func_body.end - func_body.start);
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileBaseline", "func_index", func_index, "body_size",
@@ -3980,7 +3997,8 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   WasmFullDecoder<Decoder::kValidate, LiftoffCompiler> decoder(
       &zone, env->module, env->enabled_features, detected, func_body,
       call_descriptor, env, &zone, instruction_buffer->CreateView(),
-      debug_sidetable_builder.get(), for_debugging, func_index, breakpoints);
+      debug_sidetable_builder.get(), for_debugging, func_index, breakpoints,
+      dead_breakpoint);
   decoder.Decode();
   liftoff_compile_time_scope.reset();
   LiftoffCompiler* compiler = &decoder.interface();

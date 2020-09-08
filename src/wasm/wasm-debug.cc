@@ -402,8 +402,25 @@ class DebugInfoImpl {
     return local_names_->GetName(func_index, local_index);
   }
 
-  WasmCode* RecompileLiftoffWithBreakpoints(int func_index,
-                                            Vector<int> offsets) {
+  // If the top frame is a Wasm frame and its position is not in the list of
+  // breakpoints, return that position. Return 0 otherwise.
+  // This is used to generate a "dead breakpoint" in Liftoff, which is necessary
+  // for OSR to find the correct return address.
+  int DeadBreakpoint(int func_index, std::vector<int>& breakpoints,
+                     Isolate* isolate) {
+    StackTraceFrameIterator it(isolate);
+    if (it.done() || !it.is_wasm()) return 0;
+    WasmFrame* frame = WasmFrame::cast(it.frame());
+    const auto& function = native_module_->module()->functions[func_index];
+    int offset = frame->position() - function.code.offset();
+    if (std::binary_search(breakpoints.begin(), breakpoints.end(), offset)) {
+      return 0;
+    }
+    return offset;
+  }
+
+  WasmCode* RecompileLiftoffWithBreakpoints(int func_index, Vector<int> offsets,
+                                            int dead_breakpoint) {
     DCHECK(!mutex_.TryLock());  // Mutex is held externally.
     // Recompile the function with Liftoff, setting the new breakpoints.
     // Not thread-safe. The caller is responsible for locking {mutex_}.
@@ -422,7 +439,8 @@ class DebugInfoImpl {
     WasmFeatures unused_detected;
     WasmCompilationResult result = ExecuteLiftoffCompilation(
         native_module_->engine()->allocator(), &env, body, func_index,
-        for_debugging, counters, &unused_detected, offsets, &debug_sidetable);
+        for_debugging, counters, &unused_detected, offsets, &debug_sidetable,
+        dead_breakpoint);
     // Liftoff compilation failure is a FATAL error. We rely on complete Liftoff
     // support for debugging.
     if (!result.succeeded()) FATAL("Liftoff compilation failed");
@@ -479,8 +497,10 @@ class DebugInfoImpl {
       new_code = native_module_->GetCode(func_index);
     } else {
       all_breakpoints.insert(insertion_point, offset);
-      new_code = RecompileLiftoffWithBreakpoints(func_index,
-                                                 VectorOf(all_breakpoints));
+      int dead_breakpoint =
+          DeadBreakpoint(func_index, all_breakpoints, isolate);
+      new_code = RecompileLiftoffWithBreakpoints(
+          func_index, VectorOf(all_breakpoints), dead_breakpoint);
     }
     UpdateReturnAddresses(isolate, new_code, isolate_data.stepping_frame);
   }
@@ -497,10 +517,11 @@ class DebugInfoImpl {
   }
 
   void UpdateBreakpoints(int func_index, Vector<int> breakpoints,
-                         Isolate* isolate, StackFrameId stepping_frame) {
+                         Isolate* isolate, StackFrameId stepping_frame,
+                         int dead_breakpoint) {
     DCHECK(!mutex_.TryLock());  // Mutex is held externally.
-    WasmCode* new_code =
-        RecompileLiftoffWithBreakpoints(func_index, breakpoints);
+    WasmCode* new_code = RecompileLiftoffWithBreakpoints(
+        func_index, breakpoints, dead_breakpoint);
     UpdateReturnAddresses(isolate, new_code, stepping_frame);
   }
 
@@ -512,7 +533,7 @@ class DebugInfoImpl {
     // Generate an additional source position for the current byte offset.
     base::MutexGuard guard(&mutex_);
     WasmCode* new_code = RecompileLiftoffWithBreakpoints(
-        frame->function_index(), VectorOf(&offset, 1));
+        frame->function_index(), VectorOf(&offset, 1), 0);
     UpdateReturnAddress(frame, new_code, return_location);
   }
 
@@ -558,18 +579,6 @@ class DebugInfoImpl {
   }
 
   void RemoveBreakpoint(int func_index, int position, Isolate* isolate) {
-    // TODO(thibaudm): Cannot remove the breakpoint we are currently paused at,
-    // because the new code would be missing the call instruction and the
-    // corresponding source position that we rely on for OSR.
-    StackTraceFrameIterator it(isolate);
-    if (!it.done() && it.is_wasm()) {
-      WasmFrame* frame = WasmFrame::cast(it.frame());
-      if (static_cast<int32_t>(frame->function_index()) == func_index &&
-          frame->position() == position) {
-        return;
-      }
-    }
-
     // Put the code ref scope outside of the mutex, so we don't unnecessarily
     // hold the mutex while freeing code.
     WasmCodeRefScope wasm_code_ref_scope;
@@ -595,8 +604,9 @@ class DebugInfoImpl {
     // If the breakpoint is still set in another isolate, don't remove it.
     DCHECK(std::is_sorted(remaining.begin(), remaining.end()));
     if (std::binary_search(remaining.begin(), remaining.end(), offset)) return;
+    int dead_breakpoint = DeadBreakpoint(func_index, remaining, isolate);
     UpdateBreakpoints(func_index, VectorOf(remaining), isolate,
-                      isolate_data.stepping_frame);
+                      isolate_data.stepping_frame, dead_breakpoint);
   }
 
   void RemoveDebugSideTables(Vector<WasmCode* const> codes) {
@@ -640,7 +650,7 @@ class DebugInfoImpl {
       std::vector<int>& removed = entry.second;
       std::vector<int> remaining = FindAllBreakpoints(func_index);
       if (HasRemovedBreakpoints(removed, remaining)) {
-        RecompileLiftoffWithBreakpoints(func_index, VectorOf(remaining));
+        RecompileLiftoffWithBreakpoints(func_index, VectorOf(remaining), 0);
       }
     }
   }
