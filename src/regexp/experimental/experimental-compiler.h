@@ -19,7 +19,8 @@ class ExperimentalRegExpCompiler final : public AllStatic {
   // but see the definition.
   // TODO(mbid,v8:10765): Currently more things are not handled, e.g. some
   // quantifiers and unicode.
-  static bool CanBeHandled(RegExpTree* tree, JSRegExp::Flags flags, Zone* zone);
+  static bool CanBeHandled(RegExpTree* tree, JSRegExp::Flags flags,
+                           int capture_count, Zone* zone);
   // Compile regexp into a bytecode program.  The regexp must be handlable by
   // the experimental engine; see`CanBeHandled`.  The program is returned as a
   // ZoneList backed by the same Zone that is used in the RegExpTree argument.

@@ -18,8 +18,9 @@ constexpr uc32 kMaxSupportedCodepoint = 0xFFFFu;
 class CanBeHandledVisitor final : private RegExpVisitor {
   // Visitor to implement `ExperimentalRegExp::CanBeHandled`.
  public:
-  static bool Check(RegExpTree* node, JSRegExp::Flags flags, Zone* zone) {
-    if (!AreSuitableFlags(flags)) {
+  static bool Check(RegExpTree* node, JSRegExp::Flags flags, int capture_count,
+                    Zone* zone) {
+    if (!AreSuitableFlags(flags) || capture_count > 0) {
       return false;
     }
     CanBeHandledVisitor visitor(zone);
@@ -145,9 +146,9 @@ class CanBeHandledVisitor final : private RegExpVisitor {
 
 bool ExperimentalRegExpCompiler::CanBeHandled(RegExpTree* tree,
                                               JSRegExp::Flags flags,
-                                              Zone* zone) {
+                                              int capture_count, Zone* zone) {
   DCHECK(FLAG_enable_experimental_regexp_engine);
-  return CanBeHandledVisitor::Check(tree, flags, zone);
+  return CanBeHandledVisitor::Check(tree, flags, capture_count, zone);
 }
 
 namespace {

@@ -175,7 +175,8 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
   bool has_been_compiled = false;
 
   if (FLAG_enable_experimental_regexp_engine &&
-      ExperimentalRegExp::CanBeHandled(parse_result.tree, flags, &zone)) {
+      ExperimentalRegExp::CanBeHandled(parse_result.tree, flags,
+                                       parse_result.capture_count, &zone)) {
     ExperimentalRegExp::Initialize(isolate, re, pattern, flags,
                                    parse_result.capture_count);
     has_been_compiled = true;

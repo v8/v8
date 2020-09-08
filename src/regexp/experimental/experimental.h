@@ -19,7 +19,8 @@ class ExperimentalRegExp final : public AllStatic {
   // TODO(mbid, v8:10765): This walks the RegExpTree, but it could also be
   // checked on the fly in the parser.  Not done currently because walking the
   // AST again is more flexible and less error prone (but less performant).
-  static bool CanBeHandled(RegExpTree* tree, JSRegExp::Flags flags, Zone* zone);
+  static bool CanBeHandled(RegExpTree* tree, JSRegExp::Flags flags,
+                           int capture_count, Zone* zone);
   static void Initialize(Isolate* isolate, Handle<JSRegExp> re,
                          Handle<String> pattern, JSRegExp::Flags flags,
                          int capture_count);
