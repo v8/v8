@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 
+#include "src/common/globals.h"
 #include "src/objects/allocation-site.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/backing-store.h"
@@ -126,6 +127,10 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   inline TSlot Write(TSlot dest, MaybeObject value);
 
   template <typename TSlot>
+  inline TSlot Write(TSlot dest, HeapObject value,
+                     HeapObjectReferenceType type);
+
+  template <typename TSlot>
   inline TSlot WriteAddress(TSlot dest, Address value);
 
   template <typename TSlot>
@@ -138,11 +143,12 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   template <typename TSlot>
   void ReadData(TSlot start, TSlot end, Address object_address);
 
-  // A helper function for ReadData, templatized on the bytecode for efficiency.
-  // Returns the new value of {current}.
-  template <typename TSlot, Bytecode bytecode>
-  inline TSlot ReadDataCase(TSlot current, Address current_object_address,
-                            byte data);
+  // Helper for ReadData which reads the given bytecode and fills in some heap
+  // data into the given slot. May fill in zero or multiple slots, so it returns
+  // the next unfilled slot.
+  template <typename TSlot>
+  TSlot ReadSingleBytecodeData(byte data, TSlot current,
+                               Address object_address);
 
   // A helper function for ReadData for reading external references.
   inline Address ReadExternalReferenceCase();
@@ -150,6 +156,8 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   HeapObject ReadObject(SnapshotSpace space_number);
   HeapObject ReadMetaMap();
   void ReadCodeObjectBody(Address code_object_address);
+
+  HeapObjectReferenceType GetAndResetNextReferenceType();
 
  protected:
   HeapObject ReadObject();
@@ -198,6 +206,8 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
 
   DeserializerAllocator allocator_;
   const bool deserializing_user_code_;
+
+  bool next_reference_is_weak_ = false;
 
   // TODO(6593): generalize rehashing, and remove this flag.
   bool can_rehash_;
