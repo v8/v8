@@ -25,6 +25,65 @@
 namespace v8 {
 namespace internal {
 
+class PageScavengingItem final : public ItemParallelJob::Item {
+ public:
+  explicit PageScavengingItem(MemoryChunk* chunk) : chunk_(chunk) {}
+  ~PageScavengingItem() override = default;
+
+  void Process(Scavenger* scavenger) { scavenger->ScavengePage(chunk_); }
+
+ private:
+  MemoryChunk* const chunk_;
+};
+
+class ScavengingTask final : public ItemParallelJob::Task {
+ public:
+  ScavengingTask(Heap* heap, Scavenger* scavenger, OneshotBarrier* barrier)
+      : ItemParallelJob::Task(heap->isolate()),
+        heap_(heap),
+        scavenger_(scavenger),
+        barrier_(barrier) {}
+
+  void RunInParallel(Runner runner) final {
+    if (runner == Runner::kForeground) {
+      TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL);
+      ProcessItems();
+    } else {
+      TRACE_BACKGROUND_GC(
+          heap_->tracer(),
+          GCTracer::BackgroundScope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL);
+      ProcessItems();
+    }
+  }
+
+ private:
+  void ProcessItems() {
+    double scavenging_time = 0.0;
+    {
+      barrier_->Start();
+      TimedScope scope(&scavenging_time);
+      PageScavengingItem* item = nullptr;
+      while ((item = GetItem<PageScavengingItem>()) != nullptr) {
+        item->Process(scavenger_);
+        item->MarkFinished();
+      }
+      do {
+        scavenger_->Process(barrier_);
+      } while (!barrier_->Wait());
+      scavenger_->Process();
+    }
+    if (FLAG_trace_parallel_scavenge) {
+      PrintIsolate(heap_->isolate(),
+                   "scavenge[%p]: time=%.2f copied=%zu promoted=%zu\n",
+                   static_cast<void*>(this), scavenging_time,
+                   scavenger_->bytes_copied(), scavenger_->bytes_promoted());
+    }
+  }
+  Heap* const heap_;
+  Scavenger* const scavenger_;
+  OneshotBarrier* const barrier_;
+};
+
 class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
  public:
   IterateAndScavengePromotedObjectsVisitor(Scavenger* scavenger,
@@ -160,64 +219,8 @@ class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
   }
 };
 
-ScavengerCollector::JobTask::JobTask(
-    ScavengerCollector* outer,
-    std::vector<std::unique_ptr<Scavenger>>* scavengers,
-    std::vector<std::pair<bool, MemoryChunk*>> memory_chunks,
-    Scavenger::CopiedList* copied_list,
-    Scavenger::PromotionList* promotion_list)
-    : outer_(outer),
-      scavengers_(scavengers),
-      memory_chunks_(std::move(memory_chunks)),
-      remaining_memory_chunks_(memory_chunks_.size()),
-      copied_list_(copied_list),
-      promotion_list_(promotion_list) {}
-
-void ScavengerCollector::JobTask::Run(JobDelegate* delegate) {
-  TRACE_BACKGROUND_GC(
-      outer_->heap_->tracer(),
-      GCTracer::BackgroundScope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL);
-
-  Scavenger* scavenger = (*scavengers_)[delegate->GetTaskId()].get();
-
-  ConcurrentScavengePages(scavenger);
-  scavenger->Process(delegate);
-}
-
-size_t ScavengerCollector::JobTask::GetMaxConcurrency(
-    size_t worker_count) const {
-  // We need to account for local segments held by worker_count in addition to
-  // GlobalPoolSize() of copied_list_ and promotion_list_.
-  return std::min<size_t>(
-      kMaxScavengerTasks,
-      std::max<size_t>(remaining_memory_chunks_.load(std::memory_order_relaxed),
-                       worker_count + copied_list_->GlobalPoolSize() +
-                           promotion_list_->GlobalPoolSize()));
-}
-
-void ScavengerCollector::JobTask::ConcurrentScavengePages(
-    Scavenger* scavenger) {
-  if (remaining_memory_chunks_.load(std::memory_order_relaxed) == 0) return;
-  for (size_t i = 0; i < memory_chunks_.size(); ++i) {
-    auto& work_item = memory_chunks_[i];
-    // memory_order_relaxed is sufficient as the work item's state itself hasn't
-    // been modified since the beginning of its associated job. This is only
-    // atomically acquiring the right to work on it.
-    if (reinterpret_cast<std::atomic<bool>*>(&work_item.first)
-            ->exchange(true, std::memory_order_relaxed) == false) {
-      scavenger->ScavengePage(work_item.second);
-      // memory_order_relaxed is sufficient since this is not synchronized with
-      // other state.
-      if (remaining_memory_chunks_.fetch_sub(1, std::memory_order_relaxed) <=
-          1) {
-        return;
-      }
-    }
-  }
-}
-
 ScavengerCollector::ScavengerCollector(Heap* heap)
-    : isolate_(heap->isolate()), heap_(heap) {}
+    : isolate_(heap->isolate()), heap_(heap), parallel_scavenge_semaphore_(0) {}
 
 // Remove this crashkey after chromium:1010312 is fixed.
 class ScopedFullHeapCrashKey {
@@ -243,11 +246,23 @@ void ScavengerCollector::CollectGarbage() {
   }
 
   DCHECK(surviving_new_large_objects_.empty());
-  std::vector<std::unique_ptr<Scavenger>> scavengers;
+  ItemParallelJob job(isolate_->cancelable_task_manager(),
+                      &parallel_scavenge_semaphore_);
+  const int kMainThreadId = 0;
+  Scavenger* scavengers[kMaxScavengerTasks];
+  const bool is_logging = isolate_->LogObjectRelocation();
+  const int num_scavenge_tasks = NumberOfScavengeTasks();
+  OneshotBarrier barrier(base::TimeDelta::FromMilliseconds(kMaxWaitTimeMs));
   Worklist<MemoryChunk*, 64> empty_chunks;
-  Scavenger::CopiedList copied_list(kMaxScavengerTasks);
-  Scavenger::PromotionList promotion_list(kMaxScavengerTasks);
-  EphemeronTableList ephemeron_table_list(kMaxScavengerTasks);
+  Scavenger::CopiedList copied_list(num_scavenge_tasks);
+  Scavenger::PromotionList promotion_list(num_scavenge_tasks);
+  EphemeronTableList ephemeron_table_list(num_scavenge_tasks);
+  for (int i = 0; i < num_scavenge_tasks; i++) {
+    scavengers[i] =
+        new Scavenger(this, heap_, is_logging, &empty_chunks, &copied_list,
+                      &promotion_list, &ephemeron_table_list, i);
+    job.AddTask(new ScavengingTask(heap_, scavengers[i], &barrier));
+  }
 
   {
     Sweeper* sweeper = heap_->mark_compact_collector()->sweeper();
@@ -274,20 +289,12 @@ void ScavengerCollector::CollectGarbage() {
       return !page->ContainsSlots<OLD_TO_NEW>() && !page->sweeping_slot_set();
     });
 
-    const bool is_logging = isolate_->LogObjectRelocation();
-    for (int i = 0; i < kMaxScavengerTasks; ++i) {
-      scavengers.emplace_back(
-          new Scavenger(this, heap_, is_logging, &empty_chunks, &copied_list,
-                        &promotion_list, &ephemeron_table_list, i));
-    }
-
-    std::vector<std::pair<bool, MemoryChunk*>> memory_chunks;
     RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
-        heap_, [&memory_chunks](MemoryChunk* chunk) {
-          memory_chunks.emplace_back(false, chunk);
+        heap_, [&job](MemoryChunk* chunk) {
+          job.AddItem(new PageScavengingItem(chunk));
         });
 
-    RootScavengeVisitor root_scavenge_visitor(scavengers[kMainThreadId].get());
+    RootScavengeVisitor root_scavenge_visitor(scavengers[kMainThreadId]);
 
     {
       // Identify weak unmodified handles. Requires an unmodified graph.
@@ -312,24 +319,18 @@ void ScavengerCollector::CollectGarbage() {
       heap_->IterateRoots(&root_scavenge_visitor, options);
       isolate_->global_handles()->IterateYoungStrongAndDependentRoots(
           &root_scavenge_visitor);
-      scavengers[kMainThreadId]->Flush();
     }
     {
       // Parallel phase scavenging all copied and promoted objects.
       TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL);
-      V8::GetCurrentPlatform()
-          ->PostJob(v8::TaskPriority::kUserBlocking,
-                    std::make_unique<JobTask>(this, &scavengers,
-                                              std::move(memory_chunks),
-                                              &copied_list, &promotion_list))
-          ->Join();
+      job.Run();
       DCHECK(copied_list.IsEmpty());
       DCHECK(promotion_list.IsEmpty());
     }
 
     if (V8_UNLIKELY(FLAG_scavenge_separate_stack_scanning)) {
-      IterateStackAndScavenge(&root_scavenge_visitor, &scavengers,
-                              kMainThreadId);
+      IterateStackAndScavenge(&root_scavenge_visitor, scavengers,
+                              num_scavenge_tasks, kMainThreadId);
       DCHECK(copied_list.IsEmpty());
       DCHECK(promotion_list.IsEmpty());
     }
@@ -356,10 +357,10 @@ void ScavengerCollector::CollectGarbage() {
 
       DCHECK(surviving_new_large_objects_.empty());
 
-      for (auto& scavenger : scavengers) {
-        scavenger->Finalize();
+      for (int i = 0; i < num_scavenge_tasks; i++) {
+        scavengers[i]->Finalize();
+        delete scavengers[i];
       }
-      scavengers.clear();
 
       HandleSurvivingNewLargeObjects();
     }
@@ -419,24 +420,23 @@ void ScavengerCollector::CollectGarbage() {
 }
 
 void ScavengerCollector::IterateStackAndScavenge(
-
-    RootScavengeVisitor* root_scavenge_visitor,
-    std::vector<std::unique_ptr<Scavenger>>* scavengers, int main_thread_id) {
+    RootScavengeVisitor* root_scavenge_visitor, Scavenger** scavengers,
+    int num_scavenge_tasks, int main_thread_id) {
   // Scan the stack, scavenge the newly discovered objects, and report
   // the survival statistics before and afer the stack scanning.
   // This code is not intended for production.
   TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_STACK_ROOTS);
   size_t survived_bytes_before = 0;
-  for (auto& scavenger : *scavengers) {
+  for (int i = 0; i < num_scavenge_tasks; i++) {
     survived_bytes_before +=
-        scavenger->bytes_copied() + scavenger->bytes_promoted();
+        scavengers[i]->bytes_copied() + scavengers[i]->bytes_promoted();
   }
   heap_->IterateStackRoots(root_scavenge_visitor);
-  (*scavengers)[main_thread_id]->Process();
+  scavengers[main_thread_id]->Process();
   size_t survived_bytes_after = 0;
-  for (auto& scavenger : *scavengers) {
+  for (int i = 0; i < num_scavenge_tasks; i++) {
     survived_bytes_after +=
-        scavenger->bytes_copied() + scavenger->bytes_promoted();
+        scavengers[i]->bytes_copied() + scavengers[i]->bytes_promoted();
   }
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                "V8.GCScavengerStackScanning", "survived_bytes_before",
@@ -590,9 +590,10 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
   AddPageToSweeperIfNecessary(page);
 }
 
-void Scavenger::Process(JobDelegate* delegate) {
+void Scavenger::Process(OneshotBarrier* barrier) {
   ScavengeVisitor scavenge_visitor(this);
 
+  const bool have_barrier = barrier != nullptr;
   bool done;
   size_t objects = 0;
   do {
@@ -602,9 +603,9 @@ void Scavenger::Process(JobDelegate* delegate) {
            copied_list_.Pop(&object_and_size)) {
       scavenge_visitor.Visit(object_and_size.first);
       done = false;
-      if (delegate && ((++objects % kInterruptThreshold) == 0)) {
+      if (have_barrier && ((++objects % kInterruptThreshold) == 0)) {
         if (!copied_list_.IsGlobalPoolEmpty()) {
-          delegate->NotifyConcurrencyIncrease();
+          barrier->NotifyAll();
         }
       }
     }
@@ -614,9 +615,9 @@ void Scavenger::Process(JobDelegate* delegate) {
       HeapObject target = entry.heap_object;
       IterateAndScavengePromotedObject(target, entry.map, entry.size);
       done = false;
-      if (delegate && ((++objects % kInterruptThreshold) == 0)) {
+      if (have_barrier && ((++objects % kInterruptThreshold) == 0)) {
         if (!promotion_list_.IsGlobalPoolEmpty()) {
-          delegate->NotifyConcurrencyIncrease();
+          barrier->NotifyAll();
         }
       }
     }
@@ -702,11 +703,6 @@ void Scavenger::Finalize() {
       insert_result.first->second.insert(entry);
     }
   }
-}
-
-void Scavenger::Flush() {
-  copied_list_.FlushToGlobal();
-  promotion_list_.FlushToGlobal();
 }
 
 void Scavenger::AddEphemeronHashTable(EphemeronHashTable table) {
