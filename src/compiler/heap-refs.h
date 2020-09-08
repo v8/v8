@@ -48,6 +48,17 @@ enum class OddballType : uint8_t {
 };
 
 // This list is sorted such that subtypes appear before their supertypes.
+// This list must not contain a type if it doesn't contain all of its subtypes
+// too. For example, it CANNOT contain FixedArrayBase if it doesn't contain
+// FixedDoubleArray, BytecodeArray and FixedArray.
+// DO NOT VIOLATE THESE TWO PROPERTIES!
+// Classes on this list will skip serialization when
+// FLAG_turbo_direct_heap_access is on. Otherwise, they might get serialized.
+#define HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(V) \
+  /* Subtypes of FixedArrayBase */                  \
+  V(FixedDoubleArray)
+
+// This list is sorted such that subtypes appear before their supertypes.
 // DO NOT VIOLATE THIS PROPERTY!
 #define HEAP_BROKER_SERIALIZED_OBJECT_LIST(V) \
   /* Subtypes of JSObject */                  \
@@ -69,7 +80,6 @@ enum class OddballType : uint8_t {
   /* Subtypes of FixedArrayBase */            \
   V(BytecodeArray)                            \
   V(FixedArray)                               \
-  V(FixedDoubleArray)                         \
   /* Subtypes of Name */                      \
   V(InternalizedString)                       \
   V(String)                                   \
@@ -99,10 +109,6 @@ enum class OddballType : uint8_t {
   V(TemplateObjectDescription)                \
   /* Subtypes of Object */                    \
   V(HeapObject)
-
-// Classes on this list will skip serialization when
-// FLAG_turbo_direct_heap_access is on. Otherwise, they might get serialized.
-#define HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(V)
 
 class CompilationDependencies;
 struct FeedbackSource;
