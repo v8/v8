@@ -3682,6 +3682,8 @@ Node* EffectControlLinearizer::LowerUpdateInterruptBudget(Node* node) {
   TNode<Int32T> budget = __ LoadField<Int32T>(
       AccessBuilder::ForFeedbackCellInterruptBudget(), feedback_cell);
   Node* new_budget = __ Int32Add(budget, __ Int32Constant(n.delta()));
+  __ StoreField(AccessBuilder::ForFeedbackCellInterruptBudget(), feedback_cell,
+                new_budget);
   if (n.delta() < 0) {
     auto next = __ MakeLabel();
     auto if_budget_exhausted = __ MakeDeferredLabel();
@@ -3695,8 +3697,6 @@ Node* EffectControlLinearizer::LowerUpdateInterruptBudget(Node* node) {
 
     __ Bind(&next);
   }
-  __ StoreField(AccessBuilder::ForFeedbackCellInterruptBudget(), feedback_cell,
-                new_budget);
   return nullptr;
 }
 

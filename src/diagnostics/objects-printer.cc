@@ -874,7 +874,8 @@ void FeedbackCell::FeedbackCellPrint(std::ostream& os) {  // NOLINT
   } else {
     os << "\n - Invalid FeedbackCell map";
   }
-  os << " - value: " << Brief(value());
+  os << "\n - value: " << Brief(value());
+  os << "\n - interrupt_budget: " << interrupt_budget();
   os << "\n";
 }
 
