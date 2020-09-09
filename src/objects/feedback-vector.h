@@ -757,12 +757,27 @@ class V8_EXPORT_PRIVATE FeedbackIterator final {
   Map map() { return map_; }
   MaybeObject handler() { return handler_; }
 
+  static int SizeFor(int number_of_entries) {
+    CHECK_GT(number_of_entries, 0);
+    return number_of_entries * kEntrySize;
+  }
+
+  static int MapIndexForEntry(int entry) {
+    CHECK_GE(entry, 0);
+    return entry * kEntrySize;
+  }
+
+  static int HandlerIndexForEntry(int entry) {
+    CHECK_GE(entry, 0);
+    return (entry * kEntrySize) + kHandlerOffset;
+  }
+
  private:
   void AdvancePolymorphic();
   enum State { kMonomorphic, kPolymorphic, kOther };
+
   static constexpr int kEntrySize = 2;
   static constexpr int kHandlerOffset = 1;
-
   Handle<WeakFixedArray> polymorphic_feedback_;
   Map map_;
   MaybeObject handler_;

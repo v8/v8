@@ -296,7 +296,6 @@ class WeakFixedArray
 
   int AllocatedSize();
 
- protected:
   static int OffsetOfElementAt(int index) {
     STATIC_ASSERT(kObjectsOffset == SizeFor(0));
     return SizeFor(index);

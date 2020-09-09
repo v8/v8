@@ -265,6 +265,7 @@ class EffectControlLinearizer {
   Node* ObjectIsSmi(Node* value);
   Node* LoadFromSeqString(Node* receiver, Node* position, Node* is_one_byte);
   Node* TruncateWordToInt32(Node* value);
+  Node* MakeWeakForComparison(Node* heap_object);
   Node* BuildIsWeakReferenceTo(Node* maybe_object, Node* value);
   Node* BuildIsClearedWeakReference(Node* maybe_object);
   Node* BuildIsStrongReference(Node* value);
@@ -282,8 +283,9 @@ class EffectControlLinearizer {
                               DeoptimizeReason reason);
 
   // Helper functions used in LowerDynamicCheckMaps
-  void CheckPolymorphic(Node* feedback, Node* value_map, Node* handler,
-                        GraphAssemblerLabel<0>* done, Node* frame_state);
+  void CheckPolymorphic(Node* expected_polymorphic_array, Node* actual_map,
+                        Node* actual_handler, GraphAssemblerLabel<0>* done,
+                        Node* frame_state);
   void ProcessMonomorphic(Node* handler, GraphAssemblerLabel<0>* done,
                           Node* frame_state, int slot, Node* vector);
   void BranchOnICState(int slot_index, Node* vector, Node* value_map,
@@ -1881,51 +1883,107 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
   }
 }
 
-void EffectControlLinearizer::CheckPolymorphic(Node* feedback_slot,
-                                               Node* value_map, Node* handler,
+void EffectControlLinearizer::CheckPolymorphic(Node* expected_polymorphic_array,
+                                               Node* actual_map,
+                                               Node* actual_handler,
                                                GraphAssemblerLabel<0>* done,
                                                Node* frame_state) {
-  Node* feedback_slot_map =
-      __ LoadField(AccessBuilder::ForMap(), feedback_slot);
-  Node* is_weak_fixed_array_check =
-      __ TaggedEqual(feedback_slot_map, __ WeakFixedArrayMapConstant());
+  Node* expected_polymorphic_array_map =
+      __ LoadField(AccessBuilder::ForMap(), expected_polymorphic_array);
+  Node* is_weak_fixed_array = __ TaggedEqual(expected_polymorphic_array_map,
+                                             __ WeakFixedArrayMapConstant());
   __ DeoptimizeIfNot(DeoptimizeReason::kTransitionedToMegamorphicIC,
-                     FeedbackSource(), is_weak_fixed_array_check, frame_state,
+                     FeedbackSource(), is_weak_fixed_array, frame_state,
                      IsSafetyCheck::kCriticalSafetyCheck);
 
-  Node* length = ChangeSmiToInt32(
-      __ LoadField(AccessBuilder::ForWeakFixedArrayLength(), feedback_slot));
-  auto loop = __ MakeLoopLabel(MachineRepresentation::kWord32);
-  __ Goto(&loop, __ Int32Constant(0));
-  __ Bind(&loop);
-  {
-    Node* index = loop.PhiAt(0);
-    Node* check = __ Int32LessThan(index, length);
-    __ DeoptimizeIfNot(DeoptimizeKind::kBailout, DeoptimizeReason::kMissingMap,
-                       FeedbackSource(), check, frame_state,
-                       IsSafetyCheck::kCriticalSafetyCheck);
+  Node* polymorphic_array = expected_polymorphic_array;
 
-    Node* maybe_map = __ LoadElement(AccessBuilder::ForWeakFixedArrayElement(),
-                                     feedback_slot, index);
-    auto continue_loop = __ MakeLabel();
+  // This is now a weak pointer that we're holding in the register, we
+  // need to be careful about spilling and reloading it (as it could
+  // get cleared in between). There's no runtime call here that could
+  // cause a spill so we should be safe.
+  Node* weak_actual_map = MakeWeakForComparison(actual_map);
+  Node* length = ChangeSmiToInt32(__ LoadField(
+      AccessBuilder::ForWeakFixedArrayLength(), polymorphic_array));
+  auto do_handler_check = __ MakeLabel(MachineRepresentation::kWord32);
 
-    __ GotoIfNot(BuildIsWeakReferenceTo(maybe_map, value_map), &continue_loop);
-    constexpr int kHandlerOffsetInEntry = 1;
-    Node* maybe_handler = __ LoadElement(
-        AccessBuilder::ForWeakFixedArrayElement(), feedback_slot,
-        __ Int32Add(index, __ Int32Constant(kHandlerOffsetInEntry)));
-    Node* handler_check = __ TaggedEqual(maybe_handler, handler);
-    __ DeoptimizeIfNot(DeoptimizeReason::kWrongHandler, FeedbackSource(),
-                       handler_check, frame_state,
-                       IsSafetyCheck::kCriticalSafetyCheck);
+  GraphAssemblerLabel<0> labels[] = {__ MakeLabel(), __ MakeLabel(),
+                                     __ MakeLabel(), __ MakeLabel()};
 
-    __ Goto(done);
+  STATIC_ASSERT(FLAG_max_minimorphic_map_checks == arraysize(labels));
+  DCHECK_GE(FLAG_max_minimorphic_map_checks,
+            FLAG_max_valid_polymorphic_map_count);
 
-    __ Bind(&continue_loop);
-    constexpr int kEntrySize = 2;
-    index = __ Int32Add(index, __ Int32Constant(kEntrySize));
-    __ Goto(&loop, index);
+  // The following generates a switch based on the length of the
+  // array:
+  //
+  // if length >= 4: goto labels[3]
+  // if length == 3: goto labels[2]
+  // if length == 2: goto labels[1]
+  // if length == 1: goto labels[0]
+  __ GotoIf(__ Int32LessThanOrEqual(
+                __ Int32Constant(FeedbackIterator::SizeFor(4)), length),
+            &labels[3]);
+  __ GotoIf(
+      __ Word32Equal(length, __ Int32Constant(FeedbackIterator::SizeFor(3))),
+      &labels[2]);
+  __ GotoIf(
+      __ Word32Equal(length, __ Int32Constant(FeedbackIterator::SizeFor(2))),
+      &labels[1]);
+  __ GotoIf(
+      __ Word32Equal(length, __ Int32Constant(FeedbackIterator::SizeFor(1))),
+      &labels[0]);
+
+  // We should never have an polymorphic feedback array of size 0.
+  __ Unreachable(done);
+
+  // This loop generates code like this to do the dynamic map check:
+  //
+  // labels[3]:
+  //   maybe_map = load(polymorphic_array, i)
+  //   if weak_actual_map == maybe_map goto handler_check
+  //   goto labels[2]
+  // labels[2]:
+  //   maybe_map = load(polymorphic_array, i - 1)
+  //   if weak_actual_map == maybe_map goto handler_check
+  //   goto labels[1]
+  // labels[1]:
+  //   maybe_map = load(polymorphic_array, i - 2)
+  //   if weak_actual_map == maybe_map goto handler_check
+  //   goto labels[0]
+  // labels[0]:
+  //   maybe_map = load(polymorphic_array, i - 3)
+  //   if weak_actual_map == maybe_map goto handler_check
+  //   bailout
+  for (int i = arraysize(labels) - 1; i >= 0; i--) {
+    __ Bind(&labels[i]);
+    Node* maybe_map = __ LoadField(AccessBuilder::ForWeakFixedArraySlot(
+                                       FeedbackIterator::MapIndexForEntry(i)),
+                                   polymorphic_array);
+    Node* map_check = __ TaggedEqual(maybe_map, weak_actual_map);
+
+    int handler_index = FeedbackIterator::HandlerIndexForEntry(i);
+    __ GotoIf(map_check, &do_handler_check, __ Int32Constant(handler_index));
+    if (i > 0) {
+      __ Goto(&labels[i - 1]);
+    } else {
+      // TODO(turbofan): Add support for gasm->Deoptimize.
+      __ DeoptimizeIf(DeoptimizeKind::kBailout, DeoptimizeReason::kMissingMap,
+                      FeedbackSource(), __ IntPtrConstant(1),
+                      FrameState(frame_state));
+      __ Unreachable(done);
+    }
   }
+
+  __ Bind(&do_handler_check);
+  Node* handler_index = do_handler_check.PhiAt(0);
+  Node* maybe_handler =
+      __ LoadElement(AccessBuilder::ForWeakFixedArrayElement(),
+                     polymorphic_array, handler_index);
+  __ DeoptimizeIfNot(DeoptimizeReason::kWrongHandler, FeedbackSource(),
+                     __ TaggedEqual(maybe_handler, actual_handler), frame_state,
+                     IsSafetyCheck::kCriticalSafetyCheck);
+  __ Goto(done);
 }
 
 void EffectControlLinearizer::ProcessMonomorphic(Node* handler,
@@ -6436,6 +6494,13 @@ Node* EffectControlLinearizer::BuildIsStrongReference(Node* value) {
           TruncateWordToInt32(__ BitcastTaggedToWordForTagAndSmiBits(value)),
           __ Int32Constant(kHeapObjectTagMask)),
       __ Int32Constant(kHeapObjectTag));
+}
+
+Node* EffectControlLinearizer::MakeWeakForComparison(Node* heap_object) {
+  // TODO(gsathya): Specialize this for pointer compression.
+  return __ BitcastWordToTagged(
+      __ WordOr(__ BitcastTaggedToWord(heap_object),
+                __ IntPtrConstant(kWeakHeapObjectTag)));
 }
 
 Node* EffectControlLinearizer::BuildStrongReferenceFromWeakReference(

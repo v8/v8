@@ -871,6 +871,15 @@ FieldAccess AccessBuilder::ForFeedbackVectorSlot(int index) {
 }
 
 // static
+FieldAccess AccessBuilder::ForWeakFixedArraySlot(int index) {
+  int offset = WeakFixedArray::OffsetOfElementAt(index);
+  FieldAccess access = {kTaggedBase,      offset,
+                        Handle<Name>(),   MaybeHandle<Map>(),
+                        Type::Any(),      MachineType::AnyTagged(),
+                        kFullWriteBarrier};
+  return access;
+}
+// static
 FieldAccess AccessBuilder::ForCellValue() {
   FieldAccess access = {kTaggedBase,       Cell::kValueOffset,
                         Handle<Name>(),    MaybeHandle<Map>(),
