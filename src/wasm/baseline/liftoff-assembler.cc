@@ -488,6 +488,35 @@ void LiftoffAssembler::CacheState::Split(const CacheState& source) {
   *this = source;
 }
 
+void LiftoffAssembler::CacheState::DefineSafepoint(Safepoint& safepoint) {
+  for (auto slot : stack_state) {
+    DCHECK(!slot.is_reg());
+
+    if (slot.type().is_reference_type()) {
+      // index = 0 is for the stack slot at 'fp + kFixedFrameSizeAboveFp -
+      // kSystemPointerSize', the location of the current stack slot is 'fp -
+      // slot.offset()'. The index we need is therefore '(fp +
+      // kFixedFrameSizeAboveFp - kSystemPointerSize) - (fp - slot.offset())' =
+      // 'slot.offset() + kFixedFrameSizeAboveFp - kSystemPointerSize'.
+      auto index =
+          (slot.offset() + StandardFrameConstants::kFixedFrameSizeAboveFp -
+           kSystemPointerSize) /
+          kSystemPointerSize;
+      safepoint.DefinePointerSlot(index);
+    }
+  }
+}
+
+int LiftoffAssembler::GetTotalFrameSlotCountForGC() const {
+  // The GC does not care about the actual number of spill slots, just about
+  // the number of references that could be there in the spilling area. Note
+  // that the offset of the first spill slot is kSystemPointerSize and not
+  // '0'. Therefore we don't have to add '+1' here.
+  return (max_used_spill_offset_ +
+          StandardFrameConstants::kFixedFrameSizeAboveFp) /
+         kSystemPointerSize;
+}
+
 namespace {
 
 constexpr AssemblerOptions DefaultLiftoffOptions() {

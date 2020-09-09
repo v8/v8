@@ -135,6 +135,8 @@ class LiftoffAssembler : public TurboAssembler {
     // Disallow copy construction.
     CacheState(const CacheState&) = delete;
 
+    void DefineSafepoint(Safepoint& safepoint);
+
     base::SmallVector<VarState, 8> stack_state;
     LiftoffRegList used_registers;
     uint32_t register_use_count[kAfterMaxLiftoffRegCode] = {0};
@@ -1119,10 +1121,7 @@ class LiftoffAssembler : public TurboAssembler {
   uint32_t num_locals() const { return num_locals_; }
   void set_num_locals(uint32_t num_locals);
 
-  int GetTotalFrameSlotCount() const {
-    // TODO(zhin): Temporary for migration from index to offset.
-    return ((max_used_spill_offset_ + kStackSlotSize - 1) / kStackSlotSize);
-  }
+  int GetTotalFrameSlotCountForGC() const;
 
   int GetTotalFrameSize() const { return max_used_spill_offset_; }
 
