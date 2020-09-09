@@ -1220,7 +1220,9 @@ void SimdScalarLowering::LowerNode(Node* node) {
     }
     case IrOpcode::kSimd128ReverseBytes: {
       DCHECK_EQ(1, node->InputCount());
-      bool is_float = ReplacementType(node->InputAt(0)) == SimdType::kFloat32x4;
+      SimdType input_type = ReplacementType(node->InputAt(0));
+      bool is_float = input_type == SimdType::kFloat32x4 ||
+                      input_type == SimdType::kFloat64x2;
       replacements_[node->id()].type =
           is_float ? SimdType::kFloat32x4 : SimdType::kInt32x4;
       Node** rep = GetReplacementsWithType(
@@ -2008,6 +2010,17 @@ void SimdScalarLowering::Int32ToFloat32(Node** replacements, Node** result) {
   }
 }
 
+void SimdScalarLowering::Float64ToInt64(Node** replacements, Node** result) {
+  for (int i = 0; i < kNumLanes64; ++i) {
+    if (replacements[i] != nullptr) {
+      result[i] =
+          graph()->NewNode(machine()->BitcastFloat64ToInt64(), replacements[i]);
+    } else {
+      result[i] = nullptr;
+    }
+  }
+}
+
 void SimdScalarLowering::Float32ToInt32(Node** replacements, Node** result) {
   for (int i = 0; i < kNumLanes32; ++i) {
     if (replacements[i] != nullptr) {
@@ -2015,6 +2028,27 @@ void SimdScalarLowering::Float32ToInt32(Node** replacements, Node** result) {
           graph()->NewNode(machine()->BitcastFloat32ToInt32(), replacements[i]);
     } else {
       result[i] = nullptr;
+    }
+  }
+}
+
+void SimdScalarLowering::Int64ToInt32(Node** replacements, Node** result) {
+  const int num_ints = sizeof(int64_t) / sizeof(int32_t);
+  const int bit_size = sizeof(int32_t) * 8;
+  const Operator* sign_extend = machine()->SignExtendWord32ToInt64();
+
+  for (int i = 0; i < kNumLanes64; i++) {
+    if (replacements[i] != nullptr) {
+      for (int j = 0; j < num_ints; j++) {
+        result[num_ints * i + j] = graph()->NewNode(
+            sign_extend,
+            graph()->NewNode(machine()->Word64Sar(), replacements[i],
+                             mcgraph_->Int32Constant(j * bit_size)));
+      }
+    } else {
+      for (int j = 0; j < num_ints; j++) {
+        result[num_ints * i + j] = nullptr;
+      }
     }
   }
 }
@@ -2080,7 +2114,9 @@ Node** SimdScalarLowering::GetReplacementsWithType(Node* node, SimdType type) {
   int num_lanes = NumLanes(type);
   Node** result = zone()->NewArray<Node*>(num_lanes);
   if (type == SimdType::kInt32x4) {
-    if (ReplacementType(node) == SimdType::kFloat32x4) {
+    if (ReplacementType(node) == SimdType::kInt64x2) {
+      Int64ToInt32(replacements, result);
+    } else if (ReplacementType(node) == SimdType::kFloat32x4) {
       Float32ToInt32(replacements, result);
     } else if (ReplacementType(node) == SimdType::kInt16x8) {
       SmallerIntToInt32<int16_t>(replacements, result);
@@ -2090,7 +2126,13 @@ Node** SimdScalarLowering::GetReplacementsWithType(Node* node, SimdType type) {
       UNREACHABLE();
     }
   } else if (type == SimdType::kFloat32x4) {
-    if (ReplacementType(node) == SimdType::kInt32x4) {
+    if (ReplacementType(node) == SimdType::kFloat64x2) {
+      Node** float64_to_int64 = zone()->NewArray<Node*>(kNumLanes64);
+      Node** int64_to_int32 = zone()->NewArray<Node*>(kNumLanes32);
+      Float64ToInt64(replacements, float64_to_int64);
+      Int64ToInt32(float64_to_int64, int64_to_int32);
+      Int32ToFloat32(int64_to_int32, result);
+    } else if (ReplacementType(node) == SimdType::kInt32x4) {
       Int32ToFloat32(replacements, result);
     } else if (ReplacementType(node) == SimdType::kInt16x8) {
       UNIMPLEMENTED();

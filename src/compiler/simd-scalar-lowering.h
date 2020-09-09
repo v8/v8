@@ -74,8 +74,10 @@ class SimdScalarLowering {
   bool HasReplacement(size_t index, Node* node);
   Node** GetReplacements(Node* node);
   int ReplacementCount(Node* node);
+  void Float64ToInt64(Node** replacements, Node** result);
   void Float32ToInt32(Node** replacements, Node** result);
   void Int32ToFloat32(Node** replacements, Node** result);
+  void Int64ToInt32(Node** replacements, Node** result);
   template <typename T>
   void Int32ToSmallerInt(Node** replacements, Node** result);
   template <typename T>
