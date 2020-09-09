@@ -94,9 +94,7 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
     int overall_free_memory = static_cast<int>(heap->old_space()->Available());
     CHECK(padding_size <= overall_free_memory || overall_free_memory == 0);
   } else {
-    int overall_free_memory =
-        static_cast<int>(*heap->new_space()->allocation_limit_address() -
-                         *heap->new_space()->allocation_top_address());
+    int overall_free_memory = static_cast<int>(heap->new_space()->Available());
     CHECK(padding_size <= overall_free_memory || overall_free_memory == 0);
   }
   while (free_memory > 0) {
@@ -143,10 +141,8 @@ bool FillCurrentPageButNBytes(v8::internal::NewSpace* space, int extra_bytes,
   // the current allocation pointer.
   DCHECK_IMPLIES(space->heap()->inline_allocation_disabled(),
                  space->limit() == space->top());
-  size_t limit = space->heap()->inline_allocation_disabled()
-                     ? space->to_space().page_high()
-                     : space->limit();
-  int space_remaining = static_cast<int>(limit - space->top());
+  int space_remaining =
+      static_cast<int>(space->to_space().page_high() - space->top());
   CHECK(space_remaining >= extra_bytes);
   int new_linear_size = space_remaining - extra_bytes;
   if (new_linear_size == 0) return false;
