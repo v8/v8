@@ -91,6 +91,7 @@ class TestCase(object):
     self._expected_outcomes = None
     self._checked_flag_contradictions = False
     self._statusfile_flags = None
+    self.expected_failure_reason = None
 
     self._prepare_outcomes()
 
@@ -168,6 +169,15 @@ class TestCase(object):
         return any(flag.startswith(conflicting_flag[:-1]) for flag in flags)
       return False
 
+    def check_flags(incompatible_flags, actual_flags, rule):
+      for incompatible_flag in incompatible_flags:
+          if has_flag(incompatible_flag, actual_flags):
+            self._statusfile_outcomes = outproc.OUTCOMES_FAIL
+            self._expected_outcomes = outproc.OUTCOMES_FAIL
+            self.expected_failure_reason = ("Rule " + rule + " in " +
+                "tools/testrunner/local/variants.py expected a flag " +
+                "contradiction error with " + incompatible_flag + ".")
+
     if not self._checked_flag_contradictions:
       self._checked_flag_contradictions = True
 
@@ -176,22 +186,19 @@ class TestCase(object):
       file_specific_flags = [normalize_flag(flag) for flag in file_specific_flags]
       extra_flags = [normalize_flag(flag) for flag in self._get_extra_flags()]
 
-      incompatible_flags = []
-
       if self.variant in INCOMPATIBLE_FLAGS_PER_VARIANT:
-        incompatible_flags += INCOMPATIBLE_FLAGS_PER_VARIANT[self.variant]
+        check_flags(INCOMPATIBLE_FLAGS_PER_VARIANT[self.variant], file_specific_flags,
+                    "INCOMPATIBLE_FLAGS_PER_VARIANT[\""+self.variant+"\"]")
 
-      for variable, flags in INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE.items():
+      for variable, incompatible_flags in INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE.items():
         if self.suite.statusfile.variables[variable]:
-          incompatible_flags += flags
+            check_flags(incompatible_flags, file_specific_flags,
+              "INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE[\""+variable+"\"]")
 
-      for extra_flag, flags in INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG.items():
+      for extra_flag, incompatible_flags in INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG.items():
         if has_flag(extra_flag, extra_flags):
-          incompatible_flags += flags
-
-      for incompatible_flag in incompatible_flags:
-        if has_flag(incompatible_flag, file_specific_flags):
-          self._expected_outcomes = outproc.OUTCOMES_FAIL
+            check_flags(incompatible_flags, file_specific_flags,
+              "INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG[\""+extra_flag+"\"]")
     return self._expected_outcomes
 
   @property
