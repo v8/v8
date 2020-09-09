@@ -70,19 +70,24 @@ uint8_t DefaultJobState::AcquireTaskId() {
             kMaxWorkersPerJob);
   uint32_t new_assigned_task_ids = 0;
   uint8_t task_id = 0;
+  // memory_order_acquire on success, matched with memory_order_release in
+  // ReleaseTaskId() so that operations done by previous threads that had
+  // the same task_id become visible to the current thread.
   do {
     // Count trailing one bits. This is the id of the right-most 0-bit in
     // |assigned_task_ids|.
     task_id = v8::base::bits::CountTrailingZeros32(~assigned_task_ids);
     new_assigned_task_ids = assigned_task_ids | (uint32_t(1) << task_id);
   } while (!assigned_task_ids_.compare_exchange_weak(
-      assigned_task_ids, new_assigned_task_ids, std::memory_order_relaxed));
+      assigned_task_ids, new_assigned_task_ids, std::memory_order_acquire,
+      std::memory_order_relaxed));
   return task_id;
 }
 
 void DefaultJobState::ReleaseTaskId(uint8_t task_id) {
-  uint32_t previous_task_ids =
-      assigned_task_ids_.fetch_and(~(uint32_t(1) << task_id));
+  // memory_order_release to match AcquireTaskId().
+  uint32_t previous_task_ids = assigned_task_ids_.fetch_and(
+      ~(uint32_t(1) << task_id), std::memory_order_release);
   DCHECK(previous_task_ids & (uint32_t(1) << task_id));
   USE(previous_task_ids);
 }
@@ -99,8 +104,8 @@ void DefaultJobState::Join() {
     ++active_workers_;
     can_run = WaitForParticipationOpportunityLockRequired();
   }
+  DefaultJobState::JobDelegate delegate(this);
   while (can_run) {
-    DefaultJobState::JobDelegate delegate(this);
     job_task_->Run(&delegate);
     base::MutexGuard guard(&mutex_);
     can_run = WaitForParticipationOpportunityLockRequired();
