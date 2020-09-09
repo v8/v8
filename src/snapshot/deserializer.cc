@@ -102,7 +102,10 @@ Deserializer::~Deserializer() {
 // process.  It is also called on the body of each function.
 void Deserializer::VisitRootPointers(Root root, const char* description,
                                      FullObjectSlot start, FullObjectSlot end) {
-  ReadData(FullMaybeObjectSlot(start), FullMaybeObjectSlot(end), kNullAddress);
+  // We are reading to a location outside of JS heap, so pass kNew to avoid
+  // triggering write barriers.
+  ReadData(FullMaybeObjectSlot(start), FullMaybeObjectSlot(end),
+           SnapshotSpace::kNew, kNullAddress);
 }
 
 void Deserializer::Synchronize(VisitorSynchronization::SyncTag tag) {
@@ -334,8 +337,10 @@ HeapObject Deserializer::GetBackReferencedObject(SnapshotSpace space) {
 
 HeapObject Deserializer::ReadObject() {
   MaybeObject object;
+  // We are reading to a location outside of JS heap, so pass kNew to avoid
+  // triggering write barriers.
   ReadData(FullMaybeObjectSlot(&object), FullMaybeObjectSlot(&object + 1),
-           kNullAddress);
+           SnapshotSpace::kNew, kNullAddress);
   return object.GetHeapObjectAssumeStrong();
 }
 
@@ -375,7 +380,7 @@ HeapObject Deserializer::ReadObject(SnapshotSpace space) {
   MaybeObjectSlot limit(address + size);
 
   current.store(MaybeObject::FromObject(map));
-  ReadData(current + 1, limit, address);
+  ReadData(current + 1, limit, space, address);
   obj = PostProcessNewObject(obj, space);
 
 #ifdef DEBUG
@@ -405,18 +410,19 @@ HeapObject Deserializer::ReadMetaMap() {
   current.store(MaybeObject(current.address() + kHeapObjectTag));
   // Set the instance-type manually, to allow backrefs to read it.
   Map::unchecked_cast(obj).set_instance_type(MAP_TYPE);
-  ReadData(current + 1, limit, address);
+  ReadData(current + 1, limit, space, address);
 
   return obj;
 }
 
-void Deserializer::ReadCodeObjectBody(Address code_object_address) {
+void Deserializer::ReadCodeObjectBody(SnapshotSpace space,
+                                      Address code_object_address) {
   // At this point the code object is already allocated, its map field is
   // initialized and its raw data fields and code stream are also read.
   // Now we read the rest of code header's fields.
   MaybeObjectSlot current(code_object_address + HeapObject::kHeaderSize);
   MaybeObjectSlot limit(code_object_address + Code::kDataStart);
-  ReadData(current, limit, code_object_address);
+  ReadData(current, limit, space, code_object_address);
 
   // Now iterate RelocInfos the same way it was done by the serialzier and
   // deserialize respective data into RelocInfos.
@@ -530,19 +536,28 @@ constexpr byte VerifyBytecodeCount(byte bytecode) {
 
 template <typename TSlot>
 void Deserializer::ReadData(TSlot current, TSlot limit,
+                            SnapshotSpace source_space,
                             Address current_object_address) {
+  // Write barrier support costs around 1% in startup time.  In fact there
+  // are no new space objects in current boot snapshots, so it's not needed,
+  // but that may change.
+  bool write_barrier_needed =
+      (current_object_address != kNullAddress &&
+       source_space != SnapshotSpace::kNew &&
+       source_space != SnapshotSpace::kCode && !FLAG_disable_write_barriers);
   while (current < limit) {
     byte data = source_.Get();
     switch (data) {
-#define READ_DATA_CASE_BODY(bytecode)                                       \
-  current =                                                                 \
-      ReadDataCase<TSlot, bytecode>(current, current_object_address, data); \
+#define READ_DATA_CASE_BODY(bytecode)                                      \
+  current = ReadDataCase<TSlot, bytecode>(current, current_object_address, \
+                                          data, write_barrier_needed);     \
   break;
 
 // This generates a case and a body for the new space (which has to do extra
 // write barrier handling) and handles the other spaces with fall-through cases
 // and one body.
 #define ALL_SPACES(bytecode)                                         \
+  case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kNew):          \
   case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kOld):          \
   case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kCode):         \
   case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kMap):          \
@@ -571,6 +586,10 @@ void Deserializer::ReadData(TSlot current, TSlot limit,
       // to the current object.
       case kReadOnlyObjectCache:
         READ_DATA_CASE_BODY(kReadOnlyObjectCache)
+      // Find an object in the attached references and write a pointer to it to
+      // the current object.
+      case kAttachedReference:
+        READ_DATA_CASE_BODY(kAttachedReference)
       // Deserialize a new meta-map and write a pointer to it to the current
       // object.
       case kNewMetaMap:
@@ -609,26 +628,6 @@ void Deserializer::ReadData(TSlot current, TSlot limit,
       case kOffHeapTarget: {
         // These bytecodes are expected only during RelocInfo iteration.
         UNREACHABLE();
-        break;
-      }
-
-      // Find an object in the attached references and write a pointer to it to
-      // the current object.
-      case kAttachedReference: {
-        int index = source_.GetInt();
-        MaybeObject ref = MaybeObject::FromObject(*attached_objects_[index]);
-
-        // This is the only case where we might encounter new space objects, so
-        // don't update current pointer here yet as it may be needed for write
-        // barrier.
-        Write(current, ref);
-        if (Heap::InYoungGeneration(ref)) {
-          HeapObject current_object =
-              HeapObject::FromAddress(current_object_address);
-          GenerationalBarrier(current_object,
-                              MaybeObjectSlot(current.address()), ref);
-        }
-        ++current;
         break;
       }
 
@@ -697,7 +696,7 @@ void Deserializer::ReadData(TSlot current, TSlot limit,
             reinterpret_cast<void*>(current_object_address + Code::kDataStart),
             size_in_bytes);
         // Deserialize tagged fields in the code object header and reloc infos.
-        ReadCodeObjectBody(current_object_address);
+        ReadCodeObjectBody(source_space, current_object_address);
         // Set current to the code object end.
         current = TSlot(current.address() + Code::kDataStart -
                         HeapObject::kHeaderSize + size_in_bytes);
@@ -783,8 +782,17 @@ void Deserializer::ReadData(TSlot current, TSlot limit,
         if (allocator()->GetAndClearNextReferenceIsWeak()) {
           hot_maybe_object = MaybeObject::MakeWeak(hot_maybe_object);
         }
-        DCHECK(!Heap::InYoungGeneration(hot_maybe_object));
-        current = Write(current, hot_maybe_object);
+        // Don't update current pointer here as it may be needed for write
+        // barrier.
+        Write(current, hot_maybe_object);
+        if (write_barrier_needed && Heap::InYoungGeneration(hot_object)) {
+          HeapObject current_object =
+              HeapObject::FromAddress(current_object_address);
+          GenerationalBarrier(current_object,
+                              MaybeObjectSlot(current.address()),
+                              hot_maybe_object);
+        }
+        ++current;
         break;
       }
 
@@ -834,7 +842,8 @@ Address Deserializer::ReadExternalReferenceCase() {
 
 template <typename TSlot, SerializerDeserializer::Bytecode bytecode>
 TSlot Deserializer::ReadDataCase(TSlot current, Address current_object_address,
-                                 byte data) {
+                                 byte data, bool write_barrier_needed) {
+  bool emit_write_barrier = false;
   HeapObject heap_object;
   HeapObjectReferenceType reference_type =
       allocator()->GetAndClearNextReferenceIsWeak()
@@ -844,32 +853,51 @@ TSlot Deserializer::ReadDataCase(TSlot current, Address current_object_address,
   if (bytecode == kNewObject) {
     SnapshotSpace space = SpaceEncoder<bytecode>::Decode(data);
     heap_object = ReadObject(space);
+    emit_write_barrier = (space == SnapshotSpace::kNew);
   } else if (bytecode == kBackref) {
     SnapshotSpace space = SpaceEncoder<bytecode>::Decode(data);
     heap_object = GetBackReferencedObject(space);
+    emit_write_barrier = (space == SnapshotSpace::kNew);
   } else if (bytecode == kNewMetaMap) {
     heap_object = ReadMetaMap();
+    emit_write_barrier = false;
   } else if (bytecode == kRootArray) {
     int id = source_.GetInt();
     RootIndex root_index = static_cast<RootIndex>(id);
     heap_object = HeapObject::cast(isolate()->root(root_index));
+    emit_write_barrier = Heap::InYoungGeneration(heap_object);
     hot_objects_.Add(heap_object);
   } else if (bytecode == kReadOnlyObjectCache) {
     int cache_index = source_.GetInt();
     heap_object = HeapObject::cast(
         isolate()->read_only_heap()->cached_read_only_object(cache_index));
-  } else {
-    DCHECK_EQ(bytecode, kStartupObjectCache);
+    DCHECK(!Heap::InYoungGeneration(heap_object));
+    emit_write_barrier = false;
+  } else if (bytecode == kStartupObjectCache) {
     int cache_index = source_.GetInt();
     heap_object =
         HeapObject::cast(isolate()->startup_object_cache()->at(cache_index));
+    emit_write_barrier = Heap::InYoungGeneration(heap_object);
+  } else {
+    DCHECK_EQ(bytecode, kAttachedReference);
+    int index = source_.GetInt();
+    heap_object = *attached_objects_[index];
+    emit_write_barrier = Heap::InYoungGeneration(heap_object);
   }
   HeapObjectReference heap_object_ref =
       reference_type == HeapObjectReferenceType::STRONG
           ? HeapObjectReference::Strong(heap_object)
           : HeapObjectReference::Weak(heap_object);
-  DCHECK(!Heap::InYoungGeneration(heap_object));
-  return Write(current, heap_object_ref);
+  // Don't update current pointer here as it may be needed for write barrier.
+  Write(current, heap_object_ref);
+  if (emit_write_barrier && write_barrier_needed) {
+    DCHECK_IMPLIES(FLAG_disable_write_barriers, !write_barrier_needed);
+    HeapObject host_object = HeapObject::FromAddress(current_object_address);
+    SLOW_DCHECK(isolate()->heap()->Contains(host_object));
+    GenerationalBarrier(host_object, MaybeObjectSlot(current.address()),
+                        heap_object_ref);
+  }
+  return current + 1;
 }
 
 }  // namespace internal

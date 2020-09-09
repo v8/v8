@@ -2794,7 +2794,7 @@ Handle<JSGlobalProxy> Factory::NewUninitializedJSGlobalProxy(int size) {
   map->set_may_have_interesting_symbols(true);
   LOG(isolate(), MapDetails(*map));
   Handle<JSGlobalProxy> proxy = Handle<JSGlobalProxy>::cast(
-      NewJSObjectFromMap(map, AllocationType::kOld));
+      NewJSObjectFromMap(map, AllocationType::kYoung));
   // Create identity hash early in case there is any JS collection containing
   // a global proxy key and needs to be rehashed after deserialization.
   proxy->GetOrCreateIdentityHash(isolate());

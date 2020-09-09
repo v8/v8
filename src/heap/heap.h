@@ -2499,8 +2499,7 @@ class VerifySmisVisitor : public RootVisitor {
 // is done.
 class V8_EXPORT_PRIVATE PagedSpaceIterator {
  public:
-  explicit PagedSpaceIterator(Heap* heap)
-      : heap_(heap), counter_(FIRST_GROWABLE_PAGED_SPACE) {}
+  explicit PagedSpaceIterator(Heap* heap) : heap_(heap), counter_(OLD_SPACE) {}
   PagedSpace* Next();
 
  private:
