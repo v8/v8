@@ -996,7 +996,7 @@ TEST(NativeMethodUninitializedIC) {
   v8::Local<v8::Signature> signature =
       v8::Signature::New(isolate, func_template);
   proto_template->Set(
-      v8_str("fooMethod"),
+      isolate, "fooMethod",
       v8::FunctionTemplate::New(isolate, &TestApiCallbacks::Callback, data,
                                 signature, 0));
 
@@ -1037,7 +1037,7 @@ TEST(NativeMethodMonomorphicIC) {
   v8::Local<v8::Signature> signature =
       v8::Signature::New(isolate, func_template);
   proto_template->Set(
-      v8_str("fooMethod"),
+      isolate, "fooMethod",
       v8::FunctionTemplate::New(isolate, &TestApiCallbacks::Callback, data,
                                 signature, 0));
 

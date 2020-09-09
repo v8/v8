@@ -716,7 +716,8 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobOverwriteGlobal) {
     v8::Local<v8::ObjectTemplate> global_template =
         v8::ObjectTemplate::New(isolate1);
     global_template->Set(
-        v8_str("f"), v8::FunctionTemplate::New(isolate1, UnreachableCallback));
+        isolate1, "f",
+        v8::FunctionTemplate::New(isolate1, UnreachableCallback));
     v8::Local<v8::Context> context =
         v8::Context::New(isolate1, nullptr, global_template);
     v8::Context::Scope c_scope(context);
@@ -3232,7 +3233,7 @@ UNINITIALIZED_TEST(SnapshotCreatorTemplates) {
           v8::External::New(isolate, &serialized_static_field);
       v8::Local<v8::FunctionTemplate> callback =
           v8::FunctionTemplate::New(isolate, SerializedCallback, external);
-      global_template->Set(v8_str("f"), callback);
+      global_template->Set(isolate, "f", callback);
       v8::Local<v8::Context> context =
           v8::Context::New(isolate, no_extension, global_template);
       creator.SetDefaultContext(context);
@@ -3635,7 +3636,7 @@ UNINITIALIZED_TEST(SnapshotCreatorIncludeGlobalProxy) {
           v8::ObjectTemplate::New(isolate);
       v8::Local<v8::FunctionTemplate> callback =
           v8::FunctionTemplate::New(isolate, SerializedCallback);
-      global_template->Set(v8_str("f"), callback);
+      global_template->Set(isolate, "f", callback);
       global_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
           NamedPropertyGetterForSerialization));
       v8::Local<v8::Context> context =
@@ -3662,7 +3663,7 @@ UNINITIALIZED_TEST(SnapshotCreatorIncludeGlobalProxy) {
       v8::Local<v8::FunctionTemplate> callback =
           v8::FunctionTemplate::New(isolate, SerializedCallback);
       global_template->SetInternalFieldCount(3);
-      global_template->Set(v8_str("f"), callback);
+      global_template->Set(isolate, "f", callback);
       global_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
           NamedPropertyGetterForSerialization));
       global_template->SetAccessor(v8_str("y"), AccessorForSerialization);
