@@ -1493,7 +1493,11 @@ template("run_mksnapshot") {
     suffix = "_$name"
   }
   action("run_mksnapshot_" + name) {
-    visibility = [ ":*" ]  # Only targets in this file can depend on this.
+    # Only targets in this file and running mkgrokdump can depend on this.
+    visibility = [
+      ":*",
+      "tools/debug_helper:run_mkgrokdump",
+    ]
 
     deps = [ ":mksnapshot($v8_snapshot_toolchain)" ]
 
