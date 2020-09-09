@@ -603,8 +603,7 @@ FILE* OS::OpenTemporaryFile() {
 
 
 // Open log file in binary mode to avoid /n -> /r/n conversion.
-const char* const OS::LogFileOpenMode = "wb";
-
+const char* const OS::LogFileOpenMode = "wb+";
 
 // Print (debug) message to console.
 void OS::Print(const char* format, ...) {
