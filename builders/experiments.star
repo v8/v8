@@ -112,3 +112,20 @@ experiment_builder(
     ],
     use_goma = GOMA.DEFAULT,
 )
+
+experiment_builder(
+    name = "V8 Mac on ARM64 - release - builder",
+    bucket = "ci",
+    triggered_by = ["v8-trigger"],
+    dimensions = {"os": "Mac-11", "cpu": "arm64"},
+    properties = {"build_config": "Release", "mastername": "client.v8", "triggers": ["V8 Mac on ARM64 - release"]},
+    use_goma = GOMA.DEFAULT,
+)
+
+experiment_builder(
+    name = "V8 Mac on ARM64 - release",
+    bucket = "ci",
+    dimensions = {"os": "Mac-11", "cpu": "arm64"},
+    execution_timeout = 19800,
+    properties = {"mastername": "client.v8"},
+)
