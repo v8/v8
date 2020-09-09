@@ -11,13 +11,13 @@
 #include "include/cppgc/visitor.h"
 #include "src/base/macros.h"
 #include "src/base/platform/time.h"
+#include "src/heap/base/worklist.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/incremental-marking-schedule.h"
 #include "src/heap/cppgc/marking-state.h"
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/marking-worklists.h"
 #include "src/heap/cppgc/task-handle.h"
-#include "src/heap/cppgc/worklist.h"
 
 namespace cppgc {
 namespace internal {

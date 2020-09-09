@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HEAP_CPPGC_WORKLIST_H_
-#define V8_HEAP_CPPGC_WORKLIST_H_
+#ifndef V8_HEAP_BASE_WORKLIST_H_
+#define V8_HEAP_BASE_WORKLIST_H_
 
 #include <cstddef>
 #include <utility>
@@ -13,8 +13,8 @@
 #include "src/base/platform/mutex.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
-namespace cppgc {
-namespace internal {
+namespace heap {
+namespace base {
 
 // A global marking worklist that is similar the existing Worklist
 // but does not reserve space and keep track of the local segments.
@@ -405,7 +405,7 @@ bool Worklist<EntryType, SegmentSize>::Local::StealPopSegment() {
   return false;
 }
 
-}  // namespace internal
-}  // namespace cppgc
+}  // namespace base
+}  // namespace heap
 
-#endif  // V8_HEAP_CPPGC_WORKLIST_H_
+#endif  // V8_HEAP_BASE_WORKLIST_H_

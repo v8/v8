@@ -20,6 +20,40 @@ if (is_fuchsia) {
   }
 }
 
+v8_executable("v8_cppgc_shared_unittests") {
+  testonly = true
+
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+  ]
+
+  sources = [ "heap/base/run-all-unittests.cc" ]
+
+  deps = [
+    ":v8_cppgc_shared_unittests_sources",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
+
+v8_source_set("v8_cppgc_shared_unittests_sources") {
+  testonly = true
+
+  sources = [ "heap/base/worklist-unittest.cc" ]
+
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+  ]
+
+  deps = [
+    "../..:v8_cppgc_shared_for_testing",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
+
 # Stand-alone target for C++ GC unittests. This is used to ensure that it
 # builds without V8 as well. They are also included in the regular unittests
 # target for simplicity.
@@ -76,7 +110,6 @@ v8_source_set("cppgc_unittests_sources") {
     "heap/cppgc/tests.cc",
     "heap/cppgc/tests.h",
     "heap/cppgc/visitor-unittest.cc",
-    "heap/cppgc/worklist-unittest.cc",
     "heap/cppgc/write-barrier-unittest.cc",
   ]
 

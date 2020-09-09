@@ -4251,6 +4251,7 @@ v8_source_set("v8_cppgc_shared") {
   sources = [
     "src/heap/base/stack.cc",
     "src/heap/base/stack.h",
+    "src/heap/base/worklist.h",
   ]
 
   if (is_clang || !is_win) {
@@ -4379,7 +4380,6 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/virtual-memory.cc",
     "src/heap/cppgc/virtual-memory.h",
     "src/heap/cppgc/visitor.cc",
-    "src/heap/cppgc/worklist.h",
     "src/heap/cppgc/write-barrier.cc",
   ]
 
@@ -4762,6 +4762,15 @@ if (is_component_build) {
     configs = [ ":internal_config" ]
     public_configs = [ ":external_config" ]
   }
+
+  v8_component("v8_cppgc_shared_for_testing") {
+    testonly = true
+
+    public_deps = [ ":v8_cppgc_shared" ]
+
+    configs = [ ":internal_config" ]
+    public_configs = [ ":external_config" ]
+  }
 } else {
   group("v8") {
     public_deps = [
@@ -4796,6 +4805,14 @@ if (is_component_build) {
     testonly = true
 
     public_deps = [ ":cppgc_base" ]
+
+    public_configs = [ ":external_config" ]
+  }
+
+  group("v8_cppgc_shared_for_testing") {
+    testonly = true
+
+    public_deps = [ ":v8_cppgc_shared" ]
 
     public_configs = [ ":external_config" ]
   }

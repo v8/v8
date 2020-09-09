@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/cppgc/worklist.h"
+#include "src/heap/base/worklist.h"
+
 #include "test/unittests/heap/cppgc/tests.h"
 
-namespace cppgc {
-namespace internal {
+namespace heap {
+namespace base {
 
 class SomeObject {};
 
@@ -323,5 +324,5 @@ TEST(CppgcWorkListTest, MergeGlobalPool) {
   EXPECT_TRUE(worklist2.IsEmpty());
 }
 
-}  // namespace internal
-}  // namespace cppgc
+}  // namespace base
+}  // namespace heap

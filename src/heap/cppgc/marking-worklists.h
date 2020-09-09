@@ -6,7 +6,7 @@
 #define V8_HEAP_CPPGC_MARKING_WORKLISTS_H_
 
 #include "include/cppgc/visitor.h"
-#include "src/heap/cppgc/worklist.h"
+#include "src/heap/base/worklist.h"
 
 namespace cppgc {
 namespace internal {
@@ -25,13 +25,14 @@ class MarkingWorklists {
 
   // Segment size of 512 entries necessary to avoid throughput regressions.
   // Since the work list is currently a temporary object this is not a problem.
-  using MarkingWorklist = Worklist<MarkingItem, 512 /* local entries */>;
+  using MarkingWorklist =
+      heap::base::Worklist<MarkingItem, 512 /* local entries */>;
   using NotFullyConstructedWorklist =
-      Worklist<HeapObjectHeader*, 16 /* local entries */>;
+      heap::base::Worklist<HeapObjectHeader*, 16 /* local entries */>;
   using WeakCallbackWorklist =
-      Worklist<WeakCallbackItem, 64 /* local entries */>;
+      heap::base::Worklist<WeakCallbackItem, 64 /* local entries */>;
   using WriteBarrierWorklist =
-      Worklist<HeapObjectHeader*, 64 /*local entries */>;
+      heap::base::Worklist<HeapObjectHeader*, 64 /*local entries */>;
 
   MarkingWorklist* marking_worklist() { return &marking_worklist_; }
   NotFullyConstructedWorklist* not_fully_constructed_worklist() {
