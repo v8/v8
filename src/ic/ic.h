@@ -136,10 +136,6 @@ class IC {
     return !target_maps_.empty() ? *target_maps_[0] : Map();
   }
 
-  State saved_state() const {
-    return state() == RECOMPUTE_HANDLER ? old_state_ : state();
-  }
-
   const FeedbackNexus* nexus() const { return &nexus_; }
   FeedbackNexus* nexus() { return &nexus_; }
 
