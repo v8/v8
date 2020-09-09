@@ -1633,14 +1633,15 @@ macro IsIntegerOrSomeInfinity(o: Object): bool {
 }
 
 builtin CheckNumberInRange(implicit context: Context)(
-    value: Number, min: Number, max: Number): Undefined {
+    value: Number, min: Number, max: Number, nodeId: Smi): Undefined {
   if (IsIntegerOrSomeInfinity(value) && min <= value && value <= max) {
     return Undefined;
   } else {
-    Print('Range type assertion failed! (value/min/max)');
+    Print('Range type assertion failed! (value/min/max/nodeId)');
     Print(value);
     Print(min);
     Print(max);
+    Print(nodeId);
     unreachable;
   }
 }

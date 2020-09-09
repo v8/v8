@@ -6014,7 +6014,7 @@ Node* EffectControlLinearizer::LowerAssertType(Node* node) {
   Node* const min = __ NumberConstant(range->Min());
   Node* const max = __ NumberConstant(range->Max());
   CallBuiltin(Builtins::kCheckNumberInRange, node->op()->properties(), input,
-              min, max);
+              min, max, __ SmiConstant(node->id()));
   return input;
 }
 
