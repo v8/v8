@@ -23,9 +23,9 @@
 
 ##############################################################################
 ['arch == x64 and mode == debug', {
-  # https://crbug.com/v8/10876
-  'debugger/pause-on-oom-extrawide': [SKIP],
-  'debugger/pause-on-oom-wide': [SKIP],
+  # Flaky tests: https://crbug.com/v8/10876
+  'debugger/pause-on-oom-extrawide': [PASS, FAIL],
+  'debugger/pause-on-oom-wide': [PASS, FAIL],
 }],  # 'arch == x64 and mode == debug'
 
 ##############################################################################
