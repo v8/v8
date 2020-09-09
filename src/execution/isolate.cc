@@ -3077,8 +3077,7 @@ void Isolate::Deinit() {
   cancelable_task_manager()->CancelAndWait();
 
   heap_.TearDown();
-  FILE* logfile = logger_->TearDownAndGetLogFile();
-  if (logfile != nullptr) fclose(logfile);
+  logger_->TearDown();
 
   if (wasm_engine_) {
     wasm_engine_->RemoveIsolate(this);

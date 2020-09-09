@@ -679,7 +679,9 @@ FILE* OS::OpenTemporaryFile() {
   return tmpfile();
 }
 
-const char* const OS::LogFileOpenMode = "w+";
+
+const char* const OS::LogFileOpenMode = "w";
+
 
 void OS::Print(const char* format, ...) {
   va_list args;

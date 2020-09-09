@@ -126,18 +126,17 @@ class Logger : public CodeEventListener {
   // Acquires resources for logging if the right flags are set.
   bool SetUp(Isolate* isolate);
 
-  // Frees resources acquired in SetUp.
-  // When a temporary file is used for the log, returns its stream descriptor,
-  // leaving the file open.
-  V8_EXPORT_PRIVATE FILE* TearDownAndGetLogFile();
-
   // Sets the current code event handler.
   void SetCodeEventHandler(uint32_t options, JitCodeEventHandler event_handler);
 
   sampler::Sampler* sampler();
-  V8_EXPORT_PRIVATE std::string file_name() const;
 
   V8_EXPORT_PRIVATE void StopProfilerThread();
+
+  // Frees resources acquired in SetUp.
+  // When a temporary file is used for the log, returns its stream descriptor,
+  // leaving the file open.
+  V8_EXPORT_PRIVATE FILE* TearDown();
 
   // Emits an event with a string value -> (name, value).
   V8_EXPORT_PRIVATE void StringEvent(const char* name, const char* value);
