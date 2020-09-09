@@ -4255,7 +4255,6 @@ v8_source_set("v8_cppgc_shared") {
   sources = [
     "src/heap/base/stack.cc",
     "src/heap/base/stack.h",
-    "src/heap/base/worklist.cc",
     "src/heap/base/worklist.h",
   ]
 
