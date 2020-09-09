@@ -4667,12 +4667,12 @@ bool ElementAccessFeedback::HasOnlyStringMaps(JSHeapBroker* broker) const {
 }
 
 MinimorphicLoadPropertyAccessFeedback::MinimorphicLoadPropertyAccessFeedback(
-    NameRef const& name, FeedbackSlotKind slot_kind, bool is_monomorphic,
-    Handle<Object> handler, bool has_migration_target_maps)
+    NameRef const& name, FeedbackSlotKind slot_kind, Handle<Object> handler,
+    MaybeHandle<Map> maybe_map, bool has_migration_target_maps)
     : ProcessedFeedback(kMinimorphicPropertyAccess, slot_kind),
       name_(name),
-      is_monomorphic_(is_monomorphic),
       handler_(handler),
+      maybe_map_(maybe_map),
       has_migration_target_maps_(has_migration_target_maps) {
   DCHECK(IsLoadICKind(slot_kind));
 }
@@ -4810,9 +4810,13 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
       static_name.has_value() ? static_name : GetNameFeedback(nexus);
   MaybeObjectHandle handler = TryGetMinimorphicHandler(maps_and_handlers, kind);
   if (!handler.is_null()) {
+    MaybeHandle<Map> maybe_map;
+    if (nexus.ic_state() == MONOMORPHIC) {
+      DCHECK_EQ(maps.size(), 1);
+      maybe_map = maps[0];
+    }
     return *zone()->New<MinimorphicLoadPropertyAccessFeedback>(
-        *name, kind, nexus.ic_state() == MONOMORPHIC, handler.object(),
-        HasMigrationTargets(maps));
+        *name, kind, handler.object(), maybe_map, HasMigrationTargets(maps));
   }
 
   FilterRelevantReceiverMaps(isolate(), &maps);
