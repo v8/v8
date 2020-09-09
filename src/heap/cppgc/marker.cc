@@ -86,13 +86,13 @@ void ResetRememberedSet(HeapBase& heap) {
 static constexpr size_t kDefaultDeadlineCheckInterval = 150u;
 
 template <size_t kDeadlineCheckInterval = kDefaultDeadlineCheckInterval,
-          typename Worklist, typename Callback, typename Predicate>
-bool DrainWorklistWithDeadline(Predicate should_yield, Worklist* worklist,
-                               Callback callback, int task_id) {
+          typename WorklistLocal, typename Callback, typename Predicate>
+bool DrainWorklistWithDeadline(Predicate should_yield,
+                               WorklistLocal& worklist_local,
+                               Callback callback) {
   size_t processed_callback_count = 0;
-  typename Worklist::View view(worklist, task_id);
-  typename Worklist::EntryType item;
-  while (view.Pop(&item)) {
+  typename WorklistLocal::ItemType item;
+  while (worklist_local.Pop(&item)) {
     callback(item);
     if (processed_callback_count-- == 0) {
       if (should_yield()) {
@@ -105,18 +105,18 @@ bool DrainWorklistWithDeadline(Predicate should_yield, Worklist* worklist,
 }
 
 template <size_t kDeadlineCheckInterval = kDefaultDeadlineCheckInterval,
-          typename Worklist, typename Callback>
+          typename WorklistLocal, typename Callback>
 bool DrainWorklistWithBytesAndTimeDeadline(MarkingState& marking_state,
                                            size_t marked_bytes_deadline,
                                            v8::base::TimeTicks time_deadline,
-                                           Worklist* worklist,
-                                           Callback callback, int task_id) {
+                                           WorklistLocal& worklist_local,
+                                           Callback callback) {
   return DrainWorklistWithDeadline(
       [&marking_state, marked_bytes_deadline, time_deadline]() {
         return (marked_bytes_deadline <= marking_state.marked_bytes()) ||
                (time_deadline <= v8::base::TimeTicks::Now());
       },
-      worklist, callback, task_id);
+      worklist_local, callback);
 }
 
 void TraceMarkedObject(Visitor* visitor, const HeapObjectHeader* header) {
@@ -168,11 +168,7 @@ MarkerBase::MarkerBase(Key, HeapBase& heap, cppgc::Platform* platform,
       config_(config),
       platform_(platform),
       foreground_task_runner_(platform_->GetForegroundTaskRunner()),
-      mutator_marking_state_(
-          heap, marking_worklists_.marking_worklist(),
-          marking_worklists_.not_fully_constructed_worklist(),
-          marking_worklists_.weak_callback_worklist(),
-          MarkingWorklists::kMutatorThreadId) {}
+      mutator_marking_state_(heap, marking_worklists_) {}
 
 MarkerBase::~MarkerBase() {
   // The fixed point iteration may have found not-fully-constructed objects.
@@ -182,10 +178,9 @@ MarkerBase::~MarkerBase() {
 #if DEBUG
     DCHECK_NE(MarkingConfig::StackState::kNoHeapPointers, config_.stack_state);
     HeapObjectHeader* header;
-    MarkingWorklists::NotFullyConstructedWorklist::View view(
-        marking_worklists_.not_fully_constructed_worklist(),
-        MarkingWorklists::kMutatorThreadId);
-    while (view.Pop(&header)) {
+    MarkingWorklists::NotFullyConstructedWorklist::Local& local =
+        mutator_marking_state_.not_fully_constructed_worklist();
+    while (local.Pop(&header)) {
       DCHECK(header->IsMarked());
     }
 #else
@@ -218,7 +213,7 @@ void MarkerBase::EnterAtomicPause(MarkingConfig::StackState stack_state) {
   // VisitRoots also resets the LABs.
   VisitRoots(config_.stack_state);
   if (config_.stack_state == MarkingConfig::StackState::kNoHeapPointers) {
-    marking_worklists_.FlushNotFullyConstructedObjects();
+    mutator_marking_state_.FlushNotFullyConstructedObjects();
   } else {
     MarkNotFullyConstructedObjects();
   }
@@ -237,6 +232,7 @@ void MarkerBase::FinishMarking(MarkingConfig::StackState stack_state) {
   EnterAtomicPause(stack_state);
   ProcessWorklistsWithDeadline(std::numeric_limits<size_t>::max(),
                                v8::base::TimeDelta::Max());
+  mutator_marking_state_.Publish();
   LeaveAtomicPause();
   is_marking_started_ = false;
 }
@@ -247,10 +243,9 @@ void MarkerBase::ProcessWeakness() {
   // Call weak callbacks on objects that may now be pointing to dead objects.
   MarkingWorklists::WeakCallbackItem item;
   LivenessBroker broker = LivenessBrokerFactory::Create();
-  MarkingWorklists::WeakCallbackWorklist::View view(
-      marking_worklists_.weak_callback_worklist(),
-      MarkingWorklists::kMutatorThreadId);
-  while (view.Pop(&item)) {
+  MarkingWorklists::WeakCallbackWorklist::Local& local =
+      mutator_marking_state_.weak_callback_worklist();
+  while (local.Pop(&item)) {
     item.callback(broker, item.parameter);
   }
   // Weak callbacks should not add any new objects for marking.
@@ -285,7 +280,7 @@ bool MarkerBase::IncrementalMarkingStepForTesting(
 
 bool MarkerBase::IncrementalMarkingStep(MarkingConfig::StackState stack_state) {
   if (stack_state == MarkingConfig::StackState::kNoHeapPointers) {
-    marking_worklists_.FlushNotFullyConstructedObjects();
+    mutator_marking_state_.FlushNotFullyConstructedObjects();
   }
   config_.stack_state = stack_state;
 
@@ -315,6 +310,7 @@ bool MarkerBase::AdvanceMarkingWithDeadline(v8::base::TimeDelta max_duration) {
     DCHECK_NE(MarkingConfig::MarkingType::kAtomic, config_.marking_type);
     ScheduleIncrementalMarkingTask();
   }
+  mutator_marking_state_.Publish();
   return is_done;
 }
 
@@ -329,18 +325,17 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
     // callbacks.
     if (!DrainWorklistWithBytesAndTimeDeadline(
             mutator_marking_state_, marked_bytes_deadline, time_deadline,
-            marking_worklists_.previously_not_fully_constructed_worklist(),
+            mutator_marking_state_.previously_not_fully_constructed_worklist(),
             [this](HeapObjectHeader* header) {
               TraceMarkedObject(&visitor(), header);
               mutator_marking_state_.AccountMarkedBytes(*header);
-            },
-            MarkingWorklists::kMutatorThreadId)) {
+            })) {
       return false;
     }
 
     if (!DrainWorklistWithBytesAndTimeDeadline(
             mutator_marking_state_, marked_bytes_deadline, time_deadline,
-            marking_worklists_.marking_worklist(),
+            mutator_marking_state_.marking_worklist(),
             [this](const MarkingWorklists::MarkingItem& item) {
               const HeapObjectHeader& header =
                   HeapObjectHeader::FromPayload(item.base_object_payload);
@@ -350,32 +345,28 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
                   header.IsMarked<HeapObjectHeader::AccessMode::kNonAtomic>());
               item.callback(&visitor(), item.base_object_payload);
               mutator_marking_state_.AccountMarkedBytes(header);
-            },
-            MarkingWorklists::kMutatorThreadId)) {
+            })) {
       return false;
     }
 
     if (!DrainWorklistWithBytesAndTimeDeadline(
             mutator_marking_state_, marked_bytes_deadline, time_deadline,
-            marking_worklists_.write_barrier_worklist(),
+            mutator_marking_state_.write_barrier_worklist(),
             [this](HeapObjectHeader* header) {
               TraceMarkedObject(&visitor(), header);
               mutator_marking_state_.AccountMarkedBytes(*header);
-            },
-            MarkingWorklists::kMutatorThreadId)) {
+            })) {
       return false;
     }
-  } while (!marking_worklists_.marking_worklist()->IsLocalViewEmpty(
-      MarkingWorklists::kMutatorThreadId));
+  } while (!mutator_marking_state_.marking_worklist().IsLocalAndGlobalEmpty());
   return true;
 }
 
 void MarkerBase::MarkNotFullyConstructedObjects() {
   HeapObjectHeader* header;
-  MarkingWorklists::NotFullyConstructedWorklist::View view(
-      marking_worklists_.not_fully_constructed_worklist(),
-      MarkingWorklists::kMutatorThreadId);
-  while (view.Pop(&header)) {
+  MarkingWorklists::NotFullyConstructedWorklist::Local& local =
+      mutator_marking_state_.not_fully_constructed_worklist();
+  while (local.Pop(&header)) {
     DCHECK(header);
     DCHECK(header->IsMarked<HeapObjectHeader::AccessMode::kNonAtomic>());
     // TraceConservativelyIfNeeded will either push to a worklist

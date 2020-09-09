@@ -200,18 +200,11 @@ class V8_EXPORT_PRIVATE Marker final : public MarkerBase {
 };
 
 void MarkerBase::WriteBarrierForInConstructionObject(HeapObjectHeader& header) {
-  MarkingWorklists::NotFullyConstructedWorklist::View
-      not_fully_constructed_worklist(
-          marking_worklists_.not_fully_constructed_worklist(),
-          MarkingWorklists::kMutatorThreadId);
-  not_fully_constructed_worklist.Push(&header);
+  mutator_marking_state_.not_fully_constructed_worklist().Push(&header);
 }
 
 void MarkerBase::WriteBarrierForObject(HeapObjectHeader& header) {
-  MarkingWorklists::WriteBarrierWorklist::View write_barrier_worklist(
-      marking_worklists_.write_barrier_worklist(),
-      MarkingWorklists::kMutatorThreadId);
-  write_barrier_worklist.Push(&header);
+  mutator_marking_state_.write_barrier_worklist().Push(&header);
 }
 
 }  // namespace internal

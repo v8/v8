@@ -16,456 +16,394 @@
 namespace cppgc {
 namespace internal {
 
-// A concurrent worklist based on segments. Each tasks gets private
-// push and pop segments. Empty pop segments are swapped with their
-// corresponding push segments. Full push segments are published to a global
-// pool of segments and replaced with empty segments.
-//
-// Work stealing is best effort, i.e., there is no way to inform other tasks
-// of the need of items.
-template <typename EntryType_, int SEGMENT_SIZE, int max_num_tasks = 8>
+// A global marking worklist that is similar the existing Worklist
+// but does not reserve space and keep track of the local segments.
+// Eventually this will replace Worklist after all its current uses
+// are migrated.
+template <typename EntryType, int SegmentSize>
 class Worklist {
-  using WorklistType = Worklist<EntryType_, SEGMENT_SIZE, max_num_tasks>;
-
  public:
-  using EntryType = EntryType_;
-  static constexpr int kMaxNumTasks = max_num_tasks;
-  static constexpr size_t kSegmentCapacity = SEGMENT_SIZE;
+  static const int kSegmentSize = SegmentSize;
+  class Segment;
+  class Local;
 
-  class View {
-   public:
-    View(WorklistType* worklist, int task_id)
-        : worklist_(worklist), task_id_(task_id) {}
+  Worklist() = default;
+  ~Worklist() { CHECK(IsEmpty()); }
 
-    // Pushes an entry onto the worklist.
-    bool Push(EntryType entry) { return worklist_->Push(task_id_, entry); }
+  void Push(Segment* segment);
+  bool Pop(Segment** segment);
 
-    // Pops an entry from the worklist.
-    bool Pop(EntryType* entry) { return worklist_->Pop(task_id_, entry); }
+  // Returns true if the list of segments is empty.
+  bool IsEmpty();
+  // Returns the number of segments in the list.
+  size_t Size();
 
-    // Returns true if the local portion of the worklist is empty.
-    bool IsLocalEmpty() const { return worklist_->IsLocalEmpty(task_id_); }
+  // Moves the segments of the given marking worklist into this
+  // marking worklist.
+  void Merge(Worklist<EntryType, SegmentSize>* other);
 
-    // Returns true if the worklist is empty. Can only be used from the main
-    // thread without concurrent access.
-    bool IsEmpty() const { return worklist_->IsEmpty(); }
-
-    bool IsGlobalPoolEmpty() const { return worklist_->IsGlobalPoolEmpty(); }
-
-    // Returns true if the local portion and the global pool are empty (i.e.
-    // whether the current view cannot pop anymore).
-    bool IsLocalViewEmpty() const {
-      return worklist_->IsLocalViewEmpty(task_id_);
-    }
-
-    void FlushToGlobal() { worklist_->FlushToGlobal(task_id_); }
-
-    void* operator new(size_t, void* location) = delete;
-    void* operator new(size_t) = delete;
-
-   private:
-    WorklistType* const worklist_;
-    const int task_id_;
-  };
-
-  Worklist() : Worklist(kMaxNumTasks) {}
-
-  explicit Worklist(int num_tasks) : num_tasks_(num_tasks) {
-    DCHECK_LE(num_tasks_, kMaxNumTasks);
-    for (int i = 0; i < num_tasks_; i++) {
-      private_push_segment(i) = NewSegment();
-      private_pop_segment(i) = NewSegment();
-    }
-  }
-
-  ~Worklist() {
-    CHECK(IsEmpty());
-    for (int i = 0; i < num_tasks_; i++) {
-      DCHECK_NOT_NULL(private_push_segment(i));
-      DCHECK_NOT_NULL(private_pop_segment(i));
-      delete private_push_segment(i);
-      delete private_pop_segment(i);
-    }
-  }
-
-  // Swaps content with the given worklist. Local buffers need to
-  // be empty, not thread safe.
-  void Swap(Worklist<EntryType, SEGMENT_SIZE>& other) {
-    CHECK(AreLocalsEmpty());
-    CHECK(other.AreLocalsEmpty());
-
-    global_pool_.Swap(other.global_pool_);
-  }
-
-  bool Push(int task_id, EntryType entry) {
-    DCHECK_LT(task_id, num_tasks_);
-    DCHECK_NOT_NULL(private_push_segment(task_id));
-    if (!private_push_segment(task_id)->Push(entry)) {
-      PublishPushSegmentToGlobal(task_id);
-      bool success = private_push_segment(task_id)->Push(entry);
-      USE(success);
-      DCHECK(success);
-    }
-    return true;
-  }
-
-  bool Pop(int task_id, EntryType* entry) {
-    DCHECK_LT(task_id, num_tasks_);
-    DCHECK_NOT_NULL(private_pop_segment(task_id));
-    if (!private_pop_segment(task_id)->Pop(entry)) {
-      if (!private_push_segment(task_id)->IsEmpty()) {
-        Segment* tmp = private_pop_segment(task_id);
-        private_pop_segment(task_id) = private_push_segment(task_id);
-        private_push_segment(task_id) = tmp;
-      } else if (!StealPopSegmentFromGlobal(task_id)) {
-        return false;
-      }
-      bool success = private_pop_segment(task_id)->Pop(entry);
-      USE(success);
-      DCHECK(success);
-    }
-    return true;
-  }
-
-  size_t LocalPushSegmentSize(int task_id) const {
-    return private_push_segment(task_id)->Size();
-  }
-
-  bool IsLocalEmpty(int task_id) const {
-    return private_pop_segment(task_id)->IsEmpty() &&
-           private_push_segment(task_id)->IsEmpty();
-  }
-
-  bool IsGlobalPoolEmpty() const { return global_pool_.IsEmpty(); }
-
-  bool IsEmpty() const {
-    if (!AreLocalsEmpty()) return false;
-    return IsGlobalPoolEmpty();
-  }
-
-  bool AreLocalsEmpty() const {
-    for (int i = 0; i < num_tasks_; i++) {
-      if (!IsLocalEmpty(i)) return false;
-    }
-    return true;
-  }
-
-  bool IsLocalViewEmpty(int task_id) const {
-    return IsLocalEmpty(task_id) && IsGlobalPoolEmpty();
-  }
-
-  size_t LocalSize(int task_id) const {
-    return private_pop_segment(task_id)->Size() +
-           private_push_segment(task_id)->Size();
-  }
-
-  // Thread-safe but may return an outdated result.
-  size_t GlobalPoolSize() const { return global_pool_.Size(); }
-
-  // Clears all segments. Frees the global segment pool.
-  //
-  // Assumes that no other tasks are running.
-  void Clear() {
-    for (int i = 0; i < num_tasks_; i++) {
-      private_pop_segment(i)->Clear();
-      private_push_segment(i)->Clear();
-    }
-    global_pool_.Clear();
-  }
-
-  // Calls the specified callback on each element of the deques and replaces
-  // the element with the result of the callback.
-  // The signature of the callback is
-  //   bool Callback(EntryType old, EntryType* new).
-  // If the callback returns |false| then the element is removed from the
-  // worklist. Otherwise the |new| entry is updated.
-  //
-  // Assumes that no other tasks are running.
+  // These functions are not thread-safe. They should be called only
+  // if all local marking worklists that use the current worklist have
+  // been published and are empty.
+  void Clear();
   template <typename Callback>
-  void Update(Callback callback) {
-    for (int i = 0; i < num_tasks_; i++) {
-      private_pop_segment(i)->Update(callback);
-      private_push_segment(i)->Update(callback);
-    }
-    global_pool_.Update(callback);
-  }
-
-  // Calls the specified callback on each element of the deques.
-  // The signature of the callback is:
-  //   void Callback(EntryType entry).
-  //
-  // Assumes that no other tasks are running.
+  void Update(Callback callback);
   template <typename Callback>
-  void Iterate(Callback callback) {
-    for (int i = 0; i < num_tasks_; i++) {
-      private_pop_segment(i)->Iterate(callback);
-      private_push_segment(i)->Iterate(callback);
-    }
-    global_pool_.Iterate(callback);
-  }
-
-  template <typename Callback>
-  void IterateGlobalPool(Callback callback) {
-    global_pool_.Iterate(callback);
-  }
-
-  void FlushToGlobal(int task_id) {
-    PublishPushSegmentToGlobal(task_id);
-    PublishPopSegmentToGlobal(task_id);
-  }
-
-  void MergeGlobalPool(Worklist* other) {
-    global_pool_.Merge(&other->global_pool_);
-  }
+  void Iterate(Callback callback);
 
  private:
-  FRIEND_TEST(CppgcWorkListTest, SegmentCreate);
-  FRIEND_TEST(CppgcWorkListTest, SegmentPush);
-  FRIEND_TEST(CppgcWorkListTest, SegmentPushPop);
-  FRIEND_TEST(CppgcWorkListTest, SegmentIsEmpty);
-  FRIEND_TEST(CppgcWorkListTest, SegmentIsFull);
-  FRIEND_TEST(CppgcWorkListTest, SegmentClear);
-  FRIEND_TEST(CppgcWorkListTest, SegmentFullPushFails);
-  FRIEND_TEST(CppgcWorkListTest, SegmentEmptyPopFails);
-  FRIEND_TEST(CppgcWorkListTest, SegmentUpdateFalse);
-  FRIEND_TEST(CppgcWorkListTest, SegmentUpdate);
-
-  class Segment {
-   public:
-    static const size_t kCapacity = kSegmentCapacity;
-
-    Segment() : index_(0) {}
-
-    bool Push(EntryType entry) {
-      if (IsFull()) return false;
-      entries_[index_++] = entry;
-      return true;
-    }
-
-    bool Pop(EntryType* entry) {
-      if (IsEmpty()) return false;
-      *entry = entries_[--index_];
-      return true;
-    }
-
-    size_t Size() const { return index_; }
-    bool IsEmpty() const { return index_ == 0; }
-    bool IsFull() const { return index_ == kCapacity; }
-    void Clear() { index_ = 0; }
-
-    template <typename Callback>
-    void Update(Callback callback) {
-      size_t new_index = 0;
-      for (size_t i = 0; i < index_; i++) {
-        if (callback(entries_[i], &entries_[new_index])) {
-          new_index++;
-        }
-      }
-      index_ = new_index;
-    }
-
-    template <typename Callback>
-    void Iterate(Callback callback) const {
-      for (size_t i = 0; i < index_; i++) {
-        callback(entries_[i]);
-      }
-    }
-
-    Segment* next() const { return next_; }
-    void set_next(Segment* segment) { next_ = segment; }
-
-   private:
-    Segment* next_;
-    size_t index_;
-    EntryType entries_[kCapacity];
-  };
-
-  struct PrivateSegmentHolder {
-    Segment* private_push_segment;
-    Segment* private_pop_segment;
-    char cache_line_padding[64];
-  };
-
-  class GlobalPool {
-   public:
-    GlobalPool() : top_(nullptr) {}
-
-    // Swaps contents, not thread safe.
-    void Swap(GlobalPool& other) {
-      Segment* temp = top_;
-      set_top(other.top_);
-      other.set_top(temp);
-      size_t other_size = other.size_.exchange(
-          size_.load(std::memory_order_relaxed), std::memory_order_relaxed);
-      size_.store(other_size, std::memory_order_relaxed);
-    }
-
-    V8_INLINE void Push(Segment* segment) {
-      v8::base::MutexGuard guard(&lock_);
-      segment->set_next(top_);
-      set_top(segment);
-      size_.fetch_add(1, std::memory_order_relaxed);
-    }
-
-    V8_INLINE bool Pop(Segment** segment) {
-      v8::base::MutexGuard guard(&lock_);
-      if (top_) {
-        DCHECK_LT(0U, size_);
-        size_.fetch_sub(1, std::memory_order_relaxed);
-        *segment = top_;
-        set_top(top_->next());
-        return true;
-      }
-      return false;
-    }
-
-    V8_INLINE bool IsEmpty() const {
-      return v8::base::AsAtomicPtr(&top_)->load(std::memory_order_relaxed) ==
-             nullptr;
-    }
-
-    V8_INLINE size_t Size() const {
-      // It is safe to read |size_| without a lock since this variable is
-      // atomic, keeping in mind that threads may not immediately see the new
-      // value when it is updated.
-      return size_.load(std::memory_order_relaxed);
-    }
-
-    void Clear() {
-      v8::base::MutexGuard guard(&lock_);
-      size_.store(0, std::memory_order_relaxed);
-      Segment* current = top_;
-      while (current) {
-        Segment* tmp = current;
-        current = current->next();
-        delete tmp;
-      }
-      set_top(nullptr);
-    }
-
-    // See Worklist::Update.
-    template <typename Callback>
-    void Update(Callback callback) {
-      v8::base::MutexGuard guard(&lock_);
-      Segment* prev = nullptr;
-      Segment* current = top_;
-      while (current) {
-        current->Update(callback);
-        if (current->IsEmpty()) {
-          DCHECK_LT(0U, size_);
-          size_.fetch_sub(1, std::memory_order_relaxed);
-          if (!prev) {
-            top_ = current->next();
-          } else {
-            prev->set_next(current->next());
-          }
-          Segment* tmp = current;
-          current = current->next();
-          delete tmp;
-        } else {
-          prev = current;
-          current = current->next();
-        }
-      }
-    }
-
-    // See Worklist::Iterate.
-    template <typename Callback>
-    void Iterate(Callback callback) {
-      v8::base::MutexGuard guard(&lock_);
-      for (Segment* current = top_; current; current = current->next()) {
-        current->Iterate(callback);
-      }
-    }
-
-    void Merge(GlobalPool* other) {
-      Segment* top = nullptr;
-      size_t other_size = 0;
-      {
-        v8::base::MutexGuard guard(&other->lock_);
-        if (!other->top_) return;
-        top = other->top_;
-        other_size = other->size_.load(std::memory_order_relaxed);
-        other->size_.store(0, std::memory_order_relaxed);
-        other->set_top(nullptr);
-      }
-
-      // It's safe to iterate through these segments because the top was
-      // extracted from |other|.
-      Segment* end = top;
-      while (end->next()) end = end->next();
-
-      {
-        v8::base::MutexGuard guard(&lock_);
-        size_.fetch_add(other_size, std::memory_order_relaxed);
-        end->set_next(top_);
-        set_top(top);
-      }
-    }
-
-    void* operator new(size_t, void* location) = delete;
-    void* operator new(size_t) = delete;
-
-   private:
-    void set_top(Segment* segment) {
-      v8::base::AsAtomicPtr(&top_)->store(segment, std::memory_order_relaxed);
-    }
-
-    v8::base::Mutex lock_;
-    Segment* top_;
-    std::atomic<size_t> size_{0};
-  };
-
-  V8_INLINE Segment*& private_push_segment(int task_id) {
-    return private_segments_[task_id].private_push_segment;
+  void set_top(Segment* segment) {
+    v8::base::AsAtomicPtr(&top_)->store(segment, std::memory_order_relaxed);
   }
 
-  V8_INLINE Segment* const& private_push_segment(int task_id) const {
-    return private_segments_[task_id].private_push_segment;
-  }
+  v8::base::Mutex lock_;
+  Segment* top_ = nullptr;
+  std::atomic<size_t> size_{0};
+};
 
-  V8_INLINE Segment*& private_pop_segment(int task_id) {
-    return private_segments_[task_id].private_pop_segment;
-  }
+template <typename EntryType, int SegmentSize>
+void Worklist<EntryType, SegmentSize>::Push(Segment* segment) {
+  v8::base::MutexGuard guard(&lock_);
+  segment->set_next(top_);
+  set_top(segment);
+  size_.fetch_add(1, std::memory_order_relaxed);
+}
 
-  V8_INLINE Segment* const& private_pop_segment(int task_id) const {
-    return private_segments_[task_id].private_pop_segment;
+template <typename EntryType, int SegmentSize>
+bool Worklist<EntryType, SegmentSize>::Pop(Segment** segment) {
+  v8::base::MutexGuard guard(&lock_);
+  if (top_ != nullptr) {
+    DCHECK_LT(0U, size_);
+    size_.fetch_sub(1, std::memory_order_relaxed);
+    *segment = top_;
+    set_top(top_->next());
+    return true;
   }
+  return false;
+}
 
-  V8_INLINE void PublishPushSegmentToGlobal(int task_id) {
-    if (!private_push_segment(task_id)->IsEmpty()) {
-      global_pool_.Push(private_push_segment(task_id));
-      private_push_segment(task_id) = NewSegment();
+template <typename EntryType, int SegmentSize>
+bool Worklist<EntryType, SegmentSize>::IsEmpty() {
+  return v8::base::AsAtomicPtr(&top_)->load(std::memory_order_relaxed) ==
+         nullptr;
+}
+
+template <typename EntryType, int SegmentSize>
+size_t Worklist<EntryType, SegmentSize>::Size() {
+  // It is safe to read |size_| without a lock since this variable is
+  // atomic, keeping in mind that threads may not immediately see the new
+  // value when it is updated.
+  return size_.load(std::memory_order_relaxed);
+}
+
+template <typename EntryType, int SegmentSize>
+void Worklist<EntryType, SegmentSize>::Clear() {
+  v8::base::MutexGuard guard(&lock_);
+  size_.store(0, std::memory_order_relaxed);
+  Segment* current = top_;
+  while (current != nullptr) {
+    Segment* tmp = current;
+    current = current->next();
+    delete tmp;
+  }
+  set_top(nullptr);
+}
+
+template <typename EntryType, int SegmentSize>
+template <typename Callback>
+void Worklist<EntryType, SegmentSize>::Update(Callback callback) {
+  v8::base::MutexGuard guard(&lock_);
+  Segment* prev = nullptr;
+  Segment* current = top_;
+  size_t num_deleted = 0;
+  while (current != nullptr) {
+    current->Update(callback);
+    if (current->IsEmpty()) {
+      DCHECK_LT(0U, size_);
+      ++num_deleted;
+      if (prev == nullptr) {
+        top_ = current->next();
+      } else {
+        prev->set_next(current->next());
+      }
+      Segment* tmp = current;
+      current = current->next();
+      delete tmp;
+    } else {
+      prev = current;
+      current = current->next();
     }
   }
+  size_.fetch_sub(num_deleted, std::memory_order_relaxed);
+}
 
-  V8_INLINE void PublishPopSegmentToGlobal(int task_id) {
-    if (!private_pop_segment(task_id)->IsEmpty()) {
-      global_pool_.Push(private_pop_segment(task_id));
-      private_pop_segment(task_id) = NewSegment();
-    }
+template <typename EntryType, int SegmentSize>
+template <typename Callback>
+void Worklist<EntryType, SegmentSize>::Iterate(Callback callback) {
+  v8::base::MutexGuard guard(&lock_);
+  for (Segment* current = top_; current != nullptr; current = current->next()) {
+    current->Iterate(callback);
+  }
+}
+
+template <typename EntryType, int SegmentSize>
+void Worklist<EntryType, SegmentSize>::Merge(
+    Worklist<EntryType, SegmentSize>* other) {
+  Segment* top = nullptr;
+  size_t other_size = 0;
+  {
+    v8::base::MutexGuard guard(&other->lock_);
+    if (!other->top_) return;
+    top = other->top_;
+    other_size = other->size_.load(std::memory_order_relaxed);
+    other->size_.store(0, std::memory_order_relaxed);
+    other->set_top(nullptr);
   }
 
-  V8_INLINE bool StealPopSegmentFromGlobal(int task_id) {
-    if (global_pool_.IsEmpty()) return false;
-    Segment* new_segment = nullptr;
-    if (global_pool_.Pop(&new_segment)) {
-      delete private_pop_segment(task_id);
-      private_pop_segment(task_id) = new_segment;
-      return true;
-    }
-    return false;
-  }
+  // It's safe to iterate through these segments because the top was
+  // extracted from |other|.
+  Segment* end = top;
+  while (end->next()) end = end->next();
 
-  V8_INLINE Segment* NewSegment() {
+  {
+    v8::base::MutexGuard guard(&lock_);
+    size_.fetch_add(other_size, std::memory_order_relaxed);
+    end->set_next(top_);
+    set_top(top);
+  }
+}
+
+template <typename EntryType, int SegmentSize>
+class Worklist<EntryType, SegmentSize>::Segment {
+ public:
+  static const size_t kSize = SegmentSize;
+
+  Segment() = default;
+  bool Push(EntryType entry);
+  bool Pop(EntryType* entry);
+
+  size_t Size() const { return index_; }
+  bool IsEmpty() const { return index_ == 0; }
+  bool IsFull() const { return index_ == kSize; }
+  void Clear() { index_ = 0; }
+
+  template <typename Callback>
+  void Update(Callback callback);
+  template <typename Callback>
+  void Iterate(Callback callback) const;
+
+  Segment* next() const { return next_; }
+  void set_next(Segment* segment) { next_ = segment; }
+
+ private:
+  Segment* next_ = nullptr;
+  size_t index_ = 0;
+  EntryType entries_[kSize];
+};
+
+template <typename EntryType, int SegmentSize>
+bool Worklist<EntryType, SegmentSize>::Segment::Push(EntryType entry) {
+  if (IsFull()) return false;
+  entries_[index_++] = entry;
+  return true;
+}
+
+template <typename EntryType, int SegmentSize>
+bool Worklist<EntryType, SegmentSize>::Segment::Pop(EntryType* entry) {
+  if (IsEmpty()) return false;
+  *entry = entries_[--index_];
+  return true;
+}
+
+template <typename EntryType, int SegmentSize>
+template <typename Callback>
+void Worklist<EntryType, SegmentSize>::Segment::Update(Callback callback) {
+  size_t new_index = 0;
+  for (size_t i = 0; i < index_; i++) {
+    if (callback(entries_[i], &entries_[new_index])) {
+      new_index++;
+    }
+  }
+  index_ = new_index;
+}
+
+template <typename EntryType, int SegmentSize>
+template <typename Callback>
+void Worklist<EntryType, SegmentSize>::Segment::Iterate(
+    Callback callback) const {
+  for (size_t i = 0; i < index_; i++) {
+    callback(entries_[i]);
+  }
+}
+
+// A thread-local view of the marking worklist.
+template <typename EntryType, int SegmentSize>
+class Worklist<EntryType, SegmentSize>::Local {
+ public:
+  using ItemType = EntryType;
+
+  Local() = default;
+  explicit Local(Worklist<EntryType, SegmentSize>* worklist);
+  ~Local();
+
+  Local(Local&&) V8_NOEXCEPT;
+  Local& operator=(Local&&) V8_NOEXCEPT;
+
+  // Disable copying since having multiple copies of the same
+  // local marking worklist is unsafe.
+  Local(const Local&) = delete;
+  Local& operator=(const Local& other) = delete;
+
+  void Push(EntryType entry);
+  bool Pop(EntryType* entry);
+
+  bool IsLocalAndGlobalEmpty() const;
+  bool IsLocalEmpty() const;
+  bool IsGlobalEmpty() const;
+
+  void Publish();
+  void Merge(Worklist<EntryType, SegmentSize>::Local* other);
+
+  size_t PushSegmentSize() const { return push_segment_->Size(); }
+
+ private:
+  void PublishPushSegment();
+  void PublishPopSegment();
+  bool StealPopSegment();
+  Segment* NewSegment() const {
     // Bottleneck for filtering in crash dumps.
     return new Segment();
   }
 
-  PrivateSegmentHolder private_segments_[kMaxNumTasks];
-  GlobalPool global_pool_;
-  int num_tasks_;
+  Worklist<EntryType, SegmentSize>* worklist_ = nullptr;
+  Segment* push_segment_ = nullptr;
+  Segment* pop_segment_ = nullptr;
 };
+
+template <typename EntryType, int SegmentSize>
+Worklist<EntryType, SegmentSize>::Local::Local(
+    Worklist<EntryType, SegmentSize>* worklist)
+    : worklist_(worklist),
+      push_segment_(NewSegment()),
+      pop_segment_(NewSegment()) {}
+
+template <typename EntryType, int SegmentSize>
+Worklist<EntryType, SegmentSize>::Local::~Local() {
+  CHECK_IMPLIES(push_segment_, push_segment_->IsEmpty());
+  CHECK_IMPLIES(pop_segment_, pop_segment_->IsEmpty());
+  delete push_segment_;
+  delete pop_segment_;
+}
+
+template <typename EntryType, int SegmentSize>
+Worklist<EntryType, SegmentSize>::Local::Local(
+    Worklist<EntryType, SegmentSize>::Local&& other) V8_NOEXCEPT {
+  worklist_ = other.worklist_;
+  push_segment_ = other.push_segment_;
+  pop_segment_ = other.pop_segment_;
+  other.worklist_ = nullptr;
+  other.push_segment_ = nullptr;
+  other.pop_segment_ = nullptr;
+}
+
+template <typename EntryType, int SegmentSize>
+typename Worklist<EntryType, SegmentSize>::Local&
+Worklist<EntryType, SegmentSize>::Local::operator=(
+    Worklist<EntryType, SegmentSize>::Local&& other) V8_NOEXCEPT {
+  if (this != &other) {
+    DCHECK_NULL(worklist_);
+    DCHECK_NULL(push_segment_);
+    DCHECK_NULL(pop_segment_);
+    worklist_ = other.worklist_;
+    push_segment_ = other.push_segment_;
+    pop_segment_ = other.pop_segment_;
+    other.worklist_ = nullptr;
+    other.push_segment_ = nullptr;
+    other.pop_segment_ = nullptr;
+  }
+  return *this;
+}
+
+template <typename EntryType, int SegmentSize>
+void Worklist<EntryType, SegmentSize>::Local::Push(EntryType entry) {
+  if (V8_UNLIKELY(!push_segment_->Push(entry))) {
+    PublishPushSegment();
+    bool success = push_segment_->Push(entry);
+    USE(success);
+    DCHECK(success);
+  }
+}
+
+template <typename EntryType, int SegmentSize>
+bool Worklist<EntryType, SegmentSize>::Local::Pop(EntryType* entry) {
+  if (!pop_segment_->Pop(entry)) {
+    if (!push_segment_->IsEmpty()) {
+      std::swap(push_segment_, pop_segment_);
+    } else if (!StealPopSegment()) {
+      return false;
+    }
+    bool success = pop_segment_->Pop(entry);
+    USE(success);
+    DCHECK(success);
+  }
+  return true;
+}
+
+template <typename EntryType, int SegmentSize>
+bool Worklist<EntryType, SegmentSize>::Local::IsLocalAndGlobalEmpty() const {
+  return IsLocalEmpty() && IsGlobalEmpty();
+}
+
+template <typename EntryType, int SegmentSize>
+bool Worklist<EntryType, SegmentSize>::Local::IsLocalEmpty() const {
+  return push_segment_->IsEmpty() && pop_segment_->IsEmpty();
+}
+
+template <typename EntryType, int SegmentSize>
+bool Worklist<EntryType, SegmentSize>::Local::IsGlobalEmpty() const {
+  return worklist_->IsEmpty();
+}
+
+template <typename EntryType, int SegmentSize>
+void Worklist<EntryType, SegmentSize>::Local::Publish() {
+  if (!push_segment_->IsEmpty()) {
+    PublishPushSegment();
+  }
+  if (!pop_segment_->IsEmpty()) {
+    PublishPopSegment();
+  }
+}
+
+template <typename EntryType, int SegmentSize>
+void Worklist<EntryType, SegmentSize>::Local::Merge(
+    Worklist<EntryType, SegmentSize>::Local* other) {
+  other->Publish();
+  worklist_->Merge(other->worklist_);
+}
+
+template <typename EntryType, int SegmentSize>
+void Worklist<EntryType, SegmentSize>::Local::PublishPushSegment() {
+  worklist_->Push(push_segment_);
+  push_segment_ = NewSegment();
+}
+
+template <typename EntryType, int SegmentSize>
+void Worklist<EntryType, SegmentSize>::Local::PublishPopSegment() {
+  worklist_->Push(pop_segment_);
+  pop_segment_ = NewSegment();
+}
+
+template <typename EntryType, int SegmentSize>
+bool Worklist<EntryType, SegmentSize>::Local::StealPopSegment() {
+  if (worklist_->IsEmpty()) return false;
+  Segment* new_segment = nullptr;
+  if (worklist_->Pop(&new_segment)) {
+    delete pop_segment_;
+    pop_segment_ = new_segment;
+    return true;
+  }
+  return false;
+}
 
 }  // namespace internal
 }  // namespace cppgc

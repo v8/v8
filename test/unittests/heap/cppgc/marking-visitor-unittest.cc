@@ -48,6 +48,7 @@ class TestMarkingVisitor : public MarkingVisitor {
  public:
   explicit TestMarkingVisitor(Marker* marker)
       : MarkingVisitor(marker->heap(), marker->MarkingStateForTesting()) {}
+  ~TestMarkingVisitor() { marking_state_.Publish(); }
 };
 
 }  // namespace
