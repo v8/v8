@@ -3389,6 +3389,12 @@ UNINITIALIZED_TEST(SnapshotCreatorAddData) {
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
 
+  // i::PerformCastCheck(Data*) should compile and be no-op
+  {
+    v8::Local<v8::Data> data;
+    i::PerformCastCheck(*data);
+  }
+
   {
     v8::SnapshotCreator creator;
     v8::Isolate* isolate = creator.GetIsolate();
