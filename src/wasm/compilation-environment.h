@@ -94,6 +94,7 @@ class WireBytesStorage {
 // order. If tier up is off, both events are delivered right after each other.
 enum class CompilationEvent : uint8_t {
   kFinishedBaselineCompilation,
+  kFinishedExportWrappers,
   kFinishedTopTierCompilation,
   kFailedCompilation,
   kFinishedRecompilation
@@ -118,9 +119,6 @@ class V8_EXPORT_PRIVATE CompilationState {
   void AddCallback(callback_t);
 
   void InitializeAfterDeserialization();
-
-  // Wait until baseline compilation finished, or compilation failed.
-  void WaitForBaselineFinished();
 
   // Wait until top tier compilation finished, or compilation failed.
   void WaitForTopTierFinished();
