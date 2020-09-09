@@ -714,9 +714,6 @@ class CompilationStateImpl {
   //////////////////////////////////////////////////////////////////////////////
   // Protected by {mutex_}:
 
-  // Set of unused task ids; <= {max_compile_concurrency_} many.
-  std::vector<int> available_task_ids_;
-
   std::shared_ptr<ThreadSafeJobHandle> current_compile_job_;
 
   // Features detected to be used in this module. Features can be detected
@@ -1256,14 +1253,18 @@ CompilationExecutionResult ExecuteCompilationUnits(
   std::shared_ptr<WireBytesStorage> wire_bytes;
   std::shared_ptr<const WasmModule> module;
   WasmEngine* wasm_engine;
-  int task_id;
+  // The Jobs API guarantees that {GetTaskId} is less than the number of
+  // workers, and that the number of workers is less than or equal to the max
+  // compile concurrency, which makes the task_id safe to use as an index into
+  // the worker queues.
+  int task_id = delegate ? delegate->GetTaskId() : 0;
   int unpublished_units_limit;
   base::Optional<WasmCompilationUnit> unit;
 
   WasmFeatures detected_features = WasmFeatures::None();
 
   auto stop = [&detected_features,
-               &task_id](BackgroundCompileScope& compile_scope) {
+               task_id](BackgroundCompileScope& compile_scope) {
     compile_scope.compilation_state()->OnCompilationStopped(task_id,
                                                             detected_features);
   };
@@ -1278,7 +1279,6 @@ CompilationExecutionResult ExecuteCompilationUnits(
     wire_bytes = compilation_state->GetWireBytesStorage();
     module = compile_scope.native_module()->shared_module();
     wasm_engine = compile_scope.native_module()->engine();
-    task_id = compilation_state->GetFreeCompileTaskId();
     unpublished_units_limit =
         compilation_state->GetUnpublishedUnitsLimits(task_id);
     unit = compilation_state->GetNextCompilationUnit(task_id, baseline_only);
@@ -2747,14 +2747,7 @@ CompilationStateImpl::CompilationStateImpl(
       // Add one to the allowed number of parallel tasks, because the foreground
       // task sometimes also contributes.
       compilation_unit_queues_(max_compile_concurrency_ + 1,
-                               native_module->num_functions()),
-      available_task_ids_(max_compile_concurrency_ + 1) {
-  for (int i = 0; i <= max_compile_concurrency_; ++i) {
-    // Ids are popped on task creation, so reverse this list. This ensures that
-    // the first background task gets id 0.
-    available_task_ids_[i] = max_compile_concurrency_ - i;
-  }
-}
+                               native_module->num_functions()) {}
 
 void CompilationStateImpl::CancelCompilation() {
   background_compile_token_->Cancel();
@@ -3150,18 +3143,6 @@ void CompilationStateImpl::TriggerCallbacks(
   }
 }
 
-int CompilationStateImpl::GetFreeCompileTaskId() {
-  base::MutexGuard guard(&mutex_);
-  if (V8_UNLIKELY(available_task_ids_.empty())) {
-    FATAL(
-        "The platform is running the compile job with more concurrency than "
-        "returned by {GetMaxConcurrency()}.");
-  }
-  int id = available_task_ids_.back();
-  available_task_ids_.pop_back();
-  return id;
-}
-
 int CompilationStateImpl::GetUnpublishedUnitsLimits(int task_id) {
   // We want background threads to publish regularly (to avoid contention when
   // they are all publishing at the end). On the other side, each publishing has
@@ -3181,10 +3162,6 @@ void CompilationStateImpl::OnCompilationStopped(int task_id,
                                                 const WasmFeatures& detected) {
   DCHECK_GE(max_compile_concurrency_, task_id);
   base::MutexGuard guard(&mutex_);
-  DCHECK_EQ(0, std::count(available_task_ids_.begin(),
-                          available_task_ids_.end(), task_id));
-  available_task_ids_.push_back(task_id);
-  DCHECK_GE(max_compile_concurrency_ + 1, available_task_ids_.size());
   detected_features_.Add(detected);
 }
 
