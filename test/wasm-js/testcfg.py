@@ -34,11 +34,6 @@ proposal_flags = [{
                     'flags': ['--experimental-wasm-tail-call',
                               '--wasm-staging']
                   },
-                  {
-                    'name': 'simd',
-                    'flags': ['--experimental-wasm-simd',
-                              '--wasm-staging']
-                  },
                   ]
 
 

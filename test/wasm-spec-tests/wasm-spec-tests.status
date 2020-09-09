@@ -8,7 +8,6 @@
   # TODO(wasm) Investigate failing spec tests after update.
   'binary': [FAIL],
   'proposals/js-types/binary-leb128': [FAIL],
-  'proposals/bulk-memory-operations/binary': [FAIL],
   'proposals/bulk-memory-operations/binary-leb128': [FAIL],
 
   # TODO(v8:9144): The MVP behavior when bounds-checking segments changed in
@@ -36,34 +35,6 @@
 
   # This test requires the reftypes flag to be disabled.
   'proposals/bulk-memory-operations/imports': [FAIL],
-
-  # SIMD test cases
-  # Scalar lowering is incomplete, we skip these and selectively enable as
-  # we finish the implementation, see v8:10507.
-  'proposals/simd/simd_bit_shift' : [PASS, FAIL],
-  'proposals/simd/simd_boolean' : [PASS, FAIL],
-  'proposals/simd/simd_const' : [PASS, FAIL],
-  'proposals/simd/simd_conversions' : [PASS, FAIL],
-  'proposals/simd/simd_f32x4': [PASS, FAIL],
-  'proposals/simd/simd_f32x4_arith': [PASS, FAIL],
-  'proposals/simd/simd_f64x2': [PASS, FAIL],
-  'proposals/simd/simd_f64x2_arith' : [PASS, FAIL],
-  'proposals/simd/simd_f64x2_cmp' : [PASS, FAIL],
-  'proposals/simd/simd_i16x8_arith' : [PASS, FAIL],
-  'proposals/simd/simd_i16x8_arith2' : [PASS, FAIL],
-  'proposals/simd/simd_i16x8_cmp' : [PASS, FAIL],
-  'proposals/simd/simd_i16x8_sat_arith' : [PASS, FAIL],
-  'proposals/simd/simd_i64x2_arith' : [PASS, FAIL],
-  'proposals/simd/simd_i8x16_arith' : [PASS, FAIL],
-  'proposals/simd/simd_i8x16_arith2' : [PASS, FAIL],
-  'proposals/simd/simd_i8x16_cmp' : [PASS, FAIL],
-  'proposals/simd/simd_i8x16_sat_arith' : [PASS, FAIL],
-  'proposals/simd/simd_lane' : [PASS, FAIL],
-  'proposals/simd/simd_load' : [PASS, FAIL],
-  'proposals/simd/simd_load_extend' : [PASS, FAIL],
-  'proposals/simd/simd_load_splat' : [PASS, FAIL],
-  'proposals/simd/simd_splat' : [PASS, FAIL],
-
 }],  # ALWAYS
 
 ['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {

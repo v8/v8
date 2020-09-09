@@ -27,11 +27,6 @@ proposal_flags = [{
                     'flags': ['--experimental-wasm-return-call',
                               '--wasm-staging']
                   },
-                  {
-                    'name': 'simd',
-                    'flags': ['--experimental-wasm-simd',
-                              '--wasm-staging']
-                  },
                   ]
 
 class TestLoader(testsuite.JSTestLoader):
