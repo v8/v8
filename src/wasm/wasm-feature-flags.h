@@ -15,11 +15,6 @@
   /* V8 side owner: clemensb */                                                \
   V(eh, "exception handling opcodes", false)                                   \
                                                                                \
-  /* Fixed-width SIMD operations. */                                           \
-  /* https://github.com/webassembly/simd */                                    \
-  /* V8 side owner: gdeepti */                                                 \
-  V(simd, "SIMD opcodes", false)                                               \
-                                                                               \
   /* No official proposal (yet?). */                                           \
   /* V8 side owner: clemensb */                                                \
   V(compilation_hints, "compilation hints section", false)                     \
@@ -55,6 +50,12 @@
   /* V8 side owner: thibaudm */                                                \
   /* Staged in v8.7 * */                                                       \
   V(return_call, "return call opcodes", false)                                 \
+                                                                               \
+  /* Fixed-width SIMD operations. */                                           \
+  /* https://github.com/webassembly/simd */                                    \
+  /* V8 side owner: gdeepti, zhin */                                           \
+  /* Staged in v8.7 * */                                                       \
+  V(simd, "SIMD opcodes", false)                                               \
                                                                                \
   /* Threads proposal. */                                                      \
   /* https://github.com/webassembly/threads */                                 \
