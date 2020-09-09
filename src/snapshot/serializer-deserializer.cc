@@ -30,9 +30,14 @@ void SerializerDeserializer::Iterate(Isolate* isolate, RootVisitor* visitor) {
 }
 
 bool SerializerDeserializer::CanBeDeferred(HeapObject o) {
-  // Maps cannot be deferred as objects are expected to have a valid map
-  // immediately.
-  return !o.IsMap();
+  // ArrayBuffer instances are serialized by first re-assigning a index
+  // to the backing store field, then serializing the object, and then
+  // storing the actual backing store address again (and the same for the
+  // ArrayBufferExtension). If serialization of the object itself is deferred,
+  // the real backing store address is written into the snapshot, which cannot
+  // be processed when deserializing.
+  return !o.IsString() && !o.IsScript() && !o.IsJSTypedArray() &&
+         !o.IsJSArrayBuffer();
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirectors(

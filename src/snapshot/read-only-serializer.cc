@@ -86,9 +86,12 @@ bool ReadOnlySerializer::MustBeDeferred(HeapObject object) {
     // be saved without problems.
     return false;
   }
-  // Defer objects with special alignment requirements until the filler roots
-  // are serialized.
-  return HeapObject::RequiredAlignment(object.map()) != kWordAligned;
+  // Just defer everything except for Map objects until all required roots are
+  // serialized. Some objects may have special alignment requirements, that may
+  // not be fulfilled during deserialization until few first root objects are
+  // serialized. But we must serialize Map objects since deserializer checks
+  // that these root objects are indeed Maps.
+  return !object.IsMap();
 }
 
 bool ReadOnlySerializer::SerializeUsingReadOnlyObjectCache(

@@ -117,8 +117,36 @@ void Deserializer::DeserializeDeferredObjects() {
   DisallowHeapAllocation no_gc;
 
   for (int code = source_.Get(); code != kSynchronize; code = source_.Get()) {
-    SnapshotSpace space = NewObject::Decode(code);
-    ReadObject(space);
+    switch (code) {
+      case kAlignmentPrefix:
+      case kAlignmentPrefix + 1:
+      case kAlignmentPrefix + 2: {
+        int alignment = code - (SerializerDeserializer::kAlignmentPrefix - 1);
+        allocator()->SetAlignment(static_cast<AllocationAlignment>(alignment));
+        break;
+      }
+      default: {
+        SnapshotSpace space = NewObject::Decode(code);
+        HeapObject object = GetBackReferencedObject(space);
+        int size = source_.GetInt() << kTaggedSizeLog2;
+        Address obj_address = object.address();
+        // Object's map is already initialized, now read the rest.
+        MaybeObjectSlot start(obj_address + kTaggedSize);
+        MaybeObjectSlot end(obj_address + size);
+        bool filled = ReadData(start, end, space, obj_address);
+        CHECK(filled);
+        DCHECK(CanBeDeferred(object));
+        PostProcessNewObject(object, space);
+      }
+    }
+  }
+
+  // When the deserialization of maps are deferred, they will be created
+  // as filler maps, and we postpone the post processing until the maps
+  // are also deserialized.
+  for (const auto& pair : fillers_to_post_process_) {
+    DCHECK(!pair.first.IsFiller());
+    PostProcessNewObject(pair.first, pair.second);
   }
 }
 
@@ -164,7 +192,11 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
   DisallowHeapAllocation no_gc;
 
   if ((FLAG_rehash_snapshot && can_rehash_) || deserializing_user_code()) {
-    if (obj.IsString()) {
+    if (obj.IsFiller()) {
+      DCHECK_EQ(fillers_to_post_process_.find(obj),
+                fillers_to_post_process_.end());
+      fillers_to_post_process_.insert({obj, space});
+    } else if (obj.IsString()) {
       // Uninitialize hash field as we need to recompute the hash.
       String string = String::cast(obj);
       string.set_hash_field(String::kEmptyHashField);
@@ -339,8 +371,10 @@ HeapObject Deserializer::ReadObject() {
   MaybeObject object;
   // We are reading to a location outside of JS heap, so pass kNew to avoid
   // triggering write barriers.
-  ReadData(FullMaybeObjectSlot(&object), FullMaybeObjectSlot(&object + 1),
-           SnapshotSpace::kNew, kNullAddress);
+  bool filled =
+      ReadData(FullMaybeObjectSlot(&object), FullMaybeObjectSlot(&object + 1),
+               SnapshotSpace::kNew, kNullAddress);
+  CHECK(filled);
   return object.GetHeapObjectAssumeStrong();
 }
 
@@ -380,8 +414,10 @@ HeapObject Deserializer::ReadObject(SnapshotSpace space) {
   MaybeObjectSlot limit(address + size);
 
   current.store(MaybeObject::FromObject(map));
-  ReadData(current + 1, limit, space, address);
-  obj = PostProcessNewObject(obj, space);
+  if (ReadData(current + 1, limit, space, address)) {
+    // Only post process if object content has not been deferred.
+    obj = PostProcessNewObject(obj, space);
+  }
 
 #ifdef DEBUG
   if (obj.IsCode()) {
@@ -410,7 +446,8 @@ HeapObject Deserializer::ReadMetaMap() {
   current.store(MaybeObject(current.address() + kHeapObjectTag));
   // Set the instance-type manually, to allow backrefs to read it.
   Map::unchecked_cast(obj).set_instance_type(MAP_TYPE);
-  ReadData(current + 1, limit, space, address);
+  // The meta map's contents cannot be deferred.
+  CHECK(ReadData(current + 1, limit, space, address));
 
   return obj;
 }
@@ -422,7 +459,8 @@ void Deserializer::ReadCodeObjectBody(SnapshotSpace space,
   // Now we read the rest of code header's fields.
   MaybeObjectSlot current(code_object_address + HeapObject::kHeaderSize);
   MaybeObjectSlot limit(code_object_address + Code::kDataStart);
-  ReadData(current, limit, space, code_object_address);
+  bool filled = ReadData(current, limit, space, code_object_address);
+  CHECK(filled);
 
   // Now iterate RelocInfos the same way it was done by the serialzier and
   // deserialize respective data into RelocInfos.
@@ -535,7 +573,7 @@ constexpr byte VerifyBytecodeCount(byte bytecode) {
 }  // namespace
 
 template <typename TSlot>
-void Deserializer::ReadData(TSlot current, TSlot limit,
+bool Deserializer::ReadData(TSlot current, TSlot limit,
                             SnapshotSpace source_space,
                             Address current_object_address) {
   // Write barrier support costs around 1% in startup time.  In fact there
@@ -640,8 +678,18 @@ void Deserializer::ReadData(TSlot current, TSlot limit,
         break;
       }
 
+      case kDeferred: {
+        // Deferred can only occur right after the heap object's map field.
+        DCHECK_EQ(current.address(), current_object_address + kTaggedSize);
+        HeapObject obj = HeapObject::FromAddress(current_object_address);
+        // If the deferred object is a map, its instance type may be used
+        // during deserialization. Initialize it with a temporary value.
+        if (obj.IsMap()) Map::cast(obj).set_instance_type(FILLER_TYPE);
+        current = limit;
+        return false;
+      }
+
       case kRegisterPendingForwardRef: {
-        DCHECK_NE(current_object_address, kNullAddress);
         HeapObject obj = HeapObject::FromAddress(current_object_address);
         unresolved_forward_refs_.emplace_back(
             obj, current.address() - current_object_address);
@@ -833,6 +881,7 @@ void Deserializer::ReadData(TSlot current, TSlot limit,
     }
   }
   CHECK_EQ(limit, current);
+  return true;
 }
 
 Address Deserializer::ReadExternalReferenceCase() {
