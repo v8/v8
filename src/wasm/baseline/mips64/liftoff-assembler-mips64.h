@@ -87,6 +87,9 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
     case ValueType::kF64:
       assm->Usdc1(src.fp(), dst, t8);
       break;
+    case ValueType::kS128:
+      assm->st_b(src.fp().toW(), dst);
+      break;
     default:
       UNREACHABLE();
   }
