@@ -2789,9 +2789,9 @@ void BundleBuilder::BuildBundles() {
           if (out->TryMerge(input_bundle, data()->is_trace_alloc())) {
             TRACE("Merged %d and %d to %d\n", phi->virtual_register(), input,
                   out->id());
-          } else if (input_range->Start() >= out_range->Start()) {
-            // We are only interested in values defined at or after the phi,
-            // because those are values that will go over a back-edge.
+          } else if (input_range->Start() > out_range->Start()) {
+            // We are only interested in values defined after the phi, because
+            // those are values that will go over a back-edge.
             phi_interferes_with_backedge_input = true;
           }
         } else {
@@ -2799,9 +2799,9 @@ void BundleBuilder::BuildBundles() {
           if (out->TryAddRange(input_range)) {
             TRACE("Added %d and %d to %d\n", phi->virtual_register(), input,
                   out->id());
-          } else if (input_range->Start() >= out_range->Start()) {
-            // We are only interested in values defined at or after the phi,
-            // because those are values that will go over a back-edge.
+          } else if (input_range->Start() > out_range->Start()) {
+            // We are only interested in values defined after the phi, because
+            // those are values that will go over a back-edge.
             phi_interferes_with_backedge_input = true;
           }
         }
