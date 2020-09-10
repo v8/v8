@@ -5282,7 +5282,11 @@ class StressConcurrentAllocationObserver : public AllocationObserver {
 
   void Step(int bytes_allocated, Address, size_t) override {
     DCHECK(heap_->deserialization_complete());
-    StressConcurrentAllocatorTask::Schedule(heap_->isolate());
+    if (FLAG_stress_concurrent_allocation) {
+      // Only schedule task if --stress-concurrent-allocation is enabled. This
+      // allows tests to disable flag even when Isolate was already initialized.
+      StressConcurrentAllocatorTask::Schedule(heap_->isolate());
+    }
     heap_->RemoveAllocationObserversFromAllSpaces(this, this);
     heap_->need_to_remove_stress_concurrent_allocation_observer_ = false;
   }
