@@ -11,6 +11,7 @@
 #include "src/heap/memory-allocator.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/spaces-inl.h"
+#include "src/heap/spaces.h"
 
 namespace v8 {
 namespace internal {
@@ -496,6 +497,10 @@ void NewSpace::UpdateInlineAllocationLimit(size_t min_size) {
   DCHECK_LE(new_limit, to_space_.page_high());
   allocation_info_.set_limit(new_limit);
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
+
+#if DEBUG
+  VerifyTop();
+#endif
 }
 
 bool NewSpace::AddFreshPage() {
@@ -548,6 +553,19 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
   DCHECK(old_top + aligned_size_in_bytes <= high);
   UpdateInlineAllocationLimit(aligned_size_in_bytes);
   return true;
+}
+
+void NewSpace::MaybeFreeUnusedLab(LinearAllocationArea info) {
+  if (info.limit() != kNullAddress && info.limit() == top()) {
+    DCHECK_NE(info.top(), kNullAddress);
+    allocation_info_.set_top(info.top());
+    allocation_info_.MoveStartToTop();
+    original_top_.store(info.top(), std::memory_order_release);
+  }
+
+#if DEBUG
+  VerifyTop();
+#endif
 }
 
 std::unique_ptr<ObjectIterator> NewSpace::GetObjectIterator(Heap* heap) {
@@ -608,6 +626,20 @@ AllocationResult NewSpace::AllocateRawAligned(int size_in_bytes,
                             aligned_size_in_bytes, aligned_size_in_bytes);
 
   return result;
+}
+
+void NewSpace::VerifyTop() {
+  // Ensure validity of LAB: start <= top <= limit
+  DCHECK_LE(allocation_info_.start(), allocation_info_.top());
+  DCHECK_LE(allocation_info_.top(), allocation_info_.limit());
+
+  // Ensure that original_top_ always equals LAB start.
+  DCHECK_EQ(original_top_, allocation_info_.start());
+
+  // Ensure that limit() is <= original_limit_, original_limit_ always needs
+  // to be end of curent to space page.
+  DCHECK_LE(allocation_info_.limit(), original_limit_);
+  DCHECK_EQ(original_limit_, to_space_.page_high());
 }
 
 #ifdef VERIFY_HEAP

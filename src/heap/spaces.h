@@ -511,6 +511,8 @@ class SpaceWithLinearArea : public Space {
                                                    size_t aligned_size_in_bytes,
                                                    size_t allocation_size);
 
+  void MarkLabStartInitialized();
+
   // When allocation observers are active we may use a lower limit to allow the
   // observers to 'interrupt' earlier than the natural limit. Given a linear
   // area bounded by [start, end), this function computes the limit to use to

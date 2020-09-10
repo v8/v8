@@ -87,6 +87,10 @@ HeapObject SemiSpaceObjectIterator::Next() {
 AllocationResult NewSpace::AllocateRaw(int size_in_bytes,
                                        AllocationAlignment alignment,
                                        AllocationOrigin origin) {
+#if DEBUG
+  VerifyTop();
+#endif
+
   AllocationResult result;
 
   if (alignment != kWordAligned) {
