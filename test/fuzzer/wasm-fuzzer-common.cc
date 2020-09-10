@@ -310,8 +310,6 @@ void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
   FlagScope<bool> enable_##feat(&FLAG_experimental_wasm_##feat, true);
   FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_STAGED_FEATURES)
 #undef ENABLE_STAGED_FEATURES
-  // SIMD is not included in staging yet, so we enable it here for fuzzing.
-  EXPERIMENTAL_FLAG_SCOPE(simd);
 
   // Strictly enforce the input size limit. Note that setting "max_len" on the
   // fuzzer target is not enough, since different fuzzers are used and not all
