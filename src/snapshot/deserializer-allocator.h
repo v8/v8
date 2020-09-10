@@ -73,6 +73,12 @@ class DeserializerAllocator final {
   uint32_t current_chunk_[kNumberOfPreallocatedSpaces];
   Address high_water_[kNumberOfPreallocatedSpaces];
 
+#ifdef DEBUG
+  // Record the previous object allocated for DCHECKs.
+  Address previous_allocation_start_ = kNullAddress;
+  int previous_allocation_size_ = 0;
+#endif
+
   // The alignment of the next allocation.
   AllocationAlignment next_alignment_ = kWordAligned;
 
