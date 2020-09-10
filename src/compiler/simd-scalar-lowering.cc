@@ -1308,23 +1308,39 @@ void SimdScalarLowering::LowerNode(Node* node) {
     }
     case IrOpcode::kReturn: {
       // V128 return types are lowered to i32x4, so if the inputs to kReturn are
-      // not Word32, we need to cast them.
+      // not Word32, we need to convert them.
       int return_arity = static_cast<int>(signature()->return_count());
       for (int i = 0; i < return_arity; i++) {
         if (signature()->GetReturn(i) != MachineRepresentation::kSimd128) {
           continue;
         }
-        // Input 1 of kReturn is not used.
+
+        // Return nodes have a hidden input at value 0.
         Node* input = node->InputAt(i + 1);
-        if (HasReplacement(0, input)) {
-          // f64x2 isn't handled anywhere yet, so we ignore it here for now.
-          Replacement rep = replacements_[input->id()];
-          if (rep.type == SimdType::kFloat32x4) {
-            Node** rep = GetReplacementsWithType(input, rep_type);
-            ReplaceNode(input, rep, NumLanes(rep_type));
+        if (!HasReplacement(0, input)) {
+          continue;
+        }
+
+        switch (ReplacementType(input)) {
+          case SimdType::kInt8x16:
+          case SimdType::kInt16x8:
+          case SimdType::kFloat32x4: {
+            Node** reps = GetReplacementsWithType(input, rep_type);
+            ReplaceNode(input, reps, NumLanes(rep_type));
+            break;
+          }
+          case SimdType::kInt32x4: {
+            // No action needed.
+            break;
+          }
+          default: {
+            // i64x2 and f64x2 aren't handled anywhere yet, ignore it here.
+            break;
+            UNIMPLEMENTED();
           }
         }
       }
+
       DefaultLowering(node);
       int new_return_count = GetReturnCountAfterLoweringSimd128(signature());
       if (static_cast<int>(signature()->return_count()) != new_return_count) {
@@ -1339,6 +1355,16 @@ void SimdScalarLowering::LowerNode(Node* node) {
       bool returns_require_lowering =
           GetReturnCountAfterLoweringSimd128(call_descriptor) !=
           static_cast<int>(call_descriptor->ReturnCount());
+
+      // All call arguments are lowered to i32x4 in the call descriptor, so the
+      // arguments need to be converted to i32x4 as well.
+      for (int i = NodeProperties::PastValueIndex(node) - 1; i >= 0; i--) {
+        Node* input = node->InputAt(i);
+        if (HasReplacement(0, input)) {
+          Node** reps = GetReplacementsWithType(input, SimdType::kInt32x4);
+          ReplaceNode(input, reps, NumLanes(SimdType::kInt32x4));
+        }
+      }
 
       if (DefaultLowering(node) || returns_require_lowering) {
         // We have to adjust the call descriptor.

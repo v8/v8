@@ -49,6 +49,7 @@ class TestSignatures {
         sig_v_c(0, 1, kFuncTypes4),
         sig_s_i(1, 1, kSimd128IntTypes4),
         sig_s_s(1, 1, kSimd128Types4),
+        sig_s_ss(1, 2, kSimd128Types4),
         sig_ii_v(2, 0, kIntTypes4),
         sig_iii_v(3, 0, kIntTypes4) {
     // I used C++ and you won't believe what happened next....
@@ -112,6 +113,7 @@ class TestSignatures {
   FunctionSig* v_c() { return &sig_v_c; }
   FunctionSig* s_i() { return &sig_s_i; }
   FunctionSig* s_s() { return &sig_s_s; }
+  FunctionSig* s_ss() { return &sig_s_ss; }
 
   FunctionSig* ii_v() { return &sig_ii_v; }
   FunctionSig* iii_v() { return &sig_iii_v; }
@@ -178,6 +180,7 @@ class TestSignatures {
   FunctionSig sig_v_c;
   FunctionSig sig_s_i;
   FunctionSig sig_s_s;
+  FunctionSig sig_s_ss;
 
   FunctionSig sig_ii_v;
   FunctionSig sig_iii_v;

@@ -43,13 +43,13 @@ WASM_SIMD_TEST(I8x16ToF32x4) {
   CHECK_EQ(expected, actual);
 }
 
-WASM_SIMD_TEST(F32x4) {
+WASM_SIMD_TEST(F32x4_Call_Return) {
   // Check that functions that return F32x4 are correctly lowered into 4 int32
   // nodes. The signature of such functions are always lowered to 4 Word32, and
   // if the last operation before the return was a f32x4, it will need to be
   // bitcasted from float to int.
   TestSignatures sigs;
-  WasmRunner<uint32_t, uint32_t> r(execution_tier, lower_simd);
+  WasmRunner<float, float> r(execution_tier, lower_simd);
 
   // A simple function that just calls f32x4.neg on the param.
   WasmFunctionCompiler& fn = r.NewFunction(sigs.s_s());
@@ -59,10 +59,48 @@ WASM_SIMD_TEST(F32x4) {
   // Use i32x4 splat since scalar lowering has a problem with f32x4 as a param
   // to a function call, the lowering is not correct yet.
   BUILD(r,
-        WASM_SIMD_I32x4_EXTRACT_LANE(
+        WASM_SIMD_F32x4_EXTRACT_LANE(
             0, WASM_CALL_FUNCTION(fn.function_index(),
-                                  WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(0)))));
-  CHECK_EQ(0x80000001, r.Call(1));
+                                  WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(0)))));
+  CHECK_EQ(-1.0, r.Call(1));
+}
+
+WASM_SIMD_TEST(I8x16_Call_Return) {
+  // Check that calling a function with i8x16 arguments, and returns i8x16, is
+  // correctly lowered. The signature of the functions are always lowered to 4
+  // Word32, so each i8x16 needs to be correctly converted.
+  TestSignatures sigs;
+  WasmRunner<uint32_t, uint32_t> r(execution_tier, lower_simd);
+
+  WasmFunctionCompiler& fn = r.NewFunction(sigs.s_ss());
+  BUILD(fn,
+        WASM_SIMD_BINOP(kExprI8x16Add, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+
+  BUILD(r,
+        WASM_SIMD_I8x16_EXTRACT_LANE(
+            0, WASM_CALL_FUNCTION(fn.function_index(),
+                                  WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(0)),
+                                  WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(0)))));
+  CHECK_EQ(2, r.Call(1));
+}
+
+WASM_SIMD_TEST(I16x8_Call_Return) {
+  // Check that calling a function with i16x8 arguments, and returns i16x8, is
+  // correctly lowered. The signature of the functions are always lowered to 4
+  // Word32, so each i16x8 needs to be correctly converted.
+  TestSignatures sigs;
+  WasmRunner<uint32_t, uint32_t> r(execution_tier, lower_simd);
+
+  WasmFunctionCompiler& fn = r.NewFunction(sigs.s_ss());
+  BUILD(fn,
+        WASM_SIMD_BINOP(kExprI16x8Add, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+
+  BUILD(r,
+        WASM_SIMD_I16x8_EXTRACT_LANE(
+            0, WASM_CALL_FUNCTION(fn.function_index(),
+                                  WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(0)),
+                                  WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(0)))));
+  CHECK_EQ(2, r.Call(1));
 }
 
 WASM_SIMD_TEST(I8x16Eq_ToTest_S128Const) {
