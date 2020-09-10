@@ -1684,6 +1684,9 @@ struct SimplifiedLoweringPhase {
                                 data->source_positions(), data->node_origins(),
                                 data->info()->GetPoisoningMitigationLevel(),
                                 &data->info()->tick_counter());
+
+    // RepresentationChanger needs the LocalHeap unparked.
+    UnparkedScopeIfNeeded scope(data->broker());
     lowering.LowerAllNodes();
   }
 };

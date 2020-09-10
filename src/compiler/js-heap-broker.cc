@@ -1019,7 +1019,9 @@ class BigIntData : public HeapObjectData {
  public:
   BigIntData(JSHeapBroker* broker, ObjectData** storage, Handle<BigInt> object)
       : HeapObjectData(broker, storage, object),
-        as_uint64_(object->AsUint64(nullptr)) {}
+        as_uint64_(object->AsUint64(nullptr)) {
+    DCHECK(!FLAG_turbo_direct_heap_access);
+  }
 
   uint64_t AsUint64() const { return as_uint64_; }
 
@@ -3336,6 +3338,8 @@ BIMODAL_ACCESSOR_C(AllocationSite, bool, PointsToLiteral)
 BIMODAL_ACCESSOR_C(AllocationSite, ElementsKind, GetElementsKind)
 BIMODAL_ACCESSOR_C(AllocationSite, AllocationType, GetAllocationType)
 
+BIMODAL_ACCESSOR_C(BigInt, uint64_t, AsUint64)
+
 BIMODAL_ACCESSOR_C(BytecodeArray, int, register_count)
 BIMODAL_ACCESSOR_C(BytecodeArray, int, parameter_count)
 BIMODAL_ACCESSOR_C(BytecodeArray, interpreter::Register,
@@ -3877,11 +3881,6 @@ base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
       data()->AsJSArray()->GetOwnElement(broker(), index, policy);
   if (element == nullptr) return base::nullopt;
   return ObjectRef(broker(), element);
-}
-
-uint64_t BigIntRef::AsUint64() const {
-  IF_ACCESS_FROM_HEAP_C(AsUint64);
-  return data()->AsBigInt()->AsUint64();
 }
 
 base::Optional<CellRef> SourceTextModuleRef::GetCell(int cell_index) const {

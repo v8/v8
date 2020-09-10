@@ -64,6 +64,7 @@ enum class OddballType : uint8_t {
   /* Subtypes of HeapObject */                      \
   V(AccessorInfo)                                   \
   V(ArrayBoilerplateDescription)                    \
+  V(BigInt)                                         \
   V(HeapNumber)
 
 // This list is sorted such that subtypes appear before their supertypes.
@@ -94,7 +95,6 @@ enum class OddballType : uint8_t {
   V(JSObject)                                 \
   /* Subtypes of HeapObject */                \
   V(AllocationSite)                           \
-  V(BigInt)                                   \
   V(CallHandlerInfo)                          \
   V(Cell)                                     \
   V(Code)                                     \
