@@ -55,9 +55,12 @@ enum class OddballType : uint8_t {
 // Classes on this list will skip serialization when
 // FLAG_turbo_direct_heap_access is on. Otherwise, they might get serialized.
 #define HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(V) \
+  /* Subtypes of FixedArray */                      \
+  V(ObjectBoilerplateDescription)                   \
   /* Subtypes of FixedArrayBase */                  \
   V(FixedDoubleArray)                               \
   /* Subtypes of HeapObject */                      \
+  V(ArrayBoilerplateDescription)                    \
   V(HeapNumber)
 
 // This list is sorted such that subtypes appear before their supertypes.
@@ -76,7 +79,6 @@ enum class OddballType : uint8_t {
   V(NativeContext)                            \
   /* Subtypes of FixedArray */                \
   V(Context)                                  \
-  V(ObjectBoilerplateDescription)             \
   V(ScopeInfo)                                \
   V(ScriptContextTable)                       \
   /* Subtypes of FixedArrayBase */            \
@@ -91,7 +93,6 @@ enum class OddballType : uint8_t {
   /* Subtypes of HeapObject */                \
   V(AccessorInfo)                             \
   V(AllocationSite)                           \
-  V(ArrayBoilerplateDescription)              \
   V(BigInt)                                   \
   V(CallHandlerInfo)                          \
   V(Cell)                                     \

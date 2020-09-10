@@ -571,7 +571,9 @@ class ArrayBoilerplateDescriptionData : public HeapObjectData {
   ArrayBoilerplateDescriptionData(JSHeapBroker* broker, ObjectData** storage,
                                   Handle<ArrayBoilerplateDescription> object)
       : HeapObjectData(broker, storage, object),
-        constants_elements_length_(object->constant_elements().length()) {}
+        constants_elements_length_(object->constant_elements().length()) {
+    DCHECK(!FLAG_turbo_direct_heap_access);
+  }
 
   int constants_elements_length() const { return constants_elements_length_; }
 
@@ -583,7 +585,9 @@ class ObjectBoilerplateDescriptionData : public HeapObjectData {
  public:
   ObjectBoilerplateDescriptionData(JSHeapBroker* broker, ObjectData** storage,
                                    Handle<ObjectBoilerplateDescription> object)
-      : HeapObjectData(broker, storage, object), size_(object->size()) {}
+      : HeapObjectData(broker, storage, object), size_(object->size()) {
+    DCHECK(!FLAG_turbo_direct_heap_access);
+  }
 
   int size() const { return size_; }
 
@@ -3187,15 +3191,6 @@ int ArrayBoilerplateDescriptionRef::constants_elements_length() const {
   return data()->AsArrayBoilerplateDescription()->constants_elements_length();
 }
 
-int ObjectBoilerplateDescriptionRef::size() const {
-  if (data_->should_access_heap()) {
-    AllowHandleDereferenceIfNeeded allow_handle_dereference(data()->kind(),
-                                                            broker()->mode());
-    return object()->size();
-  }
-  return data()->AsObjectBoilerplateDescription()->size();
-}
-
 ObjectRef FixedArrayRef::get(int i) const {
   if (data_->should_access_heap()) {
     AllowHandleAllocationIfNeeded allow_handle_allocation(data()->kind(),
@@ -3412,6 +3407,8 @@ BIMODAL_ACCESSOR_C(Code, unsigned, inlined_bytecode_size)
   BIMODAL_ACCESSOR(NativeContext, type, name)
 BROKER_NATIVE_CONTEXT_FIELDS(DEF_NATIVE_CONTEXT_ACCESSOR)
 #undef DEF_NATIVE_CONTEXT_ACCESSOR
+
+BIMODAL_ACCESSOR_C(ObjectBoilerplateDescription, int, size)
 
 BIMODAL_ACCESSOR(PropertyCell, Object, value)
 BIMODAL_ACCESSOR_C(PropertyCell, PropertyDetails, property_details)
