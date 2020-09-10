@@ -2356,7 +2356,7 @@ ContextRef ContextRef::previous(size_t* depth,
   if (*depth == 0) return *this;
 
   ObjectData* previous_data = data()->AsContext()->previous(broker(), policy);
-  if (!previous_data->IsContext()) return *this;
+  if (previous_data == nullptr || !previous_data->IsContext()) return *this;
 
   *depth = *depth - 1;
   return ContextRef(broker(), previous_data).previous(depth, policy);
