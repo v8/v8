@@ -2112,15 +2112,14 @@ void SimdScalarLowering::Float32ToInt32(Node** replacements, Node** result) {
 void SimdScalarLowering::Int64ToInt32(Node** replacements, Node** result) {
   const int num_ints = sizeof(int64_t) / sizeof(int32_t);
   const int bit_size = sizeof(int32_t) * 8;
-  const Operator* sign_extend = machine()->SignExtendWord32ToInt64();
+  const Operator* truncate = machine()->TruncateInt64ToInt32();
 
   for (int i = 0; i < kNumLanes64; i++) {
     if (replacements[i] != nullptr) {
       for (int j = 0; j < num_ints; j++) {
         result[num_ints * i + j] = graph()->NewNode(
-            sign_extend,
-            graph()->NewNode(machine()->Word64Sar(), replacements[i],
-                             mcgraph_->Int32Constant(j * bit_size)));
+            truncate, graph()->NewNode(machine()->Word64Sar(), replacements[i],
+                                       mcgraph_->Int32Constant(j * bit_size)));
       }
     } else {
       for (int j = 0; j < num_ints; j++) {
