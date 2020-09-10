@@ -41,7 +41,7 @@ vars = {
   'mac_xcode_version': 'default',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:6f13aaac55a977e1948910942675c69f2b4f7a94',
+  'gn_version': 'git_revision:e002e68a48d1c82648eadde2f6aafa20d08c36f2',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:b022173f8069cf8001d4cf2a87ce7c5f0eae220f',
@@ -82,7 +82,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '9c1d4223d1a61e1afbbcbcd302c3299d09c95ea8',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '471a6cd745dc07c17f14ee72bb6a78473299f61e',
   'third_party/depot_tools':
     Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'fb6d901df74da0f693b98f84715b0a381db9e8f0',
   'third_party/icu':
@@ -90,7 +90,7 @@ deps = {
   'third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '3c52ccdd3b9edf8fb7b3bd8ba945cce47d887ea8',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'ff93f3ea1a7f033d3caf8f60ec1937cc71351419',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a90362b4fcee287764f46f57c7880f4643dae5d3',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/chromium/llvm-project/cfe/tools/clang-format.git' + '@' + '96636aa0e9f047f17447f2d45a094d0b59ed7917',
   'buildtools/linux64': {
@@ -178,7 +178,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'dc9083e4831f3c37dd91c8e66176726cb7c210ef',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '70f34e0b8eaa3fb021c4233a78cf422955a7e534',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
