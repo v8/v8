@@ -4,7 +4,7 @@
 
 #include "src/heap/base/worklist.h"
 
-#include "testing/gtest/include/gtest/gtest.h"
+#include "test/unittests/heap/cppgc/tests.h"
 
 namespace heap {
 namespace base {
@@ -23,17 +23,17 @@ TEST(CppgcWorkListTest, SegmentCreate) {
 TEST(CppgcWorkListTest, SegmentPush) {
   TestWorklist::Segment segment;
   EXPECT_EQ(0u, segment.Size());
-  segment.Push(nullptr);
+  EXPECT_TRUE(segment.Push(nullptr));
   EXPECT_EQ(1u, segment.Size());
 }
 
 TEST(CppgcWorkListTest, SegmentPushPop) {
   TestWorklist::Segment segment;
-  segment.Push(nullptr);
+  EXPECT_TRUE(segment.Push(nullptr));
   EXPECT_EQ(1u, segment.Size());
   SomeObject dummy;
   SomeObject* object = &dummy;
-  segment.Pop(&object);
+  EXPECT_TRUE(segment.Pop(&object));
   EXPECT_EQ(0u, segment.Size());
   EXPECT_EQ(nullptr, object);
 }
@@ -41,7 +41,7 @@ TEST(CppgcWorkListTest, SegmentPushPop) {
 TEST(CppgcWorkListTest, SegmentIsEmpty) {
   TestWorklist::Segment segment;
   EXPECT_TRUE(segment.IsEmpty());
-  segment.Push(nullptr);
+  EXPECT_TRUE(segment.Push(nullptr));
   EXPECT_FALSE(segment.IsEmpty());
 }
 
@@ -49,27 +49,44 @@ TEST(CppgcWorkListTest, SegmentIsFull) {
   TestWorklist::Segment segment;
   EXPECT_FALSE(segment.IsFull());
   for (size_t i = 0; i < TestWorklist::Segment::kSize; i++) {
-    segment.Push(nullptr);
+    EXPECT_TRUE(segment.Push(nullptr));
   }
   EXPECT_TRUE(segment.IsFull());
 }
 
 TEST(CppgcWorkListTest, SegmentClear) {
   TestWorklist::Segment segment;
-  segment.Push(nullptr);
+  EXPECT_TRUE(segment.Push(nullptr));
   EXPECT_FALSE(segment.IsEmpty());
   segment.Clear();
   EXPECT_TRUE(segment.IsEmpty());
   for (size_t i = 0; i < TestWorklist::Segment::kSize; i++) {
-    segment.Push(nullptr);
+    EXPECT_TRUE(segment.Push(nullptr));
   }
+}
+
+TEST(CppgcWorkListTest, SegmentFullPushFails) {
+  TestWorklist::Segment segment;
+  EXPECT_FALSE(segment.IsFull());
+  for (size_t i = 0; i < TestWorklist::Segment::kSize; i++) {
+    EXPECT_TRUE(segment.Push(nullptr));
+  }
+  EXPECT_TRUE(segment.IsFull());
+  EXPECT_FALSE(segment.Push(nullptr));
+}
+
+TEST(CppgcWorkListTest, SegmentEmptyPopFails) {
+  TestWorklist::Segment segment;
+  EXPECT_TRUE(segment.IsEmpty());
+  SomeObject* object;
+  EXPECT_FALSE(segment.Pop(&object));
 }
 
 TEST(CppgcWorkListTest, SegmentUpdateFalse) {
   TestWorklist::Segment segment;
   SomeObject* object;
   object = reinterpret_cast<SomeObject*>(&object);
-  segment.Push(object);
+  EXPECT_TRUE(segment.Push(object));
   segment.Update([](SomeObject* object, SomeObject** out) { return false; });
   EXPECT_TRUE(segment.IsEmpty());
 }
@@ -80,13 +97,13 @@ TEST(CppgcWorkListTest, SegmentUpdate) {
   objectA = reinterpret_cast<SomeObject*>(&objectA);
   SomeObject* objectB;
   objectB = reinterpret_cast<SomeObject*>(&objectB);
-  segment.Push(objectA);
+  EXPECT_TRUE(segment.Push(objectA));
   segment.Update([objectB](SomeObject* object, SomeObject** out) {
     *out = objectB;
     return true;
   });
   SomeObject* object;
-  segment.Pop(&object);
+  EXPECT_TRUE(segment.Pop(&object));
   EXPECT_EQ(object, objectB);
 }
 
@@ -306,27 +323,6 @@ TEST(CppgcWorkListTest, MergeGlobalPool) {
   EXPECT_TRUE(worklist1.IsEmpty());
   EXPECT_TRUE(worklist2.IsEmpty());
 }
-
-#ifdef DEBUG
-
-TEST(CppgcWorkListDeathTest, DiesOnPushToFullSegment) {
-  TestWorklist::Segment segment;
-  EXPECT_FALSE(segment.IsFull());
-  for (size_t i = 0; i < TestWorklist::Segment::kSize; i++) {
-    segment.Push(nullptr);
-  }
-  EXPECT_TRUE(segment.IsFull());
-  EXPECT_DEATH_IF_SUPPORTED(segment.Push(nullptr), "");
-}
-
-TEST(CppgcWorkListDeathTest, DiesOnPopFromEmptySegment) {
-  TestWorklist::Segment segment;
-  EXPECT_TRUE(segment.IsEmpty());
-  SomeObject* object;
-  EXPECT_DEATH_IF_SUPPORTED(segment.Pop(&object), "");
-}
-
-#endif  // DEBUG
 
 }  // namespace base
 }  // namespace heap
