@@ -179,7 +179,8 @@ class EffectControlLinearizer {
   void LowerCheckEqualsInternalizedString(Node* node, Node* frame_state);
   void LowerCheckEqualsSymbol(Node* node, Node* frame_state);
   Node* LowerTypeOf(Node* node);
-  Node* LowerUpdateInterruptBudget(Node* node);
+  void LowerTierUpCheck(Node* node);
+  void LowerUpdateInterruptBudget(Node* node);
   Node* LowerToBoolean(Node* node);
   Node* LowerPlainPrimitiveToNumber(Node* node);
   Node* LowerPlainPrimitiveToWord32(Node* node);
@@ -1140,8 +1141,11 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kTypeOf:
       result = LowerTypeOf(node);
       break;
+    case IrOpcode::kTierUpCheck:
+      LowerTierUpCheck(node);
+      break;
     case IrOpcode::kUpdateInterruptBudget:
-      result = LowerUpdateInterruptBudget(node);
+      LowerUpdateInterruptBudget(node);
       break;
     case IrOpcode::kNewDoubleElements:
       result = LowerNewDoubleElements(node);
@@ -3734,7 +3738,82 @@ Node* EffectControlLinearizer::LowerTypeOf(Node* node) {
                  __ NoContextConstant());
 }
 
-Node* EffectControlLinearizer::LowerUpdateInterruptBudget(Node* node) {
+void EffectControlLinearizer::LowerTierUpCheck(Node* node) {
+  TierUpCheckNode n(node);
+  TNode<FeedbackVector> vector = n.feedback_vector();
+
+  Node* optimization_marker = __ LoadField(
+      AccessBuilder::ForFeedbackVectorOptimizedCodeWeakOrSmi(), vector);
+
+  // TODO(jgruber): The branch introduces a sequence of spills before the
+  // branch (and restores at `fallthrough`) that are completely unnecessary
+  // since the IfFalse continuation ends in a tail call. Investigate how to
+  // avoid these and fix it.
+
+  // TODO(jgruber): Combine the checks below for none/queued, e.g. by
+  // reorganizing OptimizationMarker values such that the least significant bit
+  // says whether the value is interesting or not. Also update the related
+  // check in the InterpreterEntryTrampoline.
+
+  auto fallthrough = __ MakeLabel();
+  auto optimization_marker_is_not_none = __ MakeDeferredLabel();
+  auto optimization_marker_is_neither_none_nor_queued = __ MakeDeferredLabel();
+  __ BranchWithHint(
+      __ TaggedEqual(optimization_marker, __ SmiConstant(static_cast<int>(
+                                              OptimizationMarker::kNone))),
+      &fallthrough, &optimization_marker_is_not_none, BranchHint::kTrue);
+
+  __ Bind(&optimization_marker_is_not_none);
+  __ BranchWithHint(
+      __ TaggedEqual(optimization_marker,
+                     __ SmiConstant(static_cast<int>(
+                         OptimizationMarker::kInOptimizationQueue))),
+      &fallthrough, &optimization_marker_is_neither_none_nor_queued,
+      BranchHint::kNone);
+
+  __ Bind(&optimization_marker_is_neither_none_nor_queued);
+
+  // The optimization marker field contains a non-trivial value, and some
+  // action has to be taken. For example, perhaps tier-up has been requested
+  // and we need to kick off a compilation job; or optimized code is available
+  // and should be tail-called.
+  //
+  // Currently we delegate these tasks to the InterpreterEntryTrampoline.
+  // TODO(jgruber,v8:8888): Consider a dedicated builtin instead.
+
+  const int parameter_count =
+      StartNode{graph()->start()}.FormalParameterCount();
+  TNode<HeapObject> code =
+      __ HeapConstant(BUILTIN_CODE(isolate(), InterpreterEntryTrampoline));
+  Node* target = __ Parameter(Linkage::kJSCallClosureParamIndex);
+  Node* new_target =
+      __ Parameter(Linkage::GetJSCallNewTargetParamIndex(parameter_count));
+  Node* argc =
+      __ Parameter(Linkage::GetJSCallArgCountParamIndex(parameter_count));
+  Node* context =
+      __ Parameter(Linkage::GetJSCallContextParamIndex(parameter_count));
+
+  JSTrampolineDescriptor descriptor;
+  CallDescriptor::Flags flags = CallDescriptor::kFixedTargetRegister |
+                                CallDescriptor::kIsTailCallForTierUp;
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), descriptor, descriptor.GetStackParameterCount(), flags,
+      Operator::kNoProperties);
+  Node* nodes[] = {code,    target,      new_target,  argc,
+                   context, __ effect(), __ control()};
+
+#ifdef DEBUG
+  static constexpr int kCodeContextEffectControl = 4;
+  DCHECK_EQ(arraysize(nodes),
+            descriptor.GetParameterCount() + kCodeContextEffectControl);
+#endif  // DEBUG
+
+  __ TailCall(call_descriptor, arraysize(nodes), nodes);
+
+  __ Bind(&fallthrough);
+}
+
+void EffectControlLinearizer::LowerUpdateInterruptBudget(Node* node) {
   UpdateInterruptBudgetNode n(node);
   TNode<FeedbackCell> feedback_cell = n.feedback_cell();
   TNode<Int32T> budget = __ LoadField<Int32T>(
@@ -3755,7 +3834,6 @@ Node* EffectControlLinearizer::LowerUpdateInterruptBudget(Node* node) {
 
     __ Bind(&next);
   }
-  return nullptr;
 }
 
 Node* EffectControlLinearizer::LowerToBoolean(Node* node) {

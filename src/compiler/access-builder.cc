@@ -1248,6 +1248,16 @@ FieldAccess AccessBuilder::ForFeedbackVectorClosureFeedbackCellArray() {
   return access;
 }
 
+// static
+FieldAccess AccessBuilder::ForFeedbackVectorOptimizedCodeWeakOrSmi() {
+  FieldAccess access = {
+      kTaggedBase,      FeedbackVector::kOptimizedCodeWeakOrSmiOffset,
+      Handle<Name>(),   MaybeHandle<Map>(),
+      Type::Any(),      MachineType::AnyTagged(),
+      kFullWriteBarrier};
+  return access;
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

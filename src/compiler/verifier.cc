@@ -763,6 +763,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kTypeOf:
       CheckTypeIs(node, Type::InternalizedString());
       break;
+    case IrOpcode::kTierUpCheck:
     case IrOpcode::kUpdateInterruptBudget:
       CheckValueInputIs(node, 0, Type::Any());
       CheckNotTyped(node);

@@ -94,6 +94,12 @@ int CallDescriptor::GetFirstUnusedStackSlot() const {
 
 int CallDescriptor::GetStackParameterDelta(
     CallDescriptor const* tail_caller) const {
+  // In the IsTailCallForTierUp case, the callee has
+  // identical linkage and runtime arguments to the caller, thus the stack
+  // parameter delta is 0. We don't explicitly pass the runtime arguments as
+  // inputs to the TailCall node, since they already exist on the stack.
+  if (IsTailCallForTierUp()) return 0;
+
   int callee_slots_above_sp = GetFirstUnusedStackSlot();
   int tail_caller_slots_above_sp = tail_caller->GetFirstUnusedStackSlot();
   int stack_param_delta = callee_slots_above_sp - tail_caller_slots_above_sp;

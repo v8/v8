@@ -110,6 +110,8 @@ class JSFunction : public JSFunctionOrBoundFunction {
   V8_EXPORT_PRIVATE bool HasAttachedOptimizedCode() const;
   bool HasAvailableOptimizedCode() const;
 
+  bool HasAvailableCodeKind(CodeKind kind) const;
+
   V8_EXPORT_PRIVATE bool ActiveTierIsIgnition() const;
   bool ActiveTierIsTurbofan() const;
   bool ActiveTierIsNCI() const;

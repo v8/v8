@@ -66,6 +66,8 @@ Object CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
     return isolate->StackOverflow();
   }
 
+  if (function->HasOptimizationMarker()) function->ClearOptimizationMarker();
+
   if (!Compiler::CompileOptimized(function, mode, function->NextTier())) {
     return ReadOnlyRoots(isolate).exception();
   }

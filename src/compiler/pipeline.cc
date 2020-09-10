@@ -1423,17 +1423,14 @@ struct GraphBuilderPhase {
     if (data->info()->bailout_on_uninitialized()) {
       flags |= BytecodeGraphBuilderFlag::kBailoutOnUninitialized;
     }
-    if (data->info()->IsNativeContextIndependent()) {
-      flags |= BytecodeGraphBuilderFlag::kNativeContextIndependent;
-    }
 
     JSFunctionRef closure(data->broker(), data->info()->closure());
     CallFrequency frequency(1.0f);
     BuildGraphFromBytecode(
         data->broker(), temp_zone, closure.shared(), closure.feedback_vector(),
         data->info()->osr_offset(), data->jsgraph(), frequency,
-        data->source_positions(), SourcePosition::kNotInlined, flags,
-        &data->info()->tick_counter());
+        data->source_positions(), SourcePosition::kNotInlined,
+        data->info()->code_kind(), flags, &data->info()->tick_counter());
   }
 };
 

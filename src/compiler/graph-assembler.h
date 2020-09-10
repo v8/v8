@@ -240,6 +240,8 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* Projection(int index, Node* value);
   Node* ExternalConstant(ExternalReference ref);
 
+  Node* Parameter(int index);
+
   Node* LoadFramePointer();
 
   Node* LoadHeapNumberValue(Node* heap_number);
@@ -326,6 +328,8 @@ class V8_EXPORT_PRIVATE GraphAssembler {
                      Args... args);
   template <typename... Args>
   TNode<Object> Call(const Operator* op, Node* first_arg, Args... args);
+  void TailCall(const CallDescriptor* call_descriptor, int inputs_size,
+                Node** inputs);
 
   // Basic control operations.
   template <size_t VarCount>

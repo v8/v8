@@ -226,13 +226,30 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     // The kCallerSavedFPRegisters only matters (and set) when the more general
     // flag for kCallerSavedRegisters above is also set.
     kCallerSavedFPRegisters = 1u << 8,
-    // AIX has a function descriptor by default but it can be disabled for a
-    // certain CFunction call (only used for Kind::kCallAddress).
-    kNoFunctionDescriptor = 1u << 9,
+    // Tail calls for tier up are special (in fact they are different enough
+    // from normal tail calls to warrant a dedicated opcode; but they also have
+    // enough similar aspects that reusing the TailCall opcode is pragmatic).
+    // Specifically:
+    //
+    // 1. Caller and callee are both JS-linkage Code objects.
+    // 2. JS runtime arguments are passed unchanged from caller to callee.
+    // 3. JS runtime arguments are not attached as inputs to the TailCall node.
+    // 4. Prior to the tail call, frame and register state is torn down to just
+    //    before the caller frame was constructed.
+    // 5. Unlike normal tail calls, arguments adaptor frames (if present) are
+    //    *not* torn down.
+    //
+    // In other words, behavior is identical to a jmp instruction prior caller
+    // frame construction.
+    kIsTailCallForTierUp = 1u << 9,
 
     // Flags past here are *not* encoded in InstructionCode and are thus not
     // accessible from the code generator. See also
     // kFlagsBitsEncodedInInstructionCode.
+
+    // AIX has a function descriptor by default but it can be disabled for a
+    // certain CFunction call (only used for Kind::kCallAddress).
+    kNoFunctionDescriptor = 1u << 10,
   };
   using Flags = base::Flags<Flag>;
 
@@ -331,6 +348,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   bool NeedsCallerSavedFPRegisters() const {
     return flags() & kCallerSavedFPRegisters;
   }
+  bool IsTailCallForTierUp() const { return flags() & kIsTailCallForTierUp; }
   bool NoFunctionDescriptor() const { return flags() & kNoFunctionDescriptor; }
 
   LinkageLocation GetReturnLocation(size_t index) const {

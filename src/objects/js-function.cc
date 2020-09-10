@@ -94,6 +94,11 @@ bool JSFunction::HasAvailableOptimizedCode() const {
   return (result & kOptimizedJSFunctionCodeKindsMask) != 0;
 }
 
+bool JSFunction::HasAvailableCodeKind(CodeKind kind) const {
+  CodeKinds result = GetAvailableCodeKinds();
+  return (result & CodeKindToCodeKindFlag(kind)) != 0;
+}
+
 namespace {
 
 // Returns false if no highest tier exists (i.e. the function is not compiled),

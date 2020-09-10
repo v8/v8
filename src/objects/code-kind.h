@@ -80,12 +80,9 @@ inline constexpr bool CodeKindChecksOptimizationMarker(CodeKind kind) {
 // The optimization marker field on the feedback vector has a dual purpose of
 // controlling the tier-up workflow, and caching the produced code object for
 // access from multiple closures. The marker is not used for all code kinds
-// though, in particular it is not used when generating NCI code for caching
-// only.
+// though, in particular it is not used when generating NCI code.
 inline constexpr bool CodeKindIsStoredInOptimizedCodeCache(CodeKind kind) {
-  return kind == CodeKind::OPTIMIZED_FUNCTION ||
-         (FLAG_turbo_nci_as_midtier &&
-          kind == CodeKind::NATIVE_CONTEXT_INDEPENDENT);
+  return kind == CodeKind::OPTIMIZED_FUNCTION;
 }
 
 inline CodeKind CodeKindForTopTier() { return CodeKind::OPTIMIZED_FUNCTION; }

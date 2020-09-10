@@ -66,6 +66,27 @@ bool IsForNativeContextIndependentCachingOnly(CodeKind kind) {
          !FLAG_turbo_nci_as_midtier;
 }
 
+// This predicate is currently needed only because the nci-as-midtier testing
+// configuration is special. A quick summary of compilation configurations:
+//
+// - Turbofan (and currently Turboprop) uses both the optimization marker and
+// the optimized code cache (underneath, the marker and the cache share the same
+// slot on the feedback vector).
+// - Native context independent (NCI) code uses neither the marker nor the
+// cache.
+// - The NCI-as-midtier testing configuration uses the marker, but not the
+// cache.
+//
+// This predicate supports that last case. In the near future, this last case is
+// expected to change s.t. code kinds use the marker iff they use the optimized
+// code cache (details still TBD). In that case, the existing
+// CodeKindIsStoredInOptimizedCodeCache is sufficient and this extra predicate
+// can be removed.
+// TODO(jgruber,rmcilroy,v8:8888): Remove this predicate once that has happened.
+bool UsesOptimizationMarker(CodeKind kind) {
+  return !IsForNativeContextIndependentCachingOnly(kind);
+}
+
 class CompilerTracer : public AllStatic {
  public:
   static void PrintTracePrefix(const CodeTracer::Scope& scope,
@@ -843,7 +864,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeCache(
 }
 
 void ClearOptimizedCodeCache(OptimizedCompilationInfo* compilation_info) {
-  DCHECK(CodeKindIsStoredInOptimizedCodeCache(compilation_info->code_kind()));
+  DCHECK(UsesOptimizationMarker(compilation_info->code_kind()));
   Handle<JSFunction> function = compilation_info->closure();
   if (compilation_info->osr_offset().IsNone()) {
     Handle<FeedbackVector> vector =
@@ -855,7 +876,12 @@ void ClearOptimizedCodeCache(OptimizedCompilationInfo* compilation_info) {
 void InsertCodeIntoOptimizedCodeCache(
     OptimizedCompilationInfo* compilation_info) {
   const CodeKind kind = compilation_info->code_kind();
-  if (!CodeKindIsStoredInOptimizedCodeCache(kind)) return;
+  if (!CodeKindIsStoredInOptimizedCodeCache(kind)) {
+    if (UsesOptimizationMarker(kind)) {
+      ClearOptimizedCodeCache(compilation_info);
+    }
+    return;
+  }
 
   if (compilation_info->function_context_specializing()) {
     // Function context specialization folds-in the function context, so no
@@ -987,9 +1013,24 @@ bool GetOptimizedCodeLater(std::unique_ptr<OptimizedCompilationJob> job,
   if (CodeKindIsStoredInOptimizedCodeCache(code_kind)) {
     function->SetOptimizationMarker(OptimizationMarker::kInOptimizationQueue);
   }
-  DCHECK(function->ActiveTierIsIgnition());
+  DCHECK(function->ActiveTierIsIgnition() || function->ActiveTierIsNCI());
   DCHECK(function->shared().HasBytecodeArray());
   return true;
+}
+
+// Returns the code object at which execution continues after a concurrent
+// optimization job has been started (but not finished).
+Handle<Code> ContinuationForConcurrentOptimization(
+    Isolate* isolate, Handle<JSFunction> function) {
+  Handle<Code> cached_code;
+  if (FLAG_turbo_nci && function->NextTier() == CodeKindForTopTier() &&
+      GetCodeFromCompilationCache(isolate, handle(function->shared(), isolate))
+          .ToHandle(&cached_code)) {
+    // Tiering up to Turbofan and cached optimized code exists. Continue
+    // execution there until TF optimization has finished.
+    return cached_code;
+  }
+  return BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
 }
 
 MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
@@ -1006,8 +1047,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   // If compiling for NCI caching only (which does not use the optimization
   // marker), don't touch the marker to avoid interfering with Turbofan
   // compilation.
-  if (CodeKindIsStoredInOptimizedCodeCache(code_kind) &&
-      function->HasOptimizationMarker()) {
+  if (UsesOptimizationMarker(code_kind) && function->HasOptimizationMarker()) {
     function->ClearOptimizationMarker();
   }
 
@@ -1077,7 +1117,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   if (mode == ConcurrencyMode::kConcurrent) {
     if (GetOptimizedCodeLater(std::move(job), isolate, compilation_info,
                               code_kind, function)) {
-      return BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
+      return ContinuationForConcurrentOptimization(isolate, function);
     }
   } else {
     DCHECK_EQ(mode, ConcurrencyMode::kNotConcurrent);
@@ -1837,7 +1877,8 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
                                 ConcurrencyMode mode, CodeKind code_kind) {
   DCHECK(CodeKindIsOptimizedJSFunction(code_kind));
 
-  if (function->HasAttachedOptimizedCode()) return true;
+  // If the requested code kind is already available, do nothing.
+  if (function->HasAvailableCodeKind(code_kind)) return true;
 
   Isolate* isolate = function->GetIsolate();
   DCHECK(AllowCompilation::IsAllowed(isolate));
@@ -1860,7 +1901,7 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
   DCHECK(!isolate->has_pending_exception());
   DCHECK(function->shared().is_compiled());
   DCHECK(function->is_compiled());
-  if (CodeKindIsStoredInOptimizedCodeCache(code_kind)) {
+  if (UsesOptimizationMarker(code_kind)) {
     DCHECK_IMPLIES(function->HasOptimizationMarker(),
                    function->IsInOptimizationQueue());
     DCHECK_IMPLIES(function->HasOptimizationMarker(),
@@ -2974,7 +3015,7 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
   CompilerTracer::TraceAbortedJob(isolate, compilation_info);
   compilation_info->closure()->set_code(shared->GetCode());
   // Clear the InOptimizationQueue marker, if it exists.
-  if (CodeKindIsStoredInOptimizedCodeCache(code_kind) &&
+  if (UsesOptimizationMarker(code_kind) &&
       compilation_info->closure()->IsInOptimizationQueue()) {
     compilation_info->closure()->ClearOptimizationMarker();
   }

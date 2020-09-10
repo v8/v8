@@ -2923,9 +2923,9 @@ void InstructionSelector::VisitTailCall(Node* node) {
   auto call_descriptor = CallDescriptorOf(node->op());
 
   CallDescriptor* caller = linkage()->GetIncomingDescriptor();
-  DCHECK(caller->CanTailCall(CallDescriptorOf(node->op())));
   const CallDescriptor* callee = CallDescriptorOf(node->op());
-  int stack_param_delta = callee->GetStackParameterDelta(caller);
+  DCHECK(caller->CanTailCall(callee));
+  const int stack_param_delta = callee->GetStackParameterDelta(caller);
   CallBuffer buffer(zone(), call_descriptor, nullptr);
 
   // Compute InstructionOperands for inputs and outputs.
@@ -2942,7 +2942,7 @@ void InstructionSelector::VisitTailCall(Node* node) {
   // Select the appropriate opcode based on the call type.
   InstructionCode opcode;
   InstructionOperandVector temps(zone());
-  if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
+  if (caller->IsJSFunctionCall()) {
     switch (call_descriptor->kind()) {
       case CallDescriptor::kCallCodeObject:
         opcode = kArchTailCallCodeObjectFromJSFunction;
@@ -2980,7 +2980,7 @@ void InstructionSelector::VisitTailCall(Node* node) {
   // instruction. This is used by backends that need to pad arguments for stack
   // alignment, in order to store an optional slot of padding above the
   // arguments.
-  int optional_padding_slot = callee->GetFirstUnusedStackSlot();
+  const int optional_padding_slot = callee->GetFirstUnusedStackSlot();
   buffer.instruction_args.push_back(g.TempImmediate(optional_padding_slot));
 
   const int first_unused_stack_slot =

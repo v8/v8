@@ -1322,6 +1322,12 @@ const Operator* SimplifiedOperatorBuilder::UpdateInterruptBudget(int delta) {
       "UpdateInterruptBudget", 1, 1, 1, 0, 1, 0, delta);
 }
 
+const Operator* SimplifiedOperatorBuilder::TierUpCheck() {
+  return zone()->New<Operator>(IrOpcode::kTierUpCheck,
+                               Operator::kNoThrow | Operator::kNoDeopt,
+                               "TierUpCheck", 1, 1, 1, 0, 1, 0);
+}
+
 const Operator* SimplifiedOperatorBuilder::AssertType(Type type) {
   DCHECK(type.IsRange());
   return zone()->New<Operator1<Type>>(IrOpcode::kAssertType,

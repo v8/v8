@@ -32,6 +32,7 @@ class GraphAssembler::BasicBlockUpdater {
   void AddBranch(Node* branch, BasicBlock* tblock, BasicBlock* fblock);
   void AddGoto(BasicBlock* to);
   void AddGoto(BasicBlock* from, BasicBlock* to);
+  void AddTailCall(Node* node);
 
   void StartBlock(BasicBlock* block);
   BasicBlock* Finalize(BasicBlock* original);
@@ -267,6 +268,18 @@ void GraphAssembler::BasicBlockUpdater::AddGoto(BasicBlock* from,
   current_block_ = nullptr;
 }
 
+void GraphAssembler::BasicBlockUpdater::AddTailCall(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kTailCall);
+  DCHECK_NOT_NULL(current_block_);
+
+  if (state_ == kUnchanged) {
+    CopyForChange();
+  }
+
+  schedule_->AddTailCall(current_block_, node);
+  current_block_ = nullptr;
+}
+
 void GraphAssembler::BasicBlockUpdater::UpdateSuccessors(BasicBlock* block) {
   for (SuccessorInfo succ : saved_successors_) {
     (succ.block->predecessors())[succ.index] = block;
@@ -378,6 +391,11 @@ TNode<Number> JSGraphAssembler::NumberConstant(double value) {
 
 Node* GraphAssembler::ExternalConstant(ExternalReference ref) {
   return AddClonedNode(mcgraph()->ExternalConstant(ref));
+}
+
+Node* GraphAssembler::Parameter(int index) {
+  return AddNode(
+      graph()->NewNode(common()->Parameter(index), graph()->start()));
 }
 
 Node* JSGraphAssembler::CEntryStubConstant(int result_size) {
@@ -779,6 +797,28 @@ TNode<Object> GraphAssembler::Call(const Operator* op, int inputs_size,
                                    Node** inputs) {
   DCHECK_EQ(IrOpcode::kCall, op->opcode());
   return AddNode<Object>(graph()->NewNode(op, inputs_size, inputs));
+}
+
+void GraphAssembler::TailCall(const CallDescriptor* call_descriptor,
+                              int inputs_size, Node** inputs) {
+#ifdef DEBUG
+  static constexpr int kTargetEffectControl = 3;
+  DCHECK_EQ(inputs_size,
+            call_descriptor->ParameterCount() + kTargetEffectControl);
+#endif  // DEBUG
+
+  Node* node = AddNode(graph()->NewNode(common()->TailCall(call_descriptor),
+                                        inputs_size, inputs));
+
+  if (block_updater_) block_updater_->AddTailCall(node);
+
+  // Unlike ConnectUnreachableToEnd, the TailCall node terminates a block; to
+  // keep it live, it *must* be connected to End (also in Turboprop schedules).
+  NodeProperties::MergeControlToEnd(graph(), common(), node);
+
+  // Setting effect, control to nullptr effectively terminates the current block
+  // by disallowing the addition of new nodes until a new label has been bound.
+  InitializeEffectControl(nullptr, nullptr);
 }
 
 void GraphAssembler::BranchWithCriticalSafetyCheck(

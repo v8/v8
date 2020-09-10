@@ -657,13 +657,33 @@ void CodeGenerator::AssemblePopArgumentsAdaptorFrame(Register args_reg,
 
 namespace {
 
-void AdjustStackPointerForTailCall(TurboAssembler* assembler,
+void AdjustStackPointerForTailCall(Instruction* instr,
+                                   TurboAssembler* assembler, Linkage* linkage,
+                                   OptimizedCompilationInfo* info,
                                    FrameAccessState* state,
                                    int new_slot_above_sp,
                                    bool allow_shrinkage = true) {
-  int current_sp_offset = state->GetSPToFPSlotCount() +
-                          StandardFrameConstants::kFixedSlotCountAboveFp;
-  int stack_slot_delta = new_slot_above_sp - current_sp_offset;
+  int stack_slot_delta;
+  if (HasCallDescriptorFlag(instr, CallDescriptor::kIsTailCallForTierUp)) {
+    // For this special tail-call mode, the callee has the same arguments and
+    // linkage as the caller, and arguments adapter frames must be preserved.
+    // Thus we simply have reset the stack pointer register to its original
+    // value before frame construction.
+    // See also: AssembleConstructFrame.
+    DCHECK(!info->is_osr());
+    DCHECK_EQ(linkage->GetIncomingDescriptor()->CalleeSavedRegisters(), 0);
+    DCHECK_EQ(linkage->GetIncomingDescriptor()->CalleeSavedFPRegisters(), 0);
+    DCHECK_EQ(state->frame()->GetReturnSlotCount(), 0);
+    stack_slot_delta = (state->frame()->GetTotalFrameSlotCount() -
+                        kReturnAddressStackSlotCount) *
+                       -1;
+    DCHECK_LE(stack_slot_delta, 0);
+  } else {
+    int current_sp_offset = state->GetSPToFPSlotCount() +
+                            StandardFrameConstants::kFixedSlotCountAboveFp;
+    stack_slot_delta = new_slot_above_sp - current_sp_offset;
+  }
+
   if (stack_slot_delta > 0) {
     assembler->AllocateStackSpace(stack_slot_delta * kSystemPointerSize);
     state->IncreaseSPDelta(stack_slot_delta);
@@ -690,12 +710,14 @@ void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
   if (!pushes.empty() &&
       (LocationOperand::cast(pushes.back()->destination()).index() + 1 ==
        first_unused_stack_slot)) {
+    DCHECK(!HasCallDescriptorFlag(instr, CallDescriptor::kIsTailCallForTierUp));
     X64OperandConverter g(this, instr);
     for (auto move : pushes) {
       LocationOperand destination_location(
           LocationOperand::cast(move->destination()));
       InstructionOperand source(move->source());
-      AdjustStackPointerForTailCall(tasm(), frame_access_state(),
+      AdjustStackPointerForTailCall(instr, tasm(), linkage(), info(),
+                                    frame_access_state(),
                                     destination_location.index());
       if (source.IsStackSlot()) {
         LocationOperand source_location(LocationOperand::cast(source));
@@ -713,14 +735,15 @@ void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
       move->Eliminate();
     }
   }
-  AdjustStackPointerForTailCall(tasm(), frame_access_state(),
-                                first_unused_stack_slot, false);
+  AdjustStackPointerForTailCall(instr, tasm(), linkage(), info(),
+                                frame_access_state(), first_unused_stack_slot,
+                                false);
 }
 
 void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
                                              int first_unused_stack_slot) {
-  AdjustStackPointerForTailCall(tasm(), frame_access_state(),
-                                first_unused_stack_slot);
+  AdjustStackPointerForTailCall(instr, tasm(), linkage(), info(),
+                                frame_access_state(), first_unused_stack_slot);
 }
 
 // Check that {kJavaScriptCallCodeStartRegister} is correct.
@@ -824,12 +847,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchTailCallCodeObjectFromJSFunction:
-    case kArchTailCallCodeObject: {
-      if (arch_opcode == kArchTailCallCodeObjectFromJSFunction) {
+      if (!HasCallDescriptorFlag(instr, CallDescriptor::kIsTailCallForTierUp)) {
         AssemblePopArgumentsAdaptorFrame(kJavaScriptCallArgCountRegister,
                                          i.TempRegister(0), i.TempRegister(1),
                                          i.TempRegister(2));
       }
+      V8_FALLTHROUGH;
+    case kArchTailCallCodeObject: {
       if (HasImmediateInput(instr, 0)) {
         Handle<Code> code = i.InputCode(0);
         __ Jump(code, RelocInfo::CODE_TARGET);
@@ -4372,7 +4396,7 @@ static const int kQuadWordSize = 16;
 }  // namespace
 
 void CodeGenerator::FinishFrame(Frame* frame) {
-  auto call_descriptor = linkage()->GetIncomingDescriptor();
+  CallDescriptor* call_descriptor = linkage()->GetIncomingDescriptor();
 
   const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
   if (saves_fp != 0) {

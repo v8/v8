@@ -483,6 +483,7 @@
   V(StringToLowerCaseIntl)              \
   V(StringToNumber)                     \
   V(StringToUpperCaseIntl)              \
+  V(TierUpCheck)                        \
   V(ToBoolean)                          \
   V(TransitionAndStoreElement)          \
   V(TransitionAndStoreNonNumberElement) \
