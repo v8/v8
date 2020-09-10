@@ -1223,11 +1223,6 @@
   # Runs significantly slower with --stress-wasm-code-gc, problematic
   # especially in combination with tsan or other slow configurations.
   'wasm/many-modules': [SKIP],
-
-  # https://crbug.com/v8/10892
-  'compiler/serializer-dead-after-return': [SKIP],
-  'compiler/serializer-dead-after-jump': [SKIP],
-  'regress/regress-crbug-882233-2': [SKIP],
 }],  # variant == stress_js_bg_compile_wasm_code_gc
 
 ##############################################################################
