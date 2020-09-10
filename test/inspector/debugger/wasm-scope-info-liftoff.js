@@ -80,10 +80,9 @@ async function instantiateWasm() {
       ])
       .exportAs('main');
 
-  builder.addFunction('B (liftoff)', kSig_v_i)
-      .addLocals(
-          {i32_count: 1, f32_count: 4},
-          ['i32_arg', 'i32_local', 'f32_local', '0', '0'])
+  builder.addFunction('B (liftoff)', kSig_v_i, ['i32_arg'])
+      .addLocals(kWasmI32, 1, ['i32_local'])
+      .addLocals(kWasmF32, 4, ['f32_local', '0', '0'])
       .addBody([
         // Load a parameter and a constant onto the operand stack.
         kExprLocalGet, 0, kExprI32Const, 3,
@@ -96,8 +95,8 @@ async function instantiateWasm() {
       ]);
 
   // A third function which will be stepped through.
-  let func = builder.addFunction('C (interpreted)', kSig_v_i)
-      .addLocals({i32_count: 1}, ['i32_arg', 'i32_local'])
+  let func = builder.addFunction('C (interpreted)', kSig_v_i, ['i32_arg'])
+      .addLocals(kWasmI32, 1, ['i32_local'])
       .addBody([
         // Set global 0 to param 0.
         kExprLocalGet, 0, kExprGlobalSet, 0,
