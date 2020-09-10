@@ -1263,6 +1263,9 @@ static TestStatsStream GetHeapStatsUpdate(
 
 
 TEST(HeapSnapshotObjectsStats) {
+  // Concurrent allocation might break results
+  v8::internal::FLAG_stress_concurrent_allocation = false;
+
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
