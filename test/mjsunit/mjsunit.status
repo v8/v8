@@ -1207,6 +1207,9 @@
   # TODO(mythria): Reenable this when the cl that migrates deprecated maps
   # lands
   'regress/regress-932953': [FAIL],
+
+  # https://crbug.com/v8/10894
+  'math-floor-of-div': [SLOW],
 }],  # variant == turboprop
 
 ##############################################################################
