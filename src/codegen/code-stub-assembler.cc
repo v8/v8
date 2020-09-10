@@ -2520,6 +2520,20 @@ TNode<Context> CodeStubAssembler::LoadModuleContext(
   return UncheckedCast<Context>(cur_context.value());
 }
 
+TNode<Map> CodeStubAssembler::LoadObjectMap(TNode<Context> context) {
+  TNode<HeapObject> object_function =
+      CAST(LoadContextElement(context, Context::OBJECT_FUNCTION_INDEX));
+  return LoadObjectField<Map>(object_function,
+                              JSFunction::kPrototypeOrInitialMapOffset);
+}
+
+TNode<Map> CodeStubAssembler::LoadObjectWithNullPrototypeMap(
+    TNode<Context> context) {
+  TNode<Map> map = CAST(LoadContextElement(
+      context, Context::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP));
+  return map;
+}
+
 TNode<Map> CodeStubAssembler::LoadJSArrayElementsMap(
     SloppyTNode<Int32T> kind, SloppyTNode<NativeContext> native_context) {
   CSA_ASSERT(this, IsFastElementsKind(kind));

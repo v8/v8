@@ -1073,8 +1073,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
 
     BIND(&good);
     {
-      map = CAST(LoadContextElement(
-          context, Context::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP));
+      map = LoadObjectWithNullPrototypeMap(context);
       properties = AllocateNameDictionary(NameDictionary::kInitialCapacity);
       Goto(&instantiate_map);
     }
@@ -1082,11 +1081,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     BIND(&non_null_proto);
     {
       properties = EmptyFixedArrayConstant();
-      TNode<HeapObject> object_function =
-          CAST(LoadContextElement(context, Context::OBJECT_FUNCTION_INDEX));
-      TNode<Map> object_function_map = LoadObjectField<Map>(
-          object_function, JSFunction::kPrototypeOrInitialMapOffset);
-      map = object_function_map;
+      map = LoadObjectMap(context);
       GotoIf(TaggedEqual(prototype, LoadMapPrototype(map.value())),
              &instantiate_map);
       // Try loading the prototype info.

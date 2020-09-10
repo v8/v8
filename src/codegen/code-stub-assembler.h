@@ -1402,6 +1402,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
            if_equal);
   }
 
+  TNode<Map> LoadObjectMap(TNode<Context> context);
+  TNode<Map> LoadObjectWithNullPrototypeMap(TNode<Context> context);
+
   TNode<Map> LoadJSArrayElementsMap(ElementsKind kind,
                                     SloppyTNode<NativeContext> native_context);
   TNode<Map> LoadJSArrayElementsMap(SloppyTNode<Int32T> kind,
