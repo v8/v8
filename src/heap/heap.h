@@ -687,6 +687,8 @@ class Heap {
 
   V8_EXPORT_PRIVATE double MonotonicallyIncreasingTimeInMs();
 
+  void VerifyNewSpaceTop();
+
   void RecordStats(HeapStats* stats, bool take_snapshot = false);
 
   bool MeasureMemory(std::unique_ptr<v8::MeasureMemoryDelegate> delegate,

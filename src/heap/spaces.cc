@@ -365,7 +365,7 @@ void SpaceWithLinearArea::PauseAllocationObservers() {
 
 void SpaceWithLinearArea::ResumeAllocationObservers() {
   Space::ResumeAllocationObservers();
-  allocation_info_.MoveStartToTop();
+  MarkLabStartInitialized();
   UpdateInlineAllocationLimit(0);
 }
 
@@ -374,7 +374,18 @@ void SpaceWithLinearArea::AdvanceAllocationObservers() {
       allocation_info_.start() != allocation_info_.top()) {
     allocation_counter_.AdvanceAllocationObservers(allocation_info_.top() -
                                                    allocation_info_.start());
-    allocation_info_.MoveStartToTop();
+    MarkLabStartInitialized();
+  }
+}
+
+void SpaceWithLinearArea::MarkLabStartInitialized() {
+  allocation_info_.MoveStartToTop();
+  if (identity() == NEW_SPACE) {
+    heap()->new_space()->MoveOriginalTopForward();
+
+#if DEBUG
+    heap()->VerifyNewSpaceTop();
+#endif
   }
 }
 

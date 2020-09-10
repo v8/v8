@@ -1038,8 +1038,6 @@ StepResult IncrementalMarking::Step(double max_step_size_in_ms,
   double embedder_deadline = 0.0;
   if (state_ == MARKING) {
     if (FLAG_concurrent_marking) {
-      heap_->new_space()->ResetOriginalTop();
-      heap_->new_lo_space()->ResetPendingObject();
       // It is safe to merge back all objects that were on hold to the shared
       // work list at Step because we are at a safepoint where all objects
       // are properly initialized.

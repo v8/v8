@@ -249,6 +249,10 @@ class ShouldBeZeroOnReturnScope final {
 Object StackGuard::HandleInterrupts() {
   TRACE_EVENT0("v8.execute", "V8.HandleInterrupts");
 
+#if DEBUG
+  isolate_->heap()->VerifyNewSpaceTop();
+#endif
+
   if (FLAG_verify_predictable) {
     // Advance synthetic time by making a time request.
     isolate_->heap()->MonotonicallyIncreasingTimeInMs();
