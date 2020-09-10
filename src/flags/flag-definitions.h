@@ -392,7 +392,6 @@ DEFINE_BOOL(future, FUTURE_BOOL,
             "not-too-far future")
 
 DEFINE_IMPLICATION(future, write_protect_code_memory)
-DEFINE_IMPLICATION(future, finalize_streaming_on_background)
 
 DEFINE_BOOL(assert_types, false,
             "generate runtime type assertions to test the typer")
