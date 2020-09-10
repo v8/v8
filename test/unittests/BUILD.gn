@@ -69,6 +69,7 @@ v8_executable("cppgc_unittests") {
 
   deps = [
     ":cppgc_unittests_sources",
+    ":v8_cppgc_shared_unittests_sources",
     "../..:cppgc_for_testing",
     "//testing/gmock",
     "//testing/gtest",
@@ -136,6 +137,7 @@ v8_executable("unittests") {
   deps = [
     ":cppgc_unittests_sources",
     ":unittests_sources",
+    ":v8_cppgc_shared_unittests_sources",
     "../..:v8_for_testing",
     "../..:v8_libbase",
     "../..:v8_libplatform",
