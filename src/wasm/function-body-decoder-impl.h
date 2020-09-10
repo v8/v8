@@ -2181,7 +2181,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   bool CheckHasMemoryForAtomics() {
-    if (FLAG_wasm_atomics_on_non_shared_memory && CheckHasMemory()) return true;
+    if (CheckHasMemory()) return true;
     if (!VALIDATE(this->module_->has_shared_memory)) {
       this->DecodeError(this->pc_ - 1,
                         "Atomic opcodes used without shared memory");

@@ -892,10 +892,6 @@ DEFINE_DEBUG_BOOL(trace_wasm_lazy_compilation, false,
 DEFINE_BOOL(wasm_lazy_validation, false,
             "enable lazy validation for lazily compiled wasm functions")
 
-// Flags for wasm prototyping that are not strictly features i.e., part of
-// an existing proposal that may be conditionally enabled.
-DEFINE_BOOL(wasm_atomics_on_non_shared_memory, true,
-            "allow atomic operations on non-shared WebAssembly memory")
 DEFINE_BOOL(wasm_grow_shared_memory, true,
             "allow growing shared WebAssembly memory objects")
 DEFINE_BOOL(wasm_simd_post_mvp, false,
