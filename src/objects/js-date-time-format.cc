@@ -1744,13 +1744,32 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     //  iii. If p is not undefined, then
     //      1. Throw a TypeError exception.
     if (skeleton.length() > 0) {
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kInvalid,
-                                   factory->NewStringFromStaticChars("option"),
-                                   date_style != DateTimeStyle::kUndefined
-                                       ? factory->dateStyle_string()
-                                       : factory->timeStyle_string()),
-                      JSDateTimeFormat);
+      std::string prop;
+      for (const auto& item : GetPatternItems()) {
+        for (const auto& pair : item.pairs) {
+          if (skeleton.find(pair.pattern) != std::string::npos) {
+            prop.assign(item.property);
+            break;
+          }
+        }
+        if (!prop.empty()) {
+          break;
+        }
+      }
+      if (prop.empty() && skeleton.find("S") != std::string::npos) {
+        prop.assign("fractionalSecondDigits");
+      }
+      if (!prop.empty()) {
+        THROW_NEW_ERROR(
+            isolate,
+            NewTypeError(MessageTemplate::kCantSetOptionXWhenYIsUsed,
+                         factory->NewStringFromAsciiChecked(prop.c_str()),
+                         date_style != DateTimeStyle::kUndefined
+                             ? factory->dateStyle_string()
+                             : factory->timeStyle_string()),
+            JSDateTimeFormat);
+      }
+      UNREACHABLE();
     }
     // b. Let pattern be DateTimeStylePattern(dateStyle, timeStyle,
     // dataLocaleData, hc).
