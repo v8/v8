@@ -589,29 +589,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
             StoreObjectFieldNoWriteBarrier(copy, offset, field);
           },
           kTaggedSize, IndexAdvanceMode::kPost);
-      Comment("Copy mutable HeapNumber values");
-      BuildFastLoop<IntPtrT>(
-          offset.value(), instance_size,
-          [=](TNode<IntPtrT> offset) {
-            TNode<Object> field = LoadObjectField(copy, offset);
-            Label copy_heap_number(this, Label::kDeferred), continue_loop(this);
-            // We only have to clone complex field values.
-            GotoIf(TaggedIsSmi(field), &continue_loop);
-            // TODO(leszeks): Read the field descriptor to decide if this heap
-            // number is mutable or not.
-            Branch(IsHeapNumber(CAST(field)), &copy_heap_number,
-                   &continue_loop);
-            BIND(&copy_heap_number);
-            {
-              TNode<Float64T> double_value = LoadHeapNumberValue(CAST(field));
-              TNode<HeapNumber> heap_number =
-                  AllocateHeapNumberWithValue(double_value);
-              StoreObjectField(copy, offset, heap_number);
-              Goto(&continue_loop);
-            }
-            BIND(&continue_loop);
-          },
-          kTaggedSize, IndexAdvanceMode::kPost);
+      CopyMutableHeapNumbersInObject(copy, offset.value(), instance_size);
       Goto(&done_init);
     }
     BIND(&done_init);
@@ -632,6 +610,36 @@ TNode<JSObject> ConstructorBuiltinsAssembler::CreateEmptyObjectLiteral(
   TNode<JSObject> result =
       AllocateJSObjectFromMap(map, empty_fixed_array, empty_fixed_array);
   return result;
+}
+
+void ConstructorBuiltinsAssembler::CopyMutableHeapNumbersInObject(
+    TNode<HeapObject> copy, TNode<IntPtrT> start_offset,
+    TNode<IntPtrT> end_offset) {
+  // Iterate over all object properties of a freshly copied object and
+  // duplicate mutable heap numbers.
+  if (FLAG_unbox_double_fields) return;
+  Comment("Copy mutable HeapNumber values");
+  BuildFastLoop<IntPtrT>(
+      start_offset, end_offset,
+      [=](TNode<IntPtrT> offset) {
+        TNode<Object> field = LoadObjectField(copy, offset);
+        Label copy_heap_number(this, Label::kDeferred), continue_loop(this);
+        // We only have to clone complex field values.
+        GotoIf(TaggedIsSmi(field), &continue_loop);
+        // TODO(leszeks): Read the field descriptor to decide if this heap
+        // number is mutable or not.
+        Branch(IsHeapNumber(CAST(field)), &copy_heap_number, &continue_loop);
+        BIND(&copy_heap_number);
+        {
+          TNode<Float64T> double_value = LoadHeapNumberValue(CAST(field));
+          TNode<HeapNumber> heap_number =
+              AllocateHeapNumberWithValue(double_value);
+          StoreObjectField(copy, offset, heap_number);
+          Goto(&continue_loop);
+        }
+        BIND(&continue_loop);
+      },
+      kTaggedSize, IndexAdvanceMode::kPost);
 }
 
 }  // namespace internal

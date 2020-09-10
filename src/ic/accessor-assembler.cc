@@ -6,6 +6,7 @@
 
 #include "src/ast/ast.h"
 #include "src/base/optional.h"
+#include "src/builtins/builtins-constructor-gen.h"
 #include "src/codegen/code-factory.h"
 #include "src/ic/handler-configuration.h"
 #include "src/ic/ic.h"
@@ -4206,25 +4207,11 @@ void AccessorAssembler::GenerateCloneObjectIC() {
     // ensure that the GC (and heap verifier) always sees properly initialized
     // objects, i.e. never hits undefined values in double fields.
     if (!FLAG_unbox_double_fields) {
-      BuildFastLoop<IntPtrT>(
-          source_start, source_size,
-          [=](TNode<IntPtrT> field_index) {
-            TNode<IntPtrT> result_offset = IntPtrAdd(
-                TimesTaggedSize(field_index), field_offset_difference);
-            TNode<Object> field = LoadObjectField(object, result_offset);
-            Label if_done(this), if_mutableheapnumber(this, Label::kDeferred);
-            GotoIf(TaggedIsSmi(field), &if_done);
-            Branch(IsHeapNumber(CAST(field)), &if_mutableheapnumber, &if_done);
-            BIND(&if_mutableheapnumber);
-            {
-              TNode<HeapNumber> value = AllocateHeapNumberWithValue(
-                  LoadHeapNumberValue(UncheckedCast<HeapNumber>(field)));
-              StoreObjectField(object, result_offset, value);
-              Goto(&if_done);
-            }
-            BIND(&if_done);
-          },
-          1, IndexAdvanceMode::kPost);
+      TNode<IntPtrT> start_offset = TimesTaggedSize(result_start);
+      TNode<IntPtrT> end_offset =
+          IntPtrAdd(TimesTaggedSize(source_size), field_offset_difference);
+      ConstructorBuiltinsAssembler(state()).CopyMutableHeapNumbersInObject(
+          object, start_offset, end_offset);
     }
 
     Return(object);

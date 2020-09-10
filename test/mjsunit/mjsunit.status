@@ -132,6 +132,7 @@
   'harmony/futex': [PASS, SLOW],
   'harmony/regexp-property-script-extensions': [PASS, SLOW],
   'ignition/regress-672027': [PASS, SLOW],
+  'math-floor-of-div': [PASS, SLOW],
   'md5': [PASS, SLOW],
   'readonly': [PASS, SLOW],
   'regress/regress-1122': [PASS, SLOW],
@@ -279,7 +280,7 @@
   'regress/regress-91008': [PASS, NO_VARIANTS],
   'regress/regress-transcendental': [PASS, ['arch == arm64', NO_VARIANTS]],
   'compiler/osr-regress-max-locals': [PASS, NO_VARIANTS],
-  'math-floor-of-div': [PASS, NO_VARIANTS],
+  'math-floor-of-div': [PASS, SLOW, NO_VARIANTS],
   'unicodelctest': [PASS, NO_VARIANTS],
   'unicodelctest-no-optimization': [PASS, NO_VARIANTS],
 
@@ -512,7 +513,6 @@
   'generated-transition-stub': [PASS, SLOW],
   'json2': [PASS, SLOW],
   'math-floor-of-div-nosudiv': [PASS, SLOW],
-  'math-floor-of-div': [PASS, SLOW],
   'messages': [PASS, SLOW],
   'regress/regress-2790': [PASS, SLOW],
   'regress/regress-331444': [PASS, SLOW],
@@ -549,7 +549,6 @@
   # Pass but take too long with the simulator in debug mode.
   'array-sort': [PASS, SLOW],
   'regexp-global': [SKIP],
-  'math-floor-of-div': [PASS, SLOW],
   'math-floor-of-div-nosudiv': [PASS, SLOW],
   'unicodelctest': [PASS, SLOW],
   'unicodelctest-no-optimization': [PASS, SLOW],
