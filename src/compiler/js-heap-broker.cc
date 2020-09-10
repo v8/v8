@@ -1167,7 +1167,9 @@ class MapData : public HeapObjectData {
 
 AccessorInfoData::AccessorInfoData(JSHeapBroker* broker, ObjectData** storage,
                                    Handle<AccessorInfo> object)
-    : HeapObjectData(broker, storage, object) {}
+    : HeapObjectData(broker, storage, object) {
+  DCHECK(!FLAG_turbo_direct_heap_access);
+}
 
 AllocationSiteData::AllocationSiteData(JSHeapBroker* broker,
                                        ObjectData** storage,
