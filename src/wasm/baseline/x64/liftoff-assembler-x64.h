@@ -6,6 +6,7 @@
 #define V8_WASM_BASELINE_X64_LIFTOFF_ASSEMBLER_X64_H_
 
 #include "src/codegen/assembler.h"
+#include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/simd-shuffle.h"
 
@@ -280,7 +281,33 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           int32_t offset_imm,
                                           LiftoffRegister src,
                                           LiftoffRegList pinned) {
-  bailout(kRefTypes, "GlobalSet");
+  DCHECK_GE(offset_imm, 0);
+  if (emit_debug_code() && offset_reg != no_reg) {
+    AssertZeroExtended(offset_reg);
+  }
+  Register scratch = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  Operand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg,
+                                     static_cast<uint32_t>(offset_imm));
+  StoreTaggedField(dst_op, src.gp());
+
+  Label write_barrier;
+  Label exit;
+  CheckPageFlag(dst_addr, scratch,
+                MemoryChunk::kPointersFromHereAreInterestingMask, not_zero,
+                &write_barrier, Label::kNear);
+  jmp(&exit, Label::kNear);
+  bind(&write_barrier);
+  JumpIfSmi(src.gp(), &exit, Label::kNear);
+  if (COMPRESS_POINTERS_BOOL) {
+    DecompressTaggedPointer(src.gp(), src.gp());
+  }
+  CheckPageFlag(src.gp(), scratch,
+                MemoryChunk::kPointersToHereAreInterestingMask, zero, &exit,
+                Label::kNear);
+  leaq(scratch, dst_op);
+  CallRecordWriteStub(dst_addr, scratch, EMIT_REMEMBERED_SET, kSaveFPRegs,
+                      wasm::WasmCode::kRecordWrite);
+  bind(&exit);
 }
 
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
