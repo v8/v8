@@ -2595,6 +2595,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/incremental-marking-job.h",
     "src/heap/incremental-marking.cc",
     "src/heap/incremental-marking.h",
+    "src/heap/index-generator.cc",
+    "src/heap/index-generator.h",
     "src/heap/invalidated-slots-inl.h",
     "src/heap/invalidated-slots.cc",
     "src/heap/invalidated-slots.h",

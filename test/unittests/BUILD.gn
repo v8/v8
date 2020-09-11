@@ -279,6 +279,7 @@ v8_source_set("unittests_sources") {
     "heap/heap-controller-unittest.cc",
     "heap/heap-unittest.cc",
     "heap/heap-utils.h",
+    "heap/index-generator-unittest.cc",
     "heap/item-parallel-job-unittest.cc",
     "heap/js-member-unittest.cc",
     "heap/list-unittest.cc",
