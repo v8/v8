@@ -30,6 +30,7 @@ SUPPORTED_SWARMING_DIMENSIONS = [
   'device_os',
   'device_type',
   'os',
+  'pool',
 ]
 
 # This is not an exhaustive list. It only reflects what we currently use. If
