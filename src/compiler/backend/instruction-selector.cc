@@ -2686,18 +2686,6 @@ void InstructionSelector::VisitI64x2MinU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2MaxU(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X
 
-#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_IA32 && \
-    !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_MIPS && \
-    !V8_TARGET_ARCH_MIPS64
-// TODO(v8:10501) Prototyping pmin and pmax instructions.
-void InstructionSelector::VisitF32x4Pmin(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitF32x4Pmax(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitF64x2Pmin(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitF64x2Pmax(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_IA32
-        // && !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X &&
-        // !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
-
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_S390X && \
     !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS &&   \
     !V8_TARGET_ARCH_MIPS64

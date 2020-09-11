@@ -429,6 +429,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(F32x4Div, 0xfde7, s_ss)                  \
   V(F32x4Min, 0xfde8, s_ss)                  \
   V(F32x4Max, 0xfde9, s_ss)                  \
+  V(F32x4Pmin, 0xfdea, s_ss)                 \
+  V(F32x4Pmax, 0xfdeb, s_ss)                 \
   V(F64x2Abs, 0xfdec, s_s)                   \
   V(F64x2Neg, 0xfded, s_s)                   \
   V(F64x2Sqrt, 0xfdef, s_s)                  \
@@ -438,6 +440,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(F64x2Div, 0xfdf3, s_ss)                  \
   V(F64x2Min, 0xfdf4, s_ss)                  \
   V(F64x2Max, 0xfdf5, s_ss)                  \
+  V(F64x2Pmin, 0xfdf6, s_ss)                 \
+  V(F64x2Pmax, 0xfdf7, s_ss)                 \
   V(I32x4SConvertF32x4, 0xfdf8, s_s)         \
   V(I32x4UConvertF32x4, 0xfdf9, s_s)         \
   V(F32x4SConvertI32x4, 0xfdfa, s_s)         \
@@ -475,14 +479,10 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(F32x4AddHoriz, 0xfdb2, s_ss)        \
   V(F32x4RecipApprox, 0xfdb3, s_s)      \
   V(F32x4RecipSqrtApprox, 0xfdbc, s_s)  \
-  V(F32x4Pmin, 0xfdea, s_ss)            \
-  V(F32x4Pmax, 0xfdeb, s_ss)            \
   V(F32x4Ceil, 0xfdd8, s_s)             \
   V(F32x4Floor, 0xfdd9, s_s)            \
   V(F32x4Trunc, 0xfdda, s_s)            \
   V(F32x4NearestInt, 0xfddb, s_s)       \
-  V(F64x2Pmin, 0xfdf6, s_ss)            \
-  V(F64x2Pmax, 0xfdf7, s_ss)            \
   V(F64x2Ceil, 0xfddc, s_s)             \
   V(F64x2Floor, 0xfddd, s_s)            \
   V(F64x2Trunc, 0xfdde, s_s)            \
