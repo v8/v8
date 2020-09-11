@@ -1201,12 +1201,19 @@ void SimdScalarLowering::LowerNode(Node* node) {
           }
           break;
         }
-        case SimdType::kInt32x4:
-        case SimdType::kFloat32x4: {
+        case SimdType::kInt32x4: {
           uint32_t val[kNumLanes32];
           memcpy(val, params.data(), kSimd128Size);
           for (int i = 0; i < num_lanes; ++i) {
             rep_node[i] = mcgraph_->Int32Constant(val[i]);
+          }
+          break;
+        }
+        case SimdType::kFloat32x4: {
+          float val[kNumLanes32];
+          memcpy(val, params.data(), kSimd128Size);
+          for (int i = 0; i < num_lanes; ++i) {
+            rep_node[i] = mcgraph_->Float32Constant(val[i]);
           }
           break;
         }

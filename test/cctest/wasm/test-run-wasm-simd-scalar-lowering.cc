@@ -124,6 +124,27 @@ WASM_SIMD_TEST(I8x16Eq_ToTest_S128Const) {
   CHECK_EQ(0xffffffff, r.Call());
 }
 
+WASM_SIMD_TEST(F32x4_S128Const) {
+  // Test that S128Const lowering is done correctly when it is used as an input
+  // into a f32x4 operation. This was triggering a CHECK failure in the
+  // register-allocator-verifier.
+  TestSignatures sigs;
+  WasmRunner<float> r(execution_tier, lower_simd);
+
+  // f32x4(1.0, 2.0, 3.0, 4.0)
+  byte c1[16] = {0x00, 0x00, 0x80, 0x3f, 0x00, 0x00, 0x00, 0x40,
+                 0x00, 0x00, 0x40, 0x40, 0x00, 0x00, 0x80, 0x40};
+  // f32x4(5.0, 6.0, 7.0, 8.0)
+  byte c2[16] = {0x00, 0x00, 0xa0, 0x40, 0x00, 0x00, 0xc0, 0x40,
+                 0x00, 0x00, 0xe0, 0x40, 0x00, 0x00, 0x00, 0x41};
+
+  BUILD(r,
+        WASM_SIMD_BINOP(kExprF32x4Min, WASM_SIMD_CONSTANT(c1),
+                        WASM_SIMD_CONSTANT(c2)),
+        WASM_SIMD_OP(kExprF32x4ExtractLane), TO_BYTE(0));
+  CHECK_EQ(1.0, r.Call());
+}
+
 }  // namespace test_run_wasm_simd
 }  // namespace wasm
 }  // namespace internal
