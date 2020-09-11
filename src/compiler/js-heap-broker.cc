@@ -2006,7 +2006,9 @@ class TemplateObjectDescriptionData : public HeapObjectData {
  public:
   TemplateObjectDescriptionData(JSHeapBroker* broker, ObjectData** storage,
                                 Handle<TemplateObjectDescription> object)
-      : HeapObjectData(broker, storage, object) {}
+      : HeapObjectData(broker, storage, object) {
+    DCHECK(!FLAG_turbo_direct_heap_access);
+  }
 };
 
 class CodeData : public HeapObjectData {
