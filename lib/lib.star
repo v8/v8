@@ -148,6 +148,8 @@ def branch_coverage_builder(**kwargs):
         triggered_by_gitiles = args.pop("triggered_by_gitiles")
         if triggered_by_gitiles:
             args["triggered_by"] = [trigger_dict[bucket_name]]
+        if bucket_name != "ci":
+            args["notifies"] = ["beta/stable notifier"]
         v8_basic_builder(defaults_ci, bucket = bucket_name, **args)
     return kwargs["name"]
 
@@ -234,3 +236,26 @@ def in_console(console_id, *builders):
             )
 
     return in_category
+
+FAILED_STEPS_EXCLUDE = [
+    "bot_update",
+    "isolate tests",
+    "package build",
+    "extract build",
+    "cleanup_temp",
+    "gsutil upload",
+    "taskkill",
+    "Failure reason",
+    "steps",
+    ".* \\(flakes\\)",
+    ".* \\(retry shards with patch\\)",
+    ".* \\(with patch\\)",
+    ".* \\(without patch\\)",
+]
+
+def v8_notifier(**kwargs):
+    luci.notifier(
+        on_occurrence = ["FAILURE"],
+        failed_step_regexp_exclude = FAILED_STEPS_EXCLUDE,
+        **kwargs
+    )

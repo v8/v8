@@ -9,7 +9,7 @@ def exceptions(*args):
     pass
 
 exceptions(
-    #This builders have some irregularities between branches
+    # These builders have some irregularities between branches
     v8_builder(
         name = "V8 Linux64 - builder",
         bucket = "ci",
@@ -56,6 +56,7 @@ exceptions(
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
         properties = {"triggers": ["V8 Linux64"], "mastername": "client.v8", "track_build_dependencies": True, "build_config": "Release", "binary_size_tracking": {"category": "linux64", "binary": "d8"}},
         use_goma = GOMA.DEFAULT,
+        notifies = ["beta/stable notifier"],
         in_console = "br.beta/Linux64",
     ),
     v8_builder(
@@ -69,6 +70,7 @@ exceptions(
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "mastername": "client.v8", "set_gclient_var": "download_jsfunfuzz", "triggers": ["V8 Fuzzer", "V8 Linux64 - debug"]},
         use_goma = GOMA.DEFAULT,
+        notifies = ["beta/stable notifier"],
         in_console = "br.beta/Linux64",
     ),
     v8_builder(
@@ -78,6 +80,7 @@ exceptions(
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
         properties = {"build_config": "Release", "target_platform": "fuchsia", "mastername": "client.v8"},
         use_goma = GOMA.DEFAULT,
+        notifies = ["beta/stable notifier"],
         in_console = "br.beta/Fuchsia",
     ),
     v8_builder(
@@ -91,6 +94,7 @@ exceptions(
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
         properties = {"triggers": ["V8 Linux64"], "mastername": "client.v8", "track_build_dependencies": True, "build_config": "Release", "binary_size_tracking": {"category": "linux64", "binary": "d8"}},
         use_goma = GOMA.DEFAULT,
+        notifies = ["beta/stable notifier"],
         in_console = "br.stable/Linux64",
     ),
     v8_builder(
@@ -104,6 +108,7 @@ exceptions(
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "mastername": "client.v8", "set_gclient_var": "download_jsfunfuzz", "triggers": ["V8 Fuzzer", "V8 Linux64 - debug"]},
         use_goma = GOMA.DEFAULT,
+        notifies = ["beta/stable notifier"],
         in_console = "br.stable/Linux64",
     ),
     v8_builder(
@@ -113,6 +118,7 @@ exceptions(
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
         properties = {"build_config": "Release", "target_platform": "fuchsia", "mastername": "client.v8"},
         use_goma = GOMA.DEFAULT,
+        notifies = ["beta/stable notifier"],
         in_console = "br.stable/Fuchsia",
     ),
 )

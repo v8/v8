@@ -2,9 +2,20 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GOMA", "v8_builder")
+load("//lib/lib.star", "GOMA", "v8_builder", "v8_notifier")
 
 def experiment_builder(**kwargs):
+    to_notify = kwargs.pop("to_notify", None)
+    if to_notify:
+        builder_name = kwargs["name"]
+        notify_on_step_failure = kwargs.pop("notify_on_step_failure", None)
+        v8_notifier(
+            name = "notification for %s" % builder_name,
+            notify_emails = to_notify,
+            notified_by = [builder_name],
+            failed_step_regexp = notify_on_step_failure,
+        )
+
     v8_builder(in_console = "experiments/V8", **kwargs)
 
 experiment_builder(
@@ -54,6 +65,8 @@ experiment_builder(
     dimensions = {"host_class": "multibot"},
     execution_timeout = 19800,
     properties = {"mastername": "client.v8"},
+    to_notify = ["jgruber@chromium.org"],
+    notify_on_step_failure = [".* nci", ".* nci_as_midtier", ".* stress_snapshot", ".* experimental_regexp"],
 )
 
 experiment_builder(
@@ -62,6 +75,8 @@ experiment_builder(
     dimensions = {"host_class": "multibot"},
     execution_timeout = 19800,
     properties = {"mastername": "client.v8"},
+    to_notify = ["jgruber@chromium.org"],
+    notify_on_step_failure = [".* nci", ".* nci_as_midtier", ".* stress_snapshot", ".* experimental_regexp"],
 )
 
 experiment_builder(
@@ -89,6 +104,7 @@ experiment_builder(
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     properties = {"build_config": "Debug", "mastername": "client.v8"},
     use_goma = GOMA.DEFAULT,
+    to_notify = ["victorgomes@chromium.org"]
 )
 
 experiment_builder(
