@@ -442,6 +442,27 @@ class OffHeapBytecodeArray final : public interpreter::AbstractBytecodeArray {
   BytecodeArrayRef array_;
 };
 
+// Scope that unparks the LocalHeap, if:
+//   a) We have a JSHeapBroker,
+//   b) Said JSHeapBroker has a LocalHeap, and
+//   c) Said LocalHeap has been parked.
+// Used, for example, when printing the graph with --trace-turbo with a
+// previously parked LocalHeap.
+class UnparkedScopeIfNeeded {
+ public:
+  explicit UnparkedScopeIfNeeded(JSHeapBroker* broker) {
+    if (broker != nullptr) {
+      LocalHeap* local_heap = broker->local_heap();
+      if (local_heap != nullptr && local_heap->IsParked()) {
+        unparked_scope.emplace(local_heap);
+      }
+    }
+  }
+
+ private:
+  base::Optional<UnparkedScope> unparked_scope;
+};
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

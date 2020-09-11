@@ -325,7 +325,7 @@ void Typer::Run(const NodeVector& roots,
     induction_vars->ChangeToInductionVariablePhis();
   }
   Visitor visitor(this, induction_vars);
-  GraphReducer graph_reducer(zone(), graph(), tick_counter_);
+  GraphReducer graph_reducer(zone(), graph(), tick_counter_, broker());
   graph_reducer.AddReducer(&visitor);
   for (Node* const root : roots) graph_reducer.ReduceNode(root);
   graph_reducer.ReduceGraph();
