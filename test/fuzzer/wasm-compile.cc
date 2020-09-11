@@ -1443,6 +1443,10 @@ void WasmGenerator::Generate<ValueType::kS128>(DataRange* data) {
                                      ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprF32x4Max, ValueType::kS128,
                                      ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprF32x4Pmin, ValueType::kS128,
+                                     ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprF32x4Pmax, ValueType::kS128,
+                                     ValueType::kS128>,
 
       &WasmGenerator::op_with_prefix<kExprF64x2Splat, ValueType::kF64>,
       &WasmGenerator::op_with_prefix<kExprF64x2Eq, ValueType::kS128,
@@ -1471,6 +1475,10 @@ void WasmGenerator::Generate<ValueType::kS128>(DataRange* data) {
       &WasmGenerator::op_with_prefix<kExprF64x2Min, ValueType::kS128,
                                      ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprF64x2Max, ValueType::kS128,
+                                     ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprF64x2Pmin, ValueType::kS128,
+                                     ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprF64x2Pmax, ValueType::kS128,
                                      ValueType::kS128>,
 
       &WasmGenerator::op_with_prefix<kExprI32x4SConvertF32x4, ValueType::kS128>,
