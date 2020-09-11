@@ -980,6 +980,10 @@ class LiftoffAssembler : public TurboAssembler {
                              LiftoffRegister rhs);
   inline void emit_f32x4_max(LiftoffRegister dst, LiftoffRegister lhs,
                              LiftoffRegister rhs);
+  inline void emit_f32x4_pmin(LiftoffRegister dst, LiftoffRegister lhs,
+                              LiftoffRegister rhs);
+  inline void emit_f32x4_pmax(LiftoffRegister dst, LiftoffRegister lhs,
+                              LiftoffRegister rhs);
   inline void emit_f64x2_abs(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f64x2_neg(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f64x2_sqrt(LiftoffRegister dst, LiftoffRegister src);
@@ -995,6 +999,10 @@ class LiftoffAssembler : public TurboAssembler {
                              LiftoffRegister rhs);
   inline void emit_f64x2_max(LiftoffRegister dst, LiftoffRegister lhs,
                              LiftoffRegister rhs);
+  inline void emit_f64x2_pmin(LiftoffRegister dst, LiftoffRegister lhs,
+                              LiftoffRegister rhs);
+  inline void emit_f64x2_pmax(LiftoffRegister dst, LiftoffRegister lhs,
+                              LiftoffRegister rhs);
   inline void emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
                                         LiftoffRegister src);
   inline void emit_i32x4_uconvert_f32x4(LiftoffRegister dst,
