@@ -145,6 +145,48 @@ WASM_SIMD_TEST(F32x4_S128Const) {
   CHECK_EQ(1.0, r.Call());
 }
 
+WASM_SIMD_TEST(AllTrue_DifferentShapes) {
+  // Test all_true lowring with splats of different shapes.
+  {
+    WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
+
+    BUILD(r, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(0)),
+          WASM_SIMD_OP(kExprV8x16AllTrue));
+
+    CHECK_EQ(0, r.Call(0x00FF00FF));
+  }
+
+  {
+    WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
+
+    BUILD(r, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(0)),
+          WASM_SIMD_OP(kExprV16x8AllTrue));
+
+    CHECK_EQ(0, r.Call(0x000000FF));
+  }
+}
+
+WASM_SIMD_TEST(AnyTrue_DifferentShapes) {
+  // Test any_true lowring with splats of different shapes.
+  {
+    WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
+
+    BUILD(r, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(0)),
+          WASM_SIMD_OP(kExprV8x16AnyTrue));
+
+    CHECK_EQ(0, r.Call(0x00000000));
+  }
+
+  {
+    WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
+
+    BUILD(r, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(0)),
+          WASM_SIMD_OP(kExprV16x8AnyTrue));
+
+    CHECK_EQ(1, r.Call(0x000000FF));
+  }
+}
+
 }  // namespace test_run_wasm_simd
 }  // namespace wasm
 }  // namespace internal

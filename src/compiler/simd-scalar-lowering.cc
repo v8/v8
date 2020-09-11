@@ -1171,6 +1171,28 @@ void SimdScalarLowering::LowerBitMaskOp(Node* node, SimdType rep_type,
   ReplaceNode(node, rep_node, 1);
 }
 
+void SimdScalarLowering::LowerAllTrueOp(Node* node, SimdType rep_type) {
+  // AllTrue ops require the input to be of a particular SimdType, but the op
+  // itself is always replaced by a Int32x4 with 1 node.
+  int num_lanes = NumLanes(rep_type);
+  DCHECK_EQ(1, node->InputCount());
+  Node** rep = GetReplacementsWithType(node->InputAt(0), rep_type);
+
+  Node** rep_node = zone()->NewArray<Node*>(num_lanes);
+  Node* zero = mcgraph_->Int32Constant(0);
+  Node* tmp_result = mcgraph_->Int32Constant(1);
+  for (int i = 0; i < num_lanes; ++i) {
+    Diamond d(graph(), common(),
+              graph()->NewNode(machine()->Word32Equal(), rep[i], zero));
+    tmp_result = d.Phi(MachineRepresentation::kWord32, zero, tmp_result);
+  }
+  rep_node[0] = tmp_result;
+  for (int i = 1; i < num_lanes; ++i) {
+    rep_node[i] = nullptr;
+  }
+  ReplaceNode(node, rep_node, num_lanes);
+}
+
 void SimdScalarLowering::LowerNode(Node* node) {
   SimdType rep_type = ReplacementType(node);
   int num_lanes = NumLanes(rep_type);
@@ -1981,51 +2003,40 @@ void SimdScalarLowering::LowerNode(Node* node) {
       break;
     }
     case IrOpcode::kV32x4AnyTrue:
-    case IrOpcode::kV32x4AllTrue:
     case IrOpcode::kV16x8AnyTrue:
-    case IrOpcode::kV16x8AllTrue:
-    case IrOpcode::kV8x16AnyTrue:
-    case IrOpcode::kV8x16AllTrue: {
+    case IrOpcode::kV8x16AnyTrue: {
       DCHECK_EQ(1, node->InputCount());
-      SimdType input_rep_type = ReplacementType(node->InputAt(0));
-      Node** rep;
-      // If the input is a SIMD float, bitcast it to a SIMD int of the same
-      // shape, because the comparisons below use Word32.
-      if (input_rep_type == SimdType::kFloat32x4) {
-        // TODO(v8:9418): f64x2 lowering is not implemented yet.
-        rep = GetReplacementsWithType(node->InputAt(0), SimdType::kInt32x4);
-      } else {
-        rep = GetReplacements(node->InputAt(0));
-      }
-      int input_num_lanes = NumLanes(input_rep_type);
+      // AnyTrue always returns a I32x4, and can work with inputs of any shape,
+      // but we still need GetReplacementsWithType if input is float.
+      DCHECK_EQ(ReplacementType(node), SimdType::kInt32x4);
+      Node** reps = GetReplacementsWithType(node->InputAt(0), rep_type);
       Node** rep_node = zone()->NewArray<Node*>(num_lanes);
       Node* true_node = mcgraph_->Int32Constant(1);
-      Node* false_node = mcgraph_->Int32Constant(0);
-      Node* tmp_result = false_node;
-      if (node->opcode() == IrOpcode::kV32x4AllTrue ||
-          node->opcode() == IrOpcode::kV16x8AllTrue ||
-          node->opcode() == IrOpcode::kV8x16AllTrue) {
-        tmp_result = true_node;
-      }
-      for (int i = 0; i < input_num_lanes; ++i) {
-        Diamond is_false(
-            graph(), common(),
-            graph()->NewNode(machine()->Word32Equal(), rep[i], false_node));
-        if (node->opcode() == IrOpcode::kV32x4AllTrue ||
-            node->opcode() == IrOpcode::kV16x8AllTrue ||
-            node->opcode() == IrOpcode::kV8x16AllTrue) {
-          tmp_result = is_false.Phi(MachineRepresentation::kWord32, false_node,
-                                    tmp_result);
-        } else {
-          tmp_result = is_false.Phi(MachineRepresentation::kWord32, tmp_result,
-                                    true_node);
-        }
+      Node* zero = mcgraph_->Int32Constant(0);
+      Node* tmp_result = zero;
+      for (int i = 0; i < num_lanes; ++i) {
+        Diamond d(graph(), common(),
+                  graph()->NewNode(machine()->Word32Equal(), reps[i], zero));
+        tmp_result =
+            d.Phi(MachineRepresentation::kWord32, tmp_result, true_node);
       }
       rep_node[0] = tmp_result;
       for (int i = 1; i < num_lanes; ++i) {
         rep_node[i] = nullptr;
       }
       ReplaceNode(node, rep_node, num_lanes);
+      break;
+    }
+    case IrOpcode::kV32x4AllTrue: {
+      LowerAllTrueOp(node, SimdType::kInt32x4);
+      break;
+    }
+    case IrOpcode::kV16x8AllTrue: {
+      LowerAllTrueOp(node, SimdType::kInt16x8);
+      break;
+    }
+    case IrOpcode::kV8x16AllTrue: {
+      LowerAllTrueOp(node, SimdType::kInt8x16);
       break;
     }
     case IrOpcode::kI8x16BitMask: {
