@@ -5217,12 +5217,13 @@ PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
 MinimorphicLoadPropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
     MinimorphicLoadPropertyAccessFeedback const& feedback,
     FeedbackSource const& source, SerializationPolicy policy) {
-  auto it = minimorphic_property_access_infos_.find(source.index());
+  auto it = minimorphic_property_access_infos_.find(source);
   if (it != minimorphic_property_access_infos_.end()) return it->second;
 
   if (policy == SerializationPolicy::kAssumeSerialized) {
-    TRACE_BROKER_MISSING(
-        this, "MinimorphicLoadPropertyAccessInfo for slot " << source.index());
+    TRACE_BROKER_MISSING(this, "MinimorphicLoadPropertyAccessInfo for slot "
+                                   << source.index() << "  "
+                                   << ObjectRef(this, source.vector));
     return MinimorphicLoadPropertyAccessInfo::Invalid();
   }
 
@@ -5230,9 +5231,10 @@ MinimorphicLoadPropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
   MinimorphicLoadPropertyAccessInfo access_info =
       factory.ComputePropertyAccessInfo(feedback);
   if (is_concurrent_inlining_) {
-    TRACE(this,
-          "Storing MinimorphicLoadPropertyAccessInfo for " << source.index());
-    minimorphic_property_access_infos_.insert({source.index(), access_info});
+    TRACE(this, "Storing MinimorphicLoadPropertyAccessInfo for "
+                    << source.index() << "  "
+                    << ObjectRef(this, source.vector));
+    minimorphic_property_access_infos_.insert({source, access_info});
   }
   return access_info;
 }
