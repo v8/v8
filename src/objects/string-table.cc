@@ -4,6 +4,7 @@
 
 #include "src/objects/string-table.h"
 
+#include "src/base/atomicops.h"
 #include "src/base/macros.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
@@ -95,11 +96,11 @@ class StringTable::Data {
   }
 
   Object Get(const Isolate* isolate, InternalIndex index) const {
-    return slot(index).Relaxed_Load(isolate);
+    return slot(index).Acquire_Load(isolate);
   }
 
   void Set(InternalIndex index, String entry) {
-    slot(index).Relaxed_Store(entry);
+    slot(index).Release_Store(entry);
   }
 
   void ElementAdded() {
