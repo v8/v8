@@ -7072,10 +7072,14 @@ std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
       Compiler::Compile(function, Compiler::CLEAR_EXCEPTION,
                         &is_compiled_scope);
     }
+#ifndef V8_REVERSE_JSARGS
+    // This optimization is disabled when the arguments are reversed. It will be
+    // subsumed when the argumens adaptor frame is removed.
     if (shared->is_safe_to_skip_arguments_adaptor()) {
       return std::make_pair(
           WasmImportCallKind::kJSFunctionArityMismatchSkipAdaptor, callable);
     }
+#endif
 
     return std::make_pair(WasmImportCallKind::kJSFunctionArityMismatch,
                           callable);
