@@ -399,9 +399,16 @@ class ValueType {
   }
 
  private:
-  using KindField = base::BitField<Kind, 0, 5>;
-  using HeapTypeField = base::BitField<uint32_t, 5, 20>;
-  using DepthField = base::BitField<uint8_t, 25, 7>;
+  static constexpr int kKindBits = 5;
+  static constexpr int kHeapTypeBits = 20;
+  static constexpr int kDepthBits = 7;
+  STATIC_ASSERT(kV8MaxWasmTypes < (1u << kHeapTypeBits));
+  // Note: we currently conservatively allow only 5 bits, but have room to
+  // store 7, so we can raise the limit if needed.
+  STATIC_ASSERT(kV8MaxRttSubtypingDepth < (1u << kDepthBits));
+  using KindField = base::BitField<Kind, 0, kKindBits>;
+  using HeapTypeField = KindField::Next<uint32_t, kHeapTypeBits>;
+  using DepthField = HeapTypeField::Next<uint8_t, kDepthBits>;
 
   constexpr explicit ValueType(uint32_t bit_field) : bit_field_(bit_field) {}
 

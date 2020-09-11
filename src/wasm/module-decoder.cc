@@ -1955,8 +1955,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   const StructType* consume_struct(Zone* zone) {
-    // TODO(7748): Introduce a proper maximum.
-    uint32_t field_count = consume_count("field count", 999);
+    uint32_t field_count = consume_count("field count", kV8MaxWasmStructFields);
     if (failed()) return nullptr;
     ValueType* fields = zone->NewArray<ValueType>(field_count);
     bool* mutabilities = zone->NewArray<bool>(field_count);

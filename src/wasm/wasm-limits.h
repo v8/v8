@@ -48,6 +48,10 @@ constexpr size_t kV8MaxWasmTableInitEntries = 10000000;
 constexpr size_t kV8MaxWasmTables = 1;
 constexpr size_t kV8MaxWasmMemories = 1;
 
+// GC proposal. These limits are not standardized yet.
+constexpr size_t kV8MaxWasmStructFields = 999;
+constexpr uint32_t kV8MaxRttSubtypingDepth = 31;
+
 static_assert(kV8MaxWasmTableSize <= 4294967295,  // 2^32 - 1
               "v8 should not exceed WebAssembly's non-web embedding limits");
 static_assert(kV8MaxWasmTableInitEntries <= kV8MaxWasmTableSize,

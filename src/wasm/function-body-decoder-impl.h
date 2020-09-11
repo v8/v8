@@ -254,13 +254,11 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
       uint32_t depth_length;
       uint32_t depth =
           decoder->read_u32v<validate>(pc + 1, &depth_length, "depth");
-      // TODO(7748): Introduce a proper limit.
-      const uint32_t kMaxRttSubtypingDepth = 7;
-      if (!VALIDATE(depth <= kMaxRttSubtypingDepth)) {
+      if (!VALIDATE(depth <= kV8MaxRttSubtypingDepth)) {
         decoder->errorf(pc,
                         "subtyping depth %u is greater than the maximum depth "
                         "%u supported by V8",
-                        depth, kMaxRttSubtypingDepth);
+                        depth, kV8MaxRttSubtypingDepth);
         return kWasmBottom;
       }
       HeapType heap_type = read_heap_type<validate>(

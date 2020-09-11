@@ -832,6 +832,138 @@ TEST_F(WasmModuleVerifyTest, RttSubGlobalTypeError) {
                 "(rtt 2 i31)");
 }
 
+TEST_F(WasmModuleVerifyTest, InvalidStructTypeDef) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+  static const byte all_good[] = {
+      SECTION(Type, ENTRY_COUNT(1),  // --
+              kWasmStructTypeCode,   // --
+              U32V_1(1),             // field count
+              kLocalI32,             // perfectly valid field type
+              1)};                   // mutability
+  EXPECT_VERIFIES(all_good);
+
+  static const byte invalid_field_type[] = {
+      SECTION(Type, ENTRY_COUNT(1),  // --
+              kWasmStructTypeCode,   // --
+              U32V_1(1),             // field count
+              kWasmArrayTypeCode,    // bogus field type
+              1)};                   // mutability
+  EXPECT_FAILURE_WITH_MSG(invalid_field_type, "invalid value type");
+
+  static const byte field_type_oob_ref[] = {
+      SECTION(Type, ENTRY_COUNT(1),  // --
+              kWasmStructTypeCode,   // --
+              U32V_1(1),             // field count
+              kLocalOptRef,          // field type: reference...
+              3,                     // ...to nonexistent type
+              1)};                   // mutability
+  EXPECT_FAILURE_WITH_MSG(field_type_oob_ref, "Type index 3 is out of bounds");
+
+  static const byte field_type_invalid_ref[] = {
+      SECTION(Type, ENTRY_COUNT(1),  // --
+              kWasmStructTypeCode,   // --
+              U32V_1(1),             // field count
+              kLocalOptRef,          // field type: reference...
+              U32V_4(1234567),       // ...to a type > kV8MaxWasmTypes
+              1)};                   // mutability
+  EXPECT_FAILURE_WITH_MSG(field_type_invalid_ref, "greater than the maximum");
+
+  static const byte field_type_invalid_ref2[] = {
+      SECTION(Type, ENTRY_COUNT(1),  // --
+              kWasmStructTypeCode,   // --
+              U32V_1(1),             // field count
+              kLocalOptRef,          // field type: reference...
+              kLocalI32,             // ...to a non-referenceable type
+              1)};                   // mutability
+  EXPECT_FAILURE_WITH_MSG(field_type_invalid_ref2, "Unknown heap type");
+
+  static const byte not_enough_field_types[] = {
+      SECTION(Type, ENTRY_COUNT(1),  // --
+              kWasmStructTypeCode,   // --
+              U32V_1(2),             // field count
+              kLocalI32,             // field type 1
+              1)};                   // mutability 1
+  EXPECT_FAILURE_WITH_MSG(not_enough_field_types, "expected 1 byte");
+
+  static const byte not_enough_field_types2[] = {
+      SECTION(Type, ENTRY_COUNT(1),  // --
+              kWasmStructTypeCode,   // --
+              U32V_1(2),             // field count
+              kLocalI32,             // field type 1
+              1,                     // mutability 1
+              kLocalI32)};           // field type 2
+  EXPECT_FAILURE_WITH_MSG(not_enough_field_types2, "expected 1 byte");
+
+  static const byte invalid_mutability[] = {
+      SECTION(Type, ENTRY_COUNT(1),  // --
+              kWasmStructTypeCode,   // --
+              U32V_1(1),             // field count
+              kLocalI32,             // field type
+              2)};                   // invalid mutability value
+  EXPECT_FAILURE_WITH_MSG(invalid_mutability, "invalid mutability");
+}
+
+TEST_F(WasmModuleVerifyTest, InvalidArrayTypeDef) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+  static const byte all_good[] = {
+      SECTION(Type, ENTRY_COUNT(1),  // --
+              kWasmArrayTypeCode,    // --
+              kLocalI32,             // perfectly valid field type
+              1)};                   // mutability
+  EXPECT_VERIFIES(all_good);
+
+  static const byte invalid_field_type[] = {
+      SECTION(Type, ENTRY_COUNT(1),  // --
+              kWasmArrayTypeCode,    // --
+              kWasmArrayTypeCode,    // bogus field type
+              1)};                   // mutability
+  EXPECT_FAILURE_WITH_MSG(invalid_field_type, "invalid value type");
+
+  static const byte field_type_oob_ref[] = {
+      SECTION(Type, ENTRY_COUNT(1),  // --
+              kWasmArrayTypeCode,    // --
+              kLocalOptRef,          // field type: reference...
+              3,                     // ...to nonexistent type
+              1)};                   // mutability
+  EXPECT_FAILURE_WITH_MSG(field_type_oob_ref, "Type index 3 is out of bounds");
+
+  static const byte field_type_invalid_ref[] = {
+      SECTION(Type, ENTRY_COUNT(1),  // --
+              kWasmArrayTypeCode,    // --
+              kLocalOptRef,          // field type: reference...
+              U32V_3(1234567),       // ...to a type > kV8MaxWasmTypes
+              1)};                   // mutability
+  EXPECT_FAILURE_WITH_MSG(field_type_invalid_ref, "Unknown heap type");
+
+  static const byte field_type_invalid_ref2[] = {
+      SECTION(Type, ENTRY_COUNT(1),  // --
+              kWasmArrayTypeCode,    // --
+              kLocalOptRef,          // field type: reference...
+              kLocalI32,             // ...to a non-referenceable type
+              1)};                   // mutability
+  EXPECT_FAILURE_WITH_MSG(field_type_invalid_ref2, "Unknown heap type");
+
+  static const byte invalid_mutability[] = {
+      SECTION(Type, ENTRY_COUNT(1),  // --
+              kWasmArrayTypeCode,    // --
+              kLocalI32,             // field type
+              2)};                   // invalid mutability value
+  EXPECT_FAILURE_WITH_MSG(invalid_mutability, "invalid mutability");
+
+  static const byte invalid_mutability2[] = {
+      SECTION(Type,
+              ENTRY_COUNT(1),      // --
+              kWasmArrayTypeCode,  // --
+              kLocalI32,           // field type
+              0)};                 // immmutability (disallowed in MVP)
+  EXPECT_FAILURE_WITH_MSG(invalid_mutability2,
+                          "immutable arrays are not supported");
+}
+
 TEST_F(WasmModuleVerifyTest, ZeroExceptions) {
   static const byte data[] = {SECTION(Exception, ENTRY_COUNT(0))};
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
