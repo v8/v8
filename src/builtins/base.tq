@@ -636,6 +636,7 @@ extern transitioning runtime TransitionElementsKindWithKind(
 extern macro LoadBufferObject(RawPtr, constexpr int32): Object;
 extern macro LoadBufferPointer(RawPtr, constexpr int32): RawPtr;
 extern macro LoadBufferSmi(RawPtr, constexpr int32): Smi;
+extern macro LoadBufferIntptr(RawPtr, constexpr int32): intptr;
 
 extern runtime StringEqual(Context, String, String): Oddball;
 extern builtin StringLessThan(Context, String, String): Boolean;

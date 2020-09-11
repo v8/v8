@@ -290,6 +290,13 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 #define CSA_SLOW_ASSERT(csa, ...) ((void)0)
 #endif
 
+// Provides a constexpr boolean to be used inside Torque.
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+constexpr bool kNoArgumentsAdaptor = true;
+#else
+constexpr bool kNoArgumentsAdaptor = false;
+#endif
+
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
 // CodeAssembler. By factoring the JavaScript-isms out of the CodeAssembler,
 // it's possible to add JavaScript-specific useful CodeAssembler "macros"
@@ -1002,6 +1009,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
   TNode<Smi> LoadBufferSmi(TNode<RawPtrT> buffer, int offset) {
     return CAST(LoadBufferObject(buffer, offset));
+  }
+  TNode<IntPtrT> LoadBufferIntptr(TNode<RawPtrT> buffer, int offset) {
+    return LoadBufferData<IntPtrT>(buffer, offset);
   }
   // Load a field from an object on the heap.
   template <class T, typename std::enable_if<

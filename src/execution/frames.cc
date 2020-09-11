@@ -1288,6 +1288,13 @@ int JavaScriptFrame::ComputeParametersCount() const {
   return function().shared().internal_formal_parameter_count();
 }
 
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+int JavaScriptFrame::GetActualArgumentCount() const {
+  return static_cast<int>(
+      Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset));
+}
+#endif
+
 Handle<FixedArray> JavaScriptFrame::GetParameters() const {
   if (V8_LIKELY(!FLAG_detailed_error_stack_trace)) {
     return isolate()->factory()->empty_fixed_array();

@@ -132,6 +132,11 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     __ Push(rsi);
     __ Push(rcx);
 
+    // TODO(victorgomes): When the arguments adaptor is completely removed, we
+    // should get the formal parameter count and copy the arguments in its
+    // correct position (including any undefined), instead of delaying this to
+    // InvokeFunction.
+
 #ifdef V8_REVERSE_JSARGS
     // Set up pointer to first argument (skip receiver).
     __ leaq(rbx, Operand(rbp, StandardFrameConstants::kCallerSPOffset +
@@ -287,6 +292,11 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     __ int3();
 
     __ bind(&enough_stack_space);
+
+    // TODO(victorgomes): When the arguments adaptor is completely removed, we
+    // should get the formal parameter count and copy the arguments in its
+    // correct position (including any undefined), instead of delaying this to
+    // InvokeFunction.
 
     // Copy arguments to the expression stack.
     __ PushArray(rbx, rax, rcx);
@@ -913,21 +923,38 @@ static void ReplaceClosureCodeWithOptimizedCode(MacroAssembler* masm,
 
 static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
                                   Register scratch2) {
-  Register args_count = scratch1;
-  Register return_pc = scratch2;
-
-  // Get the arguments + receiver count.
-  __ movq(args_count,
+  Register params_size = scratch1;
+  // Get the size of the formal parameters + receiver (in bytes).
+  __ movq(params_size,
           Operand(rbp, InterpreterFrameConstants::kBytecodeArrayFromFp));
-  __ movl(args_count,
-          FieldOperand(args_count, BytecodeArray::kParameterSizeOffset));
+  __ movl(params_size,
+          FieldOperand(params_size, BytecodeArray::kParameterSizeOffset));
+
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+  Register actual_params_size = scratch2;
+  // Compute the size of the actual parameters + receiver (in bytes).
+  __ movq(actual_params_size,
+          Operand(rbp, StandardFrameConstants::kArgCOffset));
+  __ leaq(actual_params_size,
+          Operand(actual_params_size, times_system_pointer_size,
+                  kSystemPointerSize));
+
+  // If actual is bigger than formal, then we should use it to free up the stack
+  // arguments.
+  Label corrected_args_count;
+  __ cmpq(params_size, actual_params_size);
+  __ j(greater_equal, &corrected_args_count, Label::kNear);
+  __ movq(params_size, actual_params_size);
+  __ bind(&corrected_args_count);
+#endif
 
   // Leave the frame (also dropping the register file).
   __ leave();
 
   // Drop receiver + arguments.
+  Register return_pc = scratch2;
   __ PopReturnAddressTo(return_pc);
-  __ addq(rsp, args_count);
+  __ addq(rsp, params_size);
   __ PushReturnAddressFrom(return_pc);
 }
 

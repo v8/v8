@@ -669,6 +669,9 @@ class JavaScriptFrame : public StandardFrame {
   inline Address GetParameterSlot(int index) const;
   Object GetParameter(int index) const override;
   int ComputeParametersCount() const override;
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+  int GetActualArgumentCount() const;
+#endif
   Handle<FixedArray> GetParameters() const;
 
   // Debugger access.
