@@ -82,7 +82,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '471a6cd745dc07c17f14ee72bb6a78473299f61e',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b3e63d3c2a382894fbf6d3ef007699850ccaa167',
   'third_party/depot_tools':
     Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'fb6d901df74da0f693b98f84715b0a381db9e8f0',
   'third_party/icu':
@@ -178,7 +178,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '70f34e0b8eaa3fb021c4233a78cf422955a7e534',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '13bf1254829136fb3df678699236ba9eb5d87587',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -284,7 +284,7 @@ deps = {
   'third_party/protobuf':
     Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + 'b68a347f56137b4b1a746e8c7438495a6ac1bd91',
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '898c6c0dd91fa0efb38a10949f76102e42cc47f0',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'f8517bd62931d7adb9bcefb0cbe3c2ca5cd8862c',
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '645250b6690785be60ab6780ce4b58698d884d11',
   'third_party/ittapi': {
