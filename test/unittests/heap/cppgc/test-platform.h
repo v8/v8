@@ -96,6 +96,7 @@ class TestPlatform : public Platform {
         bool ShouldYield() override { return false; }
         void NotifyConcurrencyIncrease() override {}
         uint8_t GetTaskId() override { return 0; }
+        bool IsJoiningThread() const override { return false; }
       } delegate;
 
       if (task_) task_->Run(&delegate);

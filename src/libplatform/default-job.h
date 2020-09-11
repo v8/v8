@@ -21,7 +21,8 @@ class V8_PLATFORM_EXPORT DefaultJobState
  public:
   class JobDelegate : public v8::JobDelegate {
    public:
-    explicit JobDelegate(DefaultJobState* outer) : outer_(outer) {}
+    explicit JobDelegate(DefaultJobState* outer, bool is_joining_thread = false)
+        : outer_(outer), is_joining_thread_(is_joining_thread) {}
     ~JobDelegate();
 
     void NotifyConcurrencyIncrease() override {
@@ -32,6 +33,7 @@ class V8_PLATFORM_EXPORT DefaultJobState
       return outer_->is_canceled_.load(std::memory_order_relaxed);
     }
     uint8_t GetTaskId() override;
+    bool IsJoiningThread() const override { return is_joining_thread_; }
 
    private:
     static constexpr uint8_t kInvalidTaskId =
@@ -39,6 +41,7 @@ class V8_PLATFORM_EXPORT DefaultJobState
 
     DefaultJobState* outer_;
     uint8_t task_id_ = kInvalidTaskId;
+    bool is_joining_thread_;
   };
 
   DefaultJobState(Platform* platform, std::unique_ptr<JobTask> job_task,

@@ -114,6 +114,7 @@ std::unique_ptr<cppgc::JobHandle> DefaultPlatform::PostJob(
       bool ShouldYield() override { return false; }
       void NotifyConcurrencyIncrease() override {}
       uint8_t GetTaskId() override { return 0; }
+      bool IsJoiningThread() const override { return false; }
     } delegate;
 
     if (task) task->Run(&delegate);

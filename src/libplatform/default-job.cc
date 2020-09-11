@@ -104,7 +104,7 @@ void DefaultJobState::Join() {
     ++active_workers_;
     can_run = WaitForParticipationOpportunityLockRequired();
   }
-  DefaultJobState::JobDelegate delegate(this);
+  DefaultJobState::JobDelegate delegate(this, true);
   while (can_run) {
     job_task_->Run(&delegate);
     base::MutexGuard guard(&mutex_);

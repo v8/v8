@@ -177,6 +177,13 @@ class JobDelegate {
    * reused by a different thread after a worker_task returns.
    */
   virtual uint8_t GetTaskId() = 0;
+
+  /**
+   * Returns true if the current task is called from the thread currently
+   * running JobHandle::Join().
+   * TODO(etiennep): Make pure virtual once custom embedders implement it.
+   */
+  virtual bool IsJoiningThread() const { return false; }
 };
 
 /**
