@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+load("//definitions.star", "branch_names")
+
 waterfall_acls = [
     acl.entry(
         roles = acl.BUILDBUCKET_TRIGGERER,
@@ -210,15 +212,9 @@ def merge_defaults(defaults, args, key):
 def clean_dict_items(dictionary, key):
     return {k: v for k, v in dictionary.get(key, {}).items() if v != None}.items()
 
-branches = [
-    "ci",
-    "ci.br.stable",
-    "ci.br.beta",
-]
-
 def in_branch_console(console_id, *builders):
     def in_category(category_name, *builders):
-        for branch in branches:
+        for branch in branch_names:
             for builder in builders:
                 luci.console_view_entry(
                     console_view = branch_console_dict[branch, console_id],
