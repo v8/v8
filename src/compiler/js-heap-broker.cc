@@ -3209,9 +3209,7 @@ ObjectRef FixedArrayRef::get(int i) const {
 }
 
 bool FixedDoubleArrayRef::is_the_hole(int i) const {
-  if (FLAG_turbo_direct_heap_access) {
-    return object()->is_the_hole(i);
-  } else if (data_->should_access_heap()) {
+  if (data_->should_access_heap()) {
     AllowHandleDereferenceIfNeeded allow_handle_dereference(data()->kind(),
                                                             broker()->mode());
     return object()->is_the_hole(i);
@@ -3221,9 +3219,7 @@ bool FixedDoubleArrayRef::is_the_hole(int i) const {
 }
 
 double FixedDoubleArrayRef::get_scalar(int i) const {
-  if (FLAG_turbo_direct_heap_access) {
-    return object()->get_scalar(i);
-  } else if (data_->should_access_heap()) {
+  if (data_->should_access_heap()) {
     AllowHandleDereferenceIfNeeded allow_handle_dereference(data()->kind(),
                                                             broker()->mode());
     return object()->get_scalar(i);
