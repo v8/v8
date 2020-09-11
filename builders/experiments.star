@@ -102,7 +102,7 @@ experiment_builder(
     name = "V8 Mac64 - full debug",
     bucket = "ci",
     triggered_by = ["v8-trigger"],
-    dimensions = {"os": "Mac-10.13", "cpu": "x86-64"},
+    dimensions = {"os": "Mac", "cpu": "x86-64"},
     properties = {"build_config": "Debug", "mastername": "client.v8"},
     caches = [
         swarming.cache(
