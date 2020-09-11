@@ -70,8 +70,8 @@ class ConcurrentSearchThread final : public v8::base::Thread {
 
 // Uses linear search on a flat object, with up to 8 elements.
 TEST(LinearSearchFlatObject) {
-  CcTest::InitializeVM();
   FLAG_local_heaps = true;
+  CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
 
   std::unique_ptr<PersistentHandles> ph = isolate->NewPersistentHandles();
