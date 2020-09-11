@@ -221,7 +221,7 @@ template("v8_executable") {
       configs -= invoker.remove_configs
     }
     configs += invoker.configs
-    if (is_linux) {
+    if (is_linux || is_chromeos) {
       # For enabling ASLR.
       ldflags = [ "-pie" ]
     }
