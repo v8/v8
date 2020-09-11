@@ -244,6 +244,10 @@ class ValueType {
 
   constexpr uint32_t raw_bit_field() const { return bit_field_; }
 
+  static constexpr size_t bit_field_offset() {
+    return offsetof(ValueType, bit_field_);
+  }
+
   constexpr int element_size_log2() const {
     constexpr int8_t kElementSizeLog2[] = {
 #define ELEM_SIZE_LOG2(kind, log2Size, ...) log2Size,

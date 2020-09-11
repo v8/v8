@@ -279,3 +279,92 @@ let kSig_v_iiiiiiii = makeSig([kWasmI32, kWasmI32, kWasmI32, kWasmI32,
   let instance = builder.instantiate({ mod: { func: import_func } });
   assertEquals(2147483645, instance.exports.main(5));
 })();
+
+let kSig_i_lili = makeSig([kWasmI64, kWasmI32, kWasmI64, kWasmI32], [kWasmI32]);
+
+(function testGenericWrapper4IParam1I32Ret() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig_index = builder.addType(kSig_i_lili);
+  let func_index = builder.addImport("mod", "func", sig_index);
+  builder.addFunction("main", sig_index)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprLocalGet, 2,
+      kExprLocalGet, 3,
+      kExprCallFunction, func_index
+    ])
+    .exportFunc();
+
+  let x = 12n;
+  function import_func(param1, param2, param3, param4) {
+    x += 2n * param1 + BigInt(3 * param2) + 4n * param3 + BigInt(5 * param4);
+    return Number(x);
+  }
+
+  let param2 = { valueOf: () => { gc(); return 6; } };
+  let param3 = { valueOf: () => { gc(); return 3n; } };
+  let instance = builder.instantiate({ mod: { func: import_func } });
+  assertEquals(60, instance.exports.main(9n, param2, param3, 0));
+})();
+
+let kSig_v_liilliiil = makeSig([kWasmI64, kWasmI32, kWasmI32, kWasmI64,
+  kWasmI64, kWasmI32, kWasmI32, kWasmI32, kWasmI64], [kWasmI32]);
+
+(function testGenericWrapper9IParam132Ret() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig_index = builder.addType(kSig_v_liilliiil);
+  let func_index = builder.addImport("mod", "func", sig_index);
+  builder.addFunction("main", sig_index)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprLocalGet, 2,
+      kExprLocalGet, 3,
+      kExprLocalGet, 4,
+      kExprLocalGet, 5,
+      kExprLocalGet, 6,
+      kExprLocalGet, 7,
+      kExprLocalGet, 8,
+      kExprCallFunction, func_index
+    ])
+    .exportFunc();
+
+  let x = 12;
+  function import_func(param1, param2, param3, param4, param5, param6,
+    param7, param8, param9) {
+    x += Number(param1) + 2 * param2 + 3 * param3 + Number(4n * param4) + Number(5n * param5)
+      + 6 * param6 + 7 * param7 + 8 * param8 + Number(9n * param9);
+    return x;
+  }
+
+  let param1 = { valueOf: () => { gc(); return 5n; } };
+  let param4 = { valueOf: () => { gc(); return 8n; } };
+  let param6 = { valueOf: () => { gc(); return 10; } };
+  let param8 = { valueOf: () => { gc(); return 12; } };
+  let instance = builder.instantiate({ mod: { func: import_func } });
+  assertEquals(360, instance.exports.main(param1, 6, 7, param4, 9n, param6, 11, param8, 0n));
+})();
+
+// The function expects BigInt, but gets Number.
+(function testGenericWrapperTypeError() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig_index = builder.addType(kSig_v_l);
+  let func_index = builder.addImport("mod", "func", sig_index);
+  builder.addFunction("main", sig_index)
+    .addBody([
+      kExprLocalGet, 0, kExprCallFunction, func_index
+    ])
+    .exportFunc();
+
+  let x = 12n;
+  function import_func(param1) {
+    x += param1;
+  }
+
+  let instance = builder.instantiate({ mod: { func: import_func } });
+  assertThrows(() => { instance.exports.main(17) }, TypeError);
+})();
