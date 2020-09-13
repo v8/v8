@@ -180,7 +180,7 @@ in_category(
             max_batch_size = 1,
         ),
         executable = {"name": "v8/archive"},
-        dimensions = {"os": "Mac-10.13", "cpu": "x86-64"},
+        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"build_config": "Release", "mastername": "client.v8.official", "target_bits": 64},
         caches = [
             swarming.cache(
@@ -199,7 +199,7 @@ in_category(
             max_batch_size = 1,
         ),
         executable = {"name": "v8/archive"},
-        dimensions = {"os": "Mac-10.13", "cpu": "x86-64"},
+        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "mastername": "client.v8.official", "target_bits": 64},
         caches = [
             swarming.cache(

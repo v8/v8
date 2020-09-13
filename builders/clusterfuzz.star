@@ -44,7 +44,7 @@ in_category(
             kind = scheduler.GREEDY_BATCHING_KIND,
             max_batch_size = 1,
         ),
-        dimensions = {"os": "Mac-10.13", "cpu": "x86-64"},
+        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"]},
         caches = [
             swarming.cache(
@@ -62,7 +62,7 @@ in_category(
             kind = scheduler.GREEDY_BATCHING_KIND,
             max_batch_size = 1,
         ),
-        dimensions = {"os": "Mac-10.13", "cpu": "x86-64"},
+        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"]},
         caches = [
             swarming.cache(
