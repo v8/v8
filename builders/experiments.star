@@ -22,7 +22,7 @@ experiment_builder(
     name = "V8 iOS - sim",
     bucket = "ci",
     triggered_by = ["v8-trigger"],
-    dimensions = {"os": "Mac-10.14", "cpu": "x86-64"},
+    dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
     properties = {"build_config": "Release", "$depot_tools/osx_sdk": {"sdk_version": "11b52"}, "target_platform": "ios", "mastername": "client.v8"},
     caches = [
         swarming.cache(
@@ -118,7 +118,7 @@ experiment_builder(
     name = "V8 Mac64 - full debug",
     bucket = "ci",
     triggered_by = ["v8-trigger"],
-    dimensions = {"os": "Mac", "cpu": "x86-64"},
+    dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
     properties = {"build_config": "Debug", "mastername": "client.v8"},
     caches = [
         swarming.cache(

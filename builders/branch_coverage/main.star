@@ -325,7 +325,7 @@ in_category(
     branch_coverage_builder(
         name = "V8 Mac64",
         triggered_by_gitiles = True,
-        dimensions = {"os": "Mac", "cpu": "x86-64"},
+        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"build_config": "Release", "mastername": "client.v8", "binary_size_tracking": {"category": "mac64", "binary": "d8"}},
         caches = [
             swarming.cache(
@@ -338,7 +338,7 @@ in_category(
     branch_coverage_builder(
         name = "V8 Mac64 - debug",
         triggered_by_gitiles = True,
-        dimensions = {"os": "Mac", "cpu": "x86-64"},
+        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "mastername": "client.v8"},
         caches = [
             swarming.cache(
@@ -367,7 +367,7 @@ in_category(
     branch_coverage_builder(
         name = "V8 Mac64 GC Stress",
         triggered_by_gitiles = True,
-        dimensions = {"os": "Mac", "cpu": "x86-64"},
+        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "mastername": "client.v8"},
         caches = [
             swarming.cache(
@@ -445,7 +445,7 @@ in_category(
     branch_coverage_builder(
         name = "V8 Mac64 ASAN",
         triggered_by_gitiles = True,
-        dimensions = {"os": "Mac", "cpu": "x86-64"},
+        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"build_config": "Release", "mastername": "client.v8"},
         caches = [
             swarming.cache(

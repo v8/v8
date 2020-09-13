@@ -23,7 +23,7 @@ in_category(
         bucket = "ci",
         triggered_by = ["v8-trigger"],
         executable = {"name": "chromium_integration"},
-        dimensions = {"os": "Mac-10.13", "cpu": "x86-64"},
+        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         execution_timeout = 10800,
         properties = {"mastername": "client.v8.fyi"},
         caches = [
@@ -130,7 +130,7 @@ in_category(
         bucket = "ci",
         triggered_by = ["v8-trigger"],
         executable = {"name": "chromium_integration"},
-        dimensions = {"os": "Mac-10.13", "cpu": "x86-64"},
+        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"mastername": "client.v8.fyi"},
         caches = [
             swarming.cache(

@@ -47,7 +47,7 @@ try_builder(
 try_builder(
     name = "v8_ios_simulator",
     bucket = "try",
-    dimensions = {"os": "Mac-10"},
+    dimensions = {"os": "Mac-10.15"},
     properties = {"build_config": "Release", "$depot_tools/osx_sdk": {"sdk_version": "11b52"}, "target_platform": "ios"},
     use_goma = GOMA.DEFAULT,
 )
@@ -149,7 +149,7 @@ try_builder(
     name = "v8_mac64_compile_full_dbg",
     bucket = "try",
     cq_properties = {"includable_only": "true", "cancel_stale": False},
-    dimensions = {"os": "Mac-10"},
+    dimensions = {"os": "Mac-10.15"},
     properties = {"build_config": "Debug"},
     use_goma = GOMA.DEFAULT,
 )
