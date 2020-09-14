@@ -7,7 +7,13 @@
 namespace heap {
 namespace base {
 namespace internal {
-SegmentBase SegmentBase::kSentinelSegment(0);
+
+// static
+SegmentBase* SegmentBase::GetSentinelSegmentAddress() {
+static SegmentBase kSentinelSegment(0);
+return &kSentinelSegment;
+}
+
 }  // namespace internal
 }  // namespace base
 }  // namespace heap

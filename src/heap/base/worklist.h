@@ -19,7 +19,7 @@ namespace base {
 namespace internal {
 class V8_EXPORT_PRIVATE SegmentBase {
  public:
-  static SegmentBase kSentinelSegment;
+  static SegmentBase* GetSentinelSegmentAddress();
 
   explicit SegmentBase(uint16_t capacity) : capacity_(capacity) {}
 
@@ -81,6 +81,7 @@ class Worklist {
 
 template <typename EntryType, uint16_t SegmentSize>
 void Worklist<EntryType, SegmentSize>::Push(Segment* segment) {
+  DCHECK(!segment->IsEmpty());
   v8::base::MutexGuard guard(&lock_);
   segment->set_next(top_);
   set_top(segment);
@@ -90,14 +91,12 @@ void Worklist<EntryType, SegmentSize>::Push(Segment* segment) {
 template <typename EntryType, uint16_t SegmentSize>
 bool Worklist<EntryType, SegmentSize>::Pop(Segment** segment) {
   v8::base::MutexGuard guard(&lock_);
-  if (top_ != nullptr) {
-    DCHECK_LT(0U, size_);
-    size_.fetch_sub(1, std::memory_order_relaxed);
-    *segment = top_;
-    set_top(top_->next());
-    return true;
-  }
-  return false;
+  if (top_ == nullptr) return false;
+  DCHECK_LT(0U, size_);
+  size_.fetch_sub(1, std::memory_order_relaxed);
+  *segment = top_;
+  set_top(top_->next());
+  return true;
 }
 
 template <typename EntryType, uint16_t SegmentSize>
@@ -196,9 +195,8 @@ class Worklist<EntryType, SegmentSize>::Segment : public internal::SegmentBase {
  public:
   static const uint16_t kSize = SegmentSize;
 
-  Segment() : internal::SegmentBase(kSize) {}
-  bool Push(EntryType entry);
-  bool Pop(EntryType* entry);
+  void Push(EntryType entry);
+  void Pop(EntryType* entry);
 
   template <typename Callback>
   void Update(Callback callback);
@@ -209,22 +207,33 @@ class Worklist<EntryType, SegmentSize>::Segment : public internal::SegmentBase {
   void set_next(Segment* segment) { next_ = segment; }
 
  private:
+  Segment() : internal::SegmentBase(kSize) {}
+
   Segment* next_ = nullptr;
   EntryType entries_[kSize];
+
+  friend class Worklist<EntryType, SegmentSize>::Local;
+
+  FRIEND_TEST(CppgcWorkListTest, SegmentCreate);
+  FRIEND_TEST(CppgcWorkListTest, SegmentPush);
+  FRIEND_TEST(CppgcWorkListTest, SegmentPushPop);
+  FRIEND_TEST(CppgcWorkListTest, SegmentIsEmpty);
+  FRIEND_TEST(CppgcWorkListTest, SegmentIsFull);
+  FRIEND_TEST(CppgcWorkListTest, SegmentClear);
+  FRIEND_TEST(CppgcWorkListTest, SegmentUpdateFalse);
+  FRIEND_TEST(CppgcWorkListTest, SegmentUpdate);
 };
 
 template <typename EntryType, uint16_t SegmentSize>
-bool Worklist<EntryType, SegmentSize>::Segment::Push(EntryType entry) {
-  if (IsFull()) return false;
+void Worklist<EntryType, SegmentSize>::Segment::Push(EntryType entry) {
+  DCHECK(!IsFull());
   entries_[index_++] = entry;
-  return true;
 }
 
 template <typename EntryType, uint16_t SegmentSize>
-bool Worklist<EntryType, SegmentSize>::Segment::Pop(EntryType* entry) {
-  if (IsEmpty()) return false;
+void Worklist<EntryType, SegmentSize>::Segment::Pop(EntryType* entry) {
+  DCHECK(!IsEmpty());
   *entry = entries_[--index_];
-  return true;
 }
 
 template <typename EntryType, uint16_t SegmentSize>
@@ -287,20 +296,28 @@ class Worklist<EntryType, SegmentSize>::Local {
     // Bottleneck for filtering in crash dumps.
     return new Segment();
   }
-  void DeleteSegment(Segment* segment) const {
-    if (segment == &internal::SegmentBase::kSentinelSegment) return;
-    delete segment;
+  void DeleteSegment(internal::SegmentBase* segment) const {
+    if (segment == internal::SegmentBase::GetSentinelSegmentAddress()) return;
+    delete static_cast<Segment*>(segment);
   }
 
   inline Segment* push_segment() {
+    DCHECK_NE(internal::SegmentBase::GetSentinelSegmentAddress(),
+              push_segment_);
     return static_cast<Segment*>(push_segment_);
   }
   inline const Segment* push_segment() const {
+    DCHECK_NE(internal::SegmentBase::GetSentinelSegmentAddress(),
+              push_segment_);
     return static_cast<const Segment*>(push_segment_);
   }
 
-  inline Segment* pop_segment() { return static_cast<Segment*>(pop_segment_); }
+  inline Segment* pop_segment() {
+    DCHECK_NE(internal::SegmentBase::GetSentinelSegmentAddress(), pop_segment_);
+    return static_cast<Segment*>(pop_segment_);
+  }
   inline const Segment* pop_segment() const {
+    DCHECK_NE(internal::SegmentBase::GetSentinelSegmentAddress(), pop_segment_);
     return static_cast<const Segment*>(pop_segment_);
   }
 
@@ -313,15 +330,15 @@ template <typename EntryType, uint16_t SegmentSize>
 Worklist<EntryType, SegmentSize>::Local::Local(
     Worklist<EntryType, SegmentSize>* worklist)
     : worklist_(worklist),
-      push_segment_(&internal::SegmentBase::kSentinelSegment),
-      pop_segment_(&internal::SegmentBase::kSentinelSegment) {}
+      push_segment_(internal::SegmentBase::GetSentinelSegmentAddress()),
+      pop_segment_(internal::SegmentBase::GetSentinelSegmentAddress()) {}
 
 template <typename EntryType, uint16_t SegmentSize>
 Worklist<EntryType, SegmentSize>::Local::~Local() {
   CHECK_IMPLIES(push_segment_, push_segment_->IsEmpty());
   CHECK_IMPLIES(pop_segment_, pop_segment_->IsEmpty());
-  DeleteSegment(push_segment());
-  DeleteSegment(pop_segment());
+  DeleteSegment(push_segment_);
+  DeleteSegment(pop_segment_);
 }
 
 template <typename EntryType, uint16_t SegmentSize>
@@ -355,26 +372,22 @@ Worklist<EntryType, SegmentSize>::Local::operator=(
 
 template <typename EntryType, uint16_t SegmentSize>
 void Worklist<EntryType, SegmentSize>::Local::Push(EntryType entry) {
-  if (V8_UNLIKELY(!push_segment()->Push(entry))) {
+  if (V8_UNLIKELY(push_segment_->IsFull())) {
     PublishPushSegment();
-    bool success = push_segment()->Push(entry);
-    USE(success);
-    DCHECK(success);
   }
+  push_segment()->Push(entry);
 }
 
 template <typename EntryType, uint16_t SegmentSize>
 bool Worklist<EntryType, SegmentSize>::Local::Pop(EntryType* entry) {
-  if (!pop_segment()->Pop(entry)) {
+  if (pop_segment_->IsEmpty()) {
     if (!push_segment_->IsEmpty()) {
       std::swap(push_segment_, pop_segment_);
     } else if (!StealPopSegment()) {
       return false;
     }
-    bool success = pop_segment()->Pop(entry);
-    USE(success);
-    DCHECK(success);
   }
+  pop_segment()->Pop(entry);
   return true;
 }
 
@@ -395,8 +408,8 @@ bool Worklist<EntryType, SegmentSize>::Local::IsGlobalEmpty() const {
 
 template <typename EntryType, uint16_t SegmentSize>
 void Worklist<EntryType, SegmentSize>::Local::Publish() {
-  PublishPushSegment();
-  PublishPopSegment();
+  if (!push_segment_->IsEmpty()) PublishPushSegment();
+  if (!pop_segment_->IsEmpty()) PublishPopSegment();
 }
 
 template <typename EntryType, uint16_t SegmentSize>
@@ -408,19 +421,15 @@ void Worklist<EntryType, SegmentSize>::Local::Merge(
 
 template <typename EntryType, uint16_t SegmentSize>
 void Worklist<EntryType, SegmentSize>::Local::PublishPushSegment() {
-  if (!push_segment_->IsEmpty())
+  if (push_segment_ != internal::SegmentBase::GetSentinelSegmentAddress())
     worklist_->Push(push_segment());
-  else
-    DeleteSegment(push_segment());
   push_segment_ = NewSegment();
 }
 
 template <typename EntryType, uint16_t SegmentSize>
 void Worklist<EntryType, SegmentSize>::Local::PublishPopSegment() {
-  if (!pop_segment_->IsEmpty())
+  if (pop_segment_ != internal::SegmentBase::GetSentinelSegmentAddress())
     worklist_->Push(pop_segment());
-  else
-    DeleteSegment(pop_segment());
   pop_segment_ = NewSegment();
 }
 
@@ -429,7 +438,7 @@ bool Worklist<EntryType, SegmentSize>::Local::StealPopSegment() {
   if (worklist_->IsEmpty()) return false;
   Segment* new_segment = nullptr;
   if (worklist_->Pop(&new_segment)) {
-    DeleteSegment(pop_segment());
+    DeleteSegment(pop_segment_);
     pop_segment_ = new_segment;
     return true;
   }
