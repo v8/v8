@@ -284,7 +284,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
 
     TNode<IntPtrT> num_properties = WordSar(names_length, 1);
     TNode<NativeContext> native_context = LoadNativeContext(context);
-    TNode<Map> map = LoadObjectWithNullPrototypeMap(native_context);
+    TNode<Map> map = LoadSlowObjectWithNullPrototypeMap(native_context);
     TNode<NameDictionary> properties =
         AllocateNameDictionary(num_properties, kAllowLargeObjectAllocation);
 

@@ -1412,8 +1412,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
            if_equal);
   }
 
-  TNode<Map> LoadObjectMap(TNode<Context> context);
-  TNode<Map> LoadObjectWithNullPrototypeMap(TNode<Context> context);
+  // Loads the initial map of the the Object constructor.
+  TNode<Map> LoadObjectFunctionInitialMap(TNode<NativeContext> native_context);
+  TNode<Map> LoadSlowObjectWithNullPrototypeMap(
+      TNode<NativeContext> native_context);
 
   TNode<Map> LoadJSArrayElementsMap(ElementsKind kind,
                                     SloppyTNode<NativeContext> native_context);

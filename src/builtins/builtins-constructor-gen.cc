@@ -601,7 +601,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
 TNode<JSObject> ConstructorBuiltinsAssembler::CreateEmptyObjectLiteral(
     TNode<Context> context) {
   TNode<NativeContext> native_context = LoadNativeContext(context);
-  TNode<Map> map = LoadObjectMap(native_context);
+  TNode<Map> map = LoadObjectFunctionInitialMap(native_context);
   // Ensure that slack tracking is disabled for the map.
   STATIC_ASSERT(Map::kNoSlackTracking == 0);
   CSA_ASSERT(this, IsClearWord32<Map::Bits3::ConstructionCounterBits>(

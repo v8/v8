@@ -4066,7 +4066,7 @@ void AccessorAssembler::GenerateCloneObjectIC_Slow() {
   // used.
 
   TNode<NativeContext> native_context = LoadNativeContext(context);
-  TNode<Map> initial_map = LoadObjectMap(native_context);
+  TNode<Map> initial_map = LoadObjectFunctionInitialMap(native_context);
   TNode<JSObject> result = AllocateJSObjectFromMap(initial_map);
 
   {
