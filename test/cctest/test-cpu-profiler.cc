@@ -1243,7 +1243,7 @@ static const char* call_function_test_source =
     "  } while (Date.now() - start < duration);\n"
     "}";
 
-// Test that if we sampled thread when it was inside FunctionCall buitin then
+// Test that if we sampled thread when it was inside FunctionCall builtin then
 // its caller frame will be '(unresolved function)' as we have no reliable way
 // to resolve it.
 //
@@ -2210,6 +2210,84 @@ TEST(FunctionDetailsInlining) {
   if (!beta) return;
   CheckFunctionDetails(env->GetIsolate(), beta, "beta", "script_b", true,
                        script_b->GetUnboundScript()->GetId(), 1, 14, alpha);
+}
+
+static const char* pre_profiling_osr_script = R"(
+    function whenPass(pass, optDuration) {
+      if (pass == 5) startProfiling();
+    }
+    function hot(optDuration, deoptDuration) {
+      const startTime = Date.now();
+      %PrepareFunctionForOptimization(hot);
+      for (let pass = 0; pass <= optDuration + deoptDuration; pass++) {
+        // Let a few passes go by to ensure we have enough feeback info
+        if (pass == 3) %OptimizeOsr();
+        // Force deoptimization. %DeoptimizeNow and %DeoptimizeFunction don't
+        // doptimize OSRs.
+        if (pass == optDuration) whenPass = () => {};
+        whenPass(pass, optDuration);
+        for (let i = 0; i < 1e5; i++) {
+          for (let j = 0; j < 1000; j++) {
+            x = Math.random() * j;
+          }
+          if ((Date.now() - startTime) > pass) break;
+        }
+      }
+    }
+    function notHot(optDuration, deoptDuration) {
+      hot(optDuration, deoptDuration);
+      stopProfiling()
+    }
+  )";
+
+// Testing profiling of OSR code that was OSR optimized before profiling
+// started. Currently the behavior is not quite right so we're currently
+// testing a deopt event being sent to the sampling thread for a function
+// it knows nothing about. This deopt does mean we start getting samples
+// for hot so we expect some samples, just fewer than for notHot.
+//
+// We should get something like:
+//     0  (root):0 3 0 #1
+//    12    (garbage collector):0 3 0 #5
+//     5    notHot:22 0 4 #2
+//    85      hot:5 0 4 #6
+//     0      whenPass:2 0 4 #3
+//     0        startProfiling:0 2 0 #4
+//
+// But currently get something like:
+//     0  (root):0 3 0 #1
+//    12    (garbage collector):0 3 0 #5
+//    57    notHot:22 0 4 #2
+//    33      hot:5 0 4 #6
+//     0      whenPass:2 0 4 #3
+//     0        startProfiling:0 2 0 #4
+
+TEST(StartProfilingAfterOsr) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
+  v8::Context::Scope context_scope(env);
+  ProfilerHelper helper(env);
+  CompileRun(pre_profiling_osr_script);
+  v8::Local<v8::Function> function = GetFunction(env, "notHot");
+
+  int32_t profiling_optimized_ms = 80;
+  int32_t profiling_deoptimized_ms = 40;
+  v8::Local<v8::Value> args[] = {
+      v8::Integer::New(env->GetIsolate(), profiling_optimized_ms),
+      v8::Integer::New(env->GetIsolate(), profiling_deoptimized_ms)};
+  function->Call(env, env->Global(), arraysize(args), args).ToLocalChecked();
+  const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
+  CHECK(profile);
+  reinterpret_cast<const i::CpuProfile*>(profile)->Print();
+
+  const CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* notHotNode = GetChild(env, root, "notHot");
+  const v8::CpuProfileNode* hotNode = GetChild(env, notHotNode, "hot");
+  USE(hotNode);
+  // If/when OSR sampling is fixed the following CHECK_GT could/should be
+  // uncommented and the node = node line deleted.
+  // CHECK_GT(hotNode->GetHitCount(), notHotNode->GetHitCount());
 }
 
 TEST(DontStopOnFinishedProfileDelete) {
