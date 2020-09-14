@@ -30,21 +30,26 @@ enum class LogSeparator { kSeparator };
 // Functions and data for performing output of log messages.
 class Log {
  public:
-  Log(Logger* log, const char* log_file_name);
+  explicit Log(std::string log_file_name);
 
   static bool InitLogAtStart() {
-    return FLAG_log || FLAG_log_api || FLAG_log_code || FLAG_log_handles ||
-           FLAG_log_suspect || FLAG_ll_prof || FLAG_perf_basic_prof ||
-           FLAG_perf_prof || FLAG_log_source_code || FLAG_gdbjit ||
-           FLAG_log_internal_timer_events || FLAG_prof_cpp || FLAG_trace_ic ||
-           FLAG_log_function_events || FLAG_trace_zone_stats ||
+    return FLAG_log || FLAG_log_all || FLAG_log_api || FLAG_log_code ||
+           FLAG_log_handles || FLAG_log_suspect || FLAG_ll_prof ||
+           FLAG_perf_basic_prof || FLAG_perf_prof || FLAG_log_source_code ||
+           FLAG_gdbjit || FLAG_log_internal_timer_events || FLAG_prof_cpp ||
+           FLAG_trace_ic || FLAG_log_function_events || FLAG_trace_zone_stats ||
            FLAG_turbo_profiling_log_builtins;
   }
+
+  V8_EXPORT_PRIVATE static bool IsLoggingToConsole(std::string file_name);
+  V8_EXPORT_PRIVATE static bool IsLoggingToTemporaryFile(std::string file_name);
 
   // Frees all resources acquired in Initialize and Open... functions.
   // When a temporary file is used for the log, returns its stream descriptor,
   // leaving the file open.
   FILE* Close();
+
+  std::string file_name() const;
 
   // Returns whether logging is enabled.
   bool IsEnabled() { return is_enabled_.load(std::memory_order_relaxed); }
@@ -109,19 +114,15 @@ class Log {
   std::unique_ptr<Log::MessageBuilder> NewMessageBuilder();
 
  private:
-  static FILE* CreateOutputHandle(const char* file_name);
+  static FILE* CreateOutputHandle(std::string file_name);
 
-  // Implementation of writing to a log file.
-  int WriteToFile(const char* msg, int length) {
-    DCHECK_NOT_NULL(output_handle_);
-    os_.write(msg, length);
-    DCHECK(!os_.bad());
-    return length;
-  }
+  void WriteLogHeader();
 
+  std::string file_name_;
   // When logging is active output_handle_ is used to store a pointer to log
   // destination.  mutex_ should be acquired before using output_handle_.
   FILE* output_handle_;
+
   OFStream os_;
 
   // Stores whether logging is enabled.
@@ -134,10 +135,6 @@ class Log {
   // Buffer used for formatting log messages. This is a singleton buffer and
   // mutex_ should be acquired before using it.
   std::unique_ptr<char[]> format_buffer_;
-
-  Logger* logger_;
-
-  friend class Logger;
 };
 
 template <>
