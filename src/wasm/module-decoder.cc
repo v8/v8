@@ -561,7 +561,9 @@ class ModuleDecoderImpl : public Decoder {
         }
         case kWasmStructTypeCode: {
           if (!enabled_features_.has_gc()) {
-            errorf(pc(), "struct types are part of the GC proposal");
+            errorf(pc(),
+                   "invalid struct type definition, enable with "
+                   "--experimental-wasm-gc");
             break;
           }
           const StructType* s = consume_struct(module_->signature_zone.get());
@@ -572,7 +574,9 @@ class ModuleDecoderImpl : public Decoder {
         }
         case kWasmArrayTypeCode: {
           if (!enabled_features_.has_gc()) {
-            errorf(pc(), "array types are part of the GC proposal");
+            errorf(pc(),
+                   "invalid array type definition, enable with "
+                   "--experimental-wasm-gc");
             break;
           }
           const ArrayType* type = consume_array(module_->signature_zone.get());

@@ -211,7 +211,8 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
     case kLocalExternRef:
     case kLocalI31Ref: {
       HeapType heap_type = HeapType::from_code(code);
-      ValueType result = ValueType::Ref(heap_type, kNullable);
+      ValueType result = ValueType::Ref(
+          heap_type, code == kLocalI31Ref ? kNonNullable : kNullable);
       if (!VALIDATE(enabled.contains(feature_for_heap_type(heap_type)))) {
         decoder->errorf(
             pc, "invalid value type '%s', enable with --experimental-wasm-%s",
@@ -234,7 +235,7 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
       Nullability nullability = code == kLocalOptRef ? kNullable : kNonNullable;
       if (!VALIDATE(enabled.has_typed_funcref())) {
         decoder->errorf(pc,
-                        "Invalid type 'ref%s', enable with "
+                        "Invalid type '(ref%s <heaptype>)', enable with "
                         "--experimental-wasm-typed-funcref",
                         nullability == kNullable ? " null" : "");
         return kWasmBottom;
