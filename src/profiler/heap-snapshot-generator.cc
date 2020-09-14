@@ -1964,7 +1964,7 @@ HeapEntry* NativeObjectsExplorer::EntryForEmbedderGraphNode(
   EmbedderGraphImpl::Node* wrapper = node->WrapperNode();
   NativeObject native_object = node->GetNativeObject();
   v8::EmbedderGraph::Node::Detachedness detachedness =
-      v8::EmbedderGraph::Node::Detachedness::kUnkown;
+      v8::EmbedderGraph::Node::Detachedness::kUnknown;
   if (wrapper) {
     detachedness = node->GetDetachedness();
     node = wrapper;

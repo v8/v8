@@ -721,7 +721,7 @@ class V8_EXPORT EmbedderGraph {
      * graph.
      */
     enum class Detachedness : uint8_t {
-      kUnkown = 0,
+      kUnknown = 0,
       kAttached = 1,
       kDetached = 2,
     };
@@ -756,7 +756,7 @@ class V8_EXPORT EmbedderGraph {
      * along in the snapshot. Users of the snapshot may use it to annotate the
      * object graph.
      */
-    virtual Detachedness GetDetachedness() { return Detachedness::kUnkown; }
+    virtual Detachedness GetDetachedness() { return Detachedness::kUnknown; }
 
     Node(const Node&) = delete;
     Node& operator=(const Node&) = delete;
