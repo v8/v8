@@ -4489,6 +4489,33 @@ void TurboAssembler::Push(Handle<HeapObject> handle) {
   push(scratch);
 }
 
+void TurboAssembler::PushArray(Register array, Register size, Register scratch,
+                               Register scratch2, PushArrayOrder order) {
+  DCHECK(!AreAliased(array, size, scratch, scratch2));
+  Label loop, entry;
+  if (order == PushArrayOrder::kReverse) {
+    mov(scratch, zero_reg);
+    jmp(&entry);
+    bind(&loop);
+    Dlsa(scratch2, array, scratch, kPointerSizeLog2);
+    Ld(scratch2, MemOperand(scratch2));
+    push(scratch2);
+    Daddu(scratch, scratch, Operand(1));
+    bind(&entry);
+    Branch(&loop, less, scratch, Operand(size));
+  } else {
+    mov(scratch, size);
+    jmp(&entry);
+    bind(&loop);
+    Dlsa(scratch2, array, scratch, kPointerSizeLog2);
+    Ld(scratch2, MemOperand(scratch2));
+    push(scratch2);
+    bind(&entry);
+    Daddu(scratch, scratch, Operand(-1));
+    Branch(&loop, greater_equal, scratch, Operand(zero_reg));
+  }
+}
+
 void MacroAssembler::MaybeDropFrames() {
   // Check whether we need to drop frames to restart a function on the stack.
   li(a1, ExternalReference::debug_restart_fp_address(isolate()));
@@ -4697,8 +4724,8 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
 
   {
     // Load receiver to pass it later to DebugOnFunctionCall hook.
-    Dlsa(t0, sp, actual_parameter_count, kPointerSizeLog2);
-    Ld(t0, MemOperand(t0));
+    LoadReceiver(t0, actual_parameter_count);
+
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
     SmiTag(expected_parameter_count);
