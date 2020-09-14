@@ -3253,6 +3253,18 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       argv[i] = nullptr;
     } else if (strcmp(argv[i], "--stress-snapshot") == 0) {
       options.stress_snapshot = true;
+      // Incremental marking is incompatible with the stress_snapshot mode;
+      // specifically, serialization may clear bytecode arrays from shared
+      // function infos which the MarkCompactCollector (running concurrently)
+      // may still need. See also https://crbug.com/v8/10882.
+      //
+      // We thus force the implication
+      //
+      //   --stress-snapshot ~~> --no-incremental-marking
+      //
+      // Note: This is not an issue in production because we don't clear SFI's
+      // there (that only happens in mksnapshot and in --stress-snapshot mode).
+      i::FLAG_incremental_marking = false;
       argv[i] = nullptr;
     } else if (strcmp(argv[i], "--nostress-snapshot") == 0 ||
                strcmp(argv[i], "--no-stress-snapshot") == 0) {
