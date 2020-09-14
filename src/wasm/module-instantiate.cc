@@ -1316,6 +1316,18 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
                     module_name, import_name);
     return false;
   }
+
+  // SIMD proposal allows modules to define an imported v128 global, and only
+  // supports importing a WebAssembly.Global object for this global, but also
+  // defines constructing a WebAssembly.Global of v128 to be a TypeError.
+  // We *should* never hit this case in the JS API, but the module should should
+  // be allowed to declare such a global (no validation error).
+  if (global.type == kWasmS128 && !value->IsWasmGlobalObject()) {
+    ReportLinkError("global import of type v128 must be a WebAssembly.Global",
+                    import_index, module_name, import_name);
+    return false;
+  }
+
   if (is_asmjs_module(module_)) {
     // Accepting {JSFunction} on top of just primitive values here is a
     // workaround to support legacy asm.js code with broken binding. Note
