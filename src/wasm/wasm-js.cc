@@ -1213,9 +1213,9 @@ bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
   } else if (enabled_features.has_reftypes() &&
              string->StringEquals(v8_str(isolate, "externref"))) {
     *type = i::wasm::kWasmExternRef;
-    // The JS api spec uses 'anyfunc' instead of 'funcref'.
   } else if (enabled_features.has_reftypes() &&
              string->StringEquals(v8_str(isolate, "anyfunc"))) {
+    // The JS api spec uses 'anyfunc' instead of 'funcref'.
     *type = i::wasm::kWasmFuncRef;
   } else if (enabled_features.has_eh() &&
              string->StringEquals(v8_str(isolate, "exnref"))) {
@@ -1279,7 +1279,8 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   const uint32_t offset = 0;
   i::MaybeHandle<i::WasmGlobalObject> maybe_global_obj =
-      i::WasmGlobalObject::New(i_isolate, i::MaybeHandle<i::JSArrayBuffer>(),
+      i::WasmGlobalObject::New(i_isolate, i::Handle<i::WasmInstanceObject>(),
+                               i::MaybeHandle<i::JSArrayBuffer>(),
                                i::MaybeHandle<i::FixedArray>(), type, offset,
                                is_mutable);
 
@@ -1820,7 +1821,6 @@ void WebAssemblyGlobalGetValueCommon(
       auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
       if (enabled_features.has_bigint()) {
         Local<BigInt> value = BigInt::New(isolate, receiver->GetI64());
-
         return_value.Set(value);
       } else {
         thrower.TypeError("Can't get the value of i64 WebAssembly.Global");

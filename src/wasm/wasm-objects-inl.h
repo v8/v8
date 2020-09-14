@@ -120,6 +120,7 @@ SMI_ACCESSORS(WasmMemoryObject, maximum_pages, kMaximumPagesOffset)
 OPTIONAL_ACCESSORS(WasmMemoryObject, instances, WeakArrayList, kInstancesOffset)
 
 // WasmGlobalObject
+ACCESSORS(WasmGlobalObject, instance, HeapObject, kInstanceOffset)
 ACCESSORS(WasmGlobalObject, untagged_buffer, JSArrayBuffer,
           kUntaggedBufferOffset)
 ACCESSORS(WasmGlobalObject, tagged_buffer, FixedArray, kTaggedBufferOffset)
@@ -130,7 +131,7 @@ SMI_ACCESSORS(WasmGlobalObject, raw_type, kRawTypeOffset)
 SMI_ACCESSORS(WasmGlobalObject, is_mutable, kIsMutableOffset)
 
 wasm::ValueType WasmGlobalObject::type() const {
-  return wasm::ValueType::FromRawBitField(raw_type());
+  return wasm::ValueType::FromRawBitField(static_cast<uint32_t>(raw_type()));
 }
 void WasmGlobalObject::set_type(wasm::ValueType value) {
   set_raw_type(static_cast<int>(value.raw_bit_field()));

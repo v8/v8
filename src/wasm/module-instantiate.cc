@@ -1246,10 +1246,17 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
     return false;
   }
 
-  bool is_sub_type =
-      IsSubtypeOf(global_object->type(), global.type, instance->module());
-  bool is_same_type = global_object->type() == global.type;
-  bool valid_type = global.mutability ? is_same_type : is_sub_type;
+  const WasmModule* global_type_module =
+      !global_object->instance().IsUndefined()
+          ? WasmInstanceObject::cast(global_object->instance()).module()
+          : instance->module();
+
+  bool valid_type =
+      global.mutability
+          ? EquivalentTypes(global_object->type(), global.type,
+                            global_type_module, instance->module())
+          : IsSubtypeOf(global_object->type(), global.type, global_type_module,
+                        instance->module());
 
   if (!valid_type) {
     ReportLinkError("imported global does not match the expected type",
@@ -1340,14 +1347,11 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
   }
 
   if (global.type.is_reference_type()) {
-    if (global.type.is_reference_to(HeapType::kFunc)) {
-      if (!value->IsNull(isolate_) &&
-          !WasmExportedFunction::IsWasmExportedFunction(*value)) {
-        ReportLinkError(
-            "imported funcref global must be null or an exported function",
-            import_index, module_name, import_name);
-        return false;
-      }
+    const char* error_message;
+    if (!wasm::DynamicTypeCheckRef(isolate_, module_, value, global.type,
+                                   &error_message)) {
+      ReportLinkError(error_message, global_index, module_name, import_name);
+      return false;
     }
     WriteGlobalExternRef(global, value);
     return true;
@@ -1363,8 +1367,10 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
     return true;
   }
 
-  ReportLinkError("global import must be a number or WebAssembly.Global object",
-                  import_index, module_name, import_name);
+  ReportLinkError(
+      "global import must be a number, valid Wasm reference, or "
+      "WebAssembly.Global object",
+      import_index, module_name, import_name);
   return false;
 }
 
@@ -1805,8 +1811,9 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
         // Since the global's array untagged_buffer is always provided,
         // allocation should never fail.
         Handle<WasmGlobalObject> global_obj =
-            WasmGlobalObject::New(isolate_, untagged_buffer, tagged_buffer,
-                                  global.type, offset, global.mutability)
+            WasmGlobalObject::New(isolate_, instance, untagged_buffer,
+                                  tagged_buffer, global.type, offset,
+                                  global.mutability)
                 .ToHandleChecked();
         desc.set_value(global_obj);
         break;

@@ -99,12 +99,13 @@ let kWasmI64 = 0x7e;
 let kWasmF32 = 0x7d;
 let kWasmF64 = 0x7c;
 let kWasmS128 = 0x7b;
-let kWasmExternRef = 0x6f;
 let kWasmAnyFunc = 0x70;
-let kWasmExnRef = 0x68;
-function wasmRefType(index) { return {opcode: 0x6b, index: index}; }
+let kWasmExternRef = 0x6f;
 function wasmOptRefType(index) { return {opcode: 0x6c, index: index}; }
+function wasmRefType(index) { return {opcode: 0x6b, index: index}; }
+let kWasmI31Ref = 0x6a;
 function wasmRtt(index, depth) { return {opcode: 0x69, index: index, depth: depth}; }
+let kWasmExnRef = 0x68;
 
 let kExternalFunction = 0;
 let kExternalTable = 1;
@@ -395,6 +396,7 @@ let kAtomicPrefix = 0xfe;
 // GC opcodes
 let kExprRttCanon = 0x30;
 let kExprRefCast = 0x41;
+let kExprI31New = 0x20;
 
 // Numeric opcodes.
 let kExprMemoryInit = 0x08;
@@ -1062,7 +1064,8 @@ class WasmModuleBuilder {
       throw new Error('Imported exceptions must be declared before local ones');
     }
     let type_index = (typeof type) == "number" ? type : this.addType(type);
-    let o = {module: module, name: name, kind: kExternalException, type_index: type_index};
+    let o = {module: module, name: name, kind: kExternalException,
+             type_index: type_index};
     this.imports.push(o);
     return this.num_imported_exceptions++;
   }
@@ -1073,6 +1076,12 @@ class WasmModuleBuilder {
   }
 
   addExportOfKind(name, kind, index) {
+    if (index == undefined && kind != kExternalTable && kind != kExternalMemory) {
+      throw new Error('Index for exports other than tables/memories must be provided');
+    }
+    if (index !== undefined && (typeof index) != 'number') {
+      throw new Error('Index for exports must be a number')
+    }
     this.exports.push({name: name, kind: kind, index: index});
     return this;
   }

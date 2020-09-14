@@ -24,16 +24,11 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
-struct CompilationEnv;
 class InterpretedFrame;
-struct InterpretedFrameDeleter;
 class NativeModule;
-class SignatureMap;
 class WasmCode;
 struct WasmException;
-class WasmFeatures;
 struct WasmGlobal;
-class WasmInterpreter;
 struct WasmModule;
 class WasmValue;
 class WireBytesRef;
@@ -320,6 +315,11 @@ class WasmGlobalObject : public JSObject {
  public:
   DECL_CAST(WasmGlobalObject)
 
+  // The instance in which this WasmGlobalObject is defined.
+  // This field is undefined if the global is defined outside any Wasm module,
+  // i.e., through the JS API (WebAssembly.Global).
+  // Because it might be undefined, we declare it as a HeapObject.
+  DECL_ACCESSORS(instance, HeapObject)
   DECL_ACCESSORS(untagged_buffer, JSArrayBuffer)
   DECL_ACCESSORS(tagged_buffer, FixedArray)
   DECL_INT32_ACCESSORS(offset)
@@ -337,7 +337,8 @@ class WasmGlobalObject : public JSObject {
                                 TORQUE_GENERATED_WASM_GLOBAL_OBJECT_FIELDS)
 
   V8_EXPORT_PRIVATE static MaybeHandle<WasmGlobalObject> New(
-      Isolate* isolate, MaybeHandle<JSArrayBuffer> maybe_untagged_buffer,
+      Isolate* isolate, Handle<WasmInstanceObject> instance,
+      MaybeHandle<JSArrayBuffer> maybe_untagged_buffer,
       MaybeHandle<FixedArray> maybe_tagged_buffer, wasm::ValueType type,
       int32_t offset, bool is_mutable);
 
@@ -956,6 +957,9 @@ Handle<Map> AllocateSubRtt(Isolate* isolate,
                            Handle<WasmInstanceObject> instance, uint32_t type,
                            Handle<Map> parent);
 
+bool DynamicTypeCheckRef(Isolate* isolate, const WasmModule* module,
+                         Handle<Object> value, ValueType expected,
+                         const char** error_message);
 }  // namespace wasm
 
 }  // namespace internal

@@ -27,6 +27,7 @@
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
+#include "src/wasm/wasm-subtyping.h"
 #include "src/wasm/wasm-value.h"
 
 #define TRACE_IFT(...)              \
@@ -940,7 +941,8 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
 
 // static
 MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
-    Isolate* isolate, MaybeHandle<JSArrayBuffer> maybe_untagged_buffer,
+    Isolate* isolate, Handle<WasmInstanceObject> instance,
+    MaybeHandle<JSArrayBuffer> maybe_untagged_buffer,
     MaybeHandle<FixedArray> maybe_tagged_buffer, wasm::ValueType type,
     int32_t offset, bool is_mutable) {
   Handle<JSFunction> global_ctor(
@@ -950,7 +952,7 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
   {
     // Disallow GC until all fields have acceptable types.
     DisallowHeapAllocation no_gc;
-
+    if (!instance.is_null()) global_obj->set_instance(*instance);
     global_obj->set_raw_type(0);
     global_obj->set_type(type);
     global_obj->set_offset(offset);
@@ -2007,6 +2009,90 @@ Handle<AsmWasmData> AsmWasmData::New(
   result->set_uses_bitset(*uses_bitset);
   return result;
 }
+
+namespace wasm {
+
+bool DynamicTypeCheckRef(Isolate* isolate, const WasmModule* module,
+                         Handle<Object> value, ValueType expected,
+                         const char** error_message) {
+  DCHECK(expected.is_reference_type());
+  switch (expected.kind()) {
+    case ValueType::kOptRef:
+      if (value->IsNull(isolate)) return true;
+      V8_FALLTHROUGH;
+    case ValueType::kRef:
+      switch (expected.heap_representation()) {
+        case HeapType::kFunc: {
+          if (!WasmExportedFunction::IsWasmExportedFunction(*value)) {
+            *error_message =
+                "function-typed object must be null (if nullable) or an "
+                "exported function";
+            return false;
+          }
+          return true;
+        }
+        case HeapType::kExtern:
+        case HeapType::kExn:
+          return true;
+        case HeapType::kEq:
+        case HeapType::kI31:
+          // TODO(7748): Implement when the JS API for structs/arrays/i31ref is
+          // decided on.
+          *error_message =
+              "Assigning to eqref/i31ref globals not supported yet.";
+          return false;
+        default:
+          // Tables defined outside a module can't refer to user-defined types.
+          if (module == nullptr) return false;
+          DCHECK(module->has_type(expected.heap_representation()));
+          if (module->has_signature(expected.heap_representation())) {
+            if (WasmExportedFunction::IsWasmExportedFunction(*value)) {
+              WasmExportedFunction function =
+                  WasmExportedFunction::cast(*value);
+              const WasmModule* exporting_module = function.instance().module();
+              ValueType real_type = ValueType::Ref(
+                  exporting_module->functions[function.function_index()]
+                      .sig_index,
+                  kNonNullable);
+              if (!IsSubtypeOf(real_type, expected, exporting_module, module)) {
+                *error_message =
+                    "exported function object must be a subtype of the "
+                    "global's formal type";
+                return false;
+              }
+              return true;
+            }
+
+            if (WasmJSFunction::IsWasmJSFunction(*value)) {
+              // TODO(9495): Implement when we are confident about the type
+              // reflection proposal.
+              *error_message =
+                  "Assigning WasmJSFunction objects to globals not supported "
+                  "yet.";
+              return false;
+            }
+
+            *error_message =
+                "function-typed object must be null (if nullable) or an "
+                "exported function";
+            return false;
+          }
+          // TODO(7748): Implement when the JS API for structs/arrays is decided
+          // on.
+          *error_message =
+              "Assigning to struct/array globals not supported yet.";
+          return false;
+      }
+    case ValueType::kRtt:
+      // TODO(7748): Implement when the JS API for rtts is decided on.
+      *error_message = "Assigning to rtt globals not supported yet.";
+      return false;
+    default:
+      UNREACHABLE();
+  }
+}
+
+}  // namespace wasm
 
 }  // namespace internal
 }  // namespace v8
