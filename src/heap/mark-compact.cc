@@ -395,7 +395,7 @@ int MarkCompactCollectorBase::NumberOfParallelCompactionTasks(int pages) {
   int tasks = FLAG_parallel_compaction ? Min(NumberOfAvailableCores(),
                                              pages / (MB / Page::kPageSize) + 1)
                                        : 1;
-  if (!heap_->CanExpandOldGeneration(
+  if (!heap_->CanPromoteYoungAndExpandOldGeneration(
           static_cast<size_t>(tasks * Page::kPageSize))) {
     // Optimize for memory usage near the heap limit.
     tasks = 1;
@@ -3217,11 +3217,8 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
                                  &page_parallel_job_semaphore_);
   intptr_t live_bytes = 0;
 
-  for (Page* page : old_space_evacuation_pages_) {
-    live_bytes += non_atomic_marking_state()->live_bytes(page);
-    evacuation_job.AddItem(new EvacuationItem(page));
-  }
-
+  // Evacuation of new space pages cannot be aborted, so it needs to run
+  // before old space evacuation.
   for (Page* page : new_space_evacuation_pages_) {
     intptr_t live_bytes_on_page = non_atomic_marking_state()->live_bytes(page);
     if (live_bytes_on_page == 0) continue;
@@ -3240,6 +3237,11 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
         EvacuateNewSpacePageVisitor<NEW_TO_NEW>::Move(page);
       }
     }
+    evacuation_job.AddItem(new EvacuationItem(page));
+  }
+
+  for (Page* page : old_space_evacuation_pages_) {
+    live_bytes += non_atomic_marking_state()->live_bytes(page);
     evacuation_job.AddItem(new EvacuationItem(page));
   }
 

@@ -410,6 +410,12 @@ bool Heap::CanExpandOldGenerationBackground(size_t size) {
          memory_allocator()->Size() + size <= MaxReserved();
 }
 
+bool Heap::CanPromoteYoungAndExpandOldGeneration(size_t size) {
+  // Over-estimate the new space size using capacity to allow some slack.
+  return CanExpandOldGeneration(size + new_space_->Capacity() +
+                                new_lo_space_->Size());
+}
+
 bool Heap::HasBeenSetUp() const {
   // We will always have a new space when the heap is set up.
   return new_space_ != nullptr;
@@ -435,9 +441,7 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
     return MARK_COMPACTOR;
   }
 
-  // Over-estimate the new space size using capacity to allow some slack.
-  if (!CanExpandOldGeneration(new_space_->TotalCapacity() +
-                              new_lo_space()->Size())) {
+  if (!CanPromoteYoungAndExpandOldGeneration(0)) {
     isolate_->counters()
         ->gc_compactor_caused_by_oldspace_exhaustion()
         ->Increment();
@@ -1499,8 +1503,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
       this, IsYoungGenerationCollector(collector) ? "MinorGC" : "MajorGC",
       GarbageCollectionReasonToString(gc_reason));
 
-  if (!CanExpandOldGeneration(new_space()->Capacity() +
-                              new_lo_space()->Size())) {
+  if (!CanPromoteYoungAndExpandOldGeneration(0)) {
     InvokeNearHeapLimitCallback();
   }
 
@@ -2332,8 +2335,7 @@ void Heap::EvacuateYoungGeneration() {
   ConcurrentMarking::PauseScope pause_scope(concurrent_marking());
   if (!FLAG_concurrent_marking) {
     DCHECK(fast_promotion_mode_);
-    DCHECK(
-        CanExpandOldGeneration(new_space()->Size() + new_lo_space()->Size()));
+    DCHECK(CanPromoteYoungAndExpandOldGeneration(0));
   }
 
   mark_compact_collector()->sweeper()->EnsureIterabilityCompleted();
@@ -2380,8 +2382,7 @@ void Heap::EvacuateYoungGeneration() {
 }
 
 void Heap::Scavenge() {
-  if ((fast_promotion_mode_ &&
-       CanExpandOldGeneration(new_space()->Size() + new_lo_space()->Size()))) {
+  if (fast_promotion_mode_ && CanPromoteYoungAndExpandOldGeneration(0)) {
     tracer()->NotifyYoungGenerationHandling(
         YoungGenerationHandling::kFastPromotionDuringScavenge);
     EvacuateYoungGeneration();

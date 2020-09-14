@@ -1902,6 +1902,7 @@ class Heap {
 
   V8_EXPORT_PRIVATE bool CanExpandOldGeneration(size_t size);
   V8_EXPORT_PRIVATE bool CanExpandOldGenerationBackground(size_t size);
+  V8_EXPORT_PRIVATE bool CanPromoteYoungAndExpandOldGeneration(size_t size);
 
   bool ShouldExpandOldGenerationOnSlowAllocation(
       LocalHeap* local_heap = nullptr);
