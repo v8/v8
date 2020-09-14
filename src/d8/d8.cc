@@ -100,7 +100,7 @@ namespace {
 const int kMB = 1024 * 1024;
 
 #ifdef V8_FUZZILLI
-// REPRL = read-eval-print-loop
+// REPRL = read-eval-print-reset-loop
 // These file descriptors are being opened when Fuzzilli uses fork & execve to
 // run V8.
 #define REPRL_CRFD 100  // Control read file decriptor
@@ -2821,33 +2821,35 @@ bool ends_with(const char* input, const char* suffix) {
 bool SourceGroup::Execute(Isolate* isolate) {
   bool success = true;
 #ifdef V8_FUZZILLI
-  HandleScope handle_scope(isolate);
-  Local<String> file_name =
-      String::NewFromUtf8(isolate, "fuzzcode.js", NewStringType::kNormal)
-          .ToLocalChecked();
+  if (fuzzilli_reprl) {
+    HandleScope handle_scope(isolate);
+    Local<String> file_name =
+        String::NewFromUtf8(isolate, "fuzzcode.js", NewStringType::kNormal)
+            .ToLocalChecked();
 
-  size_t script_size;
-  CHECK_EQ(read(REPRL_CRFD, &script_size, 8), 8);
-  char* buffer = new char[script_size + 1];
-  char* ptr = buffer;
-  size_t remaining = script_size;
-  while (remaining > 0) {
-    ssize_t rv = read(REPRL_DRFD, ptr, remaining);
-    CHECK_GE(rv, 0);
-    remaining -= rv;
-    ptr += rv;
-  }
-  buffer[script_size] = 0;
+    size_t script_size;
+    CHECK_EQ(read(REPRL_CRFD, &script_size, 8), 8);
+    char* buffer = new char[script_size + 1];
+    char* ptr = buffer;
+    size_t remaining = script_size;
+    while (remaining > 0) {
+      ssize_t rv = read(REPRL_DRFD, ptr, remaining);
+      CHECK_GE(rv, 0);
+      remaining -= rv;
+      ptr += rv;
+    }
+    buffer[script_size] = 0;
 
-  Local<String> source =
-      String::NewFromUtf8(isolate, buffer, NewStringType::kNormal)
-          .ToLocalChecked();
-  delete[] buffer;
-  Shell::set_script_executed();
-  if (!Shell::ExecuteString(isolate, source, file_name, Shell::kNoPrintResult,
-                            Shell::kReportExceptions,
-                            Shell::kNoProcessMessageQueue)) {
-    return false;
+    Local<String> source =
+        String::NewFromUtf8(isolate, buffer, NewStringType::kNormal)
+            .ToLocalChecked();
+    delete[] buffer;
+    Shell::set_script_executed();
+    if (!Shell::ExecuteString(isolate, source, file_name, Shell::kNoPrintResult,
+                              Shell::kReportExceptions,
+                              Shell::kNoProcessMessageQueue)) {
+      return false;
+    }
   }
 #endif  // V8_FUZZILLI
   for (int i = begin_offset_; i < end_offset_; ++i) {
@@ -4258,6 +4260,10 @@ int Shell::Main(int argc, char* argv[]) {
                  << bitmap.size() << std::endl;
           iteration_counter++;
         }
+        // In REPRL mode, stdout and stderr can be regular files, so they need
+        // to be flushed after every execution
+        fflush(stdout);
+        fflush(stderr);
         CHECK_EQ(write(REPRL_CWFD, &status, 4), 4);
         sanitizer_cov_reset_edgeguards();
         if (options.fuzzilli_enable_builtins_coverage) {
