@@ -32,6 +32,7 @@ ALL_VARIANT_FLAGS = {
   "slow_path": [["--force-slow-path"]],
   "stress": [["--stress-opt", "--always-opt", "--no-liftoff",
               "--stress-lazy-source-positions"]],
+  "stress_concurrent_allocation": [["--stress-concurrent-allocation"]],
   "stress_js_bg_compile_wasm_code_gc": [["--stress-background-compile",
                                          "--stress-wasm-code-gc"]],
   "stress_incremental_marking": [["--stress-incremental-marking"]],
