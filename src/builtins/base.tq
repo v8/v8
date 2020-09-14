@@ -1038,6 +1038,12 @@ const kOneByteStringMap: Map = OneByteStringMapConstant();
 // The map of a non-internalized internal SeqTwoByteString.
 const kStringMap: Map = StringMapConstant();
 
+macro OutOfBounds<T: type, X: type>(index: T, length: X): bool {
+  return UintPtrGreaterThanOrEqual(
+      Convert<uintptr>(Convert<intptr>(index)),
+      Convert<uintptr>(Convert<intptr>(length)));
+}
+
 extern macro IsPrototypeInitialArrayPrototype(implicit context: Context)(Map):
     bool;
 extern macro IsNoElementsProtectorCellInvalid(): bool;
