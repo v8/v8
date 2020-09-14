@@ -450,8 +450,11 @@ class DebugInfoImpl {
         native_module_->AddCompiledCode(std::move(result)));
 
     DCHECK(new_code->is_inspectable());
-    DCHECK_EQ(0, debug_side_tables_.count(new_code));
-    debug_side_tables_.emplace(new_code, std::move(debug_sidetable));
+    {
+      base::MutexGuard lock(&debug_side_tables_mutex_);
+      DCHECK_EQ(0, debug_side_tables_.count(new_code));
+      debug_side_tables_.emplace(new_code, std::move(debug_sidetable));
+    }
 
     return new_code;
   }
@@ -610,14 +613,14 @@ class DebugInfoImpl {
   }
 
   void RemoveDebugSideTables(Vector<WasmCode* const> codes) {
-    base::MutexGuard guard(&mutex_);
+    base::MutexGuard guard(&debug_side_tables_mutex_);
     for (auto* code : codes) {
       debug_side_tables_.erase(code);
     }
   }
 
   DebugSideTable* GetDebugSideTableIfExists(const WasmCode* code) const {
-    base::MutexGuard guard(&mutex_);
+    base::MutexGuard guard(&debug_side_tables_mutex_);
     auto it = debug_side_tables_.find(code);
     return it == debug_side_tables_.end() ? nullptr : it->second.get();
   }
@@ -687,7 +690,7 @@ class DebugInfoImpl {
     {
       // Only hold the mutex temporarily. We can't hold it while generating the
       // debug side table, because compilation takes the {NativeModule} lock.
-      base::MutexGuard guard(&mutex_);
+      base::MutexGuard guard(&debug_side_tables_mutex_);
       auto it = debug_side_tables_.find(code);
       if (it != debug_side_tables_.end()) return it->second.get();
     }
@@ -708,7 +711,7 @@ class DebugInfoImpl {
     // Check cache again, maybe another thread concurrently generated a debug
     // side table already.
     {
-      base::MutexGuard guard(&mutex_);
+      base::MutexGuard guard(&debug_side_tables_mutex_);
       auto& slot = debug_side_tables_[code];
       if (slot != nullptr) return slot.get();
       slot = std::move(debug_side_table);
@@ -847,12 +850,14 @@ class DebugInfoImpl {
 
   NativeModule* const native_module_;
 
-  // {mutex_} protects all fields below.
-  mutable base::Mutex mutex_;
+  mutable base::Mutex debug_side_tables_mutex_;
 
   // DebugSideTable per code object, lazily initialized.
   std::unordered_map<const WasmCode*, std::unique_ptr<DebugSideTable>>
       debug_side_tables_;
+
+  // {mutex_} protects all fields below.
+  mutable base::Mutex mutex_;
 
   // Names of locals, lazily decoded from the wire bytes.
   std::unique_ptr<LocalNames> local_names_;
