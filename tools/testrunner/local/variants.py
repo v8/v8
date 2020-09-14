@@ -18,6 +18,10 @@ ALL_VARIANT_FLAGS = {
   "nci": [["--turbo-nci"]],
   "nci_as_midtier": [["--turbo-nci-as-midtier"]],
   "no_lfa": [["--no-lazy-feedback-allocation"]],
+  "no_local_heaps": [[
+      "--no-local-heaps",
+      "--no-turbo-direct-heap-access",
+      "--no-finalize-streaming-on-background"]],
   # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
   # would not force optimization too. It turns into a Nop. Please see
   # https://chromium-review.googlesource.com/c/452620/ for more discussion.
