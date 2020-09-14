@@ -2058,11 +2058,18 @@ void SimdScalarLowering::LowerNode(Node* node) {
       Node** rep_right = GetReplacementsWithType(node->InputAt(1), rep_type);
       int num_lanes = NumLanes(rep_type);
       Node** rep_node = zone()->NewArray<Node*>(num_lanes);
+      // Nodes are stored signed, so mask away the top bits.
       // rounding_average(left, right) = (left + right + 1) >> 1
+      const int bit_mask = num_lanes == 16 ? kMask8 : kMask16;
       for (int i = 0; i < num_lanes; ++i) {
+        Node* mask_left = graph()->NewNode(machine()->Word32And(), rep_left[i],
+                                           mcgraph_->Int32Constant(bit_mask));
+        Node* mask_right =
+            graph()->NewNode(machine()->Word32And(), rep_right[i],
+                             mcgraph_->Int32Constant(bit_mask));
         Node* left_plus_right_plus_one = graph()->NewNode(
             machine()->Int32Add(),
-            graph()->NewNode(machine()->Int32Add(), rep_left[i], rep_right[i]),
+            graph()->NewNode(machine()->Int32Add(), mask_left, mask_right),
             mcgraph_->Int32Constant(1));
         rep_node[i] =
             graph()->NewNode(machine()->Word32Shr(), left_plus_right_plus_one,
