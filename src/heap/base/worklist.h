@@ -19,7 +19,7 @@ namespace base {
 namespace internal {
 class V8_EXPORT_PRIVATE SegmentBase {
  public:
-  static SegmentBase kSentinelSegment;
+  static SegmentBase* GetSentinelSegmentAddress();
 
   explicit SegmentBase(uint16_t capacity) : capacity_(capacity) {}
 
@@ -297,25 +297,27 @@ class Worklist<EntryType, SegmentSize>::Local {
     return new Segment();
   }
   void DeleteSegment(internal::SegmentBase* segment) const {
-    if (segment == &internal::SegmentBase::kSentinelSegment) return;
+    if (segment == internal::SegmentBase::GetSentinelSegmentAddress()) return;
     delete static_cast<Segment*>(segment);
   }
 
   inline Segment* push_segment() {
-    DCHECK_NE(&internal::SegmentBase::kSentinelSegment, push_segment_);
+    DCHECK_NE(internal::SegmentBase::GetSentinelSegmentAddress(),
+              push_segment_);
     return static_cast<Segment*>(push_segment_);
   }
   inline const Segment* push_segment() const {
-    DCHECK_NE(&internal::SegmentBase::kSentinelSegment, push_segment_);
+    DCHECK_NE(internal::SegmentBase::GetSentinelSegmentAddress(),
+              push_segment_);
     return static_cast<const Segment*>(push_segment_);
   }
 
   inline Segment* pop_segment() {
-    DCHECK_NE(&internal::SegmentBase::kSentinelSegment, pop_segment_);
+    DCHECK_NE(internal::SegmentBase::GetSentinelSegmentAddress(), pop_segment_);
     return static_cast<Segment*>(pop_segment_);
   }
   inline const Segment* pop_segment() const {
-    DCHECK_NE(&internal::SegmentBase::kSentinelSegment, pop_segment_);
+    DCHECK_NE(internal::SegmentBase::GetSentinelSegmentAddress(), pop_segment_);
     return static_cast<const Segment*>(pop_segment_);
   }
 
@@ -328,8 +330,8 @@ template <typename EntryType, uint16_t SegmentSize>
 Worklist<EntryType, SegmentSize>::Local::Local(
     Worklist<EntryType, SegmentSize>* worklist)
     : worklist_(worklist),
-      push_segment_(&internal::SegmentBase::kSentinelSegment),
-      pop_segment_(&internal::SegmentBase::kSentinelSegment) {}
+      push_segment_(internal::SegmentBase::GetSentinelSegmentAddress()),
+      pop_segment_(internal::SegmentBase::GetSentinelSegmentAddress()) {}
 
 template <typename EntryType, uint16_t SegmentSize>
 Worklist<EntryType, SegmentSize>::Local::~Local() {
@@ -419,14 +421,14 @@ void Worklist<EntryType, SegmentSize>::Local::Merge(
 
 template <typename EntryType, uint16_t SegmentSize>
 void Worklist<EntryType, SegmentSize>::Local::PublishPushSegment() {
-  if (push_segment_ != &internal::SegmentBase::kSentinelSegment)
+  if (push_segment_ != internal::SegmentBase::GetSentinelSegmentAddress())
     worklist_->Push(push_segment());
   push_segment_ = NewSegment();
 }
 
 template <typename EntryType, uint16_t SegmentSize>
 void Worklist<EntryType, SegmentSize>::Local::PublishPopSegment() {
-  if (pop_segment_ != &internal::SegmentBase::kSentinelSegment)
+  if (pop_segment_ != internal::SegmentBase::GetSentinelSegmentAddress())
     worklist_->Push(pop_segment());
   pop_segment_ = NewSegment();
 }
