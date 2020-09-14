@@ -2450,6 +2450,14 @@ void InstructionSelector::VisitF64x2Max(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitLoadTransform(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitF32x4Pmin(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF32x4Pmax(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2Pmin(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2Pmax(Node* node) { UNIMPLEMENTED(); }
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
