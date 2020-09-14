@@ -1605,6 +1605,7 @@ struct TypedLoweringPhase {
                                          data->broker(), data->common(),
                                          data->machine(), temp_zone);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
+
     if (!data->info()->IsNativeContextIndependent()) {
       AddReducer(data, &graph_reducer, &create_lowering);
     }
@@ -1614,8 +1615,11 @@ struct TypedLoweringPhase {
     AddReducer(data, &graph_reducer, &simple_reducer);
     AddReducer(data, &graph_reducer, &checkpoint_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
-    // JSCreateLowering accesses the heap and therefore we need to unpark it.
+
+    // ConstantFoldingReducer, JSCreateLowering, JSTypedLowering, and
+    // TypedOptimization access the heap.
     UnparkedScopeIfNeeded scope(data->broker());
+
     graph_reducer.ReduceGraph();
   }
 };
@@ -1628,13 +1632,19 @@ struct EscapeAnalysisPhase {
     EscapeAnalysis escape_analysis(data->jsgraph(),
                                    &data->info()->tick_counter(), temp_zone);
     escape_analysis.ReduceGraph();
+
     GraphReducer reducer(temp_zone, data->graph(),
                          &data->info()->tick_counter(), data->broker(),
                          data->jsgraph()->Dead());
     EscapeAnalysisReducer escape_reducer(&reducer, data->jsgraph(),
                                          escape_analysis.analysis_result(),
                                          temp_zone);
+
     AddReducer(data, &reducer, &escape_reducer);
+
+    // EscapeAnalysisReducer accesses the heap.
+    UnparkedScopeIfNeeded scope(data->broker());
+
     reducer.ReduceGraph();
     // TODO(tebbi): Turn this into a debug mode check once we have confidence.
     escape_reducer.VerifyReplacement();
@@ -1664,8 +1674,9 @@ struct SimplifiedLoweringPhase {
                                 data->info()->GetPoisoningMitigationLevel(),
                                 &data->info()->tick_counter());
 
-    // RepresentationChanger needs the LocalHeap unparked.
+    // RepresentationChanger accesses the heap.
     UnparkedScopeIfNeeded scope(data->broker());
+
     lowering.LowerAllNodes();
   }
 };
@@ -1845,6 +1856,7 @@ struct LoadEliminationPhase {
         &graph_reducer, data->jsgraph(), data->broker());
     TypeNarrowingReducer type_narrowing_reducer(&graph_reducer, data->jsgraph(),
                                                 data->broker());
+
     AddReducer(data, &graph_reducer, &branch_condition_elimination);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &redundancy_elimination);
@@ -1855,6 +1867,10 @@ struct LoadEliminationPhase {
     AddReducer(data, &graph_reducer, &checkpoint_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
     AddReducer(data, &graph_reducer, &value_numbering);
+
+    // ConstantFoldingReducer and TypedOptimization access the heap.
+    UnparkedScopeIfNeeded scope(data->broker());
+
     graph_reducer.ReduceGraph();
   }
 };
