@@ -144,22 +144,6 @@ bool SimulatorHelper::FillRegisters(Isolate* isolate,
 }
 #endif  // USE_SIMULATOR
 
-// Returns the native context for a JavaScript frame. If the frame wasn't a
-// JavaScript frame, it'll return kNullAddress.
-Address ScrapeNativeContextAddress(Heap* heap, Address context_address) {
-#if !defined(V8_TARGET_ARCH_IA32) && !defined(V8_TARGET_ARCH_X64)
-  return kNullAddress;
-#else
-  DCHECK_EQ(heap->gc_state(), Heap::NOT_IN_GC);
-
-  // If the value is tagged, we're looking at a JavaScript frame.
-  if (!HAS_STRONG_HEAP_OBJECT_TAG(context_address)) return kNullAddress;
-
-  i::Object object(context_address);
-  return i::Context::cast(object).map().native_context().ptr();
-#endif
-}
-
 }  // namespace
 
 DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
@@ -172,8 +156,7 @@ DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
   SampleInfo info;
   RegisterState regs = reg_state;
   if (!GetStackSample(v8_isolate, &regs, record_c_entry_frame, stack,
-                      kMaxFramesCount, &info, use_simulator_reg_state,
-                      contexts)) {
+                      kMaxFramesCount, &info, use_simulator_reg_state)) {
     // It is executing JS but failed to collect a stack trace.
     // Mark the sample as spoiled.
     pc = nullptr;
@@ -184,7 +167,6 @@ DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
   pc = regs.pc;
   frames_count = static_cast<unsigned>(info.frames_count);
   has_external_callback = info.external_callback_entry != nullptr;
-  top_context = info.top_context;
   if (has_external_callback) {
     external_callback_entry = info.external_callback_entry;
   } else if (frames_count) {
@@ -211,12 +193,11 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
                                 RecordCEntryFrame record_c_entry_frame,
                                 void** frames, size_t frames_limit,
                                 v8::SampleInfo* sample_info,
-                                bool use_simulator_reg_state, void** contexts) {
+                                bool use_simulator_reg_state) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   sample_info->frames_count = 0;
   sample_info->vm_state = isolate->current_vm_state();
   sample_info->external_callback_entry = nullptr;
-  sample_info->top_context = nullptr;
   if (sample_info->vm_state == GC) return true;
 
   i::Address js_entry_sp = isolate->js_entry_sp();
@@ -269,14 +250,6 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
                                reinterpret_cast<i::Address>(regs->lr),
                                js_entry_sp);
 
-  i::Address top_context_address = it.top_context_address();
-  if (top_context_address != i::kNullAddress) {
-    sample_info->top_context = reinterpret_cast<void*>(
-        i::ScrapeNativeContextAddress(isolate->heap(), top_context_address));
-  } else {
-    sample_info->top_context = nullptr;
-  }
-
   if (it.done()) return true;
 
   size_t i = 0;
@@ -284,45 +257,18 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
       (it.top_frame_type() == internal::StackFrame::EXIT ||
        it.top_frame_type() == internal::StackFrame::BUILTIN_EXIT)) {
     frames[i] = reinterpret_cast<void*>(isolate->c_function());
-    if (contexts) contexts[i] = sample_info->top_context;
     i++;
   }
-
-  // If we couldn't get a context address from the top frame due to execution
-  // being in a callback, borrow it from the next context on the stack.
-  bool borrows_top_context = it.top_frame_type() == i::StackFrame::EXIT ||
-                             it.top_frame_type() == i::StackFrame::BUILTIN_EXIT;
 
   i::RuntimeCallTimer* timer =
       isolate->counters()->runtime_call_stats()->current_timer();
   for (; !it.done() && i < frames_limit; it.Advance()) {
     while (timer && reinterpret_cast<i::Address>(timer) < it.frame()->fp() &&
            i < frames_limit) {
-      if (contexts) contexts[i] = nullptr;
       frames[i++] = reinterpret_cast<void*>(timer->counter());
       timer = timer->parent();
     }
     if (i == frames_limit) break;
-
-    // Attempt to read the native context associated with the frame from the
-    // heap for standard frames.
-    if (it.frame()->is_standard() && (contexts || borrows_top_context)) {
-      i::Address context_address = base::Memory<i::Address>(
-          it.frame()->fp() + i::StandardFrameConstants::kContextOffset);
-      i::Address native_context_address =
-          i::ScrapeNativeContextAddress(isolate->heap(), context_address);
-      if (contexts)
-        contexts[i] = reinterpret_cast<void*>(native_context_address);
-
-      if (borrows_top_context) {
-        DCHECK(!sample_info->top_context);
-        sample_info->top_context =
-            reinterpret_cast<void*>(native_context_address);
-      }
-    } else if (contexts) {
-      contexts[i] = nullptr;
-    }
-    borrows_top_context = false;
 
     if (it.frame()->is_interpreted()) {
       // For interpreted frames use the bytecode array pointer as the pc.
