@@ -2362,7 +2362,7 @@ ContextRef ContextRef::previous(size_t* depth,
       current = Context::cast(current.unchecked_previous());
       (*depth)--;
     }
-    return ContextRef(broker(), handle(current, broker()->isolate()));
+    return ContextRef(broker(), broker()->CanonicalPersistentHandle(current));
   }
 
   if (*depth == 0) return *this;
@@ -3002,8 +3002,8 @@ ObjectRef JSObjectRef::RawFastPropertyAt(FieldIndex index) const {
                                                           broker()->mode());
     AllowHandleDereferenceIfNeeded allow_handle_dereference(data()->kind(),
                                                             broker()->mode());
-    return ObjectRef(broker(), handle(object()->RawFastPropertyAt(index),
-                                      broker()->isolate()));
+    return ObjectRef(broker(), broker()->CanonicalPersistentHandle(
+                                   object()->RawFastPropertyAt(index)));
   }
   JSObjectData* object_data = data()->AsJSObject();
   CHECK(index.is_inobject());
@@ -3014,6 +3014,7 @@ ObjectRef JSObjectRef::RawFastPropertyAt(FieldIndex index) const {
 
 bool AllocationSiteRef::IsFastLiteral() const {
   if (data_->should_access_heap()) {
+    CHECK_NE(data_->kind(), ObjectDataKind::kNeverSerializedHeapObject);
     AllowHeapAllocationIfNeeded allow_heap_allocation(
         data()->kind(), broker()->mode());  // For TryMigrateInstance.
     AllowHandleAllocationIfNeeded allow_handle_allocation(data()->kind(),
@@ -3100,8 +3101,8 @@ NameRef MapRef::GetPropertyKey(InternalIndex descriptor_index) const {
                                                             broker()->mode());
     return NameRef(
         broker(),
-        handle(object()->instance_descriptors().GetKey(descriptor_index),
-               broker()->isolate()));
+        broker()->CanonicalPersistentHandle(
+            object()->instance_descriptors().GetKey(descriptor_index)));
   }
   DescriptorArrayData* descriptors = data()->AsMap()->instance_descriptors();
   return NameRef(broker(),
@@ -3203,7 +3204,8 @@ ObjectRef FixedArrayRef::get(int i) const {
                                                           broker()->mode());
     AllowHandleDereferenceIfNeeded allow_handle_dereference(data()->kind(),
                                                             broker()->mode());
-    return ObjectRef(broker(), handle(object()->get(i), broker()->isolate()));
+    return ObjectRef(broker(),
+                     broker()->CanonicalPersistentHandle(object()->get(i)));
   }
   return ObjectRef(broker(), data()->AsFixedArray()->Get(i));
 }
@@ -3241,7 +3243,8 @@ Handle<Object> BytecodeArrayRef::GetConstantAtIndex(int index) const {
                                                           broker()->mode());
     AllowHandleDereferenceIfNeeded allow_handle_dereference(data()->kind(),
                                                             broker()->mode());
-    return handle(object()->constant_pool().get(index), broker()->isolate());
+    return broker()->CanonicalPersistentHandle(
+        object()->constant_pool().get(index));
   }
   return data()->AsBytecodeArray()->GetConstantAtIndex(index,
                                                        broker()->isolate());
@@ -3420,7 +3423,7 @@ BIMODAL_ACCESSOR_C(PropertyCell, PropertyDetails, property_details)
 base::Optional<CallHandlerInfoRef> FunctionTemplateInfoRef::call_code() const {
   if (data_->should_access_heap()) {
     return CallHandlerInfoRef(
-        broker(), handle(object()->call_code(), broker()->isolate()));
+        broker(), broker()->CanonicalPersistentHandle(object()->call_code()));
   }
   ObjectData* call_code = data()->AsFunctionTemplateInfo()->call_code();
   if (!call_code) return base::nullopt;
@@ -3545,7 +3548,7 @@ base::Optional<ObjectRef> MapRef::GetStrongValue(
         object()->instance_descriptors().GetValue(descriptor_index);
     HeapObject object;
     if (value.GetHeapObjectIfStrong(&object)) {
-      return ObjectRef(broker(), handle(object, broker()->isolate()));
+      return ObjectRef(broker(), broker()->CanonicalPersistentHandle((object)));
     }
     return base::nullopt;
   }
@@ -3649,8 +3652,8 @@ ScopeInfoRef ScopeInfoRef::OuterScopeInfo() const {
                                                           broker()->mode());
     AllowHandleDereferenceIfNeeded allow_handle_dereference(data()->kind(),
                                                             broker()->mode());
-    return ScopeInfoRef(
-        broker(), handle(object()->OuterScopeInfo(), broker()->isolate()));
+    return ScopeInfoRef(broker(), broker()->CanonicalPersistentHandle(
+                                      object()->OuterScopeInfo()));
   }
   return ScopeInfoRef(broker(), data()->AsScopeInfo()->outer_scope_info());
 }
@@ -3712,7 +3715,7 @@ SharedFunctionInfoRef FeedbackVectorRef::shared_function_info() const {
                                                             broker()->mode());
     return SharedFunctionInfoRef(
         broker(),
-        handle(object()->shared_function_info(), broker()->isolate()));
+        broker()->CanonicalPersistentHandle(object()->shared_function_info()));
   }
 
   return SharedFunctionInfoRef(
@@ -3885,8 +3888,8 @@ base::Optional<CellRef> SourceTextModuleRef::GetCell(int cell_index) const {
                                                           broker()->mode());
     AllowHandleDereferenceIfNeeded allow_handle_dereference(data()->kind(),
                                                             broker()->mode());
-    return CellRef(broker(),
-                   handle(object()->GetCell(cell_index), broker()->isolate()));
+    return CellRef(broker(), broker()->CanonicalPersistentHandle(
+                                 object()->GetCell(cell_index)));
   }
   ObjectData* cell =
       data()->AsSourceTextModule()->GetCell(broker(), cell_index);
@@ -3900,8 +3903,8 @@ ObjectRef SourceTextModuleRef::import_meta() const {
                                                           broker()->mode());
     AllowHandleDereferenceIfNeeded allow_handle_dereference(data()->kind(),
                                                             broker()->mode());
-    return ObjectRef(broker(),
-                     handle(object()->import_meta(), broker()->isolate()));
+    return ObjectRef(
+        broker(), broker()->CanonicalPersistentHandle(object()->import_meta()));
   }
   return ObjectRef(broker(),
                    data()->AsSourceTextModule()->GetImportMeta(broker()));
@@ -3992,8 +3995,8 @@ base::Optional<JSObjectRef> AllocationSiteRef::boilerplate() const {
                                                           broker()->mode());
     AllowHandleDereferenceIfNeeded allow_handle_dereference(data()->kind(),
                                                             broker()->mode());
-    return JSObjectRef(broker(),
-                       handle(object()->boilerplate(), broker()->isolate()));
+    return JSObjectRef(
+        broker(), broker()->CanonicalPersistentHandle(object()->boilerplate()));
   }
   ObjectData* boilerplate = data()->AsAllocationSite()->boilerplate();
   if (boilerplate) {
@@ -4013,8 +4016,8 @@ FixedArrayBaseRef JSObjectRef::elements() const {
                                                           broker()->mode());
     AllowHandleDereferenceIfNeeded allow_handle_dereference(data()->kind(),
                                                             broker()->mode());
-    return FixedArrayBaseRef(broker(),
-                             handle(object()->elements(), broker()->isolate()));
+    return FixedArrayBaseRef(
+        broker(), broker()->CanonicalPersistentHandle(object()->elements()));
   }
   return FixedArrayBaseRef(broker(), data()->AsJSObject()->elements());
 }
@@ -4272,7 +4275,8 @@ SharedFunctionInfoRef::function_template_info() const {
   if (data_->should_access_heap()) {
     if (object()->IsApiFunction()) {
       return FunctionTemplateInfoRef(
-          broker(), handle(object()->function_data(), broker()->isolate()));
+          broker(),
+          broker()->CanonicalPersistentHandle(object()->function_data()));
     }
     return base::nullopt;
   }
