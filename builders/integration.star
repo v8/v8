@@ -15,7 +15,7 @@ in_category(
         executable = {"name": "chromium_integration"},
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         execution_timeout = 10800,
-        properties = {"mastername": "client.v8.fyi"},
+        properties = {"builder_group": "client.v8.fyi"},
         use_goma = GOMA.AST,
     ),
     v8_builder(
@@ -25,7 +25,7 @@ in_category(
         executable = {"name": "chromium_integration"},
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         execution_timeout = 10800,
-        properties = {"mastername": "client.v8.fyi"},
+        properties = {"builder_group": "client.v8.fyi"},
         caches = [
             swarming.cache(
                 path = "osx_sdk",
@@ -45,7 +45,7 @@ in_category(
         ),
         executable = {"name": "chromium_integration"},
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"mastername": "client.v8.fyi"},
+        properties = {"builder_group": "client.v8.fyi"},
         use_goma = GOMA.DEFAULT,
     ),
     v8_builder(
@@ -58,7 +58,7 @@ in_category(
         ),
         executable = {"name": "chromium_integration"},
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"mastername": "client.v8.fyi"},
+        properties = {"builder_group": "client.v8.fyi"},
         use_goma = GOMA.DEFAULT,
     ),
     v8_builder(
@@ -67,7 +67,7 @@ in_category(
         triggered_by = ["v8-trigger"],
         executable = {"name": "chromium_integration"},
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"mastername": "client.v8.fyi"},
+        properties = {"builder_group": "client.v8.fyi"},
         use_goma = GOMA.DEFAULT,
     ),
 )
@@ -80,7 +80,7 @@ in_category(
         triggered_by = ["v8-trigger"],
         executable = {"name": "chromium"},
         dimensions = {"host_class": "large_disk", "os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"mastername": "client.v8.fyi"},
+        properties = {"builder_group": "client.v8.fyi"},
         use_goma = GOMA.DEFAULT,
     ),
     v8_builder(
@@ -89,7 +89,7 @@ in_category(
         triggered_by = ["v8-trigger"],
         executable = {"name": "chromium"},
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"mastername": "client.v8.fyi"},
+        properties = {"builder_group": "client.v8.fyi"},
         use_goma = GOMA.DEFAULT,
     ),
     v8_builder(
@@ -98,7 +98,7 @@ in_category(
         triggered_by = ["v8-trigger"],
         executable = {"name": "chromium"},
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"mastername": "client.v8.fyi"},
+        properties = {"builder_group": "client.v8.fyi"},
         use_goma = GOMA.DEFAULT,
     ),
     v8_builder(
@@ -108,7 +108,7 @@ in_category(
         executable = {"name": "chromium"},
         dimensions = {"host_class": "large_disk", "os": "Ubuntu-16.04", "cpu": "x86-64"},
         execution_timeout = 18000,
-        properties = {"mastername": "client.v8.fyi"},
+        properties = {"builder_group": "client.v8.fyi"},
         use_goma = GOMA.DEFAULT,
     ),
 )
@@ -122,7 +122,7 @@ in_category(
         executable = {"name": "chromium_integration"},
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         execution_timeout = 10800,
-        properties = {"mastername": "client.v8.fyi"},
+        properties = {"builder_group": "client.v8.fyi"},
         use_goma = GOMA.AST,
     ),
     v8_builder(
@@ -131,7 +131,7 @@ in_category(
         triggered_by = ["v8-trigger"],
         executable = {"name": "chromium_integration"},
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-        properties = {"mastername": "client.v8.fyi"},
+        properties = {"builder_group": "client.v8.fyi"},
         caches = [
             swarming.cache(
                 path = "osx_sdk",
@@ -146,7 +146,7 @@ in_category(
         triggered_by = ["v8-trigger"],
         executable = {"name": "chromium_integration"},
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"mastername": "client.v8.fyi"},
+        properties = {"builder_group": "client.v8.fyi"},
         use_goma = GOMA.DEFAULT,
     ),
     v8_builder(
@@ -155,7 +155,7 @@ in_category(
         triggered_by = ["v8-trigger"],
         executable = {"name": "chromium_integration"},
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"mastername": "client.v8.fyi"},
+        properties = {"builder_group": "client.v8.fyi"},
         use_goma = GOMA.DEFAULT,
     ),
     v8_builder(
@@ -165,7 +165,7 @@ in_category(
         executable = {"name": "chromium_integration"},
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
         execution_timeout = 10800,
-        properties = {"mastername": "client.v8.fyi"},
+        properties = {"builder_group": "client.v8.fyi"},
         use_goma = GOMA.DEFAULT,
     ),
 )
@@ -178,7 +178,7 @@ in_category(
         triggered_by = ["v8-trigger"],
         executable = {"name": "v8/node_integration_ng"},
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"v8_tot": True, "mastername": "client.v8.fyi"},
+        properties = {"v8_tot": True, "builder_group": "client.v8.fyi"},
         use_goma = GOMA.DEFAULT,
     ),
 )

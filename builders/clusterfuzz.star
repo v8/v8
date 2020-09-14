@@ -17,7 +17,7 @@ in_category(
             max_batch_size = 1,
         ),
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-        properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bitness": "64", "bucket": "v8-asan", "name": "d8-asan"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"]},
+        properties = {"builder_group": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bitness": "64", "bucket": "v8-asan", "name": "d8-asan"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"]},
         use_goma = GOMA.AST,
     ),
     v8_builder(
@@ -29,7 +29,7 @@ in_category(
             max_batch_size = 1,
         ),
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-        properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bitness": "64", "bucket": "v8-asan", "name": "d8-asan"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"]},
+        properties = {"builder_group": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bitness": "64", "bucket": "v8-asan", "name": "d8-asan"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"]},
         use_goma = GOMA.AST,
     ),
 )
@@ -45,7 +45,7 @@ in_category(
             max_batch_size = 1,
         ),
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-        properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"]},
+        properties = {"builder_group": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"]},
         caches = [
             swarming.cache(
                 path = "osx_sdk",
@@ -63,7 +63,7 @@ in_category(
             max_batch_size = 1,
         ),
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-        properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"]},
+        properties = {"builder_group": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"]},
         caches = [
             swarming.cache(
                 path = "osx_sdk",
@@ -85,7 +85,7 @@ in_category(
             max_batch_size = 1,
         ),
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"triggers": ["V8 NumFuzz"], "mastername": "client.v8.clusterfuzz", "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"]},
+        properties = {"triggers": ["V8 NumFuzz"], "builder_group": "client.v8.clusterfuzz", "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"]},
         use_goma = GOMA.DEFAULT,
     ),
     v8_builder(
@@ -97,7 +97,7 @@ in_category(
             max_batch_size = 1,
         ),
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"triggers": ["V8 NumFuzz - debug"], "mastername": "client.v8.clusterfuzz", "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"]},
+        properties = {"triggers": ["V8 NumFuzz - debug"], "builder_group": "client.v8.clusterfuzz", "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"]},
         use_goma = GOMA.DEFAULT,
     ),
     v8_builder(
@@ -109,7 +109,7 @@ in_category(
             max_batch_size = 1,
         ),
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan-no-inline"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"]},
+        properties = {"builder_group": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan-no-inline"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"]},
         use_goma = GOMA.DEFAULT,
     ),
     v8_builder(
@@ -121,7 +121,7 @@ in_category(
             max_batch_size = 1,
         ),
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"]},
+        properties = {"builder_group": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"]},
         use_goma = GOMA.DEFAULT,
     ),
     v8_builder(
@@ -133,7 +133,7 @@ in_category(
             max_batch_size = 1,
         ),
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-arm64-asan"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"]},
+        properties = {"builder_group": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-arm64-asan"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"]},
         use_goma = GOMA.DEFAULT,
     ),
     v8_builder(
@@ -145,7 +145,7 @@ in_category(
             max_batch_size = 1,
         ),
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-arm-asan"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"]},
+        properties = {"builder_group": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-arm-asan"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"]},
         use_goma = GOMA.DEFAULT,
     ),
     v8_builder(
@@ -157,7 +157,7 @@ in_category(
             max_batch_size = 1,
         ),
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "set_gclient_var": "checkout_instrumented_libraries", "build_config": "Release", "default_targets": ["v8_clusterfuzz"], "clusterfuzz_archive": {"bucket": "v8-msan", "name": "d8-msan-no-origins"}},
+        properties = {"builder_group": "client.v8.clusterfuzz", "clobber": True, "set_gclient_var": "checkout_instrumented_libraries", "build_config": "Release", "default_targets": ["v8_clusterfuzz"], "clusterfuzz_archive": {"bucket": "v8-msan", "name": "d8-msan-no-origins"}},
         use_goma = GOMA.DEFAULT,
     ),
     v8_builder(
@@ -169,7 +169,7 @@ in_category(
             max_batch_size = 1,
         ),
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "set_gclient_var": "checkout_instrumented_libraries", "build_config": "Release", "default_targets": ["v8_clusterfuzz"], "clusterfuzz_archive": {"bucket": "v8-msan", "name": "d8-msan-chained-origins"}},
+        properties = {"builder_group": "client.v8.clusterfuzz", "clobber": True, "set_gclient_var": "checkout_instrumented_libraries", "build_config": "Release", "default_targets": ["v8_clusterfuzz"], "clusterfuzz_archive": {"bucket": "v8-msan", "name": "d8-msan-chained-origins"}},
         use_goma = GOMA.DEFAULT,
     ),
     v8_builder(
@@ -181,7 +181,7 @@ in_category(
             max_batch_size = 1,
         ),
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-cfi", "name": "d8-cfi"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"]},
+        properties = {"builder_group": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-cfi", "name": "d8-cfi"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"]},
         use_goma = GOMA.DEFAULT,
     ),
     v8_builder(
@@ -193,7 +193,7 @@ in_category(
             max_batch_size = 1,
         ),
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"build_config": "Release", "default_targets": ["v8_clusterfuzz"], "mastername": "client.v8.clusterfuzz", "triggers": ["V8 NumFuzz - TSAN"]},
+        properties = {"build_config": "Release", "default_targets": ["v8_clusterfuzz"], "builder_group": "client.v8.clusterfuzz", "triggers": ["V8 NumFuzz - TSAN"]},
         use_goma = GOMA.DEFAULT,
     ),
     v8_builder(
@@ -205,7 +205,7 @@ in_category(
             max_batch_size = 1,
         ),
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-ubsan", "name": "d8-ubsan"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"]},
+        properties = {"builder_group": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-ubsan", "name": "d8-ubsan"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"]},
         use_goma = GOMA.DEFAULT,
     ),
 )
@@ -217,20 +217,20 @@ in_category(
         bucket = "ci",
         dimensions = {"host_class": "multibot"},
         execution_timeout = 19800,
-        properties = {"mastername": "client.v8.clusterfuzz"},
+        properties = {"builder_group": "client.v8.clusterfuzz"},
     ),
     v8_builder(
         name = "V8 NumFuzz - debug",
         bucket = "ci",
         dimensions = {"host_class": "multibot"},
         execution_timeout = 19800,
-        properties = {"mastername": "client.v8.clusterfuzz"},
+        properties = {"builder_group": "client.v8.clusterfuzz"},
     ),
     v8_builder(
         name = "V8 NumFuzz - TSAN",
         bucket = "ci",
         dimensions = {"host_class": "multibot"},
         execution_timeout = 19800,
-        properties = {"mastername": "client.v8.clusterfuzz"},
+        properties = {"builder_group": "client.v8.clusterfuzz"},
     ),
 )

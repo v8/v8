@@ -76,7 +76,7 @@ auto_builder(
     name = "Auto-tag",
     recipe = "v8/auto_tag",
     execution_timeout = 21600,
-    properties = {"mastername": "client.v8.branches"},
+    properties = {"builder_group": "client.v8.branches"},
     schedule = "triggered",
     triggering_policy = scheduler.policy(
         kind = scheduler.GREEDY_BATCHING_KIND,

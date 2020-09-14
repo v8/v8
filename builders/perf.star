@@ -5,7 +5,7 @@
 load("//lib/lib.star", "GOMA", "v8_builder")
 
 def perf_builder(in_category, **kwargs):
-    properties = {"triggers_proxy": True, "build_config": "Release", "mastername": "client.v8.perf"}
+    properties = {"triggers_proxy": True, "build_config": "Release", "builder_group": "client.v8.perf"}
     extra_properties = kwargs.pop("properties", {})
     properties.update(extra_properties)
     v8_builder(

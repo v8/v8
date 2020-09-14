@@ -23,7 +23,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "$depot_tools/osx_sdk": {"sdk_version": "11b52"}, "target_platform": "ios", "mastername": "client.v8"},
+    properties = {"build_config": "Release", "$depot_tools/osx_sdk": {"sdk_version": "11b52"}, "target_platform": "ios", "builder_group": "client.v8"},
     caches = [
         swarming.cache(
             path = "osx_sdk",
@@ -38,7 +38,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Debug", "mastername": "client.v8", "triggers": ["V8 Linux64 - debug - perfetto"]},
+    properties = {"build_config": "Debug", "builder_group": "client.v8", "triggers": ["V8 Linux64 - debug - perfetto"]},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -47,7 +47,7 @@ experiment_builder(
     bucket = "ci",
     dimensions = {"host_class": "multibot"},
     execution_timeout = 19800,
-    properties = {"mastername": "client.v8"},
+    properties = {"builder_group": "client.v8"},
 )
 
 experiment_builder(
@@ -55,7 +55,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "mastername": "client.v8"},
+    properties = {"build_config": "Release", "builder_group": "client.v8"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -64,7 +64,7 @@ experiment_builder(
     bucket = "ci",
     dimensions = {"host_class": "multibot"},
     execution_timeout = 19800,
-    properties = {"mastername": "client.v8"},
+    properties = {"builder_group": "client.v8"},
     to_notify = ["jgruber@chromium.org"],
     notify_on_step_failure = [".* nci", ".* nci_as_midtier", ".* stress_snapshot", ".* experimental_regexp"],
 )
@@ -74,7 +74,7 @@ experiment_builder(
     bucket = "ci",
     dimensions = {"host_class": "multibot"},
     execution_timeout = 19800,
-    properties = {"mastername": "client.v8"},
+    properties = {"builder_group": "client.v8"},
     to_notify = ["jgruber@chromium.org"],
     notify_on_step_failure = [".* nci", ".* nci_as_midtier", ".* stress_snapshot", ".* experimental_regexp"],
 )
@@ -84,7 +84,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"enable_swarming": False, "mastername": "client.v8", "clobber": True, "coverage": "gcov", "build_config": "Release"},
+    properties = {"enable_swarming": False, "builder_group": "client.v8", "clobber": True, "coverage": "gcov", "build_config": "Release"},
     use_goma = GOMA.NO,
 )
 
@@ -93,7 +93,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "mastername": "client.v8"},
+    properties = {"build_config": "Release", "builder_group": "client.v8"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -102,7 +102,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Debug", "mastername": "client.v8"},
+    properties = {"build_config": "Debug", "builder_group": "client.v8"},
     use_goma = GOMA.DEFAULT,
     to_notify = ["victorgomes@chromium.org"]
 )
@@ -111,7 +111,7 @@ experiment_builder(
     name = "V8 Fuchsia",
     bucket = "ci",
     dimensions = {"host_class": "multibot"},
-    properties = {"mastername": "client.v8"},
+    properties = {"builder_group": "client.v8"},
 )
 
 experiment_builder(
@@ -119,7 +119,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    properties = {"build_config": "Debug", "mastername": "client.v8"},
+    properties = {"build_config": "Debug", "builder_group": "client.v8"},
     caches = [
         swarming.cache(
             path = "osx_sdk",

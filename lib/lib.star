@@ -47,7 +47,7 @@ defaults_try = {
     "dimensions": {"host_class": "default", "pool": "luci.v8.try"},
     "service_account": "v8-try-builder@chops-service-accounts.iam.gserviceaccount.com",
     "execution_timeout": 1800,
-    "properties": {"mastername": "tryserver.v8"},
+    "properties": {"builder_group": "tryserver.v8"},
 }
 
 defaults_triggered = {
@@ -56,7 +56,7 @@ defaults_triggered = {
     "dimensions": {"host_class": "multibot", "pool": "luci.v8.try"},
     "service_account": "v8-try-builder@chops-service-accounts.iam.gserviceaccount.com",
     "execution_timeout": 3600,
-    "properties": {"mastername": "tryserver.v8"},
+    "properties": {"builder_group": "tryserver.v8"},
     "caches": [
         swarming.cache(
             path = "builder",
@@ -154,7 +154,7 @@ def branch_coverage_builder(**kwargs):
     return kwargs["name"]
 
 def perf_builder(**kwargs):
-    properties = {"triggers_proxy": True, "build_config": "Release", "mastername": "client.v8.perf"}
+    properties = {"triggers_proxy": True, "build_config": "Release", "builder_group": "client.v8.perf"}
     extra_properties = kwargs.pop("properties", None)
     if extra_properties:
         properties.update(extra_properties)
