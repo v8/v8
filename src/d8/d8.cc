@@ -3668,6 +3668,8 @@ void Shell::PostBlockingBackgroundTask(std::unique_ptr<Task> task) {
 
 bool Shell::HandleUnhandledPromiseRejections(Isolate* isolate) {
   if (options.ignore_unhandled_promises) return true;
+  // Disabling recursive rejected Promise handling.
+  options.ignore_unhandled_promises = true;
   PerIsolateData* data = PerIsolateData::Get(isolate);
   int count = data->HandleUnhandledPromiseRejections();
   Shell::unhandled_promise_rejections_.store(
