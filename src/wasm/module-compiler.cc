@@ -1628,7 +1628,7 @@ class BackgroundCompileJob : public JobTask {
       std::shared_ptr<BackgroundCompileToken> token,
       std::shared_ptr<Counters> async_counters,
       std::shared_ptr<std::atomic<int>> current_concurrency,
-      int max_concurrency)
+      size_t max_concurrency)
       : token_(std::move(token)),
         async_counters_(std::move(async_counters)),
         current_concurrency_(std::move(current_concurrency)),
@@ -1657,15 +1657,18 @@ class BackgroundCompileJob : public JobTask {
     }
   }
 
-  size_t GetMaxConcurrency(size_t /* worker_count */) const override {
-    return std::min(max_concurrency_, current_concurrency_->load());
+  size_t GetMaxConcurrency(size_t worker_count) const override {
+    // {current_concurrency_} does not reflect the units that running workers
+    // are processing, thus add the current worker count to that number.
+    return std::min(max_concurrency_,
+                    worker_count + current_concurrency_->load());
   }
 
  private:
   const std::shared_ptr<BackgroundCompileToken> token_;
   const std::shared_ptr<Counters> async_counters_;
   const std::shared_ptr<std::atomic<int>> current_concurrency_;
-  const int max_concurrency_;
+  const size_t max_concurrency_;
 };
 
 }  // namespace
@@ -3295,6 +3298,9 @@ class CompileJSToWasmWrapperJob final : public JobTask {
   }
 
   size_t GetMaxConcurrency(size_t /* worker_count */) const override {
+    // {outstanding_units_} includes the units that other workers are currently
+    // working on, so we can safely ignore the {worker_count} and just return
+    // the current number of outstanding units.
     return std::min(max_concurrency_,
                     outstanding_units_.load(std::memory_order_relaxed));
   }
