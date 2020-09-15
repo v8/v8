@@ -538,7 +538,7 @@ DEFINE_BOOL(block_concurrent_recompilation, false,
             "block queued jobs until released")
 DEFINE_BOOL(concurrent_inlining, false,
             "run optimizing compiler's inlining phase on a separate thread")
-DEFINE_BOOL(turbo_direct_heap_access, true,
+DEFINE_BOOL(turbo_direct_heap_access, false,
             "access kNeverSerialized objects directly from the heap")
 DEFINE_IMPLICATION(concurrent_inlining, turbo_direct_heap_access)
 DEFINE_IMPLICATION(turbo_direct_heap_access, local_heaps)
