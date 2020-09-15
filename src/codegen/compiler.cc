@@ -40,6 +40,7 @@
 #include "src/interpreter/interpreter.h"
 #include "src/logging/log-inl.h"
 #include "src/objects/feedback-cell-inl.h"
+#include "src/objects/js-function-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/shared-function-info.h"

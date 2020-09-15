@@ -13,6 +13,7 @@
 #include "src/objects/foreign-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-function-inl.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/managed.h"
 #include "src/objects/oddball-inl.h"

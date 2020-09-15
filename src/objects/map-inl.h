@@ -11,6 +11,7 @@
 #include "src/objects/descriptor-array-inl.h"
 #include "src/objects/field-type.h"
 #include "src/objects/instance-type-inl.h"
+#include "src/objects/js-function-inl.h"
 #include "src/objects/layout-descriptor-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/objects-inl.h"

@@ -26,6 +26,7 @@
 #include "src/logging/counters.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-function-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/smi.h"
 #include "src/snapshot/snapshot.h"
