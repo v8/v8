@@ -1239,7 +1239,8 @@ void SimdScalarLowering::LowerNode(Node* node) {
           float val[kNumLanes32];
           memcpy(val, params.data(), kSimd128Size);
           for (int i = 0; i < num_lanes; ++i) {
-            rep_node[i] = mcgraph_->Float32Constant(val[i]);
+            rep_node[i] = mcgraph_->Float32Constant(
+                base::ReadLittleEndianValue<float>(&val[i]));
           }
           break;
         }
