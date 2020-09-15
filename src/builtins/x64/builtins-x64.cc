@@ -3509,6 +3509,8 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ j(equal, &convert_param);
   // Change the paramfrom Smi to int32.
   __ SmiUntag(param);
+  // Zero extend.
+  __ movl(param, param);
 
   // -------------------------------------------
   // Param conversion done.
@@ -3667,6 +3669,8 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ bind(&kWasmI32_not_smi);
   __ Call(BUILTIN_CODE(masm->isolate(), WasmTaggedNonSmiToInt32),
           RelocInfo::CODE_TARGET);
+  // Param is the result of the builtin.
+  __ AssertZeroExtended(param);
   __ jmp(&restore_after_buitlin_call);
 
   __ bind(&kWasmI64);
