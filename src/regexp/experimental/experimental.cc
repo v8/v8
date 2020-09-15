@@ -44,7 +44,7 @@ bool ExperimentalRegExp::IsCompiled(Handle<JSRegExp> re, Isolate* isolate) {
          Smi::FromInt(JSRegExp::kUninitializedValue);
 }
 
-void ExperimentalRegExp::Compile(Isolate* isolate, Handle<JSRegExp> re) {
+bool ExperimentalRegExp::Compile(Isolate* isolate, Handle<JSRegExp> re) {
   DCHECK_EQ(re->TypeTag(), JSRegExp::EXPERIMENTAL);
 #ifdef VERIFY_HEAP
   re->JSRegExpVerify(isolate);
@@ -63,11 +63,15 @@ void ExperimentalRegExp::Compile(Isolate* isolate, Handle<JSRegExp> re) {
   FlatStringReader reader(isolate, source);
   DCHECK(!isolate->has_pending_exception());
 
-  // The pattern was already parsed during initialization, so it should never
-  // fail here:
   bool parse_success =
       RegExpParser::ParseRegExp(isolate, &zone, &reader, flags, &parse_result);
-  CHECK(parse_success);
+  if (!parse_success) {
+    // The pattern was already parsed successfully during initialization, so
+    // the only way parsing can fail now is because of stack overflow.
+    CHECK_EQ(parse_result.error, RegExpError::kStackOverflow);
+    USE(RegExp::ThrowRegExpException(isolate, re, source, parse_result.error));
+    return false;
+  }
 
   ZoneList<RegExpInstruction> bytecode =
       ExperimentalRegExpCompiler::Compile(parse_result.tree, flags, &zone);
@@ -84,6 +88,10 @@ void ExperimentalRegExp::Compile(Isolate* isolate, Handle<JSRegExp> re) {
   Handle<Code> trampoline = BUILTIN_CODE(isolate, RegExpExperimentalTrampoline);
   re->SetDataAt(JSRegExp::kIrregexpLatin1CodeIndex, *trampoline);
   re->SetDataAt(JSRegExp::kIrregexpUC16CodeIndex, *trampoline);
+
+  re->SetCaptureNameMap(parse_result.capture_name_map);
+
+  return true;
 }
 
 Vector<RegExpInstruction> AsInstructionSequence(ByteArray raw_bytes) {
@@ -94,11 +102,9 @@ Vector<RegExpInstruction> AsInstructionSequence(ByteArray raw_bytes) {
   return Vector<RegExpInstruction>(inst_begin, inst_num);
 }
 
-using MatchRange = ExperimentalRegExpInterpreter::MatchRange;
-
 // Returns the number of matches.
-int32_t ExperimentalRegExp::ExecRaw(JSRegExp regexp, String subject,
-                                    int32_t* output_registers,
+int32_t ExperimentalRegExp::ExecRaw(Isolate* isolate, JSRegExp regexp,
+                                    String subject, int32_t* output_registers,
                                     int32_t output_register_count,
                                     int32_t subject_index) {
   DisallowHeapAllocation no_gc;
@@ -118,21 +124,22 @@ int32_t ExperimentalRegExp::ExecRaw(JSRegExp regexp, String subject,
     StdoutStream{} << bytecode << std::endl;
   }
 
+  int register_count_per_match =
+      JSRegExp::RegistersForCaptureCount(regexp.CaptureCount());
+
   DCHECK(subject.IsFlat());
   String::FlatContent subject_content = subject.GetFlatContent(no_gc);
 
-  DCHECK_EQ(output_register_count % 2, 0);
-  MatchRange* matches = reinterpret_cast<MatchRange*>(output_registers);
-  const int32_t max_match_num = output_register_count / 2;
+  Zone zone(isolate->allocator(), ZONE_NAME);
 
   if (subject_content.IsOneByte()) {
     return ExperimentalRegExpInterpreter::FindMatchesNfaOneByte(
-        bytecode, subject_content.ToOneByteVector(), subject_index, matches,
-        max_match_num);
+        bytecode, register_count_per_match, subject_content.ToOneByteVector(),
+        subject_index, output_registers, output_register_count, &zone);
   } else {
     return ExperimentalRegExpInterpreter::FindMatchesNfaTwoByte(
-        bytecode, subject_content.ToUC16Vector(), subject_index, matches,
-        max_match_num);
+        bytecode, register_count_per_match, subject_content.ToUC16Vector(),
+        subject_index, output_registers, output_register_count, &zone);
   }
 }
 
@@ -156,7 +163,7 @@ int32_t ExperimentalRegExp::MatchForCallFromJs(
 
   JSRegExp regexp_obj = JSRegExp::cast(Object(regexp));
 
-  return ExecRaw(regexp_obj, subject_string, output_registers,
+  return ExecRaw(isolate, regexp_obj, subject_string, output_registers,
                  output_register_count, start_position);
 }
 
@@ -170,22 +177,28 @@ MaybeHandle<Object> ExperimentalRegExp::Exec(
   regexp->JSRegExpVerify(isolate);
 #endif
 
-  if (!IsCompiled(regexp, isolate)) {
-    Compile(isolate, regexp);
+  if (!IsCompiled(regexp, isolate) && !Compile(isolate, regexp)) {
+    DCHECK(isolate->has_pending_exception());
+    return MaybeHandle<Object>();
   }
 
   DCHECK(IsCompiled(regexp, isolate));
 
   subject = String::Flatten(isolate, subject);
 
-  MatchRange match;
-
-  int32_t* output_registers = &match.begin;
-  int32_t output_register_count = sizeof(MatchRange) / sizeof(int32_t);
-
   int capture_count = regexp->CaptureCount();
+  int output_register_count = JSRegExp::RegistersForCaptureCount(capture_count);
 
-  int num_matches = ExecRaw(*regexp, *subject, output_registers,
+  int32_t* output_registers;
+  std::unique_ptr<int32_t[]> output_registers_release;
+  if (output_register_count <= Isolate::kJSRegexpStaticOffsetsVectorSize) {
+    output_registers = isolate->jsregexp_static_offsets_vector();
+  } else {
+    output_registers = NewArray<int32_t>(output_register_count);
+    output_registers_release.reset(output_registers);
+  }
+
+  int num_matches = ExecRaw(isolate, *regexp, *subject, output_registers,
                             output_register_count, subject_index);
 
   if (num_matches == 0) {

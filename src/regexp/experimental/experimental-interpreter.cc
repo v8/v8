@@ -5,15 +5,16 @@
 #include "src/regexp/experimental/experimental-interpreter.h"
 
 #include "src/base/optional.h"
-#include "src/base/small-vector.h"
 #include "src/regexp/experimental/experimental.h"
+#include "src/zone/zone-allocator.h"
+#include "src/zone/zone-list-inl.h"
 
 namespace v8 {
 namespace internal {
 
-using MatchRange = ExperimentalRegExpInterpreter::MatchRange;
-
 namespace {
+
+constexpr int kUndefinedRegisterValue = -1;
 
 template <class Character>
 class NfaInterpreter {
@@ -66,14 +67,19 @@ class NfaInterpreter {
   // ACCEPTing thread with highest priority.
  public:
   NfaInterpreter(Vector<const RegExpInstruction> bytecode,
-                 Vector<const Character> input, int32_t input_index)
+                 int register_count_per_match, Vector<const Character> input,
+                 int32_t input_index, Zone* zone)
       : bytecode_(bytecode),
+        register_count_per_match_(register_count_per_match),
         input_(input),
         input_index_(input_index),
-        pc_last_input_index_(bytecode.size()),
-        active_threads_(),
-        blocked_threads_(),
-        best_match_(base::nullopt) {
+        pc_last_input_index_(zone->NewArray<int>(bytecode.length()),
+                             bytecode.length()),
+        active_threads_(0, zone),
+        blocked_threads_(0, zone),
+        register_array_allocator_(zone),
+        best_match_registers_(base::nullopt),
+        zone_(zone) {
     DCHECK(!bytecode_.empty());
     DCHECK_GE(input_index_, 0);
     DCHECK_LE(input_index_, input_.length());
@@ -81,31 +87,38 @@ class NfaInterpreter {
     std::fill(pc_last_input_index_.begin(), pc_last_input_index_.end(), -1);
   }
 
-  // Finds up to `max_match_num` matches and writes their boundaries to
-  // `matches_out`.  The search begins at the current input index.  Returns the
-  // number of matches found.
-  int FindMatches(MatchRange* matches_out, int max_match_num) {
+  // Finds matches and writes their concatenated capture registers to
+  // `output_registers`.  `output_registers[i]` has to be valid for all i <
+  // output_register_count.  The search continues until all remaining matches
+  // have been found or there is no space left in `output_registers`.  Returns
+  // the number of matches found.
+  int FindMatches(int32_t* output_registers, int output_register_count) {
+    const int max_match_num = output_register_count / register_count_per_match_;
+
     int match_num = 0;
     while (match_num != max_match_num) {
-      base::Optional<MatchRange> match = FindNextMatch();
-      if (!match.has_value()) {
-        break;
-      }
+      FindNextMatch();
+      if (!FoundMatch()) break;
+      Vector<int> registers = *best_match_registers_;
 
-      matches_out[match_num] = *match;
+      output_registers =
+          std::copy(registers.begin(), registers.end(), output_registers);
       ++match_num;
 
-      int match_length = match->end - match->begin;
+      const int match_begin = registers[0];
+      const int match_end = registers[1];
+      DCHECK_LE(match_begin, match_end);
+      const int match_length = match_end - match_begin;
       if (match_length != 0) {
-        SetInputIndex(match->end);
-      } else if (match->end == input_.length()) {
+        SetInputIndex(match_end);
+      } else if (match_end == input_.length()) {
         // Zero-length match, input exhausted.
-        SetInputIndex(match->end);
+        SetInputIndex(match_end);
         break;
       } else {
         // Zero-length match, more input.  We don't want to report more matches
         // here endlessly, so we advance by 1.
-        SetInputIndex(match->end + 1);
+        SetInputIndex(match_end + 1);
 
         // TODO(mbid,v8:10765): If we're in unicode mode, we have to advance to
         // the next codepoint, not to the next code unit. See also
@@ -113,6 +126,7 @@ class NfaInterpreter {
         STATIC_ASSERT(!ExperimentalRegExp::kSupportsUnicode);
       }
     }
+
     return match_num;
   }
 
@@ -122,9 +136,11 @@ class NfaInterpreter {
   struct InterpreterThread {
     // This thread's program counter, i.e. the index within `bytecode_` of the
     // next instruction to be executed.
-    int32_t pc;
-    // The index in the input string where this thread started executing.
-    int32_t match_begin;
+    int pc;
+    // Pointer to the array of registers, which is always size
+    // `register_count_per_match_`.  Should be deallocated with
+    // `register_array_allocator_`.
+    int* register_array_begin;
   };
 
   // Change the current input index for future calls to `FindNextMatch`.
@@ -135,9 +151,11 @@ class NfaInterpreter {
     input_index_ = new_input_index;
   }
 
-  // Find the next match, begin search at input_index_;
-  base::Optional<MatchRange> FindNextMatch() {
-    DCHECK(active_threads_.empty());
+  // Find the next match and return the corresponding capture registers and
+  // write its capture registers to `best_match_registers_`.  The search starts
+  // at the current `input_index_`.
+  void FindNextMatch() {
+    DCHECK(active_threads_.is_empty());
     // TODO(mbid,v8:10765): Can we get around resetting `pc_last_input_index_`
     // here? As long as
     //
@@ -152,12 +170,25 @@ class NfaInterpreter {
     // something about this in `SetInputIndex`.
     std::fill(pc_last_input_index_.begin(), pc_last_input_index_.end(), -1);
 
-    DCHECK(blocked_threads_.empty());
-    DCHECK(active_threads_.empty());
-    DCHECK_EQ(best_match_, base::nullopt);
+    // Clean up left-over data from a previous call to FindNextMatch.
+    for (InterpreterThread t : blocked_threads_) {
+      DestroyThread(t);
+    }
+    blocked_threads_.DropAndClear();
+
+    for (InterpreterThread t : active_threads_) {
+      DestroyThread(t);
+    }
+    active_threads_.DropAndClear();
+
+    if (best_match_registers_.has_value()) {
+      FreeRegisterArray(best_match_registers_->begin());
+      best_match_registers_ = base::nullopt;
+    }
 
     // All threads start at bytecode 0.
-    active_threads_.emplace_back(InterpreterThread{0, input_index_});
+    active_threads_.Add(
+        InterpreterThread{0, NewRegisterArray(kUndefinedRegisterValue)}, zone_);
     // Run the initial thread, potentially forking new threads, until every
     // thread is blocked without further input.
     RunActiveThreads();
@@ -170,15 +201,17 @@ class NfaInterpreter {
     //   threads are blocked here, so the latter simply means that
     //   `blocked_threads_` is empty.
     while (input_index_ != input_.length() &&
-           !(best_match_.has_value() && blocked_threads_.empty())) {
-      DCHECK(active_threads_.empty());
+           !(FoundMatch() && blocked_threads_.is_empty())) {
+      DCHECK(active_threads_.is_empty());
       uc16 input_char = input_[input_index_];
       ++input_index_;
 
       // If we haven't found a match yet, we add a thread with least priority
       // that attempts a match starting after `input_char`.
-      if (!best_match_.has_value()) {
-        active_threads_.emplace_back(InterpreterThread{0, input_index_});
+      if (!FoundMatch()) {
+        active_threads_.Add(
+            InterpreterThread{0, NewRegisterArray(kUndefinedRegisterValue)},
+            zone_);
       }
 
       // We unblock all blocked_threads_ by feeding them the input char.
@@ -187,14 +220,6 @@ class NfaInterpreter {
       // Run all threads until they block or accept.
       RunActiveThreads();
     }
-
-    // Clean up the data structures we used.
-    base::Optional<MatchRange> result = best_match_;
-    best_match_ = base::nullopt;
-    blocked_threads_.clear();
-    active_threads_.clear();
-
-    return result;
   }
 
   // Run an active thread `t` until it executes a CONSUME_RANGE or ACCEPT
@@ -211,13 +236,19 @@ class NfaInterpreter {
       RegExpInstruction inst = bytecode_[t.pc];
       switch (inst.opcode) {
         case RegExpInstruction::CONSUME_RANGE: {
-          blocked_threads_.emplace_back(t);
+          blocked_threads_.Add(t, zone_);
           return;
         }
         case RegExpInstruction::FORK: {
-          InterpreterThread fork = t;
-          fork.pc = inst.payload.pc;
-          active_threads_.emplace_back(fork);
+          InterpreterThread fork{inst.payload.pc,
+                                 NewRegisterArrayUninitialized()};
+          Vector<int> fork_registers = GetRegisterArray(fork);
+          Vector<int> t_registers = GetRegisterArray(t);
+          DCHECK_EQ(fork_registers.length(), t_registers.length());
+          std::copy(t_registers.begin(), t_registers.end(),
+                    fork_registers.begin());
+          active_threads_.Add(fork, zone_);
+
           ++t.pc;
           break;
         }
@@ -225,9 +256,25 @@ class NfaInterpreter {
           t.pc = inst.payload.pc;
           break;
         case RegExpInstruction::ACCEPT:
-          best_match_ = MatchRange{t.match_begin, input_index_};
-          active_threads_.clear();
+          if (best_match_registers_.has_value()) {
+            FreeRegisterArray(best_match_registers_->begin());
+          }
+          best_match_registers_ = GetRegisterArray(t);
+
+          for (InterpreterThread s : active_threads_) {
+            FreeRegisterArray(s.register_array_begin);
+          }
+          active_threads_.DropAndClear();
           return;
+        case RegExpInstruction::SET_REGISTER_TO_CP:
+          GetRegisterArray(t)[inst.payload.register_index] = input_index_;
+          ++t.pc;
+          break;
+        case RegExpInstruction::CLEAR_REGISTER:
+          GetRegisterArray(t)[inst.payload.register_index] =
+              kUndefinedRegisterValue;
+          ++t.pc;
+          break;
       }
     }
   }
@@ -236,10 +283,8 @@ class NfaInterpreter {
   // `active_threads_` is empty afterwards.  `blocked_threads_` are sorted from
   // low to high priority.
   void RunActiveThreads() {
-    while (!active_threads_.empty()) {
-      InterpreterThread t = active_threads_.back();
-      active_threads_.pop_back();
-      RunActiveThread(t);
+    while (!active_threads_.is_empty()) {
+      RunActiveThread(active_threads_.RemoveLast());
     }
   }
 
@@ -250,22 +295,45 @@ class NfaInterpreter {
     // The threads in blocked_threads_ are sorted from high to low priority,
     // but active_threads_ needs to be sorted from low to high priority, so we
     // need to activate blocked threads in reverse order.
-    //
-    // TODO(mbid,v8:10765): base::SmallVector doesn't support `rbegin()` and
-    // `rend()`, should we implement that instead of this awkward iteration?
-    // Maybe we could at least use an int i and check for i >= 0, but
-    // SmallVectors don't have length() methods.
-    for (size_t i = blocked_threads_.size(); i > 0; --i) {
-      InterpreterThread t = blocked_threads_[i - 1];
+    for (int i = blocked_threads_.length() - 1; i >= 0; --i) {
+      InterpreterThread t = blocked_threads_[i];
       RegExpInstruction inst = bytecode_[t.pc];
       DCHECK_EQ(inst.opcode, RegExpInstruction::CONSUME_RANGE);
       RegExpInstruction::Uc16Range range = inst.payload.consume_range;
       if (input_char >= range.min && input_char <= range.max) {
         ++t.pc;
-        active_threads_.emplace_back(t);
+        active_threads_.Add(t, zone_);
+      } else {
+        DestroyThread(t);
       }
     }
-    blocked_threads_.clear();
+    blocked_threads_.DropAndClear();
+  }
+
+  bool FoundMatch() const { return best_match_registers_.has_value(); }
+
+  Vector<int> GetRegisterArray(InterpreterThread t) {
+    return Vector<int>(t.register_array_begin, register_count_per_match_);
+  }
+
+  int* NewRegisterArrayUninitialized() {
+    return register_array_allocator_.allocate(register_count_per_match_);
+  }
+
+  int* NewRegisterArray(int fill_value) {
+    int* array_begin = NewRegisterArrayUninitialized();
+    int* array_end = array_begin + register_count_per_match_;
+    std::fill(array_begin, array_end, fill_value);
+    return array_begin;
+  }
+
+  void FreeRegisterArray(int* register_array_begin) {
+    register_array_allocator_.deallocate(register_array_begin,
+                                         register_count_per_match_);
+  }
+
+  void DestroyThread(InterpreterThread t) {
+    FreeRegisterArray(t.register_array_begin);
   }
 
   // It is redundant to have two threads t, t0 execute at the same PC value,
@@ -292,49 +360,60 @@ class NfaInterpreter {
     pc_last_input_index_[pc] = input_index_;
   }
 
-  Vector<const RegExpInstruction> bytecode_;
-  Vector<const Character> input_;
-  int input_index_;
+  const Vector<const RegExpInstruction> bytecode_;
 
-  // TODO(mbid,v8:10765): The following `SmallVector`s have somehwat
-  // arbitrarily chosen small capacity sizes; should benchmark to find a good
-  // value.
+  // Number of registers used per thread.
+  const int register_count_per_match_;
+
+  const Vector<const Character> input_;
+  int input_index_;
 
   // pc_last_input_index_[k] records the value of input_index_ the last
   // time a thread t such that t.pc == k was activated, i.e. put on
   // active_threads_.  Thus pc_last_input_index.size() == bytecode.size().  See
   // also `RunActiveThread`.
-  base::SmallVector<int, 64> pc_last_input_index_;
+  Vector<int> pc_last_input_index_;
 
   // Active threads can potentially (but not necessarily) continue without
   // input.  Sorted from low to high priority.
-  base::SmallVector<InterpreterThread, 64> active_threads_;
+  ZoneList<InterpreterThread> active_threads_;
 
   // The pc of a blocked thread points to an instruction that consumes a
   // character. Sorted from high to low priority (so the opposite of
   // `active_threads_`).
-  base::SmallVector<InterpreterThread, 64> blocked_threads_;
+  ZoneList<InterpreterThread> blocked_threads_;
 
-  // The best match found so far during the current search.  If several threads
-  // ACCEPTed, then this will be the match of the accepting thread with highest
-  // priority.
-  base::Optional<MatchRange> best_match_;
+  // RecyclingZoneAllocator maintains a linked list through freed allocations
+  // for reuse if possible.
+  RecyclingZoneAllocator<int> register_array_allocator_;
+
+  // The register array of the best match found so far during the current
+  // search.  If several threads ACCEPTed, then this will be the register array
+  // of the accepting thread with highest priority.  Should be deallocated with
+  // `register_array_allocator_`.
+  base::Optional<Vector<int>> best_match_registers_;
+
+  Zone* zone_;
 };
 
 }  // namespace
 
 int ExperimentalRegExpInterpreter::FindMatchesNfaOneByte(
-    Vector<const RegExpInstruction> bytecode, Vector<const uint8_t> input,
-    int start_index, MatchRange* matches_out, int max_match_num) {
-  NfaInterpreter<uint8_t> interpreter(bytecode, input, start_index);
-  return interpreter.FindMatches(matches_out, max_match_num);
+    Vector<const RegExpInstruction> bytecode, int register_count_per_match,
+    Vector<const uint8_t> input, int start_index, int32_t* output_registers,
+    int output_register_count, Zone* zone) {
+  NfaInterpreter<uint8_t> interpreter(bytecode, register_count_per_match, input,
+                                      start_index, zone);
+  return interpreter.FindMatches(output_registers, output_register_count);
 }
 
 int ExperimentalRegExpInterpreter::FindMatchesNfaTwoByte(
-    Vector<const RegExpInstruction> bytecode, Vector<const uc16> input,
-    int start_index, MatchRange* matches_out, int max_match_num) {
-  NfaInterpreter<uc16> interpreter(bytecode, input, start_index);
-  return interpreter.FindMatches(matches_out, max_match_num);
+    Vector<const RegExpInstruction> bytecode, int register_count_per_match,
+    Vector<const uc16> input, int start_index, int32_t* output_registers,
+    int output_register_count, Zone* zone) {
+  NfaInterpreter<uc16> interpreter(bytecode, register_count_per_match, input,
+                                   start_index, zone);
+  return interpreter.FindMatches(output_registers, output_register_count);
 }
 
 }  // namespace internal

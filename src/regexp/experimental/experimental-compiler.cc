@@ -21,9 +21,7 @@ class CanBeHandledVisitor final : private RegExpVisitor {
  public:
   static bool Check(RegExpTree* node, JSRegExp::Flags flags, int capture_count,
                     Zone* zone) {
-    if (!AreSuitableFlags(flags) || capture_count > 0) {
-      return false;
-    }
+    if (!AreSuitableFlags(flags)) return false;
     CanBeHandledVisitor visitor(zone);
     node->Accept(&visitor, nullptr);
     return visitor.result_;
@@ -151,9 +149,7 @@ class CanBeHandledVisitor final : private RegExpVisitor {
   }
 
   void* VisitCapture(RegExpCapture* node, void*) override {
-    // TODO(mbid, v8:10765): This can be implemented with the NFA interpreter,
-    // but not with the lazy DFA.  See also re2.
-    result_ = false;
+    node->body()->Accept(this, nullptr);
     return nullptr;
   }
 
@@ -287,7 +283,9 @@ class CompileVisitor : private RegExpVisitor {
                                              Zone* zone) {
     CompileVisitor compiler(zone);
 
+    compiler.code_.Add(RegExpInstruction::SetRegisterToCp(0), zone);
     tree->Accept(&compiler, nullptr);
+    compiler.code_.Add(RegExpInstruction::SetRegisterToCp(1), zone);
     compiler.code_.Add(RegExpInstruction::Accept(), zone);
 
     return std::move(compiler.code_);
@@ -404,11 +402,35 @@ class CompileVisitor : private RegExpVisitor {
     return nullptr;
   }
 
-  void* VisitQuantifier(RegExpQuantifier* node, void*) override {
-    // First repeat the body `min()` times.
-    for (int i = 0; i != node->min(); ++i) {
-      node->body()->Accept(this, nullptr);
+  void ClearRegisters(Interval indices) {
+    if (indices.is_empty()) return;
+    DCHECK_EQ(indices.from() % 2, 0);
+    DCHECK_EQ(indices.to() % 2, 1);
+    for (int i = indices.from(); i <= indices.to(); i += 2) {
+      // It suffices to clear the register containing the `begin` of a capture
+      // because this indicates that the capture is undefined, regardless of
+      // the value in the `end` register.
+      code_.Add(RegExpInstruction::ClearRegister(i), zone_);
     }
+  }
+
+  void* VisitQuantifier(RegExpQuantifier* node, void*) override {
+    // Emit the body, but clear registers occuring in body first.
+    //
+    // TODO(mbid,v8:10765): It's not always necessary to a) capture registers
+    // and b) clear them. For example, we don't have to capture anything for
+    // the first 4 repetitions if node->min() >= 5, and then we don't have to
+    // clear registers in the first node->min() repetitions.
+    // Later, and if node->min() == 0, we don't have to clear registers before
+    // the first optional repetition.
+    Interval body_registers = node->body()->CaptureRegisters();
+    auto emit_body = [&]() {
+      ClearRegisters(body_registers);
+      node->body()->Accept(this, nullptr);
+    };
+
+    // First repeat the body `min()` times.
+    for (int i = 0; i != node->min(); ++i) emit_body();
 
     switch (node->quantifier_type()) {
       case RegExpQuantifier::POSSESSIVE:
@@ -430,7 +452,7 @@ class CompileVisitor : private RegExpVisitor {
           DeferredLabel end;
 
           AddForkTo(end, code_, zone_);
-          node->body()->Accept(this, nullptr);
+          emit_body();
           AddJmpTo(begin, code_, zone_);
 
           std::move(end).Bind(code_);
@@ -452,7 +474,7 @@ class CompileVisitor : private RegExpVisitor {
           DeferredLabel end;
           for (int i = node->min(); i != node->max(); ++i) {
             AddForkTo(end, code_, zone_);
-            node->body()->Accept(this, nullptr);
+            emit_body();
           }
           std::move(end).Bind(code_);
         }
@@ -478,7 +500,7 @@ class CompileVisitor : private RegExpVisitor {
 
           DCHECK_EQ(body.index(), code_.length());
 
-          node->body()->Accept(this, nullptr);
+          emit_body();
           AddForkTo(body, code_, zone_);
 
           std::move(end).Bind(code_);
@@ -509,20 +531,24 @@ class CompileVisitor : private RegExpVisitor {
 
             DCHECK_EQ(body.index(), code_.length());
 
-            node->body()->Accept(this, nullptr);
+            emit_body();
           }
           std::move(end).Bind(code_);
         }
         break;
       }
     }
-
     return nullptr;
   }
 
   void* VisitCapture(RegExpCapture* node, void*) override {
-    // TODO(mbid,v8:10765): Support this case.
-    UNREACHABLE();
+    int index = node->index();
+    int start_register = RegExpCapture::StartRegister(index);
+    int end_register = RegExpCapture::EndRegister(index);
+    code_.Add(RegExpInstruction::SetRegisterToCp(start_register), zone_);
+    node->body()->Accept(this, nullptr);
+    code_.Add(RegExpInstruction::SetRegisterToCp(end_register), zone_);
+    return nullptr;
   }
 
   void* VisitGroup(RegExpGroup* node, void*) override {

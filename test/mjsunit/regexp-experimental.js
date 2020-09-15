@@ -60,5 +60,16 @@ Test(/(?:asdf)/, "123asdfxyz", ["asdf"], 0);
 Test(/(?:asdf)|123/, "xyz123asdf", ["123"], 0);
 Test(/asdf(?:[0-9]|(?:xy|x)*)*/, "kkkasdf5xyx8xyyky", ["asdf5xyx8xy"], 0);
 
+// Capturing groups.
+Test(/()/, "asdf", ["", ""], 0);
+Test(/(123)/, "asdf123xyz", ["123", "123"], 0);
+Test(/asdf(123)xyz/, "asdf123xyz", ["asdf123xyz", "123"], 0);
+Test(/(123|xyz)/, "123", ["123", "123"], 0);
+Test(/(123|xyz)/, "xyz", ["xyz", "xyz"], 0);
+Test(/(123)|(xyz)/, "123", ["123", "123", undefined], 0);
+Test(/(123)|(xyz)/, "xyz", ["xyz", undefined, "xyz"], 0);
+Test(/(?:(123)|(xyz))*/, "xyz123", ["xyz123", "123", undefined], 0);
+Test(/((123)|(xyz)*)*/, "xyz123xyz", ["xyz123xyz", "xyz", undefined, "xyz"], 0);
+
 // The global flag.
 Test(/asdf/g, "fjasdfkkasdf", ["asdf"], 6);

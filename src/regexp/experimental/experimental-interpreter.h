@@ -11,15 +11,10 @@
 namespace v8 {
 namespace internal {
 
+class Zone;
+
 class ExperimentalRegExpInterpreter final : public AllStatic {
  public:
-  // A half-open range in an a string denoting a (sub)match.  Used to access
-  // output registers of regexp execution grouped by [begin, end) pairs.
-  struct MatchRange {
-    int32_t begin;  // inclusive
-    int32_t end;    // exclusive
-  };
-
   // Executes a bytecode program in breadth-first NFA mode, without
   // backtracking, to find matching substrings.  Trys to find up to
   // `max_match_num` matches in `input`, starting at `start_index`.  Returns
@@ -27,11 +22,14 @@ class ExperimentalRegExpInterpreter final : public AllStatic {
   // are written to `matches_out`.  Provided in variants for one-byte and
   // two-byte strings.
   static int FindMatchesNfaOneByte(Vector<const RegExpInstruction> bytecode,
+                                   int capture_count,
                                    Vector<const uint8_t> input, int start_index,
-                                   MatchRange* matches_out, int max_match_num);
+                                   int32_t* output_registers,
+                                   int output_register_count, Zone* zone);
   static int FindMatchesNfaTwoByte(Vector<const RegExpInstruction> bytecode,
-                                   Vector<const uc16> input, int start_index,
-                                   MatchRange* matches_out, int max_match_num);
+                                   int capture_count, Vector<const uc16> input,
+                                   int start_index, int32_t* output_registers,
+                                   int output_register_count, Zone* zone);
 };
 
 }  // namespace internal

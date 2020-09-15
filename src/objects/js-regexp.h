@@ -89,6 +89,9 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   void MarkTierUpForNextExec();
 
   inline Type TypeTag() const;
+  static bool TypeSupportsCaptures(Type t) {
+    return t == IRREGEXP || t == EXPERIMENTAL;
+  }
 
   // Maximum number of captures allowed.
   static constexpr int kMaxCaptures = 1 << 16;
@@ -105,6 +108,7 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   inline Object DataAt(int index) const;
   // Set implementation data after the object has been prepared.
   inline void SetDataAt(int index, Object value);
+  inline void SetCaptureNameMap(Handle<FixedArray> capture_name_map);
 
   static constexpr int code_index(bool is_latin1) {
     return is_latin1 ? kIrregexpLatin1CodeIndex : kIrregexpUC16CodeIndex;

@@ -25,7 +25,8 @@ class ExperimentalRegExp final : public AllStatic {
                          Handle<String> pattern, JSRegExp::Flags flags,
                          int capture_count);
   static bool IsCompiled(Handle<JSRegExp> re, Isolate* isolate);
-  static void Compile(Isolate* isolate, Handle<JSRegExp> re);
+  V8_WARN_UNUSED_RESULT
+  static bool Compile(Isolate* isolate, Handle<JSRegExp> re);
 
   // Execution:
   static int32_t MatchForCallFromJs(Address subject, int32_t start_position,
@@ -38,7 +39,7 @@ class ExperimentalRegExp final : public AllStatic {
   static MaybeHandle<Object> Exec(Isolate* isolate, Handle<JSRegExp> regexp,
                                   Handle<String> subject, int index,
                                   Handle<RegExpMatchInfo> last_match_info);
-  static int32_t ExecRaw(JSRegExp regexp, String subject,
+  static int32_t ExecRaw(Isolate* isolate, JSRegExp regexp, String subject,
                          int32_t* output_registers,
                          int32_t output_register_count, int32_t subject_index);
 

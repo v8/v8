@@ -41,6 +41,12 @@ std::ostream& operator<<(std::ostream& os, const RegExpInstruction& inst) {
     case RegExpInstruction::ACCEPT:
       os << "ACCEPT";
       break;
+    case RegExpInstruction::SET_REGISTER_TO_CP:
+      os << "SET_REGISTER_TO_CP " << inst.payload.register_index;
+      break;
+    case RegExpInstruction::CLEAR_REGISTER:
+      os << "CLEAR_REGISTER " << inst.payload.register_index;
+      break;
   }
   return os;
 }

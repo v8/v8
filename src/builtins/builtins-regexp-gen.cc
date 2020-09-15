@@ -257,11 +257,15 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     TNode<FixedArray> data =
         CAST(LoadObjectField(regexp, JSRegExp::kDataOffset));
 
-    // We reach this point only if captures exist, implying that this is an
-    // IRREGEXP JSRegExp.
-    CSA_ASSERT(this,
-               SmiEqual(CAST(LoadFixedArrayElement(data, JSRegExp::kTagIndex)),
-                        SmiConstant(JSRegExp::IRREGEXP)));
+    // We reach this point only if captures exist, implying that the assigned
+    // regexp engine must be able to handle captures.
+    CSA_ASSERT(
+        this,
+        Word32Or(
+            SmiEqual(CAST(LoadFixedArrayElement(data, JSRegExp::kTagIndex)),
+                     SmiConstant(JSRegExp::IRREGEXP)),
+            SmiEqual(CAST(LoadFixedArrayElement(data, JSRegExp::kTagIndex)),
+                     SmiConstant(JSRegExp::EXPERIMENTAL))));
 
     // The names fixed array associates names at even indices with a capture
     // index at odd indices.

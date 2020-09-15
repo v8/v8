@@ -46,6 +46,10 @@
 // - JMP: Instead of incrementing the PC value after execution of this
 //   instruction by 1, set PC of this thread to the value specified in the
 //   instruction payload and continue there.
+// - SET_REGISTER_TO_CP: Set a register specified in the paylod to the current
+//   position (CP) within the input, then continue with the next instruction.
+// - CLEAR_REGISTER: Clear the register specified in the payload by resetting
+//   it to the initial value -1.
 //
 // Special care must be exercised with respect to thread priority.  It is
 // possible that more than one thread executes an ACCEPT statement.  The output
@@ -91,6 +95,8 @@ struct RegExpInstruction {
     FORK,
     JMP,
     ACCEPT,
+    SET_REGISTER_TO_CP,
+    CLEAR_REGISTER,
   };
 
   struct Uc16Range {
@@ -125,12 +131,28 @@ struct RegExpInstruction {
     return result;
   }
 
+  static RegExpInstruction SetRegisterToCp(int32_t register_index) {
+    RegExpInstruction result;
+    result.opcode = SET_REGISTER_TO_CP;
+    result.payload.register_index = register_index;
+    return result;
+  }
+
+  static RegExpInstruction ClearRegister(int32_t register_index) {
+    RegExpInstruction result;
+    result.opcode = CLEAR_REGISTER;
+    result.payload.register_index = register_index;
+    return result;
+  }
+
   Opcode opcode;
   union {
     // Payload of CONSUME_RANGE:
     Uc16Range consume_range;
     // Payload of FORK and JMP, the next/forked program counter (pc):
     int32_t pc;
+    // Payload of SET_REGISTER_TO_CP and CLEAR_REGISTER:
+    int32_t register_index;
   } payload;
   STATIC_ASSERT(sizeof(payload) == 4);
 };

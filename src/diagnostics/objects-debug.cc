@@ -1242,10 +1242,8 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
 
       CHECK_EQ(arr.get(JSRegExp::kIrregexpMaxRegisterCountIndex),
                uninitialized);
-      // TODO(mbid,v8:10765): Once the EXPERIMENTAL regexps support captures,
-      // the capture count should be allowed to be a Smi >= 0.
-      CHECK_EQ(arr.get(JSRegExp::kIrregexpCaptureCountIndex), Smi::FromInt(0));
-      CHECK_EQ(arr.get(JSRegExp::kIrregexpCaptureNameMapIndex), uninitialized);
+      CHECK(arr.get(JSRegExp::kIrregexpCaptureCountIndex).IsSmi());
+      CHECK_GE(Smi::ToInt(arr.get(JSRegExp::kIrregexpCaptureCountIndex)), 0);
       CHECK_EQ(arr.get(JSRegExp::kIrregexpTicksUntilTierUpIndex),
                uninitialized);
       CHECK_EQ(arr.get(JSRegExp::kIrregexpBacktrackLimit), uninitialized);
@@ -1282,6 +1280,7 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
       CHECK_IMPLIES(uc16_data.IsSmi(), uc16_bytecode.IsSmi());
 
       CHECK(arr.get(JSRegExp::kIrregexpCaptureCountIndex).IsSmi());
+      CHECK_GE(Smi::ToInt(arr.get(JSRegExp::kIrregexpCaptureCountIndex)), 0);
       CHECK(arr.get(JSRegExp::kIrregexpMaxRegisterCountIndex).IsSmi());
       CHECK(arr.get(JSRegExp::kIrregexpTicksUntilTierUpIndex).IsSmi());
       CHECK(arr.get(JSRegExp::kIrregexpBacktrackLimit).IsSmi());
