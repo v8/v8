@@ -17,7 +17,7 @@ MarkingVerifier::MarkingVerifier(HeapBase& heap,
       ConservativeTracingVisitor(heap, *heap.page_backend(), *this) {
   Traverse(&heap.raw_heap());
   if (stack_state == Heap::Config::StackState::kMayContainHeapPointers) {
-    in_construction_objects_ = in_construction_objects_stack_;
+    in_construction_objects_ = &in_construction_objects_stack_;
     heap.stack()->IteratePointers(this);
     CHECK_EQ(in_construction_objects_stack_, in_construction_objects_heap_);
   }
@@ -45,7 +45,7 @@ void MarkingVerifier::VerifyChild(const void* base_object_payload) {
 void MarkingVerifier::VisitConservatively(
     HeapObjectHeader& header, TraceConservativelyCallback callback) {
   CHECK(header.IsMarked());
-  in_construction_objects_.insert(&header);
+  in_construction_objects_->insert(&header);
   callback(this, header);
 }
 

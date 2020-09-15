@@ -39,8 +39,8 @@ class V8_EXPORT_PRIVATE MarkingVerifier final
 
   std::unordered_set<const HeapObjectHeader*> in_construction_objects_heap_;
   std::unordered_set<const HeapObjectHeader*> in_construction_objects_stack_;
-  std::unordered_set<const HeapObjectHeader*>& in_construction_objects_ =
-      in_construction_objects_heap_;
+  std::unordered_set<const HeapObjectHeader*>* in_construction_objects_ =
+      &in_construction_objects_heap_;
 };
 
 }  // namespace internal
