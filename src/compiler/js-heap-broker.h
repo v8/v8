@@ -10,6 +10,7 @@
 #include "src/common/globals.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/feedback-source.h"
+#include "src/compiler/globals.h"
 #include "src/compiler/processed-feedback.h"
 #include "src/compiler/refs-map.h"
 #include "src/compiler/serializer-hints.h"
@@ -102,6 +103,12 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   bool is_concurrent_inlining() const { return is_concurrent_inlining_; }
   bool is_native_context_independent() const {
     return is_native_context_independent_;
+  }
+  bool generate_full_feedback_collection() const {
+    // NCI code currently collects full feedback.
+    DCHECK_IMPLIES(is_native_context_independent(),
+                   CollectFeedbackInGenericLowering());
+    return is_native_context_independent();
   }
 
   enum BrokerMode { kDisabled, kSerializing, kSerialized, kRetired };

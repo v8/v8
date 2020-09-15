@@ -67,6 +67,21 @@ class BytecodeGraphBuilder {
   bool native_context_independent() const {
     return CodeKindIsNativeContextIndependentJSFunction(code_kind_);
   }
+  bool generate_full_feedback_collection() const {
+    // NCI code currently collects full feedback.
+    DCHECK_IMPLIES(native_context_independent(),
+                   CollectFeedbackInGenericLowering());
+    return native_context_independent();
+  }
+
+  static const JSTypeHintLowering::LoweringResult kNoChange;
+  bool CanApplyTypeHintLowering(IrOpcode::Value opcode) const {
+    return !generate_full_feedback_collection() ||
+           !IrOpcode::IsFeedbackCollectingOpcode(opcode);
+  }
+  bool CanApplyTypeHintLowering(const Operator* op) const {
+    return CanApplyTypeHintLowering(static_cast<IrOpcode::Value>(op->opcode()));
+  }
 
   // The node representing the current feedback vector is generated once prior
   // to visiting bytecodes, and is later passed as input to other nodes that
@@ -466,6 +481,9 @@ class BytecodeGraphBuilder {
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeGraphBuilder);
 };
+
+const JSTypeHintLowering::LoweringResult BytecodeGraphBuilder::kNoChange =
+    JSTypeHintLowering::LoweringResult::NoChange();
 
 // The abstract execution environment simulates the content of the interpreter
 // register file. The environment performs SSA-renaming of all tracked nodes at
@@ -1561,6 +1579,7 @@ Node* BytecodeGraphBuilder::BuildLoadGlobal(NameRef name,
   DCHECK(IsLoadGlobalICKind(broker()->GetFeedbackSlotKind(feedback)));
   const Operator* op =
       javascript()->LoadGlobal(name.object(), feedback, typeof_mode);
+  DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
   return NewNode(op, feedback_vector_node());
 }
 
@@ -1596,6 +1615,7 @@ void BytecodeGraphBuilder::VisitStaGlobal() {
       GetLanguageModeFromSlotKind(broker()->GetFeedbackSlotKind(feedback));
   const Operator* op =
       javascript()->StoreGlobal(language_mode, name.object(), feedback);
+  DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
   Node* node = NewNode(op, value, feedback_vector_node());
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
@@ -1620,6 +1640,7 @@ void BytecodeGraphBuilder::VisitStaInArrayLiteral() {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
+    DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
     node = NewNode(op, array, index, value, feedback_vector_node());
   }
 
@@ -1648,6 +1669,7 @@ void BytecodeGraphBuilder::VisitStaDataPropertyInLiteral() {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
+    DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
     node = NewNode(op, object, name, value, jsgraph()->Constant(flags),
                    feedback_vector_node());
   }
@@ -2002,6 +2024,7 @@ void BytecodeGraphBuilder::VisitLdaNamedProperty() {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
+    DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
     node = NewNode(op, object, feedback_vector_node());
   }
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
@@ -2014,6 +2037,7 @@ void BytecodeGraphBuilder::VisitLdaNamedPropertyNoFeedback() {
   NameRef name(broker(),
                bytecode_iterator().GetConstantForIndexOperand(1, isolate()));
   const Operator* op = javascript()->LoadNamed(name.object(), FeedbackSource());
+  DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
   Node* node = NewNode(op, object, feedback_vector_node());
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
@@ -2053,6 +2077,7 @@ void BytecodeGraphBuilder::VisitLdaKeyedProperty() {
     STATIC_ASSERT(JSLoadPropertyNode::ObjectIndex() == 0);
     STATIC_ASSERT(JSLoadPropertyNode::KeyIndex() == 1);
     STATIC_ASSERT(JSLoadPropertyNode::FeedbackVectorIndex() == 2);
+    DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
     node = NewNode(op, object, key, feedback_vector_node());
   }
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
@@ -2090,6 +2115,7 @@ void BytecodeGraphBuilder::BuildNamedStore(StoreMode store_mode) {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
+    DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
     node = NewNode(op, object, value, feedback_vector_node());
   }
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
@@ -2110,6 +2136,7 @@ void BytecodeGraphBuilder::VisitStaNamedPropertyNoFeedback() {
       static_cast<LanguageMode>(bytecode_iterator().GetFlagOperand(2));
   const Operator* op =
       javascript()->StoreNamed(language_mode, name.object(), FeedbackSource());
+  DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
   Node* node = NewNode(op, object, value, feedback_vector_node());
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
@@ -2144,6 +2171,7 @@ void BytecodeGraphBuilder::VisitStaKeyedProperty() {
     STATIC_ASSERT(JSStorePropertyNode::KeyIndex() == 1);
     STATIC_ASSERT(JSStorePropertyNode::ValueIndex() == 2);
     STATIC_ASSERT(JSStorePropertyNode::FeedbackVectorIndex() == 3);
+    DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
     node = NewNode(op, object, key, value, feedback_vector_node());
   }
 
@@ -2279,9 +2307,10 @@ void BytecodeGraphBuilder::VisitCreateRegExpLiteral() {
   FeedbackSource pair = CreateFeedbackSource(slot_id);
   int literal_flags = bytecode_iterator().GetFlagOperand(2);
   STATIC_ASSERT(JSCreateLiteralRegExpNode::FeedbackVectorIndex() == 0);
-  Node* literal = NewNode(javascript()->CreateLiteralRegExp(
-                              constant_pattern.object(), pair, literal_flags),
-                          feedback_vector_node());
+  const Operator* op = javascript()->CreateLiteralRegExp(
+      constant_pattern.object(), pair, literal_flags);
+  DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
+  Node* literal = NewNode(op, feedback_vector_node());
   environment()->BindAccumulator(literal, Environment::kAttachFrameState);
 }
 
@@ -2301,18 +2330,20 @@ void BytecodeGraphBuilder::VisitCreateArrayLiteral() {
   int number_of_elements =
       array_boilerplate_description.constants_elements_length();
   STATIC_ASSERT(JSCreateLiteralArrayNode::FeedbackVectorIndex() == 0);
-  Node* literal = NewNode(
+  const Operator* op =
       javascript()->CreateLiteralArray(array_boilerplate_description.object(),
-                                       pair, literal_flags, number_of_elements),
-      feedback_vector_node());
+                                       pair, literal_flags, number_of_elements);
+  DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
+  Node* literal = NewNode(op, feedback_vector_node());
   environment()->BindAccumulator(literal, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitCreateEmptyArrayLiteral() {
   int const slot_id = bytecode_iterator().GetIndexOperand(0);
   FeedbackSource pair = CreateFeedbackSource(slot_id);
-  Node* literal = NewNode(javascript()->CreateEmptyLiteralArray(pair),
-                          feedback_vector_node());
+  const Operator* op = javascript()->CreateEmptyLiteralArray(pair);
+  DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
+  Node* literal = NewNode(op, feedback_vector_node());
   environment()->BindAccumulator(literal);
 }
 
@@ -2332,10 +2363,10 @@ void BytecodeGraphBuilder::VisitCreateObjectLiteral() {
       interpreter::CreateObjectLiteralFlags::FlagsBits::decode(bytecode_flags);
   int number_of_properties = constant_properties.size();
   STATIC_ASSERT(JSCreateLiteralObjectNode::FeedbackVectorIndex() == 0);
-  Node* literal = NewNode(
-      javascript()->CreateLiteralObject(constant_properties.object(), pair,
-                                        literal_flags, number_of_properties),
-      feedback_vector_node());
+  const Operator* op = javascript()->CreateLiteralObject(
+      constant_properties.object(), pair, literal_flags, number_of_properties);
+  DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
+  Node* literal = NewNode(op, feedback_vector_node());
   environment()->BindAccumulator(literal, Environment::kAttachFrameState);
 }
 
@@ -2354,6 +2385,7 @@ void BytecodeGraphBuilder::VisitCloneObject() {
       javascript()->CloneObject(CreateFeedbackSource(slot), flags);
   STATIC_ASSERT(JSCloneObjectNode::SourceIndex() == 0);
   STATIC_ASSERT(JSCloneObjectNode::FeedbackVectorIndex() == 1);
+  DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
   Node* value = NewNode(op, source, feedback_vector_node());
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
@@ -2365,10 +2397,10 @@ void BytecodeGraphBuilder::VisitGetTemplateObject() {
   TemplateObjectDescriptionRef description(
       broker(), bytecode_iterator().GetConstantForIndexOperand(0, isolate()));
   STATIC_ASSERT(JSGetTemplateObjectNode::FeedbackVectorIndex() == 0);
-  Node* template_object =
-      NewNode(javascript()->GetTemplateObject(description.object(),
-                                              shared_info().object(), source),
-              feedback_vector_node());
+  const Operator* op = javascript()->GetTemplateObject(
+      description.object(), shared_info().object(), source);
+  DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
+  Node* template_object = NewNode(op, feedback_vector_node());
   environment()->BindAccumulator(template_object);
 }
 
@@ -2414,6 +2446,7 @@ void BytecodeGraphBuilder::BuildCall(ConvertReceiverMode receiver_mode,
   const Operator* op =
       javascript()->Call(arg_count, frequency, feedback, receiver_mode,
                          speculation_mode, CallFeedbackRelation::kRelated);
+  DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
 
   JSTypeHintLowering::LoweringResult lowering = TryBuildSimplifiedCall(
       op, args, static_cast<int>(arg_count), feedback.slot);
@@ -2599,6 +2632,7 @@ void BytecodeGraphBuilder::VisitCallWithSpread() {
   const Operator* op = javascript()->CallWithSpread(
       JSCallWithSpreadNode::ArityForArgc(arg_count), frequency, feedback,
       speculation_mode);
+  DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
 
   JSTypeHintLowering::LoweringResult lowering = TryBuildSimplifiedCall(
       op, args, static_cast<int>(arg_count), feedback.slot);
@@ -2723,6 +2757,7 @@ void BytecodeGraphBuilder::VisitConstruct() {
   const uint32_t arg_count = static_cast<uint32_t>(reg_count);
   const uint32_t arity = JSConstructNode::ArityForArgc(arg_count);
   const Operator* op = javascript()->Construct(arity, frequency, feedback);
+  DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
   Node* const* args = GetConstructArgumentsFromRegister(callee, new_target,
                                                         first_reg, arg_count);
   JSTypeHintLowering::LoweringResult lowering = TryBuildSimplifiedConstruct(
@@ -2755,6 +2790,7 @@ void BytecodeGraphBuilder::VisitConstructWithSpread() {
   const uint32_t arity = JSConstructNode::ArityForArgc(arg_count);
   const Operator* op =
       javascript()->ConstructWithSpread(arity, frequency, feedback);
+  DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
   Node* const* args = GetConstructArgumentsFromRegister(callee, new_target,
                                                         first_reg, arg_count);
   JSTypeHintLowering::LoweringResult lowering = TryBuildSimplifiedConstruct(
@@ -2884,6 +2920,7 @@ void BytecodeGraphBuilder::BuildUnaryOp(const Operator* op) {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
+    DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
     node = NewNode(op, operand, feedback_vector_node());
   }
 
@@ -2908,6 +2945,7 @@ void BytecodeGraphBuilder::BuildBinaryOp(const Operator* op) {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
+    DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
     node = NewNode(op, left, right, feedback_vector_node());
   }
 
@@ -3065,6 +3103,7 @@ void BytecodeGraphBuilder::BuildBinaryOpWithImmediate(const Operator* op) {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
+    DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
     node = NewNode(op, left, right, feedback_vector_node());
   }
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
@@ -3203,6 +3242,7 @@ void BytecodeGraphBuilder::BuildCompareOp(const Operator* op) {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
+    DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
     node = NewNode(op, left, right, feedback_vector_node());
   }
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
@@ -3262,8 +3302,9 @@ void BytecodeGraphBuilder::VisitTestIn() {
   STATIC_ASSERT(JSHasPropertyNode::ObjectIndex() == 0);
   STATIC_ASSERT(JSHasPropertyNode::KeyIndex() == 1);
   STATIC_ASSERT(JSHasPropertyNode::FeedbackVectorIndex() == 2);
-  Node* node = NewNode(javascript()->HasProperty(feedback), object, key,
-                       feedback_vector_node());
+  const Operator* op = javascript()->HasProperty(feedback);
+  DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
+  Node* node = NewNode(op, object, key, feedback_vector_node());
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
@@ -3644,6 +3685,7 @@ void BytecodeGraphBuilder::VisitGetIterator() {
   DCHECK(!lowering.Changed());
   STATIC_ASSERT(JSGetIteratorNode::ReceiverIndex() == 0);
   STATIC_ASSERT(JSGetIteratorNode::FeedbackVectorIndex() == 1);
+  DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
   Node* iterator = NewNode(op, receiver, feedback_vector_node());
   environment()->BindAccumulator(iterator, Environment::kAttachFrameState);
 }
@@ -4043,6 +4085,7 @@ JSTypeHintLowering::LoweringResult
 BytecodeGraphBuilder::TryBuildSimplifiedUnaryOp(const Operator* op,
                                                 Node* operand,
                                                 FeedbackSlot slot) {
+  if (!CanApplyTypeHintLowering(op)) return kNoChange;
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult result =
@@ -4056,6 +4099,7 @@ JSTypeHintLowering::LoweringResult
 BytecodeGraphBuilder::TryBuildSimplifiedBinaryOp(const Operator* op, Node* left,
                                                  Node* right,
                                                  FeedbackSlot slot) {
+  if (!CanApplyTypeHintLowering(op)) return kNoChange;
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult result =
@@ -4070,6 +4114,7 @@ BytecodeGraphBuilder::TryBuildSimplifiedForInNext(Node* receiver,
                                                   Node* cache_array,
                                                   Node* cache_type, Node* index,
                                                   FeedbackSlot slot) {
+  if (!CanApplyTypeHintLowering(IrOpcode::kJSForInNext)) return kNoChange;
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult result =
@@ -4082,6 +4127,7 @@ BytecodeGraphBuilder::TryBuildSimplifiedForInNext(Node* receiver,
 JSTypeHintLowering::LoweringResult
 BytecodeGraphBuilder::TryBuildSimplifiedForInPrepare(Node* enumerator,
                                                      FeedbackSlot slot) {
+  if (!CanApplyTypeHintLowering(IrOpcode::kJSForInPrepare)) return kNoChange;
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult result =
@@ -4094,6 +4140,7 @@ BytecodeGraphBuilder::TryBuildSimplifiedForInPrepare(Node* enumerator,
 JSTypeHintLowering::LoweringResult
 BytecodeGraphBuilder::TryBuildSimplifiedToNumber(Node* value,
                                                  FeedbackSlot slot) {
+  if (!CanApplyTypeHintLowering(IrOpcode::kJSToNumber)) return kNoChange;
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult result =
@@ -4105,6 +4152,7 @@ BytecodeGraphBuilder::TryBuildSimplifiedToNumber(Node* value,
 
 JSTypeHintLowering::LoweringResult BytecodeGraphBuilder::TryBuildSimplifiedCall(
     const Operator* op, Node* const* args, int arg_count, FeedbackSlot slot) {
+  if (!CanApplyTypeHintLowering(op)) return kNoChange;
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult result =
@@ -4119,6 +4167,7 @@ BytecodeGraphBuilder::TryBuildSimplifiedConstruct(const Operator* op,
                                                   Node* const* args,
                                                   int arg_count,
                                                   FeedbackSlot slot) {
+  if (!CanApplyTypeHintLowering(op)) return kNoChange;
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult result =
@@ -4133,6 +4182,7 @@ BytecodeGraphBuilder::TryBuildSimplifiedGetIterator(const Operator* op,
                                                     Node* receiver,
                                                     FeedbackSlot load_slot,
                                                     FeedbackSlot call_slot) {
+  if (!CanApplyTypeHintLowering(op)) return kNoChange;
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult early_reduction =
@@ -4146,6 +4196,7 @@ JSTypeHintLowering::LoweringResult
 BytecodeGraphBuilder::TryBuildSimplifiedLoadNamed(const Operator* op,
                                                   Node* receiver,
                                                   FeedbackSlot slot) {
+  if (!CanApplyTypeHintLowering(op)) return kNoChange;
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult early_reduction =
@@ -4159,6 +4210,7 @@ JSTypeHintLowering::LoweringResult
 BytecodeGraphBuilder::TryBuildSimplifiedLoadKeyed(const Operator* op,
                                                   Node* receiver, Node* key,
                                                   FeedbackSlot slot) {
+  if (!CanApplyTypeHintLowering(op)) return kNoChange;
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult result =
@@ -4172,6 +4224,7 @@ JSTypeHintLowering::LoweringResult
 BytecodeGraphBuilder::TryBuildSimplifiedStoreNamed(const Operator* op,
                                                    Node* receiver, Node* value,
                                                    FeedbackSlot slot) {
+  if (!CanApplyTypeHintLowering(op)) return kNoChange;
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult result =
@@ -4186,6 +4239,7 @@ BytecodeGraphBuilder::TryBuildSimplifiedStoreKeyed(const Operator* op,
                                                    Node* receiver, Node* key,
                                                    Node* value,
                                                    FeedbackSlot slot) {
+  if (!CanApplyTypeHintLowering(op)) return kNoChange;
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult result =
