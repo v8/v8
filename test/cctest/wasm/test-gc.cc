@@ -1059,9 +1059,19 @@ TEST(JsAccess) {
   isolate->clear_pending_exception();
 
   maybe_result = tester.CallExportedFunction("producer", 0, nullptr);
+  if (maybe_result.is_null()) {
+    FATAL("Calling 'producer' failed: %s",
+          *v8::String::Utf8Value(reinterpret_cast<v8::Isolate*>(isolate),
+                                 try_catch.Message()->Get()));
+  }
   {
     Handle<Object> args[] = {maybe_result.ToHandleChecked()};
     maybe_result = tester.CallExportedFunction("consumer", 1, args);
+  }
+  if (maybe_result.is_null()) {
+    FATAL("Calling 'consumer' failed: %s",
+          *v8::String::Utf8Value(reinterpret_cast<v8::Isolate*>(isolate),
+                                 try_catch.Message()->Get()));
   }
   Handle<Object> result = maybe_result.ToHandleChecked();
   CHECK(result->IsSmi());
