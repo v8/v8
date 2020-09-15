@@ -270,9 +270,13 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
       for (size_t pos = 0, count = 1, locals = decls.type_list.size();
            pos < locals; pos += count, count = 1) {
         ValueType type = decls.type_list[pos];
-        while (pos + count < locals && decls.type_list[pos + count] == type)
+        while (pos + count < locals && decls.type_list[pos + count] == type) {
           ++count;
-        os << ".addLocals({" << type.name() << "_count: " << count << "})";
+        }
+        // TODO(wasm): Fix this for heap types.
+        std::string name = type.name();
+        name[0] = std::toupper(name[0]);
+        os << ".addLocals(kWasm" << name << ", " << count << ")";
       }
       os << "\n";
     }
