@@ -9,10 +9,6 @@ luci.notifier(
     on_occurrence = ["FAILURE"],
     failed_step_regexp_exclude = FAILED_STEPS_EXCLUDE,
     notify_emails = [
-        "almuthanna@chromium.org",
-        "liviurau@chromium.org",
-        "machenbach@chromium.org",
-        "tmrts@chromium.org",
         "v8-waterfall-sheriff@grotations.appspotmail.com",
     ],
 )
