@@ -1447,6 +1447,10 @@ void WasmGenerator::Generate<ValueType::kS128>(DataRange* data) {
                                      ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprF32x4Pmax, ValueType::kS128,
                                      ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprF32x4Ceil, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprF32x4Floor, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprF32x4Trunc, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprF32x4NearestInt, ValueType::kS128>,
 
       &WasmGenerator::op_with_prefix<kExprF64x2Splat, ValueType::kF64>,
       &WasmGenerator::op_with_prefix<kExprF64x2Eq, ValueType::kS128,
@@ -1480,6 +1484,10 @@ void WasmGenerator::Generate<ValueType::kS128>(DataRange* data) {
                                      ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprF64x2Pmax, ValueType::kS128,
                                      ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprF64x2Ceil, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprF64x2Floor, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprF64x2Trunc, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprF64x2NearestInt, ValueType::kS128>,
 
       &WasmGenerator::op_with_prefix<kExprI32x4SConvertF32x4, ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprI32x4UConvertF32x4, ValueType::kS128>,
