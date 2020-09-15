@@ -486,6 +486,18 @@ TEST(Regress1111015) {
   BUILD(r, WASM_BLOCK_I(WASM_RETURN_CALL_FUNCTION0(f.function_index()),
                         kExprDrop));
   BUILD(f, WASM_I32V(0));
+}
+
+TEST(Regress1092130) {
+  WasmRunner<uint32_t> r(TestExecutionTier::kInterpreter);
+  TestSignatures sigs;
+  byte sig_v_i = r.builder().AddSignature(sigs.v_i());
+  BUILD(r, WASM_I32V(0),
+        WASM_IF_ELSE_I(
+            WASM_I32V(0),
+            WASM_SEQ(WASM_UNREACHABLE, WASM_BLOCK_X(sig_v_i, WASM_NOP)),
+            WASM_I32V(0)),
+        WASM_DROP);
   r.Call();
 }
 

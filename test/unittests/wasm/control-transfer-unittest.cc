@@ -203,7 +203,7 @@ TEST_F(ControlTransferTest, IfBrElse) {
       kExprElse,      // @6
       kExprEnd        // @7
   };
-  CheckTransfers(code, {{2, 5, 0, 0}, {4, 4, 0, 0}, {6, 2, 0, 0}});
+  CheckTransfers(code, {{2, 5, 0, 0}, {4, 4, 0, 0}});
 }
 
 TEST_F(ControlTransferTest, IfElseBr) {

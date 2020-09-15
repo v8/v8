@@ -847,7 +847,7 @@ class SideTable : public ZoneObject {
           Control* c = &control_stack.back();
           copy_unreachable();
           TRACE("control @%u: Else\n", i.pc_offset());
-          if (!control_parent().unreachable) {
+          if (!unreachable) {
             c->end_label->Ref(i.pc(), stack_height);
           }
           DCHECK_NOT_NULL(c->else_label);
@@ -883,7 +883,7 @@ class SideTable : public ZoneObject {
           exception_stack.pop_back();
           copy_unreachable();
           TRACE("control @%u: Catch\n", i.pc_offset());
-          if (!control_parent().unreachable) {
+          if (!unreachable) {
             c->end_label->Ref(i.pc(), stack_height);
           }
           DCHECK_NOT_NULL(c->else_label);
