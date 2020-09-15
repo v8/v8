@@ -445,7 +445,15 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I32x4SConvertF32x4, 0xfdf8, s_s)         \
   V(I32x4UConvertF32x4, 0xfdf9, s_s)         \
   V(F32x4SConvertI32x4, 0xfdfa, s_s)         \
-  V(F32x4UConvertI32x4, 0xfdfb, s_s)
+  V(F32x4UConvertI32x4, 0xfdfb, s_s)         \
+  V(F32x4Ceil, 0xfdd8, s_s)                  \
+  V(F32x4Floor, 0xfdd9, s_s)                 \
+  V(F32x4Trunc, 0xfdda, s_s)                 \
+  V(F32x4NearestInt, 0xfddb, s_s)            \
+  V(F64x2Ceil, 0xfddc, s_s)                  \
+  V(F64x2Floor, 0xfddd, s_s)                 \
+  V(F64x2Trunc, 0xfdde, s_s)                 \
+  V(F64x2NearestInt, 0xfddf, s_s)
 
 #define FOREACH_SIMD_POST_MVP_MEM_OPCODE(V) \
   V(S128LoadMem32Zero, 0xfdfc, s_i)         \
@@ -478,15 +486,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I32x4DotI16x8S, 0xfdba, s_ss)       \
   V(F32x4AddHoriz, 0xfdb2, s_ss)        \
   V(F32x4RecipApprox, 0xfdb3, s_s)      \
-  V(F32x4RecipSqrtApprox, 0xfdbc, s_s)  \
-  V(F32x4Ceil, 0xfdd8, s_s)             \
-  V(F32x4Floor, 0xfdd9, s_s)            \
-  V(F32x4Trunc, 0xfdda, s_s)            \
-  V(F32x4NearestInt, 0xfddb, s_s)       \
-  V(F64x2Ceil, 0xfddc, s_s)             \
-  V(F64x2Floor, 0xfddd, s_s)            \
-  V(F64x2Trunc, 0xfdde, s_s)            \
-  V(F64x2NearestInt, 0xfddf, s_s)
+  V(F32x4RecipSqrtApprox, 0xfdbc, s_s)
 
 #define FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V) \
   V(I8x16ExtractLaneS, 0xfd15, _)                \
