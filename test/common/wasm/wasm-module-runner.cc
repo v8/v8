@@ -231,6 +231,9 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate,
   if (result->IsHeapNumber()) {
     return static_cast<int32_t>(HeapNumber::cast(*result).value());
   }
+  if (result->IsBigInt()) {
+    return static_cast<int32_t>(BigInt::cast(*result).AsInt64());
+  }
   return -1;
 }
 

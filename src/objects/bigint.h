@@ -210,7 +210,7 @@ class BigInt : public BigIntBase {
   static MaybeHandle<BigInt> FromWords64(Isolate* isolate, int sign_bit,
                                          int words64_count,
                                          const uint64_t* words);
-  int64_t AsInt64(bool* lossless = nullptr);
+  V8_EXPORT_PRIVATE int64_t AsInt64(bool* lossless = nullptr);
   uint64_t AsUint64(bool* lossless = nullptr);
   int Words64Count();
   void ToWordsArray64(int* sign_bit, int* words64_count, uint64_t* words);
