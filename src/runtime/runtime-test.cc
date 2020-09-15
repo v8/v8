@@ -1159,7 +1159,10 @@ RUNTIME_FUNCTION(Runtime_IsWasmCode) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
-  bool is_js_to_wasm = function.code().kind() == CodeKind::JS_TO_WASM_FUNCTION;
+  bool is_js_to_wasm =
+      function.code().kind() == CodeKind::JS_TO_WASM_FUNCTION ||
+      (function.code().is_builtin() &&
+       function.code().builtin_index() == Builtins::kGenericJSToWasmWrapper);
   return isolate->heap()->ToBoolean(is_js_to_wasm);
 }
 
