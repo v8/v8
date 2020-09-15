@@ -2348,7 +2348,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Operand src1 = i.InputOperand(1);
       // See comment above for correction of minps.
       __ movups(kScratchDoubleReg, src1);
-      __ vminps(kScratchDoubleReg, kScratchDoubleReg, dst);
+      __ vminps(kScratchDoubleReg, kScratchDoubleReg, src0);
       __ vminps(dst, src0, src1);
       __ vorps(dst, dst, kScratchDoubleReg);
       __ vcmpneqps(kScratchDoubleReg, dst, dst);
@@ -2381,11 +2381,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAVXF32x4Max: {
       CpuFeatureScope avx_scope(tasm(), AVX);
       XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src0 = i.InputSimd128Register(0);
       Operand src1 = i.InputOperand(1);
       // See comment above for correction of maxps.
       __ vmovups(kScratchDoubleReg, src1);
-      __ vmaxps(kScratchDoubleReg, kScratchDoubleReg, dst);
-      __ vmaxps(dst, dst, src1);
+      __ vmaxps(kScratchDoubleReg, kScratchDoubleReg, src0);
+      __ vmaxps(dst, src0, src1);
       __ vxorps(dst, dst, kScratchDoubleReg);
       __ vorps(kScratchDoubleReg, kScratchDoubleReg, dst);
       __ vsubps(kScratchDoubleReg, kScratchDoubleReg, dst);
