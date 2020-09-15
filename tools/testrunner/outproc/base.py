@@ -193,7 +193,7 @@ class ExpectedOutProc(OutProc):
             line.startswith('**') or
             line.startswith('ANDROID') or
             line.startswith('###') or
-            # TODO(machenbach): Android linker warning.
+            # Android linker warning.
             line.startswith('WARNING: linker:') or
             # FIXME(machenbach): The test driver shouldn't try to use slow
             # asserts if they weren't compiled. This fails in optdebug=2.
