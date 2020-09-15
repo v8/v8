@@ -601,11 +601,9 @@ class JSDataViewData : public JSObjectData {
                  Handle<JSDataView> object);
 
   size_t byte_length() const { return byte_length_; }
-  size_t byte_offset() const { return byte_offset_; }
 
  private:
   size_t const byte_length_;
-  size_t const byte_offset_;
 };
 
 class JSBoundFunctionData : public JSObjectData {
@@ -1484,8 +1482,9 @@ class FixedArrayData : public FixedArrayBaseData {
 JSDataViewData::JSDataViewData(JSHeapBroker* broker, ObjectData** storage,
                                Handle<JSDataView> object)
     : JSObjectData(broker, storage, object),
-      byte_length_(object->byte_length()),
-      byte_offset_(object->byte_offset()) {}
+      byte_length_(object->byte_length()) {
+  DCHECK(!FLAG_turbo_direct_heap_access);
+}
 
 JSBoundFunctionData::JSBoundFunctionData(JSHeapBroker* broker,
                                          ObjectData** storage,
@@ -3359,7 +3358,6 @@ BIMODAL_ACCESSOR(JSBoundFunction, Object, bound_this)
 BIMODAL_ACCESSOR(JSBoundFunction, FixedArray, bound_arguments)
 
 BIMODAL_ACCESSOR_C(JSDataView, size_t, byte_length)
-BIMODAL_ACCESSOR_C(JSDataView, size_t, byte_offset)
 
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_feedback_vector)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_initial_map)
