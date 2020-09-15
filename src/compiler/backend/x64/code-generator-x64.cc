@@ -487,13 +487,19 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     }                                                       \
   } while (false)
 
-#define ASSEMBLE_SSE_BINOP(asm_instr)                                   \
-  do {                                                                  \
-    if (instr->InputAt(1)->IsFPRegister()) {                            \
-      __ asm_instr(i.InputDoubleRegister(0), i.InputDoubleRegister(1)); \
-    } else {                                                            \
-      __ asm_instr(i.InputDoubleRegister(0), i.InputOperand(1));        \
-    }                                                                   \
+#define ASSEMBLE_SSE_BINOP(asm_instr)                                     \
+  do {                                                                    \
+    if (HasAddressingMode(instr)) {                                       \
+      size_t index = 1;                                                   \
+      Operand right = i.MemoryOperand(&index);                            \
+      __ asm_instr(i.InputDoubleRegister(0), right);                      \
+    } else {                                                              \
+      if (instr->InputAt(1)->IsFPRegister()) {                            \
+        __ asm_instr(i.InputDoubleRegister(0), i.InputDoubleRegister(1)); \
+      } else {                                                            \
+        __ asm_instr(i.InputDoubleRegister(0), i.InputOperand(1));        \
+      }                                                                   \
+    }                                                                     \
   } while (false)
 
 #define ASSEMBLE_SSE_UNOP(asm_instr)                                    \
@@ -505,16 +511,22 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     }                                                                   \
   } while (false)
 
-#define ASSEMBLE_AVX_BINOP(asm_instr)                                  \
-  do {                                                                 \
-    CpuFeatureScope avx_scope(tasm(), AVX);                            \
-    if (instr->InputAt(1)->IsFPRegister()) {                           \
-      __ asm_instr(i.OutputDoubleRegister(), i.InputDoubleRegister(0), \
-                   i.InputDoubleRegister(1));                          \
-    } else {                                                           \
-      __ asm_instr(i.OutputDoubleRegister(), i.InputDoubleRegister(0), \
-                   i.InputOperand(1));                                 \
-    }                                                                  \
+#define ASSEMBLE_AVX_BINOP(asm_instr)                                          \
+  do {                                                                         \
+    CpuFeatureScope avx_scope(tasm(), AVX);                                    \
+    if (HasAddressingMode(instr)) {                                            \
+      size_t index = 1;                                                        \
+      Operand right = i.MemoryOperand(&index);                                 \
+      __ asm_instr(i.OutputDoubleRegister(), i.InputDoubleRegister(0), right); \
+    } else {                                                                   \
+      if (instr->InputAt(1)->IsFPRegister()) {                                 \
+        __ asm_instr(i.OutputDoubleRegister(), i.InputDoubleRegister(0),       \
+                     i.InputDoubleRegister(1));                                \
+      } else {                                                                 \
+        __ asm_instr(i.OutputDoubleRegister(), i.InputDoubleRegister(0),       \
+                     i.InputOperand(1));                                       \
+      }                                                                        \
+    }                                                                          \
   } while (false)
 
 #define ASSEMBLE_IEEE754_BINOP(name)                                     \

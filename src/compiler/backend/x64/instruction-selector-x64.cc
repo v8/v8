@@ -90,6 +90,16 @@ class X64OperandGenerator final : public OperandGenerator {
         return rep == MachineRepresentation::kWord32 ||
                (COMPRESS_POINTERS_BOOL &&
                 (IsAnyTagged(rep) || IsAnyCompressed(rep)));
+      case kAVXFloat64Add:
+      case kAVXFloat64Sub:
+      case kAVXFloat64Mul:
+        DCHECK_EQ(MachineRepresentation::kFloat64, rep);
+        return true;
+      case kAVXFloat32Add:
+      case kAVXFloat32Sub:
+      case kAVXFloat32Mul:
+        DCHECK_EQ(MachineRepresentation::kFloat32, rep);
+        return true;
       case kX64Cmp16:
       case kX64Test16:
         return rep == MachineRepresentation::kWord16;
@@ -1401,14 +1411,60 @@ void VisitRRO(InstructionSelector* selector, Node* node,
 }
 
 void VisitFloatBinop(InstructionSelector* selector, Node* node,
-                     ArchOpcode avx_opcode, ArchOpcode sse_opcode) {
+                     InstructionCode avx_opcode, InstructionCode sse_opcode) {
   X64OperandGenerator g(selector);
-  InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
-  InstructionOperand operand1 = g.Use(node->InputAt(1));
-  if (selector->IsSupported(AVX)) {
-    selector->Emit(avx_opcode, g.DefineAsRegister(node), operand0, operand1);
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+  InstructionOperand inputs[8];
+  size_t input_count = 0;
+  InstructionOperand outputs[1];
+  size_t output_count = 0;
+
+  if (left == right) {
+    // If both inputs refer to the same operand, enforce allocating a register
+    // for both of them to ensure that we don't end up generating code like
+    // this:
+    //
+    //   movss rax, [rbp-0x10]
+    //   addss rax, [rbp-0x10]
+    //   jo label
+    InstructionOperand const input = g.UseRegister(left);
+    inputs[input_count++] = input;
+    inputs[input_count++] = input;
   } else {
-    selector->Emit(sse_opcode, g.DefineSameAsFirst(node), operand0, operand1);
+    int effect_level = selector->GetEffectLevel(node);
+    if (node->op()->HasProperty(Operator::kCommutative) &&
+        (g.CanBeBetterLeftOperand(right) ||
+         g.CanBeMemoryOperand(avx_opcode, node, left, effect_level)) &&
+        (!g.CanBeBetterLeftOperand(left) ||
+         !g.CanBeMemoryOperand(avx_opcode, node, right, effect_level))) {
+      std::swap(left, right);
+    }
+    if (g.CanBeMemoryOperand(avx_opcode, node, right, effect_level)) {
+      inputs[input_count++] = g.UseRegister(left);
+      AddressingMode addressing_mode =
+          g.GetEffectiveAddressMemoryOperand(right, inputs, &input_count);
+      avx_opcode |= AddressingModeField::encode(addressing_mode);
+      sse_opcode |= AddressingModeField::encode(addressing_mode);
+    } else {
+      inputs[input_count++] = g.UseRegister(left);
+      inputs[input_count++] = g.Use(right);
+    }
+  }
+
+  DCHECK_NE(0u, input_count);
+  DCHECK_GE(arraysize(inputs), input_count);
+
+  if (selector->IsSupported(AVX)) {
+    outputs[output_count++] = g.DefineAsRegister(node);
+    DCHECK_EQ(1u, output_count);
+    DCHECK_GE(arraysize(outputs), output_count);
+    selector->Emit(avx_opcode, output_count, outputs, input_count, inputs);
+  } else {
+    outputs[output_count++] = g.DefineSameAsFirst(node);
+    DCHECK_EQ(1u, output_count);
+    DCHECK_GE(arraysize(outputs), output_count);
+    selector->Emit(sse_opcode, output_count, outputs, input_count, inputs);
   }
 }
 
