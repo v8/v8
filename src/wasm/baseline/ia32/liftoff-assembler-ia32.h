@@ -293,7 +293,6 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
 }
 
 void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
-                                          Register offset_reg,
                                           int32_t offset_imm,
                                           LiftoffRegister src,
                                           LiftoffRegList pinned) {
@@ -301,9 +300,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
   STATIC_ASSERT(kTaggedSize == kInt32Size);
   Register scratch = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
-  Operand dst_op = offset_reg == no_reg
-                       ? Operand(dst_addr, offset_imm)
-                       : Operand(dst_addr, offset_reg, times_1, offset_imm);
+  Operand dst_op = Operand(dst_addr, offset_imm);
   mov(dst_op, src.gp());
 
   Label write_barrier;

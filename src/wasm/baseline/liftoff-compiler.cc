@@ -1871,7 +1871,7 @@ class LiftoffCompiler {
           pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
       LOAD_TAGGED_PTR_INSTANCE_FIELD(globals_buffer, TaggedGlobalsBuffer);
       LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
-      __ StoreTaggedPointer(globals_buffer, no_reg,
+      __ StoreTaggedPointer(globals_buffer,
                             wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
                                 imm.global->offset),
                             value, pinned);
