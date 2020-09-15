@@ -2255,6 +2255,26 @@ void LiftoffAssembler::emit_f32x4_max(LiftoffRegister dst, LiftoffRegister lhs,
   bsel_v(dst_msa, scratch0, scratch1);
 }
 
+void LiftoffAssembler::emit_f32x4_pmin(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  MSARegister dst_msa = dst.fp().toW();
+  MSARegister lhs_msa = lhs.fp().toW();
+  MSARegister rhs_msa = rhs.fp().toW();
+  // dst = rhs < lhs ? rhs : lhs
+  fclt_w(dst_msa, rhs_msa, lhs_msa);
+  bsel_v(dst_msa, lhs_msa, rhs_msa);
+}
+
+void LiftoffAssembler::emit_f32x4_pmax(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  MSARegister dst_msa = dst.fp().toW();
+  MSARegister lhs_msa = lhs.fp().toW();
+  MSARegister rhs_msa = rhs.fp().toW();
+  // dst = lhs < rhs ? rhs : lhs
+  fclt_w(dst_msa, lhs_msa, rhs_msa);
+  bsel_v(dst_msa, lhs_msa, rhs_msa);
+}
+
 void LiftoffAssembler::emit_f64x2_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
   bclri_d(dst.fp().toW(), src.fp().toW(), 63);
@@ -2328,6 +2348,26 @@ void LiftoffAssembler::emit_f64x2_max(LiftoffRegister dst, LiftoffRegister lhs,
   // dst = (scratch0 <= scratch1) ? scratch1 : scratch0.
   fsle_d(dst_msa, scratch0, scratch1);
   bsel_v(dst_msa, scratch0, scratch1);
+}
+
+void LiftoffAssembler::emit_f64x2_pmin(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  MSARegister dst_msa = dst.fp().toW();
+  MSARegister lhs_msa = lhs.fp().toW();
+  MSARegister rhs_msa = rhs.fp().toW();
+  // dst = rhs < lhs ? rhs : lhs
+  fclt_d(dst_msa, rhs_msa, lhs_msa);
+  bsel_v(dst_msa, lhs_msa, rhs_msa);
+}
+
+void LiftoffAssembler::emit_f64x2_pmax(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  MSARegister dst_msa = dst.fp().toW();
+  MSARegister lhs_msa = lhs.fp().toW();
+  MSARegister rhs_msa = rhs.fp().toW();
+  // dst = lhs < rhs ? rhs : lhs
+  fclt_d(dst_msa, lhs_msa, rhs_msa);
+  bsel_v(dst_msa, lhs_msa, rhs_msa);
 }
 
 void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
