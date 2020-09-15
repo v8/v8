@@ -401,6 +401,8 @@ class Shell : public i::AllStatic {
   static void RealmSharedSet(Local<String> property, Local<Value> value,
                              const PropertyCallbackInfo<void>& info);
 
+  static void LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& args);
+
   static void AsyncHooksCreateHook(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AsyncHooksExecutionAsyncId(

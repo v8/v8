@@ -43,6 +43,7 @@
 #include "src/init/v8.h"
 #include "src/interpreter/interpreter.h"
 #include "src/logging/counters.h"
+#include "src/logging/log-utils.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
@@ -1503,6 +1504,41 @@ void Shell::RealmSharedSet(Local<String> property, Local<Value> value,
   data->realm_shared_.Reset(isolate, value);
 }
 
+void Shell::LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  HandleScope handle_scope(isolate);
+
+  std::string file_name = i_isolate->logger()->file_name();
+  if (i::Log::IsLoggingToConsole(file_name)) {
+    Throw(isolate, "Logging to console instead of file.");
+    return;
+  }
+  if (!i_isolate->logger()->is_logging()) {
+    Throw(isolate, "Logging not enabled.");
+    return;
+  }
+
+  std::string raw_log;
+  FILE* log_file = i_isolate->logger()->TearDownAndGetLogFile();
+  CHECK_NOT_NULL(log_file);
+
+  bool exists = false;
+  raw_log = i::ReadFile(log_file, &exists, true);
+  fclose(log_file);
+
+  if (!exists) {
+    Throw(isolate, "Unable to read log file.");
+    return;
+  }
+  Local<String> result =
+      String::NewFromUtf8(isolate, raw_log.c_str(), NewStringType::kNormal,
+                          static_cast<int>(raw_log.size()))
+          .ToLocalChecked();
+
+  args.GetReturnValue().Set(result);
+}
+
 // async_hooks.createHook() registers functions to be called for different
 // lifetime events of each async operation.
 void Shell::AsyncHooksCreateHook(
@@ -2218,6 +2254,13 @@ Local<ObjectTemplate> Shell::CreateRealmTemplate(Isolate* isolate) {
 
 Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
   Local<ObjectTemplate> d8_template = ObjectTemplate::New(isolate);
+  {
+    Local<ObjectTemplate> log_template = ObjectTemplate::New(isolate);
+    log_template->Set(isolate, "getAndStop",
+                      FunctionTemplate::New(isolate, LogGetAndStop));
+
+    d8_template->Set(isolate, "log", log_template);
+  }
   return d8_template;
 }
 
