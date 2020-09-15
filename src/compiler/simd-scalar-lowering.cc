@@ -1235,6 +1235,15 @@ void SimdScalarLowering::LowerNode(Node* node) {
           }
           break;
         }
+        case SimdType::kInt64x2: {
+          uint64_t val[kNumLanes64];
+          memcpy(val, params.data(), kSimd128Size);
+          for (int i = 0; i < num_lanes; ++i) {
+            rep_node[i] = mcgraph_->Int64Constant(
+                base::ReadLittleEndianValue<uint64_t>(&val[i]));
+          }
+          break;
+        }
         case SimdType::kFloat32x4: {
           float val[kNumLanes32];
           memcpy(val, params.data(), kSimd128Size);
@@ -1358,6 +1367,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
         switch (ReplacementType(input)) {
           case SimdType::kInt8x16:
           case SimdType::kInt16x8:
+          case SimdType::kInt64x2:
           case SimdType::kFloat32x4: {
             Node** reps = GetReplacementsWithType(input, rep_type);
             ReplaceNode(input, reps, NumLanes(rep_type));
@@ -1940,7 +1950,8 @@ void SimdScalarLowering::LowerNode(Node* node) {
       DCHECK(ReplacementType(node->InputAt(0)) == SimdType::kInt32x4 ||
              ReplacementType(node->InputAt(0)) == SimdType::kInt16x8 ||
              ReplacementType(node->InputAt(0)) == SimdType::kInt8x16);
-      Node** boolean_input = GetReplacements(node->InputAt(0));
+      Node** boolean_input =
+          GetReplacementsWithType(node->InputAt(0), rep_type);
       Node** rep_left = GetReplacementsWithType(node->InputAt(1), rep_type);
       Node** rep_right = GetReplacementsWithType(node->InputAt(2), rep_type);
       Node** rep_node = zone()->NewArray<Node*>(num_lanes);
@@ -2238,6 +2249,20 @@ void SimdScalarLowering::SmallerIntToInt32(Node** replacements, Node** result) {
   }
 }
 
+void SimdScalarLowering::Int32ToInt64(Node** replacements, Node** result) {
+  const int num_ints = sizeof(int64_t) / sizeof(int32_t);
+
+  for (int i = 0; i < kNumLanes64; i++) {
+    Node* i64 = graph()->NewNode(machine()->ChangeUint32ToUint64(),
+                                 replacements[num_ints * i + 1]);
+    Node* high = graph()->NewNode(machine()->Word64Shl(), i64,
+                                  mcgraph_->Int32Constant(32));
+    Node* i64_low = graph()->NewNode(machine()->ChangeUint32ToUint64(),
+                                     replacements[num_ints * i]);
+    result[i] = graph()->NewNode(machine()->Word64Or(), high, i64_low);
+  }
+}
+
 Node** SimdScalarLowering::GetReplacementsWithType(Node* node, SimdType type) {
   Node** replacements = GetReplacements(node);
   if (ReplacementType(node) == type) {
@@ -2245,7 +2270,11 @@ Node** SimdScalarLowering::GetReplacementsWithType(Node* node, SimdType type) {
   }
   int num_lanes = NumLanes(type);
   Node** result = zone()->NewArray<Node*>(num_lanes);
-  if (type == SimdType::kInt32x4) {
+  if (type == SimdType::kInt64x2) {
+    if (ReplacementType(node) == SimdType::kInt32x4) {
+      Int32ToInt64(replacements, result);
+    }
+  } else if (type == SimdType::kInt32x4) {
     if (ReplacementType(node) == SimdType::kInt64x2) {
       Int64ToInt32(replacements, result);
     } else if (ReplacementType(node) == SimdType::kFloat32x4) {

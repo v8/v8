@@ -82,6 +82,7 @@ class SimdScalarLowering {
   void Int32ToSmallerInt(Node** replacements, Node** result);
   template <typename T>
   void SmallerIntToInt32(Node** replacements, Node** result);
+  void Int32ToInt64(Node** replacements, Node** result);
   Node** GetReplacementsWithType(Node* node, SimdType type);
   SimdType ReplacementType(Node* node);
   void PreparePhiReplacement(Node* phi);

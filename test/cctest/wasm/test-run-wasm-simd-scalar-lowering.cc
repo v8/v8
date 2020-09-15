@@ -103,6 +103,25 @@ WASM_SIMD_TEST(I16x8_Call_Return) {
   CHECK_EQ(2, r.Call(1));
 }
 
+WASM_SIMD_TEST(I64x2_Call_Return) {
+  // Check that calling a function with i64x2 arguments, and returns i64x2, is
+  // correctly lowered. The signature of the functions are always lowered to 4
+  // Word32, so each i64x2 needs to be correctly converted.
+  TestSignatures sigs;
+  WasmRunner<uint64_t, uint64_t> r(execution_tier, lower_simd);
+
+  WasmFunctionCompiler& fn = r.NewFunction(sigs.s_ss());
+  BUILD(fn,
+        WASM_SIMD_BINOP(kExprI64x2Add, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+
+  BUILD(r,
+        WASM_SIMD_I64x2_EXTRACT_LANE(
+            0, WASM_CALL_FUNCTION(fn.function_index(),
+                                  WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(0)),
+                                  WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(0)))));
+  CHECK_EQ(2, r.Call(1));
+}
+
 WASM_SIMD_TEST(I8x16Eq_ToTest_S128Const) {
   // Test implementation of S128Const in scalar lowering, this test case was
   // causing a crash.
