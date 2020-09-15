@@ -1064,6 +1064,10 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
   // Flush the i-cache after relocation.
   FlushInstructionCache(dst_code_bytes.begin(), dst_code_bytes.size());
 
+  // Liftoff code will not be relocated or serialized, thus do not store any
+  // relocation information.
+  if (tier == ExecutionTier::kLiftoff) reloc_info = {};
+
   std::unique_ptr<WasmCode> code{new WasmCode{
       this, index, dst_code_bytes, stack_slots, tagged_parameter_slots,
       safepoint_table_offset, handler_table_offset, constant_pool_offset,
