@@ -273,7 +273,8 @@ bool UseGenericWrapper(const FunctionSig* sig) {
     return false;
   }
   if (sig->returns().size() == 1 &&
-      sig->GetReturn(0).kind() != ValueType::kI32) {
+      sig->GetReturn(0).kind() != ValueType::kI32 &&
+      sig->GetReturn(0).kind() != ValueType::kI64) {
     return false;
   }
   for (ValueType type : sig->parameters()) {

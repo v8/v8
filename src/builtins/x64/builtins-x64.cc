@@ -3392,10 +3392,13 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
       kFrameMarkerOffset - kSystemPointerSize;
   constexpr int kParamCountOffset = kGCScanSlotCountOffset - kSystemPointerSize;
   constexpr int kReturnCountOffset = kParamCountOffset - kSystemPointerSize;
-  constexpr int kNumSpillSlots = 3;
+  constexpr int kValueTypesArrayStartOffset =
+      kReturnCountOffset - kSystemPointerSize;
+  constexpr int kNumSpillSlots = 4;
   __ subq(rsp, Immediate(kNumSpillSlots * kSystemPointerSize));
   __ movq(MemOperand(rbp, kParamCountOffset), param_count);
   __ movq(MemOperand(rbp, kReturnCountOffset), return_count);
+  __ movq(MemOperand(rbp, kValueTypesArrayStartOffset), valuetypes_array_ptr);
 
   // -------------------------------------------
   // Parameter handling.
@@ -3654,26 +3657,26 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
                         current_param_slot, valuetypes_array_ptr, wasm_instance,
                         function_data);
 
-  Label kWasmI32_not_smi;
-  Label kWasmI64;
+  Label param_kWasmI32_not_smi;
+  Label param_kWasmI64;
   Label restore_after_buitlin_call;
 
   __ cmpq(valuetype, Immediate(wasm::kWasmI32.raw_bit_field()));
-  __ j(equal, &kWasmI32_not_smi);
+  __ j(equal, &param_kWasmI32_not_smi);
 
   __ cmpq(valuetype, Immediate(wasm::kWasmI64.raw_bit_field()));
-  __ j(equal, &kWasmI64);
+  __ j(equal, &param_kWasmI64);
 
   __ int3();
 
-  __ bind(&kWasmI32_not_smi);
+  __ bind(&param_kWasmI32_not_smi);
   __ Call(BUILTIN_CODE(masm->isolate(), WasmTaggedNonSmiToInt32),
           RelocInfo::CODE_TARGET);
   // Param is the result of the builtin.
   __ AssertZeroExtended(param);
   __ jmp(&restore_after_buitlin_call);
 
-  __ bind(&kWasmI64);
+  __ bind(&param_kWasmI64);
   __ Call(BUILTIN_CODE(masm->isolate(), BigIntToI64), RelocInfo::CODE_TARGET);
 
   __ bind(&restore_after_buitlin_call);
@@ -3684,10 +3687,34 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ jmp(&param_conversion_done);
 
   // -------------------------------------------
-  // Return conversions (just kWasmI32 for now).
+  // Return conversions.
   // -------------------------------------------
   __ bind(&convert_return);
 
+  __ movq(valuetypes_array_ptr, MemOperand(rbp, kValueTypesArrayStartOffset));
+  // The first valuetype of the array is the return's valuetype.
+  __ movl(valuetype,
+          Operand(valuetypes_array_ptr, wasm::ValueType::bit_field_offset()));
+
+  Label return_kWasmI32;
+  Label return_kWasmI64;
+
+  __ cmpq(valuetype, Immediate(wasm::kWasmI32.raw_bit_field()));
+  __ j(equal, &return_kWasmI32);
+
+  __ cmpq(valuetype, Immediate(wasm::kWasmI64.raw_bit_field()));
+  __ j(equal, &return_kWasmI64);
+
+  __ int3();
+
+  __ bind(&return_kWasmI64);
+  // We don't need the JS context for this builtin call.
+  __ Call(BUILTIN_CODE(masm->isolate(), I64ToBigInt), RelocInfo::CODE_TARGET);
+  // We will need the parameter_count later.
+  __ movq(param_count, MemOperand(rbp, kParamCountOffset));
+  __ jmp(&return_done);
+
+  __ bind(&return_kWasmI32);
   Label to_heapnumber;
   // If pointer compression is disabled, we can convert the return to a smi.
   if (SmiValuesAre32Bits()) {

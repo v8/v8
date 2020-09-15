@@ -237,7 +237,7 @@ let kSig_v_iiiiiiii = makeSig([kWasmI32, kWasmI32, kWasmI32, kWasmI32,
   assertEquals(33, x);
 })();
 
-(function testGenericWrapper1ReturnSmi() {
+(function testGenericWrapper1I32ReturnSmi() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let sig_index = builder.addType(kSig_i_i);
@@ -258,7 +258,7 @@ let kSig_v_iiiiiiii = makeSig([kWasmI32, kWasmI32, kWasmI32, kWasmI32,
   assertEquals(17, instance.exports.main(5));
 })();
 
-(function testGenericWrapper1ReturnHeapNumber() {
+(function testGenericWrapper1I32ReturnHeapNumber() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let sig_index = builder.addType(kSig_i_i);
@@ -367,4 +367,24 @@ let kSig_v_liilliiil = makeSig([kWasmI64, kWasmI32, kWasmI32, kWasmI64,
 
   let instance = builder.instantiate({ mod: { func: import_func } });
   assertThrows(() => { instance.exports.main(17) }, TypeError);
+})();
+
+(function testGenericWrapper1I64Return() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig_index = builder.addType(kSig_l_v);
+  let func_index = builder.addImport("mod", "func", sig_index);
+  builder.addFunction("main", sig_index)
+    .addBody([
+      kExprCallFunction, func_index
+    ])
+    .exportFunc();
+
+  function import_func() {
+    gc();
+    return 10000000000n;
+  }
+
+  let instance = builder.instantiate({ mod: { func: import_func } });
+  assertEquals(10000000000n, instance.exports.main());
 })();
