@@ -7332,11 +7332,11 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
     // We only deal with DataViews here whose [[ByteLength]] is at least
     // {element_size}, as for all other DataViews it'll be out-of-bounds.
     JSDataViewRef dataview = m.Ref(broker()).AsJSDataView();
-    size_t length = dataview.byte_length();
-    if (length < element_size) return NoChange();
+    if (dataview.byte_length() < element_size) return NoChange();
 
-    // Check that the {offset} is within range of the {length}.
-    Node* byte_length = jsgraph()->Constant(length - (element_size - 1));
+    // Check that the {offset} is within range of the {byte_length}.
+    Node* byte_length =
+        jsgraph()->Constant(dataview.byte_length() - (element_size - 1));
     offset = effect = graph()->NewNode(simplified()->CheckBounds(p.feedback()),
                                        offset, byte_length, effect, control);
   } else {

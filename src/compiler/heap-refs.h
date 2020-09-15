@@ -55,8 +55,6 @@ enum class OddballType : uint8_t {
 // Classes on this list will skip serialization when
 // FLAG_turbo_direct_heap_access is on. Otherwise, they might get serialized.
 #define HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(V) \
-  /* Subtypes of JSObject */                        \
-  V(JSDataView)                                     \
   /* Subtypes of FixedArray */                      \
   V(ObjectBoilerplateDescription)                   \
   /* Subtypes of FixedArrayBase */                  \
@@ -76,6 +74,7 @@ enum class OddballType : uint8_t {
   /* Subtypes of JSObject */                  \
   V(JSArray)                                  \
   V(JSBoundFunction)                          \
+  V(JSDataView)                               \
   V(JSFunction)                               \
   V(JSGlobalObject)                           \
   V(JSGlobalProxy)                            \

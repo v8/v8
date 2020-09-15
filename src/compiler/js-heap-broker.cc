@@ -1482,9 +1482,7 @@ class FixedArrayData : public FixedArrayBaseData {
 JSDataViewData::JSDataViewData(JSHeapBroker* broker, ObjectData** storage,
                                Handle<JSDataView> object)
     : JSObjectData(broker, storage, object),
-      byte_length_(object->byte_length()) {
-  DCHECK(!FLAG_turbo_direct_heap_access);
-}
+      byte_length_(object->byte_length()) {}
 
 JSBoundFunctionData::JSBoundFunctionData(JSHeapBroker* broker,
                                          ObjectData** storage,
