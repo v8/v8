@@ -8,6 +8,7 @@
 
 #include "src/base/platform/platform.h"
 #include "src/execution/isolate-inl.h"
+#include "src/heap/safepoint.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/code-kind.h"
@@ -350,6 +351,13 @@ v8::StartupData Snapshot::Create(
     const DisallowHeapAllocation& no_gc, SerializerFlags flags) {
   DCHECK_EQ(contexts->size(), embedder_fields_serializers.size());
   DCHECK_GT(contexts->size(), 0);
+
+  // Enter a safepoint so that the heap is safe to iterate.
+  // TODO(leszeks): This safepoint's scope could be tightened to just string
+  // table iteration, as that iteration relies on there not being any concurrent
+  // threads mutating the string table. But, there's currently no harm in
+  // holding it for the entire snapshot serialization.
+  SafepointScope safepoint(isolate->heap());
 
   ReadOnlySerializer read_only_serializer(isolate, flags);
   read_only_serializer.SerializeReadOnlyRoots();

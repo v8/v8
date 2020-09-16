@@ -26,10 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <signal.h>
-
 #include <sys/stat.h>
-
-#include "src/init/v8.h"
 
 #include "src/api/api-inl.h"
 #include "src/codegen/assembler-inl.h"
@@ -39,8 +36,10 @@
 #include "src/debug/debug.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
+#include "src/heap/safepoint.h"
 #include "src/heap/spaces.h"
 #include "src/init/bootstrapper.h"
+#include "src/init/v8.h"
 #include "src/interpreter/interpreter.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
@@ -170,6 +169,8 @@ static StartupBlobs Serialize(v8::Isolate* isolate) {
   Isolate* internal_isolate = reinterpret_cast<Isolate*>(isolate);
   internal_isolate->heap()->CollectAllAvailableGarbage(
       i::GarbageCollectionReason::kTesting);
+
+  SafepointScope safepoint(internal_isolate->heap());
 
   DisallowHeapAllocation no_gc;
   ReadOnlySerializer read_only_serializer(internal_isolate,
@@ -382,6 +383,8 @@ static void SerializeContext(Vector<const byte>* startup_blob_out,
 
     env.Reset();
 
+    SafepointScope safepoint(heap);
+
     DisallowHeapAllocation no_gc;
     SnapshotByteSink read_only_sink;
     ReadOnlySerializer read_only_serializer(isolate,
@@ -531,6 +534,8 @@ static void SerializeCustomContext(Vector<const byte>* startup_blob_out,
     i::Context raw_context = i::Context::cast(*v8::Utils::OpenPersistent(env));
 
     env.Reset();
+
+    SafepointScope safepoint(isolate->heap());
 
     DisallowHeapAllocation no_gc;
     SnapshotByteSink read_only_sink;

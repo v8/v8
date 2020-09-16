@@ -3484,7 +3484,7 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
   date_cache_ = new DateCache();
   heap_profiler_ = new HeapProfiler(heap());
   interpreter_ = new interpreter::Interpreter(this);
-  string_table_.reset(new StringTable());
+  string_table_.reset(new StringTable(this));
 
   compiler_dispatcher_ =
       new CompilerDispatcher(this, V8::GetCurrentPlatform(), FLAG_stack_size);

@@ -55,7 +55,7 @@ class V8_EXPORT_PRIVATE StringTable {
   static constexpr Smi empty_element() { return Smi::FromInt(0); }
   static constexpr Smi deleted_element() { return Smi::FromInt(1); }
 
-  StringTable();
+  explicit StringTable(Isolate* isolate);
   ~StringTable();
 
   int Capacity() const;
@@ -87,11 +87,15 @@ class V8_EXPORT_PRIVATE StringTable {
   void NotifyElementsRemoved(int count);
 
  private:
-  void EnsureCapacity(const Isolate* isolate, int additional_elements);
-
   class Data;
-  std::unique_ptr<Data> data_;
+
+  Data* EnsureCapacity(const Isolate* isolate, int additional_elements);
+
+  std::atomic<Data*> data_;
   base::Mutex write_mutex_;
+#ifdef DEBUG
+  Isolate* isolate_;
+#endif
 };
 
 }  // namespace internal
