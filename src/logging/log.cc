@@ -31,6 +31,7 @@
 #include "src/logging/log-inl.h"
 #include "src/logging/log-utils.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/osr-optimized-code-cache.h"
 #include "src/profiler/tick-sample.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/strings/string-stream.h"
@@ -1898,6 +1899,17 @@ static int EnumerateCompiledFunctions(Heap* heap,
                            code_objects, compiled_funcs_count);
         ++compiled_funcs_count;
       }
+    }
+  }
+
+  for (Handle<NativeContext> native_context : heap->FindAllNativeContexts()) {
+    OSROptimizedCodeCache::Iterator osr_iterator(native_context);
+    for (std::pair<SharedFunctionInfo, Code> sfiCodePair = osr_iterator.Next();
+         !sfiCodePair.first.is_null(); sfiCodePair = osr_iterator.Next()) {
+      AddFunctionAndCode(sfiCodePair.first,
+                         AbstractCode::cast(sfiCodePair.second), sfis,
+                         code_objects, compiled_funcs_count);
+      ++compiled_funcs_count;
     }
   }
 
