@@ -16,6 +16,7 @@ class ProfilerStats {
   enum Reason {
     // Reasons we fail to record a TickSample.
     kTickBufferFull,
+    kIsolateNotLocked,
     // These all generate a TickSample.
     kSimulatorFillRegistersFailed,
     kNoFrameRegion,

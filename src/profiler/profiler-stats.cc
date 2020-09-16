@@ -34,6 +34,8 @@ const char* ProfilerStats::ReasonToString(Reason reason) {
   switch (reason) {
     case kTickBufferFull:
       return "kTickBufferFull";
+    case kIsolateNotLocked:
+      return "kIsolateNotLocked";
     case kSimulatorFillRegistersFailed:
       return "kSimulatorFillRegistersFailed";
     case kNoFrameRegion:

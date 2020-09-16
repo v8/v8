@@ -137,6 +137,8 @@ class CcTest {
   static i::Heap* heap();
   static i::ReadOnlyHeap* read_only_heap();
 
+  static void AddGlobalFunction(v8::Local<v8::Context> env, const char* name,
+                                v8::FunctionCallback callback);
   static void CollectGarbage(i::AllocationSpace space,
                              i::Isolate* isolate = nullptr);
   static void CollectAllGarbage(i::Isolate* isolate = nullptr);
@@ -318,7 +320,7 @@ class LocalContext {
   v8::Context* operator*() { return operator->(); }
   bool IsReady() { return !context_.IsEmpty(); }
 
-  v8::Local<v8::Context> local() {
+  v8::Local<v8::Context> local() const {
     return v8::Local<v8::Context>::New(isolate_, context_);
   }
 

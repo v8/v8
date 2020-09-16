@@ -3168,6 +3168,99 @@ TEST(MultipleIsolates) {
   thread2.Join();
 }
 
+// Varying called function frame sizes increases the chance of something going
+// wrong if sampling an unlocked frame. We also prevent optimization to prevent
+// inlining so each function call has its own frame.
+const char* varying_frame_size_script = R"(
+    %NeverOptimizeFunction(maybeYield);
+    %NeverOptimizeFunction(bar);
+    %NeverOptimizeFunction(foo);
+    function maybeYield(n) {
+      YieldIsolate(Math.random() > yieldLimit);
+    }
+    function bar(a, b, c, d) {
+      maybeYield(Math.random());
+      return a.length + b.length + c.length + d.length;
+    }
+    function foo(timeLimit, yieldProbability) {
+      yieldLimit = 1 - yieldProbability;
+      const startTime = Date.now();
+      for (let i = 0; i < 1e6; i++) {
+        maybeYield(1);
+        bar("Hickory", "Dickory", "Doc", "Mouse");
+        YieldIsolate(Math.random() > 0.999);
+        if ((Date.now() - startTime) > timeLimit) break;
+      }
+    }
+  )";
+
+class UnlockingThread : public v8::base::Thread {
+ public:
+  explicit UnlockingThread(v8::Local<v8::Context> env)
+      : Thread(Options("UnlockingThread")), env_(CcTest::isolate(), env) {}
+
+  void Run() override {
+    v8::Isolate* isolate = CcTest::isolate();
+    v8::Locker locker(isolate);
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> env = v8::Local<v8::Context>::New(isolate, env_);
+    Profile(env);
+  }
+
+  static void Profile(v8::Local<v8::Context> env) {
+    v8::Isolate* isolate = CcTest::isolate();
+    v8::Context::Scope context_scope(env);
+    v8::CpuProfiler* profiler = v8::CpuProfiler::New(isolate);
+    profiler->SetSamplingInterval(200);
+    v8::Local<v8::String> profile_name = v8_str("1");
+    profiler->StartProfiling(profile_name);
+    int32_t time_limit = 200;
+    double yield_probability = 0.001;
+    v8::Local<v8::Value> args[] = {v8::Integer::New(isolate, time_limit),
+                                   v8::Number::New(isolate, yield_probability)};
+    v8::Local<v8::Function> function = GetFunction(env, "foo");
+    function->Call(env, env->Global(), arraysize(args), args).ToLocalChecked();
+    profiler->StopProfiling(profile_name);
+    profiler->Dispose();
+  }
+
+ private:
+  v8::Persistent<v8::Context> env_;
+};
+
+// Checking for crashes with multiple thread/single Isolate profiling.
+TEST(MultipleThreadsSingleIsolate) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Locker locker(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
+  v8::Context::Scope context_scope(env);
+  CcTest::AddGlobalFunction(
+      env, "YieldIsolate", [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+        v8::Isolate* isolate = info.GetIsolate();
+        if (!info[0]->IsTrue()) return;
+        v8::Unlocker unlocker(isolate);
+        v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(1));
+      });
+
+  CompileRun(varying_frame_size_script);
+  UnlockingThread thread1(env);
+  UnlockingThread thread2(env);
+
+  CHECK(thread1.Start());
+  CHECK(thread2.Start());
+
+  // For good measure, profile on our own thread
+  UnlockingThread::Profile(env);
+  {
+    v8::Unlocker unlocker(isolate);
+    thread1.Join();
+    thread2.Join();
+  }
+}
+
 // Tests that StopProfiling doesn't wait for the next sample tick in order to
 // stop, but rather exits early before a given wait threshold.
 TEST(FastStopProfiling) {

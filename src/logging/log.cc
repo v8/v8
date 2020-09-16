@@ -18,6 +18,7 @@
 #include "src/diagnostics/perf-jit.h"
 #include "src/execution/isolate.h"
 #include "src/execution/runtime-profiler.h"
+#include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/combined-heap.h"
@@ -881,7 +882,8 @@ class Ticker : public sampler::Sampler {
   Ticker(Isolate* isolate, int interval_microseconds)
       : sampler::Sampler(reinterpret_cast<v8::Isolate*>(isolate)),
         sampling_thread_(
-            std::make_unique<SamplingThread>(this, interval_microseconds)) {}
+            std::make_unique<SamplingThread>(this, interval_microseconds)),
+        threadId_(ThreadId::Current()) {}
 
   ~Ticker() override {
     if (IsActive()) Stop();
@@ -903,6 +905,9 @@ class Ticker : public sampler::Sampler {
   void SampleStack(const v8::RegisterState& state) override {
     if (!profiler_) return;
     Isolate* isolate = reinterpret_cast<Isolate*>(this->isolate());
+    if (v8::Locker::IsActive() &&
+        !isolate->thread_manager()->IsLockedByThread(threadId_))
+      return;
     TickSample sample;
     sample.Init(isolate, state, TickSample::kIncludeCEntryFrame, true);
     profiler_->Insert(&sample);
@@ -911,6 +916,7 @@ class Ticker : public sampler::Sampler {
  private:
   Profiler* profiler_ = nullptr;
   std::unique_ptr<SamplingThread> sampling_thread_;
+  ThreadId threadId_;
 };
 
 //
