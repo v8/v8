@@ -380,6 +380,17 @@
   'regexp-tier-up-multiple': [SKIP],
   'regress/regress-996234': [SKIP],
 
+  # Tests that depend on optimization (beyond doing assertOptimized).
+  'compiler/is-being-interpreted-*': [SKIP],
+  'compiler/serializer-accessors': [SKIP],
+  'compiler/serializer-apply': [SKIP],
+  'compiler/serializer-call': [SKIP],
+  'compiler/serializer-dead-after-jump': [SKIP],
+  'compiler/serializer-dead-after-return': [SKIP],
+  'compiler/serializer-transition-propagation': [SKIP],
+  'regress/regress-1049982-1': [SKIP],
+  'regress/regress-1049982-2': [SKIP],
+
   # These tests check that we can trace the compiler.
   'tools/compiler-trace-flags': [SKIP],
   'tools/compiler-trace-flags-wasm': [SKIP],
@@ -1171,6 +1182,10 @@
   'regress/regress-1049982-1': [SKIP],
   'regress/regress-1049982-2': [SKIP],
   'es6/iterator-eager-deopt': [SKIP],
+
+  # interrupt_budget overrides don't work with TurboProp.
+  'interrupt-budget-override': [SKIP],
+  'never-optimize': [SKIP],
 
   # In turboprop we reuse the optimized code on soft deopt. The following tests
   # test for a soft deopt and they won't work in TurboProp.
