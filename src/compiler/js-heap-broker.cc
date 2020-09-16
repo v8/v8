@@ -81,10 +81,12 @@ enum ObjectDataKind {
 class AllowHandleAllocationIfNeeded {
  public:
   explicit AllowHandleAllocationIfNeeded(ObjectDataKind kind,
-                                         JSHeapBroker::BrokerMode mode) {
+                                         JSHeapBroker::BrokerMode mode,
+                                         bool direct_heap_access = false) {
     DCHECK_IMPLIES(mode == JSHeapBroker::BrokerMode::kSerialized,
                    kind == kUnserializedReadOnlyHeapObject ||
-                       kind == kNeverSerializedHeapObject);
+                       kind == kNeverSerializedHeapObject ||
+                       (direct_heap_access && kind == kSerializedHeapObject));
     if (kind == kUnserializedHeapObject) maybe_allow_handle_.emplace();
   }
 
@@ -95,11 +97,13 @@ class AllowHandleAllocationIfNeeded {
 class AllowHandleDereferenceIfNeeded {
  public:
   explicit AllowHandleDereferenceIfNeeded(ObjectDataKind kind,
-                                          JSHeapBroker::BrokerMode mode)
+                                          JSHeapBroker::BrokerMode mode,
+                                          bool direct_heap_access = false)
       : AllowHandleDereferenceIfNeeded(kind) {
     DCHECK_IMPLIES(mode == JSHeapBroker::BrokerMode::kSerialized,
                    kind == kUnserializedReadOnlyHeapObject ||
-                       kind == kNeverSerializedHeapObject);
+                       kind == kNeverSerializedHeapObject ||
+                       (direct_heap_access && kind == kSerializedHeapObject));
   }
 
   explicit AllowHandleDereferenceIfNeeded(ObjectDataKind kind) {
@@ -3330,6 +3334,27 @@ int BytecodeArrayRef::handler_table_size() const {
     return BitField::decode(ObjectRef::data()->As##holder()->field()); \
   }
 
+// Like IF_ACCESS_FROM_HEAP_C but we also allow direct heap access for
+// kSerialized only for methods that we identified to be safe.
+#define IF_ACCESS_FROM_HEAP_WITH_FLAG_C(name)                            \
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {    \
+    AllowHandleAllocationIfNeeded handle_allocation(                     \
+        data_->kind(), broker()->mode(), FLAG_turbo_direct_heap_access); \
+    AllowHandleDereferenceIfNeeded allow_handle_dereference(             \
+        data_->kind(), broker()->mode(), FLAG_turbo_direct_heap_access); \
+    return object()->name();                                             \
+  }
+
+// Like BIMODAL_ACCESSOR_C except that we force a direct heap access if
+// FLAG_turbo_direct_heap_access is true (even for kSerialized). This is because
+// we identified the method to be safe to use direct heap access, but the
+// holder##Data class still needs to be serialized.
+#define BIMODAL_ACCESSOR_WITH_FLAG_C(holder, result, name) \
+  result holder##Ref::name() const {                       \
+    IF_ACCESS_FROM_HEAP_WITH_FLAG_C(name);                 \
+    return ObjectRef::data()->As##holder()->name();        \
+  }
+
 BIMODAL_ACCESSOR(AllocationSite, Object, nested_site)
 BIMODAL_ACCESSOR_C(AllocationSite, bool, CanInlineCall)
 BIMODAL_ACCESSOR_C(AllocationSite, bool, PointsToLiteral)
@@ -3357,7 +3382,7 @@ BIMODAL_ACCESSOR(JSBoundFunction, JSReceiver, bound_target_function)
 BIMODAL_ACCESSOR(JSBoundFunction, Object, bound_this)
 BIMODAL_ACCESSOR(JSBoundFunction, FixedArray, bound_arguments)
 
-BIMODAL_ACCESSOR_C(JSDataView, size_t, byte_length)
+BIMODAL_ACCESSOR_WITH_FLAG_C(JSDataView, size_t, byte_length)
 
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_feedback_vector)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_initial_map)
