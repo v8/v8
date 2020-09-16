@@ -174,7 +174,7 @@ class FrameWriter {
 
   Deoptimizer* deoptimizer_;
   FrameDescription* frame_;
-  CodeTracer::Scope* trace_scope_;
+  CodeTracer::Scope* const trace_scope_;
   unsigned top_offset_;
 };
 
@@ -315,6 +315,7 @@ class ActivationsFinder : public ThreadVisitor {
 
 // Move marked code from the optimized code list to the deoptimized code list,
 // and replace pc on the stack for codes marked for deoptimization.
+// static
 void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
   DisallowHeapAllocation no_allocation;
 
@@ -332,12 +333,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
       Code code = it.frame()->LookupCode();
       JSFunction function =
           static_cast<OptimizedFrame*>(it.frame())->function();
-      if (FLAG_trace_deopt) {
-        CodeTracer::Scope scope(isolate->GetCodeTracer());
-        PrintF(scope.file(), "[deoptimizer found activation of function: ");
-        function.PrintName(scope.file());
-        PrintF(scope.file(), " / %" V8PRIxPTR "]\n", function.ptr());
-      }
+      TraceFoundActivation(isolate, function);
       SafepointEntry safepoint = code.GetSafepointEntry(it.frame()->pc());
 
       // Turbofan deopt is checked when we are patching addresses on stack.
@@ -412,10 +408,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
                                      RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
-  if (FLAG_trace_deopt) {
-    CodeTracer::Scope scope(isolate->GetCodeTracer());
-    PrintF(scope.file(), "[deoptimize all code in all contexts]\n");
-  }
+  TraceDeoptAll(isolate);
   isolate->AbortConcurrentOptimization(BlockingBehavior::kBlock);
   DisallowHeapAllocation no_allocation;
   // For all contexts, mark all code, then deoptimize.
@@ -434,10 +427,7 @@ void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
                                      RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
-  if (FLAG_trace_deopt) {
-    CodeTracer::Scope scope(isolate->GetCodeTracer());
-    PrintF(scope.file(), "[deoptimize marked code in all contexts]\n");
-  }
+  TraceDeoptMarked(isolate);
   DisallowHeapAllocation no_allocation;
   // For all contexts, deoptimize code already marked.
   Object context = isolate->heap()->native_contexts_list();
@@ -543,7 +533,9 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
       input_frame_context_(0),
       actual_argument_count_(0),
       stack_fp_(0),
-      trace_scope_(nullptr) {
+      trace_scope_(FLAG_trace_deopt
+                       ? new CodeTracer::Scope(isolate->GetCodeTracer())
+                       : nullptr) {
   if (isolate->deoptimizer_lazy_throw()) {
     isolate->set_deoptimizer_lazy_throw(false);
     deoptimizing_throw_ = true;
@@ -554,9 +546,6 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
   DCHECK(!compiled_code_.is_null());
 
   DCHECK(function.IsJSFunction());
-  trace_scope_ = FLAG_trace_deopt
-                     ? new CodeTracer::Scope(isolate->GetCodeTracer())
-                     : nullptr;
 #ifdef DEBUG
   DCHECK(AllowHeapAllocation::IsAllowed());
   disallow_heap_allocation_ = new DisallowHeapAllocation();
@@ -616,14 +605,6 @@ Code Deoptimizer::FindOptimizedCode() {
                                   : isolate_->FindCodeObject(from_);
 }
 
-void Deoptimizer::PrintFunctionName() {
-  if (function_.IsHeapObject() && function_.IsJSFunction()) {
-    function_.ShortPrint(trace_scope_->file());
-  } else {
-    PrintF(trace_scope_->file(), "%s", CodeKindToString(compiled_code_.kind()));
-  }
-}
-
 Handle<JSFunction> Deoptimizer::function() const {
   return Handle<JSFunction>(function_, isolate());
 }
@@ -640,7 +621,6 @@ bool Deoptimizer::should_reuse_code() const {
 Deoptimizer::~Deoptimizer() {
   DCHECK(input_ == nullptr && output_ == nullptr);
   DCHECK_NULL(disallow_heap_allocation_);
-  delete trace_scope_;
 }
 
 void Deoptimizer::DeleteFrameDescriptions() {
@@ -738,6 +718,106 @@ int LookupCatchHandler(TranslatedFrame* translated_frame, int* data_out) {
 
 }  // namespace
 
+void Deoptimizer::TraceDeoptBegin(int optimization_id, int node_id) {
+  DCHECK(tracing_enabled());
+  FILE* file = trace_scope()->file();
+  Deoptimizer::DeoptInfo info =
+      Deoptimizer::GetDeoptInfo(compiled_code_, from_);
+  PrintF(file, "[bailout (kind: %s, reason: %s): begin. deoptimizing ",
+         MessageFor(deopt_kind_, should_reuse_code()),
+         DeoptimizeReasonToString(info.deopt_reason));
+  if (function_.IsJSFunction()) {
+    function_.ShortPrint(file);
+  } else {
+    PrintF(file, "%s", CodeKindToString(compiled_code_.kind()));
+  }
+  PrintF(file,
+         ", opt id %d, node id %d, bailout id %d, FP to SP delta %d, "
+         "caller SP " V8PRIxPTR_FMT ", pc " V8PRIxPTR_FMT "]\n",
+         optimization_id, node_id, bailout_id_, fp_to_sp_delta_,
+         caller_frame_top_, PointerAuthentication::StripPAC(from_));
+  if (verbose_tracing_enabled() && deopt_kind_ != DeoptimizeKind::kLazy) {
+    PrintF(file, "            ;;; deoptimize at ");
+    OFStream outstr(file);
+    info.position.Print(outstr, compiled_code_);
+    PrintF(file, "\n");
+  }
+}
+
+void Deoptimizer::TraceDeoptEnd(double deopt_duration) {
+  DCHECK(verbose_tracing_enabled());
+  PrintF(trace_scope()->file(), "[bailout end. took %0.3f ms]\n",
+         deopt_duration);
+}
+
+// static
+void Deoptimizer::TraceMarkForDeoptimization(Code code, const char* reason) {
+  if (!FLAG_trace_deopt_verbose) return;
+
+  DisallowHeapAllocation no_gc;
+  Isolate* isolate = code.GetIsolate();
+  Object maybe_data = code.deoptimization_data();
+  if (maybe_data == ReadOnlyRoots(isolate).empty_fixed_array()) return;
+
+  DeoptimizationData deopt_data = DeoptimizationData::cast(maybe_data);
+  CodeTracer::Scope scope(isolate->GetCodeTracer());
+  PrintF(scope.file(), "[marking dependent code " V8PRIxPTR_FMT " ",
+         code.ptr());
+  deopt_data.SharedFunctionInfo().ShortPrint(scope.file());
+  PrintF(" (opt id %d) for deoptimization, reason: %s]\n",
+         deopt_data.OptimizationId().value(), reason);
+  {
+    AllowHeapAllocation yes_gc;
+    HandleScope scope(isolate);
+    PROFILE(
+        isolate,
+        CodeDependencyChangeEvent(
+            handle(code, isolate),
+            handle(SharedFunctionInfo::cast(deopt_data.SharedFunctionInfo()),
+                   isolate),
+            reason));
+  }
+}
+
+// static
+void Deoptimizer::TraceEvictFromOptimizedCodeCache(SharedFunctionInfo sfi,
+                                                   const char* reason) {
+  if (!FLAG_trace_deopt_verbose) return;
+
+  DisallowHeapAllocation no_gc;
+  CodeTracer::Scope scope(sfi.GetIsolate()->GetCodeTracer());
+  PrintF(scope.file(),
+         "[evicting optimized code marked for deoptimization (%s) for ",
+         reason);
+  sfi.ShortPrint(scope.file());
+  PrintF(scope.file(), "]\n");
+}
+
+#ifdef DEBUG
+// static
+void Deoptimizer::TraceFoundActivation(Isolate* isolate, JSFunction function) {
+  if (!FLAG_trace_deopt_verbose) return;
+  CodeTracer::Scope scope(isolate->GetCodeTracer());
+  PrintF(scope.file(), "[deoptimizer found activation of function: ");
+  function.PrintName(scope.file());
+  PrintF(scope.file(), " / %" V8PRIxPTR "]\n", function.ptr());
+}
+#endif  // DEBUG
+
+// static
+void Deoptimizer::TraceDeoptAll(Isolate* isolate) {
+  if (!FLAG_trace_deopt_verbose) return;
+  CodeTracer::Scope scope(isolate->GetCodeTracer());
+  PrintF(scope.file(), "[deoptimize all code in all contexts]\n");
+}
+
+// static
+void Deoptimizer::TraceDeoptMarked(Isolate* isolate) {
+  if (!FLAG_trace_deopt_verbose) return;
+  CodeTracer::Scope scope(isolate->GetCodeTracer());
+  PrintF(scope.file(), "[deoptimize marked code in all contexts]\n");
+}
+
 // We rely on this function not causing a GC.  It is called from generated code
 // without having a real stack frame in place.
 void Deoptimizer::DoComputeOutputFrames() {
@@ -782,31 +862,21 @@ void Deoptimizer::DoComputeOutputFrames() {
   CHECK_GT(static_cast<uintptr_t>(caller_frame_top_),
            stack_guard->real_jslimit());
 
-  if (trace_scope_ != nullptr) {
-    timer.Start();
-    PrintF(trace_scope_->file(), "[bailout (kind: %s): begin ",
-           MessageFor(deopt_kind_, should_reuse_code()));
-    PrintFunctionName();
-    PrintF(trace_scope_->file(),
-           " (opt #%d) @%d, FP to SP delta: %d, caller sp: " V8PRIxPTR_FMT
-           "]\n",
-           input_data.OptimizationId().value(), bailout_id_, fp_to_sp_delta_,
-           caller_frame_top_);
-    if (deopt_kind_ != DeoptimizeKind::kLazy) {
-      compiled_code_.PrintDeoptLocation(
-          trace_scope_->file(), "            ;;; deoptimize at ", from_);
-    }
-  }
-
   BailoutId node_id = input_data.BytecodeOffset(bailout_id_);
   ByteArray translations = input_data.TranslationByteArray();
   unsigned translation_index = input_data.TranslationIndex(bailout_id_).value();
 
+  if (tracing_enabled()) {
+    timer.Start();
+    TraceDeoptBegin(input_data.OptimizationId().value(), node_id.ToInt());
+  }
+
+  FILE* trace_file =
+      verbose_tracing_enabled() ? trace_scope()->file() : nullptr;
   TranslationIterator state_iterator(translations, translation_index);
   translated_state_.Init(
       isolate_, input_->GetFramePointerAddress(), &state_iterator,
-      input_data.LiteralArray(), input_->GetRegisterValues(),
-      trace_scope_ == nullptr ? nullptr : trace_scope_->file(),
+      input_data.LiteralArray(), input_->GetRegisterValues(), trace_file,
       function_.IsHeapObject()
           ? function_.shared().internal_formal_parameter_count()
           : 0);
@@ -882,18 +952,8 @@ void Deoptimizer::DoComputeOutputFrames() {
                                             isolate()->isolate_root());
 
   // Print some helpful diagnostic information.
-  if (trace_scope_ != nullptr) {
-    double ms = timer.Elapsed().InMillisecondsF();
-    int index = output_count_ - 1;  // Index of the topmost frame.
-    PrintF(trace_scope_->file(), "[bailout (kind: %s): end ",
-           MessageFor(deopt_kind_, should_reuse_code()));
-    PrintFunctionName();
-    PrintF(trace_scope_->file(),
-           " @%d => node=%d, pc=" V8PRIxPTR_FMT
-           " (unsigned), caller sp=" V8PRIxPTR_FMT ", took %0.3f ms]\n",
-           bailout_id_, node_id.ToInt(),
-           PointerAuthentication::StripPAC(output_[index]->GetPc()),
-           caller_frame_top_, ms);
+  if (verbose_tracing_enabled()) {
+    TraceDeoptEnd(timer.Elapsed().InMillisecondsF());
   }
 
   // The following invariant is fairly tricky to guarantee, since the size of
@@ -929,11 +989,11 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   const uint32_t output_frame_size = frame_info.frame_size_in_bytes();
 
   TranslatedFrame::iterator function_iterator = value_iterator++;
-  if (trace_scope_ != nullptr) {
-    PrintF(trace_scope_->file(), "  translating interpreted frame ");
+  if (verbose_tracing_enabled()) {
+    PrintF(trace_scope()->file(), "  translating interpreted frame ");
     std::unique_ptr<char[]> name = shared.DebugName().ToCString();
-    PrintF(trace_scope_->file(), "%s", name.get());
-    PrintF(trace_scope_->file(),
+    PrintF(trace_scope()->file(), "%s", name.get());
+    PrintF(trace_scope()->file(),
            " => bytecode_offset=%d, variable_frame_size=%d, frame_size=%d%s\n",
            real_bytecode_offset, frame_info.frame_size_in_bytes_without_fixed(),
            output_frame_size, goto_catch_handler ? " (throw)" : "");
@@ -942,7 +1002,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   // Allocate and store the output frame description.
   FrameDescription* output_frame = new (output_frame_size)
       FrameDescription(output_frame_size, parameters_count);
-  FrameWriter frame_writer(this, output_frame, trace_scope_);
+  FrameWriter frame_writer(this, output_frame, verbose_trace_scope());
 
   CHECK(frame_index >= 0 && frame_index < output_count_);
   CHECK_NULL(output_[frame_index]);
@@ -964,8 +1024,8 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
 
   DCHECK_EQ(output_frame->GetLastArgumentSlotOffset(),
             frame_writer.top_offset());
-  if (trace_scope_ != nullptr) {
-    PrintF(trace_scope_->file(), "    -------------------------\n");
+  if (verbose_tracing_enabled()) {
+    PrintF(trace_scope()->file(), "    -------------------------\n");
   }
 
   // There are no translation commands for the caller's pc and fp, the
@@ -1045,8 +1105,8 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   Smi smi_bytecode_offset = Smi::FromInt(raw_bytecode_offset);
   frame_writer.PushRawObject(smi_bytecode_offset, "bytecode offset\n");
 
-  if (trace_scope_ != nullptr) {
-    PrintF(trace_scope_->file(), "    -------------------------\n");
+  if (verbose_tracing_enabled()) {
+    PrintF(trace_scope()->file(), "    -------------------------\n");
   }
 
   // Translate the rest of the interpreter registers in the frame.
@@ -1185,8 +1245,8 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   const uint32_t output_frame_size = frame_info.frame_size_in_bytes();
 
   TranslatedFrame::iterator function_iterator = value_iterator++;
-  if (trace_scope_ != nullptr) {
-    PrintF(trace_scope_->file(),
+  if (verbose_tracing_enabled()) {
+    PrintF(trace_scope()->file(),
            "  translating arguments adaptor => variable_frame_size=%d, "
            "frame_size=%d\n",
            frame_info.frame_size_in_bytes_without_fixed(), output_frame_size);
@@ -1195,7 +1255,7 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   // Allocate and store the output frame description.
   FrameDescription* output_frame = new (output_frame_size)
       FrameDescription(output_frame_size, parameters_count);
-  FrameWriter frame_writer(this, output_frame, trace_scope_);
+  FrameWriter frame_writer(this, output_frame, verbose_trace_scope());
 
   // Arguments adaptor can not be topmost.
   CHECK(frame_index < output_count_ - 1);
@@ -1293,8 +1353,8 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   const uint32_t output_frame_size = frame_info.frame_size_in_bytes();
 
   TranslatedFrame::iterator function_iterator = value_iterator++;
-  if (trace_scope_ != nullptr) {
-    PrintF(trace_scope_->file(),
+  if (verbose_tracing_enabled()) {
+    PrintF(trace_scope()->file(),
            "  translating construct stub => bailout_id=%d (%s), "
            "variable_frame_size=%d, frame_size=%d\n",
            bailout_id.ToInt(),
@@ -1305,7 +1365,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   // Allocate and store the output frame description.
   FrameDescription* output_frame = new (output_frame_size)
       FrameDescription(output_frame_size, parameters_count);
-  FrameWriter frame_writer(this, output_frame, trace_scope_);
+  FrameWriter frame_writer(this, output_frame, verbose_trace_scope());
 
   // Construct stub can not be topmost.
   DCHECK(frame_index > 0 && frame_index < output_count_);
@@ -1594,8 +1654,8 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   }
   CHECK_EQ(BuiltinContinuationModeIsJavaScript(mode), has_argc);
 
-  if (trace_scope_ != nullptr) {
-    PrintF(trace_scope_->file(),
+  if (verbose_tracing_enabled()) {
+    PrintF(trace_scope()->file(),
            "  translating BuiltinContinuation to %s,"
            " => register_param_count=%d,"
            " stack_param_count=%d, frame_size=%d\n",
@@ -1606,7 +1666,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   FrameDescription* output_frame = new (output_frame_size)
       FrameDescription(output_frame_size, frame_info.stack_parameter_count());
   output_[frame_index] = output_frame;
-  FrameWriter frame_writer(this, output_frame, trace_scope_);
+  FrameWriter frame_writer(this, output_frame, verbose_trace_scope());
 
   // The top address of the frame is computed from the previous frame's top and
   // this frame's size.
@@ -1774,7 +1834,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   for (int i = 0; i < allocatable_register_count; ++i) {
     int code = config->GetAllocatableGeneralCode(i);
     ScopedVector<char> str(128);
-    if (trace_scope_ != nullptr) {
+    if (verbose_tracing_enabled()) {
       if (BuiltinContinuationModeIsJavaScript(mode) &&
           code == kJavaScriptCallArgCountRegister.code()) {
         SNPrintF(
@@ -1787,7 +1847,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
       }
     }
     frame_writer.PushTranslatedValue(
-        register_values[code], trace_scope_ != nullptr ? str.begin() : "");
+        register_values[code], verbose_tracing_enabled() ? str.begin() : "");
   }
 
   // Some architectures must pad the stack frame with extra stack slots
@@ -1863,13 +1923,13 @@ void Deoptimizer::MaterializeHeapObjects() {
   for (auto& materialization : values_to_materialize_) {
     Handle<Object> value = materialization.value_->GetValue();
 
-    if (trace_scope_ != nullptr) {
-      PrintF(trace_scope_->file(),
+    if (verbose_tracing_enabled()) {
+      PrintF(trace_scope()->file(),
              "Materialization [" V8PRIxPTR_FMT "] <- " V8PRIxPTR_FMT " ;  ",
              static_cast<intptr_t>(materialization.output_slot_address_),
              value->ptr());
-      value->ShortPrint(trace_scope_->file());
-      PrintF(trace_scope_->file(), "\n");
+      value->ShortPrint(trace_scope()->file());
+      PrintF(trace_scope()->file(), "\n");
     }
 
     *(reinterpret_cast<Address*>(materialization.output_slot_address_)) =
@@ -1879,10 +1939,14 @@ void Deoptimizer::MaterializeHeapObjects() {
   translated_state_.VerifyMaterializedObjects();
 
   bool feedback_updated = translated_state_.DoUpdateFeedback();
-  if (trace_scope_ != nullptr && feedback_updated) {
-    PrintF(trace_scope_->file(), "Feedback updated");
-    compiled_code_.PrintDeoptLocation(trace_scope_->file(),
-                                      " from deoptimization at ", from_);
+  if (verbose_tracing_enabled() && feedback_updated) {
+    FILE* file = trace_scope()->file();
+    Deoptimizer::DeoptInfo info =
+        Deoptimizer::GetDeoptInfo(compiled_code_, from_);
+    PrintF(file, "Feedback updated from deoptimization at ");
+    OFStream outstr(file);
+    info.position.Print(outstr, compiled_code_);
+    PrintF(file, ", %s\n", DeoptimizeReasonToString(info.deopt_reason));
   }
 
   isolate_->materialized_object_store()->Remove(

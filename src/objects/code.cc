@@ -201,17 +201,6 @@ int AbstractCode::SourceStatementPosition(int offset) {
   return statement_position;
 }
 
-void Code::PrintDeoptLocation(FILE* out, const char* str, Address pc) {
-  Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(*this, pc);
-  class SourcePosition pos = info.position;
-  if (info.deopt_reason != DeoptimizeReason::kUnknown || pos.IsKnown()) {
-    PrintF(out, "%s", str);
-    OFStream outstr(out);
-    pos.Print(outstr, *this);
-    PrintF(out, ", %s\n", DeoptimizeReasonToString(info.deopt_reason));
-  }
-}
-
 bool Code::CanDeoptAt(Address pc) {
   DeoptimizationData deopt_data =
       DeoptimizationData::cast(deoptimization_data());
@@ -1057,27 +1046,7 @@ void DependentCode::DeoptimizeDependentCodeGroup(
 
 void Code::SetMarkedForDeoptimization(const char* reason) {
   set_marked_for_deoptimization(true);
-  if (FLAG_trace_deopt &&
-      (deoptimization_data() != GetReadOnlyRoots().empty_fixed_array())) {
-    DeoptimizationData deopt_data =
-        DeoptimizationData::cast(deoptimization_data());
-    auto isolate = GetIsolate();
-    CodeTracer::Scope scope(isolate->GetCodeTracer());
-    PrintF(scope.file(), "[marking dependent code " V8PRIxPTR_FMT " ", ptr());
-    deopt_data.SharedFunctionInfo().ShortPrint(scope.file());
-    PrintF(" (opt #%d) for deoptimization, reason: %s]\n",
-           deopt_data.OptimizationId().value(), reason);
-    {
-      HandleScope scope(isolate);
-      PROFILE(
-          isolate,
-          CodeDependencyChangeEvent(
-              handle(*this, isolate),
-              handle(SharedFunctionInfo::cast(deopt_data.SharedFunctionInfo()),
-                     isolate),
-              reason));
-    }
-  }
+  Deoptimizer::TraceMarkForDeoptimization(*this, reason);
 }
 
 const char* DependentCode::DependencyGroupName(DependencyGroup group) {

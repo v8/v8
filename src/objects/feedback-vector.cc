@@ -413,14 +413,7 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
 
   Code code = Code::cast(slot->GetHeapObject());
   if (code.marked_for_deoptimization()) {
-    if (FLAG_trace_deopt) {
-      CodeTracer::Scope scope(GetIsolate()->GetCodeTracer());
-      PrintF(scope.file(),
-             "[evicting optimized code marked for deoptimization (%s) for ",
-             reason);
-      shared.ShortPrint(scope.file());
-      PrintF(scope.file(), "]\n");
-    }
+    Deoptimizer::TraceEvictFromOptimizedCodeCache(shared, reason);
     if (!code.deopt_already_counted()) {
       code.set_deopt_already_counted(true);
     }

@@ -537,6 +537,11 @@ class Deoptimizer : public Malloced {
   static const int kNonLazyDeoptExitSize;
   static const int kLazyDeoptExitSize;
 
+  // Tracing.
+  static void TraceMarkForDeoptimization(Code code, const char* reason);
+  static void TraceEvictFromOptimizedCodeCache(SharedFunctionInfo sfi,
+                                               const char* reason);
+
  private:
   friend class FrameWriter;
   void QueueValueForMaterialization(Address output_address, Object obj,
@@ -545,7 +550,6 @@ class Deoptimizer : public Malloced {
   Deoptimizer(Isolate* isolate, JSFunction function, DeoptimizeKind kind,
               unsigned bailout_id, Address from, int fp_to_sp_delta);
   Code FindOptimizedCode();
-  void PrintFunctionName();
   void DeleteFrameDescriptions();
 
   static bool IsDeoptimizationEntry(Isolate* isolate, Address addr,
@@ -582,6 +586,23 @@ class Deoptimizer : public Malloced {
   // containing the given address (which is supposedly faster than
   // searching all code objects).
   Code FindDeoptimizingCode(Address addr);
+
+  // Tracing.
+  bool tracing_enabled() const { return static_cast<bool>(trace_scope_); }
+  bool verbose_tracing_enabled() const {
+    return FLAG_trace_deopt_verbose && trace_scope_;
+  }
+  CodeTracer::Scope* trace_scope() const { return trace_scope_.get(); }
+  CodeTracer::Scope* verbose_trace_scope() const {
+    return FLAG_trace_deopt_verbose ? trace_scope() : nullptr;
+  }
+  void TraceDeoptBegin(int optimization_id, int node_id);
+  void TraceDeoptEnd(double deopt_duration);
+#ifdef DEBUG
+  static void TraceFoundActivation(Isolate* isolate, JSFunction function);
+#endif
+  static void TraceDeoptAll(Isolate* isolate);
+  static void TraceDeoptMarked(Isolate* isolate);
 
   Isolate* isolate_;
   JSFunction function_;
@@ -625,7 +646,7 @@ class Deoptimizer : public Malloced {
   DisallowHeapAllocation* disallow_heap_allocation_;
 #endif  // DEBUG
 
-  CodeTracer::Scope* trace_scope_;
+  std::unique_ptr<CodeTracer::Scope> trace_scope_;
 
   static const int table_entry_size_;
 
