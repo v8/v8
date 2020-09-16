@@ -1260,6 +1260,34 @@
       {'name': 'd8testing', 'variant': 'default'},
     ],
   },
+  'V8 Mac - arm64 - sim - debug': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64',
+      'os': 'Mac-10.13',
+    },
+    'swarming_task_attrs': {
+      'expiration': 14400,
+      'hard_timeout': 3600,
+      'priority': 35,
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 3},
+    ],
+  },
+  'V8 Mac - arm64 - sim - release': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64',
+      'os': 'Mac-10.13',
+    },
+    'swarming_task_attrs': {
+      'expiration': 14400,
+      'hard_timeout': 3600,
+      'priority': 35,
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 3},
+    ],
+  },
   'V8 Win32': {
     'swarming_dimensions': {
       'cpu': 'x86-64',
