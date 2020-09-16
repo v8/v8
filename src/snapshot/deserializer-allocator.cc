@@ -64,22 +64,6 @@ Address DeserializerAllocator::AllocateRaw(SnapshotSpace space, int size) {
 }
 
 Address DeserializerAllocator::Allocate(SnapshotSpace space, int size) {
-#ifdef DEBUG
-  if (previous_allocation_start_ != kNullAddress) {
-    // Make sure that the previous allocation is initialized sufficiently to
-    // be iterated over by the GC.
-    Address object_address = previous_allocation_start_;
-    Address previous_allocation_end =
-        previous_allocation_start_ + previous_allocation_size_;
-    while (object_address != previous_allocation_end) {
-      int object_size = HeapObject::FromAddress(object_address).Size();
-      DCHECK_GT(object_size, 0);
-      DCHECK_LE(object_address + object_size, previous_allocation_end);
-      object_address += object_size;
-    }
-  }
-#endif
-
   Address address;
   HeapObject obj;
   // TODO(steveblackburn) Note that the third party heap allocates objects
@@ -96,9 +80,9 @@ Address DeserializerAllocator::Allocate(SnapshotSpace space, int size) {
   // abstracting away the details of the memory allocator from this code.
   // At each allocation, the regular allocator performs allocation,
   // and a fixed-sized table is used to track and fix all back references.
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    address = AllocateRaw(space, size);
-  } else if (next_alignment_ != kWordAligned) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return AllocateRaw(space, size);
+
+  if (next_alignment_ != kWordAligned) {
     const int reserved = size + Heap::GetMaximumFillToAlign(next_alignment_);
     address = AllocateRaw(space, reserved);
     obj = HeapObject::FromAddress(address);
@@ -111,16 +95,10 @@ Address DeserializerAllocator::Allocate(SnapshotSpace space, int size) {
     obj = Heap::AlignWithFiller(roots_, obj, size, reserved, next_alignment_);
     address = obj.address();
     next_alignment_ = kWordAligned;
+    return address;
   } else {
-    address = AllocateRaw(space, size);
+    return AllocateRaw(space, size);
   }
-
-#ifdef DEBUG
-  previous_allocation_start_ = address;
-  previous_allocation_size_ = size;
-#endif
-
-  return address;
 }
 
 void DeserializerAllocator::MoveToNextChunk(SnapshotSpace space) {

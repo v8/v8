@@ -1877,8 +1877,6 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
     for (int space = FIRST_SPACE;
          space < static_cast<int>(SnapshotSpace::kNumberOfHeapSpaces);
          space++) {
-      DCHECK_NE(space, NEW_SPACE);
-      DCHECK_NE(space, NEW_LO_SPACE);
       Reservation* reservation = &reservations[space];
       DCHECK_LE(1, reservation->size());
       if (reservation->at(0).size == 0) {
@@ -1939,7 +1937,10 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
           allocation =
               AllocateRaw(size, type, AllocationOrigin::kRuntime, align);
 #else
-          if (space == RO_SPACE) {
+          if (space == NEW_SPACE) {
+            allocation = new_space()->AllocateRaw(
+                size, AllocationAlignment::kWordAligned);
+          } else if (space == RO_SPACE) {
             allocation = read_only_space()->AllocateRaw(
                 size, AllocationAlignment::kWordAligned);
           } else {
@@ -1971,11 +1972,16 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
           V8::FatalProcessOutOfMemory(
               isolate(), "insufficient memory to create an Isolate");
         }
-        if (counter > 1) {
-          CollectAllGarbage(kReduceMemoryFootprintMask,
-                            GarbageCollectionReason::kDeserializer);
+        if (space == NEW_SPACE) {
+          CollectGarbage(NEW_SPACE, GarbageCollectionReason::kDeserializer);
         } else {
-          CollectAllGarbage(kNoGCFlags, GarbageCollectionReason::kDeserializer);
+          if (counter > 1) {
+            CollectAllGarbage(kReduceMemoryFootprintMask,
+                              GarbageCollectionReason::kDeserializer);
+          } else {
+            CollectAllGarbage(kNoGCFlags,
+                              GarbageCollectionReason::kDeserializer);
+          }
         }
         gc_performed = true;
         break;  // Abort for-loop over spaces and retry.
@@ -5881,9 +5887,9 @@ void Heap::ClearRecordedSlotRange(Address start, Address end) {
 }
 
 PagedSpace* PagedSpaceIterator::Next() {
-  int space = counter_++;
-  switch (space) {
+  switch (counter_++) {
     case RO_SPACE:
+    case NEW_SPACE:
       UNREACHABLE();
     case OLD_SPACE:
       return heap_->old_space();
@@ -5892,7 +5898,6 @@ PagedSpace* PagedSpaceIterator::Next() {
     case MAP_SPACE:
       return heap_->map_space();
     default:
-      DCHECK_GT(space, LAST_GROWABLE_PAGED_SPACE);
       return nullptr;
   }
 }

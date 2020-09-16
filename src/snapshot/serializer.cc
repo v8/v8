@@ -71,9 +71,6 @@ void Serializer::OutputStatistics(const char* name) {
 }
 
 void Serializer::SerializeDeferredObjects() {
-  if (FLAG_trace_serializer) {
-    PrintF("Serializing deferred objects\n");
-  }
   while (!deferred_objects_.empty()) {
     HeapObject obj = deferred_objects_.back();
     deferred_objects_.pop_back();
@@ -168,13 +165,13 @@ bool Serializer::SerializeBackReference(HeapObject obj) {
 }
 
 bool Serializer::SerializePendingObject(HeapObject obj) {
-  PendingObjectReference pending_obj =
-      forward_refs_per_pending_object_.find(obj);
-  if (pending_obj == forward_refs_per_pending_object_.end()) {
+  auto it = forward_refs_per_pending_object_.find(obj);
+  if (it == forward_refs_per_pending_object_.end()) {
     return false;
   }
 
-  PutPendingForwardReferenceTo(pending_obj);
+  int forward_ref_id = PutPendingForwardReference();
+  it->second.push_back(forward_ref_id);
   return true;
 }
 
@@ -274,13 +271,10 @@ void Serializer::PutRepeat(int repeat_count) {
   }
 }
 
-void Serializer::PutPendingForwardReferenceTo(
-    PendingObjectReference reference) {
+int Serializer::PutPendingForwardReference() {
   sink_.Put(kRegisterPendingForwardRef, "RegisterPendingForwardRef");
   unresolved_forward_refs_++;
-  // Register the current slot with the pending object.
-  int forward_ref_id = next_forward_ref_id_++;
-  reference->second.push_back(forward_ref_id);
+  return next_forward_ref_id_++;
 }
 
 void Serializer::ResolvePendingForwardReference(int forward_reference_id) {
@@ -301,11 +295,9 @@ Serializer::PendingObjectReference Serializer::RegisterObjectIsPending(
   auto forward_refs_entry_insertion =
       forward_refs_per_pending_object_.emplace(obj, std::vector<int>());
 
-  // If the above emplace didn't actually add the object, then the object must
-  // already have been registered pending by deferring. It might not be in the
-  // deferred objects queue though, since it may be the very object we just
-  // popped off that queue, so just check that it can be deferred.
-  DCHECK_IMPLIES(!forward_refs_entry_insertion.second, CanBeDeferred(obj));
+  // Make sure the above emplace actually added the object, rather than
+  // overwriting an existing entry.
+  DCHECK(forward_refs_entry_insertion.second);
 
   // return the iterator into the map as the reference.
   return forward_refs_entry_insertion.first;
@@ -589,26 +581,6 @@ class UnlinkWeakNextScope {
 };
 
 void Serializer::ObjectSerializer::Serialize() {
-  RecursionScope recursion(serializer_);
-
-  // Defer objects as "pending" if they cannot be serialized now, or if we
-  // exceed a certain recursion depth. Some objects cannot be deferred
-  if ((recursion.ExceedsMaximum() && CanBeDeferred(object_)) ||
-      serializer_->MustBeDeferred(object_)) {
-    DCHECK(CanBeDeferred(object_));
-    if (FLAG_trace_serializer) {
-      PrintF(" Deferring heap object: ");
-      object_.ShortPrint();
-      PrintF("\n");
-    }
-    // Deferred objects are considered "pending".
-    PendingObjectReference pending_obj =
-        serializer_->RegisterObjectIsPending(object_);
-    serializer_->PutPendingForwardReferenceTo(pending_obj);
-    serializer_->QueueDeferredObject(object_);
-    return;
-  }
-
   if (FLAG_trace_serializer) {
     PrintF(" Encoding heap object: ");
     object_.ShortPrint();
@@ -662,7 +634,7 @@ SnapshotSpace GetSnapshotSpace(HeapObject object) {
     } else if (object.IsMap()) {
       return SnapshotSpace::kMap;
     } else {
-      return SnapshotSpace::kOld;  // avoid new/young distinction in TPH
+      return SnapshotSpace::kNew;  // avoid new/young distinction in TPH
     }
   } else if (ReadOnlyHeap::Contains(object)) {
     return SnapshotSpace::kReadOnlyHeap;
@@ -697,27 +669,43 @@ void Serializer::ObjectSerializer::SerializeObject() {
   CHECK_EQ(0, bytes_processed_so_far_);
   bytes_processed_so_far_ = kTaggedSize;
 
+  RecursionScope recursion(serializer_);
+  // Objects that are immediately post processed during deserialization
+  // cannot be deferred, since post processing requires the object content.
+  if ((recursion.ExceedsMaximum() && CanBeDeferred(object_)) ||
+      serializer_->MustBeDeferred(object_)) {
+    serializer_->QueueDeferredObject(object_);
+    sink_->Put(kDeferred, "Deferring object content");
+    return;
+  }
+
   SerializeContent(map, size);
 }
 
 void Serializer::ObjectSerializer::SerializeDeferred() {
+  if (FLAG_trace_serializer) {
+    PrintF(" Encoding deferred heap object: ");
+    object_.ShortPrint();
+    PrintF("\n");
+  }
+
+  int size = object_.Size();
+  Map map = object_.map();
   SerializerReference back_reference =
       serializer_->reference_map()->LookupReference(
           reinterpret_cast<void*>(object_.ptr()));
+  DCHECK(back_reference.is_back_reference());
 
-  if (back_reference.is_valid()) {
-    if (FLAG_trace_serializer) {
-      PrintF(" Deferred heap object ");
-      object_.ShortPrint();
-      PrintF(" was already serialized\n");
-    }
-    return;
-  }
+  // Serialize the rest of the object.
+  CHECK_EQ(0, bytes_processed_so_far_);
+  bytes_processed_so_far_ = kTaggedSize;
 
-  if (FLAG_trace_serializer) {
-    PrintF(" Encoding deferred heap object\n");
-  }
-  Serialize();
+  serializer_->PutAlignmentPrefix(object_);
+  sink_->Put(NewObject::Encode(back_reference.space()), "deferred object");
+  serializer_->PutBackReference(object_, back_reference);
+  sink_->PutInt(size >> kTaggedSizeLog2, "deferred object size");
+
+  SerializeContent(map, size);
 }
 
 void Serializer::ObjectSerializer::SerializeContent(Map map, int size) {

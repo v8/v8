@@ -28312,9 +28312,7 @@ TEST(TriggerDelayedMainThreadMetricsEvent) {
     CHECK_EQ(recorder->count_, 0);        // Unchanged.
     CHECK_EQ(recorder->time_in_us_, -1);  // Unchanged.
     v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(1100));
-    while (v8::platform::PumpMessageLoop(v8::internal::V8::GetCurrentPlatform(),
-                                         iso)) {
-    }
+    v8::platform::PumpMessageLoop(v8::internal::V8::GetCurrentPlatform(), iso);
     CHECK_EQ(recorder->count_, 1);  // Increased.
     CHECK_GT(recorder->time_in_us_, 100);
   }
@@ -28325,9 +28323,7 @@ TEST(TriggerDelayedMainThreadMetricsEvent) {
   // invalid.
   i_iso->metrics_recorder()->DelayMainThreadEvent(event, context_id);
   v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(1100));
-  while (v8::platform::PumpMessageLoop(v8::internal::V8::GetCurrentPlatform(),
-                                       iso)) {
-  }
+  v8::platform::PumpMessageLoop(v8::internal::V8::GetCurrentPlatform(), iso);
   CHECK_EQ(recorder->count_, 1);  // Unchanged.
 }
 

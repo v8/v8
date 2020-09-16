@@ -71,9 +71,9 @@ class SerializerDeserializer : public RootVisitor {
 
 // clang-format off
 #define UNUSED_SERIALIZER_BYTE_CODES(V)                           \
-  V(0x05) V(0x06) V(0x07) V(0x0d) V(0x0e) V(0x0f)                 \
-  /* Free range 0x2a..0x2f */                                     \
-  V(0x2a) V(0x2b) V(0x2c) V(0x2d) V(0x2e) V(0x2f)                 \
+  V(0x06) V(0x07) V(0x0e) V(0x0f)                                 \
+  /* Free range 0x2b..0x2f */                                     \
+  V(0x2b) V(0x2c) V(0x2d) V(0x2e) V(0x2f)                         \
   /* Free range 0x30..0x3f */                                     \
   V(0x30) V(0x31) V(0x32) V(0x33) V(0x34) V(0x35) V(0x36) V(0x37) \
   V(0x38) V(0x39) V(0x3a) V(0x3b) V(0x3c) V(0x3d) V(0x3e) V(0x3f) \
@@ -102,7 +102,7 @@ class SerializerDeserializer : public RootVisitor {
   // The static assert below will trigger when the number of preallocated spaces
   // changed. If that happens, update the kNewObject and kBackref bytecode
   // ranges in the comments below.
-  STATIC_ASSERT(5 == kNumberOfSpaces);
+  STATIC_ASSERT(6 == kNumberOfSpaces);
 
   // First 32 root array items.
   static const int kRootArrayConstantsCount = 0x20;
@@ -124,9 +124,9 @@ class SerializerDeserializer : public RootVisitor {
     // ---------- byte code range 0x00..0x0f ----------
     //
 
-    // 0x00..0x04  Allocate new object, in specified space.
+    // 0x00..0x05  Allocate new object, in specified space.
     kNewObject = 0x00,
-    // 0x08..0x0c  Reference to previous object from specified space.
+    // 0x08..0x0d  Reference to previous object from specified space.
     kBackref = 0x08,
 
     //
@@ -145,14 +145,16 @@ class SerializerDeserializer : public RootVisitor {
     kNop,
     // Move to next reserved chunk.
     kNextChunk,
-    // 3 alignment prefixes 0x16..0x18
-    kAlignmentPrefix = 0x16,
+    // Deferring object content.
+    kDeferred,
+    // 3 alignment prefixes 0x17..0x19
+    kAlignmentPrefix = 0x17,
     // A tag emitted at strategic points in the snapshot to delineate sections.
     // If the deserializer does not find these at the expected moments then it
     // is an indication that the snapshot and the VM do not fit together.
     // Examine the build process for architecture, version or configuration
     // mismatches.
-    kSynchronize = 0x19,
+    kSynchronize = 0x1a,
     // Repeats of variable length.
     kVariableRepeat,
     // Used for embedder-allocated backing stores for TypedArrays.
