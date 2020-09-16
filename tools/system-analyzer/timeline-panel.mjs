@@ -14,8 +14,6 @@ defineCustomElement('timeline-panel', (templateText) =>
       this.timelineOverview.addEventListener(
         'mousemove', e => this.handleTimelineIndicatorMove(e));
       this.addEventListener(
-        'overviewupdate', e => this.handleOverviewBackgroundUpdate(e));
-      this.addEventListener(
         'scrolltrack', e => this.handleTrackScroll(e));
       this.addEventListener(
         SynchronizeSelectionEvent.name, e => this.handleMouseMoveSelection(e));
@@ -76,6 +74,7 @@ defineCustomElement('timeline-panel', (templateText) =>
       for (const track of this.timelineTracks) {
         track.timelineIndicatorMove(event.movementX / factor);
       }
+      this.updateOverviewWindow();
     }
 
     updateOverviewWindow() {
@@ -89,11 +88,6 @@ defineCustomElement('timeline-panel', (templateText) =>
       let left = div.scrollLeft * factor;
       indicator.style.width = width + 'px';
       indicator.style.left = left + 'px';
-    }
-
-    handleOverviewBackgroundUpdate(e) {
-      this.timelineOverview.style.backgroundImage =
-        'url(' + e.detail + ')';
     }
 
   });

@@ -342,7 +342,6 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
         addTimestamp(time, ((time - start) / 1000) + ' ms');
         time += interval;
       }
-      this.drawOverview();
       this.redraw();
     }
 
@@ -367,35 +366,6 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       if (!chunk) return;
       let maps = chunk.items;
       this.dispatchEvent(new SelectionEvent(maps));
-    }
-
-    drawOverview() {
-      const height = 50;
-      const kFactor = 2;
-      let canvas = this.backgroundCanvas;
-      canvas.height = height;
-      canvas.width = window.innerWidth;
-      let ctx = canvas.getContext('2d');
-      let chunks = this.data.chunkSizes(canvas.width * kFactor);
-      let max = chunks.max();
-      ctx.clearRect(0, 0, canvas.width, height);
-      ctx.fillStyle = CSSColor.onBackgroundColor;
-      ctx.beginPath();
-      ctx.moveTo(0, height);
-      for (let i = 0; i < chunks.length; i++) {
-        ctx.lineTo(i / kFactor, height - chunks[i] / max * height);
-      }
-      ctx.lineTo(chunks.length, height);
-      ctx.strokeStyle = CSSColor.onBackgroundColor;
-      ctx.stroke();
-      ctx.closePath();
-      ctx.fill();
-      let imageData = canvas.toDataURL('image/webp', 0.2);
-      this.dispatchEvent(new CustomEvent(
-        'overviewupdate', {
-        bubbles: true, composed: true,
-        detail: imageData
-      }));
     }
 
     redraw() {
