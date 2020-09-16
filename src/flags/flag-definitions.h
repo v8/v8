@@ -974,7 +974,7 @@ DEFINE_BOOL(concurrent_marking, V8_CONCURRENT_MARKING_BOOL,
             "use concurrent marking")
 DEFINE_BOOL(concurrent_array_buffer_sweeping, true,
             "concurrently sweep array buffers")
-DEFINE_BOOL(concurrent_allocation, false, "concurrently allocate in old space")
+DEFINE_BOOL(concurrent_allocation, true, "concurrently allocate in old space")
 DEFINE_BOOL(local_heaps, true, "allow heap access from background tasks")
 DEFINE_IMPLICATION(concurrent_inlining, local_heaps)
 DEFINE_BOOL(stress_concurrent_allocation, false,
