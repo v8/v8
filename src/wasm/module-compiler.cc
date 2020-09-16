@@ -1400,8 +1400,8 @@ int AddExportWrapperUnits(Isolate* isolate, WasmEngine* wasm_engine,
     JSToWasmWrapperKey key(function.imported, *function.sig);
     if (keys.insert(key).second) {
       auto unit = std::make_shared<JSToWasmWrapperCompilationUnit>(
-          isolate, wasm_engine, function.sig, function.imported,
-          enabled_features);
+          isolate, wasm_engine, function.sig, native_module->module(),
+          function.imported, enabled_features);
       builder->AddJSToWasmWrapperUnit(std::move(unit));
     }
   }
@@ -1418,7 +1418,8 @@ int AddImportWrapperUnits(NativeModule* native_module,
   int num_imported_functions = native_module->num_imported_functions();
   for (int func_index = 0; func_index < num_imported_functions; func_index++) {
     const FunctionSig* sig = native_module->module()->functions[func_index].sig;
-    if (!IsJSCompatibleSignature(sig, native_module->enabled_features())) {
+    if (!IsJSCompatibleSignature(sig, native_module->module(),
+                                 native_module->enabled_features())) {
       continue;
     }
     WasmImportWrapperCache::CacheKey key(
@@ -3340,8 +3341,8 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
     JSToWasmWrapperKey key(function.imported, *function.sig);
     if (queue.insert(key)) {
       auto unit = std::make_unique<JSToWasmWrapperCompilationUnit>(
-          isolate, isolate->wasm_engine(), function.sig, function.imported,
-          enabled_features);
+          isolate, isolate->wasm_engine(), function.sig, module,
+          function.imported, enabled_features);
       compilation_units.emplace(key, std::move(unit));
     }
   }

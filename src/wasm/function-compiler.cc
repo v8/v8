@@ -291,14 +291,15 @@ bool UseGenericWrapper(const FunctionSig* sig) {
 
 JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
     Isolate* isolate, WasmEngine* wasm_engine, const FunctionSig* sig,
-    bool is_import, const WasmFeatures& enabled_features)
+    const WasmModule* module, bool is_import,
+    const WasmFeatures& enabled_features)
     : is_import_(is_import),
       sig_(sig),
       use_generic_wrapper_(UseGenericWrapper(sig) && !is_import),
-      job_(use_generic_wrapper_
-               ? nullptr
-               : compiler::NewJSToWasmCompilationJob(
-                     isolate, wasm_engine, sig, is_import, enabled_features)) {}
+      job_(use_generic_wrapper_ ? nullptr
+                                : compiler::NewJSToWasmCompilationJob(
+                                      isolate, wasm_engine, sig, module,
+                                      is_import, enabled_features)) {}
 
 JSToWasmWrapperCompilationUnit::~JSToWasmWrapperCompilationUnit() = default;
 
@@ -330,11 +331,12 @@ Handle<Code> JSToWasmWrapperCompilationUnit::Finalize(Isolate* isolate) {
 
 // static
 Handle<Code> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-    Isolate* isolate, const FunctionSig* sig, bool is_import) {
+    Isolate* isolate, const FunctionSig* sig, const WasmModule* module,
+    bool is_import) {
   // Run the compilation unit synchronously.
   WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
   JSToWasmWrapperCompilationUnit unit(isolate, isolate->wasm_engine(), sig,
-                                      is_import, enabled_features);
+                                      module, is_import, enabled_features);
   unit.Execute();
   return unit.Finalize(isolate);
 }

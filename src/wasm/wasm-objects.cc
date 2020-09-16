@@ -1397,7 +1397,7 @@ WasmInstanceObject::GetOrCreateWasmExternalFunction(
     // this signature. We compile it and store the wrapper in the module for
     // later use.
     wrapper = wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-        isolate, function.sig, function.imported);
+        isolate, function.sig, instance->module(), function.imported);
     module_object->export_wrappers().set(wrapper_index, *wrapper);
   }
   result = Handle<WasmExternalFunction>::cast(WasmExportedFunction::New(
@@ -1445,7 +1445,8 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
         instance->module_object().native_module();
     // TODO(wasm): Cache and reuse wrapper code.
     const wasm::WasmFeatures enabled = native_module->enabled_features();
-    auto resolved = compiler::ResolveWasmImportCall(callable, sig, enabled);
+    auto resolved = compiler::ResolveWasmImportCall(
+        callable, sig, instance->module(), enabled);
     compiler::WasmImportCallKind kind = resolved.first;
     callable = resolved.second;  // Update to ultimate target.
     DCHECK_NE(compiler::WasmImportCallKind::kLinkError, kind);
@@ -1914,7 +1915,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   // TODO(wasm): Think about caching and sharing the JS-to-JS wrappers per
   // signature instead of compiling a new one for every instantiation.
   Handle<Code> wrapper_code =
-      compiler::CompileJSToJSWrapper(isolate, sig).ToHandleChecked();
+      compiler::CompileJSToJSWrapper(isolate, sig, nullptr).ToHandleChecked();
   Handle<WasmJSFunctionData> function_data =
       Handle<WasmJSFunctionData>::cast(isolate->factory()->NewStruct(
           WASM_JS_FUNCTION_DATA_TYPE, AllocationType::kOld));

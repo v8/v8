@@ -716,7 +716,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     auto& function = module_->functions[start_index];
     Handle<Code> wrapper_code =
         JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-            isolate_, function.sig, function.imported);
+            isolate_, function.sig, module_, function.imported);
     // TODO(clemensb): Don't generate an exported function for the start
     // function. Use CWasmEntry instead.
     start_function_ = WasmExportedFunction::New(
@@ -1007,8 +1007,8 @@ bool InstanceBuilder::ProcessImportedFunction(
   }
   auto js_receiver = Handle<JSReceiver>::cast(value);
   const FunctionSig* expected_sig = module_->functions[func_index].sig;
-  auto resolved =
-      compiler::ResolveWasmImportCall(js_receiver, expected_sig, enabled_);
+  auto resolved = compiler::ResolveWasmImportCall(js_receiver, expected_sig,
+                                                  module_, enabled_);
   compiler::WasmImportCallKind kind = resolved.first;
   js_receiver = resolved.second;
   switch (kind) {
@@ -1408,7 +1408,8 @@ void InstanceBuilder::CompileImportWrappers(
     auto js_receiver = Handle<JSReceiver>::cast(value);
     uint32_t func_index = module_->import_table[index].index;
     const FunctionSig* sig = module_->functions[func_index].sig;
-    auto resolved = compiler::ResolveWasmImportCall(js_receiver, sig, enabled_);
+    auto resolved =
+        compiler::ResolveWasmImportCall(js_receiver, sig, module_, enabled_);
     compiler::WasmImportCallKind kind = resolved.first;
     if (kind == compiler::WasmImportCallKind::kWasmToWasm ||
         kind == compiler::WasmImportCallKind::kLinkError ||

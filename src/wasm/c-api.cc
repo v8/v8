@@ -1380,12 +1380,13 @@ i::Address CallTargetFromCache(i::Object cached_call_target) {
 
 void PrepareFunctionData(i::Isolate* isolate,
                          i::Handle<i::WasmExportedFunctionData> function_data,
-                         const i::wasm::FunctionSig* sig) {
+                         const i::wasm::FunctionSig* sig,
+                         const i::wasm::WasmModule* module) {
   // If the data is already populated, return immediately.
   if (!function_data->c_wrapper_code().IsSmi()) return;
   // Compile wrapper code.
   i::Handle<i::Code> wrapper_code =
-      i::compiler::CompileCWasmEntry(isolate, sig);
+      i::compiler::CompileCWasmEntry(isolate, sig, module);
   function_data->set_c_wrapper_code(*wrapper_code);
   // Compute packed args size.
   function_data->set_packed_args_size(
@@ -1526,7 +1527,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
   // Caching {sig} would give a ~10% reduction in overhead.
   const i::wasm::FunctionSig* sig =
       instance->module()->functions[function_index].sig;
-  PrepareFunctionData(isolate, function_data, sig);
+  PrepareFunctionData(isolate, function_data, sig, instance->module());
   i::Handle<i::Code> wrapper_code = i::Handle<i::Code>(
       i::Code::cast(function_data->c_wrapper_code()), isolate);
   i::Address call_target =

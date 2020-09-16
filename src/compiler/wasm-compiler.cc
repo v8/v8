@@ -5858,9 +5858,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
  public:
   WasmWrapperGraphBuilder(Zone* zone, MachineGraph* mcgraph,
                           const wasm::FunctionSig* sig,
+                          const wasm::WasmModule* module,
                           compiler::SourcePositionTable* spt,
                           StubCallMode stub_mode, wasm::WasmFeatures features)
       : WasmGraphBuilder(nullptr, zone, mcgraph, sig, spt),
+        module_(module),
         stub_mode_(stub_mode),
         enabled_features_(features) {}
 
@@ -6308,7 +6310,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     instance_node_.set(
         BuildLoadInstanceFromExportedFunctionData(function_data));
 
-    if (!wasm::IsJSCompatibleSignature(sig_, enabled_features_)) {
+    if (!wasm::IsJSCompatibleSignature(sig_, module_, enabled_features_)) {
       // Throw a TypeError. Use the js_context of the calling javascript
       // function (passed as a parameter), such that the generated code is
       // js_context independent.
@@ -6746,7 +6748,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         isolate->factory()->undefined_value()));
 
     // Throw a TypeError if the signature is incompatible with JavaScript.
-    if (!wasm::IsJSCompatibleSignature(sig_, enabled_features_)) {
+    if (!wasm::IsJSCompatibleSignature(sig_, module_, enabled_features_)) {
       BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError, context,
                                     nullptr, 0);
       TerminateThrow(effect(), control());
@@ -6901,6 +6903,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   }
 
  private:
+  const wasm::WasmModule* module_;
   StubCallMode stub_mode_;
   SetOncePointer<Node> undefined_value_node_;
   SetOncePointer<const Operator> int32_to_heapnumber_operator_;
@@ -6917,8 +6920,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
     Isolate* isolate, wasm::WasmEngine* wasm_engine,
-    const wasm::FunctionSig* sig, bool is_import,
-    const wasm::WasmFeatures& enabled_features) {
+    const wasm::FunctionSig* sig, const wasm::WasmModule* module,
+    bool is_import, const wasm::WasmFeatures& enabled_features) {
   //----------------------------------------------------------------------------
   // Create the Graph.
   //----------------------------------------------------------------------------
@@ -6932,7 +6935,7 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
       InstructionSelector::AlignmentRequirements());
   MachineGraph* mcgraph = zone->New<MachineGraph>(graph, common, machine);
 
-  WasmWrapperGraphBuilder builder(zone.get(), mcgraph, sig, nullptr,
+  WasmWrapperGraphBuilder builder(zone.get(), mcgraph, sig, module, nullptr,
                                   StubCallMode::kCallBuiltinPointer,
                                   enabled_features);
   builder.BuildJSToWasmWrapper(is_import);
@@ -6959,6 +6962,7 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
 
 std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
     Handle<JSReceiver> callable, const wasm::FunctionSig* expected_sig,
+    const wasm::WasmModule* module,
     const wasm::WasmFeatures& enabled_features) {
   if (WasmExportedFunction::IsWasmExportedFunction(*callable)) {
     auto imported_function = Handle<WasmExportedFunction>::cast(callable);
@@ -6994,7 +6998,7 @@ std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
     return std::make_pair(WasmImportCallKind::kWasmToCapi, callable);
   }
   // Assuming we are calling to JS, check whether this would be a runtime error.
-  if (!wasm::IsJSCompatibleSignature(expected_sig, enabled_features)) {
+  if (!wasm::IsJSCompatibleSignature(expected_sig, module, enabled_features)) {
     return std::make_pair(WasmImportCallKind::kRuntimeTypeError, callable);
   }
   // For JavaScript calls, determine whether the target has an arity match.
@@ -7223,9 +7227,9 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
   SourcePositionTable* source_position_table =
       source_positions ? zone.New<SourcePositionTable>(graph) : nullptr;
 
-  WasmWrapperGraphBuilder builder(&zone, mcgraph, sig, source_position_table,
-                                  StubCallMode::kCallWasmRuntimeStub,
-                                  env->enabled_features);
+  WasmWrapperGraphBuilder builder(
+      &zone, mcgraph, sig, env->module, source_position_table,
+      StubCallMode::kCallWasmRuntimeStub, env->enabled_features);
   builder.BuildWasmImportCallWrapper(kind, expected_arity);
 
   // Build a name in the form "wasm-to-js-<kind>-<signature>".
@@ -7268,9 +7272,9 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::WasmEngine* wasm_engine,
           InstructionSelector::SupportedMachineOperatorFlags(),
           InstructionSelector::AlignmentRequirements()));
 
-  WasmWrapperGraphBuilder builder(&zone, mcgraph, sig, source_positions,
-                                  StubCallMode::kCallWasmRuntimeStub,
-                                  native_module->enabled_features());
+  WasmWrapperGraphBuilder builder(
+      &zone, mcgraph, sig, native_module->module(), source_positions,
+      StubCallMode::kCallWasmRuntimeStub, native_module->enabled_features());
 
   // Set up the graph start.
   int param_count = static_cast<int>(sig->parameter_count()) +
@@ -7304,7 +7308,8 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::WasmEngine* wasm_engine,
 }
 
 MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
-                                       const wasm::FunctionSig* sig) {
+                                       const wasm::FunctionSig* sig,
+                                       const wasm::WasmModule* module) {
   std::unique_ptr<Zone> zone = std::make_unique<Zone>(
       isolate->allocator(), ZONE_NAME, kCompressGraphZone);
   Graph* graph = zone->New<Graph>(zone.get());
@@ -7315,7 +7320,7 @@ MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
       InstructionSelector::AlignmentRequirements());
   MachineGraph* mcgraph = zone->New<MachineGraph>(graph, common, machine);
 
-  WasmWrapperGraphBuilder builder(zone.get(), mcgraph, sig, nullptr,
+  WasmWrapperGraphBuilder builder(zone.get(), mcgraph, sig, module, nullptr,
                                   StubCallMode::kCallBuiltinPointer,
                                   wasm::WasmFeatures::FromIsolate(isolate));
   builder.BuildJSToJSWrapper(isolate);
@@ -7349,7 +7354,8 @@ MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
   return code;
 }
 
-Handle<Code> CompileCWasmEntry(Isolate* isolate, const wasm::FunctionSig* sig) {
+Handle<Code> CompileCWasmEntry(Isolate* isolate, const wasm::FunctionSig* sig,
+                               const wasm::WasmModule* module) {
   std::unique_ptr<Zone> zone = std::make_unique<Zone>(
       isolate->allocator(), ZONE_NAME, kCompressGraphZone);
   Graph* graph = zone->New<Graph>(zone.get());
@@ -7360,7 +7366,7 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, const wasm::FunctionSig* sig) {
       InstructionSelector::AlignmentRequirements());
   MachineGraph* mcgraph = zone->New<MachineGraph>(graph, common, machine);
 
-  WasmWrapperGraphBuilder builder(zone.get(), mcgraph, sig, nullptr,
+  WasmWrapperGraphBuilder builder(zone.get(), mcgraph, sig, module, nullptr,
                                   StubCallMode::kCallBuiltinPointer,
                                   wasm::WasmFeatures::FromIsolate(isolate));
   builder.BuildCWasmEntry();

@@ -50,7 +50,8 @@ TestingModuleBuilder::TestingModuleBuilder(
     // Manually compile an import wrapper and insert it into the instance.
     CodeSpaceMemoryModificationScope modification_scope(isolate_->heap());
     auto resolved = compiler::ResolveWasmImportCall(
-        maybe_import->js_function, maybe_import->sig, enabled_features_);
+        maybe_import->js_function, maybe_import->sig,
+        instance_object_->module(), enabled_features_);
     compiler::WasmImportCallKind kind = resolved.first;
     Handle<JSReceiver> callable = resolved.second;
     WasmImportWrapperCache::ModificationScope cache_scope(
