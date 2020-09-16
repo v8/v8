@@ -148,7 +148,7 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
         outcome = 'FAIL'
     else:
       outcome = 'pass'
-    return 'Done running %s %s: %s' % (
+    return '%s %s: %s' % (
       test, test.variant or 'default', outcome)
 
   def _on_result_for(self, test, result):

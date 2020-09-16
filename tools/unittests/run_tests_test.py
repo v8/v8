@@ -178,7 +178,7 @@ class SystemTest(unittest.TestCase):
           'sweet/bananas',
           'sweet/raspberries',
       )
-      self.assertIn('Done running sweet/bananas default: pass', result.stdout, result)
+      self.assertIn('sweet/bananas default: pass', result.stdout, result)
       # TODO(majeski): Implement for test processors
       # self.assertIn('Total time:', result.stderr, result)
       # self.assertIn('sweet/bananas', result.stderr, result)
@@ -201,10 +201,8 @@ class SystemTest(unittest.TestCase):
         # One of the shards gets one variant of each test.
         self.assertIn('2 tests ran', result.stdout, result)
         if shard == 1:
-          self.assertIn(
-            'Done running sweet/raspberries default', result.stdout, result)
-          self.assertIn(
-            'Done running sweet/raspberries stress', result.stdout, result)
+          self.assertIn('sweet/raspberries default', result.stdout, result)
+          self.assertIn('sweet/raspberries stress', result.stdout, result)
           self.assertEqual(0, result.returncode, result)
         else:
           self.assertIn(
@@ -230,8 +228,8 @@ class SystemTest(unittest.TestCase):
         )
         # One of the shards gets one variant of each test.
         self.assertIn('Running 2 tests', result.stdout, result)
-        self.assertIn('Done running sweet/bananas', result.stdout, result)
-        self.assertIn('Done running sweet/raspberries', result.stdout, result)
+        self.assertIn('sweet/bananas', result.stdout, result)
+        self.assertIn('sweet/raspberries', result.stdout, result)
         self.assertEqual(0, result.returncode, result)
 
   def testFail(self):
@@ -245,7 +243,7 @@ class SystemTest(unittest.TestCase):
           'sweet/strawberries',
           infra_staging=False,
       )
-      self.assertIn('Done running sweet/strawberries default: FAIL', result.stdout, result)
+      self.assertIn('sweet/strawberries default: FAIL', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
 
   def check_cleaned_json_output(
@@ -294,7 +292,7 @@ class SystemTest(unittest.TestCase):
           'sweet/strawberries',
           infra_staging=False,
       )
-      self.assertIn('Done running sweet/strawberries default: FAIL', result.stdout, result)
+      self.assertIn('sweet/strawberries default: FAIL', result.stdout, result)
       # With test processors we don't count reruns as separated failures.
       # TODO(majeski): fix it?
       self.assertIn('1 tests failed', result.stdout, result)
@@ -323,8 +321,7 @@ class SystemTest(unittest.TestCase):
           'sweet',
           infra_staging=False,
       )
-      self.assertIn(
-        'Done running sweet/bananaflakes default: pass', result.stdout, result)
+      self.assertIn('sweet/bananaflakes default: pass', result.stdout, result)
       self.assertIn('All tests succeeded', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
       self.maxDiff = None
@@ -512,8 +509,7 @@ class SystemTest(unittest.TestCase):
           infra_staging=False,
       )
       self.assertIn('1 tests ran', result.stdout, result)
-      self.assertIn(
-        'Done running sweet/bananas default: FAIL', result.stdout, result)
+      self.assertIn('sweet/bananas default: FAIL', result.stdout, result)
       self.assertIn('Test had no allocation output', result.stdout, result)
       self.assertIn('--predictable --verify-predictable', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
@@ -654,7 +650,7 @@ class SystemTest(unittest.TestCase):
       self.assertIn('sweet/strawberries default: FAIL', result.stdout, result)
       self.assertIn('Too many failures, exiting...', result.stdout, result)
       self.assertIn('sweet/blackberries default: FAIL', result.stdout, result)
-      self.assertNotIn('Done running sweet/raspberries', result.stdout, result)
+      self.assertNotIn('sweet/raspberries', result.stdout, result)
       self.assertIn('2 tests failed', result.stdout, result)
       self.assertIn('3 tests ran', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
