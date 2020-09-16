@@ -21,6 +21,12 @@
           "V8 Linux - arm - sim - lite - debug",
           "V8 Linux - full debug",
           "V8 Mac64 - full debug",
+          "V8 Mac - arm64 - release",
+          "V8 Mac - arm64 - release builder",
+          "V8 Mac - arm64 - sim - debug",
+          "V8 Mac - arm64 - sim - debug builder",
+          "V8 Mac - arm64 - sim - release",
+          "V8 Mac - arm64 - sim - release builder",
           "V8 Win64 ASAN"
         ],
         "builders": {
