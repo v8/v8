@@ -29,10 +29,6 @@
 [ALWAYS, {
 # TODO(jochen): The following test is flaky.
   'overrides/caching': [PASS, FAIL],
-
-  # https://code.google.com/p/v8/issues/detail?id=7481
-  'collator/check-kf-option': [FAIL],
-  'collator/check-kn-option': [FAIL],
 }],  # ALWAYS
 
 ['variant == no_wasm_traps', {

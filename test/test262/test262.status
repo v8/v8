@@ -62,10 +62,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=4709
   'language/expressions/assignment/fn-name-lhs-cover': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9084
-  'intl402/supportedLocalesOf-consistent-with-resolvedOptions': [FAIL],
-  'intl402/fallback-locales-are-supported': [FAIL],
-
   # https://code.google.com/p/v8/issues/detail?id=4251
   'language/expressions/postfix-increment/S11.3.1_A5_T1': [FAIL],
   'language/expressions/postfix-increment/S11.3.1_A5_T2': [FAIL],
@@ -446,9 +442,6 @@
   'language/expressions/call/eval-spread': [FAIL],
   'language/expressions/call/eval-spread-empty-leading': [FAIL],
   'language/expressions/call/eval-spread-empty-trailing': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8664
-  'intl402/Collator/missing-unicode-ext-value-defaults-to-true': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7472
   'intl402/NumberFormat/currency-digits': [FAIL],
