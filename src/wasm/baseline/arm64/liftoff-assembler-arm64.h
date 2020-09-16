@@ -1545,6 +1545,30 @@ void LiftoffAssembler::emit_f64x2_sqrt(LiftoffRegister dst,
   Fsqrt(dst.fp().V2D(), src.fp().V2D());
 }
 
+bool LiftoffAssembler::emit_f64x2_ceil(LiftoffRegister dst,
+                                       LiftoffRegister src) {
+  bailout(kSimd, "f64x2.ceil");
+  return true;
+}
+
+bool LiftoffAssembler::emit_f64x2_floor(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  bailout(kSimd, "f64x2.floor");
+  return true;
+}
+
+bool LiftoffAssembler::emit_f64x2_trunc(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  bailout(kSimd, "f64x2.trunc");
+  return true;
+}
+
+bool LiftoffAssembler::emit_f64x2_nearest_int(LiftoffRegister dst,
+                                              LiftoffRegister src) {
+  bailout(kSimd, "f64x2.nearest_int");
+  return true;
+}
+
 void LiftoffAssembler::emit_f64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   Fadd(dst.fp().V2D(), lhs.fp().V2D(), rhs.fp().V2D());
@@ -1619,6 +1643,30 @@ void LiftoffAssembler::emit_f32x4_neg(LiftoffRegister dst,
 void LiftoffAssembler::emit_f32x4_sqrt(LiftoffRegister dst,
                                        LiftoffRegister src) {
   Fsqrt(dst.fp().V4S(), src.fp().V4S());
+}
+
+bool LiftoffAssembler::emit_f32x4_ceil(LiftoffRegister dst,
+                                       LiftoffRegister src) {
+  bailout(kSimd, "f32x4.ceil");
+  return true;
+}
+
+bool LiftoffAssembler::emit_f32x4_floor(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  bailout(kSimd, "f32x4.floor");
+  return true;
+}
+
+bool LiftoffAssembler::emit_f32x4_trunc(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  bailout(kSimd, "f32x4.trunc");
+  return true;
+}
+
+bool LiftoffAssembler::emit_f32x4_nearest_int(LiftoffRegister dst,
+                                              LiftoffRegister src) {
+  bailout(kSimd, "f32x4.nearest_int");
+  return true;
 }
 
 void LiftoffAssembler::emit_f32x4_add(LiftoffRegister dst, LiftoffRegister lhs,

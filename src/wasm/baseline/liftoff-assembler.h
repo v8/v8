@@ -970,6 +970,10 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_f32x4_abs(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f32x4_neg(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f32x4_sqrt(LiftoffRegister dst, LiftoffRegister src);
+  inline bool emit_f32x4_ceil(LiftoffRegister dst, LiftoffRegister src);
+  inline bool emit_f32x4_floor(LiftoffRegister dst, LiftoffRegister src);
+  inline bool emit_f32x4_trunc(LiftoffRegister dst, LiftoffRegister src);
+  inline bool emit_f32x4_nearest_int(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
                              LiftoffRegister rhs);
   inline void emit_f32x4_sub(LiftoffRegister dst, LiftoffRegister lhs,
@@ -989,6 +993,10 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_f64x2_abs(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f64x2_neg(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f64x2_sqrt(LiftoffRegister dst, LiftoffRegister src);
+  inline bool emit_f64x2_ceil(LiftoffRegister dst, LiftoffRegister src);
+  inline bool emit_f64x2_floor(LiftoffRegister dst, LiftoffRegister src);
+  inline bool emit_f64x2_trunc(LiftoffRegister dst, LiftoffRegister src);
+  inline bool emit_f64x2_nearest_int(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
                              LiftoffRegister rhs);
   inline void emit_f64x2_sub(LiftoffRegister dst, LiftoffRegister lhs,

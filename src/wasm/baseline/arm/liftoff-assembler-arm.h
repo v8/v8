@@ -2316,6 +2316,30 @@ void LiftoffAssembler::emit_f64x2_sqrt(LiftoffRegister dst,
   vsqrt(dst.high_fp(), src.high_fp());
 }
 
+bool LiftoffAssembler::emit_f64x2_ceil(LiftoffRegister dst,
+                                       LiftoffRegister src) {
+  bailout(kSimd, "f64x2.ceil");
+  return true;
+}
+
+bool LiftoffAssembler::emit_f64x2_floor(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  bailout(kSimd, "f64x2.floor");
+  return true;
+}
+
+bool LiftoffAssembler::emit_f64x2_trunc(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  bailout(kSimd, "f64x2.trunc");
+  return true;
+}
+
+bool LiftoffAssembler::emit_f64x2_nearest_int(LiftoffRegister dst,
+                                              LiftoffRegister src) {
+  bailout(kSimd, "f64x2.nearest_int");
+  return true;
+}
+
 void LiftoffAssembler::emit_f64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   vadd(dst.low_fp(), lhs.low_fp(), rhs.low_fp());
@@ -2419,6 +2443,30 @@ void LiftoffAssembler::emit_f32x4_sqrt(LiftoffRegister dst,
   vsqrt(dst_low.high(), src_low.high());
   vsqrt(dst_high.low(), src_high.low());
   vsqrt(dst_high.high(), src_high.high());
+}
+
+bool LiftoffAssembler::emit_f32x4_ceil(LiftoffRegister dst,
+                                       LiftoffRegister src) {
+  bailout(kSimd, "f32x4.ceil");
+  return true;
+}
+
+bool LiftoffAssembler::emit_f32x4_floor(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  bailout(kSimd, "f32x4.floor");
+  return true;
+}
+
+bool LiftoffAssembler::emit_f32x4_trunc(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  bailout(kSimd, "f32x4.trunc");
+  return true;
+}
+
+bool LiftoffAssembler::emit_f32x4_nearest_int(LiftoffRegister dst,
+                                              LiftoffRegister src) {
+  bailout(kSimd, "f32x4.nearest_int");
+  return true;
 }
 
 void LiftoffAssembler::emit_f32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -3600,6 +3648,11 @@ void LiftoffAssembler::CallC(const wasm::FunctionSig* sig,
       case ValueType::kF64:
         vstr(args->fp(), MemOperand(sp, arg_bytes));
         break;
+      case ValueType::kS128:
+        vstr(args->low_fp(), MemOperand(sp, arg_bytes));
+        vstr(args->high_fp(),
+             MemOperand(sp, arg_bytes + 2 * kSystemPointerSize));
+        break;
       default:
         UNREACHABLE();
     }
@@ -3642,6 +3695,10 @@ void LiftoffAssembler::CallC(const wasm::FunctionSig* sig,
         break;
       case ValueType::kF64:
         vldr(result_reg->fp(), MemOperand(sp));
+        break;
+      case ValueType::kS128:
+        vld1(Neon8, NeonListOperand(result_reg->low_fp(), 2),
+             NeonMemOperand(sp));
         break;
       default:
         UNREACHABLE();

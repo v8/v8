@@ -7,6 +7,7 @@
 #include "src/base/optional.h"
 #include "src/codegen/assembler-inl.h"
 // TODO(clemensb): Remove dependences on compiler stuff.
+#include "src/codegen/external-reference.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler-inl.h"
@@ -2498,6 +2499,21 @@ class LiftoffCompiler {
     }
   }
 
+  void EmitSimdFloatRoundingOpWithCFallback(
+      bool (LiftoffAssembler::*emit_fn)(LiftoffRegister, LiftoffRegister),
+      ExternalReference (*ext_ref)()) {
+    static constexpr RegClass rc = reg_class_for(kWasmS128);
+    LiftoffRegister src = __ PopToRegister();
+    LiftoffRegister dst = __ GetUnusedRegister(rc, {src}, {});
+    if (!(asm_.*emit_fn)(dst, src)) {
+      // Return v128 via stack for ARM.
+      ValueType sig_v_s_reps[] = {kWasmS128};
+      FunctionSig sig_v_s(0, 1, sig_v_s_reps);
+      GenerateCCall(&dst, &sig_v_s, kWasmS128, &src, ext_ref());
+    }
+    __ PushRegister(kWasmS128, dst);
+  }
+
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
               Value* result) {
     if (!CpuFeatures::SupportsWasmSimd128()) {
@@ -2764,6 +2780,22 @@ class LiftoffCompiler {
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_neg);
       case wasm::kExprF32x4Sqrt:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_sqrt);
+      case wasm::kExprF32x4Ceil:
+        return EmitSimdFloatRoundingOpWithCFallback(
+            &LiftoffAssembler::emit_f32x4_ceil,
+            &ExternalReference::wasm_f32x4_ceil);
+      case wasm::kExprF32x4Floor:
+        return EmitSimdFloatRoundingOpWithCFallback(
+            &LiftoffAssembler::emit_f32x4_floor,
+            ExternalReference::wasm_f32x4_floor);
+      case wasm::kExprF32x4Trunc:
+        return EmitSimdFloatRoundingOpWithCFallback(
+            &LiftoffAssembler::emit_f32x4_trunc,
+            ExternalReference::wasm_f32x4_trunc);
+      case wasm::kExprF32x4NearestInt:
+        return EmitSimdFloatRoundingOpWithCFallback(
+            &LiftoffAssembler::emit_f32x4_nearest_int,
+            ExternalReference::wasm_f32x4_nearest_int);
       case wasm::kExprF32x4Add:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_add);
       case wasm::kExprF32x4Sub:
@@ -2786,6 +2818,22 @@ class LiftoffCompiler {
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_neg);
       case wasm::kExprF64x2Sqrt:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_sqrt);
+      case wasm::kExprF64x2Ceil:
+        return EmitSimdFloatRoundingOpWithCFallback(
+            &LiftoffAssembler::emit_f64x2_ceil,
+            &ExternalReference::wasm_f64x2_ceil);
+      case wasm::kExprF64x2Floor:
+        return EmitSimdFloatRoundingOpWithCFallback(
+            &LiftoffAssembler::emit_f64x2_floor,
+            ExternalReference::wasm_f64x2_floor);
+      case wasm::kExprF64x2Trunc:
+        return EmitSimdFloatRoundingOpWithCFallback(
+            &LiftoffAssembler::emit_f64x2_trunc,
+            ExternalReference::wasm_f64x2_trunc);
+      case wasm::kExprF64x2NearestInt:
+        return EmitSimdFloatRoundingOpWithCFallback(
+            &LiftoffAssembler::emit_f64x2_nearest_int,
+            ExternalReference::wasm_f64x2_nearest_int);
       case wasm::kExprF64x2Add:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_add);
       case wasm::kExprF64x2Sub:
