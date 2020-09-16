@@ -258,7 +258,7 @@
       'v8_mac_arm64_full_dbg_ng': 'full_debug_arm64',
       'v8_mac_arm64_sim_rel_ng': 'release_simulate_arm64_trybot',
       'v8_mac_arm64_sim_dbg_ng': 'debug_simulate_arm64',
-      'v8_mac_arm64_sim_nodcheck_rel': 'release_simulate_arm64',
+      'v8_mac_arm64_sim_nodcheck_rel_ng': 'release_simulate_arm64',
       'v8_mac64_gc_stress_dbg_ng': 'debug_x64_trybot',
       'v8_mac64_rel_ng': 'release_x64_trybot',
       'v8_mac64_dbg': 'debug_x64',
