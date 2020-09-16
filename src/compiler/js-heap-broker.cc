@@ -1903,26 +1903,11 @@ void SourceTextModuleData::Serialize(JSHeapBroker* broker) {
 
 class CellData : public HeapObjectData {
  public:
-  CellData(JSHeapBroker* broker, ObjectData** storage, Handle<Cell> object);
-
-  void Serialize(JSHeapBroker* broker);
-  ObjectData* value() { return value_; }
-
- private:
-  ObjectData* value_ = nullptr;
+  CellData(JSHeapBroker* broker, ObjectData** storage, Handle<Cell> object)
+      : HeapObjectData(broker, storage, object) {
+    DCHECK(!FLAG_turbo_direct_heap_access);
+  }
 };
-
-CellData::CellData(JSHeapBroker* broker, ObjectData** storage,
-                   Handle<Cell> object)
-    : HeapObjectData(broker, storage, object) {}
-
-void CellData::Serialize(JSHeapBroker* broker) {
-  if (value_ != nullptr) return;
-
-  TraceScope tracer(broker, this, "CellData::Serialize");
-  auto cell = Handle<Cell>::cast(object());
-  value_ = broker->GetOrCreateData(cell->value());
-}
 
 class JSGlobalObjectData : public JSObjectData {
  public:
@@ -3367,8 +3352,6 @@ BIMODAL_ACCESSOR_C(BytecodeArray, int, register_count)
 BIMODAL_ACCESSOR_C(BytecodeArray, int, parameter_count)
 BIMODAL_ACCESSOR_C(BytecodeArray, interpreter::Register,
                    incoming_new_target_or_generator_register)
-
-BIMODAL_ACCESSOR(Cell, Object, value)
 
 BIMODAL_ACCESSOR_C(FeedbackVector, double, invocation_count)
 
