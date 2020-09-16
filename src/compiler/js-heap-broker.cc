@@ -3889,11 +3889,11 @@ base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
 }
 
 base::Optional<CellRef> SourceTextModuleRef::GetCell(int cell_index) const {
-  if (data_->should_access_heap()) {
-    AllowHandleAllocationIfNeeded allow_handle_allocation(data()->kind(),
-                                                          broker()->mode());
-    AllowHandleDereferenceIfNeeded allow_handle_dereference(data()->kind(),
-                                                            broker()->mode());
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+    AllowHandleAllocationIfNeeded allow_handle_allocation(
+        data()->kind(), broker()->mode(), FLAG_turbo_direct_heap_access);
+    AllowHandleDereferenceIfNeeded allow_handle_dereference(
+        data()->kind(), broker()->mode(), FLAG_turbo_direct_heap_access);
     return CellRef(broker(), broker()->CanonicalPersistentHandle(
                                  object()->GetCell(cell_index)));
   }
