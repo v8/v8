@@ -30,7 +30,7 @@ enum class LogSeparator { kSeparator };
 // Functions and data for performing output of log messages.
 class Log {
  public:
-  explicit Log(std::string log_file_name);
+  explicit Log(Logger* logger, std::string log_file_name);
 
   static bool InitLogAtStart() {
     return FLAG_log || FLAG_log_all || FLAG_log_api || FLAG_log_code ||
@@ -50,9 +50,6 @@ class Log {
   FILE* Close();
 
   std::string file_name() const;
-
-  // Returns whether logging is enabled.
-  bool IsEnabled() { return is_enabled_.load(std::memory_order_relaxed); }
 
   // Size of buffer used for formatting log messages.
   static const int kMessageBufferSize = 2048;
@@ -115,18 +112,19 @@ class Log {
 
  private:
   static FILE* CreateOutputHandle(std::string file_name);
+  base::Mutex* mutex() { return &mutex_; }
 
   void WriteLogHeader();
 
+  Logger* logger_;
+
   std::string file_name_;
+
   // When logging is active output_handle_ is used to store a pointer to log
   // destination.  mutex_ should be acquired before using output_handle_.
   FILE* output_handle_;
 
   OFStream os_;
-
-  // Stores whether logging is enabled.
-  std::atomic<bool> is_enabled_;
 
   // mutex_ is a Mutex used for enforcing exclusive
   // access to the formatting buffer and the log file or log memory buffer.
@@ -135,6 +133,8 @@ class Log {
   // Buffer used for formatting log messages. This is a singleton buffer and
   // mutex_ should be acquired before using it.
   std::unique_ptr<char[]> format_buffer_;
+
+  friend class Logger;
 };
 
 template <>

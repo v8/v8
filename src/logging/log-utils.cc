@@ -46,20 +46,17 @@ bool Log::IsLoggingToTemporaryFile(std::string file_name) {
   return file_name.compare(Log::kLogToTemporaryFile) == 0;
 }
 
-Log::Log(std::string file_name)
-    : file_name_(file_name),
+Log::Log(Logger* logger, std::string file_name)
+    : logger_(logger),
+      file_name_(file_name),
       output_handle_(Log::CreateOutputHandle(file_name)),
       os_(output_handle_ == nullptr ? stdout : output_handle_),
-      is_enabled_(output_handle_ != nullptr),
       format_buffer_(NewArray<char>(kMessageBufferSize)) {
-  if (output_handle_ == nullptr) return;
-  WriteLogHeader();
+  if (output_handle_) WriteLogHeader();
 }
 
 void Log::WriteLogHeader() {
-  std::unique_ptr<Log::MessageBuilder> msg_ptr = NewMessageBuilder();
-  if (!msg_ptr) return;
-  Log::MessageBuilder& msg = *msg_ptr.get();
+  Log::MessageBuilder msg(this);
   LogSeparator kNext = LogSeparator::kSeparator;
   msg << "v8-version" << kNext << Version::GetMajor() << kNext
       << Version::GetMinor() << kNext << Version::GetBuild() << kNext
@@ -72,22 +69,21 @@ void Log::WriteLogHeader() {
 }
 
 std::unique_ptr<Log::MessageBuilder> Log::NewMessageBuilder() {
-  // Fast check of IsEnabled() without taking the lock. Bail out immediately if
+  // Fast check of is_logging() without taking the lock. Bail out immediately if
   // logging isn't enabled.
-  if (!IsEnabled()) return {};
+  if (!logger_->is_logging()) return {};
 
   std::unique_ptr<Log::MessageBuilder> result(new Log::MessageBuilder(this));
 
-  // The first invocation of IsEnabled() might still read an old value. It is
+  // The first invocation of is_logging() might still read an old value. It is
   // fine if a background thread starts logging a bit later, but we want to
-  // avoid background threads continue logging after logging was closed.
-  if (!IsEnabled()) return {};
+  // avoid background threads continue logging after logging was already closed.
+  if (!logger_->is_logging()) return {};
 
   return result;
 }
 
 FILE* Log::Close() {
-  base::MutexGuard guard(&mutex_);
   FILE* result = nullptr;
   if (output_handle_ != nullptr) {
     fflush(output_handle_);
@@ -95,7 +91,6 @@ FILE* Log::Close() {
   }
   output_handle_ = nullptr;
   format_buffer_.reset();
-  is_enabled_.store(false, std::memory_order_relaxed);
   return result;
 }
 
@@ -227,7 +222,6 @@ void Log::MessageBuilder::AppendRawFormatString(const char* format, ...) {
 void Log::MessageBuilder::AppendRawCharacter(char c) { log_->os_ << c; }
 
 void Log::MessageBuilder::WriteToLogFile() {
-  DCHECK(log_->IsEnabled());
   log_->os_ << std::endl;
 }
 

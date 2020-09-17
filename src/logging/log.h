@@ -5,6 +5,7 @@
 #ifndef V8_LOGGING_LOG_H_
 #define V8_LOGGING_LOG_H_
 
+#include <atomic>
 #include <memory>
 #include <set>
 #include <string>
@@ -283,6 +284,8 @@ class Logger : public CodeEventListener {
   void LogCodeObject(Object code_object);
 
  private:
+  void UpdateIsLogging(bool value);
+
   // Emits the profiler's first message.
   void ProfilerBeginEvent();
 
@@ -324,7 +327,7 @@ class Logger : public CodeEventListener {
   // Internal implementation classes with access to private members.
   friend class Profiler;
 
-  bool is_logging_;
+  std::atomic<bool> is_logging_;
   std::unique_ptr<Log> log_;
 #if V8_OS_LINUX
   std::unique_ptr<PerfBasicLogger> perf_basic_logger_;

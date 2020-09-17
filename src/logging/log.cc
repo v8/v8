@@ -4,11 +4,13 @@
 
 #include "src/logging/log.h"
 
+#include <atomic>
 #include <cstdarg>
 #include <memory>
 #include <sstream>
 
 #include "src/api/api-inl.h"
+#include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/builtins/profile-data-reader.h"
 #include "src/codegen/bailout-reason.h"
@@ -1113,7 +1115,7 @@ void Logger::BuiltinHashEvent(const char* name, int hash) {
 bool Logger::is_logging() {
   // Disable logging while the CPU profiler is running.
   if (isolate_->is_profiling()) return false;
-  return is_logging_;
+  return is_logging_.load(std::memory_order_relaxed);
 }
 
 // Instantiate template methods.
@@ -1429,7 +1431,7 @@ void Logger::SharedFunctionInfoMoveEvent(Address from, Address to) {
 
 void Logger::CodeMovingGCEvent() {
   if (!is_listening_to_code_events()) return;
-  if (!log_->IsEnabled() || !FLAG_ll_prof) return;
+  if (!FLAG_ll_prof) return;
   base::OS::SignalCodeMovingGC();
 }
 
@@ -1473,7 +1475,7 @@ void Logger::ProcessDeoptEvent(Handle<Code> code, SourcePosition position,
 
 void Logger::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
                             int fp_to_sp_delta, bool reuse_code) {
-  if (!log_->IsEnabled()) return;
+  if (!is_logging()) return;
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(*code, pc);
   ProcessDeoptEvent(code, info.position,
                     Deoptimizer::MessageFor(kind, reuse_code),
@@ -1483,7 +1485,7 @@ void Logger::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
 void Logger::CodeDependencyChangeEvent(Handle<Code> code,
                                        Handle<SharedFunctionInfo> sfi,
                                        const char* reason) {
-  if (!log_->IsEnabled()) return;
+  if (!is_logging()) return;
   SourcePosition position(sfi->StartPosition(), -1);
   ProcessDeoptEvent(code, position, "dependency-change", reason);
 }
@@ -2030,7 +2032,7 @@ bool Logger::SetUp(Isolate* isolate) {
 
   std::ostringstream log_file_name;
   PrepareLogFileName(log_file_name, isolate, FLAG_logfile);
-  log_ = std::make_unique<Log>(log_file_name.str());
+  log_ = std::make_unique<Log>(this, log_file_name.str());
 
 #if V8_OS_LINUX
   if (FLAG_perf_basic_prof) {
@@ -2059,17 +2061,22 @@ bool Logger::SetUp(Isolate* isolate) {
 
   ticker_ = std::make_unique<Ticker>(isolate, FLAG_prof_sampling_interval);
 
-  if (Log::InitLogAtStart()) is_logging_ = true;
+  bool activate_logging = false;
+
+  if (Log::InitLogAtStart()) activate_logging = true;
 
   timer_.Start();
 
   if (FLAG_prof_cpp) {
     profiler_ = std::make_unique<Profiler>(isolate);
-    is_logging_ = true;
+    activate_logging = true;
     profiler_->Engage();
   }
 
-  if (is_logging_) AddCodeEventListener(this);
+  if (activate_logging) {
+    AddCodeEventListener(this);
+    UpdateIsLogging(true);
+  }
 
   return true;
 }
@@ -2108,7 +2115,7 @@ void Logger::StopProfilerThread() {
 FILE* Logger::TearDownAndGetLogFile() {
   if (!is_initialized_) return nullptr;
   is_initialized_ = false;
-  is_logging_ = false;
+  UpdateIsLogging(false);
 
   // Stop the profiler thread before closing the file.
   StopProfilerThread();
@@ -2139,6 +2146,13 @@ FILE* Logger::TearDownAndGetLogFile() {
   }
 
   return log_->Close();
+}
+
+void Logger::UpdateIsLogging(bool value) {
+  base::MutexGuard guard(log_->mutex());
+  // Relaxed atomic to avoid locking the mutex for the most common case: when
+  // logging is disabled.
+  is_logging_.store(value, std::memory_order_relaxed);
 }
 
 void ExistingCodeLogger::LogCodeObject(Object object) {
