@@ -2026,7 +2026,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register rhs = i.InputSimd128Register(1);
       DCHECK_EQ(dst, lhs);
 
-      // Move rhs only when rhs is strictly greater (mi).
+      // Move rhs only when rhs is strictly lesser (mi).
       __ VFPCompareAndSetFlags(rhs.low(), lhs.low());
       __ vmov(dst.low(), rhs.low(), mi);
       __ VFPCompareAndSetFlags(rhs.high(), lhs.high());
@@ -2039,7 +2039,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register rhs = i.InputSimd128Register(1);
       DCHECK_EQ(dst, lhs);
 
-      // Move rhs only when rhs is strictly greater (mi).
+      // Move rhs only when rhs is strictly greater (gt).
       __ VFPCompareAndSetFlags(rhs.low(), lhs.low());
       __ vmov(dst.low(), rhs.low(), gt);
       __ VFPCompareAndSetFlags(rhs.high(), lhs.high());
