@@ -2407,12 +2407,34 @@ void LiftoffAssembler::emit_f64x2_max(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f64x2_pmin(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
-  bailout(kSimd, "pmin unimplemented");
+  QwNeonRegister dest = liftoff::GetSimd128Register(dst);
+  QwNeonRegister left = liftoff::GetSimd128Register(lhs);
+  QwNeonRegister right = liftoff::GetSimd128Register(rhs);
+
+  if (dst != rhs) {
+    vmov(dest, left);
+  }
+
+  VFPCompareAndSetFlags(right.low(), left.low());
+  vmov(dest.low(), right.low(), mi);
+  VFPCompareAndSetFlags(right.high(), left.high());
+  vmov(dest.high(), right.high(), mi);
 }
 
 void LiftoffAssembler::emit_f64x2_pmax(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
-  bailout(kSimd, "pmax unimplemented");
+  QwNeonRegister dest = liftoff::GetSimd128Register(dst);
+  QwNeonRegister left = liftoff::GetSimd128Register(lhs);
+  QwNeonRegister right = liftoff::GetSimd128Register(rhs);
+
+  if (dst != rhs) {
+    vmov(dest, left);
+  }
+
+  VFPCompareAndSetFlags(right.low(), left.low());
+  vmov(dest.low(), right.low(), gt);
+  VFPCompareAndSetFlags(right.high(), left.high());
+  vmov(dest.high(), right.high(), gt);
 }
 
 void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
@@ -2536,12 +2558,40 @@ void LiftoffAssembler::emit_f32x4_max(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f32x4_pmin(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
-  bailout(kSimd, "pmin unimplemented");
+  UseScratchRegisterScope temps(this);
+
+  QwNeonRegister tmp = liftoff::GetSimd128Register(dst);
+  if (dst == lhs || dst == rhs) {
+    tmp = temps.AcquireQ();
+  }
+
+  QwNeonRegister left = liftoff::GetSimd128Register(lhs);
+  QwNeonRegister right = liftoff::GetSimd128Register(rhs);
+  vcgt(tmp, left, right);
+  vbsl(tmp, right, left);
+
+  if (dst == lhs || dst == rhs) {
+    vmov(liftoff::GetSimd128Register(dst), tmp);
+  }
 }
 
 void LiftoffAssembler::emit_f32x4_pmax(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
-  bailout(kSimd, "pmax unimplemented");
+  UseScratchRegisterScope temps(this);
+
+  QwNeonRegister tmp = liftoff::GetSimd128Register(dst);
+  if (dst == lhs || dst == rhs) {
+    tmp = temps.AcquireQ();
+  }
+
+  QwNeonRegister left = liftoff::GetSimd128Register(lhs);
+  QwNeonRegister right = liftoff::GetSimd128Register(rhs);
+  vcgt(tmp, right, left);
+  vbsl(tmp, right, left);
+
+  if (dst == lhs || dst == rhs) {
+    vmov(liftoff::GetSimd128Register(dst), tmp);
+  }
 }
 
 void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,

@@ -1620,12 +1620,36 @@ void LiftoffAssembler::emit_f64x2_max(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f64x2_pmin(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
-  bailout(kSimd, "pmin unimplemented");
+  UseScratchRegisterScope temps(this);
+
+  VRegister tmp = dst.fp();
+  if (dst == lhs || dst == rhs) {
+    tmp = temps.AcquireV(kFormat2D);
+  }
+
+  Fcmgt(tmp.V2D(), lhs.fp().V2D(), rhs.fp().V2D());
+  Bsl(tmp.V16B(), rhs.fp().V16B(), lhs.fp().V16B());
+
+  if (dst == lhs || dst == rhs) {
+    Mov(dst.fp(), tmp);
+  }
 }
 
 void LiftoffAssembler::emit_f64x2_pmax(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
-  bailout(kSimd, "pmax unimplemented");
+  UseScratchRegisterScope temps(this);
+
+  VRegister tmp = dst.fp();
+  if (dst == lhs || dst == rhs) {
+    tmp = temps.AcquireV(kFormat2D);
+  }
+
+  Fcmgt(tmp.V2D(), rhs.fp().V2D(), lhs.fp().V2D());
+  Bsl(tmp.V16B(), rhs.fp().V16B(), lhs.fp().V16B());
+
+  if (dst == lhs || dst == rhs) {
+    Mov(dst.fp(), tmp);
+  }
 }
 
 void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
@@ -1720,12 +1744,36 @@ void LiftoffAssembler::emit_f32x4_max(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f32x4_pmin(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
-  bailout(kSimd, "pmin unimplemented");
+  UseScratchRegisterScope temps(this);
+
+  VRegister tmp = dst.fp();
+  if (dst == lhs || dst == rhs) {
+    tmp = temps.AcquireV(kFormat4S);
+  }
+
+  Fcmgt(tmp.V4S(), lhs.fp().V4S(), rhs.fp().V4S());
+  Bsl(tmp.V16B(), rhs.fp().V16B(), lhs.fp().V16B());
+
+  if (dst == lhs || dst == rhs) {
+    Mov(dst.fp(), tmp);
+  }
 }
 
 void LiftoffAssembler::emit_f32x4_pmax(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
-  bailout(kSimd, "pmax unimplemented");
+  UseScratchRegisterScope temps(this);
+
+  VRegister tmp = dst.fp();
+  if (dst == lhs || dst == rhs) {
+    tmp = temps.AcquireV(kFormat4S);
+  }
+
+  Fcmgt(tmp.V4S(), rhs.fp().V4S(), lhs.fp().V4S());
+  Bsl(tmp.V16B(), rhs.fp().V16B(), lhs.fp().V16B());
+
+  if (dst == lhs || dst == rhs) {
+    Mov(dst.fp(), tmp);
+  }
 }
 
 void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
