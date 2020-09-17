@@ -74,9 +74,12 @@ class CanBeHandledVisitor final : private RegExpVisitor {
   }
 
   void* VisitAssertion(RegExpAssertion* node, void*) override {
-    // TODO(mbid, v8:10765): We should be able to support at least some
-    // assertions. re2 does, too.
-    result_ = false;
+    // TODO(mbid,v8:10765): Once regexps that we shouldn't try to match at
+    // every input position (e.g. sticky) are supported, we should also support
+    // START_OF_INPUT.
+    result_ = result_ &&
+              node->assertion_type() != RegExpAssertion::START_OF_INPUT &&
+              AreSuitableFlags(node->flags());
     return nullptr;
   }
 
@@ -357,8 +360,8 @@ class CompileVisitor : private RegExpVisitor {
   }
 
   void* VisitAssertion(RegExpAssertion* node, void*) override {
-    // TODO(mbid,v8:10765): Support this case.
-    UNREACHABLE();
+    code_.Add(RegExpInstruction::Assertion(node->assertion_type()), zone_);
+    return nullptr;
   }
 
   void* VisitCharacterClass(RegExpCharacterClass* node, void*) override {

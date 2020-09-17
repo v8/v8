@@ -7,7 +7,11 @@
 function Test(regexp, subject, expectedResult, expectedLastIndex) {
   assertEquals(%RegexpTypeTag(regexp), "EXPERIMENTAL");
   var result = regexp.exec(subject);
-  assertArrayEquals(expectedResult, result);
+  if (result instanceof Array && expectedResult instanceof Array) {
+    assertArrayEquals(expectedResult, result);
+  } else {
+    assertEquals(expectedResult, result);
+  }
   assertEquals(expectedLastIndex, regexp.lastIndex);
 }
 
@@ -70,6 +74,17 @@ Test(/(123)|(xyz)/, "123", ["123", "123", undefined], 0);
 Test(/(123)|(xyz)/, "xyz", ["xyz", undefined, "xyz"], 0);
 Test(/(?:(123)|(xyz))*/, "xyz123", ["xyz123", "123", undefined], 0);
 Test(/((123)|(xyz)*)*/, "xyz123xyz", ["xyz123xyz", "xyz", undefined, "xyz"], 0);
+
+// Assertions.
+// TODO(mbid,v8:10765): Once supported, we should also check ^ and $ with the
+// multiline flag.
+Test(/asdf\b/, "asdf---", ["asdf"], 0);
+Test(/asdf\b/, "asdfg", null, 0);
+Test(/asd[fg]\B/, "asdf asdgg", ["asdg"], 0);
+// TODO(mbid,v8:10765): The ^ assertion should work once we support anchored
+// regexps.
+//Test(/^asd[fg]/, "asdf asdgg", ["asdf"], 0);
+Test(/asd[fg]$/, "asdf asdg", ["asdg"], 0);
 
 // The global flag.
 Test(/asdf/g, "fjasdfkkasdf", ["asdf"], 6);

@@ -6,6 +6,7 @@
 
 #include "src/base/optional.h"
 #include "src/regexp/experimental/experimental.h"
+#include "src/strings/char-predicates-inl.h"
 #include "src/zone/zone-allocator.h"
 #include "src/zone/zone-list-inl.h"
 
@@ -15,6 +16,39 @@ namespace internal {
 namespace {
 
 constexpr int kUndefinedRegisterValue = -1;
+
+template <class Character>
+bool SatisfiesAssertion(RegExpAssertion::AssertionType type,
+                        Vector<const Character> context, int position) {
+  DCHECK_LE(position, context.length());
+  DCHECK_GE(position, 0);
+
+  switch (type) {
+    case RegExpAssertion::START_OF_INPUT:
+      return position == 0;
+    case RegExpAssertion::END_OF_INPUT:
+      return position == context.length();
+    case RegExpAssertion::START_OF_LINE:
+      if (position == 0) return true;
+      return unibrow::IsLineTerminator(context[position - 1]);
+    case RegExpAssertion::END_OF_LINE:
+      if (position == context.length()) return true;
+      return unibrow::IsLineTerminator(context[position]);
+    case RegExpAssertion::BOUNDARY:
+      if (context.length() == 0) {
+        return false;
+      } else if (position == 0) {
+        return IsRegExpWord(context[position]);
+      } else if (position == context.length()) {
+        return IsRegExpWord(context[position - 1]);
+      } else {
+        return IsRegExpWord(context[position - 1]) !=
+               IsRegExpWord(context[position]);
+      }
+    case RegExpAssertion::NON_BOUNDARY:
+      return !SatisfiesAssertion(RegExpAssertion::BOUNDARY, context, position);
+  }
+}
 
 template <class Character>
 class NfaInterpreter {
@@ -239,6 +273,14 @@ class NfaInterpreter {
           blocked_threads_.Add(t, zone_);
           return;
         }
+        case RegExpInstruction::ASSERTION:
+          if (!SatisfiesAssertion(inst.payload.assertion_type, input_,
+                                  input_index_)) {
+            DestroyThread(t);
+            return;
+          }
+          ++t.pc;
+          break;
         case RegExpInstruction::FORK: {
           InterpreterThread fork{inst.payload.pc,
                                  NewRegisterArrayUninitialized()};

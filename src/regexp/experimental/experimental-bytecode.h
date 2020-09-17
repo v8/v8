@@ -7,6 +7,7 @@
 
 #include <ios>
 
+#include "src/regexp/regexp-ast.h"
 #include "src/utils/vector.h"
 
 // ----------------------------------------------------------------------------
@@ -91,12 +92,13 @@ namespace internal {
 // bytes, the payload takes another 4 bytes.
 struct RegExpInstruction {
   enum Opcode : int32_t {
+    ACCEPT,
+    ASSERTION,
+    CLEAR_REGISTER,
     CONSUME_RANGE,
     FORK,
     JMP,
-    ACCEPT,
     SET_REGISTER_TO_CP,
-    CLEAR_REGISTER,
   };
 
   struct Uc16Range {
@@ -145,6 +147,13 @@ struct RegExpInstruction {
     return result;
   }
 
+  static RegExpInstruction Assertion(RegExpAssertion::AssertionType t) {
+    RegExpInstruction result;
+    result.opcode = ASSERTION;
+    result.payload.assertion_type = t;
+    return result;
+  }
+
   Opcode opcode;
   union {
     // Payload of CONSUME_RANGE:
@@ -153,6 +162,8 @@ struct RegExpInstruction {
     int32_t pc;
     // Payload of SET_REGISTER_TO_CP and CLEAR_REGISTER:
     int32_t register_index;
+    // Payload of ASSERTION:
+    RegExpAssertion::AssertionType assertion_type;
   } payload;
   STATIC_ASSERT(sizeof(payload) == 4);
 };
