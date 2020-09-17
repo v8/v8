@@ -1000,7 +1000,6 @@ void Logger::RemoveCodeEventListener(CodeEventListener* listener) {
 }
 
 void Logger::ProfilerBeginEvent() {
-  if (!log_->IsEnabled()) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1013,7 +1012,6 @@ void Logger::StringEvent(const char* name, const char* value) {
 }
 
 void Logger::UncheckedStringEvent(const char* name, const char* value) {
-  if (!log_->IsEnabled()) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1026,7 +1024,6 @@ void Logger::IntPtrTEvent(const char* name, intptr_t value) {
 }
 
 void Logger::UncheckedIntPtrTEvent(const char* name, intptr_t value) {
-  if (!log_->IsEnabled()) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1036,7 +1033,7 @@ void Logger::UncheckedIntPtrTEvent(const char* name, intptr_t value) {
 }
 
 void Logger::HandleEvent(const char* name, Address* location) {
-  if (!log_->IsEnabled() || !FLAG_log_handles) return;
+  if (!FLAG_log_handles) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1045,7 +1042,7 @@ void Logger::HandleEvent(const char* name, Address* location) {
 }
 
 void Logger::ApiSecurityCheck() {
-  if (!log_->IsEnabled() || !FLAG_log_api) return;
+  if (!FLAG_log_api) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1056,7 +1053,7 @@ void Logger::ApiSecurityCheck() {
 void Logger::SharedLibraryEvent(const std::string& library_path,
                                 uintptr_t start, uintptr_t end,
                                 intptr_t aslr_slide) {
-  if (!log_->IsEnabled() || !FLAG_prof_cpp) return;
+  if (!FLAG_prof_cpp) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1067,7 +1064,6 @@ void Logger::SharedLibraryEvent(const std::string& library_path,
 }
 
 void Logger::CurrentTimeEvent() {
-  if (!log_->IsEnabled()) return;
   DCHECK(FLAG_log_internal_timer_events);
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
@@ -1077,7 +1073,6 @@ void Logger::CurrentTimeEvent() {
 }
 
 void Logger::TimerEvent(Logger::StartEnd se, const char* name) {
-  if (!log_->IsEnabled()) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1097,7 +1092,7 @@ void Logger::TimerEvent(Logger::StartEnd se, const char* name) {
 
 void Logger::BasicBlockCounterEvent(const char* name, int block_id,
                                     uint32_t count) {
-  if (!log_->IsEnabled() || !FLAG_turbo_profiling_log_builtins) return;
+  if (!FLAG_turbo_profiling_log_builtins) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1107,7 +1102,7 @@ void Logger::BasicBlockCounterEvent(const char* name, int block_id,
 }
 
 void Logger::BuiltinHashEvent(const char* name, int hash) {
-  if (!log_->IsEnabled() || !FLAG_turbo_profiling_log_builtins) return;
+  if (!FLAG_turbo_profiling_log_builtins) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1132,7 +1127,7 @@ TIMER_EVENTS_LIST(V)
 void Logger::ApiNamedPropertyAccess(const char* tag, JSObject holder,
                                     Object property_name) {
   DCHECK(property_name.IsName());
-  if (!log_->IsEnabled() || !FLAG_log_api) return;
+  if (!FLAG_log_api) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1143,7 +1138,7 @@ void Logger::ApiNamedPropertyAccess(const char* tag, JSObject holder,
 
 void Logger::ApiIndexedPropertyAccess(const char* tag, JSObject holder,
                                       uint32_t index) {
-  if (!log_->IsEnabled() || !FLAG_log_api) return;
+  if (!FLAG_log_api) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1153,7 +1148,7 @@ void Logger::ApiIndexedPropertyAccess(const char* tag, JSObject holder,
 }
 
 void Logger::ApiObjectAccess(const char* tag, JSObject object) {
-  if (!log_->IsEnabled() || !FLAG_log_api) return;
+  if (!FLAG_log_api) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1162,7 +1157,7 @@ void Logger::ApiObjectAccess(const char* tag, JSObject object) {
 }
 
 void Logger::ApiEntryCall(const char* name) {
-  if (!log_->IsEnabled() || !FLAG_log_api) return;
+  if (!FLAG_log_api) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1171,7 +1166,7 @@ void Logger::ApiEntryCall(const char* name) {
 }
 
 void Logger::NewEvent(const char* name, void* object, size_t size) {
-  if (!log_->IsEnabled() || !FLAG_log) return;
+  if (!FLAG_log) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1181,7 +1176,7 @@ void Logger::NewEvent(const char* name, void* object, size_t size) {
 }
 
 void Logger::DeleteEvent(const char* name, void* object) {
-  if (!log_->IsEnabled() || !FLAG_log) return;
+  if (!FLAG_log) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1217,7 +1212,7 @@ void AppendCodeCreateHeader(
 void Logger::CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
                              const char* name) {
   if (!is_listening_to_code_events()) return;
-  if (!FLAG_log_code || !log_->IsEnabled()) return;
+  if (!FLAG_log_code) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1229,7 +1224,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
 void Logger::CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
                              Handle<Name> name) {
   if (!is_listening_to_code_events()) return;
-  if (!FLAG_log_code || !log_->IsEnabled()) return;
+  if (!FLAG_log_code) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1242,7 +1237,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
                              Handle<SharedFunctionInfo> shared,
                              Handle<Name> script_name) {
   if (!is_listening_to_code_events()) return;
-  if (!FLAG_log_code || !log_->IsEnabled()) return;
+  if (!FLAG_log_code) return;
   if (*code == AbstractCode::cast(
                    isolate_->builtins()->builtin(Builtins::kCompileLazy))) {
     return;
@@ -1264,7 +1259,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
                              Handle<SharedFunctionInfo> shared,
                              Handle<Name> script_name, int line, int column) {
   if (!is_listening_to_code_events()) return;
-  if (!FLAG_log_code || !log_->IsEnabled()) return;
+  if (!FLAG_log_code) return;
   {
     std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
     if (!msg_ptr) return;
@@ -1363,7 +1358,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
 void Logger::CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
                              wasm::WasmName name) {
   if (!is_listening_to_code_events()) return;
-  if (!FLAG_log_code || !log_->IsEnabled()) return;
+  if (!FLAG_log_code) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1386,7 +1381,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
 
 void Logger::CallbackEventInternal(const char* prefix, Handle<Name> name,
                                    Address entry_point) {
-  if (!FLAG_log_code || !log_->IsEnabled()) return;
+  if (!FLAG_log_code) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1413,7 +1408,7 @@ void Logger::SetterCallbackEvent(Handle<Name> name, Address entry_point) {
 void Logger::RegExpCodeCreateEvent(Handle<AbstractCode> code,
                                    Handle<String> source) {
   if (!is_listening_to_code_events()) return;
-  if (!FLAG_log_code || !log_->IsEnabled()) return;
+  if (!FLAG_log_code) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1442,7 +1437,7 @@ void Logger::CodeMovingGCEvent() {
 void Logger::CodeDisableOptEvent(Handle<AbstractCode> code,
                                  Handle<SharedFunctionInfo> shared) {
   if (!is_listening_to_code_events()) return;
-  if (!FLAG_log_code || !log_->IsEnabled()) return;
+  if (!FLAG_log_code) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1542,7 +1537,7 @@ void Logger::CodeNameEvent(Address addr, int pos, const char* code_name) {
 
 void Logger::MoveEventInternal(LogEventsAndTags event, Address from,
                                Address to) {
-  if (!FLAG_log_code || !log_->IsEnabled()) return;
+  if (!FLAG_log_code) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1552,7 +1547,7 @@ void Logger::MoveEventInternal(LogEventsAndTags event, Address from,
 }
 
 void Logger::ResourceEvent(const char* name, const char* tag) {
-  if (!log_->IsEnabled() || !FLAG_log) return;
+  if (!FLAG_log) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1568,7 +1563,7 @@ void Logger::ResourceEvent(const char* name, const char* tag) {
 }
 
 void Logger::SuspectReadEvent(Name name, Object obj) {
-  if (!log_->IsEnabled() || !FLAG_log_suspect) return;
+  if (!FLAG_log_suspect) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1593,7 +1588,7 @@ void AppendFunctionMessage(
 void Logger::FunctionEvent(const char* reason, int script_id, double time_delta,
                            int start_position, int end_position,
                            String function_name) {
-  if (!log_->IsEnabled() || !FLAG_log_function_events) return;
+  if (!FLAG_log_function_events) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1607,7 +1602,7 @@ void Logger::FunctionEvent(const char* reason, int script_id, double time_delta,
                            int start_position, int end_position,
                            const char* function_name,
                            size_t function_name_length) {
-  if (!log_->IsEnabled() || !FLAG_log_function_events) return;
+  if (!FLAG_log_function_events) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1621,7 +1616,7 @@ void Logger::FunctionEvent(const char* reason, int script_id, double time_delta,
 
 void Logger::CompilationCacheEvent(const char* action, const char* cache_type,
                                    SharedFunctionInfo sfi) {
-  if (!log_->IsEnabled() || !FLAG_log_function_events) return;
+  if (!FLAG_log_function_events) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1637,7 +1632,7 @@ void Logger::CompilationCacheEvent(const char* action, const char* cache_type,
 }
 
 void Logger::ScriptEvent(ScriptEventType type, int script_id) {
-  if (!log_->IsEnabled() || !FLAG_log_function_events) return;
+  if (!FLAG_log_function_events) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1665,7 +1660,7 @@ void Logger::ScriptEvent(ScriptEventType type, int script_id) {
 }
 
 void Logger::ScriptDetails(Script script) {
-  if (!log_->IsEnabled() || !FLAG_log_function_events) return;
+  if (!FLAG_log_function_events) return;
   {
     std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
     if (!msg_ptr) return;
@@ -1685,7 +1680,6 @@ void Logger::ScriptDetails(Script script) {
 }
 
 bool Logger::EnsureLogScriptSource(Script script) {
-  if (!log_->IsEnabled()) return false;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return false;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1726,7 +1720,7 @@ void Logger::RuntimeCallTimerEvent() {
 }
 
 void Logger::TickEvent(TickSample* sample, bool overflow) {
-  if (!log_->IsEnabled() || !FLAG_prof_cpp) return;
+  if (!FLAG_prof_cpp) return;
   if (V8_UNLIKELY(TracingFlags::runtime_stats.load(std::memory_order_relaxed) ==
                   v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE)) {
     RuntimeCallTimerEvent();
@@ -1754,7 +1748,7 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
 void Logger::ICEvent(const char* type, bool keyed, Handle<Map> map,
                      Handle<Object> key, char old_state, char new_state,
                      const char* modifier, const char* slow_stub_reason) {
-  if (!log_->IsEnabled() || !FLAG_trace_ic) return;
+  if (!FLAG_trace_ic) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1782,7 +1776,7 @@ void Logger::ICEvent(const char* type, bool keyed, Handle<Map> map,
 
 void Logger::MapEvent(const char* type, Handle<Map> from, Handle<Map> to,
                       const char* reason, Handle<HeapObject> name_or_sfi) {
-  if (!log_->IsEnabled() || !FLAG_trace_maps) return;
+  if (!FLAG_trace_maps) return;
   if (!to.is_null()) MapDetails(*to);
   int line = -1;
   int column = -1;
@@ -1815,7 +1809,7 @@ void Logger::MapEvent(const char* type, Handle<Map> from, Handle<Map> to,
 }
 
 void Logger::MapCreate(Map map) {
-  if (!log_->IsEnabled() || !FLAG_trace_maps) return;
+  if (!FLAG_trace_maps) return;
   DisallowHeapAllocation no_gc;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
@@ -1826,7 +1820,7 @@ void Logger::MapCreate(Map map) {
 }
 
 void Logger::MapDetails(Map map) {
-  if (!log_->IsEnabled() || !FLAG_trace_maps) return;
+  if (!FLAG_trace_maps) return;
   DisallowHeapAllocation no_gc;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;

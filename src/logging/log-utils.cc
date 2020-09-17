@@ -72,11 +72,15 @@ void Log::WriteLogHeader() {
 }
 
 std::unique_ptr<Log::MessageBuilder> Log::NewMessageBuilder() {
+  // Fast check of IsEnabled() without taking the lock. Bail out immediately if
+  // logging isn't enabled.
+  if (!IsEnabled()) return {};
+
   std::unique_ptr<Log::MessageBuilder> result(new Log::MessageBuilder(this));
 
-  // Need to check here whether log is still enabled while the mutex is locked
-  // by Log::MessageBuilder. In case IsEnabled() is checked before locking the
-  // mutex we could still read an old value.
+  // The first invocation of IsEnabled() might still read an old value. It is
+  // fine if a background thread starts logging a bit later, but we want to
+  // avoid background threads continue logging after logging was closed.
   if (!IsEnabled()) return {};
 
   return result;
