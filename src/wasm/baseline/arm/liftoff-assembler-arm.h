@@ -2335,25 +2335,49 @@ void LiftoffAssembler::emit_f64x2_sqrt(LiftoffRegister dst,
 
 bool LiftoffAssembler::emit_f64x2_ceil(LiftoffRegister dst,
                                        LiftoffRegister src) {
-  bailout(kSimd, "f64x2.ceil");
+  if (!CpuFeatures::IsSupported(ARMv8)) {
+    return false;
+  }
+
+  CpuFeatureScope scope(this, ARMv8);
+  vrintp(dst.low_fp(), src.low_fp());
+  vrintp(dst.high_fp(), src.high_fp());
   return true;
 }
 
 bool LiftoffAssembler::emit_f64x2_floor(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  bailout(kSimd, "f64x2.floor");
+  if (!CpuFeatures::IsSupported(ARMv8)) {
+    return false;
+  }
+
+  CpuFeatureScope scope(this, ARMv8);
+  vrintm(dst.low_fp(), src.low_fp());
+  vrintm(dst.high_fp(), src.high_fp());
   return true;
 }
 
 bool LiftoffAssembler::emit_f64x2_trunc(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  bailout(kSimd, "f64x2.trunc");
+  if (!CpuFeatures::IsSupported(ARMv8)) {
+    return false;
+  }
+
+  CpuFeatureScope scope(this, ARMv8);
+  vrintz(dst.low_fp(), src.low_fp());
+  vrintz(dst.high_fp(), src.high_fp());
   return true;
 }
 
 bool LiftoffAssembler::emit_f64x2_nearest_int(LiftoffRegister dst,
                                               LiftoffRegister src) {
-  bailout(kSimd, "f64x2.nearest_int");
+  if (!CpuFeatures::IsSupported(ARMv8)) {
+    return false;
+  }
+
+  CpuFeatureScope scope(this, ARMv8);
+  vrintn(dst.low_fp(), src.low_fp());
+  vrintn(dst.high_fp(), src.high_fp());
   return true;
 }
 
@@ -2486,25 +2510,49 @@ void LiftoffAssembler::emit_f32x4_sqrt(LiftoffRegister dst,
 
 bool LiftoffAssembler::emit_f32x4_ceil(LiftoffRegister dst,
                                        LiftoffRegister src) {
-  bailout(kSimd, "f32x4.ceil");
+  if (!CpuFeatures::IsSupported(ARMv8)) {
+    return false;
+  }
+
+  CpuFeatureScope scope(this, ARMv8);
+  vrintp(NeonS32, liftoff::GetSimd128Register(dst),
+         liftoff::GetSimd128Register(src));
   return true;
 }
 
 bool LiftoffAssembler::emit_f32x4_floor(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  bailout(kSimd, "f32x4.floor");
+  if (!CpuFeatures::IsSupported(ARMv8)) {
+    return false;
+  }
+
+  CpuFeatureScope scope(this, ARMv8);
+  vrintm(NeonS32, liftoff::GetSimd128Register(dst),
+         liftoff::GetSimd128Register(src));
   return true;
 }
 
 bool LiftoffAssembler::emit_f32x4_trunc(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  bailout(kSimd, "f32x4.trunc");
+  if (!CpuFeatures::IsSupported(ARMv8)) {
+    return false;
+  }
+
+  CpuFeatureScope scope(this, ARMv8);
+  vrintz(NeonS32, liftoff::GetSimd128Register(dst),
+         liftoff::GetSimd128Register(src));
   return true;
 }
 
 bool LiftoffAssembler::emit_f32x4_nearest_int(LiftoffRegister dst,
                                               LiftoffRegister src) {
-  bailout(kSimd, "f32x4.nearest_int");
+  if (!CpuFeatures::IsSupported(ARMv8)) {
+    return false;
+  }
+
+  CpuFeatureScope scope(this, ARMv8);
+  vrintn(NeonS32, liftoff::GetSimd128Register(dst),
+         liftoff::GetSimd128Register(src));
   return true;
 }
 

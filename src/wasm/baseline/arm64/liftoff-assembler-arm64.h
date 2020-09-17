@@ -1566,25 +1566,25 @@ void LiftoffAssembler::emit_f64x2_sqrt(LiftoffRegister dst,
 
 bool LiftoffAssembler::emit_f64x2_ceil(LiftoffRegister dst,
                                        LiftoffRegister src) {
-  bailout(kSimd, "f64x2.ceil");
+  Frintp(dst.fp().V2D(), src.fp().V2D());
   return true;
 }
 
 bool LiftoffAssembler::emit_f64x2_floor(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  bailout(kSimd, "f64x2.floor");
+  Frintm(dst.fp().V2D(), src.fp().V2D());
   return true;
 }
 
 bool LiftoffAssembler::emit_f64x2_trunc(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  bailout(kSimd, "f64x2.trunc");
+  Frintz(dst.fp().V2D(), src.fp().V2D());
   return true;
 }
 
 bool LiftoffAssembler::emit_f64x2_nearest_int(LiftoffRegister dst,
                                               LiftoffRegister src) {
-  bailout(kSimd, "f64x2.nearest_int");
+  Frintn(dst.fp().V2D(), src.fp().V2D());
   return true;
 }
 
@@ -1690,25 +1690,25 @@ void LiftoffAssembler::emit_f32x4_sqrt(LiftoffRegister dst,
 
 bool LiftoffAssembler::emit_f32x4_ceil(LiftoffRegister dst,
                                        LiftoffRegister src) {
-  bailout(kSimd, "f32x4.ceil");
+  Frintp(dst.fp().V4S(), src.fp().V4S());
   return true;
 }
 
 bool LiftoffAssembler::emit_f32x4_floor(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  bailout(kSimd, "f32x4.floor");
+  Frintm(dst.fp().V4S(), src.fp().V4S());
   return true;
 }
 
 bool LiftoffAssembler::emit_f32x4_trunc(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  bailout(kSimd, "f32x4.trunc");
+  Frintz(dst.fp().V4S(), src.fp().V4S());
   return true;
 }
 
 bool LiftoffAssembler::emit_f32x4_nearest_int(LiftoffRegister dst,
                                               LiftoffRegister src) {
-  bailout(kSimd, "f32x4.nearest_int");
+  Frintn(dst.fp().V4S(), src.fp().V4S());
   return true;
 }
 
