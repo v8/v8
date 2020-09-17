@@ -537,9 +537,6 @@
   # http://crbug/v8/10844
   'intl402/NumberFormat/dft-currency-mnfd-range-check-mxfd': [FAIL],
 
-  # http://crbug/v8/10921
-  'intl402/Segmenter/prototype/segment/containing/out-of-bound-index': [SKIP],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7831
   'language/statements/generators/generator-created-after-decl-inst': [FAIL],
   'language/expressions/generators/generator-created-after-decl-inst': [FAIL],
