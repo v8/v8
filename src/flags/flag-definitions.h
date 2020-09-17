@@ -203,6 +203,13 @@ struct MaybeBoolFlag {
 //
 #define FLAG FLAG_FULL
 
+// TODO(tebbi): This is a dummy atm to prepare the infra call sites.
+DEFINE_BOOL(abort_on_contradictory_flags, false,
+            "Disallow flags or implications overriding each other.")
+// This implication is also hard-coded into the flags processing to make sure it
+// becomes active before we even process subsequent flags.
+DEFINE_NEG_IMPLICATION(fuzzing, abort_on_contradictory_flags)
+
 // Flags for language modes and experimental language features.
 DEFINE_BOOL(use_strict, false, "enforce strict mode")
 
