@@ -3589,8 +3589,6 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
       kFrameMarkerOffset - kNumSpillSlots * kSystemPointerSize;
   __ leaq(rsp, MemOperand(rbp, kLastSpillOffset));
 
-  __ movq(param_count, MemOperand(rbp, kParamCountOffset));
-
   // Unset thread_in_wasm_flag.
   thread_in_wasm_flag_addr = r8;
   __ movq(
@@ -3616,6 +3614,7 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
 
   Label return_done;
   __ bind(&return_done);
+  __ movq(param_count, MemOperand(rbp, kParamCountOffset));
 
   // -------------------------------------------
   // Deconstrunct the stack frame.
@@ -3690,6 +3689,10 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // Return conversions.
   // -------------------------------------------
   __ bind(&convert_return);
+  // We have to make sure that the kGCScanSlotCount is set correctly when we
+  // call the builtins for conversion. For these builtins it's the same as for
+  // the Wasm call, that is, kGCScanSlotCount = 0, so we don't have to reset it.
+  // We don't need the JS context for these builtin calls.
 
   __ movq(valuetypes_array_ptr, MemOperand(rbp, kValueTypesArrayStartOffset));
   // The first valuetype of the array is the return's valuetype.
@@ -3698,6 +3701,8 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
 
   Label return_kWasmI32;
   Label return_kWasmI64;
+  Label return_kWasmF32;
+  Label return_kWasmF64;
 
   __ cmpq(valuetype, Immediate(wasm::kWasmI32.raw_bit_field()));
   __ j(equal, &return_kWasmI32);
@@ -3705,14 +3710,13 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ cmpq(valuetype, Immediate(wasm::kWasmI64.raw_bit_field()));
   __ j(equal, &return_kWasmI64);
 
-  __ int3();
+  __ cmpq(valuetype, Immediate(wasm::kWasmF32.raw_bit_field()));
+  __ j(equal, &return_kWasmF32);
 
-  __ bind(&return_kWasmI64);
-  // We don't need the JS context for this builtin call.
-  __ Call(BUILTIN_CODE(masm->isolate(), I64ToBigInt), RelocInfo::CODE_TARGET);
-  // We will need the parameter_count later.
-  __ movq(param_count, MemOperand(rbp, kParamCountOffset));
-  __ jmp(&return_done);
+  __ cmpq(valuetype, Immediate(wasm::kWasmF64.raw_bit_field()));
+  __ j(equal, &return_kWasmF64);
+
+  __ int3();
 
   __ bind(&return_kWasmI32);
   Label to_heapnumber;
@@ -3732,17 +3736,29 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   }
   __ jmp(&return_done);
 
-  // Handle the conversion of the return value to HeapNumber when it cannot be a
-  // smi.
+  // Handle the conversion of the I32 return value to HeapNumber when it cannot
+  // be a smi.
   __ bind(&to_heapnumber);
-  // We have to make sure that the kGCScanSlotCount is set correctly. For this
-  // builtin it's the same as for the Wasm call = 0, so we don't have to reset
-  // it.
-  // We don't need the JS context for this builtin call.
   __ Call(BUILTIN_CODE(masm->isolate(), WasmInt32ToHeapNumber),
           RelocInfo::CODE_TARGET);
-  // We will need the parameter_count later.
-  __ movq(param_count, MemOperand(rbp, kParamCountOffset));
+  __ jmp(&return_done);
+
+  __ bind(&return_kWasmI64);
+  __ Call(BUILTIN_CODE(masm->isolate(), I64ToBigInt), RelocInfo::CODE_TARGET);
+  __ jmp(&return_done);
+
+  __ bind(&return_kWasmF32);
+  // The builtin expects the value to be in xmm0.
+  __ Movss(xmm0, xmm1);
+  __ Call(BUILTIN_CODE(masm->isolate(), WasmFloat32ToNumber),
+          RelocInfo::CODE_TARGET);
+  __ jmp(&return_done);
+
+  __ bind(&return_kWasmF64);
+  // The builtin expects the value to be in xmm0.
+  __ Movsd(xmm0, xmm1);
+  __ Call(BUILTIN_CODE(masm->isolate(), WasmFloat64ToNumber),
+          RelocInfo::CODE_TARGET);
   __ jmp(&return_done);
 }
 
