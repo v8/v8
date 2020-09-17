@@ -107,7 +107,9 @@ void UnifiedHeapMarker::AddObject(void* object) {
 
 CppHeap::CppHeap(v8::Isolate* isolate, size_t custom_spaces)
     : cppgc::internal::HeapBase(std::make_shared<CppgcPlatformAdapter>(isolate),
-                                custom_spaces),
+                                custom_spaces,
+                                cppgc::internal::HeapBase::StackSupport::
+                                    kSupportsConservativeStackScan),
       isolate_(*reinterpret_cast<Isolate*>(isolate)) {
   CHECK(!FLAG_incremental_marking_wrappers);
 }

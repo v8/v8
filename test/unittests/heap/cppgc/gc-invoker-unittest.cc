@@ -129,7 +129,8 @@ TEST(GCInvokerTest, IncrementalGCIsStarted) {
   EXPECT_CALL(
       gc, StartIncrementalGarbageCollection(::testing::Field(
               &GarbageCollector::Config::stack_state,
-              GarbageCollector::Config::StackState::kMayContainHeapPointers)));
+              GarbageCollector::Config::StackState::kMayContainHeapPointers)))
+      .Times(0);
   invoker_without_support.StartIncrementalGarbageCollection(
       GarbageCollector::Config::ConservativeIncrementalConfig());
 }

@@ -44,6 +44,8 @@ class StatsCollector;
 // Base class for heap implementations.
 class V8_EXPORT_PRIVATE HeapBase {
  public:
+  using StackSupport = cppgc::Heap::StackSupport;
+
   // NoGCScope allows going over limits and avoids triggering garbage
   // collection triggered through allocations or even explicitly.
   class V8_EXPORT_PRIVATE NoGCScope final {
@@ -60,7 +62,8 @@ class V8_EXPORT_PRIVATE HeapBase {
     HeapBase& heap_;
   };
 
-  HeapBase(std::shared_ptr<cppgc::Platform> platform, size_t custom_spaces);
+  HeapBase(std::shared_ptr<cppgc::Platform> platform, size_t custom_spaces,
+           StackSupport stack_support);
   virtual ~HeapBase();
 
   HeapBase(const HeapBase&) = delete;
@@ -116,6 +119,8 @@ class V8_EXPORT_PRIVATE HeapBase {
 
   size_t ObjectPayloadSize() const;
 
+  StackSupport stack_support() const { return stack_support_; }
+
   void AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded();
 
  protected:
@@ -149,6 +154,8 @@ class V8_EXPORT_PRIVATE HeapBase {
 #endif
 
   size_t no_gc_scope_ = 0;
+
+  const StackSupport stack_support_;
 
   friend class MarkerBase::IncrementalMarkingTask;
   friend class testing::TestWithHeap;

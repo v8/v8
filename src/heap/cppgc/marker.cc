@@ -138,27 +138,44 @@ size_t GetNextIncrementalStepDuration(IncrementalMarkingSchedule& schedule,
 
 constexpr v8::base::TimeDelta MarkerBase::kMaximumIncrementalStepDuration;
 
-MarkerBase::IncrementalMarkingTask::IncrementalMarkingTask(MarkerBase* marker)
-    : marker_(marker), handle_(Handle::NonEmptyTag{}) {}
+MarkerBase::IncrementalMarkingTask::IncrementalMarkingTask(
+    MarkerBase* marker, MarkingConfig::StackState stack_state)
+    : marker_(marker),
+      stack_state_(stack_state),
+      handle_(Handle::NonEmptyTag{}) {}
 
 // static
 MarkerBase::IncrementalMarkingTask::Handle
 MarkerBase::IncrementalMarkingTask::Post(v8::TaskRunner* runner,
                                          MarkerBase* marker) {
-  auto task = std::make_unique<IncrementalMarkingTask>(marker);
+  // Incremental GC is possible only via the GCInvoker, so getting here
+  // guarantees that either non-nestable tasks or conservative stack
+  // scannnig are supported. This is required so that the incremental
+  // task can safely finalize GC if needed.
+  DCHECK_IMPLIES(marker->heap().stack_support() !=
+                     HeapBase::StackSupport::kSupportsConservativeStackScan,
+                 runner->NonNestableTasksEnabled());
+  MarkingConfig::StackState stack_state_for_task =
+      runner->NonNestableTasksEnabled()
+          ? MarkingConfig::StackState::kNoHeapPointers
+          : MarkingConfig::StackState::kMayContainHeapPointers;
+  auto task =
+      std::make_unique<IncrementalMarkingTask>(marker, stack_state_for_task);
   auto handle = task->handle_;
-  runner->PostNonNestableTask(std::move(task));
+  if (runner->NonNestableTasksEnabled()) {
+    runner->PostNonNestableTask(std::move(task));
+  } else {
+    runner->PostTask(std::move(task));
+  }
   return handle;
 }
 
 void MarkerBase::IncrementalMarkingTask::Run() {
   if (handle_.IsCanceled()) return;
 
-  if (marker_->IncrementalMarkingStep(
-          MarkingConfig::StackState::kNoHeapPointers)) {
+  if (marker_->IncrementalMarkingStep(stack_state_)) {
     // Incremental marking is done so should finalize GC.
-    marker_->heap().FinalizeIncrementalGarbageCollectionIfNeeded(
-        MarkingConfig::StackState::kNoHeapPointers);
+    marker_->heap().FinalizeIncrementalGarbageCollectionIfNeeded(stack_state_);
   }
 }
 

@@ -7,6 +7,7 @@
 #include <chrono>  // NOLINT(build/c++11)
 #include <thread>  // NOLINT(build/c++11)
 
+#include "src/base/logging.h"
 #include "src/base/page-allocator.h"
 
 namespace cppgc {
@@ -37,18 +38,18 @@ void DefaultTaskRunner::PostTask(std::unique_ptr<cppgc::Task> task) {
   tasks_.push_back(std::move(task));
 }
 
-void DefaultTaskRunner::PostNonNestableTask(std::unique_ptr<cppgc::Task> task) {
-  PostTask(std::move(task));
-}
-
 void DefaultTaskRunner::PostDelayedTask(std::unique_ptr<cppgc::Task> task,
                                         double) {
   PostTask(std::move(task));
 }
 
-void DefaultTaskRunner::PostNonNestableDelayedTask(
-    std::unique_ptr<cppgc::Task> task, double) {
-  PostTask(std::move(task));
+void DefaultTaskRunner::PostNonNestableTask(std::unique_ptr<cppgc::Task>) {
+  UNREACHABLE();
+}
+
+void DefaultTaskRunner::PostNonNestableDelayedTask(std::unique_ptr<cppgc::Task>,
+                                                   double) {
+  UNREACHABLE();
 }
 
 void DefaultTaskRunner::PostIdleTask(std::unique_ptr<cppgc::IdleTask> task) {

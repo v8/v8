@@ -93,6 +93,17 @@ void GCInvoker::GCInvokerImpl::CollectGarbage(GarbageCollector::Config config) {
 
 void GCInvoker::GCInvokerImpl::StartIncrementalGarbageCollection(
     GarbageCollector::Config config) {
+  if ((stack_support_ !=
+       cppgc::Heap::StackSupport::kSupportsConservativeStackScan) &&
+      (!platform_->GetForegroundTaskRunner() ||
+       !platform_->GetForegroundTaskRunner()->NonNestableTasksEnabled())) {
+    // In this configuration the GC finalization can only be triggered through
+    // ForceGarbageCollectionSlow. If incremental GC is started, there is no
+    // way to know how long it will remain enabled (and the write barrier with
+    // it). For that reason, we do not support running incremental GCs in this
+    // configuration.
+    return;
+  }
   // No need to postpone starting incremental GC since the stack is not scanned
   // until GC finalization.
   collector_->StartIncrementalGarbageCollection(config);

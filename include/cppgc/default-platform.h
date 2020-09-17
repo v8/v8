@@ -26,8 +26,11 @@ class V8_EXPORT DefaultTaskRunner final : public cppgc::TaskRunner {
   DefaultTaskRunner& operator=(const DefaultTaskRunner&) = delete;
 
   void PostTask(std::unique_ptr<cppgc::Task> task) override;
-  void PostNonNestableTask(std::unique_ptr<cppgc::Task> task) override;
   void PostDelayedTask(std::unique_ptr<cppgc::Task> task, double) override;
+
+  bool NonNestableTasksEnabled() const final { return false; }
+  bool NonNestableDelayedTasksEnabled() const final { return false; }
+  void PostNonNestableTask(std::unique_ptr<cppgc::Task> task) override;
   void PostNonNestableDelayedTask(std::unique_ptr<cppgc::Task> task,
                                   double) override;
 

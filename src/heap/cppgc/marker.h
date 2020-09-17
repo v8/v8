@@ -103,7 +103,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
    public:
     using Handle = SingleThreadedHandle;
 
-    explicit IncrementalMarkingTask(MarkerBase*);
+    IncrementalMarkingTask(MarkerBase*, MarkingConfig::StackState);
 
     static Handle Post(v8::TaskRunner*, MarkerBase*);
 
@@ -111,6 +111,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
     void Run() final;
 
     MarkerBase* const marker_;
+    MarkingConfig::StackState stack_state_;
     // TODO(chromium:1056170): Change to CancelableTask.
     Handle handle_;
   };
