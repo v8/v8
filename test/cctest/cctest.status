@@ -387,6 +387,13 @@
   # TODO(ppc): Implement load/store reverse byte instructions
   'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad': [SKIP],
   'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad_turbofan': [SKIP],
+  # TODO(miladfarca): remove once aix gcc bug is fixed.
+  # gcc on aix has a bug when using ceilf or truncf:
+  # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=97086
+  'test-run-wasm-simd/RunWasm_F32x4Ceil_interpreter': [SKIP],
+  'test-run-wasm-simd/RunWasm_F32x4Trunc_interpreter': [SKIP],
+  'test-run-wasm-simd/RunWasm_F64x2Ceil_interpreter': [SKIP],
+  'test-run-wasm-simd/RunWasm_F64x2Trunc_interpreter': [SKIP],
 
 }],  # 'system == aix or (arch == ppc64 and byteorder == big)'
 
