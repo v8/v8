@@ -4610,9 +4610,13 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
             } else {
               // vmin/vmax.f32 Qd, Qm, Qn.
               bool min = instr->Bit(21) == 1;
+              bool saved = FPSCR_default_NaN_mode_;
+              FPSCR_default_NaN_mode_ = true;
               for (int i = 0; i < 4; i++) {
-                src1[i] = MinMax(src1[i], src2[i], min);
+                // vmin returns default NaN if any input is NaN.
+                src1[i] = canonicalizeNaN(MinMax(src1[i], src2[i], min));
               }
+              FPSCR_default_NaN_mode_ = saved;
             }
             set_neon_register(Vd, src1);
           } else {
