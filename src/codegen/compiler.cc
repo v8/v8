@@ -1625,6 +1625,7 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   // Collecting source positions requires allocating a new source position
   // table.
   DCHECK(AllowHeapAllocation::IsAllowed());
+  DCHECK(AllowGarbageCollection::IsAllowed());
 
   Handle<BytecodeArray> bytecode =
       handle(shared_info->GetBytecodeArray(), isolate);

@@ -786,7 +786,7 @@ StartupData SnapshotCreator::CreateBlob(
   i::Snapshot::ClearReconstructableDataForSerialization(
       isolate, function_code_handling == FunctionCodeHandling::kClear);
 
-  i::DisallowHeapAllocation no_gc_from_here_on;
+  i::DisallowGarbageCollection no_gc_from_here_on;
 
   // Create a vector with all contexts and clear associated Persistent fields.
   // Note these contexts may be dead after calling Clear(), but will not be

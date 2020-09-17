@@ -112,7 +112,7 @@ void Deserializer::Synchronize(VisitorSynchronization::SyncTag tag) {
 }
 
 void Deserializer::DeserializeDeferredObjects() {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   for (int code = source_.Get(); code != kSynchronize; code = source_.Get()) {
     SnapshotSpace space = NewObject::Decode(code);
@@ -121,7 +121,7 @@ void Deserializer::DeserializeDeferredObjects() {
 }
 
 void Deserializer::LogNewMapEvents() {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   for (Map map : new_maps_) {
     DCHECK(FLAG_trace_maps);
     LOG(isolate(), MapCreate(map));
@@ -130,7 +130,7 @@ void Deserializer::LogNewMapEvents() {
 }
 
 void Deserializer::LogScriptEvents(Script script) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   LOG(isolate(),
       ScriptEvent(Logger::ScriptEventType::kDeserialize, script.id()));
   LOG(isolate(), ScriptDetails(script));
@@ -159,7 +159,7 @@ uint32_t StringTableInsertionKey::ComputeHashField(String string) {
 
 HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
                                               SnapshotSpace space) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   if ((FLAG_rehash_snapshot && can_rehash_) || deserializing_user_code()) {
     if (obj.IsString()) {
@@ -349,7 +349,7 @@ HeapObject Deserializer::ReadObject() {
 }
 
 HeapObject Deserializer::ReadObject(SnapshotSpace space) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   const int size = source_.GetInt() << kObjectAlignmentBits;
 

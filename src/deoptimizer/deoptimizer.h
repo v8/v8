@@ -12,6 +12,7 @@
 #include "src/codegen/label.h"
 #include "src/codegen/register-arch.h"
 #include "src/codegen/source-position.h"
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/diagnostics/code-tracer.h"
@@ -643,7 +644,7 @@ class Deoptimizer : public Malloced {
   std::vector<ValueToMaterialize> values_to_materialize_;
 
 #ifdef DEBUG
-  DisallowHeapAllocation* disallow_heap_allocation_;
+  DisallowGarbageCollection* disallow_garbage_collection_;
 #endif  // DEBUG
 
   std::unique_ptr<CodeTracer::Scope> trace_scope_;

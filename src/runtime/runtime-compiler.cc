@@ -5,6 +5,7 @@
 #include "src/asmjs/asm-js.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
+#include "src/common/assert-scope.h"
 #include "src/common/message-template.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -170,6 +171,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   DCHECK(CodeKindCanDeoptimize(deoptimizer->compiled_code()->kind()));
   DCHECK(deoptimizer->compiled_code()->is_turbofanned());
   DCHECK(AllowHeapAllocation::IsAllowed());
+  DCHECK(AllowGarbageCollection::IsAllowed());
   DCHECK(isolate->context().is_null());
 
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);

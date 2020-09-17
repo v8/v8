@@ -26,6 +26,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/flush-instruction-cache.h"
+#include "src/common/assert-scope.h"
 #include "src/common/ptr-compr.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
@@ -1597,7 +1598,8 @@ Object Isolate::Throw(Object raw_exception, MessageLocation* location) {
 // Script::GetLineNumber and Script::GetColumnNumber can allocate on the heap to
 // initialize the line_ends array, so be careful when calling them.
 #ifdef DEBUG
-      if (AllowHeapAllocation::IsAllowed()) {
+      if (AllowHeapAllocation::IsAllowed() &&
+          AllowGarbageCollection::IsAllowed()) {
 #else
       if ((false)) {
 #endif

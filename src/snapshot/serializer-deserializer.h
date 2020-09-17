@@ -5,6 +5,7 @@
 #ifndef V8_SNAPSHOT_SERIALIZER_DESERIALIZER_H_
 #define V8_SNAPSHOT_SERIALIZER_DESERIALIZER_H_
 
+#include "src/common/assert-scope.h"
 #include "src/objects/visitors.h"
 #include "src/snapshot/references.h"
 
@@ -27,13 +28,13 @@ class SerializerDeserializer : public RootVisitor {
     HotObjectsList() = default;
 
     void Add(HeapObject object) {
-      DCHECK(!AllowHeapAllocation::IsAllowed());
+      DCHECK(!AllowGarbageCollection::IsAllowed());
       circular_queue_[index_] = object;
       index_ = (index_ + 1) & kSizeMask;
     }
 
     HeapObject Get(int index) {
-      DCHECK(!AllowHeapAllocation::IsAllowed());
+      DCHECK(!AllowGarbageCollection::IsAllowed());
       DCHECK(!circular_queue_[index].is_null());
       return circular_queue_[index];
     }
@@ -41,7 +42,7 @@ class SerializerDeserializer : public RootVisitor {
     static const int kNotFound = -1;
 
     int Find(HeapObject object) {
-      DCHECK(!AllowHeapAllocation::IsAllowed());
+      DCHECK(!AllowGarbageCollection::IsAllowed());
       for (int i = 0; i < kSize; i++) {
         if (circular_queue_[i] == object) return i;
       }

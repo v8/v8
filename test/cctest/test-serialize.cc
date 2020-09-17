@@ -33,6 +33,7 @@
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/macro-assembler-inl.h"
+#include "src/common/assert-scope.h"
 #include "src/debug/debug.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
@@ -172,7 +173,7 @@ static StartupBlobs Serialize(v8::Isolate* isolate) {
 
   SafepointScope safepoint(internal_isolate->heap());
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   ReadOnlySerializer read_only_serializer(internal_isolate,
                                           Snapshot::kDefaultSerializerFlags);
   read_only_serializer.SerializeReadOnlyRoots();
@@ -385,7 +386,7 @@ static void SerializeContext(Vector<const byte>* startup_blob_out,
 
     SafepointScope safepoint(heap);
 
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     SnapshotByteSink read_only_sink;
     ReadOnlySerializer read_only_serializer(isolate,
                                             Snapshot::kDefaultSerializerFlags);
@@ -537,7 +538,7 @@ static void SerializeCustomContext(Vector<const byte>* startup_blob_out,
 
     SafepointScope safepoint(isolate->heap());
 
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     SnapshotByteSink read_only_sink;
     ReadOnlySerializer read_only_serializer(isolate,
                                             Snapshot::kDefaultSerializerFlags);
@@ -1582,7 +1583,7 @@ TEST(TestThatAlwaysFails) {
 int CountBuiltins() {
   // Check that we have not deserialized any additional builtin.
   HeapObjectIterator iterator(CcTest::heap());
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_allocation;
   int counter = 0;
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {

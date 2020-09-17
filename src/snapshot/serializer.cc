@@ -744,7 +744,7 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
 void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
                                                  MaybeObjectSlot start,
                                                  MaybeObjectSlot end) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   MaybeObjectSlot current = start;
   while (current < end) {

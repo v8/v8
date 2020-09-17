@@ -12,6 +12,7 @@
 #include "src/codegen/callable.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
+#include "src/common/assert-scope.h"
 #include "src/diagnostics/disasm.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/pointer-authentication.h"
@@ -548,7 +549,8 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
   DCHECK(function.IsJSFunction());
 #ifdef DEBUG
   DCHECK(AllowHeapAllocation::IsAllowed());
-  disallow_heap_allocation_ = new DisallowHeapAllocation();
+  DCHECK(AllowGarbageCollection::IsAllowed());
+  disallow_garbage_collection_ = new DisallowGarbageCollection();
 #endif  // DEBUG
   CHECK(CodeKindCanDeoptimize(compiled_code_.kind()));
   if (!compiled_code_.deopt_already_counted() &&
@@ -620,7 +622,7 @@ bool Deoptimizer::should_reuse_code() const {
 
 Deoptimizer::~Deoptimizer() {
   DCHECK(input_ == nullptr && output_ == nullptr);
-  DCHECK_NULL(disallow_heap_allocation_);
+  DCHECK_NULL(disallow_garbage_collection_);
 }
 
 void Deoptimizer::DeleteFrameDescriptions() {
@@ -632,10 +634,10 @@ void Deoptimizer::DeleteFrameDescriptions() {
   input_ = nullptr;
   output_ = nullptr;
 #ifdef DEBUG
-  DCHECK(!AllowHeapAllocation::IsAllowed());
-  DCHECK_NOT_NULL(disallow_heap_allocation_);
-  delete disallow_heap_allocation_;
-  disallow_heap_allocation_ = nullptr;
+  DCHECK(!AllowGarbageCollection::IsAllowed());
+  DCHECK_NOT_NULL(disallow_garbage_collection_);
+  delete disallow_garbage_collection_;
+  disallow_garbage_collection_ = nullptr;
 #endif  // DEBUG
 }
 

@@ -20,6 +20,7 @@
 #include "src/builtins/accessors.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -1553,7 +1554,9 @@ bool Heap::CollectGarbage(AllocationSpace space,
   {
     tracer()->Start(collector, gc_reason, collector_reason);
     DCHECK(AllowHeapAllocation::IsAllowed());
+    DCHECK(AllowGarbageCollection::IsAllowed());
     DisallowHeapAllocation no_allocation_during_gc;
+    DisallowGarbageCollection no_gc_during_gc;
     GarbageCollectionPrologue();
 
     {
@@ -1584,6 +1587,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
             EmbedderHeapTracer::EmbedderStackState::kMayContainHeapPointers);
         if (scope.CheckReenter()) {
           AllowHeapAllocation allow_allocation;
+          AllowGarbageCollection allow_gc;
           AllowJavascriptExecution allow_js(isolate());
           TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_PROLOGUE);
           VMState<EXTERNAL> state(isolate_);
@@ -1608,6 +1612,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
         gc_post_processing_depth_++;
         {
           AllowHeapAllocation allow_allocation;
+          AllowGarbageCollection allow_gc;
           AllowJavascriptExecution allow_js(isolate());
           freed_global_handles +=
               isolate_->global_handles()->PostGarbageCollectionProcessing(
@@ -1620,6 +1625,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
         GCCallbacksScope scope(this);
         if (scope.CheckReenter()) {
           AllowHeapAllocation allow_allocation;
+          AllowGarbageCollection allow_gc;
           AllowJavascriptExecution allow_js(isolate());
           TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_EPILOGUE);
           VMState<EXTERNAL> state(isolate_);

@@ -13,6 +13,7 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/atomicops.h"
 #include "src/base/platform/platform.h"
+#include "src/common/assert-scope.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
 #include "src/heap/third-party/heap-api.h"
@@ -169,6 +170,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
                                    AllocationAlignment alignment) {
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
+  DCHECK(AllowGarbageCollection::IsAllowed());
   DCHECK_IMPLIES(type == AllocationType::kCode,
                  alignment == AllocationAlignment::kCodeAligned);
   DCHECK_EQ(gc_state(), NOT_IN_GC);
@@ -272,6 +274,7 @@ HeapObject Heap::AllocateRawWith(int size, AllocationType allocation,
                                  AllocationAlignment alignment) {
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
+  DCHECK(AllowGarbageCollection::IsAllowed());
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     AllocationResult result = AllocateRaw(size, allocation, origin, alignment);
     DCHECK(!result.IsRetry());

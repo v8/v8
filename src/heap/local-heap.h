@@ -10,6 +10,7 @@
 
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
+#include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/concurrent-allocator.h"
@@ -35,6 +36,10 @@ class V8_EXPORT_PRIVATE LocalHeap {
   // Frequently invoked by local thread to check whether safepoint was requested
   // from the main thread.
   void Safepoint() {
+    // In case garbage collection is disabled, the thread isn't even allowed to
+    // invoke Safepoint(). Otherwise a GC might happen here.
+    DCHECK(AllowGarbageCollection::IsAllowed());
+
     if (IsSafepointRequested()) {
       ClearSafepointRequested();
       EnterSafepoint();

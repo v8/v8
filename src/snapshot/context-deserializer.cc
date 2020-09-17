@@ -42,7 +42,7 @@ MaybeHandle<Object> ContextDeserializer::Deserialize(
 
   Handle<Object> result;
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     // Keep track of the code space start and end pointers in case new
     // code objects were unserialized
     CodeSpace* code_space = isolate->heap()->code_space();
@@ -83,7 +83,7 @@ void ContextDeserializer::SetupOffHeapArrayBufferBackingStores() {
 void ContextDeserializer::DeserializeEmbedderFields(
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   if (!source()->HasMore() || source()->Get() != kEmbedderFieldsData) return;
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate());
   DisallowCompilation no_compile(isolate());
   DCHECK_NOT_NULL(embedder_fields_deserializer.callback);
