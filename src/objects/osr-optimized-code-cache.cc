@@ -219,5 +219,24 @@ bool OSROptimizedCodeCache::NeedsTrimming(int num_valid_entries,
   return curr_length > kInitialLength && curr_length > num_valid_entries * 3;
 }
 
+OSROptimizedCodeCache::Iterator::Iterator(Handle<NativeContext> native_context)
+    : cache_(native_context->GetOSROptimizedCodeCache(),
+             native_context->GetIsolate()) {}
+
+std::pair<SharedFunctionInfo, Code> OSROptimizedCodeCache::Iterator::Next() {
+  while (index_ < cache_->length()) {
+    if (cache_->Get(index_ + kSharedOffset)->IsCleared() ||
+        cache_->Get(index_ + kCachedCodeOffset)->IsCleared()) {
+      index_ += kEntryLength;
+      continue;
+    }
+    auto result = std::make_pair(cache_->GetSFIFromEntry(index_),
+                                 cache_->GetCodeFromEntry(index_));
+    index_ += kEntryLength;
+    return result;
+  }
+  return std::make_pair(SharedFunctionInfo(), Code());
+}
+
 }  // namespace internal
 }  // namespace v8
