@@ -288,13 +288,17 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
   // - Jumps must go to new instructions starts.
   // - No Illegal bytecodes.
   // - No consecutive sequences of prefix Wide / ExtraWide.
-  CHECK(IsBytecodeArray());
-  CHECK(constant_pool().IsFixedArray());
-  VerifyHeapPointer(isolate, constant_pool());
-  CHECK(synchronized_source_position_table().IsUndefined() ||
-        synchronized_source_position_table().IsException() ||
-        synchronized_source_position_table().IsByteArray());
-  CHECK(handler_table().IsByteArray());
+  CHECK(IsBytecodeArray(isolate));
+  CHECK(constant_pool(isolate).IsFixedArray(isolate));
+  VerifyHeapPointer(isolate, constant_pool(isolate));
+  CHECK(synchronized_source_position_table(isolate).IsUndefined(isolate) ||
+        synchronized_source_position_table(isolate).IsException(isolate) ||
+        synchronized_source_position_table(isolate).IsByteArray(isolate));
+  CHECK(handler_table(isolate).IsByteArray(isolate));
+  for (int i = 0; i < constant_pool(isolate).length(); ++i) {
+    // No ThinStrings in the constant pool.
+    CHECK(!constant_pool(isolate).get(isolate, i).IsThinString(isolate));
+  }
 }
 
 USE_TORQUE_VERIFIER(JSReceiver)
@@ -1454,6 +1458,10 @@ void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionVerify(
   CHECK_GE(this->length(),
            ObjectBoilerplateDescription::kDescriptionStartIndex);
   this->FixedArrayVerify(isolate);
+  for (int i = 0; i < length(); ++i) {
+    // No ThinStrings in the boilerplate.
+    CHECK(!get(isolate, i).IsThinString(isolate));
+  }
 }
 
 USE_TORQUE_VERIFIER(AsmWasmData)
