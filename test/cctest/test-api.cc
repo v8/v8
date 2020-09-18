@@ -28287,6 +28287,7 @@ TEST(TriggerDelayedMainThreadMetricsEvent) {
   using v8::Context;
   using v8::Local;
   using v8::MaybeLocal;
+  i::FLAG_stress_concurrent_allocation = false;
 
   // Set up isolate and context.
   v8::Isolate* iso = CcTest::isolate();
