@@ -1817,7 +1817,7 @@ class Heap {
   void GarbageCollectionPrologue();
   void GarbageCollectionPrologueInSafepoint();
   void GarbageCollectionEpilogue();
-  void GarbageCollectionEpilogueInSafepoint();
+  void GarbageCollectionEpilogueInSafepoint(GarbageCollector collector);
 
   // Performs a major collection in the whole heap.
   void MarkCompact();

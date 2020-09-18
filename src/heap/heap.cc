@@ -1092,7 +1092,11 @@ void Heap::DeoptMarkedAllocationSites() {
   Deoptimizer::DeoptimizeMarkedCode(isolate_);
 }
 
-void Heap::GarbageCollectionEpilogueInSafepoint() {
+void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
+  if (collector == MARK_COMPACTOR) {
+    memory_pressure_level_ = MemoryPressureLevel::kNone;
+  }
+
   TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_SAFEPOINT);
 
 #define UPDATE_COUNTERS_FOR_SPACE(space)                \
@@ -2130,7 +2134,7 @@ size_t Heap::PerformGarbageCollection(
 
   RecomputeLimits(collector);
 
-  GarbageCollectionEpilogueInSafepoint();
+  GarbageCollectionEpilogueInSafepoint(collector);
 
   tracer()->StopInSafepoint();
 
