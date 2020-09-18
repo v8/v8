@@ -8,6 +8,8 @@
 #include "heap-constants.h"
 #include "include/v8-internal.h"
 #include "src/common/external-pointer.h"
+#include "src/execution/frame-constants.h"
+#include "src/execution/frames.h"
 #include "src/execution/isolate-utils.h"
 #include "src/objects/string-inl.h"
 #include "src/strings/unicode-inl.h"
@@ -630,6 +632,32 @@ std::unique_ptr<ObjectPropertiesResult> GetObjectProperties(
                                                   stream.str(), kSmi);
 }
 
+std::unique_ptr<StackFrameResult> GetStackFrame(
+    uintptr_t frame_pointer, d::MemoryAccessor memory_accessor) {
+  // Read the data at frame_pointer + kContextOrFrameTypeOffset.
+  intptr_t context_or_frame_type = 0;
+  d::MemoryAccessResult validity = memory_accessor(
+      frame_pointer + CommonFrameConstants::kContextOrFrameTypeOffset,
+      reinterpret_cast<void*>(&context_or_frame_type), sizeof(intptr_t));
+  auto props = std::vector<std::unique_ptr<ObjectProperty>>();
+  if (validity == d::MemoryAccessResult::kOk) {
+    // If it is context, not frame marker then add new property
+    // "currently_executing_function".
+    if (!StackFrame::IsTypeMarker(context_or_frame_type)) {
+      props.push_back(std::make_unique<ObjectProperty>(
+          "currently_executing_jsfunction",
+          CheckTypeName<v8::internal::JSFunction>("v8::internal::JSFunction"),
+          CheckTypeName<v8::internal::JSFunction*>("v8::internal::JSFunction"),
+          frame_pointer + StandardFrameConstants::kFunctionOffset, 1,
+          sizeof(v8::internal::JSFunction),
+          std::vector<std::unique_ptr<StructProperty>>(),
+          d::PropertyKind::kSingle));
+    }
+  }
+
+  return std::make_unique<StackFrameResult>(std::move(props));
+}
+
 }  // namespace debug_helper_internal
 }  // namespace internal
 }  // namespace v8
@@ -651,5 +679,17 @@ V8_DEBUG_HELPER_EXPORT void _v8_debug_helper_Free_ObjectPropertiesResult(
     d::ObjectPropertiesResult* result) {
   std::unique_ptr<di::ObjectPropertiesResult> ptr(
       static_cast<di::ObjectPropertiesResultExtended*>(result)->base);
+}
+
+V8_DEBUG_HELPER_EXPORT d::StackFrameResult* _v8_debug_helper_GetStackFrame(
+    uintptr_t frame_pointer, d::MemoryAccessor memory_accessor) {
+  return di::GetStackFrame(frame_pointer, memory_accessor)
+      .release()
+      ->GetPublicView();
+}
+V8_DEBUG_HELPER_EXPORT void _v8_debug_helper_Free_StackFrameResult(
+    d::StackFrameResult* result) {
+  std::unique_ptr<di::StackFrameResult> ptr(
+      static_cast<di::StackFrameResultExtended*>(result)->base);
 }
 }
