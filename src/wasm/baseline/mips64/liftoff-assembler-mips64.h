@@ -919,7 +919,7 @@ I64_SHIFTOP_I(shr, dsrl)
 #undef I64_SHIFTOP_I
 
 void LiftoffAssembler::emit_u32_to_intptr(Register dst, Register src) {
-  addu(dst, src, zero_reg);
+  Dext(dst, src, 0, 32);
 }
 
 void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
