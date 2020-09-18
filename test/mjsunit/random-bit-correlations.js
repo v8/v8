@@ -2,7 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --random-seed=20 --nostress-opt --noalways-opt --predictable
+// Overwrite the random seed provided by the test runner to make this test less
+// flaky.
+// The flags are processed left to right. --no-abort-on-contradictory-flags
+// disables the checking for conflicts, then we process --random-seed=20 to
+// overwrite the value the test runner already set before. Then we re-enable
+// --abort-on-contradictory-flags to make sure that the processing of other
+// flags and flag implications, which happens later, still produces errors.
+// Flags: --no-abort-on-contradictory-flags --random-seed=20 --abort-on-contradictory-flags
+// Flags: --nostress-opt --noalways-opt --predictable
 
 (function() {
   var kHistory = 2;
