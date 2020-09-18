@@ -467,7 +467,11 @@ class NativeObjectsExplorer {
   bool IterateAndExtractReferences(HeapSnapshotGenerator* generator);
 
  private:
+  // Returns an entry for a given node, where node may be a V8 node or an
+  // embedder node. Returns the coresponding wrapper node if present.
   HeapEntry* EntryForEmbedderGraphNode(EmbedderGraph::Node* node);
+  void MergeNodeIntoEntry(HeapEntry* entry, EmbedderGraph::Node* original_node,
+                          EmbedderGraph::Node* wrapper_node);
 
   Isolate* isolate_;
   HeapSnapshot* snapshot_;

@@ -1959,36 +1959,49 @@ NativeObjectsExplorer::NativeObjectsExplorer(
       embedder_graph_entries_allocator_(
           new EmbedderGraphEntriesAllocator(snapshot)) {}
 
+void NativeObjectsExplorer::MergeNodeIntoEntry(
+    HeapEntry* entry, EmbedderGraph::Node* original_node,
+    EmbedderGraph::Node* wrapper_node) {
+  // The wrapper node may be an embedder node (for testing purposes) or a V8
+  // node (production code).
+  if (!wrapper_node->IsEmbedderNode()) {
+    // For V8 nodes only we can add a lookup.
+    EmbedderGraphImpl::V8NodeImpl* v8_node =
+        static_cast<EmbedderGraphImpl::V8NodeImpl*>(wrapper_node);
+    Object object = v8_node->GetObject();
+    DCHECK(!object.IsSmi());
+    if (original_node->GetNativeObject()) {
+      HeapObject heap_object = HeapObject::cast(object);
+      heap_object_map_->AddMergedNativeEntry(original_node->GetNativeObject(),
+                                             heap_object.address());
+      DCHECK_EQ(entry->id(), heap_object_map_->FindMergedNativeEntry(
+                                 original_node->GetNativeObject()));
+    }
+  }
+  entry->set_detachedness(original_node->GetDetachedness());
+  entry->set_name(MergeNames(
+      names_, EmbedderGraphNodeName(names_, original_node), entry->name()));
+  entry->set_type(EmbedderGraphNodeType(original_node));
+}
+
 HeapEntry* NativeObjectsExplorer::EntryForEmbedderGraphNode(
     EmbedderGraphImpl::Node* node) {
-  EmbedderGraphImpl::Node* wrapper = node->WrapperNode();
-  NativeObject native_object = node->GetNativeObject();
-  v8::EmbedderGraph::Node::Detachedness detachedness =
-      v8::EmbedderGraph::Node::Detachedness::kUnknown;
-  if (wrapper) {
-    detachedness = node->GetDetachedness();
-    node = wrapper;
+  // Return the entry for the wrapper node if present.
+  if (node->WrapperNode()) {
+    node = node->WrapperNode();
   }
+  // Node is EmbedderNode.
   if (node->IsEmbedderNode()) {
     return generator_->FindOrAddEntry(node,
                                       embedder_graph_entries_allocator_.get());
-  } else {
-    EmbedderGraphImpl::V8NodeImpl* v8_node =
-        static_cast<EmbedderGraphImpl::V8NodeImpl*>(node);
-    Object object = v8_node->GetObject();
-    if (object.IsSmi()) return nullptr;
-    HeapEntry* entry = generator_->FindEntry(
-        reinterpret_cast<void*>(Object::cast(object).ptr()));
-    entry->set_detachedness(detachedness);
-    if (native_object) {
-      HeapObject heap_object = HeapObject::cast(object);
-      heap_object_map_->AddMergedNativeEntry(native_object,
-                                             heap_object.address());
-      DCHECK_EQ(entry->id(),
-                heap_object_map_->FindMergedNativeEntry(native_object));
-    }
-    return entry;
   }
+  // Node is V8NodeImpl.
+  Object object =
+      static_cast<EmbedderGraphImpl::V8NodeImpl*>(node)->GetObject();
+  if (object.IsSmi()) return nullptr;
+  auto* entry = generator_->FindEntry(
+      reinterpret_cast<void*>(Object::cast(object).ptr()));
+  return entry;
 }
 
 bool NativeObjectsExplorer::IterateAndExtractReferences(
@@ -2002,25 +2015,25 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
     EmbedderGraphImpl graph;
     snapshot_->profiler()->BuildEmbedderGraph(isolate_, &graph);
     for (const auto& node : graph.nodes()) {
-      if (node->IsRootNode()) {
-        snapshot_->root()->SetIndexedAutoIndexReference(
-            HeapGraphEdge::kElement, EntryForEmbedderGraphNode(node.get()));
-      }
-      // Adjust the name and the type of the V8 wrapper node.
-      auto wrapper = node->WrapperNode();
-      if (wrapper) {
-        HeapEntry* wrapper_entry = EntryForEmbedderGraphNode(wrapper);
-        wrapper_entry->set_name(
-            MergeNames(names_, EmbedderGraphNodeName(names_, node.get()),
-                       wrapper_entry->name()));
-        wrapper_entry->set_type(EmbedderGraphNodeType(node.get()));
+      // Only add embedder nodes as V8 nodes have been added already by the
+      // V8HeapExplorer.
+      if (!node->IsEmbedderNode()) continue;
+
+      if (auto* entry = EntryForEmbedderGraphNode(node.get())) {
+        if (node->IsRootNode()) {
+          snapshot_->root()->SetIndexedAutoIndexReference(
+              HeapGraphEdge::kElement, entry);
+        }
+        if (node->WrapperNode()) {
+          MergeNodeIntoEntry(entry, node.get(), node->WrapperNode());
+        }
       }
     }
     // Fill edges of the graph.
     for (const auto& edge : graph.edges()) {
-      HeapEntry* from = EntryForEmbedderGraphNode(edge.from);
       // |from| and |to| can be nullptr if the corresponding node is a V8 node
       // pointing to a Smi.
+      HeapEntry* from = EntryForEmbedderGraphNode(edge.from);
       if (!from) continue;
       HeapEntry* to = EntryForEmbedderGraphNode(edge.to);
       if (!to) continue;
