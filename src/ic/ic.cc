@@ -11,6 +11,7 @@
 #include "src/base/logging.h"
 #include "src/builtins/accessors.h"
 #include "src/codegen/code-factory.h"
+#include "src/common/assert-scope.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
@@ -572,37 +573,48 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name,
   Handle<Map> map = receiver_map();
 
   std::vector<MapAndHandler> maps_and_handlers;
-  nexus()->ExtractMapsAndHandlers(&maps_and_handlers);
-  int number_of_maps = static_cast<int>(maps_and_handlers.size());
+  maps_and_handlers.reserve(FLAG_max_valid_polymorphic_map_count);
   int deprecated_maps = 0;
   int handler_to_overwrite = -1;
 
-  for (int i = 0; i < number_of_maps; i++) {
-    Handle<Map> current_map = maps_and_handlers.at(i).first;
-    MaybeObjectHandle current_handler = maps_and_handlers.at(i).second;
-    if (current_map->is_deprecated()) {
-      // Filter out deprecated maps to ensure their instances get migrated.
-      ++deprecated_maps;
-    } else if (map.is_identical_to(current_map)) {
-      // If both map and handler stayed the same (and the name is also the
-      // same as checked above, for keyed accesses), we're not progressing
-      // in the lattice and need to go MEGAMORPHIC instead. There's one
-      // exception to this rule, which is when we're in RECOMPUTE_HANDLER
-      // state, there we allow to migrate to a new handler.
-      if (handler.is_identical_to(current_handler) &&
-          state() != RECOMPUTE_HANDLER) {
-        return false;
+  {
+    DisallowHeapAllocation no_gc;
+    int i = 0;
+    for (FeedbackIterator it(nexus()); !it.done(); it.Advance()) {
+      if (it.handler()->IsCleared()) continue;
+      MaybeObjectHandle existing_handler = handle(it.handler(), isolate());
+      Handle<Map> existing_map = handle(it.map(), isolate());
+      maps_and_handlers.push_back(
+          MapAndHandler(existing_map, existing_handler));
+
+      if (existing_map->is_deprecated()) {
+        // Filter out deprecated maps to ensure their instances get migrated.
+        ++deprecated_maps;
+      } else if (map.is_identical_to(existing_map)) {
+        // If both map and handler stayed the same (and the name is also the
+        // same as checked above, for keyed accesses), we're not progressing
+        // in the lattice and need to go MEGAMORPHIC instead. There's one
+        // exception to this rule, which is when we're in RECOMPUTE_HANDLER
+        // state, there we allow to migrate to a new handler.
+        if (handler.is_identical_to(existing_handler) &&
+            state() != RECOMPUTE_HANDLER) {
+          return false;
+        }
+
+        // If the receiver type is already in the polymorphic IC, this indicates
+        // there was a prototoype chain failure. In that case, just overwrite
+        // the handler.
+        handler_to_overwrite = i;
+      } else if (handler_to_overwrite == -1 &&
+                 IsTransitionOfMonomorphicTarget(*existing_map, *map)) {
+        handler_to_overwrite = i;
       }
-      // If the receiver type is already in the polymorphic IC, this indicates
-      // there was a prototoype chain failure. In that case, just overwrite the
-      // handler.
-      handler_to_overwrite = i;
-    } else if (handler_to_overwrite == -1 &&
-               IsTransitionOfMonomorphicTarget(*current_map, *map)) {
-      handler_to_overwrite = i;
+
+      i++;
     }
   }
 
+  int number_of_maps = static_cast<int>(maps_and_handlers.size());
   int number_of_valid_maps =
       number_of_maps - deprecated_maps - (handler_to_overwrite != -1);
 
