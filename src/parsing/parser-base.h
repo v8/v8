@@ -6,7 +6,6 @@
 #define V8_PARSING_PARSER_BASE_H_
 
 #include <stdint.h>
-
 #include <utility>
 #include <vector>
 
@@ -15,7 +14,6 @@
 #include "src/ast/scopes.h"
 #include "src/base/flags.h"
 #include "src/base/hashmap.h"
-#include "src/base/small-vector.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
@@ -541,17 +539,14 @@ class ParserBase {
 
   struct DeclarationParsingResult {
     struct Declaration {
-      Declaration(ExpressionT pattern, ExpressionT initializer,
-                  int value_beg_pos = kNoSourcePosition)
-          : pattern(pattern),
-            initializer(initializer),
-            value_beg_pos(value_beg_pos) {
+      Declaration(ExpressionT pattern, ExpressionT initializer)
+          : pattern(pattern), initializer(initializer) {
         DCHECK_IMPLIES(Impl::IsNull(pattern), Impl::IsNull(initializer));
       }
 
       ExpressionT pattern;
       ExpressionT initializer;
-      int value_beg_pos;
+      int value_beg_pos = kNoSourcePosition;
     };
 
     DeclarationParsingResult()
@@ -559,7 +554,7 @@ class ParserBase {
           bindings_loc(Scanner::Location::invalid()) {}
 
     DeclarationDescriptor descriptor;
-    base::SmallVector<Declaration, 1> declarations;
+    std::vector<Declaration> declarations;
     Scanner::Location first_initializer_loc;
     Scanner::Location bindings_loc;
   };
@@ -3934,7 +3929,10 @@ void ParserBase<Impl>::ParseVariableDeclarations(
                    impl()->IsNull(value) ||
                        (var_context == kForStatement && PeekInOrOf()));
 
-    parsing_result->declarations.emplace_back(pattern, value, value_beg_pos);
+    typename DeclarationParsingResult::Declaration decl(pattern, value);
+    decl.value_beg_pos = value_beg_pos;
+
+    parsing_result->declarations.push_back(decl);
   } while (Check(Token::COMMA));
 
   parsing_result->bindings_loc =
