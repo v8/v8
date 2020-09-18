@@ -81,6 +81,7 @@
       # Sanitizers.
       'V8 Linux64 ASAN': 'release_x64_asan',
       'V8 Linux64 TSAN - builder': 'release_x64_tsan',
+      'V8 Linux64 TSAN - no concurrent marking - builder': 'release_x64_tsan_no_cm',
       'V8 Linux - arm64 - sim - CFI': 'release_simulate_arm64_cfi',
       'V8 Linux - arm64 - sim - MSAN': 'release_simulate_arm64_msan',
       # Misc.
@@ -239,6 +240,7 @@
       'v8_linux64_fuzzilli_ng': 'release_x64_fuzzilli',
       'v8_linux64_msan_rel_ng': 'release_simulate_arm64_msan_minimal_symbols',
       'v8_linux64_tsan_rel_ng': 'release_x64_tsan_minimal_symbols',
+      'v8_linux64_tsan_no_cm_rel_ng': 'release_x64_tsan_no_cm',
       'v8_linux64_tsan_isolates_rel_ng':
           'release_x64_tsan_minimal_symbols',
       'v8_linux64_ubsan_rel_ng': 'release_x64_ubsan_minimal_symbols',
@@ -494,6 +496,8 @@
       'release_trybot', 'x64', 'v8_enable_test_features'],
     'release_x64_tsan': [
       'release_bot', 'x64', 'tsan'],
+    'release_x64_tsan_no_cm': [
+      'release_bot', 'x64', 'tsan', 'disable_concurrent_marking'],
     'release_x64_tsan_minimal_symbols': [
       'release_bot', 'x64', 'tsan', 'minimal_symbols'],
     'release_x64_ubsan': [
@@ -654,6 +658,10 @@
 
     'debug_trybot': {
       'mixins': ['debug_bot', 'minimal_symbols'],
+    },
+
+    'disable_concurrent_marking': {
+      'gn_args': 'v8_enable_concurrent_marking=false',
     },
 
     'fuchsia': {
