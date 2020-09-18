@@ -17,6 +17,8 @@
           "V8 Linux64 - reverse jsargs",
           "V8 Linux64 TSAN - concurrent marking",
           "V8 Linux64 TSAN - isolates",
+          "V8 Linux64 TSAN - no-concurrent-marking - builder",
+          "V8 Linux64 TSAN - no-concurrent-marking",
           "V8 Linux - arm - sim - lite",
           "V8 Linux - arm - sim - lite - debug",
           "V8 Linux - full debug",

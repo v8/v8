@@ -173,6 +173,16 @@ try_ng_pair(
 )
 
 try_ng_pair(
+    name = "v8_linux64_tsan_no_cm_rel",
+    cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
+    cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
+    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    execution_timeout = 3600,
+    properties = {"build_config": "Release"},
+    use_goma = GOMA.DEFAULT,
+)
+
+try_ng_pair(
     name = "v8_linux64_tsan_isolates_rel",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},

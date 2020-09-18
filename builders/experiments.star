@@ -89,6 +89,22 @@ experiment_builder(
 )
 
 experiment_builder(
+    name = "V8 Linux64 TSAN - no-concurrent-marking - builder",
+    bucket = "ci",
+    triggered_by = ["v8-trigger"],
+    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    properties = {"build_config": "Release", "builder_group": "client.v8", "triggers": ["V8 Linux64 TSAN - no-concurrent-marking"]},
+    use_goma = GOMA.DEFAULT,
+)
+
+experiment_builder(
+    name = "V8 Linux64 TSAN - no-concurrent-marking",
+    bucket = "ci",
+    dimensions = {"host_class": "multibot"},
+    properties = {"builder_group": "client.v8"},
+)
+
+experiment_builder(
     name = "V8 Linux - predictable",
     bucket = "ci",
     triggered_by = ["v8-trigger"],
