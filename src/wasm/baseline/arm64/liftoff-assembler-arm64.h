@@ -1631,7 +1631,7 @@ void LiftoffAssembler::emit_f64x2_pmin(LiftoffRegister dst, LiftoffRegister lhs,
   Bsl(tmp.V16B(), rhs.fp().V16B(), lhs.fp().V16B());
 
   if (dst == lhs || dst == rhs) {
-    Mov(dst.fp(), tmp);
+    Mov(dst.fp().V2D(), tmp);
   }
 }
 
@@ -1648,7 +1648,7 @@ void LiftoffAssembler::emit_f64x2_pmax(LiftoffRegister dst, LiftoffRegister lhs,
   Bsl(tmp.V16B(), rhs.fp().V16B(), lhs.fp().V16B());
 
   if (dst == lhs || dst == rhs) {
-    Mov(dst.fp(), tmp);
+    Mov(dst.fp().V2D(), tmp);
   }
 }
 
@@ -1755,7 +1755,7 @@ void LiftoffAssembler::emit_f32x4_pmin(LiftoffRegister dst, LiftoffRegister lhs,
   Bsl(tmp.V16B(), rhs.fp().V16B(), lhs.fp().V16B());
 
   if (dst == lhs || dst == rhs) {
-    Mov(dst.fp(), tmp);
+    Mov(dst.fp().V4S(), tmp);
   }
 }
 
@@ -1772,7 +1772,7 @@ void LiftoffAssembler::emit_f32x4_pmax(LiftoffRegister dst, LiftoffRegister lhs,
   Bsl(tmp.V16B(), rhs.fp().V16B(), lhs.fp().V16B());
 
   if (dst == lhs || dst == rhs) {
-    Mov(dst.fp(), tmp);
+    Mov(dst.fp().V4S(), tmp);
   }
 }
 
