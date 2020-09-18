@@ -399,7 +399,7 @@ in_category(
         name = "V8 Linux64 TSAN - builder",
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"build_config": "Release", "builder_group": "client.v8", "triggers": ["V8 Linux64 TSAN", "V8 Linux64 TSAN - concurrent marking", "V8 Linux64 TSAN - isolates"]},
+        properties = {"build_config": "Release", "builder_group": "client.v8", "triggers": ["V8 Linux64 TSAN", "V8 Linux64 TSAN - stress-incremental-marking", "V8 Linux64 TSAN - isolates"]},
         use_goma = GOMA.DEFAULT,
     ),
     branch_coverage_builder(
@@ -409,7 +409,7 @@ in_category(
         properties = {"builder_group": "client.v8"},
     ),
     branch_coverage_builder(
-        name = "V8 Linux64 TSAN - concurrent marking",
+        name = "V8 Linux64 TSAN - stress-incremental-marking",
         triggered_by_gitiles = False,
         dimensions = {"host_class": "multibot"},
         execution_timeout = 19800,
