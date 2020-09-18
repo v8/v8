@@ -168,7 +168,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "gclient_vars": {"mac_xcode_version": "xcode_12_beta"}, "mastername": "client.v8", "triggers": ["V8 Mac - arm64 - sim - debug"]},
+    properties = {"build_config": "Debug", "gclient_vars": {"mac_xcode_version": "xcode_12_beta"}, "mastername": "client.v8", "triggers": ["V8 Mac - arm64 - sim - debug"]},
     use_goma = GOMA.DEFAULT,
 )
 
