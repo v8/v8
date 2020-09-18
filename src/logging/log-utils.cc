@@ -79,6 +79,7 @@ std::unique_ptr<Log::MessageBuilder> Log::NewMessageBuilder() {
   // fine if a background thread starts logging a bit later, but we want to
   // avoid background threads continue logging after logging was already closed.
   if (!logger_->is_logging()) return {};
+  DCHECK_NOT_NULL(format_buffer_.get());
 
   return result;
 }
@@ -98,7 +99,6 @@ std::string Log::file_name() const { return file_name_; }
 
 Log::MessageBuilder::MessageBuilder(Log* log)
     : log_(log), lock_guard_(&log_->mutex_) {
-  DCHECK_NOT_NULL(log_->format_buffer_.get());
 }
 
 void Log::MessageBuilder::AppendString(String str,
