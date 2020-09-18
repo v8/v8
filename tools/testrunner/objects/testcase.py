@@ -236,9 +236,9 @@ class TestCase(object):
     """Gets command parameters and combines them in the following order:
       - files [empty by default]
       - random seed
+      - mode flags (based on chosen mode)
       - extra flags (from command line)
       - user flags (variant/fuzzer flags)
-      - mode flags (based on chosen mode)
       - source flags (from source code) [empty by default]
       - test-suite flags
       - statusfile flags
@@ -249,9 +249,9 @@ class TestCase(object):
     return (
         self._get_files_params() +
         self._get_random_seed_flags() +
+        self._get_mode_flags() +
         self._get_extra_flags() +
         self._get_variant_flags() +
-        self._get_mode_flags() +
         self._get_source_flags() +
         self._get_suite_flags() +
         self._get_statusfile_flags()
