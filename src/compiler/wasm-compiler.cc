@@ -3054,15 +3054,6 @@ Node* WasmGraphBuilder::BuildCallRef(uint32_t sig_index, Vector<Node*> args,
 
     {
       // Function imported to module.
-      // TODO(9495): Make sure it works with functions imported from other
-      // modules. Currently, this will never happen: Since functions have to be
-      // tunneled through JS, and we currently do not have a JS API to pass
-      // specific function types, we habe to export/import function references
-      // as funcref. Then, we cannot cast down to the type of the function,
-      // because we do not have access to the defining module's types. This
-      // could be fixed either by building a richer JS API, or by implementing
-      // the type import proposal. That said, this code should work for those
-      // cases too.
       gasm_->Bind(&imported_label);
 
       Node* imported_instance = gasm_->Load(
@@ -6068,6 +6059,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         if (representation == wasm::HeapType::kEq) {
           return BuildAllocateObjectWrapper(node);
         }
+        if (type.has_index() && module_->has_signature(type.ref_index())) {
+          // Typed function
+          return node;
+        }
         // TODO(7748): Figure out a JS interop story for arrays and structs.
         // If this is reached, then IsJSCompatibleSignature() is too permissive.
         UNREACHABLE();
@@ -6153,6 +6148,29 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         graph()->NewNode(call, target, input, context, effect(), control()));
   }
 
+  void BuildCheckValidRefValue(Node* input, Node* js_context,
+                               wasm::ValueType type) {
+    // Make sure ValueType fits in a Smi.
+    STATIC_ASSERT(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
+    Node* inputs[] = {
+        instance_node_.get(), input,
+        IntPtrConstant(IntToSmi(static_cast<int>(type.raw_bit_field())))};
+
+    Node* check = BuildChangeSmiToInt32(SetEffect(BuildCallToRuntimeWithContext(
+        Runtime::kWasmIsValidRefValue, js_context, inputs, 3)));
+
+    Diamond type_check(graph(), mcgraph()->common(), check, BranchHint::kTrue);
+    type_check.Chain(control());
+    SetControl(type_check.if_false);
+
+    Node* old_effect = effect();
+    BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError, js_context,
+                                  nullptr, 0);
+
+    SetEffectControl(type_check.EffectPhi(old_effect, effect()),
+                     type_check.merge);
+  }
+
   Node* FromJS(Node* input, Node* js_context, wasm::ValueType type) {
     switch (type.kind()) {
       case wasm::ValueType::kRef:
@@ -6161,28 +6179,21 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           case wasm::HeapType::kExtern:
           case wasm::HeapType::kExn:
             return input;
-          case wasm::HeapType::kFunc: {
-            Node* check =
-                BuildChangeSmiToInt32(SetEffect(BuildCallToRuntimeWithContext(
-                    Runtime::kWasmIsValidFuncRefValue, js_context, &input, 1)));
-
-            Diamond type_check(graph(), mcgraph()->common(), check,
-                               BranchHint::kTrue);
-            type_check.Chain(control());
-            SetControl(type_check.if_false);
-
-            Node* old_effect = effect();
-            BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError,
-                                          js_context, nullptr, 0);
-
-            SetEffectControl(type_check.EffectPhi(old_effect, effect()),
-                             type_check.merge);
-
+          case wasm::HeapType::kFunc:
+            BuildCheckValidRefValue(input, js_context, type);
             return input;
-          }
           case wasm::HeapType::kEq:
+            BuildCheckValidRefValue(input, js_context, type);
             return BuildUnpackObjectWrapper(input);
+          case wasm::HeapType::kI31:
+            // If this is reached, then IsJSCompatibleSignature() is too
+            // permissive.
+            UNREACHABLE();
           default:
+            if (module_->has_signature(type.ref_index())) {
+              BuildCheckValidRefValue(input, js_context, type);
+              return input;
+            }
             // If this is reached, then IsJSCompatibleSignature() is too
             // permissive.
             UNREACHABLE();

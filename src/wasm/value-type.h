@@ -398,17 +398,26 @@ class ValueType {
     return buf.str();
   }
 
+  static constexpr int kLastUsedBit = 30;
+
  private:
+  // We only use 31 bits so ValueType fits in a Smi. This can be changed if
+  // needed.
   static constexpr int kKindBits = 5;
   static constexpr int kHeapTypeBits = 20;
-  static constexpr int kDepthBits = 7;
+  static constexpr int kDepthBits = 6;
   STATIC_ASSERT(kV8MaxWasmTypes < (1u << kHeapTypeBits));
   // Note: we currently conservatively allow only 5 bits, but have room to
-  // store 7, so we can raise the limit if needed.
+  // store 6, so we can raise the limit if needed.
   STATIC_ASSERT(kV8MaxRttSubtypingDepth < (1u << kDepthBits));
   using KindField = base::BitField<Kind, 0, kKindBits>;
   using HeapTypeField = KindField::Next<uint32_t, kHeapTypeBits>;
   using DepthField = HeapTypeField::Next<uint8_t, kDepthBits>;
+
+  // This is implemented defensively against field order changes.
+  STATIC_ASSERT(kLastUsedBit == std::max(KindField::kLastUsedBit,
+                                         std::max(HeapTypeField::kLastUsedBit,
+                                                  DepthField::kLastUsedBit)));
 
   constexpr explicit ValueType(uint32_t bit_field) : bit_field_(bit_field) {}
 

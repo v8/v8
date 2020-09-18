@@ -577,7 +577,7 @@ namespace internal {
   F(WasmTableCopy, 6, 1)              \
   F(WasmTableGrow, 3, 1)              \
   F(WasmTableFill, 4, 1)              \
-  F(WasmIsValidFuncRefValue, 1, 1)    \
+  F(WasmIsValidRefValue, 3, 1)        \
   F(WasmCompileLazy, 2, 1)            \
   F(WasmTriggerTierUp, 1, 1)          \
   F(WasmDebugBreak, 0, 1)             \

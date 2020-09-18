@@ -953,7 +953,6 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
     // Disallow GC until all fields have acceptable types.
     DisallowHeapAllocation no_gc;
     if (!instance.is_null()) global_obj->set_instance(*instance);
-    global_obj->set_raw_type(0);
     global_obj->set_type(type);
     global_obj->set_offset(offset);
     global_obj->set_is_mutable(is_mutable);
@@ -2024,7 +2023,7 @@ bool DynamicTypeCheckRef(Isolate* isolate, const WasmModule* module,
     case ValueType::kRef:
       switch (expected.heap_representation()) {
         case HeapType::kFunc: {
-          if (!WasmExportedFunction::IsWasmExportedFunction(*value)) {
+          if (!WasmExternalFunction::IsWasmExternalFunction(*value)) {
             *error_message =
                 "function-typed object must be null (if nullable) or an "
                 "exported function";
@@ -2035,18 +2034,27 @@ bool DynamicTypeCheckRef(Isolate* isolate, const WasmModule* module,
         case HeapType::kExtern:
         case HeapType::kExn:
           return true;
-        case HeapType::kEq:
-        case HeapType::kI31:
-          // TODO(7748): Implement when the JS API for structs/arrays/i31ref is
-          // decided on.
+        case HeapType::kEq: {
+          // TODO(7748): Change this when we have a decision on the JS API for
+          // structs/arrays.
+          Handle<Name> key = isolate->factory()->wasm_wrapped_object_symbol();
+          LookupIterator it(isolate, value, key,
+                            LookupIterator::OWN_SKIP_INTERCEPTOR);
+          if (it.state() == LookupIterator::DATA) return true;
           *error_message =
-              "Assigning to eqref/i31ref globals not supported yet.";
+              "eqref object must be null (if nullable) or wrapped with wasm "
+              "object wrapper";
+          return false;
+        }
+        case HeapType::kI31:
+          // TODO(7748): Implement when the JS API for i31ref is decided on.
+          *error_message = "Assigning JS objects to i31ref not supported yet.";
           return false;
         default:
           // Tables defined outside a module can't refer to user-defined types.
           if (module == nullptr) return false;
-          DCHECK(module->has_type(expected.heap_representation()));
-          if (module->has_signature(expected.heap_representation())) {
+          DCHECK(module->has_type(expected.ref_index()));
+          if (module->has_signature(expected.ref_index())) {
             if (WasmExportedFunction::IsWasmExportedFunction(*value)) {
               WasmExportedFunction function =
                   WasmExportedFunction::cast(*value);
@@ -2057,20 +2065,24 @@ bool DynamicTypeCheckRef(Isolate* isolate, const WasmModule* module,
                   kNonNullable);
               if (!IsSubtypeOf(real_type, expected, exporting_module, module)) {
                 *error_message =
-                    "exported function object must be a subtype of the "
-                    "global's formal type";
+                    "assigned exported function has to be a subtype of the "
+                    "expected type";
                 return false;
               }
               return true;
             }
 
             if (WasmJSFunction::IsWasmJSFunction(*value)) {
-              // TODO(9495): Implement when we are confident about the type
-              // reflection proposal.
-              *error_message =
-                  "Assigning WasmJSFunction objects to globals not supported "
-                  "yet.";
-              return false;
+              // Since a WasmJSFunction cannot refer to indexed types (definable
+              // only in a module), we do not need to use EquivalentTypes().
+              if (!WasmJSFunction::cast(*value).MatchesSignature(
+                      module->signature(expected.ref_index()))) {
+                *error_message =
+                    "assigned WasmJSFunction has to be a subtype of the "
+                    "expected type";
+                return false;
+              }
+              return true;
             }
 
             *error_message =

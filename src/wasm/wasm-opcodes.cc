@@ -8,6 +8,7 @@
 
 #include "src/codegen/signature.h"
 #include "src/wasm/wasm-features.h"
+#include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 
 namespace v8 {
@@ -38,22 +39,13 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmModule* module,
     return false;
   }
   for (auto type : sig->all()) {
-    if (!enabled_features.has_bigint() && type == kWasmI64) {
+    // TODO(7748): Allow structs, arrays, rtts and i31s when their
+    //             JS-interaction is decided on.
+    if ((type == kWasmI64 && !enabled_features.has_bigint()) ||
+        type == kWasmS128 || type.is_reference_to(HeapType::kI31) ||
+        (type.has_index() && !module->has_signature(type.ref_index())) ||
+        type.is_rtt()) {
       return false;
-    }
-
-    if (type == kWasmS128) return false;
-
-    if (type.is_object_reference_type()) {
-      uint32_t representation = type.heap_representation();
-      // TODO(7748): Once there's a story for JS interop for struct/array types,
-      // allow them here.
-      if (!(representation == HeapType::kExtern ||
-            representation == HeapType::kExn ||
-            representation == HeapType::kFunc ||
-            representation == HeapType::kEq)) {
-        return false;
-      }
     }
   }
   return true;

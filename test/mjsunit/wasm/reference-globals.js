@@ -74,7 +74,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       builder.instantiate(
         {imports: { global: exporting_instance.exports.addition }})},
     WebAssembly.LinkError,
-    /exported function object must be a subtype of the global's formal type/
+    /assigned exported function has to be a subtype of the expected type/
   );
 
   var instance = (function () {
