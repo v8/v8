@@ -57,8 +57,6 @@ class TestMemoryAllocatorScope {
                            PageAllocator* page_allocator = nullptr)
       : isolate_(isolate),
         old_allocator_(std::move(isolate->heap()->memory_allocator_)) {
-    // Save the code pages for restoring them later on because
-    isolate->GetCodePages()->swap(code_pages_);
     isolate->heap()->memory_allocator_.reset(
         new MemoryAllocator(isolate, max_capacity, code_range_size));
     if (page_allocator != nullptr) {
@@ -71,13 +69,12 @@ class TestMemoryAllocatorScope {
   ~TestMemoryAllocatorScope() {
     isolate_->heap()->memory_allocator()->TearDown();
     isolate_->heap()->memory_allocator_.swap(old_allocator_);
-    isolate_->GetCodePages()->swap(code_pages_);
   }
 
  private:
   Isolate* isolate_;
   std::unique_ptr<MemoryAllocator> old_allocator_;
-  std::vector<MemoryRange> code_pages_;
+
   DISALLOW_COPY_AND_ASSIGN(TestMemoryAllocatorScope);
 };
 

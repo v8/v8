@@ -106,11 +106,6 @@ class BasicMemoryChunk {
     // because there exists a potential pointer to somewhere in the chunk which
     // can't be updated.
     PINNED = 1u << 22,
-
-    // The memory chunk was borrowed by a compaction space for evacuation.
-    // This bit helps to distinguish memory chunks allocated by the compaction
-    // space from freshly allocated memory chunks.
-    BORROWED_BY_COMPACTION_SPACE = 1u << 23
   };
 
   static const intptr_t kAlignment =

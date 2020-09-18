@@ -4583,33 +4583,11 @@ SaveAndSwitchContext::SaveAndSwitchContext(Isolate* isolate,
 #ifdef DEBUG
 AssertNoContextChange::AssertNoContextChange(Isolate* isolate)
     : isolate_(isolate), context_(isolate->context(), isolate) {}
-
-namespace {
-
-bool Overlapping(const MemoryRange& a, const MemoryRange& b) {
-  uintptr_t a1 = reinterpret_cast<uintptr_t>(a.start);
-  uintptr_t a2 = a1 + a.length_in_bytes;
-  uintptr_t b1 = reinterpret_cast<uintptr_t>(b.start);
-  uintptr_t b2 = b1 + b.length_in_bytes;
-  // Either b1 or b2 are in the [a1, a2) range.
-  return (a1 <= b1 && b1 < a2) || (a1 <= b2 && b2 < a2);
-}
-
-}  // anonymous namespace
-
 #endif  // DEBUG
 
 void Isolate::AddCodeMemoryRange(MemoryRange range) {
   std::vector<MemoryRange>* old_code_pages = GetCodePages();
   DCHECK_NOT_NULL(old_code_pages);
-#ifdef DEBUG
-  auto overlapping = [range](const MemoryRange& a) {
-    return Overlapping(range, a);
-  };
-  DCHECK_EQ(old_code_pages->end(),
-            std::find_if(old_code_pages->begin(), old_code_pages->end(),
-                         overlapping));
-#endif
 
   std::vector<MemoryRange>* new_code_pages;
   if (old_code_pages == &code_pages_buffer1_) {
@@ -4723,7 +4701,7 @@ void Isolate::RemoveCodeMemoryChunk(MemoryChunk* chunk) {
                       [removed_page_start](const MemoryRange& range) {
                         return range.start == removed_page_start;
                       });
-  DCHECK_EQ(old_code_pages->size(), new_code_pages->size() + 1);
+
   // Atomically switch out the pointer
   SetCodePages(new_code_pages);
 #endif  // !defined(V8_TARGET_ARCH_ARM)
