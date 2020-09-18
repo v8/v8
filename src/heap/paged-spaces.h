@@ -210,9 +210,14 @@ class V8_EXPORT_PRIVATE PagedSpace
   // free list of the space.
   size_t AddPage(Page* page);
   void RemovePage(Page* page);
-  // Remove a page if it has at least |size_in_bytes| bytes available that can
-  // be used for allocation.
-  Page* RemovePageSafe(int size_in_bytes);
+  // Adds the page that was previously borrowed to this space and returns
+  // returns the number of bytes added to the free list of the space.
+  size_t AddBorrowedPage(Page* page);
+  // Borrow a page for a compaction space.
+  void BorrowPage(Page* page);
+  // Find a page that has at least |size_in_bytes| bytes available that can
+  // be used for allocation and borrow it.
+  Page* FindAndBorrowPage(int size_in_bytes);
 
   void SetReadable();
   void SetReadAndExecutable();

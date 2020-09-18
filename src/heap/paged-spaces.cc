@@ -135,7 +135,7 @@ void PagedSpace::RefillFreeList() {
         PagedSpace* owner = reinterpret_cast<PagedSpace*>(p->owner());
         base::MutexGuard guard(owner->mutex());
         owner->RefineAllocatedBytesAfterSweeping(p);
-        owner->RemovePage(p);
+        owner->BorrowPage(p);
         added += AddPage(p);
       } else {
         base::MutexGuard guard(mutex());
@@ -179,8 +179,12 @@ void PagedSpace::MergeLocalSpace(LocalSpace* other) {
 
     // Relinking requires the category to be unlinked.
     other->RemovePage(p);
-    AddPage(p);
-    heap()->NotifyOldGenerationExpansion(identity(), p);
+    if (p->IsFlagSet(Page::BORROWED_BY_COMPACTION_SPACE)) {
+      AddBorrowedPage(p);
+    } else {
+      AddPage(p);
+      heap()->NotifyOldGenerationExpansion(identity(), p);
+    }
     DCHECK_IMPLIES(
         !p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE),
         p->AvailableInFreeList() == p->AvailableInFreeListFromAllocatedBytes());
@@ -232,14 +236,6 @@ void PagedSpace::RefineAllocatedBytesAfterSweeping(Page* page) {
   marking_state->SetLiveBytes(page, 0);
 }
 
-Page* PagedSpace::RemovePageSafe(int size_in_bytes) {
-  base::MutexGuard guard(mutex());
-  Page* page = free_list()->GetPageForSize(size_in_bytes);
-  if (!page) return nullptr;
-  RemovePage(page);
-  return page;
-}
-
 size_t PagedSpace::AddPage(Page* page) {
   CHECK(page->SweepingDone());
   page->set_owner(this);
@@ -265,6 +261,26 @@ void PagedSpace::RemovePage(Page* page) {
     ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
     DecrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
   }
+}
+
+size_t PagedSpace::AddBorrowedPage(Page* page) {
+  DCHECK(page->IsFlagSet(Page::BORROWED_BY_COMPACTION_SPACE));
+  page->ClearFlag(Page::BORROWED_BY_COMPACTION_SPACE);
+  return AddPage(page);
+}
+
+void PagedSpace::BorrowPage(Page* page) {
+  DCHECK(!page->IsFlagSet(Page::BORROWED_BY_COMPACTION_SPACE));
+  page->SetFlag(Page::BORROWED_BY_COMPACTION_SPACE);
+  RemovePage(page);
+}
+
+Page* PagedSpace::FindAndBorrowPage(int size_in_bytes) {
+  base::MutexGuard guard(mutex());
+  Page* page = free_list()->GetPageForSize(size_in_bytes);
+  if (!page) return nullptr;
+  BorrowPage(page);
+  return page;
 }
 
 void PagedSpace::SetTopAndLimit(Address top, Address limit) {
@@ -452,7 +468,9 @@ void PagedSpace::ReleasePage(Page* page) {
     SetTopAndLimit(kNullAddress, kNullAddress);
   }
 
-  heap()->isolate()->RemoveCodeMemoryChunk(page);
+  if (identity() == CODE_SPACE) {
+    heap()->isolate()->RemoveCodeMemoryChunk(page);
+  }
 
   AccountUncommitted(page->size());
   accounting_stats_.DecreaseCapacity(page->area_size());
@@ -861,10 +879,10 @@ bool PagedSpace::RawRefillLabMain(int size_in_bytes, AllocationOrigin origin) {
   }
 
   if (is_compaction_space()) {
-    // The main thread may have acquired all swept pages. Try to steal from
+    // The main thread may have acquired all swept pages. Try to borrow from
     // it. This can only happen during young generation evacuation.
     PagedSpace* main_space = heap()->paged_space(identity());
-    Page* page = main_space->RemovePageSafe(size_in_bytes);
+    Page* page = main_space->FindAndBorrowPage(size_in_bytes);
     if (page != nullptr) {
       AddPage(page);
       if (TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
