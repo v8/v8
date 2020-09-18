@@ -61,7 +61,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
                                 false);
       builder.instantiate({imports: { global: 42 }})},
     WebAssembly.LinkError,
-    /function-typed object must be null \(if nullable\) or an exported function/
+    /function-typed object must be null \(if nullable\) or a Wasm function object/
   );
 
   // Mistyped function import.

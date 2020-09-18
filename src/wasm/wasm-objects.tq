@@ -63,6 +63,7 @@ extern class WasmModuleObject extends JSObject {
 }
 
 extern class WasmTableObject extends JSObject {
+  instance: WasmInstanceObject|Undefined;
   entries: FixedArray;
   current_length: Smi;
   maximum_length: Smi|HeapNumber|Undefined;

@@ -109,6 +109,7 @@ bool WasmModuleObject::is_asm_js() {
 }
 
 // WasmTableObject
+ACCESSORS(WasmTableObject, instance, HeapObject, kInstanceOffset)
 ACCESSORS(WasmTableObject, entries, FixedArray, kEntriesOffset)
 SMI_ACCESSORS(WasmTableObject, current_length, kCurrentLengthOffset)
 ACCESSORS(WasmTableObject, maximum_length, Object, kMaximumLengthOffset)

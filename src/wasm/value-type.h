@@ -90,6 +90,14 @@ class HeapType {
     return representation_ != other.representation_;
   }
 
+  constexpr bool operator==(Representation other) const {
+    return representation_ == other;
+  }
+
+  constexpr bool operator!=(Representation other) const {
+    return representation_ != other;
+  }
+
   constexpr Representation representation() const { return representation_; }
   constexpr uint32_t ref_index() const {
     CONSTEXPR_DCHECK(is_index());

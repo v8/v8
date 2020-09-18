@@ -100,17 +100,6 @@ struct WasmDataSegment {
   bool active = true;      // true if copied automatically during instantiation.
 };
 
-// Static representation of a wasm indirect call table.
-struct WasmTable {
-  MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(WasmTable);
-  ValueType type = kWasmStmt;     // table type.
-  uint32_t initial_size = 0;      // initial table size.
-  uint32_t maximum_size = 0;      // maximum table size.
-  bool has_maximum_size = false;  // true if there is a maximum size.
-  bool imported = false;        // true if imported.
-  bool exported = false;        // true if exported.
-};
-
 // Static representation of wasm element segment (table initializer).
 struct WasmElemSegment {
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmElemSegment);
@@ -268,6 +257,8 @@ struct V8_EXPORT_PRIVATE WasmDebugSymbols {
   WireBytesRef external_url;
 };
 
+struct WasmTable;
+
 // Static representation of a module.
 struct V8_EXPORT_PRIVATE WasmModule {
   std::unique_ptr<Zone> signature_zone;
@@ -356,6 +347,30 @@ struct V8_EXPORT_PRIVATE WasmModule {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(WasmModule);
+};
+
+// Static representation of a wasm indirect call table.
+struct WasmTable {
+  MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(WasmTable);
+
+  // 'module' can be nullptr
+  // TODO(9495): Update this function as more table types are supported, or
+  // remove it completely when all reference types are allowed.
+  static bool IsValidTableType(ValueType type, const WasmModule* module) {
+    if (!type.is_nullable()) return false;
+    HeapType heap_type = type.heap_type();
+    return heap_type == HeapType::kFunc || heap_type == HeapType::kExtern ||
+           heap_type == HeapType::kExn ||
+           (module != nullptr && heap_type.is_index() &&
+            module->has_signature(heap_type.ref_index()));
+  }
+
+  ValueType type = kWasmStmt;     // table type.
+  uint32_t initial_size = 0;      // initial table size.
+  uint32_t maximum_size = 0;      // maximum table size.
+  bool has_maximum_size = false;  // true if there is a maximum size.
+  bool imported = false;          // true if imported.
+  bool exported = false;          // true if exported.
 };
 
 inline bool is_asmjs_module(const WasmModule* module) {

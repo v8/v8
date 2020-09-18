@@ -560,8 +560,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     for (int i = module_->num_imported_tables; i < table_count; i++) {
       const WasmTable& table = module_->tables[i];
       Handle<WasmTableObject> table_obj = WasmTableObject::New(
-          isolate_, table.type, table.initial_size, table.has_maximum_size,
-          table.maximum_size, nullptr);
+          isolate_, instance, table.type, table.initial_size,
+          table.has_maximum_size, table.maximum_size, nullptr);
       tables->set(i, *table_obj);
     }
     instance->set_tables(*tables);
@@ -1360,8 +1360,8 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
 
   if (global.type.is_reference_type()) {
     const char* error_message;
-    if (!wasm::DynamicTypeCheckRef(isolate_, module_, value, global.type,
-                                   &error_message)) {
+    if (!wasm::TypecheckJSObject(isolate_, module_, value, global.type,
+                                 &error_message)) {
       ReportLinkError(error_message, global_index, module_name, import_name);
       return false;
     }
@@ -1514,7 +1514,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
         }
         Handle<WasmExceptionObject> imported_exception =
             Handle<WasmExceptionObject>::cast(value);
-        if (!imported_exception->IsSignatureEqual(
+        if (!imported_exception->MatchesSignature(
                 module_->exceptions[import.index].sig)) {
           ReportLinkError("imported exception does not match the expected type",
                           index, module_name, import_name);

@@ -144,7 +144,9 @@ struct CheckLEB1 : std::integral_constant<size_t, num> {
   do {                                                             \
     ModuleResult result = DecodeModule(data, data + sizeof(data)); \
     EXPECT_FALSE(result.ok());                                     \
-    EXPECT_THAT(result.error().message(), HasSubstr(msg));         \
+    if (!result.ok()) {                                            \
+      EXPECT_THAT(result.error().message(), HasSubstr(msg));       \
+    }                                                              \
   } while (false)
 
 #define EXPECT_OFF_END_FAILURE(data, min)                           \

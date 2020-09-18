@@ -101,8 +101,8 @@ RUNTIME_FUNCTION(Runtime_WasmIsValidRefValue) {
   wasm::ValueType type = wasm::ValueType::FromRawBitField(raw_type);
   const char* error_message;
 
-  bool result = internal::wasm::DynamicTypeCheckRef(
-      isolate, instance->module(), value, type, &error_message);
+  bool result = internal::wasm::TypecheckJSObject(isolate, instance->module(),
+                                                  value, type, &error_message);
   return Smi::FromInt(result);
 }
 

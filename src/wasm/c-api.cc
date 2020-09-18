@@ -1810,7 +1810,8 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
 
   i::Handle<i::FixedArray> backing_store;
   i::Handle<i::WasmTableObject> table_obj = i::WasmTableObject::New(
-      isolate, i_type, minimum, has_maximum, maximum, &backing_store);
+      isolate, i::Handle<i::WasmInstanceObject>(), i_type, minimum, has_maximum,
+      maximum, &backing_store);
 
   if (ref) {
     i::Handle<i::JSReceiver> init = impl(ref)->v8_object();

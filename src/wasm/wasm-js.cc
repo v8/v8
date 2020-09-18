@@ -1108,9 +1108,10 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   i::Handle<i::FixedArray> fixed_array;
-  i::Handle<i::JSObject> table_obj = i::WasmTableObject::New(
-      i_isolate, type, static_cast<uint32_t>(initial), has_maximum,
-      static_cast<uint32_t>(maximum), &fixed_array);
+  i::Handle<i::JSObject> table_obj =
+      i::WasmTableObject::New(i_isolate, i::Handle<i::WasmInstanceObject>(),
+                              type, static_cast<uint32_t>(initial), has_maximum,
+                              static_cast<uint32_t>(maximum), &fixed_array);
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(Utils::ToLocal(table_obj));
 }

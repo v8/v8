@@ -487,7 +487,7 @@ struct MemoryIndexImmediate {
 template <Decoder::ValidateFlag validate>
 struct TableIndexImmediate {
   uint32_t index = 0;
-  unsigned length = 1;
+  uint32_t length = 1;
   inline TableIndexImmediate() = default;
   inline TableIndexImmediate(Decoder* decoder, const byte* pc) {
     index = decoder->read_u32v<validate>(pc, &length, "table index");
@@ -1238,12 +1238,13 @@ class WasmDecoder : public Decoder {
 
   inline bool Validate(const byte* pc, CallIndirectImmediate<validate>& imm) {
     if (!VALIDATE(imm.table_index < module_->tables.size())) {
-      error("function table has to exist to execute call_indirect");
+      error("call_indirect: table index immediate out of bounds");
       return false;
     }
-    if (!VALIDATE(IsSubtypeOf(module_->tables[imm.table_index].type,
-                              kWasmFuncRef, module_))) {
-      error("table of call_indirect must be of a function type");
+    ValueType table_type = module_->tables[imm.table_index].type;
+    if (!VALIDATE(IsSubtypeOf(table_type, kWasmFuncRef, module_))) {
+      errorf(pc, "call_indirect: immediate table #%u is not of a function type",
+             imm.table_index);
       return false;
     }
     if (!Complete(imm)) {
@@ -1252,12 +1253,11 @@ class WasmDecoder : public Decoder {
     }
     // Check that the dynamic signature for this call is a subtype of the static
     // type of the table the function is defined in.
-    if (!VALIDATE(IsSubtypeOf(ValueType::Ref(imm.sig_index, kNonNullable),
-                              module_->tables[imm.table_index].type,
-                              module_))) {
+    ValueType immediate_type = ValueType::Ref(imm.sig_index, kNonNullable);
+    if (!VALIDATE(IsSubtypeOf(immediate_type, table_type, module_))) {
       errorf(pc,
-             "call_indirect: Signature of function %u is not a subtype of "
-             "table %u",
+             "call_indirect: Immediate signature #%u is not a subtype of "
+             "immediate table #%u",
              imm.sig_index, imm.table_index);
     }
     return true;

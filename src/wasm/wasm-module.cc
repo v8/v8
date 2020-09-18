@@ -324,9 +324,7 @@ Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
     // place and then use that constant everywhere.
     element = factory->InternalizeUtf8String("anyfunc");
   } else {
-    DCHECK(WasmFeatures::FromFlags().has_reftypes() &&
-           type.is_reference_to(HeapType::kExtern));
-    element = factory->InternalizeUtf8String("externref");
+    element = factory->InternalizeUtf8String(VectorOf(type.name()));
   }
 
   Handle<JSFunction> object_function = isolate->object_function();

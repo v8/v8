@@ -7003,7 +7003,7 @@ std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
   }
   if (WasmCapiFunction::IsWasmCapiFunction(*callable)) {
     auto capi_function = Handle<WasmCapiFunction>::cast(callable);
-    if (!capi_function->IsSignatureEqual(expected_sig)) {
+    if (!capi_function->MatchesSignature(expected_sig)) {
       return std::make_pair(WasmImportCallKind::kLinkError, callable);
     }
     return std::make_pair(WasmImportCallKind::kWasmToCapi, callable);

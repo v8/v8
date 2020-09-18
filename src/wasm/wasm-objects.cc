@@ -257,13 +257,16 @@ Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
   return Vector<const uint8_t>::cast(name);
 }
 
-Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate,
-                                             wasm::ValueType type,
-                                             uint32_t initial, bool has_maximum,
-                                             uint32_t maximum,
-                                             Handle<FixedArray>* entries) {
+Handle<WasmTableObject> WasmTableObject::New(
+    Isolate* isolate, Handle<WasmInstanceObject> instance, wasm::ValueType type,
+    uint32_t initial, bool has_maximum, uint32_t maximum,
+    Handle<FixedArray>* entries) {
   // TODO(7748): Make this work with other types when spec clears up.
-  CHECK(type.is_nullable());
+  {
+    const WasmModule* module =
+        instance.is_null() ? nullptr : instance->module();
+    CHECK(wasm::WasmTable::IsValidTableType(type, module));
+  }
 
   Handle<FixedArray> backing_store = isolate->factory()->NewFixedArray(initial);
   Object null = ReadOnlyRoots(isolate).null_value();
@@ -284,6 +287,7 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate,
       isolate->factory()->NewJSObject(table_ctor));
   DisallowHeapAllocation no_gc;
 
+  if (!instance.is_null()) table_obj->set_instance(*instance);
   table_obj->set_entries(*backing_store);
   table_obj->set_current_length(initial);
   table_obj->set_maximum_length(*max);
@@ -388,18 +392,14 @@ bool WasmTableObject::IsInBounds(Isolate* isolate,
 bool WasmTableObject::IsValidElement(Isolate* isolate,
                                      Handle<WasmTableObject> table,
                                      Handle<Object> entry) {
-  // Anyref and exnref tables take everything.
-  if (table->type().is_reference_to(wasm::HeapType::kExtern) ||
-      table->type().is_reference_to(wasm::HeapType::kExn)) {
-    return true;
+  const char* error_message;
+  const WasmModule* module =
+      !table->instance().IsUndefined()
+          ? WasmInstanceObject::cast(table->instance()).module()
+          : nullptr;
+  return wasm::TypecheckJSObject(isolate, module, entry, table->type(),
+                                 &error_message);
   }
-  // FuncRef tables can store {null}, {WasmExportedFunction}, {WasmJSFunction},
-  // or {WasmCapiFunction} objects.
-  if (entry->IsNull(isolate)) return true;
-  return WasmExportedFunction::IsWasmExportedFunction(*entry) ||
-         WasmJSFunction::IsWasmJSFunction(*entry) ||
-         WasmCapiFunction::IsWasmCapiFunction(*entry);
-}
 
 void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
                           uint32_t index, Handle<Object> entry) {
@@ -1616,7 +1616,7 @@ Handle<WasmExceptionObject> WasmExceptionObject::New(
   return exception;
 }
 
-bool WasmExceptionObject::IsSignatureEqual(const wasm::FunctionSig* sig) {
+bool WasmExceptionObject::MatchesSignature(const wasm::FunctionSig* sig) {
   DCHECK_EQ(0, sig->return_count());
   DCHECK_LE(sig->parameter_count(), std::numeric_limits<int>::max());
   int sig_size = static_cast<int>(sig->parameter_count());
@@ -1629,7 +1629,7 @@ bool WasmExceptionObject::IsSignatureEqual(const wasm::FunctionSig* sig) {
   return true;
 }
 
-bool WasmCapiFunction::IsSignatureEqual(const wasm::FunctionSig* sig) const {
+bool WasmCapiFunction::MatchesSignature(const wasm::FunctionSig* sig) const {
   // TODO(jkummerow): Unify with "SignatureHelper" in c-api.cc.
   int param_count = static_cast<int>(sig->parameter_count());
   int result_count = static_cast<int>(sig->return_count());
@@ -2012,9 +2012,9 @@ Handle<AsmWasmData> AsmWasmData::New(
 
 namespace wasm {
 
-bool DynamicTypeCheckRef(Isolate* isolate, const WasmModule* module,
-                         Handle<Object> value, ValueType expected,
-                         const char** error_message) {
+bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
+                       Handle<Object> value, ValueType expected,
+                       const char** error_message) {
   DCHECK(expected.is_reference_type());
   switch (expected.kind()) {
     case ValueType::kOptRef:
@@ -2023,10 +2023,11 @@ bool DynamicTypeCheckRef(Isolate* isolate, const WasmModule* module,
     case ValueType::kRef:
       switch (expected.heap_representation()) {
         case HeapType::kFunc: {
-          if (!WasmExternalFunction::IsWasmExternalFunction(*value)) {
+          if (!(WasmExternalFunction::IsWasmExternalFunction(*value) ||
+                WasmCapiFunction::IsWasmCapiFunction(*value))) {
             *error_message =
-                "function-typed object must be null (if nullable) or an "
-                "exported function";
+                "function-typed object must be null (if nullable) or a Wasm "
+                "function object";
             return false;
           }
           return true;
@@ -2085,9 +2086,24 @@ bool DynamicTypeCheckRef(Isolate* isolate, const WasmModule* module,
               return true;
             }
 
+            if (WasmCapiFunction::IsWasmCapiFunction(*value)) {
+              if (!WasmCapiFunction::cast(*value).MatchesSignature(
+                      module->signature(expected.ref_index()))) {
+                // Since a WasmCapiFunction cannot refer to indexed types
+                // (definable in a module), we don't need to invoke
+                // IsEquivalentType();
+                *error_message =
+                    "assigned WasmCapiFunction has to be a subtype of the "
+                    "expected type";
+                return false;
+              }
+              return true;
+            }
+
             *error_message =
-                "function-typed object must be null (if nullable) or an "
-                "exported function";
+                "function-typed object must be null (if nullable) or a Wasm "
+                "function object";
+
             return false;
           }
           // TODO(7748): Implement when the JS API for structs/arrays is decided

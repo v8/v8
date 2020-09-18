@@ -636,7 +636,14 @@ class ModuleDecoderImpl : public Decoder {
           module_->tables.emplace_back();
           WasmTable* table = &module_->tables.back();
           table->imported = true;
+          const byte* type_position = pc();
           ValueType type = consume_reference_type();
+          if (!WasmTable::IsValidTableType(type, module_.get())) {
+            error(type_position,
+                  "Currently, only nullable exnref, externref, and "
+                  "function references are allowed as table types");
+            break;
+          }
           table->type = type;
           uint8_t flags = validate_table_flags("element count");
           consume_resizable_limits(
@@ -728,12 +735,14 @@ class ModuleDecoderImpl : public Decoder {
       module_->tables.emplace_back();
       WasmTable* table = &module_->tables.back();
       const byte* type_position = pc();
-      table->type = consume_reference_type();
-      if (!table->type.is_nullable()) {
-        // TODO(7748): Implement other table types.
+      ValueType table_type = consume_reference_type();
+      if (!WasmTable::IsValidTableType(table_type, module_.get())) {
         error(type_position,
-              "Currently, only nullable references are allowed as table types");
+              "Currently, only nullable exnref, externref, and "
+              "function references are allowed as table types");
+        continue;
       }
+      table->type = table_type;
       uint8_t flags = validate_table_flags("table elements");
       consume_resizable_limits(
           "table elements", "elements", std::numeric_limits<uint32_t>::max(),
@@ -1907,7 +1916,10 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   // Reads a reference type for tables and element segment headers.
-  // Note that, unless extensions are enabled, only funcref is allowed.
+  // Unless extensions are enabled, only funcref is allowed.
+  // TODO(manoskouk): Replace this with consume_value_type (and checks against
+  //                  the returned type at callsites as needed) once the
+  //                  'reftypes' proposal is standardized.
   ValueType consume_reference_type() {
     if (!enabled_features_.has_reftypes()) {
       uint8_t ref_type = consume_u8("reference type");

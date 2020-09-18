@@ -99,7 +99,8 @@ let kWasmI64 = 0x7e;
 let kWasmF32 = 0x7d;
 let kWasmF64 = 0x7c;
 let kWasmS128 = 0x7b;
-let kWasmAnyFunc = 0x70;
+let kWasmFuncRef = 0x70;
+let kWasmAnyFunc = kWasmFuncRef; // Alias named as in the JS API spec
 let kWasmExternRef = 0x6f;
 function wasmOptRefType(index) { return {opcode: 0x6c, index: index}; }
 function wasmRefType(index) { return {opcode: 0x6b, index: index}; }

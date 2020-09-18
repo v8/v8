@@ -191,6 +191,11 @@ class V8_EXPORT_PRIVATE WasmTableObject : public JSObject {
  public:
   DECL_CAST(WasmTableObject)
 
+  // The instance in which this WasmTableObject is defined.
+  // This field is undefined if the global is defined outside any Wasm module,
+  // i.e., through the JS API (WebAssembly.Table).
+  // Because it might be undefined, we declare it as a HeapObject.
+  DECL_ACCESSORS(instance, HeapObject)
   // The entries array is at least as big as {current_length()}, but might be
   // bigger to make future growth more efficient.
   DECL_ACCESSORS(entries, FixedArray)
@@ -212,9 +217,10 @@ class V8_EXPORT_PRIVATE WasmTableObject : public JSObject {
   static int Grow(Isolate* isolate, Handle<WasmTableObject> table,
                   uint32_t count, Handle<Object> init_value);
 
-  static Handle<WasmTableObject> New(Isolate* isolate, wasm::ValueType type,
-                                     uint32_t initial, bool has_maximum,
-                                     uint32_t maximum,
+  static Handle<WasmTableObject> New(Isolate* isolate,
+                                     Handle<WasmInstanceObject> instance,
+                                     wasm::ValueType type, uint32_t initial,
+                                     bool has_maximum, uint32_t maximum,
                                      Handle<FixedArray>* entries);
 
   static void AddDispatchTable(Isolate* isolate, Handle<WasmTableObject> table,
@@ -605,7 +611,7 @@ class WasmExceptionObject : public JSObject {
 
   // Checks whether the given {sig} has the same parameter types as the
   // serialized signature stored within this exception object.
-  bool IsSignatureEqual(const wasm::FunctionSig* sig);
+  bool MatchesSignature(const wasm::FunctionSig* sig);
 
   static Handle<WasmExceptionObject> New(Isolate* isolate,
                                          const wasm::FunctionSig* sig,
@@ -689,7 +695,7 @@ class WasmCapiFunction : public JSFunction {
   PodArray<wasm::ValueType> GetSerializedSignature() const;
   // Checks whether the given {sig} has the same parameter types as the
   // serialized signature stored within this C-API function object.
-  bool IsSignatureEqual(const wasm::FunctionSig* sig) const;
+  bool MatchesSignature(const wasm::FunctionSig* sig) const;
 
   DECL_CAST(WasmCapiFunction)
   OBJECT_CONSTRUCTORS(WasmCapiFunction, JSFunction);
@@ -957,9 +963,9 @@ Handle<Map> AllocateSubRtt(Isolate* isolate,
                            Handle<WasmInstanceObject> instance, uint32_t type,
                            Handle<Map> parent);
 
-bool DynamicTypeCheckRef(Isolate* isolate, const WasmModule* module,
-                         Handle<Object> value, ValueType expected,
-                         const char** error_message);
+bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
+                       Handle<Object> value, ValueType expected,
+                       const char** error_message);
 }  // namespace wasm
 
 }  // namespace internal
