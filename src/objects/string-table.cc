@@ -177,7 +177,7 @@ class StringTable::Data {
   std::unique_ptr<Data> previous_data_;
   int number_of_elements_;
   int number_of_deleted_elements_;
-  int capacity_;
+  const int capacity_;
   Tagged_t elements_[1];
 };
 
@@ -340,7 +340,10 @@ int StringTable::Capacity() const {
   return data_.load(std::memory_order_acquire)->capacity();
 }
 int StringTable::NumberOfElements() const {
-  return data_.load(std::memory_order_acquire)->number_of_elements();
+  {
+    base::MutexGuard table_write_guard(&write_mutex_);
+    return data_.load(std::memory_order_relaxed)->number_of_elements();
+  }
 }
 
 // InternalizedStringKey carries a string/internalized-string object as key.

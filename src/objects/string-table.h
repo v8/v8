@@ -92,7 +92,9 @@ class V8_EXPORT_PRIVATE StringTable {
   Data* EnsureCapacity(const Isolate* isolate, int additional_elements);
 
   std::atomic<Data*> data_;
-  base::Mutex write_mutex_;
+  // Write mutex is mutable so that readers of concurrently mutated values (e.g.
+  // NumberOfElements) are allowed to lock it while staying const.
+  mutable base::Mutex write_mutex_;
 #ifdef DEBUG
   Isolate* isolate_;
 #endif
