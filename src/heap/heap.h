@@ -1528,8 +1528,6 @@ class Heap {
 
   static Isolate* GetIsolateFromWritableObject(HeapObject object);
 
-  std::vector<Handle<NativeContext>> FindAllNativeContexts();
-
  private:
   using ExternalStringTableUpdaterCallback = String (*)(Heap* heap,
                                                         FullObjectSlot pointer);
@@ -2021,6 +2019,7 @@ class Heap {
   V8_EXPORT_PRIVATE void IncrementObjectCounters();
 #endif  // DEBUG
 
+  std::vector<Handle<NativeContext>> FindAllNativeContexts();
   std::vector<WeakArrayList> FindAllRetainedMaps();
   MemoryMeasurement* memory_measurement() { return memory_measurement_.get(); }
 
