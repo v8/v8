@@ -2887,15 +2887,12 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     info.profiler_data()->SetHash(graph_hash_before_scheduling);
   }
 
-  Handle<Code> code;
   if (jump_opt.is_optimizable()) {
     jump_opt.set_optimizing();
-    code = pipeline.GenerateCode(call_descriptor).ToHandleChecked();
+    return pipeline.GenerateCode(call_descriptor);
   } else {
-    code = second_pipeline.FinalizeCode().ToHandleChecked();
+    return second_pipeline.FinalizeCode();
   }
-
-  return code;
 }
 
 struct BlockStartsAsJSON {
