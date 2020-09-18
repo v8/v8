@@ -2613,6 +2613,38 @@ void TurboAssembler::Round_s_s(FPURegister dst, FPURegister src) {
              });
 }
 
+void TurboAssembler::MSARoundW(MSARegister dst, MSARegister src,
+                               FPURoundingMode mode) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Register scratch = t8;
+  Register scratch2 = at;
+  cfcmsa(scratch, MSACSR);
+  if (mode == kRoundToNearest) {
+    scratch2 = zero_reg;
+  } else {
+    li(scratch2, Operand(mode));
+  }
+  ctcmsa(MSACSR, scratch2);
+  frint_w(dst, src);
+  ctcmsa(MSACSR, scratch);
+}
+
+void TurboAssembler::MSARoundD(MSARegister dst, MSARegister src,
+                               FPURoundingMode mode) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Register scratch = t8;
+  Register scratch2 = at;
+  cfcmsa(scratch, MSACSR);
+  if (mode == kRoundToNearest) {
+    scratch2 = zero_reg;
+  } else {
+    li(scratch2, Operand(mode));
+  }
+  ctcmsa(MSACSR, scratch2);
+  frint_d(dst, src);
+  ctcmsa(MSACSR, scratch);
+}
+
 void MacroAssembler::Madd_s(FPURegister fd, FPURegister fr, FPURegister fs,
                             FPURegister ft, FPURegister scratch) {
   DCHECK(fr != scratch && fs != scratch && ft != scratch);

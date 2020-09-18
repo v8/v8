@@ -2202,6 +2202,30 @@ void LiftoffAssembler::emit_f32x4_sqrt(LiftoffRegister dst,
   fsqrt_w(dst.fp().toW(), src.fp().toW());
 }
 
+bool LiftoffAssembler::emit_f32x4_ceil(LiftoffRegister dst,
+                                       LiftoffRegister src) {
+  MSARoundW(dst.fp().toW(), src.fp().toW(), kRoundToPlusInf);
+  return true;
+}
+
+bool LiftoffAssembler::emit_f32x4_floor(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  MSARoundW(dst.fp().toW(), src.fp().toW(), kRoundToMinusInf);
+  return true;
+}
+
+bool LiftoffAssembler::emit_f32x4_trunc(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  MSARoundW(dst.fp().toW(), src.fp().toW(), kRoundToZero);
+  return true;
+}
+
+bool LiftoffAssembler::emit_f32x4_nearest_int(LiftoffRegister dst,
+                                              LiftoffRegister src) {
+  MSARoundW(dst.fp().toW(), src.fp().toW(), kRoundToNearest);
+  return true;
+}
+
 void LiftoffAssembler::emit_f32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   fadd_w(dst.fp().toW(), lhs.fp().toW(), rhs.fp().toW());
@@ -2295,6 +2319,30 @@ void LiftoffAssembler::emit_f64x2_neg(LiftoffRegister dst,
 void LiftoffAssembler::emit_f64x2_sqrt(LiftoffRegister dst,
                                        LiftoffRegister src) {
   fsqrt_d(dst.fp().toW(), src.fp().toW());
+}
+
+bool LiftoffAssembler::emit_f64x2_ceil(LiftoffRegister dst,
+                                       LiftoffRegister src) {
+  MSARoundD(dst.fp().toW(), src.fp().toW(), kRoundToPlusInf);
+  return true;
+}
+
+bool LiftoffAssembler::emit_f64x2_floor(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  MSARoundD(dst.fp().toW(), src.fp().toW(), kRoundToMinusInf);
+  return true;
+}
+
+bool LiftoffAssembler::emit_f64x2_trunc(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  MSARoundD(dst.fp().toW(), src.fp().toW(), kRoundToZero);
+  return true;
+}
+
+bool LiftoffAssembler::emit_f64x2_nearest_int(LiftoffRegister dst,
+                                              LiftoffRegister src) {
+  MSARoundD(dst.fp().toW(), src.fp().toW(), kRoundToNearest);
+  return true;
 }
 
 void LiftoffAssembler::emit_f64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
