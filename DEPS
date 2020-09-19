@@ -44,7 +44,7 @@ vars = {
   'gn_version': 'git_revision:e002e68a48d1c82648eadde2f6aafa20d08c36f2',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:b022173f8069cf8001d4cf2a87ce7c5f0eae220f',
+  'luci_go': 'git_revision:83c3df996b224edf5061840744395707a0e513e7',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -82,9 +82,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '153ad0bf09eda458f1ef4f74dcac5c12d530d770',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd77db9e8587c824d788998b5b78e4e310eb41cf5',
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'd949c910de8c04a1cfaa99a937eb05ba30185c36',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '244d77022cb2b0540668f2383d056b78ffcd4ca1',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '79326efe26e5440f530963704c3c0ff965b3a4ac',
   'third_party/instrumented_libraries':
@@ -196,7 +196,7 @@ deps = {
     'condition': 'checkout_google_benchmark',
   },
   'third_party/jinja2':
-    Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + '61cfe2ac6c9108534c43b4039a95a0980251f266',
+    Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + 'a82a4944a7f2496639f34a89c9923be5908b80aa',
   'third_party/markupsafe':
     Var('chromium_url') + '/chromium/src/third_party/markupsafe.git' + '@' + 'f2fb0f21ef1e1d4ffd43be8c63fc3d4928dea7ab',
   'tools/swarming_client':
@@ -233,7 +233,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'QxDL1Bk85zKmALn9xHGhro_uZAytSTHjJ--QwZLaT7oC'
+              'version': 'UncMpcoIeFj9FKkqbpkwnPCh8YmqHZcucJu-mi7jF1MC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
