@@ -178,6 +178,10 @@
 
   # Needs to be adapted after changes to Function constructor. chromium:1065094
   'cross-realm-filtering': [SKIP],
+
+  # https://crbug.com/v8/10937
+  # https://crbug.com/1129854
+  'tools/log': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
