@@ -3594,7 +3594,7 @@ WASM_SIMD_TEST(I64x2Load32x2S) {
 }
 
 // TODO(v8:10713): Prototyping v128.load32_zero and v128.load64_zero.
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 template <typename S>
 void RunLoadZeroTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                      WasmOpcode op) {
@@ -3626,7 +3626,7 @@ WASM_SIMD_TEST_NO_LOWERING(S128LoadMem32Zero) {
 WASM_SIMD_TEST_NO_LOWERING(S128LoadMem64Zero) {
   RunLoadZeroTest<int64_t>(execution_tier, lower_simd, kExprS128LoadMem64Zero);
 }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 #define WASM_SIMD_ANYTRUE_TEST(format, lanes, max, param_type)                \
   WASM_SIMD_TEST(S##format##AnyTrue) {                                        \

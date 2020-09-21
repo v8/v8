@@ -2647,6 +2647,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Uxtl(i.OutputSimd128Register().V2D(), i.OutputSimd128Register().V2S());
       break;
     }
+    case kArm64S128LoadMem32Zero: {
+      __ Ldr(i.OutputSimd128Register().S(), i.MemoryOperand(0));
+      break;
+    }
+    case kArm64S128LoadMem64Zero: {
+      __ Ldr(i.OutputSimd128Register().D(), i.MemoryOperand(0));
+      break;
+    }
 #define SIMD_REDUCE_OP_CASE(Op, Instr, format, FORMAT)     \
   case Op: {                                               \
     UseScratchRegisterScope scope(tasm());                 \
