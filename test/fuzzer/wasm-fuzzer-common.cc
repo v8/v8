@@ -123,6 +123,8 @@ const char* ValueTypeToConstantName(ValueType type) {
       return "kWasmF32";
     case ValueType::kF64:
       return "kWasmF64";
+    case ValueType::kS128:
+      return "kWasmS128";
     case ValueType::kOptRef:
       switch (type.heap_representation()) {
         case HeapType::kExtern:

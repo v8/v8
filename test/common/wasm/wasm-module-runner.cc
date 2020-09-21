@@ -60,6 +60,9 @@ OwnedVector<WasmValue> MakeDefaultInterpreterArguments(Isolate* isolate,
       case ValueType::kF64:
         arguments[i] = WasmValue(0.0);
         break;
+      case ValueType::kS128:
+        arguments[i] = WasmValue(Simd128{});
+        break;
       case ValueType::kOptRef:
         arguments[i] =
             WasmValue(Handle<Object>::cast(isolate->factory()->null_value()));
@@ -70,7 +73,6 @@ OwnedVector<WasmValue> MakeDefaultInterpreterArguments(Isolate* isolate,
       case ValueType::kI16:
       case ValueType::kStmt:
       case ValueType::kBottom:
-      case ValueType::kS128:
         UNREACHABLE();
     }
   }
@@ -88,6 +90,9 @@ OwnedVector<Handle<Object>> MakeDefaultArguments(Isolate* isolate,
       case ValueType::kI32:
       case ValueType::kF32:
       case ValueType::kF64:
+      case ValueType::kS128:
+        // Argument here for kS128 does not matter as we should error out before
+        // hitting this case.
         arguments[i] = handle(Smi::zero(), isolate);
         break;
       case ValueType::kI64:
@@ -102,7 +107,6 @@ OwnedVector<Handle<Object>> MakeDefaultArguments(Isolate* isolate,
       case ValueType::kI16:
       case ValueType::kStmt:
       case ValueType::kBottom:
-      case ValueType::kS128:
         UNREACHABLE();
     }
   }
