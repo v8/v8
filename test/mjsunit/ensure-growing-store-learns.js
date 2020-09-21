@@ -2,14 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// The flags are processed left to right. --no-abort-on-contradictory-flags
-// disables the checking for conflicts, then we process --noverify-heap and
+// Overwrite the value for --noverify-heap and
 // --noenable-slow-asserts, which the test runner already set to true before.
-// This causes the flags to be overwritten while silencing the error. Then we
-// re-enable --abort-on-contradictory-flags to make sure that the processing of
-// other flags and flag implications, which happens later, still produces
-// errors.
-// Flags: --no-abort-on-contradictory-flags --noverify-heap --noenable-slow-asserts --abort-on-contradictory-flags
+//  Due to flag contradiction checking, this requires
+// --allow-overwriting-for-next-flag to avoid an error.
+// Flags: --allow-overwriting-for-next-flag --noverify-heap
+// Flags: --allow-overwriting-for-next-flag --noenable-slow-asserts
 // Flags: --allow-natives-syntax --opt --no-always-opt
 
 // --noverify-heap and --noenable-slow-asserts are set because the test is too

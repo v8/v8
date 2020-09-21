@@ -3,13 +3,9 @@
 // found in the LICENSE file.
 
 // Overwrite the random seed provided by the test runner to make this test less
-// flaky.
-// The flags are processed left to right. --no-abort-on-contradictory-flags
-// disables the checking for conflicts, then we process --random-seed=20 to
-// overwrite the value the test runner already set before. Then we re-enable
-// --abort-on-contradictory-flags to make sure that the processing of other
-// flags and flag implications, which happens later, still produces errors.
-// Flags: --no-abort-on-contradictory-flags --random-seed=20 --abort-on-contradictory-flags
+// flaky. Due to flag contradiction checking, this requires
+// --allow-overwriting-for-next-flag to avoid an error.
+// Flags: --allow-overwriting-for-next-flag --random-seed=20
 // Flags: --nostress-opt --noalways-opt --predictable
 
 (function() {

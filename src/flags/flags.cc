@@ -213,6 +213,13 @@ struct Flag {
   }
 
   static bool ShouldCheckFlagContradictions() {
+    if (FLAG_allow_overwriting_for_next_flag) {
+      // Setting the flag manually to false before calling Reset() avoids this
+      // becoming re-entrant.
+      FLAG_allow_overwriting_for_next_flag = false;
+      FindFlagByPointer(&FLAG_allow_overwriting_for_next_flag)->Reset();
+      return false;
+    }
     return FLAG_abort_on_contradictory_flags && !FLAG_fuzzing;
   }
 
@@ -268,9 +275,17 @@ struct Flag {
                 name(), implied_by, hint);
           } else if (new_set_by == SetBy::kCommandLine &&
                      check_command_line_flags) {
-            FATAL(
-                "Command-line provided flag --%s specified multiple times.\n%s",
-                name(), hint);
+            if (is_bool_flag) {
+              FATAL(
+                  "Command-line provided flag --%s specified as both true and "
+                  "false.\n%s",
+                  name(), hint);
+            } else {
+              FATAL(
+                  "Command-line provided flag --%s specified multiple "
+                  "times.\n%s",
+                  name(), hint);
+            }
           }
           break;
       }

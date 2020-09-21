@@ -227,6 +227,12 @@ DEFINE_BOOL(abort_on_contradictory_flags, false,
 // This implication is also hard-coded into the flags processing to make sure it
 // becomes active before we even process subsequent flags.
 DEFINE_NEG_IMPLICATION(fuzzing, abort_on_contradictory_flags)
+// This is not really a flag, it affects the interpretation of the next flag but
+// doesn't become permanently true when specified. This only works for flags
+// defined in this file, but not for d8 flags defined in src/d8/d8.cc.
+DEFINE_BOOL(allow_overwriting_for_next_flag, false,
+            "temporary disable flag contradiction to allow overwriting just "
+            "the next flag")
 
 // Flags for language modes and experimental language features.
 DEFINE_BOOL(use_strict, false, "enforce strict mode")
