@@ -181,9 +181,12 @@ TEST(WasmBasicStruct) {
   WasmGCTester tester;
   const byte type_index =
       tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
-  ValueType kRefTypes[] = {ref(type_index)};
+  const byte empty_struct_index = tester.DefineStruct({});
+  ValueType kRefType = ref(type_index);
+  ValueType kEmptyStructType = ref(empty_struct_index);
   ValueType kOptRefType = optref(type_index);
-  FunctionSig sig_q_v(1, 0, kRefTypes);
+  FunctionSig sig_q_v(1, 0, &kRefType);
+  FunctionSig sig_qe_v(1, 0, &kEmptyStructType);
 
   // Test struct.new and struct.get.
   const byte kGet1 = tester.DefineFunction(
@@ -210,6 +213,13 @@ TEST(WasmBasicStruct) {
                                 WASM_RTT_CANON(type_index)),
        kExprEnd});
 
+  // Test struct.new, returning reference to an empty struct.
+  const byte kGetEmptyStruct = tester.DefineFunction(
+      &sig_qe_v, {},
+      {WASM_STRUCT_NEW_WITH_RTT(empty_struct_index,
+                                WASM_RTT_CANON(empty_struct_index)),
+       kExprEnd});
+
   // Test struct.set, struct refs types in locals.
   const byte j_local_index = 0;
   const byte j_field_index = 0;
@@ -230,6 +240,9 @@ TEST(WasmBasicStruct) {
   tester.CheckResult(kGet1, 42);
   tester.CheckResult(kGet2, 64);
   CHECK(tester.GetResultObject(kGetStruct).ToHandleChecked()->IsWasmStruct());
+  CHECK(tester.GetResultObject(kGetEmptyStruct)
+            .ToHandleChecked()
+            ->IsWasmStruct());
   tester.CheckResult(kSet, -99);
 }
 

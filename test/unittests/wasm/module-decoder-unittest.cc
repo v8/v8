@@ -834,6 +834,17 @@ TEST_F(WasmModuleVerifyTest, RttSubGlobalTypeError) {
                 "(rtt 2 i31)");
 }
 
+TEST_F(WasmModuleVerifyTest, EmptyStruct) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+  static const byte empty_struct[] = {SECTION(Type, ENTRY_COUNT(1),  // --
+                                              kWasmStructTypeCode,   // --
+                                              U32V_1(0))};  // field count
+
+  EXPECT_VERIFIES(empty_struct);
+}
+
 TEST_F(WasmModuleVerifyTest, InvalidStructTypeDef) {
   WASM_FEATURE_SCOPE(reftypes);
   WASM_FEATURE_SCOPE(typed_funcref);
