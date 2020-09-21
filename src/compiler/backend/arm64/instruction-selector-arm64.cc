@@ -3229,13 +3229,13 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16Neg, kArm64I8x16Neg)                             \
   V(I8x16Abs, kArm64I8x16Abs)                             \
   V(S128Not, kArm64S128Not)                               \
-  V(V64x2AnyTrue, kArm64V64x2AnyTrue)                     \
+  V(V64x2AnyTrue, kArm64V128AnyTrue)                      \
   V(V64x2AllTrue, kArm64V64x2AllTrue)                     \
-  V(V32x4AnyTrue, kArm64V32x4AnyTrue)                     \
+  V(V32x4AnyTrue, kArm64V128AnyTrue)                      \
   V(V32x4AllTrue, kArm64V32x4AllTrue)                     \
-  V(V16x8AnyTrue, kArm64V16x8AnyTrue)                     \
+  V(V16x8AnyTrue, kArm64V128AnyTrue)                      \
   V(V16x8AllTrue, kArm64V16x8AllTrue)                     \
-  V(V8x16AnyTrue, kArm64V8x16AnyTrue)                     \
+  V(V8x16AnyTrue, kArm64V128AnyTrue)                      \
   V(V8x16AllTrue, kArm64V8x16AllTrue)
 
 #define SIMD_SHIFT_OP_LIST(V) \
