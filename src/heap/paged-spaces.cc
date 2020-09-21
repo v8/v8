@@ -180,7 +180,6 @@ void PagedSpace::MergeLocalSpace(LocalSpace* other) {
     // Relinking requires the category to be unlinked.
     other->RemovePage(p);
     AddPage(p);
-    heap()->NotifyOldGenerationExpansion(identity(), p);
     DCHECK_IMPLIES(
         !p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE),
         p->AvailableInFreeList() == p->AvailableInFreeListFromAllocatedBytes());
@@ -191,6 +190,9 @@ void PagedSpace::MergeLocalSpace(LocalSpace* other) {
     //   2. Observers might try to take the space lock, which isn't reentrant.
     // We'll have to come up with a better solution for allocation stepping
     // before shipping, which will likely be using LocalHeap.
+  }
+  for (auto p : other->GetNewPages()) {
+    heap()->NotifyOldGenerationExpansion(identity(), p);
   }
 
   DCHECK_EQ(0u, other->Size());
@@ -452,7 +454,9 @@ void PagedSpace::ReleasePage(Page* page) {
     SetTopAndLimit(kNullAddress, kNullAddress);
   }
 
-  heap()->isolate()->RemoveCodeMemoryChunk(page);
+  if (identity() == CODE_SPACE) {
+    heap()->isolate()->RemoveCodeMemoryChunk(page);
+  }
 
   AccountUncommitted(page->size());
   accounting_stats_.DecreaseCapacity(page->area_size());
@@ -826,6 +830,12 @@ bool PagedSpace::RefillLabMain(int size_in_bytes, AllocationOrigin origin) {
   RuntimeCallTimerScope runtime_timer(
       heap()->isolate(), RuntimeCallCounterId::kGC_Custom_SlowAllocateRaw);
   return RawRefillLabMain(size_in_bytes, origin);
+}
+
+Page* LocalSpace::Expand() {
+  Page* page = PagedSpace::Expand();
+  new_pages_.push_back(page);
+  return page;
 }
 
 bool CompactionSpace::RefillLabMain(int size_in_bytes,
