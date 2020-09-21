@@ -22,7 +22,7 @@ bool MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
   // filler map.
   DCHECK(!marking_state_.IsImpossible(host) ||
          value == ReadOnlyRoots(heap_->isolate()).one_pointer_filler_map());
-  if (!V8_CONCURRENT_MARKING_BOOL && marking_state_.IsBlack(host)) {
+  if (!V8_CONCURRENT_MARKING_BOOL && !marking_state_.IsBlack(host)) {
     // The value will be marked and the slot will be recorded when the marker
     // visits the host object.
     return false;

@@ -274,6 +274,10 @@ class ConcurrentWriteBarrierThread final : public v8::base::Thread {
 };
 
 UNINITIALIZED_TEST(ConcurrentWriteBarrier) {
+  if (!FLAG_concurrent_marking) {
+    // The test requires concurrent marking barrier.
+    return;
+  }
   ManualGCScope manual_gc_scope;
   FLAG_concurrent_allocation = true;
   FLAG_local_heaps = true;
@@ -335,6 +339,10 @@ class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
 };
 
 UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
+  if (!FLAG_concurrent_marking) {
+    // The test requires concurrent marking barrier.
+    return;
+  }
   FLAG_manual_evacuation_candidates_selection = true;
   ManualGCScope manual_gc_scope;
   FLAG_concurrent_allocation = true;
