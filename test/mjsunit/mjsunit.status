@@ -190,6 +190,7 @@
   # Skip slow tests in debug mode.
   'array-functions-prototype-misc': [SKIP],
   'compiler/regress-808472': [SKIP],
+  'compiler/regress-1125145': [SKIP],
   'es6/promise-all-overflow-2': [SKIP],
   'generated-transition-stub': [SKIP],
   'regress/regress-524': [SKIP],
