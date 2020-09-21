@@ -1763,7 +1763,7 @@ TEST_F(FunctionBodyDecoderTest, IndirectCallsOutOfBounds) {
   ExpectFailure(sig, {WASM_CALL_INDIRECT(2, WASM_I32V_1(27), WASM_ZERO)});
 }
 
-TEST_F(FunctionBodyDecoderTest, IndirectCallsWithMismatchedSigs3) {
+TEST_F(FunctionBodyDecoderTest, IndirectCallsWithMismatchedSigs1) {
   const FunctionSig* sig = sigs.i_i();
   builder.InitializeTable(wasm::kWasmStmt);
 
@@ -1782,6 +1782,34 @@ TEST_F(FunctionBodyDecoderTest, IndirectCallsWithMismatchedSigs3) {
   ExpectFailure(sig, {WASM_CALL_INDIRECT(sig1, WASM_I32V_1(16), WASM_ZERO)});
   ExpectFailure(sig, {WASM_CALL_INDIRECT(sig1, WASM_I64V_1(16), WASM_ZERO)});
   ExpectFailure(sig, {WASM_CALL_INDIRECT(sig1, WASM_F32(17.6), WASM_ZERO)});
+}
+
+TEST_F(FunctionBodyDecoderTest, IndirectCallsWithMismatchedSigs2) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  byte table_type_index = builder.AddSignature(sigs.i_i());
+  byte table_index =
+      builder.InitializeTable(ValueType::Ref(table_type_index, kNullable));
+
+  ExpectValidates(sigs.i_v(),
+                  {WASM_CALL_INDIRECT_TABLE(table_index, table_type_index,
+                                            WASM_I32V_1(42), WASM_ZERO)});
+
+  byte wrong_type_index = builder.AddSignature(sigs.i_ii());
+  ExpectFailure(sigs.i_v(),
+                {WASM_CALL_INDIRECT_TABLE(table_index, wrong_type_index,
+                                          WASM_I32V_1(42), WASM_ZERO)},
+                kAppendEnd,
+                "call_indirect: Immediate signature #1 is not a subtype of "
+                "immediate table #0");
+
+  byte non_function_table_index = builder.InitializeTable(kWasmExternRef);
+  ExpectFailure(
+      sigs.i_v(),
+      {WASM_CALL_INDIRECT_TABLE(non_function_table_index, table_type_index,
+                                WASM_I32V_1(42), WASM_ZERO)},
+      kAppendEnd,
+      "call_indirect: immediate table #1 is not of a function type");
 }
 
 TEST_F(FunctionBodyDecoderTest, IndirectCallsWithoutTableCrash) {
@@ -1962,15 +1990,24 @@ TEST_F(FunctionBodyDecoderTest, AllSetGlobalCombinations) {
 
 TEST_F(FunctionBodyDecoderTest, TableSet) {
   WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+
+  byte tab_type = builder.AddSignature(sigs.i_i());
   byte tab_ref1 = builder.AddTable(kWasmExternRef, 10, true, 20);
   byte tab_func1 = builder.AddTable(kWasmFuncRef, 20, true, 30);
   byte tab_func2 = builder.AddTable(kWasmFuncRef, 10, false, 20);
   byte tab_ref2 = builder.AddTable(kWasmExternRef, 10, false, 20);
-  ValueType sig_types[]{kWasmExternRef, kWasmFuncRef, kWasmI32};
-  FunctionSig sig(0, 3, sig_types);
+  byte tab_typed_func =
+      builder.AddTable(ValueType::Ref(tab_type, kNullable), 10, false, 20);
+
+  ValueType sig_types[]{kWasmExternRef, kWasmFuncRef, kWasmI32,
+                        ValueType::Ref(tab_type, kNonNullable)};
+  FunctionSig sig(0, 4, sig_types);
   byte local_ref = 0;
   byte local_func = 1;
   byte local_int = 2;
+  byte local_typed_func = 3;
+
   ExpectValidates(&sig, {WASM_TABLE_SET(tab_ref1, WASM_I32V(6),
                                         WASM_GET_LOCAL(local_ref))});
   ExpectValidates(&sig, {WASM_TABLE_SET(tab_func1, WASM_I32V(5),
@@ -1979,6 +2016,10 @@ TEST_F(FunctionBodyDecoderTest, TableSet) {
                                         WASM_GET_LOCAL(local_func))});
   ExpectValidates(&sig, {WASM_TABLE_SET(tab_ref2, WASM_I32V(8),
                                         WASM_GET_LOCAL(local_ref))});
+  ExpectValidates(&sig, {WASM_TABLE_SET(tab_typed_func, WASM_I32V(8),
+                                        WASM_GET_LOCAL(local_typed_func))});
+  ExpectValidates(&sig, {WASM_TABLE_SET(tab_func1, WASM_I32V(8),
+                                        WASM_GET_LOCAL(local_typed_func))});
 
   // Only values of the correct type can be set to a table.
   ExpectFailure(&sig, {WASM_TABLE_SET(tab_ref1, WASM_I32V(4),
@@ -1993,6 +2034,8 @@ TEST_F(FunctionBodyDecoderTest, TableSet) {
                                       WASM_GET_LOCAL(local_int))});
   ExpectFailure(&sig, {WASM_TABLE_SET(tab_func1, WASM_I32V(3),
                                       WASM_GET_LOCAL(local_int))});
+  ExpectFailure(&sig, {WASM_TABLE_SET(tab_typed_func, WASM_I32V(3),
+                                      WASM_GET_LOCAL(local_func))});
 
   // Out-of-bounds table index should fail.
   byte oob_tab = 37;
@@ -2004,15 +2047,24 @@ TEST_F(FunctionBodyDecoderTest, TableSet) {
 
 TEST_F(FunctionBodyDecoderTest, TableGet) {
   WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+
+  byte tab_type = builder.AddSignature(sigs.i_i());
   byte tab_ref1 = builder.AddTable(kWasmExternRef, 10, true, 20);
   byte tab_func1 = builder.AddTable(kWasmFuncRef, 20, true, 30);
   byte tab_func2 = builder.AddTable(kWasmFuncRef, 10, false, 20);
   byte tab_ref2 = builder.AddTable(kWasmExternRef, 10, false, 20);
-  ValueType sig_types[]{kWasmExternRef, kWasmFuncRef, kWasmI32};
-  FunctionSig sig(0, 3, sig_types);
+  byte tab_typed_func =
+      builder.AddTable(ValueType::Ref(tab_type, kNullable), 10, false, 20);
+
+  ValueType sig_types[]{kWasmExternRef, kWasmFuncRef, kWasmI32,
+                        ValueType::Ref(tab_type, kNullable)};
+  FunctionSig sig(0, 4, sig_types);
   byte local_ref = 0;
   byte local_func = 1;
   byte local_int = 2;
+  byte local_typed_func = 3;
+
   ExpectValidates(
       &sig,
       {WASM_SET_LOCAL(local_ref, WASM_TABLE_GET(tab_ref1, WASM_I32V(6)))});
@@ -2028,6 +2080,12 @@ TEST_F(FunctionBodyDecoderTest, TableGet) {
   ExpectValidates(
       &sig, {WASM_SET_LOCAL(local_ref, WASM_SEQ(WASM_I32V(6), kExprTableGet,
                                                 U32V_2(tab_ref1)))});
+  ExpectValidates(
+      &sig, {WASM_SET_LOCAL(local_func,
+                            WASM_TABLE_GET(tab_typed_func, WASM_I32V(7)))});
+  ExpectValidates(
+      &sig, {WASM_SET_LOCAL(local_typed_func,
+                            WASM_TABLE_GET(tab_typed_func, WASM_I32V(7)))});
 
   // We cannot store references as any other type.
   ExpectFailure(&sig, {WASM_SET_LOCAL(local_func,
@@ -2043,6 +2101,10 @@ TEST_F(FunctionBodyDecoderTest, TableGet) {
                                       WASM_TABLE_GET(tab_ref1, WASM_I32V(9)))});
   ExpectFailure(&sig, {WASM_SET_LOCAL(
                           local_int, WASM_TABLE_GET(tab_func1, WASM_I32V(3)))});
+  ExpectFailure(&sig,
+                {WASM_SET_LOCAL(local_typed_func,
+                                WASM_TABLE_GET(tab_func1, WASM_I32V(3)))});
+
   // Out-of-bounds table index should fail.
   byte oob_tab = 37;
   ExpectFailure(

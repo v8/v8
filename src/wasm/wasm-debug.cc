@@ -24,6 +24,7 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
+#include "src/wasm/wasm-subtyping.h"
 #include "src/wasm/wasm-value.h"
 #include "src/zone/accounting-allocator.h"
 
@@ -60,7 +61,8 @@ MaybeHandle<JSObject> CreateFunctionTablesObject(
   for (int table_index = 0; table_index < tables->length(); ++table_index) {
     auto func_table =
         handle(WasmTableObject::cast(tables->get(table_index)), isolate);
-    if (!func_table->type().is_reference_to(HeapType::kFunc)) continue;
+    if (!IsSubtypeOf(func_table->type(), kWasmFuncRef, instance->module()))
+      continue;
 
     Handle<String> table_name;
     if (!WasmInstanceObject::GetTableNameOrNull(isolate, instance, table_index)

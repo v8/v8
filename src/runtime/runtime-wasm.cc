@@ -23,6 +23,7 @@
 #include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-subtyping.h"
 #include "src/wasm/wasm-value.h"
 
 namespace v8 {
@@ -334,7 +335,11 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
   auto table = handle(
       WasmTableObject::cast(instance->tables().get(table_index)), isolate);
   // We only use the runtime call for lazily initialized function references.
-  DCHECK_EQ(table->type(), wasm::kWasmFuncRef);
+  DCHECK(
+      table->instance().IsUndefined()
+          ? table->type() == wasm::kWasmFuncRef
+          : IsSubtypeOf(table->type(), wasm::kWasmFuncRef,
+                        WasmInstanceObject::cast(table->instance()).module()));
 
   if (!WasmTableObject::IsInBounds(isolate, table, entry_index)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
@@ -357,7 +362,11 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
   auto table = handle(
       WasmTableObject::cast(instance->tables().get(table_index)), isolate);
   // We only use the runtime call for function references.
-  DCHECK_EQ(table->type(), wasm::kWasmFuncRef);
+  DCHECK(
+      table->instance().IsUndefined()
+          ? table->type() == wasm::kWasmFuncRef
+          : IsSubtypeOf(table->type(), wasm::kWasmFuncRef,
+                        WasmInstanceObject::cast(table->instance()).module()));
 
   if (!WasmTableObject::IsInBounds(isolate, table, entry_index)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);

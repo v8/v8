@@ -575,7 +575,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     // iteration below.
     for (int i = 1; i < table_count; ++i) {
       const WasmTable& table = module_->tables[i];
-      if (table.type.is_reference_to(HeapType::kFunc)) {
+      if (IsSubtypeOf(table.type, kWasmFuncRef, module_)) {
         Handle<WasmIndirectFunctionTable> table_obj =
             WasmIndirectFunctionTable::New(isolate_, table.initial_size);
         tables->set(i, *table_obj);
@@ -1091,9 +1091,9 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
     MaybeHandle<WasmInstanceObject> maybe_target_instance;
     int function_index;
     MaybeHandle<WasmJSFunction> maybe_js_function;
-    WasmTableObject::GetFunctionTableEntry(isolate_, table_object, i, &is_valid,
-                                           &is_null, &maybe_target_instance,
-                                           &function_index, &maybe_js_function);
+    WasmTableObject::GetFunctionTableEntry(
+        isolate_, module_, table_object, i, &is_valid, &is_null,
+        &maybe_target_instance, &function_index, &maybe_js_function);
     if (!is_valid) {
       thrower_->LinkError("table import %d[%d] is not a wasm function",
                           import_index, i);
@@ -1167,13 +1167,19 @@ bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
     }
   }
 
-  if (table.type != table_object->type()) {
+  const WasmModule* table_type_module =
+      !table_object->instance().IsUndefined()
+          ? WasmInstanceObject::cast(table_object->instance()).module()
+          : instance->module();
+
+  if (!EquivalentTypes(table.type, table_object->type(), module_,
+                       table_type_module)) {
     ReportLinkError("imported table does not match the expected type",
                     import_index, module_name, import_name);
     return false;
   }
 
-  if (table.type.is_reference_to(HeapType::kFunc) &&
+  if (IsSubtypeOf(table.type, kWasmFuncRef, module_) &&
       !InitializeImportedIndirectFunctionTable(instance, table_index,
                                                import_index, table_object)) {
     return false;
@@ -1874,7 +1880,7 @@ void InstanceBuilder::InitializeIndirectFunctionTables(
   for (int i = 0; i < static_cast<int>(module_->tables.size()); ++i) {
     const WasmTable& table = module_->tables[i];
 
-    if (table.type.is_reference_to(HeapType::kFunc)) {
+    if (IsSubtypeOf(table.type, kWasmFuncRef, module_)) {
       WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
           instance, i, table.initial_size);
     }
@@ -1905,7 +1911,7 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
     int entry_index = static_cast<int>(dst + i);
 
     if (func_index == WasmElemSegment::kNullIndex) {
-      if (table_object->type().is_reference_to(HeapType::kFunc)) {
+      if (IsSubtypeOf(table_object->type(), kWasmFuncRef, module)) {
         IndirectFunctionTableEntry(instance, table_index, entry_index).clear();
       }
       WasmTableObject::Set(isolate, table_object, entry_index,
@@ -1916,8 +1922,7 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
     const WasmFunction* function = &module->functions[func_index];
 
     // Update the local dispatch table first if necessary.
-    // TODO(9495): Make sure tables work with all function types.
-    if (table_object->type().is_reference_to(HeapType::kFunc)) {
+    if (IsSubtypeOf(table_object->type(), kWasmFuncRef, module)) {
       uint32_t sig_id = module->signature_ids[function->sig_index];
       IndirectFunctionTableEntry(instance, table_index, entry_index)
           .Set(sig_id, instance, func_index);
@@ -1992,7 +1997,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
 
   int table_count = static_cast<int>(module_->tables.size());
   for (int index = 0; index < table_count; ++index) {
-    if (module_->tables[index].type.is_reference_to(HeapType::kFunc)) {
+    if (IsSubtypeOf(module_->tables[index].type, kWasmFuncRef, module_)) {
       auto table_object = handle(
           WasmTableObject::cast(instance->tables().get(index)), isolate_);
 

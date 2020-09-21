@@ -399,23 +399,13 @@ bool WasmTableObject::IsValidElement(Isolate* isolate,
           : nullptr;
   return wasm::TypecheckJSObject(isolate, module, entry, table->type(),
                                  &error_message);
-  }
+}
 
-void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
-                          uint32_t index, Handle<Object> entry) {
-  // Callers need to perform bounds checks, type check, and error handling.
-  DCHECK(IsInBounds(isolate, table, index));
-  DCHECK(IsValidElement(isolate, table, entry));
-
-  Handle<FixedArray> entries(table->entries(), isolate);
-  // The FixedArray is addressed with int's.
-  int entry_index = static_cast<int>(index);
-  if (table->type().is_reference_to(wasm::HeapType::kExtern) ||
-      table->type().is_reference_to(wasm::HeapType::kExn)) {
-    entries->set(entry_index, *entry);
-    return;
-  }
-
+void WasmTableObject::SetFunctionTableEntry(Isolate* isolate,
+                                            Handle<WasmTableObject> table,
+                                            Handle<FixedArray> entries,
+                                            int entry_index,
+                                            Handle<Object> entry) {
   if (entry->IsNull(isolate)) {
     ClearDispatchTables(isolate, table, entry_index);  // Degenerate case.
     entries->set(entry_index, ReadOnlyRoots(isolate).null_value());
@@ -443,6 +433,44 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
   entries->set(entry_index, *entry);
 }
 
+void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
+                          uint32_t index, Handle<Object> entry) {
+  // Callers need to perform bounds checks, type check, and error handling.
+  DCHECK(IsInBounds(isolate, table, index));
+  DCHECK(IsValidElement(isolate, table, entry));
+
+  Handle<FixedArray> entries(table->entries(), isolate);
+  // The FixedArray is addressed with int's.
+  int entry_index = static_cast<int>(index);
+
+  switch (table->type().heap_representation()) {
+    case wasm::HeapType::kExtern:
+    case wasm::HeapType::kExn:
+      entries->set(entry_index, *entry);
+      return;
+    case wasm::HeapType::kFunc:
+      SetFunctionTableEntry(isolate, table, entries, entry_index, entry);
+      return;
+    case wasm::HeapType::kEq:
+    case wasm::HeapType::kI31:
+      // TODO(7748): Implement once we have a story for struct/arrays/i31ref in
+      // JS.
+      UNIMPLEMENTED();
+    case wasm::HeapType::kBottom:
+      UNREACHABLE();
+    default:
+      DCHECK(!table->instance().IsUndefined());
+      if (WasmInstanceObject::cast(table->instance())
+              .module()
+              ->has_signature(entry_index)) {
+        SetFunctionTableEntry(isolate, table, entries, entry_index, entry);
+        return;
+      }
+      // TODO(7748): Implement once we have a story for struct/arrays in JS.
+      UNIMPLEMENTED();
+  }
+}
+
 Handle<Object> WasmTableObject::Get(Isolate* isolate,
                                     Handle<WasmTableObject> table,
                                     uint32_t index) {
@@ -455,21 +483,42 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
 
   Handle<Object> entry(entries->get(entry_index), isolate);
 
-  // First we handle the easy externref and exnref table case.
-  if (table->type().is_reference_to(wasm::HeapType::kExtern) ||
-      table->type().is_reference_to(wasm::HeapType::kExn)) {
-    return entry;
-  }
-
-  // Now we handle the funcref case.
-  if (WasmExportedFunction::IsWasmExportedFunction(*entry) ||
-      WasmJSFunction::IsWasmJSFunction(*entry) ||
-      WasmCapiFunction::IsWasmCapiFunction(*entry)) {
-    return entry;
-  }
-
   if (entry->IsNull(isolate)) {
     return entry;
+  }
+
+  switch (table->type().heap_representation()) {
+    case wasm::HeapType::kExtern:
+    case wasm::HeapType::kExn:
+      return entry;
+    case wasm::HeapType::kFunc:
+      if (WasmExportedFunction::IsWasmExportedFunction(*entry) ||
+          WasmJSFunction::IsWasmJSFunction(*entry) ||
+          WasmCapiFunction::IsWasmCapiFunction(*entry)) {
+        return entry;
+      }
+      break;
+    case wasm::HeapType::kEq:
+    case wasm::HeapType::kI31:
+      // TODO(7748): Implement once we have a story for struct/arrays/i31ref in
+      // JS.
+      UNIMPLEMENTED();
+    case wasm::HeapType::kBottom:
+      UNREACHABLE();
+    default:
+      DCHECK(!table->instance().IsUndefined());
+      if (WasmInstanceObject::cast(table->instance())
+              .module()
+              ->has_signature(entry_index)) {
+        if (WasmExportedFunction::IsWasmExportedFunction(*entry) ||
+            WasmJSFunction::IsWasmJSFunction(*entry) ||
+            WasmCapiFunction::IsWasmCapiFunction(*entry)) {
+          return entry;
+        }
+        break;
+      }
+      // TODO(7748): Implement once we have a story for struct/arrays in JS.
+      UNIMPLEMENTED();
   }
 
   // {entry} is not a valid entry in the table. It has to be a placeholder
@@ -632,10 +681,11 @@ void WasmTableObject::SetFunctionTablePlaceholder(
 }
 
 void WasmTableObject::GetFunctionTableEntry(
-    Isolate* isolate, Handle<WasmTableObject> table, int entry_index,
-    bool* is_valid, bool* is_null, MaybeHandle<WasmInstanceObject>* instance,
-    int* function_index, MaybeHandle<WasmJSFunction>* maybe_js_function) {
-  DCHECK(table->type().is_reference_to(wasm::HeapType::kFunc));
+    Isolate* isolate, const WasmModule* module, Handle<WasmTableObject> table,
+    int entry_index, bool* is_valid, bool* is_null,
+    MaybeHandle<WasmInstanceObject>* instance, int* function_index,
+    MaybeHandle<WasmJSFunction>* maybe_js_function) {
+  DCHECK(wasm::IsSubtypeOf(table->type(), wasm::kWasmFuncRef, module));
   DCHECK_LT(entry_index, table->current_length());
   // We initialize {is_valid} with {true}. We may change it later.
   *is_valid = true;

@@ -271,9 +271,16 @@ class V8_EXPORT_PRIVATE WasmTableObject : public JSObject {
   // through the out parameters {is_valid}, {is_null}, {instance},
   // {function_index}, and {maybe_js_function}.
   static void GetFunctionTableEntry(
-      Isolate* isolate, Handle<WasmTableObject> table, int entry_index,
-      bool* is_valid, bool* is_null, MaybeHandle<WasmInstanceObject>* instance,
+      Isolate* isolate, const wasm::WasmModule* module,
+      Handle<WasmTableObject> table, int entry_index, bool* is_valid,
+      bool* is_null, MaybeHandle<WasmInstanceObject>* instance,
       int* function_index, MaybeHandle<WasmJSFunction>* maybe_js_function);
+
+ private:
+  static void SetFunctionTableEntry(Isolate* isolate,
+                                    Handle<WasmTableObject> table,
+                                    Handle<FixedArray> entries, int entry_index,
+                                    Handle<Object> entry);
 
   OBJECT_CONSTRUCTORS(WasmTableObject, JSObject);
 };

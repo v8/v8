@@ -1827,6 +1827,56 @@ TEST_F(WasmModuleVerifyTest, MultipleTablesWithFlag) {
   EXPECT_EQ(kWasmExternRef, result.value()->tables[1].type);
 }
 
+TEST_F(WasmModuleVerifyTest, TypedFunctionTable) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+
+  static const byte data[] = {
+      SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_x(kLocalI32)),
+      SECTION(Table,            // table section
+              ENTRY_COUNT(1),   // 1 table
+              kLocalOptRef, 0,  // table 0: type
+              0, 10)};          // table 0: limits
+
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_OK(result);
+  EXPECT_EQ(ValueType::Ref(0, kNullable), result.value()->tables[0].type);
+}
+
+TEST_F(WasmModuleVerifyTest, IllegalTableTypes) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+
+  using Vec = std::vector<byte>;
+
+  static Vec table_types[] = {{kLocalOptRef, 0},
+                              {kLocalOptRef, 1},
+                              {kLocalOptRef, kLocalI31Ref},
+                              {kLocalI31Ref},
+                              {kLocalRtt, 2, kLocalFuncRef}};
+
+  for (Vec type : table_types) {
+    Vec data = {
+        SECTION(Type, ENTRY_COUNT(2),
+                WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kLocalI32, true)),
+                WASM_ARRAY_DEF(kLocalI32, true)),
+        kTableSectionCode, static_cast<byte>(type.size() + 3), byte{1}};
+    // Last elements are section size and entry count
+
+    // Add table type
+    data.insert(data.end(), type.begin(), type.end());
+    // Add table limits
+    data.insert(data.end(), {byte{0}, byte{10}});
+
+    auto result = DecodeModule(data.data(), data.data() + data.size());
+
+    EXPECT_NOT_OK(result,
+                  "Currently, only nullable exnref, externref, and "
+                  "function references are allowed as table types");
+  }
+}
+
 TEST_F(WasmModuleVerifyTest, TieringCompilationHints) {
   WASM_FEATURE_SCOPE(compilation_hints);
   static const byte data[] = {

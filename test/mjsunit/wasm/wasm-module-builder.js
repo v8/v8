@@ -105,7 +105,9 @@ let kWasmExternRef = 0x6f;
 function wasmOptRefType(index) { return {opcode: 0x6c, index: index}; }
 function wasmRefType(index) { return {opcode: 0x6b, index: index}; }
 let kWasmI31Ref = 0x6a;
-function wasmRtt(index, depth) { return {opcode: 0x69, index: index, depth: depth}; }
+function wasmRtt(index, depth) {
+  return {opcode: 0x69, index: index, depth: depth};
+}
 let kWasmExnRef = 0x68;
 
 let kExternalFunction = 0;
@@ -1077,8 +1079,10 @@ class WasmModuleBuilder {
   }
 
   addExportOfKind(name, kind, index) {
-    if (index == undefined && kind != kExternalTable && kind != kExternalMemory) {
-      throw new Error('Index for exports other than tables/memories must be provided');
+    if (index == undefined && kind != kExternalTable &&
+        kind != kExternalMemory) {
+      throw new Error(
+        'Index for exports other than tables/memories must be provided');
     }
     if (index !== undefined && (typeof index) != 'number') {
       throw new Error('Index for exports must be a number')
