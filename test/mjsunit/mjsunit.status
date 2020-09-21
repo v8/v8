@@ -861,6 +861,13 @@
 }],  # 'isolates'
 
 ##############################################################################
+['deopt_fuzzer or gc_fuzzer', {
+  # https://crbug.com/v8/10942
+  'ensure-growing-store-learns': [SKIP],
+  'random-bit-correlations': [SKIP],
+}],  # 'deopt_fuzzer or gc_fuzzer'
+
+##############################################################################
 ['deopt_fuzzer', {
 
   # Skip tests that are not suitable for deoptimization fuzzing.
