@@ -114,6 +114,11 @@ class JSFunction : public JSFunctionOrBoundFunction {
   bool ActiveTierIsTurbofan() const;
   bool ActiveTierIsNCI() const;
 
+  // Similar to SharedFunctionInfo::CanDiscardCompiled. Returns true, if the
+  // attached code can be recreated at a later point by replacing it with
+  // CompileLazy.
+  bool CanDiscardCompiled() const;
+
   // Tells whether or not this function checks its optimization marker in its
   // feedback vector.
   bool ChecksOptimizationMarker();

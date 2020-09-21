@@ -145,6 +145,21 @@ bool JSFunction::ActiveTierIsNCI() const {
   return result;
 }
 
+bool JSFunction::CanDiscardCompiled() const {
+  // Essentially, what we are asking here is, has this function been compiled
+  // from JS code? We can currently tell only indirectly, by looking at
+  // available code kinds. If any JS code kind exists, we can discard.
+  //
+  // Attached optimized code that is marked for deoptimization will not show up
+  // in the list of available code kinds, thus we must check for it manually.
+  //
+  // Note that when the function has not yet been compiled we also return
+  // false; that's fine, since nothing must be discarded in that case.
+  if (code().kind() == CodeKind::OPTIMIZED_FUNCTION) return true;
+  CodeKinds result = GetAvailableCodeKinds();
+  return (result & kJSFunctionCodeKindsMask) != 0;
+}
+
 bool JSFunction::HasOptimizationMarker() {
   return has_feedback_vector() && feedback_vector().has_optimization_marker();
 }
