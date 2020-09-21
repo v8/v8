@@ -4,8 +4,7 @@
 
 // Platform-specific code for Starboard goes here. Starboard is the platform
 // abstraction layer for Cobalt, an HTML5 container used mainly by YouTube
-// LivingRoom products. Starboard was ported to platforms like PlayStations,
-// AndroidTV, AppleTV, Samsung smart TVs and so on.
+// apps in the livingroom.
 
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
