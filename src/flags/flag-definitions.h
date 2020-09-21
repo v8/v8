@@ -276,6 +276,7 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
   V(harmony_namespace_exports,                                            \
     "harmony namespace exports (export * as foo from 'bar')")             \
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")               \
+  V(harmony_atomics, "harmony atomics")                                   \
   V(harmony_import_meta, "harmony import.meta property")                  \
   V(harmony_dynamic_import, "harmony dynamic import")                     \
   V(harmony_promise_all_settled, "harmony Promise.allSettled")            \
