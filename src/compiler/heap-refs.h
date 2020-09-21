@@ -891,8 +891,6 @@ class CellRef : public HeapObjectRef {
   DEFINE_REF_CONSTRUCTOR(Cell, HeapObjectRef)
 
   Handle<Cell> object() const;
-
-  ObjectRef value() const;
 };
 
 class JSGlobalObjectRef : public JSObjectRef {
