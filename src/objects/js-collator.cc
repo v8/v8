@@ -542,12 +542,12 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
       Managed<icu::Collator>::FromUniquePtr(isolate, 0,
                                             std::move(icu_collator));
 
-  // Now all properties are ready, so we can allocate the result object.
-  Handle<JSCollator> collator = Handle<JSCollator>::cast(
-      isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
   // We only need to do so if it is different from the collator would return.
   Handle<String> locale_str = isolate->factory()->NewStringFromAsciiChecked(
       (collator_locale != icu_locale) ? r.locale.c_str() : "");
+  // Now all properties are ready, so we can allocate the result object.
+  Handle<JSCollator> collator = Handle<JSCollator>::cast(
+      isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
   DisallowHeapAllocation no_gc;
   collator->set_icu_collator(*managed_collator);
   collator->set_locale(*locale_str);
