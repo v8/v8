@@ -62,7 +62,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
   "turboprop": ["--turbo-inlining", "--interrupt-budget=*", "--no-turboprop"],
   "code_serializer": ["--cache=after-execute", "--cache=full-code-cache", "--cache=none"],
   "no_local_heaps": ["--concurrent-inlining", "--turboprop"],
-  "experimental_regexp": ["-no--enable-experimental-regexp-engine"],
+  "experimental_regexp": ["--no-enable-experimental-regexp-engine"],
 }
 
 # Flags that lead to a contradiction under certain build variables.
