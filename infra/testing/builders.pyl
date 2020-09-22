@@ -1274,6 +1274,7 @@
     },
     'tests': [
       {'name': 'd8testing'},
+      {'name': 'd8testing', 'variant': 'extra'},
     ],
   },
   'V8 Mac - arm64 - sim - debug': {
