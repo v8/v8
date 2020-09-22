@@ -6226,14 +6226,26 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     }
   }
 
+  Node* SmiToFloat32(Node* input) {
+    return graph()->NewNode(mcgraph()->machine()->RoundInt32ToFloat32(),
+                            BuildChangeSmiToInt32(input));
+  }
+
+  Node* SmiToFloat64(Node* input) {
+    return graph()->NewNode(mcgraph()->machine()->ChangeInt32ToFloat64(),
+                            BuildChangeSmiToInt32(input));
+  }
+
   Node* FromJSFast(Node* input, wasm::ValueType type) {
     switch (type.kind()) {
       case wasm::ValueType::kI32:
         return BuildChangeSmiToInt32(input);
+      case wasm::ValueType::kF32:
+        return SmiToFloat32(input);
+      case wasm::ValueType::kF64:
+        return SmiToFloat64(input);
       case wasm::ValueType::kRef:
       case wasm::ValueType::kOptRef:
-      case wasm::ValueType::kF32:
-      case wasm::ValueType::kF64:
       case wasm::ValueType::kI64:
       case wasm::ValueType::kRtt:
       case wasm::ValueType::kS128:
@@ -6379,8 +6391,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       switch (type.kind()) {
         case wasm::ValueType::kRef:
         case wasm::ValueType::kOptRef:
-        case wasm::ValueType::kF32:
-        case wasm::ValueType::kF64:
         case wasm::ValueType::kI64:
         case wasm::ValueType::kRtt:
         case wasm::ValueType::kS128:
@@ -6390,25 +6400,29 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         case wasm::ValueType::kStmt:
           return false;
         case wasm::ValueType::kI32:
+        case wasm::ValueType::kF32:
+        case wasm::ValueType::kF64:
           break;
       }
     }
     return true;
   }
 
+  Node* IsSmi(Node* input) {
+    return gasm_->Word32Equal(
+        gasm_->Word32And(BuildTruncateIntPtrToInt32(input),
+                         gasm_->Int32Constant(kSmiTagMask)),
+        gasm_->Int32Constant(0));
+  }
+
   Node* CanTransformFast(Node* input, wasm::ValueType type) {
     switch (type.kind()) {
-      case wasm::ValueType::kI32: {
-        Node* is_smi = gasm_->Word32Equal(
-            gasm_->Word32And(BuildTruncateIntPtrToInt32(input),
-                             gasm_->Int32Constant(kSmiTagMask)),
-            gasm_->Int32Constant(0));
-        return is_smi;
-      }
+      case wasm::ValueType::kI32:
+      case wasm::ValueType::kF64:
+      case wasm::ValueType::kF32:
+        return IsSmi(input);
       case wasm::ValueType::kRef:
       case wasm::ValueType::kOptRef:
-      case wasm::ValueType::kF32:
-      case wasm::ValueType::kF64:
       case wasm::ValueType::kI64:
       case wasm::ValueType::kRtt:
       case wasm::ValueType::kS128:
