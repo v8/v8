@@ -41,6 +41,10 @@
   ##############################################################################
   # Open bugs.
 
+  # https://crbug.com/v8/10929
+  'wasm/externref-liftoff' : [SKIP],
+  'wasm/externref-globals-liftoff' : [SKIP],
+
   # BUG(v8:2989).
   'regress/regress-2989': [FAIL, NO_VARIANTS, ['lite_mode == True', SKIP]],
 
