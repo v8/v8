@@ -82,9 +82,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '407087083e399b1ca56d47bcc24f1f068211e6ed',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e78873c8c3158606162d92e0677f500ef61b220f',
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '244d77022cb2b0540668f2383d056b78ffcd4ca1',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'cc29098042868c6b833efa40c09762f8c4be326b',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '79326efe26e5440f530963704c3c0ff965b3a4ac',
   'third_party/instrumented_libraries':
@@ -233,7 +233,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'LUFkW5GTwXItfKWgJt7kkk1hEf35ZueIbx73KwUN5K0C'
+              'version': 'zVhDYckO5pABaht9PlF8y1S_JicWTnMzwymJyNabQj4C'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
@@ -250,7 +250,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '92b362238013c401926b8a45b0b8f0a42d506120',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '7c1d1f3dc51ccc3d3b57d9e8fa1e40bacb63d179',
   'tools/luci-go': {
       'packages': [
         {
