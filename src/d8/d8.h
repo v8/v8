@@ -260,7 +260,6 @@ class PerIsolateData {
   void AddUnhandledPromise(Local<Promise> promise, Local<Message> message,
                            Local<Value> exception);
   int HandleUnhandledPromiseRejections();
-  size_t GetUnhandledPromiseCount();
 
  private:
   friend class Shell;
@@ -273,6 +272,7 @@ class PerIsolateData {
   Global<Value> realm_shared_;
   std::queue<Global<Function>> set_timeout_callbacks_;
   std::queue<Global<Context>> set_timeout_contexts_;
+  bool ignore_unhandled_promises_;
   std::vector<std::tuple<Global<Promise>, Global<Message>, Global<Value>>>
       unhandled_promises_;
   AsyncHooks* async_hooks_wrapper_;

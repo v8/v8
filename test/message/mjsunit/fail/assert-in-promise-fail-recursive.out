@@ -8,11 +8,4 @@ Error: WebAssembly.compile(): Argument 0 must be a buffer source
     at console.log (<anonymous>)
     at *%(basename)s:12:9
 
-*%(basename)s:9: Error: WebAssembly.compile(): Argument 0 must be a buffer source
-  WebAssembly.compile();
-              ^
-Error: WebAssembly.compile(): Argument 0 must be a buffer source
-    at TypeError.name (*%(basename)s:9:15)
-    at TypeError.toString (<anonymous>)
-
-2 pending unhandled Promise rejection(s) detected.
+1 pending unhandled Promise rejection(s) detected.

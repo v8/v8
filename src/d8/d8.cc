@@ -1142,6 +1142,7 @@ PerIsolateData::PerIsolateData(Isolate* isolate)
   if (i::FLAG_expose_async_hooks) {
     async_hooks_wrapper_ = new AsyncHooks(isolate);
   }
+  ignore_unhandled_promises_ = false;
 }
 
 PerIsolateData::~PerIsolateData() {
@@ -1172,6 +1173,7 @@ MaybeLocal<Context> PerIsolateData::GetTimeoutContext() {
 }
 
 void PerIsolateData::RemoveUnhandledPromise(Local<Promise> promise) {
+  if (ignore_unhandled_promises_) return;
   // Remove handled promises from the list
   DCHECK_EQ(promise->GetIsolate(), isolate_);
   for (auto it = unhandled_promises_.begin(); it != unhandled_promises_.end();
@@ -1186,17 +1188,17 @@ void PerIsolateData::RemoveUnhandledPromise(Local<Promise> promise) {
 void PerIsolateData::AddUnhandledPromise(Local<Promise> promise,
                                          Local<Message> message,
                                          Local<Value> exception) {
+  if (ignore_unhandled_promises_) return;
   DCHECK_EQ(promise->GetIsolate(), isolate_);
   unhandled_promises_.emplace_back(v8::Global<v8::Promise>(isolate_, promise),
                                    v8::Global<v8::Message>(isolate_, message),
                                    v8::Global<v8::Value>(isolate_, exception));
 }
 
-size_t PerIsolateData::GetUnhandledPromiseCount() {
-  return unhandled_promises_.size();
-}
-
 int PerIsolateData::HandleUnhandledPromiseRejections() {
+  // Avoid recursive calls to HandleUnhandledPromiseRejections.
+  if (ignore_unhandled_promises_) return 0;
+  ignore_unhandled_promises_ = true;
   v8::HandleScope scope(isolate_);
   // Ignore promises that get added during error reporting.
   size_t i = 0;
