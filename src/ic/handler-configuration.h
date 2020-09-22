@@ -159,7 +159,6 @@ class LoadHandler final : public DataHandler {
 
   // Creates a data handler that represents a prototype chain check followed
   // by given Smi-handler that encoded a load from the holder.
-  // Can be used only if GetPrototypeCheckCount() returns non negative value.
   static Handle<Object> LoadFromPrototype(
       Isolate* isolate, Handle<Map> receiver_map, Handle<JSReceiver> holder,
       Handle<Smi> smi_handler,

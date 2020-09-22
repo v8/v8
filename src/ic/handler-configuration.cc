@@ -93,8 +93,6 @@ int InitPrototypeChecksImpl(Isolate* isolate, Handle<ICHandler> handler,
 // prototype chain from |lookup_start_object_map| till |holder| did not change.
 // If the |holder| is an empty handle then the full prototype chain is
 // checked.
-// Returns -1 if the handler has to be compiled or the number of prototype
-// checks otherwise.
 template <typename ICHandler>
 int GetHandlerDataSize(Isolate* isolate, Handle<Smi>* smi_handler,
                        Handle<Map> lookup_start_object_map,
