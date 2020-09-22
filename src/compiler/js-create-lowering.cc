@@ -28,7 +28,7 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/template-objects.h"
-#include "torque-generated/exported-class-definitions.h"
+#include "torque-generated/exported-class-definitions-tq.h"
 
 namespace v8 {
 namespace internal {

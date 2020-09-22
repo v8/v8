@@ -8,7 +8,7 @@
 #include "builtins-generated/bytecodes-builtins-list.h"
 
 // include generated header
-#include "torque-generated/builtin-definitions.h"
+#include "torque-generated/builtin-definitions-tq.h"
 
 namespace v8 {
 namespace internal {

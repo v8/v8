@@ -21,9 +21,9 @@
 #include "src/objects/synthetic-module.h"
 #include "src/objects/transitions.h"
 #include "src/wasm/wasm-objects-inl.h"
-#include "torque-generated/class-definitions-inl.h"
-#include "torque-generated/exported-class-definitions-inl.h"
-#include "torque-generated/internal-class-definitions-inl.h"
+#include "torque-generated/class-definitions-tq-inl.h"
+#include "torque-generated/exported-class-definitions-tq-inl.h"
+#include "torque-generated/internal-class-definitions-tq-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -1179,7 +1179,7 @@ class EphemeronHashTable::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-#include "torque-generated/objects-body-descriptors-inl.inc"
+#include "torque-generated/objects-body-descriptors-tq-inl.inc"
 
 }  // namespace internal
 }  // namespace v8

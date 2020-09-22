@@ -126,9 +126,9 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/zone/zone.h"
-#include "torque-generated/class-definitions-inl.h"
-#include "torque-generated/exported-class-definitions-inl.h"
-#include "torque-generated/internal-class-definitions-inl.h"
+#include "torque-generated/class-definitions-tq-inl.h"
+#include "torque-generated/exported-class-definitions-tq-inl.h"
+#include "torque-generated/internal-class-definitions-tq-inl.h"
 
 namespace v8 {
 namespace internal {

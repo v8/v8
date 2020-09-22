@@ -71,9 +71,9 @@
 #include "src/regexp/regexp.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/wasm-objects-inl.h"
-#include "torque-generated/class-verifiers.h"
-#include "torque-generated/exported-class-definitions-inl.h"
-#include "torque-generated/internal-class-definitions-inl.h"
+#include "torque-generated/class-verifiers-tq.h"
+#include "torque-generated/exported-class-definitions-tq-inl.h"
+#include "torque-generated/internal-class-definitions-tq-inl.h"
 
 namespace v8 {
 namespace internal {

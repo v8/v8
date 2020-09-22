@@ -6,7 +6,8 @@
 #define V8_OBJECTS_OBJECTS_DEFINITIONS_H_
 
 #include "src/init/heap-symbols.h"
-#include "torque-generated/instance-types.h"
+
+#include "torque-generated/instance-types-tq.h"
 
 namespace v8 {
 

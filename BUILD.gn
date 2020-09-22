@@ -1039,7 +1039,7 @@ action("postmortem-metadata") {
 
   # NOSORT
   sources = [
-    "$target_gen_dir/torque-generated/instance-types.h",
+    "$target_gen_dir/torque-generated/instance-types-tq.h",
     "src/objects/allocation-site.h",
     "src/objects/allocation-site-inl.h",
     "src/objects/cell.h",
@@ -1318,37 +1318,35 @@ template("run_torque") {
     destination_folder = "$target_gen_dir/torque-generated$suffix"
 
     files = [
-      "$target_gen_dir/torque-generated/bit-fields.h",
-      "$target_gen_dir/torque-generated/builtin-definitions.h",
-      "$target_gen_dir/torque-generated/interface-descriptors.inc",
-      "$target_gen_dir/torque-generated/factory.cc",
-      "$target_gen_dir/torque-generated/factory.inc",
-      "$target_gen_dir/torque-generated/field-offsets.h",
-      "$target_gen_dir/torque-generated/class-verifiers.cc",
-      "$target_gen_dir/torque-generated/class-verifiers.h",
-      "$target_gen_dir/torque-generated/enum-verifiers.cc",
-      "$target_gen_dir/torque-generated/objects-printer.cc",
-      "$target_gen_dir/torque-generated/objects-body-descriptors-inl.inc",
-      "$target_gen_dir/torque-generated/class-definitions.cc",
-      "$target_gen_dir/torque-generated/class-definitions-inl.h",
-      "$target_gen_dir/torque-generated/class-definitions.h",
-      "$target_gen_dir/torque-generated/class-debug-readers.cc",
-      "$target_gen_dir/torque-generated/class-debug-readers.h",
-      "$target_gen_dir/torque-generated/exported-macros-assembler.cc",
-      "$target_gen_dir/torque-generated/exported-macros-assembler.h",
-      "$target_gen_dir/torque-generated/csa-types.h",
-      "$target_gen_dir/torque-generated/instance-types.h",
-      "$target_gen_dir/torque-generated/internal-class-definitions.h",
-      "$target_gen_dir/torque-generated/internal-class-definitions-inl.h",
-      "$target_gen_dir/torque-generated/exported-class-definitions.h",
-      "$target_gen_dir/torque-generated/exported-class-definitions-inl.h",
+      "bit-fields-tq.h",
+      "builtin-definitions-tq.h",
+      "interface-descriptors-tq.inc",
+      "factory-tq.cc",
+      "factory-tq.inc",
+      "field-offsets-tq.h",
+      "class-verifiers-tq.cc",
+      "class-verifiers-tq.h",
+      "enum-verifiers-tq.cc",
+      "objects-printer-tq.cc",
+      "objects-body-descriptors-tq-inl.inc",
+      "class-definitions-tq.cc",
+      "class-definitions-tq-inl.h",
+      "class-definitions-tq.h",
+      "class-debug-readers-tq.cc",
+      "class-debug-readers-tq.h",
+      "exported-macros-assembler-tq.cc",
+      "exported-macros-assembler-tq.h",
+      "csa-types-tq.h",
+      "instance-types-tq.h",
+      "internal-class-definitions-tq.h",
+      "internal-class-definitions-tq-inl.h",
+      "exported-class-definitions-tq.h",
+      "exported-class-definitions-tq-inl.h",
     ]
 
     outputs = []
     foreach(file, files) {
-      outputs += [ string_replace(file,
-                                  "$target_gen_dir/torque-generated",
-                                  destination_folder) ]
+      outputs += [ "$destination_folder/$file" ]
     }
 
     foreach(file, torque_files) {
@@ -1424,10 +1422,10 @@ v8_source_set("torque_generated_initializers") {
   public_deps = [ ":v8_maybe_icu" ]
 
   sources = [
-    "$target_gen_dir/torque-generated/csa-types.h",
-    "$target_gen_dir/torque-generated/enum-verifiers.cc",
-    "$target_gen_dir/torque-generated/exported-macros-assembler.cc",
-    "$target_gen_dir/torque-generated/exported-macros-assembler.h",
+    "$target_gen_dir/torque-generated/csa-types-tq.h",
+    "$target_gen_dir/torque-generated/enum-verifiers-tq.cc",
+    "$target_gen_dir/torque-generated/exported-macros-assembler-tq.cc",
+    "$target_gen_dir/torque-generated/exported-macros-assembler-tq.h",
     "src/torque/runtime-support.h",
   ]
   foreach(file, torque_files) {
@@ -1453,11 +1451,11 @@ v8_source_set("torque_generated_definitions") {
   public_deps = [ ":v8_maybe_icu" ]
 
   sources = [
-    "$target_gen_dir/torque-generated/class-definitions.cc",
-    "$target_gen_dir/torque-generated/class-verifiers.cc",
-    "$target_gen_dir/torque-generated/class-verifiers.h",
-    "$target_gen_dir/torque-generated/factory.cc",
-    "$target_gen_dir/torque-generated/objects-printer.cc",
+    "$target_gen_dir/torque-generated/class-definitions-tq.cc",
+    "$target_gen_dir/torque-generated/class-verifiers-tq.cc",
+    "$target_gen_dir/torque-generated/class-verifiers-tq.h",
+    "$target_gen_dir/torque-generated/factory-tq.cc",
+    "$target_gen_dir/torque-generated/objects-printer-tq.cc",
   ]
 
   configs = [ ":internal_config" ]

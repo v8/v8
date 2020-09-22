@@ -9,7 +9,7 @@
 #include "src/objects/map.h"
 #include "src/objects/objects.h"
 #include "src/objects/visitors.h"
-#include "torque-generated/field-offsets.h"
+#include "torque-generated/field-offsets-tq.h"
 
 namespace v8 {
 namespace internal {
