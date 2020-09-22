@@ -27,16 +27,20 @@ Handle<Smi> SetBitFieldValue(Isolate* isolate, Handle<Smi> smi_handler,
 // Load/StoreHandler to the base class.
 template <typename ICHandler, bool fill_handler = true>
 int InitPrototypeChecksImpl(Isolate* isolate, Handle<ICHandler> handler,
-                            Handle<Smi>* smi_handler, Handle<Map> receiver_map,
+                            Handle<Smi>* smi_handler,
+                            Handle<Map> lookup_start_object_map,
                             Handle<JSReceiver> holder, MaybeObjectHandle data1,
                             MaybeObjectHandle maybe_data2) {
   int data_size = 1;
   // Holder-is-receiver case itself does not add entries unless there is an
   // optional data2 value provided.
 
-  if (receiver_map->IsPrimitiveMap() ||
-      receiver_map->is_access_check_needed()) {
-    DCHECK(!receiver_map->IsJSGlobalObjectMap());
+  DCHECK_IMPLIES(lookup_start_object_map->IsJSGlobalObjectMap(),
+                 lookup_start_object_map->is_prototype_map());
+
+  if (lookup_start_object_map->IsPrimitiveMap() ||
+      lookup_start_object_map->is_access_check_needed()) {
+    DCHECK(!lookup_start_object_map->IsJSGlobalObjectMap());
     // The validity cell check for primitive and global proxy receivers does
     // not guarantee that certain native context ever had access to other
     // native context. However, a handler created for one native context could
@@ -47,17 +51,23 @@ int InitPrototypeChecksImpl(Isolate* isolate, Handle<ICHandler> handler,
       Handle<Context> native_context = isolate->native_context();
       handler->set_data2(HeapObjectReference::Weak(*native_context));
     } else {
-      // Enable access checks on receiver.
-      using Bit = typename ICHandler::DoAccessCheckOnReceiverBits;
-      *smi_handler = SetBitFieldValue<Bit>(isolate, *smi_handler, true);
+      // Enable access checks on the lookup start object.
+      *smi_handler = SetBitFieldValue<
+          typename ICHandler::DoAccessCheckOnLookupStartObjectBits>(
+          isolate, *smi_handler, true);
     }
     data_size++;
-  } else if (receiver_map->is_dictionary_map() &&
-             !receiver_map->IsJSGlobalObjectMap()) {
+  } else if (lookup_start_object_map->is_dictionary_map() &&
+             !lookup_start_object_map->is_prototype_map()) {
     if (!fill_handler) {
-      // Enable lookup on receiver.
-      using Bit = typename ICHandler::LookupOnReceiverBits;
-      *smi_handler = SetBitFieldValue<Bit>(isolate, *smi_handler, true);
+      // The lookup on lookup start object is only required for dictionary mode
+      // objects which are not prototypes. When we start lookup from a prototype
+      // object, the prototype validity cell guards modifications of the lookup
+      // start object. This includes both Load/StoreGlobalIC and
+      // Load/StoreSuperIC cases.
+      *smi_handler =
+          SetBitFieldValue<typename ICHandler::LookupOnLookupStartObjectBits>(
+              isolate, *smi_handler, true);
     }
   }
   if (fill_handler) {
@@ -80,40 +90,39 @@ int InitPrototypeChecksImpl(Isolate* isolate, Handle<ICHandler> handler,
 }
 
 // Returns 0 if the validity cell check is enough to ensure that the
-// prototype chain from |receiver_map| till |holder| did not change.
+// prototype chain from |lookup_start_object_map| till |holder| did not change.
 // If the |holder| is an empty handle then the full prototype chain is
 // checked.
 // Returns -1 if the handler has to be compiled or the number of prototype
 // checks otherwise.
 template <typename ICHandler>
 int GetHandlerDataSize(Isolate* isolate, Handle<Smi>* smi_handler,
-                       Handle<Map> receiver_map, Handle<JSReceiver> holder,
-                       MaybeObjectHandle data1,
+                       Handle<Map> lookup_start_object_map,
+                       Handle<JSReceiver> holder, MaybeObjectHandle data1,
                        MaybeObjectHandle maybe_data2 = MaybeObjectHandle()) {
   DCHECK_NOT_NULL(smi_handler);
-  return InitPrototypeChecksImpl<ICHandler, false>(isolate, Handle<ICHandler>(),
-                                                   smi_handler, receiver_map,
-                                                   holder, data1, maybe_data2);
+  return InitPrototypeChecksImpl<ICHandler, false>(
+      isolate, Handle<ICHandler>(), smi_handler, lookup_start_object_map,
+      holder, data1, maybe_data2);
 }
 
 template <typename ICHandler>
 void InitPrototypeChecks(Isolate* isolate, Handle<ICHandler> handler,
-                         Handle<Map> receiver_map, Handle<JSReceiver> holder,
-                         MaybeObjectHandle data1,
+                         Handle<Map> lookup_start_object_map,
+                         Handle<JSReceiver> holder, MaybeObjectHandle data1,
                          MaybeObjectHandle maybe_data2 = MaybeObjectHandle()) {
-  InitPrototypeChecksImpl<ICHandler, true>(
-      isolate, handler, nullptr, receiver_map, holder, data1, maybe_data2);
+  InitPrototypeChecksImpl<ICHandler, true>(isolate, handler, nullptr,
+                                           lookup_start_object_map, holder,
+                                           data1, maybe_data2);
 }
 
 }  // namespace
 
 // static
-Handle<Object> LoadHandler::LoadFromPrototype(Isolate* isolate,
-                                              Handle<Map> receiver_map,
-                                              Handle<JSReceiver> holder,
-                                              Handle<Smi> smi_handler,
-                                              MaybeObjectHandle maybe_data1,
-                                              MaybeObjectHandle maybe_data2) {
+Handle<Object> LoadHandler::LoadFromPrototype(
+    Isolate* isolate, Handle<Map> lookup_start_object_map,
+    Handle<JSReceiver> holder, Handle<Smi> smi_handler,
+    MaybeObjectHandle maybe_data1, MaybeObjectHandle maybe_data2) {
   MaybeObjectHandle data1;
   if (maybe_data1.is_null()) {
     data1 = MaybeObjectHandle::Weak(holder);
@@ -121,44 +130,48 @@ Handle<Object> LoadHandler::LoadFromPrototype(Isolate* isolate,
     data1 = maybe_data1;
   }
 
-  int data_size = GetHandlerDataSize<LoadHandler>(
-      isolate, &smi_handler, receiver_map, holder, data1, maybe_data2);
+  int data_size = GetHandlerDataSize<LoadHandler>(isolate, &smi_handler,
+                                                  lookup_start_object_map,
+                                                  holder, data1, maybe_data2);
 
-  Handle<Object> validity_cell =
-      Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
+  Handle<Object> validity_cell = Map::GetOrCreatePrototypeChainValidityCell(
+      lookup_start_object_map, isolate);
 
   Handle<LoadHandler> handler = isolate->factory()->NewLoadHandler(data_size);
 
   handler->set_smi_handler(*smi_handler);
   handler->set_validity_cell(*validity_cell);
-  InitPrototypeChecks(isolate, handler, receiver_map, holder, data1,
+  InitPrototypeChecks(isolate, handler, lookup_start_object_map, holder, data1,
                       maybe_data2);
   return handler;
 }
 
 // static
 Handle<Object> LoadHandler::LoadFullChain(Isolate* isolate,
-                                          Handle<Map> receiver_map,
+                                          Handle<Map> lookup_start_object_map,
                                           const MaybeObjectHandle& holder,
                                           Handle<Smi> smi_handler) {
   Handle<JSReceiver> end;  // null handle, means full prototype chain lookup.
   MaybeObjectHandle data1 = holder;
-  int data_size = GetHandlerDataSize<LoadHandler>(isolate, &smi_handler,
-                                                  receiver_map, end, data1);
+  int data_size = GetHandlerDataSize<LoadHandler>(
+      isolate, &smi_handler, lookup_start_object_map, end, data1);
 
-  Handle<Object> validity_cell =
-      Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
+  Handle<Object> validity_cell = Map::GetOrCreatePrototypeChainValidityCell(
+      lookup_start_object_map, isolate);
   if (validity_cell->IsSmi()) {
     DCHECK_EQ(1, data_size);
-    // Lookup on receiver isn't supported in case of a simple smi handler.
-    if (!LookupOnReceiverBits::decode(smi_handler->value())) return smi_handler;
+    // Lookup on lookup start object isn't supported in case of a simple smi
+    // handler.
+    if (!LookupOnLookupStartObjectBits::decode(smi_handler->value())) {
+      return smi_handler;
+    }
   }
 
   Handle<LoadHandler> handler = isolate->factory()->NewLoadHandler(data_size);
 
   handler->set_smi_handler(*smi_handler);
   handler->set_validity_cell(*validity_cell);
-  InitPrototypeChecks(isolate, handler, receiver_map, end, data1);
+  InitPrototypeChecks(isolate, handler, lookup_start_object_map, end, data1);
   return handler;
 }
 
@@ -247,7 +260,8 @@ MaybeObjectHandle StoreHandler::StoreTransition(Isolate* isolate,
     DCHECK(!transition_map->IsJSGlobalObjectMap());
     Handle<StoreHandler> handler = isolate->factory()->NewStoreHandler(0);
     // Store normal with enabled lookup on receiver.
-    int config = KindBits::encode(kNormal) | LookupOnReceiverBits::encode(true);
+    int config =
+        KindBits::encode(kNormal) | LookupOnLookupStartObjectBits::encode(true);
     handler->set_smi_handler(Smi::FromInt(config));
     handler->set_validity_cell(*validity_cell);
     return MaybeObjectHandle(handler);
