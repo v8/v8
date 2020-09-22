@@ -6458,8 +6458,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     const int args_count = wasm_count + 1;  // +1 for wasm_code.
 
     // Check whether the signature of the function allows for a fast
-    // transformation. Create a fast transformation path, only if it does.
-    bool include_fast_path = QualifiesForFastTransform(sig_);
+    // transformation (if any params exist that need transformation).
+    // Create a fast transformation path, only if it does.
+    bool include_fast_path = wasm_count && QualifiesForFastTransform(sig_);
 
     // Prepare Param() nodes. Param() nodes can only be created once,
     // so we need to use the same nodes along all possible transformation paths.
@@ -6469,15 +6470,14 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     auto done = gasm_->MakeLabel(MachineRepresentation::kTagged);
     if (include_fast_path) {
       auto slow_path = gasm_->MakeDeferredLabel();
-      // Create a condition to determine the transformation path to be used
-      // on runtime.
-      Node* use_fast_path = gasm_->Int32Constant(1);
+      // Check if the params received on runtime can be actually transformed
+      // using the fast transformation. When a param that cannot be transformed
+      // fast is encountered, skip checking the rest and fall back to the slow
+      // path.
       for (int i = 0; i < wasm_count; ++i) {
-        Node* can_transform_fast =
-            CanTransformFast(params[i + 1], sig_->GetParam(i));
-        use_fast_path = gasm_->Word32And(can_transform_fast, use_fast_path);
+        gasm_->GotoIfNot(CanTransformFast(params[i + 1], sig_->GetParam(i)),
+                         &slow_path);
       }
-      gasm_->GotoIfNot(use_fast_path, &slow_path);
       // Convert JS parameters to wasm numbers using the fast transformation
       // and build the call.
       base::SmallVector<Node*, 16> args(args_count);
