@@ -274,13 +274,13 @@ class WasmGenerator {
       case kExprI64AtomicXor:
       case kExprI64AtomicExchange:
       case kExprI64AtomicCompareExchange:
-      case kExprI16x8Load8x8S:
-      case kExprI16x8Load8x8U:
-      case kExprI32x4Load16x4S:
-      case kExprI32x4Load16x4U:
-      case kExprI64x2Load32x2S:
-      case kExprI64x2Load32x2U:
-      case kExprS64x2LoadSplat:
+      case kExprS128Load8x8S:
+      case kExprS128Load8x8U:
+      case kExprS128Load16x4S:
+      case kExprS128Load16x4U:
+      case kExprS128Load32x2S:
+      case kExprS128Load32x2U:
+      case kExprS128Load64Splat:
         return 3;
       case kExprI32LoadMem:
       case kExprI64LoadMem32S:
@@ -307,7 +307,7 @@ class WasmGenerator {
       case kExprI64AtomicXor32U:
       case kExprI64AtomicExchange32U:
       case kExprI64AtomicCompareExchange32U:
-      case kExprS32x4LoadSplat:
+      case kExprS128Load32Splat:
         return 2;
       case kExprI32LoadMem16S:
       case kExprI32LoadMem16U:
@@ -333,7 +333,7 @@ class WasmGenerator {
       case kExprI64AtomicXor16U:
       case kExprI64AtomicExchange16U:
       case kExprI64AtomicCompareExchange16U:
-      case kExprS16x8LoadSplat:
+      case kExprS128Load16Splat:
         return 1;
       case kExprI32LoadMem8S:
       case kExprI32LoadMem8U:
@@ -359,7 +359,7 @@ class WasmGenerator {
       case kExprI64AtomicXor8U:
       case kExprI64AtomicExchange8U:
       case kExprI64AtomicCompareExchange8U:
-      case kExprS8x16LoadSplat:
+      case kExprS128Load8Splat:
         return 0;
       default:
         return 0;
@@ -1537,16 +1537,16 @@ void WasmGenerator::Generate<ValueType::kS128>(DataRange* data) {
                                      ValueType::kS128>,
 
       &WasmGenerator::memop<kExprS128LoadMem>,
-      &WasmGenerator::memop<kExprI16x8Load8x8S>,
-      &WasmGenerator::memop<kExprI16x8Load8x8U>,
-      &WasmGenerator::memop<kExprI32x4Load16x4S>,
-      &WasmGenerator::memop<kExprI32x4Load16x4U>,
-      &WasmGenerator::memop<kExprI64x2Load32x2S>,
-      &WasmGenerator::memop<kExprI64x2Load32x2U>,
-      &WasmGenerator::memop<kExprS8x16LoadSplat>,
-      &WasmGenerator::memop<kExprS16x8LoadSplat>,
-      &WasmGenerator::memop<kExprS32x4LoadSplat>,
-      &WasmGenerator::memop<kExprS64x2LoadSplat>};
+      &WasmGenerator::memop<kExprS128Load8x8S>,
+      &WasmGenerator::memop<kExprS128Load8x8U>,
+      &WasmGenerator::memop<kExprS128Load16x4S>,
+      &WasmGenerator::memop<kExprS128Load16x4U>,
+      &WasmGenerator::memop<kExprS128Load32x2S>,
+      &WasmGenerator::memop<kExprS128Load32x2U>,
+      &WasmGenerator::memop<kExprS128Load8Splat>,
+      &WasmGenerator::memop<kExprS128Load16Splat>,
+      &WasmGenerator::memop<kExprS128Load32Splat>,
+      &WasmGenerator::memop<kExprS128Load64Splat>};
 
   GenerateOneOf(alternatives, data);
 }

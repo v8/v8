@@ -2631,43 +2631,43 @@ class WasmInterpreterInternals {
         QFM_CASE(F64x2Qfma, f64x2, float2, 2, +)
         QFM_CASE(F64x2Qfms, f64x2, float2, 2, -)
 #undef QFM_CASE
-      case kExprS8x16LoadSplat: {
+      case kExprS128Load8Splat: {
         return DoSimdLoadSplat<int16, int32_t, int8_t>(
             decoder, code, pc, len, MachineRepresentation::kWord8);
       }
-      case kExprS16x8LoadSplat: {
+      case kExprS128Load16Splat: {
         return DoSimdLoadSplat<int8, int32_t, int16_t>(
             decoder, code, pc, len, MachineRepresentation::kWord16);
       }
-      case kExprS32x4LoadSplat: {
+      case kExprS128Load32Splat: {
         return DoSimdLoadSplat<int4, int32_t, int32_t>(
             decoder, code, pc, len, MachineRepresentation::kWord32);
       }
-      case kExprS64x2LoadSplat: {
+      case kExprS128Load64Splat: {
         return DoSimdLoadSplat<int2, int64_t, int64_t>(
             decoder, code, pc, len, MachineRepresentation::kWord64);
       }
-      case kExprI16x8Load8x8S: {
+      case kExprS128Load8x8S: {
         return DoSimdLoadExtend<int8, int16_t, int8_t>(
             decoder, code, pc, len, MachineRepresentation::kWord64);
       }
-      case kExprI16x8Load8x8U: {
+      case kExprS128Load8x8U: {
         return DoSimdLoadExtend<int8, uint16_t, uint8_t>(
             decoder, code, pc, len, MachineRepresentation::kWord64);
       }
-      case kExprI32x4Load16x4S: {
+      case kExprS128Load16x4S: {
         return DoSimdLoadExtend<int4, int32_t, int16_t>(
             decoder, code, pc, len, MachineRepresentation::kWord64);
       }
-      case kExprI32x4Load16x4U: {
+      case kExprS128Load16x4U: {
         return DoSimdLoadExtend<int4, uint32_t, uint16_t>(
             decoder, code, pc, len, MachineRepresentation::kWord64);
       }
-      case kExprI64x2Load32x2S: {
+      case kExprS128Load32x2S: {
         return DoSimdLoadExtend<int2, int64_t, int32_t>(
             decoder, code, pc, len, MachineRepresentation::kWord64);
       }
-      case kExprI64x2Load32x2U: {
+      case kExprS128Load32x2U: {
         return DoSimdLoadExtend<int2, uint64_t, uint32_t>(
             decoder, code, pc, len, MachineRepresentation::kWord64);
       }

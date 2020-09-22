@@ -3400,41 +3400,41 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         return DecodeLoadTransformMem(LoadType::kI64Load,
                                       LoadTransformationKind::kZeroExtend,
                                       opcode_length);
-      case kExprS8x16LoadSplat:
+      case kExprS128Load8Splat:
         return DecodeLoadTransformMem(LoadType::kI32Load8S,
                                       LoadTransformationKind::kSplat,
                                       opcode_length);
-      case kExprS16x8LoadSplat:
+      case kExprS128Load16Splat:
         return DecodeLoadTransformMem(LoadType::kI32Load16S,
                                       LoadTransformationKind::kSplat,
                                       opcode_length);
-      case kExprS32x4LoadSplat:
+      case kExprS128Load32Splat:
         return DecodeLoadTransformMem(
             LoadType::kI32Load, LoadTransformationKind::kSplat, opcode_length);
-      case kExprS64x2LoadSplat:
+      case kExprS128Load64Splat:
         return DecodeLoadTransformMem(
             LoadType::kI64Load, LoadTransformationKind::kSplat, opcode_length);
-      case kExprI16x8Load8x8S:
+      case kExprS128Load8x8S:
         return DecodeLoadTransformMem(LoadType::kI32Load8S,
                                       LoadTransformationKind::kExtend,
                                       opcode_length);
-      case kExprI16x8Load8x8U:
+      case kExprS128Load8x8U:
         return DecodeLoadTransformMem(LoadType::kI32Load8U,
                                       LoadTransformationKind::kExtend,
                                       opcode_length);
-      case kExprI32x4Load16x4S:
+      case kExprS128Load16x4S:
         return DecodeLoadTransformMem(LoadType::kI32Load16S,
                                       LoadTransformationKind::kExtend,
                                       opcode_length);
-      case kExprI32x4Load16x4U:
+      case kExprS128Load16x4U:
         return DecodeLoadTransformMem(LoadType::kI32Load16U,
                                       LoadTransformationKind::kExtend,
                                       opcode_length);
-      case kExprI64x2Load32x2S:
+      case kExprS128Load32x2S:
         return DecodeLoadTransformMem(LoadType::kI64Load32S,
                                       LoadTransformationKind::kExtend,
                                       opcode_length);
-      case kExprI64x2Load32x2U:
+      case kExprS128Load32x2U:
         return DecodeLoadTransformMem(LoadType::kI64Load32U,
                                       LoadTransformationKind::kExtend,
                                       opcode_length);

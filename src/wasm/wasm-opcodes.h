@@ -277,16 +277,16 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmModule* module,
 
 #define FOREACH_SIMD_MEM_OPCODE(V) \
   V(S128LoadMem, 0xfd00, s_i)      \
-  V(I16x8Load8x8S, 0xfd01, s_i)    \
-  V(I16x8Load8x8U, 0xfd02, s_i)    \
-  V(I32x4Load16x4S, 0xfd03, s_i)   \
-  V(I32x4Load16x4U, 0xfd04, s_i)   \
-  V(I64x2Load32x2S, 0xfd05, s_i)   \
-  V(I64x2Load32x2U, 0xfd06, s_i)   \
-  V(S8x16LoadSplat, 0xfd07, s_i)   \
-  V(S16x8LoadSplat, 0xfd08, s_i)   \
-  V(S32x4LoadSplat, 0xfd09, s_i)   \
-  V(S64x2LoadSplat, 0xfd0a, s_i)   \
+  V(S128Load8x8S, 0xfd01, s_i)     \
+  V(S128Load8x8U, 0xfd02, s_i)     \
+  V(S128Load16x4S, 0xfd03, s_i)    \
+  V(S128Load16x4U, 0xfd04, s_i)    \
+  V(S128Load32x2S, 0xfd05, s_i)    \
+  V(S128Load32x2U, 0xfd06, s_i)    \
+  V(S128Load8Splat, 0xfd07, s_i)   \
+  V(S128Load16Splat, 0xfd08, s_i)  \
+  V(S128Load32Splat, 0xfd09, s_i)  \
+  V(S128Load64Splat, 0xfd0a, s_i)  \
   V(S128StoreMem, 0xfd0b, v_is)
 
 #define FOREACH_SIMD_CONST_OPCODE(V) V(S128Const, 0xfd0c, _)

@@ -3415,7 +3415,7 @@ WASM_SIMD_TEST(SimdLoadStoreLoadMemargOffset) {
 
 // Test a multi-byte opcode with offset values that encode into valid opcodes.
 // This is to exercise decoding logic and make sure we get the lengths right.
-WASM_SIMD_TEST(S8x16LoadSplatOffset) {
+WASM_SIMD_TEST(S128Load8SplatOffset) {
   // This offset is [82, 22] when encoded, which contains valid opcodes.
   constexpr int offset = 4354;
   WasmRunner<int32_t> r(execution_tier, lower_simd);
@@ -3423,7 +3423,7 @@ WASM_SIMD_TEST(S8x16LoadSplatOffset) {
   int8_t* global = r.builder().AddGlobal<int8_t>(kWasmS128);
   BUILD(r,
         WASM_SET_GLOBAL(
-            0, WASM_SIMD_LOAD_OP_OFFSET(kExprS8x16LoadSplat, WASM_I32V(0),
+            0, WASM_SIMD_LOAD_OP_OFFSET(kExprS128Load8Splat, WASM_I32V(0),
                                         U32V_2(offset))),
         WASM_ONE);
 
@@ -3473,20 +3473,20 @@ void RunLoadSplatTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-WASM_SIMD_TEST(S8x16LoadSplat) {
-  RunLoadSplatTest<int8_t>(execution_tier, lower_simd, kExprS8x16LoadSplat);
+WASM_SIMD_TEST(S128Load8Splat) {
+  RunLoadSplatTest<int8_t>(execution_tier, lower_simd, kExprS128Load8Splat);
 }
 
-WASM_SIMD_TEST(S16x8LoadSplat) {
-  RunLoadSplatTest<int16_t>(execution_tier, lower_simd, kExprS16x8LoadSplat);
+WASM_SIMD_TEST(S128Load16Splat) {
+  RunLoadSplatTest<int16_t>(execution_tier, lower_simd, kExprS128Load16Splat);
 }
 
-WASM_SIMD_TEST(S32x4LoadSplat) {
-  RunLoadSplatTest<int32_t>(execution_tier, lower_simd, kExprS32x4LoadSplat);
+WASM_SIMD_TEST(S128Load32Splat) {
+  RunLoadSplatTest<int32_t>(execution_tier, lower_simd, kExprS128Load32Splat);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(S64x2LoadSplat) {
-  RunLoadSplatTest<int64_t>(execution_tier, lower_simd, kExprS64x2LoadSplat);
+WASM_SIMD_TEST_NO_LOWERING(S128Load64Splat) {
+  RunLoadSplatTest<int64_t>(execution_tier, lower_simd, kExprS128Load64Splat);
 }
 
 template <typename S, typename T>
@@ -3564,33 +3564,33 @@ void RunLoadExtendTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-WASM_SIMD_TEST(I16x8Load8x8U) {
+WASM_SIMD_TEST(S128Load8x8U) {
   RunLoadExtendTest<uint8_t, uint16_t>(execution_tier, lower_simd,
-                                       kExprI16x8Load8x8U);
+                                       kExprS128Load8x8U);
 }
 
-WASM_SIMD_TEST(I16x8Load8x8S) {
+WASM_SIMD_TEST(S128Load8x8S) {
   RunLoadExtendTest<int8_t, int16_t>(execution_tier, lower_simd,
-                                     kExprI16x8Load8x8S);
+                                     kExprS128Load8x8S);
 }
-WASM_SIMD_TEST(I32x4Load16x4U) {
+WASM_SIMD_TEST(S128Load16x4U) {
   RunLoadExtendTest<uint16_t, uint32_t>(execution_tier, lower_simd,
-                                        kExprI32x4Load16x4U);
+                                        kExprS128Load16x4U);
 }
 
-WASM_SIMD_TEST(I32x4Load16x4S) {
+WASM_SIMD_TEST(S128Load16x4S) {
   RunLoadExtendTest<int16_t, int32_t>(execution_tier, lower_simd,
-                                      kExprI32x4Load16x4S);
+                                      kExprS128Load16x4S);
 }
 
-WASM_SIMD_TEST(I64x2Load32x2U) {
+WASM_SIMD_TEST(S128Load32x2U) {
   RunLoadExtendTest<uint32_t, uint64_t>(execution_tier, lower_simd,
-                                        kExprI64x2Load32x2U);
+                                        kExprS128Load32x2U);
 }
 
-WASM_SIMD_TEST(I64x2Load32x2S) {
+WASM_SIMD_TEST(S128Load32x2S) {
   RunLoadExtendTest<int32_t, int64_t>(execution_tier, lower_simd,
-                                      kExprI64x2Load32x2S);
+                                      kExprS128Load32x2S);
 }
 
 // TODO(v8:10713): Prototyping v128.load32_zero and v128.load64_zero.

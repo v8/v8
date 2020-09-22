@@ -484,16 +484,16 @@ let kExprI64AtomicCompareExchange32U = 0x4e;
 
 // Simd opcodes.
 let kExprS128LoadMem = 0x00;
-let kExprI16x8Load8x8S = 0x01;
-let kExprI16x8Load8x8U = 0x02;
-let kExprI32x4Load16x4S = 0x03;
-let kExprI32x4Load16x4U = 0x04;
-let kExprI64x2Load32x2S = 0x05;
-let kExprI64x2Load32x2U = 0x06;
-let kExprS8x16LoadSplat = 0x07;
-let kExprS16x8LoadSplat = 0x08;
-let kExprS32x4LoadSplat = 0x09;
-let kExprS64x2LoadSplat = 0x0a;
+let kExprS128Load8x8S = 0x01;
+let kExprS128Load8x8U = 0x02;
+let kExprS128Load16x4S = 0x03;
+let kExprS128Load16x4U = 0x04;
+let kExprS128Load32x2S = 0x05;
+let kExprS128Load32x2U = 0x06;
+let kExprS128Load8Splat = 0x07;
+let kExprS128Load16Splat = 0x08;
+let kExprS128Load32Splat = 0x09;
+let kExprS128Load64Splat = 0x0a;
 let kExprS128StoreMem = 0x0b;
 
 let kExprS128Const = 0x0c;
