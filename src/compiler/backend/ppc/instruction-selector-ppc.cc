@@ -2160,6 +2160,9 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F64x2Ne)               \
   V(F64x2Le)               \
   V(F64x2Lt)               \
+  V(F64x2Div)              \
+  V(F64x2Min)              \
+  V(F64x2Max)              \
   V(F32x4Add)              \
   V(F32x4AddHoriz)         \
   V(F32x4Sub)              \
@@ -2168,6 +2171,9 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F32x4Ne)               \
   V(F32x4Lt)               \
   V(F32x4Le)               \
+  V(F32x4Div)              \
+  V(F32x4Min)              \
+  V(F32x4Max)              \
   V(I64x2Add)              \
   V(I64x2Sub)              \
   V(I64x2Mul)              \
@@ -2451,18 +2457,6 @@ void InstructionSelector::EmitPrepareResults(
     reverse_slot += output.location.GetSizeInPointers();
   }
 }
-
-void InstructionSelector::VisitF32x4Div(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF32x4Min(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF32x4Max(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF64x2Div(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF64x2Min(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF64x2Max(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitLoadTransform(Node* node) { UNIMPLEMENTED(); }
 

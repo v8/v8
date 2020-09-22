@@ -3361,6 +3361,50 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vandc(dst, src, i.InputSimd128Register(1));
       break;
     }
+    case kPPC_F64x2Div: {
+      __ xvdivdp(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
+      break;
+    }
+#define F64X2_MIN_MAX_NAN(result)                                       \
+  Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));   \
+  __ xvcmpeqdp(tempFPReg1, i.InputSimd128Register(0),                   \
+               i.InputSimd128Register(0));                              \
+  __ vsel(result, i.InputSimd128Register(0), result, tempFPReg1);       \
+  __ xvcmpeqdp(tempFPReg1, i.InputSimd128Register(1),                   \
+               i.InputSimd128Register(1));                              \
+  __ vsel(i.OutputSimd128Register(), i.InputSimd128Register(1), result, \
+          tempFPReg1);
+    case kPPC_F64x2Min: {
+      __ xvmindp(kScratchDoubleReg, i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
+      // We need to check if an input is NAN and preserve it.
+      F64X2_MIN_MAX_NAN(kScratchDoubleReg)
+      break;
+    }
+    case kPPC_F64x2Max: {
+      __ xvmaxdp(kScratchDoubleReg, i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
+      // We need to check if an input is NAN and preserve it.
+      F64X2_MIN_MAX_NAN(kScratchDoubleReg)
+      break;
+    }
+#undef F64X2_MIN_MAX_NAN
+    case kPPC_F32x4Div: {
+      __ xvdivsp(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_F32x4Min: {
+      __ vminfp(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_F32x4Max: {
+      __ vmaxfp(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputSimd128Register(1));
+      break;
+    }
     case kPPC_StoreCompressTagged: {
       ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedFieldX);
       break;

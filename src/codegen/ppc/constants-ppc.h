@@ -2344,7 +2344,11 @@ using Instr = uint32_t;
   /* Vector Average Unsigned Halfword */                   \
   V(vavguh, VAVGUH, 0x10000442)                            \
   /* Vector Logical AND with Complement */                 \
-  V(vandc, VANDC, 0x10000444)
+  V(vandc, VANDC, 0x10000444)                              \
+  /* Vector Minimum Single-Precision */                    \
+  V(vminfp, VMINFP, 0x1000044A)                            \
+  /* Vector Maximum Single-Precision */                    \
+  V(vmaxfp, VMAXFP, 0x1000040A)
 
 #define PPC_VX_OPCODE_C_FORM_LIST(V)       \
   /* Vector Unpack Low Signed Halfword */  \
@@ -2411,10 +2415,6 @@ using Instr = uint32_t;
   V(vgbbd, VGBBD, 0x1000050C)                                             \
   /* Vector Log Base 2 Estimate Single-Precision */                       \
   V(vlogefp, VLOGEFP, 0x100001CA)                                         \
-  /* Vector Maximum Single-Precision */                                   \
-  V(vmaxfp, VMAXFP, 0x1000040A)                                           \
-  /* Vector Minimum Single-Precision */                                   \
-  V(vminfp, VMINFP, 0x1000044A)                                           \
   /* Vector Merge High Byte */                                            \
   V(vmrghb, VMRGHB, 0x1000000C)                                           \
   /* Vector Merge High Halfword */                                        \
