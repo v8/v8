@@ -76,15 +76,23 @@ Test(/(?:(123)|(xyz))*/, "xyz123", ["xyz123", "123", undefined], 0);
 Test(/((123)|(xyz)*)*/, "xyz123xyz", ["xyz123xyz", "xyz", undefined, "xyz"], 0);
 
 // Assertions.
-// TODO(mbid,v8:10765): Once supported, we should also check ^ and $ with the
-// multiline flag.
 Test(/asdf\b/, "asdf---", ["asdf"], 0);
 Test(/asdf\b/, "asdfg", null, 0);
 Test(/asd[fg]\B/, "asdf asdgg", ["asdg"], 0);
-// TODO(mbid,v8:10765): The ^ assertion should work once we support anchored
-// regexps.
-//Test(/^asd[fg]/, "asdf asdgg", ["asdf"], 0);
+Test(/^asd[fg]/, "asdf asdgg", ["asdf"], 0);
 Test(/asd[fg]$/, "asdf asdg", ["asdg"], 0);
 
 // The global flag.
 Test(/asdf/g, "fjasdfkkasdf", ["asdf"], 6);
+
+// The sticky flag.
+var r = /asdf/y;
+r.lastIndex = 2;
+Test(r, "fjasdfkkasdf", ["asdf"], 6);
+
+// The multiline flag.
+Test(/^a/m, "x\na", ["a"], 0);
+Test(/x$/m, "x\na", ["x"], 0);
+
+// The dotall flag.
+Test(/asdf.xyz/s,  "asdf\nxyz", ["asdf\nxyz"], 0);

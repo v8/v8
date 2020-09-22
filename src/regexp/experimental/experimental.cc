@@ -14,9 +14,8 @@ namespace v8 {
 namespace internal {
 
 bool ExperimentalRegExp::CanBeHandled(RegExpTree* tree, JSRegExp::Flags flags,
-                                      int capture_count, Zone* zone) {
-  return ExperimentalRegExpCompiler::CanBeHandled(tree, flags, capture_count,
-                                                  zone);
+                                      int capture_count) {
+  return ExperimentalRegExpCompiler::CanBeHandled(tree, flags, capture_count);
 }
 
 void ExperimentalRegExp::Initialize(Isolate* isolate, Handle<JSRegExp> re,

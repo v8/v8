@@ -240,14 +240,6 @@ class NfaInterpreter {
       uc16 input_char = input_[input_index_];
       ++input_index_;
 
-      // If we haven't found a match yet, we add a thread with least priority
-      // that attempts a match starting after `input_char`.
-      if (!FoundMatch()) {
-        active_threads_.Add(
-            InterpreterThread{0, NewRegisterArray(kUndefinedRegisterValue)},
-            zone_);
-      }
-
       // We unblock all blocked_threads_ by feeding them the input char.
       FlushBlockedThreads(input_char);
 

@@ -184,7 +184,7 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
 
   if (FLAG_enable_experimental_regexp_engine &&
       ExperimentalRegExp::CanBeHandled(parse_result.tree, flags,
-                                       parse_result.capture_count, &zone)) {
+                                       parse_result.capture_count)) {
     ExperimentalRegExp::Initialize(isolate, re, pattern, flags,
                                    parse_result.capture_count);
     has_been_compiled = true;

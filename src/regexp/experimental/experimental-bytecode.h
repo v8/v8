@@ -113,6 +113,16 @@ struct RegExpInstruction {
     return result;
   }
 
+  static RegExpInstruction ConsumeAnyChar() {
+    return ConsumeRange(Uc16Range{0x0000, 0xFFFF});
+  }
+
+  static RegExpInstruction Fail() {
+    // This is encoded as the empty CONSUME_RANGE of characters 0xFFFF <= c <=
+    // 0x0000.
+    return ConsumeRange(Uc16Range{0xFFFF, 0x0000});
+  }
+
   static RegExpInstruction Fork(int32_t alt_index) {
     RegExpInstruction result;
     result.opcode = FORK;

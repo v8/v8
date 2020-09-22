@@ -887,7 +887,7 @@ class MatchInfoBackedMatch : public String::Match {
       : isolate_(isolate), match_info_(match_info) {
     subject_ = String::Flatten(isolate, subject);
 
-    if (regexp->TypeTag() == JSRegExp::IRREGEXP) {
+    if (JSRegExp::TypeSupportsCaptures(regexp->TypeTag())) {
       Object o = regexp->CaptureNameMap();
       has_named_captures_ = o.IsFixedArray();
       if (has_named_captures_) {

@@ -19,21 +19,23 @@ constexpr uc32 kMaxSupportedCodepoint = 0xFFFFu;
 class CanBeHandledVisitor final : private RegExpVisitor {
   // Visitor to implement `ExperimentalRegExp::CanBeHandled`.
  public:
-  static bool Check(RegExpTree* node, JSRegExp::Flags flags, int capture_count,
-                    Zone* zone) {
+  static bool Check(RegExpTree* tree, JSRegExp::Flags flags,
+                    int capture_count) {
     if (!AreSuitableFlags(flags)) return false;
-    CanBeHandledVisitor visitor(zone);
-    node->Accept(&visitor, nullptr);
+    CanBeHandledVisitor visitor;
+    tree->Accept(&visitor, nullptr);
     return visitor.result_;
   }
 
  private:
-  explicit CanBeHandledVisitor(Zone* zone) : zone_(zone) {}
+  CanBeHandledVisitor() = default;
 
   static bool AreSuitableFlags(JSRegExp::Flags flags) {
     // TODO(mbid, v8:10765): We should be able to support all flags in the
     // future.
-    static constexpr JSRegExp::Flags kAllowedFlags = JSRegExp::kGlobal;
+    static constexpr JSRegExp::Flags kAllowedFlags =
+        JSRegExp::kGlobal | JSRegExp::kSticky | JSRegExp::kMultiline |
+        JSRegExp::kDotAll;
     // We support Unicode iff kUnicode is among the supported flags.
     STATIC_ASSERT(ExperimentalRegExp::kSupportsUnicode ==
                   ((kAllowedFlags & JSRegExp::kUnicode) != 0));
@@ -62,24 +64,11 @@ class CanBeHandledVisitor final : private RegExpVisitor {
 
   void* VisitCharacterClass(RegExpCharacterClass* node, void*) override {
     result_ = result_ && AreSuitableFlags(node->flags());
-    for (CharacterRange r : *node->ranges(zone_)) {
-      // TODO(mbid, v8:10765): We don't support full unicode yet, so we only
-      // allow character ranges that can be specified with two-byte characters.
-      if (r.to() > kMaxSupportedCodepoint) {
-        result_ = false;
-        return nullptr;
-      }
-    }
     return nullptr;
   }
 
   void* VisitAssertion(RegExpAssertion* node, void*) override {
-    // TODO(mbid,v8:10765): Once regexps that we shouldn't try to match at
-    // every input position (e.g. sticky) are supported, we should also support
-    // START_OF_INPUT.
-    result_ = result_ &&
-              node->assertion_type() != RegExpAssertion::START_OF_INPUT &&
-              AreSuitableFlags(node->flags());
+    result_ = result_ && AreSuitableFlags(node->flags());
     return nullptr;
   }
 
@@ -181,16 +170,15 @@ class CanBeHandledVisitor final : private RegExpVisitor {
   int replication_factor_ = 1;
 
   bool result_ = true;
-  Zone* zone_;
 };
 
 }  // namespace
 
 bool ExperimentalRegExpCompiler::CanBeHandled(RegExpTree* tree,
                                               JSRegExp::Flags flags,
-                                              int capture_count, Zone* zone) {
+                                              int capture_count) {
   DCHECK(FLAG_enable_experimental_regexp_engine);
-  return CanBeHandledVisitor::Check(tree, flags, capture_count, zone);
+  return CanBeHandledVisitor::Check(tree, flags, capture_count);
 }
 
 namespace {
@@ -286,6 +274,15 @@ class CompileVisitor : private RegExpVisitor {
                                              Zone* zone) {
     CompileVisitor compiler(zone);
 
+    if ((flags & JSRegExp::kSticky) == 0 && !tree->IsAnchoredAtStart()) {
+      // The match is not anchored, i.e. may start at any input position, so we
+      // emit a preamble corresponding to /.*?/.  This skips an arbitrary
+      // prefix in the input non-greedily.
+      compiler.CompileNonGreedyStar([&]() {
+        compiler.code_.Add(RegExpInstruction::ConsumeAnyChar(), zone);
+      });
+    }
+
     compiler.code_.Add(RegExpInstruction::SetRegisterToCp(0), zone);
     tree->Accept(&compiler, nullptr);
     compiler.code_.Add(RegExpInstruction::SetRegisterToCp(1), zone);
@@ -303,7 +300,7 @@ class CompileVisitor : private RegExpVisitor {
   // `alt_gen` is called repeatedly with argument `int i = 0, 1, ..., alt_num -
   // 1` and should push code corresponding to the ith alternative onto `code_`.
   template <class F>
-  void CompileDisjunction(int alt_num, F gen_alt) {
+  void CompileDisjunction(int alt_num, F&& gen_alt) {
     // An alternative a1 | ... | an is compiled into
     //
     //     FORK tail1
@@ -327,6 +324,8 @@ class CompileVisitor : private RegExpVisitor {
     // by the thread for a2 and so on.
 
     if (alt_num == 0) {
+      // The empty disjunction.  This can never match.
+      code_.Add(RegExpInstruction::Fail(), zone_);
       return;
     }
 
@@ -369,11 +368,12 @@ class CompileVisitor : private RegExpVisitor {
     ZoneList<CharacterRange>* ranges = node->ranges(zone_);
     CharacterRange::Canonicalize(ranges);
     if (node->is_negated()) {
-      // Capacity 2 for the common case where we compute the complement of a
-      // single interval range that doesn't contain 0 and kMaxCodePoint.
+      // The complement of a disjoint, non-adjacent (i.e. `Canonicalize`d)
+      // union of k intervals is a union of at most k + 1 intervals.
       ZoneList<CharacterRange>* negated =
-          zone_->New<ZoneList<CharacterRange>>(2, zone_);
+          zone_->New<ZoneList<CharacterRange>>(ranges->length() + 1, zone_);
       CharacterRange::Negate(ranges, negated, zone_);
+      DCHECK_LE(negated->length(), ranges->length() + 1);
       ranges = negated;
     }
 
@@ -417,6 +417,114 @@ class CompileVisitor : private RegExpVisitor {
     }
   }
 
+  // Emit bytecode corresponding to /<emit_body>*/.
+  template <class F>
+  void CompileGreedyStar(F&& emit_body) {
+    // This is compiled into
+    //
+    //   begin:
+    //     FORK end
+    //     <body>
+    //     JMP begin
+    //   end:
+    //     ...
+    //
+    // This is greedy because a forked thread has lower priority than the
+    // thread that spawned it.
+    Label begin(code_.length());
+    DeferredLabel end;
+
+    AddForkTo(end, code_, zone_);
+    emit_body();
+    AddJmpTo(begin, code_, zone_);
+
+    std::move(end).Bind(code_);
+  }
+
+  // Emit bytecode corresponding to /<emit_body>*?/.
+  template <class F>
+  void CompileNonGreedyStar(F&& emit_body) {
+    // This is compiled into
+    //
+    //     FORK body
+    //     JMP end
+    //   body:
+    //     <body>
+    //     FORK body
+    //   end:
+    //     ...
+
+    Label body(code_.length() + 2);
+    DeferredLabel end;
+
+    AddForkTo(body, code_, zone_);
+    AddJmpTo(end, code_, zone_);
+
+    DCHECK_EQ(body.index(), code_.length());
+
+    emit_body();
+    AddForkTo(body, code_, zone_);
+
+    std::move(end).Bind(code_);
+  }
+
+  // Emit bytecode corresponding to /<emit_body>{0, max_repetition_num}/.
+  template <class F>
+  void CompileGreedyRepetition(F&& emit_body, int max_repetition_num) {
+    // This is compiled into
+    //
+    //     FORK end
+    //     <body>
+    //     FORK end
+    //     <body>
+    //     ...
+    //     ...
+    //     FORK end
+    //     <body>
+    //   end:
+    //     ...
+
+    DeferredLabel end;
+    for (int i = 0; i != max_repetition_num; ++i) {
+      AddForkTo(end, code_, zone_);
+      emit_body();
+    }
+    std::move(end).Bind(code_);
+  }
+
+  // Emit bytecode corresponding to /<emit_body>{0, max_repetition_num}?/.
+  template <class F>
+  void CompileNonGreedyRepetition(F&& emit_body, int max_repetition_num) {
+    // This is compiled into
+    //
+    //     FORK body0
+    //     JMP end
+    //   body0:
+    //     <body>
+    //     FORK body1
+    //     JMP end
+    //   body1:
+    //     <body>
+    //     ...
+    //     ...
+    //   body{max_repetition_num - 1}:
+    //     <body>
+    //   end:
+    //     ...
+
+    DeferredLabel end;
+    for (int i = 0; i != max_repetition_num; ++i) {
+      Label body(code_.length() + 2);
+      AddForkTo(body, code_, zone_);
+      AddJmpTo(end, code_, zone_);
+
+      DCHECK_EQ(body.index(), code_.length());
+
+      emit_body();
+    }
+    std::move(end).Bind(code_);
+  }
+
   void* VisitQuantifier(RegExpQuantifier* node, void*) override {
     // Emit the body, but clear registers occuring in body first.
     //
@@ -440,105 +548,20 @@ class CompileVisitor : private RegExpVisitor {
         UNREACHABLE();
       case RegExpQuantifier::GREEDY: {
         if (node->max() == RegExpTree::kInfinity) {
-          // This is compiled into
-          //
-          //   begin:
-          //     FORK end
-          //     <body>
-          //     JMP begin
-          //   end:
-          //     ...
-          //
-          // This is greedy because a forked thread has lower priority than the
-          // thread that spawned it.
-          Label begin(code_.length());
-          DeferredLabel end;
-
-          AddForkTo(end, code_, zone_);
-          emit_body();
-          AddJmpTo(begin, code_, zone_);
-
-          std::move(end).Bind(code_);
+          CompileGreedyStar(emit_body);
         } else {
           DCHECK_NE(node->max(), RegExpTree::kInfinity);
-          // This is compiled into
-          //
-          //     FORK end
-          //     <body>
-          //     FORK end
-          //     <body>
-          //     ...          ; max - min times in total
-          //     ...
-          //     FORK end
-          //     <body>
-          //   end:
-          //     ...
-
-          DeferredLabel end;
-          for (int i = node->min(); i != node->max(); ++i) {
-            AddForkTo(end, code_, zone_);
-            emit_body();
-          }
-          std::move(end).Bind(code_);
+          CompileGreedyRepetition(emit_body, node->max() - node->min());
         }
         break;
       }
       case RegExpQuantifier::NON_GREEDY: {
         if (node->max() == RegExpTree::kInfinity) {
-          // This is compiled into
-          //
-          //     FORK body
-          //     JMP end
-          //   body:
-          //     <body>
-          //     FORK body
-          //   end:
-          //     ...
-
-          Label body(code_.length() + 2);
-          DeferredLabel end;
-
-          AddForkTo(body, code_, zone_);
-          AddJmpTo(end, code_, zone_);
-
-          DCHECK_EQ(body.index(), code_.length());
-
-          emit_body();
-          AddForkTo(body, code_, zone_);
-
-          std::move(end).Bind(code_);
+          CompileNonGreedyStar(emit_body);
         } else {
           DCHECK_NE(node->max(), RegExpTree::kInfinity);
-          // This is compiled into
-          //
-          //     FORK body0
-          //     JMP end
-          //   body0:
-          //     <body>
-          //     FORK body1
-          //     JMP end
-          //   body1:
-          //     <body>
-          //     ...
-          //     ...
-          //   body{max - min - 1}:
-          //     <body>
-          //   end:
-          //     ...
-
-          DeferredLabel end;
-          for (int i = node->min(); i != node->max(); ++i) {
-            Label body(code_.length() + 2);
-            AddForkTo(body, code_, zone_);
-            AddJmpTo(end, code_, zone_);
-
-            DCHECK_EQ(body.index(), code_.length());
-
-            emit_body();
-          }
-          std::move(end).Bind(code_);
+          CompileNonGreedyRepetition(emit_body, node->max() - node->min());
         }
-        break;
       }
     }
     return nullptr;
