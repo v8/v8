@@ -111,7 +111,7 @@ const int kMmapFd = VM_MAKE_TAG(255);
 const int kMmapFd = -1;
 #endif  // !V8_OS_MACOSX
 
-#if defined(__APPLE__) && V8_TARGET_ARCH_ARM64
+#if defined(V8_TARGET_OS_MACOSX) && V8_HOST_ARCH_ARM64
 // During snapshot generation in cross builds, sysconf() runs on the Intel
 // host and returns host page size, while the snapshot needs to use the
 // target page size.
@@ -246,21 +246,18 @@ int OS::ActivationFrameAlignment() {
 
 // static
 size_t OS::AllocatePageSize() {
-#if defined(__APPLE__) && V8_TARGET_ARCH_ARM64
+#if defined(V8_TARGET_OS_MACOSX) && V8_HOST_ARCH_ARM64
   return kAppleArmPageSize;
 #else
-  return static_cast<size_t>(sysconf(_SC_PAGESIZE));
+  static size_t page_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+  return page_size;
 #endif
 }
 
 // static
 size_t OS::CommitPageSize() {
-#if defined(__APPLE__) && V8_TARGET_ARCH_ARM64
-  static size_t page_size = kAppleArmPageSize;
-#else
-  static size_t page_size = getpagesize();
-#endif
-  return page_size;
+  // Commit and allocate page size are the same on posix.
+  return OS::AllocatePageSize();
 }
 
 // static
@@ -278,8 +275,8 @@ void* OS::GetRandomMmapAddr() {
     MutexGuard guard(rng_mutex.Pointer());
     GetPlatformRandomNumberGenerator()->NextBytes(&raw_addr, sizeof(raw_addr));
   }
-#if V8_TARGET_ARCH_ARM64
-#if defined(__APPLE__)
+#if V8_HOST_ARCH_ARM64
+#if defined(V8_TARGET_OS_MACOSX)
   DCHECK_EQ(1 << 14, AllocatePageSize());
 #endif
   // Keep the address page-aligned, AArch64 supports 4K, 16K and 64K
