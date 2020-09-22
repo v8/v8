@@ -420,17 +420,18 @@
   # noi18n build cannot parse characters in supplementary plane.
   'harmony/regexp-named-captures': [FAIL],
 
-  # noi18n cannot turn on ICU backend for Date
-  'icu-date-to-string': [SKIP],
-  'icu-date-lord-howe': [SKIP],
-  'tzoffset-transition-apia': [SKIP],
-  'tzoffset-transition-lord-howe': [SKIP],
-  'tzoffset-transition-moscow': [SKIP],
-  'tzoffset-transition-new-york': [SKIP],
-  'tzoffset-seoul': [SKIP],
+  # noi18n cannot turn on ICU backend for Date. Anything goes as long as we
+  # don't crash.
+  'icu-date-to-string': [PASS,FAIL],
+  'icu-date-lord-howe': [PASS,FAIL],
+  'tzoffset-transition-apia': [PASS,FAIL],
+  'tzoffset-transition-lord-howe': [PASS,FAIL],
+  'tzoffset-transition-moscow': [PASS,FAIL],
+  'tzoffset-transition-new-york': [PASS,FAIL],
+  'tzoffset-seoul': [PASS,FAIL],
 
   # noi18n is required for Intl
-  'regress/regress-crbug-1052647': [SKIP],
+  'regress/regress-crbug-1052647': [PASS,FAIL],
 }],  # 'no_i18n'
 
 ##############################################################################
