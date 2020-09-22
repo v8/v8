@@ -546,7 +546,7 @@ TEST(WeakGlobalUnmodifiedApiHandlesScavenge) {
 }
 
 TEST(WeakGlobalHandlesMark) {
-  FLAG_stress_incremental_marking = false;
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
