@@ -1660,9 +1660,7 @@ DEFINE_BOOL(trace_wasm_gdb_remote, false, "trace Webassembly GDB-remote server")
 #define FLAG FLAG_FULL
 
 // log.cc
-DEFINE_STRING(logfile, "v8.log",
-              "Specify the name of the log file, use '-' for console, '+' for "
-              "a temporary file.")
+DEFINE_STRING(logfile, "v8.log", "Specify the name of the log file.")
 DEFINE_BOOL(logfile_per_isolate, true, "Separate log files for each isolate.")
 
 DEFINE_BOOL(log, false,

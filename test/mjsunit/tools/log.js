@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --logfile='+' --log-all --log --no-stress-opt
+// Flags: --log-all --log --no-stress-opt
 
 function testFunctionWithFunnyName(o) {
   return o.a;
