@@ -1511,8 +1511,8 @@ void Shell::LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope handle_scope(isolate);
 
   std::string file_name = i_isolate->logger()->file_name();
-  if (i::Log::IsLoggingToConsole(file_name)) {
-    Throw(isolate, "Logging to console instead of file.");
+  if (!i::Log::IsLoggingToTemporaryFile(file_name)) {
+    Throw(isolate, "Only capturing from temporary files is supported.");
     return;
   }
   if (!i_isolate->logger()->is_logging()) {

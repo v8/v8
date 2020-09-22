@@ -19,7 +19,7 @@
 namespace v8 {
 namespace internal {
 
-const char* const Log::kLogToTemporaryFile = "&";
+const char* const Log::kLogToTemporaryFile = "+";
 const char* const Log::kLogToConsole = "-";
 
 // static
