@@ -295,13 +295,13 @@ class ModuleDecoderImpl : public Decoder {
   explicit ModuleDecoderImpl(const WasmFeatures& enabled, ModuleOrigin origin)
       : Decoder(nullptr, nullptr),
         enabled_features_(enabled),
-        origin_(FLAG_assume_asmjs_origin ? kAsmJsSloppyOrigin : origin) {}
+        origin_(origin) {}
 
   ModuleDecoderImpl(const WasmFeatures& enabled, const byte* module_start,
                     const byte* module_end, ModuleOrigin origin)
       : Decoder(module_start, module_end),
         enabled_features_(enabled),
-        origin_(FLAG_assume_asmjs_origin ? kAsmJsSloppyOrigin : origin) {
+        origin_(origin) {
     if (end_ < start_) {
       error(start_, "end is less than start");
       end_ = start_;
