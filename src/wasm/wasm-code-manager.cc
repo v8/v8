@@ -1020,7 +1020,6 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
     Vector<uint8_t> dst_code_bytes, const JumpTablesRef& jump_tables) {
   Vector<byte> reloc_info{desc.buffer + desc.buffer_size - desc.reloc_size,
                           static_cast<size_t>(desc.reloc_size)};
-  UpdateCodeSize(desc.instr_size, tier, for_debugging);
 
   // TODO(jgruber,v8:8758): Remove this translation. It exists only because
   // CodeDesc contains real offsets but WasmCode expects an offset of 0 to mean
@@ -1175,7 +1174,6 @@ WasmCode* NativeModule::AddDeserializedCode(
   // CodeSpaceWriteScope is provided by the caller.
   Vector<uint8_t> dst_code_bytes =
       code_allocator_.AllocateForCode(this, instructions.size());
-  UpdateCodeSize(dst_code_bytes.size(), tier, kNoDebugging);
   memcpy(dst_code_bytes.begin(), instructions.begin(), instructions.size());
 
   std::unique_ptr<WasmCode> code{new WasmCode{
@@ -1232,7 +1230,6 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegion(
   Vector<uint8_t> code_space = code_allocator_.AllocateForCodeInRegion(
       this, jump_table_size, region, allocator_lock);
   DCHECK(!code_space.empty());
-  UpdateCodeSize(jump_table_size, ExecutionTier::kNone, kNoDebugging);
   CODE_SPACE_WRITE_SCOPE
   ZapCode(reinterpret_cast<Address>(code_space.begin()), code_space.size());
   std::unique_ptr<WasmCode> code{
@@ -1253,15 +1250,6 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegion(
                    ExecutionTier::kNone,  // tier
                    kNoDebugging}};        // for_debugging
   return PublishCode(std::move(code));
-}
-
-void NativeModule::UpdateCodeSize(size_t size, ExecutionTier tier,
-                                  ForDebugging for_debugging) {
-  if (for_debugging != kNoDebugging) return;
-  // Count jump tables (ExecutionTier::kNone) for both Liftoff and TurboFan as
-  // this is shared code.
-  if (tier != ExecutionTier::kTurbofan) liftoff_code_size_.fetch_add(size);
-  if (tier != ExecutionTier::kLiftoff) turbofan_code_size_.fetch_add(size);
 }
 
 void NativeModule::PatchJumpTablesLocked(uint32_t slot_index, Address target) {

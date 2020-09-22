@@ -522,7 +522,6 @@
   'test-wasm-codegen/*': [SKIP],
   'test-wasm-debug-evaluate/*': [SKIP],
   'test-wasm-import-wrapper-cache/*': [SKIP],
-  'test-wasm-metrics/*': [SKIP],
   'test-wasm-serialization/*': [SKIP],
   'test-wasm-shared-engine/*': [SKIP],
   'test-wasm-stack/*': [SKIP],

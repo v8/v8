@@ -596,8 +596,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return code_allocator_.generated_code_size();
   }
   size_t liftoff_bailout_count() const { return liftoff_bailout_count_.load(); }
-  size_t liftoff_code_size() const { return liftoff_code_size_.load(); }
-  size_t turbofan_code_size() const { return turbofan_code_size_.load(); }
   WasmEngine* engine() const { return engine_; }
 
   bool HasWireBytes() const {
@@ -699,8 +697,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
       int jump_table_size, base::AddressRegion,
       const WasmCodeAllocator::OptionalLock&);
 
-  void UpdateCodeSize(size_t, ExecutionTier, ForDebugging);
-
   // Hold the {allocation_mutex_} when calling one of these methods.
   // {slot_index} is the index in the declared functions, i.e. function index
   // minus the number of imported functions.
@@ -792,8 +788,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   UseTrapHandler use_trap_handler_ = kNoTrapHandler;
   bool lazy_compile_frozen_ = false;
   std::atomic<size_t> liftoff_bailout_count_{0};
-  std::atomic<size_t> liftoff_code_size_{0};
-  std::atomic<size_t> turbofan_code_size_{0};
 
   DISALLOW_COPY_AND_ASSIGN(NativeModule);
 };

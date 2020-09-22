@@ -1527,7 +1527,7 @@ class CompilationTimeCallback {
           false,                                   // deserialized
           FLAG_wasm_lazy_compilation,              // lazy
           true,                                    // success
-          native_module->liftoff_code_size(),      // code_size_in_bytes
+          native_module->generated_code_size(),    // code_size_in_bytes
           native_module->liftoff_bailout_count(),  // liftoff_bailout_count
           duration.InMicroseconds()                // wall_clock_time_in_us
       };
@@ -1538,9 +1538,9 @@ class CompilationTimeCallback {
       histogram->AddSample(static_cast<int>(duration.InMicroseconds()));
 
       v8::metrics::WasmModuleTieredUp event{
-          FLAG_wasm_lazy_compilation,           // lazy
-          native_module->turbofan_code_size(),  // code_size_in_bytes
-          duration.InMicroseconds()             // wall_clock_time_in_us
+          FLAG_wasm_lazy_compilation,            // lazy
+          native_module->generated_code_size(),  // code_size_in_bytes
+          duration.InMicroseconds()              // wall_clock_time_in_us
       };
       metrics_recorder_->DelayMainThreadEvent(event, context_id_);
     }
@@ -1552,7 +1552,7 @@ class CompilationTimeCallback {
           false,                                   // deserialized
           FLAG_wasm_lazy_compilation,              // lazy
           false,                                   // success
-          native_module->liftoff_code_size(),      // code_size_in_bytes
+          native_module->generated_code_size(),    // code_size_in_bytes
           native_module->liftoff_bailout_count(),  // liftoff_bailout_count
           duration.InMicroseconds()                // wall_clock_time_in_us
       };
@@ -1786,7 +1786,6 @@ AsyncCompileJob::AsyncCompileJob(
       isolate->global_handles()->Create(context->native_context());
   DCHECK(native_context_->IsNativeContext());
   context_id_ = isolate->GetOrRegisterRecorderContextId(native_context_);
-  metrics_event_.async = true;
 }
 
 void AsyncCompileJob::Start() {
@@ -1953,7 +1952,7 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
           is_after_deserialization,                 // deserialized
           wasm_lazy_compilation_,                   // lazy
           !compilation_state->failed(),             // success
-          native_module_->liftoff_code_size(),      // code_size_in_bytes
+          native_module_->generated_code_size(),    // code_size_in_bytes
           native_module_->liftoff_bailout_count(),  // liftoff_bailout_count
           duration.InMicroseconds()                 // wall_clock_time_in_us
       };
@@ -2458,16 +2457,6 @@ void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(
   // of the AsyncCompileJob to DecodeFail.
   job_->background_task_manager_.CancelAndWait();
 
-  // Record event metrics.
-  auto duration = base::TimeTicks::Now() - job_->start_time_;
-  job_->metrics_event_.success = false;
-  job_->metrics_event_.streamed = true;
-  job_->metrics_event_.module_size_in_bytes = job_->wire_bytes_.length();
-  job_->metrics_event_.function_count = num_functions_;
-  job_->metrics_event_.wall_clock_time_in_us = duration.InMicroseconds();
-  job_->isolate_->metrics_recorder()->DelayMainThreadEvent(job_->metrics_event_,
-                                                           job_->context_id_);
-
   // Check if there is already a CompiledModule, in which case we have to clean
   // up the CompilationStateImpl as well.
   if (job_->native_module_) {
@@ -2678,16 +2667,6 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
 
   job_->wire_bytes_ = ModuleWireBytes(bytes.as_vector());
   job_->bytes_copy_ = bytes.ReleaseData();
-
-  // Record event metrics.
-  auto duration = base::TimeTicks::Now() - job_->start_time_;
-  job_->metrics_event_.success = true;
-  job_->metrics_event_.streamed = true;
-  job_->metrics_event_.module_size_in_bytes = job_->wire_bytes_.length();
-  job_->metrics_event_.function_count = num_functions_;
-  job_->metrics_event_.wall_clock_time_in_us = duration.InMicroseconds();
-  job_->isolate_->metrics_recorder()->DelayMainThreadEvent(job_->metrics_event_,
-                                                           job_->context_id_);
 
   if (prefix_cache_hit_) {
     // Restart as an asynchronous, non-streaming compilation. Most likely
