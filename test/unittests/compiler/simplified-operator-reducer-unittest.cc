@@ -499,6 +499,63 @@ TEST_F(SimplifiedOperatorReducerTest, ObjectIsSmiWithNumberConstant) {
   }
 }
 
+// -----------------------------------------------------------------------------
+// CheckedInt32Add
+
+TEST_F(SimplifiedOperatorReducerTest,
+       CheckedInt32AddConsecutivelyWithConstants) {
+  Node* p0 = Parameter(0);
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  TRACED_FOREACH(int32_t, a, kInt32Values) {
+    TRACED_FOREACH(int32_t, b, kInt32Values) {
+      Node* add1 = graph()->NewNode(simplified()->CheckedInt32Add(), p0,
+                                    Int32Constant(a), effect, control);
+      Node* add2 = graph()->NewNode(simplified()->CheckedInt32Add(), add1,
+                                    Int32Constant(b), add1, control);
+
+      Reduction r = Reduce(add2);
+      int32_t c;
+      bool overflow = base::bits::SignedAddOverflow32(a, b, &c);
+      if ((a >= 0) == (b >= 0) && !overflow) {
+        ASSERT_TRUE(r.Changed());
+        Node* new_node = r.replacement();
+        ASSERT_EQ(new_node->opcode(), IrOpcode::kCheckedInt32Add);
+        ASSERT_EQ(new_node->InputAt(0), p0);
+        EXPECT_THAT(new_node->InputAt(1), IsInt32Constant(c));
+        ASSERT_EQ(new_node->InputAt(2), effect);
+        ASSERT_EQ(new_node->InputAt(3), control);
+        EXPECT_TRUE(add1->uses().empty());
+      } else {
+        ASSERT_FALSE(r.Changed());
+      }
+    }
+  }
+}
+
+TEST_F(SimplifiedOperatorReducerTest,
+       CheckedInt32AddConsecutivelyWithConstantsNoChanged) {
+  Node* p0 = Parameter(0);
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  TRACED_FOREACH(int32_t, a, kInt32Values) {
+    TRACED_FOREACH(int32_t, b, kInt32Values) {
+      Node* add1 = graph()->NewNode(simplified()->CheckedInt32Add(), p0,
+                                    Int32Constant(a), effect, control);
+      Node* add2 = graph()->NewNode(simplified()->CheckedInt32Add(), add1,
+                                    Int32Constant(b), add1, control);
+      Node* add3 = graph()->NewNode(simplified()->CheckedInt32Add(), add1,
+                                    Int32Constant(b), effect, control);
+
+      // No changed since add1 has other value uses.
+      Reduction r = Reduce(add2);
+      ASSERT_FALSE(r.Changed());
+      r = Reduce(add3);
+      ASSERT_FALSE(r.Changed());
+    }
+  }
+}
+
 }  // namespace simplified_operator_reducer_unittest
 }  // namespace compiler
 }  // namespace internal
