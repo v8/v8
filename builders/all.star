@@ -3,8 +3,8 @@
 # found in the LICENSE file.
 
 exec("/auto.star")
-exec("/branch_coverage/main.star")
-exec("/branch_coverage/ports.star")
+exec("/multibranch/main.star")
+exec("/multibranch/ports.star")
 exec("/chromium.star")
 exec("/clusterfuzz.star")
 exec("/experiments.star")

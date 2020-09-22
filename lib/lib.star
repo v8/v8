@@ -85,6 +85,7 @@ GOMA = struct(
     DEFAULT = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}},
     AST = {"$build/goma": {"server_host": "goma.chromium.org", "enable_ats": True, "rpc_extra_params": "?prod"}},
     NO = {"use_goma": False},
+    NONE = {}
 )
 
 multibot_caches = [
@@ -142,12 +143,15 @@ branch_console_dict = {
     ("ci.br.stable", "ports"): "br.stable.ports",
 }
 
-def branch_coverage_builder(**kwargs):
+def multibranch_builder(**kwargs):
     for bucket_name in ["ci", "ci.br.beta", "ci.br.stable"]:
         args = dict(kwargs)
-        triggered_by_gitiles = args.pop("triggered_by_gitiles")
+        triggered_by_gitiles = args.pop("triggered_by_gitiles", True)
         if triggered_by_gitiles:
             args["triggered_by"] = [trigger_dict[bucket_name]]
+            args["use_goma"] = args.get("use_goma", GOMA.DEFAULT)
+        else:
+            args["dimensions"]= {"host_class": "multibot"}
         if bucket_name != "ci":
             args["notifies"] = ["beta/stable notifier"]
         v8_basic_builder(defaults_ci, bucket = bucket_name, **args)
@@ -223,7 +227,6 @@ def in_branch_console(console_id, *builders):
                     builder = "%s/%s" % (branch, builder),
                     category = category_name,
                 )
-
     return in_category
 
 def in_console(console_id, *builders):
