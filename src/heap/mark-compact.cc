@@ -510,9 +510,6 @@ bool MarkCompactCollector::StartCompaction() {
 }
 
 void MarkCompactCollector::StartMarking() {
-  if (FLAG_concurrent_marking || FLAG_parallel_marking) {
-    heap_->new_lo_space()->ResetPendingObject();
-  }
   std::vector<Address> contexts =
       heap()->memory_measurement()->StartProcessing();
   if (FLAG_stress_per_context_marking_worklist) {
