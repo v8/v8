@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-type-reflection
+// Flags: --experimental-wasm-type-reflection --experimental-wasm-simd
+// SIMD in Liftoff only works with these cpu features, force them on.
+// Flags: --enable-sse3 --enable-ssse3 --enable-sse4-1
 
 utils.load('test/inspector/wasm-inspector-test.js');
 
@@ -87,6 +89,7 @@ async function instantiateWasm() {
     .addLocals(kWasmI32, 1)
     .addLocals(kWasmI64, 1, ['i64_local'])
     .addLocals(kWasmF64, 3, ['unicode☼f64', '0', '0'])
+    .addLocals(kWasmS128, 1)
     .addBody([
       // Set param 0 to 11.
       kExprI32Const, 11, kExprLocalSet, 0,
@@ -101,6 +104,10 @@ async function instantiateWasm() {
       // Set local 3 to 1/7.
       kExprI32Const, 1, kExprF64UConvertI32, kExprI32Const, 7,
       kExprF64UConvertI32, kExprF64Div, kExprLocalSet, 3,
+      // Set local 6 to [23, 23, 23, 23]
+      kExprI32Const, 23,
+      kSimdPrefix, kExprI32x4Splat,
+      kExprLocalSet, 6,
 
       // Set global 0 to 15
       kExprI32Const, 15, kExprGlobalSet, 0,

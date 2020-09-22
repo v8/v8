@@ -19,6 +19,7 @@
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/baseline/liftoff-register.h"
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/value-type.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
@@ -129,6 +130,12 @@ Handle<Object> WasmValueToValueObject(Isolate* isolate, WasmValue value) {
       double val = value.to_f64();
       bytes = isolate->factory()->NewByteArray(sizeof(val));
       memcpy(bytes->GetDataStartAddress(), &val, sizeof(val));
+      break;
+    }
+    case ValueType::kS128: {
+      Simd128 s128 = value.to_s128();
+      bytes = isolate->factory()->NewByteArray(kSimd128Size);
+      memcpy(bytes->GetDataStartAddress(), s128.bytes(), kSimd128Size);
       break;
     }
     case ValueType::kOptRef: {
@@ -758,16 +765,26 @@ class DebugInfoImpl {
                    ? WasmValue(ReadUnalignedValue<uint32_t>(gp_addr(reg.gp())))
                    : WasmValue(ReadUnalignedValue<uint64_t>(gp_addr(reg.gp())));
       }
-      // TODO(clemensb/zhin): Fix this for SIMD.
       DCHECK(reg.is_fp() || reg.is_fp_pair());
-      if (reg.is_fp_pair()) UNIMPLEMENTED();
+      // ifdef here to workaround unreachable code for is_fp_pair.
+#ifdef V8_TARGET_ARCH_ARM
+      int code = reg.is_fp_pair() ? reg.low_fp().code() : reg.fp().code();
+#else
+      int code = reg.fp().code();
+#endif
       Address spilled_addr =
           debug_break_fp +
-          WasmDebugBreakFrameConstants::GetPushedFpRegisterOffset(
-              reg.fp().code());
-      return type == kWasmF32
-                 ? WasmValue(ReadUnalignedValue<float>(spilled_addr))
-                 : WasmValue(ReadUnalignedValue<double>(spilled_addr));
+          WasmDebugBreakFrameConstants::GetPushedFpRegisterOffset(code);
+      if (type == kWasmF32) {
+        return WasmValue(ReadUnalignedValue<float>(spilled_addr));
+      } else if (type == kWasmF64) {
+        return WasmValue(ReadUnalignedValue<double>(spilled_addr));
+      } else if (type == kWasmS128) {
+        return WasmValue(Simd128(ReadUnalignedValue<int16>(spilled_addr)));
+      } else {
+        // All other cases should have been handled above.
+        UNREACHABLE();
+      }
     }
 
     // Otherwise load the value from the stack.
@@ -782,6 +799,9 @@ class DebugInfoImpl {
         return WasmValue(ReadUnalignedValue<float>(stack_address));
       case ValueType::kF64:
         return WasmValue(ReadUnalignedValue<double>(stack_address));
+      case ValueType::kS128: {
+        return WasmValue(Simd128(ReadUnalignedValue<int16>(stack_address)));
+      }
       default:
         UNIMPLEMENTED();
     }

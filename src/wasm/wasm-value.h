@@ -44,6 +44,8 @@ class Simd128 {
   FOREACH_SIMD_TYPE(DEFINE_SIMD_TYPE_SPECIFIC_METHODS)
 #undef DEFINE_SIMD_TYPE_SPECIFIC_METHODS
 
+  const uint8_t* bytes() { return val_; }
+
  private:
   uint8_t val_[16] = {0};
 };

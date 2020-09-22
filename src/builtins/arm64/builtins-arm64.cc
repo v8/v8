@@ -3464,7 +3464,7 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
     // Save all parameter registers. They might hold live values, we restore
     // them after the runtime call.
     __ PushXRegList(WasmDebugBreakFrameConstants::kPushedGpRegs);
-    __ PushDRegList(WasmDebugBreakFrameConstants::kPushedFpRegs);
+    __ PushQRegList(WasmDebugBreakFrameConstants::kPushedFpRegs);
 
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
@@ -3472,7 +3472,7 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kWasmDebugBreak, 0);
 
     // Restore registers.
-    __ PopDRegList(WasmDebugBreakFrameConstants::kPushedFpRegs);
+    __ PopQRegList(WasmDebugBreakFrameConstants::kPushedFpRegs);
     __ PopXRegList(WasmDebugBreakFrameConstants::kPushedGpRegs);
   }
   __ Ret();

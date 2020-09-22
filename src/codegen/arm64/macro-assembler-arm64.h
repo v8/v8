@@ -1714,6 +1714,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   inline void PopWRegList(RegList regs) {
     PopSizeRegList(regs, kWRegSizeInBits);
   }
+  inline void PushQRegList(RegList regs) {
+    PushSizeRegList(regs, kQRegSizeInBits, CPURegister::kVRegister);
+  }
+  inline void PopQRegList(RegList regs) {
+    PopSizeRegList(regs, kQRegSizeInBits, CPURegister::kVRegister);
+  }
   inline void PushDRegList(RegList regs) {
     PushSizeRegList(regs, kDRegSizeInBits, CPURegister::kVRegister);
   }
