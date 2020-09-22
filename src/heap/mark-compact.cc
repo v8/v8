@@ -904,11 +904,12 @@ void MarkCompactCollector::Prepare() {
   }
 }
 
-void MarkCompactCollector::FinishConcurrentMarking() {
+void MarkCompactCollector::FinishConcurrentMarking(
+    ConcurrentMarking::StopRequest stop_request) {
   // FinishConcurrentMarking is called for both, concurrent and parallel,
   // marking. It is safe to call this function when tasks are already finished.
   if (FLAG_parallel_marking || FLAG_concurrent_marking) {
-    heap()->concurrent_marking()->Pause();
+    heap()->concurrent_marking()->Stop(stop_request);
     heap()->concurrent_marking()->FlushMemoryChunkData(
         non_atomic_marking_state());
     heap()->concurrent_marking()->FlushNativeContexts(&native_context_stats_);
@@ -1663,11 +1664,12 @@ void MarkCompactCollector::ProcessEphemeronsUntilFixpoint() {
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING);
 
       if (FLAG_parallel_marking) {
-        heap_->concurrent_marking()->RescheduleJobIfNeeded();
+        heap_->concurrent_marking()->RescheduleTasksIfNeeded();
       }
 
       work_to_do = ProcessEphemerons();
-      FinishConcurrentMarking();
+      FinishConcurrentMarking(
+          ConcurrentMarking::StopRequest::COMPLETE_ONGOING_TASKS);
     }
 
     CHECK(weak_objects_.current_ephemerons.IsEmpty());
@@ -1982,11 +1984,12 @@ void MarkCompactCollector::MarkLiveObjects() {
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_MAIN);
     if (FLAG_parallel_marking) {
-      heap_->concurrent_marking()->RescheduleJobIfNeeded();
+      heap_->concurrent_marking()->RescheduleTasksIfNeeded();
     }
     DrainMarkingWorklist();
 
-    FinishConcurrentMarking();
+    FinishConcurrentMarking(
+        ConcurrentMarking::StopRequest::COMPLETE_ONGOING_TASKS);
     DrainMarkingWorklist();
   }
 

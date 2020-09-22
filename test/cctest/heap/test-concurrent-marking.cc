@@ -44,8 +44,9 @@ TEST(ConcurrentMarking) {
       new ConcurrentMarking(heap, &marking_worklists, &weak_objects);
   PublishSegment(marking_worklists.shared(),
                  ReadOnlyRoots(heap).undefined_value());
-  concurrent_marking->ScheduleJob();
-  concurrent_marking->JoinForTesting();
+  concurrent_marking->ScheduleTasks();
+  concurrent_marking->Stop(
+      ConcurrentMarking::StopRequest::COMPLETE_TASKS_FOR_TESTING);
   delete concurrent_marking;
 }
 
@@ -66,12 +67,14 @@ TEST(ConcurrentMarkingReschedule) {
       new ConcurrentMarking(heap, &marking_worklists, &weak_objects);
   PublishSegment(marking_worklists.shared(),
                  ReadOnlyRoots(heap).undefined_value());
-  concurrent_marking->ScheduleJob();
-  concurrent_marking->Pause();
+  concurrent_marking->ScheduleTasks();
+  concurrent_marking->Stop(
+      ConcurrentMarking::StopRequest::COMPLETE_ONGOING_TASKS);
   PublishSegment(marking_worklists.shared(),
                  ReadOnlyRoots(heap).undefined_value());
-  concurrent_marking->RescheduleJobIfNeeded();
-  concurrent_marking->JoinForTesting();
+  concurrent_marking->RescheduleTasksIfNeeded();
+  concurrent_marking->Stop(
+      ConcurrentMarking::StopRequest::COMPLETE_TASKS_FOR_TESTING);
   delete concurrent_marking;
 }
 
@@ -93,13 +96,14 @@ TEST(ConcurrentMarkingPreemptAndReschedule) {
   for (int i = 0; i < 5000; i++)
     PublishSegment(marking_worklists.shared(),
                    ReadOnlyRoots(heap).undefined_value());
-  concurrent_marking->ScheduleJob();
-  concurrent_marking->Pause();
+  concurrent_marking->ScheduleTasks();
+  concurrent_marking->Stop(ConcurrentMarking::StopRequest::PREEMPT_TASKS);
   for (int i = 0; i < 5000; i++)
     PublishSegment(marking_worklists.shared(),
                    ReadOnlyRoots(heap).undefined_value());
-  concurrent_marking->RescheduleJobIfNeeded();
-  concurrent_marking->JoinForTesting();
+  concurrent_marking->RescheduleTasksIfNeeded();
+  concurrent_marking->Stop(
+      ConcurrentMarking::StopRequest::COMPLETE_TASKS_FOR_TESTING);
   delete concurrent_marking;
 }
 
@@ -113,7 +117,8 @@ TEST(ConcurrentMarkingMarkedBytes) {
   CcTest::CollectAllGarbage();
   if (!heap->incremental_marking()->IsStopped()) return;
   heap::SimulateIncrementalMarking(heap, false);
-  heap->concurrent_marking()->JoinForTesting();
+  heap->concurrent_marking()->Stop(
+      ConcurrentMarking::StopRequest::COMPLETE_TASKS_FOR_TESTING);
   CHECK_GE(heap->concurrent_marking()->TotalMarkedBytes(), root->Size());
 }
 

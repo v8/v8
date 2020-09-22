@@ -5570,10 +5570,6 @@ void Heap::TearDown() {
     stress_scavenge_observer_ = nullptr;
   }
 
-  if (FLAG_concurrent_marking || FLAG_parallel_marking) {
-    concurrent_marking_->Pause();
-  }
-
   if (mark_compact_collector_) {
     mark_compact_collector_->TearDown();
     mark_compact_collector_.reset();
@@ -5590,7 +5586,6 @@ void Heap::TearDown() {
   scavenger_collector_.reset();
   array_buffer_sweeper_.reset();
   incremental_marking_.reset();
-
   concurrent_marking_.reset();
 
   gc_idle_time_handler_.reset();
