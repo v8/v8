@@ -2242,6 +2242,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F64x2Abs)               \
   V(F64x2Neg)               \
   V(F64x2Sqrt)              \
+  V(F64x2Ceil)              \
+  V(F64x2Floor)             \
+  V(F64x2Trunc)             \
+  V(F64x2NearestInt)        \
   V(F32x4Abs)               \
   V(F32x4Neg)               \
   V(F32x4RecipApprox)       \
@@ -2249,6 +2253,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F32x4Sqrt)              \
   V(F32x4SConvertI32x4)     \
   V(F32x4UConvertI32x4)     \
+  V(F32x4Ceil)              \
+  V(F32x4Floor)             \
+  V(F32x4Trunc)             \
+  V(F32x4NearestInt)        \
   V(I64x2Neg)               \
   V(I32x4Neg)               \
   V(I32x4Abs)               \
@@ -2416,22 +2424,6 @@ void InstructionSelector::VisitI8x16BitMask(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI16x8BitMask(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI32x4BitMask(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF64x2Ceil(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF64x2Floor(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF64x2Trunc(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF64x2NearestInt(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF32x4Ceil(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF32x4Floor(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF32x4Trunc(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF32x4NearestInt(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,

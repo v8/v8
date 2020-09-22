@@ -210,6 +210,10 @@ namespace compiler {
   V(PPC_F64x2Div)                    \
   V(PPC_F64x2Min)                    \
   V(PPC_F64x2Max)                    \
+  V(PPC_F64x2Ceil)                   \
+  V(PPC_F64x2Floor)                  \
+  V(PPC_F64x2Trunc)                  \
+  V(PPC_F64x2NearestInt)             \
   V(PPC_F32x4Splat)                  \
   V(PPC_F32x4ExtractLane)            \
   V(PPC_F32x4ReplaceLane)            \
@@ -231,6 +235,10 @@ namespace compiler {
   V(PPC_F32x4Div)                    \
   V(PPC_F32x4Min)                    \
   V(PPC_F32x4Max)                    \
+  V(PPC_F32x4Ceil)                   \
+  V(PPC_F32x4Floor)                  \
+  V(PPC_F32x4Trunc)                  \
+  V(PPC_F32x4NearestInt)             \
   V(PPC_I64x2Splat)                  \
   V(PPC_I64x2ExtractLane)            \
   V(PPC_I64x2ReplaceLane)            \

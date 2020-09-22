@@ -385,7 +385,23 @@ using Instr = uint32_t;
   /* VSX Vector Convert Signed Fixed-Point Word to Single-Precision */   \
   V(xvcvsxwsp, XVCVSXWSP, 0xF00002E0)                                    \
   /* VSX Vector Convert Unsigned Fixed-Point Word to Single-Precision */ \
-  V(xvcvuxwsp, XVCVUXWSP, 0xF00002A0)
+  V(xvcvuxwsp, XVCVUXWSP, 0xF00002A0)                                    \
+  /* VSX Vector Round to Double-Precision Integer toward +Infinity */    \
+  V(xvrdpip, XVRDPIP, 0xF00003A4)                                        \
+  /* VSX Vector Round to Double-Precision Integer toward -Infinity */    \
+  V(xvrdpim, XVRDPIM, 0xF00003E4)                                        \
+  /* VSX Vector Round to Double-Precision Integer toward Zero */         \
+  V(xvrdpiz, XVRDPIZ, 0xF0000364)                                        \
+  /* VSX Vector Round to Double-Precision Integer */                     \
+  V(xvrdpi, XVRDPI, 0xF0000324)                                          \
+  /* VSX Vector Round to Single-Precision Integer toward +Infinity */    \
+  V(xvrspip, XVRSPIP, 0xF00002A4)                                        \
+  /* VSX Vector Round to Single-Precision Integer toward -Infinity */    \
+  V(xvrspim, XVRSPIM, 0xF00002E4)                                        \
+  /* VSX Vector Round to Single-Precision Integer toward Zero */         \
+  V(xvrspiz, XVRSPIZ, 0xF0000264)                                        \
+  /* VSX Vector Round to Single-Precision Integer */                     \
+  V(xvrspi, XVRSPI, 0xF0000224)
 
 #define PPC_XX2_OPCODE_UNUSED_LIST(V)                                        \
   /* VSX Scalar Square Root Double-Precision */                              \
@@ -497,28 +513,12 @@ using Instr = uint32_t;
   V(xvnabsdp, XVNABSDP, 0xF00007A4)                                          \
   /* VSX Vector Negative Absolute Value Single-Precision */                  \
   V(xvnabssp, XVNABSSP, 0xF00006A4)                                          \
-  /* VSX Vector Round to Double-Precision Integer */                         \
-  V(xvrdpi, XVRDPI, 0xF0000324)                                              \
   /* VSX Vector Round to Double-Precision Integer using Current rounding */  \
   /* mode */                                                                 \
   V(xvrdpic, XVRDPIC, 0xF00003AC)                                            \
-  /* VSX Vector Round to Double-Precision Integer toward -Infinity */        \
-  V(xvrdpim, XVRDPIM, 0xF00003E4)                                            \
-  /* VSX Vector Round to Double-Precision Integer toward +Infinity */        \
-  V(xvrdpip, XVRDPIP, 0xF00003A4)                                            \
-  /* VSX Vector Round to Double-Precision Integer toward Zero */             \
-  V(xvrdpiz, XVRDPIZ, 0xF0000364)                                            \
-  /* VSX Vector Round to Single-Precision Integer */                         \
-  V(xvrspi, XVRSPI, 0xF0000224)                                              \
   /* VSX Vector Round to Single-Precision Integer using Current rounding */  \
   /* mode */                                                                 \
   V(xvrspic, XVRSPIC, 0xF00002AC)                                            \
-  /* VSX Vector Round to Single-Precision Integer toward -Infinity */        \
-  V(xvrspim, XVRSPIM, 0xF00002E4)                                            \
-  /* VSX Vector Round to Single-Precision Integer toward +Infinity */        \
-  V(xvrspip, XVRSPIP, 0xF00002A4)                                            \
-  /* VSX Vector Round to Single-Precision Integer toward Zero */             \
-  V(xvrspiz, XVRSPIZ, 0xF0000264)                                            \
   /* VSX Vector Reciprocal Square Root Estimate Double-Precision */          \
   V(xvrsqrtedp, XVRSQRTEDP, 0xF0000328)                                      \
   /* VSX Vector Test for software Square Root Double-Precision */            \
