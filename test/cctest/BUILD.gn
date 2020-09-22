@@ -309,6 +309,7 @@ v8_source_set("cctest_sources") {
     "wasm/test-wasm-debug-evaluate.cc",
     "wasm/test-wasm-debug-evaluate.h",
     "wasm/test-wasm-import-wrapper-cache.cc",
+    "wasm/test-wasm-metrics.cc",
     "wasm/test-wasm-serialization.cc",
     "wasm/test-wasm-shared-engine.cc",
     "wasm/test-wasm-stack.cc",
