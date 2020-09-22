@@ -81,7 +81,7 @@
       # Sanitizers.
       'V8 Linux64 ASAN': 'release_x64_asan',
       'V8 Linux64 TSAN - builder': 'release_x64_tsan',
-      'V8 Linux64 TSAN - no concurrent marking - builder': 'release_x64_tsan_no_cm',
+      'V8 Linux64 TSAN - no-concurrent-marking - builder': 'release_x64_tsan_no_cm',
       'V8 Linux - arm64 - sim - CFI': 'release_simulate_arm64_cfi',
       'V8 Linux - arm64 - sim - MSAN': 'release_simulate_arm64_msan',
       # Misc.
