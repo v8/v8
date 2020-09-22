@@ -77,6 +77,7 @@ class SimdScalarLowering {
   void Float64ToInt64(Node** replacements, Node** result);
   void Float32ToInt32(Node** replacements, Node** result);
   void Int32ToFloat32(Node** replacements, Node** result);
+  void Int64ToFloat64(Node** replacements, Node** result);
   void Int64ToInt32(Node** replacements, Node** result);
   template <typename T>
   void Int32ToSmallerInt(Node** replacements, Node** result);

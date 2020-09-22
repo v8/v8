@@ -43,6 +43,29 @@ WASM_SIMD_TEST(I8x16ToF32x4) {
   CHECK_EQ(expected, actual);
 }
 
+WASM_SIMD_TEST(F64x2_Call_Return) {
+  // Check that calling a function with i16x8 arguments, and returns i16x8, is
+  // correctly lowered. The signature of the functions are always lowered to 4
+  // Word32, so each i16x8 needs to be correctly converted.
+  TestSignatures sigs;
+  WasmRunner<double, double, double> r(execution_tier, lower_simd);
+
+  WasmFunctionCompiler& fn = r.NewFunction(sigs.s_ss());
+  BUILD(fn,
+        WASM_SIMD_BINOP(kExprF64x2Min, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+
+  byte c1[16] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+  byte c2[16] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xef, 0x7f,
+                 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xef, 0x7f};
+
+  BUILD(r,
+        WASM_SIMD_F64x2_EXTRACT_LANE(
+            0, WASM_CALL_FUNCTION(fn.function_index(), WASM_SIMD_CONSTANT(c1),
+                                  WASM_SIMD_CONSTANT(c2))));
+  CHECK_EQ(0, r.Call(double{0}, bit_cast<double>(0x7fefffffffffffff)));
+}
+
 WASM_SIMD_TEST(F32x4_Call_Return) {
   // Check that functions that return F32x4 are correctly lowered into 4 int32
   // nodes. The signature of such functions are always lowered to 4 Word32, and

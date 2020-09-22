@@ -42,10 +42,6 @@
   # we finish the implementation, see v8:10507.
   'proposals/simd/simd_bit_shift' : [PASS, FAIL],
   'proposals/simd/simd_conversions' : [PASS, FAIL],
-  'proposals/simd/simd_f64x2': [PASS, FAIL],
-  'proposals/simd/simd_f64x2_arith' : [PASS, FAIL],
-  'proposals/simd/simd_f64x2_cmp' : [PASS, FAIL],
-  'proposals/simd/simd_i64x2_arith' : [PASS, FAIL],
   'proposals/simd/simd_lane' : [PASS, FAIL],
   'proposals/simd/simd_load_extend' : [PASS, FAIL],
   'proposals/simd/simd_load_splat' : [PASS, FAIL],
