@@ -248,7 +248,7 @@ void MarkerBase::FinishMarking(MarkingConfig::StackState stack_state) {
   DCHECK(is_marking_started_);
   EnterAtomicPause(stack_state);
   ProcessWorklistsWithDeadline(std::numeric_limits<size_t>::max(),
-                               v8::base::TimeDelta::Max());
+                               v8::base::TimeTicks::Max());
   mutator_marking_state_.Publish();
   LeaveAtomicPause();
   is_marking_started_ = false;
@@ -320,7 +320,9 @@ bool MarkerBase::AdvanceMarkingWithMaxDuration(
 
 bool MarkerBase::AdvanceMarkingWithDeadline(v8::base::TimeDelta max_duration) {
   size_t step_size_in_bytes = GetNextIncrementalStepDuration(schedule_, heap_);
-  bool is_done = ProcessWorklistsWithDeadline(step_size_in_bytes, max_duration);
+  bool is_done = ProcessWorklistsWithDeadline(
+      mutator_marking_state_.marked_bytes() + step_size_in_bytes,
+      v8::base::TimeTicks::Now() + max_duration);
   schedule_.UpdateIncrementalMarkedBytes(mutator_marking_state_.marked_bytes());
   if (!is_done) {
     // If marking is atomic, |is_done| should always be true.
@@ -332,10 +334,7 @@ bool MarkerBase::AdvanceMarkingWithDeadline(v8::base::TimeDelta max_duration) {
 }
 
 bool MarkerBase::ProcessWorklistsWithDeadline(
-    size_t expected_marked_bytes, v8::base::TimeDelta max_duration) {
-  size_t marked_bytes_deadline =
-      mutator_marking_state_.marked_bytes() + expected_marked_bytes;
-  v8::base::TimeTicks time_deadline = v8::base::TimeTicks::Now() + max_duration;
+    size_t marked_bytes_deadline, v8::base::TimeTicks time_deadline) {
   do {
     // Convert |previously_not_fully_constructed_worklist_| to
     // |marking_worklist_|. This merely re-adds items with the proper

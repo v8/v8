@@ -142,7 +142,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
   bool AdvanceMarkingWithDeadline(
       v8::base::TimeDelta = kMaximumIncrementalStepDuration);
 
-  bool ProcessWorklistsWithDeadline(size_t, v8::base::TimeDelta);
+  bool ProcessWorklistsWithDeadline(size_t, v8::base::TimeTicks);
 
   void VisitRoots(MarkingConfig::StackState);
 
