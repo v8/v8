@@ -458,7 +458,7 @@ void SafeStackFrameIterator::Advance() {
       external_callback_scope_ = external_callback_scope_->previous();
     }
     if (frame_->is_java_script() || frame_->is_wasm() ||
-        frame_->is_wasm_to_js()) {
+        frame_->is_wasm_to_js() || frame_->is_js_to_wasm()) {
       break;
     }
     if (frame_->is_exit() || frame_->is_builtin_exit()) {

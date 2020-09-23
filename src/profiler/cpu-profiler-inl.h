@@ -45,12 +45,15 @@ void CodeDeoptEventRecord::UpdateCodeMap(CodeMap* code_map) {
 
 void ReportBuiltinEventRecord::UpdateCodeMap(CodeMap* code_map) {
   CodeEntry* entry = code_map->FindEntry(instruction_start);
-  if (!entry) {
-    // Code objects for builtins should already have been added to the map but
-    // some of them have been filtered out by CpuProfiler.
-    return;
+  if (entry) {
+    entry->SetBuiltinId(builtin_id);
+  } else if (builtin_id == Builtins::kGenericJSToWasmWrapper) {
+    // Make sure to add the generic js-to-wasm wrapper builtin, because that
+    // one is supposed to show up in profiles.
+    entry = new CodeEntry(CodeEventListener::BUILTIN_TAG,
+                          Builtins::name(builtin_id));
+    code_map->AddCode(instruction_start, entry, instruction_size);
   }
-  entry->SetBuiltinId(builtin_id);
 }
 
 TickSample* SamplingEventsProcessor::StartTickSample() {

@@ -92,6 +92,7 @@ class CodeDeoptEventRecord : public CodeEventRecord {
 class ReportBuiltinEventRecord : public CodeEventRecord {
  public:
   Address instruction_start;
+  unsigned instruction_size;
   Builtins::Name builtin_id;
 
   V8_INLINE void UpdateCodeMap(CodeMap* code_map);
