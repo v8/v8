@@ -899,6 +899,11 @@ void MarkCompactCollector::Prepare() {
     heap_->safepoint()->IterateLocalHeaps(
         [](LocalHeap* local_heap) { local_heap->FreeLinearAllocationArea(); });
   }
+
+  // All objects are guaranteed to be initialized in atomic pause
+  heap()->new_lo_space()->ResetPendingObject();
+  DCHECK_EQ(heap()->new_space()->top(),
+            heap()->new_space()->original_top_acquire());
 }
 
 void MarkCompactCollector::FinishConcurrentMarking(
