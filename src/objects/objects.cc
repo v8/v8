@@ -6156,6 +6156,18 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutCode(
     Isolate* isolate, Handle<CompilationCacheTable> cache,
     Handle<SharedFunctionInfo> key, Handle<Code> value) {
   CodeKey k(key);
+
+  {
+    InternalIndex entry = cache->FindEntry(isolate, &k);
+    if (entry.is_found()) {
+      // Update.
+      cache->set(EntryToIndex(entry), *key);
+      cache->set(EntryToIndex(entry) + 1, *value);
+      return cache;
+    }
+  }
+
+  // Insert.
   cache = EnsureCapacity(isolate, cache);
   InternalIndex entry = cache->FindInsertionEntry(isolate, k.Hash());
   cache->set(EntryToIndex(entry), *key);

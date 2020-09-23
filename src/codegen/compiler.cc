@@ -912,9 +912,7 @@ void InsertCodeIntoCompilationCache(Isolate* isolate,
                                     OptimizedCompilationInfo* info) {
   if (!CodeKindIsNativeContextIndependentJSFunction(info->code_kind())) return;
 
-  // TODO(jgruber,v8:8888): This should turn into a DCHECK once we
-  // spawn dedicated NCI compile tasks.
-  if (!info->osr_offset().IsNone()) return;
+  DCHECK(info->osr_offset().IsNone());
 
   Handle<Code> code = info->code();
   DCHECK(!info->function_context_specializing());
@@ -1073,6 +1071,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
     PendingOptimizationTable::FunctionWasOptimized(isolate, function);
   }
 
+  // Check the optimized code cache (stored on the SharedFunctionInfo).
   if (CodeKindIsStoredInOptimizedCodeCache(code_kind)) {
     Handle<Code> cached_code;
     if (GetCodeFromOptimizedCodeCache(function, osr_offset)
@@ -1086,13 +1085,18 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   DCHECK(shared->is_compiled());
   function->feedback_vector().set_profiler_ticks(0);
 
-  if (CodeKindIsNativeContextIndependentJSFunction(code_kind) &&
-      osr_offset == BailoutId::None()) {
-    // Don't generate NCI code when we've already done so in the past.
+  // Check the compilation cache (stored on the Isolate, shared between native
+  // contexts).
+  if (CodeKindIsNativeContextIndependentJSFunction(code_kind)) {
+    DCHECK(osr_offset.IsNone());
+    DCHECK(FLAG_turbo_nci_as_midtier || shared->has_optimized_at_least_once());
+
     Handle<Code> cached_code;
     if (GetCodeFromCompilationCache(isolate, shared).ToHandle(&cached_code)) {
-      if (FLAG_trace_turbo_nci)
+      CHECK_EQ(cached_code->kind(), CodeKind::NATIVE_CONTEXT_INDEPENDENT);
+      if (FLAG_trace_turbo_nci) {
         CompilationCacheCode::TraceHit(shared, cached_code);
+      }
       return cached_code;
     }
   }
