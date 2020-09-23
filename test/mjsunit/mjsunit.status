@@ -81,6 +81,9 @@
   'wasm/shared-memory-worker-explicit-gc-stress': [PASS, SLOW],
   'wasm/shared-memory-worker-gc-stress': [PASS, SLOW],
 
+  # https://crbug.com/1129854
+  'tools/log': ['arch == arm or arch == arm64', SKIP],
+
   ##############################################################################
   # Tests where variants make no sense.
   'd8/enable-tracing': [PASS, NO_VARIANTS],
