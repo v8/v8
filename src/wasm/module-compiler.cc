@@ -1614,9 +1614,12 @@ void CompileNativeModule(Isolate* isolate,
     return;
   }
 
-  Impl(native_module->compilation_state())
-      ->FinalizeJSToWasmWrappers(isolate, native_module->module(),
-                                 export_wrappers_out);
+  if (!FLAG_predictable) {
+    // For predictable mode, do not finalize wrappers yet to make sure we catch
+    // validation errors first.
+    compilation_state->FinalizeJSToWasmWrappers(
+        isolate, native_module->module(), export_wrappers_out);
+  }
 
   compilation_state->WaitForCompilationEvent(
       CompilationEvent::kFinishedBaselineCompilation);
@@ -1628,6 +1631,9 @@ void CompileNativeModule(Isolate* isolate,
     ValidateSequentially(wasm_module, native_module.get(), isolate->counters(),
                          isolate->allocator(), thrower, lazy_module);
     CHECK(thrower->error());
+  } else if (FLAG_predictable) {
+    compilation_state->FinalizeJSToWasmWrappers(
+        isolate, native_module->module(), export_wrappers_out);
   }
 }
 
