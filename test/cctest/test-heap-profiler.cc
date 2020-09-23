@@ -2445,27 +2445,18 @@ bool HasWeakGlobalHandle() {
 }
 
 
-static void PersistentHandleCallback(
-    const v8::WeakCallbackInfo<v8::Persistent<v8::Object> >& data) {
-  data.GetParameter()->Reset();
-}
-
-
 TEST(WeakGlobalHandle) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
   CHECK(!HasWeakGlobalHandle());
 
-  v8::Persistent<v8::Object> handle;
+  v8::Global<v8::Object> handle;
 
   handle.Reset(env->GetIsolate(), v8::Object::New(env->GetIsolate()));
-  handle.SetWeak(&handle, PersistentHandleCallback,
-                 v8::WeakCallbackType::kParameter);
+  handle.SetWeak();
 
   CHECK(HasWeakGlobalHandle());
-  CcTest::CollectAllGarbage();
-  EmptyMessageQueues(env->GetIsolate());
 }
 
 
