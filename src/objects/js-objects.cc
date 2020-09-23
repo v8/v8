@@ -252,7 +252,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, prop_value, Object::GetProperty(&it), Nothing<bool>());
         stable = from->map() == *map;
-        *descriptors.location() = map->instance_descriptors().ptr();
+        descriptors.PatchValue(map->instance_descriptors());
       }
     } else {
       // If the map did change, do a slower lookup. We are still guaranteed that
@@ -278,7 +278,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
       if (result.IsNothing()) return result;
       if (stable) {
         stable = from->map() == *map;
-        *descriptors.location() = map->instance_descriptors().ptr();
+        descriptors.PatchValue(map->instance_descriptors());
       }
     } else {
       if (excluded_properties != nullptr &&
@@ -1879,7 +1879,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
   // side-effects.
   bool stable = *map == object->map();
   if (stable) {
-    *descriptors.location() = map->instance_descriptors().ptr();
+    descriptors.PatchValue(map->instance_descriptors());
   }
 
   for (InternalIndex index : InternalIndex::Range(number_of_own_descriptors)) {
@@ -1913,7 +1913,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, prop_value, Object::GetProperty(&it), Nothing<bool>());
         stable = object->map() == *map;
-        *descriptors.location() = map->instance_descriptors().ptr();
+        descriptors.PatchValue(map->instance_descriptors());
       }
     } else {
       // If the map did change, do a slower lookup. We are still guaranteed that
