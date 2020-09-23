@@ -653,11 +653,6 @@
   # https://github.com/tc39/ecma262/pull/889
   'annexB/language/function-code/block-decl-func-skip-arguments': [FAIL],
 
-  # Non-simple assignment targets are runtime errors instead of syntax errors for web compat.
-  'language/expressions/logical-assignment/lgcl-or-assignment-operator-non-simple-lhs': [FAIL],
-  'language/expressions/logical-assignment/lgcl-and-assignment-operator-non-simple-lhs': [FAIL],
-  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-non-simple-lhs': [FAIL],
-
   ############################ INVALID TESTS #############################
 
   # Test makes unjustified assumptions about the number of calls to SortCompare.
