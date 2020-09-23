@@ -123,13 +123,10 @@ class Module : public HeapObject {
   // To set status to kErrored, RecordError or RecordErrorUsingPendingException
   // should be used.
   void SetStatus(Status status);
-  void RecordErrorUsingPendingException(Isolate* isolate);
-  void RecordError(Isolate* isolate, Handle<Object> error);
-
-#ifdef DEBUG
-  // For --trace-module-status.
-  void PrintStatusTransition(Status new_status);
-#endif  // DEBUG
+  static void RecordErrorUsingPendingException(Isolate* isolate,
+                                               Handle<Module>);
+  static void RecordError(Isolate* isolate, Handle<Module> module,
+                          Handle<Object> error);
 
   OBJECT_CONSTRUCTORS(Module, HeapObject);
 };
