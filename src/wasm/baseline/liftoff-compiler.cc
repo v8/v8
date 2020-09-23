@@ -4108,7 +4108,10 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   decoder.Decode();
   liftoff_compile_time_scope.reset();
   LiftoffCompiler* compiler = &decoder.interface();
-  if (decoder.failed()) compiler->OnFirstError(&decoder);
+  if (decoder.failed()) {
+    compiler->OnFirstError(&decoder);
+    return WasmCompilationResult{};
+  }
 
   if (counters) {
     // Check that the histogram for the bailout reasons has the correct size.

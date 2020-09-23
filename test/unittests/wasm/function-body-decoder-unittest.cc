@@ -3504,7 +3504,8 @@ TEST_F(FunctionBodyDecoderTest, NonDefaultableLocal) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(reftypes);
   AddLocals(ValueType::Ref(HeapType::kExtern, kNonNullable), 1);
-  ExpectFailure(sigs.v_v(), {});
+  ExpectFailure(sigs.v_v(), {}, kAppendEnd,
+                "Cannot define function-level local of non-defaultable type");
 }
 
 TEST_F(FunctionBodyDecoderTest, RefEq) {
