@@ -380,10 +380,7 @@ namespace compiler {
   V(Arm64V32x4AllTrue)                      \
   V(Arm64V16x8AllTrue)                      \
   V(Arm64V8x16AllTrue)                      \
-  V(Arm64S8x16LoadSplat)                    \
-  V(Arm64S16x8LoadSplat)                    \
-  V(Arm64S32x4LoadSplat)                    \
-  V(Arm64S64x2LoadSplat)                    \
+  V(Arm64LoadSplat)                         \
   V(Arm64I16x8Load8x8S)                     \
   V(Arm64I16x8Load8x8U)                     \
   V(Arm64I32x4Load16x4S)                    \

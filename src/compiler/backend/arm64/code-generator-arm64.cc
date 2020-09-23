@@ -2601,20 +2601,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Add(i.OutputRegister32(), i.OutputRegister32(), 1);
       break;
     }
-    case kArm64S8x16LoadSplat: {
-      __ ld1r(i.OutputSimd128Register().V16B(), i.MemoryOperand(0));
-      break;
-    }
-    case kArm64S16x8LoadSplat: {
-      __ ld1r(i.OutputSimd128Register().V8H(), i.MemoryOperand(0));
-      break;
-    }
-    case kArm64S32x4LoadSplat: {
-      __ ld1r(i.OutputSimd128Register().V4S(), i.MemoryOperand(0));
-      break;
-    }
-    case kArm64S64x2LoadSplat: {
-      __ ld1r(i.OutputSimd128Register().V2D(), i.MemoryOperand(0));
+    case kArm64LoadSplat: {
+      VectorFormat f = VectorFormatFillQ(MiscField::decode(opcode));
+      __ ld1r(i.OutputSimd128Register().Format(f), i.MemoryOperand(0));
       break;
     }
     case kArm64I16x8Load8x8S: {

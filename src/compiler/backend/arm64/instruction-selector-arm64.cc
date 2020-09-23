@@ -607,19 +607,23 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
   bool require_add = false;
   switch (params.transformation) {
     case LoadTransformation::kS8x16LoadSplat:
-      opcode = kArm64S8x16LoadSplat;
+      opcode = kArm64LoadSplat;
+      opcode |= MiscField::encode(8);
       require_add = true;
       break;
     case LoadTransformation::kS16x8LoadSplat:
-      opcode = kArm64S16x8LoadSplat;
+      opcode = kArm64LoadSplat;
+      opcode |= MiscField::encode(16);
       require_add = true;
       break;
     case LoadTransformation::kS32x4LoadSplat:
-      opcode = kArm64S32x4LoadSplat;
+      opcode = kArm64LoadSplat;
+      opcode |= MiscField::encode(32);
       require_add = true;
       break;
     case LoadTransformation::kS64x2LoadSplat:
-      opcode = kArm64S64x2LoadSplat;
+      opcode = kArm64LoadSplat;
+      opcode |= MiscField::encode(64);
       require_add = true;
       break;
     case LoadTransformation::kI16x8Load8x8S:
