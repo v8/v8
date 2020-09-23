@@ -3280,8 +3280,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register scratch_0 = r0;
       Register scratch_1 = r1;
       for (int i = 0; i < 2; i++) {
-        __ vlgv(scratch_0, src0, MemOperand(r0, 0), Condition(3));
-        __ vlgv(scratch_1, src1, MemOperand(r0, 0), Condition(3));
+        __ vlgv(scratch_0, src0, MemOperand(r0, i), Condition(3));
+        __ vlgv(scratch_1, src1, MemOperand(r0, i), Condition(3));
         __ Mul64(scratch_0, scratch_1);
         scratch_0 = r1;
         scratch_1 = ip;
