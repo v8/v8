@@ -25,6 +25,52 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// TODO: move to separate modules
+class SourcePosition {
+  constructor(script, line, column) {
+    this.script = script;
+    this.line = line;
+    this.column = column;
+    this.entries = [];
+  }
+  addEntry(entry) {
+    this.entries.push(entry);
+  }
+}
+
+class Script {
+
+  constructor(id, name, source) {
+    this.id = id;
+    this.name = name;
+    this.source = source;
+    this.sourcePositions = [];
+    // Map<line, Map<column, SourcePosition>>
+    this.lineToColumn = new Map();
+  }
+
+  addSourcePosition(line, column, entry) {
+    let sourcePosition = this.lineToColumn.get(line)?.get(column);
+    if (sourcePosition === undefined) {
+      sourcePosition = new SourcePosition(this, line, column, )
+      this.#addSourcePosition(line, column, sourcePosition);
+    }
+    sourcePosition.addEntry(entry);
+    return sourcePosition;
+  }
+
+  #addSourcePosition(line, column, sourcePosition) {
+    let columnToSourcePosition;
+    if (this.lineToColumn.has(line)) {
+      columnToSourcePosition = this.lineToColumn.get(line);
+    } else {
+      columnToSourcePosition = new Map();
+      this.lineToColumn.set(line, columnToSourcePosition);
+    }
+    this.sourcePositions.push(sourcePosition);
+    columnToSourcePosition.set(column, sourcePosition);
+  }
+}
 
 /**
  * Creates a profile object for processing profiling-related events
@@ -228,13 +274,10 @@ Profile.prototype.addSourcePositions = function (
 /**
  * Adds script source code.
  */
-Profile.prototype.addScriptSource = function (scriptId, url, source) {
-  this.scripts_[scriptId] = {
-    scriptId: scriptId,
-    name: url,
-    source: source
-  };
-  this.urlToScript_.set(url, source);
+Profile.prototype.addScriptSource = function (id, url, source) {
+  const script = new Script(id, url, source);
+  this.scripts_[id] = script;
+  this.urlToScript_.set(url, script);
 };
 
 
@@ -1033,12 +1076,8 @@ JsonProfile.prototype.addSourcePositions = function (
   };
 };
 
-JsonProfile.prototype.addScriptSource = function (scriptId, url, source) {
-  this.scripts_[scriptId] = {
-    scriptId: scriptId,
-    name: url,
-    source: source
-  };
+JsonProfile.prototype.addScriptSource = function (id, url, source) {
+  this.scripts_[id] = new Script(id, url, source);
 };
 
 

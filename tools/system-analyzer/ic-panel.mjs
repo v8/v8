@@ -4,7 +4,6 @@
 
 import { Group } from './ic-model.mjs';
 import Processor from "./processor.mjs";
-import { SourcePositionLogEvent } from "./log/sourcePosition.mjs";
 import { MapLogEvent } from "./log/map.mjs";
 import { FocusEvent, SelectTimeEvent, SelectionEvent } from './events.mjs';
 import { defineCustomElement, V8CustomElement } from './helper.mjs';
@@ -122,18 +121,7 @@ defineCustomElement('ic-panel', (templateText) =>
     //TODO(zcankara) Handle in the processor for events with source positions.
     handleFilePositionClick(e) {
       const entry = e.target.parentNode.entry;
-      const filePosition =
-        this.createSourcePositionLogEvent(
-          entry.entries[0].type, entry.entries[0].time, entry.key,
-          entry.entries[0].script);
-      this.dispatchEvent(new FocusEvent(filePosition));
-    }
-
-    createSourcePositionLogEvent(type, time, filePositionLine, script) {
-      const [file, line, col] = filePositionLine.split(':');
-      const filePosition = new SourcePositionLogEvent(type, time,
-        file, line, col, script);
-      return filePosition
+      this.dispatchEvent(new FocusEvent(entry.filePosition));
     }
 
     render(entries, parent) {

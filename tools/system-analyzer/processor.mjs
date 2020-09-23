@@ -52,7 +52,7 @@ class Processor extends LogReader {
       'map': {
         parsers: [
           parseString, parseInt, parseString, parseString, parseInt, parseInt,
-          parseString, parseString, parseString
+          parseInt, parseString, parseString
         ],
         processor: this.processMap
       },
@@ -154,10 +154,6 @@ class Processor extends LogReader {
     });
   }
 
-  addEntry(entry) {
-    this.entries.push(entry);
-  }
-
   /**
    * Parser for dynamic code optimization state.
    */
@@ -227,10 +223,13 @@ class Processor extends LogReader {
     let parts = fnName.split(' ');
     let fileName = parts[1];
     let script = this.getScript(fileName);
+    // TODO: Use SourcePosition here directly
     let entry = new IcLogEvent(
       type, fnName, time, line, column, key, old_state, new_state, map,
       slow_reason, script);
-    //TODO(zcankara) Process sourcePosition
+    if (script) {
+      entry.sourcePosition = script.addSourcePosition(line, column, entry);
+    }
     this.#icTimeline.push(entry);
   }
 
@@ -266,11 +265,14 @@ class Processor extends LogReader {
     if (type === 'Deprecate') return this.deprecateMap(type, time_, from);
     let from_ = this.getExistingMap(from, time_);
     let to_ = this.getExistingMap(to, time_);
-    //TODO(zcankara) Process sourcePosition
+    // TODO: use SourcePosition directly.
     let edge = new Edge(type, name, reason, time, from_, to_);
     to_.filePosition = this.formatPC(pc, line, column);
     let fileName = this.processFileName(to_.filePosition);
     to_.script = this.getScript(fileName);
+    if (to_.script) {
+      to_.sourcePosition = to_.script.addSourcePosition(line, column, to_)
+    }
     edge.finishSetup();
   }
 
@@ -292,7 +294,6 @@ class Processor extends LogReader {
 
   createMap(id, time) {
     let map = new MapLogEvent(id, time);
-    //TODO(zcankara) Process sourcePosition
     this.#mapTimeline.push(map);
     return map;
   }
@@ -309,7 +310,12 @@ class Processor extends LogReader {
   }
 
   getScript(url) {
-    return this.#profile.getScript(url);
+    const script = this.#profile.getScript(url);
+    // TODO create placeholder script for empty urls.
+    if (script === undefined) {
+      console.error(`Could not find script for url: '${url}'`)
+    }
+    return script;
   }
 
   get icTimeline() {
@@ -320,7 +326,9 @@ class Processor extends LogReader {
     return this.#mapTimeline;
   }
 
-
+  get scripts() {
+    return this.#profile.scripts_.filter(script => script !== undefined);
+  }
 }
 
 Processor.kProperties = [

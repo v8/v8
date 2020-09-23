@@ -140,7 +140,9 @@ button {
   color: var(--on-primary-color);
 }
 .clickable:hover,
-.clickable:active {
+.mark:hover,
+.clickable:active,
+.mark:active {
   background-color: var(--primary-color);
   color: var(--on-primary-color);
   cursor: pointer;

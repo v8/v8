@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 import { V8CustomElement, defineCustomElement } from "../helper.mjs";
 import { FocusEvent } from "../events.mjs";
-import { SourcePositionLogEvent } from "../log/sourcePosition.mjs";
 
 defineCustomElement(
   "./map-panel/map-details",
@@ -43,21 +42,7 @@ defineCustomElement(
       }
 
       handleFilePositionClick() {
-        let filePosition =
-          this.createSourcePositionLogEvent(
-            this.selectedMap.type, this.selectedMap.time,
-            this.selectedMap.filePosition, this.selectedMap.script);
-        this.dispatchEvent(new FocusEvent(filePosition));
-      }
-
-      createSourcePositionLogEvent(type, time, filePositionLine, script) {
-        // remove token
-        if (!(/\s/.test(filePositionLine))) return;
-        filePositionLine = filePositionLine.split(' ');
-        let [file, line, col] = filePositionLine[1].split(':');
-        let filePosition = new SourcePositionLogEvent(type, time,
-          file, line, col, script);
-        return filePosition
+        this.dispatchEvent(new FocusEvent(this.selectedMap.sourcePosition));
       }
     }
 );

@@ -4,7 +4,6 @@
 
 import { SelectionEvent, FocusEvent, SelectTimeEvent } from "./events.mjs";
 import { State } from "./app-model.mjs";
-import { SourcePositionLogEvent } from "./log/sourcePosition.mjs";
 import { MapLogEvent } from "./log/map.mjs";
 import { IcLogEvent } from "./log/ic.mjs";
 import Processor from "./processor.mjs";
@@ -55,10 +54,10 @@ class App {
       this.showMapEntries(e.entries);
     } else if (e.entries[0] instanceof IcLogEvent) {
       this.showIcEntries(e.entries);
-    } else if (e.entries[0] instanceof SourcePositionLogEvent) {
+    } else if (e.entries[0] instanceof SourcePosition) {
       this.showSourcePositionEntries(e.entries);
     } else {
-      console.error("Undefined selection!");
+      throw new Error("Unknown selection type!");
     }
   }
   showMapEntries(entries) {
@@ -82,10 +81,10 @@ class App {
       this.selectMapLogEvent(e.entry);
     } else if (e.entry instanceof IcLogEvent) {
       this.selectICLogEvent(e.entry);
-    } else if (e.entry instanceof SourcePositionLogEvent) {
+    } else if (e.entry instanceof SourcePosition) {
       this.selectSourcePositionEvent(e.entry);
     } else {
-      console.log("undefined");
+      throw new Error("Unknown selection type!");
     }
   }
   selectTimeRange(start, end) {
@@ -108,7 +107,6 @@ class App {
   }
   selectSourcePositionEvent(sourcePositions) {
     if (!sourcePositions.script) return;
-    console.log("source positions: ", sourcePositions);
     this.#view.sourcePanel.selectedSourcePositions = [sourcePositions];
   }
 
@@ -133,26 +131,22 @@ class App {
     $("#container").className = "loaded";
     // instantiate the app logic
     let fileData = e.detail;
-    try {
-      const processor = this.handleLoadTextProcessor(fileData.chunk);
-      const mapTimeline = processor.mapTimeline;
-      const icTimeline = processor.icTimeline;
-      //TODO(zcankara) Make sure only one instance of src event map ic id match
-      // Load map log events timeline.
-      this.#state.mapTimeline = mapTimeline;
-      // Transitions must be set before timeline for stats panel.
-      this.#view.mapPanel.transitions = this.#state.mapTimeline.transitions;
-      this.#view.mapTrack.data = mapTimeline;
-      this.#state.chunks = this.#view.mapTrack.chunks;
-      this.#view.mapPanel.timeline = mapTimeline;
-      // Load ic log events timeline.
-      this.#state.icTimeline = icTimeline;
-      this.#view.icPanel.timeline = icTimeline;
-      this.#view.icTrack.data = icTimeline;
-      // TODO(zcankara) Load source position log events timeline.
-    } catch (error) {
-      console.log(error);
-    }
+    const processor = this.handleLoadTextProcessor(fileData.chunk);
+    const mapTimeline = processor.mapTimeline;
+    const icTimeline = processor.icTimeline;
+    //TODO(zcankara) Make sure only one instance of src event map ic id match
+    // Load map log events timeline.
+    this.#state.mapTimeline = mapTimeline;
+    // Transitions must be set before timeline for stats panel.
+    this.#view.mapPanel.transitions = this.#state.mapTimeline.transitions;
+    this.#view.mapTrack.data = mapTimeline;
+    this.#state.chunks = this.#view.mapTrack.chunks;
+    this.#view.mapPanel.timeline = mapTimeline;
+    // Load ic log events timeline.
+    this.#state.icTimeline = icTimeline;
+    this.#view.icPanel.timeline = icTimeline;
+    this.#view.icTrack.data = icTimeline;
+    this.#view.sourcePanel.data = processor.scripts
     this.fileLoaded = true;
   }
 
