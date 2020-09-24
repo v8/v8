@@ -106,6 +106,12 @@ class WasmValue {
   template <typename T>
   inline T to_unchecked() const;
 
+  static WasmValue ForUintPtr(uintptr_t value) {
+    using type =
+        std::conditional<kSystemPointerSize == 8, uint64_t, uint32_t>::type;
+    return WasmValue{type{value}};
+  }
+
  private:
   ValueType type_;
   uint8_t bit_pattern_[16];

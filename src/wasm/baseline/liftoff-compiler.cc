@@ -2095,10 +2095,14 @@ class LiftoffCompiler {
   // Returns true if the memory access is statically known to be out of bounds
   // (a jump to the trap was generated then); return false otherwise.
   bool BoundsCheckMem(FullDecoder* decoder, uint32_t access_size,
-                      uint32_t offset, Register index, LiftoffRegList pinned,
+                      uint64_t offset, Register index, LiftoffRegList pinned,
                       ForceCheck force_check) {
+    // If the offset does not fit in a uintptr_t, this can never succeed on this
+    // machine.
     const bool statically_oob =
-        !base::IsInBounds<uint64_t>(offset, access_size, env_->max_memory_size);
+        offset > std::numeric_limits<uintptr_t>::max() ||
+        !base::IsInBounds<uintptr_t>(offset, access_size,
+                                     env_->max_memory_size);
 
     if (!force_check && !statically_oob &&
         (!FLAG_wasm_bounds_checks || env_->use_trap_handler)) {
@@ -2118,7 +2122,7 @@ class LiftoffCompiler {
       return true;
     }
 
-    uint64_t end_offset = uint64_t{offset} + access_size - 1u;
+    uintptr_t end_offset = offset + access_size - 1u;
 
     // If the end offset is larger than the smallest memory, dynamically check
     // the end offset against the actual memory size, which is not known at
@@ -2128,12 +2132,7 @@ class LiftoffCompiler {
     Register mem_size = __ GetUnusedRegister(kGpReg, pinned).gp();
     LOAD_INSTANCE_FIELD(mem_size, MemorySize, kSystemPointerSize);
 
-    if (kSystemPointerSize == 8) {
-      __ LoadConstant(end_offset_reg, WasmValue(end_offset));
-    } else {
-      __ LoadConstant(end_offset_reg,
-                      WasmValue(static_cast<uint32_t>(end_offset)));
-    }
+    __ LoadConstant(end_offset_reg, WasmValue::ForUintPtr(end_offset));
 
     if (end_offset >= env_->min_memory_size) {
       __ emit_cond_jump(kUnsignedGreaterEqual, trap_label,

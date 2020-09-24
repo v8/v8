@@ -3670,7 +3670,7 @@ Node* WasmGraphBuilder::CheckBoundsAndAlignment(
 // bounds-checked index, which is guaranteed to have (the equivalent of)
 // {uintptr_t} representation.
 Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
-                                       uint32_t offset,
+                                       uint64_t offset,
                                        wasm::WasmCodePosition position,
                                        EnforceBoundsCheck enforce_check) {
   DCHECK_LE(1, access_size);
@@ -3681,13 +3681,17 @@ Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
     return index;
   }
 
-  if (!base::IsInBounds<uint64_t>(offset, access_size, env_->max_memory_size)) {
+  // If the offset does not fit in a uintptr_t, this can never succeed on this
+  // machine.
+  if (offset > std::numeric_limits<uintptr_t>::max() ||
+      !base::IsInBounds<uintptr_t>(offset, access_size,
+                                   env_->max_memory_size)) {
     // The access will be out of bounds, even for the largest memory.
     TrapIfEq32(wasm::kTrapMemOutOfBounds, Int32Constant(0), 0, position);
-    return mcgraph()->IntPtrConstant(0);
+    return mcgraph()->UintPtrConstant(0);
   }
-  uint64_t end_offset = uint64_t{offset} + access_size - 1u;
-  Node* end_offset_node = IntPtrConstant(end_offset);
+  uintptr_t end_offset = offset + access_size - 1u;
+  Node* end_offset_node = mcgraph_->UintPtrConstant(end_offset);
 
   // The accessed memory is [index + offset, index + end_offset].
   // Check that the last read byte (at {index + end_offset}) is in bounds.
