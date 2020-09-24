@@ -1602,7 +1602,7 @@ void Logger::FunctionEvent(const char* reason, int script_id, double time_delta,
 void Logger::FunctionEvent(const char* reason, int script_id, double time_delta,
                            int start_position, int end_position,
                            const char* function_name,
-                           size_t function_name_length) {
+                           size_t function_name_length, bool is_one_byte) {
   if (!FLAG_log_function_events) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
@@ -1610,7 +1610,7 @@ void Logger::FunctionEvent(const char* reason, int script_id, double time_delta,
   AppendFunctionMessage(msg, reason, script_id, time_delta, start_position,
                         end_position, &timer_);
   if (function_name_length > 0) {
-    msg.AppendString(function_name, function_name_length);
+    msg.AppendString(function_name, function_name_length, is_one_byte);
   }
   msg.WriteToLogFile();
 }

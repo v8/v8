@@ -170,7 +170,7 @@ class Logger : public CodeEventListener {
   void FunctionEvent(const char* reason, int script_id, double time_delta_ms,
                      int start_position, int end_position,
                      const char* function_name = nullptr,
-                     size_t function_name_length = 0);
+                     size_t function_name_length = 0, bool is_one_byte = true);
 
   void CompilationCacheEvent(const char* action, const char* cache_type,
                              SharedFunctionInfo sfi);

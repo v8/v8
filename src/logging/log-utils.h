@@ -69,9 +69,10 @@ class Log {
                       base::Optional<int> length_limit = base::nullopt);
     void AppendString(Vector<const char> str);
     void AppendString(const char* str);
-    void AppendString(const char* str, size_t length);
+    void AppendString(const char* str, size_t length, bool is_one_byte = true);
     void PRINTF_FORMAT(2, 3) AppendFormatString(const char* format, ...);
     void AppendCharacter(char c);
+    void AppendTwoByteCharacter(char c1, char c2);
     void AppendSymbolName(Symbol symbol);
 
     // Delegate insertion to the underlying {log_}.

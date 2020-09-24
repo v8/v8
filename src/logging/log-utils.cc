@@ -128,12 +128,19 @@ void Log::MessageBuilder::AppendString(const char* str) {
   AppendString(str, strlen(str));
 }
 
-void Log::MessageBuilder::AppendString(const char* str, size_t length) {
+void Log::MessageBuilder::AppendString(const char* str, size_t length,
+                                       bool is_one_byte) {
   if (str == nullptr) return;
-
-  for (size_t i = 0; i < length; i++) {
-    DCHECK_NE(str[i], '\0');
-    AppendCharacter(str[i]);
+  if (is_one_byte) {
+    for (size_t i = 0; i < length; i++) {
+      DCHECK_IMPLIES(is_one_byte, str[i] != '\0');
+      AppendCharacter(str[i]);
+    }
+  } else {
+    DCHECK_EQ(length % 2, 0);
+    for (size_t i = 0; i + 1 < length; i += 2) {
+      AppendTwoByteCharacter(str[i], str[i + 1]);
+    }
   }
 }
 
@@ -148,6 +155,14 @@ void Log::MessageBuilder::AppendFormatString(const char* format, ...) {
   }
 }
 
+void Log::MessageBuilder::AppendTwoByteCharacter(char c1, char c2) {
+  if (c2 == 0) {
+    AppendCharacter(c1);
+  } else {
+    // Escape non-printable characters.
+    AppendRawFormatString("\\u%02x%02x", c1 & 0xFF, c2 & 0xFF);
+  }
+}
 void Log::MessageBuilder::AppendCharacter(char c) {
   if (c >= 32 && c <= 126) {
     if (c == ',') {
