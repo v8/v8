@@ -4,6 +4,12 @@
 
 // Flags: --allow-natives-syntax --super-ic
 
+function forceDictionaryMode(obj) {
+  for (let i = 0; i < 2000; ++i) {
+    obj["prop" + i] = "prop_value";
+  }
+}
+
 (function TestHomeObjectPrototypeNull() {
   class A {}
 
@@ -303,10 +309,7 @@
 
   // Create a "home object proto" object which is a bound function.
   let home_object_proto = (function() {}).bind({});
-  // Force home_object_proto to dictionary mode.
-  for (let i = 0; i < 2000; ++i) {
-    home_object_proto["prop" + i] = "prop_value";
-  }
+  forceDictionaryMode(home_object_proto);
   B.prototype.__proto__ = home_object_proto;
 
   assertEquals(0, home_object_proto.length);
@@ -341,4 +344,113 @@
 
   assertEquals(A.prototype.foo, (new B).m());
   assertEquals(A.prototype.foo, (new B).n()());
+})();
+
+// Regression test for a receiver vs lookup start object confusion.
+(function TestProxyAsLookupStartObject1() {
+  class A {}
+  class B extends A {
+    bar() {
+      return super.foo;
+    }
+  }
+
+  const o = new B();
+  B.prototype.__proto__ = new Proxy({}, {});
+  for (let i = 0; i < 1000; ++i) {
+    assertEquals(undefined, o.bar());
+  }
+})();
+
+(function TestProxyAsLookupStartObject2() {
+  class A {}
+  class B extends A {
+    bar() {
+      return super.foo;
+    }
+  }
+
+  const o = new B();
+  forceDictionaryMode(o);
+  o.foo = "wrong value";
+  B.prototype.__proto__ = new Proxy({}, {});
+
+  for (let i = 0; i < 1000; ++i) {
+    assertEquals(undefined, o.bar());
+  }
+})();
+
+(function TestProxyAsLookupStartObject3() {
+  class A {}
+  class B extends A {
+    bar() {
+      return super.foo;
+    }
+  }
+
+  const o = new B();
+  B.prototype.__proto__ = new Proxy({}, {});
+  B.prototype.__proto__.foo = "correct value";
+
+  for (let i = 0; i < 1000; ++i) {
+    assertEquals(B.prototype.__proto__.foo, o.bar());
+  }
+})();
+
+(function TestDictionaryModeHomeObjectProto1() {
+  class A {}
+  forceDictionaryMode(A.prototype);
+  A.prototype.foo = "correct value";
+  class B extends A {
+    bar() {
+      return super.foo;
+    }
+  }
+  const o = new B();
+  for (let i = 0; i < 1000; ++i) {
+    assertEquals(A.prototype.foo, o.bar());
+  }
+})();
+
+(function TestDictionaryModeHomeObjectProto2() {
+  class A {}
+  A.prototype.foo = "correct value";
+  class B extends A {};
+  forceDictionaryMode(B.prototype);
+  class C extends B {
+    bar() {
+      return super.foo;
+    }
+  }
+  const o = new C();
+  for (let i = 0; i < 1000; ++i) {
+    assertEquals(A.prototype.foo, o.bar());
+  }
+})();
+
+(function TestHomeObjectProtoIsGlobalThis() {
+  class A {};
+  class B extends A {
+    bar() { return super.foo; }
+  }
+  B.prototype.__proto__ = globalThis;
+
+  const o = new B();
+  for (let i = 0; i < 1000; ++i) {
+    assertEquals(undefined, o.bar());
+  }
+})();
+
+// Regression test for (mis)using the prototype validity cell mechanism.
+(function TestLoadFromDictionaryModePrototype() {
+  const obj1 = {};
+  const obj2 = {__proto__: obj1};
+  forceDictionaryMode(obj1);
+
+  for (let i = 0; i < 1000; ++i) {
+    assertEquals(undefined, obj1.x);
+  }
+
+  obj1.x = "added";
+  assertEquals("added", obj1.x);
 })();
