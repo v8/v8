@@ -3556,7 +3556,7 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   thread_in_wasm_flag_addr = no_reg;
 
   Register jump_table_offset = function_data;
-  __ DecompressTaggedSigned(
+  __ LoadAnyTaggedField(
       jump_table_offset,
       MemOperand(
           function_data,

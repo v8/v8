@@ -409,7 +409,6 @@ let kSig_v_liilliiil = makeSig([kWasmI64, kWasmI32, kWasmI32, kWasmI64,
   assertEquals(0.5, instance.exports.main());
 })();
 
-
 (function testGenericWrapper1F64Return() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
@@ -428,4 +427,20 @@ let kSig_v_liilliiil = makeSig([kWasmI64, kWasmI32, kWasmI32, kWasmI64,
 
   let instance = builder.instantiate({ mod: { func: import_func } });
   assertEquals(0.25, instance.exports.main());
+})();
+
+(function Regression1130385() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig_index = builder.addType(kSig_i_v);
+  builder.addFunction("f0", sig_index)
+    .addBody([kExprI32Const, 12])
+    .exportFunc();
+
+  builder.addFunction("f1", sig_index)
+    .addBody([kExprI32Const, 15])
+    .exportFunc();
+
+  let instance = builder.instantiate();
+  assertEquals(15, instance.exports.f1());
 })();
