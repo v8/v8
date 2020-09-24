@@ -1837,12 +1837,22 @@ void SimdScalarLowering::LowerNode(Node* node) {
     case IrOpcode::kI16x8Splat:
     case IrOpcode::kI8x16Splat: {
       Node** rep_node = zone()->NewArray<Node*>(num_lanes);
+      Node* val = (HasReplacement(0, node->InputAt(0)))
+                      ? GetReplacements(node->InputAt(0))[0]
+                      : node->InputAt(0);
+
+      // I16 and I8 are placed in Word32 nodes, we need to mask them
+      // accordingly, to account for overflows, then sign extend them.
+      if (node->opcode() == IrOpcode::kI16x8Splat) {
+        val = graph()->NewNode(machine()->SignExtendWord16ToInt32(),
+                               Mask(val, kMask16));
+      } else if (node->opcode() == IrOpcode::kI8x16Splat) {
+        val = graph()->NewNode(machine()->SignExtendWord8ToInt32(),
+                               Mask(val, kMask8));
+      }
+
       for (int i = 0; i < num_lanes; ++i) {
-        if (HasReplacement(0, node->InputAt(0))) {
-          rep_node[i] = GetReplacements(node->InputAt(0))[0];
-        } else {
-          rep_node[i] = node->InputAt(0);
-        }
+        rep_node[i] = val;
       }
       ReplaceNode(node, rep_node, num_lanes);
       break;
@@ -1861,6 +1871,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
       for (int i = 1; i < num_lanes; ++i) {
         rep_node[i] = nullptr;
       }
+
       ReplaceNode(node, rep_node, num_lanes);
       break;
     }

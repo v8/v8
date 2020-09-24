@@ -43,7 +43,6 @@
   'proposals/simd/simd_conversions' : [PASS, FAIL],
   'proposals/simd/simd_lane' : [PASS, FAIL],
   'proposals/simd/simd_load_splat' : [PASS, FAIL],
-  'proposals/simd/simd_splat' : [PASS, FAIL],
 
 }],  # ALWAYS
 
@@ -52,6 +51,9 @@
   'proposals/simd/simd_f32x4': [PASS, FAIL],
   'proposals/simd/simd_f32x4_arith': [PASS, FAIL],
   'proposals/simd/simd_f32x4_cmp': [PASS, FAIL],
+  # This test only has 1 problematic use of f32x4.min and f32x4.div, consider
+  # removing it from upstream, then we can run this test.
+  'proposals/simd/simd_splat' : [PASS, FAIL],
 }],  # arch == arm and not simulator_run
 
 ['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {
