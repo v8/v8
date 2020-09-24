@@ -39,7 +39,8 @@ MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
   bool success = false;
   LookupIterator::Key lookup_key(isolate, key, &success);
   if (!success) return MaybeHandle<Object>();
-  LookupIterator it = LookupIterator(isolate, receiver, lookup_key, holder);
+  LookupIterator it =
+      LookupIterator::LookupWithReceiver(isolate, receiver, lookup_key, holder);
 
   MaybeHandle<Object> result = Object::GetProperty(&it);
   if (is_found) *is_found = it.IsFound();

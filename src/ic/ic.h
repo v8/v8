@@ -37,9 +37,8 @@ class IC {
 
   State state() const { return state_; }
 
-  // Compute the current IC state based on the target stub, lookup_start_object
-  // and name.
-  void UpdateState(Handle<Object> lookup_start_object, Handle<Object> name);
+  // Compute the current IC state based on the target stub, receiver and name.
+  void UpdateState(Handle<Object> receiver, Handle<Object> name);
 
   bool RecomputeHandlerForName(Handle<Object> name);
   void MarkRecomputeHandler(Handle<Object> name) {
@@ -122,8 +121,8 @@ class IC {
   }
   bool ShouldRecomputeHandler(Handle<String> name);
 
-  Handle<Map> lookup_start_object_map() { return lookup_start_object_map_; }
-  inline void update_lookup_start_object_map(Handle<Object> object);
+  Handle<Map> receiver_map() { return receiver_map_; }
+  inline void update_receiver_map(Handle<Object> receiver);
 
   void TargetMaps(MapHandles* list) {
     FindTargetMaps();
@@ -153,7 +152,7 @@ class IC {
   State old_state_;  // For saving if we marked as prototype failure.
   State state_;
   FeedbackSlotKind kind_;
-  Handle<Map> lookup_start_object_map_;
+  Handle<Map> receiver_map_;
 
   MapHandles target_maps_;
   bool target_maps_set_;

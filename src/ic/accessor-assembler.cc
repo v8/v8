@@ -200,8 +200,7 @@ void AccessorAssembler::HandleLoadAccessor(
   // Context is stored either in data2 or data3 field depending on whether
   // the access check is enabled for this handler or not.
   TNode<MaybeObject> maybe_context = Select<MaybeObject>(
-      IsSetWord<LoadHandler::DoAccessCheckOnLookupStartObjectBits>(
-          handler_word),
+      IsSetWord<LoadHandler::DoAccessCheckOnReceiverBits>(handler_word),
       [=] { return LoadHandlerDataField(handler, 3); },
       [=] { return LoadHandlerDataField(handler, 2); });
 
@@ -791,14 +790,12 @@ void AccessorAssembler::HandleLoadICSmiHandlerHasNamedCase(
 //    generate a code that handles Code handlers.
 //    If |on_code_handler| is not provided, then only smi sub handler are
 //    expected.
-// 3. Does access check on lookup start object if
-//    ICHandler::DoAccessCheckOnLookupStartObjectBits bit is set in the smi
-//    handler.
-// 4. Does dictionary lookup on receiver if
-//    ICHandler::LookupOnLookupStartObjectBits bit is set in the smi handler. If
-//    |on_found_on_lookup_start_object| is provided then it calls it to
-//    generate a code that handles the "found on receiver case" or just misses
-//    if the |on_found_on_lookup_start_object| is not provided.
+// 3. Does access check on receiver if ICHandler::DoAccessCheckOnReceiverBits
+//    bit is set in the smi handler.
+// 4. Does dictionary lookup on receiver if ICHandler::LookupOnReceiverBits bit
+//    is set in the smi handler. If |on_found_on_receiver| is provided then
+//    it calls it to generate a code that handles the "found on receiver case"
+//    or just misses if the |on_found_on_receiver| is not provided.
 // 5. Falls through in a case of a smi handler which is returned from this
 //    function (tagged!).
 // TODO(ishell): Remove templatezation once we move common bits from
@@ -807,8 +804,8 @@ template <typename ICHandler, typename ICParameters>
 TNode<Object> AccessorAssembler::HandleProtoHandler(
     const ICParameters* p, TNode<DataHandler> handler,
     const OnCodeHandler& on_code_handler,
-    const OnFoundOnLookupStartObject& on_found_on_lookup_start_object,
-    Label* miss, ICMode ic_mode) {
+    const OnFoundOnReceiver& on_found_on_receiver, Label* miss,
+    ICMode ic_mode) {
   //
   // Check prototype validity cell.
   //
@@ -838,24 +835,21 @@ TNode<Object> AccessorAssembler::HandleProtoHandler(
     // because in the former case the validity cell check guards modifications
     // of the global object and the latter is not applicable to the global
     // object.
-    int mask = ICHandler::LookupOnLookupStartObjectBits::kMask |
-               ICHandler::DoAccessCheckOnLookupStartObjectBits::kMask;
+    int mask = ICHandler::LookupOnReceiverBits::kMask |
+               ICHandler::DoAccessCheckOnReceiverBits::kMask;
     if (ic_mode == ICMode::kGlobalIC) {
       CSA_ASSERT(this, IsClearWord(handler_flags, mask));
     } else {
       DCHECK_EQ(ICMode::kNonGlobalIC, ic_mode);
 
-      Label done(this), if_do_access_check(this),
-          if_lookup_on_lookup_start_object(this);
+      Label done(this), if_do_access_check(this), if_lookup_on_receiver(this);
       GotoIf(IsClearWord(handler_flags, mask), &done);
       // Only one of the bits can be set at a time.
       CSA_ASSERT(this,
                  WordNotEqual(WordAnd(handler_flags, IntPtrConstant(mask)),
                               IntPtrConstant(mask)));
-      Branch(
-          IsSetWord<typename ICHandler::DoAccessCheckOnLookupStartObjectBits>(
-              handler_flags),
-          &if_do_access_check, &if_lookup_on_lookup_start_object);
+      Branch(IsSetWord<LoadHandler::DoAccessCheckOnReceiverBits>(handler_flags),
+             &if_do_access_check, &if_lookup_on_receiver);
 
       BIND(&if_do_access_check);
       {
@@ -863,39 +857,29 @@ TNode<Object> AccessorAssembler::HandleProtoHandler(
         CSA_ASSERT(this, IsWeakOrCleared(data2));
         TNode<Context> expected_native_context =
             CAST(GetHeapObjectAssumeWeak(data2, miss));
-        EmitAccessCheck(expected_native_context, p->context(),
-                        p->lookup_start_object(), &done, miss);
+        EmitAccessCheck(expected_native_context, p->context(), p->receiver(),
+                        &done, miss);
       }
 
-      BIND(&if_lookup_on_lookup_start_object);
+      // Dictionary lookup on receiver is not necessary for Load/StoreGlobalIC
+      // because prototype validity cell check already guards modifications of
+      // the global object.
+      BIND(&if_lookup_on_receiver);
       {
-        // Assert that the LookupOnLookupStartObjectBits is never set for
-        // Load/StoreSuperIC case (which is when receiver !=
-        // lookup_start_object). For the super IC case the lookup start object
-        // is guaranteed to be a prototype of a home object and thus the
-        // prototype validity cell check already guards modifications of the
-        // lookup start object.
-        CSA_ASSERT(this, TaggedEqual(p->receiver(), p->lookup_start_object()));
-
-        // Dictionary lookup on lookup start object is not necessary for
-        // Load/StoreGlobalIC (which is the only case when the
-        // lookup_start_object can be a JSGlobalObject) because prototype
-        // validity cell check already guards modifications of the global
-        // object.
-        CSA_ASSERT(this,
-                   Word32BinaryNot(HasInstanceType(
-                       CAST(p->lookup_start_object()), JS_GLOBAL_OBJECT_TYPE)));
+        DCHECK_EQ(ICMode::kNonGlobalIC, ic_mode);
+        CSA_ASSERT(this, Word32BinaryNot(HasInstanceType(
+                             CAST(p->receiver()), JS_GLOBAL_OBJECT_TYPE)));
 
         TNode<NameDictionary> properties =
-            CAST(LoadSlowProperties(CAST(p->lookup_start_object())));
+            CAST(LoadSlowProperties(CAST(p->receiver())));
         TVARIABLE(IntPtrT, var_name_index);
         Label found(this, &var_name_index);
         NameDictionaryLookup<NameDictionary>(properties, CAST(p->name()),
                                              &found, &var_name_index, &done);
         BIND(&found);
         {
-          if (on_found_on_lookup_start_object) {
-            on_found_on_lookup_start_object(properties, var_name_index.value());
+          if (on_found_on_receiver) {
+            on_found_on_receiver(properties, var_name_index.value());
           } else {
             Goto(miss);
           }
@@ -917,7 +901,7 @@ void AccessorAssembler::HandleLoadICProtoHandler(
       p, handler,
       // Code sub-handlers are not expected in LoadICs, so no |on_code_handler|.
       nullptr,
-      // on_found_on_lookup_start_object
+      // on_found_on_receiver
       [=](TNode<NameDictionary> properties, TNode<IntPtrT> name_index) {
         if (access_mode == LoadAccessMode::kHas) {
           exit_point->Return(TrueConstant());
@@ -1558,7 +1542,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
   TNode<Object> smi_handler = HandleProtoHandler<StoreHandler>(
       p, handler, on_code_handler,
-      // on_found_on_lookup_start_object
+      // on_found_on_receiver
       [=](TNode<NameDictionary> properties, TNode<IntPtrT> name_index) {
         TNode<Uint32T> details = LoadDetailsByKeyIndex(properties, name_index);
         // Check that the property is a writable data property (no accessor).
@@ -1634,8 +1618,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     {
       // This is a case of "transitioning store" to a dictionary mode object
       // when the property does not exist. The "existing property" case is
-      // covered above by LookupOnLookupStartObject bit handling of the smi
-      // handler.
+      // covered above by LookupOnReceiver bit handling of the smi handler.
       Label slow(this);
       TNode<Map> receiver_map = LoadMap(CAST(p->receiver()));
       InvalidateValidityCellIfPrototype(receiver_map);
@@ -1665,8 +1648,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       // Context is stored either in data2 or data3 field depending on whether
       // the access check is enabled for this handler or not.
       TNode<MaybeObject> maybe_context = Select<MaybeObject>(
-          IsSetWord32<StoreHandler::DoAccessCheckOnLookupStartObjectBits>(
-              handler_word),
+          IsSetWord32<LoadHandler::DoAccessCheckOnReceiverBits>(handler_word),
           [=] { return LoadHandlerDataField(handler, 3); },
           [=] { return LoadHandlerDataField(handler, 2); });
 

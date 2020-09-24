@@ -199,8 +199,6 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     TNode<TaggedIndex> slot() const { return slot_; }
     TNode<HeapObject> vector() const { return vector_; }
 
-    TNode<Object> lookup_start_object() const { return receiver(); }
-
     bool receiver_is_null() const { return !receiver_.has_value(); }
 
    private:
@@ -417,15 +415,15 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   // Low-level helpers.
 
   using OnCodeHandler = std::function<void(TNode<Code> code_handler)>;
-  using OnFoundOnLookupStartObject = std::function<void(
-      TNode<NameDictionary> properties, TNode<IntPtrT> name_index)>;
+  using OnFoundOnReceiver = std::function<void(TNode<NameDictionary> properties,
+                                               TNode<IntPtrT> name_index)>;
 
   template <typename ICHandler, typename ICParameters>
   TNode<Object> HandleProtoHandler(
       const ICParameters* p, TNode<DataHandler> handler,
       const OnCodeHandler& on_code_handler,
-      const OnFoundOnLookupStartObject& on_found_on_lookup_start_object,
-      Label* miss, ICMode ic_mode);
+      const OnFoundOnReceiver& on_found_on_receiver, Label* miss,
+      ICMode ic_mode);
 
   void CheckHeapObjectTypeMatchesDescriptor(TNode<Word32T> handler_word,
                                             TNode<JSObject> holder,

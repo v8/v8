@@ -70,20 +70,26 @@ class V8_EXPORT_PRIVATE LookupIterator final {
                         Handle<Name> name,
                         Configuration configuration = DEFAULT);
   inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
-                        Handle<Name> name, Handle<Object> lookup_start_object,
+                        Handle<Name> name, Handle<JSReceiver> holder,
                         Configuration configuration = DEFAULT);
 
   inline LookupIterator(Isolate* isolate, Handle<Object> receiver, size_t index,
                         Configuration configuration = DEFAULT);
   inline LookupIterator(Isolate* isolate, Handle<Object> receiver, size_t index,
-                        Handle<Object> lookup_start_object,
+                        Handle<JSReceiver> holder,
                         Configuration configuration = DEFAULT);
 
   inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
                         const Key& key, Configuration configuration = DEFAULT);
   inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
-                        const Key& key, Handle<Object> lookup_start_object,
+                        const Key& key, Handle<JSReceiver> holder,
                         Configuration configuration = DEFAULT);
+
+  // Usable for cases where "holder" is not necessarily a JSReceiver (a separate
+  // overloaded constructor is not possible).
+  static inline LookupIterator LookupWithReceiver(
+      Isolate* isolate, Handle<Object> receiver, const Key& key,
+      Handle<Object> holder, Configuration configuration = DEFAULT);
 
   void Restart() {
     InterceptorState state = InterceptorState::kUninitialized;
@@ -127,8 +133,6 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   inline Handle<PropertyCell> transition_cell() const;
   template <class T>
   inline Handle<T> GetHolder() const;
-
-  Handle<Object> lookup_start_object() const { return lookup_start_object_; }
 
   bool HolderIsReceiver() const;
   bool HolderIsReceiverOrHiddenPrototype() const;
@@ -198,8 +202,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
 
   inline LookupIterator(Isolate* isolate, Handle<Object> receiver,
                         Handle<Name> name, size_t index,
-                        Handle<Object> lookup_start_object,
-                        Configuration configuration);
+                        Handle<JSReceiver> holder, Configuration configuration);
 
   // For |ForTransitionHandler|.
   LookupIterator(Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
@@ -264,10 +267,9 @@ class V8_EXPORT_PRIVATE LookupIterator final {
                                                    Handle<Name> name);
 
   static Handle<JSReceiver> GetRootForNonJSReceiver(
-      Isolate* isolate, Handle<Object> lookup_start_object,
-      size_t index = kInvalidIndex);
+      Isolate* isolate, Handle<Object> receiver, size_t index = kInvalidIndex);
   static inline Handle<JSReceiver> GetRoot(Isolate* isolate,
-                                           Handle<Object> lookup_start_object,
+                                           Handle<Object> receiver,
                                            size_t index = kInvalidIndex);
 
   State NotFound(JSReceiver const holder) const;
@@ -284,7 +286,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   Handle<Object> transition_;
   const Handle<Object> receiver_;
   Handle<JSReceiver> holder_;
-  const Handle<Object> lookup_start_object_;
+  const Handle<JSReceiver> initial_holder_;
   const size_t index_;
   InternalIndex number_ = InternalIndex::NotFound();
 };

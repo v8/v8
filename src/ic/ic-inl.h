@@ -16,12 +16,11 @@
 namespace v8 {
 namespace internal {
 
-void IC::update_lookup_start_object_map(Handle<Object> object) {
-  if (object->IsSmi()) {
-    lookup_start_object_map_ = isolate_->factory()->heap_number_map();
+void IC::update_receiver_map(Handle<Object> receiver) {
+  if (receiver->IsSmi()) {
+    receiver_map_ = isolate_->factory()->heap_number_map();
   } else {
-    lookup_start_object_map_ =
-        handle(HeapObject::cast(*object).map(), isolate_);
+    receiver_map_ = handle(HeapObject::cast(*receiver).map(), isolate_);
   }
 }
 
