@@ -1607,33 +1607,44 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   uint8_t validate_table_flags(const char* name) {
-    uint8_t flags = consume_u8("resizable limits flags");
-    const byte* pos = pc();
-    if (flags & 0xFE) {
-      errorf(pos - 1, "invalid %s limits flags", name);
+    uint8_t flags = consume_u8("table limits flags");
+    STATIC_ASSERT(kNoMaximum < kWithMaximum);
+    if (V8_UNLIKELY(flags > kWithMaximum)) {
+      errorf(pc() - 1, "invalid %s limits flags", name);
     }
     return flags;
   }
 
   uint8_t validate_memory_flags(bool* has_shared_memory) {
-    uint8_t flags = consume_u8("resizable limits flags");
-    const byte* pos = pc();
+    uint8_t flags = consume_u8("memory limits flags");
     *has_shared_memory = false;
-    if (enabled_features_.has_threads()) {
-      if (flags & 0xFC) {
-        errorf(pos - 1, "invalid memory limits flags");
-      } else if (flags == 3) {
-        DCHECK_NOT_NULL(has_shared_memory);
+    switch (flags) {
+      case kNoMaximum:
+      case kWithMaximum:
+        break;
+      case kSharedNoMaximum:
+      case kSharedWithMaximum:
+        if (!enabled_features_.has_threads()) {
+          errorf(pc() - 1,
+                 "invalid memory limits flags (enable via "
+                 "--experimental-wasm-threads)");
+        }
         *has_shared_memory = true;
-      } else if (flags == 2) {
-        errorf(pos - 1,
-               "memory limits flags should have maximum defined if shared is "
-               "true");
-      }
-    } else {
-      if (flags & 0xFE) {
-        errorf(pos - 1, "invalid memory limits flags");
-      }
+        // V8 does not support shared memory without a maximum.
+        if (flags == kSharedNoMaximum) {
+          errorf(pc() - 1,
+                 "memory limits flags must have maximum defined if shared is "
+                 "true");
+        }
+        break;
+      case kMemory64NoMaximum:
+      case kMemory64WithMaximum:
+        if (!enabled_features_.has_memory64()) {
+          errorf(pc() - 1,
+                 "invalid memory limits flags (enable via "
+                 "--experimental-wasm-memory64)");
+        }
+        break;
     }
     return flags;
   }
@@ -1643,27 +1654,36 @@ class ModuleDecoderImpl : public Decoder {
                                 bool* has_max, uint32_t max_maximum,
                                 uint32_t* maximum, uint8_t flags) {
     const byte* pos = pc();
-    *initial = consume_u32v("initial size");
-    *has_max = false;
-    if (*initial > max_initial) {
+    // For memory64 we need to read the numbers as LEB-encoded 64-bit unsigned
+    // integer. All V8 limits are still within uint32_t range though.
+    const bool is_memory64 =
+        flags == kMemory64NoMaximum || flags == kMemory64WithMaximum;
+    uint64_t initial_64 = is_memory64 ? consume_u64v("initial size")
+                                      : consume_u32v("initial size");
+    if (initial_64 > max_initial) {
       errorf(pos,
-             "initial %s size (%u %s) is larger than implementation limit (%u)",
-             name, *initial, units, max_initial);
+             "initial %s size (%" PRIu64
+             " %s) is larger than implementation limit (%u)",
+             name, initial_64, units, max_initial);
     }
+    *initial = static_cast<uint32_t>(initial_64);
     if (flags & 1) {
       *has_max = true;
       pos = pc();
-      *maximum = consume_u32v("maximum size");
-      if (*maximum > max_maximum) {
-        errorf(
-            pos,
-            "maximum %s size (%u %s) is larger than implementation limit (%u)",
-            name, *maximum, units, max_maximum);
+      uint64_t maximum_64 = is_memory64 ? consume_u64v("maximum size")
+                                        : consume_u32v("maximum size");
+      if (maximum_64 > max_maximum) {
+        errorf(pos,
+               "maximum %s size (%" PRIu64
+               " %s) is larger than implementation limit (%u)",
+               name, maximum_64, units, max_maximum);
       }
-      if (*maximum < *initial) {
-        errorf(pos, "maximum %s size (%u %s) is less than initial (%u %s)",
-               name, *maximum, units, *initial, units);
+      if (maximum_64 < *initial) {
+        errorf(pos,
+               "maximum %s size (%" PRIu64 " %s) is less than initial (%u %s)",
+               name, maximum_64, units, *initial, units);
       }
+      *maximum = static_cast<uint32_t>(maximum_64);
     } else {
       *has_max = false;
       *maximum = max_initial;

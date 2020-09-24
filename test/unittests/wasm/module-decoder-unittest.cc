@@ -44,20 +44,6 @@ namespace module_decoder_unittest {
 
 #define UNKNOWN_SECTION(size) 0, U32V_1(size + 5), ADD_COUNT('l', 'u', 'l', 'z')
 
-template <typename... Args>
-std::integral_constant<size_t, sizeof...(Args)> CountArgsHelper(Args...);
-#define COUNT_ARGS(...) (decltype(CountArgsHelper(__VA_ARGS__))::value)
-
-template <size_t num>
-struct CheckLEB1 : std::integral_constant<size_t, num> {
-  static_assert(num <= I32V_MAX(1), "LEB range check");
-};
-#define CHECK_LEB1(num) CheckLEB1<num>::value
-
-#define ADD_COUNT(...) CHECK_LEB1(COUNT_ARGS(__VA_ARGS__)), __VA_ARGS__
-
-#define SECTION(name, ...) k##name##SectionCode, ADD_COUNT(__VA_ARGS__)
-
 #define SIGNATURES_SECTION(count, ...) SECTION(Type, U32V_1(count), __VA_ARGS__)
 #define FUNCTION_SIGNATURES_SECTION(count, ...) \
   SECTION(Function, U32V_1(count), __VA_ARGS__)
@@ -1200,7 +1186,7 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithImmutableImportedGlobal) {
               kExternalGlobal,  // import kind
               kLocalI32,        // type
               0),               // mutability
-      SECTION(Memory, ENTRY_COUNT(1), kHasMaximumFlag, 28, 28),
+      SECTION(Memory, ENTRY_COUNT(1), kWithMaximum, 28, 28),
       SECTION(Data, ENTRY_COUNT(1), LINEAR_MEMORY_INDEX_0,
               WASM_INIT_EXPR_GLOBAL(1),  // dest addr
               U32V_1(3),                 // source size
@@ -1223,7 +1209,7 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithMutableImportedGlobal) {
               kExternalGlobal,  // import kind
               kLocalI32,        // type
               1),               // mutability
-      SECTION(Memory, ENTRY_COUNT(1), kHasMaximumFlag, 28, 28),
+      SECTION(Memory, ENTRY_COUNT(1), kWithMaximum, 28, 28),
       SECTION(Data, ENTRY_COUNT(1), LINEAR_MEMORY_INDEX_0,
               WASM_INIT_EXPR_GLOBAL(0),  // dest addr
               U32V_1(3),                 // source size
@@ -1234,7 +1220,7 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithMutableImportedGlobal) {
 TEST_F(WasmModuleVerifyTest, DataSegmentWithImmutableGlobal) {
   // Only an immutable imported global can be used as an init_expr.
   const byte data[] = {
-      SECTION(Memory, ENTRY_COUNT(1), kHasMaximumFlag, 28, 28),
+      SECTION(Memory, ENTRY_COUNT(1), kWithMaximum, 28, 28),
       SECTION(Global, ENTRY_COUNT(1),
               kLocalI32,                        // local type
               0,                                // immutable
@@ -1250,7 +1236,7 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithImmutableGlobal) {
 TEST_F(WasmModuleVerifyTest, OneDataSegment) {
   const byte kDataSegmentSourceOffset = 24;
   const byte data[] = {
-      SECTION(Memory, ENTRY_COUNT(1), kHasMaximumFlag, 28, 28),
+      SECTION(Memory, ENTRY_COUNT(1), kWithMaximum, 28, 28),
       SECTION(Data, ENTRY_COUNT(1), LINEAR_MEMORY_INDEX_0,
               WASM_INIT_EXPR_I32V_3(0x9BBAA),  // dest addr
               U32V_1(3),                       // source size
@@ -1281,7 +1267,7 @@ TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
   const byte kDataSegment1SourceOffset = kDataSegment0SourceOffset + 11;
 
   const byte data[] = {
-      SECTION(Memory, ENTRY_COUNT(1), kHasMaximumFlag, 28, 28),
+      SECTION(Memory, ENTRY_COUNT(1), kWithMaximum, 28, 28),
       SECTION(Data,
               ENTRY_COUNT(2),  // segment count
               LINEAR_MEMORY_INDEX_0,
@@ -1331,19 +1317,19 @@ TEST_F(WasmModuleVerifyTest, DataWithoutMemory) {
 TEST_F(WasmModuleVerifyTest, MaxMaximumMemorySize) {
   {
     const byte data[] = {
-        SECTION(Memory, ENTRY_COUNT(1), kHasMaximumFlag, 0, U32V_3(65536))};
+        SECTION(Memory, ENTRY_COUNT(1), kWithMaximum, 0, U32V_3(65536))};
     EXPECT_VERIFIES(data);
   }
   {
     const byte data[] = {
-        SECTION(Memory, ENTRY_COUNT(1), kHasMaximumFlag, 0, U32V_3(65537))};
+        SECTION(Memory, ENTRY_COUNT(1), kWithMaximum, 0, U32V_3(65537))};
     EXPECT_FAILURE(data);
   }
 }
 
 TEST_F(WasmModuleVerifyTest, DataSegment_wrong_init_type) {
   const byte data[] = {
-      SECTION(Memory, ENTRY_COUNT(1), kHasMaximumFlag, 28, 28),
+      SECTION(Memory, ENTRY_COUNT(1), kWithMaximum, 28, 28),
       SECTION(Data, ENTRY_COUNT(1), LINEAR_MEMORY_INDEX_0,
               WASM_INIT_EXPR_F64(9.9),  // dest addr
               U32V_1(3),                // source size
@@ -1356,7 +1342,7 @@ TEST_F(WasmModuleVerifyTest, DataSegment_wrong_init_type) {
 TEST_F(WasmModuleVerifyTest, DataSegmentEndOverflow) {
   const byte data[] = {
       SECTION(Memory,  // memory section
-              ENTRY_COUNT(1), kHasMaximumFlag, 28, 28),
+              ENTRY_COUNT(1), kWithMaximum, 28, 28),
       SECTION(Data,                      // data section
               ENTRY_COUNT(1),            // one entry
               LINEAR_MEMORY_INDEX_0,     // mem index

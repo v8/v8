@@ -56,14 +56,13 @@ enum ImportExportKindCode : uint8_t {
   kExternalException = 4
 };
 
-// Binary encoding of maximum and shared flags for memories.
-enum MaximumFlag : uint8_t { kNoMaximumFlag = 0, kHasMaximumFlag = 1 };
-
-enum MemoryFlags : uint8_t {
-  kNoMaximum = 0,
-  kMaximum = 1,
-  kSharedNoMaximum = 2,
-  kSharedAndMaximum = 3
+enum LimitsFlags : uint8_t {
+  kNoMaximum = 0x00,           // Also valid for table limits.
+  kWithMaximum = 0x01,         // Also valid for table limits.
+  kSharedNoMaximum = 0x02,     // Only valid for memory limits.
+  kSharedWithMaximum = 0x03,   // Only valid for memory limits.
+  kMemory64NoMaximum = 0x04,   // Only valid for memory limits.
+  kMemory64WithMaximum = 0x05  // Only valid for memory limits.
 };
 
 // Flags for data and element segments.

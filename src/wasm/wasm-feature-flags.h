@@ -28,7 +28,12 @@
   /* Typed function references proposal. */                                    \
   /* Official proposal: https://github.com/WebAssembly/function-references */  \
   /* V8 side owner: ahaas */                                                   \
-  V(typed_funcref, "typed function references", false)
+  V(typed_funcref, "typed function references", false)                         \
+                                                                               \
+  /* Memory64 proposal. */                                                     \
+  /* https://github.com/WebAssembly/memory64 */                                \
+  /* V8 side owner: clemensb */                                                \
+  V(memory64, "memory64", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also

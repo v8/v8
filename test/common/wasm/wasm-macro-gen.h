@@ -67,6 +67,18 @@
       static_cast<byte>((((x) >> 21) & MASK_7) | 0x80), \
       static_cast<byte>((((x) >> 28) & MASK_7))
 
+#define U64V_10(x)                                                 \
+  static_cast<uint8_t>((uint64_t{x} & MASK_7) | 0x80),             \
+      static_cast<uint8_t>(((uint64_t{x} >> 7) & MASK_7) | 0x80),  \
+      static_cast<uint8_t>(((uint64_t{x} >> 14) & MASK_7) | 0x80), \
+      static_cast<uint8_t>(((uint64_t{x} >> 21) & MASK_7) | 0x80), \
+      static_cast<uint8_t>(((uint64_t{x} >> 28) & MASK_7) | 0x80), \
+      static_cast<uint8_t>(((uint64_t{x} >> 35) & MASK_7) | 0x80), \
+      static_cast<uint8_t>(((uint64_t{x} >> 42) & MASK_7) | 0x80), \
+      static_cast<uint8_t>(((uint64_t{x} >> 49) & MASK_7) | 0x80), \
+      static_cast<uint8_t>(((uint64_t{x} >> 56) & MASK_7) | 0x80), \
+      static_cast<uint8_t>((uint64_t{x} >> 63) & MASK_7)
+
 // Convenience macros for building Wasm bytecode directly into a byte array.
 
 //------------------------------------------------------------------------------
@@ -208,6 +220,24 @@
   ((value) >= I64V_MIN(length) && (value) <= I64V_MAX(length))
 
 #define WASM_NO_LOCALS 0
+
+//------------------------------------------------------------------------------
+// Helpers for encoding sections and other fields with length prefix.
+//------------------------------------------------------------------------------
+
+template <typename... Args>
+std::integral_constant<size_t, sizeof...(Args)> CountArgsHelper(Args...);
+#define COUNT_ARGS(...) (decltype(CountArgsHelper(__VA_ARGS__))::value)
+
+template <size_t num>
+struct CheckLEB1 : std::integral_constant<size_t, num> {
+  static_assert(num <= I32V_MAX(1), "LEB range check");
+};
+#define CHECK_LEB1(num) CheckLEB1<num>::value
+
+#define ADD_COUNT(...) CHECK_LEB1(COUNT_ARGS(__VA_ARGS__)), __VA_ARGS__
+
+#define SECTION(name, ...) k##name##SectionCode, ADD_COUNT(__VA_ARGS__)
 
 namespace v8 {
 namespace internal {
