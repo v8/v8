@@ -3307,7 +3307,14 @@ class LiftoffCompiler {
 
     uint32_t offset = imm.offset;
     index = AddMemoryMasking(index, &offset, &pinned);
-    if (offset) __ emit_i32_addi(index, index, offset);
+    Register index_plus_offset = index;
+    if (offset) {
+      if (__ cache_state()->is_used(LiftoffRegister(index))) {
+        index_plus_offset =
+            pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+      }
+      __ emit_i32_addi(index_plus_offset, index, offset);
+    }
 
     // TODO(ahaas): Use PrepareCall to prepare parameters.
     __ SpillAllRegisters();
@@ -3316,7 +3323,7 @@ class LiftoffCompiler {
     DCHECK_EQ(0, descriptor.GetStackParameterCount());
     DCHECK_EQ(2, descriptor.GetRegisterParameterCount());
     __ ParallelRegisterMove(
-        {{descriptor.GetRegisterParameter(0), index, kWasmI32},
+        {{descriptor.GetRegisterParameter(0), index_plus_offset, kWasmI32},
          {descriptor.GetRegisterParameter(1), count, kWasmI32}});
 
     __ CallRuntimeStub(WasmCode::kWasmAtomicNotify);
