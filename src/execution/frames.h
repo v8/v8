@@ -1234,6 +1234,7 @@ class V8_EXPORT_PRIVATE StackTraceFrameIterator {
   bool done() const { return iterator_.done(); }
   void Advance();
   void AdvanceOneFrame() { iterator_.Advance(); }
+  int FrameFunctionCount() const;
 
   inline StandardFrame* frame() const;
 

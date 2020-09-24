@@ -181,6 +181,14 @@ void StackTraceFrameIterator::Advance() {
   } while (!done() && !IsValidFrame(iterator_.frame()));
 }
 
+int StackTraceFrameIterator::FrameFunctionCount() const {
+  DCHECK(!done());
+  if (!iterator_.frame()->is_optimized()) return 1;
+  std::vector<SharedFunctionInfo> infos;
+  OptimizedFrame::cast(iterator_.frame())->GetFunctions(&infos);
+  return static_cast<int>(infos.size());
+}
+
 bool StackTraceFrameIterator::IsValidFrame(StackFrame* frame) const {
   if (frame->is_java_script()) {
     JavaScriptFrame* js_frame = static_cast<JavaScriptFrame*>(frame);
