@@ -137,13 +137,14 @@ void PagedSpace::RefillFreeList() {
         owner->RefineAllocatedBytesAfterSweeping(p);
         owner->RemovePage(p);
         added += AddPage(p);
+        added += p->wasted_memory();
       } else {
         base::MutexGuard guard(mutex());
         DCHECK_EQ(this, p->owner());
         RefineAllocatedBytesAfterSweeping(p);
         added += RelinkFreeListCategories(p);
+        added += p->wasted_memory();
       }
-      added += p->wasted_memory();
       if (is_compaction_space() && (added > kCompactionMemoryWanted)) break;
     }
   }
