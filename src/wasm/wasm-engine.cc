@@ -1444,16 +1444,10 @@ std::shared_ptr<WasmEngine> WasmEngine::GetWasmEngine() {
   return *GetSharedWasmEngine();
 }
 
-// {max_initial_mem_pages} is declared in wasm-limits.h.
-uint32_t max_initial_mem_pages() {
+// {max_mem_pages} is declared in wasm-limits.h.
+uint32_t max_mem_pages() {
   STATIC_ASSERT(kV8MaxWasmMemoryPages <= kMaxUInt32);
   return std::min(uint32_t{kV8MaxWasmMemoryPages}, FLAG_wasm_max_mem_pages);
-}
-
-uint32_t max_maximum_mem_pages() {
-  STATIC_ASSERT(kV8MaxWasmMemoryPages <= kMaxUInt32);
-  return std::min(uint32_t{kV8MaxWasmMemoryPages},
-                  FLAG_wasm_max_mem_pages_growth);
 }
 
 // {max_table_init_entries} is declared in wasm-limits.h.

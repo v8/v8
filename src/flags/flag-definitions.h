@@ -767,9 +767,7 @@ DEFINE_BOOL(wasm_async_compilation, true,
 DEFINE_BOOL(wasm_test_streaming, false,
             "use streaming compilation instead of async compilation for tests")
 DEFINE_UINT(wasm_max_mem_pages, v8::internal::wasm::kSpecMaxMemoryPages,
-            "maximum initial number of 64KiB memory pages of a wasm instance")
-DEFINE_UINT(wasm_max_mem_pages_growth, v8::internal::wasm::kSpecMaxMemoryPages,
-            "maximum number of 64KiB pages a Wasm memory can grow to")
+            "maximum number of 64KiB memory pages per wasm memory")
 DEFINE_UINT(wasm_max_table_size, v8::internal::wasm::kV8MaxWasmTableSize,
             "maximum table size of a wasm instance")
 DEFINE_UINT(wasm_max_code_space, v8::internal::kMaxWasmCodeMB,

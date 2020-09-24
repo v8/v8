@@ -1902,8 +1902,8 @@ auto Memory::make(Store* store_abs, const MemoryType* type) -> own<Memory> {
 
   const Limits& limits = type->limits();
   uint32_t minimum = limits.min;
-  // The max_initial_mem_pages limit is only spec'ed for JS embeddings,
-  // so we'll directly use the maximum pages limit here.
+  // The max_mem_pages limit is only spec'ed for JS embeddings, so we'll
+  // directly use the maximum pages limit here.
   if (minimum > i::wasm::kSpecMaxMemoryPages) return nullptr;
   uint32_t maximum = limits.max;
   if (maximum != Limits(0).max) {
