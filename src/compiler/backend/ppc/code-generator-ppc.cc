@@ -449,41 +449,42 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                                       \
   } while (0)
 
-#define ASSEMBLE_FLOAT_MAX()                                           \
-  do {                                                                 \
-    DoubleRegister left_reg = i.InputDoubleRegister(0);                \
-    DoubleRegister right_reg = i.InputDoubleRegister(1);               \
-    DoubleRegister result_reg = i.OutputDoubleRegister();              \
-    Label check_nan_left, check_zero, return_left, return_right, done; \
-    __ fcmpu(left_reg, right_reg);                                     \
-    __ bunordered(&check_nan_left);                                    \
-    __ beq(&check_zero);                                               \
-    __ bge(&return_left);                                              \
-    __ b(&return_right);                                               \
-                                                                       \
-    __ bind(&check_zero);                                              \
-    __ fcmpu(left_reg, kDoubleRegZero);                                \
-    /* left == right != 0. */                                          \
-    __ bne(&return_left);                                              \
-    /* At this point, both left and right are either 0 or -0. */       \
-    __ fadd(result_reg, left_reg, right_reg);                          \
-    __ b(&done);                                                       \
-                                                                       \
-    __ bind(&check_nan_left);                                          \
-    __ fcmpu(left_reg, left_reg);                                      \
-    /* left == NaN. */                                                 \
-    __ bunordered(&return_left);                                       \
-    __ bind(&return_right);                                            \
-    if (right_reg != result_reg) {                                     \
-      __ fmr(result_reg, right_reg);                                   \
-    }                                                                  \
-    __ b(&done);                                                       \
-                                                                       \
-    __ bind(&return_left);                                             \
-    if (left_reg != result_reg) {                                      \
-      __ fmr(result_reg, left_reg);                                    \
-    }                                                                  \
-    __ bind(&done);                                                    \
+#define ASSEMBLE_FLOAT_MAX()                                            \
+  do {                                                                  \
+    DoubleRegister left_reg = i.InputDoubleRegister(0);                 \
+    DoubleRegister right_reg = i.InputDoubleRegister(1);                \
+    DoubleRegister result_reg = i.OutputDoubleRegister();               \
+    Label check_zero, return_left, return_right, return_nan, done;      \
+    __ fcmpu(left_reg, right_reg);                                      \
+    __ bunordered(&return_nan);                                         \
+    __ beq(&check_zero);                                                \
+    __ bge(&return_left);                                               \
+    __ b(&return_right);                                                \
+                                                                        \
+    __ bind(&check_zero);                                               \
+    __ fcmpu(left_reg, kDoubleRegZero);                                 \
+    /* left == right != 0. */                                           \
+    __ bne(&return_left);                                               \
+    /* At this point, both left and right are either 0 or -0. */        \
+    __ fadd(result_reg, left_reg, right_reg);                           \
+    __ b(&done);                                                        \
+                                                                        \
+    __ bind(&return_nan);                                               \
+    /* If left or right are NaN, fadd propagates the appropriate one.*/ \
+    __ fadd(result_reg, left_reg, right_reg);                           \
+    __ b(&done);                                                        \
+                                                                        \
+    __ bind(&return_right);                                             \
+    if (right_reg != result_reg) {                                      \
+      __ fmr(result_reg, right_reg);                                    \
+    }                                                                   \
+    __ b(&done);                                                        \
+                                                                        \
+    __ bind(&return_left);                                              \
+    if (left_reg != result_reg) {                                       \
+      __ fmr(result_reg, left_reg);                                     \
+    }                                                                   \
+    __ bind(&done);                                                     \
   } while (0)
 
 #define ASSEMBLE_FLOAT_MIN()                                              \
@@ -491,9 +492,9 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
     DoubleRegister left_reg = i.InputDoubleRegister(0);                   \
     DoubleRegister right_reg = i.InputDoubleRegister(1);                  \
     DoubleRegister result_reg = i.OutputDoubleRegister();                 \
-    Label check_nan_left, check_zero, return_left, return_right, done;    \
+    Label check_zero, return_left, return_right, return_nan, done;        \
     __ fcmpu(left_reg, right_reg);                                        \
-    __ bunordered(&check_nan_left);                                       \
+    __ bunordered(&return_nan);                                           \
     __ beq(&check_zero);                                                  \
     __ ble(&return_left);                                                 \
     __ b(&return_right);                                                  \
@@ -515,10 +516,10 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
     __ fneg(result_reg, result_reg);                                      \
     __ b(&done);                                                          \
                                                                           \
-    __ bind(&check_nan_left);                                             \
-    __ fcmpu(left_reg, left_reg);                                         \
-    /* left == NaN. */                                                    \
-    __ bunordered(&return_left);                                          \
+    __ bind(&return_nan);                                                 \
+    /* If left or right are NaN, fadd propagates the appropriate one.*/   \
+    __ fadd(result_reg, left_reg, right_reg);                             \
+    __ b(&done);                                                          \
                                                                           \
     __ bind(&return_right);                                               \
     if (right_reg != result_reg) {                                        \
