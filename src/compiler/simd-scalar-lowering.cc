@@ -2338,13 +2338,23 @@ Node** SimdScalarLowering::GetReplacementsWithType(Node* node, SimdType type) {
     if (ReplacementType(node) == SimdType::kInt32x4) {
       Int32ToSmallerInt<int16_t>(replacements, result);
     } else if (ReplacementType(node) == SimdType::kFloat32x4) {
-      UNIMPLEMENTED();
+      Node** float32_to_int32 = zone()->NewArray<Node*>(kNumLanes32);
+      Float32ToInt32(replacements, float32_to_int32);
+      Int32ToSmallerInt<int16_t>(float32_to_int32, result);
     } else {
       UNREACHABLE();
     }
   } else if (type == SimdType::kInt8x16) {
-    if (ReplacementType(node) == SimdType::kInt32x4) {
+    if (ReplacementType(node) == SimdType::kInt64x2) {
+      Node** int64_to_int32 = zone()->NewArray<Node*>(kNumLanes32);
+      Int64ToInt32(replacements, int64_to_int32);
+      Int32ToSmallerInt<int8_t>(int64_to_int32, result);
+    } else if (ReplacementType(node) == SimdType::kInt32x4) {
       Int32ToSmallerInt<int8_t>(replacements, result);
+    } else if (ReplacementType(node) == SimdType::kInt16x8) {
+      Node** int16_to_int32 = zone()->NewArray<Node*>(kNumLanes32);
+      SmallerIntToInt32<int16_t>(replacements, int16_to_int32);
+      Int32ToSmallerInt<int8_t>(int16_to_int32, result);
     } else {
       UNIMPLEMENTED();
     }

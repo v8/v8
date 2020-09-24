@@ -40,10 +40,8 @@
   # SIMD test cases
   # Scalar lowering is incomplete, we skip these and selectively enable as
   # we finish the implementation, see v8:10507.
-  'proposals/simd/simd_bit_shift' : [PASS, FAIL],
   'proposals/simd/simd_conversions' : [PASS, FAIL],
   'proposals/simd/simd_lane' : [PASS, FAIL],
-  'proposals/simd/simd_load_extend' : [PASS, FAIL],
   'proposals/simd/simd_load_splat' : [PASS, FAIL],
   'proposals/simd/simd_splat' : [PASS, FAIL],
 

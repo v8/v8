@@ -206,6 +206,16 @@ WASM_SIMD_TEST(AllTrue_DifferentShapes) {
 
     CHECK_EQ(0, r.Call(0x000000FF));
   }
+
+  // Check float input to all_true.
+  {
+    WasmRunner<int32_t, float> r(execution_tier, lower_simd);
+
+    BUILD(r, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(0)),
+          WASM_SIMD_OP(kExprV16x8AllTrue));
+
+    CHECK_EQ(1, r.Call(0x000F000F));
+  }
 }
 
 WASM_SIMD_TEST(AnyTrue_DifferentShapes) {
@@ -226,6 +236,16 @@ WASM_SIMD_TEST(AnyTrue_DifferentShapes) {
           WASM_SIMD_OP(kExprV16x8AnyTrue));
 
     CHECK_EQ(1, r.Call(0x000000FF));
+  }
+
+  // Check float input to any_true.
+  {
+    WasmRunner<int32_t, float> r(execution_tier, lower_simd);
+
+    BUILD(r, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(0)),
+          WASM_SIMD_OP(kExprV8x16AnyTrue));
+
+    CHECK_EQ(0, r.Call(0x00000000));
   }
 }
 
