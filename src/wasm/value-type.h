@@ -43,6 +43,12 @@ class Simd128;
   V(OptRef, kSystemPointerSizeLog2, OptRef, TaggedPointer, 'n', "ref null") \
   V(Bottom, -1, Void, None, '*', "<bot>")
 
+// Represents a WebAssembly heap type, as per the typed-funcref and gc
+// proposals.
+// The underlying Representation enumeration encodes heap types as follows:
+// a number t < kV8MaxWasmTypes represents the type defined in the module at
+// index t. Numbers directly beyond that represent the generic heap types. The
+// next number represents the bottom heap type (internal use).
 class HeapType {
  public:
   enum Representation : uint32_t {
@@ -58,7 +64,7 @@ class HeapType {
   // Internal use only; defined in the public section to make it easy to
   // check that they are defined correctly:
   static constexpr Representation kFirstSentinel = kFunc;
-  static constexpr Representation kLastSentinel = kBottom;
+  static constexpr Representation kLastSentinel = kI31;
 
   static constexpr HeapType from_code(uint8_t code) {
     switch (code) {
@@ -129,6 +135,7 @@ class HeapType {
     }
   }
 
+  // Returns the code that represents this heap type in the wasm binary format.
   constexpr int32_t code() const {
     // kLocal* codes represent the first byte of the LEB128 encoding. To get the
     // int32 represented by a code, we need to sign-extend it from 7 to 32 bits.
@@ -152,13 +159,17 @@ class HeapType {
  private:
   friend class ValueType;
   Representation representation_;
-  constexpr bool is_valid() const {
-    return !is_bottom() && representation_ <= kLastSentinel;
-  }
+  constexpr bool is_valid() const { return representation_ <= kLastSentinel; }
 };
 
 enum Nullability : bool { kNonNullable, kNullable };
 
+// A ValueType is encoded by three components: A Kind, a heap representation
+// (for reference types), and an inheritance depth (for rtts only). Those are
+// encoded into 32 bits using base::BitField. The underlying Kind enumeration
+// includes four elements which do not strictly correspond to value types: the
+// two packed types i8 and i16, the type of void blocks (stmt), and a bottom
+// value (for internal use).
 class ValueType {
  public:
   enum Kind : uint8_t {
@@ -205,8 +216,7 @@ class ValueType {
     return ValueType(KindField::encode(kind));
   }
   static constexpr ValueType Ref(uint32_t heap_type, Nullability nullability) {
-    CONSTEXPR_DCHECK(heap_type != HeapType::kBottom &&
-                     HeapType(heap_type).is_valid());
+    CONSTEXPR_DCHECK(HeapType(heap_type).is_valid());
     return ValueType(
         KindField::encode(nullability == kNullable ? kOptRef : kRef) |
         HeapTypeField::encode(heap_type));
@@ -217,8 +227,7 @@ class ValueType {
 
   static constexpr ValueType Rtt(uint32_t heap_type,
                                  uint8_t inheritance_depth) {
-    CONSTEXPR_DCHECK(heap_type != HeapType::kBottom &&
-                     HeapType(heap_type).is_valid());
+    CONSTEXPR_DCHECK(HeapType(heap_type).is_valid());
     return ValueType(KindField::encode(kRtt) |
                      HeapTypeField::encode(heap_type) |
                      DepthField::encode(inheritance_depth));
@@ -228,6 +237,7 @@ class ValueType {
     return Rtt(heap_type.representation(), inheritance_depth);
   }
 
+  // Useful when deserializing a type stored in a runtime object.
   static constexpr ValueType FromRawBitField(uint32_t bit_field) {
     return ValueType(bit_field);
   }
@@ -250,6 +260,7 @@ class ValueType {
     return heap_type().ref_index();
   }
 
+  // Useful when serializing this type to store it into a runtime object.
   constexpr uint32_t raw_bit_field() const { return bit_field_; }
 
   static constexpr size_t bit_field_offset() {
@@ -305,6 +316,12 @@ class ValueType {
     return machine_type().representation();
   }
 
+  // Returns the first byte of this type's representation in the wasm binary
+  // format.
+  // For compatibility with the reftypes and exception-handling proposals, this
+  // function prioritizes shorthand encodings
+  // (e.g., Ref(HeapType::kFunc, kNullable).value_type_code will return
+  // kLocalFuncref and not kLocalOptRef).
   constexpr ValueTypeCode value_type_code() const {
     CONSTEXPR_DCHECK(kind() != kBottom);
     switch (kind()) {
@@ -339,6 +356,8 @@ class ValueType {
     }
   }
 
+  // Returns true iff the heap type is needed to encode this type in the wasm
+  // binary format, taking into account available type shorthands.
   constexpr bool encoding_needs_heap_type() const {
     return (kind() == kRef && heap_representation() != HeapType::kI31) ||
            kind() == kRtt ||
@@ -455,6 +474,7 @@ inline std::ostream& operator<<(std::ostream& oss, ValueType type) {
   return oss << type.name();
 }
 
+// Precomputed primitive types.
 constexpr ValueType kWasmI32 = ValueType::Primitive(ValueType::kI32);
 constexpr ValueType kWasmI64 = ValueType::Primitive(ValueType::kI64);
 constexpr ValueType kWasmF32 = ValueType::Primitive(ValueType::kF32);

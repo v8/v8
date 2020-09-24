@@ -1627,6 +1627,7 @@ enum class LoadSensitivity {
   V(TrapRethrowNull)               \
   V(TrapNullDereference)           \
   V(TrapIllegalCast)               \
+  V(TrapWasmJSFunction)            \
   V(TrapArrayOutOfBounds)
 
 enum KeyedAccessLoadMode {

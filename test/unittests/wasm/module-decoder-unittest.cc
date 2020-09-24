@@ -43,16 +43,15 @@ namespace module_decoder_unittest {
 #define SIG_ENTRY_i_i SIG_ENTRY_x_x(kLocalI32, kLocalI32)
 
 #define UNKNOWN_SECTION(size) 0, U32V_1(size + 5), ADD_COUNT('l', 'u', 'l', 'z')
-
-#define SIGNATURES_SECTION(count, ...) SECTION(Type, U32V_1(count), __VA_ARGS__)
-#define FUNCTION_SIGNATURES_SECTION(count, ...) \
+#define TYPE_SECTION(count, ...) SECTION(Type, U32V_1(count), __VA_ARGS__)
+#define FUNCTION_SECTION(count, ...) \
   SECTION(Function, U32V_1(count), __VA_ARGS__)
 
 #define FOO_STRING ADD_COUNT('f', 'o', 'o')
 #define NO_LOCAL_NAMES 0
 
-#define EMPTY_SIGNATURES_SECTION SECTION(Type, ENTRY_COUNT(0))
-#define EMPTY_FUNCTION_SIGNATURES_SECTION SECTION(Function, ENTRY_COUNT(0))
+#define EMPTY_TYPE_SECTION SECTION(Type, ENTRY_COUNT(0))
+#define EMPTY_FUNCTION_SECTION SECTION(Function, ENTRY_COUNT(0))
 #define EMPTY_FUNCTION_BODIES_SECTION SECTION(Code, ENTRY_COUNT(0))
 #define SECTION_NAMES(...) \
   SECTION(Unknown, ADD_COUNT('n', 'a', 'm', 'e'), ##__VA_ARGS__)
@@ -96,7 +95,7 @@ namespace module_decoder_unittest {
 #define THREE_EMPTY_BODIES SECTION(Code, ENTRY_COUNT(3), X3(EMPTY_BODY))
 #define FOUR_EMPTY_BODIES SECTION(Code, ENTRY_COUNT(4), X4(EMPTY_BODY))
 
-#define SIGNATURES_SECTION_VOID_VOID \
+#define TYPE_SECTION_ONE_SIG_VOID_VOID \
   SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_v)
 
 #define LINEAR_MEMORY_INDEX_0 0
@@ -284,7 +283,7 @@ TEST_F(WasmModuleVerifyTest, ExternRefGlobal) {
   WASM_FEATURE_SCOPE(bulk_memory);
   static const byte data[] = {
       // sig#0 ---------------------------------------------------------------
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       // funcs ---------------------------------------------------------------
       TWO_EMPTY_FUNCTIONS(SIG_INDEX(0)),
       SECTION(Global,                          // --
@@ -333,7 +332,7 @@ TEST_F(WasmModuleVerifyTest, FuncRefGlobal) {
   WASM_FEATURE_SCOPE(bulk_memory);
   static const byte data[] = {
       // sig#0 ---------------------------------------------------------------
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       // funcs ---------------------------------------------------------------
       TWO_EMPTY_FUNCTIONS(SIG_INDEX(0)),
       SECTION(Global,                        // --
@@ -380,7 +379,7 @@ TEST_F(WasmModuleVerifyTest, InvalidFuncRefGlobal) {
   WASM_FEATURE_SCOPE(reftypes);
   static const byte data[] = {
       // sig#0 ---------------------------------------------------------------
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       // funcs ---------------------------------------------------------------
       TWO_EMPTY_FUNCTIONS(SIG_INDEX(0)),
       SECTION(Global,                       // --
@@ -1014,7 +1013,7 @@ TEST_F(WasmModuleVerifyTest, TwoExceptions) {
 
 TEST_F(WasmModuleVerifyTest, Exception_invalid_sig_index) {
   static const byte data[] = {
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       SECTION(Exception, ENTRY_COUNT(1),
               EXCEPTION_ENTRY(
                   SIG_INDEX(23)))};  // except[0] (sig#23 [out-of-bounds])
@@ -1099,7 +1098,7 @@ TEST_F(WasmModuleVerifyTest, ExceptionSectionAfterTableBeforeMemory) {
 
 TEST_F(WasmModuleVerifyTest, ExceptionImport) {
   static const byte data[] = {
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       SECTION(Import,                           // section header
               ENTRY_COUNT(1),                   // number of imports
               ADD_COUNT('m'),                   // module name
@@ -1117,7 +1116,7 @@ TEST_F(WasmModuleVerifyTest, ExceptionImport) {
 
 TEST_F(WasmModuleVerifyTest, ExceptionExport) {
   static const byte data[] = {
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       SECTION(Exception, ENTRY_COUNT(1),
               EXCEPTION_ENTRY(SIG_INDEX(0))),  // except[0] (sig#0)
       SECTION(Export, ENTRY_COUNT(1),          // --
@@ -1135,7 +1134,7 @@ TEST_F(WasmModuleVerifyTest, ExceptionExport) {
 
 TEST_F(WasmModuleVerifyTest, OneSignature) {
   {
-    static const byte data[] = {SIGNATURES_SECTION_VOID_VOID};
+    static const byte data[] = {TYPE_SECTION_ONE_SIG_VOID_VOID};
     EXPECT_VERIFIES(data);
   }
 
@@ -1356,7 +1355,7 @@ TEST_F(WasmModuleVerifyTest, DataSegmentEndOverflow) {
 TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
   static const byte data[] = {
       // sig#0 ---------------------------------------------------------------
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
@@ -1418,7 +1417,7 @@ TEST_F(WasmModuleVerifyTest, Regression_735887) {
   // Test with an invalid function index in the element section.
   static const byte data[] = {
       // sig#0 ---------------------------------------------------------------
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
@@ -1437,7 +1436,7 @@ TEST_F(WasmModuleVerifyTest, Regression_735887) {
 TEST_F(WasmModuleVerifyTest, OneIndirectFunction_one_entry) {
   static const byte data[] = {
       // sig#0 ---------------------------------------------------------------
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
@@ -1494,7 +1493,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMultipleTables) {
   WASM_FEATURE_SCOPE(bulk_memory);
   static const byte data[] = {
       // sig#0 ---------------------------------------------------------------
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
@@ -1527,7 +1526,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMixedTables) {
   WASM_FEATURE_SCOPE(bulk_memory);
   static const byte data[] = {
       // sig#0 ---------------------------------------------------------------
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       // imports -------------------------------------------------------------
       SECTION(Import, ENTRY_COUNT(2),
               ADD_COUNT('m'),  // module name
@@ -1585,7 +1584,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMultipleTablesArbitraryOrder) {
   WASM_FEATURE_SCOPE(bulk_memory);
   static const byte data[] = {
       // sig#0 ---------------------------------------------------------------
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
@@ -1622,7 +1621,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMixedTablesArbitraryOrder) {
   WASM_FEATURE_SCOPE(bulk_memory);
   static const byte data[] = {
       // sig#0 ---------------------------------------------------------------
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       // imports -------------------------------------------------------------
       SECTION(Import, ENTRY_COUNT(2),
               ADD_COUNT('m'),  // module name
@@ -1678,7 +1677,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionInitExternRefTableWithFuncRef) {
   WASM_FEATURE_SCOPE(bulk_memory);
   static const byte data[] = {
       // sig#0 ---------------------------------------------------------------
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
@@ -1713,7 +1712,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionDontInitExternRefImportedTable) {
   WASM_FEATURE_SCOPE(bulk_memory);
   static const byte data[] = {
       // sig#0 ---------------------------------------------------------------
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       // imports -------------------------------------------------------------
       SECTION(Import, ENTRY_COUNT(2),
               ADD_COUNT('m'),   // module name
@@ -1755,7 +1754,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionDontInitExternRefImportedTable) {
 TEST_F(WasmModuleVerifyTest, IndirectFunctionNoFunctions) {
   static const byte data[] = {
       // sig#0 -------------------------------------------------------
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       // indirect table ----------------------------------------------
       SECTION(Table, ENTRY_COUNT(1), 1, 0, 0)};
 
@@ -1765,7 +1764,7 @@ TEST_F(WasmModuleVerifyTest, IndirectFunctionNoFunctions) {
 TEST_F(WasmModuleVerifyTest, IndirectFunctionInvalidIndex) {
   static const byte data[] = {
       // sig#0 -------------------------------------------------------
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       // functions ---------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // indirect table ----------------------------------------------
@@ -1866,8 +1865,8 @@ TEST_F(WasmModuleVerifyTest, IllegalTableTypes) {
 TEST_F(WasmModuleVerifyTest, TieringCompilationHints) {
   WASM_FEATURE_SCOPE(compilation_hints);
   static const byte data[] = {
-      SIGNATURES_SECTION(1, SIG_ENTRY_v_v),
-      FUNCTION_SIGNATURES_SECTION(3, 0, 0, 0),
+      TYPE_SECTION(1, SIG_ENTRY_v_v),
+      FUNCTION_SECTION(3, 0, 0, 0),
       SECTION_COMPILATION_HINTS(BASELINE_TIER_BASELINE | TOP_TIER_BASELINE,
                                 BASELINE_TIER_BASELINE | TOP_TIER_OPTIMIZED,
                                 BASELINE_TIER_OPTIMIZED | TOP_TIER_OPTIMIZED),
@@ -2175,7 +2174,7 @@ TEST_F(WasmModuleVerifyTest, OnlyUnknownSectionNonEmpty) {
 TEST_F(WasmModuleVerifyTest, SignatureFollowedByEmptyUnknownSection) {
   const byte data[] = {
       // signatures
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       // -----------------------------------------------------------
       UNKNOWN_SECTION(0)};
   EXPECT_VERIFIES(data);
@@ -2184,9 +2183,14 @@ TEST_F(WasmModuleVerifyTest, SignatureFollowedByEmptyUnknownSection) {
 TEST_F(WasmModuleVerifyTest, SignatureFollowedByUnknownSection) {
   const byte data[] = {
       // signatures
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       // -----------------------------------------------------------
-      UNKNOWN_SECTION(5), 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+      UNKNOWN_SECTION(5),
+      0xFF,
+      0xFF,
+      0xFF,
+      0xFF,
+      0xFF,
   };
   EXPECT_VERIFIES(data);
 }
@@ -2318,7 +2322,7 @@ TEST_F(WasmModuleVerifyTest, ImportTable_invalid_sig) {
 TEST_F(WasmModuleVerifyTest, ImportTable_one_sig) {
   static const byte data[] = {
       // signatures
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       SECTION(Import,
               ENTRY_COUNT(1),     // --
               ADD_COUNT('m'),     // module name
@@ -2332,14 +2336,14 @@ TEST_F(WasmModuleVerifyTest, ImportTable_one_sig) {
 TEST_F(WasmModuleVerifyTest, ImportTable_invalid_module) {
   static const byte data[] = {
       // signatures
-      SIGNATURES_SECTION_VOID_VOID,  // --
-      SECTION(Import,                // --
-              ENTRY_COUNT(1),        // --
-              NO_NAME,               // module name
-              ADD_COUNT('f'),        // function name
-              kExternalFunction,     // import kind
-              SIG_INDEX(0),          // sig index
-              0),                    // auxiliary data
+      TYPE_SECTION_ONE_SIG_VOID_VOID,  // --
+      SECTION(Import,                  // --
+              ENTRY_COUNT(1),          // --
+              NO_NAME,                 // module name
+              ADD_COUNT('f'),          // function name
+              kExternalFunction,       // import kind
+              SIG_INDEX(0),            // sig index
+              0),                      // auxiliary data
   };
   EXPECT_FAILURE(data);
 }
@@ -2347,7 +2351,7 @@ TEST_F(WasmModuleVerifyTest, ImportTable_invalid_module) {
 TEST_F(WasmModuleVerifyTest, ImportTable_off_end) {
   static const byte data[] = {
       // signatures
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       SECTION(Import, ENTRY_COUNT(1),
               ADD_COUNT('m'),      // module name
               ADD_COUNT('f'),      // function name
@@ -2359,8 +2363,8 @@ TEST_F(WasmModuleVerifyTest, ImportTable_off_end) {
 }
 
 TEST_F(WasmModuleVerifyTest, ExportTable_empty1) {
-  static const byte data[] = {                               // signatures
-                              SIGNATURES_SECTION_VOID_VOID,  // --
+  static const byte data[] = {                                 // signatures
+                              TYPE_SECTION_ONE_SIG_VOID_VOID,  // --
                               ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
                               SECTION(Export, ENTRY_COUNT(0)),  // --
                               ONE_EMPTY_BODY};
@@ -2386,7 +2390,7 @@ TEST_F(WasmModuleVerifyTest, ExportTable_NoFunctions2) {
 TEST_F(WasmModuleVerifyTest, ExportTableOne) {
   static const byte data[] = {
       // signatures
-      SIGNATURES_SECTION_VOID_VOID, ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
+      TYPE_SECTION_ONE_SIG_VOID_VOID, ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       SECTION(Export,
               ENTRY_COUNT(1),     // exports
               NO_NAME,            // --
@@ -2403,7 +2407,7 @@ TEST_F(WasmModuleVerifyTest, ExportTableOne) {
 TEST_F(WasmModuleVerifyTest, ExportNameWithInvalidStringLength) {
   static const byte data[] = {
       // signatures
-      SIGNATURES_SECTION_VOID_VOID, ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
+      TYPE_SECTION_ONE_SIG_VOID_VOID, ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       SECTION(Export,
               ENTRY_COUNT(1),     // exports
               U32V_1(84),         // invalid string length
@@ -2419,7 +2423,7 @@ TEST_F(WasmModuleVerifyTest, ExportNameWithInvalidStringLength) {
 TEST_F(WasmModuleVerifyTest, ExportTableTwo) {
   static const byte data[] = {
       // signatures
-      SIGNATURES_SECTION_VOID_VOID, ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
+      TYPE_SECTION_ONE_SIG_VOID_VOID, ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       SECTION(Export,
               ENTRY_COUNT(2),                 // exports
               ADD_COUNT('n', 'a', 'm', 'e'),  // --
@@ -2440,7 +2444,7 @@ TEST_F(WasmModuleVerifyTest, ExportTableTwo) {
 TEST_F(WasmModuleVerifyTest, ExportTableThree) {
   static const byte data[] = {
       // signatures
-      SIGNATURES_SECTION_VOID_VOID, THREE_EMPTY_FUNCTIONS(SIG_INDEX(0)),
+      TYPE_SECTION_ONE_SIG_VOID_VOID, THREE_EMPTY_FUNCTIONS(SIG_INDEX(0)),
       SECTION(Export,
               ENTRY_COUNT(3),  // exports
               ADD_COUNT('a'),  // --
@@ -2464,7 +2468,7 @@ TEST_F(WasmModuleVerifyTest, ExportTableThreeOne) {
   for (int i = 0; i < 6; i++) {
     const byte data[] = {
         // signatures
-        SIGNATURES_SECTION_VOID_VOID, THREE_EMPTY_FUNCTIONS(SIG_INDEX(0)),
+        TYPE_SECTION_ONE_SIG_VOID_VOID, THREE_EMPTY_FUNCTIONS(SIG_INDEX(0)),
         SECTION(Export,
                 ENTRY_COUNT(1),       // exports
                 ADD_COUNT('e', 'x'),  // --
@@ -2483,7 +2487,7 @@ TEST_F(WasmModuleVerifyTest, ExportTableThreeOne) {
 TEST_F(WasmModuleVerifyTest, ExportTableOne_off_end) {
   static const byte data[] = {
       // signatures
-      SIGNATURES_SECTION_VOID_VOID, ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
+      TYPE_SECTION_ONE_SIG_VOID_VOID, ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       SECTION(Export,
               ENTRY_COUNT(1),  // exports
               NO_NAME,         // --
@@ -2506,12 +2510,12 @@ TEST_F(WasmModuleVerifyTest, Regression_648070) {
 TEST_F(WasmModuleVerifyTest, Regression_738097) {
   // The function body size caused an integer overflow in the module decoder.
   static const byte data[] = {
-      SIGNATURES_SECTION(1, SIG_ENTRY_v_v),  // --
-      FUNCTION_SIGNATURES_SECTION(1, 0),     // --
-      SECTION(Code,                          // --
-              ENTRY_COUNT(1),                // --
-              U32V_5(0xFFFFFFFF),            // function size,
-              0)                             // No real body
+      TYPE_SECTION(1, SIG_ENTRY_v_v),  // --
+      FUNCTION_SECTION(1, 0),          // --
+      SECTION(Code,                    // --
+              ENTRY_COUNT(1),          // --
+              U32V_5(0xFFFFFFFF),      // function size,
+              0)                       // No real body
   };
   EXPECT_FAILURE(data);
 }
@@ -2521,12 +2525,12 @@ TEST_F(WasmModuleVerifyTest, FunctionBodySizeLimit) {
   for (uint32_t body_size = kV8MaxWasmFunctionSize - delta;
        body_size < kV8MaxWasmFunctionSize + delta; body_size++) {
     byte data[] = {
-        SIGNATURES_SECTION(1, SIG_ENTRY_v_v),  // --
-        FUNCTION_SIGNATURES_SECTION(1, 0),     // --
-        kCodeSectionCode,                      // code section
-        U32V_5(1 + body_size + 5),             // section size
-        1,                                     // # functions
-        U32V_5(body_size)                      // body size
+        TYPE_SECTION(1, SIG_ENTRY_v_v),  // --
+        FUNCTION_SECTION(1, 0),          // --
+        kCodeSectionCode,                // code section
+        U32V_5(1 + body_size + 5),       // section size
+        1,                               // # functions
+        U32V_5(body_size)                // body size
     };
     size_t total = sizeof(data) + body_size;
     byte* buffer = reinterpret_cast<byte*>(calloc(1, total));
@@ -2541,28 +2545,33 @@ TEST_F(WasmModuleVerifyTest, FunctionBodySizeLimit) {
   }
 }
 
+TEST_F(WasmModuleVerifyTest, IllegalTypeCode) {
+  static const byte data[] = {TYPE_SECTION(1, SIG_ENTRY_v_x(0x41))};
+  EXPECT_FAILURE_WITH_MSG(data, "invalid value type");
+}
+
 TEST_F(WasmModuleVerifyTest, FunctionBodies_empty) {
   static const byte data[] = {
-      EMPTY_SIGNATURES_SECTION,           // --
-      EMPTY_FUNCTION_SIGNATURES_SECTION,  // --
-      EMPTY_FUNCTION_BODIES_SECTION       // --
+      EMPTY_TYPE_SECTION,            // --
+      EMPTY_FUNCTION_SECTION,        // --
+      EMPTY_FUNCTION_BODIES_SECTION  // --
   };
   EXPECT_VERIFIES(data);
 }
 
 TEST_F(WasmModuleVerifyTest, FunctionBodies_one_empty) {
   static const byte data[] = {
-      SIGNATURES_SECTION(1, SIG_ENTRY_v_v),  // --
-      FUNCTION_SIGNATURES_SECTION(1, 0),     // --
-      ONE_EMPTY_BODY                         // --
+      TYPE_SECTION(1, SIG_ENTRY_v_v),  // --
+      FUNCTION_SECTION(1, 0),          // --
+      ONE_EMPTY_BODY                   // --
   };
   EXPECT_VERIFIES(data);
 }
 
 TEST_F(WasmModuleVerifyTest, FunctionBodies_one_nop) {
   static const byte data[] = {
-      SIGNATURES_SECTION(1, SIG_ENTRY_v_v),    // --
-      FUNCTION_SIGNATURES_SECTION(1, 0),       // --
+      TYPE_SECTION(1, SIG_ENTRY_v_v),          // --
+      FUNCTION_SECTION(1, 0),                  // --
       SECTION(Code, ENTRY_COUNT(1), NOP_BODY)  // --
   };
   EXPECT_VERIFIES(data);
@@ -2570,26 +2579,26 @@ TEST_F(WasmModuleVerifyTest, FunctionBodies_one_nop) {
 
 TEST_F(WasmModuleVerifyTest, FunctionBodies_count_mismatch1) {
   static const byte data[] = {
-      SIGNATURES_SECTION(1, SIG_ENTRY_v_v),  // --
-      FUNCTION_SIGNATURES_SECTION(2, 0, 0),  // --
-      ONE_EMPTY_BODY                         // --
+      TYPE_SECTION(1, SIG_ENTRY_v_v),  // --
+      FUNCTION_SECTION(2, 0, 0),       // --
+      ONE_EMPTY_BODY                   // --
   };
   EXPECT_FAILURE(data);
 }
 
 TEST_F(WasmModuleVerifyTest, FunctionBodies_count_mismatch2) {
   static const byte data[] = {
-      SIGNATURES_SECTION(1, SIG_ENTRY_v_v),              // --
-      FUNCTION_SIGNATURES_SECTION(1, 0),                 // --
+      TYPE_SECTION(1, SIG_ENTRY_v_v),                    // --
+      FUNCTION_SECTION(1, 0),                            // --
       SECTION(Code, ENTRY_COUNT(2), NOP_BODY, NOP_BODY)  // --
   };
   EXPECT_FAILURE(data);
 }
 
 TEST_F(WasmModuleVerifyTest, Names_empty) {
-  static const byte data[] = {
-      EMPTY_SIGNATURES_SECTION, EMPTY_FUNCTION_SIGNATURES_SECTION,
-      EMPTY_FUNCTION_BODIES_SECTION, EMPTY_NAMES_SECTION};
+  static const byte data[] = {EMPTY_TYPE_SECTION, EMPTY_FUNCTION_SECTION,
+                              EMPTY_FUNCTION_BODIES_SECTION,
+                              EMPTY_NAMES_SECTION};
   EXPECT_VERIFIES(data);
 }
 
@@ -2597,8 +2606,8 @@ TEST_F(WasmModuleVerifyTest, Names_one_empty) {
   // TODO(wasm): This test does not test anything (corrupt name section does not
   // fail validation).
   static const byte data[] = {
-      SIGNATURES_SECTION(1, SIG_ENTRY_v_v),                      // --
-      FUNCTION_SIGNATURES_SECTION(1, 0),                         // --
+      TYPE_SECTION(1, SIG_ENTRY_v_v),                            // --
+      FUNCTION_SECTION(1, 0),                                    // --
       ONE_EMPTY_BODY,                                            // --
       SECTION_NAMES(ENTRY_COUNT(1), FOO_STRING, NO_LOCAL_NAMES)  // --
   };
@@ -2609,8 +2618,8 @@ TEST_F(WasmModuleVerifyTest, Names_two_empty) {
   // TODO(wasm): This test does not test anything (corrupt name section does not
   // fail validation).
   static const byte data[] = {
-      SIGNATURES_SECTION(1, SIG_ENTRY_v_v),       // --
-      FUNCTION_SIGNATURES_SECTION(2, 0, 0),       // --
+      TYPE_SECTION(1, SIG_ENTRY_v_v),             // --
+      FUNCTION_SECTION(2, 0, 0),                  // --
       TWO_EMPTY_BODIES,                           // --
       SECTION_NAMES(ENTRY_COUNT(2),               // --
                     FOO_STRING, NO_LOCAL_NAMES,   // --
@@ -2639,8 +2648,8 @@ TEST_F(WasmModuleVerifyTest, Regression684855) {
 
 TEST_F(WasmModuleVerifyTest, FunctionSectionWithoutCodeSection) {
   static const byte data[] = {
-      SIGNATURES_SECTION(1, SIG_ENTRY_v_v),  // Type section.
-      FUNCTION_SIGNATURES_SECTION(1, 0),     // Function section.
+      TYPE_SECTION(1, SIG_ENTRY_v_v),  // Type section.
+      FUNCTION_SECTION(1, 0),          // Function section.
   };
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result, "function count is 1, but code section is absent");
@@ -2792,7 +2801,7 @@ TEST_F(WasmModuleCustomSectionTest, TwoKnownTwoUnknownSections) {
   static const byte data[] = {
       U32_LE(kWasmMagic),                                          // --
       U32_LE(kWasmVersion),                                        // --
-      SIGNATURES_SECTION(2, SIG_ENTRY_v_v, SIG_ENTRY_v_v),         // --
+      TYPE_SECTION(2, SIG_ENTRY_v_v, SIG_ENTRY_v_v),               // --
       SECTION(Unknown, ADD_COUNT('X'), 17, 18),                    // --
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),                            // --
       SECTION(Unknown, ADD_COUNT('o', 't', 'h', 'e', 'r'), 7, 8),  // --
@@ -2878,7 +2887,7 @@ TEST_F(WasmModuleVerifyTest, PassiveDataSegment) {
 TEST_F(WasmModuleVerifyTest, ActiveElementSegmentWithElements) {
   static const byte data[] = {
       // sig#0 -----------------------------------------------------------------
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       // funcs -----------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration -----------------------------------------------------
@@ -2898,7 +2907,7 @@ TEST_F(WasmModuleVerifyTest, ActiveElementSegmentWithElements) {
 TEST_F(WasmModuleVerifyTest, PassiveElementSegment) {
   static const byte data[] = {
       // sig#0 -----------------------------------------------------------------
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       // funcs -----------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration -----------------------------------------------------
@@ -2918,7 +2927,7 @@ TEST_F(WasmModuleVerifyTest, PassiveElementSegment) {
 TEST_F(WasmModuleVerifyTest, PassiveElementSegmentExternRef) {
   static const byte data[] = {
       // sig#0 -----------------------------------------------------------------
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       // funcs -----------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration -----------------------------------------------------
@@ -2935,7 +2944,7 @@ TEST_F(WasmModuleVerifyTest, PassiveElementSegmentExternRef) {
 TEST_F(WasmModuleVerifyTest, PassiveElementSegmentWithIndices) {
   static const byte data[] = {
       // sig#0 -----------------------------------------------------------------
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       // funcs -----------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration -----------------------------------------------------
@@ -2954,7 +2963,7 @@ TEST_F(WasmModuleVerifyTest, PassiveElementSegmentWithIndices) {
 TEST_F(WasmModuleVerifyTest, DeclarativeElementSegmentFuncRef) {
   static const byte data[] = {
       // sig#0 -----------------------------------------------------------------
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       // funcs -----------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // element segments  -----------------------------------------------------
@@ -2977,7 +2986,7 @@ TEST_F(WasmModuleVerifyTest, DeclarativeElementSegmentWithInvalidIndex) {
   WASM_FEATURE_SCOPE(reftypes);
   static const byte data[] = {
       // sig#0 -----------------------------------------------------------------
-      SIGNATURES_SECTION_VOID_VOID,
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
       // funcs -----------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // element segments  -----------------------------------------------------
@@ -3025,9 +3034,8 @@ TEST_F(WasmModuleVerifyTest, DataCountSectionAfterStartBeforeElement) {
       // We need the start section for this test, but the start section must
       // reference a valid function, which requires the type and function
       // sections too.
-      SIGNATURES_SECTION(1, SIG_ENTRY_v_v),  // Type section.
-      FUNCTION_SIGNATURES_SECTION(1, 0),     // Function section.
-
+      TYPE_SECTION(1, SIG_ENTRY_v_v),      // Type section.
+      FUNCTION_SECTION(1, 0),              // Function section.
       SECTION(Start, U32V_1(0)),           // Start section.
       SECTION(DataCount, ENTRY_COUNT(0)),  // DataCount section.
       SECTION(Element, ENTRY_COUNT(0))     // Element section.
@@ -3160,12 +3168,12 @@ TEST_F(WasmModuleVerifyTest, IllegalPackedFields) {
 #undef CHECK_LEB1
 #undef ADD_COUNT
 #undef SECTION
-#undef SIGNATURES_SECTION
-#undef FUNCTION_SIGNATURES_SECTION
+#undef TYPE_SECTION
+#undef FUNCTION_SECTION
 #undef FOO_STRING
 #undef NO_LOCAL_NAMES
-#undef EMPTY_SIGNATURES_SECTION
-#undef EMPTY_FUNCTION_SIGNATURES_SECTION
+#undef EMPTY_TYPE_SECTION
+#undef EMPTY_FUNCTION_SECTION
 #undef EMPTY_FUNCTION_BODIES_SECTION
 #undef SECTION_NAMES
 #undef EMPTY_NAMES_SECTION
@@ -3184,7 +3192,7 @@ TEST_F(WasmModuleVerifyTest, IllegalPackedFields) {
 #undef TWO_EMPTY_BODIES
 #undef THREE_EMPTY_BODIES
 #undef FOUR_EMPTY_BODIES
-#undef SIGNATURES_SECTION_VOID_VOID
+#undef TYPE_SECTION_ONE_SIG_VOID_VOID
 #undef LINEAR_MEMORY_INDEX_0
 
 #undef FIELD_COUNT

@@ -3081,8 +3081,9 @@ Node* WasmGraphBuilder::BuildCallRef(uint32_t sig_index, Vector<Node*> args,
     // Call to a WasmJSFunction.
     // The call target is the wasm-to-js wrapper code.
     gasm_->Bind(&js_label);
-    // TODO(7748): Implement.
-    TrapIfTrue(wasm::kTrapUnreachable, gasm_->Int32Constant(1), position);
+    // TODO(9495): Implement when the interaction with the type reflection
+    // proposal is clear.
+    TrapIfTrue(wasm::kTrapWasmJSFunction, gasm_->Int32Constant(1), position);
     gasm_->Goto(&end_label, args[0], RefNull() /* Dummy value */);
   }
 

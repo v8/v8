@@ -268,23 +268,24 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
       return heap_type.is_bottom() ? kWasmBottom
                                    : ValueType::Rtt(heap_type, depth);
     }
-    case kLocalS128:
+    case kLocalS128: {
       if (!VALIDATE(enabled.has_simd())) {
         decoder->error(pc,
-                       "invalid value type 'Simd128', enable with "
+                       "invalid value type 's128', enable with "
                        "--experimental-wasm-simd");
         return kWasmBottom;
       }
       return kWasmS128;
+    }
+    // Although these codes are included in ValueTypeCode, they technically
+    // do not correspond to value types and are only used in specific
+    // contexts. The caller of this function is responsible for handling them.
     case kLocalVoid:
     case kLocalI8:
     case kLocalI16:
-      // Although these types are included in ValueType, they are technically
-      // not value types and are only used in specific contexts. The caller of
-      // this function is responsible to check for them separately.
-      break;
+      return kWasmBottom;
   }
-  // Malformed modules specifying invalid types can get here.
+  // Anything that doesn't match an enumeration value is an invalid type code.
   return kWasmBottom;
 }
 }  // namespace value_type_reader
