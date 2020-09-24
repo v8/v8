@@ -246,6 +246,12 @@ bool InCorrectGeneration(HeapObject object) {
                                 : i::Heap::InYoungGeneration(object);
 }
 
+void EnsureFlagLocalHeapsEnabled() {
+  // Avoid data race in concurrent thread by only setting the flag to true if
+  // not already enabled.
+  if (!FLAG_local_heaps) FLAG_local_heaps = true;
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

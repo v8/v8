@@ -70,6 +70,8 @@ void InvokeScavenge(Isolate* isolate = nullptr);
 
 void InvokeMarkSweep(Isolate* isolate = nullptr);
 
+void EnsureFlagLocalHeapsEnabled();
+
 template <typename GlobalOrPersistent>
 bool InYoungGeneration(v8::Isolate* isolate, const GlobalOrPersistent& global) {
   v8::HandleScope scope(isolate);
