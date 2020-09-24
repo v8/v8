@@ -34,7 +34,6 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/template-objects-inl.h"
 #include "src/objects/templates.h"
-#include "src/utils/boxed-float.h"
 #include "src/utils/utils.h"
 
 namespace v8 {
@@ -3198,24 +3197,13 @@ ObjectRef FixedArrayRef::get(int i) const {
   return ObjectRef(broker(), data()->AsFixedArray()->Get(i));
 }
 
-bool FixedDoubleArrayRef::is_the_hole(int i) const {
+Float64 FixedDoubleArrayRef::get(int i) const {
   if (data_->should_access_heap()) {
     AllowHandleDereferenceIfNeeded allow_handle_dereference(data()->kind(),
                                                             broker()->mode());
-    return object()->is_the_hole(i);
+    return Float64::FromBits(object()->get_representation(i));
   } else {
-    return data()->AsFixedDoubleArray()->Get(i).is_hole_nan();
-  }
-}
-
-double FixedDoubleArrayRef::get_scalar(int i) const {
-  if (data_->should_access_heap()) {
-    AllowHandleDereferenceIfNeeded allow_handle_dereference(data()->kind(),
-                                                            broker()->mode());
-    return object()->get_scalar(i);
-  } else {
-    CHECK(!data()->AsFixedDoubleArray()->Get(i).is_hole_nan());
-    return data()->AsFixedDoubleArray()->Get(i).get_scalar();
+    return data()->AsFixedDoubleArray()->Get(i);
   }
 }
 

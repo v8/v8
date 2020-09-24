@@ -1770,10 +1770,11 @@ Node* JSCreateLowering::AllocateFastLiteralElements(Node* effect, Node* control,
   if (elements_map.instance_type() == FIXED_DOUBLE_ARRAY_TYPE) {
     FixedDoubleArrayRef elements = boilerplate_elements.AsFixedDoubleArray();
     for (int i = 0; i < elements_length; ++i) {
-      if (elements.is_the_hole(i)) {
+      Float64 value = elements.get(i);
+      if (value.is_hole_nan()) {
         elements_values[i] = jsgraph()->TheHoleConstant();
       } else {
-        elements_values[i] = jsgraph()->Constant(elements.get_scalar(i));
+        elements_values[i] = jsgraph()->Constant(value.get_scalar());
       }
     }
   } else {
