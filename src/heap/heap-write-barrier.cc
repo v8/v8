@@ -52,13 +52,12 @@ void WriteBarrier::MarkingSlow(Heap* heap, JSArrayBuffer host,
   marking_barrier->Write(host, extension);
 }
 
-void WriteBarrier::MarkingSlow(Heap* heap, Map host,
-                               DescriptorArray descriptor_array,
+void WriteBarrier::MarkingSlow(Heap* heap, DescriptorArray descriptor_array,
                                int number_of_own_descriptors) {
   MarkingBarrier* marking_barrier = current_marking_barrier
                                         ? current_marking_barrier
                                         : heap->marking_barrier();
-  marking_barrier->Write(host, descriptor_array, number_of_own_descriptors);
+  marking_barrier->Write(descriptor_array, number_of_own_descriptors);
 }
 
 int WriteBarrier::MarkingFromCode(Address raw_host, Address raw_slot) {

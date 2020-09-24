@@ -67,13 +67,13 @@ void MarkingBarrier::Write(JSArrayBuffer host,
   extension->Mark();
 }
 
-void MarkingBarrier::Write(Map host, DescriptorArray descriptor_array,
+void MarkingBarrier::Write(DescriptorArray descriptor_array,
                            int number_of_own_descriptors) {
   DCHECK(is_main_thread_barrier_);
   int16_t raw_marked = descriptor_array.raw_number_of_marked_descriptors();
   if (NumberOfMarkedDescriptors::decode(collector_->epoch(), raw_marked) <
       number_of_own_descriptors) {
-    collector_->MarkDescriptorArrayFromWriteBarrier(host, descriptor_array,
+    collector_->MarkDescriptorArrayFromWriteBarrier(descriptor_array,
                                                     number_of_own_descriptors);
   }
 }

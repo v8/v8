@@ -35,7 +35,7 @@ class MarkingBarrier {
   void Write(HeapObject host, HeapObjectSlot, HeapObject value);
   void Write(Code host, RelocInfo*, HeapObject value);
   void Write(JSArrayBuffer host, ArrayBufferExtension*);
-  void Write(Map host, DescriptorArray, int number_of_own_descriptors);
+  void Write(DescriptorArray, int number_of_own_descriptors);
 
   // Returns true if the slot needs to be recorded.
   inline bool MarkValue(HeapObject host, HeapObject value);
