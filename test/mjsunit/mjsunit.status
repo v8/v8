@@ -1461,4 +1461,14 @@
   'harmony/sharedarraybuffer-worker-gc-stress': [PASS, SLOW],
 }],  # variant == stress_concurrent_allocation
 
+##############################################################################
+['variant == stress_sampling', {
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10915
+  'harmony/weakrefs/stress-finalizationregistry-dirty-enqueue': [SKIP],
+  'regress/regress-484544': [SKIP],
+  'regress/regress-543994': [SKIP],
+  'regress/regress-crbug-1041232': [SKIP],
+  'regress/regress-set-flags-stress-compact': [SKIP],
+}],  # variant == stress_sampling
+
 ]
