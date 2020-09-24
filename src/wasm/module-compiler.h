@@ -9,9 +9,9 @@
 #include <functional>
 #include <memory>
 
-#include "include/v8-metrics.h"
 #include "src/base/optional.h"
 #include "src/common/globals.h"
+#include "src/logging/metrics.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-features.h"
@@ -213,6 +213,7 @@ class AsyncCompileJob {
   ModuleWireBytes wire_bytes_;
   Handle<NativeContext> native_context_;
   v8::metrics::Recorder::ContextId context_id_;
+  v8::metrics::WasmModuleDecoded metrics_event_;
   const std::shared_ptr<CompilationResultResolver> resolver_;
 
   Handle<WasmModuleObject> module_object_;

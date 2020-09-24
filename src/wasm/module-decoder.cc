@@ -266,27 +266,6 @@ class WasmSectionIterator {
   }
 };
 
-class AutoSubmitMetrics : public v8::metrics::WasmModuleDecoded {
- public:
-  AutoSubmitMetrics(std::shared_ptr<metrics::Recorder> recorder,
-                    v8::metrics::Recorder::ContextId context_id)
-      : recorder_(std::move(recorder)),
-        context_id_(context_id),
-        timed_scope_(this,
-                     &v8::metrics::WasmModuleDecoded::wall_clock_time_in_us) {}
-
-  ~AutoSubmitMetrics() {
-    timed_scope_.Stop();
-    recorder_->DelayMainThreadEvent<v8::metrics::WasmModuleDecoded>(
-        *this, context_id_);
-  }
-
- private:
-  std::shared_ptr<metrics::Recorder> recorder_;
-  v8::metrics::Recorder::ContextId context_id_;
-  metrics::TimedScope<v8::metrics::WasmModuleDecoded> timed_scope_;
-};
-
 }  // namespace
 
 // The main logic for decoding the bytes of a module.
@@ -301,13 +280,13 @@ class ModuleDecoderImpl : public Decoder {
                     const byte* module_end, ModuleOrigin origin)
       : Decoder(module_start, module_end),
         enabled_features_(enabled),
+        module_start_(module_start),
+        module_end_(module_end),
         origin_(origin) {
     if (end_ < start_) {
       error(start_, "end is less than start");
       end_ = start_;
     }
-    module_start_ = module_start;
-    module_end_ = module_end;
   }
 
   void onFirstError() override {
@@ -1225,13 +1204,6 @@ class ModuleDecoderImpl : public Decoder {
       CalculateGlobalOffsets(module_.get());
     }
 
-    if (metrics_) {
-      metrics_->success = ok() && !intermediate_error_.has_error();
-      metrics_->module_size_in_bytes = end() - start();
-      metrics_->function_count = module_->num_declared_functions;
-      metrics_.reset();
-    }
-
     ModuleResult result = toResult(std::move(module_));
     if (verify_functions && result.ok() && intermediate_error_.has_error()) {
       // Copy error message and location.
@@ -1275,13 +1247,6 @@ class ModuleDecoderImpl : public Decoder {
     if (FLAG_dump_wasm_module) DumpModule(orig_bytes);
 
     if (decoder.failed()) {
-      if (metrics_) {
-        metrics_->success = false;
-        metrics_->module_size_in_bytes = orig_bytes.length();
-        metrics_->function_count = module_->num_declared_functions;
-        metrics_.reset();
-      }
-
       return decoder.toResult<std::unique_ptr<WasmModule>>(nullptr);
     }
 
@@ -1335,37 +1300,11 @@ class ModuleDecoderImpl : public Decoder {
     counters_ = counters;
   }
 
-  void EnableMetricsRecording(
-      std::shared_ptr<metrics::Recorder> metrics_recorder,
-      v8::metrics::Recorder::ContextId context_id,
-      DecodingMethod decoding_method) {
-    metrics_ = std::make_unique<AutoSubmitMetrics>(std::move(metrics_recorder),
-                                                   context_id);
-    switch (decoding_method) {
-      case DecodingMethod::kSync:
-        break;
-      case DecodingMethod::kAsync:
-        metrics_->async = true;
-        break;
-      case DecodingMethod::kSyncStream:
-        metrics_->streamed = true;
-        break;
-      case DecodingMethod::kAsyncStream:
-        metrics_->async = true;
-        metrics_->streamed = true;
-        break;
-      case DecodingMethod::kDeserialize:
-        // TODO(ecmziegler): verify if we need to add a deserialized metric flag
-        // in the next UKM update.
-        break;
-    }
-  }
-
  private:
   const WasmFeatures enabled_features_;
   std::shared_ptr<WasmModule> module_;
-  const byte* module_start_;
-  const byte* module_end_;
+  const byte* module_start_ = nullptr;
+  const byte* module_end_ = nullptr;
   Counters* counters_ = nullptr;
   // The type section is the first section in a module.
   uint8_t next_ordered_section_ = kFirstSectionInModule;
@@ -1386,7 +1325,6 @@ class ModuleDecoderImpl : public Decoder {
   // reporting once the whole type section is parsed.
   std::unordered_map<uint32_t, int> deferred_check_type_index_;
   ModuleOrigin origin_;
-  std::unique_ptr<AutoSubmitMetrics> metrics_;
 
   ValueType TypeOf(const WasmInitExpr& expr) {
     switch (expr.kind()) {
@@ -2240,9 +2178,28 @@ ModuleResult DecodeWasmModule(
   // Signatures are stored in zone memory, which have the same lifetime
   // as the {module}.
   ModuleDecoderImpl decoder(enabled, module_start, module_end, origin);
-  decoder.EnableMetricsRecording(std::move(metrics_recorder), context_id,
-                                 decoding_method);
-  return decoder.DecodeModule(counters, allocator, verify_functions);
+  v8::metrics::WasmModuleDecoded metrics_event;
+  metrics::TimedScope<v8::metrics::WasmModuleDecoded> metrics_event_scope(
+      &metrics_event, &v8::metrics::WasmModuleDecoded::wall_clock_time_in_us);
+  ModuleResult result =
+      decoder.DecodeModule(counters, allocator, verify_functions);
+
+  // Record event metrics.
+  metrics_event_scope.Stop();
+  metrics_event.success = decoder.ok() && result.ok();
+  metrics_event.async = decoding_method == DecodingMethod::kAsync ||
+                        decoding_method == DecodingMethod::kAsyncStream;
+  metrics_event.streamed = decoding_method == DecodingMethod::kSyncStream ||
+                           decoding_method == DecodingMethod::kAsyncStream;
+  if (result.ok()) {
+    metrics_event.function_count = result.value()->num_declared_functions;
+  } else if (auto&& module = decoder.shared_module()) {
+    metrics_event.function_count = module->num_declared_functions;
+  }
+  metrics_event.module_size_in_bytes = size;
+  metrics_recorder->DelayMainThreadEvent(metrics_event, context_id);
+
+  return result;
 }
 
 ModuleDecoder::ModuleDecoder(const WasmFeatures& enabled)
@@ -2260,8 +2217,6 @@ void ModuleDecoder::StartDecoding(
     ModuleOrigin origin) {
   DCHECK_NULL(impl_);
   impl_.reset(new ModuleDecoderImpl(enabled_features_, origin));
-  impl_->EnableMetricsRecording(std::move(metrics_recorder), context_id,
-                                DecodingMethod::kAsyncStream);
   impl_->StartDecoding(counters, allocator);
 }
 
