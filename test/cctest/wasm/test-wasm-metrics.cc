@@ -316,7 +316,7 @@ COMPILE_TEST(TestEventMetrics) {
   CHECK_EQ(1, recorder->module_tiered_up_.size());
   CHECK(!recorder->module_tiered_up_.back().lazy);
   CHECK_LT(0, recorder->module_tiered_up_.back().code_size_in_bytes);
-  CHECK_EQ(native_module->turbofan_code_size(),
+  CHECK_GE(native_module->turbofan_code_size(),
            recorder->module_tiered_up_.back().code_size_in_bytes);
   CHECK_GE(native_module->generated_code_size(),
            recorder->module_tiered_up_.back().code_size_in_bytes);
