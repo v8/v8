@@ -72,6 +72,10 @@ void InvokeMarkSweep(Isolate* isolate = nullptr);
 
 void EnsureFlagLocalHeapsEnabled();
 
+void GrowNewSpace(Heap* heap);
+
+void GrowNewSpaceToMaximumCapacity(Heap* heap);
+
 template <typename GlobalOrPersistent>
 bool InYoungGeneration(v8::Isolate* isolate, const GlobalOrPersistent& global) {
   v8::HandleScope scope(isolate);

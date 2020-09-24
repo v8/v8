@@ -55,6 +55,7 @@ using i::ArrayVector;
 using i::SourceLocation;
 using i::Vector;
 using v8::base::Optional;
+using v8::internal::heap::GrowNewSpaceToMaximumCapacity;
 
 namespace {
 
@@ -3899,10 +3900,7 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
   // Suppress randomness to avoid flakiness in tests.
   v8::internal::FLAG_sampling_heap_profiler_suppress_randomness = true;
 
-  // Grow new space until maximum capacity reached.
-  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
-    CcTest::heap()->new_space()->Grow();
-  }
+  GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
   i::ScopedVector<char> source(1024);
   i::SNPrintF(source,

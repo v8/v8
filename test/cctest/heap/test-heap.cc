@@ -2005,7 +2005,7 @@ TEST(GrowAndShrinkNewSpace) {
   // Explicitly growing should double the space capacity.
   size_t old_capacity, new_capacity;
   old_capacity = new_space->TotalCapacity();
-  new_space->Grow();
+  GrowNewSpace(heap);
   new_capacity = new_space->TotalCapacity();
   CHECK_EQ(2 * old_capacity, new_capacity);
 
@@ -2055,7 +2055,7 @@ TEST(CollectingAllAvailableGarbageShrinksNewSpace) {
   NewSpace* new_space = heap->new_space();
   size_t old_capacity, new_capacity;
   old_capacity = new_space->TotalCapacity();
-  new_space->Grow();
+  GrowNewSpace(heap);
   new_capacity = new_space->TotalCapacity();
   CHECK_EQ(2 * old_capacity, new_capacity);
   {
@@ -2485,10 +2485,7 @@ TEST(OptimizedPretenuringAllocationFolding) {
     return;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
-  // Grow new space unitl maximum capacity reached.
-  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
-    CcTest::heap()->new_space()->Grow();
-  }
+  GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
   i::ScopedVector<char> source(1024);
   i::SNPrintF(source,
@@ -2539,10 +2536,7 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
   }
   v8::HandleScope scope(CcTest::isolate());
 
-  // Grow new space unitl maximum capacity reached.
-  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
-    CcTest::heap()->new_space()->Grow();
-  }
+  GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
   i::ScopedVector<char> source(1024);
   i::SNPrintF(source,
@@ -2581,10 +2575,7 @@ TEST(OptimizedPretenuringNestedInObjectProperties) {
   }
   v8::HandleScope scope(CcTest::isolate());
 
-  // Grow new space until maximum capacity reached.
-  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
-    CcTest::heap()->new_space()->Grow();
-  }
+  GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
   // Keep the nested literal alive while its root is freed
   i::ScopedVector<char> source(1024);
@@ -2625,11 +2616,7 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
     return;
   v8::HandleScope scope(CcTest::isolate());
 
-  // Grow new space unitl maximum capacity reached.
-  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
-    CcTest::heap()->new_space()->Grow();
-  }
-
+  GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
   i::ScopedVector<char> source(1024);
   i::SNPrintF(source,
@@ -2684,10 +2671,7 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
     return;
   v8::HandleScope scope(CcTest::isolate());
 
-  // Grow new space until maximum capacity reached.
-  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
-    CcTest::heap()->new_space()->Grow();
-  }
+  GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
   i::ScopedVector<char> source(1024);
   i::SNPrintF(source,
@@ -2726,10 +2710,7 @@ TEST(OptimizedPretenuringDoubleArrayLiterals) {
     return;
   v8::HandleScope scope(CcTest::isolate());
 
-  // Grow new space until maximum capacity reached.
-  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
-    CcTest::heap()->new_space()->Grow();
-  }
+  GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
   i::ScopedVector<char> source(1024);
   i::SNPrintF(source,
@@ -2767,10 +2748,7 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
     return;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
-  // Grow new space unitl maximum capacity reached.
-  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
-    CcTest::heap()->new_space()->Grow();
-  }
+  GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
   i::ScopedVector<char> source(1024);
   i::SNPrintF(source,
@@ -2820,10 +2798,7 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
     return;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
-  // Grow new space unitl maximum capacity reached.
-  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
-    CcTest::heap()->new_space()->Grow();
-  }
+  GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
   i::ScopedVector<char> source(1024);
   i::SNPrintF(source,
@@ -2873,10 +2848,7 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
     return;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
-  // Grow new space unitl maximum capacity reached.
-  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
-    CcTest::heap()->new_space()->Grow();
-  }
+  GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
   i::ScopedVector<char> source(1024);
   i::SNPrintF(source,

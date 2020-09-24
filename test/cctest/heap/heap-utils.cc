@@ -252,6 +252,18 @@ void EnsureFlagLocalHeapsEnabled() {
   if (!FLAG_local_heaps) FLAG_local_heaps = true;
 }
 
+void GrowNewSpace(Heap* heap) {
+  SafepointScope scope(heap);
+  heap->new_space()->Grow();
+}
+
+void GrowNewSpaceToMaximumCapacity(Heap* heap) {
+  SafepointScope scope(heap);
+  while (!heap->new_space()->IsAtMaximumCapacity()) {
+    heap->new_space()->Grow();
+  }
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

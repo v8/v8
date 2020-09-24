@@ -618,9 +618,7 @@ HEAP_TEST(Regress791582) {
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
   NewSpace* new_space = heap->new_space();
-  if (new_space->TotalCapacity() < new_space->MaximumCapacity()) {
-    new_space->Grow();
-  }
+  GrowNewSpace(heap);
 
   int until_page_end = static_cast<int>(new_space->limit() - new_space->top());
 
