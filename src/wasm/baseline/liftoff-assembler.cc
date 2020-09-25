@@ -771,6 +771,7 @@ void LiftoffAssembler::PrepareBuiltinCall(
   LiftoffRegList param_regs;
   PrepareStackTransfers(sig, call_descriptor, params.begin(), &stack_slots,
                         &stack_transfers, &param_regs);
+  SpillAllRegisters();
   // Create all the slots.
   // Builtin stack parameters are pushed in reversed order.
   stack_slots.Reverse();
@@ -780,7 +781,6 @@ void LiftoffAssembler::PrepareBuiltinCall(
 
   // Reset register use counters.
   cache_state_.reset_used_registers();
-  SpillAllRegisters();
 }
 
 void LiftoffAssembler::PrepareCall(const FunctionSig* sig,
