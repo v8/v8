@@ -1018,18 +1018,21 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                          std::is_convertible<TNode<T>, TNode<Object>>::value,
                          int>::type = 0>
   TNode<T> LoadObjectField(TNode<HeapObject> object, int offset) {
-    return CAST(LoadObjectField(object, offset, MachineTypeOf<T>::value));
+    return CAST(LoadFromObject(MachineTypeOf<T>::value, object,
+                               IntPtrConstant(offset - kHeapObjectTag)));
   }
   template <class T, typename std::enable_if<
                          std::is_convertible<TNode<T>, TNode<UntaggedT>>::value,
                          int>::type = 0>
   TNode<T> LoadObjectField(TNode<HeapObject> object, int offset) {
     return UncheckedCast<T>(
-        LoadObjectField(object, offset, MachineTypeOf<T>::value));
+        LoadFromObject(MachineTypeOf<T>::value, object,
+                       IntPtrConstant(offset - kHeapObjectTag)));
   }
   TNode<Object> LoadObjectField(TNode<HeapObject> object, int offset) {
     return UncheckedCast<Object>(
-        LoadObjectField(object, offset, MachineType::AnyTagged()));
+        LoadFromObject(MachineType::AnyTagged(), object,
+                       IntPtrConstant(offset - kHeapObjectTag)));
   }
   TNode<Object> LoadObjectField(TNode<HeapObject> object,
                                 TNode<IntPtrT> offset) {
@@ -1054,8 +1057,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<MaybeObject> LoadMaybeWeakObjectField(SloppyTNode<HeapObject> object,
                                               int offset) {
-    return UncheckedCast<MaybeObject>(
-        LoadObjectField(object, offset, MachineType::AnyTagged()));
+    return UncheckedCast<MaybeObject>(LoadObjectField(object, offset));
   }
 
   TNode<Object> LoadConstructorOrBackPointer(TNode<Map> map) {
@@ -3633,8 +3635,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   Label* if_bigint = nullptr,
                                   TVariable<BigInt>* var_maybe_bigint = nullptr,
                                   TVariable<Smi>* var_feedback = nullptr);
-
-  Node* LoadObjectField(TNode<HeapObject> object, int offset, MachineType type);
 
   // Low-level accessors for Descriptor arrays.
   template <typename T>

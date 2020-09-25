@@ -1375,12 +1375,6 @@ TNode<Object> CodeStubAssembler::LoadFromParentFrame(int offset) {
   return LoadFullTagged(frame_pointer, IntPtrConstant(offset));
 }
 
-Node* CodeStubAssembler::LoadObjectField(TNode<HeapObject> object, int offset,
-                                         MachineType type) {
-  CSA_ASSERT(this, IsStrong(object));
-  return LoadFromObject(type, object, IntPtrConstant(offset - kHeapObjectTag));
-}
-
 TNode<IntPtrT> CodeStubAssembler::LoadAndUntagObjectField(
     SloppyTNode<HeapObject> object, int offset) {
   if (SmiValuesAre32Bits()) {
@@ -1389,8 +1383,7 @@ TNode<IntPtrT> CodeStubAssembler::LoadAndUntagObjectField(
 #endif
     return ChangeInt32ToIntPtr(LoadObjectField<Int32T>(object, offset));
   } else {
-    return SmiToIntPtr(
-        LoadObjectField(object, offset, MachineType::TaggedSigned()));
+    return SmiToIntPtr(LoadObjectField<Smi>(object, offset));
   }
 }
 
@@ -1400,11 +1393,9 @@ TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32ObjectField(
 #if V8_TARGET_LITTLE_ENDIAN
     offset += 4;
 #endif
-    return UncheckedCast<Int32T>(
-        LoadObjectField(object, offset, MachineType::Int32()));
+    return LoadObjectField<Int32T>(object, offset);
   } else {
-    return SmiToInt32(
-        LoadObjectField(object, offset, MachineType::TaggedSigned()));
+    return SmiToInt32(LoadObjectField<Smi>(object, offset));
   }
 }
 
@@ -1412,8 +1403,7 @@ TNode<Float64T> CodeStubAssembler::LoadHeapNumberValue(
     SloppyTNode<HeapObject> object) {
   CSA_ASSERT(this, Word32Or(IsHeapNumber(object), IsOddball(object)));
   STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
-  return TNode<Float64T>::UncheckedCast(LoadObjectField(
-      object, HeapNumber::kValueOffset, MachineType::Float64()));
+  return LoadObjectField<Float64T>(object, HeapNumber::kValueOffset);
 }
 
 TNode<Map> CodeStubAssembler::GetInstanceTypeMap(InstanceType instance_type) {
@@ -1548,9 +1538,8 @@ TNode<IntPtrT> CodeStubAssembler::LoadAndUntagWeakFixedArrayLength(
 
 TNode<Int32T> CodeStubAssembler::LoadNumberOfDescriptors(
     TNode<DescriptorArray> array) {
-  return UncheckedCast<Int32T>(
-      LoadObjectField(array, DescriptorArray::kNumberOfDescriptorsOffset,
-                      MachineType::Int16()));
+  return UncheckedCast<Int32T>(LoadObjectField<Int16T>(
+      array, DescriptorArray::kNumberOfDescriptorsOffset));
 }
 
 TNode<Int32T> CodeStubAssembler::LoadNumberOfOwnDescriptors(TNode<Map> map) {
@@ -1562,19 +1551,18 @@ TNode<Int32T> CodeStubAssembler::LoadNumberOfOwnDescriptors(TNode<Map> map) {
 TNode<Int32T> CodeStubAssembler::LoadMapBitField(SloppyTNode<Map> map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
   return UncheckedCast<Int32T>(
-      LoadObjectField(map, Map::kBitFieldOffset, MachineType::Uint8()));
+      LoadObjectField<Uint8T>(map, Map::kBitFieldOffset));
 }
 
 TNode<Int32T> CodeStubAssembler::LoadMapBitField2(SloppyTNode<Map> map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
   return UncheckedCast<Int32T>(
-      LoadObjectField(map, Map::kBitField2Offset, MachineType::Uint8()));
+      LoadObjectField<Uint8T>(map, Map::kBitField2Offset));
 }
 
 TNode<Uint32T> CodeStubAssembler::LoadMapBitField3(SloppyTNode<Map> map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
-  return UncheckedCast<Uint32T>(
-      LoadObjectField(map, Map::kBitField3Offset, MachineType::Uint32()));
+  return LoadObjectField<Uint32T>(map, Map::kBitField3Offset);
 }
 
 TNode<Uint16T> CodeStubAssembler::LoadMapInstanceType(SloppyTNode<Map> map) {
@@ -2556,9 +2544,9 @@ TNode<BoolT> CodeStubAssembler::IsGeneratorFunction(
           function, JSFunction::kSharedFunctionInfoOffset);
 
   const TNode<Uint32T> function_kind =
-      DecodeWord32<SharedFunctionInfo::FunctionKindBits>(LoadObjectField(
-          shared_function_info, SharedFunctionInfo::kFlagsOffset,
-          MachineType::Uint32()));
+      DecodeWord32<SharedFunctionInfo::FunctionKindBits>(
+          LoadObjectField<Uint32T>(shared_function_info,
+                                   SharedFunctionInfo::kFlagsOffset));
 
   // See IsGeneratorFunction(FunctionKind kind).
   return IsInRange(function_kind, FunctionKind::kAsyncConciseGeneratorMethod,
@@ -3047,18 +3035,16 @@ void CodeStubAssembler::StoreBigIntDigit(TNode<BigInt> bigint,
 
 TNode<Word32T> CodeStubAssembler::LoadBigIntBitfield(TNode<BigInt> bigint) {
   return UncheckedCast<Word32T>(
-      LoadObjectField(bigint, BigInt::kBitfieldOffset, MachineType::Uint32()));
+      LoadObjectField<Uint32T>(bigint, BigInt::kBitfieldOffset));
 }
 
 TNode<UintPtrT> CodeStubAssembler::LoadBigIntDigit(TNode<BigInt> bigint,
                                                    intptr_t digit_index) {
   CHECK_LE(0, digit_index);
   CHECK_LT(digit_index, BigInt::kMaxLength);
-  return UncheckedCast<UintPtrT>(
-      LoadObjectField(bigint,
-                      BigInt::kDigitsOffset +
-                          static_cast<int>(digit_index) * kSystemPointerSize,
-                      MachineType::UintPtr()));
+  return LoadObjectField<UintPtrT>(
+      bigint, BigInt::kDigitsOffset +
+                  static_cast<int>(digit_index) * kSystemPointerSize);
 }
 
 TNode<UintPtrT> CodeStubAssembler::LoadBigIntDigit(TNode<BigInt> bigint,
