@@ -714,7 +714,7 @@ std::string ToSTLString(Isolate* isolate, Local<String> v8_str) {
 
 bool IsAbsolutePath(const std::string& path) {
 #if defined(_WIN32) || defined(_WIN64)
-  // TODO(adamk): This is an incorrect approximation, but should
+  // This is an incorrect approximation, but should
   // work for all our test-running cases.
   return path.find(':') != std::string::npos;
 #else
@@ -725,7 +725,8 @@ bool IsAbsolutePath(const std::string& path) {
 std::string GetWorkingDirectory() {
 #if defined(_WIN32) || defined(_WIN64)
   char system_buffer[MAX_PATH];
-  // TODO(adamk): Support Unicode paths.
+  // Unicode paths are unsupported, which is fine as long as
+  // the test directory doesn't include any such paths.
   DWORD len = GetCurrentDirectoryA(MAX_PATH, system_buffer);
   CHECK_GT(len, 0);
   return system_buffer;
