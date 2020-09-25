@@ -102,9 +102,9 @@ class CommonFrameConstants : public AllStatic {
 //       |- - - - - - - - -|   |                        |
 // 4+cp  |      argc       |   v                        |
 //       +-----------------+----                        |
-// 5+cp  |                 |   ^                      Callee
+// 5+cp  |  expressions or |   ^                      Callee
 //       |- - - - - - - - -|   |                   frame slots
-//  ...  |                 | Frame slots           (slot >= 0)
+//  ...  |  pushed values  | Frame slots           (slot >= 0)
 //       |- - - - - - - - -|   |                        |
 //       |                 |   v                        |
 //  -----+-----------------+----- <-- stack ptr -------------
@@ -123,6 +123,7 @@ class StandardFrameConstants : public CommonFrameConstants {
   static constexpr int kArgCOffset = -3 * kSystemPointerSize - kCPSlotSize;
   static constexpr int kExpressionsOffset =
       -4 * kSystemPointerSize - kCPSlotSize;
+  static constexpr int kFirstPushedFrameValueOffset = kExpressionsOffset;
   static constexpr int kLastObjectOffset = kContextOffset;
 };
 
@@ -148,9 +149,9 @@ class StandardFrameConstants : public CommonFrameConstants {
 //       |- - - - - - - - -|   |                        |
 // 2+cp  |Frame Type Marker|   v   if a constant pool   |
 //       |-----------------+----    is used, cp = 1,    |
-// 3+cp  |                 |   ^   otherwise, cp = 0    |
+// 3+cp  |  pushed value 0 |   ^   otherwise, cp = 0    |
 //       |- - - - - - - - -|   |                        |
-// 4+cp  |                 |   |                      Callee
+// 4+cp  |  pushed value 1 |   |                      Callee
 //       |- - - - - - - - -|   |                   frame slots
 //  ...  |                 | Frame slots           (slot >= 0)
 //       |- - - - - - - - -|   |                        |
@@ -171,19 +172,32 @@ class TypedFrameConstants : public CommonFrameConstants {
       -kFixedFrameSizeFromFp - kSystemPointerSize;
 };
 
-#define TYPED_FRAME_PUSHED_VALUE_OFFSET(x) \
-  (TypedFrameConstants::kFirstPushedFrameValueOffset - (x)*kSystemPointerSize)
-#define TYPED_FRAME_SIZE(count) \
-  (TypedFrameConstants::kFixedFrameSize + (count)*kSystemPointerSize)
-#define TYPED_FRAME_SIZE_FROM_FP(count) \
-  (TypedFrameConstants::kFixedFrameSizeFromFp + (count)*kSystemPointerSize)
-#define DEFINE_TYPED_FRAME_SIZES(count)                                        \
-  static constexpr int kFixedFrameSize = TYPED_FRAME_SIZE(count);              \
+#define FRAME_PUSHED_VALUE_OFFSET(parent, x) \
+  (parent::kFirstPushedFrameValueOffset - (x)*kSystemPointerSize)
+#define FRAME_SIZE(parent, count) \
+  (parent::kFixedFrameSize + (count)*kSystemPointerSize)
+#define FRAME_SIZE_FROM_FP(parent, count) \
+  (parent::kFixedFrameSizeFromFp + (count)*kSystemPointerSize)
+#define DEFINE_FRAME_SIZES(parent, count)                                      \
+  static constexpr int kFixedFrameSize = FRAME_SIZE(parent, count);            \
   static constexpr int kFixedSlotCount = kFixedFrameSize / kSystemPointerSize; \
   static constexpr int kFixedFrameSizeFromFp =                                 \
-      TYPED_FRAME_SIZE_FROM_FP(count);                                         \
+      FRAME_SIZE_FROM_FP(parent, count);                                       \
   static constexpr int kFixedSlotCountFromFp =                                 \
-      kFixedFrameSizeFromFp / kSystemPointerSize
+      kFixedFrameSizeFromFp / kSystemPointerSize;                              \
+  static constexpr int kExtraSlotCount =                                       \
+      kFixedFrameSize / kSystemPointerSize -                                   \
+      parent::kFixedFrameSize / kSystemPointerSize
+
+#define STANDARD_FRAME_EXTRA_PUSHED_VALUE_OFFSET(x) \
+  FRAME_PUSHED_VALUE_OFFSET(StandardFrameConstants, x)
+#define DEFINE_STANDARD_FRAME_SIZES(count) \
+  DEFINE_FRAME_SIZES(StandardFrameConstants, count)
+
+#define TYPED_FRAME_PUSHED_VALUE_OFFSET(x) \
+  FRAME_PUSHED_VALUE_OFFSET(TypedFrameConstants, x)
+#define DEFINE_TYPED_FRAME_SIZES(count) \
+  DEFINE_FRAME_SIZES(TypedFrameConstants, count)
 
 class ArgumentsAdaptorFrameConstants : public TypedFrameConstants {
  public:
@@ -269,7 +283,7 @@ class ExitFrameConstants : public TypedFrameConstants {
 };
 
 // Behaves like an exit frame but with target and new target args.
-class BuiltinExitFrameConstants : public CommonFrameConstants {
+class BuiltinExitFrameConstants : public ExitFrameConstants {
  public:
   static constexpr int kNewTargetOffset =
       kCallerPCOffset + 1 * kSystemPointerSize;
@@ -282,15 +296,15 @@ class BuiltinExitFrameConstants : public CommonFrameConstants {
   static constexpr int kNumExtraArgsWithReceiver = 5;
 };
 
-class InterpreterFrameConstants : public AllStatic {
+class InterpreterFrameConstants : public StandardFrameConstants {
  public:
-  // Fixed frame includes bytecode array and bytecode offset.
-  static constexpr int kFixedFrameSize =
-      StandardFrameConstants::kFixedFrameSize + 2 * kSystemPointerSize;
-  static constexpr int kFixedFrameSizeFromFp =
-      StandardFrameConstants::kFixedFrameSizeFromFp + 2 * kSystemPointerSize;
-
   // FP-relative.
+  static constexpr int kBytecodeArrayFromFp =
+      STANDARD_FRAME_EXTRA_PUSHED_VALUE_OFFSET(0);
+  static constexpr int kBytecodeOffsetFromFp =
+      STANDARD_FRAME_EXTRA_PUSHED_VALUE_OFFSET(1);
+  DEFINE_STANDARD_FRAME_SIZES(2);
+
 #ifdef V8_REVERSE_JSARGS
   static constexpr int kFirstParamFromFp =
       StandardFrameConstants::kCallerSPOffset;
@@ -298,21 +312,9 @@ class InterpreterFrameConstants : public AllStatic {
   static constexpr int kLastParamFromFp =
       StandardFrameConstants::kCallerSPOffset;
 #endif
-  static constexpr int kCallerPCOffsetFromFp =
-      StandardFrameConstants::kCallerPCOffset;
-  static constexpr int kBytecodeArrayFromFp =
-      -StandardFrameConstants::kFixedFrameSizeFromFp - 1 * kSystemPointerSize;
-  static constexpr int kBytecodeOffsetFromFp =
-      -StandardFrameConstants::kFixedFrameSizeFromFp - 2 * kSystemPointerSize;
   static constexpr int kRegisterFileFromFp =
-      -StandardFrameConstants::kFixedFrameSizeFromFp - 3 * kSystemPointerSize;
-
+      -kFixedFrameSizeFromFp - kSystemPointerSize;
   static constexpr int kExpressionsOffset = kRegisterFileFromFp;
-
-  // Number of fixed slots in addition to a {StandardFrame}.
-  static constexpr int kExtraSlotCount =
-      InterpreterFrameConstants::kFixedFrameSize / kSystemPointerSize -
-      StandardFrameConstants::kFixedFrameSize / kSystemPointerSize;
 
   // Expression index for {StandardFrame::GetExpressionAddress}.
   static constexpr int kBytecodeArrayExpressionIndex = -2;
