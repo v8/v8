@@ -1002,7 +1002,8 @@ class WasmDecoder : public Decoder {
   Zone* zone() const { return local_types_.get_allocator().zone(); }
 
   uint32_t num_locals() const {
-    return static_cast<uint32_t>(local_types_.size());
+    DCHECK_EQ(num_locals_, local_types_.size());
+    return num_locals_;
   }
 
   ValueType local_type(uint32_t index) const { return local_types_[index]; }
@@ -1011,12 +1012,13 @@ class WasmDecoder : public Decoder {
     DCHECK_NOT_NULL(sig_);
     DCHECK_EQ(0, this->local_types_.size());
     local_types_.assign(sig_->parameters().begin(), sig_->parameters().end());
+    num_locals_ = static_cast<uint32_t>(sig_->parameters().size());
   }
 
   // Decodes local definitions in the current decoder.
   // Returns true iff locals are found.
   // Writes the total length of decoded locals in 'total_length'.
-  // If insert_postion is present, the decoded locals will be inserted into the
+  // If insert_position is present, the decoded locals will be inserted into the
   // 'local_types_' of this decoder. Otherwise, this function is used just to
   // check validity and determine the encoding length of the locals in bytes.
   // The decoder's pc is not advanced. If no locals are found (i.e., no
@@ -1072,6 +1074,7 @@ class WasmDecoder : public Decoder {
         // Move the insertion iterator to the end of the newly inserted locals.
         insert_iterator =
             local_types_.insert(insert_iterator, count, type) + count;
+        num_locals_ += count;
       }
     }
     DCHECK(ok());
@@ -1899,6 +1902,10 @@ class WasmDecoder : public Decoder {
   // needed (see {zone()} accessor below).
   ZoneVector<ValueType> local_types_;
 
+  // Cached value, for speed (yes, it's measurably faster to load this value
+  // than to load the start and end pointer from a vector, subtract and shift).
+  uint32_t num_locals_ = 0;
+
   const WasmModule* module_;
   const WasmFeatures enabled_;
   WasmFeatures* detected_;
@@ -2434,6 +2441,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (c->is_let()) {
       this->local_types_.erase(this->local_types_.begin(),
                                this->local_types_.begin() + c->locals_count);
+      this->num_locals_ -= c->locals_count;
       CALL_INTERFACE_IF_REACHABLE(DeallocateLocals, c->locals_count);
     }
     if (!TypeCheckFallThru()) return 0;
