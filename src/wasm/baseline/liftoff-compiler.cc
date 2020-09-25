@@ -3296,38 +3296,40 @@ class LiftoffCompiler {
   void AtomicNotify(FullDecoder* decoder,
                     const MemoryAccessImmediate<validate>& imm) {
     LiftoffRegList pinned;
-    LiftoffRegister count = pinned.set(__ PopToRegister());
-    Register index = pinned.set(__ PopToRegister(pinned)).gp();
+    Register index_reg = pinned.set(__ PeekToRegister(1, pinned)).gp();
     if (BoundsCheckMem(decoder, kWasmI32.element_size_bytes(), imm.offset,
-                       index, pinned, kDoForceCheck)) {
+                       index_reg, pinned, kDoForceCheck)) {
       return;
     }
-    AlignmentCheckMem(decoder, kWasmI32.element_size_bytes(), imm.offset, index,
-                      pinned);
+    AlignmentCheckMem(decoder, kWasmI32.element_size_bytes(), imm.offset,
+                      index_reg, pinned);
 
     uint32_t offset = imm.offset;
-    index = AddMemoryMasking(index, &offset, &pinned);
-    Register index_plus_offset = index;
+    index_reg = AddMemoryMasking(index_reg, &offset, &pinned);
+    Register index_plus_offset = index_reg;
     if (offset) {
-      if (__ cache_state()->is_used(LiftoffRegister(index))) {
+      if (__ cache_state()->is_used(LiftoffRegister(index_reg))) {
         index_plus_offset =
             pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
       }
-      __ emit_i32_addi(index_plus_offset, index, offset);
+      __ emit_i32_addi(index_plus_offset, index_reg, offset);
     }
 
-    // TODO(ahaas): Use PrepareCall to prepare parameters.
-    __ SpillAllRegisters();
+    ValueType sig_reps[] = {kWasmI32, kWasmI32, kWasmI32};
+    FunctionSig sig(1, 2, sig_reps);
+    auto call_descriptor =
+        GetBuiltinCallDescriptor<WasmAtomicNotifyDescriptor>(compilation_zone_);
 
-    WasmAtomicNotifyDescriptor descriptor;
-    DCHECK_EQ(0, descriptor.GetStackParameterCount());
-    DCHECK_EQ(2, descriptor.GetRegisterParameterCount());
-    __ ParallelRegisterMove(
-        {{descriptor.GetRegisterParameter(0), index_plus_offset, kWasmI32},
-         {descriptor.GetRegisterParameter(1), count, kWasmI32}});
+    LiftoffAssembler::VarState count = __ cache_state()->stack_state.end()[-1];
+    LiftoffAssembler::VarState index = __ cache_state()->stack_state.end()[-2];
+    index.MakeRegister(LiftoffRegister(index_plus_offset));
 
+    __ PrepareBuiltinCall(&sig, call_descriptor, {index, count});
     __ CallRuntimeStub(WasmCode::kWasmAtomicNotify);
     DefineSafepoint();
+    // Pop parameters from the value stack.
+    __ cache_state()->stack_state.pop_back(2);
+
     RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
 
     __ PushRegister(kWasmI32, LiftoffRegister(kReturnRegister0));
