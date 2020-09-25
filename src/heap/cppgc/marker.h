@@ -99,13 +99,13 @@ class V8_EXPORT_PRIVATE MarkerBase {
 
   bool IncrementalMarkingStepForTesting(MarkingConfig::StackState);
 
-  class IncrementalMarkingTask final : public v8::Task {
+  class IncrementalMarkingTask final : public cppgc::Task {
    public:
     using Handle = SingleThreadedHandle;
 
     IncrementalMarkingTask(MarkerBase*, MarkingConfig::StackState);
 
-    static Handle Post(v8::TaskRunner*, MarkerBase*);
+    static Handle Post(cppgc::TaskRunner*, MarkerBase*);
 
    private:
     void Run() final;
@@ -156,7 +156,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
   MarkingConfig config_ = MarkingConfig::Default();
 
   cppgc::Platform* platform_;
-  std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
+  std::shared_ptr<cppgc::TaskRunner> foreground_task_runner_;
   IncrementalMarkingTask::Handle incremental_marking_handle_;
 
   MarkingWorklists marking_worklists_;
