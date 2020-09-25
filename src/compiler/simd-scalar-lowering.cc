@@ -351,28 +351,28 @@ void SimdScalarLowering::SetLoweredType(Node* node, Node* output) {
     case IrOpcode::kLoadTransform: {
       LoadTransformParameters params = LoadTransformParametersOf(node->op());
       switch (params.transformation) {
-        case LoadTransformation::kS8x16LoadSplat:
+        case LoadTransformation::kS128Load8Splat:
           replacements_[node->id()].type = SimdType::kInt8x16;
           break;
-        case LoadTransformation::kS16x8LoadSplat:
+        case LoadTransformation::kS128Load16Splat:
           replacements_[node->id()].type = SimdType::kInt16x8;
           break;
-        case LoadTransformation::kS32x4LoadSplat:
+        case LoadTransformation::kS128Load32Splat:
           replacements_[node->id()].type = SimdType::kInt32x4;
           break;
-        case LoadTransformation::kS64x2LoadSplat:
+        case LoadTransformation::kS128Load64Splat:
           replacements_[node->id()].type = SimdType::kInt64x2;
           break;
-        case LoadTransformation::kI16x8Load8x8S:
-        case LoadTransformation::kI16x8Load8x8U:
+        case LoadTransformation::kS128Load8x8S:
+        case LoadTransformation::kS128Load8x8U:
           replacements_[node->id()].type = SimdType::kInt16x8;
           break;
-        case LoadTransformation::kI32x4Load16x4S:
-        case LoadTransformation::kI32x4Load16x4U:
+        case LoadTransformation::kS128Load16x4S:
+        case LoadTransformation::kS128Load16x4U:
           replacements_[node->id()].type = SimdType::kInt32x4;
           break;
-        case LoadTransformation::kI64x2Load32x2S:
-        case LoadTransformation::kI64x2Load32x2U:
+        case LoadTransformation::kS128Load32x2S:
+        case LoadTransformation::kS128Load32x2U:
           replacements_[node->id()].type = SimdType::kInt64x2;
           break;
         default:
@@ -563,34 +563,34 @@ void SimdScalarLowering::LowerLoadTransformOp(Node* node, SimdType type) {
 
   // Load extends have a different machine type for loading.
   switch (params.transformation) {
-    case LoadTransformation::kI16x8Load8x8S:
+    case LoadTransformation::kS128Load8x8S:
       load_rep = MachineType::Int8();
       load_type = SimdType::kInt8x16;
       break;
-    case LoadTransformation::kI16x8Load8x8U:
+    case LoadTransformation::kS128Load8x8U:
       load_rep = MachineType::Uint8();
       load_type = SimdType::kInt8x16;
       break;
-    case LoadTransformation::kI32x4Load16x4S:
+    case LoadTransformation::kS128Load16x4S:
       load_rep = MachineType::Int16();
       load_type = SimdType::kInt16x8;
       break;
-    case LoadTransformation::kI32x4Load16x4U:
+    case LoadTransformation::kS128Load16x4U:
       load_rep = MachineType::Uint16();
       load_type = SimdType::kInt16x8;
       break;
-    case LoadTransformation::kI64x2Load32x2S:
+    case LoadTransformation::kS128Load32x2S:
       load_rep = MachineType::Int32();
       load_type = SimdType::kInt32x4;
       break;
-    case LoadTransformation::kI64x2Load32x2U:
+    case LoadTransformation::kS128Load32x2U:
       load_rep = MachineType::Uint32();
       load_type = SimdType::kInt32x4;
       break;
-    case LoadTransformation::kS8x16LoadSplat:
-    case LoadTransformation::kS16x8LoadSplat:
-    case LoadTransformation::kS32x4LoadSplat:
-    case LoadTransformation::kS64x2LoadSplat:
+    case LoadTransformation::kS128Load8Splat:
+    case LoadTransformation::kS128Load16Splat:
+    case LoadTransformation::kS128Load32Splat:
+    case LoadTransformation::kS128Load64Splat:
       load_rep = MachineTypeFrom(type);
       break;
     default:
@@ -633,10 +633,10 @@ void SimdScalarLowering::LowerLoadTransformOp(Node* node, SimdType type) {
       effect_input = rep_nodes[i];
 
       // Load operations are Word32 nodes, change them to Word64.
-      if (params.transformation == LoadTransformation::kI64x2Load32x2S) {
+      if (params.transformation == LoadTransformation::kS128Load32x2S) {
         rep_nodes[i] =
             graph()->NewNode(machine()->ChangeInt32ToInt64(), rep_nodes[i]);
-      } else if (params.transformation == LoadTransformation::kI64x2Load32x2U) {
+      } else if (params.transformation == LoadTransformation::kS128Load32x2U) {
         rep_nodes[i] =
             graph()->NewNode(machine()->ChangeUint32ToUint64(), rep_nodes[i]);
       }

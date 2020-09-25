@@ -336,35 +336,35 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
   LoadTransformParameters params = LoadTransformParametersOf(node->op());
   ArchOpcode opcode = kArchNop;
   switch (params.transformation) {
-    case LoadTransformation::kS8x16LoadSplat:
-      opcode = kX64S8x16LoadSplat;
+    case LoadTransformation::kS128Load8Splat:
+      opcode = kX64S128Load8Splat;
       break;
-    case LoadTransformation::kS16x8LoadSplat:
-      opcode = kX64S16x8LoadSplat;
+    case LoadTransformation::kS128Load16Splat:
+      opcode = kX64S128Load16Splat;
       break;
-    case LoadTransformation::kS32x4LoadSplat:
-      opcode = kX64S32x4LoadSplat;
+    case LoadTransformation::kS128Load32Splat:
+      opcode = kX64S128Load32Splat;
       break;
-    case LoadTransformation::kS64x2LoadSplat:
-      opcode = kX64S64x2LoadSplat;
+    case LoadTransformation::kS128Load64Splat:
+      opcode = kX64S128Load64Splat;
       break;
-    case LoadTransformation::kI16x8Load8x8S:
-      opcode = kX64I16x8Load8x8S;
+    case LoadTransformation::kS128Load8x8S:
+      opcode = kX64S128Load8x8S;
       break;
-    case LoadTransformation::kI16x8Load8x8U:
-      opcode = kX64I16x8Load8x8U;
+    case LoadTransformation::kS128Load8x8U:
+      opcode = kX64S128Load8x8U;
       break;
-    case LoadTransformation::kI32x4Load16x4S:
-      opcode = kX64I32x4Load16x4S;
+    case LoadTransformation::kS128Load16x4S:
+      opcode = kX64S128Load16x4S;
       break;
-    case LoadTransformation::kI32x4Load16x4U:
-      opcode = kX64I32x4Load16x4U;
+    case LoadTransformation::kS128Load16x4U:
+      opcode = kX64S128Load16x4U;
       break;
-    case LoadTransformation::kI64x2Load32x2S:
-      opcode = kX64I64x2Load32x2S;
+    case LoadTransformation::kS128Load32x2S:
+      opcode = kX64S128Load32x2S;
       break;
-    case LoadTransformation::kI64x2Load32x2U:
-      opcode = kX64I64x2Load32x2U;
+    case LoadTransformation::kS128Load32x2U:
+      opcode = kX64S128Load32x2U;
       break;
     case LoadTransformation::kS128LoadMem32Zero:
       opcode = kX64S128LoadMem32Zero;

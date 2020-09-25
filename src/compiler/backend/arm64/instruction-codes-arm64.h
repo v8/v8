@@ -381,12 +381,12 @@ namespace compiler {
   V(Arm64V16x8AllTrue)                      \
   V(Arm64V8x16AllTrue)                      \
   V(Arm64LoadSplat)                         \
-  V(Arm64I16x8Load8x8S)                     \
-  V(Arm64I16x8Load8x8U)                     \
-  V(Arm64I32x4Load16x4S)                    \
-  V(Arm64I32x4Load16x4U)                    \
-  V(Arm64I64x2Load32x2S)                    \
-  V(Arm64I64x2Load32x2U)                    \
+  V(Arm64S128Load8x8S)                      \
+  V(Arm64S128Load8x8U)                      \
+  V(Arm64S128Load16x4S)                     \
+  V(Arm64S128Load16x4U)                     \
+  V(Arm64S128Load32x2S)                     \
+  V(Arm64S128Load32x2U)                     \
   V(Arm64Word64AtomicLoadUint8)             \
   V(Arm64Word64AtomicLoadUint16)            \
   V(Arm64Word64AtomicLoadUint32)            \

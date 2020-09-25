@@ -371,12 +371,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64LdrDecompressAnyTagged:
     case kArm64Peek:
     case kArm64LoadSplat:
-    case kArm64I16x8Load8x8S:
-    case kArm64I16x8Load8x8U:
-    case kArm64I32x4Load16x4S:
-    case kArm64I32x4Load16x4U:
-    case kArm64I64x2Load32x2S:
-    case kArm64I64x2Load32x2U:
+    case kArm64S128Load8x8S:
+    case kArm64S128Load8x8U:
+    case kArm64S128Load16x4S:
+    case kArm64S128Load16x4U:
+    case kArm64S128Load32x2S:
+    case kArm64S128Load32x2U:
     case kArm64S128LoadMem32Zero:
     case kArm64S128LoadMem64Zero:
       return kIsLoadOperation;

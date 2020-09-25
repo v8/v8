@@ -2606,32 +2606,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ld1r(i.OutputSimd128Register().Format(f), i.MemoryOperand(0));
       break;
     }
-    case kArm64I16x8Load8x8S: {
+    case kArm64S128Load8x8S: {
       __ Ldr(i.OutputSimd128Register().V8B(), i.MemoryOperand(0));
       __ Sxtl(i.OutputSimd128Register().V8H(), i.OutputSimd128Register().V8B());
       break;
     }
-    case kArm64I16x8Load8x8U: {
+    case kArm64S128Load8x8U: {
       __ Ldr(i.OutputSimd128Register().V8B(), i.MemoryOperand(0));
       __ Uxtl(i.OutputSimd128Register().V8H(), i.OutputSimd128Register().V8B());
       break;
     }
-    case kArm64I32x4Load16x4S: {
+    case kArm64S128Load16x4S: {
       __ Ldr(i.OutputSimd128Register().V4H(), i.MemoryOperand(0));
       __ Sxtl(i.OutputSimd128Register().V4S(), i.OutputSimd128Register().V4H());
       break;
     }
-    case kArm64I32x4Load16x4U: {
+    case kArm64S128Load16x4U: {
       __ Ldr(i.OutputSimd128Register().V4H(), i.MemoryOperand(0));
       __ Uxtl(i.OutputSimd128Register().V4S(), i.OutputSimd128Register().V4H());
       break;
     }
-    case kArm64I64x2Load32x2S: {
+    case kArm64S128Load32x2S: {
       __ Ldr(i.OutputSimd128Register().V2S(), i.MemoryOperand(0));
       __ Sxtl(i.OutputSimd128Register().V2D(), i.OutputSimd128Register().V2S());
       break;
     }
-    case kArm64I64x2Load32x2U: {
+    case kArm64S128Load32x2U: {
       __ Ldr(i.OutputSimd128Register().V2S(), i.MemoryOperand(0));
       __ Uxtl(i.OutputSimd128Register().V2D(), i.OutputSimd128Register().V2S());
       break;

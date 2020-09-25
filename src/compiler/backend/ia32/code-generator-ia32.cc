@@ -3773,48 +3773,48 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ mov(esp, tmp);
       break;
     }
-    case kIA32S8x16LoadSplat: {
+    case kIA32S128Load8Splat: {
       __ Pinsrb(i.OutputSimd128Register(), i.MemoryOperand(), 0);
       __ Pxor(kScratchDoubleReg, kScratchDoubleReg);
       __ Pshufb(i.OutputSimd128Register(), kScratchDoubleReg);
       break;
     }
-    case kIA32S16x8LoadSplat: {
+    case kIA32S128Load16Splat: {
       __ Pinsrw(i.OutputSimd128Register(), i.MemoryOperand(), 0);
       __ Pshuflw(i.OutputSimd128Register(), i.OutputSimd128Register(),
                  uint8_t{0});
       __ Punpcklqdq(i.OutputSimd128Register(), i.OutputSimd128Register());
       break;
     }
-    case kIA32S32x4LoadSplat: {
+    case kIA32S128Load32Splat: {
       __ Vbroadcastss(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
-    case kIA32S64x2LoadSplat: {
+    case kIA32S128Load64Splat: {
       __ Movddup(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
-    case kIA32I16x8Load8x8S: {
+    case kIA32S128Load8x8S: {
       __ Pmovsxbw(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
-    case kIA32I16x8Load8x8U: {
+    case kIA32S128Load8x8U: {
       __ Pmovzxbw(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
-    case kIA32I32x4Load16x4S: {
+    case kIA32S128Load16x4S: {
       __ Pmovsxwd(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
-    case kIA32I32x4Load16x4U: {
+    case kIA32S128Load16x4U: {
       __ Pmovzxwd(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
-    case kIA32I64x2Load32x2S: {
+    case kIA32S128Load32x2S: {
       __ Pmovsxdq(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
-    case kIA32I64x2Load32x2U: {
+    case kIA32S128Load32x2U: {
       __ Pmovzxdq(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }

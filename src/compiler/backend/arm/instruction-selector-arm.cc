@@ -502,35 +502,35 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
   LoadTransformParameters params = LoadTransformParametersOf(node->op());
   InstructionCode opcode = kArchNop;
   switch (params.transformation) {
-    case LoadTransformation::kS8x16LoadSplat:
-      opcode = kArmS8x16LoadSplat;
+    case LoadTransformation::kS128Load8Splat:
+      opcode = kArmS128Load8Splat;
       break;
-    case LoadTransformation::kS16x8LoadSplat:
-      opcode = kArmS16x8LoadSplat;
+    case LoadTransformation::kS128Load16Splat:
+      opcode = kArmS128Load16Splat;
       break;
-    case LoadTransformation::kS32x4LoadSplat:
-      opcode = kArmS32x4LoadSplat;
+    case LoadTransformation::kS128Load32Splat:
+      opcode = kArmS128Load32Splat;
       break;
-    case LoadTransformation::kS64x2LoadSplat:
-      opcode = kArmS64x2LoadSplat;
+    case LoadTransformation::kS128Load64Splat:
+      opcode = kArmS128Load64Splat;
       break;
-    case LoadTransformation::kI16x8Load8x8S:
-      opcode = kArmI16x8Load8x8S;
+    case LoadTransformation::kS128Load8x8S:
+      opcode = kArmS128Load8x8S;
       break;
-    case LoadTransformation::kI16x8Load8x8U:
-      opcode = kArmI16x8Load8x8U;
+    case LoadTransformation::kS128Load8x8U:
+      opcode = kArmS128Load8x8U;
       break;
-    case LoadTransformation::kI32x4Load16x4S:
-      opcode = kArmI32x4Load16x4S;
+    case LoadTransformation::kS128Load16x4S:
+      opcode = kArmS128Load16x4S;
       break;
-    case LoadTransformation::kI32x4Load16x4U:
-      opcode = kArmI32x4Load16x4U;
+    case LoadTransformation::kS128Load16x4U:
+      opcode = kArmS128Load16x4U;
       break;
-    case LoadTransformation::kI64x2Load32x2S:
-      opcode = kArmI64x2Load32x2S;
+    case LoadTransformation::kS128Load32x2S:
+      opcode = kArmS128Load32x2S;
       break;
-    case LoadTransformation::kI64x2Load32x2U:
-      opcode = kArmI64x2Load32x2U;
+    case LoadTransformation::kS128Load32x2U:
+      opcode = kArmS128Load32x2U;
       break;
     default:
       UNIMPLEMENTED();

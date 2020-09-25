@@ -315,16 +315,16 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsUlhu:
     case kMipsUlw:
     case kMipsUlwc1:
-    case kMipsS8x16LoadSplat:
-    case kMipsS16x8LoadSplat:
-    case kMipsS32x4LoadSplat:
-    case kMipsS64x2LoadSplat:
-    case kMipsI16x8Load8x8S:
-    case kMipsI16x8Load8x8U:
-    case kMipsI32x4Load16x4S:
-    case kMipsI32x4Load16x4U:
-    case kMipsI64x2Load32x2S:
-    case kMipsI64x2Load32x2U:
+    case kMipsS128Load8Splat:
+    case kMipsS128Load16Splat:
+    case kMipsS128Load32Splat:
+    case kMipsS128Load64Splat:
+    case kMipsS128Load8x8S:
+    case kMipsS128Load8x8U:
+    case kMipsS128Load16x4S:
+    case kMipsS128Load16x4U:
+    case kMipsS128Load32x2S:
+    case kMipsS128Load32x2U:
     case kMipsWord32AtomicPairLoad:
       return kIsLoadOperation;
 

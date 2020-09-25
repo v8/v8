@@ -3734,14 +3734,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kX64S8x16LoadSplat: {
+    case kX64S128Load8Splat: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Pinsrb(i.OutputSimd128Register(), i.MemoryOperand(), 0);
       __ Pxor(kScratchDoubleReg, kScratchDoubleReg);
       __ Pshufb(i.OutputSimd128Register(), kScratchDoubleReg);
       break;
     }
-    case kX64S16x8LoadSplat: {
+    case kX64S128Load16Splat: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Pinsrw(i.OutputSimd128Register(), i.MemoryOperand(), 0);
       __ Pshuflw(i.OutputSimd128Register(), i.OutputSimd128Register(),
@@ -3749,7 +3749,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Punpcklqdq(i.OutputSimd128Register(), i.OutputSimd128Register());
       break;
     }
-    case kX64S32x4LoadSplat: {
+    case kX64S128Load32Splat: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       if (CpuFeatures::IsSupported(AVX)) {
         CpuFeatureScope avx_scope(tasm(), AVX);
@@ -3761,37 +3761,37 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kX64S64x2LoadSplat: {
+    case kX64S128Load64Splat: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Movddup(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
-    case kX64I16x8Load8x8S: {
+    case kX64S128Load8x8S: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Pmovsxbw(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
-    case kX64I16x8Load8x8U: {
+    case kX64S128Load8x8U: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Pmovzxbw(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
-    case kX64I32x4Load16x4S: {
+    case kX64S128Load16x4S: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Pmovsxwd(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
-    case kX64I32x4Load16x4U: {
+    case kX64S128Load16x4U: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Pmovzxwd(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
-    case kX64I64x2Load32x2S: {
+    case kX64S128Load32x2S: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Pmovsxdq(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
-    case kX64I64x2Load32x2U: {
+    case kX64S128Load32x2U: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Pmovzxdq(i.OutputSimd128Register(), i.MemoryOperand());
       break;

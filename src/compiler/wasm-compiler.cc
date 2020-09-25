@@ -3862,29 +3862,29 @@ LoadTransformation GetLoadTransformation(
   switch (transform) {
     case wasm::LoadTransformationKind::kSplat: {
       if (memtype == MachineType::Int8()) {
-        return LoadTransformation::kS8x16LoadSplat;
+        return LoadTransformation::kS128Load8Splat;
       } else if (memtype == MachineType::Int16()) {
-        return LoadTransformation::kS16x8LoadSplat;
+        return LoadTransformation::kS128Load16Splat;
       } else if (memtype == MachineType::Int32()) {
-        return LoadTransformation::kS32x4LoadSplat;
+        return LoadTransformation::kS128Load32Splat;
       } else if (memtype == MachineType::Int64()) {
-        return LoadTransformation::kS64x2LoadSplat;
+        return LoadTransformation::kS128Load64Splat;
       }
       break;
     }
     case wasm::LoadTransformationKind::kExtend: {
       if (memtype == MachineType::Int8()) {
-        return LoadTransformation::kI16x8Load8x8S;
+        return LoadTransformation::kS128Load8x8S;
       } else if (memtype == MachineType::Uint8()) {
-        return LoadTransformation::kI16x8Load8x8U;
+        return LoadTransformation::kS128Load8x8U;
       } else if (memtype == MachineType::Int16()) {
-        return LoadTransformation::kI32x4Load16x4S;
+        return LoadTransformation::kS128Load16x4S;
       } else if (memtype == MachineType::Uint16()) {
-        return LoadTransformation::kI32x4Load16x4U;
+        return LoadTransformation::kS128Load16x4U;
       } else if (memtype == MachineType::Int32()) {
-        return LoadTransformation::kI64x2Load32x2S;
+        return LoadTransformation::kS128Load32x2S;
       } else if (memtype == MachineType::Uint32()) {
-        return LoadTransformation::kI64x2Load32x2U;
+        return LoadTransformation::kS128Load32x2U;
       }
       break;
     }
@@ -3946,37 +3946,37 @@ Node* WasmGraphBuilder::LoadTransformBigEndian(
   LoadTransformation transformation = GetLoadTransformation(memtype, transform);
 
   switch (transformation) {
-    case LoadTransformation::kS8x16LoadSplat: {
+    case LoadTransformation::kS128Load8Splat: {
       result = LoadMem(type, memtype, index, offset, alignment, position);
       result = graph()->NewNode(mcgraph()->machine()->I8x16Splat(), result);
       break;
     }
-    case LoadTransformation::kI16x8Load8x8S:
-    case LoadTransformation::kI16x8Load8x8U: {
+    case LoadTransformation::kS128Load8x8S:
+    case LoadTransformation::kS128Load8x8U: {
       LOAD_EXTEND(8, 1, I16x8ReplaceLane)
       break;
     }
-    case LoadTransformation::kS16x8LoadSplat: {
+    case LoadTransformation::kS128Load16Splat: {
       result = LoadMem(type, memtype, index, offset, alignment, position);
       result = graph()->NewNode(mcgraph()->machine()->I16x8Splat(), result);
       break;
     }
-    case LoadTransformation::kI32x4Load16x4S:
-    case LoadTransformation::kI32x4Load16x4U: {
+    case LoadTransformation::kS128Load16x4S:
+    case LoadTransformation::kS128Load16x4U: {
       LOAD_EXTEND(4, 2, I32x4ReplaceLane)
       break;
     }
-    case LoadTransformation::kS32x4LoadSplat: {
+    case LoadTransformation::kS128Load32Splat: {
       result = LoadMem(type, memtype, index, offset, alignment, position);
       result = graph()->NewNode(mcgraph()->machine()->I32x4Splat(), result);
       break;
     }
-    case LoadTransformation::kI64x2Load32x2S:
-    case LoadTransformation::kI64x2Load32x2U: {
+    case LoadTransformation::kS128Load32x2S:
+    case LoadTransformation::kS128Load32x2U: {
       LOAD_EXTEND(2, 4, I64x2ReplaceLane)
       break;
     }
-    case LoadTransformation::kS64x2LoadSplat: {
+    case LoadTransformation::kS128Load64Splat: {
       result = LoadMem(type, memtype, index, offset, alignment, position);
       result = graph()->NewNode(mcgraph()->machine()->I64x2Splat(), result);
       break;

@@ -1713,25 +1713,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ByteSwapSigned(i.OutputRegister(0), i.InputRegister(0), 4);
       break;
     }
-    case kMipsS8x16LoadSplat: {
+    case kMipsS128Load8Splat: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ lb(kScratchReg, i.MemoryOperand());
       __ fill_b(i.OutputSimd128Register(), kScratchReg);
       break;
     }
-    case kMipsS16x8LoadSplat: {
+    case kMipsS128Load16Splat: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ lh(kScratchReg, i.MemoryOperand());
       __ fill_h(i.OutputSimd128Register(), kScratchReg);
       break;
     }
-    case kMipsS32x4LoadSplat: {
+    case kMipsS128Load32Splat: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ Lw(kScratchReg, i.MemoryOperand());
       __ fill_w(i.OutputSimd128Register(), kScratchReg);
       break;
     }
-    case kMipsS64x2LoadSplat: {
+    case kMipsS128Load64Splat: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Simd128Register dst = i.OutputSimd128Register();
       MemOperand memLow = i.MemoryOperand();
@@ -1743,7 +1743,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ilvr_w(dst, kSimd128ScratchReg, dst);
       break;
     }
-    case kMipsI16x8Load8x8S: {
+    case kMipsS128Load8x8S: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Simd128Register dst = i.OutputSimd128Register();
       MemOperand memLow = i.MemoryOperand();
@@ -1757,7 +1757,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ilvr_b(dst, kSimd128ScratchReg, dst);
       break;
     }
-    case kMipsI16x8Load8x8U: {
+    case kMipsS128Load8x8U: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Simd128Register dst = i.OutputSimd128Register();
       MemOperand memLow = i.MemoryOperand();
@@ -1770,7 +1770,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ilvr_b(dst, kSimd128RegZero, dst);
       break;
     }
-    case kMipsI32x4Load16x4S: {
+    case kMipsS128Load16x4S: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Simd128Register dst = i.OutputSimd128Register();
       MemOperand memLow = i.MemoryOperand();
@@ -1784,7 +1784,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ilvr_h(dst, kSimd128ScratchReg, dst);
       break;
     }
-    case kMipsI32x4Load16x4U: {
+    case kMipsS128Load16x4U: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Simd128Register dst = i.OutputSimd128Register();
       MemOperand memLow = i.MemoryOperand();
@@ -1797,7 +1797,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ilvr_h(dst, kSimd128RegZero, dst);
       break;
     }
-    case kMipsI64x2Load32x2S: {
+    case kMipsS128Load32x2S: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Simd128Register dst = i.OutputSimd128Register();
       MemOperand memLow = i.MemoryOperand();
@@ -1811,7 +1811,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ilvr_w(dst, kSimd128ScratchReg, dst);
       break;
     }
-    case kMipsI64x2Load32x2U: {
+    case kMipsS128Load32x2U: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Simd128Register dst = i.OutputSimd128Register();
       MemOperand memLow = i.MemoryOperand();

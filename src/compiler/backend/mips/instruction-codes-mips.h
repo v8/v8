@@ -313,16 +313,16 @@ namespace compiler {
   V(MipsS8x8Reverse)               \
   V(MipsS8x4Reverse)               \
   V(MipsS8x2Reverse)               \
-  V(MipsS8x16LoadSplat)            \
-  V(MipsS16x8LoadSplat)            \
-  V(MipsS32x4LoadSplat)            \
-  V(MipsS64x2LoadSplat)            \
-  V(MipsI16x8Load8x8S)             \
-  V(MipsI16x8Load8x8U)             \
-  V(MipsI32x4Load16x4S)            \
-  V(MipsI32x4Load16x4U)            \
-  V(MipsI64x2Load32x2S)            \
-  V(MipsI64x2Load32x2U)            \
+  V(MipsS128Load8Splat)            \
+  V(MipsS128Load16Splat)           \
+  V(MipsS128Load32Splat)           \
+  V(MipsS128Load64Splat)           \
+  V(MipsS128Load8x8S)              \
+  V(MipsS128Load8x8U)              \
+  V(MipsS128Load16x4S)             \
+  V(MipsS128Load16x4U)             \
+  V(MipsS128Load32x2S)             \
+  V(MipsS128Load32x2U)             \
   V(MipsMsaLd)                     \
   V(MipsMsaSt)                     \
   V(MipsI32x4SConvertI16x8Low)     \

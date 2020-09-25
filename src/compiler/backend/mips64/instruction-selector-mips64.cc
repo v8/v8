@@ -386,35 +386,35 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
 
   InstructionCode opcode = kArchNop;
   switch (params.transformation) {
-    case LoadTransformation::kS8x16LoadSplat:
-      opcode = kMips64S8x16LoadSplat;
+    case LoadTransformation::kS128Load8Splat:
+      opcode = kMips64S128Load8Splat;
       break;
-    case LoadTransformation::kS16x8LoadSplat:
-      opcode = kMips64S16x8LoadSplat;
+    case LoadTransformation::kS128Load16Splat:
+      opcode = kMips64S128Load16Splat;
       break;
-    case LoadTransformation::kS32x4LoadSplat:
-      opcode = kMips64S32x4LoadSplat;
+    case LoadTransformation::kS128Load32Splat:
+      opcode = kMips64S128Load32Splat;
       break;
-    case LoadTransformation::kS64x2LoadSplat:
-      opcode = kMips64S64x2LoadSplat;
+    case LoadTransformation::kS128Load64Splat:
+      opcode = kMips64S128Load64Splat;
       break;
-    case LoadTransformation::kI16x8Load8x8S:
-      opcode = kMips64I16x8Load8x8S;
+    case LoadTransformation::kS128Load8x8S:
+      opcode = kMips64S128Load8x8S;
       break;
-    case LoadTransformation::kI16x8Load8x8U:
-      opcode = kMips64I16x8Load8x8U;
+    case LoadTransformation::kS128Load8x8U:
+      opcode = kMips64S128Load8x8U;
       break;
-    case LoadTransformation::kI32x4Load16x4S:
-      opcode = kMips64I32x4Load16x4S;
+    case LoadTransformation::kS128Load16x4S:
+      opcode = kMips64S128Load16x4S;
       break;
-    case LoadTransformation::kI32x4Load16x4U:
-      opcode = kMips64I32x4Load16x4U;
+    case LoadTransformation::kS128Load16x4U:
+      opcode = kMips64S128Load16x4U;
       break;
-    case LoadTransformation::kI64x2Load32x2S:
-      opcode = kMips64I64x2Load32x2S;
+    case LoadTransformation::kS128Load32x2S:
+      opcode = kMips64S128Load32x2S;
       break;
-    case LoadTransformation::kI64x2Load32x2U:
-      opcode = kMips64I64x2Load32x2U;
+    case LoadTransformation::kS128Load32x2U:
+      opcode = kMips64S128Load32x2U;
       break;
     default:
       UNIMPLEMENTED();

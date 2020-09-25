@@ -366,35 +366,35 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
   LoadTransformParameters params = LoadTransformParametersOf(node->op());
   InstructionCode opcode = kArchNop;
   switch (params.transformation) {
-    case LoadTransformation::kS8x16LoadSplat:
-      opcode = kIA32S8x16LoadSplat;
+    case LoadTransformation::kS128Load8Splat:
+      opcode = kIA32S128Load8Splat;
       break;
-    case LoadTransformation::kS16x8LoadSplat:
-      opcode = kIA32S16x8LoadSplat;
+    case LoadTransformation::kS128Load16Splat:
+      opcode = kIA32S128Load16Splat;
       break;
-    case LoadTransformation::kS32x4LoadSplat:
-      opcode = kIA32S32x4LoadSplat;
+    case LoadTransformation::kS128Load32Splat:
+      opcode = kIA32S128Load32Splat;
       break;
-    case LoadTransformation::kS64x2LoadSplat:
-      opcode = kIA32S64x2LoadSplat;
+    case LoadTransformation::kS128Load64Splat:
+      opcode = kIA32S128Load64Splat;
       break;
-    case LoadTransformation::kI16x8Load8x8S:
-      opcode = kIA32I16x8Load8x8S;
+    case LoadTransformation::kS128Load8x8S:
+      opcode = kIA32S128Load8x8S;
       break;
-    case LoadTransformation::kI16x8Load8x8U:
-      opcode = kIA32I16x8Load8x8U;
+    case LoadTransformation::kS128Load8x8U:
+      opcode = kIA32S128Load8x8U;
       break;
-    case LoadTransformation::kI32x4Load16x4S:
-      opcode = kIA32I32x4Load16x4S;
+    case LoadTransformation::kS128Load16x4S:
+      opcode = kIA32S128Load16x4S;
       break;
-    case LoadTransformation::kI32x4Load16x4U:
-      opcode = kIA32I32x4Load16x4U;
+    case LoadTransformation::kS128Load16x4U:
+      opcode = kIA32S128Load16x4U;
       break;
-    case LoadTransformation::kI64x2Load32x2S:
-      opcode = kIA32I64x2Load32x2S;
+    case LoadTransformation::kS128Load32x2S:
+      opcode = kIA32S128Load32x2S;
       break;
-    case LoadTransformation::kI64x2Load32x2U:
-      opcode = kIA32I64x2Load32x2U;
+    case LoadTransformation::kS128Load32x2U:
+      opcode = kIA32S128Load32x2U;
       break;
     default:
       UNREACHABLE();
