@@ -3238,7 +3238,14 @@ class LiftoffCompiler {
 
     uint32_t offset = imm.offset;
     index_reg = AddMemoryMasking(index_reg, &offset, &pinned);
-    if (offset != 0) __ emit_i32_addi(index_reg, index_reg, offset);
+    Register index_plus_offset = index_reg;
+    if (offset) {
+      if (__ cache_state()->is_used(LiftoffRegister(index_reg))) {
+        index_plus_offset =
+            pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+      }
+      __ emit_i32_addi(index_plus_offset, index_reg, offset);
+    }
 
     LiftoffAssembler::VarState timeout =
         __ cache_state()->stack_state.end()[-1];
@@ -3248,7 +3255,7 @@ class LiftoffCompiler {
 
     // We have to set the correct register for the index. It may have changed
     // above in {AddMemoryMasking}.
-    index.MakeRegister(LiftoffRegister(index_reg));
+    index.MakeRegister(LiftoffRegister(index_plus_offset));
 
     WasmCode::RuntimeStubId target;
     compiler::CallDescriptor* call_descriptor;
