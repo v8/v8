@@ -859,9 +859,10 @@ AsyncCompileJob* WasmEngine::CreateAsyncCompileJob(
     std::unique_ptr<byte[]> bytes_copy, size_t length, Handle<Context> context,
     const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver) {
-  AsyncCompileJob* job =
-      new AsyncCompileJob(isolate, enabled, std::move(bytes_copy), length,
-                          context, api_method_name, std::move(resolver));
+  Handle<Context> incumbent_context = isolate->GetIncumbentContext();
+  AsyncCompileJob* job = new AsyncCompileJob(
+      isolate, enabled, std::move(bytes_copy), length, context,
+      incumbent_context, api_method_name, std::move(resolver));
   // Pass ownership to the unique_ptr in {async_compile_jobs_}.
   base::MutexGuard guard(&mutex_);
   async_compile_jobs_[job] = std::unique_ptr<AsyncCompileJob>(job);

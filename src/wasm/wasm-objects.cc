@@ -1141,12 +1141,21 @@ void ImportedFunctionEntry::SetWasmToWasm(WasmInstanceObject instance,
 WasmInstanceObject ImportedFunctionEntry::instance() {
   // The imported reference entry is either a target instance or a tuple
   // of this instance and the target callable.
-  Object value = instance_->imported_function_refs().get(index_);
+  Object value = object_ref();
   if (value.IsWasmInstanceObject()) {
     return WasmInstanceObject::cast(value);
   }
   Tuple2 tuple = Tuple2::cast(value);
   return WasmInstanceObject::cast(tuple.value1());
+}
+
+// Returns an empty Object() if no callable is available, a JSReceiver
+// otherwise.
+Object ImportedFunctionEntry::maybe_callable() {
+  Object value = object_ref();
+  if (!value.IsTuple2()) return Object();
+  Tuple2 tuple = Tuple2::cast(value);
+  return JSReceiver::cast(tuple.value2());
 }
 
 JSReceiver ImportedFunctionEntry::callable() {

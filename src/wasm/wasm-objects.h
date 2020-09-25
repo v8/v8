@@ -108,6 +108,7 @@ class ImportedFunctionEntry {
 
   WasmInstanceObject instance();
   JSReceiver callable();
+  Object maybe_callable();
   Object object_ref();
   Address target();
 

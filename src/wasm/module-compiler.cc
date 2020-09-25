@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <queue>
 
-#include "src/api/api.h"
+#include "src/api/api-inl.h"
 #include "src/asmjs/asm-js.h"
 #include "src/base/enum-set.h"
 #include "src/base/optional.h"
@@ -1774,7 +1774,7 @@ void RecompileNativeModule(NativeModule* native_module,
 AsyncCompileJob::AsyncCompileJob(
     Isolate* isolate, const WasmFeatures& enabled,
     std::unique_ptr<byte[]> bytes_copy, size_t length, Handle<Context> context,
-    const char* api_method_name,
+    Handle<Context> incumbent_context, const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver)
     : isolate_(isolate),
       api_method_name_(api_method_name),
@@ -1793,6 +1793,7 @@ AsyncCompileJob::AsyncCompileJob(
   foreground_task_runner_ = platform->GetForegroundTaskRunner(v8_isolate);
   native_context_ =
       isolate->global_handles()->Create(context->native_context());
+  incumbent_context_ = isolate->global_handles()->Create(*incumbent_context);
   DCHECK(native_context_->IsNativeContext());
   context_id_ = isolate->GetOrRegisterRecorderContextId(native_context_);
   metrics_event_.async = true;
@@ -1886,6 +1887,7 @@ AsyncCompileJob::~AsyncCompileJob() {
   if (stream_) stream_->NotifyCompilationEnded();
   CancelPendingForegroundTask();
   isolate_->global_handles()->Destroy(native_context_.location());
+  isolate_->global_handles()->Destroy(incumbent_context_.location());
   if (!module_object_.is_null()) {
     isolate_->global_handles()->Destroy(module_object_.location());
   }
@@ -2034,6 +2036,11 @@ void AsyncCompileJob::AsyncCompileFailed() {
 void AsyncCompileJob::AsyncCompileSucceeded(Handle<WasmModuleObject> result) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.OnCompilationSucceeded");
+  // We have to make sure that an "incumbent context" is available in case
+  // the module's start function calls out to Blink.
+  Local<v8::Context> backup_incumbent_context =
+      Utils::ToLocal(incumbent_context_);
+  v8::Context::BackupIncumbentScope incumbent(backup_incumbent_context);
   resolver_->OnCompilationSucceeded(result);
 }
 
