@@ -3793,6 +3793,7 @@ void BytecodeGenerator::BuildDestructuringArrayAssignment(
 
         if (spread) {
           RegisterAllocationScope scope(this);
+          BytecodeLabel is_done;
 
           // A spread is turned into a loop over the remainer of the iterator.
           Expression* target = spread->expression();
@@ -3808,6 +3809,10 @@ void BytecodeGenerator::BuildDestructuringArrayAssignment(
           builder()->CreateEmptyArrayLiteral(
               feedback_index(feedback_spec()->AddLiteralSlot()));
           builder()->StoreAccumulatorInRegister(array);
+
+          // If done, jump to assigning empty array
+          builder()->LoadAccumulatorWithRegister(done);
+          builder()->JumpIfTrue(ToBooleanMode::kConvertToBoolean, &is_done);
 
           // var index = 0;
           Register index = register_allocator()->NewRegister();
@@ -3826,6 +3831,7 @@ void BytecodeGenerator::BuildDestructuringArrayAssignment(
                                      next_value_load_slot, next_done_load_slot,
                                      index_slot, element_slot);
 
+          builder()->Bind(&is_done);
           // Assign the array to the LHS.
           builder()->LoadAccumulatorWithRegister(array);
           BuildAssignment(lhs_data, op, lookup_hoisting_mode);
