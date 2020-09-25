@@ -146,7 +146,7 @@ MarkerBase::IncrementalMarkingTask::IncrementalMarkingTask(
 
 // static
 MarkerBase::IncrementalMarkingTask::Handle
-MarkerBase::IncrementalMarkingTask::Post(cppgc::TaskRunner* runner,
+MarkerBase::IncrementalMarkingTask::Post(v8::TaskRunner* runner,
                                          MarkerBase* marker) {
   // Incremental GC is possible only via the GCInvoker, so getting here
   // guarantees that either non-nestable tasks or conservative stack

@@ -9,44 +9,30 @@
 
 #include "src/base/logging.h"
 #include "src/base/page-allocator.h"
-#include "src/base/sys-info.h"
-#include "src/heap/cppgc/default-job.h"
 
 namespace cppgc {
 
-namespace internal {
-
-// Default implementation of Jobs based on std::thread.
 namespace {
-class DefaultJobThread final : private std::thread {
+
+// Simple implementation of JobTask based on std::thread.
+class DefaultJobHandle : public JobHandle {
  public:
-  template <typename Function>
-  explicit DefaultJobThread(Function function)
-      : std::thread(std::move(function)) {}
-  ~DefaultJobThread() { DCHECK(!joinable()); }
+  explicit DefaultJobHandle(std::shared_ptr<std::thread> thread)
+      : thread_(std::move(thread)) {}
 
-  void Join() { join(); }
-
-  static size_t GetMaxSupportedConcurrency() {
-    return v8::base::SysInfo::NumberOfProcessors() - 1;
+  void NotifyConcurrencyIncrease() override {}
+  void Join() override {
+    if (thread_->joinable()) thread_->join();
   }
+  void Cancel() override { Join(); }
+  bool IsCompleted() override { return !IsRunning(); }
+  bool IsRunning() override { return thread_->joinable(); }
+
+ private:
+  std::shared_ptr<std::thread> thread_;
 };
+
 }  // namespace
-
-class DefaultJob final : public DefaultJobImpl<DefaultJobThread> {
- public:
-  DefaultJob(Key key, std::unique_ptr<cppgc::JobTask> job_task)
-      : DefaultJobImpl(key, std::move(job_task)) {}
-
-  std::shared_ptr<DefaultJobThread> CreateThread(DefaultJobImpl* job) final {
-    return std::make_shared<DefaultJobThread>([job = this] {
-      DCHECK_NOT_NULL(job);
-      job->RunJobTask();
-    });
-  }
-};
-
-}  // namespace internal
 
 void DefaultTaskRunner::PostTask(std::unique_ptr<cppgc::Task> task) {
   tasks_.push_back(std::move(task));
@@ -122,11 +108,19 @@ std::shared_ptr<cppgc::TaskRunner> DefaultPlatform::GetForegroundTaskRunner() {
 
 std::unique_ptr<cppgc::JobHandle> DefaultPlatform::PostJob(
     cppgc::TaskPriority priority, std::unique_ptr<cppgc::JobTask> job_task) {
-  std::shared_ptr<internal::DefaultJob> job =
-      internal::DefaultJobFactory<internal::DefaultJob>::Create(
-          std::move(job_task));
-  jobs_.push_back(job);
-  return std::make_unique<internal::DefaultJob::JobHandle>(std::move(job));
+  auto thread = std::make_shared<std::thread>([task = std::move(job_task)] {
+    class SimpleDelegate final : public cppgc::JobDelegate {
+     public:
+      bool ShouldYield() override { return false; }
+      void NotifyConcurrencyIncrease() override {}
+      uint8_t GetTaskId() override { return 0; }
+      bool IsJoiningThread() const override { return false; }
+    } delegate;
+
+    if (task) task->Run(&delegate);
+  });
+  job_threads_.push_back(thread);
+  return std::make_unique<DefaultJobHandle>(std::move(thread));
 }
 
 void DefaultPlatform::WaitAllForegroundTasks() {
@@ -134,10 +128,10 @@ void DefaultPlatform::WaitAllForegroundTasks() {
 }
 
 void DefaultPlatform::WaitAllBackgroundTasks() {
-  for (auto& job : jobs_) {
-    job->Join();
+  for (auto& thread : job_threads_) {
+    thread->join();
   }
-  jobs_.clear();
+  job_threads_.clear();
 }
 
 }  // namespace cppgc

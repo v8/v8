@@ -384,14 +384,14 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
   cppgc::Platform* platform_;
 };
 
-class ConcurrentSweepTask final : public cppgc::JobTask,
+class ConcurrentSweepTask final : public v8::JobTask,
                                   private HeapVisitor<ConcurrentSweepTask> {
   friend class HeapVisitor<ConcurrentSweepTask>;
 
  public:
   explicit ConcurrentSweepTask(SpaceStates* states) : states_(states) {}
 
-  void Run(cppgc::JobDelegate* delegate) final {
+  void Run(v8::JobDelegate* delegate) final {
     for (SpaceState& state : *states_) {
       while (auto page = state.unswept_pages.Pop()) {
         Traverse(*page);
@@ -525,14 +525,14 @@ class Sweeper::SweeperImpl final {
   }
 
  private:
-  class IncrementalSweepTask : public cppgc::IdleTask {
+  class IncrementalSweepTask : public v8::IdleTask {
    public:
     using Handle = SingleThreadedHandle;
 
     explicit IncrementalSweepTask(SweeperImpl* sweeper)
         : sweeper_(sweeper), handle_(Handle::NonEmptyTag{}) {}
 
-    static Handle Post(SweeperImpl* sweeper, cppgc::TaskRunner* runner) {
+    static Handle Post(SweeperImpl* sweeper, v8::TaskRunner* runner) {
       auto task = std::make_unique<IncrementalSweepTask>(sweeper);
       auto handle = task->GetHandle();
       runner->PostIdleTask(std::move(task));
@@ -573,7 +573,7 @@ class Sweeper::SweeperImpl final {
     if (!platform_) return;
 
     concurrent_sweeper_handle_ = platform_->PostJob(
-        cppgc::TaskPriority::kUserVisible,
+        v8::TaskPriority::kUserVisible,
         std::make_unique<ConcurrentSweepTask>(&space_states_));
   }
 
@@ -593,9 +593,9 @@ class Sweeper::SweeperImpl final {
   StatsCollector* stats_collector_;
   SpaceStates space_states_;
   cppgc::Platform* platform_;
-  std::shared_ptr<cppgc::TaskRunner> foreground_task_runner_;
+  std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
   IncrementalSweepTask::Handle incremental_sweeper_handle_;
-  std::unique_ptr<cppgc::JobHandle> concurrent_sweeper_handle_;
+  std::unique_ptr<v8::JobHandle> concurrent_sweeper_handle_;
   bool is_in_progress_ = false;
 };
 
