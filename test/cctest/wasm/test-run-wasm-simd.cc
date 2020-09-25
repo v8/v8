@@ -2665,9 +2665,9 @@ void RunBinaryLaneOpTest(
     WriteLittleEndianValue<T>(&src0[i], i);
     WriteLittleEndianValue<T>(&src1[i], kElems + i);
   }
-  if (simd_op == kExprS8x16Shuffle) {
+  if (simd_op == kExprI8x16Shuffle) {
     BUILD(r,
-          WASM_SET_GLOBAL(0, WASM_SIMD_S8x16_SHUFFLE_OP(simd_op, expected,
+          WASM_SET_GLOBAL(0, WASM_SIMD_I8x16_SHUFFLE_OP(simd_op, expected,
                                                         WASM_GET_GLOBAL(0),
                                                         WASM_GET_GLOBAL(1))),
           WASM_ONE);
@@ -2839,7 +2839,7 @@ ShuffleMap test_shuffles = {
   WASM_SIMD_TEST(Name) {                                            \
     ShuffleMap::const_iterator it = test_shuffles.find(k##Name);    \
     DCHECK_NE(it, test_shuffles.end());                             \
-    RunShuffleOpTest(execution_tier, lower_simd, kExprS8x16Shuffle, \
+    RunShuffleOpTest(execution_tier, lower_simd, kExprI8x16Shuffle, \
                      it->second);                                   \
   }
 SHUFFLE_LIST(SHUFFLE_TEST)
@@ -2852,7 +2852,7 @@ WASM_SIMD_TEST(S8x16Blend) {
   for (int bias = 1; bias < kSimd128Size; bias++) {
     for (int i = 0; i < bias; i++) expected[i] = i;
     for (int i = bias; i < kSimd128Size; i++) expected[i] = i + kSimd128Size;
-    RunShuffleOpTest(execution_tier, lower_simd, kExprS8x16Shuffle, expected);
+    RunShuffleOpTest(execution_tier, lower_simd, kExprI8x16Shuffle, expected);
   }
 }
 
@@ -2870,7 +2870,7 @@ WASM_SIMD_TEST(S8x16Concat) {
     for (int j = 0; j < n; ++j) {
       expected[i++] = j + kSimd128Size;
     }
-    RunShuffleOpTest(execution_tier, lower_simd, kExprS8x16Shuffle, expected);
+    RunShuffleOpTest(execution_tier, lower_simd, kExprI8x16Shuffle, expected);
   }
 }
 
@@ -2898,7 +2898,7 @@ static constexpr SwizzleTestArgs swizzle_test_args[] = {
 static constexpr Vector<const SwizzleTestArgs> swizzle_test_vector =
     ArrayVector(swizzle_test_args);
 
-WASM_SIMD_TEST(S8x16Swizzle) {
+WASM_SIMD_TEST(I8x16Swizzle) {
   // RunBinaryLaneOpTest set up the two globals to be consecutive integers,
   // [0-15] and [16-31]. Using [0-15] as the indices will not sufficiently test
   // swizzle since the expected result is a no-op, using [16-31] will result in
@@ -2910,7 +2910,7 @@ WASM_SIMD_TEST(S8x16Swizzle) {
   uint8_t* src1 = r.builder().AddGlobal<uint8_t>(kWasmS128);
   BUILD(
       r,
-      WASM_SET_GLOBAL(0, WASM_SIMD_BINOP(kExprS8x16Swizzle, WASM_GET_GLOBAL(1),
+      WASM_SET_GLOBAL(0, WASM_SIMD_BINOP(kExprI8x16Swizzle, WASM_GET_GLOBAL(1),
                                          WASM_GET_GLOBAL(2))),
       WASM_ONE);
 
@@ -2945,18 +2945,18 @@ const Shuffle& GetRandomTestShuffle(v8::base::RandomNumberGenerator* rng) {
 // Test shuffles that are random combinations of 3 test shuffles. Completely
 // random shuffles almost always generate the slow general shuffle code, so
 // don't exercise as many code paths.
-WASM_SIMD_TEST(S8x16ShuffleFuzz) {
+WASM_SIMD_TEST(I8x16ShuffleFuzz) {
   v8::base::RandomNumberGenerator* rng = CcTest::random_number_generator();
   static const int kTests = 100;
   for (int i = 0; i < kTests; ++i) {
     auto shuffle = Combine(GetRandomTestShuffle(rng), GetRandomTestShuffle(rng),
                            GetRandomTestShuffle(rng));
-    RunShuffleOpTest(execution_tier, lower_simd, kExprS8x16Shuffle, shuffle);
+    RunShuffleOpTest(execution_tier, lower_simd, kExprI8x16Shuffle, shuffle);
   }
 }
 
 void AppendShuffle(const Shuffle& shuffle, std::vector<byte>* buffer) {
-  byte opcode[] = {WASM_SIMD_OP(kExprS8x16Shuffle)};
+  byte opcode[] = {WASM_SIMD_OP(kExprI8x16Shuffle)};
   for (size_t i = 0; i < arraysize(opcode); ++i) buffer->push_back(opcode[i]);
   for (size_t i = 0; i < kSimd128Size; ++i) buffer->push_back((shuffle[i]));
 }
@@ -3898,7 +3898,7 @@ WASM_EXTRACT_I16x8_TEST(S, UINT16) WASM_EXTRACT_I16x8_TEST(I, INT16)
 #undef WASM_SIMD_I8x16_EXTRACT_LANE
 #undef WASM_SIMD_I8x16_EXTRACT_LANE_U
 #undef WASM_SIMD_I8x16_REPLACE_LANE
-#undef WASM_SIMD_S8x16_SHUFFLE_OP
+#undef WASM_SIMD_I8x16_SHUFFLE_OP
 #undef WASM_SIMD_LOAD_MEM
 #undef WASM_SIMD_LOAD_MEM_OFFSET
 #undef WASM_SIMD_STORE_MEM

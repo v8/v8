@@ -4951,8 +4951,8 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
       return graph()->NewNode(mcgraph()->machine()->V8x16AnyTrue(), inputs[0]);
     case wasm::kExprV8x16AllTrue:
       return graph()->NewNode(mcgraph()->machine()->V8x16AllTrue(), inputs[0]);
-    case wasm::kExprS8x16Swizzle:
-      return graph()->NewNode(mcgraph()->machine()->S8x16Swizzle(), inputs[0],
+    case wasm::kExprI8x16Swizzle:
+      return graph()->NewNode(mcgraph()->machine()->I8x16Swizzle(), inputs[0],
                               inputs[1]);
     default:
       FATAL_UNSUPPORTED_OPCODE(opcode);
@@ -5013,7 +5013,7 @@ Node* WasmGraphBuilder::SimdLaneOp(wasm::WasmOpcode opcode, uint8_t lane,
 Node* WasmGraphBuilder::Simd8x16ShuffleOp(const uint8_t shuffle[16],
                                           Node* const* inputs) {
   has_simd_ = true;
-  return graph()->NewNode(mcgraph()->machine()->S8x16Shuffle(shuffle),
+  return graph()->NewNode(mcgraph()->machine()->I8x16Shuffle(shuffle),
                           inputs[0], inputs[1]);
 }
 

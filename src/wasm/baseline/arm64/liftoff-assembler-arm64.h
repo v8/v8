@@ -1522,7 +1522,7 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
   }
 }
 
-void LiftoffAssembler::emit_s8x16_swizzle(LiftoffRegister dst,
+void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
                                           LiftoffRegister lhs,
                                           LiftoffRegister rhs) {
   Tbl(dst.fp().V16B(), lhs.fp().V16B(), rhs.fp().V16B());
@@ -2163,7 +2163,7 @@ void LiftoffAssembler::emit_i16x8_max_u(LiftoffRegister dst,
   Umax(dst.fp().V8H(), lhs.fp().V8H(), rhs.fp().V8H());
 }
 
-void LiftoffAssembler::emit_s8x16_shuffle(LiftoffRegister dst,
+void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
                                           LiftoffRegister lhs,
                                           LiftoffRegister rhs,
                                           const uint8_t shuffle[16],

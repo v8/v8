@@ -497,9 +497,9 @@ let kExprS128Load64Splat = 0x0a;
 let kExprS128StoreMem = 0x0b;
 
 let kExprS128Const = 0x0c;
-let kExprS8x16Shuffle = 0x0d;
+let kExprI8x16Shuffle = 0x0d;
 
-let kExprS8x16Swizzle = 0x0e;
+let kExprI8x16Swizzle = 0x0e;
 let kExprI8x16Splat = 0x0f;
 let kExprI16x8Splat = 0x10;
 let kExprI32x4Splat = 0x11;

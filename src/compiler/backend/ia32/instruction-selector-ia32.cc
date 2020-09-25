@@ -2687,7 +2687,7 @@ bool TryMatchArchShuffle(const uint8_t* shuffle, const ShuffleEntry* table,
 
 }  // namespace
 
-void InstructionSelector::VisitS8x16Shuffle(Node* node) {
+void InstructionSelector::VisitI8x16Shuffle(Node* node) {
   uint8_t shuffle[kSimd128Size];
   bool is_swizzle;
   CanonicalizeShuffle(node, shuffle, &is_swizzle);
@@ -2706,7 +2706,7 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
   // We generally need UseRegister for input0, Use for input1.
   bool src0_needs_reg = true;
   bool src1_needs_reg = false;
-  ArchOpcode opcode = kIA32S8x16Shuffle;  // general shuffle is the default
+  ArchOpcode opcode = kIA32I8x16Shuffle;  // general shuffle is the default
 
   uint8_t offset;
   uint8_t shuffle32x4[4];
@@ -2794,7 +2794,7 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
     src0_needs_reg = true;
     imms[imm_count++] = index;
   }
-  if (opcode == kIA32S8x16Shuffle) {
+  if (opcode == kIA32I8x16Shuffle) {
     // Use same-as-first for general swizzle, but not shuffle.
     no_same_as_first = !is_swizzle;
     src0_needs_reg = !no_same_as_first;
@@ -2827,10 +2827,10 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
   Emit(opcode, 1, &dst, input_count, inputs, temp_count, temps);
 }
 
-void InstructionSelector::VisitS8x16Swizzle(Node* node) {
+void InstructionSelector::VisitI8x16Swizzle(Node* node) {
   IA32OperandGenerator g(this);
   InstructionOperand temps[] = {g.TempSimd128Register()};
-  Emit(kIA32S8x16Swizzle, g.DefineSameAsFirst(node),
+  Emit(kIA32I8x16Swizzle, g.DefineSameAsFirst(node),
        g.UseRegister(node->InputAt(0)), g.UseUniqueRegister(node->InputAt(1)),
        arraysize(temps), temps);
 }

@@ -3666,7 +3666,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Andnps(dst, i.InputSimd128Register(1));
       break;
     }
-    case kX64S8x16Swizzle: {
+    case kX64I8x16Swizzle: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister mask = i.TempSimd128Register(0);
@@ -3679,7 +3679,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pshufb(dst, mask);
       break;
     }
-    case kX64S8x16Shuffle: {
+    case kX64I8x16Shuffle: {
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister tmp_simd = i.TempSimd128Register(0);
       if (instr->InputCount() == 5) {  // only one input operand

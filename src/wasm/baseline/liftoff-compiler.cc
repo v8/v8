@@ -2519,8 +2519,8 @@ class LiftoffCompiler {
       return unsupported(decoder, kSimd, "simd");
     }
     switch (opcode) {
-      case wasm::kExprS8x16Swizzle:
-        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_s8x16_swizzle);
+      case wasm::kExprI8x16Swizzle:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_swizzle);
       case wasm::kExprI8x16Splat:
         return EmitUnOp<kI32, kS128>(&LiftoffAssembler::emit_i8x16_splat);
       case wasm::kExprI16x8Splat:
@@ -3044,7 +3044,7 @@ class LiftoffCompiler {
     if (needs_swap) {
       std::swap(lhs, rhs);
     }
-    __ LiftoffAssembler::emit_s8x16_shuffle(dst, lhs, rhs, shuffle, is_swizzle);
+    __ LiftoffAssembler::emit_i8x16_shuffle(dst, lhs, rhs, shuffle, is_swizzle);
     __ PushRegister(kWasmS128, dst);
   }
 

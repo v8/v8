@@ -1842,14 +1842,14 @@ TEST_F(FunctionBodyDecoderTest, IncompleteStore) {
   ExpectFailure(sig, ArrayVector(code), kOmitEnd);
 }
 
-TEST_F(FunctionBodyDecoderTest, IncompleteS8x16Shuffle) {
+TEST_F(FunctionBodyDecoderTest, IncompleteI8x16Shuffle) {
   WASM_FEATURE_SCOPE(simd);
   const FunctionSig* sig = sigs.i_i();
   builder.InitializeMemory();
   builder.InitializeTable(wasm::kWasmStmt);
 
   static byte code[] = {kSimdPrefix,
-                        static_cast<byte>(kExprS8x16Shuffle & 0xff)};
+                        static_cast<byte>(kExprI8x16Shuffle & 0xff)};
   ExpectFailure(sig, ArrayVector(code), kOmitEnd);
 }
 
@@ -4500,7 +4500,7 @@ TEST_F(WasmOpcodeLengthTest, SimdExpressions) {
 #define TEST_SIMD(name, opcode, sig) ExpectLengthPrefixed(1, kExpr##name);
   FOREACH_SIMD_1_OPERAND_OPCODE(TEST_SIMD)
 #undef TEST_SIMD
-  ExpectLengthPrefixed(16, kExprS8x16Shuffle);
+  ExpectLengthPrefixed(16, kExprI8x16Shuffle);
   // test for bad simd opcode, 0xFF is encoded in two bytes.
   ExpectLength(3, kSimdPrefix, 0xFF, 0x1);
 }

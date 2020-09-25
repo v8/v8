@@ -569,10 +569,10 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
   bailout(kSimd, "Load transform unimplemented");
 }
 
-void LiftoffAssembler::emit_s8x16_swizzle(LiftoffRegister dst,
+void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
                                           LiftoffRegister lhs,
                                           LiftoffRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_s8x16_swizzle");
+  bailout(kUnsupportedArchitecture, "emit_i8x16_swizzle");
 }
 
 void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
@@ -1087,12 +1087,12 @@ void LiftoffAssembler::emit_i16x8_extract_lane_s(LiftoffRegister dst,
   bailout(kUnsupportedArchitecture, "emit_i16x8extractlane_s");
 }
 
-void LiftoffAssembler::emit_s8x16_shuffle(LiftoffRegister dst,
+void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
                                           LiftoffRegister lhs,
                                           LiftoffRegister rhs,
                                           const uint8_t shuffle[16],
                                           bool is_swizzle) {
-  bailout(kSimd, "s8x16_shuffle");
+  bailout(kSimd, "i8x16_shuffle");
 }
 
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,

@@ -1615,18 +1615,18 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
   bailout(kSimd, "load extend and load splat unimplemented");
 }
 
-void LiftoffAssembler::emit_s8x16_shuffle(LiftoffRegister dst,
+void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
                                           LiftoffRegister lhs,
                                           LiftoffRegister rhs,
                                           const uint8_t shuffle[16],
                                           bool is_swizzle) {
-  bailout(kSimd, "emit_s8x16_shuffle");
+  bailout(kSimd, "emit_i8x16_shuffle");
 }
 
-void LiftoffAssembler::emit_s8x16_swizzle(LiftoffRegister dst,
+void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
                                           LiftoffRegister lhs,
                                           LiftoffRegister rhs) {
-  bailout(kSimd, "emit_s8x16_swizzle");
+  bailout(kSimd, "emit_i8x16_swizzle");
 }
 
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,

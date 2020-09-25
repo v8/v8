@@ -3097,7 +3097,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1), i.InputInt4(2));
       break;
     }
-    case kArmS8x16Swizzle: {
+    case kArmI8x16Swizzle: {
       Simd128Register dst = i.OutputSimd128Register(),
                       tbl = i.InputSimd128Register(0),
                       src = i.InputSimd128Register(1);
@@ -3106,7 +3106,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vtbl(dst.high(), table, src.high());
       break;
     }
-    case kArmS8x16Shuffle: {
+    case kArmI8x16Shuffle: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src0 = i.InputSimd128Register(0),
                       src1 = i.InputSimd128Register(1);

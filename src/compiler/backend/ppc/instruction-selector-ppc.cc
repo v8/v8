@@ -2232,7 +2232,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16AddSaturateU)     \
   V(I8x16SubSaturateU)     \
   V(I8x16RoundingAverageU) \
-  V(S8x16Swizzle)          \
+  V(I8x16Swizzle)          \
   V(S128And)               \
   V(S128Or)                \
   V(S128Xor)               \
@@ -2380,7 +2380,7 @@ SIMD_BOOL_LIST(SIMD_VISIT_BOOL)
 #undef SIMD_BOOL_LIST
 #undef SIMD_TYPES
 
-void InstructionSelector::VisitS8x16Shuffle(Node* node) {
+void InstructionSelector::VisitI8x16Shuffle(Node* node) {
   uint8_t shuffle[kSimd128Size];
   bool is_swizzle;
   CanonicalizeShuffle(node, shuffle, &is_swizzle);
@@ -2397,7 +2397,7 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
                                ? max_index - current_index
                                : total_lane_count - current_index + max_index);
   }
-  Emit(kPPC_S8x16Shuffle, g.DefineAsRegister(node), g.UseUniqueRegister(input0),
+  Emit(kPPC_I8x16Shuffle, g.DefineAsRegister(node), g.UseUniqueRegister(input0),
        g.UseUniqueRegister(input1),
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped)),
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 4)),

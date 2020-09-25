@@ -1654,7 +1654,7 @@ class WasmDecoder : public Decoder {
           }
           // Shuffles require a byte per lane, or 16 immediate bytes.
           case kExprS128Const:
-          case kExprS8x16Shuffle:
+          case kExprI8x16Shuffle:
             return 1 + length + kSimd128Size;
           default:
             decoder->error(pc, "invalid SIMD opcode");
@@ -3380,7 +3380,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       case kExprI16x8ReplaceLane:
       case kExprI8x16ReplaceLane:
         return SimdReplaceLane(opcode, kWasmI32, opcode_length);
-      case kExprS8x16Shuffle:
+      case kExprI8x16Shuffle:
         return Simd8x16ShuffleOp(opcode_length);
       case kExprS128LoadMem:
         return DecodeLoadMem(LoadType::kS128Load, opcode_length);

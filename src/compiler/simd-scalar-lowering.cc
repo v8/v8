@@ -286,8 +286,8 @@ void SimdScalarLowering::LowerGraph() {
   V(I8x16LeU)                     \
   V(I8x16GeS)                     \
   V(I8x16GeU)                     \
-  V(S8x16Swizzle)                 \
-  V(S8x16Shuffle)                 \
+  V(I8x16Swizzle)                 \
+  V(I8x16Shuffle)                 \
   V(I8x16RoundingAverageU)        \
   V(I8x16Abs)                     \
   V(I8x16BitMask)
@@ -1968,7 +1968,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
       ReplaceNode(node, rep_node, num_lanes);
       break;
     }
-    case IrOpcode::kS8x16Swizzle: {
+    case IrOpcode::kI8x16Swizzle: {
       DCHECK_EQ(2, node->InputCount());
       Node** rep_left = GetReplacementsWithType(node->InputAt(0), rep_type);
       Node** indices = GetReplacementsWithType(node->InputAt(1), rep_type);
@@ -2007,7 +2007,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
       ReplaceNode(node, rep_nodes, num_lanes);
       break;
     }
-    case IrOpcode::kS8x16Shuffle: {
+    case IrOpcode::kI8x16Shuffle: {
       DCHECK_EQ(2, node->InputCount());
       S128ImmediateParameter shuffle = S128ImmediateParameterOf(node->op());
       Node** rep_left = GetReplacementsWithType(node->InputAt(0), rep_type);

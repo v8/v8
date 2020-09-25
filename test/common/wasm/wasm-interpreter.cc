@@ -2562,7 +2562,7 @@ class WasmInterpreterInternals {
         *len += 16;
         return true;
       }
-      case kExprS8x16Swizzle: {
+      case kExprI8x16Swizzle: {
         int16 v2 = Pop().to_s128().to_i8x16();
         int16 v1 = Pop().to_s128().to_i8x16();
         int16 res;
@@ -2574,7 +2574,7 @@ class WasmInterpreterInternals {
         Push(WasmValue(Simd128(res)));
         return true;
       }
-      case kExprS8x16Shuffle: {
+      case kExprI8x16Shuffle: {
         Simd128Immediate<Decoder::kNoValidate> imm(decoder,
                                                    code->at(pc + *len));
         *len += 16;

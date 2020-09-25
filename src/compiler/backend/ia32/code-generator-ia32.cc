@@ -3716,7 +3716,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Andnps(dst, src1);
       break;
     }
-    case kIA32S8x16Swizzle: {
+    case kIA32I8x16Swizzle: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister mask = i.TempSimd128Register(0);
@@ -3729,7 +3729,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pshufb(dst, mask);
       break;
     }
-    case kIA32S8x16Shuffle: {
+    case kIA32I8x16Shuffle: {
       XMMRegister dst = i.OutputSimd128Register();
       Operand src0 = i.InputOperand(0);
       Register tmp = i.TempRegister(0);

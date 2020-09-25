@@ -291,10 +291,10 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmModule* module,
 
 #define FOREACH_SIMD_CONST_OPCODE(V) V(S128Const, 0xfd0c, _)
 
-#define FOREACH_SIMD_MASK_OPERAND_OPCODE(V) V(S8x16Shuffle, 0xfd0d, s_ss)
+#define FOREACH_SIMD_MASK_OPERAND_OPCODE(V) V(I8x16Shuffle, 0xfd0d, s_ss)
 
 #define FOREACH_SIMD_MVP_0_OPERAND_OPCODE(V) \
-  V(S8x16Swizzle, 0xfd0e, s_ss)              \
+  V(I8x16Swizzle, 0xfd0e, s_ss)              \
   V(I8x16Splat, 0xfd0f, s_i)                 \
   V(I16x8Splat, 0xfd10, s_i)                 \
   V(I32x4Splat, 0xfd11, s_i)                 \

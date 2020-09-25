@@ -4176,7 +4176,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef BINOP_EXTRACT
-    case kS390_S8x16Shuffle: {
+    case kS390_I8x16Shuffle: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src0 = i.InputSimd128Register(0),
                       src1 = i.InputSimd128Register(1);
@@ -4196,7 +4196,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vperm(dst, src0, src1, kScratchDoubleReg, Condition(0), Condition(0));
       break;
     }
-    case kS390_S8x16Swizzle: {
+    case kS390_I8x16Swizzle: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src0 = i.InputSimd128Register(0),
                       src1 = i.InputSimd128Register(1);

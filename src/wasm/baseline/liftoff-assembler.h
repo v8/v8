@@ -761,10 +761,10 @@ class LiftoffAssembler : public TurboAssembler {
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LoadTransformationKind transform,
                             uint32_t* protected_load_pc);
-  inline void emit_s8x16_shuffle(LiftoffRegister dst, LiftoffRegister lhs,
+  inline void emit_i8x16_shuffle(LiftoffRegister dst, LiftoffRegister lhs,
                                  LiftoffRegister rhs, const uint8_t shuffle[16],
                                  bool is_swizzle);
-  inline void emit_s8x16_swizzle(LiftoffRegister dst, LiftoffRegister lhs,
+  inline void emit_i8x16_swizzle(LiftoffRegister dst, LiftoffRegister lhs,
                                  LiftoffRegister rhs);
   inline void emit_i8x16_splat(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i16x8_splat(LiftoffRegister dst, LiftoffRegister src);

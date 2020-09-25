@@ -3229,7 +3229,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputSimd128Register(1));
       break;
     }
-    case kPPC_S8x16Shuffle: {
+    case kPPC_I8x16Shuffle: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src0 = i.InputSimd128Register(0),
                       src1 = i.InputSimd128Register(1);
@@ -3288,7 +3288,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputSimd128Register(1));
       break;
     }
-    case kPPC_S8x16Swizzle: {
+    case kPPC_I8x16Swizzle: {
       // Reverse the input to match IBM lane numbering.
       Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
       __ addi(sp, sp, Operand(-16));

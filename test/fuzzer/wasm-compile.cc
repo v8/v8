@@ -418,7 +418,7 @@ class WasmGenerator {
 
   void simd_shuffle(DataRange* data) {
     Generate<ValueType::kS128, ValueType::kS128>(data);
-    builder_->EmitWithPrefix(kExprS8x16Shuffle);
+    builder_->EmitWithPrefix(kExprI8x16Shuffle);
     for (int i = 0; i < kSimd128Size; i++) {
       builder_->EmitByte(static_cast<uint8_t>(data->get<byte>() % 32));
     }
@@ -1533,7 +1533,7 @@ void WasmGenerator::Generate<ValueType::kS128>(DataRange* data) {
                                      ValueType::kS128, ValueType::kS128>,
 
       &WasmGenerator::simd_shuffle,
-      &WasmGenerator::op_with_prefix<kExprS8x16Swizzle, ValueType::kS128,
+      &WasmGenerator::op_with_prefix<kExprI8x16Swizzle, ValueType::kS128,
                                      ValueType::kS128>,
 
       &WasmGenerator::memop<kExprS128LoadMem>,
