@@ -705,7 +705,6 @@ class HeapNumberData : public HeapObjectData {
   HeapNumberData(JSHeapBroker* broker, ObjectData** storage,
                  Handle<HeapNumber> object)
       : HeapObjectData(broker, storage, object), value_(object->value()) {
-    DCHECK(!FLAG_turbo_direct_heap_access);
   }
 
   double value() const { return value_; }
@@ -1021,7 +1020,6 @@ class BigIntData : public HeapObjectData {
   BigIntData(JSHeapBroker* broker, ObjectData** storage, Handle<BigInt> object)
       : HeapObjectData(broker, storage, object),
         as_uint64_(object->AsUint64(nullptr)) {
-    DCHECK(!FLAG_turbo_direct_heap_access);
   }
 
   uint64_t AsUint64() const { return as_uint64_; }
@@ -1575,7 +1573,6 @@ FixedDoubleArrayData::FixedDoubleArrayData(JSHeapBroker* broker,
                                            ObjectData** storage,
                                            Handle<FixedDoubleArray> object)
     : FixedArrayBaseData(broker, storage, object), contents_(broker->zone()) {
-  DCHECK(!FLAG_turbo_direct_heap_access);
 }
 
 void FixedDoubleArrayData::SerializeContents(JSHeapBroker* broker) {
@@ -3361,7 +3358,7 @@ BIMODAL_ACCESSOR(JSBoundFunction, JSReceiver, bound_target_function)
 BIMODAL_ACCESSOR(JSBoundFunction, Object, bound_this)
 BIMODAL_ACCESSOR(JSBoundFunction, FixedArray, bound_arguments)
 
-BIMODAL_ACCESSOR_WITH_FLAG_C(JSDataView, size_t, byte_length)
+BIMODAL_ACCESSOR_C(JSDataView, size_t, byte_length)
 
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_feedback_vector)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_initial_map)

@@ -60,16 +60,12 @@ enum class OddballType : uint8_t {
 #define HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(V) \
   /* Subtypes of FixedArray */                      \
   V(ObjectBoilerplateDescription)                   \
-  /* Subtypes of FixedArrayBase */                  \
-  V(FixedDoubleArray)                               \
   /* Subtypes of Name */                            \
   V(Symbol)                                         \
   /* Subtypes of HeapObject */                      \
   V(AccessorInfo)                                   \
   V(ArrayBoilerplateDescription)                    \
-  V(BigInt)                                         \
   V(Cell)                                           \
-  V(HeapNumber)                                     \
   V(TemplateObjectDescription)
 
 // This list is sorted such that subtypes appear before their supertypes.
@@ -93,6 +89,7 @@ enum class OddballType : uint8_t {
   /* Subtypes of FixedArrayBase */            \
   V(BytecodeArray)                            \
   V(FixedArray)                               \
+  V(FixedDoubleArray)                         \
   /* Subtypes of Name */                      \
   V(InternalizedString)                       \
   V(String)                                   \
@@ -100,6 +97,7 @@ enum class OddballType : uint8_t {
   V(JSObject)                                 \
   /* Subtypes of HeapObject */                \
   V(AllocationSite)                           \
+  V(BigInt)                                   \
   V(CallHandlerInfo)                          \
   V(Code)                                     \
   V(DescriptorArray)                          \
@@ -107,6 +105,7 @@ enum class OddballType : uint8_t {
   V(FeedbackVector)                           \
   V(FixedArrayBase)                           \
   V(FunctionTemplateInfo)                     \
+  V(HeapNumber)                               \
   V(JSReceiver)                               \
   V(Map)                                      \
   V(Name)                                     \
