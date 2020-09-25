@@ -43,6 +43,8 @@ class V8_EXPORT_PRIVATE HeapGrowing final {
   size_t limit_for_atomic_gc() const;
   size_t limit_for_incremental_gc() const;
 
+  void DisableForTesting();
+
  private:
   class HeapGrowingImpl;
   std::unique_ptr<HeapGrowingImpl> impl_;

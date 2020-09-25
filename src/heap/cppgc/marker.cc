@@ -319,10 +319,14 @@ bool MarkerBase::AdvanceMarkingWithMaxDuration(
 }
 
 bool MarkerBase::AdvanceMarkingWithDeadline(v8::base::TimeDelta max_duration) {
-  size_t step_size_in_bytes = GetNextIncrementalStepDuration(schedule_, heap_);
-  bool is_done = ProcessWorklistsWithDeadline(
-      mutator_marking_state_.marked_bytes() + step_size_in_bytes,
-      v8::base::TimeTicks::Now() + max_duration);
+  bool is_done = false;
+  if (!incremental_marking_disabled_for_testing_) {
+    size_t step_size_in_bytes =
+        GetNextIncrementalStepDuration(schedule_, heap_);
+    is_done = ProcessWorklistsWithDeadline(
+        mutator_marking_state_.marked_bytes() + step_size_in_bytes,
+        v8::base::TimeTicks::Now() + max_duration);
+  }
   schedule_.UpdateIncrementalMarkedBytes(mutator_marking_state_.marked_bytes());
   if (!is_done) {
     // If marking is atomic, |is_done| should always be true.
@@ -393,6 +397,10 @@ void MarkerBase::MarkNotFullyConstructedObjects() {
 
 void MarkerBase::ClearAllWorklistsForTesting() {
   marking_worklists_.ClearForTesting();
+}
+
+void MarkerBase::DisableIncrementalMarkingForTesting() {
+  incremental_marking_disabled_for_testing_ = true;
 }
 
 Marker::Marker(Key key, HeapBase& heap, cppgc::Platform* platform,

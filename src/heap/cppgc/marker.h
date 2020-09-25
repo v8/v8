@@ -116,6 +116,8 @@ class V8_EXPORT_PRIVATE MarkerBase {
     Handle handle_;
   };
 
+  void DisableIncrementalMarkingForTesting();
+
  protected:
   static constexpr v8::base::TimeDelta kMaximumIncrementalStepDuration =
       v8::base::TimeDelta::FromMilliseconds(2);
@@ -164,6 +166,8 @@ class V8_EXPORT_PRIVATE MarkerBase {
   bool is_marking_started_ = false;
 
   IncrementalMarkingSchedule schedule_;
+
+  bool incremental_marking_disabled_for_testing_{false};
 
   friend class MarkerFactory;
 };

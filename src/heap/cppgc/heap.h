@@ -38,6 +38,8 @@ class V8_EXPORT_PRIVATE Heap final : public HeapBase,
 
   size_t epoch() const final { return epoch_; }
 
+  void DisableHeapGrowingForTesting();
+
  private:
   void StartGarbageCollection(Config);
   void FinalizeGarbageCollection(Config::StackState);

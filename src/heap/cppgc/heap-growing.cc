@@ -45,6 +45,8 @@ class HeapGrowing::HeapGrowingImpl final
   size_t limit_for_atomic_gc() const { return limit_for_atomic_gc_; }
   size_t limit_for_incremental_gc() const { return limit_for_incremental_gc_; }
 
+  void DisableForTesting();
+
  private:
   void ConfigureLimit(size_t allocated_object_size);
 
@@ -56,6 +58,8 @@ class HeapGrowing::HeapGrowingImpl final
   size_t limit_for_incremental_gc_ = 0;  // See ConfigureLimit().
 
   SingleThreadedHandle gc_task_handle_;
+
+  bool disabled_for_testing_ = false;
 };
 
 HeapGrowing::HeapGrowingImpl::HeapGrowingImpl(
@@ -77,6 +81,7 @@ HeapGrowing::HeapGrowingImpl::~HeapGrowingImpl() {
 }
 
 void HeapGrowing::HeapGrowingImpl::AllocatedObjectSizeIncreased(size_t) {
+  if (disabled_for_testing_) return;
   size_t allocated_object_size = stats_collector_->allocated_object_size();
   if (allocated_object_size > limit_for_atomic_gc_) {
     collector_->CollectGarbage(
@@ -122,6 +127,10 @@ void HeapGrowing::HeapGrowingImpl::ConfigureLimit(
                         limit_incremental_gc_based_on_allocation_rate));
 }
 
+void HeapGrowing::HeapGrowingImpl::DisableForTesting() {
+  disabled_for_testing_ = true;
+}
+
 HeapGrowing::HeapGrowing(GarbageCollector* collector,
                          StatsCollector* stats_collector,
                          cppgc::Heap::ResourceConstraints constraints)
@@ -136,6 +145,8 @@ size_t HeapGrowing::limit_for_atomic_gc() const {
 size_t HeapGrowing::limit_for_incremental_gc() const {
   return impl_->limit_for_incremental_gc();
 }
+
+void HeapGrowing::DisableForTesting() { impl_->DisableForTesting(); }
 
 // static
 constexpr double HeapGrowing::kGrowingFactor;
