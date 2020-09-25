@@ -42,7 +42,6 @@
   # we finish the implementation, see v8:10507.
   'proposals/simd/simd_conversions' : [PASS, FAIL],
   'proposals/simd/simd_lane' : [PASS, FAIL],
-  'proposals/simd/simd_load_splat' : [PASS, FAIL],
 
 }],  # ALWAYS
 

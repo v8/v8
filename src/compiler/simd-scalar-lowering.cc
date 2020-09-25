@@ -360,6 +360,9 @@ void SimdScalarLowering::SetLoweredType(Node* node, Node* output) {
         case LoadTransformation::kS32x4LoadSplat:
           replacements_[node->id()].type = SimdType::kInt32x4;
           break;
+        case LoadTransformation::kS64x2LoadSplat:
+          replacements_[node->id()].type = SimdType::kInt64x2;
+          break;
         case LoadTransformation::kI16x8Load8x8S:
         case LoadTransformation::kI16x8Load8x8U:
           replacements_[node->id()].type = SimdType::kInt16x8;
@@ -587,6 +590,7 @@ void SimdScalarLowering::LowerLoadTransformOp(Node* node, SimdType type) {
     case LoadTransformation::kS8x16LoadSplat:
     case LoadTransformation::kS16x8LoadSplat:
     case LoadTransformation::kS32x4LoadSplat:
+    case LoadTransformation::kS64x2LoadSplat:
       load_rep = MachineTypeFrom(type);
       break;
     default:
