@@ -1569,7 +1569,7 @@ BUILTIN_LIST_TFS(DEFINE_TFS_BUILTIN_DESCRIPTOR)
 // This file contains interface descriptor class definitions for builtins
 // defined in Torque. It is included here because the class definitions need to
 // precede the definition of name##Descriptor::key() below.
-#include "torque-generated/interface-descriptors-tq.inc"
+#include "torque-generated/interface-descriptors.inc"
 
 #undef DECLARE_DEFAULT_DESCRIPTOR
 #undef DECLARE_DESCRIPTOR_WITH_BASE
