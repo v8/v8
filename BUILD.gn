@@ -4331,6 +4331,7 @@ v8_source_set("cppgc_base") {
     "include/cppgc/visitor.h",
     "include/v8config.h",
     "src/heap/cppgc/allocation.cc",
+    "src/heap/cppgc/default-job.h",
     "src/heap/cppgc/default-platform.cc",
     "src/heap/cppgc/free-list.cc",
     "src/heap/cppgc/free-list.h",
