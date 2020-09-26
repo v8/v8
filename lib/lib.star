@@ -85,7 +85,7 @@ GOMA = struct(
     DEFAULT = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}},
     AST = {"$build/goma": {"server_host": "goma.chromium.org", "enable_ats": True, "rpc_extra_params": "?prod"}},
     NO = {"use_goma": False},
-    NONE = {}
+    NONE = {},
 )
 
 multibot_caches = [
@@ -151,7 +151,7 @@ def multibranch_builder(**kwargs):
             args["triggered_by"] = [trigger_dict[bucket_name]]
             args["use_goma"] = args.get("use_goma", GOMA.DEFAULT)
         else:
-            args["dimensions"]= {"host_class": "multibot"}
+            args["dimensions"] = {"host_class": "multibot"}
         if bucket_name != "ci":
             args["notifies"] = ["beta/stable notifier"]
         v8_basic_builder(defaults_ci, bucket = bucket_name, **args)
@@ -197,7 +197,15 @@ def fix_args(defaults, **kwargs):
     args["execution_timeout"] = args["execution_timeout"] * time.second
     args["properties"] = dict(args["properties"].items() +
                               args["executable"].get("properties_j", {}).items())
-    args["executable"] = luci.recipe(**args.get("executable"))
+    if args.pop("canary", False):
+        args["executable"] = luci.recipe(
+            name = "canary v8",
+            recipe = "v8",
+            cipd_package = "experimental/machenbach_at_google.com/chromium.googlesource.com/chromium/tools/build",
+            cipd_version = "refs/changes/43/2426643/9",
+        )
+    else:
+        args["executable"] = luci.recipe(**args.get("executable"))
     if args["bucket"] in ["ci.br.beta", "ci.br.stable"]:
         args["dimensions"]["pool"] = "luci.v8.ci"
     if args.get("dimensions", {}).get("host_class", "") == "multibot":
@@ -227,6 +235,7 @@ def in_branch_console(console_id, *builders):
                     builder = "%s/%s" % (branch, builder),
                     category = category_name,
                 )
+
     return in_category
 
 def in_console(console_id, *builders):
