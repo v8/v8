@@ -456,6 +456,7 @@ class ValueType {
 #undef TYPE_NAME
     };
 
+    CONSTEXPR_DCHECK(kind() < arraysize(kTypeName));
     return kTypeName[kind()];
   }
 
