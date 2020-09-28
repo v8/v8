@@ -458,11 +458,11 @@ TEST_F(WasmModuleVerifyTest, NullGlobalWithGlobalInit) {
   }
 }
 
-TEST_F(WasmModuleVerifyTest, Global_invalid_type) {
+TEST_F(WasmModuleVerifyTest, GlobalInvalidType) {
   static const byte data[] = {
       SECTION(Global,                      // --
               ENTRY_COUNT(1),              // --
-              64,                          // invalid memory type
+              64,                          // invalid value type
               1,                           // mutable
               WASM_INIT_EXPR_I32V_1(33)),  // init
   };
@@ -470,11 +470,11 @@ TEST_F(WasmModuleVerifyTest, Global_invalid_type) {
   EXPECT_FAILURE(data);
 }
 
-TEST_F(WasmModuleVerifyTest, Global_invalid_type2) {
+TEST_F(WasmModuleVerifyTest, GlobalInvalidType2) {
   static const byte data[] = {
       SECTION(Global,                      // --
               ENTRY_COUNT(1),              // --
-              kLocalVoid,                  // invalid memory type
+              kLocalVoid,                  // invalid value type
               1,                           // mutable
               WASM_INIT_EXPR_I32V_1(33)),  // init
   };
@@ -482,7 +482,7 @@ TEST_F(WasmModuleVerifyTest, Global_invalid_type2) {
   EXPECT_FAILURE(data);
 }
 
-TEST_F(WasmModuleVerifyTest, Global_invalid_init) {
+TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
   static const byte no_initializer_no_end[] = {
       SECTION(Global,          //--
               ENTRY_COUNT(1),  //--
@@ -535,6 +535,111 @@ TEST_F(WasmModuleVerifyTest, Global_invalid_init) {
   };
   EXPECT_FAILURE_WITH_MSG(missing_end_opcode,
                           "Global initializer is missing 'end'");
+
+  static const byte referencing_out_of_bounds_global[] = {
+      SECTION(Global, ENTRY_COUNT(1),         // --
+              kLocalI32,                      // type
+              1,                              // mutable
+              WASM_GET_GLOBAL(42), kExprEnd)  // init value
+  };
+  EXPECT_FAILURE_WITH_MSG(referencing_out_of_bounds_global,
+                          "global index is out of bounds");
+
+  static const byte referencing_undefined_global[] = {
+      SECTION(Global, ENTRY_COUNT(2),        // --
+              kLocalI32,                     // type
+              0,                             // mutable
+              WASM_GET_GLOBAL(1), kExprEnd,  // init value
+              kLocalI32,                     // type
+              0,                             // mutable
+              WASM_I32V(0), kExprEnd)        // init value
+  };
+  EXPECT_FAILURE_WITH_MSG(referencing_undefined_global,
+                          "global #1 is not defined yet");
+
+  {
+    WASM_FEATURE_SCOPE(reftypes);
+    WASM_FEATURE_SCOPE(typed_funcref);
+    WASM_FEATURE_SCOPE(gc);
+    static const byte referencing_undefined_global_nested[] = {
+        SECTION(Global, ENTRY_COUNT(2),                   // --
+                WASM_RTT(2, kLocalFuncRef),               // type
+                0,                                        // mutable
+                WASM_RTT_SUB(kLocalFuncRef,               // init value
+                             WASM_GET_GLOBAL(1)),         // --
+                kExprEnd,                                 // --
+                WASM_RTT(1, kLocalFuncRef),               // type
+                0,                                        // mutable
+                WASM_RTT_CANON(kLocalFuncRef), kExprEnd)  // init value
+    };
+    EXPECT_FAILURE_WITH_MSG(referencing_undefined_global_nested,
+                            "global #1 is not defined yet");
+  }
+
+  static const byte referencing_mutable_global[] = {
+      SECTION(Global, ENTRY_COUNT(2),        // --
+              kLocalI32,                     // type
+              1,                             // mutable
+              WASM_I32V(1), kExprEnd,        // init value
+              kLocalI32,                     // type
+              0,                             // mutable
+              WASM_GET_GLOBAL(0), kExprEnd)  // init value
+  };
+  EXPECT_FAILURE_WITH_MSG(
+      referencing_mutable_global,
+      "mutable globals cannot be used in initializer expressions");
+
+  static const byte referencing_mutable_imported_global[] = {
+      SECTION(Import, ENTRY_COUNT(1),          // --
+              ADD_COUNT('m'), ADD_COUNT('n'),  // module, name
+              kExternalGlobal,                 // --
+              kLocalI32,                       // type
+              1),                              // mutable
+      SECTION(Global, ENTRY_COUNT(1),          // --
+              kLocalI32,                       // type
+              0,                               // mutable
+              WASM_GET_GLOBAL(0), kExprEnd)    // init value
+  };
+  EXPECT_FAILURE_WITH_MSG(
+      referencing_mutable_imported_global,
+      "mutable globals cannot be used in initializer expressions");
+
+  static const byte referencing_immutable_imported_global[] = {
+      SECTION(Import, ENTRY_COUNT(1),          // --
+              ADD_COUNT('m'), ADD_COUNT('n'),  // module, name
+              kExternalGlobal,                 // --
+              kLocalI32,                       // type
+              0),                              // mutable
+      SECTION(Global, ENTRY_COUNT(1),          // --
+              kLocalI32,                       // type
+              0,                               // mutable
+              WASM_GET_GLOBAL(0), kExprEnd)    // init value
+  };
+  EXPECT_VERIFIES(referencing_immutable_imported_global);
+
+  static const byte referencing_local_global[] = {
+      SECTION(Global, ENTRY_COUNT(2),        // --
+              kLocalI32,                     // type
+              0,                             // mutable
+              WASM_I32V(1), kExprEnd,        // init value
+              kLocalI32,                     // type
+              0,                             // mutable
+              WASM_GET_GLOBAL(0), kExprEnd)  // init value
+  };
+  EXPECT_FAILURE_WITH_MSG(
+      referencing_local_global,
+      "non-imported globals cannot be used in initializer expressions");
+
+  {
+    // But: experimental-wasm-gc should enable referencing immutable local
+    // globals.
+    WASM_FEATURE_SCOPE(gc);
+    EXPECT_VERIFIES(referencing_local_global);
+    // Referencing mutable glocals still invalid.
+    EXPECT_FAILURE_WITH_MSG(
+        referencing_mutable_global,
+        "mutable globals cannot be used in initializer expressions");
+  }
 }
 
 TEST_F(WasmModuleVerifyTest, ZeroGlobals) {
@@ -612,16 +717,6 @@ TEST_F(WasmModuleVerifyTest, NGlobals) {
     ModuleResult result = DecodeModule(&buffer[0], &buffer[0] + buffer.size());
     EXPECT_OK(result);
   }
-}
-
-TEST_F(WasmModuleVerifyTest, GlobalWithInvalidMemoryType) {
-  static const byte data[] = {SECTION(Global,          // --
-                                      ENTRY_COUNT(1),  // --
-                                      33,              // memory type
-                                      0,               // exported
-                                      WASM_INIT_EXPR_I32V_1(1))};
-
-  EXPECT_FAILURE(data);
 }
 
 TEST_F(WasmModuleVerifyTest, TwoGlobals) {

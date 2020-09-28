@@ -753,7 +753,10 @@ class ModuleDecoderImpl : public Decoder {
       module_->globals.push_back(
           {kWasmStmt, false, WasmInitExpr(), {0}, false, false});
       WasmGlobal* global = &module_->globals.back();
-      DecodeGlobalInModule(module_.get(), i + imported_globals, global);
+      global->type = consume_value_type();
+      global->mutability = consume_mutability();
+      global->init =
+          consume_init_expr(module_.get(), global->type, imported_globals + i);
     }
     if (ok()) CalculateGlobalOffsets(module_.get());
   }
@@ -1283,9 +1286,8 @@ class ModuleDecoderImpl : public Decoder {
     return ok() ? result : nullptr;
   }
 
-  WasmInitExpr DecodeInitExpr(const byte* start) {
-    pc_ = start;
-    return consume_init_expr(nullptr, kWasmStmt);
+  WasmInitExpr DecodeInitExprForTesting() {
+    return consume_init_expr(nullptr, kWasmStmt, 0);
   }
 
   const std::shared_ptr<WasmModule>& shared_module() const { return module_; }
@@ -1398,30 +1400,6 @@ class ModuleDecoderImpl : public Decoder {
     } else {
       module->has_memory = true;
       return true;
-    }
-  }
-
-  // Decodes a single global entry inside a module starting at {pc_}.
-  void DecodeGlobalInModule(WasmModule* module, uint32_t index,
-                            WasmGlobal* global) {
-    global->type = consume_value_type();
-    global->mutability = consume_mutability();
-    const byte* pos = pc();
-    global->init = consume_init_expr(module, global->type);
-    if (global->init.kind() == WasmInitExpr::kGlobalGet) {
-      uint32_t other_index = global->init.immediate().index;
-      if (other_index >= index) {
-        errorf(pos,
-               "invalid global index in init expression, "
-               "index %u, other_index %u",
-               index, other_index);
-      } else if (module->globals[other_index].type != global->type) {
-        errorf(pos,
-               "type mismatch in global initialization "
-               "(from global #%u), expected %s, got %s",
-               other_index, global->type.name().c_str(),
-               module->globals[other_index].type.name().c_str());
-      }
     }
   }
 
@@ -1653,7 +1631,8 @@ class ModuleDecoderImpl : public Decoder {
     return true;
   }
 
-  WasmInitExpr consume_init_expr(WasmModule* module, ValueType expected) {
+  WasmInitExpr consume_init_expr(WasmModule* module, ValueType expected,
+                                 size_t current_global_index) {
     constexpr Decoder::ValidateFlag validate = Decoder::kValidate;
     WasmOpcode opcode = kExprNop;
     std::vector<WasmInitExpr> stack;
@@ -1664,14 +1643,26 @@ class ModuleDecoderImpl : public Decoder {
         case kExprGlobalGet: {
           GlobalIndexImmediate<validate> imm(this, pc() + 1);
           len = 1 + imm.length;
-          if (V8_UNLIKELY(module->globals.size() <= imm.index)) {
+          // We use 'capacity' over 'size' because we might be
+          // mid-DecodeGlobalSection().
+          if (V8_UNLIKELY(imm.index >= module->globals.capacity())) {
             error(pc() + 1, "global index is out of bounds");
             return {};
           }
+          if (V8_UNLIKELY(imm.index >= current_global_index)) {
+            errorf(pc() + 1, "global #%u is not defined yet", imm.index);
+            return {};
+          }
           WasmGlobal* global = &module->globals[imm.index];
-          if (V8_UNLIKELY(global->mutability || !global->imported)) {
+          if (V8_UNLIKELY(global->mutability)) {
             error(pc() + 1,
-                  "only immutable imported globals can be used in initializer "
+                  "mutable globals cannot be used in initializer "
+                  "expressions");
+            return {};
+          }
+          if (V8_UNLIKELY(!global->imported && !enabled_features_.has_gc())) {
+            error(pc() + 1,
+                  "non-imported globals cannot be used in initializer "
                   "expressions");
             return {};
           }
@@ -2049,7 +2040,8 @@ class ModuleDecoderImpl : public Decoder {
     }
 
     if (*status == WasmElemSegment::kStatusActive) {
-      *offset = consume_init_expr(module_.get(), kWasmI32);
+      *offset = consume_init_expr(module_.get(), kWasmI32,
+                                  module_.get()->globals.size());
       if (offset->kind() == WasmInitExpr::kNone) {
         // Failed to parse offset initializer, return early.
         return;
@@ -2105,10 +2097,11 @@ class ModuleDecoderImpl : public Decoder {
     }
 
     // We know now that the flag is valid. Time to read the rest.
+    size_t num_globals = module_.get()->globals.size();
     if (flag == SegmentFlags::kActiveNoIndex) {
       *is_active = true;
       *index = 0;
-      *offset = consume_init_expr(module_.get(), kWasmI32);
+      *offset = consume_init_expr(module_.get(), kWasmI32, num_globals);
       return;
     }
     if (flag == SegmentFlags::kPassive) {
@@ -2118,7 +2111,7 @@ class ModuleDecoderImpl : public Decoder {
     if (flag == SegmentFlags::kActiveWithIndex) {
       *is_active = true;
       *index = consume_u32v("memory index");
-      *offset = consume_init_expr(module_.get(), kWasmI32);
+      *offset = consume_init_expr(module_.get(), kWasmI32, num_globals);
     }
   }
 
@@ -2272,7 +2265,7 @@ WasmInitExpr DecodeWasmInitExprForTesting(const WasmFeatures& enabled,
                                           const byte* start, const byte* end) {
   AccountingAllocator allocator;
   ModuleDecoderImpl decoder(enabled, start, end, kWasmOrigin);
-  return decoder.DecodeInitExpr(start);
+  return decoder.DecodeInitExprForTesting();
 }
 
 FunctionResult DecodeWasmFunctionForTesting(

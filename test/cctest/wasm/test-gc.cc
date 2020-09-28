@@ -1034,6 +1034,20 @@ TEST(I31Casts) {
   tester.CheckHasThrown(kCastStructToI31, 0);
 }
 
+TEST(GlobalInitReferencingGlobal) {
+  WasmGCTester tester;
+  const byte from = tester.AddGlobal(kWasmI32, false, WasmInitExpr(42));
+  const byte to =
+      tester.AddGlobal(kWasmI32, false, WasmInitExpr::GlobalGet(from));
+
+  const byte func = tester.DefineFunction(tester.sigs.i_v(), {},
+                                          {WASM_GET_GLOBAL(to), kExprEnd});
+
+  tester.CompileModule();
+
+  tester.CheckResult(func, 42);
+}
+
 TEST(JsAccess) {
   WasmGCTester tester;
   const byte type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
