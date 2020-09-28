@@ -115,7 +115,12 @@ TEST(TestCWasmEntryArgPassing_int64_double) {
        WASM_I64_SCONVERT_F64(WASM_GET_LOCAL(0))},
       [](double d) { return static_cast<int64_t>(d); });
 
-  FOR_INT64_INPUTS(i) { tester.CheckCall(i); }
+  FOR_FLOAT64_INPUTS(d) {
+    if (d < static_cast<double>(std::numeric_limits<int64_t>::max()) &&
+        d >= static_cast<double>(std::numeric_limits<int64_t>::min())) {
+      tester.CheckCall(d);
+    }
+  }
 }
 
 // Pass float, return double.
