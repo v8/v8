@@ -63,7 +63,7 @@ class LoadHandler final : public DataHandler {
       DoAccessCheckOnLookupStartObjectBits::Next<bool, 1>;
 
   //
-  // Encoding when KindBits contains kForConstants.
+  // Encoding when KindBits contains kAccessor or kNativeDataProperty.
   //
 
   // Index of a value entry in the descriptor array.
@@ -183,6 +183,10 @@ class LoadHandler final : public DataHandler {
   // Decodes the KeyedAccessLoadMode from a {handler}.
   static KeyedAccessLoadMode GetKeyedAccessLoadMode(MaybeObject handler);
 
+#if defined(OBJECT_PRINT)
+  static void PrintHandler(Object handler, std::ostream& os);
+#endif  // defined(OBJECT_PRINT)
+
   OBJECT_CONSTRUCTORS(LoadHandler, DataHandler);
 };
 
@@ -197,7 +201,6 @@ class StoreHandler final : public DataHandler {
   DECL_VERIFIER(StoreHandler)
 
   enum Kind {
-    kElement,
     kField,
     kConstField,
     kAccessor,
@@ -224,28 +227,20 @@ class StoreHandler final : public DataHandler {
   using LookupOnLookupStartObjectBits =
       DoAccessCheckOnLookupStartObjectBits::Next<bool, 1>;
 
-  // Applicable to kField, kTransitionToField and kTransitionToConstant
-  // kinds.
+  // Applicable to kField, kAccessor and kNativeDataProperty.
 
   // Index of a value entry in the descriptor array.
   using DescriptorBits =
       LookupOnLookupStartObjectBits::Next<unsigned, kDescriptorIndexBitCount>;
 
   //
-  // Encodes the bits when StoreSlow contains KeyedAccessStoreMode.
+  // Encoding when KindBits contains kStoreSlow.
   //
   using KeyedAccessStoreModeBits =
-      DescriptorBits::Next<KeyedAccessStoreMode, 2>;
+      LookupOnLookupStartObjectBits::Next<KeyedAccessStoreMode, 2>;
 
   //
-  // Encoding when KindBits contains kTransitionToConstant.
-  //
-
-  // Make sure we don't overflow the smi.
-  STATIC_ASSERT(DescriptorBits::kLastUsedBit < kSmiValueSize);
-
-  //
-  // Encoding when KindBits contains kField or kTransitionToField.
+  // Encoding when KindBits contains kField.
   //
   using IsInobjectBits = DescriptorBits::Next<bool, 1>;
   using RepresentationBits = IsInobjectBits::Next<Representation::Kind, 3>;
@@ -312,6 +307,10 @@ class StoreHandler final : public DataHandler {
 
   // Decodes the KeyedAccessStoreMode from a {handler}.
   static KeyedAccessStoreMode GetKeyedAccessStoreMode(MaybeObject handler);
+
+#if defined(OBJECT_PRINT)
+  static void PrintHandler(Object handler, std::ostream& os);
+#endif  // defined(OBJECT_PRINT)
 
  private:
   static inline Handle<Smi> StoreField(Isolate* isolate, Kind kind,

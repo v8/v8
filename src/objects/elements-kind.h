@@ -371,6 +371,8 @@ inline CompactElementsKind ToCompactElementsKind(ElementsKind kind) {
   return CompactElementsKind::NON_COMPACT_ELEMENTS_KIND;
 }
 
+const char* CompactElementsKindToString(CompactElementsKind kind);
+
 }  // namespace internal
 }  // namespace v8
 
