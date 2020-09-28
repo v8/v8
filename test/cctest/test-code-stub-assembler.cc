@@ -1946,6 +1946,7 @@ TEST(PopAndReturnConstant) {
   // Call a function that return |kNumProgramaticParams| parameters in addition
   // to those specified by the static descriptor. |kNumProgramaticParams| is
   // specified as a constant.
+  CSA_CHECK(&m, m.SmiEqual(m.CAST(m.Parameter(2)), m.SmiConstant(5678)));
   m.PopAndReturn(m.Int32Constant(kNumProgrammaticParams),
                  m.SmiConstant(Smi::FromInt(1234)));
 
@@ -1975,16 +1976,17 @@ TEST(PopAndReturnVariable) {
   // to those specified by the static descriptor. |kNumProgramaticParams| is
   // passed in as a parameter to the function so that it can't be recognized as
   // a constant.
-  m.PopAndReturn(m.SmiUntag(m.CAST(m.Parameter(2))),
+  CSA_CHECK(&m, m.SmiEqual(m.CAST(m.Parameter(2)), m.SmiConstant(5678)));
+  m.PopAndReturn(m.SmiUntag(m.CAST(m.Parameter(1))),
                  m.SmiConstant(Smi::FromInt(1234)));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   Handle<Object> result;
   for (int test_count = 0; test_count < 100; ++test_count) {
-    result = ft.Call(isolate->factory()->undefined_value(),
+    result = ft.Call(Handle<Smi>(Smi::FromInt(kNumProgrammaticParams), isolate),
                      Handle<Smi>(Smi::FromInt(5678), isolate),
                      isolate->factory()->undefined_value(),
-                     Handle<Smi>(Smi::FromInt(kNumProgrammaticParams), isolate))
+                     isolate->factory()->undefined_value())
                  .ToHandleChecked();
     CHECK_EQ(1234, Handle<Smi>::cast(result)->value());
   }

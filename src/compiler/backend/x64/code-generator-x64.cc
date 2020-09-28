@@ -4622,9 +4622,10 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   } else {
     Register pop_reg = g.ToRegister(pop);
     Register scratch_reg = pop_reg == rcx ? rdx : rcx;
-    __ popq(scratch_reg);
+    __ PopReturnAddressTo(scratch_reg);
     __ leaq(rsp, Operand(rsp, pop_reg, times_8, static_cast<int>(pop_size)));
-    __ jmp(scratch_reg);
+    __ PushReturnAddressFrom(scratch_reg);
+    __ Ret();
   }
 }
 
