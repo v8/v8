@@ -22,7 +22,6 @@
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/backend/jump-threading.h"
-#include "src/compiler/backend/live-range-separator.h"
 #include "src/compiler/backend/mid-tier-register-allocator.h"
 #include "src/compiler/backend/move-optimizer.h"
 #include "src/compiler/backend/register-allocator-verifier.h"
@@ -2199,17 +2198,6 @@ struct BuildBundlesPhase {
   }
 };
 
-struct SplinterLiveRangesPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(SplinterLiveRanges)
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    LiveRangeSeparator live_range_splinterer(
-        data->top_tier_register_allocation_data(), temp_zone);
-    live_range_splinterer.Splinter();
-  }
-};
-
-
 template <typename RegAllocator>
 struct AllocateGeneralRegistersPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(AllocateGeneralRegisters)
@@ -2229,18 +2217,6 @@ struct AllocateFPRegistersPhase {
     RegAllocator allocator(data->top_tier_register_allocation_data(),
                            RegisterKind::kDouble, temp_zone);
     allocator.AllocateRegisters();
-  }
-};
-
-
-struct MergeSplintersPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(MergeSplinteredRanges)
-
-  void Run(PipelineData* pipeline_data, Zone* temp_zone) {
-    TopTierRegisterAllocationData* data =
-        pipeline_data->top_tier_register_allocation_data();
-    LiveRangeMerger live_range_merger(data, temp_zone);
-    live_range_merger.Merge();
   }
 };
 
@@ -3626,12 +3602,6 @@ void PipelineImpl::AllocateRegistersForTopTier(
 #endif
 
   RegisterAllocationFlags flags;
-  if (data->info()->turbo_control_flow_aware_allocation()) {
-    flags |= RegisterAllocationFlag::kTurboControlFlowAwareAllocation;
-  }
-  if (data->info()->turbo_preprocess_ranges()) {
-    flags |= RegisterAllocationFlag::kTurboPreprocessRanges;
-  }
   if (data->info()->trace_turbo_allocation()) {
     flags |= RegisterAllocationFlag::kTraceAllocation;
   }
@@ -3657,23 +3627,10 @@ void PipelineImpl::AllocateRegistersForTopTier(
         "PreAllocation", data->top_tier_register_allocation_data());
   }
 
-  if (info()->turbo_preprocess_ranges()) {
-    Run<SplinterLiveRangesPhase>();
-    if (info()->trace_turbo_json() && !data->MayHaveUnverifiableGraph()) {
-      TurboCfgFile tcf(isolate());
-      tcf << AsC1VRegisterAllocationData(
-          "PostSplinter", data->top_tier_register_allocation_data());
-    }
-  }
-
   Run<AllocateGeneralRegistersPhase<LinearScanAllocator>>();
 
   if (data->sequence()->HasFPVirtualRegisters()) {
     Run<AllocateFPRegistersPhase<LinearScanAllocator>>();
-  }
-
-  if (info()->turbo_preprocess_ranges()) {
-    Run<MergeSplintersPhase>();
   }
 
   Run<DecideSpillingModePhase>();

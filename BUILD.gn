@@ -1971,8 +1971,6 @@ v8_compiler_sources = [
   "src/compiler/backend/instruction.h",
   "src/compiler/backend/jump-threading.cc",
   "src/compiler/backend/jump-threading.h",
-  "src/compiler/backend/live-range-separator.cc",
-  "src/compiler/backend/live-range-separator.h",
   "src/compiler/backend/mid-tier-register-allocator.cc",
   "src/compiler/backend/mid-tier-register-allocator.h",
   "src/compiler/backend/move-optimizer.cc",
