@@ -76,11 +76,11 @@ class Timeline {
   }
 
   first() {
-    return this.#values.first();
+    return this.#values[0];
   }
 
   last() {
-    return this.#values.last();
+    return this.#values[this.#values.length - 1];
   }
 
   duration() {
