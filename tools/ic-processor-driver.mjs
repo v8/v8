@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import { IcProcessor, ArgumentsProcessor, readFile } from "./ic-processor.mjs";
-import "./SourceMap.mjs";
+import { WebInspector } from "./sourcemap.mjs";
 
 function processArguments(args) {
   var processor = new ArgumentsProcessor(args);
