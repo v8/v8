@@ -60,9 +60,6 @@
   # BUG(v8:8169)
   'external-backing-store-gc': [SKIP],
 
-  # BUG(v8:9260)
-  'tools/profviz': [SKIP],
-
   # Issue 9380: Memory leaks of shared WebAssembly.Memory objects
   'wasm/shared-memory-worker-gc': [SKIP],
 

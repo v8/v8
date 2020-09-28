@@ -22,7 +22,6 @@ group("v8_mjsunit") {
     "../../tools/arguments.js",
     "../../tools/profile.js",
     "../../tools/profile_view.js",
-    "../../tools/profviz/composer.js",
     "../../tools/splaytree.js",
     "../../tools/tickprocessor.js",
     "../../tools/dumpcpp.js",
