@@ -848,7 +848,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Context> context,
     }
   }
   if (source_text.IsEmpty()) {
-    std::string msg = "Error reading: " + file_name;
+    std::string msg = "d8: Error reading module from " + file_name;
     Throw(isolate, msg.c_str());
     return MaybeLocal<Module>();
   }
