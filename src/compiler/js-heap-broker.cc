@@ -4689,10 +4689,21 @@ void FilterRelevantReceiverMaps(Isolate* isolate, MapHandles* maps) {
 }
 
 MaybeObjectHandle TryGetMinimorphicHandler(
-    std::vector<MapAndHandler> const& maps_and_handlers,
-    FeedbackSlotKind kind) {
+    std::vector<MapAndHandler> const& maps_and_handlers, FeedbackSlotKind kind,
+    Handle<NativeContext> native_context) {
   if (!FLAG_dynamic_map_checks || !IsLoadICKind(kind))
     return MaybeObjectHandle();
+
+  // Don't use dynamic map checks when loading properties from Array.prototype.
+  // Using dynamic map checks prevents constant folding and hence does not
+  // inline the array builtins. We only care about monomorphic cases here. For
+  // polymorphic loads currently we don't inline the builtins even without
+  // dynamic map checks.
+  if (maps_and_handlers.size() == 1 &&
+      *maps_and_handlers[0].first ==
+          native_context->initial_array_prototype().map()) {
+    return MaybeObjectHandle();
+  }
 
   MaybeObjectHandle initial_handler;
   for (MapAndHandler map_and_handler : maps_and_handlers) {
@@ -4751,7 +4762,8 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
 
   base::Optional<NameRef> name =
       static_name.has_value() ? static_name : GetNameFeedback(nexus);
-  MaybeObjectHandle handler = TryGetMinimorphicHandler(maps_and_handlers, kind);
+  MaybeObjectHandle handler = TryGetMinimorphicHandler(
+      maps_and_handlers, kind, target_native_context().object());
   if (!handler.is_null()) {
     MaybeHandle<Map> maybe_map;
     if (nexus.ic_state() == MONOMORPHIC) {
