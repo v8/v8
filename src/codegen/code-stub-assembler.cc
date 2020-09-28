@@ -6755,6 +6755,12 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input) {
   return result.value();
 }
 
+// TODO(solanes, v8:6949): Refactor this to check for JSReceivers first. If we
+// have a JSReceiver, extract the primitive and fallthrough. Otherwise, continue
+// asking for the other instance types. This will make it so that we can remove
+// the loop (which was looping at most once). Also, see if we can make use of
+// PlainPrimitiveNonNumberToNumber to de-duplicate code, maybe changing it to a
+// TryPlainPrimitiveNonNumberToNumber with a Label* as a parameter.
 TNode<Numeric> CodeStubAssembler::NonNumberToNumberOrNumeric(
     TNode<Context> context, TNode<HeapObject> input, Object::Conversion mode,
     BigIntHandling bigint_handling) {
@@ -6792,7 +6798,6 @@ TNode<Numeric> CodeStubAssembler::NonNumberToNumberOrNumeric(
     }
 
     BIND(&if_inputisbigint);
-    CSA_ASSERT(this, Word32And(TaggedIsNotSmi(context), IsContext(context)));
     if (mode == Object::Conversion::kToNumeric) {
       var_result = CAST(input);
       Goto(&end);
@@ -6817,9 +6822,9 @@ TNode<Numeric> CodeStubAssembler::NonNumberToNumberOrNumeric(
 
     BIND(&if_inputisreceiver);
     {
-      CSA_ASSERT(this, Word32And(TaggedIsNotSmi(context), IsContext(context)));
-      // The {input} is a JSReceiver, we need to convert it to a Primitive first
-      // using the ToPrimitive type conversion, preferably yielding a Number.
+      // The {input} is a JSReceiver, we need to convert it to a Primitive
+      // first using the ToPrimitive type conversion, preferably yielding a
+      // Number.
       Callable callable = CodeFactory::NonPrimitiveToPrimitive(
           isolate(), ToPrimitiveHint::kNumber);
       TNode<Object> result = CallStub(callable, context, input);
@@ -6832,15 +6837,16 @@ TNode<Numeric> CodeStubAssembler::NonNumberToNumberOrNumeric(
 
       BIND(&if_done);
       {
-        // The ToPrimitive conversion already gave us a Number/Numeric, so we're
-        // done.
+        // The ToPrimitive conversion already gave us a Number/Numeric, so
+        // we're done.
         var_result = CAST(result);
         Goto(&end);
       }
 
       BIND(&if_notdone);
       {
-        // We now have a Primitive {result}, but it's not yet a Number/Numeric.
+        // We now have a Primitive {result}, but it's not yet a
+        // Number/Numeric.
         var_input = CAST(result);
         Goto(&loop);
       }
@@ -6848,7 +6854,6 @@ TNode<Numeric> CodeStubAssembler::NonNumberToNumberOrNumeric(
 
     BIND(&if_inputisother);
     {
-      CSA_ASSERT(this, Word32And(TaggedIsNotSmi(context), IsContext(context)));
       // The {input} is something else (e.g. Symbol), let the runtime figure
       // out the correct exception.
       // Note: We cannot tail call to the runtime here, as js-to-wasm
@@ -6873,14 +6878,46 @@ TNode<Numeric> CodeStubAssembler::NonNumberToNumberOrNumeric(
 }
 
 TNode<Number> CodeStubAssembler::NonNumberToNumber(
-    SloppyTNode<Context> context, SloppyTNode<HeapObject> input,
+    TNode<Context> context, SloppyTNode<HeapObject> input,
     BigIntHandling bigint_handling) {
   return CAST(NonNumberToNumberOrNumeric(
       context, input, Object::Conversion::kToNumber, bigint_handling));
 }
 
+TNode<Number> CodeStubAssembler::PlainPrimitiveNonNumberToNumber(
+    TNode<HeapObject> input) {
+  CSA_ASSERT(this, Word32BinaryNot(IsHeapNumber(input)));
+  TVARIABLE(Number, var_result);
+  Label done(this);
+
+  // Dispatch on the {input} instance type.
+  TNode<Uint16T> input_instance_type = LoadInstanceType(input);
+  Label if_inputisstring(this), if_inputisoddball(this);
+  GotoIf(IsStringInstanceType(input_instance_type), &if_inputisstring);
+  CSA_ASSERT(this, InstanceTypeEqual(input_instance_type, ODDBALL_TYPE));
+  Goto(&if_inputisoddball);
+
+  BIND(&if_inputisstring);
+  {
+    // The {input} is a String, use the fast stub to convert it to a Number.
+    TNode<String> string_input = CAST(input);
+    var_result = StringToNumber(string_input);
+    Goto(&done);
+  }
+
+  BIND(&if_inputisoddball);
+  {
+    // The {input} is an Oddball, we just need to load the Number value of it.
+    var_result = LoadObjectField<Number>(input, Oddball::kToNumberOffset);
+    Goto(&done);
+  }
+
+  BIND(&done);
+  return var_result.value();
+}
+
 TNode<Numeric> CodeStubAssembler::NonNumberToNumeric(
-    SloppyTNode<Context> context, SloppyTNode<HeapObject> input) {
+    TNode<Context> context, SloppyTNode<HeapObject> input) {
   return NonNumberToNumberOrNumeric(context, input,
                                     Object::Conversion::kToNumeric);
 }
@@ -6909,7 +6946,7 @@ TNode<Number> CodeStubAssembler::ToNumber_Inline(SloppyTNode<Context> context,
   return var_result.value();
 }
 
-TNode<Number> CodeStubAssembler::ToNumber(SloppyTNode<Context> context,
+TNode<Number> CodeStubAssembler::ToNumber(TNode<Context> context,
                                           SloppyTNode<Object> input,
                                           BigIntHandling bigint_handling) {
   TVARIABLE(Number, var_result);
@@ -6934,6 +6971,37 @@ TNode<Number> CodeStubAssembler::ToNumber(SloppyTNode<Context> context,
     BIND(&not_heap_number);
     {
       var_result = NonNumberToNumber(context, input_ho, bigint_handling);
+      Goto(&end);
+    }
+  }
+
+  BIND(&end);
+  return var_result.value();
+}
+
+TNode<Number> CodeStubAssembler::PlainPrimitiveToNumber(TNode<Object> input) {
+  TVARIABLE(Number, var_result);
+  Label end(this);
+
+  Label not_smi(this, Label::kDeferred);
+  GotoIfNot(TaggedIsSmi(input), &not_smi);
+  TNode<Smi> input_smi = CAST(input);
+  var_result = input_smi;
+  Goto(&end);
+
+  BIND(&not_smi);
+  {
+    Label not_heap_number(this, Label::kDeferred);
+    TNode<HeapObject> input_ho = CAST(input);
+    GotoIfNot(IsHeapNumber(input_ho), &not_heap_number);
+
+    TNode<HeapNumber> input_hn = CAST(input_ho);
+    var_result = input_hn;
+    Goto(&end);
+
+    BIND(&not_heap_number);
+    {
+      var_result = PlainPrimitiveNonNumberToNumber(input_ho);
       Goto(&end);
     }
   }

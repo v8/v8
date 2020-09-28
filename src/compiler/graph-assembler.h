@@ -127,6 +127,7 @@ class BasicBlock;
   V(One, Number)                                \
   V(TheHole, Oddball)                           \
   V(ToNumberBuiltin, Code)                      \
+  V(PlainPrimitiveToNumberBuiltin, Code)        \
   V(True, Boolean)                              \
   V(Undefined, Oddball)                         \
   V(Zero, Number)

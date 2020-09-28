@@ -716,9 +716,9 @@ Node* GraphAssembler::UnsafePointerAdd(Node* base, Node* external) {
 }
 
 TNode<Number> JSGraphAssembler::PlainPrimitiveToNumber(TNode<Object> value) {
-  return AddNode<Number>(graph()->NewNode(PlainPrimitiveToNumberOperator(),
-                                          ToNumberBuiltinConstant(), value,
-                                          NoContextConstant(), effect()));
+  return AddNode<Number>(graph()->NewNode(
+      PlainPrimitiveToNumberOperator(), PlainPrimitiveToNumberBuiltinConstant(),
+      value, effect()));
 }
 
 Node* GraphAssembler::BitcastWordToTaggedSigned(Node* value) {
@@ -959,7 +959,8 @@ void GraphAssembler::InitializeEffectControl(Node* effect, Node* control) {
 
 Operator const* JSGraphAssembler::PlainPrimitiveToNumberOperator() {
   if (!to_number_operator_.is_set()) {
-    Callable callable = Builtins::CallableFor(isolate(), Builtins::kToNumber);
+    Callable callable =
+        Builtins::CallableFor(isolate(), Builtins::kPlainPrimitiveToNumber);
     CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         graph()->zone(), callable.descriptor(),

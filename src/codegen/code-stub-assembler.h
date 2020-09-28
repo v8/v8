@@ -2464,20 +2464,23 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Convert a Non-Number object to a Number.
   TNode<Number> NonNumberToNumber(
-      SloppyTNode<Context> context, SloppyTNode<HeapObject> input,
+      TNode<Context> context, SloppyTNode<HeapObject> input,
       BigIntHandling bigint_handling = BigIntHandling::kThrow);
   // Convert a Non-Number object to a Numeric.
-  TNode<Numeric> NonNumberToNumeric(SloppyTNode<Context> context,
+  TNode<Numeric> NonNumberToNumeric(TNode<Context> context,
                                     SloppyTNode<HeapObject> input);
   // Convert any object to a Number.
   // Conforms to ES#sec-tonumber if {bigint_handling} == kThrow.
   // With {bigint_handling} == kConvertToNumber, matches behavior of
   // tc39.github.io/proposal-bigint/#sec-number-constructor-number-value.
   TNode<Number> ToNumber(
-      SloppyTNode<Context> context, SloppyTNode<Object> input,
+      TNode<Context> context, SloppyTNode<Object> input,
       BigIntHandling bigint_handling = BigIntHandling::kThrow);
   TNode<Number> ToNumber_Inline(SloppyTNode<Context> context,
                                 SloppyTNode<Object> input);
+  // Convert any plain primitive to a Number. No need to handle BigInts since
+  // they are not plain primitives.
+  TNode<Number> PlainPrimitiveToNumber(TNode<Object> input);
 
   // Try to convert an object to a BigInt. Throws on failure (e.g. for Numbers).
   // https://tc39.github.io/proposal-bigint/#sec-to-bigint
@@ -3655,6 +3658,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<UnionT<FixedArray, PropertyArray>> array, TNode<TIndex> index,
       TNode<Object> value, WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       int additional_offset = 0);
+
+  // Converts {input} to a number. {input} must be a plain primitve.
+  TNode<Number> PlainPrimitiveNonNumberToNumber(TNode<HeapObject> input);
 };
 
 class V8_EXPORT_PRIVATE CodeStubArguments {

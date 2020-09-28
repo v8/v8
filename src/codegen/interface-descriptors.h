@@ -93,6 +93,7 @@ namespace internal {
   V(StringAtAsString)                    \
   V(StringSubstring)                     \
   V(TypeConversion)                      \
+  V(TypeConversionNoContext)             \
   V(TypeConversionStackParameter)        \
   V(Typeof)                              \
   V(UnaryOp_WithFeedback)                \
@@ -907,6 +908,13 @@ class TypeConversionDescriptor final : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(TypeConversionDescriptor, CallInterfaceDescriptor)
 
   static const Register ArgumentRegister();
+};
+
+class TypeConversionNoContextDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kArgument)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
+  DECLARE_DESCRIPTOR(TypeConversionNoContextDescriptor, CallInterfaceDescriptor)
 };
 
 class TypeConversionStackParameterDescriptor final
