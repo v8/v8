@@ -432,15 +432,15 @@
 
     # Official configs for arm
     'official_arm': [
-      'release_bot', 'arm', 'hard_float', 'official'],
+      'release_bot', 'arm', 'hard_float', 'official', 'disable_pgo'],
     'official_arm64': [
-      'release_bot', 'arm64', 'hard_float', 'official'],
+      'release_bot', 'arm64', 'hard_float', 'official', 'disable_pgo'],
     'official_android_arm': [
       'release_bot', 'arm', 'android', 'minimal_symbols',
-      'android_strip_outputs', 'official'],
+      'android_strip_outputs', 'official', 'disable_pgo'],
     'official_android_arm64': [
       'release_bot', 'arm64', 'android', 'minimal_symbols',
-      'android_strip_outputs', 'official'],
+      'android_strip_outputs', 'official', 'disable_pgo'],
 
     # Release configs for x64.
     'release_x64': [
@@ -514,7 +514,7 @@
 
     # Official configs for x64.
     'official_x64': [
-      'release_bot', 'x64', 'official'],
+      'release_bot', 'x64', 'official', 'disable_pgo'],
 
     # Debug configs for x64.
     'debug_x64': [
@@ -587,7 +587,7 @@
 
     # Official configs for x86.
     'official_x86': [
-        'release_bot', 'x86', 'official'],
+        'release_bot', 'x86', 'official', 'disable_pgo'],
 
     # Torque compare test
     'torque_compare': [
@@ -662,6 +662,10 @@
 
     'disable_concurrent_marking': {
       'gn_args': 'v8_enable_concurrent_marking=false',
+    },
+
+    'disable_pgo': {
+      'gn_args': 'chrome_pgo_phase=0',
     },
 
     'fuchsia': {
