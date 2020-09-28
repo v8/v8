@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/codegen/x64/register-x64.h"
 #if V8_TARGET_ARCH_X64
 
 #include "src/api/api-arguments.h"
@@ -3287,7 +3286,9 @@ namespace {
 // Helper functions for the GenericJSToWasmWrapper.
 void PrepareForBuiltinCall(MacroAssembler* masm, MemOperand GCScanSlotPlace,
                            const int GCScanSlotCount, Register current_param,
-                           Register param_limit, Register current_param_slot,
+                           Register param_limit,
+                           Register current_int_param_slot,
+                           Register current_float_param_slot,
                            Register valuetypes_array_ptr,
                            Register wasm_instance, Register function_data) {
   // Pushes and puts the values in order onto the stack before builtin calls for
@@ -3295,7 +3296,8 @@ void PrepareForBuiltinCall(MacroAssembler* masm, MemOperand GCScanSlotPlace,
   __ movq(GCScanSlotPlace, Immediate(GCScanSlotCount));
   __ pushq(current_param);
   __ pushq(param_limit);
-  __ pushq(current_param_slot);
+  __ pushq(current_int_param_slot);
+  __ pushq(current_float_param_slot);
   __ pushq(valuetypes_array_ptr);
   __ pushq(wasm_instance);
   __ pushq(function_data);
@@ -3310,18 +3312,18 @@ void PrepareForBuiltinCall(MacroAssembler* masm, MemOperand GCScanSlotPlace,
 void RestoreAfterBuiltinCall(MacroAssembler* masm, Register function_data,
                              Register wasm_instance,
                              Register valuetypes_array_ptr,
-                             Register current_param_slot, Register param_limit,
-                             Register current_param, Register param_count,
-                             MemOperand ParamCountPlace) {
+                             Register current_float_param_slot,
+                             Register current_int_param_slot,
+                             Register param_limit, Register current_param) {
   // Pop and load values from the stack in order into the registers after
   // builtin calls for the GenericJSToWasmWrapper.
   __ popq(function_data);
   __ popq(wasm_instance);
   __ popq(valuetypes_array_ptr);
-  __ popq(current_param_slot);
+  __ popq(current_float_param_slot);
+  __ popq(current_int_param_slot);
   __ popq(param_limit);
   __ popq(current_param);
-  __ movq(param_count, ParamCountPlace);
 }
 }  // namespace
 
@@ -3369,7 +3371,7 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   Register return_count = r8;
   __ movq(return_count,
           MemOperand(signature, wasm::FunctionSig::kReturnCountOffset));
-  Register param_count = r12;
+  Register param_count = rcx;
   __ movq(param_count,
           MemOperand(signature, wasm::FunctionSig::kParameterCountOffset));
   Register valuetypes_array_ptr = signature;
@@ -3394,7 +3396,12 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   constexpr int kReturnCountOffset = kParamCountOffset - kSystemPointerSize;
   constexpr int kValueTypesArrayStartOffset =
       kReturnCountOffset - kSystemPointerSize;
-  constexpr int kNumSpillSlots = 4;
+  // We set and use this slot only when moving parameters into the parameter
+  // registers (so no GC scan is needed).
+  constexpr int kFunctionDataOffset =
+      kValueTypesArrayStartOffset - kSystemPointerSize;
+  constexpr int kLastSpillOffset = kFunctionDataOffset;
+  constexpr int kNumSpillSlots = 5;
   __ subq(rsp, Immediate(kNumSpillSlots * kSystemPointerSize));
   __ movq(MemOperand(rbp, kParamCountOffset), param_count);
   __ movq(MemOperand(rbp, kReturnCountOffset), return_count);
@@ -3403,11 +3410,11 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // -------------------------------------------
   // Parameter handling.
   // -------------------------------------------
-  Label params_done;
+  Label prepare_for_wasm_call;
   __ cmpl(param_count, Immediate(0));
 
   // IF we have 0 params: jump through parameter handling.
-  __ j(equal, &params_done);
+  __ j(equal, &prepare_for_wasm_call);
 
   // ELSE:
   // Make sure we have the same number of arguments in order to be able to load
@@ -3415,15 +3422,69 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ cmpl(kJavaScriptCallArgCountRegister, param_count);
   __ Check(equal, AbortReason::kInvalidNumberOfJsArgs);
 
-  // We have to put the first 5 parameters into the proper registers before the
-  // wasm call. By reserving 5 slots on the stack we can always pop the top 5
-  // values to these registers without popping unwanted slots from the stack.
-  // We make sure all reserved slots are freed later by restoring the stack
-  // pointer.
-  __ subq(rsp, Immediate(5 * kSystemPointerSize));
+  // -------------------------------------------
+  // Create 2 sections for integer and float params.
+  // -------------------------------------------
+  // We will create 2 sections on the stack for the evaluated parameters:
+  // Integer and Float section, both with parameter count size. We will place
+  // the parameters into these sections depending on their valuetype. This way
+  // we can easily fill the general purpose and floating point parameter
+  // registers and place the remaining parameters onto the stack in proper order
+  // for the Wasm function. These remaining params are the final stack
+  // parameters for the call to WebAssembly. Example of the stack layout after
+  // processing 2 int and 1 float parameters when param_count is 4.
+  //   +-----------------+
+  //   |      rbp        |
+  //   |-----------------|-------------------------------
+  //   |                 |   Slots we defined
+  //   |   Saved values  |    when setting up
+  //   |                 |     the stack
+  //   |                 |
+  //   +-Integer section-+--- <--- start_int_section ----
+  //   |  1st int param  |
+  //   |- - - - - - - - -|
+  //   |  2nd int param  |
+  //   |- - - - - - - - -|  <----- current_int_param_slot
+  //   |                 |       (points to the stackslot
+  //   |- - - - - - - - -|  where the next int param should be placed)
+  //   |                 |
+  //   +--Float section--+--- <--- start_float_section --
+  //   | 1st float param |
+  //   |- - - - - - - - -|  <----  current_float_param_slot
+  //   |                 |       (points to the stackslot
+  //   |- - - - - - - - -|  where the next float param should be placed)
+  //   |                 |
+  //   |- - - - - - - - -|
+  //   |                 |
+  //   +---Final stack---+------------------------------
+  //   +-parameters for--+------------------------------
+  //   +-the Wasm call---+------------------------------
+  //   |      . . .      |
 
-  // Looping through the params.
-  // We start with the 1st param.
+  constexpr int kIntegerSectionStartOffset =
+      kLastSpillOffset - kSystemPointerSize;
+  // For Integer section.
+  // Set the current_int_param_slot to point to the start of the section.
+  Register current_int_param_slot = r14;
+  __ leaq(current_int_param_slot, MemOperand(rsp, -kSystemPointerSize));
+  Register params_size = param_count;
+  param_count = no_reg;
+  __ shlq(params_size, Immediate(kSystemPointerSizeLog2));
+  __ subq(rsp, params_size);
+
+  // For Float section.
+  // Set the current_float_param_slot to point to the start of the section.
+  Register current_float_param_slot = r15;
+  __ leaq(current_float_param_slot, MemOperand(rsp, -kSystemPointerSize));
+  __ subq(rsp, params_size);
+  params_size = no_reg;
+  param_count = rcx;
+  __ movq(param_count, MemOperand(rbp, kParamCountOffset));
+
+  // -------------------------------------------
+  // Set up for the param evaluation loop.
+  // -------------------------------------------
+  // We will loop through the params starting with the 1st param.
   // The order of processing the params is important. We have to evaluate them
   // in an increasing order.
   //      Not reversed                Reversed
@@ -3444,20 +3505,8 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // [rbp + current_param] gives us the parameter we are processing.
   // We iterate through half-open interval <1st param, [rbp + param_limit]).
 
-  // The Wasm function expects that the params can be popped from the top of the
-  // stack in an increasing order. As we have to process the params in an
-  // increasing order too, we have to reserve param_count slots where we will
-  // move the processed parameters so that they can be popped in an increasing
-  // order.
-  Register js_arguments_size_in_bytes = kJavaScriptCallArgCountRegister;
-  __ shlq(js_arguments_size_in_bytes, Immediate(kSystemPointerSizeLog2));
-  __ subq(rsp, js_arguments_size_in_bytes);
-  js_arguments_size_in_bytes = no_reg;
-  Register current_param_slot = rdx;
-  __ movq(current_param_slot, rsp);
-
-  Register current_param = r14;
-  Register param_limit = r15;
+  Register current_param = rbx;
+  Register param_limit = rdx;
 #ifdef V8_REVERSE_JSARGS
   constexpr int kReceiverOnStackSize = kSystemPointerSize;
   __ movq(current_param,
@@ -3486,19 +3535,17 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ shlq(returns_size, Immediate(kValueTypeSizeLog2));
   __ addq(valuetypes_array_ptr, returns_size);
   returns_size = no_reg;
-  Register valuetype = rcx;
+  Register valuetype = r12;
 
   // -------------------------------------------
-  // Loop.
+  // Param evaluation loop.
   // -------------------------------------------
   Label loop_through_params;
   __ bind(&loop_through_params);
 
   __ movq(param, MemOperand(rbp, current_param, times_1, 0));
-  __ addq(current_param, Immediate(increment));
   __ movl(valuetype,
           Operand(valuetypes_array_ptr, wasm::ValueType::bit_field_offset()));
-  __ addq(valuetypes_array_ptr, Immediate(kValueTypeSize));
 
   // -------------------------------------------
   // Param conversion.
@@ -3506,14 +3553,16 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // If param is a Smi we can easily convert it. Otherwise we'll call a builtin
   // for conversion.
   Label convert_param;
+  __ cmpq(valuetype, Immediate(wasm::kWasmI32.raw_bit_field()));
+  __ j(not_equal, &convert_param);
   __ JumpIfNotSmi(param, &convert_param);
-  // It's important to check if param is i64.
-  __ cmpq(valuetype, Immediate(wasm::kWasmI64.raw_bit_field()));
-  __ j(equal, &convert_param);
   // Change the paramfrom Smi to int32.
   __ SmiUntag(param);
   // Zero extend.
   __ movl(param, param);
+  // Place the param into the proper slot in Integer section.
+  __ movq(MemOperand(current_int_param_slot, 0), param);
+  __ subq(current_int_param_slot, Immediate(kSystemPointerSize));
 
   // -------------------------------------------
   // Param conversion done.
@@ -3521,23 +3570,153 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   Label param_conversion_done;
   __ bind(&param_conversion_done);
 
-  __ movq(MemOperand(current_param_slot, 0), param);
-  __ addq(current_param_slot, Immediate(kSystemPointerSize));
+  __ addq(current_param, Immediate(increment));
+  __ addq(valuetypes_array_ptr, Immediate(kValueTypeSize));
 
   __ cmpq(current_param, param_limit);
   __ j(not_equal, &loop_through_params);
 
   // -------------------------------------------
-  // Pop the top 5 parameters into the proper param registers.
+  // Move the parameters into the proper param registers.
   // -------------------------------------------
-  __ popq(rax);
-  __ popq(rdx);
-  __ popq(rcx);
-  __ popq(rbx);
-  __ popq(r9);
+  // The Wasm function expects that the params can be popped from the top of the
+  // stack in an increasing order.
+  // We can always move the values on the beginning of the sections into the GP
+  // or FP parameter registers. If the parameter count is less than the number
+  // of parameter registers, we may move values into the registers that are not
+  // in the section.
+  // ----------- S t a t e -------------
+  //  -- r8  : start_int_section
+  //  -- rdi : start_float_section
+  //  -- r14 : current_int_param_slot
+  //  -- r15 : current_float_param_slot
+  //  -- r11 : valuetypes_array_ptr
+  //  -- r12 : valuetype
+  //  -- rsi : wasm_instance
+  //  -- GpParamRegisters = rax, rdx, rcx, rbx, r9
+  // -----------------------------------
+
+  Register temp_params_size = rax;
+  __ movq(temp_params_size, MemOperand(rbp, kParamCountOffset));
+  __ shlq(temp_params_size, Immediate(kSystemPointerSizeLog2));
+  // We want to use the register of the function_data = rdi.
+  __ movq(MemOperand(rbp, kFunctionDataOffset), function_data);
+  Register start_float_section = function_data;
+  function_data = no_reg;
+  __ movq(start_float_section, rbp);
+  __ addq(start_float_section, Immediate(kIntegerSectionStartOffset));
+  __ subq(start_float_section, temp_params_size);
+  temp_params_size = no_reg;
+  // Fill the FP param registers.
+  __ Movsd(xmm1, MemOperand(start_float_section, 0));
+  __ Movsd(xmm2, MemOperand(start_float_section, -kSystemPointerSize));
+  __ Movsd(xmm3, MemOperand(start_float_section, -2 * kSystemPointerSize));
+  __ Movsd(xmm4, MemOperand(start_float_section, -3 * kSystemPointerSize));
+  __ Movsd(xmm5, MemOperand(start_float_section, -4 * kSystemPointerSize));
+  __ Movsd(xmm6, MemOperand(start_float_section, -5 * kSystemPointerSize));
+  // We want the start to point to the last properly placed param.
+  __ subq(start_float_section, Immediate(5 * kSystemPointerSize));
+
+  Register start_int_section = r8;
+  __ movq(start_int_section, rbp);
+  __ addq(start_int_section, Immediate(kIntegerSectionStartOffset));
+  // Fill the GP param registers.
+  __ movq(rax, MemOperand(start_int_section, 0));
+  __ movq(rdx, MemOperand(start_int_section, -kSystemPointerSize));
+  __ movq(rcx, MemOperand(start_int_section, -2 * kSystemPointerSize));
+  __ movq(rbx, MemOperand(start_int_section, -3 * kSystemPointerSize));
+  __ movq(r9, MemOperand(start_int_section, -4 * kSystemPointerSize));
+  // We want the start to point to the last properly placed param.
+  __ subq(start_int_section, Immediate(4 * kSystemPointerSize));
+
+  // -------------------------------------------
+  // Place the final stack parameters to the proper place.
+  // -------------------------------------------
+  // We want the current_param_slot (insertion) pointers to point at the last
+  // param of the section instead of the next free slot.
+  __ addq(current_int_param_slot, Immediate(kSystemPointerSize));
+  __ addq(current_float_param_slot, Immediate(kSystemPointerSize));
+
+  // -------------------------------------------
+  // Final stack parameters loop.
+  // -------------------------------------------
+  // The parameters that didn't fit into the registers should be placed on the
+  // top of the stack contiguously. The interval of parameters between the
+  // start_section and the current_param_slot pointers define the remaining
+  // parameters of the section.
+  // We can iterate through the valuetypes array to decide from which section we
+  // need to push the parameter onto the top of the stack. By iterating in a
+  // reversed order we can easily pick the last parameter of the proper section.
+  // The parameter of the section is pushed on the top of the stack only if the
+  // interval of remaining params is not empty. This way we ensure that only
+  // params that didn't fit into param registers are pushed again.
+
+  Label loop_through_valuetypes;
+  __ bind(&loop_through_valuetypes);
+
+  // We iterated through the valuetypes array, we are one field over the end in
+  // the beginning. Also, we have to decrement it in each iteration.
+  __ subq(valuetypes_array_ptr, Immediate(kValueTypeSize));
+
+  // Check if there are still remaining integer params.
+  Label continue_loop;
+  __ cmpq(start_int_section, current_int_param_slot);
+  // If there are remaining integer params.
+  __ j(greater, &continue_loop);
+
+  // Check if there are still remaining float params.
+  __ cmpq(start_float_section, current_float_param_slot);
+  // If there aren't any params remaining.
+  Label params_done;
+  __ j(less_equal, &params_done);
+
+  __ bind(&continue_loop);
+  __ movl(valuetype,
+          Operand(valuetypes_array_ptr, wasm::ValueType::bit_field_offset()));
+  Label place_integer_param;
+  Label place_float_param;
+  __ cmpq(valuetype, Immediate(wasm::kWasmI32.raw_bit_field()));
+  __ j(equal, &place_integer_param);
+
+  __ cmpq(valuetype, Immediate(wasm::kWasmI64.raw_bit_field()));
+  __ j(equal, &place_integer_param);
+
+  __ cmpq(valuetype, Immediate(wasm::kWasmF32.raw_bit_field()));
+  __ j(equal, &place_float_param);
+
+  __ cmpq(valuetype, Immediate(wasm::kWasmF64.raw_bit_field()));
+  __ j(equal, &place_float_param);
+
+  __ int3();
+
+  __ bind(&place_integer_param);
+  __ cmpq(start_int_section, current_int_param_slot);
+  // If there aren't any integer params remaining, just floats, then go to the
+  // next valuetype.
+  __ j(less_equal, &loop_through_valuetypes);
+
+  // Copy the param from the integer section to the actual parameter area.
+  __ pushq(MemOperand(current_int_param_slot, 0));
+  __ addq(current_int_param_slot, Immediate(kSystemPointerSize));
+  __ jmp(&loop_through_valuetypes);
+
+  __ bind(&place_float_param);
+  __ cmpq(start_float_section, current_float_param_slot);
+  // If there aren't any float params remaining, just integers, then go to the
+  // next valuetype.
+  __ j(less_equal, &loop_through_valuetypes);
+
+  // Copy the param from the float section to the actual parameter area.
+  __ pushq(MemOperand(current_float_param_slot, 0));
+  __ addq(current_float_param_slot, Immediate(kSystemPointerSize));
+  __ jmp(&loop_through_valuetypes);
 
   __ bind(&params_done);
+  // Restore function_data after we are done with parameter placement.
+  function_data = rdi;
+  __ movq(function_data, MemOperand(rbp, kFunctionDataOffset));
 
+  __ bind(&prepare_for_wasm_call);
   // -------------------------------------------
   // Prepare for the Wasm call.
   // -------------------------------------------
@@ -3582,11 +3761,9 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   function_entry = no_reg;
 
   // -------------------------------------------
-  // Reseting after the Wasm call.
+  // Resetting after the Wasm call.
   // -------------------------------------------
-  // Restore rsp to free the reserved stack slots for 5 param Registers.
-  constexpr int kLastSpillOffset =
-      kFrameMarkerOffset - kNumSpillSlots * kSystemPointerSize;
+  // Restore rsp to free the reserved stack slots for the sections.
   __ leaq(rsp, MemOperand(rbp, kLastSpillOffset));
 
   // Unset thread_in_wasm_flag.
@@ -3650,21 +3827,30 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // We have to set the indicating value for the GC to the number of values on
   // the top of the stack that have to be scanned before calling the builtin
   // function.
+  // The builtin expects the parameter to be in register param = rax.
+
   constexpr int kBuiltinCallGCScanSlotCount = 2;
   PrepareForBuiltinCall(masm, MemOperand(rbp, kGCScanSlotCountOffset),
                         kBuiltinCallGCScanSlotCount, current_param, param_limit,
-                        current_param_slot, valuetypes_array_ptr, wasm_instance,
-                        function_data);
+                        current_int_param_slot, current_float_param_slot,
+                        valuetypes_array_ptr, wasm_instance, function_data);
 
   Label param_kWasmI32_not_smi;
   Label param_kWasmI64;
-  Label restore_after_buitlin_call;
+  Label param_kWasmF32;
+  Label param_kWasmF64;
 
   __ cmpq(valuetype, Immediate(wasm::kWasmI32.raw_bit_field()));
   __ j(equal, &param_kWasmI32_not_smi);
 
   __ cmpq(valuetype, Immediate(wasm::kWasmI64.raw_bit_field()));
   __ j(equal, &param_kWasmI64);
+
+  __ cmpq(valuetype, Immediate(wasm::kWasmF32.raw_bit_field()));
+  __ j(equal, &param_kWasmF32);
+
+  __ cmpq(valuetype, Immediate(wasm::kWasmF64.raw_bit_field()));
+  __ j(equal, &param_kWasmF64);
 
   __ int3();
 
@@ -3673,16 +3859,44 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
   // Param is the result of the builtin.
   __ AssertZeroExtended(param);
-  __ jmp(&restore_after_buitlin_call);
+  RestoreAfterBuiltinCall(masm, function_data, wasm_instance,
+                          valuetypes_array_ptr, current_float_param_slot,
+                          current_int_param_slot, param_limit, current_param);
+  __ movq(MemOperand(current_int_param_slot, 0), param);
+  __ subq(current_int_param_slot, Immediate(kSystemPointerSize));
+  __ jmp(&param_conversion_done);
 
   __ bind(&param_kWasmI64);
   __ Call(BUILTIN_CODE(masm->isolate(), BigIntToI64), RelocInfo::CODE_TARGET);
-
-  __ bind(&restore_after_buitlin_call);
   RestoreAfterBuiltinCall(masm, function_data, wasm_instance,
-                          valuetypes_array_ptr, current_param_slot, param_limit,
-                          current_param, param_count,
-                          MemOperand(rbp, kParamCountOffset));
+                          valuetypes_array_ptr, current_float_param_slot,
+                          current_int_param_slot, param_limit, current_param);
+  __ movq(MemOperand(current_int_param_slot, 0), param);
+  __ subq(current_int_param_slot, Immediate(kSystemPointerSize));
+  __ jmp(&param_conversion_done);
+
+  __ bind(&param_kWasmF32);
+  __ Call(BUILTIN_CODE(masm->isolate(), WasmTaggedToFloat64),
+          RelocInfo::CODE_TARGET);
+  RestoreAfterBuiltinCall(masm, function_data, wasm_instance,
+                          valuetypes_array_ptr, current_float_param_slot,
+                          current_int_param_slot, param_limit, current_param);
+  // Clear higher bits.
+  __ Xorpd(xmm1, xmm1);
+  // Truncate float64 to float32.
+  __ Cvtsd2ss(xmm1, xmm0);
+  __ Movsd(MemOperand(current_float_param_slot, 0), xmm1);
+  __ subq(current_float_param_slot, Immediate(kSystemPointerSize));
+  __ jmp(&param_conversion_done);
+
+  __ bind(&param_kWasmF64);
+  __ Call(BUILTIN_CODE(masm->isolate(), WasmTaggedToFloat64),
+          RelocInfo::CODE_TARGET);
+  RestoreAfterBuiltinCall(masm, function_data, wasm_instance,
+                          valuetypes_array_ptr, current_float_param_slot,
+                          current_int_param_slot, param_limit, current_param);
+  __ Movsd(MemOperand(current_float_param_slot, 0), xmm0);
+  __ subq(current_float_param_slot, Immediate(kSystemPointerSize));
   __ jmp(&param_conversion_done);
 
   // -------------------------------------------
