@@ -5242,8 +5242,8 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
   }
   builder.AddParam(MachineType::Pointer());  // has_error
 
-  CallDescriptor* call_descriptor = Linkage::GetSimplifiedCDescriptor(
-      graph()->zone(), builder.Build(), CallDescriptor::kNoFlags);
+  CallDescriptor* call_descriptor =
+      Linkage::GetSimplifiedCDescriptor(graph()->zone(), builder.Build());
 
   call_descriptor->SetCFunctionInfo(c_signature);
 

@@ -2284,6 +2284,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       int slot = MiscField::decode(instr->opcode());
       if (HasImmediateInput(instr, 0)) {
         __ movq(Operand(rsp, slot * kSystemPointerSize), i.InputImmediate(0));
+      } else if (instr->InputAt(0)->IsFPRegister()) {
+        LocationOperand* op = LocationOperand::cast(instr->InputAt(0));
+        if (op->representation() == MachineRepresentation::kFloat64) {
+          __ Movsd(Operand(rsp, slot * kSystemPointerSize),
+                   i.InputDoubleRegister(0));
+        } else {
+          DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
+          __ Movss(Operand(rsp, slot * kSystemPointerSize),
+                   i.InputFloatRegister(0));
+        }
       } else {
         __ movq(Operand(rsp, slot * kSystemPointerSize), i.InputRegister(0));
       }
