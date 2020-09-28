@@ -430,7 +430,16 @@
       'os': 'Ubuntu-16.04',
     },
     'tests': [
-      {'name': 'v8testing', 'variant': 'future', 'shards': 3},
+      {
+        'name': 'v8testing',
+        'shards': 6,
+      },
+      {
+        'name': 'v8testing',
+        'suffix': 'future',
+        'test_args': ['--extra-flags=--future'],
+        'shards': 6,
+      },
     ],
   },
   'v8_linux64_tsan_isolates_rel_ng_triggered': {
@@ -1205,7 +1214,16 @@
       'os': 'Ubuntu-16.04',
     },
     'tests': [
-      {'name': 'v8testing', 'variant': 'future', 'shards': 3},
+      {
+        'name': 'v8testing',
+        'shards': 6,
+      },
+      {
+        'name': 'v8testing',
+        'suffix': 'future',
+        'test_args': ['--extra-flags=--future'],
+        'shards': 6,
+      },
     ],
   },
   'V8 Linux64 UBSan': {

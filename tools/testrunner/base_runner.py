@@ -186,6 +186,7 @@ class BuildConfig(object):
 
     self.asan = build_config['is_asan']
     self.cfi_vptr = build_config['is_cfi']
+    self.concurrent_marking = build_config['v8_enable_concurrent_marking']
     self.dcheck_always_on = build_config['dcheck_always_on']
     self.gcov_coverage = build_config['is_gcov_coverage']
     self.is_android = build_config['is_android']
@@ -686,6 +687,7 @@ class BaseTestRunner(object):
       "asan": self.build_config.asan,
       "byteorder": sys.byteorder,
       "cfi_vptr": self.build_config.cfi_vptr,
+      "concurrent_marking": self.build_config.concurrent_marking,
       "dcheck_always_on": self.build_config.dcheck_always_on,
       "deopt_fuzzer": False,
       "endurance_fuzzer": False,

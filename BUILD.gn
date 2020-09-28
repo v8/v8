@@ -1666,12 +1666,13 @@ action("v8_dump_build_config") {
     "is_ubsan_vptr=$is_ubsan_vptr",
     "target_cpu=\"$target_cpu\"",
     "v8_current_cpu=\"$v8_current_cpu\"",
+    "v8_enable_concurrent_marking=$v8_enable_concurrent_marking",
     "v8_enable_i18n_support=$v8_enable_i18n_support",
     "v8_enable_verify_predictable=$v8_enable_verify_predictable",
-    "v8_target_cpu=\"$v8_target_cpu\"",
     "v8_enable_verify_csa=$v8_enable_verify_csa",
     "v8_enable_lite_mode=$v8_enable_lite_mode",
     "v8_enable_pointer_compression=$v8_enable_pointer_compression",
+    "v8_target_cpu=\"$v8_target_cpu\"",
   ]
 
   if (v8_current_cpu == "mips" || v8_current_cpu == "mipsel" ||
