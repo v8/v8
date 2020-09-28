@@ -2,6 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import "./sourcemap.mjs";
+import {
+    CppProcessor, ArgumentsProcessor, UnixCppEntriesProvider, 
+    WindowsCppEntriesProvider, MacCppEntriesProvider
+  } from  "./dumpcpp.mjs";
+
 // Dump C++ symbols of shared library if possible
 
 function processArguments(args) {

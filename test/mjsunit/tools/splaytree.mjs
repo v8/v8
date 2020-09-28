@@ -25,8 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Load the Splay tree implementation from <project root>/tools.
-// Files: tools/splaytree.js
+import { SplayTree } from "../../../tools/splaytree.mjs";
 
 
 (function testIsEmpty() {

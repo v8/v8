@@ -25,9 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Load Splay tree and CodeMap implementations from <project root>/tools.
-// Files: tools/splaytree.js tools/codemap.js
-
+import { CodeMap } from "../../../tools/codemap.mjs";
 
 function newCodeEntry(size, name) {
   return new CodeMap.CodeEntry(size, name);

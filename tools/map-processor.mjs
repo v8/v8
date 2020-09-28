@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import { LogReader, parseString, parseVarArgs } from "./logreader.mjs";
+import { BaseArgumentsProcessor } from "./arguments.mjs";
+import { Profile } from "./profile.mjs";
+
 // ===========================================================================
 function define(prototype, name, fn) {
   Object.defineProperty(prototype, name, {value:fn, enumerable:false});
@@ -18,9 +22,22 @@ define(Array.prototype, "max", function(fn) {
 })
 define(Array.prototype, "first", function() { return this[0] });
 define(Array.prototype, "last", function() { return this[this.length - 1] });
+
+
+/**
+ * A thin wrapper around shell's 'read' function showing a file name on error.
+ */
+export function readFile(fileName) {
+  try {
+    return read(fileName);
+  } catch (e) {
+    console.log(fileName + ': ' + (e.message || e));
+    throw e;
+  }
+}
 // ===========================================================================
 
-class MapProcessor extends LogReader {
+export class MapProcessor extends LogReader {
   constructor() {
     super();
     this.dispatchTable_ = {
@@ -745,7 +762,7 @@ function BreakDown(list, map_fn) {
 
 
 // ===========================================================================
-class ArgumentsProcessor extends BaseArgumentsProcessor {
+export class ArgumentsProcessor extends BaseArgumentsProcessor {
   getArgsDispatch() {
     return {
       '--range': ['range', 'auto,auto',

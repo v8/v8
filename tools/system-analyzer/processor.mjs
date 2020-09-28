@@ -4,8 +4,9 @@
 
 import { MapLogEvent, Edge } from "./log/map.mjs";
 import { IcLogEvent } from "./log/ic.mjs";
-import { Timeline } from './timeline.mjs';
-
+import { Timeline } from "./timeline.mjs";
+import { LogReader, parseString, parseVarArgs } from "../logreader.mjs";
+import { Profile } from "../profile.mjs";
 
 // ===========================================================================
 

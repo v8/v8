@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import { WebInspector } from "./SourceMap.mjs";
+import {
+    ParseProcessor, ArgumentsProcessor, readFile,
+  } from "./parse-processor.mjs";
+
 function processArguments(args) {
   var processor = new ArgumentsProcessor(args);
   if (processor.parse()) {

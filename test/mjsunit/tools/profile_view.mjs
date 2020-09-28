@@ -25,9 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Load source code files from <project root>/tools.
-// Files: tools/codemap.js tools/consarray.js tools/profile.js
-// Files: tools/profile_view.js
+import { ProfileView } from "../../../tools/profile_view.mjs";
 
 
 function createNode(name, time, opt_parent) {

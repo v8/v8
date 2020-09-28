@@ -25,10 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Load implementations from <project root>/tools.
-// Files: tools/splaytree.js tools/codemap.js tools/csvparser.js
-// Files: tools/consarray.js tools/profile.js tools/profile_view.js
-// Files: tools/logreader.js tools/arguments.js tools/tickprocessor.js
 // Resources: test/mjsunit/tools/tickprocessor-test-func-info.log
 // Resources: test/mjsunit/tools/tickprocessor-test.default
 // Resources: test/mjsunit/tools/tickprocessor-test.func-info
@@ -38,6 +34,11 @@
 // Resources: test/mjsunit/tools/tickprocessor-test.only-summary
 // Resources: test/mjsunit/tools/tickprocessor-test.separate-ic
 // Env: TEST_FILE_NAME
+
+import {
+  TickProcessor, ArgumentsProcessor, UnixCppEntriesProvider,
+  MacCppEntriesProvider, WindowsCppEntriesProvider, readFile
+} from "../../../tools/tickprocessor.mjs";
 
 
 (function testArgumentsProcessor() {

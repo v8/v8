@@ -2,7 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-function CppProcessor(cppEntriesProvider, timedRange, pairwiseTimedRange) {
+import { LogReader, parseString } from "./logreader.mjs";
+import { CodeMap } from "./codemap.mjs";
+export {
+    ArgumentsProcessor, UnixCppEntriesProvider, 
+    WindowsCppEntriesProvider, MacCppEntriesProvider,
+  } from  "./tickprocessor.mjs";
+  import { inherits } from  "./tickprocessor.mjs";
+
+
+export function CppProcessor(cppEntriesProvider, timedRange, pairwiseTimedRange) {
   LogReader.call(this, {
       'shared-library': { parsers: [parseString, parseInt, parseInt, parseInt],
           processor: this.processSharedLibrary }

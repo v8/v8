@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import { LogReader, parseString, parseVarArgs } from "./logreader.mjs";
+import { BaseArgumentsProcessor } from "./arguments.mjs";
+import { Profile } from "./profile.mjs";
+
 function inherits(childCtor, parentCtor) {
   childCtor.prototype.__proto__ = parentCtor.prototype;
 };
@@ -9,7 +13,7 @@ function inherits(childCtor, parentCtor) {
 /**
  * A thin wrapper around shell's 'read' function showing a file name on error.
  */
-function readFile(fileName) {
+export function readFile(fileName) {
   try {
     return read(fileName);
   } catch (e) {
@@ -31,7 +35,7 @@ function parseState(s) {
 }
 
 
-function IcProcessor() {
+export function IcProcessor() {
   var propertyICParser = [
     parseInt, parseInt, parseInt, parseInt, parseString, parseString,
     parseInt, parseString, parseString, parseString];
@@ -175,7 +179,7 @@ print(
 
 
 
-class ArgumentsProcessor extends BaseArgumentsProcessor {
+export class ArgumentsProcessor extends BaseArgumentsProcessor {
   getArgsDispatch() {
     return {
       '--range': ['range', 'auto,auto',

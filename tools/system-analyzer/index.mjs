@@ -2,17 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 import { SelectionEvent, FocusEvent, SelectTimeEvent } from "./events.mjs";
 import { State } from "./app-model.mjs";
 import { MapLogEvent } from "./log/map.mjs";
 import { IcLogEvent } from "./log/ic.mjs";
 import Processor from "./processor.mjs";
+import { SourcePosition } from  "../profile.mjs";
 import { $ } from "./helper.mjs";
 import "./ic-panel.mjs";
 import "./timeline-panel.mjs";
 import "./map-panel.mjs";
 import "./log-file-reader.mjs";
 import "./source-panel.mjs";
+
+
 class App {
   #state;
   #view;

@@ -3,11 +3,13 @@
 // found in the LICENSE file.
 "use strict";
 
+import { LogReader, parseString } from "./logreader.mjs";
+import { BaseArgumentsProcessor } from "./arguments.mjs";
 
 /**
  * A thin wrapper around shell's 'read' function showing a file name on error.
  */
-function readFile(fileName) {
+export function readFile(fileName) {
   try {
     return read(fileName);
   } catch (e) {
@@ -730,8 +732,8 @@ class Funktion extends CompilationUnit {
 
 // ===========================================================================
 
-const kTimestampFactor = 1000;
-const kSecondsToMillis = 1000;
+export const kTimestampFactor = 1000;
+export const kSecondsToMillis = 1000;
 
 function toTimestamp(microseconds) {
   return microseconds / kTimestampFactor
@@ -744,7 +746,7 @@ function startOf(timestamp, time) {
 }
 
 
-class ParseProcessor extends LogReader {
+export class ParseProcessor extends LogReader {
   constructor() {
     super();
     this.dispatchTable_ = {
@@ -1130,7 +1132,7 @@ class ParseProcessor extends LogReader {
 }
 
 
-class ArgumentsProcessor extends BaseArgumentsProcessor {
+export class ArgumentsProcessor extends BaseArgumentsProcessor {
   getArgsDispatch() {
     return {};
   }

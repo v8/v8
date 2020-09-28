@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import { IcProcessor, ArgumentsProcessor, readFile } from "./ic-processor.mjs";
+import "./SourceMap.mjs";
+
 function processArguments(args) {
   var processor = new ArgumentsProcessor(args);
   if (processor.parse()) {
@@ -29,5 +32,5 @@ if (params.sourceMap) {
   initSourceMapSupport();
   sourceMap = SourceMap.load(params.sourceMap);
 }
-var mapProcessor = new MapProcessor();
-mapProcessor.processLogFile(params.logFileName);
+var icProcessor = new IcProcessor();
+icProcessor.processLogFile(params.logFileName);
