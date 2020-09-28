@@ -432,8 +432,10 @@ std::string CanonicalizeTimeZoneID(const std::string& input) {
       }
     } else if (memcmp(upper.c_str(), "US/", 3) == 0) {
       std::string title = ToTitleCaseTimezoneLocation(input);
-      // Change "Us/" to "US/"
-      title[1] = 'S';
+      if (title.length() >= 2) {
+        // Change "Us/" to "US/"
+        title[1] = 'S';
+      }
       return title;
     } else if (memcmp(upper.c_str(), "SYSTEMV/", 8) == 0) {
       upper.replace(0, 8, "SystemV/");
