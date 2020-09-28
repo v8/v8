@@ -1536,9 +1536,10 @@ template("run_mksnapshot") {
       args += [ "--turbo-profiling-verbose" ]
     }
     if (v8_builtins_profiling_log_file != "") {
+      sources += [ v8_builtins_profiling_log_file ]
       args += [
         "--turbo-profiling-log-file",
-        v8_builtins_profiling_log_file,
+        rebase_path(v8_builtins_profiling_log_file, root_build_dir),
       ]
     }
 
