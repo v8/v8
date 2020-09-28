@@ -150,7 +150,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "gclient_vars": {"mac_xcode_version": "xcode_12_beta"}, "mastername": "client.v8", "triggers": ["V8 Mac - arm64 - release"]},
+    properties = {"build_config": "Release", "gclient_vars": {"mac_xcode_version": "xcode_12_beta"}, "builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - release"]},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -159,7 +159,7 @@ experiment_builder(
     bucket = "ci",
     dimensions = {"host_class": "multibot"},
     execution_timeout = 19800,
-    properties = {"mastername": "client.v8"},
+    properties = {"builder_group": "client.v8"},
 )
 
 experiment_builder(
@@ -168,7 +168,7 @@ experiment_builder(
     canary = True,
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "gclient_vars": {"mac_xcode_version": "xcode_12_beta"}, "mastername": "client.v8", "triggers": ["V8 Mac - arm64 - sim - release"]},
+    properties = {"build_config": "Release", "gclient_vars": {"mac_xcode_version": "xcode_12_beta"}, "builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - sim - release"]},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -178,7 +178,7 @@ experiment_builder(
     canary = True,
     dimensions = {"host_class": "multibot"},
     execution_timeout = 19800,
-    properties = {"mastername": "client.v8"},
+    properties = {"builder_group": "client.v8"},
 )
 
 experiment_builder(
@@ -187,7 +187,7 @@ experiment_builder(
     canary = True,
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    properties = {"build_config": "Debug", "gclient_vars": {"mac_xcode_version": "xcode_12_beta"}, "mastername": "client.v8", "triggers": ["V8 Mac - arm64 - sim - debug"]},
+    properties = {"build_config": "Debug", "gclient_vars": {"mac_xcode_version": "xcode_12_beta"}, "builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - sim - debug"]},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -197,5 +197,5 @@ experiment_builder(
     canary = True,
     dimensions = {"host_class": "multibot"},
     execution_timeout = 19800,
-    properties = {"mastername": "client.v8"},
+    properties = {"builder_group": "client.v8"},
 )
