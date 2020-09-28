@@ -361,6 +361,9 @@ class WasmGraphBuilder {
 
   enum CallOrigin { kCalledFromWasm, kCalledFromJS };
 
+  // Overload for when we want to provide a specific signature, rather than
+  // build one using sig_, for example after scalar lowering.
+  V8_EXPORT_PRIVATE void LowerInt64(Signature<MachineRepresentation>* sig);
   V8_EXPORT_PRIVATE void LowerInt64(CallOrigin origin);
 
   V8_EXPORT_PRIVATE void SimdScalarLoweringForTesting();

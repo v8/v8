@@ -249,6 +249,30 @@ WASM_SIMD_TEST(AnyTrue_DifferentShapes) {
   }
 }
 
+WASM_SIMD_TEST(V128_I64_PARAMS) {
+  // This test exercises interaction between simd and int64 lowering. The
+  // parameter indices were not correctly lowered because simd lowered a v128 in
+  // the function signature into 4 word32, and int64 was still treating it as 1
+  // parameter.
+  WasmRunner<uint64_t, uint64_t> r(execution_tier, lower_simd);
+
+  FunctionSig::Builder builder(r.zone(), 1, 2);
+  builder.AddParam(kWasmS128);
+  builder.AddParam(kWasmI64);
+  builder.AddReturn(kWasmS128);
+  FunctionSig* sig = builder.Build();
+  WasmFunctionCompiler& fn = r.NewFunction(sig);
+
+  // Build a function that has both V128 and I64 arguments.
+  BUILD(fn,
+        WASM_SIMD_I64x2_REPLACE_LANE(0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+
+  BUILD(r, WASM_SIMD_I64x2_EXTRACT_LANE(
+               0, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(0))));
+
+  CHECK_EQ(0, r.Call(0));
+}
+
 }  // namespace test_run_wasm_simd
 }  // namespace wasm
 }  // namespace internal

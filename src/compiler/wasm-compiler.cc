@@ -4365,13 +4365,15 @@ CallDescriptor* WasmGraphBuilder::GetI64AtomicWaitCallDescriptor() {
   return i64_atomic_wait_descriptor_;
 }
 
-void WasmGraphBuilder::LowerInt64(CallOrigin origin) {
+void WasmGraphBuilder::LowerInt64(Signature<MachineRepresentation>* sig) {
   if (mcgraph()->machine()->Is64()) return;
   Int64Lowering r(mcgraph()->graph(), mcgraph()->machine(), mcgraph()->common(),
-                  mcgraph()->zone(),
-                  CreateMachineSignature(mcgraph()->zone(), sig_, origin),
-                  std::move(lowering_special_case_));
+                  mcgraph()->zone(), sig, std::move(lowering_special_case_));
   r.LowerGraph();
+}
+
+void WasmGraphBuilder::LowerInt64(CallOrigin origin) {
+  LowerInt64(CreateMachineSignature(mcgraph()->zone(), sig_, origin));
 }
 
 void WasmGraphBuilder::SimdScalarLoweringForTesting() {
@@ -7580,15 +7582,47 @@ bool BuildGraphForWasmFunction(AccountingAllocator* allocator,
 
   // Lower SIMD first, i64x2 nodes will be lowered to int64 nodes, then int64
   // lowering will take care of them.
+  auto sig = CreateMachineSignature(mcgraph->zone(), func_body.sig,
+                                    WasmGraphBuilder::kCalledFromWasm);
   if (builder.has_simd() &&
       (!CpuFeatures::SupportsWasmSimd128() || env->lower_simd)) {
-    SimdScalarLowering(
-        mcgraph, CreateMachineSignature(mcgraph->zone(), func_body.sig,
-                                        WasmGraphBuilder::kCalledFromWasm))
-        .LowerGraph();
+    SimdScalarLowering(mcgraph, sig).LowerGraph();
+
+    // SimdScalarLowering changes all v128 to 4 i32, so update the machine
+    // signature for the call to LowerInt64.
+    size_t return_count = 0;
+    size_t param_count = 0;
+    for (auto ret : sig->returns()) {
+      return_count += ret == MachineRepresentation::kSimd128 ? 4 : 1;
+    }
+    for (auto param : sig->parameters()) {
+      param_count += param == MachineRepresentation::kSimd128 ? 4 : 1;
+    }
+
+    Signature<MachineRepresentation>::Builder sig_builder(
+        mcgraph->zone(), return_count, param_count);
+    for (auto ret : sig->returns()) {
+      if (ret == MachineRepresentation::kSimd128) {
+        for (int i = 0; i < 4; ++i) {
+          sig_builder.AddReturn(MachineRepresentation::kWord32);
+        }
+      } else {
+        sig_builder.AddReturn(ret);
+      }
+    }
+    for (auto param : sig->parameters()) {
+      if (param == MachineRepresentation::kSimd128) {
+        for (int i = 0; i < 4; ++i) {
+          sig_builder.AddParam(MachineRepresentation::kWord32);
+        }
+      } else {
+        sig_builder.AddParam(param);
+      }
+    }
+    sig = sig_builder.Build();
   }
 
-  builder.LowerInt64(WasmWrapperGraphBuilder::kCalledFromWasm);
+  builder.LowerInt64(sig);
 
   if (func_index >= FLAG_trace_wasm_ast_start &&
       func_index < FLAG_trace_wasm_ast_end) {
