@@ -2604,10 +2604,13 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
   LanguageMode language_mode = construct_language_mode(FLAG_use_strict);
   CompilationCache* compilation_cache = isolate->compilation_cache();
 
-  // Do a lookup in the compilation cache but not for extensions.
+  // For extensions or REPL mode scripts neither do a compilation cache lookup,
+  // nor put the compilation result back into the cache.
+  const bool use_compilation_cache =
+      extension == nullptr && script_details.repl_mode == REPLMode::kNo;
   MaybeHandle<SharedFunctionInfo> maybe_result;
   IsCompiledScope is_compiled_scope;
-  if (extension == nullptr) {
+  if (use_compilation_cache) {
     bool can_consume_code_cache =
         compile_options == ScriptCompiler::kConsumeCodeCache;
     if (can_consume_code_cache) {
@@ -2673,7 +2676,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
 
     // Add the result to the isolate cache.
     Handle<SharedFunctionInfo> result;
-    if (extension == nullptr && maybe_result.ToHandle(&result)) {
+    if (use_compilation_cache && maybe_result.ToHandle(&result)) {
       DCHECK(is_compiled_scope.is_compiled());
       compilation_cache->PutScript(source, isolate->native_context(),
                                    language_mode, result);
