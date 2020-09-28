@@ -1360,8 +1360,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
       break;
     }
     case IrOpcode::kReturn: {
-      // V128 return types are lowered to i32x4, so if the inputs to kReturn are
-      // not Word32, we need to convert them.
+      int old_input_count = node->InputCount();
       int return_arity = static_cast<int>(signature()->return_count());
       for (int i = 0; i < return_arity; i++) {
         if (signature()->GetReturn(i) != MachineRepresentation::kSimd128) {
@@ -1374,24 +1373,17 @@ void SimdScalarLowering::LowerNode(Node* node) {
           continue;
         }
 
-        switch (ReplacementType(input)) {
-          case SimdType::kInt8x16:
-          case SimdType::kInt16x8:
-          case SimdType::kInt64x2:
-          case SimdType::kFloat64x2:
-          case SimdType::kFloat32x4: {
-            Node** reps = GetReplacementsWithType(input, rep_type);
-            ReplaceNode(input, reps, NumLanes(rep_type));
-            break;
-          }
-          case SimdType::kInt32x4: {
-            // No action needed.
-            break;
-          }
-        }
+        // V128 return types are lowered to i32x4.
+        Node** reps = GetReplacementsWithType(input, rep_type);
+        ReplaceNode(input, reps, NumLanes(rep_type));
       }
 
       DefaultLowering(node);
+      // Nothing needs to be done here since inputs did not change.
+      if (old_input_count == node->InputCount()) {
+        break;
+      }
+
       int new_return_count = GetReturnCountAfterLoweringSimd128(signature());
       if (static_cast<int>(signature()->return_count()) != new_return_count) {
         NodeProperties::ChangeOp(node, common()->Return(new_return_count));
