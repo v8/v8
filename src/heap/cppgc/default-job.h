@@ -101,7 +101,7 @@ class DefaultJobImpl {
   std::unique_ptr<cppgc::JobTask> job_task_;
   std::vector<std::shared_ptr<Thread>> job_threads_;
   std::atomic_bool can_run_{true};
-  std::atomic_uint8_t active_threads_{0};
+  std::atomic<uint8_t> active_threads_{0};
 
   // Task id management.
   v8::base::Mutex ids_lock_;
