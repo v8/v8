@@ -127,9 +127,11 @@ class DefaultJobWorker : public Task {
   void Run() override {
     auto shared_state = state_.lock();
     if (!shared_state) return;
-    DefaultJobState::JobDelegate delegate(shared_state.get());
     if (!shared_state->CanRunFirstTask()) return;
     do {
+      // Scope of |delegate| must not outlive DidRunTask() so that associated
+      // state is freed before the worker becomes inactive.
+      DefaultJobState::JobDelegate delegate(shared_state.get());
       job_task_->Run(&delegate);
     } while (shared_state->DidRunTask());
   }
