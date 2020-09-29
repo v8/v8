@@ -1586,18 +1586,20 @@ Handle<Map> Map::TransitionToImmutableProto(Isolate* isolate, Handle<Map> map) {
 namespace {
 void EnsureInitialMap(Isolate* isolate, Handle<Map> map) {
 #ifdef DEBUG
-  // Strict function maps have Function as a constructor but the
-  // Function's initial map is a sloppy function map. Same holds for
-  // GeneratorFunction / AsyncFunction and its initial map.
-  Object constructor = map->GetConstructor();
-  DCHECK(constructor.IsJSFunction());
-  DCHECK(*map == JSFunction::cast(constructor).initial_map() ||
+  Object maybe_constructor = map->GetConstructor();
+  DCHECK((maybe_constructor.IsJSFunction() &&
+          *map == JSFunction::cast(maybe_constructor).initial_map()) ||
+         // Below are the exceptions to the check above.
+         // Strict function maps have Function as a constructor but the
+         // Function's initial map is a sloppy function map.
          *map == *isolate->strict_function_map() ||
          *map == *isolate->strict_function_with_name_map() ||
+         // Same holds for GeneratorFunction and its initial map.
          *map == *isolate->generator_function_map() ||
          *map == *isolate->generator_function_with_name_map() ||
          *map == *isolate->generator_function_with_home_object_map() ||
          *map == *isolate->generator_function_with_name_and_home_object_map() ||
+         // AsyncFunction has Null as a constructor.
          *map == *isolate->async_function_map() ||
          *map == *isolate->async_function_with_name_map() ||
          *map == *isolate->async_function_with_home_object_map() ||
@@ -1622,10 +1624,6 @@ Handle<Map> Map::CopyInitialMap(Isolate* isolate, Handle<Map> map,
                                 int instance_size, int inobject_properties,
                                 int unused_property_fields) {
   EnsureInitialMap(isolate, map);
-  // Initial map must not contain descriptors in the descriptors array
-  // that do not belong to the map.
-  DCHECK_EQ(map->NumberOfOwnDescriptors(),
-            map->instance_descriptors().number_of_descriptors());
 
   Handle<Map> result =
       RawCopy(isolate, map, instance_size, inobject_properties);
