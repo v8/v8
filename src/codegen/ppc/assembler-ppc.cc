@@ -1777,6 +1777,12 @@ void Assembler::mtvsrd(const Simd128Register rt, const Register ra) {
   emit(MTVSRD | rt.code() * B21 | ra.code() * B16 | TX);
 }
 
+void Assembler::mtvsrdd(const Simd128Register rt, const Register ra,
+                        const Register rb) {
+  int TX = 1;
+  emit(MTVSRDD | rt.code() * B21 | ra.code() * B16 | rb.code() * B11 | TX);
+}
+
 void Assembler::lxvd(const Simd128Register rt, const MemOperand& src) {
   int TX = 1;
   emit(LXVD | rt.code() * B21 | src.ra().code() * B16 | src.rb().code() * B11 |

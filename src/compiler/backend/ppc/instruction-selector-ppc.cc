@@ -2378,6 +2378,18 @@ SIMD_SHIFT_LIST(SIMD_VISIT_SHIFT)
 SIMD_BOOL_LIST(SIMD_VISIT_BOOL)
 #undef SIMD_VISIT_BOOL
 #undef SIMD_BOOL_LIST
+
+#define SIMD_VISIT_BITMASK(Opcode)                                        \
+  void InstructionSelector::Visit##Opcode(Node* node) {                   \
+    PPCOperandGenerator g(this);                                          \
+    InstructionOperand temps[] = {g.TempRegister()};                      \
+    Emit(kPPC_##Opcode, g.DefineAsRegister(node),                         \
+         g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps); \
+  }
+SIMD_VISIT_BITMASK(I8x16BitMask)
+SIMD_VISIT_BITMASK(I16x8BitMask)
+SIMD_VISIT_BITMASK(I32x4BitMask)
+#undef SIMD_VISIT_BITMASK
 #undef SIMD_TYPES
 
 void InstructionSelector::VisitI8x16Shuffle(Node* node) {
@@ -2418,12 +2430,6 @@ void InstructionSelector::VisitS128Select(Node* node) {
 }
 
 void InstructionSelector::VisitS128Const(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI8x16BitMask(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI16x8BitMask(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI32x4BitMask(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,
