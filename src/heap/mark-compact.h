@@ -13,6 +13,7 @@
 #include "src/heap/marking-worklist.h"
 #include "src/heap/marking.h"
 #include "src/heap/memory-measurement.h"
+#include "src/heap/parallel-work-item.h"
 #include "src/heap/spaces.h"
 #include "src/heap/sweeper.h"
 
@@ -220,10 +221,10 @@ class MarkCompactCollectorBase {
       MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode) = 0;
 
   template <class Evacuator, class Collector>
-  void CreateAndExecuteEvacuationTasks(Collector* collector,
-                                       ItemParallelJob* job,
-                                       MigrationObserver* migration_observer,
-                                       const intptr_t live_bytes);
+  void CreateAndExecuteEvacuationTasks(
+      Collector* collector,
+      std::vector<std::pair<ParallelWorkItem, MemoryChunk*>> evacuation_items,
+      MigrationObserver* migration_observer, const intptr_t live_bytes);
 
   // Returns whether this page should be moved according to heuristics.
   bool ShouldMovePage(Page* p, intptr_t live_bytes, bool promote_young);
@@ -234,7 +235,7 @@ class MarkCompactCollectorBase {
                                         IterateableSpace* space,
                                         RememberedSetUpdatingMode mode);
 
-  int NumberOfParallelCompactionTasks(int pages);
+  int NumberOfParallelCompactionTasks();
   int NumberOfParallelPointerUpdateTasks(int pages, int slots);
   int NumberOfParallelToSpacePointerUpdateTasks(int pages);
 
