@@ -1,0 +1,83 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be:
+// Context found in the LICENSE file.
+
+namespace ic {
+
+const kSuccess: constexpr int32
+    generates 'static_cast<int>(DynamicMapChecksStatus::kSuccess)';
+const kBailout: constexpr int32
+    generates 'static_cast<int>(DynamicMapChecksStatus::kBailout)';
+const kDeopt: constexpr int32
+    generates 'static_cast<int>(DynamicMapChecksStatus::kDeopt)';
+
+macro PerformMapAndHandlerCheck(
+    entry: constexpr int32, polymorphicArray: WeakFixedArray,
+    weakActualMap: WeakHeapObject, actualHandler: Object): void labels Next,
+    Deopt {
+  const mapIndex = FeedbackIteratorMapIndexForEntry(entry);
+  assert(mapIndex < polymorphicArray.length_intptr);
+  const maybeCachedMap =
+      Cast<WeakHeapObject>(polymorphicArray[mapIndex]) otherwise unreachable;
+  assert(IsWeakOrCleared(maybeCachedMap));
+  if (maybeCachedMap != weakActualMap) {
+    goto Next;
+  }
+
+  const handlerIndex = FeedbackIteratorHandlerIndexForEntry(entry);
+  assert(handlerIndex < polymorphicArray.length_intptr);
+  const maybeHandler =
+      Cast<Object>(polymorphicArray[handlerIndex]) otherwise unreachable;
+  if (TaggedNotEqual(maybeHandler, actualHandler)) {
+    goto Deopt;
+  }
+}
+
+builtin DynamicMapChecks(implicit context: Context)(
+    expectedPolymorphicArray: HeapObject, actualMap: Map,
+    actualHandler: Smi|DataHandler): int32 {
+  if (!Is<WeakFixedArray>(expectedPolymorphicArray)) {
+    return kDeopt;
+  }
+  try {
+    const polymorphicArray =
+        Cast<WeakFixedArray>(expectedPolymorphicArray) otherwise unreachable;
+    const weakActualMap = MakeWeak(actualMap);
+    const length = polymorphicArray.length_intptr;
+    assert(length > 0);
+
+    try {
+      if (length >= FeedbackIteratorSizeFor(4)) goto Len4;
+      if (length == FeedbackIteratorSizeFor(3)) goto Len3;
+      if (length == FeedbackIteratorSizeFor(2)) goto Len2;
+      if (length == FeedbackIteratorSizeFor(1)) goto Len1;
+
+      unreachable;
+    } label Len4 {
+      PerformMapAndHandlerCheck(
+          3, polymorphicArray, weakActualMap, actualHandler) otherwise Len3,
+          Deopt;
+      return kSuccess;
+    } label Len3 {
+      PerformMapAndHandlerCheck(
+          2, polymorphicArray, weakActualMap, actualHandler) otherwise Len2,
+          Deopt;
+      return kSuccess;
+    } label Len2 {
+      PerformMapAndHandlerCheck(
+          1, polymorphicArray, weakActualMap, actualHandler) otherwise Len1,
+          Deopt;
+      return kSuccess;
+    } label Len1 {
+      PerformMapAndHandlerCheck(
+          0, polymorphicArray, weakActualMap, actualHandler)
+          otherwise Bailout, Deopt;
+      return kSuccess;
+    }
+  } label Bailout {
+    return kBailout;
+  } label Deopt {
+    return kDeopt;
+  }
+}
+}

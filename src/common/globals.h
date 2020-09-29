@@ -1695,6 +1695,12 @@ enum class TraceRetainingPathMode { kEnabled, kDisabled };
 // can be used in Torque.
 enum class VariableAllocationInfo { NONE, STACK, CONTEXT, UNUSED };
 
+enum class DynamicMapChecksStatus : uint8_t {
+  kSuccess = 0,
+  kBailout = 1,
+  kDeopt = 2
+};
+
 }  // namespace internal
 }  // namespace v8
 

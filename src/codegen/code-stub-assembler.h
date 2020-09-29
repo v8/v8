@@ -15,6 +15,7 @@
 #include "src/compiler/code-assembler.h"
 #include "src/objects/arguments.h"
 #include "src/objects/bigint.h"
+#include "src/objects/feedback-vector.h"
 #include "src/objects/js-function.h"
 #include "src/objects/objects.h"
 #include "src/objects/promise.h"
@@ -3569,6 +3570,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void RemoveFinalizationRegistryCellFromUnregisterTokenMap(
       TNode<JSFinalizationRegistry> finalization_registry,
       TNode<WeakCell> weak_cell);
+
+  TNode<IntPtrT> FeedbackIteratorSizeFor(int number_of_entries) {
+    return IntPtrConstant(FeedbackIterator::SizeFor(number_of_entries));
+  }
+
+  TNode<IntPtrT> FeedbackIteratorMapIndexForEntry(int entry) {
+    return IntPtrConstant(FeedbackIterator::MapIndexForEntry(entry));
+  }
+
+  TNode<IntPtrT> FeedbackIteratorHandlerIndexForEntry(int entry) {
+    return IntPtrConstant(FeedbackIterator::HandlerIndexForEntry(entry));
+  }
 
  private:
   friend class CodeStubArguments;

@@ -284,9 +284,14 @@ class EffectControlLinearizer {
                               DeoptimizeReason reason);
 
   // Helper functions used in LowerDynamicCheckMaps
-  void CheckPolymorphic(Node* expected_polymorphic_array, Node* actual_map,
-                        Node* actual_handler, GraphAssemblerLabel<0>* done,
-                        Node* frame_state);
+  void PerformPolymorphicCheckInline(Node* expected_polymorphic_array,
+                                     Node* actual_map, Node* actual_handler,
+                                     GraphAssemblerLabel<0>* done,
+                                     Node* frame_state);
+  void PerformPolymorphicCheckInBuiltin(Node* expected_polymorphic_array,
+                                        Node* actual_map, Node* actual_handler,
+                                        GraphAssemblerLabel<0>* done,
+                                        Node* frame_state);
   void ProcessMonomorphic(Node* handler, GraphAssemblerLabel<0>* done,
                           Node* frame_state, int slot, Node* vector);
   void BranchOnICState(int slot_index, Node* vector, Node* value_map,
@@ -1887,11 +1892,33 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
   }
 }
 
-void EffectControlLinearizer::CheckPolymorphic(Node* expected_polymorphic_array,
-                                               Node* actual_map,
-                                               Node* actual_handler,
-                                               GraphAssemblerLabel<0>* done,
-                                               Node* frame_state) {
+void EffectControlLinearizer::PerformPolymorphicCheckInBuiltin(
+    Node* expected_polymorphic_array, Node* actual_map, Node* actual_handler,
+    GraphAssemblerLabel<0>* done, Node* frame_state) {
+  Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
+  Node* result =
+      CallBuiltin(Builtins::kDynamicMapChecks, properties,
+                  expected_polymorphic_array, actual_map, actual_handler);
+  __ GotoIf(__ WordEqual(result, __ IntPtrConstant(static_cast<int>(
+                                     DynamicMapChecksStatus::kSuccess))),
+            done);
+  __ DeoptimizeIf(DeoptimizeKind::kBailout, DeoptimizeReason::kMissingMap,
+                  FeedbackSource(),
+                  __ WordEqual(result, __ IntPtrConstant(static_cast<int>(
+                                           DynamicMapChecksStatus::kBailout))),
+                  frame_state, IsSafetyCheck::kCriticalSafetyCheck);
+  __ DeoptimizeIf(DeoptimizeReason::kWrongHandler, FeedbackSource(),
+                  __ WordEqual(result, __ IntPtrConstant(static_cast<int>(
+                                           DynamicMapChecksStatus::kDeopt))),
+                  frame_state, IsSafetyCheck::kCriticalSafetyCheck);
+  __ Unreachable(done);
+}
+
+void EffectControlLinearizer::PerformPolymorphicCheckInline(
+    Node* expected_polymorphic_array, Node* actual_map, Node* actual_handler,
+    GraphAssemblerLabel<0>* done, Node* frame_state) {
+  // Note: This function must stay in sync with
+  // Builtin:kDynamicMapChecks.
   Node* expected_polymorphic_array_map =
       __ LoadField(AccessBuilder::ForMap(), expected_polymorphic_array);
   Node* is_weak_fixed_array = __ TaggedEqual(expected_polymorphic_array_map,
@@ -2057,7 +2084,7 @@ void EffectControlLinearizer::LowerDynamicCheckMaps(Node* node,
   // monomorphic start, we will deopt and reoptimize the code.
   if (p.state() == DynamicCheckMapsParameters::kMonomorphic) {
     auto monomorphic_map_match = __ MakeLabel();
-    auto maybe_poly = __ MakeLabel();
+    auto maybe_poly = __ MakeDeferredLabel();
     Node* strong_feedback;
     Node* poly_array;
 
@@ -2093,10 +2120,11 @@ void EffectControlLinearizer::LowerDynamicCheckMaps(Node* node,
 
     __ Bind(&maybe_poly);
     // TODO(mythria): ICs don't drop deprecated maps from feedback vector.
-    // So it is not equired to migrate the instance for polymorphic case.
+    // So it is not required to migrate the instance for polymorphic case.
     // When we change dynamic map checks to check only four maps re-evaluate
     // if this is required.
-    CheckPolymorphic(poly_array, value_map, handler, &done, frame_state);
+    PerformPolymorphicCheckInBuiltin(poly_array, value_map, handler, &done,
+                                     frame_state);
   } else {
     DCHECK_EQ(p.state(), DynamicCheckMapsParameters::kPolymorphic);
     Node* feedback_slot = __ LoadField(
@@ -2109,7 +2137,8 @@ void EffectControlLinearizer::LowerDynamicCheckMaps(Node* node,
     __ DeoptimizeIfNot(DeoptimizeReason::kTransitionedToMonomorphicIC,
                        FeedbackSource(), is_poly_or_megamorphic, frame_state,
                        IsSafetyCheck::kCriticalSafetyCheck);
-    CheckPolymorphic(feedback_slot, value_map, handler, &done, frame_state);
+    PerformPolymorphicCheckInline(feedback_slot, value_map, handler, &done,
+                                  frame_state);
   }
   __ Bind(&done);
 }

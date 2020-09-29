@@ -1151,6 +1151,7 @@ torque_files = [
   "src/builtins/function.tq",
   "src/builtins/growable-fixed-array.tq",
   "src/builtins/ic-callable.tq",
+  "src/builtins/ic-dynamic-map-checks.tq",
   "src/builtins/ic.tq",
   "src/builtins/internal-coverage.tq",
   "src/builtins/internal.tq",
