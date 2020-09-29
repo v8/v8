@@ -2083,7 +2083,7 @@ void SerializerForBackgroundCompilation::ProcessCalleeForCallOrConstruct(
   if (callee->IsJSBoundFunction()) {
     JSBoundFunctionRef bound_function(broker(),
                                       Handle<JSBoundFunction>::cast(callee));
-    if (!bound_function.Serialize()) return;
+    bound_function.Serialize();
     callee = UnrollBoundFunction(bound_function, broker(), arguments,
                                  &expanded_arguments, zone())
                  .object();

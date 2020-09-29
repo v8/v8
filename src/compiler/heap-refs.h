@@ -13,7 +13,6 @@
 #include "src/utils/boxed-float.h"
 
 namespace v8 {
-
 class CFunctionInfo;
 
 namespace internal {
@@ -33,7 +32,6 @@ class NativeContext;
 class ScriptContextTable;
 
 namespace compiler {
-
 // Whether we are loading a property or storing to a property.
 // For a store during literal creation, do not walk up the prototype chain.
 enum class AccessMode { kLoad, kStore, kStoreInLiteral, kHas };
@@ -319,7 +317,7 @@ class JSBoundFunctionRef : public JSObjectRef {
 
   Handle<JSBoundFunction> object() const;
 
-  bool Serialize();
+  void Serialize();
   bool serialized() const;
 
   // The following are available only after calling Serialize().

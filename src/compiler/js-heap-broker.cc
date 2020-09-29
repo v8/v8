@@ -614,7 +614,7 @@ class JSBoundFunctionData : public JSObjectData {
   JSBoundFunctionData(JSHeapBroker* broker, ObjectData** storage,
                       Handle<JSBoundFunction> object);
 
-  bool Serialize(JSHeapBroker* broker);
+  void Serialize(JSHeapBroker* broker);
   bool serialized() const { return serialized_; }
 
   ObjectData* bound_target_function() const { return bound_target_function_; }
@@ -1490,24 +1490,19 @@ JSBoundFunctionData::JSBoundFunctionData(JSHeapBroker* broker,
                                          Handle<JSBoundFunction> object)
     : JSObjectData(broker, storage, object) {}
 
-bool JSBoundFunctionData::Serialize(JSHeapBroker* broker) {
-  if (serialized_) return true;
-  if (StackLimitCheck(broker->isolate()).HasOverflowed()) return false;
+void JSBoundFunctionData::Serialize(JSHeapBroker* broker) {
+  if (serialized_) return;
+  serialized_ = true;
 
   TraceScope tracer(broker, this, "JSBoundFunctionData::Serialize");
   Handle<JSBoundFunction> function = Handle<JSBoundFunction>::cast(object());
-
-  // We set {serialized_} at the end in order to correctly handle the case where
-  // a recursive call to this method reaches the stack limit.
-  bool serialized = true;
 
   DCHECK_NULL(bound_target_function_);
   bound_target_function_ =
       broker->GetOrCreateData(function->bound_target_function());
   if (!bound_target_function_->should_access_heap()) {
     if (bound_target_function_->IsJSBoundFunction()) {
-      serialized =
-          bound_target_function_->AsJSBoundFunction()->Serialize(broker);
+      bound_target_function_->AsJSBoundFunction()->Serialize(broker);
     } else if (bound_target_function_->IsJSFunction()) {
       bound_target_function_->AsJSFunction()->Serialize(broker);
     }
@@ -1521,9 +1516,6 @@ bool JSBoundFunctionData::Serialize(JSHeapBroker* broker) {
 
   DCHECK_NULL(bound_this_);
   bound_this_ = broker->GetOrCreateData(function->bound_this());
-
-  serialized_ = serialized;
-  return serialized;
 }
 
 JSObjectData::JSObjectData(JSHeapBroker* broker, ObjectData** storage,
@@ -4371,10 +4363,10 @@ bool JSTypedArrayRef::serialized() const {
   return data()->AsJSTypedArray()->serialized();
 }
 
-bool JSBoundFunctionRef::Serialize() {
-  if (data_->should_access_heap()) return true;
+void JSBoundFunctionRef::Serialize() {
+  if (data_->should_access_heap()) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  return data()->AsJSBoundFunction()->Serialize(broker());
+  data()->AsJSBoundFunction()->Serialize(broker());
 }
 
 void PropertyCellRef::Serialize() {
