@@ -70,10 +70,16 @@
 }], # variant == jitless
 
 ##############################################################################
-['(arch in [arm, arm64, ppc64]) and simulator_run', {
+['(arch == arm or arch == arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
   'runtime/console-messages-limits': [PASS, NO_VARIANTS, ['mode == debug', SKIP]],
 }],  # (arch == arm or arch == arm64) and simulator_run
+
+##############################################################################
+['(arch == ppc64) and simulator_run', {
+  # Slow test: https://crbug.com/v8/10965
+  'runtime/console-messages-limits': [PASS, SLOW],
+}],  # (arch == ppc64) and simulator_run
 
 ##############################################################################
 ['variant == no_wasm_traps', {
