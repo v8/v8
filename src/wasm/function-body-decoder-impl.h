@@ -150,11 +150,11 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
     uint8_t uint_7_mask = 0x7F;
     uint8_t code = static_cast<ValueTypeCode>(heap_index) & uint_7_mask;
     switch (code) {
-      case kLocalFuncRef:
-      case kLocalExnRef:
-      case kLocalEqRef:
-      case kLocalExternRef:
-      case kLocalI31Ref: {
+      case kFuncRefCode:
+      case kExnRefCode:
+      case kEqRefCode:
+      case kExternRefCode:
+      case kI31RefCode: {
         HeapType result = HeapType::from_code(code);
         if (!VALIDATE(enabled.contains(feature_for_heap_type(result)))) {
           decoder->errorf(
@@ -205,14 +205,14 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
   }
   ValueTypeCode code = static_cast<ValueTypeCode>(val);
   switch (code) {
-    case kLocalFuncRef:
-    case kLocalExnRef:
-    case kLocalEqRef:
-    case kLocalExternRef:
-    case kLocalI31Ref: {
+    case kFuncRefCode:
+    case kExnRefCode:
+    case kEqRefCode:
+    case kExternRefCode:
+    case kI31RefCode: {
       HeapType heap_type = HeapType::from_code(code);
       ValueType result = ValueType::Ref(
-          heap_type, code == kLocalI31Ref ? kNonNullable : kNullable);
+          heap_type, code == kI31RefCode ? kNonNullable : kNullable);
       if (!VALIDATE(enabled.contains(feature_for_heap_type(heap_type)))) {
         decoder->errorf(
             pc, "invalid value type '%s', enable with --experimental-wasm-%s",
@@ -222,17 +222,17 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
       }
       return result;
     }
-    case kLocalI32:
+    case kI32Code:
       return kWasmI32;
-    case kLocalI64:
+    case kI64Code:
       return kWasmI64;
-    case kLocalF32:
+    case kF32Code:
       return kWasmF32;
-    case kLocalF64:
+    case kF64Code:
       return kWasmF64;
-    case kLocalRef:
-    case kLocalOptRef: {
-      Nullability nullability = code == kLocalOptRef ? kNullable : kNonNullable;
+    case kRefCode:
+    case kOptRefCode: {
+      Nullability nullability = code == kOptRefCode ? kNullable : kNonNullable;
       if (!VALIDATE(enabled.has_typed_funcref())) {
         decoder->errorf(pc,
                         "Invalid type '(ref%s <heaptype>)', enable with "
@@ -246,7 +246,7 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
       return heap_type.is_bottom() ? kWasmBottom
                                    : ValueType::Ref(heap_type, nullability);
     }
-    case kLocalRtt: {
+    case kRttCode: {
       if (!VALIDATE(enabled.has_gc())) {
         decoder->error(
             pc, "invalid value type 'rtt', enable with --experimental-wasm-gc");
@@ -268,7 +268,7 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
       return heap_type.is_bottom() ? kWasmBottom
                                    : ValueType::Rtt(heap_type, depth);
     }
-    case kLocalS128: {
+    case kS128Code: {
       if (!VALIDATE(enabled.has_simd())) {
         decoder->error(pc,
                        "invalid value type 's128', enable with "
@@ -280,9 +280,9 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
     // Although these codes are included in ValueTypeCode, they technically
     // do not correspond to value types and are only used in specific
     // contexts. The caller of this function is responsible for handling them.
-    case kLocalVoid:
-    case kLocalI8:
-    case kLocalI16:
+    case kVoidCode:
+    case kI8Code:
+    case kI16Code:
       return kWasmBottom;
   }
   // Anything that doesn't match an enumeration value is an invalid type code.
@@ -402,7 +402,7 @@ struct BlockTypeImmediate {
     int64_t block_type =
         decoder->read_i33v<validate>(pc, &length, "block type");
     if (block_type < 0) {
-      if ((static_cast<uint8_t>(block_type) & byte{0x7f}) == kLocalVoid) return;
+      if ((static_cast<uint8_t>(block_type) & byte{0x7f}) == kVoidCode) return;
       type = value_type_reader::read_value_type<validate>(decoder, pc, &length,
                                                           enabled);
       if (!VALIDATE(type != kWasmBottom)) {

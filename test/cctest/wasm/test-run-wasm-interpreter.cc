@@ -90,7 +90,7 @@ TEST(Run_WasmBlocksN) {
     byte expected = static_cast<byte>(30 + nops);
     memset(code, kExprNop, sizeof(code));
     code[0] = kExprBlock;
-    code[1] = kLocalI32;
+    code[1] = kI32Code;
     code[2 + nops] = kExprI32Const;
     code[2 + nops + 1] = expected;
     code[2 + nops + 2] = kExprEnd;
@@ -111,7 +111,7 @@ TEST(Run_WasmBlockBreakN) {
     for (int index = 0; index < nops; index++) {
       memset(code, kExprNop, sizeof(code));
       code[0] = kExprBlock;
-      code[1] = kLocalI32;
+      code[1] = kI32Code;
       code[sizeof(code) - 1] = kExprEnd;
 
       int expected = run++;
@@ -347,7 +347,7 @@ TEST(MemoryGrowInvalidSize) {
 TEST(ReferenceTypeLocals) {
   {
     WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
-    BUILD(r, WASM_REF_IS_NULL(WASM_REF_NULL(kLocalExternRef)));
+    BUILD(r, WASM_REF_IS_NULL(WASM_REF_NULL(kExternRefCode)));
     CHECK_EQ(1, r.Call());
   }
   {
@@ -360,7 +360,7 @@ TEST(ReferenceTypeLocals) {
     WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
     r.AllocateLocal(kWasmExternRef);
     BUILD(r,
-          WASM_REF_IS_NULL(WASM_TEE_LOCAL(0, WASM_REF_NULL(kLocalExternRef))));
+          WASM_REF_IS_NULL(WASM_TEE_LOCAL(0, WASM_REF_NULL(kExternRefCode))));
     CHECK_EQ(1, r.Call());
   }
 }

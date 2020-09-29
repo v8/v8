@@ -1852,10 +1852,10 @@ class ModuleDecoderImpl : public Decoder {
   ValueType consume_storage_type() {
     uint8_t opcode = read_u8<kValidate>(this->pc());
     switch (opcode) {
-      case kLocalI8:
+      case kI8Code:
         consume_bytes(1, "i8");
         return kWasmI8;
-      case kLocalI16:
+      case kI16Code:
         consume_bytes(1, "i16");
         return kWasmI16;
       default:
@@ -1872,7 +1872,7 @@ class ModuleDecoderImpl : public Decoder {
   ValueType consume_reference_type() {
     if (!enabled_features_.has_reftypes()) {
       uint8_t ref_type = consume_u8("reference type");
-      if (ref_type != kLocalFuncRef) {
+      if (ref_type != kFuncRefCode) {
         error(pc_ - 1,
               "invalid table type. Consider using experimental flags.");
         return kWasmBottom;

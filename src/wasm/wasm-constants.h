@@ -21,26 +21,26 @@ constexpr uint32_t kWasmVersion = 0x01;
 // Binary encoding of value and heap types.
 enum ValueTypeCode : uint8_t {
   // Current wasm types
-  kLocalVoid = 0x40,
-  kLocalI32 = 0x7f,
-  kLocalI64 = 0x7e,
-  kLocalF32 = 0x7d,
-  kLocalF64 = 0x7c,
+  kVoidCode = 0x40,
+  kI32Code = 0x7f,
+  kI64Code = 0x7e,
+  kF32Code = 0x7d,
+  kF64Code = 0x7c,
   // Simd proposal
-  kLocalS128 = 0x7b,
+  kS128Code = 0x7b,
   // reftypes, typed-funcref, and GC proposals
-  kLocalI8 = 0x7a,
-  kLocalI16 = 0x79,
-  kLocalFuncRef = 0x70,
-  kLocalExternRef = 0x6f,
-  // kLocalAny = 0x6e, // TODO(7748): Implement
-  kLocalEqRef = 0x6d,
-  kLocalOptRef = 0x6c,
-  kLocalRef = 0x6b,
-  kLocalI31Ref = 0x6a,
-  kLocalRtt = 0x69,
+  kI8Code = 0x7a,
+  kI16Code = 0x79,
+  kFuncRefCode = 0x70,
+  kExternRefCode = 0x6f,
+  // kAnyCode = 0x6e, // TODO(7748): Implement
+  kEqRefCode = 0x6d,
+  kOptRefCode = 0x6c,
+  kRefCode = 0x6b,
+  kI31RefCode = 0x6a,
+  kRttCode = 0x69,
   // Exception handling proposal
-  kLocalExnRef = 0x68,
+  kExnRefCode = 0x68,
 };
 // Binary encoding of other types.
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;

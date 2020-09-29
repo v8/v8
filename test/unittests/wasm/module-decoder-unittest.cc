@@ -29,18 +29,18 @@ namespace module_decoder_unittest {
 #define WASM_INIT_EXPR_F32(val) WASM_F32(val), kExprEnd
 #define WASM_INIT_EXPR_I64(val) WASM_I64(val), kExprEnd
 #define WASM_INIT_EXPR_F64(val) WASM_F64(val), kExprEnd
-#define WASM_INIT_EXPR_EXTERN_REF_NULL WASM_REF_NULL(kLocalExternRef), kExprEnd
-#define WASM_INIT_EXPR_FUNC_REF_NULL WASM_REF_NULL(kLocalFuncRef), kExprEnd
+#define WASM_INIT_EXPR_EXTERN_REF_NULL WASM_REF_NULL(kExternRefCode), kExprEnd
+#define WASM_INIT_EXPR_FUNC_REF_NULL WASM_REF_NULL(kFuncRefCode), kExprEnd
 #define WASM_INIT_EXPR_REF_FUNC(val) WASM_REF_FUNC(val), kExprEnd
 #define WASM_INIT_EXPR_GLOBAL(index) WASM_GET_GLOBAL(index), kExprEnd
 
-#define REF_NULL_ELEMENT kExprRefNull, kLocalFuncRef, kExprEnd
+#define REF_NULL_ELEMENT kExprRefNull, kFuncRefCode, kExprEnd
 #define REF_FUNC_ELEMENT(v) kExprRefFunc, U32V_1(v), kExprEnd
 
 #define EMPTY_BODY 0
 #define NOP_BODY 2, 0, kExprNop
 
-#define SIG_ENTRY_i_i SIG_ENTRY_x_x(kLocalI32, kLocalI32)
+#define SIG_ENTRY_i_i SIG_ENTRY_x_x(kI32Code, kI32Code)
 
 #define UNKNOWN_SECTION(size) 0, U32V_1(size + 5), ADD_COUNT('l', 'u', 'l', 'z')
 #define TYPE_SECTION(count, ...) SECTION(Type, U32V_1(count), __VA_ARGS__)
@@ -104,8 +104,8 @@ namespace module_decoder_unittest {
 
 #define FIELD_COUNT(count) U32V_1(count)
 #define STRUCT_FIELD(type, mutability) type, (mutability ? 1 : 0)
-#define WASM_REF(index) kLocalRef, index
-#define WASM_OPT_REF(index) kLocalOptRef, index
+#define WASM_REF(index) kRefCode, index
+#define WASM_OPT_REF(index) kOptRefCode, index
 #define WASM_STRUCT_DEF(...) kWasmStructTypeCode, __VA_ARGS__
 #define WASM_ARRAY_DEF(type, mutability) \
   kWasmArrayTypeCode, type, (mutability ? 1 : 0)
@@ -169,12 +169,12 @@ struct ValueTypePair {
   uint8_t code;
   ValueType type;
 } kValueTypes[] = {
-    {kLocalI32, kWasmI32},              // --
-    {kLocalI64, kWasmI64},              // --
-    {kLocalF32, kWasmF32},              // --
-    {kLocalF64, kWasmF64},              // --
-    {kLocalFuncRef, kWasmFuncRef},      // --
-    {kLocalExternRef, kWasmExternRef},  // --
+    {kI32Code, kWasmI32},              // --
+    {kI64Code, kWasmI64},              // --
+    {kF32Code, kWasmF32},              // --
+    {kF64Code, kWasmF64},              // --
+    {kFuncRefCode, kWasmFuncRef},      // --
+    {kExternRefCode, kWasmExternRef},  // --
 };
 
 class WasmModuleVerifyTest : public TestWithIsolateAndZone {
@@ -234,7 +234,7 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
   static const byte data[] = {
       SECTION(Global,                     // --
               ENTRY_COUNT(1),             // --
-              kLocalI32,                  // local type
+              kI32Code,                   // local type
               0,                          // immutable
               WASM_INIT_EXPR_I32V_1(13))  // init
   };
@@ -265,7 +265,7 @@ TEST_F(WasmModuleVerifyTest, S128Global) {
                                          9, 10, 11, 12, 13, 14, 15};
   static const byte data[] = {SECTION(Global,          // --
                                       ENTRY_COUNT(1),  // --
-                                      kLocalS128,      // memory type
+                                      kS128Code,       // memory type
                                       0,               // immutable
                                       WASM_SIMD_CONSTANT(v.data()), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
@@ -288,10 +288,10 @@ TEST_F(WasmModuleVerifyTest, ExternRefGlobal) {
       TWO_EMPTY_FUNCTIONS(SIG_INDEX(0)),
       SECTION(Global,                          // --
               ENTRY_COUNT(2),                  // --
-              kLocalExternRef,                 // local type
+              kExternRefCode,                  // local type
               0,                               // immutable
               WASM_INIT_EXPR_EXTERN_REF_NULL,  // init
-              kLocalFuncRef,                   // local type
+              kFuncRefCode,                    // local type
               0,                               // immutable
               WASM_INIT_EXPR_REF_FUNC(1)),     // init
       SECTION(Element,                         // section name
@@ -301,7 +301,7 @@ TEST_F(WasmModuleVerifyTest, ExternRefGlobal) {
               ENTRY_COUNT(1),                  // func entry count
               FUNC_INDEX(0),                   // func index
               DECLARATIVE_WITH_ELEMENTS,       // flags 1
-              kLocalFuncRef,                   // local type
+              kFuncRefCode,                    // local type
               ENTRY_COUNT(1),                  // func ref count
               REF_FUNC_ELEMENT(1)),            // func ref
       TWO_EMPTY_BODIES};
@@ -337,10 +337,10 @@ TEST_F(WasmModuleVerifyTest, FuncRefGlobal) {
       TWO_EMPTY_FUNCTIONS(SIG_INDEX(0)),
       SECTION(Global,                        // --
               ENTRY_COUNT(2),                // --
-              kLocalFuncRef,                 // local type
+              kFuncRefCode,                  // local type
               0,                             // immutable
               WASM_INIT_EXPR_FUNC_REF_NULL,  // init
-              kLocalFuncRef,                 // local type
+              kFuncRefCode,                  // local type
               0,                             // immutable
               WASM_INIT_EXPR_REF_FUNC(1)),   // init
       SECTION(Element,                       // section name
@@ -350,7 +350,7 @@ TEST_F(WasmModuleVerifyTest, FuncRefGlobal) {
               ENTRY_COUNT(1),                // func entry count
               FUNC_INDEX(0),                 // func index
               DECLARATIVE_WITH_ELEMENTS,     // flags 1
-              kLocalFuncRef,                 // local type
+              kFuncRefCode,                  // local type
               ENTRY_COUNT(1),                // func ref count
               REF_FUNC_ELEMENT(1)),          // func ref
       TWO_EMPTY_BODIES};
@@ -384,7 +384,7 @@ TEST_F(WasmModuleVerifyTest, InvalidFuncRefGlobal) {
       TWO_EMPTY_FUNCTIONS(SIG_INDEX(0)),
       SECTION(Global,                       // --
               ENTRY_COUNT(1),               // --
-              kLocalFuncRef,                // local type
+              kFuncRefCode,                 // local type
               0,                            // immutable
               WASM_INIT_EXPR_REF_FUNC(7)),  // invalid function index
       TWO_EMPTY_BODIES};
@@ -399,12 +399,12 @@ TEST_F(WasmModuleVerifyTest, ExternRefGlobalWithGlobalInit) {
               ADD_COUNT('m'),   // module name
               ADD_COUNT('f'),   // global name
               kExternalGlobal,  // import kind
-              kLocalExternRef,  // type
+              kExternRefCode,   // type
               0),               // mutability
       SECTION(Global,           // --
               ENTRY_COUNT(1),
-              kLocalExternRef,  // local type
-              0,                // immutable
+              kExternRefCode,  // local type
+              0,               // immutable
               WASM_INIT_EXPR_GLOBAL(0)),
   };
 
@@ -432,12 +432,12 @@ TEST_F(WasmModuleVerifyTest, NullGlobalWithGlobalInit) {
               ADD_COUNT('m'),   // module name
               ADD_COUNT('n'),   // global name
               kExternalGlobal,  // import kind
-              kLocalExternRef,  // type
+              kExternRefCode,   // type
               0),               // mutability
       SECTION(Global,           // --
               ENTRY_COUNT(1),
-              kLocalExternRef,  // local type
-              0,                // immutable
+              kExternRefCode,  // local type
+              0,               // immutable
               WASM_INIT_EXPR_GLOBAL(0)),
   };
 
@@ -474,7 +474,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInvalidType2) {
   static const byte data[] = {
       SECTION(Global,                      // --
               ENTRY_COUNT(1),              // --
-              kLocalVoid,                  // invalid value type
+              kVoidCode,                   // invalid value type
               1,                           // mutable
               WASM_INIT_EXPR_I32V_1(33)),  // init
   };
@@ -486,7 +486,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
   static const byte no_initializer_no_end[] = {
       SECTION(Global,          //--
               ENTRY_COUNT(1),  //--
-              kLocalI32,       // type
+              kI32Code,        // type
               1)               // mutable
   };
   EXPECT_FAILURE_WITH_MSG(no_initializer_no_end,
@@ -495,7 +495,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
   static const byte no_initializer[] = {
       SECTION(Global,          //--
               ENTRY_COUNT(1),  //--
-              kLocalI32,       // type
+              kI32Code,        // type
               1,               // mutable
               kExprEnd)        // --
   };
@@ -506,7 +506,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
   static const byte too_many_initializers_no_end[] = {
       SECTION(Global,           // --
               ENTRY_COUNT(1),   // --
-              kLocalI32,        // type
+              kI32Code,         // type
               1,                // mutable
               WASM_I32V_1(42),  // one value is good
               WASM_I32V_1(43))  // another value is too much
@@ -517,7 +517,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
   static const byte too_many_initializers[] = {
       SECTION(Global,           // --
               ENTRY_COUNT(1),   // --
-              kLocalI32,        // type
+              kI32Code,         // type
               1,                // mutable
               WASM_I32V_1(42),  // one value is good
               WASM_I32V_1(43),  // another value is too much
@@ -529,7 +529,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
   static const byte missing_end_opcode[] = {
       SECTION(Global,           // --
               ENTRY_COUNT(1),   // --
-              kLocalI32,        // type
+              kI32Code,         // type
               1,                // mutable
               WASM_I32V_1(42))  // init value
   };
@@ -538,7 +538,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
 
   static const byte referencing_out_of_bounds_global[] = {
       SECTION(Global, ENTRY_COUNT(1),         // --
-              kLocalI32,                      // type
+              kI32Code,                       // type
               1,                              // mutable
               WASM_GET_GLOBAL(42), kExprEnd)  // init value
   };
@@ -547,10 +547,10 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
 
   static const byte referencing_undefined_global[] = {
       SECTION(Global, ENTRY_COUNT(2),        // --
-              kLocalI32,                     // type
+              kI32Code,                      // type
               0,                             // mutable
               WASM_GET_GLOBAL(1), kExprEnd,  // init value
-              kLocalI32,                     // type
+              kI32Code,                      // type
               0,                             // mutable
               WASM_I32V(0), kExprEnd)        // init value
   };
@@ -562,15 +562,15 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
     WASM_FEATURE_SCOPE(typed_funcref);
     WASM_FEATURE_SCOPE(gc);
     static const byte referencing_undefined_global_nested[] = {
-        SECTION(Global, ENTRY_COUNT(2),                   // --
-                WASM_RTT(2, kLocalFuncRef),               // type
-                0,                                        // mutable
-                WASM_RTT_SUB(kLocalFuncRef,               // init value
-                             WASM_GET_GLOBAL(1)),         // --
-                kExprEnd,                                 // --
-                WASM_RTT(1, kLocalFuncRef),               // type
-                0,                                        // mutable
-                WASM_RTT_CANON(kLocalFuncRef), kExprEnd)  // init value
+        SECTION(Global, ENTRY_COUNT(2),                  // --
+                WASM_RTT(2, kFuncRefCode),               // type
+                0,                                       // mutable
+                WASM_RTT_SUB(kFuncRefCode,               // init value
+                             WASM_GET_GLOBAL(1)),        // --
+                kExprEnd,                                // --
+                WASM_RTT(1, kFuncRefCode),               // type
+                0,                                       // mutable
+                WASM_RTT_CANON(kFuncRefCode), kExprEnd)  // init value
     };
     EXPECT_FAILURE_WITH_MSG(referencing_undefined_global_nested,
                             "global #1 is not defined yet");
@@ -578,10 +578,10 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
 
   static const byte referencing_mutable_global[] = {
       SECTION(Global, ENTRY_COUNT(2),        // --
-              kLocalI32,                     // type
+              kI32Code,                      // type
               1,                             // mutable
               WASM_I32V(1), kExprEnd,        // init value
-              kLocalI32,                     // type
+              kI32Code,                      // type
               0,                             // mutable
               WASM_GET_GLOBAL(0), kExprEnd)  // init value
   };
@@ -593,10 +593,10 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
       SECTION(Import, ENTRY_COUNT(1),          // --
               ADD_COUNT('m'), ADD_COUNT('n'),  // module, name
               kExternalGlobal,                 // --
-              kLocalI32,                       // type
+              kI32Code,                        // type
               1),                              // mutable
       SECTION(Global, ENTRY_COUNT(1),          // --
-              kLocalI32,                       // type
+              kI32Code,                        // type
               0,                               // mutable
               WASM_GET_GLOBAL(0), kExprEnd)    // init value
   };
@@ -608,10 +608,10 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
       SECTION(Import, ENTRY_COUNT(1),          // --
               ADD_COUNT('m'), ADD_COUNT('n'),  // module, name
               kExternalGlobal,                 // --
-              kLocalI32,                       // type
+              kI32Code,                        // type
               0),                              // mutable
       SECTION(Global, ENTRY_COUNT(1),          // --
-              kLocalI32,                       // type
+              kI32Code,                        // type
               0,                               // mutable
               WASM_GET_GLOBAL(0), kExprEnd)    // init value
   };
@@ -619,10 +619,10 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
 
   static const byte referencing_local_global[] = {
       SECTION(Global, ENTRY_COUNT(2),        // --
-              kLocalI32,                     // type
+              kI32Code,                      // type
               0,                             // mutable
               WASM_I32V(1), kExprEnd,        // init value
-              kLocalI32,                     // type
+              kI32Code,                      // type
               0,                             // mutable
               WASM_GET_GLOBAL(0), kExprEnd)  // init value
   };
@@ -653,7 +653,7 @@ TEST_F(WasmModuleVerifyTest, ExportMutableGlobal) {
     static const byte data[] = {
         SECTION(Global,                         // --
                 ENTRY_COUNT(1),                 // --
-                kLocalI32,                      // local type
+                kI32Code,                       // local type
                 0,                              // immutable
                 WASM_INIT_EXPR_I32V_1(13)),     // init
         SECTION(Export,                         // --
@@ -668,7 +668,7 @@ TEST_F(WasmModuleVerifyTest, ExportMutableGlobal) {
     static const byte data[] = {
         SECTION(Global,                         // --
                 ENTRY_COUNT(1),                 // --
-                kLocalI32,                      // local type
+                kI32Code,                       // local type
                 1,                              // mutable
                 WASM_INIT_EXPR_I32V_1(13)),     // init
         SECTION(Export,                         // --
@@ -697,7 +697,7 @@ static void AppendUint32v(std::vector<byte>* buffer, uint32_t val) {
 
 TEST_F(WasmModuleVerifyTest, NGlobals) {
   static const byte data[] = {
-      kLocalF32,                // memory type
+      kF32Code,                 // memory type
       0,                        // immutable
       WASM_INIT_EXPR_F32(7.7),  // init
   };
@@ -722,10 +722,10 @@ TEST_F(WasmModuleVerifyTest, NGlobals) {
 TEST_F(WasmModuleVerifyTest, TwoGlobals) {
   static const byte data[] = {SECTION(Global,                      // --
                                       ENTRY_COUNT(2),              // --
-                                      kLocalF32,                   // type
+                                      kF32Code,                    // type
                                       0,                           // immutable
                                       WASM_INIT_EXPR_F32(22.0),    // --
-                                      kLocalF64,                   // type
+                                      kF64Code,                    // type
                                       1,                           // mutable
                                       WASM_INIT_EXPR_F64(23.0))};  // --
 
@@ -757,8 +757,8 @@ TEST_F(WasmModuleVerifyTest, TwoGlobals) {
 
 TEST_F(WasmModuleVerifyTest, RefNullGlobal) {
   WASM_FEATURE_SCOPE(reftypes);
-  static const byte data[] = {SECTION(Global, ENTRY_COUNT(1), kLocalFuncRef, 1,
-                                      WASM_REF_NULL(kLocalFuncRef), kExprEnd)};
+  static const byte data[] = {SECTION(Global, ENTRY_COUNT(1), kFuncRefCode, 1,
+                                      WASM_REF_NULL(kFuncRefCode), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
 }
@@ -766,8 +766,8 @@ TEST_F(WasmModuleVerifyTest, RefNullGlobal) {
 TEST_F(WasmModuleVerifyTest, RefNullGlobalInvalid1) {
   WASM_FEATURE_SCOPE(reftypes);
   WASM_FEATURE_SCOPE(typed_funcref);
-  static const byte data[] = {SECTION(Global, ENTRY_COUNT(1), kLocalOptRef, 0,
-                                      1, WASM_REF_NULL(0), kExprEnd)};
+  static const byte data[] = {SECTION(Global, ENTRY_COUNT(1), kOptRefCode, 0, 1,
+                                      WASM_REF_NULL(0), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result, "Type index 0 is out of bounds");
 }
@@ -775,7 +775,7 @@ TEST_F(WasmModuleVerifyTest, RefNullGlobalInvalid1) {
 TEST_F(WasmModuleVerifyTest, RefNullGlobalInvalid2) {
   WASM_FEATURE_SCOPE(reftypes);
   WASM_FEATURE_SCOPE(typed_funcref);
-  static const byte data[] = {SECTION(Global, ENTRY_COUNT(1), kLocalFuncRef, 1,
+  static const byte data[] = {SECTION(Global, ENTRY_COUNT(1), kFuncRefCode, 1,
                                       kExprRefNull, U32V_5(1000001), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result,
@@ -788,8 +788,8 @@ TEST_F(WasmModuleVerifyTest, RttCanonGlobalGeneric) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
   static const byte data[] = {SECTION(Global, ENTRY_COUNT(1),
-                                      WASM_RTT(1, kLocalFuncRef), 1,
-                                      WASM_RTT_CANON(kLocalFuncRef), kExprEnd)};
+                                      WASM_RTT(1, kFuncRefCode), 1,
+                                      WASM_RTT_CANON(kFuncRefCode), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
 }
@@ -800,7 +800,7 @@ TEST_F(WasmModuleVerifyTest, RttCanonGlobalStruct) {
   WASM_FEATURE_SCOPE(gc);
   static const byte data[] = {
       SECTION(Type, ENTRY_COUNT(1),
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kLocalI32, true))),
+              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true))),
       SECTION(Global, ENTRY_COUNT(1), WASM_RTT(1, 0), 0, WASM_RTT_CANON(0),
               kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
@@ -812,8 +812,8 @@ TEST_F(WasmModuleVerifyTest, RttCanonGlobalTypeError) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
   static const byte data[] = {SECTION(Global, ENTRY_COUNT(1),
-                                      WASM_RTT(1, kLocalExternRef), 1,
-                                      WASM_RTT_CANON(kLocalFuncRef), kExprEnd)};
+                                      WASM_RTT(1, kExternRefCode), 1,
+                                      WASM_RTT_CANON(kFuncRefCode), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result,
                 "type error in init expression, expected (rtt 1 extern), got "
@@ -824,9 +824,9 @@ TEST_F(WasmModuleVerifyTest, GlobalRttSubOfCanon) {
   WASM_FEATURE_SCOPE(reftypes);
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
-  static const byte data[] = {SECTION(
-      Global, ENTRY_COUNT(1), WASM_RTT(2, kLocalI31Ref), 1,
-      WASM_RTT_SUB(kLocalI31Ref, WASM_RTT_CANON(kLocalEqRef)), kExprEnd)};
+  static const byte data[] = {
+      SECTION(Global, ENTRY_COUNT(1), WASM_RTT(2, kI31RefCode), 1,
+              WASM_RTT_SUB(kI31RefCode, WASM_RTT_CANON(kEqRefCode)), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   WasmInitExpr expected = WasmInitExpr::RttSub(
       HeapType::kI31, WasmInitExpr::RttCanon(HeapType::kEq));
@@ -839,9 +839,9 @@ TEST_F(WasmModuleVerifyTest, GlobalRttSubOfSubOfCanon) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
   static const byte data[] = {SECTION(
-      Global, ENTRY_COUNT(1), WASM_RTT(3, kLocalEqRef), 1,
-      WASM_RTT_SUB(kLocalEqRef,
-                   WASM_RTT_SUB(kLocalEqRef, WASM_RTT_CANON(kLocalEqRef))),
+      Global, ENTRY_COUNT(1), WASM_RTT(3, kEqRefCode), 1,
+      WASM_RTT_SUB(kEqRefCode,
+                   WASM_RTT_SUB(kEqRefCode, WASM_RTT_CANON(kEqRefCode))),
       kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   WasmInitExpr expected = WasmInitExpr::RttSub(
@@ -856,15 +856,15 @@ TEST_F(WasmModuleVerifyTest, GlobalRttSubOfGlobal) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
   static const byte data[] = {
-      SECTION(Import,                    // section header
-              ENTRY_COUNT(1),            // number of imports
-              ADD_COUNT('m'),            // module name
-              ADD_COUNT('f'),            // global name
-              kExternalGlobal,           // import kind
-              WASM_RTT(1, kLocalEqRef),  // type
-              0),                        // mutability
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT(2, kLocalI31Ref), 1,
-              WASM_RTT_SUB(kLocalI31Ref, WASM_GET_GLOBAL(0)), kExprEnd)};
+      SECTION(Import,                   // section header
+              ENTRY_COUNT(1),           // number of imports
+              ADD_COUNT('m'),           // module name
+              ADD_COUNT('f'),           // global name
+              kExternalGlobal,          // import kind
+              WASM_RTT(1, kEqRefCode),  // type
+              0),                       // mutability
+      SECTION(Global, ENTRY_COUNT(1), WASM_RTT(2, kI31RefCode), 1,
+              WASM_RTT_SUB(kI31RefCode, WASM_GET_GLOBAL(0)), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   WasmInitExpr expected =
       WasmInitExpr::RttSub(HeapType::kI31, WasmInitExpr::GlobalGet(0));
@@ -882,10 +882,10 @@ TEST_F(WasmModuleVerifyTest, GlobalRttSubOfGlobalTypeError) {
               ADD_COUNT('m'),   // module name
               ADD_COUNT('f'),   // global name
               kExternalGlobal,  // import kind
-              kLocalI32,        // type
+              kI32Code,         // type
               0),               // mutability
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT(2, kLocalExternRef), 1,
-              WASM_RTT_SUB(kLocalExternRef, WASM_GET_GLOBAL(0)), kExprEnd)};
+      SECTION(Global, ENTRY_COUNT(1), WASM_RTT(2, kExternRefCode), 1,
+              WASM_RTT_SUB(kExternRefCode, WASM_GET_GLOBAL(0)), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result, "rtt.sub requires a supertype rtt on stack");
 }
@@ -895,8 +895,8 @@ TEST_F(WasmModuleVerifyTest, GlobalRttSubIllegalParent) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
   static const byte data[] = {SECTION(
-      Global, ENTRY_COUNT(1), WASM_RTT(2, kLocalEqRef), 1,
-      WASM_RTT_SUB(kLocalEqRef, WASM_RTT_CANON(kLocalExternRef)), kExprEnd)};
+      Global, ENTRY_COUNT(1), WASM_RTT(2, kEqRefCode), 1,
+      WASM_RTT_SUB(kEqRefCode, WASM_RTT_CANON(kExternRefCode)), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result, "rtt.sub requires a supertype rtt on stack");
 }
@@ -906,8 +906,8 @@ TEST_F(WasmModuleVerifyTest, RttSubGlobalTypeError) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
   static const byte data[] = {SECTION(
-      Global, ENTRY_COUNT(1), WASM_RTT(1 /* Should be 2 */, kLocalI31Ref), 1,
-      WASM_RTT_SUB(kLocalI31Ref, WASM_RTT_CANON(kLocalEqRef)), kExprEnd)};
+      Global, ENTRY_COUNT(1), WASM_RTT(1 /* Should be 2 */, kI31RefCode), 1,
+      WASM_RTT_SUB(kI31RefCode, WASM_RTT_CANON(kEqRefCode)), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result,
                 "type error in init expression, expected (rtt 1 i31), got "
@@ -933,7 +933,7 @@ TEST_F(WasmModuleVerifyTest, InvalidStructTypeDef) {
       SECTION(Type, ENTRY_COUNT(1),  // --
               kWasmStructTypeCode,   // --
               U32V_1(1),             // field count
-              kLocalI32,             // perfectly valid field type
+              kI32Code,              // perfectly valid field type
               1)};                   // mutability
   EXPECT_VERIFIES(all_good);
 
@@ -949,7 +949,7 @@ TEST_F(WasmModuleVerifyTest, InvalidStructTypeDef) {
       SECTION(Type, ENTRY_COUNT(1),  // --
               kWasmStructTypeCode,   // --
               U32V_1(1),             // field count
-              kLocalOptRef,          // field type: reference...
+              kOptRefCode,           // field type: reference...
               3,                     // ...to nonexistent type
               1)};                   // mutability
   EXPECT_FAILURE_WITH_MSG(field_type_oob_ref, "Type index 3 is out of bounds");
@@ -958,7 +958,7 @@ TEST_F(WasmModuleVerifyTest, InvalidStructTypeDef) {
       SECTION(Type, ENTRY_COUNT(1),  // --
               kWasmStructTypeCode,   // --
               U32V_1(1),             // field count
-              kLocalOptRef,          // field type: reference...
+              kOptRefCode,           // field type: reference...
               U32V_4(1234567),       // ...to a type > kV8MaxWasmTypes
               1)};                   // mutability
   EXPECT_FAILURE_WITH_MSG(field_type_invalid_ref, "greater than the maximum");
@@ -967,8 +967,8 @@ TEST_F(WasmModuleVerifyTest, InvalidStructTypeDef) {
       SECTION(Type, ENTRY_COUNT(1),  // --
               kWasmStructTypeCode,   // --
               U32V_1(1),             // field count
-              kLocalOptRef,          // field type: reference...
-              kLocalI32,             // ...to a non-referenceable type
+              kOptRefCode,           // field type: reference...
+              kI32Code,              // ...to a non-referenceable type
               1)};                   // mutability
   EXPECT_FAILURE_WITH_MSG(field_type_invalid_ref2, "Unknown heap type");
 
@@ -976,7 +976,7 @@ TEST_F(WasmModuleVerifyTest, InvalidStructTypeDef) {
       SECTION(Type, ENTRY_COUNT(1),  // --
               kWasmStructTypeCode,   // --
               U32V_1(2),             // field count
-              kLocalI32,             // field type 1
+              kI32Code,              // field type 1
               1)};                   // mutability 1
   EXPECT_FAILURE_WITH_MSG(not_enough_field_types, "expected 1 byte");
 
@@ -984,16 +984,16 @@ TEST_F(WasmModuleVerifyTest, InvalidStructTypeDef) {
       SECTION(Type, ENTRY_COUNT(1),  // --
               kWasmStructTypeCode,   // --
               U32V_1(2),             // field count
-              kLocalI32,             // field type 1
+              kI32Code,              // field type 1
               1,                     // mutability 1
-              kLocalI32)};           // field type 2
+              kI32Code)};            // field type 2
   EXPECT_FAILURE_WITH_MSG(not_enough_field_types2, "expected 1 byte");
 
   static const byte invalid_mutability[] = {
       SECTION(Type, ENTRY_COUNT(1),  // --
               kWasmStructTypeCode,   // --
               U32V_1(1),             // field count
-              kLocalI32,             // field type
+              kI32Code,              // field type
               2)};                   // invalid mutability value
   EXPECT_FAILURE_WITH_MSG(invalid_mutability, "invalid mutability");
 }
@@ -1005,7 +1005,7 @@ TEST_F(WasmModuleVerifyTest, InvalidArrayTypeDef) {
   static const byte all_good[] = {
       SECTION(Type, ENTRY_COUNT(1),  // --
               kWasmArrayTypeCode,    // --
-              kLocalI32,             // perfectly valid field type
+              kI32Code,              // perfectly valid field type
               1)};                   // mutability
   EXPECT_VERIFIES(all_good);
 
@@ -1019,7 +1019,7 @@ TEST_F(WasmModuleVerifyTest, InvalidArrayTypeDef) {
   static const byte field_type_oob_ref[] = {
       SECTION(Type, ENTRY_COUNT(1),  // --
               kWasmArrayTypeCode,    // --
-              kLocalOptRef,          // field type: reference...
+              kOptRefCode,           // field type: reference...
               3,                     // ...to nonexistent type
               1)};                   // mutability
   EXPECT_FAILURE_WITH_MSG(field_type_oob_ref, "Type index 3 is out of bounds");
@@ -1027,7 +1027,7 @@ TEST_F(WasmModuleVerifyTest, InvalidArrayTypeDef) {
   static const byte field_type_invalid_ref[] = {
       SECTION(Type, ENTRY_COUNT(1),  // --
               kWasmArrayTypeCode,    // --
-              kLocalOptRef,          // field type: reference...
+              kOptRefCode,           // field type: reference...
               U32V_3(1234567),       // ...to a type > kV8MaxWasmTypes
               1)};                   // mutability
   EXPECT_FAILURE_WITH_MSG(field_type_invalid_ref, "Unknown heap type");
@@ -1035,15 +1035,15 @@ TEST_F(WasmModuleVerifyTest, InvalidArrayTypeDef) {
   static const byte field_type_invalid_ref2[] = {
       SECTION(Type, ENTRY_COUNT(1),  // --
               kWasmArrayTypeCode,    // --
-              kLocalOptRef,          // field type: reference...
-              kLocalI32,             // ...to a non-referenceable type
+              kOptRefCode,           // field type: reference...
+              kI32Code,              // ...to a non-referenceable type
               1)};                   // mutability
   EXPECT_FAILURE_WITH_MSG(field_type_invalid_ref2, "Unknown heap type");
 
   static const byte invalid_mutability[] = {
       SECTION(Type, ENTRY_COUNT(1),  // --
               kWasmArrayTypeCode,    // --
-              kLocalI32,             // field type
+              kI32Code,              // field type
               2)};                   // invalid mutability value
   EXPECT_FAILURE_WITH_MSG(invalid_mutability, "invalid mutability");
 
@@ -1051,7 +1051,7 @@ TEST_F(WasmModuleVerifyTest, InvalidArrayTypeDef) {
       SECTION(Type,
               ENTRY_COUNT(1),      // --
               kWasmArrayTypeCode,  // --
-              kLocalI32,           // field type
+              kI32Code,            // field type
               0)};                 // immmutability (disallowed in MVP)
   EXPECT_FAILURE_WITH_MSG(invalid_mutability2,
                           "immutable arrays are not supported");
@@ -1069,7 +1069,7 @@ TEST_F(WasmModuleVerifyTest, ZeroExceptions) {
 
 TEST_F(WasmModuleVerifyTest, OneI32Exception) {
   static const byte data[] = {
-      SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_x(kLocalI32)),  // sig#0 (i32)
+      SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_x(kI32Code)),  // sig#0 (i32)
       SECTION(Exception, ENTRY_COUNT(1),
               EXCEPTION_ENTRY(SIG_INDEX(0)))};  // except[0] (sig#0)
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
@@ -1087,8 +1087,8 @@ TEST_F(WasmModuleVerifyTest, OneI32Exception) {
 TEST_F(WasmModuleVerifyTest, TwoExceptions) {
   static const byte data[] = {
       SECTION(Type, ENTRY_COUNT(2),
-              SIG_ENTRY_v_x(kLocalI32),               // sig#0 (i32)
-              SIG_ENTRY_v_xx(kLocalF32, kLocalI64)),  // sig#1 (f32, i64)
+              SIG_ENTRY_v_x(kI32Code),              // sig#0 (i32)
+              SIG_ENTRY_v_xx(kF32Code, kI64Code)),  // sig#1 (f32, i64)
       SECTION(Exception, ENTRY_COUNT(2),
               EXCEPTION_ENTRY(SIG_INDEX(1)),    // except[0] (sig#1)
               EXCEPTION_ENTRY(SIG_INDEX(0)))};  // except[1] (sig#0)
@@ -1241,12 +1241,11 @@ TEST_F(WasmModuleVerifyTest, OneSignature) {
 
 TEST_F(WasmModuleVerifyTest, MultipleSignatures) {
   static const byte data[] = {
-      SECTION(
-          Type,                                              // --
-          ENTRY_COUNT(3),                                    // --
-          SIG_ENTRY_v_v,                                     // void -> void
-          SIG_ENTRY_x_x(kLocalI32, kLocalF32),               // f32 -> i32
-          SIG_ENTRY_x_xx(kLocalI32, kLocalF64, kLocalF64)),  // f64,f64 -> i32
+      SECTION(Type,                                           // --
+              ENTRY_COUNT(3),                                 // --
+              SIG_ENTRY_v_v,                                  // void -> void
+              SIG_ENTRY_x_x(kI32Code, kF32Code),              // f32 -> i32
+              SIG_ENTRY_x_xx(kI32Code, kF64Code, kF64Code)),  // f64,f64 -> i32
   };
 
   ModuleResult result = DecodeModule(data, data + sizeof(data));
@@ -1273,12 +1272,12 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithImmutableImportedGlobal) {
               ADD_COUNT('m'),   // module name
               ADD_COUNT('f'),   // global name
               kExternalGlobal,  // import kind
-              kLocalI32,        // type
+              kI32Code,         // type
               0,                // mutability
               ADD_COUNT('n'),   // module name
               ADD_COUNT('g'),   // global name
               kExternalGlobal,  // import kind
-              kLocalI32,        // type
+              kI32Code,         // type
               0),               // mutability
       SECTION(Memory, ENTRY_COUNT(1), kWithMaximum, 28, 28),
       SECTION(Data, ENTRY_COUNT(1), LINEAR_MEMORY_INDEX_0,
@@ -1301,7 +1300,7 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithMutableImportedGlobal) {
               ADD_COUNT('m'),   // module name
               ADD_COUNT('f'),   // global name
               kExternalGlobal,  // import kind
-              kLocalI32,        // type
+              kI32Code,         // type
               1),               // mutability
       SECTION(Memory, ENTRY_COUNT(1), kWithMaximum, 28, 28),
       SECTION(Data, ENTRY_COUNT(1), LINEAR_MEMORY_INDEX_0,
@@ -1316,7 +1315,7 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithImmutableGlobal) {
   const byte data[] = {
       SECTION(Memory, ENTRY_COUNT(1), kWithMaximum, 28, 28),
       SECTION(Global, ENTRY_COUNT(1),
-              kLocalI32,                        // local type
+              kI32Code,                         // local type
               0,                                // immutable
               WASM_INIT_EXPR_I32V_3(0x9BBAA)),  // init
       SECTION(Data, ENTRY_COUNT(1), LINEAR_MEMORY_INDEX_0,
@@ -1454,7 +1453,7 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kLocalFuncRef, 0, 1),
+      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, 0, 1),
       // code ----------------------------------------------------------------
       ONE_EMPTY_BODY};
 
@@ -1471,7 +1470,7 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
 TEST_F(WasmModuleVerifyTest, ElementSectionWithInternalTable) {
   static const byte data[] = {
       // table ---------------------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kLocalFuncRef, 0, 1),
+      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, 0, 1),
       // elements ------------------------------------------------------------
       SECTION(Element, ENTRY_COUNT(0))};
 
@@ -1485,7 +1484,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionWithImportedTable) {
               ADD_COUNT('m'),  // module name
               ADD_COUNT('t'),  // table name
               kExternalTable,  // import kind
-              kLocalFuncRef,   // elem_type
+              kFuncRefCode,    // elem_type
               0,               // no maximum field
               1),              // initial size
       // elements ------------------------------------------------------------
@@ -1516,7 +1515,7 @@ TEST_F(WasmModuleVerifyTest, Regression_735887) {
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kLocalFuncRef, 0, 1),
+      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, 0, 1),
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(1),  // entry count
@@ -1535,7 +1534,7 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction_one_entry) {
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kLocalFuncRef, 0, 1),
+      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, 0, 1),
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(1),  // entry count
@@ -1557,13 +1556,13 @@ TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
   static const byte data[] = {
       // sig#0 -------------------------------------------------------
       SECTION(Type,
-              ENTRY_COUNT(2),             // --
-              SIG_ENTRY_v_v,              // void -> void
-              SIG_ENTRY_v_x(kLocalI32)),  // void -> i32
+              ENTRY_COUNT(2),            // --
+              SIG_ENTRY_v_v,             // void -> void
+              SIG_ENTRY_v_x(kI32Code)),  // void -> i32
       // funcs ------------------------------------------------------
       FOUR_EMPTY_FUNCTIONS(SIG_INDEX(0)),
       // table declaration -------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kLocalFuncRef, 0, 8),
+      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, 0, 8),
       // table elements ----------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(1),  // entry count
@@ -1593,8 +1592,8 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMultipleTables) {
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
       SECTION(Table, ENTRY_COUNT(2),  // section header
-              kLocalFuncRef, 0, 5,    // table 0
-              kLocalFuncRef, 0, 9),   // table 1
+              kFuncRefCode, 0, 5,     // table 0
+              kFuncRefCode, 0, 9),    // table 1
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(2),            // entry count
@@ -1627,21 +1626,21 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMixedTables) {
               ADD_COUNT('m'),  // module name
               ADD_COUNT('t'),  // table name
               kExternalTable,  // import kind
-              kLocalFuncRef,   // elem_type
+              kFuncRefCode,    // elem_type
               0,               // no maximum field
               5,               // initial size
               ADD_COUNT('m'),  // module name
               ADD_COUNT('s'),  // table name
               kExternalTable,  // import kind
-              kLocalFuncRef,   // elem_type
+              kFuncRefCode,    // elem_type
               0,               // no maximum field
               10),             // initial size
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
       SECTION(Table, ENTRY_COUNT(2),  // section header
-              kLocalFuncRef, 0, 15,   // table 0
-              kLocalFuncRef, 0, 19),  // table 1
+              kFuncRefCode, 0, 15,    // table 0
+              kFuncRefCode, 0, 19),   // table 1
       // elements ------------------------------------------------------------
       SECTION(Element,
               4,                          // entry count
@@ -1684,8 +1683,8 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMultipleTablesArbitraryOrder) {
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
       SECTION(Table, ENTRY_COUNT(2),  // section header
-              kLocalFuncRef, 0, 5,    // table 0
-              kLocalFuncRef, 0, 9),   // table 1
+              kFuncRefCode, 0, 5,     // table 0
+              kFuncRefCode, 0, 9),    // table 1
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(3),            // entry count
@@ -1722,21 +1721,21 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMixedTablesArbitraryOrder) {
               ADD_COUNT('m'),  // module name
               ADD_COUNT('t'),  // table name
               kExternalTable,  // import kind
-              kLocalFuncRef,   // elem_type
+              kFuncRefCode,    // elem_type
               0,               // no maximum field
               5,               // initial size
               ADD_COUNT('m'),  // module name
               ADD_COUNT('s'),  // table name
               kExternalTable,  // import kind
-              kLocalFuncRef,   // elem_type
+              kFuncRefCode,    // elem_type
               0,               // no maximum field
               10),             // initial size
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
       SECTION(Table, ENTRY_COUNT(2),  // section header
-              kLocalFuncRef, 0, 15,   // table 0
-              kLocalFuncRef, 0, 19),  // table 1
+              kFuncRefCode, 0, 15,    // table 0
+              kFuncRefCode, 0, 19),   // table 1
       // elements ------------------------------------------------------------
       SECTION(Element,
               4,                          // entry count
@@ -1777,8 +1776,8 @@ TEST_F(WasmModuleVerifyTest, ElementSectionInitExternRefTableWithFuncRef) {
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
       SECTION(Table, ENTRY_COUNT(2),  // section header
-              kLocalExternRef, 0, 5,  // table 0
-              kLocalFuncRef, 0, 9),   // table 1
+              kExternRefCode, 0, 5,   // table 0
+              kFuncRefCode, 0, 9),    // table 1
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(2),            // entry count
@@ -1810,24 +1809,24 @@ TEST_F(WasmModuleVerifyTest, ElementSectionDontInitExternRefImportedTable) {
       TYPE_SECTION_ONE_SIG_VOID_VOID,
       // imports -------------------------------------------------------------
       SECTION(Import, ENTRY_COUNT(2),
-              ADD_COUNT('m'),   // module name
-              ADD_COUNT('t'),   // table name
-              kExternalTable,   // import kind
-              kLocalFuncRef,    // elem_type
-              0,                // no maximum field
-              5,                // initial size
-              ADD_COUNT('m'),   // module name
-              ADD_COUNT('s'),   // table name
-              kExternalTable,   // import kind
-              kLocalExternRef,  // elem_type
-              0,                // no maximum field
-              10),              // initial size
+              ADD_COUNT('m'),  // module name
+              ADD_COUNT('t'),  // table name
+              kExternalTable,  // import kind
+              kFuncRefCode,    // elem_type
+              0,               // no maximum field
+              5,               // initial size
+              ADD_COUNT('m'),  // module name
+              ADD_COUNT('s'),  // table name
+              kExternalTable,  // import kind
+              kExternRefCode,  // elem_type
+              0,               // no maximum field
+              10),             // initial size
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
       SECTION(Table, ENTRY_COUNT(2),  // section header
-              kLocalFuncRef, 0, 15,   // table 0
-              kLocalFuncRef, 0, 19),  // table 1
+              kFuncRefCode, 0, 15,    // table 0
+              kFuncRefCode, 0, 19),   // table 1
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(4),             // entry count
@@ -1872,10 +1871,10 @@ TEST_F(WasmModuleVerifyTest, MultipleTablesWithoutFlag) {
   static const byte data[] = {
       SECTION(Table,           // table section
               ENTRY_COUNT(2),  // 2 tables
-              kLocalFuncRef,   // table 1: type
+              kFuncRefCode,    // table 1: type
               0,               // table 1: no maximum
               10,              // table 1: minimum size
-              kLocalFuncRef,   // table 2: type
+              kFuncRefCode,    // table 2: type
               0,               // table 2: no maximum
               10),             // table 2: minimum size
   };
@@ -1885,14 +1884,14 @@ TEST_F(WasmModuleVerifyTest, MultipleTablesWithoutFlag) {
 TEST_F(WasmModuleVerifyTest, MultipleTablesWithFlag) {
   WASM_FEATURE_SCOPE(reftypes);
   static const byte data[] = {
-      SECTION(Table,            // table section
-              ENTRY_COUNT(2),   // 2 tables
-              kLocalFuncRef,    // table 1: type
-              0,                // table 1: no maximum
-              10,               // table 1: minimum size
-              kLocalExternRef,  // table 2: type
-              0,                // table 2: no maximum
-              11),              // table 2: minimum size
+      SECTION(Table,           // table section
+              ENTRY_COUNT(2),  // 2 tables
+              kFuncRefCode,    // table 1: type
+              0,               // table 1: no maximum
+              10,              // table 1: minimum size
+              kExternRefCode,  // table 2: type
+              0,               // table 2: no maximum
+              11),             // table 2: minimum size
   };
 
   ModuleResult result = DecodeModule(data, data + sizeof(data));
@@ -1912,11 +1911,11 @@ TEST_F(WasmModuleVerifyTest, TypedFunctionTable) {
   WASM_FEATURE_SCOPE(typed_funcref);
 
   static const byte data[] = {
-      SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_x(kLocalI32)),
-      SECTION(Table,            // table section
-              ENTRY_COUNT(1),   // 1 table
-              kLocalOptRef, 0,  // table 0: type
-              0, 10)};          // table 0: limits
+      SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_x(kI32Code)),
+      SECTION(Table,           // table section
+              ENTRY_COUNT(1),  // 1 table
+              kOptRefCode, 0,  // table 0: type
+              0, 10)};         // table 0: limits
 
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
@@ -1930,17 +1929,17 @@ TEST_F(WasmModuleVerifyTest, IllegalTableTypes) {
 
   using Vec = std::vector<byte>;
 
-  static Vec table_types[] = {{kLocalOptRef, 0},
-                              {kLocalOptRef, 1},
-                              {kLocalOptRef, kLocalI31Ref},
-                              {kLocalI31Ref},
-                              {kLocalRtt, 2, kLocalFuncRef}};
+  static Vec table_types[] = {{kOptRefCode, 0},
+                              {kOptRefCode, 1},
+                              {kOptRefCode, kI31RefCode},
+                              {kI31RefCode},
+                              {kRttCode, 2, kFuncRefCode}};
 
   for (Vec type : table_types) {
     Vec data = {
         SECTION(Type, ENTRY_COUNT(2),
-                WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kLocalI32, true)),
-                WASM_ARRAY_DEF(kLocalI32, true)),
+                WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)),
+                WASM_ARRAY_DEF(kI32Code, true)),
         kTableSectionCode, static_cast<byte>(type.size() + 3), byte{1}};
     // Last elements are section size and entry count
 
@@ -2066,7 +2065,7 @@ TEST_F(WasmSignatureDecodeTest, Ok_i_tt) {
     for (size_t j = 0; j < arraysize(kValueTypes); j++) {
       ValueTypePair p1_type = kValueTypes[j];
       const byte data[] = {
-          SIG_ENTRY_x_xx(kLocalI32, p0_type.code, p1_type.code)};
+          SIG_ENTRY_x_xx(kI32Code, p0_type.code, p1_type.code)};
       const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
 
       EXPECT_TRUE(sig != nullptr);
@@ -2103,7 +2102,7 @@ TEST_F(WasmSignatureDecodeTest, Ok_tt_tt) {
 TEST_F(WasmSignatureDecodeTest, TooManyParams) {
   static const byte data[] = {kWasmFunctionTypeCode,
                               WASM_I32V_3(kV8MaxWasmFunctionParams + 1),
-                              kLocalI32, 0};
+                              kI32Code, 0};
   const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
   EXPECT_FALSE(sig != nullptr);
 }
@@ -2115,7 +2114,7 @@ TEST_F(WasmSignatureDecodeTest, TooManyReturns) {
     const int max_return_count = static_cast<int>(
         enable_mv ? kV8MaxWasmFunctionMultiReturns : kV8MaxWasmFunctionReturns);
     byte data[] = {kWasmFunctionTypeCode, 0, WASM_I32V_3(max_return_count + 1),
-                   kLocalI32};
+                   kI32Code};
     const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
     EXPECT_EQ(nullptr, sig);
   }
@@ -2124,7 +2123,7 @@ TEST_F(WasmSignatureDecodeTest, TooManyReturns) {
 TEST_F(WasmSignatureDecodeTest, Fail_off_end) {
   byte data[256];
   for (int p = 0; p <= 255; p = p + 1 + p * 3) {
-    for (int i = 0; i <= p; i++) data[i] = kLocalI32;
+    for (int i = 0; i <= p; i++) data[i] = kI32Code;
     data[0] = static_cast<byte>(p);
 
     for (int i = 0; i < p + 1; i++) {
@@ -2138,10 +2137,10 @@ TEST_F(WasmSignatureDecodeTest, Fail_off_end) {
 TEST_F(WasmSignatureDecodeTest, Fail_externref_without_flag) {
   // Disable ExternRef support and check that decoding fails.
   WASM_FEATURE_SCOPE_VAL(reftypes, false);
-  byte ref_types[] = {kLocalFuncRef, kLocalExternRef};
+  byte ref_types[] = {kFuncRefCode, kExternRefCode};
   for (byte invalid_type : ref_types) {
     for (size_t i = 0;; i++) {
-      byte data[] = {SIG_ENTRY_x_xx(kLocalI32, kLocalI32, kLocalI32)};
+      byte data[] = {SIG_ENTRY_x_xx(kI32Code, kI32Code, kI32Code)};
       if (i >= arraysize(data)) break;
       data[i] = invalid_type;
       const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
@@ -2153,7 +2152,7 @@ TEST_F(WasmSignatureDecodeTest, Fail_externref_without_flag) {
 TEST_F(WasmSignatureDecodeTest, Fail_invalid_type) {
   byte kInvalidType = 76;
   for (size_t i = 0;; i++) {
-    byte data[] = {SIG_ENTRY_x_xx(kLocalI32, kLocalI32, kLocalI32)};
+    byte data[] = {SIG_ENTRY_x_xx(kI32Code, kI32Code, kI32Code)};
     if (i >= arraysize(data)) break;
     data[i] = kInvalidType;
     const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
@@ -2162,19 +2161,19 @@ TEST_F(WasmSignatureDecodeTest, Fail_invalid_type) {
 }
 
 TEST_F(WasmSignatureDecodeTest, Fail_invalid_ret_type1) {
-  static const byte data[] = {SIG_ENTRY_x_x(kLocalVoid, kLocalI32)};
+  static const byte data[] = {SIG_ENTRY_x_x(kVoidCode, kI32Code)};
   const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
   EXPECT_EQ(nullptr, sig);
 }
 
 TEST_F(WasmSignatureDecodeTest, Fail_invalid_param_type1) {
-  static const byte data[] = {SIG_ENTRY_x_x(kLocalI32, kLocalVoid)};
+  static const byte data[] = {SIG_ENTRY_x_x(kI32Code, kVoidCode)};
   const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
   EXPECT_EQ(nullptr, sig);
 }
 
 TEST_F(WasmSignatureDecodeTest, Fail_invalid_param_type2) {
-  static const byte data[] = {SIG_ENTRY_x_xx(kLocalI32, kLocalI32, kLocalVoid)};
+  static const byte data[] = {SIG_ENTRY_x_xx(kI32Code, kI32Code, kVoidCode)};
   const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
   EXPECT_EQ(nullptr, sig);
 }
@@ -2197,14 +2196,14 @@ TEST_F(WasmFunctionVerifyTest, Ok_v_v_empty) {
       SIG_ENTRY_v_v,  // signature entry
       4,              // locals
       3,
-      kLocalI32,  // --
+      kI32Code,  // --
       4,
-      kLocalI64,  // --
+      kI64Code,  // --
       5,
-      kLocalF32,  // --
+      kF32Code,  // --
       6,
-      kLocalF64,  // --
-      kExprEnd    // body
+      kF64Code,  // --
+      kExprEnd   // body
   };
 
   WasmModule module;
@@ -2323,7 +2322,7 @@ TEST_F(WasmModuleVerifyTest, UnknownSectionSkipped) {
       UNKNOWN_SECTION(1),
       0,  // one byte section
       SECTION(Global, ENTRY_COUNT(1),
-              kLocalI32,                   // memory type
+              kI32Code,                    // memory type
               0,                           // exported
               WASM_INIT_EXPR_I32V_1(33)),  // init
   };
@@ -2359,7 +2358,7 @@ TEST_F(WasmModuleVerifyTest, ImportTable_mutable_global) {
                 ADD_COUNT('m'),   // module name
                 ADD_COUNT('f'),   // global name
                 kExternalGlobal,  // import kind
-                kLocalI32,        // type
+                kI32Code,         // type
                 0),               // mutability
     };
     EXPECT_VERIFIES(data);
@@ -2371,7 +2370,7 @@ TEST_F(WasmModuleVerifyTest, ImportTable_mutable_global) {
                 ADD_COUNT('m'),   // module name
                 ADD_COUNT('f'),   // global name
                 kExternalGlobal,  // import kind
-                kLocalI32,        // type
+                kI32Code,         // type
                 1),               // mutability
     };
     EXPECT_VERIFIES(data);
@@ -2385,7 +2384,7 @@ TEST_F(WasmModuleVerifyTest, ImportTable_mutability_malformed) {
               ADD_COUNT('m'),   // module name
               ADD_COUNT('g'),   // global name
               kExternalGlobal,  // import kind
-              kLocalI32,        // type
+              kI32Code,         // type
               2),               // invalid mutability
   };
   EXPECT_FAILURE(data);
@@ -2822,7 +2821,7 @@ TEST_F(WasmInitExprDecodeTest, InitExpr_f64) {
 
 TEST_F(WasmInitExprDecodeTest, InitExpr_ExternRef) {
   WASM_FEATURE_SCOPE(reftypes);
-  static const byte data[] = {kExprRefNull, kLocalExternRef, kExprEnd};
+  static const byte data[] = {kExprRefNull, kExternRefCode, kExprEnd};
   WasmInitExpr expr = DecodeInitExpr(data, data + sizeof(data));
   EXPECT_EQ(WasmInitExpr::kRefNullConst, expr.kind());
 }
@@ -2986,10 +2985,10 @@ TEST_F(WasmModuleVerifyTest, ActiveElementSegmentWithElements) {
       // funcs -----------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration -----------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kLocalFuncRef, 0, 1),
+      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, 0, 1),
       // element segments  -----------------------------------------------------
       SECTION(Element, ENTRY_COUNT(1), ACTIVE_WITH_ELEMENTS, TABLE_INDEX0,
-              WASM_INIT_EXPR_I32V_1(0), kLocalFuncRef, U32V_1(3),
+              WASM_INIT_EXPR_I32V_1(0), kFuncRefCode, U32V_1(3),
               REF_FUNC_ELEMENT(0), REF_FUNC_ELEMENT(0), REF_NULL_ELEMENT),
       // code ------------------------------------------------------------------
       ONE_EMPTY_BODY};
@@ -3006,9 +3005,9 @@ TEST_F(WasmModuleVerifyTest, PassiveElementSegment) {
       // funcs -----------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration -----------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kLocalFuncRef, 0, 1),
+      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, 0, 1),
       // element segments  -----------------------------------------------------
-      SECTION(Element, ENTRY_COUNT(1), PASSIVE_WITH_ELEMENTS, kLocalFuncRef,
+      SECTION(Element, ENTRY_COUNT(1), PASSIVE_WITH_ELEMENTS, kFuncRefCode,
               U32V_1(3), REF_FUNC_ELEMENT(0), REF_FUNC_ELEMENT(0),
               REF_NULL_ELEMENT),
       // code ------------------------------------------------------------------
@@ -3026,9 +3025,9 @@ TEST_F(WasmModuleVerifyTest, PassiveElementSegmentExternRef) {
       // funcs -----------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration -----------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kLocalFuncRef, 0, 1),
+      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, 0, 1),
       // element segments  -----------------------------------------------------
-      SECTION(Element, ENTRY_COUNT(1), PASSIVE_WITH_ELEMENTS, kLocalExternRef,
+      SECTION(Element, ENTRY_COUNT(1), PASSIVE_WITH_ELEMENTS, kExternRefCode,
               U32V_1(0)),
       // code ------------------------------------------------------------------
       ONE_EMPTY_BODY};
@@ -3043,7 +3042,7 @@ TEST_F(WasmModuleVerifyTest, PassiveElementSegmentWithIndices) {
       // funcs -----------------------------------------------------------------
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration -----------------------------------------------------
-      SECTION(Table, ENTRY_COUNT(1), kLocalFuncRef, 0, 1),
+      SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, 0, 1),
       // element segments ------------------------------------------------------
       SECTION(Element, ENTRY_COUNT(1), PASSIVE, kExternalFunction,
               ENTRY_COUNT(3), U32V_1(0), U32V_1(0), U32V_1(0)),
@@ -3065,7 +3064,7 @@ TEST_F(WasmModuleVerifyTest, DeclarativeElementSegmentFuncRef) {
       SECTION(Element,                    // section name
               ENTRY_COUNT(1),             // entry count
               DECLARATIVE_WITH_ELEMENTS,  // flags
-              kLocalFuncRef,              // local type
+              kFuncRefCode,               // local type
               U32V_1(0)),                 // func ref count
       // code ------------------------------------------------------------------
       ONE_EMPTY_BODY};
@@ -3196,7 +3195,7 @@ TEST_F(WasmModuleVerifyTest, GcStructIdsPass) {
 
   static const byte data[] = {SECTION(
       Type, ENTRY_COUNT(3),
-      WASM_STRUCT_DEF(FIELD_COUNT(3), STRUCT_FIELD(kLocalI32, true),
+      WASM_STRUCT_DEF(FIELD_COUNT(3), STRUCT_FIELD(kI32Code, true),
                       STRUCT_FIELD(WASM_OPT_REF(0), true),
                       STRUCT_FIELD(WASM_OPT_REF(1), true)),
       WASM_STRUCT_DEF(FIELD_COUNT(2), STRUCT_FIELD(WASM_OPT_REF(0), true),
@@ -3209,8 +3208,8 @@ TEST_F(WasmModuleVerifyTest, GcStructIdsPass) {
 TEST_F(WasmModuleVerifyTest, OutOfBoundsTypeInGlobal) {
   WASM_FEATURE_SCOPE(reftypes);
   WASM_FEATURE_SCOPE(typed_funcref);
-  static const byte data[] = {SECTION(Global, ENTRY_COUNT(1), kLocalRef, 0,
-                                      WASM_REF_NULL(0), kExprEnd)};
+  static const byte data[] = {
+      SECTION(Global, ENTRY_COUNT(1), kRefCode, 0, WASM_REF_NULL(0), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result, "Type index 0 is out of bounds");
 }
@@ -3221,7 +3220,7 @@ TEST_F(WasmModuleVerifyTest, OutOfBoundsTypeInType) {
   WASM_FEATURE_SCOPE(gc);
   static const byte data[] = {
       SECTION(Type, ENTRY_COUNT(1),
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kLocalRef, true)))};
+              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kRefCode, true)))};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result, "Type index 1 is out of bounds");
 }
@@ -3232,7 +3231,7 @@ TEST_F(WasmModuleVerifyTest, IllegalPackedFields) {
   WASM_FEATURE_SCOPE(reftypes);
 
   static const byte data[] = {
-      SECTION(Global, ENTRY_COUNT(1), kLocalI16, 0, WASM_INIT_EXPR_I32V_1(13))};
+      SECTION(Global, ENTRY_COUNT(1), kI16Code, 0, WASM_INIT_EXPR_I32V_1(13))};
 
   ModuleResult result = DecodeModule(data, data + sizeof(data));
 

@@ -68,15 +68,15 @@ class HeapType {
 
   static constexpr HeapType from_code(uint8_t code) {
     switch (code) {
-      case ValueTypeCode::kLocalFuncRef:
+      case ValueTypeCode::kFuncRefCode:
         return HeapType(kFunc);
-      case ValueTypeCode::kLocalExternRef:
+      case ValueTypeCode::kExternRefCode:
         return HeapType(kExtern);
-      case ValueTypeCode::kLocalEqRef:
+      case ValueTypeCode::kEqRefCode:
         return HeapType(kEq);
-      case ValueTypeCode::kLocalExnRef:
+      case ValueTypeCode::kExnRefCode:
         return HeapType(kExn);
-      case ValueTypeCode::kLocalI31Ref:
+      case ValueTypeCode::kI31RefCode:
         return HeapType(kI31);
       default:
         return HeapType(kBottom);
@@ -137,20 +137,20 @@ class HeapType {
 
   // Returns the code that represents this heap type in the wasm binary format.
   constexpr int32_t code() const {
-    // kLocal* codes represent the first byte of the LEB128 encoding. To get the
+    // Type codes represent the first byte of the LEB128 encoding. To get the
     // int32 represented by a code, we need to sign-extend it from 7 to 32 bits.
     int32_t mask = 0xFFFFFF80;
     switch (representation_) {
       case kFunc:
-        return mask | kLocalFuncRef;
+        return mask | kFuncRefCode;
       case kExn:
-        return mask | kLocalExnRef;
+        return mask | kExnRefCode;
       case kExtern:
-        return mask | kLocalExternRef;
+        return mask | kExternRefCode;
       case kEq:
-        return mask | kLocalEqRef;
+        return mask | kEqRefCode;
       case kI31:
-        return mask | kLocalI31Ref;
+        return mask | kI31RefCode;
       default:
         return static_cast<int32_t>(representation_);
     }
@@ -321,38 +321,38 @@ class ValueType {
   // For compatibility with the reftypes and exception-handling proposals, this
   // function prioritizes shorthand encodings
   // (e.g., Ref(HeapType::kFunc, kNullable).value_type_code will return
-  // kLocalFuncref and not kLocalOptRef).
+  // kFuncrefCode and not kOptRefCode).
   constexpr ValueTypeCode value_type_code() const {
     CONSTEXPR_DCHECK(kind() != kBottom);
     switch (kind()) {
       case kOptRef:
         switch (heap_representation()) {
           case HeapType::kFunc:
-            return kLocalFuncRef;
+            return kFuncRefCode;
           case HeapType::kExtern:
-            return kLocalExternRef;
+            return kExternRefCode;
           case HeapType::kEq:
-            return kLocalEqRef;
+            return kEqRefCode;
           case HeapType::kExn:
-            return kLocalExnRef;
+            return kExnRefCode;
           default:
-            return kLocalOptRef;
+            return kOptRefCode;
         }
       case kRef:
-        if (heap_representation() == HeapType::kI31) return kLocalI31Ref;
-        return kLocalRef;
+        if (heap_representation() == HeapType::kI31) return kI31RefCode;
+        return kRefCode;
       case kStmt:
-        return kLocalVoid;
+        return kVoidCode;
       case kRtt:
-        return kLocalRtt;
+        return kRttCode;
 #define NUMERIC_TYPE_CASE(kind, ...) \
   case k##kind:                      \
-    return kLocal##kind;
+    return k##kind##Code;
         FOREACH_NUMERIC_VALUE_TYPE(NUMERIC_TYPE_CASE)
 #undef NUMERIC_TYPE_CASE
       case kBottom:
         // Unreachable code
-        return kLocalVoid;
+        return kVoidCode;
     }
   }
 
