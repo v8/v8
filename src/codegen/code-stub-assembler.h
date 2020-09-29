@@ -3672,8 +3672,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Object> value, WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       int additional_offset = 0);
 
-  // Converts {input} to a number. {input} must be a plain primitve.
-  TNode<Number> PlainPrimitiveNonNumberToNumber(TNode<HeapObject> input);
+  // Converts {input} to a number if {input} is a plain primitve (i.e. String or
+  // Oddball) and stores the result in {var_result}. Otherwise, it bails out to
+  // {if_bailout}.
+  void TryPlainPrimitiveNonNumberToNumber(TNode<HeapObject> input,
+                                          TVariable<Number>* var_result,
+                                          Label* if_bailout);
 };
 
 class V8_EXPORT_PRIVATE CodeStubArguments {
