@@ -329,12 +329,15 @@ BasicBlock* GraphAssembler::BasicBlockUpdater::Finalize(BasicBlock* original) {
   return block;
 }
 
-GraphAssembler::GraphAssembler(MachineGraph* mcgraph, Zone* zone,
-                               Schedule* schedule, bool mark_loop_exits)
+GraphAssembler::GraphAssembler(
+    MachineGraph* mcgraph, Zone* zone,
+    base::Optional<NodeChangedCallback> node_changed_callback,
+    Schedule* schedule, bool mark_loop_exits)
     : temp_zone_(zone),
       mcgraph_(mcgraph),
       effect_(nullptr),
       control_(nullptr),
+      node_changed_callback_(node_changed_callback),
       block_updater_(schedule != nullptr
                          ? new BasicBlockUpdater(schedule, mcgraph->graph(),
                                                  mcgraph->common(), zone)
@@ -917,6 +920,9 @@ void GraphAssembler::ConnectUnreachableToEnd() {
   if (!block_updater_) {
     Node* throw_node = graph()->NewNode(common()->Throw(), effect(), control());
     NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
+    if (node_changed_callback_.has_value()) {
+      (*node_changed_callback_)(graph()->end());
+    }
     effect_ = control_ = mcgraph()->Dead();
   }
 }

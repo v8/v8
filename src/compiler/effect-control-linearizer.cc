@@ -45,7 +45,7 @@ class EffectControlLinearizer {
         maintain_schedule_(maintain_schedule),
         source_positions_(source_positions),
         node_origins_(node_origins),
-        graph_assembler_(js_graph, temp_zone,
+        graph_assembler_(js_graph, temp_zone, base::nullopt,
                          should_maintain_schedule() ? schedule : nullptr),
         frame_state_zapper_(nullptr) {}
 

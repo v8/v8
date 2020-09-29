@@ -184,12 +184,15 @@ class GraphAssemblerLabel {
   const std::array<MachineRepresentation, VarCount> representations_;
 };
 
+using NodeChangedCallback = std::function<void(Node*)>;
 class V8_EXPORT_PRIVATE GraphAssembler {
  public:
   // Constructs a GraphAssembler. If {schedule} is not null, the graph assembler
   // will maintain the schedule as it updates blocks.
-  GraphAssembler(MachineGraph* jsgraph, Zone* zone,
-                 Schedule* schedule = nullptr, bool mark_loop_exits = false);
+  GraphAssembler(
+      MachineGraph* jsgraph, Zone* zone,
+      base::Optional<NodeChangedCallback> node_changed_callback = base::nullopt,
+      Schedule* schedule = nullptr, bool mark_loop_exits = false);
   virtual ~GraphAssembler();
 
   void Reset(BasicBlock* block);
@@ -508,6 +511,9 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   MachineGraph* mcgraph_;
   Node* effect_;
   Node* control_;
+  // {node_changed_callback_} should be called when a node outside the
+  // subgraph created by the graph assembler changes.
+  base::Optional<NodeChangedCallback> node_changed_callback_;
   std::unique_ptr<BasicBlockUpdater> block_updater_;
 
   // Track loop information in order to properly mark loop exits with
@@ -776,9 +782,12 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
  public:
   // Constructs a JSGraphAssembler. If {schedule} is not null, the graph
   // assembler will maintain the schedule as it updates blocks.
-  JSGraphAssembler(JSGraph* jsgraph, Zone* zone, Schedule* schedule = nullptr,
-                   bool mark_loop_exits = false)
-      : GraphAssembler(jsgraph, zone, schedule, mark_loop_exits),
+  JSGraphAssembler(
+      JSGraph* jsgraph, Zone* zone,
+      base::Optional<NodeChangedCallback> node_changed_callback = base::nullopt,
+      Schedule* schedule = nullptr, bool mark_loop_exits = false)
+      : GraphAssembler(jsgraph, zone, node_changed_callback, schedule,
+                       mark_loop_exits),
         jsgraph_(jsgraph) {}
 
   Node* SmiConstant(int32_t value);
