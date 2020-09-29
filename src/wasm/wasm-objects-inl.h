@@ -451,7 +451,13 @@ int WasmArray::SizeFor(Map map, int length) {
 }
 
 void WasmTypeInfo::clear_foreign_address(Isolate* isolate) {
+#ifdef V8_HEAP_SANDBOX
+  // This field is not supposed to be read, so we don't bother allocating an
+  // external table entry.
+  WriteField<ExternalPointer_t>(kForeignAddressOffset, kNullExternalPointer);
+#else
   set_foreign_address(isolate, 0);
+#endif
 }
 
 #include "src/objects/object-macros-undef.h"

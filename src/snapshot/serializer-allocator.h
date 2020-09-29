@@ -58,10 +58,9 @@ class SerializerAllocator final {
   uint32_t seen_large_objects_index_ = 0;
 
   // Used to keep track of the off-heap backing stores used by TypedArrays/
-  // ArrayBuffers. Note that the index begins at 1 and not 0, because when a
-  // TypedArray has an on-heap backing store, the backing_store pointer in the
-  // corresponding ArrayBuffer will be null, which makes it indistinguishable
-  // from index 0.
+  // ArrayBuffers. Note that the index begins at 1 and not 0, because the latter
+  // value represents null backing store pointer (see usages of
+  // SerializerDeserializer::kNullRefSentinel).
   uint32_t seen_backing_stores_index_ = 1;
 
   uint32_t custom_chunk_size_ = 0;

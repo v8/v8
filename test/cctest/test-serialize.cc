@@ -1167,6 +1167,10 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobOnOrOffHeapTypedArray) {
 
       CompileRun(code);
       TestInt32Expectations(expectations);
+      i::Handle<i::JSArrayBuffer> buffer =
+          GetBufferFromTypedArray(CompileRun("x"));
+      // The resulting buffer should be on-heap.
+      CHECK_NULL(buffer->backing_store());
       creator.SetDefaultContext(
           context, v8::SerializeInternalFieldsCallback(
                        SerializeInternalFields, reinterpret_cast<void*>(2016)));

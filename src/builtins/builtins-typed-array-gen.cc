@@ -25,6 +25,7 @@ void TypedArrayBuiltinsAssembler::SetupTypedArrayEmbedderFields(
     TNode<JSTypedArray> holder) {
   for (int offset = JSTypedArray::kHeaderSize;
        offset < JSTypedArray::kSizeWithEmbedderFields; offset += kTaggedSize) {
+    // TODO(v8:10391, saelo): Handle external pointers in EmbedderDataSlot
     StoreObjectField(holder, offset, SmiConstant(0));
   }
 }
@@ -65,13 +66,13 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
 
   StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kByteLengthOffset,
                                  byte_length);
-  StoreJSArrayBufferBackingStore(
-      buffer,
-      EncodeExternalPointer(ReinterpretCast<RawPtrT>(IntPtrConstant(0))));
-    StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kExtensionOffset,
-                                   IntPtrConstant(0));
+  InitializeExternalPointerField(buffer, JSArrayBuffer::kBackingStoreOffset,
+                                 PointerConstant(nullptr));
+  StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kExtensionOffset,
+                                 IntPtrConstant(0));
   for (int offset = JSArrayBuffer::kHeaderSize;
        offset < JSArrayBuffer::kSizeWithEmbedderFields; offset += kTaggedSize) {
+    // TODO(v8:10391, saelo): Handle external pointers in EmbedderDataSlot
     StoreObjectFieldNoWriteBarrier(buffer, offset, SmiConstant(0));
   }
   return buffer;
@@ -355,6 +356,12 @@ void TypedArrayBuiltinsAssembler::DispatchTypedArrayByElementsKind(
   BIND(&next);
 }
 
+void TypedArrayBuiltinsAssembler::AllocateJSTypedArrayExternalPointerEntry(
+    TNode<JSTypedArray> holder) {
+  InitializeExternalPointerField(
+      holder, IntPtrConstant(JSTypedArray::kExternalPointerOffset));
+}
+
 void TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
     TNode<JSTypedArray> holder, TNode<ByteArray> base, TNode<UintPtrT> offset) {
   offset = UintPtrAdd(UintPtrConstant(ByteArray::kHeaderSize - kHeapObjectTag),
@@ -373,9 +380,8 @@ void TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
     offset = Unsigned(IntPtrAdd(offset, isolate_root));
   }
 
-  StoreObjectField(holder, JSTypedArray::kBasePointerOffset, base);
-  StoreJSTypedArrayExternalPointer(
-      holder, EncodeExternalPointer(ReinterpretCast<RawPtrT>(offset)));
+  StoreJSTypedArrayBasePointer(holder, base);
+  StoreJSTypedArrayExternalPointerPtr(holder, ReinterpretCast<RawPtrT>(offset));
 }
 
 void TypedArrayBuiltinsAssembler::SetJSTypedArrayOffHeapDataPtr(
@@ -384,7 +390,7 @@ void TypedArrayBuiltinsAssembler::SetJSTypedArrayOffHeapDataPtr(
                                  SmiConstant(0));
 
   base = RawPtrAdd(base, Signed(offset));
-  StoreJSTypedArrayExternalPointer(holder, EncodeExternalPointer(base));
+  StoreJSTypedArrayExternalPointerPtr(holder, base);
 }
 
 void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromNumeric(

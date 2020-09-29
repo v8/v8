@@ -23,6 +23,7 @@
 #include "src/common/globals.h"
 #include "src/debug/interface-types.h"
 #include "src/execution/execution.h"
+#include "src/execution/external-pointer-table.h"
 #include "src/execution/futex-emulation.h"
 #include "src/execution/isolate-data.h"
 #include "src/execution/messages.h"
@@ -1559,6 +1560,20 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       Handle<NativeContext> context);
   MaybeLocal<v8::Context> GetContextFromRecorderContextId(
       v8::metrics::Recorder::ContextId id);
+
+#ifdef V8_HEAP_SANDBOX
+  ExternalPointerTable& external_pointer_table() {
+    return isolate_data_.external_pointer_table_;
+  }
+
+  const ExternalPointerTable& external_pointer_table() const {
+    return isolate_data_.external_pointer_table_;
+  }
+
+  Address external_pointer_table_address() {
+    return reinterpret_cast<Address>(&isolate_data_.external_pointer_table_);
+  }
+#endif
 
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);

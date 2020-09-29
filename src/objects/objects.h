@@ -666,6 +666,17 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
     }
   }
 
+  //
+  // ExternalPointer_t field accessors.
+  //
+  inline void InitExternalPointerField(size_t offset, Isolate* isolate);
+  inline void InitExternalPointerField(size_t offset, Isolate* isolate,
+                                       Address value);
+  inline Address ReadExternalPointerField(size_t offset,
+                                          const Isolate* isolate) const;
+  inline void WriteExternalPointerField(size_t offset, Isolate* isolate,
+                                        Address value);
+
  protected:
   inline Address field_address(size_t offset) const {
     return ptr() + offset - kHeapObjectTag;

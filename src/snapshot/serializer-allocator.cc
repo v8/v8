@@ -14,6 +14,12 @@ namespace internal {
 
 SerializerAllocator::SerializerAllocator(Serializer* serializer)
     : serializer_(serializer) {
+  // This assert should have been added close to seen_backing_stores_index_
+  // field definition, but the SerializerDeserializer header is not available
+  // there.
+  STATIC_ASSERT(Serializer::kNullRefSentinel == 0);
+  DCHECK_EQ(seen_backing_stores_index_, 1);
+
   for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) {
     pending_chunk_[i] = 0;
   }

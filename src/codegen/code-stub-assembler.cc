@@ -1370,6 +1370,105 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(SloppyTNode<Object> value,
   }
 }
 
+TNode<ExternalPointerT> CodeStubAssembler::ChangeUint32ToExternalPointer(
+    TNode<Uint32T> value) {
+  STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
+  return ReinterpretCast<ExternalPointerT>(ChangeUint32ToWord(value));
+}
+
+TNode<Uint32T> CodeStubAssembler::ChangeExternalPointerToUint32(
+    TNode<ExternalPointerT> value) {
+  STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
+  return Unsigned(TruncateWordToInt32(ReinterpretCast<UintPtrT>(value)));
+}
+
+void CodeStubAssembler::InitializeExternalPointerField(TNode<HeapObject> object,
+                                                       TNode<IntPtrT> offset) {
+#ifdef V8_HEAP_SANDBOX
+  TNode<ExternalReference> external_pointer_table_address = ExternalConstant(
+      ExternalReference::external_pointer_table_address(isolate()));
+  TNode<Uint32T> table_length = UncheckedCast<Uint32T>(
+      Load(MachineType::Uint32(), external_pointer_table_address,
+           UintPtrConstant(Internals::kExternalPointerTableLengthOffset)));
+  TNode<Uint32T> table_capacity = UncheckedCast<Uint32T>(
+      Load(MachineType::Uint32(), external_pointer_table_address,
+           UintPtrConstant(Internals::kExternalPointerTableCapacityOffset)));
+
+  Label grow_table(this, Label::kDeferred), finish(this);
+
+  TNode<BoolT> compare = Uint32LessThan(table_length, table_capacity);
+  Branch(compare, &finish, &grow_table);
+
+  BIND(&grow_table);
+  {
+    TNode<ExternalReference> table_grow_function = ExternalConstant(
+        ExternalReference::external_pointer_table_grow_table_function());
+    CallCFunction(
+        table_grow_function, MachineType::Pointer(),
+        std::make_pair(MachineType::Pointer(), external_pointer_table_address));
+    Goto(&finish);
+  }
+  BIND(&finish);
+
+  TNode<Uint32T> new_table_length = Uint32Add(table_length, Uint32Constant(1));
+  StoreNoWriteBarrier(
+      MachineRepresentation::kWord32, external_pointer_table_address,
+      UintPtrConstant(Internals::kExternalPointerTableLengthOffset),
+      new_table_length);
+
+  TNode<Uint32T> index = table_length;
+  TNode<ExternalPointerT> encoded = ChangeUint32ToExternalPointer(index);
+  StoreObjectFieldNoWriteBarrier<ExternalPointerT>(object, offset, encoded);
+#endif
+}
+
+TNode<RawPtrT> CodeStubAssembler::LoadExternalPointerFromObject(
+    TNode<HeapObject> object, TNode<IntPtrT> offset) {
+#ifdef V8_HEAP_SANDBOX
+  TNode<ExternalReference> external_pointer_table_address = ExternalConstant(
+      ExternalReference::external_pointer_table_address(isolate()));
+  TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
+      Load(MachineType::Pointer(), external_pointer_table_address,
+           UintPtrConstant(Internals::kExternalPointerTableBufferOffset)));
+
+  TNode<ExternalPointerT> encoded =
+      LoadObjectField<ExternalPointerT>(object, offset);
+  TNode<Word32T> index = ChangeExternalPointerToUint32(encoded);
+  // TODO(v8:10391, saelo): bounds check if table is not caged
+  TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
+      ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
+
+  return UncheckedCast<RawPtrT>(
+      Load(MachineType::Pointer(), table, table_offset));
+#else
+  return LoadObjectField<RawPtrT>(object, offset);
+#endif  // V8_HEAP_SANDBOX
+}
+
+void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
+                                                     TNode<IntPtrT> offset,
+                                                     TNode<RawPtrT> pointer) {
+#ifdef V8_HEAP_SANDBOX
+  TNode<ExternalReference> external_pointer_table_address = ExternalConstant(
+      ExternalReference::external_pointer_table_address(isolate()));
+  TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
+      Load(MachineType::Pointer(), external_pointer_table_address,
+           UintPtrConstant(Internals::kExternalPointerTableBufferOffset)));
+
+  TNode<ExternalPointerT> encoded =
+      LoadObjectField<ExternalPointerT>(object, offset);
+  TNode<Word32T> index = ChangeExternalPointerToUint32(encoded);
+  // TODO(v8:10391, saelo): bounds check if table is not caged
+  TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
+      ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
+
+  StoreNoWriteBarrier(MachineType::PointerRepresentation(), table, table_offset,
+                      pointer);
+#else
+  StoreObjectFieldNoWriteBarrier<RawPtrT>(object, offset, pointer);
+#endif  // V8_HEAP_SANDBOX
+}
+
 TNode<Object> CodeStubAssembler::LoadFromParentFrame(int offset) {
   TNode<RawPtrT> frame_pointer = LoadParentFramePointer();
   return LoadFullTagged(frame_pointer, IntPtrConstant(offset));
@@ -2004,10 +2103,9 @@ TNode<IntPtrT> CodeStubAssembler::LoadPropertyArrayLength(
 
 TNode<RawPtrT> CodeStubAssembler::LoadJSTypedArrayDataPtr(
     TNode<JSTypedArray> typed_array) {
-  // Data pointer = DecodeExternalPointer(external_pointer) +
-  //                static_cast<Tagged_t>(base_pointer).
+  // Data pointer = external_pointer + static_cast<Tagged_t>(base_pointer).
   TNode<RawPtrT> external_pointer =
-      DecodeExternalPointer(LoadJSTypedArrayExternalPointer(typed_array));
+      LoadJSTypedArrayExternalPointerPtr(typed_array);
 
   TNode<IntPtrT> base_pointer;
   if (COMPRESS_POINTERS_BOOL) {
@@ -6589,8 +6687,7 @@ TNode<RawPtrT> ToDirectStringAssembler::TryToSequential(
            if_bailout);
 
     TNode<String> string = var_string_.value();
-    TNode<RawPtrT> result =
-        DecodeExternalPointer(LoadExternalStringResourceData(CAST(string)));
+    TNode<RawPtrT> result = LoadExternalStringResourceDataPtr(CAST(string));
     if (ptr_kind == PTR_TO_STRING) {
       result = RawPtrSub(result, IntPtrConstant(SeqOneByteString::kHeaderSize -
                                                 kHeapObjectTag));
@@ -12568,7 +12665,8 @@ void CodeStubAssembler::ThrowIfArrayBufferViewBufferIsDetached(
 
 TNode<RawPtrT> CodeStubAssembler::LoadJSArrayBufferBackingStorePtr(
     TNode<JSArrayBuffer> array_buffer) {
-  return DecodeExternalPointer(LoadJSArrayBufferBackingStore(array_buffer));
+  return LoadExternalPointerFromObject(array_buffer,
+                                       JSArrayBuffer::kBackingStoreOffset);
 }
 
 TNode<JSArrayBuffer> CodeStubAssembler::LoadJSArrayBufferViewBuffer(

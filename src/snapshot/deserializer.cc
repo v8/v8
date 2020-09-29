@@ -51,9 +51,8 @@ TSlot Deserializer::WriteAddress(TSlot dest, Address value) {
 
 template <typename TSlot>
 TSlot Deserializer::WriteExternalPointer(TSlot dest, Address value) {
-  value = EncodeExternalPointer(isolate(), value);
   DCHECK(!next_reference_is_weak_);
-  memcpy(dest.ToVoidPtr(), &value, kExternalPointerSize);
+  InitExternalPointerField(dest.address(), isolate(), value);
   STATIC_ASSERT(IsAligned(kExternalPointerSize, TSlot::kSlotDataSize));
   return dest + (kExternalPointerSize / TSlot::kSlotDataSize);
 }
@@ -230,9 +229,10 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
 #endif
   } else if (obj.IsExternalString()) {
     ExternalString string = ExternalString::cast(obj);
-    uint32_t index = string.resource_as_uint32();
+    uint32_t index = string.GetResourceRefForDeserialization();
     Address address =
         static_cast<Address>(isolate()->api_external_references()[index]);
+    string.AllocateExternalPointerEntries(isolate());
     string.set_address_as_resource(isolate(), address);
     isolate()->heap()->UpdateExternalString(string, 0,
                                             string.ExternalPayloadSize());
@@ -241,13 +241,14 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
     JSDataView data_view = JSDataView::cast(obj);
     JSArrayBuffer buffer = JSArrayBuffer::cast(data_view.buffer());
     void* backing_store = nullptr;
-    if (buffer.backing_store() != nullptr) {
+    uint32_t store_index = buffer.GetBackingStoreRefForDeserialization();
+    if (store_index != kNullRefSentinel) {
       // The backing store of the JSArrayBuffer has not been correctly restored
       // yet, as that may trigger GC. The backing_store field currently contains
       // a numbered reference to an already deserialized backing store.
-      uint32_t store_index = buffer.GetBackingStoreRefForDeserialization();
       backing_store = backing_stores_[store_index]->buffer_start();
     }
+    data_view.AllocateExternalPointerEntries(isolate());
     data_view.set_data_pointer(
         isolate(),
         reinterpret_cast<uint8_t*>(backing_store) + data_view.byte_offset());
@@ -255,9 +256,11 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
     JSTypedArray typed_array = JSTypedArray::cast(obj);
     // Fixup typed array pointers.
     if (typed_array.is_on_heap()) {
+      Address raw_external_pointer = typed_array.external_pointer_raw();
+      typed_array.AllocateExternalPointerEntries(isolate());
       typed_array.SetOnHeapDataPtr(isolate(),
                                    HeapObject::cast(typed_array.base_pointer()),
-                                   typed_array.external_pointer());
+                                   raw_external_pointer);
     } else {
       // Serializer writes backing store ref as a DataPtr() value.
       uint32_t store_index =
@@ -266,14 +269,18 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
       auto start = backing_store
                        ? reinterpret_cast<byte*>(backing_store->buffer_start())
                        : nullptr;
+      typed_array.AllocateExternalPointerEntries(isolate());
       typed_array.SetOffHeapDataPtr(isolate(), start,
                                     typed_array.byte_offset());
     }
   } else if (obj.IsJSArrayBuffer()) {
     JSArrayBuffer buffer = JSArrayBuffer::cast(obj);
     // Postpone allocation of backing store to avoid triggering the GC.
-    if (buffer.backing_store() != nullptr) {
+    if (buffer.GetBackingStoreRefForDeserialization() != kNullRefSentinel) {
       new_off_heap_array_buffers_.push_back(handle(buffer, isolate()));
+    } else {
+      buffer.AllocateExternalPointerEntries(isolate());
+      buffer.set_backing_store(isolate(), nullptr);
     }
   } else if (obj.IsBytecodeArray()) {
     // TODO(mythria): Remove these once we store the default values for these

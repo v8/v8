@@ -74,6 +74,7 @@ void ContextDeserializer::SetupOffHeapArrayBufferBackingStores() {
   for (Handle<JSArrayBuffer> buffer : new_off_heap_array_buffers()) {
     uint32_t store_index = buffer->GetBackingStoreRefForDeserialization();
     auto bs = backing_store(store_index);
+    buffer->AllocateExternalPointerEntries(isolate());
     SharedFlag shared =
         bs && bs->is_shared() ? SharedFlag::kShared : SharedFlag::kNotShared;
     buffer->Setup(shared, bs);

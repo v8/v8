@@ -46,8 +46,7 @@ TNode<RawPtrT> StringBuiltinsAssembler::DirectStringData(
                          Word32And(string_instance_type,
                                    Int32Constant(kUncachedExternalStringMask)),
                          Int32Constant(kUncachedExternalStringTag)));
-    var_data =
-        DecodeExternalPointer(LoadExternalStringResourceData(CAST(string)));
+    var_data = LoadExternalStringResourceDataPtr(CAST(string));
     Goto(&if_join);
   }
 

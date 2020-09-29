@@ -968,29 +968,78 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Works only with V8_ENABLE_FORCE_SLOW_PATH compile time flag. Nop otherwise.
   void GotoIfForceSlowPath(Label* if_true);
 
-  // Convert external pointer from on-V8-heap representation to an actual
-  // external pointer value.
-  TNode<RawPtrT> DecodeExternalPointer(
-      TNode<ExternalPointerT> encoded_pointer) {
-    STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
-    TNode<RawPtrT> value = ReinterpretCast<RawPtrT>(encoded_pointer);
-    if (V8_HEAP_SANDBOX_BOOL) {
-      value = UncheckedCast<RawPtrT>(
-          WordXor(value, UintPtrConstant(kExternalPointerSalt)));
-    }
-    return value;
+  //
+  // ExternalPointerT-related functionality.
+  //
+
+  TNode<ExternalPointerT> ChangeUint32ToExternalPointer(TNode<Uint32T> value);
+  TNode<Uint32T> ChangeExternalPointerToUint32(TNode<ExternalPointerT> value);
+
+  // Initialize an external pointer field in an object.
+  void InitializeExternalPointerField(TNode<HeapObject> object, int offset) {
+    InitializeExternalPointerField(object, IntPtrConstant(offset));
+  }
+  void InitializeExternalPointerField(TNode<HeapObject> object,
+                                      TNode<IntPtrT> offset);
+
+  // Initialize an external pointer field in an object with given value.
+  void InitializeExternalPointerField(TNode<HeapObject> object, int offset,
+                                      TNode<RawPtrT> pointer) {
+    InitializeExternalPointerField(object, IntPtrConstant(offset), pointer);
   }
 
-  // Convert external pointer value to on-V8-heap representation.
-  // This should eventually become a call to a non-allocating runtime function.
-  TNode<ExternalPointerT> EncodeExternalPointer(TNode<RawPtrT> pointer) {
-    STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
-    TNode<RawPtrT> encoded_pointer = pointer;
-    if (V8_HEAP_SANDBOX_BOOL) {
-      encoded_pointer = UncheckedCast<RawPtrT>(
-          WordXor(encoded_pointer, UintPtrConstant(kExternalPointerSalt)));
-    }
-    return ReinterpretCast<ExternalPointerT>(encoded_pointer);
+  void InitializeExternalPointerField(TNode<HeapObject> object,
+                                      TNode<IntPtrT> offset,
+                                      TNode<RawPtrT> pointer) {
+    InitializeExternalPointerField(object, offset);
+    StoreExternalPointerToObject(object, offset, pointer);
+  }
+
+  // Load an external pointer value from an object.
+  TNode<RawPtrT> LoadExternalPointerFromObject(TNode<HeapObject> object,
+                                               int offset) {
+    return LoadExternalPointerFromObject(object, IntPtrConstant(offset));
+  }
+
+  TNode<RawPtrT> LoadExternalPointerFromObject(TNode<HeapObject> object,
+                                               TNode<IntPtrT> offset);
+
+  // Store external object pointer to object.
+  void StoreExternalPointerToObject(TNode<HeapObject> object, int offset,
+                                    TNode<RawPtrT> pointer) {
+    StoreExternalPointerToObject(object, IntPtrConstant(offset), pointer);
+  }
+
+  void StoreExternalPointerToObject(TNode<HeapObject> object,
+                                    TNode<IntPtrT> offset,
+                                    TNode<RawPtrT> pointer);
+
+  TNode<RawPtrT> LoadForeignForeignAddressPtr(TNode<Foreign> object) {
+    return LoadExternalPointerFromObject(object,
+                                         Foreign::kForeignAddressOffset);
+  }
+
+  TNode<RawPtrT> LoadExternalStringResourcePtr(TNode<ExternalString> object) {
+    return LoadExternalPointerFromObject(object,
+                                         ExternalString::kResourceOffset);
+  }
+
+  TNode<RawPtrT> LoadExternalStringResourceDataPtr(
+      TNode<ExternalString> object) {
+    return LoadExternalPointerFromObject(object,
+                                         ExternalString::kResourceDataOffset);
+  }
+
+  TNode<RawPtrT> LoadJSTypedArrayExternalPointerPtr(
+      TNode<JSTypedArray> holder) {
+    return LoadExternalPointerFromObject(holder,
+                                         JSTypedArray::kExternalPointerOffset);
+  }
+
+  void StoreJSTypedArrayExternalPointerPtr(TNode<JSTypedArray> holder,
+                                           TNode<RawPtrT> value) {
+    StoreExternalPointerToObject(holder, JSTypedArray::kExternalPointerOffset,
+                                 value);
   }
 
   // Load value from current parent frame by given offset in bytes.

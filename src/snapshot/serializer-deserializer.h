@@ -303,6 +303,10 @@ class SerializerDeserializer : public RootVisitor {
                            RootIndex>;
   using HotObject = BytecodeValueEncoder<kHotObject, 0, kHotObjectCount - 1>;
 
+  // This backing store reference value represents nullptr values during
+  // serialization/deserialization.
+  static const uint32_t kNullRefSentinel = 0;
+
   // ---------- member variable ----------
   HotObjectsList hot_objects_;
 };

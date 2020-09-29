@@ -198,6 +198,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   this->synchronized_set_map(new_map);
 
   ExternalTwoByteString self = ExternalTwoByteString::cast(*this);
+  self.AllocateExternalPointerEntries(isolate);
   self.SetResource(isolate, resource);
   isolate->heap()->RegisterExternalString(*this);
   if (is_internalized) self.Hash();  // Force regeneration of the hash value.
@@ -268,6 +269,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   this->synchronized_set_map(new_map);
 
   ExternalOneByteString self = ExternalOneByteString::cast(*this);
+  self.AllocateExternalPointerEntries(isolate);
   self.SetResource(isolate, resource);
   isolate->heap()->RegisterExternalString(*this);
   if (is_internalized) self.Hash();  // Force regeneration of the hash value.

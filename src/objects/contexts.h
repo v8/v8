@@ -662,6 +662,8 @@ class NativeContext : public Context {
   DECL_CAST(NativeContext)
   // TODO(neis): Move some stuff from Context here.
 
+  inline void AllocateExternalPointerEntries(Isolate* isolate);
+
   // [microtask_queue]: pointer to the MicrotaskQueue object.
   DECL_GETTER(microtask_queue, MicrotaskQueue*)
   inline void set_microtask_queue(Isolate* isolate, MicrotaskQueue* queue);

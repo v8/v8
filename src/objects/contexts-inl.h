@@ -268,17 +268,18 @@ Map Context::GetInitialJSArrayMap(ElementsKind kind) const {
 }
 
 DEF_GETTER(NativeContext, microtask_queue, MicrotaskQueue*) {
-  ExternalPointer_t encoded_value =
-      ReadField<ExternalPointer_t>(kMicrotaskQueueOffset);
   return reinterpret_cast<MicrotaskQueue*>(
-      DecodeExternalPointer(isolate, encoded_value));
+      ReadExternalPointerField(kMicrotaskQueueOffset, isolate));
+}
+
+void NativeContext::AllocateExternalPointerEntries(Isolate* isolate) {
+  InitExternalPointerField(kMicrotaskQueueOffset, isolate);
 }
 
 void NativeContext::set_microtask_queue(Isolate* isolate,
                                         MicrotaskQueue* microtask_queue) {
-  ExternalPointer_t encoded_value = EncodeExternalPointer(
-      isolate, reinterpret_cast<Address>(microtask_queue));
-  WriteField<ExternalPointer_t>(kMicrotaskQueueOffset, encoded_value);
+  WriteExternalPointerField(kMicrotaskQueueOffset, isolate,
+                            reinterpret_cast<Address>(microtask_queue));
 }
 
 void NativeContext::synchronized_set_script_context_table(

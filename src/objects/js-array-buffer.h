@@ -30,6 +30,12 @@ class JSArrayBuffer
   static constexpr size_t kMaxByteLength = kMaxSafeInteger;
 #endif
 
+  // When soft sandbox is enabled, creates entries in external pointer table for
+  // all JSArrayBuffer's fields that require soft sandbox protection (backing
+  // store pointer, backing store length, etc.).
+  // When sandbox is not enabled, it's a no-op.
+  inline void AllocateExternalPointerEntries(Isolate* isolate);
+
   // [byte_length]: length in bytes
   DECL_PRIMITIVE_ACCESSORS(byte_length, size_t)
 
@@ -258,6 +264,12 @@ class JSTypedArray
 
   V8_EXPORT_PRIVATE Handle<JSArrayBuffer> GetBuffer();
 
+  // When soft sandbox is enabled, creates entries in external pointer table for
+  // all JSTypedArray's fields that require soft sandbox protection (external
+  // pointer, offset, length, etc.).
+  // When sandbox is not enabled, it's a no-op.
+  inline void AllocateExternalPointerEntries(Isolate* isolate);
+
   // Use with care: returns raw pointer into heap.
   inline void* DataPtr();
 
@@ -324,6 +336,8 @@ class JSTypedArray
 
   // [external_pointer]: TODO(v8:4153)
   DECL_GETTER(external_pointer, Address)
+  DECL_GETTER(external_pointer_raw, ExternalPointer_t)
+
   inline void set_external_pointer(Isolate* isolate, Address value);
 
   TQ_OBJECT_CONSTRUCTORS(JSTypedArray)
@@ -335,6 +349,12 @@ class JSDataView
   // [data_pointer]: pointer to the actual data.
   DECL_GETTER(data_pointer, void*)
   inline void set_data_pointer(Isolate* isolate, void* value);
+
+  // When soft sandbox is enabled, creates entries in external pointer table for
+  // all JSDataView's fields that require soft sandbox protection (data pointer,
+  // offset, length, etc.).
+  // When sandbox is not enabled, it's a no-op.
+  inline void AllocateExternalPointerEntries(Isolate* isolate);
 
   // Dispatched behavior.
   DECL_PRINTER(JSDataView)

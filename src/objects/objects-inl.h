@@ -15,6 +15,7 @@
 #include "src/base/bits.h"
 #include "src/base/memory.h"
 #include "src/builtins/builtins.h"
+#include "src/common/external-pointer-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-write-barrier-inl.h"
@@ -638,6 +639,25 @@ MaybeHandle<Object> Object::SetElement(Isolate* isolate, Handle<Object> object,
   MAYBE_RETURN_NULL(
       SetProperty(&it, value, StoreOrigin::kMaybeKeyed, Just(should_throw)));
   return value;
+}
+
+void Object::InitExternalPointerField(size_t offset, Isolate* isolate) {
+  i::InitExternalPointerField(field_address(offset), isolate);
+}
+
+void Object::InitExternalPointerField(size_t offset, Isolate* isolate,
+                                      Address value) {
+  i::InitExternalPointerField(field_address(offset), isolate, value);
+}
+
+Address Object::ReadExternalPointerField(size_t offset,
+                                         const Isolate* isolate) const {
+  return i::ReadExternalPointerField(field_address(offset), isolate);
+}
+
+void Object::WriteExternalPointerField(size_t offset, Isolate* isolate,
+                                       Address value) {
+  i::WriteExternalPointerField(field_address(offset), isolate, value);
 }
 
 ObjectSlot HeapObject::RawField(int byte_offset) const {

@@ -56,7 +56,9 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
         can_rehash_(false) {
     allocator()->DecodeReservation(data->Reservations());
     // We start the indices here at 1, so that we can distinguish between an
-    // actual index and a nullptr in a deserialized object requiring fix-up.
+    // actual index and a nullptr (serialized as kNullRefSentinel) in a
+    // deserialized object requiring fix-up.
+    STATIC_ASSERT(kNullRefSentinel == 0);
     backing_stores_.push_back({});
   }
 

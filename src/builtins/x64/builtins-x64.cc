@@ -3371,9 +3371,9 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
       MemOperand(function_data,
                  WasmExportedFunctionData::kSignatureOffset - kHeapObjectTag));
   Register signature = foreign_signature;
-  __ movq(signature,
-          MemOperand(foreign_signature, wasm::ObjectAccess::ToTagged(
-                                            Foreign::kForeignAddressOffset)));
+  __ LoadExternalPointerField(
+      signature,
+      FieldOperand(foreign_signature, Foreign::kForeignAddressOffset));
   foreign_signature = no_reg;
   Register return_count = r8;
   __ movq(return_count,

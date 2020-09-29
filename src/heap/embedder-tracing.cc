@@ -94,10 +94,10 @@ void LocalEmbedderHeapTracer::ProcessingScope::TracePossibleWrapper(
   void* pointer0;
   void* pointer1;
   if (EmbedderDataSlot(js_object, 0)
-          .ToAlignedPointer(tracer_->isolate_, &pointer0) &&
+          .ToAlignedPointerSafe(tracer_->isolate_, &pointer0) &&
       pointer0 &&
       EmbedderDataSlot(js_object, 1)
-          .ToAlignedPointer(tracer_->isolate_, &pointer1)) {
+          .ToAlignedPointerSafe(tracer_->isolate_, &pointer1)) {
     wrapper_cache_.push_back({pointer0, pointer1});
   }
   FlushWrapperCacheIfFull();

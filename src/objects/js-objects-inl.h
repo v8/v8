@@ -283,6 +283,10 @@ int JSObject::GetEmbedderFieldOffset(int index) {
   return GetEmbedderFieldsStartOffset() + (kEmbedderDataSlotSize * index);
 }
 
+void JSObject::InitializeEmbedderField(Isolate* isolate, int index) {
+  EmbedderDataSlot(*this, index).AllocateExternalPointerEntry(isolate);
+}
+
 Object JSObject::GetEmbedderField(int index) {
   return EmbedderDataSlot(*this, index).load_tagged();
 }
