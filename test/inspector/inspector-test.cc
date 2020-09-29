@@ -334,6 +334,9 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
     utils->Set(isolate, "setLogConsoleApiMessageCalls",
                v8::FunctionTemplate::New(
                    isolate, &UtilsExtension::SetLogConsoleApiMessageCalls));
+    utils->Set(isolate, "setAdditionalConsoleApi",
+               v8::FunctionTemplate::New(
+                   isolate, &UtilsExtension::SetAdditionalConsoleApi));
     utils->Set(
         isolate, "setLogMaxAsyncCallStackDepthChanged",
         v8::FunctionTemplate::New(
@@ -543,6 +546,20 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
     }
     backend_runner_->data()->SetLogMaxAsyncCallStackDepthChanged(
         args[0].As<v8::Boolean>()->Value());
+  }
+
+  static void SetAdditionalConsoleApi(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1 || !args[0]->IsString()) {
+      fprintf(stderr, "Internal error: SetAdditionalConsoleApi(string).");
+      Exit();
+    }
+    std::vector<uint16_t> script =
+        ToVector(args.GetIsolate(), args[0].As<v8::String>());
+    RunSyncTask(backend_runner_, [&script](IsolateData* data) {
+      data->SetAdditionalConsoleApi(
+          v8_inspector::StringView(script.data(), script.size()));
+    });
   }
 
   static void CreateContextGroup(

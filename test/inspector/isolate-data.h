@@ -73,6 +73,7 @@ class IsolateData : public v8_inspector::V8InspectorClient {
   void SetMemoryInfo(v8::Local<v8::Value> memory_info);
   void SetLogConsoleApiMessageCalls(bool log);
   void SetLogMaxAsyncCallStackDepthChanged(bool log);
+  void SetAdditionalConsoleApi(v8_inspector::StringView api_script);
   void SetMaxAsyncTaskStacksForTest(int limit);
   void DumpAsyncTaskStacksStateForTest();
   void FireContextCreated(v8::Local<v8::Context> context, int context_group_id);
@@ -109,6 +110,8 @@ class IsolateData : public v8_inspector::V8InspectorClient {
                                        v8::Local<v8::Context>) override;
   void runMessageLoopOnPause(int context_group_id) override;
   void quitMessageLoopOnPause() override;
+  void installAdditionalCommandLineAPI(v8::Local<v8::Context>,
+                                       v8::Local<v8::Object>) override;
   void consoleAPIMessage(int contextGroupId,
                          v8::Isolate::MessageErrorLevel level,
                          const v8_inspector::StringView& message,
@@ -148,6 +151,7 @@ class IsolateData : public v8_inspector::V8InspectorClient {
   bool log_max_async_call_stack_depth_changed_ = false;
   v8::Global<v8::Private> not_inspectable_private_;
   v8::Global<v8::String> resource_name_prefix_;
+  v8::Global<v8::String> additional_console_api_;
 
   DISALLOW_COPY_AND_ASSIGN(IsolateData);
 };

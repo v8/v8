@@ -10288,6 +10288,12 @@ debug::PostponeInterruptsScope::PostponeInterruptsScope(v8::Isolate* isolate)
 
 debug::PostponeInterruptsScope::~PostponeInterruptsScope() = default;
 
+debug::DisableBreakScope::DisableBreakScope(v8::Isolate* isolate)
+    : scope_(std::make_unique<i::DisableBreak>(
+          reinterpret_cast<i::Isolate*>(isolate)->debug())) {}
+
+debug::DisableBreakScope::~DisableBreakScope() = default;
+
 Local<String> CpuProfileNode::GetFunctionName() const {
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
   i::Isolate* isolate = node->isolate();

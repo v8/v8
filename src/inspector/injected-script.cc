@@ -34,6 +34,8 @@
 #include <unordered_set>
 
 #include "../../third_party/inspector_protocol/crdtp/json.h"
+#include "include/v8-inspector.h"
+#include "src/debug/debug-interface.h"
 #include "src/inspector/custom-preview.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Protocol.h"
@@ -45,8 +47,6 @@
 #include "src/inspector/v8-stack-trace-impl.h"
 #include "src/inspector/v8-value-utils.h"
 #include "src/inspector/value-mirror.h"
-
-#include "include/v8-inspector.h"
 
 namespace v8_inspector {
 
@@ -861,6 +861,7 @@ Response InjectedScript::wrapEvaluateResult(
 
 v8::Local<v8::Object> InjectedScript::commandLineAPI() {
   if (m_commandLineAPI.IsEmpty()) {
+    v8::debug::DisableBreakScope disable_break(m_context->isolate());
     m_commandLineAPI.Reset(
         m_context->isolate(),
         m_context->inspector()->console()->createCommandLineAPI(

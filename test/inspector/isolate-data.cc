@@ -413,6 +413,11 @@ void IsolateData::SetLogMaxAsyncCallStackDepthChanged(bool log) {
   log_max_async_call_stack_depth_changed_ = log;
 }
 
+void IsolateData::SetAdditionalConsoleApi(v8_inspector::StringView api_script) {
+  v8::HandleScope handle_scope(isolate());
+  additional_console_api_.Reset(isolate(), ToString(isolate(), api_script));
+}
+
 v8::MaybeLocal<v8::Value> IsolateData::memoryInfo(v8::Isolate* isolate,
                                                   v8::Local<v8::Context>) {
   if (memory_info_.IsEmpty()) return v8::MaybeLocal<v8::Value>();
@@ -427,6 +432,21 @@ void IsolateData::runMessageLoopOnPause(int) {
 void IsolateData::quitMessageLoopOnPause() {
   v8::SealHandleScope seal_handle_scope(isolate());
   task_runner_->QuitMessageLoop();
+}
+
+void IsolateData::installAdditionalCommandLineAPI(
+    v8::Local<v8::Context> context, v8::Local<v8::Object> object) {
+  if (additional_console_api_.IsEmpty()) return;
+  CHECK(context->GetIsolate() == isolate());
+  v8::HandleScope handle_scope(isolate());
+  v8::Context::Scope context_scope(context);
+  v8::ScriptOrigin origin(
+      v8::String::NewFromUtf8Literal(isolate(), "internal-console-api"));
+  v8::ScriptCompiler::Source scriptSource(
+      additional_console_api_.Get(isolate()), origin);
+  v8::MaybeLocal<v8::Script> script =
+      v8::ScriptCompiler::Compile(context, &scriptSource);
+  CHECK(!script.ToLocalChecked()->Run(context).IsEmpty());
 }
 
 void IsolateData::consoleAPIMessage(int contextGroupId,
