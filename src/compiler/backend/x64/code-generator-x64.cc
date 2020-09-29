@@ -4559,7 +4559,7 @@ void CodeGenerator::AssembleConstructFrame() {
   }
 }
 
-void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
+void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   auto call_descriptor = linkage()->GetIncomingDescriptor();
 
   // Restore registers.
@@ -4592,38 +4592,89 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
 
   unwinding_info_writer_.MarkBlockWillExit();
 
-  // Might need rcx for scratch if pop_size is too big or if there is a variable
-  // pop count.
+  // We might need rcx and rdx for scratch.
   DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & rcx.bit());
   DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & rdx.bit());
-  size_t pop_size = call_descriptor->StackParameterCount() * kSystemPointerSize;
+  int parameter_count =
+      static_cast<int>(call_descriptor->StackParameterCount());
   X64OperandConverter g(this, nullptr);
+  Register pop_reg = additional_pop_count->IsImmediate()
+                         ? rcx
+                         : g.ToRegister(additional_pop_count);
+  Register scratch_reg = pop_reg == rcx ? rdx : rcx;
+  Register argc_reg =
+      additional_pop_count->IsImmediate() ? pop_reg : scratch_reg;
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+  // Functions with JS linkage have at least one parameter (the receiver).
+  // If {parameter_count} == 0, it means it is a builtin with
+  // kDontAdaptArgumentsSentinel, which takes care of JS arguments popping
+  // itself.
+  const bool drop_jsargs = frame_access_state()->has_frame() &&
+                           call_descriptor->IsJSFunctionCall() &&
+                           parameter_count != 0;
+#else
+  const bool drop_jsargs = false;
+#endif
   if (call_descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
   } else if (frame_access_state()->has_frame()) {
-    if (pop->IsImmediate() && g.ToConstant(pop).ToInt32() == 0) {
+    if (additional_pop_count->IsImmediate() &&
+        g.ToConstant(additional_pop_count).ToInt32() == 0) {
       // Canonicalize JSFunction return sites for now.
       if (return_label_.is_bound()) {
         __ jmp(&return_label_);
         return;
       } else {
         __ bind(&return_label_);
-        AssembleDeconstructFrame();
       }
-    } else {
-      AssembleDeconstructFrame();
     }
+    if (drop_jsargs) {
+      // Get the actual argument count.
+      __ movq(argc_reg, Operand(rbp, StandardFrameConstants::kArgCOffset));
+    }
+    AssembleDeconstructFrame();
   }
 
-  if (pop->IsImmediate()) {
-    pop_size += g.ToConstant(pop).ToInt32() * kSystemPointerSize;
-    CHECK_LT(pop_size, static_cast<size_t>(std::numeric_limits<int>::max()));
-    __ Ret(static_cast<int>(pop_size), rcx);
-  } else {
-    Register pop_reg = g.ToRegister(pop);
-    Register scratch_reg = pop_reg == rcx ? rdx : rcx;
+  if (drop_jsargs) {
+    // In addition to the slots given by {additional_pop_count}, we must pop all
+    // arguments from the stack (including the receiver). This number of
+    // arguments is given by max(1 + argc_reg, parameter_count).
+    Label argc_reg_has_final_count;
+    // Exclude the receiver to simplify the computation. We'll account for it at
+    // the end.
+    int parameter_count_withouth_receiver = parameter_count - 1;
+    if (parameter_count_withouth_receiver != 0) {
+      __ cmpq(argc_reg, Immediate(parameter_count_withouth_receiver));
+      __ j(greater_equal, &argc_reg_has_final_count, Label::kNear);
+      __ movq(argc_reg, Immediate(parameter_count_withouth_receiver));
+      __ bind(&argc_reg_has_final_count);
+    }
+    // Add additional pop count.
+    if (additional_pop_count->IsImmediate()) {
+      DCHECK_EQ(pop_reg, argc_reg);
+      int additional_count = g.ToConstant(additional_pop_count).ToInt32();
+      if (additional_count != 0) {
+        __ addq(pop_reg, Immediate(additional_count));
+      }
+    } else {
+      __ addq(pop_reg, argc_reg);
+    }
     __ PopReturnAddressTo(scratch_reg);
-    __ leaq(rsp, Operand(rsp, pop_reg, times_8, static_cast<int>(pop_size)));
+    __ leaq(rsp, Operand(rsp, pop_reg, times_system_pointer_size,
+                         kSystemPointerSize));  // Also pop the receiver.
+    // We use a return instead of a jump for better return address prediction.
+    __ PushReturnAddressFrom(scratch_reg);
+    __ Ret();
+  } else if (additional_pop_count->IsImmediate()) {
+    int additional_count = g.ToConstant(additional_pop_count).ToInt32();
+    size_t pop_size = (parameter_count + additional_count) * kSystemPointerSize;
+    CHECK_LE(pop_size, static_cast<size_t>(std::numeric_limits<int>::max()));
+    __ Ret(static_cast<int>(pop_size), scratch_reg);
+  } else {
+    int pop_size = static_cast<int>(parameter_count * kSystemPointerSize);
+    __ PopReturnAddressTo(scratch_reg);
+    __ leaq(rsp, Operand(rsp, pop_reg, times_system_pointer_size,
+                         static_cast<int>(pop_size)));
     __ PushReturnAddressFrom(scratch_reg);
     __ Ret();
   }

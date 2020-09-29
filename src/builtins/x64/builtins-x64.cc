@@ -2382,6 +2382,12 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     __ bind(&new_target_constructor);
   }
 
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+  // TODO(victorgomes): Remove this copy when all the arguments adaptor frame
+  // code is erased.
+  __ movq(rbx, rbp);
+  __ movq(r8, Operand(rbp, StandardFrameConstants::kArgCOffset));
+#else
   // Check if we have an arguments adaptor frame below the function frame.
   Label arguments_adaptor, arguments_done;
   __ movq(rbx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
@@ -2403,6 +2409,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
                 Operand(rbx, ArgumentsAdaptorFrameConstants::kLengthOffset));
   }
   __ bind(&arguments_done);
+#endif
 
   Label stack_done, stack_overflow;
   __ subl(r8, rcx);

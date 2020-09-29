@@ -3850,6 +3850,14 @@ Node* EffectControlLinearizer::LowerToBoolean(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerArgumentsLength(Node* node) {
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+  return ChangeIntPtrToSmi(
+      __ Load(MachineType::Pointer(), __ LoadFramePointer(),
+              __ IntPtrConstant(StandardFrameConstants::kArgCOffset)));
+#else
+  auto done = __ MakeLabel(MachineRepresentation::kTaggedSigned);
+  Node* frame = __ LoadFramePointer();
+
   Node* arguments_frame = NodeProperties::GetValueInput(node, 0);
   int formal_parameter_count = FormalParameterCountOf(node->op());
   DCHECK_LE(0, formal_parameter_count);
@@ -3858,9 +3866,6 @@ Node* EffectControlLinearizer::LowerArgumentsLength(Node* node) {
   // We have to distinguish the case when there is an arguments adaptor frame
   // (i.e., arguments_frame != LoadFramePointer()).
   auto if_adaptor_frame = __ MakeLabel();
-  auto done = __ MakeLabel(MachineRepresentation::kTaggedSigned);
-
-  Node* frame = __ LoadFramePointer();
   __ GotoIf(__ TaggedEqual(arguments_frame, frame), &done,
             __ SmiConstant(formal_parameter_count));
   __ Goto(&if_adaptor_frame);
@@ -3870,24 +3875,30 @@ Node* EffectControlLinearizer::LowerArgumentsLength(Node* node) {
       MachineType::Pointer(), arguments_frame,
       __ IntPtrConstant(ArgumentsAdaptorFrameConstants::kLengthOffset)));
   __ Goto(&done, arguments_length);
-
   __ Bind(&done);
   return done.PhiAt(0);
+#endif
 }
 
 Node* EffectControlLinearizer::LowerRestLength(Node* node) {
-  Node* arguments_frame = NodeProperties::GetValueInput(node, 0);
   int formal_parameter_count = FormalParameterCountOf(node->op());
   DCHECK_LE(0, formal_parameter_count);
+
+  auto done = __ MakeLabel(MachineRepresentation::kTaggedSigned);
+  Node* frame = __ LoadFramePointer();
+
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+  Node* arguments_length = ChangeIntPtrToSmi(
+      __ Load(MachineType::Pointer(), frame,
+              __ IntPtrConstant(StandardFrameConstants::kArgCOffset)));
+#else
+  Node* arguments_frame = NodeProperties::GetValueInput(node, 0);
 
   // The RestLength node is computing the number of rest parameters,
   // which is max(0, actual_parameter_count - formal_parameter_count).
   // We have to distinguish the case, when there is an arguments adaptor frame
   // (i.e., arguments_frame != LoadFramePointer()).
   auto if_adaptor_frame = __ MakeLabel();
-  auto done = __ MakeLabel(MachineRepresentation::kTaggedSigned);
-
-  Node* frame = __ LoadFramePointer();
   __ GotoIf(__ TaggedEqual(arguments_frame, frame), &done, __ SmiConstant(0));
   __ Goto(&if_adaptor_frame);
 
@@ -3895,6 +3906,7 @@ Node* EffectControlLinearizer::LowerRestLength(Node* node) {
   Node* arguments_length = __ BitcastWordToTaggedSigned(__ Load(
       MachineType::Pointer(), arguments_frame,
       __ IntPtrConstant(ArgumentsAdaptorFrameConstants::kLengthOffset)));
+#endif
 
   Node* rest_length =
       __ SmiSub(arguments_length, __ SmiConstant(formal_parameter_count));

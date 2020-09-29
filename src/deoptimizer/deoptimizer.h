@@ -342,8 +342,9 @@ class TranslatedState {
   Isolate* isolate() { return isolate_; }
 
   void Init(Isolate* isolate, Address input_frame_pointer,
-            TranslationIterator* iterator, FixedArray literal_array,
-            RegisterValues* registers, FILE* trace_file, int parameter_count);
+            Address stack_frame_pointer, TranslationIterator* iterator,
+            FixedArray literal_array, RegisterValues* registers,
+            FILE* trace_file, int parameter_count, int actual_argument_count);
 
   void VerifyMaterializedObjects();
   bool DoUpdateFeedback();
@@ -411,6 +412,7 @@ class TranslatedState {
   Isolate* isolate_ = nullptr;
   Address stack_frame_pointer_ = kNullAddress;
   int formal_parameter_count_;
+  int actual_argument_count_;
 
   struct ObjectPosition {
     int frame_index_;
@@ -631,7 +633,9 @@ class Deoptimizer : public Malloced {
   intptr_t caller_pc_;
   intptr_t caller_constant_pool_;
   intptr_t input_frame_context_;
-  intptr_t actual_argument_count_;
+
+  // The argument count of the bottom most frame.
+  int actual_argument_count_;
 
   // Key for lookup of previously materialized objects
   intptr_t stack_fp_;

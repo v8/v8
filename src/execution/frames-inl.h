@@ -202,9 +202,14 @@ inline JavaScriptFrame::JavaScriptFrame(StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {}
 
 Address JavaScriptFrame::GetParameterSlot(int index) const {
-  DCHECK(-1 <= index &&
-         (index < ComputeParametersCount() ||
-          ComputeParametersCount() == kDontAdaptArgumentsSentinel));
+  DCHECK_LE(-1, index);
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+  DCHECK_LT(index,
+            std::max(GetActualArgumentsCount(), ComputeParametersCount()));
+#else
+  DCHECK(index < ComputeParametersCount() ||
+         ComputeParametersCount() == kDontAdaptArgumentsSentinel);
+#endif
 #ifdef V8_REVERSE_JSARGS
   int parameter_offset = (index + 1) * kSystemPointerSize;
 #else

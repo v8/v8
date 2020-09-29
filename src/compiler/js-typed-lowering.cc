@@ -1589,11 +1589,13 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, int builtin_index, int arity,
   NodeProperties::ChangeOp(node, jsgraph->common()->Call(call_descriptor));
 }
 
+#ifndef V8_NO_ARGUMENTS_ADAPTOR
 bool NeedsArgumentAdaptorFrame(SharedFunctionInfoRef shared, int arity) {
   static const int sentinel = kDontAdaptArgumentsSentinel;
   const int num_decl_parms = shared.internal_formal_parameter_count();
   return (num_decl_parms != arity && num_decl_parms != sentinel);
 }
+#endif
 
 }  // namespace
 
@@ -1779,6 +1781,26 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     Node* new_target = jsgraph()->UndefinedConstant();
 
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+    int formal_count = shared->internal_formal_parameter_count();
+    if (formal_count != kDontAdaptArgumentsSentinel && formal_count > arity) {
+      node->RemoveInput(n.FeedbackVectorIndex());
+      // Underapplication. Massage the arguments to match the expected number of
+      // arguments.
+      for (int i = arity; i < formal_count; i++) {
+        node->InsertInput(graph()->zone(), arity + 2,
+                          jsgraph()->UndefinedConstant());
+      }
+
+      // Patch {node} to a direct call.
+      node->InsertInput(graph()->zone(), formal_count + 2, new_target);
+      node->InsertInput(graph()->zone(), formal_count + 3,
+                        jsgraph()->Constant(arity));
+      NodeProperties::ChangeOp(node,
+                               common()->Call(Linkage::GetJSCallDescriptor(
+                                   graph()->zone(), false, 1 + formal_count,
+                                   flags | CallDescriptor::kCanUseRoots)));
+#else
     if (NeedsArgumentAdaptorFrame(*shared, arity)) {
       node->RemoveInput(n.FeedbackVectorIndex());
 
@@ -1826,6 +1848,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
             common()->Call(Linkage::GetStubCallDescriptor(
                 graph()->zone(), callable.descriptor(), 1 + arity, flags)));
       }
+#endif
     } else if (shared->HasBuiltinId() &&
                Builtins::IsCpp(shared->builtin_id())) {
       // Patch {node} to a direct CEntry call.
