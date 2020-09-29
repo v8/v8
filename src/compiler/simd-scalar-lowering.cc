@@ -1215,9 +1215,8 @@ void SimdScalarLowering::LowerNode(Node* node) {
         case SimdType::kInt8x16: {
           for (int i = 0; i < num_lanes; ++i) {
             Address data_address = reinterpret_cast<Address>(params.data() + i);
-            rep_node[i] = mcgraph_->Int32Constant(
-                static_cast<int32_t>(static_cast<int8_t>(
-                    base::ReadLittleEndianValue<int8_t>(data_address))));
+            rep_node[i] = mcgraph_->Int32Constant(static_cast<int32_t>(
+                base::ReadLittleEndianValue<int8_t>(data_address)));
           }
           break;
         }
@@ -1864,6 +1863,14 @@ void SimdScalarLowering::LowerNode(Node* node) {
       int32_t lane = OpParameter<int32_t>(node->op());
       Node** rep_node = zone()->NewArray<Node*>(num_lanes);
       rep_node[0] = GetReplacementsWithType(node->InputAt(0), rep_type)[lane];
+
+      // If unsigned, mask the top bits.
+      if (node->opcode() == IrOpcode::kI16x8ExtractLaneU) {
+        rep_node[0] = Mask(rep_node[0], kMask16);
+      } else if (node->opcode() == IrOpcode::kI8x16ExtractLaneU) {
+        rep_node[0] = Mask(rep_node[0], kMask8);
+      }
+
       for (int i = 1; i < num_lanes; ++i) {
         rep_node[i] = nullptr;
       }
@@ -1890,6 +1897,17 @@ void SimdScalarLowering::LowerNode(Node* node) {
       } else {
         rep_node[lane] = repNode;
       }
+
+      // The replacement nodes for these opcodes are in Word32, and we always
+      // store nodes in sign extended form (and mask to account for overflows.)
+      if (node->opcode() == IrOpcode::kI16x8ReplaceLane) {
+        rep_node[lane] = graph()->NewNode(machine()->SignExtendWord16ToInt32(),
+                                          Mask(rep_node[lane], kMask16));
+      } else if (node->opcode() == IrOpcode::kI8x16ReplaceLane) {
+        rep_node[lane] = graph()->NewNode(machine()->SignExtendWord8ToInt32(),
+                                          Mask(rep_node[lane], kMask8));
+      }
+
       ReplaceNode(node, rep_node, num_lanes);
       break;
     }

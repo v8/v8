@@ -41,8 +41,6 @@
   # Scalar lowering is incomplete, we skip these and selectively enable as
   # we finish the implementation, see v8:10507.
   'proposals/simd/simd_conversions' : [PASS, FAIL],
-  'proposals/simd/simd_lane' : [PASS, FAIL],
-
 }],  # ALWAYS
 
 ['arch == arm and not simulator_run', {
