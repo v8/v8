@@ -1129,6 +1129,7 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
         node->opcode() == IrOpcode::kCall ||
         node->opcode() == IrOpcode::kProtectedLoad ||
         node->opcode() == IrOpcode::kProtectedStore ||
+        node->opcode() == IrOpcode::kLoadTransform ||
 #define ADD_EFFECT_FOR_ATOMIC_OP(Opcode) \
   node->opcode() == IrOpcode::k##Opcode ||
         MACHINE_ATOMIC_OP_LIST(ADD_EFFECT_FOR_ATOMIC_OP)

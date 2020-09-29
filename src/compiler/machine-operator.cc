@@ -750,7 +750,10 @@ struct ProtectedLoadOperator : public Operator1<LoadRepresentation> {
 template <LoadKind kind, LoadTransformation type>
 struct LoadTransformOperator : public Operator1<LoadTransformParameters> {
   LoadTransformOperator()
-      : Operator1(IrOpcode::kLoadTransform, Operator::kEliminatable,
+      : Operator1(IrOpcode::kLoadTransform,
+                  kind == LoadKind::kProtected
+                      ? Operator::kNoDeopt | Operator::kNoThrow
+                      : Operator::kEliminatable,
                   "LoadTransform", 2, 1, 1, 1, 1, 0,
                   LoadTransformParameters{kind, type}) {}
 };
