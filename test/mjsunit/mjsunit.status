@@ -984,6 +984,9 @@
 
   # BUG(v8:9975).
   'es6/typedarray-copywithin': [SKIP],
+
+  # BUG(https://crbug.com/v8/10966)
+  'tools/log_two_byte': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################
