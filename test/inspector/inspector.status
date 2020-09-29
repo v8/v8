@@ -70,7 +70,7 @@
 }], # variant == jitless
 
 ##############################################################################
-['(arch == arm or arch == arm64) and simulator_run', {
+['(arch in [arm, arm64, ppc64]) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
   'runtime/console-messages-limits': [PASS, NO_VARIANTS, ['mode == debug', SKIP]],
 }],  # (arch == arm or arch == arm64) and simulator_run
