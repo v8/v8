@@ -2,8 +2,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-beta_version = "8.6"
-stable_version = "8.5"
+versions = {
+    "beta" : "8.6",
+    "stable" : "8.5",
+}
 
 branch_names = [
     "ci",               # master
@@ -11,5 +13,5 @@ branch_names = [
     "ci.br.beta",       # beta
 ]
 
-beta_re = beta_version.replace(".", "\\.")
-stable_re = stable_version.replace(".", "\\.")
+beta_re = versions["beta"].replace(".", "\\.")
+stable_re = versions["stable"].replace(".", "\\.")

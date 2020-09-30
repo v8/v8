@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//definitions.star", "branch_names")
+load("//definitions.star", "branch_names", "versions")
 
 waterfall_acls = [
     acl.entry(
@@ -144,9 +144,11 @@ branch_console_dict = {
 }
 
 def multibranch_builder(**kwargs):
-    for bucket_name in ["ci", "ci.br.beta", "ci.br.stable"]:
+    added_builders = []
+    for bucket_name in branch_names:
         args = dict(kwargs)
         triggered_by_gitiles = args.pop("triggered_by_gitiles", True)
+        first_branch_version = args.pop("first_branch_version", None)
         if triggered_by_gitiles:
             args["triggered_by"] = [trigger_dict[bucket_name]]
             args["use_goma"] = args.get("use_goma", GOMA.DEFAULT)
@@ -154,8 +156,20 @@ def multibranch_builder(**kwargs):
             args["dimensions"] = {"host_class": "multibot"}
         if bucket_name != "ci":
             args["notifies"] = ["beta/stable notifier"]
+            if _builder_is_not_supported(bucket_name, first_branch_version):
+                continue
         v8_basic_builder(defaults_ci, bucket = bucket_name, **args)
-    return kwargs["name"]
+        added_builders.append(bucket_name + "/" + kwargs["name"])
+    return added_builders
+
+def _builder_is_not_supported(bucket_name, first_branch_version):
+    # do we need to skip the builder in this bucket?
+    if first_branch_version:
+        branch_id = bucket_name.split(".")[2]
+        branch_version = versions[branch_id].replace(".", "")
+        builder_first_version = first_branch_version.replace(".", "")
+        return int(branch_version) < int(builder_first_version)
+    return False
 
 def perf_builder(**kwargs):
     properties = {"triggers_proxy": True, "build_config": "Release", "builder_group": "client.v8.perf"}
@@ -226,13 +240,14 @@ def merge_defaults(defaults, args, key):
 def clean_dict_items(dictionary, key):
     return {k: v for k, v in dictionary.get(key, {}).items() if v != None}.items()
 
-def in_branch_console(console_id, *builders):
-    def in_category(category_name, *builders):
-        for branch in branch_names:
-            for builder in builders:
+def in_branch_console(console_id, *builder_sets):
+    def in_category(category_name, *builder_sets):
+        for builder_set in builder_sets:
+            for builder in builder_set:
+                branch = builder.split("/")[0]
                 luci.console_view_entry(
                     console_view = branch_console_dict[branch, console_id],
-                    builder = "%s/%s" % (branch, builder),
+                    builder = builder,
                     category = category_name,
                 )
 
