@@ -3423,12 +3423,6 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // IF we have 0 params: jump through parameter handling.
   __ j(equal, &prepare_for_wasm_call);
 
-  // ELSE:
-  // Make sure we have the same number of arguments in order to be able to load
-  // the arguments using static offsets below.
-  __ cmpl(kJavaScriptCallArgCountRegister, param_count);
-  __ Check(equal, AbortReason::kInvalidNumberOfJsArgs);
-
   // -------------------------------------------
   // Create 2 sections for integer and float params.
   // -------------------------------------------

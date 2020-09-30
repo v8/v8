@@ -6664,6 +6664,45 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                                 args.begin());
         break;
       }
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+      // =======================================================================
+      // === JS Functions with mismatching arity ===============================
+      // =======================================================================
+      case WasmImportCallKind::kJSFunctionArityMismatch: {
+        int pushed_count = std::max(expected_arity, wasm_count);
+        base::SmallVector<Node*, 16> args(pushed_count + 7);
+        int pos = 0;
+
+        args[pos++] = callable_node;  // target callable.
+        // Determine receiver at runtime.
+        args[pos++] =
+            BuildReceiverNode(callable_node, native_context, undefined_node);
+
+        // Convert wasm numbers to JS values.
+        pos = AddArgumentNodes(VectorOf(args), pos, wasm_count, sig_);
+        for (int i = wasm_count; i < expected_arity; ++i) {
+          args[pos++] = undefined_node;
+        }
+        args[pos++] = undefined_node;                        // new target
+        args[pos++] = mcgraph()->Int32Constant(wasm_count);  // argument count
+
+        Node* function_context =
+            gasm_->Load(MachineType::TaggedPointer(), callable_node,
+                        wasm::ObjectAccess::ContextOffsetInTaggedJSFunction());
+        args[pos++] = function_context;
+        args[pos++] = effect();
+        args[pos++] = control();
+        DCHECK_EQ(pos, args.size());
+
+        auto call_descriptor = Linkage::GetJSCallDescriptor(
+            graph()->zone(), false, pushed_count + 1, CallDescriptor::kNoFlags);
+        call = graph()->NewNode(mcgraph()->common()->Call(call_descriptor), pos,
+                                args.begin());
+        break;
+      }
+      case WasmImportCallKind::kJSFunctionArityMismatchSkipAdaptor:
+        UNREACHABLE();
+#else
       // =======================================================================
       // === JS Functions with arguments adapter ===============================
       // =======================================================================
@@ -6754,6 +6793,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                                 args.begin());
         break;
       }
+#endif
       // =======================================================================
       // === General case of unknown callable ==================================
       // =======================================================================
