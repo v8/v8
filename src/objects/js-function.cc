@@ -87,8 +87,8 @@ namespace {
 // otherwise returns true and sets highest_tier.
 bool HighestTierOf(CodeKinds kinds, CodeKind* highest_tier) {
   DCHECK_EQ((kinds & ~kJSFunctionCodeKindsMask), 0);
-  if ((kinds & CodeKindFlag::OPTIMIZED_FUNCTION) != 0) {
-    *highest_tier = CodeKind::OPTIMIZED_FUNCTION;
+  if ((kinds & CodeKindFlag::TURBOFAN) != 0) {
+    *highest_tier = CodeKind::TURBOFAN;
     return true;
   } else if ((kinds & CodeKindFlag::TURBOPROP) != 0) {
     *highest_tier = CodeKind::TURBOPROP;
@@ -122,7 +122,7 @@ bool JSFunction::ActiveTierIsIgnition() const {
 bool JSFunction::ActiveTierIsTurbofan() const {
   CodeKind highest_tier;
   if (!HighestTierOf(GetAvailableCodeKinds(), &highest_tier)) return false;
-  return highest_tier == CodeKind::OPTIMIZED_FUNCTION;
+  return highest_tier == CodeKind::TURBOFAN;
 }
 
 bool JSFunction::ActiveTierIsNCI() const {
@@ -143,7 +143,7 @@ CodeKind JSFunction::NextTier() const {
   } else if (V8_UNLIKELY(FLAG_turboprop)) {
     return CodeKind::TURBOPROP;
   }
-  return CodeKind::OPTIMIZED_FUNCTION;
+  return CodeKind::TURBOFAN;
 }
 
 bool JSFunction::CanDiscardCompiled() const {

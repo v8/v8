@@ -3224,7 +3224,7 @@ bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
                                            bool use_mid_tier_register_allocator,
                                            bool run_verifier) {
   OptimizedCompilationInfo info(ArrayVector("testing"), sequence->zone(),
-                                CodeKind::STUB);
+                                CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING);
   ZoneStats zone_stats(sequence->isolate()->allocator());
   PipelineData data(&zone_stats, &info, sequence->isolate(), sequence);
   data.InitializeFrameData(nullptr);

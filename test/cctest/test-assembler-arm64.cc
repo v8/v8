@@ -166,7 +166,9 @@ static void InitializeVM() {
   {                                                                     \
     CodeDesc desc;                                                      \
     __ GetCode(masm.isolate(), &desc);                                  \
-    code = Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build(); \
+    code = Factory::CodeBuilder(isolate, desc,                          \
+                                CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING) \
+               .Build();                                                \
     if (FLAG_print_code) code->Print();                                 \
   }
 
@@ -211,7 +213,9 @@ static void InitializeVM() {
   {                                                                     \
     CodeDesc desc;                                                      \
     __ GetCode(masm.isolate(), &desc);                                  \
-    code = Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build(); \
+    code = Factory::CodeBuilder(isolate, desc,                          \
+                                CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING) \
+               .Build();                                                \
     if (FLAG_print_code) code->Print();                                 \
   }
 
@@ -14880,7 +14884,8 @@ TEST(pool_size) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  code = Factory::CodeBuilder(isolate, desc, CodeKind::STUB)
+  code = Factory::CodeBuilder(isolate, desc,
+                              CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
              .set_self_reference(masm.CodeObject())
              .Build();
 

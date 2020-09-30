@@ -4068,7 +4068,9 @@ TEST(WeakReference) {
   i::CodeDesc desc;
   assm.GetCode(i_isolate, &desc);
   i::Handle<i::Code> code =
-      i::Factory::CodeBuilder(i_isolate, desc, i::CodeKind::STUB).Build();
+      i::Factory::CodeBuilder(i_isolate, desc,
+                              i::CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+          .Build();
   CHECK(code->IsCode());
 
   fv->set_optimized_code_weak_or_smi(i::HeapObjectReference::Weak(*code));

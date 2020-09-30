@@ -149,7 +149,9 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   bool IsNativeContextIndependent() const {
     return code_kind() == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
   }
-  bool IsStub() const { return code_kind() == CodeKind::STUB; }
+  bool IsStub() const {
+    return code_kind() == CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING;
+  }
   bool IsWasm() const { return code_kind() == CodeKind::WASM_FUNCTION; }
 
   void SetOptimizingForOsr(BailoutId osr_offset, JavaScriptFrame* osr_frame) {

@@ -1803,7 +1803,7 @@ Object Isolate::UnwindAndFindHandler() {
                             code.stack_slots() * kSystemPointerSize;
 
         // TODO(bmeurer): Turbofanned BUILTIN frames appear as OPTIMIZED,
-        // but do not have a code kind of OPTIMIZED_FUNCTION.
+        // but do not have a code kind of TURBOFAN.
         if (CodeKindCanDeoptimize(code.kind()) &&
             code.marked_for_deoptimization()) {
           // If the target code is lazy deoptimized, we jump to the original

@@ -123,7 +123,7 @@ class BytecodeGraphTester {
     Zone zone(isolate_->allocator(), ZONE_NAME);
     Handle<SharedFunctionInfo> shared(function->shared(), isolate_);
     OptimizedCompilationInfo compilation_info(&zone, isolate_, shared, function,
-                                              CodeKind::OPTIMIZED_FUNCTION);
+                                              CodeKind::TURBOFAN);
 
     // Compiler relies on canonicalized handles, let's create
     // a canonicalized scope and migrate existing handles there.

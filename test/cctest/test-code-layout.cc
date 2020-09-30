@@ -40,7 +40,8 @@ TEST(CodeLayoutWithoutUnwindingInfo) {
   code_desc.origin = nullptr;
 
   Handle<Code> code =
-      Factory::CodeBuilder(CcTest::i_isolate(), code_desc, CodeKind::STUB)
+      Factory::CodeBuilder(CcTest::i_isolate(), code_desc,
+                           CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
           .Build();
 
   CHECK(!code->has_unwinding_info());
@@ -87,7 +88,8 @@ TEST(CodeLayoutWithUnwindingInfo) {
   code_desc.origin = nullptr;
 
   Handle<Code> code =
-      Factory::CodeBuilder(CcTest::i_isolate(), code_desc, CodeKind::STUB)
+      Factory::CodeBuilder(CcTest::i_isolate(), code_desc,
+                           CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
           .Build();
 
   CHECK(code->has_unwinding_info());

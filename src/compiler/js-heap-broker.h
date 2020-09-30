@@ -85,7 +85,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   // churn when new flags are added.
   JSHeapBroker(Isolate* isolate, Zone* broker_zone)
       : JSHeapBroker(isolate, broker_zone, FLAG_trace_heap_broker, false,
-                     CodeKind::OPTIMIZED_FUNCTION) {}
+                     CodeKind::TURBOFAN) {}
 
   ~JSHeapBroker();
 

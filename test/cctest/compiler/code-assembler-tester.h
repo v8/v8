@@ -22,7 +22,8 @@ class CodeAssemblerTester {
   explicit CodeAssemblerTester(Isolate* isolate, const char* name = "test")
       : zone_(isolate->allocator(), ZONE_NAME, kCompressGraphZone),
         scope_(isolate),
-        state_(isolate, &zone_, VoidDescriptor{}, CodeKind::STUB, name,
+        state_(isolate, &zone_, VoidDescriptor{},
+               CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING, name,
                PoisoningMitigationLevel::kDontPoison) {}
 
   // Test generating code for a JS function (e.g. builtins).
@@ -45,7 +46,8 @@ class CodeAssemblerTester {
                       const char* name = "test")
       : zone_(isolate->allocator(), ZONE_NAME, kCompressGraphZone),
         scope_(isolate),
-        state_(isolate, &zone_, call_descriptor, CodeKind::STUB, name,
+        state_(isolate, &zone_, call_descriptor,
+               CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING, name,
                PoisoningMitigationLevel::kDontPoison, Builtins::kNoBuiltinId) {}
 
   CodeAssemblerState* state() { return &state_; }

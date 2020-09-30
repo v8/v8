@@ -60,8 +60,9 @@ TEST(0) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);
@@ -96,8 +97,9 @@ TEST(1) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);
@@ -141,8 +143,9 @@ TEST(2) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);
@@ -187,8 +190,9 @@ TEST(3) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);
@@ -318,7 +322,9 @@ TEST(4) {
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
-        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+        Factory::CodeBuilder(isolate, desc,
+                             CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+            .Build();
 #ifdef DEBUG
     StdoutStream os;
     code->Print(os);
@@ -380,7 +386,9 @@ TEST(5) {
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
-        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+        Factory::CodeBuilder(isolate, desc,
+                             CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+            .Build();
 #ifdef DEBUG
     StdoutStream os;
     code->Print(os);
@@ -410,8 +418,9 @@ TEST(6) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);
@@ -477,8 +486,9 @@ static void TestRoundingMode(VCVTTypes types,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);
@@ -659,8 +669,9 @@ TEST(8) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);
@@ -768,8 +779,9 @@ TEST(9) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);
@@ -873,8 +885,9 @@ TEST(10) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);
@@ -967,8 +980,9 @@ TEST(11) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);
@@ -1093,7 +1107,9 @@ TEST(13) {
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
-        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+        Factory::CodeBuilder(isolate, desc,
+                             CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+            .Build();
 #ifdef DEBUG
     StdoutStream os;
     code->Print(os);
@@ -1164,8 +1180,9 @@ TEST(14) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);
@@ -2045,7 +2062,9 @@ TEST(15) {
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
-        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+        Factory::CodeBuilder(isolate, desc,
+                             CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+            .Build();
 #ifdef DEBUG
     StdoutStream os;
     code->Print(os);
@@ -2320,8 +2339,9 @@ TEST(16) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);
@@ -2399,7 +2419,9 @@ TEST(sdiv) {
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
-        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+        Factory::CodeBuilder(isolate, desc,
+                             CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+            .Build();
 #ifdef DEBUG
     StdoutStream os;
     code->Print(os);
@@ -2459,7 +2481,9 @@ TEST(udiv) {
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
-        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+        Factory::CodeBuilder(isolate, desc,
+                             CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+            .Build();
 #ifdef DEBUG
     StdoutStream os;
     code->Print(os);
@@ -2487,8 +2511,9 @@ TEST(smmla) {
   __ bx(lr);
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -2512,8 +2537,9 @@ TEST(smmul) {
   __ bx(lr);
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -2537,8 +2563,9 @@ TEST(sxtb) {
   __ bx(lr);
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -2562,8 +2589,9 @@ TEST(sxtab) {
   __ bx(lr);
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -2587,8 +2615,9 @@ TEST(sxth) {
   __ bx(lr);
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -2612,8 +2641,9 @@ TEST(sxtah) {
   __ bx(lr);
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -2637,8 +2667,9 @@ TEST(uxtb) {
   __ bx(lr);
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -2662,8 +2693,9 @@ TEST(uxtab) {
   __ bx(lr);
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -2687,8 +2719,9 @@ TEST(uxth) {
   __ bx(lr);
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -2712,8 +2745,9 @@ TEST(uxtah) {
   __ bx(lr);
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
@@ -2754,7 +2788,9 @@ TEST(rbit) {
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
-        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+        Factory::CodeBuilder(isolate, desc,
+                             CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+            .Build();
 
 #ifdef OBJECT_PRINT
     code->Print(std::cout);
@@ -2834,7 +2870,8 @@ TEST(code_relative_offset) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, CodeKind::STUB)
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
                           .set_self_reference(code_object)
                           .Build();
   auto f = GeneratedCode<F_iiiii>::FromCode(*code);
@@ -2874,8 +2911,9 @@ TEST(msr_mrs) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);
@@ -2972,7 +3010,9 @@ TEST(ARMv8_float32_vrintX) {
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
-        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+        Factory::CodeBuilder(isolate, desc,
+                             CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+            .Build();
 #ifdef DEBUG
     StdoutStream os;
     code->Print(os);
@@ -3073,7 +3113,9 @@ TEST(ARMv8_vrintX) {
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
-        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+        Factory::CodeBuilder(isolate, desc,
+                             CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+            .Build();
 #ifdef DEBUG
     StdoutStream os;
     code->Print(os);
@@ -3210,7 +3252,9 @@ TEST(ARMv8_vsel) {
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
-        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+        Factory::CodeBuilder(isolate, desc,
+                             CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+            .Build();
 #ifdef DEBUG
     StdoutStream os;
     code->Print(os);
@@ -3301,7 +3345,9 @@ TEST(ARMv8_vminmax_f64) {
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
-        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+        Factory::CodeBuilder(isolate, desc,
+                             CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+            .Build();
 #ifdef DEBUG
     StdoutStream os;
     code->Print(os);
@@ -3381,7 +3427,9 @@ TEST(ARMv8_vminmax_f32) {
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
-        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+        Factory::CodeBuilder(isolate, desc,
+                             CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+            .Build();
 #ifdef DEBUG
     StdoutStream os;
     code->Print(os);
@@ -3514,7 +3562,9 @@ static GeneratedCode<F_ppiii> GenerateMacroFloatMinMax(
   CodeDesc desc;
   assm.GetCode(assm.isolate(), &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(assm.isolate(), desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(assm.isolate(), desc,
+                           CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+          .Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);
@@ -3676,8 +3726,9 @@ TEST(unaligned_loads) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);
@@ -3719,8 +3770,9 @@ TEST(unaligned_stores) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);
@@ -3819,8 +3871,9 @@ TEST(vswp) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);
@@ -4032,7 +4085,9 @@ TEST(split_add_immediate) {
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
-        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+        Factory::CodeBuilder(isolate, desc,
+                             CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+            .Build();
 #ifdef DEBUG
     StdoutStream os;
     code->Print(os);
@@ -4052,7 +4107,9 @@ TEST(split_add_immediate) {
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
-        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+        Factory::CodeBuilder(isolate, desc,
+                             CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+            .Build();
 #ifdef DEBUG
     StdoutStream os;
     code->Print(os);
@@ -4075,7 +4132,9 @@ TEST(split_add_immediate) {
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
-        Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+        Factory::CodeBuilder(isolate, desc,
+                             CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+            .Build();
 #ifdef DEBUG
     StdoutStream os;
     code->Print(os);
