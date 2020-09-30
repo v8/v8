@@ -27,12 +27,14 @@ class SerializerDeserializer : public RootVisitor {
    public:
     HotObjectsList() = default;
 
-    void Add(Handle<HeapObject> object) {
+    void Add(HeapObject object) {
+      DCHECK(!AllowGarbageCollection::IsAllowed());
       circular_queue_[index_] = object;
       index_ = (index_ + 1) & kSizeMask;
     }
 
-    Handle<HeapObject> Get(int index) {
+    HeapObject Get(int index) {
+      DCHECK(!AllowGarbageCollection::IsAllowed());
       DCHECK(!circular_queue_[index].is_null());
       return circular_queue_[index];
     }
@@ -42,9 +44,7 @@ class SerializerDeserializer : public RootVisitor {
     int Find(HeapObject object) {
       DCHECK(!AllowGarbageCollection::IsAllowed());
       for (int i = 0; i < kSize; i++) {
-        if (!circular_queue_[i].is_null() && *circular_queue_[i] == object) {
-          return i;
-        }
+        if (circular_queue_[i] == object) return i;
       }
       return kNotFound;
     }
@@ -54,7 +54,7 @@ class SerializerDeserializer : public RootVisitor {
    private:
     STATIC_ASSERT(base::bits::IsPowerOfTwo(kSize));
     static const int kSizeMask = kSize - 1;
-    Handle<HeapObject> circular_queue_[kSize];
+    HeapObject circular_queue_[kSize];
     int index_ = 0;
 
     DISALLOW_COPY_AND_ASSIGN(HotObjectsList);
@@ -63,19 +63,18 @@ class SerializerDeserializer : public RootVisitor {
   static bool CanBeDeferred(HeapObject o);
 
   void RestoreExternalReferenceRedirectors(
-      Isolate* isolate,
-      const std::vector<Handle<AccessorInfo>>& accessor_infos);
+      Isolate* isolate, const std::vector<AccessorInfo>& accessor_infos);
   void RestoreExternalReferenceRedirectors(
-      Isolate* isolate,
-      const std::vector<Handle<CallHandlerInfo>>& call_handler_infos);
+      Isolate* isolate, const std::vector<CallHandlerInfo>& call_handler_infos);
+
+  static const int kNumberOfSpaces =
+      static_cast<int>(SnapshotSpace::kNumberOfSpaces);
 
 // clang-format off
 #define UNUSED_SERIALIZER_BYTE_CODES(V)                           \
-  /* Free range 0x1c..0x1f */                                     \
-  V(0x1c) V(0x1d) V(0x1e) V(0x1f)                                 \
-  /* Free range 0x20..0x2f */                                     \
-  V(0x20) V(0x21) V(0x22) V(0x23) V(0x24) V(0x25) V(0x26) V(0x27) \
-  V(0x28) V(0x29) V(0x2a) V(0x2b) V(0x2c) V(0x2d) V(0x2e) V(0x2f) \
+  V(0x05) V(0x06) V(0x07) V(0x0d) V(0x0e) V(0x0f)                 \
+  /* Free range 0x2a..0x2f */                                     \
+  V(0x2a) V(0x2b) V(0x2c) V(0x2d) V(0x2e) V(0x2f)                 \
   /* Free range 0x30..0x3f */                                     \
   V(0x30) V(0x31) V(0x32) V(0x33) V(0x34) V(0x35) V(0x36) V(0x37) \
   V(0x38) V(0x39) V(0x3a) V(0x3b) V(0x3c) V(0x3d) V(0x3e) V(0x3f) \
@@ -104,7 +103,7 @@ class SerializerDeserializer : public RootVisitor {
   // The static assert below will trigger when the number of preallocated spaces
   // changed. If that happens, update the kNewObject and kBackref bytecode
   // ranges in the comments below.
-  STATIC_ASSERT(4 == kNumberOfSnapshotSpaces);
+  STATIC_ASSERT(5 == kNumberOfSpaces);
 
   // First 32 root array items.
   static const int kRootArrayConstantsCount = 0x20;
@@ -118,19 +117,25 @@ class SerializerDeserializer : public RootVisitor {
   static const int kHotObjectCount = 8;
   STATIC_ASSERT(kHotObjectCount == HotObjectsList::kSize);
 
+  // 3 alignment prefixes
+  static const int kAlignmentPrefixCount = 3;
+
   enum Bytecode : byte {
     //
-    // ---------- byte code range 0x00..0x1b ----------
+    // ---------- byte code range 0x00..0x0f ----------
     //
 
-    // 0x00..0x03  Allocate new object, in specified space.
+    // 0x00..0x04  Allocate new object, in specified space.
     kNewObject = 0x00,
-    // Reference to previously allocated object.
-    kBackref = 0x04,
-    // Reference to an object in the read only heap.
-    kReadOnlyHeapRef,
+    // 0x08..0x0c  Reference to previous object from specified space.
+    kBackref = 0x08,
+
+    //
+    // ---------- byte code range 0x10..0x27 ----------
+    //
+
     // Object in the startup object cache.
-    kStartupObjectCache,
+    kStartupObjectCache = 0x10,
     // Root array item.
     kRootArray,
     // Object provided in the attached list.
@@ -139,12 +144,16 @@ class SerializerDeserializer : public RootVisitor {
     kReadOnlyObjectCache,
     // Do nothing, used for padding.
     kNop,
+    // Move to next reserved chunk.
+    kNextChunk,
+    // 3 alignment prefixes 0x16..0x18
+    kAlignmentPrefix = 0x16,
     // A tag emitted at strategic points in the snapshot to delineate sections.
     // If the deserializer does not find these at the expected moments then it
     // is an indication that the snapshot and the VM do not fit together.
     // Examine the build process for architecture, version or configuration
     // mismatches.
-    kSynchronize,
+    kSynchronize = 0x19,
     // Repeats of variable length.
     kVariableRepeat,
     // Used for embedder-allocated backing stores for TypedArrays.
@@ -152,6 +161,7 @@ class SerializerDeserializer : public RootVisitor {
     // Used for embedder-provided serialization data for embedder fields.
     kEmbedderFieldsData,
     // Raw data of variable length.
+    kVariableRawCode,
     kVariableRawData,
     // Used to encode external references provided through the API.
     kApiReference,
@@ -183,9 +193,6 @@ class SerializerDeserializer : public RootVisitor {
     // register as the pending field. We could either hack around this, or
     // simply introduce this new bytecode.
     kNewMetaMap,
-    // Special construction bytecode for Code object bodies, which have a more
-    // complex deserialization ordering and RelocInfo processing.
-    kCodeBody,
 
     //
     // ---------- byte code range 0x40..0x7f ----------
@@ -241,14 +248,15 @@ class SerializerDeserializer : public RootVisitor {
 
   template <Bytecode bytecode>
   using SpaceEncoder =
-      BytecodeValueEncoder<bytecode, 0, kNumberOfSnapshotSpaces - 1,
-                           SnapshotSpace>;
+      BytecodeValueEncoder<bytecode, 0, kNumberOfSpaces - 1, SnapshotSpace>;
 
   using NewObject = SpaceEncoder<kNewObject>;
+  using BackRef = SpaceEncoder<kBackref>;
 
   //
   // Some other constants.
   //
+  static const SnapshotSpace kAnyOldSpace = SnapshotSpace::kNumberOfSpaces;
 
   // Sentinel after a new object to indicate that double alignment is needed.
   static const int kDoubleAlignmentSentinel = 0;

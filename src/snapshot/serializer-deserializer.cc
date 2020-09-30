@@ -40,20 +40,19 @@ bool SerializerDeserializer::CanBeDeferred(HeapObject o) {
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirectors(
-    Isolate* isolate, const std::vector<Handle<AccessorInfo>>& accessor_infos) {
+    Isolate* isolate, const std::vector<AccessorInfo>& accessor_infos) {
   // Restore wiped accessor infos.
-  for (Handle<AccessorInfo> info : accessor_infos) {
-    Foreign::cast(info->js_getter())
-        .set_foreign_address(isolate, info->redirected_getter());
+  for (AccessorInfo info : accessor_infos) {
+    Foreign::cast(info.js_getter())
+        .set_foreign_address(isolate, info.redirected_getter());
   }
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirectors(
-    Isolate* isolate,
-    const std::vector<Handle<CallHandlerInfo>>& call_handler_infos) {
-  for (Handle<CallHandlerInfo> info : call_handler_infos) {
-    Foreign::cast(info->js_callback())
-        .set_foreign_address(isolate, info->redirected_callback());
+    Isolate* isolate, const std::vector<CallHandlerInfo>& call_handler_infos) {
+  for (CallHandlerInfo info : call_handler_infos) {
+    Foreign::cast(info.js_callback())
+        .set_foreign_address(isolate, info.redirected_callback());
   }
 }
 

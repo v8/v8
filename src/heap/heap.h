@@ -666,6 +666,9 @@ class Heap {
   template <FindMementoMode mode>
   inline AllocationMemento FindAllocationMemento(Map map, HeapObject object);
 
+  // Returns false if not able to reserve.
+  bool ReserveSpace(Reservation* reservations, std::vector<Address>* maps);
+
   void RequestAndWaitForCollection();
 
   //
@@ -1057,6 +1060,10 @@ class Heap {
   // Synchronously finalizes incremental marking.
   V8_EXPORT_PRIVATE void FinalizeIncrementalMarkingAtomically(
       GarbageCollectionReason gc_reason);
+
+  void RegisterDeserializedObjectsForBlackAllocation(
+      Reservation* reservations, const std::vector<HeapObject>& large_objects,
+      const std::vector<Address>& maps);
 
   IncrementalMarking* incremental_marking() {
     return incremental_marking_.get();
@@ -2340,7 +2347,6 @@ class Heap {
 
   // The allocator interface.
   friend class Factory;
-  friend class Deserializer;
 
   // The Isolate constructs us.
   friend class Isolate;

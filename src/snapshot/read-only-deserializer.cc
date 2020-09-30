@@ -16,7 +16,10 @@ namespace internal {
 
 void ReadOnlyDeserializer::DeserializeInto(Isolate* isolate) {
   Initialize(isolate);
-  HandleScope scope(isolate);
+
+  if (!allocator()->ReserveSpace()) {
+    V8::FatalProcessOutOfMemory(isolate, "ReadOnlyDeserializer");
+  }
 
   ReadOnlyHeap* ro_heap = isolate->read_only_heap();
 
@@ -32,6 +35,7 @@ void ReadOnlyDeserializer::DeserializeInto(Isolate* isolate) {
   DCHECK(!isolate->builtins()->is_initialized());
 
   {
+    DisallowGarbageCollection no_gc;
     ReadOnlyRoots roots(isolate);
 
     roots.Iterate(this);

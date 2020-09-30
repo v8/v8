@@ -698,21 +698,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return &thread_local_top()->c_function_;
   }
 
-#ifdef VERIFY_HEAP
-  // Count the number of active deserializers, so that the heap verifier knows
-  // whether there is currently an active deserialization happening.
-  //
-  // This is needed as the verifier currently doesn't support verifying objects
-  // which are partially deserialized.
-  //
-  // TODO(leszeks): Make the verifier a bit more deserialization compatible.
-  void RegisterDeserializerStarted() { num_active_deserializers_++; }
-  void RegisterDeserializerFinished() { num_active_deserializers_--; }
-  bool has_active_deserializer() const {
-    return num_active_deserializers_.load(std::memory_order_acquire) > 0;
-  }
-#endif
-
   // Bottom JS entry.
   Address js_entry_sp() { return thread_local_top()->js_entry_sp_; }
   inline Address* js_entry_sp_address() {
@@ -1734,9 +1719,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   RuntimeState runtime_state_;
   Builtins builtins_;
   SetupIsolateDelegate* setup_delegate_ = nullptr;
-#ifdef VERIFY_HEAP
-  std::atomic<int> num_active_deserializers_;
-#endif
 #ifndef V8_INTL_SUPPORT
   unibrow::Mapping<unibrow::Ecma262UnCanonicalize> jsregexp_uncanonicalize_;
   unibrow::Mapping<unibrow::CanonicalizationRange> jsregexp_canonrange_;

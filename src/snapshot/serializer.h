@@ -8,15 +8,14 @@
 #include <map>
 
 #include "src/codegen/external-reference-encoder.h"
-#include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
 #include "src/logging/log.h"
 #include "src/objects/objects.h"
 #include "src/snapshot/embedded/embedded-data.h"
+#include "src/snapshot/serializer-allocator.h"
 #include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/snapshot-source-sink.h"
 #include "src/snapshot/snapshot.h"
-#include "src/utils/identity-map.h"
 
 namespace v8 {
 namespace internal {
@@ -133,15 +132,15 @@ class CodeAddressMap : public CodeEventLogger {
 
 class ObjectCacheIndexMap {
  public:
-  explicit ObjectCacheIndexMap(Heap* heap) : map_(heap), next_index_(0) {}
+  ObjectCacheIndexMap() : map_(), next_index_(0) {}
 
   // If |obj| is in the map, immediately return true.  Otherwise add it to the
   // map and return false. In either case set |*index_out| to the index
   // associated with the map.
-  bool LookupOrInsert(Handle<HeapObject> obj, int* index_out) {
-    int* maybe_index = map_.Find(obj);
-    if (maybe_index) {
-      *index_out = *maybe_index;
+  bool LookupOrInsert(HeapObject obj, int* index_out) {
+    Maybe<uint32_t> maybe_index = map_.Get(obj);
+    if (maybe_index.IsJust()) {
+      *index_out = maybe_index.FromJust();
       return true;
     }
     *index_out = next_index_;
@@ -152,7 +151,7 @@ class ObjectCacheIndexMap {
  private:
   DisallowHeapAllocation no_allocation_;
 
-  IdentityMap<int, base::DefaultAllocationPolicy> map_;
+  HeapObjectToIndexHashMap map_;
   int next_index_;
 
   DISALLOW_COPY_AND_ASSIGN(ObjectCacheIndexMap);
@@ -161,18 +160,24 @@ class ObjectCacheIndexMap {
 class Serializer : public SerializerDeserializer {
  public:
   Serializer(Isolate* isolate, Snapshot::SerializerFlags flags);
-  ~Serializer() override { DCHECK_EQ(unresolved_forward_refs_, 0); }
+
+  std::vector<SerializedData::Reservation> EncodeReservations() const {
+    return allocator_.EncodeReservations();
+  }
 
   const std::vector<byte>* Payload() const { return sink_.data(); }
 
-  bool ReferenceMapContains(Handle<HeapObject> o) {
-    return reference_map()->LookupReference(o) != nullptr;
+  bool ReferenceMapContains(HeapObject o) {
+    return reference_map()
+        ->LookupReference(reinterpret_cast<void*>(o.ptr()))
+        .is_valid();
   }
 
   Isolate* isolate() const { return isolate_; }
 
  protected:
-  using PendingObjectReferences = std::vector<int>*;
+  using PendingObjectReference =
+      std::map<HeapObject, std::vector<int>>::iterator;
 
   class ObjectSerializer;
   class RecursionScope {
@@ -191,7 +196,7 @@ class Serializer : public SerializerDeserializer {
   };
 
   void SerializeDeferredObjects();
-  virtual void SerializeObject(Handle<HeapObject> o) = 0;
+  virtual void SerializeObject(HeapObject o) = 0;
 
   virtual bool MustBeDeferred(HeapObject object);
 
@@ -199,35 +204,36 @@ class Serializer : public SerializerDeserializer {
                          FullObjectSlot start, FullObjectSlot end) override;
   void SerializeRootObject(FullObjectSlot slot);
 
-  void PutRoot(RootIndex root_index);
+  void PutRoot(RootIndex root_index, HeapObject object);
   void PutSmiRoot(FullObjectSlot slot);
-  void PutBackReference(Handle<HeapObject> object,
-                        SerializerReference reference);
+  void PutBackReference(HeapObject object, SerializerReference reference);
   void PutAttachedReference(SerializerReference reference);
+  // Emit alignment prefix if necessary, return required padding space in bytes.
+  int PutAlignmentPrefix(HeapObject object);
   void PutNextChunk(SnapshotSpace space);
   void PutRepeat(int repeat_count);
 
   // Emit a marker noting that this slot is a forward reference to the an
   // object which has not yet been serialized.
-  void PutPendingForwardReference(PendingObjectReferences& ref);
+  void PutPendingForwardReferenceTo(PendingObjectReference reference);
   // Resolve the given previously registered forward reference to the current
   // object.
   void ResolvePendingForwardReference(int obj);
 
   // Returns true if the object was successfully serialized as a root.
-  bool SerializeRoot(Handle<HeapObject> obj);
+  bool SerializeRoot(HeapObject obj);
 
   // Returns true if the object was successfully serialized as hot object.
-  bool SerializeHotObject(Handle<HeapObject> obj);
+  bool SerializeHotObject(HeapObject obj);
 
   // Returns true if the object was successfully serialized as back reference.
-  bool SerializeBackReference(Handle<HeapObject> obj);
+  bool SerializeBackReference(HeapObject obj);
 
   // Returns true if the object was successfully serialized as pending object.
-  bool SerializePendingObject(Handle<HeapObject> obj);
+  bool SerializePendingObject(HeapObject obj);
 
   // Returns true if the given heap object is a bytecode handler code object.
-  bool ObjectIsBytecodeHandler(Handle<HeapObject> obj) const;
+  bool ObjectIsBytecodeHandler(HeapObject obj) const;
 
   ExternalReferenceEncoder::Value EncodeExternalReference(Address addr) {
     return external_reference_encoder_.Encode(addr);
@@ -247,25 +253,28 @@ class Serializer : public SerializerDeserializer {
 
   Code CopyCode(Code code);
 
-  void QueueDeferredObject(Handle<HeapObject> obj) {
-    DCHECK_NULL(reference_map_.LookupReference(obj));
+  void QueueDeferredObject(HeapObject obj) {
+    DCHECK(!reference_map_.LookupReference(reinterpret_cast<void*>(obj.ptr()))
+                .is_valid());
     deferred_objects_.push_back(obj);
   }
 
   // Register that the the given object shouldn't be immediately serialized, but
   // will be serialized later and any references to it should be pending forward
   // references.
-  void RegisterObjectIsPending(Handle<HeapObject> obj);
+  PendingObjectReference RegisterObjectIsPending(HeapObject obj);
 
   // Resolve the given pending object reference with the current object.
-  void ResolvePendingObject(Handle<HeapObject> obj);
+  void ResolvePendingObject(PendingObjectReference ref);
 
   void OutputStatistics(const char* name);
 
-  void CountAllocation(Map map, int size, SnapshotSpace space);
+#ifdef OBJECT_PRINT
+  void CountInstanceType(Map map, int size, SnapshotSpace space);
+#endif  // OBJECT_PRINT
 
 #ifdef DEBUG
-  void PushStack(Handle<HeapObject> o) { stack_.push_back(o); }
+  void PushStack(HeapObject o) { stack_.push_back(o); }
   void PopStack() { stack_.pop_back(); }
   void PrintStack();
   void PrintStack(std::ostream&);
@@ -273,6 +282,7 @@ class Serializer : public SerializerDeserializer {
 
   SerializerReferenceMap* reference_map() { return &reference_map_; }
   const RootIndexMap* root_index_map() const { return &root_index_map_; }
+  SerializerAllocator* allocator() { return &allocator_; }
 
   SnapshotByteSink sink_;  // Used directly by subclasses.
 
@@ -283,12 +293,10 @@ class Serializer : public SerializerDeserializer {
     return (flags_ & Snapshot::kAllowActiveIsolateForTesting) != 0;
   }
 
-  std::vector<Handle<HeapObject>> back_refs_;
-
  private:
   // Disallow GC during serialization.
   // TODO(leszeks, v8:10815): Remove this constraint.
-  DISALLOW_HEAP_ALLOCATION(no_gc)
+  DisallowHeapAllocation no_gc;
 
   Isolate* isolate_;
   SerializerReferenceMap reference_map_;
@@ -296,8 +304,7 @@ class Serializer : public SerializerDeserializer {
   RootIndexMap root_index_map_;
   std::unique_ptr<CodeAddressMap> code_address_map_;
   std::vector<byte> code_buffer_;
-  std::vector<Handle<HeapObject>>
-      deferred_objects_;  // To handle stack overflow.
+  std::vector<HeapObject> deferred_objects_;  // To handle stack overflow.
 
   // Objects which have started being serialized, but haven't yet been allocated
   // with the allocator, are considered "pending". References to them don't have
@@ -312,29 +319,23 @@ class Serializer : public SerializerDeserializer {
   // forward refs remaining.
   int next_forward_ref_id_ = 0;
   int unresolved_forward_refs_ = 0;
-  IdentityMap<PendingObjectReferences, base::DefaultAllocationPolicy>
-      forward_refs_per_pending_object_;
-
-  // Used to keep track of the off-heap backing stores used by TypedArrays/
-  // ArrayBuffers. Note that the index begins at 1 and not 0, because when a
-  // TypedArray has an on-heap backing store, the backing_store pointer in the
-  // corresponding ArrayBuffer will be null, which makes it indistinguishable
-  // from index 0.
-  uint32_t seen_backing_stores_index_ = 1;
+  std::map<HeapObject, std::vector<int>> forward_refs_per_pending_object_;
 
   int recursion_depth_ = 0;
   const Snapshot::SerializerFlags flags_;
+  SerializerAllocator allocator_;
 
-  size_t allocation_size_[kNumberOfSnapshotSpaces];
 #ifdef OBJECT_PRINT
   static constexpr int kInstanceTypes = LAST_TYPE + 1;
-  std::unique_ptr<int[]> instance_type_count_[kNumberOfSnapshotSpaces];
-  std::unique_ptr<size_t[]> instance_type_size_[kNumberOfSnapshotSpaces];
+  std::unique_ptr<int[]> instance_type_count_[kNumberOfSpaces];
+  std::unique_ptr<size_t[]> instance_type_size_[kNumberOfSpaces];
 #endif  // OBJECT_PRINT
 
 #ifdef DEBUG
-  std::vector<Handle<HeapObject>> stack_;
+  std::vector<HeapObject> stack_;
 #endif  // DEBUG
+
+  friend class SerializerAllocator;
 
   DISALLOW_COPY_AND_ASSIGN(Serializer);
 };
@@ -343,7 +344,7 @@ class RelocInfoIterator;
 
 class Serializer::ObjectSerializer : public ObjectVisitor {
  public:
-  ObjectSerializer(Serializer* serializer, Handle<HeapObject> obj,
+  ObjectSerializer(Serializer* serializer, HeapObject obj,
                    SnapshotByteSink* sink)
       : serializer_(serializer),
         object_(obj),
@@ -375,8 +376,6 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   void VisitOffHeapTarget(Code host, RelocInfo* target) override;
 
  private:
-  class RelocInfoObjectPreSerializer;
-
   void SerializePrologue(SnapshotSpace space, int size, Map map);
 
   // This function outputs or skips the raw data between the last pointer and
@@ -385,7 +384,7 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   void OutputExternalReference(Address target, int target_size,
                                bool sandboxify);
   void OutputRawData(Address up_to);
-  void SerializeCode(Map map, int size);
+  void OutputCode(int size);
   uint32_t SerializeBackingStore(void* backing_store, int32_t byte_length);
   void SerializeJSTypedArray();
   void SerializeJSArrayBuffer();
@@ -393,7 +392,7 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   void SerializeExternalStringAsSequentialString();
 
   Serializer* serializer_;
-  Handle<HeapObject> object_;
+  HeapObject object_;
   SnapshotByteSink* sink_;
   int bytes_processed_so_far_;
 };
