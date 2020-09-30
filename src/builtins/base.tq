@@ -281,6 +281,7 @@ extern enum MessageTemplate {
   kFirstArgumentNotRegExp,
   kBigIntMixedTypes,
   kTypedArrayTooShort,
+  kTypedArrayTooLargeToSort,
   kInvalidCountValue,
   kConstructorNotFunction,
   kSymbolToString,
