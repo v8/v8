@@ -6243,14 +6243,38 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                             BuildChangeSmiToInt32(input));
   }
 
+  Node* HeapNumberToFloat64(Node* input) {
+    return gasm_->Load(MachineType::Float64(), input,
+                       wasm::ObjectAccess::ToTagged(HeapNumber::kValueOffset));
+  }
+
   Node* FromJSFast(Node* input, wasm::ValueType type) {
     switch (type.kind()) {
       case wasm::ValueType::kI32:
         return BuildChangeSmiToInt32(input);
-      case wasm::ValueType::kF32:
-        return SmiToFloat32(input);
-      case wasm::ValueType::kF64:
-        return SmiToFloat64(input);
+      case wasm::ValueType::kF32: {
+        auto done = gasm_->MakeLabel(MachineRepresentation::kFloat32);
+        auto heap_number = gasm_->MakeLabel();
+        gasm_->GotoIfNot(IsSmi(input), &heap_number);
+        gasm_->Goto(&done, SmiToFloat32(input));
+        gasm_->Bind(&heap_number);
+        Node* value =
+            graph()->NewNode(mcgraph()->machine()->TruncateFloat64ToFloat32(),
+                             HeapNumberToFloat64(input));
+        gasm_->Goto(&done, value);
+        gasm_->Bind(&done);
+        return done.PhiAt(0);
+      }
+      case wasm::ValueType::kF64: {
+        auto done = gasm_->MakeLabel(MachineRepresentation::kFloat64);
+        auto heap_number = gasm_->MakeLabel();
+        gasm_->GotoIfNot(IsSmi(input), &heap_number);
+        gasm_->Goto(&done, SmiToFloat64(input));
+        gasm_->Bind(&heap_number);
+        gasm_->Goto(&done, HeapNumberToFloat64(input));
+        gasm_->Bind(&done);
+        return done.PhiAt(0);
+      }
       case wasm::ValueType::kRef:
       case wasm::ValueType::kOptRef:
       case wasm::ValueType::kI64:
@@ -6422,12 +6446,30 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         gasm_->Int32Constant(0));
   }
 
-  Node* CanTransformFast(Node* input, wasm::ValueType type) {
+  void CanTransformFast(
+      Node* input, wasm::ValueType type,
+      v8::internal::compiler::GraphAssemblerLabel<0>* slow_path) {
     switch (type.kind()) {
-      case wasm::ValueType::kI32:
-      case wasm::ValueType::kF64:
+      case wasm::ValueType::kI32: {
+        gasm_->GotoIfNot(IsSmi(input), slow_path);
+        return;
+      }
       case wasm::ValueType::kF32:
-        return IsSmi(input);
+      case wasm::ValueType::kF64: {
+        auto done = gasm_->MakeLabel();
+        gasm_->GotoIf(IsSmi(input), &done);
+        Node* map =
+            gasm_->Load(MachineType::TaggedPointer(), input,
+                        wasm::ObjectAccess::ToTagged(HeapObject::kMapOffset));
+        Node* heap_number_map = LOAD_FULL_POINTER(
+            BuildLoadIsolateRoot(),
+            IsolateData::root_slot_offset(RootIndex::kHeapNumberMap));
+        Node* is_heap_number = gasm_->WordEqual(heap_number_map, map);
+        gasm_->GotoIf(is_heap_number, &done);
+        gasm_->Goto(slow_path);
+        gasm_->Bind(&done);
+        return;
+      }
       case wasm::ValueType::kRef:
       case wasm::ValueType::kOptRef:
       case wasm::ValueType::kI64:
@@ -6496,8 +6538,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       // fast is encountered, skip checking the rest and fall back to the slow
       // path.
       for (int i = 0; i < wasm_count; ++i) {
-        gasm_->GotoIfNot(CanTransformFast(params[i + 1], sig_->GetParam(i)),
-                         &slow_path);
+        CanTransformFast(params[i + 1], sig_->GetParam(i), &slow_path);
       }
       // Convert JS parameters to wasm numbers using the fast transformation
       // and build the call.
