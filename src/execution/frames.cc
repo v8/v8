@@ -591,6 +591,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
             return BUILTIN;
           case CodeKind::OPTIMIZED_FUNCTION:
           case CodeKind::NATIVE_CONTEXT_INDEPENDENT:
+          case CodeKind::TURBOPROP:
             return OPTIMIZED;
           case CodeKind::JS_TO_WASM_FUNCTION:
             return JS_TO_WASM;

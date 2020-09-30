@@ -18,6 +18,7 @@
 #include "src/handles/persistent-handles.h"
 #include "src/heap/local-heap.h"
 #include "src/interpreter/bytecode-array-accessor.h"
+#include "src/objects/code-kind.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/objects.h"
@@ -78,13 +79,13 @@ struct PropertyAccessTarget {
 class V8_EXPORT_PRIVATE JSHeapBroker {
  public:
   JSHeapBroker(Isolate* isolate, Zone* broker_zone, bool tracing_enabled,
-               bool is_concurrent_inlining, bool is_native_context_independent);
+               bool is_concurrent_inlining, CodeKind code_kind);
 
   // For use only in tests, sets default values for some arguments. Avoids
   // churn when new flags are added.
   JSHeapBroker(Isolate* isolate, Zone* broker_zone)
       : JSHeapBroker(isolate, broker_zone, FLAG_trace_heap_broker, false,
-                     false) {}
+                     CodeKind::OPTIMIZED_FUNCTION) {}
 
   ~JSHeapBroker();
 
@@ -102,7 +103,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   bool tracing_enabled() const { return tracing_enabled_; }
   bool is_concurrent_inlining() const { return is_concurrent_inlining_; }
   bool is_native_context_independent() const {
-    return is_native_context_independent_;
+    return code_kind_ == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
   }
   bool generate_full_feedback_collection() const {
     // NCI code currently collects full feedback.
@@ -110,6 +111,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
                    CollectFeedbackInGenericLowering());
     return is_native_context_independent();
   }
+  bool is_turboprop() const { return code_kind_ == CodeKind::TURBOPROP; }
 
   enum BrokerMode { kDisabled, kSerializing, kSerialized, kRetired };
   BrokerMode mode() const { return mode_; }
@@ -357,7 +359,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   BrokerMode mode_ = kDisabled;
   bool const tracing_enabled_;
   bool const is_concurrent_inlining_;
-  bool const is_native_context_independent_;
+  CodeKind const code_kind_;
   std::unique_ptr<PersistentHandles> ph_;
   base::Optional<LocalHeap> local_heap_;
   std::unique_ptr<CanonicalHandlesMap> canonical_handles_;

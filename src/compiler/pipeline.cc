@@ -151,9 +151,9 @@ class PipelineData {
         instruction_zone_(instruction_zone_scope_.zone()),
         codegen_zone_scope_(zone_stats_, kCodegenZoneName),
         codegen_zone_(codegen_zone_scope_.zone()),
-        broker_(new JSHeapBroker(
-            isolate_, info_->zone(), info_->trace_heap_broker(),
-            is_concurrent_inlining, info->IsNativeContextIndependent())),
+        broker_(new JSHeapBroker(isolate_, info_->zone(),
+                                 info_->trace_heap_broker(),
+                                 is_concurrent_inlining, info->code_kind())),
         register_allocation_zone_scope_(zone_stats_,
                                         kRegisterAllocationZoneName),
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
@@ -1191,7 +1191,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl(
     ParkedScope parked_scope(data_.broker()->local_heap());
 
     bool success;
-    if (FLAG_turboprop) {
+    if (compilation_info_.code_kind() == CodeKind::TURBOPROP) {
       success = pipeline_.OptimizeGraphForMidTier(linkage_);
     } else {
       success = pipeline_.OptimizeGraph(linkage_);

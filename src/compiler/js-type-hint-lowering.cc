@@ -574,8 +574,8 @@ Node* JSTypeHintLowering::TryBuildSoftDeopt(FeedbackSlot slot, Node* effect,
 
   FeedbackSource source(feedback_vector(), slot);
   // TODO(mythria): Think of adding flags to specify if we need a soft deopt for
-  // calls instead of using FLAG_turboprop here.
-  if (FLAG_turboprop &&
+  // calls instead of using broker()->is_turboprop() here.
+  if (broker()->is_turboprop() &&
       broker()->GetFeedbackSlotKind(source) == FeedbackSlotKind::kCall) {
     return nullptr;
   }

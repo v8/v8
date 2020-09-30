@@ -15,20 +15,21 @@ namespace internal {
 // disambiguated Turboprop, Turbofan, and NCI code kinds.
 // TODO(jgruber): Rename STUB to DEOPT_ENTRIES_OR_FOR_TESTING, or split it into
 // DEOPT_ENTRIES and FOR_TESTING, or convert DEOPT_ENTRIES into a builtin.
-#define CODE_KIND_LIST(V)  \
-  V(OPTIMIZED_FUNCTION)    \
-  V(BYTECODE_HANDLER)      \
-  V(STUB)                  \
-  V(BUILTIN)               \
-  V(REGEXP)                \
-  V(WASM_FUNCTION)         \
-  V(WASM_TO_CAPI_FUNCTION) \
-  V(WASM_TO_JS_FUNCTION)   \
-  V(JS_TO_WASM_FUNCTION)   \
-  V(JS_TO_JS_FUNCTION)     \
-  V(C_WASM_ENTRY)          \
-  V(INTERPRETED_FUNCTION)  \
-  V(NATIVE_CONTEXT_INDEPENDENT)
+#define CODE_KIND_LIST(V)       \
+  V(OPTIMIZED_FUNCTION)         \
+  V(BYTECODE_HANDLER)           \
+  V(STUB)                       \
+  V(BUILTIN)                    \
+  V(REGEXP)                     \
+  V(WASM_FUNCTION)              \
+  V(WASM_TO_CAPI_FUNCTION)      \
+  V(WASM_TO_JS_FUNCTION)        \
+  V(JS_TO_WASM_FUNCTION)        \
+  V(JS_TO_JS_FUNCTION)          \
+  V(C_WASM_ENTRY)               \
+  V(INTERPRETED_FUNCTION)       \
+  V(NATIVE_CONTEXT_INDEPENDENT) \
+  V(TURBOPROP)
 
 enum class CodeKind {
 #define DEFINE_CODE_KIND_ENUM(name) name,
@@ -53,7 +54,8 @@ inline constexpr bool CodeKindIsNativeContextIndependentJSFunction(
 
 inline constexpr bool CodeKindIsOptimizedJSFunction(CodeKind kind) {
   return kind == CodeKind::OPTIMIZED_FUNCTION ||
-         kind == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
+         kind == CodeKind::NATIVE_CONTEXT_INDEPENDENT ||
+         kind == CodeKind::TURBOPROP;
 }
 
 inline constexpr bool CodeKindIsJSFunction(CodeKind kind) {
@@ -72,6 +74,10 @@ inline constexpr bool CodeKindCanDeoptimize(CodeKind kind) {
   return CodeKindIsOptimizedJSFunction(kind);
 }
 
+inline constexpr bool CodeKindCanOSR(CodeKind kind) {
+  return kind == CodeKind::OPTIMIZED_FUNCTION || kind == CodeKind::TURBOPROP;
+}
+
 inline constexpr bool CodeKindChecksOptimizationMarker(CodeKind kind) {
   return kind == CodeKind::INTERPRETED_FUNCTION ||
          kind == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
@@ -82,10 +88,13 @@ inline constexpr bool CodeKindChecksOptimizationMarker(CodeKind kind) {
 // access from multiple closures. The marker is not used for all code kinds
 // though, in particular it is not used when generating NCI code.
 inline constexpr bool CodeKindIsStoredInOptimizedCodeCache(CodeKind kind) {
-  return kind == CodeKind::OPTIMIZED_FUNCTION;
+  return kind == CodeKind::OPTIMIZED_FUNCTION || kind == CodeKind::TURBOPROP;
 }
 
-inline CodeKind CodeKindForTopTier() { return CodeKind::OPTIMIZED_FUNCTION; }
+inline CodeKind CodeKindForTopTier() {
+  return V8_UNLIKELY(FLAG_turboprop) ? CodeKind::TURBOPROP
+                                     : CodeKind::OPTIMIZED_FUNCTION;
+}
 
 // The dedicated CodeKindFlag enum represents all code kinds in a format
 // suitable for bit sets.
@@ -108,10 +117,10 @@ DEFINE_OPERATORS_FOR_FLAGS(CodeKinds)
 
 static constexpr CodeKinds kJSFunctionCodeKindsMask{
     CodeKindFlag::INTERPRETED_FUNCTION | CodeKindFlag::OPTIMIZED_FUNCTION |
-    CodeKindFlag::NATIVE_CONTEXT_INDEPENDENT};
+    CodeKindFlag::NATIVE_CONTEXT_INDEPENDENT | CodeKindFlag::TURBOPROP};
 static constexpr CodeKinds kOptimizedJSFunctionCodeKindsMask{
     CodeKindFlag::OPTIMIZED_FUNCTION |
-    CodeKindFlag::NATIVE_CONTEXT_INDEPENDENT};
+    CodeKindFlag::NATIVE_CONTEXT_INDEPENDENT | CodeKindFlag::TURBOPROP};
 
 }  // namespace internal
 }  // namespace v8

@@ -4104,7 +4104,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
   if (feedback_target.has_value() && feedback_target->map().is_callable()) {
     Node* target_function = jsgraph()->Constant(*feedback_target);
 
-    if (FLAG_turboprop) {
+    if (broker()->is_turboprop()) {
       if (!feedback_target->IsJSFunction()) return NoChange();
       if (!IsBuiltinOrApiFunction(feedback_target->AsJSFunction())) {
         return NoChange();
@@ -4138,7 +4138,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
         return NoChange();
       }
 
-      if (FLAG_turboprop &&
+      if (broker()->is_turboprop() &&
           !feedback_vector.shared_function_info().HasBuiltinId()) {
         return NoChange();
       }
@@ -4965,7 +4965,7 @@ Reduction JSCallReducer::ReduceForInsufficientFeedback(
   // TODO(mythria): May be add additional flags to specify if we need to deopt
   // on calls / construct rather than checking for TurboProp here. We may need
   // it for NativeContextIndependent code too.
-  if (FLAG_turboprop) return NoChange();
+  if (broker()->is_turboprop()) return NoChange();
 
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);

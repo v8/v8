@@ -857,8 +857,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeCache(
     DCHECK(!code.marked_for_deoptimization());
     DCHECK(function->shared().is_compiled());
     DCHECK(CodeKindIsStoredInOptimizedCodeCache(code.kind()));
-    DCHECK_IMPLIES(!osr_offset.IsNone(),
-                   code.kind() == CodeKind::OPTIMIZED_FUNCTION);
+    DCHECK_IMPLIES(!osr_offset.IsNone(), CodeKindCanOSR(code.kind()));
     return Handle<Code>(code, isolate);
   }
   return MaybeHandle<Code>();
@@ -902,7 +901,7 @@ void InsertCodeIntoOptimizedCodeCache(
         handle(function->feedback_vector(), function->GetIsolate());
     FeedbackVector::SetOptimizedCode(vector, code);
   } else {
-    DCHECK_EQ(kind, CodeKind::OPTIMIZED_FUNCTION);
+    DCHECK(CodeKindCanOSR(kind));
     OSROptimizedCodeCache::AddOptimizedCode(native_context, shared, code,
                                             compilation_info->osr_offset());
   }

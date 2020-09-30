@@ -90,6 +90,9 @@ bool HighestTierOf(CodeKinds kinds, CodeKind* highest_tier) {
   if ((kinds & CodeKindFlag::OPTIMIZED_FUNCTION) != 0) {
     *highest_tier = CodeKind::OPTIMIZED_FUNCTION;
     return true;
+  } else if ((kinds & CodeKindFlag::TURBOPROP) != 0) {
+    *highest_tier = CodeKind::TURBOPROP;
+    return true;
   } else if ((kinds & CodeKindFlag::NATIVE_CONTEXT_INDEPENDENT) != 0) {
     *highest_tier = CodeKind::NATIVE_CONTEXT_INDEPENDENT;
     return true;
@@ -128,10 +131,19 @@ bool JSFunction::ActiveTierIsNCI() const {
   return highest_tier == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
 }
 
+bool JSFunction::ActiveTierIsTurboprop() const {
+  CodeKind highest_tier;
+  if (!HighestTierOf(GetAvailableCodeKinds(), &highest_tier)) return false;
+  return highest_tier == CodeKind::TURBOPROP;
+}
+
 CodeKind JSFunction::NextTier() const {
-  return (FLAG_turbo_nci_as_midtier && ActiveTierIsIgnition())
-             ? CodeKind::NATIVE_CONTEXT_INDEPENDENT
-             : CodeKind::OPTIMIZED_FUNCTION;
+  if (V8_UNLIKELY(FLAG_turbo_nci_as_midtier && ActiveTierIsIgnition())) {
+    return CodeKind::NATIVE_CONTEXT_INDEPENDENT;
+  } else if (V8_UNLIKELY(FLAG_turboprop)) {
+    return CodeKind::TURBOPROP;
+  }
+  return CodeKind::OPTIMIZED_FUNCTION;
 }
 
 bool JSFunction::CanDiscardCompiled() const {
@@ -144,7 +156,7 @@ bool JSFunction::CanDiscardCompiled() const {
   //
   // Note that when the function has not yet been compiled we also return
   // false; that's fine, since nothing must be discarded in that case.
-  if (code().kind() == CodeKind::OPTIMIZED_FUNCTION) return true;
+  if (CodeKindIsOptimizedJSFunction(code().kind())) return true;
   CodeKinds result = GetAvailableCodeKinds();
   return (result & kJSFunctionCodeKindsMask) != 0;
 }
