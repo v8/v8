@@ -1618,7 +1618,8 @@ class ModuleDecoderImpl : public Decoder {
 
   // TODO(manoskouk): This is copy-modified from function-body-decoder-impl.h.
   // We should find a way to share this code.
-  V8_INLINE bool Validate(const byte* pc, HeapTypeImmediate<kValidate>& imm) {
+  V8_INLINE bool Validate(const byte* pc,
+                          HeapTypeImmediate<kFullValidation>& imm) {
     if (V8_UNLIKELY(imm.type.is_bottom())) {
       error(pc, "invalid heap type");
       return false;
@@ -1633,7 +1634,7 @@ class ModuleDecoderImpl : public Decoder {
 
   WasmInitExpr consume_init_expr(WasmModule* module, ValueType expected,
                                  size_t current_global_index) {
-    constexpr Decoder::ValidateFlag validate = Decoder::kValidate;
+    constexpr Decoder::ValidateFlag validate = Decoder::kFullValidation;
     WasmOpcode opcode = kExprNop;
     std::vector<WasmInitExpr> stack;
     while (pc() < end() && opcode != kExprEnd) {
@@ -1670,25 +1671,25 @@ class ModuleDecoderImpl : public Decoder {
           break;
         }
         case kExprI32Const: {
-          ImmI32Immediate<Decoder::kValidate> imm(this, pc() + 1);
+          ImmI32Immediate<Decoder::kFullValidation> imm(this, pc() + 1);
           stack.emplace_back(imm.value);
           len = 1 + imm.length;
           break;
         }
         case kExprF32Const: {
-          ImmF32Immediate<Decoder::kValidate> imm(this, pc() + 1);
+          ImmF32Immediate<Decoder::kFullValidation> imm(this, pc() + 1);
           stack.emplace_back(imm.value);
           len = 1 + imm.length;
           break;
         }
         case kExprI64Const: {
-          ImmI64Immediate<Decoder::kValidate> imm(this, pc() + 1);
+          ImmI64Immediate<Decoder::kFullValidation> imm(this, pc() + 1);
           stack.emplace_back(imm.value);
           len = 1 + imm.length;
           break;
         }
         case kExprF64Const: {
-          ImmF64Immediate<Decoder::kValidate> imm(this, pc() + 1);
+          ImmF64Immediate<Decoder::kFullValidation> imm(this, pc() + 1);
           stack.emplace_back(imm.value);
           len = 1 + imm.length;
           break;
@@ -1702,8 +1703,8 @@ class ModuleDecoderImpl : public Decoder {
                    kExprRefNull);
             return {};
           }
-          HeapTypeImmediate<Decoder::kValidate> imm(enabled_features_, this,
-                                                    pc() + 1);
+          HeapTypeImmediate<Decoder::kFullValidation> imm(enabled_features_,
+                                                          this, pc() + 1);
           len = 1 + imm.length;
           if (!Validate(pc() + 1, imm)) return {};
           stack.push_back(
@@ -1719,7 +1720,7 @@ class ModuleDecoderImpl : public Decoder {
             return {};
           }
 
-          FunctionIndexImmediate<Decoder::kValidate> imm(this, pc() + 1);
+          FunctionIndexImmediate<Decoder::kFullValidation> imm(this, pc() + 1);
           len = 1 + imm.length;
           if (V8_UNLIKELY(module->functions.size() <= imm.index)) {
             errorf(pc(), "invalid function index: %u", imm.index);
@@ -1836,7 +1837,7 @@ class ModuleDecoderImpl : public Decoder {
 
   ValueType consume_value_type() {
     uint32_t type_length;
-    ValueType result = value_type_reader::read_value_type<kValidate>(
+    ValueType result = value_type_reader::read_value_type<kFullValidation>(
         this, this->pc(), &type_length,
         origin_ == kWasmOrigin ? enabled_features_ : WasmFeatures::None());
     if (result == kWasmBottom) error(pc_, "invalid value type");
@@ -1850,7 +1851,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   ValueType consume_storage_type() {
-    uint8_t opcode = read_u8<kValidate>(this->pc());
+    uint8_t opcode = read_u8<kFullValidation>(this->pc());
     switch (opcode) {
       case kI8Code:
         consume_bytes(1, "i8");
@@ -2133,7 +2134,8 @@ class ModuleDecoderImpl : public Decoder {
     if (failed()) return index;
     switch (opcode) {
       case kExprRefNull: {
-        HeapTypeImmediate<kValidate> imm(WasmFeatures::All(), this, this->pc());
+        HeapTypeImmediate<kFullValidation> imm(WasmFeatures::All(), this,
+                                               this->pc());
         consume_bytes(imm.length, "ref.null immediate");
         index = WasmElemSegment::kNullIndex;
         break;

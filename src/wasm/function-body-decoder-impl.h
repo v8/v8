@@ -1035,7 +1035,8 @@ class WasmDecoder : public Decoder {
                                : local_types_.begin();
 
     // Decode local declarations, if any.
-    uint32_t entries = read_u32v<kValidate>(pc, &length, "local decls count");
+    uint32_t entries =
+        read_u32v<kFullValidation>(pc, &length, "local decls count");
     if (!VALIDATE(ok())) {
       error(pc + *total_length, "invalid local decls count");
       return false;
@@ -1049,8 +1050,8 @@ class WasmDecoder : public Decoder {
         error(end(), "expected more local decls but reached end of input");
         return false;
       }
-      uint32_t count =
-          read_u32v<kValidate>(pc + *total_length, &length, "local count");
+      uint32_t count = read_u32v<kFullValidation>(pc + *total_length, &length,
+                                                  "local count");
       if (!VALIDATE(ok())) {
         error(pc + *total_length, "invalid local count");
         return false;
@@ -1062,7 +1063,7 @@ class WasmDecoder : public Decoder {
       }
       *total_length += length;
 
-      ValueType type = value_type_reader::read_value_type<kValidate>(
+      ValueType type = value_type_reader::read_value_type<kFullValidation>(
           this, pc + *total_length, &length, enabled_);
       if (!VALIDATE(type != kWasmBottom)) {
         error(pc + *total_length, "invalid local type");
@@ -2006,7 +2007,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (!WasmOpcodes::IsPrefixOpcode(opcode)) {
       return WasmOpcodes::OpcodeName(static_cast<WasmOpcode>(opcode));
     }
-    opcode = this->template read_prefixed_opcode<Decoder::kValidate>(pc);
+    opcode = this->template read_prefixed_opcode<Decoder::kFullValidation>(pc);
     return WasmOpcodes::OpcodeName(opcode);
   }
 
@@ -2157,7 +2158,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         WasmOpcode val_opcode = static_cast<WasmOpcode>(*val.pc);
         if (WasmOpcodes::IsPrefixOpcode(val_opcode)) {
           val_opcode =
-              decoder_->template read_prefixed_opcode<Decoder::kNoValidate>(
+              decoder_->template read_prefixed_opcode<Decoder::kNoValidation>(
                   val.pc);
         }
         Append(" %c@%d:%s", val.type.short_name(),
@@ -2168,21 +2169,22 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         if (decoder_->failed()) continue;
         switch (val_opcode) {
           case kExprI32Const: {
-            ImmI32Immediate<Decoder::kNoValidate> imm(decoder_, val.pc + 1);
+            ImmI32Immediate<Decoder::kNoValidation> imm(decoder_, val.pc + 1);
             Append("[%d]", imm.value);
             break;
           }
           case kExprLocalGet:
           case kExprLocalSet:
           case kExprLocalTee: {
-            LocalIndexImmediate<Decoder::kNoValidate> imm(decoder_, val.pc + 1);
+            LocalIndexImmediate<Decoder::kNoValidation> imm(decoder_,
+                                                            val.pc + 1);
             Append("[%u]", imm.index);
             break;
           }
           case kExprGlobalGet:
           case kExprGlobalSet: {
-            GlobalIndexImmediate<Decoder::kNoValidate> imm(decoder_,
-                                                           val.pc + 1);
+            GlobalIndexImmediate<Decoder::kNoValidation> imm(decoder_,
+                                                             val.pc + 1);
             Append("[%u]", imm.index);
             break;
           }
@@ -4350,7 +4352,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
 class EmptyInterface {
  public:
-  static constexpr Decoder::ValidateFlag validate = Decoder::kValidate;
+  static constexpr Decoder::ValidateFlag validate = Decoder::kFullValidation;
   using Value = ValueBase;
   using Control = ControlBase<Value>;
   using FullDecoder = WasmFullDecoder<validate, EmptyInterface>;

@@ -39,7 +39,13 @@ using DecodeResult = VoidResult;
 // a buffer of bytes.
 class Decoder {
  public:
-  enum ValidateFlag : bool { kValidate = true, kNoValidate = false };
+  // {ValidateFlag} can be used in a boolean manner ({if (!validate) ...}).
+  // TODO(clemensb): Introduce a "boolean validation" mode where error messages
+  // are locations are not tracked.
+  enum ValidateFlag : int8_t {
+    kNoValidation = 0,  // Don't run validation, assume valid input.
+    kFullValidation     // Run full validation with error message and location.
+  };
 
   enum AdvancePCFlag : bool { kAdvancePc = true, kNoAdvancePc = false };
 
@@ -160,7 +166,7 @@ class Decoder {
         index = *(pc + 1);
         *length = 1;
       } else {
-        // If kValidate and size validation fails.
+        // If size validation fails.
         index = 0;
         *length = 0;
       }
@@ -186,21 +192,22 @@ class Decoder {
   // Reads a LEB128 variable-length unsigned 32-bit integer and advances {pc_}.
   uint32_t consume_u32v(const char* name = nullptr) {
     uint32_t length = 0;
-    return read_leb<uint32_t, kValidate, kAdvancePc, kTrace>(pc_, &length,
-                                                             name);
+    return read_leb<uint32_t, kFullValidation, kAdvancePc, kTrace>(pc_, &length,
+                                                                   name);
   }
 
   // Reads a LEB128 variable-length signed 32-bit integer and advances {pc_}.
   int32_t consume_i32v(const char* name = nullptr) {
     uint32_t length = 0;
-    return read_leb<int32_t, kValidate, kAdvancePc, kTrace>(pc_, &length, name);
+    return read_leb<int32_t, kFullValidation, kAdvancePc, kTrace>(pc_, &length,
+                                                                  name);
   }
 
   // Reads a LEB128 variable-length unsigned 64-bit integer and advances {pc_}.
   uint64_t consume_u64v(const char* name = nullptr) {
     uint32_t length = 0;
-    return read_leb<uint64_t, kValidate, kAdvancePc, kTrace>(pc_, &length,
-                                                             name);
+    return read_leb<uint64_t, kFullValidation, kAdvancePc, kTrace>(pc_, &length,
+                                                                   name);
   }
 
   // Consume {size} bytes and send them to the bit bucket, advancing {pc_}.

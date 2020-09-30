@@ -74,7 +74,7 @@ constexpr uint32_t kNullCatch = static_cast<uint32_t>(-1);
 
 class WasmGraphBuildingInterface {
  public:
-  static constexpr Decoder::ValidateFlag validate = Decoder::kValidate;
+  static constexpr Decoder::ValidateFlag validate = Decoder::kFullValidation;
   using FullDecoder = WasmFullDecoder<validate, WasmGraphBuildingInterface>;
   using CheckForNull = compiler::WasmGraphBuilder::CheckForNull;
 
@@ -1200,7 +1200,7 @@ DecodeResult BuildTFGraph(AccountingAllocator* allocator,
                           WasmFeatures* detected, const FunctionBody& body,
                           compiler::NodeOriginTable* node_origins) {
   Zone zone(allocator, ZONE_NAME);
-  WasmFullDecoder<Decoder::kValidate, WasmGraphBuildingInterface> decoder(
+  WasmFullDecoder<Decoder::kFullValidation, WasmGraphBuildingInterface> decoder(
       &zone, module, enabled, detected, body, builder);
   if (node_origins) {
     builder->AddBytecodePositionDecorator(node_origins, &decoder);

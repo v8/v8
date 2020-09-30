@@ -4258,15 +4258,15 @@ class BranchTableIteratorTest : public TestWithZone {
   BranchTableIteratorTest() : TestWithZone() {}
   void CheckBrTableSize(const byte* start, const byte* end) {
     Decoder decoder(start, end);
-    BranchTableImmediate<Decoder::kValidate> operand(&decoder, start + 1);
-    BranchTableIterator<Decoder::kValidate> iterator(&decoder, operand);
+    BranchTableImmediate<Decoder::kFullValidation> operand(&decoder, start + 1);
+    BranchTableIterator<Decoder::kFullValidation> iterator(&decoder, operand);
     EXPECT_EQ(end - start - 1u, iterator.length());
     EXPECT_OK(decoder);
   }
   void CheckBrTableError(const byte* start, const byte* end) {
     Decoder decoder(start, end);
-    BranchTableImmediate<Decoder::kValidate> operand(&decoder, start + 1);
-    BranchTableIterator<Decoder::kValidate> iterator(&decoder, operand);
+    BranchTableImmediate<Decoder::kFullValidation> operand(&decoder, start + 1);
+    BranchTableIterator<Decoder::kFullValidation> iterator(&decoder, operand);
     iterator.length();
     EXPECT_FALSE(decoder.ok());
   }
@@ -4360,10 +4360,10 @@ class WasmOpcodeLengthTest : public TestWithZone {
   void ExpectFailure(Bytes... bytes) {
     const byte code[] = {bytes..., 0, 0, 0, 0, 0, 0, 0, 0};
     WasmFeatures no_features = WasmFeatures::None();
-    WasmDecoder<Decoder::kValidate> decoder(this->zone(), nullptr, no_features,
-                                            &no_features, nullptr, code,
-                                            code + sizeof(code), 0);
-    WasmDecoder<Decoder::kValidate>::OpcodeLength(&decoder, code);
+    WasmDecoder<Decoder::kFullValidation> decoder(
+        this->zone(), nullptr, no_features, &no_features, nullptr, code,
+        code + sizeof(code), 0);
+    WasmDecoder<Decoder::kFullValidation>::OpcodeLength(&decoder, code);
     EXPECT_EQ(decoder.failed(), true);
   }
 };

@@ -258,7 +258,7 @@ class DebugSideTableBuilder {
 class LiftoffCompiler {
  public:
   // TODO(clemensb): Make this a template parameter.
-  static constexpr Decoder::ValidateFlag validate = Decoder::kValidate;
+  static constexpr Decoder::ValidateFlag validate = Decoder::kFullValidation;
 
   using Value = ValueBase;
 
@@ -843,7 +843,8 @@ class LiftoffCompiler {
 #ifdef DEBUG
     SLOW_DCHECK(__ ValidateCacheState());
     if (WasmOpcodes::IsPrefixOpcode(opcode)) {
-      opcode = decoder->read_prefixed_opcode<Decoder::kValidate>(decoder->pc());
+      opcode = decoder->read_prefixed_opcode<Decoder::kFullValidation>(
+          decoder->pc());
     }
     DEBUG_CODE_COMMENT(WasmOpcodes::OpcodeName(opcode));
 #endif
@@ -4115,7 +4116,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   if (debug_sidetable) {
     debug_sidetable_builder = std::make_unique<DebugSideTableBuilder>();
   }
-  WasmFullDecoder<Decoder::kValidate, LiftoffCompiler> decoder(
+  WasmFullDecoder<Decoder::kFullValidation, LiftoffCompiler> decoder(
       &zone, env->module, env->enabled_features, detected, func_body,
       call_descriptor, env, &zone, instruction_buffer->CreateView(),
       debug_sidetable_builder.get(), for_debugging, func_index, breakpoints,
@@ -4172,7 +4173,7 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
   auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, func_body.sig);
   DebugSideTableBuilder debug_sidetable_builder;
   WasmFeatures detected;
-  WasmFullDecoder<Decoder::kValidate, LiftoffCompiler> decoder(
+  WasmFullDecoder<Decoder::kFullValidation, LiftoffCompiler> decoder(
       &zone, env->module, env->enabled_features, &detected, func_body,
       call_descriptor, env, &zone,
       NewAssemblerBuffer(AssemblerBase::kDefaultBufferSize),
