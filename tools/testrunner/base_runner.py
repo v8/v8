@@ -245,6 +245,24 @@ class BuildConfig(object):
     return '\n'.join(detected_options)
 
 
+def _do_load_build_config(outdir, verbose=False):
+  build_config_path = os.path.join(outdir, "v8_build_config.json")
+  if not os.path.exists(build_config_path):
+    if verbose:
+      print("Didn't find build config: %s" % build_config_path)
+    raise TestRunnerError()
+
+  with open(build_config_path) as f:
+    try:
+      build_config_json = json.load(f)
+    except Exception:  # pragma: no cover
+      print("%s exists but contains invalid json. Is your build up-to-date?"
+            % build_config_path)
+      raise TestRunnerError()
+
+  return BuildConfig(build_config_json)
+
+
 class BaseTestRunner(object):
   def __init__(self, basedir=None):
     self.basedir = basedir or BASE_DIR
@@ -419,7 +437,12 @@ class BaseTestRunner(object):
   def _load_build_config(self, options):
     for outdir in self._possible_outdirs(options):
       try:
-        self.build_config = self._do_load_build_config(outdir, options.verbose)
+        self.build_config = _do_load_build_config(outdir, options.verbose)
+
+        # In auto-detect mode the outdir is always where we found the build config.
+        # This ensures that we'll also take the build products from there.
+        self.outdir = outdir
+        break
       except TestRunnerError:
         pass
 
@@ -476,27 +499,6 @@ class BaseTestRunner(object):
     if latest_config:
       print(">>> Latest GN build found: %s" % latest_config)
       return os.path.join(DEFAULT_OUT_GN, latest_config)
-
-  def _do_load_build_config(self, outdir, verbose=False):
-    build_config_path = os.path.join(outdir, "v8_build_config.json")
-    if not os.path.exists(build_config_path):
-      if verbose:
-        print("Didn't find build config: %s" % build_config_path)
-      raise TestRunnerError()
-
-    with open(build_config_path) as f:
-      try:
-        build_config_json = json.load(f)
-      except Exception:  # pragma: no cover
-        print("%s exists but contains invalid json. Is your build up-to-date?"
-              % build_config_path)
-        raise TestRunnerError()
-
-    # In auto-detect mode the outdir is always where we found the build config.
-    # This ensures that we'll also take the build products from there.
-    self.outdir = os.path.dirname(build_config_path)
-
-    return BuildConfig(build_config_json)
 
   def _process_default_options(self, options):
     # We don't use the mode for more path-magic.
