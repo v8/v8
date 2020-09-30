@@ -666,6 +666,9 @@ class WasmExportedFunction : public JSFunction {
 
   V8_EXPORT_PRIVATE const wasm::FunctionSig* sig();
 
+  bool MatchesSignature(const wasm::WasmModule* other_module,
+                        const wasm::FunctionSig* other_sig);
+
   DECL_CAST(WasmExportedFunction)
   OBJECT_CONSTRUCTORS(WasmExportedFunction, JSFunction);
 };

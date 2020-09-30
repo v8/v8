@@ -7116,17 +7116,17 @@ std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
     const wasm::WasmFeatures& enabled_features) {
   if (WasmExportedFunction::IsWasmExportedFunction(*callable)) {
     auto imported_function = Handle<WasmExportedFunction>::cast(callable);
-    auto func_index = imported_function->function_index();
-    auto module = imported_function->instance().module();
-    const wasm::FunctionSig* imported_sig = module->functions[func_index].sig;
-    if (*imported_sig != *expected_sig) {
+    if (!imported_function->MatchesSignature(module, expected_sig)) {
       return std::make_pair(WasmImportCallKind::kLinkError, callable);
     }
-    if (static_cast<uint32_t>(func_index) >= module->num_imported_functions) {
+    uint32_t func_index =
+        static_cast<uint32_t>(imported_function->function_index());
+    if (func_index >=
+        imported_function->instance().module()->num_imported_functions) {
       return std::make_pair(WasmImportCallKind::kWasmToWasm, callable);
     }
     Isolate* isolate = callable->GetIsolate();
-    // Resolve the short-cut to the underlying callable and continue.
+    // Resolve the shortcut to the underlying callable and continue.
     Handle<WasmInstanceObject> instance(imported_function->instance(), isolate);
     ImportedFunctionEntry entry(instance, func_index);
     callable = handle(entry.callable(), isolate);
