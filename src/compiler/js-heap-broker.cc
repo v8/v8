@@ -297,7 +297,9 @@ CallHandlerInfoData::CallHandlerInfoData(JSHeapBroker* broker,
                                          ObjectData** storage,
                                          Handle<CallHandlerInfo> object)
     : HeapObjectData(broker, storage, object),
-      callback_(v8::ToCData<Address>(object->callback())) {}
+      callback_(v8::ToCData<Address>(object->callback())) {
+  DCHECK(!FLAG_turbo_direct_heap_access);
+}
 
 // These definitions are here in order to please the linker, which in debug mode
 // sometimes requires static constants to be defined in .cc files.
@@ -328,7 +330,12 @@ void FunctionTemplateInfoData::SerializeCallCode(JSHeapBroker* broker) {
                     "FunctionTemplateInfoData::SerializeCallCode");
   auto function_template_info = Handle<FunctionTemplateInfo>::cast(object());
   call_code_ = broker->GetOrCreateData(function_template_info->call_code());
-  if (!call_code_->should_access_heap()) {
+  if (call_code_->should_access_heap()) {
+    // TODO(mvstanton): When ObjectRef is in the never serialized list, this
+    // code can be removed.
+    broker->GetOrCreateData(
+        Handle<CallHandlerInfo>::cast(call_code_->object())->data());
+  } else {
     call_code_->AsCallHandlerInfo()->Serialize(broker);
   }
 }
@@ -3413,8 +3420,9 @@ BIMODAL_ACCESSOR_C(PropertyCell, PropertyDetails, property_details)
 
 base::Optional<CallHandlerInfoRef> FunctionTemplateInfoRef::call_code() const {
   if (data_->should_access_heap()) {
-    return CallHandlerInfoRef(
-        broker(), broker()->CanonicalPersistentHandle(object()->call_code()));
+    return CallHandlerInfoRef(broker(),
+                              broker()->CanonicalPersistentHandle(
+                                  object()->synchronized_call_code()));
   }
   ObjectData* call_code = data()->AsFunctionTemplateInfo()->call_code();
   if (!call_code) return base::nullopt;

@@ -63,6 +63,7 @@ enum class OddballType : uint8_t {
   /* Subtypes of HeapObject */                      \
   V(AccessorInfo)                                   \
   V(ArrayBoilerplateDescription)                    \
+  V(CallHandlerInfo)                                \
   V(Cell)                                           \
   V(TemplateObjectDescription)
 
@@ -96,7 +97,6 @@ enum class OddballType : uint8_t {
   /* Subtypes of HeapObject */                \
   V(AllocationSite)                           \
   V(BigInt)                                   \
-  V(CallHandlerInfo)                          \
   V(Code)                                     \
   V(DescriptorArray)                          \
   V(FeedbackCell)                             \
