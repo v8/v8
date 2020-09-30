@@ -474,6 +474,20 @@ class BaseTestRunner(object):
         return
 
       yield options.outdir
+
+      # TODO(machenbach): Temporary fallback to legacy outdir. The
+      # infrastructure switches to the canonical out/build location. But
+      # bisection will keep working with out/Release or out/Debug for a
+      # grace period.
+      if os.path.basename(options.outdir) == 'build':
+        base_dir = os.path.dirname(options.outdir)
+        release_dir = os.path.join(base_dir, 'Release')
+        debug_dir = os.path.join(base_dir, 'Debug')
+        if os.path.exists(release_dir) and not os.path.exists(debug_dir):
+          yield release_dir
+        if os.path.exists(debug_dir) and not os.path.exists(release_dir):
+          yield debug_dir
+
       if options.arch and options.mode:
         yield os.path.join(options.outdir,
                           '%s.%s' % (options.arch, options.mode))
