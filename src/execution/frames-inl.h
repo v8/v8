@@ -205,7 +205,7 @@ Address JavaScriptFrame::GetParameterSlot(int index) const {
   DCHECK_LE(-1, index);
 #ifdef V8_NO_ARGUMENTS_ADAPTOR
   DCHECK_LT(index,
-            std::max(GetActualArgumentsCount(), ComputeParametersCount()));
+            std::max(GetActualArgumentCount(), ComputeParametersCount()));
 #else
   DCHECK(index < ComputeParametersCount() ||
          ComputeParametersCount() == kDontAdaptArgumentsSentinel);
