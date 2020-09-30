@@ -740,6 +740,14 @@ DEFINE_BOOL(print_nci_code, false, "print native context independent code.")
 DEFINE_BOOL(trace_turbo_nci, false, "trace native context independent code.")
 DEFINE_BOOL(turbo_collect_feedback_in_generic_lowering, true,
             "enable experimental feedback collection in generic lowering.")
+// TODO(jgruber,v8:8888): Remove this flag once we've settled on a codegen
+// strategy.
+DEFINE_BOOL(turbo_nci_delayed_codegen, true,
+            "delay NCI codegen to reduce useless compilation work.")
+// TODO(jgruber,v8:8888): Remove this flag once we've settled on an ageing
+// strategy.
+DEFINE_BOOL(turbo_nci_cache_ageing, false,
+            "enable ageing of the NCI code cache.")
 
 // Favor memory over execution speed.
 DEFINE_BOOL(optimize_for_size, false,

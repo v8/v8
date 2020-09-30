@@ -76,8 +76,10 @@ void CompilationCacheScript::Age() { AgeCustom(this); }
 void CompilationCacheEval::Age() { AgeCustom(this); }
 void CompilationCacheRegExp::Age() { AgeByGeneration(this); }
 void CompilationCacheCode::Age() {
-  if (FLAG_trace_turbo_nci) CompilationCacheCode::TraceAgeing();
-  AgeByGeneration(this);
+  if (FLAG_turbo_nci_cache_ageing) {
+    if (FLAG_trace_turbo_nci) CompilationCacheCode::TraceAgeing();
+    AgeByGeneration(this);
+  }
 }
 
 void CompilationSubCache::Iterate(RootVisitor* v) {
