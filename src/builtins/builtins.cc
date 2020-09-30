@@ -484,6 +484,7 @@ bool Builtins::CodeObjectIsExecutable(int builtin_index) {
     case Builtins::kArgumentsAdaptorTrampoline:
     case Builtins::kHandleApiCall:
     case Builtins::kInstantiateAsmJs:
+    case Builtins::kGenericJSToWasmWrapper:
 
     // TODO(delphick): Remove this when calls to it have the trampoline inlined
     // or are converted to use kCallBuiltinPointer.
