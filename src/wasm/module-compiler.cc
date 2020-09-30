@@ -631,7 +631,7 @@ class CompilationStateImpl {
 
   int GetFreeCompileTaskId();
   int GetUnpublishedUnitsLimits(int task_id);
-  void OnCompilationStopped(int task_id, const WasmFeatures& detected);
+  void OnCompilationStopped(const WasmFeatures& detected);
   void PublishDetectedFeatures(Isolate*);
   // Ensure that a compilation job is running, and increase its concurrency if
   // needed.
@@ -1274,12 +1274,6 @@ CompilationExecutionResult ExecuteCompilationUnits(
 
   WasmFeatures detected_features = WasmFeatures::None();
 
-  auto stop = [&detected_features,
-               task_id](BackgroundCompileScope& compile_scope) {
-    compile_scope.compilation_state()->OnCompilationStopped(task_id,
-                                                            detected_features);
-  };
-
   // Preparation (synchronized): Initialize the fields above and get the first
   // compilation unit.
   {
@@ -1293,10 +1287,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
     unpublished_units_limit =
         compilation_state->GetUnpublishedUnitsLimits(task_id);
     unit = compilation_state->GetNextCompilationUnit(task_id, baseline_only);
-    if (!unit) {
-      stop(compile_scope);
-      return kNoMoreUnits;
-    }
+    if (!unit) return kNoMoreUnits;
   }
   TRACE_COMPILE("ExecuteCompilationUnits (task id %d)\n", task_id);
 
@@ -1352,20 +1343,20 @@ CompilationExecutionResult ExecuteCompilationUnits(
     {
       BackgroundCompileScope compile_scope(token);
       if (compile_scope.cancelled()) return kNoMoreUnits;
+
       if (!results_to_publish.back().succeeded()) {
-        // Compile error.
-        compile_scope.compilation_state()->SetError();
-        stop(compile_scope);
         compilation_failed = true;
+        compile_scope.compilation_state()->SetError();
         break;
       }
 
-      // Get next unit.
+      // Yield or get next unit.
       if (yield ||
           !(unit = compile_scope.compilation_state()->GetNextCompilationUnit(
                 task_id, baseline_only))) {
         publish_results(&compile_scope);
-        stop(compile_scope);
+        compile_scope.compilation_state()->OnCompilationStopped(
+            detected_features);
         return yield ? kYield : kNoMoreUnits;
       }
 
@@ -3237,9 +3228,7 @@ int CompilationStateImpl::GetUnpublishedUnitsLimits(int task_id) {
   return std::max(10, min + (min * task_id / max_compile_concurrency_));
 }
 
-void CompilationStateImpl::OnCompilationStopped(int task_id,
-                                                const WasmFeatures& detected) {
-  DCHECK_GE(max_compile_concurrency_, task_id);
+void CompilationStateImpl::OnCompilationStopped(const WasmFeatures& detected) {
   base::MutexGuard guard(&mutex_);
   detected_features_.Add(detected);
 }
