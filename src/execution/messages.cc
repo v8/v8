@@ -1234,7 +1234,18 @@ Handle<String> BuildDefaultCallSite(Isolate* isolate, Handle<Object> object) {
   builder.AppendString(Object::TypeOf(isolate, object));
   if (object->IsString()) {
     builder.AppendCString(" \"");
-    builder.AppendString(Handle<String>::cast(object));
+    Handle<String> string = Handle<String>::cast(object);
+    // This threshold must be sufficiently far below String::kMaxLength that
+    // the {builder}'s result can never exceed that limit.
+    constexpr int kMaxPrintedStringLength = 100;
+    if (string->length() <= kMaxPrintedStringLength) {
+      builder.AppendString(string);
+    } else {
+      string = isolate->factory()->NewProperSubString(string, 0,
+                                                      kMaxPrintedStringLength);
+      builder.AppendString(string);
+      builder.AppendCString("<...>");
+    }
     builder.AppendCString("\"");
   } else if (object->IsNull(isolate)) {
     builder.AppendCString(" ");
