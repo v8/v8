@@ -32,7 +32,8 @@ class YoungGenerationMarkingVisitor;
 
 class MarkBitCellIterator {
  public:
-  MarkBitCellIterator(MemoryChunk* chunk, Bitmap* bitmap) : chunk_(chunk) {
+  MarkBitCellIterator(const MemoryChunk* chunk, Bitmap* bitmap)
+      : chunk_(chunk) {
     last_cell_index_ =
         Bitmap::IndexToCell(chunk_->AddressToMarkbitIndex(chunk_->area_end()));
     cell_base_ = chunk_->address();
@@ -83,7 +84,7 @@ class MarkBitCellIterator {
   }
 
  private:
-  MemoryChunk* chunk_;
+  const MemoryChunk* chunk_;
   MarkBit::CellType* cells_;
   unsigned int last_cell_index_;
   unsigned int cell_index_;
@@ -102,7 +103,7 @@ class LiveObjectRange {
     using reference = const value_type&;
     using iterator_category = std::forward_iterator_tag;
 
-    inline iterator(MemoryChunk* chunk, Bitmap* bitmap, Address start);
+    inline iterator(const MemoryChunk* chunk, Bitmap* bitmap, Address start);
 
     inline iterator& operator++();
     inline iterator operator++(int);
@@ -120,7 +121,7 @@ class LiveObjectRange {
    private:
     inline void AdvanceToNextValidObject();
 
-    MemoryChunk* const chunk_;
+    const MemoryChunk* const chunk_;
     Map const one_word_filler_map_;
     Map const two_word_filler_map_;
     Map const free_space_map_;
@@ -131,7 +132,7 @@ class LiveObjectRange {
     int current_size_;
   };
 
-  LiveObjectRange(MemoryChunk* chunk, Bitmap* bitmap)
+  LiveObjectRange(const MemoryChunk* chunk, Bitmap* bitmap)
       : chunk_(chunk),
         bitmap_(bitmap),
         start_(chunk_->area_start()),
@@ -143,7 +144,7 @@ class LiveObjectRange {
   inline iterator end();
 
  private:
-  MemoryChunk* const chunk_;
+  const MemoryChunk* const chunk_;
   Bitmap* bitmap_;
   Address start_;
   Address end_;

@@ -118,30 +118,28 @@ void MarkingVerifier::VerifyRoots() {
 
 void MarkingVerifier::VerifyMarkingOnPage(const Page* page, Address start,
                                           Address end) {
-  HeapObject object;
   Address next_object_must_be_here_or_later = start;
-  for (Address current = start; current < end;) {
-    object = HeapObject::FromAddress(current);
-    // One word fillers at the end of a black area can be grey.
-    if (IsBlackOrGrey(object) &&
-        object.map() != ReadOnlyRoots(heap_).one_pointer_filler_map()) {
-      CHECK(IsMarked(object));
-      CHECK(current >= next_object_must_be_here_or_later);
-      object.Iterate(this);
-      next_object_must_be_here_or_later = current + object.Size();
-      // The object is either part of a black area of black allocation or a
-      // regular black object
-      CHECK(
-          bitmap(page)->AllBitsSetInRange(
+
+  for (auto object_and_size :
+       LiveObjectRange<kAllLiveObjects>(page, bitmap(page))) {
+    HeapObject object = object_and_size.first;
+    size_t size = object_and_size.second;
+    Address current = object.address();
+    if (current < start) continue;
+    if (current >= end) break;
+    CHECK(IsMarked(object));
+    CHECK(current >= next_object_must_be_here_or_later);
+    object.Iterate(this);
+    next_object_must_be_here_or_later = current + size;
+    // The object is either part of a black area of black allocation or a
+    // regular black object
+    CHECK(bitmap(page)->AllBitsSetInRange(
               page->AddressToMarkbitIndex(current),
               page->AddressToMarkbitIndex(next_object_must_be_here_or_later)) ||
           bitmap(page)->AllBitsClearInRange(
               page->AddressToMarkbitIndex(current + kTaggedSize * 2),
               page->AddressToMarkbitIndex(next_object_must_be_here_or_later)));
-      current = next_object_must_be_here_or_later;
-    } else {
-      current += kTaggedSize;
-    }
+    current = next_object_must_be_here_or_later;
   }
 }
 
