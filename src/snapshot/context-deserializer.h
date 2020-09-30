@@ -6,6 +6,7 @@
 #define V8_SNAPSHOT_CONTEXT_DESERIALIZER_H_
 
 #include "src/snapshot/deserializer.h"
+#include "src/snapshot/snapshot-data.h"
 #include "src/snapshot/snapshot.h"
 
 namespace v8 {

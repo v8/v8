@@ -41,21 +41,17 @@ ObjectDeserializer::DeserializeSharedFunctionInfoOffThread(
 
 MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(Isolate* isolate) {
   Initialize(isolate);
-  if (!allocator()->ReserveSpace()) return MaybeHandle<HeapObject>();
 
   DCHECK(deserializing_user_code());
   HandleScope scope(isolate);
   Handle<HeapObject> result;
   {
-    DisallowGarbageCollection no_gc;
-    Object root;
-    VisitRootPointer(Root::kStartupObjectCache, nullptr, FullObjectSlot(&root));
+    result = ReadObject();
     DeserializeDeferredObjects();
     CHECK(new_code_objects().empty());
     LinkAllocationSites();
-    LogNewMapEvents();
-    result = handle(HeapObject::cast(root), isolate);
-    allocator()->RegisterDeserializedObjectsForBlackAllocation();
+    CHECK(new_maps().empty());
+    WeakenDescriptorArrays();
   }
 
   Rehash();
@@ -77,10 +73,10 @@ void ObjectDeserializer::CommitPostProcessedObjects() {
     script->set_id(isolate()->GetNextScriptId());
     LogScriptEvents(*script);
     // Add script to list.
-      Handle<WeakArrayList> list = isolate()->factory()->script_list();
-      list = WeakArrayList::AddToEnd(isolate(), list,
-                                     MaybeObjectHandle::Weak(script));
-      isolate()->heap()->SetRootScriptList(*list);
+    Handle<WeakArrayList> list = isolate()->factory()->script_list();
+    list = WeakArrayList::AddToEnd(isolate(), list,
+                                   MaybeObjectHandle::Weak(script));
+    isolate()->heap()->SetRootScriptList(*list);
   }
 }
 
@@ -89,17 +85,17 @@ void ObjectDeserializer::LinkAllocationSites() {
   Heap* heap = isolate()->heap();
   // Allocation sites are present in the snapshot, and must be linked into
   // a list at deserialization time.
-  for (AllocationSite site : new_allocation_sites()) {
-    if (!site.HasWeakNext()) continue;
+  for (Handle<AllocationSite> site : new_allocation_sites()) {
+    if (!site->HasWeakNext()) continue;
     // TODO(mvstanton): consider treating the heap()->allocation_sites_list()
     // as a (weak) root. If this root is relocated correctly, this becomes
     // unnecessary.
     if (heap->allocation_sites_list() == Smi::zero()) {
-      site.set_weak_next(ReadOnlyRoots(heap).undefined_value());
+      site->set_weak_next(ReadOnlyRoots(heap).undefined_value());
     } else {
-      site.set_weak_next(heap->allocation_sites_list());
+      site->set_weak_next(heap->allocation_sites_list());
     }
-    heap->set_allocation_sites_list(site);
+    heap->set_allocation_sites_list(*site);
   }
 }
 

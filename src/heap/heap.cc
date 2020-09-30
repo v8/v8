@@ -1878,125 +1878,6 @@ static void VerifyStringTable(Isolate* isolate) {
 }
 #endif  // VERIFY_HEAP
 
-bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
-  bool gc_performed = true;
-  int counter = 0;
-  static const int kThreshold = 20;
-  while (gc_performed && counter++ < kThreshold) {
-    gc_performed = false;
-    for (int space = FIRST_SPACE;
-         space < static_cast<int>(SnapshotSpace::kNumberOfHeapSpaces);
-         space++) {
-      DCHECK_NE(space, NEW_SPACE);
-      DCHECK_NE(space, NEW_LO_SPACE);
-      Reservation* reservation = &reservations[space];
-      DCHECK_LE(1, reservation->size());
-      if (reservation->at(0).size == 0) {
-        DCHECK_EQ(1, reservation->size());
-        continue;
-      }
-      bool perform_gc = false;
-      if (space == MAP_SPACE) {
-        // We allocate each map individually to avoid fragmentation.
-        maps->clear();
-        DCHECK_LE(reservation->size(), 2);
-        int reserved_size = 0;
-        for (const Chunk& c : *reservation) reserved_size += c.size;
-        DCHECK_EQ(0, reserved_size % Map::kSize);
-        int num_maps = reserved_size / Map::kSize;
-        for (int i = 0; i < num_maps; i++) {
-          AllocationResult allocation;
-#if V8_ENABLE_THIRD_PARTY_HEAP_BOOL
-          allocation = AllocateRaw(Map::kSize, AllocationType::kMap,
-                                   AllocationOrigin::kRuntime, kWordAligned);
-#else
-          allocation = map_space()->AllocateRawUnaligned(Map::kSize);
-#endif
-          HeapObject free_space;
-          if (allocation.To(&free_space)) {
-            // Mark with a free list node, in case we have a GC before
-            // deserializing.
-            Address free_space_address = free_space.address();
-            CreateFillerObjectAt(free_space_address, Map::kSize,
-                                 ClearRecordedSlots::kNo);
-            maps->push_back(free_space_address);
-          } else {
-            perform_gc = true;
-            break;
-          }
-        }
-      } else if (space == LO_SPACE) {
-        // Just check that we can allocate during deserialization.
-        DCHECK_LE(reservation->size(), 2);
-        int reserved_size = 0;
-        for (const Chunk& c : *reservation) reserved_size += c.size;
-        perform_gc = !CanExpandOldGeneration(reserved_size);
-      } else {
-        for (auto& chunk : *reservation) {
-          AllocationResult allocation;
-          int size = chunk.size;
-          DCHECK_LE(static_cast<size_t>(size),
-                    MemoryChunkLayout::AllocatableMemoryInMemoryChunk(
-                        static_cast<AllocationSpace>(space)));
-#if V8_ENABLE_THIRD_PARTY_HEAP_BOOL
-          AllocationType type = (space == CODE_SPACE)
-                                    ? AllocationType::kCode
-                                    : (space == RO_SPACE)
-                                          ? AllocationType::kReadOnly
-                                          : AllocationType::kYoung;
-          AllocationAlignment align =
-              (space == CODE_SPACE) ? kCodeAligned : kWordAligned;
-          allocation =
-              AllocateRaw(size, type, AllocationOrigin::kRuntime, align);
-#else
-          if (space == RO_SPACE) {
-            allocation = read_only_space()->AllocateRaw(
-                size, AllocationAlignment::kWordAligned);
-          } else {
-            // The deserializer will update the skip list.
-            allocation = paged_space(space)->AllocateRawUnaligned(size);
-          }
-#endif
-          HeapObject free_space;
-          if (allocation.To(&free_space)) {
-            // Mark with a free list node, in case we have a GC before
-            // deserializing.
-            Address free_space_address = free_space.address();
-            CreateFillerObjectAt(free_space_address, size,
-                                 ClearRecordedSlots::kNo);
-            DCHECK(IsPreAllocatedSpace(static_cast<SnapshotSpace>(space)));
-            chunk.start = free_space_address;
-            chunk.end = free_space_address + size;
-          } else {
-            perform_gc = true;
-            break;
-          }
-        }
-      }
-      if (perform_gc) {
-        // We cannot perfom a GC with an uninitialized isolate. This check
-        // fails for example if the max old space size is chosen unwisely,
-        // so that we cannot allocate space to deserialize the initial heap.
-        if (!deserialization_complete_) {
-          V8::FatalProcessOutOfMemory(
-              isolate(), "insufficient memory to create an Isolate");
-        }
-        if (counter > 1) {
-          CollectAllGarbage(kReduceMemoryFootprintMask,
-                            GarbageCollectionReason::kDeserializer);
-        } else {
-          CollectAllGarbage(kNoGCFlags, GarbageCollectionReason::kDeserializer);
-        }
-        gc_performed = true;
-        break;  // Abort for-loop over spaces and retry.
-      }
-    }
-  }
-
-  return !gc_performed;
-}
-
-
 void Heap::EnsureFromSpaceIsCommitted() {
   if (new_space_->CommitFromSpaceIfNeeded()) return;
 
@@ -3538,47 +3419,6 @@ void Heap::FinalizeIncrementalMarkingIncrementally(
   InvokeIncrementalMarkingEpilogueCallbacks();
 }
 
-void Heap::RegisterDeserializedObjectsForBlackAllocation(
-    Reservation* reservations, const std::vector<HeapObject>& large_objects,
-    const std::vector<Address>& maps) {
-  // TODO(ulan): pause black allocation during deserialization to avoid
-  // iterating all these objects in one go.
-
-  if (!incremental_marking()->black_allocation()) return;
-
-  // Iterate black objects in old space, code space, map space, and large
-  // object space for side effects.
-  IncrementalMarking::MarkingState* marking_state =
-      incremental_marking()->marking_state();
-  for (int i = OLD_SPACE;
-       i < static_cast<int>(SnapshotSpace::kNumberOfHeapSpaces); i++) {
-    const Heap::Reservation& res = reservations[i];
-    for (auto& chunk : res) {
-      Address addr = chunk.start;
-      while (addr < chunk.end) {
-        HeapObject obj = HeapObject::FromAddress(addr);
-        // Objects can have any color because incremental marking can
-        // start in the middle of Heap::ReserveSpace().
-        if (marking_state->IsBlack(obj)) {
-          incremental_marking()->ProcessBlackAllocatedObject(obj);
-        }
-        addr += obj.Size();
-      }
-    }
-  }
-
-  // Large object space doesn't use reservations, so it needs custom handling.
-  for (HeapObject object : large_objects) {
-    incremental_marking()->ProcessBlackAllocatedObject(object);
-  }
-
-  // Map space doesn't use reservations, so it needs custom handling.
-  for (Address addr : maps) {
-    incremental_marking()->ProcessBlackAllocatedObject(
-        HeapObject::FromAddress(addr));
-  }
-}
-
 void Heap::NotifyObjectLayoutChange(
     HeapObject object, const DisallowHeapAllocation&,
     InvalidateRecordedSlots invalidate_recorded_slots) {
@@ -4149,6 +3989,7 @@ void Heap::Verify() {
 
   // We have to wait here for the sweeper threads to have an iterable heap.
   mark_compact_collector()->EnsureSweepingCompleted();
+
   array_buffer_sweeper()->EnsureFinished();
 
   VerifyPointersVisitor visitor(this);
@@ -4159,6 +4000,12 @@ void Heap::Verify() {
     NormalizedMapCache::cast(*isolate()->normalized_map_cache())
         .NormalizedMapCacheVerify(isolate());
   }
+
+  // The heap verifier can't deal with partially deserialized objects, so
+  // disable it if a deserializer is active.
+  // TODO(leszeks): Enable verification during deserialization, e.g. by only
+  // blocklisting objects that are in a partially deserialized state.
+  if (isolate()->has_active_deserializer()) return;
 
   VerifySmisVisitor smis_visitor;
   IterateSmiRoots(&smis_visitor);
@@ -5146,7 +4993,14 @@ HeapObject Heap::AllocateRawWithLightRetrySlowPath(
   HeapObject result;
   AllocationResult alloc = AllocateRaw(size, allocation, origin, alignment);
   if (alloc.To(&result)) {
-    DCHECK(result != ReadOnlyRoots(this).exception());
+    // DCHECK that the successful allocation is not "exception". The one
+    // exception to this is when allocating the "exception" object itself, in
+    // which case this must be an ROSpace allocation and the exception object
+    // in the roots has to be unset.
+    DCHECK((CanAllocateInReadOnlySpace() &&
+            allocation == AllocationType::kReadOnly &&
+            ReadOnlyRoots(this).unchecked_exception() == Smi::zero()) ||
+           result != ReadOnlyRoots(this).exception());
     return result;
   }
   // Two GCs before panicking. In newspace will almost always succeed.

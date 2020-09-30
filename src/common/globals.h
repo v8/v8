@@ -794,12 +794,7 @@ inline std::ostream& operator<<(std::ostream& os, AllocationType kind) {
 }
 
 // TODO(ishell): review and rename kWordAligned to kTaggedAligned.
-enum AllocationAlignment {
-  kWordAligned,
-  kDoubleAligned,
-  kDoubleUnaligned,
-  kCodeAligned
-};
+enum AllocationAlignment { kWordAligned, kDoubleAligned, kDoubleUnaligned };
 
 enum class AccessMode { ATOMIC, NON_ATOMIC };
 

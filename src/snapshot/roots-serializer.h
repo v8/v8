@@ -42,7 +42,7 @@ class RootsSerializer : public Serializer {
   void CheckRehashability(HeapObject obj);
 
   // Serializes |object| if not previously seen and returns its cache index.
-  int SerializeInObjectCache(HeapObject object);
+  int SerializeInObjectCache(Handle<HeapObject> object);
 
  private:
   void VisitRootPointers(Root root, const char* description,

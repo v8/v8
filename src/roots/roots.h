@@ -86,6 +86,7 @@ class Symbol;
   V(Map, code_data_container_map, CodeDataContainerMap)                        \
   V(Map, coverage_info_map, CoverageInfoMap)                                   \
   V(Map, descriptor_array_map, DescriptorArrayMap)                             \
+  V(Map, strong_descriptor_array_map, StrongDescriptorArrayMap)                \
   V(Map, fixed_double_array_map, FixedDoubleArrayMap)                          \
   V(Map, global_dictionary_map, GlobalDictionaryMap)                           \
   V(Map, many_closures_cell_map, ManyClosuresCellMap)                          \
