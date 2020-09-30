@@ -56,6 +56,7 @@ static const char customObjectFormatterEnabled[] =
     "customObjectFormatterEnabled";
 static const char runtimeEnabled[] = "runtimeEnabled";
 static const char bindings[] = "bindings";
+static const char globalBindingsKey[] = "";
 }  // namespace V8RuntimeAgentImplState
 
 using protocol::Runtime::RemoteObject;
@@ -663,32 +664,61 @@ void V8RuntimeAgentImpl::terminateExecution(
   m_inspector->debugger()->terminateExecution(std::move(callback));
 }
 
+namespace {
+protocol::DictionaryValue* getOrCreateDictionary(
+    protocol::DictionaryValue* dict, const String16& key) {
+  if (protocol::DictionaryValue* bindings = dict->getObject(key))
+    return bindings;
+  dict->setObject(key, protocol::DictionaryValue::create());
+  return dict->getObject(key);
+}
+}  // namespace
+
 Response V8RuntimeAgentImpl::addBinding(const String16& name,
-                                        Maybe<int> executionContextId) {
+                                        Maybe<int> executionContextId,
+                                        Maybe<String16> executionContextName) {
   if (m_activeBindings.count(name)) return Response::Success();
   if (executionContextId.isJust()) {
+    if (executionContextName.isJust()) {
+      return Response::InvalidParams(
+          "executionContextName is mutually exclusive with executionContextId");
+    }
     int contextId = executionContextId.fromJust();
     InspectedContext* context =
         m_inspector->getContext(m_session->contextGroupId(), contextId);
     if (!context) {
-      return Response::ServerError(
+      return Response::InvalidParams(
           "Cannot find execution context with given executionContextId");
     }
     addBinding(context, name);
     return Response::Success();
   }
+
+  // If it's a globally exposed binding, i.e. no context name specified, use
+  // a special value for the context name.
+  String16 contextKey = V8RuntimeAgentImplState::globalBindingsKey;
+  if (executionContextName.isJust()) {
+    contextKey = executionContextName.fromJust();
+    if (contextKey == V8RuntimeAgentImplState::globalBindingsKey) {
+      return Response::InvalidParams("Invalid executionContextName");
+    }
+  }
   // Only persist non context-specific bindings, as contextIds don't make
   // any sense when state is restored in a different process.
-  if (!m_state->getObject(V8RuntimeAgentImplState::bindings)) {
-    m_state->setObject(V8RuntimeAgentImplState::bindings,
-                       protocol::DictionaryValue::create());
-  }
   protocol::DictionaryValue* bindings =
-      m_state->getObject(V8RuntimeAgentImplState::bindings);
-  bindings->setBoolean(name, true);
+      getOrCreateDictionary(m_state, V8RuntimeAgentImplState::bindings);
+  protocol::DictionaryValue* contextBindings =
+      getOrCreateDictionary(bindings, contextKey);
+  contextBindings->setBoolean(name, true);
+
   m_inspector->forEachContext(
       m_session->contextGroupId(),
-      [&name, this](InspectedContext* context) { addBinding(context, name); });
+      [&name, &executionContextName, this](InspectedContext* context) {
+        if (executionContextName.isJust() &&
+            executionContextName.fromJust() != context->humanReadableName())
+          return;
+        addBinding(context, name);
+      });
   return Response::Success();
 }
 
@@ -750,12 +780,23 @@ void V8RuntimeAgentImpl::bindingCalled(const String16& name,
 }
 
 void V8RuntimeAgentImpl::addBindings(InspectedContext* context) {
+  const String16 contextName = context->humanReadableName();
   if (!m_enabled) return;
   protocol::DictionaryValue* bindings =
       m_state->getObject(V8RuntimeAgentImplState::bindings);
   if (!bindings) return;
-  for (size_t i = 0; i < bindings->size(); ++i)
-    addBinding(context, bindings->at(i).first);
+  protocol::DictionaryValue* globalBindings =
+      bindings->getObject(V8RuntimeAgentImplState::globalBindingsKey);
+  if (globalBindings) {
+    for (size_t i = 0; i < globalBindings->size(); ++i)
+      addBinding(context, globalBindings->at(i).first);
+  }
+  protocol::DictionaryValue* contextBindings =
+      contextName.isEmpty() ? nullptr : bindings->getObject(contextName);
+  if (contextBindings) {
+    for (size_t i = 0; i < contextBindings->size(); ++i)
+      addBinding(context, contextBindings->at(i).first);
+  }
 }
 
 void V8RuntimeAgentImpl::restore() {

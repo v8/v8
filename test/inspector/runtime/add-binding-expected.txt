@@ -156,3 +156,51 @@ binding called in session1
     }
 }
 Call binding in newly created context (binding should NOT be exposed)
+
+Running test: testAddBindingToContextByName
+Call binding in default context (binding should NOT be exposed)
+Call binding in Foo (binding should be exposed)
+binding called in session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : frobnicate
+        payload : message
+    }
+}
+Call binding in Bar (binding should NOT be exposed)
+Call binding in newly-created Foo (binding should be exposed)
+binding called in session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : frobnicate
+        payload : message
+    }
+}
+Call binding in newly-created Bazz (binding should NOT be exposed)
+
+Running test: testErrors
+{
+    error : {
+        code : -32602
+        message : Invalid executionContextName
+    }
+    id : <messageId>
+}
+{
+    error : {
+        code : -32602
+        message : executionContextName is mutually exclusive with executionContextId
+    }
+    id : <messageId>
+}
+{
+    error : {
+        code : -32602
+        message : Cannot find execution context with given executionContextId
+    }
+    id : <messageId>
+}
