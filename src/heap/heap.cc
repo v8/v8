@@ -1095,7 +1095,8 @@ void Heap::DeoptMarkedAllocationSites() {
 
 void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
   if (collector == MARK_COMPACTOR) {
-    memory_pressure_level_ = MemoryPressureLevel::kNone;
+    memory_pressure_level_.store(MemoryPressureLevel::kNone,
+                                 std::memory_order_relaxed);
   }
 
   TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_SAFEPOINT);
@@ -1151,6 +1152,9 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
     TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE);
     ReduceNewSpaceSize();
   }
+
+  // Resume all threads waiting for the GC.
+  collection_barrier_.ResumeThreadsAwaitingCollection();
 }
 
 void Heap::GarbageCollectionEpilogue() {
@@ -1212,6 +1216,8 @@ void Heap::HandleGCRequest() {
   } else if (HighMemoryPressure()) {
     incremental_marking()->reset_request_type();
     CheckMemoryPressure();
+  } else if (CollectionRequested()) {
+    CheckCollectionRequested();
   } else if (incremental_marking()->request_type() ==
              IncrementalMarking::COMPLETE_MARKING) {
     incremental_marking()->reset_request_type();
@@ -1678,8 +1684,6 @@ bool Heap::CollectGarbage(AllocationSpace space,
     isolate()->CountUsage(v8::Isolate::kForcedGC);
   }
 
-  collection_barrier_.CollectionPerformed();
-
   // Start incremental marking for the next cycle. We do this only for scavenger
   // to avoid a loop where mark-compact causes another mark-compact.
   if (IsYoungGenerationCollector(collector)) {
@@ -2005,34 +2009,72 @@ void Heap::EnsureFromSpaceIsCommitted() {
   FatalProcessOutOfMemory("Committing semi space failed.");
 }
 
-void Heap::CollectionBarrier::CollectionPerformed() {
+void Heap::CollectionBarrier::ResumeThreadsAwaitingCollection() {
   base::MutexGuard guard(&mutex_);
-  gc_requested_ = false;
+  ClearCollectionRequested();
   cond_.NotifyAll();
 }
 
 void Heap::CollectionBarrier::ShutdownRequested() {
   base::MutexGuard guard(&mutex_);
-  shutdown_requested_ = true;
+  state_.store(RequestState::kShutdown);
   cond_.NotifyAll();
 }
 
-void Heap::CollectionBarrier::Wait() {
-  base::MutexGuard guard(&mutex_);
+class BackgroundCollectionInterruptTask : public CancelableTask {
+ public:
+  explicit BackgroundCollectionInterruptTask(Heap* heap)
+      : CancelableTask(heap->isolate()), heap_(heap) {}
 
-  if (shutdown_requested_) return;
+  ~BackgroundCollectionInterruptTask() override = default;
 
-  if (!gc_requested_) {
-    heap_->MemoryPressureNotification(MemoryPressureLevel::kCritical, false);
-    gc_requested_ = true;
+ private:
+  // v8::internal::CancelableTask overrides.
+  void RunInternal() override { heap_->CheckCollectionRequested(); }
+
+  Heap* heap_;
+  DISALLOW_COPY_AND_ASSIGN(BackgroundCollectionInterruptTask);
+};
+
+void Heap::CollectionBarrier::AwaitCollectionBackground() {
+  if (FirstCollectionRequest()) {
+    // This is the first background thread requesting collection, ask the main
+    // thread for GC.
+    ActivateStackGuardAndPostTask();
   }
 
-  while (gc_requested_ && !shutdown_requested_) {
+  BlockUntilCollected();
+}
+
+void Heap::CollectionBarrier::ActivateStackGuardAndPostTask() {
+  Isolate* isolate = heap_->isolate();
+  ExecutionAccess access(isolate);
+  isolate->stack_guard()->RequestGC();
+  auto taskrunner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
+      reinterpret_cast<v8::Isolate*>(isolate));
+  taskrunner->PostTask(
+      std::make_unique<BackgroundCollectionInterruptTask>(heap_));
+}
+
+void Heap::CollectionBarrier::BlockUntilCollected() {
+  base::MutexGuard guard(&mutex_);
+
+  while (CollectionRequested()) {
     cond_.Wait(&mutex_);
   }
 }
 
-void Heap::RequestAndWaitForCollection() { collection_barrier_.Wait(); }
+void Heap::RequestCollectionBackground() {
+  collection_barrier_.AwaitCollectionBackground();
+}
+
+void Heap::CheckCollectionRequested() {
+  if (!collection_barrier_.CollectionRequested()) return;
+
+  CollectAllGarbage(current_gc_flags_,
+                    GarbageCollectionReason::kBackgroundAllocationFailure,
+                    current_gc_callback_flags_);
+}
 
 void Heap::UpdateSurvivalStatistics(int start_new_space_size) {
   if (start_new_space_size == 0) return;
@@ -3812,11 +3854,11 @@ void Heap::CheckMemoryPressure() {
     // The optimizing compiler may be unnecessarily holding on to memory.
     isolate()->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
   }
-  MemoryPressureLevel memory_pressure_level = memory_pressure_level_;
   // Reset the memory pressure level to avoid recursive GCs triggered by
   // CheckMemoryPressure from AdjustAmountOfExternalMemory called by
   // the finalizers.
-  memory_pressure_level_ = MemoryPressureLevel::kNone;
+  MemoryPressureLevel memory_pressure_level = memory_pressure_level_.exchange(
+      MemoryPressureLevel::kNone, std::memory_order_relaxed);
   if (memory_pressure_level == MemoryPressureLevel::kCritical) {
     TRACE_EVENT0("devtools.timeline,v8", "V8.CheckMemoryPressure");
     CollectGarbageOnMemoryPressure();
@@ -3869,8 +3911,8 @@ void Heap::MemoryPressureNotification(MemoryPressureLevel level,
                                       bool is_isolate_locked) {
   TRACE_EVENT1("devtools.timeline,v8", "V8.MemoryPressureNotification", "level",
                static_cast<int>(level));
-  MemoryPressureLevel previous = memory_pressure_level_;
-  memory_pressure_level_ = level;
+  MemoryPressureLevel previous =
+      memory_pressure_level_.exchange(level, std::memory_order_relaxed);
   if ((previous != MemoryPressureLevel::kCritical &&
        level == MemoryPressureLevel::kCritical) ||
       (previous == MemoryPressureLevel::kNone &&
@@ -4048,6 +4090,8 @@ const char* Heap::GarbageCollectionReasonToString(
       return "measure memory";
     case GarbageCollectionReason::kUnknown:
       return "unknown";
+    case GarbageCollectionReason::kBackgroundAllocationFailure:
+      return "background allocation failure";
   }
   UNREACHABLE();
 }
@@ -4929,6 +4973,9 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap) {
 
   // Ensure that retry of allocation on background thread succeeds
   if (IsRetryOfFailedAllocation(local_heap)) return true;
+
+  // Background thread requested GC, allocation should fail
+  if (CollectionRequested()) return false;
 
   if (ShouldOptimizeForMemoryUsage()) return false;
 
