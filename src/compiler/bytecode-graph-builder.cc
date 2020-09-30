@@ -121,6 +121,13 @@ class BytecodeGraphBuilder {
   // CodeKindChecksOptimizationMarker).
   void MaybeBuildTierUpCheck();
 
+  // Like bytecode, NCI code must collect call feedback to preserve proper
+  // behavior of inlining heuristics when tiering up to Turbofan in the future.
+  // The invocation count (how often a particular JSFunction has been called)
+  // is tracked by the callee. For bytecode, this happens in the
+  // InterpreterEntryTrampoline, for NCI code it happens here in the prologue.
+  void MaybeBuildIncrementInvocationCount();
+
   // Builder for loading the a native context field.
   Node* BuildLoadNativeContextField(int index);
 
@@ -1156,6 +1163,28 @@ void BytecodeGraphBuilder::MaybeBuildTierUpCheck() {
   env->UpdateEffectDependency(effect);
 }
 
+void BytecodeGraphBuilder::MaybeBuildIncrementInvocationCount() {
+  if (!generate_full_feedback_collection()) return;
+
+  Environment* env = environment();
+  Node* control = env->GetControlDependency();
+  Node* effect = env->GetEffectDependency();
+
+  Node* current_invocation_count = effect =
+      graph()->NewNode(simplified()->LoadField(
+                           AccessBuilder::ForFeedbackVectorInvocationCount()),
+                       feedback_vector_node(), effect, control);
+  Node* next_invocation_count =
+      graph()->NewNode(simplified()->NumberAdd(), current_invocation_count,
+                       jsgraph()->SmiConstant(1));
+  effect = graph()->NewNode(
+      simplified()->StoreField(
+          AccessBuilder::ForFeedbackVectorInvocationCount()),
+      feedback_vector_node(), next_invocation_count, effect, control);
+
+  env->UpdateEffectDependency(effect);
+}
+
 Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
   Node* result = NewNode(javascript()->LoadContext(0, index, true));
   NodeProperties::ReplaceContextInput(result, native_context_node());
@@ -1190,6 +1219,7 @@ void BytecodeGraphBuilder::CreateGraph() {
   CreateFeedbackCellNode();
   CreateFeedbackVectorNode();
   MaybeBuildTierUpCheck();
+  MaybeBuildIncrementInvocationCount();
   CreateNativeContextNode();
 
   VisitBytecodes();

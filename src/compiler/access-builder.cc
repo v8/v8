@@ -1239,12 +1239,14 @@ FieldAccess AccessBuilder::ForFeedbackCellInterruptBudget() {
 }
 
 // static
-FieldAccess AccessBuilder::ForFeedbackVectorClosureFeedbackCellArray() {
-  FieldAccess access = {
-      kTaggedBase,      FeedbackVector::kClosureFeedbackCellArrayOffset,
-      Handle<Name>(),   MaybeHandle<Map>(),
-      Type::Any(),      MachineType::TaggedPointer(),
-      kFullWriteBarrier};
+FieldAccess AccessBuilder::ForFeedbackVectorInvocationCount() {
+  FieldAccess access = {kTaggedBase,
+                        FeedbackVector::kInvocationCountOffset,
+                        Handle<Name>(),
+                        MaybeHandle<Map>(),
+                        TypeCache::Get()->kInt32,
+                        MachineType::Int32(),
+                        kNoWriteBarrier};
   return access;
 }
 
@@ -1254,6 +1256,16 @@ FieldAccess AccessBuilder::ForFeedbackVectorOptimizedCodeWeakOrSmi() {
       kTaggedBase,      FeedbackVector::kOptimizedCodeWeakOrSmiOffset,
       Handle<Name>(),   MaybeHandle<Map>(),
       Type::Any(),      MachineType::AnyTagged(),
+      kFullWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForFeedbackVectorClosureFeedbackCellArray() {
+  FieldAccess access = {
+      kTaggedBase,      FeedbackVector::kClosureFeedbackCellArrayOffset,
+      Handle<Name>(),   MaybeHandle<Map>(),
+      Type::Any(),      MachineType::TaggedPointer(),
       kFullWriteBarrier};
   return access;
 }

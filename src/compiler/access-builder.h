@@ -344,8 +344,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForFeedbackCellInterruptBudget();
 
   // Provides access to a FeedbackVector fields.
-  static FieldAccess ForFeedbackVectorClosureFeedbackCellArray();
+  static FieldAccess ForFeedbackVectorInvocationCount();
   static FieldAccess ForFeedbackVectorOptimizedCodeWeakOrSmi();
+  static FieldAccess ForFeedbackVectorClosureFeedbackCellArray();
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessBuilder);
