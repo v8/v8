@@ -273,6 +273,21 @@ WASM_SIMD_TEST(V128_I64_PARAMS) {
   CHECK_EQ(0, r.Call(0));
 }
 
+WASM_SIMD_TEST(I8x16WidenS_I16x8NarrowU) {
+  // Test any_true lowring with splats of different shapes.
+  {
+    WasmRunner<int32_t, int16_t> r(execution_tier, lower_simd);
+
+    BUILD(r, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(0)),
+          WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(0)),
+          WASM_SIMD_OP(kExprI8x16UConvertI16x8),
+          WASM_SIMD_OP(kExprI16x8SConvertI8x16Low),
+          WASM_SIMD_OP(kExprI32x4ExtractLane), TO_BYTE(0));
+
+    CHECK_EQ(bit_cast<int32_t>(0xffffffff), r.Call(0x7fff));
+  }
+}
+
 }  // namespace test_run_wasm_simd
 }  // namespace wasm
 }  // namespace internal

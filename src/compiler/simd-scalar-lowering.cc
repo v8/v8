@@ -1003,25 +1003,28 @@ void SimdScalarLowering::LowerPack(Node* node, SimdType input_rep_type,
   const Operator* less_op = machine()->Int32LessThan();
   Node* min = nullptr;
   Node* max = nullptr;
+  const Operator* sign_extend;
   MachineRepresentation phi_rep;
   if (output_rep_type == SimdType::kInt16x8) {
+    sign_extend = machine()->SignExtendWord16ToInt32();
     DCHECK(input_rep_type == SimdType::kInt32x4);
     if (is_signed) {
       min = mcgraph_->Int32Constant(std::numeric_limits<int16_t>::min());
       max = mcgraph_->Int32Constant(std::numeric_limits<int16_t>::max());
     } else {
-      min = mcgraph_->Int32Constant(std::numeric_limits<uint16_t>::min());
+      min = mcgraph_->Uint32Constant(std::numeric_limits<uint16_t>::min());
       max = mcgraph_->Uint32Constant(std::numeric_limits<uint16_t>::max());
     }
     phi_rep = MachineRepresentation::kWord16;
   } else {
+    sign_extend = machine()->SignExtendWord8ToInt32();
     DCHECK(output_rep_type == SimdType::kInt8x16 &&
            input_rep_type == SimdType::kInt16x8);
     if (is_signed) {
       min = mcgraph_->Int32Constant(std::numeric_limits<int8_t>::min());
       max = mcgraph_->Int32Constant(std::numeric_limits<int8_t>::max());
     } else {
-      min = mcgraph_->Int32Constant(std::numeric_limits<uint8_t>::min());
+      min = mcgraph_->Uint32Constant(std::numeric_limits<uint8_t>::min());
       max = mcgraph_->Uint32Constant(std::numeric_limits<uint8_t>::max());
     }
     phi_rep = MachineRepresentation::kWord8;
@@ -1037,7 +1040,10 @@ void SimdScalarLowering::LowerPack(Node* node, SimdType input_rep_type,
     Diamond d_min(graph(), common(), graph()->NewNode(less_op, input, min));
     input = d_min.Phi(phi_rep, min, input);
     Diamond d_max(graph(), common(), graph()->NewNode(less_op, max, input));
-    rep_node[i] = d_max.Phi(phi_rep, max, input);
+    // We keep nodes in sign-extended form. E.g. for uint8_t, we need to
+    // compare with 0x000000ff (saturated narrowing), but the result of
+    // conversion should be 0xffffffff to work well with the rest of lowering.
+    rep_node[i] = graph()->NewNode(sign_extend, d_max.Phi(phi_rep, max, input));
   }
   ReplaceNode(node, rep_node, num_lanes);
 }
@@ -2255,7 +2261,7 @@ void SimdScalarLowering::Int32ToSmallerInt(Node** replacements, Node** result) {
       for (int j = 0; j < num_ints; j++) {
         result[num_ints * i + j] = graph()->NewNode(
             sign_extend,
-            graph()->NewNode(machine()->Word32Sar(), replacements[i],
+            graph()->NewNode(machine()->Word32Shr(), replacements[i],
                              mcgraph_->Int32Constant(j * bit_size)));
       }
     } else {
