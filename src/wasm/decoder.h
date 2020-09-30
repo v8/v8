@@ -40,11 +40,10 @@ using DecodeResult = VoidResult;
 class Decoder {
  public:
   // {ValidateFlag} can be used in a boolean manner ({if (!validate) ...}).
-  // TODO(clemensb): Introduce a "boolean validation" mode where error messages
-  // are locations are not tracked.
   enum ValidateFlag : int8_t {
-    kNoValidation = 0,  // Don't run validation, assume valid input.
-    kFullValidation     // Run full validation with error message and location.
+    kNoValidation = 0,   // Don't run validation, assume valid input.
+    kBooleanValidation,  // Run validation but only store a generic error.
+    kFullValidation      // Run full validation with error message and location.
   };
 
   enum AdvancePCFlag : bool { kAdvancePc = true, kNoAdvancePc = false };
@@ -231,6 +230,14 @@ class Decoder {
     return true;
   }
 
+  // Use this for "boolean validation", i.e. if the error message is not used
+  // anyway.
+  void V8_NOINLINE MarkError() {
+    if (!ok()) return;
+    error_ = {0, "validation failed"};
+    onFirstError();
+  }
+
   // Do not inline error methods. This has measurable impact on validation time,
   // see https://crbug.com/910432.
   void V8_NOINLINE error(const char* msg) { errorf(pc_offset(), "%s", msg); }
@@ -239,6 +246,13 @@ class Decoder {
   }
   void V8_NOINLINE error(uint32_t offset, const char* msg) {
     errorf(offset, "%s", msg);
+  }
+
+  void V8_NOINLINE PRINTF_FORMAT(2, 3) errorf(const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    verrorf(pc_offset(), format, args);
+    va_end(args);
   }
 
   void V8_NOINLINE PRINTF_FORMAT(3, 4)
@@ -350,7 +364,7 @@ class Decoder {
     onFirstError();
   }
 
-  template <typename IntType, bool validate>
+  template <typename IntType, ValidateFlag validate>
   inline IntType read_little_endian(const byte* pc, const char* msg) {
     if (!validate) {
       DCHECK(validate_size(pc, sizeof(IntType), msg));
@@ -368,7 +382,7 @@ class Decoder {
       pc_ = end_;
       return IntType{0};
     }
-    IntType val = read_little_endian<IntType, false>(pc_, name);
+    IntType val = read_little_endian<IntType, kNoValidation>(pc_, name);
     traceByteRange(pc_, pc_ + sizeof(IntType));
     TRACE("= %d\n", val);
     pc_ += sizeof(IntType);
@@ -418,7 +432,11 @@ class Decoder {
     *length = byte_index + (at_end ? 0 : 1);
     if (validate && V8_UNLIKELY(at_end || (b & 0x80))) {
       TRACE_IF(trace, at_end ? "<end> " : "<length overflow> ");
-      errorf(pc, "expected %s", name);
+      if (validate == kFullValidation) {
+        errorf(pc, "expected %s", name);
+      } else {
+        MarkError();
+      }
       result = 0;
     }
     if (is_last_byte) {
@@ -438,7 +456,11 @@ class Decoder {
       if (!validate) {
         DCHECK(valid_extra_bits);
       } else if (V8_UNLIKELY(!valid_extra_bits)) {
-        error(pc, "extra bits in varint");
+        if (validate == kFullValidation) {
+          error(pc, "extra bits in varint");
+        } else {
+          MarkError();
+        }
         result = 0;
       }
     }
