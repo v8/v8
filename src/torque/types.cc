@@ -643,13 +643,29 @@ bool ClassType::HasNoPointerSlots() const {
   return true;
 }
 
+bool ClassType::HasIndexedFieldsIncludingInParents() const {
+  for (const auto& field : fields_) {
+    if (field.index.has_value()) return true;
+  }
+  if (const ClassType* parent = GetSuperClass()) {
+    return parent->HasIndexedFieldsIncludingInParents();
+  }
+  return false;
+}
+
 void ClassType::GenerateAccessors() {
+  bool at_or_after_indexed_field = false;
+  if (const ClassType* parent = GetSuperClass()) {
+    at_or_after_indexed_field = parent->HasIndexedFieldsIncludingInParents();
+  }
   // For each field, construct AST snippets that implement a CSA accessor
   // function. The implementation iterator will turn the snippets into code.
   for (auto& field : fields_) {
     if (field.name_and_type.type == TypeOracle::GetVoidType()) {
       continue;
     }
+    at_or_after_indexed_field =
+        at_or_after_indexed_field || field.index.has_value();
     CurrentSourcePosition::Scope position_activator(field.pos);
 
     IdentifierExpression* parameter =
@@ -657,15 +673,46 @@ void ClassType::GenerateAccessors() {
     IdentifierExpression* index =
         MakeNode<IdentifierExpression>(MakeNode<Identifier>(std::string{"i"}));
 
-    // Load accessor
     std::string camel_field_name = CamelifyString(field.name_and_type.name);
-    std::string load_macro_name = "Load" + this->name() + camel_field_name;
+
+    if (at_or_after_indexed_field) {
+      // Generate a C++ function for getting a slice or reference to this field.
+      // In Torque, this function would be written as
+      // FieldRefClassNameFieldName(o: ClassName) {
+      //   return &o.field_name;
+      // }
+      std::string ref_macro_name = "FieldRef" + this->name() + camel_field_name;
+      Signature ref_signature;
+      ref_signature.parameter_names.push_back(MakeNode<Identifier>("o"));
+      ref_signature.parameter_types.types.push_back(this);
+      ref_signature.parameter_types.var_args = false;
+      // It doesn't really matter whether we say this reference is mutable or
+      // const, because that information is not exposed to the calling C++ code.
+      ref_signature.return_type =
+          field.index
+              ? TypeOracle::GetSliceType(field.name_and_type.type)
+              : TypeOracle::GetConstReferenceType(field.name_and_type.type);
+      Expression* ref_expression = MakeNode<FieldAccessExpression>(
+          parameter, MakeNode<Identifier>(field.name_and_type.name));
+      ref_expression = MakeNode<CallExpression>(
+          MakeNode<IdentifierExpression>(
+              std::vector<std::string>{},
+              MakeNode<Identifier>(std::string{"&"})),
+          std::vector<Expression*>{ref_expression}, std::vector<Identifier*>{});
+      Statement* ref_body = MakeNode<ReturnStatement>(ref_expression);
+      Macro* ref_macro =
+          Declarations::DeclareMacro(ref_macro_name, true, base::nullopt,
+                                     ref_signature, ref_body, base::nullopt);
+      GlobalContext::EnsureInCCOutputList(TorqueMacro::cast(ref_macro));
+    }
 
     // For now, only generate indexed accessors for simple types
     if (field.index.has_value() && field.name_and_type.type->IsStructType()) {
       continue;
     }
 
+    // Load accessor
+    std::string load_macro_name = "Load" + this->name() + camel_field_name;
     Signature load_signature;
     load_signature.parameter_names.push_back(MakeNode<Identifier>("o"));
     load_signature.parameter_types.types.push_back(this);
@@ -1096,10 +1143,23 @@ base::Optional<NameAndType> ExtractSimpleFieldArraySize(
 }
 
 std::string Type::GetRuntimeType() const {
-  // TODO(tebbi): Other types are currently unsupported, since there the TNode
-  // types and the C++ runtime types disagree.
-  DCHECK(this->IsSubtypeOf(TypeOracle::GetTaggedType()));
-  return GetGeneratedTNodeTypeName();
+  if (IsSubtypeOf(TypeOracle::GetSmiType())) return "Smi";
+  if (IsSubtypeOf(TypeOracle::GetTaggedType())) {
+    return GetGeneratedTNodeTypeName();
+  }
+  if (base::Optional<const StructType*> struct_type = StructSupertype()) {
+    std::stringstream result;
+    result << "std::tuple<";
+    bool first = true;
+    for (const Type* field_type : LowerType(*struct_type)) {
+      if (!first) result << ", ";
+      first = false;
+      result << field_type->GetRuntimeType();
+    }
+    result << ">";
+    return result.str();
+  }
+  return ConstexprVersion()->GetGeneratedTypeName();
 }
 
 }  // namespace torque

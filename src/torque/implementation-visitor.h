@@ -554,6 +554,8 @@ class ImplementationVisitor {
 
   void BeginCSAFiles();
   void EndCSAFiles();
+  void BeginRuntimeMacrosFile();
+  void EndRuntimeMacrosFile();
 
   void GenerateImplementation(const std::string& dir);
 
@@ -762,13 +764,15 @@ class ImplementationVisitor {
 
   std::ostream& source_out() {
     if (auto* streams = CurrentFileStreams::Get()) {
-      return streams->csa_ccfile;
+      return output_type_ == OutputType::kCSA ? streams->csa_ccfile
+                                              : runtime_macros_cc_;
     }
     return null_stream_;
   }
   std::ostream& header_out() {
     if (auto* streams = CurrentFileStreams::Get()) {
-      return streams->csa_headerfile;
+      return output_type_ == OutputType::kCSA ? streams->csa_headerfile
+                                              : runtime_macros_h_;
     }
     return null_stream_;
   }
@@ -818,6 +822,16 @@ class ImplementationVisitor {
   // the value to load.
   std::unordered_map<const Expression*, const Identifier*>
       bitfield_expressions_;
+
+  // The contents of the runtime macros output files. These contain all Torque
+  // macros that have been generated using the C++ backend. They're not yet
+  // split per source file like CSA macros, but eventually we should change them
+  // to generate -inl.inc files so that callers can easily inline their
+  // contents.
+  std::stringstream runtime_macros_cc_;
+  std::stringstream runtime_macros_h_;
+
+  OutputType output_type_ = OutputType::kCSA;
 };
 
 void ReportAllUnusedMacros();

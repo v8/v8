@@ -1343,6 +1343,8 @@ template("run_torque") {
       "$target_gen_dir/torque-generated/internal-class-definitions-inl.h",
       "$target_gen_dir/torque-generated/exported-class-definitions.h",
       "$target_gen_dir/torque-generated/exported-class-definitions-inl.h",
+      "$target_gen_dir/torque-generated/runtime-macros.cc",
+      "$target_gen_dir/torque-generated/runtime-macros.h",
     ]
 
     outputs = []
@@ -1459,6 +1461,7 @@ v8_source_set("torque_generated_definitions") {
     "$target_gen_dir/torque-generated/class-verifiers.h",
     "$target_gen_dir/torque-generated/factory.cc",
     "$target_gen_dir/torque-generated/objects-printer.cc",
+    "$target_gen_dir/torque-generated/runtime-macros.cc",
   ]
 
   configs = [ ":internal_config" ]
@@ -3858,6 +3861,8 @@ v8_source_set("torque_base") {
 
   sources = [
     "src/torque/ast.h",
+    "src/torque/cc-generator.cc",
+    "src/torque/cc-generator.h",
     "src/torque/cfg.cc",
     "src/torque/cfg.h",
     "src/torque/class-debug-reader-generator.cc",
@@ -3885,6 +3890,8 @@ v8_source_set("torque_base") {
     "src/torque/server-data.h",
     "src/torque/source-positions.cc",
     "src/torque/source-positions.h",
+    "src/torque/torque-code-generator.cc",
+    "src/torque/torque-code-generator.h",
     "src/torque/torque-compiler.cc",
     "src/torque/torque-compiler.h",
     "src/torque/torque-parser.cc",

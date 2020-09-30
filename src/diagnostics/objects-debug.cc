@@ -75,6 +75,7 @@
 #include "torque-generated/class-verifiers.h"
 #include "torque-generated/exported-class-definitions-inl.h"
 #include "torque-generated/internal-class-definitions-inl.h"
+#include "torque-generated/runtime-macros.h"
 
 namespace v8 {
 namespace internal {
@@ -1203,6 +1204,24 @@ void SmallOrderedHashSet::SmallOrderedHashSetVerify(Isolate* isolate) {
       CHECK(val.IsTheHole(isolate));
     }
   }
+
+  // Eventually Torque-generated offset computations could replace the ones
+  // implemented in C++. For now, just make sure they match. This could help
+  // ensure that the class definitions in C++ and Torque don't diverge.
+  intptr_t offset;
+  intptr_t length;
+  std::tie(std::ignore, offset, length) =
+      TqRuntimeFieldRefSmallOrderedHashSetDataTable(isolate, *this);
+  CHECK_EQ(offset, DataTableStartOffset());
+  CHECK_EQ(length, Capacity());
+  std::tie(std::ignore, offset, length) =
+      TqRuntimeFieldRefSmallOrderedHashSetHashTable(isolate, *this);
+  CHECK_EQ(offset, GetBucketsStartOffset());
+  CHECK_EQ(length, NumberOfBuckets());
+  std::tie(std::ignore, offset, length) =
+      TqRuntimeFieldRefSmallOrderedHashSetChainTable(isolate, *this);
+  CHECK_EQ(offset, GetChainTableOffset());
+  CHECK_EQ(length, Capacity());
 }
 
 void SmallOrderedNameDictionary::SmallOrderedNameDictionaryVerify(
