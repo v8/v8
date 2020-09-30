@@ -87,6 +87,13 @@ IsolateData* IsolateData::FromContext(v8::Local<v8::Context> context) {
 }
 
 int IsolateData::CreateContextGroup() {
+  int context_group_id = ++last_context_group_id_;
+  CreateContext(context_group_id, v8_inspector::StringView());
+  return context_group_id;
+}
+
+void IsolateData::CreateContext(int context_group_id,
+                                v8_inspector::StringView name) {
   v8::HandleScope handle_scope(isolate_.get());
   v8::Local<v8::ObjectTemplate> global_template =
       v8::ObjectTemplate::New(isolate_.get());
@@ -97,17 +104,15 @@ int IsolateData::CreateContextGroup() {
   v8::Local<v8::Context> context =
       v8::Context::New(isolate_.get(), nullptr, global_template);
   context->SetAlignedPointerInEmbedderData(kIsolateDataIndex, this);
-  int context_group_id = ++last_context_group_id_;
   // Should be 2-byte aligned.
   context->SetAlignedPointerInEmbedderData(
       kContextGroupIdIndex, reinterpret_cast<void*>(context_group_id * 2));
-  contexts_[context_group_id].Reset(isolate_.get(), context);
-  if (inspector_) FireContextCreated(context, context_group_id);
-  return context_group_id;
+  contexts_[context_group_id].emplace_back(isolate_.get(), context);
+  if (inspector_) FireContextCreated(context, context_group_id, name);
 }
 
-v8::Local<v8::Context> IsolateData::GetContext(int context_group_id) {
-  return contexts_[context_group_id].Get(isolate_.get());
+v8::Local<v8::Context> IsolateData::GetDefaultContext(int context_group_id) {
+  return contexts_[context_group_id].begin()->Get(isolate_.get());
 }
 
 void IsolateData::ResetContextGroup(int context_group_id) {
@@ -338,9 +343,9 @@ void IsolateData::PromiseRejectHandler(v8::PromiseRejectMessage data) {
 }
 
 void IsolateData::FireContextCreated(v8::Local<v8::Context> context,
-                                     int context_group_id) {
-  v8_inspector::V8ContextInfo info(context, context_group_id,
-                                   v8_inspector::StringView());
+                                     int context_group_id,
+                                     v8_inspector::StringView name) {
+  v8_inspector::V8ContextInfo info(context, context_group_id, name);
   info.hasMemoryOnConsole = true;
   v8::SealHandleScope seal_handle_scope(isolate());
   inspector_->contextCreated(info);
@@ -388,7 +393,7 @@ bool IsolateData::isInspectableHeapObject(v8::Local<v8::Object> object) {
 
 v8::Local<v8::Context> IsolateData::ensureDefaultContextInGroup(
     int context_group_id) {
-  return GetContext(context_group_id);
+  return GetDefaultContext(context_group_id);
 }
 
 void IsolateData::SetCurrentTimeMS(double time) {

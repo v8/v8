@@ -148,7 +148,7 @@ class FrontendChannelImpl : public v8_inspector::V8Inspector::Channel {
                                            v8::MicrotasksScope::kRunMicrotasks);
       v8::HandleScope handle_scope(data->isolate());
       v8::Local<v8::Context> context =
-          data->GetContext(channel_->context_group_id_);
+          data->GetDefaultContext(channel_->context_group_id_);
       v8::Context::Scope context_scope(context);
       v8::Local<v8::Value> message = ToV8String(data->isolate(), message_);
       v8::MaybeLocal<v8::Value> result;
@@ -252,7 +252,7 @@ class ExecuteStringTask : public TaskRunner::Task {
     v8::MicrotasksScope microtasks_scope(data->isolate(),
                                          v8::MicrotasksScope::kRunMicrotasks);
     v8::HandleScope handle_scope(data->isolate());
-    v8::Local<v8::Context> context = data->GetContext(context_group_id_);
+    v8::Local<v8::Context> context = data->GetDefaultContext(context_group_id_);
     v8::Context::Scope context_scope(context);
     v8::ScriptOrigin origin(
         ToV8String(data->isolate(), name_),
@@ -344,6 +344,9 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
     utils->Set(isolate, "createContextGroup",
                v8::FunctionTemplate::New(isolate,
                                          &UtilsExtension::CreateContextGroup));
+    utils->Set(
+        isolate, "createContext",
+        v8::FunctionTemplate::New(isolate, &UtilsExtension::CreateContext));
     utils->Set(
         isolate, "resetContextGroup",
         v8::FunctionTemplate::New(isolate, &UtilsExtension::ResetContextGroup));
@@ -576,6 +579,21 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
         v8::Int32::New(args.GetIsolate(), context_group_id));
   }
 
+  static void CreateContext(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 2) {
+      fprintf(stderr, "Internal error: createContext(context, name).");
+      Exit();
+    }
+    int context_group_id = args[0].As<v8::Int32>()->Value();
+    std::vector<uint16_t> name =
+        ToVector(args.GetIsolate(), args[1].As<v8::String>());
+
+    RunSyncTask(backend_runner_, [&context_group_id, name](IsolateData* data) {
+      data->CreateContext(context_group_id,
+                          v8_inspector::StringView(name.data(), name.size()));
+    });
+  }
+
   static void ResetContextGroup(
       const v8::FunctionCallbackInfo<v8::Value>& args) {
     if (args.Length() != 1 || !args[0]->IsInt32()) {
@@ -664,7 +682,7 @@ class SetTimeoutTask : public TaskRunner::Task {
     v8::MicrotasksScope microtasks_scope(data->isolate(),
                                          v8::MicrotasksScope::kRunMicrotasks);
     v8::HandleScope handle_scope(data->isolate());
-    v8::Local<v8::Context> context = data->GetContext(context_group_id_);
+    v8::Local<v8::Context> context = data->GetDefaultContext(context_group_id_);
     v8::Context::Scope context_scope(context);
 
     v8::Local<v8::Function> callback = callback_.Get(data->isolate());
@@ -798,7 +816,8 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
       const v8::FunctionCallbackInfo<v8::Value>& args) {
     v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
     IsolateData* data = IsolateData::FromContext(context);
-    data->FireContextCreated(context, data->GetContextGroupId(context));
+    data->FireContextCreated(context, data->GetContextGroupId(context),
+                             v8_inspector::StringView());
   }
 
   static void FireContextDestroyed(

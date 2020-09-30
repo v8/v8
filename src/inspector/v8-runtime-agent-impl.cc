@@ -665,13 +665,7 @@ void V8RuntimeAgentImpl::terminateExecution(
 
 Response V8RuntimeAgentImpl::addBinding(const String16& name,
                                         Maybe<int> executionContextId) {
-  if (!m_state->getObject(V8RuntimeAgentImplState::bindings)) {
-    m_state->setObject(V8RuntimeAgentImplState::bindings,
-                       protocol::DictionaryValue::create());
-  }
-  protocol::DictionaryValue* bindings =
-      m_state->getObject(V8RuntimeAgentImplState::bindings);
-  if (bindings->booleanProperty(name, false)) return Response::Success();
+  if (m_activeBindings.count(name)) return Response::Success();
   if (executionContextId.isJust()) {
     int contextId = executionContextId.fromJust();
     InspectedContext* context =
@@ -681,10 +675,16 @@ Response V8RuntimeAgentImpl::addBinding(const String16& name,
           "Cannot find execution context with given executionContextId");
     }
     addBinding(context, name);
-    // false means that we should not add this binding later.
-    bindings->setBoolean(name, false);
     return Response::Success();
   }
+  // Only persist non context-specific bindings, as contextIds don't make
+  // any sense when state is restored in a different process.
+  if (!m_state->getObject(V8RuntimeAgentImplState::bindings)) {
+    m_state->setObject(V8RuntimeAgentImplState::bindings,
+                       protocol::DictionaryValue::create());
+  }
+  protocol::DictionaryValue* bindings =
+      m_state->getObject(V8RuntimeAgentImplState::bindings);
   bindings->setBoolean(name, true);
   m_inspector->forEachContext(
       m_session->contextGroupId(),
@@ -730,23 +730,22 @@ void V8RuntimeAgentImpl::addBinding(InspectedContext* context,
           .ToLocal(&functionValue)) {
     v8::Maybe<bool> success = global->Set(localContext, v8Name, functionValue);
     USE(success);
+    m_activeBindings.insert(name);
   }
 }
 
 Response V8RuntimeAgentImpl::removeBinding(const String16& name) {
   protocol::DictionaryValue* bindings =
       m_state->getObject(V8RuntimeAgentImplState::bindings);
-  if (!bindings) return Response::Success();
-  bindings->remove(name);
+  if (bindings) bindings->remove(name);
+  m_activeBindings.erase(name);
   return Response::Success();
 }
 
 void V8RuntimeAgentImpl::bindingCalled(const String16& name,
                                        const String16& payload,
                                        int executionContextId) {
-  protocol::DictionaryValue* bindings =
-      m_state->getObject(V8RuntimeAgentImplState::bindings);
-  if (!bindings || !bindings->get(name)) return;
+  if (!m_activeBindings.count(name)) return;
   m_frontend.bindingCalled(name, payload, executionContextId);
 }
 
@@ -755,10 +754,8 @@ void V8RuntimeAgentImpl::addBindings(InspectedContext* context) {
   protocol::DictionaryValue* bindings =
       m_state->getObject(V8RuntimeAgentImplState::bindings);
   if (!bindings) return;
-  for (size_t i = 0; i < bindings->size(); ++i) {
-    if (!bindings->at(i).second) continue;
+  for (size_t i = 0; i < bindings->size(); ++i)
     addBinding(context, bindings->at(i).first);
-  }
 }
 
 void V8RuntimeAgentImpl::restore() {

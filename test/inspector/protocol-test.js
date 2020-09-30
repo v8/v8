@@ -142,6 +142,10 @@ InspectorTest.ContextGroup = class {
     this.id = utils.createContextGroup();
   }
 
+  createContext(name) {
+    utils.createContext(this.id, name || '');
+  }
+
   schedulePauseOnNextStatement(reason, details) {
     utils.schedulePauseOnNextStatement(this.id, reason, details);
   }
