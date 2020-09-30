@@ -165,9 +165,9 @@ TNode<BigInt> SharedArrayBufferBuiltinsAssembler::BigIntFromUnsigned64(
 
 // https://tc39.es/ecma262/#sec-atomicload
 TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
-  TNode<Object> maybe_array = CAST(Parameter(Descriptor::kArray));
-  TNode<Object> index = CAST(Parameter(Descriptor::kIndex));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto maybe_array = Parameter<Object>(Descriptor::kArray);
+  auto index = Parameter<Object>(Descriptor::kIndex);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   // 1. Let buffer be ? ValidateIntegerTypedArray(typedArray).
   Label detached(this);
@@ -258,10 +258,10 @@ TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
 
 // https://tc39.es/ecma262/#sec-atomics.store
 TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
-  TNode<Object> maybe_array = CAST(Parameter(Descriptor::kArray));
-  TNode<Object> index = CAST(Parameter(Descriptor::kIndex));
-  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto maybe_array = Parameter<Object>(Descriptor::kArray);
+  auto index = Parameter<Object>(Descriptor::kIndex);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   // 1. Let buffer be ? ValidateIntegerTypedArray(typedArray).
   Label detached(this);
@@ -360,10 +360,10 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
 
 // https://tc39.es/ecma262/#sec-atomics.exchange
 TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
-  TNode<Object> maybe_array = CAST(Parameter(Descriptor::kArray));
-  TNode<Object> index = CAST(Parameter(Descriptor::kIndex));
-  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto maybe_array = Parameter<Object>(Descriptor::kArray);
+  auto index = Parameter<Object>(Descriptor::kIndex);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   // Inlines AtomicReadModifyWrite
   // https://tc39.es/ecma262/#sec-atomicreadmodifywrite
@@ -492,11 +492,11 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
 
 // https://tc39.es/ecma262/#sec-atomics.compareexchange
 TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
-  TNode<Object> maybe_array = CAST(Parameter(Descriptor::kArray));
-  TNode<Object> index = CAST(Parameter(Descriptor::kIndex));
-  TNode<Object> old_value = CAST(Parameter(Descriptor::kOldValue));
-  TNode<Object> new_value = CAST(Parameter(Descriptor::kNewValue));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto maybe_array = Parameter<Object>(Descriptor::kArray);
+  auto index = Parameter<Object>(Descriptor::kIndex);
+  auto old_value = Parameter<Object>(Descriptor::kOldValue);
+  auto new_value = Parameter<Object>(Descriptor::kNewValue);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   // 1. Let buffer be ? ValidateIntegerTypedArray(typedArray).
   Label detached(this);
@@ -640,15 +640,15 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
   }
 }
 
-#define BINOP_BUILTIN(op, method_name)                              \
-  TF_BUILTIN(Atomics##op, SharedArrayBufferBuiltinsAssembler) {     \
-    TNode<Object> array = CAST(Parameter(Descriptor::kArray));      \
-    TNode<Object> index = CAST(Parameter(Descriptor::kIndex));      \
-    TNode<Object> value = CAST(Parameter(Descriptor::kValue));      \
-    TNode<Context> context = CAST(Parameter(Descriptor::kContext)); \
-    AtomicBinopBuiltinCommon(array, index, value, context,          \
-                             &CodeAssembler::Atomic##op,            \
-                             Runtime::kAtomics##op, method_name);   \
+#define BINOP_BUILTIN(op, method_name)                            \
+  TF_BUILTIN(Atomics##op, SharedArrayBufferBuiltinsAssembler) {   \
+    auto array = Parameter<Object>(Descriptor::kArray);           \
+    auto index = Parameter<Object>(Descriptor::kIndex);           \
+    auto value = Parameter<Object>(Descriptor::kValue);           \
+    auto context = Parameter<Context>(Descriptor::kContext);      \
+    AtomicBinopBuiltinCommon(array, index, value, context,        \
+                             &CodeAssembler::Atomic##op,          \
+                             Runtime::kAtomics##op, method_name); \
   }
 // https://tc39.es/ecma262/#sec-atomics.add
 BINOP_BUILTIN(Add, "Atomics.add")

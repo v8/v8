@@ -435,8 +435,8 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
             .Position(signature.parameter_names[signature.implicit_count]->pos);
       }
 
-      source_out()
-          << "  Node* argc = Parameter(Descriptor::kJSActualArgumentsCount);\n";
+      source_out() << "   TNode<Word32T> argc = UncheckedParameter<Word32T>("
+                   << "Descriptor::kJSActualArgumentsCount);\n";
       source_out() << "  TNode<IntPtrT> "
                       "arguments_length(ChangeInt32ToIntPtr(UncheckedCast<"
                       "Int32T>(argc)));\n";
@@ -469,8 +469,8 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
       std::vector<const Type*> expected_types;
       if (param_name == "context") {
         source_out() << "  TNode<NativeContext> " << generated_name
-                     << " = UncheckedCast<NativeContext>(Parameter("
-                     << "Descriptor::kContext));\n";
+                     << " = UncheckedParameter<NativeContext>("
+                     << "Descriptor::kContext);\n";
         source_out() << "  USE(" << generated_name << ");\n";
         expected_types = {TypeOracle::GetNativeContextType(),
                           TypeOracle::GetContextType()};
@@ -479,20 +479,20 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
             << "  TNode<Object> " << generated_name << " = "
             << (builtin->IsVarArgsJavaScript()
                     ? "arguments.GetReceiver()"
-                    : "UncheckedCast<Object>(Parameter(Descriptor::kReceiver))")
+                    : "UncheckedParameter<Object>(Descriptor::kReceiver)")
             << ";\n";
         source_out() << "USE(" << generated_name << ");\n";
         expected_types = {TypeOracle::GetJSAnyType()};
       } else if (param_name == "newTarget") {
         source_out() << "  TNode<Object> " << generated_name
-                     << " = UncheckedCast<Object>(Parameter("
-                     << "Descriptor::kJSNewTarget));\n";
+                     << " = UncheckedParameter<Object>("
+                     << "Descriptor::kJSNewTarget);\n";
         source_out() << "USE(" << generated_name << ");\n";
         expected_types = {TypeOracle::GetJSAnyType()};
       } else if (param_name == "target") {
         source_out() << "  TNode<JSFunction> " << generated_name
-                     << " = UncheckedCast<JSFunction>(Parameter("
-                     << "Descriptor::kJSTarget));\n";
+                     << " = UncheckedParameter<JSFunction>("
+                     << "Descriptor::kJSTarget);\n";
         source_out() << "USE(" << generated_name << ");\n";
         expected_types = {TypeOracle::GetJSFunctionType()};
       } else {
@@ -521,9 +521,9 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
                                      &parameter_bindings, mark_as_used);
       source_out() << "  " << type->GetGeneratedTypeName() << " " << var
                    << " = "
-                   << "UncheckedCast<" << type->GetGeneratedTNodeTypeName()
-                   << ">(Parameter(Descriptor::k"
-                   << CamelifyString(parameter_name) << "));\n";
+                   << "UncheckedParameter<" << type->GetGeneratedTNodeTypeName()
+                   << ">(Descriptor::k" << CamelifyString(parameter_name)
+                   << ");\n";
       source_out() << "  USE(" << var << ");\n";
     }
 
@@ -538,15 +538,15 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
                                      &parameter_bindings, mark_as_used);
       source_out() << "  " << type->GetGeneratedTypeName() << " " << var
                    << " = "
-                   << "UncheckedCast<" << type->GetGeneratedTNodeTypeName()
-                   << ">(Parameter(";
+                   << "UncheckedParameter<" << type->GetGeneratedTNodeTypeName()
+                   << ">(";
       if (i == 0 && has_context_parameter) {
         source_out() << "Descriptor::kContext";
       } else {
         source_out() << "Descriptor::ParameterIndex<"
                      << (has_context_parameter ? i - 1 : i) << ">()";
       }
-      source_out() << "));\n";
+      source_out() << ");\n";
       source_out() << "  USE(" << var << ");\n";
     }
   }

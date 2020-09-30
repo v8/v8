@@ -813,11 +813,11 @@ void RegExpBuiltinsAssembler::BranchIfRegExpResult(const TNode<Context> context,
 // and {match_info} is updated on success.
 // The slow path is implemented in RegExp::AtomExec.
 TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
-  TNode<JSRegExp> regexp = CAST(Parameter(Descriptor::kRegExp));
-  TNode<String> subject_string = CAST(Parameter(Descriptor::kString));
-  TNode<Smi> last_index = CAST(Parameter(Descriptor::kLastIndex));
-  TNode<FixedArray> match_info = CAST(Parameter(Descriptor::kMatchInfo));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto regexp = Parameter<JSRegExp>(Descriptor::kRegExp);
+  auto subject_string = Parameter<String>(Descriptor::kString);
+  auto last_index = Parameter<Smi>(Descriptor::kLastIndex);
+  auto match_info = Parameter<FixedArray>(Descriptor::kMatchInfo);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   CSA_ASSERT(this, TaggedIsPositiveSmi(last_index));
 
@@ -874,11 +874,11 @@ TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
 }
 
 TF_BUILTIN(RegExpExecInternal, RegExpBuiltinsAssembler) {
-  TNode<JSRegExp> regexp = CAST(Parameter(Descriptor::kRegExp));
-  TNode<String> string = CAST(Parameter(Descriptor::kString));
-  TNode<Number> last_index = CAST(Parameter(Descriptor::kLastIndex));
-  TNode<RegExpMatchInfo> match_info = CAST(Parameter(Descriptor::kMatchInfo));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto regexp = Parameter<JSRegExp>(Descriptor::kRegExp);
+  auto string = Parameter<String>(Descriptor::kString);
+  auto last_index = Parameter<Number>(Descriptor::kLastIndex);
+  auto match_info = Parameter<RegExpMatchInfo>(Descriptor::kMatchInfo);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   CSA_ASSERT(this, IsNumberNormalized(last_index));
   CSA_ASSERT(this, IsNumberPositive(last_index));
@@ -1007,10 +1007,10 @@ TNode<Object> RegExpBuiltinsAssembler::RegExpInitialize(
 // ES#sec-regexp-pattern-flags
 // RegExp ( pattern, flags )
 TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
-  TNode<Object> pattern = CAST(Parameter(Descriptor::kPattern));
-  TNode<Object> flags = CAST(Parameter(Descriptor::kFlags));
-  TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto pattern = Parameter<Object>(Descriptor::kPattern);
+  auto flags = Parameter<Object>(Descriptor::kFlags);
+  auto new_target = Parameter<Object>(Descriptor::kJSNewTarget);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   Isolate* isolate = this->isolate();
 
@@ -1128,10 +1128,10 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
 // ES#sec-regexp.prototype.compile
 // RegExp.prototype.compile ( pattern, flags )
 TF_BUILTIN(RegExpPrototypeCompile, RegExpBuiltinsAssembler) {
-  TNode<Object> maybe_receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> maybe_pattern = CAST(Parameter(Descriptor::kPattern));
-  TNode<Object> maybe_flags = CAST(Parameter(Descriptor::kFlags));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto maybe_receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto maybe_pattern = Parameter<Object>(Descriptor::kPattern);
+  auto maybe_flags = Parameter<Object>(Descriptor::kFlags);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   ThrowIfNotInstanceType(context, maybe_receiver, JS_REG_EXP_TYPE,
                          "RegExp.prototype.compile");

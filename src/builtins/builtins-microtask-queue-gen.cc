@@ -489,8 +489,8 @@ void MicrotaskQueueBuiltinsAssembler::RunPromiseHook(
 }
 
 TF_BUILTIN(EnqueueMicrotask, MicrotaskQueueBuiltinsAssembler) {
-  TNode<Microtask> microtask = CAST(Parameter(Descriptor::kMicrotask));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto microtask = Parameter<Microtask>(Descriptor::kMicrotask);
+  auto context = Parameter<Context>(Descriptor::kContext);
   TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<RawPtrT> microtask_queue = GetMicrotaskQueue(native_context);
 
@@ -541,8 +541,8 @@ TF_BUILTIN(RunMicrotasks, MicrotaskQueueBuiltinsAssembler) {
   // Load the current context from the isolate.
   TNode<Context> current_context = GetCurrentContext();
 
-  TNode<RawPtrT> microtask_queue =
-      UncheckedCast<RawPtrT>(Parameter(Descriptor::kMicrotaskQueue));
+  auto microtask_queue =
+      UncheckedParameter<RawPtrT>(Descriptor::kMicrotaskQueue);
 
   Label loop(this), done(this);
   Goto(&loop);
