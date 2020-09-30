@@ -38,6 +38,10 @@ bool Scavenger::PromotionList::View::Pop(struct PromotionListEntry* entry) {
   return promotion_list_->Pop(task_id_, entry);
 }
 
+void Scavenger::PromotionList::View::FlushToGlobal() {
+  promotion_list_->FlushToGlobal(task_id_);
+}
+
 bool Scavenger::PromotionList::View::IsGlobalPoolEmpty() {
   return promotion_list_->IsGlobalPoolEmpty();
 }
@@ -76,6 +80,16 @@ bool Scavenger::PromotionList::Pop(int task_id,
     return true;
   }
   return large_object_promotion_list_.Pop(task_id, entry);
+}
+
+void Scavenger::PromotionList::FlushToGlobal(int task_id) {
+  regular_object_promotion_list_.FlushToGlobal(task_id);
+  large_object_promotion_list_.FlushToGlobal(task_id);
+}
+
+size_t Scavenger::PromotionList::GlobalPoolSize() const {
+  return regular_object_promotion_list_.GlobalPoolSize() +
+         large_object_promotion_list_.GlobalPoolSize();
 }
 
 bool Scavenger::PromotionList::IsGlobalPoolEmpty() {
