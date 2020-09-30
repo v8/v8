@@ -457,11 +457,11 @@ BUILTIN(ArrayPop) {
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
 
   uint32_t len = static_cast<uint32_t>(array->length().Number());
-  if (len == 0) return ReadOnlyRoots(isolate).undefined_value();
 
   if (JSArray::HasReadOnlyLength(array)) {
     return GenericArrayPop(isolate, &args);
   }
+  if (len == 0) return ReadOnlyRoots(isolate).undefined_value();
 
   Handle<Object> result;
   if (IsJSArrayFastElementMovingAllowed(isolate, JSArray::cast(*receiver))) {

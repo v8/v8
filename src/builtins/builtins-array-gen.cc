@@ -246,10 +246,11 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
     TNode<JSArray> array_receiver = CAST(receiver);
     TNode<IntPtrT> length = SmiUntag(LoadFastJSArrayLength(array_receiver));
     Label return_undefined(this), fast_elements(this);
-    GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &return_undefined);
 
     // 2) Ensure that the length is writable.
     EnsureArrayLengthWritable(context, LoadMap(array_receiver), &runtime);
+
+    GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &return_undefined);
 
     // 3) Check that the elements backing store isn't copy-on-write.
     TNode<FixedArrayBase> elements = LoadElements(array_receiver);
