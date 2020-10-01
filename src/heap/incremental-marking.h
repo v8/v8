@@ -146,7 +146,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   void FinalizeIncrementally();
 
   void UpdateMarkingWorklistAfterScavenge();
-  void UpdateWeakReferencesAfterScavenge();
   void UpdateMarkedBytesAfterScavenge(size_t dead_bytes_in_new_space);
 
   void Hurry();
