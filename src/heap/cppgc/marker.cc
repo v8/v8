@@ -242,6 +242,8 @@ void MarkerBase::LeaveAtomicPause() {
   heap().stats_collector()->NotifyMarkingCompleted(
       // GetOverallMarkedBytes also includes concurrently marked bytes.
       schedule_.GetOverallMarkedBytes());
+  is_marking_started_ = false;
+  ProcessWeakness();
 }
 
 void MarkerBase::FinishMarking(MarkingConfig::StackState stack_state) {
@@ -251,7 +253,6 @@ void MarkerBase::FinishMarking(MarkingConfig::StackState stack_state) {
                                v8::base::TimeTicks::Max());
   mutator_marking_state_.Publish();
   LeaveAtomicPause();
-  is_marking_started_ = false;
 }
 
 void MarkerBase::ProcessWeakness() {

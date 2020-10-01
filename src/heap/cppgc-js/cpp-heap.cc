@@ -152,12 +152,12 @@ void CppHeap::EnterFinalPause(EmbedderStackState stack_state) {
 
 void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
   CHECK(marking_done_);
-  marker_->LeaveAtomicPause();
   {
-    // Pre finalizers are forbidden from allocating objects
+    // Weakness callbacks and pre-finalizers are forbidden from allocating
+    // objects.
     cppgc::internal::ObjectAllocator::NoAllocationScope no_allocation_scope_(
         object_allocator_);
-    marker()->ProcessWeakness();
+    marker_->LeaveAtomicPause();
     prefinalizer_handler()->InvokePreFinalizers();
   }
   marker_.reset();

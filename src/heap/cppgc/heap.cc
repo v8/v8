@@ -151,11 +151,12 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
   DCHECK(!in_no_gc_scope());
   config_.stack_state = stack_state;
   DCHECK(marker_);
-  marker_->FinishMarking(stack_state);
   {
-    // Pre finalizers are forbidden from allocating objects.
+    // Pre finalizers are forbidden from allocating objects. Note that this also
+    // guard atomic pause marking below, meaning that no internal method or
+    // external callbacks are allowed to allocate new objects.
     ObjectAllocator::NoAllocationScope no_allocation_scope_(object_allocator_);
-    marker_->ProcessWeakness();
+    marker_->FinishMarking(stack_state);
     prefinalizer_handler_->InvokePreFinalizers();
   }
   marker_.reset();

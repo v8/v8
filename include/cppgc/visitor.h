@@ -86,8 +86,7 @@ class Visitor {
       return;
     }
 
-    // TODO(chromium:1056170): DCHECK (or similar) for deleted values as they
-    // should come in at a different path.
+    CPPGC_DCHECK(value != kSentinelPointer);
     VisitWeak(value, TraceTrait<T>::GetTraceDescriptor(value),
               &HandleWeak<WeakMember<T>>, &weak_member);
   }

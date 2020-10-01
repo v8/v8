@@ -82,6 +82,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
   // Combines:
   // - EnterAtomicPause()
   // - AdvanceMarkingWithDeadline()
+  // - ProcessWeakness()
   // - LeaveAtomicPause()
   void FinishMarking(MarkingConfig::StackState);
 
