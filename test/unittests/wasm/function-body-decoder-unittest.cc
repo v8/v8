@@ -88,13 +88,15 @@ class TestModuleBuilder {
     return static_cast<byte>(mod.types.size() - 1);
   }
   byte AddFunction(const FunctionSig* sig, bool declared = true) {
-    mod.functions.push_back({sig,         // sig
-                             0,           // func_index
-                             0,           // sig_index
-                             {0, 0},      // code
-                             false,       // import
-                             false,       // export
-                             declared});  // declared
+    byte sig_index = AddSignature(sig);
+    mod.functions.push_back(
+        {sig,                                          // sig
+         static_cast<uint32_t>(mod.functions.size()),  // func_index
+         sig_index,                                    // sig_index
+         {0, 0},                                       // code
+         false,                                        // import
+         false,                                        // export
+         declared});                                   // declared
     CHECK_LE(mod.functions.size(), kMaxByteSizedLeb128);
     return static_cast<byte>(mod.functions.size() - 1);
   }
@@ -1066,6 +1068,79 @@ TEST_F(FunctionBodyDecoderTest, Unreachable_select2) {
                 {WASM_SELECT(WASM_UNREACHABLE, WASM_F32(0.0), WASM_ZERO)});
   ExpectFailure(sigs.i_i(),
                 {WASM_SELECT(WASM_UNREACHABLE, WASM_ZERO, WASM_F32(0.0))});
+}
+
+TEST_F(FunctionBodyDecoderTest, UnreachableRefTypes) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+  WASM_FEATURE_SCOPE(return_call);
+
+  byte function_index = builder.AddFunction(sigs.i_ii());
+  byte struct_index = builder.AddStruct({F(kWasmI32, true), F(kWasmI64, true)});
+  byte array_index = builder.AddArray(kWasmI32, true);
+
+  ValueType struct_type = ValueType::Ref(struct_index, kNonNullable);
+  FunctionSig sig_v_s(0, 1, &struct_type);
+  byte struct_consumer = builder.AddFunction(&sig_v_s);
+
+  ExpectValidates(sigs.v_v(), {WASM_BLOCK(WASM_UNREACHABLE, kExprBrOnNull, 0)});
+  ExpectValidates(sigs.i_v(), {WASM_UNREACHABLE, kExprRefIsNull});
+  ExpectValidates(sigs.v_v(), {WASM_UNREACHABLE, kExprRefAsNonNull, kExprDrop});
+
+  ExpectValidates(sigs.i_v(), {WASM_UNREACHABLE, kExprCallRef, WASM_I32V(1)});
+  ExpectValidates(sigs.i_v(), {WASM_UNREACHABLE, WASM_REF_FUNC(function_index),
+                               kExprCallRef});
+  ExpectValidates(sigs.v_v(), {WASM_UNREACHABLE, kExprReturnCallRef});
+
+  ExpectValidates(sigs.v_v(),
+                  {WASM_UNREACHABLE, WASM_GC_OP(kExprStructNewWithRtt),
+                   struct_index, kExprCallFunction, struct_consumer});
+  ExpectValidates(sigs.v_v(), {WASM_UNREACHABLE, WASM_RTT_CANON(struct_index),
+                               WASM_GC_OP(kExprStructNewWithRtt), struct_index,
+                               kExprCallFunction, struct_consumer});
+  ExpectValidates(sigs.v_v(), {WASM_UNREACHABLE, WASM_I64V(42),
+                               WASM_RTT_CANON(struct_index),
+                               WASM_GC_OP(kExprStructNewWithRtt), struct_index,
+                               kExprCallFunction, struct_consumer});
+  ExpectValidates(sigs.v_v(),
+                  {WASM_UNREACHABLE, WASM_GC_OP(kExprStructNewDefault),
+                   struct_index, kExprDrop});
+  ExpectValidates(sigs.v_v(), {WASM_UNREACHABLE, WASM_RTT_CANON(struct_index),
+                               WASM_GC_OP(kExprStructNewDefault), struct_index,
+                               kExprCallFunction, struct_consumer});
+
+  ExpectValidates(sigs.v_v(),
+                  {WASM_UNREACHABLE, WASM_GC_OP(kExprArrayNewWithRtt),
+                   array_index, kExprDrop});
+  ExpectValidates(sigs.v_v(),
+                  {WASM_UNREACHABLE, WASM_RTT_CANON(array_index),
+                   WASM_GC_OP(kExprArrayNewWithRtt), array_index, kExprDrop});
+  ExpectValidates(sigs.v_v(),
+                  {WASM_UNREACHABLE, WASM_I32V(42), WASM_RTT_CANON(array_index),
+                   WASM_GC_OP(kExprArrayNewWithRtt), array_index, kExprDrop});
+  ExpectValidates(sigs.v_v(),
+                  {WASM_UNREACHABLE, WASM_GC_OP(kExprArrayNewDefault),
+                   array_index, kExprDrop});
+  ExpectValidates(sigs.v_v(),
+                  {WASM_UNREACHABLE, WASM_RTT_CANON(array_index),
+                   WASM_GC_OP(kExprArrayNewDefault), array_index, kExprDrop});
+
+  ExpectValidates(sigs.i_v(), {WASM_UNREACHABLE, WASM_GC_OP(kExprRefTest),
+                               struct_index, struct_index});
+  ExpectValidates(sigs.i_v(),
+                  {WASM_UNREACHABLE, WASM_RTT_CANON(struct_index),
+                   WASM_GC_OP(kExprRefTest), struct_index, struct_index});
+
+  ExpectValidates(sigs.v_v(), {WASM_UNREACHABLE, WASM_GC_OP(kExprRefCast),
+                               struct_index, struct_index, kExprDrop});
+  ExpectValidates(sigs.v_v(), {WASM_UNREACHABLE, WASM_RTT_CANON(struct_index),
+                               WASM_GC_OP(kExprRefCast), struct_index,
+                               struct_index, kExprDrop});
+
+  ExpectValidates(sigs.v_v(),
+                  {WASM_UNREACHABLE, WASM_GC_OP(kExprRttSub), array_index,
+                   WASM_GC_OP(kExprRttSub), array_index, kExprDrop});
 }
 
 TEST_F(FunctionBodyDecoderTest, If1) {

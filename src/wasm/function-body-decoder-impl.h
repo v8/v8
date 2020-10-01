@@ -2400,6 +2400,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     TypeCheckBranchResult check_result = TypeCheckBranch(c, true);
     if (V8_LIKELY(check_result == kReachableBranch)) {
       switch (ref_object.type.kind()) {
+        case ValueType::kBottom:
+          // We are in unreachable code, just forward the bottom value.
         case ValueType::kRef: {
           Value* result = Push(ref_object.type);
           CALL_INTERFACE(PassThrough, ref_object, result);
@@ -2431,8 +2433,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     BlockTypeImmediate<validate> imm(this->enabled_, this, this->pc_ + 1);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     uint32_t old_local_count = this->num_locals();
-    // Temporarily add the let-defined values
-    // to the beginning of the function locals.
+    // Temporarily add the let-defined values to the beginning of the function
+    // locals.
     uint32_t locals_length;
     if (!this->DecodeLocals(this->pc() + 1 + imm.length, &locals_length, 0)) {
       return 0;
@@ -2725,6 +2727,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       case ValueType::kOptRef:
         CALL_INTERFACE_IF_REACHABLE(UnOp, kExprRefIsNull, value, result);
         return 1;
+      case ValueType::kBottom:
+        // We are in unreachable code, the return value does not matter.
       case ValueType::kRef:
         // For non-nullable references, the result is always false.
         CALL_INTERFACE_IF_REACHABLE(I32Const, result, 0);
@@ -2757,6 +2761,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     CHECK_PROTOTYPE_OPCODE(typed_funcref);
     Value value = Pop(0);
     switch (value.type.kind()) {
+      case ValueType::kBottom:
+        // We are in unreachable code. Forward the bottom value.
       case ValueType::kRef: {
         Value* result = Push(value.type);
         CALL_INTERFACE_IF_REACHABLE(PassThrough, value, result);
@@ -2961,8 +2967,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     CHECK_PROTOTYPE_OPCODE(typed_funcref);
     Value func_ref = Pop(0);
     ValueType func_type = func_ref.type;
-    if (!func_type.is_object_reference_type() || !func_type.has_index() ||
-        !this->module_->has_signature(func_type.ref_index())) {
+    if (func_type == kWasmBottom) {
+      // We are in unreachable code, maintain the polymorphic stack.
+      return 1;
+    }
+    if (!VALIDATE(func_type.is_object_reference_type() &&
+                  func_type.has_index() &&
+                  this->module_->has_signature(func_type.ref_index()))) {
       this->DecodeError(
           "call_ref: Expected function reference on top of stack, found %s of "
           "type %s instead",
@@ -2982,11 +2993,16 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     CHECK_PROTOTYPE_OPCODE(return_call);
     Value func_ref = Pop(0);
     ValueType func_type = func_ref.type;
-    if (!func_type.is_object_reference_type() || !func_type.has_index() ||
-        !this->module_->has_signature(func_type.ref_index())) {
+    if (func_type == kWasmBottom) {
+      // We are in unreachable code, maintain the polymorphic stack.
+      return 1;
+    }
+    if (!VALIDATE(func_type.is_object_reference_type() &&
+                  func_type.has_index() &&
+                  this->module_->has_signature(func_type.ref_index()))) {
       this->DecodeError(
-          "return_call_ref: Expected function reference on top of found %s of "
-          "type %s instead",
+          "return_call_ref: Expected function reference on top of stack, found "
+          "%s of type %s instead",
           SafeOpcodeNameAt(func_ref.pc), func_type.name().c_str());
       return 0;
     }
@@ -3555,7 +3571,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         StructIndexImmediate<validate> imm(this, this->pc_ + 2);
         if (!this->Validate(this->pc_ + 2, imm)) return 0;
         Value rtt = Pop(imm.struct_type->field_count());
-        if (!VALIDATE(rtt.type.kind() == ValueType::kRtt)) {
+        if (!VALIDATE(rtt.type.is_rtt() || rtt.type.is_bottom())) {
           this->DecodeError(
               "struct.new_with_rtt expected rtt, found %s of type %s",
               SafeOpcodeNameAt(rtt.pc), rtt.type.name().c_str());
@@ -3563,7 +3579,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         }
         // TODO(7748): Drop this check if {imm} is dropped from the proposal
         // à la https://github.com/WebAssembly/function-references/pull/31.
-        if (!VALIDATE(rtt.type.heap_representation() == imm.index)) {
+        if (!VALIDATE(rtt.type.is_bottom() ||
+                      rtt.type.heap_representation() == imm.index)) {
           this->DecodeError(
               "struct.new_with_rtt expected rtt for type %d, found rtt for "
               "type %s",
@@ -3592,7 +3609,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           }
         }
         Value rtt = Pop(0);
-        if (!VALIDATE(rtt.type.kind() == ValueType::kRtt)) {
+        if (!VALIDATE(rtt.type.is_rtt() || rtt.type.is_bottom())) {
           this->DecodeError(
               "struct.new_default_with_rtt expected rtt, found %s of type %s",
               SafeOpcodeNameAt(rtt.pc), rtt.type.name().c_str());
@@ -3600,10 +3617,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         }
         // TODO(7748): Drop this check if {imm} is dropped from the proposal
         // à la https://github.com/WebAssembly/function-references/pull/31.
-        if (!VALIDATE(rtt.type.heap_representation() == imm.index)) {
+        if (!VALIDATE(rtt.type.is_bottom() ||
+                      rtt.type.heap_representation() == imm.index)) {
           this->DecodeError(
-              "struct.new_default_with_rtt expected rtt for type %d, found "
-              "rtt for type %s",
+              "struct.new_default_with_rtt expected rtt for type %d, found rtt "
+              "for type %s",
               imm.index, rtt.type.heap_type().name().c_str());
           return 0;
         }
@@ -3618,8 +3636,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             field.struct_index.struct_type->field(field.index);
         if (!VALIDATE(!field_type.is_packed())) {
           this->DecodeError(
-              "struct.get used with a field of packed type. "
-              "Use struct.get_s or struct.get_u instead.");
+              "struct.get used with a field of packed type. Use struct.get_s "
+              "or struct.get_u instead.");
           return 0;
         }
         Value struct_obj =
@@ -3636,8 +3654,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             field.struct_index.struct_type->field(field.index);
         if (!VALIDATE(field_type.is_packed())) {
           this->DecodeError(
-              "%s is only valid for packed struct fields. "
-              "Use struct.get instead.",
+              "%s is only valid for packed struct fields. Use struct.get "
+              "instead.",
               WasmOpcodes::OpcodeName(opcode));
           return 0;
         }
@@ -3666,7 +3684,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         ArrayIndexImmediate<validate> imm(this, this->pc_ + 2);
         if (!this->Validate(this->pc_ + 2, imm)) return 0;
         Value rtt = Pop(2);
-        if (!VALIDATE(rtt.type.kind() == ValueType::kRtt)) {
+        if (!VALIDATE(rtt.type.is_rtt() || rtt.type.is_bottom())) {
           this->DecodeError(
               this->pc_ + 2,
               "array.new_with_rtt expected rtt, found %s of type %s",
@@ -3675,7 +3693,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         }
         // TODO(7748): Drop this check if {imm} is dropped from the proposal
         // à la https://github.com/WebAssembly/function-references/pull/31.
-        if (!VALIDATE(rtt.type.heap_representation() == imm.index)) {
+        if (!VALIDATE(rtt.type.is_bottom() ||
+                      rtt.type.heap_representation() == imm.index)) {
           this->DecodeError(
               this->pc_ + 2,
               "array.new_with_rtt expected rtt for type %d, found "
@@ -3701,7 +3720,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           return 0;
         }
         Value rtt = Pop(1);
-        if (!VALIDATE(rtt.type.kind() == ValueType::kRtt)) {
+        if (!VALIDATE(rtt.type.is_rtt() || rtt.type.is_bottom())) {
           this->DecodeError(
               this->pc_ + 2,
               "array.new_default_with_rtt expected rtt, found %s of type %s",
@@ -3710,12 +3729,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         }
         // TODO(7748): Drop this check if {imm} is dropped from the proposal
         // à la https://github.com/WebAssembly/function-references/pull/31.
-        if (!VALIDATE(rtt.type.heap_representation() == imm.index)) {
-          this->DecodeError(
-              this->pc_ + 2,
-              "array.new_default_with_rtt expected rtt for type %d, "
-              "found rtt for type %s",
-              imm.index, rtt.type.heap_type().name().c_str());
+        if (!VALIDATE(rtt.type.is_bottom() ||
+                      rtt.type.heap_representation() == imm.index)) {
+          this->DecodeError(this->pc_ + 2,
+                            "array.new_default_with_rtt expected rtt for type "
+                            "%d, found rtt for type %s",
+                            imm.index, rtt.type.heap_type().name().c_str());
           return 0;
         }
         Value length = Pop(0, kWasmI32);
@@ -3745,8 +3764,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         if (!this->Validate(this->pc_ + 2, imm)) return 0;
         if (!VALIDATE(!imm.array_type->element_type().is_packed())) {
           this->DecodeError(
-              "array.get used with a field of packed type. "
-              "Use array.get_s or array.get_u instead.");
+              "array.get used with a field of packed type. Use array.get_s or "
+              "array.get_u instead.");
           return 0;
         }
         Value index = Pop(1, kWasmI32);
@@ -3812,18 +3831,23 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         HeapTypeImmediate<validate> imm(this->enabled_, this, this->pc_ + 2);
         if (!this->Validate(this->pc_ + 2, imm)) return 0;
         Value parent = Pop(0);
-        // TODO(7748): Consider exposing "IsSubtypeOfHeap(HeapType t1, t2)" so
-        // we can avoid creating (ref heaptype) wrappers here.
-        if (!VALIDATE(parent.type.kind() == ValueType::kRtt &&
-                      IsSubtypeOf(
-                          ValueType::Ref(imm.type, kNonNullable),
-                          ValueType::Ref(parent.type.heap_type(), kNonNullable),
-                          this->module_))) {
-          this->DecodeError("rtt.sub requires a supertype rtt on stack");
-          return 0;
+        if (parent.type.is_bottom()) {
+          Push(kWasmBottom);
+        } else {
+          // TODO(7748): Consider exposing "IsSubtypeOfHeap(HeapType t1, t2)" so
+          // we can avoid creating (ref heaptype) wrappers here.
+          if (!VALIDATE(parent.type.is_rtt() &&
+                        IsSubtypeOf(ValueType::Ref(imm.type, kNonNullable),
+                                    ValueType::Ref(parent.type.heap_type(),
+                                                   kNonNullable),
+                                    this->module_))) {
+            this->DecodeError("rtt.sub requires a supertype rtt on stack");
+            return 0;
+          }
+          Value* value =
+              Push(ValueType::Rtt(imm.type, parent.type.depth() + 1));
+          CALL_INTERFACE_IF_REACHABLE(RttSub, imm, parent, value);
         }
-        Value* value = Push(ValueType::Rtt(imm.type, parent.type.depth() + 1));
-        CALL_INTERFACE_IF_REACHABLE(RttSub, imm, parent, value);
         return 2 + imm.length;
       }
       case kExprRefTest: {
@@ -3845,8 +3869,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           return 0;
         }
         Value rtt = Pop(1);
-        if (!VALIDATE(rtt.type.kind() == ValueType::kRtt &&
-                      rtt.type.heap_type() == rtt_type.type)) {
+        if (!VALIDATE(
+                (rtt.type.is_rtt() && rtt.type.heap_type() == rtt_type.type) ||
+                rtt.type == kWasmBottom)) {
           this->DecodeError("ref.test: expected rtt for type %s but got %s",
                             rtt_type.type.name().c_str(),
                             rtt.type.name().c_str());
@@ -3874,8 +3899,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           return 0;
         }
         Value rtt = Pop(1);
-        if (!VALIDATE(rtt.type.kind() == ValueType::kRtt &&
-                      rtt.type.heap_type() == rtt_type.type)) {
+        if (!VALIDATE(
+                (rtt.type.is_rtt() && rtt.type.heap_type() == rtt_type.type) ||
+                rtt.type == kWasmBottom)) {
           this->DecodeError("ref.cast: expected rtt for type %s but got %s",
                             rtt_type.type.name().c_str(),
                             rtt.type.name().c_str());
@@ -3894,17 +3920,19 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         // TODO(7748): If the heap type immediates remain in the spec, read
         // them here.
         Value rtt = Pop(1);
-        if (!VALIDATE(rtt.type.kind() == ValueType::kRtt)) {
-          this->DecodeError("br_on_cast[1]: expected rtt on stack");
+        if (!VALIDATE(rtt.type.is_rtt() || rtt.type.is_bottom())) {
+          this->error(this->pc_, "br_on_cast[1]: expected rtt on stack");
           return 0;
         }
         Value obj = Pop(0);
-        if (!VALIDATE(obj.type.is_object_reference_type())) {
+        if (!VALIDATE(obj.type.is_object_reference_type() ||
+                      rtt.type.is_bottom())) {
           this->DecodeError("br_on_cast[0]: expected reference on stack");
           return 0;
         }
         // The static type of {obj} must be a supertype of {rtt}'s type.
         if (!VALIDATE(
+                rtt.type.is_bottom() || obj.type.is_bottom() ||
                 IsSubtypeOf(ValueType::Ref(rtt.type.heap_type(), kNonNullable),
                             ValueType::Ref(obj.type.heap_type(), kNonNullable),
                             this->module_))) {
@@ -3914,7 +3942,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         }
         Control* c = control_at(branch_depth.depth);
         Value* result_on_branch =
-            Push(ValueType::Ref(rtt.type.heap_type(), kNonNullable));
+            Push(rtt.type.is_bottom()
+                     ? kWasmBottom
+                     : ValueType::Ref(rtt.type.heap_type(), kNonNullable));
         TypeCheckBranchResult check_result = TypeCheckBranch(c, true);
         if (V8_LIKELY(check_result == kReachableBranch)) {
           CALL_INTERFACE(BrOnCast, obj, rtt, result_on_branch,
