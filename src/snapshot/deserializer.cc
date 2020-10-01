@@ -303,12 +303,14 @@ uint32_t StringTableInsertionKey::ComputeHashField(String string) {
   return string.hash_field();
 }
 
-void Deserializer::PostProcessNewObject(Handle<HeapObject> obj,
+void Deserializer::PostProcessNewObject(Handle<Map> map, Handle<HeapObject> obj,
                                         SnapshotSpace space) {
+  DCHECK_EQ(*map, obj->map());
   DisallowGarbageCollection no_gc;
+  InstanceType instance_type = map->instance_type();
 
   if ((FLAG_rehash_snapshot && can_rehash_) || deserializing_user_code()) {
-    if (obj->IsString()) {
+    if (InstanceTypeChecker::IsString(instance_type)) {
       // Uninitialize hash field as we need to recompute the hash.
       Handle<String> string = Handle<String>::cast(obj);
       string->set_hash_field(String::kEmptyHashField);
@@ -317,33 +319,31 @@ void Deserializer::PostProcessNewObject(Handle<HeapObject> obj,
       if (space == SnapshotSpace::kReadOnlyHeap) {
         to_rehash_.push_back(obj);
       }
-    } else if (obj->NeedsRehashing()) {
+    } else if (obj->NeedsRehashing(instance_type)) {
       to_rehash_.push_back(obj);
     }
   }
 
   if (deserializing_user_code()) {
-    if (obj->IsString()) {
+    if (InstanceTypeChecker::IsInternalizedString(instance_type)) {
+      // Canonicalize the internalized string. If it already exists in the
+      // string table, set it to forward to the existing one.
       Handle<String> string = Handle<String>::cast(obj);
-      if (string->IsInternalizedString()) {
-        // Canonicalize the internalized string. If it already exists in the
-        // string table, set it to forward to the existing one.
 
-        StringTableInsertionKey key(string);
-        Handle<String> result =
-            isolate()->string_table()->LookupKey(isolate(), &key);
+      StringTableInsertionKey key(string);
+      Handle<String> result =
+          isolate()->string_table()->LookupKey(isolate(), &key);
 
-        if (FLAG_thin_strings && *result != *string) {
-          string->MakeThin(isolate(), *result);
-          // Mutate the given object handle so that the backreference entry is
-          // also updated.
-          obj.PatchValue(*result);
-        }
-        return;
+      if (FLAG_thin_strings && *result != *string) {
+        string->MakeThin(isolate(), *result);
+        // Mutate the given object handle so that the backreference entry is
+        // also updated.
+        obj.PatchValue(*result);
       }
-    } else if (obj->IsScript()) {
+      return;
+    } else if (InstanceTypeChecker::IsScript(instance_type)) {
       new_scripts_.push_back(Handle<Script>::cast(obj));
-    } else if (obj->IsAllocationSite()) {
+    } else if (InstanceTypeChecker::IsAllocationSite(instance_type)) {
       // We should link new allocation sites, but we can't do this immediately
       // because |AllocationSite::HasWeakNext()| internally accesses
       // |Heap::roots_| that may not have been initialized yet. So defer this to
@@ -353,28 +353,31 @@ void Deserializer::PostProcessNewObject(Handle<HeapObject> obj,
       DCHECK(CanBeDeferred(*obj));
     }
   }
-  if (obj->IsScript()) {
+
+  if (InstanceTypeChecker::IsScript(instance_type)) {
     LogScriptEvents(Script::cast(*obj));
-  } else if (obj->IsCode()) {
+  } else if (InstanceTypeChecker::IsCode(instance_type)) {
     // We flush all code pages after deserializing the startup snapshot.
     // Hence we only remember each individual code object when deserializing
     // user code.
     if (deserializing_user_code()) {
       new_code_objects_.push_back(Handle<Code>::cast(obj));
     }
-  } else if (FLAG_trace_maps && obj->IsMap()) {
-    // Keep track of all seen Maps to log them later since they might be only
-    // partially initialized at this point.
-    new_maps_.push_back(Handle<Map>::cast(obj));
-  } else if (obj->IsAccessorInfo()) {
+  } else if (InstanceTypeChecker::IsMap(instance_type)) {
+    if (FLAG_trace_maps) {
+      // Keep track of all seen Maps to log them later since they might be only
+      // partially initialized at this point.
+      new_maps_.push_back(Handle<Map>::cast(obj));
+    }
+  } else if (InstanceTypeChecker::IsAccessorInfo(instance_type)) {
 #ifdef USE_SIMULATOR
     accessor_infos_.push_back(Handle<AccessorInfo>::cast(obj));
 #endif
-  } else if (obj->IsCallHandlerInfo()) {
+  } else if (InstanceTypeChecker::IsCallHandlerInfo(instance_type)) {
 #ifdef USE_SIMULATOR
     call_handler_infos_.push_back(Handle<CallHandlerInfo>::cast(obj));
 #endif
-  } else if (obj->IsExternalString()) {
+  } else if (InstanceTypeChecker::IsExternalString(instance_type)) {
     Handle<ExternalString> string = Handle<ExternalString>::cast(obj);
     uint32_t index = string->GetResourceRefForDeserialization();
     Address address =
@@ -384,7 +387,7 @@ void Deserializer::PostProcessNewObject(Handle<HeapObject> obj,
     isolate()->heap()->UpdateExternalString(*string, 0,
                                             string->ExternalPayloadSize());
     isolate()->heap()->RegisterExternalString(*string);
-  } else if (obj->IsJSDataView()) {
+  } else if (InstanceTypeChecker::IsJSDataView(instance_type)) {
     Handle<JSDataView> data_view = Handle<JSDataView>::cast(obj);
     JSArrayBuffer buffer = JSArrayBuffer::cast(data_view->buffer());
     void* backing_store = nullptr;
@@ -399,7 +402,7 @@ void Deserializer::PostProcessNewObject(Handle<HeapObject> obj,
     data_view->set_data_pointer(
         isolate(),
         reinterpret_cast<uint8_t*>(backing_store) + data_view->byte_offset());
-  } else if (obj->IsJSTypedArray()) {
+  } else if (InstanceTypeChecker::IsJSTypedArray(instance_type)) {
     Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(obj);
     // Fixup typed array pointers.
     if (typed_array->is_on_heap()) {
@@ -420,7 +423,7 @@ void Deserializer::PostProcessNewObject(Handle<HeapObject> obj,
       typed_array->SetOffHeapDataPtr(isolate(), start,
                                      typed_array->byte_offset());
     }
-  } else if (obj->IsJSArrayBuffer()) {
+  } else if (InstanceTypeChecker::IsJSArrayBuffer(instance_type)) {
     Handle<JSArrayBuffer> buffer = Handle<JSArrayBuffer>::cast(obj);
     // Postpone allocation of backing store to avoid triggering the GC.
     if (buffer->GetBackingStoreRefForDeserialization() != kNullRefSentinel) {
@@ -429,20 +432,20 @@ void Deserializer::PostProcessNewObject(Handle<HeapObject> obj,
       buffer->AllocateExternalPointerEntries(isolate());
       buffer->set_backing_store(isolate(), nullptr);
     }
-  } else if (obj->IsBytecodeArray()) {
+  } else if (InstanceTypeChecker::IsBytecodeArray(instance_type)) {
     // TODO(mythria): Remove these once we store the default values for these
     // fields in the serializer.
     Handle<BytecodeArray> bytecode_array = Handle<BytecodeArray>::cast(obj);
     bytecode_array->set_osr_loop_nesting_level(0);
-  } else if (obj->IsDescriptorArray()) {
-    DCHECK(obj->IsStrongDescriptorArray());
+  } else if (InstanceTypeChecker::IsDescriptorArray(instance_type)) {
+    DCHECK(InstanceTypeChecker::IsStrongDescriptorArray(instance_type));
     Handle<DescriptorArray> descriptors = Handle<DescriptorArray>::cast(obj);
     new_descriptor_arrays_.push_back(descriptors);
   }
 
   // Check alignment.
   DCHECK_EQ(0, Heap::GetFillToAlign(obj->address(),
-                                    HeapObject::RequiredAlignment(obj->map())));
+                                    HeapObject::RequiredAlignment(*map)));
 }
 
 HeapObjectReferenceType Deserializer::GetAndResetNextReferenceType() {
@@ -519,7 +522,7 @@ Handle<HeapObject> Deserializer::ReadObject(SnapshotSpace space) {
   back_refs_.push_back(obj);
 
   ReadData(obj, 1, size_in_tagged);
-  PostProcessNewObject(obj, space);
+  PostProcessNewObject(map, obj, space);
 
   DCHECK(!obj->IsThinString(isolate()));
 
@@ -552,7 +555,7 @@ Handle<HeapObject> Deserializer::ReadMetaMap() {
   Map::unchecked_cast(*obj).set_instance_type(MAP_TYPE);
 
   ReadData(obj, 1, size_in_tagged);
-  PostProcessNewObject(obj, space);
+  PostProcessNewObject(Handle<Map>::cast(obj), obj, space);
 
   return obj;
 }

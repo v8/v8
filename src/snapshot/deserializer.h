@@ -174,7 +174,8 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   int ReadRepeatedObject(SlotGetter slot_getter, int repeat_count);
 
   // Special handling for serialized code like hooking up internalized strings.
-  void PostProcessNewObject(Handle<HeapObject> obj, SnapshotSpace space);
+  void PostProcessNewObject(Handle<Map> map, Handle<HeapObject> obj,
+                            SnapshotSpace space);
 
   HeapObject Allocate(SnapshotSpace space, int size,
                       AllocationAlignment alignment);
