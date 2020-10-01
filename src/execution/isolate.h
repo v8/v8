@@ -525,8 +525,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Creates Isolate object. Must be used instead of constructing Isolate with
   // new operator.
-  static Isolate* New(
-      IsolateAllocationMode mode = IsolateAllocationMode::kDefault);
+  static Isolate* New();
 
   // Deletes Isolate object. Must be used instead of delete operator.
   // Destroys the non-default isolates.
@@ -537,9 +536,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void SetUpFromReadOnlyArtifacts(std::shared_ptr<ReadOnlyArtifacts> artifacts,
                                   ReadOnlyHeap* ro_heap);
   void set_read_only_heap(ReadOnlyHeap* ro_heap) { read_only_heap_ = ro_heap; }
-
-  // Returns allocation mode of this isolate.
-  V8_INLINE IsolateAllocationMode isolate_allocation_mode();
 
   // Page allocator that must be used for allocating V8 heap pages.
   v8::PageAllocator* page_allocator();

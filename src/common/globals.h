@@ -483,20 +483,6 @@ inline std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
   UNREACHABLE();
 }
 
-enum class IsolateAllocationMode {
-  // Allocate Isolate in C++ heap using default new/delete operators.
-  kInCppHeap,
-
-  // Allocate Isolate in a committed region inside V8 heap reservation.
-  kInV8Heap,
-
-#ifdef V8_COMPRESS_POINTERS
-  kDefault = kInV8Heap,
-#else
-  kDefault = kInCppHeap,
-#endif
-};
-
 // Indicates whether the lookup is related to sloppy-mode block-scoped
 // function hoisting, and is a synthetic assignment for that.
 enum class LookupHoistingMode { kNormal, kLegacySloppy };

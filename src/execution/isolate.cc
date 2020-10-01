@@ -18,6 +18,7 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
 #include "src/base/hashmap.h"
+#include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/base/sys-info.h"
 #include "src/base/utils/random-number-generator.h"
@@ -2857,18 +2858,16 @@ std::atomic<size_t> Isolate::non_disposed_isolates_;
 #endif  // DEBUG
 
 // static
-Isolate* Isolate::New(IsolateAllocationMode mode) {
+Isolate* Isolate::New() {
   // IsolateAllocator allocates the memory for the Isolate object according to
   // the given allocation mode.
   std::unique_ptr<IsolateAllocator> isolate_allocator =
-      std::make_unique<IsolateAllocator>(mode);
+      std::make_unique<IsolateAllocator>();
   // Construct Isolate object in the allocated memory.
   void* isolate_ptr = isolate_allocator->isolate_memory();
   Isolate* isolate = new (isolate_ptr) Isolate(std::move(isolate_allocator));
-#if V8_TARGET_ARCH_64_BIT
-  DCHECK_IMPLIES(
-      mode == IsolateAllocationMode::kInV8Heap,
-      IsAligned(isolate->isolate_root(), kPtrComprIsolateRootAlignment));
+#ifdef V8_COMPRESS_POINTERS
+  DCHECK(IsAligned(isolate->isolate_root(), kPtrComprIsolateRootAlignment));
 #endif
 
 #ifdef DEBUG
