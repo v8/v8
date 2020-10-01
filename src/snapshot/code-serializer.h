@@ -7,6 +7,7 @@
 
 #include "src/base/macros.h"
 #include "src/snapshot/serializer.h"
+#include "src/snapshot/snapshot-data.h"
 
 namespace v8 {
 namespace internal {
@@ -61,12 +62,12 @@ class CodeSerializer : public Serializer {
   ~CodeSerializer() override { OutputStatistics("CodeSerializer"); }
 
   virtual bool ElideObject(Object obj) { return false; }
-  void SerializeGeneric(HeapObject heap_object);
+  void SerializeGeneric(Handle<HeapObject> heap_object);
 
  private:
-  void SerializeObject(HeapObject o) override;
+  void SerializeObjectImpl(Handle<HeapObject> o) override;
 
-  bool SerializeReadOnlyObject(HeapObject obj);
+  bool SerializeReadOnlyObject(Handle<HeapObject> obj);
 
   DISALLOW_HEAP_ALLOCATION(no_gc_)
   uint32_t source_hash_;
@@ -92,18 +93,13 @@ class SerializedCodeData : public SerializedData {
   // [1] version hash
   // [2] source hash
   // [3] flag hash
-  // [4] number of reservation size entries
-  // [5] payload length
-  // [6] payload checksum
-  // ...  reservations
-  // ...  code stub keys
+  // [4] payload length
+  // [5] payload checksum
   // ...  serialized payload
   static const uint32_t kVersionHashOffset = kMagicNumberOffset + kUInt32Size;
   static const uint32_t kSourceHashOffset = kVersionHashOffset + kUInt32Size;
   static const uint32_t kFlagHashOffset = kSourceHashOffset + kUInt32Size;
-  static const uint32_t kNumReservationsOffset = kFlagHashOffset + kUInt32Size;
-  static const uint32_t kPayloadLengthOffset =
-      kNumReservationsOffset + kUInt32Size;
+  static const uint32_t kPayloadLengthOffset = kFlagHashOffset + kUInt32Size;
   static const uint32_t kChecksumOffset = kPayloadLengthOffset + kUInt32Size;
   static const uint32_t kUnalignedHeaderSize = kChecksumOffset + kUInt32Size;
   static const uint32_t kHeaderSize = POINTER_SIZE_ALIGN(kUnalignedHeaderSize);
@@ -120,7 +116,6 @@ class SerializedCodeData : public SerializedData {
   // Return ScriptData object and relinquish ownership over it to the caller.
   ScriptData* GetScriptData();
 
-  std::vector<Reservation> Reservations() const;
   Vector<const byte> Payload() const;
 
   static uint32_t SourceHash(Handle<String> source,
