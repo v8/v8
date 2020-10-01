@@ -228,11 +228,7 @@ struct CodeEntryAndLineNumber {
   int line_number;
 };
 
-struct ProfileStackFrame {
-  CodeEntryAndLineNumber entry;
-};
-
-typedef std::vector<ProfileStackFrame> ProfileStackTrace;
+using ProfileStackTrace = std::vector<CodeEntryAndLineNumber>;
 
 class ProfileTree;
 

@@ -201,7 +201,7 @@ TEST(ProfileTreeAddPathFromEndWithLineNumbers) {
   ProfileTree tree(CcTest::i_isolate());
   ProfileTreeTestHelper helper(&tree);
 
-  ProfileStackTrace path = {{{&c, 5}}, {{&b, 3}}, {{&a, 1}}};
+  ProfileStackTrace path = {{&c, 5}, {&b, 3}, {&a, 1}};
   tree.AddPathFromEnd(path, v8::CpuProfileNode::kNoLineNumberInfo, true,
                       v8::CpuProfilingMode::kCallerLineNumbers);
 
@@ -399,8 +399,8 @@ TEST(SymbolizeTickSample) {
       symbolizer.SymbolizeTickSample(sample1);
   ProfileStackTrace& stack_trace = symbolized.stack_trace;
   CHECK_EQ(2, stack_trace.size());
-  CHECK_EQ(entry1, stack_trace[0].entry.code_entry);
-  CHECK_EQ(entry1, stack_trace[1].entry.code_entry);
+  CHECK_EQ(entry1, stack_trace[0].code_entry);
+  CHECK_EQ(entry1, stack_trace[1].code_entry);
 
   TickSample sample2;
   sample2.pc = ToPointer(0x1925);
@@ -412,10 +412,10 @@ TEST(SymbolizeTickSample) {
   symbolized = symbolizer.SymbolizeTickSample(sample2);
   stack_trace = symbolized.stack_trace;
   CHECK_EQ(4, stack_trace.size());
-  CHECK_EQ(entry3, stack_trace[0].entry.code_entry);
-  CHECK_EQ(entry2, stack_trace[1].entry.code_entry);
-  CHECK_EQ(nullptr, stack_trace[2].entry.code_entry);
-  CHECK_EQ(entry1, stack_trace[3].entry.code_entry);
+  CHECK_EQ(entry3, stack_trace[0].code_entry);
+  CHECK_EQ(entry2, stack_trace[1].code_entry);
+  CHECK_EQ(nullptr, stack_trace[2].code_entry);
+  CHECK_EQ(entry1, stack_trace[3].code_entry);
 
   TickSample sample3;
   sample3.pc = ToPointer(0x1510);
@@ -426,9 +426,9 @@ TEST(SymbolizeTickSample) {
   symbolized = symbolizer.SymbolizeTickSample(sample3);
   stack_trace = symbolized.stack_trace;
   CHECK_EQ(3, stack_trace.size());
-  CHECK_EQ(entry1, stack_trace[0].entry.code_entry);
-  CHECK_EQ(entry3, stack_trace[1].entry.code_entry);
-  CHECK_EQ(entry1, stack_trace[2].entry.code_entry);
+  CHECK_EQ(entry1, stack_trace[0].code_entry);
+  CHECK_EQ(entry3, stack_trace[1].code_entry);
+  CHECK_EQ(entry1, stack_trace[2].code_entry);
 }
 
 static void CheckNodeIds(const ProfileNode* node, unsigned* expectedId) {

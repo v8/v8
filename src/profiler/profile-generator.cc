@@ -403,11 +403,11 @@ ProfileNode* ProfileTree::AddPathFromEnd(const ProfileStackTrace& path,
   CodeEntry* last_entry = nullptr;
   int parent_line_number = v8::CpuProfileNode::kNoLineNumberInfo;
   for (auto it = path.rbegin(); it != path.rend(); ++it) {
-    if (it->entry.code_entry == nullptr) continue;
-    last_entry = (*it).entry.code_entry;
-    node = node->FindOrAddChild((*it).entry.code_entry, parent_line_number);
+    if (it->code_entry == nullptr) continue;
+    last_entry = it->code_entry;
+    node = node->FindOrAddChild(it->code_entry, parent_line_number);
     parent_line_number = mode == ProfilingMode::kCallerLineNumbers
-                             ? (*it).entry.line_number
+                             ? it->line_number
                              : v8::CpuProfileNode::kNoLineNumberInfo;
   }
   if (last_entry && last_entry->has_deopt_info()) {
