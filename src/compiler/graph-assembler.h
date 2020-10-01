@@ -47,6 +47,7 @@ class BasicBlock;
   V(Float64ExtractLowWord32)             \
   V(Float64SilenceNaN)                   \
   V(RoundFloat64ToInt32)                 \
+  V(TruncateFloat64ToFloat32)            \
   V(TruncateFloat64ToInt64)              \
   V(TruncateFloat64ToWord32)             \
   V(TruncateInt64ToInt32)                \

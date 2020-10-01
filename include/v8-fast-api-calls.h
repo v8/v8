@@ -124,13 +124,21 @@
  *  - uint32_t
  *  - int64_t
  *  - uint64_t
+ *  - float32_t
+ *  - float64_t
+ *
  * The 64-bit integer types currently have the IDL (unsigned) long long
  * semantics: https://heycam.github.io/webidl/#abstract-opdef-converttoint
  * In the future we'll extend the API to also provide conversions from/to
  * BigInt to preserve full precision.
+ * The floating point types currently have the IDL (unrestricted) semantics,
+ * which is the only one used by WebGL. We plan to add support also for
+ * restricted floats/doubles, similarly to the BigInt conversion policies.
+ * We also differ from the specific NaN bit pattern that WebIDL prescribes
+ * (https://heycam.github.io/webidl/#es-unrestricted-float) in that Blink
+ * passes NaN values as-is, i.e. doesn't normalize them.
+ *
  * To be supported types:
- *  - float32_t
- *  - float64_t
  *  - arrays of C types
  *  - arrays of embedder types
  */

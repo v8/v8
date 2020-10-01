@@ -5290,9 +5290,16 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
 
   Node** const inputs = graph()->zone()->NewArray<Node*>(
       c_arg_count + FastApiCallNode::kFastCallExtraInputCount);
-  for (int i = 0; i < c_arg_count + FastApiCallNode::kFastTargetInputCount;
-       ++i) {
-    inputs[i] = NodeProperties::GetValueInput(node, i);
+  inputs[0] = NodeProperties::GetValueInput(node, 0);  // the target
+  for (int i = FastApiCallNode::kFastTargetInputCount;
+       i < c_arg_count + FastApiCallNode::kFastTargetInputCount; ++i) {
+    if (c_signature->ArgumentInfo(i - 1).GetType() ==
+        CTypeInfo::Type::kFloat32) {
+      inputs[i] =
+          __ TruncateFloat64ToFloat32(NodeProperties::GetValueInput(node, i));
+    } else {
+      inputs[i] = NodeProperties::GetValueInput(node, i);
+    }
   }
   inputs[c_arg_count + 1] = has_error;
   inputs[c_arg_count + 2] = __ effect();

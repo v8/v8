@@ -1745,15 +1745,15 @@ class RepresentationSelector {
         return UseInfo::Bool();
       case CTypeInfo::Type::kInt32:
       case CTypeInfo::Type::kUint32:
-      case CTypeInfo::Type::kFloat32:
         return UseInfo::CheckedNumberAsWord32(feedback);
       // TODO(mslekova): We deopt for unsafe integers, but ultimately we want
       // to make this less restrictive in order to stay on the fast path.
       case CTypeInfo::Type::kInt64:
       case CTypeInfo::Type::kUint64:
         return UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, feedback);
+      case CTypeInfo::Type::kFloat32:
       case CTypeInfo::Type::kFloat64:
-        return UseInfo::CheckedNumberAsFloat64(kIdentifyZeros, feedback);
+        return UseInfo::CheckedNumberAsFloat64(kDistinguishZeros, feedback);
       case CTypeInfo::Type::kV8Value:
         return UseInfo::AnyTagged();
     }

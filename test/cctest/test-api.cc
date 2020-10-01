@@ -27485,6 +27485,24 @@ struct ConvertJSValue<uint64_t> {
 };
 
 template <>
+struct ConvertJSValue<float> {
+  static Maybe<float> Get(v8::Local<v8::Value> value,
+                          v8::Local<v8::Context> context) {
+    Maybe<double> val = value->NumberValue(context);
+    if (val.IsNothing()) return v8::Nothing<float>();
+    return v8::Just(static_cast<float>(val.ToChecked()));
+  }
+};
+
+template <>
+struct ConvertJSValue<double> {
+  static Maybe<double> Get(v8::Local<v8::Value> value,
+                           v8::Local<v8::Context> context) {
+    return value->NumberValue(context);
+  }
+};
+
+template <>
 struct ConvertJSValue<bool> {
   static Maybe<bool> Get(v8::Local<v8::Value> value,
                          v8::Local<v8::Context> context) {
@@ -27669,6 +27687,35 @@ bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
 }
 
 template <typename T>
+void CheckEqual(T actual, T expected) {
+  CHECK_EQ(actual, expected);
+}
+
+#ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+template <>
+void CheckEqual<float>(float actual, float expected) {
+  if (std::isnan(expected)) {
+    CHECK(std::isnan(actual));
+  } else {
+    // This differentiates between -0 and +0.
+    CHECK_EQ(std::signbit(actual), std::signbit(expected));
+    CHECK_EQ(actual, expected);
+  }
+}
+
+template <>
+void CheckEqual<double>(double actual, double expected) {
+  if (std::isnan(expected)) {
+    CHECK(std::isnan(actual));
+  } else {
+    // This differentiates between -0 and +0.
+    CHECK_EQ(std::signbit(actual), std::signbit(expected));
+    CHECK_EQ(actual, expected);
+  }
+}
+#endif
+
+template <typename T>
 void CallAndCheck(T expected_value, Behavior expected_behavior,
                   ApiCheckerResultFlags expected_path,
                   v8::Local<v8::Value> initial_value,
@@ -27697,13 +27744,12 @@ void CallAndCheck(T expected_value, Behavior expected_behavior,
 
   if (expected_path & ApiCheckerResult::kSlowCalled) {
     if (expected_behavior != Behavior::kException) {
-      T slow_value_typed = checker.slow_value_.ToChecked();
-      CHECK_EQ(slow_value_typed, expected_value);
+      CheckEqual(checker.slow_value_.ToChecked(), expected_value);
     }
   }
   if (expected_path & ApiCheckerResult::kFastCalled) {
     CHECK(checker.DidCallFast());
-    CHECK_EQ(checker.fast_value_, expected_value);
+    CheckEqual(checker.fast_value_, expected_value);
   }
 }
 
@@ -27892,6 +27938,13 @@ TEST(FastApiCalls) {
   CallAndCheck<bool>(true, Behavior::kNoException,
                      ApiCheckerResult::kFastCalled,
                      v8::Boolean::New(isolate, true));
+
+#ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+  CallAndCheck<float>(3.14f, Behavior::kNoException,
+                      ApiCheckerResult::kFastCalled, v8_num(3.14));
+  CallAndCheck<double>(3.14, Behavior::kNoException,
+                       ApiCheckerResult::kFastCalled, v8_num(3.14));
+#endif
 
   // Corner cases (the value is out of bounds or of different type) - int32_t
   CallAndCheck<int32_t>(0, Behavior::kNoException,
@@ -28092,6 +28145,102 @@ TEST(FastApiCalls) {
                          Behavior::kNoException, ApiCheckerResult::kSlowCalled,
                          v8_num(static_cast<double>(1ull << 63) * 3 + 4096));
 #endif  // V8_TARGET_ARCH_X64
+
+  // Corner cases - float and double
+#ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+  // Source:
+  // https://en.wikipedia.org/wiki/Single-precision_floating-point_format#Precision_limitations_on_integer_values
+  constexpr float kMaxSafeFloat = 16777215;  // 2^24-1
+  CallAndCheck<float>(std::numeric_limits<float>::min(), Behavior::kNoException,
+                      ApiCheckerResult::kFastCalled,
+                      v8_num(std::numeric_limits<float>::min()));
+  CallAndCheck<float>(-kMaxSafeFloat, Behavior::kNoException,
+                      ApiCheckerResult::kFastCalled, v8_num(-kMaxSafeFloat));
+  CallAndCheck<float>(-0.0f, Behavior::kNoException,
+                      ApiCheckerResult::kFastCalled, v8_num(-0.0));
+  CallAndCheck<float>(0.0f, Behavior::kNoException,
+                      ApiCheckerResult::kFastCalled, v8_num(0.0));
+  CallAndCheck<float>(kMaxSafeFloat, Behavior::kNoException,
+                      ApiCheckerResult::kFastCalled, v8_num(kMaxSafeFloat));
+  CallAndCheck<float>(std::numeric_limits<float>::max(), Behavior::kNoException,
+                      ApiCheckerResult::kFastCalled,
+                      v8_num(std::numeric_limits<float>::max()));
+  CallAndCheck<float>(std::numeric_limits<float>::quiet_NaN(),
+                      Behavior::kNoException, ApiCheckerResult::kFastCalled,
+                      v8_num(std::numeric_limits<float>::quiet_NaN()));
+  CallAndCheck<float>(std::numeric_limits<float>::infinity(),
+                      Behavior::kNoException, ApiCheckerResult::kFastCalled,
+                      v8_num(std::numeric_limits<float>::infinity()));
+  CallAndCheck<float>(std::numeric_limits<float>::quiet_NaN(),
+                      Behavior::kNoException, ApiCheckerResult::kSlowCalled,
+                      v8_str("some_string"));
+  CallAndCheck<float>(std::numeric_limits<float>::quiet_NaN(),
+                      Behavior::kNoException, ApiCheckerResult::kSlowCalled,
+                      CompileRun("new Proxy({}, {});"));
+  CallAndCheck<float>(std::numeric_limits<float>::quiet_NaN(),
+                      Behavior::kNoException, ApiCheckerResult::kSlowCalled,
+                      v8::Object::New(isolate));
+  CallAndCheck<float>(0, Behavior::kNoException, ApiCheckerResult::kSlowCalled,
+                      v8::Array::New(isolate));
+  CallAndCheck<float>(std::numeric_limits<float>::quiet_NaN(),
+                      Behavior::kException, ApiCheckerResult::kSlowCalled,
+                      v8::BigInt::New(isolate, 42));
+  CallAndCheck<float>(-std::numeric_limits<float>::infinity(),
+                      Behavior::kNoException, ApiCheckerResult::kFastCalled,
+                      v8_num(-std::numeric_limits<double>::max()));
+  CallAndCheck<float>(std::numeric_limits<float>::infinity(),
+                      Behavior::kNoException, ApiCheckerResult::kFastCalled,
+                      v8_num(std::numeric_limits<double>::max()));
+  CallAndCheck<float>(kMaxSafeFloat + 1.0f, Behavior::kNoException,
+                      ApiCheckerResult::kFastCalled,
+                      v8_num(static_cast<double>(kMaxSafeFloat) + 2.0));
+
+  CallAndCheck<double>(std::numeric_limits<double>::min(),
+                       Behavior::kNoException, ApiCheckerResult::kFastCalled,
+                       v8_num(std::numeric_limits<double>::min()));
+  CallAndCheck<double>(-i::kMaxSafeInteger, Behavior::kNoException,
+                       ApiCheckerResult::kFastCalled,
+                       v8_num(-i::kMaxSafeInteger));
+  CallAndCheck<double>(std::numeric_limits<float>::min(),
+                       Behavior::kNoException, ApiCheckerResult::kFastCalled,
+                       v8_num(std::numeric_limits<float>::min()));
+  CallAndCheck<double>(-0.0, Behavior::kNoException,
+                       ApiCheckerResult::kFastCalled, v8_num(-0.0));
+  CallAndCheck<double>(0.0, Behavior::kNoException,
+                       ApiCheckerResult::kFastCalled, v8_num(0.0));
+  CallAndCheck<double>(std::numeric_limits<float>::max(),
+                       Behavior::kNoException, ApiCheckerResult::kFastCalled,
+                       v8_num(std::numeric_limits<float>::max()));
+  CallAndCheck<double>(i::kMaxSafeInteger, Behavior::kNoException,
+                       ApiCheckerResult::kFastCalled,
+                       v8_num(i::kMaxSafeInteger));
+  CallAndCheck<double>(i::kMaxSafeInteger + 1, Behavior::kNoException,
+                       ApiCheckerResult::kFastCalled,
+                       v8_num(i::kMaxSafeInteger + 1));
+  CallAndCheck<double>(std::numeric_limits<double>::max(),
+                       Behavior::kNoException, ApiCheckerResult::kFastCalled,
+                       v8_num(std::numeric_limits<double>::max()));
+  CallAndCheck<double>(std::numeric_limits<double>::quiet_NaN(),
+                       Behavior::kNoException, ApiCheckerResult::kFastCalled,
+                       v8_num(std::numeric_limits<double>::quiet_NaN()));
+  CallAndCheck<double>(std::numeric_limits<double>::infinity(),
+                       Behavior::kNoException, ApiCheckerResult::kFastCalled,
+                       v8_num(std::numeric_limits<double>::infinity()));
+  CallAndCheck<double>(std::numeric_limits<double>::quiet_NaN(),
+                       Behavior::kNoException, ApiCheckerResult::kSlowCalled,
+                       v8_str("some_string"));
+  CallAndCheck<double>(std::numeric_limits<double>::quiet_NaN(),
+                       Behavior::kNoException, ApiCheckerResult::kSlowCalled,
+                       CompileRun("new Proxy({}, {});"));
+  CallAndCheck<double>(std::numeric_limits<double>::quiet_NaN(),
+                       Behavior::kNoException, ApiCheckerResult::kSlowCalled,
+                       v8::Object::New(isolate));
+  CallAndCheck<double>(0, Behavior::kNoException, ApiCheckerResult::kSlowCalled,
+                       v8::Array::New(isolate));
+  CallAndCheck<double>(std::numeric_limits<double>::quiet_NaN(),
+                       Behavior::kException, ApiCheckerResult::kSlowCalled,
+                       v8::BigInt::New(isolate, 42));
+#endif
 
   // Corner cases - bool
   CallAndCheck<bool>(false, Behavior::kNoException,
