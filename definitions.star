@@ -3,8 +3,8 @@
 # found in the LICENSE file.
 
 versions = {
-    "beta" : "8.6",
-    "stable" : "8.5",
+    "beta" : "8.7",
+    "stable" : "8.6",
 }
 
 branch_names = [
