@@ -483,28 +483,6 @@ class V8_EXPORT_PRIVATE CpuProfilesCollection {
   DISALLOW_COPY_AND_ASSIGN(CpuProfilesCollection);
 };
 
-class V8_EXPORT_PRIVATE ProfileGenerator {
- public:
-  explicit ProfileGenerator(CpuProfilesCollection* profiles, CodeMap* code_map);
-
-  // Use the CodeMap to turn the raw addresses recorded in the sample into
-  // code/function names. The symbolized stack is added to the relevant
-  // profiles in the CpuProfilesCollection.
-  void SymbolizeTickSample(const TickSample& sample);
-
-  CodeMap* code_map() { return code_map_; }
-
- private:
-  CodeEntry* FindEntry(Address address,
-                       Address* out_instruction_start = nullptr);
-  CodeEntry* EntryForVMState(StateTag tag);
-
-  CpuProfilesCollection* profiles_;
-  CodeMap* const code_map_;
-
-  DISALLOW_COPY_AND_ASSIGN(ProfileGenerator);
-};
-
 }  // namespace internal
 }  // namespace v8
 

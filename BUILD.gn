@@ -3090,6 +3090,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/profiler/sampling-heap-profiler.h",
     "src/profiler/strings-storage.cc",
     "src/profiler/strings-storage.h",
+    "src/profiler/symbolizer.cc",
+    "src/profiler/symbolizer.h",
     "src/profiler/tick-sample.cc",
     "src/profiler/tick-sample.h",
     "src/profiler/tracing-cpu-profiler.cc",
