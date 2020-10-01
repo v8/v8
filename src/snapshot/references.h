@@ -121,7 +121,7 @@ class SerializerReferenceMap {
 
   void Add(HeapObject object, SerializerReference reference) {
     DCHECK_NULL(LookupReference(object));
-    map_.Set(object, reference);
+    map_.Insert(object, reference);
   }
 
   void AddBackingStore(void* backing_store, SerializerReference reference) {
@@ -132,7 +132,7 @@ class SerializerReferenceMap {
   SerializerReference AddAttachedReference(HeapObject object) {
     SerializerReference reference =
         SerializerReference::AttachedReference(attached_reference_index_++);
-    map_.Set(object, reference);
+    map_.Insert(object, reference);
     return reference;
   }
 

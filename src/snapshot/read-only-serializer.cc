@@ -61,7 +61,7 @@ void ReadOnlySerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
     CHECK_NULL(serialized_objects_.Find(obj));
     // There's no "IdentitySet", so use an IdentityMap with a value that is
     // later ignored.
-    serialized_objects_.Set(obj, 0);
+    serialized_objects_.Insert(obj, 0);
   }
 #endif
 }

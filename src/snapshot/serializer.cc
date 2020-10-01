@@ -298,21 +298,16 @@ void Serializer::ResolvePendingForwardReference(int forward_reference_id) {
 void Serializer::RegisterObjectIsPending(Handle<HeapObject> obj) {
   if (*obj == ReadOnlyRoots(isolate()).not_mapped_symbol()) return;
 
-#ifdef DEBUG
-  bool already_exists = forward_refs_per_pending_object_.Find(obj) != nullptr;
-#endif
-
   // Add the given object to the pending objects -> forward refs map.
-  PendingObjectReferences* refs = forward_refs_per_pending_object_.Get(obj);
-
-  DCHECK_EQ(already_exists, *refs != nullptr);
-  USE(refs);
+  auto find_result = forward_refs_per_pending_object_.FindOrInsert(obj);
+  USE(find_result);
 
   // If the above emplace didn't actually add the object, then the object must
   // already have been registered pending by deferring. It might not be in the
   // deferred objects queue though, since it may be the very object we just
   // popped off that queue, so just check that it can be deferred.
-  DCHECK_IMPLIES(already_exists, CanBeDeferred(*obj));
+  DCHECK_IMPLIES(find_result.already_exists, *find_result.entry != nullptr);
+  DCHECK_IMPLIES(find_result.already_exists, CanBeDeferred(*obj));
 }
 
 void Serializer::ResolvePendingObject(Handle<HeapObject> obj) {

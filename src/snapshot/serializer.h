@@ -139,14 +139,12 @@ class ObjectCacheIndexMap {
   // map and return false. In either case set |*index_out| to the index
   // associated with the map.
   bool LookupOrInsert(Handle<HeapObject> obj, int* index_out) {
-    int* maybe_index = map_.Find(obj);
-    if (maybe_index) {
-      *index_out = *maybe_index;
-      return true;
+    auto find_result = map_.FindOrInsert(obj);
+    if (!find_result.already_exists) {
+      *find_result.entry = next_index_++;
     }
-    *index_out = next_index_;
-    map_.Set(obj, next_index_++);
-    return false;
+    *index_out = *find_result.entry;
+    return find_result.already_exists;
   }
 
  private:

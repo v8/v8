@@ -61,19 +61,19 @@ int IdentityMapBase::ScanKeysFor(Address address) const {
   return -1;
 }
 
-int IdentityMapBase::InsertKey(Address address) {
+std::pair<int, bool> IdentityMapBase::InsertKey(Address address) {
   Address not_mapped = ReadOnlyRoots(heap_).not_mapped_symbol().ptr();
   while (true) {
     int start = Hash(address) & mask_;
     int limit = capacity_ / 2;
     // Search up to {limit} entries.
     for (int index = start; --limit > 0; index = (index + 1) & mask_) {
-      if (keys_[index] == address) return index;  // Found.
+      if (keys_[index] == address) return {index, true};  // Found.
       if (keys_[index] == not_mapped) {           // Free entry.
         size_++;
         DCHECK_LE(size_, capacity_);
         keys_[index] = address;
-        return index;
+        return {index, false};
       }
     }
     // Should only have to resize once, since we grow 4x.
@@ -132,16 +132,19 @@ int IdentityMapBase::Lookup(Address key) const {
   return index;
 }
 
-int IdentityMapBase::LookupOrInsert(Address key) {
+std::pair<int, bool> IdentityMapBase::LookupOrInsert(Address key) {
   // Perform an optimistic lookup.
   int index = ScanKeysFor(key);
+  bool already_exists;
   if (index < 0) {
     // Miss; rehash if there was a GC, then insert.
     if (gc_counter_ != heap_->gc_count()) Rehash();
-    index = InsertKey(key);
+    std::tie(index, already_exists) = InsertKey(key);
+  } else {
+    already_exists = true;
   }
   DCHECK_GE(index, 0);
-  return index;
+  return {index, already_exists};
 }
 
 int IdentityMapBase::Hash(Address address) const {
@@ -151,10 +154,35 @@ int IdentityMapBase::Hash(Address address) const {
 
 // Searches this map for the given key using the object's address
 // as the identity, returning:
-//    found => a pointer to the storage location for the value
-//    not found => a pointer to a new storage location for the value
-IdentityMapBase::RawEntry IdentityMapBase::GetEntry(Address key) {
+//    found => a pointer to the storage location for the value, true
+//    not found => a pointer to a new storage location for the value, false
+IdentityMapFindResult<uintptr_t> IdentityMapBase::FindOrInsertEntry(
+    Address key) {
   CHECK(!is_iterable());  // Don't allow insertion while iterable.
+  if (capacity_ == 0) {
+    return {InsertEntry(key), false};
+  }
+  auto lookup_result = LookupOrInsert(key);
+  return {&values_[lookup_result.first], lookup_result.second};
+}
+
+// Searches this map for the given key using the object's address
+// as the identity, returning:
+//    found => a pointer to the storage location for the value
+//    not found => {nullptr}
+IdentityMapBase::RawEntry IdentityMapBase::FindEntry(Address key) const {
+  // Don't allow find by key while iterable (might rehash).
+  CHECK(!is_iterable());
+  if (size_ == 0) return nullptr;
+  int index = Lookup(key);
+  return index >= 0 ? &values_[index] : nullptr;
+}
+
+// Inserts the given key using the object's address as the identity, returning
+// a pointer to the new storage location for the value.
+IdentityMapBase::RawEntry IdentityMapBase::InsertEntry(Address key) {
+  // Don't allow find by key while iterable (might rehash).
+  CHECK(!is_iterable());
   if (capacity_ == 0) {
     // Allocate the initial storage for keys and values.
     capacity_ = kInitialIdentityMapSize;
@@ -169,22 +197,16 @@ IdentityMapBase::RawEntry IdentityMapBase::GetEntry(Address key) {
 
     strong_roots_entry_ = heap_->RegisterStrongRoots(
         FullObjectSlot(keys_), FullObjectSlot(keys_ + capacity_));
+  } else {
+    // Rehash if there was a GC, then insert.
+    if (gc_counter_ != heap_->gc_count()) Rehash();
   }
-  int index = LookupOrInsert(key);
-  return &values_[index];
-}
 
-// Searches this map for the given key using the object's address
-// as the identity, returning:
-//    found => a pointer to the storage location for the value
-//    not found => {nullptr}
-IdentityMapBase::RawEntry IdentityMapBase::FindEntry(Address key) const {
-  // Don't allow find by key while iterable (might rehash).
-  CHECK(!is_iterable());
-  if (size_ == 0) return nullptr;
-  // Remove constness since lookup might have to rehash.
-  int index = Lookup(key);
-  return index >= 0 ? &values_[index] : nullptr;
+  int index;
+  bool already_exists;
+  std::tie(index, already_exists) = InsertKey(key);
+  DCHECK(!already_exists);
+  return &values_[index];
 }
 
 // Deletes the given key from the map using the object's address as the
@@ -254,7 +276,7 @@ void IdentityMapBase::Rehash() {
   }
   // Reinsert all the key/value pairs that were in the wrong place.
   for (auto pair : reinsert) {
-    int index = InsertKey(pair.first);
+    int index = InsertKey(pair.first).first;
     DCHECK_GE(index, 0);
     values_[index] = pair.second;
   }
@@ -281,7 +303,7 @@ void IdentityMapBase::Resize(int new_capacity) {
 
   for (int i = 0; i < old_capacity; i++) {
     if (old_keys[i] == not_mapped) continue;
-    int index = InsertKey(old_keys[i]);
+    int index = InsertKey(old_keys[i]).first;
     DCHECK_GE(index, 0);
     values_[index] = old_values[i];
   }

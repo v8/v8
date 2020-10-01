@@ -18,6 +18,12 @@ namespace internal {
 class Heap;
 class StrongRootsEntry;
 
+template <typename T>
+struct IdentityMapFindResult {
+  T* entry;
+  bool already_exists;
+};
+
 // Base class of identity maps contains shared code for all template
 // instantions.
 class V8_EXPORT_PRIVATE IdentityMapBase {
@@ -46,8 +52,9 @@ class V8_EXPORT_PRIVATE IdentityMapBase {
         is_iterable_(false) {}
   virtual ~IdentityMapBase();
 
-  RawEntry GetEntry(Address key);
+  IdentityMapFindResult<uintptr_t> FindOrInsertEntry(Address key);
   RawEntry FindEntry(Address key) const;
+  RawEntry InsertEntry(Address key);
   bool DeleteEntry(Address key, uintptr_t* deleted_value);
   void Clear();
 
@@ -65,9 +72,9 @@ class V8_EXPORT_PRIVATE IdentityMapBase {
  private:
   // Internal implementation should not be called directly by subclasses.
   int ScanKeysFor(Address address) const;
-  int InsertKey(Address address);
+  std::pair<int, bool> InsertKey(Address address);
   int Lookup(Address key) const;
-  int LookupOrInsert(Address key);
+  std::pair<int, bool> LookupOrInsert(Address key);
   bool DeleteIndex(int index, uintptr_t* deleted_value);
   void Rehash();
   void Resize(int new_capacity);
@@ -107,10 +114,15 @@ class IdentityMap : public IdentityMapBase {
 
   // Searches this map for the given key using the object's address
   // as the identity, returning:
-  //    found => a pointer to the storage location for the value
-  //    not found => a pointer to a new storage location for the value
-  V* Get(Handle<Object> key) { return Get(*key); }
-  V* Get(Object key) { return reinterpret_cast<V*>(GetEntry(key.ptr())); }
+  //    found => a pointer to the storage location for the value, true
+  //    not found => a pointer to a new storage location for the value, false
+  IdentityMapFindResult<V> FindOrInsert(Handle<Object> key) {
+    return FindOrInsert(*key);
+  }
+  IdentityMapFindResult<V> FindOrInsert(Object key) {
+    auto raw = FindOrInsertEntry(key.ptr());
+    return {reinterpret_cast<V*>(raw.entry), raw.already_exists};
+  }
 
   // Searches this map for the given key using the object's address
   // as the identity, returning:
@@ -121,10 +133,11 @@ class IdentityMap : public IdentityMapBase {
     return reinterpret_cast<V*>(FindEntry(key.ptr()));
   }
 
-  // Set the value for the given key.
-  void Set(Handle<Object> key, V v) { Set(*key, v); }
-  void Set(Object key, V v) {
-    *(reinterpret_cast<V*>(GetEntry(key.ptr()))) = v;
+  // Insert the value for the given key. The key must not have previously
+  // existed.
+  void Insert(Handle<Object> key, V v) { Insert(*key, v); }
+  void Insert(Object key, V v) {
+    *reinterpret_cast<V*>(InsertEntry(key.ptr())) = v;
   }
 
   bool Delete(Handle<Object> key, V* deleted_value) {
