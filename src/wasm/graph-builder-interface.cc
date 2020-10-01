@@ -78,7 +78,7 @@ class WasmGraphBuildingInterface {
   using FullDecoder = WasmFullDecoder<validate, WasmGraphBuildingInterface>;
   using CheckForNull = compiler::WasmGraphBuilder::CheckForNull;
 
-  struct Value : public ValueBase {
+  struct Value : public ValueBase<validate> {
     TFNode* node = nullptr;
 
     template <typename... Args>
@@ -97,7 +97,7 @@ class WasmGraphBuildingInterface {
     explicit TryInfo(SsaEnv* c) : catch_env(c) {}
   };
 
-  struct Control : public ControlBase<Value> {
+  struct Control : public ControlBase<Value, validate> {
     SsaEnv* end_env = nullptr;    // end environment for the construct.
     SsaEnv* false_env = nullptr;  // false environment (only for if).
     TryInfo* try_info = nullptr;  // information about try statements.
