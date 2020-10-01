@@ -213,15 +213,6 @@ T ArithmeticShiftRight(T a, int shift) {
 }
 
 template <typename T>
-T Clamp(int64_t value) {
-  static_assert(sizeof(int64_t) > sizeof(T), "T must be int32_t or smaller");
-  int64_t min = static_cast<int64_t>(std::numeric_limits<T>::min());
-  int64_t max = static_cast<int64_t>(std::numeric_limits<T>::max());
-  int64_t clamped = std::max(min, std::min(max, value));
-  return static_cast<T>(clamped);
-}
-
-template <typename T>
 int64_t Widen(T value) {
   static_assert(sizeof(int64_t) > sizeof(T), "T must be int32_t or smaller");
   return static_cast<int64_t>(value);
@@ -236,29 +227,29 @@ int64_t UnsignedWiden(T value) {
 
 template <typename T>
 T Narrow(int64_t value) {
-  return Clamp<T>(value);
+  return Saturate<T>(value);
 }
 
 template <typename T>
 T AddSaturate(T a, T b) {
-  return Clamp<T>(Widen(a) + Widen(b));
+  return Saturate<T>(Widen(a) + Widen(b));
 }
 
 template <typename T>
 T SubSaturate(T a, T b) {
-  return Clamp<T>(Widen(a) - Widen(b));
+  return Saturate<T>(Widen(a) - Widen(b));
 }
 
 template <typename T>
 T UnsignedAddSaturate(T a, T b) {
   using UnsignedT = typename std::make_unsigned<T>::type;
-  return Clamp<UnsignedT>(UnsignedWiden(a) + UnsignedWiden(b));
+  return Saturate<UnsignedT>(UnsignedWiden(a) + UnsignedWiden(b));
 }
 
 template <typename T>
 T UnsignedSubSaturate(T a, T b) {
   using UnsignedT = typename std::make_unsigned<T>::type;
-  return Clamp<UnsignedT>(UnsignedWiden(a) - UnsignedWiden(b));
+  return Saturate<UnsignedT>(UnsignedWiden(a) - UnsignedWiden(b));
 }
 
 template <typename T>
@@ -2258,6 +2249,15 @@ WASM_SIMD_TEST(I16x8RoundingAverageU) {
                               kExprI16x8RoundingAverageU,
                               base::RoundingAverageUnsigned);
 }
+
+// TODO(v8:10971) Prototype i16x8.q15mulr_sat_s
+#if V8_TARGET_ARCH_ARM64
+WASM_SIMD_TEST_NO_LOWERING(I16x8Q15MulRSatS) {
+  FLAG_SCOPE(wasm_simd_post_mvp);
+  RunI16x8BinOpTest<int16_t>(execution_tier, lower_simd, kExprI16x8Q15MulRSatS,
+                             SaturateRoundingQMul<int16_t>);
+}
+#endif  // V8_TARGET_ARCH_ARM64
 
 // TODO(v8:10583) Prototype i32x4.dot_i16x8_s
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 || \

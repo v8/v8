@@ -464,6 +464,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
 
 #define FOREACH_SIMD_POST_MVP_OPCODE(V) \
   V(I8x16Mul, 0xfd75, s_ss)             \
+  V(I16x8Q15MulRSatS, 0xfd9c, s_ss)     \
   V(V64x2AnyTrue, 0xfdc2, i_s)          \
   V(V64x2AllTrue, 0xfdc3, i_s)          \
   V(I64x2Eq, 0xfdc0, s_ss)              \

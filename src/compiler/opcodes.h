@@ -906,6 +906,7 @@
   V(I16x8GtU)                   \
   V(I16x8GeU)                   \
   V(I16x8RoundingAverageU)      \
+  V(I16x8Q15MulRSatS)           \
   V(I16x8Abs)                   \
   V(I16x8BitMask)               \
   V(I8x16Splat)                 \

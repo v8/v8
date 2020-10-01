@@ -262,6 +262,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64I16x8GtU:
     case kArm64I16x8GeU:
     case kArm64I16x8RoundingAverageU:
+    case kArm64I16x8Q15MulRSatS:
     case kArm64I16x8Abs:
     case kArm64I16x8BitMask:
     case kArm64I8x16Splat:

@@ -2222,6 +2222,8 @@ class WasmInterpreterInternals {
       BINOP_CASE(I16x8SubSaturateU, i16x8, int8, 8, SaturateSub<uint16_t>(a, b))
       BINOP_CASE(I16x8RoundingAverageU, i16x8, int8, 8,
                  base::RoundingAverageUnsigned<uint16_t>(a, b))
+      BINOP_CASE(I16x8Q15MulRSatS, i16x8, int8, 8,
+                 SaturateRoundingQMul<int16_t>(a, b))
       BINOP_CASE(I8x16Add, i8x16, int16, 16, base::AddWithWraparound(a, b))
       BINOP_CASE(I8x16Sub, i8x16, int16, 16, base::SubWithWraparound(a, b))
       BINOP_CASE(I8x16Mul, i8x16, int16, 16, base::MulWithWraparound(a, b))

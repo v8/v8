@@ -449,6 +449,7 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(I16x8GtU, Operator::kNoProperties, 2, 0, 1)                            \
   V(I16x8GeU, Operator::kNoProperties, 2, 0, 1)                            \
   V(I16x8RoundingAverageU, Operator::kCommutative, 2, 0, 1)                \
+  V(I16x8Q15MulRSatS, Operator::kCommutative, 2, 0, 1)                     \
   V(I16x8Abs, Operator::kNoProperties, 1, 0, 1)                            \
   V(I16x8BitMask, Operator::kNoProperties, 1, 0, 1)                        \
   V(I8x16Splat, Operator::kNoProperties, 1, 0, 1)                          \

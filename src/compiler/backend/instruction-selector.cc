@@ -2140,6 +2140,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI16x8GeU(node);
     case IrOpcode::kI16x8RoundingAverageU:
       return MarkAsSimd128(node), VisitI16x8RoundingAverageU(node);
+    case IrOpcode::kI16x8Q15MulRSatS:
+      return MarkAsSimd128(node), VisitI16x8Q15MulRSatS(node);
     case IrOpcode::kI16x8Abs:
       return MarkAsSimd128(node), VisitI16x8Abs(node);
     case IrOpcode::kI16x8BitMask:
@@ -2693,6 +2695,11 @@ void InstructionSelector::VisitI64x2MaxU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI32x4DotI16x8S(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64
         // && !V8_TARGET_ARCH_ARM
+
+// TODO(v8:10971) Prototype i16x8.q15mulr_sat_s
+#if !V8_TARGET_ARCH_ARM64
+void InstructionSelector::VisitI16x8Q15MulRSatS(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_ARM64
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 

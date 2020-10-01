@@ -292,6 +292,7 @@ namespace compiler {
   V(Arm64I16x8GtU)                          \
   V(Arm64I16x8GeU)                          \
   V(Arm64I16x8RoundingAverageU)             \
+  V(Arm64I16x8Q15MulRSatS)                  \
   V(Arm64I16x8Abs)                          \
   V(Arm64I16x8BitMask)                      \
   V(Arm64I8x16Splat)                        \
