@@ -942,6 +942,10 @@ config("toolchain") {
       # GCC assumes that control can get past an exhaustive switch and then
       # warns if there's no return there (see https://crbug.com/v8/7658).
       "-Wno-return-type",
+
+      # Disable gcc warnings for using enum constant in boolean context.
+      # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=97266
+      "-Wno-int-in-bool-context",
     ]
   }
 
