@@ -357,6 +357,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ObjectEntries)                            \
   V(ObjectEntriesSkipFastPath)                \
   V(ObjectHasOwnProperty)                     \
+  V(ObjectKeys)                               \
   V(ObjectValues)                             \
   V(ObjectValuesSkipFastPath)                 \
   V(ObjectGetOwnPropertyNames)                \
@@ -547,6 +548,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kObjectIsExtensible:
     case Builtins::kObjectIsFrozen:
     case Builtins::kObjectIsSealed:
+    case Builtins::kObjectKeys:
     case Builtins::kObjectPrototypeValueOf:
     case Builtins::kObjectValues:
     case Builtins::kObjectPrototypeHasOwnProperty:
