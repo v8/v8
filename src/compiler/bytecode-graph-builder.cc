@@ -1059,17 +1059,9 @@ void BytecodeGraphBuilder::CreateFeedbackCellNode() {
 Node* BytecodeGraphBuilder::BuildLoadFeedbackCell() {
   DCHECK(native_context_independent());
   DCHECK_NULL(feedback_cell_node_);
-
-  Environment* env = environment();
-  Node* control = env->GetControlDependency();
-  Node* effect = env->GetEffectDependency();
-
-  Node* feedback_cell = effect = graph()->NewNode(
+  return NewNode(
       simplified()->LoadField(AccessBuilder::ForJSFunctionFeedbackCell()),
-      GetFunctionClosure(), effect, control);
-
-  env->UpdateEffectDependency(effect);
-  return feedback_cell;
+      GetFunctionClosure());
 }
 
 void BytecodeGraphBuilder::CreateFeedbackVectorNode() {
@@ -1086,38 +1078,22 @@ Node* BytecodeGraphBuilder::BuildLoadFeedbackVector() {
   // The feedback vector must exist and remain live while the generated code
   // lives. Specifically that means it must be created when NCI code is
   // installed, and must not be flushed.
-
-  Environment* env = environment();
-  Node* control = env->GetControlDependency();
-  Node* effect = env->GetEffectDependency();
-
-  Node* vector = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForFeedbackCellValue()),
-      feedback_cell_node(), effect, control);
-
-  env->UpdateEffectDependency(effect);
-  return vector;
+  return NewNode(simplified()->LoadField(AccessBuilder::ForFeedbackCellValue()),
+                 feedback_cell_node());
 }
 
 Node* BytecodeGraphBuilder::BuildLoadFeedbackCell(int index) {
   if (native_context_independent()) {
-    Environment* env = environment();
-    Node* control = env->GetControlDependency();
-    Node* effect = env->GetEffectDependency();
-
     // TODO(jgruber,v8:8888): Assumes that the feedback vector has been
     // allocated.
-    Node* closure_feedback_cell_array = effect = graph()->NewNode(
-        simplified()->LoadField(
-            AccessBuilder::ForFeedbackVectorClosureFeedbackCellArray()),
-        feedback_vector_node(), effect, control);
+    Node* closure_feedback_cell_array =
+        NewNode(simplified()->LoadField(
+                    AccessBuilder::ForFeedbackVectorClosureFeedbackCellArray()),
+                feedback_vector_node());
 
-    Node* feedback_cell = effect = graph()->NewNode(
+    return NewNode(
         simplified()->LoadField(AccessBuilder::ForFixedArraySlot(index)),
-        closure_feedback_cell_array, effect, control);
-
-    env->UpdateEffectDependency(effect);
-    return feedback_cell;
+        closure_feedback_cell_array);
   } else {
     return jsgraph()->Constant(feedback_vector().GetClosureFeedbackCell(index));
   }
@@ -1133,56 +1109,30 @@ void BytecodeGraphBuilder::CreateNativeContextNode() {
 Node* BytecodeGraphBuilder::BuildLoadNativeContext() {
   DCHECK(native_context_independent());
   DCHECK_NULL(native_context_node_);
-
-  Environment* env = environment();
-  Node* control = env->GetControlDependency();
-  Node* effect = env->GetEffectDependency();
-  Node* context = env->Context();
-
-  Node* context_map = effect =
-      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                       context, effect, control);
-  Node* native_context = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForMapNativeContext()),
-      context_map, effect, control);
-
-  env->UpdateEffectDependency(effect);
-  return native_context;
+  Node* context_map = NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                              environment()->Context());
+  return NewNode(simplified()->LoadField(AccessBuilder::ForMapNativeContext()),
+                 context_map);
 }
 
 void BytecodeGraphBuilder::MaybeBuildTierUpCheck() {
   if (!CodeKindChecksOptimizationMarker(code_kind())) return;
-
-  Environment* env = environment();
-  Node* control = env->GetControlDependency();
-  Node* effect = env->GetEffectDependency();
-
-  effect = graph()->NewNode(simplified()->TierUpCheck(), feedback_vector_node(),
-                            effect, control);
-
-  env->UpdateEffectDependency(effect);
+  NewNode(simplified()->TierUpCheck(), feedback_vector_node());
 }
 
 void BytecodeGraphBuilder::MaybeBuildIncrementInvocationCount() {
   if (!generate_full_feedback_collection()) return;
 
-  Environment* env = environment();
-  Node* control = env->GetControlDependency();
-  Node* effect = env->GetEffectDependency();
-
-  Node* current_invocation_count = effect =
-      graph()->NewNode(simplified()->LoadField(
-                           AccessBuilder::ForFeedbackVectorInvocationCount()),
-                       feedback_vector_node(), effect, control);
+  Node* current_invocation_count =
+      NewNode(simplified()->LoadField(
+                  AccessBuilder::ForFeedbackVectorInvocationCount()),
+              feedback_vector_node());
   Node* next_invocation_count =
-      graph()->NewNode(simplified()->NumberAdd(), current_invocation_count,
-                       jsgraph()->SmiConstant(1));
-  effect = graph()->NewNode(
-      simplified()->StoreField(
-          AccessBuilder::ForFeedbackVectorInvocationCount()),
-      feedback_vector_node(), next_invocation_count, effect, control);
-
-  env->UpdateEffectDependency(effect);
+      NewNode(simplified()->NumberAdd(), current_invocation_count,
+              jsgraph()->SmiConstant(1));
+  NewNode(simplified()->StoreField(
+              AccessBuilder::ForFeedbackVectorInvocationCount()),
+          feedback_vector_node(), next_invocation_count);
 }
 
 Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
@@ -3671,10 +3621,7 @@ void BytecodeGraphBuilder::VisitForInNext() {
 
   // We need to rename the {index} here, as in case of OSR we loose the
   // information that the {index} is always a valid unsigned Smi value.
-  index = graph()->NewNode(common()->TypeGuard(Type::UnsignedSmall()), index,
-                           environment()->GetEffectDependency(),
-                           environment()->GetControlDependency());
-  environment()->UpdateEffectDependency(index);
+  index = NewNode(common()->TypeGuard(Type::UnsignedSmall()), index);
 
   FeedbackSlot slot = bytecode_iterator().GetSlotOperand(3);
   JSTypeHintLowering::LoweringResult lowering = TryBuildSimplifiedForInNext(
