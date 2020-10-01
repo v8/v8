@@ -470,7 +470,7 @@ class WasmGraphBuilder {
   // partially out-of-bounds, traps if it is completely out-of-bounds.
   Node* BoundsCheckMemRange(Node** start, Node** size, wasm::WasmCodePosition);
 
-  Node* CheckBoundsAndAlignment(uint8_t access_size, Node* index,
+  Node* CheckBoundsAndAlignment(int8_t access_size, Node* index,
                                 uint32_t offset, wasm::WasmCodePosition);
 
   Node* Uint32ToUintptr(Node*);

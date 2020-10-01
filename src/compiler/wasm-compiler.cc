@@ -3630,7 +3630,7 @@ Node* WasmGraphBuilder::TableSet(uint32_t table_index, Node* index, Node* val,
 }
 
 Node* WasmGraphBuilder::CheckBoundsAndAlignment(
-    uint8_t access_size, Node* index, uint32_t offset,
+    int8_t access_size, Node* index, uint32_t offset,
     wasm::WasmCodePosition position) {
   // Atomic operations need bounds checks until the backend can emit protected
   // loads.
@@ -5019,158 +5019,173 @@ Node* WasmGraphBuilder::Simd8x16ShuffleOp(const uint8_t shuffle[16],
                           inputs[0], inputs[1]);
 }
 
-#define ATOMIC_BINOP_LIST(V)                        \
-  V(I32AtomicAdd, Add, Uint32, Word32)              \
-  V(I64AtomicAdd, Add, Uint64, Word64)              \
-  V(I32AtomicAdd8U, Add, Uint8, Word32)             \
-  V(I32AtomicAdd16U, Add, Uint16, Word32)           \
-  V(I64AtomicAdd8U, Add, Uint8, Word64)             \
-  V(I64AtomicAdd16U, Add, Uint16, Word64)           \
-  V(I64AtomicAdd32U, Add, Uint32, Word64)           \
-  V(I32AtomicSub, Sub, Uint32, Word32)              \
-  V(I64AtomicSub, Sub, Uint64, Word64)              \
-  V(I32AtomicSub8U, Sub, Uint8, Word32)             \
-  V(I32AtomicSub16U, Sub, Uint16, Word32)           \
-  V(I64AtomicSub8U, Sub, Uint8, Word64)             \
-  V(I64AtomicSub16U, Sub, Uint16, Word64)           \
-  V(I64AtomicSub32U, Sub, Uint32, Word64)           \
-  V(I32AtomicAnd, And, Uint32, Word32)              \
-  V(I64AtomicAnd, And, Uint64, Word64)              \
-  V(I32AtomicAnd8U, And, Uint8, Word32)             \
-  V(I64AtomicAnd16U, And, Uint16, Word64)           \
-  V(I32AtomicAnd16U, And, Uint16, Word32)           \
-  V(I64AtomicAnd8U, And, Uint8, Word64)             \
-  V(I64AtomicAnd32U, And, Uint32, Word64)           \
-  V(I32AtomicOr, Or, Uint32, Word32)                \
-  V(I64AtomicOr, Or, Uint64, Word64)                \
-  V(I32AtomicOr8U, Or, Uint8, Word32)               \
-  V(I32AtomicOr16U, Or, Uint16, Word32)             \
-  V(I64AtomicOr8U, Or, Uint8, Word64)               \
-  V(I64AtomicOr16U, Or, Uint16, Word64)             \
-  V(I64AtomicOr32U, Or, Uint32, Word64)             \
-  V(I32AtomicXor, Xor, Uint32, Word32)              \
-  V(I64AtomicXor, Xor, Uint64, Word64)              \
-  V(I32AtomicXor8U, Xor, Uint8, Word32)             \
-  V(I32AtomicXor16U, Xor, Uint16, Word32)           \
-  V(I64AtomicXor8U, Xor, Uint8, Word64)             \
-  V(I64AtomicXor16U, Xor, Uint16, Word64)           \
-  V(I64AtomicXor32U, Xor, Uint32, Word64)           \
-  V(I32AtomicExchange, Exchange, Uint32, Word32)    \
-  V(I64AtomicExchange, Exchange, Uint64, Word64)    \
-  V(I32AtomicExchange8U, Exchange, Uint8, Word32)   \
-  V(I32AtomicExchange16U, Exchange, Uint16, Word32) \
-  V(I64AtomicExchange8U, Exchange, Uint8, Word64)   \
-  V(I64AtomicExchange16U, Exchange, Uint16, Word64) \
-  V(I64AtomicExchange32U, Exchange, Uint32, Word64)
-
-#define ATOMIC_CMP_EXCHG_LIST(V)                 \
-  V(I32AtomicCompareExchange, Uint32, Word32)    \
-  V(I64AtomicCompareExchange, Uint64, Word64)    \
-  V(I32AtomicCompareExchange8U, Uint8, Word32)   \
-  V(I32AtomicCompareExchange16U, Uint16, Word32) \
-  V(I64AtomicCompareExchange8U, Uint8, Word64)   \
-  V(I64AtomicCompareExchange16U, Uint16, Word64) \
-  V(I64AtomicCompareExchange32U, Uint32, Word64)
-
-#define ATOMIC_LOAD_LIST(V)           \
-  V(I32AtomicLoad, Uint32, Word32)    \
-  V(I64AtomicLoad, Uint64, Word64)    \
-  V(I32AtomicLoad8U, Uint8, Word32)   \
-  V(I32AtomicLoad16U, Uint16, Word32) \
-  V(I64AtomicLoad8U, Uint8, Word64)   \
-  V(I64AtomicLoad16U, Uint16, Word64) \
-  V(I64AtomicLoad32U, Uint32, Word64)
-
-#define ATOMIC_STORE_LIST(V)                    \
-  V(I32AtomicStore, Uint32, kWord32, Word32)    \
-  V(I64AtomicStore, Uint64, kWord64, Word64)    \
-  V(I32AtomicStore8U, Uint8, kWord8, Word32)    \
-  V(I32AtomicStore16U, Uint16, kWord16, Word32) \
-  V(I64AtomicStore8U, Uint8, kWord8, Word64)    \
-  V(I64AtomicStore16U, Uint16, kWord16, Word64) \
-  V(I64AtomicStore32U, Uint32, kWord32, Word64)
-
 Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
                                  uint32_t alignment, uint32_t offset,
                                  wasm::WasmCodePosition position) {
-  Node* node;
+  struct AtomicOpInfo {
+    enum Type : int8_t {
+      kNoInput = 0,
+      kOneInput = 1,
+      kTwoInputs = 2,
+      kSpecial
+    };
+
+    using OperatorByType =
+        const Operator* (MachineOperatorBuilder::*)(MachineType);
+    using OperatorByRep =
+        const Operator* (MachineOperatorBuilder::*)(MachineRepresentation);
+
+    const Type type;
+    const MachineType machine_type;
+    const OperatorByType operator_by_type = nullptr;
+    const OperatorByRep operator_by_rep = nullptr;
+
+    constexpr AtomicOpInfo(Type t, MachineType m, OperatorByType o)
+        : type(t), machine_type(m), operator_by_type(o) {}
+    constexpr AtomicOpInfo(Type t, MachineType m, OperatorByRep o)
+        : type(t), machine_type(m), operator_by_rep(o) {}
+
+    // Constexpr, hence just a table lookup in most compilers.
+    static constexpr AtomicOpInfo Get(wasm::WasmOpcode opcode) {
+      switch (opcode) {
+#define CASE(Name, Type, MachType, Op) \
+  case wasm::kExpr##Name:              \
+    return {Type, MachineType::MachType(), &MachineOperatorBuilder::Op};
+
+        // Binops.
+        CASE(I32AtomicAdd, kOneInput, Uint32, Word32AtomicAdd)
+        CASE(I64AtomicAdd, kOneInput, Uint64, Word64AtomicAdd)
+        CASE(I32AtomicAdd8U, kOneInput, Uint8, Word32AtomicAdd)
+        CASE(I32AtomicAdd16U, kOneInput, Uint16, Word32AtomicAdd)
+        CASE(I64AtomicAdd8U, kOneInput, Uint8, Word64AtomicAdd)
+        CASE(I64AtomicAdd16U, kOneInput, Uint16, Word64AtomicAdd)
+        CASE(I64AtomicAdd32U, kOneInput, Uint32, Word64AtomicAdd)
+        CASE(I32AtomicSub, kOneInput, Uint32, Word32AtomicSub)
+        CASE(I64AtomicSub, kOneInput, Uint64, Word64AtomicSub)
+        CASE(I32AtomicSub8U, kOneInput, Uint8, Word32AtomicSub)
+        CASE(I32AtomicSub16U, kOneInput, Uint16, Word32AtomicSub)
+        CASE(I64AtomicSub8U, kOneInput, Uint8, Word64AtomicSub)
+        CASE(I64AtomicSub16U, kOneInput, Uint16, Word64AtomicSub)
+        CASE(I64AtomicSub32U, kOneInput, Uint32, Word64AtomicSub)
+        CASE(I32AtomicAnd, kOneInput, Uint32, Word32AtomicAnd)
+        CASE(I64AtomicAnd, kOneInput, Uint64, Word64AtomicAnd)
+        CASE(I32AtomicAnd8U, kOneInput, Uint8, Word32AtomicAnd)
+        CASE(I32AtomicAnd16U, kOneInput, Uint16, Word32AtomicAnd)
+        CASE(I64AtomicAnd8U, kOneInput, Uint8, Word64AtomicAnd)
+        CASE(I64AtomicAnd16U, kOneInput, Uint16, Word64AtomicAnd)
+        CASE(I64AtomicAnd32U, kOneInput, Uint32, Word64AtomicAnd)
+        CASE(I32AtomicOr, kOneInput, Uint32, Word32AtomicOr)
+        CASE(I64AtomicOr, kOneInput, Uint64, Word64AtomicOr)
+        CASE(I32AtomicOr8U, kOneInput, Uint8, Word32AtomicOr)
+        CASE(I32AtomicOr16U, kOneInput, Uint16, Word32AtomicOr)
+        CASE(I64AtomicOr8U, kOneInput, Uint8, Word64AtomicOr)
+        CASE(I64AtomicOr16U, kOneInput, Uint16, Word64AtomicOr)
+        CASE(I64AtomicOr32U, kOneInput, Uint32, Word64AtomicOr)
+        CASE(I32AtomicXor, kOneInput, Uint32, Word32AtomicXor)
+        CASE(I64AtomicXor, kOneInput, Uint64, Word64AtomicXor)
+        CASE(I32AtomicXor8U, kOneInput, Uint8, Word32AtomicXor)
+        CASE(I32AtomicXor16U, kOneInput, Uint16, Word32AtomicXor)
+        CASE(I64AtomicXor8U, kOneInput, Uint8, Word64AtomicXor)
+        CASE(I64AtomicXor16U, kOneInput, Uint16, Word64AtomicXor)
+        CASE(I64AtomicXor32U, kOneInput, Uint32, Word64AtomicXor)
+        CASE(I32AtomicExchange, kOneInput, Uint32, Word32AtomicExchange)
+        CASE(I64AtomicExchange, kOneInput, Uint64, Word64AtomicExchange)
+        CASE(I32AtomicExchange8U, kOneInput, Uint8, Word32AtomicExchange)
+        CASE(I32AtomicExchange16U, kOneInput, Uint16, Word32AtomicExchange)
+        CASE(I64AtomicExchange8U, kOneInput, Uint8, Word64AtomicExchange)
+        CASE(I64AtomicExchange16U, kOneInput, Uint16, Word64AtomicExchange)
+        CASE(I64AtomicExchange32U, kOneInput, Uint32, Word64AtomicExchange)
+
+        // Compare-exchange.
+        CASE(I32AtomicCompareExchange, kTwoInputs, Uint32,
+             Word32AtomicCompareExchange)
+        CASE(I64AtomicCompareExchange, kTwoInputs, Uint64,
+             Word64AtomicCompareExchange)
+        CASE(I32AtomicCompareExchange8U, kTwoInputs, Uint8,
+             Word32AtomicCompareExchange)
+        CASE(I32AtomicCompareExchange16U, kTwoInputs, Uint16,
+             Word32AtomicCompareExchange)
+        CASE(I64AtomicCompareExchange8U, kTwoInputs, Uint8,
+             Word64AtomicCompareExchange)
+        CASE(I64AtomicCompareExchange16U, kTwoInputs, Uint16,
+             Word64AtomicCompareExchange)
+        CASE(I64AtomicCompareExchange32U, kTwoInputs, Uint32,
+             Word64AtomicCompareExchange)
+
+        // Load.
+        CASE(I32AtomicLoad, kNoInput, Uint32, Word32AtomicLoad)
+        CASE(I64AtomicLoad, kNoInput, Uint64, Word64AtomicLoad)
+        CASE(I32AtomicLoad8U, kNoInput, Uint8, Word32AtomicLoad)
+        CASE(I32AtomicLoad16U, kNoInput, Uint16, Word32AtomicLoad)
+        CASE(I64AtomicLoad8U, kNoInput, Uint8, Word64AtomicLoad)
+        CASE(I64AtomicLoad16U, kNoInput, Uint16, Word64AtomicLoad)
+        CASE(I64AtomicLoad32U, kNoInput, Uint32, Word64AtomicLoad)
+
+        // Store.
+        CASE(I32AtomicStore, kOneInput, Uint32, Word32AtomicStore)
+        CASE(I64AtomicStore, kOneInput, Uint64, Word64AtomicStore)
+        CASE(I32AtomicStore8U, kOneInput, Uint8, Word32AtomicStore)
+        CASE(I32AtomicStore16U, kOneInput, Uint16, Word32AtomicStore)
+        CASE(I64AtomicStore8U, kOneInput, Uint8, Word64AtomicStore)
+        CASE(I64AtomicStore16U, kOneInput, Uint16, Word64AtomicStore)
+        CASE(I64AtomicStore32U, kOneInput, Uint32, Word64AtomicStore)
+
+#undef CASE
+
+        case wasm::kExprAtomicNotify:
+          return {kSpecial, MachineType::Int32(), OperatorByType{nullptr}};
+        case wasm::kExprI32AtomicWait:
+          return {kSpecial, MachineType::Int32(), OperatorByType{nullptr}};
+        case wasm::kExprI64AtomicWait:
+          return {kSpecial, MachineType::Int64(), OperatorByType{nullptr}};
+        default:
+#if V8_HAS_CXX14_CONSTEXPR
+          UNREACHABLE();
+#else
+          // Return something for older GCC.
+          return {kSpecial, MachineType::Int64(), OperatorByType{nullptr}};
+#endif
+      }
+    }
+  };
+
+  AtomicOpInfo info = AtomicOpInfo::Get(opcode);
+
+  Node* index = CheckBoundsAndAlignment(info.machine_type.MemSize(), inputs[0],
+                                        offset, position);
+
+  if (info.type != AtomicOpInfo::kSpecial) {
+    const Operator* op =
+        info.operator_by_type
+            ? (mcgraph()->machine()->*info.operator_by_type)(info.machine_type)
+            : (mcgraph()->machine()->*info.operator_by_rep)(
+                  info.machine_type.representation());
+
+    Node* input_nodes[6] = {MemBuffer(offset), index};
+    int num_actual_inputs = info.type;
+    std::copy_n(inputs + 1, num_actual_inputs, input_nodes + 2);
+    input_nodes[num_actual_inputs + 2] = effect();
+    input_nodes[num_actual_inputs + 3] = control();
+    return gasm_->AddNode(
+        graph()->NewNode(op, num_actual_inputs + 4, input_nodes));
+  }
+
+  // After we've bounds-checked, compute the effective address.
+  Node* address = graph()->NewNode(mcgraph()->machine()->Int32Add(),
+                                   Uint32Constant(offset), index);
+
   switch (opcode) {
-#define BUILD_ATOMIC_BINOP(Name, Operation, Type, Prefix)                     \
-  case wasm::kExpr##Name: {                                                   \
-    Node* index = CheckBoundsAndAlignment(MachineType::Type().MemSize(),      \
-                                          inputs[0], offset, position);       \
-    node = graph()->NewNode(                                                  \
-        mcgraph()->machine()->Prefix##Atomic##Operation(MachineType::Type()), \
-        MemBuffer(offset), index, inputs[1], effect(), control());            \
-    break;                                                                    \
-  }
-    ATOMIC_BINOP_LIST(BUILD_ATOMIC_BINOP)
-#undef BUILD_ATOMIC_BINOP
-
-#define BUILD_ATOMIC_CMP_EXCHG(Name, Type, Prefix)                            \
-  case wasm::kExpr##Name: {                                                   \
-    Node* index = CheckBoundsAndAlignment(MachineType::Type().MemSize(),      \
-                                          inputs[0], offset, position);       \
-    node = graph()->NewNode(                                                  \
-        mcgraph()->machine()->Prefix##AtomicCompareExchange(                  \
-            MachineType::Type()),                                             \
-        MemBuffer(offset), index, inputs[1], inputs[2], effect(), control()); \
-    break;                                                                    \
-  }
-    ATOMIC_CMP_EXCHG_LIST(BUILD_ATOMIC_CMP_EXCHG)
-#undef BUILD_ATOMIC_CMP_EXCHG
-
-#define BUILD_ATOMIC_LOAD_OP(Name, Type, Prefix)                         \
-  case wasm::kExpr##Name: {                                              \
-    Node* index = CheckBoundsAndAlignment(MachineType::Type().MemSize(), \
-                                          inputs[0], offset, position);  \
-    node = graph()->NewNode(                                             \
-        mcgraph()->machine()->Prefix##AtomicLoad(MachineType::Type()),   \
-        MemBuffer(offset), index, effect(), control());                  \
-    break;                                                               \
-  }
-    ATOMIC_LOAD_LIST(BUILD_ATOMIC_LOAD_OP)
-#undef BUILD_ATOMIC_LOAD_OP
-
-#define BUILD_ATOMIC_STORE_OP(Name, Type, Rep, Prefix)                         \
-  case wasm::kExpr##Name: {                                                    \
-    Node* index = CheckBoundsAndAlignment(MachineType::Type().MemSize(),       \
-                                          inputs[0], offset, position);        \
-    node = graph()->NewNode(                                                   \
-        mcgraph()->machine()->Prefix##AtomicStore(MachineRepresentation::Rep), \
-        MemBuffer(offset), index, inputs[1], effect(), control());             \
-    break;                                                                     \
-  }
-    ATOMIC_STORE_LIST(BUILD_ATOMIC_STORE_OP)
-#undef BUILD_ATOMIC_STORE_OP
     case wasm::kExprAtomicNotify: {
-      Node* index = CheckBoundsAndAlignment(MachineType::Uint32().MemSize(),
-                                            inputs[0], offset, position);
-      // Now that we've bounds-checked, compute the effective address.
-      Node* address = graph()->NewNode(mcgraph()->machine()->Int32Add(),
-                                       Uint32Constant(offset), index);
-      WasmAtomicNotifyDescriptor interface_descriptor;
-      auto call_descriptor = Linkage::GetStubCallDescriptor(
-          mcgraph()->zone(), interface_descriptor,
-          interface_descriptor.GetStackParameterCount(),
-          CallDescriptor::kNoFlags, Operator::kNoProperties,
-          StubCallMode::kCallWasmRuntimeStub);
+      auto* call_descriptor =
+          GetBuiltinCallDescriptor<WasmAtomicNotifyDescriptor>(
+              this, StubCallMode::kCallWasmRuntimeStub);
       Node* call_target = mcgraph()->RelocatableIntPtrConstant(
           wasm::WasmCode::kWasmAtomicNotify, RelocInfo::WASM_STUB_CALL);
-      node = graph()->NewNode(mcgraph()->common()->Call(call_descriptor),
-                              call_target, address, inputs[1], effect(),
-                              control());
-      break;
+      return gasm_->Call(call_descriptor, call_target, address, inputs[1]);
     }
 
     case wasm::kExprI32AtomicWait: {
-      Node* index = CheckBoundsAndAlignment(MachineType::Uint32().MemSize(),
-                                            inputs[0], offset, position);
-      // Now that we've bounds-checked, compute the effective address.
-      Node* address = graph()->NewNode(mcgraph()->machine()->Int32Add(),
-                                       Uint32Constant(offset), index);
-
-      auto call_descriptor = GetI32AtomicWaitCallDescriptor();
+      auto* call_descriptor = GetI32AtomicWaitCallDescriptor();
 
       intptr_t target = mcgraph()->machine()->Is64()
                             ? wasm::WasmCode::kWasmI32AtomicWait64
@@ -5178,20 +5193,12 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
       Node* call_target = mcgraph()->RelocatableIntPtrConstant(
           target, RelocInfo::WASM_STUB_CALL);
 
-      node = graph()->NewNode(mcgraph()->common()->Call(call_descriptor),
-                              call_target, address, inputs[1], inputs[2],
-                              effect(), control());
-      break;
+      return gasm_->Call(call_descriptor, call_target, address, inputs[1],
+                         inputs[2]);
     }
 
     case wasm::kExprI64AtomicWait: {
-      Node* index = CheckBoundsAndAlignment(MachineType::Uint64().MemSize(),
-                                            inputs[0], offset, position);
-      // Now that we've bounds-checked, compute the effective address.
-      Node* address = graph()->NewNode(mcgraph()->machine()->Int32Add(),
-                                       Uint32Constant(offset), index);
-
-      CallDescriptor* call_descriptor = GetI64AtomicWaitCallDescriptor();
+      auto* call_descriptor = GetI64AtomicWaitCallDescriptor();
 
       intptr_t target = mcgraph()->machine()->Is64()
                             ? wasm::WasmCode::kWasmI64AtomicWait64
@@ -5199,27 +5206,19 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
       Node* call_target = mcgraph()->RelocatableIntPtrConstant(
           target, RelocInfo::WASM_STUB_CALL);
 
-      node = graph()->NewNode(mcgraph()->common()->Call(call_descriptor),
-                              call_target, address, inputs[1], inputs[2],
-                              effect(), control());
-      break;
+      return gasm_->Call(call_descriptor, call_target, address, inputs[1],
+                         inputs[2]);
     }
 
     default:
       FATAL_UNSUPPORTED_OPCODE(opcode);
   }
-  return SetEffect(node);
 }
 
 Node* WasmGraphBuilder::AtomicFence() {
   return SetEffect(graph()->NewNode(mcgraph()->machine()->MemBarrier(),
                                     effect(), control()));
 }
-
-#undef ATOMIC_BINOP_LIST
-#undef ATOMIC_CMP_EXCHG_LIST
-#undef ATOMIC_LOAD_LIST
-#undef ATOMIC_STORE_LIST
 
 Node* WasmGraphBuilder::MemoryInit(uint32_t data_segment_index, Node* dst,
                                    Node* src, Node* size,
