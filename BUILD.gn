@@ -79,7 +79,7 @@ declare_args() {
   v8_enable_vtunetracemark = false
 
   # Sets -dENABLE_HANDLE_ZAPPING.
-  v8_enable_handle_zapping = true
+  v8_enable_handle_zapping = is_debug
 
   # Enable slow dchecks.
   v8_enable_slow_dchecks = false
