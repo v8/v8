@@ -16,7 +16,10 @@ namespace internal {
 
 void StartupDeserializer::DeserializeInto(Isolate* isolate) {
   Initialize(isolate);
-  HandleScope scope(isolate);
+
+  if (!allocator()->ReserveSpace()) {
+    V8::FatalProcessOutOfMemory(isolate, "StartupDeserializer");
+  }
 
   // No active threads.
   DCHECK_NULL(isolate->thread_manager()->FirstThreadStateInUse());
@@ -28,6 +31,7 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
   DCHECK(!isolate->builtins()->is_initialized());
 
   {
+    DisallowGarbageCollection no_gc;
     isolate->heap()->IterateSmiRoots(this);
     isolate->heap()->IterateRoots(
         this,
@@ -64,7 +68,6 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
   isolate->builtins()->MarkInitialized();
 
   LogNewMapEvents();
-  WeakenDescriptorArrays();
 
   if (FLAG_rehash_snapshot && can_rehash()) {
     // Hash seed was initalized in ReadOnlyDeserializer.
@@ -81,15 +84,16 @@ void StartupDeserializer::DeserializeStringTable() {
   // Add each string to the Isolate's string table.
   // TODO(leszeks): Consider pre-sizing the string table.
   for (int i = 0; i < string_table_size; ++i) {
-    Handle<String> string = Handle<String>::cast(ReadObject());
-    StringTableInsertionKey key(string);
-    Handle<String> result =
-        isolate()->string_table()->LookupKey(isolate(), &key);
+    String string = String::cast(ReadObject());
+    Address handle_storage = string.ptr();
+    Handle<String> handle(&handle_storage);
+    StringTableInsertionKey key(handle);
+    String result = *isolate()->string_table()->LookupKey(isolate(), &key);
     USE(result);
 
     // This is startup, so there should be no duplicate entries in the string
     // table, and the lookup should unconditionally add the given string.
-    DCHECK_EQ(*result, *string);
+    DCHECK_EQ(result, string);
   }
 
   DCHECK_EQ(string_table_size, isolate()->string_table()->NumberOfElements());
