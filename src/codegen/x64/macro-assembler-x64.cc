@@ -1362,7 +1362,7 @@ void TurboAssembler::Move(XMMRegister dst, uint64_t src) {
 void TurboAssembler::Move(XMMRegister dst, uint64_t high, uint64_t low) {
   Move(dst, low);
   movq(kScratchRegister, high);
-  Pinsrq(dst, kScratchRegister, int8_t{1});
+  Pinsrq(dst, kScratchRegister, uint8_t{1});
 }
 
 // ----------------------------------------------------------------------------
@@ -1761,7 +1761,7 @@ void TurboAssembler::Pextrb(Register dst, XMMRegister src, int8_t imm8) {
   }
 }
 
-void TurboAssembler::Pinsrd(XMMRegister dst, Register src, int8_t imm8) {
+void TurboAssembler::Pinsrd(XMMRegister dst, Register src, uint8_t imm8) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
     vpinsrd(dst, dst, src, imm8);
@@ -1780,7 +1780,7 @@ void TurboAssembler::Pinsrd(XMMRegister dst, Register src, int8_t imm8) {
   }
 }
 
-void TurboAssembler::Pinsrd(XMMRegister dst, Operand src, int8_t imm8) {
+void TurboAssembler::Pinsrd(XMMRegister dst, Operand src, uint8_t imm8) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
     vpinsrd(dst, dst, src, imm8);
@@ -1799,7 +1799,7 @@ void TurboAssembler::Pinsrd(XMMRegister dst, Operand src, int8_t imm8) {
   }
 }
 
-void TurboAssembler::Pinsrw(XMMRegister dst, Register src, int8_t imm8) {
+void TurboAssembler::Pinsrw(XMMRegister dst, Register src, uint8_t imm8) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
     vpinsrw(dst, dst, src, imm8);
@@ -1812,7 +1812,7 @@ void TurboAssembler::Pinsrw(XMMRegister dst, Register src, int8_t imm8) {
   }
 }
 
-void TurboAssembler::Pinsrw(XMMRegister dst, Operand src, int8_t imm8) {
+void TurboAssembler::Pinsrw(XMMRegister dst, Operand src, uint8_t imm8) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
     vpinsrw(dst, dst, src, imm8);
@@ -1824,7 +1824,7 @@ void TurboAssembler::Pinsrw(XMMRegister dst, Operand src, int8_t imm8) {
   }
 }
 
-void TurboAssembler::Pinsrb(XMMRegister dst, Register src, int8_t imm8) {
+void TurboAssembler::Pinsrb(XMMRegister dst, Register src, uint8_t imm8) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
     vpinsrb(dst, dst, src, imm8);
@@ -1837,7 +1837,7 @@ void TurboAssembler::Pinsrb(XMMRegister dst, Register src, int8_t imm8) {
   }
 }
 
-void TurboAssembler::Pinsrb(XMMRegister dst, Operand src, int8_t imm8) {
+void TurboAssembler::Pinsrb(XMMRegister dst, Operand src, uint8_t imm8) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
     vpinsrb(dst, dst, src, imm8);

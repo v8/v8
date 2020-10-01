@@ -2342,9 +2342,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64F64x2ReplaceLane: {
       if (instr->InputAt(2)->IsFPRegister()) {
         __ Movq(kScratchRegister, i.InputDoubleRegister(2));
-        __ Pinsrq(i.OutputSimd128Register(), kScratchRegister, i.InputInt8(1));
+        __ Pinsrq(i.OutputSimd128Register(), kScratchRegister, i.InputUint8(1));
       } else {
-        __ Pinsrq(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
+        __ Pinsrq(i.OutputSimd128Register(), i.InputOperand(2),
+                  i.InputUint8(1));
       }
       break;
     }
@@ -2709,9 +2710,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64I64x2ReplaceLane: {
       if (HasRegisterInput(instr, 2)) {
         __ Pinsrq(i.OutputSimd128Register(), i.InputRegister(2),
-                  i.InputInt8(1));
+                  i.InputUint8(1));
       } else {
-        __ Pinsrq(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
+        __ Pinsrq(i.OutputSimd128Register(), i.InputOperand(2),
+                  i.InputUint8(1));
       }
       break;
     }
@@ -2742,12 +2744,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // lower quadword
       __ Pextrq(tmp, src, int8_t{0x0});
       __ sarq_cl(tmp);
-      __ Pinsrq(dst, tmp, int8_t{0x0});
+      __ Pinsrq(dst, tmp, uint8_t{0x0});
 
       // upper quadword
       __ Pextrq(tmp, src, int8_t{0x1});
       __ sarq_cl(tmp);
-      __ Pinsrq(dst, tmp, int8_t{0x1});
+      __ Pinsrq(dst, tmp, uint8_t{0x1});
       break;
     }
     case kX64I64x2Add: {

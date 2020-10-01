@@ -517,12 +517,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Pextrd(Register dst, XMMRegister src, int8_t imm8);
   void Pextrw(Register dst, XMMRegister src, int8_t imm8);
   void Pextrb(Register dst, XMMRegister src, int8_t imm8);
-  void Pinsrd(XMMRegister dst, Register src, int8_t imm8);
-  void Pinsrd(XMMRegister dst, Operand src, int8_t imm8);
-  void Pinsrw(XMMRegister dst, Register src, int8_t imm8);
-  void Pinsrw(XMMRegister dst, Operand src, int8_t imm8);
-  void Pinsrb(XMMRegister dst, Register src, int8_t imm8);
-  void Pinsrb(XMMRegister dst, Operand src, int8_t imm8);
+  void Pinsrd(XMMRegister dst, Register src, uint8_t imm8);
+  void Pinsrd(XMMRegister dst, Operand src, uint8_t imm8);
+  void Pinsrw(XMMRegister dst, Register src, uint8_t imm8);
+  void Pinsrw(XMMRegister dst, Operand src, uint8_t imm8);
+  void Pinsrb(XMMRegister dst, Register src, uint8_t imm8);
+  void Pinsrb(XMMRegister dst, Operand src, uint8_t imm8);
 
   void Psllq(XMMRegister dst, int imm8) { Psllq(dst, static_cast<byte>(imm8)); }
   void Psllq(XMMRegister dst, byte imm8);

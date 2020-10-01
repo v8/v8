@@ -1204,14 +1204,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void insertps(XMMRegister dst, XMMRegister src, byte imm8);
   void insertps(XMMRegister dst, Operand src, byte imm8);
   void pextrq(Register dst, XMMRegister src, int8_t imm8);
-  void pinsrb(XMMRegister dst, Register src, int8_t imm8);
-  void pinsrb(XMMRegister dst, Operand src, int8_t imm8);
-  void pinsrw(XMMRegister dst, Register src, int8_t imm8);
-  void pinsrw(XMMRegister dst, Operand src, int8_t imm8);
-  void pinsrd(XMMRegister dst, Register src, int8_t imm8);
-  void pinsrd(XMMRegister dst, Operand src, int8_t imm8);
-  void pinsrq(XMMRegister dst, Register src, int8_t imm8);
-  void pinsrq(XMMRegister dst, Operand src, int8_t imm8);
+  void pinsrb(XMMRegister dst, Register src, uint8_t imm8);
+  void pinsrb(XMMRegister dst, Operand src, uint8_t imm8);
+  void pinsrw(XMMRegister dst, Register src, uint8_t imm8);
+  void pinsrw(XMMRegister dst, Operand src, uint8_t imm8);
+  void pinsrd(XMMRegister dst, Register src, uint8_t imm8);
+  void pinsrd(XMMRegister dst, Operand src, uint8_t imm8);
+  void pinsrq(XMMRegister dst, Register src, uint8_t imm8);
+  void pinsrq(XMMRegister dst, Operand src, uint8_t imm8);
 
   void roundss(XMMRegister dst, XMMRegister src, RoundingMode mode);
   void roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
@@ -1596,12 +1596,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr(0x22, dst, src1, src2, k66, k0F3A, kW0);
     emit(imm8);
   }
-  void vpinsrq(XMMRegister dst, XMMRegister src1, Register src2, int8_t imm8) {
+  void vpinsrq(XMMRegister dst, XMMRegister src1, Register src2, uint8_t imm8) {
     XMMRegister isrc = XMMRegister::from_code(src2.code());
     vinstr(0x22, dst, src1, isrc, k66, k0F3A, kW1);
     emit(imm8);
   }
-  void vpinsrq(XMMRegister dst, XMMRegister src1, Operand src2, int8_t imm8) {
+  void vpinsrq(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8) {
     vinstr(0x22, dst, src1, src2, k66, k0F3A, kW1);
     emit(imm8);
   }

@@ -2232,11 +2232,11 @@ void EmitI64x2ShrS(LiftoffAssembler* assm, LiftoffRegister dst,
 
   assm->Pextrq(tmp, lhs.fp(), int8_t{0x0});
   assm->sarq_cl(tmp);
-  assm->Pinsrq(dst.fp(), tmp, int8_t{0x0});
+  assm->Pinsrq(dst.fp(), tmp, uint8_t{0x0});
 
   assm->Pextrq(tmp, lhs.fp(), int8_t{0x1});
   assm->sarq_cl(tmp);
-  assm->Pinsrq(dst.fp(), tmp, int8_t{0x1});
+  assm->Pinsrq(dst.fp(), tmp, uint8_t{0x1});
 
   // restore rcx.
   if (restore_rcx) {
@@ -2349,7 +2349,7 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
   }
   TurboAssembler::Move(tmp_simd.fp(), mask1[0]);
   movq(kScratchRegister, mask1[1]);
-  Pinsrq(tmp_simd.fp(), kScratchRegister, int8_t{1});
+  Pinsrq(tmp_simd.fp(), kScratchRegister, uint8_t{1});
   Pshufb(kScratchDoubleReg, tmp_simd.fp());
 
   uint64_t mask2[2] = {};
@@ -2361,7 +2361,7 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
   }
   TurboAssembler::Move(tmp_simd.fp(), mask2[0]);
   movq(kScratchRegister, mask2[1]);
-  Pinsrq(tmp_simd.fp(), kScratchRegister, int8_t{1});
+  Pinsrq(tmp_simd.fp(), kScratchRegister, uint8_t{1});
 
   if (dst.fp() != rhs.fp()) {
     Movups(dst.fp(), rhs.fp());
@@ -2659,7 +2659,7 @@ void LiftoffAssembler::emit_s128_const(LiftoffRegister dst,
   memcpy(vals, imms, sizeof(vals));
   TurboAssembler::Move(dst.fp(), vals[0]);
   movq(kScratchRegister, vals[1]);
-  Pinsrq(dst.fp(), kScratchRegister, int8_t{1});
+  Pinsrq(dst.fp(), kScratchRegister, uint8_t{1});
 }
 
 void LiftoffAssembler::emit_s128_not(LiftoffRegister dst, LiftoffRegister src) {

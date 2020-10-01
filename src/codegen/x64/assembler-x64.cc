@@ -2757,8 +2757,7 @@ void Assembler::movdqu(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
-void Assembler::pinsrw(XMMRegister dst, Register src, int8_t imm8) {
-  DCHECK(is_uint8(imm8));
+void Assembler::pinsrw(XMMRegister dst, Register src, uint8_t imm8) {
   EnsureSpace ensure_space(this);
   emit(0x66);
   emit_optional_rex_32(dst, src);
@@ -2768,8 +2767,7 @@ void Assembler::pinsrw(XMMRegister dst, Register src, int8_t imm8) {
   emit(imm8);
 }
 
-void Assembler::pinsrw(XMMRegister dst, Operand src, int8_t imm8) {
-  DCHECK(is_uint8(imm8));
+void Assembler::pinsrw(XMMRegister dst, Operand src, uint8_t imm8) {
   EnsureSpace ensure_space(this);
   emit(0x66);
   emit_optional_rex_32(dst, src);
@@ -2791,7 +2789,7 @@ void Assembler::pextrq(Register dst, XMMRegister src, int8_t imm8) {
   emit(imm8);
 }
 
-void Assembler::pinsrq(XMMRegister dst, Register src, int8_t imm8) {
+void Assembler::pinsrq(XMMRegister dst, Register src, uint8_t imm8) {
   DCHECK(IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
   emit(0x66);
@@ -2803,9 +2801,8 @@ void Assembler::pinsrq(XMMRegister dst, Register src, int8_t imm8) {
   emit(imm8);
 }
 
-void Assembler::pinsrq(XMMRegister dst, Operand src, int8_t imm8) {
+void Assembler::pinsrq(XMMRegister dst, Operand src, uint8_t imm8) {
   DCHECK(IsEnabled(SSE4_1));
-  DCHECK(is_uint8(imm8));
   EnsureSpace ensure_space(this);
   emit(0x66);
   emit_rex_64(dst, src);
@@ -2816,22 +2813,20 @@ void Assembler::pinsrq(XMMRegister dst, Operand src, int8_t imm8) {
   emit(imm8);
 }
 
-void Assembler::pinsrd(XMMRegister dst, Register src, int8_t imm8) {
+void Assembler::pinsrd(XMMRegister dst, Register src, uint8_t imm8) {
   sse4_instr(dst, src, 0x66, 0x0F, 0x3A, 0x22, imm8);
 }
 
-void Assembler::pinsrd(XMMRegister dst, Operand src, int8_t imm8) {
-  DCHECK(is_uint8(imm8));
+void Assembler::pinsrd(XMMRegister dst, Operand src, uint8_t imm8) {
   sse4_instr(dst, src, 0x66, 0x0F, 0x3A, 0x22);
   emit(imm8);
 }
 
-void Assembler::pinsrb(XMMRegister dst, Register src, int8_t imm8) {
+void Assembler::pinsrb(XMMRegister dst, Register src, uint8_t imm8) {
   sse4_instr(dst, src, 0x66, 0x0F, 0x3A, 0x20, imm8);
 }
 
-void Assembler::pinsrb(XMMRegister dst, Operand src, int8_t imm8) {
-  DCHECK(is_uint8(imm8));
+void Assembler::pinsrb(XMMRegister dst, Operand src, uint8_t imm8) {
   sse4_instr(dst, src, 0x66, 0x0F, 0x3A, 0x20);
   emit(imm8);
 }
