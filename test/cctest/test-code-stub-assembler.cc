@@ -3667,12 +3667,9 @@ TEST(WasmInt32ToHeapNumber) {
     int32_t test_value = test_values[i];
     CodeAssemblerTester asm_tester(isolate, kNumParams);
     CodeStubAssembler m(asm_tester.state());
-    // TODO(delphick): This isn't actually passing in a Context, so we can't use
-    // Parameter.
-    Node* context = m.UntypedParameter(kNumParams + 1);
     const TNode<Int32T> arg = m.Int32Constant(test_value);
-    const TNode<Object> call_result =
-        m.CallBuiltin(Builtins::kWasmInt32ToHeapNumber, context, arg);
+    const TNode<Object> call_result = m.CallBuiltin(
+        Builtins::kWasmInt32ToHeapNumber, m.NoContextConstant(), arg);
     m.Return(call_result);
 
     FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -3756,12 +3753,9 @@ TEST(WasmFloat32ToNumber) {
     double test_value = test_values[i];
     CodeAssemblerTester asm_tester(isolate, kNumParams);
     CodeStubAssembler m(asm_tester.state());
-    // TODO(delphick): This isn't actually passing in a Context, so we can't use
-    // Parameter.
-    Node* context = m.UntypedParameter(kNumParams + 1);
     const TNode<Float32T> arg = m.Float32Constant(test_value);
-    const TNode<Object> call_result =
-        m.CallBuiltin(Builtins::kWasmFloat32ToNumber, context, arg);
+    const TNode<Object> call_result = m.CallBuiltin(
+        Builtins::kWasmFloat32ToNumber, m.NoContextConstant(), arg);
     m.Return(call_result);
 
     FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -3799,12 +3793,9 @@ TEST(WasmFloat64ToNumber) {
     double test_value = test_values[i];
     CodeAssemblerTester asm_tester(isolate, kNumParams);
     CodeStubAssembler m(asm_tester.state());
-    // TODO(delphick): This isn't actually passing in a Context, so we can't use
-    // Parameter.
-    Node* context = m.UntypedParameter(kNumParams + 1);
     const TNode<Float64T> arg = m.Float64Constant(test_value);
-    const TNode<Object> call_result =
-        m.CallBuiltin(Builtins::kWasmFloat64ToNumber, context, arg);
+    const TNode<Object> call_result = m.CallBuiltin(
+        Builtins::kWasmFloat64ToNumber, m.NoContextConstant(), arg);
     m.Return(call_result);
 
     FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
