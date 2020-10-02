@@ -21,8 +21,9 @@ class WasmFeatures;
 struct WasmModule;
 
 std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
-bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmModule* module,
-                             const WasmFeatures&);
+bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
+                                               const WasmModule* module,
+                                               const WasmFeatures&);
 
 // Control expressions and blocks.
 #define FOREACH_CONTROL_OPCODE(V)                         \
