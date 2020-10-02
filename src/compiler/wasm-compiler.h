@@ -303,21 +303,21 @@ class WasmGraphBuilder {
   //-----------------------------------------------------------------------
   Node* CurrentMemoryPages();
   Node* TraceMemoryOperation(bool is_store, MachineRepresentation, Node* index,
-                             uint32_t offset, wasm::WasmCodePosition);
+                             uintptr_t offset, wasm::WasmCodePosition);
   Node* LoadMem(wasm::ValueType type, MachineType memtype, Node* index,
-                uint32_t offset, uint32_t alignment,
+                uint64_t offset, uint32_t alignment,
                 wasm::WasmCodePosition position);
 #if defined(V8_TARGET_BIG_ENDIAN) || defined(V8_TARGET_ARCH_S390_LE_SIM)
   Node* LoadTransformBigEndian(wasm::ValueType type, MachineType memtype,
                                wasm::LoadTransformationKind transform,
-                               Node* index, uint32_t offset, uint32_t alignment,
+                               Node* index, uint64_t offset, uint32_t alignment,
                                wasm::WasmCodePosition position);
 #endif
   Node* LoadTransform(wasm::ValueType type, MachineType memtype,
                       wasm::LoadTransformationKind transform, Node* index,
-                      uint32_t offset, uint32_t alignment,
+                      uint64_t offset, uint32_t alignment,
                       wasm::WasmCodePosition position);
-  Node* StoreMem(MachineRepresentation mem_rep, Node* index, uint32_t offset,
+  Node* StoreMem(MachineRepresentation mem_rep, Node* index, uint64_t offset,
                  uint32_t alignment, Node* val, wasm::WasmCodePosition position,
                  wasm::ValueType type);
   static void PrintDebugName(Node* node);
@@ -382,7 +382,7 @@ class WasmGraphBuilder {
   Node* Simd8x16ShuffleOp(const uint8_t shuffle[16], Node* const* inputs);
 
   Node* AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
-                 uint32_t alignment, uint32_t offset,
+                 uint32_t alignment, uint64_t offset,
                  wasm::WasmCodePosition position);
   Node* AtomicFence();
 
@@ -455,7 +455,10 @@ class WasmGraphBuilder {
 
   Node* BuildLoadIsolateRoot();
 
-  Node* MemBuffer(uint32_t offset);
+  // MemBuffer is only called with valid offsets (after bounds checking), so the
+  // offset fits in a platform-dependent uintptr_t.
+  Node* MemBuffer(uintptr_t offset);
+
   // BoundsCheckMem receives a uint32 {index} node and returns a ptrsize index.
   Node* BoundsCheckMem(uint8_t access_size, Node* index, uint64_t offset,
                        wasm::WasmCodePosition, EnforceBoundsCheck);
@@ -471,7 +474,7 @@ class WasmGraphBuilder {
   Node* BoundsCheckMemRange(Node** start, Node** size, wasm::WasmCodePosition);
 
   Node* CheckBoundsAndAlignment(int8_t access_size, Node* index,
-                                uint32_t offset, wasm::WasmCodePosition);
+                                uint64_t offset, wasm::WasmCodePosition);
 
   Node* Uint32ToUintptr(Node*);
   const Operator* GetSafeLoadOperator(int offset, wasm::ValueType type);

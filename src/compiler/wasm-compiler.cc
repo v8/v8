@@ -3476,13 +3476,13 @@ void WasmGraphBuilder::GetBaseAndOffsetForImportedMutableExternRefGlobal(
           wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0)));
 }
 
-Node* WasmGraphBuilder::MemBuffer(uint32_t offset) {
+Node* WasmGraphBuilder::MemBuffer(uintptr_t offset) {
   DCHECK_NOT_NULL(instance_cache_);
   Node* mem_start = instance_cache_->mem_start;
   DCHECK_NOT_NULL(mem_start);
   if (offset == 0) return mem_start;
   return graph()->NewNode(mcgraph()->machine()->IntAdd(), mem_start,
-                          mcgraph()->IntPtrConstant(offset));
+                          mcgraph()->UintPtrConstant(offset));
 }
 
 Node* WasmGraphBuilder::CurrentMemoryPages() {
@@ -3637,7 +3637,7 @@ Node* WasmGraphBuilder::TableSet(uint32_t table_index, Node* index, Node* val,
 }
 
 Node* WasmGraphBuilder::CheckBoundsAndAlignment(
-    int8_t access_size, Node* index, uint32_t offset,
+    int8_t access_size, Node* index, uint64_t offset,
     wasm::WasmCodePosition position) {
   // Atomic operations need bounds checks until the backend can emit protected
   // loads.
@@ -3646,11 +3646,13 @@ Node* WasmGraphBuilder::CheckBoundsAndAlignment(
 
   const uintptr_t align_mask = access_size - 1;
 
+  // {offset} is validated to be within uintptr_t range in {BoundsCheckMem}.
+  uintptr_t capped_offset = static_cast<uintptr_t>(offset);
   // Don't emit an alignment check if the index is a constant.
   // TODO(wasm): a constant match is also done above in {BoundsCheckMem}.
   UintPtrMatcher match(index);
   if (match.HasValue()) {
-    uintptr_t effective_offset = match.Value() + offset;
+    uintptr_t effective_offset = match.Value() + capped_offset;
     if ((effective_offset & align_mask) != 0) {
       // statically known to be unaligned; trap.
       TrapIfEq32(wasm::kTrapUnalignedAccess, Int32Constant(0), 0, position);
@@ -3662,7 +3664,7 @@ Node* WasmGraphBuilder::CheckBoundsAndAlignment(
   // the effective offset is misaligned.
   // TODO(wasm): this addition is redundant with one inserted by {MemBuffer}.
   Node* effective_offset = graph()->NewNode(mcgraph()->machine()->IntAdd(),
-                                            MemBuffer(offset), index);
+                                            MemBuffer(capped_offset), index);
 
   Node* cond = graph()->NewNode(mcgraph()->machine()->WordAnd(),
                                 effective_offset, IntPtrConstant(align_mask));
@@ -3835,16 +3837,16 @@ Node* WasmGraphBuilder::TraceFunctionExit(Vector<Node*> vals,
 
 Node* WasmGraphBuilder::TraceMemoryOperation(bool is_store,
                                              MachineRepresentation rep,
-                                             Node* index, uint32_t offset,
+                                             Node* index, uintptr_t offset,
                                              wasm::WasmCodePosition position) {
   int kAlign = 4;  // Ensure that the LSB is 0, such that this looks like a Smi.
   TNode<RawPtrT> info =
       gasm_->StackSlot(sizeof(wasm::MemoryTracingInfo), kAlign);
 
-  Node* address = gasm_->Int32Add(Int32Constant(offset), index);
-  auto store = [&](int offset, MachineRepresentation rep, Node* data) {
+  Node* address = gasm_->IntAdd(mcgraph()->UintPtrConstant(offset), index);
+  auto store = [&](int field_offset, MachineRepresentation rep, Node* data) {
     gasm_->Store(StoreRepresentation(rep, kNoWriteBarrier), info,
-                 gasm_->Int32Constant(offset), data);
+                 gasm_->Int32Constant(field_offset), data);
   };
   // Store address, is_store, and mem_rep.
   store(offsetof(wasm::MemoryTracingInfo, address),
@@ -3927,7 +3929,7 @@ LoadKind GetLoadKind(MachineGraph* mcgraph, MachineType memtype,
 #if defined(V8_TARGET_BIG_ENDIAN) || defined(V8_TARGET_ARCH_S390_LE_SIM)
 Node* WasmGraphBuilder::LoadTransformBigEndian(
     wasm::ValueType type, MachineType memtype,
-    wasm::LoadTransformationKind transform, Node* index, uint32_t offset,
+    wasm::LoadTransformationKind transform, Node* index, uint64_t offset,
     uint32_t alignment, wasm::WasmCodePosition position) {
 #define LOAD_EXTEND(num_lanes, bytes_per_load, replace_lane)                   \
   result = graph()->NewNode(mcgraph()->machine()->S128Zero());                 \
@@ -3999,7 +4001,7 @@ Node* WasmGraphBuilder::LoadTransformBigEndian(
 
 Node* WasmGraphBuilder::LoadTransform(wasm::ValueType type, MachineType memtype,
                                       wasm::LoadTransformationKind transform,
-                                      Node* index, uint32_t offset,
+                                      Node* index, uint64_t offset,
                                       uint32_t alignment,
                                       wasm::WasmCodePosition position) {
   if (memtype.representation() == MachineRepresentation::kSimd128) {
@@ -4029,9 +4031,11 @@ Node* WasmGraphBuilder::LoadTransform(wasm::ValueType type, MachineType memtype,
   LoadTransformation transformation = GetLoadTransformation(memtype, transform);
   LoadKind load_kind = GetLoadKind(mcgraph(), memtype, use_trap_handler());
 
+  // {offset} is validated to be within uintptr_t range in {BoundsCheckMem}.
+  uintptr_t capped_offset = static_cast<uintptr_t>(offset);
   load = SetEffect(graph()->NewNode(
       mcgraph()->machine()->LoadTransform(load_kind, transformation),
-      MemBuffer(offset), index, effect(), control()));
+      MemBuffer(capped_offset), index, effect(), control()));
 
   if (load_kind == LoadKind::kProtected) {
     SetSourcePosition(load, position);
@@ -4039,14 +4043,14 @@ Node* WasmGraphBuilder::LoadTransform(wasm::ValueType type, MachineType memtype,
 #endif
 
   if (FLAG_trace_wasm_memory) {
-    TraceMemoryOperation(false, memtype.representation(), index, offset,
+    TraceMemoryOperation(false, memtype.representation(), index, capped_offset,
                          position);
   }
   return load;
 }
 
 Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
-                                Node* index, uint32_t offset,
+                                Node* index, uint64_t offset,
                                 uint32_t alignment,
                                 wasm::WasmCodePosition position) {
   Node* load;
@@ -4060,21 +4064,26 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
   index = BoundsCheckMem(memtype.MemSize(), index, offset, position,
                          kCanOmitBoundsCheck);
 
+  // {offset} is validated to be within uintptr_t range in {BoundsCheckMem}.
+  uintptr_t capped_offset = static_cast<uintptr_t>(offset);
   if (memtype.representation() == MachineRepresentation::kWord8 ||
       mcgraph()->machine()->UnalignedLoadSupported(memtype.representation())) {
     if (use_trap_handler()) {
       load = graph()->NewNode(mcgraph()->machine()->ProtectedLoad(memtype),
-                              MemBuffer(offset), index, effect(), control());
+                              MemBuffer(capped_offset), index, effect(),
+                              control());
       SetSourcePosition(load, position);
     } else {
       load = graph()->NewNode(mcgraph()->machine()->Load(memtype),
-                              MemBuffer(offset), index, effect(), control());
+                              MemBuffer(capped_offset), index, effect(),
+                              control());
     }
   } else {
     // TODO(eholk): Support unaligned loads with trap handlers.
     DCHECK(!use_trap_handler());
-    load = graph()->NewNode(mcgraph()->machine()->UnalignedLoad(memtype),
-                            MemBuffer(offset), index, effect(), control());
+    load =
+        graph()->NewNode(mcgraph()->machine()->UnalignedLoad(memtype),
+                         MemBuffer(capped_offset), index, effect(), control());
   }
 
   SetEffect(load);
@@ -4097,7 +4106,7 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
   }
 
   if (FLAG_trace_wasm_memory) {
-    TraceMemoryOperation(false, memtype.representation(), index, offset,
+    TraceMemoryOperation(false, memtype.representation(), index, capped_offset,
                          position);
   }
 
@@ -4105,7 +4114,7 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
 }
 
 Node* WasmGraphBuilder::StoreMem(MachineRepresentation mem_rep, Node* index,
-                                 uint32_t offset, uint32_t alignment, Node* val,
+                                 uint64_t offset, uint32_t alignment, Node* val,
                                  wasm::WasmCodePosition position,
                                  wasm::ValueType type) {
   Node* store;
@@ -4121,32 +4130,34 @@ Node* WasmGraphBuilder::StoreMem(MachineRepresentation mem_rep, Node* index,
   val = BuildChangeEndiannessStore(val, mem_rep, type);
 #endif
 
+  // {offset} is validated to be within uintptr_t range in {BoundsCheckMem}.
+  uintptr_t capped_offset = static_cast<uintptr_t>(offset);
   if (mem_rep == MachineRepresentation::kWord8 ||
       mcgraph()->machine()->UnalignedStoreSupported(mem_rep)) {
     if (use_trap_handler()) {
-      store =
-          graph()->NewNode(mcgraph()->machine()->ProtectedStore(mem_rep),
-                           MemBuffer(offset), index, val, effect(), control());
+      store = graph()->NewNode(mcgraph()->machine()->ProtectedStore(mem_rep),
+                               MemBuffer(capped_offset), index, val, effect(),
+                               control());
       SetSourcePosition(store, position);
     } else {
       StoreRepresentation rep(mem_rep, kNoWriteBarrier);
-      store =
-          graph()->NewNode(mcgraph()->machine()->Store(rep), MemBuffer(offset),
-                           index, val, effect(), control());
+      store = graph()->NewNode(mcgraph()->machine()->Store(rep),
+                               MemBuffer(capped_offset), index, val, effect(),
+                               control());
     }
   } else {
     // TODO(eholk): Support unaligned stores with trap handlers.
     DCHECK(!use_trap_handler());
     UnalignedStoreRepresentation rep(mem_rep);
-    store =
-        graph()->NewNode(mcgraph()->machine()->UnalignedStore(rep),
-                         MemBuffer(offset), index, val, effect(), control());
+    store = graph()->NewNode(mcgraph()->machine()->UnalignedStore(rep),
+                             MemBuffer(capped_offset), index, val, effect(),
+                             control());
   }
 
   SetEffect(store);
 
   if (FLAG_trace_wasm_memory) {
-    TraceMemoryOperation(true, mem_rep, index, offset, position);
+    TraceMemoryOperation(true, mem_rep, index, capped_offset, position);
   }
 
   return store;
@@ -5027,7 +5038,7 @@ Node* WasmGraphBuilder::Simd8x16ShuffleOp(const uint8_t shuffle[16],
 }
 
 Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
-                                 uint32_t alignment, uint32_t offset,
+                                 uint32_t alignment, uint64_t offset,
                                  wasm::WasmCodePosition position) {
   struct AtomicOpInfo {
     enum Type : int8_t {
@@ -5161,6 +5172,8 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
   Node* index = CheckBoundsAndAlignment(info.machine_type.MemSize(), inputs[0],
                                         offset, position);
 
+  // {offset} is validated to be within uintptr_t range in {BoundsCheckMem}.
+  uintptr_t capped_offset = static_cast<uintptr_t>(offset);
   if (info.type != AtomicOpInfo::kSpecial) {
     const Operator* op =
         info.operator_by_type
@@ -5168,7 +5181,7 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
             : (mcgraph()->machine()->*info.operator_by_rep)(
                   info.machine_type.representation());
 
-    Node* input_nodes[6] = {MemBuffer(offset), index};
+    Node* input_nodes[6] = {MemBuffer(capped_offset), index};
     int num_actual_inputs = info.type;
     std::copy_n(inputs + 1, num_actual_inputs, input_nodes + 2);
     input_nodes[num_actual_inputs + 2] = effect();
@@ -5178,8 +5191,8 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
   }
 
   // After we've bounds-checked, compute the effective address.
-  Node* address = graph()->NewNode(mcgraph()->machine()->Int32Add(),
-                                   Uint32Constant(offset), index);
+  Node* address = graph()->NewNode(mcgraph()->machine()->IntAdd(),
+                                   mcgraph()->UintPtrConstant(offset), index);
 
   switch (opcode) {
     case wasm::kExprAtomicNotify: {
