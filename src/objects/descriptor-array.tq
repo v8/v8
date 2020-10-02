@@ -25,3 +25,7 @@ extern class DescriptorArray extends HeapObject {
   enum_cache: EnumCache;
   descriptors[number_of_all_descriptors]: DescriptorEntry;
 }
+
+// A descriptor array where all values are held strongly.
+extern class StrongDescriptorArray extends DescriptorArray
+    generates 'TNode<DescriptorArray>';
