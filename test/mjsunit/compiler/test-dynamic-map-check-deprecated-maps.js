@@ -17,25 +17,20 @@ f(o);
 %OptimizeFunctionOnNextCall(f);
 f(o);
 assertOptimized(f);
-%PrepareFunctionForOptimization(f);
-f(o);
 
-// Deprecates O's map.
+// Deprecates o's map.
 o1.b = 10.23;
-// Deoptimizes but retains code.
+
+// Bails out but retains code.
 f(o1);
 assertOptimized(f);
 
-// Deoptimizes and discards code.
+// Passing in original object should not cause any deopts.
 f(o);
-f(o);
-assertUnoptimized(f);
-
-// When we reoptimize we should include code for migrating deprecated maps.
-%OptimizeFunctionOnNextCall(f);
 f(o);
 assertOptimized(f);
 
+// o and o2 have the same Map, so there should be no deopts.
 f(o2);
 f(o2);
 assertOptimized(f);

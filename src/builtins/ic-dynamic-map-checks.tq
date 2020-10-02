@@ -10,16 +10,17 @@ const kBailout: constexpr int32
     generates 'static_cast<int>(DynamicMapChecksStatus::kBailout)';
 const kDeopt: constexpr int32
     generates 'static_cast<int>(DynamicMapChecksStatus::kDeopt)';
+extern runtime TryMigrateInstance(implicit context: Context)(Object): Object;
 
 macro PerformMapAndHandlerCheck(
     entry: constexpr int32, polymorphicArray: WeakFixedArray,
-    weakActualMap: WeakHeapObject, actualHandler: Object): void labels Next,
+    weakActualMap: WeakHeapObject,
+    actualHandler: Smi|DataHandler): void labels Next,
     Deopt {
   const mapIndex = FeedbackIteratorMapIndexForEntry(entry);
   assert(mapIndex < polymorphicArray.length_intptr);
-  const maybeCachedMap =
-      Cast<WeakHeapObject>(polymorphicArray[mapIndex]) otherwise unreachable;
-  assert(IsWeakOrCleared(maybeCachedMap));
+
+  const maybeCachedMap = UnsafeCast<WeakHeapObject>(polymorphicArray[mapIndex]);
   if (maybeCachedMap != weakActualMap) {
     goto Next;
   }
@@ -33,7 +34,7 @@ macro PerformMapAndHandlerCheck(
   }
 }
 
-builtin DynamicMapChecks(implicit context: Context)(
+macro PerformPolymorphicCheck(
     expectedPolymorphicArray: HeapObject, actualMap: Map,
     actualHandler: Smi|DataHandler): int32 {
   if (!Is<WeakFixedArray>(expectedPolymorphicArray)) {
@@ -41,7 +42,7 @@ builtin DynamicMapChecks(implicit context: Context)(
   }
   try {
     const polymorphicArray =
-        Cast<WeakFixedArray>(expectedPolymorphicArray) otherwise unreachable;
+        UnsafeCast<WeakFixedArray>(expectedPolymorphicArray);
     const weakActualMap = MakeWeak(actualMap);
     const length = polymorphicArray.length_intptr;
     assert(length > 0);
@@ -80,4 +81,70 @@ builtin DynamicMapChecks(implicit context: Context)(
     return kDeopt;
   }
 }
+
+macro PerformMonomorphicCheck(
+    feedbackVector: FeedbackVector, slotIndex: intptr, maybeMap: MaybeObject,
+    actualMap: Map, actualHandler: Smi|DataHandler): int32 {
+  if (IsWeakReferenceToObject(maybeMap, actualMap)) {
+    const handlerIndex = slotIndex + 1;
+    assert(handlerIndex < feedbackVector.length_intptr);
+    const maybeHandler =
+        Cast<Object>(feedbackVector[handlerIndex]) otherwise unreachable;
+    if (TaggedEqual(actualHandler, maybeHandler)) {
+      return kSuccess;
+    }
+
+    return kDeopt;
+  }
+
+  return kBailout;
 }
+
+// This builtin performs map checks by dynamically looking at the
+// feedback in the feedback vector.
+//
+// There are two major cases handled by this builtin:
+// (a) Monormorphic check
+// (b) Polymorphic check
+//
+// For the monormophic check, the incoming map is migrated and checked
+// against the map and handler in the feedback vector. Otherwise, we
+// bailout to the runtime.
+//
+// For the polymorphic check, the feedback vector is iterated over and
+// each of the maps & handers are compared against the incoming map and
+// handler.
+//
+// If any of the map and associated handler checks pass then we return
+// kSuccess status.
+//
+// If any of the map check passes but the associated handler check
+// fails then we return kFailure status.
+//
+// For other cases, we bailout to the runtime.
+builtin DynamicMapChecks(implicit context: Context)(
+    feedbackVector: FeedbackVector, slotIndex: intptr, actualValue: HeapObject,
+    actualMap: Map, actualHandler: Smi|DataHandler): int32 {
+  const feedback = feedbackVector[slotIndex];
+  try {
+    const maybePolymorphicArray =
+        GetHeapObjectIfStrong(feedback) otherwise MigrateAndDoMonomorphicCheck;
+    return PerformPolymorphicCheck(
+        maybePolymorphicArray, actualMap, actualHandler);
+  } label MigrateAndDoMonomorphicCheck {
+    let newActualMap = actualMap;
+    if (IsDeprecatedMap(actualMap)) {
+      // TODO(gsathya): Should this migration happen before the
+      // polymorphic check?
+      const result = TryMigrateInstance(actualMap);
+      if (TaggedIsSmi(result)) {
+        return kDeopt;
+      }
+      newActualMap = actualValue.map;
+    }
+    return PerformMonomorphicCheck(
+        feedbackVector, slotIndex, feedback, newActualMap, actualHandler);
+  }
+}
+
+}  // namespace ic
