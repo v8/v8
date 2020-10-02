@@ -233,7 +233,7 @@ TEST_F(MarkerTest, InConstructionObjectIsEventuallyMarkedEmptyStack) {
         Member<GCedWithCallback> member(obj);
         marker->VisitorForTesting().Trace(member);
       });
-  EXPECT_TRUE(HeapObjectHeader::FromPayload(object).IsMarked());
+  EXPECT_FALSE(HeapObjectHeader::FromPayload(object).IsMarked());
   marker()->FinishMarking(MarkingConfig::StackState::kMayContainHeapPointers);
   EXPECT_TRUE(HeapObjectHeader::FromPayload(object).IsMarked());
 }
@@ -247,7 +247,7 @@ TEST_F(MarkerTest, InConstructionObjectIsEventuallyMarkedNonEmptyStack) {
       GetAllocationHandle(), [marker = marker()](GCedWithCallback* obj) {
         Member<GCedWithCallback> member(obj);
         marker->VisitorForTesting().Trace(member);
-        EXPECT_TRUE(HeapObjectHeader::FromPayload(obj).IsMarked());
+        EXPECT_FALSE(HeapObjectHeader::FromPayload(obj).IsMarked());
         marker->FinishMarking(
             MarkingConfig::StackState::kMayContainHeapPointers);
         EXPECT_TRUE(HeapObjectHeader::FromPayload(obj).IsMarked());
@@ -376,7 +376,7 @@ TEST_F(IncrementalMarkingTest, IncrementalStepDuringAllocation) {
         holder->member_ = obj;
         EXPECT_FALSE(header->IsMarked());
         FinishSteps(MarkingConfig::StackState::kMayContainHeapPointers);
-        EXPECT_TRUE(header->IsMarked());
+        EXPECT_FALSE(header->IsMarked());
       });
   FinishSteps(MarkingConfig::StackState::kNoHeapPointers);
   EXPECT_TRUE(header->IsMarked());

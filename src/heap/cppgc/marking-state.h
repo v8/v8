@@ -44,7 +44,6 @@ class MarkingState {
 
   void Publish() {
     marking_worklist_.Publish();
-    not_fully_constructed_worklist_.Publish();
     previously_not_fully_constructed_worklist_.Publish();
     weak_callback_worklist_.Publish();
     write_barrier_worklist_.Publish();
@@ -57,11 +56,11 @@ class MarkingState {
   MarkingWorklists::MarkingWorklist::Local& marking_worklist() {
     return marking_worklist_;
   }
-  MarkingWorklists::NotFullyConstructedWorklist::Local&
+  MarkingWorklists::NotFullyConstructedWorklist&
   not_fully_constructed_worklist() {
     return not_fully_constructed_worklist_;
   }
-  MarkingWorklists::NotFullyConstructedWorklist::Local&
+  MarkingWorklists::PreviouslyNotFullyConstructedWorklist::Local&
   previously_not_fully_constructed_worklist() {
     return previously_not_fully_constructed_worklist_;
   }
@@ -78,9 +77,9 @@ class MarkingState {
 #endif  // DEBUG
 
   MarkingWorklists::MarkingWorklist::Local marking_worklist_;
-  MarkingWorklists::NotFullyConstructedWorklist::Local
+  MarkingWorklists::NotFullyConstructedWorklist&
       not_fully_constructed_worklist_;
-  MarkingWorklists::NotFullyConstructedWorklist::Local
+  MarkingWorklists::PreviouslyNotFullyConstructedWorklist::Local
       previously_not_fully_constructed_worklist_;
   MarkingWorklists::WeakCallbackWorklist::Local weak_callback_worklist_;
   MarkingWorklists::WriteBarrierWorklist::Local write_barrier_worklist_;
@@ -95,7 +94,7 @@ MarkingState::MarkingState(HeapBase& heap, MarkingWorklists& marking_worklists)
 #endif  // DEBUG
       marking_worklist_(marking_worklists.marking_worklist()),
       not_fully_constructed_worklist_(
-          marking_worklists.not_fully_constructed_worklist()),
+          *marking_worklists.not_fully_constructed_worklist()),
       previously_not_fully_constructed_worklist_(
           marking_worklists.previously_not_fully_constructed_worklist()),
       weak_callback_worklist_(marking_worklists.weak_callback_worklist()),
@@ -112,11 +111,9 @@ void MarkingState::MarkAndPush(const void* object, TraceDescriptor desc) {
 void MarkingState::MarkAndPush(HeapObjectHeader& header, TraceDescriptor desc) {
   DCHECK_NOT_NULL(desc.callback);
 
-  if (!MarkNoPush(header)) return;
-
   if (header.IsInConstruction<HeapObjectHeader::AccessMode::kNonAtomic>()) {
     not_fully_constructed_worklist_.Push(&header);
-  } else {
+  } else if (MarkNoPush(header)) {
     marking_worklist_.Push(desc);
   }
 }
