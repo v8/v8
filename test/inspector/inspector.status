@@ -155,4 +155,13 @@
   'debugger/wasm-stepping-with-skiplist': [SKIP],
 }], # stress_js_bg_compile_wasm_code_gc
 
+##############################################################################
+['variant == stress_concurrent_allocation', {
+  # TODO(dinfuehr): Fix tests such that we can remove these lines.
+  'cpu-profiler/coverage': [SKIP],
+  'cpu-profiler/coverage-block': [SKIP],
+  'runtime/internal-properties-entries': [SKIP],
+  'runtime-call-stats/collection': [SKIP],
+}], # stress_concurrent_allocation
+
 ]
