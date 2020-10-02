@@ -297,9 +297,9 @@ Node* WasmGraphBuilder::RefFunc(uint32_t function_index) {
   Node* call_target = mcgraph()->RelocatableIntPtrConstant(
       wasm::WasmCode::kWasmRefFunc, RelocInfo::WASM_STUB_CALL);
 
-  return SetEffectControl(
-      graph()->NewNode(mcgraph()->common()->Call(call_descriptor), call_target,
-                       Uint32Constant(function_index), effect(), control()));
+  return SetEffectControl(graph()->NewNode(
+      mcgraph()->common()->Call(call_descriptor), call_target,
+      mcgraph()->Uint32Constant(function_index), effect(), control()));
 }
 
 Node* WasmGraphBuilder::RefAsNonNull(Node* arg,
@@ -321,20 +321,12 @@ Node* WasmGraphBuilder::BuildLoadIsolateRoot() {
   return LOAD_INSTANCE_FIELD(IsolateRoot, MachineType::Pointer());
 }
 
-Node* WasmGraphBuilder::Uint32Constant(uint32_t value) {
-  return mcgraph()->Uint32Constant(value);
-}
-
 Node* WasmGraphBuilder::Int32Constant(int32_t value) {
   return mcgraph()->Int32Constant(value);
 }
 
 Node* WasmGraphBuilder::Int64Constant(int64_t value) {
   return mcgraph()->Int64Constant(value);
-}
-
-Node* WasmGraphBuilder::IntPtrConstant(intptr_t value) {
-  return mcgraph()->IntPtrConstant(value);
 }
 
 void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position) {
@@ -2084,7 +2076,7 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
   uint32_t encoded_size = WasmExceptionPackage::GetEncodedSize(exception);
   Node* create_parameters[] = {
       LoadExceptionTagFromTable(exception_index),
-      BuildChangeUint31ToSmi(Uint32Constant(encoded_size))};
+      BuildChangeUint31ToSmi(mcgraph()->Uint32Constant(encoded_size))};
   Node* except_obj =
       BuildCallToRuntime(Runtime::kWasmThrowCreate, create_parameters,
                          arraysize(create_parameters));
@@ -3257,7 +3249,7 @@ Node* WasmGraphBuilder::BuildChangeSmiToIntPtr(Node* value) {
 Node* WasmGraphBuilder::BuildConvertUint32ToSmiWithSaturation(Node* value,
                                                               uint32_t maxval) {
   DCHECK(Smi::IsValid(maxval));
-  Node* max = Uint32Constant(maxval);
+  Node* max = mcgraph()->Uint32Constant(maxval);
   Node* check = graph()->NewNode(mcgraph()->machine()->Uint32LessThanOrEqual(),
                                  value, max);
   Node* valsmi = BuildChangeUint31ToSmi(value);
@@ -3619,7 +3611,7 @@ Node* WasmGraphBuilder::TableGet(uint32_t table_index, Node* index,
 
   return SetEffectControl(graph()->NewNode(
       mcgraph()->common()->Call(call_descriptor), call_target,
-      IntPtrConstant(table_index), index, effect(), control()));
+      mcgraph()->IntPtrConstant(table_index), index, effect(), control()));
 }
 
 Node* WasmGraphBuilder::TableSet(uint32_t table_index, Node* index, Node* val,
@@ -3633,7 +3625,7 @@ Node* WasmGraphBuilder::TableSet(uint32_t table_index, Node* index, Node* val,
 
   return SetEffectControl(graph()->NewNode(
       mcgraph()->common()->Call(call_descriptor), call_target,
-      IntPtrConstant(table_index), index, val, effect(), control()));
+      mcgraph()->IntPtrConstant(table_index), index, val, effect(), control()));
 }
 
 Node* WasmGraphBuilder::CheckBoundsAndAlignment(
@@ -3666,8 +3658,9 @@ Node* WasmGraphBuilder::CheckBoundsAndAlignment(
   Node* effective_offset = graph()->NewNode(mcgraph()->machine()->IntAdd(),
                                             MemBuffer(capped_offset), index);
 
-  Node* cond = graph()->NewNode(mcgraph()->machine()->WordAnd(),
-                                effective_offset, IntPtrConstant(align_mask));
+  Node* cond =
+      graph()->NewNode(mcgraph()->machine()->WordAnd(), effective_offset,
+                       mcgraph()->IntPtrConstant(align_mask));
   TrapIfFalse(wasm::kTrapUnalignedAccess,
               graph()->NewNode(mcgraph()->machine()->Word32Equal(), cond,
                                mcgraph()->Int32Constant(0)),
@@ -6178,9 +6171,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                                wasm::ValueType type) {
     // Make sure ValueType fits in a Smi.
     STATIC_ASSERT(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
-    Node* inputs[] = {
-        instance_node_.get(), input,
-        IntPtrConstant(IntToSmi(static_cast<int>(type.raw_bit_field())))};
+    Node* inputs[] = {instance_node_.get(), input,
+                      mcgraph()->IntPtrConstant(
+                          IntToSmi(static_cast<int>(type.raw_bit_field())))};
 
     Node* check = BuildChangeSmiToInt32(SetEffect(BuildCallToRuntimeWithContext(
         Runtime::kWasmIsValidRefValue, js_context, inputs, 3)));
@@ -6358,7 +6351,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   Node* BuildMultiReturnFixedArrayFromIterable(const wasm::FunctionSig* sig,
                                                Node* iterable, Node* context) {
     Node* length = BuildChangeUint31ToSmi(
-        Uint32Constant(static_cast<uint32_t>(sig->return_count())));
+        mcgraph()->Uint32Constant(static_cast<uint32_t>(sig->return_count())));
     return CALL_BUILTIN(IterableToFixedArrayForWasm, iterable, length, context);
   }
 
@@ -6939,11 +6932,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     BuildModifyThreadInWasmFlag(true);
 
-    Node* exception_branch =
-        graph()->NewNode(mcgraph()->common()->Branch(BranchHint::kTrue),
-                         graph()->NewNode(mcgraph()->machine()->WordEqual(),
-                                          return_value, IntPtrConstant(0)),
-                         control());
+    Node* exception_branch = graph()->NewNode(
+        mcgraph()->common()->Branch(BranchHint::kTrue),
+        graph()->NewNode(mcgraph()->machine()->WordEqual(), return_value,
+                         mcgraph()->IntPtrConstant(0)),
+        control());
     SetControl(
         graph()->NewNode(mcgraph()->common()->IfFalse(), exception_branch));
     WasmThrowDescriptor interface_descriptor;
