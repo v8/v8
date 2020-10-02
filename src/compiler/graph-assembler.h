@@ -237,6 +237,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 
   // Value creation.
   Node* IntPtrConstant(intptr_t value);
+  Node* UintPtrConstant(uintptr_t value);
   Node* Uint32Constant(uint32_t value);
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);
@@ -303,6 +304,10 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* StoreUnaligned(MachineRepresentation rep, Node* object, Node* offset,
                        Node* value);
   Node* LoadUnaligned(MachineType type, Node* object, Node* offset);
+
+  Node* ProtectedStore(MachineRepresentation rep, Node* object, Node* offset,
+                       Node* value);
+  Node* ProtectedLoad(MachineType type, Node* object, Node* offset);
 
   Node* Retain(Node* buffer);
   Node* UnsafePointerAdd(Node* base, Node* external);
