@@ -127,7 +127,7 @@ class InlinedFinalizationBuilder final {
 
   void AddFinalizer(HeapObjectHeader* header, size_t size) {
     header->Finalize();
-    SET_MEMORY_INACCESIBLE(header, size);
+    SET_MEMORY_INACCESSIBLE(header, size);
   }
 
   void AddFreeListEntry(Address start, size_t size) {
@@ -153,7 +153,7 @@ class DeferredFinalizationBuilder final {
       result_.unfinalized_objects.push_back({header});
       found_finalizer_ = true;
     } else {
-      SET_MEMORY_INACCESIBLE(header, size);
+      SET_MEMORY_INACCESSIBLE(header, size);
     }
   }
 
@@ -191,7 +191,7 @@ typename FinalizationBuilder::ResultType SweepNormalPage(NormalPage* page) {
     const size_t size = header->GetSize();
     // Check if this is a free list entry.
     if (header->IsFree<kAtomicAccess>()) {
-      SET_MEMORY_INACCESIBLE(header, std::min(kFreeListEntrySize, size));
+      SET_MEMORY_INACCESSIBLE(header, std::min(kFreeListEntrySize, size));
       begin += size;
       continue;
     }
@@ -273,7 +273,9 @@ class SweepFinalizer final {
 
     // Call finalizers.
     for (HeapObjectHeader* object : page_state->unfinalized_objects) {
+      const size_t size = object->GetSize();
       object->Finalize();
+      SET_MEMORY_INACCESSIBLE(object, size);
     }
 
     // Unmap page if empty.
