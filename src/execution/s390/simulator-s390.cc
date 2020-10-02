@@ -3742,15 +3742,14 @@ EVALUATE(VPERM) {
   USE(m6);
   for (int i = 0; i < kSimd128Size; i++) {
     int8_t lane_num = get_simd_register_by_lane<int8_t>(r4, i);
+    // Get the five least significant bits.
+    lane_num = (lane_num << 3) >> 3;
     int reg = r2;
     if (lane_num >= kSimd128Size) {
       lane_num = lane_num - kSimd128Size;
       reg = r3;
     }
-    int8_t result = 0;
-    if (lane_num >= 0 && lane_num < kSimd128Size * 2) {
-      result = get_simd_register_by_lane<int8_t>(reg, lane_num);
-    }
+    int8_t result = get_simd_register_by_lane<int8_t>(reg, lane_num);
     set_simd_register_by_lane<int8_t>(r1, i, result);
   }
   return length;

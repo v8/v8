@@ -2855,9 +2855,10 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
 
 void InstructionSelector::VisitI8x16Swizzle(Node* node) {
   S390OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
   Emit(kS390_I8x16Swizzle, g.DefineAsRegister(node),
        g.UseUniqueRegister(node->InputAt(0)),
-       g.UseUniqueRegister(node->InputAt(1)));
+       g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitS128Const(Node* node) {

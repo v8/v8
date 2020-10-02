@@ -4200,20 +4200,29 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register dst = i.OutputSimd128Register(),
                       src0 = i.InputSimd128Register(0),
                       src1 = i.InputSimd128Register(1);
+      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      // Saturate the indices to 5 bits. Input indices more than 31 should
+      // return 0.
+      __ vrepi(kScratchDoubleReg, Operand(31), Condition(0));
+      __ vmnl(tempFPReg1, src1, kScratchDoubleReg, Condition(0), Condition(0),
+              Condition(0));
 #ifdef V8_TARGET_BIG_ENDIAN
       //  input needs to be reversed
       __ vlgv(r0, src0, MemOperand(r0, 0), Condition(3));
       __ vlgv(r1, src0, MemOperand(r0, 1), Condition(3));
       __ lrvgr(r0, r0);
       __ lrvgr(r1, r1);
-      __ vlvgp(kScratchDoubleReg, r1, r0);
-      // clear scr0
-      __ vx(src0, src0, src0, Condition(0), Condition(0), Condition(0));
-      __ vperm(dst, kScratchDoubleReg, src0, src1, Condition(0), Condition(0));
+      __ vlvgp(dst, r1, r0);
+      // clear scratch
+      __ vx(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg,
+            Condition(0), Condition(0), Condition(0));
+      __ vperm(dst, dst, kScratchDoubleReg, tempFPReg1, Condition(0),
+               Condition(0));
 #else
       __ vx(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg,
             Condition(0), Condition(0), Condition(0));
-      __ vperm(dst, src0, kScratchDoubleReg, src1, Condition(0), Condition(0));
+      __ vperm(dst, src0, kScratchDoubleReg, tempFPReg1, Condition(0),
+               Condition(0));
 #endif
       break;
     }
