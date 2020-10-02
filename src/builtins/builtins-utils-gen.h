@@ -36,10 +36,6 @@ class CodeAssemblerState;
         : AssemblerBase(state) {}                                           \
     void Generate##Name##Impl();                                            \
                                                                             \
-    Node* UntypedParameter(Descriptor::ParameterIndices index) {            \
-      return CodeAssembler::UntypedParameter(static_cast<int>(index));      \
-    }                                                                       \
-                                                                            \
     template <class T>                                                      \
     TNode<T> Parameter(                                                     \
         Descriptor::ParameterIndices index,                                 \
