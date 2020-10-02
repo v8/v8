@@ -5,6 +5,7 @@
 #include "src/snapshot/context-deserializer.h"
 
 #include "src/api/api-inl.h"
+#include "src/common/assert-scope.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/snapshot.h"
@@ -31,9 +32,6 @@ MaybeHandle<Object> ContextDeserializer::Deserialize(
     Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   Initialize(isolate);
-  if (!allocator()->ReserveSpace()) {
-    V8::FatalProcessOutOfMemory(isolate, "ContextDeserializer");
-  }
 
   // Replace serialized references to the global proxy and its map with the
   // given global proxy and its map.
@@ -42,26 +40,17 @@ MaybeHandle<Object> ContextDeserializer::Deserialize(
 
   Handle<Object> result;
   {
-    DisallowGarbageCollection no_gc;
-    // Keep track of the code space start and end pointers in case new
-    // code objects were unserialized
-    CodeSpace* code_space = isolate->heap()->code_space();
-    Address start_address = code_space->top();
-    Object root;
-    VisitRootPointer(Root::kStartupObjectCache, nullptr, FullObjectSlot(&root));
+    // There's no code deserialized here. If this assert fires then that's
+    // changed and logging should be added to notify the profiler et al. of
+    // the new code, which also has to be flushed from instruction cache.
+    DisallowCodeAllocation no_code_allocation;
+
+    result = ReadObject();
     DeserializeDeferredObjects();
     DeserializeEmbedderFields(embedder_fields_deserializer);
 
-    allocator()->RegisterDeserializedObjectsForBlackAllocation();
-
-    // There's no code deserialized here. If this assert fires then that's
-    // changed and logging should be added to notify the profiler et al of the
-    // new code, which also has to be flushed from instruction cache.
-    CHECK_EQ(start_address, code_space->top());
-
     LogNewMapEvents();
-
-    result = handle(root, isolate);
+    WeakenDescriptorArrays();
   }
 
   if (FLAG_rehash_snapshot && can_rehash()) Rehash();
@@ -91,9 +80,7 @@ void ContextDeserializer::DeserializeEmbedderFields(
   for (int code = source()->Get(); code != kSynchronize;
        code = source()->Get()) {
     HandleScope scope(isolate());
-    SnapshotSpace space = NewObject::Decode(code);
-    Handle<JSObject> obj(JSObject::cast(GetBackReferencedObject(space)),
-                         isolate());
+    Handle<JSObject> obj = Handle<JSObject>::cast(GetBackReferencedObject());
     int index = source()->GetInt();
     int size = source()->GetInt();
     // TODO(yangguo,jgruber): Turn this into a reusable shared buffer.

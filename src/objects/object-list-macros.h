@@ -281,6 +281,7 @@ class ZoneForwardList;
   V(ModuleContext)                           \
   V(NonNullForeign)                          \
   V(ScriptContext)                           \
+  V(StrongDescriptorArray)                   \
   V(WithContext)
 
 #define HEAP_OBJECT_TYPE_LIST(V)    \

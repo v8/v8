@@ -26,7 +26,7 @@ void IdentityMapBase::Clear() {
     DCHECK(!is_iterable());
     DCHECK_NOT_NULL(strong_roots_entry_);
     heap_->UnregisterStrongRoots(strong_roots_entry_);
-    DeletePointerArray(reinterpret_cast<void**>(keys_), capacity_);
+    DeletePointerArray(reinterpret_cast<uintptr_t*>(keys_), capacity_);
     DeletePointerArray(values_, capacity_);
     keys_ = nullptr;
     strong_roots_entry_ = nullptr;
@@ -82,12 +82,12 @@ int IdentityMapBase::InsertKey(Address address) {
   UNREACHABLE();
 }
 
-bool IdentityMapBase::DeleteIndex(int index, void** deleted_value) {
+bool IdentityMapBase::DeleteIndex(int index, uintptr_t* deleted_value) {
   if (deleted_value != nullptr) *deleted_value = values_[index];
   Address not_mapped = ReadOnlyRoots(heap_).not_mapped_symbol().ptr();
   DCHECK_NE(keys_[index], not_mapped);
   keys_[index] = not_mapped;
-  values_[index] = nullptr;
+  values_[index] = 0;
   size_--;
   DCHECK_GE(size_, 0);
 
@@ -113,7 +113,7 @@ bool IdentityMapBase::DeleteIndex(int index, void** deleted_value) {
     }
 
     DCHECK_EQ(not_mapped, keys_[index]);
-    DCHECK_NULL(values_[index]);
+    DCHECK_EQ(values_[index], 0);
     std::swap(keys_[index], keys_[next_index]);
     std::swap(values_[index], values_[next_index]);
     index = next_index;
@@ -165,7 +165,7 @@ IdentityMapBase::RawEntry IdentityMapBase::GetEntry(Address key) {
     Address not_mapped = ReadOnlyRoots(heap_).not_mapped_symbol().ptr();
     for (int i = 0; i < capacity_; i++) keys_[i] = not_mapped;
     values_ = NewPointerArray(capacity_);
-    memset(values_, 0, sizeof(void*) * capacity_);
+    memset(values_, 0, sizeof(uintptr_t) * capacity_);
 
     strong_roots_entry_ = heap_->RegisterStrongRoots(
         FullObjectSlot(keys_), FullObjectSlot(keys_ + capacity_));
@@ -190,7 +190,7 @@ IdentityMapBase::RawEntry IdentityMapBase::FindEntry(Address key) const {
 // Deletes the given key from the map using the object's address as the
 // identity, returning true iff the key was found (in which case, the value
 // argument will be set to the deleted entry's value).
-bool IdentityMapBase::DeleteEntry(Address key, void** deleted_value) {
+bool IdentityMapBase::DeleteEntry(Address key, uintptr_t* deleted_value) {
   CHECK(!is_iterable());  // Don't allow deletion by key while iterable.
   if (size_ == 0) return false;
   int index = Lookup(key);
@@ -232,7 +232,7 @@ void IdentityMapBase::Rehash() {
   // Record the current GC counter.
   gc_counter_ = heap_->gc_count();
   // Assume that most objects won't be moved.
-  std::vector<std::pair<Address, void*>> reinsert;
+  std::vector<std::pair<Address, uintptr_t>> reinsert;
   // Search the table looking for keys that wouldn't be found with their
   // current hashcode and evacuate them.
   int last_empty = -1;
@@ -244,9 +244,9 @@ void IdentityMapBase::Rehash() {
       int pos = Hash(keys_[i]) & mask_;
       if (pos <= last_empty || pos > i) {
         // Evacuate an entry that is in the wrong place.
-        reinsert.push_back(std::pair<Address, void*>(keys_[i], values_[i]));
+        reinsert.push_back(std::pair<Address, uintptr_t>(keys_[i], values_[i]));
         keys_[i] = not_mapped;
-        values_[i] = nullptr;
+        values_[i] = 0;
         last_empty = i;
         size_--;
       }
@@ -266,7 +266,7 @@ void IdentityMapBase::Resize(int new_capacity) {
   DCHECK_GT(new_capacity, size_);
   int old_capacity = capacity_;
   Address* old_keys = keys_;
-  void** old_values = values_;
+  uintptr_t* old_values = values_;
 
   capacity_ = new_capacity;
   mask_ = capacity_ - 1;
@@ -277,7 +277,7 @@ void IdentityMapBase::Resize(int new_capacity) {
   Address not_mapped = ReadOnlyRoots(heap_).not_mapped_symbol().ptr();
   for (int i = 0; i < capacity_; i++) keys_[i] = not_mapped;
   values_ = NewPointerArray(capacity_);
-  memset(values_, 0, sizeof(void*) * capacity_);
+  memset(values_, 0, sizeof(uintptr_t) * capacity_);
 
   for (int i = 0; i < old_capacity; i++) {
     if (old_keys[i] == not_mapped) continue;
@@ -292,7 +292,7 @@ void IdentityMapBase::Resize(int new_capacity) {
                            FullObjectSlot(keys_ + capacity_));
 
   // Delete old storage;
-  DeletePointerArray(reinterpret_cast<void**>(old_keys), old_capacity);
+  DeletePointerArray(reinterpret_cast<uintptr_t*>(old_keys), old_capacity);
   DeletePointerArray(old_values, old_capacity);
 }
 
