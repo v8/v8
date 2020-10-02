@@ -326,7 +326,6 @@ extern enum MessageTemplate {
   kWasmTrapDivUnrepresentable,
   kWasmTrapRemByZero,
   kWasmTrapFloatUnrepresentable,
-  kWasmTrapFuncInvalid,
   kWasmTrapFuncSigMismatch,
   kWasmTrapDataSegmentDropped,
   kWasmTrapElemSegmentDropped,

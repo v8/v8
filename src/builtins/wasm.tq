@@ -385,10 +385,6 @@ builtin ThrowWasmTrapFloatUnrepresentable(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapFloatUnrepresentable));
 }
 
-builtin ThrowWasmTrapFuncInvalid(): JSAny {
-  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapFuncInvalid));
-}
-
 builtin ThrowWasmTrapFuncSigMismatch(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapFuncSigMismatch));
 }

@@ -2672,7 +2672,7 @@ Node* WasmGraphBuilder::BuildWasmCall(const wasm::FunctionSig* sig,
                                       wasm::WasmCodePosition position,
                                       Node* instance_node,
                                       UseRetpoline use_retpoline) {
-  auto call_descriptor =
+  CallDescriptor* call_descriptor =
       GetWasmCallDescriptor(mcgraph()->zone(), sig, use_retpoline);
   const Operator* op = mcgraph()->common()->Call(call_descriptor);
   Node* call = BuildCallNode(sig, args, position, instance_node, op);
@@ -2699,7 +2699,7 @@ Node* WasmGraphBuilder::BuildWasmReturnCall(const wasm::FunctionSig* sig,
                                             wasm::WasmCodePosition position,
                                             Node* instance_node,
                                             UseRetpoline use_retpoline) {
-  auto call_descriptor =
+  CallDescriptor* call_descriptor =
       GetWasmCallDescriptor(mcgraph()->zone(), sig, use_retpoline);
   const Operator* op = mcgraph()->common()->TailCall(call_descriptor);
   Node* call = BuildCallNode(sig, args, position, instance_node, op);
@@ -2878,7 +2878,7 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
 
   // Bounds check against the table size.
   Node* in_bounds = graph()->NewNode(machine->Uint32LessThan(), key, ift_size);
-  TrapIfFalse(wasm::kTrapFuncInvalid, in_bounds, position);
+  TrapIfFalse(wasm::kTrapTableOutOfBounds, in_bounds, position);
 
   // Mask the key to prevent SSCA.
   if (untrusted_code_mitigations_) {
@@ -2896,20 +2896,27 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
   Node* int32_scaled_key = Uint32ToUintptr(
       graph()->NewNode(machine->Word32Shl(), key, Int32Constant(2)));
 
+  Node* loaded_sig = SetEffect(
+      graph()->NewNode(machine->Load(MachineType::Int32()), ift_sig_ids,
+                       int32_scaled_key, effect(), control()));
   // Check that the dynamic type of the function is a subtype of its static
   // (table) type. Currently, the only subtyping between function types is
   // $t <: funcref for all $t: function_type.
   // TODO(7748): Expand this with function subtyping.
-  if (env_->module->tables[table_index].type == wasm::kWasmFuncRef) {
+  const bool needs_typechecking =
+      env_->module->tables[table_index].type == wasm::kWasmFuncRef;
+  if (needs_typechecking) {
     int32_t expected_sig_id = env_->module->signature_ids[sig_index];
-
-    Node* loaded_sig = SetEffect(
-        graph()->NewNode(machine->Load(MachineType::Int32()), ift_sig_ids,
-                         int32_scaled_key, effect(), control()));
-    Node* sig_match = graph()->NewNode(machine->WordEqual(), loaded_sig,
+    Node* sig_match = graph()->NewNode(machine->Word32Equal(), loaded_sig,
                                        Int32Constant(expected_sig_id));
-
     TrapIfFalse(wasm::kTrapFuncSigMismatch, sig_match, position);
+  } else {
+    // We still have to check that the entry is initialized.
+    // TODO(9495): Skip this check for non-nullable tables when they are
+    // allowed.
+    Node* function_is_null =
+        graph()->NewNode(machine->Word32Equal(), loaded_sig, Int32Constant(-1));
+    TrapIfTrue(wasm::kTrapNullDereference, function_is_null, position);
   }
 
   Node* tagged_scaled_key;

@@ -3916,7 +3916,7 @@ class LiftoffCompiler {
 
     // Bounds check against the table size.
     Label* invalid_func_label = AddOutOfLineTrap(
-        decoder->position(), WasmCode::kThrowWasmTrapFuncInvalid);
+        decoder->position(), WasmCode::kThrowWasmTrapTableOutOfBounds);
 
     uint32_t canonical_sig_num = env_->module->signature_ids[imm.sig_index];
     DCHECK_GE(canonical_sig_num, 0);

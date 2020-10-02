@@ -553,13 +553,12 @@ namespace internal {
   T(WasmTrapDivUnrepresentable, "divide result unrepresentable")               \
   T(WasmTrapRemByZero, "remainder by zero")                                    \
   T(WasmTrapFloatUnrepresentable, "float unrepresentable in integer range")    \
-  T(WasmTrapFuncInvalid, "invalid index into function table")                  \
+  T(WasmTrapTableOutOfBounds, "table index is out of bounds")                  \
   T(WasmTrapFuncSigMismatch, "function signature mismatch")                    \
   T(WasmTrapMultiReturnLengthMismatch, "multi-return length mismatch")         \
   T(WasmTrapTypeError, "wasm function signature contains illegal type")        \
   T(WasmTrapDataSegmentDropped, "data segment has been dropped")               \
   T(WasmTrapElemSegmentDropped, "element segment has been dropped")            \
-  T(WasmTrapTableOutOfBounds, "table access out of bounds")                    \
   T(WasmTrapBrOnExnNull, "br_on_exn on null value")                            \
   T(WasmTrapRethrowNull, "rethrowing null value")                              \
   T(WasmTrapNullDereference, "dereferencing a null pointer")                   \

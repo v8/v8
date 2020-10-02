@@ -3273,7 +3273,7 @@ class WasmInterpreterInternals {
               code = result.interpreter_code;
               continue;  // Do not bump pc.
             case CallResult::INVALID_FUNC:
-              return DoTrap(kTrapFuncInvalid, pc);
+              return DoTrap(kTrapTableOutOfBounds, pc);
             case CallResult::SIGNATURE_MISMATCH:
               return DoTrap(kTrapFuncSigMismatch, pc);
           }
@@ -3319,7 +3319,7 @@ class WasmInterpreterInternals {
               continue;  // Do not bump pc.
             }
             case CallResult::INVALID_FUNC:
-              return DoTrap(kTrapFuncInvalid, pc);
+              return DoTrap(kTrapTableOutOfBounds, pc);
             case CallResult::SIGNATURE_MISMATCH:
               return DoTrap(kTrapFuncSigMismatch, pc);
           }

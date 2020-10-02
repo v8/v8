@@ -201,7 +201,8 @@ class TestingModuleBuilder {
   // If function_indexes is {nullptr}, the contents of the table will be
   // initialized with null functions.
   void AddIndirectFunctionTable(const uint16_t* function_indexes,
-                                uint32_t table_size);
+                                uint32_t table_size,
+                                ValueType table_type = kWasmFuncRef);
 
   uint32_t AddBytes(Vector<const byte> bytes);
 
