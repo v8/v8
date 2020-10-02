@@ -152,8 +152,16 @@ HeapObjectHeader::HeapObjectHeader(size_t size, GCInfoIndex gc_info_index) {
   DCHECK_LT(gc_info_index, GCInfoTable::kMaxIndex);
   DCHECK_EQ(0u, size & (sizeof(HeapObjectHeader) - 1));
   DCHECK_GE(kMaxSize, size);
-  encoded_high_ = GCInfoIndexField::encode(gc_info_index);
   encoded_low_ = EncodeSize(size);
+  // Objects may get published to the marker without any other synchronization
+  // (e.g., write barrier) in which case the in-construction bit is read
+  // concurrently which requires reading encoded_high_ atomically. It is ok if
+  // this write is not observed by the marker, since the sweeper  sets the
+  // in-construction bit to 0 and we can rely on that to guarantee a correct
+  // answer when checking if objects are in-construction.
+  v8::base::AsAtomicPtr(&encoded_high_)
+      ->store(GCInfoIndexField::encode(gc_info_index),
+              std::memory_order_relaxed);
   DCHECK(IsInConstruction());
 #ifdef DEBUG
   CheckApiConstants();
@@ -235,7 +243,7 @@ bool HeapObjectHeader::IsYoung() const {
 
 template <HeapObjectHeader::AccessMode mode>
 bool HeapObjectHeader::IsFree() const {
-  return GetGCInfoIndex() == kFreeListGCInfoIndex;
+  return GetGCInfoIndex<mode>() == kFreeListGCInfoIndex;
 }
 
 bool HeapObjectHeader::IsFinalizable() const {

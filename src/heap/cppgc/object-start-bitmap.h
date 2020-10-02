@@ -88,7 +88,7 @@ class V8_EXPORT_PRIVATE ObjectStartBitmap {
 
   inline void ObjectStartIndexAndBit(ConstAddress, size_t*, size_t*) const;
 
-  Address offset_;
+  const Address offset_;
   // The bitmap contains a bit for every kGranularity aligned address on a
   // a NormalPage, i.e., for a page of size kBlinkPageSize.
   std::array<uint8_t, kReservedForBitmap> object_start_bit_map_;
