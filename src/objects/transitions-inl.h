@@ -5,13 +5,13 @@
 #ifndef V8_OBJECTS_TRANSITIONS_INL_H_
 #define V8_OBJECTS_TRANSITIONS_INL_H_
 
+#include "src/objects/transitions.h"
+
 #include "src/ic/handler-configuration-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
-#include "src/objects/transitions.h"
-#include "src/snapshot/deserializer.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -157,14 +157,6 @@ bool TransitionArray::GetTargetIfExists(int transition_number, Isolate* isolate,
                                         Map* target) {
   MaybeObject raw = GetRawTarget(transition_number);
   HeapObject heap_object;
-  // If the raw target is a Smi, then this TransitionArray is in the process of
-  // being deserialized, and doesn't yet have an initialized entry for this
-  // transition.
-  if (raw.IsSmi()) {
-    DCHECK(isolate->has_active_deserializer());
-    DCHECK_EQ(raw.ToSmi(), Deserializer::uninitialized_field_value());
-    return false;
-  }
   if (raw->GetHeapObjectIfStrong(&heap_object) &&
       heap_object.IsUndefined(isolate)) {
     return false;
