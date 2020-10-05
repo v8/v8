@@ -1211,15 +1211,15 @@ void SmallOrderedHashSet::SmallOrderedHashSetVerify(Isolate* isolate) {
   intptr_t offset;
   intptr_t length;
   std::tie(std::ignore, offset, length) =
-      TqRuntimeFieldRefSmallOrderedHashSetDataTable(isolate, *this);
+      TqRuntimeFieldSliceSmallOrderedHashSetDataTable(isolate, *this);
   CHECK_EQ(offset, DataTableStartOffset());
   CHECK_EQ(length, Capacity());
   std::tie(std::ignore, offset, length) =
-      TqRuntimeFieldRefSmallOrderedHashSetHashTable(isolate, *this);
+      TqRuntimeFieldSliceSmallOrderedHashSetHashTable(isolate, *this);
   CHECK_EQ(offset, GetBucketsStartOffset());
   CHECK_EQ(length, NumberOfBuckets());
   std::tie(std::ignore, offset, length) =
-      TqRuntimeFieldRefSmallOrderedHashSetChainTable(isolate, *this);
+      TqRuntimeFieldSliceSmallOrderedHashSetChainTable(isolate, *this);
   CHECK_EQ(offset, GetChainTableOffset());
   CHECK_EQ(length, Capacity());
 }

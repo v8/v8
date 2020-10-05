@@ -653,6 +653,29 @@ bool ClassType::HasIndexedFieldsIncludingInParents() const {
   return false;
 }
 
+const Field* ClassType::GetFieldPreceding(size_t field_index) const {
+  if (field_index > 0) {
+    return &fields_[field_index - 1];
+  }
+  if (const ClassType* parent = GetSuperClass()) {
+    return parent->GetFieldPreceding(parent->fields_.size());
+  }
+  return nullptr;
+}
+
+const ClassType* ClassType::GetClassDeclaringField(const Field& f) const {
+  for (const Field& field : fields_) {
+    if (f.name_and_type.name == field.name_and_type.name) return this;
+  }
+  return GetSuperClass()->GetClassDeclaringField(f);
+}
+
+std::string ClassType::GetSliceMacroName(const Field& field) const {
+  const ClassType* declarer = GetClassDeclaringField(field);
+  return "FieldSlice" + declarer->name() +
+         CamelifyString(field.name_and_type.name);
+}
+
 void ClassType::GenerateAccessors() {
   bool at_or_after_indexed_field = false;
   if (const ClassType* parent = GetSuperClass()) {
@@ -660,7 +683,8 @@ void ClassType::GenerateAccessors() {
   }
   // For each field, construct AST snippets that implement a CSA accessor
   // function. The implementation iterator will turn the snippets into code.
-  for (auto& field : fields_) {
+  for (size_t field_index = 0; field_index < fields_.size(); ++field_index) {
+    Field& field = fields_[field_index];
     if (field.name_and_type.type == TypeOracle::GetVoidType()) {
       continue;
     }
@@ -668,42 +692,21 @@ void ClassType::GenerateAccessors() {
         at_or_after_indexed_field || field.index.has_value();
     CurrentSourcePosition::Scope position_activator(field.pos);
 
-    IdentifierExpression* parameter =
-        MakeNode<IdentifierExpression>(MakeNode<Identifier>(std::string{"o"}));
-    IdentifierExpression* index =
-        MakeNode<IdentifierExpression>(MakeNode<Identifier>(std::string{"i"}));
+    IdentifierExpression* parameter = MakeIdentifierExpression("o");
+    IdentifierExpression* index = MakeIdentifierExpression("i");
 
     std::string camel_field_name = CamelifyString(field.name_and_type.name);
 
     if (at_or_after_indexed_field) {
-      // Generate a C++ function for getting a slice or reference to this field.
-      // In Torque, this function would be written as
-      // FieldRefClassNameFieldName(o: ClassName) {
-      //   return &o.field_name;
-      // }
-      std::string ref_macro_name = "FieldRef" + this->name() + camel_field_name;
-      Signature ref_signature;
-      ref_signature.parameter_names.push_back(MakeNode<Identifier>("o"));
-      ref_signature.parameter_types.types.push_back(this);
-      ref_signature.parameter_types.var_args = false;
-      // It doesn't really matter whether we say this reference is mutable or
-      // const, because that information is not exposed to the calling C++ code.
-      ref_signature.return_type =
-          field.index
-              ? TypeOracle::GetSliceType(field.name_and_type.type)
-              : TypeOracle::GetConstReferenceType(field.name_and_type.type);
-      Expression* ref_expression = MakeNode<FieldAccessExpression>(
-          parameter, MakeNode<Identifier>(field.name_and_type.name));
-      ref_expression = MakeNode<CallExpression>(
-          MakeNode<IdentifierExpression>(
-              std::vector<std::string>{},
-              MakeNode<Identifier>(std::string{"&"})),
-          std::vector<Expression*>{ref_expression}, std::vector<Identifier*>{});
-      Statement* ref_body = MakeNode<ReturnStatement>(ref_expression);
-      Macro* ref_macro =
-          Declarations::DeclareMacro(ref_macro_name, true, base::nullopt,
-                                     ref_signature, ref_body, base::nullopt);
-      GlobalContext::EnsureInCCOutputList(TorqueMacro::cast(ref_macro));
+      if (!field.index.has_value()) {
+        // There's no fundamental reason we couldn't generate functions to get
+        // references instead of slices, but it's not yet implemented.
+        ReportError(
+            "Torque doesn't yet support non-indexed fields after indexed "
+            "fields");
+      }
+
+      GenerateSliceAccessor(field_index);
     }
 
     // For now, only generate indexed accessors for simple types
@@ -724,8 +727,8 @@ void ClassType::GenerateAccessors() {
     load_signature.parameter_types.var_args = false;
     load_signature.return_type = field.name_and_type.type;
 
-    Expression* load_expression = MakeNode<FieldAccessExpression>(
-        parameter, MakeNode<Identifier>(field.name_and_type.name));
+    Expression* load_expression =
+        MakeFieldAccessExpression(parameter, field.name_and_type.name);
     if (field.index) {
       load_expression =
           MakeNode<ElementAccessExpression>(load_expression, index);
@@ -736,8 +739,7 @@ void ClassType::GenerateAccessors() {
 
     // Store accessor
     if (!field.const_qualified) {
-      IdentifierExpression* value = MakeNode<IdentifierExpression>(
-          std::vector<std::string>{}, MakeNode<Identifier>(std::string{"v"}));
+      IdentifierExpression* value = MakeIdentifierExpression("v");
       std::string store_macro_name = "Store" + this->name() + camel_field_name;
       Signature store_signature;
       store_signature.parameter_names.push_back(MakeNode<Identifier>("o"));
@@ -752,8 +754,8 @@ void ClassType::GenerateAccessors() {
       store_signature.parameter_types.var_args = false;
       // TODO(danno): Store macros probably should return their value argument
       store_signature.return_type = TypeOracle::GetVoidType();
-      Expression* store_expression = MakeNode<FieldAccessExpression>(
-          parameter, MakeNode<Identifier>(field.name_and_type.name));
+      Expression* store_expression =
+          MakeFieldAccessExpression(parameter, field.name_and_type.name);
       if (field.index) {
         store_expression =
             MakeNode<ElementAccessExpression>(store_expression, index);
@@ -765,6 +767,131 @@ void ClassType::GenerateAccessors() {
                                  false);
     }
   }
+}
+
+void ClassType::GenerateSliceAccessor(size_t field_index) {
+  // Generate a Torque macro for getting a Slice to this field. This macro can
+  // be called by the dot operator for this field. In Torque, this function for
+  // class "ClassName" and field "field_name" and field type "FieldType" would
+  // be written as one of the following:
+  //
+  // If the field has a known offset (in this example, 16):
+  // FieldSliceClassNameFieldName(o: ClassName) {
+  //   return torque_internal::Slice<FieldType> {
+  //     object: o,
+  //     offset: 16,
+  //     length: torque_internal::%IndexedFieldLength<ClassName>(
+  //                 o, "field_name")),
+  //     unsafeMarker: torque_internal::Unsafe {}
+  //   };
+  // }
+  //
+  // If the field has an unknown offset, and the previous field is named p, and
+  // an item in the previous field has size 4:
+  // FieldSliceClassNameFieldName(o: ClassName) {
+  //   const previous = &o.p;
+  //   return torque_internal::Slice<FieldType> {
+  //     object: o,
+  //     offset: previous.offset + 4 * previous.length,
+  //     length: torque_internal::%IndexedFieldLength<ClassName>(
+  //                 o, "field_name")),
+  //     unsafeMarker: torque_internal::Unsafe {}
+  //   };
+  // }
+  const Field& field = fields_[field_index];
+  std::string macro_name = GetSliceMacroName(field);
+  Signature signature;
+  Identifier* parameter_identifier = MakeNode<Identifier>("o");
+  signature.parameter_names.push_back(parameter_identifier);
+  signature.parameter_types.types.push_back(this);
+  signature.parameter_types.var_args = false;
+  signature.return_type = TypeOracle::GetSliceType(field.name_and_type.type);
+
+  std::vector<Statement*> statements;
+  Expression* offset_expression = nullptr;
+  IdentifierExpression* parameter =
+      MakeNode<IdentifierExpression>(parameter_identifier);
+
+  if (field.offset.has_value()) {
+    offset_expression =
+        MakeNode<NumberLiteralExpression>(static_cast<double>(*field.offset));
+  } else {
+    const Field* previous = GetFieldPreceding(field_index);
+    DCHECK_NOT_NULL(previous);
+
+    // o.p
+    Expression* previous_expression =
+        MakeFieldAccessExpression(parameter, previous->name_and_type.name);
+
+    // &o.p
+    previous_expression = MakeCallExpression("&", {previous_expression});
+
+    // const previous = &o.p;
+    Statement* define_previous =
+        MakeConstDeclarationStatement("previous", previous_expression);
+    statements.push_back(define_previous);
+
+    // 4
+    size_t previous_element_size;
+    std::tie(previous_element_size, std::ignore) =
+        *SizeOf(previous->name_and_type.type);
+    Expression* previous_element_size_expression =
+        MakeNode<NumberLiteralExpression>(
+            static_cast<double>(previous_element_size));
+
+    // previous.length
+    Expression* previous_length_expression = MakeFieldAccessExpression(
+        MakeIdentifierExpression("previous"), "length");
+
+    // previous.offset
+    Expression* previous_offset_expression = MakeFieldAccessExpression(
+        MakeIdentifierExpression("previous"), "offset");
+
+    // 4 * previous.length
+    // In contrast to the code used for allocation, we don't need overflow
+    // checks here because we already know all the offsets fit into memory.
+    offset_expression = MakeCallExpression(
+        "*", {previous_element_size_expression, previous_length_expression});
+
+    // previous.offset + 4 * previous.length
+    offset_expression = MakeCallExpression(
+        "+", {previous_offset_expression, offset_expression});
+  }
+
+  // torque_internal::%IndexedFieldLength<ClassName>(o, "field_name")
+  Expression* length_expression = MakeCallExpression(
+      MakeIdentifierExpression({"torque_internal"}, "%IndexedFieldLength",
+                               {MakeNode<PrecomputedTypeExpression>(this)}),
+      {parameter, MakeNode<StringLiteralExpression>(
+                      StringLiteralQuote(field.name_and_type.name))});
+
+  // torque_internal::Unsafe {}
+  Expression* unsafe_expression = MakeStructExpression(
+      MakeBasicTypeExpression({"torque_internal"}, "Unsafe"), {});
+
+  // torque_internal::Slice<FieldType> {
+  //   object: o,
+  //   offset: <<offset_expression>>,
+  //   length: torque_internal::%IndexedFieldLength<ClassName>(
+  //               o, "field_name")),
+  //   unsafeMarker: torque_internal::Unsafe {}
+  // }
+  Expression* slice_expression = MakeStructExpression(
+      MakeBasicTypeExpression(
+          {"torque_internal"}, "Slice",
+          {MakeNode<PrecomputedTypeExpression>(field.name_and_type.type)}),
+      {{MakeNode<Identifier>("object"), parameter},
+       {MakeNode<Identifier>("offset"), offset_expression},
+       {MakeNode<Identifier>("length"), length_expression},
+       {MakeNode<Identifier>("unsafeMarker"), unsafe_expression}});
+
+  statements.push_back(MakeNode<ReturnStatement>(slice_expression));
+  Statement* block =
+      MakeNode<BlockStatement>(/*deferred=*/false, std::move(statements));
+
+  Macro* macro = Declarations::DeclareMacro(macro_name, true, base::nullopt,
+                                            signature, block, base::nullopt);
+  GlobalContext::EnsureInCCOutputList(TorqueMacro::cast(macro));
 }
 
 bool ClassType::HasStaticSize() const {

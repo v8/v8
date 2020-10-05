@@ -704,6 +704,13 @@ class ClassType final : public AggregateType {
   base::Optional<ObjectSlotKind> ComputeArraySlotKind() const;
   bool HasNoPointerSlots() const;
   bool HasIndexedFieldsIncludingInParents() const;
+  const Field* GetFieldPreceding(size_t field_index) const;
+
+  // Given that the field exists in this class or a superclass, returns the
+  // specific class that declared the field.
+  const ClassType* GetClassDeclaringField(const Field& f) const;
+
+  std::string GetSliceMacroName(const Field& field) const;
 
   const InstanceTypeConstraints& GetInstanceTypeConstraints() const {
     return decl_->instance_type_constraints;
@@ -733,6 +740,8 @@ class ClassType final : public AggregateType {
   ClassType(const Type* parent, Namespace* nspace, const std::string& name,
             ClassFlags flags, const std::string& generates,
             const ClassDeclaration* decl, const TypeAlias* alias);
+
+  void GenerateSliceAccessor(size_t field_index);
 
   size_t header_size_;
   ResidueClass size_;

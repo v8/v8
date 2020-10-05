@@ -1313,53 +1313,20 @@ InitializerResults ImplementationVisitor::VisitInitializerResults(
 
 LocationReference ImplementationVisitor::GenerateFieldReference(
     VisitResult object, const Field& field, const ClassType* class_type) {
+  if (field.index.has_value()) {
+    return LocationReference::HeapSlice(
+        GenerateCall(class_type->GetSliceMacroName(field), {{object}, {}}));
+  }
+  DCHECK(field.offset.has_value());
   StackRange result_range = assembler().TopRange(0);
   result_range.Extend(GenerateCopy(object).stack_range());
-  VisitResult offset;
-  if (field.offset.has_value()) {
-    offset =
-        VisitResult(TypeOracle::GetConstInt31Type(), ToString(*field.offset));
-    offset = GenerateImplicitConvert(TypeOracle::GetIntPtrType(), offset);
-  } else {
-    StackScope stack_scope(this);
-    for (const Field& f : class_type->ComputeAllFields()) {
-      if (f.offset) {
-        offset =
-            VisitResult(TypeOracle::GetConstInt31Type(), ToString(*f.offset));
-      }
-      if (f.name_and_type.name == field.name_and_type.name) break;
-      if (f.index) {
-        if (!offset.IsOnStack()) {
-          offset = GenerateImplicitConvert(TypeOracle::GetIntPtrType(), offset);
-        }
-        VisitResult array_length = GenerateArrayLength(object, f);
-        size_t element_size;
-        std::string element_size_string;
-        std::tie(element_size, element_size_string) =
-            *SizeOf(f.name_and_type.type);
-        VisitResult array_element_size =
-            VisitResult(TypeOracle::GetConstInt31Type(), element_size_string);
-        // In contrast to the code used for allocation, we don't need overflow
-        // checks here because we already know all the offsets fit into memory.
-        VisitResult array_size =
-            GenerateCall("*", {{array_length, array_element_size}, {}});
-        offset = GenerateCall("+", {{offset, array_size}, {}});
-      }
-    }
-    DCHECK(offset.IsOnStack());
-    offset = stack_scope.Yield(offset);
-  }
+  VisitResult offset =
+      VisitResult(TypeOracle::GetConstInt31Type(), ToString(*field.offset));
+  offset = GenerateImplicitConvert(TypeOracle::GetIntPtrType(), offset);
   result_range.Extend(offset.stack_range());
-  if (field.index) {
-    VisitResult length = GenerateArrayLength(object, field);
-    result_range.Extend(length.stack_range());
-    const Type* slice_type = TypeOracle::GetSliceType(field.name_and_type.type);
-    return LocationReference::HeapSlice(VisitResult(slice_type, result_range));
-  } else {
-    const Type* type = TypeOracle::GetReferenceType(field.name_and_type.type,
-                                                    field.const_qualified);
-    return LocationReference::HeapReference(VisitResult(type, result_range));
-  }
+  const Type* type = TypeOracle::GetReferenceType(field.name_and_type.type,
+                                                  field.const_qualified);
+  return LocationReference::HeapReference(VisitResult(type, result_range));
 }
 
 // This is used to generate field references during initialization, where we can
@@ -2858,6 +2825,15 @@ VisitResult ImplementationVisitor::GenerateCall(
       result << constexpr_arguments[0];
       result << ")";
       return VisitResult(return_type, result.str());
+    } else if (intrinsic->ExternalName() == "%IndexedFieldLength") {
+      const Type* type = specialization_types[0];
+      const ClassType* class_type = ClassType::DynamicCast(type);
+      if (!class_type) {
+        ReportError("%IndexedFieldLength must take a class type parameter");
+      }
+      const Field& field =
+          class_type->LookupField(StringLiteralUnquote(constexpr_arguments[0]));
+      return GenerateArrayLength(VisitResult(type, argument_range), field);
     } else {
       assembler().Emit(CallIntrinsicInstruction{intrinsic, specialization_types,
                                                 constexpr_arguments});
