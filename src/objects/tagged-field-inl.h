@@ -70,7 +70,7 @@ T TaggedField<T, kFieldOffset>::load(const Isolate* isolate, HeapObject host,
 // static
 template <typename T, int kFieldOffset>
 void TaggedField<T, kFieldOffset>::store(HeapObject host, T value) {
-#ifdef V8_CONCURRENT_MARKING
+#ifdef V8_ATOMIC_OBJECT_FIELD_WRITES
   Relaxed_Store(host, value);
 #else
   *location(host) = full_to_tagged(value.ptr());
@@ -80,7 +80,7 @@ void TaggedField<T, kFieldOffset>::store(HeapObject host, T value) {
 // static
 template <typename T, int kFieldOffset>
 void TaggedField<T, kFieldOffset>::store(HeapObject host, int offset, T value) {
-#ifdef V8_CONCURRENT_MARKING
+#ifdef V8_ATOMIC_OBJECT_FIELD_WRITES
   Relaxed_Store(host, offset, value);
 #else
   *location(host, offset) = full_to_tagged(value.ptr());

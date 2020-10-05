@@ -131,7 +131,15 @@ declare_args() {
   # Sets -dV8_TRACE_FEEDBACK_UPDATES.
   v8_enable_trace_feedback_updates = false
 
-  # Sets -dV8_CONCURRENT_MARKING
+  # Sets -dV8_ATOMIC_OBJECT_FIELD_WRITES and turns all field write operations
+  # into relaxed atomic operations.
+  v8_enable_atomic_object_field_writes = ""
+
+  # Sets -dV8_ATOMIC_MARKING_STATE
+  v8_enable_atomic_marking_state = ""
+
+  # Controls the default values of v8_enable_atomic_object_field_writes and
+  # v8_enable_concurrent_marking_state. See the default setting code below.
   v8_enable_concurrent_marking = true
 
   # Runs mksnapshot with --turbo-profiling. After building in this
@@ -318,6 +326,16 @@ if (v8_enable_heap_sandbox == "") {
 if (v8_enable_single_generation == "") {
   v8_enable_single_generation = v8_disable_write_barriers
 }
+if (v8_enable_atomic_object_field_writes == "") {
+  v8_enable_atomic_object_field_writes = v8_enable_concurrent_marking
+}
+if (v8_enable_atomic_marking_state == "") {
+  v8_enable_atomic_marking_state = v8_enable_concurrent_marking
+}
+assert(!v8_enable_concurrent_marking || v8_enable_atomic_object_field_writes,
+       "Concurrent marking requires atomic object field writes.")
+assert(!v8_enable_concurrent_marking || v8_enable_atomic_marking_state,
+       "Concurrent marking requires atomic marking state.")
 
 # Toggle pointer compression for correctness fuzzing when building the
 # clang_x64_pointer_compression toolchain. We'll correctness-compare the
@@ -611,8 +629,11 @@ config("features") {
   if (v8_use_external_startup_data) {
     defines += [ "V8_USE_EXTERNAL_STARTUP_DATA" ]
   }
-  if (v8_enable_concurrent_marking) {
-    defines += [ "V8_CONCURRENT_MARKING" ]
+  if (v8_enable_atomic_object_field_writes) {
+    defines += [ "V8_ATOMIC_OBJECT_FIELD_WRITES" ]
+  }
+  if (v8_enable_atomic_marking_state) {
+    defines += [ "V8_ATOMIC_MARKING_STATE" ]
   }
   if (v8_enable_lazy_source_positions) {
     defines += [ "V8_ENABLE_LAZY_SOURCE_POSITIONS" ]
@@ -1671,6 +1692,9 @@ action("v8_dump_build_config") {
     "is_ubsan_vptr=$is_ubsan_vptr",
     "target_cpu=\"$target_cpu\"",
     "v8_current_cpu=\"$v8_current_cpu\"",
+    "v8_enable_atomic_marking_state=$v8_enable_atomic_marking_state",
+    "v8_enable_atomic_object_field_writes=" +
+        "$v8_enable_atomic_object_field_writes",
     "v8_enable_concurrent_marking=$v8_enable_concurrent_marking",
     "v8_enable_i18n_support=$v8_enable_i18n_support",
     "v8_enable_verify_predictable=$v8_enable_verify_predictable",
