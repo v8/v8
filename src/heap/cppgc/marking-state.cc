@@ -9,7 +9,7 @@
 namespace cppgc {
 namespace internal {
 
-void MarkingState::FlushNotFullyConstructedObjects() {
+void MutatorMarkingState::FlushNotFullyConstructedObjects() {
   std::unordered_set<HeapObjectHeader*> objects =
       not_fully_constructed_worklist_.Extract();
   for (HeapObjectHeader* object : objects) {

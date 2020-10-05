@@ -44,19 +44,20 @@ class GCedWithMixin : public GarbageCollected<GCedWithMixin>, public Mixin {
   void Trace(cppgc::Visitor*) const override {}
 };
 
-class TestMarkingVisitor : public MarkingVisitor {
+class TestMarkingVisitor : public MutatorMarkingVisitor {
  public:
   explicit TestMarkingVisitor(Marker* marker)
-      : MarkingVisitor(marker->heap(), marker->MarkingStateForTesting()) {}
+      : MutatorMarkingVisitor(marker->heap(),
+                              marker->MutatorMarkingStateForTesting()) {}
   ~TestMarkingVisitor() { marking_state_.Publish(); }
 
-  MarkingState& marking_state() { return marking_state_; }
+  MarkingStateBase& marking_state() { return marking_state_; }
 };
 
 }  // namespace
 
 TEST_F(MarkingVisitorTest, MarkedBytesAreInitiallyZero) {
-  EXPECT_EQ(0u, GetMarker()->MarkingStateForTesting().marked_bytes());
+  EXPECT_EQ(0u, GetMarker()->MutatorMarkingStateForTesting().marked_bytes());
 }
 
 // Strong references are marked.

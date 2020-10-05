@@ -12,47 +12,59 @@
 namespace v8 {
 namespace internal {
 
-UnifiedHeapMarkingVisitor::UnifiedHeapMarkingVisitor(
-    HeapBase& heap, MarkingState& marking_state,
+UnifiedHeapMarkingVisitorBase::UnifiedHeapMarkingVisitorBase(
+    HeapBase& heap, MarkingStateBase& marking_state,
     UnifiedHeapMarkingState& unified_heap_marking_state)
     : JSVisitor(cppgc::internal::VisitorFactory::CreateKey()),
       marking_state_(marking_state),
       unified_heap_marking_state_(unified_heap_marking_state) {}
 
-void UnifiedHeapMarkingVisitor::Visit(const void* object,
-                                      TraceDescriptor desc) {
+void UnifiedHeapMarkingVisitorBase::Visit(const void* object,
+                                          TraceDescriptor desc) {
   marking_state_.MarkAndPush(object, desc);
 }
 
-void UnifiedHeapMarkingVisitor::VisitWeak(const void* object,
-                                          TraceDescriptor desc,
-                                          WeakCallback weak_callback,
-                                          const void* weak_member) {
+void UnifiedHeapMarkingVisitorBase::VisitWeak(const void* object,
+                                              TraceDescriptor desc,
+                                              WeakCallback weak_callback,
+                                              const void* weak_member) {
   marking_state_.RegisterWeakReferenceIfNeeded(object, desc, weak_callback,
                                                weak_member);
 }
 
-void UnifiedHeapMarkingVisitor::VisitRoot(const void* object,
-                                          TraceDescriptor desc) {
-  Visit(object, desc);
-}
-
-void UnifiedHeapMarkingVisitor::VisitWeakRoot(const void* object,
-                                              TraceDescriptor desc,
-                                              WeakCallback weak_callback,
-                                              const void* weak_root) {
-  marking_state_.InvokeWeakRootsCallbackIfNeeded(object, desc, weak_callback,
-                                                 weak_root);
-}
-
-void UnifiedHeapMarkingVisitor::RegisterWeakCallback(WeakCallback callback,
-                                                     const void* object) {
+void UnifiedHeapMarkingVisitorBase::RegisterWeakCallback(WeakCallback callback,
+                                                         const void* object) {
   marking_state_.RegisterWeakCallback(callback, object);
 }
 
-void UnifiedHeapMarkingVisitor::Visit(const internal::JSMemberBase& ref) {
+void UnifiedHeapMarkingVisitorBase::Visit(const internal::JSMemberBase& ref) {
   unified_heap_marking_state_.MarkAndPush(ref);
 }
+
+MutatorUnifiedHeapMarkingVisitor::MutatorUnifiedHeapMarkingVisitor(
+    HeapBase& heap, MutatorMarkingState& marking_state,
+    UnifiedHeapMarkingState& unified_heap_marking_state)
+    : UnifiedHeapMarkingVisitorBase(heap, marking_state,
+                                    unified_heap_marking_state) {}
+
+void MutatorUnifiedHeapMarkingVisitor::VisitRoot(const void* object,
+                                                 TraceDescriptor desc) {
+  this->Visit(object, desc);
+}
+
+void MutatorUnifiedHeapMarkingVisitor::VisitWeakRoot(const void* object,
+                                                     TraceDescriptor desc,
+                                                     WeakCallback weak_callback,
+                                                     const void* weak_root) {
+  static_cast<MutatorMarkingState&>(marking_state_)
+      .InvokeWeakRootsCallbackIfNeeded(object, desc, weak_callback, weak_root);
+}
+
+ConcurrentUnifiedHeapMarkingVisitor::ConcurrentUnifiedHeapMarkingVisitor(
+    HeapBase& heap, ConcurrentMarkingState& marking_state,
+    UnifiedHeapMarkingState& unified_heap_marking_state)
+    : UnifiedHeapMarkingVisitorBase(heap, marking_state,
+                                    unified_heap_marking_state) {}
 
 }  // namespace internal
 }  // namespace v8

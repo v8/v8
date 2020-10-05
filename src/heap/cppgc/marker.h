@@ -12,6 +12,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/time.h"
 #include "src/heap/base/worklist.h"
+#include "src/heap/cppgc/concurrent-marker.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/incremental-marking-schedule.h"
 #include "src/heap/cppgc/marking-state.h"
@@ -73,7 +74,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
   bool AdvanceMarkingWithMaxDuration(v8::base::TimeDelta);
 
   // Makes marking progress when allocation a new lab.
-  bool AdvanceMarkingOnAllocation();
+  void AdvanceMarkingOnAllocation();
 
   // Signals leaving the atomic marking pause. This method expects no more
   // objects to be marked and merely updates marking states if needed.
@@ -94,7 +95,9 @@ class V8_EXPORT_PRIVATE MarkerBase {
   HeapBase& heap() { return heap_; }
 
   MarkingWorklists& MarkingWorklistsForTesting() { return marking_worklists_; }
-  MarkingState& MarkingStateForTesting() { return mutator_marking_state_; }
+  MutatorMarkingState& MutatorMarkingStateForTesting() {
+    return mutator_marking_state_;
+  }
   cppgc::Visitor& VisitorForTesting() { return visitor(); }
   void ClearAllWorklistsForTesting();
 
@@ -163,10 +166,12 @@ class V8_EXPORT_PRIVATE MarkerBase {
   IncrementalMarkingTask::Handle incremental_marking_handle_;
 
   MarkingWorklists marking_worklists_;
-  MarkingState mutator_marking_state_;
-  bool is_marking_started_ = false;
+  MutatorMarkingState mutator_marking_state_;
+  bool is_marking_started_{false};
 
   IncrementalMarkingSchedule schedule_;
+
+  std::unique_ptr<ConcurrentMarkerBase> concurrent_marker_{nullptr};
 
   bool incremental_marking_disabled_for_testing_{false};
 
@@ -201,7 +206,7 @@ class V8_EXPORT_PRIVATE Marker final : public MarkerBase {
   }
 
  private:
-  MarkingVisitor marking_visitor_;
+  MutatorMarkingVisitor marking_visitor_;
   ConservativeMarkingVisitor conservative_marking_visitor_;
 };
 

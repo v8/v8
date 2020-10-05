@@ -32,9 +32,12 @@ void IncrementalMarkingSchedule::AddConcurrentlyMarkedBytes(
   concurrently_marked_bytes_.fetch_add(marked_bytes, std::memory_order_relaxed);
 }
 
-size_t IncrementalMarkingSchedule::GetOverallMarkedBytes() {
-  return incrementally_marked_bytes_ +
-         concurrently_marked_bytes_.load(std::memory_order_relaxed);
+size_t IncrementalMarkingSchedule::GetOverallMarkedBytes() const {
+  return incrementally_marked_bytes_ + GetConcurrentlyMarkedBytes();
+}
+
+size_t IncrementalMarkingSchedule::GetConcurrentlyMarkedBytes() const {
+  return concurrently_marked_bytes_.load(std::memory_order_relaxed);
 }
 
 double IncrementalMarkingSchedule::GetElapsedTimeInMs(

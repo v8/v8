@@ -16,28 +16,51 @@ namespace internal {
 class HeapBase;
 class HeapObjectHeader;
 class Marker;
-class MarkingState;
+class MarkingStateBase;
+class MutatorMarkingState;
+class ConcurrentMarkingState;
 
-class V8_EXPORT_PRIVATE MarkingVisitor : public VisitorBase {
+class V8_EXPORT_PRIVATE MarkingVisitorBase : public VisitorBase {
  public:
-  MarkingVisitor(HeapBase&, MarkingState&);
-  ~MarkingVisitor() override = default;
+  MarkingVisitorBase(HeapBase&, MarkingStateBase&);
+  ~MarkingVisitorBase() override = default;
 
  protected:
   void Visit(const void*, TraceDescriptor) final;
   void VisitWeak(const void*, TraceDescriptor, WeakCallback, const void*) final;
+  void RegisterWeakCallback(WeakCallback, const void*) final;
+
+  MarkingStateBase& marking_state_;
+};
+
+class V8_EXPORT_PRIVATE MutatorMarkingVisitor : public MarkingVisitorBase {
+ public:
+  MutatorMarkingVisitor(HeapBase&, MutatorMarkingState&);
+  ~MutatorMarkingVisitor() override = default;
+
+ protected:
   void VisitRoot(const void*, TraceDescriptor) final;
   void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback,
                      const void*) final;
-  void RegisterWeakCallback(WeakCallback, const void*) final;
+};
 
-  MarkingState& marking_state_;
+class V8_EXPORT_PRIVATE ConcurrentMarkingVisitor : public MarkingVisitorBase {
+ public:
+  ConcurrentMarkingVisitor(HeapBase&, ConcurrentMarkingState&);
+  ~ConcurrentMarkingVisitor() override = default;
+
+ protected:
+  void VisitRoot(const void*, TraceDescriptor) final { UNREACHABLE(); }
+  void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback,
+                     const void*) final {
+    UNREACHABLE();
+  }
 };
 
 class ConservativeMarkingVisitor : public ConservativeTracingVisitor,
                                    public heap::base::StackVisitor {
  public:
-  ConservativeMarkingVisitor(HeapBase&, MarkingState&, cppgc::Visitor&);
+  ConservativeMarkingVisitor(HeapBase&, MutatorMarkingState&, cppgc::Visitor&);
   ~ConservativeMarkingVisitor() override = default;
 
  private:
@@ -45,7 +68,7 @@ class ConservativeMarkingVisitor : public ConservativeTracingVisitor,
                            TraceConservativelyCallback) final;
   void VisitPointer(const void*) final;
 
-  MarkingState& marking_state_;
+  MutatorMarkingState& marking_state_;
 };
 
 }  // namespace internal

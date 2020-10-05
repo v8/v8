@@ -14,6 +14,7 @@
 #include "src/heap/base/stack.h"
 #include "src/heap/cppgc-js/unified-heap-marking-state.h"
 #include "src/heap/cppgc-js/unified-heap-marking-visitor.h"
+#include "src/heap/cppgc/concurrent-marker.h"
 #include "src/heap/cppgc/gc-info-table.h"
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-object-header.h"
@@ -63,6 +64,33 @@ class CppgcPlatformAdapter final : public cppgc::Platform {
   v8::Isolate* isolate_;
 };
 
+class UnifiedHeapConcurrentMarker
+    : public cppgc::internal::ConcurrentMarkerBase {
+ public:
+  UnifiedHeapConcurrentMarker(
+      cppgc::internal::HeapBase& heap,
+      cppgc::internal::MarkingWorklists& marking_worklists,
+      cppgc::internal::IncrementalMarkingSchedule& incremental_marking_schedule,
+      cppgc::Platform* platform,
+      UnifiedHeapMarkingState& unified_heap_marking_state)
+      : cppgc::internal::ConcurrentMarkerBase(
+            heap, marking_worklists, incremental_marking_schedule, platform),
+        unified_heap_marking_state_(unified_heap_marking_state) {}
+
+  std::unique_ptr<cppgc::Visitor> CreateConcurrentMarkingVisitor(
+      ConcurrentMarkingState&) const final;
+
+ private:
+  UnifiedHeapMarkingState& unified_heap_marking_state_;
+};
+
+std::unique_ptr<cppgc::Visitor>
+UnifiedHeapConcurrentMarker::CreateConcurrentMarkingVisitor(
+    ConcurrentMarkingState& marking_state) const {
+  return std::make_unique<ConcurrentUnifiedHeapMarkingVisitor>(
+      heap(), marking_state, unified_heap_marking_state_);
+}
+
 class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
  public:
   UnifiedHeapMarker(Key, Heap& v8_heap, cppgc::internal::HeapBase& cpp_heap,
@@ -82,8 +110,8 @@ class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
   }
 
  private:
-  UnifiedHeapMarkingState unified_heap_mutator_marking_state_;
-  UnifiedHeapMarkingVisitor marking_visitor_;
+  UnifiedHeapMarkingState unified_heap_marking_state_;
+  MutatorUnifiedHeapMarkingVisitor marking_visitor_;
   cppgc::internal::ConservativeMarkingVisitor conservative_marking_visitor_;
 };
 
@@ -92,11 +120,15 @@ UnifiedHeapMarker::UnifiedHeapMarker(Key key, Heap& v8_heap,
                                      cppgc::Platform* platform,
                                      MarkingConfig config)
     : cppgc::internal::MarkerBase(key, heap, platform, config),
-      unified_heap_mutator_marking_state_(v8_heap),
+      unified_heap_marking_state_(v8_heap),
       marking_visitor_(heap, mutator_marking_state_,
-                       unified_heap_mutator_marking_state_),
+                       unified_heap_marking_state_),
       conservative_marking_visitor_(heap, mutator_marking_state_,
-                                    marking_visitor_) {}
+                                    marking_visitor_) {
+  concurrent_marker_ = std::make_unique<UnifiedHeapConcurrentMarker>(
+      heap_, marking_worklists_, schedule_, platform_,
+      unified_heap_marking_state_);
+}
 
 void UnifiedHeapMarker::AddObject(void* object) {
   mutator_marking_state_.MarkAndPush(

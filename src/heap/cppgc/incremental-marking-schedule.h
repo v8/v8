@@ -26,7 +26,8 @@ class V8_EXPORT_PRIVATE IncrementalMarkingSchedule {
   void UpdateIncrementalMarkedBytes(size_t);
   void AddConcurrentlyMarkedBytes(size_t);
 
-  size_t GetOverallMarkedBytes();
+  size_t GetOverallMarkedBytes() const;
+  size_t GetConcurrentlyMarkedBytes() const;
 
   size_t GetNextIncrementalStepDuration(size_t);
 
