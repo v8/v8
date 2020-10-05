@@ -34,16 +34,16 @@ CAST_ACCESSOR(Map)
 
 RELAXED_ACCESSORS(Map, instance_descriptors, DescriptorArray,
                   kInstanceDescriptorsOffset)
-SYNCHRONIZED_ACCESSORS(Map, instance_descriptors, DescriptorArray,
-                       kInstanceDescriptorsOffset)
+RELEASE_ACQUIRE_ACCESSORS(Map, instance_descriptors, DescriptorArray,
+                          kInstanceDescriptorsOffset)
 
 // A freshly allocated layout descriptor can be set on an existing map.
 // We need to use release-store and acquire-load accessor pairs to ensure
 // that the concurrent marking thread observes initializing stores of the
 // layout descriptor.
-SYNCHRONIZED_ACCESSORS_CHECKED(Map, layout_descriptor, LayoutDescriptor,
-                               kLayoutDescriptorOffset,
-                               FLAG_unbox_double_fields)
+RELEASE_ACQUIRE_ACCESSORS_CHECKED(Map, layout_descriptor, LayoutDescriptor,
+                                  kLayoutDescriptorOffset,
+                                  FLAG_unbox_double_fields)
 SYNCHRONIZED_WEAK_ACCESSORS(Map, raw_transitions,
                             kTransitionsOrPrototypeInfoOffset)
 

@@ -177,18 +177,18 @@ INT_ACCESSORS(Code, code_comments_offset, kCodeCommentsOffsetOffset)
 #define CODE_ACCESSORS(name, type, offset)           \
   ACCESSORS_CHECKED2(Code, name, type, offset, true, \
                      !ObjectInYoungGeneration(value))
-#define SYNCHRONIZED_CODE_ACCESSORS(name, type, offset)           \
-  SYNCHRONIZED_ACCESSORS_CHECKED2(Code, name, type, offset, true, \
-                                  !ObjectInYoungGeneration(value))
+#define RELEASE_ACQUIRE_CODE_ACCESSORS(name, type, offset)           \
+  RELEASE_ACQUIRE_ACCESSORS_CHECKED2(Code, name, type, offset, true, \
+                                     !ObjectInYoungGeneration(value))
 
 CODE_ACCESSORS(relocation_info, ByteArray, kRelocationInfoOffset)
 CODE_ACCESSORS(deoptimization_data, FixedArray, kDeoptimizationDataOffset)
 CODE_ACCESSORS(source_position_table, Object, kSourcePositionTableOffset)
 // Concurrent marker needs to access kind specific flags in code data container.
-SYNCHRONIZED_CODE_ACCESSORS(code_data_container, CodeDataContainer,
-                            kCodeDataContainerOffset)
+RELEASE_ACQUIRE_CODE_ACCESSORS(code_data_container, CodeDataContainer,
+                               kCodeDataContainerOffset)
 #undef CODE_ACCESSORS
-#undef SYNCHRONIZED_CODE_ACCESSORS
+#undef RELEASE_ACQUIRE_CODE_ACCESSORS
 
 void Code::WipeOutHeader() {
   WRITE_FIELD(*this, kRelocationInfoOffset, Smi::FromInt(0));
@@ -701,8 +701,8 @@ int32_t BytecodeArray::parameter_count() const {
 
 ACCESSORS(BytecodeArray, constant_pool, FixedArray, kConstantPoolOffset)
 ACCESSORS(BytecodeArray, handler_table, ByteArray, kHandlerTableOffset)
-SYNCHRONIZED_ACCESSORS(BytecodeArray, source_position_table, Object,
-                       kSourcePositionTableOffset)
+RELEASE_ACQUIRE_ACCESSORS(BytecodeArray, source_position_table, Object,
+                          kSourcePositionTableOffset)
 
 void BytecodeArray::clear_padding() {
   int data_size = kHeaderSize + length();

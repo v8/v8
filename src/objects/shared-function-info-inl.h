@@ -97,8 +97,8 @@ NEVER_READ_ONLY_SPACE_IMPL(SharedFunctionInfo)
 CAST_ACCESSOR(SharedFunctionInfo)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
 
-SYNCHRONIZED_ACCESSORS(SharedFunctionInfo, function_data, Object,
-                       kFunctionDataOffset)
+RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, function_data, Object,
+                          kFunctionDataOffset)
 ACCESSORS(SharedFunctionInfo, name_or_scope_info, Object,
           kNameOrScopeInfoOffset)
 ACCESSORS(SharedFunctionInfo, script_or_debug_info, HeapObject,

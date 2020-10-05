@@ -619,7 +619,7 @@ def load_fields_from_file(filename):
         #
         prefixes = [ 'ACCESSORS', 'ACCESSORS2', 'ACCESSORS_GCSAFE',
                      'SMI_ACCESSORS', 'ACCESSORS_TO_SMI',
-                     'SYNCHRONIZED_ACCESSORS', 'WEAK_ACCESSORS' ];
+                     'RELEASE_ACQUIRE_ACCESSORS', 'WEAK_ACCESSORS' ];
         prefixes += ([ prefix + "_CHECKED" for prefix in prefixes ] +
                      [ prefix + "_CHECKED2" for prefix in prefixes ])
         current = '';

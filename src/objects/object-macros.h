@@ -196,8 +196,8 @@
 #define RELAXED_ACCESSORS(holder, name, type, offset) \
   RELAXED_ACCESSORS_CHECKED(holder, name, type, offset, true)
 
-#define SYNCHRONIZED_ACCESSORS_CHECKED2(holder, name, type, offset,       \
-                                        get_condition, set_condition)     \
+#define RELEASE_ACQUIRE_ACCESSORS_CHECKED2(holder, name, type, offset,    \
+                                           get_condition, set_condition)  \
   type holder::name(AcquireLoadTag tag) const {                           \
     const Isolate* isolate = GetIsolateForPtrCompr(*this);                \
     return holder::name(isolate, tag);                                    \
@@ -214,12 +214,13 @@
     CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);                \
   }
 
-#define SYNCHRONIZED_ACCESSORS_CHECKED(holder, name, type, offset, condition) \
-  SYNCHRONIZED_ACCESSORS_CHECKED2(holder, name, type, offset, condition,      \
-                                  condition)
+#define RELEASE_ACQUIRE_ACCESSORS_CHECKED(holder, name, type, offset,       \
+                                          condition)                        \
+  RELEASE_ACQUIRE_ACCESSORS_CHECKED2(holder, name, type, offset, condition, \
+                                     condition)
 
-#define SYNCHRONIZED_ACCESSORS(holder, name, type, offset) \
-  SYNCHRONIZED_ACCESSORS_CHECKED(holder, name, type, offset, true)
+#define RELEASE_ACQUIRE_ACCESSORS(holder, name, type, offset) \
+  RELEASE_ACQUIRE_ACCESSORS_CHECKED(holder, name, type, offset, true)
 
 #define WEAK_ACCESSORS_CHECKED2(holder, name, offset, get_condition,  \
                                 set_condition)                        \
