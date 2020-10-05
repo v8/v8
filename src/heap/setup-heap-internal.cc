@@ -388,7 +388,6 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_PRIMITIVE_MAP(SYMBOL_TYPE, Symbol::kSize, symbol,
                            Context::SYMBOL_FUNCTION_INDEX)
     ALLOCATE_MAP(FOREIGN_TYPE, Foreign::kSize, foreign)
-    ALLOCATE_VARSIZE_MAP(STRONG_DESCRIPTOR_ARRAY_TYPE, strong_descriptor_array)
 
     ALLOCATE_PRIMITIVE_MAP(ODDBALL_TYPE, Oddball::kSize, boolean,
                            Context::BOOLEAN_FUNCTION_INDEX);

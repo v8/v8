@@ -7,9 +7,7 @@
 
 #include <utility>
 
-#include "src/base/atomicops.h"
 #include "src/base/logging.h"
-#include "src/common/globals.h"
 #include "src/snapshot/snapshot-utils.h"
 #include "src/utils/utils.h"
 
@@ -52,30 +50,6 @@ class SnapshotByteSource final {
     memcpy(to, data_ + position_, number_of_bytes);
     position_ += number_of_bytes;
   }
-
-  void CopySlots(Address* dest, int number_of_slots) {
-    base::AtomicWord* start = reinterpret_cast<base::AtomicWord*>(dest);
-    base::AtomicWord* end = start + number_of_slots;
-    for (base::AtomicWord* p = start; p < end;
-         ++p, position_ += sizeof(base::AtomicWord)) {
-      base::AtomicWord val;
-      memcpy(&val, data_ + position_, sizeof(base::AtomicWord));
-      base::Relaxed_Store(p, val);
-    }
-  }
-
-#ifdef V8_COMPRESS_POINTERS
-  void CopySlots(Tagged_t* dest, int number_of_slots) {
-    AtomicTagged_t* start = reinterpret_cast<AtomicTagged_t*>(dest);
-    AtomicTagged_t* end = start + number_of_slots;
-    for (AtomicTagged_t* p = start; p < end;
-         ++p, position_ += sizeof(AtomicTagged_t)) {
-      AtomicTagged_t val;
-      memcpy(&val, data_ + position_, sizeof(AtomicTagged_t));
-      base::Relaxed_Store(p, val);
-    }
-  }
-#endif
 
   inline int GetInt() {
     // This way of decoding variable-length encoded integers does not

@@ -17,6 +17,7 @@
 #include "src/objects/map.h"
 #include "src/objects/string-table.h"
 #include "src/objects/string.h"
+#include "src/snapshot/deserializer-allocator.h"
 #include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/snapshot-source-sink.h"
 
@@ -39,22 +40,29 @@ class Object;
 // A Deserializer reads a snapshot and reconstructs the Object graph it defines.
 class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
  public:
-  // Smi value for filling in not-yet initialized tagged field values with a
-  // valid tagged pointer. A field value equal to this doesn't necessarily
-  // indicate that a field is uninitialized, but an uninitialized field should
-  // definitely equal this value.
-  static constexpr Smi uninitialized_field_value() { return Smi(0xdeadbed0); }
-
   ~Deserializer() override;
 
+  void SetRehashability(bool v) { can_rehash_ = v; }
   uint32_t GetChecksum() const { return source_.GetChecksum(); }
 
  protected:
   // Create a deserializer from a snapshot byte source.
-  Deserializer(Isolate* isolate, Vector<const byte> payload,
-               uint32_t magic_number, bool deserializing_user_code,
-               bool can_rehash);
+  template <class Data>
+  Deserializer(Data* data, bool deserializing_user_code)
+      : isolate_(nullptr),
+        source_(data->Payload()),
+        magic_number_(data->GetMagicNumber()),
+        deserializing_user_code_(deserializing_user_code),
+        can_rehash_(false) {
+    allocator()->DecodeReservation(data->Reservations());
+    // We start the indices here at 1, so that we can distinguish between an
+    // actual index and a nullptr (serialized as kNullRefSentinel) in a
+    // deserialized object requiring fix-up.
+    STATIC_ASSERT(kNullRefSentinel == 0);
+    backing_stores_.push_back({});
+  }
 
+  void Initialize(Isolate* isolate);
   void DeserializeDeferredObjects();
 
   // Create Log events for newly deserialized objects.
@@ -62,14 +70,9 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   void LogScriptEvents(Script script);
   void LogNewMapEvents();
 
-  // Descriptor arrays are deserialized as "strong", so that there is no risk of
-  // them getting trimmed during a partial deserialization. This method makes
-  // them "weak" again after deserialization completes.
-  void WeakenDescriptorArrays();
-
   // This returns the address of an object that has been described in the
-  // snapshot by object vector index.
-  Handle<HeapObject> GetBackReferencedObject();
+  // snapshot by chunk index and offset.
+  HeapObject GetBackReferencedObject(SnapshotSpace space);
 
   // Add an object to back an attached reference. The order to add objects must
   // mirror the order they are added in the serializer.
@@ -84,17 +87,17 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   Isolate* isolate() const { return isolate_; }
 
   SnapshotByteSource* source() { return &source_; }
-  const std::vector<Handle<AllocationSite>>& new_allocation_sites() const {
+  const std::vector<AllocationSite>& new_allocation_sites() const {
     return new_allocation_sites_;
   }
-  const std::vector<Handle<Code>>& new_code_objects() const {
+  const std::vector<Code>& new_code_objects() const {
     return new_code_objects_;
   }
-  const std::vector<Handle<Map>>& new_maps() const { return new_maps_; }
-  const std::vector<Handle<AccessorInfo>>& accessor_infos() const {
+  const std::vector<Map>& new_maps() const { return new_maps_; }
+  const std::vector<AccessorInfo>& accessor_infos() const {
     return accessor_infos_;
   }
-  const std::vector<Handle<CallHandlerInfo>>& call_handler_infos() const {
+  const std::vector<CallHandlerInfo>& call_handler_infos() const {
     return call_handler_infos_;
   }
   const std::vector<Handle<Script>>& new_scripts() const {
@@ -105,68 +108,76 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
     return new_off_heap_array_buffers_;
   }
 
-  const std::vector<Handle<DescriptorArray>>& new_descriptor_arrays() const {
-    return new_descriptor_arrays_;
-  }
-
   std::shared_ptr<BackingStore> backing_store(size_t i) {
     DCHECK_LT(i, backing_stores_.size());
     return backing_stores_[i];
   }
 
+  DeserializerAllocator* allocator() { return &allocator_; }
   bool deserializing_user_code() const { return deserializing_user_code_; }
   bool can_rehash() const { return can_rehash_; }
 
   void Rehash();
 
-  Handle<HeapObject> ReadObject();
-
  private:
-  class RelocInfoVisitor;
-
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override;
 
   void Synchronize(VisitorSynchronization::SyncTag tag) override;
 
   template <typename TSlot>
-  inline int WriteAddress(TSlot dest, Address value);
+  inline TSlot Write(TSlot dest, MaybeObject value);
 
   template <typename TSlot>
-  inline int WriteExternalPointer(TSlot dest, Address value);
+  inline TSlot Write(TSlot dest, HeapObject value,
+                     HeapObjectReferenceType type);
 
-  // Fills in a heap object's data from start to end (exclusive). Start and end
-  // are slot indices within the object.
-  void ReadData(Handle<HeapObject> object, int start_slot_index,
-                int end_slot_index);
+  template <typename TSlot>
+  inline TSlot WriteAddress(TSlot dest, Address value);
 
-  // Fills in a contiguous range of full object slots (e.g. root pointers) from
-  // start to end (exclusive).
-  void ReadData(FullMaybeObjectSlot start, FullMaybeObjectSlot end);
+  template <typename TSlot>
+  inline TSlot WriteExternalPointer(TSlot dest, Address value);
+
+  // Fills in some heap data in an area from start to end (non-inclusive). The
+  // object_address is the address of the object we are writing into, or nullptr
+  // if we are not writing into an object, i.e. if we are writing a series of
+  // tagged values that are not on the heap.
+  template <typename TSlot>
+  void ReadData(TSlot start, TSlot end, Address object_address);
 
   // Helper for ReadData which reads the given bytecode and fills in some heap
   // data into the given slot. May fill in zero or multiple slots, so it returns
-  // the number of slots filled.
-  template <typename SlotAccessor>
-  int ReadSingleBytecodeData(byte data, SlotAccessor slot_accessor);
+  // the next unfilled slot.
+  template <typename TSlot>
+  TSlot ReadSingleBytecodeData(byte data, TSlot current,
+                               Address object_address);
 
   // A helper function for ReadData for reading external references.
   inline Address ReadExternalReferenceCase();
 
-  Handle<HeapObject> ReadObject(SnapshotSpace space_number);
-  Handle<HeapObject> ReadMetaMap();
+  HeapObject ReadObject(SnapshotSpace space_number);
+  HeapObject ReadMetaMap();
+  void ReadCodeObjectBody(Address code_object_address);
 
   HeapObjectReferenceType GetAndResetNextReferenceType();
 
-  template <typename SlotGetter>
-  int ReadRepeatedObject(SlotGetter slot_getter, int repeat_count);
+ protected:
+  HeapObject ReadObject();
+
+ public:
+  void VisitCodeTarget(Code host, RelocInfo* rinfo);
+  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo);
+  void VisitRuntimeEntry(Code host, RelocInfo* rinfo);
+  void VisitExternalReference(Code host, RelocInfo* rinfo);
+  void VisitInternalReference(Code host, RelocInfo* rinfo);
+  void VisitOffHeapTarget(Code host, RelocInfo* rinfo);
+
+ private:
+  template <typename TSlot>
+  TSlot ReadRepeatedObject(TSlot current, int repeat_count);
 
   // Special handling for serialized code like hooking up internalized strings.
-  void PostProcessNewObject(Handle<Map> map, Handle<HeapObject> obj,
-                            SnapshotSpace space);
-
-  HeapObject Allocate(SnapshotSpace space, int size,
-                      AllocationAlignment alignment);
+  HeapObject PostProcessNewObject(HeapObject obj, SnapshotSpace space);
 
   // Cached current isolate.
   Isolate* isolate_;
@@ -177,18 +188,14 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   SnapshotByteSource source_;
   uint32_t magic_number_;
 
-  std::vector<Handle<Map>> new_maps_;
-  std::vector<Handle<AllocationSite>> new_allocation_sites_;
-  std::vector<Handle<Code>> new_code_objects_;
-  std::vector<Handle<AccessorInfo>> accessor_infos_;
-  std::vector<Handle<CallHandlerInfo>> call_handler_infos_;
+  std::vector<Map> new_maps_;
+  std::vector<AllocationSite> new_allocation_sites_;
+  std::vector<Code> new_code_objects_;
+  std::vector<AccessorInfo> accessor_infos_;
+  std::vector<CallHandlerInfo> call_handler_infos_;
   std::vector<Handle<Script>> new_scripts_;
   std::vector<Handle<JSArrayBuffer>> new_off_heap_array_buffers_;
-  std::vector<Handle<DescriptorArray>> new_descriptor_arrays_;
   std::vector<std::shared_ptr<BackingStore>> backing_stores_;
-
-  // Vector of allocated objects that can be accessed by a backref, by index.
-  std::vector<Handle<HeapObject>> back_refs_;
 
   // Unresolved forward references (registered with kRegisterPendingForwardRef)
   // are collected in order as (object, field offset) pairs. The subsequent
@@ -197,32 +204,32 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   //
   // The vector is cleared when there are no more unresolved forward refs.
   struct UnresolvedForwardRef {
-    UnresolvedForwardRef(Handle<HeapObject> object, int offset,
+    UnresolvedForwardRef(HeapObject object, int offset,
                          HeapObjectReferenceType ref_type)
         : object(object), offset(offset), ref_type(ref_type) {}
 
-    Handle<HeapObject> object;
+    HeapObject object;
     int offset;
     HeapObjectReferenceType ref_type;
   };
   std::vector<UnresolvedForwardRef> unresolved_forward_refs_;
   int num_unresolved_forward_refs_ = 0;
 
+  DeserializerAllocator allocator_;
   const bool deserializing_user_code_;
 
   bool next_reference_is_weak_ = false;
 
   // TODO(6593): generalize rehashing, and remove this flag.
   bool can_rehash_;
-  std::vector<Handle<HeapObject>> to_rehash_;
+  std::vector<HeapObject> to_rehash_;
 
 #ifdef DEBUG
   uint32_t num_api_references_;
-
-  // Record the previous object allocated for DCHECKs.
-  Handle<HeapObject> previous_allocation_obj_;
-  int previous_allocation_size_ = 0;
 #endif  // DEBUG
+
+  // For source(), isolate(), and allocator().
+  friend class DeserializerAllocator;
 
   DISALLOW_COPY_AND_ASSIGN(Deserializer);
 };

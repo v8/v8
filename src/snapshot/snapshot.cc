@@ -158,9 +158,12 @@ bool Snapshot::Initialize(Isolate* isolate) {
   SnapshotData startup_snapshot_data(MaybeDecompress(startup_data));
   SnapshotData read_only_snapshot_data(MaybeDecompress(read_only_data));
 
-  bool success = isolate->InitWithSnapshot(&startup_snapshot_data,
-                                           &read_only_snapshot_data,
-                                           ExtractRehashability(blob));
+  StartupDeserializer startup_deserializer(&startup_snapshot_data);
+  ReadOnlyDeserializer read_only_deserializer(&read_only_snapshot_data);
+  startup_deserializer.SetRehashability(ExtractRehashability(blob));
+  read_only_deserializer.SetRehashability(ExtractRehashability(blob));
+  bool success =
+      isolate->InitWithSnapshot(&read_only_deserializer, &startup_deserializer);
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     int bytes = startup_data.length();
@@ -314,6 +317,30 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
   Isolate::Delete(new_isolate);
 }
 
+void ProfileDeserialization(
+    const SnapshotData* read_only_snapshot,
+    const SnapshotData* startup_snapshot,
+    const std::vector<SnapshotData*>& context_snapshots) {
+  if (FLAG_profile_deserialization) {
+    int startup_total = 0;
+    PrintF("Deserialization will reserve:\n");
+    for (const auto& reservation : read_only_snapshot->Reservations()) {
+      startup_total += reservation.chunk_size();
+    }
+    for (const auto& reservation : startup_snapshot->Reservations()) {
+      startup_total += reservation.chunk_size();
+    }
+    PrintF("%10d bytes per isolate\n", startup_total);
+    for (size_t i = 0; i < context_snapshots.size(); i++) {
+      int context_total = 0;
+      for (const auto& reservation : context_snapshots[i]->Reservations()) {
+        context_total += reservation.chunk_size();
+      }
+      PrintF("%10d bytes per context #%zu\n", context_total, i);
+    }
+  }
+}
+
 // static
 constexpr Snapshot::SerializerFlags Snapshot::kDefaultSerializerFlags;
 
@@ -325,7 +352,6 @@ v8::StartupData Snapshot::Create(
     const DisallowGarbageCollection& no_gc, SerializerFlags flags) {
   DCHECK_EQ(contexts->size(), embedder_fields_serializers.size());
   DCHECK_GT(contexts->size(), 0);
-  HandleScope scope(isolate);
 
   // Enter a safepoint so that the heap is safe to iterate.
   // TODO(leszeks): This safepoint's scope could be tightened to just string
@@ -428,6 +454,9 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
     total_length += static_cast<uint32_t>(context_snapshot->RawData().length());
   }
 
+  ProfileDeserialization(read_only_snapshot_in, startup_snapshot_in,
+                         context_snapshots_in);
+
   char* data = new char[total_length];
   // Zero out pre-payload data. Part of that is only used for padding.
   memset(data, 0, SnapshotImpl::StartupSnapshotOffset(num_contexts));
@@ -451,8 +480,9 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
             reinterpret_cast<const char*>(startup_snapshot->RawData().begin()),
             payload_length);
   if (FLAG_profile_deserialization) {
-    PrintF("Snapshot blob consists of:\n%10d bytes for startup\n",
-           payload_length);
+    PrintF("Snapshot blob consists of:\n%10d bytes in %d chunks for startup\n",
+           payload_length,
+           static_cast<uint32_t>(startup_snapshot_in->Reservations().size()));
   }
   payload_offset += payload_length;
 
@@ -480,7 +510,10 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
         reinterpret_cast<const char*>(context_snapshot->RawData().begin()),
         payload_length);
     if (FLAG_profile_deserialization) {
-      PrintF("%10d bytes for context #%d\n", payload_length, i);
+      PrintF(
+          "%10d bytes in %d chunks for context #%d\n", payload_length,
+          static_cast<uint32_t>(context_snapshots_in[i]->Reservations().size()),
+          i);
     }
     payload_offset += payload_length;
   }

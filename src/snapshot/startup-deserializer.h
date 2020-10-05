@@ -6,7 +6,6 @@
 #define V8_SNAPSHOT_STARTUP_DESERIALIZER_H_
 
 #include "src/snapshot/deserializer.h"
-#include "src/snapshot/snapshot-data.h"
 #include "src/snapshot/snapshot.h"
 
 namespace v8 {
@@ -15,14 +14,11 @@ namespace internal {
 // Initializes an isolate with context-independent data from a given snapshot.
 class StartupDeserializer final : public Deserializer {
  public:
-  explicit StartupDeserializer(Isolate* isolate,
-                               const SnapshotData* startup_data,
-                               bool can_rehash)
-      : Deserializer(isolate, startup_data->Payload(),
-                     startup_data->GetMagicNumber(), false, can_rehash) {}
+  explicit StartupDeserializer(const SnapshotData* startup_data)
+      : Deserializer(startup_data, false) {}
 
   // Deserialize the snapshot into an empty heap.
-  void DeserializeIntoIsolate();
+  void DeserializeInto(Isolate* isolate);
 
  private:
   void DeserializeStringTable();

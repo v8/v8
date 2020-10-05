@@ -46,12 +46,15 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
   DCHECK(!object->IsCode());
 #endif
 
-  auto find_result = map_.FindOrInsert(object);
-  if (!find_result.already_exists) {
+  uint32_t* maybe_key = map_.Find(object);
+  if (maybe_key == nullptr) {
     DCHECK(object->IsHeapObject());
-    *find_result.entry = map_.size() - 1;
+    uint32_t index = map_.size();
+    map_.Set(object, index);
+    return index;
+  } else {
+    return *maybe_key;
   }
-  return *find_result.entry;
 }
 
 namespace {
@@ -82,7 +85,7 @@ void BuiltinsConstantsTableBuilder::PatchSelfReference(
   uint32_t key;
   if (map_.Delete(self_reference, &key)) {
     DCHECK(code_object->IsCode());
-    map_.Insert(code_object, key);
+    map_.Set(code_object, key);
   }
 }
 
@@ -93,7 +96,7 @@ void BuiltinsConstantsTableBuilder::PatchBasicBlockCountersReference(
   uint32_t key;
   if (map_.Delete(ReadOnlyRoots(isolate_).basic_block_counters_marker(),
                   &key)) {
-    map_.Insert(counters, key);
+    map_.Set(counters, key);
   }
 }
 

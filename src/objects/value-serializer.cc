@@ -384,7 +384,7 @@ void ValueSerializer::TransferArrayBuffer(uint32_t transfer_id,
                                           Handle<JSArrayBuffer> array_buffer) {
   DCHECK(!array_buffer_transfer_map_.Find(array_buffer));
   DCHECK(!array_buffer->is_shared());
-  array_buffer_transfer_map_.Insert(array_buffer, transfer_id);
+  array_buffer_transfer_map_.Set(array_buffer, transfer_id);
 }
 
 Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
@@ -500,16 +500,16 @@ void ValueSerializer::WriteString(Handle<String> string) {
 
 Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
   // If the object has already been serialized, just write its ID.
-  auto find_result = id_map_.FindOrInsert(receiver);
-  if (find_result.already_exists) {
+  uint32_t* id_map_entry = id_map_.Get(receiver);
+  if (uint32_t id = *id_map_entry) {
     WriteTag(SerializationTag::kObjectReference);
-    WriteVarint(*find_result.entry - 1);
+    WriteVarint(id - 1);
     return ThrowIfOutOfMemory();
   }
 
   // Otherwise, allocate an ID for it.
   uint32_t id = next_id_++;
-  *find_result.entry = id + 1;
+  *id_map_entry = id + 1;
 
   // Eliminate callable and exotic objects, which should not be serialized.
   InstanceType instance_type = receiver->map().instance_type();

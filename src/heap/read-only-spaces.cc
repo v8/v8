@@ -39,24 +39,22 @@ void ReadOnlyArtifacts::set_read_only_heap(
   read_only_heap_ = std::move(read_only_heap);
 }
 
-void ReadOnlyArtifacts::InitializeChecksum(
-    SnapshotData* read_only_snapshot_data) {
+void ReadOnlyArtifacts::InitializeChecksum(ReadOnlyDeserializer* des) {
 #ifdef DEBUG
-  read_only_blob_checksum_ = Checksum(read_only_snapshot_data->Payload());
+  read_only_blob_checksum_ = des->GetChecksum();
 #endif  // DEBUG
 }
 
-void ReadOnlyArtifacts::VerifyChecksum(SnapshotData* read_only_snapshot_data,
+void ReadOnlyArtifacts::VerifyChecksum(ReadOnlyDeserializer* des,
                                        bool read_only_heap_created) {
 #ifdef DEBUG
   if (read_only_blob_checksum_) {
     // The read-only heap was set up from a snapshot. Make sure it's the always
     // the same snapshot.
-    uint32_t snapshot_checksum = Checksum(read_only_snapshot_data->Payload());
-    CHECK_WITH_MSG(snapshot_checksum,
+    CHECK_WITH_MSG(des->GetChecksum(),
                    "Attempt to create the read-only heap after already "
                    "creating from a snapshot.");
-    CHECK_EQ(read_only_blob_checksum_, snapshot_checksum);
+    CHECK_EQ(read_only_blob_checksum_, des->GetChecksum());
   } else {
     // If there's no checksum, then that means the read-only heap objects are
     // being created.

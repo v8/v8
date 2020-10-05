@@ -220,10 +220,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
 #undef MAKE_TORQUE_CASE
 
-    case DESCRIPTOR_ARRAY_TYPE:
-    case STRONG_DESCRIPTOR_ARRAY_TYPE:
-      DescriptorArray::cast(*this).DescriptorArrayPrint(os);
-      break;
     case FOREIGN_TYPE:
       Foreign::cast(*this).ForeignPrint(os);
       break;

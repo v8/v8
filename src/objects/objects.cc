@@ -63,7 +63,6 @@
 #include "src/objects/free-space-inl.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/hash-table-inl.h"
-#include "src/objects/instance-type.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/keys.h"
 #include "src/objects/lookup-inl.h"
@@ -2242,8 +2241,7 @@ int HeapObject::SizeFromMap(Map map) const {
     return FeedbackMetadata::SizeFor(
         FeedbackMetadata::unchecked_cast(*this).synchronized_slot_count());
   }
-  if (base::IsInRange(instance_type, FIRST_DESCRIPTOR_ARRAY_TYPE,
-                      LAST_DESCRIPTOR_ARRAY_TYPE)) {
+  if (instance_type == DESCRIPTOR_ARRAY_TYPE) {
     return DescriptorArray::SizeFor(
         DescriptorArray::unchecked_cast(*this).number_of_all_descriptors());
   }
@@ -2306,14 +2304,8 @@ int HeapObject::SizeFromMap(Map map) const {
 }
 
 bool HeapObject::NeedsRehashing() const {
-  return NeedsRehashing(map().instance_type());
-}
-
-bool HeapObject::NeedsRehashing(InstanceType instance_type) const {
-  DCHECK_EQ(instance_type, map().instance_type());
-  switch (instance_type) {
+  switch (map().instance_type()) {
     case DESCRIPTOR_ARRAY_TYPE:
-    case STRONG_DESCRIPTOR_ARRAY_TYPE:
       return DescriptorArray::cast(*this).number_of_descriptors() > 1;
     case TRANSITION_ARRAY_TYPE:
       return TransitionArray::cast(*this).number_of_entries() > 1;
@@ -2353,7 +2345,6 @@ bool HeapObject::CanBeRehashed() const {
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
       return true;
     case DESCRIPTOR_ARRAY_TYPE:
-    case STRONG_DESCRIPTOR_ARRAY_TYPE:
       return true;
     case TRANSITION_ARRAY_TYPE:
       return true;

@@ -2932,9 +2932,6 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
       id_(isolate_counter.fetch_add(1, std::memory_order_relaxed)),
       allocator_(new TracingAccountingAllocator(this)),
       builtins_(this),
-#if defined(DEBUG) || defined(VERIFY_HEAP)
-      num_active_deserializers_(0),
-#endif
       rail_mode_(PERFORMANCE_ANIMATION),
       code_event_dispatcher_(new CodeEventDispatcher()),
       persistent_handles_list_(new PersistentHandlesList()),
@@ -3397,14 +3394,13 @@ void Isolate::TearDownEmbeddedBlob() {
   }
 }
 
-bool Isolate::InitWithoutSnapshot() { return Init(nullptr, nullptr, false); }
+bool Isolate::InitWithoutSnapshot() { return Init(nullptr, nullptr); }
 
-bool Isolate::InitWithSnapshot(SnapshotData* startup_snapshot_data,
-                               SnapshotData* read_only_snapshot_data,
-                               bool can_rehash) {
-  DCHECK_NOT_NULL(startup_snapshot_data);
-  DCHECK_NOT_NULL(read_only_snapshot_data);
-  return Init(startup_snapshot_data, read_only_snapshot_data, can_rehash);
+bool Isolate::InitWithSnapshot(ReadOnlyDeserializer* read_only_deserializer,
+                               StartupDeserializer* startup_deserializer) {
+  DCHECK_NOT_NULL(read_only_deserializer);
+  DCHECK_NOT_NULL(startup_deserializer);
+  return Init(read_only_deserializer, startup_deserializer);
 }
 
 static std::string AddressToString(uintptr_t address) {
@@ -3453,12 +3449,12 @@ using MapOfLoadsAndStoresPerFunction =
 MapOfLoadsAndStoresPerFunction* stack_access_count_map = nullptr;
 }  // namespace
 
-bool Isolate::Init(SnapshotData* startup_snapshot_data,
-                   SnapshotData* read_only_snapshot_data, bool can_rehash) {
+bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
+                   StartupDeserializer* startup_deserializer) {
   TRACE_ISOLATE(init);
-  const bool create_heap_objects = (read_only_snapshot_data == nullptr);
+  const bool create_heap_objects = (read_only_deserializer == nullptr);
   // We either have both or neither.
-  DCHECK_EQ(create_heap_objects, startup_snapshot_data == nullptr);
+  DCHECK_EQ(create_heap_objects, startup_deserializer == nullptr);
 
   base::ElapsedTimer timer;
   if (create_heap_objects && FLAG_profile_deserialization) timer.Start();
@@ -3519,7 +3515,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   // SetUp the object heap.
   DCHECK(!heap_.HasBeenSetUp());
   heap_.SetUp();
-  ReadOnlyHeap::SetUp(this, read_only_snapshot_data, can_rehash);
+  ReadOnlyHeap::SetUp(this, read_only_deserializer);
   heap_.SetUpSpaces();
 
   isolate_data_.external_reference_table()->Init(this);
@@ -3610,9 +3606,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
       heap_.read_only_space()->ClearStringPaddingIfNeeded();
       read_only_heap_->OnCreateHeapObjectsComplete(this);
     } else {
-      StartupDeserializer startup_deserializer(this, startup_snapshot_data,
-                                               can_rehash);
-      startup_deserializer.DeserializeIntoIsolate();
+      startup_deserializer->DeserializeInto(this);
     }
     load_stub_cache_->Initialize();
     store_stub_cache_->Initialize();

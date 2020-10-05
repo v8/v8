@@ -175,12 +175,12 @@ Address* CanonicalHandleScope::Lookup(Address object) {
       return isolate_->root_handle(root_index).location();
     }
   }
-  auto find_result = identity_map_->FindOrInsert(Object(object));
-  if (!find_result.already_exists) {
+  Address** entry = identity_map_->Get(Object(object));
+  if (*entry == nullptr) {
     // Allocate new handle location.
-    *find_result.entry = HandleScope::CreateHandle(isolate_, object);
+    *entry = HandleScope::CreateHandle(isolate_, object);
   }
-  return *find_result.entry;
+  return *entry;
 }
 
 std::unique_ptr<CanonicalHandlesMap>
