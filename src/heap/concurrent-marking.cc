@@ -79,14 +79,13 @@ class ConcurrentMarkingVisitor final
     : public MarkingVisitorBase<ConcurrentMarkingVisitor,
                                 ConcurrentMarkingState> {
  public:
-  ConcurrentMarkingVisitor(int task_id,
-                           MarkingWorklists::Local* local_marking_worklists,
-                           WeakObjects* weak_objects, Heap* heap,
+  ConcurrentMarkingVisitor(MarkingWorklists::Local* local_marking_worklists,
+                           WeakObjects::Local* local_weak_objects, Heap* heap,
                            unsigned mark_compact_epoch,
                            BytecodeFlushMode bytecode_flush_mode,
                            bool embedder_tracing_enabled, bool is_forced_gc,
                            MemoryChunkDataMap* memory_chunk_data)
-      : MarkingVisitorBase(task_id, local_marking_worklists, weak_objects, heap,
+      : MarkingVisitorBase(local_marking_worklists, local_weak_objects, heap,
                            mark_compact_epoch, bytecode_flush_mode,
                            embedder_tracing_enabled, is_forced_gc),
         marking_state_(memory_chunk_data),
@@ -151,7 +150,7 @@ class ConcurrentMarkingVisitor final
       }
 
     } else if (marking_state_.IsWhite(value)) {
-      weak_objects_->next_ephemerons.Push(task_id_, Ephemeron{key, value});
+      local_weak_objects_->next_ephemerons.Push(Ephemeron{key, value});
     }
     return false;
   }
@@ -388,8 +387,9 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
   size_t kBytesUntilInterruptCheck = 64 * KB;
   int kObjectsUntilInterrupCheck = 1000;
   MarkingWorklists::Local local_marking_worklists(marking_worklists_);
+  WeakObjects::Local local_weak_objects(weak_objects_);
   ConcurrentMarkingVisitor visitor(
-      task_id, &local_marking_worklists, weak_objects_, heap_,
+      &local_marking_worklists, &local_weak_objects, heap_,
       task_state->mark_compact_epoch, Heap::GetBytecodeFlushMode(),
       heap_->local_embedder_heap_tracer()->InUse(), task_state->is_forced_gc,
       &task_state->memory_chunk_data);
@@ -411,7 +411,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
     {
       Ephemeron ephemeron;
 
-      while (weak_objects_->current_ephemerons.Pop(task_id, &ephemeron)) {
+      while (local_weak_objects.current_ephemerons.Pop(&ephemeron)) {
         if (visitor.ProcessEphemeron(ephemeron.key, ephemeron.value)) {
           ephemeron_marked = true;
         }
@@ -467,7 +467,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
     if (done) {
       Ephemeron ephemeron;
 
-      while (weak_objects_->discovered_ephemerons.Pop(task_id, &ephemeron)) {
+      while (local_weak_objects.discovered_ephemerons.Pop(&ephemeron)) {
         if (visitor.ProcessEphemeron(ephemeron.key, ephemeron.value)) {
           ephemeron_marked = true;
         }
@@ -475,17 +475,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
     }
 
     local_marking_worklists.Publish();
-    weak_objects_->transition_arrays.FlushToGlobal(task_id);
-    weak_objects_->ephemeron_hash_tables.FlushToGlobal(task_id);
-    weak_objects_->current_ephemerons.FlushToGlobal(task_id);
-    weak_objects_->next_ephemerons.FlushToGlobal(task_id);
-    weak_objects_->discovered_ephemerons.FlushToGlobal(task_id);
-    weak_objects_->weak_references.FlushToGlobal(task_id);
-    weak_objects_->js_weak_refs.FlushToGlobal(task_id);
-    weak_objects_->weak_cells.FlushToGlobal(task_id);
-    weak_objects_->weak_objects_in_code.FlushToGlobal(task_id);
-    weak_objects_->bytecode_flushing_candidates.FlushToGlobal(task_id);
-    weak_objects_->flushed_js_functions.FlushToGlobal(task_id);
+    local_weak_objects.Publish();
     base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
     total_marked_bytes_ += marked_bytes;
 
@@ -565,8 +555,8 @@ void ConcurrentMarking::RescheduleTasksIfNeeded() {
     }
   }
   if (!marking_worklists_->shared()->IsEmpty() ||
-      !weak_objects_->current_ephemerons.IsGlobalPoolEmpty() ||
-      !weak_objects_->discovered_ephemerons.IsGlobalPoolEmpty()) {
+      !weak_objects_->current_ephemerons.IsEmpty() ||
+      !weak_objects_->discovered_ephemerons.IsEmpty()) {
     ScheduleTasks();
   }
 }

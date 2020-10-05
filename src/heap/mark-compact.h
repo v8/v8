@@ -378,12 +378,12 @@ class MainMarkingVisitor final
 
   MainMarkingVisitor(MarkingState* marking_state,
                      MarkingWorklists::Local* local_marking_worklists,
-                     WeakObjects* weak_objects, Heap* heap,
+                     WeakObjects::Local* local_weak_objects, Heap* heap,
                      unsigned mark_compact_epoch,
                      BytecodeFlushMode bytecode_flush_mode,
                      bool embedder_tracing_enabled, bool is_forced_gc)
       : MarkingVisitorBase<MainMarkingVisitor<MarkingState>, MarkingState>(
-            kMainThreadTask, local_marking_worklists, weak_objects, heap,
+            local_marking_worklists, local_weak_objects, heap,
             mark_compact_epoch, bytecode_flush_mode, embedder_tracing_enabled,
             is_forced_gc),
         marking_state_(marking_state),
@@ -533,6 +533,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   }
 
   WeakObjects* weak_objects() { return &weak_objects_; }
+  WeakObjects::Local* local_weak_objects() { return local_weak_objects_.get(); }
 
   inline void AddTransitionArray(TransitionArray array);
 
@@ -758,6 +759,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   MarkingWorklists marking_worklists_;
 
   WeakObjects weak_objects_;
+  std::unique_ptr<WeakObjects::Local> local_weak_objects_;
   EphemeronMarking ephemeron_marking_;
 
   std::unique_ptr<MarkingVisitor> marking_visitor_;

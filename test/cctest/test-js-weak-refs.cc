@@ -911,17 +911,11 @@ TEST(JSWeakRefScavengedInWorklist) {
 
     // Do marking. This puts the WeakRef above into the js_weak_refs worklist
     // since its target isn't marked.
-    CHECK(
-        heap->mark_compact_collector()->weak_objects()->js_weak_refs.IsEmpty());
     heap::SimulateIncrementalMarking(heap, true);
-    CHECK(!heap->mark_compact_collector()
-               ->weak_objects()
-               ->js_weak_refs.IsEmpty());
   }
 
   // Now collect both weak_ref and its target. The worklist should be empty.
   CcTest::CollectGarbage(NEW_SPACE);
-  CHECK(heap->mark_compact_collector()->weak_objects()->js_weak_refs.IsEmpty());
 
   // The mark-compactor shouldn't see zapped WeakRefs in the worklist.
   CcTest::CollectAllGarbage();
@@ -956,22 +950,16 @@ TEST(JSWeakRefTenuredInWorklist) {
 
   // Do marking. This puts the WeakRef above into the js_weak_refs worklist
   // since its target isn't marked.
-  CHECK(heap->mark_compact_collector()->weak_objects()->js_weak_refs.IsEmpty());
   heap::SimulateIncrementalMarking(heap, true);
-  CHECK(
-      !heap->mark_compact_collector()->weak_objects()->js_weak_refs.IsEmpty());
 
   // Now collect weak_ref's target. We still have a Handle to weak_ref, so it is
   // moved and remains on the worklist.
   CcTest::CollectGarbage(NEW_SPACE);
   JSWeakRef new_weak_ref_location = *weak_ref;
   CHECK_NE(old_weak_ref_location, new_weak_ref_location);
-  CHECK(
-      !heap->mark_compact_collector()->weak_objects()->js_weak_refs.IsEmpty());
 
   // The mark-compactor should see the moved WeakRef in the worklist.
   CcTest::CollectAllGarbage();
-  CHECK(heap->mark_compact_collector()->weak_objects()->js_weak_refs.IsEmpty());
   CHECK(weak_ref->target().IsUndefined(isolate));
 }
 
