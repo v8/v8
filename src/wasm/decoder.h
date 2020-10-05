@@ -64,7 +64,7 @@ class Decoder {
 
   virtual ~Decoder() = default;
 
-  inline bool validate_size(const byte* pc, uint32_t length, const char* msg) {
+  bool validate_size(const byte* pc, uint32_t length, const char* msg) {
     DCHECK_LE(start_, pc);
     if (V8_UNLIKELY(pc > end_ || length > static_cast<uint32_t>(end_ - pc))) {
       error(pc, msg);
@@ -75,28 +75,25 @@ class Decoder {
 
   // Reads an 8-bit unsigned integer.
   template <ValidateFlag validate>
-  inline uint8_t read_u8(const byte* pc, const char* msg = "expected 1 byte") {
+  uint8_t read_u8(const byte* pc, const char* msg = "expected 1 byte") {
     return read_little_endian<uint8_t, validate>(pc, msg);
   }
 
   // Reads a 16-bit unsigned integer (little endian).
   template <ValidateFlag validate>
-  inline uint16_t read_u16(const byte* pc,
-                           const char* msg = "expected 2 bytes") {
+  uint16_t read_u16(const byte* pc, const char* msg = "expected 2 bytes") {
     return read_little_endian<uint16_t, validate>(pc, msg);
   }
 
   // Reads a 32-bit unsigned integer (little endian).
   template <ValidateFlag validate>
-  inline uint32_t read_u32(const byte* pc,
-                           const char* msg = "expected 4 bytes") {
+  uint32_t read_u32(const byte* pc, const char* msg = "expected 4 bytes") {
     return read_little_endian<uint32_t, validate>(pc, msg);
   }
 
   // Reads a 64-bit unsigned integer (little endian).
   template <ValidateFlag validate>
-  inline uint64_t read_u64(const byte* pc,
-                           const char* msg = "expected 8 bytes") {
+  uint64_t read_u64(const byte* pc, const char* msg = "expected 8 bytes") {
     return read_little_endian<uint64_t, validate>(pc, msg);
   }
 
@@ -365,7 +362,7 @@ class Decoder {
   }
 
   template <typename IntType, ValidateFlag validate>
-  inline IntType read_little_endian(const byte* pc, const char* msg) {
+  IntType read_little_endian(const byte* pc, const char* msg) {
     if (!validate) {
       DCHECK(validate_size(pc, sizeof(IntType), msg));
     } else if (!validate_size(pc, sizeof(IntType), msg)) {
@@ -375,7 +372,7 @@ class Decoder {
   }
 
   template <typename IntType>
-  inline IntType consume_little_endian(const char* name) {
+  IntType consume_little_endian(const char* name) {
     TRACE("  +%u  %-20s: ", pc_offset(), name);
     if (!checkAvailable(sizeof(IntType))) {
       traceOffEnd();
@@ -391,8 +388,8 @@ class Decoder {
 
   template <typename IntType, ValidateFlag validate, AdvancePCFlag advance_pc,
             TraceFlag trace, size_t size_in_bits = 8 * sizeof(IntType)>
-  inline IntType read_leb(const byte* pc, uint32_t* length,
-                          const char* name = "varint") {
+  IntType read_leb(const byte* pc, uint32_t* length,
+                   const char* name = "varint") {
     DCHECK_IMPLIES(advance_pc, pc == pc_);
     static_assert(size_in_bits <= 8 * sizeof(IntType),
                   "leb does not fit in type");
