@@ -64,6 +64,8 @@ class DefaultJobImpl {
     Join();
   }
 
+  void CancelAndDetach() { can_run_.store(false, std::memory_order_relaxed); }
+
   bool IsCompleted() const { return !IsRunning(); }
   bool IsRunning() const {
     uint8_t active_threads = active_threads_.load(std::memory_order_relaxed);
@@ -173,6 +175,7 @@ class DefaultJobImpl<Thread>::JobHandle final : public cppgc::JobHandle {
   }
   void Join() override { job_->Join(); }
   void Cancel() override { job_->Cancel(); }
+  void CancelAndDetach() override { job_->CancelAndDetach(); }
   bool IsCompleted() override { return job_->IsCompleted(); }
   bool IsRunning() override { return job_->IsRunning(); }
 

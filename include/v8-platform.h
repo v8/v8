@@ -216,6 +216,14 @@ class JobHandle {
    */
   virtual void Cancel() = 0;
 
+  /*
+   * Forces all existing workers to yield ASAP but doesn’t wait for them.
+   * Warning, this is dangerous if the Job's callback is bound to or has access
+   * to state which may be deleted after this call.
+   * TODO(etiennep): Cleanup once implemented by all embedders.
+   */
+  virtual void CancelAndDetach() { Cancel(); }
+
   /**
    * Returns true if there's no work pending and no worker running.
    */

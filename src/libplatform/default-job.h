@@ -54,6 +54,7 @@ class V8_PLATFORM_EXPORT DefaultJobState
 
   void Join();
   void CancelAndWait();
+  void CancelAndDetach();
   bool IsCompleted();
 
   // Must be called before running |job_task_| for the first time. If it returns
@@ -109,6 +110,7 @@ class V8_PLATFORM_EXPORT DefaultJobHandle : public JobHandle {
 
   void Join() override;
   void Cancel() override;
+  void CancelAndDetach() override;
   bool IsCompleted() override;
   bool IsRunning() override { return state_ != nullptr; }
 

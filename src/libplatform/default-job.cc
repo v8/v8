@@ -122,6 +122,11 @@ void DefaultJobState::CancelAndWait() {
   }
 }
 
+void DefaultJobState::CancelAndDetach() {
+  base::MutexGuard guard(&mutex_);
+  is_canceled_.store(true, std::memory_order_relaxed);
+}
+
 bool DefaultJobState::IsCompleted() {
   base::MutexGuard guard(&mutex_);
   return job_task_->GetMaxConcurrency(active_workers_) == 0 &&
@@ -217,6 +222,11 @@ void DefaultJobHandle::Join() {
 }
 void DefaultJobHandle::Cancel() {
   state_->CancelAndWait();
+  state_ = nullptr;
+}
+
+void DefaultJobHandle::CancelAndDetach() {
+  state_->CancelAndDetach();
   state_ = nullptr;
 }
 
