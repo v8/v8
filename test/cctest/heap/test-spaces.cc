@@ -344,6 +344,7 @@ TEST(OldLargeObjectSpace) {
 // messages are also not stable if files are moved and modified during the build
 // process (jumbo builds).
 TEST(SizeOfInitialHeap) {
+  ManualGCScope manual_gc_scope;
   if (i::FLAG_always_opt) return;
   // Bootstrapping without a snapshot causes more allocations.
   CcTest::InitializeVM();
