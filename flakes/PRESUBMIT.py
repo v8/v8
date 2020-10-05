@@ -17,7 +17,6 @@ REQUIRED_FLAKO_PROPS = [
     'bisect_buildername',
     'bisect_builder_group',
     'bug_url',
-    'build_config',
     'extra_args',
     'isolated_name',
     'num_shards',
