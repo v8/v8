@@ -283,9 +283,12 @@ struct V8_EXPORT_PRIVATE WasmModule {
   uint32_t num_declared_data_segments = 0;  // From the DataCount section.
   WireBytesRef code = {0, 0};
   WireBytesRef name = {0, 0};
-  std::vector<TypeDefinition> types;    // by type index
-  std::vector<uint8_t> type_kinds;      // by type index
-  std::vector<uint32_t> signature_ids;  // by signature index
+  std::vector<TypeDefinition> types;  // by type index
+  std::vector<uint8_t> type_kinds;    // by type index
+  // Map from each type index to the index of its corresponding canonical type.
+  // Note: right now, only functions are canonicalized, and arrays and structs
+  // map to themselves.
+  std::vector<uint32_t> canonicalized_type_ids;
 
   bool has_type(uint32_t index) const { return index < types.size(); }
 
@@ -293,36 +296,42 @@ struct V8_EXPORT_PRIVATE WasmModule {
     types.push_back(TypeDefinition(sig));
     type_kinds.push_back(kWasmFunctionTypeCode);
     uint32_t canonical_id = sig ? signature_map.FindOrInsert(*sig) : 0;
-    signature_ids.push_back(canonical_id);
-  }
-  const FunctionSig* signature(uint32_t index) const {
-    DCHECK(type_kinds[index] == kWasmFunctionTypeCode);
-    return types[index].function_sig;
+    canonicalized_type_ids.push_back(canonical_id);
   }
   bool has_signature(uint32_t index) const {
     return index < types.size() && type_kinds[index] == kWasmFunctionTypeCode;
   }
+  const FunctionSig* signature(uint32_t index) const {
+    DCHECK(has_signature(index));
+    return types[index].function_sig;
+  }
+
   void add_struct_type(const StructType* type) {
     types.push_back(TypeDefinition(type));
     type_kinds.push_back(kWasmStructTypeCode);
-  }
-  const StructType* struct_type(uint32_t index) const {
-    DCHECK(type_kinds[index] == kWasmStructTypeCode);
-    return types[index].struct_type;
+    // No canonicalization for structs.
+    canonicalized_type_ids.push_back(0);
   }
   bool has_struct(uint32_t index) const {
     return index < types.size() && type_kinds[index] == kWasmStructTypeCode;
   }
+  const StructType* struct_type(uint32_t index) const {
+    DCHECK(has_struct(index));
+    return types[index].struct_type;
+  }
+
   void add_array_type(const ArrayType* type) {
     types.push_back(TypeDefinition(type));
     type_kinds.push_back(kWasmArrayTypeCode);
-  }
-  const ArrayType* array_type(uint32_t index) const {
-    DCHECK(type_kinds[index] == kWasmArrayTypeCode);
-    return types[index].array_type;
+    // No canonicalization for arrays.
+    canonicalized_type_ids.push_back(0);
   }
   bool has_array(uint32_t index) const {
     return index < types.size() && type_kinds[index] == kWasmArrayTypeCode;
+  }
+  const ArrayType* array_type(uint32_t index) const {
+    DCHECK(has_array(index));
+    return types[index].array_type;
   }
 
   std::vector<WasmFunction> functions;

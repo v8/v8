@@ -120,8 +120,8 @@ class TestingModuleBuilder {
   }
 
   byte AddSignature(const FunctionSig* sig) {
-    // TODO(7748): This will need updating for struct/array types support.
-    DCHECK_EQ(test_module_->types.size(), test_module_->signature_ids.size());
+    DCHECK_EQ(test_module_->types.size(),
+              test_module_->canonicalized_type_ids.size());
     test_module_->add_signature(sig);
     size_t size = test_module_->types.size();
     CHECK_GT(127, size);

@@ -2906,7 +2906,7 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
   const bool needs_typechecking =
       env_->module->tables[table_index].type == wasm::kWasmFuncRef;
   if (needs_typechecking) {
-    int32_t expected_sig_id = env_->module->signature_ids[sig_index];
+    int32_t expected_sig_id = env_->module->canonicalized_type_ids[sig_index];
     Node* sig_match = graph()->NewNode(machine->Word32Equal(), loaded_sig,
                                        Int32Constant(expected_sig_id));
     TrapIfFalse(wasm::kTrapFuncSigMismatch, sig_match, position);

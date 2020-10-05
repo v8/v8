@@ -3786,7 +3786,7 @@ class WasmInterpreterInternals {
   CallResult CallIndirectFunction(uint32_t table_index, uint32_t entry_index,
                                   uint32_t sig_index) {
     HandleScope handle_scope(isolate_);  // Avoid leaking handles.
-    uint32_t expected_sig_id = module()->signature_ids[sig_index];
+    uint32_t expected_sig_id = module()->canonicalized_type_ids[sig_index];
     DCHECK_EQ(expected_sig_id,
               module()->signature_map.Find(*module()->signature(sig_index)));
     // Bounds check against table size.

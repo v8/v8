@@ -1950,7 +1950,7 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
 
     // Update the local dispatch table first if necessary.
     if (IsSubtypeOf(table_object->type(), kWasmFuncRef, module)) {
-      uint32_t sig_id = module->signature_ids[function->sig_index];
+      uint32_t sig_id = module->canonicalized_type_ids[function->sig_index];
       IndirectFunctionTableEntry(instance, table_index, entry_index)
           .Set(sig_id, instance, func_index);
     }

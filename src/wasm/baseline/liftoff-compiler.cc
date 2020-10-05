@@ -3918,7 +3918,8 @@ class LiftoffCompiler {
     Label* invalid_func_label = AddOutOfLineTrap(
         decoder->position(), WasmCode::kThrowWasmTrapTableOutOfBounds);
 
-    uint32_t canonical_sig_num = env_->module->signature_ids[imm.sig_index];
+    uint32_t canonical_sig_num =
+        env_->module->canonicalized_type_ids[imm.sig_index];
     DCHECK_GE(canonical_sig_num, 0);
     DCHECK_GE(kMaxInt, canonical_sig_num);
 
