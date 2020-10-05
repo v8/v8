@@ -165,7 +165,6 @@ experiment_builder(
 experiment_builder(
     name = "V8 Mac - arm64 - sim - release builder",
     bucket = "ci",
-    canary = True,
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
     properties = {"build_config": "Release", "gclient_vars": {"mac_xcode_version": "xcode_12_beta"}, "builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - sim - release"]},
@@ -175,7 +174,6 @@ experiment_builder(
 experiment_builder(
     name = "V8 Mac - arm64 - sim - release",
     bucket = "ci",
-    canary = True,
     dimensions = {"host_class": "multibot"},
     execution_timeout = 19800,
     properties = {"builder_group": "client.v8"},
@@ -184,7 +182,6 @@ experiment_builder(
 experiment_builder(
     name = "V8 Mac - arm64 - sim - debug builder",
     bucket = "ci",
-    canary = True,
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
     properties = {"build_config": "Debug", "gclient_vars": {"mac_xcode_version": "xcode_12_beta"}, "builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - sim - debug"]},
@@ -194,7 +191,6 @@ experiment_builder(
 experiment_builder(
     name = "V8 Mac - arm64 - sim - debug",
     bucket = "ci",
-    canary = True,
     dimensions = {"host_class": "multibot"},
     execution_timeout = 19800,
     properties = {"builder_group": "client.v8"},

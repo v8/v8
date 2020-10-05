@@ -211,15 +211,7 @@ def fix_args(defaults, **kwargs):
     args["execution_timeout"] = args["execution_timeout"] * time.second
     args["properties"] = dict(args["properties"].items() +
                               args["executable"].get("properties_j", {}).items())
-    if args.pop("canary", False):
-        args["executable"] = luci.recipe(
-            name = "canary v8",
-            recipe = "v8",
-            cipd_package = "experimental/machenbach_at_google.com/chromium.googlesource.com/chromium/tools/build",
-            cipd_version = "refs/changes/43/2426643/9",
-        )
-    else:
-        args["executable"] = luci.recipe(**args.get("executable"))
+    args["executable"] = luci.recipe(**args.get("executable"))
     if args["bucket"] in ["ci.br.beta", "ci.br.stable"]:
         args["dimensions"]["pool"] = "luci.v8.ci"
     if args.get("dimensions", {}).get("host_class", "") == "multibot":
