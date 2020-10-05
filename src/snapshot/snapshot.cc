@@ -158,12 +158,9 @@ bool Snapshot::Initialize(Isolate* isolate) {
   SnapshotData startup_snapshot_data(MaybeDecompress(startup_data));
   SnapshotData read_only_snapshot_data(MaybeDecompress(read_only_data));
 
-  StartupDeserializer startup_deserializer(&startup_snapshot_data);
-  ReadOnlyDeserializer read_only_deserializer(&read_only_snapshot_data);
-  startup_deserializer.SetRehashability(ExtractRehashability(blob));
-  read_only_deserializer.SetRehashability(ExtractRehashability(blob));
-  bool success =
-      isolate->InitWithSnapshot(&read_only_deserializer, &startup_deserializer);
+  bool success = isolate->InitWithSnapshot(&startup_snapshot_data,
+                                           &read_only_snapshot_data,
+                                           ExtractRehashability(blob));
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     int bytes = startup_data.length();

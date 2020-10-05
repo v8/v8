@@ -16,11 +16,13 @@ namespace internal {
 // Read-only object cache used by the other deserializers.
 class ReadOnlyDeserializer final : public Deserializer {
  public:
-  explicit ReadOnlyDeserializer(const SnapshotData* data)
-      : Deserializer(data, false) {}
+  explicit ReadOnlyDeserializer(Isolate* isolate, const SnapshotData* data,
+                                bool can_rehash)
+      : Deserializer(isolate, data->Payload(), data->GetMagicNumber(), false,
+                     can_rehash) {}
 
   // Deserialize the snapshot into an empty heap.
-  void DeserializeInto(Isolate* isolate);
+  void DeserializeIntoIsolate();
 };
 
 }  // namespace internal

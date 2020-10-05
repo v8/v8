@@ -15,11 +15,14 @@ namespace internal {
 // Initializes an isolate with context-independent data from a given snapshot.
 class StartupDeserializer final : public Deserializer {
  public:
-  explicit StartupDeserializer(const SnapshotData* startup_data)
-      : Deserializer(startup_data, false) {}
+  explicit StartupDeserializer(Isolate* isolate,
+                               const SnapshotData* startup_data,
+                               bool can_rehash)
+      : Deserializer(isolate, startup_data->Payload(),
+                     startup_data->GetMagicNumber(), false, can_rehash) {}
 
   // Deserialize the snapshot into an empty heap.
-  void DeserializeInto(Isolate* isolate);
+  void DeserializeIntoIsolate();
 
  private:
   void DeserializeStringTable();

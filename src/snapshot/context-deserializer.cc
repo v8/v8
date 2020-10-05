@@ -17,8 +17,7 @@ MaybeHandle<Context> ContextDeserializer::DeserializeContext(
     Isolate* isolate, const SnapshotData* data, bool can_rehash,
     Handle<JSGlobalProxy> global_proxy,
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
-  ContextDeserializer d(data);
-  d.SetRehashability(can_rehash);
+  ContextDeserializer d(isolate, data, can_rehash);
 
   MaybeHandle<Object> maybe_result =
       d.Deserialize(isolate, global_proxy, embedder_fields_deserializer);
@@ -31,8 +30,6 @@ MaybeHandle<Context> ContextDeserializer::DeserializeContext(
 MaybeHandle<Object> ContextDeserializer::Deserialize(
     Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
-  Initialize(isolate);
-
   // Replace serialized references to the global proxy and its map with the
   // given global proxy and its map.
   AddAttachedObject(global_proxy);

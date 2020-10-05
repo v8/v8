@@ -47,26 +47,14 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
 
   ~Deserializer() override;
 
-  void SetRehashability(bool v) { can_rehash_ = v; }
   uint32_t GetChecksum() const { return source_.GetChecksum(); }
 
  protected:
   // Create a deserializer from a snapshot byte source.
-  template <class Data>
-  Deserializer(Data* data, bool deserializing_user_code)
-      : isolate_(nullptr),
-        source_(data->Payload()),
-        magic_number_(data->GetMagicNumber()),
-        deserializing_user_code_(deserializing_user_code),
-        can_rehash_(false) {
-    // We start the indices here at 1, so that we can distinguish between an
-    // actual index and a nullptr (serialized as kNullRefSentinel) in a
-    // deserialized object requiring fix-up.
-    STATIC_ASSERT(kNullRefSentinel == 0);
-    backing_stores_.push_back({});
-  }
+  Deserializer(Isolate* isolate, Vector<const byte> payload,
+               uint32_t magic_number, bool deserializing_user_code,
+               bool can_rehash);
 
-  void Initialize(Isolate* isolate);
   void DeserializeDeferredObjects();
 
   // Create Log events for newly deserialized objects.

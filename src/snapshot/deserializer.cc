@@ -194,11 +194,22 @@ int Deserializer::WriteExternalPointer(TSlot dest, Address value) {
   return (kExternalPointerSize / TSlot::kSlotDataSize);
 }
 
-void Deserializer::Initialize(Isolate* isolate) {
-  DCHECK_NULL(isolate_);
+Deserializer::Deserializer(Isolate* isolate, Vector<const byte> payload,
+                           uint32_t magic_number, bool deserializing_user_code,
+                           bool can_rehash)
+    : isolate_(isolate),
+      source_(payload),
+      magic_number_(magic_number),
+      deserializing_user_code_(deserializing_user_code),
+      can_rehash_(can_rehash) {
   DCHECK_NOT_NULL(isolate);
-  isolate_ = isolate;
   isolate_->RegisterDeserializerStarted();
+
+  // We start the indices here at 1, so that we can distinguish between an
+  // actual index and a nullptr (serialized as kNullRefSentinel) in a
+  // deserialized object requiring fix-up.
+  STATIC_ASSERT(kNullRefSentinel == 0);
+  backing_stores_.push_back({});
 
 #ifdef DEBUG
   num_api_references_ = 0;
@@ -234,7 +245,7 @@ Deserializer::~Deserializer() {
   DCHECK_EQ(num_unresolved_forward_refs_, 0);
   DCHECK(unresolved_forward_refs_.empty());
 #endif  // DEBUG
-  if (isolate_) isolate_->RegisterDeserializerFinished();
+  isolate_->RegisterDeserializerFinished();
 }
 
 // This is called on the roots.  It is the driver of the deserialization

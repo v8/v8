@@ -3397,13 +3397,14 @@ void Isolate::TearDownEmbeddedBlob() {
   }
 }
 
-bool Isolate::InitWithoutSnapshot() { return Init(nullptr, nullptr); }
+bool Isolate::InitWithoutSnapshot() { return Init(nullptr, nullptr, false); }
 
-bool Isolate::InitWithSnapshot(ReadOnlyDeserializer* read_only_deserializer,
-                               StartupDeserializer* startup_deserializer) {
-  DCHECK_NOT_NULL(read_only_deserializer);
-  DCHECK_NOT_NULL(startup_deserializer);
-  return Init(read_only_deserializer, startup_deserializer);
+bool Isolate::InitWithSnapshot(SnapshotData* startup_snapshot_data,
+                               SnapshotData* read_only_snapshot_data,
+                               bool can_rehash) {
+  DCHECK_NOT_NULL(startup_snapshot_data);
+  DCHECK_NOT_NULL(read_only_snapshot_data);
+  return Init(startup_snapshot_data, read_only_snapshot_data, can_rehash);
 }
 
 static std::string AddressToString(uintptr_t address) {
@@ -3452,12 +3453,12 @@ using MapOfLoadsAndStoresPerFunction =
 MapOfLoadsAndStoresPerFunction* stack_access_count_map = nullptr;
 }  // namespace
 
-bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
-                   StartupDeserializer* startup_deserializer) {
+bool Isolate::Init(SnapshotData* startup_snapshot_data,
+                   SnapshotData* read_only_snapshot_data, bool can_rehash) {
   TRACE_ISOLATE(init);
-  const bool create_heap_objects = (read_only_deserializer == nullptr);
+  const bool create_heap_objects = (read_only_snapshot_data == nullptr);
   // We either have both or neither.
-  DCHECK_EQ(create_heap_objects, startup_deserializer == nullptr);
+  DCHECK_EQ(create_heap_objects, startup_snapshot_data == nullptr);
 
   base::ElapsedTimer timer;
   if (create_heap_objects && FLAG_profile_deserialization) timer.Start();
@@ -3518,7 +3519,7 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
   // SetUp the object heap.
   DCHECK(!heap_.HasBeenSetUp());
   heap_.SetUp();
-  ReadOnlyHeap::SetUp(this, read_only_deserializer);
+  ReadOnlyHeap::SetUp(this, read_only_snapshot_data, can_rehash);
   heap_.SetUpSpaces();
 
   isolate_data_.external_reference_table()->Init(this);
@@ -3609,7 +3610,9 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
       heap_.read_only_space()->ClearStringPaddingIfNeeded();
       read_only_heap_->OnCreateHeapObjectsComplete(this);
     } else {
-      startup_deserializer->DeserializeInto(this);
+      StartupDeserializer startup_deserializer(this, startup_snapshot_data,
+                                               can_rehash);
+      startup_deserializer.DeserializeIntoIsolate();
     }
     load_stub_cache_->Initialize();
     store_stub_cache_->Initialize();

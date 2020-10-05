@@ -92,14 +92,13 @@ class OptimizingCompileDispatcher;
 class PersistentHandles;
 class PersistentHandlesList;
 class ReadOnlyArtifacts;
-class ReadOnlyDeserializer;
 class RegExpStack;
 class RootVisitor;
 class RuntimeProfiler;
 class SetupIsolateDelegate;
 class Simulator;
+class SnapshotData;
 class StandardFrame;
-class StartupDeserializer;
 class StringTable;
 class StubCache;
 class ThreadManager;
@@ -570,8 +569,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool InitializeCounters();  // Returns false if already initialized.
 
   bool InitWithoutSnapshot();
-  bool InitWithSnapshot(ReadOnlyDeserializer* read_only_deserializer,
-                        StartupDeserializer* startup_deserializer);
+  bool InitWithSnapshot(SnapshotData* startup_snapshot_data,
+                        SnapshotData* read_only_snapshot_data, bool can_rehash);
 
   // True if at least one thread Enter'ed this isolate.
   bool IsInUse() { return entry_stack_ != nullptr; }
@@ -1596,8 +1595,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);
   ~Isolate();
 
-  bool Init(ReadOnlyDeserializer* read_only_deserializer,
-            StartupDeserializer* startup_deserializer);
+  bool Init(SnapshotData* startup_snapshot_data,
+            SnapshotData* read_only_snapshot_data, bool can_rehash);
 
   void CheckIsolateLayout();
 

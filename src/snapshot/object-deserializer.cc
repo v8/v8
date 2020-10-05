@@ -15,18 +15,20 @@
 namespace v8 {
 namespace internal {
 
-ObjectDeserializer::ObjectDeserializer(const SerializedCodeData* data)
-    : Deserializer(data, true) {}
+ObjectDeserializer::ObjectDeserializer(Isolate* isolate,
+                                       const SerializedCodeData* data)
+    : Deserializer(isolate, data->Payload(), data->GetMagicNumber(), true,
+                   false) {}
 
 MaybeHandle<SharedFunctionInfo>
 ObjectDeserializer::DeserializeSharedFunctionInfo(
     Isolate* isolate, const SerializedCodeData* data, Handle<String> source) {
-  ObjectDeserializer d(data);
+  ObjectDeserializer d(isolate, data);
 
   d.AddAttachedObject(source);
 
   Handle<HeapObject> result;
-  return d.Deserialize(isolate).ToHandle(&result)
+  return d.Deserialize().ToHandle(&result)
              ? Handle<SharedFunctionInfo>::cast(result)
              : MaybeHandle<SharedFunctionInfo>();
 }
@@ -39,11 +41,9 @@ ObjectDeserializer::DeserializeSharedFunctionInfoOffThread(
   UNREACHABLE();
 }
 
-MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(Isolate* isolate) {
-  Initialize(isolate);
-
+MaybeHandle<HeapObject> ObjectDeserializer::Deserialize() {
   DCHECK(deserializing_user_code());
-  HandleScope scope(isolate);
+  HandleScope scope(isolate());
   Handle<HeapObject> result;
   {
     result = ReadObject();
