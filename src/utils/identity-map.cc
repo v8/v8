@@ -64,24 +64,30 @@ int IdentityMapBase::ScanKeysFor(Address address, uint32_t hash) const {
 std::pair<int, bool> IdentityMapBase::InsertKey(Address address,
                                                 uint32_t hash) {
   DCHECK_EQ(gc_counter_, heap_->gc_count());
-  Address not_mapped = ReadOnlyRoots(heap_).not_mapped_symbol().ptr();
-  while (true) {
-    int start = hash & mask_;
-    int limit = capacity_ / 2;
-    // Search up to {limit} entries.
-    for (int index = start; --limit > 0; index = (index + 1) & mask_) {
-      if (keys_[index] == address) return {index, true};  // Found.
-      if (keys_[index] == not_mapped) {                   // Free entry.
-        size_++;
-        DCHECK_LE(size_, capacity_);
-        keys_[index] = address;
-        return {index, false};
-      }
-    }
-    // Should only have to resize once, since we grow 4x.
+
+  // Grow the map if we reached >= 80% occupancy.
+  if (size_ + size_ / 4 >= capacity_) {
     Resize(capacity_ * kResizeFactor);
   }
-  UNREACHABLE();
+
+  Address not_mapped = ReadOnlyRoots(heap_).not_mapped_symbol().ptr();
+
+  int start = hash & mask_;
+  // Guaranteed to terminate since size_ < capacity_, there must be at least
+  // one empty slot.
+  int index = start;
+  while (true) {
+    if (keys_[index] == address) return {index, true};  // Found.
+    if (keys_[index] == not_mapped) {                   // Free entry.
+      size_++;
+      DCHECK_LE(size_, capacity_);
+      keys_[index] = address;
+      return {index, false};
+    }
+    index = (index + 1) & mask_;
+    // We should never loop back to the start.
+    DCHECK_NE(index, start);
+  }
 }
 
 bool IdentityMapBase::DeleteIndex(int index, uintptr_t* deleted_value) {
