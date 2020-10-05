@@ -1336,15 +1336,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ MovFromFloatResult(i.OutputDoubleRegister());
       break;
     }
-    case kMipsAbsD:
+    case kMipsAbsD: {
+      FPURegister src = i.InputDoubleRegister(0);
+      FPURegister dst = i.OutputDoubleRegister();
       if (IsMipsArchVariant(kMips32r6)) {
-        __ abs_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+        __ abs_d(dst, src);
       } else {
-        __ mfhc1(kScratchReg, i.InputDoubleRegister(0));
+        __ Move(dst, src);
+        __ mfhc1(kScratchReg, src);
         __ Ins(kScratchReg, zero_reg, 31, 1);
-        __ mthc1(kScratchReg, i.OutputDoubleRegister());
+        __ mthc1(kScratchReg, dst);
       }
       break;
+    }
     case kMipsNegS:
       __ Neg_s(i.OutputSingleRegister(), i.InputSingleRegister(0));
       break;
