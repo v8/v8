@@ -152,7 +152,8 @@ class InterpreterTester {
     }
 
     if (!bytecode_.is_null()) {
-      function->shared().set_function_data(*bytecode_.ToHandleChecked());
+      function->shared().set_function_data(*bytecode_.ToHandleChecked(),
+                                           kReleaseStore);
       is_compiled_scope = function->shared().is_compiled_scope(isolate_);
     }
     if (HasFeedbackMetadata()) {

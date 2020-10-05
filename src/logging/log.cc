@@ -2240,7 +2240,7 @@ void ExistingCodeLogger::LogCompiledFunctions() {
   // GetScriptLineNumber call.
   for (int i = 0; i < compiled_funcs_count; ++i) {
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, sfis[i]);
-    if (sfis[i]->function_data().IsInterpreterData()) {
+    if (sfis[i]->function_data(kAcquireLoad).IsInterpreterData()) {
       LogExistingFunction(
           sfis[i],
           Handle<AbstractCode>(
@@ -2290,7 +2290,7 @@ void ExistingCodeLogger::LogExistingFunction(
   } else if (shared->IsApiFunction()) {
     // API function.
     FunctionTemplateInfo fun_data = shared->get_api_func_data();
-    Object raw_call_data = fun_data.call_code();
+    Object raw_call_data = fun_data.call_code(kAcquireLoad);
     if (!raw_call_data.IsUndefined(isolate_)) {
       CallHandlerInfo call_data = CallHandlerInfo::cast(raw_call_data);
       Object callback_obj = call_data.callback();

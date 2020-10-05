@@ -110,7 +110,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
   if (!copy->IsJSArray(isolate)) {
     if (copy->HasFastProperties(isolate)) {
       Handle<DescriptorArray> descriptors(
-          copy->map(isolate).instance_descriptors(isolate), isolate);
+          copy->map(isolate).instance_descriptors(isolate, kRelaxedLoad),
+          isolate);
       for (InternalIndex i : copy->map(isolate).IterateOwnDescriptors()) {
         PropertyDetails details = descriptors->GetDetails(i);
         DCHECK_EQ(kField, details.location());

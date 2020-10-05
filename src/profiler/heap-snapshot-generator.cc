@@ -1066,14 +1066,15 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
                            Map::kTransitionsOrPrototypeInfoOffset);
     }
   }
-  DescriptorArray descriptors = map.instance_descriptors();
+  DescriptorArray descriptors = map.instance_descriptors(kRelaxedLoad);
   TagObject(descriptors, "(map descriptors)");
   SetInternalReference(entry, "descriptors", descriptors,
                        Map::kInstanceDescriptorsOffset);
   SetInternalReference(entry, "prototype", map.prototype(),
                        Map::kPrototypeOffset);
   if (FLAG_unbox_double_fields) {
-    SetInternalReference(entry, "layout_descriptor", map.layout_descriptor(),
+    SetInternalReference(entry, "layout_descriptor",
+                         map.layout_descriptor(kAcquireLoad),
                          Map::kLayoutDescriptorOffset);
   }
   if (map.IsContextMap()) {
@@ -1123,7 +1124,8 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
   SetInternalReference(entry, "script_or_debug_info",
                        shared.script_or_debug_info(),
                        SharedFunctionInfo::kScriptOrDebugInfoOffset);
-  SetInternalReference(entry, "function_data", shared.function_data(),
+  SetInternalReference(entry, "function_data",
+                       shared.function_data(kAcquireLoad),
                        SharedFunctionInfo::kFunctionDataOffset);
   SetInternalReference(
       entry, "raw_outer_scope_info_or_feedback_metadata",
@@ -1324,7 +1326,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject js_obj,
                                                HeapEntry* entry) {
   Isolate* isolate = js_obj.GetIsolate();
   if (js_obj.HasFastProperties()) {
-    DescriptorArray descs = js_obj.map().instance_descriptors();
+    DescriptorArray descs = js_obj.map().instance_descriptors(kRelaxedLoad);
     for (InternalIndex i : js_obj.map().IterateOwnDescriptors()) {
       PropertyDetails details = descs.GetDetails(i);
       switch (details.location()) {

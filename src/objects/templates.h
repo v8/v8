@@ -85,7 +85,7 @@ class FunctionTemplateInfo
   DECL_RARE_ACCESSORS(c_signature, CSignature, Object)
 #undef DECL_RARE_ACCESSORS
 
-  DECL_SYNCHRONIZED_ACCESSORS(call_code, HeapObject)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(call_code, HeapObject)
 
   // Begin flag bits ---------------------
   DECL_BOOLEAN_ACCESSORS(undetectable)

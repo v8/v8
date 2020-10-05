@@ -594,14 +594,14 @@ class Map : public HeapObject {
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // [instance descriptors]: describes the object.
-  DECL_GETTER(synchronized_instance_descriptors, DescriptorArray)
-  DECL_GETTER(instance_descriptors, DescriptorArray)
+  DECL_RELAXED_ACCESSORS(instance_descriptors, DescriptorArray)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(instance_descriptors, DescriptorArray)
   V8_EXPORT_PRIVATE void SetInstanceDescriptors(Isolate* isolate,
                                                 DescriptorArray descriptors,
                                                 int number_of_own_descriptors);
 
   // [layout descriptor]: describes the object layout.
-  DECL_ACCESSORS(layout_descriptor, LayoutDescriptor)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(layout_descriptor, LayoutDescriptor)
   // |layout descriptor| accessor which can be used from GC.
   inline LayoutDescriptor layout_descriptor_gc_safe() const;
   inline bool HasFastPointerLayout() const;
@@ -975,10 +975,6 @@ class Map : public HeapObject {
       PropertyConstness new_constness, MaybeHandle<FieldType> old_field_type,
       MaybeHandle<Object> old_value, MaybeHandle<FieldType> new_field_type,
       MaybeHandle<Object> new_value);
-
-  // Use the high-level instance_descriptors/SetInstanceDescriptors instead.
-  inline void set_synchronized_instance_descriptors(
-      DescriptorArray value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   static const int kFastPropertiesSoftLimit = 12;
   static const int kMaxFastProperties = 128;

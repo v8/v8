@@ -2655,9 +2655,13 @@ THREADED_TEST(AccessorIsPreservedOnAttributeChange) {
   LocalContext env;
   v8::Local<v8::Value> res = CompileRun("var a = []; a;");
   i::Handle<i::JSReceiver> a(v8::Utils::OpenHandle(v8::Object::Cast(*res)));
-  CHECK_EQ(1, a->map().instance_descriptors().number_of_descriptors());
+  CHECK_EQ(
+      1,
+      a->map().instance_descriptors(v8::kRelaxedLoad).number_of_descriptors());
   CompileRun("Object.defineProperty(a, 'length', { writable: false });");
-  CHECK_EQ(0, a->map().instance_descriptors().number_of_descriptors());
+  CHECK_EQ(
+      0,
+      a->map().instance_descriptors(v8::kRelaxedLoad).number_of_descriptors());
   // But we should still have an AccessorInfo.
   i::Handle<i::String> name = CcTest::i_isolate()->factory()->length_string();
   i::LookupIterator it(CcTest::i_isolate(), a, name,

@@ -150,7 +150,7 @@ FieldStatsCollector::GetInobjectFieldStats(Map map) {
   JSObjectFieldStats stats;
   stats.embedded_fields_count_ = JSObject::GetEmbedderFieldCount(map);
   if (!map.is_dictionary_map()) {
-    DescriptorArray descriptors = map.instance_descriptors();
+    DescriptorArray descriptors = map.instance_descriptors(kRelaxedLoad);
     for (InternalIndex descriptor : map.IterateOwnDescriptors()) {
       PropertyDetails details = descriptors.GetDetails(descriptor);
       if (details.location() == kField) {
@@ -565,9 +565,9 @@ void ObjectStatsCollectorImpl::RecordVirtualFunctionTemplateInfoDetails(
     FunctionTemplateInfo fti) {
   // named_property_handler and indexed_property_handler are recorded as
   // INTERCEPTOR_INFO_TYPE.
-  if (!fti.call_code().IsUndefined(isolate())) {
+  if (!fti.call_code(kAcquireLoad).IsUndefined(isolate())) {
     RecordSimpleVirtualObjectStats(
-        fti, CallHandlerInfo::cast(fti.call_code()),
+        fti, CallHandlerInfo::cast(fti.call_code(kAcquireLoad)),
         ObjectStats::FUNCTION_TEMPLATE_INFO_ENTRIES_TYPE);
   }
   if (!fti.GetInstanceCallHandler().IsUndefined(isolate())) {
@@ -883,7 +883,7 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map map) {
     // This will be logged as MAP_TYPE in Phase2.
   }
 
-  DescriptorArray array = map.instance_descriptors();
+  DescriptorArray array = map.instance_descriptors(kRelaxedLoad);
   if (map.owns_descriptors() &&
       array != ReadOnlyRoots(heap_).empty_descriptor_array()) {
     // Generally DescriptorArrays have their own instance type already

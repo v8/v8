@@ -2246,7 +2246,8 @@ void SerializerForBackgroundCompilation::ProcessApiCall(
           Builtins::kCallFunctionTemplate_CheckAccessAndCompatibleReceiver));
 
   FunctionTemplateInfoRef target_template_info(
-      broker(), handle(target->function_data(), broker()->isolate()));
+      broker(),
+      handle(target->function_data(kAcquireLoad), broker()->isolate()));
   if (!target_template_info.has_call_code()) return;
   target_template_info.SerializeCallCode();
 

@@ -329,7 +329,8 @@ void FunctionTemplateInfoData::SerializeCallCode(JSHeapBroker* broker) {
   TraceScope tracer(broker, this,
                     "FunctionTemplateInfoData::SerializeCallCode");
   auto function_template_info = Handle<FunctionTemplateInfo>::cast(object());
-  call_code_ = broker->GetOrCreateData(function_template_info->call_code());
+  call_code_ =
+      broker->GetOrCreateData(function_template_info->call_code(kAcquireLoad));
   if (call_code_->should_access_heap()) {
     // TODO(mvstanton): When ObjectRef is in the never serialized list, this
     // code can be removed.
@@ -950,8 +951,8 @@ bool IsFastLiteralHelper(Handle<JSObject> boilerplate, int max_depth,
   }
 
   // Check the in-object properties.
-  Handle<DescriptorArray> descriptors(boilerplate->map().instance_descriptors(),
-                                      isolate);
+  Handle<DescriptorArray> descriptors(
+      boilerplate->map().instance_descriptors(kRelaxedLoad), isolate);
   for (InternalIndex i : boilerplate->map().IterateOwnDescriptors()) {
     PropertyDetails details = descriptors->GetDetails(i);
     if (details.location() != kField) continue;
@@ -1241,7 +1242,7 @@ namespace {
 bool IsReadOnlyLengthDescriptor(Isolate* isolate, Handle<Map> jsarray_map) {
   DCHECK(!jsarray_map->is_dictionary_map());
   Handle<Name> length_string = isolate->factory()->length_string();
-  DescriptorArray descriptors = jsarray_map->instance_descriptors();
+  DescriptorArray descriptors = jsarray_map->instance_descriptors(kRelaxedLoad);
   // TODO(jkummerow): We could skip the search and hardcode number == 0.
   InternalIndex number = descriptors.Search(*length_string, *jsarray_map);
   DCHECK(number.is_found());
@@ -1807,7 +1808,7 @@ void SharedFunctionInfoData::SerializeFunctionTemplateInfo(
     JSHeapBroker* broker) {
   if (function_template_info_) return;
   function_template_info_ = broker->GetOrCreateData(
-      Handle<SharedFunctionInfo>::cast(object())->function_data());
+      Handle<SharedFunctionInfo>::cast(object())->function_data(kAcquireLoad));
 }
 
 void SharedFunctionInfoData::SerializeScopeInfoChain(JSHeapBroker* broker) {
@@ -2135,8 +2136,9 @@ void MapData::SerializeOwnDescriptor(JSHeapBroker* broker,
   Handle<Map> map = Handle<Map>::cast(object());
 
   if (instance_descriptors_ == nullptr) {
-    instance_descriptors_ = broker->GetOrCreateData(map->instance_descriptors())
-                                ->AsDescriptorArray();
+    instance_descriptors_ =
+        broker->GetOrCreateData(map->instance_descriptors(kRelaxedLoad))
+            ->AsDescriptorArray();
   }
 
   ZoneMap<int, PropertyDescriptor>& contents =
@@ -2147,7 +2149,7 @@ void MapData::SerializeOwnDescriptor(JSHeapBroker* broker,
   Isolate* const isolate = broker->isolate();
   auto descriptors =
       Handle<DescriptorArray>::cast(instance_descriptors_->object());
-  CHECK_EQ(*descriptors, map->instance_descriptors());
+  CHECK_EQ(*descriptors, map->instance_descriptors(kRelaxedLoad));
 
   PropertyDescriptor d;
   d.key = broker->GetOrCreateData(descriptors->GetKey(descriptor_index));
@@ -2261,8 +2263,8 @@ void JSObjectData::SerializeRecursiveAsBoilerplate(JSHeapBroker* broker,
   CHECK_EQ(inobject_fields_.size(), 0u);
 
   // Check the in-object properties.
-  Handle<DescriptorArray> descriptors(boilerplate->map().instance_descriptors(),
-                                      isolate);
+  Handle<DescriptorArray> descriptors(
+      boilerplate->map().instance_descriptors(kRelaxedLoad), isolate);
   for (InternalIndex i : boilerplate->map().IterateOwnDescriptors()) {
     PropertyDetails details = descriptors->GetDetails(i);
     if (details.location() != kField) continue;
@@ -3078,7 +3080,9 @@ PropertyDetails MapRef::GetPropertyDetails(
   if (data_->should_access_heap()) {
     AllowHandleDereferenceIfNeeded allow_handle_dereference(data()->kind(),
                                                             broker()->mode());
-    return object()->instance_descriptors().GetDetails(descriptor_index);
+    return object()
+        ->instance_descriptors(kRelaxedLoad)
+        .GetDetails(descriptor_index);
   }
   DescriptorArrayData* descriptors = data()->AsMap()->instance_descriptors();
   return descriptors->contents().at(descriptor_index.as_int()).details;
@@ -3090,10 +3094,10 @@ NameRef MapRef::GetPropertyKey(InternalIndex descriptor_index) const {
                                                           broker()->mode());
     AllowHandleDereferenceIfNeeded allow_handle_dereference(data()->kind(),
                                                             broker()->mode());
-    return NameRef(
-        broker(),
-        broker()->CanonicalPersistentHandle(
-            object()->instance_descriptors().GetKey(descriptor_index)));
+    return NameRef(broker(), broker()->CanonicalPersistentHandle(
+                                 object()
+                                     ->instance_descriptors(kRelaxedLoad)
+                                     .GetKey(descriptor_index)));
   }
   DescriptorArrayData* descriptors = data()->AsMap()->instance_descriptors();
   return NameRef(broker(),
@@ -3133,9 +3137,10 @@ ObjectRef MapRef::GetFieldType(InternalIndex descriptor_index) const {
                                                           broker()->mode());
     AllowHandleDereferenceIfNeeded allow_handle_dereference(data()->kind(),
                                                             broker()->mode());
-    Handle<FieldType> field_type(
-        object()->instance_descriptors().GetFieldType(descriptor_index),
-        broker()->isolate());
+    Handle<FieldType> field_type(object()
+                                     ->instance_descriptors(kRelaxedLoad)
+                                     .GetFieldType(descriptor_index),
+                                 broker()->isolate());
     return ObjectRef(broker(), field_type);
   }
   DescriptorArrayData* descriptors = data()->AsMap()->instance_descriptors();
@@ -3420,9 +3425,8 @@ BIMODAL_ACCESSOR_C(PropertyCell, PropertyDetails, property_details)
 
 base::Optional<CallHandlerInfoRef> FunctionTemplateInfoRef::call_code() const {
   if (data_->should_access_heap()) {
-    return CallHandlerInfoRef(broker(),
-                              broker()->CanonicalPersistentHandle(
-                                  object()->synchronized_call_code()));
+    return CallHandlerInfoRef(broker(), broker()->CanonicalPersistentHandle(
+                                            object()->call_code(kAcquireLoad)));
   }
   ObjectData* call_code = data()->AsFunctionTemplateInfo()->call_code();
   if (!call_code) return base::nullopt;
@@ -3544,7 +3548,7 @@ base::Optional<ObjectRef> MapRef::GetStrongValue(
     AllowHandleDereferenceIfNeeded allow_handle_dereference(data()->kind(),
                                                             broker()->mode());
     MaybeObject value =
-        object()->instance_descriptors().GetValue(descriptor_index);
+        object()->instance_descriptors(kRelaxedLoad).GetValue(descriptor_index);
     HeapObject object;
     if (value.GetHeapObjectIfStrong(&object)) {
       return ObjectRef(broker(), broker()->CanonicalPersistentHandle((object)));
@@ -4274,8 +4278,8 @@ SharedFunctionInfoRef::function_template_info() const {
   if (data_->should_access_heap()) {
     if (object()->IsApiFunction()) {
       return FunctionTemplateInfoRef(
-          broker(),
-          broker()->CanonicalPersistentHandle(object()->function_data()));
+          broker(), broker()->CanonicalPersistentHandle(
+                        object()->function_data(kAcquireLoad)));
     }
     return base::nullopt;
   }

@@ -1107,7 +1107,7 @@ namespace {
 void ReplaceAccessors(Isolate* isolate, Handle<Map> map, Handle<String> name,
                       PropertyAttributes attributes,
                       Handle<AccessorPair> accessor_pair) {
-  DescriptorArray descriptors = map->instance_descriptors();
+  DescriptorArray descriptors = map->instance_descriptors(kRelaxedLoad);
   InternalIndex entry = descriptors.SearchWithCache(isolate, *name, *map);
   Descriptor d = Descriptor::AccessorConstant(name, accessor_pair, attributes);
   descriptors.Replace(entry, &d);
@@ -5028,8 +5028,8 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
   // The global template must not create properties that already exist
   // in the snapshotted global object.
   if (from->HasFastProperties()) {
-    Handle<DescriptorArray> descs =
-        Handle<DescriptorArray>(from->map().instance_descriptors(), isolate());
+    Handle<DescriptorArray> descs = Handle<DescriptorArray>(
+        from->map().instance_descriptors(kRelaxedLoad), isolate());
     for (InternalIndex i : from->map().IterateOwnDescriptors()) {
       PropertyDetails details = descs->GetDetails(i);
       if (details.location() == kField) {
@@ -5158,7 +5158,8 @@ Handle<Map> Genesis::CreateInitialMapForArraySubclass(int size,
   {
     JSFunction array_function = native_context()->array_function();
     Handle<DescriptorArray> array_descriptors(
-        array_function.initial_map().instance_descriptors(), isolate());
+        array_function.initial_map().instance_descriptors(kRelaxedLoad),
+        isolate());
     Handle<String> length = factory()->length_string();
     InternalIndex old = array_descriptors->SearchWithCache(
         isolate(), *length, array_function.initial_map());

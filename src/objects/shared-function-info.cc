@@ -72,7 +72,7 @@ Code SharedFunctionInfo::GetCode() const {
   // ======
 
   Isolate* isolate = GetIsolate();
-  Object data = function_data();
+  Object data = function_data(kAcquireLoad);
   if (data.IsSmi()) {
     // Holding a Smi means we are a builtin.
     DCHECK(HasBuiltinId());
@@ -113,17 +113,17 @@ Code SharedFunctionInfo::GetCode() const {
 WasmExportedFunctionData SharedFunctionInfo::wasm_exported_function_data()
     const {
   DCHECK(HasWasmExportedFunctionData());
-  return WasmExportedFunctionData::cast(function_data());
+  return WasmExportedFunctionData::cast(function_data(kAcquireLoad));
 }
 
 WasmJSFunctionData SharedFunctionInfo::wasm_js_function_data() const {
   DCHECK(HasWasmJSFunctionData());
-  return WasmJSFunctionData::cast(function_data());
+  return WasmJSFunctionData::cast(function_data(kAcquireLoad));
 }
 
 WasmCapiFunctionData SharedFunctionInfo::wasm_capi_function_data() const {
   DCHECK(HasWasmCapiFunctionData());
-  return WasmCapiFunctionData::cast(function_data());
+  return WasmCapiFunctionData::cast(function_data(kAcquireLoad));
 }
 
 SharedFunctionInfo::ScriptIterator::ScriptIterator(Isolate* isolate,
@@ -310,7 +310,7 @@ void SharedFunctionInfo::DiscardCompiled(
     Handle<UncompiledData> data =
         isolate->factory()->NewUncompiledDataWithoutPreparseData(
             inferred_name_val, start_position, end_position);
-    shared_info->set_function_data(*data);
+    shared_info->set_function_data(*data, kReleaseStore);
   }
 }
 

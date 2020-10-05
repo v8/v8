@@ -1305,7 +1305,7 @@ bool FunctionTemplateInfo::IsTemplateFor(Map map) {
   Object type;
   if (cons_obj.IsJSFunction()) {
     JSFunction fun = JSFunction::cast(cons_obj);
-    type = fun.shared().function_data();
+    type = fun.shared().function_data(kAcquireLoad);
   } else if (cons_obj.IsFunctionTemplateInfo()) {
     type = FunctionTemplateInfo::cast(cons_obj);
   } else {
@@ -5118,9 +5118,11 @@ bool JSArray::MayHaveReadOnlyLength(Map js_array_map) {
   // dictionary properties. Since it's not configurable, it's guaranteed to be
   // the first in the descriptor array.
   InternalIndex first(0);
-  DCHECK(js_array_map.instance_descriptors().GetKey(first) ==
+  DCHECK(js_array_map.instance_descriptors(kRelaxedLoad).GetKey(first) ==
          js_array_map.GetReadOnlyRoots().length_string());
-  return js_array_map.instance_descriptors().GetDetails(first).IsReadOnly();
+  return js_array_map.instance_descriptors(kRelaxedLoad)
+      .GetDetails(first)
+      .IsReadOnly();
 }
 
 bool JSArray::HasReadOnlyLength(Handle<JSArray> array) {

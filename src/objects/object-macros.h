@@ -96,11 +96,21 @@
   inline void set_##name(type value, \
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-// TODO(solanes, neis): Unify naming for synchronized accessor uses.
-#define DECL_SYNCHRONIZED_ACCESSORS(name, type) \
-  DECL_GETTER(synchronized_##name, type)        \
-  inline void set_synchronized_##name(          \
-      type value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+#define DECL_ACCESSORS_LOAD_TAG(name, type, tag_type) \
+  inline type name(tag_type tag) const;               \
+  inline type name(const Isolate* isolate, tag_type) const;
+
+#define DECL_ACCESSORS_STORE_TAG(name, type, tag_type) \
+  inline void set_##name(type value, tag_type,         \
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+#define DECL_RELAXED_ACCESSORS(name, type)            \
+  DECL_ACCESSORS_LOAD_TAG(name, type, RelaxedLoadTag) \
+  DECL_ACCESSORS_STORE_TAG(name, type, RelaxedStoreTag)
+
+#define DECL_RELEASE_ACQUIRE_ACCESSORS(name, type)    \
+  DECL_ACCESSORS_LOAD_TAG(name, type, AcquireLoadTag) \
+  DECL_ACCESSORS_STORE_TAG(name, type, ReleaseStoreTag)
 
 #define DECL_CAST(Type)                                 \
   V8_INLINE static Type cast(Object object);            \
@@ -162,14 +172,43 @@
 #define ACCESSORS(holder, name, type, offset) \
   ACCESSORS_CHECKED(holder, name, type, offset, true)
 
+#define RELAXED_ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \
+                                   set_condition)                             \
+  type holder::name(RelaxedLoadTag tag) const {                               \
+    const Isolate* isolate = GetIsolateForPtrCompr(*this);                    \
+    return holder::name(isolate, tag);                                        \
+  }                                                                           \
+  type holder::name(const Isolate* isolate, RelaxedLoadTag) const {           \
+    type value = TaggedField<type, offset>::load(isolate, *this);             \
+    DCHECK(get_condition);                                                    \
+    return value;                                                             \
+  }                                                                           \
+  void holder::set_##name(type value, RelaxedStoreTag,                        \
+                          WriteBarrierMode mode) {                            \
+    DCHECK(set_condition);                                                    \
+    TaggedField<type, offset>::store(*this, value);                           \
+    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);                    \
+  }
+
+#define RELAXED_ACCESSORS_CHECKED(holder, name, type, offset, condition) \
+  RELAXED_ACCESSORS_CHECKED2(holder, name, type, offset, condition, condition)
+
+#define RELAXED_ACCESSORS(holder, name, type, offset) \
+  RELAXED_ACCESSORS_CHECKED(holder, name, type, offset, true)
+
 #define SYNCHRONIZED_ACCESSORS_CHECKED2(holder, name, type, offset,       \
                                         get_condition, set_condition)     \
-  DEF_GETTER(holder, name, type) {                                        \
+  type holder::name(AcquireLoadTag tag) const {                           \
+    const Isolate* isolate = GetIsolateForPtrCompr(*this);                \
+    return holder::name(isolate, tag);                                    \
+  }                                                                       \
+  type holder::name(const Isolate* isolate, AcquireLoadTag) const {       \
     type value = TaggedField<type, offset>::Acquire_Load(isolate, *this); \
     DCHECK(get_condition);                                                \
     return value;                                                         \
   }                                                                       \
-  void holder::set_##name(type value, WriteBarrierMode mode) {            \
+  void holder::set_##name(type value, ReleaseStoreTag,                    \
+                          WriteBarrierMode mode) {                        \
     DCHECK(set_condition);                                                \
     TaggedField<type, offset>::Release_Store(*this, value);               \
     CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);                \

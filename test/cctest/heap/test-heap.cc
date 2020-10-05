@@ -4477,7 +4477,7 @@ TEST(NextCodeLinkInCodeDataContainerIsCleared) {
         OptimizeDummyFunction(CcTest::isolate(), "mortal2");
     CHECK_EQ(mortal2->code().next_code_link(), mortal1->code());
     code_data_container = scope.CloseAndEscape(Handle<CodeDataContainer>(
-        mortal2->code().code_data_container(), isolate));
+        mortal2->code().code_data_container(kAcquireLoad), isolate));
     CompileRun("mortal1 = null; mortal2 = null;");
   }
   CcTest::CollectAllAvailableGarbage();

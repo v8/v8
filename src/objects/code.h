@@ -115,7 +115,7 @@ class Code : public HeapObject {
   inline ByteArray SourcePositionTable() const;
 
   // [code_data_container]: A container indirection for all mutable fields.
-  DECL_ACCESSORS(code_data_container, CodeDataContainer)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(code_data_container, CodeDataContainer)
 
   // [next_code_link]: Link for lists of optimized or deoptimized code.
   // Note that this field is stored in the {CodeDataContainer} to be mutable.
@@ -774,7 +774,7 @@ class BytecodeArray : public FixedArrayBase {
   // * ByteArray (when source positions have been collected for the bytecode)
   // * exception (when an error occurred while explicitly collecting source
   // positions for pre-existing bytecode).
-  DECL_SYNCHRONIZED_ACCESSORS(source_position_table, Object)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(source_position_table, Object)
 
   inline bool HasSourcePositionTable() const;
   inline bool DidSourcePositionGenerationFail() const;

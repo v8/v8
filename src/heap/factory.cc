@@ -184,7 +184,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
                            stack_slots_, kIsNotOffHeapTrampoline);
     code->set_builtin_index(builtin_index_);
     code->set_inlined_bytecode_size(inlined_bytecode_size_);
-    code->set_code_data_container(*data_container);
+    code->set_code_data_container(*data_container, kReleaseStore);
     code->set_deoptimization_data(*deoptimization_data_);
     code->set_source_position_table(*source_position_table_);
     code->set_safepoint_table_offset(code_desc_.safepoint_table_offset);
@@ -1470,7 +1470,8 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
   map.SetInObjectUnusedPropertyFields(inobject_properties);
   map.SetInstanceDescriptors(isolate(), *empty_descriptor_array(), 0);
   if (FLAG_unbox_double_fields) {
-    map.set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
+    map.set_layout_descriptor(LayoutDescriptor::FastPointerLayout(),
+                              kReleaseStore);
   }
   // Must be called only after |instance_type|, |instance_size| and
   // |layout_descriptor| are set.
@@ -2070,7 +2071,7 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
       Builtins::CodeObjectIsExecutable(code->builtin_index());
   Handle<Code> result = Builtins::GenerateOffHeapTrampolineFor(
       isolate(), off_heap_entry,
-      code->code_data_container().kind_specific_flags(),
+      code->code_data_container(kAcquireLoad).kind_specific_flags(),
       generate_jump_to_instruction_stream);
   // The CodeDataContainer should not be modified beyond this point since it's
   // now possibly canonicalized.
@@ -2115,7 +2116,8 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
 
 Handle<Code> Factory::CopyCode(Handle<Code> code) {
   Handle<CodeDataContainer> data_container = NewCodeDataContainer(
-      code->code_data_container().kind_specific_flags(), AllocationType::kOld);
+      code->code_data_container(kAcquireLoad).kind_specific_flags(),
+      AllocationType::kOld);
 
   Heap* heap = isolate()->heap();
   Handle<Code> new_code;
@@ -2132,7 +2134,7 @@ Handle<Code> Factory::CopyCode(Handle<Code> code) {
     new_code = handle(Code::cast(result), isolate());
 
     // Set the {CodeDataContainer}, it cannot be shared.
-    new_code->set_code_data_container(*data_container);
+    new_code->set_code_data_container(*data_container, kReleaseStore);
 
     new_code->Relocate(new_addr - old_addr);
     // We have to iterate over the object and process its pointers when black
@@ -2168,8 +2170,8 @@ Handle<BytecodeArray> Factory::CopyBytecodeArray(
       bytecode_array->incoming_new_target_or_generator_register());
   copy->set_constant_pool(bytecode_array->constant_pool());
   copy->set_handler_table(bytecode_array->handler_table());
-  copy->set_synchronized_source_position_table(
-      bytecode_array->synchronized_source_position_table());
+  copy->set_source_position_table(
+      bytecode_array->source_position_table(kAcquireLoad), kReleaseStore);
   copy->set_osr_loop_nesting_level(bytecode_array->osr_loop_nesting_level());
   copy->set_bytecode_age(bytecode_array->bytecode_age());
   bytecode_array->CopyBytecodesTo(*copy);
@@ -2220,7 +2222,8 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
 
   // The global object might be created from an object template with accessors.
   // Fill these accessors into the dictionary.
-  Handle<DescriptorArray> descs(map->instance_descriptors(), isolate());
+  Handle<DescriptorArray> descs(map->instance_descriptors(kRelaxedLoad),
+                                isolate());
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details = descs->GetDetails(i);
     // Only accessors are expected.
@@ -3471,7 +3474,8 @@ Handle<Map> Factory::CreateSloppyFunctionMap(
     map->AppendDescriptor(isolate(), &d);
   }
   DCHECK_EQ(inobject_properties_count, field_index);
-  DCHECK_EQ(0, map->instance_descriptors().number_of_slack_descriptors());
+  DCHECK_EQ(
+      0, map->instance_descriptors(kRelaxedLoad).number_of_slack_descriptors());
   LOG(isolate(), MapDetails(*map));
   return map;
 }
@@ -3554,7 +3558,8 @@ Handle<Map> Factory::CreateStrictFunctionMap(
     map->AppendDescriptor(isolate(), &d);
   }
   DCHECK_EQ(inobject_properties_count, field_index);
-  DCHECK_EQ(0, map->instance_descriptors().number_of_slack_descriptors());
+  DCHECK_EQ(
+      0, map->instance_descriptors(kRelaxedLoad).number_of_slack_descriptors());
   LOG(isolate(), MapDetails(*map));
   return map;
 }

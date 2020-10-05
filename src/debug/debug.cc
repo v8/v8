@@ -1327,7 +1327,8 @@ void Debug::InstallDebugBreakTrampoline() {
         }
       } else if (obj.IsJSObject()) {
         JSObject object = JSObject::cast(obj);
-        DescriptorArray descriptors = object.map().instance_descriptors();
+        DescriptorArray descriptors =
+            object.map().instance_descriptors(kRelaxedLoad);
 
         for (InternalIndex i : object.map().IterateOwnDescriptors()) {
           if (descriptors.GetDetails(i).kind() == PropertyKind::kAccessor) {

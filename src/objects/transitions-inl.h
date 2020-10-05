@@ -100,7 +100,7 @@ HeapObjectSlot TransitionArray::GetTargetSlot(int transition_number) {
 PropertyDetails TransitionsAccessor::GetTargetDetails(Name name, Map target) {
   DCHECK(!IsSpecialTransition(name.GetReadOnlyRoots(), name));
   InternalIndex descriptor = target.LastAdded();
-  DescriptorArray descriptors = target.instance_descriptors();
+  DescriptorArray descriptors = target.instance_descriptors(kRelaxedLoad);
   // Transitions are allowed only for the last added property.
   DCHECK(descriptors.GetKey(descriptor).Equals(name));
   return descriptors.GetDetails(descriptor);
@@ -113,7 +113,7 @@ PropertyDetails TransitionsAccessor::GetSimpleTargetDetails(Map transition) {
 // static
 Name TransitionsAccessor::GetSimpleTransitionKey(Map transition) {
   InternalIndex descriptor = transition.LastAdded();
-  return transition.instance_descriptors().GetKey(descriptor);
+  return transition.instance_descriptors(kRelaxedLoad).GetKey(descriptor);
 }
 
 // static

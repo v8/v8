@@ -269,7 +269,7 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(
   StoreObjectFieldNoWriteBarrier(function, JSFunction::kContextOffset, context);
 
   // For the native closures that are initialized here (for `await`)
-  // we know that their SharedFunctionInfo::function_data() slot
+  // we know that their SharedFunctionInfo::function_data(kAcquireLoad) slot
   // contains a builtin index (as Smi), so there's no need to use
   // CodeStubAssembler::GetSharedFunctionInfoCode() helper here,
   // which almost doubles the size of `await` builtins (unnecessarily).

@@ -4000,7 +4000,8 @@ void TranslatedState::EnsurePropertiesAllocatedAndMarked(
   properties_slot->set_storage(object_storage);
 
   // Set markers for out-of-object properties.
-  Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(kRelaxedLoad),
+                                      isolate());
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     FieldIndex index = FieldIndex::ForDescriptor(*map, i);
     Representation representation = descriptors->GetDetails(i).representation();
@@ -4033,7 +4034,8 @@ void TranslatedState::EnsureJSObjectAllocated(TranslatedValue* slot,
 
   Handle<ByteArray> object_storage = AllocateStorageFor(slot);
   // Now we handle the interesting (JSObject) case.
-  Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(kRelaxedLoad),
+                                      isolate());
 
   // Set markers for in-object properties.
   for (InternalIndex i : map->IterateOwnDescriptors()) {

@@ -285,7 +285,7 @@ bool TransitionsAccessor::IsMatchingMap(Map target, Name name,
                                         PropertyKind kind,
                                         PropertyAttributes attributes) {
   InternalIndex descriptor = target.LastAdded();
-  DescriptorArray descriptors = target.instance_descriptors();
+  DescriptorArray descriptors = target.instance_descriptors(kRelaxedLoad);
   Name key = descriptors.GetKey(descriptor);
   if (key != name) return false;
   return descriptors.GetDetails(descriptor)
@@ -530,7 +530,8 @@ void TransitionsAccessor::CheckNewTransitionsAreConsistent(
   TransitionArray new_transitions = TransitionArray::cast(transitions);
   for (int i = 0; i < old_transitions.number_of_transitions(); i++) {
     Map target = old_transitions.GetTarget(i);
-    if (target.instance_descriptors() == map_.instance_descriptors()) {
+    if (target.instance_descriptors(kRelaxedLoad) ==
+        map_.instance_descriptors(kRelaxedLoad)) {
       Name key = old_transitions.GetKey(i);
       int new_target_index;
       if (IsSpecialTransition(ReadOnlyRoots(isolate_), key)) {

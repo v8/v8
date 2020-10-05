@@ -65,7 +65,7 @@ Handle<LayoutDescriptor> LayoutDescriptor::AppendIfFastOrUseFull(
     Isolate* isolate, Handle<Map> map, PropertyDetails details,
     Handle<LayoutDescriptor> full_layout_descriptor) {
   DisallowHeapAllocation no_allocation;
-  LayoutDescriptor layout_descriptor = map->layout_descriptor();
+  LayoutDescriptor layout_descriptor = map->layout_descriptor(kAcquireLoad);
   if (layout_descriptor.IsSlowLayout()) {
     return full_layout_descriptor;
   }
@@ -257,7 +257,7 @@ LayoutDescriptor LayoutDescriptor::Trim(Heap* heap, Map map,
 
 bool LayoutDescriptor::IsConsistentWithMap(Map map, bool check_tail) {
   if (FLAG_unbox_double_fields) {
-    DescriptorArray descriptors = map.instance_descriptors();
+    DescriptorArray descriptors = map.instance_descriptors(kRelaxedLoad);
     int last_field_index = 0;
     for (InternalIndex i : map.IterateOwnDescriptors()) {
       PropertyDetails details = descriptors.GetDetails(i);

@@ -480,7 +480,7 @@ bool UseAsmWasm(FunctionLiteral* literal, bool asm_wasm_broken) {
 void InstallInterpreterTrampolineCopy(Isolate* isolate,
                                       Handle<SharedFunctionInfo> shared_info) {
   DCHECK(FLAG_interpreted_frames_native_stack);
-  if (!shared_info->function_data().IsBytecodeArray()) {
+  if (!shared_info->function_data(kAcquireLoad).IsBytecodeArray()) {
     DCHECK(!shared_info->HasBytecodeArray());
     return;
   }
@@ -1700,8 +1700,8 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
       shared_info->GetDebugInfo().HasInstrumentedBytecodeArray()) {
     ByteArray source_position_table =
         job->compilation_info()->bytecode_array()->SourcePositionTable();
-    shared_info->GetDebugBytecodeArray().set_synchronized_source_position_table(
-        source_position_table);
+    shared_info->GetDebugBytecodeArray().set_source_position_table(
+        source_position_table, kReleaseStore);
   }
 
   DCHECK(!isolate->has_pending_exception());

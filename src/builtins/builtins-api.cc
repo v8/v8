@@ -99,7 +99,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
     }
   }
 
-  Object raw_call_data = fun_data->call_code();
+  Object raw_call_data = fun_data->call_code(kAcquireLoad);
   if (!raw_call_data.IsUndefined(isolate)) {
     DCHECK(raw_call_data.IsCallHandlerInfo());
     CallHandlerInfo call_data = CallHandlerInfo::cast(raw_call_data);

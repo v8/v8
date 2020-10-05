@@ -288,7 +288,7 @@ void FreeSpace::FreeSpacePrint(std::ostream& os) {  // NOLINT
 
 bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
   if (HasFastProperties()) {
-    DescriptorArray descs = map().instance_descriptors();
+    DescriptorArray descs = map().instance_descriptors(kRelaxedLoad);
     int nof_inobject_properties = map().GetInObjectProperties();
     for (InternalIndex i : map().IterateOwnDescriptors()) {
       os << "\n    ";
@@ -1373,7 +1373,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   }
   os << "\n - expected_nof_properties: " << expected_nof_properties();
   os << "\n - language_mode: " << language_mode();
-  os << "\n - data: " << Brief(function_data());
+  os << "\n - data: " << Brief(function_data(kAcquireLoad));
   os << "\n - code (from data): ";
     os << Brief(GetCode());
   PrintSourceCode(os);
@@ -1917,7 +1917,7 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(
   os << "\n - tag: " << tag();
   os << "\n - serial_number: " << serial_number();
   os << "\n - property_list: " << Brief(property_list());
-  os << "\n - call_code: " << Brief(call_code());
+  os << "\n - call_code: " << Brief(call_code(kAcquireLoad));
   os << "\n - property_accessors: " << Brief(property_accessors());
   os << "\n - signature: " << Brief(signature());
   os << "\n - cached_property_name: " << Brief(cached_property_name());
@@ -2397,7 +2397,7 @@ int Name::NameShortPrint(Vector<char> str) {
 void Map::PrintMapDetails(std::ostream& os) {
   DisallowHeapAllocation no_gc;
   this->MapPrint(os);
-  instance_descriptors().PrintDescriptors(os);
+  instance_descriptors(kRelaxedLoad).PrintDescriptors(os);
 }
 
 void Map::MapPrint(std::ostream& os) {  // NOLINT
@@ -2451,10 +2451,10 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   os << "\n - prototype_validity cell: " << Brief(prototype_validity_cell());
   os << "\n - instance descriptors " << (owns_descriptors() ? "(own) " : "")
      << "#" << NumberOfOwnDescriptors() << ": "
-     << Brief(instance_descriptors());
+     << Brief(instance_descriptors(kRelaxedLoad));
   if (FLAG_unbox_double_fields) {
     os << "\n - layout descriptor: ";
-    layout_descriptor().ShortPrint(os);
+    layout_descriptor(kAcquireLoad).ShortPrint(os);
   }
 
   // Read-only maps can't have transitions, which is fortunate because we need
@@ -2567,7 +2567,7 @@ void TransitionsAccessor::PrintOneTransition(std::ostream& os, Name key,
     DCHECK(!IsSpecialTransition(roots, key));
     os << "(transition to ";
     InternalIndex descriptor = target.LastAdded();
-    DescriptorArray descriptors = target.instance_descriptors();
+    DescriptorArray descriptors = target.instance_descriptors(kRelaxedLoad);
     descriptors.PrintDescriptorDetails(os, descriptor,
                                        PropertyDetails::kForTransitions);
     os << ")";
@@ -2645,7 +2645,7 @@ void TransitionsAccessor::PrintTransitionTree(std::ostream& os, int level,
       DCHECK(!IsSpecialTransition(ReadOnlyRoots(isolate_), key));
       os << "to ";
       InternalIndex descriptor = target.LastAdded();
-      DescriptorArray descriptors = target.instance_descriptors();
+      DescriptorArray descriptors = target.instance_descriptors(kRelaxedLoad);
       descriptors.PrintDescriptorDetails(os, descriptor,
                                          PropertyDetails::kForTransitions);
     }

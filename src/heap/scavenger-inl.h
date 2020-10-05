@@ -123,7 +123,7 @@ bool Scavenger::MigrateObject(Map map, HeapObject source, HeapObject target,
   heap()->CopyBlock(target.address() + kTaggedSize,
                     source.address() + kTaggedSize, size - kTaggedSize);
 
-  if (!source.synchronized_compare_and_swap_map_word(
+  if (!source.release_compare_and_swap_map_word(
           MapWord::FromMap(map), MapWord::FromForwardingAddress(target))) {
     // Other task migrated the object.
     return false;
@@ -228,7 +228,7 @@ bool Scavenger::HandleLargeObject(Map map, HeapObject object, int object_size,
           BasicMemoryChunk::FromHeapObject(object)->InNewLargeObjectSpace())) {
     DCHECK_EQ(NEW_LO_SPACE,
               MemoryChunk::FromHeapObject(object)->owner_identity());
-    if (object.synchronized_compare_and_swap_map_word(
+    if (object.release_compare_and_swap_map_word(
             MapWord::FromMap(map), MapWord::FromForwardingAddress(object))) {
       surviving_new_large_objects_.insert({object, map});
       promoted_size_ += object_size;

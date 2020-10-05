@@ -67,8 +67,8 @@ FieldIndex FieldIndex::ForDescriptor(Map map, InternalIndex descriptor_index) {
 
 FieldIndex FieldIndex::ForDescriptor(const Isolate* isolate, Map map,
                                      InternalIndex descriptor_index) {
-  PropertyDetails details =
-      map.instance_descriptors(isolate).GetDetails(descriptor_index);
+  PropertyDetails details = map.instance_descriptors(isolate, kRelaxedLoad)
+                                .GetDetails(descriptor_index);
   int field_index = details.field_index();
   return ForPropertyIndex(map, field_index, details.representation());
 }

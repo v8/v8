@@ -1682,6 +1682,17 @@ enum class DynamicMapChecksStatus : uint8_t {
 };
 
 }  // namespace internal
+
+// Tag dispatching support for acquire loads and release stores.
+struct AcquireLoadTag {};
+struct RelaxedLoadTag {};
+struct ReleaseStoreTag {};
+struct RelaxedStoreTag {};
+static constexpr AcquireLoadTag kAcquireLoad;
+static constexpr RelaxedLoadTag kRelaxedLoad;
+static constexpr ReleaseStoreTag kReleaseStore;
+static constexpr RelaxedStoreTag kRelaxedStore;
+
 }  // namespace v8
 
 namespace i = v8::internal;

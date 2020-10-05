@@ -45,8 +45,8 @@ class HeapObject : public Object {
 
   // Compare-and-swaps map word using release store, returns true if the map
   // word was actually swapped.
-  inline bool synchronized_compare_and_swap_map_word(MapWord old_map_word,
-                                                     MapWord new_map_word);
+  inline bool release_compare_and_swap_map_word(MapWord old_map_word,
+                                                MapWord new_map_word);
 
   // Initialize the map immediately after the object is allocated.
   // Do not use this outside Heap.

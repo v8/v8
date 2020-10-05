@@ -221,7 +221,8 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
     return Just(false);
   }
 
-  Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(kRelaxedLoad),
+                                      isolate);
 
   bool stable = true;
 
@@ -233,7 +234,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
     // Directly decode from the descriptor array if |from| did not change shape.
     if (stable) {
       DCHECK_EQ(from->map(), *map);
-      DCHECK_EQ(*descriptors, map->instance_descriptors());
+      DCHECK_EQ(*descriptors, map->instance_descriptors(kRelaxedLoad));
 
       PropertyDetails details = descriptors->GetDetails(i);
       if (!details.IsEnumerable()) continue;
@@ -252,7 +253,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, prop_value, Object::GetProperty(&it), Nothing<bool>());
         stable = from->map() == *map;
-        descriptors.PatchValue(map->instance_descriptors());
+        descriptors.PatchValue(map->instance_descriptors(kRelaxedLoad));
       }
     } else {
       // If the map did change, do a slower lookup. We are still guaranteed that
@@ -278,7 +279,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
       if (result.IsNothing()) return result;
       if (stable) {
         stable = from->map() == *map;
-        descriptors.PatchValue(map->instance_descriptors());
+        descriptors.PatchValue(map->instance_descriptors(kRelaxedLoad));
       }
     } else {
       if (excluded_properties != nullptr &&
@@ -1851,7 +1852,8 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
   if (!map->OnlyHasSimpleProperties()) return Just(false);
 
   Handle<JSObject> object(JSObject::cast(*receiver), isolate);
-  Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(kRelaxedLoad),
+                                      isolate);
 
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   size_t number_of_own_elements =
@@ -1879,7 +1881,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
   // side-effects.
   bool stable = *map == object->map();
   if (stable) {
-    descriptors.PatchValue(map->instance_descriptors());
+    descriptors.PatchValue(map->instance_descriptors(kRelaxedLoad));
   }
 
   for (InternalIndex index : InternalIndex::Range(number_of_own_descriptors)) {
@@ -1892,7 +1894,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
     // Directly decode from the descriptor array if |from| did not change shape.
     if (stable) {
       DCHECK_EQ(object->map(), *map);
-      DCHECK_EQ(*descriptors, map->instance_descriptors());
+      DCHECK_EQ(*descriptors, map->instance_descriptors(kRelaxedLoad));
 
       PropertyDetails details = descriptors->GetDetails(index);
       if (!details.IsEnumerable()) continue;
@@ -1913,7 +1915,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, prop_value, Object::GetProperty(&it), Nothing<bool>());
         stable = object->map() == *map;
-        descriptors.PatchValue(map->instance_descriptors());
+        descriptors.PatchValue(map->instance_descriptors(kRelaxedLoad));
       }
     } else {
       // If the map did change, do a slower lookup. We are still guaranteed that
@@ -2535,8 +2537,8 @@ void JSObject::PrintInstanceMigration(FILE* file, Map original_map,
     return;
   }
   PrintF(file, "[migrating]");
-  DescriptorArray o = original_map.instance_descriptors();
-  DescriptorArray n = new_map.instance_descriptors();
+  DescriptorArray o = original_map.instance_descriptors(kRelaxedLoad);
+  DescriptorArray n = new_map.instance_descriptors(kRelaxedLoad);
   for (InternalIndex i : original_map.IterateOwnDescriptors()) {
     Representation o_r = o.GetDetails(i).representation();
     Representation n_r = n.GetDetails(i).representation();
@@ -2724,9 +2726,9 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
       isolate->factory()->NewFixedArray(inobject);
 
   Handle<DescriptorArray> old_descriptors(
-      old_map->instance_descriptors(isolate), isolate);
+      old_map->instance_descriptors(isolate, kRelaxedLoad), isolate);
   Handle<DescriptorArray> new_descriptors(
-      new_map->instance_descriptors(isolate), isolate);
+      new_map->instance_descriptors(isolate, kRelaxedLoad), isolate);
   int old_nof = old_map->NumberOfOwnDescriptors();
   int new_nof = new_map->NumberOfOwnDescriptors();
 
@@ -2884,7 +2886,8 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
   Handle<NameDictionary> dictionary =
       NameDictionary::New(isolate, property_count);
 
-  Handle<DescriptorArray> descs(map->instance_descriptors(isolate), isolate);
+  Handle<DescriptorArray> descs(
+      map->instance_descriptors(isolate, kRelaxedLoad), isolate);
   for (InternalIndex i : InternalIndex::Range(real_size)) {
     PropertyDetails details = descs->GetDetails(i);
     Handle<Name> key(descs->GetKey(isolate, i), isolate);
@@ -3075,7 +3078,8 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
   if (!FLAG_unbox_double_fields || external > 0) {
     Isolate* isolate = object->GetIsolate();
 
-    Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
+    Handle<DescriptorArray> descriptors(map->instance_descriptors(kRelaxedLoad),
+                                        isolate);
     Handle<FixedArray> storage;
     if (!FLAG_unbox_double_fields) {
       storage = isolate->factory()->NewFixedArray(inobject);
@@ -3642,7 +3646,7 @@ bool TestFastPropertiesIntegrityLevel(Map map, PropertyAttributes level) {
   DCHECK(!map.IsCustomElementsReceiverMap());
   DCHECK(!map.is_dictionary_map());
 
-  DescriptorArray descriptors = map.instance_descriptors();
+  DescriptorArray descriptors = map.instance_descriptors(kRelaxedLoad);
   for (InternalIndex i : map.IterateOwnDescriptors()) {
     if (descriptors.GetKey(i).IsPrivate()) continue;
     PropertyDetails details = descriptors.GetDetails(i);
@@ -4177,7 +4181,7 @@ MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
 
 Object JSObject::SlowReverseLookup(Object value) {
   if (HasFastProperties()) {
-    DescriptorArray descs = map().instance_descriptors();
+    DescriptorArray descs = map().instance_descriptors(kRelaxedLoad);
     bool value_is_number = value.IsNumber();
     for (InternalIndex i : map().IterateOwnDescriptors()) {
       PropertyDetails details = descs.GetDetails(i);

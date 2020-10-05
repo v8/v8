@@ -795,8 +795,8 @@ void HeapObject::synchronized_set_map_word(MapWord map_word) {
   MapField::Release_Store(*this, map_word);
 }
 
-bool HeapObject::synchronized_compare_and_swap_map_word(MapWord old_map_word,
-                                                        MapWord new_map_word) {
+bool HeapObject::release_compare_and_swap_map_word(MapWord old_map_word,
+                                                   MapWord new_map_word) {
   Tagged_t result =
       MapField::Release_CompareAndSwap(*this, old_map_word, new_map_word);
   return result == static_cast<Tagged_t>(old_map_word.ptr());

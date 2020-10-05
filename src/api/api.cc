@@ -1560,7 +1560,7 @@ void FunctionTemplate::SetCallHandler(FunctionCallback callback,
         isolate, info,
         i::handle(*FromCData(isolate, c_function->GetTypeInfo()), isolate));
   }
-  info->set_synchronized_call_code(*obj);
+  info->set_call_code(*obj, kReleaseStore);
 }
 
 namespace {
@@ -4441,7 +4441,8 @@ MaybeLocal<Array> v8::Object::GetPropertyNames(
       accumulator.GetKeys(static_cast<i::GetKeysConversion>(key_conversion));
   DCHECK(self->map().EnumLength() == i::kInvalidEnumCacheSentinel ||
          self->map().EnumLength() == 0 ||
-         self->map().instance_descriptors().enum_cache().keys() != *value);
+         self->map().instance_descriptors(kRelaxedLoad).enum_cache().keys() !=
+             *value);
   auto result = isolate->factory()->NewJSArrayWithElements(value);
   RETURN_ESCAPED(Utils::ToLocal(result));
 }
@@ -4946,7 +4947,8 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
     CHECK(self->IsJSFunction() &&
           i::JSFunction::cast(*self).shared().IsApiFunction());
     i::Object obj =
-        i::JSFunction::cast(*self).shared().get_api_func_data().call_code();
+        i::JSFunction::cast(*self).shared().get_api_func_data().call_code(
+            kAcquireLoad);
     if (obj.IsCallHandlerInfo()) {
       i::CallHandlerInfo handler_info = i::CallHandlerInfo::cast(obj);
       if (!handler_info.IsSideEffectFreeCallHandlerInfo()) {
@@ -4960,7 +4962,8 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
       i::Execution::New(isolate, self, self, argc, args), &result);
   if (should_set_has_no_side_effect) {
     i::Object obj =
-        i::JSFunction::cast(*self).shared().get_api_func_data().call_code();
+        i::JSFunction::cast(*self).shared().get_api_func_data().call_code(
+            kAcquireLoad);
     if (obj.IsCallHandlerInfo()) {
       i::CallHandlerInfo handler_info = i::CallHandlerInfo::cast(obj);
       if (has_pending_exception) {

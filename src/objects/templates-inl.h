@@ -36,7 +36,7 @@ BOOL_ACCESSORS(FunctionTemplateInfo, flag, do_not_cache, DoNotCacheBit::kShift)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, accept_any_receiver,
                AcceptAnyReceiverBit::kShift)
 
-SYNCHRONIZED_ACCESSORS(FunctionTemplateInfo, synchronized_call_code, HeapObject,
+SYNCHRONIZED_ACCESSORS(FunctionTemplateInfo, call_code, HeapObject,
                        kCallCodeOffset)
 
 // static

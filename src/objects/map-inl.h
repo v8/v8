@@ -32,12 +32,9 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(Map, HeapObject)
 CAST_ACCESSOR(Map)
 
-DEF_GETTER(Map, instance_descriptors, DescriptorArray) {
-  return TaggedField<DescriptorArray, kInstanceDescriptorsOffset>::load(isolate,
-                                                                        *this);
-}
-
-SYNCHRONIZED_ACCESSORS(Map, synchronized_instance_descriptors, DescriptorArray,
+RELAXED_ACCESSORS(Map, instance_descriptors, DescriptorArray,
+                  kInstanceDescriptorsOffset)
+SYNCHRONIZED_ACCESSORS(Map, instance_descriptors, DescriptorArray,
                        kInstanceDescriptorsOffset)
 
 // A freshly allocated layout descriptor can be set on an existing map.
@@ -165,7 +162,8 @@ bool Map::IsUnboxedDoubleField(FieldIndex index) const {
 bool Map::IsUnboxedDoubleField(const Isolate* isolate, FieldIndex index) const {
   if (!FLAG_unbox_double_fields) return false;
   if (!index.is_inobject()) return false;
-  return !layout_descriptor(isolate).IsTagged(index.property_index());
+  return !layout_descriptor(isolate, kAcquireLoad)
+              .IsTagged(index.property_index());
 }
 
 bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
@@ -187,7 +185,7 @@ bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
 }
 
 PropertyDetails Map::GetLastDescriptorDetails(Isolate* isolate) const {
-  return instance_descriptors(isolate).GetDetails(LastAdded());
+  return instance_descriptors(isolate, kRelaxedLoad).GetDetails(LastAdded());
 }
 
 InternalIndex Map::LastAdded() const {
@@ -201,7 +199,7 @@ int Map::NumberOfOwnDescriptors() const {
 }
 
 void Map::SetNumberOfOwnDescriptors(int number) {
-  DCHECK_LE(number, instance_descriptors().number_of_descriptors());
+  DCHECK_LE(number, instance_descriptors(kRelaxedLoad).number_of_descriptors());
   CHECK_LE(static_cast<unsigned>(number),
            static_cast<unsigned>(kMaxNumberOfDescriptors));
   set_bit_field3(
@@ -564,7 +562,7 @@ bool Map::is_stable() const {
 
 bool Map::CanBeDeprecated() const {
   for (InternalIndex i : IterateOwnDescriptors()) {
-    PropertyDetails details = instance_descriptors().GetDetails(i);
+    PropertyDetails details = instance_descriptors(kRelaxedLoad).GetDetails(i);
     if (details.representation().IsNone()) return true;
     if (details.representation().IsSmi()) return true;
     if (details.representation().IsDouble() && FLAG_unbox_double_fields)
@@ -634,17 +632,17 @@ void Map::UpdateDescriptors(Isolate* isolate, DescriptorArray descriptors,
                             int number_of_own_descriptors) {
   SetInstanceDescriptors(isolate, descriptors, number_of_own_descriptors);
   if (FLAG_unbox_double_fields) {
-    if (layout_descriptor().IsSlowLayout()) {
-      set_layout_descriptor(layout_desc);
+    if (layout_descriptor(kAcquireLoad).IsSlowLayout()) {
+      set_layout_descriptor(layout_desc, kReleaseStore);
     }
 #ifdef VERIFY_HEAP
     // TODO(ishell): remove these checks from VERIFY_HEAP mode.
     if (FLAG_verify_heap) {
-      CHECK(layout_descriptor().IsConsistentWithMap(*this));
+      CHECK(layout_descriptor(kAcquireLoad).IsConsistentWithMap(*this));
       CHECK_EQ(Map::GetVisitorId(*this), visitor_id());
     }
 #else
-    SLOW_DCHECK(layout_descriptor().IsConsistentWithMap(*this));
+    SLOW_DCHECK(layout_descriptor(kAcquireLoad).IsConsistentWithMap(*this));
     DCHECK(visitor_id() == Map::GetVisitorId(*this));
 #endif
   }
@@ -656,14 +654,14 @@ void Map::InitializeDescriptors(Isolate* isolate, DescriptorArray descriptors,
                          descriptors.number_of_descriptors());
 
   if (FLAG_unbox_double_fields) {
-    set_layout_descriptor(layout_desc);
+    set_layout_descriptor(layout_desc, kReleaseStore);
 #ifdef VERIFY_HEAP
     // TODO(ishell): remove these checks from VERIFY_HEAP mode.
     if (FLAG_verify_heap) {
-      CHECK(layout_descriptor().IsConsistentWithMap(*this));
+      CHECK(layout_descriptor(kAcquireLoad).IsConsistentWithMap(*this));
     }
 #else
-    SLOW_DCHECK(layout_descriptor().IsConsistentWithMap(*this));
+    SLOW_DCHECK(layout_descriptor(kAcquireLoad).IsConsistentWithMap(*this));
 #endif
     set_visitor_id(Map::GetVisitorId(*this));
   }
@@ -685,12 +683,12 @@ void Map::clear_padding() {
 }
 
 LayoutDescriptor Map::GetLayoutDescriptor() const {
-  return FLAG_unbox_double_fields ? layout_descriptor()
+  return FLAG_unbox_double_fields ? layout_descriptor(kAcquireLoad)
                                   : LayoutDescriptor::FastPointerLayout();
 }
 
 void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
-  DescriptorArray descriptors = instance_descriptors();
+  DescriptorArray descriptors = instance_descriptors(kRelaxedLoad);
   int number_of_own_descriptors = NumberOfOwnDescriptors();
   DCHECK(descriptors.number_of_descriptors() == number_of_own_descriptors);
   {

@@ -274,7 +274,7 @@ class Expectations {
     CHECK_EQ(expected_nof, map.NumberOfOwnDescriptors());
     CHECK(!map.is_dictionary_map());
 
-    DescriptorArray descriptors = map.instance_descriptors();
+    DescriptorArray descriptors = map.instance_descriptors(kRelaxedLoad);
     CHECK(expected_nof <= number_of_properties_);
     for (InternalIndex i : InternalIndex::Range(expected_nof)) {
       if (!Check(descriptors, i)) {
@@ -443,8 +443,8 @@ class Expectations {
     Handle<Object> getter(pair->getter(), isolate);
     Handle<Object> setter(pair->setter(), isolate);
 
-    InternalIndex descriptor =
-        map->instance_descriptors().SearchWithCache(isolate, *name, *map);
+    InternalIndex descriptor = map->instance_descriptors(kRelaxedLoad)
+                                   .SearchWithCache(isolate, *name, *map);
     map = Map::TransitionToAccessorProperty(isolate, map, name, descriptor,
                                             getter, setter, attributes);
     CHECK(!map->is_deprecated());
@@ -551,8 +551,10 @@ TEST(ReconfigureAccessorToNonExistingDataFieldHeavy) {
 
   CHECK_EQ(1, obj->map().NumberOfOwnDescriptors());
   InternalIndex first(0);
-  CHECK(
-      obj->map().instance_descriptors().GetStrongValue(first).IsAccessorPair());
+  CHECK(obj->map()
+            .instance_descriptors(kRelaxedLoad)
+            .GetStrongValue(first)
+            .IsAccessorPair());
 
   Handle<Object> value(Smi::FromInt(42), isolate);
   JSObject::SetOwnPropertyIgnoreAttributes(obj, foo_str, value, NONE).Check();
@@ -2863,10 +2865,13 @@ void TestStoreToConstantField(const char* store_func_source,
   CHECK(!map->is_deprecated());
   CHECK_EQ(1, map->NumberOfOwnDescriptors());
   InternalIndex first(0);
-  CHECK(map->instance_descriptors().GetDetails(first).representation().Equals(
-      expected_rep));
-  CHECK_EQ(PropertyConstness::kConst,
-           map->instance_descriptors().GetDetails(first).constness());
+  CHECK(map->instance_descriptors(kRelaxedLoad)
+            .GetDetails(first)
+            .representation()
+            .Equals(expected_rep));
+  CHECK_EQ(
+      PropertyConstness::kConst,
+      map->instance_descriptors(kRelaxedLoad).GetDetails(first).constness());
 
   // Store value2 to obj2 and check that it got same map and property details
   // did not change.
@@ -2878,10 +2883,13 @@ void TestStoreToConstantField(const char* store_func_source,
   CHECK(!map->is_deprecated());
   CHECK_EQ(1, map->NumberOfOwnDescriptors());
 
-  CHECK(map->instance_descriptors().GetDetails(first).representation().Equals(
-      expected_rep));
-  CHECK_EQ(PropertyConstness::kConst,
-           map->instance_descriptors().GetDetails(first).constness());
+  CHECK(map->instance_descriptors(kRelaxedLoad)
+            .GetDetails(first)
+            .representation()
+            .Equals(expected_rep));
+  CHECK_EQ(
+      PropertyConstness::kConst,
+      map->instance_descriptors(kRelaxedLoad).GetDetails(first).constness());
 
   // Store value2 to obj1 and check that property became mutable.
   Call(isolate, store_func, obj1, value2).Check();
@@ -2891,10 +2899,13 @@ void TestStoreToConstantField(const char* store_func_source,
   CHECK(!map->is_deprecated());
   CHECK_EQ(1, map->NumberOfOwnDescriptors());
 
-  CHECK(map->instance_descriptors().GetDetails(first).representation().Equals(
-      expected_rep));
-  CHECK_EQ(expected_constness,
-           map->instance_descriptors().GetDetails(first).constness());
+  CHECK(map->instance_descriptors(kRelaxedLoad)
+            .GetDetails(first)
+            .representation()
+            .Equals(expected_rep));
+  CHECK_EQ(
+      expected_constness,
+      map->instance_descriptors(kRelaxedLoad).GetDetails(first).constness());
 }
 
 void TestStoreToConstantField_PlusMinusZero(const char* store_func_source,

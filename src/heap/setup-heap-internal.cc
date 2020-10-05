@@ -167,7 +167,8 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
   map.set_instance_size(instance_size);
   // Initialize to only containing tagged fields.
   if (FLAG_unbox_double_fields) {
-    map.set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
+    map.set_layout_descriptor(LayoutDescriptor::FastPointerLayout(),
+                              kReleaseStore);
   }
   // GetVisitorId requires a properly initialized LayoutDescriptor.
   map.set_visitor_id(Map::GetVisitorId(map));
@@ -194,7 +195,8 @@ void Heap::FinalizePartialMap(Map map) {
   map.set_raw_transitions(MaybeObject::FromSmi(Smi::zero()));
   map.SetInstanceDescriptors(isolate(), roots.empty_descriptor_array(), 0);
   if (FLAG_unbox_double_fields) {
-    map.set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
+    map.set_layout_descriptor(LayoutDescriptor::FastPointerLayout(),
+                              kReleaseStore);
   }
   map.set_prototype(roots.null_value());
   map.set_constructor_or_backpointer(roots.null_value());

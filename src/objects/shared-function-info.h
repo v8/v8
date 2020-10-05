@@ -304,7 +304,7 @@ class SharedFunctionInfo : public HeapObject {
   //  - a UncompiledDataWithPreparseData for lazy compilation
   //    [HasUncompiledDataWithPreparseData()]
   //  - a WasmExportedFunctionData for Wasm [HasWasmExportedFunctionData()]
-  DECL_ACCESSORS(function_data, Object)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(function_data, Object)
 
   inline bool IsApiFunction() const;
   inline bool is_class_constructor() const;

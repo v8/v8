@@ -2147,8 +2147,8 @@ void MarkCompactCollector::ClearPotentialSimpleMapTransition(Map map,
   DCHECK_EQ(map.raw_transitions(), HeapObjectReference::Weak(dead_target));
   // Take ownership of the descriptor array.
   int number_of_own_descriptors = map.NumberOfOwnDescriptors();
-  DescriptorArray descriptors = map.instance_descriptors();
-  if (descriptors == dead_target.instance_descriptors() &&
+  DescriptorArray descriptors = map.instance_descriptors(kRelaxedLoad);
+  if (descriptors == dead_target.instance_descriptors(kRelaxedLoad) &&
       number_of_own_descriptors > 0) {
     TrimDescriptorArray(map, descriptors);
     DCHECK(descriptors.number_of_descriptors() == number_of_own_descriptors);
@@ -2218,7 +2218,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
 
   // Use the raw function data setter to avoid validity checks, since we're
   // performing the unusual task of decompiling.
-  shared_info.set_function_data(uncompiled_data);
+  shared_info.set_function_data(uncompiled_data, kReleaseStore);
   DCHECK(!shared_info.is_compiled());
 }
 
@@ -2277,7 +2277,8 @@ void MarkCompactCollector::ClearFullMapTransitions() {
         bool parent_is_alive =
             non_atomic_marking_state()->IsBlackOrGrey(parent);
         DescriptorArray descriptors =
-            parent_is_alive ? parent.instance_descriptors() : DescriptorArray();
+            parent_is_alive ? parent.instance_descriptors(kRelaxedLoad)
+                            : DescriptorArray();
         bool descriptors_owner_died =
             CompactTransitionArray(parent, array, descriptors);
         if (descriptors_owner_died) {
@@ -2301,7 +2302,7 @@ bool MarkCompactCollector::CompactTransitionArray(Map map,
     DCHECK_EQ(target.constructor_or_backpointer(), map);
     if (non_atomic_marking_state()->IsWhite(target)) {
       if (!descriptors.is_null() &&
-          target.instance_descriptors() == descriptors) {
+          target.instance_descriptors(kRelaxedLoad) == descriptors) {
         DCHECK(!target.is_prototype_map());
         descriptors_owner_died = true;
       }
@@ -2375,7 +2376,7 @@ void MarkCompactCollector::TrimDescriptorArray(Map map,
     descriptors.Sort();
 
     if (FLAG_unbox_double_fields) {
-      LayoutDescriptor layout_descriptor = map.layout_descriptor();
+      LayoutDescriptor layout_descriptor = map.layout_descriptor(kAcquireLoad);
       layout_descriptor = layout_descriptor.Trim(heap_, map, descriptors,
                                                  number_of_own_descriptors);
       SLOW_DCHECK(layout_descriptor.IsConsistentWithMap(map, true));

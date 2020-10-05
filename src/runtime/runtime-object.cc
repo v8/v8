@@ -108,8 +108,8 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   int nof = receiver_map->NumberOfOwnDescriptors();
   if (nof == 0) return false;
   InternalIndex descriptor(nof - 1);
-  Handle<DescriptorArray> descriptors(receiver_map->instance_descriptors(),
-                                      isolate);
+  Handle<DescriptorArray> descriptors(
+      receiver_map->instance_descriptors(kRelaxedLoad), isolate);
   if (descriptors->GetKey(descriptor) != *key) return false;
   // (3) The property to be deleted must be deletable.
   PropertyDetails details = descriptors->GetDetails(descriptor);
