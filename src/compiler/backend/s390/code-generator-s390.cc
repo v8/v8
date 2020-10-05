@@ -4068,12 +4068,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
 #undef VECTOR_UNPACK
     case kS390_I16x8SConvertI32x4:
+#ifdef V8_TARGET_BIG_ENDIAN
+      __ vpks(i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0), Condition(0), Condition(2));
+#else
       __ vpks(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1), Condition(0), Condition(2));
+#endif
       break;
     case kS390_I8x16SConvertI16x8:
+#ifdef V8_TARGET_BIG_ENDIAN
+      __ vpks(i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0), Condition(0), Condition(1));
+#else
       __ vpks(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1), Condition(0), Condition(1));
+#endif
       break;
 #define VECTOR_PACK_UNSIGNED(mode)                                             \
   Simd128Register tempFPReg = i.ToSimd128Register(instr->TempAt(0));           \
@@ -4082,17 +4092,29 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   __ vmx(tempFPReg, i.InputSimd128Register(0), kScratchDoubleReg,              \
          Condition(0), Condition(0), Condition(mode));                         \
   __ vmx(kScratchDoubleReg, i.InputSimd128Register(1), kScratchDoubleReg,      \
-         Condition(0), Condition(0), Condition(mode));                         \
-  __ vpkls(i.OutputSimd128Register(), tempFPReg, kScratchDoubleReg,            \
-           Condition(0), Condition(mode));
+         Condition(0), Condition(0), Condition(mode));
     case kS390_I16x8UConvertI32x4: {
       // treat inputs as signed, and saturate to unsigned (negative to 0)
       VECTOR_PACK_UNSIGNED(2)
+#ifdef V8_TARGET_BIG_ENDIAN
+      __ vpkls(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg,
+               Condition(0), Condition(2));
+#else
+      __ vpkls(i.OutputSimd128Register(), tempFPReg, kScratchDoubleReg,
+               Condition(0), Condition(2));
+#endif
       break;
     }
     case kS390_I8x16UConvertI16x8: {
       // treat inputs as signed, and saturate to unsigned (negative to 0)
       VECTOR_PACK_UNSIGNED(1)
+#ifdef V8_TARGET_BIG_ENDIAN
+      __ vpkls(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg,
+               Condition(0), Condition(1));
+#else
+      __ vpkls(i.OutputSimd128Register(), tempFPReg, kScratchDoubleReg,
+               Condition(0), Condition(1));
+#endif
       break;
     }
 #undef VECTOR_PACK_UNSIGNED
@@ -4115,20 +4137,35 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Condition(mode + 1));
     case kS390_I16x8AddSaturateS: {
       BINOP_EXTRACT(va, vuph, vupl, 1)
+#ifdef V8_TARGET_BIG_ENDIAN
       __ vpks(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
               Condition(0), Condition(2));
+#else
+      __ vpks(i.OutputSimd128Register(), tempFPReg1, kScratchDoubleReg,
+              Condition(0), Condition(2));
+#endif
       break;
     }
     case kS390_I16x8SubSaturateS: {
       BINOP_EXTRACT(vs, vuph, vupl, 1)
+#ifdef V8_TARGET_BIG_ENDIAN
       __ vpks(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
               Condition(0), Condition(2));
+#else
+      __ vpks(i.OutputSimd128Register(), tempFPReg1, kScratchDoubleReg,
+              Condition(0), Condition(2));
+#endif
       break;
     }
     case kS390_I16x8AddSaturateU: {
       BINOP_EXTRACT(va, vuplh, vupll, 1)
+#ifdef V8_TARGET_BIG_ENDIAN
       __ vpkls(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
                Condition(0), Condition(2));
+#else
+      __ vpkls(i.OutputSimd128Register(), tempFPReg1, kScratchDoubleReg,
+               Condition(0), Condition(2));
+#endif
       break;
     }
     case kS390_I16x8SubSaturateU: {
@@ -4140,26 +4177,46 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
              Condition(0), Condition(2));
       __ vmx(tempFPReg1, tempFPReg2, tempFPReg1, Condition(0), Condition(0),
              Condition(2));
+#ifdef V8_TARGET_BIG_ENDIAN
       __ vpkls(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
                Condition(0), Condition(2));
+#else
+      __ vpkls(i.OutputSimd128Register(), tempFPReg1, kScratchDoubleReg,
+               Condition(0), Condition(2));
+#endif
       break;
     }
     case kS390_I8x16AddSaturateS: {
       BINOP_EXTRACT(va, vuph, vupl, 0)
+#ifdef V8_TARGET_BIG_ENDIAN
       __ vpks(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
               Condition(0), Condition(1));
+#else
+      __ vpks(i.OutputSimd128Register(), tempFPReg1, kScratchDoubleReg,
+              Condition(0), Condition(1));
+#endif
       break;
     }
     case kS390_I8x16SubSaturateS: {
       BINOP_EXTRACT(vs, vuph, vupl, 0)
+#ifdef V8_TARGET_BIG_ENDIAN
       __ vpks(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
               Condition(0), Condition(1));
+#else
+      __ vpks(i.OutputSimd128Register(), tempFPReg1, kScratchDoubleReg,
+              Condition(0), Condition(1));
+#endif
       break;
     }
     case kS390_I8x16AddSaturateU: {
       BINOP_EXTRACT(va, vuplh, vupll, 0)
+#ifdef V8_TARGET_BIG_ENDIAN
       __ vpkls(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
                Condition(0), Condition(1));
+#else
+      __ vpkls(i.OutputSimd128Register(), tempFPReg1, kScratchDoubleReg,
+               Condition(0), Condition(1));
+#endif
       break;
     }
     case kS390_I8x16SubSaturateU: {
@@ -4171,8 +4228,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
              Condition(0), Condition(1));
       __ vmx(tempFPReg1, tempFPReg2, tempFPReg1, Condition(0), Condition(0),
              Condition(1));
+#ifdef V8_TARGET_BIG_ENDIAN
       __ vpkls(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
                Condition(0), Condition(1));
+#else
+      __ vpkls(i.OutputSimd128Register(), tempFPReg1, kScratchDoubleReg,
+               Condition(0), Condition(1));
+
+#endif
       break;
     }
 #undef BINOP_EXTRACT

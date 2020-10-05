@@ -3405,9 +3405,10 @@ EVALUATE(VPKLS) {
 
 template <class S, class D>
 void VectorUnpackHigh(void* dst, void* src) {
+  constexpr size_t kItemCount = kSimd128Size / sizeof(D);
   D value = 0;
-  for (size_t i = 0; i < kSimd128Size / sizeof(D); i++) {
-    value = *(reinterpret_cast<S*>(src) + i);
+  for (size_t i = 0; i < kItemCount; i++) {
+    value = *(reinterpret_cast<S*>(src) + i + kItemCount);
     memcpy(reinterpret_cast<D*>(dst) + i, &value, sizeof(D));
   }
 }
@@ -3462,11 +3463,14 @@ EVALUATE(VUPLH) {
 
 template <class S, class D>
 void VectorUnpackLow(void* dst, void* src) {
-  D value = 0;
-  size_t count = kSimd128Size / sizeof(D);
-  for (size_t i = 0; i < count; i++) {
-    value = *(reinterpret_cast<S*>(src) + i + count);
-    memcpy(reinterpret_cast<D*>(dst) + i, &value, sizeof(D));
+  constexpr size_t kItemCount = kSimd128Size / sizeof(D);
+  D temps[kItemCount] = {0};
+  // About overwriting if src and dst are the same register.
+  for (size_t i = 0; i < kItemCount; i++) {
+    temps[i] = static_cast<D>(*(reinterpret_cast<S*>(src) + i));
+  }
+  for (size_t i = 0; i < kItemCount; i++) {
+    memcpy(reinterpret_cast<D*>(dst) + i, &temps[i], sizeof(D));
   }
 }
 
