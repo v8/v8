@@ -23,7 +23,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "$depot_tools/osx_sdk": {"sdk_version": "11b52"}, "target_platform": "ios", "builder_group": "client.v8"},
+    properties = {"$depot_tools/osx_sdk": {"sdk_version": "11b52"}, "target_platform": "ios", "builder_group": "client.v8"},
     caches = [
         swarming.cache(
             path = "osx_sdk",
@@ -38,7 +38,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Debug", "builder_group": "client.v8", "triggers": ["V8 Linux64 - debug - perfetto"]},
+    properties = {"builder_group": "client.v8", "triggers": ["V8 Linux64 - debug - perfetto"]},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -55,7 +55,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "builder_group": "client.v8"},
+    properties = {"builder_group": "client.v8"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -84,7 +84,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"enable_swarming": False, "builder_group": "client.v8", "clobber": True, "coverage": "gcov", "build_config": "Release"},
+    properties = {"enable_swarming": False, "builder_group": "client.v8", "clobber": True, "coverage": "gcov"},
     use_goma = GOMA.NO,
 )
 
@@ -93,7 +93,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "builder_group": "client.v8", "triggers": ["V8 Linux64 TSAN - no-concurrent-marking"]},
+    properties = {"builder_group": "client.v8", "triggers": ["V8 Linux64 TSAN - no-concurrent-marking"]},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -109,7 +109,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "builder_group": "client.v8"},
+    properties = {"builder_group": "client.v8"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -118,7 +118,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Debug", "builder_group": "client.v8"},
+    properties = {"builder_group": "client.v8"},
     use_goma = GOMA.DEFAULT,
     to_notify = ["victorgomes@chromium.org"],
 )
@@ -135,7 +135,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    properties = {"build_config": "Debug", "builder_group": "client.v8"},
+    properties = {"builder_group": "client.v8"},
     caches = [
         swarming.cache(
             path = "osx_sdk",
@@ -150,7 +150,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "gclient_vars": {"mac_xcode_version": "xcode_12_beta"}, "builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - release"]},
+    properties = {"gclient_vars": {"mac_xcode_version": "xcode_12_beta"}, "builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - release"]},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -167,7 +167,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "gclient_vars": {"mac_xcode_version": "xcode_12_beta"}, "builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - sim - release"]},
+    properties = {"gclient_vars": {"mac_xcode_version": "xcode_12_beta"}, "builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - sim - release"]},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -184,7 +184,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    properties = {"build_config": "Debug", "gclient_vars": {"mac_xcode_version": "xcode_12_beta"}, "builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - sim - debug"]},
+    properties = {"gclient_vars": {"mac_xcode_version": "xcode_12_beta"}, "builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - sim - debug"]},
     use_goma = GOMA.DEFAULT,
 )
 
