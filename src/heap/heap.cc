@@ -3518,19 +3518,13 @@ class SlotCollectingVisitor final : public ObjectVisitor {
 void Heap::VerifyObjectLayoutChange(HeapObject object, Map new_map) {
   if (!FLAG_verify_heap) return;
 
-  // Check that Heap::NotifyObjectLayoutChange was called for object transitions
+  // Check that Heap::NotifyObjectLayout was called for object transitions
   // that are not safe for concurrent marking.
   // If you see this check triggering for a freshly allocated object,
   // use object->set_map_after_allocation() to initialize its map.
   if (pending_layout_change_object_.is_null()) {
     if (object.IsJSObject()) {
       DCHECK(!object.map().TransitionRequiresSynchronizationWithGC(new_map));
-    } else if (object.IsString() &&
-               (new_map == ReadOnlyRoots(this).thin_string_map() ||
-                new_map == ReadOnlyRoots(this).thin_one_byte_string_map())) {
-      // When transitioning a string to ThinString,
-      // Heap::NotifyObjectLayoutChange doesn't need to be invoked because only
-      // tagged fields are introduced.
     } else {
       // Check that the set of slots before and after the transition match.
       SlotCollectingVisitor old_visitor;
