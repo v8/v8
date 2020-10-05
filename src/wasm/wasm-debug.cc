@@ -164,8 +164,8 @@ MaybeHandle<String> GetLocalNameString(Isolate* isolate,
   ModuleWireBytes wire_bytes{native_module->wire_bytes()};
   // Bounds were checked during decoding.
   DCHECK(wire_bytes.BoundsCheck(name_ref));
-  Vector<const char> name = wire_bytes.GetNameOrNull(name_ref);
-  if (name.begin() == nullptr) return {};
+  WasmName name = wire_bytes.GetNameOrNull(name_ref);
+  if (name.size() == 0) return {};
   return isolate->factory()->NewStringFromUtf8(name);
 }
 
