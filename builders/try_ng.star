@@ -6,7 +6,7 @@ load("//lib/lib.star", "GOMA", "defaults_triggered", "defaults_try", "v8_builder
 
 def try_ng_pair(name, **kwargs):
     triggered_timeout = kwargs.pop("triggered_timeout", None)
-    kwargs["properties"]["triggers"] = [name + "_ng_triggered"]
+    kwargs.setdefault("properties", {})["triggers"] = [name + "_ng_triggered"]
     cq_tg = kwargs.pop("cq_properties_trigger", None)
     cq_td = kwargs.pop("cq_properties_triggered", None)
     v8_builder(
@@ -31,7 +31,7 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "target_platform": "android", "target_arch": "arm"},
+    properties = {"target_platform": "android", "target_arch": "arm"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -40,7 +40,7 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "target_platform": "fuchsia"},
+    properties = {"target_platform": "fuchsia"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -49,7 +49,6 @@ try_ng_pair(
     cq_properties_trigger = {"cancel_stale": False},
     cq_properties_triggered = {"cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -58,7 +57,6 @@ try_ng_pair(
     cq_properties_trigger = {"cancel_stale": False},
     cq_properties_triggered = {"cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -67,7 +65,6 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -76,7 +73,6 @@ try_ng_pair(
     cq_properties_trigger = {"cancel_stale": False},
     cq_properties_triggered = {"cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Debug"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -85,7 +81,6 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Debug"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -94,7 +89,6 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -103,7 +97,6 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -113,7 +106,7 @@ try_ng_pair(
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 3600,
-    properties = {"build_config": "Release", "set_gclient_var": "checkout_instrumented_libraries"},
+    properties = {"set_gclient_var": "checkout_instrumented_libraries"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -122,7 +115,6 @@ try_ng_pair(
     cq_properties_trigger = {"cancel_stale": False},
     cq_properties_triggered = {"cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -131,7 +123,6 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Debug"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -140,7 +131,6 @@ try_ng_pair(
     cq_properties_trigger = {"cancel_stale": False},
     cq_properties_triggered = {"cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -149,7 +139,6 @@ try_ng_pair(
     cq_properties_trigger = {"cancel_stale": False},
     cq_properties_triggered = {"cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -158,7 +147,6 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Debug"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -168,7 +156,6 @@ try_ng_pair(
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 3600,
-    properties = {"build_config": "Release"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -178,7 +165,6 @@ try_ng_pair(
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 3600,
-    properties = {"build_config": "Release"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -187,7 +173,6 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -196,7 +181,6 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -205,7 +189,6 @@ try_ng_pair(
     cq_properties_trigger = {"cancel_stale": False},
     cq_properties_triggered = {"cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -215,7 +198,6 @@ try_ng_pair(
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 3600,
-    properties = {"build_config": "Debug"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -225,7 +207,6 @@ try_ng_pair(
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 3600,
-    properties = {"build_config": "Debug"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -234,7 +215,6 @@ try_ng_pair(
     cq_properties_trigger = {"cancel_stale": False},
     cq_properties_triggered = {"cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -243,7 +223,6 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -253,7 +232,6 @@ try_ng_pair(
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 3600,
-    properties = {"build_config": "Debug"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -262,7 +240,6 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -272,7 +249,6 @@ try_ng_pair(
     cq_properties_triggered = {"cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 2400,
-    properties = {"build_config": "Release"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -281,7 +257,6 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Debug"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -291,7 +266,6 @@ try_ng_pair(
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 3600,
-    properties = {"build_config": "Debug"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -301,7 +275,7 @@ try_ng_pair(
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 2700,
-    properties = {"build_config": "Release", "set_gclient_var": "check_v8_header_includes"},
+    properties = {"set_gclient_var": "check_v8_header_includes"},
     use_goma = GOMA.NO,
 )
 
@@ -311,7 +285,6 @@ try_ng_pair(
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 2400,
-    properties = {"build_config": "Release"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -321,7 +294,6 @@ try_ng_pair(
     cq_properties_triggered = {"location_regexp": [".+/[+]/.*intl.*", ".+/[+]/.*test262.*"], "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 3600,
-    properties = {"build_config": "Release"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -331,7 +303,7 @@ try_ng_pair(
     cq_properties_triggered = {"cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 2400,
-    properties = {"build_config": "Release", "set_gclient_var": "download_gcmole"},
+    properties = {"set_gclient_var": "download_gcmole"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -340,7 +312,6 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -350,7 +321,6 @@ try_ng_pair(
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 2400,
-    properties = {"build_config": "Release"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -360,7 +330,6 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Mac-10.15"},
-    properties = {"build_config": "Debug"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -371,7 +340,6 @@ try_ng_pair(
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Mac-10.15"},
     execution_timeout = 3600,
-    properties = {"build_config": "Release"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -382,7 +350,6 @@ try_ng_pair(
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Mac-10.15"},
     execution_timeout = 3600,
-    properties = {"build_config": "Debug"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -392,7 +359,6 @@ try_ng_pair(
     cq_properties_trigger = {"cancel_stale": False},
     cq_properties_triggered = {"cancel_stale": False},
     dimensions = {"os": "Mac-10.15"},
-    properties = {"build_config": "Release"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -402,7 +368,7 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Mac-10.15"},
-    properties = {"build_config": "Release", "gclient_vars": {"mac_xcode_version": "xcode_12_beta"}},
+    properties = {"gclient_vars": {"mac_xcode_version": "xcode_12_beta"}},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -412,7 +378,7 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Mac-10.15"},
-    properties = {"build_config": "Debug", "gclient_vars": {"mac_xcode_version": "xcode_12_beta"}},
+    properties = {"gclient_vars": {"mac_xcode_version": "xcode_12_beta"}},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -422,7 +388,7 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Mac-10.15"},
-    properties = {"build_config": "Debug", "gclient_vars": {"mac_xcode_version": "xcode_12_beta"}},
+    properties = {"gclient_vars": {"mac_xcode_version": "xcode_12_beta"}},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -432,7 +398,7 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Mac-10.15"},
-    properties = {"build_config": "Release", "gclient_vars": {"mac_xcode_version": "xcode_12_beta"}},
+    properties = {"gclient_vars": {"mac_xcode_version": "xcode_12_beta"}},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -442,7 +408,7 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Mac-10.15"},
-    properties = {"build_config": "Debug", "gclient_vars": {"mac_xcode_version": "xcode_12_beta"}},
+    properties = {"gclient_vars": {"mac_xcode_version": "xcode_12_beta"}},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -452,7 +418,7 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Mac-10.15"},
-    properties = {"build_config": "Release", "gclient_vars": {"mac_xcode_version": "xcode_12_beta"}},
+    properties = {"gclient_vars": {"mac_xcode_version": "xcode_12_beta"}},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -461,7 +427,7 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "target_arch": "arm"},
+    properties = {"target_arch": "arm"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -471,7 +437,6 @@ try_ng_pair(
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     execution_timeout = 3600,
-    properties = {"build_config": "Debug"},
     use_goma = GOMA.AST,
 )
 
@@ -481,7 +446,7 @@ try_ng_pair(
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     execution_timeout = 3600,
-    properties = {"build_config": "Release", "use_goma": False},
+    properties = {"use_goma": False},
     use_goma = GOMA.AST,
 )
 
@@ -490,7 +455,6 @@ try_ng_pair(
     cq_properties_trigger = {"cancel_stale": False},
     cq_properties_triggered = {"cancel_stale": False},
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    properties = {"build_config": "Release"},
     use_goma = GOMA.AST,
 )
 
@@ -500,7 +464,6 @@ try_ng_pair(
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     execution_timeout = 3600,
-    properties = {"build_config": "Debug"},
     use_goma = GOMA.AST,
 )
 
@@ -509,7 +472,6 @@ try_ng_pair(
     cq_properties_trigger = {"cancel_stale": False},
     cq_properties_triggered = {"cancel_stale": False},
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    properties = {"build_config": "Release"},
     use_goma = GOMA.AST,
 )
 
@@ -519,6 +481,5 @@ try_ng_pair(
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     execution_timeout = 3600,
-    properties = {"build_config": "Release"},
     use_goma = GOMA.AST,
 )

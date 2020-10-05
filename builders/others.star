@@ -9,7 +9,7 @@ v8_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"triggers_proxy": True, "build_config": "Release", "builder_group": "client.v8"},
+    properties = {"triggers_proxy": True, "builder_group": "client.v8"},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -17,7 +17,7 @@ v8_builder(
     name = "V8 iOS - sim",
     bucket = "ci.br.beta",
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "$depot_tools/osx_sdk": {"sdk_version": "11b52"}, "target_platform": "ios", "builder_group": "client.v8"},
+    properties = {"$depot_tools/osx_sdk": {"sdk_version": "11b52"}, "target_platform": "ios", "builder_group": "client.v8"},
     caches = [
         swarming.cache(
             path = "osx_sdk",
