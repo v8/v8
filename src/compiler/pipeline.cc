@@ -486,6 +486,7 @@ class PipelineData {
           call_descriptor->CalculateFixedFrameSize(info()->code_kind());
     }
     frame_ = codegen_zone()->New<Frame>(fixed_frame_size);
+    if (osr_helper_.has_value()) osr_helper()->SetupFrame(frame());
   }
 
   void InitializeTopTierRegisterAllocationData(
@@ -2578,6 +2579,8 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 
   data->BeginPhaseKind("V8.TFBlockBuilding");
 
+  data->InitializeFrameData(linkage->GetIncomingDescriptor());
+
   // Run early optimization pass.
   Run<EarlyOptimizationPhase>();
   RunPrintAndVerify(EarlyOptimizationPhase::phase_name(), true);
@@ -2670,6 +2673,8 @@ bool PipelineImpl::OptimizeGraphForMidTier(Linkage* linkage) {
   RunPrintAndVerify(GenericLoweringPhase::phase_name(), true);
 
   data->BeginPhaseKind("V8.TFBlockBuilding");
+
+  data->InitializeFrameData(linkage->GetIncomingDescriptor());
 
   ComputeScheduledGraph();
 
@@ -3310,7 +3315,11 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
 
   data->InitializeInstructionSequence(call_descriptor);
 
-  data->InitializeFrameData(call_descriptor);
+  // Depending on which code path led us to this function, the frame may or
+  // may not have been initialized. If it hasn't yet, initialize it now.
+  if (!data->frame()) {
+    data->InitializeFrameData(call_descriptor);
+  }
   // Select and schedule instructions covering the scheduled graph.
   Run<InstructionSelectionPhase>(linkage);
   if (data->compilation_failed()) {
@@ -3606,7 +3615,6 @@ void PipelineImpl::AllocateRegistersForTopTier(
     flags |= RegisterAllocationFlag::kTraceAllocation;
   }
   data->InitializeTopTierRegisterAllocationData(config, call_descriptor, flags);
-  if (info()->is_osr()) data->osr_helper()->SetupFrame(data->frame());
 
   Run<MeetRegisterConstraintsPhase>();
   Run<ResolvePhisPhase>();

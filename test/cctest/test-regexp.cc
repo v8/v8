@@ -50,7 +50,7 @@
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-list-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/common/wasm/flag-utils.h"
+#include "test/common/flag-utils.h"
 
 namespace v8 {
 namespace internal {

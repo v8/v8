@@ -70,6 +70,7 @@
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/flag-utils.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
 static const bool kLogThreading = false;
@@ -27557,11 +27558,26 @@ T* GetInternalField(v8::Object* wrapper) {
       wrapper->GetAlignedPointerFromInternalField(offset));
 }
 
+enum class Behavior {
+  kNoException,
+  kException,  // An exception should be thrown by the callback function.
+};
+
+enum class FallbackPolicy {
+  kDontRequestFallback,
+  kRequestFallback,  // The callback function should write a non-zero value
+                     // to the fallback variable.
+};
+
 template <typename T>
 struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>> {
-  explicit ApiNumberChecker(T value, bool raise_exception = false,
-                            int args_count = 1)
-      : raise_exception_(raise_exception), args_count_(args_count) {}
+  explicit ApiNumberChecker(
+      T value, Behavior raise_exception = Behavior::kNoException,
+      FallbackPolicy write_to_fallback = FallbackPolicy::kDontRequestFallback,
+      int args_count = 1)
+      : raise_exception_(raise_exception),
+        write_to_fallback_(write_to_fallback),
+        args_count_(args_count) {}
 
   static void FastCallback(v8::ApiObject receiver, T argument, int* fallback) {
     v8::Object* receiver_obj = reinterpret_cast<v8::Object*>(&receiver);
@@ -27574,7 +27590,11 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>> {
             receiver_obj);
     receiver_ptr->result_ |= ApiCheckerResult::kFastCalled;
     receiver_ptr->fast_value_ = argument;
-    if (receiver_ptr->raise_exception_) {
+    if (receiver_ptr->write_to_fallback_ == FallbackPolicy::kRequestFallback) {
+      // Anything != 0 has the same effect here, but we're writing 1 to match
+      // the default behavior expected from the embedder. The value is checked
+      // against after loading it from a stack slot, as defined in
+      // EffectControlLinearizer::LowerFastApiCall.
       *fallback = 1;
     }
   }
@@ -27594,14 +27614,16 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>> {
     LocalContext env;
     checker->slow_value_ = ConvertJSValue<T>::Get(info[0], env.local());
 
-    if (checker->raise_exception_) {
+    if (checker->raise_exception_ == Behavior::kException) {
+      CHECK(checker->write_to_fallback_ == FallbackPolicy::kRequestFallback);
       info.GetIsolate()->ThrowException(v8_str("Callback error"));
     }
   }
 
   T fast_value_ = T();
   Maybe<T> slow_value_ = v8::Nothing<T>();
-  bool raise_exception_ = false;
+  Behavior raise_exception_ = Behavior::kNoException;
+  FallbackPolicy write_to_fallback_ = FallbackPolicy::kDontRequestFallback;
   int args_count_ = 1;
 };
 
@@ -27632,11 +27654,6 @@ struct UnexpectedObjectChecker
       CHECK(!IsValidUnwrapObject(argument_obj));
     }
   }
-};
-
-enum class Behavior {
-  kNoException,
-  kException,  // An exception should be thrown by the callback function.
 };
 
 template <typename Value, typename Impl>
@@ -27723,9 +27740,15 @@ template <typename T>
 void CallAndCheck(T expected_value, Behavior expected_behavior,
                   ApiCheckerResultFlags expected_path,
                   v8::Local<v8::Value> initial_value,
-                  bool raise_exception = false) {
+                  Behavior raise_exception = Behavior::kNoException) {
   LocalContext env;
-  ApiNumberChecker<T> checker(expected_value, raise_exception);
+  // The default embedder behaviour in case of exception should be
+  // to write to the fallback variable.
+  FallbackPolicy write_to_fallback = (raise_exception == Behavior::kException)
+                                         ? FallbackPolicy::kRequestFallback
+                                         : FallbackPolicy::kDontRequestFallback;
+  ApiNumberChecker<T> checker(expected_value, raise_exception,
+                              write_to_fallback);
 
   bool has_caught = SetupTest<T, ApiNumberChecker<T>>(
       initial_value, &env, &checker,
@@ -27783,7 +27806,7 @@ void CallAndDeopt() {
 void CallNoFallback(int32_t expected_value) {
   LocalContext env;
   v8::Local<v8::Value> initial_value(v8_num(42));
-  ApiNumberChecker<int32_t> checker(expected_value, false);
+  ApiNumberChecker<int32_t> checker(expected_value, Behavior::kNoException);
   SetupTest(initial_value, &env, &checker,
             "function func(arg) { return receiver.api_func(arg); }"
             "%PrepareFunctionForOptimization(func);"
@@ -27799,7 +27822,7 @@ void CallNoFallback(int32_t expected_value) {
 void CallNoConvertReceiver(int32_t expected_value) {
   LocalContext env;
   v8::Local<v8::Value> initial_value(v8_num(42));
-  ApiNumberChecker<int32_t> checker(expected_value, false);
+  ApiNumberChecker<int32_t> checker(expected_value, Behavior::kNoException);
   SetupTest(initial_value, &env, &checker,
             "function func(arg) { return receiver.api_func(arg); }"
             "%PrepareFunctionForOptimization(func);"
@@ -27815,7 +27838,8 @@ void CallNoConvertReceiver(int32_t expected_value) {
 void CallWithLessArguments() {
   LocalContext env;
   v8::Local<v8::Value> initial_value(v8_num(42));
-  ApiNumberChecker<int32_t> checker(42, false, 0);
+  ApiNumberChecker<int32_t> checker(42, Behavior::kNoException,
+                                    FallbackPolicy::kDontRequestFallback, 0);
   SetupTest(initial_value, &env, &checker,
             "function func() { return receiver.api_func(); }"
             "%PrepareFunctionForOptimization(func);"
@@ -27830,7 +27854,8 @@ void CallWithLessArguments() {
 void CallWithMoreArguments() {
   LocalContext env;
   v8::Local<v8::Value> initial_value(v8_num(42));
-  ApiNumberChecker<int32_t> checker(42, false, 2);
+  ApiNumberChecker<int32_t> checker(42, Behavior::kNoException,
+                                    FallbackPolicy::kDontRequestFallback, 2);
   SetupTest(initial_value, &env, &checker,
             "function func(arg) { receiver.api_func(arg, arg); }"
             "%PrepareFunctionForOptimization(func);"
@@ -27910,17 +27935,69 @@ void CheckDynamicTypeInfo() {
 }  // namespace
 #endif  // V8_LITE_MODE
 
+TEST(FastApiStackSlot) {
+#ifndef V8_LITE_MODE
+  if (i::FLAG_jitless) return;
+  if (i::FLAG_turboprop) return;
+
+  FLAG_SCOPE_EXTERNAL(opt);
+  FLAG_SCOPE_EXTERNAL(turbo_fast_api_calls);
+  FLAG_SCOPE_EXTERNAL(allow_natives_syntax);
+  // Disable --always_opt, otherwise we haven't generated the necessary
+  // feedback to go down the "best optimization" path for the fast call.
+  UNFLAG_SCOPE_EXTERNAL(always_opt);
+
+  v8::Isolate* isolate = CcTest::isolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->set_embedder_wrapper_type_index(kV8WrapperTypeIndex);
+  i_isolate->set_embedder_wrapper_object_index(kV8WrapperObjectIndex);
+
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+
+  int test_value = 42;
+  ApiNumberChecker<int32_t> checker(test_value, Behavior::kNoException,
+                                    FallbackPolicy::kRequestFallback);
+
+  bool has_caught = SetupTest<int32_t, ApiNumberChecker<int32_t>>(
+      v8_num(test_value), &env, &checker,
+      "function func(arg) {"
+      " let foo = 128;"
+      " for (let i = 0; i < 100; ++i) {"
+      "  let bar = true;"
+      "  if (i == 10) %OptimizeOsr();"
+      "  try { receiver.api_func(arg) } catch(_) {};"
+      "  try { receiver.api_func(arg) } catch(_) {};"
+      " };"
+      " return foo;"
+      "};");
+  checker.result_ = ApiCheckerResult::kNotCalled;
+
+  v8::TryCatch try_catch(isolate);
+  v8::Local<v8::Value> foo =
+      CompileRun("%PrepareFunctionForOptimization(func); func(value);");
+  CHECK(foo->IsNumber());
+  CHECK_EQ(128, foo->ToInt32(env.local()).ToLocalChecked()->Value());
+
+  CHECK(checker.DidCallFast() && checker.DidCallSlow());
+  CHECK_EQ(false, has_caught);
+  int32_t slow_value_typed = checker.slow_value_.ToChecked();
+  CHECK_EQ(slow_value_typed, test_value);
+  CHECK_EQ(checker.fast_value_, test_value);
+#endif
+}
+
 TEST(FastApiCalls) {
 #ifndef V8_LITE_MODE
   if (i::FLAG_jitless) return;
   if (i::FLAG_turboprop) return;
 
-  i::FLAG_turbo_fast_api_calls = true;
-  i::FLAG_opt = true;
-  i::FLAG_allow_natives_syntax = true;
+  FLAG_SCOPE_EXTERNAL(opt);
+  FLAG_SCOPE_EXTERNAL(turbo_fast_api_calls);
+  FLAG_SCOPE_EXTERNAL(allow_natives_syntax);
   // Disable --always_opt, otherwise we haven't generated the necessary
   // feedback to go down the "best optimization" path for the fast call.
-  i::FLAG_always_opt = false;
+  UNFLAG_SCOPE_EXTERNAL(always_opt);
 
   v8::Isolate* isolate = CcTest::isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -28285,11 +28362,12 @@ TEST(FastApiCalls) {
   CallAndCheck<int32_t>(
       42, Behavior::kException,
       ApiCheckerResult::kFastCalled | ApiCheckerResult::kSlowCalled, v8_num(42),
-      true);
+      Behavior::kException);
 
   // Doesn't fallback to slow call
   CallAndCheck<int32_t>(42, Behavior::kNoException,
-                        ApiCheckerResult::kFastCalled, v8_num(42), false);
+                        ApiCheckerResult::kFastCalled, v8_num(42),
+                        Behavior::kNoException);
 
   // Wrong number of arguments
   CallWithLessArguments();

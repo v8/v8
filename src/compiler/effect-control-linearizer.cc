@@ -5170,6 +5170,11 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
   CHECK_EQ(FastApiCallNode::ArityForArgc(c_arg_count, js_arg_count),
            value_input_count);
 
+  // TODO(mslekova): There's an opportunity to optimize the allocation
+  // of the stack slot for all fast calls by reusing the same slot.
+  // If this is implemented, please update the FastApiStackSlot in
+  // cctest/test-api.cc, which will probably become meaningless, as it relies
+  // on two separate stack slots being allocated.
   // Add the { has_error } output parameter.
   int kAlign = 4;
   int kSize = 4;
