@@ -525,15 +525,37 @@ WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_JavaScript) {
   uint16_t index = 0;
   runner.builder().AddIndirectFunctionTable(&index, 1);
 
-  TestCode<int> code(
+  TestCode<int64_t> code(
       &runner,
       {WASM_SET_GLOBAL(0, WASM_I32V_2('B')),
-       WASM_SET_LOCAL(0, WASM_I32V_2('A')), WASM_RETURN1(WASM_GET_LOCAL(0))},
-      {ValueType::kI32});
+       WASM_SET_LOCAL(0, WASM_I64V_2('A')), WASM_RETURN1(WASM_GET_LOCAL(0))},
+      {ValueType::kI64});
   code.BreakOnReturn(&runner);
 
   Isolate* isolate = runner.main_isolate();
-  Handle<String> snippet = V8String(isolate, "213");
+  Handle<String> snippet =
+      V8String(isolate,
+               "JSON.stringify(["
+               //"$global0, "
+               //"$table0, "
+               "$var0, "
+               //"$main, "
+               //"$memory0, "
+               //"globals[0], "
+               //"tables[0], "
+               "locals[0], "
+               //"functions[0], "
+               //"memories[0], "
+               //"memories, "
+               //"tables, "
+               //"stack, "
+               //"imports, "
+               //"exports, "
+               //"globals, "
+               "locals, "
+               //"functions, "
+               "], (k, v) => k === 'at' || typeof v === 'undefined' || typeof "
+               "v === 'object' ? v : v.toString())");
 
   WasmJSBreakHandler break_handler(isolate, snippet);
   CHECK(!code.Run(&runner).is_null());
@@ -541,7 +563,10 @@ WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_JavaScript) {
   WasmJSBreakHandler::EvaluationResult result =
       break_handler.result().ToChecked();
   CHECK_WITH_MSG(result.error.IsNothing(), result.error.ToChecked().c_str());
-  CHECK_EQ(result.result.ToChecked(), "213");
+  CHECK_EQ(result.result.ToChecked(), "[\"65\",\"65\",{}]");
+  //"[\"66\",{},\"65\",\"function 0() { [native code] }\",{},"
+  //"\"66\",{},\"65\",\"function 0() { [native code] }\",{},"
+  //"{},{},{\"0\":\"65\"},{},{},{},{},{}]");
 }
 
 }  // namespace

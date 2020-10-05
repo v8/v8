@@ -340,6 +340,12 @@ class DebugInfoImpl {
                     debug_break_fp);
   }
 
+  const WasmFunction& GetFunctionAtAddress(Address pc) {
+    FrameInspectionScope scope(this, pc);
+    auto* module = native_module_->module();
+    return module->functions[scope.code->index()];
+  }
+
   Handle<JSObject> GetLocalScopeObject(Isolate* isolate, Address pc, Address fp,
                                        Address debug_break_fp) {
     FrameInspectionScope scope(this, pc);
@@ -907,6 +913,10 @@ int DebugInfo::GetStackDepth(Address pc) { return impl_->GetStackDepth(pc); }
 WasmValue DebugInfo::GetStackValue(int index, Address pc, Address fp,
                                    Address debug_break_fp) {
   return impl_->GetStackValue(index, pc, fp, debug_break_fp);
+}
+
+const wasm::WasmFunction& DebugInfo::GetFunctionAtAddress(Address pc) {
+  return impl_->GetFunctionAtAddress(pc);
 }
 
 Handle<JSObject> DebugInfo::GetLocalScopeObject(Isolate* isolate, Address pc,

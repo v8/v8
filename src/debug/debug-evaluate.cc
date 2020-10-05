@@ -18,6 +18,7 @@
 #include "src/objects/contexts.h"
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-debug.h"
+#include "src/wasm/wasm-js.h"
 
 namespace v8 {
 namespace internal {
@@ -106,6 +107,9 @@ V8_EXPORT MaybeHandle<Object> DebugEvaluate::WebAssembly(
 
   StackTraceFrameIterator it(isolate, frame_id);
   if (!it.is_wasm()) return isolate->factory()->undefined_value();
+  WasmFrame* frame = WasmFrame::cast(it.frame());
+
+  Handle<JSProxy> context_extension = WasmJs::GetJSDebugProxy(frame);
 
   DisableBreak disable_break_scope(isolate->debug(), /*disable=*/true);
 
@@ -114,12 +118,14 @@ V8_EXPORT MaybeHandle<Object> DebugEvaluate::WebAssembly(
     return {};
   }
 
-  Handle<Context> context = isolate->native_context();
-  Handle<JSObject> receiver(context->global_proxy(), isolate);
+  Handle<ScopeInfo> scope_info =
+      ScopeInfo::CreateForWithScope(isolate, Handle<ScopeInfo>::null());
+  Handle<Context> context = isolate->factory()->NewWithContext(
+      isolate->native_context(), scope_info, context_extension);
 
   Handle<Object> result;
-  if (!DebugEvaluate::Evaluate(isolate, shared_info, context, receiver, source,
-                               throw_on_side_effect)
+  if (!DebugEvaluate::Evaluate(isolate, shared_info, context, context_extension,
+                               source, throw_on_side_effect)
            .ToHandle(&result)) {
     return {};
   }
