@@ -47,8 +47,8 @@ void IdentityMapBase::DisableIteration() {
   is_iterable_ = false;
 }
 
-int IdentityMapBase::ScanKeysFor(Address address) const {
-  int start = Hash(address) & mask_;
+int IdentityMapBase::ScanKeysFor(Address address, uint32_t hash) const {
+  int start = hash & mask_;
   Address not_mapped = ReadOnlyRoots(heap_).not_mapped_symbol().ptr();
   for (int index = start; index < capacity_; index++) {
     if (keys_[index] == address) return index;  // Found.
@@ -61,15 +61,17 @@ int IdentityMapBase::ScanKeysFor(Address address) const {
   return -1;
 }
 
-std::pair<int, bool> IdentityMapBase::InsertKey(Address address) {
+std::pair<int, bool> IdentityMapBase::InsertKey(Address address,
+                                                uint32_t hash) {
+  DCHECK_EQ(gc_counter_, heap_->gc_count());
   Address not_mapped = ReadOnlyRoots(heap_).not_mapped_symbol().ptr();
   while (true) {
-    int start = Hash(address) & mask_;
+    int start = hash & mask_;
     int limit = capacity_ / 2;
     // Search up to {limit} entries.
     for (int index = start; --limit > 0; index = (index + 1) & mask_) {
       if (keys_[index] == address) return {index, true};  // Found.
-      if (keys_[index] == not_mapped) {           // Free entry.
+      if (keys_[index] == not_mapped) {                   // Free entry.
         size_++;
         DCHECK_LE(size_, capacity_);
         keys_[index] = address;
@@ -123,23 +125,25 @@ bool IdentityMapBase::DeleteIndex(int index, uintptr_t* deleted_value) {
 }
 
 int IdentityMapBase::Lookup(Address key) const {
-  int index = ScanKeysFor(key);
+  uint32_t hash = Hash(key);
+  int index = ScanKeysFor(key, hash);
   if (index < 0 && gc_counter_ != heap_->gc_count()) {
     // Miss; rehash if there was a GC, then lookup again.
     const_cast<IdentityMapBase*>(this)->Rehash();
-    index = ScanKeysFor(key);
+    index = ScanKeysFor(key, hash);
   }
   return index;
 }
 
 std::pair<int, bool> IdentityMapBase::LookupOrInsert(Address key) {
+  uint32_t hash = Hash(key);
   // Perform an optimistic lookup.
-  int index = ScanKeysFor(key);
+  int index = ScanKeysFor(key, hash);
   bool already_exists;
   if (index < 0) {
     // Miss; rehash if there was a GC, then insert.
     if (gc_counter_ != heap_->gc_count()) Rehash();
-    std::tie(index, already_exists) = InsertKey(key);
+    std::tie(index, already_exists) = InsertKey(key, hash);
   } else {
     already_exists = true;
   }
@@ -147,9 +151,9 @@ std::pair<int, bool> IdentityMapBase::LookupOrInsert(Address key) {
   return {index, already_exists};
 }
 
-int IdentityMapBase::Hash(Address address) const {
+uint32_t IdentityMapBase::Hash(Address address) const {
   CHECK_NE(address, ReadOnlyRoots(heap_).not_mapped_symbol().ptr());
-  return static_cast<int>(hasher_(address));
+  return static_cast<uint32_t>(hasher_(address));
 }
 
 // Searches this map for the given key using the object's address
@@ -204,7 +208,7 @@ IdentityMapBase::RawEntry IdentityMapBase::InsertEntry(Address key) {
 
   int index;
   bool already_exists;
-  std::tie(index, already_exists) = InsertKey(key);
+  std::tie(index, already_exists) = InsertKey(key, Hash(key));
   DCHECK(!already_exists);
   return &values_[index];
 }
@@ -276,7 +280,7 @@ void IdentityMapBase::Rehash() {
   }
   // Reinsert all the key/value pairs that were in the wrong place.
   for (auto pair : reinsert) {
-    int index = InsertKey(pair.first).first;
+    int index = InsertKey(pair.first, Hash(pair.first)).first;
     DCHECK_GE(index, 0);
     values_[index] = pair.second;
   }
@@ -303,7 +307,7 @@ void IdentityMapBase::Resize(int new_capacity) {
 
   for (int i = 0; i < old_capacity; i++) {
     if (old_keys[i] == not_mapped) continue;
-    int index = InsertKey(old_keys[i]).first;
+    int index = InsertKey(old_keys[i], Hash(old_keys[i])).first;
     DCHECK_GE(index, 0);
     values_[index] = old_values[i];
   }

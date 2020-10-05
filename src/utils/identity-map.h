@@ -71,14 +71,14 @@ class V8_EXPORT_PRIVATE IdentityMapBase {
 
  private:
   // Internal implementation should not be called directly by subclasses.
-  int ScanKeysFor(Address address) const;
-  std::pair<int, bool> InsertKey(Address address);
+  int ScanKeysFor(Address address, uint32_t hash) const;
+  std::pair<int, bool> InsertKey(Address address, uint32_t hash);
   int Lookup(Address key) const;
   std::pair<int, bool> LookupOrInsert(Address key);
   bool DeleteIndex(int index, uintptr_t* deleted_value);
   void Rehash();
   void Resize(int new_capacity);
-  int Hash(Address address) const;
+  uint32_t Hash(Address address) const;
 
   base::hash<uintptr_t> hasher_;
   Heap* heap_;
