@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-let d1 = new Date("2019-05-23T00:00");
+let d1 = new Date(Date.UTC(2019, 4, 23));
 
 // Ensure calendar: "japanese" under "ja" locale is correct.
 assertEquals("R1/5/23", d1.toLocaleDateString(
@@ -21,7 +21,7 @@ assertEquals("R1/5/23", d1.toLocaleDateString(
     "ja", {calendar: "japanese", timeZone:"UTC", dateStyle: "short"}));
 
 // Ensure calendar: "chinese" under "zh" locale is correct.
-d1 = new Date("2020-05-23T00:00");
+d1 = new Date(Date.UTC(2020, 4, 23));
 assertEquals("2020年闰四月1", d1.toLocaleDateString(
     "zh", {calendar: "chinese", timeZone:"UTC"}));
 
