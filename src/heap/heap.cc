@@ -5295,7 +5295,8 @@ void Heap::SetUp() {
 
   scavenger_collector_.reset(new ScavengerCollector(this));
 
-  incremental_marking_.reset(new IncrementalMarking(this));
+  incremental_marking_.reset(
+      new IncrementalMarking(this, mark_compact_collector_->weak_objects()));
 
   if (FLAG_concurrent_marking || FLAG_parallel_marking) {
     concurrent_marking_.reset(new ConcurrentMarking(

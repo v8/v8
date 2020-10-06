@@ -6,7 +6,7 @@
 #define V8_HEAP_WEAK_OBJECT_WORKLISTS_H_
 
 #include "src/common/globals.h"
-#include "src/heap/base/worklist.h"
+#include "src/heap/worklist.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-weak-refs.h"
 
@@ -64,30 +64,13 @@ class TransitionArray;
 class WeakObjects {
  public:
   template <typename Type>
-  using WeakObjectWorklist = ::heap::base::Worklist<Type, 64>;
-
-  class Local {
-   public:
-    explicit Local(WeakObjects* weak_objects);
-    bool IsLocalAndGlobalEmpty();
-    void Publish();
-
-#define DECLARE_WORKLIST(Type, name, _) WeakObjectWorklist<Type>::Local name;
-    WEAK_OBJECT_WORKLISTS(DECLARE_WORKLIST)
-#undef DECLARE_WORKLIST
-
-   private:
-    // Dummy field used for terminating the initializer list
-    // in the constructor.
-    bool end_of_initializer_list_;
-  };
-
-  void Clear();
-  void UpdateAfterScavenge();
+  using WeakObjectWorklist = Worklist<Type, 64>;
 
 #define DECLARE_WORKLIST(Type, name, _) WeakObjectWorklist<Type> name;
   WEAK_OBJECT_WORKLISTS(DECLARE_WORKLIST)
 #undef DECLARE_WORKLIST
+
+  void UpdateAfterScavenge();
 
  private:
 #define DECLARE_UPDATE_METHODS(Type, _, Name) \

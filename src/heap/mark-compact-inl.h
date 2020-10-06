@@ -86,7 +86,7 @@ void MarkCompactCollector::RecordSlot(MemoryChunk* source_page,
 }
 
 void MarkCompactCollector::AddTransitionArray(TransitionArray array) {
-  local_weak_objects()->transition_arrays.Push(array);
+  weak_objects_.transition_arrays.Push(kMainThreadTask, array);
 }
 
 template <typename MarkingState>

@@ -60,9 +60,6 @@ class Worklist {
   // marking worklist.
   void Merge(Worklist<EntryType, SegmentSize>* other);
 
-  // Swaps the segments with the given marking worklist.
-  void Swap(Worklist<EntryType, SegmentSize>* other);
-
   // These functions are not thread-safe. They should be called only
   // if all local marking worklists that use the current worklist have
   // been published and are empty.
@@ -194,17 +191,6 @@ void Worklist<EntryType, SegmentSize>::Merge(
 }
 
 template <typename EntryType, uint16_t SegmentSize>
-void Worklist<EntryType, SegmentSize>::Swap(
-    Worklist<EntryType, SegmentSize>* other) {
-  Segment* top = top_;
-  set_top(other->top_);
-  other->set_top(top);
-  size_t other_size = other->size_.exchange(
-      size_.load(std::memory_order_relaxed), std::memory_order_relaxed);
-  size_.store(other_size, std::memory_order_relaxed);
-}
-
-template <typename EntryType, uint16_t SegmentSize>
 class Worklist<EntryType, SegmentSize>::Segment : public internal::SegmentBase {
  public:
   static const uint16_t kSize = SegmentSize;
@@ -297,11 +283,9 @@ class Worklist<EntryType, SegmentSize>::Local {
   bool IsGlobalEmpty() const;
 
   void Publish();
-  void Merge(Local* other);
+  void Merge(Worklist<EntryType, SegmentSize>::Local* other);
 
   size_t PushSegmentSize() const { return push_segment_->Size(); }
-
-  void Swap(Local* other);
 
  private:
   void PublishPushSegment();
@@ -433,14 +417,6 @@ void Worklist<EntryType, SegmentSize>::Local::Merge(
     Worklist<EntryType, SegmentSize>::Local* other) {
   other->Publish();
   worklist_->Merge(other->worklist_);
-}
-
-template <typename EntryType, uint16_t SegmentSize>
-void Worklist<EntryType, SegmentSize>::Local::Swap(
-    Worklist<EntryType, SegmentSize>::Local* other) {
-  CHECK(IsLocalEmpty());
-  CHECK(other->IsLocalEmpty());
-  worklist_->Swap(other->worklist_);
 }
 
 template <typename EntryType, uint16_t SegmentSize>

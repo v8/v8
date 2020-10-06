@@ -19,36 +19,6 @@ namespace v8 {
 
 namespace internal {
 
-WeakObjects::Local::Local(WeakObjects* weak_objects)
-    :
-#define CONSTRUCT_FIELD(Type, name, _) name(&weak_objects->name),
-      WEAK_OBJECT_WORKLISTS(CONSTRUCT_FIELD)
-#undef CONSTRUCT_FIELD
-          end_of_initializer_list_(false) {
-  USE(end_of_initializer_list_);
-}
-
-bool WeakObjects::Local::IsLocalAndGlobalEmpty() {
-  bool result = true;
-#define INVOKE_PREDICATE(Type, name, _) \
-  result = result && name.IsLocalAndGlobalEmpty();
-  WEAK_OBJECT_WORKLISTS(INVOKE_PREDICATE)
-#undef INVOKE_PREDICATE
-  return result;
-}
-
-void WeakObjects::Local::Publish() {
-#define INVOKE_PUBLISH(Type, name, _) name.Publish();
-  WEAK_OBJECT_WORKLISTS(INVOKE_PUBLISH)
-#undef INVOKE_PUBLISH
-}
-
-void WeakObjects::Clear() {
-#define INVOKE_CLEAR(Type, name, _) name.Clear();
-  WEAK_OBJECT_WORKLISTS(INVOKE_CLEAR)
-#undef INVOKE_CLEAR
-}
-
 void WeakObjects::UpdateAfterScavenge() {
 #define INVOKE_UPDATE(_, name, Name) Update##Name(name);
   WEAK_OBJECT_WORKLISTS(INVOKE_UPDATE)

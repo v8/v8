@@ -49,9 +49,11 @@ void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
   incremental_marking_->EnsureBlackAllocated(addr, size);
 }
 
-IncrementalMarking::IncrementalMarking(Heap* heap)
+IncrementalMarking::IncrementalMarking(Heap* heap,
+                                       WeakObjects* weak_objects)
     : heap_(heap),
       collector_(heap->mark_compact_collector()),
+      weak_objects_(weak_objects),
       new_generation_observer_(this, kYoungGenerationAllocatedThreshold),
       old_generation_observer_(this, kOldGenerationAllocatedThreshold) {
   SetState(STOPPED);
@@ -499,8 +501,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
         }
       });
 
-  collector_->local_weak_objects()->Publish();
-  collector_->weak_objects()->UpdateAfterScavenge();
+  weak_objects_->UpdateAfterScavenge();
 }
 
 void IncrementalMarking::UpdateMarkedBytesAfterScavenge(

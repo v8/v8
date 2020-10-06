@@ -101,14 +101,16 @@ class MarkingStateBase {
 template <typename ConcreteVisitor, typename MarkingState>
 class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
  public:
-  MarkingVisitorBase(MarkingWorklists::Local* local_marking_worklists,
-                     WeakObjects::Local* local_weak_objects, Heap* heap,
+  MarkingVisitorBase(int task_id,
+                     MarkingWorklists::Local* local_marking_worklists,
+                     WeakObjects* weak_objects, Heap* heap,
                      unsigned mark_compact_epoch,
                      BytecodeFlushMode bytecode_flush_mode,
                      bool is_embedder_tracing_enabled, bool is_forced_gc)
       : local_marking_worklists_(local_marking_worklists),
-        local_weak_objects_(local_weak_objects),
+        weak_objects_(weak_objects),
         heap_(heap),
+        task_id_(task_id),
         mark_compact_epoch_(mark_compact_epoch),
         bytecode_flush_mode_(bytecode_flush_mode),
         is_embedder_tracing_enabled_(is_embedder_tracing_enabled),
@@ -184,8 +186,9 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   V8_INLINE void MarkObject(HeapObject host, HeapObject obj);
 
   MarkingWorklists::Local* const local_marking_worklists_;
-  WeakObjects::Local* const local_weak_objects_;
+  WeakObjects* const weak_objects_;
   Heap* const heap_;
+  const int task_id_;
   const unsigned mark_compact_epoch_;
   const BytecodeFlushMode bytecode_flush_mode_;
   const bool is_embedder_tracing_enabled_;
