@@ -302,30 +302,45 @@ JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
       job_(use_generic_wrapper_ ? nullptr
                                 : compiler::NewJSToWasmCompilationJob(
                                       isolate, wasm_engine, sig, module,
-                                      is_import, enabled_features)) {}
+                                      is_import, enabled_features)) {
+  JSToWasmWrapperKey key{is_import, *sig};
+  shared_wrapper_ = wasm_engine->GetSharedJSToWasmWrapper(isolate, key);
+  if (!shared_wrapper_.is_null()) {
+    job_ = nullptr;
+    // Make it global to keep it alive until we {Finalize}.
+    shared_wrapper_ = isolate->global_handles()->Create(*shared_wrapper_);
+    GlobalHandles::AnnotateStrongRetainer(
+        shared_wrapper_.location(),
+        "JSToWasmWrapperCompilationUnit::shared_wrapper_");
+  }
+}
 
 JSToWasmWrapperCompilationUnit::~JSToWasmWrapperCompilationUnit() = default;
 
 void JSToWasmWrapperCompilationUnit::Execute() {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileJSToWasmWrapper");
-  if (!use_generic_wrapper_) {
+  if (!use_generic_wrapper_ && shared_wrapper_.is_null()) {
     CompilationJob::Status status = job_->ExecuteJob(nullptr);
     CHECK_EQ(status, CompilationJob::SUCCEEDED);
   }
 }
 
 Handle<Code> JSToWasmWrapperCompilationUnit::Finalize(Isolate* isolate) {
-  Handle<Code> code;
   if (use_generic_wrapper_) {
-    code =
-        isolate->builtins()->builtin_handle(Builtins::kGenericJSToWasmWrapper);
-  } else {
-    CompilationJob::Status status = job_->FinalizeJob(isolate);
-    CHECK_EQ(status, CompilationJob::SUCCEEDED);
-    code = job_->compilation_info()->code();
+    return isolate->builtins()->builtin_handle(
+        Builtins::kGenericJSToWasmWrapper);
+  } else if (!shared_wrapper_.is_null()) {
+    auto code = Handle<Code>::New(*shared_wrapper_, isolate);
+    GlobalHandles::Destroy(shared_wrapper_.location());
+    return code;
   }
-  if (!use_generic_wrapper_ && must_record_function_compilation(isolate)) {
+  CompilationJob::Status status = job_->FinalizeJob(isolate);
+  CHECK_EQ(status, CompilationJob::SUCCEEDED);
+  Handle<Code> code = job_->compilation_info()->code();
+  JSToWasmWrapperKey key{is_import_, *sig_};
+  isolate->wasm_engine()->AddSharedJSToWasmWrapper(isolate, key, code);
+  if (must_record_function_compilation(isolate)) {
     RecordWasmHeapStubCompilation(
         isolate, code, "%s", job_->compilation_info()->GetDebugName().get());
   }

@@ -132,6 +132,43 @@ class NativeModuleCache {
   base::ConditionVariable cache_cv_;
 };
 
+struct JSToWasmWrapperKey {
+  bool is_import;
+  FunctionSig sig;
+  bool operator==(const JSToWasmWrapperKey& other) const {
+    return is_import == other.is_import &&
+           sig.parameter_count() == other.sig.parameter_count() &&
+           sig.return_count() == other.sig.return_count() &&
+           std::equal(sig.all().begin(), sig.all().end(),
+                      other.sig.all().begin(), other.sig.all().end());
+  }
+};
+
+struct JSToWasmWrapperKeyHash {
+  size_t operator()(const JSToWasmWrapperKey& key) const {
+    size_t hash = base::hash_combine(key.is_import, key.sig.parameter_count(),
+                                     key.sig.return_count());
+    for (auto& type : key.sig.all()) {
+      hash = base::hash_combine(hash, type);
+    }
+    return hash;
+  }
+};
+
+struct OwnedJSToWasmWrapperKey {
+  JSToWasmWrapperKey key;
+  std::unique_ptr<ValueType[]> types;
+  bool operator==(const OwnedJSToWasmWrapperKey& other) const {
+    return key == other.key;
+  }
+};
+
+struct OwnedJSToWasmWrapperKeyHash {
+  size_t operator()(const OwnedJSToWasmWrapperKey& owned_key) const {
+    return JSToWasmWrapperKeyHash()(owned_key.key);
+  }
+};
+
 // The central data structure that represents an engine instance capable of
 // loading, instantiating, and executing Wasm code.
 class V8_EXPORT_PRIVATE WasmEngine {
@@ -344,6 +381,16 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // use {Isolate::wasm_engine} instead if it is available, which encapsulates
   // engine lifetime decisions during Isolate bootstrapping.
   static std::shared_ptr<WasmEngine> GetWasmEngine();
+
+  Handle<Code> GetSharedJSToWasmWrapper(Isolate*, const JSToWasmWrapperKey&);
+
+  // Insert the (key, code) pair if it is not in the map already.
+  // Return the code object associated with the key after insertion. This will
+  // be the Handle<Code> argument if the key is new, and the old Handle<Code>
+  // otherwise.
+  Handle<Code> AddSharedJSToWasmWrapper(Isolate*, const JSToWasmWrapperKey&,
+                                        Handle<Code>);
+  void EraseSharedJSToWasmWrapper(Isolate*, const JSToWasmWrapperKey&);
 
  private:
   struct CurrentGCInfo;

@@ -11,6 +11,7 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-body-decoder.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-tier.h"
@@ -135,6 +136,7 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   bool is_import_;
   const FunctionSig* sig_;
   bool use_generic_wrapper_;
+  Handle<Code> shared_wrapper_;
   std::unique_ptr<OptimizedCompilationJob> job_;
 };
 

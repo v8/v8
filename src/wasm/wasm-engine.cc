@@ -22,6 +22,7 @@
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/module-instantiate.h"
 #include "src/wasm/streaming-decoder.h"
+#include "src/wasm/value-type.h"
 #include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -151,6 +152,37 @@ class WeakScriptHandle {
   // Store the location in a unique_ptr so that its address stays the same even
   // when this object is moved/copied.
   std::unique_ptr<Address*> location_;
+};
+
+void WeakJSToWasmWrapperFinalizer(const v8::WeakCallbackInfo<void>& data) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(data.GetIsolate());
+  JSToWasmWrapperKey* key =
+      reinterpret_cast<JSToWasmWrapperKey*>(data.GetParameter());
+  isolate->wasm_engine()->EraseSharedJSToWasmWrapper(isolate, *key);
+}
+
+class WeakJSToWasmWrapperHandle {
+ public:
+  explicit WeakJSToWasmWrapperHandle(const JSToWasmWrapperKey& key,
+                                     Handle<Code> handle)
+      : key_(key) {
+    Handle<Code> global_handle =
+        handle->GetIsolate()->global_handles()->Create(*handle);
+    location_ = global_handle.location();
+    GlobalHandles::MakeWeak(location_, &key_, WeakJSToWasmWrapperFinalizer,
+                            v8::WeakCallbackType::kParameter);
+  }
+
+  // Invoked when we erase the entry in the finalizer.
+  ~WeakJSToWasmWrapperHandle() { GlobalHandles::Destroy(location_); }
+
+  Handle<Code> handle() { return Handle<Code>(location_); }
+
+ private:
+  JSToWasmWrapperKey key_;
+  Address* location_;
+
+  DISALLOW_COPY_AND_ASSIGN(WeakJSToWasmWrapperHandle);
 };
 
 }  // namespace
@@ -360,6 +392,12 @@ struct WasmEngine::IsolateInfo {
 
   // Keep new modules in tiered down state.
   bool keep_tiered_down = false;
+
+  using SharedExportWrappers =
+      std::unordered_map<OwnedJSToWasmWrapperKey,
+                         std::unique_ptr<WeakJSToWasmWrapperHandle>,
+                         OwnedJSToWasmWrapperKeyHash>;
+  SharedExportWrappers export_wrappers;
 };
 
 struct WasmEngine::NativeModuleInfo {
@@ -1443,6 +1481,86 @@ void WasmEngine::GlobalTearDown() {
 // static
 std::shared_ptr<WasmEngine> WasmEngine::GetWasmEngine() {
   return *GetSharedWasmEngine();
+}
+
+namespace {
+bool IsSignatureModuleDependent(const FunctionSig& sig) {
+  for (auto& type : sig.all()) {
+    if (type != kWasmI32 && type != kWasmI64 && type != kWasmF32 &&
+        type != kWasmF64) {
+      return true;
+    }
+  }
+  return false;
+}
+}  // namespace
+
+Handle<Code> WasmEngine::GetSharedJSToWasmWrapper(
+    Isolate* isolate, const JSToWasmWrapperKey& key) {
+  if (IsSignatureModuleDependent(key.sig)) return Handle<Code>();
+  IsolateInfo::SharedExportWrappers* export_wrappers;
+  {
+    base::MutexGuard guard(&mutex_);
+    auto it = isolates_.find(isolate);
+    DCHECK_NE(isolates_.end(), it);
+    export_wrappers = &it->second->export_wrappers;
+  }
+  auto wrapper_it = export_wrappers->find({key, nullptr});
+  if (wrapper_it != export_wrappers->end()) {
+    Handle<Code> weak_handle = wrapper_it->second->handle();
+    if (weak_handle.is_null()) {
+      export_wrappers->erase(wrapper_it);
+    } else {
+      return Handle<Code>::New(*weak_handle, isolate);
+    }
+  }
+  return Handle<Code>();
+}
+
+Handle<Code> WasmEngine::AddSharedJSToWasmWrapper(Isolate* isolate,
+                                                  const JSToWasmWrapperKey& key,
+                                                  Handle<Code> code) {
+  if (IsSignatureModuleDependent(key.sig)) return code;
+  IsolateInfo::SharedExportWrappers* export_wrappers;
+  {
+    base::MutexGuard guard(&mutex_);
+    auto it = isolates_.find(isolate);
+    DCHECK_NE(isolates_.end(), it);
+    export_wrappers = &it->second->export_wrappers;
+  }
+  auto wrapper_it = export_wrappers->find({key, nullptr});
+  if (wrapper_it == export_wrappers->end()) {
+    size_t num_types = key.sig.parameter_count() + key.sig.return_count();
+    auto owned_types = std::make_unique<ValueType[]>(num_types);
+    std::copy(key.sig.all().begin(), key.sig.all().end(), owned_types.get());
+    FunctionSig sig(key.sig.return_count(), key.sig.parameter_count(),
+                    owned_types.get());
+    OwnedJSToWasmWrapperKey owned_key{{key.is_import, sig},
+                                      std::move(owned_types)};
+    auto p = export_wrappers->emplace(
+        std::move(owned_key),
+        std::make_unique<WeakJSToWasmWrapperHandle>(owned_key.key, code));
+    DCHECK(p.second);
+    return p.first->second->handle();
+  } else {
+    Handle<Code> weak_handle = wrapper_it->second->handle();
+    DCHECK(!weak_handle.is_null());
+    return Handle<Code>::New(*weak_handle, isolate);
+  }
+}
+
+void WasmEngine::EraseSharedJSToWasmWrapper(Isolate* isolate,
+                                            const JSToWasmWrapperKey& key) {
+  IsolateInfo::SharedExportWrappers* export_wrappers;
+  {
+    base::MutexGuard guard(&mutex_);
+    auto it = isolates_.find(isolate);
+    DCHECK_NE(isolates_.end(), it);
+    export_wrappers = &it->second->export_wrappers;
+  }
+  auto wrapper_it = export_wrappers->find({key, nullptr});
+  DCHECK_NE(wrapper_it, export_wrappers->end());
+  export_wrappers->erase(wrapper_it);
 }
 
 // {max_mem_pages} is declared in wasm-limits.h.
