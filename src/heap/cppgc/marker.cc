@@ -385,7 +385,7 @@ void MarkerBase::MarkNotFullyConstructedObjects() {
       mutator_marking_state_.not_fully_constructed_worklist().Extract();
   for (HeapObjectHeader* object : objects) {
     DCHECK(object);
-    DCHECK(object->IsMarked<HeapObjectHeader::AccessMode::kNonAtomic>());
+    if (!mutator_marking_state_.MarkNoPush(*object)) continue;
     // TraceConservativelyIfNeeded will either push to a worklist
     // or trace conservatively and call AccountMarkedBytes.
     conservative_visitor().TraceConservativelyIfNeeded(*object);

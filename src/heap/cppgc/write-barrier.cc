@@ -37,6 +37,11 @@ void MarkValue(const BasePage* page, MarkerBase* marker, const void* value) {
   if (V8_UNLIKELY(
           header
               .IsInConstruction<HeapObjectHeader::AccessMode::kNonAtomic>())) {
+    // In construction objects are traced only if they are unmarked. If marking
+    // reaches this object again when it is fully constructed, it will re-mark
+    // it and tracing it as a previously not fully constructed object would know
+    // to bail out.
+    header.Unmark<HeapObjectHeader::AccessMode::kAtomic>();
     marker->WriteBarrierForInConstructionObject(header);
     return;
   }
