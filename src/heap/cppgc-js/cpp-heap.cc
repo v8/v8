@@ -105,7 +105,9 @@ void UnifiedHeapMarker::AddObject(void* object) {
 
 }  // namespace
 
-CppHeap::CppHeap(v8::Isolate* isolate, size_t custom_spaces)
+CppHeap::CppHeap(
+    v8::Isolate* isolate,
+    const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>& custom_spaces)
     : cppgc::internal::HeapBase(std::make_shared<CppgcPlatformAdapter>(isolate),
                                 custom_spaces,
                                 cppgc::internal::HeapBase::StackSupport::

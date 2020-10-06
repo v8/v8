@@ -14,6 +14,8 @@ struct CustomSpaceIndex {
   size_t value;
 };
 
+enum class CustomSpaceCompactability { kNotCompactable, kCompactable };
+
 /**
  * Top-level base class for custom spaces. Users must inherit from CustomSpace
  * below.
@@ -22,6 +24,7 @@ class CustomSpaceBase {
  public:
   virtual ~CustomSpaceBase() = default;
   virtual CustomSpaceIndex GetCustomSpaceIndex() const = 0;
+  virtual bool IsCompactable() const = 0;
 };
 
 /**
@@ -47,6 +50,12 @@ class CustomSpace : public CustomSpaceBase {
   CustomSpaceIndex GetCustomSpaceIndex() const final {
     return ConcreteCustomSpace::kSpaceIndex;
   }
+  bool IsCompactable() const final {
+    return ConcreteCustomSpace::kSupportsCompaction;
+  }
+
+ protected:
+  static constexpr bool kSupportsCompaction = false;
 };
 
 /**

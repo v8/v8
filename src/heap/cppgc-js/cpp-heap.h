@@ -19,7 +19,9 @@ namespace internal {
 class V8_EXPORT_PRIVATE CppHeap final : public cppgc::internal::HeapBase,
                                         public v8::EmbedderHeapTracer {
  public:
-  CppHeap(v8::Isolate* isolate, size_t custom_spaces);
+  CppHeap(v8::Isolate* isolate,
+          const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>&
+              custom_spaces);
 
   HeapBase& AsBase() { return *this; }
   const HeapBase& AsBase() const { return *this; }

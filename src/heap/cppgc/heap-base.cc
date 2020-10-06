@@ -53,8 +53,10 @@ class ObjectSizeCounter : private HeapVisitor<ObjectSizeCounter> {
 
 }  // namespace
 
-HeapBase::HeapBase(std::shared_ptr<cppgc::Platform> platform,
-                   size_t custom_spaces, StackSupport stack_support)
+HeapBase::HeapBase(
+    std::shared_ptr<cppgc::Platform> platform,
+    const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,
+    StackSupport stack_support)
     : raw_heap_(this, custom_spaces),
       platform_(std::move(platform)),
 #if defined(CPPGC_CAGED_HEAP)

@@ -62,7 +62,8 @@ class V8_EXPORT_PRIVATE HeapBase {
     HeapBase& heap_;
   };
 
-  HeapBase(std::shared_ptr<cppgc::Platform> platform, size_t custom_spaces,
+  HeapBase(std::shared_ptr<cppgc::Platform> platform,
+           const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,
            StackSupport stack_support);
   virtual ~HeapBase();
 
