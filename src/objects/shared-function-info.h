@@ -337,7 +337,8 @@ class SharedFunctionInfo : public HeapObject {
       UncompiledDataWithPreparseData data);
   inline bool HasUncompiledDataWithoutPreparseData() const;
   inline bool HasWasmExportedFunctionData() const;
-  WasmExportedFunctionData wasm_exported_function_data() const;
+  V8_EXPORT_PRIVATE WasmExportedFunctionData
+  wasm_exported_function_data() const;
   inline bool HasWasmJSFunctionData() const;
   WasmJSFunctionData wasm_js_function_data() const;
   inline bool HasWasmCapiFunctionData() const;

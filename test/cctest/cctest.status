@@ -517,6 +517,7 @@
   'test-run-wasm-simd-liftoff/*': [SKIP],
   'test-run-wasm-simd-scalar-lowering/*': [SKIP],
   'test-run-wasm-simd/*': [SKIP],
+  'test-run-wasm-wrappers/*': [SKIP],
   'test-streaming-compilation/*': [SKIP],
   'test-wasm-breakpoints/*': [SKIP],
   'test-wasm-codegen/*': [SKIP],

@@ -3363,6 +3363,14 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
                  WasmExportedFunctionData::kInstanceOffset - kHeapObjectTag));
 
   // -------------------------------------------
+  // Increment the call count in function data.
+  // -------------------------------------------
+  __ SmiAddConstant(
+      MemOperand(function_data,
+                 WasmExportedFunctionData::kCallCountOffset - kHeapObjectTag),
+      Smi::FromInt(1));
+
+  // -------------------------------------------
   // Load values from the signature.
   // -------------------------------------------
   Register foreign_signature = r11;
