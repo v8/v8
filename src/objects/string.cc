@@ -117,17 +117,16 @@ void String::MakeThin(Isolate* isolate, String internalized) {
   bool has_pointers = StringShape(*this).IsIndirect();
 
   int old_size = this->Size();
-  // Slot invalidation is not necessary here: ThinString only stores tagged
-  // value, so it can't store an untagged value in a recorded slot.
-  isolate->heap()->NotifyObjectLayoutChange(*this, no_gc,
-                                            InvalidateRecordedSlots::kNo);
   bool one_byte = internalized.IsOneByteRepresentation();
   Handle<Map> map = one_byte ? isolate->factory()->thin_one_byte_string_map()
                              : isolate->factory()->thin_string_map();
+  // Update actual first and then do release store on the map word. This ensures
+  // that the concurrent marker will read the pointer when visiting a
+  // ThinString.
+  ThinString thin = ThinString::unchecked_cast(*this);
+  thin.set_actual(internalized);
   DCHECK_GE(old_size, ThinString::kSize);
   this->synchronized_set_map(*map);
-  ThinString thin = ThinString::cast(*this);
-  thin.set_actual(internalized);
   Address thin_end = thin.address() + ThinString::kSize;
   int size_delta = old_size - ThinString::kSize;
   if (size_delta != 0) {
