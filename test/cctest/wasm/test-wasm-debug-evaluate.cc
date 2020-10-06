@@ -537,23 +537,23 @@ WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_JavaScript) {
       V8String(isolate,
                "JSON.stringify(["
                "$global0, "
-               //"$table0, "
+               "$table0, "
                "$var0, "
-               //"$main, "
-               //"$memory0, "
+               "$main, "
+               "$memory0, "
                "globals[0], "
-               //"tables[0], "
+               "tables[0], "
                "locals[0], "
-               //"functions[0], "
-               //"memories[0], "
-               //"memories, "
-               //"tables, "
-               //"stack, "
-               //"imports, "
-               //"exports, "
+               "functions[0], "
+               "memories[0], "
+               "memories, "
+               "tables, "
+               "stack, "
+               "imports, "
+               "exports, "
                "globals, "
                "locals, "
-               //"functions, "
+               "functions, "
                "], (k, v) => k === 'at' || typeof v === 'undefined' || typeof "
                "v === 'object' ? v : v.toString())");
 
@@ -563,10 +563,10 @@ WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_JavaScript) {
   WasmJSBreakHandler::EvaluationResult result =
       break_handler.result().ToChecked();
   CHECK_WITH_MSG(result.error.IsNothing(), result.error.ToChecked().c_str());
-  CHECK_EQ(result.result.ToChecked(), "[\"66\",\"65\",\"66\",\"65\",{},{}]");
-  //"[\"66\",{},\"65\",\"function 0() { [native code] }\",{},"
-  //"\"66\",{},\"65\",\"function 0() { [native code] }\",{},"
-  //"{},{},{\"0\":\"65\"},{},{},{},{},{}]");
+  CHECK_EQ(result.result.ToChecked(),
+           "[\"66\",{},\"65\",\"function 0() { [native code] }\",{},"
+           "\"66\",{},\"65\",\"function 0() { [native code] }\",{},"
+           "{},{},{\"0\":\"65\"},{},{},{},{},{}]");
 }
 
 }  // namespace

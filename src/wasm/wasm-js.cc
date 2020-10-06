@@ -26,6 +26,7 @@
 #include "src/parsing/parse-info.h"
 #include "src/tasks/task-utils.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/wasm/function-compiler.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-debug.h"
@@ -2394,6 +2395,107 @@ std::vector<Handle<String>> GetGlobalNames(
   return names;
 }
 
+// Generate names for the functions.
+std::vector<Handle<String>> GetFunctionNames(
+    Handle<WasmInstanceObject> instance) {
+  Isolate* isolate = instance->GetIsolate();
+  auto* module = instance->module();
+
+  wasm::ModuleWireBytes wire_bytes(
+      instance->module_object().native_module()->wire_bytes());
+
+  std::vector<Handle<String>> names;
+  for (auto& function : module->functions) {
+    DCHECK_EQ(function.func_index, names.size());
+    wasm::WireBytesRef name_ref =
+        module->lazily_generated_names.LookupFunctionName(
+            wire_bytes, function.func_index, VectorOf(module->export_table));
+    DCHECK(wire_bytes.BoundsCheck(name_ref));
+    Vector<const char> name_vec = wire_bytes.GetNameOrNull(name_ref);
+    names.emplace_back(GetNameOrDefault(
+        isolate,
+        name_vec.empty() ? MaybeHandle<String>()
+                         : isolate->factory()->NewStringFromUtf8(name_vec),
+        "$func", function.func_index));
+  }
+
+  return names;
+}
+
+// Generate names for the imports.
+std::vector<Handle<String>> GetImportNames(
+    Handle<WasmInstanceObject> instance) {
+  Isolate* isolate = instance->GetIsolate();
+  const wasm::WasmModule* module = instance->module();
+  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
+  int num_imports = static_cast<int>(module->import_table.size());
+
+  std::vector<Handle<String>> names;
+  for (int index = 0; index < num_imports; ++index) {
+    const wasm::WasmImport& import = module->import_table[index];
+
+    names.emplace_back(WasmModuleObject::ExtractUtf8StringFromModuleBytes(
+        isolate, module_object, import.field_name, kInternalize));
+  }
+
+  return names;
+}
+
+// Generate names for the memories.
+std::vector<Handle<String>> GetMemoryNames(
+    Handle<WasmInstanceObject> instance) {
+  Isolate* isolate = instance->GetIsolate();
+
+  std::vector<Handle<String>> names;
+  uint32_t memory_count = instance->has_memory_object() ? 1 : 0;
+  for (uint32_t memory_index = 0; memory_index < memory_count; ++memory_index) {
+    names.emplace_back(GetNameOrDefault(isolate,
+                                        WasmInstanceObject::GetMemoryNameOrNull(
+                                            isolate, instance, memory_index),
+                                        "$memory", memory_index));
+  }
+
+  return names;
+}
+
+// Generate names for the tables.
+std::vector<Handle<String>> GetTableNames(Handle<WasmInstanceObject> instance) {
+  Isolate* isolate = instance->GetIsolate();
+  auto tables = handle(instance->tables(), isolate);
+
+  std::vector<Handle<String>> names;
+  for (int table_index = 0; table_index < tables->length(); ++table_index) {
+    auto func_table =
+        handle(WasmTableObject::cast(tables->get(table_index)), isolate);
+    if (!func_table->type().is_reference_to(wasm::HeapType::kFunc)) continue;
+
+    names.emplace_back(GetNameOrDefault(
+        isolate,
+        WasmInstanceObject::GetTableNameOrNull(isolate, instance, table_index),
+        "$table", table_index));
+  }
+  return names;
+}
+
+// Generate names for the exports
+std::vector<Handle<String>> GetExportNames(
+    Handle<WasmInstanceObject> instance) {
+  Isolate* isolate = instance->GetIsolate();
+  const wasm::WasmModule* module = instance->module();
+  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
+  int num_exports = static_cast<int>(module->export_table.size());
+
+  std::vector<Handle<String>> names;
+
+  for (int index = 0; index < num_exports; ++index) {
+    const wasm::WasmExport& exp = module->export_table[index];
+
+    names.emplace_back(WasmModuleObject::ExtractUtf8StringFromModuleBytes(
+        isolate, module_object, exp.name, kInternalize));
+  }
+  return names;
+}
+
 Handle<WasmInstanceObject> GetInstance(Isolate* isolate,
                                        Handle<JSObject> handler) {
   Handle<Object> instance =
@@ -2524,6 +2626,162 @@ Handle<Object> GetGlobalImpl(Isolate* isolate, Handle<Name> property,
       isolate, WasmInstanceObject::GetGlobalValue(instance, globals[*index]));
 }
 
+base::Optional<int> HasMemoryImpl(Isolate* isolate, Handle<Name> property,
+                                  Handle<JSObject> handler,
+                                  bool enable_index_lookup) {
+  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
+  base::Optional<int> index =
+      ResolveValueSelector(isolate, property, handler, enable_index_lookup);
+  if (index && *index == 0 && instance->has_memory_object()) return index;
+  return {};
+}
+
+Handle<Object> GetMemoryImpl(Isolate* isolate, Handle<Name> property,
+                             Handle<JSObject> handler,
+                             bool enable_index_lookup) {
+  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
+  base::Optional<int> index =
+      HasMemoryImpl(isolate, property, handler, enable_index_lookup);
+  if (index) return handle(instance->memory_object(), isolate);
+  return isolate->factory()->undefined_value();
+}
+
+base::Optional<int> HasFunctionImpl(Isolate* isolate, Handle<Name> property,
+                                    Handle<JSObject> handler,
+                                    bool enable_index_lookup) {
+  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
+  base::Optional<int> index =
+      ResolveValueSelector(isolate, property, handler, enable_index_lookup);
+  if (!index) return index;
+  const std::vector<wasm::WasmFunction>& functions =
+      instance->module()->functions;
+  if (functions.size() <= kMaxInt && 0 <= *index &&
+      *index < static_cast<int>(functions.size())) {
+    return index;
+  }
+  return {};
+}
+
+Handle<Object> GetFunctionImpl(Isolate* isolate, Handle<Name> property,
+                               Handle<JSObject> handler,
+                               bool enable_index_lookup) {
+  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
+  base::Optional<int> index =
+      HasFunctionImpl(isolate, property, handler, enable_index_lookup);
+  if (!index) return isolate->factory()->undefined_value();
+
+  return WasmInstanceObject::GetOrCreateWasmExternalFunction(isolate, instance,
+                                                             *index);
+}
+
+base::Optional<int> HasTableImpl(Isolate* isolate, Handle<Name> property,
+                                 Handle<JSObject> handler,
+                                 bool enable_index_lookup) {
+  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
+  base::Optional<int> index =
+      ResolveValueSelector(isolate, property, handler, enable_index_lookup);
+  if (!index) return index;
+  Handle<FixedArray> tables(instance->tables(), isolate);
+  int num_tables = tables->length();
+  if (*index < 0 || *index >= num_tables) return {};
+
+  Handle<WasmTableObject> func_table(WasmTableObject::cast(tables->get(*index)),
+                                     isolate);
+  if (func_table->type().is_reference_to(wasm::HeapType::kFunc)) return index;
+  return {};
+}
+
+Handle<Object> GetTableImpl(Isolate* isolate, Handle<Name> property,
+                            Handle<JSObject> handler,
+                            bool enable_index_lookup) {
+  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
+  base::Optional<int> index =
+      HasTableImpl(isolate, property, handler, enable_index_lookup);
+  if (!index) return isolate->factory()->undefined_value();
+
+  Handle<WasmTableObject> func_table(
+      WasmTableObject::cast(instance->tables().get(*index)), isolate);
+  return func_table;
+}
+
+base::Optional<int> HasImportImpl(Isolate* isolate, Handle<Name> property,
+                                  Handle<JSObject> handler,
+                                  bool enable_index_lookup) {
+  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
+  base::Optional<int> index =
+      ResolveValueSelector(isolate, property, handler, enable_index_lookup);
+  if (!index) return index;
+  const wasm::WasmModule* module = instance->module();
+  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
+  int num_imports = static_cast<int>(module->import_table.size());
+  if (0 <= *index && *index < num_imports) return index;
+  return {};
+}
+
+Handle<JSObject> GetExternalObject(Isolate* isolate,
+                                   wasm::ImportExportKindCode kind,
+                                   uint32_t index) {
+  Handle<JSObject> result = isolate->factory()->NewJSObjectWithNullProto();
+  Handle<Object> value = isolate->factory()->NewNumberFromUint(index);
+  switch (kind) {
+    case wasm::kExternalFunction:
+      JSObject::AddProperty(isolate, result, "func", value, NONE);
+      break;
+    case wasm::kExternalGlobal:
+      JSObject::AddProperty(isolate, result, "global", value, NONE);
+      break;
+    case wasm::kExternalTable:
+      JSObject::AddProperty(isolate, result, "table", value, NONE);
+      break;
+    case wasm::kExternalMemory:
+      JSObject::AddProperty(isolate, result, "mem", value, NONE);
+      break;
+    case wasm::kExternalException:
+      JSObject::AddProperty(isolate, result, "exn", value, NONE);
+      break;
+  }
+  return result;
+}
+
+Handle<Object> GetImportImpl(Isolate* isolate, Handle<Name> property,
+                             Handle<JSObject> handler,
+                             bool enable_index_lookup) {
+  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
+  base::Optional<int> index =
+      HasImportImpl(isolate, property, handler, enable_index_lookup);
+  if (!index) return isolate->factory()->undefined_value();
+
+  const wasm::WasmImport& imp = instance->module()->import_table[*index];
+  return GetExternalObject(isolate, imp.kind, imp.index);
+}
+
+base::Optional<int> HasExportImpl(Isolate* isolate, Handle<Name> property,
+                                  Handle<JSObject> handler,
+                                  bool enable_index_lookup) {
+  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
+  base::Optional<int> index =
+      ResolveValueSelector(isolate, property, handler, enable_index_lookup);
+  if (!index) return index;
+
+  const wasm::WasmModule* module = instance->module();
+  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
+  int num_exports = static_cast<int>(module->export_table.size());
+  if (0 <= *index && *index < num_exports) return index;
+  return {};
+}
+
+Handle<Object> GetExportImpl(Isolate* isolate, Handle<Name> property,
+                             Handle<JSObject> handler,
+                             bool enable_index_lookup) {
+  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
+  base::Optional<int> index =
+      HasExportImpl(isolate, property, handler, enable_index_lookup);
+  if (!index) return isolate->factory()->undefined_value();
+
+  const wasm::WasmExport& exp = instance->module()->export_table[*index];
+  return GetExternalObject(isolate, exp.kind, exp.index);
+}
+
 // Generic has trap callback for the index space proxies.
 template <base::Optional<int> Impl(Isolate*, Handle<Name>, Handle<JSObject>,
                                    bool)>
@@ -2568,6 +2826,10 @@ ReturnT DelegateToplevelCall(Isolate* isolate, Handle<JSObject> target,
   return impl(isolate, property, namespace_handler, false);
 }
 
+template <typename ReturnT>
+using DelegateCallback = ReturnT (*)(Isolate*, Handle<Name>, Handle<JSObject>,
+                                     bool);
+
 // Has trap callback for the top-level proxy.
 void ToplevelHasTrapCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   DCHECK_GE(args.Length(), 2);
@@ -2585,16 +2847,20 @@ void ToplevelHasTrapCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   // Now check the index space proxies in order if they know the property.
-  if (DelegateToplevelCall(isolate, target, property, "locals", HasLocalImpl)) {
-    args.GetReturnValue().Set(true);
-    return;
+  constexpr std::pair<const char*, DelegateCallback<base::Optional<int>>>
+      kDelegates[] = {{"memories", HasMemoryImpl},
+                      {"locals", HasLocalImpl},
+                      {"tables", HasTableImpl},
+                      {"functions", HasFunctionImpl},
+                      {"globals", HasGlobalImpl}};
+  for (auto& delegate : kDelegates) {
+    if (DelegateToplevelCall(isolate, target, property, delegate.first,
+                             delegate.second)) {
+      args.GetReturnValue().Set(true);
+      return;
+    }
+    args.GetReturnValue().Set(false);
   }
-  if (DelegateToplevelCall(isolate, target, property, "globals",
-                           HasGlobalImpl)) {
-    args.GetReturnValue().Set(true);
-    return;
-  }
-  args.GetReturnValue().Set(false);
 }
 
 // Get trap callback for the top-level proxy.
@@ -2617,17 +2883,19 @@ void ToplevelGetTrapCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   // Try the index space proxies in the correct disambiguation order.
-  value =
-      DelegateToplevelCall(isolate, target, property, "locals", GetLocalImpl);
-  if (!value->IsUndefined()) {
-    args.GetReturnValue().Set(Utils::ToLocal(value));
-    return;
-  }
-  value =
-      DelegateToplevelCall(isolate, target, property, "globals", GetGlobalImpl);
-  if (!value->IsUndefined()) {
-    args.GetReturnValue().Set(Utils::ToLocal(value));
-    return;
+  constexpr std::pair<const char*, DelegateCallback<Handle<Object>>>
+      kDelegates[] = {{"memories", GetMemoryImpl},
+                      {"locals", GetLocalImpl},
+                      {"tables", GetTableImpl},
+                      {"functions", GetFunctionImpl},
+                      {"globals", GetGlobalImpl}};
+  for (auto& delegate : kDelegates) {
+    value = DelegateToplevelCall(isolate, target, property, delegate.first,
+                                 delegate.second);
+    if (!value->IsUndefined()) {
+      args.GetReturnValue().Set(Utils::ToLocal(value));
+      return;
+    }
   }
 }
 
@@ -2751,6 +3019,36 @@ Handle<JSProxy> WasmJs::GetJSDebugProxy(WasmFrame* frame) {
       GetJSProxy(frame, global_name_table, GetTrapCallback<GetGlobalImpl>,
                  HasTrapCallback<HasGlobalImpl>);
   JSObject::AddProperty(isolate, target, "globals", globals, READ_ONLY);
+
+  auto function_name_table = GetNameTable(isolate, GetFunctionNames(instance));
+  auto functions =
+      GetJSProxy(frame, function_name_table, GetTrapCallback<GetFunctionImpl>,
+                 HasTrapCallback<HasFunctionImpl>);
+  JSObject::AddProperty(isolate, target, "functions", functions, READ_ONLY);
+
+  auto memory_name_table = GetNameTable(isolate, GetMemoryNames(instance));
+  auto memories =
+      GetJSProxy(frame, memory_name_table, GetTrapCallback<GetMemoryImpl>,
+                 HasTrapCallback<HasMemoryImpl>);
+  JSObject::AddProperty(isolate, target, "memories", memories, READ_ONLY);
+
+  auto table_name_table = GetNameTable(isolate, GetTableNames(instance));
+  auto tables =
+      GetJSProxy(frame, table_name_table, GetTrapCallback<GetTableImpl>,
+                 HasTrapCallback<HasTableImpl>);
+  JSObject::AddProperty(isolate, target, "tables", tables, READ_ONLY);
+
+  auto import_name_table = GetNameTable(isolate, GetImportNames(instance));
+  auto imports =
+      GetJSProxy(frame, import_name_table, GetTrapCallback<GetImportImpl>,
+                 HasTrapCallback<HasImportImpl>);
+  JSObject::AddProperty(isolate, target, "imports", imports, READ_ONLY);
+
+  auto export_name_table = GetNameTable(isolate, GetExportNames(instance));
+  auto exports =
+      GetJSProxy(frame, export_name_table, GetTrapCallback<GetExportImpl>,
+                 HasTrapCallback<HasExportImpl>);
+  JSObject::AddProperty(isolate, target, "exports", exports, READ_ONLY);
 
   auto stack = GetStackObject(frame);
   JSObject::AddProperty(isolate, target, "stack", stack, READ_ONLY);
