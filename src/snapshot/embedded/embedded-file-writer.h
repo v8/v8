@@ -192,7 +192,14 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
     w->Comment("instruction streams.");
     w->SectionText();
     w->AlignToCodeAlignment();
-    w->DeclareLabel(EmbeddedBlobCodeDataSymbol().c_str());
+
+    // UMA needs an exposed function-type label at the start of the embedded
+    // code section, thus this label is declared as a function (otherwise we
+    // could use DeclareLabel).
+    static constexpr int kDummyFunctionLength = 0;
+    w->DeclareFunctionBegin(EmbeddedBlobCodeDataSymbol().c_str(),
+                            kDummyFunctionLength);
+    w->DeclareFunctionEnd(EmbeddedBlobCodeDataSymbol().c_str());
 
     for (int i = 0; i < i::Builtins::builtin_count; i++) {
       if (!blob->ContainsBuiltin(i)) continue;
