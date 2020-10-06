@@ -189,6 +189,7 @@ bool ConcurrentMarkerBase::NotifyIncrementalMutatorStepCompleted() {
 }
 
 void ConcurrentMarkerBase::IncreaseMarkingPriorityIfNeeded() {
+  if (!concurrent_marking_handle_->UpdatePriorityEnabled()) return;
   if (concurrent_marking_priority_increased_) return;
   // If concurrent tasks aren't executed, it might delay GC finalization.
   // As long as GC is active so is the write barrier, which incurs a
@@ -196,7 +197,7 @@ void ConcurrentMarkerBase::IncreaseMarkingPriorityIfNeeded() {
   // |MarkingSchedulingOracle::kEstimatedMarkingTimeMs|. If
   // concurrent marking tasks have not reported any progress (i.e. the
   // concurrently marked bytes count as not changed) in over
-  // |kMarkingScheduleRatioBeforeConcurrentPriorityIncrease| (50%) of
+  // |kMarkingScheduleRatioBeforeConcurrentPriorityIncrease| of
   // that expected duration, we increase the concurrent task priority
   // for the duration of the current GC. This is meant to prevent the
   // GC from exceeding it's expected end time.
@@ -210,9 +211,8 @@ void ConcurrentMarkerBase::IncreaseMarkingPriorityIfNeeded() {
                  .InMilliseconds() >
              kMarkingScheduleRatioBeforeConcurrentPriorityIncrease *
                  IncrementalMarkingSchedule::kEstimatedMarkingTimeMs) {
-    // TODO(chromium:1056170): Enable priority update after it is added to the
-    // platform.
-    // concurrent_marking_handle_.UpdatePriority(v8::TaskPriority::USER_BLOCKING);
+    concurrent_marking_handle_->UpdatePriority(
+        cppgc::TaskPriority::kUserBlocking);
     concurrent_marking_priority_increased_ = true;
   }
 }

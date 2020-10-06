@@ -209,6 +209,11 @@ void DefaultJobState::CallOnWorkerThread(TaskPriority priority,
   }
 }
 
+void DefaultJobState::UpdatePriority(TaskPriority priority) {
+  base::MutexGuard guard(&mutex_);
+  priority_ = priority;
+}
+
 DefaultJobHandle::DefaultJobHandle(std::shared_ptr<DefaultJobState> state)
     : state_(std::move(state)) {
   state_->NotifyConcurrencyIncrease();
@@ -231,6 +236,10 @@ void DefaultJobHandle::CancelAndDetach() {
 }
 
 bool DefaultJobHandle::IsCompleted() { return state_->IsCompleted(); }
+
+void DefaultJobHandle::UpdatePriority(TaskPriority priority) {
+  state_->UpdatePriority(priority);
+}
 
 }  // namespace platform
 }  // namespace v8

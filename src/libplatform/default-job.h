@@ -65,6 +65,8 @@ class V8_PLATFORM_EXPORT DefaultJobState
   // must contribute again, or false if it should return.
   bool DidRunTask();
 
+  void UpdatePriority(TaskPriority);
+
  private:
   // Called from the joining thread. Waits for the worker count to be below or
   // equal to max concurrency (will happen when a worker calls
@@ -113,6 +115,10 @@ class V8_PLATFORM_EXPORT DefaultJobHandle : public JobHandle {
   void CancelAndDetach() override;
   bool IsCompleted() override;
   bool IsRunning() override { return state_ != nullptr; }
+
+  bool UpdatePriorityEnabled() const override { return true; }
+
+  void UpdatePriority(TaskPriority) override;
 
  private:
   std::shared_ptr<DefaultJobState> state_;

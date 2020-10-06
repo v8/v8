@@ -234,6 +234,16 @@ class JobHandle {
    * Returns false after Join() or Cancel() was called.
    */
   virtual bool IsRunning() = 0;
+
+  /**
+   * Returns true if job priority can be changed.
+   */
+  virtual bool UpdatePriorityEnabled() const { return false; }
+
+  /**
+   *  Update this Job's priority.
+   */
+  virtual void UpdatePriority(TaskPriority new_priority) {}
 };
 
 /**

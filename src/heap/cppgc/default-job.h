@@ -179,6 +179,10 @@ class DefaultJobImpl<Thread>::JobHandle final : public cppgc::JobHandle {
   bool IsCompleted() override { return job_->IsCompleted(); }
   bool IsRunning() override { return job_->IsRunning(); }
 
+  // DefaultJobImpl doesn't support priorities.
+  bool UpdatePriorityEnabled() const override { return false; }
+  void UpdatePriority(TaskPriority) override { UNREACHABLE(); }
+
  private:
   std::shared_ptr<DefaultJobImpl> job_;
 };

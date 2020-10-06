@@ -504,6 +504,13 @@ class Sweeper::SweeperImpl final {
   void FinishIfRunning() {
     if (!is_in_progress_) return;
 
+    if (concurrent_sweeper_handle_ &&
+        concurrent_sweeper_handle_->UpdatePriorityEnabled()) {
+      DCHECK(concurrent_sweeper_handle_->IsRunning());
+      concurrent_sweeper_handle_->UpdatePriority(
+          cppgc::TaskPriority::kUserBlocking);
+    }
+
     Finish();
   }
 
