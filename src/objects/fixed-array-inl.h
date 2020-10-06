@@ -69,11 +69,11 @@ bool FixedArray::ContainsOnlySmisOrHoles() {
 }
 
 Object FixedArray::get(int index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return get(isolate, index);
 }
 
-Object FixedArray::get(const Isolate* isolate, int index) const {
+Object FixedArray::get(IsolateRoot isolate, int index) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   return TaggedField<Object>::Relaxed_Load(isolate, *this,
                                            OffsetOfElementAt(index));
@@ -123,11 +123,11 @@ void FixedArray::NoWriteBarrierSet(FixedArray array, int index, Object value) {
 }
 
 Object FixedArray::synchronized_get(int index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return synchronized_get(isolate, index);
 }
 
-Object FixedArray::synchronized_get(const Isolate* isolate, int index) const {
+Object FixedArray::synchronized_get(IsolateRoot isolate, int index) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   return ACQUIRE_READ_FIELD(*this, OffsetOfElementAt(index));
 }
@@ -406,11 +406,11 @@ void FixedDoubleArray::FillWithHoles(int from, int to) {
 }
 
 MaybeObject WeakFixedArray::Get(int index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return Get(isolate, index);
 }
 
-MaybeObject WeakFixedArray::Get(const Isolate* isolate, int index) const {
+MaybeObject WeakFixedArray::Get(IsolateRoot isolate, int index) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   return objects(isolate, index);
 }
@@ -441,11 +441,11 @@ void WeakFixedArray::CopyElements(Isolate* isolate, int dst_index,
 }
 
 MaybeObject WeakArrayList::Get(int index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return Get(isolate, index);
 }
 
-MaybeObject WeakArrayList::Get(const Isolate* isolate, int index) const {
+MaybeObject WeakArrayList::Get(IsolateRoot isolate, int index) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(capacity()));
   return objects(isolate, index);
 }
@@ -496,7 +496,7 @@ Object ArrayList::Get(int index) const {
   return FixedArray::cast(*this).get(kFirstIndex + index);
 }
 
-Object ArrayList::Get(const Isolate* isolate, int index) const {
+Object ArrayList::Get(IsolateRoot isolate, int index) const {
   return FixedArray::cast(*this).get(isolate, kFirstIndex + index);
 }
 
@@ -621,7 +621,7 @@ Object TemplateList::get(int index) const {
   return FixedArray::cast(*this).get(kFirstElementIndex + index);
 }
 
-Object TemplateList::get(const Isolate* isolate, int index) const {
+Object TemplateList::get(IsolateRoot isolate, int index) const {
   return FixedArray::cast(*this).get(isolate, kFirstElementIndex + index);
 }
 

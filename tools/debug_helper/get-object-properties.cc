@@ -330,7 +330,8 @@ class ReadStringVisitor : public TqObjectVisitor {
           GetOrFinish(object->GetResourceDataValue(accessor_));
 #ifdef V8_COMPRESS_POINTERS
       uintptr_t data_address = static_cast<uintptr_t>(DecodeExternalPointer(
-          Isolate::FromRoot(GetIsolateRoot(heap_addresses_.any_heap_pointer)),
+          Isolate::FromRootAddress(
+              GetIsolateRootAddress(heap_addresses_.any_heap_pointer)),
           resource_data));
 #else
       uintptr_t data_address = static_cast<uintptr_t>(resource_data);

@@ -2677,8 +2677,7 @@ static inline SlotCallbackResult UpdateSlot(TSlot slot,
 }
 
 template <AccessMode access_mode, typename TSlot>
-static inline SlotCallbackResult UpdateSlot(const Isolate* isolate,
-                                            TSlot slot) {
+static inline SlotCallbackResult UpdateSlot(IsolateRoot isolate, TSlot slot) {
   typename TSlot::TObject obj = slot.Relaxed_Load(isolate);
   HeapObject heap_obj;
   if (TSlot::kCanBeWeak && obj->GetHeapObjectIfWeak(&heap_obj)) {
@@ -2691,7 +2690,7 @@ static inline SlotCallbackResult UpdateSlot(const Isolate* isolate,
 }
 
 template <AccessMode access_mode, typename TSlot>
-static inline SlotCallbackResult UpdateStrongSlot(const Isolate* isolate,
+static inline SlotCallbackResult UpdateStrongSlot(IsolateRoot isolate,
                                                   TSlot slot) {
   typename TSlot::TObject obj = slot.Relaxed_Load(isolate);
   DCHECK(!HAS_WEAK_HEAP_OBJECT_TAG(obj.ptr()));
@@ -2709,8 +2708,7 @@ static inline SlotCallbackResult UpdateStrongSlot(const Isolate* isolate,
 // It does not expect to encounter pointers to dead objects.
 class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
  public:
-  explicit PointersUpdatingVisitor(const Isolate* isolate)
-      : isolate_(isolate) {}
+  explicit PointersUpdatingVisitor(IsolateRoot isolate) : isolate_(isolate) {}
 
   void VisitPointer(HeapObject host, ObjectSlot p) override {
     UpdateStrongSlotInternal(isolate_, p);
@@ -2765,32 +2763,32 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
   }
 
  private:
-  static inline SlotCallbackResult UpdateRootSlotInternal(
-      const Isolate* isolate, FullObjectSlot slot) {
+  static inline SlotCallbackResult UpdateRootSlotInternal(IsolateRoot isolate,
+                                                          FullObjectSlot slot) {
     return UpdateStrongSlot<AccessMode::NON_ATOMIC>(isolate, slot);
   }
 
   static inline SlotCallbackResult UpdateRootSlotInternal(
-      const Isolate* isolate, OffHeapObjectSlot slot) {
+      IsolateRoot isolate, OffHeapObjectSlot slot) {
     return UpdateStrongSlot<AccessMode::NON_ATOMIC>(isolate, slot);
   }
 
   static inline SlotCallbackResult UpdateStrongMaybeObjectSlotInternal(
-      const Isolate* isolate, MaybeObjectSlot slot) {
+      IsolateRoot isolate, MaybeObjectSlot slot) {
     return UpdateStrongSlot<AccessMode::NON_ATOMIC>(isolate, slot);
   }
 
-  static inline SlotCallbackResult UpdateStrongSlotInternal(
-      const Isolate* isolate, ObjectSlot slot) {
+  static inline SlotCallbackResult UpdateStrongSlotInternal(IsolateRoot isolate,
+                                                            ObjectSlot slot) {
     return UpdateStrongSlot<AccessMode::NON_ATOMIC>(isolate, slot);
   }
 
-  static inline SlotCallbackResult UpdateSlotInternal(const Isolate* isolate,
+  static inline SlotCallbackResult UpdateSlotInternal(IsolateRoot isolate,
                                                       MaybeObjectSlot slot) {
     return UpdateSlot<AccessMode::NON_ATOMIC>(isolate, slot);
   }
 
-  const Isolate* isolate_;
+  IsolateRoot isolate_;
 };
 
 static String UpdateReferenceInExternalStringTableEntry(Heap* heap,
@@ -3723,7 +3721,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     if ((updating_mode_ == RememberedSetUpdatingMode::ALL) &&
         (chunk_->slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>() != nullptr)) {
       InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToOld(chunk_);
-      const Isolate* isolate = heap_->isolate();
+      IsolateRoot isolate = heap_->isolate();
       RememberedSet<OLD_TO_OLD>::Iterate(
           chunk_,
           [&filter, isolate](MaybeObjectSlot slot) {
@@ -3763,7 +3761,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
                                                           Address slot) {
         // Using UpdateStrongSlot is OK here, because there are no weak
         // typed slots.
-        const Isolate* isolate = heap_->isolate();
+        IsolateRoot isolate = heap_->isolate();
         return UpdateTypedSlotHelper::UpdateTypedSlot(
             heap_, slot_type, slot, [isolate](FullMaybeObjectSlot slot) {
               return UpdateStrongSlot<AccessMode::NON_ATOMIC>(isolate, slot);

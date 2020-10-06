@@ -5146,7 +5146,7 @@ bool JSArray::WouldChangeReadOnlyLength(Handle<JSArray> array, uint32_t index) {
 template <typename Derived, typename Shape>
 void Dictionary<Derived, Shape>::Print(std::ostream& os) {
   DisallowHeapAllocation no_gc;
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   ReadOnlyRoots roots = this->GetReadOnlyRoots(isolate);
   Derived dictionary = Derived::cast(*this);
   for (InternalIndex i : dictionary.IterateEntries()) {
@@ -5652,8 +5652,7 @@ Handle<Derived> HashTable<Derived, Shape>::NewInternal(
 }
 
 template <typename Derived, typename Shape>
-void HashTable<Derived, Shape>::Rehash(const Isolate* isolate,
-                                       Derived new_table) {
+void HashTable<Derived, Shape>::Rehash(IsolateRoot isolate, Derived new_table) {
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = new_table.GetWriteBarrierMode(no_gc);
 
@@ -5717,7 +5716,7 @@ void HashTable<Derived, Shape>::Swap(InternalIndex entry1, InternalIndex entry2,
 }
 
 template <typename Derived, typename Shape>
-void HashTable<Derived, Shape>::Rehash(const Isolate* isolate) {
+void HashTable<Derived, Shape>::Rehash(IsolateRoot isolate) {
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = GetWriteBarrierMode(no_gc);
   ReadOnlyRoots roots = GetReadOnlyRoots(isolate);
@@ -5784,7 +5783,7 @@ Handle<Derived> HashTable<Derived, Shape>::EnsureCapacity(
       isolate, new_nof,
       should_pretenure ? AllocationType::kOld : AllocationType::kYoung);
 
-  table->Rehash(GetIsolateForPtrCompr(isolate), *new_table);
+  table->Rehash(isolate, *new_table);
   return new_table;
 }
 
@@ -5850,8 +5849,9 @@ Handle<Derived> HashTable<Derived, Shape>::Shrink(Isolate* isolate,
 }
 
 template <typename Derived, typename Shape>
-InternalIndex HashTable<Derived, Shape>::FindInsertionEntry(
-    const Isolate* isolate, ReadOnlyRoots roots, uint32_t hash) {
+InternalIndex HashTable<Derived, Shape>::FindInsertionEntry(IsolateRoot isolate,
+                                                            ReadOnlyRoots roots,
+                                                            uint32_t hash) {
   uint32_t capacity = Capacity();
   uint32_t count = 1;
   // EnsureCapacity will guarantee the hash table is never full.
@@ -6342,8 +6342,7 @@ Handle<Derived> Dictionary<Derived, Shape>::Add(LocalIsolate* isolate,
   // Compute the key object.
   Handle<Object> k = Shape::AsHandle(isolate, key);
 
-  InternalIndex entry = dictionary->FindInsertionEntry(
-      GetIsolateForPtrCompr(isolate), roots, hash);
+  InternalIndex entry = dictionary->FindInsertionEntry(isolate, roots, hash);
   dictionary->SetEntry(entry, *k, *value, details);
   DCHECK(dictionary->KeyAt(isolate, entry).IsNumber() ||
          Shape::Unwrap(dictionary->KeyAt(isolate, entry)).IsUniqueName());
@@ -6611,7 +6610,7 @@ void ObjectHashTableBase<Derived, Shape>::FillEntriesWithHoles(
 }
 
 template <typename Derived, typename Shape>
-Object ObjectHashTableBase<Derived, Shape>::Lookup(const Isolate* isolate,
+Object ObjectHashTableBase<Derived, Shape>::Lookup(IsolateRoot isolate,
                                                    Handle<Object> key,
                                                    int32_t hash) {
   DisallowHeapAllocation no_gc;
@@ -6627,7 +6626,7 @@ template <typename Derived, typename Shape>
 Object ObjectHashTableBase<Derived, Shape>::Lookup(Handle<Object> key) {
   DisallowHeapAllocation no_gc;
 
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   ReadOnlyRoots roots = this->GetReadOnlyRoots(isolate);
   DCHECK(this->IsKey(roots, *key));
 

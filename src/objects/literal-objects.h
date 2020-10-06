@@ -26,10 +26,10 @@ class ClassLiteral;
 class ObjectBoilerplateDescription : public FixedArray {
  public:
   inline Object name(int index) const;
-  inline Object name(const Isolate* isolate, int index) const;
+  inline Object name(IsolateRoot isolate, int index) const;
 
   inline Object value(int index) const;
-  inline Object value(const Isolate* isolate, int index) const;
+  inline Object value(IsolateRoot isolate, int index) const;
 
   inline void set_key_value(int index, Object key, Object value);
 

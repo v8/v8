@@ -204,9 +204,9 @@ void JSTypedArray::set_external_pointer(Isolate* isolate, Address value) {
 }
 
 Address JSTypedArray::ExternalPointerCompensationForOnHeapArray(
-    const Isolate* isolate) {
+    IsolateRoot isolate) {
 #ifdef V8_COMPRESS_POINTERS
-  return GetIsolateRoot(isolate);
+  return isolate.address();
 #else
   return 0;
 #endif

@@ -81,7 +81,7 @@ void EmbedderDataSlot::store_tagged(JSObject object, int embedder_field_index,
 #endif
 }
 
-bool EmbedderDataSlot::ToAlignedPointer(const Isolate* isolate,
+bool EmbedderDataSlot::ToAlignedPointer(IsolateRoot isolate,
                                         void** out_pointer) const {
   // We don't care about atomicity of access here because embedder slots
   // are accessed this way only from the main thread via API during "mutator"
@@ -106,7 +106,7 @@ bool EmbedderDataSlot::ToAlignedPointer(const Isolate* isolate,
   return HAS_SMI_TAG(raw_value);
 }
 
-bool EmbedderDataSlot::ToAlignedPointerSafe(const Isolate* isolate,
+bool EmbedderDataSlot::ToAlignedPointerSafe(IsolateRoot isolate,
                                             void** out_pointer) const {
 #ifdef V8_HEAP_SANDBOX
   uint32_t index = base::Memory<uint32_t>(address() + kRawPayloadOffset);

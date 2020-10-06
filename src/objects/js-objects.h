@@ -621,16 +621,14 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                                   const char* reason);
 
   inline bool IsUnboxedDoubleField(FieldIndex index) const;
-  inline bool IsUnboxedDoubleField(const Isolate* isolate,
-                                   FieldIndex index) const;
+  inline bool IsUnboxedDoubleField(IsolateRoot isolate, FieldIndex index) const;
 
   // Access fast-case object properties at index.
   static Handle<Object> FastPropertyAt(Handle<JSObject> object,
                                        Representation representation,
                                        FieldIndex index);
   inline Object RawFastPropertyAt(FieldIndex index) const;
-  inline Object RawFastPropertyAt(const Isolate* isolate,
-                                  FieldIndex index) const;
+  inline Object RawFastPropertyAt(IsolateRoot isolate, FieldIndex index) const;
   inline double RawFastDoublePropertyAt(FieldIndex index) const;
   inline uint64_t RawFastDoublePropertyAsBitsAt(FieldIndex index) const;
 
@@ -725,7 +723,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // If a GC was caused while constructing this object, the elements pointer
   // may point to a one pointer filler map. The object won't be rooted, but
   // our heap verification code could stumble across it.
-  V8_EXPORT_PRIVATE bool ElementsAreSafeToExamine(const Isolate* isolate) const;
+  V8_EXPORT_PRIVATE bool ElementsAreSafeToExamine(IsolateRoot isolate) const;
 #endif
 
   Object SlowReverseLookup(Object value);

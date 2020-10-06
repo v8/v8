@@ -50,7 +50,7 @@ class HeapObjectReference : public MaybeObject {
   V8_INLINE static HeapObjectReference From(Object object,
                                             HeapObjectReferenceType type);
 
-  V8_INLINE static HeapObjectReference ClearedValue(const Isolate* isolate);
+  V8_INLINE static HeapObjectReference ClearedValue(IsolateRoot isolate);
 
   template <typename THeapObjectSlot>
   V8_INLINE static void Update(THeapObjectSlot slot, HeapObject value);

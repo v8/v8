@@ -143,8 +143,7 @@ MaybeObject FeedbackVector::Get(FeedbackSlot slot) const {
   return raw_feedback_slots(GetIndex(slot));
 }
 
-MaybeObject FeedbackVector::Get(const Isolate* isolate,
-                                FeedbackSlot slot) const {
+MaybeObject FeedbackVector::Get(IsolateRoot isolate, FeedbackSlot slot) const {
   return raw_feedback_slots(isolate, GetIndex(slot));
 }
 

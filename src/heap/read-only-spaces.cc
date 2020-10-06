@@ -28,7 +28,7 @@ namespace v8 {
 namespace internal {
 
 void CopyAndRebaseRoots(Address* src, Address* dst, Address new_base) {
-  Address src_base = GetIsolateRoot(src[0]);
+  Address src_base = GetIsolateRootAddress(src[0]);
   for (size_t i = 0; i < ReadOnlyHeap::kEntriesCount; ++i) {
     dst[i] = src[i] - src_base + new_base;
   }
@@ -113,7 +113,7 @@ void PointerCompressedReadOnlyArtifacts::InitializeRootsIn(Isolate* isolate) {
   auto isolate_ro_roots =
       isolate->roots_table().read_only_roots_begin().location();
   CopyAndRebaseRoots(read_only_roots_, isolate_ro_roots,
-                     GetIsolateRoot(isolate));
+                     isolate->isolate_root());
 }
 
 SharedReadOnlySpace* PointerCompressedReadOnlyArtifacts::CreateReadOnlySpace(
@@ -123,7 +123,7 @@ SharedReadOnlySpace* PointerCompressedReadOnlyArtifacts::CreateReadOnlySpace(
 
   std::vector<std::unique_ptr<v8::PageAllocator::SharedMemoryMapping>> mappings;
   std::vector<ReadOnlyPage*> pages;
-  Address isolate_root = GetIsolateRoot(isolate);
+  Address isolate_root = isolate->isolate_root();
   for (size_t i = 0; i < pages_.size(); ++i) {
     const ReadOnlyPage* page = pages_[i];
     const Tagged_t offset = OffsetForPage(i);
@@ -167,7 +167,7 @@ ReadOnlyHeap* PointerCompressedReadOnlyArtifacts::GetReadOnlyHeapForIsolate(
   // ReadOnlyArtifacts and be decompressed on the fly.
   auto original_cache = read_only_heap_->read_only_object_cache_;
   auto& cache = read_only_heap->read_only_object_cache_;
-  Address isolate_root = GetIsolateRoot(isolate);
+  Address isolate_root = isolate->isolate_root();
   for (Object original_object : original_cache) {
     Address original_address = original_object.ptr();
     Address new_address = isolate_root + CompressTagged(original_address);

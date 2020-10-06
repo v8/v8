@@ -306,7 +306,7 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
 
 USE_TORQUE_VERIFIER(JSReceiver)
 
-bool JSObject::ElementsAreSafeToExamine(const Isolate* isolate) const {
+bool JSObject::ElementsAreSafeToExamine(IsolateRoot isolate) const {
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
   return elements(isolate) !=

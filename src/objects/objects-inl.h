@@ -79,7 +79,7 @@ bool Object::IsTaggedIndex() const {
   bool Object::Is##type_() const {                                       \
     return IsHeapObject() && HeapObject::cast(*this).Is##type_();        \
   }                                                                      \
-  bool Object::Is##type_(const Isolate* isolate) const {                 \
+  bool Object::Is##type_(IsolateRoot isolate) const {                    \
     return IsHeapObject() && HeapObject::cast(*this).Is##type_(isolate); \
   }
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
@@ -233,23 +233,23 @@ DEF_GETTER(HeapObject, IsExternalTwoByteString, bool) {
 bool Object::IsNumber() const {
   if (IsSmi()) return true;
   HeapObject this_heap_object = HeapObject::cast(*this);
-  const Isolate* isolate = GetIsolateForPtrCompr(this_heap_object);
+  IsolateRoot isolate = GetIsolateForPtrCompr(this_heap_object);
   return this_heap_object.IsHeapNumber(isolate);
 }
 
-bool Object::IsNumber(const Isolate* isolate) const {
+bool Object::IsNumber(IsolateRoot isolate) const {
   return IsSmi() || IsHeapNumber(isolate);
 }
 
 bool Object::IsNumeric() const {
   if (IsSmi()) return true;
   HeapObject this_heap_object = HeapObject::cast(*this);
-  const Isolate* isolate = GetIsolateForPtrCompr(this_heap_object);
+  IsolateRoot isolate = GetIsolateForPtrCompr(this_heap_object);
   return this_heap_object.IsHeapNumber(isolate) ||
          this_heap_object.IsBigInt(isolate);
 }
 
-bool Object::IsNumeric(const Isolate* isolate) const {
+bool Object::IsNumeric(IsolateRoot isolate) const {
   return IsNumber(isolate) || IsBigInt(isolate);
 }
 
@@ -277,11 +277,11 @@ DEF_GETTER(HeapObject, IsRegExpMatchInfo, bool) {
 bool Object::IsLayoutDescriptor() const {
   if (IsSmi()) return true;
   HeapObject this_heap_object = HeapObject::cast(*this);
-  const Isolate* isolate = GetIsolateForPtrCompr(this_heap_object);
+  IsolateRoot isolate = GetIsolateForPtrCompr(this_heap_object);
   return this_heap_object.IsByteArray(isolate);
 }
 
-bool Object::IsLayoutDescriptor(const Isolate* isolate) const {
+bool Object::IsLayoutDescriptor(IsolateRoot isolate) const {
   return IsSmi() || IsByteArray(isolate);
 }
 
@@ -386,11 +386,11 @@ DEF_GETTER(HeapObject, IsWasmExceptionPackage, bool) {
 bool Object::IsPrimitive() const {
   if (IsSmi()) return true;
   HeapObject this_heap_object = HeapObject::cast(*this);
-  const Isolate* isolate = GetIsolateForPtrCompr(this_heap_object);
+  IsolateRoot isolate = GetIsolateForPtrCompr(this_heap_object);
   return this_heap_object.map(isolate).IsPrimitiveMap();
 }
 
-bool Object::IsPrimitive(const Isolate* isolate) const {
+bool Object::IsPrimitive(IsolateRoot isolate) const {
   return IsSmi() || HeapObject::cast(*this).map(isolate).IsPrimitiveMap();
 }
 
@@ -420,7 +420,7 @@ DEF_GETTER(HeapObject, IsAccessCheckNeeded, bool) {
   bool Object::Is##Name() const {                                       \
     return IsHeapObject() && HeapObject::cast(*this).Is##Name();        \
   }                                                                     \
-  bool Object::Is##Name(const Isolate* isolate) const {                 \
+  bool Object::Is##Name(IsolateRoot isolate) const {                    \
     return IsHeapObject() && HeapObject::cast(*this).Is##Name(isolate); \
   }
 STRUCT_LIST(MAKE_STRUCT_PREDICATE)
@@ -486,7 +486,7 @@ bool Object::FilterKey(PropertyFilter filter) {
   return false;
 }
 
-Representation Object::OptimalRepresentation(const Isolate* isolate) const {
+Representation Object::OptimalRepresentation(IsolateRoot isolate) const {
   if (!FLAG_track_fields) return Representation::Tagged();
   if (IsSmi()) {
     return Representation::Smi();
@@ -505,7 +505,7 @@ Representation Object::OptimalRepresentation(const Isolate* isolate) const {
   }
 }
 
-ElementsKind Object::OptimalElementsKind(const Isolate* isolate) const {
+ElementsKind Object::OptimalElementsKind(IsolateRoot isolate) const {
   if (IsSmi()) return PACKED_SMI_ELEMENTS;
   if (IsNumber(isolate)) return PACKED_DOUBLE_ELEMENTS;
   return PACKED_ELEMENTS;
@@ -651,7 +651,7 @@ void Object::InitExternalPointerField(size_t offset, Isolate* isolate,
 }
 
 Address Object::ReadExternalPointerField(size_t offset,
-                                         const Isolate* isolate) const {
+                                         IsolateRoot isolate) const {
   return i::ReadExternalPointerField(field_address(offset), isolate);
 }
 
@@ -706,10 +706,10 @@ ReadOnlyRoots HeapObject::GetReadOnlyRoots() const {
   return ReadOnlyHeap::GetReadOnlyRoots(*this);
 }
 
-ReadOnlyRoots HeapObject::GetReadOnlyRoots(const Isolate* isolate) const {
+ReadOnlyRoots HeapObject::GetReadOnlyRoots(IsolateRoot isolate) const {
 #ifdef V8_COMPRESS_POINTERS
-  DCHECK_NOT_NULL(isolate);
-  return ReadOnlyRoots(const_cast<Isolate*>(isolate));
+  DCHECK_NE(isolate.address(), 0);
+  return ReadOnlyRoots(Isolate::FromRootAddress(isolate.address()));
 #else
   return GetReadOnlyRoots();
 #endif

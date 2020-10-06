@@ -1423,7 +1423,7 @@ class DictionaryElementsAccessor
     DisallowHeapAllocation no_gc;
     NumberDictionary dict = NumberDictionary::cast(backing_store);
     if (!dict.requires_slow_elements()) return false;
-    const Isolate* isolate = GetIsolateForPtrCompr(holder);
+    IsolateRoot isolate = GetIsolateForPtrCompr(holder);
     ReadOnlyRoots roots = holder.GetReadOnlyRoots(isolate);
     for (InternalIndex i : dict.IterateEntries()) {
       Object key = dict.KeyAt(isolate, i);

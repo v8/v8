@@ -61,7 +61,7 @@ T TaggedField<T, kFieldOffset>::load(HeapObject host, int offset) {
 
 // static
 template <typename T, int kFieldOffset>
-T TaggedField<T, kFieldOffset>::load(const Isolate* isolate, HeapObject host,
+T TaggedField<T, kFieldOffset>::load(IsolateRoot isolate, HeapObject host,
                                      int offset) {
   Tagged_t value = *location(host, offset);
   return T(tagged_to_full(isolate, value));
@@ -96,8 +96,7 @@ T TaggedField<T, kFieldOffset>::Relaxed_Load(HeapObject host, int offset) {
 
 // static
 template <typename T, int kFieldOffset>
-template <typename LocalIsolate>
-T TaggedField<T, kFieldOffset>::Relaxed_Load(const LocalIsolate* isolate,
+T TaggedField<T, kFieldOffset>::Relaxed_Load(IsolateRoot isolate,
                                              HeapObject host, int offset) {
   AtomicTagged_t value = AsAtomicTagged::Relaxed_Load(location(host, offset));
   return T(tagged_to_full(isolate, value));
@@ -126,8 +125,7 @@ T TaggedField<T, kFieldOffset>::Acquire_Load(HeapObject host, int offset) {
 
 // static
 template <typename T, int kFieldOffset>
-template <typename LocalIsolate>
-T TaggedField<T, kFieldOffset>::Acquire_Load(const LocalIsolate* isolate,
+T TaggedField<T, kFieldOffset>::Acquire_Load(IsolateRoot isolate,
                                              HeapObject host, int offset) {
   AtomicTagged_t value = AsAtomicTagged::Acquire_Load(location(host, offset));
   return T(tagged_to_full(isolate, value));

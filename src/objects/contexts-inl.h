@@ -56,11 +56,11 @@ SMI_ACCESSORS(Context, length, kLengthOffset)
 CAST_ACCESSOR(NativeContext)
 
 Object Context::get(int index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return get(isolate, index);
 }
 
-Object Context::get(const Isolate* isolate, int index) const {
+Object Context::get(IsolateRoot isolate, int index) const {
   DCHECK_LT(static_cast<unsigned>(index),
             static_cast<unsigned>(this->length()));
   return TaggedField<Object>::Relaxed_Load(isolate, *this,
@@ -88,11 +88,11 @@ void Context::set_scope_info(ScopeInfo scope_info) {
 }
 
 Object Context::synchronized_get(int index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return synchronized_get(isolate, index);
 }
 
-Object Context::synchronized_get(const Isolate* isolate, int index) const {
+Object Context::synchronized_get(IsolateRoot isolate, int index) const {
   DCHECK_LT(static_cast<unsigned int>(index),
             static_cast<unsigned int>(this->length()));
   return ACQUIRE_READ_FIELD(*this, OffsetOfElementAt(index));

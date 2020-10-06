@@ -438,13 +438,13 @@ class Context : public HeapObject {
 
   // Setter and getter for elements.
   V8_INLINE Object get(int index) const;
-  V8_INLINE Object get(const Isolate* isolate, int index) const;
+  V8_INLINE Object get(IsolateRoot isolate, int index) const;
   V8_INLINE void set(int index, Object value);
   // Setter with explicit barrier mode.
   V8_INLINE void set(int index, Object value, WriteBarrierMode mode);
   // Setter and getter with synchronization semantics.
   V8_INLINE Object synchronized_get(int index) const;
-  V8_INLINE Object synchronized_get(const Isolate* isolate, int index) const;
+  V8_INLINE Object synchronized_get(IsolateRoot isolate, int index) const;
   V8_INLINE void synchronized_set(int index, Object value);
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,

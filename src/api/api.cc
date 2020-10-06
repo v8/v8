@@ -3663,7 +3663,7 @@ MaybeLocal<Uint32> Value::ToUint32(Local<Context> context) const {
   RETURN_ESCAPED(result);
 }
 
-i::Address i::DecodeExternalPointerImpl(const Isolate* isolate,
+i::Address i::DecodeExternalPointerImpl(const i::Isolate* isolate,
                                         i::ExternalPointer_t encoded_pointer) {
   return i::DecodeExternalPointer(isolate, encoded_pointer);
 }

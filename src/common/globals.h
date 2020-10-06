@@ -1685,6 +1685,31 @@ enum class DynamicMapChecksStatus : uint8_t {
   kDeopt = 2
 };
 
+#ifdef V8_COMPRESS_POINTERS
+class IsolateRoot {
+ public:
+  explicit constexpr IsolateRoot(Address address) : address_(address) {}
+  // NOLINTNEXTLINE
+  inline IsolateRoot(const Isolate* isolate);
+  // NOLINTNEXTLINE
+  inline IsolateRoot(const LocalIsolate* isolate);
+
+  inline Address address() const;
+
+ private:
+  Address address_;
+};
+#else
+class IsolateRoot {
+ public:
+  IsolateRoot() = default;
+  // NOLINTNEXTLINE
+  IsolateRoot(const Isolate* isolate) {}
+  // NOLINTNEXTLINE
+  IsolateRoot(const LocalIsolate* isolate) {}
+};
+#endif
+
 }  // namespace internal
 
 // Tag dispatching support for acquire loads and release stores.

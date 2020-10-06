@@ -468,7 +468,7 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
   }
 }
 
-void PrintEmbedderData(const Isolate* isolate, std::ostream& os,
+void PrintEmbedderData(IsolateRoot isolate, std::ostream& os,
                        EmbedderDataSlot slot) {
   DisallowHeapAllocation no_gc;
   Object value = slot.load_tagged();
@@ -578,7 +578,7 @@ static void JSObjectPrintBody(std::ostream& os,
   }
   int embedder_fields = obj.GetEmbedderFieldCount();
   if (embedder_fields > 0) {
-    const Isolate* isolate = GetIsolateForPtrCompr(obj);
+    IsolateRoot isolate = GetIsolateForPtrCompr(obj);
     os << " - embedder fields = {";
     for (int i = 0; i < embedder_fields; i++) {
       os << "\n    ";
@@ -772,7 +772,7 @@ void PrintWeakArrayElements(std::ostream& os, T* array) {
 }  // namespace
 
 void EmbedderDataArray::EmbedderDataArrayPrint(std::ostream& os) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   PrintHeader(os, "EmbedderDataArray");
   os << "\n - length: " << length();
   EmbedderDataSlot start(*this, 0);

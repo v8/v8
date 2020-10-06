@@ -1479,7 +1479,7 @@ class RootsReferencesExtractor : public RootVisitor {
                          OffHeapObjectSlot start,
                          OffHeapObjectSlot end) override {
     DCHECK_EQ(root, Root::kStringTable);
-    const Isolate* isolate = Isolate::FromHeap(explorer_->heap_);
+    IsolateRoot isolate = Isolate::FromHeap(explorer_->heap_);
     for (OffHeapObjectSlot p = start; p < end; ++p) {
       explorer_->SetGcSubrootReference(root, description, visiting_weak_roots_,
                                        p.load(isolate));

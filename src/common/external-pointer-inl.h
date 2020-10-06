@@ -12,7 +12,7 @@
 namespace v8 {
 namespace internal {
 
-V8_INLINE Address DecodeExternalPointer(const Isolate* isolate,
+V8_INLINE Address DecodeExternalPointer(IsolateRoot isolate,
                                         ExternalPointer_t encoded_pointer) {
   STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
 #ifdef V8_HEAP_SANDBOX
@@ -59,7 +59,7 @@ V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
 }
 
 V8_INLINE Address ReadExternalPointerField(Address field_address,
-                                           const Isolate* isolate) {
+                                           IsolateRoot isolate) {
   // Pointer compression causes types larger than kTaggedSize to be unaligned.
   constexpr bool v8_pointer_compression_unaligned =
       kExternalPointerSize > kTaggedSize;

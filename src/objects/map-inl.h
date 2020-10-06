@@ -154,11 +154,11 @@ bool Map::EquivalentToForNormalization(const Map other,
 }
 
 bool Map::IsUnboxedDoubleField(FieldIndex index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return IsUnboxedDoubleField(isolate, index);
 }
 
-bool Map::IsUnboxedDoubleField(const Isolate* isolate, FieldIndex index) const {
+bool Map::IsUnboxedDoubleField(IsolateRoot isolate, FieldIndex index) const {
   if (!FLAG_unbox_double_fields) return false;
   if (!index.is_inobject()) return false;
   return !layout_descriptor(isolate, kAcquireLoad)

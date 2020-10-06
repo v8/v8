@@ -218,7 +218,7 @@ class FeedbackVector
   // Conversion from an integer index to the underlying array to a slot.
   static inline FeedbackSlot ToSlot(intptr_t index);
   inline MaybeObject Get(FeedbackSlot slot) const;
-  inline MaybeObject Get(const Isolate* isolate, FeedbackSlot slot) const;
+  inline MaybeObject Get(IsolateRoot isolate, FeedbackSlot slot) const;
   inline void Set(FeedbackSlot slot, MaybeObject value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void Set(FeedbackSlot slot, Object value,

@@ -82,14 +82,14 @@
 // parameter.
 #define DECL_GETTER(name, type) \
   inline type name() const;     \
-  inline type name(const Isolate* isolate) const;
+  inline type name(IsolateRoot isolate) const;
 
-#define DEF_GETTER(holder, name, type)                     \
-  type holder::name() const {                              \
-    const Isolate* isolate = GetIsolateForPtrCompr(*this); \
-    return holder::name(isolate);                          \
-  }                                                        \
-  type holder::name(const Isolate* isolate) const
+#define DEF_GETTER(holder, name, type)                  \
+  type holder::name() const {                           \
+    IsolateRoot isolate = GetIsolateForPtrCompr(*this); \
+    return holder::name(isolate);                       \
+  }                                                     \
+  type holder::name(IsolateRoot isolate) const
 
 #define DECL_ACCESSORS(name, type)   \
   DECL_GETTER(name, type)            \
@@ -98,7 +98,7 @@
 
 #define DECL_ACCESSORS_LOAD_TAG(name, type, tag_type) \
   inline type name(tag_type tag) const;               \
-  inline type name(const Isolate* isolate, tag_type) const;
+  inline type name(IsolateRoot isolate, tag_type) const;
 
 #define DECL_ACCESSORS_STORE_TAG(name, type, tag_type) \
   inline void set_##name(type value, tag_type,         \
@@ -175,10 +175,10 @@
 #define RELAXED_ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \
                                    set_condition)                             \
   type holder::name(RelaxedLoadTag tag) const {                               \
-    const Isolate* isolate = GetIsolateForPtrCompr(*this);                    \
+    IsolateRoot isolate = GetIsolateForPtrCompr(*this);                       \
     return holder::name(isolate, tag);                                        \
   }                                                                           \
-  type holder::name(const Isolate* isolate, RelaxedLoadTag) const {           \
+  type holder::name(IsolateRoot isolate, RelaxedLoadTag) const {              \
     type value = TaggedField<type, offset>::load(isolate, *this);             \
     DCHECK(get_condition);                                                    \
     return value;                                                             \
@@ -199,10 +199,10 @@
 #define RELEASE_ACQUIRE_ACCESSORS_CHECKED2(holder, name, type, offset,    \
                                            get_condition, set_condition)  \
   type holder::name(AcquireLoadTag tag) const {                           \
-    const Isolate* isolate = GetIsolateForPtrCompr(*this);                \
+    IsolateRoot isolate = GetIsolateForPtrCompr(*this);                   \
     return holder::name(isolate, tag);                                    \
   }                                                                       \
-  type holder::name(const Isolate* isolate, AcquireLoadTag) const {       \
+  type holder::name(IsolateRoot isolate, AcquireLoadTag) const {          \
     type value = TaggedField<type, offset>::Acquire_Load(isolate, *this); \
     DCHECK(get_condition);                                                \
     return value;                                                         \

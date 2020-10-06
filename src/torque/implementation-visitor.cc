@@ -4036,7 +4036,7 @@ void CppClassGenerator::GenerateFieldAccessorForTagged(const Field& f) {
 
   hdr_ << "  inline " << type << " " << name << "(" << (f.index ? "int i" : "")
        << ") const;\n";
-  hdr_ << "  inline " << type << " " << name << "(const Isolate* isolates"
+  hdr_ << "  inline " << type << " " << name << "(IsolateRoot isolates"
        << (f.index ? ", int i" : "") << ") const;\n";
   hdr_ << "  inline void set_" << name << "(" << (f.index ? "int i, " : "")
        << type << " value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);\n\n";
@@ -4047,15 +4047,14 @@ void CppClassGenerator::GenerateFieldAccessorForTagged(const Field& f) {
   inl_ << "template <class D, class P>\n";
   inl_ << type << " " << gen_name_ << "<D, P>::" << name << "("
        << (f.index ? "int i" : "") << ") const {\n";
-  inl_ << "  const Isolate* isolate = GetIsolateForPtrCompr(*this);\n";
+  inl_ << "  IsolateRoot isolate = GetIsolateForPtrCompr(*this);\n";
   inl_ << "  return " << gen_name_ << "::" << name << "(isolate"
        << (f.index ? ", i" : "") << ");\n";
   inl_ << "}\n";
 
   inl_ << "template <class D, class P>\n";
   inl_ << type << " " << gen_name_ << "<D, P>::" << name
-       << "(const Isolate* isolate" << (f.index ? ", int i" : "")
-       << ") const {\n";
+       << "(IsolateRoot isolate" << (f.index ? ", int i" : "") << ") const {\n";
 
   // TODO(tebbi): The distinction between relaxed and non-relaxed accesses here
   // is pretty arbitrary and just tries to preserve what was there before.
