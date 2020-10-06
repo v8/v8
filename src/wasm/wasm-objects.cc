@@ -1886,11 +1886,11 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   function_data->set_instance(*instance);
   function_data->set_jump_table_offset(jump_table_offset);
   function_data->set_function_index(func_index);
+  function_data->set_signature(*sig_foreign);
   function_data->set_call_count(0);
   function_data->set_c_wrapper_code(Smi::zero(), SKIP_WRITE_BARRIER);
   function_data->set_wasm_call_target(Smi::zero(), SKIP_WRITE_BARRIER);
   function_data->set_packed_args_size(0);
-  function_data->set_signature(*sig_foreign);
 
   MaybeHandle<String> maybe_name;
   bool is_asm_js_module = instance->module_object().is_asm_js();
