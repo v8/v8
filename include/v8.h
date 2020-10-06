@@ -3116,7 +3116,7 @@ class V8_EXPORT String : public Name {
    * Returns true if the string is external two-byte.
    *
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use String::IsExternalTwoByte() or String::IsExternalOneByte()")
   bool IsExternal() const;
 
