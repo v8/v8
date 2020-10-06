@@ -123,20 +123,21 @@ void Module::ResetGraph(Isolate* isolate, Handle<Module> module) {
 void Module::Reset(Isolate* isolate, Handle<Module> module) {
   DCHECK(module->status() == kPreInstantiating ||
          module->status() == kInstantiating);
+  DCHECK(module->exception().IsTheHole(isolate));
   // The namespace object cannot exist, because it would have been created
   // by RunInitializationCode, which is called only after this module's SCC
   // succeeds instantiation.
   DCHECK(!module->module_namespace().IsJSModuleNamespace());
-
-  if (module->IsSourceTextModule()) {
-    SourceTextModule::Reset(isolate, Handle<SourceTextModule>::cast(module));
-  }
-
   const int export_count =
       module->IsSourceTextModule()
           ? SourceTextModule::cast(*module).regular_exports().length()
           : SyntheticModule::cast(*module).export_names().length();
   Handle<ObjectHashTable> exports = ObjectHashTable::New(isolate, export_count);
+
+  if (module->IsSourceTextModule()) {
+    SourceTextModule::Reset(isolate, Handle<SourceTextModule>::cast(module));
+  }
+
   module->set_exports(*exports);
   SetStatusInternal(*module, kUninstantiated);
 }
