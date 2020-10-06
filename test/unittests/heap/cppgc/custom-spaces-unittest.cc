@@ -37,8 +37,9 @@ class TestWithHeapWithCustomSpaces : public testing::TestWithPlatform {
   }
 
   void PreciseGC() {
-    heap_->ForceGarbageCollectionSlow("TestWithHeapWithCustomSpaces", "Testing",
-                                      cppgc::Heap::StackState::kNoHeapPointers);
+    heap_->ForceGarbageCollectionSlow(
+        ::testing::UnitTest::GetInstance()->current_test_info()->name(),
+        "Testing", cppgc::Heap::StackState::kNoHeapPointers);
   }
 
   cppgc::Heap* GetHeap() const { return heap_.get(); }
