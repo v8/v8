@@ -7373,7 +7373,7 @@ class PromiseRejectMessage {
 typedef void (*PromiseRejectCallback)(PromiseRejectMessage message);
 
 // --- Microtasks Callbacks ---
-V8_DEPRECATE_SOON("Use *WithData version.")
+V8_DEPRECATED("Use *WithData version.")
 typedef void (*MicrotasksCompletedCallback)(Isolate*);
 typedef void (*MicrotasksCompletedCallbackWithData)(Isolate*, void*);
 typedef void (*MicrotaskCallback)(void* data);
@@ -9127,7 +9127,7 @@ class V8_EXPORT Isolate {
   /**
    * An alias for PerformMicrotaskCheckpoint.
    */
-  V8_DEPRECATE_SOON("Use PerformMicrotaskCheckpoint.")
+  V8_DEPRECATED("Use PerformMicrotaskCheckpoint.")
   void RunMicrotasks() { PerformMicrotaskCheckpoint(); }
 
   /**
@@ -9171,7 +9171,7 @@ class V8_EXPORT Isolate {
    * Executing scripts inside the callback will not re-trigger microtasks and
    * the callback.
    */
-  V8_DEPRECATE_SOON("Use *WithData version.")
+  V8_DEPRECATED("Use *WithData version.")
   void AddMicrotasksCompletedCallback(MicrotasksCompletedCallback callback);
   void AddMicrotasksCompletedCallback(
       MicrotasksCompletedCallbackWithData callback, void* data = nullptr);
@@ -9179,7 +9179,7 @@ class V8_EXPORT Isolate {
   /**
    * Removes callback that was installed by AddMicrotasksCompletedCallback.
    */
-  V8_DEPRECATE_SOON("Use *WithData version.")
+  V8_DEPRECATED("Use *WithData version.")
   void RemoveMicrotasksCompletedCallback(MicrotasksCompletedCallback callback);
   void RemoveMicrotasksCompletedCallback(
       MicrotasksCompletedCallbackWithData callback, void* data = nullptr);
