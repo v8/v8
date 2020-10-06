@@ -27712,7 +27712,6 @@ void CheckEqual(T actual, T expected) {
   CHECK_EQ(actual, expected);
 }
 
-#ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
 template <>
 void CheckEqual<float>(float actual, float expected) {
   if (std::isnan(expected)) {
@@ -27734,7 +27733,6 @@ void CheckEqual<double>(double actual, double expected) {
     CHECK_EQ(actual, expected);
   }
 }
-#endif
 
 template <typename T>
 void CallAndCheck(T expected_value, Behavior expected_behavior,
@@ -28025,6 +28023,11 @@ TEST(FastApiCalls) {
                       ApiCheckerResult::kFastCalled, v8_num(3.14));
   CallAndCheck<double>(3.14, Behavior::kNoException,
                        ApiCheckerResult::kFastCalled, v8_num(3.14));
+#else
+  CallAndCheck<float>(3.14f, Behavior::kNoException,
+                      ApiCheckerResult::kSlowCalled, v8_num(3.14));
+  CallAndCheck<double>(3.14, Behavior::kNoException,
+                       ApiCheckerResult::kSlowCalled, v8_num(3.14));
 #endif
 
   // Corner cases (the value is out of bounds or of different type) - int32_t

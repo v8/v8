@@ -3453,6 +3453,20 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
   return ReplaceWithSubgraph(&a, subgraph);
 }
 
+#ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+namespace {
+bool HasFPParamsInSignature(const CFunctionInfo* c_signature) {
+  for (unsigned int i = 0; i < c_signature->ArgumentCount(); ++i) {
+    if (c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat32 ||
+        c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat64) {
+      return true;
+    }
+  }
+  return false;
+}
+}  // namespace
+#endif
+
 Reduction JSCallReducer::ReduceCallApiFunction(
     Node* node, const SharedFunctionInfoRef& shared) {
   DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
@@ -3626,8 +3640,14 @@ Reduction JSCallReducer::ReduceCallApiFunction(
 
   Address c_function = function_template_info.c_function();
 
-  if (FLAG_turbo_fast_api_calls && c_function != kNullAddress) {
-    const CFunctionInfo* c_signature = function_template_info.c_signature();
+  bool optimize_to_fast_call =
+      FLAG_turbo_fast_api_calls && c_function != kNullAddress;
+  const CFunctionInfo* c_signature = function_template_info.c_signature();
+#ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+  optimize_to_fast_call =
+      optimize_to_fast_call && !HasFPParamsInSignature(c_signature);
+#endif
+  if (optimize_to_fast_call) {
     FastApiCallReducerAssembler a(this, node, c_function, c_signature,
                                   function_template_info, receiver, holder,
                                   shared, target, argc, effect);
