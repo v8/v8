@@ -7171,25 +7171,25 @@ class V8_EXPORT ResourceConstraints {
   /**
    * Deprecated functions. Do not use in new code.
    */
-  V8_DEPRECATE_SOON("Use code_range_size_in_bytes.")
+  V8_DEPRECATED("Use code_range_size_in_bytes.")
   size_t code_range_size() const { return code_range_size_ / kMB; }
-  V8_DEPRECATE_SOON("Use set_code_range_size_in_bytes.")
+  V8_DEPRECATED("Use set_code_range_size_in_bytes.")
   void set_code_range_size(size_t limit_in_mb) {
     code_range_size_ = limit_in_mb * kMB;
   }
-  V8_DEPRECATE_SOON("Use max_young_generation_size_in_bytes.")
+  V8_DEPRECATED("Use max_young_generation_size_in_bytes.")
   size_t max_semi_space_size_in_kb() const;
-  V8_DEPRECATE_SOON("Use set_max_young_generation_size_in_bytes.")
+  V8_DEPRECATED("Use set_max_young_generation_size_in_bytes.")
   void set_max_semi_space_size_in_kb(size_t limit_in_kb);
-  V8_DEPRECATE_SOON("Use max_old_generation_size_in_bytes.")
+  V8_DEPRECATED("Use max_old_generation_size_in_bytes.")
   size_t max_old_space_size() const { return max_old_generation_size_ / kMB; }
-  V8_DEPRECATE_SOON("Use set_max_old_generation_size_in_bytes.")
+  V8_DEPRECATED("Use set_max_old_generation_size_in_bytes.")
   void set_max_old_space_size(size_t limit_in_mb) {
     max_old_generation_size_ = limit_in_mb * kMB;
   }
-  V8_DEPRECATE_SOON("Zone does not pool memory any more.")
+  V8_DEPRECATED("Zone does not pool memory any more.")
   size_t max_zone_pool_size() const { return max_zone_pool_size_; }
-  V8_DEPRECATE_SOON("Zone does not pool memory any more.")
+  V8_DEPRECATED("Zone does not pool memory any more.")
   void set_max_zone_pool_size(size_t bytes) { max_zone_pool_size_ = bytes; }
 
  private:
