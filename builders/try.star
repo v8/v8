@@ -173,8 +173,8 @@ try_builder(
     cq_properties = {"cancel_stale": False},
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     execution_timeout = 3600,
-    properties = {"use_goma": False},
-    use_goma = GOMA.AST,
+    properties = {"default_targets": ["d8"], "use_goma": False},
+    use_goma = GOMA.NO,
 )
 
 try_builder(

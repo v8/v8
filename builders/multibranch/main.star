@@ -303,7 +303,7 @@ in_category(
         name = "V8 Win64 - msvc",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"use_goma": False, "builder_group": "client.v8"},
-        use_goma = GOMA.AST,
+        use_goma = GOMA.NO,
     ),
 )
 
