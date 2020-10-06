@@ -282,6 +282,10 @@ declare_args() {
   # Experimental feature for collecting per-class zone memory stats.
   # Requires use_rtti = true
   v8_enable_precise_zone_stats = false
+
+  # Experimental feature for always keeping prototypes in dict/"slow" mode
+  # Sets -DV8_DICT_MODE_PROTOTYPES
+  v8_dict_mode_prototypes = false
 }
 
 # Derived defaults.
@@ -673,6 +677,9 @@ config("features") {
   }
   if (v8_fuzzilli) {
     defines += [ "V8_FUZZILLI" ]
+  }
+  if (v8_dict_mode_prototypes) {
+    defines += [ "V8_DICT_MODE_PROTOTYPES" ]
   }
 }
 

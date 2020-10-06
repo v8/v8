@@ -103,6 +103,13 @@ STATIC_ASSERT(V8_DEFAULT_STACK_SIZE_KB* KB +
 #define V8_DOUBLE_FIELDS_UNBOXING false
 #endif
 
+// Determine whether dict mode prototypes feature is enabled.
+#ifdef V8_DICT_MODE_PROTOTYPES
+#define V8_DICT_MODE_PROTOTYPES_BOOL true
+#else
+#define V8_DICT_MODE_PROTOTYPES_BOOL false
+#endif
+
 // Determine whether tagged pointers are 8 bytes (used in Torque layouts for
 // choosing where to insert padding).
 #if V8_TARGET_ARCH_64_BIT && !defined(V8_COMPRESS_POINTERS)
