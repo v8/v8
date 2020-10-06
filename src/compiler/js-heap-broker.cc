@@ -50,7 +50,7 @@ HEAP_BROKER_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
 HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
 #undef FORWARD_DECL
 
-// There are three kinds of ObjectData values.
+// There are five kinds of ObjectData values.
 //
 // kSmi: The underlying V8 object is a Smi and the data is an instance of the
 //   base class (ObjectData), i.e. it's basically just the handle.  Because the
@@ -64,6 +64,12 @@ HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
 // kUnserializedHeapObject: The underlying V8 object is a HeapObject and the
 //   data is an instance of the base class (ObjectData), i.e. it basically
 //   carries no information other than the handle.
+//
+// kNeverSerializedHeapObject: The underlying V8 object is a (potentially
+//   mutable) HeapObject and the data is an instance of ObjectData. Its handle
+//   must be persistent so that the GC can update it at a safepoint. Via this
+//   handle, the object can be accessed concurrently to the main thread. To be
+//   used the flag --turbo-direct-heap-access must be on.
 //
 // kUnserializedReadOnlyHeapObject: The underlying V8 object is a read-only
 //   HeapObject and the data is an instance of ObjectData. For
