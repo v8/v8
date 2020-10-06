@@ -1380,21 +1380,24 @@ CompilationExecutionResult ExecuteCompilationUnits(
   return kNoMoreUnits;
 }
 
+using JSToWasmWrapperKey = std::pair<bool, FunctionSig>;
+
 // Returns the number of units added.
 int AddExportWrapperUnits(Isolate* isolate, WasmEngine* wasm_engine,
                           NativeModule* native_module,
                           CompilationUnitBuilder* builder,
                           const WasmFeatures& enabled_features) {
-  std::unordered_set<JSToWasmWrapperKey, JSToWasmWrapperKeyHash> keys;
+  std::unordered_set<JSToWasmWrapperKey, base::hash<JSToWasmWrapperKey>> keys;
   for (auto exp : native_module->module()->export_table) {
     if (exp.kind != kExternalFunction) continue;
     auto& function = native_module->module()->functions[exp.index];
-    JSToWasmWrapperKey key{function.imported, *function.sig};
-    if (!keys.insert(key).second) continue;
-    auto unit = std::make_shared<JSToWasmWrapperCompilationUnit>(
-        isolate, wasm_engine, function.sig, native_module->module(),
-        function.imported, enabled_features);
-    builder->AddJSToWasmWrapperUnit(std::move(unit));
+    JSToWasmWrapperKey key(function.imported, *function.sig);
+    if (keys.insert(key).second) {
+      auto unit = std::make_shared<JSToWasmWrapperCompilationUnit>(
+          isolate, wasm_engine, function.sig, native_module->module(),
+          function.imported, enabled_features);
+      builder->AddJSToWasmWrapperUnit(std::move(unit));
+    }
   }
 
   return static_cast<int>(keys.size());
@@ -3310,11 +3313,11 @@ void CompilationStateImpl::WaitForCompilationEvent(
 
 namespace {
 using JSToWasmWrapperQueue =
-    WrapperQueue<JSToWasmWrapperKey, JSToWasmWrapperKeyHash>;
+    WrapperQueue<JSToWasmWrapperKey, base::hash<JSToWasmWrapperKey>>;
 using JSToWasmWrapperUnitMap =
     std::unordered_map<JSToWasmWrapperKey,
                        std::unique_ptr<JSToWasmWrapperCompilationUnit>,
-                       JSToWasmWrapperKeyHash>;
+                       base::hash<JSToWasmWrapperKey>>;
 
 class CompileJSToWasmWrapperJob final : public JobTask {
  public:
@@ -3364,7 +3367,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
   for (auto exp : module->export_table) {
     if (exp.kind != kExternalFunction) continue;
     auto& function = module->functions[exp.index];
-    JSToWasmWrapperKey key{function.imported, *function.sig};
+    JSToWasmWrapperKey key(function.imported, *function.sig);
     if (queue.insert(key)) {
       auto unit = std::make_unique<JSToWasmWrapperCompilationUnit>(
           isolate, isolate->wasm_engine(), function.sig, module,
@@ -3394,7 +3397,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
     JSToWasmWrapperKey key = pair.first;
     JSToWasmWrapperCompilationUnit* unit = pair.second.get();
     Handle<Code> code = unit->Finalize(isolate);
-    int wrapper_index = GetExportWrapperIndex(module, &key.sig, key.is_import);
+    int wrapper_index = GetExportWrapperIndex(module, &key.second, key.first);
     (*export_wrappers_out)->set(wrapper_index, *code);
     RecordStats(*code, isolate->counters());
   }
