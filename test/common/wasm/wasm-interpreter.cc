@@ -2477,6 +2477,13 @@ class WasmInterpreterInternals {
                          ? 0
                          : a<0 ? 0 : a> kMaxUInt32 ? kMaxUInt32
                                                    : static_cast<uint32_t>(a))
+        CONVERT_CASE(I64x2SConvertI32x4Low, int4, i32x4, int2, 2, 0, int32_t, a)
+        CONVERT_CASE(I64x2SConvertI32x4High, int4, i32x4, int2, 2, 2, int32_t,
+                     a)
+        CONVERT_CASE(I64x2UConvertI32x4Low, int4, i32x4, int2, 2, 0, uint32_t,
+                     a)
+        CONVERT_CASE(I64x2UConvertI32x4High, int4, i32x4, int2, 2, 2, uint32_t,
+                     a)
         CONVERT_CASE(I32x4SConvertI16x8High, int8, i16x8, int4, 4, 4, int16_t,
                      a)
         CONVERT_CASE(I32x4UConvertI16x8High, int8, i16x8, int4, 4, 4, uint16_t,

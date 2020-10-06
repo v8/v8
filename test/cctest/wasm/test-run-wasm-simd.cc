@@ -1829,6 +1829,44 @@ WASM_SIMD_TEST(I32x4ConvertI16x8) {
   }
 }
 
+// TODO(v8:10972) Prototyping i64x2 convert from i32x4.
+// Tests both signed and unsigned conversion from I32x4 (unpacking).
+#if V8_TARGET_ARCH_ARM64
+WASM_SIMD_TEST_NO_LOWERING(I64x2ConvertI32x4) {
+  WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
+  // Create four output vectors to hold signed and unsigned results.
+  int64_t* g0 = r.builder().AddGlobal<int64_t>(kWasmS128);
+  int64_t* g1 = r.builder().AddGlobal<int64_t>(kWasmS128);
+  int64_t* g2 = r.builder().AddGlobal<int64_t>(kWasmS128);
+  int64_t* g3 = r.builder().AddGlobal<int64_t>(kWasmS128);
+  // Build fn to splat test value, perform conversions, and write the results.
+  byte value = 0;
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_UNOP(kExprI64x2SConvertI32x4High,
+                                          WASM_GET_LOCAL(temp1))),
+        WASM_SET_GLOBAL(1, WASM_SIMD_UNOP(kExprI64x2SConvertI32x4Low,
+                                          WASM_GET_LOCAL(temp1))),
+        WASM_SET_GLOBAL(2, WASM_SIMD_UNOP(kExprI64x2UConvertI32x4High,
+                                          WASM_GET_LOCAL(temp1))),
+        WASM_SET_GLOBAL(3, WASM_SIMD_UNOP(kExprI64x2UConvertI32x4Low,
+                                          WASM_GET_LOCAL(temp1))),
+        WASM_ONE);
+
+  FOR_INT32_INPUTS(x) {
+    r.Call(x);
+    int64_t expected_signed = static_cast<int64_t>(Widen<int32_t>(x));
+    int64_t expected_unsigned = static_cast<int64_t>(UnsignedWiden<int32_t>(x));
+    for (int i = 0; i < 2; i++) {
+      CHECK_EQ(expected_signed, ReadLittleEndianValue<int64_t>(&g0[i]));
+      CHECK_EQ(expected_signed, ReadLittleEndianValue<int64_t>(&g1[i]));
+      CHECK_EQ(expected_unsigned, ReadLittleEndianValue<int64_t>(&g2[i]));
+      CHECK_EQ(expected_unsigned, ReadLittleEndianValue<int64_t>(&g3[i]));
+    }
+  }
+}
+#endif  // V8_TARGET_ARCH_ARM64
+
 void RunI32x4UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                       WasmOpcode opcode, Int32UnOp expected_op) {
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);

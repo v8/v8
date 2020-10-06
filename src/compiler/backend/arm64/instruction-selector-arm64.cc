@@ -3725,6 +3725,22 @@ void VisitSignExtendLong(InstructionSelector* selector, ArchOpcode opcode,
 }
 }  // namespace
 
+void InstructionSelector::VisitI64x2SConvertI32x4Low(Node* node) {
+  VisitSignExtendLong(this, kArm64Sxtl, node, 64);
+}
+
+void InstructionSelector::VisitI64x2SConvertI32x4High(Node* node) {
+  VisitSignExtendLong(this, kArm64Sxtl2, node, 64);
+}
+
+void InstructionSelector::VisitI64x2UConvertI32x4Low(Node* node) {
+  VisitSignExtendLong(this, kArm64Uxtl, node, 64);
+}
+
+void InstructionSelector::VisitI64x2UConvertI32x4High(Node* node) {
+  VisitSignExtendLong(this, kArm64Uxtl2, node, 64);
+}
+
 void InstructionSelector::VisitI32x4SConvertI16x8Low(Node* node) {
   VisitSignExtendLong(this, kArm64Sxtl, node, 32);
 }

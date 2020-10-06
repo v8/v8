@@ -278,6 +278,8 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_SIGN_OP(I64x2, Gt, "gt")
     CASE_SIGN_OP(SIMDI, Ge, "ge")
     CASE_SIGN_OP(I64x2, Ge, "ge")
+    CASE_CONVERT_OP(Convert, I64x2, I32x4Low, "i32", "convert")
+    CASE_CONVERT_OP(Convert, I64x2, I32x4High, "i32", "convert")
     CASE_SIGN_OP(SIMDI, Shr, "shr")
     CASE_SIGN_OP(I64x2, Shr, "shr")
     CASE_SIMDI_OP(Shl, "shl")
