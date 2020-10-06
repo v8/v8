@@ -29,7 +29,7 @@ class Heap;
 class Isolate;
 class MajorNonAtomicMarkingState;
 class MemoryChunk;
-class WeakObjects;
+struct WeakObjects;
 
 struct MemoryChunkData {
   intptr_t live_bytes;
