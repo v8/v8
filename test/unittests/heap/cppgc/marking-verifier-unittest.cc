@@ -121,9 +121,9 @@ struct Holder : public GarbageCollected<Holder<T>> {
 }  // namespace
 
 TEST_F(MarkingVerifierTest, DoesntDieOnInConstructionObjectWithWriteBarrier) {
-  // Regression test: https://bugs.chromium.org/p/v8/issues/detail?id=10989.
+  // Regression test:  https://crbug.com/v8/10989.
   // GCedWithCallbackAndChild is marked by write barrier and then discarded by
-  // FlushNotFullyConstructedObjects because it is already marked. This test
+  // FlushNotFullyConstructedObjects because it is already marked.
   Persistent<Holder<GCedWithCallbackAndChild>> persistent =
       MakeGarbageCollected<Holder<GCedWithCallbackAndChild>>(
           GetAllocationHandle());
