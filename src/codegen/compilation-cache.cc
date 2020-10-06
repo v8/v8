@@ -72,7 +72,9 @@ void CompilationSubCache::AgeCustom(CompilationSubCache* c) {
   CompilationCacheTable::cast(c->tables_[0]).Age();
 }
 
-void CompilationCacheScript::Age() { AgeCustom(this); }
+void CompilationCacheScript::Age() {
+  if (FLAG_isolate_script_cache_ageing) AgeCustom(this);
+}
 void CompilationCacheEval::Age() { AgeCustom(this); }
 void CompilationCacheRegExp::Age() { AgeByGeneration(this); }
 void CompilationCacheCode::Age() {

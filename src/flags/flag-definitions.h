@@ -748,6 +748,10 @@ DEFINE_BOOL(turbo_nci_delayed_codegen, true,
 // strategy.
 DEFINE_BOOL(turbo_nci_cache_ageing, false,
             "enable ageing of the NCI code cache.")
+// TODO(jgruber,v8:8888): Remove this flag once we've settled on an ageing
+// strategy.
+DEFINE_BOOL(isolate_script_cache_ageing, true,
+            "enable ageing of the isolate script cache.")
 
 // Favor memory over execution speed.
 DEFINE_BOOL(optimize_for_size, false,
