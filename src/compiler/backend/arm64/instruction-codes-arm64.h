@@ -168,6 +168,10 @@ namespace compiler {
   V(Arm64StrCompressTagged)                 \
   V(Arm64DmbIsh)                            \
   V(Arm64DsbIsb)                            \
+  V(Arm64Sxtl)                              \
+  V(Arm64Sxtl2)                             \
+  V(Arm64Uxtl)                              \
+  V(Arm64Uxtl2)                             \
   V(Arm64F64x2Splat)                        \
   V(Arm64F64x2ExtractLane)                  \
   V(Arm64F64x2ReplaceLane)                  \
@@ -233,8 +237,6 @@ namespace compiler {
   V(Arm64I32x4ExtractLane)                  \
   V(Arm64I32x4ReplaceLane)                  \
   V(Arm64I32x4SConvertF32x4)                \
-  V(Arm64I32x4SConvertI16x8Low)             \
-  V(Arm64I32x4SConvertI16x8High)            \
   V(Arm64I32x4Neg)                          \
   V(Arm64I32x4Shl)                          \
   V(Arm64I32x4ShrS)                         \
@@ -251,8 +253,6 @@ namespace compiler {
   V(Arm64I32x4GtS)                          \
   V(Arm64I32x4GeS)                          \
   V(Arm64I32x4UConvertF32x4)                \
-  V(Arm64I32x4UConvertI16x8Low)             \
-  V(Arm64I32x4UConvertI16x8High)            \
   V(Arm64I32x4ShrU)                         \
   V(Arm64I32x4MinU)                         \
   V(Arm64I32x4MaxU)                         \
@@ -265,8 +265,6 @@ namespace compiler {
   V(Arm64I16x8ExtractLaneU)                 \
   V(Arm64I16x8ExtractLaneS)                 \
   V(Arm64I16x8ReplaceLane)                  \
-  V(Arm64I16x8SConvertI8x16Low)             \
-  V(Arm64I16x8SConvertI8x16High)            \
   V(Arm64I16x8Neg)                          \
   V(Arm64I16x8Shl)                          \
   V(Arm64I16x8ShrS)                         \
@@ -285,8 +283,6 @@ namespace compiler {
   V(Arm64I16x8Ne)                           \
   V(Arm64I16x8GtS)                          \
   V(Arm64I16x8GeS)                          \
-  V(Arm64I16x8UConvertI8x16Low)             \
-  V(Arm64I16x8UConvertI8x16High)            \
   V(Arm64I16x8ShrU)                         \
   V(Arm64I16x8UConvertI32x4)                \
   V(Arm64I16x8AddSaturateU)                 \

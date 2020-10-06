@@ -144,6 +144,13 @@ void VisitRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
                  g.UseRegister(node->InputAt(0)));
 }
 
+void VisitRR(InstructionSelector* selector, InstructionCode opcode,
+             Node* node) {
+  Arm64OperandGenerator g(selector);
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(node->InputAt(0)));
+}
+
 void VisitRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
   Arm64OperandGenerator g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
@@ -3223,18 +3230,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F32x4RecipSqrtApprox, kArm64F32x4RecipSqrtApprox)     \
   V(I64x2Neg, kArm64I64x2Neg)                             \
   V(I32x4SConvertF32x4, kArm64I32x4SConvertF32x4)         \
-  V(I32x4SConvertI16x8Low, kArm64I32x4SConvertI16x8Low)   \
-  V(I32x4SConvertI16x8High, kArm64I32x4SConvertI16x8High) \
   V(I32x4Neg, kArm64I32x4Neg)                             \
   V(I32x4UConvertF32x4, kArm64I32x4UConvertF32x4)         \
-  V(I32x4UConvertI16x8Low, kArm64I32x4UConvertI16x8Low)   \
-  V(I32x4UConvertI16x8High, kArm64I32x4UConvertI16x8High) \
   V(I32x4Abs, kArm64I32x4Abs)                             \
-  V(I16x8SConvertI8x16Low, kArm64I16x8SConvertI8x16Low)   \
-  V(I16x8SConvertI8x16High, kArm64I16x8SConvertI8x16High) \
   V(I16x8Neg, kArm64I16x8Neg)                             \
-  V(I16x8UConvertI8x16Low, kArm64I16x8UConvertI8x16Low)   \
-  V(I16x8UConvertI8x16High, kArm64I16x8UConvertI8x16High) \
   V(I16x8Abs, kArm64I16x8Abs)                             \
   V(I8x16Neg, kArm64I8x16Neg)                             \
   V(I8x16Abs, kArm64I8x16Abs)                             \
@@ -3714,6 +3713,47 @@ void InstructionSelector::VisitF64x2Pmin(Node* node) {
 
 void InstructionSelector::VisitF64x2Pmax(Node* node) {
   VisitPminOrPmax(this, kArm64F64x2Pmax, node);
+}
+
+namespace {
+void VisitSignExtendLong(InstructionSelector* selector, ArchOpcode opcode,
+                         Node* node, int lane_size) {
+  InstructionCode code = opcode;
+  code |= MiscField::encode(lane_size);
+  VisitRR(selector, code, node);
+}
+}  // namespace
+
+void InstructionSelector::VisitI32x4SConvertI16x8Low(Node* node) {
+  VisitSignExtendLong(this, kArm64Sxtl, node, 32);
+}
+
+void InstructionSelector::VisitI32x4SConvertI16x8High(Node* node) {
+  VisitSignExtendLong(this, kArm64Sxtl2, node, 32);
+}
+
+void InstructionSelector::VisitI32x4UConvertI16x8Low(Node* node) {
+  VisitSignExtendLong(this, kArm64Uxtl, node, 32);
+}
+
+void InstructionSelector::VisitI32x4UConvertI16x8High(Node* node) {
+  VisitSignExtendLong(this, kArm64Uxtl2, node, 32);
+}
+
+void InstructionSelector::VisitI16x8SConvertI8x16Low(Node* node) {
+  VisitSignExtendLong(this, kArm64Sxtl, node, 16);
+}
+
+void InstructionSelector::VisitI16x8SConvertI8x16High(Node* node) {
+  VisitSignExtendLong(this, kArm64Sxtl2, node, 16);
+}
+
+void InstructionSelector::VisitI16x8UConvertI8x16Low(Node* node) {
+  VisitSignExtendLong(this, kArm64Uxtl, node, 16);
+}
+
+void InstructionSelector::VisitI16x8UConvertI8x16High(Node* node) {
+  VisitSignExtendLong(this, kArm64Uxtl2, node, 16);
 }
 
 // static

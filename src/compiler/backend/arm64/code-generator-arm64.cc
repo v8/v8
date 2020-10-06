@@ -1873,11 +1873,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     __ Instr(i.OutputSimd128Register().V##FORMAT(),  \
              i.InputSimd128Register(0).V##FORMAT()); \
     break;
-#define SIMD_WIDENING_UNOP_CASE(Op, Instr, WIDE, NARROW) \
-  case Op:                                               \
-    __ Instr(i.OutputSimd128Register().V##WIDE(),        \
-             i.InputSimd128Register(0).V##NARROW());     \
-    break;
 #define SIMD_BINOP_CASE(Op, Instr, FORMAT)           \
   case Op:                                           \
     __ Instr(i.OutputSimd128Register().V##FORMAT(),  \
@@ -1893,6 +1888,34 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     break;                                                 \
   }
 
+    case kArm64Sxtl: {
+      VectorFormat wide = VectorFormatFillQ(MiscField::decode(opcode));
+      VectorFormat narrow = VectorFormatHalfWidth(wide);
+      __ Sxtl(i.OutputSimd128Register().Format(wide),
+              i.InputSimd128Register(0).Format(narrow));
+      break;
+    }
+    case kArm64Sxtl2: {
+      VectorFormat wide = VectorFormatFillQ(MiscField::decode(opcode));
+      VectorFormat narrow = VectorFormatHalfWidthDoubleLanes(wide);
+      __ Sxtl2(i.OutputSimd128Register().Format(wide),
+               i.InputSimd128Register(0).Format(narrow));
+      break;
+    }
+    case kArm64Uxtl: {
+      VectorFormat wide = VectorFormatFillQ(MiscField::decode(opcode));
+      VectorFormat narrow = VectorFormatHalfWidth(wide);
+      __ Uxtl(i.OutputSimd128Register().Format(wide),
+              i.InputSimd128Register(0).Format(narrow));
+      break;
+    }
+    case kArm64Uxtl2: {
+      VectorFormat wide = VectorFormatFillQ(MiscField::decode(opcode));
+      VectorFormat narrow = VectorFormatHalfWidthDoubleLanes(wide);
+      __ Uxtl2(i.OutputSimd128Register().Format(wide),
+               i.InputSimd128Register(0).Format(narrow));
+      break;
+    }
     case kArm64F64x2Splat: {
       __ Dup(i.OutputSimd128Register().V2D(), i.InputSimd128Register(0).D(), 0);
       break;
@@ -2157,8 +2180,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
       SIMD_UNOP_CASE(kArm64I32x4SConvertF32x4, Fcvtzs, 4S);
-      SIMD_WIDENING_UNOP_CASE(kArm64I32x4SConvertI16x8Low, Sxtl, 4S, 4H);
-      SIMD_WIDENING_UNOP_CASE(kArm64I32x4SConvertI16x8High, Sxtl2, 4S, 8H);
       SIMD_UNOP_CASE(kArm64I32x4Neg, Neg, 4S);
     case kArm64I32x4Shl: {
       ASSEMBLE_SIMD_SHIFT_LEFT(Shl, 5, V4S, Sshl, W);
@@ -2187,8 +2208,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_CASE(kArm64I32x4GtS, Cmgt, 4S);
       SIMD_BINOP_CASE(kArm64I32x4GeS, Cmge, 4S);
       SIMD_UNOP_CASE(kArm64I32x4UConvertF32x4, Fcvtzu, 4S);
-      SIMD_WIDENING_UNOP_CASE(kArm64I32x4UConvertI16x8Low, Uxtl, 4S, 4H);
-      SIMD_WIDENING_UNOP_CASE(kArm64I32x4UConvertI16x8High, Uxtl2, 4S, 8H);
     case kArm64I32x4ShrU: {
       ASSEMBLE_SIMD_SHIFT_RIGHT(Ushr, 5, V4S, Ushl, W);
       break;
@@ -2247,8 +2266,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Mov(dst, i.InputInt8(1), i.InputRegister32(2));
       break;
     }
-      SIMD_WIDENING_UNOP_CASE(kArm64I16x8SConvertI8x16Low, Sxtl, 8H, 8B);
-      SIMD_WIDENING_UNOP_CASE(kArm64I16x8SConvertI8x16High, Sxtl2, 8H, 16B);
       SIMD_UNOP_CASE(kArm64I16x8Neg, Neg, 8H);
     case kArm64I16x8Shl: {
       ASSEMBLE_SIMD_SHIFT_LEFT(Shl, 4, V8H, Sshl, W);
@@ -2292,15 +2309,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
       SIMD_BINOP_CASE(kArm64I16x8GtS, Cmgt, 8H);
       SIMD_BINOP_CASE(kArm64I16x8GeS, Cmge, 8H);
-    case kArm64I16x8UConvertI8x16Low: {
-      __ Uxtl(i.OutputSimd128Register().V8H(), i.InputSimd128Register(0).V8B());
-      break;
-    }
-    case kArm64I16x8UConvertI8x16High: {
-      __ Uxtl2(i.OutputSimd128Register().V8H(),
-               i.InputSimd128Register(0).V16B());
-      break;
-    }
     case kArm64I16x8ShrU: {
       ASSEMBLE_SIMD_SHIFT_RIGHT(Ushr, 4, V8H, Ushl, W);
       break;
@@ -2653,7 +2661,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 }  // NOLINT(readability/fn_size)
 
 #undef SIMD_UNOP_CASE
-#undef SIMD_WIDENING_UNOP_CASE
 #undef SIMD_BINOP_CASE
 #undef SIMD_DESTRUCTIVE_BINOP_CASE
 #undef SIMD_REDUCE_OP_CASE
