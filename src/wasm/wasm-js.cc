@@ -2379,6 +2379,21 @@ std::vector<Handle<String>> GetLocalNames(Handle<WasmInstanceObject> instance,
   return names;
 }
 
+// Generate names for the globals. Names either come from the name table,
+// otherwise the default $globalX is used.
+std::vector<Handle<String>> GetGlobalNames(
+    Handle<WasmInstanceObject> instance) {
+  Isolate* isolate = instance->GetIsolate();
+  auto& globals = instance->module()->globals;
+  std::vector<Handle<String>> names;
+  for (uint32_t i = 0; i < globals.size(); ++i) {
+    names.emplace_back(GetNameOrDefault(
+        isolate, WasmInstanceObject::GetGlobalNameOrNull(isolate, instance, i),
+        "$global", i));
+  }
+  return names;
+}
+
 Handle<WasmInstanceObject> GetInstance(Isolate* isolate,
                                        Handle<JSObject> handler) {
   Handle<Object> instance =
@@ -2444,32 +2459,21 @@ static Handle<Object> WasmValueToObject(Isolate* isolate,
   return factory->undefined_value();
 }
 
-bool HasLocalImpl(Isolate* isolate, Handle<Name> property,
-                  Handle<JSObject> handler, bool enable_index_lookup) {
+base::Optional<int> HasLocalImpl(Isolate* isolate, Handle<Name> property,
+                                 Handle<JSObject> handler,
+                                 bool enable_index_lookup) {
   Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
 
   base::Optional<int> index =
       ResolveValueSelector(isolate, property, handler, enable_index_lookup);
-  if (!index) return false;
+  if (!index) return index;
   Address pc = GetPC(isolate, handler);
 
   wasm::DebugInfo* debug_info =
       instance->module_object().native_module()->GetDebugInfo();
   int num_locals = debug_info->GetNumLocals(pc);
-  return 0 <= index && index < num_locals;
-}
-
-// Has trap callback for the locals index space proxy.
-void HasLocalCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  if (args.Length() < 2) return;
-  Isolate* isolate = reinterpret_cast<Isolate*>(args.GetIsolate());
-  DCHECK(args.This()->IsObject());
-  Handle<JSObject> handler =
-      Handle<JSObject>::cast(Utils::OpenHandle(*args.This()));
-
-  DCHECK(args[1]->IsName());
-  Handle<Name> property = Handle<Name>::cast(Utils::OpenHandle(*args[1]));
-  args.GetReturnValue().Set(HasLocalImpl(isolate, property, handler, true));
+  if (0 <= index && index < num_locals) return index;
+  return {};
 }
 
 Handle<Object> GetLocalImpl(Isolate* isolate, Handle<Name> property,
@@ -2479,7 +2483,7 @@ Handle<Object> GetLocalImpl(Isolate* isolate, Handle<Name> property,
   Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
 
   base::Optional<int> index =
-      ResolveValueSelector(isolate, property, handler, enable_index_lookup);
+      HasLocalImpl(isolate, property, handler, enable_index_lookup);
   if (!index) return factory->undefined_value();
   Address pc = GetPC(isolate, handler);
   Address fp = GetFP(isolate, handler);
@@ -2487,14 +2491,57 @@ Handle<Object> GetLocalImpl(Isolate* isolate, Handle<Name> property,
 
   wasm::DebugInfo* debug_info =
       instance->module_object().native_module()->GetDebugInfo();
-  int num_locals = debug_info->GetNumLocals(pc);
-  if (0 > index || index >= num_locals) return factory->undefined_value();
   wasm::WasmValue value = debug_info->GetLocalValue(*index, pc, fp, callee_fp);
   return WasmValueToObject(isolate, value);
 }
 
-// Get trap callback for the locals index space proxy.
-void GetLocalCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+base::Optional<int> HasGlobalImpl(Isolate* isolate, Handle<Name> property,
+                                  Handle<JSObject> handler,
+                                  bool enable_index_lookup) {
+  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
+  base::Optional<int> index =
+      ResolveValueSelector(isolate, property, handler, enable_index_lookup);
+  if (!index) return index;
+
+  const std::vector<wasm::WasmGlobal>& globals = instance->module()->globals;
+  if (globals.size() <= kMaxInt && 0 <= *index &&
+      *index < static_cast<int>(globals.size())) {
+    return index;
+  }
+  return {};
+}
+
+Handle<Object> GetGlobalImpl(Isolate* isolate, Handle<Name> property,
+                             Handle<JSObject> handler,
+                             bool enable_index_lookup) {
+  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
+  base::Optional<int> index =
+      HasGlobalImpl(isolate, property, handler, enable_index_lookup);
+  if (!index) return isolate->factory()->undefined_value();
+
+  const std::vector<wasm::WasmGlobal>& globals = instance->module()->globals;
+  return WasmValueToObject(
+      isolate, WasmInstanceObject::GetGlobalValue(instance, globals[*index]));
+}
+
+// Generic has trap callback for the index space proxies.
+template <base::Optional<int> Impl(Isolate*, Handle<Name>, Handle<JSObject>,
+                                   bool)>
+void HasTrapCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  DCHECK_GE(args.Length(), 2);
+  Isolate* isolate = reinterpret_cast<Isolate*>(args.GetIsolate());
+  DCHECK(args.This()->IsObject());
+  Handle<JSObject> handler =
+      Handle<JSObject>::cast(Utils::OpenHandle(*args.This()));
+
+  DCHECK(args[1]->IsName());
+  Handle<Name> property = Handle<Name>::cast(Utils::OpenHandle(*args[1]));
+  args.GetReturnValue().Set(Impl(isolate, property, handler, true).has_value());
+}
+
+// Generic get trap callback for the index space proxies.
+template <Handle<Object> Impl(Isolate*, Handle<Name>, Handle<JSObject>, bool)>
+void GetTrapCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   DCHECK_GE(args.Length(), 2);
   Isolate* isolate = reinterpret_cast<Isolate*>(args.GetIsolate());
   DCHECK(args.This()->IsObject());
@@ -2504,11 +2551,25 @@ void GetLocalCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   DCHECK(args[1]->IsName());
   Handle<Name> property = Handle<Name>::cast(Utils::OpenHandle(*args[1]));
   args.GetReturnValue().Set(
-      Utils::ToLocal(GetLocalImpl(isolate, property, handler, true)));
+      Utils::ToLocal(Impl(isolate, property, handler, true)));
+}
+
+template <typename ReturnT>
+ReturnT DelegateToplevelCall(Isolate* isolate, Handle<JSObject> target,
+                             Handle<Name> property, const char* index_space,
+                             ReturnT (*impl)(Isolate*, Handle<Name>,
+                                             Handle<JSObject>, bool)) {
+  Handle<Object> namespace_proxy =
+      JSObject::GetProperty(isolate, target, index_space).ToHandleChecked();
+  DCHECK(namespace_proxy->IsJSProxy());
+  Handle<JSObject> namespace_handler(
+      JSObject::cast(Handle<JSProxy>::cast(namespace_proxy)->handler()),
+      isolate);
+  return impl(isolate, property, namespace_handler, false);
 }
 
 // Has trap callback for the top-level proxy.
-void HasToplevelCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void ToplevelHasTrapCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   DCHECK_GE(args.Length(), 2);
   Isolate* isolate = reinterpret_cast<Isolate*>(args.GetIsolate());
   DCHECK(args[0]->IsObject());
@@ -2524,13 +2585,12 @@ void HasToplevelCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   // Now check the index space proxies in order if they know the property.
-  Handle<Object> namespace_proxy =
-      JSObject::GetProperty(isolate, target, "locals").ToHandleChecked();
-  DCHECK(namespace_proxy->IsJSProxy());
-  Handle<JSObject> namespace_handler(
-      JSObject::cast(Handle<JSProxy>::cast(namespace_proxy)->handler()),
-      isolate);
-  if (HasLocalImpl(isolate, property, namespace_handler, false)) {
+  if (DelegateToplevelCall(isolate, target, property, "locals", HasLocalImpl)) {
+    args.GetReturnValue().Set(true);
+    return;
+  }
+  if (DelegateToplevelCall(isolate, target, property, "globals",
+                           HasGlobalImpl)) {
     args.GetReturnValue().Set(true);
     return;
   }
@@ -2538,8 +2598,8 @@ void HasToplevelCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 // Get trap callback for the top-level proxy.
-void GetToplevelCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  if (args.Length() < 2) return;
+void ToplevelGetTrapCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  DCHECK_GE(args.Length(), 2);
   Isolate* isolate = reinterpret_cast<Isolate*>(args.GetIsolate());
   DCHECK(args[0]->IsObject());
   Handle<JSObject> target = Handle<JSObject>::cast(Utils::OpenHandle(*args[0]));
@@ -2557,14 +2617,18 @@ void GetToplevelCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   // Try the index space proxies in the correct disambiguation order.
-  Handle<Object> namespace_proxy =
-      JSObject::GetProperty(isolate, target, "locals").ToHandleChecked();
-  DCHECK(!namespace_proxy->IsUndefined() && namespace_proxy->IsJSProxy());
-  Handle<JSObject> namespace_handler(
-      JSObject::cast(Handle<JSProxy>::cast(namespace_proxy)->handler()),
-      isolate);
-  value = GetLocalImpl(isolate, property, namespace_handler, false);
-  if (!value->IsUndefined()) args.GetReturnValue().Set(Utils::ToLocal(value));
+  value =
+      DelegateToplevelCall(isolate, target, property, "locals", GetLocalImpl);
+  if (!value->IsUndefined()) {
+    args.GetReturnValue().Set(Utils::ToLocal(value));
+    return;
+  }
+  value =
+      DelegateToplevelCall(isolate, target, property, "globals", GetGlobalImpl);
+  if (!value->IsUndefined()) {
+    args.GetReturnValue().Set(Utils::ToLocal(value));
+    return;
+  }
 }
 
 // Populate a JSMap with name->index mappings from an ordered list of names.
@@ -2605,6 +2669,21 @@ Handle<JSProxy> GetJSProxy(
   InstallFunc(isolate, handler, "has", has_callback, 2, false, READ_ONLY);
 
   return factory->NewJSProxy(target, handler);
+}
+
+Handle<JSObject> GetStackObject(WasmFrame* frame) {
+  Isolate* isolate = frame->isolate();
+  Handle<JSObject> object = isolate->factory()->NewJSObjectWithNullProto();
+  wasm::DebugInfo* debug_info =
+      frame->wasm_instance().module_object().native_module()->GetDebugInfo();
+  int num_values = debug_info->GetStackDepth(frame->pc());
+  for (int i = 0; i < num_values; ++i) {
+    wasm::WasmValue value = debug_info->GetStackValue(
+        i, frame->pc(), frame->fp(), frame->callee_fp());
+    JSObject::AddDataElement(object, i, WasmValueToObject(isolate, value),
+                             NONE);
+  }
+  return object;
 }
 }  // namespace
 
@@ -2650,20 +2729,31 @@ Handle<JSProxy> WasmJs::GetJSDebugProxy(WasmFrame* frame) {
 
   // The top level proxy delegates lookups to the index space proxies.
   Handle<JSObject> handler = factory->NewJSObjectWithNullProto();
-  InstallFunc(isolate, handler, "get", GetToplevelCallback, 3, false,
+  InstallFunc(isolate, handler, "get", ToplevelGetTrapCallback, 3, false,
               READ_ONLY);
-  InstallFunc(isolate, handler, "has", HasToplevelCallback, 2, false,
+  InstallFunc(isolate, handler, "has", ToplevelHasTrapCallback, 2, false,
               READ_ONLY);
 
   Handle<JSObject> target = factory->NewJSObjectWithNullProto();
 
   // Generate JSMaps per index space for name->index lookup. Every index space
   // proxy is associated with its table for local name lookup.
+
   auto local_name_table =
       GetNameTable(isolate, GetLocalNames(instance, frame->pc()));
   auto locals =
-      GetJSProxy(frame, local_name_table, GetLocalCallback, HasLocalCallback);
+      GetJSProxy(frame, local_name_table, GetTrapCallback<GetLocalImpl>,
+                 HasTrapCallback<HasLocalImpl>);
   JSObject::AddProperty(isolate, target, "locals", locals, READ_ONLY);
+
+  auto global_name_table = GetNameTable(isolate, GetGlobalNames(instance));
+  auto globals =
+      GetJSProxy(frame, global_name_table, GetTrapCallback<GetGlobalImpl>,
+                 HasTrapCallback<HasGlobalImpl>);
+  JSObject::AddProperty(isolate, target, "globals", globals, READ_ONLY);
+
+  auto stack = GetStackObject(frame);
+  JSObject::AddProperty(isolate, target, "stack", stack, READ_ONLY);
 
   return factory->NewJSProxy(target, handler);
 }
