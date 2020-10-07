@@ -4606,16 +4606,16 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
 
   unwinding_info_writer_.MarkBlockWillExit();
 
-  // We might need rcx and rdx for scratch.
+  // We might need rcx and r10 for scratch.
   DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & rcx.bit());
-  DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & rdx.bit());
+  DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & r10.bit());
   int parameter_count =
       static_cast<int>(call_descriptor->StackParameterCount());
   X64OperandConverter g(this, nullptr);
   Register pop_reg = additional_pop_count->IsImmediate()
                          ? rcx
                          : g.ToRegister(additional_pop_count);
-  Register scratch_reg = pop_reg == rcx ? rdx : rcx;
+  Register scratch_reg = pop_reg == rcx ? r10 : rcx;
   Register argc_reg =
       additional_pop_count->IsImmediate() ? pop_reg : scratch_reg;
 #ifdef V8_NO_ARGUMENTS_ADAPTOR
