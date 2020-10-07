@@ -92,14 +92,13 @@ class OptimizingCompileDispatcher;
 class PersistentHandles;
 class PersistentHandlesList;
 class ReadOnlyArtifacts;
-class ReadOnlyDeserializer;
 class RegExpStack;
 class RootVisitor;
 class RuntimeProfiler;
 class SetupIsolateDelegate;
 class Simulator;
+class SnapshotData;
 class StandardFrame;
-class StartupDeserializer;
 class StringTable;
 class StubCache;
 class ThreadManager;
@@ -570,8 +569,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool InitializeCounters();  // Returns false if already initialized.
 
   bool InitWithoutSnapshot();
-  bool InitWithSnapshot(ReadOnlyDeserializer* read_only_deserializer,
-                        StartupDeserializer* startup_deserializer);
+  bool InitWithSnapshot(SnapshotData* startup_snapshot_data,
+                        SnapshotData* read_only_snapshot_data, bool can_rehash);
 
   // True if at least one thread Enter'ed this isolate.
   bool IsInUse() { return entry_stack_ != nullptr; }
@@ -693,6 +692,27 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   inline Address* c_function_address() {
     return &thread_local_top()->c_function_;
   }
+
+#if defined(DEBUG) || defined(VERIFY_HEAP)
+  // Count the number of active deserializers, so that the heap verifier knows
+  // whether there is currently an active deserialization happening.
+  //
+  // This is needed as the verifier currently doesn't support verifying objects
+  // which are partially deserialized.
+  //
+  // TODO(leszeks): Make the verifier a bit more deserialization compatible.
+  void RegisterDeserializerStarted() { ++num_active_deserializers_; }
+  void RegisterDeserializerFinished() {
+    CHECK_GE(--num_active_deserializers_, 0);
+  }
+  bool has_active_deserializer() const {
+    return num_active_deserializers_.load(std::memory_order_acquire) > 0;
+  }
+#else
+  void RegisterDeserializerStarted() {}
+  void RegisterDeserializerFinished() {}
+  bool has_active_deserializer() const { UNREACHABLE(); }
+#endif
 
   // Bottom JS entry.
   Address js_entry_sp() { return thread_local_top()->js_entry_sp_; }
@@ -1575,8 +1595,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);
   ~Isolate();
 
-  bool Init(ReadOnlyDeserializer* read_only_deserializer,
-            StartupDeserializer* startup_deserializer);
+  bool Init(SnapshotData* startup_snapshot_data,
+            SnapshotData* read_only_snapshot_data, bool can_rehash);
 
   void CheckIsolateLayout();
 
@@ -1715,6 +1735,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   RuntimeState runtime_state_;
   Builtins builtins_;
   SetupIsolateDelegate* setup_delegate_ = nullptr;
+#if defined(DEBUG) || defined(VERIFY_HEAP)
+  std::atomic<int> num_active_deserializers_;
+#endif
 #ifndef V8_INTL_SUPPORT
   unibrow::Mapping<unibrow::Ecma262UnCanonicalize> jsregexp_uncanonicalize_;
   unibrow::Mapping<unibrow::CanonicalizationRange> jsregexp_canonrange_;

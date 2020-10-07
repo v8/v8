@@ -2449,7 +2449,7 @@ void JSHeapBroker::CopyCanonicalHandlesForTesting(
   for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {
     Address* entry = *it.entry();
     Object key = it.key();
-    canonical_handles_->Set(key, entry);
+    canonical_handles_->Insert(key, entry);
   }
 }
 

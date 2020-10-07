@@ -6,10 +6,10 @@
 #define V8_OBJECTS_HEAP_OBJECT_H_
 
 #include "src/common/globals.h"
-#include "src/roots/roots.h"
-
+#include "src/objects/instance-type.h"
 #include "src/objects/objects.h"
 #include "src/objects/tagged-field.h"
+#include "src/roots/roots.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -181,6 +181,7 @@ class HeapObject : public Object {
   // Whether the object needs rehashing. That is the case if the object's
   // content depends on FLAG_hash_seed. When the object is deserialized into
   // a heap with a different hash seed, these objects need to adapt.
+  bool NeedsRehashing(InstanceType instance_type) const;
   bool NeedsRehashing() const;
 
   // Rehashing support is not implemented for all objects that need rehashing.

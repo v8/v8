@@ -1456,13 +1456,6 @@ DEFINE_BOOL(profile_deserialization, false,
             "Print the time it takes to deserialize the snapshot.")
 DEFINE_BOOL(serialization_statistics, false,
             "Collect statistics on serialized objects.")
-#ifdef V8_ENABLE_THIRD_PARTY_HEAP
-DEFINE_UINT_READONLY(serialization_chunk_size, 1,
-                     "Custom size for serialization chunks")
-#else
-DEFINE_UINT(serialization_chunk_size, 4096,
-            "Custom size for serialization chunks")
-#endif
 // Regexp
 DEFINE_BOOL(regexp_optimization, true, "generate optimized regexp code")
 DEFINE_BOOL(regexp_mode_modifiers, false, "enable inline flags in regexp.")

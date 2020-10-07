@@ -250,13 +250,13 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       }
 
       Object obj(address);
-      Address** entry = canonical_handles_->Get(obj);
-      if (*entry == nullptr) {
+      auto find_result = canonical_handles_->FindOrInsert(obj);
+      if (!find_result.already_exists) {
         // Allocate new PersistentHandle if one wasn't created before.
         DCHECK(local_heap_);
-        *entry = local_heap_->NewPersistentHandle(obj).location();
+        *find_result.entry = local_heap_->NewPersistentHandle(obj).location();
       }
-      return Handle<T>(*entry);
+      return Handle<T>(*find_result.entry);
     } else {
       return Handle<T>(object, isolate());
     }
