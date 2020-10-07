@@ -193,6 +193,7 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
     w->SectionText();
     w->AlignToCodeAlignment();
 
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
     // UMA needs an exposed function-type label at the start of the embedded
     // code section, thus this label is declared as a function (otherwise we
     // could use DeclareLabel).
@@ -200,6 +201,9 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
     w->DeclareFunctionBegin(EmbeddedBlobCodeDataSymbol().c_str(),
                             kDummyFunctionLength);
     w->DeclareFunctionEnd(EmbeddedBlobCodeDataSymbol().c_str());
+#else
+    w->DeclareLabel(EmbeddedBlobCodeDataSymbol().c_str());
+#endif
 
     for (int i = 0; i < i::Builtins::builtin_count; i++) {
       if (!blob->ContainsBuiltin(i)) continue;
