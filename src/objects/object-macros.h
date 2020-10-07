@@ -104,13 +104,25 @@
   inline void set_##name(type value, tag_type,         \
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-#define DECL_RELAXED_ACCESSORS(name, type)            \
-  DECL_ACCESSORS_LOAD_TAG(name, type, RelaxedLoadTag) \
+#define DECL_RELAXED_GETTER(name, type) \
+  DECL_ACCESSORS_LOAD_TAG(name, type, RelaxedLoadTag)
+
+#define DECL_RELAXED_SETTER(name, type) \
   DECL_ACCESSORS_STORE_TAG(name, type, RelaxedStoreTag)
 
-#define DECL_RELEASE_ACQUIRE_ACCESSORS(name, type)    \
-  DECL_ACCESSORS_LOAD_TAG(name, type, AcquireLoadTag) \
+#define DECL_RELAXED_ACCESSORS(name, type) \
+  DECL_RELAXED_GETTER(name, type)          \
+  DECL_RELAXED_SETTER(name, type)
+
+#define DECL_ACQUIRE_GETTER(name, type) \
+  DECL_ACCESSORS_LOAD_TAG(name, type, AcquireLoadTag)
+
+#define DECL_RELEASE_SETTER(name, type) \
   DECL_ACCESSORS_STORE_TAG(name, type, ReleaseStoreTag)
+
+#define DECL_RELEASE_ACQUIRE_ACCESSORS(name, type) \
+  DECL_ACQUIRE_GETTER(name, type)                  \
+  DECL_RELEASE_SETTER(name, type)
 
 #define DECL_CAST(Type)                                 \
   V8_INLINE static Type cast(Object object);            \

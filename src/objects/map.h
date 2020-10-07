@@ -595,7 +595,7 @@ class Map : public HeapObject {
 
   // [instance descriptors]: describes the object.
   DECL_RELAXED_ACCESSORS(instance_descriptors, DescriptorArray)
-  DECL_RELEASE_ACQUIRE_ACCESSORS(instance_descriptors, DescriptorArray)
+  DECL_ACQUIRE_GETTER(instance_descriptors, DescriptorArray)
   V8_EXPORT_PRIVATE void SetInstanceDescriptors(Isolate* isolate,
                                                 DescriptorArray descriptors,
                                                 int number_of_own_descriptors);
@@ -974,6 +974,9 @@ class Map : public HeapObject {
       PropertyConstness new_constness, MaybeHandle<FieldType> old_field_type,
       MaybeHandle<Object> old_value, MaybeHandle<FieldType> new_field_type,
       MaybeHandle<Object> new_value);
+
+  // Use the high-level instance_descriptors/SetInstanceDescriptors instead.
+  DECL_RELEASE_SETTER(instance_descriptors, DescriptorArray)
 
   static const int kFastPropertiesSoftLimit = 12;
   static const int kMaxFastProperties = 128;
