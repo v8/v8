@@ -1014,8 +1014,8 @@ int32_t* RegExpGlobalCache::FetchNext() {
         DCHECK(ExperimentalRegExp::IsCompiled(regexp_, isolate_));
         DisallowHeapAllocation no_gc;
         num_matches_ = ExperimentalRegExp::ExecRaw(
-            isolate_, *regexp_, *subject_, register_array_,
-            register_array_size_, last_end_index);
+            isolate_, RegExp::kFromRuntime, *regexp_, *subject_,
+            register_array_, register_array_size_, last_end_index);
         break;
       }
       case JSRegExp::IRREGEXP: {

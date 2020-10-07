@@ -75,6 +75,11 @@ bool ExperimentalRegExp::Compile(Isolate* isolate, Handle<JSRegExp> re) {
   ZoneList<RegExpInstruction> bytecode =
       ExperimentalRegExpCompiler::Compile(parse_result.tree, flags, &zone);
 
+  if (FLAG_print_regexp_bytecode) {
+    StdoutStream{} << "Bytecode:" << std::endl;
+    StdoutStream{} << bytecode.ToVector() << std::endl;
+  }
+
   int byte_length = sizeof(RegExpInstruction) * bytecode.length();
   Handle<ByteArray> bytecode_byte_array =
       isolate->factory()->NewByteArray(byte_length);
@@ -102,8 +107,10 @@ Vector<RegExpInstruction> AsInstructionSequence(ByteArray raw_bytes) {
 }
 
 // Returns the number of matches.
-int32_t ExperimentalRegExp::ExecRaw(Isolate* isolate, JSRegExp regexp,
-                                    String subject, int32_t* output_registers,
+int32_t ExperimentalRegExp::ExecRaw(Isolate* isolate,
+                                    RegExp::CallOrigin call_origin,
+                                    JSRegExp regexp, String subject,
+                                    int32_t* output_registers,
                                     int32_t output_register_count,
                                     int32_t subject_index) {
   DisallowHeapAllocation no_gc;
@@ -115,31 +122,22 @@ int32_t ExperimentalRegExp::ExecRaw(Isolate* isolate, JSRegExp regexp,
     StdoutStream{} << "Executing experimental regexp " << source << std::endl;
   }
 
-  Vector<RegExpInstruction> bytecode = AsInstructionSequence(
-      ByteArray::cast(regexp.DataAt(JSRegExp::kIrregexpLatin1BytecodeIndex)));
-
-  if (FLAG_print_regexp_bytecode) {
-    StdoutStream{} << "Bytecode:" << std::endl;
-    StdoutStream{} << bytecode << std::endl;
-  }
+  ByteArray bytecode =
+      ByteArray::cast(regexp.DataAt(JSRegExp::kIrregexpLatin1BytecodeIndex));
 
   int register_count_per_match =
       JSRegExp::RegistersForCaptureCount(regexp.CaptureCount());
 
-  DCHECK(subject.IsFlat());
-  String::FlatContent subject_content = subject.GetFlatContent(no_gc);
-
-  Zone zone(isolate->allocator(), ZONE_NAME);
-
-  if (subject_content.IsOneByte()) {
-    return ExperimentalRegExpInterpreter::FindMatchesNfaOneByte(
-        bytecode, register_count_per_match, subject_content.ToOneByteVector(),
+  int32_t result;
+  do {
+    DCHECK(subject.IsFlat());
+    Zone zone(isolate->allocator(), ZONE_NAME);
+    result = ExperimentalRegExpInterpreter::FindMatches(
+        isolate, call_origin, bytecode, register_count_per_match, subject,
         subject_index, output_registers, output_register_count, &zone);
-  } else {
-    return ExperimentalRegExpInterpreter::FindMatchesNfaTwoByte(
-        bytecode, register_count_per_match, subject_content.ToUC16Vector(),
-        subject_index, output_registers, output_register_count, &zone);
-  }
+  } while (result == RegExp::kInternalRegExpRetry &&
+           call_origin == RegExp::kFromRuntime);
+  return result;
 }
 
 int32_t ExperimentalRegExp::MatchForCallFromJs(
@@ -162,8 +160,8 @@ int32_t ExperimentalRegExp::MatchForCallFromJs(
 
   JSRegExp regexp_obj = JSRegExp::cast(Object(regexp));
 
-  return ExecRaw(isolate, regexp_obj, subject_string, output_registers,
-                 output_register_count, start_position);
+  return ExecRaw(isolate, RegExp::kFromJs, regexp_obj, subject_string,
+                 output_registers, output_register_count, start_position);
 }
 
 MaybeHandle<Object> ExperimentalRegExp::Exec(
@@ -197,16 +195,20 @@ MaybeHandle<Object> ExperimentalRegExp::Exec(
     output_registers_release.reset(output_registers);
   }
 
-  int num_matches = ExecRaw(isolate, *regexp, *subject, output_registers,
-                            output_register_count, subject_index);
+  int num_matches =
+      ExecRaw(isolate, RegExp::kFromRuntime, *regexp, *subject,
+              output_registers, output_register_count, subject_index);
 
-  if (num_matches == 0) {
-    return isolate->factory()->null_value();
-  } else {
+  if (num_matches > 0) {
     DCHECK_EQ(num_matches, 1);
     return RegExp::SetLastMatchInfo(isolate, last_match_info, subject,
                                     capture_count, output_registers);
-    return last_match_info;
+  } else if (num_matches == 0) {
+    return isolate->factory()->null_value();
+  } else {
+    DCHECK_LT(num_matches, 0);
+    DCHECK(isolate->has_pending_exception());
+    return MaybeHandle<Object>();
   }
 }
 

@@ -39,7 +39,8 @@ class ExperimentalRegExp final : public AllStatic {
   static MaybeHandle<Object> Exec(Isolate* isolate, Handle<JSRegExp> regexp,
                                   Handle<String> subject, int index,
                                   Handle<RegExpMatchInfo> last_match_info);
-  static int32_t ExecRaw(Isolate* isolate, JSRegExp regexp, String subject,
+  static int32_t ExecRaw(Isolate* isolate, RegExp::CallOrigin call_origin,
+                         JSRegExp regexp, String subject,
                          int32_t* output_registers,
                          int32_t output_register_count, int32_t subject_index);
 
