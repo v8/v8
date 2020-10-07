@@ -387,19 +387,43 @@ class Decoder {
 
   template <typename IntType, ValidateFlag validate, TraceFlag trace,
             size_t size_in_bits = 8 * sizeof(IntType)>
-  IntType read_leb(const byte* pc, uint32_t* length,
-                   const char* name = "varint") {
+  V8_INLINE IntType read_leb(const byte* pc, uint32_t* length,
+                             const char* name = "varint") {
     static_assert(size_in_bits <= 8 * sizeof(IntType),
                   "leb does not fit in type");
     TRACE_IF(trace, "  +%u  %-20s: ", pc_offset(), name);
+    // Fast path for single-byte integers.
+    if ((!validate || V8_LIKELY(pc < end_)) && !(*pc & 0x80)) {
+      TRACE_IF(trace, "%02x ", *pc);
+      *length = 1;
+      IntType result = *pc;
+      if (std::is_signed<IntType>::value) {
+        // Perform sign extension.
+        constexpr int sign_ext_shift = int{8 * sizeof(IntType)} - 7;
+        result = (result << sign_ext_shift) >> sign_ext_shift;
+        TRACE_IF(trace, "= %" PRIi64 "\n", static_cast<int64_t>(result));
+      } else {
+        TRACE_IF(trace, "= %" PRIu64 "\n", static_cast<uint64_t>(result));
+      }
+      return result;
+    }
+    return read_leb_slowpath<IntType, validate, trace, size_in_bits>(pc, length,
+                                                                     name);
+  }
+
+  template <typename IntType, ValidateFlag validate, TraceFlag trace,
+            size_t size_in_bits = 8 * sizeof(IntType)>
+  V8_NOINLINE IntType read_leb_slowpath(const byte* pc, uint32_t* length,
+                                        const char* name) {
+    // Create an unrolled LEB decoding function per integer type.
     return read_leb_tail<IntType, validate, trace, size_in_bits, 0>(pc, length,
                                                                     name, 0);
   }
 
   template <typename IntType, ValidateFlag validate, TraceFlag trace,
             size_t size_in_bits, int byte_index>
-  IntType read_leb_tail(const byte* pc, uint32_t* length, const char* name,
-                        IntType result) {
+  V8_INLINE IntType read_leb_tail(const byte* pc, uint32_t* length,
+                                  const char* name, IntType result) {
     constexpr bool is_signed = std::is_signed<IntType>::value;
     constexpr int kMaxLength = (size_in_bits + 6) / 7;
     static_assert(byte_index < kMaxLength, "invalid template instantiation");
