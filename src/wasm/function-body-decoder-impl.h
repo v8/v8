@@ -2171,7 +2171,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   bool CheckSimdPostMvp(WasmOpcode opcode) {
     if (!FLAG_wasm_simd_post_mvp && WasmOpcodes::IsSimdPostMvpOpcode(opcode)) {
-      this->error(
+      this->DecodeError(
           "simd opcode not available, enable with --wasm-simd-post-mvp");
       return false;
     }
@@ -2356,16 +2356,16 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   DECODE(Catch) {
     CHECK_PROTOTYPE_OPCODE(eh);
     if (!VALIDATE(!control_.empty())) {
-      this->error("catch does not match any try");
+      this->DecodeError("catch does not match any try");
       return 0;
     }
     Control* c = &control_.back();
     if (!VALIDATE(c->is_try())) {
-      this->error("catch does not match any try");
+      this->DecodeError("catch does not match any try");
       return 0;
     }
     if (!VALIDATE(c->is_incomplete_try())) {
-      this->error("catch already present for try");
+      this->DecodeError("catch already present for try");
       return 0;
     }
     c->kind = kControlTryCatch;
@@ -2496,7 +2496,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   DECODE(Else) {
     if (!VALIDATE(!control_.empty())) {
-      this->error("else does not match any if");
+      this->DecodeError("else does not match any if");
       return 0;
     }
     Control* c = &control_.back();
@@ -2520,7 +2520,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   DECODE(End) {
     if (!VALIDATE(!control_.empty())) {
-      this->error("end does not match any if, try, or block");
+      this->DecodeError("end does not match any if, try, or block");
       return 0;
     }
     Control* c = &control_.back();
@@ -3938,7 +3938,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         // them here.
         Value rtt = Pop(1);
         if (!VALIDATE(rtt.type.is_rtt() || rtt.type.is_bottom())) {
-          this->error(this->pc_, "br_on_cast[1]: expected rtt on stack");
+          this->DecodeError("br_on_cast[1]: expected rtt on stack");
           return 0;
         }
         Value obj = Pop(0);
@@ -4031,7 +4031,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   unsigned DecodeNumericOpcode(WasmOpcode opcode) {
     const FunctionSig* sig = WasmOpcodes::Signature(opcode);
     if (!VALIDATE(sig != nullptr)) {
-      this->error("invalid numeric opcode");
+      this->DecodeError("invalid numeric opcode");
       return 0;
     }
     switch (opcode) {
@@ -4123,7 +4123,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         return 2 + imm.length;
       }
       default:
-        this->error("invalid numeric opcode");
+        this->DecodeError("invalid numeric opcode");
         return 0;
     }
   }
