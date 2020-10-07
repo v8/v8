@@ -10,6 +10,8 @@
   'proposals/js-types/binary-leb128': [FAIL],
   'proposals/bulk-memory-operations/binary': [FAIL],
   'proposals/bulk-memory-operations/binary-leb128': [FAIL],
+  # TODO(v8:10994): Failing spec test after update.
+  'proposals/reference-types/br_table': [FAIL],
 
   # TODO(v8:9144): The MVP behavior when bounds-checking segments changed in
   # the bulk-memory proposal. Since we've enabled bulk-memory by default, we
@@ -46,6 +48,7 @@
   # This test only has 1 problematic use of f32x4.min and f32x4.div, consider
   # removing it from upstream, then we can run this test.
   'proposals/simd/simd_splat' : [PASS, FAIL],
+  'proposals/simd/simd_f32x4_pmin_pmax' : [PASS, FAIL],
 }],  # arch == arm and not simulator_run
 
 ['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {
