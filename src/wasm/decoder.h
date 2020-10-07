@@ -46,8 +46,6 @@ class Decoder {
     kFullValidation      // Run full validation with error message and location.
   };
 
-  enum AdvancePCFlag : bool { kAdvancePc = true, kNoAdvancePc = false };
-
   enum TraceFlag : bool { kTrace = true, kNoTrace = false };
 
   Decoder(const byte* start, const byte* end, uint32_t buffer_offset = 0)
@@ -101,40 +99,35 @@ class Decoder {
   template <ValidateFlag validate>
   uint32_t read_u32v(const byte* pc, uint32_t* length,
                      const char* name = "LEB32") {
-    return read_leb<uint32_t, validate, kNoAdvancePc, kNoTrace>(pc, length,
-                                                                name);
+    return read_leb<uint32_t, validate, kNoTrace>(pc, length, name);
   }
 
   // Reads a variable-length signed integer (little endian).
   template <ValidateFlag validate>
   int32_t read_i32v(const byte* pc, uint32_t* length,
                     const char* name = "signed LEB32") {
-    return read_leb<int32_t, validate, kNoAdvancePc, kNoTrace>(pc, length,
-                                                               name);
+    return read_leb<int32_t, validate, kNoTrace>(pc, length, name);
   }
 
   // Reads a variable-length unsigned integer (little endian).
   template <ValidateFlag validate>
   uint64_t read_u64v(const byte* pc, uint32_t* length,
                      const char* name = "LEB64") {
-    return read_leb<uint64_t, validate, kNoAdvancePc, kNoTrace>(pc, length,
-                                                                name);
+    return read_leb<uint64_t, validate, kNoTrace>(pc, length, name);
   }
 
   // Reads a variable-length signed integer (little endian).
   template <ValidateFlag validate>
   int64_t read_i64v(const byte* pc, uint32_t* length,
                     const char* name = "signed LEB64") {
-    return read_leb<int64_t, validate, kNoAdvancePc, kNoTrace>(pc, length,
-                                                               name);
+    return read_leb<int64_t, validate, kNoTrace>(pc, length, name);
   }
 
   // Reads a variable-length 33-bit signed integer (little endian).
   template <ValidateFlag validate>
   int64_t read_i33v(const byte* pc, uint32_t* length,
                     const char* name = "signed LEB33") {
-    return read_leb<int64_t, validate, kNoAdvancePc, kNoTrace, 33>(pc, length,
-                                                                   name);
+    return read_leb<int64_t, validate, kNoTrace, 33>(pc, length, name);
   }
 
   // Reads a prefixed-opcode, possibly with variable-length index.
@@ -188,22 +181,28 @@ class Decoder {
   // Reads a LEB128 variable-length unsigned 32-bit integer and advances {pc_}.
   uint32_t consume_u32v(const char* name = nullptr) {
     uint32_t length = 0;
-    return read_leb<uint32_t, kFullValidation, kAdvancePc, kTrace>(pc_, &length,
-                                                                   name);
+    uint32_t result =
+        read_leb<uint32_t, kFullValidation, kTrace>(pc_, &length, name);
+    pc_ += length;
+    return result;
   }
 
   // Reads a LEB128 variable-length signed 32-bit integer and advances {pc_}.
   int32_t consume_i32v(const char* name = nullptr) {
     uint32_t length = 0;
-    return read_leb<int32_t, kFullValidation, kAdvancePc, kTrace>(pc_, &length,
-                                                                  name);
+    int32_t result =
+        read_leb<int32_t, kFullValidation, kTrace>(pc_, &length, name);
+    pc_ += length;
+    return result;
   }
 
   // Reads a LEB128 variable-length unsigned 64-bit integer and advances {pc_}.
   uint64_t consume_u64v(const char* name = nullptr) {
     uint32_t length = 0;
-    return read_leb<uint64_t, kFullValidation, kAdvancePc, kTrace>(pc_, &length,
-                                                                   name);
+    uint64_t result =
+        read_leb<uint64_t, kFullValidation, kTrace>(pc_, &length, name);
+    pc_ += length;
+    return result;
   }
 
   // Consume {size} bytes and send them to the bit bucket, advancing {pc_}.
@@ -386,20 +385,19 @@ class Decoder {
     return val;
   }
 
-  template <typename IntType, ValidateFlag validate, AdvancePCFlag advance_pc,
-            TraceFlag trace, size_t size_in_bits = 8 * sizeof(IntType)>
+  template <typename IntType, ValidateFlag validate, TraceFlag trace,
+            size_t size_in_bits = 8 * sizeof(IntType)>
   IntType read_leb(const byte* pc, uint32_t* length,
                    const char* name = "varint") {
-    DCHECK_IMPLIES(advance_pc, pc == pc_);
     static_assert(size_in_bits <= 8 * sizeof(IntType),
                   "leb does not fit in type");
     TRACE_IF(trace, "  +%u  %-20s: ", pc_offset(), name);
-    return read_leb_tail<IntType, validate, advance_pc, trace, size_in_bits, 0>(
-        pc, length, name, 0);
+    return read_leb_tail<IntType, validate, trace, size_in_bits, 0>(pc, length,
+                                                                    name, 0);
   }
 
-  template <typename IntType, ValidateFlag validate, AdvancePCFlag advance_pc,
-            TraceFlag trace, size_t size_in_bits, int byte_index>
+  template <typename IntType, ValidateFlag validate, TraceFlag trace,
+            size_t size_in_bits, int byte_index>
   IntType read_leb_tail(const byte* pc, uint32_t* length, const char* name,
                         IntType result) {
     constexpr bool is_signed = std::is_signed<IntType>::value;
@@ -422,10 +420,9 @@ class Decoder {
       // Compilers are not smart enough to figure out statically that the
       // following call is unreachable if is_last_byte is false.
       constexpr int next_byte_index = byte_index + (is_last_byte ? 0 : 1);
-      return read_leb_tail<IntType, validate, advance_pc, trace, size_in_bits,
+      return read_leb_tail<IntType, validate, trace, size_in_bits,
                            next_byte_index>(pc + 1, length, name, result);
     }
-    if (advance_pc) pc_ = pc + (at_end ? 0 : 1);
     *length = byte_index + (at_end ? 0 : 1);
     if (validate && V8_UNLIKELY(at_end || (b & 0x80))) {
       TRACE_IF(trace, at_end ? "<end> " : "<length overflow> ");
@@ -435,6 +432,7 @@ class Decoder {
         MarkError();
       }
       result = 0;
+      *length = 0;
     }
     if (is_last_byte) {
       // A signed-LEB128 must sign-extend the final byte, excluding its
@@ -459,6 +457,7 @@ class Decoder {
           MarkError();
         }
         result = 0;
+        *length = 0;
       }
     }
     constexpr int sign_ext_shift =

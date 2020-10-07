@@ -517,10 +517,6 @@ size_t AsyncStreamingDecoder::DecodeVarInt32::ReadBytes(
   Decoder decoder(buf,
                   streaming->module_offset() - static_cast<uint32_t>(offset()));
   value_ = decoder.consume_u32v(field_name_);
-  // The number of bytes we actually needed to read.
-  DCHECK_GT(decoder.pc(), buffer().begin());
-  bytes_consumed_ = static_cast<size_t>(decoder.pc() - buf.begin());
-  TRACE_STREAMING("  ==> %zu bytes consumed\n", bytes_consumed_);
 
   if (decoder.failed()) {
     if (new_bytes == remaining_buf.size()) {
@@ -530,6 +526,11 @@ size_t AsyncStreamingDecoder::DecodeVarInt32::ReadBytes(
     set_offset(offset() + new_bytes);
     return new_bytes;
   }
+
+  // The number of bytes we actually needed to read.
+  DCHECK_GT(decoder.pc(), buffer().begin());
+  bytes_consumed_ = static_cast<size_t>(decoder.pc() - buf.begin());
+  TRACE_STREAMING("  ==> %zu bytes consumed\n", bytes_consumed_);
 
   // We read all the bytes we needed.
   DCHECK_GT(bytes_consumed_, offset());

@@ -380,7 +380,6 @@ TEST_F(DecoderTest, ReadU32v_off_end1) {
   unsigned length = 0;
   decoder.Reset(data, data);
   decoder.read_u32v<Decoder::kFullValidation>(decoder.start(), &length);
-  EXPECT_EQ(0u, length);
   EXPECT_FALSE(decoder.ok());
 }
 
@@ -390,7 +389,6 @@ TEST_F(DecoderTest, ReadU32v_off_end2) {
     unsigned length = 0;
     decoder.Reset(data, data + i);
     decoder.read_u32v<Decoder::kFullValidation>(decoder.start(), &length);
-    EXPECT_EQ(i, length);
     EXPECT_FALSE(decoder.ok());
   }
 }
@@ -401,7 +399,6 @@ TEST_F(DecoderTest, ReadU32v_off_end3) {
     unsigned length = 0;
     decoder.Reset(data, data + i);
     decoder.read_u32v<Decoder::kFullValidation>(decoder.start(), &length);
-    EXPECT_EQ(i, length);
     EXPECT_FALSE(decoder.ok());
   }
 }
@@ -412,7 +409,6 @@ TEST_F(DecoderTest, ReadU32v_off_end4) {
     unsigned length = 0;
     decoder.Reset(data, data + i);
     decoder.read_u32v<Decoder::kFullValidation>(decoder.start(), &length);
-    EXPECT_EQ(i, length);
     EXPECT_FALSE(decoder.ok());
   }
 }
@@ -423,7 +419,6 @@ TEST_F(DecoderTest, ReadU32v_off_end5) {
     unsigned length = 0;
     decoder.Reset(data, data + i);
     decoder.read_u32v<Decoder::kFullValidation>(decoder.start(), &length);
-    EXPECT_EQ(i, length);
     EXPECT_FALSE(decoder.ok());
   }
 }
@@ -435,7 +430,6 @@ TEST_F(DecoderTest, ReadU32v_extra_bits) {
     unsigned length = 0;
     decoder.Reset(data, data + sizeof(data));
     decoder.read_u32v<Decoder::kFullValidation>(decoder.start(), &length);
-    EXPECT_EQ(5u, length);
     EXPECT_FALSE(decoder.ok());
   }
 }
@@ -456,7 +450,6 @@ TEST_F(DecoderTest, ReadI32v_extra_bits_positive) {
   byte data[] = {0x80, 0x80, 0x80, 0x80, 0x77};
   decoder.Reset(data, data + sizeof(data));
   decoder.read_i32v<Decoder::kFullValidation>(decoder.start(), &length);
-  EXPECT_EQ(5u, length);
   EXPECT_FALSE(decoder.ok());
 }
 
@@ -654,7 +647,6 @@ TEST_F(DecoderTest, ReadU64v_extra_bits) {
     unsigned length = 0;
     decoder.Reset(data, data + sizeof(data));
     decoder.read_u64v<Decoder::kFullValidation>(decoder.start(), &length);
-    EXPECT_EQ(10u, length);
     EXPECT_FALSE(decoder.ok());
   }
 }
@@ -675,7 +667,6 @@ TEST_F(DecoderTest, ReadI64v_extra_bits_positive) {
   byte data[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x77};
   decoder.Reset(data, data + sizeof(data));
   decoder.read_i64v<Decoder::kFullValidation>(decoder.start(), &length);
-  EXPECT_EQ(10u, length);
   EXPECT_FALSE(decoder.ok());
 }
 
