@@ -2187,12 +2187,13 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
     Mov(src2.Q(), rhs.fp().Q());
   }
 
-  uint8_t mask = lhs == rhs ? 0x0F : 0x1F;
   int64_t imms[2] = {0, 0};
   for (int i = 7; i >= 0; i--) {
-    imms[0] = (imms[0] << 8) | (shuffle[i] & mask);
-    imms[1] = (imms[1] << 8) | (shuffle[i + 8] & mask);
+    imms[0] = (imms[0] << 8) | (shuffle[i]);
+    imms[1] = (imms[1] << 8) | (shuffle[i + 8]);
   }
+  DCHECK_EQ(0, (imms[0] | imms[1]) &
+                   (lhs == rhs ? 0xF0F0F0F0F0F0F0F0 : 0xE0E0E0E0E0E0E0E0));
 
   Movi(temp.V16B(), imms[1], imms[0]);
 

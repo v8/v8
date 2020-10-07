@@ -3133,7 +3133,6 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
   }
 
   int table_size = src1 == src2 ? 2 : 4;
-  uint32_t mask = table_size == 2 ? 0x0F0F0F0F : 0x1F1F1F1F;
 
   int scratch_s_base = scratch.code() * 4;
   for (int j = 0; j < 4; j++) {
@@ -3141,11 +3140,9 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
     for (int i = 3; i >= 0; i--) {
       imm = (imm << 8) | shuffle[j * 4 + i];
     }
-    uint32_t four_lanes = imm;
+    DCHECK_EQ(0, imm & (table_size == 2 ? 0xF0F0F0F0 : 0xE0E0E0E0));
     // Ensure indices are in [0,15] if table_size is 2, or [0,31] if 4.
-    four_lanes &= mask;
-    vmov(SwVfpRegister::from_code(scratch_s_base + j),
-         Float32::FromBits(four_lanes));
+    vmov(SwVfpRegister::from_code(scratch_s_base + j), Float32::FromBits(imm));
   }
 
   DwVfpRegister table_base = src1.low();

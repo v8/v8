@@ -2560,17 +2560,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                       src1 = i.InputSimd128Register(1).V16B();
       // Unary shuffle table is in src0, binary shuffle table is in src0, src1,
       // which must be consecutive.
-      uint32_t mask = 0;
-      if (src0 == src1) {
-        mask = 0x0F0F0F0F;
-      } else {
-        mask = 0x1F1F1F1F;
+      if (src0 != src1) {
         DCHECK(AreConsecutive(src0, src1));
       }
-      int64_t imm1 =
-          make_uint64(i.InputInt32(3) & mask, i.InputInt32(2) & mask);
-      int64_t imm2 =
-          make_uint64(i.InputInt32(5) & mask, i.InputInt32(4) & mask);
+
+      int64_t imm1 = make_uint64(i.InputInt32(3), i.InputInt32(2));
+      int64_t imm2 = make_uint64(i.InputInt32(5), i.InputInt32(4));
+      DCHECK_EQ(0, (imm1 | imm2) & (src0 == src1 ? 0xF0F0F0F0F0F0F0F0
+                                                 : 0xE0E0E0E0E0E0E0E0));
+
       UseScratchRegisterScope scope(tasm());
       VRegister temp = scope.AcquireV(kFormat16B);
       __ Movi(temp, imm2, imm1);

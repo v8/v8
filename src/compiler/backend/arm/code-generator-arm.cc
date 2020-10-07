@@ -3121,8 +3121,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       int scratch_s_base = scratch.code() * 4;
       for (int j = 0; j < 4; j++) {
         uint32_t four_lanes = i.InputUint32(2 + j);
-        // Ensure byte indices are in [0, 31] so masks are never NaNs.
-        four_lanes &= 0x1F1F1F1F;
+        DCHECK_EQ(0, four_lanes & (table_size == 2 ? 0xF0F0F0F0 : 0xE0E0E0E0));
         __ vmov(SwVfpRegister::from_code(scratch_s_base + j),
                 Float32::FromBits(four_lanes));
       }
