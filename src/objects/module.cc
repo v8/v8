@@ -371,7 +371,7 @@ Maybe<PropertyAttributes> JSModuleNamespace::GetPropertyAttributes(
   return Just(it->property_attributes());
 }
 
-bool Module::IsGraphAsync(Isolate* isolate) {
+bool Module::IsGraphAsync(Isolate* isolate) const {
   DisallowGarbageCollection no_gc;
 
   // Only SourceTextModules may be async.

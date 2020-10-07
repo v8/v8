@@ -65,7 +65,7 @@ class Module : public HeapObject {
 
   // Returns if this module or any transitively requested module is [[Async]],
   // i.e. has a top-level await.
-  V8_WARN_UNUSED_RESULT bool IsGraphAsync(Isolate* isolate);
+  V8_WARN_UNUSED_RESULT bool IsGraphAsync(Isolate* isolate) const;
 
   // Implementation of spec operation ModuleDeclarationInstantiation.
   // Returns false if an exception occurred during instantiation, true
