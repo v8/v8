@@ -1912,23 +1912,22 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
 }
 
 Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSForInNext, node->opcode());
-  ForInMode const mode = ForInModeOf(node->op());
-  Node* receiver = NodeProperties::GetValueInput(node, 0);
-  Node* cache_array = NodeProperties::GetValueInput(node, 1);
-  Node* cache_type = NodeProperties::GetValueInput(node, 2);
-  Node* index = NodeProperties::GetValueInput(node, 3);
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
+  JSForInNextNode n(node);
+  Node* receiver = n.receiver();
+  Node* cache_array = n.cache_array();
+  Node* cache_type = n.cache_type();
+  Node* index = n.index();
+  Node* context = n.context();
+  FrameState frame_state = n.frame_state();
+  Effect effect = n.effect();
+  Control control = n.control();
 
   // Load the map of the {receiver}.
   Node* receiver_map = effect =
       graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
                        receiver, effect, control);
 
-  switch (mode) {
+  switch (n.Parameters().mode()) {
     case ForInMode::kUseEnumCacheKeys:
     case ForInMode::kUseEnumCacheKeysAndIndices: {
       // Ensure that the expected map still matches that of the {receiver}.
@@ -2025,16 +2024,15 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
 }
 
 Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSForInPrepare, node->opcode());
-  ForInMode const mode = ForInModeOf(node->op());
-  Node* enumerator = NodeProperties::GetValueInput(node, 0);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
+  JSForInPrepareNode n(node);
+  Node* enumerator = n.enumerator();
+  Effect effect = n.effect();
+  Control control = n.control();
   Node* cache_type = enumerator;
   Node* cache_array = nullptr;
   Node* cache_length = nullptr;
 
-  switch (mode) {
+  switch (n.Parameters().mode()) {
     case ForInMode::kUseEnumCacheKeys:
     case ForInMode::kUseEnumCacheKeysAndIndices: {
       // Check that the {enumerator} is a Map.
