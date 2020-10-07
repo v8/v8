@@ -246,7 +246,7 @@ class SystemTest(unittest.TestCase):
       self, expected_results_name, actual_json, basedir):
     # Check relevant properties of the json output.
     with open(actual_json) as f:
-      json_output = json.load(f)[0]
+      json_output = json.load(f)
 
     # Replace duration in actual output as it's non-deterministic. Also
     # replace the python executable prefix as it has a different absolute

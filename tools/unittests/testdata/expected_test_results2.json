@@ -1,7 +1,5 @@
 {
-  "arch": "x64", 
   "duration_mean": 1, 
-  "mode": "release", 
   "results": [
     {
       "command": "/usr/bin/python out/build/d8_mocked.py bananaflakes --random-seed=123 --nohard-abort --testing-d8-test-runner", 

@@ -117,7 +117,7 @@ SLOW_ARCHS = [
 
 
 ModeConfig = namedtuple(
-    'ModeConfig', 'label flags timeout_scalefactor status_mode execution_mode')
+    'ModeConfig', 'label flags timeout_scalefactor status_mode')
 
 DEBUG_FLAGS = ["--nohard-abort", "--enable-slow-asserts", "--verify-heap"]
 RELEASE_FLAGS = ["--nohard-abort"]
@@ -127,7 +127,6 @@ DEBUG_MODE = ModeConfig(
     flags=DEBUG_FLAGS,
     timeout_scalefactor=4,
     status_mode="debug",
-    execution_mode="debug",
 )
 
 RELEASE_MODE = ModeConfig(
@@ -135,7 +134,6 @@ RELEASE_MODE = ModeConfig(
     flags=RELEASE_FLAGS,
     timeout_scalefactor=1,
     status_mode="release",
-    execution_mode="release",
 )
 
 # Normal trybot release configuration. There, dchecks are always on which
@@ -146,7 +144,6 @@ TRY_RELEASE_MODE = ModeConfig(
     flags=RELEASE_FLAGS,
     timeout_scalefactor=4,
     status_mode="debug",
-    execution_mode="release",
 )
 
 PROGRESS_INDICATORS = {
@@ -761,13 +758,7 @@ class BaseTestRunner(object):
   def _create_progress_indicators(self, test_count, options):
     procs = [PROGRESS_INDICATORS[options.progress]()]
     if options.json_test_results:
-      # TODO(machenbach): Deprecate the execution mode. Previously it was meant
-      # to differentiate several records in the json output. But there is now
-      # only one record and the mode information is redundant.
-      procs.append(progress.JsonTestProgressIndicator(
-        self.framework_name,
-        self.build_config.arch,
-        self.mode_options.execution_mode))
+      procs.append(progress.JsonTestProgressIndicator(self.framework_name))
 
     for proc in procs:
       proc.configure(options)
