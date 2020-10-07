@@ -394,9 +394,10 @@ inline bool Code::can_have_weak_objects() const {
 
 inline void Code::set_can_have_weak_objects(bool value) {
   DCHECK(CodeKindIsOptimizedJSFunction(kind()));
-  int32_t previous = code_data_container(kAcquireLoad).kind_specific_flags();
+  CodeDataContainer container = code_data_container(kAcquireLoad);
+  int32_t previous = container.kind_specific_flags();
   int32_t updated = CanHaveWeakObjectsField::update(previous, value);
-  code_data_container(kAcquireLoad).set_kind_specific_flags(updated);
+  container.set_kind_specific_flags(updated);
 }
 
 inline bool Code::is_promise_rejection() const {
@@ -407,9 +408,10 @@ inline bool Code::is_promise_rejection() const {
 
 inline void Code::set_is_promise_rejection(bool value) {
   DCHECK(kind() == CodeKind::BUILTIN);
-  int32_t previous = code_data_container(kAcquireLoad).kind_specific_flags();
+  CodeDataContainer container = code_data_container(kAcquireLoad);
+  int32_t previous = container.kind_specific_flags();
   int32_t updated = IsPromiseRejectionField::update(previous, value);
-  code_data_container(kAcquireLoad).set_kind_specific_flags(updated);
+  container.set_kind_specific_flags(updated);
 }
 
 inline bool Code::is_exception_caught() const {
@@ -420,9 +422,10 @@ inline bool Code::is_exception_caught() const {
 
 inline void Code::set_is_exception_caught(bool value) {
   DCHECK(kind() == CodeKind::BUILTIN);
-  int32_t previous = code_data_container(kAcquireLoad).kind_specific_flags();
+  CodeDataContainer container = code_data_container(kAcquireLoad);
+  int32_t previous = container.kind_specific_flags();
   int32_t updated = IsExceptionCaughtField::update(previous, value);
-  code_data_container(kAcquireLoad).set_kind_specific_flags(updated);
+  container.set_kind_specific_flags(updated);
 }
 
 inline bool Code::is_off_heap_trampoline() const {
@@ -477,9 +480,10 @@ bool Code::marked_for_deoptimization() const {
 void Code::set_marked_for_deoptimization(bool flag) {
   DCHECK(CodeKindCanDeoptimize(kind()));
   DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(GetIsolate()));
-  int32_t previous = code_data_container(kAcquireLoad).kind_specific_flags();
+  CodeDataContainer container = code_data_container(kAcquireLoad);
+  int32_t previous = container.kind_specific_flags();
   int32_t updated = MarkedForDeoptimizationField::update(previous, flag);
-  code_data_container(kAcquireLoad).set_kind_specific_flags(updated);
+  container.set_kind_specific_flags(updated);
 }
 
 int Code::deoptimization_count() const {
@@ -492,12 +496,13 @@ int Code::deoptimization_count() const {
 
 void Code::increment_deoptimization_count() {
   DCHECK(CodeKindCanDeoptimize(kind()));
-  int32_t flags = code_data_container(kAcquireLoad).kind_specific_flags();
+  CodeDataContainer container = code_data_container(kAcquireLoad);
+  int32_t flags = container.kind_specific_flags();
   int32_t count = DeoptCountField::decode(flags);
   DCHECK_GE(count, 0);
   CHECK_LE(count + 1, DeoptCountField::kMax);
   int32_t updated = DeoptCountField::update(flags, count + 1);
-  code_data_container(kAcquireLoad).set_kind_specific_flags(updated);
+  container.set_kind_specific_flags(updated);
 }
 
 bool Code::embedded_objects_cleared() const {
@@ -509,9 +514,10 @@ bool Code::embedded_objects_cleared() const {
 void Code::set_embedded_objects_cleared(bool flag) {
   DCHECK(CodeKindIsOptimizedJSFunction(kind()));
   DCHECK_IMPLIES(flag, marked_for_deoptimization());
-  int32_t previous = code_data_container(kAcquireLoad).kind_specific_flags();
+  CodeDataContainer container = code_data_container(kAcquireLoad);
+  int32_t previous = container.kind_specific_flags();
   int32_t updated = EmbeddedObjectsClearedField::update(previous, flag);
-  code_data_container(kAcquireLoad).set_kind_specific_flags(updated);
+  container.set_kind_specific_flags(updated);
 }
 
 bool Code::deopt_already_counted() const {
@@ -523,9 +529,10 @@ bool Code::deopt_already_counted() const {
 void Code::set_deopt_already_counted(bool flag) {
   DCHECK(CodeKindCanDeoptimize(kind()));
   DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(GetIsolate()));
-  int32_t previous = code_data_container(kAcquireLoad).kind_specific_flags();
+  CodeDataContainer container = code_data_container(kAcquireLoad);
+  int32_t previous = container.kind_specific_flags();
   int32_t updated = DeoptAlreadyCountedField::update(previous, flag);
-  code_data_container(kAcquireLoad).set_kind_specific_flags(updated);
+  container.set_kind_specific_flags(updated);
 }
 
 bool Code::is_optimized_code() const {

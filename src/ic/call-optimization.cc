@@ -126,9 +126,9 @@ void CallOptimization::AnalyzePossibleApiFunction(Isolate* isolate,
                                     isolate);
 
   // Require a C++ callback.
-  if (info->call_code(kAcquireLoad).IsUndefined(isolate)) return;
-  api_call_info_ =
-      handle(CallHandlerInfo::cast(info->call_code(kAcquireLoad)), isolate);
+  HeapObject call_code = info->call_code(kAcquireLoad);
+  if (call_code.IsUndefined(isolate)) return;
+  api_call_info_ = handle(CallHandlerInfo::cast(call_code), isolate);
 
   if (!info->signature().IsUndefined(isolate)) {
     expected_receiver_type_ =

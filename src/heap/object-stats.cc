@@ -565,9 +565,10 @@ void ObjectStatsCollectorImpl::RecordVirtualFunctionTemplateInfoDetails(
     FunctionTemplateInfo fti) {
   // named_property_handler and indexed_property_handler are recorded as
   // INTERCEPTOR_INFO_TYPE.
-  if (!fti.call_code(kAcquireLoad).IsUndefined(isolate())) {
+  HeapObject call_code = fti.call_code(kAcquireLoad);
+  if (!call_code.IsUndefined(isolate())) {
     RecordSimpleVirtualObjectStats(
-        fti, CallHandlerInfo::cast(fti.call_code(kAcquireLoad)),
+        fti, CallHandlerInfo::cast(call_code),
         ObjectStats::FUNCTION_TEMPLATE_INFO_ENTRIES_TYPE);
   }
   if (!fti.GetInstanceCallHandler().IsUndefined(isolate())) {
