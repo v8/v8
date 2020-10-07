@@ -1088,7 +1088,8 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   // contexts).
   if (CodeKindIsNativeContextIndependentJSFunction(code_kind)) {
     DCHECK(osr_offset.IsNone());
-    DCHECK(FLAG_turbo_nci_as_midtier || shared->has_optimized_at_least_once());
+    DCHECK(FLAG_turbo_nci_as_midtier || !FLAG_turbo_nci_delayed_codegen ||
+           shared->has_optimized_at_least_once());
 
     Handle<Code> cached_code;
     if (GetCodeFromCompilationCache(isolate, shared).ToHandle(&cached_code)) {
