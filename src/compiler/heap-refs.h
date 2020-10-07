@@ -58,6 +58,7 @@ enum class OddballType : uint8_t {
 #define HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(V) \
   /* Subtypes of FixedArray */                      \
   V(ObjectBoilerplateDescription)                   \
+  V(ScopeInfo)                                      \
   /* Subtypes of Name */                            \
   V(Symbol)                                         \
   /* Subtypes of HeapObject */                      \
@@ -83,7 +84,6 @@ enum class OddballType : uint8_t {
   V(NativeContext)                            \
   /* Subtypes of FixedArray */                \
   V(Context)                                  \
-  V(ScopeInfo)                                \
   V(ScriptContextTable)                       \
   /* Subtypes of FixedArrayBase */            \
   V(BytecodeArray)                            \
@@ -773,8 +773,7 @@ class ScopeInfoRef : public HeapObjectRef {
 
   int ContextLength() const;
   bool HasOuterScopeInfo() const;
-  int Flags() const;
-  bool HasContextExtension() const;
+  bool HasContextExtensionSlot() const;
 
   // Only serialized via SerializeScopeInfoChain.
   ScopeInfoRef OuterScopeInfo() const;

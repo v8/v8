@@ -99,8 +99,8 @@ DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
 
 RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, function_data, Object,
                           kFunctionDataOffset)
-ACCESSORS(SharedFunctionInfo, name_or_scope_info, Object,
-          kNameOrScopeInfoOffset)
+RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, name_or_scope_info, Object,
+                          kNameOrScopeInfoOffset)
 ACCESSORS(SharedFunctionInfo, script_or_debug_info, HeapObject,
           kScriptOrDebugInfoOffset)
 
@@ -121,7 +121,7 @@ RELAXED_INT32_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
 UINT8_ACCESSORS(SharedFunctionInfo, flags2, kFlags2Offset)
 
 bool SharedFunctionInfo::HasSharedName() const {
-  Object value = name_or_scope_info();
+  Object value = name_or_scope_info(kAcquireLoad);
   if (value.IsScopeInfo()) {
     return ScopeInfo::cast(value).HasSharedFunctionName();
   }
@@ -130,7 +130,7 @@ bool SharedFunctionInfo::HasSharedName() const {
 
 String SharedFunctionInfo::Name() const {
   if (!HasSharedName()) return GetReadOnlyRoots().empty_string();
-  Object value = name_or_scope_info();
+  Object value = name_or_scope_info(kAcquireLoad);
   if (value.IsScopeInfo()) {
     if (ScopeInfo::cast(value).HasFunctionName()) {
       return String::cast(ScopeInfo::cast(value).FunctionName());
@@ -141,13 +141,13 @@ String SharedFunctionInfo::Name() const {
 }
 
 void SharedFunctionInfo::SetName(String name) {
-  Object maybe_scope_info = name_or_scope_info();
+  Object maybe_scope_info = name_or_scope_info(kAcquireLoad);
   if (maybe_scope_info.IsScopeInfo()) {
     ScopeInfo::cast(maybe_scope_info).SetFunctionName(name);
   } else {
     DCHECK(maybe_scope_info.IsString() ||
            maybe_scope_info == kNoSharedNameSentinel);
-    set_name_or_scope_info(name);
+    set_name_or_scope_info(name, kReleaseStore);
   }
   UpdateFunctionMapIndex();
 }
@@ -334,17 +334,17 @@ void SharedFunctionInfo::DontAdaptArguments() {
 bool SharedFunctionInfo::IsInterpreted() const { return HasBytecodeArray(); }
 
 ScopeInfo SharedFunctionInfo::scope_info() const {
-  Object maybe_scope_info = name_or_scope_info();
+  Object maybe_scope_info = name_or_scope_info(kAcquireLoad);
   if (maybe_scope_info.IsScopeInfo()) {
     return ScopeInfo::cast(maybe_scope_info);
   }
   return GetReadOnlyRoots().empty_scope_info();
 }
 
-void SharedFunctionInfo::set_scope_info(ScopeInfo scope_info,
-                                        WriteBarrierMode mode) {
+void SharedFunctionInfo::SetScopeInfo(ScopeInfo scope_info,
+                                      WriteBarrierMode mode) {
   // Move the existing name onto the ScopeInfo.
-  Object name = name_or_scope_info();
+  Object name = name_or_scope_info(kAcquireLoad);
   if (name.IsScopeInfo()) {
     name = ScopeInfo::cast(name).FunctionName();
   }
@@ -354,7 +354,7 @@ void SharedFunctionInfo::set_scope_info(ScopeInfo scope_info,
   if (HasInferredName() && inferred_name().length() != 0) {
     scope_info.SetInferredFunctionName(inferred_name());
   }
-  set_raw_scope_info(scope_info, mode);
+  set_name_or_scope_info(scope_info, kReleaseStore, mode);
 }
 
 void SharedFunctionInfo::set_raw_scope_info(ScopeInfo scope_info,
@@ -723,7 +723,7 @@ void SharedFunctionInfo::SetDebugInfo(DebugInfo debug_info) {
 }
 
 bool SharedFunctionInfo::HasInferredName() {
-  Object scope_info = name_or_scope_info();
+  Object scope_info = name_or_scope_info(kAcquireLoad);
   if (scope_info.IsScopeInfo()) {
     return ScopeInfo::cast(scope_info).HasInferredFunctionName();
   }
@@ -731,7 +731,7 @@ bool SharedFunctionInfo::HasInferredName() {
 }
 
 String SharedFunctionInfo::inferred_name() {
-  Object maybe_scope_info = name_or_scope_info();
+  Object maybe_scope_info = name_or_scope_info(kAcquireLoad);
   if (maybe_scope_info.IsScopeInfo()) {
     ScopeInfo scope_info = ScopeInfo::cast(maybe_scope_info);
     if (scope_info.HasInferredFunctionName()) {

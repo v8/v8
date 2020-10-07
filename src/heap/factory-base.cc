@@ -312,9 +312,9 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
   bool has_shared_name = maybe_name.ToHandle(&shared_name);
   if (has_shared_name) {
     DCHECK(shared_name->IsFlat());
-    shared->set_name_or_scope_info(*shared_name);
+    shared->set_name_or_scope_info(*shared_name, kReleaseStore);
   } else {
-    DCHECK_EQ(shared->name_or_scope_info(),
+    DCHECK_EQ(shared->name_or_scope_info(kAcquireLoad),
               SharedFunctionInfo::kNoSharedNameSentinel);
   }
 

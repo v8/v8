@@ -1723,17 +1723,17 @@ class ScopeInfoData : public HeapObjectData {
   ScopeInfoData(JSHeapBroker* broker, ObjectData** storage,
                 Handle<ScopeInfo> object);
 
-  int context_length() const { return context_length_; }
-  bool has_outer_scope_info() const { return has_outer_scope_info_; }
-  int flags() const { return flags_; }
+  int ContextLength() const { return context_length_; }
+  bool HasContextExtensionSlot() const { return has_context_extension_slot_; }
+  bool HasOuterScopeInfo() const { return has_outer_scope_info_; }
 
-  ObjectData* outer_scope_info() const { return outer_scope_info_; }
+  ObjectData* OuterScopeInfo() const { return outer_scope_info_; }
   void SerializeScopeInfoChain(JSHeapBroker* broker);
 
  private:
   int const context_length_;
+  bool const has_context_extension_slot_;
   bool const has_outer_scope_info_;
-  int const flags_;
 
   // Only serialized via SerializeScopeInfoChain.
   ObjectData* outer_scope_info_;
@@ -1743,9 +1743,11 @@ ScopeInfoData::ScopeInfoData(JSHeapBroker* broker, ObjectData** storage,
                              Handle<ScopeInfo> object)
     : HeapObjectData(broker, storage, object),
       context_length_(object->ContextLength()),
+      has_context_extension_slot_(object->HasContextExtensionSlot()),
       has_outer_scope_info_(object->HasOuterScopeInfo()),
-      flags_(object->Flags()),
-      outer_scope_info_(nullptr) {}
+      outer_scope_info_(nullptr) {
+  DCHECK(!FLAG_turbo_direct_heap_access);
+}
 
 void ScopeInfoData::SerializeScopeInfoChain(JSHeapBroker* broker) {
   if (outer_scope_info_) return;
@@ -3544,6 +3546,11 @@ HolderLookupResult FunctionTemplateInfoRef::LookupHolderOfExpectedType(
 
 BIMODAL_ACCESSOR(CallHandlerInfo, Object, data)
 
+BIMODAL_ACCESSOR_C(ScopeInfo, int, ContextLength)
+BIMODAL_ACCESSOR_C(ScopeInfo, bool, HasContextExtensionSlot)
+BIMODAL_ACCESSOR_C(ScopeInfo, bool, HasOuterScopeInfo)
+BIMODAL_ACCESSOR(ScopeInfo, ScopeInfo, OuterScopeInfo)
+
 BIMODAL_ACCESSOR_C(SharedFunctionInfo, int, builtin_id)
 BIMODAL_ACCESSOR(SharedFunctionInfo, BytecodeArray, GetBytecodeArray)
 #define DEF_SFI_ACCESSOR(type, name) \
@@ -3641,37 +3648,6 @@ int MapRef::GetInObjectPropertiesStartInWords() const {
 int MapRef::GetInObjectProperties() const {
   IF_ACCESS_FROM_HEAP_C(GetInObjectProperties);
   return data()->AsMap()->in_object_properties();
-}
-
-int ScopeInfoRef::ContextLength() const {
-  IF_ACCESS_FROM_HEAP_C(ContextLength);
-  return data()->AsScopeInfo()->context_length();
-}
-
-int ScopeInfoRef::Flags() const {
-  IF_ACCESS_FROM_HEAP_C(Flags);
-  return data()->AsScopeInfo()->flags();
-}
-
-bool ScopeInfoRef::HasContextExtension() const {
-  return ScopeInfo::HasContextExtensionSlotBit::decode(Flags());
-}
-
-bool ScopeInfoRef::HasOuterScopeInfo() const {
-  IF_ACCESS_FROM_HEAP_C(HasOuterScopeInfo);
-  return data()->AsScopeInfo()->has_outer_scope_info();
-}
-
-ScopeInfoRef ScopeInfoRef::OuterScopeInfo() const {
-  if (data_->should_access_heap()) {
-    AllowHandleAllocationIfNeeded allow_handle_allocation(data()->kind(),
-                                                          broker()->mode());
-    AllowHandleDereferenceIfNeeded allow_handle_dereference(data()->kind(),
-                                                            broker()->mode());
-    return ScopeInfoRef(broker(), broker()->CanonicalPersistentHandle(
-                                      object()->OuterScopeInfo()));
-  }
-  return ScopeInfoRef(broker(), data()->AsScopeInfo()->outer_scope_info());
 }
 
 void ScopeInfoRef::SerializeScopeInfoChain() {

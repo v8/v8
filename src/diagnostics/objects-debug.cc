@@ -829,7 +829,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(LocalIsolate* isolate) {
 }
 
 void SharedFunctionInfo::SharedFunctionInfoVerify(ReadOnlyRoots roots) {
-  Object value = name_or_scope_info();
+  Object value = name_or_scope_info(kAcquireLoad);
   if (value.IsScopeInfo()) {
     CHECK_LT(0, ScopeInfo::cast(value).length());
     CHECK_NE(value, roots.empty_scope_info());

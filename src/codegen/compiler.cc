@@ -617,7 +617,7 @@ void UpdateSharedFunctionFlagsAfterCompilation(FunctionLiteral* literal,
   shared_info.set_has_static_private_methods_or_accessors(
       literal->has_static_private_methods_or_accessors());
 
-  shared_info.set_scope_info(*literal->scope()->scope_info());
+  shared_info.SetScopeInfo(*literal->scope()->scope_info());
 }
 
 // Finalize a single compilation job. This function can return

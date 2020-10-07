@@ -1808,7 +1808,7 @@ BytecodeGraphBuilder::Environment* BytecodeGraphBuilder::CheckContextExtensions(
   // in the same scope as the variable itself has no way of shadowing it.
   Environment* slow_environment = nullptr;
   for (uint32_t d = 0; d < depth; d++) {
-    if (scope_info.HasContextExtension()) {
+    if (scope_info.HasContextExtensionSlot()) {
       slow_environment = CheckContextExtensionAtDepth(slow_environment, d);
     }
     DCHECK_IMPLIES(!scope_info.HasOuterScopeInfo(), d + 1 == depth);

@@ -1116,10 +1116,11 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
                                    CodeKindToString(shared.GetCode().kind())));
   }
 
-  if (shared.name_or_scope_info().IsScopeInfo()) {
-    TagObject(shared.name_or_scope_info(), "(function scope info)");
+  Object name_or_scope_info = shared.name_or_scope_info(kAcquireLoad);
+  if (name_or_scope_info.IsScopeInfo()) {
+    TagObject(name_or_scope_info, "(function scope info)");
   }
-  SetInternalReference(entry, "name_or_scope_info", shared.name_or_scope_info(),
+  SetInternalReference(entry, "name_or_scope_info", name_or_scope_info,
                        SharedFunctionInfo::kNameOrScopeInfoOffset);
   SetInternalReference(entry, "script_or_debug_info",
                        shared.script_or_debug_info(),

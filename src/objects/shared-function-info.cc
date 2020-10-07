@@ -36,7 +36,7 @@ void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
 
   // Set the name to the no-name sentinel, this can be updated later.
   set_name_or_scope_info(SharedFunctionInfo::kNoSharedNameSentinel,
-                         SKIP_WRITE_BARRIER);
+                         kReleaseStore, SKIP_WRITE_BARRIER);
 
   // Generally functions won't have feedback, unless they have been created
   // from a FunctionLiteral. Those can just reset this field to keep the
@@ -450,7 +450,7 @@ template <typename LocalIsolate>
 void SharedFunctionInfo::InitFromFunctionLiteral(
     LocalIsolate* isolate, Handle<SharedFunctionInfo> shared_info,
     FunctionLiteral* lit, bool is_toplevel) {
-  DCHECK(!shared_info->name_or_scope_info().IsScopeInfo());
+  DCHECK(!shared_info->name_or_scope_info(kAcquireLoad).IsScopeInfo());
 
   // When adding fields here, make sure DeclarationScope::AnalyzePartially is
   // updated accordingly.
@@ -593,7 +593,7 @@ void SharedFunctionInfo::SetFunctionTokenPosition(int function_token_position,
 }
 
 int SharedFunctionInfo::StartPosition() const {
-  Object maybe_scope_info = name_or_scope_info();
+  Object maybe_scope_info = name_or_scope_info(kAcquireLoad);
   if (maybe_scope_info.IsScopeInfo()) {
     ScopeInfo info = ScopeInfo::cast(maybe_scope_info);
     if (info.HasPositionInfo()) {
@@ -618,7 +618,7 @@ int SharedFunctionInfo::StartPosition() const {
 }
 
 int SharedFunctionInfo::EndPosition() const {
-  Object maybe_scope_info = name_or_scope_info();
+  Object maybe_scope_info = name_or_scope_info(kAcquireLoad);
   if (maybe_scope_info.IsScopeInfo()) {
     ScopeInfo info = ScopeInfo::cast(maybe_scope_info);
     if (info.HasPositionInfo()) {
@@ -643,7 +643,7 @@ int SharedFunctionInfo::EndPosition() const {
 }
 
 void SharedFunctionInfo::SetPosition(int start_position, int end_position) {
-  Object maybe_scope_info = name_or_scope_info();
+  Object maybe_scope_info = name_or_scope_info(kAcquireLoad);
   if (maybe_scope_info.IsScopeInfo()) {
     ScopeInfo info = ScopeInfo::cast(maybe_scope_info);
     if (info.HasPositionInfo()) {
