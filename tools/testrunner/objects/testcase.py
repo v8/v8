@@ -50,12 +50,12 @@ LOAD_PATTERN = re.compile(
     r"(?:load|readbuffer|read)\((?:'|\")([^'\"]+)(?:'|\")\)")
 # Pattern to auto-detect files to push on Android for statements like:
 # import "path/to/file.js"
-MODULE_RESOURCES_PATTERN_1 = re.compile(
-    r"(?:import|export)(?:\(| )(?:'|\")([^'\"]+)(?:'|\")")
-# Pattern to auto-detect files to push on Android for statements like:
 # import foobar from "path/to/file.js"
-MODULE_RESOURCES_PATTERN_2 = re.compile(
-    r"(?:import|export).*from (?:'|\")([^'\"]+)(?:'|\")")
+# import {foo, bar} from "path/to/file.js"
+# import("module.mjs").catch()...
+MODULE_RESOURCES_PATTERN = re.compile(
+    r"(?:import|export)(?:[^'\"]*?from)?\s*\(?['\"]([^'\"]+)['\"]",
+    re.MULTILINE | re.DOTALL)
 
 TIMEOUT_LONG = "long"
 
@@ -409,12 +409,10 @@ class D8TestCase(TestCase):
     for match in LOAD_PATTERN.finditer(source):
       # Files in load statements are relative to base dir.
       add_path(match.group(1))
-    for match in MODULE_RESOURCES_PATTERN_1.finditer(source):
+    for match in MODULE_RESOURCES_PATTERN.finditer(source):
       # Imported files are relative to the file importing them.
-      add_path(os.path.join(os.path.dirname(file), match.group(1)))
-    for match in MODULE_RESOURCES_PATTERN_2.finditer(source):
-      # Imported files are relative to the file importing them.
-      add_path(os.path.join(os.path.dirname(file), match.group(1)))
+      add_path(os.path.normpath(
+        os.path.join(os.path.dirname(file), match.group(1))))
     return result
 
   def _get_resources(self):
