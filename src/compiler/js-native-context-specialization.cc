@@ -2008,17 +2008,18 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadPropertyWithEnumeratedKey(
 
   DCHECK_EQ(IrOpcode::kJSLoadProperty, node->opcode());
   Node* receiver = NodeProperties::GetValueInput(node, 0);
-  JSForInNextNode name(NodeProperties::GetValueInput(node, 1));
+  Node* name = NodeProperties::GetValueInput(node, 1);
+  DCHECK_EQ(IrOpcode::kJSForInNext, name->opcode());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  if (name.Parameters().mode() != ForInMode::kUseEnumCacheKeysAndIndices) {
+  if (ForInModeOf(name->op()) != ForInMode::kUseEnumCacheKeysAndIndices) {
     return NoChange();
   }
 
-  Node* object = name.receiver();
-  Node* cache_type = name.cache_type();
-  Node* index = name.index();
+  Node* object = NodeProperties::GetValueInput(name, 0);
+  Node* enumerator = NodeProperties::GetValueInput(name, 2);
+  Node* key = NodeProperties::GetValueInput(name, 3);
   if (object->opcode() == IrOpcode::kJSToObject) {
     object = NodeProperties::GetValueInput(object, 0);
   }
@@ -2032,7 +2033,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadPropertyWithEnumeratedKey(
         graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
                          receiver, effect, control);
     Node* check = graph()->NewNode(simplified()->ReferenceEqual(), receiver_map,
-                                   cache_type);
+                                   enumerator);
     effect =
         graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kWrongMap),
                          check, effect, control);
@@ -2040,7 +2041,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadPropertyWithEnumeratedKey(
 
   // Load the enum cache indices from the {cache_type}.
   Node* descriptor_array = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForMapDescriptors()), cache_type,
+      simplified()->LoadField(AccessBuilder::ForMapDescriptors()), enumerator,
       effect, control);
   Node* enum_cache = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForDescriptorArrayEnumCache()),
@@ -2059,10 +2060,10 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadPropertyWithEnumeratedKey(
       control);
 
   // Determine the key from the {enum_indices}.
-  Node* key = effect = graph()->NewNode(
+  key = effect = graph()->NewNode(
       simplified()->LoadElement(
           AccessBuilder::ForFixedArrayElement(PACKED_SMI_ELEMENTS)),
-      enum_indices, index, effect, control);
+      enum_indices, key, effect, control);
 
   // Load the actual field value.
   Node* value = effect = graph()->NewNode(simplified()->LoadFieldByIndex(),

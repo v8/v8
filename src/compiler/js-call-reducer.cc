@@ -2901,10 +2901,10 @@ Reduction JSCallReducer::ReduceObjectPrototypeHasOwnProperty(Node* node) {
   // Object.prototype.hasOwnProperty does an implicit ToObject anyway, and
   // these operations are not observable.
   if (name->opcode() == IrOpcode::kJSForInNext) {
-    JSForInNextNode n(name);
-    if (n.Parameters().mode() != ForInMode::kGeneric) {
-      Node* object = n.receiver();
-      Node* cache_type = n.cache_type();
+    ForInMode const mode = ForInModeOf(name->op());
+    if (mode != ForInMode::kGeneric) {
+      Node* object = NodeProperties::GetValueInput(name, 0);
+      Node* cache_type = NodeProperties::GetValueInput(name, 2);
       if (object->opcode() == IrOpcode::kJSToObject) {
         object = NodeProperties::GetValueInput(object, 0);
       }

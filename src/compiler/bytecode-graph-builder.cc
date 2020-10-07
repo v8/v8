@@ -284,7 +284,7 @@ class BytecodeGraphBuilder {
                                             uint32_t depth);
 
   // Helper function to create for-in mode from the recorded type feedback.
-  ForInMode GetForInMode(FeedbackSlot slot);
+  ForInMode GetForInMode(int operand_index);
 
   // Helper function to compute call frequency from the recorded type
   // feedback. Returns unknown if invocation count is unknown. Returns 0 if
@@ -2932,7 +2932,8 @@ void BytecodeGraphBuilder::BuildBinaryOp(const Operator* op) {
 }
 
 // Helper function to create for-in mode from the recorded type feedback.
-ForInMode BytecodeGraphBuilder::GetForInMode(FeedbackSlot slot) {
+ForInMode BytecodeGraphBuilder::GetForInMode(int operand_index) {
+  FeedbackSlot slot = bytecode_iterator().GetSlotOperand(operand_index);
   FeedbackSource source(feedback_vector(), slot);
   switch (broker()->GetFeedbackForForIn(source)) {
     case ForInHint::kNone:
@@ -3589,9 +3590,7 @@ void BytecodeGraphBuilder::VisitForInPrepare() {
       TryBuildSimplifiedForInPrepare(enumerator, slot);
   if (lowering.IsExit()) return;
   DCHECK(!lowering.Changed());
-  FeedbackSource feedback = CreateFeedbackSource(slot);
-  Node* node = NewNode(javascript()->ForInPrepare(GetForInMode(slot), feedback),
-                       enumerator, feedback_vector_node());
+  Node* node = NewNode(javascript()->ForInPrepare(GetForInMode(1)), enumerator);
   environment()->BindRegistersToProjections(
       bytecode_iterator().GetRegisterOperand(0), node);
 }
@@ -3620,7 +3619,7 @@ void BytecodeGraphBuilder::VisitForInNext() {
   Node* cache_array = environment()->LookupRegister(
       interpreter::Register(catch_reg_pair_index + 1));
 
-  // We need to rename the {index} here, as in case of OSR we lose the
+  // We need to rename the {index} here, as in case of OSR we loose the
   // information that the {index} is always a valid unsigned Smi value.
   index = NewNode(common()->TypeGuard(Type::UnsignedSmall()), index);
 
@@ -3630,10 +3629,8 @@ void BytecodeGraphBuilder::VisitForInNext() {
   if (lowering.IsExit()) return;
 
   DCHECK(!lowering.Changed());
-  FeedbackSource feedback = CreateFeedbackSource(slot);
-  Node* node =
-      NewNode(javascript()->ForInNext(GetForInMode(slot), feedback), receiver,
-              cache_array, cache_type, index, feedback_vector_node());
+  Node* node = NewNode(javascript()->ForInNext(GetForInMode(3)), receiver,
+                       cache_array, cache_type, index);
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
