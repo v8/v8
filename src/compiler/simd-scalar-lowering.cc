@@ -617,9 +617,14 @@ void SimdScalarLowering::LowerLoadTransformOp(Node* node, SimdType type) {
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   int num_lanes = NumLanes(type);
-  Node** rep_nodes = zone()->NewArray<Node*>(num_lanes);
+  Node** reps = zone()->NewArray<Node*>(num_lanes);
   Node* effect_input = node->InputAt(2);
   Node* control_input = node->InputAt(3);
+
+  // This node is also used as effect input into other nodes, so we need to
+  // change this node in place.
+  reps[0] = node;
+  NodeProperties::ChangeOp(reps[0], load_op);
 
   if (type != load_type) {
     // We load a smaller lane size, then extend to a larger lane size. So use
@@ -627,29 +632,39 @@ void SimdScalarLowering::LowerLoadTransformOp(Node* node, SimdType type) {
     // actually load half of those lanes.
     Node** indices = zone()->NewArray<Node*>(num_lanes * 2);
     GetIndexNodes(index, indices, load_type);
-    for (int i = num_lanes - 1; i >= 0; --i) {
-      rep_nodes[i] = graph()->NewNode(load_op, base, indices[i], effect_input,
-                                      control_input);
-      effect_input = rep_nodes[i];
 
-      // Load operations are Word32 nodes, change them to Word64.
-      if (params.transformation == LoadTransformation::kS128Load32x2S) {
-        rep_nodes[i] =
-            graph()->NewNode(machine()->ChangeInt32ToInt64(), rep_nodes[i]);
-      } else if (params.transformation == LoadTransformation::kS128Load32x2U) {
-        rep_nodes[i] =
-            graph()->NewNode(machine()->ChangeUint32ToUint64(), rep_nodes[i]);
-      }
+    reps[0]->ReplaceInput(1, indices[0]);
+
+    for (int i = num_lanes - 1; i > 0; --i) {
+      reps[i] = graph()->NewNode(load_op, base, indices[i], effect_input,
+                                 control_input);
+      effect_input = reps[i];
     }
   } else {
     // Load splat, load from the same index for every lane.
-    for (int i = num_lanes - 1; i >= 0; --i) {
-      rep_nodes[i] =
+    for (int i = num_lanes - 1; i > 0; --i) {
+      reps[i] =
           graph()->NewNode(load_op, base, index, effect_input, control_input);
-      effect_input = rep_nodes[i];
+      effect_input = reps[i];
     }
   }
-  ReplaceNode(node, rep_nodes, num_lanes);
+
+  // Update the effect input, completing the effect chain.
+  reps[0]->ReplaceInput(2, reps[1]);
+
+  // Special case, the load nodes need to be sign extended, and we do it here so
+  // the loop above can connect all the effect edges correctly.
+  if (params.transformation == LoadTransformation::kS128Load32x2S) {
+    for (int i = 0; i < num_lanes; ++i) {
+      reps[i] = graph()->NewNode(machine()->ChangeInt32ToInt64(), reps[i]);
+    }
+  } else if (params.transformation == LoadTransformation::kS128Load32x2U) {
+    for (int i = 0; i < num_lanes; ++i) {
+      reps[i] = graph()->NewNode(machine()->ChangeUint32ToUint64(), reps[i]);
+    }
+  }
+
+  ReplaceNode(node, reps, num_lanes);
 }
 
 void SimdScalarLowering::LowerStoreOp(Node* node) {
