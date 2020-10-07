@@ -400,6 +400,7 @@ TEST(DisasmX64) {
     __ movdqa(Operand(rsp, 12), xmm0);
     __ movdqu(xmm0, Operand(rsp, 12));
     __ movdqu(Operand(rsp, 12), xmm0);
+    __ movdqu(xmm1, xmm0);
     __ shufps(xmm0, xmm9, 0x0);
 
     __ ucomiss(xmm0, xmm1);

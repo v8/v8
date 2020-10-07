@@ -2757,6 +2757,15 @@ void Assembler::movdqu(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::movdqu(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  emit(0xF3);
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0x6F);
+  emit_sse_operand(dst, src);
+}
+
 void Assembler::pinsrw(XMMRegister dst, Register src, uint8_t imm8) {
   EnsureSpace ensure_space(this);
   emit(0x66);
