@@ -995,8 +995,9 @@ bool GetOptimizedCodeLater(std::unique_ptr<OptimizedCompilationJob> job,
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.OptimizeConcurrentPrepare");
 
-  if (!PrepareJobWithHandleScope(job.get(), isolate, compilation_info))
+  if (!PrepareJobWithHandleScope(job.get(), isolate, compilation_info)) {
     return false;
+  }
 
   // The background recompile will own this job.
   isolate->optimizing_compile_dispatcher()->QueueForOptimization(job.get());
@@ -1011,7 +1012,12 @@ bool GetOptimizedCodeLater(std::unique_ptr<OptimizedCompilationJob> job,
   if (CodeKindIsStoredInOptimizedCodeCache(code_kind)) {
     function->SetOptimizationMarker(OptimizationMarker::kInOptimizationQueue);
   }
-  DCHECK(function->ActiveTierIsIgnition() || function->ActiveTierIsNCI());
+
+  // Note: Usually the active tier is expected to be Ignition or NCI at this
+  // point (in other words we don't expect to optimize if the function is
+  // already TF-optimized). There is a special case for OSR though, for which
+  // we *can* reach this point even if we've already generated non-OSR'd TF
+  // code.
   DCHECK(function->shared().HasBytecodeArray());
   return true;
 }
