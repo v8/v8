@@ -1609,6 +1609,14 @@ class V8_EXPORT Module : public Data {
   int ScriptId();
 
   /**
+   * Returns whether this module or any of its requested modules is async,
+   * i.e. contains top-level await.
+   *
+   * The module's status must be at least kInstantiated.
+   */
+  bool IsGraphAsync() const;
+
+  /**
    * Returns whether the module is a SourceTextModule.
    */
   bool IsSourceTextModule() const;

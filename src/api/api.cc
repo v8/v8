@@ -2329,6 +2329,15 @@ int Module::ScriptId() {
   return ToApiHandle<UnboundScript>(sfi)->GetId();
 }
 
+bool Module::IsGraphAsync() const {
+  Utils::ApiCheck(
+      GetStatus() >= kInstantiated, "v8::Module::IsGraphAsync",
+      "v8::Module::IsGraphAsync must be used on an instantiated module");
+  i::Handle<i::Module> self = Utils::OpenHandle(this);
+  auto isolate = reinterpret_cast<i::Isolate*>(self->GetIsolate());
+  return self->IsGraphAsync(isolate);
+}
+
 bool Module::IsSourceTextModule() const {
   return Utils::OpenHandle(this)->IsSourceTextModule();
 }

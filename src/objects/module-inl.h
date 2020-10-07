@@ -44,6 +44,12 @@ ACCESSORS(SourceTextModule, async_parent_modules, ArrayList,
 ACCESSORS(SourceTextModule, top_level_capability, HeapObject,
           kTopLevelCapabilityOffset)
 
+struct Module::Hash {
+  V8_INLINE size_t operator()(Module const& module) const {
+    return module.hash();
+  }
+};
+
 SourceTextModuleInfo SourceTextModule::info() const {
   return status() == kErrored
              ? SourceTextModuleInfo::cast(code())
