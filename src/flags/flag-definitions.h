@@ -365,6 +365,10 @@ DEFINE_IMPLICATION(lite_mode, optimize_for_size)
 #define V8_ENABLE_THIRD_PARTY_HEAP_BOOL false
 #endif
 
+DEFINE_NEG_IMPLICATION(enable_third_party_heap, inline_new)
+DEFINE_NEG_IMPLICATION(enable_third_party_heap, allocation_site_pretenuring)
+DEFINE_NEG_IMPLICATION(enable_third_party_heap, turbo_allocation_folding)
+
 DEFINE_BOOL_READONLY(enable_third_party_heap, V8_ENABLE_THIRD_PARTY_HEAP_BOOL,
                      "Use third-party heap")
 
