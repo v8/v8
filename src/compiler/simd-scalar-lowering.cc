@@ -178,7 +178,11 @@ void SimdScalarLowering::LowerGraph() {
   V(F64x2Mul)                       \
   V(F64x2Div)                       \
   V(F64x2Min)                       \
-  V(F64x2Max)
+  V(F64x2Max)                       \
+  V(F64x2Ceil)                      \
+  V(F64x2Floor)                     \
+  V(F64x2Trunc)                     \
+  V(F64x2NearestInt)
 
 #define FOREACH_FLOAT32X4_OPCODE(V) \
   V(F32x4Splat)                     \
@@ -197,7 +201,11 @@ void SimdScalarLowering::LowerGraph() {
   V(F32x4Mul)                       \
   V(F32x4Div)                       \
   V(F32x4Min)                       \
-  V(F32x4Max)
+  V(F32x4Max)                       \
+  V(F32x4Ceil)                      \
+  V(F32x4Floor)                     \
+  V(F32x4Trunc)                     \
+  V(F32x4NearestInt)
 
 #define FOREACH_FLOAT64x2_TO_INT64x2OPCODE(V) \
   V(F64x2Eq)                                  \
@@ -1786,6 +1794,22 @@ void SimdScalarLowering::LowerNode(Node* node) {
       F32X4_UNOP_CASE(Neg)
       F32X4_UNOP_CASE(Sqrt)
 #undef F32X4_UNOP_CASE
+    case IrOpcode::kF32x4Ceil: {
+      LowerUnaryOp(node, rep_type, machine()->Float32RoundUp().op());
+      break;
+    }
+    case IrOpcode::kF32x4Floor: {
+      LowerUnaryOp(node, rep_type, machine()->Float32RoundDown().op());
+      break;
+    }
+    case IrOpcode::kF32x4Trunc: {
+      LowerUnaryOp(node, rep_type, machine()->Float32RoundTruncate().op());
+      break;
+    }
+    case IrOpcode::kF32x4NearestInt: {
+      LowerUnaryOp(node, rep_type, machine()->Float32RoundTiesEven().op());
+      break;
+    }
     case IrOpcode::kF32x4RecipApprox:
     case IrOpcode::kF32x4RecipSqrtApprox: {
       DCHECK_EQ(1, node->InputCount());
@@ -1844,6 +1868,22 @@ void SimdScalarLowering::LowerNode(Node* node) {
     }
     case IrOpcode::kF64x2Max: {
       LowerBinaryOp(node, rep_type, machine()->Float64Max());
+      break;
+    }
+    case IrOpcode::kF64x2Ceil: {
+      LowerUnaryOp(node, rep_type, machine()->Float64RoundUp().op());
+      break;
+    }
+    case IrOpcode::kF64x2Floor: {
+      LowerUnaryOp(node, rep_type, machine()->Float64RoundDown().op());
+      break;
+    }
+    case IrOpcode::kF64x2Trunc: {
+      LowerUnaryOp(node, rep_type, machine()->Float64RoundTruncate().op());
+      break;
+    }
+    case IrOpcode::kF64x2NearestInt: {
+      LowerUnaryOp(node, rep_type, machine()->Float64RoundTiesEven().op());
       break;
     }
     case IrOpcode::kF64x2Splat:

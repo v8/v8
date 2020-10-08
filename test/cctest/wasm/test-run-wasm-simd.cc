@@ -671,19 +671,19 @@ WASM_SIMD_TEST(F32x4RecipSqrtApprox) {
                    base::RecipSqrt, false /* !exact */);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(F32x4Ceil) {
+WASM_SIMD_TEST(F32x4Ceil) {
   RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4Ceil, ceilf, true);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(F32x4Floor) {
+WASM_SIMD_TEST(F32x4Floor) {
   RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4Floor, floorf, true);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(F32x4Trunc) {
+WASM_SIMD_TEST(F32x4Trunc) {
   RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4Trunc, truncf, true);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(F32x4NearestInt) {
+WASM_SIMD_TEST(F32x4NearestInt) {
   RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4NearestInt, nearbyintf,
                    true);
 }
@@ -1287,19 +1287,19 @@ WASM_SIMD_TEST(F64x2Sqrt) {
   RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Sqrt, Sqrt);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(F64x2Ceil) {
+WASM_SIMD_TEST(F64x2Ceil) {
   RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Ceil, ceil, true);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(F64x2Floor) {
+WASM_SIMD_TEST(F64x2Floor) {
   RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Floor, floor, true);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(F64x2Trunc) {
+WASM_SIMD_TEST(F64x2Trunc) {
   RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Trunc, trunc, true);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(F64x2NearestInt) {
+WASM_SIMD_TEST(F64x2NearestInt) {
   RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2NearestInt, nearbyint,
                    true);
 }
