@@ -2223,11 +2223,10 @@ static const char* pre_profiling_osr_script = R"(
         // doptimize OSRs.
         if (pass == optDuration) whenPass = () => {};
         whenPass(pass, optDuration);
-        for (let i = 0; i < 1e5; i++) {
+        while (Date.now() - startTime < pass) {
           for (let j = 0; j < 1000; j++) {
             x = Math.random() * j;
           }
-          if ((Date.now() - startTime) > pass) break;
         }
       }
     }
@@ -2265,10 +2264,11 @@ TEST(StartProfilingAfterOsr) {
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   ProfilerHelper helper(env);
+  helper.profiler()->SetSamplingInterval(100);
   CompileRun(pre_profiling_osr_script);
   v8::Local<v8::Function> function = GetFunction(env, "notHot");
 
-  int32_t profiling_optimized_ms = 80;
+  int32_t profiling_optimized_ms = 120;
   int32_t profiling_deoptimized_ms = 40;
   v8::Local<v8::Value> args[] = {
       v8::Integer::New(env->GetIsolate(), profiling_optimized_ms),
