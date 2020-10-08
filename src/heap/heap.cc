@@ -5436,6 +5436,9 @@ void Heap::StartTearDown() {
 void Heap::TearDown() {
   DCHECK_EQ(gc_state(), TEAR_DOWN);
 
+  if (FLAG_concurrent_marking || FLAG_parallel_marking)
+    concurrent_marking_->Stop(ConcurrentMarking::StopRequest::PREEMPT_TASKS);
+
   // It's too late for Heap::Verify() here, as parts of the Isolate are
   // already gone by the time this is called.
 

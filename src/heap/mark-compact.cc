@@ -1645,6 +1645,7 @@ void MarkCompactCollector::ProcessEphemeronsUntilFixpoint() {
       work_to_do = ProcessEphemerons();
       FinishConcurrentMarking(
           ConcurrentMarking::StopRequest::COMPLETE_ONGOING_TASKS);
+      DrainMarkingWorklist();
     }
 
     CHECK(weak_objects_.current_ephemerons.IsEmpty());
