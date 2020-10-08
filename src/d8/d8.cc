@@ -3572,7 +3572,6 @@ int Shell::RunMain(Isolate* isolate, bool last_run) {
       PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
       if (!options.isolate_sources[0].Execute(isolate)) success = false;
       if (!CompleteMessageLoop(isolate)) success = false;
-      if (!HandleUnhandledPromiseRejections(isolate)) success = false;
     }
     if (!use_existing_context) {
       DisposeModuleEmbedderData(context);
