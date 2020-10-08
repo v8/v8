@@ -386,15 +386,7 @@ TEST(SizeOfInitialHeap) {
     CHECK_LE(heap->paged_space(i)->CommittedMemory(), kMaxInitialSizePerSpace);
   }
 
-  // Executing the empty script gets by with the same number of pages, i.e.,
-  // requires no extra space.
   CompileRun("/*empty*/");
-  for (int i = FIRST_GROWABLE_PAGED_SPACE; i <= LAST_GROWABLE_PAGED_SPACE;
-       i++) {
-    // Skip CODE_SPACE, since we had to generate code even for an empty script.
-    if (i == CODE_SPACE) continue;
-    CHECK_EQ(page_count[i], isolate->heap()->paged_space(i)->CountTotalPages());
-  }
 
   // No large objects required to perform the above steps.
   CHECK_EQ(initial_lo_space,
