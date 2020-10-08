@@ -4885,6 +4885,10 @@ bool JSObject::IsDroppableApiWrapper() {
          instance_type == JS_SPECIAL_API_OBJECT_TYPE;
 }
 
+bool JSGlobalProxy::IsDetached() const {
+  return native_context().IsNull(GetIsolate());
+}
+
 void JSGlobalObject::InvalidatePropertyCell(Handle<JSGlobalObject> global,
                                             Handle<Name> name) {
   // Regardless of whether the property is there or not invalidate
