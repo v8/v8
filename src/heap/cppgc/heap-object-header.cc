@@ -27,5 +27,10 @@ void HeapObjectHeader::Finalize() {
   }
 }
 
+HeapObjectName HeapObjectHeader::GetName() const {
+  const GCInfo& gc_info = GlobalGCInfoTable::GCInfoFromIndex(GetGCInfoIndex());
+  return gc_info.name(Payload());
+}
+
 }  // namespace internal
 }  // namespace cppgc

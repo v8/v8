@@ -39,7 +39,15 @@ void MarkingVerifier::VerifyChild(const void* base_object_payload) {
   const HeapObjectHeader& child_header =
       HeapObjectHeader::FromPayload(base_object_payload);
 
-  CHECK(child_header.IsMarked());
+  if (!child_header.IsMarked()) {
+    FATAL(
+        "MarkingVerifier: Encountered unmarked object.\n"
+        "#\n"
+        "# Hint:\n"
+        "#   %s\n"
+        "#     \\-> %s",
+        parent_->GetName().value, child_header.GetName().value);
+  }
 }
 
 void MarkingVerifier::VisitConservatively(
@@ -58,6 +66,8 @@ bool MarkingVerifier::VisitHeapObjectHeader(HeapObjectHeader* header) {
   if (!header->IsMarked()) return true;
 
   DCHECK(!header->IsFree());
+
+  parent_ = header;
 
   if (!header->IsInConstruction()) {
     GlobalGCInfoTable::GCInfoFromIndex(header->GetGCInfoIndex())

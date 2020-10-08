@@ -99,6 +99,7 @@ v8_source_set("cppgc_unittests_sources") {
     "heap/cppgc/marking-visitor-unittest.cc",
     "heap/cppgc/member-unittest.cc",
     "heap/cppgc/minor-gc-unittest.cc",
+    "heap/cppgc/name-trait-unittest.cc",
     "heap/cppgc/object-start-bitmap-unittest.cc",
     "heap/cppgc/page-memory-unittest.cc",
     "heap/cppgc/persistent-unittest.cc",

@@ -11,6 +11,7 @@
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/internal/gc-info.h"
+#include "include/cppgc/internal/name-trait.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/bit-field.h"
 #include "src/base/logging.h"
@@ -92,6 +93,8 @@ class HeapObjectHeader {
 
   inline bool IsFinalizable() const;
   void Finalize();
+
+  V8_EXPORT_PRIVATE HeapObjectName GetName() const;
 
  private:
   enum class EncodedHalf : uint8_t { kLow, kHigh };
