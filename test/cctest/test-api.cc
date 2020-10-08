@@ -27595,6 +27595,7 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>> {
       // the default behavior expected from the embedder. The value is checked
       // against after loading it from a stack slot, as defined in
       // EffectControlLinearizer::LowerFastApiCall.
+      CHECK_EQ(*fallback, 0);
       *fallback = 1;
     }
   }

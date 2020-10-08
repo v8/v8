@@ -47,7 +47,8 @@ class EffectControlLinearizer {
         node_origins_(node_origins),
         graph_assembler_(js_graph, temp_zone, base::nullopt,
                          should_maintain_schedule() ? schedule : nullptr),
-        frame_state_zapper_(nullptr) {}
+        frame_state_zapper_(nullptr),
+        fast_api_call_stack_slot_(nullptr) {}
 
   void Run();
 
@@ -315,6 +316,8 @@ class EffectControlLinearizer {
   NodeOriginTable* node_origins_;
   JSGraphAssembler graph_assembler_;
   Node* frame_state_zapper_;  // For tracking down compiler::Node::New crashes.
+  Node* fast_api_call_stack_slot_;  // For caching the stack slot allocated for
+  // fast API calls.
 };
 
 namespace {
@@ -5170,18 +5173,15 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
   CHECK_EQ(FastApiCallNode::ArityForArgc(c_arg_count, js_arg_count),
            value_input_count);
 
-  // TODO(mslekova): There's an opportunity to optimize the allocation
-  // of the stack slot for all fast calls by reusing the same slot.
-  // If this is implemented, please update the FastApiStackSlot in
-  // cctest/test-api.cc, which will probably become meaningless, as it relies
-  // on two separate stack slots being allocated.
-  // Add the { has_error } output parameter.
-  int kAlign = 4;
-  int kSize = 4;
-  Node* has_error = __ StackSlot(kSize, kAlign);
-  // Generate the store to `has_error`.
+  if (fast_api_call_stack_slot_ == nullptr) {
+    // Add the { fallback } output parameter.
+    int kAlign = 4;
+    int kSize = 4;
+    fast_api_call_stack_slot_ = __ StackSlot(kSize, kAlign);
+  }
+  // Generate the store to `fast_api_call_stack_slot_`.
   __ Store(StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
-           has_error, 0, jsgraph()->ZeroConstant());
+           fast_api_call_stack_slot_, 0, jsgraph()->ZeroConstant());
 
   MachineSignature::Builder builder(
       graph()->zone(), 1, c_arg_count + FastApiCallNode::kHasErrorInputCount);
@@ -5192,7 +5192,7 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
         MachineTypeFor(c_signature->ArgumentInfo(i).GetType());
     builder.AddParam(machine_type);
   }
-  builder.AddParam(MachineType::Pointer());  // has_error
+  builder.AddParam(MachineType::Pointer());  // fast_api_call_stack_slot_
 
   CallDescriptor* call_descriptor =
       Linkage::GetSimplifiedCDescriptor(graph()->zone(), builder.Build());
@@ -5212,15 +5212,15 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
       inputs[i] = NodeProperties::GetValueInput(node, i);
     }
   }
-  inputs[c_arg_count + 1] = has_error;
+  inputs[c_arg_count + 1] = fast_api_call_stack_slot_;
   inputs[c_arg_count + 2] = __ effect();
   inputs[c_arg_count + 3] = __ control();
 
   __ Call(call_descriptor,
           c_arg_count + FastApiCallNode::kFastCallExtraInputCount, inputs);
 
-  // Generate the load from `has_error`.
-  Node* load = __ Load(MachineType::Int32(), has_error, 0);
+  // Generate the load from `fast_api_call_stack_slot_`.
+  Node* load = __ Load(MachineType::Int32(), fast_api_call_stack_slot_, 0);
 
   TNode<Boolean> cond =
       TNode<Boolean>::UncheckedCast(__ Word32Equal(load, __ Int32Constant(0)));
