@@ -5,11 +5,49 @@
 #ifndef INCLUDE_CPPGC_INTERNAL_NAME_TRAIT_H_
 #define INCLUDE_CPPGC_INTERNAL_NAME_TRAIT_H_
 
+#include <cstddef>
+
 #include "cppgc/name-provider.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
 namespace cppgc {
 namespace internal {
+
+#if CPPGC_SUPPORTS_OBJECT_NAMES && defined(__clang__)
+#define CPPGC_SUPPORTS_COMPILE_TIME_TYPENAME 1
+
+template <size_t Size>
+struct NameBuffer {
+  char name[Size]{};
+
+  static constexpr NameBuffer FromCString(const char* str) {
+    NameBuffer result;
+    for (size_t i = 0; i < Size; ++i) result.name[i] = str[i];
+    return result;
+  }
+};
+
+template <typename T>
+const char* GetTypename() {
+  static constexpr char kSelfPrefix[] =
+      "const char *cppgc::internal::GetTypename() [T =";
+  static_assert(__builtin_strncmp(__PRETTY_FUNCTION__, kSelfPrefix,
+                                  sizeof(kSelfPrefix) - 1) == 0,
+                "The prefix must match");
+  static constexpr const char* kTypenameStart =
+      __PRETTY_FUNCTION__ + sizeof(kSelfPrefix);
+  static constexpr size_t kTypenameSize =
+      __builtin_strlen(__PRETTY_FUNCTION__) - sizeof(kSelfPrefix) - 1;
+  // NameBuffer is an indirection that is needed to make sure that only a
+  // substring of __PRETTY_FUNCTION__ gets materialized in the binary.
+  static constexpr auto buffer =
+      NameBuffer<kTypenameSize>::FromCString(kTypenameStart);
+  return buffer.name;
+}
+
+#else
+#define CPPGC_SUPPORTS_COMPILE_TIME_TYPENAME 0
+#endif
 
 struct HeapObjectName {
   const char* value;
@@ -36,7 +74,9 @@ class NameTrait final : public NameTraitBase {
   }
 
   static HeapObjectName GetNameFor(...) {
-#if CPPGC_SUPPORTS_OBJECT_NAMES
+#if CPPGC_SUPPORTS_COMPILE_TIME_TYPENAME
+    return {GetTypename<T>(), false};
+#elif CPPGC_SUPPORTS_OBJECT_NAMES
 
 #if defined(V8_CC_GNU)
 #define PRETTY_FUNCTION_VALUE __PRETTY_FUNCTION__
@@ -62,5 +102,7 @@ using NameCallback = HeapObjectName (*)(const void*);
 
 }  // namespace internal
 }  // namespace cppgc
+
+#undef CPPGC_SUPPORTS_COMPILE_TIME_TYPENAME
 
 #endif  // INCLUDE_CPPGC_INTERNAL_NAME_TRAIT_H_
