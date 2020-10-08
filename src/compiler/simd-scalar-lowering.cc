@@ -179,6 +179,8 @@ void SimdScalarLowering::LowerGraph() {
   V(F64x2Div)                       \
   V(F64x2Min)                       \
   V(F64x2Max)                       \
+  V(F64x2Pmin)                      \
+  V(F64x2Pmax)                      \
   V(F64x2Ceil)                      \
   V(F64x2Floor)                     \
   V(F64x2Trunc)                     \
@@ -202,6 +204,8 @@ void SimdScalarLowering::LowerGraph() {
   V(F32x4Div)                       \
   V(F32x4Min)                       \
   V(F32x4Max)                       \
+  V(F32x4Pmin)                      \
+  V(F32x4Pmax)                      \
   V(F32x4Ceil)                      \
   V(F32x4Floor)                     \
   V(F32x4Trunc)                     \
@@ -1226,6 +1230,23 @@ void SimdScalarLowering::LowerAllTrueOp(Node* node, SimdType rep_type) {
   ReplaceNode(node, rep_node, num_lanes);
 }
 
+void SimdScalarLowering::LowerFloatPseudoMinMax(Node* node, const Operator* op,
+                                                bool is_max, SimdType type) {
+  DCHECK_EQ(2, node->InputCount());
+  Node** rep_left = GetReplacementsWithType(node->InputAt(0), type);
+  Node** rep_right = GetReplacementsWithType(node->InputAt(1), type);
+  int num_lanes = NumLanes(type);
+  Node** rep_node = zone()->NewArray<Node*>(num_lanes);
+  MachineRepresentation rep = MachineTypeFrom(type).representation();
+  for (int i = 0; i < num_lanes; ++i) {
+    Node* cmp = is_max ? graph()->NewNode(op, rep_left[i], rep_right[i])
+                       : graph()->NewNode(op, rep_right[i], rep_left[i]);
+    Diamond d(graph(), common(), cmp);
+    rep_node[i] = d.Phi(rep, rep_right[i], rep_left[i]);
+  }
+  ReplaceNode(node, rep_node, num_lanes);
+}
+
 void SimdScalarLowering::LowerNode(Node* node) {
   SimdType rep_type = ReplacementType(node);
   int num_lanes = NumLanes(rep_type);
@@ -1784,6 +1805,16 @@ void SimdScalarLowering::LowerNode(Node* node) {
       F32X4_BINOP_CASE(Div)
       F32X4_BINOP_CASE(Min)
       F32X4_BINOP_CASE(Max)
+    case IrOpcode::kF32x4Pmin: {
+      LowerFloatPseudoMinMax(node, machine()->Float32LessThan(), false,
+                             rep_type);
+      break;
+    }
+    case IrOpcode::kF32x4Pmax: {
+      LowerFloatPseudoMinMax(node, machine()->Float32LessThan(), true,
+                             rep_type);
+      break;
+    }
 #undef F32X4_BINOP_CASE
 #define F32X4_UNOP_CASE(name)                                 \
   case IrOpcode::kF32x4##name: {                              \
@@ -1868,6 +1899,16 @@ void SimdScalarLowering::LowerNode(Node* node) {
     }
     case IrOpcode::kF64x2Max: {
       LowerBinaryOp(node, rep_type, machine()->Float64Max());
+      break;
+    }
+    case IrOpcode::kF64x2Pmin: {
+      LowerFloatPseudoMinMax(node, machine()->Float64LessThan(), false,
+                             rep_type);
+      break;
+    }
+    case IrOpcode::kF64x2Pmax: {
+      LowerFloatPseudoMinMax(node, machine()->Float64LessThan(), true,
+                             rep_type);
       break;
     }
     case IrOpcode::kF64x2Ceil: {

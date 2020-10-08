@@ -716,11 +716,11 @@ WASM_SIMD_TEST(F32x4Max) {
   RunF32x4BinOpTest(execution_tier, lower_simd, kExprF32x4Max, JSMax);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(F32x4Pmin) {
+WASM_SIMD_TEST(F32x4Pmin) {
   RunF32x4BinOpTest(execution_tier, lower_simd, kExprF32x4Pmin, Minimum);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(F32x4Pmax) {
+WASM_SIMD_TEST(F32x4Pmax) {
   RunF32x4BinOpTest(execution_tier, lower_simd, kExprF32x4Pmax, Maximum);
 }
 
@@ -1328,11 +1328,11 @@ WASM_SIMD_TEST(F64x2Div) {
   RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Div, base::Divide);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(F64x2Pmin) {
+WASM_SIMD_TEST(F64x2Pmin) {
   RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Pmin, Minimum);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(F64x2Pmax) {
+WASM_SIMD_TEST(F64x2Pmax) {
   RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Pmax, Maximum);
 }
 
