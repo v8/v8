@@ -169,6 +169,8 @@ class Serializer : public SerializerDeserializer {
 
   Isolate* isolate() const { return isolate_; }
 
+  int TotalAllocationSize() const;
+
  protected:
   using PendingObjectReferences = std::vector<int>*;
 

@@ -51,6 +51,14 @@ void Serializer::CountAllocation(Map map, int size, SnapshotSpace space) {
 #endif  // OBJECT_PRINT
 }
 
+int Serializer::TotalAllocationSize() const {
+  int sum = 0;
+  for (int space = 0; space < kNumberOfSnapshotSpaces; space++) {
+    sum += allocation_size_[space];
+  }
+  return sum;
+}
+
 void Serializer::OutputStatistics(const char* name) {
   if (!FLAG_serialization_statistics) return;
 

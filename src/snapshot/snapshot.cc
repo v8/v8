@@ -348,12 +348,17 @@ v8::StartupData Snapshot::Create(
   // TODO(v8:6593): generalize rehashing, and remove this flag.
   bool can_be_rehashed = true;
 
+  std::vector<int> context_allocation_sizes;
   for (int i = 0; i < num_contexts; i++) {
     ContextSerializer context_serializer(isolate, flags, &startup_serializer,
                                          embedder_fields_serializers[i]);
     context_serializer.Serialize(&contexts->at(i), no_gc);
     can_be_rehashed = can_be_rehashed && context_serializer.can_be_rehashed();
     context_snapshots.push_back(new SnapshotData(&context_serializer));
+    if (FLAG_profile_deserialization) {
+      context_allocation_sizes.push_back(
+          context_serializer.TotalAllocationSize());
+    }
   }
 
   startup_serializer.SerializeWeakReferencesAndDeferred();
@@ -363,6 +368,17 @@ v8::StartupData Snapshot::Create(
 
   read_only_serializer.FinalizeSerialization();
   can_be_rehashed = can_be_rehashed && read_only_serializer.can_be_rehashed();
+
+  if (FLAG_profile_deserialization) {
+    // These prints should match the regexp in test/memory/Memory.json
+    PrintF("Deserialization will allocate:\n");
+    PrintF("%10d bytes per isolate\n",
+           read_only_serializer.TotalAllocationSize() +
+               startup_serializer.TotalAllocationSize());
+    for (int i = 0; i < num_contexts; i++) {
+      PrintF("%10d bytes per context #%d\n", context_allocation_sizes[i], i);
+    }
+  }
 
   SnapshotData read_only_snapshot(&read_only_serializer);
   SnapshotData startup_snapshot(&startup_serializer);
