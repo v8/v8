@@ -4374,8 +4374,6 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/allocation.cc",
     "src/heap/cppgc/concurrent-marker.cc",
     "src/heap/cppgc/concurrent-marker.h",
-    "src/heap/cppgc/default-job.h",
-    "src/heap/cppgc/default-platform.cc",
     "src/heap/cppgc/free-list.cc",
     "src/heap/cppgc/free-list.h",
     "src/heap/cppgc/garbage-collector.h",
@@ -4457,6 +4455,7 @@ v8_source_set("cppgc_base") {
   public_deps = [
     ":v8_cppgc_shared",
     ":v8_libbase",
+    ":v8_libplatform",
   ]
 }
 

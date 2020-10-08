@@ -17,6 +17,7 @@ namespace internal {
 
 class StatsCollector;
 class RawHeap;
+class ConcurrentSweeperTest;
 
 class V8_EXPORT_PRIVATE Sweeper final {
  public:
@@ -33,8 +34,12 @@ class V8_EXPORT_PRIVATE Sweeper final {
   void FinishIfRunning();
 
  private:
+  void WaitForConcurrentSweepingForTesting();
+
   class SweeperImpl;
   std::unique_ptr<SweeperImpl> impl_;
+
+  friend class ConcurrentSweeperTest;
 };
 
 }  // namespace internal

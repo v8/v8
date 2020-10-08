@@ -161,7 +161,7 @@ ConcurrentMarkerBase::ConcurrentMarkerBase(
       platform_(platform) {}
 
 void ConcurrentMarkerBase::Start() {
-  if (!platform_) return;
+  DCHECK(platform_);
   concurrent_marking_handle_ =
       platform_->PostJob(v8::TaskPriority::kUserVisible,
                          std::make_unique<ConcurrentMarkingTask>(*this));

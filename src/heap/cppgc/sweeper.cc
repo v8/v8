@@ -504,13 +504,11 @@ class Sweeper::SweeperImpl final {
   void FinishIfRunning() {
     if (!is_in_progress_) return;
 
-    if (concurrent_sweeper_handle_ &&
+    if (concurrent_sweeper_handle_ && concurrent_sweeper_handle_->IsRunning() &&
         concurrent_sweeper_handle_->UpdatePriorityEnabled()) {
-      DCHECK(concurrent_sweeper_handle_->IsRunning());
       concurrent_sweeper_handle_->UpdatePriority(
           cppgc::TaskPriority::kUserBlocking);
     }
-
     Finish();
   }
 
@@ -531,6 +529,10 @@ class Sweeper::SweeperImpl final {
     is_in_progress_ = false;
 
     stats_collector_->NotifySweepingCompleted();
+  }
+
+  void WaitForConcurrentSweepingForTesting() {
+    if (concurrent_sweeper_handle_) concurrent_sweeper_handle_->Join();
   }
 
  private:
@@ -572,14 +574,17 @@ class Sweeper::SweeperImpl final {
   };
 
   void ScheduleIncrementalSweeping() {
-    if (!platform_ || !foreground_task_runner_) return;
+    DCHECK(platform_);
+    if (!foreground_task_runner_ ||
+        !foreground_task_runner_->IdleTasksEnabled())
+      return;
 
     incremental_sweeper_handle_ =
         IncrementalSweepTask::Post(this, foreground_task_runner_.get());
   }
 
   void ScheduleConcurrentSweeping() {
-    if (!platform_) return;
+    DCHECK(platform_);
 
     concurrent_sweeper_handle_ = platform_->PostJob(
         cppgc::TaskPriority::kUserVisible,
@@ -588,7 +593,8 @@ class Sweeper::SweeperImpl final {
 
   void CancelSweepers() {
     if (incremental_sweeper_handle_) incremental_sweeper_handle_.Cancel();
-    if (concurrent_sweeper_handle_) concurrent_sweeper_handle_->Cancel();
+    if (concurrent_sweeper_handle_ && concurrent_sweeper_handle_->IsRunning())
+      concurrent_sweeper_handle_->Cancel();
   }
 
   void SynchronizeAndFinalizeConcurrentSweeping() {
@@ -616,6 +622,9 @@ Sweeper::~Sweeper() = default;
 
 void Sweeper::Start(Config config) { impl_->Start(config); }
 void Sweeper::FinishIfRunning() { impl_->FinishIfRunning(); }
+void Sweeper::WaitForConcurrentSweepingForTesting() {
+  impl_->WaitForConcurrentSweepingForTesting();
+}
 
 }  // namespace internal
 }  // namespace cppgc

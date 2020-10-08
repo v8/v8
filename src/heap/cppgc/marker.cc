@@ -261,8 +261,8 @@ void MarkerBase::VisitRoots(MarkingConfig::StackState stack_state) {
 }
 
 void MarkerBase::ScheduleIncrementalMarkingTask() {
-  if (!platform_ || !foreground_task_runner_ || incremental_marking_handle_)
-    return;
+  DCHECK(platform_);
+  if (!foreground_task_runner_ || incremental_marking_handle_) return;
   incremental_marking_handle_ =
       IncrementalMarkingTask::Post(foreground_task_runner_.get(), this);
 }
