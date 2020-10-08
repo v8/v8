@@ -195,8 +195,7 @@ bool ContextSerializer::ShouldBeInTheStartupObjectCache(HeapObject o) {
   return o.IsName() || o.IsSharedFunctionInfo() || o.IsHeapNumber() ||
          o.IsCode() || o.IsScopeInfo() || o.IsAccessorInfo() ||
          o.IsTemplateInfo() || o.IsClassPositions() ||
-         o.map() == ReadOnlyRoots(startup_serializer_->isolate())
-                        .fixed_cow_array_map();
+         o.map() == ReadOnlyRoots(isolate()).fixed_cow_array_map();
 }
 
 namespace {

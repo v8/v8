@@ -39,22 +39,17 @@ bool SerializerDeserializer::CanBeDeferred(HeapObject o) {
   return !o.IsMap() && !o.IsInternalizedString();
 }
 
-void SerializerDeserializer::RestoreExternalReferenceRedirectors(
-    Isolate* isolate, const std::vector<Handle<AccessorInfo>>& accessor_infos) {
+void SerializerDeserializer::RestoreExternalReferenceRedirector(
+    Isolate* isolate, Handle<AccessorInfo> accessor_info) {
   // Restore wiped accessor infos.
-  for (Handle<AccessorInfo> info : accessor_infos) {
-    Foreign::cast(info->js_getter())
-        .set_foreign_address(isolate, info->redirected_getter());
-  }
+  Foreign::cast(accessor_info->js_getter())
+      .set_foreign_address(isolate, accessor_info->redirected_getter());
 }
 
-void SerializerDeserializer::RestoreExternalReferenceRedirectors(
-    Isolate* isolate,
-    const std::vector<Handle<CallHandlerInfo>>& call_handler_infos) {
-  for (Handle<CallHandlerInfo> info : call_handler_infos) {
-    Foreign::cast(info->js_callback())
-        .set_foreign_address(isolate, info->redirected_callback());
-  }
+void SerializerDeserializer::RestoreExternalReferenceRedirector(
+    Isolate* isolate, Handle<CallHandlerInfo> call_handler_info) {
+  Foreign::cast(call_handler_info->js_callback())
+      .set_foreign_address(isolate, call_handler_info->redirected_callback());
 }
 
 }  // namespace internal

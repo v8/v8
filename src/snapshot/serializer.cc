@@ -17,17 +17,26 @@
 #include "src/objects/objects-body-descriptors-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/smi.h"
+#include "src/snapshot/serializer-deserializer.h"
 
 namespace v8 {
 namespace internal {
 
 Serializer::Serializer(Isolate* isolate, Snapshot::SerializerFlags flags)
     : isolate_(isolate),
+      hot_objects_(isolate->heap()),
       reference_map_(isolate),
       external_reference_encoder_(isolate),
       root_index_map_(isolate),
+      deferred_objects_(isolate->heap()),
       forward_refs_per_pending_object_(isolate->heap()),
-      flags_(flags) {
+      flags_(flags)
+#ifdef DEBUG
+      ,
+      back_refs_(isolate->heap()),
+      stack_(isolate->heap())
+#endif
+{
 #ifdef OBJECT_PRINT
   if (FLAG_serialization_statistics) {
     for (int space = 0; space < kNumberOfSnapshotSpaces; ++space) {
@@ -98,12 +107,12 @@ void Serializer::SerializeDeferredObjects() {
   if (FLAG_trace_serializer) {
     PrintF("Serializing deferred objects\n");
   }
-  while (!deferred_objects_.empty()) {
-    Handle<HeapObject> obj = deferred_objects_.back();
-    deferred_objects_.pop_back();
+  WHILE_WITH_HANDLE_SCOPE(isolate(), !deferred_objects_.empty(), {
+    Handle<HeapObject> obj = handle(deferred_objects_.Pop(), isolate());
+
     ObjectSerializer obj_serializer(this, obj, &sink_);
     obj_serializer.SerializeDeferred();
-  }
+  });
   sink_.Put(kSynchronize, "Finished with deferred objects");
 }
 
@@ -235,7 +244,7 @@ void Serializer::PutRoot(RootIndex root) {
   } else {
     sink_.Put(kRootArray, "RootSerialization");
     sink_.PutInt(root_index, "root_index");
-    hot_objects_.Add(object);
+    hot_objects_.Add(*object);
   }
 }
 
@@ -258,7 +267,7 @@ void Serializer::PutBackReference(Handle<HeapObject> object,
                                   SerializerReference reference) {
   DCHECK_EQ(*object, *back_refs_[reference.back_ref_index()]);
   sink_.PutInt(reference.back_ref_index(), "BackRefIndex");
-  hot_objects_.Add(object);
+  hot_objects_.Add(*object);
 }
 
 void Serializer::PutAttachedReference(SerializerReference reference) {
@@ -372,7 +381,7 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
   }
 
   if (map == *object_) {
-    DCHECK_EQ(*object_, ReadOnlyRoots(serializer_->isolate()).meta_map());
+    DCHECK_EQ(*object_, ReadOnlyRoots(isolate()).meta_map());
     DCHECK_EQ(space, SnapshotSpace::kReadOnlyHeap);
     sink_->Put(kNewMetaMap, "NewMetaMap");
 
@@ -391,12 +400,12 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
     // isn't a pending object.
     DCHECK_NULL(serializer_->forward_refs_per_pending_object_.Find(map));
     DCHECK(map.IsMap());
-    serializer_->SerializeObject(handle(map, serializer_->isolate()));
+    serializer_->SerializeObject(handle(map, isolate()));
 
     // Make sure the map serialization didn't accidentally recursively serialize
     // this object.
     DCHECK_IMPLIES(
-        *object_ != ReadOnlyRoots(serializer_->isolate()).not_mapped_symbol(),
+        *object_ != ReadOnlyRoots(isolate()).not_mapped_symbol(),
         serializer_->reference_map()->LookupReference(object_) == nullptr);
 
     // Now that the object is allocated, we can resolve pending references to
@@ -410,13 +419,17 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
 
   // Mark this object as already serialized, and add it to the reference map so
   // that it can be accessed by backreference by future objects.
-  serializer_->back_refs_.push_back(object_);
-  if (*object_ != ReadOnlyRoots(serializer_->isolate()).not_mapped_symbol()) {
+  serializer_->num_back_refs_++;
+#ifdef DEBUG
+  serializer_->back_refs_.Push(*object_);
+  DCHECK_EQ(serializer_->back_refs_.size(), serializer_->num_back_refs_);
+#endif
+  if (*object_ != ReadOnlyRoots(isolate()).not_mapped_symbol()) {
     // Only add the object to the map if it's not not_mapped_symbol, else
     // the reference IdentityMap has issues. We don't expect to have back
     // references to the not_mapped_symbol anyway, so it's fine.
-    SerializerReference back_reference = SerializerReference::BackReference(
-        static_cast<int>(serializer_->back_refs_.size()) - 1);
+    SerializerReference back_reference =
+        SerializerReference::BackReference(serializer_->num_back_refs_ - 1);
     serializer_->reference_map()->Add(*object_, back_reference);
     DCHECK_EQ(*object_,
               *serializer_->back_refs_[back_reference.back_ref_index()]);
@@ -452,8 +465,7 @@ uint32_t Serializer::ObjectSerializer::SerializeBackingStore(
 void Serializer::ObjectSerializer::SerializeJSTypedArray() {
   Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(object_);
   if (typed_array->is_on_heap()) {
-    typed_array->RemoveExternalPointerCompensationForSerialization(
-        serializer_->isolate());
+    typed_array->RemoveExternalPointerCompensationForSerialization(isolate());
   } else {
     if (!typed_array->WasDetached()) {
       // Explicitly serialize the backing store now.
@@ -506,7 +518,7 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
 #ifdef V8_HEAP_SANDBOX
   buffer->SetBackingStoreRefForSerialization(external_pointer_entry);
 #else
-  buffer->set_backing_store(serializer_->isolate(), backing_store);
+  buffer->set_backing_store(isolate(), backing_store);
 #endif
   buffer->set_extension(extension);
 }
@@ -529,7 +541,7 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
 #ifdef V8_HEAP_SANDBOX
     string->SetResourceRefForSerialization(external_pointer_entry);
 #else
-    string->set_address_as_resource(serializer_->isolate(), resource);
+    string->set_address_as_resource(isolate(), resource);
 #endif
   } else {
     SerializeExternalStringAsSequentialString();
@@ -539,7 +551,7 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
 void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   // Instead of serializing this as an external string, we serialize
   // an imaginary sequential string with the same content.
-  ReadOnlyRoots roots(serializer_->isolate());
+  ReadOnlyRoots roots(isolate());
   DCHECK(object_->IsExternalString());
   Handle<ExternalString> string = Handle<ExternalString>::cast(object_);
   int length = string->length();
@@ -675,7 +687,7 @@ void Serializer::ObjectSerializer::Serialize() {
 
   if (object_->IsScript()) {
     // Clear cached line ends.
-    Oddball undefined = ReadOnlyRoots(serializer_->isolate()).undefined_value();
+    Oddball undefined = ReadOnlyRoots(isolate()).undefined_value();
     Handle<Script>::cast(object_)->set_line_ends(undefined);
   }
 
@@ -737,8 +749,8 @@ void Serializer::ObjectSerializer::SerializeObject() {
   // deserialization completes.
   //
   // See also `Deserializer::WeakenDescriptorArrays`.
-  if (map == ReadOnlyRoots(serializer_->isolate()).descriptor_array_map()) {
-    map = ReadOnlyRoots(serializer_->isolate()).strong_descriptor_array_map();
+  if (map == ReadOnlyRoots(isolate()).descriptor_array_map()) {
+    map = ReadOnlyRoots(isolate()).strong_descriptor_array_map();
   }
   SnapshotSpace space = GetSnapshotSpace(object_);
   SerializePrologue(space, size, map);
@@ -770,7 +782,7 @@ void Serializer::ObjectSerializer::SerializeDeferred() {
 }
 
 void Serializer::ObjectSerializer::SerializeContent(Map map, int size) {
-  UnlinkWeakNextScope unlink_weak_next(serializer_->isolate()->heap(), object_);
+  UnlinkWeakNextScope unlink_weak_next(isolate()->heap(), object_);
   if (object_->IsCode()) {
     // For code objects, perform a custom serialization.
     SerializeCode(map, size);
@@ -791,6 +803,7 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
 void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
                                                  MaybeObjectSlot start,
                                                  MaybeObjectSlot end) {
+  HandleScope scope(isolate());
   DisallowGarbageCollection no_gc;
 
   MaybeObjectSlot current = start;
@@ -818,7 +831,7 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
         sink_->Put(kWeakPrefix, "WeakReference");
       }
 
-      Handle<HeapObject> obj = handle(current_contents, serializer_->isolate());
+      Handle<HeapObject> obj = handle(current_contents, isolate());
       if (serializer_->SerializePendingObject(obj)) {
         bytes_processed_so_far_ += kTaggedSize;
         ++current;
@@ -910,8 +923,7 @@ class Serializer::ObjectSerializer::RelocInfoObjectPreSerializer {
 
   void VisitEmbeddedPointer(Code host, RelocInfo* target) {
     Object object = target->target_object();
-    serializer_->SerializeObject(
-        handle(HeapObject::cast(object), serializer_->isolate()));
+    serializer_->SerializeObject(handle(HeapObject::cast(object), isolate()));
     num_serialized_objects_++;
   }
   void VisitCodeTarget(Code host, RelocInfo* target) {
@@ -919,7 +931,7 @@ class Serializer::ObjectSerializer::RelocInfoObjectPreSerializer {
     DCHECK(!RelocInfo::IsRelativeCodeTarget(target->rmode()));
 #endif
     Code object = Code::GetCodeFromTargetAddress(target->target_address());
-    serializer_->SerializeObject(handle(object, serializer_->isolate()));
+    serializer_->SerializeObject(handle(object, isolate()));
     num_serialized_objects_++;
   }
 
@@ -929,6 +941,8 @@ class Serializer::ObjectSerializer::RelocInfoObjectPreSerializer {
   void VisitOffHeapTarget(Code host, RelocInfo* target) {}
 
   int num_serialized_objects() const { return num_serialized_objects_; }
+
+  Isolate* isolate() { return serializer_->isolate(); }
 
  private:
   Serializer* serializer_;
@@ -978,7 +992,7 @@ void Serializer::ObjectSerializer::VisitOffHeapTarget(Code host,
   Address addr = rinfo->target_off_heap_target();
   CHECK_NE(kNullAddress, addr);
 
-  Code target = InstructionStream::TryLookupCode(serializer_->isolate(), addr);
+  Code target = InstructionStream::TryLookupCode(isolate(), addr);
   CHECK(Builtins::IsIsolateIndependentBuiltin(target));
 
   sink_->Put(kOffHeapTarget, "OffHeapTarget");
@@ -1151,6 +1165,15 @@ void Serializer::ObjectSerializer::SerializeCode(Map map, int size) {
   DCHECK_EQ(
       bytes_processed_so_far_,
       Code::kDataStart + kTaggedSize * pre_serializer.num_serialized_objects());
+}
+
+Serializer::HotObjectsList::HotObjectsList(Heap* heap) : heap_(heap) {
+  strong_roots_entry_ =
+      heap->RegisterStrongRoots(FullObjectSlot(&circular_queue_[0]),
+                                FullObjectSlot(&circular_queue_[kSize]));
+}
+Serializer::HotObjectsList::~HotObjectsList() {
+  heap_->UnregisterStrongRoots(strong_roots_entry_);
 }
 
 }  // namespace internal

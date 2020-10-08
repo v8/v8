@@ -371,6 +371,18 @@ class Recorder;
     }                                                                      \
   } while (false)
 
+#define WHILE_WITH_HANDLE_SCOPE(isolate, limit_check, body)                  \
+  do {                                                                       \
+    Isolate* for_with_handle_isolate = isolate;                              \
+    while (limit_check) {                                                    \
+      HandleScope loop_scope(for_with_handle_isolate);                       \
+      for (int for_with_handle_it = 0;                                       \
+           limit_check && for_with_handle_it < 1024; ++for_with_handle_it) { \
+        body                                                                 \
+      }                                                                      \
+    }                                                                        \
+  } while (false)
+
 #define FIELD_ACCESSOR(type, name)                \
   inline void set_##name(type v) { name##_ = v; } \
   inline type name() const { return name##_; }

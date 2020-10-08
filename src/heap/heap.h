@@ -2653,6 +2653,32 @@ T ForwardingAddress(T heap_obj) {
   }
 }
 
+// Address block allocator compatible with standard containers which registers
+// its allocated range as strong roots.
+class StrongRootBlockAllocator {
+ public:
+  using pointer = Address*;
+  using const_pointer = const Address*;
+  using reference = Address&;
+  using const_reference = const Address&;
+  using value_type = Address;
+  using size_type = size_t;
+  using difference_type = ptrdiff_t;
+  template <class U>
+  struct rebind {
+    STATIC_ASSERT((std::is_same<Address, U>::value));
+    using other = StrongRootBlockAllocator;
+  };
+
+  explicit StrongRootBlockAllocator(Heap* heap) : heap_(heap) {}
+
+  Address* allocate(size_t n);
+  void deallocate(Address* p, size_t n) noexcept;
+
+ private:
+  Heap* heap_;
+};
+
 }  // namespace internal
 }  // namespace v8
 

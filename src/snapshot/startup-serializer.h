@@ -7,6 +7,7 @@
 
 #include <unordered_set>
 
+#include "src/handles/global-handles.h"
 #include "src/snapshot/roots-serializer.h"
 
 namespace v8 {
@@ -51,8 +52,8 @@ class V8_EXPORT_PRIVATE StartupSerializer : public RootsSerializer {
   void SerializeStringTable(StringTable* string_table);
 
   ReadOnlySerializer* read_only_serializer_;
-  std::vector<Handle<AccessorInfo>> accessor_infos_;
-  std::vector<Handle<CallHandlerInfo>> call_handler_infos_;
+  GlobalHandleVector<AccessorInfo> accessor_infos_;
+  GlobalHandleVector<CallHandlerInfo> call_handler_infos_;
 
   DISALLOW_COPY_AND_ASSIGN(StartupSerializer);
 };

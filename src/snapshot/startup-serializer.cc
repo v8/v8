@@ -66,13 +66,19 @@ StartupSerializer::StartupSerializer(Isolate* isolate,
                                      Snapshot::SerializerFlags flags,
                                      ReadOnlySerializer* read_only_serializer)
     : RootsSerializer(isolate, flags, RootIndex::kFirstStrongRoot),
-      read_only_serializer_(read_only_serializer) {
+      read_only_serializer_(read_only_serializer),
+      accessor_infos_(isolate->heap()),
+      call_handler_infos_(isolate->heap()) {
   InitializeCodeAddressMap();
 }
 
 StartupSerializer::~StartupSerializer() {
-  RestoreExternalReferenceRedirectors(isolate(), accessor_infos_);
-  RestoreExternalReferenceRedirectors(isolate(), call_handler_infos_);
+  for (Handle<AccessorInfo> info : accessor_infos_) {
+    RestoreExternalReferenceRedirector(isolate(), info);
+  }
+  for (Handle<CallHandlerInfo> info : call_handler_infos_) {
+    RestoreExternalReferenceRedirector(isolate(), info);
+  }
   OutputStatistics("StartupSerializer");
 }
 
@@ -144,14 +150,14 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
         Foreign::cast(info->getter()).foreign_address(isolate());
     Foreign::cast(info->js_getter())
         .set_foreign_address(isolate(), original_address);
-    accessor_infos_.push_back(info);
+    accessor_infos_.Push(*info);
   } else if (use_simulator && obj->IsCallHandlerInfo()) {
     Handle<CallHandlerInfo> info = Handle<CallHandlerInfo>::cast(obj);
     Address original_address =
         Foreign::cast(info->callback()).foreign_address(isolate());
     Foreign::cast(info->js_callback())
         .set_foreign_address(isolate(), original_address);
-    call_handler_infos_.push_back(info);
+    call_handler_infos_.Push(*info);
   } else if (obj->IsScript() && Handle<Script>::cast(obj)->IsUserJavaScript()) {
     Handle<Script>::cast(obj)->set_context_data(
         ReadOnlyRoots(isolate()).uninitialized_symbol());

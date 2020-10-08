@@ -130,6 +130,34 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
 
  private:
   class RelocInfoVisitor;
+  // A circular queue of hot objects. This is added to in the same order as in
+  // Serializer::HotObjectsList, but this stores the objects as a vector of
+  // existing handles. This allows us to add Handles to the queue without having
+  // to create new handles. Note that this depends on those Handles staying
+  // valid as long as the HotObjectsList is alive.
+  class HotObjectsList {
+   public:
+    HotObjectsList() = default;
+
+    void Add(Handle<HeapObject> object) {
+      circular_queue_[index_] = object;
+      index_ = (index_ + 1) & kSizeMask;
+    }
+
+    Handle<HeapObject> Get(int index) {
+      DCHECK(!circular_queue_[index].is_null());
+      return circular_queue_[index];
+    }
+
+   private:
+    static const int kSize = kHotObjectCount;
+    static const int kSizeMask = kSize - 1;
+    STATIC_ASSERT(base::bits::IsPowerOfTwo(kSize));
+    Handle<HeapObject> circular_queue_[kSize];
+    int index_ = 0;
+
+    DISALLOW_COPY_AND_ASSIGN(HotObjectsList);
+  };
 
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override;
@@ -184,6 +212,7 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   SnapshotByteSource source_;
   uint32_t magic_number_;
 
+  HotObjectsList hot_objects_;
   std::vector<Handle<Map>> new_maps_;
   std::vector<Handle<AllocationSite>> new_allocation_sites_;
   std::vector<Handle<Code>> new_code_objects_;

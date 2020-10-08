@@ -1124,11 +1124,11 @@ HeapObject Deserializer::Allocate(SnapshotSpace space, int size,
   }
 #endif
 
-  HeapObject obj = isolate_->heap()->AllocateRawWith<Heap::kRetryOrFail>(
+  HeapObject obj = isolate()->heap()->AllocateRawWith<Heap::kRetryOrFail>(
       size, SpaceToType(space), AllocationOrigin::kRuntime, alignment);
 
 #ifdef DEBUG
-  previous_allocation_obj_ = handle(obj, isolate_);
+  previous_allocation_obj_ = handle(obj, isolate());
   previous_allocation_size_ = size;
 #endif
 

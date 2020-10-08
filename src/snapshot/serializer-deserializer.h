@@ -23,51 +23,12 @@ class SerializerDeserializer : public RootVisitor {
   static void Iterate(Isolate* isolate, RootVisitor* visitor);
 
  protected:
-  class HotObjectsList {
-   public:
-    HotObjectsList() = default;
-
-    void Add(Handle<HeapObject> object) {
-      circular_queue_[index_] = object;
-      index_ = (index_ + 1) & kSizeMask;
-    }
-
-    Handle<HeapObject> Get(int index) {
-      DCHECK(!circular_queue_[index].is_null());
-      return circular_queue_[index];
-    }
-
-    static const int kNotFound = -1;
-
-    int Find(HeapObject object) {
-      DCHECK(!AllowGarbageCollection::IsAllowed());
-      for (int i = 0; i < kSize; i++) {
-        if (!circular_queue_[i].is_null() && *circular_queue_[i] == object) {
-          return i;
-        }
-      }
-      return kNotFound;
-    }
-
-    static const int kSize = 8;
-
-   private:
-    STATIC_ASSERT(base::bits::IsPowerOfTwo(kSize));
-    static const int kSizeMask = kSize - 1;
-    Handle<HeapObject> circular_queue_[kSize];
-    int index_ = 0;
-
-    DISALLOW_COPY_AND_ASSIGN(HotObjectsList);
-  };
-
   static bool CanBeDeferred(HeapObject o);
 
-  void RestoreExternalReferenceRedirectors(
-      Isolate* isolate,
-      const std::vector<Handle<AccessorInfo>>& accessor_infos);
-  void RestoreExternalReferenceRedirectors(
-      Isolate* isolate,
-      const std::vector<Handle<CallHandlerInfo>>& call_handler_infos);
+  void RestoreExternalReferenceRedirector(Isolate* isolate,
+                                          Handle<AccessorInfo> accessor_info);
+  void RestoreExternalReferenceRedirector(
+      Isolate* isolate, Handle<CallHandlerInfo> call_handler_info);
 
 // clang-format off
 #define UNUSED_SERIALIZER_BYTE_CODES(V)                           \
@@ -116,7 +77,6 @@ class SerializerDeserializer : public RootVisitor {
 
   // 8 hot (recently seen or back-referenced) objects with optional skip.
   static const int kHotObjectCount = 8;
-  STATIC_ASSERT(kHotObjectCount == HotObjectsList::kSize);
 
   enum Bytecode : byte {
     //
@@ -298,9 +258,6 @@ class SerializerDeserializer : public RootVisitor {
   // This backing store reference value represents nullptr values during
   // serialization/deserialization.
   static const uint32_t kNullRefSentinel = 0;
-
-  // ---------- member variable ----------
-  HotObjectsList hot_objects_;
 };
 
 }  // namespace internal
