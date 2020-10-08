@@ -66,10 +66,18 @@ class MockPlatform final : public TestPlatform {
       tasks_.push(std::move(task));
     }
 
+    void PostNonNestableTask(std::unique_ptr<Task> task) override {
+      PostTask(std::move(task));
+    }
+
     void PostDelayedTask(std::unique_ptr<Task> task,
                          double delay_in_seconds) override {
-      base::MutexGuard lock_scope(&tasks_lock_);
-      tasks_.push(std::move(task));
+      PostTask(std::move(task));
+    }
+
+    void PostNonNestableDelayedTask(std::unique_ptr<Task> task,
+                                    double delay_in_seconds) override {
+      PostTask(std::move(task));
     }
 
     void PostIdleTask(std::unique_ptr<IdleTask> task) override {
@@ -77,6 +85,8 @@ class MockPlatform final : public TestPlatform {
     }
 
     bool IdleTasksEnabled() override { return false; }
+    bool NonNestableTasksEnabled() const override { return true; }
+    bool NonNestableDelayedTasksEnabled() const override { return true; }
 
     void ExecuteTasks() {
       std::queue<std::unique_ptr<v8::Task>> tasks;
@@ -135,8 +145,9 @@ enum class CompilationStatus {
 
 class TestInstantiateResolver : public InstantiationResultResolver {
  public:
-  TestInstantiateResolver(CompilationStatus* status, std::string* error_message)
-      : status_(status), error_message_(error_message) {}
+  TestInstantiateResolver(Isolate* isolate, CompilationStatus* status,
+                          std::string* error_message)
+      : isolate_(isolate), status_(status), error_message_(error_message) {}
 
   void OnInstantiationSucceeded(
       i::Handle<i::WasmInstanceObject> instance) override {
@@ -146,11 +157,12 @@ class TestInstantiateResolver : public InstantiationResultResolver {
   void OnInstantiationFailed(i::Handle<i::Object> error_reason) override {
     *status_ = CompilationStatus::kFailed;
     Handle<String> str =
-        Object::ToString(CcTest::i_isolate(), error_reason).ToHandleChecked();
+        Object::ToString(isolate_, error_reason).ToHandleChecked();
     error_message_->assign(str->ToCString().get());
   }
 
  private:
+  Isolate* isolate_;
   CompilationStatus* const status_;
   std::string* const error_message_;
 };
@@ -170,7 +182,8 @@ class TestCompileResolver : public CompilationResultResolver {
       *native_module_ = module->shared_native_module();
       isolate_->wasm_engine()->AsyncInstantiate(
           isolate_,
-          std::make_unique<TestInstantiateResolver>(status_, error_message_),
+          std::make_unique<TestInstantiateResolver>(isolate_, status_,
+                                                    error_message_),
           module, MaybeHandle<JSReceiver>());
     }
   }
@@ -191,20 +204,36 @@ class TestCompileResolver : public CompilationResultResolver {
 
 }  // namespace
 
+#define RUN_COMPILE(name)                                                  \
+  MockPlatform mock_platform;                                              \
+  CHECK_EQ(V8::GetCurrentPlatform(), &mock_platform);                      \
+  v8::Isolate::CreateParams create_params;                                 \
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator(); \
+  v8::Isolate* isolate = v8::Isolate::New(create_params);                  \
+  {                                                                        \
+    v8::HandleScope handle_scope(isolate);                                 \
+    v8::Local<v8::Context> context = v8::Context::New(isolate);            \
+    v8::Context::Scope context_scope(context);                             \
+    Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);           \
+    testing::SetupIsolateForWasmModule(i_isolate);                         \
+    RunCompile_##name(&mock_platform, i_isolate);                          \
+  }                                                                        \
+  isolate->Dispose();
+
 #define COMPILE_TEST(name)                                                  \
-  void RunCompile_##name();                                                 \
-  TEST(Sync##name) {                                                        \
+  void RunCompile_##name(MockPlatform*, i::Isolate*);                       \
+  UNINITIALIZED_TEST(Sync##name) {                                          \
     i::FlagScope<bool> sync_scope(&i::FLAG_wasm_async_compilation, false);  \
-    RunCompile_##name();                                                    \
+    RUN_COMPILE(name);                                                      \
   }                                                                         \
                                                                             \
-  TEST(Async##name) { RunCompile_##name(); }                                \
+  UNINITIALIZED_TEST(Async##name) { RUN_COMPILE(name); }                    \
                                                                             \
-  TEST(Streaming##name) {                                                   \
+  UNINITIALIZED_TEST(Streaming##name) {                                     \
     i::FlagScope<bool> streaming_scope(&i::FLAG_wasm_test_streaming, true); \
-    RunCompile_##name();                                                    \
+    RUN_COMPILE(name);                                                      \
   }                                                                         \
-  void RunCompile_##name()
+  void RunCompile_##name(MockPlatform* platform, i::Isolate* isolate)
 
 class MetricsRecorder : public v8::metrics::Recorder {
  public:
@@ -236,14 +265,9 @@ class MetricsRecorder : public v8::metrics::Recorder {
 };
 
 COMPILE_TEST(TestEventMetrics) {
-  MockPlatform platform;
-  Isolate* isolate = CcTest::InitIsolateOnce();
-  CHECK_EQ(V8::GetCurrentPlatform(), &platform);
-  HandleScope scope(isolate);
-  testing::SetupIsolateForWasmModule(isolate);
   std::shared_ptr<MetricsRecorder> recorder =
       std::make_shared<MetricsRecorder>();
-  CcTest::isolate()->SetMetricsRecorder(recorder);
+  reinterpret_cast<v8::Isolate*>(isolate)->SetMetricsRecorder(recorder);
 
   TestSignatures sigs;
   v8::internal::AccountingAllocator allocator;
@@ -271,9 +295,9 @@ COMPILE_TEST(TestEventMetrics) {
 
   // Finish compilation tasks.
   while (status == CompilationStatus::kPending) {
-    platform.ExecuteTasks();
+    platform->ExecuteTasks();
   }
-  platform.ExecuteTasks();  // Complete pending tasks beyond compilation.
+  platform->ExecuteTasks();  // Complete pending tasks beyond compilation.
   CHECK_EQ(CompilationStatus::kFinished, status);
 
   CHECK_EQ(1, recorder->module_decoded_.size());
