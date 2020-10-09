@@ -265,10 +265,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_I16x8SConvertI8x16High:
     case kS390_I16x8UConvertI8x16Low:
     case kS390_I16x8UConvertI8x16High:
-    case kS390_I16x8AddSaturateS:
-    case kS390_I16x8SubSaturateS:
-    case kS390_I16x8AddSaturateU:
-    case kS390_I16x8SubSaturateU:
+    case kS390_I16x8AddSatS:
+    case kS390_I16x8SubSatS:
+    case kS390_I16x8AddSatU:
+    case kS390_I16x8SubSatU:
     case kS390_I16x8RoundingAverageU:
     case kS390_I16x8Abs:
     case kS390_I16x8BitMask:
@@ -295,10 +295,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_I8x16Neg:
     case kS390_I8x16SConvertI16x8:
     case kS390_I8x16UConvertI16x8:
-    case kS390_I8x16AddSaturateS:
-    case kS390_I8x16SubSaturateS:
-    case kS390_I8x16AddSaturateU:
-    case kS390_I8x16SubSaturateU:
+    case kS390_I8x16AddSatS:
+    case kS390_I8x16SubSatS:
+    case kS390_I8x16AddSatU:
+    case kS390_I8x16SubSatU:
     case kS390_I8x16RoundingAverageU:
     case kS390_I8x16Abs:
     case kS390_I8x16BitMask:

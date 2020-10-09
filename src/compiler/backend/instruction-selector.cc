@@ -2091,14 +2091,14 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI16x8SConvertI32x4(node);
     case IrOpcode::kI16x8Add:
       return MarkAsSimd128(node), VisitI16x8Add(node);
-    case IrOpcode::kI16x8AddSaturateS:
-      return MarkAsSimd128(node), VisitI16x8AddSaturateS(node);
+    case IrOpcode::kI16x8AddSatS:
+      return MarkAsSimd128(node), VisitI16x8AddSatS(node);
     case IrOpcode::kI16x8AddHoriz:
       return MarkAsSimd128(node), VisitI16x8AddHoriz(node);
     case IrOpcode::kI16x8Sub:
       return MarkAsSimd128(node), VisitI16x8Sub(node);
-    case IrOpcode::kI16x8SubSaturateS:
-      return MarkAsSimd128(node), VisitI16x8SubSaturateS(node);
+    case IrOpcode::kI16x8SubSatS:
+      return MarkAsSimd128(node), VisitI16x8SubSatS(node);
     case IrOpcode::kI16x8Mul:
       return MarkAsSimd128(node), VisitI16x8Mul(node);
     case IrOpcode::kI16x8MinS:
@@ -2121,10 +2121,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI16x8ShrU(node);
     case IrOpcode::kI16x8UConvertI32x4:
       return MarkAsSimd128(node), VisitI16x8UConvertI32x4(node);
-    case IrOpcode::kI16x8AddSaturateU:
-      return MarkAsSimd128(node), VisitI16x8AddSaturateU(node);
-    case IrOpcode::kI16x8SubSaturateU:
-      return MarkAsSimd128(node), VisitI16x8SubSaturateU(node);
+    case IrOpcode::kI16x8AddSatU:
+      return MarkAsSimd128(node), VisitI16x8AddSatU(node);
+    case IrOpcode::kI16x8SubSatU:
+      return MarkAsSimd128(node), VisitI16x8SubSatU(node);
     case IrOpcode::kI16x8MinU:
       return MarkAsSimd128(node), VisitI16x8MinU(node);
     case IrOpcode::kI16x8MaxU:
@@ -2159,12 +2159,12 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI8x16SConvertI16x8(node);
     case IrOpcode::kI8x16Add:
       return MarkAsSimd128(node), VisitI8x16Add(node);
-    case IrOpcode::kI8x16AddSaturateS:
-      return MarkAsSimd128(node), VisitI8x16AddSaturateS(node);
+    case IrOpcode::kI8x16AddSatS:
+      return MarkAsSimd128(node), VisitI8x16AddSatS(node);
     case IrOpcode::kI8x16Sub:
       return MarkAsSimd128(node), VisitI8x16Sub(node);
-    case IrOpcode::kI8x16SubSaturateS:
-      return MarkAsSimd128(node), VisitI8x16SubSaturateS(node);
+    case IrOpcode::kI8x16SubSatS:
+      return MarkAsSimd128(node), VisitI8x16SubSatS(node);
     case IrOpcode::kI8x16Mul:
       return MarkAsSimd128(node), VisitI8x16Mul(node);
     case IrOpcode::kI8x16MinS:
@@ -2183,10 +2183,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI8x16ShrU(node);
     case IrOpcode::kI8x16UConvertI16x8:
       return MarkAsSimd128(node), VisitI8x16UConvertI16x8(node);
-    case IrOpcode::kI8x16AddSaturateU:
-      return MarkAsSimd128(node), VisitI8x16AddSaturateU(node);
-    case IrOpcode::kI8x16SubSaturateU:
-      return MarkAsSimd128(node), VisitI8x16SubSaturateU(node);
+    case IrOpcode::kI8x16AddSatU:
+      return MarkAsSimd128(node), VisitI8x16AddSatU(node);
+    case IrOpcode::kI8x16SubSatU:
+      return MarkAsSimd128(node), VisitI8x16SubSatU(node);
     case IrOpcode::kI8x16MinU:
       return MarkAsSimd128(node), VisitI8x16MinU(node);
     case IrOpcode::kI8x16MaxU:

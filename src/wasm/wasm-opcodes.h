@@ -361,11 +361,11 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I8x16ShrS, 0xfd6c, s_si)                 \
   V(I8x16ShrU, 0xfd6d, s_si)                 \
   V(I8x16Add, 0xfd6e, s_ss)                  \
-  V(I8x16AddSaturateS, 0xfd6f, s_ss)         \
-  V(I8x16AddSaturateU, 0xfd70, s_ss)         \
+  V(I8x16AddSatS, 0xfd6f, s_ss)              \
+  V(I8x16AddSatU, 0xfd70, s_ss)              \
   V(I8x16Sub, 0xfd71, s_ss)                  \
-  V(I8x16SubSaturateS, 0xfd72, s_ss)         \
-  V(I8x16SubSaturateU, 0xfd73, s_ss)         \
+  V(I8x16SubSatS, 0xfd72, s_ss)              \
+  V(I8x16SubSatU, 0xfd73, s_ss)              \
   V(I8x16MinS, 0xfd76, s_ss)                 \
   V(I8x16MinU, 0xfd77, s_ss)                 \
   V(I8x16MaxS, 0xfd78, s_ss)                 \
@@ -386,11 +386,11 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I16x8ShrS, 0xfd8c, s_si)                 \
   V(I16x8ShrU, 0xfd8d, s_si)                 \
   V(I16x8Add, 0xfd8e, s_ss)                  \
-  V(I16x8AddSaturateS, 0xfd8f, s_ss)         \
-  V(I16x8AddSaturateU, 0xfd90, s_ss)         \
+  V(I16x8AddSatS, 0xfd8f, s_ss)              \
+  V(I16x8AddSatU, 0xfd90, s_ss)              \
   V(I16x8Sub, 0xfd91, s_ss)                  \
-  V(I16x8SubSaturateS, 0xfd92, s_ss)         \
-  V(I16x8SubSaturateU, 0xfd93, s_ss)         \
+  V(I16x8SubSatS, 0xfd92, s_ss)              \
+  V(I16x8SubSatU, 0xfd93, s_ss)              \
   V(I16x8Mul, 0xfd95, s_ss)                  \
   V(I16x8MinS, 0xfd96, s_ss)                 \
   V(I16x8MinU, 0xfd97, s_ss)                 \

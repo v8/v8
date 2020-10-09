@@ -2668,20 +2668,16 @@ class LiftoffCompiler {
                                &LiftoffAssembler::emit_i8x16_shri_u);
       case wasm::kExprI8x16Add:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_add);
-      case wasm::kExprI8x16AddSaturateS:
-        return EmitBinOp<kS128, kS128>(
-            &LiftoffAssembler::emit_i8x16_add_saturate_s);
-      case wasm::kExprI8x16AddSaturateU:
-        return EmitBinOp<kS128, kS128>(
-            &LiftoffAssembler::emit_i8x16_add_saturate_u);
+      case wasm::kExprI8x16AddSatS:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_add_sat_s);
+      case wasm::kExprI8x16AddSatU:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_add_sat_u);
       case wasm::kExprI8x16Sub:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_sub);
-      case wasm::kExprI8x16SubSaturateS:
-        return EmitBinOp<kS128, kS128>(
-            &LiftoffAssembler::emit_i8x16_sub_saturate_s);
-      case wasm::kExprI8x16SubSaturateU:
-        return EmitBinOp<kS128, kS128>(
-            &LiftoffAssembler::emit_i8x16_sub_saturate_u);
+      case wasm::kExprI8x16SubSatS:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_sub_sat_s);
+      case wasm::kExprI8x16SubSatU:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_sub_sat_u);
       case wasm::kExprI8x16Mul:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_mul);
       case wasm::kExprI8x16MinS:
@@ -2711,20 +2707,16 @@ class LiftoffCompiler {
                                &LiftoffAssembler::emit_i16x8_shri_u);
       case wasm::kExprI16x8Add:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_add);
-      case wasm::kExprI16x8AddSaturateS:
-        return EmitBinOp<kS128, kS128>(
-            &LiftoffAssembler::emit_i16x8_add_saturate_s);
-      case wasm::kExprI16x8AddSaturateU:
-        return EmitBinOp<kS128, kS128>(
-            &LiftoffAssembler::emit_i16x8_add_saturate_u);
+      case wasm::kExprI16x8AddSatS:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_add_sat_s);
+      case wasm::kExprI16x8AddSatU:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_add_sat_u);
       case wasm::kExprI16x8Sub:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_sub);
-      case wasm::kExprI16x8SubSaturateS:
-        return EmitBinOp<kS128, kS128>(
-            &LiftoffAssembler::emit_i16x8_sub_saturate_s);
-      case wasm::kExprI16x8SubSaturateU:
-        return EmitBinOp<kS128, kS128>(
-            &LiftoffAssembler::emit_i16x8_sub_saturate_u);
+      case wasm::kExprI16x8SubSatS:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_sub_sat_s);
+      case wasm::kExprI16x8SubSatU:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_sub_sat_u);
       case wasm::kExprI16x8Mul:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_mul);
       case wasm::kExprI16x8MinS:

@@ -226,10 +226,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64I16x8ShrS:
     case kX64I16x8SConvertI32x4:
     case kX64I16x8Add:
-    case kX64I16x8AddSaturateS:
+    case kX64I16x8AddSatS:
     case kX64I16x8AddHoriz:
     case kX64I16x8Sub:
-    case kX64I16x8SubSaturateS:
+    case kX64I16x8SubSatS:
     case kX64I16x8Mul:
     case kX64I16x8MinS:
     case kX64I16x8MaxS:
@@ -241,8 +241,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64I16x8UConvertI8x16High:
     case kX64I16x8UConvertI32x4:
     case kX64I16x8ShrU:
-    case kX64I16x8AddSaturateU:
-    case kX64I16x8SubSaturateU:
+    case kX64I16x8AddSatU:
+    case kX64I16x8SubSatU:
     case kX64I16x8MinU:
     case kX64I16x8MaxU:
     case kX64I16x8GtU:
@@ -258,9 +258,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64I8x16Shl:
     case kX64I8x16ShrS:
     case kX64I8x16Add:
-    case kX64I8x16AddSaturateS:
+    case kX64I8x16AddSatS:
     case kX64I8x16Sub:
-    case kX64I8x16SubSaturateS:
+    case kX64I8x16SubSatS:
     case kX64I8x16Mul:
     case kX64I8x16MinS:
     case kX64I8x16MaxS:
@@ -269,8 +269,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64I8x16GtS:
     case kX64I8x16GeS:
     case kX64I8x16UConvertI16x8:
-    case kX64I8x16AddSaturateU:
-    case kX64I8x16SubSaturateU:
+    case kX64I8x16AddSatU:
+    case kX64I8x16SubSatU:
     case kX64I8x16ShrU:
     case kX64I8x16MinU:
     case kX64I8x16MaxU:

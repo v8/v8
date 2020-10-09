@@ -226,10 +226,10 @@ namespace compiler {
   V(MipsI16x8ShrS)                 \
   V(MipsI16x8ShrU)                 \
   V(MipsI16x8Add)                  \
-  V(MipsI16x8AddSaturateS)         \
+  V(MipsI16x8AddSatS)              \
   V(MipsI16x8AddHoriz)             \
   V(MipsI16x8Sub)                  \
-  V(MipsI16x8SubSaturateS)         \
+  V(MipsI16x8SubSatS)              \
   V(MipsI16x8Mul)                  \
   V(MipsI16x8MaxS)                 \
   V(MipsI16x8MinS)                 \
@@ -237,8 +237,8 @@ namespace compiler {
   V(MipsI16x8Ne)                   \
   V(MipsI16x8GtS)                  \
   V(MipsI16x8GeS)                  \
-  V(MipsI16x8AddSaturateU)         \
-  V(MipsI16x8SubSaturateU)         \
+  V(MipsI16x8AddSatU)              \
+  V(MipsI16x8SubSatU)              \
   V(MipsI16x8MaxU)                 \
   V(MipsI16x8MinU)                 \
   V(MipsI16x8GtU)                  \
@@ -254,9 +254,9 @@ namespace compiler {
   V(MipsI8x16Shl)                  \
   V(MipsI8x16ShrS)                 \
   V(MipsI8x16Add)                  \
-  V(MipsI8x16AddSaturateS)         \
+  V(MipsI8x16AddSatS)              \
   V(MipsI8x16Sub)                  \
-  V(MipsI8x16SubSaturateS)         \
+  V(MipsI8x16SubSatS)              \
   V(MipsI8x16Mul)                  \
   V(MipsI8x16MaxS)                 \
   V(MipsI8x16MinS)                 \
@@ -265,8 +265,8 @@ namespace compiler {
   V(MipsI8x16GtS)                  \
   V(MipsI8x16GeS)                  \
   V(MipsI8x16ShrU)                 \
-  V(MipsI8x16AddSaturateU)         \
-  V(MipsI8x16SubSaturateU)         \
+  V(MipsI8x16AddSatU)              \
+  V(MipsI8x16SubSatU)              \
   V(MipsI8x16MaxU)                 \
   V(MipsI8x16MinU)                 \
   V(MipsI8x16GtU)                  \

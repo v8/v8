@@ -442,10 +442,10 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(I16x8ShrS, Operator::kNoProperties, 2, 0, 1)                           \
   V(I16x8SConvertI32x4, Operator::kNoProperties, 2, 0, 1)                  \
   V(I16x8Add, Operator::kCommutative, 2, 0, 1)                             \
-  V(I16x8AddSaturateS, Operator::kCommutative, 2, 0, 1)                    \
+  V(I16x8AddSatS, Operator::kCommutative, 2, 0, 1)                         \
   V(I16x8AddHoriz, Operator::kNoProperties, 2, 0, 1)                       \
   V(I16x8Sub, Operator::kNoProperties, 2, 0, 1)                            \
-  V(I16x8SubSaturateS, Operator::kNoProperties, 2, 0, 1)                   \
+  V(I16x8SubSatS, Operator::kNoProperties, 2, 0, 1)                        \
   V(I16x8Mul, Operator::kCommutative, 2, 0, 1)                             \
   V(I16x8MinS, Operator::kCommutative, 2, 0, 1)                            \
   V(I16x8MaxS, Operator::kCommutative, 2, 0, 1)                            \
@@ -457,8 +457,8 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(I16x8UConvertI8x16High, Operator::kNoProperties, 1, 0, 1)              \
   V(I16x8ShrU, Operator::kNoProperties, 2, 0, 1)                           \
   V(I16x8UConvertI32x4, Operator::kNoProperties, 2, 0, 1)                  \
-  V(I16x8AddSaturateU, Operator::kCommutative, 2, 0, 1)                    \
-  V(I16x8SubSaturateU, Operator::kNoProperties, 2, 0, 1)                   \
+  V(I16x8AddSatU, Operator::kCommutative, 2, 0, 1)                         \
+  V(I16x8SubSatU, Operator::kNoProperties, 2, 0, 1)                        \
   V(I16x8MinU, Operator::kCommutative, 2, 0, 1)                            \
   V(I16x8MaxU, Operator::kCommutative, 2, 0, 1)                            \
   V(I16x8GtU, Operator::kNoProperties, 2, 0, 1)                            \
@@ -473,9 +473,9 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(I8x16ShrS, Operator::kNoProperties, 2, 0, 1)                           \
   V(I8x16SConvertI16x8, Operator::kNoProperties, 2, 0, 1)                  \
   V(I8x16Add, Operator::kCommutative, 2, 0, 1)                             \
-  V(I8x16AddSaturateS, Operator::kCommutative, 2, 0, 1)                    \
+  V(I8x16AddSatS, Operator::kCommutative, 2, 0, 1)                         \
   V(I8x16Sub, Operator::kNoProperties, 2, 0, 1)                            \
-  V(I8x16SubSaturateS, Operator::kNoProperties, 2, 0, 1)                   \
+  V(I8x16SubSatS, Operator::kNoProperties, 2, 0, 1)                        \
   V(I8x16Mul, Operator::kCommutative, 2, 0, 1)                             \
   V(I8x16MinS, Operator::kCommutative, 2, 0, 1)                            \
   V(I8x16MaxS, Operator::kCommutative, 2, 0, 1)                            \
@@ -485,8 +485,8 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(I8x16GeS, Operator::kNoProperties, 2, 0, 1)                            \
   V(I8x16ShrU, Operator::kNoProperties, 2, 0, 1)                           \
   V(I8x16UConvertI16x8, Operator::kNoProperties, 2, 0, 1)                  \
-  V(I8x16AddSaturateU, Operator::kCommutative, 2, 0, 1)                    \
-  V(I8x16SubSaturateU, Operator::kNoProperties, 2, 0, 1)                   \
+  V(I8x16AddSatU, Operator::kCommutative, 2, 0, 1)                         \
+  V(I8x16SubSatU, Operator::kNoProperties, 2, 0, 1)                        \
   V(I8x16MinU, Operator::kCommutative, 2, 0, 1)                            \
   V(I8x16MaxU, Operator::kCommutative, 2, 0, 1)                            \
   V(I8x16GtU, Operator::kNoProperties, 2, 0, 1)                            \

@@ -319,10 +319,10 @@ namespace compiler {
   V(PPC_I16x8SConvertI8x16High)      \
   V(PPC_I16x8UConvertI8x16Low)       \
   V(PPC_I16x8UConvertI8x16High)      \
-  V(PPC_I16x8AddSaturateS)           \
-  V(PPC_I16x8SubSaturateS)           \
-  V(PPC_I16x8AddSaturateU)           \
-  V(PPC_I16x8SubSaturateU)           \
+  V(PPC_I16x8AddSatS)                \
+  V(PPC_I16x8SubSatS)                \
+  V(PPC_I16x8AddSatU)                \
+  V(PPC_I16x8SubSatU)                \
   V(PPC_I16x8RoundingAverageU)       \
   V(PPC_I16x8BitMask)                \
   V(PPC_I8x16Splat)                  \
@@ -349,10 +349,10 @@ namespace compiler {
   V(PPC_I8x16Abs)                    \
   V(PPC_I8x16SConvertI16x8)          \
   V(PPC_I8x16UConvertI16x8)          \
-  V(PPC_I8x16AddSaturateS)           \
-  V(PPC_I8x16SubSaturateS)           \
-  V(PPC_I8x16AddSaturateU)           \
-  V(PPC_I8x16SubSaturateU)           \
+  V(PPC_I8x16AddSatS)                \
+  V(PPC_I8x16SubSatS)                \
+  V(PPC_I8x16AddSatU)                \
+  V(PPC_I8x16SubSatU)                \
   V(PPC_I8x16RoundingAverageU)       \
   V(PPC_I8x16Shuffle)                \
   V(PPC_I8x16Swizzle)                \

@@ -2896,12 +2896,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 i.InputOperand(1));
       break;
     }
-    case kSSEI16x8AddSaturateS: {
+    case kSSEI16x8AddSatS: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ paddsw(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
-    case kAVXI16x8AddSaturateS: {
+    case kAVXI16x8AddSatS: {
       CpuFeatureScope avx_scope(tasm(), AVX);
       __ vpaddsw(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputOperand(1));
@@ -2930,12 +2930,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 i.InputOperand(1));
       break;
     }
-    case kSSEI16x8SubSaturateS: {
+    case kSSEI16x8SubSatS: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ psubsw(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
-    case kAVXI16x8SubSaturateS: {
+    case kAVXI16x8SubSatS: {
       CpuFeatureScope avx_scope(tasm(), AVX);
       __ vpsubsw(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputOperand(1));
@@ -3055,23 +3055,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vpackusdw(dst, dst, i.InputOperand(1));
       break;
     }
-    case kSSEI16x8AddSaturateU: {
+    case kSSEI16x8AddSatU: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ paddusw(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
-    case kAVXI16x8AddSaturateU: {
+    case kAVXI16x8AddSatU: {
       CpuFeatureScope avx_scope(tasm(), AVX);
       __ vpaddusw(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputOperand(1));
       break;
     }
-    case kSSEI16x8SubSaturateU: {
+    case kSSEI16x8SubSatU: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ psubusw(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
-    case kAVXI16x8SubSaturateU: {
+    case kAVXI16x8SubSatU: {
       CpuFeatureScope avx_scope(tasm(), AVX);
       __ vpsubusw(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputOperand(1));
@@ -3284,12 +3284,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 i.InputOperand(1));
       break;
     }
-    case kSSEI8x16AddSaturateS: {
+    case kSSEI8x16AddSatS: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ paddsb(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
-    case kAVXI8x16AddSaturateS: {
+    case kAVXI8x16AddSatS: {
       CpuFeatureScope avx_scope(tasm(), AVX);
       __ vpaddsb(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputOperand(1));
@@ -3306,12 +3306,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 i.InputOperand(1));
       break;
     }
-    case kSSEI8x16SubSaturateS: {
+    case kSSEI8x16SubSatS: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ psubsb(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
-    case kAVXI8x16SubSaturateS: {
+    case kAVXI8x16SubSatS: {
       CpuFeatureScope avx_scope(tasm(), AVX);
       __ vpsubsb(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputOperand(1));
@@ -3489,23 +3489,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vpackuswb(dst, dst, i.InputOperand(1));
       break;
     }
-    case kSSEI8x16AddSaturateU: {
+    case kSSEI8x16AddSatU: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ paddusb(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
-    case kAVXI8x16AddSaturateU: {
+    case kAVXI8x16AddSatU: {
       CpuFeatureScope avx_scope(tasm(), AVX);
       __ vpaddusb(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputOperand(1));
       break;
     }
-    case kSSEI8x16SubSaturateU: {
+    case kSSEI8x16SubSatU: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ psubusb(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
-    case kAVXI8x16SubSaturateU: {
+    case kAVXI8x16SubSatU: {
       CpuFeatureScope avx_scope(tasm(), AVX);
       __ vpsubusb(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputOperand(1));

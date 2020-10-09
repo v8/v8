@@ -2201,10 +2201,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8GeU)              \
   V(I16x8SConvertI32x4)    \
   V(I16x8UConvertI32x4)    \
-  V(I16x8AddSaturateS)     \
-  V(I16x8SubSaturateS)     \
-  V(I16x8AddSaturateU)     \
-  V(I16x8SubSaturateU)     \
+  V(I16x8AddSatS)          \
+  V(I16x8SubSatS)          \
+  V(I16x8AddSatU)          \
+  V(I16x8SubSatU)          \
   V(I16x8RoundingAverageU) \
   V(I8x16Add)              \
   V(I8x16Sub)              \
@@ -2221,10 +2221,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16GeU)              \
   V(I8x16SConvertI16x8)    \
   V(I8x16UConvertI16x8)    \
-  V(I8x16AddSaturateS)     \
-  V(I8x16SubSaturateS)     \
-  V(I8x16AddSaturateU)     \
-  V(I8x16SubSaturateU)     \
+  V(I8x16AddSatS)          \
+  V(I8x16SubSatS)          \
+  V(I8x16AddSatU)          \
+  V(I8x16SubSatU)          \
   V(I8x16RoundingAverageU) \
   V(I8x16Swizzle)          \
   V(S128And)               \

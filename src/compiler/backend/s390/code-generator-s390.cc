@@ -4070,7 +4070,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  Condition(mode));                                      \
   __ op(tempFPReg1, tempFPReg1, tempFPReg2, Condition(0), Condition(0), \
         Condition(mode + 1));
-    case kS390_I16x8AddSaturateS: {
+    case kS390_I16x8AddSatS: {
       BINOP_EXTRACT(va, vuph, vupl, 1)
 #ifdef V8_TARGET_BIG_ENDIAN
       __ vpks(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
@@ -4081,7 +4081,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif
       break;
     }
-    case kS390_I16x8SubSaturateS: {
+    case kS390_I16x8SubSatS: {
       BINOP_EXTRACT(vs, vuph, vupl, 1)
 #ifdef V8_TARGET_BIG_ENDIAN
       __ vpks(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
@@ -4092,7 +4092,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif
       break;
     }
-    case kS390_I16x8AddSaturateU: {
+    case kS390_I16x8AddSatU: {
       BINOP_EXTRACT(va, vuplh, vupll, 1)
 #ifdef V8_TARGET_BIG_ENDIAN
       __ vpkls(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
@@ -4103,7 +4103,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif
       break;
     }
-    case kS390_I16x8SubSaturateU: {
+    case kS390_I16x8SubSatU: {
       BINOP_EXTRACT(vs, vuplh, vupll, 1)
       // negative to 0
       __ vx(tempFPReg2, tempFPReg2, tempFPReg2, Condition(0), Condition(0),
@@ -4121,7 +4121,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif
       break;
     }
-    case kS390_I8x16AddSaturateS: {
+    case kS390_I8x16AddSatS: {
       BINOP_EXTRACT(va, vuph, vupl, 0)
 #ifdef V8_TARGET_BIG_ENDIAN
       __ vpks(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
@@ -4132,7 +4132,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif
       break;
     }
-    case kS390_I8x16SubSaturateS: {
+    case kS390_I8x16SubSatS: {
       BINOP_EXTRACT(vs, vuph, vupl, 0)
 #ifdef V8_TARGET_BIG_ENDIAN
       __ vpks(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
@@ -4143,7 +4143,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif
       break;
     }
-    case kS390_I8x16AddSaturateU: {
+    case kS390_I8x16AddSatU: {
       BINOP_EXTRACT(va, vuplh, vupll, 0)
 #ifdef V8_TARGET_BIG_ENDIAN
       __ vpkls(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
@@ -4154,7 +4154,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif
       break;
     }
-    case kS390_I8x16SubSaturateU: {
+    case kS390_I8x16SubSatU: {
       BINOP_EXTRACT(vs, vuplh, vupll, 0)
       // negative to 0
       __ vx(tempFPReg2, tempFPReg2, tempFPReg2, Condition(0), Condition(0),

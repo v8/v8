@@ -3927,7 +3927,7 @@ void SaturatingUnsignedNarrow(Simulator* simulator, int Vd, int Vm) {
 }
 
 template <typename T>
-void AddSaturate(Simulator* simulator, int Vd, int Vm, int Vn) {
+void AddSat(Simulator* simulator, int Vd, int Vm, int Vn) {
   static const int kLanes = 16 / sizeof(T);
   T src1[kLanes], src2[kLanes];
   simulator->get_neon_register(Vn, src1);
@@ -3939,7 +3939,7 @@ void AddSaturate(Simulator* simulator, int Vd, int Vm, int Vn) {
 }
 
 template <typename T>
-void SubSaturate(Simulator* simulator, int Vd, int Vm, int Vn) {
+void SubSat(Simulator* simulator, int Vd, int Vm, int Vn) {
   static const int kLanes = 16 / sizeof(T);
   T src1[kLanes], src2[kLanes];
   simulator->get_neon_register(Vn, src1);
@@ -4309,13 +4309,13 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
             NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
             switch (size) {
               case Neon8:
-                AddSaturate<int8_t>(this, Vd, Vm, Vn);
+                AddSat<int8_t>(this, Vd, Vm, Vn);
                 break;
               case Neon16:
-                AddSaturate<int16_t>(this, Vd, Vm, Vn);
+                AddSat<int16_t>(this, Vd, Vm, Vn);
                 break;
               case Neon32:
-                AddSaturate<int32_t>(this, Vd, Vm, Vn);
+                AddSat<int32_t>(this, Vd, Vm, Vn);
                 break;
               default:
                 UNREACHABLE();
@@ -4372,16 +4372,16 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
             NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
             switch (size) {
               case Neon8:
-                SubSaturate<int8_t>(this, Vd, Vm, Vn);
+                SubSat<int8_t>(this, Vd, Vm, Vn);
                 break;
               case Neon16:
-                SubSaturate<int16_t>(this, Vd, Vm, Vn);
+                SubSat<int16_t>(this, Vd, Vm, Vn);
                 break;
               case Neon32:
-                SubSaturate<int32_t>(this, Vd, Vm, Vn);
+                SubSat<int32_t>(this, Vd, Vm, Vn);
                 break;
               case Neon64:
-                SubSaturate<int64_t>(this, Vd, Vm, Vn);
+                SubSat<int64_t>(this, Vd, Vm, Vn);
                 break;
               default:
                 UNREACHABLE();
@@ -4761,13 +4761,13 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
             NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
             switch (size) {
               case Neon8:
-                AddSaturate<uint8_t>(this, Vd, Vm, Vn);
+                AddSat<uint8_t>(this, Vd, Vm, Vn);
                 break;
               case Neon16:
-                AddSaturate<uint16_t>(this, Vd, Vm, Vn);
+                AddSat<uint16_t>(this, Vd, Vm, Vn);
                 break;
               case Neon32:
-                AddSaturate<uint32_t>(this, Vd, Vm, Vn);
+                AddSat<uint32_t>(this, Vd, Vm, Vn);
                 break;
               default:
                 UNREACHABLE();
@@ -4838,13 +4838,13 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
             NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
             switch (size) {
               case Neon8:
-                SubSaturate<uint8_t>(this, Vd, Vm, Vn);
+                SubSat<uint8_t>(this, Vd, Vm, Vn);
                 break;
               case Neon16:
-                SubSaturate<uint16_t>(this, Vd, Vm, Vn);
+                SubSat<uint16_t>(this, Vd, Vm, Vn);
                 break;
               case Neon32:
-                SubSaturate<uint32_t>(this, Vd, Vm, Vn);
+                SubSat<uint32_t>(this, Vd, Vm, Vn);
                 break;
               default:
                 UNREACHABLE();

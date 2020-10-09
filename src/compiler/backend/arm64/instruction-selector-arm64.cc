@@ -3291,9 +3291,9 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I32x4GeU, kArm64I32x4GeU)                           \
   V(I32x4DotI16x8S, kArm64I32x4DotI16x8S)               \
   V(I16x8SConvertI32x4, kArm64I16x8SConvertI32x4)       \
-  V(I16x8AddSaturateS, kArm64I16x8AddSaturateS)         \
+  V(I16x8AddSatS, kArm64I16x8AddSatS)                   \
   V(I16x8AddHoriz, kArm64I16x8AddHoriz)                 \
-  V(I16x8SubSaturateS, kArm64I16x8SubSaturateS)         \
+  V(I16x8SubSatS, kArm64I16x8SubSatS)                   \
   V(I16x8Mul, kArm64I16x8Mul)                           \
   V(I16x8MinS, kArm64I16x8MinS)                         \
   V(I16x8MaxS, kArm64I16x8MaxS)                         \
@@ -3302,8 +3302,8 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8GtS, kArm64I16x8GtS)                           \
   V(I16x8GeS, kArm64I16x8GeS)                           \
   V(I16x8UConvertI32x4, kArm64I16x8UConvertI32x4)       \
-  V(I16x8AddSaturateU, kArm64I16x8AddSaturateU)         \
-  V(I16x8SubSaturateU, kArm64I16x8SubSaturateU)         \
+  V(I16x8AddSatU, kArm64I16x8AddSatU)                   \
+  V(I16x8SubSatU, kArm64I16x8SubSatU)                   \
   V(I16x8MinU, kArm64I16x8MinU)                         \
   V(I16x8MaxU, kArm64I16x8MaxU)                         \
   V(I16x8GtU, kArm64I16x8GtU)                           \
@@ -3311,8 +3311,8 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8RoundingAverageU, kArm64I16x8RoundingAverageU) \
   V(I16x8Q15MulRSatS, kArm64I16x8Q15MulRSatS)           \
   V(I8x16SConvertI16x8, kArm64I8x16SConvertI16x8)       \
-  V(I8x16AddSaturateS, kArm64I8x16AddSaturateS)         \
-  V(I8x16SubSaturateS, kArm64I8x16SubSaturateS)         \
+  V(I8x16AddSatS, kArm64I8x16AddSatS)                   \
+  V(I8x16SubSatS, kArm64I8x16SubSatS)                   \
   V(I8x16Mul, kArm64I8x16Mul)                           \
   V(I8x16MinS, kArm64I8x16MinS)                         \
   V(I8x16MaxS, kArm64I8x16MaxS)                         \
@@ -3321,8 +3321,8 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16GtS, kArm64I8x16GtS)                           \
   V(I8x16GeS, kArm64I8x16GeS)                           \
   V(I8x16UConvertI16x8, kArm64I8x16UConvertI16x8)       \
-  V(I8x16AddSaturateU, kArm64I8x16AddSaturateU)         \
-  V(I8x16SubSaturateU, kArm64I8x16SubSaturateU)         \
+  V(I8x16AddSatU, kArm64I8x16AddSatU)                   \
+  V(I8x16SubSatU, kArm64I8x16SubSatU)                   \
   V(I8x16MinU, kArm64I8x16MinU)                         \
   V(I8x16MaxU, kArm64I8x16MaxU)                         \
   V(I8x16GtU, kArm64I8x16GtU)                           \

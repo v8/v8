@@ -250,10 +250,10 @@ namespace compiler {
   V(X64I16x8ShrS)                         \
   V(X64I16x8SConvertI32x4)                \
   V(X64I16x8Add)                          \
-  V(X64I16x8AddSaturateS)                 \
+  V(X64I16x8AddSatS)                      \
   V(X64I16x8AddHoriz)                     \
   V(X64I16x8Sub)                          \
-  V(X64I16x8SubSaturateS)                 \
+  V(X64I16x8SubSatS)                      \
   V(X64I16x8Mul)                          \
   V(X64I16x8MinS)                         \
   V(X64I16x8MaxS)                         \
@@ -265,8 +265,8 @@ namespace compiler {
   V(X64I16x8UConvertI8x16High)            \
   V(X64I16x8ShrU)                         \
   V(X64I16x8UConvertI32x4)                \
-  V(X64I16x8AddSaturateU)                 \
-  V(X64I16x8SubSaturateU)                 \
+  V(X64I16x8AddSatU)                      \
+  V(X64I16x8SubSatU)                      \
   V(X64I16x8MinU)                         \
   V(X64I16x8MaxU)                         \
   V(X64I16x8GtU)                          \
@@ -286,9 +286,9 @@ namespace compiler {
   V(X64I8x16Shl)                          \
   V(X64I8x16ShrS)                         \
   V(X64I8x16Add)                          \
-  V(X64I8x16AddSaturateS)                 \
+  V(X64I8x16AddSatS)                      \
   V(X64I8x16Sub)                          \
-  V(X64I8x16SubSaturateS)                 \
+  V(X64I8x16SubSatS)                      \
   V(X64I8x16Mul)                          \
   V(X64I8x16MinS)                         \
   V(X64I8x16MaxS)                         \
@@ -297,8 +297,8 @@ namespace compiler {
   V(X64I8x16GtS)                          \
   V(X64I8x16GeS)                          \
   V(X64I8x16UConvertI16x8)                \
-  V(X64I8x16AddSaturateU)                 \
-  V(X64I8x16SubSaturateU)                 \
+  V(X64I8x16AddSatU)                      \
+  V(X64I8x16SubSatU)                      \
   V(X64I8x16ShrU)                         \
   V(X64I8x16MinU)                         \
   V(X64I8x16MaxU)                         \

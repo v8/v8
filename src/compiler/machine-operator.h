@@ -704,10 +704,10 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I16x8ShrS();
   const Operator* I16x8SConvertI32x4();
   const Operator* I16x8Add();
-  const Operator* I16x8AddSaturateS();
+  const Operator* I16x8AddSatS();
   const Operator* I16x8AddHoriz();
   const Operator* I16x8Sub();
-  const Operator* I16x8SubSaturateS();
+  const Operator* I16x8SubSatS();
   const Operator* I16x8Mul();
   const Operator* I16x8MinS();
   const Operator* I16x8MaxS();
@@ -720,8 +720,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I16x8UConvertI8x16High();
   const Operator* I16x8ShrU();
   const Operator* I16x8UConvertI32x4();
-  const Operator* I16x8AddSaturateU();
-  const Operator* I16x8SubSaturateU();
+  const Operator* I16x8AddSatU();
+  const Operator* I16x8SubSatU();
   const Operator* I16x8MinU();
   const Operator* I16x8MaxU();
   const Operator* I16x8GtU();
@@ -740,9 +740,9 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I8x16ShrS();
   const Operator* I8x16SConvertI16x8();
   const Operator* I8x16Add();
-  const Operator* I8x16AddSaturateS();
+  const Operator* I8x16AddSatS();
   const Operator* I8x16Sub();
-  const Operator* I8x16SubSaturateS();
+  const Operator* I8x16SubSatS();
   const Operator* I8x16Mul();
   const Operator* I8x16MinS();
   const Operator* I8x16MaxS();
@@ -753,8 +753,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
   const Operator* I8x16ShrU();
   const Operator* I8x16UConvertI16x8();
-  const Operator* I8x16AddSaturateU();
-  const Operator* I8x16SubSaturateU();
+  const Operator* I8x16AddSatU();
+  const Operator* I8x16SubSatU();
   const Operator* I8x16MinU();
   const Operator* I8x16MaxU();
   const Operator* I8x16GtU();

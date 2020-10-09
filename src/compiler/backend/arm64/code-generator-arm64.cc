@@ -2285,10 +2285,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
       SIMD_BINOP_CASE(kArm64I16x8Add, Add, 8H);
-      SIMD_BINOP_CASE(kArm64I16x8AddSaturateS, Sqadd, 8H);
+      SIMD_BINOP_CASE(kArm64I16x8AddSatS, Sqadd, 8H);
       SIMD_BINOP_CASE(kArm64I16x8AddHoriz, Addp, 8H);
       SIMD_BINOP_CASE(kArm64I16x8Sub, Sub, 8H);
-      SIMD_BINOP_CASE(kArm64I16x8SubSaturateS, Sqsub, 8H);
+      SIMD_BINOP_CASE(kArm64I16x8SubSatS, Sqsub, 8H);
       SIMD_BINOP_CASE(kArm64I16x8Mul, Mul, 8H);
       SIMD_DESTRUCTIVE_BINOP_CASE(kArm64I16x8Mla, Mla, 8H);
       SIMD_DESTRUCTIVE_BINOP_CASE(kArm64I16x8Mls, Mls, 8H);
@@ -2322,8 +2322,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Sqxtun2(dst.V8H(), src1.V4S());
       break;
     }
-      SIMD_BINOP_CASE(kArm64I16x8AddSaturateU, Uqadd, 8H);
-      SIMD_BINOP_CASE(kArm64I16x8SubSaturateU, Uqsub, 8H);
+      SIMD_BINOP_CASE(kArm64I16x8AddSatU, Uqadd, 8H);
+      SIMD_BINOP_CASE(kArm64I16x8SubSatU, Uqsub, 8H);
       SIMD_BINOP_CASE(kArm64I16x8MinU, Umin, 8H);
       SIMD_BINOP_CASE(kArm64I16x8MaxU, Umax, 8H);
       SIMD_BINOP_CASE(kArm64I16x8GtU, Cmhi, 8H);
@@ -2393,9 +2393,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
       SIMD_BINOP_CASE(kArm64I8x16Add, Add, 16B);
-      SIMD_BINOP_CASE(kArm64I8x16AddSaturateS, Sqadd, 16B);
+      SIMD_BINOP_CASE(kArm64I8x16AddSatS, Sqadd, 16B);
       SIMD_BINOP_CASE(kArm64I8x16Sub, Sub, 16B);
-      SIMD_BINOP_CASE(kArm64I8x16SubSaturateS, Sqsub, 16B);
+      SIMD_BINOP_CASE(kArm64I8x16SubSatS, Sqsub, 16B);
       SIMD_BINOP_CASE(kArm64I8x16Mul, Mul, 16B);
       SIMD_DESTRUCTIVE_BINOP_CASE(kArm64I8x16Mla, Mla, 16B);
       SIMD_DESTRUCTIVE_BINOP_CASE(kArm64I8x16Mls, Mls, 16B);
@@ -2429,8 +2429,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Sqxtun2(dst.V16B(), src1.V8H());
       break;
     }
-      SIMD_BINOP_CASE(kArm64I8x16AddSaturateU, Uqadd, 16B);
-      SIMD_BINOP_CASE(kArm64I8x16SubSaturateU, Uqsub, 16B);
+      SIMD_BINOP_CASE(kArm64I8x16AddSatU, Uqadd, 16B);
+      SIMD_BINOP_CASE(kArm64I8x16SubSatU, Uqsub, 16B);
       SIMD_BINOP_CASE(kArm64I8x16MinU, Umin, 16B);
       SIMD_BINOP_CASE(kArm64I8x16MaxU, Umax, 16B);
       SIMD_BINOP_CASE(kArm64I8x16GtU, Cmhi, 16B);

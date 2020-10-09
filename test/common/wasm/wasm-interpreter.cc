@@ -2210,10 +2210,10 @@ class WasmInterpreterInternals {
       BINOP_CASE(I16x8MaxS, i16x8, int8, 8, a > b ? a : b)
       BINOP_CASE(I16x8MaxU, i16x8, int8, 8,
                  static_cast<uint16_t>(a) > static_cast<uint16_t>(b) ? a : b)
-      BINOP_CASE(I16x8AddSaturateS, i16x8, int8, 8, SaturateAdd<int16_t>(a, b))
-      BINOP_CASE(I16x8AddSaturateU, i16x8, int8, 8, SaturateAdd<uint16_t>(a, b))
-      BINOP_CASE(I16x8SubSaturateS, i16x8, int8, 8, SaturateSub<int16_t>(a, b))
-      BINOP_CASE(I16x8SubSaturateU, i16x8, int8, 8, SaturateSub<uint16_t>(a, b))
+      BINOP_CASE(I16x8AddSatS, i16x8, int8, 8, SaturateAdd<int16_t>(a, b))
+      BINOP_CASE(I16x8AddSatU, i16x8, int8, 8, SaturateAdd<uint16_t>(a, b))
+      BINOP_CASE(I16x8SubSatS, i16x8, int8, 8, SaturateSub<int16_t>(a, b))
+      BINOP_CASE(I16x8SubSatU, i16x8, int8, 8, SaturateSub<uint16_t>(a, b))
       BINOP_CASE(I16x8RoundingAverageU, i16x8, int8, 8,
                  base::RoundingAverageUnsigned<uint16_t>(a, b))
       BINOP_CASE(I16x8Q15MulRSatS, i16x8, int8, 8,
@@ -2227,12 +2227,10 @@ class WasmInterpreterInternals {
       BINOP_CASE(I8x16MaxS, i8x16, int16, 16, a > b ? a : b)
       BINOP_CASE(I8x16MaxU, i8x16, int16, 16,
                  static_cast<uint8_t>(a) > static_cast<uint8_t>(b) ? a : b)
-      BINOP_CASE(I8x16AddSaturateS, i8x16, int16, 16, SaturateAdd<int8_t>(a, b))
-      BINOP_CASE(I8x16AddSaturateU, i8x16, int16, 16,
-                 SaturateAdd<uint8_t>(a, b))
-      BINOP_CASE(I8x16SubSaturateS, i8x16, int16, 16, SaturateSub<int8_t>(a, b))
-      BINOP_CASE(I8x16SubSaturateU, i8x16, int16, 16,
-                 SaturateSub<uint8_t>(a, b))
+      BINOP_CASE(I8x16AddSatS, i8x16, int16, 16, SaturateAdd<int8_t>(a, b))
+      BINOP_CASE(I8x16AddSatU, i8x16, int16, 16, SaturateAdd<uint8_t>(a, b))
+      BINOP_CASE(I8x16SubSatS, i8x16, int16, 16, SaturateSub<int8_t>(a, b))
+      BINOP_CASE(I8x16SubSatU, i8x16, int16, 16, SaturateSub<uint8_t>(a, b))
       BINOP_CASE(I8x16RoundingAverageU, i8x16, int16, 16,
                  base::RoundingAverageUnsigned<uint8_t>(a, b))
 #undef BINOP_CASE

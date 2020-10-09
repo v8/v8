@@ -319,10 +319,10 @@ namespace compiler {
   V(S390_I16x8SConvertI8x16High)            \
   V(S390_I16x8UConvertI8x16Low)             \
   V(S390_I16x8UConvertI8x16High)            \
-  V(S390_I16x8AddSaturateS)                 \
-  V(S390_I16x8SubSaturateS)                 \
-  V(S390_I16x8AddSaturateU)                 \
-  V(S390_I16x8SubSaturateU)                 \
+  V(S390_I16x8AddSatS)                      \
+  V(S390_I16x8SubSatS)                      \
+  V(S390_I16x8AddSatU)                      \
+  V(S390_I16x8SubSatU)                      \
   V(S390_I16x8RoundingAverageU)             \
   V(S390_I16x8Abs)                          \
   V(S390_I16x8BitMask)                      \
@@ -349,10 +349,10 @@ namespace compiler {
   V(S390_I8x16Neg)                          \
   V(S390_I8x16SConvertI16x8)                \
   V(S390_I8x16UConvertI16x8)                \
-  V(S390_I8x16AddSaturateS)                 \
-  V(S390_I8x16SubSaturateS)                 \
-  V(S390_I8x16AddSaturateU)                 \
-  V(S390_I8x16SubSaturateU)                 \
+  V(S390_I8x16AddSatS)                      \
+  V(S390_I8x16SubSatS)                      \
+  V(S390_I8x16AddSatU)                      \
+  V(S390_I8x16SubSatU)                      \
   V(S390_I8x16RoundingAverageU)             \
   V(S390_I8x16Abs)                          \
   V(S390_I8x16BitMask)                      \

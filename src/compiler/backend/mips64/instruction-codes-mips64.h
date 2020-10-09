@@ -261,10 +261,10 @@ namespace compiler {
   V(Mips64I16x8ShrS)                         \
   V(Mips64I16x8ShrU)                         \
   V(Mips64I16x8Add)                          \
-  V(Mips64I16x8AddSaturateS)                 \
+  V(Mips64I16x8AddSatS)                      \
   V(Mips64I16x8AddHoriz)                     \
   V(Mips64I16x8Sub)                          \
-  V(Mips64I16x8SubSaturateS)                 \
+  V(Mips64I16x8SubSatS)                      \
   V(Mips64I16x8Mul)                          \
   V(Mips64I16x8MaxS)                         \
   V(Mips64I16x8MinS)                         \
@@ -272,8 +272,8 @@ namespace compiler {
   V(Mips64I16x8Ne)                           \
   V(Mips64I16x8GtS)                          \
   V(Mips64I16x8GeS)                          \
-  V(Mips64I16x8AddSaturateU)                 \
-  V(Mips64I16x8SubSaturateU)                 \
+  V(Mips64I16x8AddSatU)                      \
+  V(Mips64I16x8SubSatU)                      \
   V(Mips64I16x8MaxU)                         \
   V(Mips64I16x8MinU)                         \
   V(Mips64I16x8GtU)                          \
@@ -289,9 +289,9 @@ namespace compiler {
   V(Mips64I8x16Shl)                          \
   V(Mips64I8x16ShrS)                         \
   V(Mips64I8x16Add)                          \
-  V(Mips64I8x16AddSaturateS)                 \
+  V(Mips64I8x16AddSatS)                      \
   V(Mips64I8x16Sub)                          \
-  V(Mips64I8x16SubSaturateS)                 \
+  V(Mips64I8x16SubSatS)                      \
   V(Mips64I8x16Mul)                          \
   V(Mips64I8x16MaxS)                         \
   V(Mips64I8x16MinS)                         \
@@ -300,8 +300,8 @@ namespace compiler {
   V(Mips64I8x16GtS)                          \
   V(Mips64I8x16GeS)                          \
   V(Mips64I8x16ShrU)                         \
-  V(Mips64I8x16AddSaturateU)                 \
-  V(Mips64I8x16SubSaturateU)                 \
+  V(Mips64I8x16AddSatU)                      \
+  V(Mips64I8x16SubSatU)                      \
   V(Mips64I8x16MaxU)                         \
   V(Mips64I8x16MinU)                         \
   V(Mips64I8x16GtU)                          \

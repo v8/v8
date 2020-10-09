@@ -876,10 +876,10 @@
   V(I16x8ShrS)                  \
   V(I16x8SConvertI32x4)         \
   V(I16x8Add)                   \
-  V(I16x8AddSaturateS)          \
+  V(I16x8AddSatS)               \
   V(I16x8AddHoriz)              \
   V(I16x8Sub)                   \
-  V(I16x8SubSaturateS)          \
+  V(I16x8SubSatS)               \
   V(I16x8Mul)                   \
   V(I16x8MinS)                  \
   V(I16x8MaxS)                  \
@@ -893,8 +893,8 @@
   V(I16x8UConvertI8x16High)     \
   V(I16x8ShrU)                  \
   V(I16x8UConvertI32x4)         \
-  V(I16x8AddSaturateU)          \
-  V(I16x8SubSaturateU)          \
+  V(I16x8AddSatU)               \
+  V(I16x8SubSatU)               \
   V(I16x8MinU)                  \
   V(I16x8MaxU)                  \
   V(I16x8LtU)                   \
@@ -914,9 +914,9 @@
   V(I8x16Shl)                   \
   V(I8x16ShrS)                  \
   V(I8x16Add)                   \
-  V(I8x16AddSaturateS)          \
+  V(I8x16AddSatS)               \
   V(I8x16Sub)                   \
-  V(I8x16SubSaturateS)          \
+  V(I8x16SubSatS)               \
   V(I8x16Mul)                   \
   V(I8x16MinS)                  \
   V(I8x16MaxS)                  \
@@ -927,8 +927,8 @@
   V(I8x16GtS)                   \
   V(I8x16GeS)                   \
   V(I8x16UConvertI16x8)         \
-  V(I8x16AddSaturateU)          \
-  V(I8x16SubSaturateU)          \
+  V(I8x16AddSatU)               \
+  V(I8x16SubSatU)               \
   V(I8x16ShrU)                  \
   V(I8x16MinU)                  \
   V(I8x16MaxU)                  \

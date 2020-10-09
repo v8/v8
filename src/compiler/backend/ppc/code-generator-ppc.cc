@@ -3248,42 +3248,42 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vperm(dst, src0, src1, kScratchDoubleReg);
       break;
     }
-    case kPPC_I16x8AddSaturateS: {
+    case kPPC_I16x8AddSatS: {
       __ vaddshs(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       break;
     }
-    case kPPC_I16x8SubSaturateS: {
+    case kPPC_I16x8SubSatS: {
       __ vsubshs(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       break;
     }
-    case kPPC_I16x8AddSaturateU: {
+    case kPPC_I16x8AddSatU: {
       __ vadduhs(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       break;
     }
-    case kPPC_I16x8SubSaturateU: {
+    case kPPC_I16x8SubSatU: {
       __ vsubuhs(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       break;
     }
-    case kPPC_I8x16AddSaturateS: {
+    case kPPC_I8x16AddSatS: {
       __ vaddsbs(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       break;
     }
-    case kPPC_I8x16SubSaturateS: {
+    case kPPC_I8x16SubSatS: {
       __ vsubsbs(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       break;
     }
-    case kPPC_I8x16AddSaturateU: {
+    case kPPC_I8x16AddSatU: {
       __ vaddubs(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       break;
     }
-    case kPPC_I8x16SubSaturateU: {
+    case kPPC_I8x16SubSatU: {
       __ vsububs(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       break;

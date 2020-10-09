@@ -4732,18 +4732,18 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprI16x8Add:
       return graph()->NewNode(mcgraph()->machine()->I16x8Add(), inputs[0],
                               inputs[1]);
-    case wasm::kExprI16x8AddSaturateS:
-      return graph()->NewNode(mcgraph()->machine()->I16x8AddSaturateS(),
-                              inputs[0], inputs[1]);
+    case wasm::kExprI16x8AddSatS:
+      return graph()->NewNode(mcgraph()->machine()->I16x8AddSatS(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI16x8AddHoriz:
       return graph()->NewNode(mcgraph()->machine()->I16x8AddHoriz(), inputs[0],
                               inputs[1]);
     case wasm::kExprI16x8Sub:
       return graph()->NewNode(mcgraph()->machine()->I16x8Sub(), inputs[0],
                               inputs[1]);
-    case wasm::kExprI16x8SubSaturateS:
-      return graph()->NewNode(mcgraph()->machine()->I16x8SubSaturateS(),
-                              inputs[0], inputs[1]);
+    case wasm::kExprI16x8SubSatS:
+      return graph()->NewNode(mcgraph()->machine()->I16x8SubSatS(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI16x8Mul:
       return graph()->NewNode(mcgraph()->machine()->I16x8Mul(), inputs[0],
                               inputs[1]);
@@ -4783,12 +4783,12 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprI16x8ShrU:
       return graph()->NewNode(mcgraph()->machine()->I16x8ShrU(), inputs[0],
                               inputs[1]);
-    case wasm::kExprI16x8AddSaturateU:
-      return graph()->NewNode(mcgraph()->machine()->I16x8AddSaturateU(),
-                              inputs[0], inputs[1]);
-    case wasm::kExprI16x8SubSaturateU:
-      return graph()->NewNode(mcgraph()->machine()->I16x8SubSaturateU(),
-                              inputs[0], inputs[1]);
+    case wasm::kExprI16x8AddSatU:
+      return graph()->NewNode(mcgraph()->machine()->I16x8AddSatU(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprI16x8SubSatU:
+      return graph()->NewNode(mcgraph()->machine()->I16x8SubSatU(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI16x8MinU:
       return graph()->NewNode(mcgraph()->machine()->I16x8MinU(), inputs[0],
                               inputs[1]);
@@ -4833,15 +4833,15 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprI8x16Add:
       return graph()->NewNode(mcgraph()->machine()->I8x16Add(), inputs[0],
                               inputs[1]);
-    case wasm::kExprI8x16AddSaturateS:
-      return graph()->NewNode(mcgraph()->machine()->I8x16AddSaturateS(),
-                              inputs[0], inputs[1]);
+    case wasm::kExprI8x16AddSatS:
+      return graph()->NewNode(mcgraph()->machine()->I8x16AddSatS(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI8x16Sub:
       return graph()->NewNode(mcgraph()->machine()->I8x16Sub(), inputs[0],
                               inputs[1]);
-    case wasm::kExprI8x16SubSaturateS:
-      return graph()->NewNode(mcgraph()->machine()->I8x16SubSaturateS(),
-                              inputs[0], inputs[1]);
+    case wasm::kExprI8x16SubSatS:
+      return graph()->NewNode(mcgraph()->machine()->I8x16SubSatS(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI8x16Mul:
       return graph()->NewNode(mcgraph()->machine()->I8x16Mul(), inputs[0],
                               inputs[1]);
@@ -4875,12 +4875,12 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprI8x16UConvertI16x8:
       return graph()->NewNode(mcgraph()->machine()->I8x16UConvertI16x8(),
                               inputs[0], inputs[1]);
-    case wasm::kExprI8x16AddSaturateU:
-      return graph()->NewNode(mcgraph()->machine()->I8x16AddSaturateU(),
-                              inputs[0], inputs[1]);
-    case wasm::kExprI8x16SubSaturateU:
-      return graph()->NewNode(mcgraph()->machine()->I8x16SubSaturateU(),
-                              inputs[0], inputs[1]);
+    case wasm::kExprI8x16AddSatU:
+      return graph()->NewNode(mcgraph()->machine()->I8x16AddSatU(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprI8x16SubSatU:
+      return graph()->NewNode(mcgraph()->machine()->I8x16SubSatU(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI8x16MinU:
       return graph()->NewNode(mcgraph()->machine()->I8x16MinU(), inputs[0],
                               inputs[1]);
