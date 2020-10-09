@@ -828,17 +828,8 @@
   V(I64x2Add)                   \
   V(I64x2Sub)                   \
   V(I64x2Mul)                   \
-  V(I64x2MinS)                  \
-  V(I64x2MaxS)                  \
   V(I64x2Eq)                    \
-  V(I64x2Ne)                    \
-  V(I64x2GtS)                   \
-  V(I64x2GeS)                   \
   V(I64x2ShrU)                  \
-  V(I64x2MinU)                  \
-  V(I64x2MaxU)                  \
-  V(I64x2GtU)                   \
-  V(I64x2GeU)                   \
   V(I32x4Splat)                 \
   V(I32x4ExtractLane)           \
   V(I32x4ReplaceLane)           \
@@ -959,8 +950,6 @@
   V(S128AndNot)                 \
   V(I8x16Swizzle)               \
   V(I8x16Shuffle)               \
-  V(V64x2AnyTrue)               \
-  V(V64x2AllTrue)               \
   V(V32x4AnyTrue)               \
   V(V32x4AllTrue)               \
   V(V16x8AnyTrue)               \

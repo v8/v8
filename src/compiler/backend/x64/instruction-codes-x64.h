@@ -210,17 +210,8 @@ namespace compiler {
   V(X64I64x2Add)                          \
   V(X64I64x2Sub)                          \
   V(X64I64x2Mul)                          \
-  V(X64I64x2MinS)                         \
-  V(X64I64x2MaxS)                         \
   V(X64I64x2Eq)                           \
-  V(X64I64x2Ne)                           \
-  V(X64I64x2GtS)                          \
-  V(X64I64x2GeS)                          \
   V(X64I64x2ShrU)                         \
-  V(X64I64x2MinU)                         \
-  V(X64I64x2MaxU)                         \
-  V(X64I64x2GtU)                          \
-  V(X64I64x2GeU)                          \
   V(X64I32x4Splat)                        \
   V(X64I32x4ExtractLane)                  \
   V(X64I32x4ReplaceLane)                  \
@@ -364,8 +355,6 @@ namespace compiler {
   V(X64S8x8Reverse)                       \
   V(X64S8x4Reverse)                       \
   V(X64S8x2Reverse)                       \
-  V(X64V64x2AnyTrue)                      \
-  V(X64V64x2AllTrue)                      \
   V(X64V32x4AnyTrue)                      \
   V(X64V32x4AllTrue)                      \
   V(X64V16x8AnyTrue)                      \

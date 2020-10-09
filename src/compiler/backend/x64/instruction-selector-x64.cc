@@ -2759,7 +2759,6 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I64x2Add)              \
   V(I64x2Sub)              \
   V(I64x2Eq)               \
-  V(I64x2GtS)              \
   V(I32x4Add)              \
   V(I32x4AddHoriz)         \
   V(I32x4Sub)              \
@@ -2812,10 +2811,6 @@ VISIT_ATOMIC_BINOP(Xor)
   V(S128Xor)
 
 #define SIMD_BINOP_ONE_TEMP_LIST(V) \
-  V(I64x2Ne)                        \
-  V(I64x2GeS)                       \
-  V(I64x2GtU)                       \
-  V(I64x2GeU)                       \
   V(I32x4Ne)                        \
   V(I32x4GtU)                       \
   V(I16x8Ne)                        \
@@ -2865,13 +2860,11 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16ShrU)
 
 #define SIMD_ANYTRUE_LIST(V) \
-  V(V64x2AnyTrue)            \
   V(V32x4AnyTrue)            \
   V(V16x8AnyTrue)            \
   V(V8x16AnyTrue)
 
 #define SIMD_ALLTRUE_LIST(V) \
-  V(V64x2AllTrue)            \
   V(V32x4AllTrue)            \
   V(V16x8AllTrue)            \
   V(V8x16AllTrue)
@@ -3099,48 +3092,6 @@ void InstructionSelector::VisitI64x2Mul(Node* node) {
   Emit(kX64I64x2Mul, g.DefineSameAsFirst(node),
        g.UseUniqueRegister(node->InputAt(0)),
        g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
-}
-
-void InstructionSelector::VisitI64x2MinS(Node* node) {
-  X64OperandGenerator g(this);
-  if (this->IsSupported(SSE4_2)) {
-    InstructionOperand temps[] = {g.TempFpRegister(xmm0)};
-    Emit(kX64I64x2MinS, g.DefineAsRegister(node),
-         g.UseUniqueRegister(node->InputAt(0)),
-         g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
-  } else {
-    InstructionOperand temps[] = {g.TempSimd128Register(), g.TempRegister(),
-                                  g.TempRegister()};
-    Emit(kX64I64x2MinS, g.DefineSameAsFirst(node),
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
-         arraysize(temps), temps);
-  }
-}
-
-void InstructionSelector::VisitI64x2MaxS(Node* node) {
-  X64OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempFpRegister(xmm0)};
-  Emit(kX64I64x2MaxS, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.UseUniqueRegister(node->InputAt(1)),
-       arraysize(temps), temps);
-}
-
-void InstructionSelector::VisitI64x2MinU(Node* node) {
-  X64OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempSimd128Register(),
-                                g.TempFpRegister(xmm0)};
-  Emit(kX64I64x2MinU, g.DefineAsRegister(node),
-       g.UseUniqueRegister(node->InputAt(0)),
-       g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
-}
-
-void InstructionSelector::VisitI64x2MaxU(Node* node) {
-  X64OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempSimd128Register(),
-                                g.TempFpRegister(xmm0)};
-  Emit(kX64I64x2MaxU, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.UseUniqueRegister(node->InputAt(1)),
-       arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitI32x4SConvertF32x4(Node* node) {

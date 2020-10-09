@@ -469,22 +469,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
 #define FOREACH_SIMD_POST_MVP_OPCODE(V) \
   V(I8x16Mul, 0xfd75, s_ss)             \
   V(I16x8Q15MulRSatS, 0xfd9c, s_ss)     \
-  V(V64x2AnyTrue, 0xfdc2, i_s)          \
-  V(V64x2AllTrue, 0xfdc3, i_s)          \
   V(I64x2Eq, 0xfdc0, s_ss)              \
-  V(I64x2Ne, 0xfdc4, s_ss)              \
-  V(I64x2LtS, 0xfdc5, s_ss)             \
-  V(I64x2LtU, 0xfdc6, s_ss)             \
-  V(I64x2GtS, 0xfdd2, s_ss)             \
-  V(I64x2GtU, 0xfdd3, s_ss)             \
-  V(I64x2LeS, 0xfda5, s_ss)             \
-  V(I64x2LeU, 0xfda6, s_ss)             \
-  V(I64x2GeS, 0xfdcf, s_ss)             \
-  V(I64x2GeU, 0xfdd0, s_ss)             \
-  V(I64x2MinS, 0xfdd6, s_ss)            \
-  V(I64x2MinU, 0xfdd7, s_ss)            \
-  V(I64x2MaxS, 0xfde2, s_ss)            \
-  V(I64x2MaxU, 0xfdee, s_ss)            \
   V(F32x4Qfma, 0xfdb4, s_sss)           \
   V(F32x4Qfms, 0xfdd4, s_sss)           \
   V(F64x2Qfma, 0xfdfe, s_sss)           \

@@ -2787,177 +2787,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Paddq(left, tmp2);  // left == dst
       break;
     }
-    case kX64I64x2MinS: {
-      if (CpuFeatures::IsSupported(SSE4_2)) {
-        CpuFeatureScope sse_scope_4_2(tasm(), SSE4_2);
-        XMMRegister dst = i.OutputSimd128Register();
-        XMMRegister src0 = i.InputSimd128Register(0);
-        XMMRegister src1 = i.InputSimd128Register(1);
-        XMMRegister tmp = i.TempSimd128Register(0);
-        DCHECK_EQ(tmp, xmm0);
-
-        __ movaps(tmp, src1);
-        __ pcmpgtq(tmp, src0);
-        __ movaps(dst, src1);
-        __ blendvpd(dst, src0);  // implicit use of xmm0 as mask
-      } else {
-        CpuFeatureScope sse_scope_4_1(tasm(), SSE4_1);
-        XMMRegister dst = i.OutputSimd128Register();
-        XMMRegister src = i.InputSimd128Register(1);
-        XMMRegister tmp = i.TempSimd128Register(0);
-        Register tmp1 = i.TempRegister(1);
-        Register tmp2 = i.TempRegister(2);
-        DCHECK_EQ(dst, i.InputSimd128Register(0));
-        // backup src since we cannot change it
-        __ movaps(tmp, src);
-
-        // compare the lower quardwords
-        __ movq(tmp1, dst);
-        __ movq(tmp2, tmp);
-        __ cmpq(tmp1, tmp2);
-        // tmp2 now has the min of lower quadwords
-        __ cmovq(less_equal, tmp2, tmp1);
-        // tmp1 now has the higher quadword
-        // must do this before movq, movq clears top quadword
-        __ pextrq(tmp1, dst, 1);
-        // save tmp2 into dst
-        __ movq(dst, tmp2);
-        // tmp2 now has the higher quadword
-        __ pextrq(tmp2, tmp, 1);
-        //  compare higher quadwords
-        __ cmpq(tmp1, tmp2);
-        // tmp2 now has the min of higher quadwords
-        __ cmovq(less_equal, tmp2, tmp1);
-        __ movq(tmp, tmp2);
-        // dst = [tmp[0], dst[0]]
-        __ punpcklqdq(dst, tmp);
-      }
-      break;
-    }
-    case kX64I64x2MaxS: {
-      CpuFeatureScope sse_scope_4_2(tasm(), SSE4_2);
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(1);
-      XMMRegister tmp = i.TempSimd128Register(0);
-      DCHECK_EQ(dst, i.InputSimd128Register(0));
-      DCHECK_EQ(tmp, xmm0);
-
-      __ movaps(tmp, src);
-      __ pcmpgtq(tmp, dst);
-      __ blendvpd(dst, src);  // implicit use of xmm0 as mask
-      break;
-    }
     case kX64I64x2Eq: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ Pcmpeqq(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
-    case kX64I64x2Ne: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      XMMRegister tmp = i.TempSimd128Register(0);
-      __ Pcmpeqq(i.OutputSimd128Register(), i.InputSimd128Register(1));
-      __ Pcmpeqq(tmp, tmp);
-      __ Pxor(i.OutputSimd128Register(), tmp);
-      break;
-    }
-    case kX64I64x2GtS: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ Pcmpgtq(i.OutputSimd128Register(), i.InputSimd128Register(1));
-      break;
-    }
-    case kX64I64x2GeS: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(1);
-      XMMRegister tmp = i.TempSimd128Register(0);
-
-      __ Movaps(tmp, src);
-      __ Pcmpgtq(tmp, dst);
-      __ Pcmpeqd(dst, dst);
-      __ Pxor(dst, tmp);
-      break;
-    }
     case kX64I64x2ShrU: {
       // Take shift value modulo 2^6.
       ASSEMBLE_SIMD_SHIFT(Psrlq, 6);
-      break;
-    }
-    case kX64I64x2MinU: {
-      CpuFeatureScope sse_scope_4_2(tasm(), SSE4_2);
-      CpuFeatureScope sse_scope_4_1(tasm(), SSE4_1);
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src0 = i.InputSimd128Register(0);
-      XMMRegister src1 = i.InputSimd128Register(1);
-      XMMRegister tmp0 = i.TempSimd128Register(0);
-      XMMRegister tmp1 = i.TempSimd128Register(1);
-      DCHECK_EQ(tmp1, xmm0);
-
-      __ movaps(dst, src1);
-      __ movaps(tmp0, src0);
-
-      __ pcmpeqd(tmp1, tmp1);
-      __ psllq(tmp1, 63);
-
-      __ pxor(tmp0, tmp1);
-      __ pxor(tmp1, dst);
-
-      __ pcmpgtq(tmp1, tmp0);
-      __ blendvpd(dst, src0);  // implicit use of xmm0 as mask
-      break;
-    }
-    case kX64I64x2MaxU: {
-      CpuFeatureScope sse_scope_4_2(tasm(), SSE4_2);
-      CpuFeatureScope sse_scope_4_1(tasm(), SSE4_1);
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(1);
-      XMMRegister dst_tmp = i.TempSimd128Register(0);
-      XMMRegister tmp = i.TempSimd128Register(1);
-      DCHECK_EQ(dst, i.InputSimd128Register(0));
-      DCHECK_EQ(tmp, xmm0);
-
-      __ movaps(dst_tmp, dst);
-
-      __ pcmpeqd(tmp, tmp);
-      __ psllq(tmp, 63);
-
-      __ pxor(dst_tmp, tmp);
-      __ pxor(tmp, src);
-
-      __ pcmpgtq(tmp, dst_tmp);
-      __ blendvpd(dst, src);  // implicit use of xmm0 as mask
-      break;
-    }
-    case kX64I64x2GtU: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(1);
-      XMMRegister tmp = i.TempSimd128Register(0);
-
-      __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ Psllq(kScratchDoubleReg, 63);
-
-      __ Movaps(tmp, src);
-      __ Pxor(tmp, kScratchDoubleReg);
-      __ Pxor(dst, kScratchDoubleReg);
-      __ Pcmpgtq(dst, tmp);
-      break;
-    }
-    case kX64I64x2GeU: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      CpuFeatureScope sse_scope(tasm(), SSE4_2);
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(1);
-      XMMRegister tmp = i.TempSimd128Register(0);
-
-      __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ Psllq(kScratchDoubleReg, 63);
-
-      __ Movaps(tmp, src);
-      __ Pxor(dst, kScratchDoubleReg);
-      __ Pxor(tmp, kScratchDoubleReg);
-      __ Pcmpgtq(tmp, dst);
-      __ Pcmpeqd(dst, dst);
-      __ Pxor(dst, tmp);
       break;
     }
     case kX64I32x4Splat: {
@@ -4023,7 +3860,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Por(dst, kScratchDoubleReg);
       break;
     }
-    case kX64V64x2AnyTrue:
     case kX64V32x4AnyTrue:
     case kX64V16x8AnyTrue:
     case kX64V8x16AnyTrue: {
@@ -4039,10 +3875,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     // comparison instruction used matters, e.g. given 0xff00, pcmpeqb returns
     // 0x0011, pcmpeqw returns 0x0000, ptest will set ZF to 0 and 1
     // respectively.
-    case kX64V64x2AllTrue: {
-      ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqq);
-      break;
-    }
     case kX64V32x4AllTrue: {
       ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqd);
       break;
