@@ -28,7 +28,8 @@ ALL_VARIANT_FLAGS = {
   # For WebAssembly, we test "Liftoff-only" in the nooptimization variant and
   # "TurboFan-only" in the stress variant. The WebAssembly configuration is
   # independent of JS optimizations, so we can combine those configs.
-  "nooptimization": [["--no-opt", "--liftoff", "--no-wasm-tier-up"]],
+  "nooptimization": [["--no-opt", "--liftoff", "--no-wasm-tier-up",
+                      "--wasm-generic-wrapper"]],
   "slow_path": [["--force-slow-path"]],
   "stress": [["--stress-opt", "--no-liftoff", "--stress-lazy-source-positions"]],
   "stress_concurrent_allocation": [["--stress-concurrent-allocation"]],
