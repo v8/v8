@@ -16,13 +16,16 @@ namespace internal {
 #if CPPGC_SUPPORTS_OBJECT_NAMES && defined(__clang__)
 #define CPPGC_SUPPORTS_COMPILE_TIME_TYPENAME 1
 
+// Provides constexpr c-string storage for a name of fixed |Size| characters.
+// Automatically appends terminating 0 byte.
 template <size_t Size>
 struct NameBuffer {
-  char name[Size]{};
+  char name[Size + 1]{};
 
   static constexpr NameBuffer FromCString(const char* str) {
     NameBuffer result;
     for (size_t i = 0; i < Size; ++i) result.name[i] = str[i];
+    result.name[Size] = 0;
     return result;
   }
 };
