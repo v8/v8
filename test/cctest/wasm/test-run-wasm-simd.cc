@@ -3480,7 +3480,7 @@ WASM_SIMD_TEST(S128Load32Splat) {
   RunLoadSplatTest<int32_t>(execution_tier, lower_simd, kExprS128Load32Splat);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(S128Load64Splat) {
+WASM_SIMD_TEST(S128Load64Splat) {
   RunLoadSplatTest<int64_t>(execution_tier, lower_simd, kExprS128Load64Splat);
 }
 
@@ -3647,7 +3647,7 @@ WASM_SIMD_ANYTRUE_TEST(8x16, 16, 0xff, int32_t)
 // Special any true test cases that splats a -0.0 double into a i64x2.
 // This is specifically to ensure that our implementation correct handles that
 // 0.0 and -0.0 will be different in an anytrue (IEEE753 says they are equals).
-WASM_SIMD_TEST_NO_LOWERING(V32x4AnytrueWithNegativeZero) {
+WASM_SIMD_TEST(V32x4AnytrueWithNegativeZero) {
   WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
   byte simd = r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_SET_LOCAL(simd, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(0))),
@@ -3702,7 +3702,7 @@ void RunSimdConstTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-WASM_SIMD_TEST_NO_LOWERING(S128Const) {
+WASM_SIMD_TEST(S128Const) {
   std::array<uint8_t, kSimd128Size> expected;
   // Test for generic constant
   for (int i = 0; i < kSimd128Size; i++) {
@@ -3726,12 +3726,12 @@ WASM_SIMD_TEST_NO_LOWERING(S128Const) {
   RunSimdConstTest(execution_tier, lower_simd, expected);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(S128ConstAllZero) {
+WASM_SIMD_TEST(S128ConstAllZero) {
   std::array<uint8_t, kSimd128Size> expected = {0};
   RunSimdConstTest(execution_tier, lower_simd, expected);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(S128ConstAllOnes) {
+WASM_SIMD_TEST(S128ConstAllOnes) {
   std::array<uint8_t, kSimd128Size> expected;
   // Test for generic constant
   for (int i = 0; i < kSimd128Size; i++) {
@@ -3762,19 +3762,19 @@ void RunI8x16MixedRelationalOpTest(TestExecutionTier execution_tier,
             r.Call(0xff, 0x7ffe));
 }
 
-WASM_SIMD_TEST_NO_LOWERING(I8x16LeUMixed) {
+WASM_SIMD_TEST(I8x16LeUMixed) {
   RunI8x16MixedRelationalOpTest(execution_tier, lower_simd, kExprI8x16LeU,
                                 UnsignedLessEqual);
 }
-WASM_SIMD_TEST_NO_LOWERING(I8x16LtUMixed) {
+WASM_SIMD_TEST(I8x16LtUMixed) {
   RunI8x16MixedRelationalOpTest(execution_tier, lower_simd, kExprI8x16LtU,
                                 UnsignedLess);
 }
-WASM_SIMD_TEST_NO_LOWERING(I8x16GeUMixed) {
+WASM_SIMD_TEST(I8x16GeUMixed) {
   RunI8x16MixedRelationalOpTest(execution_tier, lower_simd, kExprI8x16GeU,
                                 UnsignedGreaterEqual);
 }
-WASM_SIMD_TEST_NO_LOWERING(I8x16GtUMixed) {
+WASM_SIMD_TEST(I8x16GtUMixed) {
   RunI8x16MixedRelationalOpTest(execution_tier, lower_simd, kExprI8x16GtU,
                                 UnsignedGreater);
 }
@@ -3801,24 +3801,24 @@ void RunI16x8MixedRelationalOpTest(TestExecutionTier execution_tier,
             r.Call(0xffff, 0x7ffffeff));
 }
 
-WASM_SIMD_TEST_NO_LOWERING(I16x8LeUMixed) {
+WASM_SIMD_TEST(I16x8LeUMixed) {
   RunI16x8MixedRelationalOpTest(execution_tier, lower_simd, kExprI16x8LeU,
                                 UnsignedLessEqual);
 }
-WASM_SIMD_TEST_NO_LOWERING(I16x8LtUMixed) {
+WASM_SIMD_TEST(I16x8LtUMixed) {
   RunI16x8MixedRelationalOpTest(execution_tier, lower_simd, kExprI16x8LtU,
                                 UnsignedLess);
 }
-WASM_SIMD_TEST_NO_LOWERING(I16x8GeUMixed) {
+WASM_SIMD_TEST(I16x8GeUMixed) {
   RunI16x8MixedRelationalOpTest(execution_tier, lower_simd, kExprI16x8GeU,
                                 UnsignedGreaterEqual);
 }
-WASM_SIMD_TEST_NO_LOWERING(I16x8GtUMixed) {
+WASM_SIMD_TEST(I16x8GtUMixed) {
   RunI16x8MixedRelationalOpTest(execution_tier, lower_simd, kExprI16x8GtU,
                                 UnsignedGreater);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(I16x8ExtractLaneU_I8x16Splat) {
+WASM_SIMD_TEST(I16x8ExtractLaneU_I8x16Splat) {
   // Test that we are correctly signed/unsigned extending when extracting.
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
   byte simd_val = r.AllocateLocal(kWasmS128);
