@@ -92,13 +92,6 @@ T Mul(T a, T b) {
   return a * b;
 }
 
-template <typename T, typename = typename std::enable_if<
-                          std::is_floating_point<T>::value>::type>
-T Div(T a, T b) {
-  // Workaround C++ undefined behavior when b is 0.
-  return base::Divide(a, b);
-}
-
 template <typename T>
 T Minimum(T a, T b) {
   // Follow one of the possible implementation given in
@@ -231,28 +224,6 @@ T Narrow(int64_t value) {
 }
 
 template <typename T>
-T AddSaturate(T a, T b) {
-  return Saturate<T>(Widen(a) + Widen(b));
-}
-
-template <typename T>
-T SubSaturate(T a, T b) {
-  return Saturate<T>(Widen(a) - Widen(b));
-}
-
-template <typename T>
-T UnsignedAddSaturate(T a, T b) {
-  using UnsignedT = typename std::make_unsigned<T>::type;
-  return Saturate<UnsignedT>(UnsignedWiden(a) + UnsignedWiden(b));
-}
-
-template <typename T>
-T UnsignedSubSaturate(T a, T b) {
-  using UnsignedT = typename std::make_unsigned<T>::type;
-  return Saturate<UnsignedT>(UnsignedWiden(a) - UnsignedWiden(b));
-}
-
-template <typename T>
 T And(T a, T b) {
   return a & b;
 }
@@ -270,16 +241,6 @@ T Xor(T a, T b) {
 template <typename T>
 T Not(T a) {
   return ~a;
-}
-
-template <typename T>
-T LogicalNot(T a) {
-  return a == 0 ? -1 : 0;
-}
-
-template <typename T>
-T Sqrt(T a) {
-  return std::sqrt(a);
 }
 
 template <typename T>
@@ -656,7 +617,7 @@ WASM_SIMD_TEST(F32x4Neg) {
 }
 
 WASM_SIMD_TEST(F32x4Sqrt) {
-  RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4Sqrt, Sqrt);
+  RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4Sqrt, std::sqrt);
 }
 
 WASM_SIMD_TEST(F32x4RecipApprox) {
@@ -746,7 +707,7 @@ WASM_SIMD_TEST(F32x4Mul) {
   RunF32x4BinOpTest(execution_tier, lower_simd, kExprF32x4Mul, Mul);
 }
 WASM_SIMD_TEST(F32x4Div) {
-  RunF32x4BinOpTest(execution_tier, lower_simd, kExprF32x4Div, Div);
+  RunF32x4BinOpTest(execution_tier, lower_simd, kExprF32x4Div, base::Divide);
 }
 WASM_SIMD_TEST(F32x4Min) {
   RunF32x4BinOpTest(execution_tier, lower_simd, kExprF32x4Min, JSMin);
@@ -1284,7 +1245,7 @@ WASM_SIMD_TEST(F64x2Neg) {
 }
 
 WASM_SIMD_TEST(F64x2Sqrt) {
-  RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Sqrt, Sqrt);
+  RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Sqrt, std::sqrt);
 }
 
 WASM_SIMD_TEST(F64x2Ceil) {
@@ -1364,7 +1325,7 @@ WASM_SIMD_TEST(F64x2Mul) {
 }
 
 WASM_SIMD_TEST(F64x2Div) {
-  RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Div, Div);
+  RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Div, base::Divide);
 }
 
 WASM_SIMD_TEST_NO_LOWERING(F64x2Pmin) {
@@ -2194,7 +2155,7 @@ WASM_SIMD_TEST(I16x8Add) {
 
 WASM_SIMD_TEST(I16x8AddSaturateS) {
   RunI16x8BinOpTest(execution_tier, lower_simd, kExprI16x8AddSaturateS,
-                    AddSaturate);
+                    SaturateAdd<int16_t>);
 }
 
 WASM_SIMD_TEST(I16x8Sub) {
@@ -2204,7 +2165,7 @@ WASM_SIMD_TEST(I16x8Sub) {
 
 WASM_SIMD_TEST(I16x8SubSaturateS) {
   RunI16x8BinOpTest(execution_tier, lower_simd, kExprI16x8SubSaturateS,
-                    SubSaturate);
+                    SaturateSub<int16_t>);
 }
 
 WASM_SIMD_TEST(I16x8Mul) {
@@ -2222,12 +2183,12 @@ WASM_SIMD_TEST(I16x8MaxS) {
 
 WASM_SIMD_TEST(I16x8AddSaturateU) {
   RunI16x8BinOpTest(execution_tier, lower_simd, kExprI16x8AddSaturateU,
-                    UnsignedAddSaturate);
+                    SaturateAdd<uint16_t>);
 }
 
 WASM_SIMD_TEST(I16x8SubSaturateU) {
   RunI16x8BinOpTest(execution_tier, lower_simd, kExprI16x8SubSaturateU,
-                    UnsignedSubSaturate);
+                    SaturateSub<uint16_t>);
 }
 
 WASM_SIMD_TEST(I16x8MinU) {
@@ -2469,7 +2430,7 @@ WASM_SIMD_TEST(I8x16Add) {
 
 WASM_SIMD_TEST(I8x16AddSaturateS) {
   RunI8x16BinOpTest(execution_tier, lower_simd, kExprI8x16AddSaturateS,
-                    AddSaturate);
+                    SaturateAdd<int8_t>);
 }
 
 WASM_SIMD_TEST(I8x16Sub) {
@@ -2479,7 +2440,7 @@ WASM_SIMD_TEST(I8x16Sub) {
 
 WASM_SIMD_TEST(I8x16SubSaturateS) {
   RunI8x16BinOpTest(execution_tier, lower_simd, kExprI8x16SubSaturateS,
-                    SubSaturate);
+                    SaturateSub<int8_t>);
 }
 
 WASM_SIMD_TEST(I8x16MinS) {
@@ -2492,12 +2453,12 @@ WASM_SIMD_TEST(I8x16MaxS) {
 
 WASM_SIMD_TEST(I8x16AddSaturateU) {
   RunI8x16BinOpTest(execution_tier, lower_simd, kExprI8x16AddSaturateU,
-                    UnsignedAddSaturate);
+                    SaturateAdd<uint8_t>);
 }
 
 WASM_SIMD_TEST(I8x16SubSaturateU) {
   RunI8x16BinOpTest(execution_tier, lower_simd, kExprI8x16SubSaturateU,
-                    UnsignedSubSaturate);
+                    SaturateSub<uint8_t>);
 }
 
 WASM_SIMD_TEST(I8x16MinU) {
