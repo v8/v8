@@ -1140,7 +1140,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   if (compilation_info()->closure()->raw_feedback_cell().map() ==
           ReadOnlyRoots(isolate).one_closure_cell_map() &&
       !compilation_info()->is_osr() &&
-      !compilation_info()->IsNativeContextIndependent()) {
+      !compilation_info()->IsNativeContextIndependent() &&
+      !compilation_info()->IsTurboprop()) {
     compilation_info()->set_function_context_specializing();
     data_.ChooseSpecializationContext();
   }

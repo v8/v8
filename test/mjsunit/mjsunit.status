@@ -1201,6 +1201,11 @@
   # lands
   'regress/regress-932953': [FAIL],
 
+  # Tests failing for the lack of function context specialization in Turboprop.
+  'compiler/abstract-equal-receiver': [FAIL],
+  'compiler/constant-fold-cow-array': [FAIL],
+  'compiler/promise-resolve-stable-maps': [FAIL],
+
   # https://crbug.com/v8/10894
   'math-floor-of-div': [SLOW],
 }],  # variant == turboprop
