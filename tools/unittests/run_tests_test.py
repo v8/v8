@@ -67,7 +67,7 @@ def temp_base(baseroot='testroot1'):
   """
   basedir = os.path.join(TEST_DATA_ROOT, baseroot)
   with temp_dir() as tempbase:
-    builddir = os.path.join(tempbase, 'out', 'Release')
+    builddir = os.path.join(tempbase, 'out', 'build')
     testroot = os.path.join(tempbase, 'test')
     os.makedirs(builddir)
     shutil.copy(os.path.join(basedir, 'v8_build_config.json'), builddir)
@@ -112,7 +112,7 @@ def run_tests(basedir, *args, **kwargs):
 
 def override_build_config(basedir, **kwargs):
   """Override the build config with new values provided as kwargs."""
-  path = os.path.join(basedir, 'out', 'Release', 'v8_build_config.json')
+  path = os.path.join(basedir, 'out', 'build', 'v8_build_config.json')
   with open(path) as f:
     config = json.load(f)
     config.update(kwargs)
@@ -171,7 +171,6 @@ class SystemTest(unittest.TestCase):
     with temp_base() as basedir:
       result = run_tests(
           basedir,
-          '--mode=Release',
           '--progress=verbose',
           '--variants=default,stress',
           '--time',
@@ -189,7 +188,6 @@ class SystemTest(unittest.TestCase):
       for shard in [1, 2]:
         result = run_tests(
             basedir,
-            '--mode=Release',
             '--progress=verbose',
             '--variants=default,stress',
             '--shard-count=2',
@@ -218,7 +216,6 @@ class SystemTest(unittest.TestCase):
       for shard in [1, 2]:
         result = run_tests(
             basedir,
-            '--mode=Release',
             '--progress=verbose',
             '--variants=default,stress',
             '--shard-count=2',
@@ -237,7 +234,6 @@ class SystemTest(unittest.TestCase):
     with temp_base() as basedir:
       result = run_tests(
           basedir,
-          '--mode=Release',
           '--progress=verbose',
           '--variants=default,stress',
           'sweet/strawberries',
@@ -250,7 +246,7 @@ class SystemTest(unittest.TestCase):
       self, expected_results_name, actual_json, basedir):
     # Check relevant properties of the json output.
     with open(actual_json) as f:
-      json_output = json.load(f)[0]
+      json_output = json.load(f)
 
     # Replace duration in actual output as it's non-deterministic. Also
     # replace the python executable prefix as it has a different absolute
@@ -283,7 +279,6 @@ class SystemTest(unittest.TestCase):
       json_path = os.path.join(basedir, 'out.json')
       result = run_tests(
           basedir,
-          '--mode=Release',
           '--progress=verbose',
           '--variants=default',
           '--rerun-failures-count=2',
@@ -312,7 +307,6 @@ class SystemTest(unittest.TestCase):
       json_path = os.path.join(basedir, 'out.json')
       result = run_tests(
           basedir,
-          '--mode=Release',
           '--progress=verbose',
           '--variants=default',
           '--rerun-failures-count=2',
@@ -343,7 +337,6 @@ class SystemTest(unittest.TestCase):
           v8_enable_pointer_compression=False)
       result = run_tests(
           basedir,
-          '--mode=Release',
           '--progress=verbose',
           '--variants=default',
           'sweet/bananas',
@@ -368,7 +361,6 @@ class SystemTest(unittest.TestCase):
     with temp_base() as basedir:
       result = run_tests(
           basedir,
-          '--mode=Release',
           '--progress=verbose',
           '--variants=nooptimization',
           'sweet/strawberries',
@@ -382,7 +374,6 @@ class SystemTest(unittest.TestCase):
     with temp_base() as basedir:
       result = run_tests(
           basedir,
-          '--mode=Release',
           '--progress=verbose',
           '--variants=nooptimization',
           '--run-skipped',
@@ -399,7 +390,6 @@ class SystemTest(unittest.TestCase):
     with temp_base() as basedir:
       result = run_tests(
           basedir,
-          '--mode=Release',
           infra_staging=False,
       )
       self.assertIn('0 tests ran', result.stdout, result)
@@ -407,24 +397,15 @@ class SystemTest(unittest.TestCase):
 
   def testNoBuildConfig(self):
     """Test failing run when build config is not found."""
-    with temp_base() as basedir:
+    with temp_dir() as basedir:
       result = run_tests(basedir)
       self.assertIn('Failed to load build config', result.stdout, result)
-      self.assertEqual(5, result.returncode, result)
-
-  def testInconsistentMode(self):
-    """Test failing run when attempting to wrongly override the mode."""
-    with temp_base() as basedir:
-      override_build_config(basedir, is_debug=True)
-      result = run_tests(basedir, '--mode=Release')
-      self.assertIn('execution mode (release) for release is inconsistent '
-                    'with build config (debug)', result.stdout, result)
       self.assertEqual(5, result.returncode, result)
 
   def testInconsistentArch(self):
     """Test failing run when attempting to wrongly override the arch."""
     with temp_base() as basedir:
-      result = run_tests(basedir, '--mode=Release', '--arch=ia32')
+      result = run_tests(basedir, '--arch=ia32')
       self.assertIn(
           '--arch value (ia32) inconsistent with build config (x64).',
           result.stdout, result)
@@ -433,13 +414,13 @@ class SystemTest(unittest.TestCase):
   def testWrongVariant(self):
     """Test using a bogus variant."""
     with temp_base() as basedir:
-      result = run_tests(basedir, '--mode=Release', '--variants=meh')
+      result = run_tests(basedir, '--variants=meh')
       self.assertEqual(5, result.returncode, result)
 
   def testModeFromBuildConfig(self):
     """Test auto-detection of mode from build config."""
     with temp_base() as basedir:
-      result = run_tests(basedir, '--outdir=out/Release', 'sweet/bananas')
+      result = run_tests(basedir, '--outdir=out/build', 'sweet/bananas')
       self.assertIn('Running tests for x64.release', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
 
@@ -452,7 +433,6 @@ class SystemTest(unittest.TestCase):
     with temp_base() as basedir:
       result = run_tests(
           basedir,
-          '--mode=Release',
           '--variants=default',
           'sweet',
           '--report',
@@ -468,7 +448,6 @@ class SystemTest(unittest.TestCase):
     with temp_base() as basedir:
       result = run_tests(
           basedir,
-          '--mode=Release',
           '--variants=default,nooptimization',
           'sweet',
           '--warn-unused',
@@ -483,7 +462,6 @@ class SystemTest(unittest.TestCase):
     with temp_base() as basedir:
       result = run_tests(
           basedir,
-          '--mode=Release',
           '--variants=default',
           'sweet/bananas',
           '--cat',
@@ -502,7 +480,6 @@ class SystemTest(unittest.TestCase):
       override_build_config(basedir, v8_enable_verify_predictable=True)
       result = run_tests(
           basedir,
-          '--mode=Release',
           '--progress=verbose',
           '--variants=default',
           'sweet/bananas',
@@ -520,7 +497,6 @@ class SystemTest(unittest.TestCase):
       override_build_config(basedir, v8_target_cpu='arm64')
       result = run_tests(
           basedir,
-          '--mode=Release',
           '--progress=verbose',
           '--variants=default',
           'sweet/bananas',
@@ -534,7 +510,6 @@ class SystemTest(unittest.TestCase):
     with temp_base() as basedir:
       result = run_tests(
           basedir,
-          '--mode=Release',
           '--progress=verbose',
           '--variants=default',
           '--random-seed-stress-count=2',
@@ -549,7 +524,6 @@ class SystemTest(unittest.TestCase):
     with temp_base() as basedir:
       result = run_tests(
           basedir,
-          '--mode=Release',
           '--progress=verbose',
           '--variants=default',
           '--random-seed-stress-count=2',
@@ -573,7 +547,6 @@ class SystemTest(unittest.TestCase):
       override_build_config(basedir, is_asan=True)
       result = run_tests(
           basedir,
-          '--mode=Release',
           '--progress=verbose',
           '--variants=default,stress',
           'sweet/bananas',
@@ -595,7 +568,6 @@ class SystemTest(unittest.TestCase):
     with temp_base() as basedir:
       result = run_tests(
           basedir,
-          '--mode=Release',
           '--progress=dots',
           'sweet/cherries',
           'sweet/bananas',
@@ -616,7 +588,6 @@ class SystemTest(unittest.TestCase):
     with temp_base() as basedir:
       result = run_tests(
           basedir,
-          '--mode=Release',
           '--progress=%s' % name,
           'sweet/cherries',
           'sweet/bananas',
@@ -637,7 +608,6 @@ class SystemTest(unittest.TestCase):
     with temp_base() as basedir:
       result = run_tests(
           basedir,
-          '--mode=Release',
           '--progress=verbose',
           '--exit-after-n-failures=2',
           '-j1',
@@ -656,7 +626,7 @@ class SystemTest(unittest.TestCase):
       self.assertEqual(1, result.returncode, result)
 
   def testNumFuzzer(self):
-    sys_args = ['--command-prefix', sys.executable, '--outdir', 'out/Release']
+    sys_args = ['--command-prefix', sys.executable, '--outdir', 'out/build']
 
     with temp_base() as basedir:
       with capture() as (stdout, stderr):
@@ -670,7 +640,6 @@ class SystemTest(unittest.TestCase):
     with temp_base() as basedir:
       result = run_tests(
           basedir,
-          '--mode=Release',
           '--progress=verbose',
           '--variants=default',
           '--random-seed=42',
