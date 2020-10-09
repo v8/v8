@@ -28,7 +28,6 @@ class ScriptContextTableAccessUsedThread final : public v8::base::Thread {
       Handle<ScriptContextTable> script_context_table)
       : v8::base::Thread(
             base::Thread::Options("ScriptContextTableAccessUsedThread")),
-        isolate_(isolate),
         heap_(heap),
         sema_started_(sema_started),
         ph_(std::move(ph)),
@@ -44,12 +43,9 @@ class ScriptContextTableAccessUsedThread final : public v8::base::Thread {
       Context context = script_context_table_->get_context(i);
       CHECK(context.IsScriptContext());
     }
-
-    CHECK(!ph_);
-    ph_ = local_heap.DetachPersistentHandles();
   }
 
-  Isolate* isolate_;
+ private:
   Heap* heap_;
   base::Semaphore* sema_started_;
   std::unique_ptr<PersistentHandles> ph_;
@@ -64,7 +60,6 @@ class AccessScriptContextTableThread final : public v8::base::Thread {
                                  Handle<NativeContext> native_context)
       : v8::base::Thread(
             base::Thread::Options("AccessScriptContextTableThread")),
-        isolate_(isolate),
         heap_(heap),
         sema_started_(sema_started),
         ph_(std::move(ph)),
@@ -87,12 +82,9 @@ class AccessScriptContextTableThread final : public v8::base::Thread {
                               &local_heap);
       CHECK(!context.is_null());
     }
-
-    CHECK(!ph_);
-    ph_ = local_heap.DetachPersistentHandles();
   }
 
-  Isolate* isolate_;
+ private:
   Heap* heap_;
   base::Semaphore* sema_started_;
   std::unique_ptr<PersistentHandles> ph_;

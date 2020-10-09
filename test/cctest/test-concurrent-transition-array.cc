@@ -41,11 +41,10 @@ class ConcurrentSearchThread : public v8::base::Thread {
     CHECK_EQ(TransitionsAccessor(CcTest::i_isolate(), map_, true)
                  .SearchTransition(*name_, kData, NONE),
              result_map_ ? **result_map_ : Map());
-
-    CHECK(!ph_);
-    ph_ = local_heap.DetachPersistentHandles();
   }
 
+  // protected instead of private due to having a subclass.
+ protected:
   Heap* heap_;
   base::Semaphore* background_thread_started_;
   std::unique_ptr<PersistentHandles> ph_;
