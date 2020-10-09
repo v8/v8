@@ -2210,20 +2210,21 @@ TEST(FunctionDetailsInlining) {
 }
 
 static const char* pre_profiling_osr_script = R"(
+    const kMinIterationDurationMs = 1;
     function whenPass(pass, optDuration) {
       if (pass == 5) startProfiling();
     }
     function hot(optDuration, deoptDuration) {
-      const startTime = Date.now();
       %PrepareFunctionForOptimization(hot);
       for (let pass = 0; pass <= optDuration + deoptDuration; pass++) {
+        const startTime = Date.now();
         // Let a few passes go by to ensure we have enough feeback info
         if (pass == 3) %OptimizeOsr();
         // Force deoptimization. %DeoptimizeNow and %DeoptimizeFunction don't
         // doptimize OSRs.
         if (pass == optDuration) whenPass = () => {};
         whenPass(pass, optDuration);
-        while (Date.now() - startTime < pass) {
+        while (Date.now() - startTime < kMinIterationDurationMs) {
           for (let j = 0; j < 1000; j++) {
             x = Math.random() * j;
           }
