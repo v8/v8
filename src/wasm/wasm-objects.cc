@@ -2000,6 +2000,10 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   function_data->set_serialized_signature(*serialized_sig);
   function_data->set_callable(*callable);
   function_data->set_wrapper_code(*wrapper_code);
+  // Use Abort() as a default value (it will never be called if not overwritten
+  // below).
+  function_data->set_wasm_to_js_wrapper_code(
+      isolate->heap()->builtin(Builtins::kAbort));
 
   if (wasm::WasmFeatures::FromIsolate(isolate).has_typed_funcref()) {
     using CK = compiler::WasmImportCallKind;
@@ -2024,10 +2028,6 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
         compiler::CompileWasmToJSWrapper(isolate, sig, kind, expected_arity)
             .ToHandleChecked();
     function_data->set_wasm_to_js_wrapper_code(*wasm_to_js_wrapper_code);
-  } else {
-    // Use Abort() as a default value (it will never be called).
-    function_data->set_wasm_to_js_wrapper_code(
-        isolate->heap()->builtin(Builtins::kAbort));
   }
 
   Handle<String> name = isolate->factory()->Function_string();
