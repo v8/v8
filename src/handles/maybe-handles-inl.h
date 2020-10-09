@@ -53,6 +53,15 @@ MaybeObjectHandle MaybeObjectHandle::Weak(Object object, Isolate* isolate) {
   return MaybeObjectHandle(object, HeapObjectReferenceType::WEAK, isolate);
 }
 
+bool MaybeObjectHandle::is_identical_to(const MaybeObjectHandle& other) const {
+  Handle<Object> this_handle;
+  Handle<Object> other_handle;
+  return reference_type_ == other.reference_type_ &&
+         handle_.ToHandle(&this_handle) ==
+             other.handle_.ToHandle(&other_handle) &&
+         this_handle.is_identical_to(other_handle);
+}
+
 MaybeObject MaybeObjectHandle::operator*() const {
   if (reference_type_ == HeapObjectReferenceType::WEAK) {
     return HeapObjectReference::Weak(*handle_.ToHandleChecked());

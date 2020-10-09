@@ -100,15 +100,7 @@ class MaybeObjectHandle {
   inline MaybeObject operator->() const;
   inline Handle<Object> object() const;
 
-  bool is_identical_to(const MaybeObjectHandle& other) const {
-    Handle<Object> this_handle;
-    Handle<Object> other_handle;
-    return reference_type_ == other.reference_type_ &&
-           handle_.ToHandle(&this_handle) ==
-               other.handle_.ToHandle(&other_handle) &&
-           this_handle.is_identical_to(other_handle);
-  }
-
+  inline bool is_identical_to(const MaybeObjectHandle& other) const;
   bool is_null() const { return handle_.is_null(); }
 
  private:
