@@ -375,13 +375,11 @@ TEST(SizeOfInitialHeap) {
   // Freshly initialized VM gets by with the snapshot size (which is below
   // kMaxInitialSizePerSpace per space).
   Heap* heap = isolate->heap();
-  int page_count[LAST_GROWABLE_PAGED_SPACE + 1] = {0, 0, 0, 0};
   for (int i = FIRST_GROWABLE_PAGED_SPACE; i <= LAST_GROWABLE_PAGED_SPACE;
        i++) {
     // Debug code can be very large, so skip CODE_SPACE if we are generating it.
     if (i == CODE_SPACE && i::FLAG_debug_code) continue;
 
-    page_count[i] = heap->paged_space(i)->CountTotalPages();
     // Check that the initial heap is also below the limit.
     CHECK_LE(heap->paged_space(i)->CommittedMemory(), kMaxInitialSizePerSpace);
   }
