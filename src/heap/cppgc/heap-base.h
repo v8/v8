@@ -113,6 +113,18 @@ class V8_EXPORT_PRIVATE HeapBase {
   const PersistentRegion& GetWeakPersistentRegion() const {
     return weak_persistent_region_;
   }
+  PersistentRegion& GetStrongCrossThreadPersistentRegion() {
+    return strong_cross_thread_persistent_region_;
+  }
+  const PersistentRegion& GetStrongCrossThreadPersistentRegion() const {
+    return strong_cross_thread_persistent_region_;
+  }
+  PersistentRegion& GetWeakCrossThreadPersistentRegion() {
+    return weak_cross_thread_persistent_region_;
+  }
+  const PersistentRegion& GetWeakCrossThreadPersistentRegion() const {
+    return weak_cross_thread_persistent_region_;
+  }
 
 #if defined(CPPGC_YOUNG_GENERATION)
   std::set<void*>& remembered_slots() { return remembered_slots_; }
@@ -149,6 +161,8 @@ class V8_EXPORT_PRIVATE HeapBase {
 
   PersistentRegion strong_persistent_region_;
   PersistentRegion weak_persistent_region_;
+  PersistentRegion strong_cross_thread_persistent_region_;
+  PersistentRegion weak_cross_thread_persistent_region_;
 
 #if defined(CPPGC_YOUNG_GENERATION)
   std::set<void*> remembered_slots_;

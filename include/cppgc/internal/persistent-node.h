@@ -109,6 +109,14 @@ class V8_EXPORT PersistentRegion final {
   PersistentNode* free_list_head_ = nullptr;
 };
 
+// CrossThreadPersistent uses PersistentRegion but protects it using this lock
+// when needed.
+class V8_EXPORT PersistentRegionLock final {
+ public:
+  PersistentRegionLock();
+  ~PersistentRegionLock();
+};
+
 }  // namespace internal
 
 }  // namespace cppgc

@@ -82,6 +82,7 @@ v8_source_set("cppgc_unittests_sources") {
   sources = [
     "heap/cppgc/concurrent-marking-unittest.cc",
     "heap/cppgc/concurrent-sweeper-unittest.cc",
+    "heap/cppgc/cross-thread-persistent-unittest.cc",
     "heap/cppgc/custom-spaces-unittest.cc",
     "heap/cppgc/finalizer-trait-unittest.cc",
     "heap/cppgc/free-list-unittest.cc",
@@ -102,7 +103,7 @@ v8_source_set("cppgc_unittests_sources") {
     "heap/cppgc/name-trait-unittest.cc",
     "heap/cppgc/object-start-bitmap-unittest.cc",
     "heap/cppgc/page-memory-unittest.cc",
-    "heap/cppgc/persistent-unittest.cc",
+    "heap/cppgc/persistent-family-unittest.cc",
     "heap/cppgc/prefinalizer-unittest.cc",
     "heap/cppgc/source-location-unittest.cc",
     "heap/cppgc/stack-unittest.cc",

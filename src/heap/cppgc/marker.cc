@@ -15,6 +15,7 @@
 #include "src/heap/cppgc/liveness-broker.h"
 #include "src/heap/cppgc/marking-state.h"
 #include "src/heap/cppgc/marking-visitor.h"
+#include "src/heap/cppgc/process-heap.h"
 #include "src/heap/cppgc/stats-collector.h"
 
 #if defined(CPPGC_CAGED_HEAP)
@@ -203,6 +204,12 @@ void MarkerBase::EnterAtomicPause(MarkingConfig::StackState stack_state) {
   config_.stack_state = stack_state;
   config_.marking_type = MarkingConfig::MarkingType::kAtomic;
 
+  // Lock guards against changes to {Weak}CrossThreadPersistent handles, that
+  // may conflict with marking. E.g., a WeakCrossThreadPersistent may be
+  // converted into a CrossThreadPersistent which requires that the handle
+  // is either cleared or the object is retained.
+  g_process_mutex.Pointer()->Lock();
+
   // VisitRoots also resets the LABs.
   VisitRoots(config_.stack_state);
   if (config_.stack_state == MarkingConfig::StackState::kNoHeapPointers) {
@@ -220,6 +227,7 @@ void MarkerBase::LeaveAtomicPause() {
       schedule_.GetOverallMarkedBytes());
   is_marking_started_ = false;
   ProcessWeakness();
+  g_process_mutex.Pointer()->Unlock();
 }
 
 void MarkerBase::FinishMarking(MarkingConfig::StackState stack_state) {
@@ -232,7 +240,11 @@ void MarkerBase::FinishMarking(MarkingConfig::StackState stack_state) {
 }
 
 void MarkerBase::ProcessWeakness() {
+  DCHECK_EQ(MarkingConfig::MarkingType::kAtomic, config_.marking_type);
   heap().GetWeakPersistentRegion().Trace(&visitor());
+  // Processing cross-thread handles requires taking the process lock.
+  g_process_mutex.Get().AssertHeld();
+  heap().GetWeakCrossThreadPersistentRegion().Trace(&visitor());
 
   // Call weak callbacks on objects that may now be pointing to dead objects.
   MarkingWorklists::WeakCallbackItem item;
@@ -252,6 +264,10 @@ void MarkerBase::VisitRoots(MarkingConfig::StackState stack_state) {
   heap().object_allocator().ResetLinearAllocationBuffers();
 
   heap().GetStrongPersistentRegion().Trace(&visitor());
+  if (config_.marking_type == MarkingConfig::MarkingType::kAtomic) {
+    g_process_mutex.Get().AssertHeld();
+    heap().GetStrongCrossThreadPersistentRegion().Trace(&visitor());
+  }
   if (stack_state != MarkingConfig::StackState::kNoHeapPointers) {
     heap().stack()->IteratePointers(&stack_visitor());
   }

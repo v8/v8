@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "include/cppgc/persistent.h"
-
 #include <vector>
 
 #include "include/cppgc/allocation.h"
+#include "include/cppgc/cross-thread-persistent.h"
 #include "include/cppgc/garbage-collected.h"
 #include "include/cppgc/internal/pointer-policies.h"
 #include "include/cppgc/member.h"
+#include "include/cppgc/persistent.h"
 #include "include/cppgc/type-traits.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/liveness-broker.h"
@@ -33,11 +33,39 @@ struct DerivedGCed : GCed {
 };
 
 template <template <typename> class PersistentType>
+struct PersistentRegionTrait;
+
+template <>
+struct PersistentRegionTrait<Persistent> {
+  static PersistentRegion& Get(cppgc::Heap* heap) {
+    return internal::Heap::From(heap)->GetStrongPersistentRegion();
+  }
+};
+
+template <>
+struct PersistentRegionTrait<WeakPersistent> {
+  static PersistentRegion& Get(cppgc::Heap* heap) {
+    return internal::Heap::From(heap)->GetWeakPersistentRegion();
+  }
+};
+
+template <>
+struct PersistentRegionTrait<subtle::CrossThreadPersistent> {
+  static PersistentRegion& Get(cppgc::Heap* heap) {
+    return internal::Heap::From(heap)->GetStrongCrossThreadPersistentRegion();
+  }
+};
+
+template <>
+struct PersistentRegionTrait<subtle::WeakCrossThreadPersistent> {
+  static PersistentRegion& Get(cppgc::Heap* heap) {
+    return internal::Heap::From(heap)->GetWeakCrossThreadPersistentRegion();
+  }
+};
+
+template <template <typename> class PersistentType>
 PersistentRegion& GetRegion(cppgc::Heap* heap) {
-  auto* heap_impl = internal::Heap::From(heap);
-  return IsWeak<PersistentType<GCed>>::value
-             ? heap_impl->GetWeakPersistentRegion()
-             : heap_impl->GetStrongPersistentRegion();
+  return PersistentRegionTrait<PersistentType>::Get(heap);
 }
 
 template <typename T>
@@ -45,6 +73,11 @@ using LocalizedPersistent =
     internal::BasicPersistent<T, internal::StrongPersistentPolicy,
                               internal::KeepLocationPolicy,
                               internal::DefaultCheckingPolicy>;
+
+template <typename T>
+using LocalizedCrossThreadPersistent = internal::BasicCrossThreadPersistent<
+    T, internal::StrongCrossThreadPersistentPolicy,
+    internal::KeepLocationPolicy, internal::DefaultCheckingPolicy>;
 
 class RootVisitor final : public VisitorBase {
  public:
@@ -112,6 +145,8 @@ TEST_F(PersistentTest, NullStateCtor) {
   auto* heap = GetHeap();
   NullStateCtor<Persistent>(heap);
   NullStateCtor<WeakPersistent>(heap);
+  NullStateCtor<subtle::CrossThreadPersistent>(heap);
+  NullStateCtor<subtle::WeakCrossThreadPersistent>(heap);
 }
 
 template <template <typename> class PersistentType>
@@ -136,6 +171,8 @@ TEST_F(PersistentTest, RawCtor) {
   auto* heap = GetHeap();
   RawCtor<Persistent>(heap);
   RawCtor<WeakPersistent>(heap);
+  RawCtor<subtle::CrossThreadPersistent>(heap);
+  RawCtor<subtle::WeakCrossThreadPersistent>(heap);
 }
 
 template <template <typename> class PersistentType>
@@ -191,6 +228,8 @@ TEST_F(PersistentTest, CopyCtor) {
   auto* heap = GetHeap();
   CopyCtor<Persistent>(heap);
   CopyCtor<WeakPersistent>(heap);
+  CopyCtor<subtle::CrossThreadPersistent>(heap);
+  CopyCtor<subtle::WeakCrossThreadPersistent>(heap);
 }
 
 template <template <typename> class PersistentType>
@@ -233,6 +272,8 @@ TEST_F(PersistentTest, MoveCtor) {
   auto* heap = GetHeap();
   MoveCtor<Persistent>(heap);
   MoveCtor<WeakPersistent>(heap);
+  MoveCtor<subtle::CrossThreadPersistent>(heap);
+  MoveCtor<subtle::WeakCrossThreadPersistent>(heap);
 }
 
 template <template <typename> class PersistentType,
@@ -258,10 +299,16 @@ TEST_F(PersistentTest, MemberCtor) {
   MemberCtor<WeakPersistent, Member>(heap);
   MemberCtor<WeakPersistent, WeakMember>(heap);
   MemberCtor<WeakPersistent, UntracedMember>(heap);
+  MemberCtor<subtle::CrossThreadPersistent, Member>(heap);
+  MemberCtor<subtle::CrossThreadPersistent, WeakMember>(heap);
+  MemberCtor<subtle::CrossThreadPersistent, UntracedMember>(heap);
+  MemberCtor<subtle::WeakCrossThreadPersistent, Member>(heap);
+  MemberCtor<subtle::WeakCrossThreadPersistent, WeakMember>(heap);
+  MemberCtor<subtle::WeakCrossThreadPersistent, UntracedMember>(heap);
 }
 
 template <template <typename> class PersistentType>
-void NullStateAssignemnt(cppgc::Heap* heap) {
+void NullStateAssignment(cppgc::Heap* heap) {
   EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   {
     PersistentType<GCed> p =
@@ -292,8 +339,10 @@ void NullStateAssignemnt(cppgc::Heap* heap) {
 
 TEST_F(PersistentTest, NullStateAssignemnt) {
   auto* heap = GetHeap();
-  NullStateAssignemnt<Persistent>(heap);
-  NullStateAssignemnt<WeakPersistent>(heap);
+  NullStateAssignment<Persistent>(heap);
+  NullStateAssignment<WeakPersistent>(heap);
+  NullStateAssignment<subtle::CrossThreadPersistent>(heap);
+  NullStateAssignment<subtle::WeakCrossThreadPersistent>(heap);
 }
 
 template <template <typename> class PersistentType>
@@ -322,6 +371,8 @@ TEST_F(PersistentTest, RawAssignment) {
   auto* heap = GetHeap();
   RawAssignment<Persistent>(heap);
   RawAssignment<WeakPersistent>(heap);
+  RawAssignment<subtle::CrossThreadPersistent>(heap);
+  RawAssignment<subtle::WeakCrossThreadPersistent>(heap);
 }
 
 template <template <typename> class PersistentType>
@@ -384,6 +435,8 @@ TEST_F(PersistentTest, CopyAssignment) {
   auto* heap = GetHeap();
   CopyAssignment<Persistent>(heap);
   CopyAssignment<WeakPersistent>(heap);
+  CopyAssignment<subtle::CrossThreadPersistent>(heap);
+  CopyAssignment<subtle::WeakCrossThreadPersistent>(heap);
 }
 
 template <template <typename> class PersistentType>
@@ -444,6 +497,8 @@ TEST_F(PersistentTest, MoveAssignment) {
   auto* heap = GetHeap();
   MoveAssignment<Persistent>(heap);
   MoveAssignment<WeakPersistent>(heap);
+  MoveAssignment<subtle::CrossThreadPersistent>(heap);
+  MoveAssignment<subtle::WeakCrossThreadPersistent>(heap);
 }
 
 template <template <typename> class PersistentType,
@@ -470,6 +525,12 @@ TEST_F(PersistentTest, MemberAssignment) {
   MemberAssignment<WeakPersistent, Member>(heap);
   MemberAssignment<WeakPersistent, WeakMember>(heap);
   MemberAssignment<WeakPersistent, UntracedMember>(heap);
+  MemberAssignment<subtle::CrossThreadPersistent, Member>(heap);
+  MemberAssignment<subtle::CrossThreadPersistent, WeakMember>(heap);
+  MemberAssignment<subtle::CrossThreadPersistent, UntracedMember>(heap);
+  MemberAssignment<subtle::WeakCrossThreadPersistent, Member>(heap);
+  MemberAssignment<subtle::WeakCrossThreadPersistent, WeakMember>(heap);
+  MemberAssignment<subtle::WeakCrossThreadPersistent, UntracedMember>(heap);
 }
 
 template <template <typename> class PersistentType>
@@ -488,6 +549,8 @@ TEST_F(PersistentTest, Clear) {
   auto* heap = GetHeap();
   ClearTest<Persistent>(heap);
   ClearTest<WeakPersistent>(heap);
+  ClearTest<subtle::CrossThreadPersistent>(heap);
+  ClearTest<subtle::WeakCrossThreadPersistent>(heap);
 }
 
 template <template <typename> class PersistentType>
@@ -507,6 +570,8 @@ TEST_F(PersistentTest, Release) {
   auto* heap = GetHeap();
   ReleaseTest<Persistent>(heap);
   ReleaseTest<WeakPersistent>(heap);
+  ReleaseTest<subtle::CrossThreadPersistent>(heap);
+  ReleaseTest<subtle::WeakCrossThreadPersistent>(heap);
 }
 
 template <template <typename> class PersistentType1,
@@ -630,6 +695,10 @@ TEST_F(PersistentTest, ClearOnHeapDestruction) {
   weak_persistent = MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
   const Persistent<GCed> persistent_sentinel(kSentinelPointer);
   const WeakPersistent<GCed> weak_persistent_sentinel(kSentinelPointer);
+  const subtle::CrossThreadPersistent<GCed> cross_thread_persistent_sentinel(
+      kSentinelPointer);
+  const subtle::WeakCrossThreadPersistent<GCed>
+      cross_thread_weak_persistent_sentinel(kSentinelPointer);
   heap.reset();
 
   EXPECT_EQ(nullptr, persistent);
@@ -651,6 +720,14 @@ TEST_F(PersistentTest, LocalizedPersistent) {
     EXPECT_EQ(expected_loc.Line() + 1, actual_loc.Line());
   }
   {
+    const auto expected_loc = SourceLocation::Current();
+    LocalizedCrossThreadPersistent<GCed> p = gced;
+    const auto actual_loc = p.Location();
+    EXPECT_STREQ(expected_loc.Function(), actual_loc.Function());
+    EXPECT_STREQ(expected_loc.FileName(), actual_loc.FileName());
+    EXPECT_EQ(expected_loc.Line() + 1, actual_loc.Line());
+  }
+  {
     // Copy ctor doesn't copy source location.
     LocalizedPersistent<GCed> p1 = gced;
     LocalizedPersistent<GCed> p2 = p1;
@@ -659,9 +736,26 @@ TEST_F(PersistentTest, LocalizedPersistent) {
     EXPECT_EQ(p1.Location().Line() + 1, p2.Location().Line());
   }
   {
+    // Copy ctor doesn't copy source location.
+    LocalizedCrossThreadPersistent<GCed> p1 = gced;
+    LocalizedCrossThreadPersistent<GCed> p2 = p1;
+    EXPECT_STREQ(p1.Location().Function(), p2.Location().Function());
+    EXPECT_STREQ(p1.Location().FileName(), p2.Location().FileName());
+    EXPECT_EQ(p1.Location().Line() + 1, p2.Location().Line());
+  }
+  {
     // Copy assignment doesn't copy source location.
     LocalizedPersistent<GCed> p1 = gced;
     LocalizedPersistent<GCed> p2;
+    p2 = p1;
+    EXPECT_STREQ(p1.Location().Function(), p2.Location().Function());
+    EXPECT_STREQ(p1.Location().FileName(), p2.Location().FileName());
+    EXPECT_EQ(p1.Location().Line() + 1, p2.Location().Line());
+  }
+  {
+    // Copy assignment doesn't copy source location.
+    LocalizedCrossThreadPersistent<GCed> p1 = gced;
+    LocalizedCrossThreadPersistent<GCed> p2;
     p2 = p1;
     EXPECT_STREQ(p1.Location().Function(), p2.Location().Function());
     EXPECT_STREQ(p1.Location().FileName(), p2.Location().FileName());
@@ -677,6 +771,15 @@ TEST_F(PersistentTest, LocalizedPersistent) {
     EXPECT_EQ(p1.Location().Line() + 1, p2.Location().Line());
   }
   {
+    // Clearing doesn't clear source location.
+    LocalizedCrossThreadPersistent<GCed> p1 = gced;
+    LocalizedCrossThreadPersistent<GCed> p2 = gced;
+    p2.Clear();
+    EXPECT_STREQ(p1.Location().Function(), p2.Location().Function());
+    EXPECT_STREQ(p1.Location().FileName(), p2.Location().FileName());
+    EXPECT_EQ(p1.Location().Line() + 1, p2.Location().Line());
+  }
+  {
     LocalizedPersistent<GCed> p1 = gced;
     const auto expected_loc = p1.Location();
     LocalizedPersistent<GCed> p2 = std::move(p1);
@@ -685,9 +788,26 @@ TEST_F(PersistentTest, LocalizedPersistent) {
     EXPECT_EQ(expected_loc.Line(), p2.Location().Line());
   }
   {
+    LocalizedCrossThreadPersistent<GCed> p1 = gced;
+    const auto expected_loc = p1.Location();
+    LocalizedCrossThreadPersistent<GCed> p2 = std::move(p1);
+    EXPECT_STREQ(expected_loc.Function(), p2.Location().Function());
+    EXPECT_STREQ(expected_loc.FileName(), p2.Location().FileName());
+    EXPECT_EQ(expected_loc.Line(), p2.Location().Line());
+  }
+  {
     LocalizedPersistent<GCed> p1 = gced;
     const auto expected_loc = p1.Location();
     LocalizedPersistent<GCed> p2;
+    p2 = std::move(p1);
+    EXPECT_STREQ(expected_loc.Function(), p2.Location().Function());
+    EXPECT_STREQ(expected_loc.FileName(), p2.Location().FileName());
+    EXPECT_EQ(expected_loc.Line(), p2.Location().Line());
+  }
+  {
+    LocalizedCrossThreadPersistent<GCed> p1 = gced;
+    const auto expected_loc = p1.Location();
+    LocalizedCrossThreadPersistent<GCed> p2;
     p2 = std::move(p1);
     EXPECT_STREQ(expected_loc.Function(), p2.Location().Function());
     EXPECT_STREQ(expected_loc.FileName(), p2.Location().FileName());

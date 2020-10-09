@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/cppgc/process-heap.h"
+#ifndef V8_HEAP_CPPGC_PROCESS_HEAP_H_
+#define V8_HEAP_CPPGC_PROCESS_HEAP_H_
 
-#include "include/cppgc/internal/process-heap.h"
+#include "src/base/platform/mutex.h"
 
 namespace cppgc {
 namespace internal {
 
-AtomicEntryFlag ProcessHeap::concurrent_marking_flag_;
-
-v8::base::LazyMutex g_process_mutex = LAZY_MUTEX_INITIALIZER;
+extern v8::base::LazyMutex g_process_mutex;
 
 }  // namespace internal
 }  // namespace cppgc
+
+#endif  // V8_HEAP_CPPGC_PROCESS_HEAP_H_

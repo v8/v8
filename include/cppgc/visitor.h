@@ -18,6 +18,9 @@ namespace cppgc {
 namespace internal {
 template <typename T, typename WeaknessPolicy, typename LocationPolicy,
           typename CheckingPolicy>
+class BasicCrossThreadPersistent;
+template <typename T, typename WeaknessPolicy, typename LocationPolicy,
+          typename CheckingPolicy>
 class BasicPersistent;
 class ConservativeTracingVisitor;
 class VisitorBase;
@@ -200,6 +203,9 @@ class Visitor {
   V8_EXPORT void CheckObjectNotInConstruction(const void* address);
 #endif  // V8_ENABLE_CHECKS
 
+  template <typename T, typename WeaknessPolicy, typename LocationPolicy,
+            typename CheckingPolicy>
+  friend class internal::BasicCrossThreadPersistent;
   template <typename T, typename WeaknessPolicy, typename LocationPolicy,
             typename CheckingPolicy>
   friend class internal::BasicPersistent;
