@@ -3375,7 +3375,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
       config = RegisterConfiguration::Default();
     }
 
-    if (FLAG_turboprop_mid_tier_reg_alloc) {
+    if (data->info()->IsTurboprop() && FLAG_turboprop_mid_tier_reg_alloc) {
       AllocateRegistersForMidTier(config, call_descriptor, run_verifier);
     } else {
       AllocateRegistersForTopTier(config, call_descriptor, run_verifier);
@@ -3698,8 +3698,6 @@ void PipelineImpl::AllocateRegistersForMidTier(
   data->sequence()->ValidateDeferredBlockEntryPaths();
   data->sequence()->ValidateDeferredBlockExitPaths();
 #endif
-
-  if (info()->is_osr()) data->osr_helper()->SetupFrame(data->frame());
   data->InitializeMidTierRegisterAllocationData(config, call_descriptor);
 
   TraceSequence(info(), data, "before register allocation");
