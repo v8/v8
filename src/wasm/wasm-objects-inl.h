@@ -353,6 +353,8 @@ ACCESSORS(WasmJSFunctionData, serialized_signature, PodArray<wasm::ValueType>,
           kSerializedSignatureOffset)
 ACCESSORS(WasmJSFunctionData, callable, JSReceiver, kCallableOffset)
 ACCESSORS(WasmJSFunctionData, wrapper_code, Code, kWrapperCodeOffset)
+ACCESSORS(WasmJSFunctionData, wasm_to_js_wrapper_code, Code,
+          kWasmToJsWrapperCodeOffset)
 
 // WasmCapiFunction
 WasmCapiFunction::WasmCapiFunction(Address ptr) : JSFunction(ptr) {

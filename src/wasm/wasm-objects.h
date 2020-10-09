@@ -813,6 +813,7 @@ class WasmJSFunctionData : public Struct {
   DECL_ACCESSORS(serialized_signature, PodArray<wasm::ValueType>)
   DECL_ACCESSORS(callable, JSReceiver)
   DECL_ACCESSORS(wrapper_code, Code)
+  DECL_ACCESSORS(wasm_to_js_wrapper_code, Code)
 
   DECL_CAST(WasmJSFunctionData)
 

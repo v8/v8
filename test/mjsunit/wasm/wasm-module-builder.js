@@ -1130,13 +1130,13 @@ class WasmModuleBuilder {
     return this;
   }
 
-  addPassiveElementSegment(array, is_import = false) {
+  addPassiveElementSegment(array) {
     this.element_segments.push(
         {array: array, is_active: false, is_declarative: false});
     return this;
   }
 
-  addDeclarativeElementSegment(array, is_import = false) {
+  addDeclarativeElementSegment(array) {
     this.element_segments.push(
         {array: array, is_active: false, is_declarative: true});
     return this;

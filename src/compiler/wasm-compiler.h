@@ -126,6 +126,11 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
     const wasm::FunctionSig* sig, const wasm::WasmModule* module,
     bool is_import, const wasm::WasmFeatures& enabled_features);
 
+MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
+                                         const wasm::FunctionSig* sig,
+                                         WasmImportCallKind kind,
+                                         int expected_arity);
+
 // Compiles a stub with JS linkage that serves as an adapter for function
 // objects constructed via {WebAssembly.Function}. It performs a round-trip
 // simulating a JS-to-Wasm-to-JS coercion of parameter and return values.
@@ -613,7 +618,7 @@ class WasmGraphBuilder {
   Node* BuildMultiReturnFixedArrayFromIterable(const wasm::FunctionSig* sig,
                                                Node* iterable, Node* context);
 
-  Node* BuildLoadFunctionDataFromExportedFunction(Node* closure);
+  Node* BuildLoadFunctionDataFromJSFunction(Node* closure);
   Node* BuildLoadJumpTableOffsetFromExportedFunctionData(Node* function_data);
   Node* BuildLoadFunctionIndexFromExportedFunctionData(Node* function_data);
 

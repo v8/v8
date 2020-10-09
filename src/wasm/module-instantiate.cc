@@ -1480,6 +1480,8 @@ void InstanceBuilder::CompileImportWrappers(
   // Also compile in the current thread, in case there are no worker threads.
   while (base::Optional<WasmImportWrapperCache::CacheKey> key =
              import_wrapper_queue.pop()) {
+    // TODO(9495): When typed_funcref is enabled, reuse the already compiled
+    // wrappers inside WasmJSFunctions.
     CompileImportWrapper(isolate_->wasm_engine(), native_module,
                          isolate_->counters(), key->kind, key->signature,
                          key->expected_arity, &cache_scope);

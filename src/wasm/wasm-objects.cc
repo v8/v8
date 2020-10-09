@@ -1975,8 +1975,6 @@ bool WasmJSFunction::IsWasmJSFunction(Object object) {
   return js_function.shared().HasWasmJSFunctionData();
 }
 
-// TODO(7748): WasmJSFunctions should compile/find and store an import wrapper
-// in case they are called from within wasm.
 Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
                                            const wasm::FunctionSig* sig,
                                            Handle<JSReceiver> callable) {
@@ -1993,6 +1991,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   // signature instead of compiling a new one for every instantiation.
   Handle<Code> wrapper_code =
       compiler::CompileJSToJSWrapper(isolate, sig, nullptr).ToHandleChecked();
+
   Handle<WasmJSFunctionData> function_data =
       Handle<WasmJSFunctionData>::cast(isolate->factory()->NewStruct(
           WASM_JS_FUNCTION_DATA_TYPE, AllocationType::kOld));
@@ -2001,6 +2000,36 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   function_data->set_serialized_signature(*serialized_sig);
   function_data->set_callable(*callable);
   function_data->set_wrapper_code(*wrapper_code);
+
+  if (wasm::WasmFeatures::FromIsolate(isolate).has_typed_funcref()) {
+    using CK = compiler::WasmImportCallKind;
+    int expected_arity = parameter_count;
+    CK kind = compiler::kDefaultImportCallKind;
+    if (callable->IsJSFunction()) {
+      SharedFunctionInfo shared = Handle<JSFunction>::cast(callable)->shared();
+      expected_arity = shared.internal_formal_parameter_count();
+      if (expected_arity != parameter_count) {
+#ifdef V8_REVERSE_JSARGS
+        kind = CK::kJSFunctionArityMismatch;
+#else
+        kind = shared.is_safe_to_skip_arguments_adaptor()
+                   ? CK::kJSFunctionArityMismatchSkipAdaptor
+                   : CK::kJSFunctionArityMismatch;
+#endif
+      }
+    }
+    // TODO(wasm): Think about caching and sharing the wasm-to-JS wrappers per
+    // signature instead of compiling a new one for every instantiation.
+    Handle<Code> wasm_to_js_wrapper_code =
+        compiler::CompileWasmToJSWrapper(isolate, sig, kind, expected_arity)
+            .ToHandleChecked();
+    function_data->set_wasm_to_js_wrapper_code(*wasm_to_js_wrapper_code);
+  } else {
+    // Use Abort() as a default value (it will never be called).
+    function_data->set_wasm_to_js_wrapper_code(
+        isolate->heap()->builtin(Builtins::kAbort));
+  }
+
   Handle<String> name = isolate->factory()->Function_string();
   if (callable->IsJSFunction()) {
     name = JSFunction::GetName(Handle<JSFunction>::cast(callable));

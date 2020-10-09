@@ -2952,10 +2952,9 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
   }
 }
 
-Node* WasmGraphBuilder::BuildLoadFunctionDataFromExportedFunction(
-    Node* closure) {
+Node* WasmGraphBuilder::BuildLoadFunctionDataFromJSFunction(Node* js_function) {
   Node* shared = gasm_->Load(
-      MachineType::AnyTagged(), closure,
+      MachineType::AnyTagged(), js_function,
       wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction());
   return gasm_->Load(MachineType::AnyTagged(), shared,
                      SharedFunctionInfo::kFunctionDataOffset - kHeapObjectTag);
@@ -3000,7 +2999,7 @@ Node* WasmGraphBuilder::BuildCallRef(uint32_t sig_index, Vector<Node*> args,
 
   const wasm::FunctionSig* sig = env_->module->signature(sig_index);
 
-  Node* function_data = BuildLoadFunctionDataFromExportedFunction(args[0]);
+  Node* function_data = BuildLoadFunctionDataFromJSFunction(args[0]);
 
   Node* is_js_function =
       HasInstanceType(gasm_.get(), function_data, WASM_JS_FUNCTION_DATA_TYPE);
@@ -6502,7 +6501,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // an actual reference to an instance or a placeholder reference,
     // called {WasmExportedFunction} via the {WasmExportedFunctionData}
     // structure.
-    Node* function_data = BuildLoadFunctionDataFromExportedFunction(js_closure);
+    Node* function_data = BuildLoadFunctionDataFromJSFunction(js_closure);
     instance_node_.set(
         BuildLoadInstanceFromExportedFunctionData(function_data));
 
@@ -6598,7 +6597,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                         global_proxy);
   }
 
-  bool BuildWasmImportCallWrapper(WasmImportCallKind kind, int expected_arity) {
+  bool BuildWasmToJSWrapper(WasmImportCallKind kind, int expected_arity) {
     int wasm_count = static_cast<int>(sig_->parameter_count());
 
     // Build the start and the parameter nodes.
@@ -7459,7 +7458,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
   WasmWrapperGraphBuilder builder(
       &zone, mcgraph, sig, env->module, source_position_table,
       StubCallMode::kCallWasmRuntimeStub, env->enabled_features);
-  builder.BuildWasmImportCallWrapper(kind, expected_arity);
+  builder.BuildWasmToJSWrapper(kind, expected_arity);
 
   // Build a name in the form "wasm-to-js-<kind>-<signature>".
   constexpr size_t kMaxNameLen = 128;
@@ -7534,6 +7533,57 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::WasmEngine* wasm_engine,
       result.source_positions.as_vector(), wasm::WasmCode::kWasmToCapiWrapper,
       wasm::ExecutionTier::kNone, wasm::kNoDebugging);
   return native_module->PublishCode(std::move(wasm_code));
+}
+
+MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
+                                         const wasm::FunctionSig* sig,
+                                         WasmImportCallKind kind,
+                                         int expected_arity) {
+  std::unique_ptr<Zone> zone = std::make_unique<Zone>(
+      isolate->allocator(), ZONE_NAME, kCompressGraphZone);
+
+  // Create the Graph
+  Graph* graph = zone->New<Graph>(zone.get());
+  CommonOperatorBuilder* common = zone->New<CommonOperatorBuilder>(zone.get());
+  MachineOperatorBuilder* machine = zone->New<MachineOperatorBuilder>(
+      zone.get(), MachineType::PointerRepresentation(),
+      InstructionSelector::SupportedMachineOperatorFlags(),
+      InstructionSelector::AlignmentRequirements());
+  MachineGraph* mcgraph = zone->New<MachineGraph>(graph, common, machine);
+
+  WasmWrapperGraphBuilder builder(zone.get(), mcgraph, sig, nullptr, nullptr,
+                                  StubCallMode::kCallWasmRuntimeStub,
+                                  wasm::WasmFeatures::FromIsolate(isolate));
+  builder.BuildWasmToJSWrapper(kind, expected_arity);
+
+  // Build a name in the form "wasm-to-js-<kind>-<signature>".
+  constexpr size_t kMaxNameLen = 128;
+  constexpr size_t kNamePrefixLen = 11;
+  auto name_buffer = std::unique_ptr<char[]>(new char[kMaxNameLen]);
+  memcpy(name_buffer.get(), "wasm-to-js:", kNamePrefixLen);
+  PrintSignature(VectorOf(name_buffer.get(), kMaxNameLen) + kNamePrefixLen,
+                 sig);
+
+  // Generate the call descriptor.
+  CallDescriptor* incoming =
+      GetWasmCallDescriptor(zone.get(), sig, WasmGraphBuilder::kNoRetpoline,
+                            WasmCallKind::kWasmImportWrapper);
+
+  // Run the compilation job synchronously.
+  std::unique_ptr<OptimizedCompilationJob> job(
+      Pipeline::NewWasmHeapStubCompilationJob(
+          isolate, isolate->wasm_engine(), incoming, std::move(zone), graph,
+          CodeKind::WASM_TO_JS_FUNCTION, std::move(name_buffer),
+          AssemblerOptions::Default(isolate)));
+
+  // Compile the wrapper
+  if (job->ExecuteJob(isolate->counters()->runtime_call_stats()) ==
+          CompilationJob::FAILED ||
+      job->FinalizeJob(isolate) == CompilationJob::FAILED) {
+    return Handle<Code>();
+  }
+  Handle<Code> code = job->compilation_info()->code();
+  return code;
 }
 
 MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,

@@ -27,6 +27,7 @@ extern class WasmExportedFunctionData extends Struct {
 extern class WasmJSFunctionData extends Struct {
   callable: JSReceiver;
   wrapper_code: Code;
+  wasm_to_js_wrapper_code: Code;
   serialized_return_count: Smi;
   serialized_parameter_count: Smi;
   serialized_signature: PodArrayOfWasmValueType;
