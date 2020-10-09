@@ -874,8 +874,10 @@ DEFINE_BOOL(wasm_trap_handler, true,
 DEFINE_BOOL(wasm_fuzzer_gen_test, false,
             "generate a test case when running a wasm fuzzer")
 DEFINE_IMPLICATION(wasm_fuzzer_gen_test, single_threaded)
-DEFINE_BOOL(print_wasm_code, false, "Print WebAssembly code")
-DEFINE_BOOL(print_wasm_stub_code, false, "Print WebAssembly stub code")
+DEFINE_BOOL(print_wasm_code, false, "print WebAssembly code")
+DEFINE_INT(print_wasm_code_function_index, -1,
+           "print WebAssembly code for function at index")
+DEFINE_BOOL(print_wasm_stub_code, false, "print WebAssembly stub code")
 DEFINE_BOOL(asm_wasm_lazy_compilation, false,
             "enable lazy compilation for asm-wasm modules")
 DEFINE_IMPLICATION(validate_asm, asm_wasm_lazy_compilation)

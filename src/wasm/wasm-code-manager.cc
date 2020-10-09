@@ -323,8 +323,12 @@ void WasmCode::Validate() const {
 
 void WasmCode::MaybePrint(const char* name) const {
   // Determines whether flags want this code to be printed.
-  if ((FLAG_print_wasm_code && kind() == kFunction) ||
-      (FLAG_print_wasm_stub_code && kind() != kFunction) || FLAG_print_code) {
+  bool function_index_matches =
+      (!IsAnonymous() &&
+       FLAG_print_wasm_code_function_index == static_cast<int>(index()));
+  if (FLAG_print_code ||
+      (kind() == kFunction ? (FLAG_print_wasm_code || function_index_matches)
+                           : FLAG_print_wasm_stub_code)) {
     Print(name);
   }
 }
