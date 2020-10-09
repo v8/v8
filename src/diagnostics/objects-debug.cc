@@ -968,7 +968,8 @@ void Code::CodeVerify(Isolate* isolate) {
   // everything is set up.
   // CHECK_EQ(ReadOnlyHeap::Contains(*this), !IsExecutable());
   relocation_info().ObjectVerify(isolate);
-  CHECK(Code::SizeFor(body_size()) <= kMaxRegularHeapObjectSize ||
+  CHECK(V8_ENABLE_THIRD_PARTY_HEAP_BOOL ||
+        Code::SizeFor(body_size()) <= kMaxRegularHeapObjectSize ||
         isolate->heap()->InSpace(*this, CODE_LO_SPACE));
   Address last_gc_pc = kNullAddress;
 

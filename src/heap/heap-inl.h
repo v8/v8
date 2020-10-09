@@ -186,6 +186,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
 #endif
 
   size_t large_object_threshold =
+      !V8_ENABLE_THIRD_PARTY_HEAP_BOOL &&
       AllocationType::kCode == type
           ? std::min(kMaxRegularHeapObjectSize, code_space()->AreaSize())
           : kMaxRegularHeapObjectSize;
@@ -275,14 +276,10 @@ HeapObject Heap::AllocateRawWith(int size, AllocationType allocation,
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
   DCHECK(AllowGarbageCollection::IsAllowed());
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    AllocationResult result = AllocateRaw(size, allocation, origin, alignment);
-    DCHECK(!result.IsRetry());
-    return result.ToObjectChecked();
-  }
   DCHECK_EQ(gc_state(), NOT_IN_GC);
   Heap* heap = isolate()->heap();
-  if (allocation == AllocationType::kYoung &&
+  if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL &&
+      allocation == AllocationType::kYoung &&
       alignment == AllocationAlignment::kWordAligned &&
       size <= kMaxRegularHeapObjectSize) {
     Address* top = heap->NewSpaceAllocationTopAddress();

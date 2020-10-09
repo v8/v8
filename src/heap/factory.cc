@@ -2151,6 +2151,7 @@ Handle<Code> Factory::CopyCode(Handle<Code> code) {
 #endif
   DCHECK(IsAligned(new_code->address(), kCodeAlignment));
   DCHECK_IMPLIES(
+      !V8_ENABLE_THIRD_PARTY_HEAP_BOOL &&
       !heap->memory_allocator()->code_range().is_empty(),
       heap->memory_allocator()->code_range().contains(new_code->address()));
   return new_code;

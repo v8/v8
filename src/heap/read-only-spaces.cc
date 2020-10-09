@@ -722,6 +722,7 @@ size_t ReadOnlyPage::ShrinkToHighWaterMark() {
 }
 
 void ReadOnlySpace::ShrinkPages() {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
   BasicMemoryChunk::UpdateHighWaterMark(top_);
   heap()->CreateFillerObjectAt(top_, static_cast<int>(limit_ - top_),
                                ClearRecordedSlots::kNo);

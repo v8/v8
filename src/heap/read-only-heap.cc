@@ -219,7 +219,11 @@ void ReadOnlyHeap::PopulateReadOnlySpaceStatistics(
 
 // static
 bool ReadOnlyHeap::Contains(Address address) {
-  return BasicMemoryChunk::FromAddress(address)->InReadOnlySpace();
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    return third_party_heap::Heap::InReadOnlySpace(address);
+  } else {
+    return BasicMemoryChunk::FromAddress(address)->InReadOnlySpace();
+  }
 }
 
 // static

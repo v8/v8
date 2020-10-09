@@ -698,7 +698,7 @@ void Serializer::ObjectSerializer::Serialize() {
 namespace {
 SnapshotSpace GetSnapshotSpace(Handle<HeapObject> object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    if (third_party_heap::Heap::InCodeSpace(object.address())) {
+    if (object->IsCode()) {
       return SnapshotSpace::kCode;
     } else if (ReadOnlyHeap::Contains(*object)) {
       return SnapshotSpace::kReadOnlyHeap;
