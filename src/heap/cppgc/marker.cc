@@ -190,6 +190,7 @@ void MarkerBase::StartMarking() {
     ScheduleIncrementalMarkingTask();
     if (config_.marking_type ==
         MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
+      mutator_marking_state_.Publish();
       concurrent_marker_->Start();
     }
   }
@@ -335,13 +336,27 @@ bool MarkerBase::AdvanceMarkingWithDeadline(v8::base::TimeDelta max_duration) {
 bool MarkerBase::ProcessWorklistsWithDeadline(
     size_t marked_bytes_deadline, v8::base::TimeTicks time_deadline) {
   do {
+    // Bailout objects may be complicated to trace and thus might take longer
+    // than other objects. Therefore we reduce the interval between deadline
+    // checks to guarantee the deadline is not exceeded.
+    if (!DrainWorklistWithBytesAndTimeDeadline<kDefaultDeadlineCheckInterval /
+                                               5>(
+            mutator_marking_state_, marked_bytes_deadline, time_deadline,
+            mutator_marking_state_.concurrent_marking_bailout_worklist(),
+            [this](const MarkingWorklists::ConcurrentMarkingBailoutItem& item) {
+              mutator_marking_state_.AccountMarkedBytes(item.bailedout_size);
+              item.callback(&visitor(), item.parameter);
+            })) {
+      return false;
+    }
+
     if (!DrainWorklistWithBytesAndTimeDeadline(
             mutator_marking_state_, marked_bytes_deadline, time_deadline,
             mutator_marking_state_.previously_not_fully_constructed_worklist(),
             [this](HeapObjectHeader* header) {
+              mutator_marking_state_.AccountMarkedBytes(*header);
               DynamicallyTraceMarkedObject<
                   HeapObjectHeader::AccessMode::kNonAtomic>(visitor(), *header);
-              mutator_marking_state_.AccountMarkedBytes(*header);
             })) {
       return false;
     }
@@ -356,8 +371,8 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
                       HeapObjectHeader::AccessMode::kNonAtomic>());
               DCHECK(
                   header.IsMarked<HeapObjectHeader::AccessMode::kNonAtomic>());
-              item.callback(&visitor(), item.base_object_payload);
               mutator_marking_state_.AccountMarkedBytes(header);
+              item.callback(&visitor(), item.base_object_payload);
             })) {
       return false;
     }
@@ -366,9 +381,9 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
             mutator_marking_state_, marked_bytes_deadline, time_deadline,
             mutator_marking_state_.write_barrier_worklist(),
             [this](HeapObjectHeader* header) {
+              mutator_marking_state_.AccountMarkedBytes(*header);
               DynamicallyTraceMarkedObject<
                   HeapObjectHeader::AccessMode::kNonAtomic>(visitor(), *header);
-              mutator_marking_state_.AccountMarkedBytes(*header);
             })) {
       return false;
     }
@@ -394,6 +409,10 @@ void MarkerBase::ClearAllWorklistsForTesting() {
 
 void MarkerBase::DisableIncrementalMarkingForTesting() {
   incremental_marking_disabled_for_testing_ = true;
+}
+
+void MarkerBase::WaitForConcurrentMarkingForTesting() {
+  concurrent_marker_->JoinForTesting();
 }
 
 Marker::Marker(Key key, HeapBase& heap, cppgc::Platform* platform,

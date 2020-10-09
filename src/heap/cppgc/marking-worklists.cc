@@ -16,6 +16,7 @@ void MarkingWorklists::ClearForTesting() {
   previously_not_fully_constructed_worklist_.Clear();
   write_barrier_worklist_.Clear();
   weak_callback_worklist_.Clear();
+  concurrent_marking_bailout_worklist_.Clear();
 }
 
 void MarkingWorklists::NotFullyConstructedWorklist::Push(

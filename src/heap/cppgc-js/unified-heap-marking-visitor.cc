@@ -37,8 +37,18 @@ void UnifiedHeapMarkingVisitorBase::RegisterWeakCallback(WeakCallback callback,
   marking_state_.RegisterWeakCallback(callback, object);
 }
 
+namespace {
+void DeferredTraceJSMember(cppgc::Visitor* visitor, const void* ref) {
+  static_cast<JSVisitor*>(visitor)->Trace(
+      *static_cast<const internal::JSMemberBase*>(ref));
+}
+}  // namespace
+
 void UnifiedHeapMarkingVisitorBase::Visit(const internal::JSMemberBase& ref) {
-  unified_heap_marking_state_.MarkAndPush(ref);
+  bool should_defer_tracing =
+      DeferTraceToMutatorThreadIfConcurrent(&ref, DeferredTraceJSMember, 0);
+
+  if (!should_defer_tracing) unified_heap_marking_state_.MarkAndPush(ref);
 }
 
 MutatorUnifiedHeapMarkingVisitor::MutatorUnifiedHeapMarkingVisitor(
@@ -65,6 +75,16 @@ ConcurrentUnifiedHeapMarkingVisitor::ConcurrentUnifiedHeapMarkingVisitor(
     UnifiedHeapMarkingState& unified_heap_marking_state)
     : UnifiedHeapMarkingVisitorBase(heap, marking_state,
                                     unified_heap_marking_state) {}
+
+bool ConcurrentUnifiedHeapMarkingVisitor::DeferTraceToMutatorThreadIfConcurrent(
+    const void* parameter, cppgc::TraceCallback callback,
+    size_t deferred_size) {
+  marking_state_.concurrent_marking_bailout_worklist().Push(
+      {parameter, callback, deferred_size});
+  static_cast<ConcurrentMarkingState&>(marking_state_)
+      .AccountDeferredMarkedBytes(deferred_size);
+  return true;
+}
 
 }  // namespace internal
 }  // namespace v8

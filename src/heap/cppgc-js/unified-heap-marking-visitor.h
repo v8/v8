@@ -48,7 +48,7 @@ class V8_EXPORT_PRIVATE UnifiedHeapMarkingVisitorBase : public JSVisitor {
   UnifiedHeapMarkingState& unified_heap_marking_state_;
 };
 
-class V8_EXPORT_PRIVATE MutatorUnifiedHeapMarkingVisitor
+class V8_EXPORT_PRIVATE MutatorUnifiedHeapMarkingVisitor final
     : public UnifiedHeapMarkingVisitorBase {
  public:
   MutatorUnifiedHeapMarkingVisitor(HeapBase&, MutatorMarkingState&,
@@ -61,7 +61,7 @@ class V8_EXPORT_PRIVATE MutatorUnifiedHeapMarkingVisitor
                      const void*) final;
 };
 
-class V8_EXPORT_PRIVATE ConcurrentUnifiedHeapMarkingVisitor
+class V8_EXPORT_PRIVATE ConcurrentUnifiedHeapMarkingVisitor final
     : public UnifiedHeapMarkingVisitorBase {
  public:
   ConcurrentUnifiedHeapMarkingVisitor(HeapBase&, ConcurrentMarkingState&,
@@ -74,6 +74,9 @@ class V8_EXPORT_PRIVATE ConcurrentUnifiedHeapMarkingVisitor
                      const void*) final {
     UNREACHABLE();
   }
+
+  bool DeferTraceToMutatorThreadIfConcurrent(const void*, cppgc::TraceCallback,
+                                             size_t) final;
 };
 
 }  // namespace internal

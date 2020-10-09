@@ -122,6 +122,8 @@ class V8_EXPORT_PRIVATE MarkerBase {
 
   void DisableIncrementalMarkingForTesting();
 
+  void WaitForConcurrentMarkingForTesting();
+
  protected:
   static constexpr v8::base::TimeDelta kMaximumIncrementalStepDuration =
       v8::base::TimeDelta::FromMilliseconds(2);

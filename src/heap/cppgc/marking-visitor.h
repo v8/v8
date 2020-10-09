@@ -44,7 +44,8 @@ class V8_EXPORT_PRIVATE MutatorMarkingVisitor : public MarkingVisitorBase {
                      const void*) final;
 };
 
-class V8_EXPORT_PRIVATE ConcurrentMarkingVisitor : public MarkingVisitorBase {
+class V8_EXPORT_PRIVATE ConcurrentMarkingVisitor final
+    : public MarkingVisitorBase {
  public:
   ConcurrentMarkingVisitor(HeapBase&, ConcurrentMarkingState&);
   ~ConcurrentMarkingVisitor() override = default;
@@ -55,6 +56,9 @@ class V8_EXPORT_PRIVATE ConcurrentMarkingVisitor : public MarkingVisitorBase {
                      const void*) final {
     UNREACHABLE();
   }
+
+  bool DeferTraceToMutatorThreadIfConcurrent(const void*, TraceCallback,
+                                             size_t) final;
 };
 
 class ConservativeMarkingVisitor : public ConservativeTracingVisitor,

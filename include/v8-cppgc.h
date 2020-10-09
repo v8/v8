@@ -210,8 +210,7 @@ class JSVisitor : public cppgc::Visitor {
  public:
   explicit JSVisitor(cppgc::Visitor::Key key) : cppgc::Visitor(key) {}
 
-  template <typename T>
-  void Trace(const JSMember<T>& ref) {
+  void Trace(const internal::JSMemberBase& ref) {
     if (ref.IsEmptyThreadSafe()) return;
     Visit(ref);
   }
@@ -226,9 +225,9 @@ class JSVisitor : public cppgc::Visitor {
 
 namespace cppgc {
 
-template <typename T>
-struct TraceTrait<v8::JSMember<T>> {
-  static void Trace(Visitor* visitor, const v8::JSMember<T>* self) {
+template <>
+struct TraceTrait<v8::internal::JSMemberBase> {
+  static void Trace(Visitor* visitor, const v8::internal::JSMemberBase* self) {
     static_cast<v8::JSVisitor*>(visitor)->Trace(*self);
   }
 };

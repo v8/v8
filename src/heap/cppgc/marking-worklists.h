@@ -21,9 +21,16 @@ class MarkingWorklists {
   static constexpr int kMutatorThreadId = 0;
 
   using MarkingItem = cppgc::TraceDescriptor;
+
   struct WeakCallbackItem {
     cppgc::WeakCallback callback;
     const void* parameter;
+  };
+
+  struct ConcurrentMarkingBailoutItem {
+    const void* parameter;
+    TraceCallback callback;
+    size_t bailedout_size;
   };
 
   // Segment size of 512 entries necessary to avoid throughput regressions.
@@ -36,6 +43,9 @@ class MarkingWorklists {
       heap::base::Worklist<WeakCallbackItem, 64 /* local entries */>;
   using WriteBarrierWorklist =
       heap::base::Worklist<HeapObjectHeader*, 64 /*local entries */>;
+  using ConcurrentMarkingBailoutWorklist =
+      heap::base::Worklist<ConcurrentMarkingBailoutItem,
+                           64 /* local entries */>;
 
   class V8_EXPORT_PRIVATE NotFullyConstructedWorklist {
    public:
@@ -72,6 +82,9 @@ class MarkingWorklists {
   WeakCallbackWorklist* weak_callback_worklist() {
     return &weak_callback_worklist_;
   }
+  ConcurrentMarkingBailoutWorklist* concurrent_marking_bailout_worklist() {
+    return &concurrent_marking_bailout_worklist_;
+  }
 
   void ClearForTesting();
 
@@ -82,6 +95,7 @@ class MarkingWorklists {
       previously_not_fully_constructed_worklist_;
   WriteBarrierWorklist write_barrier_worklist_;
   WeakCallbackWorklist weak_callback_worklist_;
+  ConcurrentMarkingBailoutWorklist concurrent_marking_bailout_worklist_;
 };
 
 }  // namespace internal

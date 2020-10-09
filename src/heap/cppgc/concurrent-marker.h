@@ -26,6 +26,8 @@ class V8_EXPORT_PRIVATE ConcurrentMarkerBase {
   void Start();
   void Cancel();
 
+  void JoinForTesting();
+
   bool NotifyIncrementalMutatorStepCompleted();
 
   HeapBase& heap() const { return heap_; }

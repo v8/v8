@@ -38,8 +38,8 @@ ConservativeMarkingVisitor::ConservativeMarkingVisitor(
 void ConservativeMarkingVisitor::VisitConservatively(
     HeapObjectHeader& header, TraceConservativelyCallback callback) {
   marking_state_.MarkNoPush(header);
-  callback(this, header);
   marking_state_.AccountMarkedBytes(header);
+  callback(this, header);
 }
 
 MutatorMarkingVisitor::MutatorMarkingVisitor(HeapBase& heap,
@@ -65,6 +65,15 @@ ConcurrentMarkingVisitor::ConcurrentMarkingVisitor(
 
 void ConservativeMarkingVisitor::VisitPointer(const void* address) {
   TraceConservativelyIfNeeded(address);
+}
+
+bool ConcurrentMarkingVisitor::DeferTraceToMutatorThreadIfConcurrent(
+    const void* parameter, TraceCallback callback, size_t deferred_size) {
+  marking_state_.concurrent_marking_bailout_worklist().Push(
+      {parameter, callback, deferred_size});
+  static_cast<ConcurrentMarkingState&>(marking_state_)
+      .AccountDeferredMarkedBytes(deferred_size);
+  return true;
 }
 
 }  // namespace internal

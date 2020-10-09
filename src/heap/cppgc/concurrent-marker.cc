@@ -103,10 +103,10 @@ void ConcurrentMarkingTask::ProcessWorklists(
             [&concurrent_marking_state,
              &concurrent_marking_visitor](HeapObjectHeader* header) {
               BasePage::FromPayload(header)->SynchronizedLoad();
+              concurrent_marking_state.AccountMarkedBytes(*header);
               DynamicallyTraceMarkedObject<
                   HeapObjectHeader::AccessMode::kAtomic>(
                   concurrent_marking_visitor, *header);
-              concurrent_marking_state.AccountMarkedBytes(*header);
             })) {
       return;
     }
@@ -124,9 +124,9 @@ void ConcurrentMarkingTask::ProcessWorklists(
               DCHECK(!header.IsInConstruction<
                       HeapObjectHeader::AccessMode::kAtomic>());
               DCHECK(header.IsMarked<HeapObjectHeader::AccessMode::kAtomic>());
+              concurrent_marking_state.AccountMarkedBytes(header);
               item.callback(&concurrent_marking_visitor,
                             item.base_object_payload);
-              concurrent_marking_state.AccountMarkedBytes(header);
             })) {
       return;
     }
@@ -138,10 +138,10 @@ void ConcurrentMarkingTask::ProcessWorklists(
             [&concurrent_marking_state,
              &concurrent_marking_visitor](HeapObjectHeader* header) {
               BasePage::FromPayload(header)->SynchronizedLoad();
+              concurrent_marking_state.AccountMarkedBytes(*header);
               DynamicallyTraceMarkedObject<
                   HeapObjectHeader::AccessMode::kAtomic>(
                   concurrent_marking_visitor, *header);
-              concurrent_marking_state.AccountMarkedBytes(*header);
             })) {
       return;
     }
@@ -168,7 +168,13 @@ void ConcurrentMarkerBase::Start() {
 }
 
 void ConcurrentMarkerBase::Cancel() {
-  if (concurrent_marking_handle_) concurrent_marking_handle_->Cancel();
+  if (concurrent_marking_handle_ && concurrent_marking_handle_->IsRunning())
+    concurrent_marking_handle_->Cancel();
+}
+
+void ConcurrentMarkerBase::JoinForTesting() {
+  if (concurrent_marking_handle_ && concurrent_marking_handle_->IsRunning())
+    concurrent_marking_handle_->Join();
 }
 
 ConcurrentMarkerBase::~ConcurrentMarkerBase() {

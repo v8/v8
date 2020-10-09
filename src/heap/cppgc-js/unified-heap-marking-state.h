@@ -35,7 +35,6 @@ class UnifiedHeapMarkingState {
 };
 
 void UnifiedHeapMarkingState::MarkAndPush(const JSMemberBase& ref) {
-  // TODO(chromium:1056170): Defer concurrent handling using the bailout.
   heap_.RegisterExternallyReferencedObject(
       JSMemberBaseExtractor::ObjectReference(ref));
 }

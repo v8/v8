@@ -31,6 +31,7 @@ class MarkingStateBase {
   inline void RegisterWeakCallback(WeakCallback, const void*);
 
   inline void AccountMarkedBytes(const HeapObjectHeader&);
+  inline void AccountMarkedBytes(size_t);
   size_t marked_bytes() const { return marked_bytes_; }
 
   void Publish() {
@@ -38,6 +39,7 @@ class MarkingStateBase {
     previously_not_fully_constructed_worklist_.Publish();
     weak_callback_worklist_.Publish();
     write_barrier_worklist_.Publish();
+    concurrent_marking_bailout_worklist_.Publish();
   }
 
   MarkingWorklists::MarkingWorklist::Local& marking_worklist() {
@@ -57,6 +59,10 @@ class MarkingStateBase {
   MarkingWorklists::WriteBarrierWorklist::Local& write_barrier_worklist() {
     return write_barrier_worklist_;
   }
+  MarkingWorklists::ConcurrentMarkingBailoutWorklist::Local&
+  concurrent_marking_bailout_worklist() {
+    return concurrent_marking_bailout_worklist_;
+  }
 
  protected:
   inline void MarkAndPush(HeapObjectHeader&, TraceDescriptor);
@@ -74,6 +80,8 @@ class MarkingStateBase {
       previously_not_fully_constructed_worklist_;
   MarkingWorklists::WeakCallbackWorklist::Local weak_callback_worklist_;
   MarkingWorklists::WriteBarrierWorklist::Local write_barrier_worklist_;
+  MarkingWorklists::ConcurrentMarkingBailoutWorklist::Local
+      concurrent_marking_bailout_worklist_;
 
   size_t marked_bytes_ = 0;
 };
@@ -90,7 +98,9 @@ MarkingStateBase::MarkingStateBase(HeapBase& heap,
       previously_not_fully_constructed_worklist_(
           marking_worklists.previously_not_fully_constructed_worklist()),
       weak_callback_worklist_(marking_worklists.weak_callback_worklist()),
-      write_barrier_worklist_(marking_worklists.write_barrier_worklist()) {
+      write_barrier_worklist_(marking_worklists.write_barrier_worklist()),
+      concurrent_marking_bailout_worklist_(
+          marking_worklists.concurrent_marking_bailout_worklist()) {
 }
 
 void MarkingStateBase::MarkAndPush(const void* object, TraceDescriptor desc) {
@@ -141,11 +151,15 @@ void MarkingStateBase::RegisterWeakReferenceIfNeeded(const void* object,
 }
 
 void MarkingStateBase::AccountMarkedBytes(const HeapObjectHeader& header) {
-  marked_bytes_ +=
+  AccountMarkedBytes(
       header.IsLargeObject<HeapObjectHeader::AccessMode::kAtomic>()
           ? reinterpret_cast<const LargePage*>(BasePage::FromPayload(&header))
                 ->PayloadSize()
-          : header.GetSize<HeapObjectHeader::AccessMode::kAtomic>();
+          : header.GetSize<HeapObjectHeader::AccessMode::kAtomic>());
+}
+
+void MarkingStateBase::AccountMarkedBytes(size_t marked_bytes) {
+  marked_bytes_ += marked_bytes;
 }
 
 class MutatorMarkingState : public MarkingStateBase {
@@ -206,6 +220,13 @@ class ConcurrentMarkingState : public MarkingStateBase {
 
   size_t RecentlyMarkedBytes() {
     return marked_bytes_ - std::exchange(last_marked_bytes_, marked_bytes_);
+  }
+
+  inline void AccountDeferredMarkedBytes(size_t deferred_bytes) {
+    // AccountDeferredMarkedBytes is called from Trace methods, which are always
+    // called after AccountMarkedBytes, so there should be no underflow here.
+    DCHECK_LE(deferred_bytes, marked_bytes_);
+    marked_bytes_ -= deferred_bytes;
   }
 
  private:

@@ -47,7 +47,7 @@ using WeakCallback = void (*)(const LivenessBroker&, const void*);
  * };
  * \endcode
  */
-class Visitor {
+class V8_EXPORT Visitor {
  public:
   class Key {
    private:
@@ -131,6 +131,25 @@ class Visitor {
    */
   virtual void RegisterWeakCallback(WeakCallback callback, const void* data) {}
 
+  /**
+   * Defers tracing an object from a concurrent thread to the mutator thread.
+   * Should be called by Trace methods of types that are not safe to trace
+   * concurrently.
+   *
+   * \param parameter tells the trace callback which object was deferred.
+   * \param callback to be invoked for tracing on the mutator thread.
+   * \param deferred_size size of deferred object.
+   *
+   * \returns false if the object does not need to be deferred (i.e. currently
+   * traced on the mutator thread) and true otherwise (i.e. currently traced on
+   * a concurrent thread).
+   */
+  virtual V8_WARN_UNUSED_RESULT bool DeferTraceToMutatorThreadIfConcurrent(
+      const void* parameter, TraceCallback callback, size_t deferred_size) {
+    // By default tracing is not deferred.
+    return false;
+  }
+
  protected:
   virtual void Visit(const void* self, TraceDescriptor) {}
   virtual void VisitWeak(const void* self, TraceDescriptor, WeakCallback,
@@ -200,7 +219,7 @@ class Visitor {
   }
 
 #if V8_ENABLE_CHECKS
-  V8_EXPORT void CheckObjectNotInConstruction(const void* address);
+  void CheckObjectNotInConstruction(const void* address);
 #endif  // V8_ENABLE_CHECKS
 
   template <typename T, typename WeaknessPolicy, typename LocationPolicy,
