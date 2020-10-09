@@ -4904,6 +4904,8 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprI8x16RoundingAverageU:
       return graph()->NewNode(mcgraph()->machine()->I8x16RoundingAverageU(),
                               inputs[0], inputs[1]);
+    case wasm::kExprI8x16Popcnt:
+      return graph()->NewNode(mcgraph()->machine()->I8x16Popcnt(), inputs[0]);
     case wasm::kExprI8x16Abs:
       return graph()->NewNode(mcgraph()->machine()->I8x16Abs(), inputs[0]);
     case wasm::kExprI8x16BitMask:

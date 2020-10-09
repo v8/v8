@@ -760,6 +760,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I8x16GtU();
   const Operator* I8x16GeU();
   const Operator* I8x16RoundingAverageU();
+  const Operator* I8x16Popcnt();
   const Operator* I8x16Abs();
   const Operator* I8x16BitMask();
 

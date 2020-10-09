@@ -24,6 +24,7 @@ namespace compiler {
   V(Arm64Cmp32)                             \
   V(Arm64Cmn)                               \
   V(Arm64Cmn32)                             \
+  V(Arm64Cnt)                               \
   V(Arm64Tst)                               \
   V(Arm64Tst32)                             \
   V(Arm64Or)                                \

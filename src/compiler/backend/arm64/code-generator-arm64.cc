@@ -1420,6 +1420,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Cmn32:
       __ Cmn(i.InputOrZeroRegister32(0), i.InputOperand2_32(1));
       break;
+    case kArm64Cnt: {
+      VectorFormat f = VectorFormatFillQ(MiscField::decode(opcode));
+      __ Cnt(i.OutputSimd128Register().Format(f),
+             i.InputSimd128Register(0).Format(f));
+      break;
+    }
     case kArm64Tst:
       __ Tst(i.InputOrZeroRegister64(0), i.InputOperand2_64(1));
       break;

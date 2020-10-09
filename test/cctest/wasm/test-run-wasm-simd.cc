@@ -2331,6 +2331,31 @@ WASM_SIMD_TEST(I8x16Abs) {
   RunI8x16UnOpTest(execution_tier, lower_simd, kExprI8x16Abs, Abs);
 }
 
+#if V8_TARGET_ARCH_ARM64
+// TODO(v8:11002) Prototype i8x16.popcnt.
+WASM_SIMD_TEST_NO_LOWERING(I8x16Popcnt) {
+  FLAG_SCOPE(wasm_simd_post_mvp);
+  WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
+  // Global to hold output.
+  int8_t* g = r.builder().AddGlobal<int8_t>(kWasmS128);
+  // Build fn to splat test value, perform unop, and write the result.
+  byte value = 0;
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(
+            0, WASM_SIMD_UNOP(kExprI8x16Popcnt, WASM_GET_LOCAL(temp1))),
+        WASM_ONE);
+
+  FOR_UINT8_INPUTS(x) {
+    r.Call(x);
+    unsigned expected = base::bits::CountPopulation(x);
+    for (int i = 0; i < 16; i++) {
+      CHECK_EQ(expected, ReadLittleEndianValue<int8_t>(&g[i]));
+    }
+  }
+}
+#endif  // V8_TARGET_ARCH_ARM64
+
 // Tests both signed and unsigned conversion from I16x8 (packing).
 WASM_SIMD_TEST(I8x16ConvertI16x8) {
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);

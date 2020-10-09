@@ -3766,6 +3766,12 @@ void InstructionSelector::VisitI16x8UConvertI8x16High(Node* node) {
   VisitSignExtendLong(this, kArm64Uxtl2, node, 16);
 }
 
+void InstructionSelector::VisitI8x16Popcnt(Node* node) {
+  InstructionCode code = kArm64Cnt;
+  code |= MiscField::encode(8);
+  VisitRR(this, code, node);
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

@@ -2274,6 +2274,8 @@ class WasmInterpreterInternals {
       UNOP_CASE(I16x8Abs, i16x8, int8, 8, std::abs(a))
       UNOP_CASE(I8x16Neg, i8x16, int16, 16, base::NegateWithWraparound(a))
       UNOP_CASE(I8x16Abs, i8x16, int16, 16, std::abs(a))
+      UNOP_CASE(I8x16Popcnt, i8x16, int16, 16,
+                base::bits::CountPopulation<uint8_t>(a))
 #undef UNOP_CASE
 
 // Cast to double in call to signbit is due to MSCV issue, see

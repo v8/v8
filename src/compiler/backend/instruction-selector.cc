@@ -2198,6 +2198,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI8x16GeU(node);
     case IrOpcode::kI8x16RoundingAverageU:
       return MarkAsSimd128(node), VisitI8x16RoundingAverageU(node);
+    case IrOpcode::kI8x16Popcnt:
+      return MarkAsSimd128(node), VisitI8x16Popcnt(node);
     case IrOpcode::kI8x16Abs:
       return MarkAsSimd128(node), VisitI8x16Abs(node);
     case IrOpcode::kI8x16BitMask:
@@ -2697,6 +2699,9 @@ void InstructionSelector::VisitI64x2UConvertI32x4Low(Node* node) {
 void InstructionSelector::VisitI64x2UConvertI32x4High(Node* node) {
   UNIMPLEMENTED();
 }
+
+// TODO(v8:11002) Prototype i8x16.popcnt.
+void InstructionSelector::VisitI8x16Popcnt(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM64
 
 #if !V8_TARGET_ARCH_X64

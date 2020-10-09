@@ -937,6 +937,7 @@
   V(I8x16GtU)                   \
   V(I8x16GeU)                   \
   V(I8x16RoundingAverageU)      \
+  V(I8x16Popcnt)                \
   V(I8x16Abs)                   \
   V(I8x16BitMask)               \
   V(S128Load)                   \
