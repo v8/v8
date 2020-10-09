@@ -85,6 +85,9 @@ struct FieldAccess {
   ConstFieldInfo const_field_info;      // the constness of this access, and the
                                     // field owner map, if the access is const
   bool is_store_in_literal;  // originates from a kStoreInLiteral access
+#ifdef V8_HEAP_SANDBOX
+  ExternalPointerTag external_pointer_tag = kExternalPointerNullTag;
+#endif
 
   FieldAccess()
       : base_is_tagged(kTaggedBase),
@@ -101,7 +104,12 @@ struct FieldAccess {
               WriteBarrierKind write_barrier_kind,
               LoadSensitivity load_sensitivity = LoadSensitivity::kUnsafe,
               ConstFieldInfo const_field_info = ConstFieldInfo::None(),
-              bool is_store_in_literal = false)
+              bool is_store_in_literal = false
+#ifdef V8_HEAP_SANDBOX
+              ,
+              ExternalPointerTag external_pointer_tag = kExternalPointerNullTag
+#endif
+              )
       : base_is_tagged(base_is_tagged),
         offset(offset),
         name(name),
@@ -111,7 +119,12 @@ struct FieldAccess {
         write_barrier_kind(write_barrier_kind),
         load_sensitivity(load_sensitivity),
         const_field_info(const_field_info),
-        is_store_in_literal(is_store_in_literal) {
+        is_store_in_literal(is_store_in_literal)
+#ifdef V8_HEAP_SANDBOX
+        ,
+        external_pointer_tag(external_pointer_tag)
+#endif
+  {
     DCHECK_GE(offset, 0);
   }
 

@@ -3381,7 +3381,8 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   Register signature = foreign_signature;
   __ LoadExternalPointerField(
       signature,
-      FieldOperand(foreign_signature, Foreign::kForeignAddressOffset));
+      FieldOperand(foreign_signature, Foreign::kForeignAddressOffset),
+      kForeignForeignAddressTag);
   foreign_signature = no_reg;
   Register return_count = r8;
   __ movq(return_count,
@@ -4338,7 +4339,8 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
       scratch, FieldOperand(callback, AccessorInfo::kJsGetterOffset));
   __ LoadExternalPointerField(
       api_function_address,
-      FieldOperand(scratch, Foreign::kForeignAddressOffset));
+      FieldOperand(scratch, Foreign::kForeignAddressOffset),
+      kForeignForeignAddressTag);
 
   // +3 is to skip prolog, return address and name handle.
   Operand return_value_operand(

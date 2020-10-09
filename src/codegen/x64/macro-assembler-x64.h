@@ -691,7 +691,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Loads a field containing off-heap pointer and does necessary decoding
   // if V8 heap sandbox is enabled.
-  void LoadExternalPointerField(Register destination, Operand field_operand);
+  void LoadExternalPointerField(Register destination, Operand field_operand,
+                                ExternalPointerTag tag);
 
  protected:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;

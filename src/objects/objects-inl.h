@@ -646,18 +646,18 @@ void Object::InitExternalPointerField(size_t offset, Isolate* isolate) {
 }
 
 void Object::InitExternalPointerField(size_t offset, Isolate* isolate,
-                                      Address value) {
-  i::InitExternalPointerField(field_address(offset), isolate, value);
+                                      Address value, ExternalPointerTag tag) {
+  i::InitExternalPointerField(field_address(offset), isolate, value, tag);
 }
 
-Address Object::ReadExternalPointerField(size_t offset,
-                                         IsolateRoot isolate) const {
-  return i::ReadExternalPointerField(field_address(offset), isolate);
+Address Object::ReadExternalPointerField(size_t offset, IsolateRoot isolate,
+                                         ExternalPointerTag tag) const {
+  return i::ReadExternalPointerField(field_address(offset), isolate, tag);
 }
 
 void Object::WriteExternalPointerField(size_t offset, Isolate* isolate,
-                                       Address value) {
-  i::WriteExternalPointerField(field_address(offset), isolate, value);
+                                       Address value, ExternalPointerTag tag) {
+  i::WriteExternalPointerField(field_address(offset), isolate, value, tag);
 }
 
 ObjectSlot HeapObject::RawField(int byte_offset) const {

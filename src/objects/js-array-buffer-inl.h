@@ -38,13 +38,15 @@ void JSArrayBuffer::set_byte_length(size_t value) {
 }
 
 DEF_GETTER(JSArrayBuffer, backing_store, void*) {
-  Address value = ReadExternalPointerField(kBackingStoreOffset, isolate);
+  Address value = ReadExternalPointerField(kBackingStoreOffset, isolate,
+                                           kArrayBufferBackingStoreTag);
   return reinterpret_cast<void*>(value);
 }
 
 void JSArrayBuffer::set_backing_store(Isolate* isolate, void* value) {
   WriteExternalPointerField(kBackingStoreOffset, isolate,
-                            reinterpret_cast<Address>(value));
+                            reinterpret_cast<Address>(value),
+                            kArrayBufferBackingStoreTag);
 }
 
 uint32_t JSArrayBuffer::GetBackingStoreRefForDeserialization() const {
@@ -192,7 +194,8 @@ void JSTypedArray::set_length(size_t value) {
 }
 
 DEF_GETTER(JSTypedArray, external_pointer, Address) {
-  return ReadExternalPointerField(kExternalPointerOffset, isolate);
+  return ReadExternalPointerField(kExternalPointerOffset, isolate,
+                                  kTypedArrayExternalPointerTag);
 }
 
 DEF_GETTER(JSTypedArray, external_pointer_raw, ExternalPointer_t) {
@@ -200,7 +203,8 @@ DEF_GETTER(JSTypedArray, external_pointer_raw, ExternalPointer_t) {
 }
 
 void JSTypedArray::set_external_pointer(Isolate* isolate, Address value) {
-  WriteExternalPointerField(kExternalPointerOffset, isolate, value);
+  WriteExternalPointerField(kExternalPointerOffset, isolate, value,
+                            kTypedArrayExternalPointerTag);
 }
 
 Address JSTypedArray::ExternalPointerCompensationForOnHeapArray(
@@ -297,8 +301,8 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
 }
 
 DEF_GETTER(JSDataView, data_pointer, void*) {
-  return reinterpret_cast<void*>(
-      ReadExternalPointerField(kDataPointerOffset, isolate));
+  return reinterpret_cast<void*>(ReadExternalPointerField(
+      kDataPointerOffset, isolate, kDataViewDataPointerTag));
 }
 
 void JSDataView::AllocateExternalPointerEntries(Isolate* isolate) {
@@ -307,7 +311,8 @@ void JSDataView::AllocateExternalPointerEntries(Isolate* isolate) {
 
 void JSDataView::set_data_pointer(Isolate* isolate, void* value) {
   WriteExternalPointerField(kDataPointerOffset, isolate,
-                            reinterpret_cast<Address>(value));
+                            reinterpret_cast<Address>(value),
+                            kDataViewDataPointerTag);
 }
 
 }  // namespace internal

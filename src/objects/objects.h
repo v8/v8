@@ -671,11 +671,11 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   //
   inline void InitExternalPointerField(size_t offset, Isolate* isolate);
   inline void InitExternalPointerField(size_t offset, Isolate* isolate,
-                                       Address value);
-  inline Address ReadExternalPointerField(size_t offset,
-                                          IsolateRoot isolate) const;
+                                       Address value, ExternalPointerTag tag);
+  inline Address ReadExternalPointerField(size_t offset, IsolateRoot isolate,
+                                          ExternalPointerTag tag) const;
   inline void WriteExternalPointerField(size_t offset, Isolate* isolate,
-                                        Address value);
+                                        Address value, ExternalPointerTag tag);
 
  protected:
   inline Address field_address(size_t offset) const {

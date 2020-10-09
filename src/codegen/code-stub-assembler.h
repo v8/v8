@@ -985,62 +985,71 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Initialize an external pointer field in an object with given value.
   void InitializeExternalPointerField(TNode<HeapObject> object, int offset,
-                                      TNode<RawPtrT> pointer) {
-    InitializeExternalPointerField(object, IntPtrConstant(offset), pointer);
+                                      TNode<RawPtrT> pointer,
+                                      ExternalPointerTag tag) {
+    InitializeExternalPointerField(object, IntPtrConstant(offset), pointer,
+                                   tag);
   }
 
   void InitializeExternalPointerField(TNode<HeapObject> object,
                                       TNode<IntPtrT> offset,
-                                      TNode<RawPtrT> pointer) {
+                                      TNode<RawPtrT> pointer,
+                                      ExternalPointerTag tag) {
     InitializeExternalPointerField(object, offset);
-    StoreExternalPointerToObject(object, offset, pointer);
+    StoreExternalPointerToObject(object, offset, pointer, tag);
   }
 
   // Load an external pointer value from an object.
   TNode<RawPtrT> LoadExternalPointerFromObject(TNode<HeapObject> object,
-                                               int offset) {
-    return LoadExternalPointerFromObject(object, IntPtrConstant(offset));
+                                               int offset,
+                                               ExternalPointerTag tag) {
+    return LoadExternalPointerFromObject(object, IntPtrConstant(offset), tag);
   }
 
   TNode<RawPtrT> LoadExternalPointerFromObject(TNode<HeapObject> object,
-                                               TNode<IntPtrT> offset);
+                                               TNode<IntPtrT> offset,
+                                               ExternalPointerTag tag);
 
   // Store external object pointer to object.
   void StoreExternalPointerToObject(TNode<HeapObject> object, int offset,
-                                    TNode<RawPtrT> pointer) {
-    StoreExternalPointerToObject(object, IntPtrConstant(offset), pointer);
+                                    TNode<RawPtrT> pointer,
+                                    ExternalPointerTag tag) {
+    StoreExternalPointerToObject(object, IntPtrConstant(offset), pointer, tag);
   }
 
   void StoreExternalPointerToObject(TNode<HeapObject> object,
                                     TNode<IntPtrT> offset,
-                                    TNode<RawPtrT> pointer);
+                                    TNode<RawPtrT> pointer,
+                                    ExternalPointerTag tag);
 
   TNode<RawPtrT> LoadForeignForeignAddressPtr(TNode<Foreign> object) {
-    return LoadExternalPointerFromObject(object,
-                                         Foreign::kForeignAddressOffset);
+    return LoadExternalPointerFromObject(object, Foreign::kForeignAddressOffset,
+                                         kForeignForeignAddressTag);
   }
 
   TNode<RawPtrT> LoadExternalStringResourcePtr(TNode<ExternalString> object) {
-    return LoadExternalPointerFromObject(object,
-                                         ExternalString::kResourceOffset);
+    return LoadExternalPointerFromObject(
+        object, ExternalString::kResourceOffset, kExternalStringResourceTag);
   }
 
   TNode<RawPtrT> LoadExternalStringResourceDataPtr(
       TNode<ExternalString> object) {
     return LoadExternalPointerFromObject(object,
-                                         ExternalString::kResourceDataOffset);
+                                         ExternalString::kResourceDataOffset,
+                                         kExternalStringResourceDataTag);
   }
 
   TNode<RawPtrT> LoadJSTypedArrayExternalPointerPtr(
       TNode<JSTypedArray> holder) {
     return LoadExternalPointerFromObject(holder,
-                                         JSTypedArray::kExternalPointerOffset);
+                                         JSTypedArray::kExternalPointerOffset,
+                                         kTypedArrayExternalPointerTag);
   }
 
   void StoreJSTypedArrayExternalPointerPtr(TNode<JSTypedArray> holder,
                                            TNode<RawPtrT> value) {
     StoreExternalPointerToObject(holder, JSTypedArray::kExternalPointerOffset,
-                                 value);
+                                 value, kTypedArrayExternalPointerTag);
   }
 
   // Load value from current parent frame by given offset in bytes.

@@ -188,9 +188,10 @@ int Deserializer::WriteAddress(TSlot dest, Address value) {
 }
 
 template <typename TSlot>
-int Deserializer::WriteExternalPointer(TSlot dest, Address value) {
+int Deserializer::WriteExternalPointer(TSlot dest, Address value,
+                                       ExternalPointerTag tag) {
   DCHECK(!next_reference_is_weak_);
-  InitExternalPointerField(dest.address(), isolate(), value);
+  InitExternalPointerField(dest.address(), isolate(), value, tag);
   STATIC_ASSERT(IsAligned(kExternalPointerSize, TSlot::kSlotDataSize));
   return (kExternalPointerSize / TSlot::kSlotDataSize);
 }
@@ -848,7 +849,8 @@ int Deserializer::ReadSingleBytecodeData(byte data,
     case kExternalReference: {
       Address address = ReadExternalReferenceCase();
       if (V8_HEAP_SANDBOX_BOOL && data == kSandboxedExternalReference) {
-        return WriteExternalPointer(slot_accessor.slot(), address);
+        return WriteExternalPointer(slot_accessor.slot(), address,
+                                    kForeignForeignAddressTag);
       } else {
         DCHECK(!V8_HEAP_SANDBOX_BOOL);
         return WriteAddress(slot_accessor.slot(), address);
@@ -1008,7 +1010,8 @@ int Deserializer::ReadSingleBytecodeData(byte data,
         address = reinterpret_cast<Address>(NoExternalReferencesCallback);
       }
       if (V8_HEAP_SANDBOX_BOOL && data == kSandboxedApiReference) {
-        return WriteExternalPointer(slot_accessor.slot(), address);
+        return WriteExternalPointer(slot_accessor.slot(), address,
+                                    kForeignForeignAddressTag);
       } else {
         DCHECK(!V8_HEAP_SANDBOX_BOOL);
         return WriteAddress(slot_accessor.slot(), address);

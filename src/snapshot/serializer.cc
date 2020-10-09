@@ -500,7 +500,7 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
   // The embedder-allocated backing store only exists for the off-heap case.
 #ifdef V8_HEAP_SANDBOX
   uint32_t external_pointer_entry =
-      buffer.GetBackingStoreRefForDeserialization();
+      buffer->GetBackingStoreRefForDeserialization();
 #endif
   if (backing_store != nullptr) {
     uint32_t ref = SerializeBackingStore(backing_store, byte_length);
@@ -534,7 +534,8 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
           &reference)) {
     DCHECK(reference.is_from_api());
 #ifdef V8_HEAP_SANDBOX
-    uint32_t external_pointer_entry = string.GetResourceRefForDeserialization();
+    uint32_t external_pointer_entry =
+        string->GetResourceRefForDeserialization();
 #endif
     string->SetResourceRefForSerialization(reference.index());
     SerializeObject();

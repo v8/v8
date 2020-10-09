@@ -343,7 +343,8 @@ void TurboAssembler::SaveRegisters(RegList registers) {
 }
 
 void TurboAssembler::LoadExternalPointerField(Register destination,
-                                              Operand field_operand) {
+                                              Operand field_operand,
+                                              ExternalPointerTag tag) {
 #ifdef V8_HEAP_SANDBOX
   LoadAddress(kScratchRegister,
               ExternalReference::external_pointer_table_address(isolate()));
@@ -351,6 +352,10 @@ void TurboAssembler::LoadExternalPointerField(Register destination,
        Operand(kScratchRegister, Internals::kExternalPointerTableBufferOffset));
   movl(destination, field_operand);
   movq(destination, Operand(kScratchRegister, destination, times_8, 0));
+  if (tag != 0) {
+    movq(kScratchRegister, Immediate64(tag));
+    xorq(destination, kScratchRegister);
+  }
 #else
   movq(destination, field_operand);
 #endif  // V8_HEAP_SANDBOX

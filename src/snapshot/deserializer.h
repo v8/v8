@@ -168,7 +168,8 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   inline int WriteAddress(TSlot dest, Address value);
 
   template <typename TSlot>
-  inline int WriteExternalPointer(TSlot dest, Address value);
+  inline int WriteExternalPointer(TSlot dest, Address value,
+                                  ExternalPointerTag tag);
 
   // Fills in a heap object's data from start to end (exclusive). Start and end
   // are slot indices within the object.

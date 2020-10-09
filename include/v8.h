@@ -11454,7 +11454,8 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
     offset += I::kEmbedderDataSlotRawPayloadOffset;
 #endif
     internal::Isolate* isolate = I::GetIsolateForHeapSandbox(obj);
-    A value = I::ReadExternalPointerField(isolate, obj, offset);
+    A value = I::ReadExternalPointerField(
+        isolate, obj, offset, internal::kEmbedderDataSlotPayloadTag);
     return reinterpret_cast<void*>(value);
   }
 #endif
@@ -11487,7 +11488,8 @@ String::ExternalStringResource* String::GetExternalStringResource() const {
   if (I::IsExternalTwoByteString(I::GetInstanceType(obj))) {
     internal::Isolate* isolate = I::GetIsolateForHeapSandbox(obj);
     A value =
-        I::ReadExternalPointerField(isolate, obj, I::kStringResourceOffset);
+        I::ReadExternalPointerField(isolate, obj, I::kStringResourceOffset,
+                                    internal::kExternalStringResourceTag);
     result = reinterpret_cast<String::ExternalStringResource*>(value);
   } else {
     result = GetExternalStringResourceSlow();
@@ -11511,7 +11513,8 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBase(
       type == I::kExternalTwoByteRepresentationTag) {
     internal::Isolate* isolate = I::GetIsolateForHeapSandbox(obj);
     A value =
-        I::ReadExternalPointerField(isolate, obj, I::kStringResourceOffset);
+        I::ReadExternalPointerField(isolate, obj, I::kStringResourceOffset,
+                                    internal::kExternalStringResourceTag);
     resource = reinterpret_cast<ExternalStringResourceBase*>(value);
   } else {
     resource = GetExternalStringResourceBaseSlow(encoding_out);
@@ -12078,7 +12081,8 @@ void* Context::GetAlignedPointerFromEmbedderData(int index) {
 #endif
   internal::Isolate* isolate = I::GetIsolateForHeapSandbox(ctx);
   return reinterpret_cast<void*>(
-      I::ReadExternalPointerField(isolate, embedder_data, value_offset));
+      I::ReadExternalPointerField(isolate, embedder_data, value_offset,
+                                  internal::kEmbedderDataSlotPayloadTag));
 #else
   return SlowGetAlignedPointerFromEmbedderData(index);
 #endif

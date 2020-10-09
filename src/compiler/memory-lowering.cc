@@ -306,7 +306,8 @@ Reduction MemoryLowering::ReduceLoadElement(Node* node) {
   return Changed(node);
 }
 
-Node* MemoryLowering::DecodeExternalPointer(Node* node) {
+Node* MemoryLowering::DecodeExternalPointer(
+    Node* node, ExternalPointerTag external_pointer_tag) {
 #ifdef V8_HEAP_SANDBOX
   DCHECK(V8_HEAP_SANDBOX_BOOL);
   DCHECK(node->opcode() == IrOpcode::kLoad ||
@@ -333,6 +334,10 @@ Node* MemoryLowering::DecodeExternalPointer(Node* node) {
   Node* offset = __ Int32Mul(index, __ Int32Constant(8));
   Node* decoded_ptr =
       __ Load(MachineType::Pointer(), table, __ ChangeUint32ToUint64(offset));
+  if (external_pointer_tag != 0) {
+    Node* tag = __ IntPtrConstant(external_pointer_tag);
+    decoded_ptr = __ WordXor(decoded_ptr, tag);
+  }
   return decoded_ptr;
 #else
   return node;
@@ -357,7 +362,12 @@ Reduction MemoryLowering::ReduceLoadField(Node* node) {
   }
   if (V8_HEAP_SANDBOX_BOOL &&
       access.type.Is(Type::SandboxedExternalPointer())) {
-    node = DecodeExternalPointer(node);
+#ifdef V8_HEAP_SANDBOX
+    ExternalPointerTag tag = access.external_pointer_tag;
+#else
+    ExternalPointerTag tag = kExternalPointerNullTag;
+#endif
+    node = DecodeExternalPointer(node, tag);
     return Replace(node);
   } else {
     DCHECK(!access.type.Is(Type::SandboxedExternalPointer()));

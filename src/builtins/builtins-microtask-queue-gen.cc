@@ -54,7 +54,8 @@ TNode<RawPtrT> MicrotaskQueueBuiltinsAssembler::GetMicrotaskQueue(
     TNode<Context> native_context) {
   CSA_ASSERT(this, IsNativeContext(native_context));
   return LoadExternalPointerFromObject(native_context,
-                                       NativeContext::kMicrotaskQueueOffset);
+                                       NativeContext::kMicrotaskQueueOffset,
+                                       kNativeContextMicrotaskQueueTag);
 }
 
 TNode<RawPtrT> MicrotaskQueueBuiltinsAssembler::GetMicrotaskRingBuffer(

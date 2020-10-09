@@ -1423,7 +1423,8 @@ void CodeStubAssembler::InitializeExternalPointerField(TNode<HeapObject> object,
 }
 
 TNode<RawPtrT> CodeStubAssembler::LoadExternalPointerFromObject(
-    TNode<HeapObject> object, TNode<IntPtrT> offset) {
+    TNode<HeapObject> object, TNode<IntPtrT> offset,
+    ExternalPointerTag external_pointer_tag) {
 #ifdef V8_HEAP_SANDBOX
   TNode<ExternalReference> external_pointer_table_address = ExternalConstant(
       ExternalReference::external_pointer_table_address(isolate()));
@@ -1438,16 +1439,20 @@ TNode<RawPtrT> CodeStubAssembler::LoadExternalPointerFromObject(
   TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
       ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
 
-  return UncheckedCast<RawPtrT>(
-      Load(MachineType::Pointer(), table, table_offset));
+  TNode<UintPtrT> entry = Load<UintPtrT>(table, table_offset);
+  if (external_pointer_tag != 0) {
+    TNode<UintPtrT> tag = UintPtrConstant(external_pointer_tag);
+    entry = UncheckedCast<UintPtrT>(WordXor(entry, tag));
+  }
+  return UncheckedCast<RawPtrT>(UncheckedCast<WordT>(entry));
 #else
   return LoadObjectField<RawPtrT>(object, offset);
 #endif  // V8_HEAP_SANDBOX
 }
 
-void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
-                                                     TNode<IntPtrT> offset,
-                                                     TNode<RawPtrT> pointer) {
+void CodeStubAssembler::StoreExternalPointerToObject(
+    TNode<HeapObject> object, TNode<IntPtrT> offset, TNode<RawPtrT> pointer,
+    ExternalPointerTag external_pointer_tag) {
 #ifdef V8_HEAP_SANDBOX
   TNode<ExternalReference> external_pointer_table_address = ExternalConstant(
       ExternalReference::external_pointer_table_address(isolate()));
@@ -1462,8 +1467,13 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
   TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
       ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
 
+  TNode<UintPtrT> value = UncheckedCast<UintPtrT>(pointer);
+  if (external_pointer_tag != 0) {
+    TNode<UintPtrT> tag = UintPtrConstant(external_pointer_tag);
+    value = UncheckedCast<UintPtrT>(WordXor(pointer, tag));
+  }
   StoreNoWriteBarrier(MachineType::PointerRepresentation(), table, table_offset,
-                      pointer);
+                      value);
 #else
   StoreObjectFieldNoWriteBarrier<RawPtrT>(object, offset, pointer);
 #endif  // V8_HEAP_SANDBOX
@@ -12666,7 +12676,8 @@ void CodeStubAssembler::ThrowIfArrayBufferViewBufferIsDetached(
 TNode<RawPtrT> CodeStubAssembler::LoadJSArrayBufferBackingStorePtr(
     TNode<JSArrayBuffer> array_buffer) {
   return LoadExternalPointerFromObject(array_buffer,
-                                       JSArrayBuffer::kBackingStoreOffset);
+                                       JSArrayBuffer::kBackingStoreOffset,
+                                       kArrayBufferBackingStoreTag);
 }
 
 TNode<JSArrayBuffer> CodeStubAssembler::LoadJSArrayBufferViewBuffer(

@@ -3673,8 +3673,9 @@ MaybeLocal<Uint32> Value::ToUint32(Local<Context> context) const {
 }
 
 i::Address i::DecodeExternalPointerImpl(const i::Isolate* isolate,
-                                        i::ExternalPointer_t encoded_pointer) {
-  return i::DecodeExternalPointer(isolate, encoded_pointer);
+                                        i::ExternalPointer_t encoded_pointer,
+                                        ExternalPointerTag tag) {
+  return i::DecodeExternalPointer(isolate, encoded_pointer, tag);
 }
 
 i::Isolate* i::IsolateFromNeverReadOnlySpaceObject(i::Address obj) {
@@ -5549,7 +5550,8 @@ String::ExternalStringResource* String::GetExternalStringResourceSlow() const {
   if (i::StringShape(str).IsExternalTwoByte()) {
     internal::Isolate* isolate = I::GetIsolateForHeapSandbox(str.ptr());
     internal::Address value = I::ReadExternalPointerField(
-        isolate, str.ptr(), I::kStringResourceOffset);
+        isolate, str.ptr(), I::kStringResourceOffset,
+        internal::kExternalStringResourceTag);
     return reinterpret_cast<String::ExternalStringResource*>(value);
   }
   return nullptr;
@@ -5573,7 +5575,8 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBaseSlow(
       i::StringShape(str).IsExternalTwoByte()) {
     internal::Isolate* isolate = I::GetIsolateForHeapSandbox(string);
     internal::Address value =
-        I::ReadExternalPointerField(isolate, string, I::kStringResourceOffset);
+        I::ReadExternalPointerField(isolate, string, I::kStringResourceOffset,
+                                    internal::kExternalStringResourceTag);
     resource = reinterpret_cast<ExternalStringResourceBase*>(value);
   }
   return resource;

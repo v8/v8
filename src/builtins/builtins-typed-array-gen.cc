@@ -67,7 +67,8 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
   StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kByteLengthOffset,
                                  byte_length);
   InitializeExternalPointerField(buffer, JSArrayBuffer::kBackingStoreOffset,
-                                 PointerConstant(nullptr));
+                                 PointerConstant(nullptr),
+                                 kArrayBufferBackingStoreTag);
   StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kExtensionOffset,
                                  IntPtrConstant(0));
   for (int offset = JSArrayBuffer::kHeaderSize;

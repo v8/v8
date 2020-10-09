@@ -81,7 +81,7 @@ void EmbedderDataSlot::store_tagged(JSObject object, int embedder_field_index,
 #endif
 }
 
-bool EmbedderDataSlot::ToAlignedPointer(IsolateRoot isolate,
+bool EmbedderDataSlot::ToAlignedPointer(IsolateRoot isolate_root,
                                         void** out_pointer) const {
   // We don't care about atomicity of access here because embedder slots
   // are accessed this way only from the main thread via API during "mutator"
@@ -90,7 +90,9 @@ bool EmbedderDataSlot::ToAlignedPointer(IsolateRoot isolate,
   Address raw_value;
 #ifdef V8_HEAP_SANDBOX
   uint32_t index = base::Memory<uint32_t>(address() + kRawPayloadOffset);
-  raw_value = isolate->external_pointer_table().get(index);
+  const Isolate* isolate = Isolate::FromRootAddress(isolate_root.address());
+  raw_value = isolate->external_pointer_table().get(index) ^
+              kEmbedderDataSlotPayloadTag;
 #else
   if (COMPRESS_POINTERS_BOOL) {
     // TODO(ishell, v8:8875): When pointer compression is enabled 8-byte size
@@ -106,19 +108,21 @@ bool EmbedderDataSlot::ToAlignedPointer(IsolateRoot isolate,
   return HAS_SMI_TAG(raw_value);
 }
 
-bool EmbedderDataSlot::ToAlignedPointerSafe(IsolateRoot isolate,
+bool EmbedderDataSlot::ToAlignedPointerSafe(IsolateRoot isolate_root,
                                             void** out_pointer) const {
 #ifdef V8_HEAP_SANDBOX
   uint32_t index = base::Memory<uint32_t>(address() + kRawPayloadOffset);
   Address raw_value;
+  const Isolate* isolate = Isolate::FromRootAddress(isolate_root.address());
   if (isolate->external_pointer_table().is_valid_index(index)) {
-    raw_value = isolate->external_pointer_table().get(index);
+    raw_value = isolate->external_pointer_table().get(index) ^
+                kEmbedderDataSlotPayloadTag;
     *out_pointer = reinterpret_cast<void*>(raw_value);
     return true;
   }
   return false;
 #else
-  return ToAlignedPointer(isolate, out_pointer);
+  return ToAlignedPointer(isolate_root, out_pointer);
 #endif  // V8_HEAP_SANDBOX
 }
 
@@ -133,7 +137,8 @@ bool EmbedderDataSlot::store_aligned_pointer(Isolate* isolate, void* ptr) {
     Object index_as_object =
         ObjectSlot(address() + kRawPayloadOffset).Relaxed_Load();
     uint32_t index = static_cast<uint32_t>(index_as_object.ptr());
-    isolate->external_pointer_table().set(index, value);
+    isolate->external_pointer_table().set(index,
+                                          value ^ kEmbedderDataSlotPayloadTag);
     return true;
   }
 #endif
