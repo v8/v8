@@ -49,18 +49,47 @@ body {
   margin-left: 2.5%;
   margin-right: 2.5%;
   background-color: var(--background-color);
-  letter-spacing: 0.5px;
 }
-h2,
-h4 {
-  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
-  transition: 0.3s;
-  color: var(--on-surface-color);
-  padding: 10px 20px;
-  text-align: center;
-  text-decoration: none;
+
+::-webkit-scrollbar, ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner {
+  background-color: rgba(0, 0, 0, 0.0);
+}
+::-webkit-scrollbar, ::-webkit-scrollbar-track {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb { 
+  background-color: rgba(128, 128, 128, 0.5);
+  border-radius: 8px;
+  cursor: pointer;
+}
+::-webkit-scrollbar-thumb:hover { 
+  background-color: rgba(128, 128, 128, 0.8);
+}
+
+kbd {
+  color: var(--on-primary-color);
+  background-color: var(--primary-color);
+  border-radius: 3px;
+  border: 1px solid var(--on-primary-color);
   display: inline-block;
+  font-size: .9em;
+  font-weight: bold;
+  padding: 0px 4px 2px 4px;
+  white-space: nowrap;
 }
+
+a {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--secondary-color);
+}
+a:link {
+  color: var(--secondary-color);
+}
+
 dl {
   display: grid;
   grid-template-columns: min-content auto;
@@ -73,15 +102,15 @@ dt {
 dd {
   margin: 0;
 }
+
 .panel {
   box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
-  transition: 0.3s;
   background-color: var(--surface-color);
   color: var(--on-surface-color);
   padding: 10px 10px 10px 10px;
-  margin: auto;
-  overflow-x: scroll;
+  overflow-x: auto;
 }
+
 button {
   cursor: pointer;
 }
@@ -146,10 +175,4 @@ button {
   background-color: var(--primary-color);
   color: var(--on-primary-color);
   cursor: pointer;
-}
-
-a:link {
-  color: var(--secondary-color);
-  background-color: transparent;
-  text-decoration: none;
 }

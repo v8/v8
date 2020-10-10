@@ -8,7 +8,7 @@ import { Event } from './log.mjs';
 // ===========================================================================
 // Map Log Events
 
-const kChunkHeight = 250;
+const kChunkHeight = 200;
 const kChunkWidth = 10;
 
 function define(prototype, name, fn) {
