@@ -100,6 +100,7 @@
 #include "src/regexp/regexp-utils.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/code-serializer.h"
+#include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/snapshot.h"
 #include "src/snapshot/startup-serializer.h"  // For SerializedHandleChecker.
 #include "src/strings/char-predicates-inl.h"
@@ -9007,6 +9008,14 @@ void Isolate::GetCodeRange(void** start, size_t* length_in_bytes) {
       isolate->heap()->memory_allocator()->code_range();
   *start = reinterpret_cast<void*>(code_range.begin());
   *length_in_bytes = code_range.size();
+}
+
+void Isolate::GetEmbeddedCodeRange(const void** start,
+                                   size_t* length_in_bytes) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  i::EmbeddedData d = i::EmbeddedData::FromBlob(isolate);
+  *start = reinterpret_cast<const void*>(d.code());
+  *length_in_bytes = d.code_size();
 }
 
 JSEntryStubs Isolate::GetJSEntryStubs() {

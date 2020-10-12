@@ -9368,6 +9368,12 @@ class V8_EXPORT Isolate {
   void GetCodeRange(void** start, size_t* length_in_bytes);
 
   /**
+   * As GetCodeRange, but for embedded builtins (these live in a distinct
+   * memory region from other V8 Code objects).
+   */
+  void GetEmbeddedCodeRange(const void** start, size_t* length_in_bytes);
+
+  /**
    * Returns the JSEntryStubs necessary for use with the Unwinder API.
    */
   JSEntryStubs GetJSEntryStubs();
