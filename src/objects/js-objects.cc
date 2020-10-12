@@ -322,7 +322,11 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
     // Convert to slow properties if we're guaranteed to overflow the number of
     // descriptors.
     int source_length =
-        from->property_dictionary().NumberOfEnumerableProperties();
+        from->IsJSGlobalObject()
+            ? JSGlobalObject::cast(*from)
+                  .global_dictionary()
+                  .NumberOfEnumerableProperties()
+            : from->property_dictionary().NumberOfEnumerableProperties();
     if (source_length > kMaxNumberOfDescriptors) {
       JSObject::NormalizeProperties(isolate, Handle<JSObject>::cast(target),
                                     CLEAR_INOBJECT_PROPERTIES, source_length,
