@@ -417,10 +417,6 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I32x4MaxS, 0xfdb8, s_ss)                 \
   V(I32x4MaxU, 0xfdb9, s_ss)                 \
   V(I64x2Neg, 0xfdc1, s_s)                   \
-  V(I64x2SConvertI32x4Low, 0xfdc7, s_s)      \
-  V(I64x2SConvertI32x4High, 0xfdc8, s_s)     \
-  V(I64x2UConvertI32x4Low, 0xfdc9, s_s)      \
-  V(I64x2UConvertI32x4High, 0xfdca, s_s)     \
   V(I64x2Shl, 0xfdcb, s_si)                  \
   V(I64x2ShrS, 0xfdcc, s_si)                 \
   V(I64x2ShrU, 0xfdcd, s_si)                 \
@@ -470,21 +466,25 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(S128Load32Lane, 0xfd5a, s_is)           \
   V(S128Load64Lane, 0xfd5b, s_is)
 
-#define FOREACH_SIMD_POST_MVP_OPCODE(V) \
-  V(I8x16Mul, 0xfd75, s_ss)             \
-  V(I8x16Popcnt, 0xfd7c, s_s)           \
-  V(I16x8Q15MulRSatS, 0xfd9c, s_ss)     \
-  V(I64x2Eq, 0xfdc0, s_ss)              \
-  V(F32x4Qfma, 0xfdb4, s_sss)           \
-  V(I64x2BitMask, 0xfdc4, i_s)          \
-  V(F32x4Qfms, 0xfdd4, s_sss)           \
-  V(F64x2Qfma, 0xfdfe, s_sss)           \
-  V(F64x2Qfms, 0xfdff, s_sss)           \
-  V(I16x8AddHoriz, 0xfdaf, s_ss)        \
-  V(I32x4AddHoriz, 0xfdb0, s_ss)        \
-  V(I32x4DotI16x8S, 0xfdba, s_ss)       \
-  V(F32x4AddHoriz, 0xfdb2, s_ss)        \
-  V(F32x4RecipApprox, 0xfdb3, s_s)      \
+#define FOREACH_SIMD_POST_MVP_OPCODE(V)  \
+  V(I8x16Mul, 0xfd75, s_ss)              \
+  V(I8x16Popcnt, 0xfd7c, s_s)            \
+  V(I16x8Q15MulRSatS, 0xfd9c, s_ss)      \
+  V(I64x2Eq, 0xfdc0, s_ss)               \
+  V(F32x4Qfma, 0xfdb4, s_sss)            \
+  V(I64x2BitMask, 0xfdc4, i_s)           \
+  V(I64x2SConvertI32x4Low, 0xfdc7, s_s)  \
+  V(I64x2SConvertI32x4High, 0xfdc8, s_s) \
+  V(I64x2UConvertI32x4Low, 0xfdc9, s_s)  \
+  V(I64x2UConvertI32x4High, 0xfdca, s_s) \
+  V(F32x4Qfms, 0xfdd4, s_sss)            \
+  V(F64x2Qfma, 0xfdfe, s_sss)            \
+  V(F64x2Qfms, 0xfdff, s_sss)            \
+  V(I16x8AddHoriz, 0xfdaf, s_ss)         \
+  V(I32x4AddHoriz, 0xfdb0, s_ss)         \
+  V(I32x4DotI16x8S, 0xfdba, s_ss)        \
+  V(F32x4AddHoriz, 0xfdb2, s_ss)         \
+  V(F32x4RecipApprox, 0xfdb3, s_s)       \
   V(F32x4RecipSqrtApprox, 0xfdbc, s_s)
 
 #define FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V) \

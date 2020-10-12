@@ -1758,6 +1758,7 @@ WASM_SIMD_TEST(I32x4ConvertI16x8) {
 // Tests both signed and unsigned conversion from I32x4 (unpacking).
 #if V8_TARGET_ARCH_ARM64
 WASM_SIMD_TEST_NO_LOWERING(I64x2ConvertI32x4) {
+  FLAG_SCOPE(wasm_simd_post_mvp);
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
   // Create four output vectors to hold signed and unsigned results.
   int64_t* g0 = r.builder().AddGlobal<int64_t>(kWasmS128);
