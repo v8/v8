@@ -1218,6 +1218,50 @@ RegisterState* RegisterState::Clone() {
   return zone_->New<RegisterState>(*this);
 }
 
+class RegisterBitVector {
+ public:
+  RegisterBitVector() : bits_(0) {}
+
+  bool Contains(RegisterIndex reg, MachineRepresentation rep) {
+    return bits_ & reg.ToBit(rep);
+  }
+
+  RegisterIndex GetFirstSet() {
+    return RegisterIndex(base::bits::CountTrailingZeros(bits_));
+  }
+
+  RegisterIndex GetFirstCleared(int max_reg) {
+    int reg_index = base::bits::CountTrailingZeros(~bits_);
+    if (reg_index < max_reg) {
+      return RegisterIndex(reg_index);
+    } else {
+      return RegisterIndex::Invalid();
+    }
+  }
+
+  void Add(RegisterIndex reg, MachineRepresentation rep) {
+    bits_ |= reg.ToBit(rep);
+  }
+
+  void Clear(RegisterIndex reg, MachineRepresentation rep) {
+    bits_ &= ~reg.ToBit(rep);
+  }
+
+  RegisterBitVector Union(const RegisterBitVector& other) {
+    return RegisterBitVector(bits_ | other.bits_);
+  }
+
+  void Reset() { bits_ = 0; }
+  bool IsEmpty() { return bits_ == 0; }
+
+ private:
+  explicit RegisterBitVector(uintptr_t bits) : bits_(bits) {}
+
+  static_assert(RegisterConfiguration::kMaxRegisters <= sizeof(uintptr_t) * 8,
+                "Maximum registers must fit in uintptr_t bitmap");
+  uintptr_t bits_;
+};
+
 // A SinglePassRegisterAllocator is a fast register allocator that does a single
 // pass through the instruction stream without performing any live-range
 // analysis beforehand. It deals with a single RegisterKind, either general or
@@ -1367,7 +1411,7 @@ class SinglePassRegisterAllocator final {
   V8_INLINE void FreeRegister(RegisterIndex reg, int virtual_register);
   V8_INLINE void MarkRegisterUse(RegisterIndex reg, MachineRepresentation rep,
                                  UsePosition pos);
-  V8_INLINE uintptr_t InUseBitmap(UsePosition pos);
+  V8_INLINE RegisterBitVector InUseBitmap(UsePosition pos);
   V8_INLINE bool IsValidForRep(RegisterIndex reg, MachineRepresentation rep);
 
   // Return the register allocated to |virtual_register|, if any.
@@ -1420,11 +1464,9 @@ class SinglePassRegisterAllocator final {
 
   MidTierRegisterAllocationData* data_;
 
-  static_assert(RegisterConfiguration::kMaxRegisters <= sizeof(uintptr_t) * 8,
-                "Maximum registers must fit in uintptr_t bitmap");
-  uintptr_t in_use_at_instr_start_bits_;
-  uintptr_t in_use_at_instr_end_bits_;
-  uintptr_t allocated_registers_bits_;
+  RegisterBitVector in_use_at_instr_start_bits_;
+  RegisterBitVector in_use_at_instr_end_bits_;
+  RegisterBitVector allocated_registers_bits_;
 
   // These fields are only used when kSimpleFPAliasing == false.
   base::Optional<ZoneVector<RegisterIndex>> float32_reg_code_to_index_;
@@ -1448,9 +1490,9 @@ SinglePassRegisterAllocator::SinglePassRegisterAllocator(
       assigned_registers_(data->code_zone()->New<BitVector>(
           GetRegisterCount(data->config(), kind), data->code_zone())),
       data_(data),
-      in_use_at_instr_start_bits_(0),
-      in_use_at_instr_end_bits_(0),
-      allocated_registers_bits_(0) {
+      in_use_at_instr_start_bits_(),
+      in_use_at_instr_end_bits_(),
+      allocated_registers_bits_() {
   for (int i = 0; i < num_allocatable_registers_; i++) {
     int reg_code = index_to_reg_code_[i];
     reg_code_to_index_[reg_code] = RegisterIndex(i);
@@ -1516,16 +1558,16 @@ void SinglePassRegisterAllocator::UpdateForDeferredBlock(int instr_index) {
 }
 
 void SinglePassRegisterAllocator::EndInstruction() {
-  in_use_at_instr_end_bits_ = 0;
-  in_use_at_instr_start_bits_ = 0;
+  in_use_at_instr_end_bits_.Reset();
+  in_use_at_instr_start_bits_.Reset();
 }
 
 void SinglePassRegisterAllocator::StartBlock(const InstructionBlock* block) {
   DCHECK(!HasRegisterState());
   DCHECK_NULL(current_block_);
-  DCHECK_EQ(in_use_at_instr_start_bits_, 0);
-  DCHECK_EQ(in_use_at_instr_end_bits_, 0);
-  DCHECK_EQ(allocated_registers_bits_, 0);
+  DCHECK(in_use_at_instr_start_bits_.IsEmpty());
+  DCHECK(in_use_at_instr_end_bits_.IsEmpty());
+  DCHECK(allocated_registers_bits_.IsEmpty());
 
   // Update the current block we are processing.
   current_block_ = block;
@@ -1542,8 +1584,8 @@ void SinglePassRegisterAllocator::StartBlock(const InstructionBlock* block) {
 }
 
 void SinglePassRegisterAllocator::EndBlock(const InstructionBlock* block) {
-  DCHECK_EQ(in_use_at_instr_start_bits_, 0);
-  DCHECK_EQ(in_use_at_instr_end_bits_, 0);
+  DCHECK(in_use_at_instr_start_bits_.IsEmpty());
+  DCHECK(in_use_at_instr_end_bits_.IsEmpty());
 
   // If we didn't allocate any registers of this kind, or we have reached the
   // start, nothing to do here.
@@ -1562,9 +1604,8 @@ void SinglePassRegisterAllocator::EndBlock(const InstructionBlock* block) {
 
   // Remove virtual register to register mappings and clear register state.
   // We will update the register state when starting the next block.
-  while (allocated_registers_bits_ != 0) {
-    RegisterIndex reg(
-        base::bits::CountTrailingZeros(allocated_registers_bits_));
+  while (!allocated_registers_bits_.IsEmpty()) {
+    RegisterIndex reg = allocated_registers_bits_.GetFirstSet();
     FreeRegister(reg, VirtualRegisterForRegister(reg));
   }
   current_block_ = nullptr;
@@ -1665,8 +1706,8 @@ void SinglePassRegisterAllocator::CheckConsistency() {
     RegisterIndex reg = RegisterForVirtualRegister(virtual_register);
     if (reg.is_valid()) {
       CHECK_EQ(virtual_register, VirtualRegisterForRegister(reg));
-      CHECK(allocated_registers_bits_ &
-            reg.ToBit(RepresentationFor(virtual_register)));
+      CHECK(allocated_registers_bits_.Contains(
+          reg, RepresentationFor(virtual_register)));
     }
   }
 
@@ -1674,8 +1715,8 @@ void SinglePassRegisterAllocator::CheckConsistency() {
     int virtual_register = VirtualRegisterForRegister(reg);
     if (virtual_register != InstructionOperand::kInvalidVirtualRegister) {
       CHECK_EQ(reg, RegisterForVirtualRegister(virtual_register));
-      CHECK(allocated_registers_bits_ &
-            reg.ToBit(RepresentationFor(virtual_register)));
+      CHECK(allocated_registers_bits_.Contains(
+          reg, RepresentationFor(virtual_register)));
     }
   }
 #endif
@@ -1748,8 +1789,8 @@ void SinglePassRegisterAllocator::AssignRegister(RegisterIndex reg,
                                                  UsePosition pos) {
   MachineRepresentation rep = RepresentationFor(virtual_register);
   assigned_registers()->Add(ToRegCode(reg, rep));
+  allocated_registers_bits_.Add(reg, rep);
   MarkRegisterUse(reg, rep, pos);
-  allocated_registers_bits_ |= reg.ToBit(rep);
   if (virtual_register != InstructionOperand::kInvalidVirtualRegister) {
     virtual_register_to_reg_[virtual_register] = reg;
   }
@@ -1759,16 +1800,16 @@ void SinglePassRegisterAllocator::MarkRegisterUse(RegisterIndex reg,
                                                   MachineRepresentation rep,
                                                   UsePosition pos) {
   if (pos == UsePosition::kStart || pos == UsePosition::kAll) {
-    in_use_at_instr_start_bits_ |= reg.ToBit(rep);
+    in_use_at_instr_start_bits_.Add(reg, rep);
   }
   if (pos == UsePosition::kEnd || pos == UsePosition::kAll) {
-    in_use_at_instr_end_bits_ |= reg.ToBit(rep);
+    in_use_at_instr_end_bits_.Add(reg, rep);
   }
 }
 
 void SinglePassRegisterAllocator::FreeRegister(RegisterIndex reg,
                                                int virtual_register) {
-  allocated_registers_bits_ &= ~reg.ToBit(RepresentationFor(virtual_register));
+  allocated_registers_bits_.Clear(reg, RepresentationFor(virtual_register));
   if (virtual_register != InstructionOperand::kInvalidVirtualRegister) {
     virtual_register_to_reg_[virtual_register] = RegisterIndex::Invalid();
   }
@@ -1800,14 +1841,14 @@ RegisterIndex SinglePassRegisterAllocator::ChooseRegisterFor(
   return reg;
 }
 
-uintptr_t SinglePassRegisterAllocator::InUseBitmap(UsePosition pos) {
+RegisterBitVector SinglePassRegisterAllocator::InUseBitmap(UsePosition pos) {
   switch (pos) {
     case UsePosition::kStart:
       return in_use_at_instr_start_bits_;
     case UsePosition::kEnd:
       return in_use_at_instr_end_bits_;
     case UsePosition::kAll:
-      return in_use_at_instr_start_bits_ | in_use_at_instr_end_bits_;
+      return in_use_at_instr_start_bits_.Union(in_use_at_instr_end_bits_);
     case UsePosition::kNone:
       UNREACHABLE();
   }
@@ -1835,20 +1876,18 @@ RegisterIndex SinglePassRegisterAllocator::ChooseFreeRegister(
     MachineRepresentation rep, UsePosition pos) {
   // Take the first free, non-blocked register, if available.
   // TODO(rmcilroy): Consider a better heuristic.
-  uintptr_t allocated_or_in_use = InUseBitmap(pos) | allocated_registers_bits_;
+  RegisterBitVector allocated_or_in_use =
+      InUseBitmap(pos).Union(allocated_registers_bits_);
 
   RegisterIndex chosen_reg = RegisterIndex::Invalid();
   if (kSimpleFPAliasing || kind() == RegisterKind::kGeneral) {
-    int reg_index = base::bits::CountTrailingZeros(~allocated_or_in_use);
-    if (reg_index < num_allocatable_registers()) {
-      chosen_reg = RegisterIndex(reg_index);
-    }
+    chosen_reg =
+        allocated_or_in_use.GetFirstCleared(num_allocatable_registers());
   } else {
     // If we don't have simple fp aliasing, we need to check each register
     // individually to get one with the required representation.
     for (RegisterIndex reg : *register_state()) {
-      if (IsValidForRep(reg, rep) &&
-          (allocated_or_in_use & reg.ToBit(rep)) == 0) {
+      if (IsValidForRep(reg, rep) && !allocated_or_in_use.Contains(reg, rep)) {
         chosen_reg = reg;
         break;
       }
@@ -1861,7 +1900,7 @@ RegisterIndex SinglePassRegisterAllocator::ChooseFreeRegister(
 
 RegisterIndex SinglePassRegisterAllocator::ChooseRegisterToSpill(
     MachineRepresentation rep, UsePosition pos) {
-  uintptr_t in_use = InUseBitmap(pos);
+  RegisterBitVector in_use = InUseBitmap(pos);
 
   // Choose a register that will need to be spilled. Preferentially choose:
   //  - A register with only pending uses, to avoid having to add a gap move for
@@ -1877,7 +1916,7 @@ RegisterIndex SinglePassRegisterAllocator::ChooseRegisterToSpill(
   bool already_spilled = false;
   for (RegisterIndex reg : *register_state()) {
     // Skip if register is in use, or not valid for representation.
-    if (!IsValidForRep(reg, rep) || (in_use & reg.ToBit(rep))) continue;
+    if (!IsValidForRep(reg, rep) || in_use.Contains(reg, rep)) continue;
 
     VirtualRegisterData& vreg_data =
         VirtualRegisterDataFor(VirtualRegisterForRegister(reg));
