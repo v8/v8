@@ -652,6 +652,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I64x2SConvertI32x4High();
   const Operator* I64x2UConvertI32x4Low();
   const Operator* I64x2UConvertI32x4High();
+  const Operator* I64x2BitMask();
   const Operator* I64x2Shl();
   const Operator* I64x2ShrS();
   const Operator* I64x2Add();

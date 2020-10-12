@@ -1581,6 +1581,27 @@ WASM_SIMD_TEST(I32x4BitMask) {
   }
 }
 
+// TODO(v8:10997) Prototyping i64x2.bitmask.
+#if V8_TARGET_ARCH_X64
+WASM_SIMD_TEST_NO_LOWERING(I64x2BitMask) {
+  FLAG_SCOPE(wasm_simd_post_mvp);
+  WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
+  byte value1 = r.AllocateLocal(kWasmS128);
+
+  BUILD(r, WASM_SET_LOCAL(value1, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(0))),
+        WASM_SET_LOCAL(value1, WASM_SIMD_I64x2_REPLACE_LANE(
+                                   0, WASM_GET_LOCAL(value1), WASM_I64V_1(0))),
+        WASM_SIMD_UNOP(kExprI64x2BitMask, WASM_GET_LOCAL(value1)));
+
+  for (int64_t x : compiler::ValueHelper::GetVector<int64_t>()) {
+    int32_t actual = r.Call(x);
+    // Lane 0 is always 0 (positive).
+    int32_t expected = std::signbit(static_cast<double>(x)) ? 0x2 : 0x0;
+    CHECK_EQ(actual, expected);
+  }
+}
+#endif  // V8_TARGET_ARCH_X64
+
 WASM_SIMD_TEST(I8x16Splat) {
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
   // Set up a global to hold output vector.

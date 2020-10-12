@@ -205,6 +205,7 @@ namespace compiler {
   V(X64I64x2ExtractLane)                  \
   V(X64I64x2ReplaceLane)                  \
   V(X64I64x2Neg)                          \
+  V(X64I64x2BitMask)                      \
   V(X64I64x2Shl)                          \
   V(X64I64x2ShrS)                         \
   V(X64I64x2Add)                          \

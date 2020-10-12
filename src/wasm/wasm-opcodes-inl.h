@@ -325,6 +325,7 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_I8x16_OP(BitMask, "bitmask")
     CASE_I16x8_OP(BitMask, "bitmask")
     CASE_I32x4_OP(BitMask, "bitmask")
+    CASE_I64x2_OP(BitMask, "bitmask")
 
     CASE_F32x4_OP(Pmin, "pmin")
     CASE_F32x4_OP(Pmax, "pmax")

@@ -2728,6 +2728,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Psubq(dst, src);
       break;
     }
+    case kX64I64x2BitMask: {
+      __ Movmskpd(i.OutputRegister(), i.InputSimd128Register(0));
+      break;
+    }
     case kX64I64x2Shl: {
       // Take shift value modulo 2^6.
       ASSEMBLE_SIMD_SHIFT(Psllq, 6);

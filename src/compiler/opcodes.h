@@ -823,6 +823,7 @@
   V(I64x2SConvertI32x4High)     \
   V(I64x2UConvertI32x4Low)      \
   V(I64x2UConvertI32x4High)     \
+  V(I64x2BitMask)               \
   V(I64x2Shl)                   \
   V(I64x2ShrS)                  \
   V(I64x2Add)                   \

@@ -398,6 +398,7 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(I64x2SConvertI32x4High, Operator::kNoProperties, 1, 0, 1)              \
   V(I64x2UConvertI32x4Low, Operator::kNoProperties, 1, 0, 1)               \
   V(I64x2UConvertI32x4High, Operator::kNoProperties, 1, 0, 1)              \
+  V(I64x2BitMask, Operator::kNoProperties, 1, 0, 1)                        \
   V(I64x2Shl, Operator::kNoProperties, 2, 0, 1)                            \
   V(I64x2ShrS, Operator::kNoProperties, 2, 0, 1)                           \
   V(I64x2Add, Operator::kCommutative, 2, 0, 1)                             \

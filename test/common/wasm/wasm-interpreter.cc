@@ -2293,6 +2293,7 @@ class WasmInterpreterInternals {
       BITMASK_CASE(I8x16BitMask, i8x16, int16, 16)
       BITMASK_CASE(I16x8BitMask, i16x8, int8, 8)
       BITMASK_CASE(I32x4BitMask, i32x4, int4, 4)
+      BITMASK_CASE(I64x2BitMask, i64x2, int2, 2)
 #undef BITMASK_CASE
 
 #define CMPOP_CASE(op, name, stype, out_stype, count, expr)   \

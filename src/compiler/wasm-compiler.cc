@@ -4597,6 +4597,8 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprI64x2UConvertI32x4High:
       return graph()->NewNode(mcgraph()->machine()->I64x2UConvertI32x4High(),
                               inputs[0]);
+    case wasm::kExprI64x2BitMask:
+      return graph()->NewNode(mcgraph()->machine()->I64x2BitMask(), inputs[0]);
     case wasm::kExprI64x2Shl:
       return graph()->NewNode(mcgraph()->machine()->I64x2Shl(), inputs[0],
                               inputs[1]);

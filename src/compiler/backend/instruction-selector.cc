@@ -1994,6 +1994,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI64x2UConvertI32x4Low(node);
     case IrOpcode::kI64x2UConvertI32x4High:
       return MarkAsSimd128(node), VisitI64x2UConvertI32x4High(node);
+    case IrOpcode::kI64x2BitMask:
+      return MarkAsWord32(node), VisitI64x2BitMask(node);
     case IrOpcode::kI64x2Shl:
       return MarkAsSimd128(node), VisitI64x2Shl(node);
     case IrOpcode::kI64x2ShrS:
@@ -2697,9 +2699,12 @@ void InstructionSelector::VisitI64x2UConvertI32x4High(Node* node) {
 }
 #endif  // !V8_TARGET_ARCH_ARM64
 
-// TODO(v8:10975): Prototyping load lane and store lane.
 #if !V8_TARGET_ARCH_X64
+// TODO(v8:10975): Prototyping load lane and store lane.
 void InstructionSelector::VisitLoadLane(Node* node) { UNIMPLEMENTED(); }
+
+// TODO(v8:10997) Prototype i64x2.bitmask.
+void InstructionSelector::VisitI64x2BitMask(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
