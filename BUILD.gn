@@ -113,8 +113,7 @@ declare_args() {
   v8_disable_arguments_adaptor = false
 
   # Reverse JS arguments order in the stack (sets -dV8_REVERSE_JSARGS).
-  v8_enable_reverse_jsargs =
-      v8_current_cpu != "mipsel" && v8_current_cpu != "mips64el"
+  v8_enable_reverse_jsargs = true
 
   # Sets -dOBJECT_PRINT.
   v8_enable_object_print = ""
