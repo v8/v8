@@ -14,6 +14,38 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
+int WriteDirectiveOrSeparator(PlatformEmbeddedFileWriterBase* w,
+                              int current_line_length,
+                              DataDirective directive) {
+  int printed_chars;
+  if (current_line_length == 0) {
+    printed_chars = w->IndentedDataDirective(directive);
+    DCHECK_LT(0, printed_chars);
+  } else {
+    printed_chars = fprintf(w->fp(), ",");
+    DCHECK_EQ(1, printed_chars);
+  }
+  return current_line_length + printed_chars;
+}
+
+int WriteLineEndIfNeeded(PlatformEmbeddedFileWriterBase* w,
+                         int current_line_length, int write_size) {
+  static const int kTextWidth = 100;
+  // Check if adding ',0xFF...FF\n"' would force a line wrap. This doesn't use
+  // the actual size of the string to be written to determine this so it's
+  // more conservative than strictly needed.
+  if (current_line_length + strlen(",0x") + write_size * 2 > kTextWidth) {
+    fprintf(w->fp(), "\n");
+    return 0;
+  } else {
+    return current_line_length;
+  }
+}
+
+}  // namespace
+
 void EmbeddedFileWriter::WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
                                       const i::EmbeddedData* blob,
                                       const int builtin_id) const {
@@ -98,6 +130,39 @@ void EmbeddedFileWriter::WriteBuiltinLabels(PlatformEmbeddedFileWriterBase* w,
   w->DeclareLabel(name.c_str());
 }
 
+void EmbeddedFileWriter::WriteInstructionStreams(
+    PlatformEmbeddedFileWriterBase* w, const i::EmbeddedData* blob) const {
+  w->Comment("The embedded blob data starts here. It contains the builtin");
+  w->Comment("instruction streams.");
+  w->SectionText();
+
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+  // UMA needs an exposed function-type label at the start of the embedded
+  // code section.
+  static const char* kCodeStartForProfilerSymbolName =
+      "v8_code_start_for_profiler_";
+  static constexpr int kDummyFunctionLength = 1;
+  static constexpr int kDummyFunctionData = 0xcc;
+  w->DeclareFunctionBegin(kCodeStartForProfilerSymbolName,
+                          kDummyFunctionLength);
+  // The label must not be at the same address as the first builtin, insert
+  // padding bytes.
+  WriteDirectiveOrSeparator(w, 0, kByte);
+  w->HexLiteral(kDummyFunctionData);
+  w->Newline();
+  w->DeclareFunctionEnd(kCodeStartForProfilerSymbolName);
+#endif
+
+  w->AlignToCodeAlignment();
+  w->DeclareLabel(EmbeddedBlobCodeDataSymbol().c_str());
+
+  for (int i = 0; i < i::Builtins::builtin_count; i++) {
+    if (!blob->ContainsBuiltin(i)) continue;
+    WriteBuiltin(w, blob, i);
+  }
+  w->Newline();
+}
+
 void EmbeddedFileWriter::WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
                                            const i::EmbeddedData* blob) const {
   {
@@ -161,38 +226,6 @@ void EmbeddedFileWriter::WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
 
   w->FileEpilogue();
 }
-
-namespace {
-
-int WriteDirectiveOrSeparator(PlatformEmbeddedFileWriterBase* w,
-                              int current_line_length,
-                              DataDirective directive) {
-  int printed_chars;
-  if (current_line_length == 0) {
-    printed_chars = w->IndentedDataDirective(directive);
-    DCHECK_LT(0, printed_chars);
-  } else {
-    printed_chars = fprintf(w->fp(), ",");
-    DCHECK_EQ(1, printed_chars);
-  }
-  return current_line_length + printed_chars;
-}
-
-int WriteLineEndIfNeeded(PlatformEmbeddedFileWriterBase* w,
-                         int current_line_length, int write_size) {
-  static const int kTextWidth = 100;
-  // Check if adding ',0xFF...FF\n"' would force a line wrap. This doesn't use
-  // the actual size of the string to be written to determine this so it's
-  // more conservative than strictly needed.
-  if (current_line_length + strlen(",0x") + write_size * 2 > kTextWidth) {
-    fprintf(w->fp(), "\n");
-    return 0;
-  } else {
-    return current_line_length;
-  }
-}
-
-}  // namespace
 
 // static
 void EmbeddedFileWriter::WriteBinaryContentsAsInlineAssembly(
