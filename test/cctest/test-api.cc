@@ -21435,13 +21435,6 @@ class RegExpInterruptTest {
     string->MakeExternal(&two_byte_string_resource);
   }
 
-  static void ReenterIrregexp(v8::Isolate* isolate, void* data) {
-    v8::HandleScope scope(isolate);
-    v8::TryCatch try_catch(isolate);
-    // Irregexp is not reentrant. This should crash.
-    CompileRun("/((a*)*)*b/.exec('aaaaab')");
-  }
-
  private:
   static void SignalSemaphore(v8::Isolate* isolate, void* data) {
     reinterpret_cast<RegExpInterruptTest*>(data)->sem_.Signal();
@@ -21546,16 +21539,6 @@ TEST(RegExpInterruptAndMakeSubjectOneByteExternal) {
 TEST(RegExpInterruptAndMakeSubjectTwoByteExternal) {
   RegExpInterruptTest test;
   test.RunTest(RegExpInterruptTest::MakeSubjectTwoByteExternal);
-}
-
-TEST(RegExpInterruptAndReenterIrregexp) {
-  // We only check in the runtime entry to irregexp, so make sure we don't hit
-  // an interpreter.
-  i::FLAG_regexp_tier_up_ticks = 0;
-  i::FLAG_regexp_interpret_all = false;
-  i::FLAG_enable_experimental_regexp_engine = false;
-  RegExpInterruptTest test;
-  test.RunTest(RegExpInterruptTest::ReenterIrregexp);
 }
 
 class RequestInterruptTestBase {
