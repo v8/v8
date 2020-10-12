@@ -311,11 +311,16 @@ bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
       }
       os << " ";
       details.PrintAsFastTo(os, PropertyDetails::kForProperties);
-      if (details.location() != kField) continue;
-      int field_index = details.field_index();
-      if (nof_inobject_properties <= field_index) {
-        field_index -= nof_inobject_properties;
-        os << " properties[" << field_index << "]";
+      if (details.location() == kField) {
+        int field_index = details.field_index();
+        if (field_index < nof_inobject_properties) {
+          os << ", location: in-object";
+        } else {
+          field_index -= nof_inobject_properties;
+          os << ", location: properties[" << field_index << "]";
+        }
+      } else {
+        os << ", location: descriptor";
       }
     }
     return map().NumberOfOwnDescriptors() > 0;
@@ -572,9 +577,10 @@ static void JSObjectPrintBody(std::ostream& os,
   if (!properties_or_hash.IsSmi()) {
     os << Brief(properties_or_hash);
   }
-  os << " {";
+  os << "\n - All own properties (excluding elements): {";
   if (obj.PrintProperties(os)) os << "\n ";
   os << "}\n";
+
   if (print_elements) {
     size_t length = obj.IsJSTypedArray() ? JSTypedArray::cast(obj).length()
                                          : obj.elements().length();
