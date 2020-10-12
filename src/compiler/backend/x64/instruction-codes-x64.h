@@ -156,7 +156,6 @@ namespace compiler {
   V(X64Peek)                              \
   V(X64F64x2Splat)                        \
   V(X64F64x2ExtractLane)                  \
-  V(X64F64x2ReplaceLane)                  \
   V(X64F64x2Abs)                          \
   V(X64F64x2Neg)                          \
   V(X64F64x2Sqrt)                         \
@@ -203,7 +202,6 @@ namespace compiler {
   V(X64F32x4Round)                        \
   V(X64I64x2Splat)                        \
   V(X64I64x2ExtractLane)                  \
-  V(X64I64x2ReplaceLane)                  \
   V(X64I64x2Neg)                          \
   V(X64I64x2BitMask)                      \
   V(X64I64x2Shl)                          \
@@ -215,7 +213,6 @@ namespace compiler {
   V(X64I64x2ShrU)                         \
   V(X64I32x4Splat)                        \
   V(X64I32x4ExtractLane)                  \
-  V(X64I32x4ReplaceLane)                  \
   V(X64I32x4SConvertF32x4)                \
   V(X64I32x4SConvertI16x8Low)             \
   V(X64I32x4SConvertI16x8High)            \
@@ -246,7 +243,6 @@ namespace compiler {
   V(X64I16x8Splat)                        \
   V(X64I16x8ExtractLaneU)                 \
   V(X64I16x8ExtractLaneS)                 \
-  V(X64I16x8ReplaceLane)                  \
   V(X64I16x8SConvertI8x16Low)             \
   V(X64I16x8SConvertI8x16High)            \
   V(X64I16x8Neg)                          \
@@ -281,7 +277,6 @@ namespace compiler {
   V(X64I8x16Splat)                        \
   V(X64I8x16ExtractLaneU)                 \
   V(X64I8x16ExtractLaneS)                 \
-  V(X64I8x16ReplaceLane)                  \
   V(X64Pinsrb)                            \
   V(X64Pinsrw)                            \
   V(X64Pinsrd)                            \

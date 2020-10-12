@@ -361,17 +361,19 @@ void InstructionSelector::VisitLoadLane(Node* node) {
 
   X64OperandGenerator g(this);
   InstructionOperand outputs[] = {g.DefineAsRegister(node)};
-  // GetEffectiveAddressMemoryOperand uses up to 3 inputs, 4th is laneidx, 5th
-  // is the value node.
+  // Input 0 is value node, 1 is lane idx, and GetEffectiveAddressMemoryOperand
+  // uses up to 3 inputs. This ordering is consistent with other operations that
+  // use the same opcode.
   InstructionOperand inputs[5];
   size_t input_count = 0;
+
+  inputs[input_count++] = g.UseRegister(node->InputAt(2));
+  inputs[input_count++] = g.UseImmediate(params.laneidx);
 
   AddressingMode mode =
       g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
   opcode |= AddressingModeField::encode(mode);
 
-  inputs[input_count++] = g.UseImmediate(params.laneidx);
-  inputs[input_count++] = g.UseRegister(node->InputAt(2));
   DCHECK_GE(5, input_count);
 
   // x64 supports unaligned loads.
@@ -2963,15 +2965,31 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, U)
 SIMD_VISIT_EXTRACT_LANE(I8x16, S)
 #undef SIMD_VISIT_EXTRACT_LANE
 
-#define VISIT_SIMD_REPLACE_LANE(Type)                              \
-  void InstructionSelector::Visit##Type##ReplaceLane(Node* node) { \
-    X64OperandGenerator g(this);                                   \
-    int32_t lane = OpParameter<int32_t>(node->op());               \
-    Emit(kX64##Type##ReplaceLane, g.DefineSameAsFirst(node),       \
-         g.UseRegister(node->InputAt(0)), g.UseImmediate(lane),    \
-         g.Use(node->InputAt(1)));                                 \
+void InstructionSelector::VisitF32x4ReplaceLane(Node* node) {
+  X64OperandGenerator g(this);
+  int32_t lane = OpParameter<int32_t>(node->op());
+  Emit(kX64F32x4ReplaceLane, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)), g.UseImmediate(lane),
+       g.Use(node->InputAt(1)));
+}
+
+#define VISIT_SIMD_REPLACE_LANE(TYPE, OPCODE)                               \
+  void InstructionSelector::Visit##TYPE##ReplaceLane(Node* node) {          \
+    X64OperandGenerator g(this);                                            \
+    int32_t lane = OpParameter<int32_t>(node->op());                        \
+    Emit(OPCODE, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)), \
+         g.UseImmediate(lane), g.Use(node->InputAt(1)));                    \
   }
-SIMD_TYPES(VISIT_SIMD_REPLACE_LANE)
+
+#define SIMD_TYPES_FOR_REPLACE_LANE(V) \
+  V(F64x2, kX64Pinsrq)                 \
+  V(I64x2, kX64Pinsrq)                 \
+  V(I32x4, kX64Pinsrd)                 \
+  V(I16x8, kX64Pinsrw)                 \
+  V(I8x16, kX64Pinsrb)
+
+SIMD_TYPES_FOR_REPLACE_LANE(VISIT_SIMD_REPLACE_LANE)
+#undef SIMD_TYPES_FOR_REPLACE_LANE
 #undef VISIT_SIMD_REPLACE_LANE
 
 #define VISIT_SIMD_SHIFT(Opcode)                                               \

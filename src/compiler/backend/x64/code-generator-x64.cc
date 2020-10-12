@@ -647,6 +647,26 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     }                                             \
   } while (false)
 
+#define ASSEMBLE_PINSR(ASM_INSTR)                                     \
+  do {                                                                \
+    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
+    XMMRegister dst = i.OutputSimd128Register();                      \
+    XMMRegister src = i.InputSimd128Register(0);                      \
+    uint8_t laneidx = i.InputUint8(1);                                \
+    if (HasAddressingMode(instr)) {                                   \
+      __ ASM_INSTR(dst, src, i.MemoryOperand(2), laneidx);            \
+      break;                                                          \
+    }                                                                 \
+    if (instr->InputAt(2)->IsFPRegister()) {                          \
+      __ Movq(kScratchRegister, i.InputDoubleRegister(2));            \
+      __ ASM_INSTR(dst, src, kScratchRegister, laneidx);              \
+    } else if (instr->InputAt(2)->IsRegister()) {                     \
+      __ ASM_INSTR(dst, src, i.InputRegister(2), laneidx);            \
+    } else {                                                          \
+      __ ASM_INSTR(dst, src, i.InputOperand(2), laneidx);             \
+    }                                                                 \
+  } while (false)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   unwinding_info_writer_.MarkFrameDeconstructed(__ pc_offset());
   __ movq(rsp, rbp);
@@ -2354,16 +2374,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kX64F64x2ReplaceLane: {
-      if (instr->InputAt(2)->IsFPRegister()) {
-        __ Movq(kScratchRegister, i.InputDoubleRegister(2));
-        __ Pinsrq(i.OutputSimd128Register(), kScratchRegister, i.InputUint8(1));
-      } else {
-        __ Pinsrq(i.OutputSimd128Register(), i.InputOperand(2),
-                  i.InputUint8(1));
-      }
-      break;
-    }
     case kX64F64x2ExtractLane: {
       __ Pextrq(kScratchRegister, i.InputSimd128Register(0), i.InputInt8(1));
       __ Movq(i.OutputDoubleRegister(), kScratchRegister);
@@ -2718,16 +2728,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pextrq(i.OutputRegister(), i.InputSimd128Register(0), i.InputInt8(1));
       break;
     }
-    case kX64I64x2ReplaceLane: {
-      if (HasRegisterInput(instr, 2)) {
-        __ Pinsrq(i.OutputSimd128Register(), i.InputRegister(2),
-                  i.InputUint8(1));
-      } else {
-        __ Pinsrq(i.OutputSimd128Register(), i.InputOperand(2),
-                  i.InputUint8(1));
-      }
-      break;
-    }
     case kX64I64x2Neg: {
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(0);
@@ -2824,16 +2824,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I32x4ExtractLane: {
       __ Pextrd(i.OutputRegister(), i.InputSimd128Register(0), i.InputInt8(1));
-      break;
-    }
-    case kX64I32x4ReplaceLane: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      if (HasRegisterInput(instr, 2)) {
-        __ Pinsrd(dst, src, i.InputRegister(2), i.InputInt8(1));
-      } else {
-        __ Pinsrd(dst, src, i.InputOperand(2), i.InputInt8(1));
-      }
       break;
     }
     case kX64I32x4SConvertF32x4: {
@@ -3056,16 +3046,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ movsxwl(dst, dst);
       break;
     }
-    case kX64I16x8ReplaceLane: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      if (HasRegisterInput(instr, 2)) {
-        __ Pinsrw(dst, src, i.InputRegister(2), i.InputInt8(1));
-      } else {
-        __ Pinsrw(dst, src, i.InputOperand(2), i.InputInt8(1));
-      }
-      break;
-    }
     case kX64I16x8SConvertI8x16Low: {
       __ Pmovsxbw(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
@@ -3248,52 +3228,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ movsxbl(dst, dst);
       break;
     }
-    case kX64I8x16ReplaceLane: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      if (HasRegisterInput(instr, 2)) {
-        __ Pinsrb(dst, src, i.InputRegister(2), i.InputInt8(1));
-      } else {
-        __ Pinsrb(dst, src, i.InputOperand(2), i.InputInt8(1));
-      }
-      break;
-    }
     case kX64Pinsrb: {
-      // TODO(zhin): consolidate this opcode with the other usages, like
-      // ReplaceLane, by implementing support when this has no addressing mode.
-      DCHECK(HasAddressingMode(instr));
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      size_t offset = 0;
-      Operand mem = i.MemoryOperand(&offset);
-      __ Pinsrb(i.OutputSimd128Register(), i.InputSimd128Register(offset + 1),
-                mem, i.InputUint8(offset));
+      ASSEMBLE_PINSR(Pinsrb);
       break;
     }
     case kX64Pinsrw: {
-      DCHECK(HasAddressingMode(instr));
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      size_t offset = 0;
-      Operand mem = i.MemoryOperand(&offset);
-      __ Pinsrw(i.OutputSimd128Register(), i.InputSimd128Register(offset + 1),
-                mem, i.InputUint8(offset));
+      ASSEMBLE_PINSR(Pinsrw);
       break;
     }
     case kX64Pinsrd: {
-      DCHECK(HasAddressingMode(instr));
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      size_t offset = 0;
-      Operand mem = i.MemoryOperand(&offset);
-      __ Pinsrd(i.OutputSimd128Register(), i.InputSimd128Register(offset + 1),
-                mem, i.InputUint8(offset));
+      ASSEMBLE_PINSR(Pinsrd);
       break;
     }
     case kX64Pinsrq: {
-      DCHECK(HasAddressingMode(instr));
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      size_t offset = 0;
-      Operand mem = i.MemoryOperand(&offset);
-      __ Pinsrq(i.OutputSimd128Register(), i.InputSimd128Register(offset + 1),
-                mem, i.InputUint8(offset));
+      ASSEMBLE_PINSR(Pinsrq);
       break;
     }
     case kX64I8x16SConvertI16x8: {
