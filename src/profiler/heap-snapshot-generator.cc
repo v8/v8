@@ -2089,14 +2089,7 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   base::Optional<HandleScope> handle_scope(base::in_place, isolate);
   v8_heap_explorer_.CollectGlobalObjectsTags();
 
-  // TODO(1562) Profiler assumes that any object that is in the heap after
-  // full GC is reachable from the root when computing dominators.
-  // This is not true for weakly reachable objects.
-  // As a temporary solution we call GC twice.
-  heap_->PreciseCollectAllGarbage(Heap::kNoGCFlags,
-                                  GarbageCollectionReason::kHeapProfiler);
-  heap_->PreciseCollectAllGarbage(Heap::kNoGCFlags,
-                                  GarbageCollectionReason::kHeapProfiler);
+  heap_->CollectAllAvailableGarbage(GarbageCollectionReason::kHeapProfiler);
 
   NullContextForSnapshotScope null_context_scope(isolate);
   SafepointScope scope(heap_);
