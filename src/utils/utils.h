@@ -69,13 +69,13 @@ static T ArithmeticShiftRight(T x, int shift) {
 // Returns the maximum of the two parameters.
 template <typename T>
 constexpr T Max(T a, T b) {
-  return a < b ? b : a;
+  return std::max(a, b);
 }
 
 // Returns the minimum of the two parameters.
 template <typename T>
 constexpr T Min(T a, T b) {
-  return a < b ? a : b;
+  return std::min(a, b);
 }
 
 // Returns the maximum of the two parameters according to JavaScript semantics.
