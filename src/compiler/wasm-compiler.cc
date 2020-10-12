@@ -3887,6 +3887,7 @@ LoadTransformation GetLoadTransformation(
       } else if (memtype == MachineType::Int64()) {
         return LoadTransformation::kS128LoadMem64Zero;
       }
+      break;
     }
   }
   UNREACHABLE();
@@ -3982,6 +3983,33 @@ Node* WasmGraphBuilder::LoadTransformBigEndian(
 #undef LOAD_EXTEND
 }
 #endif
+
+Node* WasmGraphBuilder::LoadLane(MachineType memtype, Node* value, Node* index,
+                                 uint32_t offset, uint8_t laneidx,
+                                 wasm::WasmCodePosition position) {
+  has_simd_ = true;
+  Node* load;
+  uint8_t access_size = memtype.MemSize();
+  index =
+      BoundsCheckMem(access_size, index, offset, position, kCanOmitBoundsCheck);
+
+  LoadKind load_kind = GetLoadKind(mcgraph(), memtype, use_trap_handler());
+
+  load = SetEffect(graph()->NewNode(
+      mcgraph()->machine()->LoadLane(load_kind, memtype, laneidx),
+      MemBuffer(offset), index, value, effect(), control()));
+
+  if (load_kind == LoadKind::kProtected) {
+    SetSourcePosition(load, position);
+  }
+
+  if (FLAG_trace_wasm_memory) {
+    TraceMemoryOperation(false, memtype.representation(), index, offset,
+                         position);
+  }
+
+  return load;
+}
 
 Node* WasmGraphBuilder::LoadTransform(wasm::ValueType type, MachineType memtype,
                                       wasm::LoadTransformationKind transform,

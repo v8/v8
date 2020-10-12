@@ -3243,6 +3243,44 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kX64Pinsrb: {
+      // TODO(zhin): consolidate this opcode with the other usages, like
+      // ReplaceLane, by implementing support when this has no addressing mode.
+      DCHECK(HasAddressingMode(instr));
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      size_t offset = 0;
+      Operand mem = i.MemoryOperand(&offset);
+      __ Pinsrb(i.OutputSimd128Register(), i.InputSimd128Register(offset + 1),
+                mem, i.InputUint8(offset));
+      break;
+    }
+    case kX64Pinsrw: {
+      DCHECK(HasAddressingMode(instr));
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      size_t offset = 0;
+      Operand mem = i.MemoryOperand(&offset);
+      __ Pinsrw(i.OutputSimd128Register(), i.InputSimd128Register(offset + 1),
+                mem, i.InputUint8(offset));
+      break;
+    }
+    case kX64Pinsrd: {
+      DCHECK(HasAddressingMode(instr));
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      size_t offset = 0;
+      Operand mem = i.MemoryOperand(&offset);
+      __ Pinsrd(i.OutputSimd128Register(), i.InputSimd128Register(offset + 1),
+                mem, i.InputUint8(offset));
+      break;
+    }
+    case kX64Pinsrq: {
+      DCHECK(HasAddressingMode(instr));
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      size_t offset = 0;
+      Operand mem = i.MemoryOperand(&offset);
+      __ Pinsrq(i.OutputSimd128Register(), i.InputSimd128Register(offset + 1),
+                mem, i.InputUint8(offset));
+      break;
+    }
     case kX64I8x16SConvertI16x8: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ Packsswb(i.OutputSimd128Register(), i.InputSimd128Register(1));

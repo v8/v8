@@ -1412,6 +1412,10 @@ void InstructionSelector::VisitNode(Node* node) {
       MarkAsRepresentation(MachineRepresentation::kSimd128, node);
       return VisitLoadTransform(node);
     }
+    case IrOpcode::kLoadLane: {
+      MarkAsRepresentation(MachineRepresentation::kSimd128, node);
+      return VisitLoadLane(node);
+    }
     case IrOpcode::kPoisonedLoad: {
       LoadRepresentation type = LoadRepresentationOf(node->op());
       MarkAsRepresentation(type.representation(), node);
@@ -2692,6 +2696,11 @@ void InstructionSelector::VisitI64x2UConvertI32x4High(Node* node) {
   UNIMPLEMENTED();
 }
 #endif  // !V8_TARGET_ARCH_ARM64
+
+// TODO(v8:10975): Prototyping load lane and store lane.
+#if !V8_TARGET_ARCH_X64
+void InstructionSelector::VisitLoadLane(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_X64
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 

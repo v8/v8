@@ -91,6 +91,17 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
 V8_EXPORT_PRIVATE LoadTransformParameters const& LoadTransformParametersOf(
     Operator const*) V8_WARN_UNUSED_RESULT;
 
+struct LoadLaneParameters {
+  LoadKind kind;
+  LoadRepresentation rep;
+  uint8_t laneidx;
+};
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, LoadLaneParameters);
+
+V8_EXPORT_PRIVATE LoadLaneParameters const& LoadLaneParametersOf(
+    Operator const*) V8_WARN_UNUSED_RESULT;
+
 // A Store needs a MachineType and a WriteBarrierKind in order to emit the
 // correct write barrier.
 class StoreRepresentation final {
@@ -779,6 +790,10 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* ProtectedLoad(LoadRepresentation rep);
 
   const Operator* LoadTransform(LoadKind kind, LoadTransformation transform);
+
+  // SIMD load: replace a specified lane with [base + index].
+  const Operator* LoadLane(LoadKind kind, LoadRepresentation rep,
+                           uint8_t laneidx);
 
   // store [base + index], value
   const Operator* Store(StoreRepresentation rep);

@@ -956,7 +956,8 @@
   V(V16x8AllTrue)               \
   V(V8x16AnyTrue)               \
   V(V8x16AllTrue)               \
-  V(LoadTransform)
+  V(LoadTransform)              \
+  V(LoadLane)
 
 #define VALUE_OP_LIST(V)  \
   COMMON_OP_LIST(V)       \

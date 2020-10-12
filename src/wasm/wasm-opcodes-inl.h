@@ -309,6 +309,10 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_S128_OP(Load16x4U, "load16x4_u")
     CASE_S128_OP(Load32x2S, "load32x2_s")
     CASE_S128_OP(Load32x2U, "load32x2_u")
+    CASE_S128_OP(Load8Lane, "load8_lane")
+    CASE_S128_OP(Load16Lane, "load16_lane")
+    CASE_S128_OP(Load32Lane, "load32_lane")
+    CASE_S128_OP(Load64Lane, "load64_lane")
 
     CASE_I8x16_OP(RoundingAverageU, "avgr_u")
     CASE_I16x8_OP(RoundingAverageU, "avgr_u")

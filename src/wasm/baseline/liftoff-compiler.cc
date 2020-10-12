@@ -2331,6 +2331,12 @@ class LiftoffCompiler {
     }
   }
 
+  void LoadLane(FullDecoder* decoder, LoadType type, const Value& value,
+                const Value& index, const MemoryAccessImmediate<validate>& imm,
+                const uint8_t laneidx, Value* result) {
+    unsupported(decoder, kSimd, "simd load lane");
+  }
+
   void StoreMem(FullDecoder* decoder, StoreType type,
                 const MemoryAccessImmediate<validate>& imm,
                 const Value& index_val, const Value& value_val) {

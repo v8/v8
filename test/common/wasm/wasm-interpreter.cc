@@ -2675,6 +2675,22 @@ class WasmInterpreterInternals {
         return DoSimdLoadZeroExtend<int2, uint64_t>(
             decoder, code, pc, len, MachineRepresentation::kWord64);
       }
+      case kExprS128Load8Lane: {
+        return DoSimdLoadLane<int16, int32_t, int8_t>(
+            decoder, code, pc, len, MachineRepresentation::kWord8);
+      }
+      case kExprS128Load16Lane: {
+        return DoSimdLoadLane<int8, int32_t, int16_t>(
+            decoder, code, pc, len, MachineRepresentation::kWord16);
+      }
+      case kExprS128Load32Lane: {
+        return DoSimdLoadLane<int4, int32_t, int32_t>(
+            decoder, code, pc, len, MachineRepresentation::kWord32);
+      }
+      case kExprS128Load64Lane: {
+        return DoSimdLoadLane<int2, int64_t, int64_t>(
+            decoder, code, pc, len, MachineRepresentation::kWord64);
+      }
       default:
         return false;
     }
@@ -2732,6 +2748,24 @@ class WasmInterpreterInternals {
     // Lane 0 is set to the loaded value.
     s.val[LANE(0, s)] = v;
     Push(WasmValue(Simd128(s)));
+    return true;
+  }
+
+  template <typename s_type, typename result_type, typename load_type>
+  bool DoSimdLoadLane(Decoder* decoder, InterpreterCode* code, pc_t pc,
+                      int* const len, MachineRepresentation rep) {
+    s_type value = Pop().to_s128().to<s_type>();
+    if (!ExecuteLoad<result_type, load_type>(decoder, code, pc, len, rep,
+                                             /*prefix_len=*/*len)) {
+      return false;
+    }
+
+    SimdLaneImmediate<Decoder::kNoValidation> lane_imm(decoder,
+                                                       code->at(pc + *len));
+    *len += lane_imm.length;
+    result_type loaded = Pop().to<result_type>();
+    value.val[LANE(lane_imm.lane, value)] = loaded;
+    Push(WasmValue(Simd128(value)));
     return true;
   }
 

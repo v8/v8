@@ -8,6 +8,7 @@
 #include "src/base/bits.h"
 #include "src/base/overflowing-math.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/wasm/wasm-opcodes.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
@@ -3561,6 +3562,87 @@ WASM_SIMD_TEST_NO_LOWERING(S128LoadMem64Zero) {
   RunLoadZeroTest<int64_t>(execution_tier, lower_simd, kExprS128LoadMem64Zero);
 }
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+
+#if V8_TARGET_ARCH_X64
+// TODO(v8:10975): Prototyping load lane and store lane.
+template <typename T>
+void RunLoadLaneTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
+                     WasmOpcode load_op, WasmOpcode splat_op) {
+  FLAG_SCOPE(wasm_simd_post_mvp);
+  if (execution_tier == TestExecutionTier::kLiftoff) {
+    // Not yet implemented.
+    return;
+  }
+  WasmOpcode const_op =
+      splat_op == kExprI64x2Splat ? kExprI64Const : kExprI32Const;
+
+  constexpr int lanes_s = kSimd128Size / sizeof(T);
+  constexpr int mem_index = 16;  // Load from mem index 16 (bytes).
+  constexpr int splat_value = 33;
+
+  for (int lane_index = 0; lane_index < lanes_s; lane_index++) {
+    WasmRunner<int32_t> r(execution_tier, lower_simd);
+    T* memory = r.builder().AddMemoryElems<T>(kWasmPageSize / sizeof(T));
+    T* global = r.builder().AddGlobal<T>(kWasmS128);
+
+    // Splat splat_value, then only load and replace a single lane with the
+    // sentinel value.
+    BUILD(r, WASM_I32V(mem_index), const_op, splat_value,
+          WASM_SIMD_OP(splat_op), WASM_SIMD_OP(load_op), ZERO_ALIGNMENT,
+          ZERO_OFFSET, lane_index, kExprGlobalSet, 0, WASM_ONE);
+
+    T sentinel = T{-1};
+    r.builder().WriteMemory(&memory[lanes_s], sentinel);
+    r.Call();
+
+    // Only one lane is loaded, the rest of the lanes are unchanged.
+    for (int i = 0; i < lanes_s; i++) {
+      if (i == lane_index) {
+        CHECK_EQ(sentinel, ReadLittleEndianValue<T>(&global[i]));
+      } else {
+        CHECK_EQ(T{splat_value}, ReadLittleEndianValue<T>(&global[i]));
+      }
+    }
+  }
+
+  // Test for OOB.
+  {
+    WasmRunner<int32_t, uint32_t> r(execution_tier, lower_simd);
+    r.builder().AddMemoryElems<T>(kWasmPageSize / sizeof(T));
+    r.builder().AddGlobal<T>(kWasmS128);
+
+    BUILD(r, WASM_GET_LOCAL(0), const_op, splat_value, WASM_SIMD_OP(splat_op),
+          WASM_SIMD_OP(load_op), ZERO_ALIGNMENT, ZERO_OFFSET, 0, kExprGlobalSet,
+          0, WASM_ONE);
+
+    // Load lane load sizeof(T) bytes.
+    for (uint32_t index = kWasmPageSize - (sizeof(T) - 1);
+         index < kWasmPageSize; ++index) {
+      CHECK_TRAP(r.Call(index));
+    }
+  }
+}
+
+WASM_SIMD_TEST_NO_LOWERING(S128Load8Lane) {
+  RunLoadLaneTest<int8_t>(execution_tier, lower_simd, kExprS128Load8Lane,
+                          kExprI8x16Splat);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(S128Load16Lane) {
+  RunLoadLaneTest<int16_t>(execution_tier, lower_simd, kExprS128Load16Lane,
+                           kExprI16x8Splat);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(S128Load32Lane) {
+  RunLoadLaneTest<int32_t>(execution_tier, lower_simd, kExprS128Load32Lane,
+                           kExprI32x4Splat);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(S128Load64Lane) {
+  RunLoadLaneTest<int64_t>(execution_tier, lower_simd, kExprS128Load64Lane,
+                           kExprI64x2Splat);
+}
+#endif  // V8_TARGET_ARCH_X64
 
 #define WASM_SIMD_ANYTRUE_TEST(format, lanes, max, param_type)                \
   WASM_SIMD_TEST(S##format##AnyTrue) {                                        \

@@ -281,6 +281,10 @@ namespace compiler {
   V(X64I8x16ExtractLaneU)                 \
   V(X64I8x16ExtractLaneS)                 \
   V(X64I8x16ReplaceLane)                  \
+  V(X64Pinsrb)                            \
+  V(X64Pinsrw)                            \
+  V(X64Pinsrd)                            \
+  V(X64Pinsrq)                            \
   V(X64I8x16SConvertI16x8)                \
   V(X64I8x16Neg)                          \
   V(X64I8x16Shl)                          \

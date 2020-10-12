@@ -99,6 +99,25 @@ bool operator!=(LoadTransformParameters lhs, LoadTransformParameters rhs) {
   return !(lhs == rhs);
 }
 
+size_t hash_value(LoadLaneParameters params) {
+  return base::hash_combine(params.kind, params.rep, params.laneidx);
+}
+
+std::ostream& operator<<(std::ostream& os, LoadLaneParameters params) {
+  return os << "(" << params.kind << " " << params.rep << " " << params.laneidx
+            << ")";
+}
+
+LoadLaneParameters const& LoadLaneParametersOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kLoadLane, op->opcode());
+  return OpParameter<LoadLaneParameters>(op);
+}
+
+bool operator==(LoadLaneParameters lhs, LoadLaneParameters rhs) {
+  return lhs.kind == rhs.kind && lhs.rep == rhs.rep &&
+         lhs.laneidx == rhs.laneidx;
+}
+
 LoadRepresentation LoadRepresentationOf(Operator const* op) {
   DCHECK(IrOpcode::kLoad == op->opcode() ||
          IrOpcode::kProtectedLoad == op->opcode() ||
@@ -602,6 +621,15 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(I16x8, 8)                \
   V(I8x16, 16)
 
+#define SIMD_I64x2_LANES(V) V(0) V(1)
+
+#define SIMD_I32x4_LANES(V) SIMD_I64x2_LANES(V) V(2) V(3)
+
+#define SIMD_I16x8_LANES(V) SIMD_I32x4_LANES(V) V(4) V(5) V(6) V(7)
+
+#define SIMD_I8x16_LANES(V) \
+  SIMD_I16x8_LANES(V) V(8) V(9) V(10) V(11) V(12) V(13) V(14) V(15)
+
 #define STACK_SLOT_CACHED_SIZES_ALIGNMENTS_LIST(V) \
   V(4, 0) V(8, 0) V(16, 0) V(4, 4) V(8, 8) V(16, 16)
 
@@ -750,6 +778,19 @@ struct LoadTransformOperator : public Operator1<LoadTransformParameters> {
                       : Operator::kEliminatable,
                   "LoadTransform", 2, 1, 1, 1, 1, 0,
                   LoadTransformParameters{kind, type}) {}
+};
+
+template <LoadKind kind, MachineRepresentation rep, MachineSemantic sem,
+          uint8_t laneidx>
+struct LoadLaneOperator : public Operator1<LoadLaneParameters> {
+  LoadLaneOperator()
+      : Operator1(
+            IrOpcode::kLoadLane,
+            kind == LoadKind::kProtected
+                ? Operator::kNoDeopt | Operator::kNoThrow
+                : Operator::kEliminatable,
+            "LoadLane", 3, 1, 1, 1, 1, 0,
+            LoadLaneParameters{kind, LoadRepresentation(rep, sem), laneidx}) {}
 };
 
 template <MachineRepresentation rep, WriteBarrierKind write_barrier_kind>
@@ -1120,6 +1161,40 @@ const Operator* MachineOperatorBuilder::LoadTransform(
   LOAD_TRANSFORM_LIST(LOAD_TRANSFORM)
 #undef LOAD_TRANSFORM
 #undef LOAD_TRANSFORM_KIND
+  UNREACHABLE();
+}
+
+const Operator* MachineOperatorBuilder::LoadLane(LoadKind kind,
+                                                 LoadRepresentation rep,
+                                                 uint8_t laneidx) {
+#define LOAD_LANE_KIND(TYPE, KIND, LANEIDX)                      \
+  if (kind == LoadKind::k##KIND && rep == MachineType::TYPE() && \
+      laneidx == LANEIDX) {                                      \
+    return GetCachedOperator<LoadLaneOperator<                   \
+        LoadKind::k##KIND, MachineType::TYPE().representation(), \
+        MachineType::TYPE().semantic(), LANEIDX>>();             \
+  }
+
+#define LOAD_LANE_T(T, LANE)         \
+  LOAD_LANE_KIND(T, Normal, LANE)    \
+  LOAD_LANE_KIND(T, Unaligned, LANE) \
+  LOAD_LANE_KIND(T, Protected, LANE)
+
+#define LOAD_LANE_INT8(LANE) LOAD_LANE_T(Int8, LANE)
+#define LOAD_LANE_INT16(LANE) LOAD_LANE_T(Int16, LANE)
+#define LOAD_LANE_INT32(LANE) LOAD_LANE_T(Int32, LANE)
+#define LOAD_LANE_INT64(LANE) LOAD_LANE_T(Int64, LANE)
+
+  // Semicolons unnecessary, but helps formatting.
+  SIMD_I8x16_LANES(LOAD_LANE_INT8);
+  SIMD_I16x8_LANES(LOAD_LANE_INT16);
+  SIMD_I32x4_LANES(LOAD_LANE_INT32);
+  SIMD_I64x2_LANES(LOAD_LANE_INT64);
+#undef LOAD_LANE_INT8
+#undef LOAD_LANE_INT16
+#undef LOAD_LANE_INT32
+#undef LOAD_LANE_INT64
+#undef LOAD_LANE_KIND
   UNREACHABLE();
 }
 

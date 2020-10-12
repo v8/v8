@@ -5,8 +5,10 @@
 #include <algorithm>
 
 #include "src/base/iterator.h"
+#include "src/base/logging.h"
 #include "src/base/overflowing-math.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
+#include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/roots/roots-inl.h"
@@ -342,6 +344,44 @@ void InstructionSelector::VisitAbortCSAAssert(Node* node) {
   Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), rdx));
 }
 
+void InstructionSelector::VisitLoadLane(Node* node) {
+  LoadLaneParameters params = LoadLaneParametersOf(node->op());
+  InstructionCode opcode = kArchNop;
+  if (params.rep == MachineType::Int8()) {
+    opcode = kX64Pinsrb;
+  } else if (params.rep == MachineType::Int16()) {
+    opcode = kX64Pinsrw;
+  } else if (params.rep == MachineType::Int32()) {
+    opcode = kX64Pinsrd;
+  } else if (params.rep == MachineType::Int64()) {
+    opcode = kX64Pinsrq;
+  } else {
+    UNREACHABLE();
+  }
+
+  X64OperandGenerator g(this);
+  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+  // GetEffectiveAddressMemoryOperand uses up to 3 inputs, 4th is laneidx, 5th
+  // is the value node.
+  InstructionOperand inputs[5];
+  size_t input_count = 0;
+
+  AddressingMode mode =
+      g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
+  opcode |= AddressingModeField::encode(mode);
+
+  inputs[input_count++] = g.UseImmediate(params.laneidx);
+  inputs[input_count++] = g.UseRegister(node->InputAt(2));
+  DCHECK_GE(5, input_count);
+
+  // x64 supports unaligned loads.
+  DCHECK_NE(params.kind, LoadKind::kUnaligned);
+  if (params.kind == LoadKind::kProtected) {
+    opcode |= MiscField::encode(kMemoryAccessProtected);
+  }
+  Emit(opcode, 1, outputs, input_count, inputs);
+}
+
 void InstructionSelector::VisitLoadTransform(Node* node) {
   LoadTransformParameters params = LoadTransformParametersOf(node->op());
   ArchOpcode opcode = kArchNop;
@@ -658,7 +698,7 @@ bool TryMergeTruncateInt64ToInt32IntoLoad(InstructionSelector* selector,
       case MachineRepresentation::kWord64:
       case MachineRepresentation::kTaggedSigned:
       case MachineRepresentation::kTagged:
-      case MachineRepresentation::kCompressed:        // Fall through.
+      case MachineRepresentation::kCompressed:  // Fall through.
         opcode = kX64Movl;
         break;
       default:

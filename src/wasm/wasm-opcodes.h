@@ -464,7 +464,11 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
 
 #define FOREACH_SIMD_POST_MVP_MEM_OPCODE(V) \
   V(S128LoadMem32Zero, 0xfdfc, s_i)         \
-  V(S128LoadMem64Zero, 0xfdfd, s_i)
+  V(S128LoadMem64Zero, 0xfdfd, s_i)         \
+  V(S128Load8Lane, 0xfd58, s_is)            \
+  V(S128Load16Lane, 0xfd59, s_is)           \
+  V(S128Load32Lane, 0xfd5a, s_is)           \
+  V(S128Load64Lane, 0xfd5b, s_is)
 
 #define FOREACH_SIMD_POST_MVP_OPCODE(V) \
   V(I8x16Mul, 0xfd75, s_ss)             \
@@ -691,17 +695,18 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(i_ci, kWasmI32, kWasmFuncRef, kWasmI32)         \
   V(i_qq, kWasmI32, kWasmEqRef, kWasmEqRef)
 
-#define FOREACH_SIMD_SIGNATURE(V)          \
-  V(s_s, kWasmS128, kWasmS128)             \
-  V(s_f, kWasmS128, kWasmF32)              \
-  V(s_d, kWasmS128, kWasmF64)              \
-  V(s_ss, kWasmS128, kWasmS128, kWasmS128) \
-  V(s_i, kWasmS128, kWasmI32)              \
-  V(s_l, kWasmS128, kWasmI64)              \
-  V(s_si, kWasmS128, kWasmS128, kWasmI32)  \
-  V(i_s, kWasmI32, kWasmS128)              \
-  V(v_is, kWasmStmt, kWasmI32, kWasmS128)  \
-  V(s_sss, kWasmS128, kWasmS128, kWasmS128, kWasmS128)
+#define FOREACH_SIMD_SIGNATURE(V)                      \
+  V(s_s, kWasmS128, kWasmS128)                         \
+  V(s_f, kWasmS128, kWasmF32)                          \
+  V(s_d, kWasmS128, kWasmF64)                          \
+  V(s_ss, kWasmS128, kWasmS128, kWasmS128)             \
+  V(s_i, kWasmS128, kWasmI32)                          \
+  V(s_l, kWasmS128, kWasmI64)                          \
+  V(s_si, kWasmS128, kWasmS128, kWasmI32)              \
+  V(i_s, kWasmI32, kWasmS128)                          \
+  V(v_is, kWasmStmt, kWasmI32, kWasmS128)              \
+  V(s_sss, kWasmS128, kWasmS128, kWasmS128, kWasmS128) \
+  V(s_is, kWasmS128, kWasmI32, kWasmS128)
 
 #define FOREACH_PREFIX(V) \
   V(Numeric, 0xfc)        \
