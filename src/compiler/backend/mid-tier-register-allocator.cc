@@ -917,7 +917,6 @@ void RegisterState::Register::PendingUse(InstructionOperand* operand,
     num_commits_required_ = 1;
   }
   DCHECK_EQ(virtual_register_, virtual_register);
-  DCHECK_GE(last_use_instr_index_, instr_index);
 
   PendingOperand pending_op(pending_uses());
   InstructionOperand::ReplaceWith(operand, &pending_op);
@@ -1222,15 +1221,15 @@ class RegisterBitVector {
  public:
   RegisterBitVector() : bits_(0) {}
 
-  bool Contains(RegisterIndex reg, MachineRepresentation rep) {
+  bool Contains(RegisterIndex reg, MachineRepresentation rep) const {
     return bits_ & reg.ToBit(rep);
   }
 
-  RegisterIndex GetFirstSet() {
+  RegisterIndex GetFirstSet() const {
     return RegisterIndex(base::bits::CountTrailingZeros(bits_));
   }
 
-  RegisterIndex GetFirstCleared(int max_reg) {
+  RegisterIndex GetFirstCleared(int max_reg) const {
     int reg_index = base::bits::CountTrailingZeros(~bits_);
     if (reg_index < max_reg) {
       return RegisterIndex(reg_index);
@@ -1252,7 +1251,7 @@ class RegisterBitVector {
   }
 
   void Reset() { bits_ = 0; }
-  bool IsEmpty() { return bits_ == 0; }
+  bool IsEmpty() const { return bits_ == 0; }
 
  private:
   explicit RegisterBitVector(uintptr_t bits) : bits_(bits) {}
@@ -1344,6 +1343,12 @@ class SinglePassRegisterAllocator final {
   // state into the current block.
   void SpillRegisterAtMerge(RegisterState* reg_state, RegisterIndex reg);
 
+  // Introduce a gap move to move |virtual_register| from reg |from| to reg |to|
+  // on entry to a |successor| block.
+  void MoveRegisterOnMerge(RegisterIndex from, RegisterIndex to,
+                           int virtual_register, RpoNumber successor,
+                           RegisterState* succ_state);
+
   // Update the virtual register data with the data in register_state()
   void UpdateVirtualRegisterState();
 
@@ -1401,6 +1406,8 @@ class SinglePassRegisterAllocator final {
                                             bool must_use_register);
   V8_INLINE RegisterIndex ChooseFreeRegister(MachineRepresentation rep,
                                              UsePosition pos);
+  V8_INLINE RegisterIndex ChooseFreeRegister(
+      const RegisterBitVector& allocated_regs, MachineRepresentation rep);
   V8_INLINE RegisterIndex ChooseRegisterToSpill(MachineRepresentation rep,
                                                 UsePosition pos);
 
@@ -1425,6 +1432,10 @@ class SinglePassRegisterAllocator final {
   // Returns true if |virtual_register| is unallocated or is allocated to |reg|.
   bool VirtualRegisterIsUnallocatedOrInReg(int virtual_register,
                                            RegisterIndex reg);
+
+  // Returns a RegisterBitVector representing the allocated registers in
+  // reg_state.
+  RegisterBitVector GetAllocatedRegBitVector(RegisterState* reg_state);
 
   // Check the consistency of reg->vreg and vreg->reg mappings if a debug build.
   void CheckConsistency();
@@ -1642,19 +1653,51 @@ void SinglePassRegisterAllocator::MergeStateFrom(
       UpdateVirtualRegisterState();
     } else {
       // Otherwise try to merge our state with the existing state.
-      for (RegisterIndex reg : *register_state()) {
+      RegisterBitVector processed_regs;
+      RegisterBitVector succ_allocated_regs =
+          GetAllocatedRegBitVector(successor_registers);
+      for (RegisterIndex reg : *successor_registers) {
+        // If |reg| isn't allocated in successor registers, nothing to do.
+        if (!successor_registers->IsAllocated(reg)) continue;
+
+        int virtual_register =
+            successor_registers->VirtualRegisterForRegister(reg);
+        MachineRepresentation rep = RepresentationFor(virtual_register);
+
+        // If we have already processed |reg|, e.g., adding gap move to that
+        // register, then we can continue.
+        if (processed_regs.Contains(reg, rep)) continue;
+        processed_regs.Add(reg, rep);
+
         if (register_state()->IsAllocated(reg)) {
           if (successor_registers->Equals(reg, register_state())) {
             // Both match, keep the merged register data.
             register_state()->CommitAtMerge(reg);
           } else {
-            // TODO(rmcilroy) consider adding a gap move to shuffle register
-            // into the same as the target. For now just spill.
-            SpillRegisterAtMerge(successor_registers, reg);
+            // Try to find a new register for this successor register in the
+            // merge block, and add a gap move on entry of the successor block.
+            RegisterIndex new_reg =
+                RegisterForVirtualRegister(virtual_register);
+            if (!new_reg.is_valid()) {
+              new_reg = ChooseFreeRegister(
+                  allocated_registers_bits_.Union(succ_allocated_regs), rep);
+            } else if (new_reg != reg) {
+              // Spill the |new_reg| in the successor block to be able to use it
+              // for this gap move. It would be spilled anyway since it contains
+              // a different virtual register than the merge block.
+              SpillRegisterAtMerge(successor_registers, new_reg);
+            }
+
+            if (new_reg.is_valid()) {
+              MoveRegisterOnMerge(new_reg, reg, virtual_register, successor,
+                                  successor_registers);
+              processed_regs.Add(new_reg, rep);
+            } else {
+              SpillRegisterAtMerge(successor_registers, reg);
+            }
           }
-        } else if (successor_registers->IsAllocated(reg)) {
-          int virtual_register =
-              successor_registers->VirtualRegisterForRegister(reg);
+        } else {
+          DCHECK(successor_registers->IsAllocated(reg));
           if (RegisterForVirtualRegister(virtual_register).is_valid()) {
             // If we already hold the virtual register in a different register
             // then spill this register in the sucessor block to avoid
@@ -1665,13 +1708,24 @@ void SinglePassRegisterAllocator::MergeStateFrom(
             // Register is free in our current register state, so merge the
             // successor block's register details into it.
             register_state()->CopyFrom(reg, successor_registers);
-            int virtual_register = VirtualRegisterForRegister(reg);
             AssignRegister(reg, virtual_register, UsePosition::kNone);
           }
         }
       }
     }
   }
+}
+
+RegisterBitVector SinglePassRegisterAllocator::GetAllocatedRegBitVector(
+    RegisterState* reg_state) {
+  RegisterBitVector allocated_regs;
+  for (RegisterIndex reg : *reg_state) {
+    if (reg_state->IsAllocated(reg)) {
+      int virtual_register = reg_state->VirtualRegisterForRegister(reg);
+      allocated_regs.Add(reg, RepresentationFor(virtual_register));
+    }
+  }
+  return allocated_regs;
 }
 
 void SinglePassRegisterAllocator::SpillRegisterAtMerge(RegisterState* reg_state,
@@ -1682,6 +1736,17 @@ void SinglePassRegisterAllocator::SpillRegisterAtMerge(RegisterState* reg_state,
     AllocatedOperand allocated = AllocatedOperandForReg(reg, virtual_register);
     reg_state->Spill(reg, allocated, current_block(), data());
   }
+}
+
+void SinglePassRegisterAllocator::MoveRegisterOnMerge(
+    RegisterIndex from, RegisterIndex to, int virtual_register,
+    RpoNumber successor, RegisterState* succ_state) {
+  int instr_index = data()->GetBlock(successor)->first_instruction_index();
+  MoveOperands* move =
+      data()->AddPendingOperandGapMove(instr_index, Instruction::START);
+  succ_state->Commit(to, AllocatedOperandForReg(to, virtual_register),
+                     &move->destination(), data());
+  AllocatePendingUse(from, virtual_register, &move->source(), instr_index);
 }
 
 void SinglePassRegisterAllocator::UpdateVirtualRegisterState() {
@@ -1878,16 +1943,19 @@ RegisterIndex SinglePassRegisterAllocator::ChooseFreeRegister(
   // TODO(rmcilroy): Consider a better heuristic.
   RegisterBitVector allocated_or_in_use =
       InUseBitmap(pos).Union(allocated_registers_bits_);
+  return ChooseFreeRegister(allocated_or_in_use, rep);
+}
 
+RegisterIndex SinglePassRegisterAllocator::ChooseFreeRegister(
+    const RegisterBitVector& allocated_regs, MachineRepresentation rep) {
   RegisterIndex chosen_reg = RegisterIndex::Invalid();
   if (kSimpleFPAliasing || kind() == RegisterKind::kGeneral) {
-    chosen_reg =
-        allocated_or_in_use.GetFirstCleared(num_allocatable_registers());
+    chosen_reg = allocated_regs.GetFirstCleared(num_allocatable_registers());
   } else {
     // If we don't have simple fp aliasing, we need to check each register
     // individually to get one with the required representation.
     for (RegisterIndex reg : *register_state()) {
-      if (IsValidForRep(reg, rep) && !allocated_or_in_use.Contains(reg, rep)) {
+      if (IsValidForRep(reg, rep) && !allocated_regs.Contains(reg, rep)) {
         chosen_reg = reg;
         break;
       }
