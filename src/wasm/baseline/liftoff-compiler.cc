@@ -2185,25 +2185,36 @@ class LiftoffCompiler {
     __ SpillAllRegisters();
 
     LiftoffRegList pinned = LiftoffRegList::ForRegs(index);
-    // Get one register for computing the address (offset + index).
-    LiftoffRegister address = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    // Compute offset+index in address.
-    __ LoadConstant(address, WasmValue(offset));
-    __ emit_i32_add(address.gp(), address.gp(), index);
+    // Get one register for computing the effective offset (offset + index).
+    LiftoffRegister effective_offset =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    __ LoadConstant(effective_offset, WasmValue(offset));
+    __ emit_i32_add(effective_offset.gp(), effective_offset.gp(), index);
 
     // Get a register to hold the stack slot for MemoryTracingInfo.
     LiftoffRegister info = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     // Allocate stack slot for MemoryTracingInfo.
     __ AllocateStackSlot(info.gp(), sizeof(MemoryTracingInfo));
 
+    // Reuse the {effective_offset} register for all information to be stored in
+    // the MemoryTracingInfo struct.
+    LiftoffRegister data = effective_offset;
+
     // Now store all information into the MemoryTracingInfo struct.
-    __ Store(info.gp(), no_reg, offsetof(MemoryTracingInfo, address), address,
-             StoreType::kI32Store, pinned);
-    __ LoadConstant(address, WasmValue(is_store ? 1 : 0));
-    __ Store(info.gp(), no_reg, offsetof(MemoryTracingInfo, is_store), address,
+    if (kSystemPointerSize == 8) {
+      // Zero-extend the effective offset to u64.
+      CHECK(__ emit_type_conversion(kExprI64UConvertI32, data, effective_offset,
+                                    nullptr));
+    }
+    __ Store(
+        info.gp(), no_reg, offsetof(MemoryTracingInfo, offset), data,
+        kSystemPointerSize == 8 ? StoreType::kI64Store : StoreType::kI32Store,
+        pinned);
+    __ LoadConstant(data, WasmValue(is_store ? 1 : 0));
+    __ Store(info.gp(), no_reg, offsetof(MemoryTracingInfo, is_store), data,
              StoreType::kI32Store8, pinned);
-    __ LoadConstant(address, WasmValue(static_cast<int>(rep)));
-    __ Store(info.gp(), no_reg, offsetof(MemoryTracingInfo, mem_rep), address,
+    __ LoadConstant(data, WasmValue(static_cast<int>(rep)));
+    __ Store(info.gp(), no_reg, offsetof(MemoryTracingInfo, mem_rep), data,
              StoreType::kI32Store8, pinned);
 
     WasmTraceMemoryDescriptor descriptor;

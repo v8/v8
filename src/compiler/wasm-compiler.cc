@@ -3827,14 +3827,14 @@ Node* WasmGraphBuilder::TraceMemoryOperation(bool is_store,
   TNode<RawPtrT> info =
       gasm_->StackSlot(sizeof(wasm::MemoryTracingInfo), kAlign);
 
-  Node* address = gasm_->IntAdd(gasm_->UintPtrConstant(offset), index);
+  Node* effective_offset = gasm_->IntAdd(gasm_->UintPtrConstant(offset), index);
   auto store = [&](int field_offset, MachineRepresentation rep, Node* data) {
     gasm_->Store(StoreRepresentation(rep, kNoWriteBarrier), info,
                  gasm_->Int32Constant(field_offset), data);
   };
-  // Store address, is_store, and mem_rep.
-  store(offsetof(wasm::MemoryTracingInfo, address),
-        MachineRepresentation::kWord32, address);
+  // Store effective_offset, is_store, and mem_rep.
+  store(offsetof(wasm::MemoryTracingInfo, offset),
+        MachineType::PointerRepresentation(), effective_offset);
   store(offsetof(wasm::MemoryTracingInfo, is_store),
         MachineRepresentation::kWord8,
         mcgraph()->Int32Constant(is_store ? 1 : 0));
