@@ -239,13 +239,6 @@ void CCGenerator::EmitInstruction(const CallCsaMacroInstruction& instruction,
     }
   }
 
-  if (ExternMacro* extern_macro = ExternMacro::DynamicCast(instruction.macro)) {
-    out() << "TorqueRuntimeMacroShims::"
-          << extern_macro->external_assembler_name() << "::";
-  } else {
-    out() << "TqRuntime";
-  }
-
   out() << instruction.macro->CCName() << "(isolate";
   if (!args.empty()) out() << ", ";
   PrintCommaSeparatedList(out(), args);

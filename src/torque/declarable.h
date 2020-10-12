@@ -322,8 +322,17 @@ class Callable : public Scope {
     return !ShouldBeInlined(output_type);
   }
 
+  static std::string PrefixNameForCCOutput(const std::string& name) {
+    // If a Torque macro requires a C++ runtime function to be generated, then
+    // the generated function begins with this prefix to avoid any naming
+    // collisions with the generated CSA function for the same macro.
+    return "TqRuntime" + name;
+  }
+
   // Name to use in runtime C++ code.
-  virtual const std::string& CCName() const { return ExternalName(); }
+  virtual std::string CCName() const {
+    return PrefixNameForCCOutput(ExternalName());
+  }
 
  protected:
   Callable(Declarable::Kind kind, std::string external_name,
@@ -389,6 +398,11 @@ class ExternMacro : public Macro {
     return external_assembler_name_;
   }
 
+  std::string CCName() const override {
+    return "TorqueRuntimeMacroShims::" + external_assembler_name() +
+           "::" + ExternalName();
+  }
+
  private:
   friend class Declarations;
   ExternMacro(const std::string& name, std::string external_assembler_name,
@@ -404,10 +418,11 @@ class TorqueMacro : public Macro {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(TorqueMacro, TorqueMacro)
   bool IsExportedToCSA() const { return exported_to_csa_; }
-  const std::string& CCName() const override {
+  std::string CCName() const override {
     // Exported functions must have unique and C++-friendly readable names, so
     // prefer those wherever possible.
-    return IsExportedToCSA() ? ReadableName() : ExternalName();
+    return PrefixNameForCCOutput(IsExportedToCSA() ? ReadableName()
+                                                   : ExternalName());
   }
 
  protected:

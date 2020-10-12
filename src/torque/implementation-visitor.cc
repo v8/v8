@@ -314,12 +314,11 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
   bool can_return = return_type != TypeOracle::GetNeverType();
   bool has_return_value =
       can_return && return_type != TypeOracle::GetVoidType();
-  const char* prefix = output_type_ == OutputType::kCC ? "TqRuntime" : "";
 
-  GenerateMacroFunctionDeclaration(header_out(), prefix, macro);
+  GenerateMacroFunctionDeclaration(header_out(), macro);
   header_out() << ";\n";
 
-  GenerateMacroFunctionDeclaration(source_out(), prefix, macro);
+  GenerateMacroFunctionDeclaration(source_out(), macro);
   source_out() << " {\n";
 
   if (output_type_ == OutputType::kCC) {
@@ -1668,10 +1667,10 @@ void ImplementationVisitor::GenerateImplementation(const std::string& dir) {
   WriteFile(dir + "/runtime-macros.cc", runtime_macros_cc_.str());
 }
 
-void ImplementationVisitor::GenerateMacroFunctionDeclaration(
-    std::ostream& o, const std::string& macro_prefix, Macro* macro) {
+void ImplementationVisitor::GenerateMacroFunctionDeclaration(std::ostream& o,
+                                                             Macro* macro) {
   GenerateFunctionDeclaration(
-      o, macro_prefix,
+      o, "",
       output_type_ == OutputType::kCC ? macro->CCName() : macro->ExternalName(),
       macro->signature(), macro->parameter_names());
 }
@@ -4621,10 +4620,9 @@ namespace {
 // Generate verification code for a single piece of class data, which might be
 // nested within a struct or might be a single element in an indexed field (or
 // both).
-void GenerateFieldValueVerifier(const std::string& class_name,
-                                const Field& class_field,
-                                const Field& leaf_field, size_t struct_offset,
-                                std::string field_size,
+void GenerateFieldValueVerifier(const std::string& class_name, bool indexed,
+                                std::string offset, const Field& leaf_field,
+                                std::string indexed_field_size,
                                 std::ostream& cc_contents) {
   const Type* field_type = leaf_field.name_and_type.type;
 
@@ -4633,17 +4631,15 @@ void GenerateFieldValueVerifier(const std::string& class_name,
   const char* object_type = maybe_object ? "MaybeObject" : "Object";
   const char* verify_fn =
       maybe_object ? "VerifyMaybeObjectPointer" : "VerifyPointer";
-  std::string index_offset = std::to_string(struct_offset);
-  if (class_field.index) {
-    index_offset += " + i * " + field_size;
+  if (indexed) {
+    offset += " + i * " + indexed_field_size;
   }
   // Name the local var based on the field name for nicer CHECK output.
   const std::string value = leaf_field.name_and_type.name + "__value";
 
   // Read the field.
   cc_contents << "    " << object_type << " " << value << " = TaggedField<"
-              << object_type << ", " << *class_field.offset << ">::load(o, "
-              << index_offset << ");\n";
+              << object_type << ">::load(o, " << offset << ");\n";
 
   // Call VerifyPointer or VerifyMaybeObjectPointer on it.
   cc_contents << "    " << object_type << "::" << verify_fn << "(isolate, "
@@ -4674,49 +4670,49 @@ void GenerateClassFieldVerifier(const std::string& class_name,
   // Do not verify if the field may be uninitialized.
   if (TypeOracle::GetUninitializedType()->IsSubtypeOf(field_type)) return;
 
+  std::string field_start_offset;
   if (f.index) {
-    base::Optional<NameAndType> array_length =
-        ExtractSimpleFieldArraySize(class_type, *f.index);
-    if (!array_length) {
-      Error("Cannot generate verifier for array field with complex length.")
-          .Position((*f.index)->pos)
-          .Throw();
-    }
+    field_start_offset = f.name_and_type.name + "__offset";
+    std::string length = f.name_and_type.name + "__length";
+    cc_contents << "  intptr_t " << field_start_offset << ", " << length
+                << ";\n";
+    cc_contents << "  std::tie(std::ignore, " << field_start_offset << ", "
+                << length << ") = "
+                << Callable::PrefixNameForCCOutput(
+                       class_type.GetSliceMacroName(f))
+                << "(isolate, o);\n";
 
-    std::string length_field_offset =
-        class_name + "::k" + CamelifyString(array_length->name) + "Offset";
-    cc_contents << "  for (int i = 0; i < ";
-    if (array_length->type == TypeOracle::GetSmiType()) {
-      // We already verified the index field because it was listed earlier, so
-      // we can assume it's safe to read here.
-      cc_contents << "TaggedField<Smi, " << length_field_offset
-                  << ">::load(o).value()";
-    } else {
-      const Type* constexpr_version = array_length->type->ConstexprVersion();
-      if (constexpr_version == nullptr) {
-        Error("constexpr representation for type ",
-              array_length->type->ToString(),
-              " is required due to usage as index")
-            .Position(f.pos);
-      }
-      cc_contents << "o.ReadField<" << constexpr_version->GetGeneratedTypeName()
-                  << ">(" << length_field_offset << ")";
-    }
-    cc_contents << "; ++i) {\n";
+    // Slices use intptr, but TaggedField<T>.load() uses int, so verify that
+    // such a cast is valid.
+    cc_contents << "  CHECK_EQ(" << field_start_offset << ", static_cast<int>("
+                << field_start_offset << "));\n";
+    cc_contents << "  CHECK_EQ(" << length << ", static_cast<int>(" << length
+                << "));\n";
+    field_start_offset = "static_cast<int>(" + field_start_offset + ")";
+    length = "static_cast<int>(" + length + ")";
+
+    cc_contents << "  for (int i = 0; i < " << length << "; ++i) {\n";
   } else {
+    // Non-indexed fields have known offsets.
+    field_start_offset = std::to_string(*f.offset);
     cc_contents << "  {\n";
   }
 
   if (auto struct_type = field_type->StructSupertype()) {
-    for (const Field& field : (*struct_type)->fields()) {
-      if (field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-        GenerateFieldValueVerifier(class_name, f, field, *field.offset,
-                                   std::to_string((*struct_type)->PackedSize()),
-                                   cc_contents);
+    for (const Field& struct_field : (*struct_type)->fields()) {
+      if (struct_field.name_and_type.type->IsSubtypeOf(
+              TypeOracle::GetTaggedType())) {
+        GenerateFieldValueVerifier(
+            class_name, f.index.has_value(),
+            field_start_offset + " + " + std::to_string(*struct_field.offset),
+            struct_field, std::to_string((*struct_type)->PackedSize()),
+            cc_contents);
       }
     }
   } else {
-    GenerateFieldValueVerifier(class_name, f, f, 0, "kTaggedSize", cc_contents);
+    GenerateFieldValueVerifier(class_name, f.index.has_value(),
+                               field_start_offset, f, "kTaggedSize",
+                               cc_contents);
   }
 
   cc_contents << "  }\n";
@@ -4744,6 +4740,7 @@ void ImplementationVisitor::GenerateClassVerifiers(
                    "\"torque-generated/internal-class-definitions-inl.h\"\n";
     cc_contents << "#include "
                    "\"torque-generated/exported-class-definitions-inl.h\"\n";
+    cc_contents << "#include \"torque-generated/runtime-macros.h\"\n";
 
     IncludeObjectMacrosScope object_macros(cc_contents);
 

@@ -729,7 +729,6 @@ class ImplementationVisitor {
                                 Block* false_block);
 
   void GenerateMacroFunctionDeclaration(std::ostream& o,
-                                        const std::string& macro_prefix,
                                         Macro* macro);
   std::vector<std::string> GenerateFunctionDeclaration(
       std::ostream& o, const std::string& macro_prefix, const std::string& name,
