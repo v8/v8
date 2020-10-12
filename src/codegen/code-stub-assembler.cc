@@ -10434,20 +10434,14 @@ TNode<TIndex> CodeStubAssembler::BuildFastLoop(const VariableList& vars,
 }
 
 // Instantiate BuildFastLoop for IntPtrT and UintPtrT.
-template V8_EXPORT_PRIVATE TNode<IntPtrT>
-CodeStubAssembler::BuildFastLoop<IntPtrT>(const VariableList& vars,
-                                          TNode<IntPtrT> start_index,
-                                          TNode<IntPtrT> end_index,
-                                          const FastLoopBody<IntPtrT>& body,
-                                          int increment,
-                                          IndexAdvanceMode advance_mode);
-template V8_EXPORT_PRIVATE TNode<UintPtrT>
-CodeStubAssembler::BuildFastLoop<UintPtrT>(const VariableList& vars,
-                                           TNode<UintPtrT> start_index,
-                                           TNode<UintPtrT> end_index,
-                                           const FastLoopBody<UintPtrT>& body,
-                                           int increment,
-                                           IndexAdvanceMode advance_mode);
+template TNode<IntPtrT> CodeStubAssembler::BuildFastLoop<IntPtrT>(
+    const VariableList& vars, TNode<IntPtrT> start_index,
+    TNode<IntPtrT> end_index, const FastLoopBody<IntPtrT>& body, int increment,
+    IndexAdvanceMode advance_mode);
+template TNode<UintPtrT> CodeStubAssembler::BuildFastLoop<UintPtrT>(
+    const VariableList& vars, TNode<UintPtrT> start_index,
+    TNode<UintPtrT> end_index, const FastLoopBody<UintPtrT>& body,
+    int increment, IndexAdvanceMode advance_mode);
 
 template <typename TIndex>
 void CodeStubAssembler::BuildFastArrayForEach(
