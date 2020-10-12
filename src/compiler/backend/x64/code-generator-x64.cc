@@ -565,6 +565,21 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     __ j(not_equal, &binop);                                      \
   } while (false)
 
+// Handles both SSE and AVX codegen. For SSE we use DefineSameAsFirst, so the
+// dst and first src will be the same. For AVX we don't restrict it that way, so
+// we will omit unnecessary moves.
+#define ASSEMBLE_SIMD_BINOP(opcode)                                      \
+  do {                                                                   \
+    if (CpuFeatures::IsSupported(AVX)) {                                 \
+      CpuFeatureScope avx_scope(tasm(), AVX);                            \
+      __ v##opcode(i.OutputSimd128Register(), i.InputSimd128Register(0), \
+                   i.InputSimd128Register(1));                           \
+    } else {                                                             \
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));   \
+      __ opcode(i.OutputSimd128Register(), i.InputSimd128Register(1));   \
+    }                                                                    \
+  } while (false)
+
 #define ASSEMBLE_SIMD_INSTR(opcode, dst_operand, index)      \
   do {                                                       \
     if (instr->InputAt(index)->IsSimd128Register()) {        \
@@ -2546,8 +2561,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F32x4Add: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ Addps(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(addps);
       break;
     }
     case kX64F32x4AddHoriz: {
@@ -2556,18 +2570,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F32x4Sub: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ Subps(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(subps);
       break;
     }
     case kX64F32x4Mul: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ Mulps(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(mulps);
       break;
     }
     case kX64F32x4Div: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ Divps(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(divps);
       break;
     }
     case kX64F32x4Min: {
@@ -3530,15 +3541,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64S128And: {
-      __ Pand(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(pand);
       break;
     }
     case kX64S128Or: {
-      __ Por(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(por);
       break;
     }
     case kX64S128Xor: {
-      __ Pxor(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(pxor);
       break;
     }
     case kX64S128Not: {

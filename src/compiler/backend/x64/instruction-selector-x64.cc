@@ -2774,6 +2774,15 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8)            \
   V(I8x16)
 
+#define SIMD_BINOP_SSE_AVX_LIST(V) \
+  V(F32x4Add)                      \
+  V(F32x4Sub)                      \
+  V(F32x4Mul)                      \
+  V(F32x4Div)                      \
+  V(S128And)                       \
+  V(S128Or)                        \
+  V(S128Xor)
+
 #define SIMD_BINOP_LIST(V) \
   V(F64x2Add)              \
   V(F64x2Sub)              \
@@ -2785,11 +2794,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(F64x2Ne)               \
   V(F64x2Lt)               \
   V(F64x2Le)               \
-  V(F32x4Add)              \
   V(F32x4AddHoriz)         \
-  V(F32x4Sub)              \
-  V(F32x4Mul)              \
-  V(F32x4Div)              \
   V(F32x4Min)              \
   V(F32x4Max)              \
   V(F32x4Eq)               \
@@ -2845,10 +2850,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16MinU)             \
   V(I8x16MaxU)             \
   V(I8x16GeU)              \
-  V(I8x16RoundingAverageU) \
-  V(S128And)               \
-  V(S128Or)                \
-  V(S128Xor)
+  V(I8x16RoundingAverageU)
 
 #define SIMD_BINOP_ONE_TEMP_LIST(V) \
   V(I32x4Ne)                        \
@@ -3027,6 +3029,21 @@ SIMD_UNOP_LIST(VISIT_SIMD_UNOP)
 SIMD_BINOP_LIST(VISIT_SIMD_BINOP)
 #undef VISIT_SIMD_BINOP
 #undef SIMD_BINOP_LIST
+
+#define VISIT_SIMD_BINOP(Opcode)                                              \
+  void InstructionSelector::Visit##Opcode(Node* node) {                       \
+    X64OperandGenerator g(this);                                              \
+    if (IsSupported(AVX)) {                                                   \
+      Emit(kX64##Opcode, g.DefineAsRegister(node),                            \
+           g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1))); \
+    } else {                                                                  \
+      Emit(kX64##Opcode, g.DefineSameAsFirst(node),                           \
+           g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1))); \
+    }                                                                         \
+  }
+SIMD_BINOP_SSE_AVX_LIST(VISIT_SIMD_BINOP)
+#undef VISIT_SIMD_BINOP
+#undef SIMD_BINOP_SSE_AVX_LIST
 
 #define VISIT_SIMD_BINOP_ONE_TEMP(Opcode)                                  \
   void InstructionSelector::Visit##Opcode(Node* node) {                    \
