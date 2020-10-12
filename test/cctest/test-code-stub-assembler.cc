@@ -1930,63 +1930,192 @@ TEST(AllocateNameDictionary) {
   }
 }
 
+TEST(PopAndReturnFromJSBuiltinWithStackParameters) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumStackParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumStackParams);
+  {
+    CodeStubAssembler m(asm_tester.state());
+    m.PopAndReturn(m.SmiUntag(m.Parameter<Smi>(0)),
+                   m.SmiConstant(Smi::FromInt(1234)));
+  }
+
+  // Attempt to generate code must trigger CHECK failure in RawMachineAssebler.
+  // PopAndReturn is not allowed in builtins with JS linkage and declared stack
+  // parameters.
+  asm_tester.GenerateCode();
+}
+
+TEST(PopAndReturnFromTFCBuiltinWithStackParameters) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  // Setup CSA for creating TFC-style builtin with stack arguments.
+  // For the testing purposes we need any interface descriptor that has at
+  // least one argument passed on stack.
+  using Descriptor = FlatMapIntoArrayDescriptor;
+  Descriptor descriptor;
+  CHECK_LT(0, descriptor.GetStackParameterCount());
+
+  CodeAssemblerTester asm_tester(isolate, Descriptor());
+  {
+    CodeStubAssembler m(asm_tester.state());
+    m.PopAndReturn(m.SmiUntag(m.Parameter<Smi>(0)),
+                   m.SmiConstant(Smi::FromInt(1234)));
+  }
+
+  // Attempt to generate code must trigger CHECK failure in RawMachineAssebler.
+  // PopAndReturn is not allowed in builtins with JS linkage and declared stack
+  // parameters.
+  asm_tester.GenerateCode();
+}
+
+namespace {
+
+DISABLE_ASAN void* GetStackPointer() {
+  // Disable ASAN, because it mallocs stack memory and therefore the result
+  // will not approximate stack pointer value.
+  intptr_t local = 0;
+  // Return value via p in order to avoid triggering clang warning:
+  // Address of stack memory associated with local variable 'local' returned
+  // clang(-Wreturn-stack-address).
+  void* p = &local;
+  return p;
+}
+
+TNode<Object> MakeConstantNode(CodeStubAssembler& m, Handle<Object> value) {
+  if (value->IsSmi()) {
+    return m.SmiConstant(Smi::ToInt(*value));
+  }
+  return m.HeapConstant(Handle<HeapObject>::cast(value));
+}
+
+// Buids a CSA function that calls |target| function with given arguments
+// |number_of_iterations| times and checks that the stack pointer values before
+// the calls and after the calls are the same.
+// Then this new function is called multiple times.
+template <typename... Args>
+void CallFunctionWithStackPointerChecks(Isolate* isolate,
+                                        Handle<Object> expected_result,
+                                        Handle<Object> target,
+                                        Handle<Object> receiver, Args... args) {
+  // Setup CSA for creating TFJ-style builtin.
+  using Descriptor = JSTrampolineDescriptor;
+  CodeAssemblerTester asm_tester(isolate, Descriptor());
+
+  {
+    CodeStubAssembler m(asm_tester.state());
+
+    const TNode<ExternalReference> get_stack_ptr = m.ExternalConstant(
+        ExternalReference::Create(reinterpret_cast<Address>(GetStackPointer)));
+
+    TNode<Context> context = m.Parameter<Context>(Descriptor::kContext);
+
+    // CSA doesn't have instructions for reading current stack pointer value,
+    // so we use a C function that returns address of its local variable.
+    // This is a good-enough approximation for the stack pointer.
+    MachineType type_intptr = MachineType::IntPtr();
+    TNode<WordT> stack_pointer0 =
+        m.UncheckedCast<WordT>(m.CallCFunction(get_stack_ptr, type_intptr));
+
+    // CSA::CallCFunction() aligns stack pointer before the call, so off-by one
+    // errors will not be detected. In order to handle this we do the calls in a
+    // loop in order to exaggerate the effect of potentially broken stack
+    // pointer so that the GetStackPointer function will be able to notice it.
+    m.BuildFastLoop<IntPtrT>(
+        m.IntPtrConstant(0), m.IntPtrConstant(153),
+        [&](TNode<IntPtrT> index) {
+          TNode<Object> result = m.Call(context, MakeConstantNode(m, target),
+                                        MakeConstantNode(m, receiver),
+                                        MakeConstantNode(m, args)...);
+          CSA_CHECK(
+              &m, m.TaggedEqual(result, MakeConstantNode(m, expected_result)));
+        },
+        1, CodeStubAssembler::IndexAdvanceMode::kPost);
+
+    TNode<WordT> stack_pointer1 =
+        m.UncheckedCast<WordT>(m.CallCFunction(get_stack_ptr, type_intptr));
+    CSA_CHECK(&m, m.WordEqual(stack_pointer0, stack_pointer1));
+    m.Return(m.SmiConstant(42));
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 1);  // Include receiver.
+
+  Handle<Object> result;
+  for (int test_count = 0; test_count < 100; ++test_count) {
+    result = ft.Call().ToHandleChecked();
+    CHECK_EQ(Smi::FromInt(42), *result);
+  }
+}
+
+}  // namespace
+
 TEST(PopAndReturnConstant) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
-  const int kNumParams = 4;
-  const int kNumProgrammaticParams = 2;
-  CodeAssemblerTester asm_tester(
-      isolate,
-      kNumParams - kNumProgrammaticParams + 1);  // Include receiver.
-  CodeStubAssembler m(asm_tester.state());
+  // Setup CSA for creating TFJ-style builtin.
+  using Descriptor = JSTrampolineDescriptor;
+  CodeAssemblerTester asm_tester(isolate, Descriptor());
 
-  // Call a function that return |kNumProgramaticParams| parameters in addition
-  // to those specified by the static descriptor. |kNumProgramaticParams| is
-  // specified as a constant.
-  CSA_CHECK(&m, m.SmiEqual(m.Parameter<Smi>(2), m.SmiConstant(5678)));
-  m.PopAndReturn(m.Int32Constant(kNumProgrammaticParams),
-                 m.SmiConstant(Smi::FromInt(1234)));
+  const int kNumParams = 4;  // Not including receiver
+  {
+    CodeStubAssembler m(asm_tester.state());
+    TNode<Int32T> argc =
+        m.UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+    CSA_CHECK(&m, m.Word32Equal(argc, m.Int32Constant(kNumParams)));
 
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result;
-  for (int test_count = 0; test_count < 100; ++test_count) {
-    result = ft.Call(isolate->factory()->undefined_value(),
-                     Handle<Smi>(Smi::FromInt(5678), isolate),
-                     isolate->factory()->undefined_value(),
-                     isolate->factory()->undefined_value())
-                 .ToHandleChecked();
-    CHECK_EQ(1234, Handle<Smi>::cast(result)->value());
+    m.PopAndReturn(m.IntPtrConstant(kNumParams + 1),  // Include receiver.
+                   m.SmiConstant(1234));
   }
+
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.function->shared().DontAdaptArguments();
+
+  // Now call this function multiple time also checking that the stack pointer
+  // didn't change after the calls.
+  Handle<Object> receiver = isolate->factory()->undefined_value();
+  Handle<Smi> expected_result(Smi::FromInt(1234), isolate);
+  CallFunctionWithStackPointerChecks(isolate, expected_result, ft.function,
+                                     receiver,
+                                     // Pass kNumParams arguments.
+                                     Handle<Smi>(Smi::FromInt(1), isolate),
+                                     Handle<Smi>(Smi::FromInt(2), isolate),
+                                     Handle<Smi>(Smi::FromInt(3), isolate),
+                                     Handle<Smi>(Smi::FromInt(4), isolate));
 }
 
 TEST(PopAndReturnVariable) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
-  const int kNumParams = 4;
-  const int kNumProgrammaticParams = 2;
-  CodeAssemblerTester asm_tester(
-      isolate,
-      kNumParams - kNumProgrammaticParams + 1);  // Include receiver.
-  CodeStubAssembler m(asm_tester.state());
+  // Setup CSA for creating TFJ-style builtin.
+  using Descriptor = JSTrampolineDescriptor;
+  CodeAssemblerTester asm_tester(isolate, Descriptor());
 
-  // Call a function that return |kNumProgramaticParams| parameters in addition
-  // to those specified by the static descriptor. |kNumProgramaticParams| is
-  // passed in as a parameter to the function so that it can't be recognized as
-  // a constant.
-  CSA_CHECK(&m, m.SmiEqual(m.Parameter<Smi>(2), m.SmiConstant(5678)));
-  m.PopAndReturn(m.SmiUntag(m.Parameter<Smi>(1)),
-                 m.SmiConstant(Smi::FromInt(1234)));
+  const int kNumParams = 4;  // Not including receiver
+  {
+    CodeStubAssembler m(asm_tester.state());
+    TNode<Int32T> argc =
+        m.UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+    CSA_CHECK(&m, m.Word32Equal(argc, m.Int32Constant(kNumParams)));
 
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result;
-  for (int test_count = 0; test_count < 100; ++test_count) {
-    result = ft.Call(Handle<Smi>(Smi::FromInt(kNumProgrammaticParams), isolate),
-                     Handle<Smi>(Smi::FromInt(5678), isolate),
-                     isolate->factory()->undefined_value(),
-                     isolate->factory()->undefined_value())
-                 .ToHandleChecked();
-    CHECK_EQ(1234, Handle<Smi>::cast(result)->value());
+    TNode<Int32T> argc_with_receiver = m.Int32Add(argc, m.Int32Constant(1));
+    m.PopAndReturn(m.ChangeInt32ToIntPtr(argc_with_receiver),
+                   m.SmiConstant(1234));
   }
+
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.function->shared().DontAdaptArguments();
+
+  // Now call this function multiple time also checking that the stack pointer
+  // didn't change after the calls.
+  Handle<Object> receiver = isolate->factory()->undefined_value();
+  Handle<Smi> expected_result(Smi::FromInt(1234), isolate);
+  CallFunctionWithStackPointerChecks(isolate, expected_result, ft.function,
+                                     receiver,
+                                     // Pass kNumParams arguments.
+                                     Handle<Smi>(Smi::FromInt(1), isolate),
+                                     Handle<Smi>(Smi::FromInt(2), isolate),
+                                     Handle<Smi>(Smi::FromInt(3), isolate),
+                                     Handle<Smi>(Smi::FromInt(4), isolate));
 }
 
 TEST(OneToTwoByteStringCopy) {
@@ -2124,54 +2253,107 @@ TEST(TwoToTwoByteStringCopy) {
 TEST(Arguments) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
-  const int kNumParams = 3;
-  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
-  CodeStubAssembler m(asm_tester.state());
+  // Setup CSA for creating TFJ-style builtin.
+  using Descriptor = JSTrampolineDescriptor;
+  CodeAssemblerTester asm_tester(isolate, Descriptor());
 
-  CodeStubArguments arguments(&m, m.IntPtrConstant(3));
+  {
+    CodeStubAssembler m(asm_tester.state());
+    TNode<Int32T> argc =
+        m.UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+    CodeStubArguments arguments(&m, argc);
 
-  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(0), m.SmiConstant(12)));
-  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(1), m.SmiConstant(13)));
-  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(2), m.SmiConstant(14)));
+    CSA_CHECK(&m, m.TaggedEqual(arguments.AtIndex(0), m.SmiConstant(12)));
+    CSA_CHECK(&m, m.TaggedEqual(arguments.AtIndex(1), m.SmiConstant(13)));
+    CSA_CHECK(&m, m.TaggedEqual(arguments.AtIndex(2), m.SmiConstant(14)));
 
-  arguments.PopAndReturn(arguments.GetReceiver());
+    arguments.PopAndReturn(arguments.GetReceiver());
+  }
 
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result = ft.Call(Handle<Smi>(Smi::FromInt(12), isolate),
-                                  Handle<Smi>(Smi::FromInt(13), isolate),
-                                  Handle<Smi>(Smi::FromInt(14), isolate))
-                              .ToHandleChecked();
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.function->shared().DontAdaptArguments();
+
+  Handle<Object> result;
+  result = ft.Call(Handle<Smi>(Smi::FromInt(12), isolate),
+                   Handle<Smi>(Smi::FromInt(13), isolate),
+                   Handle<Smi>(Smi::FromInt(14), isolate))
+               .ToHandleChecked();
   // When calling with undefined object as the receiver, the CallFunction
   // builtin swaps it to the global proxy object.
+  CHECK_EQ(*isolate->global_proxy(), *result);
+
+  result = ft.Call(Handle<Smi>(Smi::FromInt(12), isolate),
+                   Handle<Smi>(Smi::FromInt(13), isolate),
+                   Handle<Smi>(Smi::FromInt(14), isolate),
+                   Handle<Smi>(Smi::FromInt(15), isolate))
+               .ToHandleChecked();
+  CHECK_EQ(*isolate->global_proxy(), *result);
+
+  result = ft.Call(Handle<Smi>(Smi::FromInt(12), isolate),
+                   Handle<Smi>(Smi::FromInt(13), isolate),
+                   Handle<Smi>(Smi::FromInt(14), isolate),
+                   Handle<Smi>(Smi::FromInt(15), isolate),
+                   Handle<Smi>(Smi::FromInt(16), isolate),
+                   Handle<Smi>(Smi::FromInt(17), isolate),
+                   Handle<Smi>(Smi::FromInt(18), isolate),
+                   Handle<Smi>(Smi::FromInt(19), isolate))
+               .ToHandleChecked();
   CHECK_EQ(*isolate->global_proxy(), *result);
 }
 
 TEST(ArgumentsForEach) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
-  const int kNumParams = 3;
-  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
-  CodeStubAssembler m(asm_tester.state());
+  // Setup CSA for creating TFJ-style builtin.
+  using Descriptor = JSTrampolineDescriptor;
+  CodeAssemblerTester asm_tester(isolate, Descriptor());
 
-  CodeStubArguments arguments(&m, m.IntPtrConstant(3));
+  {
+    CodeStubAssembler m(asm_tester.state());
 
-  TVariable<Smi> sum(&m);
-  CodeAssemblerVariableList list({&sum}, m.zone());
+    TNode<Int32T> argc =
+        m.UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+    CodeStubArguments arguments(&m, argc);
 
-  sum = m.SmiConstant(0);
+    TVariable<Smi> sum(&m);
+    CodeAssemblerVariableList list({&sum}, m.zone());
 
-  arguments.ForEach(list, [&](TNode<Object> arg) {
-    sum = m.SmiAdd(sum.value(), m.CAST(arg));
-  });
+    sum = m.SmiConstant(0);
 
-  arguments.PopAndReturn(sum.value());
+    arguments.ForEach(list, [&](TNode<Object> arg) {
+      sum = m.SmiAdd(sum.value(), m.CAST(arg));
+    });
 
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result = ft.Call(Handle<Smi>(Smi::FromInt(12), isolate),
-                                  Handle<Smi>(Smi::FromInt(13), isolate),
-                                  Handle<Smi>(Smi::FromInt(14), isolate))
-                              .ToHandleChecked();
+    arguments.PopAndReturn(sum.value());
+  }
+
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.function->shared().DontAdaptArguments();
+
+  Handle<Object> result;
+  result = ft.Call(Handle<Smi>(Smi::FromInt(12), isolate),
+                   Handle<Smi>(Smi::FromInt(13), isolate),
+                   Handle<Smi>(Smi::FromInt(14), isolate))
+               .ToHandleChecked();
   CHECK_EQ(Smi::FromInt(12 + 13 + 14), *result);
+
+  result = ft.Call(Handle<Smi>(Smi::FromInt(12), isolate),
+                   Handle<Smi>(Smi::FromInt(13), isolate),
+                   Handle<Smi>(Smi::FromInt(14), isolate),
+                   Handle<Smi>(Smi::FromInt(15), isolate))
+               .ToHandleChecked();
+  CHECK_EQ(Smi::FromInt(12 + 13 + 14 + 15), *result);
+
+  result = ft.Call(Handle<Smi>(Smi::FromInt(12), isolate),
+                   Handle<Smi>(Smi::FromInt(13), isolate),
+                   Handle<Smi>(Smi::FromInt(14), isolate),
+                   Handle<Smi>(Smi::FromInt(15), isolate),
+                   Handle<Smi>(Smi::FromInt(16), isolate),
+                   Handle<Smi>(Smi::FromInt(17), isolate),
+                   Handle<Smi>(Smi::FromInt(18), isolate),
+                   Handle<Smi>(Smi::FromInt(19), isolate))
+               .ToHandleChecked();
+  CHECK_EQ(Smi::FromInt(12 + 13 + 14 + 15 + 16 + 17 + 18 + 19), *result);
 }
 
 TEST(IsDebugActive) {
