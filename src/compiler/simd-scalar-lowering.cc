@@ -2405,144 +2405,233 @@ void SimdScalarLowering::Int32ToInt64(Node** replacements, Node** result) {
 
 Node** SimdScalarLowering::GetReplacementsWithType(Node* node, SimdType type) {
   Node** replacements = GetReplacements(node);
-  if (ReplacementType(node) == type) {
-    return GetReplacements(node);
+  if (type == ReplacementType(node)) {
+    return replacements;
   }
+
   int num_lanes = NumLanes(type);
   Node** result = zone()->NewArray<Node*>(num_lanes);
-  if (type == SimdType::kInt64x2) {
-    if (ReplacementType(node) == SimdType::kInt32x4) {
-      Int32ToInt64(replacements, result);
-    } else if (ReplacementType(node) == SimdType::kInt16x8) {
-      Node** to_int32 = zone()->NewArray<Node*>(kNumLanes32);
-      SmallerIntToInt32<int16_t>(replacements, to_int32);
-      Int32ToInt64(to_int32, result);
-    } else if (ReplacementType(node) == SimdType::kInt8x16) {
-      Node** to_int32 = zone()->NewArray<Node*>(kNumLanes32);
-      SmallerIntToInt32<int8_t>(replacements, to_int32);
-      Int32ToInt64(to_int32, result);
-    } else if (ReplacementType(node) == SimdType::kFloat64x2) {
-      Float64ToInt64(replacements, result);
-    } else if (ReplacementType(node) == SimdType::kFloat32x4) {
-      Node** to_int32 = zone()->NewArray<Node*>(kNumLanes32);
-      Float32ToInt32(replacements, to_int32);
-      Int32ToInt64(to_int32, result);
-    } else {
-      UNREACHABLE();
+
+  switch (type) {
+    case SimdType::kInt64x2: {
+      switch (ReplacementType(node)) {
+        case SimdType::kInt64x2: {
+          UNREACHABLE();
+        }
+        case SimdType::kInt32x4: {
+          Int32ToInt64(replacements, result);
+          break;
+        }
+        case SimdType::kInt16x8: {
+          Node** to_int32 = zone()->NewArray<Node*>(kNumLanes32);
+          SmallerIntToInt32<int16_t>(replacements, to_int32);
+          Int32ToInt64(to_int32, result);
+          break;
+        }
+        case SimdType::kInt8x16: {
+          Node** to_int32 = zone()->NewArray<Node*>(kNumLanes32);
+          SmallerIntToInt32<int8_t>(replacements, to_int32);
+          Int32ToInt64(to_int32, result);
+          break;
+        }
+        case SimdType::kFloat64x2: {
+          Float64ToInt64(replacements, result);
+          break;
+        }
+        case SimdType::kFloat32x4: {
+          Node** to_int32 = zone()->NewArray<Node*>(kNumLanes32);
+          Float32ToInt32(replacements, to_int32);
+          Int32ToInt64(to_int32, result);
+          break;
+        }
+      }
+      break;
     }
-  } else if (type == SimdType::kInt32x4) {
-    if (ReplacementType(node) == SimdType::kInt64x2) {
-      Int64ToInt32(replacements, result);
-    } else if (ReplacementType(node) == SimdType::kFloat64x2) {
-      Node** float64_to_int64 = zone()->NewArray<Node*>(kNumLanes64);
-      Float64ToInt64(replacements, float64_to_int64);
-      Int64ToInt32(float64_to_int64, result);
-    } else if (ReplacementType(node) == SimdType::kFloat32x4) {
-      Float32ToInt32(replacements, result);
-    } else if (ReplacementType(node) == SimdType::kInt16x8) {
-      SmallerIntToInt32<int16_t>(replacements, result);
-    } else if (ReplacementType(node) == SimdType::kInt8x16) {
-      SmallerIntToInt32<int8_t>(replacements, result);
-    } else {
-      UNREACHABLE();
+    case SimdType::kInt32x4: {
+      switch (ReplacementType(node)) {
+        case SimdType::kInt64x2: {
+          Int64ToInt32(replacements, result);
+          break;
+        }
+        case SimdType::kInt32x4: {
+          UNREACHABLE();
+        }
+        case SimdType::kInt16x8: {
+          SmallerIntToInt32<int16_t>(replacements, result);
+          break;
+        }
+        case SimdType::kInt8x16: {
+          SmallerIntToInt32<int8_t>(replacements, result);
+          break;
+        }
+        case SimdType::kFloat64x2: {
+          Node** float64_to_int64 = zone()->NewArray<Node*>(kNumLanes64);
+          Float64ToInt64(replacements, float64_to_int64);
+          Int64ToInt32(float64_to_int64, result);
+          break;
+        }
+        case SimdType::kFloat32x4: {
+          Float32ToInt32(replacements, result);
+          break;
+        }
+      }
+      break;
     }
-  } else if (type == SimdType::kFloat64x2) {
-    if (ReplacementType(node) == SimdType::kInt64x2) {
-      Int64ToFloat64(replacements, result);
-    } else if (ReplacementType(node) == SimdType::kInt32x4) {
-      Node** int32_to_int64 = zone()->NewArray<Node*>(kNumLanes64);
-      Int32ToInt64(replacements, int32_to_int64);
-      Int64ToFloat64(int32_to_int64, result);
-    } else if (ReplacementType(node) == SimdType::kInt16x8) {
-      Node** to_int32 = zone()->NewArray<Node*>(kNumLanes32);
-      Node** to_int64 = zone()->NewArray<Node*>(kNumLanes64);
-      SmallerIntToInt32<int16_t>(replacements, to_int32);
-      Int32ToInt64(to_int32, to_int64);
-      Int64ToFloat64(to_int64, result);
-    } else if (ReplacementType(node) == SimdType::kInt8x16) {
-      Node** to_int32 = zone()->NewArray<Node*>(kNumLanes32);
-      Node** to_int64 = zone()->NewArray<Node*>(kNumLanes64);
-      SmallerIntToInt32<int8_t>(replacements, to_int32);
-      Int32ToInt64(to_int32, to_int64);
-      Int64ToFloat64(to_int64, result);
-    } else if (ReplacementType(node) == SimdType::kFloat32x4) {
-      Node** to_int32 = zone()->NewArray<Node*>(kNumLanes32);
-      Node** to_int64 = zone()->NewArray<Node*>(kNumLanes64);
-      Float32ToInt32(replacements, to_int32);
-      Int32ToInt64(to_int32, to_int64);
-      Int64ToFloat64(to_int64, result);
-    } else {
-      UNREACHABLE();
+    case SimdType::kInt16x8: {
+      switch (ReplacementType(node)) {
+        case SimdType::kInt64x2: {
+          Node** to_int32 = zone()->NewArray<Node*>(kNumLanes32);
+          Int64ToInt32(replacements, to_int32);
+          Int32ToSmallerInt<int16_t>(to_int32, result);
+          break;
+        }
+        case SimdType::kInt32x4: {
+          Int32ToSmallerInt<int16_t>(replacements, result);
+          break;
+        }
+        case SimdType::kInt16x8: {
+          UNREACHABLE();
+        }
+        case SimdType::kInt8x16: {
+          Node** to_int32 = zone()->NewArray<Node*>(kNumLanes32);
+          SmallerIntToInt32<int8_t>(replacements, to_int32);
+          Int32ToSmallerInt<int16_t>(to_int32, result);
+          break;
+        }
+        case SimdType::kFloat64x2: {
+          Node** to_int64 = zone()->NewArray<Node*>(kNumLanes64);
+          Node** to_int32 = zone()->NewArray<Node*>(kNumLanes32);
+          Float64ToInt64(replacements, to_int64);
+          Int64ToInt32(to_int64, to_int32);
+          Int32ToSmallerInt<int16_t>(to_int32, result);
+          break;
+        }
+        case SimdType::kFloat32x4: {
+          Node** float32_to_int32 = zone()->NewArray<Node*>(kNumLanes32);
+          Float32ToInt32(replacements, float32_to_int32);
+          Int32ToSmallerInt<int16_t>(float32_to_int32, result);
+          break;
+        }
+      }
+      break;
     }
-  } else if (type == SimdType::kFloat32x4) {
-    if (ReplacementType(node) == SimdType::kFloat64x2) {
-      Node** float64_to_int64 = zone()->NewArray<Node*>(kNumLanes64);
-      Node** int64_to_int32 = zone()->NewArray<Node*>(kNumLanes32);
-      Float64ToInt64(replacements, float64_to_int64);
-      Int64ToInt32(float64_to_int64, int64_to_int32);
-      Int32ToFloat32(int64_to_int32, result);
-    } else if (ReplacementType(node) == SimdType::kInt32x4) {
-      Int32ToFloat32(replacements, result);
-    } else if (ReplacementType(node) == SimdType::kInt16x8) {
-      Node** to_int32 = zone()->NewArray<Node*>(kNumLanes32);
-      SmallerIntToInt32<int16_t>(replacements, to_int32);
-      Int32ToFloat32(to_int32, result);
-    } else if (ReplacementType(node) == SimdType::kInt8x16) {
-      SmallerIntToInt32<int8_t>(replacements, result);
-      Int32ToFloat32(result, result);
-    } else {
-      UNREACHABLE();
+    case SimdType::kInt8x16: {
+      switch (ReplacementType(node)) {
+        case SimdType::kInt64x2: {
+          Node** int64_to_int32 = zone()->NewArray<Node*>(kNumLanes32);
+          Int64ToInt32(replacements, int64_to_int32);
+          Int32ToSmallerInt<int8_t>(int64_to_int32, result);
+          break;
+        }
+        case SimdType::kInt32x4: {
+          Int32ToSmallerInt<int8_t>(replacements, result);
+          break;
+        }
+        case SimdType::kInt16x8: {
+          Node** int16_to_int32 = zone()->NewArray<Node*>(kNumLanes32);
+          SmallerIntToInt32<int16_t>(replacements, int16_to_int32);
+          Int32ToSmallerInt<int8_t>(int16_to_int32, result);
+          break;
+        }
+        case SimdType::kInt8x16: {
+          UNREACHABLE();
+        }
+        case SimdType::kFloat64x2: {
+          Node** to_int64 = zone()->NewArray<Node*>(kNumLanes64);
+          Node** to_int32 = zone()->NewArray<Node*>(kNumLanes32);
+          Float64ToInt64(replacements, to_int64);
+          Int64ToInt32(to_int64, to_int32);
+          Int32ToSmallerInt<int8_t>(to_int32, result);
+          break;
+        }
+        case SimdType::kFloat32x4: {
+          Node** float32_to_int32 = zone()->NewArray<Node*>(kNumLanes32);
+          Float32ToInt32(replacements, float32_to_int32);
+          Int32ToSmallerInt<int8_t>(float32_to_int32, result);
+          break;
+        }
+      }
+      break;
     }
-  } else if (type == SimdType::kInt16x8) {
-    if (ReplacementType(node) == SimdType::kInt64x2) {
-      Node** to_int32 = zone()->NewArray<Node*>(kNumLanes32);
-      Int64ToInt32(replacements, to_int32);
-      Int32ToSmallerInt<int16_t>(to_int32, result);
-    } else if (ReplacementType(node) == SimdType::kInt32x4) {
-      Int32ToSmallerInt<int16_t>(replacements, result);
-    } else if (ReplacementType(node) == SimdType::kInt8x16) {
-      Node** to_int32 = zone()->NewArray<Node*>(kNumLanes32);
-      SmallerIntToInt32<int8_t>(replacements, to_int32);
-      Int32ToSmallerInt<int16_t>(to_int32, result);
-    } else if (ReplacementType(node) == SimdType::kFloat64x2) {
-      Node** to_int64 = zone()->NewArray<Node*>(kNumLanes64);
-      Node** to_int32 = zone()->NewArray<Node*>(kNumLanes32);
-      Float64ToInt64(replacements, to_int64);
-      Int64ToInt32(to_int64, to_int32);
-      Int32ToSmallerInt<int16_t>(to_int32, result);
-    } else if (ReplacementType(node) == SimdType::kFloat32x4) {
-      Node** float32_to_int32 = zone()->NewArray<Node*>(kNumLanes32);
-      Float32ToInt32(replacements, float32_to_int32);
-      Int32ToSmallerInt<int16_t>(float32_to_int32, result);
-    } else {
-      UNREACHABLE();
+    case SimdType::kFloat64x2: {
+      switch (ReplacementType(node)) {
+        case SimdType::kInt64x2: {
+          Int64ToFloat64(replacements, result);
+          break;
+        }
+        case SimdType::kInt32x4: {
+          Node** int32_to_int64 = zone()->NewArray<Node*>(kNumLanes64);
+          Int32ToInt64(replacements, int32_to_int64);
+          Int64ToFloat64(int32_to_int64, result);
+          break;
+        }
+        case SimdType::kInt16x8: {
+          Node** to_int32 = zone()->NewArray<Node*>(kNumLanes32);
+          Node** to_int64 = zone()->NewArray<Node*>(kNumLanes64);
+          SmallerIntToInt32<int16_t>(replacements, to_int32);
+          Int32ToInt64(to_int32, to_int64);
+          Int64ToFloat64(to_int64, result);
+          break;
+        }
+        case SimdType::kInt8x16: {
+          Node** to_int32 = zone()->NewArray<Node*>(kNumLanes32);
+          Node** to_int64 = zone()->NewArray<Node*>(kNumLanes64);
+          SmallerIntToInt32<int8_t>(replacements, to_int32);
+          Int32ToInt64(to_int32, to_int64);
+          Int64ToFloat64(to_int64, result);
+          break;
+        }
+        case SimdType::kFloat64x2: {
+          UNREACHABLE();
+        }
+        case SimdType::kFloat32x4: {
+          Node** to_int32 = zone()->NewArray<Node*>(kNumLanes32);
+          Node** to_int64 = zone()->NewArray<Node*>(kNumLanes64);
+          Float32ToInt32(replacements, to_int32);
+          Int32ToInt64(to_int32, to_int64);
+          Int64ToFloat64(to_int64, result);
+          break;
+        }
+      }
+      break;
     }
-  } else if (type == SimdType::kInt8x16) {
-    if (ReplacementType(node) == SimdType::kInt64x2) {
-      Node** int64_to_int32 = zone()->NewArray<Node*>(kNumLanes32);
-      Int64ToInt32(replacements, int64_to_int32);
-      Int32ToSmallerInt<int8_t>(int64_to_int32, result);
-    } else if (ReplacementType(node) == SimdType::kInt32x4) {
-      Int32ToSmallerInt<int8_t>(replacements, result);
-    } else if (ReplacementType(node) == SimdType::kInt16x8) {
-      Node** int16_to_int32 = zone()->NewArray<Node*>(kNumLanes32);
-      SmallerIntToInt32<int16_t>(replacements, int16_to_int32);
-      Int32ToSmallerInt<int8_t>(int16_to_int32, result);
-    } else if (ReplacementType(node) == SimdType::kFloat64x2) {
-      Node** to_int64 = zone()->NewArray<Node*>(kNumLanes64);
-      Node** to_int32 = zone()->NewArray<Node*>(kNumLanes32);
-      Float64ToInt64(replacements, to_int64);
-      Int64ToInt32(to_int64, to_int32);
-      Int32ToSmallerInt<int8_t>(to_int32, result);
-    } else if (ReplacementType(node) == SimdType::kFloat32x4) {
-      Node** float32_to_int32 = zone()->NewArray<Node*>(kNumLanes32);
-      Float32ToInt32(replacements, float32_to_int32);
-      Int32ToSmallerInt<int8_t>(float32_to_int32, result);
-    } else {
-      UNREACHABLE();
+    case SimdType::kFloat32x4: {
+      switch (ReplacementType(node)) {
+        case SimdType::kInt64x2: {
+          Node** to_int32 = zone()->NewArray<Node*>(kNumLanes32);
+          Int64ToInt32(replacements, to_int32);
+          Int32ToFloat32(to_int32, result);
+          break;
+        }
+        case SimdType::kInt32x4: {
+          Int32ToFloat32(replacements, result);
+          break;
+        }
+        case SimdType::kInt16x8: {
+          Node** to_int32 = zone()->NewArray<Node*>(kNumLanes32);
+          SmallerIntToInt32<int16_t>(replacements, to_int32);
+          Int32ToFloat32(to_int32, result);
+          break;
+        }
+        case SimdType::kInt8x16: {
+          SmallerIntToInt32<int8_t>(replacements, result);
+          Int32ToFloat32(result, result);
+          break;
+        }
+        case SimdType::kFloat64x2: {
+          Node** float64_to_int64 = zone()->NewArray<Node*>(kNumLanes64);
+          Node** int64_to_int32 = zone()->NewArray<Node*>(kNumLanes32);
+          Float64ToInt64(replacements, float64_to_int64);
+          Int64ToInt32(float64_to_int64, int64_to_int32);
+          Int32ToFloat32(int64_to_int32, result);
+          break;
+        }
+        case SimdType::kFloat32x4: {
+          UNREACHABLE();
+        }
+      }
+      break;
     }
-  } else {
-    UNREACHABLE();
   }
   return result;
 }
