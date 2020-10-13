@@ -774,15 +774,9 @@ void InterpreterAssembler::CallJSAndDispatch(TNode<Object> function,
 
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
     // The first argument parameter (the receiver) is implied to be undefined.
-#ifdef V8_REVERSE_JSARGS
     TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target,
                                      context, function, arg_count, args...,
                                      UndefinedConstant());
-#else
-    TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target,
-                                     context, function, arg_count,
-                                     UndefinedConstant(), args...);
-#endif
   } else {
     TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target,
                                      context, function, arg_count, args...);
@@ -1401,14 +1395,8 @@ TNode<FixedArray> InterpreterAssembler::ExportParametersAndRegisterFile(
     // Iterate over parameters and write them into the array.
     Label loop(this, &var_index), done_loop(this);
 
-#ifdef V8_REVERSE_JSARGS
     TNode<IntPtrT> reg_base =
         IntPtrConstant(Register::FromParameterIndex(0, 1).ToOperand() + 1);
-#else
-    TNode<IntPtrT> reg_base = IntPtrAdd(
-        IntPtrConstant(Register::FromParameterIndex(0, 1).ToOperand() - 1),
-        formal_parameter_count_intptr);
-#endif
 
     Goto(&loop);
     BIND(&loop);
@@ -1417,11 +1405,7 @@ TNode<FixedArray> InterpreterAssembler::ExportParametersAndRegisterFile(
       GotoIfNot(UintPtrLessThan(index, formal_parameter_count_intptr),
                 &done_loop);
 
-#ifdef V8_REVERSE_JSARGS
       TNode<IntPtrT> reg_index = IntPtrAdd(reg_base, index);
-#else
-      TNode<IntPtrT> reg_index = IntPtrSub(reg_base, index);
-#endif
       TNode<Object> value = LoadRegister(reg_index);
 
       StoreFixedArrayElement(array, index, value);

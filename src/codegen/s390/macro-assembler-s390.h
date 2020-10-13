@@ -1072,21 +1072,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // TODO(victorgomes): Remove this function once we stick with the reversed
   // arguments order.
   void LoadReceiver(Register dest, Register argc) {
-#ifdef V8_REVERSE_JSARGS
     LoadP(dest, MemOperand(sp, 0));
-#else
-    ShiftLeftP(dest, argc, Operand(kSystemPointerSizeLog2));
-    LoadP(dest, MemOperand(sp, dest));
-#endif
   }
 
   void StoreReceiver(Register rec, Register argc, Register scratch) {
-#ifdef V8_REVERSE_JSARGS
     StoreP(rec, MemOperand(sp, 0));
-#else
-    ShiftLeftP(scratch, argc, Operand(kSystemPointerSizeLog2));
-    StoreP(rec, MemOperand(sp, scratch));
-#endif
   }
 
   void CallRuntime(const Runtime::Function* f, int num_arguments,

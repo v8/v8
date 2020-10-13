@@ -1407,32 +1407,17 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
             LoadRegisterAtOperandIndex(kFirstArgumentOperandIndex));
         break;
       case 2:
-#ifdef V8_REVERSE_JSARGS
         CallJSAndDispatch(
             function, context, Int32Constant(arg_count), receiver_mode,
             LoadRegisterAtOperandIndex(kFirstArgumentOperandIndex + 1),
             LoadRegisterAtOperandIndex(kFirstArgumentOperandIndex));
-#else
-        CallJSAndDispatch(
-            function, context, Int32Constant(arg_count), receiver_mode,
-            LoadRegisterAtOperandIndex(kFirstArgumentOperandIndex),
-            LoadRegisterAtOperandIndex(kFirstArgumentOperandIndex + 1));
-#endif
         break;
       case 3:
-#ifdef V8_REVERSE_JSARGS
         CallJSAndDispatch(
             function, context, Int32Constant(arg_count), receiver_mode,
             LoadRegisterAtOperandIndex(kFirstArgumentOperandIndex + 2),
             LoadRegisterAtOperandIndex(kFirstArgumentOperandIndex + 1),
             LoadRegisterAtOperandIndex(kFirstArgumentOperandIndex));
-#else
-        CallJSAndDispatch(
-            function, context, Int32Constant(arg_count), receiver_mode,
-            LoadRegisterAtOperandIndex(kFirstArgumentOperandIndex),
-            LoadRegisterAtOperandIndex(kFirstArgumentOperandIndex + 1),
-            LoadRegisterAtOperandIndex(kFirstArgumentOperandIndex + 2));
-#endif
         break;
       default:
         UNREACHABLE();

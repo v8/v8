@@ -539,7 +539,7 @@
     'debug_x64_trybot': [
       'debug_trybot', 'x64'],
     'debug_x64_reverse_jsargs': [
-      'debug_bot', 'x64', 'reverse_jsargs'],
+      'debug_bot', 'x64'],
     'debug_x64_trybot_custom': [
       'debug_trybot', 'x64', 'v8_snapshot_custom'],
     'full_debug_x64': [
@@ -756,10 +756,6 @@
 
     'release_trybot': {
       'mixins': ['release_bot', 'minimal_symbols', 'dcheck_always_on'],
-    },
-
-    'reverse_jsargs': {
-      'gn_args': 'v8_enable_reverse_jsargs=true',
     },
 
     'official': {

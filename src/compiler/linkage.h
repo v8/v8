@@ -317,16 +317,12 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   }
 
   int GetStackIndexFromSlot(int slot_index) const {
-#ifdef V8_REVERSE_JSARGS
     switch (GetStackArgumentOrder()) {
       case StackArgumentOrder::kDefault:
         return -slot_index - 1;
       case StackArgumentOrder::kJS:
         return slot_index + static_cast<int>(StackParameterCount());
     }
-#else
-    return -slot_index - 1;
-#endif
   }
 
   // The total number of inputs to this call, which includes the target,

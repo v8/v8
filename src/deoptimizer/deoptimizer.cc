@@ -103,7 +103,6 @@ class FrameWriter {
 
   void PushStackJSArguments(TranslatedFrame::iterator& iterator,
                             int parameters_count) {
-#ifdef V8_REVERSE_JSARGS
     std::vector<TranslatedFrame::iterator> parameters;
     parameters.reserve(parameters_count);
     for (int i = 0; i < parameters_count; ++i, ++iterator) {
@@ -112,11 +111,6 @@ class FrameWriter {
     for (auto& parameter : base::Reversed(parameters)) {
       PushTranslatedValue(parameter, "stack parameter");
     }
-#else
-    for (int i = 0; i < parameters_count; ++i, ++iterator) {
-      PushTranslatedValue(iterator, "stack parameter");
-    }
-#endif
   }
 
   unsigned top_offset() const { return top_offset_; }
@@ -1765,7 +1759,6 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
   }
 
-#ifdef V8_REVERSE_JSARGS
   if (mode == BuiltinContinuationMode::STUB) {
     DCHECK_EQ(Builtins::CallInterfaceDescriptorFor(builtin_name)
                   .GetStackArgumentOrder(),
@@ -1805,34 +1798,6 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     frame_writer.PushStackJSArguments(
         value_iterator, frame_info.translated_stack_parameter_count());
   }
-#else
-  for (uint32_t i = 0; i < frame_info.translated_stack_parameter_count();
-       ++i, ++value_iterator) {
-    frame_writer.PushTranslatedValue(value_iterator, "stack parameter");
-  }
-
-  switch (mode) {
-    case BuiltinContinuationMode::STUB:
-      break;
-    case BuiltinContinuationMode::JAVASCRIPT:
-      break;
-    case BuiltinContinuationMode::JAVASCRIPT_WITH_CATCH: {
-      frame_writer.PushRawObject(roots.the_hole_value(),
-                                 "placeholder for exception on lazy deopt\n");
-    } break;
-    case BuiltinContinuationMode::JAVASCRIPT_HANDLE_EXCEPTION: {
-      intptr_t accumulator_value =
-          input_->GetRegister(kInterpreterAccumulatorRegister.code());
-      frame_writer.PushRawObject(Object(accumulator_value),
-                                 "exception (from accumulator)\n");
-    } break;
-  }
-
-  if (frame_info.frame_has_result_stack_slot()) {
-    frame_writer.PushRawObject(roots.the_hole_value(),
-                               "placeholder for return result on lazy deopt\n");
-  }
-#endif
 
   DCHECK_EQ(output_frame->GetLastArgumentSlotOffset(),
             frame_writer.top_offset());
@@ -3189,19 +3154,13 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
     frame.Add(TranslatedValue::NewTagged(this, roots.the_hole_value()));
   }
   int argc = length - number_of_holes;
-#ifdef V8_REVERSE_JSARGS
   int start_index = number_of_holes;
   if (type == CreateArgumentsType::kRestParameter) {
     start_index = std::max(0, formal_parameter_count_);
   }
-#endif
   for (int i = 0; i < argc; i++) {
     // Skip the receiver.
-#ifdef V8_REVERSE_JSARGS
     int offset = i + start_index + 1;
-#else
-    int offset = argc - i - 1;
-#endif
 #ifdef V8_NO_ARGUMENTS_ADAPTOR
     Address arguments_frame = offset > formal_parameter_count_
                                   ? stack_frame_pointer_

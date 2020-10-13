@@ -11246,22 +11246,14 @@ template<typename T>
 Local<Value> FunctionCallbackInfo<T>::operator[](int i) const {
   // values_ points to the first argument (not the receiver).
   if (i < 0 || length_ <= i) return Local<Value>(*Undefined(GetIsolate()));
-#ifdef V8_REVERSE_JSARGS
   return Local<Value>(reinterpret_cast<Value*>(values_ + i));
-#else
-  return Local<Value>(reinterpret_cast<Value*>(values_ - i));
-#endif
 }
 
 
 template<typename T>
 Local<Object> FunctionCallbackInfo<T>::This() const {
   // values_ points to the first argument (not the receiver).
-#ifdef V8_REVERSE_JSARGS
   return Local<Object>(reinterpret_cast<Object*>(values_ - 1));
-#else
-  return Local<Object>(reinterpret_cast<Object*>(values_ + 1));
-#endif
 }
 
 

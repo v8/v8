@@ -1342,16 +1342,10 @@ Object JavaScriptBuiltinContinuationFrame::context() const {
 
 void JavaScriptBuiltinContinuationWithCatchFrame::SetException(
     Object exception) {
-#ifdef V8_REVERSE_JSARGS
   int argc = ComputeParametersCount();
   Address exception_argument_slot =
       fp() + BuiltinContinuationFrameConstants::kFixedFrameSizeAboveFp +
       (argc - 1) * kSystemPointerSize;
-#else
-  Address exception_argument_slot =
-      fp() + BuiltinContinuationFrameConstants::kFixedFrameSizeAboveFp +
-      kSystemPointerSize;  // Skip over return value slot.
-#endif
 
   // Only allow setting exception if previous value was the hole.
   CHECK_EQ(ReadOnlyRoots(isolate()).the_hole_value(),
@@ -1652,23 +1646,6 @@ DeoptimizationData OptimizedFrame::GetDeoptimizationData(
   *deopt_index = Safepoint::kNoDeoptimizationIndex;
   return DeoptimizationData();
 }
-
-#ifndef V8_REVERSE_JSARGS
-Object OptimizedFrame::receiver() const {
-  Code code = LookupCode();
-  if (code.kind() == CodeKind::BUILTIN) {
-    intptr_t argc = static_cast<int>(
-        Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset));
-    intptr_t args_size =
-        (StandardFrameConstants::kFixedSlotCountAboveFp + argc) *
-        kSystemPointerSize;
-    Address receiver_ptr = fp() + args_size;
-    return *FullObjectSlot(receiver_ptr);
-  } else {
-    return JavaScriptFrame::receiver();
-  }
-}
-#endif
 
 void OptimizedFrame::GetFunctions(
     std::vector<SharedFunctionInfo>* functions) const {

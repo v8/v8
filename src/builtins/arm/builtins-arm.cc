@@ -129,7 +129,6 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     __ Push(cp, r0);
     __ SmiUntag(r0);
 
-#ifdef V8_REVERSE_JSARGS
     // Set up pointer to last argument (skip receiver).
     __ add(
         r4, fp,
@@ -138,14 +137,6 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     __ PushArray(r4, r0, r5);
     // The receiver for the builtin/api call.
     __ PushRoot(RootIndex::kTheHoleValue);
-#else
-    // The receiver for the builtin/api call.
-    __ PushRoot(RootIndex::kTheHoleValue);
-    // Set up pointer to last argument.
-    __ add(r4, fp, Operand(StandardFrameConstants::kCallerSPOffset));
-    // Copy arguments and receiver to the expression stack.
-    __ PushArray(r4, r0, r5);
-#endif
 
     // Call the function.
     // r0: number of arguments (untagged)
@@ -237,7 +228,6 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // Restore new target.
     __ Pop(r3);
 
-#ifdef V8_REVERSE_JSARGS
     // Push the allocated receiver to the stack.
     __ Push(r0);
     // We need two copies because we may have to return the original one
@@ -251,15 +241,6 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     __ add(
         r4, fp,
         Operand(StandardFrameConstants::kCallerSPOffset + kSystemPointerSize));
-#else
-    // Push the allocated receiver to the stack. We need two copies
-    // because we may have to return the original one and the calling
-    // conventions dictate that the called function pops the receiver.
-    __ Push(r0, r0);
-
-    // Set up pointer to last argument.
-    __ add(r4, fp, Operand(StandardFrameConstants::kCallerSPOffset));
-#endif
 
     // Restore constructor function and argument count.
     __ ldr(r1, MemOperand(fp, ConstructFrameConstants::kConstructorOffset));
@@ -282,10 +263,8 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // Copy arguments to the expression stack.
     __ PushArray(r4, r0, r5);
 
-#ifdef V8_REVERSE_JSARGS
     // Push implicit receiver.
     __ Push(r6);
-#endif
 
     // Call the function.
     __ InvokeFunctionWithNewTarget(r1, r3, r0, CALL_FUNCTION);
@@ -412,12 +391,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ cmp(sp, scratch);
   __ b(lo, &stack_overflow);
 
-#ifndef V8_REVERSE_JSARGS
-  // Push receiver.
-  __ ldr(scratch, FieldMemOperand(r1, JSGeneratorObject::kReceiverOffset));
-  __ Push(scratch);
-#endif
-
   // ----------- S t a t e -------------
   //  -- r1    : the JSGeneratorObject to resume
   //  -- r4    : generator function
@@ -433,7 +406,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ ldr(r2,
          FieldMemOperand(r1, JSGeneratorObject::kParametersAndRegistersOffset));
   {
-#ifdef V8_REVERSE_JSARGS
     Label done_loop, loop;
     __ mov(r6, r3);
 
@@ -450,21 +422,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     // Push receiver.
     __ ldr(scratch, FieldMemOperand(r1, JSGeneratorObject::kReceiverOffset));
     __ Push(scratch);
-#else
-    Label done_loop, loop;
-    __ mov(r6, Operand(0));
-
-    __ bind(&loop);
-    __ cmp(r6, r3);
-    __ b(ge, &done_loop);
-    __ add(scratch, r2, Operand(r6, LSL, kTaggedSizeLog2));
-    __ ldr(scratch, FieldMemOperand(scratch, FixedArray::kHeaderSize));
-    __ Push(scratch);
-    __ add(r6, r6, Operand(1));
-    __ b(&loop);
-
-    __ bind(&done_loop);
-#endif
   }
 
   // Underlying function needs to have bytecode available.
@@ -782,7 +739,6 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // r3: receiver
     // r0: argc
     // r4: argv, i.e. points to first arg
-#ifdef V8_REVERSE_JSARGS
     Label loop, entry;
     __ add(r6, r4, Operand(r0, LSL, kSystemPointerSizeLog2));
     // r6 points past last arg.
@@ -798,23 +754,6 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
     // Push the receiver.
     __ Push(r3);
-#else
-    // Push the receiver.
-    __ Push(r3);
-
-    Label loop, entry;
-    __ add(r3, r4, Operand(r0, LSL, kSystemPointerSizeLog2));
-    // r3 points past last arg.
-    __ b(&entry);
-    __ bind(&loop);
-    __ ldr(r5, MemOperand(r4, kSystemPointerSize,
-                          PostIndex));                    // read next parameter
-    __ ldr(r5, MemOperand(r5));                           // dereference handle
-    __ push(r5);                                          // push parameter
-    __ bind(&entry);
-    __ cmp(r4, r3);
-    __ b(ne, &loop);
-#endif
 
     // Setup new.target and function.
     __ mov(r3, r1);
@@ -1287,12 +1226,8 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
   __ mov(scratch, Operand(scratch, LSL, kSystemPointerSizeLog2));
   __ sub(start_address, start_address, scratch);
   // Push the arguments.
-#ifdef V8_REVERSE_JSARGS
   __ PushArray(start_address, num_args, scratch,
                TurboAssembler::PushArrayOrder::kReverse);
-#else
-  __ PushArray(start_address, num_args, scratch);
-#endif
 }
 
 // static
@@ -1309,18 +1244,15 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
   // -----------------------------------
   Label stack_overflow;
 
-#ifdef V8_REVERSE_JSARGS
   if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
     // The spread argument should not be pushed.
     __ sub(r0, r0, Operand(1));
   }
-#endif
 
   __ add(r3, r0, Operand(1));  // Add one for receiver.
 
   Generate_StackOverflowCheck(masm, r3, r4, &stack_overflow);
 
-#ifdef V8_REVERSE_JSARGS
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
     // Don't copy receiver. Argument count is correct.
     __ mov(r3, r0);
@@ -1341,21 +1273,6 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
     __ sub(r2, r2, Operand(kSystemPointerSize));
     __ ldr(r2, MemOperand(r2));
   }
-#else
-  // Push "undefined" as the receiver arg if we need to.
-  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    __ PushRoot(RootIndex::kUndefinedValue);
-    __ mov(r3, r0);  // Argument count is correct.
-  }
-
-  // Push the arguments. r2 and r4 will be modified.
-  Generate_InterpreterPushArgs(masm, r3, r2, r4);
-
-  if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
-    __ Pop(r2);                  // Pass the spread in a register
-    __ sub(r0, r0, Operand(1));  // Subtract one for spread
-  }
-#endif
 
   // Call the target.
   if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
@@ -1390,7 +1307,6 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
 
   Generate_StackOverflowCheck(masm, r5, r6, &stack_overflow);
 
-#ifdef V8_REVERSE_JSARGS
   if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
     // The spread argument should not be pushed.
     __ sub(r0, r0, Operand(1));
@@ -1412,21 +1328,6 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
   } else {
     __ AssertUndefinedOrAllocationSite(r2, r5);
   }
-#else
-  // Push a slot for the receiver to be constructed.
-  __ mov(r5, Operand::Zero());
-  __ push(r5);
-
-  // Push the arguments. r4 and r5 will be modified.
-  Generate_InterpreterPushArgs(masm, r0, r4, r5);
-
-  if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
-    __ Pop(r2);                  // Pass the spread in a register
-    __ sub(r0, r0, Operand(1));  // Subtract one for spread
-  } else {
-    __ AssertUndefinedOrAllocationSite(r2, r5);
-  }
-#endif
 
   if (mode == InterpreterPushArgsMode::kArrayFunction) {
     __ AssertFunction(r1);
@@ -1590,7 +1491,6 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
   UseScratchRegisterScope temps(masm);
   Register scratch = temps.Acquire();  // Temp register is not allocatable.
   if (with_result) {
-#ifdef V8_REVERSE_JSARGS
     if (java_script_builtin) {
       __ mov(scratch, r0);
     } else {
@@ -1602,14 +1502,6 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
               sp, config->num_allocatable_general_registers() * kPointerSize +
                       BuiltinContinuationFrameConstants::kFixedFrameSize));
     }
-#else
-    // Overwrite the hole inserted by the deoptimizer with the return value from
-    // the LAZY deopt point.
-    __ str(r0,
-           MemOperand(
-               sp, config->num_allocatable_general_registers() * kPointerSize +
-                       BuiltinContinuationFrameConstants::kFixedFrameSize));
-#endif
   }
   for (int i = allocatable_register_count - 1; i >= 0; --i) {
     int code = config->GetAllocatableGeneralCode(i);
@@ -1618,7 +1510,6 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
       __ SmiUntag(Register::from_code(code));
     }
   }
-#ifdef V8_REVERSE_JSARGS
   if (java_script_builtin && with_result) {
     // Overwrite the hole inserted by the deoptimizer with the return value from
     // the LAZY deopt point. r0 contains the arguments count, the return value
@@ -1628,7 +1519,6 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
     // Recover arguments count.
     __ sub(r0, r0, Operand(BuiltinContinuationFrameConstants::kFixedSlotCount));
   }
-#endif
   __ ldr(fp, MemOperand(
                  sp, BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
   // Load builtin index (stored as a Smi) and use it to get the builtin start
@@ -1715,9 +1605,9 @@ void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
 void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r0    : argc
-  //  -- sp[0] : argArray
+  //  -- sp[0] : receiver
   //  -- sp[4] : thisArg
-  //  -- sp[8] : receiver
+  //  -- sp[8] : argArray
   // -----------------------------------
 
   // 1. Load receiver into r1, argArray into r2 (if present), remove all
@@ -1726,20 +1616,11 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   {
     __ LoadRoot(r5, RootIndex::kUndefinedValue);
     __ mov(r2, r5);
-#ifdef V8_REVERSE_JSARGS
     __ ldr(r1, MemOperand(sp, 0));  // receiver
     __ cmp(r0, Operand(1));
     __ ldr(r5, MemOperand(sp, kSystemPointerSize), ge);  // thisArg
     __ cmp(r0, Operand(2), ge);
     __ ldr(r2, MemOperand(sp, 2 * kSystemPointerSize), ge);  // argArray
-#else
-    __ ldr(r1, MemOperand(sp, r0, LSL, kSystemPointerSizeLog2));  // receiver
-    __ sub(r4, r0, Operand(1), SetCC);
-    __ ldr(r5, MemOperand(sp, r4, LSL, kSystemPointerSizeLog2), ge);  // thisArg
-    __ sub(r4, r4, Operand(1), SetCC, ge);
-    __ ldr(r2, MemOperand(sp, r4, LSL, kSystemPointerSizeLog2),
-           ge);  // argArray
-#endif
     __ add(sp, sp, Operand(r0, LSL, kSystemPointerSizeLog2));
     __ str(r5, MemOperand(sp, 0));
   }
@@ -1774,7 +1655,6 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
 
 // static
 void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
-#ifdef V8_REVERSE_JSARGS
   // 1. Get the callable to call (passed as receiver) from the stack.
   __ Pop(r1);
 
@@ -1791,45 +1671,6 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
 
   // 3. Adjust the actual number of arguments.
   __ sub(r0, r0, Operand(1));
-#else
-  // 1. Make sure we have at least one argument.
-  // r0: actual number of arguments
-  {
-    Label done;
-    __ cmp(r0, Operand::Zero());
-    __ b(ne, &done);
-    __ PushRoot(RootIndex::kUndefinedValue);
-    __ add(r0, r0, Operand(1));
-    __ bind(&done);
-  }
-
-  // 2. Get the callable to call (passed as receiver) from the stack.
-  // r0: actual number of arguments
-  __ ldr(r1, __ ReceiverOperand(r0));
-
-  // 3. Shift arguments and return address one slot down on the stack
-  //    (overwriting the original receiver).  Adjust argument count to make
-  //    the original first argument the new receiver.
-  // r0: actual number of arguments
-  // r1: callable
-  {
-    Register scratch = r3;
-    Label loop;
-    // Calculate the copy start address (destination). Copy end address is sp.
-    __ add(r2, sp, Operand(r0, LSL, kSystemPointerSizeLog2));
-
-    __ bind(&loop);
-    __ ldr(scratch, MemOperand(r2, -kSystemPointerSize));
-    __ str(scratch, MemOperand(r2));
-    __ sub(r2, r2, Operand(kSystemPointerSize));
-    __ cmp(r2, sp);
-    __ b(ne, &loop);
-    // Adjust the actual number of arguments and remove the top element
-    // (which is a copy of the last argument).
-    __ sub(r0, r0, Operand(1));
-    __ pop();
-  }
-#endif
 
   // 4. Call the callable.
   __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
@@ -1838,12 +1679,11 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
 void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r0     : argc
-  //  -- sp[0]  : argumentsList
-  //  -- sp[4]  : thisArgument
-  //  -- sp[8]  : target
-  //  -- sp[12] : receiver
+  //  -- sp[0]  : receiver
+  //  -- sp[4]  : target         (if argc >= 1)
+  //  -- sp[8]  : thisArgument   (if argc >= 2)
+  //  -- sp[12] : argumentsList  (if argc == 3)
   // -----------------------------------
-  // NOTE: The order of args in the stack are reversed if V8_REVERSE_JSARGS
 
   // 1. Load target into r1 (if present), argumentsList into r2 (if present),
   // remove all arguments from the stack (including the receiver), and push
@@ -1852,23 +1692,12 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ LoadRoot(r1, RootIndex::kUndefinedValue);
     __ mov(r5, r1);
     __ mov(r2, r1);
-#ifdef V8_REVERSE_JSARGS
     __ cmp(r0, Operand(1));
     __ ldr(r1, MemOperand(sp, kSystemPointerSize), ge);  // target
     __ cmp(r0, Operand(2), ge);
     __ ldr(r5, MemOperand(sp, 2 * kSystemPointerSize), ge);  // thisArgument
     __ cmp(r0, Operand(3), ge);
     __ ldr(r2, MemOperand(sp, 3 * kSystemPointerSize), ge);  // argumentsList
-#else
-    __ sub(r4, r0, Operand(1), SetCC);
-    __ ldr(r1, MemOperand(sp, r4, LSL, kSystemPointerSizeLog2), ge);  // target
-    __ sub(r4, r4, Operand(1), SetCC, ge);
-    __ ldr(r5, MemOperand(sp, r4, LSL, kSystemPointerSizeLog2),
-           ge);  // thisArgument
-    __ sub(r4, r4, Operand(1), SetCC, ge);
-    __ ldr(r2, MemOperand(sp, r4, LSL, kSystemPointerSizeLog2),
-           ge);  // argumentsList
-#endif
     __ add(sp, sp, Operand(r0, LSL, kSystemPointerSizeLog2));
     __ str(r5, MemOperand(sp, 0));
   }
@@ -1891,12 +1720,11 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
 void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r0     : argc
-  //  -- sp[0]  : new.target (optional)
-  //  -- sp[4]  : argumentsList
-  //  -- sp[8]  : target
-  //  -- sp[12] : receiver
+  //  -- sp[0]  : receiver
+  //  -- sp[4]  : target
+  //  -- sp[8]  : argumentsList
+  //  -- sp[12] : new.target (optional)
   // -----------------------------------
-  // NOTE: The order of args in the stack are reversed if V8_REVERSE_JSARGS
 
   // 1. Load target into r1 (if present), argumentsList into r2 (if present),
   // new.target into r3 (if present, otherwise use target), remove all
@@ -1905,7 +1733,6 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   {
     __ LoadRoot(r1, RootIndex::kUndefinedValue);
     __ mov(r2, r1);
-#ifdef V8_REVERSE_JSARGS
     __ mov(r4, r1);
     __ cmp(r0, Operand(1));
     __ ldr(r1, MemOperand(sp, kSystemPointerSize), ge);  // target
@@ -1916,19 +1743,6 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ ldr(r3, MemOperand(sp, 3 * kSystemPointerSize), ge);  // new.target
     __ add(sp, sp, Operand(r0, LSL, kSystemPointerSizeLog2));
     __ str(r4, MemOperand(sp, 0));  // set undefined to the receiver
-#else
-    __ str(r2, MemOperand(sp, r0, LSL, kSystemPointerSizeLog2));  // receiver
-    __ sub(r4, r0, Operand(1), SetCC);
-    __ ldr(r1, MemOperand(sp, r4, LSL, kSystemPointerSizeLog2), ge);  // target
-    __ mov(r3, r1);  // new.target defaults to target
-    __ sub(r4, r4, Operand(1), SetCC, ge);
-    __ ldr(r2, MemOperand(sp, r4, LSL, kSystemPointerSizeLog2),
-           ge);  // argumentsList
-    __ sub(r4, r4, Operand(1), SetCC, ge);
-    __ ldr(r3, MemOperand(sp, r4, LSL, kSystemPointerSizeLog2),
-           ge);  // new.target
-    __ add(sp, sp, Operand(r0, LSL, kSystemPointerSizeLog2));
-#endif
   }
 
   // ----------- S t a t e -------------
@@ -2008,7 +1822,6 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   Label stack_overflow;
   Generate_StackOverflowCheck(masm, r4, scratch, &stack_overflow);
 
-#ifdef V8_REVERSE_JSARGS
   // Move the arguments already in the stack,
   // including the receiver and the return address.
   {
@@ -2028,7 +1841,6 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ bind(&check);
     __ b(ge, &copy);
   }
-#endif
 
   // Copy arguments onto the stack (thisArgument is already on the stack).
   {
@@ -2043,11 +1855,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ cmp(scratch, r5);
     // Turn the hole into undefined as we go.
     __ LoadRoot(scratch, RootIndex::kUndefinedValue, eq);
-#ifdef V8_REVERSE_JSARGS
     __ str(scratch, MemOperand(r9, kSystemPointerSize, PostIndex));
-#else
-    __ Push(scratch);
-#endif
     __ add(r6, r6, Operand(1));
     __ b(&loop);
     __ bind(&done);
@@ -2134,7 +1942,6 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     Generate_StackOverflowCheck(masm, r5, scratch, &stack_overflow);
 
     // Forward the arguments from the caller frame.
-#ifdef V8_REVERSE_JSARGS
     // Point to the first argument to copy (skipping the receiver).
     __ add(r4, r4,
            Operand(CommonFrameConstants::kFixedFrameSizeAboveFp +
@@ -2161,26 +1968,17 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
       __ bind(&check);
       __ b(ge, &copy);
     }
-#endif
     // Copy arguments from the caller frame.
     // TODO(victorgomes): Consider using forward order as potentially more cache
     // friendly.
     {
       Label loop;
-#ifndef V8_REVERSE_JSARGS
-      // Skips frame pointer.
-      __ add(r4, r4, Operand(CommonFrameConstants::kFixedFrameSizeAboveFp));
-#endif
       __ add(r0, r0, r5);
       __ bind(&loop);
       {
         __ sub(r5, r5, Operand(1), SetCC);
         __ ldr(scratch, MemOperand(r4, r5, LSL, kSystemPointerSizeLog2));
-#ifdef V8_REVERSE_JSARGS
         __ str(scratch, MemOperand(r2, r5, LSL, kSystemPointerSizeLog2));
-#else
-        __ push(scratch);
-#endif
         __ b(ne, &loop);
       }
     }
@@ -2350,7 +2148,6 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       __ bind(&done);
     }
 
-#ifdef V8_REVERSE_JSARGS
     // Pop receiver.
     __ Pop(r5);
 
@@ -2368,39 +2165,6 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
 
     // Push receiver.
     __ Push(r5);
-#else
-    // Reserve stack space for the [[BoundArguments]].
-    __ AllocateStackSpace(scratch);
-
-    // Relocate arguments down the stack.
-    {
-      Label loop, done_loop;
-      __ mov(r5, Operand(0));
-      __ bind(&loop);
-      __ cmp(r5, r0);
-      __ b(gt, &done_loop);
-      __ ldr(scratch, MemOperand(sp, r4, LSL, kSystemPointerSizeLog2));
-      __ str(scratch, MemOperand(sp, r5, LSL, kSystemPointerSizeLog2));
-      __ add(r4, r4, Operand(1));
-      __ add(r5, r5, Operand(1));
-      __ b(&loop);
-      __ bind(&done_loop);
-    }
-
-    // Copy [[BoundArguments]] to the stack (below the arguments).
-    {
-      Label loop;
-      __ ldr(r4, FieldMemOperand(r2, FixedArray::kLengthOffset));
-      __ SmiUntag(r4);
-      __ add(r2, r2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-      __ bind(&loop);
-      __ sub(r4, r4, Operand(1), SetCC);
-      __ ldr(scratch, MemOperand(r2, r4, LSL, kPointerSizeLog2));
-      __ str(scratch, MemOperand(sp, r0, LSL, kPointerSizeLog2));
-      __ add(r0, r0, Operand(1));
-      __ b(gt, &loop);
-    }
-#endif
   }
   __ bind(&no_bound_arguments);
 }
@@ -2594,13 +2358,6 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ ldr(r4, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
   __ ldr(r4, FieldMemOperand(r4, SharedFunctionInfo::kFlagsOffset));
 
-#ifndef V8_REVERSE_JSARGS
-  // This optimization is disabled when the arguments are reversed.
-  __ tst(r4,
-         Operand(SharedFunctionInfo::IsSafeToSkipArgumentsAdaptorBit::kMask));
-  __ b(ne, &skip_adapt_arguments);
-#endif
-
   // -------------------------------------------
   // Adapt arguments.
   // -------------------------------------------
@@ -2620,11 +2377,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
       // r1: function
       // r2: expected number of arguments
       // r3: new target (passed through to callee)
-#ifdef V8_REVERSE_JSARGS
       __ add(r0, fp, Operand(r2, LSL, kSystemPointerSizeLog2));
-#else
-      __ add(r0, fp, Operand::PointerOffsetFromSmiKey(r0));
-#endif
       // adjust for return address and receiver
       __ add(r0, r0, Operand(2 * kSystemPointerSize));
       __ sub(r4, r0, Operand(r2, LSL, kSystemPointerSizeLog2));
@@ -2653,7 +2406,6 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
       EnterArgumentsAdaptorFrame(masm);
       Generate_StackOverflowCheck(masm, r2, r5, &stack_overflow);
 
-#ifdef V8_REVERSE_JSARGS
       // Fill the remaining expected arguments with undefined.
       // r0: actual number of arguments as a smi
       // r1: function
@@ -2695,47 +2447,6 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
       __ cmp(r0, fp);  // Compare before moving to next argument.
       __ sub(r0, r0, Operand(kPointerSize));
       __ b(ne, &copy);
-#else
-      // Calculate copy start address into r0 and copy end address is fp.
-      // r0: actual number of arguments as a smi
-      // r1: function
-      // r2: expected number of arguments
-      // r3: new target (passed through to callee)
-      __ add(r0, fp, Operand::PointerOffsetFromSmiKey(r0));
-
-      // Copy the arguments (including the receiver) to the new stack frame.
-      // r0: copy start address
-      // r1: function
-      // r2: expected number of arguments
-      // r3: new target (passed through to callee)
-      Label copy;
-      __ bind(&copy);
-
-      // Adjust load for return address and receiver.
-      __ ldr(r5, MemOperand(r0, 2 * kPointerSize));
-      __ push(r5);
-
-      __ cmp(r0, fp);  // Compare before moving to next argument.
-      __ sub(r0, r0, Operand(kPointerSize));
-      __ b(ne, &copy);
-
-      // Fill the remaining expected arguments with undefined.
-      // r1: function
-      // r2: expected number of arguments
-      // r3: new target (passed through to callee)
-      __ LoadRoot(r5, RootIndex::kUndefinedValue);
-      __ sub(r4, fp, Operand(r2, LSL, kPointerSizeLog2));
-      // Adjust for frame.
-      __ sub(r4, r4,
-             Operand(ArgumentsAdaptorFrameConstants::kFixedFrameSizeFromFp +
-                     kPointerSize));
-
-      Label fill;
-      __ bind(&fill);
-      __ push(r5);
-      __ cmp(sp, r4);
-      __ b(ne, &fill);
-#endif
     }
 
     // Call the entry point.
@@ -3241,12 +2952,11 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   //  -- r2                  : arguments count (not including the receiver)
   //  -- r3                  : call data
   //  -- r0                  : holder
-  //  -- sp[0]               : last argument
+  //  -- sp[0]               : receiver
+  //  -- sp[8]               : first argument
   //  -- ...
-  //  -- sp[(argc - 1) * 4]  : first argument
-  //  -- sp[(argc + 0) * 4]  : receiver
+  //  -- sp[(argc) * 8]      : last argument
   // -----------------------------------
-  // NOTE: The order of args are reversed if V8_REVERSE_JSARGS
 
   Register api_function_address = r1;
   Register argc = r2;
@@ -3314,12 +3024,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
 
   // FunctionCallbackInfo::values_ (points at the first varargs argument passed
   // on the stack).
-#ifdef V8_REVERSE_JSARGS
   __ add(scratch, scratch, Operand((FCA::kArgsLength + 1) * kPointerSize));
-#else
-  __ add(scratch, scratch, Operand((FCA::kArgsLength - 1) * kPointerSize));
-  __ add(scratch, scratch, Operand(argc, LSL, kPointerSizeLog2));
-#endif
   __ str(scratch, MemOperand(sp, 2 * kPointerSize));
 
   // FunctionCallbackInfo::length_.

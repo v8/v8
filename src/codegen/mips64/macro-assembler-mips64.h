@@ -920,21 +920,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // TODO(victorgomes): Remove this function once we stick with the reversed
   // arguments order.
   void LoadReceiver(Register dest, Register argc) {
-#ifdef V8_REVERSE_JSARGS
     Ld(dest, MemOperand(sp, 0));
-#else
-    Dlsa(dest, sp, argc, kPointerSizeLog2);
-    Ld(dest, MemOperand(dest, 0));
-#endif
   }
 
   void StoreReceiver(Register rec, Register argc, Register scratch) {
-#ifdef V8_REVERSE_JSARGS
     Sd(rec, MemOperand(sp, 0));
-#else
-    Dlsa(scratch, sp, argc, kPointerSizeLog2);
-    Sd(rec, MemOperand(scratch, 0));
-#endif
   }
 
   bool IsNear(Label* L, Condition cond, int rs_reg);

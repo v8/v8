@@ -124,17 +124,8 @@ inline Object BuiltinExitFrame::receiver_slot_object() const {
   // fp[4]: argc.
   // fp[5]: hole.
   // ------- JS stack arguments ------
-  // fp[6]: receiver, if V8_REVERSE_JSARGS.
-  // fp[2 + argc - 1]: receiver, if not V8_REVERSE_JSARGS.
-#ifdef V8_REVERSE_JSARGS
+  // fp[6]: receiver
   const int receiverOffset = BuiltinExitFrameConstants::kFirstArgumentOffset;
-#else
-  Object argc_slot = argc_slot_object();
-  DCHECK(argc_slot.IsSmi());
-  int argc = Smi::ToInt(argc_slot);
-  const int receiverOffset = BuiltinExitFrameConstants::kNewTargetOffset +
-                             (argc - 1) * kSystemPointerSize;
-#endif
   return Object(base::Memory<Address>(fp() + receiverOffset));
 }
 
@@ -210,12 +201,7 @@ Address JavaScriptFrame::GetParameterSlot(int index) const {
   DCHECK(index < ComputeParametersCount() ||
          ComputeParametersCount() == kDontAdaptArgumentsSentinel);
 #endif
-#ifdef V8_REVERSE_JSARGS
   int parameter_offset = (index + 1) * kSystemPointerSize;
-#else
-  int param_count = ComputeParametersCount();
-  int parameter_offset = (param_count - index - 1) * kSystemPointerSize;
-#endif
   return caller_sp() + parameter_offset;
 }
 

@@ -315,7 +315,6 @@ void EscapeAnalysisReducer::Finalize() {
                 formal_parameter_count,
                 Type::Constant(params.formal_parameter_count(),
                                jsgraph()->graph()->zone()));
-#ifdef V8_REVERSE_JSARGS
             Node* offset_to_first_elem = jsgraph()->Constant(
                 CommonFrameConstants::kFixedSlotCountAboveFp);
             if (!NodeProperties::IsTyped(offset_to_first_elem)) {
@@ -337,22 +336,6 @@ void EscapeAnalysisReducer::Finalize() {
                   jsgraph()->simplified()->NumberAdd(), offset,
                   formal_parameter_count);
             }
-#else
-            // {offset} is a reverted index starting from 1. The base address is
-            // adapted to allow offsets starting from 1.
-            Node* offset = jsgraph()->graph()->NewNode(
-                jsgraph()->simplified()->NumberSubtract(), arguments_length,
-                index);
-            if (type == CreateArgumentsType::kRestParameter) {
-              // In the case of rest parameters we should skip the formal
-              // parameters.
-              NodeProperties::SetType(offset,
-                                      TypeCache::Get()->kArgumentsLengthType);
-              offset = jsgraph()->graph()->NewNode(
-                  jsgraph()->simplified()->NumberSubtract(), offset,
-                  formal_parameter_count);
-            }
-#endif
             NodeProperties::SetType(offset,
                                     TypeCache::Get()->kArgumentsLengthType);
             NodeProperties::ReplaceValueInput(load, arguments_frame, 0);

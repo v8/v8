@@ -828,9 +828,7 @@ void JSGenericLowering::LowerJSConstruct(Node* node) {
     Node* stub_arity = jsgraph()->Int32Constant(arg_count);
     Node* slot = jsgraph()->Int32Constant(p.feedback().index());
     Node* receiver = jsgraph()->UndefinedConstant();
-#ifdef V8_REVERSE_JSARGS
     Node* feedback_vector = node->RemoveInput(n.FeedbackVectorIndex());
-#endif
     // Register argument inputs are followed by stack argument inputs (such as
     // feedback_vector). Both are listed in ascending order. Note that
     // the receiver is implicitly placed on the stack and is thus inserted
@@ -839,16 +837,10 @@ void JSGenericLowering::LowerJSConstruct(Node* node) {
     node->InsertInput(zone(), 0, stub_code);
     node->InsertInput(zone(), 3, stub_arity);
     node->InsertInput(zone(), 4, slot);
-#ifdef V8_REVERSE_JSARGS
     node->InsertInput(zone(), 5, feedback_vector);
     node->InsertInput(zone(), 6, receiver);
     // After: {code, target, new_target, arity, slot, vector, receiver,
     // ...args}.
-#else
-    node->InsertInput(zone(), 5, receiver);
-    // After: {code, target, new_target, arity, slot, receiver, ...args,
-    // vector}.
-#endif
 
     NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   } else {
@@ -897,9 +889,7 @@ void JSGenericLowering::LowerJSConstructWithArrayLike(Node* node) {
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
     Node* receiver = jsgraph()->UndefinedConstant();
     Node* slot = jsgraph()->Int32Constant(p.feedback().index());
-#ifdef V8_REVERSE_JSARGS
     Node* feedback_vector = node->RemoveInput(n.FeedbackVectorIndex());
-#endif
     // Register argument inputs are followed by stack argument inputs (such as
     // feedback_vector). Both are listed in ascending order. Note that
     // the receiver is implicitly placed on the stack and is thus inserted
@@ -907,16 +897,10 @@ void JSGenericLowering::LowerJSConstructWithArrayLike(Node* node) {
     // TODO(jgruber): Implement a simpler way to specify these mutations.
     node->InsertInput(zone(), 0, stub_code);
     node->InsertInput(zone(), 4, slot);
-#ifdef V8_REVERSE_JSARGS
     node->InsertInput(zone(), 5, feedback_vector);
     node->InsertInput(zone(), 6, receiver);
     // After: {code, target, new_target, arguments_list, slot, vector,
     // receiver}.
-#else
-    node->InsertInput(zone(), 5, receiver);
-    // After: {code, target, new_target, arguments_list, slot, receiver,
-    // vector}.
-#endif
 
     NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   } else {
@@ -972,10 +956,8 @@ void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
     // on the stack here.
     Node* stub_arity = jsgraph()->Int32Constant(arg_count - kTheSpread);
     Node* receiver = jsgraph()->UndefinedConstant();
-#ifdef V8_REVERSE_JSARGS
     Node* feedback_vector = node->RemoveInput(n.FeedbackVectorIndex());
     Node* spread = node->RemoveInput(n.LastArgumentIndex());
-#endif
 
     // Register argument inputs are followed by stack argument inputs (such as
     // feedback_vector). Both are listed in ascending order. Note that
@@ -985,17 +967,11 @@ void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
     node->InsertInput(zone(), 0, stub_code);
     node->InsertInput(zone(), 3, stub_arity);
     node->InsertInput(zone(), 4, slot);
-#ifdef V8_REVERSE_JSARGS
     node->InsertInput(zone(), 5, spread);
     node->InsertInput(zone(), 6, feedback_vector);
     node->InsertInput(zone(), 7, receiver);
     // After: {code, target, new_target, arity, slot, spread, vector, receiver,
     // ...args}.
-#else
-    node->InsertInput(zone(), 5, receiver);
-    // After: {code, target, new_target, arity, slot, receiver, ...args, spread,
-    // vector}.
-#endif
 
     NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   } else {
@@ -1179,20 +1155,14 @@ void JSGenericLowering::LowerJSCallWithSpread(Node* node) {
 
     // Shuffling inputs.
     // Before: {target, receiver, ...args, spread, vector}.
-#ifdef V8_REVERSE_JSARGS
     Node* feedback_vector = node->RemoveInput(n.FeedbackVectorIndex());
-#endif
     Node* spread = node->RemoveInput(n.LastArgumentIndex());
     node->InsertInput(zone(), 0, stub_code);
     node->InsertInput(zone(), 2, stub_arity);
     node->InsertInput(zone(), 3, spread);
     node->InsertInput(zone(), 4, slot);
-#ifdef V8_REVERSE_JSARGS
     node->InsertInput(zone(), 5, feedback_vector);
     // After: {code, target, arity, spread, slot, vector, receiver, ...args}.
-#else
-    // After: {code, target, arity, spread, slot, receiver, ...args, vector}.
-#endif
 
     NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   } else {

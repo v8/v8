@@ -112,9 +112,6 @@ declare_args() {
   # Disable arguments adaptor frame (sets -dV8_NO_ARGUMENTS_ADAPTOR).
   v8_disable_arguments_adaptor = v8_current_cpu == "x64"
 
-  # Reverse JS arguments order in the stack (sets -dV8_REVERSE_JSARGS).
-  v8_enable_reverse_jsargs = true
-
   # Sets -dOBJECT_PRINT.
   v8_enable_object_print = ""
 
@@ -373,10 +370,6 @@ assert(!v8_use_multi_snapshots || !v8_control_flow_integrity,
 assert(!v8_enable_heap_sandbox || v8_enable_pointer_compression,
        "V8 Heap Sandbox requires pointer compression")
 
-assert(
-    !v8_disable_arguments_adaptor || v8_enable_reverse_jsargs,
-    "Disabling the arguments adaptor frame requires reversing the JS arguments stack")
-
 assert(!v8_enable_unconditional_write_barriers || !v8_disable_write_barriers,
        "Write barriers can't be both enabled and disabled")
 
@@ -534,9 +527,6 @@ config("v8_header_features") {
   }
   if (v8_disable_arguments_adaptor) {
     defines += [ "V8_NO_ARGUMENTS_ADAPTOR" ]
-  }
-  if (v8_enable_reverse_jsargs) {
-    defines += [ "V8_REVERSE_JSARGS" ]
   }
 }
 

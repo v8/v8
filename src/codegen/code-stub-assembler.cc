@@ -12811,50 +12811,28 @@ CodeStubArguments::CodeStubArguments(CodeStubAssembler* assembler,
       argc_(argc),
       base_(),
       fp_(fp != nullptr ? fp : assembler_->LoadFramePointer()) {
-#ifdef V8_REVERSE_JSARGS
   TNode<IntPtrT> offset = assembler_->IntPtrConstant(
       (StandardFrameConstants::kFixedSlotCountAboveFp + 1) *
       kSystemPointerSize);
-#else
-  TNode<IntPtrT> offset = assembler_->ElementOffsetFromIndex(
-      argc_, SYSTEM_POINTER_ELEMENTS,
-      (StandardFrameConstants::kFixedSlotCountAboveFp - 1) *
-          kSystemPointerSize);
-#endif
   // base_ points to the first argument, not the receiver
   // whether present or not.
   base_ = assembler_->RawPtrAdd(fp_, offset);
 }
 
 TNode<Object> CodeStubArguments::GetReceiver() const {
-#ifdef V8_REVERSE_JSARGS
   intptr_t offset = -kSystemPointerSize;
-#else
-  intptr_t offset = kSystemPointerSize;
-#endif
   return assembler_->LoadFullTagged(base_, assembler_->IntPtrConstant(offset));
 }
 
 void CodeStubArguments::SetReceiver(TNode<Object> object) const {
-#ifdef V8_REVERSE_JSARGS
   intptr_t offset = -kSystemPointerSize;
-#else
-  intptr_t offset = kSystemPointerSize;
-#endif
   assembler_->StoreFullTaggedNoWriteBarrier(
       base_, assembler_->IntPtrConstant(offset), object);
 }
 
 TNode<RawPtrT> CodeStubArguments::AtIndexPtr(TNode<IntPtrT> index) const {
-#ifdef V8_REVERSE_JSARGS
   TNode<IntPtrT> offset =
       assembler_->ElementOffsetFromIndex(index, SYSTEM_POINTER_ELEMENTS, 0);
-#else
-  TNode<IntPtrT> negated_index =
-      assembler_->IntPtrOrSmiSub(assembler_->IntPtrConstant(0), index);
-  TNode<IntPtrT> offset = assembler_->ElementOffsetFromIndex(
-      negated_index, SYSTEM_POINTER_ELEMENTS, 0);
-#endif
   return assembler_->RawPtrAdd(base_, offset);
 }
 
@@ -12900,11 +12878,7 @@ void CodeStubArguments::ForEach(
   }
   TNode<RawPtrT> start = AtIndexPtr(first);
   TNode<RawPtrT> end = AtIndexPtr(last);
-#ifdef V8_REVERSE_JSARGS
   const int increment = kSystemPointerSize;
-#else
-  const int increment = -kSystemPointerSize;
-#endif
   assembler_->BuildFastLoop<RawPtrT>(
       vars, start, end,
       [&](TNode<RawPtrT> current) {
@@ -13336,13 +13310,8 @@ TNode<Object> CodeStubAssembler::CallRuntimeNewArray(
   // Runtime_NewArray receives arguments in the JS order (to avoid unnecessary
   // copy). Except the last two (new_target and allocation_site) which are add
   // on top of the stack later.
-#ifdef V8_REVERSE_JSARGS
   return CallRuntime(Runtime::kNewArray, context, length, receiver, new_target,
                      allocation_site);
-#else
-  return CallRuntime(Runtime::kNewArray, context, receiver, length, new_target,
-                     allocation_site);
-#endif
 }
 
 void CodeStubAssembler::TailCallRuntimeNewArray(TNode<Context> context,
@@ -13353,13 +13322,8 @@ void CodeStubAssembler::TailCallRuntimeNewArray(TNode<Context> context,
   // Runtime_NewArray receives arguments in the JS order (to avoid unnecessary
   // copy). Except the last two (new_target and allocation_site) which are add
   // on top of the stack later.
-#ifdef V8_REVERSE_JSARGS
   return TailCallRuntime(Runtime::kNewArray, context, length, receiver,
                          new_target, allocation_site);
-#else
-  return TailCallRuntime(Runtime::kNewArray, context, receiver, length,
-                         new_target, allocation_site);
-#endif
 }
 
 TNode<JSArray> CodeStubAssembler::ArrayCreate(TNode<Context> context,

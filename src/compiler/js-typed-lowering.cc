@@ -1492,8 +1492,6 @@ namespace {
 void ReduceBuiltin(JSGraph* jsgraph, Node* node, int builtin_index, int arity,
                    CallDescriptor::Flags flags) {
   // Patch {node} to a direct CEntry call.
-  //
-  // When V8_REVERSE_JSARGS is set:
   // ----------- A r g u m e n t s -----------
   // -- 0: CEntry
   // --- Stack args ---
@@ -1506,21 +1504,6 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, int builtin_index, int arity,
   // --- Register args ---
   // -- 6 + n: the C entry point
   // -- 6 + n + 1: argc (Int32)
-  // -----------------------------------
-  //
-  // Otherwise:
-  // ----------- A r g u m e n t s -----------
-  // -- 0: CEntry
-  // --- Stack args ---
-  // -- 1: receiver
-  // -- [2, 2 + n[: the n actual arguments passed to the builtin
-  // -- 2 + n: padding
-  // -- 2 + n + 1: argc, including the receiver and implicit args (Smi)
-  // -- 2 + n + 2: target
-  // -- 2 + n + 3: new_target
-  // --- Register args ---
-  // -- 2 + n + 4: the C entry point
-  // -- 2 + n + 5: argc (Int32)
   // -----------------------------------
 
   // The logic contained here is mirrored in Builtins::Generate_Adaptor.
@@ -1558,19 +1541,11 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, int builtin_index, int arity,
   Node* argc_node = jsgraph->Constant(argc);
 
   static const int kStubAndReceiver = 2;
-#ifdef V8_REVERSE_JSARGS
   node->InsertInput(zone, 1, new_target);
   node->InsertInput(zone, 2, target);
   node->InsertInput(zone, 3, argc_node);
   node->InsertInput(zone, 4, jsgraph->PaddingConstant());
   int cursor = arity + kStubAndReceiver + BuiltinArguments::kNumExtraArgs;
-#else
-  int cursor = arity + kStubAndReceiver;
-  node->InsertInput(zone, cursor++, jsgraph->PaddingConstant());
-  node->InsertInput(zone, cursor++, argc_node);
-  node->InsertInput(zone, cursor++, target);
-  node->InsertInput(zone, cursor++, new_target);
-#endif
 
   Address entry = Builtins::CppEntryOf(builtin_index);
   ExternalReference entry_ref = ExternalReference::Create(entry);
