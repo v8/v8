@@ -2559,15 +2559,6 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I64x2Sub)              \
   V(I64x2Mul)              \
   V(I64x2Eq)               \
-  V(I64x2Ne)               \
-  V(I64x2GtS)              \
-  V(I64x2GeS)              \
-  V(I64x2GtU)              \
-  V(I64x2GeU)              \
-  V(I64x2MinS)             \
-  V(I64x2MinU)             \
-  V(I64x2MaxS)             \
-  V(I64x2MaxU)             \
   V(I32x4Add)              \
   V(I32x4AddHoriz)         \
   V(I32x4Sub)              \
@@ -2677,11 +2668,9 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I8x16ShrU)
 
 #define SIMD_BOOL_LIST(V) \
-  V(V64x2AnyTrue)         \
   V(V32x4AnyTrue)         \
   V(V16x8AnyTrue)         \
   V(V8x16AnyTrue)         \
-  V(V64x2AllTrue)         \
   V(V32x4AllTrue)         \
   V(V16x8AllTrue)         \
   V(V8x16AllTrue)

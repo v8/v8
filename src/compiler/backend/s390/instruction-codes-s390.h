@@ -261,15 +261,6 @@ namespace compiler {
   V(S390_I64x2ReplaceLane)                  \
   V(S390_I64x2ExtractLane)                  \
   V(S390_I64x2Eq)                           \
-  V(S390_I64x2Ne)                           \
-  V(S390_I64x2GtS)                          \
-  V(S390_I64x2GeS)                          \
-  V(S390_I64x2GtU)                          \
-  V(S390_I64x2GeU)                          \
-  V(S390_I64x2MinS)                         \
-  V(S390_I64x2MinU)                         \
-  V(S390_I64x2MaxS)                         \
-  V(S390_I64x2MaxU)                         \
   V(S390_I32x4Splat)                        \
   V(S390_I32x4ExtractLane)                  \
   V(S390_I32x4ReplaceLane)                  \
@@ -367,11 +358,9 @@ namespace compiler {
   V(S390_I8x16BitMask)                      \
   V(S390_I8x16Shuffle)                      \
   V(S390_I8x16Swizzle)                      \
-  V(S390_V64x2AnyTrue)                      \
   V(S390_V32x4AnyTrue)                      \
   V(S390_V16x8AnyTrue)                      \
   V(S390_V8x16AnyTrue)                      \
-  V(S390_V64x2AllTrue)                      \
   V(S390_V32x4AllTrue)                      \
   V(S390_V16x8AllTrue)                      \
   V(S390_V8x16AllTrue)                      \
