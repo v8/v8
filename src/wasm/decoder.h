@@ -130,36 +130,32 @@ class Decoder {
     return read_leb<int64_t, validate, kNoTrace, 33>(pc, length, name);
   }
 
+  // Convenient overload for callers who don't care about length.
+  template <ValidateFlag validate>
+  WasmOpcode read_prefixed_opcode(const byte* pc) {
+    uint32_t len;
+    return read_prefixed_opcode<validate>(pc, &len);
+  }
+
   // Reads a prefixed-opcode, possibly with variable-length index.
   // The length param is set to the number of bytes this index is encoded with.
   // For most cases (non variable-length), it will be 1.
   template <ValidateFlag validate>
-  WasmOpcode read_prefixed_opcode(const byte* pc, uint32_t* length = nullptr,
+  WasmOpcode read_prefixed_opcode(const byte* pc, uint32_t* length,
                                   const char* name = "prefixed opcode") {
-    uint32_t unused_length;
-    if (length == nullptr) {
-      length = &unused_length;
-    }
     uint32_t index;
-    if (*pc == WasmOpcode::kSimdPrefix) {
-      // SIMD opcodes can be multiple bytes (when LEB128 encoded).
-      index = read_u32v<validate>(pc + 1, length, "prefixed opcode index");
-      // Only support SIMD opcodes that go up to 0xFF (when decoded). Anything
-      // bigger will need 1 more byte, and the '<< 8' below will be wrong.
-      if (validate && V8_UNLIKELY(index > 0xff)) {
-        errorf(pc, "Invalid SIMD opcode %d", index);
-      }
-    } else {
-      if (!validate || validate_size(pc, 2, "expected 2 bytes")) {
-        DCHECK(validate_size(pc, 2, "expected 2 bytes"));
-        index = *(pc + 1);
-        *length = 1;
-      } else {
-        // If size validation fails.
-        index = 0;
-        *length = 0;
-      }
+
+    // Prefixed opcodes all use LEB128 encoding.
+    index = read_u32v<validate>(pc + 1, length, "prefixed opcode index");
+    // Only support opcodes that go up to 0xFF (when decoded). Anything
+    // bigger will need 1 more byte, and the '<< 8' below will be wrong.
+    if (validate && V8_UNLIKELY(index > 0xff)) {
+      errorf(pc, "Invalid prefixed opcode %d", index);
+      // If size validation fails.
+      index = 0;
+      *length = 0;
     }
+
     return static_cast<WasmOpcode>((*pc) << 8 | index);
   }
 

@@ -4586,6 +4586,21 @@ TEST_F(WasmOpcodeLengthTest, IllegalRefIndices) {
   ExpectFailure(kExprBlock, kOptRefCode, U32V_4(0x01000000));
 }
 
+TEST_F(WasmOpcodeLengthTest, PrefixedOpcodesLEB) {
+  // kExprI32New with a 4-byte LEB-encoded opcode.
+  ExpectLength(5, 0xfb, 0xa0, 0x80, 0x80, 0x00);
+
+  // kExprI8x16Splat with a 3-byte LEB-encoded opcode.
+  ExpectLength(4, 0xfd, 0x8f, 0x80, 0x00);
+
+  // kExprI32SConvertSatF32 with a 4-byte LEB-encoded opcode.
+  ExpectLength(5, 0xfc, 0x80, 0x80, 0x80, 0x00);
+
+  // kExprAtomicNotify with a 2-byte LEB-encoded opcode, and 2 i32 imm for
+  // memarg.
+  ExpectLength(5, 0xfe, 0x80, 0x00, 0x00, 0x00);
+}
+
 using TypesOfLocals = ZoneVector<ValueType>;
 
 class LocalDeclDecoderTest : public TestWithZone {
