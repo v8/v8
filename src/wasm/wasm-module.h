@@ -266,6 +266,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   uint32_t maximum_pages = 0;      // maximum size of the memory in 64k pages
   bool has_shared_memory = false;  // true if memory is a SharedArrayBuffer
   bool has_maximum_pages = false;  // true if there is a maximum memory size
+  bool is_memory64 = false;        // true if the memory is 64 bit
   bool has_memory = false;         // true if the memory was defined or imported
   bool mem_export = false;         // true if the memory is exported
   int start_function_index = -1;   // start function, >= 0 if any

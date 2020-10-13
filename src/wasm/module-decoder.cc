@@ -635,7 +635,8 @@ class ModuleDecoderImpl : public Decoder {
         case kExternalMemory: {
           // ===== Imported memory =============================================
           if (!AddMemory(module_.get())) break;
-          uint8_t flags = validate_memory_flags(&module_->has_shared_memory);
+          uint8_t flags = validate_memory_flags(&module_->has_shared_memory,
+                                                &module_->is_memory64);
           consume_resizable_limits("memory", "pages", max_mem_pages(),
                                    &module_->initial_pages,
                                    &module_->has_maximum_pages, max_mem_pages(),
@@ -735,7 +736,8 @@ class ModuleDecoderImpl : public Decoder {
 
     for (uint32_t i = 0; ok() && i < memory_count; i++) {
       if (!AddMemory(module_.get())) break;
-      uint8_t flags = validate_memory_flags(&module_->has_shared_memory);
+      uint8_t flags = validate_memory_flags(&module_->has_shared_memory,
+                                            &module_->is_memory64);
       consume_resizable_limits("memory", "pages", max_mem_pages(),
                                &module_->initial_pages,
                                &module_->has_maximum_pages, max_mem_pages(),
@@ -1531,7 +1533,7 @@ class ModuleDecoderImpl : public Decoder {
     return flags;
   }
 
-  uint8_t validate_memory_flags(bool* has_shared_memory) {
+  uint8_t validate_memory_flags(bool* has_shared_memory, bool* is_memory64) {
     uint8_t flags = consume_u8("memory limits flags");
     *has_shared_memory = false;
     switch (flags) {
@@ -1560,6 +1562,7 @@ class ModuleDecoderImpl : public Decoder {
                  "invalid memory limits flags (enable via "
                  "--experimental-wasm-memory64)");
         }
+        *is_memory64 = true;
         break;
     }
     return flags;

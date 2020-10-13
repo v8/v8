@@ -3327,7 +3327,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (!CheckHasMemory()) return 0;
     MemoryAccessImmediate<validate> imm(this, this->pc_ + prefix_len,
                                         type.size_log_2());
-    Value index = Pop(0, kWasmI32);
+    ValueType index_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+    Value index = Pop(0, index_type);
     Value* result = Push(type.value_type());
     CALL_INTERFACE_IF_REACHABLE(LoadMem, type, imm, index, result);
     return prefix_len + imm.length;
@@ -3341,7 +3342,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         transform == LoadTransformationKind::kExtend ? 3 : type.size_log_2();
     MemoryAccessImmediate<validate> imm(this, this->pc_ + opcode_length,
                                         max_alignment);
-    Value index = Pop(0, kWasmI32);
+    ValueType index_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+    Value index = Pop(0, index_type);
     Value* result = Push(kWasmS128);
     CALL_INTERFACE_IF_REACHABLE(LoadTransform, type, transform, imm, index,
                                 result);
@@ -3368,7 +3370,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     MemoryAccessImmediate<validate> imm(this, this->pc_ + prefix_len,
                                         store.size_log_2());
     Value value = Pop(1, store.value_type());
-    Value index = Pop(0, kWasmI32);
+    ValueType index_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+    Value index = Pop(0, index_type);
     CALL_INTERFACE_IF_REACHABLE(StoreMem, store, imm, index, value);
     return prefix_len + imm.length;
   }
@@ -4066,6 +4069,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (!CheckHasMemoryForAtomics()) return 0;
     MemoryAccessImmediate<validate> imm(
         this, this->pc_ + 2, ElementSizeLog2Of(memtype.representation()));
+    // TODO(10949): Fix this for memory64 (index type should be kWasmI64
+    // then).
+    CHECK(!this->module_->is_memory64);
     ArgVector args = PopArgs(sig);
     Value* result = ret_type == kWasmStmt ? nullptr : Push(GetReturnType(sig));
     CALL_INTERFACE_IF_REACHABLE(AtomicOp, opcode, VectorOf(args), imm, result);

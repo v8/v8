@@ -68,6 +68,8 @@ constexpr size_t kMaxByteSizedLeb128 = 127;
 
 using F = std::pair<ValueType, bool>;
 
+enum MemoryType { kMemory32, kMemory64 };
+
 // A helper for tests that require a module environment for functions,
 // globals, or memories.
 class TestModuleBuilder {
@@ -139,8 +141,9 @@ class TestModuleBuilder {
     return static_cast<byte>(mod.type_kinds.size() - 1);
   }
 
-  void InitializeMemory() {
+  void InitializeMemory(MemoryType mem_type = kMemory32) {
     mod.has_memory = true;
+    mod.is_memory64 = mem_type == kMemory64;
     mod.initial_pages = 1;
     mod.maximum_pages = 100;
   }
@@ -4799,6 +4802,31 @@ TEST_F(BytecodeIteratorTest, WithLocalDecls) {
   EXPECT_EQ(kExprI32Const, iter.current());
   iter.next();
   EXPECT_FALSE(iter.has_next());
+}
+
+/*******************************************************************************
+ * Memory64 tests
+ ******************************************************************************/
+
+TEST_F(FunctionBodyDecoderTest, IndexTypesOn32BitMemory) {
+  builder.InitializeMemory(kMemory32);
+  ExpectValidates(sigs.i_v(), {WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO)});
+  ExpectFailure(sigs.i_v(), {WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO64)});
+  ExpectValidates(sigs.v_v(),
+                  {WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO, WASM_ZERO)});
+  ExpectFailure(sigs.v_v(),
+                {WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO64, WASM_ZERO)});
+}
+
+TEST_F(FunctionBodyDecoderTest, IndexTypesOn64BitMemory) {
+  builder.InitializeMemory(kMemory64);
+  ExpectFailure(sigs.i_v(), {WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO)});
+  ExpectValidates(sigs.i_v(),
+                  {WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO64)});
+  ExpectFailure(sigs.v_v(),
+                {WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO, WASM_ZERO)});
+  ExpectValidates(sigs.v_v(), {WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO64,
+                                              WASM_ZERO)});
 }
 
 #undef B1
