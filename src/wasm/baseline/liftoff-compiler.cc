@@ -557,7 +557,7 @@ class LiftoffCompiler {
   void StartFunctionBody(FullDecoder* decoder, Control* block) {
     for (uint32_t i = 0; i < __ num_locals(); ++i) {
       if (!CheckSupportedType(decoder,
-                              FLAG_liftoff_extern_ref
+                              FLAG_experimental_liftoff_extern_ref
                                   ? kSupportedTypes
                                   : kSupportedTypesWithoutRefs,
                               __ local_type(i), "param"))
@@ -621,7 +621,7 @@ class LiftoffCompiler {
       }
     }
 
-    if (FLAG_liftoff_extern_ref) {
+    if (FLAG_experimental_liftoff_extern_ref) {
       // Initialize all reference type locals with ref.null.
       for (uint32_t param_idx = num_params; param_idx < __ num_locals();
            ++param_idx) {
@@ -1633,7 +1633,7 @@ class LiftoffCompiler {
   }
 
   void RefNull(FullDecoder* decoder, ValueType type, Value*) {
-    if (!FLAG_liftoff_extern_ref) {
+    if (!FLAG_experimental_liftoff_extern_ref) {
       unsupported(decoder, kRefTypes, "ref_null");
       return;
     }
@@ -1816,7 +1816,7 @@ class LiftoffCompiler {
                  const GlobalIndexImmediate<validate>& imm) {
     const auto* global = &env_->module->globals[imm.index];
     if (!CheckSupportedType(decoder,
-                            FLAG_liftoff_extern_ref
+                            FLAG_experimental_liftoff_extern_ref
                                 ? kSupportedTypes
                                 : kSupportedTypesWithoutRefs,
                             global->type, "global")) {
@@ -1855,7 +1855,7 @@ class LiftoffCompiler {
                  const GlobalIndexImmediate<validate>& imm) {
     auto* global = &env_->module->globals[imm.index];
     if (!CheckSupportedType(decoder,
-                            FLAG_liftoff_extern_ref
+                            FLAG_experimental_liftoff_extern_ref
                                 ? kSupportedTypes
                                 : kSupportedTypesWithoutRefs,
                             global->type, "global")) {
@@ -3813,7 +3813,7 @@ class LiftoffCompiler {
                   const Value args[], Value returns[], CallKind call_kind) {
     for (ValueType ret : imm.sig->returns()) {
       if (!CheckSupportedType(decoder,
-                              FLAG_liftoff_extern_ref
+                              FLAG_experimental_liftoff_extern_ref
                                   ? kSupportedTypes
                                   : kSupportedTypesWithoutRefs,
                               ret, "return")) {
@@ -3895,7 +3895,7 @@ class LiftoffCompiler {
     }
     for (ValueType ret : imm.sig->returns()) {
       if (!CheckSupportedType(decoder,
-                              FLAG_liftoff_extern_ref
+                              FLAG_experimental_liftoff_extern_ref
                                   ? kSupportedTypes
                                   : kSupportedTypesWithoutRefs,
                               ret, "return")) {
