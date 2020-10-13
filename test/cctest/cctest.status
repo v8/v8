@@ -41,9 +41,10 @@
   'test-serialize/TestThatAlwaysFails': [FAIL],
   'test-api/SealHandleScope': [FAIL],
 
-  # This test is expected to hit a CHECK (i.e. a FAIL result actually means the
-  # test passed).
+  # These tests are expected to hit a CHECK (i.e. a FAIL result actually means
+  # the test passed).
   'test-api/RegExpInterruptAndReenterIrregexp': [FAIL, CRASH],
+  'test-verifiers/Fail*': [FAIL, CRASH],
 
   # This test always fails.  It tests that LiveEdit causes abort when turned off.
   'test-debug/LiveEditDisabled': [FAIL],
