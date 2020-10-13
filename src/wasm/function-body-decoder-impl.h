@@ -2096,9 +2096,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   bool TraceFailed() {
-    TRACE("wasm-error module+%-6d func+%d: %s\n\n", this->error_.offset(),
-          this->GetBufferRelativeOffset(this->error_.offset()),
-          this->error_.message().c_str());
+    if (this->error_.offset()) {
+      TRACE("wasm-error module+%-6d func+%d: %s\n\n", this->error_.offset(),
+            this->GetBufferRelativeOffset(this->error_.offset()),
+            this->error_.message().c_str());
+    } else {
+      TRACE("wasm-error: %s\n\n", this->error_.message().c_str());
+    }
     return false;
   }
 
@@ -2258,42 +2262,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       Append(" | ");
       for (size_t i = 0; i < decoder_->stack_size(); ++i) {
         Value& val = decoder_->stack_[i];
-        WasmOpcode val_opcode = static_cast<WasmOpcode>(*val.pc());
-        if (WasmOpcodes::IsPrefixOpcode(val_opcode)) {
-          val_opcode =
-              decoder_->template read_prefixed_opcode<Decoder::kNoValidation>(
-                  val.pc());
-        }
-        Append(" %c@%d:%s", val.type.short_name(),
-               static_cast<int>(val.pc() - decoder_->start_),
-               WasmOpcodes::OpcodeName(val_opcode));
-        // If the decoder failed, don't try to decode the immediates, as this
-        // can trigger a DCHECK failure.
-        if (decoder_->failed()) continue;
-        switch (val_opcode) {
-          case kExprI32Const: {
-            ImmI32Immediate<Decoder::kNoValidation> imm(decoder_, val.pc() + 1);
-            Append("[%d]", imm.value);
-            break;
-          }
-          case kExprLocalGet:
-          case kExprLocalSet:
-          case kExprLocalTee: {
-            LocalIndexImmediate<Decoder::kNoValidation> imm(decoder_,
-                                                            val.pc() + 1);
-            Append("[%u]", imm.index);
-            break;
-          }
-          case kExprGlobalGet:
-          case kExprGlobalSet: {
-            GlobalIndexImmediate<Decoder::kNoValidation> imm(decoder_,
-                                                             val.pc() + 1);
-            Append("[%u]", imm.index);
-            break;
-          }
-          default:
-            break;
-        }
+        Append(" %c", val.type.short_name());
       }
     }
 
