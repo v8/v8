@@ -371,6 +371,8 @@ namespace compiler {
   V(Arm64S128Load16x4U)                     \
   V(Arm64S128Load32x2S)                     \
   V(Arm64S128Load32x2U)                     \
+  V(Arm64S128LoadMem32Zero)                 \
+  V(Arm64S128LoadMem64Zero)                 \
   V(Arm64Word64AtomicLoadUint8)             \
   V(Arm64Word64AtomicLoadUint16)            \
   V(Arm64Word64AtomicLoadUint32)            \
@@ -406,11 +408,7 @@ namespace compiler {
   V(Arm64Word64AtomicCompareExchangeUint8)  \
   V(Arm64Word64AtomicCompareExchangeUint16) \
   V(Arm64Word64AtomicCompareExchangeUint32) \
-  V(Arm64Word64AtomicCompareExchangeUint64) \
-  V(Arm64S128LoadMem32Zero)                 \
-  V(Arm64S128LoadMem64Zero)
-// TODO(v8:10930) Adding new codes before these atomic instructions causes a
-// mksnapshot error.
+  V(Arm64Word64AtomicCompareExchangeUint64)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes
