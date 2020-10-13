@@ -1508,10 +1508,18 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
     callable = resolved.second;  // Update to ultimate target.
     DCHECK_NE(compiler::WasmImportCallKind::kLinkError, kind);
     wasm::CompilationEnv env = native_module->CreateCompilationEnv();
-    SharedFunctionInfo shared = js_function->shared();
+    // {expected_arity} should only be used if kind != kJSFunctionArityMismatch
+    // or kind != kJSFunctionArityMismatchSkipAdaptor.
+    int expected_arity = -1;
+    if (kind == compiler::WasmImportCallKind ::kJSFunctionArityMismatch ||
+        kind == compiler::WasmImportCallKind ::
+                    kJSFunctionArityMismatchSkipAdaptor) {
+      expected_arity = Handle<JSFunction>::cast(callable)
+                           ->shared()
+                           .internal_formal_parameter_count();
+    }
     wasm::WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
-        isolate->wasm_engine(), &env, kind, sig, false,
-        shared.internal_formal_parameter_count());
+        isolate->wasm_engine(), &env, kind, sig, false, expected_arity);
     std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
         result.func_index, result.code_desc, result.frame_slot_count,
         result.tagged_parameter_slots,
