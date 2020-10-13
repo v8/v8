@@ -3813,19 +3813,10 @@ base::Optional<ObjectRef> ObjectRef::GetOwnConstantElement(
     uint32_t index, SerializationPolicy policy) const {
   if (!(IsJSObject() || IsString())) return base::nullopt;
   if (data_->should_access_heap()) {
-    // TODO(neis): Once the CHECK_NE below is eliminated, i.e. once we can
-    // safely read from the background thread, the special branch for read-only
-    // objects can be removed as well.
-    if (data_->kind() == ObjectDataKind::kUnserializedReadOnlyHeapObject) {
-      DCHECK(IsString());
-      // TODO(mythria): For ReadOnly strings, currently we cannot access data
-      // from heap without creating handles since we use LookupIterator. We
-      // should have a custom implementation for read only strings that doesn't
-      // create handles. Till then it is OK to disable this optimization since
-      // this only impacts keyed accesses on read only strings.
-      return base::nullopt;
-    }
-    CHECK_NE(data_->kind(), ObjectDataKind::kNeverSerializedHeapObject);
+    // TODO(solanes, neis, v8:7790, v8:11012): Re-enable this optmization for
+    // concurrent inlining when we have the infrastructure to safely do so.
+    if (broker()->is_concurrent_inlining() && IsString()) return base::nullopt;
+    CHECK_EQ(data_->kind(), ObjectDataKind::kUnserializedHeapObject);
     return GetOwnElementFromHeap(broker(), object(), index, true);
   }
   ObjectData* element = nullptr;
