@@ -66,6 +66,7 @@ class ArrayBufferCollector;
 class ArrayBufferSweeper;
 class BasicMemoryChunk;
 class CodeLargeObjectSpace;
+class CollectionBarrier;
 class ConcurrentMarking;
 class GCIdleTimeHandler;
 class GCIdleTimeHeapState;
@@ -773,9 +774,7 @@ class Heap {
            MemoryPressureLevel::kNone;
   }
 
-  bool CollectionRequested() {
-    return collection_barrier_.CollectionRequested();
-  }
+  bool CollectionRequested();
 
   void CheckCollectionRequested();
 
@@ -1576,70 +1575,6 @@ class Heap {
     DISALLOW_COPY_AND_ASSIGN(ExternalStringTable);
   };
 
-  // This class stops and resumes all background threads waiting for GC.
-  class CollectionBarrier {
-    Heap* heap_;
-    base::Mutex mutex_;
-    base::ConditionVariable cond_;
-
-    enum class RequestState {
-      // Default state, no collection requested and tear down wasn't initated
-      // yet.
-      kDefault,
-
-      // Collection was already requested
-      kCollection,
-
-      // This state is reached after isolate starts to shut down. The main
-      // thread can't perform any GCs anymore, so all allocations need to be
-      // allowed from here on until background thread finishes.
-      kShutdown,
-    };
-
-    // The current state.
-    std::atomic<RequestState> state_;
-
-    void BlockUntilCollected();
-
-    // Request GC by activating stack guards and posting a task to perform the
-    // GC.
-    void ActivateStackGuardAndPostTask();
-
-    // Returns true when state was successfully updated from kDefault to
-    // kCollection.
-    bool FirstCollectionRequest() {
-      RequestState expected = RequestState::kDefault;
-      return state_.compare_exchange_strong(expected,
-                                            RequestState::kCollection);
-    }
-
-    // Sets state back to kDefault - invoked at end of GC.
-    void ClearCollectionRequested() {
-      RequestState old_state =
-          state_.exchange(RequestState::kDefault, std::memory_order_relaxed);
-      CHECK_NE(old_state, RequestState::kShutdown);
-    }
-
-   public:
-    explicit CollectionBarrier(Heap* heap)
-        : heap_(heap), state_(RequestState::kDefault) {}
-
-    // Checks whether any background thread requested GC.
-    bool CollectionRequested() {
-      return state_.load(std::memory_order_relaxed) ==
-             RequestState::kCollection;
-    }
-
-    // Resumes threads waiting for collection.
-    void ResumeThreadsAwaitingCollection();
-
-    // Sets current state to kShutdown.
-    void ShutdownRequested();
-
-    // This is the method use by background threads to request and wait for GC.
-    void AwaitCollectionBackground();
-  };
-
   struct StringTypeTable {
     InstanceType type;
     int size;
@@ -2325,7 +2260,7 @@ class Heap {
 
   base::Mutex relocation_mutex_;
 
-  CollectionBarrier collection_barrier_;
+  std::unique_ptr<CollectionBarrier> collection_barrier_;
 
   int gc_callbacks_depth_ = 0;
 

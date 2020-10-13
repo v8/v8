@@ -35,6 +35,7 @@
 #include "src/heap/base/stack.h"
 #include "src/heap/code-object-registry.h"
 #include "src/heap/code-stats.h"
+#include "src/heap/collection-barrier.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/concurrent-allocator.h"
 #include "src/heap/concurrent-marking.h"
@@ -195,7 +196,7 @@ Heap::Heap()
       global_pretenuring_feedback_(kInitialFeedbackCapacity),
       safepoint_(new GlobalSafepoint(this)),
       external_string_table_(this),
-      collection_barrier_(this) {
+      collection_barrier_(new CollectionBarrier(this)) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size() & (Page::kPageSize - 1));
 
@@ -1154,7 +1155,7 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
   }
 
   // Resume all threads waiting for the GC.
-  collection_barrier_.ResumeThreadsAwaitingCollection();
+  collection_barrier_->ResumeThreadsAwaitingCollection();
 }
 
 void Heap::GarbageCollectionEpilogue() {
@@ -1513,6 +1514,8 @@ bool Heap::CollectGarbage(AllocationSpace space,
   DevToolsTraceEventScope devtools_trace_event_scope(
       this, IsYoungGenerationCollector(collector) ? "MinorGC" : "MajorGC",
       GarbageCollectionReasonToString(gc_reason));
+
+  collection_barrier_->StopTimeToCollectionTimer();
 
   if (!CanPromoteYoungAndExpandOldGeneration(0)) {
     InvokeNearHeapLimitCallback();
@@ -1890,67 +1893,16 @@ void Heap::EnsureFromSpaceIsCommitted() {
   FatalProcessOutOfMemory("Committing semi space failed.");
 }
 
-void Heap::CollectionBarrier::ResumeThreadsAwaitingCollection() {
-  base::MutexGuard guard(&mutex_);
-  ClearCollectionRequested();
-  cond_.NotifyAll();
-}
-
-void Heap::CollectionBarrier::ShutdownRequested() {
-  base::MutexGuard guard(&mutex_);
-  state_.store(RequestState::kShutdown);
-  cond_.NotifyAll();
-}
-
-class BackgroundCollectionInterruptTask : public CancelableTask {
- public:
-  explicit BackgroundCollectionInterruptTask(Heap* heap)
-      : CancelableTask(heap->isolate()), heap_(heap) {}
-
-  ~BackgroundCollectionInterruptTask() override = default;
-
- private:
-  // v8::internal::CancelableTask overrides.
-  void RunInternal() override { heap_->CheckCollectionRequested(); }
-
-  Heap* heap_;
-  DISALLOW_COPY_AND_ASSIGN(BackgroundCollectionInterruptTask);
-};
-
-void Heap::CollectionBarrier::AwaitCollectionBackground() {
-  if (FirstCollectionRequest()) {
-    // This is the first background thread requesting collection, ask the main
-    // thread for GC.
-    ActivateStackGuardAndPostTask();
-  }
-
-  BlockUntilCollected();
-}
-
-void Heap::CollectionBarrier::ActivateStackGuardAndPostTask() {
-  Isolate* isolate = heap_->isolate();
-  ExecutionAccess access(isolate);
-  isolate->stack_guard()->RequestGC();
-  auto taskrunner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
-      reinterpret_cast<v8::Isolate*>(isolate));
-  taskrunner->PostTask(
-      std::make_unique<BackgroundCollectionInterruptTask>(heap_));
-}
-
-void Heap::CollectionBarrier::BlockUntilCollected() {
-  base::MutexGuard guard(&mutex_);
-
-  while (CollectionRequested()) {
-    cond_.Wait(&mutex_);
-  }
+bool Heap::CollectionRequested() {
+  return collection_barrier_->CollectionRequested();
 }
 
 void Heap::RequestCollectionBackground() {
-  collection_barrier_.AwaitCollectionBackground();
+  collection_barrier_->AwaitCollectionBackground();
 }
 
 void Heap::CheckCollectionRequested() {
-  if (!collection_barrier_.CollectionRequested()) return;
+  if (!collection_barrier_->CollectionRequested()) return;
 
   CollectAllGarbage(current_gc_flags_,
                     GarbageCollectionReason::kBackgroundAllocationFailure,
@@ -5420,7 +5372,7 @@ void Heap::StartTearDown() {
   // process the event queue anymore. Avoid this deadlock by allowing all
   // allocations after tear down was requested to make sure all background
   // threads finish.
-  collection_barrier_.ShutdownRequested();
+  collection_barrier_->ShutdownRequested();
 
 #ifdef VERIFY_HEAP
   // {StartTearDown} is called fairly early during Isolate teardown, so it's

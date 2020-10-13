@@ -2592,6 +2592,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/code-object-registry.h",
     "src/heap/code-stats.cc",
     "src/heap/code-stats.h",
+    "src/heap/collection-barrier.cc",
+    "src/heap/collection-barrier.h",
     "src/heap/combined-heap.cc",
     "src/heap/combined-heap.h",
     "src/heap/concurrent-allocator-inl.h",

@@ -21,7 +21,7 @@ void GlobalSafepoint::EnterSafepointScope() {
 
   if (++active_safepoint_scopes_ > 1) return;
 
-  TimedHistogramScope timer(heap_->isolate()->counters()->time_to_safepoint());
+  TimedHistogramScope timer(heap_->isolate()->counters()->stop_the_world());
   TRACE_GC(heap_->tracer(), GCTracer::Scope::STOP_THE_WORLD);
 
   local_heaps_mutex_.Lock();
