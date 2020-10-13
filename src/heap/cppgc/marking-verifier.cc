@@ -70,8 +70,7 @@ bool MarkingVerifier::VisitHeapObjectHeader(HeapObjectHeader* header) {
   parent_ = header;
 
   if (!header->IsInConstruction()) {
-    GlobalGCInfoTable::GCInfoFromIndex(header->GetGCInfoIndex())
-        .trace(this, header->Payload());
+    header->Trace(this);
   } else {
     // Dispatches to conservative tracing implementation.
     TraceConservativelyIfNeeded(*header);

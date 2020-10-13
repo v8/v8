@@ -23,6 +23,9 @@ class V8_EXPORT_PRIVATE CppHeap final : public cppgc::internal::HeapBase,
           const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>&
               custom_spaces);
 
+  CppHeap(const CppHeap&) = delete;
+  CppHeap& operator=(const CppHeap&) = delete;
+
   HeapBase& AsBase() { return *this; }
   const HeapBase& AsBase() const { return *this; }
 

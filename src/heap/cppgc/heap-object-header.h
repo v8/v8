@@ -20,6 +20,9 @@
 #include "src/heap/cppgc/globals.h"
 
 namespace cppgc {
+
+class Visitor;
+
 namespace internal {
 
 // HeapObjectHeader contains meta data per object and is prepended to each
@@ -95,6 +98,8 @@ class HeapObjectHeader {
   void Finalize();
 
   V8_EXPORT_PRIVATE HeapObjectName GetName() const;
+
+  V8_EXPORT_PRIVATE void Trace(Visitor*) const;
 
  private:
   enum class EncodedHalf : uint8_t { kLow, kHigh };
