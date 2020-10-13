@@ -2657,6 +2657,15 @@ void Isolate::ReleaseSharedPtrs() {
   }
 }
 
+bool Isolate::IsBuiltinsTableHandleLocation(Address* handle_location) {
+  FullObjectSlot location(handle_location);
+  FullObjectSlot first_root(builtins_table());
+  FullObjectSlot last_root(builtins_table() + Builtins::builtin_count);
+  if (location >= last_root) return false;
+  if (location < first_root) return false;
+  return true;
+}
+
 void Isolate::RegisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
   base::MutexGuard lock(&managed_ptr_destructors_mutex_);
   DCHECK_NULL(destructor->prev_);

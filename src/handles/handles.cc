@@ -41,6 +41,7 @@ bool HandleBase::IsDereferenceAllowed() const {
       RootsTable::IsImmortalImmovable(root_index)) {
     return true;
   }
+  if (isolate->IsBuiltinsTableHandleLocation(location_)) return true;
 
   LocalHeap* local_heap = LocalHeap::Current();
   if (FLAG_local_heaps && local_heap) {
