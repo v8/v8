@@ -2403,12 +2403,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     Control* c = control_at(imm.depth.depth);
     Value exception = Pop(0, kWasmExnRef);
     const WasmExceptionSig* sig = imm.index.exception->sig;
-    size_t value_count = sig->parameter_count();
+    int value_count = static_cast<int>(sig->parameter_count());
     // TODO(wasm): This operand stack mutation is an ugly hack to make
     // both type checking here as well as environment merging in the
     // graph builder interface work out of the box. We should introduce
     // special handling for both and do minimal/no stack mutation here.
-    for (size_t i = 0; i < value_count; ++i) Push(sig->GetParam(i));
+    EnsureStackSpace(value_count);
+    for (int i = 0; i < value_count; ++i) Push(sig->GetParam(i));
     Vector<Value> values(stack_ + c->stack_depth, value_count);
     TypeCheckBranchResult check_result = TypeCheckBranch(c, true);
     if (this->failed()) return 0;
@@ -2419,7 +2420,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     } else if (check_result == kInvalidStack) {
       return 0;
     }
-    for (int i = static_cast<int>(value_count) - 1; i >= 0; i--) Pop(i);
+    for (int i = value_count - 1; i >= 0; i--) Pop(i);
     Value* pexception = Push(kWasmExnRef);
     *pexception = exception;
     return 1 + imm.length;
@@ -4299,6 +4300,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     int index_offset = conditional_branch ? 1 : 0;
     for (int i = arity - 1; i >= 0; --i) Pop(index_offset + i, merge[i].type);
     // Push values of the correct type back on the stack.
+    EnsureStackSpace(arity);
     for (int i = 0; i < arity; ++i) Push(merge[i].type);
     return this->ok();
   }
