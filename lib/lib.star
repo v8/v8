@@ -131,6 +131,10 @@ def v8_basic_builder(defaults, **kwargs):
     if use_goma:
         properties = dict((kwargs.pop("properties", {})).items() + use_goma.items())
         kwargs["properties"] = properties
+    properties = kwargs.setdefault("properties", {})
+    properties["$recipe_engine/isolated"] = {
+        "server": "https://isolateserver.appspot.com/",
+    }
     kwargs = fix_args(defaults, **kwargs)
     luci.builder(**kwargs)
 
