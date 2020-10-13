@@ -2362,7 +2362,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
     Operand debug_hook_active_operand =
         ExternalReferenceAsOperand(debug_hook_active);
     cmpb(debug_hook_active_operand, Immediate(0));
-    j(not_equal, &debug_hook, Label::kNear);
+    j(not_equal, &debug_hook);
   }
   bind(&continue_after_hook);
 
@@ -2390,7 +2390,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   bind(&debug_hook);
   CallDebugOnFunctionCall(function, new_target, expected_parameter_count,
                           actual_parameter_count);
-  jmp(&continue_after_hook, Label::kNear);
+  jmp(&continue_after_hook);
 
   bind(&done);
 }
