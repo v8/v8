@@ -2265,6 +2265,8 @@ void LiftoffAssembler::emit_f32x4_min(LiftoffRegister dst, LiftoffRegister lhs,
   // dst = (scratch1 <= scratch0) ? scratch1 : scratch0.
   fsle_w(dst_msa, scratch1, scratch0);
   bsel_v(dst_msa, scratch0, scratch1);
+  // Canonicalize the result.
+  fmin_w(dst_msa, dst_msa, dst_msa);
 }
 
 void LiftoffAssembler::emit_f32x4_max(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2285,6 +2287,8 @@ void LiftoffAssembler::emit_f32x4_max(LiftoffRegister dst, LiftoffRegister lhs,
   // dst = (scratch0 <= scratch1) ? scratch1 : scratch0.
   fsle_w(dst_msa, scratch0, scratch1);
   bsel_v(dst_msa, scratch0, scratch1);
+  // Canonicalize the result.
+  fmax_w(dst_msa, dst_msa, dst_msa);
 }
 
 void LiftoffAssembler::emit_f32x4_pmin(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2384,6 +2388,8 @@ void LiftoffAssembler::emit_f64x2_min(LiftoffRegister dst, LiftoffRegister lhs,
   // dst = (scratch1 <= scratch0) ? scratch1 : scratch0.
   fsle_d(dst_msa, scratch1, scratch0);
   bsel_v(dst_msa, scratch0, scratch1);
+  // Canonicalize the result.
+  fmin_d(dst_msa, dst_msa, dst_msa);
 }
 
 void LiftoffAssembler::emit_f64x2_max(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2404,6 +2410,8 @@ void LiftoffAssembler::emit_f64x2_max(LiftoffRegister dst, LiftoffRegister lhs,
   // dst = (scratch0 <= scratch1) ? scratch1 : scratch0.
   fsle_d(dst_msa, scratch0, scratch1);
   bsel_v(dst_msa, scratch0, scratch1);
+  // Canonicalize the result.
+  fmax_d(dst_msa, dst_msa, dst_msa);
 }
 
 void LiftoffAssembler::emit_f64x2_pmin(LiftoffRegister dst, LiftoffRegister lhs,

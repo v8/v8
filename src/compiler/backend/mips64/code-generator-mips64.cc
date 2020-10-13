@@ -2196,9 +2196,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src1 = i.InputSimd128Register(1);
       Simd128Register scratch0 = kSimd128RegZero;
       Simd128Register scratch1 = kSimd128ScratchReg;
-      // MSA follows IEEE 754-2008 comparision rules:
-      // 1. All NaN-related comparsions get false.
-      // 2. +0.0 equals to -0.0.
 
       // If inputs are -0.0. and +0.0, then write -0.0 to scratch1.
       // scratch1 = (src0 == src1) ?  (src0 | src1) : (src1 | src1).
@@ -2208,9 +2205,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // scratch0 = isNaN(src0) ? src0 : scratch1.
       __ fseq_d(scratch0, src0, src0);
       __ bsel_v(scratch0, src0, scratch1);
-      // dst = (src0 < scratch0) ? src0 : scratch0.
-      __ fslt_d(dst, src0, scratch0);
-      __ bsel_v(dst, scratch0, src0);
+      // scratch1 = (src0 < scratch0) ? src0 : scratch0.
+      __ fslt_d(scratch1, src0, scratch0);
+      __ bsel_v(scratch1, scratch0, src0);
+      // Canonicalize the result.
+      __ fmin_d(dst, scratch1, scratch1);
       break;
     }
     case kMips64F64x2Max: {
@@ -2220,9 +2219,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src1 = i.InputSimd128Register(1);
       Simd128Register scratch0 = kSimd128RegZero;
       Simd128Register scratch1 = kSimd128ScratchReg;
-      // MSA follows IEEE 754-2008 comparision rules:
-      // 1. All NaN-related comparsions get false.
-      // 2. +0.0 equals to -0.0.
 
       // If inputs are -0.0. and +0.0, then write +0.0 to scratch1.
       // scratch1 = (src0 == src1) ?  (src0 & src1) : (src1 & src1).
@@ -2232,9 +2228,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // scratch0 = isNaN(src0) ? src0 : scratch1.
       __ fseq_d(scratch0, src0, src0);
       __ bsel_v(scratch0, src0, scratch1);
-      // dst = (scratch0 < src0) ? src0 : scratch0.
-      __ fslt_d(dst, scratch0, src0);
-      __ bsel_v(dst, scratch0, src0);
+      // scratch1 = (scratch0 < src0) ? src0 : scratch0.
+      __ fslt_d(scratch1, scratch0, src0);
+      __ bsel_v(scratch1, scratch0, src0);
+      // Canonicalize the result.
+      __ fmax_d(dst, scratch1, scratch1);
       break;
     }
     case kMips64F64x2Eq: {
@@ -2590,9 +2588,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src1 = i.InputSimd128Register(1);
       Simd128Register scratch0 = kSimd128RegZero;
       Simd128Register scratch1 = kSimd128ScratchReg;
-      // MSA follows IEEE 754-2008 comparision rules:
-      // 1. All NaN-related comparsions get false.
-      // 2. +0.0 equals to -0.0.
 
       // If inputs are -0.0. and +0.0, then write +0.0 to scratch1.
       // scratch1 = (src0 == src1) ?  (src0 & src1) : (src1 & src1).
@@ -2602,9 +2597,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // scratch0 = isNaN(src0) ? src0 : scratch1.
       __ fseq_w(scratch0, src0, src0);
       __ bsel_v(scratch0, src0, scratch1);
-      // dst = (scratch0 < src0) ? src0 : scratch0.
-      __ fslt_w(dst, scratch0, src0);
-      __ bsel_v(dst, scratch0, src0);
+      // scratch1 = (scratch0 < src0) ? src0 : scratch0.
+      __ fslt_w(scratch1, scratch0, src0);
+      __ bsel_v(scratch1, scratch0, src0);
+      // Canonicalize the result.
+      __ fmax_w(dst, scratch1, scratch1);
       break;
     }
     case kMips64F32x4Min: {
@@ -2614,9 +2611,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src1 = i.InputSimd128Register(1);
       Simd128Register scratch0 = kSimd128RegZero;
       Simd128Register scratch1 = kSimd128ScratchReg;
-      // MSA follows IEEE 754-2008 comparision rules:
-      // 1. All NaN-related comparsions get false.
-      // 2. +0.0 equals to -0.0.
 
       // If inputs are -0.0. and +0.0, then write -0.0 to scratch1.
       // scratch1 = (src0 == src1) ?  (src0 | src1) : (src1 | src1).
@@ -2626,9 +2620,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // scratch0 = isNaN(src0) ? src0 : scratch1.
       __ fseq_w(scratch0, src0, src0);
       __ bsel_v(scratch0, src0, scratch1);
-      // dst = (src0 < scratch0) ? src0 : scratch0.
-      __ fslt_w(dst, src0, scratch0);
-      __ bsel_v(dst, scratch0, src0);
+      // scratch1 = (src0 < scratch0) ? src0 : scratch0.
+      __ fslt_w(scratch1, src0, scratch0);
+      __ bsel_v(scratch1, scratch0, src0);
+      // Canonicalize the result.
+      __ fmin_w(dst, scratch1, scratch1);
       break;
     }
     case kMips64F32x4Eq: {
