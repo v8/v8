@@ -500,6 +500,7 @@ class LiftoffCompiler {
     if (!FLAG_wasm_stack_checks || !env_->runtime_exception_support) return;
     LiftoffRegList regs_to_save = __ cache_state()->used_registers;
     SpilledRegistersForInspection* spilled_regs = nullptr;
+    Register limit_address = __ GetUnusedRegister(kGpReg, {}).gp();
     if (V8_UNLIKELY(for_debugging_)) {
       regs_to_save = {};
       spilled_regs = GetSpilledRegistersForInspection();
@@ -508,7 +509,6 @@ class LiftoffCompiler {
         position, regs_to_save, spilled_regs,
         RegisterDebugSideTableEntry(DebugSideTableBuilder::kAssumeSpilling)));
     OutOfLineCode& ool = out_of_line_code_.back();
-    Register limit_address = __ GetUnusedRegister(kGpReg, {}).gp();
     LOAD_INSTANCE_FIELD(limit_address, StackLimitAddress, kSystemPointerSize);
     __ StackCheck(ool.label.get(), limit_address);
     __ bind(ool.continuation.get());
