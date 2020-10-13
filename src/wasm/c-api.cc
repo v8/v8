@@ -209,8 +209,7 @@ auto seal(const typename implement<C>::type* x) -> const C* {
 
 // Configuration
 
-struct ConfigImpl {
-};
+struct ConfigImpl {};
 
 template <>
 struct implement<Config> {
@@ -888,8 +887,8 @@ own<Instance> GetInstance(StoreImpl* store,
 
 own<Frame> CreateFrameFromInternal(i::Handle<i::FixedArray> frames, int index,
                                    i::Isolate* isolate, StoreImpl* store) {
-  i::Handle<i::StackTraceFrame> frame(i::StackTraceFrame::cast(frames->get(0)),
-                                      isolate);
+  i::Handle<i::StackTraceFrame> frame(
+      i::StackTraceFrame::cast(frames->get(index)), isolate);
   i::Handle<i::WasmInstanceObject> instance =
       i::StackTraceFrame::GetWasmInstance(frame);
   uint32_t func_index = i::StackTraceFrame::GetWasmFunctionIndex(frame);
