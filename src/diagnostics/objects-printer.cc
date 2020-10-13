@@ -13,6 +13,7 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/cell-inl.h"
+#include "src/objects/code-kind.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
@@ -1295,7 +1296,10 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
   os << "\n - kind: " << shared().kind();
   os << "\n - context: " << Brief(context());
   os << "\n - code: " << Brief(code());
-  if (ActiveTierIsIgnition()) {
+  if (code().kind() == CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING) {
+    os << "\n - FunctionTester function";
+
+  } else if (ActiveTierIsIgnition()) {
     os << "\n - interpreted";
     if (shared().HasBytecodeArray()) {
       os << "\n - bytecode: " << shared().GetBytecodeArray();
