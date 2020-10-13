@@ -27683,7 +27683,7 @@ bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
 
   v8::CFunction c_func;
   if (supports_fallback) {
-    c_func = v8::CFunction::MakeWithErrorSupport(
+    c_func = v8::CFunction::MakeWithFallbackSupport(
         BasicApiChecker<Value, Impl>::FastCallback);
   } else {
     c_func = v8::CFunction::Make(
@@ -27753,16 +27753,12 @@ void CheckEqual<double>(double actual, double expected) {
 }
 
 template <typename T>
-void CallAndCheck(T expected_value, Behavior expected_behavior,
-                  ApiCheckerResultFlags expected_path,
-                  v8::Local<v8::Value> initial_value,
-                  Behavior raise_exception = Behavior::kNoException) {
+void CallAndCheck(
+    T expected_value, Behavior expected_behavior,
+    ApiCheckerResultFlags expected_path, v8::Local<v8::Value> initial_value,
+    Behavior raise_exception = Behavior::kNoException,
+    FallbackPolicy write_to_fallback = FallbackPolicy::kDontRequestFallback) {
   LocalContext env;
-  // The default embedder behaviour in case of exception should be
-  // to write to the fallback variable.
-  FallbackPolicy write_to_fallback = (raise_exception == Behavior::kException)
-                                         ? FallbackPolicy::kRequestFallback
-                                         : FallbackPolicy::kDontRequestFallback;
   ApiNumberChecker<T> checker(expected_value, raise_exception,
                               write_to_fallback);
 
@@ -28379,16 +28375,22 @@ TEST(FastApiCalls) {
 
   CheckDynamicTypeInfo();
 
-  // Fallback to slow call
+  // Fallback to slow call and throw an exception.
   CallAndCheck<int32_t>(
       42, Behavior::kException,
       ApiCheckerResult::kFastCalled | ApiCheckerResult::kSlowCalled, v8_num(42),
-      Behavior::kException);
+      Behavior::kException, FallbackPolicy::kRequestFallback);
 
-  // Doesn't fallback to slow call
-  CallAndCheck<int32_t>(42, Behavior::kNoException,
-                        ApiCheckerResult::kFastCalled, v8_num(42),
-                        Behavior::kNoException);
+  // Fallback to slow call and don't throw an exception.
+  CallAndCheck<int32_t>(
+      42, Behavior::kNoException,
+      ApiCheckerResult::kFastCalled | ApiCheckerResult::kSlowCalled, v8_num(42),
+      Behavior::kNoException, FallbackPolicy::kRequestFallback);
+
+  // Doesn't fallback to slow call, so don't throw an exception.
+  CallAndCheck<int32_t>(
+      42, Behavior::kNoException, ApiCheckerResult::kFastCalled, v8_num(42),
+      Behavior::kNoException, FallbackPolicy::kDontRequestFallback);
 
   // Wrong number of arguments
   CallWithLessArguments();
