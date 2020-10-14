@@ -1091,6 +1091,8 @@ class V8_EXPORT_PRIVATE IrOpcode {
       case kJSCreateLiteralArray:
       case kJSCreateLiteralObject:
       case kJSCreateLiteralRegExp:
+      case kJSForInNext:
+      case kJSForInPrepare:
       case kJSGetIterator:
       case kJSGetTemplateObject:
       case kJSHasProperty:

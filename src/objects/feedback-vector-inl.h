@@ -236,7 +236,7 @@ CompareOperationHint CompareOperationHintFromFeedback(int type_feedback) {
 }
 
 // Helper function to transform the feedback to ForInHint.
-ForInHint ForInHintFromFeedback(int type_feedback) {
+ForInHint ForInHintFromFeedback(ForInFeedback type_feedback) {
   switch (type_feedback) {
     case ForInFeedback::kNone:
       return ForInHint::kNone;

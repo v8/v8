@@ -1413,22 +1413,21 @@ enum class Operation {
 // at different points by performing an 'OR' operation. Type feedback moves
 // to a more generic type when we combine feedback.
 // kNone -> kEnumCacheKeysAndIndices -> kEnumCacheKeys -> kAny
-class ForInFeedback {
- public:
-  enum {
-    kNone = 0x0,
-    kEnumCacheKeysAndIndices = 0x1,
-    kEnumCacheKeys = 0x3,
-    kAny = 0x7
-  };
+enum class ForInFeedback : uint8_t {
+  kNone = 0x0,
+  kEnumCacheKeysAndIndices = 0x1,
+  kEnumCacheKeys = 0x3,
+  kAny = 0x7
 };
-STATIC_ASSERT((ForInFeedback::kNone |
-               ForInFeedback::kEnumCacheKeysAndIndices) ==
-              ForInFeedback::kEnumCacheKeysAndIndices);
-STATIC_ASSERT((ForInFeedback::kEnumCacheKeysAndIndices |
-               ForInFeedback::kEnumCacheKeys) == ForInFeedback::kEnumCacheKeys);
-STATIC_ASSERT((ForInFeedback::kEnumCacheKeys | ForInFeedback::kAny) ==
-              ForInFeedback::kAny);
+STATIC_ASSERT((static_cast<int>(ForInFeedback::kNone) |
+               static_cast<int>(ForInFeedback::kEnumCacheKeysAndIndices)) ==
+              static_cast<int>(ForInFeedback::kEnumCacheKeysAndIndices));
+STATIC_ASSERT((static_cast<int>(ForInFeedback::kEnumCacheKeysAndIndices) |
+               static_cast<int>(ForInFeedback::kEnumCacheKeys)) ==
+              static_cast<int>(ForInFeedback::kEnumCacheKeys));
+STATIC_ASSERT((static_cast<int>(ForInFeedback::kEnumCacheKeys) |
+               static_cast<int>(ForInFeedback::kAny)) ==
+              static_cast<int>(ForInFeedback::kAny));
 
 enum class UnicodeEncoding : uint8_t {
   // Different unicode encodings in a |word32|:

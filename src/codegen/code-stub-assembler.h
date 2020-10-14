@@ -3365,6 +3365,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                        HasPropertyLookupMode::kHasProperty);
   }
 
+  void ForInPrepare(TNode<HeapObject> enumerator, TNode<UintPtrT> slot,
+                    TNode<HeapObject> maybe_feedback_vector,
+                    TNode<FixedArray>* cache_array_out,
+                    TNode<Smi>* cache_length_out);
+  // Returns {cache_array} and {cache_length} in a fixed array of length 2.
+  // TODO(jgruber): Tuple2 would be a slightly better fit as the return type,
+  // but FixedArray has better support and there are no effective drawbacks to
+  // using it instead of Tuple2 in practice.
+  TNode<FixedArray> ForInPrepareForTorque(
+      TNode<HeapObject> enumerator, TNode<UintPtrT> slot,
+      TNode<HeapObject> maybe_feedback_vector);
+
   TNode<String> Typeof(SloppyTNode<Object> value);
 
   TNode<Object> GetSuperConstructor(TNode<Context> context,

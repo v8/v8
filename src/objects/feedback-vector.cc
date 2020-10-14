@@ -1200,7 +1200,7 @@ CompareOperationHint FeedbackNexus::GetCompareOperationFeedback() const {
 ForInHint FeedbackNexus::GetForInFeedback() const {
   DCHECK_EQ(kind(), FeedbackSlotKind::kForIn);
   int feedback = GetFeedback().ToSmi().value();
-  return ForInHintFromFeedback(feedback);
+  return ForInHintFromFeedback(static_cast<ForInFeedback>(feedback));
 }
 
 MaybeHandle<JSObject> FeedbackNexus::GetConstructorFeedback() const {

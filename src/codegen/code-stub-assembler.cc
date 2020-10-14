@@ -12200,6 +12200,80 @@ TNode<Oddball> CodeStubAssembler::HasProperty(SloppyTNode<Context> context,
   return result.value();
 }
 
+void CodeStubAssembler::ForInPrepare(TNode<HeapObject> enumerator,
+                                     TNode<UintPtrT> slot,
+                                     TNode<HeapObject> maybe_feedback_vector,
+                                     TNode<FixedArray>* cache_array_out,
+                                     TNode<Smi>* cache_length_out) {
+  // Check if we're using an enum cache.
+  TVARIABLE(FixedArray, cache_array);
+  TVARIABLE(Smi, cache_length);
+  Label if_fast(this), if_slow(this, Label::kDeferred), out(this);
+  Branch(IsMap(enumerator), &if_fast, &if_slow);
+
+  BIND(&if_fast);
+  {
+    // Load the enumeration length and cache from the {enumerator}.
+    TNode<Map> map_enumerator = CAST(enumerator);
+    TNode<WordT> enum_length = LoadMapEnumLength(map_enumerator);
+    CSA_ASSERT(this, WordNotEqual(enum_length,
+                                  IntPtrConstant(kInvalidEnumCacheSentinel)));
+    TNode<DescriptorArray> descriptors = LoadMapDescriptors(map_enumerator);
+    TNode<EnumCache> enum_cache = LoadObjectField<EnumCache>(
+        descriptors, DescriptorArray::kEnumCacheOffset);
+    TNode<FixedArray> enum_keys =
+        LoadObjectField<FixedArray>(enum_cache, EnumCache::kKeysOffset);
+
+    // Check if we have enum indices available.
+    TNode<FixedArray> enum_indices =
+        LoadObjectField<FixedArray>(enum_cache, EnumCache::kIndicesOffset);
+    TNode<IntPtrT> enum_indices_length =
+        LoadAndUntagFixedArrayBaseLength(enum_indices);
+    TNode<Smi> feedback = SelectSmiConstant(
+        IntPtrLessThanOrEqual(enum_length, enum_indices_length),
+        static_cast<int>(ForInFeedback::kEnumCacheKeysAndIndices),
+        static_cast<int>(ForInFeedback::kEnumCacheKeys));
+    UpdateFeedback(feedback, maybe_feedback_vector, slot);
+
+    cache_array = enum_keys;
+    cache_length = SmiTag(Signed(enum_length));
+    Goto(&out);
+  }
+
+  BIND(&if_slow);
+  {
+    // The {enumerator} is a FixedArray with all the keys to iterate.
+    TNode<FixedArray> array_enumerator = CAST(enumerator);
+
+    // Record the fact that we hit the for-in slow-path.
+    UpdateFeedback(SmiConstant(ForInFeedback::kAny), maybe_feedback_vector,
+                   slot);
+
+    cache_array = array_enumerator;
+    cache_length = LoadFixedArrayBaseLength(array_enumerator);
+    Goto(&out);
+  }
+
+  BIND(&out);
+  *cache_array_out = cache_array.value();
+  *cache_length_out = cache_length.value();
+}
+
+TNode<FixedArray> CodeStubAssembler::ForInPrepareForTorque(
+    TNode<HeapObject> enumerator, TNode<UintPtrT> slot,
+    TNode<HeapObject> maybe_feedback_vector) {
+  TNode<FixedArray> cache_array;
+  TNode<Smi> cache_length;
+  ForInPrepare(enumerator, slot, maybe_feedback_vector, &cache_array,
+               &cache_length);
+
+  TNode<FixedArray> result = AllocateUninitializedFixedArray(2);
+  StoreFixedArrayElement(result, 0, cache_array);
+  StoreFixedArrayElement(result, 1, cache_length);
+
+  return result;
+}
+
 TNode<String> CodeStubAssembler::Typeof(SloppyTNode<Object> value) {
   TVARIABLE(String, result_var);
 

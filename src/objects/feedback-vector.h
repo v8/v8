@@ -788,7 +788,7 @@ class V8_EXPORT_PRIVATE FeedbackIterator final {
 
 inline BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback);
 inline CompareOperationHint CompareOperationHintFromFeedback(int type_feedback);
-inline ForInHint ForInHintFromFeedback(int type_feedback);
+inline ForInHint ForInHintFromFeedback(ForInFeedback type_feedback);
 
 }  // namespace internal
 }  // namespace v8
