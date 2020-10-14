@@ -58,14 +58,16 @@ MutatorUnifiedHeapMarkingVisitor::MutatorUnifiedHeapMarkingVisitor(
                                     unified_heap_marking_state) {}
 
 void MutatorUnifiedHeapMarkingVisitor::VisitRoot(const void* object,
-                                                 TraceDescriptor desc) {
+                                                 TraceDescriptor desc,
+                                                 const SourceLocation&) {
   this->Visit(object, desc);
 }
 
 void MutatorUnifiedHeapMarkingVisitor::VisitWeakRoot(const void* object,
                                                      TraceDescriptor desc,
                                                      WeakCallback weak_callback,
-                                                     const void* weak_root) {
+                                                     const void* weak_root,
+                                                     const SourceLocation&) {
   static_cast<MutatorMarkingState&>(marking_state_)
       .InvokeWeakRootsCallbackIfNeeded(object, desc, weak_callback, weak_root);
 }

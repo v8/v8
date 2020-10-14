@@ -46,15 +46,16 @@ MutatorMarkingVisitor::MutatorMarkingVisitor(HeapBase& heap,
                                              MutatorMarkingState& marking_state)
     : MarkingVisitorBase(heap, marking_state) {}
 
-void MutatorMarkingVisitor::VisitRoot(const void* object,
-                                      TraceDescriptor desc) {
+void MutatorMarkingVisitor::VisitRoot(const void* object, TraceDescriptor desc,
+                                      const SourceLocation&) {
   Visit(object, desc);
 }
 
 void MutatorMarkingVisitor::VisitWeakRoot(const void* object,
                                           TraceDescriptor desc,
                                           WeakCallback weak_callback,
-                                          const void* weak_root) {
+                                          const void* weak_root,
+                                          const SourceLocation&) {
   static_cast<MutatorMarkingState&>(marking_state_)
       .InvokeWeakRootsCallbackIfNeeded(object, desc, weak_callback, weak_root);
 }

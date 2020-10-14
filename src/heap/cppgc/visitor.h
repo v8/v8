@@ -31,14 +31,8 @@ class VisitorBase : public cppgc::Visitor {
   VisitorBase(const VisitorBase&) = delete;
   VisitorBase& operator=(const VisitorBase&) = delete;
 
-  template <typename T>
-  void TraceRootForTesting(const Persistent<T>& p, const SourceLocation& loc) {
-    TraceRoot(p, loc);
-  }
-
-  template <typename T>
-  void TraceRootForTesting(const WeakPersistent<T>& p,
-                           const SourceLocation& loc) {
+  template <typename Persistent>
+  void TraceRootForTesting(const Persistent& p, const SourceLocation& loc) {
     TraceRoot(p, loc);
   }
 };

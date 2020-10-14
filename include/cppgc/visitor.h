@@ -154,9 +154,9 @@ class V8_EXPORT Visitor {
   virtual void Visit(const void* self, TraceDescriptor) {}
   virtual void VisitWeak(const void* self, TraceDescriptor, WeakCallback,
                          const void* weak_member) {}
-  virtual void VisitRoot(const void*, TraceDescriptor) {}
+  virtual void VisitRoot(const void*, TraceDescriptor, const SourceLocation&) {}
   virtual void VisitWeakRoot(const void* self, TraceDescriptor, WeakCallback,
-                             const void* weak_root) {}
+                             const void* weak_root, const SourceLocation&) {}
 
  private:
   template <typename T, void (T::*method)(const LivenessBroker&)>
@@ -190,7 +190,8 @@ class V8_EXPORT Visitor {
     if (!p.Get()) {
       return;
     }
-    VisitRoot(p.Get(), TraceTrait<PointeeType>::GetTraceDescriptor(p.Get()));
+    VisitRoot(p.Get(), TraceTrait<PointeeType>::GetTraceDescriptor(p.Get()),
+              loc);
   }
 
   template <
@@ -204,7 +205,7 @@ class V8_EXPORT Visitor {
                   "Persistent's pointee type must be GarbageCollected or "
                   "GarbageCollectedMixin");
     VisitWeakRoot(p.Get(), TraceTrait<PointeeType>::GetTraceDescriptor(p.Get()),
-                  &HandleWeak<WeakPersistent>, &p);
+                  &HandleWeak<WeakPersistent>, &p, loc);
   }
 
   template <typename T>

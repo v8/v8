@@ -12,6 +12,9 @@
 #include "src/heap/cppgc/marking-visitor.h"
 
 namespace cppgc {
+
+class SourceLocation;
+
 namespace internal {
 class ConcurrentMarkingState;
 class MarkingStateBase;
@@ -22,6 +25,7 @@ class MutatorMarkingState;
 namespace v8 {
 namespace internal {
 
+using cppgc::SourceLocation;
 using cppgc::TraceDescriptor;
 using cppgc::WeakCallback;
 using cppgc::internal::ConcurrentMarkingState;
@@ -56,9 +60,9 @@ class V8_EXPORT_PRIVATE MutatorUnifiedHeapMarkingVisitor final
   ~MutatorUnifiedHeapMarkingVisitor() override = default;
 
  protected:
-  void VisitRoot(const void*, TraceDescriptor) final;
-  void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback,
-                     const void*) final;
+  void VisitRoot(const void*, TraceDescriptor, const SourceLocation&) final;
+  void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback, const void*,
+                     const SourceLocation&) final;
 };
 
 class V8_EXPORT_PRIVATE ConcurrentUnifiedHeapMarkingVisitor final
@@ -69,9 +73,11 @@ class V8_EXPORT_PRIVATE ConcurrentUnifiedHeapMarkingVisitor final
   ~ConcurrentUnifiedHeapMarkingVisitor() override = default;
 
  protected:
-  void VisitRoot(const void*, TraceDescriptor) final { UNREACHABLE(); }
-  void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback,
-                     const void*) final {
+  void VisitRoot(const void*, TraceDescriptor, const SourceLocation&) final {
+    UNREACHABLE();
+  }
+  void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback, const void*,
+                     const SourceLocation&) final {
     UNREACHABLE();
   }
 

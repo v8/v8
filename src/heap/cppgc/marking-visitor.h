@@ -39,9 +39,9 @@ class V8_EXPORT_PRIVATE MutatorMarkingVisitor : public MarkingVisitorBase {
   ~MutatorMarkingVisitor() override = default;
 
  protected:
-  void VisitRoot(const void*, TraceDescriptor) final;
-  void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback,
-                     const void*) final;
+  void VisitRoot(const void*, TraceDescriptor, const SourceLocation&) final;
+  void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback, const void*,
+                     const SourceLocation&) final;
 };
 
 class V8_EXPORT_PRIVATE ConcurrentMarkingVisitor final
@@ -51,9 +51,11 @@ class V8_EXPORT_PRIVATE ConcurrentMarkingVisitor final
   ~ConcurrentMarkingVisitor() override = default;
 
  protected:
-  void VisitRoot(const void*, TraceDescriptor) final { UNREACHABLE(); }
-  void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback,
-                     const void*) final {
+  void VisitRoot(const void*, TraceDescriptor, const SourceLocation&) final {
+    UNREACHABLE();
+  }
+  void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback, const void*,
+                     const SourceLocation&) final {
     UNREACHABLE();
   }
 
