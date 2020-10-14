@@ -477,14 +477,6 @@
   'test-unwinder-code-pages/*': [SKIP]
 }],
 
-# TODO(solanes, v8:10833): Re-enable these tests or create specific ones for
-# Arm. They are disabled because the stack is not being set up the way it does
-# in the wild.
-['arch == arm64 or arch == arm', {
-  'test-unwinder-code-pages/Unwind_TwoJSFrames_Success_CodePagesAPI': [SKIP],
-  'test-unwinder-code-pages/Unwind_StackBounds_WithUnwinding_CodePagesAPI': [SKIP],
-}],
-
 ##############################################################################
 ['lite_mode or variant == jitless', {
 

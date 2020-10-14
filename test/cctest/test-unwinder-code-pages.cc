@@ -15,6 +15,87 @@ namespace v8 {
 namespace internal {
 namespace test_unwinder_code_pages {
 
+namespace {
+
+#ifdef V8_TARGET_ARCH_X64
+// How much the JSEntry frame occupies in the stack.
+constexpr int kJSEntryFrameSpace = 3;
+
+// Offset where the FP, PC and SP live from the beginning of the JSEntryFrame.
+constexpr int kFPOffset = 0;
+constexpr int kPCOffset = 1;
+constexpr int kSPOffset = 2;
+
+// Builds the stack from {stack} as x64 expects it.
+// TODO(solanes): Build the JSEntry stack in the way the builtin builds it.
+void BuildJSEntryStack(uintptr_t* stack) {
+  stack[0] = reinterpret_cast<uintptr_t>(stack + 0);  // saved FP.
+  stack[1] = 100;  // Return address into C++ code.
+  stack[2] = reinterpret_cast<uintptr_t>(stack + 2);  // saved SP.
+}
+#elif V8_TARGET_ARCH_ARM
+// How much the JSEntry frame occupies in the stack.
+constexpr int kJSEntryFrameSpace = 27;
+
+// Offset where the FP, PC and SP live from the beginning of the JSEntryFrame.
+constexpr int kFPOffset = 24;
+constexpr int kPCOffset = 25;
+constexpr int kSPOffset = 26;
+
+// Builds the stack from {stack} as it is explained in frame-constants-arm.h.
+void BuildJSEntryStack(uintptr_t* stack) {
+  stack[0] = -1;  // the bad frame pointer (0xF..F)
+  // Set d8 = 150, d9 = 151, ..., d15 = 157.
+  for (int i = 0; i < 8; ++i) {
+    // Double registers occupy two slots. Therefore, upper bits are zeroed.
+    stack[1 + i * 2] = 0;
+    stack[1 + i * 2 + 1] = 150 + i;
+  }
+  // Set r4 = 160, ..., r10 = 166.
+  for (int i = 0; i < 7; ++i) {
+    stack[17 + i] = 160 + i;
+  }
+  stack[24] = reinterpret_cast<uintptr_t>(stack + 24);  // saved FP.
+  stack[25] = 100;  // Return address into C++ code (i.e lr/pc)
+  stack[26] = reinterpret_cast<uintptr_t>(stack + 26);  // saved SP.
+}
+#elif V8_TARGET_ARCH_ARM64
+// How much the JSEntry frame occupies in the stack.
+constexpr int kJSEntryFrameSpace = 22;
+
+// Offset where the FP, PC and SP live from the beginning of the JSEntryFrame.
+constexpr int kFPOffset = 11;
+constexpr int kPCOffset = 12;
+constexpr int kSPOffset = 21;
+
+// Builds the stack from {stack} as it is explained in frame-constants-arm64.h.
+void BuildJSEntryStack(uintptr_t* stack) {
+  stack[0] = -1;  // the bad frame pointer (0xF..F)
+  // Set x19 = 150, ..., x28 = 159.
+  for (int i = 0; i < 10; ++i) {
+    stack[1 + i] = 150 + i;
+  }
+  stack[11] = reinterpret_cast<uintptr_t>(stack + 11);  // saved FP.
+  stack[12] = 100;  // Return address into C++ code (i.e lr/pc)
+  // Set d8 = 160, ..., d15 = 167.
+  for (int i = 0; i < 8; ++i) {
+    stack[13 + i] = 160 + i;
+  }
+  stack[21] = reinterpret_cast<uintptr_t>(stack + 21);  // saved SP.
+}
+#else
+// Dummy constants for the rest of the archs which are not supported.
+constexpr int kJSEntryFrameSpace = 1;
+constexpr int kFPOffset = 0;
+constexpr int kPCOffset = 0;
+constexpr int kSPOffset = 0;
+
+// Dummy function to be able to compile.
+void BuildJSEntryStack(uintptr_t* stack) { UNREACHABLE(); }
+#endif  // V8_TARGET_ARCH_X64
+
+}  // namespace
+
 static const void* fake_stack_base = nullptr;
 
 #define CHECK_EQ_STACK_REGISTER(stack_value, register_value) \
@@ -302,7 +383,7 @@ TEST(Unwind_TwoJSFrames_Success_CodePagesAPI) {
 
   // Our fake stack has three frames - one C++ frame and two JS frames (on top).
   // The stack grows from high addresses to low addresses.
-  uintptr_t stack[10];
+  uintptr_t stack[5 + kJSEntryFrameSpace];
   void* stack_base = stack + arraysize(stack);
   stack[0] = 101;
   stack[1] = 111;
@@ -311,14 +392,8 @@ TEST(Unwind_TwoJSFrames_Success_CodePagesAPI) {
   const void* jsentry_pc = code + 10;
   stack[3] = reinterpret_cast<uintptr_t>(jsentry_pc);
   stack[4] = 141;
-  // Index on the stack for the topmost fp (i.e the one right before the C++
-  // frame).
-  const int topmost_fp_index = 5;
-  stack[5] = reinterpret_cast<uintptr_t>(stack + 9);  // saved FP.
-  stack[6] = 100;  // Return address into C++ code.
-  stack[7] = reinterpret_cast<uintptr_t>(stack + 7);  // saved SP.
-  stack[8] = 404;
-  stack[9] = 505;
+  const int top_of_js_entry = 5;
+  BuildJSEntryStack(&stack[top_of_js_entry]);
 
   register_state.sp = stack;
   register_state.fp = stack + 2;
@@ -334,9 +409,12 @@ TEST(Unwind_TwoJSFrames_Success_CodePagesAPI) {
       entry_stubs, pages_length, code_pages, &register_state, stack_base);
 
   CHECK(unwound);
-  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index], register_state.fp);
-  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index + 1], register_state.pc);
-  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index + 2], register_state.sp);
+  CHECK_EQ_STACK_REGISTER(stack[top_of_js_entry + kFPOffset],
+                          register_state.fp);
+  CHECK_EQ_STACK_REGISTER(stack[top_of_js_entry + kPCOffset],
+                          register_state.pc);
+  CHECK_EQ_STACK_REGISTER(stack[top_of_js_entry + kSPOffset],
+                          register_state.sp);
 }
 
 // If the PC is in JSEntry then the frame might not be set up correctly, meaning
@@ -422,7 +500,7 @@ TEST(Unwind_StackBounds_WithUnwinding_CodePagesAPI) {
 
   // Our fake stack has two frames - one C++ frame and one JS frame (on top).
   // The stack grows from high addresses to low addresses.
-  uintptr_t stack[11];
+  uintptr_t stack[9 + kJSEntryFrameSpace];
   void* stack_base = stack + arraysize(stack);
   stack[0] = 101;
   stack[1] = 111;
@@ -434,9 +512,14 @@ TEST(Unwind_StackBounds_WithUnwinding_CodePagesAPI) {
   stack[6] = reinterpret_cast<uintptr_t>(jsentry_pc);  // JS code.
   stack[7] = 303;                                      // saved SP.
   stack[8] = 404;
-  stack[9] = reinterpret_cast<uintptr_t>(stack) +
-             (12 * sizeof(uintptr_t));                 // saved FP (OOB).
-  stack[10] = reinterpret_cast<uintptr_t>(code + 20);  // JS code.
+  const int top_of_js_entry = 9;
+  BuildJSEntryStack(&stack[top_of_js_entry]);
+  // Override FP and PC
+  stack[top_of_js_entry + kFPOffset] =
+      reinterpret_cast<uintptr_t>(stack) +
+      (9 + kJSEntryFrameSpace + 1) * sizeof(uintptr_t);  // saved FP (OOB).
+  stack[top_of_js_entry + kPCOffset] =
+      reinterpret_cast<uintptr_t>(code + 20);  // JS code.
 
   register_state.sp = stack;
   register_state.fp = stack + 5;
@@ -454,9 +537,9 @@ TEST(Unwind_StackBounds_WithUnwinding_CodePagesAPI) {
   CHECK(!unwound);
 
   // Change the return address so that it is not in range. We will not range
-  // check the stack[9] FP value because we have finished unwinding and the
+  // check the stack's FP value because we have finished unwinding and the
   // contents of rbp does not necessarily have to be the FP in this case.
-  stack[10] = 202;
+  stack[top_of_js_entry + kPCOffset] = 202;
   unwound = v8::Unwinder::TryUnwindV8Frames(
       entry_stubs, pages_length, code_pages, &register_state, stack_base);
   CHECK(unwound);
