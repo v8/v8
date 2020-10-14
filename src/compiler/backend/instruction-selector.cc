@@ -604,9 +604,8 @@ size_t InstructionSelector::AddOperandToStateValueDescriptor(
       values->PushArgumentsLength();
       return 0;
     }
-    case IrOpcode::kObjectState: {
+    case IrOpcode::kObjectState:
       UNREACHABLE();
-    }
     case IrOpcode::kTypedObjectState:
     case IrOpcode::kObjectId: {
       size_t id = deduplicator->GetObjectId(input);
@@ -2857,7 +2856,7 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   }
 
   // Select the appropriate opcode based on the call type.
-  InstructionCode opcode = kArchNop;
+  InstructionCode opcode;
   switch (call_descriptor->kind()) {
     case CallDescriptor::kCallAddress: {
       int misc_field = static_cast<int>(call_descriptor->ParameterCount());
@@ -2940,7 +2939,6 @@ void InstructionSelector::VisitTailCall(Node* node) {
         break;
       default:
         UNREACHABLE();
-        return;
     }
     int temps_count = GetTempsCountForTailCallFromJSFunction();
     for (int i = 0; i < temps_count; i++) {
@@ -2959,7 +2957,6 @@ void InstructionSelector::VisitTailCall(Node* node) {
         break;
       default:
         UNREACHABLE();
-        return;
     }
   }
   opcode = EncodeCallDescriptorFlags(opcode, call_descriptor->flags());

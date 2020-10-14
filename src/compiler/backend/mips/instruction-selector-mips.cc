@@ -431,7 +431,7 @@ void InstructionSelector::VisitStore(Node* node) {
     code |= MiscField::encode(static_cast<int>(record_write_mode));
     Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
-    ArchOpcode opcode = kArchNop;
+    ArchOpcode opcode;
     switch (rep) {
       case MachineRepresentation::kFloat32:
         opcode = kMipsSwc1;
@@ -460,7 +460,6 @@ void InstructionSelector::VisitStore(Node* node) {
       case MachineRepresentation::kWord64:             // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
-        return;
     }
 
     if (g.CanBeImmediate(index, opcode)) {
@@ -1386,7 +1385,7 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
 
-  ArchOpcode opcode = kArchNop;
+  ArchOpcode opcode;
   switch (load_rep.representation()) {
     case MachineRepresentation::kWord8:
       opcode = load_rep.IsUnsigned() ? kMipsLbu : kMipsLb;
@@ -1439,7 +1438,7 @@ void InstructionSelector::VisitUnalignedStore(Node* node) {
   UnalignedStoreRepresentation rep = UnalignedStoreRepresentationOf(node->op());
 
   // TODO(mips): I guess this could be done in a better way.
-  ArchOpcode opcode = kArchNop;
+  ArchOpcode opcode;
   switch (rep) {
     case MachineRepresentation::kFloat32:
       opcode = kMipsUswc1;
@@ -1887,7 +1886,7 @@ void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
   MipsOperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
-  ArchOpcode opcode = kArchNop;
+  ArchOpcode opcode;
   switch (load_rep.representation()) {
     case MachineRepresentation::kWord8:
       opcode =
@@ -1923,7 +1922,7 @@ void InstructionSelector::VisitWord32AtomicStore(Node* node) {
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
-  ArchOpcode opcode = kArchNop;
+  ArchOpcode opcode;
   switch (rep) {
     case MachineRepresentation::kWord8:
       opcode = kWord32AtomicStoreWord8;
@@ -1957,7 +1956,7 @@ void InstructionSelector::VisitWord32AtomicExchange(Node* node) {
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
-  ArchOpcode opcode = kArchNop;
+  ArchOpcode opcode;
   MachineType type = AtomicOpType(node->op());
   if (type == MachineType::Int8()) {
     opcode = kWord32AtomicExchangeInt8;
@@ -1971,7 +1970,6 @@ void InstructionSelector::VisitWord32AtomicExchange(Node* node) {
     opcode = kWord32AtomicExchangeWord32;
   } else {
     UNREACHABLE();
-    return;
   }
 
   AddressingMode addressing_mode = kMode_MRI;
@@ -1996,7 +1994,7 @@ void InstructionSelector::VisitWord32AtomicCompareExchange(Node* node) {
   Node* index = node->InputAt(1);
   Node* old_value = node->InputAt(2);
   Node* new_value = node->InputAt(3);
-  ArchOpcode opcode = kArchNop;
+  ArchOpcode opcode;
   MachineType type = AtomicOpType(node->op());
   if (type == MachineType::Int8()) {
     opcode = kWord32AtomicCompareExchangeInt8;
@@ -2010,7 +2008,6 @@ void InstructionSelector::VisitWord32AtomicCompareExchange(Node* node) {
     opcode = kWord32AtomicCompareExchangeWord32;
   } else {
     UNREACHABLE();
-    return;
   }
 
   AddressingMode addressing_mode = kMode_MRI;
@@ -2037,7 +2034,7 @@ void InstructionSelector::VisitWord32AtomicBinaryOperation(
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
-  ArchOpcode opcode = kArchNop;
+  ArchOpcode opcode;
   MachineType type = AtomicOpType(node->op());
   if (type == MachineType::Int8()) {
     opcode = int8_op;
@@ -2051,7 +2048,6 @@ void InstructionSelector::VisitWord32AtomicBinaryOperation(
     opcode = word32_op;
   } else {
     UNREACHABLE();
-    return;
   }
 
   AddressingMode addressing_mode = kMode_MRI;
