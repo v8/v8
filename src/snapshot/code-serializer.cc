@@ -262,26 +262,27 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
 namespace {
 class StressOffThreadDeserializeThread final : public base::Thread {
  public:
-  explicit StressOffThreadDeserializeThread(LocalIsolate* local_isolate,
+  explicit StressOffThreadDeserializeThread(Isolate* isolate,
                                             const SerializedCodeData* scd)
       : Thread(
             base::Thread::Options("StressOffThreadDeserializeThread", 2 * MB)),
-        local_isolate_(local_isolate),
+        isolate_(isolate),
         scd_(scd) {}
 
   MaybeHandle<SharedFunctionInfo> maybe_result() const { return maybe_result_; }
 
   void Run() final {
+    LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);
     MaybeHandle<SharedFunctionInfo> local_maybe_result =
         ObjectDeserializer::DeserializeSharedFunctionInfoOffThread(
-            local_isolate_, scd_, local_isolate_->factory()->empty_string());
+            &local_isolate, scd_, local_isolate.factory()->empty_string());
 
     maybe_result_ =
-        local_isolate_->heap()->NewPersistentMaybeHandle(local_maybe_result);
+        local_isolate.heap()->NewPersistentMaybeHandle(local_maybe_result);
   }
 
  private:
-  LocalIsolate* local_isolate_;
+  Isolate* isolate_;
   const SerializedCodeData* scd_;
   MaybeHandle<SharedFunctionInfo> maybe_result_;
 };
@@ -312,9 +313,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   MaybeHandle<SharedFunctionInfo> maybe_result;
   // TODO(leszeks): Add LocalHeap support to deserializer
   if (false && FLAG_stress_background_compile) {
-    LocalIsolate local_isolate(isolate);
-
-    StressOffThreadDeserializeThread thread(&local_isolate, &scd);
+    StressOffThreadDeserializeThread thread(isolate, &scd);
     CHECK(thread.Start());
     thread.Join();
 

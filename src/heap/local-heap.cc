@@ -24,9 +24,10 @@ thread_local LocalHeap* current_local_heap = nullptr;
 
 LocalHeap* LocalHeap::Current() { return current_local_heap; }
 
-LocalHeap::LocalHeap(Heap* heap,
+LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
                      std::unique_ptr<PersistentHandles> persistent_handles)
     : heap_(heap),
+      is_main_thread_(kind == ThreadKind::kMain),
       state_(ThreadState::Parked),
       safepoint_requested_(false),
       allocation_failed_(false),
@@ -168,7 +169,7 @@ Address LocalHeap::PerformCollectionAndAllocateAgain(
   for (int i = 0; i < kMaxNumberOfRetries; i++) {
     {
       ParkedScope scope(this);
-      heap_->RequestCollectionBackground();
+      heap_->RequestCollectionBackground(this);
     }
 
     AllocationResult result = AllocateRaw(object_size, type, origin, alignment);

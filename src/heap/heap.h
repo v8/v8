@@ -669,7 +669,7 @@ class Heap {
   inline AllocationMemento FindAllocationMemento(Map map, HeapObject object);
 
   // Requests collection and blocks until GC is finished.
-  void RequestCollectionBackground();
+  void RequestCollectionBackground(LocalHeap* local_heap);
 
   //
   // Support for the API.

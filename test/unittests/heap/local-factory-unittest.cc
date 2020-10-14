@@ -62,7 +62,7 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
                 isolate(), true, construct_language_mode(FLAG_use_strict),
                 REPLMode::kNo),
             &state_),
-        local_isolate_(isolate()),
+        local_isolate_(isolate(), ThreadKind::kMain),
         unparked_scope_(local_isolate_.heap()) {
     FLAG_concurrent_allocation = true;
   }

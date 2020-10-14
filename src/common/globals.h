@@ -886,15 +886,7 @@ enum ShouldThrow {
   kDontThrow = Internals::kDontThrow
 };
 
-// The Store Buffer (GC).
-enum StoreBufferEvent {
-  kStoreBufferFullEvent,
-  kStoreBufferStartScanningPagesEvent,
-  kStoreBufferScanningPageEvent
-};
-
-using StoreBufferCallback = void (*)(Heap* heap, MemoryChunk* page,
-                                     StoreBufferEvent event);
+enum class ThreadKind { kMain, kBackground };
 
 // Union used for customized checking of the IEEE double types
 // inlined within v8 runtime, rather than going to the underlying

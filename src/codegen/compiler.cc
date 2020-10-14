@@ -959,7 +959,7 @@ bool GetOptimizedCodeNow(OptimizedCompilationJob* job, Isolate* isolate,
   }
 
   {
-    LocalIsolate local_isolate(isolate);
+    LocalIsolate local_isolate(isolate, ThreadKind::kMain);
     if (job->ExecuteJob(isolate->counters()->runtime_call_stats(),
                         &local_isolate)) {
       CompilerTracer::TraceAbortedJob(isolate, compilation_info);
@@ -1572,7 +1572,7 @@ void BackgroundCompileTask::Run() {
   } else {
     DCHECK(info_->flags().is_toplevel());
 
-    LocalIsolate isolate(isolate_for_local_isolate_);
+    LocalIsolate isolate(isolate_for_local_isolate_, ThreadKind::kBackground);
     UnparkedScope unparked_scope(isolate.heap());
     LocalHandleScope handle_scope(&isolate);
 

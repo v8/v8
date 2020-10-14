@@ -18,7 +18,7 @@ namespace internal {
 
 void StressConcurrentAllocatorTask::RunInternal() {
   Heap* heap = isolate_->heap();
-  LocalHeap local_heap(heap);
+  LocalHeap local_heap(heap, ThreadKind::kBackground);
   UnparkedScope unparked_scope(&local_heap);
 
   const int kNumIterations = 2000;

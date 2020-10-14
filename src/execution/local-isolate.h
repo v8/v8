@@ -36,7 +36,7 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
  public:
   using HandleScopeType = LocalHandleScope;
 
-  explicit LocalIsolate(Isolate* isolate);
+  explicit LocalIsolate(Isolate* isolate, ThreadKind kind);
   ~LocalIsolate();
 
   // Kinda sketchy.

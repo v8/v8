@@ -34,7 +34,7 @@ class ScriptContextTableAccessUsedThread final : public v8::base::Thread {
         script_context_table_(script_context_table) {}
 
   void Run() override {
-    LocalHeap local_heap(heap_, std::move(ph_));
+    LocalHeap local_heap(heap_, ThreadKind::kBackground, std::move(ph_));
     UnparkedScope unparked_scope(&local_heap);
     LocalHandleScope scope(&local_heap);
 
@@ -67,7 +67,7 @@ class AccessScriptContextTableThread final : public v8::base::Thread {
         native_context_(native_context) {}
 
   void Run() override {
-    LocalHeap local_heap(heap_, std::move(ph_));
+    LocalHeap local_heap(heap_, ThreadKind::kBackground, std::move(ph_));
     UnparkedScope unparked_scope(&local_heap);
     LocalHandleScope scope(&local_heap);
 

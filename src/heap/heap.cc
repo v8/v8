@@ -1897,8 +1897,14 @@ bool Heap::CollectionRequested() {
   return collection_barrier_->CollectionRequested();
 }
 
-void Heap::RequestCollectionBackground() {
-  collection_barrier_->AwaitCollectionBackground();
+void Heap::RequestCollectionBackground(LocalHeap* local_heap) {
+  if (local_heap->is_main_thread()) {
+    CollectAllGarbage(current_gc_flags_,
+                      GarbageCollectionReason::kBackgroundAllocationFailure,
+                      current_gc_callback_flags_);
+  } else {
+    collection_barrier_->AwaitCollectionBackground();
+  }
 }
 
 void Heap::CheckCollectionRequested() {

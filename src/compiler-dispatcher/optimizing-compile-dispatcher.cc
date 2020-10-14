@@ -58,7 +58,7 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
  private:
   // v8::Task overrides.
   void RunInternal() override {
-    LocalIsolate local_isolate(isolate_);
+    LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);
     DisallowHeapAllocation no_allocation;
     DisallowHandleAllocation no_handles;
     DisallowHandleDereference no_deref;

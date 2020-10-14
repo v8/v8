@@ -40,8 +40,10 @@ void GlobalSafepoint::EnterSafepointScope() {
   for (LocalHeap* current = local_heaps_head_; current;
        current = current->next_) {
     if (current == local_heap_of_this_thread_) {
+      DCHECK(current->is_main_thread());
       continue;
     }
+    DCHECK(!current->is_main_thread());
     current->state_mutex_.Lock();
 
     while (current->state_ == LocalHeap::ThreadState::Running) {

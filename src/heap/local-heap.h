@@ -34,7 +34,7 @@ class LocalHandles;
 class V8_EXPORT_PRIVATE LocalHeap {
  public:
   explicit LocalHeap(
-      Heap* heap,
+      Heap* heap, ThreadKind kind,
       std::unique_ptr<PersistentHandles> persistent_handles = nullptr);
   ~LocalHeap();
 
@@ -126,6 +126,8 @@ class V8_EXPORT_PRIVATE LocalHeap {
       AllocationOrigin origin = AllocationOrigin::kRuntime,
       AllocationAlignment alignment = kWordAligned);
 
+  bool is_main_thread() { return is_main_thread_; }
+
  private:
   enum class ThreadState {
     // Threads in this state need to be stopped in a safepoint.
@@ -158,6 +160,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   void EnterSafepoint();
 
   Heap* heap_;
+  bool is_main_thread_;
 
   base::Mutex state_mutex_;
   base::ConditionVariable state_change_;

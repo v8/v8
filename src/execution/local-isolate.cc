@@ -12,9 +12,9 @@
 namespace v8 {
 namespace internal {
 
-LocalIsolate::LocalIsolate(Isolate* isolate)
+LocalIsolate::LocalIsolate(Isolate* isolate, ThreadKind kind)
     : HiddenLocalFactory(isolate),
-      heap_(isolate->heap()),
+      heap_(isolate->heap(), kind),
       isolate_(isolate),
       logger_(new LocalLogger(isolate)),
       thread_id_(ThreadId::Current()) {}
