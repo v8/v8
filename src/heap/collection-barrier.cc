@@ -17,6 +17,7 @@ void CollectionBarrier::ResumeThreadsAwaitingCollection() {
 
 void CollectionBarrier::ShutdownRequested() {
   base::MutexGuard guard(&mutex_);
+  time_to_collection_scope_.reset();
   state_.store(RequestState::kShutdown);
   cond_.NotifyAll();
 }
