@@ -1468,7 +1468,7 @@ void InstanceBuilder::CompileImportWrappers(
   }
 
   CancelableTaskManager task_manager;
-  // TODO(wasm): Switch this to the Jobs API.
+  // TODO(wasm): Switch this to the Jobs API, remove {GetMaxCompileConcurrency}.
   const int max_background_tasks = GetMaxCompileConcurrency();
   for (int i = 0; i < max_background_tasks; ++i) {
     auto task = std::make_unique<CompileImportWrapperTask>(
