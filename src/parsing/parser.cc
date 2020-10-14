@@ -1174,10 +1174,43 @@ ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
   return result;
 }
 
+void Parser::ParseImportAssertClause() {
+  // AssertClause :
+  //    assert '{' '}'
+  //    assert '{' AssertEntries '}'
+
+  // AssertEntries :
+  //    IdentifierName: AssertionKey
+  //    IdentifierName: AssertionKey , AssertEntries
+
+  // AssertionKey :
+  //     IdentifierName
+  //     StringLiteral
+
+  if (!FLAG_harmony_import_assertions) {
+    return;
+  }
+
+  // Assert clause is optional, and cannot be preceded by a LineTerminator.
+  if (scanner()->HasLineTerminatorBeforeNext() ||
+      !CheckContextualKeyword(ast_value_factory()->assert_string())) {
+    return;
+  }
+
+  Expect(Token::LBRACE);
+
+  // TODO(v8:10958) Parse the list of assertions and return the result.
+
+  Expect(Token::RBRACE);
+}
+
 void Parser::ParseImportDeclaration() {
   // ImportDeclaration :
   //   'import' ImportClause 'from' ModuleSpecifier ';'
   //   'import' ModuleSpecifier ';'
+  //   'import' ImportClause 'from' ModuleSpecifier [no LineTerminator here]
+  //       AssertClause ';'
+  //   'import' ModuleSpecifier [no LineTerminator here] AssertClause';'
   //
   // ImportClause :
   //   ImportedDefaultBinding
@@ -1198,6 +1231,7 @@ void Parser::ParseImportDeclaration() {
   if (tok == Token::STRING) {
     Scanner::Location specifier_loc = scanner()->peek_location();
     const AstRawString* module_specifier = ParseModuleSpecifier();
+    ParseImportAssertClause();
     ExpectSemicolon();
     module()->AddEmptyImport(module_specifier, specifier_loc);
     return;
@@ -1242,6 +1276,7 @@ void Parser::ParseImportDeclaration() {
   ExpectContextualKeyword(ast_value_factory()->from_string());
   Scanner::Location specifier_loc = scanner()->peek_location();
   const AstRawString* module_specifier = ParseModuleSpecifier();
+  ParseImportAssertClause();
   ExpectSemicolon();
 
   // Now that we have all the information, we can make the appropriate
@@ -1361,6 +1396,7 @@ void Parser::ParseExportStar() {
     ExpectContextualKeyword(ast_value_factory()->from_string());
     Scanner::Location specifier_loc = scanner()->peek_location();
     const AstRawString* module_specifier = ParseModuleSpecifier();
+    ParseImportAssertClause();
     ExpectSemicolon();
     module()->AddStarExport(module_specifier, loc, specifier_loc, zone());
     return;
@@ -1385,6 +1421,7 @@ void Parser::ParseExportStar() {
   ExpectContextualKeyword(ast_value_factory()->from_string());
   Scanner::Location specifier_loc = scanner()->peek_location();
   const AstRawString* module_specifier = ParseModuleSpecifier();
+  ParseImportAssertClause();
   ExpectSemicolon();
 
   module()->AddStarImport(local_name, module_specifier, local_name_loc,
@@ -1395,8 +1432,14 @@ void Parser::ParseExportStar() {
 Statement* Parser::ParseExportDeclaration() {
   // ExportDeclaration:
   //    'export' '*' 'from' ModuleSpecifier ';'
+  //    'export' '*' 'from' ModuleSpecifier [no LineTerminator here]
+  //        AssertClause ';'
   //    'export' '*' 'as' IdentifierName 'from' ModuleSpecifier ';'
+  //    'export' '*' 'as' IdentifierName 'from' ModuleSpecifier
+  //        [no LineTerminator here] AssertClause ';'
   //    'export' ExportClause ('from' ModuleSpecifier)? ';'
+  //    'export' ExportClause ('from' ModuleSpecifier [no LineTerminator here]
+  //        AssertClause)? ';'
   //    'export' VariableStatement
   //    'export' Declaration
   //    'export' 'default' ... (handled in ParseExportDefault)
@@ -1428,28 +1471,32 @@ Statement* Parser::ParseExportDeclaration() {
       Scanner::Location reserved_loc = Scanner::Location::invalid();
       ZoneChunkList<ExportClauseData>* export_data =
           ParseExportClause(&reserved_loc);
-      const AstRawString* module_specifier = nullptr;
-      Scanner::Location specifier_loc;
       if (CheckContextualKeyword(ast_value_factory()->from_string())) {
-        specifier_loc = scanner()->peek_location();
-        module_specifier = ParseModuleSpecifier();
-      } else if (reserved_loc.IsValid()) {
-        // No FromClause, so reserved words are invalid in ExportClause.
-        ReportMessageAt(reserved_loc, MessageTemplate::kUnexpectedReserved);
-        return nullptr;
-      }
-      ExpectSemicolon();
-      if (module_specifier == nullptr) {
+        Scanner::Location specifier_loc = scanner()->peek_location();
+        const AstRawString* module_specifier = ParseModuleSpecifier();
+        ParseImportAssertClause();
+        ExpectSemicolon();
+
+        if (export_data->is_empty()) {
+          module()->AddEmptyImport(module_specifier, specifier_loc);
+        } else {
+          for (const ExportClauseData& data : *export_data) {
+            module()->AddExport(data.local_name, data.export_name,
+                                module_specifier, data.location, specifier_loc,
+                                zone());
+          }
+        }
+      } else {
+        if (reserved_loc.IsValid()) {
+          // No FromClause, so reserved words are invalid in ExportClause.
+          ReportMessageAt(reserved_loc, MessageTemplate::kUnexpectedReserved);
+          return nullptr;
+        }
+
+        ExpectSemicolon();
+
         for (const ExportClauseData& data : *export_data) {
           module()->AddExport(data.local_name, data.export_name, data.location,
-                              zone());
-        }
-      } else if (export_data->is_empty()) {
-        module()->AddEmptyImport(module_specifier, specifier_loc);
-      } else {
-        for (const ExportClauseData& data : *export_data) {
-          module()->AddExport(data.local_name, data.export_name,
-                              module_specifier, data.location, specifier_loc,
                               zone());
         }
       }

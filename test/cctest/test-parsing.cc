@@ -5001,6 +5001,111 @@ TEST(ImportExpressionErrors) {
   }
 }
 
+TEST(BasicImportAssertionParsing) {
+  // clang-format off
+  const char* kSources[] = {
+    "import { a as b } from 'm.js' assert { };",
+    "import n from 'n.js' assert { };",
+    "export { a as b } from 'm.js' assert { };",
+    "export * from 'm.js' assert { };",
+    "import 'm.js' assert { };",
+    "import * as foo from 'bar.js' assert { };",
+  };
+  // clang-format on
+
+  i::FLAG_harmony_import_assertions = true;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+                                        128 * 1024);
+
+  for (unsigned i = 0; i < arraysize(kSources); ++i) {
+    i::Handle<i::String> source =
+        factory->NewStringFromAsciiChecked(kSources[i]);
+
+    // Show that parsing as a module works
+    {
+      i::Handle<i::Script> script = factory->NewScript(source);
+      i::UnoptimizedCompileState compile_state(isolate);
+      i::UnoptimizedCompileFlags flags =
+          i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+      flags.set_is_module(true);
+      i::ParseInfo info(isolate, flags, &compile_state);
+      CHECK_PARSE_PROGRAM(&info, script, isolate);
+    }
+
+    // And that parsing a script does not.
+    {
+      i::UnoptimizedCompileState compile_state(isolate);
+      i::Handle<i::Script> script = factory->NewScript(source);
+      i::UnoptimizedCompileFlags flags =
+          i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+      i::ParseInfo info(isolate, flags, &compile_state);
+      CHECK(!i::parsing::ParseProgram(&info, script, isolate,
+                                      parsing::ReportStatisticsMode::kYes));
+      CHECK(info.pending_error_handler()->has_pending_error());
+    }
+  }
+}
+
+TEST(ImportAssertionParsingErrors) {
+  // clang-format off
+  const char* kErrorSources[] = {
+    "import { a } from 'm.js' assert {;",
+    "import { a } from 'm.js' assert };",
+    "import { a } from 'm.js' , assert { };",
+    "import { a } from 'm.js' assert , { };",
+    "import { a } from 'm.js' assert { , };",
+    "import { a } from 'm.js' assert { b };",
+    "import { a } from 'm.js' assert { 'b' };",
+    "import { a } from 'm.js' assert { for };",
+    "import { a } from 'm.js' assert { assert };",
+    "export { a } assert { };",
+    "export * assert { };",
+
+    "import 'm.js'\n assert { };",
+    "import 'm.js' \nassert { };",
+    "import { a } from 'm.js'\n assert { };",
+    "export * from 'm.js'\n assert { };",
+
+    "import { a } from 'm.js' assert { 1: 2 };",
+    "import { a } from 'm.js' assert { b: c };",
+    "import { a } from 'm.js' assert { a: 'b', a: 'c' };",
+  };
+  // clang-format on
+
+  i::FLAG_harmony_import_assertions = true;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+                                        128 * 1024);
+
+  for (unsigned i = 0; i < arraysize(kErrorSources); ++i) {
+    i::Handle<i::String> source =
+        factory->NewStringFromAsciiChecked(kErrorSources[i]);
+
+    i::Handle<i::Script> script = factory->NewScript(source);
+    i::UnoptimizedCompileState compile_state(isolate);
+    i::UnoptimizedCompileFlags flags =
+        i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+    flags.set_is_module(true);
+    i::ParseInfo info(isolate, flags, &compile_state);
+    CHECK(!i::parsing::ParseProgram(&info, script, isolate,
+                                    parsing::ReportStatisticsMode::kYes));
+    CHECK(info.pending_error_handler()->has_pending_error());
+  }
+}
+
 TEST(SuperCall) {
   const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
 

@@ -211,6 +211,7 @@ class AstBigInt {
   F(anonymous_function, "(anonymous function)") \
   F(arguments, "arguments")                     \
   F(as, "as")                                   \
+  F(assert, "assert")                           \
   F(async, "async")                             \
   F(await, "await")                             \
   F(bigint, "bigint")                           \

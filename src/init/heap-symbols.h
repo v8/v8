@@ -133,6 +133,7 @@
   V(_, ArrayBuffer_string, "ArrayBuffer")                            \
   V(_, ArrayIterator_string, "Array Iterator")                       \
   V(_, as_string, "as")                                              \
+  V(_, assert_string, "assert")                                      \
   V(_, async_string, "async")                                        \
   V(_, auto_string, "auto")                                          \
   V(_, await_string, "await")                                        \
