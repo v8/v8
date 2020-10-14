@@ -3038,12 +3038,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I16x8ExtractLaneU: {
       Register dst = i.OutputRegister();
-      __ Pextrw(dst, i.InputSimd128Register(0), i.InputInt8(1));
+      __ Pextrw(dst, i.InputSimd128Register(0), i.InputUint8(1));
       break;
     }
     case kX64I16x8ExtractLaneS: {
       Register dst = i.OutputRegister();
-      __ Pextrw(dst, i.InputSimd128Register(0), i.InputInt8(1));
+      __ Pextrw(dst, i.InputSimd128Register(0), i.InputUint8(1));
       __ movsxwl(dst, dst);
       break;
     }
@@ -3220,12 +3220,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I8x16ExtractLaneU: {
       Register dst = i.OutputRegister();
-      __ Pextrb(dst, i.InputSimd128Register(0), i.InputInt8(1));
+      __ Pextrb(dst, i.InputSimd128Register(0), i.InputUint8(1));
       break;
     }
     case kX64I8x16ExtractLaneS: {
       Register dst = i.OutputRegister();
-      __ Pextrb(dst, i.InputSimd128Register(0), i.InputInt8(1));
+      __ Pextrb(dst, i.InputSimd128Register(0), i.InputUint8(1));
       __ movsxbl(dst, dst);
       break;
     }

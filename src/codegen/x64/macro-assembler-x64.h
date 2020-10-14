@@ -281,6 +281,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP_SSE4_1(Pmovzxbw, pmovzxbw)
   AVX_OP_SSE4_1(Pmovzxwd, pmovzxwd)
   AVX_OP_SSE4_1(Pmovzxdq, pmovzxdq)
+  AVX_OP_SSE4_1(Pextrb, pextrb)
+  AVX_OP_SSE4_1(Pextrw, pextrw)
   AVX_OP_SSE4_1(Pextrq, pextrq)
   AVX_OP_SSE4_1(Roundps, roundps)
   AVX_OP_SSE4_1(Roundpd, roundpd)
@@ -514,9 +516,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void DebugBreak() override;
 
   // Non-SSE2 instructions.
-  void Pextrd(Register dst, XMMRegister src, int8_t imm8);
-  void Pextrw(Register dst, XMMRegister src, int8_t imm8);
-  void Pextrb(Register dst, XMMRegister src, int8_t imm8);
+  void Pextrd(Register dst, XMMRegister src, uint8_t imm8);
 
   void Pinsrb(XMMRegister dst, XMMRegister src1, Register src2, uint8_t imm8);
   void Pinsrb(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8);

@@ -1714,7 +1714,7 @@ void TurboAssembler::RetpolineJump(Register reg) {
   ret(0);
 }
 
-void TurboAssembler::Pextrd(Register dst, XMMRegister src, int8_t imm8) {
+void TurboAssembler::Pextrd(Register dst, XMMRegister src, uint8_t imm8) {
   if (imm8 == 0) {
     Movd(dst, src);
     return;
@@ -1731,32 +1731,6 @@ void TurboAssembler::Pextrd(Register dst, XMMRegister src, int8_t imm8) {
   DCHECK_EQ(1, imm8);
   movq(dst, src);
   shrq(dst, Immediate(32));
-}
-
-void TurboAssembler::Pextrw(Register dst, XMMRegister src, int8_t imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpextrw(dst, src, imm8);
-    return;
-  } else {
-    DCHECK(CpuFeatures::IsSupported(SSE4_1));
-    CpuFeatureScope sse_scope(this, SSE4_1);
-    pextrw(dst, src, imm8);
-    return;
-  }
-}
-
-void TurboAssembler::Pextrb(Register dst, XMMRegister src, int8_t imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpextrb(dst, src, imm8);
-    return;
-  } else {
-    DCHECK(CpuFeatures::IsSupported(SSE4_1));
-    CpuFeatureScope sse_scope(this, SSE4_1);
-    pextrb(dst, src, imm8);
-    return;
-  }
 }
 
 namespace {
