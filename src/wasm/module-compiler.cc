@@ -1349,7 +1349,8 @@ int AddExportWrapperUnits(Isolate* isolate, WasmEngine* wasm_engine,
     if (keys.insert(key).second) {
       auto unit = std::make_shared<JSToWasmWrapperCompilationUnit>(
           isolate, wasm_engine, function.sig, native_module->module(),
-          function.imported, enabled_features);
+          function.imported, enabled_features,
+          JSToWasmWrapperCompilationUnit::kAllowGeneric);
       builder->AddJSToWasmWrapperUnit(std::move(unit));
     }
   }
@@ -3293,7 +3294,8 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
     if (queue.insert(key)) {
       auto unit = std::make_unique<JSToWasmWrapperCompilationUnit>(
           isolate, isolate->wasm_engine(), function.sig, module,
-          function.imported, enabled_features);
+          function.imported, enabled_features,
+          JSToWasmWrapperCompilationUnit::kAllowGeneric);
       compilation_units.emplace(key, std::move(unit));
     }
   }

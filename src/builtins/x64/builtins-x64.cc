@@ -26,6 +26,7 @@
 #include "src/objects/smi.h"
 #include "src/wasm/baseline/liftoff-assembler-defs.h"
 #include "src/wasm/object-access.h"
+#include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -3057,6 +3058,27 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::JS_TO_WASM);
 
   // -------------------------------------------
+  // Compute offsets and prepare for GC.
+  // -------------------------------------------
+  // We will have to save a value indicating the GC the number
+  // of values on the top of the stack that have to be scanned before calling
+  // the Wasm function.
+  constexpr int kFrameMarkerOffset = -kSystemPointerSize;
+  constexpr int kGCScanSlotCountOffset =
+      kFrameMarkerOffset - kSystemPointerSize;
+  constexpr int kParamCountOffset = kGCScanSlotCountOffset - kSystemPointerSize;
+  constexpr int kReturnCountOffset = kParamCountOffset - kSystemPointerSize;
+  constexpr int kValueTypesArrayStartOffset =
+      kReturnCountOffset - kSystemPointerSize;
+  // We set and use this slot only when moving parameters into the parameter
+  // registers (so no GC scan is needed).
+  constexpr int kFunctionDataOffset =
+      kValueTypesArrayStartOffset - kSystemPointerSize;
+  constexpr int kLastSpillOffset = kFunctionDataOffset;
+  constexpr int kNumSpillSlots = 5;
+  __ subq(rsp, Immediate(kNumSpillSlots * kSystemPointerSize));
+
+  // -------------------------------------------
   // Load the Wasm exported function data and the Wasm instance.
   // -------------------------------------------
   Register closure = rdi;
@@ -3089,6 +3111,17 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
       Smi::FromInt(1));
 
   // -------------------------------------------
+  // Check if the call count reached the threshold.
+  // -------------------------------------------
+  Label compile_wrapper, compile_wrapper_done;
+  __ SmiCompare(
+      MemOperand(function_data,
+                 WasmExportedFunctionData::kCallCountOffset - kHeapObjectTag),
+      Smi::FromInt(wasm::kGenericWrapperThreshold));
+  __ j(greater_equal, &compile_wrapper);
+  __ bind(&compile_wrapper_done);
+
+  // -------------------------------------------
   // Load values from the signature.
   // -------------------------------------------
   Register foreign_signature = r11;
@@ -3114,29 +3147,12 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   signature = no_reg;
 
   // -------------------------------------------
-  // Set up the stack.
+  // Store signature-related values to the stack.
   // -------------------------------------------
   // We store values on the stack to restore them after function calls.
   // We cannot push values onto the stack right before the wasm call. The wasm
   // function expects the parameters, that didn't fit into the registers, on the
   // top of the stack.
-  // We will have to save a value indicating the GC the number
-  // of values on the top of the stack that have to be scanned before calling
-  // the Wasm function.
-  constexpr int kFrameMarkerOffset = -kSystemPointerSize;
-  constexpr int kGCScanSlotCountOffset =
-      kFrameMarkerOffset - kSystemPointerSize;
-  constexpr int kParamCountOffset = kGCScanSlotCountOffset - kSystemPointerSize;
-  constexpr int kReturnCountOffset = kParamCountOffset - kSystemPointerSize;
-  constexpr int kValueTypesArrayStartOffset =
-      kReturnCountOffset - kSystemPointerSize;
-  // We set and use this slot only when moving parameters into the parameter
-  // registers (so no GC scan is needed).
-  constexpr int kFunctionDataOffset =
-      kValueTypesArrayStartOffset - kSystemPointerSize;
-  constexpr int kLastSpillOffset = kFunctionDataOffset;
-  constexpr int kNumSpillSlots = 5;
-  __ subq(rsp, Immediate(kNumSpillSlots * kSystemPointerSize));
   __ movq(MemOperand(rbp, kParamCountOffset), param_count);
   __ movq(MemOperand(rbp, kReturnCountOffset), return_count);
   __ movq(MemOperand(rbp, kValueTypesArrayStartOffset), valuetypes_array_ptr);
@@ -3694,6 +3710,30 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ Call(BUILTIN_CODE(masm->isolate(), WasmFloat64ToNumber),
           RelocInfo::CODE_TARGET);
   __ jmp(&return_done);
+
+  // -------------------------------------------
+  // Kick off compilation.
+  // -------------------------------------------
+  __ bind(&compile_wrapper);
+  // Enable GC.
+  MemOperand GCScanSlotPlace = MemOperand(rbp, kGCScanSlotCountOffset);
+  __ movq(GCScanSlotPlace, Immediate(4));
+  // Save registers to the stack.
+  __ pushq(wasm_instance);
+  __ pushq(function_data);
+  // Push the arguments for the runtime call.
+  __ Push(wasm_instance);  // first argument
+  __ Push(function_data);  // second argument
+  // Set up context.
+  __ Move(kContextRegister, Smi::zero());
+  // Call the runtime function that kicks off compilation.
+  __ CallRuntime(Runtime::kWasmCompileWrapper, 2);
+  // Pop the result.
+  __ movq(r9, kReturnRegister0);
+  // Restore registers from the stack.
+  __ popq(function_data);
+  __ popq(wasm_instance);
+  __ jmp(&compile_wrapper_done);
 }
 
 namespace {

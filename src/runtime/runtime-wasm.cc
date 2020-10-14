@@ -213,6 +213,34 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   return Object(entrypoint);
 }
 
+RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
+  CONVERT_ARG_HANDLE_CHECKED(WasmExportedFunctionData, function_data, 1);
+  DCHECK(isolate->context().is_null());
+  isolate->set_context(instance->native_context());
+
+  const wasm::WasmModule* module = instance->module();
+  const int function_index = function_data->function_index();
+  const wasm::WasmFunction function = module->functions[function_index];
+  const wasm::FunctionSig* sig = function.sig;
+
+  Handle<Code> wrapper =
+      wasm::JSToWasmWrapperCompilationUnit::CompileSpecificJSToWasmWrapper(
+          isolate, sig, module);
+
+  function_data->set_wrapper_code(*wrapper);
+
+  MaybeHandle<WasmExternalFunction> maybe_result =
+      WasmInstanceObject::GetWasmExternalFunction(isolate, instance,
+                                                  function_index);
+  Handle<WasmExternalFunction> result = maybe_result.ToHandleChecked();
+  result->set_code(*wrapper);
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
