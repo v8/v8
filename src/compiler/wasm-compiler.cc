@@ -4016,9 +4016,7 @@ Node* WasmGraphBuilder::LoadTransform(wasm::ValueType type, MachineType memtype,
                                       Node* index, uint64_t offset,
                                       uint32_t alignment,
                                       wasm::WasmCodePosition position) {
-  if (memtype.representation() == MachineRepresentation::kSimd128) {
-    has_simd_ = true;
-  }
+  has_simd_ = true;
 
   Node* load;
   // {offset} is validated to be within uintptr_t range in {BoundsCheckMem}.
