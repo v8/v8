@@ -1083,7 +1083,15 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
 }
 
 void Serializer::ObjectSerializer::SerializeCode(Map map, int size) {
-  static const int kModeMask = Code::BodyDescriptor::kRelocModeMask;
+  static const int kWipeOutModeMask =
+      RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+      RelocInfo::ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
+      RelocInfo::ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
+      RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
+      RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
+      RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
+      RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
+      RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
 
   DCHECK_EQ(HeapObject::kHeaderSize, bytes_processed_so_far_);
   Handle<Code> on_heap_code = Handle<Code>::cast(object_);
@@ -1096,8 +1104,8 @@ void Serializer::ObjectSerializer::SerializeCode(Map map, int size) {
   // To make snapshots reproducible, we make a copy of the code object
   // and wipe all pointers in the copy, which we then serialize.
   Code off_heap_code = serializer_->CopyCode(*on_heap_code);
-  for (RelocIterator it(off_heap_code, relocation_info, kModeMask); !it.done();
-       it.next()) {
+  for (RelocIterator it(off_heap_code, relocation_info, kWipeOutModeMask);
+       !it.done(); it.next()) {
     RelocInfo* rinfo = it.rinfo();
     rinfo->WipeOut();
   }
@@ -1144,8 +1152,9 @@ void Serializer::ObjectSerializer::SerializeCode(Map map, int size) {
   // TODO(leszeks): We only really need to pre-serialize objects which need
   // serialization, i.e. no backrefs or roots.
   RelocInfoObjectPreSerializer pre_serializer(serializer_);
-  for (RelocIterator it(*on_heap_code, relocation_info, kModeMask); !it.done();
-       it.next()) {
+  for (RelocIterator it(*on_heap_code, relocation_info,
+                        Code::BodyDescriptor::kRelocModeMask);
+       !it.done(); it.next()) {
     it.rinfo()->Visit(&pre_serializer);
   }
   // Mark that the pre-serialization finished with a kSynchronize bytecode.
@@ -1154,8 +1163,9 @@ void Serializer::ObjectSerializer::SerializeCode(Map map, int size) {
   // Finally serialize all RelocInfo objects in the on-heap Code, knowing that
   // we will not do a recursive serialization.
   // TODO(leszeks): Add a scope that DCHECKs this.
-  for (RelocIterator it(*on_heap_code, relocation_info, kModeMask); !it.done();
-       it.next()) {
+  for (RelocIterator it(*on_heap_code, relocation_info,
+                        Code::BodyDescriptor::kRelocModeMask);
+       !it.done(); it.next()) {
     it.rinfo()->Visit(this);
   }
 
