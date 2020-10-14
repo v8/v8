@@ -1171,7 +1171,10 @@ CompilationExecutionResult ExecuteCompilationUnits(
   std::shared_ptr<WireBytesStorage> wire_bytes;
   std::shared_ptr<const WasmModule> module;
   WasmEngine* wasm_engine;
-  int task_id = delegate ? delegate->GetTaskId() : 0;
+  // Task 0 is any main thread (there might be multiple from multiple isolates),
+  // worker threads start at 1 (thus the "+ 1").
+  int task_id = delegate ? (int{delegate->GetTaskId()} + 1) : 0;
+  DCHECK_LE(0, task_id);
   CompilationUnitQueues::Queue* queue;
   int unpublished_units_limit;
   base::Optional<WasmCompilationUnit> unit;
