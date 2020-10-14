@@ -1492,7 +1492,7 @@ DEFINE_BOOL(enable_experimental_regexp_engine, false,
 DEFINE_BOOL(trace_experimental_regexp_engine, false,
             "trace execution of experimental regexp engine")
 
-DEFINE_BOOL(enable_experimental_regexp_engine_on_excessive_backtracks, false,
+DEFINE_BOOL(enable_experimental_regexp_engine_on_excessive_backtracks, true,
             "fall back to a breadth-first regexp engine on excessive "
             "backtracking")
 DEFINE_UINT(regexp_backtracks_before_fallback, 10000,
