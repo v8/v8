@@ -2443,8 +2443,12 @@ void SinglePassRegisterAllocator::AllocatePhi(int virtual_register,
     SpillRegisterForVirtualRegister(virtual_register);
   } else {
     RegisterIndex reg = RegisterForVirtualRegister(virtual_register);
-    DCHECK(reg.is_valid());
-    register_state()->UseForPhiGapMove(reg);
+    if (reg.is_valid()) {
+      // If the register is valid, assign it as a phi gap move to be processed
+      // at the successor blocks. If no register or spill slot was used then
+      // the virtual register was never used.
+      register_state()->UseForPhiGapMove(reg);
+    }
   }
 }
 
