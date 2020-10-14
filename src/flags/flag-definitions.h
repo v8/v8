@@ -1492,6 +1492,14 @@ DEFINE_BOOL(enable_experimental_regexp_engine, false,
 DEFINE_BOOL(trace_experimental_regexp_engine, false,
             "trace execution of experimental regexp engine")
 
+DEFINE_BOOL(enable_experimental_regexp_engine_on_excessive_backtracks, false,
+            "fall back to a breadth-first regexp engine on excessive "
+            "backtracking")
+DEFINE_UINT(regexp_backtracks_before_fallback, 10000,
+            "number of backtracks during regexp execution before fall back "
+            "to experimental engine if "
+            "enable_experimental_regexp_engine_on_excessive_backtracks is set")
+
 // Testing flags test/cctest/test-{flags,api,serialization}.cc
 DEFINE_BOOL(testing_bool_flag, true, "testing_bool_flag")
 DEFINE_MAYBE_BOOL(testing_maybe_bool_flag, "testing_maybe_bool_flag")

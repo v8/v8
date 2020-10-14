@@ -372,7 +372,8 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
   ToDirectStringAssembler to_direct(state(), string);
 
   TVARIABLE(HeapObject, var_result);
-  Label out(this), atom(this), runtime(this, Label::kDeferred);
+  Label out(this), atom(this), runtime(this, Label::kDeferred),
+      retry_experimental(this, Label::kDeferred);
 
   // External constants.
   TNode<ExternalReference> isolate_address =
@@ -595,6 +596,10 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     GotoIf(IntPtrEqual(int_result,
                        IntPtrConstant(RegExp::kInternalRegExpException)),
            &if_exception);
+    GotoIf(IntPtrEqual(
+               int_result,
+               IntPtrConstant(RegExp::kInternalRegExpFallbackToExperimental)),
+           &retry_experimental);
 
     CSA_ASSERT(this, IntPtrEqual(int_result,
                                  IntPtrConstant(RegExp::kInternalRegExpRetry)));
@@ -670,6 +675,14 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 #endif  // DEBUG
     CallRuntime(Runtime::kThrowStackOverflow, context);
     Unreachable();
+  }
+
+  BIND(&retry_experimental);
+  {
+    var_result =
+        CAST(CallRuntime(Runtime::kRegExpExperimentalOneshotExec, context,
+                         regexp, string, last_index, match_info));
+    Goto(&out);
   }
 
   BIND(&runtime);

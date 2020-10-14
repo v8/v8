@@ -127,6 +127,7 @@ RegExpMacroAssemblerARM::~RegExpMacroAssemblerARM() {
   exit_label_.Unuse();
   check_preempt_label_.Unuse();
   stack_overflow_label_.Unuse();
+  fallback_label_.Unuse();
 }
 
 
@@ -164,8 +165,13 @@ void RegExpMacroAssemblerARM::Backtrack() {
     __ cmp(r0, Operand(backtrack_limit()));
     __ b(ne, &next);
 
-    // Exceeded limits are treated as a failed match.
-    Fail();
+    // Backtrack limit exceeded.
+    if (can_fallback()) {
+      __ jmp(&fallback_label_);
+    } else {
+      // Can't fallback, so we treat it as a failed match.
+      Fail();
+    }
 
     __ bind(&next);
   }
@@ -898,6 +904,12 @@ Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
     __ bind(&exit_with_exception);
     // Exit with Result EXCEPTION(-1) to signal thrown exception.
     __ mov(r0, Operand(EXCEPTION));
+    __ jmp(&return_r0);
+  }
+
+  if (fallback_label_.is_linked()) {
+    __ bind(&fallback_label_);
+    __ mov(r0, Operand(FALLBACK_TO_EXPERIMENTAL));
     __ jmp(&return_r0);
   }
 

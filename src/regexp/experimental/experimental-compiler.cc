@@ -177,7 +177,6 @@ class CanBeHandledVisitor final : private RegExpVisitor {
 bool ExperimentalRegExpCompiler::CanBeHandled(RegExpTree* tree,
                                               JSRegExp::Flags flags,
                                               int capture_count) {
-  DCHECK(FLAG_enable_experimental_regexp_engine);
   return CanBeHandledVisitor::Check(tree, flags, capture_count);
 }
 
