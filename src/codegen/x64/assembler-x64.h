@@ -929,6 +929,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void movss(XMMRegister dst, Operand src);
   void movss(Operand dst, XMMRegister src);
+
+  void movlps(XMMRegister dst, Operand src);
+  void movlps(Operand dst, XMMRegister src);
+
+  void movhps(XMMRegister dst, Operand src);
+  void movhps(Operand dst, XMMRegister src);
+
   void shufps(XMMRegister dst, XMMRegister src, byte imm8);
 
   void cvttss2si(Register dst, Operand src);
@@ -1304,6 +1311,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vmovsd(Operand dst, XMMRegister src) { vsd(0x11, src, xmm0, dst); }
   void vmovdqu(XMMRegister dst, Operand src);
   void vmovdqu(Operand dst, XMMRegister src);
+
+  void vmovlps(XMMRegister dst, XMMRegister src1, Operand src2);
+  void vmovlps(Operand dst, XMMRegister src);
+
+  void vmovhps(XMMRegister dst, XMMRegister src1, Operand src2);
+  void vmovhps(Operand dst, XMMRegister src);
 
 #define AVX_SSE_UNOP(instr, escape, opcode)          \
   void v##instr(XMMRegister dst, XMMRegister src2) { \

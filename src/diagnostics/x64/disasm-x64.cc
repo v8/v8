@@ -1335,10 +1335,31 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         current += PrintRightXMMOperand(current);
         AppendToBuffer(",%s", NameOfXMMRegister(regop));
         break;
-      case 0x16:
-        AppendToBuffer("vmovlhps %s,%s,", NameOfXMMRegister(regop),
+      case 0x12:
+        AppendToBuffer("vmovlps %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
+        break;
+      case 0x13:
+        AppendToBuffer("vmovlps ");
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",%s", NameOfXMMRegister(regop));
+        break;
+      case 0x16:
+        if (mod == 0b11) {
+          AppendToBuffer("vmovlhps %s,%s,", NameOfXMMRegister(regop),
+                         NameOfXMMRegister(vvvv));
+          current += PrintRightXMMOperand(current);
+        } else {
+          AppendToBuffer("vmovhps %s,%s,", NameOfXMMRegister(regop),
+                         NameOfXMMRegister(vvvv));
+          current += PrintRightXMMOperand(current);
+        }
+        break;
+      case 0x17:
+        AppendToBuffer("vmovhps ");
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",%s", NameOfXMMRegister(regop));
         break;
       case 0x28:
         AppendToBuffer("vmovaps %s,", NameOfXMMRegister(regop));
@@ -2351,12 +2372,38 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       AppendToBuffer("%s,", NameOfXMMRegister(regop));
       current += PrintRightXMMOperand(current);
     }
-  } else if (opcode == 0x16) {
-    // movlhps xmm1, xmm2
+  } else if (opcode == 0x12) {
+    // movlps xmm1, m64
     int mod, regop, rm;
     get_modrm(*current, &mod, &regop, &rm);
-    AppendToBuffer("movlhps %s,", NameOfXMMRegister(regop));
+    AppendToBuffer("movlps %s,", NameOfXMMRegister(regop));
     current += PrintRightXMMOperand(current);
+  } else if (opcode == 0x13) {
+    // movlps m64, xmm1
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
+    AppendToBuffer("movlps ");
+    current += PrintRightXMMOperand(current);
+    AppendToBuffer(",%s", NameOfXMMRegister(regop));
+  } else if (opcode == 0x16) {
+    // movlhps xmm1, xmm2
+    // movhps xmm1, m64
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
+    if (mod == 0b11) {
+      AppendToBuffer("movlhps ");
+    } else {
+      AppendToBuffer("movhps ");
+    }
+    AppendToBuffer("%s,", NameOfXMMRegister(regop));
+    current += PrintRightXMMOperand(current);
+  } else if (opcode == 0x17) {
+    // movhps m64, xmm1
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
+    AppendToBuffer("movhps ");
+    current += PrintRightXMMOperand(current);
+    AppendToBuffer(",%s", NameOfXMMRegister(regop));
   } else if (opcode == 0x1F) {
     // NOP
     int mod, regop, rm;
