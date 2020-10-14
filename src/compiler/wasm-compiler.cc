@@ -7657,7 +7657,7 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, const wasm::FunctionSig* sig,
           CodeKind::C_WASM_ENTRY, std::move(name_buffer),
           AssemblerOptions::Default(isolate)));
 
-  CHECK_NE(job->ExecuteJob(isolate->counters()->runtime_call_stats()),
+  CHECK_NE(job->ExecuteJob(isolate->counters()->runtime_call_stats(), nullptr),
            CompilationJob::FAILED);
   CHECK_NE(job->FinalizeJob(isolate), CompilationJob::FAILED);
 

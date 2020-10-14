@@ -36,6 +36,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/heap/local-heap-inl.h"
+#include "src/heap/local-heap.h"
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/interpreter.h"
 #include "src/logging/log-inl.h"
@@ -340,12 +341,13 @@ CompilationJob::Status OptimizedCompilationJob::PrepareJob(Isolate* isolate) {
 }
 
 CompilationJob::Status OptimizedCompilationJob::ExecuteJob(
-    RuntimeCallStats* stats) {
+    RuntimeCallStats* stats, LocalIsolate* local_isolate) {
   DisallowHeapAccess no_heap_access;
   // Delegate to the underlying implementation.
   DCHECK_EQ(state(), State::kReadyToExecute);
   ScopedTimer t(&time_taken_to_execute_);
-  return UpdateState(ExecuteJobImpl(stats), State::kReadyToFinalize);
+  return UpdateState(ExecuteJobImpl(stats, local_isolate),
+                     State::kReadyToFinalize);
 }
 
 CompilationJob::Status OptimizedCompilationJob::FinalizeJob(Isolate* isolate) {
@@ -951,10 +953,21 @@ bool GetOptimizedCodeNow(OptimizedCompilationJob* job, Isolate* isolate,
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.OptimizeNonConcurrent");
 
-  if (!PrepareJobWithHandleScope(job, isolate, compilation_info) ||
-      job->ExecuteJob(isolate->counters()->runtime_call_stats()) !=
-          CompilationJob::SUCCEEDED ||
-      job->FinalizeJob(isolate) != CompilationJob::SUCCEEDED) {
+  if (!PrepareJobWithHandleScope(job, isolate, compilation_info)) {
+    CompilerTracer::TraceAbortedJob(isolate, compilation_info);
+    return false;
+  }
+
+  {
+    LocalIsolate local_isolate(isolate);
+    if (job->ExecuteJob(isolate->counters()->runtime_call_stats(),
+                        &local_isolate)) {
+      CompilerTracer::TraceAbortedJob(isolate, compilation_info);
+      return false;
+    }
+  }
+
+  if (job->FinalizeJob(isolate) != CompilationJob::SUCCEEDED) {
     CompilerTracer::TraceAbortedJob(isolate, compilation_info);
     return false;
   }
@@ -1560,6 +1573,7 @@ void BackgroundCompileTask::Run() {
     DCHECK(info_->flags().is_toplevel());
 
     LocalIsolate isolate(isolate_for_local_isolate_);
+    UnparkedScope unparked_scope(isolate.heap());
     LocalHandleScope handle_scope(&isolate);
 
     info_->ast_value_factory()->Internalize(&isolate);

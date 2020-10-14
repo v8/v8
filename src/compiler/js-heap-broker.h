@@ -117,7 +117,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   BrokerMode mode() const { return mode_; }
   // Initialize the local heap with the persistent and canonical handles
   // provided by {info}.
-  void InitializeLocalHeap(OptimizedCompilationInfo* info);
+  void InitializeLocalHeap(OptimizedCompilationInfo* info,
+                           LocalHeap* local_heap);
   // Tear down the local heap and pass the persistent and canonical handles
   // provided back to {info}. {info} is responsible for disposing of them.
   void TearDownLocalHeap(OptimizedCompilationInfo* info);
@@ -227,9 +228,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   bool IsSerializedForCompilation(const SharedFunctionInfoRef& shared,
                                   const FeedbackVectorRef& feedback) const;
 
-  LocalHeap* local_heap() {
-    return local_heap_.has_value() ? &(*local_heap_) : nullptr;
-  }
+  LocalHeap* local_heap() { return local_heap_; }
 
   // Return the corresponding canonical persistent handle for {object}. Create
   // one if it does not exist.
@@ -361,7 +360,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   bool const is_concurrent_inlining_;
   CodeKind const code_kind_;
   std::unique_ptr<PersistentHandles> ph_;
-  base::Optional<LocalHeap> local_heap_;
+  LocalHeap* local_heap_ = nullptr;
   std::unique_ptr<CanonicalHandlesMap> canonical_handles_;
   unsigned trace_indentation_ = 0;
   PerIsolateCompilerCache* compiler_cache_ = nullptr;
@@ -453,14 +452,16 @@ class OffHeapBytecodeArray final : public interpreter::AbstractBytecodeArray {
 
 // Scope that unparks the LocalHeap, if:
 //   a) We have a JSHeapBroker,
-//   b) Said JSHeapBroker has a LocalHeap, and
-//   c) Said LocalHeap has been parked.
+//   b) Said JSHeapBroker has a LocalHeap,
+//   c) Said LocalHeap has been parked and
+//   d) The given condition evaluates to true.
 // Used, for example, when printing the graph with --trace-turbo with a
 // previously parked LocalHeap.
 class UnparkedScopeIfNeeded {
  public:
-  explicit UnparkedScopeIfNeeded(JSHeapBroker* broker) {
-    if (broker != nullptr) {
+  explicit UnparkedScopeIfNeeded(JSHeapBroker* broker,
+                                 bool extra_condition = true) {
+    if (broker != nullptr && extra_condition) {
       LocalHeap* local_heap = broker->local_heap();
       if (local_heap != nullptr && local_heap->IsParked()) {
         unparked_scope.emplace(local_heap);
