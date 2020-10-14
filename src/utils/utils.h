@@ -708,6 +708,19 @@ static inline V ByteReverse(V value) {
   }
 }
 
+#if V8_OS_AIX
+// glibc on aix has a bug when using ceil, trunc or nearbyint:
+// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=97086
+template <typename T>
+T FpOpWorkaround(T input, T value) {
+  if (/*if -*/ std::signbit(input) && value == 0.0 &&
+      /*if +*/ !std::signbit(value)) {
+    return -0.0;
+  }
+  return value;
+}
+#endif
+
 V8_EXPORT_PRIVATE bool PassesFilter(Vector<const char> name,
                                     Vector<const char> filter);
 

@@ -586,6 +586,9 @@ void RunF32x4UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
     // Extreme values have larger errors so skip them for approximation tests.
     if (!exact && IsExtreme(x)) continue;
     float expected = expected_op(x);
+#if V8_OS_AIX
+    expected = FpOpWorkaround<float>(x, expected);
+#endif
     if (!PlatformCanRepresent(expected)) continue;
     r.Call(x);
     for (int i = 0; i < 4; i++) {
@@ -1176,6 +1179,9 @@ void RunF64x2UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
     // Extreme values have larger errors so skip them for approximation tests.
     if (!exact && IsExtreme(x)) continue;
     double expected = expected_op(x);
+#if V8_OS_AIX
+    expected = FpOpWorkaround<double>(x, expected);
+#endif
     if (!PlatformCanRepresent(expected)) continue;
     r.Call(x);
     for (int i = 0; i < 2; i++) {
