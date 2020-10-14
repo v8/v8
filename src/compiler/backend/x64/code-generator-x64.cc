@@ -2496,7 +2496,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F32x4ExtractLane: {
-      __ Extractps(kScratchRegister, i.InputSimd128Register(0), i.InputInt8(1));
+      __ Extractps(kScratchRegister, i.InputSimd128Register(0),
+                   i.InputUint8(1));
       __ Movd(i.OutputDoubleRegister(), kScratchRegister);
       break;
     }
