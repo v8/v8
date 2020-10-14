@@ -170,7 +170,7 @@ try_builder(
 try_builder(
     name = "v8_win64_msvc_compile_rel",
     bucket = "try",
-    cq_properties = {"cancel_stale": False},
+    cq_properties = {"experiment_percentage": 100, "cancel_stale": False},
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     execution_timeout = 3600,
     properties = {"default_targets": ["d8"], "use_goma": False},
@@ -180,7 +180,7 @@ try_builder(
 try_builder(
     name = "v8_win_compile_dbg",
     bucket = "try",
-    cq_properties = {"cancel_stale": False},
+    cq_properties = {"experiment_percentage": 100, "cancel_stale": False},
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     use_goma = GOMA.AST,
 )
