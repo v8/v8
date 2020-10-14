@@ -679,10 +679,6 @@
   'language/module-code/export-expname-from-string-string': [FAIL],
   'language/module-code/export-expname-import-string-binding': [FAIL],
 
-  # http://crbug/v8/10976
-  'language/expressions/assignmenttargettype/direct-callexpression-arguments': [FAIL],
-  'language/expressions/assignmenttargettype/parenthesized-callexpression-arguments': [FAIL],
-
   # http://crbug/v8/10977
   'language/statements/class/elements/arrow-body-indirect-eval-err-contains-arguments': [FAIL],
   'language/statements/class/elements/nested-indirect-eval-err-contains-arguments': [FAIL],
@@ -704,6 +700,11 @@
 
   # https://github.com/tc39/ecma262/pull/889
   'annexB/language/function-code/block-decl-func-skip-arguments': [FAIL],
+
+  # Non-simple assignment targets are runtime errors instead of syntax errors
+  # for web compat. https://crbug.com/358346
+  'language/expressions/assignmenttargettype/direct-callexpression-arguments': [FAIL],
+  'language/expressions/assignmenttargettype/parenthesized-callexpression-arguments': [FAIL],
 
   ############################ INVALID TESTS #############################
 
