@@ -16,9 +16,10 @@ namespace internal {
 
 #ifdef V8_CC_GNU
 
-void GetStackPointerCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  uintptr_t sp_addr = GetStackPointer();
+static uintptr_t sp_addr = 0;
 
+void GetStackPointerCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  GET_STACK_POINTER_TO(sp_addr);
   args.GetReturnValue().Set(v8::Integer::NewFromUnsigned(
       args.GetIsolate(), static_cast<uint32_t>(sp_addr)));
 }
