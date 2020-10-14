@@ -234,16 +234,14 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
             bool overflow = base::bits::SignedAddOverflow32(
                 n.right().Value(), m.right().Value(), &val);
             if (!overflow) {
-              bool has_no_other_value_uses = true;
+              bool has_no_other_uses = true;
               for (Edge edge : checked_int32_add->use_edges()) {
-                if (!edge.from()->IsDead() &&
-                    !NodeProperties::IsEffectEdge(edge) &&
-                    edge.from() != node) {
-                  has_no_other_value_uses = false;
+                if (!edge.from()->IsDead() && edge.from() != node) {
+                  has_no_other_uses = false;
                   break;
                 }
               }
-              if (has_no_other_value_uses) {
+              if (has_no_other_uses) {
                 node->ReplaceInput(0, n.left().node());
                 node->ReplaceInput(1, jsgraph()->Int32Constant(val));
                 RelaxEffectsAndControls(checked_int32_add);
