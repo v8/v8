@@ -32,10 +32,6 @@
 
   ##############################################################################
 
-  # This test is so detailed in it's look at the literals array, I can't
-  # maintain it until the CL is done.
-  'test-heap-profiler/AllocationSitesAreVisible': [FAIL, ['lite_mode == True', SKIP]],
-
   # These tests always fail.  They are here to test test.py.  If
   # they don't fail then test.py has failed.
   'test-serialize/TestThatAlwaysFails': [FAIL],
