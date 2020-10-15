@@ -778,7 +778,8 @@ HeapObject FactoryBase<Impl>::AllocateRawArray(int size,
                                                AllocationType allocation) {
   HeapObject result = AllocateRaw(size, allocation);
   if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL &&
-      size > kMaxRegularHeapObjectSize && FLAG_use_marking_progress_bar) {
+      (size > Heap::MaxRegularHeapObjectSize(allocation)) &&
+      FLAG_use_marking_progress_bar) {
     BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(result);
     chunk->SetFlag<AccessMode::ATOMIC>(MemoryChunk::HAS_PROGRESS_BAR);
   }
