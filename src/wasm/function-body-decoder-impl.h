@@ -1671,7 +1671,6 @@ class WasmDecoder : public Decoder {
       case kNumericPrefix: {
         uint32_t length = 0;
         opcode = decoder->read_prefixed_opcode<validate>(pc, &length);
-        length++;  // Prefix byte.
         switch (opcode) {
           case kExprI32SConvertSatF32:
           case kExprI32UConvertSatF32:
@@ -1728,48 +1727,47 @@ class WasmDecoder : public Decoder {
 #define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
           FOREACH_SIMD_0_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
 #undef DECLARE_OPCODE_CASE
-          return 1 + length;
+          return length;
 #define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
           FOREACH_SIMD_1_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
 #undef DECLARE_OPCODE_CASE
-          return 2 + length;
+          return length + 1;
 #define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
           FOREACH_SIMD_MEM_OPCODE(DECLARE_OPCODE_CASE)
 #undef DECLARE_OPCODE_CASE
           {
-            MemoryAccessImmediate<validate> imm(decoder, pc + length + 1,
+            MemoryAccessImmediate<validate> imm(decoder, pc + length,
                                                 UINT32_MAX);
-            return 1 + length + imm.length;
+            return length + imm.length;
           }
           case kExprS128LoadMem32Zero:
           case kExprS128LoadMem64Zero: {
-            MemoryAccessImmediate<validate> imm(decoder, pc + length + 1,
+            MemoryAccessImmediate<validate> imm(decoder, pc + length,
                                                 UINT32_MAX);
-            return 1 + length + imm.length;
+            return length + imm.length;
           }
           case kExprS128Load8Lane:
           case kExprS128Load16Lane:
           case kExprS128Load32Lane:
           case kExprS128Load64Lane: {
-            MemoryAccessImmediate<validate> imm(decoder, pc + length + 1,
+            MemoryAccessImmediate<validate> imm(decoder, pc + length,
                                                 UINT32_MAX);
             // 1 more byte for lane index immediate.
-            return 1 + length + imm.length + 1;
+            return length + imm.length + 1;
           }
           // Shuffles require a byte per lane, or 16 immediate bytes.
           case kExprS128Const:
           case kExprI8x16Shuffle:
-            return 1 + length + kSimd128Size;
+            return length + kSimd128Size;
           default:
             decoder->DecodeError(pc, "invalid SIMD opcode");
-            return 1 + length;
+            return length;
         }
       }
       case kAtomicPrefix: {
         uint32_t length = 0;
         opcode = decoder->read_prefixed_opcode<validate>(pc, &length,
                                                          "atomic_index");
-        length++;  // Prefix byte.
         switch (opcode) {
 #define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
           FOREACH_ATOMIC_OPCODE(DECLARE_OPCODE_CASE)
@@ -1794,7 +1792,6 @@ class WasmDecoder : public Decoder {
         uint32_t length = 0;
         opcode =
             decoder->read_prefixed_opcode<validate>(pc, &length, "gc_index");
-        length++;  // Prefix byte.
         switch (opcode) {
           case kExprStructNewWithRtt:
           case kExprStructNewDefault: {
@@ -3033,8 +3030,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       CHECK_PROTOTYPE_OPCODE(bulk_memory);
     }
     trace_msg->AppendOpcode(full_opcode);
-    // Prefix byte (1) + leb opcode bytes.
-    return DecodeNumericOpcode(full_opcode, 1 + opcode_length);
+    return DecodeNumericOpcode(full_opcode, opcode_length);
   }
 
   DECODE(Simd) {
@@ -3044,8 +3040,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         this->pc_, &opcode_length);
     if (!VALIDATE(this->ok())) return 0;
     trace_msg->AppendOpcode(full_opcode);
-    // Prefix byte (1) + leb opcode bytes.
-    return DecodeSimdOpcode(full_opcode, 1 + opcode_length);
+    return DecodeSimdOpcode(full_opcode, opcode_length);
   }
 
   DECODE(Atomic) {
@@ -3054,8 +3049,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     WasmOpcode full_opcode = this->template read_prefixed_opcode<validate>(
         this->pc_, &opcode_length, "atomic index");
     trace_msg->AppendOpcode(full_opcode);
-    // Prefix byte (1) + leb opcode bytes.
-    return DecodeAtomicOpcode(full_opcode, 1 + opcode_length);
+    return DecodeAtomicOpcode(full_opcode, opcode_length);
   }
 
   DECODE(GC) {
@@ -3064,8 +3058,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     WasmOpcode full_opcode = this->template read_prefixed_opcode<validate>(
         this->pc_, &opcode_length, "gc index");
     trace_msg->AppendOpcode(full_opcode);
-    // Prefix byte (1) + leb opcode bytes.
-    return DecodeGCOpcode(full_opcode, 1 + opcode_length);
+    return DecodeGCOpcode(full_opcode, opcode_length);
   }
 
 #define SIMPLE_PROTOTYPE_CASE(name, opc, sig) \

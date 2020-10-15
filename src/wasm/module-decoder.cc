@@ -1745,8 +1745,8 @@ class ModuleDecoderImpl : public Decoder {
             return {};
           }
 
-          Simd128Immediate<validate> imm(this, pc() + len + 1);
-          len += 1 + kSimd128Size;
+          Simd128Immediate<validate> imm(this, pc() + len);
+          len += kSimd128Size;
           stack.emplace_back(imm.value);
           break;
         }
@@ -1759,8 +1759,8 @@ class ModuleDecoderImpl : public Decoder {
             case kExprRttCanon: {
               HeapTypeImmediate<validate> imm(enabled_features_, this,
                                               pc() + 2);
-              len += 1 + imm.length;
-              if (!Validate(pc() + 2, imm)) return {};
+              len += imm.length;
+              if (!Validate(pc() + len, imm)) return {};
               stack.push_back(
                   WasmInitExpr::RttCanon(imm.type.representation()));
               break;
@@ -1768,8 +1768,8 @@ class ModuleDecoderImpl : public Decoder {
             case kExprRttSub: {
               HeapTypeImmediate<validate> imm(enabled_features_, this,
                                               pc() + 2);
-              len += 1 + imm.length;
-              if (!Validate(pc() + 2, imm)) return {};
+              len += imm.length;
+              if (!Validate(pc() + len, imm)) return {};
               if (stack.empty()) {
                 error(pc(), "calling rtt.sub without arguments");
                 return {};

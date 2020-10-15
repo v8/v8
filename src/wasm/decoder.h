@@ -138,8 +138,8 @@ class Decoder {
   }
 
   // Reads a prefixed-opcode, possibly with variable-length index.
-  // The length param is set to the number of bytes this index is encoded with.
-  // For most cases (non variable-length), it will be 1.
+  // `length` is set to the number of bytes that make up this opcode,
+  // *including* the prefix byte. For most opcodes, it will be 2.
   template <ValidateFlag validate>
   WasmOpcode read_prefixed_opcode(const byte* pc, uint32_t* length,
                                   const char* name = "prefixed opcode") {
@@ -147,6 +147,7 @@ class Decoder {
 
     // Prefixed opcodes all use LEB128 encoding.
     index = read_u32v<validate>(pc + 1, length, "prefixed opcode index");
+    *length += 1;  // Prefix byte.
     // Only support opcodes that go up to 0xFF (when decoded). Anything
     // bigger will need 1 more byte, and the '<< 8' below will be wrong.
     if (validate && V8_UNLIKELY(index > 0xff)) {

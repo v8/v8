@@ -3031,13 +3031,12 @@ class WasmInterpreterInternals {
       byte orig = code->start[pc];
       WasmOpcode opcode = static_cast<WasmOpcode>(orig);
 
-      // If the opcode is a prefix, read the suffix and add the extra length to
-      // 'len'.
       if (WasmOpcodes::IsPrefixOpcode(opcode)) {
         uint32_t prefixed_opcode_length = 0;
         opcode = decoder.read_prefixed_opcode<Decoder::kNoValidation>(
             code->at(pc), &prefixed_opcode_length);
-        len += prefixed_opcode_length;
+        // read_prefixed_opcode includes the prefix byte, overwrite len.
+        len = prefixed_opcode_length;
       }
 
       // If max is 0, break. If max is positive (a limit is set), decrement it.
