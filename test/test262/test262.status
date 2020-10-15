@@ -683,9 +683,6 @@
   'language/statements/class/elements/arrow-body-indirect-eval-err-contains-arguments': [FAIL],
   'language/statements/class/elements/nested-indirect-eval-err-contains-arguments': [FAIL],
 
-  # http://crbug/v8/10978
-  'language/statements/try/completion-values': [FAIL],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
