@@ -5,12 +5,13 @@
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
+
 #include <limits>
 
 #include "include/v8config.h"
-
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
+#include "src/base/safe_conversions.h"
 #include "src/common/assert-scope.h"
 #include "src/utils/memcopy.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -205,12 +206,8 @@ int32_t float32_to_uint64_wrapper(Address data) {
 }
 
 int32_t float64_to_int64_wrapper(Address data) {
-  // We use "<" here to check the upper bound because of rounding problems: With
-  // "<=" some inputs would be considered within int64 range which are actually
-  // not within int64 range.
   double input = ReadUnalignedValue<double>(data);
-  if (input >= static_cast<double>(std::numeric_limits<int64_t>::min()) &&
-      input < static_cast<double>(std::numeric_limits<int64_t>::max())) {
+  if (base::IsValueInRangeForNumericType<int64_t>(input)) {
     WriteUnalignedValue<int64_t>(data, static_cast<int64_t>(input));
     return 1;
   }
@@ -270,11 +267,7 @@ void float32_to_uint64_sat_wrapper(Address data) {
 
 void float64_to_int64_sat_wrapper(Address data) {
   double input = ReadUnalignedValue<double>(data);
-  // We use "<" here to check the upper bound because of rounding problems: With
-  // "<=" some inputs would be considered within int64 range which are actually
-  // not within int64 range.
-  if (input < static_cast<double>(std::numeric_limits<int64_t>::max()) &&
-      input >= static_cast<double>(std::numeric_limits<int64_t>::min())) {
+  if (base::IsValueInRangeForNumericType<int64_t>(input)) {
     WriteUnalignedValue<int64_t>(data, static_cast<int64_t>(input));
     return;
   }

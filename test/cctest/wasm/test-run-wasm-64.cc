@@ -8,9 +8,9 @@
 
 #include "src/base/bits.h"
 #include "src/base/overflowing-math.h"
+#include "src/base/safe_conversions.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/objects/objects-inl.h"
-
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
@@ -759,8 +759,7 @@ WASM_EXEC_TEST(I64SConvertF64) {
   BUILD(r, WASM_I64_SCONVERT_F64(WASM_GET_LOCAL(0)));
 
   FOR_FLOAT64_INPUTS(i) {
-    if (i < static_cast<double>(std::numeric_limits<int64_t>::max()) &&
-        i >= static_cast<double>(std::numeric_limits<int64_t>::min())) {
+    if (base::IsValueInRangeForNumericType<int64_t>(i)) {
       CHECK_EQ(static_cast<int64_t>(i), r.Call(i));
     } else {
       CHECK_TRAP64(r.Call(i));
@@ -773,8 +772,7 @@ WASM_EXEC_TEST(I64SConvertSatF64) {
   BUILD(r, WASM_I64_SCONVERT_SAT_F64(WASM_GET_LOCAL(0)));
   FOR_FLOAT64_INPUTS(i) {
     int64_t expected;
-    if (i < static_cast<double>(std::numeric_limits<int64_t>::max()) &&
-        i >= static_cast<double>(std::numeric_limits<int64_t>::min())) {
+    if (base::IsValueInRangeForNumericType<int64_t>(i)) {
       expected = static_cast<int64_t>(i);
     } else if (std::isnan(i)) {
       expected = static_cast<int64_t>(0);

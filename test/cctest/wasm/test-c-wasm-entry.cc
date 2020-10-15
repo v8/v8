@@ -5,6 +5,7 @@
 #include <cstdint>
 
 #include "src/base/overflowing-math.h"
+#include "src/base/safe_conversions.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-arguments.h"
@@ -116,8 +117,7 @@ TEST(TestCWasmEntryArgPassing_int64_double) {
       [](double d) { return static_cast<int64_t>(d); });
 
   FOR_FLOAT64_INPUTS(d) {
-    if (d < static_cast<double>(std::numeric_limits<int64_t>::max()) &&
-        d >= static_cast<double>(std::numeric_limits<int64_t>::min())) {
+    if (base::IsValueInRangeForNumericType<int64_t>(d)) {
       tester.CheckCall(d);
     }
   }
