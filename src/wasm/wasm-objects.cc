@@ -2021,17 +2021,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
       SharedFunctionInfo shared = Handle<JSFunction>::cast(callable)->shared();
       expected_arity = shared.internal_formal_parameter_count();
       if (expected_arity != parameter_count) {
-        // TODO(manoskouk): call_ref on WasmJSFunction with arity mismatch is
-        // disabled due to a segfault in the wasm-to-js wrapper for mismatching
-        // arity.
-        //#ifdef V8_REVERSE_JSARGS
-        //        kind = CK::kJSFunctionArityMismatch;
-        //#else
-        // kind = shared.is_safe_to_skip_arguments_adaptor()
-        //           ? CK::kJSFunctionArityMismatchSkipAdaptor
-        //           : CK::kJSFunctionArityMismatch;
-        //#endif
-        kind = CK::kRuntimeTypeError;
+        kind = CK::kJSFunctionArityMismatch;
       }
     }
     // TODO(wasm): Think about caching and sharing the wasm-to-JS wrappers per

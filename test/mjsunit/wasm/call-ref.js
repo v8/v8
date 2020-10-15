@@ -22,8 +22,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
     var sig_index = builder.addType(kSig_i_ii);
 
-    var imported_js_api_function_index =
-      builder.addImport("imports", "js_api_mul", sig_index);
+    var imported_type_reflection_function_index =
+      builder.addImport("imports", "mul", sig_index);
 
     var imported_js_function_index =
       builder.addImport("imports", "js_add", sig_index);
@@ -31,6 +31,10 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     var imported_wasm_function_index =
       builder.addImport("imports", "wasm_add", sig_index);
 
+    builder.addExport("unused", imported_wasm_function_index);
+    builder.addExport("reexported_js_function", imported_js_function_index);
+    builder.addExport("reexported_webassembly_function",
+                      imported_type_reflection_function_index);
 
     var locally_defined_function =
       builder.addFunction("sub", sig_index)
@@ -53,35 +57,34 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
                 kExprRefFunc, imported_js_function_index, kExprCallRef])
       .exportFunc();
 
-    builder.addFunction("test_wasm_import", kSig_i_v)
-      .addBody([kExprI32Const, 15, kExprI32Const, 42,
-                kExprRefFunc, imported_wasm_function_index, kExprCallRef])
-      .exportFunc();
+      builder.addFunction("test_wasm_import", kSig_i_v)
+        .addBody([kExprI32Const, 15, kExprI32Const, 42,
+                  kExprRefFunc, imported_wasm_function_index, kExprCallRef])
+        .exportFunc();
 
-    builder.addFunction("test_js_api_import", kSig_i_v)
+    /* Future use
+    builder.addFunction("test_webassembly_import", kSig_i_v)
       .addBody([kExprI32Const, 3, kExprI32Const, 7,
-                kExprRefFunc, imported_js_api_function_index,
+                kExprRefFunc, imported_type_reflection_function_index,
                 kExprCallRef])
       .exportFunc();
-
-    builder.addExport("reexported_js_function", imported_js_function_index);
-
-    // Just to make these functions eligible for call_ref.
-    builder.addDeclarativeElementSegment([imported_wasm_function_index,
-                                          imported_js_api_function_index]);
+    */
 
     return builder.instantiate({imports: {
       js_add: function(a, b) { return a + b; },
       wasm_add: exporting_instance.exports.addition,
-      js_api_mul: new WebAssembly.Function(
-          {parameters:['i32', 'i32'], results: ['i32']},
-          function(a, b) { return a * b; })
+      mul: new WebAssembly.Function({parameters:['i32', 'i32'],
+                                     results: ['i32']},
+                                    function(a, b) { return a * b; })
     }});
   })();
 
-  // Check that the modules exist.
-  assertTrue(!!exporting_instance);
-  assertTrue(!!instance);
+  // Check the modules exist.
+  assertFalse(instance === undefined);
+  assertFalse(instance === null);
+  assertFalse(instance === 0);
+  assertEquals("object", typeof instance.exports);
+  assertEquals("function", typeof instance.exports.main);
 
   print("--locally defined func--");
   assertEquals(13, instance.exports.test_local());
@@ -100,20 +103,9 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(19, instance.exports.main(
     exporting_instance.exports.addition, 12, 7));
 
-  print("--imported WebAssembly.Function--")
-  assertEquals(21, instance.exports.test_js_api_import());
-  print("--not imported WebAssembly.Function--")
-  assertEquals(-5, instance.exports.main(
-    new WebAssembly.Function(
-      {parameters:['i32', 'i32'], results: ['i32']},
-      function(a, b) { return a - b; }),
-    10, 15));
-  // TODO(manoskouk): call_ref on WasmJSFunction with arity mismatch is disabled
-  // due to a segfault in the wasm-to-js wrapper for mismatching arity.
-  // print("--not imported WebAssembly.Function, arity mismatch--")
-  // assertEquals(100, instance.exports.main(
-  //   new WebAssembly.Function(
-  //     {parameters:['i32', 'i32'], results: ['i32']},
-  //     function(a) { return a * a; }),
-  //   10, 15));
+  // TODO(7748): Make these work once we know how we interact
+  //             with the 'type reflection' proposal.
+  //print("--imported WebAssembly.Function--")
+  //assertEquals(21, instance.exports.test_webassembly_import());
+  //print(" --not imported WebAssembly.Function--")
 })();

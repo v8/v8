@@ -3076,30 +3076,13 @@ Node* WasmGraphBuilder::BuildCallRef(uint32_t sig_index, Vector<Node*> args,
   }
 
   {
-    // Call to a WasmJSFunction. The call target is
-    // function_data->wasm_to_js_wrapper_code()->instruction_start().
-    // The instance_node is the pair
-    // (current WasmInstanceObject, function_data->callable()).
+    // Call to a WasmJSFunction.
+    // The call target is the wasm-to-js wrapper code.
     gasm_->Bind(&js_label);
-
-    Node* wrapper_code =
-        gasm_->Load(MachineType::TaggedPointer(), function_data,
-                    wasm::ObjectAccess::ToTagged(
-                        WasmJSFunctionData::kWasmToJsWrapperCodeOffset));
-    Node* call_target = gasm_->IntAdd(
-        wrapper_code,
-        gasm_->IntPtrConstant(wasm::ObjectAccess::ToTagged(Code::kHeaderSize)));
-
-    Node* callable = gasm_->Load(
-        MachineType::TaggedPointer(), function_data,
-        wasm::ObjectAccess::ToTagged(WasmJSFunctionData::kCallableOffset));
-    // TODO(manoskouk): Find an elegant way to avoid allocating this pair for
-    // every call.
-    Node* function_instance_node = CALL_BUILTIN(
-        WasmAllocatePair, instance_node_.get(), callable,
-        LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
-
-    gasm_->Goto(&end_label, call_target, function_instance_node);
+    // TODO(9495): Implement when the interaction with the type reflection
+    // proposal is clear.
+    TrapIfTrue(wasm::kTrapWasmJSFunction, gasm_->Int32Constant(1), position);
+    gasm_->Goto(&end_label, args[0], RefNull() /* Dummy value */);
   }
 
   gasm_->Bind(&end_label);
