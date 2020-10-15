@@ -6,6 +6,9 @@ use_relative_paths = True
 
 gclient_gn_args_file = 'build/config/gclient_args.gni'
 gclient_gn_args = [
+  # TODO(https://crbug.com/1137662, https://crbug.com/1080854)
+  # Remove when migration is complete.
+  'checkout_fuchsia_for_arm64_host',
   'checkout_google_benchmark',
   'mac_xcode_version',
 ]
@@ -25,6 +28,12 @@ vars = {
   #
   # Wildcards are supported (e.g. "qemu.*").
   'checkout_fuchsia_boot_images': "qemu.x64,qemu.arm64",
+
+  # TODO(https://crbug.com/1137662, https://crbug.com/1080854)
+  # Remove when migration is complete.
+  # By default, do not check out files required to run fuchsia tests in
+  # qemu on linux-arm64 machines.
+  'checkout_fuchsia_for_arm64_host': False,
 
   'checkout_instrumented_libraries': False,
   'checkout_ittapi': False,
