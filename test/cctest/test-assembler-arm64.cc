@@ -11784,6 +11784,9 @@ TEST(system_msr) {
 }
 
 TEST(system_pauth_b) {
+#ifdef DEBUG
+  i::FLAG_sim_abort_on_bad_auth = false;
+#endif
   SETUP();
   START();
 

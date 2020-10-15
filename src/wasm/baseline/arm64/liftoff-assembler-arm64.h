@@ -186,25 +186,36 @@ int LiftoffAssembler::PrepareStackFrame() {
 void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
                                        int stack_param_delta) {
   UseScratchRegisterScope temps(this);
+  temps.Exclude(x16, x17);
+
+  // This is the previous stack pointer value (before we push the lr and the
+  // fp). We need to keep it to autenticate the lr and adjust the new stack
+  // pointer afterwards.
+  Add(x16, fp, 16);
+
+  // Load the fp and lr of the old frame, they will be pushed in the new frame
+  // during the actual call.
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  Ldp(fp, x17, MemOperand(fp));
+  Autib1716();
+  Mov(lr, x17);
+#else
+  Ldp(fp, lr, MemOperand(fp));
+#endif
+
+  temps.Include(x17);
+
   Register scratch = temps.AcquireX();
 
-  // Push the return address and frame pointer to complete the stack frame.
-  sub(sp, sp, 16);
-  ldr(scratch, MemOperand(fp, 8));
-  Poke(scratch, 8);
-  ldr(scratch, MemOperand(fp, 0));
-  Poke(scratch, 0);
-
-  // Shift the whole frame upwards.
-  int slot_count = num_callee_stack_params + 2;
+  // Shift the whole frame upwards, except for fp and lr.
+  int slot_count = num_callee_stack_params;
   for (int i = slot_count - 1; i >= 0; --i) {
     ldr(scratch, MemOperand(sp, i * 8));
-    str(scratch, MemOperand(fp, (i - stack_param_delta) * 8));
+    str(scratch, MemOperand(x16, (i - stack_param_delta) * 8));
   }
 
-  // Set the new stack and frame pointer.
-  Sub(sp, fp, stack_param_delta * 8);
-  Pop<kAuthLR>(fp, lr);
+  // Set the new stack pointer.
+  Sub(sp, x16, stack_param_delta * 8);
 }
 
 void LiftoffAssembler::PatchPrepareStackFrame(int offset, int frame_size) {

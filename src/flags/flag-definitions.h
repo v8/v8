@@ -1408,6 +1408,13 @@ DEFINE_BOOL(log_colour, ENABLE_LOG_COLOUR,
 DEFINE_BOOL(trace_sim_messages, false,
             "Trace simulator debug messages. Implied by --trace-sim.")
 
+#if defined V8_TARGET_ARCH_ARM64
+// pointer-auth-arm64.cc
+DEFINE_DEBUG_BOOL(sim_abort_on_bad_auth, false,
+                  "Stop execution when a pointer authentication fails in the "
+                  "ARM64 simulator.")
+#endif
+
 // isolate.cc
 DEFINE_BOOL(async_stack_traces, true,
             "include async stack traces in Error.stack")
