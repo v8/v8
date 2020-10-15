@@ -690,30 +690,6 @@ class LiftoffCompiler {
     }
 
     if (FLAG_trace_wasm) TraceFunctionEntry(decoder);
-
-    // If we are generating debug code, do check the "hook on function call"
-    // flag. If set, trigger a break.
-    if (V8_UNLIKELY(for_debugging_)) {
-      // If there is a breakpoint set on the first instruction (== start of the
-      // function), then skip the check for "hook on function call", since we
-      // will unconditionally break there anyway.
-      bool has_breakpoint = next_breakpoint_ptr_ != nullptr &&
-                            (*next_breakpoint_ptr_ == 0 ||
-                             *next_breakpoint_ptr_ == decoder->position());
-      if (!has_breakpoint) {
-        DEBUG_CODE_COMMENT("check hook on function call");
-        Register flag = __ GetUnusedRegister(kGpReg, {}).gp();
-        LOAD_INSTANCE_FIELD(flag, HookOnFunctionCallAddress,
-                            kSystemPointerSize);
-        Label no_break;
-        __ Load(LiftoffRegister{flag}, flag, no_reg, 0, LoadType::kI32Load8U,
-                {});
-        // Unary "equal" means "equals zero".
-        __ emit_cond_jump(kEqual, &no_break, kWasmI32, flag);
-        EmitBreakpoint(decoder);
-        __ bind(&no_break);
-      }
-    }
   }
 
   void GenerateOutOfLineCode(OutOfLineCode* ool) {
@@ -799,14 +775,14 @@ class LiftoffCompiler {
   }
 
   V8_NOINLINE void EmitDebuggingInfo(FullDecoder* decoder, WasmOpcode opcode) {
-    DCHECK(V8_UNLIKELY(for_debugging_));
+    DCHECK(for_debugging_);
+    if (!WasmOpcodes::IsBreakable(opcode)) return;
+    bool has_breakpoint = false;
     if (next_breakpoint_ptr_) {
       if (*next_breakpoint_ptr_ == 0) {
         // A single breakpoint at offset 0 indicates stepping.
         DCHECK_EQ(next_breakpoint_ptr_ + 1, next_breakpoint_end_);
-        if (WasmOpcodes::IsBreakable(opcode)) {
-          EmitBreakpoint(decoder);
-        }
+        has_breakpoint = true;
       } else {
         while (next_breakpoint_ptr_ != next_breakpoint_end_ &&
                *next_breakpoint_ptr_ < decoder->position()) {
@@ -816,18 +792,34 @@ class LiftoffCompiler {
         if (next_breakpoint_ptr_ == next_breakpoint_end_) {
           next_breakpoint_ptr_ = next_breakpoint_end_ = nullptr;
         } else if (*next_breakpoint_ptr_ == decoder->position()) {
-          DCHECK(WasmOpcodes::IsBreakable(opcode));
-          EmitBreakpoint(decoder);
+          has_breakpoint = true;
         }
       }
     }
-    if (dead_breakpoint_ == decoder->position()) {
+    if (has_breakpoint) {
+      EmitBreakpoint(decoder);
+      // Once we emitted a breakpoint, we don't need to check the "hook on
+      // function call" any more.
+      checked_hook_on_function_call_ = true;
+    } else if (!checked_hook_on_function_call_) {
+      checked_hook_on_function_call_ = true;
+      // Check the "hook on function call" flag. If set, trigger a break.
+      DEBUG_CODE_COMMENT("check hook on function call");
+      Register flag = __ GetUnusedRegister(kGpReg, {}).gp();
+      LOAD_INSTANCE_FIELD(flag, HookOnFunctionCallAddress, kSystemPointerSize);
+      Label no_break;
+      __ Load(LiftoffRegister{flag}, flag, no_reg, 0, LoadType::kI32Load8U, {});
+      // Unary "equal" means "equals zero".
+      __ emit_cond_jump(kEqual, &no_break, kWasmI32, flag);
+      EmitBreakpoint(decoder);
+      __ bind(&no_break);
+    } else if (dead_breakpoint_ == decoder->position()) {
       DCHECK(!next_breakpoint_ptr_ ||
              *next_breakpoint_ptr_ != dead_breakpoint_);
       // The top frame is paused at this position, but the breakpoint was
-      // removed. Adding a dead breakpoint here ensures that the source position
-      // exists, and that the offset to the return address is the same as in the
-      // old code.
+      // removed. Adding a dead breakpoint here ensures that the source
+      // position exists, and that the offset to the return address is the
+      // same as in the old code.
       Label cont;
       __ emit_jump(&cont);
       EmitBreakpoint(decoder);
@@ -4075,6 +4067,11 @@ class LiftoffCompiler {
   // Introduce a dead breakpoint to ensure that the calculation of the return
   // address in OSR is correct.
   int dead_breakpoint_ = 0;
+
+  // Remember whether the "hook on function call" has already been checked.
+  // This happens at the first breakable opcode in the function (if compiling
+  // for debugging).
+  bool checked_hook_on_function_call_ = false;
 
   bool has_outstanding_op() const {
     return outstanding_op_ != kNoOutstandingOp;
