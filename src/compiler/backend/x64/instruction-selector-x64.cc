@@ -2985,19 +2985,20 @@ SIMD_TYPES_FOR_REPLACE_LANE(VISIT_SIMD_REPLACE_LANE)
 #undef SIMD_TYPES_FOR_REPLACE_LANE
 #undef VISIT_SIMD_REPLACE_LANE
 
-#define VISIT_SIMD_SHIFT(Opcode)                                               \
-  void InstructionSelector::Visit##Opcode(Node* node) {                        \
-    X64OperandGenerator g(this);                                               \
-    if (g.CanBeImmediate(node->InputAt(1))) {                                  \
-      Emit(kX64##Opcode, g.DefineSameAsFirst(node),                            \
-           g.UseRegister(node->InputAt(0)), g.UseImmediate(node->InputAt(1))); \
-    } else {                                                                   \
-      InstructionOperand temps[] = {g.TempSimd128Register(),                   \
-                                    g.TempRegister()};                         \
-      Emit(kX64##Opcode, g.DefineSameAsFirst(node),                            \
-           g.UseUniqueRegister(node->InputAt(0)),                              \
-           g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);    \
-    }                                                                          \
+#define VISIT_SIMD_SHIFT(Opcode)                                            \
+  void InstructionSelector::Visit##Opcode(Node* node) {                     \
+    X64OperandGenerator g(this);                                            \
+    InstructionOperand dst = IsSupported(AVX) ? g.DefineAsRegister(node)    \
+                                              : g.DefineSameAsFirst(node);  \
+    if (g.CanBeImmediate(node->InputAt(1))) {                               \
+      Emit(kX64##Opcode, dst, g.UseRegister(node->InputAt(0)),              \
+           g.UseImmediate(node->InputAt(1)));                               \
+    } else {                                                                \
+      InstructionOperand temps[] = {g.TempSimd128Register(),                \
+                                    g.TempRegister()};                      \
+      Emit(kX64##Opcode, dst, g.UseUniqueRegister(node->InputAt(0)),        \
+           g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps); \
+    }                                                                       \
   }
 SIMD_SHIFT_OPCODES(VISIT_SIMD_SHIFT)
 #undef VISIT_SIMD_SHIFT
