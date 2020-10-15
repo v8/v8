@@ -21574,6 +21574,11 @@ TEST(RegExpInterruptAndReenterIrregexp) {
   i::FLAG_regexp_tier_up_ticks = 0;
   i::FLAG_regexp_interpret_all = false;
   i::FLAG_enable_experimental_regexp_engine = false;
+  // We want to be stuck in regexp execution, so no fallback to linear-time
+  // engine.
+  // TODO(mbid,v8:10765): Find a way to test interrupt support of the
+  // experimental engine.
+  i::FLAG_enable_experimental_regexp_engine_on_excessive_backtracks = false;
   RegExpInterruptTest test;
   test.RunTest(RegExpInterruptTest::ReenterIrregexp);
 }
