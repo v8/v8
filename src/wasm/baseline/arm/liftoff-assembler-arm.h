@@ -2921,6 +2921,12 @@ void LiftoffAssembler::emit_i32x4_max_u(LiftoffRegister dst,
        liftoff::GetSimd128Register(lhs), liftoff::GetSimd128Register(rhs));
 }
 
+void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
+                                              LiftoffRegister lhs,
+                                              LiftoffRegister rhs) {
+  bailout(kSimd, "i32x4_dot_i16x8_s");
+}
+
 void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   vdup(Neon16, liftoff::GetSimd128Register(dst), src.gp());

@@ -940,6 +940,8 @@ class LiftoffAssembler : public TurboAssembler {
                                LiftoffRegister rhs);
   inline void emit_i32x4_max_u(LiftoffRegister dst, LiftoffRegister lhs,
                                LiftoffRegister rhs);
+  inline void emit_i32x4_dot_i16x8_s(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs);
   inline void emit_i64x2_neg(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i64x2_shl(LiftoffRegister dst, LiftoffRegister lhs,
                              LiftoffRegister rhs);

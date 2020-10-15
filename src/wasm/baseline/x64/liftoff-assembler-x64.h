@@ -3204,6 +3204,13 @@ void LiftoffAssembler::emit_i32x4_max_u(LiftoffRegister dst,
       this, dst, lhs, rhs, base::Optional<CpuFeature>(SSE4_1));
 }
 
+void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
+                                              LiftoffRegister lhs,
+                                              LiftoffRegister rhs) {
+  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpmaddwd, &Assembler::pmaddwd>(
+      this, dst, lhs, rhs);
+}
+
 void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
   DoubleRegister reg = dst.fp() == src.fp() ? kScratchDoubleReg : dst.fp();

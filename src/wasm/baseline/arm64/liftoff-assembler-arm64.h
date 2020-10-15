@@ -2003,6 +2003,12 @@ void LiftoffAssembler::emit_i32x4_max_u(LiftoffRegister dst,
   Umax(dst.fp().V4S(), lhs.fp().V4S(), rhs.fp().V4S());
 }
 
+void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
+                                              LiftoffRegister lhs,
+                                              LiftoffRegister rhs) {
+  bailout(kSimd, "i32x4_dot_i16x8_s");
+}
+
 void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   Dup(dst.fp().V8H(), src.gp().W());
