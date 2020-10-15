@@ -4338,6 +4338,7 @@ v8_source_set("cppgc_base") {
     "include/cppgc/common.h",
     "include/cppgc/custom-space.h",
     "include/cppgc/default-platform.h",
+    "include/cppgc/ephemeron-pair.h",
     "include/cppgc/garbage-collected.h",
     "include/cppgc/heap.h",
     "include/cppgc/internal/api-constants.h",

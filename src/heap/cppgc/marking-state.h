@@ -30,6 +30,8 @@ class MarkingStateBase {
                                             WeakCallback, const void*);
   inline void RegisterWeakCallback(WeakCallback, const void*);
 
+  inline void ProcessEphemeron(const void*, TraceDescriptor);
+
   inline void AccountMarkedBytes(const HeapObjectHeader&);
   inline void AccountMarkedBytes(size_t);
   size_t marked_bytes() const { return marked_bytes_; }
@@ -40,6 +42,8 @@ class MarkingStateBase {
     weak_callback_worklist_.Publish();
     write_barrier_worklist_.Publish();
     concurrent_marking_bailout_worklist_.Publish();
+    discovered_ephemeron_pairs_worklist_.Publish();
+    ephemeron_pairs_for_processing_worklist_.Publish();
   }
 
   MarkingWorklists::MarkingWorklist::Local& marking_worklist() {
@@ -63,6 +67,14 @@ class MarkingStateBase {
   concurrent_marking_bailout_worklist() {
     return concurrent_marking_bailout_worklist_;
   }
+  MarkingWorklists::EphemeronPairsWorklist::Local&
+  discovered_ephemeron_pairs_worklist() {
+    return discovered_ephemeron_pairs_worklist_;
+  }
+  MarkingWorklists::EphemeronPairsWorklist::Local&
+  ephemeron_pairs_for_processing_worklist() {
+    return ephemeron_pairs_for_processing_worklist_;
+  }
 
  protected:
   inline void MarkAndPush(HeapObjectHeader&, TraceDescriptor);
@@ -82,6 +94,10 @@ class MarkingStateBase {
   MarkingWorklists::WriteBarrierWorklist::Local write_barrier_worklist_;
   MarkingWorklists::ConcurrentMarkingBailoutWorklist::Local
       concurrent_marking_bailout_worklist_;
+  MarkingWorklists::EphemeronPairsWorklist::Local
+      discovered_ephemeron_pairs_worklist_;
+  MarkingWorklists::EphemeronPairsWorklist::Local
+      ephemeron_pairs_for_processing_worklist_;
 
   size_t marked_bytes_ = 0;
 };
@@ -100,7 +116,11 @@ MarkingStateBase::MarkingStateBase(HeapBase& heap,
       weak_callback_worklist_(marking_worklists.weak_callback_worklist()),
       write_barrier_worklist_(marking_worklists.write_barrier_worklist()),
       concurrent_marking_bailout_worklist_(
-          marking_worklists.concurrent_marking_bailout_worklist()) {
+          marking_worklists.concurrent_marking_bailout_worklist()),
+      discovered_ephemeron_pairs_worklist_(
+          marking_worklists.discovered_ephemeron_pairs_worklist()),
+      ephemeron_pairs_for_processing_worklist_(
+          marking_worklists.ephemeron_pairs_for_processing_worklist()) {
 }
 
 void MarkingStateBase::MarkAndPush(const void* object, TraceDescriptor desc) {
@@ -150,6 +170,24 @@ void MarkingStateBase::RegisterWeakReferenceIfNeeded(const void* object,
   RegisterWeakCallback(weak_callback, parameter);
 }
 
+void MarkingStateBase::RegisterWeakCallback(WeakCallback callback,
+                                            const void* object) {
+  weak_callback_worklist_.Push({callback, object});
+}
+
+void MarkingStateBase::ProcessEphemeron(const void* key,
+                                        TraceDescriptor value_desc) {
+  // Filter out already marked keys. The write barrier for WeakMember
+  // ensures that any newly set value after this point is kept alive and does
+  // not require the callback.
+  if (HeapObjectHeader::FromPayload(key)
+          .IsMarked<HeapObjectHeader::AccessMode::kAtomic>()) {
+    MarkAndPush(value_desc.base_object_payload, value_desc);
+    return;
+  }
+  discovered_ephemeron_pairs_worklist_.Push({key, value_desc});
+}
+
 void MarkingStateBase::AccountMarkedBytes(const HeapObjectHeader& header) {
   AccountMarkedBytes(
       header.IsLargeObject<HeapObjectHeader::AccessMode::kAtomic>()
@@ -176,6 +214,10 @@ class MutatorMarkingState : public MarkingStateBase {
   // Moves objects in not_fully_constructed_worklist_ to
   // previously_not_full_constructed_worklists_.
   void FlushNotFullyConstructedObjects();
+
+  // Moves ephemeron pairs in discovered_ephemeron_pairs_worklist_ to
+  // ephemeron_pairs_for_processing_worklist_.
+  void FlushDiscoveredEphemeronPairs();
 
   inline void InvokeWeakRootsCallbackIfNeeded(const void*, TraceDescriptor,
                                               WeakCallback, const void*);
@@ -204,11 +246,6 @@ void MutatorMarkingState::InvokeWeakRootsCallbackIfNeeded(
   DCHECK_IMPLIES(header.IsInConstruction(), header.IsMarked());
 #endif  // DEBUG
   weak_callback(LivenessBrokerFactory::Create(), parameter);
-}
-
-void MarkingStateBase::RegisterWeakCallback(WeakCallback callback,
-                                            const void* object) {
-  weak_callback_worklist_.Push({callback, object});
 }
 
 class ConcurrentMarkingState : public MarkingStateBase {

@@ -175,6 +175,20 @@ MarkerBase::~MarkerBase() {
     marking_worklists_.not_fully_constructed_worklist()->Clear();
 #endif
   }
+
+  // |discovered_ephemeron_pairs_worklist_| may still hold ephemeron pairs with
+  // dead keys.
+  if (!marking_worklists_.discovered_ephemeron_pairs_worklist()->IsEmpty()) {
+#if DEBUG
+    MarkingWorklists::EphemeronPairItem item;
+    while (mutator_marking_state_.discovered_ephemeron_pairs_worklist().Pop(
+        &item)) {
+      DCHECK(!HeapObjectHeader::FromPayload(item.key).IsMarked());
+    }
+#else
+    marking_worklists_.discovered_ephemeron_pairs_worklist()->Clear();
+#endif
+  }
 }
 
 void MarkerBase::StartMarking() {
@@ -215,6 +229,7 @@ void MarkerBase::EnterAtomicPause(MarkingConfig::StackState stack_state) {
   VisitRoots(config_.stack_state);
   if (config_.stack_state == MarkingConfig::StackState::kNoHeapPointers) {
     mutator_marking_state_.FlushNotFullyConstructedObjects();
+    DCHECK(marking_worklists_.not_fully_constructed_worklist()->IsEmpty());
   } else {
     MarkNotFullyConstructedObjects();
   }
@@ -318,8 +333,9 @@ bool MarkerBase::AdvanceMarkingWithDeadline(v8::base::TimeDelta max_duration) {
     is_done = ProcessWorklistsWithDeadline(
         mutator_marking_state_.marked_bytes() + step_size_in_bytes,
         v8::base::TimeTicks::Now() + max_duration);
+    schedule_.UpdateIncrementalMarkedBytes(
+        mutator_marking_state_.marked_bytes());
   }
-  schedule_.UpdateIncrementalMarkedBytes(mutator_marking_state_.marked_bytes());
   mutator_marking_state_.Publish();
   if (!is_done) {
     // If marking is atomic, |is_done| should always be true.
@@ -336,6 +352,11 @@ bool MarkerBase::AdvanceMarkingWithDeadline(v8::base::TimeDelta max_duration) {
 bool MarkerBase::ProcessWorklistsWithDeadline(
     size_t marked_bytes_deadline, v8::base::TimeTicks time_deadline) {
   do {
+    if ((config_.marking_type == MarkingConfig::MarkingType::kAtomic) ||
+        schedule_.ShouldFlushEphemeronPairs()) {
+      mutator_marking_state_.FlushDiscoveredEphemeronPairs();
+    }
+
     // Bailout objects may be complicated to trace and thus might take longer
     // than other objects. Therefore we reduce the interval between deadline
     // checks to guarantee the deadline is not exceeded.
@@ -384,6 +405,16 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
               mutator_marking_state_.AccountMarkedBytes(*header);
               DynamicallyTraceMarkedObject<
                   HeapObjectHeader::AccessMode::kNonAtomic>(visitor(), *header);
+            })) {
+      return false;
+    }
+
+    if (!DrainWorklistWithBytesAndTimeDeadline(
+            mutator_marking_state_, marked_bytes_deadline, time_deadline,
+            mutator_marking_state_.ephemeron_pairs_for_processing_worklist(),
+            [this](const MarkingWorklists::EphemeronPairItem& item) {
+              mutator_marking_state_.ProcessEphemeron(item.key,
+                                                      item.value_desc);
             })) {
       return false;
     }

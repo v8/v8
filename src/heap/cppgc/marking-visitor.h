@@ -28,6 +28,7 @@ class V8_EXPORT_PRIVATE MarkingVisitorBase : public VisitorBase {
  protected:
   void Visit(const void*, TraceDescriptor) final;
   void VisitWeak(const void*, TraceDescriptor, WeakCallback, const void*) final;
+  void VisitEphemeron(const void*, TraceDescriptor) final;
   void RegisterWeakCallback(WeakCallback, const void*) final;
 
   MarkingStateBase& marking_state_;

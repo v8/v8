@@ -5,6 +5,7 @@
 #ifndef INCLUDE_CPPGC_VISITOR_H_
 #define INCLUDE_CPPGC_VISITOR_H_
 
+#include "cppgc/ephemeron-pair.h"
 #include "cppgc/garbage-collected.h"
 #include "cppgc/internal/logging.h"
 #include "cppgc/internal/pointer-policies.h"
@@ -124,6 +125,30 @@ class V8_EXPORT Visitor {
   }
 
   /**
+   * Trace method for EphemeronPair.
+   *
+   * \param ephemeron_pair EphemeronPair reference weakly retaining a key object
+   * and strongly retaining a value object in case the key object is alive.
+   */
+  template <typename K, typename V>
+  void Trace(const EphemeronPair<K, V>& ephemeron_pair) {
+    TraceEphemeron(ephemeron_pair.key, ephemeron_pair.value.GetRawAtomic());
+  }
+
+  /**
+   * Trace method for ephemerons. Used for tracing raw ephemeron in which the
+   * key and value are kept separately.
+   *
+   * \param key WeakMember reference weakly retaining a key object.
+   * \param value Member reference weakly retaining a value object.
+   */
+  template <typename K, typename V>
+  void TraceEphemeron(const WeakMember<K>& key, const V* value) {
+    TraceDescriptor value_desc = TraceTrait<V>::GetTraceDescriptor(value);
+    VisitEphemeron(key, value_desc);
+  }
+
+  /**
    * Registers a weak callback that is invoked during garbage collection.
    *
    * \param callback to be invoked.
@@ -157,6 +182,7 @@ class V8_EXPORT Visitor {
   virtual void VisitRoot(const void*, TraceDescriptor, const SourceLocation&) {}
   virtual void VisitWeakRoot(const void* self, TraceDescriptor, WeakCallback,
                              const void* weak_root, const SourceLocation&) {}
+  virtual void VisitEphemeron(const void* key, TraceDescriptor value_desc) {}
 
  private:
   template <typename T, void (T::*method)(const LivenessBroker&)>

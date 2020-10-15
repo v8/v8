@@ -11,6 +11,9 @@
 namespace cppgc {
 namespace internal {
 
+// static
+constexpr size_t IncrementalMarkingSchedule::kInvalidLastEstimatedLiveBytes;
+
 const double IncrementalMarkingSchedule::kEstimatedMarkingTimeMs = 500.0;
 const size_t IncrementalMarkingSchedule::kMinimumMarkedBytesPerIncrementalStep =
     64 * kKB;
@@ -52,6 +55,7 @@ double IncrementalMarkingSchedule::GetElapsedTimeInMs(
 
 size_t IncrementalMarkingSchedule::GetNextIncrementalStepDuration(
     size_t estimated_live_bytes) {
+  last_estimated_live_bytes_ = estimated_live_bytes;
   DCHECK(!incremental_marking_start_time_.IsNull());
   double elapsed_time_in_ms =
       GetElapsedTimeInMs(incremental_marking_start_time_);
@@ -71,6 +75,18 @@ size_t IncrementalMarkingSchedule::GetNextIncrementalStepDuration(
   // up" by marking (|expected_marked_bytes| - |actual_marked_bytes|).
   return std::max(kMinimumMarkedBytesPerIncrementalStep,
                   expected_marked_bytes - actual_marked_bytes);
+}
+
+constexpr double
+    IncrementalMarkingSchedule::kEphemeronPairsFlushingRatioIncrements;
+bool IncrementalMarkingSchedule::ShouldFlushEphemeronPairs() {
+  DCHECK_NE(kInvalidLastEstimatedLiveBytes, last_estimated_live_bytes_);
+  if (GetOverallMarkedBytes() <
+      (ephemeron_pairs_flushing_ratio_target * last_estimated_live_bytes_))
+    return false;
+  ephemeron_pairs_flushing_ratio_target +=
+      kEphemeronPairsFlushingRatioIncrements;
+  return true;
 }
 
 }  // namespace internal

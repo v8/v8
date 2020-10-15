@@ -33,6 +33,11 @@ class MarkingWorklists {
     size_t bailedout_size;
   };
 
+  struct EphemeronPairItem {
+    const void* key;
+    TraceDescriptor value_desc;
+  };
+
   // Segment size of 512 entries necessary to avoid throughput regressions.
   // Since the work list is currently a temporary object this is not a problem.
   using MarkingWorklist =
@@ -46,6 +51,8 @@ class MarkingWorklists {
   using ConcurrentMarkingBailoutWorklist =
       heap::base::Worklist<ConcurrentMarkingBailoutItem,
                            64 /* local entries */>;
+  using EphemeronPairsWorklist =
+      heap::base::Worklist<EphemeronPairItem, 64 /* local entries */>;
 
   class V8_EXPORT_PRIVATE NotFullyConstructedWorklist {
    public:
@@ -85,6 +92,12 @@ class MarkingWorklists {
   ConcurrentMarkingBailoutWorklist* concurrent_marking_bailout_worklist() {
     return &concurrent_marking_bailout_worklist_;
   }
+  EphemeronPairsWorklist* discovered_ephemeron_pairs_worklist() {
+    return &discovered_ephemeron_pairs_worklist_;
+  }
+  EphemeronPairsWorklist* ephemeron_pairs_for_processing_worklist() {
+    return &ephemeron_pairs_for_processing_worklist_;
+  }
 
   void ClearForTesting();
 
@@ -96,6 +109,8 @@ class MarkingWorklists {
   WriteBarrierWorklist write_barrier_worklist_;
   WeakCallbackWorklist weak_callback_worklist_;
   ConcurrentMarkingBailoutWorklist concurrent_marking_bailout_worklist_;
+  EphemeronPairsWorklist discovered_ephemeron_pairs_worklist_;
+  EphemeronPairsWorklist ephemeron_pairs_for_processing_worklist_;
 };
 
 }  // namespace internal

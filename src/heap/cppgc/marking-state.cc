@@ -16,7 +16,14 @@ void MutatorMarkingState::FlushNotFullyConstructedObjects() {
     if (MarkNoPush(*object))
       previously_not_fully_constructed_worklist_.Push(object);
   }
-  DCHECK(not_fully_constructed_worklist_.IsEmpty());
+}
+
+void MutatorMarkingState::FlushDiscoveredEphemeronPairs() {
+  discovered_ephemeron_pairs_worklist_.Publish();
+  if (!discovered_ephemeron_pairs_worklist_.IsGlobalEmpty()) {
+    ephemeron_pairs_for_processing_worklist_.Merge(
+        &discovered_ephemeron_pairs_worklist_);
+  }
 }
 
 }  // namespace internal

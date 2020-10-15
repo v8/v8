@@ -35,6 +35,8 @@ class V8_EXPORT_PRIVATE IncrementalMarkingSchedule {
     elapsed_time_for_testing_ = elapsed_time;
   }
 
+  bool ShouldFlushEphemeronPairs();
+
  private:
   double GetElapsedTimeInMs(v8::base::TimeTicks);
 
@@ -46,6 +48,11 @@ class V8_EXPORT_PRIVATE IncrementalMarkingSchedule {
   // Using -1 as sentinel to denote
   static constexpr double kNoSetElapsedTimeForTesting = -1;
   double elapsed_time_for_testing_ = kNoSetElapsedTimeForTesting;
+
+  static constexpr size_t kInvalidLastEstimatedLiveBytes = -1;
+  size_t last_estimated_live_bytes_ = kInvalidLastEstimatedLiveBytes;
+  double ephemeron_pairs_flushing_ratio_target = 0.25;
+  static constexpr double kEphemeronPairsFlushingRatioIncrements = 0.25;
 };
 
 }  // namespace internal
