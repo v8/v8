@@ -2091,7 +2091,8 @@ void TurboAssembler::RoundFloat(FPURegister dst, FPURegister src,
     Ext(at, scratch, kFloat32MantissaBits, kFloat32ExponentBits);
     Branch(USE_DELAY_SLOT, &done, hs, at,
            Operand(kFloat32ExponentBias + kFloat32MantissaBits));
-    mov_s(dst, src);
+    // Canonicalize the result.
+    sub_s(dst, src, kDoubleRegZero);
     round(this, dst, src);
     mfc1(at, dst);
     Branch(USE_DELAY_SLOT, &done, ne, at, Operand(zero_reg));
