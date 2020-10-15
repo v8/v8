@@ -52,7 +52,6 @@ class ConcurrentAllocationThread final : public v8::base::Thread {
 
   void Run() override {
     LocalHeap local_heap(heap_);
-    UnparkedScope unparked_scope(&local_heap);
 
     for (int i = 0; i < kNumIterations; i++) {
       Address address = local_heap.AllocateRawOrFail(
@@ -120,7 +119,6 @@ class LargeObjectConcurrentAllocationThread final : public v8::base::Thread {
 
   void Run() override {
     LocalHeap local_heap(heap_);
-    UnparkedScope unparked_scope(&local_heap);
     const size_t kLargeObjectSize = kMaxRegularHeapObjectSize * 2;
 
     for (int i = 0; i < kNumIterations; i++) {
@@ -188,7 +186,6 @@ class ConcurrentBlackAllocationThread final : public v8::base::Thread {
 
   void Run() override {
     LocalHeap local_heap(heap_);
-    UnparkedScope unparked_scope(&local_heap);
 
     for (int i = 0; i < kNumIterations; i++) {
       if (i == kWhiteIterations) {
@@ -268,7 +265,6 @@ class ConcurrentWriteBarrierThread final : public v8::base::Thread {
 
   void Run() override {
     LocalHeap local_heap(heap_);
-    UnparkedScope unparked_scope(&local_heap);
     fixed_array_.set(0, value_);
   }
 
@@ -330,7 +326,6 @@ class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
 
   void Run() override {
     LocalHeap local_heap(heap_);
-    UnparkedScope unparked_scope(&local_heap);
     int mode_mask = RelocInfo::EmbeddedObjectModeMask();
     for (RelocIterator it(code_, mode_mask); !it.done(); it.next()) {
       DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));

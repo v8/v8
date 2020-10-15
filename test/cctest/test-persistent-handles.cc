@@ -42,7 +42,6 @@ class PersistentHandlesThread final : public v8::base::Thread {
 
   void Run() override {
     LocalHeap local_heap(heap_, std::move(ph_));
-    UnparkedScope unparked_scope(&local_heap);
     LocalHandleScope scope(&local_heap);
 
     for (int i = 0; i < kNumHandles; i++) {
@@ -130,7 +129,6 @@ TEST(DereferencePersistentHandle) {
   }
   {
     LocalHeap local_heap(isolate->heap(), std::move(phs));
-    UnparkedScope scope(&local_heap);
     CHECK_EQ(42, ph->value());
     DisallowHandleDereference disallow_scope;
     CHECK_EQ(42, ph->value());
@@ -142,6 +140,7 @@ TEST(NewPersistentHandleFailsWhenParked) {
   Isolate* isolate = CcTest::i_isolate();
 
   LocalHeap local_heap(isolate->heap());
+  ParkedScope scope(&local_heap);
   // Fail here in debug mode: Persistent handles can't be created if local heap
   // is parked
   local_heap.NewPersistentHandle(Smi::FromInt(1));
@@ -152,6 +151,7 @@ TEST(NewPersistentHandleFailsWhenParkedExplicit) {
   Isolate* isolate = CcTest::i_isolate();
 
   LocalHeap local_heap(isolate->heap(), isolate->NewPersistentHandles());
+  ParkedScope scope(&local_heap);
   // Fail here in debug mode: Persistent handles can't be created if local heap
   // is parked
   local_heap.NewPersistentHandle(Smi::FromInt(1));

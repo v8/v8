@@ -22,15 +22,6 @@ class Heap;
 class Safepoint;
 class LocalHandles;
 
-// LocalHeap is used by the GC to track all threads with heap access in order to
-// stop them before performing a collection. LocalHeaps can be either Parked or
-// Running and are in Parked mode when initialized.
-//   Running: Thread is allowed to access the heap but needs to give the GC the
-//            chance to run regularly by manually invoking Safepoint(). The
-//            thread can be parked using ParkedScope.
-//   Parked:  Heap access is not allowed, so the GC will not stop this thread
-//            for a collection. Useful when threads do not need heap access for
-//            some time or for blocking operations like locking a mutex.
 class V8_EXPORT_PRIVATE LocalHeap {
  public:
   explicit LocalHeap(
@@ -79,8 +70,6 @@ class V8_EXPORT_PRIVATE LocalHeap {
     return kNullMaybeHandle;
   }
 
-  void AttachPersistentHandles(
-      std::unique_ptr<PersistentHandles> persistent_handles);
   std::unique_ptr<PersistentHandles> DetachPersistentHandles();
 #ifdef DEBUG
   bool ContainsPersistentHandle(Address* location);

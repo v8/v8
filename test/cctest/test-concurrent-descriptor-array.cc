@@ -34,7 +34,6 @@ class ConcurrentSearchThread final : public v8::base::Thread {
 
   void Run() override {
     LocalHeap local_heap(heap_, std::move(ph_));
-    UnparkedScope unparked_scope(&local_heap);
     LocalHandleScope scope(&local_heap);
 
     for (int i = 0; i < kNumHandles; i++) {

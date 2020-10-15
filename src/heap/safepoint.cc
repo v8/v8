@@ -114,6 +114,23 @@ SafepointScope::SafepointScope(Heap* heap) : safepoint_(heap->safepoint()) {
 
 SafepointScope::~SafepointScope() { safepoint_->LeaveSafepointScope(); }
 
+void GlobalSafepoint::AddLocalHeap(LocalHeap* local_heap) {
+  base::MutexGuard guard(&local_heaps_mutex_);
+  if (local_heaps_head_) local_heaps_head_->prev_ = local_heap;
+  local_heap->prev_ = nullptr;
+  local_heap->next_ = local_heaps_head_;
+  local_heaps_head_ = local_heap;
+}
+
+void GlobalSafepoint::RemoveLocalHeap(LocalHeap* local_heap) {
+  base::MutexGuard guard(&local_heaps_mutex_);
+  if (local_heap->next_) local_heap->next_->prev_ = local_heap->prev_;
+  if (local_heap->prev_)
+    local_heap->prev_->next_ = local_heap->next_;
+  else
+    local_heaps_head_ = local_heap->next_;
+}
+
 bool GlobalSafepoint::ContainsLocalHeap(LocalHeap* local_heap) {
   base::MutexGuard guard(&local_heaps_mutex_);
   LocalHeap* current = local_heaps_head_;

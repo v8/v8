@@ -35,7 +35,6 @@ class ScriptContextTableAccessUsedThread final : public v8::base::Thread {
 
   void Run() override {
     LocalHeap local_heap(heap_, std::move(ph_));
-    UnparkedScope unparked_scope(&local_heap);
     LocalHandleScope scope(&local_heap);
 
     sema_started_->Signal();
@@ -68,7 +67,6 @@ class AccessScriptContextTableThread final : public v8::base::Thread {
 
   void Run() override {
     LocalHeap local_heap(heap_, std::move(ph_));
-    UnparkedScope unparked_scope(&local_heap);
     LocalHandleScope scope(&local_heap);
 
     sema_started_->Signal();

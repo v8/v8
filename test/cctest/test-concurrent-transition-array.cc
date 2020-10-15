@@ -35,7 +35,6 @@ class ConcurrentSearchThread : public v8::base::Thread {
 
   void Run() override {
     LocalHeap local_heap(heap_, std::move(ph_));
-    UnparkedScope scope(&local_heap);
 
     background_thread_started_->Signal();
 
@@ -71,7 +70,6 @@ class ConcurrentSearchOnOutdatedAccessorThread final
 
   void Run() override {
     LocalHeap local_heap(heap_, std::move(ph_));
-    UnparkedScope scope(&local_heap);
 
     TransitionsAccessor accessor(CcTest::i_isolate(), map_, true);
     background_thread_started_->Signal();
