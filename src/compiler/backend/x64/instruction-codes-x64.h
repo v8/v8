@@ -281,6 +281,8 @@ namespace compiler {
   V(X64Pinsrw)                            \
   V(X64Pinsrd)                            \
   V(X64Pinsrq)                            \
+  V(X64Pextrb)                            \
+  V(X64Pextrw)                            \
   V(X64I8x16SConvertI16x8)                \
   V(X64I8x16Neg)                          \
   V(X64I8x16Shl)                          \
@@ -330,6 +332,8 @@ namespace compiler {
   V(X64S128Load32x2U)                     \
   V(X64S128LoadMem32Zero)                 \
   V(X64S128LoadMem64Zero)                 \
+  V(X64S128Store32Lane)                   \
+  V(X64S128Store64Lane)                   \
   V(X64S32x4Swizzle)                      \
   V(X64S32x4Shuffle)                      \
   V(X64S16x8Blend)                        \

@@ -3235,6 +3235,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pextrb(dst, i.InputSimd128Register(0), i.InputUint8(1));
       break;
     }
+    case kX64Pextrb: {
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      DCHECK(HasAddressingMode(instr));
+      DCHECK(!instr->HasOutput());
+
+      size_t index = 0;
+      Operand operand = i.MemoryOperand(&index);
+      __ Pextrb(operand, i.InputSimd128Register(index),
+                i.InputUint8(index + 1));
+      break;
+    }
+    case kX64Pextrw: {
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      DCHECK(HasAddressingMode(instr));
+      DCHECK(!instr->HasOutput());
+
+      size_t index = 0;
+      Operand operand = i.MemoryOperand(&index);
+      __ Pextrw(operand, i.InputSimd128Register(index),
+                i.InputUint8(index + 1));
+      break;
+    }
     case kX64I8x16ExtractLaneS: {
       Register dst = i.OutputRegister();
       __ Pextrb(dst, i.InputSimd128Register(0), i.InputUint8(1));
@@ -3673,6 +3695,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64S128LoadMem64Zero: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Movq(i.OutputSimd128Register(), i.MemoryOperand());
+      break;
+    }
+    case kX64S128Store32Lane: {
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      size_t index = 0;
+      Operand operand = i.MemoryOperand(&index);
+      uint8_t lane = i.InputUint8(index + 1);
+      if (lane == 0) {
+        __ Movss(operand, i.InputSimd128Register(index));
+      } else {
+        DCHECK_GE(3, lane);
+        __ Extractps(operand, i.InputSimd128Register(index), lane);
+      }
+      break;
+    }
+    case kX64S128Store64Lane: {
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      size_t index = 0;
+      Operand operand = i.MemoryOperand(&index);
+      uint8_t lane = i.InputUint8(index + 1);
+      if (lane == 0) {
+        __ Movlps(operand, i.InputSimd128Register(index));
+      } else {
+        DCHECK_EQ(1, lane);
+        __ Movhps(operand, i.InputSimd128Register(index));
+      }
       break;
     }
     case kX64S32x4Swizzle: {

@@ -141,6 +141,25 @@ UnalignedStoreRepresentation const& UnalignedStoreRepresentationOf(
   return OpParameter<UnalignedStoreRepresentation>(op);
 }
 
+size_t hash_value(StoreLaneParameters params) {
+  return base::hash_combine(params.kind, params.rep, params.laneidx);
+}
+
+std::ostream& operator<<(std::ostream& os, StoreLaneParameters params) {
+  return os << "(" << params.kind << " " << params.rep << " " << params.laneidx
+            << ")";
+}
+
+StoreLaneParameters const& StoreLaneParametersOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kStoreLane, op->opcode());
+  return OpParameter<StoreLaneParameters>(op);
+}
+
+bool operator==(StoreLaneParameters lhs, StoreLaneParameters rhs) {
+  return lhs.kind == rhs.kind && lhs.rep == rhs.rep &&
+         lhs.laneidx == rhs.laneidx;
+}
+
 bool operator==(StackSlotRepresentation lhs, StackSlotRepresentation rhs) {
   return lhs.size() == rhs.size() && lhs.alignment() == rhs.alignment();
 }
@@ -821,6 +840,15 @@ struct ProtectedStoreOperator : public Operator1<StoreRepresentation> {
                   StoreRepresentation(rep, kNoWriteBarrier)) {}
 };
 
+template <LoadKind kind, MachineRepresentation rep, uint8_t laneidx>
+struct StoreLaneOperator : public Operator1<StoreLaneParameters> {
+  StoreLaneOperator()
+      : Operator1(IrOpcode::kStoreLane,
+                  Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow,
+                  "StoreLane", 3, 1, 1, 0, 1, 0,
+                  StoreLaneParameters{kind, rep, laneidx}) {}
+};
+
 template <MachineRepresentation rep, MachineSemantic sem>
 struct Word32AtomicLoadOperator : public Operator1<LoadRepresentation> {
   Word32AtomicLoadOperator()
@@ -1197,6 +1225,39 @@ const Operator* MachineOperatorBuilder::LoadLane(LoadKind kind,
 #undef LOAD_LANE_INT32
 #undef LOAD_LANE_INT64
 #undef LOAD_LANE_KIND
+  UNREACHABLE();
+}
+
+const Operator* MachineOperatorBuilder::StoreLane(LoadKind kind,
+                                                  MachineRepresentation rep,
+                                                  uint8_t laneidx) {
+#define STORE_LANE_KIND(REP, KIND, LANEIDX)                             \
+  if (kind == LoadKind::k##KIND && rep == MachineRepresentation::REP && \
+      laneidx == LANEIDX) {                                             \
+    return GetCachedOperator<StoreLaneOperator<                         \
+        LoadKind::k##KIND, MachineRepresentation::REP, LANEIDX>>();     \
+  }
+
+#define STORE_LANE_T(T, LANE)         \
+  STORE_LANE_KIND(T, Normal, LANE)    \
+  STORE_LANE_KIND(T, Unaligned, LANE) \
+  STORE_LANE_KIND(T, Protected, LANE)
+
+#define STORE_LANE_WORD8(LANE) STORE_LANE_T(kWord8, LANE)
+#define STORE_LANE_WORD16(LANE) STORE_LANE_T(kWord16, LANE)
+#define STORE_LANE_WORD32(LANE) STORE_LANE_T(kWord32, LANE)
+#define STORE_LANE_WORD64(LANE) STORE_LANE_T(kWord64, LANE)
+
+  // Semicolons unnecessary, but helps formatting.
+  SIMD_I8x16_LANES(STORE_LANE_WORD8);
+  SIMD_I16x8_LANES(STORE_LANE_WORD16);
+  SIMD_I32x4_LANES(STORE_LANE_WORD32);
+  SIMD_I64x2_LANES(STORE_LANE_WORD64);
+#undef STORE_LANE_WORD8
+#undef STORE_LANE_WORD16
+#undef STORE_LANE_WORD32
+#undef STORE_LANE_WORD64
+#undef STORE_LANE_KIND
   UNREACHABLE();
 }
 

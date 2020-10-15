@@ -450,6 +450,13 @@ class WasmGraphBuildingInterface {
           value.node, decoder->position(), type.value_type());
   }
 
+  void StoreLane(FullDecoder* decoder, StoreType type,
+                 const MemoryAccessImmediate<validate>& imm, const Value& index,
+                 const Value& value, const uint8_t laneidx) {
+    BUILD(StoreLane, type.mem_rep(), index.node, imm.offset, imm.alignment,
+          value.node, laneidx, decoder->position(), type.value_type());
+  }
+
   void CurrentMemoryPages(FullDecoder* decoder, Value* result) {
     result->node = BUILD(CurrentMemoryPages);
   }

@@ -1424,6 +1424,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitStore(node);
     case IrOpcode::kProtectedStore:
       return VisitProtectedStore(node);
+    case IrOpcode::kStoreLane: {
+      MarkAsRepresentation(MachineRepresentation::kSimd128, node);
+      return VisitStoreLane(node);
+    }
     case IrOpcode::kWord32And:
       return MarkAsWord32(node), VisitWord32And(node);
     case IrOpcode::kWord32Or:
@@ -2699,6 +2703,7 @@ void InstructionSelector::VisitI8x16Popcnt(Node* node) { UNIMPLEMENTED(); }
 #if !V8_TARGET_ARCH_X64
 // TODO(v8:10975): Prototyping load lane and store lane.
 void InstructionSelector::VisitLoadLane(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitStoreLane(Node* node) { UNIMPLEMENTED(); }
 
 // TODO(v8:10997) Prototype i64x2.bitmask.
 void InstructionSelector::VisitI64x2BitMask(Node* node) { UNIMPLEMENTED(); }

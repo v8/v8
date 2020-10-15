@@ -325,6 +325,9 @@ class WasmGraphBuilder {
   Node* StoreMem(MachineRepresentation mem_rep, Node* index, uint64_t offset,
                  uint32_t alignment, Node* val, wasm::WasmCodePosition position,
                  wasm::ValueType type);
+  Node* StoreLane(MachineRepresentation mem_rep, Node* index, uint32_t offset,
+                  uint32_t alignment, Node* val, uint8_t laneidx,
+                  wasm::WasmCodePosition position, wasm::ValueType type);
   static void PrintDebugName(Node* node);
 
   void set_instance_node(Node* instance_node) {

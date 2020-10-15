@@ -2692,6 +2692,22 @@ class WasmInterpreterInternals {
         return DoSimdLoadLane<int2, int64_t, int64_t>(
             decoder, code, pc, len, MachineRepresentation::kWord64);
       }
+      case kExprS128Store8Lane: {
+        return DoSimdStoreLane<int16, int32_t, int8_t>(
+            decoder, code, pc, len, MachineRepresentation::kWord8);
+      }
+      case kExprS128Store16Lane: {
+        return DoSimdStoreLane<int8, int32_t, int16_t>(
+            decoder, code, pc, len, MachineRepresentation::kWord16);
+      }
+      case kExprS128Store32Lane: {
+        return DoSimdStoreLane<int4, int32_t, int32_t>(
+            decoder, code, pc, len, MachineRepresentation::kWord32);
+      }
+      case kExprS128Store64Lane: {
+        return DoSimdStoreLane<int2, int64_t, int64_t>(
+            decoder, code, pc, len, MachineRepresentation::kWord64);
+      }
       default:
         return false;
     }
@@ -2767,6 +2783,30 @@ class WasmInterpreterInternals {
     result_type loaded = Pop().to<result_type>();
     value.val[LANE(lane_imm.lane, value)] = loaded;
     Push(WasmValue(Simd128(value)));
+    return true;
+  }
+
+  template <typename s_type, typename result_type, typename load_type>
+  bool DoSimdStoreLane(Decoder* decoder, InterpreterCode* code, pc_t pc,
+                       int* const len, MachineRepresentation rep) {
+    // Extract a single lane, push it onto the stack, then store the lane.
+    s_type value = Pop().to_s128().to<s_type>();
+
+    MemoryAccessImmediate<Decoder::kNoValidation> imm(
+        decoder, code->at(pc + *len), sizeof(load_type));
+
+    SimdLaneImmediate<Decoder::kNoValidation> lane_imm(
+        decoder, code->at(pc + *len + imm.length));
+
+    Push(WasmValue(value.val[LANE(lane_imm.lane, value)]));
+
+    // ExecuteStore will update the len, so pass it unchanged here.
+    if (!ExecuteStore<result_type, load_type>(decoder, code, pc, len, rep,
+                                              /*prefix_len=*/*len)) {
+      return false;
+    }
+
+    *len += lane_imm.length;
     return true;
   }
 

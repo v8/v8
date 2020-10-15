@@ -3688,6 +3688,81 @@ WASM_SIMD_TEST_NO_LOWERING(S128Load64Lane) {
   RunLoadLaneTest<int64_t>(execution_tier, lower_simd, kExprS128Load64Lane,
                            kExprI64x2Splat);
 }
+
+template <typename T>
+void RunStoreLaneTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
+                      WasmOpcode store_op, WasmOpcode splat_op) {
+  FLAG_SCOPE(wasm_simd_post_mvp);
+  if (execution_tier == TestExecutionTier::kLiftoff) {
+    // Not yet implemented.
+    return;
+  }
+
+  constexpr int lanes = kSimd128Size / sizeof(T);
+  constexpr int mem_index = 16;  // Store from mem index 16 (bytes).
+  constexpr int splat_value = 33;
+  WasmOpcode const_op =
+      splat_op == kExprI64x2Splat ? kExprI64Const : kExprI32Const;
+
+  for (int lane_index = 0; lane_index < lanes; lane_index++) {
+    WasmRunner<int32_t> r(execution_tier, lower_simd);
+    T* memory = r.builder().AddMemoryElems<T>(kWasmPageSize / sizeof(T));
+
+    // Splat splat_value, then only Store and replace a single lane with the
+    BUILD(r, WASM_I32V(mem_index), const_op, splat_value,
+          WASM_SIMD_OP(splat_op), WASM_SIMD_OP(store_op), ZERO_ALIGNMENT,
+          ZERO_OFFSET, lane_index, WASM_ONE);
+
+    r.builder().BlankMemory();
+    r.Call();
+
+    for (int i = 0; i < lanes; i++) {
+      CHECK_EQ(0, r.builder().ReadMemory(&memory[i]));
+    }
+
+    CHECK_EQ(splat_value, r.builder().ReadMemory(&memory[lanes]));
+
+    for (int i = lanes + 1; i < lanes * 2; i++) {
+      CHECK_EQ(0, r.builder().ReadMemory(&memory[i]));
+    }
+  }
+
+  // OOB stores
+  {
+    WasmRunner<int32_t, uint32_t> r(execution_tier, lower_simd);
+    r.builder().AddMemoryElems<T>(kWasmPageSize / sizeof(T));
+
+    BUILD(r, WASM_GET_LOCAL(0), const_op, splat_value, WASM_SIMD_OP(splat_op),
+          WASM_SIMD_OP(store_op), ZERO_ALIGNMENT, ZERO_OFFSET, 0, WASM_ONE);
+
+    // StoreLane stores sizeof(T) bytes.
+    for (uint32_t index = kWasmPageSize - (sizeof(T) - 1);
+         index < kWasmPageSize; ++index) {
+      CHECK_TRAP(r.Call(index));
+    }
+  }
+}
+
+WASM_SIMD_TEST_NO_LOWERING(S128Store8Lane) {
+  RunStoreLaneTest<int8_t>(execution_tier, lower_simd, kExprS128Store8Lane,
+                           kExprI8x16Splat);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(S128Store16Lane) {
+  RunStoreLaneTest<int16_t>(execution_tier, lower_simd, kExprS128Store16Lane,
+                            kExprI16x8Splat);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(S128Store32Lane) {
+  RunStoreLaneTest<int32_t>(execution_tier, lower_simd, kExprS128Store32Lane,
+                            kExprI32x4Splat);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(S128Store64Lane) {
+  RunStoreLaneTest<int64_t>(execution_tier, lower_simd, kExprS128Store64Lane,
+                            kExprI64x2Splat);
+}
+
 #endif  // V8_TARGET_ARCH_X64
 
 #define WASM_SIMD_ANYTRUE_TEST(format, lanes, max, param_type)                \

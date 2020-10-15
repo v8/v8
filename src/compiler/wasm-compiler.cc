@@ -16,6 +16,7 @@
 #include "src/codegen/code-factory.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/interface-descriptors.h"
+#include "src/codegen/machine-type.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/instruction-selector.h"
@@ -4108,6 +4109,37 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
   }
 
   return load;
+}
+
+Node* WasmGraphBuilder::StoreLane(MachineRepresentation mem_rep, Node* index,
+                                  uint32_t offset, uint32_t alignment,
+                                  Node* val, uint8_t laneidx,
+                                  wasm::WasmCodePosition position,
+                                  wasm::ValueType type) {
+  Node* store;
+  has_simd_ = true;
+  index = BoundsCheckMem(i::ElementSizeInBytes(mem_rep), index, offset,
+                         position, kCanOmitBoundsCheck);
+
+  MachineType memtype = MachineType(mem_rep, MachineSemantic::kNone);
+  LoadKind load_kind = GetLoadKind(mcgraph(), memtype, use_trap_handler());
+
+  // {offset} is validated to be within uintptr_t range in {BoundsCheckMem}.
+  uintptr_t capped_offset = static_cast<uintptr_t>(offset);
+
+  store = SetEffect(graph()->NewNode(
+      mcgraph()->machine()->StoreLane(load_kind, mem_rep, laneidx),
+      MemBuffer(capped_offset), index, val, effect(), control()));
+
+  if (load_kind == LoadKind::kProtected) {
+    SetSourcePosition(store, position);
+  }
+
+  if (FLAG_trace_wasm_memory) {
+    TraceMemoryOperation(true, mem_rep, index, capped_offset, position);
+  }
+
+  return store;
 }
 
 Node* WasmGraphBuilder::StoreMem(MachineRepresentation mem_rep, Node* index,

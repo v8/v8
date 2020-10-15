@@ -7,6 +7,7 @@
 #include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/base/overflowing-math.h"
+#include "src/codegen/machine-type.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
@@ -537,6 +538,40 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) { UNREACHABLE(); }
 
 // Architecture supports unaligned access, therefore VisitStore is used instead
 void InstructionSelector::VisitUnalignedStore(Node* node) { UNREACHABLE(); }
+
+void InstructionSelector::VisitStoreLane(Node* node) {
+  X64OperandGenerator g(this);
+
+  StoreLaneParameters params = StoreLaneParametersOf(node->op());
+  InstructionCode opcode = kArchNop;
+  if (params.rep == MachineRepresentation::kWord8) {
+    opcode = kX64Pextrb;
+  } else if (params.rep == MachineRepresentation::kWord16) {
+    opcode = kX64Pextrw;
+  } else if (params.rep == MachineRepresentation::kWord32) {
+    opcode = kX64S128Store32Lane;
+  } else if (params.rep == MachineRepresentation::kWord64) {
+    opcode = kX64S128Store64Lane;
+  } else {
+    UNREACHABLE();
+  }
+
+  InstructionOperand inputs[4];
+  size_t input_count = 0;
+  AddressingMode addressing_mode =
+      g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
+  opcode |= AddressingModeField::encode(addressing_mode);
+
+  if (params.kind == LoadKind::kProtected) {
+    opcode |= MiscField::encode(kMemoryAccessProtected);
+  }
+
+  InstructionOperand value_operand = g.UseRegister(node->InputAt(2));
+  inputs[input_count++] = value_operand;
+  inputs[input_count++] = g.UseImmediate(params.laneidx);
+  DCHECK_GE(4, input_count);
+  Emit(opcode, 0, nullptr, input_count, inputs);
+}
 
 // Shared routine for multiple binary operations.
 static void VisitBinop(InstructionSelector* selector, Node* node,

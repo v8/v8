@@ -348,8 +348,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
 
     case kX64Movb:
     case kX64Movw:
+    case kX64S128Store32Lane:
+    case kX64S128Store64Lane:
       return kHasSideEffect;
 
+    case kX64Pextrb:
+    case kX64Pextrw:
     case kX64Movl:
       if (instr->HasOutput()) {
         DCHECK_LE(1, instr->InputCount());

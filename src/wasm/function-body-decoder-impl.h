@@ -983,6 +983,8 @@ struct ControlBase : public PcForErrors<validate> {
     Value* result)                                                             \
   F(StoreMem, StoreType type, const MemoryAccessImmediate<validate>& imm,      \
     const Value& index, const Value& value)                                    \
+  F(StoreLane, StoreType type, const MemoryAccessImmediate<validate>& imm,     \
+    const Value& index, const Value& value, const uint8_t laneidx)             \
   F(CurrentMemoryPages, Value* result)                                         \
   F(MemoryGrow, const Value& value, Value* result)                             \
   F(CallDirect, const CallFunctionImmediate<validate>& imm,                    \
@@ -1749,7 +1751,11 @@ class WasmDecoder : public Decoder {
           case kExprS128Load8Lane:
           case kExprS128Load16Lane:
           case kExprS128Load32Lane:
-          case kExprS128Load64Lane: {
+          case kExprS128Load64Lane:
+          case kExprS128Store8Lane:
+          case kExprS128Store16Lane:
+          case kExprS128Store32Lane:
+          case kExprS128Store64Lane: {
             MemoryAccessImmediate<validate> imm(decoder, pc + length,
                                                 UINT32_MAX);
             // 1 more byte for lane index immediate.
@@ -3334,6 +3340,20 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return opcode_length + mem_imm.length + lane_imm.length;
   }
 
+  int DecodeStoreLane(StoreType type, uint32_t opcode_length) {
+    if (!CheckHasMemory()) return 0;
+    MemoryAccessImmediate<validate> mem_imm(this, this->pc_ + opcode_length,
+                                            type.size_log_2());
+    SimdLaneImmediate<validate> lane_imm(
+        this, this->pc_ + opcode_length + mem_imm.length);
+    Value v128 = Pop(1, kWasmS128);
+    Value index = Pop(0, kWasmI32);
+
+    CALL_INTERFACE_IF_REACHABLE(StoreLane, type, mem_imm, index, v128,
+                                lane_imm.lane);
+    return opcode_length + mem_imm.length + lane_imm.length;
+  }
+
   int DecodeStoreMem(StoreType store, int prefix_len = 1) {
     if (!CheckHasMemory()) return 0;
     MemoryAccessImmediate<validate> imm(this, this->pc_ + prefix_len,
@@ -3577,6 +3597,18 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       }
       case kExprS128Load64Lane: {
         return DecodeLoadLane(LoadType::kI64Load, opcode_length);
+      }
+      case kExprS128Store8Lane: {
+        return DecodeStoreLane(StoreType::kI32Store8, opcode_length);
+      }
+      case kExprS128Store16Lane: {
+        return DecodeStoreLane(StoreType::kI32Store16, opcode_length);
+      }
+      case kExprS128Store32Lane: {
+        return DecodeStoreLane(StoreType::kI32Store, opcode_length);
+      }
+      case kExprS128Store64Lane: {
+        return DecodeStoreLane(StoreType::kI64Store, opcode_length);
       }
       case kExprS128Const:
         return SimdConstOp(opcode_length);

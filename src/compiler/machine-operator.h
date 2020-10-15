@@ -49,6 +49,7 @@ using LoadRepresentation = MachineType;
 V8_EXPORT_PRIVATE LoadRepresentation LoadRepresentationOf(Operator const*)
     V8_WARN_UNUSED_RESULT;
 
+// TODO(zhin): This is used by StoreLane too, rename this.
 enum class LoadKind {
   kNormal,
   kUnaligned,
@@ -133,6 +134,17 @@ V8_EXPORT_PRIVATE StoreRepresentation const& StoreRepresentationOf(
 using UnalignedStoreRepresentation = MachineRepresentation;
 
 UnalignedStoreRepresentation const& UnalignedStoreRepresentationOf(
+    Operator const*) V8_WARN_UNUSED_RESULT;
+
+struct StoreLaneParameters {
+  LoadKind kind;
+  MachineRepresentation rep;
+  uint8_t laneidx;
+};
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, StoreLaneParameters);
+
+V8_EXPORT_PRIVATE StoreLaneParameters const& StoreLaneParametersOf(
     Operator const*) V8_WARN_UNUSED_RESULT;
 
 class StackSlotRepresentation final {
@@ -800,6 +812,10 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // store [base + index], value
   const Operator* Store(StoreRepresentation rep);
   const Operator* ProtectedStore(MachineRepresentation rep);
+
+  // SIMD store: store a specified lane of value into [base + index].
+  const Operator* StoreLane(LoadKind kind, MachineRepresentation rep,
+                            uint8_t laneidx);
 
   // unaligned load [base + index]
   const Operator* UnalignedLoad(LoadRepresentation rep);
