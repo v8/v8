@@ -3707,9 +3707,9 @@ WASM_SIMD_TEST_NO_LOWERING(S128Load64Lane) {
         r,                                                                    \
         WASM_SET_LOCAL(simd, WASM_SIMD_I##format##_SPLAT(WASM_GET_LOCAL(0))), \
         WASM_SIMD_UNOP(kExprV##format##AnyTrue, WASM_GET_LOCAL(simd)));       \
-    DCHECK_EQ(1, r.Call(max));                                                \
-    DCHECK_EQ(1, r.Call(5));                                                  \
-    DCHECK_EQ(0, r.Call(0));                                                  \
+    CHECK_EQ(1, r.Call(max));                                                 \
+    CHECK_EQ(1, r.Call(5));                                                   \
+    CHECK_EQ(0, r.Call(0));                                                   \
   }
 WASM_SIMD_ANYTRUE_TEST(32x4, 4, 0xffffffff, int32_t)
 WASM_SIMD_ANYTRUE_TEST(16x8, 8, 0xffff, int32_t)
@@ -3723,8 +3723,8 @@ WASM_SIMD_TEST(V32x4AnytrueWithNegativeZero) {
   byte simd = r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_SET_LOCAL(simd, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(0))),
         WASM_SIMD_UNOP(kExprV32x4AnyTrue, WASM_GET_LOCAL(simd)));
-  DCHECK_EQ(1, r.Call(0x8000000000000000));
-  DCHECK_EQ(0, r.Call(0x0000000000000000));
+  CHECK_EQ(1, r.Call(0x8000000000000000));
+  CHECK_EQ(0, r.Call(0x0000000000000000));
 }
 
 #define WASM_SIMD_ALLTRUE_TEST(format, lanes, max, param_type)                \
@@ -3737,9 +3737,9 @@ WASM_SIMD_TEST(V32x4AnytrueWithNegativeZero) {
         r,                                                                    \
         WASM_SET_LOCAL(simd, WASM_SIMD_I##format##_SPLAT(WASM_GET_LOCAL(0))), \
         WASM_SIMD_UNOP(kExprV##format##AllTrue, WASM_GET_LOCAL(simd)));       \
-    DCHECK_EQ(1, r.Call(max));                                                \
-    DCHECK_EQ(1, r.Call(0x1));                                                \
-    DCHECK_EQ(0, r.Call(0));                                                  \
+    CHECK_EQ(1, r.Call(max));                                                 \
+    CHECK_EQ(1, r.Call(0x1));                                                 \
+    CHECK_EQ(0, r.Call(0));                                                   \
   }
 WASM_SIMD_ALLTRUE_TEST(32x4, 4, 0xffffffff, int32_t)
 WASM_SIMD_ALLTRUE_TEST(16x8, 8, 0xffff, int32_t)
@@ -3755,7 +3755,7 @@ WASM_SIMD_TEST(BitSelect) {
                              WASM_SIMD_I32x4_SPLAT(WASM_I32V(0)),
                              WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(0)))),
         WASM_SIMD_I32x4_EXTRACT_LANE(0, WASM_GET_LOCAL(simd)));
-  DCHECK_EQ(0x01020304, r.Call(0xFFFFFFFF));
+  CHECK_EQ(0x01020304, r.Call(0xFFFFFFFF));
 }
 
 void RunSimdConstTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
@@ -3822,12 +3822,12 @@ void RunI8x16MixedRelationalOpTest(TestExecutionTier execution_tier,
                                               WASM_GET_LOCAL(temp2))),
         WASM_SIMD_I8x16_EXTRACT_LANE(0, WASM_GET_LOCAL(temp3)));
 
-  DCHECK_EQ(expected_op(0xff, static_cast<uint8_t>(0x7fff)),
-            r.Call(0xff, 0x7fff));
-  DCHECK_EQ(expected_op(0xfe, static_cast<uint8_t>(0x7fff)),
-            r.Call(0xfe, 0x7fff));
-  DCHECK_EQ(expected_op(0xff, static_cast<uint8_t>(0x7ffe)),
-            r.Call(0xff, 0x7ffe));
+  CHECK_EQ(expected_op(0xff, static_cast<uint8_t>(0x7fff)),
+           r.Call(0xff, 0x7fff));
+  CHECK_EQ(expected_op(0xfe, static_cast<uint8_t>(0x7fff)),
+           r.Call(0xfe, 0x7fff));
+  CHECK_EQ(expected_op(0xff, static_cast<uint8_t>(0x7ffe)),
+           r.Call(0xff, 0x7ffe));
 }
 
 WASM_SIMD_TEST(I8x16LeUMixed) {
@@ -3861,12 +3861,12 @@ void RunI16x8MixedRelationalOpTest(TestExecutionTier execution_tier,
                                               WASM_GET_LOCAL(temp2))),
         WASM_SIMD_I16x8_EXTRACT_LANE(0, WASM_GET_LOCAL(temp3)));
 
-  DCHECK_EQ(expected_op(0xffff, static_cast<uint16_t>(0x7fffffff)),
-            r.Call(0xffff, 0x7fffffff));
-  DCHECK_EQ(expected_op(0xfeff, static_cast<uint16_t>(0x7fffffff)),
-            r.Call(0xfeff, 0x7fffffff));
-  DCHECK_EQ(expected_op(0xffff, static_cast<uint16_t>(0x7ffffeff)),
-            r.Call(0xffff, 0x7ffffeff));
+  CHECK_EQ(expected_op(0xffff, static_cast<uint16_t>(0x7fffffff)),
+           r.Call(0xffff, 0x7fffffff));
+  CHECK_EQ(expected_op(0xfeff, static_cast<uint16_t>(0x7fffffff)),
+           r.Call(0xfeff, 0x7fffffff));
+  CHECK_EQ(expected_op(0xffff, static_cast<uint16_t>(0x7ffffeff)),
+           r.Call(0xffff, 0x7ffffeff));
 }
 
 WASM_SIMD_TEST(I16x8LeUMixed) {
