@@ -725,8 +725,7 @@ WASM_EXEC_TEST(I64SConvertF32) {
   BUILD(r, WASM_I64_SCONVERT_F32(WASM_GET_LOCAL(0)));
 
   FOR_FLOAT32_INPUTS(i) {
-    if (i < static_cast<float>(std::numeric_limits<int64_t>::max()) &&
-        i >= static_cast<float>(std::numeric_limits<int64_t>::min())) {
+    if (base::IsValueInRangeForNumericType<int64_t>(i)) {
       CHECK_EQ(static_cast<int64_t>(i), r.Call(i));
     } else {
       CHECK_TRAP64(r.Call(i));
@@ -739,8 +738,7 @@ WASM_EXEC_TEST(I64SConvertSatF32) {
   BUILD(r, WASM_I64_SCONVERT_SAT_F32(WASM_GET_LOCAL(0)));
   FOR_FLOAT32_INPUTS(i) {
     int64_t expected;
-    if (i < static_cast<float>(std::numeric_limits<int64_t>::max()) &&
-        i >= static_cast<float>(std::numeric_limits<int64_t>::min())) {
+    if (base::IsValueInRangeForNumericType<int64_t>(i)) {
       expected = static_cast<int64_t>(i);
     } else if (std::isnan(i)) {
       expected = static_cast<int64_t>(0);

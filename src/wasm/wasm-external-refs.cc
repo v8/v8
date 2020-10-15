@@ -180,12 +180,8 @@ void uint64_to_float64_wrapper(Address data) {
 }
 
 int32_t float32_to_int64_wrapper(Address data) {
-  // We use "<" here to check the upper bound because of rounding problems: With
-  // "<=" some inputs would be considered within int64 range which are actually
-  // not within int64 range.
   float input = ReadUnalignedValue<float>(data);
-  if (input >= static_cast<float>(std::numeric_limits<int64_t>::min()) &&
-      input < static_cast<float>(std::numeric_limits<int64_t>::max())) {
+  if (base::IsValueInRangeForNumericType<int64_t>(input)) {
     WriteUnalignedValue<int64_t>(data, static_cast<int64_t>(input));
     return 1;
   }
@@ -229,11 +225,7 @@ int32_t float64_to_uint64_wrapper(Address data) {
 
 void float32_to_int64_sat_wrapper(Address data) {
   float input = ReadUnalignedValue<float>(data);
-  // We use "<" here to check the upper bound because of rounding problems: With
-  // "<=" some inputs would be considered within int64 range which are actually
-  // not within int64 range.
-  if (input < static_cast<float>(std::numeric_limits<int64_t>::max()) &&
-      input >= static_cast<float>(std::numeric_limits<int64_t>::min())) {
+  if (base::IsValueInRangeForNumericType<int64_t>(input)) {
     WriteUnalignedValue<int64_t>(data, static_cast<int64_t>(input));
     return;
   }
