@@ -71,6 +71,7 @@ class BuiltinsConstantsTableBuilder;
 class CancelableTaskManager;
 class CodeEventDispatcher;
 class CodeTracer;
+class CommonFrame;
 class CompilationCache;
 class CompilationStatistics;
 class CompilerDispatcher;
@@ -98,7 +99,6 @@ class RuntimeProfiler;
 class SetupIsolateDelegate;
 class Simulator;
 class SnapshotData;
-class StandardFrame;
 class StringTable;
 class StubCache;
 class ThreadManager;
@@ -2000,7 +2000,7 @@ class V8_EXPORT_PRIVATE SaveContext {
   Handle<Context> context() { return context_; }
 
   // Returns true if this save context is below a given JavaScript frame.
-  bool IsBelowFrame(StandardFrame* frame);
+  bool IsBelowFrame(CommonFrame* frame);
 
  private:
   Isolate* const isolate_;

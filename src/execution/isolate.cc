@@ -1041,7 +1041,7 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
         // A standard frame may include many summarized frames (due to
         // inlining).
         std::vector<FrameSummary> frames;
-        StandardFrame::cast(frame)->Summarize(&frames);
+        CommonFrame::cast(frame)->Summarize(&frames);
         for (size_t i = frames.size(); i-- != 0 && !builder.full();) {
           auto& summary = frames[i];
           if (options.capture_only_frames_subject_to_debugging &&
@@ -2115,7 +2115,7 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
 bool Isolate::ComputeLocation(MessageLocation* target) {
   StackTraceFrameIterator it(this);
   if (it.done()) return false;
-  StandardFrame* frame = it.frame();
+  CommonFrame* frame = it.frame();
   // Compute the location from the function and the relocation info of the
   // baseline code. For optimized code this will use the deoptimization
   // information to get canonical location information.
@@ -4595,7 +4595,7 @@ SaveContext::~SaveContext() {
   isolate_->set_context(context_.is_null() ? Context() : *context_);
 }
 
-bool SaveContext::IsBelowFrame(StandardFrame* frame) {
+bool SaveContext::IsBelowFrame(CommonFrame* frame) {
   return (c_entry_fp_ == 0) || (c_entry_fp_ > frame->sp());
 }
 

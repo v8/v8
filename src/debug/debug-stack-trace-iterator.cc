@@ -166,7 +166,7 @@ v8::Local<v8::Function> DebugStackTraceIterator::GetFunction() const {
 std::unique_ptr<v8::debug::ScopeIterator>
 DebugStackTraceIterator::GetScopeIterator() const {
   DCHECK(!Done());
-  StandardFrame* frame = iterator_.frame();
+  CommonFrame* frame = iterator_.frame();
   if (frame->is_wasm()) {
     return std::make_unique<DebugWasmScopeIterator>(isolate_,
                                                     WasmFrame::cast(frame));

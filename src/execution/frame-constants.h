@@ -56,7 +56,7 @@ class CommonFrameConstants : public AllStatic {
 
   // Fixed part of the frame consists of return address, caller fp,
   // constant pool (if FLAG_enable_embedded_constant_pool), context, and
-  // function. StandardFrame::IterateExpressions assumes that kLastObjectOffset
+  // function. CommonFrame::IterateExpressions assumes that kLastObjectOffset
   // is the last object pointer.
   static constexpr int kFixedFrameSizeAboveFp = kPCOnStackSize + kFPOnStackSize;
   static constexpr int kFixedSlotCountAboveFp =
@@ -308,7 +308,7 @@ class InterpreterFrameConstants : public StandardFrameConstants {
       -kFixedFrameSizeFromFp - kSystemPointerSize;
   static constexpr int kExpressionsOffset = kRegisterFileFromFp;
 
-  // Expression index for {StandardFrame::GetExpressionAddress}.
+  // Expression index for {JavaScriptFrame::GetExpressionAddress}.
   static constexpr int kBytecodeArrayExpressionIndex = -2;
   static constexpr int kBytecodeOffsetExpressionIndex = -1;
   static constexpr int kRegisterFileExpressionIndex = 0;
