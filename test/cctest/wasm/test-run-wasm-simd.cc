@@ -2229,12 +2229,7 @@ WASM_SIMD_TEST_NO_LOWERING(I16x8Q15MulRSatS) {
 }
 #endif  // V8_TARGET_ARCH_ARM64
 
-// TODO(v8:10583) Prototype i32x4.dot_i16x8_s
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 || \
-    V8_TARGET_ARCH_ARM
 WASM_SIMD_TEST_NO_LOWERING(I32x4DotI16x8S) {
-  FLAG_SCOPE(wasm_simd_post_mvp);
-
   WasmRunner<int32_t, int16_t, int16_t> r(execution_tier, lower_simd);
   int32_t* g = r.builder().template AddGlobal<int32_t>(kWasmS128);
   byte value1 = 0, value2 = 1;
@@ -2258,8 +2253,6 @@ WASM_SIMD_TEST_NO_LOWERING(I32x4DotI16x8S) {
     }
   }
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 ||
-        // V8_TARGET_ARCH_ARM
 
 void RunI16x8ShiftOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                          WasmOpcode opcode, Int16ShiftOp expected_op) {
