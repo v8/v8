@@ -1072,6 +1072,22 @@ TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {
   TNode<Object> maybe_result_or_smi_zero = CallRuntime(
       Runtime::kInstantiateAsmJs, context, function, stdlib, foreign, heap);
   GotoIf(TaggedIsSmi(maybe_result_or_smi_zero), &tailcall_to_function);
+
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+  TNode<SharedFunctionInfo> shared = LoadJSFunctionSharedFunctionInfo(function);
+  TNode<Int32T> parameter_count =
+      UncheckedCast<Int32T>(LoadSharedFunctionInfoFormalParameterCount(shared));
+  // This builtin intercepts a call to {function}, where the number of arguments
+  // pushed is the maximum of actual arguments count and formal parameters
+  // count.
+  Label argc_lt_param_count(this), argc_ge_param_count(this);
+  Branch(Int32LessThan(arg_count, parameter_count), &argc_lt_param_count,
+         &argc_ge_param_count);
+  BIND(&argc_lt_param_count);
+  PopAndReturn(Int32Add(parameter_count, Int32Constant(1)),
+               maybe_result_or_smi_zero);
+  BIND(&argc_ge_param_count);
+#endif
   args.PopAndReturn(maybe_result_or_smi_zero);
 
   BIND(&tailcall_to_function);
