@@ -36,6 +36,7 @@ class LocalHandlesThread final : public v8::base::Thread {
 
   void Run() override {
     LocalHeap local_heap(heap_);
+    UnparkedScope unparked_scope(&local_heap);
     LocalHandleScope scope(&local_heap);
 
     static constexpr int kNumHandles =
@@ -103,6 +104,7 @@ TEST(CreateLocalHandlesWithoutLocalHandleScope) {
 
   {
     LocalHeap local_heap(isolate->heap());
+    UnparkedScope scope(&local_heap);
     handle(Smi::FromInt(17), &local_heap);
   }
 }
@@ -123,6 +125,7 @@ TEST(DereferenceLocalHandle) {
   }
   {
     LocalHeap local_heap(isolate->heap(), std::move(phs));
+    UnparkedScope unparked_scope(&local_heap);
     LocalHandleScope scope(&local_heap);
     Handle<HeapNumber> local_number = handle(*ph, &local_heap);
     CHECK_EQ(42, local_number->value());

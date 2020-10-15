@@ -302,11 +302,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   // 1) PersistentHandles created via PersistentHandlesScope inside of
   //    CompilationHandleScope
   // 2) Owned by OptimizedCompilationInfo
-  // 3) Owned by JSHeapBroker
-  // 4) Owned by the broker's LocalHeap
-  // 5) Back to the broker for a brief moment (after tearing down the
-  //   LocalHeap as part of exiting LocalHeapScope)
-  // 6) Back to OptimizedCompilationInfo when exiting the LocalHeapScope.
+  // 3) Owned by the broker's LocalHeap when entering the LocalHeapScope.
+  // 4) Back to OptimizedCompilationInfo when exiting the LocalHeapScope.
   //
   // In normal execution it gets destroyed when PipelineData gets destroyed.
   // There is a special case in GenerateCodeForTesting where the JSHeapBroker

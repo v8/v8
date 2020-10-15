@@ -27,7 +27,7 @@ LocalHeap* LocalHeap::Current() { return current_local_heap; }
 LocalHeap::LocalHeap(Heap* heap,
                      std::unique_ptr<PersistentHandles> persistent_handles)
     : heap_(heap),
-      state_(ThreadState::Running),
+      state_(ThreadState::Parked),
       safepoint_requested_(false),
       allocation_failed_(false),
       prev_(nullptr),
@@ -36,34 +36,35 @@ LocalHeap::LocalHeap(Heap* heap,
       persistent_handles_(std::move(persistent_handles)),
       marking_barrier_(new MarkingBarrier(this)),
       old_space_allocator_(this, heap->old_space()) {
-  heap_->safepoint()->AddLocalHeap(this);
+  heap_->safepoint()->AddLocalHeap(this, [this] {
+    if (FLAG_local_heaps) {
+      WriteBarrier::SetForThread(marking_barrier_.get());
+      if (heap_->incremental_marking()->IsMarking()) {
+        marking_barrier_->Activate(
+            heap_->incremental_marking()->IsCompacting());
+      }
+    }
+  });
+
   if (persistent_handles_) {
     persistent_handles_->Attach(this);
   }
   DCHECK_NULL(current_local_heap);
   current_local_heap = this;
-  // TODO(ulan): Ensure that LocalHeap cannot be created without --local-heaps.
-  if (FLAG_local_heaps) {
-    WriteBarrier::SetForThread(marking_barrier_.get());
-    if (heap_->incremental_marking()->IsMarking()) {
-      marking_barrier_->Activate(heap_->incremental_marking()->IsCompacting());
-    }
-  }
 }
 
 LocalHeap::~LocalHeap() {
-  // TODO(ulan): Ensure that LocalHeap cannot be created without --local-heaps.
-  if (FLAG_local_heaps) {
-    marking_barrier_->Publish();
-    WriteBarrier::ClearForThread(marking_barrier_.get());
-  }
-  // Give up LAB before parking thread
-  old_space_allocator_.FreeLinearAllocationArea();
-
   // Park thread since removing the local heap could block.
   EnsureParkedBeforeDestruction();
 
-  heap_->safepoint()->RemoveLocalHeap(this);
+  heap_->safepoint()->RemoveLocalHeap(this, [this] {
+    old_space_allocator_.FreeLinearAllocationArea();
+
+    if (FLAG_local_heaps) {
+      marking_barrier_->Publish();
+      WriteBarrier::ClearForThread(marking_barrier_.get());
+    }
+  });
 
   DCHECK_EQ(current_local_heap, this);
   current_local_heap = nullptr;
@@ -75,6 +76,13 @@ void LocalHeap::EnsurePersistentHandles() {
         heap_->isolate()->NewPersistentHandles().release());
     persistent_handles_->Attach(this);
   }
+}
+
+void LocalHeap::AttachPersistentHandles(
+    std::unique_ptr<PersistentHandles> persistent_handles) {
+  DCHECK_NULL(persistent_handles_);
+  persistent_handles_ = std::move(persistent_handles);
+  persistent_handles_->Attach(this);
 }
 
 std::unique_ptr<PersistentHandles> LocalHeap::DetachPersistentHandles() {
@@ -116,6 +124,7 @@ void LocalHeap::Unpark() {
 }
 
 void LocalHeap::EnsureParkedBeforeDestruction() {
+  if (IsParked()) return;
   base::MutexGuard guard(&state_mutex_);
   state_ = ThreadState::Parked;
   state_change_.NotifyAll();

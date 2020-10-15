@@ -7184,6 +7184,7 @@ TEST(GarbageCollectionWithLocalHeap) {
   Heap* heap = CcTest::i_isolate()->heap();
 
   LocalHeap local_heap(heap);
+  UnparkedScope unparked_scope(&local_heap);
   CcTest::CollectGarbage(OLD_SPACE);
   { ParkedScope parked_scope(&local_heap); }
   CcTest::CollectGarbage(OLD_SPACE);
