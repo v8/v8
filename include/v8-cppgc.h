@@ -66,6 +66,9 @@ class V8_EXPORT JSMemberBase {
   friend class v8::JSMember;
   friend class v8::JSVisitor;
   friend class v8::internal::JSMemberBaseExtractor;
+
+  template <typename U>
+  friend bool operator==(const internal::JSMemberBase&, const Local<U>&);
 };
 
 JSMemberBase& JSMemberBase::CopyImpl(const JSMemberBase& other) {
@@ -91,6 +94,21 @@ void JSMemberBase::Reset() {
   if (IsEmpty()) return;
   Delete(val_);
   SetSlotThreadSafe(nullptr);
+}
+
+template <typename U>
+inline bool operator==(const v8::internal::JSMemberBase& lhs,
+                       const v8::Local<U>& rhs) {
+  v8::internal::Address* a = reinterpret_cast<v8::internal::Address*>(lhs.val_);
+  v8::internal::Address* b = reinterpret_cast<v8::internal::Address*>(*rhs);
+  if (a == nullptr) return b == nullptr;
+  if (b == nullptr) return false;
+  return *a == *b;
+}
+
+template <typename U>
+inline bool operator!=(const v8::internal::JSMemberBase& lhs, const U& rhs) {
+  return !(lhs == rhs);
 }
 
 }  // namespace internal
@@ -225,9 +243,9 @@ class JSVisitor : public cppgc::Visitor {
 
 namespace cppgc {
 
-template <>
-struct TraceTrait<v8::internal::JSMemberBase> {
-  static void Trace(Visitor* visitor, const v8::internal::JSMemberBase* self) {
+template <typename T>
+struct TraceTrait<v8::JSMember<T>> {
+  static void Trace(Visitor* visitor, const v8::JSMember<T>* self) {
     static_cast<v8::JSVisitor*>(visitor)->Trace(*self);
   }
 };

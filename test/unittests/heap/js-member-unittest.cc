@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "include/v8-cppgc.h"
+#include "src/heap/cppgc/visitor.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -157,6 +158,45 @@ TEST_F(JSMemberTest, EqualityHeterogenous) {
     v8::JSMember<v8::Object> member3(v8_isolate(), local2);
     EXPECT_NE(member2, member3);
     EXPECT_NE(member3, member2);
+  }
+}
+
+namespace {
+
+// Must be used on stack.
+class JSVisitorForTesting final : public JSVisitor {
+ public:
+  explicit JSVisitorForTesting(v8::Local<v8::Object> expected_object)
+      : JSVisitor(cppgc::internal::VisitorFactory::CreateKey()),
+        expected_object_(expected_object) {}
+
+  void Visit(const internal::JSMemberBase& ref) final {
+    EXPECT_EQ(ref, expected_object_);
+    visit_count_++;
+  }
+
+  size_t visit_count() const { return visit_count_; }
+
+ private:
+  v8::Local<v8::Object> expected_object_;
+  size_t visit_count_ = 0;
+};
+
+}  // namespace
+
+TEST_F(JSMemberTest, JSMemberTrace) {
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
+  {
+    v8::HandleScope handles(v8_isolate());
+    v8::Local<v8::Object> local =
+        v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
+    v8::JSMember<v8::Object> js_member(v8_isolate(), local);
+    JSVisitorForTesting visitor(local);
+    // Cast to cppgc::Visitor to ensure that we dispatch through the base
+    // visitor and use traits.
+    static_cast<cppgc::Visitor&>(visitor).Trace(js_member);
+    EXPECT_EQ(1u, visitor.visit_count());
   }
 }
 
