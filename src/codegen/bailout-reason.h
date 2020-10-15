@@ -57,6 +57,7 @@ namespace internal {
   V(kStackAccessBelowStackPointer, "Stack access below stack pointer")        \
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                \
   V(kUnalignedCellInWriteBarrier, "Unaligned cell in write barrier")          \
+  V(kUnexpectedAdditionalPopValue, "Unexpected additional pop value")         \
   V(kUnexpectedElementsKindInArrayConstructor,                                \
     "Unexpected ElementsKind in array constructor")                           \
   V(kUnexpectedFPCRMode, "Unexpected FPCR mode.")                             \

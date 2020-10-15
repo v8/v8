@@ -4447,15 +4447,22 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   // We might need rcx and r10 for scratch.
   DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & rcx.bit());
   DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & r10.bit());
+  X64OperandConverter g(this, nullptr);
   int parameter_count =
       static_cast<int>(call_descriptor->StackParameterCount());
-  X64OperandConverter g(this, nullptr);
-  Register pop_reg = additional_pop_count->IsImmediate()
-                         ? rcx
-                         : g.ToRegister(additional_pop_count);
-  Register scratch_reg = pop_reg == rcx ? r10 : rcx;
-  Register argc_reg =
-      additional_pop_count->IsImmediate() ? pop_reg : scratch_reg;
+
+  // {aditional_pop_count} is only greater than zero if {parameter_count = 0}.
+  // Check RawMachineAssembler::PopAndReturn.
+  if (parameter_count != 0) {
+    if (additional_pop_count->IsImmediate()) {
+      DCHECK_EQ(g.ToConstant(additional_pop_count).ToInt32(), 0);
+    } else if (__ emit_debug_code()) {
+      __ cmpq(g.ToRegister(additional_pop_count), Immediate(0));
+      __ Assert(equal, AbortReason::kUnexpectedAdditionalPopValue);
+    }
+  }
+
+  Register argc_reg = rcx;
 #ifdef V8_NO_ARGUMENTS_ADAPTOR
   // Functions with JS linkage have at least one parameter (the receiver).
   // If {parameter_count} == 0, it means it is a builtin with
@@ -4488,41 +4495,33 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   }
 
   if (drop_jsargs) {
-    // In addition to the slots given by {additional_pop_count}, we must pop all
-    // arguments from the stack (including the receiver). This number of
-    // arguments is given by max(1 + argc_reg, parameter_count).
-    Label argc_reg_has_final_count;
-    // Exclude the receiver to simplify the computation. We'll account for it at
-    // the end.
-    int parameter_count_withouth_receiver = parameter_count - 1;
-    if (parameter_count_withouth_receiver != 0) {
-      __ cmpq(argc_reg, Immediate(parameter_count_withouth_receiver));
-      __ j(greater_equal, &argc_reg_has_final_count, Label::kNear);
-      __ movq(argc_reg, Immediate(parameter_count_withouth_receiver));
-      __ bind(&argc_reg_has_final_count);
-    }
-    // Add additional pop count.
-    if (additional_pop_count->IsImmediate()) {
-      DCHECK_EQ(pop_reg, argc_reg);
-      int additional_count = g.ToConstant(additional_pop_count).ToInt32();
-      if (additional_count != 0) {
-        __ addq(pop_reg, Immediate(additional_count));
-      }
-    } else {
-      __ addq(pop_reg, argc_reg);
-    }
+    // We must pop all arguments from the stack (including the receiver). This
+    // number of arguments is given by max(1 + argc_reg, parameter_count).
+    int parameter_count_without_receiver =
+        parameter_count - 1;  // Exclude the receiver to simplify the
+                              // computation. We'll account for it at the end.
+    Label mismatch_return;
+    Register scratch_reg = r10;
+    DCHECK_NE(argc_reg, scratch_reg);
+    __ cmpq(argc_reg, Immediate(parameter_count_without_receiver));
+    __ j(greater, &mismatch_return, Label::kNear);
+    __ Ret(parameter_count * kSystemPointerSize, scratch_reg);
+    __ bind(&mismatch_return);
     __ PopReturnAddressTo(scratch_reg);
-    __ leaq(rsp, Operand(rsp, pop_reg, times_system_pointer_size,
+    __ leaq(rsp, Operand(rsp, argc_reg, times_system_pointer_size,
                          kSystemPointerSize));  // Also pop the receiver.
     // We use a return instead of a jump for better return address prediction.
     __ PushReturnAddressFrom(scratch_reg);
     __ Ret();
   } else if (additional_pop_count->IsImmediate()) {
+    Register scratch_reg = r10;
     int additional_count = g.ToConstant(additional_pop_count).ToInt32();
     size_t pop_size = (parameter_count + additional_count) * kSystemPointerSize;
     CHECK_LE(pop_size, static_cast<size_t>(std::numeric_limits<int>::max()));
     __ Ret(static_cast<int>(pop_size), scratch_reg);
   } else {
+    Register pop_reg = g.ToRegister(additional_pop_count);
+    Register scratch_reg = pop_reg == r10 ? rcx : r10;
     int pop_size = static_cast<int>(parameter_count * kSystemPointerSize);
     __ PopReturnAddressTo(scratch_reg);
     __ leaq(rsp, Operand(rsp, pop_reg, times_system_pointer_size,
