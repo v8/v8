@@ -1965,10 +1965,10 @@ class ModuleDecoderImpl : public Decoder {
                                       ValueType* type, uint32_t* table_index,
                                       WasmInitExpr* offset) {
     const byte* pos = pc();
-    uint8_t flag;
+    uint32_t flag;
     if (enabled_features_.has_bulk_memory() ||
         enabled_features_.has_reftypes()) {
-      flag = consume_u8("flag");
+      flag = consume_u32v("flag");
     } else {
       uint32_t table_index = consume_u32v("table index");
       // The only valid flag value without bulk_memory or externref is '0'.

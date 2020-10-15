@@ -7,9 +7,7 @@
   'skip-stack-guard-page': [PASS, ['((arch == ppc or arch == ppc64 or arch == s390 or arch == s390x) and simulator_run)', SKIP]],
   # TODO(wasm) Investigate failing spec tests after update.
   'binary': [FAIL],
-  'proposals/js-types/binary-leb128': [FAIL],
   'proposals/bulk-memory-operations/binary': [FAIL],
-  'proposals/bulk-memory-operations/binary-leb128': [FAIL],
   # TODO(v8:10994): Failing spec test after update.
   'proposals/reference-types/br_table': [FAIL],
 
@@ -17,7 +15,6 @@
   # the bulk-memory proposal. Since we've enabled bulk-memory by default, we
   # need to update to use its testsuite.
   'linking': [FAIL],
-  'binary-leb128': [FAIL],
   'elem': [FAIL],
   'data': [FAIL],
 
