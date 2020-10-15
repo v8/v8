@@ -485,14 +485,6 @@ class CommonFrame : public StackFrame {
 
   Address GetCallerStackPointer() const override;
 
-  // Access the parameters.
-  virtual Object GetParameter(int index) const;
-  virtual int ComputeParametersCount() const;
-  Handle<FixedArray> GetParameters() const;
-
-  // Check if this frame is a constructor frame invoked through 'new'.
-  virtual bool IsConstructor() const;
-
   // Build a list with summaries for this frame including all inlined frames.
   // The functions are ordered bottom-to-top (i.e. summaries.last() is the
   // top-most activation; caller comes before callee).
@@ -569,8 +561,8 @@ class JavaScriptFrame : public CommonFrame {
 
   // Access the parameters.
   inline Address GetParameterSlot(int index) const;
-  Object GetParameter(int index) const override;
-  int ComputeParametersCount() const override;
+  Object GetParameter(int index) const;
+  virtual int ComputeParametersCount() const;
 #ifdef V8_NO_ARGUMENTS_ADAPTOR
   int GetActualArgumentCount() const;
 #endif
@@ -580,7 +572,7 @@ class JavaScriptFrame : public CommonFrame {
   void SetParameterValue(int index, Object value) const;
 
   // Check if this frame is a constructor frame invoked through 'new'.
-  bool IsConstructor() const override;
+  bool IsConstructor() const;
 
   // Determines whether this frame includes inlined activations. To get details
   // about the inlined frames use {GetFunctions} and {Summarize}.
@@ -755,7 +747,7 @@ class BuiltinExitFrame : public ExitFrame {
 
   JSFunction function() const;
   Object receiver() const;
-  bool IsConstructor() const override;
+  bool IsConstructor() const;
 
   void Print(StringStream* accumulator, PrintMode mode,
              int index) const override;
@@ -764,8 +756,8 @@ class BuiltinExitFrame : public ExitFrame {
   inline explicit BuiltinExitFrame(StackFrameIteratorBase* iterator);
 
  private:
-  Object GetParameter(int i) const override;
-  int ComputeParametersCount() const override;
+  Object GetParameter(int i) const;
+  int ComputeParametersCount() const;
 
   inline Object receiver_slot_object() const;
   inline Object argc_slot_object() const;
@@ -917,7 +909,7 @@ class BuiltinFrame final : public TypedFrame {
     DCHECK(frame->is_builtin());
     return static_cast<BuiltinFrame*>(frame);
   }
-  int ComputeParametersCount() const override;
+  int ComputeParametersCount() const;
 
  protected:
   inline explicit BuiltinFrame(StackFrameIteratorBase* iterator);

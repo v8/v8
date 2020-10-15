@@ -879,13 +879,6 @@ int CommonFrame::ComputeExpressionsCount() const {
   return static_cast<int>((base - limit) / kSystemPointerSize);
 }
 
-Object CommonFrame::GetParameter(int index) const {
-  // CommonFrame does not define any parameters.
-  UNREACHABLE();
-}
-
-int CommonFrame::ComputeParametersCount() const { return 0; }
-
 void CommonFrame::ComputeCallerState(State* state) const {
   state->sp = caller_sp();
   state->fp = caller_fp();
@@ -896,8 +889,6 @@ void CommonFrame::ComputeCallerState(State* state) const {
   state->constant_pool_address =
       reinterpret_cast<Address*>(ComputeConstantPoolAddress(fp()));
 }
-
-bool CommonFrame::IsConstructor() const { return false; }
 
 void CommonFrame::Summarize(std::vector<FrameSummary>* functions) const {
   // This should only be called on frames which override this method.

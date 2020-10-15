@@ -25,7 +25,6 @@ class FrameInspector {
 
   ~FrameInspector();
 
-  int GetParametersCount();
   Handle<JSFunction> GetFunction() const { return function_; }
   Handle<Script> GetScript() { return script_; }
   Handle<Object> GetParameter(int index);
