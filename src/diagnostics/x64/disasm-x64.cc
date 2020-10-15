@@ -1865,84 +1865,72 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     } else if (opcode == 0x3A) {
       byte third_byte = *current;
       current = data + 3;
+      get_modrm(*current, &mod, &regop, &rm);
       if (third_byte == 0x17) {
-        get_modrm(*current, &mod, &regop, &rm);
         AppendToBuffer("extractps ");  // reg/m32, xmm, imm8
         current += PrintRightOperand(current);
         AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), (*current) & 3);
         current += 1;
       } else if (third_byte == 0x08) {
-        get_modrm(*current, &mod, &regop, &rm);
         AppendToBuffer("roundps %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
         AppendToBuffer(",0x%x", (*current) & 3);
         current += 1;
       } else if (third_byte == 0x09) {
-        get_modrm(*current, &mod, &regop, &rm);
         AppendToBuffer("roundpd %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
         AppendToBuffer(",0x%x", (*current) & 3);
         current += 1;
       } else if (third_byte == 0x0A) {
-        get_modrm(*current, &mod, &regop, &rm);
         AppendToBuffer("roundss %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
         AppendToBuffer(",0x%x", (*current) & 3);
         current += 1;
       } else if (third_byte == 0x0B) {
-        get_modrm(*current, &mod, &regop, &rm);
         // roundsd xmm, xmm/m64, imm8
         AppendToBuffer("roundsd %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
         AppendToBuffer(",0x%x", (*current) & 3);
         current += 1;
       } else if (third_byte == 0x0E) {
-        get_modrm(*current, &mod, &regop, &rm);
         AppendToBuffer("pblendw %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
         AppendToBuffer(",0x%x", *current);
         current += 1;
       } else if (third_byte == 0x0F) {
-        get_modrm(*current, &mod, &regop, &rm);
         AppendToBuffer("palignr %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
         AppendToBuffer(",0x%x", (*current));
         current += 1;
       } else if (third_byte == 0x14) {
-        get_modrm(*current, &mod, &regop, &rm);
         AppendToBuffer("pextrb ");  // reg/m32, xmm, imm8
         current += PrintRightOperand(current);
         AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), (*current) & 3);
         current += 1;
       } else if (third_byte == 0x15) {
-        get_modrm(*current, &mod, &regop, &rm);
         AppendToBuffer("pextrw ");  // reg/m32, xmm, imm8
         current += PrintRightOperand(current);
         AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), (*current) & 7);
         current += 1;
       } else if (third_byte == 0x16) {
-        get_modrm(*current, &mod, &regop, &rm);
         // reg/m32/reg/m64, xmm, imm8
         AppendToBuffer("pextr%c ", rex_w() ? 'q' : 'd');
         current += PrintRightOperand(current);
         AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), (*current) & 3);
         current += 1;
       } else if (third_byte == 0x20) {
-        get_modrm(*current, &mod, &regop, &rm);
         AppendToBuffer("pinsrb ");  // xmm, reg/m32, imm8
         AppendToBuffer(" %s,", NameOfXMMRegister(regop));
         current += PrintRightOperand(current);
         AppendToBuffer(",%d", (*current) & 3);
         current += 1;
       } else if (third_byte == 0x21) {
-        get_modrm(*current, &mod, &regop, &rm);
         // insertps xmm, xmm/m32, imm8
         AppendToBuffer("insertps %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
         AppendToBuffer(",0x%x", (*current));
         current += 1;
       } else if (third_byte == 0x22) {
-        get_modrm(*current, &mod, &regop, &rm);
         // xmm, reg/m32/reg/m64, imm8
         AppendToBuffer("pinsr%c ", rex_w() ? 'q' : 'd');
         AppendToBuffer(" %s,", NameOfXMMRegister(regop));
@@ -2188,12 +2176,12 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     }
   } else if (group_1_prefix_ == 0xF2) {
     // Beginning of instructions with prefix 0xF2.
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
 
     if (opcode == 0x11 || opcode == 0x10) {
       // MOVSD: Move scalar double-precision fp to/from/between XMM registers.
       AppendToBuffer("movsd ");
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
       if (opcode == 0x11) {
         current += PrintRightXMMOperand(current);
         AppendToBuffer(",%s", NameOfXMMRegister(regop));
@@ -2202,56 +2190,40 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         current += PrintRightXMMOperand(current);
       }
     } else if (opcode == 0x12) {
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("movddup %s,", NameOfXMMRegister(regop));
       current += PrintRightXMMOperand(current);
     } else if (opcode == 0x2A) {
       // CVTSI2SD: integer to XMM double conversion.
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("%s %s,", mnemonic, NameOfXMMRegister(regop));
       current += PrintRightOperand(current);
     } else if (opcode == 0x2C) {
       // CVTTSD2SI:
       // Convert with truncation scalar double-precision FP to integer.
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("cvttsd2si%c %s,", operand_size_code(),
                      NameOfCPURegister(regop));
       current += PrintRightXMMOperand(current);
     } else if (opcode == 0x2D) {
       // CVTSD2SI: Convert scalar double-precision FP to integer.
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("cvtsd2si%c %s,", operand_size_code(),
                      NameOfCPURegister(regop));
       current += PrintRightXMMOperand(current);
     } else if (opcode == 0x5B) {
       // CVTTPS2DQ: Convert packed single-precision FP values to packed signed
       // doubleword integer values
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("cvttps2dq%c %s,", operand_size_code(),
                      NameOfCPURegister(regop));
       current += PrintRightXMMOperand(current);
     } else if ((opcode & 0xF8) == 0x58 || opcode == 0x51) {
       // XMM arithmetic. Mnemonic was retrieved at the start of this function.
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("%s %s,", mnemonic, NameOfXMMRegister(regop));
       current += PrintRightXMMOperand(current);
     } else if (opcode == 0x70) {
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("pshuflw %s, ", NameOfXMMRegister(regop));
       current += PrintRightXMMOperand(current);
       AppendToBuffer(", %d", (*current) & 7);
       current += 1;
     } else if (opcode == 0xC2) {
       // Intel manual 2A, Table 3-18.
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
       const char* const pseudo_op[] = {"cmpeqsd",    "cmpltsd",  "cmplesd",
                                        "cmpunordsd", "cmpneqsd", "cmpnltsd",
                                        "cmpnlesd",   "cmpordsd"};
@@ -2259,13 +2231,9 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
                      NameOfXMMRegister(regop), NameOfXMMRegister(rm));
       current += 2;
     } else if (opcode == 0xF0) {
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("lddqu %s,", NameOfXMMRegister(regop));
       current += PrintRightOperand(current);
     } else if (opcode == 0x7C) {
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("haddps %s,", NameOfXMMRegister(regop));
       current += PrintRightXMMOperand(current);
     } else {
@@ -2273,11 +2241,11 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     }
   } else if (group_1_prefix_ == 0xF3) {
     // Instructions with prefix 0xF3.
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
     if (opcode == 0x11 || opcode == 0x10) {
       // MOVSS: Move scalar double-precision fp to/from/between XMM registers.
       AppendToBuffer("movss ");
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
       if (opcode == 0x11) {
         current += PrintRightOperand(current);
         AppendToBuffer(",%s", NameOfXMMRegister(regop));
@@ -2287,69 +2255,47 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       }
     } else if (opcode == 0x2A) {
       // CVTSI2SS: integer to XMM single conversion.
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("%s %s,", mnemonic, NameOfXMMRegister(regop));
       current += PrintRightOperand(current);
     } else if (opcode == 0x2C) {
       // CVTTSS2SI:
       // Convert with truncation scalar single-precision FP to dword integer.
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("cvttss2si%c %s,", operand_size_code(),
                      NameOfCPURegister(regop));
       current += PrintRightXMMOperand(current);
     } else if (opcode == 0x70) {
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("pshufhw %s, ", NameOfXMMRegister(regop));
       current += PrintRightXMMOperand(current);
       AppendToBuffer(", %d", (*current) & 7);
       current += 1;
     } else if (opcode == 0x6F) {
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("movdqu %s,", NameOfXMMRegister(regop));
       current += PrintRightXMMOperand(current);
     } else if (opcode == 0x7E) {
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("movq %s,", NameOfXMMRegister(regop));
       current += PrintRightXMMOperand(current);
     } else if (opcode == 0x7F) {
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("movdqu ");
       current += PrintRightXMMOperand(current);
       AppendToBuffer(",%s", NameOfXMMRegister(regop));
     } else if ((opcode & 0xF8) == 0x58 || opcode == 0x51) {
       // XMM arithmetic. Mnemonic was retrieved at the start of this function.
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("%s %s,", mnemonic, NameOfXMMRegister(regop));
       current += PrintRightXMMOperand(current);
     } else if (opcode == 0xB8) {
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("popcnt%c %s,", operand_size_code(),
                      NameOfCPURegister(regop));
       current += PrintRightOperand(current);
     } else if (opcode == 0xBC) {
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("tzcnt%c %s,", operand_size_code(),
                      NameOfCPURegister(regop));
       current += PrintRightOperand(current);
     } else if (opcode == 0xBD) {
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("lzcnt%c %s,", operand_size_code(),
                      NameOfCPURegister(regop));
       current += PrintRightOperand(current);
     } else if (opcode == 0xC2) {
       // Intel manual 2A, Table 3-18.
-      int mod, regop, rm;
-      get_modrm(*current, &mod, &regop, &rm);
       const char* const pseudo_op[] = {"cmpeqss",    "cmpltss",  "cmpless",
                                        "cmpunordss", "cmpneqss", "cmpnltss",
                                        "cmpnless",   "cmpordss"};
