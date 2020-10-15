@@ -440,16 +440,18 @@ inline HandlerTable::CatchPrediction Code::GetBuiltinCatchPrediction() {
 
 int Code::builtin_index() const {
   int index = ReadField<int>(kBuiltinIndexOffset);
-  DCHECK(index == -1 || Builtins::IsBuiltinId(index));
+  DCHECK(index == Builtins::kNoBuiltinId || Builtins::IsBuiltinId(index));
   return index;
 }
 
 void Code::set_builtin_index(int index) {
-  DCHECK(index == -1 || Builtins::IsBuiltinId(index));
+  DCHECK(index == Builtins::kNoBuiltinId || Builtins::IsBuiltinId(index));
   WriteField<int>(kBuiltinIndexOffset, index);
 }
 
-bool Code::is_builtin() const { return builtin_index() != -1; }
+bool Code::is_builtin() const {
+  return builtin_index() != Builtins::kNoBuiltinId;
+}
 
 unsigned Code::inlined_bytecode_size() const {
   DCHECK(CodeKindIsOptimizedJSFunction(kind()) ||

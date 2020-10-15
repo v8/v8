@@ -1530,8 +1530,7 @@ void TurboAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
                  Builtins::IsIsolateIndependentBuiltin(*code_object));
   if (options().inline_offheap_trampolines) {
     int builtin_index = Builtins::kNoBuiltinId;
-    if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin_index) &&
-        Builtins::IsIsolateIndependent(builtin_index)) {
+    if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin_index)) {
       Label skip;
       if (cc != always) {
         if (cc == never) return;
@@ -1580,8 +1579,7 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
                  Builtins::IsIsolateIndependentBuiltin(*code_object));
   if (options().inline_offheap_trampolines) {
     int builtin_index = Builtins::kNoBuiltinId;
-    if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin_index) &&
-        Builtins::IsIsolateIndependent(builtin_index)) {
+    if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin_index)) {
       // Inline the trampoline.
       CallBuiltin(builtin_index);
       return;

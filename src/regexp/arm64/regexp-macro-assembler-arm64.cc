@@ -1411,7 +1411,6 @@ void RegExpMacroAssemblerARM64::CallCheckStackGuardState(Register scratch) {
     Register scratch = temps.AcquireX();
 
     EmbeddedData d = EmbeddedData::FromBlob();
-    CHECK(Builtins::IsIsolateIndependent(Builtins::kDirectCEntry));
     Address entry = d.InstructionStartOfBuiltin(Builtins::kDirectCEntry);
 
     __ Ldr(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));

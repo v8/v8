@@ -153,8 +153,8 @@ class Code : public HeapObject {
   inline void set_can_have_weak_objects(bool value);
 
   // [builtin_index]: For builtins, tells which builtin index the code object
-  // has. The builtin index is a non-negative integer for builtins, and -1
-  // otherwise.
+  // has. The builtin index is a non-negative integer for builtins, and
+  // Builtins::kNoBuiltinId (-1) otherwise.
   inline int builtin_index() const;
   inline void set_builtin_index(int id);
   inline bool is_builtin() const;
@@ -303,9 +303,6 @@ class Code : public HeapObject {
   // Returns the address right after the relocation info (read backwards!).
   inline byte* relocation_end() const;
 
-  // [has_unwinding_info]: Whether this code object has unwinding information.
-  // If it doesn't, unwinding_information_start() will point to invalid data.
-  //
   // The body of all code objects has the following layout.
   //
   //  +--------------------------+  <-- raw_instruction_start()
@@ -336,7 +333,9 @@ class Code : public HeapObject {
   //
   // and unwinding_info_end() points to the first memory location after the end
   // of the code object.
-  //
+
+  // [has_unwinding_info]: Whether this code object has unwinding information.
+  // If it doesn't, unwinding_information_start() will point to invalid data.
   inline bool has_unwinding_info() const;
 
   // [unwinding_info_size]: Size of the unwinding information.

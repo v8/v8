@@ -157,9 +157,8 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
       RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
       RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET);
 
+  STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (int i = 0; i < Builtins::builtin_count; i++) {
-    if (!Builtins::IsIsolateIndependent(i)) continue;
-
     Code code = isolate->builtins()->builtin(i);
     RelocIterator on_heap_it(code, kRelocMask);
     RelocIterator off_heap_it(blob, code, kRelocMask);
@@ -209,33 +208,30 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
 
   bool saw_unsafe_builtin = false;
   uint32_t raw_code_size = 0;
+  STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (int i = 0; i < Builtins::builtin_count; i++) {
     Code code = builtins->builtin(i);
 
-    if (Builtins::IsIsolateIndependent(i)) {
-      // Sanity-check that the given builtin is isolate-independent and does not
-      // use the trampoline register in its calling convention.
-      if (!code.IsIsolateIndependent(isolate)) {
-        saw_unsafe_builtin = true;
-        fprintf(stderr, "%s is not isolate-independent.\n", Builtins::name(i));
-      }
-      if (BuiltinAliasesOffHeapTrampolineRegister(isolate, code)) {
-        saw_unsafe_builtin = true;
-        fprintf(stderr, "%s aliases the off-heap trampoline register.\n",
-                Builtins::name(i));
-      }
-
-      uint32_t length = static_cast<uint32_t>(code.raw_instruction_size());
-
-      DCHECK_EQ(0, raw_code_size % kCodeAlignment);
-      metadata[i].instructions_offset = raw_code_size;
-      metadata[i].instructions_length = length;
-
-      // Align the start of each instruction stream.
-      raw_code_size += PadAndAlign(length);
-    } else {
-      metadata[i].instructions_offset = raw_code_size;
+    // Sanity-check that the given builtin is isolate-independent and does not
+    // use the trampoline register in its calling convention.
+    if (!code.IsIsolateIndependent(isolate)) {
+      saw_unsafe_builtin = true;
+      fprintf(stderr, "%s is not isolate-independent.\n", Builtins::name(i));
     }
+    if (BuiltinAliasesOffHeapTrampolineRegister(isolate, code)) {
+      saw_unsafe_builtin = true;
+      fprintf(stderr, "%s aliases the off-heap trampoline register.\n",
+              Builtins::name(i));
+    }
+
+    uint32_t length = static_cast<uint32_t>(code.raw_instruction_size());
+
+    DCHECK_EQ(0, raw_code_size % kCodeAlignment);
+    metadata[i].instructions_offset = raw_code_size;
+    metadata[i].instructions_length = length;
+
+    // Align the start of each instruction stream.
+    raw_code_size += PadAndAlign(length);
   }
   CHECK_WITH_MSG(
       !saw_unsafe_builtin,
@@ -267,8 +263,8 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
               MetadataTableSize());
 
   // Write the raw data section.
+  STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (int i = 0; i < Builtins::builtin_count; i++) {
-    if (!Builtins::IsIsolateIndependent(i)) continue;
     Code code = builtins->builtin(i);
     uint32_t offset = metadata[i].instructions_offset;
     uint8_t* dst = raw_code_start + offset;
@@ -346,8 +342,8 @@ void EmbeddedData::PrintStatistics() const {
   int embedded_count = 0;
   int instruction_size = 0;
   int sizes[kCount];
+  STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (int i = 0; i < kCount; i++) {
-    if (!Builtins::IsIsolateIndependent(i)) continue;
     const int size = InstructionSizeOfBuiltin(i);
     instruction_size += size;
     sizes[embedded_count] = size;

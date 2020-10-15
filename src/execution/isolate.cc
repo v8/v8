@@ -3295,9 +3295,8 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
 
   EmbeddedData d = EmbeddedData::FromBlob();
 
+  STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (int i = 0; i < Builtins::builtin_count; i++) {
-    if (!Builtins::IsIsolateIndependent(i)) continue;
-
     Address instruction_start = d.InstructionStartOfBuiltin(i);
     Handle<Code> trampoline = isolate->factory()->NewOffHeapTrampolineFor(
         builtins->builtin_handle(i), instruction_start);
