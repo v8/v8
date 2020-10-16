@@ -3177,7 +3177,7 @@ void CompilationStateImpl::SchedulePublishCompilationResults(
 }
 
 void CompilationStateImpl::ScheduleCompileJobForNewUnits() {
-  if (current_compile_job_ && current_compile_job_->IsRunning()) {
+  if (current_compile_job_ && current_compile_job_->IsValid()) {
     current_compile_job_->NotifyConcurrencyIncrease();
     return;
   }

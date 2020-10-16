@@ -53,7 +53,7 @@ class MockPlatform final : public TestPlatform {
 
   void ExecuteTasks() {
     for (auto* job_handle : job_handles_) {
-      if (job_handle->IsRunning()) job_handle->Join();
+      if (job_handle->IsValid()) job_handle->Join();
     }
     task_runner_->ExecuteTasks();
   }
@@ -126,6 +126,7 @@ class MockPlatform final : public TestPlatform {
     void Cancel() override { orig_handle_->Cancel(); }
     void CancelAndDetach() override { orig_handle_->CancelAndDetach(); }
     bool IsRunning() override { return orig_handle_->IsRunning(); }
+    bool IsValid() override { return orig_handle_->IsValid(); }
     bool IsCompleted() override { return orig_handle_->IsCompleted(); }
 
    private:

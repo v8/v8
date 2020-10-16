@@ -504,7 +504,7 @@ class Sweeper::SweeperImpl final {
   void FinishIfRunning() {
     if (!is_in_progress_) return;
 
-    if (concurrent_sweeper_handle_ && concurrent_sweeper_handle_->IsRunning() &&
+    if (concurrent_sweeper_handle_ && concurrent_sweeper_handle_->IsValid() &&
         concurrent_sweeper_handle_->UpdatePriorityEnabled()) {
       concurrent_sweeper_handle_->UpdatePriority(
           cppgc::TaskPriority::kUserBlocking);
@@ -593,7 +593,7 @@ class Sweeper::SweeperImpl final {
 
   void CancelSweepers() {
     if (incremental_sweeper_handle_) incremental_sweeper_handle_.Cancel();
-    if (concurrent_sweeper_handle_ && concurrent_sweeper_handle_->IsRunning())
+    if (concurrent_sweeper_handle_ && concurrent_sweeper_handle_->IsValid())
       concurrent_sweeper_handle_->Cancel();
   }
 

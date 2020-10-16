@@ -525,13 +525,13 @@ size_t ConcurrentMarking::GetMaxConcurrency(size_t worker_count) {
 void ConcurrentMarking::ScheduleTasks() {
   DCHECK(FLAG_parallel_marking || FLAG_concurrent_marking);
   DCHECK(!heap_->IsTearingDown());
-  DCHECK(!job_handle_ || !job_handle_->IsRunning());
+  DCHECK(!job_handle_ || !job_handle_->IsValid());
 
   job_handle_ = V8::GetCurrentPlatform()->PostJob(
       TaskPriority::kUserVisible,
       std::make_unique<JobTask>(this, heap_->mark_compact_collector()->epoch(),
                                 heap_->is_current_gc_forced()));
-  DCHECK(job_handle_->IsRunning());
+  DCHECK(job_handle_->IsValid());
 }
 
 void ConcurrentMarking::RescheduleTasksIfNeeded() {
@@ -543,7 +543,7 @@ void ConcurrentMarking::RescheduleTasksIfNeeded() {
       weak_objects_->discovered_ephemerons.IsGlobalPoolEmpty()) {
     return;
   }
-  if (!job_handle_ || !job_handle_->IsRunning())
+  if (!job_handle_ || !job_handle_->IsValid())
     ScheduleTasks();
   else
     job_handle_->NotifyConcurrencyIncrease();
@@ -551,7 +551,7 @@ void ConcurrentMarking::RescheduleTasksIfNeeded() {
 
 bool ConcurrentMarking::Stop(StopRequest stop_request) {
   DCHECK(FLAG_parallel_marking || FLAG_concurrent_marking);
-  if (!job_handle_ || !job_handle_->IsRunning()) return false;
+  if (!job_handle_ || !job_handle_->IsValid()) return false;
 
   if (stop_request == StopRequest::PREEMPT_TASKS) {
     job_handle_->Cancel();
@@ -564,11 +564,11 @@ bool ConcurrentMarking::Stop(StopRequest stop_request) {
 bool ConcurrentMarking::IsStopped() {
   if (!FLAG_concurrent_marking) return true;
 
-  return !job_handle_ || !job_handle_->IsRunning();
+  return !job_handle_ || !job_handle_->IsValid();
 }
 
 void ConcurrentMarking::FlushNativeContexts(NativeContextStats* main_stats) {
-  DCHECK(!job_handle_ || !job_handle_->IsRunning());
+  DCHECK(!job_handle_ || !job_handle_->IsValid());
   for (int i = 1; i <= kMaxTasks; i++) {
     main_stats->Merge(task_state_[i].native_context_stats);
     task_state_[i].native_context_stats.Clear();
@@ -577,7 +577,7 @@ void ConcurrentMarking::FlushNativeContexts(NativeContextStats* main_stats) {
 
 void ConcurrentMarking::FlushMemoryChunkData(
     MajorNonAtomicMarkingState* marking_state) {
-  DCHECK(!job_handle_ || !job_handle_->IsRunning());
+  DCHECK(!job_handle_ || !job_handle_->IsValid());
   for (int i = 1; i <= kMaxTasks; i++) {
     MemoryChunkDataMap& memory_chunk_data = task_state_[i].memory_chunk_data;
     for (auto& pair : memory_chunk_data) {
@@ -600,7 +600,7 @@ void ConcurrentMarking::FlushMemoryChunkData(
 }
 
 void ConcurrentMarking::ClearMemoryChunkData(MemoryChunk* chunk) {
-  DCHECK(!job_handle_ || !job_handle_->IsRunning());
+  DCHECK(!job_handle_ || !job_handle_->IsValid());
   for (int i = 1; i <= kMaxTasks; i++) {
     auto it = task_state_[i].memory_chunk_data.find(chunk);
     if (it != task_state_[i].memory_chunk_data.end()) {
