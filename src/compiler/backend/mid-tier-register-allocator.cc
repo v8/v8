@@ -168,7 +168,8 @@ const InstructionBlock* MidTierRegisterAllocationData::GetBlock(
 }
 
 const BitVector* MidTierRegisterAllocationData::GetBlocksDominatedBy(
-    const InstructionBlock* block) {
+    int instr_index) {
+  const InstructionBlock* block = GetBlock(instr_index);
   return block_state(block->rpo_number()).dominated_blocks();
 }
 
@@ -282,12 +283,10 @@ class VirtualRegisterData final {
   // Define VirtualRegisterData with the type of output that produces this
   // virtual register.
   void DefineAsUnallocatedOperand(int virtual_register, int instr_index,
-                                  bool is_deferred_block,
-                                  bool is_exceptional_call_output);
+                                  bool is_deferred_block);
   void DefineAsFixedSpillOperand(AllocatedOperand* operand,
                                  int virtual_register, int instr_index,
-                                 bool is_deferred_block,
-                                 bool is_exceptional_call_output);
+                                 bool is_deferred_block);
   void DefineAsConstantOperand(ConstantOperand* operand, int instr_index,
                                bool is_deferred_block);
   void DefineAsPhi(int virtual_register, int instr_index,
@@ -365,9 +364,6 @@ class VirtualRegisterData final {
   bool is_defined_in_deferred_block() const {
     return is_defined_in_deferred_block_;
   }
-  bool is_exceptional_call_output() const {
-    return is_exceptional_call_output_;
-  }
 
   struct DeferredSpillSlotOutput {
    public:
@@ -385,11 +381,9 @@ class VirtualRegisterData final {
   class SpillRange : public ZoneObject {
    public:
     // Defines a spill range for an output operand.
-    SpillRange(int definition_instr_index,
-               const InstructionBlock* definition_block,
-               MidTierRegisterAllocationData* data)
+    SpillRange(int definition_instr_index, MidTierRegisterAllocationData* data)
         : live_range_(definition_instr_index, definition_instr_index),
-          live_blocks_(data->GetBlocksDominatedBy(definition_block)),
+          live_blocks_(data->GetBlocksDominatedBy(definition_instr_index)),
           deferred_spill_outputs_(nullptr) {}
 
     // Defines a spill range for a Phi variable.
@@ -397,7 +391,8 @@ class VirtualRegisterData final {
                MidTierRegisterAllocationData* data)
         : live_range_(phi_block->first_instruction_index(),
                       phi_block->first_instruction_index()),
-          live_blocks_(data->GetBlocksDominatedBy(phi_block)),
+          live_blocks_(
+              data->GetBlocksDominatedBy(phi_block->first_instruction_index())),
           deferred_spill_outputs_(nullptr) {
       // For phis, add the gap move instructions in the predecssor blocks to
       // the live range.
@@ -474,8 +469,7 @@ class VirtualRegisterData final {
  private:
   void Initialize(int virtual_register, InstructionOperand* spill_operand,
                   int instr_index, bool is_phi, bool is_constant,
-                  bool is_defined_in_deferred_block,
-                  bool is_exceptional_call_output);
+                  bool is_defined_in_deferred_block);
 
   void AddSpillUse(int instr_index, MidTierRegisterAllocationData* data);
   void AddPendingSpillOperand(PendingOperand* pending_operand);
@@ -491,7 +485,6 @@ class VirtualRegisterData final {
   bool is_constant_ : 1;
   bool is_defined_in_deferred_block_ : 1;
   bool needs_spill_at_output_ : 1;
-  bool is_exceptional_call_output_ : 1;
 };
 
 VirtualRegisterData& MidTierRegisterAllocationData::VirtualRegisterDataFor(
@@ -505,8 +498,7 @@ void VirtualRegisterData::Initialize(int virtual_register,
                                      InstructionOperand* spill_operand,
                                      int instr_index, bool is_phi,
                                      bool is_constant,
-                                     bool is_defined_in_deferred_block,
-                                     bool is_exceptional_call_output) {
+                                     bool is_defined_in_deferred_block) {
   vreg_ = virtual_register;
   spill_operand_ = spill_operand;
   spill_range_ = nullptr;
@@ -515,34 +507,34 @@ void VirtualRegisterData::Initialize(int virtual_register,
   is_constant_ = is_constant;
   is_defined_in_deferred_block_ = is_defined_in_deferred_block;
   needs_spill_at_output_ = !is_constant_ && spill_operand_ != nullptr;
-  is_exceptional_call_output_ = is_exceptional_call_output;
 }
 
 void VirtualRegisterData::DefineAsConstantOperand(ConstantOperand* operand,
                                                   int instr_index,
                                                   bool is_deferred_block) {
   Initialize(operand->virtual_register(), operand, instr_index, false, true,
-             is_deferred_block, false);
+             is_deferred_block);
 }
 
-void VirtualRegisterData::DefineAsFixedSpillOperand(
-    AllocatedOperand* operand, int virtual_register, int instr_index,
-    bool is_deferred_block, bool is_exceptional_call_output) {
+void VirtualRegisterData::DefineAsFixedSpillOperand(AllocatedOperand* operand,
+                                                    int virtual_register,
+                                                    int instr_index,
+                                                    bool is_deferred_block) {
   Initialize(virtual_register, operand, instr_index, false, false,
-             is_deferred_block, is_exceptional_call_output);
+             is_deferred_block);
 }
 
-void VirtualRegisterData::DefineAsUnallocatedOperand(
-    int virtual_register, int instr_index, bool is_deferred_block,
-    bool is_exceptional_call_output) {
+void VirtualRegisterData::DefineAsUnallocatedOperand(int virtual_register,
+                                                     int instr_index,
+                                                     bool is_deferred_block) {
   Initialize(virtual_register, nullptr, instr_index, false, false,
-             is_deferred_block, is_exceptional_call_output);
+             is_deferred_block);
 }
 
 void VirtualRegisterData::DefineAsPhi(int virtual_register, int instr_index,
                                       bool is_deferred_block) {
   Initialize(virtual_register, nullptr, instr_index, true, false,
-             is_deferred_block, false);
+             is_deferred_block);
 }
 
 void VirtualRegisterData::EnsureSpillRange(
@@ -550,27 +542,16 @@ void VirtualRegisterData::EnsureSpillRange(
   DCHECK(!is_constant());
   if (HasSpillRange()) return;
 
-  const InstructionBlock* definition_block =
-      data->GetBlock(output_instr_index_);
   if (is_phi()) {
     // Define a spill slot that is defined for the phi's range.
+    const InstructionBlock* definition_block =
+        data->code()->InstructionAt(output_instr_index_)->block();
     spill_range_ =
         data->allocation_zone()->New<SpillRange>(definition_block, data);
   } else {
-    if (is_exceptional_call_output()) {
-      // If this virtual register is output by a call which has an exception
-      // catch handler, then the output will only be live in the IfSuccess
-      // successor block, not the IfException side, so make the definition block
-      // the IfSuccess successor block explicitly.
-      DCHECK_EQ(output_instr_index_,
-                definition_block->last_instruction_index() - 1);
-      DCHECK_EQ(definition_block->SuccessorCount(), 2);
-      DCHECK(data->GetBlock(definition_block->successors()[1])->IsHandler());
-      definition_block = data->GetBlock(definition_block->successors()[0]);
-    }
     // The spill slot will be defined after the instruction that outputs it.
-    spill_range_ = data->allocation_zone()->New<SpillRange>(
-        output_instr_index_ + 1, definition_block, data);
+    spill_range_ =
+        data->allocation_zone()->New<SpillRange>(output_instr_index_ + 1, data);
   }
   data->spilled_virtual_registers().Add(vreg());
 }
@@ -2594,7 +2575,6 @@ void MidTierOutputProcessor::InitializeBlockState(
 void MidTierOutputProcessor::DefineOutputs(const InstructionBlock* block) {
   int block_start = block->first_instruction_index();
   bool is_deferred = block->IsDeferred();
-
   for (int index = block->last_instruction_index(); index >= block_start;
        index--) {
     Instruction* instr = code()->InstructionAt(index);
@@ -2613,9 +2593,6 @@ void MidTierOutputProcessor::DefineOutputs(const InstructionBlock* block) {
         UnallocatedOperand* unallocated_operand =
             UnallocatedOperand::cast(output);
         int virtual_register = unallocated_operand->virtual_register();
-        bool is_exceptional_call_output =
-            instr->IsCallWithDescriptorFlags() &&
-            instr->HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler);
         if (unallocated_operand->HasFixedSlotPolicy()) {
           // If output has a fixed slot policy, allocate its spill operand now
           // so that the register allocator can use this knowledge.
@@ -2625,12 +2602,10 @@ void MidTierOutputProcessor::DefineOutputs(const InstructionBlock* block) {
                                     unallocated_operand->fixed_slot_index());
           VirtualRegisterDataFor(virtual_register)
               .DefineAsFixedSpillOperand(fixed_spill_operand, virtual_register,
-                                         index, is_deferred,
-                                         is_exceptional_call_output);
+                                         index, is_deferred);
         } else {
           VirtualRegisterDataFor(virtual_register)
-              .DefineAsUnallocatedOperand(virtual_register, index, is_deferred,
-                                          is_exceptional_call_output);
+              .DefineAsUnallocatedOperand(virtual_register, index, is_deferred);
         }
       }
     }
