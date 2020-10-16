@@ -79,14 +79,27 @@ trigger_dict = {
     "ci.br.stable": "v8-trigger-br-stable",
 }
 
-goma_props = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}}
-
 GOMA = struct(
-    DEFAULT = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}},
-    AST = {"$build/goma": {"server_host": "goma.chromium.org", "enable_ats": True, "rpc_extra_params": "?prod"}},
+    DEFAULT = {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"},
+    ATS = {"server_host": "goma.chromium.org", "enable_ats": True, "rpc_extra_params": "?prod"},
     NO = {"use_goma": False},
     NONE = {},
 )
+
+GOMA_JOBS = struct(
+    J150 = 150,
+)
+
+def _goma_properties(use_goma, goma_jobs):
+  if use_goma == GOMA.NONE or use_goma == GOMA.NO:
+    return use_goma
+
+  properties = dict(use_goma)
+
+  if goma_jobs:
+    properties["jobs"] = goma_jobs
+
+  return {"$build/goma": properties}
 
 multibot_caches = [
     swarming.cache(
@@ -127,11 +140,11 @@ def v8_basic_builder(defaults, **kwargs):
             cq_group = "v8-cq",
             **cq_properties
         )
-    use_goma = kwargs.pop("use_goma", None)
-    if use_goma:
-        properties = dict((kwargs.pop("properties", {})).items() + use_goma.items())
-        kwargs["properties"] = properties
-    properties = kwargs.setdefault("properties", {})
+    properties = dict(kwargs.pop("properties", {}))
+    properties.update(_goma_properties(
+        kwargs.pop("use_goma", GOMA.NONE), kwargs.pop("goma_jobs", None)))
+    kwargs["properties"] = properties
+
     properties["$recipe_engine/isolated"] = {
         "server": "https://isolateserver.appspot.com/",
     }

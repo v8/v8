@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GOMA", "v8_builder")
+load("//lib/lib.star", "GOMA", "GOMA_JOBS", "v8_builder")
 
 def try_builder(**kwargs):
     v8_builder(
@@ -99,6 +99,7 @@ try_builder(
     execution_timeout = 3600,
     build_numbers = True,
     use_goma = GOMA.DEFAULT,
+    goma_jobs = GOMA_JOBS.J150,
 )
 
 try_builder(
@@ -182,7 +183,7 @@ try_builder(
     bucket = "try",
     cq_properties = {"cancel_stale": False},
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    use_goma = GOMA.AST,
+    use_goma = GOMA.ATS,
 )
 
 try_builder(

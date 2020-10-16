@@ -18,7 +18,7 @@ in_category(
         ),
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bitness": "64", "bucket": "v8-asan", "name": "d8-asan"}, "default_targets": ["v8_clusterfuzz"]},
-        use_goma = GOMA.AST,
+        use_goma = GOMA.ATS,
     ),
     v8_builder(
         name = "V8 Clusterfuzz Win64 ASAN - debug builder",
@@ -30,7 +30,7 @@ in_category(
         ),
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bitness": "64", "bucket": "v8-asan", "name": "d8-asan"}, "default_targets": ["v8_clusterfuzz"]},
-        use_goma = GOMA.AST,
+        use_goma = GOMA.ATS,
     ),
 )
 

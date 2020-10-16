@@ -429,7 +429,7 @@ try_ng_pair(
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     execution_timeout = 3600,
-    use_goma = GOMA.AST,
+    use_goma = GOMA.ATS,
 )
 
 try_ng_pair(
@@ -439,7 +439,7 @@ try_ng_pair(
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     execution_timeout = 3600,
     properties = {"use_goma": False},
-    use_goma = GOMA.AST,
+    use_goma = GOMA.ATS,
 )
 
 try_ng_pair(
@@ -447,7 +447,7 @@ try_ng_pair(
     cq_properties_trigger = {"cancel_stale": False},
     cq_properties_triggered = {"cancel_stale": False},
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    use_goma = GOMA.AST,
+    use_goma = GOMA.ATS,
 )
 
 try_ng_pair(
@@ -456,7 +456,7 @@ try_ng_pair(
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     execution_timeout = 3600,
-    use_goma = GOMA.AST,
+    use_goma = GOMA.ATS,
 )
 
 try_ng_pair(
@@ -464,7 +464,7 @@ try_ng_pair(
     cq_properties_trigger = {"cancel_stale": False},
     cq_properties_triggered = {"cancel_stale": False},
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    use_goma = GOMA.AST,
+    use_goma = GOMA.ATS,
 )
 
 try_ng_pair(
@@ -473,5 +473,5 @@ try_ng_pair(
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     execution_timeout = 3600,
-    use_goma = GOMA.AST,
+    use_goma = GOMA.ATS,
 )

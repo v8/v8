@@ -16,7 +16,7 @@ in_category(
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         execution_timeout = 10800,
         properties = {"builder_group": "client.v8.fyi"},
-        use_goma = GOMA.AST,
+        use_goma = GOMA.ATS,
     ),
     v8_builder(
         name = "V8 Blink Mac",
@@ -123,7 +123,7 @@ in_category(
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         execution_timeout = 10800,
         properties = {"builder_group": "client.v8.fyi"},
-        use_goma = GOMA.AST,
+        use_goma = GOMA.ATS,
     ),
     v8_builder(
         name = "Mac V8 FYI Release (Intel)",
