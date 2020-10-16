@@ -141,6 +141,7 @@ void SimdScalarLowering::LowerGraph() {
   V(I32x4ShrU)                    \
   V(I32x4MinU)                    \
   V(I32x4MaxU)                    \
+  V(I32x4DotI16x8S)               \
   V(I32x4Eq)                      \
   V(I32x4Ne)                      \
   V(I32x4LtS)                     \
@@ -1618,6 +1619,25 @@ void SimdScalarLowering::LowerNode(Node* node) {
     case IrOpcode::kI16x8MinU:
     case IrOpcode::kI8x16MinU: {
       LowerIntMinMax(node, machine()->Uint32LessThan(), false, rep_type);
+      break;
+    }
+    case IrOpcode::kI32x4DotI16x8S: {
+      // i32x4.dot_i16x8_s wants the inputs to be i16x8, but outputs to i32x4.
+      DCHECK_EQ(2, node->InputCount());
+      Node** rep_left =
+          GetReplacementsWithType(node->InputAt(0), SimdType::kInt16x8);
+      Node** rep_right =
+          GetReplacementsWithType(node->InputAt(1), SimdType::kInt16x8);
+      int num_lanes = NumLanes(rep_type);
+      Node** rep_node = zone()->NewArray<Node*>(num_lanes);
+      for (int i = 0; i < num_lanes; ++i) {
+        Node* lo = graph()->NewNode(machine()->Int32Mul(), rep_left[i * 2],
+                                    rep_right[i * 2]);
+        Node* hi = graph()->NewNode(machine()->Int32Mul(), rep_left[i * 2 + 1],
+                                    rep_right[i * 2 + 1]);
+        rep_node[i] = graph()->NewNode(machine()->Int32Add(), lo, hi);
+      }
+      ReplaceNode(node, rep_node, num_lanes);
       break;
     }
     case IrOpcode::kI64x2Neg: {
