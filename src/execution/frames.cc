@@ -663,8 +663,6 @@ StackFrame::Type StackFrame::GetCallerState(State* state) const {
   return ComputeType(iterator_, state);
 }
 
-Address StackFrame::UnpaddedFP() const { return fp(); }
-
 Address CommonFrame::GetCallerStackPointer() const {
   return fp() + CommonFrameConstants::kCallerSPOffset;
 }

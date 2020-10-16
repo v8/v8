@@ -242,12 +242,6 @@ class StackFrame {
   Address callee_fp() const { return state_.callee_fp; }
   inline Address callee_pc() const;
   Address caller_sp() const { return GetCallerStackPointer(); }
-
-  // If this frame is optimized and was dynamically aligned return its old
-  // unaligned frame pointer.  When the frame is deoptimized its FP will shift
-  // up one word and become unaligned.
-  Address UnpaddedFP() const;
-
   inline Address pc() const;
 
   // Skip authentication of the PC, when using CFI. Used in the profiler, where
