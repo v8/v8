@@ -927,6 +927,23 @@ class V8_EXPORT_PRIVATE Instruction final {
     return arch_opcode() == ArchOpcode::kArchThrowTerminator;
   }
 
+  static constexpr bool IsCallWithDescriptorFlags(InstructionCode arch_opcode) {
+    return arch_opcode <= ArchOpcode::kArchCallBuiltinPointer;
+  }
+  bool IsCallWithDescriptorFlags() const {
+    return IsCallWithDescriptorFlags(arch_opcode());
+  }
+  bool HasCallDescriptorFlag(CallDescriptor::Flag flag) const {
+    DCHECK(IsCallWithDescriptorFlags());
+    STATIC_ASSERT(CallDescriptor::kFlagsBitsEncodedInInstructionCode == 10);
+#ifdef DEBUG
+    static constexpr int kInstructionCodeFlagsMask =
+        ((1 << CallDescriptor::kFlagsBitsEncodedInInstructionCode) - 1);
+    DCHECK_EQ(static_cast<int>(flag) & kInstructionCodeFlagsMask, flag);
+#endif
+    return MiscField::decode(opcode()) & flag;
+  }
+
   enum GapPosition {
     START,
     END,

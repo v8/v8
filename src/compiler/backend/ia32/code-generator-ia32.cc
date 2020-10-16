@@ -695,10 +695,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         Register reg = i.InputRegister(0);
         DCHECK_IMPLIES(
-            HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
+            instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
         __ LoadCodeObjectEntry(reg, reg);
-        if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
+        if (instr->HasCallDescriptorFlag(CallDescriptor::kRetpoline)) {
           __ RetpolineCall(reg);
         } else {
           __ call(reg);
@@ -723,7 +723,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         if (DetermineStubCallMode() == StubCallMode::kCallWasmRuntimeStub) {
           __ wasm_call(wasm_code, constant.rmode());
         } else {
-          if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
+          if (instr->HasCallDescriptorFlag(CallDescriptor::kRetpoline)) {
             __ RetpolineCall(wasm_code, constant.rmode());
           } else {
             __ call(wasm_code, constant.rmode());
@@ -731,7 +731,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         }
       } else {
         Register reg = i.InputRegister(0);
-        if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
+        if (instr->HasCallDescriptorFlag(CallDescriptor::kRetpoline)) {
           __ RetpolineCall(reg);
         } else {
           __ call(reg);
@@ -753,10 +753,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         Register reg = i.InputRegister(0);
         DCHECK_IMPLIES(
-            HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
+            instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
         __ LoadCodeObjectEntry(reg, reg);
-        if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
+        if (instr->HasCallDescriptorFlag(CallDescriptor::kRetpoline)) {
           __ RetpolineJump(reg);
         } else {
           __ jmp(reg);
@@ -773,7 +773,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ jmp(wasm_code, constant.rmode());
       } else {
         Register reg = i.InputRegister(0);
-        if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
+        if (instr->HasCallDescriptorFlag(CallDescriptor::kRetpoline)) {
           __ RetpolineJump(reg);
         } else {
           __ jmp(reg);
@@ -787,9 +787,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CHECK(!HasImmediateInput(instr, 0));
       Register reg = i.InputRegister(0);
       DCHECK_IMPLIES(
-          HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
+          instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
           reg == kJavaScriptCallCodeStartRegister);
-      if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
+      if (instr->HasCallDescriptorFlag(CallDescriptor::kRetpoline)) {
         __ RetpolineJump(reg);
       } else {
         __ jmp(reg);

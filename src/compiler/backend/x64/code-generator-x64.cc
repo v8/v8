@@ -711,7 +711,7 @@ void AdjustStackPointerForTailCall(Instruction* instr,
                                    int new_slot_above_sp,
                                    bool allow_shrinkage = true) {
   int stack_slot_delta;
-  if (HasCallDescriptorFlag(instr, CallDescriptor::kIsTailCallForTierUp)) {
+  if (instr->HasCallDescriptorFlag(CallDescriptor::kIsTailCallForTierUp)) {
     // For this special tail-call mode, the callee has the same arguments and
     // linkage as the caller, and arguments adapter frames must be preserved.
     // Thus we simply have reset the stack pointer register to its original
@@ -757,7 +757,7 @@ void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
   if (!pushes.empty() &&
       (LocationOperand::cast(pushes.back()->destination()).index() + 1 ==
        first_unused_stack_slot)) {
-    DCHECK(!HasCallDescriptorFlag(instr, CallDescriptor::kIsTailCallForTierUp));
+    DCHECK(!instr->HasCallDescriptorFlag(CallDescriptor::kIsTailCallForTierUp));
     X64OperandConverter g(this, instr);
     for (auto move : pushes) {
       LocationOperand destination_location(
@@ -847,10 +847,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         Register reg = i.InputRegister(0);
         DCHECK_IMPLIES(
-            HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
+            instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
         __ LoadCodeObjectEntry(reg, reg);
-        if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
+        if (instr->HasCallDescriptorFlag(CallDescriptor::kRetpoline)) {
           __ RetpolineCall(reg);
         } else {
           __ call(reg);
@@ -875,7 +875,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         if (DetermineStubCallMode() == StubCallMode::kCallWasmRuntimeStub) {
           __ near_call(wasm_code, constant.rmode());
         } else {
-          if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
+          if (instr->HasCallDescriptorFlag(CallDescriptor::kRetpoline)) {
             __ RetpolineCall(wasm_code, constant.rmode());
           } else {
             __ Call(wasm_code, constant.rmode());
@@ -883,7 +883,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         }
       } else {
         Register reg = i.InputRegister(0);
-        if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
+        if (instr->HasCallDescriptorFlag(CallDescriptor::kRetpoline)) {
           __ RetpolineCall(reg);
         } else {
           __ call(reg);
@@ -894,7 +894,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchTailCallCodeObjectFromJSFunction:
-      if (!HasCallDescriptorFlag(instr, CallDescriptor::kIsTailCallForTierUp)) {
+      if (!instr->HasCallDescriptorFlag(CallDescriptor::kIsTailCallForTierUp)) {
         AssemblePopArgumentsAdaptorFrame(kJavaScriptCallArgCountRegister,
                                          i.TempRegister(0), i.TempRegister(1),
                                          i.TempRegister(2));
@@ -907,10 +907,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         Register reg = i.InputRegister(0);
         DCHECK_IMPLIES(
-            HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
+            instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
         __ LoadCodeObjectEntry(reg, reg);
-        if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
+        if (instr->HasCallDescriptorFlag(CallDescriptor::kRetpoline)) {
           __ RetpolineJump(reg);
         } else {
           __ jmp(reg);
@@ -933,7 +933,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         }
       } else {
         Register reg = i.InputRegister(0);
-        if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
+        if (instr->HasCallDescriptorFlag(CallDescriptor::kRetpoline)) {
           __ RetpolineJump(reg);
         } else {
           __ jmp(reg);
@@ -948,9 +948,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CHECK(!HasImmediateInput(instr, 0));
       Register reg = i.InputRegister(0);
       DCHECK_IMPLIES(
-          HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
+          instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
           reg == kJavaScriptCallCodeStartRegister);
-      if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
+      if (instr->HasCallDescriptorFlag(CallDescriptor::kRetpoline)) {
         __ RetpolineJump(reg);
       } else {
         __ jmp(reg);

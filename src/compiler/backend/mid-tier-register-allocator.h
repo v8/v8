@@ -57,8 +57,8 @@ class MidTierRegisterAllocationData final : public RegisterAllocationData {
   const InstructionBlock* GetBlock(int instr_index);
 
   // Returns a bitvector representing all the blocks that are dominated by the
-  // output of the instruction at |instr_index|.
-  const BitVector* GetBlocksDominatedBy(int instr_index);
+  // output of the instruction in |block|.
+  const BitVector* GetBlocksDominatedBy(const InstructionBlock* block);
 
   // List of all instruction indexs that require a reference map.
   ZoneVector<int>& reference_map_instructions() {

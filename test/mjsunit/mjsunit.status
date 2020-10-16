@@ -273,6 +273,8 @@
   'regress/regress-1122': [SKIP],
   'regress/regress-331444': [SKIP],
   'regress/regress-353551': [SKIP],
+  'regress/regress-1138075': [SKIP],
+  'regress/regress-1138611': [SKIP],
   'regress/regress-crbug-119926': [SKIP],
   'regress/short-circuit': [SKIP],
   'stack-traces-overflow': [SKIP],
