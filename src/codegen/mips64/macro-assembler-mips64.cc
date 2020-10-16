@@ -2509,6 +2509,9 @@ void TurboAssembler::RoundDouble(FPURegister dst, FPURegister src,
     ctc1(scratch, FCSR);
   } else {
     Label done;
+    if (!IsDoubleZeroRegSet()) {
+      Move(kDoubleRegZero, 0.0);
+    }
     mfhc1(scratch, src);
     Ext(at, scratch, HeapNumber::kExponentShift, HeapNumber::kExponentBits);
     Branch(USE_DELAY_SLOT, &done, hs, at,
@@ -2570,6 +2573,9 @@ void TurboAssembler::RoundFloat(FPURegister dst, FPURegister src,
     int32_t kFloat32MantissaBits = 23;
     int32_t kFloat32ExponentBits = 8;
     Label done;
+    if (!IsDoubleZeroRegSet()) {
+      Move(kDoubleRegZero, 0.0);
+    }
     mfc1(scratch, src);
     Ext(at, scratch, kFloat32MantissaBits, kFloat32ExponentBits);
     Branch(USE_DELAY_SLOT, &done, hs, at,
