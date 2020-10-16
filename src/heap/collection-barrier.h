@@ -29,7 +29,10 @@ class CollectionBarrier {
     kDefault,
 
     // Collection was already requested
-    kCollection,
+    kCollectionRequested,
+
+    // Collection was already started
+    kCollectionStarted,
 
     // This state is reached after isolate starts to shut down. The main
     // thread can't perform any GCs anymore, so all allocations need to be
@@ -40,8 +43,6 @@ class CollectionBarrier {
   // The current state.
   std::atomic<RequestState> state_;
 
-  void BlockUntilCollected();
-
   // Request GC by activating stack guards and posting a task to perform the
   // GC.
   void ActivateStackGuardAndPostTask();
@@ -50,14 +51,16 @@ class CollectionBarrier {
   // kCollection.
   bool FirstCollectionRequest() {
     RequestState expected = RequestState::kDefault;
-    return state_.compare_exchange_strong(expected, RequestState::kCollection);
+    return state_.compare_exchange_strong(expected,
+                                          RequestState::kCollectionRequested);
   }
 
   // Sets state back to kDefault - invoked at end of GC.
   void ClearCollectionRequested() {
     RequestState old_state =
         state_.exchange(RequestState::kDefault, std::memory_order_relaxed);
-    CHECK_NE(old_state, RequestState::kShutdown);
+    USE(old_state);
+    DCHECK_EQ(old_state, RequestState::kCollectionStarted);
   }
 
  public:
@@ -66,10 +69,12 @@ class CollectionBarrier {
 
   // Checks whether any background thread requested GC.
   bool CollectionRequested() {
-    return state_.load(std::memory_order_relaxed) == RequestState::kCollection;
+    return state_.load(std::memory_order_relaxed) ==
+           RequestState::kCollectionRequested;
   }
 
   void StopTimeToCollectionTimer();
+  void BlockUntilCollected();
 
   // Resumes threads waiting for collection.
   void ResumeThreadsAwaitingCollection();

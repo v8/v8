@@ -1515,8 +1515,6 @@ bool Heap::CollectGarbage(AllocationSpace space,
       this, IsYoungGenerationCollector(collector) ? "MinorGC" : "MajorGC",
       GarbageCollectionReasonToString(gc_reason));
 
-  collection_barrier_->StopTimeToCollectionTimer();
-
   if (!CanPromoteYoungAndExpandOldGeneration(0)) {
     InvokeNearHeapLimitCallback();
   }
@@ -1935,6 +1933,11 @@ size_t Heap::PerformGarbageCollection(
     GarbageCollector collector, const v8::GCCallbackFlags gc_callback_flags) {
   DisallowJavascriptExecution no_js(isolate());
   base::Optional<SafepointScope> optional_safepoint_scope;
+
+  // Stop time-to-collection timer before safepoint - we do not want to measure
+  // time for safepointing.
+  collection_barrier_->StopTimeToCollectionTimer();
+
   if (FLAG_local_heaps) {
     optional_safepoint_scope.emplace(this);
   }
