@@ -444,6 +444,7 @@ class DisassemblerX64 {
   int PrintImmediateOp(byte* data);
   const char* TwoByteMnemonic(byte opcode);
   int TwoByteOpcodeInstruction(byte* data);
+  int ThreeByteOpcodeInstruction(byte* data);
   int F6F7Instruction(byte* data);
   int ShiftInstruction(byte* data);
   int JumpShort(byte* data);
@@ -1826,352 +1827,247 @@ int DisassemblerX64::RegisterFPUInstruction(int escape_opcode,
 
 // Handle all two-byte opcodes, which start with 0x0F.
 // These instructions may be affected by an 0x66, 0xF2, or 0xF3 prefix.
-// We do not use any three-byte opcodes, which start with 0x0F38 or 0x0F3A.
 int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
   byte opcode = *(data + 1);
   byte* current = data + 2;
   // At return, "current" points to the start of the next instruction.
   const char* mnemonic = TwoByteMnemonic(opcode);
   if (operand_size_ == 0x66) {
+    // These are three-byte opcodes, see ThreeByteOpcodeInstruction.
+    DCHECK_NE(0x38, opcode);
+    DCHECK_NE(0x3A, opcode);
     // 0x66 0x0F prefix.
     int mod, regop, rm;
-    if (opcode == 0x38) {
-      byte third_byte = *current;
-      current = data + 3;
-      get_modrm(*current, &mod, &regop, &rm);
-      switch (third_byte) {
-        case 0x15: {
-          AppendToBuffer("blendvpd %s,", NameOfXMMRegister(regop));
-          current += PrintRightXMMOperand(current);
-          AppendToBuffer(",<xmm0>");
-          break;
-        }
-#define SSE34_DIS_CASE(instruction, notUsed1, notUsed2, notUsed3, opcode) \
-  case 0x##opcode: {                                                      \
-    AppendToBuffer(#instruction " %s,", NameOfXMMRegister(regop));        \
-    current += PrintRightXMMOperand(current);                             \
-    break;                                                                \
-  }
-
-        SSSE3_INSTRUCTION_LIST(SSE34_DIS_CASE)
-        SSSE3_UNOP_INSTRUCTION_LIST(SSE34_DIS_CASE)
-        SSE4_INSTRUCTION_LIST(SSE34_DIS_CASE)
-        SSE4_UNOP_INSTRUCTION_LIST(SSE34_DIS_CASE)
-        SSE4_2_INSTRUCTION_LIST(SSE34_DIS_CASE)
-#undef SSE34_DIS_CASE
-        default:
-          UnimplementedInstruction();
+    get_modrm(*current, &mod, &regop, &rm);
+    if (opcode == 0xC1) {
+      current += PrintOperands("xadd", OPER_REG_OP_ORDER, current);
+    } else if (opcode == 0x1F) {
+      current++;
+      if (rm == 4) {  // SIB byte present.
+        current++;
       }
-    } else if (opcode == 0x3A) {
-      byte third_byte = *current;
-      current = data + 3;
-      get_modrm(*current, &mod, &regop, &rm);
-      if (third_byte == 0x17) {
-        AppendToBuffer("extractps ");  // reg/m32, xmm, imm8
-        current += PrintRightOperand(current);
-        AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), (*current) & 3);
+      if (mod == 1) {  // Byte displacement.
         current += 1;
-      } else if (third_byte == 0x08) {
-        AppendToBuffer("roundps %s,", NameOfXMMRegister(regop));
-        current += PrintRightXMMOperand(current);
-        AppendToBuffer(",0x%x", (*current) & 3);
-        current += 1;
-      } else if (third_byte == 0x09) {
-        AppendToBuffer("roundpd %s,", NameOfXMMRegister(regop));
-        current += PrintRightXMMOperand(current);
-        AppendToBuffer(",0x%x", (*current) & 3);
-        current += 1;
-      } else if (third_byte == 0x0A) {
-        AppendToBuffer("roundss %s,", NameOfXMMRegister(regop));
-        current += PrintRightXMMOperand(current);
-        AppendToBuffer(",0x%x", (*current) & 3);
-        current += 1;
-      } else if (third_byte == 0x0B) {
-        // roundsd xmm, xmm/m64, imm8
-        AppendToBuffer("roundsd %s,", NameOfXMMRegister(regop));
-        current += PrintRightXMMOperand(current);
-        AppendToBuffer(",0x%x", (*current) & 3);
-        current += 1;
-      } else if (third_byte == 0x0E) {
-        AppendToBuffer("pblendw %s,", NameOfXMMRegister(regop));
-        current += PrintRightXMMOperand(current);
-        AppendToBuffer(",0x%x", *current);
-        current += 1;
-      } else if (third_byte == 0x0F) {
-        AppendToBuffer("palignr %s,", NameOfXMMRegister(regop));
-        current += PrintRightXMMOperand(current);
-        AppendToBuffer(",0x%x", (*current));
-        current += 1;
-      } else if (third_byte == 0x14) {
-        AppendToBuffer("pextrb ");  // reg/m32, xmm, imm8
-        current += PrintRightOperand(current);
-        AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), (*current) & 3);
-        current += 1;
-      } else if (third_byte == 0x15) {
-        AppendToBuffer("pextrw ");  // reg/m32, xmm, imm8
-        current += PrintRightOperand(current);
-        AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), (*current) & 7);
-        current += 1;
-      } else if (third_byte == 0x16) {
-        // reg/m32/reg/m64, xmm, imm8
-        AppendToBuffer("pextr%c ", rex_w() ? 'q' : 'd');
-        current += PrintRightOperand(current);
-        AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), (*current) & 3);
-        current += 1;
-      } else if (third_byte == 0x20) {
-        AppendToBuffer("pinsrb ");  // xmm, reg/m32, imm8
-        AppendToBuffer(" %s,", NameOfXMMRegister(regop));
-        current += PrintRightOperand(current);
-        AppendToBuffer(",%d", (*current) & 3);
-        current += 1;
-      } else if (third_byte == 0x21) {
-        // insertps xmm, xmm/m32, imm8
-        AppendToBuffer("insertps %s,", NameOfXMMRegister(regop));
-        current += PrintRightXMMOperand(current);
-        AppendToBuffer(",0x%x", (*current));
-        current += 1;
-      } else if (third_byte == 0x22) {
-        // xmm, reg/m32/reg/m64, imm8
-        AppendToBuffer("pinsr%c ", rex_w() ? 'q' : 'd');
-        AppendToBuffer(" %s,", NameOfXMMRegister(regop));
-        current += PrintRightOperand(current);
-        AppendToBuffer(",%d", (*current) & 3);
-        current += 1;
+      } else if (mod == 2) {  // 32-bit displacement.
+        current += 4;
+      }  // else no immediate displacement.
+      AppendToBuffer("nop");
+    } else if (opcode == 0x10) {
+      AppendToBuffer("movupd %s,", NameOfXMMRegister(regop));
+      current += PrintRightXMMOperand(current);
+    } else if (opcode == 0x11) {
+      AppendToBuffer("movupd ");
+      current += PrintRightXMMOperand(current);
+      AppendToBuffer(",%s", NameOfXMMRegister(regop));
+    } else if (opcode == 0x28) {
+      AppendToBuffer("movapd %s,", NameOfXMMRegister(regop));
+      current += PrintRightXMMOperand(current);
+    } else if (opcode == 0x29) {
+      AppendToBuffer("movapd ");
+      current += PrintRightXMMOperand(current);
+      AppendToBuffer(",%s", NameOfXMMRegister(regop));
+    } else if (opcode == 0x6E) {
+      AppendToBuffer("mov%c %s,", rex_w() ? 'q' : 'd',
+                     NameOfXMMRegister(regop));
+      current += PrintRightOperand(current);
+    } else if (opcode == 0x6F) {
+      AppendToBuffer("movdqa %s,", NameOfXMMRegister(regop));
+      current += PrintRightXMMOperand(current);
+    } else if (opcode == 0x7E) {
+      AppendToBuffer("mov%c ", rex_w() ? 'q' : 'd');
+      current += PrintRightOperand(current);
+      AppendToBuffer(",%s", NameOfXMMRegister(regop));
+    } else if (opcode == 0x7F) {
+      AppendToBuffer("movdqa ");
+      current += PrintRightXMMOperand(current);
+      AppendToBuffer(",%s", NameOfXMMRegister(regop));
+    } else if (opcode == 0xD6) {
+      AppendToBuffer("movq ");
+      current += PrintRightXMMOperand(current);
+      AppendToBuffer(",%s", NameOfXMMRegister(regop));
+    } else if (opcode == 0x50) {
+      AppendToBuffer("movmskpd %s,", NameOfCPURegister(regop));
+      current += PrintRightXMMOperand(current);
+    } else if (opcode == 0x70) {
+      AppendToBuffer("pshufd %s,", NameOfXMMRegister(regop));
+      current += PrintRightXMMOperand(current);
+      AppendToBuffer(",0x%x", *current);
+      current += 1;
+    } else if (opcode == 0x71) {
+      current += 1;
+      AppendToBuffer("ps%sw %s,%d", sf_str[regop / 2], NameOfXMMRegister(rm),
+                     *current & 0x7F);
+      current += 1;
+    } else if (opcode == 0x72) {
+      current += 1;
+      AppendToBuffer("ps%sd %s,%d", sf_str[regop / 2], NameOfXMMRegister(rm),
+                     *current & 0x7F);
+      current += 1;
+    } else if (opcode == 0x73) {
+      current += 1;
+      AppendToBuffer("ps%sq %s,%d", sf_str[regop / 2], NameOfXMMRegister(rm),
+                     *current & 0x7F);
+      current += 1;
+    } else if (opcode == 0xB1) {
+      current += PrintOperands("cmpxchg", OPER_REG_OP_ORDER, current);
+    } else if (opcode == 0xC4) {
+      AppendToBuffer("pinsrw %s,", NameOfXMMRegister(regop));
+      current += PrintRightOperand(current);
+      AppendToBuffer(",0x%x", (*current) & 7);
+      current += 1;
+    } else {
+      const char* mnemonic;
+      if (opcode == 0x51) {
+        mnemonic = "sqrtpd";
+      } else if (opcode == 0x54) {
+        mnemonic = "andpd";
+      } else if (opcode == 0x55) {
+        mnemonic = "andnpd";
+      } else if (opcode == 0x56) {
+        mnemonic = "orpd";
+      } else if (opcode == 0x57) {
+        mnemonic = "xorpd";
+      } else if (opcode == 0x58) {
+        mnemonic = "addpd";
+      } else if (opcode == 0x59) {
+        mnemonic = "mulpd";
+      } else if (opcode == 0x5B) {
+        mnemonic = "cvtps2dq";
+      } else if (opcode == 0x5C) {
+        mnemonic = "subpd";
+      } else if (opcode == 0x5D) {
+        mnemonic = "minpd";
+      } else if (opcode == 0x5E) {
+        mnemonic = "divpd";
+      } else if (opcode == 0x5F) {
+        mnemonic = "maxpd";
+      } else if (opcode == 0x60) {
+        mnemonic = "punpcklbw";
+      } else if (opcode == 0x61) {
+        mnemonic = "punpcklwd";
+      } else if (opcode == 0x62) {
+        mnemonic = "punpckldq";
+      } else if (opcode == 0x63) {
+        mnemonic = "packsswb";
+      } else if (opcode == 0x64) {
+        mnemonic = "pcmpgtb";
+      } else if (opcode == 0x65) {
+        mnemonic = "pcmpgtw";
+      } else if (opcode == 0x66) {
+        mnemonic = "pcmpgtd";
+      } else if (opcode == 0x67) {
+        mnemonic = "packuswb";
+      } else if (opcode == 0x68) {
+        mnemonic = "punpckhbw";
+      } else if (opcode == 0x69) {
+        mnemonic = "punpckhwd";
+      } else if (opcode == 0x6A) {
+        mnemonic = "punpckhdq";
+      } else if (opcode == 0x6B) {
+        mnemonic = "packssdw";
+      } else if (opcode == 0x6C) {
+        mnemonic = "punpcklqdq";
+      } else if (opcode == 0x6D) {
+        mnemonic = "punpckhqdq";
+      } else if (opcode == 0x2E) {
+        mnemonic = "ucomisd";
+      } else if (opcode == 0x2F) {
+        mnemonic = "comisd";
+      } else if (opcode == 0x74) {
+        mnemonic = "pcmpeqb";
+      } else if (opcode == 0x75) {
+        mnemonic = "pcmpeqw";
+      } else if (opcode == 0x76) {
+        mnemonic = "pcmpeqd";
+      } else if (opcode == 0xC2) {
+        mnemonic = "cmppd";
+      } else if (opcode == 0xD1) {
+        mnemonic = "psrlw";
+      } else if (opcode == 0xD2) {
+        mnemonic = "psrld";
+      } else if (opcode == 0xD3) {
+        mnemonic = "psrlq";
+      } else if (opcode == 0xD4) {
+        mnemonic = "paddq";
+      } else if (opcode == 0xD5) {
+        mnemonic = "pmullw";
+      } else if (opcode == 0xD7) {
+        mnemonic = "pmovmskb";
+      } else if (opcode == 0xD8) {
+        mnemonic = "psubusb";
+      } else if (opcode == 0xD9) {
+        mnemonic = "psubusw";
+      } else if (opcode == 0xDA) {
+        mnemonic = "pminub";
+      } else if (opcode == 0xDB) {
+        mnemonic = "pand";
+      } else if (opcode == 0xDC) {
+        mnemonic = "paddusb";
+      } else if (opcode == 0xDD) {
+        mnemonic = "paddusw";
+      } else if (opcode == 0xDE) {
+        mnemonic = "pmaxub";
+      } else if (opcode == 0xE0) {
+        mnemonic = "pavgb";
+      } else if (opcode == 0xE1) {
+        mnemonic = "psraw";
+      } else if (opcode == 0xE2) {
+        mnemonic = "psrad";
+      } else if (opcode == 0xE3) {
+        mnemonic = "pavgw";
+      } else if (opcode == 0xE8) {
+        mnemonic = "psubsb";
+      } else if (opcode == 0xE9) {
+        mnemonic = "psubsw";
+      } else if (opcode == 0xEA) {
+        mnemonic = "pminsw";
+      } else if (opcode == 0xEB) {
+        mnemonic = "por";
+      } else if (opcode == 0xEC) {
+        mnemonic = "paddsb";
+      } else if (opcode == 0xED) {
+        mnemonic = "paddsw";
+      } else if (opcode == 0xEE) {
+        mnemonic = "pmaxsw";
+      } else if (opcode == 0xEF) {
+        mnemonic = "pxor";
+      } else if (opcode == 0xF1) {
+        mnemonic = "psllw";
+      } else if (opcode == 0xF2) {
+        mnemonic = "pslld";
+      } else if (opcode == 0xF3) {
+        mnemonic = "psllq";
+      } else if (opcode == 0xF4) {
+        mnemonic = "pmuludq";
+      } else if (opcode == 0xF5) {
+        mnemonic = "pmaddwd";
+      } else if (opcode == 0xF8) {
+        mnemonic = "psubb";
+      } else if (opcode == 0xF9) {
+        mnemonic = "psubw";
+      } else if (opcode == 0xFA) {
+        mnemonic = "psubd";
+      } else if (opcode == 0xFB) {
+        mnemonic = "psubq";
+      } else if (opcode == 0xFC) {
+        mnemonic = "paddb";
+      } else if (opcode == 0xFD) {
+        mnemonic = "paddw";
+      } else if (opcode == 0xFE) {
+        mnemonic = "paddd";
       } else {
         UnimplementedInstruction();
       }
-    } else if (opcode == 0xC1) {
-      current += PrintOperands("xadd", OPER_REG_OP_ORDER, current);
-    } else {
-      get_modrm(*current, &mod, &regop, &rm);
-      if (opcode == 0x1F) {
-        current++;
-        if (rm == 4) {  // SIB byte present.
-          current++;
-        }
-        if (mod == 1) {  // Byte displacement.
-          current += 1;
-        } else if (mod == 2) {  // 32-bit displacement.
-          current += 4;
-        }  // else no immediate displacement.
-        AppendToBuffer("nop");
-      } else if (opcode == 0x10) {
-        AppendToBuffer("movupd %s,", NameOfXMMRegister(regop));
-        current += PrintRightXMMOperand(current);
-      } else if (opcode == 0x11) {
-        AppendToBuffer("movupd ");
-        current += PrintRightXMMOperand(current);
-        AppendToBuffer(",%s", NameOfXMMRegister(regop));
-      } else if (opcode == 0x28) {
-        AppendToBuffer("movapd %s,", NameOfXMMRegister(regop));
-        current += PrintRightXMMOperand(current);
-      } else if (opcode == 0x29) {
-        AppendToBuffer("movapd ");
-        current += PrintRightXMMOperand(current);
-        AppendToBuffer(",%s", NameOfXMMRegister(regop));
-      } else if (opcode == 0x6E) {
-        AppendToBuffer("mov%c %s,", rex_w() ? 'q' : 'd',
-                       NameOfXMMRegister(regop));
-        current += PrintRightOperand(current);
-      } else if (opcode == 0x6F) {
-        AppendToBuffer("movdqa %s,", NameOfXMMRegister(regop));
-        current += PrintRightXMMOperand(current);
-      } else if (opcode == 0x7E) {
-        AppendToBuffer("mov%c ", rex_w() ? 'q' : 'd');
-        current += PrintRightOperand(current);
-        AppendToBuffer(",%s", NameOfXMMRegister(regop));
-      } else if (opcode == 0x7F) {
-        AppendToBuffer("movdqa ");
-        current += PrintRightXMMOperand(current);
-        AppendToBuffer(",%s", NameOfXMMRegister(regop));
-      } else if (opcode == 0xD6) {
-        AppendToBuffer("movq ");
-        current += PrintRightXMMOperand(current);
-        AppendToBuffer(",%s", NameOfXMMRegister(regop));
-      } else if (opcode == 0x50) {
-        AppendToBuffer("movmskpd %s,", NameOfCPURegister(regop));
-        current += PrintRightXMMOperand(current);
-      } else if (opcode == 0x70) {
-        AppendToBuffer("pshufd %s,", NameOfXMMRegister(regop));
-        current += PrintRightXMMOperand(current);
-        AppendToBuffer(",0x%x", *current);
+      // Not every opcode here has an XMM register as the dst operand.
+      const char* regop_reg =
+          opcode == 0xD7 ? NameOfCPURegister(regop) : NameOfXMMRegister(regop);
+      AppendToBuffer("%s %s,", mnemonic, regop_reg);
+      current += PrintRightXMMOperand(current);
+      if (opcode == 0xC2) {
+        const char* const pseudo_op[] = {"eq",  "lt",  "le",  "unord",
+                                         "neq", "nlt", "nle", "ord"};
+        AppendToBuffer(", (%s)", pseudo_op[*current]);
         current += 1;
-      } else if (opcode == 0x71) {
-        current += 1;
-        AppendToBuffer("ps%sw %s,%d", sf_str[regop / 2], NameOfXMMRegister(rm),
-                       *current & 0x7F);
-        current += 1;
-      } else if (opcode == 0x72) {
-        current += 1;
-        AppendToBuffer("ps%sd %s,%d", sf_str[regop / 2], NameOfXMMRegister(rm),
-                       *current & 0x7F);
-        current += 1;
-      } else if (opcode == 0x73) {
-        current += 1;
-        AppendToBuffer("ps%sq %s,%d", sf_str[regop / 2], NameOfXMMRegister(rm),
-                       *current & 0x7F);
-        current += 1;
-      } else if (opcode == 0xB1) {
-        current += PrintOperands("cmpxchg", OPER_REG_OP_ORDER, current);
-      } else if (opcode == 0xC4) {
-        AppendToBuffer("pinsrw %s,", NameOfXMMRegister(regop));
-        current += PrintRightOperand(current);
-        AppendToBuffer(",0x%x", (*current) & 7);
-        current += 1;
-      } else {
-        const char* mnemonic;
-        if (opcode == 0x51) {
-          mnemonic = "sqrtpd";
-        } else if (opcode == 0x54) {
-          mnemonic = "andpd";
-        } else if (opcode == 0x55) {
-          mnemonic = "andnpd";
-        } else if (opcode == 0x56) {
-          mnemonic = "orpd";
-        } else if (opcode == 0x57) {
-          mnemonic = "xorpd";
-        } else if (opcode == 0x58) {
-          mnemonic = "addpd";
-        } else if (opcode == 0x59) {
-          mnemonic = "mulpd";
-        } else if (opcode == 0x5B) {
-          mnemonic = "cvtps2dq";
-        } else if (opcode == 0x5C) {
-          mnemonic = "subpd";
-        } else if (opcode == 0x5D) {
-          mnemonic = "minpd";
-        } else if (opcode == 0x5E) {
-          mnemonic = "divpd";
-        } else if (opcode == 0x5F) {
-          mnemonic = "maxpd";
-        } else if (opcode == 0x60) {
-          mnemonic = "punpcklbw";
-        } else if (opcode == 0x61) {
-          mnemonic = "punpcklwd";
-        } else if (opcode == 0x62) {
-          mnemonic = "punpckldq";
-        } else if (opcode == 0x63) {
-          mnemonic = "packsswb";
-        } else if (opcode == 0x64) {
-          mnemonic = "pcmpgtb";
-        } else if (opcode == 0x65) {
-          mnemonic = "pcmpgtw";
-        } else if (opcode == 0x66) {
-          mnemonic = "pcmpgtd";
-        } else if (opcode == 0x67) {
-          mnemonic = "packuswb";
-        } else if (opcode == 0x68) {
-          mnemonic = "punpckhbw";
-        } else if (opcode == 0x69) {
-          mnemonic = "punpckhwd";
-        } else if (opcode == 0x6A) {
-          mnemonic = "punpckhdq";
-        } else if (opcode == 0x6B) {
-          mnemonic = "packssdw";
-        } else if (opcode == 0x6C) {
-          mnemonic = "punpcklqdq";
-        } else if (opcode == 0x6D) {
-          mnemonic = "punpckhqdq";
-        } else if (opcode == 0x2E) {
-          mnemonic = "ucomisd";
-        } else if (opcode == 0x2F) {
-          mnemonic = "comisd";
-        } else if (opcode == 0x74) {
-          mnemonic = "pcmpeqb";
-        } else if (opcode == 0x75) {
-          mnemonic = "pcmpeqw";
-        } else if (opcode == 0x76) {
-          mnemonic = "pcmpeqd";
-        } else if (opcode == 0xC2) {
-          mnemonic = "cmppd";
-        } else if (opcode == 0xD1) {
-          mnemonic = "psrlw";
-        } else if (opcode == 0xD2) {
-          mnemonic = "psrld";
-        } else if (opcode == 0xD3) {
-          mnemonic = "psrlq";
-        } else if (opcode == 0xD4) {
-          mnemonic = "paddq";
-        } else if (opcode == 0xD5) {
-          mnemonic = "pmullw";
-        } else if (opcode == 0xD7) {
-          mnemonic = "pmovmskb";
-        } else if (opcode == 0xD8) {
-          mnemonic = "psubusb";
-        } else if (opcode == 0xD9) {
-          mnemonic = "psubusw";
-        } else if (opcode == 0xDA) {
-          mnemonic = "pminub";
-        } else if (opcode == 0xDB) {
-          mnemonic = "pand";
-        } else if (opcode == 0xDC) {
-          mnemonic = "paddusb";
-        } else if (opcode == 0xDD) {
-          mnemonic = "paddusw";
-        } else if (opcode == 0xDE) {
-          mnemonic = "pmaxub";
-        } else if (opcode == 0xE0) {
-          mnemonic = "pavgb";
-        } else if (opcode == 0xE1) {
-          mnemonic = "psraw";
-        } else if (opcode == 0xE2) {
-          mnemonic = "psrad";
-        } else if (opcode == 0xE3) {
-          mnemonic = "pavgw";
-        } else if (opcode == 0xE8) {
-          mnemonic = "psubsb";
-        } else if (opcode == 0xE9) {
-          mnemonic = "psubsw";
-        } else if (opcode == 0xEA) {
-          mnemonic = "pminsw";
-        } else if (opcode == 0xEB) {
-          mnemonic = "por";
-        } else if (opcode == 0xEC) {
-          mnemonic = "paddsb";
-        } else if (opcode == 0xED) {
-          mnemonic = "paddsw";
-        } else if (opcode == 0xEE) {
-          mnemonic = "pmaxsw";
-        } else if (opcode == 0xEF) {
-          mnemonic = "pxor";
-        } else if (opcode == 0xF1) {
-          mnemonic = "psllw";
-        } else if (opcode == 0xF2) {
-          mnemonic = "pslld";
-        } else if (opcode == 0xF3) {
-          mnemonic = "psllq";
-        } else if (opcode == 0xF4) {
-          mnemonic = "pmuludq";
-        } else if (opcode == 0xF5) {
-          mnemonic = "pmaddwd";
-        } else if (opcode == 0xF8) {
-          mnemonic = "psubb";
-        } else if (opcode == 0xF9) {
-          mnemonic = "psubw";
-        } else if (opcode == 0xFA) {
-          mnemonic = "psubd";
-        } else if (opcode == 0xFB) {
-          mnemonic = "psubq";
-        } else if (opcode == 0xFC) {
-          mnemonic = "paddb";
-        } else if (opcode == 0xFD) {
-          mnemonic = "paddw";
-        } else if (opcode == 0xFE) {
-          mnemonic = "paddd";
-        } else {
-          UnimplementedInstruction();
-        }
-        // Not every opcode here has an XMM register as the dst operand.
-        const char* regop_reg = opcode == 0xD7 ? NameOfCPURegister(regop)
-                                               : NameOfXMMRegister(regop);
-        AppendToBuffer("%s %s,", mnemonic, regop_reg);
-        current += PrintRightXMMOperand(current);
-        if (opcode == 0xC2) {
-          const char* const pseudo_op[] = {"eq",  "lt",  "le",  "unord",
-                                           "neq", "nlt", "nle", "ord"};
-          AppendToBuffer(", (%s)", pseudo_op[*current]);
-          current += 1;
-        }
       }
     }
   } else if (group_1_prefix_ == 0xF2) {
@@ -2499,6 +2395,122 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
   return static_cast<int>(current - data);
 }
 
+// Handle all three-byte opcodes, which start with 0x0F38 or 0x0F3A.
+// These instructions may be affected by an 0x66, 0xF2, or 0xF3 prefix, but we
+// only have instructions prefixed with 0x66 for now.
+int DisassemblerX64::ThreeByteOpcodeInstruction(byte* data) {
+  DCHECK_EQ(0x0F, *data);
+  // Only support 3-byte opcodes prefixed with 0x66 for now.
+  DCHECK_EQ(0x66, operand_size_);
+  byte second_byte = *(data + 1);
+  byte third_byte = *(data + 2);
+  byte* current = data + 3;
+  int mod, regop, rm;
+  get_modrm(*current, &mod, &regop, &rm);
+  if (second_byte == 0x38) {
+    switch (third_byte) {
+      case 0x15: {
+        AppendToBuffer("blendvpd %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",<xmm0>");
+        break;
+      }
+#define SSE34_DIS_CASE(instruction, notUsed1, notUsed2, notUsed3, opcode) \
+  case 0x##opcode: {                                                      \
+    AppendToBuffer(#instruction " %s,", NameOfXMMRegister(regop));        \
+    current += PrintRightXMMOperand(current);                             \
+    break;                                                                \
+  }
+
+        SSSE3_INSTRUCTION_LIST(SSE34_DIS_CASE)
+        SSSE3_UNOP_INSTRUCTION_LIST(SSE34_DIS_CASE)
+        SSE4_INSTRUCTION_LIST(SSE34_DIS_CASE)
+        SSE4_UNOP_INSTRUCTION_LIST(SSE34_DIS_CASE)
+        SSE4_2_INSTRUCTION_LIST(SSE34_DIS_CASE)
+#undef SSE34_DIS_CASE
+      default:
+        UnimplementedInstruction();
+    }
+  } else {
+    DCHECK_EQ(0x3A, second_byte);
+    if (third_byte == 0x17) {
+      AppendToBuffer("extractps ");  // reg/m32, xmm, imm8
+      current += PrintRightOperand(current);
+      AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), (*current) & 3);
+      current += 1;
+    } else if (third_byte == 0x08) {
+      AppendToBuffer("roundps %s,", NameOfXMMRegister(regop));
+      current += PrintRightXMMOperand(current);
+      AppendToBuffer(",0x%x", (*current) & 3);
+      current += 1;
+    } else if (third_byte == 0x09) {
+      AppendToBuffer("roundpd %s,", NameOfXMMRegister(regop));
+      current += PrintRightXMMOperand(current);
+      AppendToBuffer(",0x%x", (*current) & 3);
+      current += 1;
+    } else if (third_byte == 0x0A) {
+      AppendToBuffer("roundss %s,", NameOfXMMRegister(regop));
+      current += PrintRightXMMOperand(current);
+      AppendToBuffer(",0x%x", (*current) & 3);
+      current += 1;
+    } else if (third_byte == 0x0B) {
+      // roundsd xmm, xmm/m64, imm8
+      AppendToBuffer("roundsd %s,", NameOfXMMRegister(regop));
+      current += PrintRightXMMOperand(current);
+      AppendToBuffer(",0x%x", (*current) & 3);
+      current += 1;
+    } else if (third_byte == 0x0E) {
+      AppendToBuffer("pblendw %s,", NameOfXMMRegister(regop));
+      current += PrintRightXMMOperand(current);
+      AppendToBuffer(",0x%x", *current);
+      current += 1;
+    } else if (third_byte == 0x0F) {
+      AppendToBuffer("palignr %s,", NameOfXMMRegister(regop));
+      current += PrintRightXMMOperand(current);
+      AppendToBuffer(",0x%x", (*current));
+      current += 1;
+    } else if (third_byte == 0x14) {
+      AppendToBuffer("pextrb ");  // reg/m32, xmm, imm8
+      current += PrintRightOperand(current);
+      AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), (*current) & 3);
+      current += 1;
+    } else if (third_byte == 0x15) {
+      AppendToBuffer("pextrw ");  // reg/m32, xmm, imm8
+      current += PrintRightOperand(current);
+      AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), (*current) & 7);
+      current += 1;
+    } else if (third_byte == 0x16) {
+      // reg/m32/reg/m64, xmm, imm8
+      AppendToBuffer("pextr%c ", rex_w() ? 'q' : 'd');
+      current += PrintRightOperand(current);
+      AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), (*current) & 3);
+      current += 1;
+    } else if (third_byte == 0x20) {
+      AppendToBuffer("pinsrb ");  // xmm, reg/m32, imm8
+      AppendToBuffer(" %s,", NameOfXMMRegister(regop));
+      current += PrintRightOperand(current);
+      AppendToBuffer(",%d", (*current) & 3);
+      current += 1;
+    } else if (third_byte == 0x21) {
+      // insertps xmm, xmm/m32, imm8
+      AppendToBuffer("insertps %s,", NameOfXMMRegister(regop));
+      current += PrintRightXMMOperand(current);
+      AppendToBuffer(",0x%x", (*current));
+      current += 1;
+    } else if (third_byte == 0x22) {
+      // xmm, reg/m32/reg/m64, imm8
+      AppendToBuffer("pinsr%c ", rex_w() ? 'q' : 'd');
+      AppendToBuffer(" %s,", NameOfXMMRegister(regop));
+      current += PrintRightOperand(current);
+      AppendToBuffer(",%d", (*current) & 3);
+      current += 1;
+    } else {
+      UnimplementedInstruction();
+    }
+  }
+  return static_cast<int>(current - data);
+}
+
 // Mnemonics for two-byte opcode instructions starting with 0x0F.
 // The argument is the second byte of the two-byte opcode.
 // Returns nullptr if the instruction is not handled here.
@@ -2723,7 +2735,12 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
         break;
 
       case 0x0F:
-        data += TwoByteOpcodeInstruction(data);
+        // Check for three-byte opcodes, 0x0F38 or 0x0F3A.
+        if (*(data + 1) == 0x38 || *(data + 1) == 0x3A) {
+          data += ThreeByteOpcodeInstruction(data);
+        } else {
+          data += TwoByteOpcodeInstruction(data);
+        }
         break;
 
       case 0x8F: {
