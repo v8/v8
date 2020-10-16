@@ -12,7 +12,6 @@
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
 #include "src/heap/base/stack.h"
-#include "src/heap/cppgc-js/cpp-snapshot.h"
 #include "src/heap/cppgc-js/unified-heap-marking-state.h"
 #include "src/heap/cppgc-js/unified-heap-marking-visitor.h"
 #include "src/heap/cppgc/concurrent-marker.h"
@@ -29,7 +28,6 @@
 #include "src/heap/marking-worklist.h"
 #include "src/heap/sweeper.h"
 #include "src/init/v8.h"
-#include "src/profiler/heap-profiler.h"
 
 namespace v8 {
 namespace internal {
@@ -148,13 +146,6 @@ CppHeap::CppHeap(
                                     kSupportsConservativeStackScan),
       isolate_(*reinterpret_cast<Isolate*>(isolate)) {
   CHECK(!FLAG_incremental_marking_wrappers);
-  isolate_.heap_profiler()->AddBuildEmbedderGraphCallback(&CppGraphBuilder::Run,
-                                                          this);
-}
-
-CppHeap::~CppHeap() {
-  isolate_.heap_profiler()->RemoveBuildEmbedderGraphCallback(
-      &CppGraphBuilder::Run, this);
 }
 
 void CppHeap::RegisterV8References(

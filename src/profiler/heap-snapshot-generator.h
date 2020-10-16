@@ -151,12 +151,12 @@ class HeapEntry {
                                   StringsStorage* strings);
 
   V8_EXPORT_PRIVATE void Print(const char* prefix, const char* edge_name,
-                               int max_depth, int indent) const;
+                               int max_depth, int indent);
 
  private:
   V8_INLINE std::vector<HeapGraphEdge*>::iterator children_begin() const;
   V8_INLINE std::vector<HeapGraphEdge*>::iterator children_end() const;
-  const char* TypeAsString() const;
+  const char* TypeAsString();
 
   unsigned type_: 4;
   unsigned index_ : 28;  // Supports up to ~250M objects.
@@ -196,9 +196,7 @@ class HeapSnapshot {
     return gc_subroot_entries_[static_cast<int>(root)];
   }
   std::deque<HeapEntry>& entries() { return entries_; }
-  const std::deque<HeapEntry>& entries() const { return entries_; }
   std::deque<HeapGraphEdge>& edges() { return edges_; }
-  const std::deque<HeapGraphEdge>& edges() const { return edges_; }
   std::vector<HeapGraphEdge*>& children() { return children_; }
   const std::vector<SourceLocation>& locations() const { return locations_; }
   void RememberLastJSObjectId();

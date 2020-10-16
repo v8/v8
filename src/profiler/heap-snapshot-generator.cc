@@ -103,8 +103,8 @@ void HeapEntry::SetNamedAutoIndexReference(HeapGraphEdge::Type type,
   SetNamedReference(type, name, child);
 }
 
-void HeapEntry::Print(const char* prefix, const char* edge_name, int max_depth,
-                      int indent) const {
+void HeapEntry::Print(
+    const char* prefix, const char* edge_name, int max_depth, int indent) {
   STATIC_ASSERT(sizeof(unsigned) == sizeof(id()));
   base::OS::Print("%6zu @%6u %*c %s%s: ", self_size(), id(), indent, ' ',
                   prefix, edge_name);
@@ -162,7 +162,7 @@ void HeapEntry::Print(const char* prefix, const char* edge_name, int max_depth,
   }
 }
 
-const char* HeapEntry::TypeAsString() const {
+const char* HeapEntry::TypeAsString() {
   switch (type()) {
     case kHidden: return "/hidden/";
     case kObject: return "/object/";
