@@ -41,7 +41,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Mul:
     case kArm64Mul32:
     case kArm64Smull:
+    case kArm64Smull2:
     case kArm64Umull:
+    case kArm64Umull2:
     case kArm64Madd:
     case kArm64Madd32:
     case kArm64Msub:

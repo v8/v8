@@ -2429,6 +2429,42 @@ class WasmInterpreterInternals {
         SHIFT_CASE(I8x16ShrS, i8x16, int16, 16, a >> (shift % 8))
         SHIFT_CASE(I8x16ShrU, i8x16, int16, 16,
                    static_cast<uint8_t>(a) >> (shift % 8))
+      case kExprI16x8ExtMulLowI8x16S: {
+        return DoSimdExtMul<int16, int8, int8_t, int16_t>(0);
+      }
+      case kExprI16x8ExtMulHighI8x16S: {
+        return DoSimdExtMul<int16, int8, int8_t, int16_t>(8);
+      }
+      case kExprI16x8ExtMulLowI8x16U: {
+        return DoSimdExtMul<int16, int8, uint8_t, uint16_t>(0);
+      }
+      case kExprI16x8ExtMulHighI8x16U: {
+        return DoSimdExtMul<int16, int8, uint8_t, uint16_t>(8);
+      }
+      case kExprI32x4ExtMulLowI16x8S: {
+        return DoSimdExtMul<int8, int4, int16_t, int32_t>(0);
+      }
+      case kExprI32x4ExtMulHighI16x8S: {
+        return DoSimdExtMul<int8, int4, int16_t, int32_t>(4);
+      }
+      case kExprI32x4ExtMulLowI16x8U: {
+        return DoSimdExtMul<int8, int4, uint16_t, uint32_t>(0);
+      }
+      case kExprI32x4ExtMulHighI16x8U: {
+        return DoSimdExtMul<int8, int4, uint16_t, uint32_t>(4);
+      }
+      case kExprI64x2ExtMulLowI32x4S: {
+        return DoSimdExtMul<int4, int2, int32_t, int64_t>(0);
+      }
+      case kExprI64x2ExtMulHighI32x4S: {
+        return DoSimdExtMul<int4, int2, int32_t, int64_t>(2);
+      }
+      case kExprI64x2ExtMulLowI32x4U: {
+        return DoSimdExtMul<int4, int2, uint32_t, uint64_t>(0);
+      }
+      case kExprI64x2ExtMulHighI32x4U: {
+        return DoSimdExtMul<int4, int2, uint32_t, uint64_t>(2);
+      }
 #undef SHIFT_CASE
 #define CONVERT_CASE(op, src_type, name, dst_type, count, start_index, ctype, \
                      expr)                                                    \
@@ -2807,6 +2843,24 @@ class WasmInterpreterInternals {
     }
 
     *len += lane_imm.length;
+    return true;
+  }
+
+  template <typename s_type, typename d_type, typename narrow, typename wide>
+  bool DoSimdExtMul(unsigned start) {
+    WasmValue v2 = Pop();
+    WasmValue v1 = Pop();
+    auto s1 = v1.to_s128().to<s_type>();
+    auto s2 = v2.to_s128().to<s_type>();
+    auto end = start + (kSimd128Size / sizeof(wide));
+    d_type res;
+    for (size_t dst = 0; start < end; ++start, ++dst) {
+      // Need static_cast for unsigned narrow types.
+      res.val[LANE(dst, res)] =
+          MultiplyLong<wide>(static_cast<narrow>(s1.val[LANE(start, s)]),
+                             static_cast<narrow>(s2.val[LANE(start, s)]));
+    }
+    Push(WasmValue(Simd128(res)));
     return true;
   }
 

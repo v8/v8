@@ -2013,6 +2013,14 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI64x2Eq(node);
     case IrOpcode::kI64x2ShrU:
       return MarkAsSimd128(node), VisitI64x2ShrU(node);
+    case IrOpcode::kI64x2ExtMulLowI32x4S:
+      return MarkAsSimd128(node), VisitI64x2ExtMulLowI32x4S(node);
+    case IrOpcode::kI64x2ExtMulHighI32x4S:
+      return MarkAsSimd128(node), VisitI64x2ExtMulHighI32x4S(node);
+    case IrOpcode::kI64x2ExtMulLowI32x4U:
+      return MarkAsSimd128(node), VisitI64x2ExtMulLowI32x4U(node);
+    case IrOpcode::kI64x2ExtMulHighI32x4U:
+      return MarkAsSimd128(node), VisitI64x2ExtMulHighI32x4U(node);
     case IrOpcode::kI32x4Splat:
       return MarkAsSimd128(node), VisitI32x4Splat(node);
     case IrOpcode::kI32x4ExtractLane:
@@ -2073,6 +2081,14 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord32(node), VisitI32x4BitMask(node);
     case IrOpcode::kI32x4DotI16x8S:
       return MarkAsSimd128(node), VisitI32x4DotI16x8S(node);
+    case IrOpcode::kI32x4ExtMulLowI16x8S:
+      return MarkAsSimd128(node), VisitI32x4ExtMulLowI16x8S(node);
+    case IrOpcode::kI32x4ExtMulHighI16x8S:
+      return MarkAsSimd128(node), VisitI32x4ExtMulHighI16x8S(node);
+    case IrOpcode::kI32x4ExtMulLowI16x8U:
+      return MarkAsSimd128(node), VisitI32x4ExtMulLowI16x8U(node);
+    case IrOpcode::kI32x4ExtMulHighI16x8U:
+      return MarkAsSimd128(node), VisitI32x4ExtMulHighI16x8U(node);
     case IrOpcode::kI16x8Splat:
       return MarkAsSimd128(node), VisitI16x8Splat(node);
     case IrOpcode::kI16x8ExtractLaneU:
@@ -2145,6 +2161,14 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI16x8Abs(node);
     case IrOpcode::kI16x8BitMask:
       return MarkAsWord32(node), VisitI16x8BitMask(node);
+    case IrOpcode::kI16x8ExtMulLowI8x16S:
+      return MarkAsSimd128(node), VisitI16x8ExtMulLowI8x16S(node);
+    case IrOpcode::kI16x8ExtMulHighI8x16S:
+      return MarkAsSimd128(node), VisitI16x8ExtMulHighI8x16S(node);
+    case IrOpcode::kI16x8ExtMulLowI8x16U:
+      return MarkAsSimd128(node), VisitI16x8ExtMulLowI8x16U(node);
+    case IrOpcode::kI16x8ExtMulHighI8x16U:
+      return MarkAsSimd128(node), VisitI16x8ExtMulHighI8x16U(node);
     case IrOpcode::kI8x16Splat:
       return MarkAsSimd128(node), VisitI8x16Splat(node);
     case IrOpcode::kI8x16ExtractLaneU:
@@ -2698,6 +2722,44 @@ void InstructionSelector::VisitI64x2UConvertI32x4High(Node* node) {
 
 // TODO(v8:11002) Prototype i8x16.popcnt.
 void InstructionSelector::VisitI8x16Popcnt(Node* node) { UNIMPLEMENTED(); }
+
+// TODO(v8:11008) Prototype extended multiplication.
+void InstructionSelector::VisitI64x2ExtMulLowI32x4S(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI64x2ExtMulHighI32x4S(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI64x2ExtMulLowI32x4U(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI64x2ExtMulHighI32x4U(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI32x4ExtMulLowI16x8S(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI32x4ExtMulHighI16x8S(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI32x4ExtMulLowI16x8U(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI32x4ExtMulHighI16x8U(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI16x8ExtMulLowI8x16S(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI16x8ExtMulHighI8x16S(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI16x8ExtMulLowI8x16U(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI16x8ExtMulHighI8x16U(Node* node) {
+  UNIMPLEMENTED();
+}
 #endif  // !V8_TARGET_ARCH_ARM64
 
 #if !V8_TARGET_ARCH_X64

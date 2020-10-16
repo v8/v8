@@ -202,6 +202,21 @@ T SaturateRoundingQMul(T a, T b) {
   return Saturate<T>(product);
 }
 
+// Multiply two numbers, returning a result that is twice as wide, no overflow.
+// Put Wide first so we can use function template argument deduction for Narrow,
+// and callers can provide only Wide.
+template <typename Wide, typename Narrow>
+Wide MultiplyLong(Narrow a, Narrow b) {
+  static_assert(
+      std::is_integral<Narrow>::value && std::is_integral<Wide>::value,
+      "only integral types");
+  static_assert(std::is_signed<Narrow>::value == std::is_signed<Wide>::value,
+                "both must have same signedness");
+  static_assert(sizeof(Narrow) * 2 == sizeof(Wide), "only twice as long");
+
+  return static_cast<Wide>(a) * static_cast<Wide>(b);
+}
+
 // Helper macros for defining a contiguous sequence of field offset constants.
 // Example: (backslashes at the ends of respective lines of this multi-line
 // macro definition are omitted here to please the compiler)

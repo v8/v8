@@ -2220,12 +2220,124 @@ WASM_SIMD_TEST(I16x8RoundingAverageU) {
                               base::RoundingAverageUnsigned);
 }
 
-// TODO(v8:10971) Prototype i16x8.q15mulr_sat_s
 #if V8_TARGET_ARCH_ARM64
+// TODO(v8:10971) Prototype i16x8.q15mulr_sat_s
 WASM_SIMD_TEST_NO_LOWERING(I16x8Q15MulRSatS) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   RunI16x8BinOpTest<int16_t>(execution_tier, lower_simd, kExprI16x8Q15MulRSatS,
                              SaturateRoundingQMul<int16_t>);
+}
+
+// TODO(v8:11008) Prototype extended multiplication.
+namespace {
+enum class MulHalf { kLow, kHigh };
+
+// Helper to run ext mul tests. It will splat 2 input values into 2 v128, call
+// the mul op on these operands, and set the result into a global.
+// It will zero the top or bottom half of one of the operands, this will catch
+// mistakes if we are multiply the incorrect halves.
+template <typename S, typename T, typename OpType = T (*)(S, S)>
+void RunExtMulTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
+                   WasmOpcode opcode, OpType expected_op, WasmOpcode splat,
+                   MulHalf half) {
+  FLAG_SCOPE(wasm_simd_post_mvp);
+  WasmRunner<int32_t, S, S> r(execution_tier, lower_simd);
+  int lane_to_zero = half == MulHalf::kLow ? 1 : 0;
+  T* g = r.builder().template AddGlobal<T>(kWasmS128);
+
+  BUILD(r,
+        WASM_SET_GLOBAL(
+            0, WASM_SIMD_BINOP(
+                   opcode,
+                   WASM_SIMD_I64x2_REPLACE_LANE(
+                       lane_to_zero, WASM_SIMD_UNOP(splat, WASM_GET_LOCAL(0)),
+                       WASM_I64V_1(0)),
+                   WASM_SIMD_UNOP(splat, WASM_GET_LOCAL(1)))),
+        WASM_ONE);
+
+  constexpr int lanes = kSimd128Size / sizeof(T);
+  for (S x : compiler::ValueHelper::GetVector<S>()) {
+    for (S y : compiler::ValueHelper::GetVector<S>()) {
+      r.Call(x, y);
+      T expected = expected_op(x, y);
+      for (int i = 0; i < lanes; i++) {
+        CHECK_EQ(expected, ReadLittleEndianValue<T>(&g[i]));
+      }
+    }
+  }
+}
+}  // namespace
+
+WASM_SIMD_TEST_NO_LOWERING(I16x8ExtMulLowI8x16S) {
+  RunExtMulTest<int8_t, int16_t>(execution_tier, lower_simd,
+                                 kExprI16x8ExtMulLowI8x16S, MultiplyLong,
+                                 kExprI8x16Splat, MulHalf::kLow);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I16x8ExtMulHighI8x16S) {
+  RunExtMulTest<int8_t, int16_t>(execution_tier, lower_simd,
+                                 kExprI16x8ExtMulHighI8x16S, MultiplyLong,
+                                 kExprI8x16Splat, MulHalf::kHigh);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I16x8ExtMulLowI8x16U) {
+  RunExtMulTest<uint8_t, uint16_t>(execution_tier, lower_simd,
+                                   kExprI16x8ExtMulLowI8x16U, MultiplyLong,
+                                   kExprI8x16Splat, MulHalf::kLow);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I16x8ExtMulHighI8x16U) {
+  RunExtMulTest<uint8_t, uint16_t>(execution_tier, lower_simd,
+                                   kExprI16x8ExtMulHighI8x16U, MultiplyLong,
+                                   kExprI8x16Splat, MulHalf::kHigh);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I32x4ExtMulLowI16x8S) {
+  RunExtMulTest<int16_t, int32_t>(execution_tier, lower_simd,
+                                  kExprI32x4ExtMulLowI16x8S, MultiplyLong,
+                                  kExprI16x8Splat, MulHalf::kLow);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I32x4ExtMulHighI16x8S) {
+  RunExtMulTest<int16_t, int32_t>(execution_tier, lower_simd,
+                                  kExprI32x4ExtMulHighI16x8S, MultiplyLong,
+                                  kExprI16x8Splat, MulHalf::kHigh);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I32x4ExtMulLowI16x8U) {
+  RunExtMulTest<uint16_t, uint32_t>(execution_tier, lower_simd,
+                                    kExprI32x4ExtMulLowI16x8U, MultiplyLong,
+                                    kExprI16x8Splat, MulHalf::kLow);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I32x4ExtMulHighI16x8U) {
+  RunExtMulTest<uint16_t, uint32_t>(execution_tier, lower_simd,
+                                    kExprI32x4ExtMulHighI16x8U, MultiplyLong,
+                                    kExprI16x8Splat, MulHalf::kHigh);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2ExtMulLowI32x4S) {
+  RunExtMulTest<int32_t, int64_t>(execution_tier, lower_simd,
+                                  kExprI64x2ExtMulLowI32x4S, MultiplyLong,
+                                  kExprI32x4Splat, MulHalf::kLow);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2ExtMulHighI32x4S) {
+  RunExtMulTest<int32_t, int64_t>(execution_tier, lower_simd,
+                                  kExprI64x2ExtMulHighI32x4S, MultiplyLong,
+                                  kExprI32x4Splat, MulHalf::kHigh);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2ExtMulLowI32x4U) {
+  RunExtMulTest<uint32_t, uint64_t>(execution_tier, lower_simd,
+                                    kExprI64x2ExtMulLowI32x4U, MultiplyLong,
+                                    kExprI32x4Splat, MulHalf::kLow);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2ExtMulHighI32x4U) {
+  RunExtMulTest<uint32_t, uint64_t>(execution_tier, lower_simd,
+                                    kExprI64x2ExtMulHighI32x4U, MultiplyLong,
+                                    kExprI32x4Splat, MulHalf::kHigh);
 }
 #endif  // V8_TARGET_ARCH_ARM64
 

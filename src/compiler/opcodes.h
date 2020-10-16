@@ -831,6 +831,10 @@
   V(I64x2Mul)                   \
   V(I64x2Eq)                    \
   V(I64x2ShrU)                  \
+  V(I64x2ExtMulLowI32x4S)       \
+  V(I64x2ExtMulHighI32x4S)      \
+  V(I64x2ExtMulLowI32x4U)       \
+  V(I64x2ExtMulHighI32x4U)      \
   V(I32x4Splat)                 \
   V(I32x4ExtractLane)           \
   V(I32x4ReplaceLane)           \
@@ -865,6 +869,10 @@
   V(I32x4Abs)                   \
   V(I32x4BitMask)               \
   V(I32x4DotI16x8S)             \
+  V(I32x4ExtMulLowI16x8S)       \
+  V(I32x4ExtMulHighI16x8S)      \
+  V(I32x4ExtMulLowI16x8U)       \
+  V(I32x4ExtMulHighI16x8U)      \
   V(I16x8Splat)                 \
   V(I16x8ExtractLaneU)          \
   V(I16x8ExtractLaneS)          \
@@ -905,6 +913,10 @@
   V(I16x8Q15MulRSatS)           \
   V(I16x8Abs)                   \
   V(I16x8BitMask)               \
+  V(I16x8ExtMulLowI8x16S)       \
+  V(I16x8ExtMulHighI8x16S)      \
+  V(I16x8ExtMulLowI8x16U)       \
+  V(I16x8ExtMulHighI8x16U)      \
   V(I8x16Splat)                 \
   V(I8x16ExtractLaneU)          \
   V(I8x16ExtractLaneS)          \
