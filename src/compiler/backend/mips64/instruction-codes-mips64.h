@@ -252,6 +252,7 @@ namespace compiler {
   V(Mips64I32x4GeU)                          \
   V(Mips64I32x4Abs)                          \
   V(Mips64I32x4BitMask)                      \
+  V(Mips64I32x4DotI16x8S)                    \
   V(Mips64I16x8Splat)                        \
   V(Mips64I16x8ExtractLaneU)                 \
   V(Mips64I16x8ExtractLaneS)                 \

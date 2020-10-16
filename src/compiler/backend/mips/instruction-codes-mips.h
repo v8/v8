@@ -217,6 +217,7 @@ namespace compiler {
   V(MipsI32x4GeU)                  \
   V(MipsI32x4Abs)                  \
   V(MipsI32x4BitMask)              \
+  V(MipsI32x4DotI16x8S)            \
   V(MipsI16x8Splat)                \
   V(MipsI16x8ExtractLaneU)         \
   V(MipsI16x8ExtractLaneS)         \
