@@ -858,8 +858,6 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   std::unique_ptr<UpdatingItem> CreateRememberedSetUpdatingItem(
       MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode) override;
 
-  int NumberOfParallelMarkingTasks(int pages);
-
   void SweepArrayBufferExtensions();
 
   MarkingWorklist* worklist_;
@@ -873,6 +871,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   NonAtomicMarkingState non_atomic_marking_state_;
 
   friend class YoungGenerationMarkingTask;
+  friend class YoungGenerationMarkingJob;
   friend class YoungGenerationMarkingVisitor;
 };
 
