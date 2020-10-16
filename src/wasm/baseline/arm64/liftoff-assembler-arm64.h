@@ -2006,7 +2006,12 @@ void LiftoffAssembler::emit_i32x4_max_u(LiftoffRegister dst,
 void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
                                               LiftoffRegister lhs,
                                               LiftoffRegister rhs) {
-  bailout(kSimd, "i32x4_dot_i16x8_s");
+  UseScratchRegisterScope scope(this);
+  VRegister tmp1 = scope.AcquireV(kFormat4S);
+  VRegister tmp2 = scope.AcquireV(kFormat4S);
+  Smull(tmp1, lhs.fp().V4H(), rhs.fp().V4H());
+  Smull2(tmp2, lhs.fp().V8H(), rhs.fp().V8H());
+  Addp(dst.fp().V4S(), tmp1, tmp2);
 }
 
 void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,

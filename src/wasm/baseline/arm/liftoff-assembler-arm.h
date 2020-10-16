@@ -2924,7 +2924,18 @@ void LiftoffAssembler::emit_i32x4_max_u(LiftoffRegister dst,
 void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
                                               LiftoffRegister lhs,
                                               LiftoffRegister rhs) {
-  bailout(kSimd, "i32x4_dot_i16x8_s");
+  QwNeonRegister dest = liftoff::GetSimd128Register(dst);
+  QwNeonRegister left = liftoff::GetSimd128Register(lhs);
+  QwNeonRegister right = liftoff::GetSimd128Register(rhs);
+
+  UseScratchRegisterScope temps(this);
+  Simd128Register scratch = temps.AcquireQ();
+
+  vmull(NeonS16, scratch, left.low(), right.low());
+  vpadd(Neon32, dest.low(), scratch.low(), scratch.high());
+
+  vmull(NeonS16, scratch, left.high(), right.high());
+  vpadd(Neon32, dest.high(), scratch.low(), scratch.high());
 }
 
 void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
