@@ -2654,11 +2654,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Uxtl(i.OutputSimd128Register().V2D(), i.OutputSimd128Register().V2S());
       break;
     }
-    case kArm64S128LoadMem32Zero: {
+    case kArm64S128Load32Zero: {
       __ Ldr(i.OutputSimd128Register().S(), i.MemoryOperand(0));
       break;
     }
-    case kArm64S128LoadMem64Zero: {
+    case kArm64S128Load64Zero: {
       __ Ldr(i.OutputSimd128Register().D(), i.MemoryOperand(0));
       break;
     }

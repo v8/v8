@@ -330,8 +330,8 @@ namespace compiler {
   V(X64S128Load16x4U)                     \
   V(X64S128Load32x2S)                     \
   V(X64S128Load32x2U)                     \
-  V(X64S128LoadMem32Zero)                 \
-  V(X64S128LoadMem64Zero)                 \
+  V(X64S128Load32Zero)                    \
+  V(X64S128Load64Zero)                    \
   V(X64S128Store32Lane)                   \
   V(X64S128Store64Lane)                   \
   V(X64S32x4Swizzle)                      \

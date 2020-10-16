@@ -297,8 +297,8 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_SIMDF_OP(Qfma, "qfma")
     CASE_SIMDF_OP(Qfms, "qfms")
 
-    CASE_S128_OP(LoadMem32Zero, "load32_zero")
-    CASE_S128_OP(LoadMem64Zero, "load64_zero")
+    CASE_S128_OP(Load32Zero, "load32_zero")
+    CASE_S128_OP(Load64Zero, "load64_zero")
     CASE_S128_OP(Load8Splat, "load8_splat")
     CASE_S128_OP(Load16Splat, "load16_splat")
     CASE_S128_OP(Load32Splat, "load32_splat")

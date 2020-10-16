@@ -3712,12 +3712,12 @@ void RunLoadZeroTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-WASM_SIMD_TEST_NO_LOWERING(S128LoadMem32Zero) {
-  RunLoadZeroTest<int32_t>(execution_tier, lower_simd, kExprS128LoadMem32Zero);
+WASM_SIMD_TEST_NO_LOWERING(S128Load32Zero) {
+  RunLoadZeroTest<int32_t>(execution_tier, lower_simd, kExprS128Load32Zero);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(S128LoadMem64Zero) {
-  RunLoadZeroTest<int64_t>(execution_tier, lower_simd, kExprS128LoadMem64Zero);
+WASM_SIMD_TEST_NO_LOWERING(S128Load64Zero) {
+  RunLoadZeroTest<int64_t>(execution_tier, lower_simd, kExprS128Load64Zero);
 }
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 

@@ -1742,8 +1742,8 @@ class WasmDecoder : public Decoder {
                                                 UINT32_MAX);
             return length + imm.length;
           }
-          case kExprS128LoadMem32Zero:
-          case kExprS128LoadMem64Zero: {
+          case kExprS128Load32Zero:
+          case kExprS128Load64Zero: {
             MemoryAccessImmediate<validate> imm(decoder, pc + length,
                                                 UINT32_MAX);
             return length + imm.length;
@@ -3534,14 +3534,14 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         return DecodeLoadMem(LoadType::kS128Load, opcode_length);
       case kExprS128StoreMem:
         return DecodeStoreMem(StoreType::kS128Store, opcode_length);
-      case kExprS128LoadMem32Zero:
+      case kExprS128Load32Zero:
         if (!CheckSimdPostMvp(opcode)) {
           return 0;
         }
         return DecodeLoadTransformMem(LoadType::kI32Load,
                                       LoadTransformationKind::kZeroExtend,
                                       opcode_length);
-      case kExprS128LoadMem64Zero:
+      case kExprS128Load64Zero:
         if (!CheckSimdPostMvp(opcode)) {
           return 0;
         }

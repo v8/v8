@@ -3693,12 +3693,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pmovzxdq(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
-    case kX64S128LoadMem32Zero: {
+    case kX64S128Load32Zero: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Movd(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
-    case kX64S128LoadMem64Zero: {
+    case kX64S128Load64Zero: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Movq(i.OutputSimd128Register(), i.MemoryOperand());
       break;

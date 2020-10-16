@@ -2704,11 +2704,11 @@ class WasmInterpreterInternals {
         return DoSimdLoadExtend<int2, uint64_t, uint32_t>(
             decoder, code, pc, len, MachineRepresentation::kWord64);
       }
-      case kExprS128LoadMem32Zero: {
+      case kExprS128Load32Zero: {
         return DoSimdLoadZeroExtend<int4, uint32_t>(
             decoder, code, pc, len, MachineRepresentation::kWord32);
       }
-      case kExprS128LoadMem64Zero: {
+      case kExprS128Load64Zero: {
         return DoSimdLoadZeroExtend<int2, uint64_t>(
             decoder, code, pc, len, MachineRepresentation::kWord64);
       }

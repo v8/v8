@@ -70,8 +70,8 @@ enum class LoadTransformation {
   kS128Load16x4U,
   kS128Load32x2S,
   kS128Load32x2U,
-  kS128LoadMem32Zero,
-  kS128LoadMem64Zero,
+  kS128Load32Zero,
+  kS128Load64Zero,
 };
 
 size_t hash_value(LoadTransformation);
