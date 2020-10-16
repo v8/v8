@@ -2132,6 +2132,12 @@ void LiftoffAssembler::emit_i32x4_max_u(LiftoffRegister dst,
   max_u_w(dst.fp().toW(), lhs.fp().toW(), rhs.fp().toW());
 }
 
+void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
+                                              LiftoffRegister lhs,
+                                              LiftoffRegister rhs) {
+  dotp_s_w(dst.fp().toW(), lhs.fp().toW(), rhs.fp().toW());
+}
+
 void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
   xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
