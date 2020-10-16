@@ -2796,14 +2796,6 @@ VISIT_ATOMIC_BINOP(Or)
 VISIT_ATOMIC_BINOP(Xor)
 #undef VISIT_ATOMIC_BINOP
 
-#define SIMD_TYPES(V) \
-  V(F64x2)            \
-  V(F32x4)            \
-  V(I64x2)            \
-  V(I32x4)            \
-  V(I16x8)            \
-  V(I8x16)
-
 #define SIMD_BINOP_SSE_AVX_LIST(V) \
   V(F32x4Add)                      \
   V(F32x4Sub)                      \
@@ -2967,14 +2959,29 @@ void InstructionSelector::VisitS128Zero(Node* node) {
   Emit(kX64S128Zero, g.DefineAsRegister(node));
 }
 
+#define SIMD_TYPES_FOR_SPLAT(V) \
+  V(F64x2)                      \
+  V(I64x2)                      \
+  V(I32x4)                      \
+  V(I16x8)                      \
+  V(I8x16)
+
 #define VISIT_SIMD_SPLAT(Type)                               \
   void InstructionSelector::Visit##Type##Splat(Node* node) { \
     X64OperandGenerator g(this);                             \
     Emit(kX64##Type##Splat, g.DefineAsRegister(node),        \
          g.Use(node->InputAt(0)));                           \
   }
-SIMD_TYPES(VISIT_SIMD_SPLAT)
+SIMD_TYPES_FOR_SPLAT(VISIT_SIMD_SPLAT)
 #undef VISIT_SIMD_SPLAT
+#undef SIMD_TYPES_FOR_SPLAT
+
+void InstructionSelector::VisitF32x4Splat(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand dst =
+      IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
+  Emit(kX64F32x4Splat, dst, g.UseRegister(node->InputAt(0)));
+}
 
 #define SIMD_VISIT_EXTRACT_LANE(Type, Sign)                              \
   void InstructionSelector::Visit##Type##ExtractLane##Sign(Node* node) { \
@@ -3124,7 +3131,6 @@ SIMD_ANYTRUE_LIST(VISIT_SIMD_ANYTRUE)
 SIMD_ALLTRUE_LIST(VISIT_SIMD_ALLTRUE)
 #undef VISIT_SIMD_ALLTRUE
 #undef SIMD_ALLTRUE_LIST
-#undef SIMD_TYPES
 
 void InstructionSelector::VisitS128Select(Node* node) {
   X64OperandGenerator g(this);

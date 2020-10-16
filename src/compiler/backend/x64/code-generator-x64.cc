@@ -2494,21 +2494,29 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    // TODO(gdeepti): Get rid of redundant moves for F32x4Splat/Extract below
     case kX64F32x4Splat: {
       XMMRegister dst = i.OutputSimd128Register();
-      if (instr->InputAt(0)->IsFPRegister()) {
-        __ Movss(dst, i.InputDoubleRegister(0));
+      XMMRegister src = i.InputDoubleRegister(0);
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope avx_scope(tasm(), AVX);
+        __ vshufps(dst, src, src, byte{0x0});
       } else {
-        __ Movss(dst, i.InputOperand(0));
+        DCHECK_EQ(dst, src);
+        __ Shufps(dst, dst, byte{0x0});
       }
-      __ Shufps(dst, dst, byte{0x0});
       break;
     }
     case kX64F32x4ExtractLane: {
-      __ Extractps(kScratchRegister, i.InputSimd128Register(0),
-                   i.InputUint8(1));
-      __ Movd(i.OutputDoubleRegister(), kScratchRegister);
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope avx_scope(tasm(), AVX);
+        XMMRegister src = i.InputSimd128Register(0);
+        // vshufps and leave junk in the 3 high lanes.
+        __ vshufps(i.OutputDoubleRegister(), src, src, i.InputInt8(1));
+      } else {
+        __ extractps(kScratchRegister, i.InputSimd128Register(0),
+                     i.InputUint8(1));
+        __ movd(i.OutputDoubleRegister(), kScratchRegister);
+      }
       break;
     }
     case kX64F32x4ReplaceLane: {
