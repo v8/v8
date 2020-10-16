@@ -974,12 +974,12 @@ Label* CodeGenerator::AddJumpTable(Label** targets, size_t target_count) {
 
 void CodeGenerator::RecordCallPosition(Instruction* instr) {
   const bool needs_frame_state =
-      HasCallDescriptorFlag(instr, CallDescriptor::kNeedsFrameState);
+      instr->HasCallDescriptorFlag(CallDescriptor::kNeedsFrameState);
   RecordSafepoint(instr->reference_map(), needs_frame_state
                                               ? Safepoint::kLazyDeopt
                                               : Safepoint::kNoLazyDeopt);
 
-  if (HasCallDescriptorFlag(instr, CallDescriptor::kHasExceptionHandler)) {
+  if (instr->HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)) {
     InstructionOperandConverter i(this, instr);
     RpoNumber handler_rpo = i.InputRpo(instr->InputCount() - 1);
     DCHECK(instructions()->InstructionBlockAt(handler_rpo)->IsHandler());
