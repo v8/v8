@@ -38,20 +38,7 @@ class BackgroundCollectionInterruptTask : public CancelableTask {
 };
 
 void CollectionBarrier::AwaitCollectionBackground() {
-  bool first;
-
-  {
-    base::MutexGuard guard(&mutex_);
-    first = FirstCollectionRequest();
-    if (first) {
-      // Initialize scope while holding the lock - prevents GC from starting
-      // before setting up this counter
-      time_to_collection_scope_.emplace(
-          heap_->isolate()->counters()->time_to_collection());
-    }
-  }
-
-  if (first) {
+  if (FirstCollectionRequest()) {
     // This is the first background thread requesting collection, ask the main
     // thread for GC.
     ActivateStackGuardAndPostTask();
@@ -62,11 +49,6 @@ void CollectionBarrier::AwaitCollectionBackground() {
 
 void CollectionBarrier::StopTimeToCollectionTimer() {
   base::MutexGuard guard(&mutex_);
-  RequestState old_state = state_.exchange(RequestState::kCollectionStarted,
-                                           std::memory_order_relaxed);
-  USE(old_state);
-  DCHECK(old_state == RequestState::kDefault ||
-         old_state == RequestState::kCollectionRequested);
   time_to_collection_scope_.reset();
 }
 
@@ -78,6 +60,7 @@ void CollectionBarrier::ActivateStackGuardAndPostTask() {
       reinterpret_cast<v8::Isolate*>(isolate));
   taskrunner->PostTask(
       std::make_unique<BackgroundCollectionInterruptTask>(heap_));
+  base::MutexGuard guard(&mutex_);
   time_to_collection_scope_.emplace(isolate->counters()->time_to_collection());
 }
 
