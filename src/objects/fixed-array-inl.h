@@ -233,7 +233,7 @@ int BinarySearch(T* array, Name name, int valid_entries,
   // index). After doing the binary search and getting the correct internal
   // index we check to have the index lower than valid_entries, if needed.
   int high = array->number_of_entries() - 1;
-  uint32_t hash = name.hash_field();
+  uint32_t hash = name.hash();
   int limit = high;
 
   DCHECK(low <= high);
@@ -241,7 +241,7 @@ int BinarySearch(T* array, Name name, int valid_entries,
   while (low != high) {
     int mid = low + (high - low) / 2;
     Name mid_name = array->GetSortedKey(mid);
-    uint32_t mid_hash = mid_name.hash_field();
+    uint32_t mid_hash = mid_name.hash();
 
     if (mid_hash >= hash) {
       high = mid;
@@ -253,7 +253,7 @@ int BinarySearch(T* array, Name name, int valid_entries,
   for (; low <= limit; ++low) {
     int sort_index = array->GetSortedKeyIndex(low);
     Name entry = array->GetKey(InternalIndex(sort_index));
-    uint32_t current_hash = entry.hash_field();
+    uint32_t current_hash = entry.hash();
     if (current_hash != hash) {
       // 'search_mode == ALL_ENTRIES' here and below is not needed since
       // 'out_insertion_index != nullptr' implies 'search_mode == ALL_ENTRIES'.
@@ -285,12 +285,12 @@ template <SearchMode search_mode, typename T>
 int LinearSearch(T* array, Name name, int valid_entries,
                  int* out_insertion_index) {
   if (search_mode == ALL_ENTRIES && out_insertion_index != nullptr) {
-    uint32_t hash = name.hash_field();
+    uint32_t hash = name.hash();
     int len = array->number_of_entries();
     for (int number = 0; number < len; number++) {
       int sorted_index = array->GetSortedKeyIndex(number);
       Name entry = array->GetKey(InternalIndex(sorted_index));
-      uint32_t current_hash = entry.hash_field();
+      uint32_t current_hash = entry.hash();
       if (current_hash > hash) {
         *out_insertion_index = sorted_index;
         return T::kNotFound;
