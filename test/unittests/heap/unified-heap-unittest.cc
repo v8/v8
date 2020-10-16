@@ -94,6 +94,8 @@ TEST_F(UnifiedHeapTest, FindingV8ToBlinkReference) {
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
   ResetWrappableConnection(api_object);
   CollectGarbage(OLD_SPACE);
+  // Calling CollectGarbage twice to force the first GC to finish sweeping.
+  CollectGarbage(OLD_SPACE);
   EXPECT_EQ(1u, Wrappable::destructor_callcount);
 }
 

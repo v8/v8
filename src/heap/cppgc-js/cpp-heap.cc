@@ -169,10 +169,13 @@ void CppHeap::RegisterV8References(
 }
 
 void CppHeap::TracePrologue(TraceFlags flags) {
+  // Finish sweeping in case it is still running.
+  sweeper_.FinishIfRunning();
+
   const UnifiedHeapMarker::MarkingConfig marking_config{
       UnifiedHeapMarker::MarkingConfig::CollectionType::kMajor,
       cppgc::Heap::StackState::kNoHeapPointers,
-      UnifiedHeapMarker::MarkingConfig::MarkingType::kIncremental};
+      UnifiedHeapMarker::MarkingConfig::MarkingType::kIncrementalAndConcurrent};
   marker_ =
       cppgc::internal::MarkerFactory::CreateAndStartMarking<UnifiedHeapMarker>(
           *isolate_.heap(), AsBase(), platform_.get(), marking_config);
@@ -210,7 +213,8 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
 #endif
   {
     NoGCScope no_gc(*this);
-    sweeper().Start(cppgc::internal::Sweeper::Config::kAtomic);
+    sweeper().Start(
+        cppgc::internal::Sweeper::Config::kIncrementalAndConcurrent);
   }
 }
 

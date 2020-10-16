@@ -580,6 +580,9 @@ void CppGraphBuilderImpl::VisitRootForGraphBuilding(
 }
 
 void CppGraphBuilderImpl::Run() {
+  // Sweeping from a previous GC might still be running, in which case not all
+  // pages have been returned to spaces yet.
+  cpp_heap_.sweeper().FinishIfRunning();
   // First pass: Figure out which objects should be included in the graph -- see
   // class-level comment on CppGraphBuilder.
   LiveObjectsForVisibilityIterator visitor(*this);
