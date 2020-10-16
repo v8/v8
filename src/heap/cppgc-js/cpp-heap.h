@@ -22,6 +22,7 @@ class V8_EXPORT_PRIVATE CppHeap final : public cppgc::internal::HeapBase,
   CppHeap(v8::Isolate* isolate,
           const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>&
               custom_spaces);
+  ~CppHeap() final;
 
   CppHeap(const CppHeap&) = delete;
   CppHeap& operator=(const CppHeap&) = delete;
