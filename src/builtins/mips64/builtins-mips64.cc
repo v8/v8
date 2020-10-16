@@ -1614,6 +1614,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
     __ Dsubu(scratch, scratch, Operand(1));
     __ Movz(arg_array, undefined_value, scratch);  // if argc == 1
     __ Ld(receiver, MemOperand(sp));
+    __ Dlsa(sp, sp, argc, kSystemPointerSizeLog2);
     __ Sd(this_arg, MemOperand(sp));
   }
 
@@ -1709,6 +1710,7 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ Dsubu(scratch, scratch, Operand(1));
     __ Movz(arguments_list, undefined_value, scratch);  // if argc == 2
 
+    __ Dlsa(sp, sp, argc, kSystemPointerSizeLog2);
     __ Sd(this_argument, MemOperand(sp, 0));  // Overwrite receiver
   }
 
@@ -1767,6 +1769,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ Dsubu(scratch, scratch, Operand(1));
     __ Movz(new_target, target, scratch);               // if argc == 2
 
+    __ Dlsa(sp, sp, argc, kSystemPointerSizeLog2);
     __ Sd(undefined_value, MemOperand(sp, 0));    // Overwrite receiver
   }
 
