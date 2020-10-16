@@ -306,5 +306,18 @@ TEST_F(MarkingVisitorTest, MarkPersistentMixinInConstruction) {
   EXPECT_FALSE(header.IsMarked());
 }
 
+TEST_F(MarkingVisitorTest, StrongTracingMarksWeakMember) {
+  WeakMember<GCed> object(MakeGarbageCollected<GCed>(GetAllocationHandle()));
+  HeapObjectHeader& header = HeapObjectHeader::FromPayload(object);
+
+  TestMarkingVisitor visitor(GetMarker());
+
+  EXPECT_FALSE(header.IsMarked());
+
+  visitor.TraceStrongly(object);
+
+  EXPECT_TRUE(header.IsMarked());
+}
+
 }  // namespace internal
 }  // namespace cppgc

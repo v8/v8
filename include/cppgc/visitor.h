@@ -149,6 +149,18 @@ class V8_EXPORT Visitor {
   }
 
   /**
+   * Trace method that strongifies a WeakMember.
+   *
+   * \param weak_member WeakMember reference retaining an object.
+   */
+  template <typename T>
+  void TraceStrongly(const WeakMember<T>& weak_member) {
+    const T* value = weak_member.GetRawAtomic();
+    CPPGC_DCHECK(value != kSentinelPointer);
+    Trace(value);
+  }
+
+  /**
    * Registers a weak callback that is invoked during garbage collection.
    *
    * \param callback to be invoked.
