@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "defaults_ci", "GOMA", "v8_builder")
+load("//lib/lib.star", "defaults_ci", "v8_builder")
 
 def auto_builder(name, recipe, cipd_package = None, cipd_version = None, execution_timeout = None, properties = None, **kwargs):
     properties = dict((properties or {}))
@@ -21,7 +21,6 @@ def auto_builder(name, recipe, cipd_package = None, cipd_version = None, executi
         service_account = "v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceaccount.com",
         execution_timeout = execution_timeout,
         properties = properties,
-        use_goma = GOMA.DEFAULT,
         **kwargs
     )
 
