@@ -297,6 +297,7 @@ v8_source_set("unittests_sources") {
     "heap/safepoint-unittest.cc",
     "heap/slot-set-unittest.cc",
     "heap/spaces-unittest.cc",
+    "heap/unified-heap-snapshot-unittest.cc",
     "heap/unified-heap-unittest.cc",
     "heap/unmapper-unittest.cc",
     "heap/worklist-unittest.cc",
