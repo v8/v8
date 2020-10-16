@@ -9,7 +9,7 @@ Setting breakpoint on first instruction of second function
     scriptId : <scriptId>
 }
 Paused:
-Script wasm://wasm/c723f83a byte offset 147: Wasm opcode 0x41
+Script wasm://wasm/c723f83a byte offset 147: Wasm opcode 0x41 (kExprI32Const)
 Scope:
 at func (0:147):
  - scope (module):
@@ -43,7 +43,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c723f83a byte offset 149: Wasm opcode 0x21
+Script wasm://wasm/c723f83a byte offset 149: Wasm opcode 0x21 (kExprLocalSet)
 Scope:
 at func (0:149):
  - scope (module):
@@ -78,7 +78,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c723f83a byte offset 151: Wasm opcode 0x41
+Script wasm://wasm/c723f83a byte offset 151: Wasm opcode 0x41 (kExprI32Const)
 Scope:
 at func (0:151):
  - scope (module):
@@ -112,7 +112,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c723f83a byte offset 153: Wasm opcode 0x21
+Script wasm://wasm/c723f83a byte offset 153: Wasm opcode 0x21 (kExprLocalSet)
 Scope:
 at func (0:153):
  - scope (module):
@@ -147,7 +147,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c723f83a byte offset 155: Wasm opcode 0x42
+Script wasm://wasm/c723f83a byte offset 155: Wasm opcode 0x42 (kExprI64Const)
 Scope:
 at func (0:155):
  - scope (module):
@@ -181,7 +181,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c723f83a byte offset 166: Wasm opcode 0x21
+Script wasm://wasm/c723f83a byte offset 166: Wasm opcode 0x21 (kExprLocalSet)
 Scope:
 at func (0:166):
  - scope (module):
@@ -216,7 +216,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c723f83a byte offset 168: Wasm opcode 0x42
+Script wasm://wasm/c723f83a byte offset 168: Wasm opcode 0x42 (kExprI64Const)
 Scope:
 at func (0:168):
  - scope (module):
@@ -250,7 +250,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c723f83a byte offset 179: Wasm opcode 0x21
+Script wasm://wasm/c723f83a byte offset 179: Wasm opcode 0x21 (kExprLocalSet)
 Scope:
 at func (0:179):
  - scope (module):
@@ -285,7 +285,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c723f83a byte offset 181: Wasm opcode 0x41
+Script wasm://wasm/c723f83a byte offset 181: Wasm opcode 0x41 (kExprI32Const)
 Scope:
 at func (0:181):
  - scope (module):
@@ -319,7 +319,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c723f83a byte offset 183: Wasm opcode 0xb8
+Script wasm://wasm/c723f83a byte offset 183: Wasm opcode 0xb8 (kExprF64UConvertI32)
 Scope:
 at func (0:183):
  - scope (module):
@@ -354,7 +354,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c723f83a byte offset 184: Wasm opcode 0x41
+Script wasm://wasm/c723f83a byte offset 184: Wasm opcode 0x41 (kExprI32Const)
 Scope:
 at func (0:184):
  - scope (module):
@@ -389,7 +389,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c723f83a byte offset 186: Wasm opcode 0xb8
+Script wasm://wasm/c723f83a byte offset 186: Wasm opcode 0xb8 (kExprF64UConvertI32)
 Scope:
 at func (0:186):
  - scope (module):
@@ -425,7 +425,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c723f83a byte offset 187: Wasm opcode 0xa3
+Script wasm://wasm/c723f83a byte offset 187: Wasm opcode 0xa3 (kExprF64Div)
 Scope:
 at func (0:187):
  - scope (module):
@@ -461,7 +461,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c723f83a byte offset 188: Wasm opcode 0x21
+Script wasm://wasm/c723f83a byte offset 188: Wasm opcode 0x21 (kExprLocalSet)
 Scope:
 at func (0:188):
  - scope (module):
@@ -496,7 +496,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c723f83a byte offset 190: Wasm opcode 0x41
+Script wasm://wasm/c723f83a byte offset 190: Wasm opcode 0x41 (kExprI32Const)
 Scope:
 at func (0:190):
  - scope (module):
@@ -530,7 +530,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c723f83a byte offset 192: Wasm opcode 0xfd
+Script wasm://wasm/c723f83a byte offset 192: Wasm opcode 0xfd (kSimdPrefix)
 Scope:
 at func (0:192):
  - scope (module):
@@ -565,7 +565,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c723f83a byte offset 194: Wasm opcode 0x21
+Script wasm://wasm/c723f83a byte offset 194: Wasm opcode 0x21 (kExprLocalSet)
 Scope:
 at func (0:194):
  - scope (module):
@@ -600,7 +600,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c723f83a byte offset 196: Wasm opcode 0x41
+Script wasm://wasm/c723f83a byte offset 196: Wasm opcode 0x41 (kExprI32Const)
 Scope:
 at func (0:196):
  - scope (module):
@@ -634,7 +634,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c723f83a byte offset 198: Wasm opcode 0xb3
+Script wasm://wasm/c723f83a byte offset 198: Wasm opcode 0xb3 (kExprF32UConvertI32)
 Scope:
 at func (0:198):
  - scope (module):
@@ -669,7 +669,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c723f83a byte offset 199: Wasm opcode 0x21
+Script wasm://wasm/c723f83a byte offset 199: Wasm opcode 0x21 (kExprLocalSet)
 Scope:
 at func (0:199):
  - scope (module):
@@ -704,7 +704,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c723f83a byte offset 201: Wasm opcode 0x41
+Script wasm://wasm/c723f83a byte offset 201: Wasm opcode 0x41 (kExprI32Const)
 Scope:
 at func (0:201):
  - scope (module):
@@ -738,7 +738,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c723f83a byte offset 203: Wasm opcode 0x24
+Script wasm://wasm/c723f83a byte offset 203: Wasm opcode 0x24 (kExprGlobalSet)
 Scope:
 at func (0:203):
  - scope (module):
@@ -773,7 +773,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c723f83a byte offset 205: Wasm opcode 0x0b
+Script wasm://wasm/c723f83a byte offset 205: Wasm opcode 0x0b (kExprEnd)
 Scope:
 at func (0:205):
  - scope (module):
@@ -807,7 +807,7 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c723f83a byte offset 134: Wasm opcode 0x0b
+Script wasm://wasm/c723f83a byte offset 134: Wasm opcode 0x0b (kExprEnd)
 Scope:
 at call_func (0:134):
  - scope (module):
