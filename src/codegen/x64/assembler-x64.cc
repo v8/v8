@@ -1207,13 +1207,6 @@ void Assembler::decb(Operand dst) {
   emit_operand(1, dst);
 }
 
-void Assembler::enter(Immediate size) {
-  EnsureSpace ensure_space(this);
-  emit(0xC8);
-  emitw(size.value_);  // 16 bit operand, always.
-  emit(0);
-}
-
 void Assembler::hlt() {
   EnsureSpace ensure_space(this);
   emit(0xF4);

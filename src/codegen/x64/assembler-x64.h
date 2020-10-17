@@ -561,7 +561,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void popq(Register dst);
   void popq(Operand dst);
 
-  void enter(Immediate size);
   void leave();
 
   // Moves

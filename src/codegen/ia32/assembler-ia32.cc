@@ -510,13 +510,6 @@ void Assembler::pop(Operand dst) {
   emit_operand(eax, dst);
 }
 
-void Assembler::enter(const Immediate& size) {
-  EnsureSpace ensure_space(this);
-  EMIT(0xC8);
-  emit_w(size);
-  EMIT(0);
-}
-
 void Assembler::leave() {
   EnsureSpace ensure_space(this);
   EMIT(0xC9);
