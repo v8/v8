@@ -31,8 +31,10 @@ bool SourceTextModuleDescriptor::AstRawStringComparer::operator()(
 
 void SourceTextModuleDescriptor::AddImport(
     const AstRawString* import_name, const AstRawString* local_name,
-    const AstRawString* module_request, const Scanner::Location loc,
+    const AstRawString* module_request,
+    const ImportAssertions* import_assertions, const Scanner::Location loc,
     const Scanner::Location specifier_loc, Zone* zone) {
+  // TODO(v8:10958) Add import_assertions to the Entry.
   Entry* entry = zone->New<Entry>(loc);
   entry->local_name = local_name;
   entry->import_name = import_name;
@@ -42,8 +44,9 @@ void SourceTextModuleDescriptor::AddImport(
 
 void SourceTextModuleDescriptor::AddStarImport(
     const AstRawString* local_name, const AstRawString* module_request,
-    const Scanner::Location loc, const Scanner::Location specifier_loc,
-    Zone* zone) {
+    const ImportAssertions* import_assertions, const Scanner::Location loc,
+    const Scanner::Location specifier_loc, Zone* zone) {
+  // TODO(v8:10958) Add import_assertions to the Entry.
   Entry* entry = zone->New<Entry>(loc);
   entry->local_name = local_name;
   entry->module_request = AddModuleRequest(module_request, specifier_loc);
@@ -51,7 +54,10 @@ void SourceTextModuleDescriptor::AddStarImport(
 }
 
 void SourceTextModuleDescriptor::AddEmptyImport(
-    const AstRawString* module_request, const Scanner::Location specifier_loc) {
+    const AstRawString* module_request,
+    const ImportAssertions* import_assertions,
+    const Scanner::Location specifier_loc) {
+  // TODO(v8:10958) Add import_assertions to the Entry.
   AddModuleRequest(module_request, specifier_loc);
 }
 
@@ -66,8 +72,10 @@ void SourceTextModuleDescriptor::AddExport(const AstRawString* local_name,
 
 void SourceTextModuleDescriptor::AddExport(
     const AstRawString* import_name, const AstRawString* export_name,
-    const AstRawString* module_request, const Scanner::Location loc,
+    const AstRawString* module_request,
+    const ImportAssertions* import_assertions, const Scanner::Location loc,
     const Scanner::Location specifier_loc, Zone* zone) {
+  // TODO(v8:10958) Add import_assertions to the Entry.
   DCHECK_NOT_NULL(import_name);
   DCHECK_NOT_NULL(export_name);
   Entry* entry = zone->New<Entry>(loc);
@@ -78,8 +86,10 @@ void SourceTextModuleDescriptor::AddExport(
 }
 
 void SourceTextModuleDescriptor::AddStarExport(
-    const AstRawString* module_request, const Scanner::Location loc,
+    const AstRawString* module_request,
+    const ImportAssertions* import_assertions, const Scanner::Location loc,
     const Scanner::Location specifier_loc, Zone* zone) {
+  // TODO(v8:10958) Add import_assertions to the Entry.
   Entry* entry = zone->New<Entry>(loc);
   entry->module_request = AddModuleRequest(module_request, specifier_loc);
   AddSpecialExport(entry, zone);

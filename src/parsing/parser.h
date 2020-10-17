@@ -281,7 +281,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
           location(location) {}
   };
   ZonePtrList<const NamedImport>* ParseNamedImports(int pos);
-  void ParseImportAssertClause();
+  using ImportAssertions =
+      ZoneMap<const AstRawString*,
+              std::pair<const AstRawString*, Scanner::Location>>;
+  ImportAssertions* ParseImportAssertClause();
   Statement* BuildInitializationBlock(DeclarationParsingResult* parsing_result);
   Expression* RewriteReturn(Expression* return_value, int pos);
   Statement* RewriteSwitchStatement(SwitchStatement* switch_statement,

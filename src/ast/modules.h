@@ -26,6 +26,10 @@ class SourceTextModuleDescriptor : public ZoneObject {
         regular_exports_(zone),
         regular_imports_(zone) {}
 
+  using ImportAssertions =
+      ZoneMap<const AstRawString*,
+              std::pair<const AstRawString*, Scanner::Location>>;
+
   // The following Add* methods are high-level convenience functions for use by
   // the parser.
 
@@ -35,12 +39,14 @@ class SourceTextModuleDescriptor : public ZoneObject {
   void AddImport(const AstRawString* import_name,
                  const AstRawString* local_name,
                  const AstRawString* module_request,
+                 const ImportAssertions* import_assertions,
                  const Scanner::Location loc,
                  const Scanner::Location specifier_loc, Zone* zone);
 
   // import * as x from "foo.js";
   void AddStarImport(const AstRawString* local_name,
                      const AstRawString* module_request,
+                     const ImportAssertions* import_assertions,
                      const Scanner::Location loc,
                      const Scanner::Location specifier_loc, Zone* zone);
 
@@ -48,6 +54,7 @@ class SourceTextModuleDescriptor : public ZoneObject {
   // import {} from "foo.js";
   // export {} from "foo.js";  (sic!)
   void AddEmptyImport(const AstRawString* module_request,
+                      const ImportAssertions* import_assertions,
                       const Scanner::Location specifier_loc);
 
   // export {x};
@@ -64,11 +71,13 @@ class SourceTextModuleDescriptor : public ZoneObject {
   void AddExport(const AstRawString* export_name,
                  const AstRawString* import_name,
                  const AstRawString* module_request,
+                 const ImportAssertions* import_assertions,
                  const Scanner::Location loc,
                  const Scanner::Location specifier_loc, Zone* zone);
 
   // export * from "foo.js";
   void AddStarExport(const AstRawString* module_request,
+                     const ImportAssertions* import_assertions,
                      const Scanner::Location loc,
                      const Scanner::Location specifier_loc, Zone* zone);
 

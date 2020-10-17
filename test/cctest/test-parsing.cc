@@ -5010,6 +5010,21 @@ TEST(BasicImportAssertionParsing) {
     "export * from 'm.js' assert { };",
     "import 'm.js' assert { };",
     "import * as foo from 'bar.js' assert { };",
+
+    "import { a as b } from 'm.js' assert { a: 'b' };",
+    "import { a as b } from 'm.js' assert { c: 'd' };",
+    "import { a as b } from 'm.js' assert { 'c': 'd' };",
+    "import { a as b } from 'm.js' assert { a: 'b', 'c': 'd', e: 'f' };",
+    "import { a as b } from 'm.js' assert { 'c': 'd', };",
+    "import n from 'n.js' assert { 'c': 'd' };",
+    "export { a as b } from 'm.js' assert { 'c': 'd' };",
+    "export * from 'm.js' assert { 'c': 'd' };",
+    "import 'm.js' assert { 'c': 'd' };",
+    "import * as foo from 'bar.js' assert { 'c': 'd' };",
+
+    "import { a as b } from 'm.js' assert { \nc: 'd'};",
+    "import { a as b } from 'm.js' assert { c:\n 'd'};",
+    "import { a as b } from 'm.js' assert { c:'d'\n};",
   };
   // clang-format on
 
@@ -5075,7 +5090,10 @@ TEST(ImportAssertionParsingErrors) {
 
     "import { a } from 'm.js' assert { 1: 2 };",
     "import { a } from 'm.js' assert { b: c };",
+    "import { a } from 'm.js' assert { 'b': c };",
+    "import { a } from 'm.js' assert { , b: c };",
     "import { a } from 'm.js' assert { a: 'b', a: 'c' };",
+    "import { a } from 'm.js' assert { a: 'b', 'a': 'c' };",
   };
   // clang-format on
 
