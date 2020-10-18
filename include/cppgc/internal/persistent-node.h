@@ -19,7 +19,7 @@ class Visitor;
 
 namespace internal {
 
-// PersistentNode represesents a variant of two states:
+// PersistentNode represents a variant of two states:
 // 1) traceable node with a back pointer to the Persistent object;
 // 2) freelist entry.
 class PersistentNode final {

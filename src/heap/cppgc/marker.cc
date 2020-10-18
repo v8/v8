@@ -124,7 +124,7 @@ MarkerBase::IncrementalMarkingTask::Post(cppgc::TaskRunner* runner,
                                          MarkerBase* marker) {
   // Incremental GC is possible only via the GCInvoker, so getting here
   // guarantees that either non-nestable tasks or conservative stack
-  // scannnig are supported. This is required so that the incremental
+  // scanning are supported. This is required so that the incremental
   // task can safely finalize GC if needed.
   DCHECK_IMPLIES(marker->heap().stack_support() !=
                      HeapBase::StackSupport::kSupportsConservativeStackScan,
