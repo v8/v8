@@ -518,19 +518,9 @@ Response InjectedScript::getInternalAndPrivateProperties(
 }
 
 void InjectedScript::releaseObject(const String16& objectId) {
-  std::vector<uint8_t> cbor;
-  v8_crdtp::json::ConvertJSONToCBOR(
-      v8_crdtp::span<uint16_t>(objectId.characters16(), objectId.length()),
-      &cbor);
-  std::unique_ptr<protocol::Value> parsedObjectId =
-      protocol::Value::parseBinary(cbor.data(), cbor.size());
-  if (!parsedObjectId) return;
-  protocol::DictionaryValue* object =
-      protocol::DictionaryValue::cast(parsedObjectId.get());
-  if (!object) return;
-  int boundId = 0;
-  if (!object->getInteger("id", &boundId)) return;
-  unbindObject(boundId);
+  std::unique_ptr<RemoteObjectId> remoteId;
+  Response response = RemoteObjectId::parse(objectId, &remoteId);
+  if (response.IsSuccess()) unbindObject(remoteId->id());
 }
 
 Response InjectedScript::wrapObject(
@@ -722,10 +712,12 @@ Response InjectedScript::resolveCallArgument(
     Response response =
         RemoteObjectId::parse(callArgument->getObjectId(""), &remoteObjectId);
     if (!response.IsSuccess()) return response;
-    if (remoteObjectId->contextId() != m_context->contextId())
+    if (remoteObjectId->contextId() != m_context->contextId() ||
+        remoteObjectId->isolateId() != m_context->inspector()->isolateId()) {
       return Response::ServerError(
           "Argument should belong to the same JavaScript world as target "
           "object");
+    }
     return findObject(*remoteObjectId, result);
   }
   if (callArgument->hasValue() || callArgument->hasUnserializableValue()) {
@@ -1012,10 +1004,8 @@ String16 InjectedScript::bindObject(v8::Local<v8::Value> value,
     m_idToObjectGroupName[id] = groupName;
     m_nameToObjectGroup[groupName].push_back(id);
   }
-  // TODO(dgozman): get rid of "injectedScript" notion.
-  return String16::concat(
-      "{\"injectedScriptId\":", String16::fromInteger(m_context->contextId()),
-      ",\"id\":", String16::fromInteger(id), "}");
+  return RemoteObjectId::serialize(m_context->inspector()->isolateId(),
+                                   m_context->contextId(), id);
 }
 
 // static
