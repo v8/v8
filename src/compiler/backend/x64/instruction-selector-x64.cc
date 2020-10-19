@@ -2797,46 +2797,46 @@ VISIT_ATOMIC_BINOP(Xor)
 #undef VISIT_ATOMIC_BINOP
 
 #define SIMD_BINOP_SSE_AVX_LIST(V) \
+  V(F64x2Add)                      \
+  V(F64x2Sub)                      \
+  V(F64x2Mul)                      \
+  V(F64x2Div)                      \
+  V(F64x2Eq)                       \
+  V(F64x2Ne)                       \
+  V(F64x2Lt)                       \
+  V(F64x2Le)                       \
   V(F32x4Add)                      \
   V(F32x4Sub)                      \
   V(F32x4Mul)                      \
   V(F32x4Div)                      \
+  V(F32x4Eq)                       \
+  V(F32x4Ne)                       \
+  V(F32x4Lt)                       \
+  V(F32x4Le)                       \
+  V(I64x2Add)                      \
+  V(I64x2Sub)                      \
+  V(I32x4Add)                      \
+  V(I32x4AddHoriz)                 \
+  V(I32x4Sub)                      \
+  V(I32x4Mul)                      \
+  V(I32x4MinS)                     \
+  V(I32x4MaxS)                     \
+  V(I32x4Eq)                       \
+  V(I32x4GtS)                      \
+  V(I32x4MinU)                     \
+  V(I32x4MaxU)                     \
   V(S128And)                       \
   V(S128Or)                        \
   V(S128Xor)
 
 #define SIMD_BINOP_LIST(V) \
-  V(F64x2Add)              \
-  V(F64x2Sub)              \
-  V(F64x2Mul)              \
-  V(F64x2Div)              \
   V(F64x2Min)              \
   V(F64x2Max)              \
-  V(F64x2Eq)               \
-  V(F64x2Ne)               \
-  V(F64x2Lt)               \
-  V(F64x2Le)               \
   V(F32x4AddHoriz)         \
   V(F32x4Min)              \
   V(F32x4Max)              \
-  V(F32x4Eq)               \
-  V(F32x4Ne)               \
-  V(F32x4Lt)               \
-  V(F32x4Le)               \
-  V(I64x2Add)              \
-  V(I64x2Sub)              \
   V(I64x2Eq)               \
-  V(I32x4Add)              \
-  V(I32x4AddHoriz)         \
-  V(I32x4Sub)              \
-  V(I32x4Mul)              \
-  V(I32x4MinS)             \
-  V(I32x4MaxS)             \
-  V(I32x4Eq)               \
-  V(I32x4GtS)              \
   V(I32x4GeS)              \
-  V(I32x4MinU)             \
-  V(I32x4MaxU)             \
   V(I32x4GeU)              \
   V(I32x4DotI16x8S)        \
   V(I16x8SConvertI32x4)    \
