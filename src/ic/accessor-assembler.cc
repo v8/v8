@@ -2497,9 +2497,9 @@ void AccessorAssembler::GenericPropertyLoad(
       var_holder_map = proto_map;
       var_holder_instance_type = proto_instance_type;
       Label next_proto(this), return_value(this, &var_value), goto_slow(this);
-      TryGetOwnProperty(p->context(), CAST(p->receiver()), CAST(proto),
-                        proto_map, proto_instance_type, name, &return_value,
-                        &var_value, &next_proto, &goto_slow);
+      TryGetOwnProperty(p->context(), p->receiver(), CAST(proto), proto_map,
+                        proto_instance_type, name, &return_value, &var_value,
+                        &next_proto, &goto_slow);
 
       // This trampoline and the next are required to appease Turbofan's
       // variable merging.

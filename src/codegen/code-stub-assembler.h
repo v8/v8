@@ -2940,12 +2940,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // is an accessor then it also calls a getter. If the property is a double
   // field it re-wraps value in an immutable heap number. {unique_name} must be
   // a unique name (Symbol or InternalizedString) that is not an array index.
-  void TryGetOwnProperty(TNode<Context> context, TNode<HeapObject> receiver,
+  void TryGetOwnProperty(TNode<Context> context, TNode<Object> receiver,
                          TNode<JSReceiver> object, TNode<Map> map,
                          TNode<Int32T> instance_type, TNode<Name> unique_name,
                          Label* if_found_value, TVariable<Object>* var_value,
                          Label* if_not_found, Label* if_bailout);
-  void TryGetOwnProperty(TNode<Context> context, TNode<HeapObject> receiver,
+  void TryGetOwnProperty(TNode<Context> context, TNode<Object> receiver,
                          TNode<JSReceiver> object, TNode<Map> map,
                          TNode<Int32T> instance_type, TNode<Name> unique_name,
                          Label* if_found_value, TVariable<Object>* var_value,

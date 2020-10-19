@@ -8834,22 +8834,21 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
 }
 
 void CodeStubAssembler::TryGetOwnProperty(
-    TNode<Context> context, TNode<HeapObject> receiver,
-    TNode<JSReceiver> object, TNode<Map> map, TNode<Int32T> instance_type,
-    TNode<Name> unique_name, Label* if_found_value,
-    TVariable<Object>* var_value, Label* if_not_found, Label* if_bailout) {
+    TNode<Context> context, TNode<Object> receiver, TNode<JSReceiver> object,
+    TNode<Map> map, TNode<Int32T> instance_type, TNode<Name> unique_name,
+    Label* if_found_value, TVariable<Object>* var_value, Label* if_not_found,
+    Label* if_bailout) {
   TryGetOwnProperty(context, receiver, object, map, instance_type, unique_name,
                     if_found_value, var_value, nullptr, nullptr, if_not_found,
                     if_bailout, kCallJSGetter);
 }
 
 void CodeStubAssembler::TryGetOwnProperty(
-    TNode<Context> context, TNode<HeapObject> receiver,
-    TNode<JSReceiver> object, TNode<Map> map, TNode<Int32T> instance_type,
-    TNode<Name> unique_name, Label* if_found_value,
-    TVariable<Object>* var_value, TVariable<Uint32T>* var_details,
-    TVariable<Object>* var_raw_value, Label* if_not_found, Label* if_bailout,
-    GetOwnPropertyMode mode) {
+    TNode<Context> context, TNode<Object> receiver, TNode<JSReceiver> object,
+    TNode<Map> map, TNode<Int32T> instance_type, TNode<Name> unique_name,
+    Label* if_found_value, TVariable<Object>* var_value,
+    TVariable<Uint32T>* var_details, TVariable<Object>* var_raw_value,
+    Label* if_not_found, Label* if_bailout, GetOwnPropertyMode mode) {
   DCHECK_EQ(MachineRepresentation::kTagged, var_value->rep());
   Comment("TryGetOwnProperty");
   CSA_ASSERT(this, IsUniqueNameNoCachedIndex(unique_name));
