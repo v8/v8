@@ -1412,7 +1412,7 @@ Object Isolate::StackOverflow() {
       ErrorUtils::Construct(this, fun, fun, msg, SKIP_NONE, no_caller,
                             ErrorUtils::StackTraceCollection::kSimple));
 
-  Throw(*exception, nullptr);
+  Throw(*exception);
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap && FLAG_stress_compaction) {
@@ -1424,7 +1424,7 @@ Object Isolate::StackOverflow() {
   return ReadOnlyRoots(heap()).exception();
 }
 
-void Isolate::ThrowAt(Handle<JSObject> exception, MessageLocation* location) {
+Object Isolate::ThrowAt(Handle<JSObject> exception, MessageLocation* location) {
   Handle<Name> key_start_pos = factory()->error_start_pos_symbol();
   Object::SetProperty(this, exception, key_start_pos,
                       handle(Smi::FromInt(location->start_pos()), this),
@@ -1445,11 +1445,11 @@ void Isolate::ThrowAt(Handle<JSObject> exception, MessageLocation* location) {
                       Just(ShouldThrow::kThrowOnError))
       .Check();
 
-  Throw(*exception, location);
+  return ThrowInternal(*exception, location);
 }
 
 Object Isolate::TerminateExecution() {
-  return Throw(ReadOnlyRoots(this).termination_exception(), nullptr);
+  return Throw(ReadOnlyRoots(this).termination_exception());
 }
 
 void Isolate::CancelTerminateExecution() {
@@ -1579,7 +1579,7 @@ Handle<JSMessageObject> Isolate::CreateMessageOrAbort(
   return message_obj;
 }
 
-Object Isolate::Throw(Object raw_exception, MessageLocation* location) {
+Object Isolate::ThrowInternal(Object raw_exception, MessageLocation* location) {
   DCHECK(!has_pending_exception());
 
   HandleScope scope(this);
