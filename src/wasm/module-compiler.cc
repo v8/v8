@@ -1510,7 +1510,7 @@ void CompileNativeModule(Isolate* isolate,
   }
 }
 
-class BackgroundCompileJob : public JobTask {
+class BackgroundCompileJob final : public JobTask {
  public:
   explicit BackgroundCompileJob(std::weak_ptr<NativeModule> native_module,
                                 std::shared_ptr<Counters> async_counters)
@@ -2642,12 +2642,6 @@ bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
   job_->wire_bytes_ = ModuleWireBytes(job_->native_module_->wire_bytes());
   job_->FinishCompile(false);
   return true;
-}
-
-// TODO(wasm): Use the jobs API for wrapper compilation, remove this method.
-int GetMaxCompileConcurrency() {
-  int num_worker_threads = V8::GetCurrentPlatform()->NumberOfWorkerThreads();
-  return std::min(FLAG_wasm_num_compilation_tasks, num_worker_threads);
 }
 
 CompilationStateImpl::CompilationStateImpl(

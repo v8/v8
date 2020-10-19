@@ -58,25 +58,32 @@ uint32_t EvalUint32InitExpr(Handle<WasmInstanceObject> instance,
 using ImportWrapperQueue = WrapperQueue<WasmImportWrapperCache::CacheKey,
                                         WasmImportWrapperCache::CacheKeyHash>;
 
-class CompileImportWrapperTask final : public CancelableTask {
+class CompileImportWrapperJob final : public JobTask {
  public:
-  CompileImportWrapperTask(
-      CancelableTaskManager* task_manager, WasmEngine* engine,
-      Counters* counters, NativeModule* native_module,
+  CompileImportWrapperJob(
+      WasmEngine* engine, Counters* counters, NativeModule* native_module,
       ImportWrapperQueue* queue,
       WasmImportWrapperCache::ModificationScope* cache_scope)
-      : CancelableTask(task_manager),
-        engine_(engine),
+      : engine_(engine),
         counters_(counters),
         native_module_(native_module),
         queue_(queue),
         cache_scope_(cache_scope) {}
 
-  void RunInternal() override {
+  size_t GetMaxConcurrency(size_t worker_count) const override {
+    size_t flag_limit =
+        static_cast<size_t>(std::max(1, FLAG_wasm_num_compilation_tasks));
+    // Add {worker_count} to the queue size because workers might still be
+    // processing units that have already been popped from the queue.
+    return std::min(flag_limit, worker_count + queue_->size());
+  }
+
+  void Run(JobDelegate* delegate) override {
     while (base::Optional<WasmImportWrapperCache::CacheKey> key =
                queue_->pop()) {
       CompileImportWrapper(engine_, native_module_, counters_, key->kind,
                            key->signature, key->expected_arity, cache_scope_);
+      if (delegate->ShouldYield()) return;
     }
   }
 
@@ -1467,26 +1474,14 @@ void InstanceBuilder::CompileImportWrappers(
     import_wrapper_queue.insert(key);
   }
 
-  CancelableTaskManager task_manager;
-  // TODO(wasm): Switch this to the Jobs API, remove {GetMaxCompileConcurrency}.
-  const int max_background_tasks = GetMaxCompileConcurrency();
-  for (int i = 0; i < max_background_tasks; ++i) {
-    auto task = std::make_unique<CompileImportWrapperTask>(
-        &task_manager, isolate_->wasm_engine(), isolate_->counters(),
-        native_module, &import_wrapper_queue, &cache_scope);
-    V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
-  }
+  auto compile_job_task = std::make_unique<CompileImportWrapperJob>(
+      isolate_->wasm_engine(), isolate_->counters(), native_module,
+      &import_wrapper_queue, &cache_scope);
+  auto compile_job = V8::GetCurrentPlatform()->PostJob(
+      TaskPriority::kUserVisible, std::move(compile_job_task));
 
-  // Also compile in the current thread, in case there are no worker threads.
-  while (base::Optional<WasmImportWrapperCache::CacheKey> key =
-             import_wrapper_queue.pop()) {
-    // TODO(9495): When typed_funcref is enabled, reuse the already compiled
-    // wrappers inside WasmJSFunctions.
-    CompileImportWrapper(isolate_->wasm_engine(), native_module,
-                         isolate_->counters(), key->kind, key->signature,
-                         key->expected_arity, &cache_scope);
-  }
-  task_manager.CancelAndWait();
+  // Wait for the job to finish, while contributing in this thread.
+  compile_job->Join();
 }
 
 // Process the imports, including functions, tables, globals, and memory, in
