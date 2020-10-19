@@ -1081,9 +1081,7 @@ bool InstanceBuilder::ProcessImportedFunction(
       // The imported function is a callable.
 
       int expected_arity = static_cast<int>(expected_sig->parameter_count());
-      if (kind == compiler::WasmImportCallKind::kJSFunctionArityMismatch ||
-          kind == compiler::WasmImportCallKind::
-                      kJSFunctionArityMismatchSkipAdaptor) {
+      if (kind == compiler::WasmImportCallKind::kJSFunctionArityMismatch) {
         Handle<JSFunction> function = Handle<JSFunction>::cast(js_receiver);
         SharedFunctionInfo shared = function->shared();
         expected_arity = shared.internal_formal_parameter_count();
@@ -1458,9 +1456,7 @@ void InstanceBuilder::CompileImportWrappers(
 
     int expected_arity = static_cast<int>(sig->parameter_count());
     if (resolved.first ==
-            compiler::WasmImportCallKind::kJSFunctionArityMismatch ||
-        resolved.first ==
-            compiler::WasmImportCallKind::kJSFunctionArityMismatchSkipAdaptor) {
+        compiler::WasmImportCallKind::kJSFunctionArityMismatch) {
       Handle<JSFunction> function = Handle<JSFunction>::cast(resolved.second);
       SharedFunctionInfo shared = function->shared();
       expected_arity = shared.internal_formal_parameter_count();

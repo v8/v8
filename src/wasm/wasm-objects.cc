@@ -1508,12 +1508,9 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
     callable = resolved.second;  // Update to ultimate target.
     DCHECK_NE(compiler::WasmImportCallKind::kLinkError, kind);
     wasm::CompilationEnv env = native_module->CreateCompilationEnv();
-    // {expected_arity} should only be used if kind != kJSFunctionArityMismatch
-    // or kind != kJSFunctionArityMismatchSkipAdaptor.
+    // {expected_arity} should only be used if kind != kJSFunctionArityMismatch.
     int expected_arity = -1;
-    if (kind == compiler::WasmImportCallKind ::kJSFunctionArityMismatch ||
-        kind == compiler::WasmImportCallKind ::
-                    kJSFunctionArityMismatchSkipAdaptor) {
+    if (kind == compiler::WasmImportCallKind ::kJSFunctionArityMismatch) {
       expected_arity = Handle<JSFunction>::cast(callable)
                            ->shared()
                            .internal_formal_parameter_count();

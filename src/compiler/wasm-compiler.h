@@ -58,15 +58,12 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
 // type of the target function/callable and whether the signature matches the
 // argument arity.
 enum class WasmImportCallKind : uint8_t {
-  kLinkError,                           // static Wasm->Wasm type error
-  kRuntimeTypeError,                    // runtime Wasm->JS type error
-  kWasmToCapi,                          // fast Wasm->C-API call
-  kWasmToWasm,                          // fast Wasm->Wasm call
-  kJSFunctionArityMatch,                // fast Wasm->JS call
-  kJSFunctionArityMismatch,             // Wasm->JS, needs adapter frame
-  kJSFunctionArityMismatchSkipAdaptor,  // Wasm->JS, arity mismatch calling
-                                        // strict mode function where we don't
-                                        // need the ArgumentsAdaptorTrampoline.
+  kLinkError,                // static Wasm->Wasm type error
+  kRuntimeTypeError,         // runtime Wasm->JS type error
+  kWasmToCapi,               // fast Wasm->C-API call
+  kWasmToWasm,               // fast Wasm->Wasm call
+  kJSFunctionArityMatch,     // fast Wasm->JS call
+  kJSFunctionArityMismatch,  // Wasm->JS, needs adapter frame
   // Math functions imported from JavaScript that are intrinsified
   kFirstMathIntrinsic,
   kF64Acos = kFirstMathIntrinsic,

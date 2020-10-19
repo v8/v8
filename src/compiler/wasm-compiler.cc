@@ -6716,11 +6716,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                                 args.begin());
         break;
       }
-      case WasmImportCallKind::kJSFunctionArityMismatchSkipAdaptor:
-        UNREACHABLE();
 #else
       // =======================================================================
-      // === JS Functions with arguments adapter ===============================
+      // === JS Functions with mismatching arity ===============================
       // =======================================================================
       case WasmImportCallKind::kJSFunctionArityMismatch: {
         base::SmallVector<Node*, 16> args(wasm_count + 9);
@@ -6759,47 +6757,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
         // Convert wasm numbers to JS values.
         pos = AddArgumentNodes(VectorOf(args), pos, wasm_count, sig_);
-        args[pos++] = function_context;
-        args[pos++] = effect();
-        args[pos++] = control();
-
-        DCHECK_EQ(pos, args.size());
-        call = graph()->NewNode(mcgraph()->common()->Call(call_descriptor), pos,
-                                args.begin());
-        break;
-      }
-      // =======================================================================
-      // === JS Functions without arguments adapter ============================
-      // =======================================================================
-      case WasmImportCallKind::kJSFunctionArityMismatchSkipAdaptor: {
-        base::SmallVector<Node*, 16> args(expected_arity + 7);
-        int pos = 0;
-        Node* function_context =
-            gasm_->Load(MachineType::TaggedPointer(), callable_node,
-                        wasm::ObjectAccess::ContextOffsetInTaggedJSFunction());
-        args[pos++] = callable_node;  // target callable.
-
-        // Determine receiver at runtime.
-        args[pos++] =
-            BuildReceiverNode(callable_node, native_context, undefined_node);
-
-        auto call_descriptor = Linkage::GetJSCallDescriptor(
-            graph()->zone(), false, expected_arity + 1,
-            CallDescriptor::kNoFlags);
-
-        // Convert wasm numbers to JS values.
-        if (expected_arity <= wasm_count) {
-          pos = AddArgumentNodes(VectorOf(args), pos, expected_arity, sig_);
-        } else {
-          pos = AddArgumentNodes(VectorOf(args), pos, wasm_count, sig_);
-          for (int i = wasm_count; i < expected_arity; ++i) {
-            args[pos++] = undefined_node;
-          }
-        }
-
-        args[pos++] = undefined_node;  // new target
-        args[pos++] =
-            mcgraph()->Int32Constant(expected_arity);  // argument count
         args[pos++] = function_context;
         args[pos++] = effect();
         args[pos++] = control();
