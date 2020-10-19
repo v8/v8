@@ -845,24 +845,22 @@ void Heap::CreateInitialObjects() {
   set_next_template_serial_number(Smi::zero());
 
   // Allocate the empty OrderedHashMap.
-  Handle<FixedArray> empty_ordered_hash_map = factory->NewFixedArray(
-      OrderedHashMap::HashTableStartIndex(), AllocationType::kReadOnly);
-  empty_ordered_hash_map->set_map_no_write_barrier(
-      *factory->ordered_hash_map_map());
-  for (int i = 0; i < empty_ordered_hash_map->length(); ++i) {
-    empty_ordered_hash_map->set(i, Smi::zero());
-  }
+  Handle<OrderedHashMap> empty_ordered_hash_map =
+      OrderedHashMap::AllocateEmpty(isolate(), AllocationType::kReadOnly)
+          .ToHandleChecked();
   set_empty_ordered_hash_map(*empty_ordered_hash_map);
 
   // Allocate the empty OrderedHashSet.
-  Handle<FixedArray> empty_ordered_hash_set = factory->NewFixedArray(
-      OrderedHashSet::HashTableStartIndex(), AllocationType::kReadOnly);
-  empty_ordered_hash_set->set_map_no_write_barrier(
-      *factory->ordered_hash_set_map());
-  for (int i = 0; i < empty_ordered_hash_set->length(); ++i) {
-    empty_ordered_hash_set->set(i, Smi::zero());
-  }
+  Handle<OrderedHashSet> empty_ordered_hash_set =
+      OrderedHashSet::AllocateEmpty(isolate(), AllocationType::kReadOnly)
+          .ToHandleChecked();
   set_empty_ordered_hash_set(*empty_ordered_hash_set);
+
+  // Allocate the empty OrderedNameDictionary
+  Handle<OrderedNameDictionary> empty_ordered_property_dictionary =
+      OrderedNameDictionary::AllocateEmpty(isolate(), AllocationType::kReadOnly)
+          .ToHandleChecked();
+  set_empty_ordered_property_dictionary(*empty_ordered_property_dictionary);
 
   // Allocate the empty FeedbackMetadata.
   Handle<FeedbackMetadata> empty_feedback_metadata =

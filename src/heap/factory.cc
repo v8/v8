@@ -536,18 +536,20 @@ Handle<SmallOrderedNameDictionary> Factory::NewSmallOrderedNameDictionary(
 }
 
 Handle<OrderedHashSet> Factory::NewOrderedHashSet() {
-  return OrderedHashSet::Allocate(isolate(), OrderedHashSet::kMinCapacity)
+  return OrderedHashSet::Allocate(isolate(),
+                                  OrderedHashSet::kMinNonZeroCapacity)
       .ToHandleChecked();
 }
 
 Handle<OrderedHashMap> Factory::NewOrderedHashMap() {
-  return OrderedHashMap::Allocate(isolate(), OrderedHashMap::kMinCapacity)
+  return OrderedHashMap::Allocate(isolate(),
+                                  OrderedHashMap::kMinNonZeroCapacity)
       .ToHandleChecked();
 }
 
 Handle<OrderedNameDictionary> Factory::NewOrderedNameDictionary() {
-  return OrderedNameDictionary::Allocate(isolate(),
-                                         OrderedNameDictionary::kMinCapacity)
+  return OrderedNameDictionary::Allocate(
+             isolate(), OrderedNameDictionary::kMinNonZeroCapacity)
       .ToHandleChecked();
 }
 

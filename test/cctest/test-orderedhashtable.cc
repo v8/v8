@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 #include <utility>
-#include "src/init/v8.h"
 
+#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "test/cctest/cctest.h"
@@ -25,6 +25,69 @@ void Verify(Isolate* isolate, Handle<HeapObject> obj) {
 #if VERIFY_HEAP
   obj->ObjectVerify(isolate);
 #endif
+}
+
+// Helpers to abstract over differences in interfaces of the different ordered
+// datastructures
+
+template <typename T>
+Handle<T> Add(Isolate* isolate, Handle<T> table, Handle<String> key1,
+              Handle<String> value1, PropertyDetails details);
+
+template <>
+Handle<OrderedHashMap> Add(Isolate* isolate, Handle<OrderedHashMap> table,
+                           Handle<String> key, Handle<String> value,
+                           PropertyDetails details) {
+  return OrderedHashMap::Add(isolate, table, key, value).ToHandleChecked();
+}
+
+template <>
+Handle<OrderedHashSet> Add(Isolate* isolate, Handle<OrderedHashSet> table,
+                           Handle<String> key, Handle<String> value,
+                           PropertyDetails details) {
+  return OrderedHashSet::Add(isolate, table, key).ToHandleChecked();
+}
+
+template <>
+Handle<OrderedNameDictionary> Add(Isolate* isolate,
+                                  Handle<OrderedNameDictionary> table,
+                                  Handle<String> key, Handle<String> value,
+                                  PropertyDetails details) {
+  return OrderedNameDictionary::Add(isolate, table, key, value, details)
+      .ToHandleChecked();
+}
+
+// version for
+// OrderedHashMap, OrderedHashSet
+template <typename T>
+bool HasKey(Isolate* isolate, Handle<T> table, Object key) {
+  return T::HasKey(isolate, *table, key);
+}
+
+template <>
+bool HasKey(Isolate* isolate, Handle<OrderedNameDictionary> table, Object key) {
+  return table->FindEntry(isolate, key) != OrderedNameDictionary::kNotFound;
+}
+
+// version for
+// OrderedHashTable, OrderedHashSet
+template <typename T>
+Handle<T> Delete(Isolate* isolate, Handle<T> table, Object key) {
+  T::Delete(isolate, *table, key);
+  return table;
+}
+
+template <>
+Handle<OrderedNameDictionary> Delete(Isolate* isolate,
+                                     Handle<OrderedNameDictionary> table,
+                                     Object key) {
+  // OrderedNameDictionary doesn't have Delete, but only DeleteEntry, which
+  // requires the key to be deleted to be present
+  int entry = table->FindEntry(isolate, key);
+  if (entry == OrderedNameDictionary::kNotFound)
+    return table;
+  else
+    return OrderedNameDictionary::DeleteEntry(isolate, table, entry);
 }
 
 TEST(SmallOrderedHashSetInsertion) {
@@ -2130,6 +2193,265 @@ TEST(SmallOrderedNameDictionaryDeleteEntry) {
   CHECK_EQ(0, dict->NumberOfElements());
   // Dictionary shrunk.
   CHECK_EQ(0, dict->NumberOfDeletedElements());
+}
+
+template <typename T>
+void TestEmptyOrderedHashTable(Isolate* isolate, Factory* factory,
+                               Handle<T> table) {
+  CHECK_EQ(0, table->NumberOfElements());
+
+  PropertyDetails details = PropertyDetails::Empty();
+
+  Handle<String> key1 = isolate->factory()->InternalizeUtf8String("key1");
+  Handle<String> value1 = isolate->factory()->InternalizeUtf8String("value1");
+  table = Add(isolate, table, key1, value1, details);
+  Verify(isolate, table);
+  CHECK_EQ(1, table->NumberOfElements());
+  CHECK(HasKey(isolate, table, *key1));
+
+  Handle<String> key2 = factory->InternalizeUtf8String("key2");
+  Handle<String> value2 = factory->InternalizeUtf8String("value2");
+  CHECK(!HasKey(isolate, table, *key2));
+  table = Add(isolate, table, key2, value2, details);
+  Verify(isolate, table);
+  CHECK_EQ(2, table->NumberOfElements());
+  CHECK(HasKey(isolate, table, *key1));
+  CHECK(HasKey(isolate, table, *key2));
+
+  Handle<String> key3 = factory->InternalizeUtf8String("key3");
+  Handle<String> value3 = factory->InternalizeUtf8String("value3");
+  CHECK(!HasKey(isolate, table, *key3));
+  table = Add(isolate, table, key3, value3, details);
+  Verify(isolate, table);
+  CHECK_EQ(3, table->NumberOfElements());
+  CHECK(HasKey(isolate, table, *key1));
+  CHECK(HasKey(isolate, table, *key2));
+  CHECK(HasKey(isolate, table, *key3));
+
+  Handle<String> key4 = factory->InternalizeUtf8String("key4");
+  Handle<String> value4 = factory->InternalizeUtf8String("value4");
+  CHECK(!HasKey(isolate, table, *key4));
+  table = Delete(isolate, table, *key4);
+  Verify(isolate, table);
+  CHECK_EQ(3, table->NumberOfElements());
+  CHECK_EQ(0, table->NumberOfDeletedElements());
+  CHECK(!HasKey(isolate, table, *key4));
+
+  table = Add(isolate, table, key4, value4, details);
+  Verify(isolate, table);
+  CHECK_EQ(4, table->NumberOfElements());
+  CHECK_EQ(0, table->NumberOfDeletedElements());
+  CHECK(HasKey(isolate, table, *key4));
+
+  CHECK(HasKey(isolate, table, *key4));
+  table = Delete(isolate, table, *key4);
+  Verify(isolate, table);
+  CHECK_EQ(3, table->NumberOfElements());
+  CHECK_EQ(1, table->NumberOfDeletedElements());
+  CHECK(!HasKey(isolate, table, *key4));
+}
+
+TEST(ZeroSizeOrderedHashMap) {
+  LocalContext context;
+  Isolate* isolate = GetIsolateFrom(&context);
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+  ReadOnlyRoots ro_roots(isolate);
+
+  Handle<Smi> key1(Smi::FromInt(1), isolate);
+  Handle<Smi> value1(Smi::FromInt(1), isolate);
+
+  Handle<OrderedHashMap> empty =
+      Handle<OrderedHashMap>(ro_roots.empty_ordered_hash_map(), isolate);
+  {
+    Handle<OrderedHashMap> map = empty;
+
+    CHECK_EQ(0, map->NumberOfBuckets());
+    CHECK_EQ(0, map->NumberOfElements());
+    CHECK(!OrderedHashMap::HasKey(isolate, *map, *key1));
+
+    TestEmptyOrderedHashTable(isolate, factory, map);
+  }
+  {
+    Handle<OrderedHashMap> map = empty;
+
+    map = OrderedHashMap::EnsureGrowable(isolate, map).ToHandleChecked();
+
+    CHECK_LT(0, map->NumberOfBuckets());
+    CHECK_EQ(0, map->NumberOfElements());
+  }
+  {
+    Handle<OrderedHashMap> map = empty;
+
+    CHECK(map->FindEntry(isolate, *key1) == OrderedHashMap::kNotFound);
+
+    TestEmptyOrderedHashTable(isolate, factory, map);
+  }
+  {
+    Handle<OrderedHashMap> map = empty;
+
+    map = OrderedHashMap::Add(isolate, map, key1, value1).ToHandleChecked();
+
+    CHECK_EQ(1, map->NumberOfElements());
+    CHECK(OrderedHashMap::HasKey(isolate, *map, *key1));
+  }
+  {
+    Handle<OrderedHashMap> map = empty;
+
+    map = OrderedHashMap::Clear(isolate, map);
+
+    TestEmptyOrderedHashTable(isolate, factory, map);
+  }
+  {
+    Handle<OrderedHashMap> map = empty;
+
+    map = OrderedHashMap::Rehash(isolate, map).ToHandleChecked();
+
+    TestEmptyOrderedHashTable(isolate, factory, map);
+  }
+  {
+    Handle<OrderedHashMap> map = empty;
+
+    map = OrderedHashMap::Shrink(isolate, map);
+
+    TestEmptyOrderedHashTable(isolate, factory, map);
+  }
+  {
+    Handle<OrderedHashMap> map = empty;
+
+    OrderedHashMap::Delete(isolate, *map, *key1);
+
+    TestEmptyOrderedHashTable(isolate, factory, map);
+  }
+}
+
+TEST(ZeroSizeOrderedHashSet) {
+  LocalContext context;
+  Isolate* isolate = GetIsolateFrom(&context);
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+  ReadOnlyRoots ro_roots(isolate);
+
+  Handle<Smi> key1(Smi::FromInt(1), isolate);
+  Handle<Smi> value1(Smi::FromInt(1), isolate);
+
+  Handle<OrderedHashSet> empty =
+      Handle<OrderedHashSet>(ro_roots.empty_ordered_hash_set(), isolate);
+
+  {
+    Handle<OrderedHashSet> set = empty;
+
+    CHECK_EQ(0, set->NumberOfBuckets());
+    CHECK_EQ(0, set->NumberOfElements());
+    CHECK(!OrderedHashSet::HasKey(isolate, *set, *key1));
+
+    TestEmptyOrderedHashTable(isolate, factory, set);
+  }
+  {
+    Handle<OrderedHashSet> set = empty;
+
+    set = OrderedHashSet::EnsureGrowable(isolate, set).ToHandleChecked();
+
+    CHECK_LT(0, set->NumberOfBuckets());
+    CHECK_EQ(0, set->NumberOfElements());
+  }
+  {
+    Handle<OrderedHashSet> set = empty;
+
+    CHECK(set->FindEntry(isolate, *key1) == OrderedHashSet::kNotFound);
+
+    TestEmptyOrderedHashTable(isolate, factory, set);
+  }
+  {
+    Handle<OrderedHashSet> set = empty;
+
+    set = OrderedHashSet::Add(isolate, set, key1).ToHandleChecked();
+
+    CHECK_EQ(1, set->NumberOfElements());
+    CHECK(OrderedHashSet::HasKey(isolate, *set, *key1));
+  }
+  {
+    Handle<OrderedHashSet> set = empty;
+
+    set = OrderedHashSet::Clear(isolate, set);
+
+    TestEmptyOrderedHashTable(isolate, factory, set);
+  }
+  {
+    Handle<OrderedHashSet> set = empty;
+
+    set = OrderedHashSet::Rehash(isolate, set).ToHandleChecked();
+
+    TestEmptyOrderedHashTable(isolate, factory, set);
+  }
+  {
+    Handle<OrderedHashSet> set = empty;
+
+    set = OrderedHashSet::Shrink(isolate, set);
+
+    TestEmptyOrderedHashTable(isolate, factory, set);
+  }
+  {
+    Handle<OrderedHashSet> set = empty;
+
+    OrderedHashSet::Delete(isolate, *set, *key1);
+
+    TestEmptyOrderedHashTable(isolate, factory, set);
+  }
+}
+
+TEST(ZeroSizeOrderedNameDictionary) {
+  LocalContext context;
+  Isolate* isolate = GetIsolateFrom(&context);
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+  ReadOnlyRoots ro_roots(isolate);
+
+  Handle<String> key1 = isolate->factory()->InternalizeUtf8String("key1");
+  Handle<String> value1 = isolate->factory()->InternalizeUtf8String("value1");
+  PropertyDetails details = PropertyDetails::Empty();
+
+  Handle<OrderedNameDictionary> empty = Handle<OrderedNameDictionary>(
+      ro_roots.empty_ordered_property_dictionary(), isolate);
+
+  {
+    Handle<OrderedNameDictionary> dict = empty;
+
+    CHECK_EQ(0, dict->NumberOfBuckets());
+    CHECK_EQ(0, dict->NumberOfElements());
+    CHECK(!HasKey(isolate, dict, *key1));
+
+    TestEmptyOrderedHashTable(isolate, factory, dict);
+  }
+  {
+    Handle<OrderedNameDictionary> dict = empty;
+
+    CHECK(dict->FindEntry(isolate, *key1) == OrderedNameDictionary::kNotFound);
+
+    TestEmptyOrderedHashTable(isolate, factory, dict);
+  }
+  {
+    Handle<OrderedNameDictionary> dict = empty;
+
+    dict = OrderedNameDictionary::Add(isolate, dict, key1, value1, details)
+               .ToHandleChecked();
+    CHECK_EQ(1, dict->NumberOfElements());
+    CHECK(HasKey(isolate, dict, *key1));
+  }
+  {
+    Handle<OrderedNameDictionary> dict = empty;
+
+    dict = OrderedNameDictionary::Rehash(isolate, dict, 0).ToHandleChecked();
+
+    TestEmptyOrderedHashTable(isolate, factory, dict);
+  }
+  {
+    Handle<OrderedNameDictionary> dict = empty;
+
+    dict = OrderedNameDictionary::Shrink(isolate, dict);
+
+    TestEmptyOrderedHashTable(isolate, factory, dict);
+  }
 }
 
 }  // namespace test_orderedhashtable

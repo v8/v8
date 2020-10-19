@@ -166,11 +166,13 @@ class Symbol;
     EmptyClosureFeedbackCellArray)                                             \
   V(NumberDictionary, empty_slow_element_dictionary,                           \
     EmptySlowElementDictionary)                                                \
-  V(FixedArray, empty_ordered_hash_map, EmptyOrderedHashMap)                   \
-  V(FixedArray, empty_ordered_hash_set, EmptyOrderedHashSet)                   \
+  V(OrderedHashMap, empty_ordered_hash_map, EmptyOrderedHashMap)               \
+  V(OrderedHashSet, empty_ordered_hash_set, EmptyOrderedHashSet)               \
   V(FeedbackMetadata, empty_feedback_metadata, EmptyFeedbackMetadata)          \
   V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
   V(NameDictionary, empty_property_dictionary, EmptyPropertyDictionary)        \
+  V(OrderedNameDictionary, empty_ordered_property_dictionary,                  \
+    EmptyOrderedPropertyDictionary)                                            \
   V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
   V(WeakFixedArray, empty_weak_fixed_array, EmptyWeakFixedArray)               \
   V(WeakArrayList, empty_weak_array_list, EmptyWeakArrayList)                  \

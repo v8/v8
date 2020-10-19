@@ -142,7 +142,9 @@ class OrderedHashTable : public FixedArray {
   static const int kChainOffset = entrysize;
 
   static const int kNotFound = -1;
-  static const int kMinCapacity = 4;
+  // The minimum capacity. Note that despite this value, 0 is also a permitted
+  // capacity, indicating a table without any storage for elements.
+  static const int kMinNonZeroCapacity = 4;
 
   static constexpr int PrefixIndex() { return 0; }
 
@@ -202,6 +204,10 @@ class OrderedHashTable : public FixedArray {
       Isolate* isolate, int capacity,
       AllocationType allocation = AllocationType::kYoung);
 
+  static MaybeHandle<Derived> AllocateEmpty(Isolate* isolate,
+                                            AllocationType allocation,
+                                            RootIndex root_ndex);
+
   static MaybeHandle<Derived> Rehash(Isolate* isolate, Handle<Derived> table);
   static MaybeHandle<Derived> Rehash(Isolate* isolate, Handle<Derived> table,
                                      int new_capacity);
@@ -235,6 +241,8 @@ class OrderedHashTable : public FixedArray {
 
 class V8_EXPORT_PRIVATE OrderedHashSet
     : public OrderedHashTable<OrderedHashSet, 1> {
+  using Base = OrderedHashTable<OrderedHashSet, 1>;
+
  public:
   DECL_CAST(OrderedHashSet)
 
@@ -252,6 +260,10 @@ class V8_EXPORT_PRIVATE OrderedHashSet
   static MaybeHandle<OrderedHashSet> Allocate(
       Isolate* isolate, int capacity,
       AllocationType allocation = AllocationType::kYoung);
+
+  static MaybeHandle<OrderedHashSet> AllocateEmpty(
+      Isolate* isolate, AllocationType allocation = AllocationType::kReadOnly);
+
   static HeapObject GetEmpty(ReadOnlyRoots ro_roots);
   static inline Handle<Map> GetMap(ReadOnlyRoots roots);
   static inline bool Is(Handle<HeapObject> table);
@@ -262,6 +274,8 @@ class V8_EXPORT_PRIVATE OrderedHashSet
 
 class V8_EXPORT_PRIVATE OrderedHashMap
     : public OrderedHashTable<OrderedHashMap, 2> {
+  using Base = OrderedHashTable<OrderedHashMap, 2>;
+
  public:
   DECL_CAST(OrderedHashMap)
 
@@ -275,6 +289,10 @@ class V8_EXPORT_PRIVATE OrderedHashMap
   static MaybeHandle<OrderedHashMap> Allocate(
       Isolate* isolate, int capacity,
       AllocationType allocation = AllocationType::kYoung);
+
+  static MaybeHandle<OrderedHashMap> AllocateEmpty(
+      Isolate* isolate, AllocationType allocation = AllocationType::kReadOnly);
+
   static MaybeHandle<OrderedHashMap> Rehash(Isolate* isolate,
                                             Handle<OrderedHashMap> table,
                                             int new_capacity);
@@ -699,24 +717,30 @@ class V8_EXPORT_PRIVATE OrderedHashSetHandler
       Isolate* isolate, Handle<SmallOrderedHashSet> table);
 };
 
-class OrderedNameDictionary
+class V8_EXPORT_PRIVATE OrderedNameDictionary
     : public OrderedHashTable<OrderedNameDictionary, 3> {
+  using Base = OrderedHashTable<OrderedNameDictionary, 3>;
+
  public:
   DECL_CAST(OrderedNameDictionary)
 
-  V8_EXPORT_PRIVATE static MaybeHandle<OrderedNameDictionary> Add(
+  static MaybeHandle<OrderedNameDictionary> Add(
       Isolate* isolate, Handle<OrderedNameDictionary> table, Handle<Name> key,
       Handle<Object> value, PropertyDetails details);
 
-  V8_EXPORT_PRIVATE void SetEntry(int entry, Object key, Object value,
-                                  PropertyDetails details);
+  void SetEntry(int entry, Object key, Object value, PropertyDetails details);
 
-  V8_EXPORT_PRIVATE static Handle<OrderedNameDictionary> DeleteEntry(
+  int FindEntry(Isolate* isolate, Object key);
+
+  static Handle<OrderedNameDictionary> DeleteEntry(
       Isolate* isolate, Handle<OrderedNameDictionary> table, int entry);
 
   static MaybeHandle<OrderedNameDictionary> Allocate(
       Isolate* isolate, int capacity,
       AllocationType allocation = AllocationType::kYoung);
+
+  static MaybeHandle<OrderedNameDictionary> AllocateEmpty(
+      Isolate* isolate, AllocationType allocation = AllocationType::kReadOnly);
 
   static MaybeHandle<OrderedNameDictionary> Rehash(
       Isolate* isolate, Handle<OrderedNameDictionary> table, int new_capacity);
