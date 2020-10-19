@@ -378,8 +378,8 @@ void InstructionSelector::VisitLoadLane(Node* node) {
   DCHECK_GE(5, input_count);
 
   // x64 supports unaligned loads.
-  DCHECK_NE(params.kind, LoadKind::kUnaligned);
-  if (params.kind == LoadKind::kProtected) {
+  DCHECK_NE(params.kind, MemoryAccessKind::kUnaligned);
+  if (params.kind == MemoryAccessKind::kProtected) {
     opcode |= MiscField::encode(kMemoryAccessProtected);
   }
   Emit(opcode, 1, outputs, input_count, inputs);
@@ -429,9 +429,9 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
       UNREACHABLE();
   }
   // x64 supports unaligned loads
-  DCHECK_NE(params.kind, LoadKind::kUnaligned);
+  DCHECK_NE(params.kind, MemoryAccessKind::kUnaligned);
   InstructionCode code = opcode;
-  if (params.kind == LoadKind::kProtected) {
+  if (params.kind == MemoryAccessKind::kProtected) {
     code |= MiscField::encode(kMemoryAccessProtected);
   }
   VisitLoad(node, node, code);
@@ -562,7 +562,7 @@ void InstructionSelector::VisitStoreLane(Node* node) {
       g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
   opcode |= AddressingModeField::encode(addressing_mode);
 
-  if (params.kind == LoadKind::kProtected) {
+  if (params.kind == MemoryAccessKind::kProtected) {
     opcode |= MiscField::encode(kMemoryAccessProtected);
   }
 

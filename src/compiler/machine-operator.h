@@ -49,16 +49,15 @@ using LoadRepresentation = MachineType;
 V8_EXPORT_PRIVATE LoadRepresentation LoadRepresentationOf(Operator const*)
     V8_WARN_UNUSED_RESULT;
 
-// TODO(zhin): This is used by StoreLane too, rename this.
-enum class LoadKind {
+enum class MemoryAccessKind {
   kNormal,
   kUnaligned,
   kProtected,
 };
 
-size_t hash_value(LoadKind);
+size_t hash_value(MemoryAccessKind);
 
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, LoadKind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, MemoryAccessKind);
 
 enum class LoadTransformation {
   kS128Load8Splat,
@@ -80,7 +79,7 @@ size_t hash_value(LoadTransformation);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, LoadTransformation);
 
 struct LoadTransformParameters {
-  LoadKind kind;
+  MemoryAccessKind kind;
   LoadTransformation transformation;
 };
 
@@ -93,7 +92,7 @@ V8_EXPORT_PRIVATE LoadTransformParameters const& LoadTransformParametersOf(
     Operator const*) V8_WARN_UNUSED_RESULT;
 
 struct LoadLaneParameters {
-  LoadKind kind;
+  MemoryAccessKind kind;
   LoadRepresentation rep;
   uint8_t laneidx;
 };
@@ -137,7 +136,7 @@ UnalignedStoreRepresentation const& UnalignedStoreRepresentationOf(
     Operator const*) V8_WARN_UNUSED_RESULT;
 
 struct StoreLaneParameters {
-  LoadKind kind;
+  MemoryAccessKind kind;
   MachineRepresentation rep;
   uint8_t laneidx;
 };
@@ -815,10 +814,11 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* PoisonedLoad(LoadRepresentation rep);
   const Operator* ProtectedLoad(LoadRepresentation rep);
 
-  const Operator* LoadTransform(LoadKind kind, LoadTransformation transform);
+  const Operator* LoadTransform(MemoryAccessKind kind,
+                                LoadTransformation transform);
 
   // SIMD load: replace a specified lane with [base + index].
-  const Operator* LoadLane(LoadKind kind, LoadRepresentation rep,
+  const Operator* LoadLane(MemoryAccessKind kind, LoadRepresentation rep,
                            uint8_t laneidx);
 
   // store [base + index], value
@@ -826,7 +826,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* ProtectedStore(MachineRepresentation rep);
 
   // SIMD store: store a specified lane of value into [base + index].
-  const Operator* StoreLane(LoadKind kind, MachineRepresentation rep,
+  const Operator* StoreLane(MemoryAccessKind kind, MachineRepresentation rep,
                             uint8_t laneidx);
 
   // unaligned load [base + index]

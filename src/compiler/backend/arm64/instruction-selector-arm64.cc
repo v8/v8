@@ -669,7 +669,7 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
       UNIMPLEMENTED();
   }
   // ARM64 supports unaligned loads
-  DCHECK_NE(params.kind, LoadKind::kUnaligned);
+  DCHECK_NE(params.kind, MemoryAccessKind::kUnaligned);
 
   Arm64OperandGenerator g(this);
   Node* base = node->InputAt(0);

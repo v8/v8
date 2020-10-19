@@ -401,9 +401,9 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
   }
 
   // IA32 supports unaligned loads.
-  DCHECK_NE(params.kind, LoadKind::kUnaligned);
+  DCHECK_NE(params.kind, MemoryAccessKind::kUnaligned);
   // Trap handler is not supported on IA32.
-  DCHECK_NE(params.kind, LoadKind::kProtected);
+  DCHECK_NE(params.kind, MemoryAccessKind::kProtected);
 
   IA32OperandGenerator g(this);
   InstructionOperand outputs[1];

@@ -616,13 +616,13 @@ void SimdScalarLowering::LowerLoadTransformOp(Node* node, SimdType type) {
 
   const Operator* load_op;
   switch (params.kind) {
-    case LoadKind::kNormal:
+    case MemoryAccessKind::kNormal:
       load_op = machine()->Load(load_rep);
       break;
-    case LoadKind::kUnaligned:
+    case MemoryAccessKind::kUnaligned:
       load_op = machine()->UnalignedLoad(load_rep);
       break;
-    case LoadKind::kProtected:
+    case MemoryAccessKind::kProtected:
       load_op = machine()->ProtectedLoad(load_rep);
       break;
   }

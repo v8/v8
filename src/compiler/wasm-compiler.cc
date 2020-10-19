@@ -3894,18 +3894,18 @@ LoadTransformation GetLoadTransformation(
   UNREACHABLE();
 }
 
-LoadKind GetLoadKind(MachineGraph* mcgraph, MachineType memtype,
-                     bool use_trap_handler) {
+MemoryAccessKind GetMemoryAccessKind(MachineGraph* mcgraph, MachineType memtype,
+                                     bool use_trap_handler) {
   if (memtype.representation() == MachineRepresentation::kWord8 ||
       mcgraph->machine()->UnalignedLoadSupported(memtype.representation())) {
     if (use_trap_handler) {
-      return LoadKind::kProtected;
+      return MemoryAccessKind::kProtected;
     }
-    return LoadKind::kNormal;
+    return MemoryAccessKind::kNormal;
   }
   // TODO(eholk): Support unaligned loads with trap handlers.
   DCHECK(!use_trap_handler);
-  return LoadKind::kUnaligned;
+  return MemoryAccessKind::kUnaligned;
 }
 }  // namespace
 
@@ -3994,13 +3994,14 @@ Node* WasmGraphBuilder::LoadLane(MachineType memtype, Node* value, Node* index,
   index =
       BoundsCheckMem(access_size, index, offset, position, kCanOmitBoundsCheck);
 
-  LoadKind load_kind = GetLoadKind(mcgraph(), memtype, use_trap_handler());
+  MemoryAccessKind load_kind =
+      GetMemoryAccessKind(mcgraph(), memtype, use_trap_handler());
 
   load = SetEffect(graph()->NewNode(
       mcgraph()->machine()->LoadLane(load_kind, memtype, laneidx),
       MemBuffer(offset), index, value, effect(), control()));
 
-  if (load_kind == LoadKind::kProtected) {
+  if (load_kind == MemoryAccessKind::kProtected) {
     SetSourcePosition(load, position);
   }
 
@@ -4029,7 +4030,7 @@ Node* WasmGraphBuilder::LoadTransform(wasm::ValueType type, MachineType memtype,
   // therefore we divide them into separate "load" and "operation" nodes.
   load = LoadTransformBigEndian(type, memtype, transform, index, offset,
                                 alignment, position);
-  USE(GetLoadKind);
+  USE(GetMemoryAccessKind);
 #else
   // Wasm semantics throw on OOB. Introduce explicit bounds check and
   // conditioning when not using the trap handler.
@@ -4042,13 +4043,14 @@ Node* WasmGraphBuilder::LoadTransform(wasm::ValueType type, MachineType memtype,
       BoundsCheckMem(access_size, index, offset, position, kCanOmitBoundsCheck);
 
   LoadTransformation transformation = GetLoadTransformation(memtype, transform);
-  LoadKind load_kind = GetLoadKind(mcgraph(), memtype, use_trap_handler());
+  MemoryAccessKind load_kind =
+      GetMemoryAccessKind(mcgraph(), memtype, use_trap_handler());
 
   load = SetEffect(graph()->NewNode(
       mcgraph()->machine()->LoadTransform(load_kind, transformation),
       MemBuffer(capped_offset), index, effect(), control()));
 
-  if (load_kind == LoadKind::kProtected) {
+  if (load_kind == MemoryAccessKind::kProtected) {
     SetSourcePosition(load, position);
   }
 #endif
@@ -4122,7 +4124,8 @@ Node* WasmGraphBuilder::StoreLane(MachineRepresentation mem_rep, Node* index,
                          position, kCanOmitBoundsCheck);
 
   MachineType memtype = MachineType(mem_rep, MachineSemantic::kNone);
-  LoadKind load_kind = GetLoadKind(mcgraph(), memtype, use_trap_handler());
+  MemoryAccessKind load_kind =
+      GetMemoryAccessKind(mcgraph(), memtype, use_trap_handler());
 
   // {offset} is validated to be within uintptr_t range in {BoundsCheckMem}.
   uintptr_t capped_offset = static_cast<uintptr_t>(offset);
@@ -4131,7 +4134,7 @@ Node* WasmGraphBuilder::StoreLane(MachineRepresentation mem_rep, Node* index,
       mcgraph()->machine()->StoreLane(load_kind, mem_rep, laneidx),
       MemBuffer(capped_offset), index, val, effect(), control()));
 
-  if (load_kind == LoadKind::kProtected) {
+  if (load_kind == MemoryAccessKind::kProtected) {
     SetSourcePosition(store, position);
   }
 
