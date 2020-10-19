@@ -7,14 +7,11 @@ found in the LICENSE file. -->
 </head>
 <style>
   #fileReader {
-    width: 100%;
     height: 100px;
     line-height: 100px;
     text-align: center;
-    border-radius: 5px;
     cursor: pointer;
     transition: all 0.5s ease-in-out;
-    border: 2px solid var(--primary-color);
     background-color: var(--surface-color);
   }
 
@@ -74,15 +71,12 @@ found in the LICENSE file. -->
     }
   }
 </style>
-
-<section id="fileReaderSection">
-  <div id="fileReader" tabindex=1>
-    <span id="label">
-      Drag and drop a v8.log file into this area, or click to choose from disk.
-    </span>
-    <input id="file" type="file" name="file">
-  </div>
-  <div id="loader">
-    <div id="spinner"></div>
-  </div>
-</section>
+<div id="fileReader" class="panel" tabindex=1>
+  <span id="label">
+    Drag and drop a v8.log file into this area, or click to choose from disk.
+  </span>
+  <input id="file" type="file" name="file">
+</div>
+<div id="loader">
+  <div id="spinner"></div>
+</div>

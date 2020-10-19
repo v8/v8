@@ -58,19 +58,19 @@ found in the LICENSE file. -->
       display: none;
     }
 
-    #container.loaded {
-      display: grid;
-      align-content: center;
-      grid-template-columns: repeat(auto-fit, minmax(400px, 800px));
-      grid-template-rows: repeat(auto-fit, minmax(400px, 800px));
-      grid-auto-flow: dense;
-      grid-gap: 1em;
+    #timeline-panel {
+      width: 100%;
     }
 
-    #container.loaded>#timeline-panel {
-      grid-column: span 2;
-      overflow: scroll;
+    .panels{
+      display: grid;
+      align-content: center;
+      grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+      grid-auto-flow: row dense;
+      grid-gap: 10px;
+      margin-top: 10px;
     }
+
     dt::after  {
       content: ":";
     }
@@ -95,82 +95,86 @@ found in the LICENSE file. -->
       <timeline-track id="ic-track"></timeline-track>
       <timeline-track id="deopt-track"></timeline-track>
     </timeline-panel>
-    <map-panel id="map-panel"></map-panel>
-    <ic-panel id="ic-panel" onchange="app.handleSelectIc(event)"></ic-panel>
-    <source-panel id="source-panel"></source-panel>
-  </section>
-
-  <section id="settings">
-    <h2>Settings</h2>
-    <span>Theme:</span>
-    <div class="theme-switch-wrapper">
-      <label class="theme-switch" for="theme-switch-input">
-        <input type="checkbox" id="theme-switch-input" />
-        <div class="slider"></div>
-      </label>
+    <div class="panels">
+      <map-panel id="map-panel"></map-panel>
+      <ic-panel id="ic-panel" onchange="app.handleSelectIc(event)"></ic-panel>
+      <source-panel id="source-panel"></source-panel>
     </div>
   </section>
 
-  <section id="instructions">
-    <h2>Instructions</h2>
-    <p>
-      Unified web interface to analyse runtime information stored in the v8 log.
-    </p>
-    For generating a v8.log file from <a href="https://v8.dev/docs/build">d8</a>:
-    <ul>
-      <li>
-        <code>/path/do/d8 --trace-maps --trace_ic --log-source-code $FILE</code>
-      </li>
-    </ul>
-    For generating a v8.log file from Chrome:
-    <ul>
-      <li>
-        <code>/path/to/chrome --user-data-dir=/var/tmp/chr$RANDOM --no-sandbox
-        --js-flags='--trace-ic --trace-maps --log-source-code’
-        $WEBSITE_URL</code>
-      </li>
-    </ul>
+  <div class="panels">
+    <section id="settings" class="panel">
+      <h2>Settings</h2>
+      <span>Theme:</span>
+      <div class="theme-switch-wrapper">
+        <label class="theme-switch" for="theme-switch-input">
+          <input type="checkbox" id="theme-switch-input" />
+          <div class="slider"></div>
+        </label>
+      </div>
+    </section>
 
-    <h3>Log Options:</h3>
-    <dl class="d8-options">
-      <dt><code>--trace-maps</code></dt>
-      <dd>Log<a href="https://v8.dev/blog/fast-properties" target="_blank">
-          Maps</a></dd>
-      <dt><code>--trace-ic</code></dt>
-      <dd>Log
-        <a href="https://mathiasbynens.be/notes/shapes-ics" target="_blank">
-          ICs</a></dd>
-      <dt><code>--log-source-code</code></dt>
-      <dd>Log source code</dd>
-    </dl>
+    <section id="instructions" class="panel">
+      <h2>Instructions</h2>
+      <p>
+        Unified web interface to analyse runtime information stored in the v8 log.
+      </p>
+      For generating a v8.log file from <a href="https://v8.dev/docs/build">d8</a>:
+      <ul>
+        <li>
+          <code>/path/do/d8 --trace-maps --trace_ic --log-source-code $FILE</code>
+        </li>
+      </ul>
+      For generating a v8.log file from Chrome:
+      <ul>
+        <li>
+          <code>/path/to/chrome --user-data-dir=/var/tmp/chr$RANDOM --no-sandbox
+          --js-flags='--trace-ic --trace-maps --log-source-code’
+          $WEBSITE_URL</code>
+        </li>
+      </ul>
 
-    <h3>Keyboard Shortcuts for Navigation</h3>
-    <dl>
-      <dt><kbd>SHIFT</kbd> + <kbd>Arrow Up</kbd></dt>
-      <dd>Follow Map transition forward (first child)</dd>
+      <h3>Log Options:</h3>
+      <dl class="d8-options">
+        <dt><code>--trace-maps</code></dt>
+        <dd>Log<a href="https://v8.dev/blog/fast-properties" target="_blank">
+            Maps</a></dd>
+        <dt><code>--trace-ic</code></dt>
+        <dd>Log
+          <a href="https://mathiasbynens.be/notes/shapes-ics" target="_blank">
+            ICs</a></dd>
+        <dt><code>--log-source-code</code></dt>
+        <dd>Log source code</dd>
+      </dl>
 
-      <dt><kbd>SHIFT</kbd> + <kbd>Arrow Down</kbd></dt>
-      <dd>Follow Map transition backwards</dd>
+      <h3>Keyboard Shortcuts for Navigation</h3>
+      <dl>
+        <dt><kbd>SHIFT</kbd> + <kbd>Arrow Up</kbd></dt>
+        <dd>Follow Map transition forward (first child)</dd>
 
-      <dt><kbd>Arrow Up</kbd></dt>
-      <dd>Go to previous Map chunk</dd>
+        <dt><kbd>SHIFT</kbd> + <kbd>Arrow Down</kbd></dt>
+        <dd>Follow Map transition backwards</dd>
 
-      <dt><kbd>Arrow Down</kbd></dt>
-      <dd>Go to next Map in chunk</dd>
+        <dt><kbd>Arrow Up</kbd></dt>
+        <dd>Go to previous Map chunk</dd>
 
-      <dt><kbd>Arrow Left</kbd></dt>
-      <dd>Go to previous chunk</dd>
+        <dt><kbd>Arrow Down</kbd></dt>
+        <dd>Go to next Map in chunk</dd>
 
-      <dt><kbd>Arrow Right</kbd></dt>
-      <dd>Go to next chunk</dd>
+        <dt><kbd>Arrow Left</kbd></dt>
+        <dd>Go to previous chunk</dd>
 
-      <dt><kbd>+</kbd></dt>
-      <dd>Timeline zoom in</dd>
+        <dt><kbd>Arrow Right</kbd></dt>
+        <dd>Go to next chunk</dd>
 
-      <dt><kbd>-</kbd></dt>
-      <dd>Timeline zoom out</dd>
-    </dl>
-  </section>
+        <dt><kbd>+</kbd></dt>
+        <dd>Timeline zoom in</dd>
+
+        <dt><kbd>-</kbd></dt>
+        <dd>Timeline zoom out</dd>
+      </dl>
+    </section>
+  </div>
 </body>
 
 </html>

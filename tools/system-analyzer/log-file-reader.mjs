@@ -15,10 +15,6 @@ defineCustomElement('log-file-reader', (templateText) =>
         e => this.handleKeyEvent(e));
     }
 
-    get section() {
-      return this.$('#fileReaderSection');
-    }
-
     updateLabel(text) {
       this.$('#label').innerText = text;
     }
@@ -54,7 +50,7 @@ defineCustomElement('log-file-reader', (templateText) =>
         return;
       }
       this.$('#fileReader').blur();
-      this.section.className = 'loading';
+      this.shadowRoot.className = 'loading';
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
@@ -67,11 +63,11 @@ defineCustomElement('log-file-reader', (templateText) =>
             bubbles: true, composed: true,
             detail: dataModel
           }));
-          this.section.className = 'success';
+          this.shadowRoot.className = 'success';
           this.$('#fileReader').classList.add('done');
         } catch (err) {
           console.error(err);
-          this.section.className = 'failure';
+          this.shadowRoot.className = 'failure';
         }
       };
       // Delay the loading a bit to allow for CSS animations to happen.

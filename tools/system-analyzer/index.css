@@ -46,9 +46,12 @@ body {
   font-family: "Roboto", sans-serif;
   font-size: 14px;
   color: var(--on-background-color);
-  margin-left: 2.5%;
-  margin-right: 2.5%;
+  margin: 10px 10px 0 10px;
   background-color: var(--background-color);
+}
+
+section {
+  margin-bottom: 10px;
 }
 
 ::-webkit-scrollbar, ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner {
@@ -58,7 +61,7 @@ body {
   width: 10px;
   height: 10px;
 }
-::-webkit-scrollbar-thumb { 
+::-webkit-scrollbar-thumb {
   background-color: rgba(128, 128, 128, 0.5);
   border-radius: 8px;
   cursor: pointer;
@@ -104,11 +107,16 @@ dd {
 }
 
 .panel {
-  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
   background-color: var(--surface-color);
   color: var(--on-surface-color);
   padding: 10px 10px 10px 10px;
   overflow-x: auto;
+  border-radius: 10px;
+  border: 3px solid rgba(128, 128, 128, 0.2);
+}
+
+.panel > h2 {
+  margin-top: 5px;
 }
 
 button {

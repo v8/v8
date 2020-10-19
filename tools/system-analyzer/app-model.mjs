@@ -13,6 +13,7 @@ class State {
   _chunks;
   _icTimeline;
   _mapTimeline;
+  _deoptTimeline;
   _minStartTime = Number.POSITIVE_INFINITY;
   _maxEndTime = Number.NEGATIVE_INFINITY;
   get minStartTime() {
@@ -21,27 +22,41 @@ class State {
   get maxEndTime() {
     return this._maxEndTime;
   }
+
+  selectTimeRange(start, end) {
+    this.timeSelection.start = start;
+    this.timeSelection.end = end;
+    this._icTimeline.selectTimeRange(start, end);
+    this._mapTimeline.selectTimeRange(start, end);
+    this._deoptTimeline.selectTimeRange(start, end);
+  }
+
   _updateTimeRange(timeline) {
     this._minStartTime = Math.min(this._minStartTime, timeline.startTime);
     this._maxEndTime = Math.max(this._maxEndTime, timeline.endTime);
+    timeline.startTime = this._minStartTime;
+    timeline.endTime = this._maxEndTime;
   }
   get mapTimeline() {
     return this._mapTimeline;
   }
   set mapTimeline(timeline) {
     this._updateTimeRange(timeline);
-    timeline.startTime = this._minStartTime;
-    timeline.endTime = this._maxEndTime;
     this._mapTimeline = timeline;
-  }
-  set icTimeline(timeline) {
-    this._updateTimeRange(timeline);
-    timeline.startTime = this._minStartTime;
-    timeline.endTime = this._maxEndTime;
-    this._icTimeline = timeline;
   }
   get icTimeline() {
     return this._icTimeline;
+  }
+  set icTimeline(timeline) {
+    this._updateTimeRange(timeline);
+    this._icTimeline = timeline;
+  }
+  get deoptTimeline() {
+    return this._deoptTimeline;
+  }
+  set deoptTimeline(timeline) {
+    this._updateTimeRange(timeline);
+    this._deoptTimeline = timeline;
   }
   set chunks(value) {
     //TODO(zcankara) split up between maps and ics, and every timeline track

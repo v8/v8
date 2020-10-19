@@ -24,6 +24,7 @@ class App {
   constructor(fileReaderId, mapPanelId, timelinePanelId,
     icPanelId, mapTrackId, icTrackId, deoptTrackId, sourcePanelId) {
     this._view = {
+      __proto__: null,
       logFileReader: $(fileReaderId),
       icPanel: $(icPanelId),
       mapPanel: $(mapPanelId),
@@ -40,10 +41,10 @@ class App {
     this.toggleSwitch = $('.theme-switch input[type="checkbox"]');
     this.toggleSwitch.addEventListener("change", (e) => this.switchTheme(e));
     this._view.logFileReader.addEventListener("fileuploadstart", (e) =>
-      this.handleFileUpload(e)
+      this.handleFileUploadStart(e)
     );
     this._view.logFileReader.addEventListener("fileuploadend", (e) =>
-      this.handleDataUpload(e)
+      this.handleFileUploadEnd(e)
     );
     Object.entries(this._view).forEach(([_, panel]) => {
       panel.addEventListener(SelectionEvent.name,
@@ -67,15 +68,15 @@ class App {
   }
   showMapEntries(entries) {
     this._state.selectedMapLogEntries = entries;
-    this._view.mapPanel.selectedMapLogEntries = this.#state.selectedMapLogEntries;
+    this._view.mapPanel.selectedMapLogEntries = entries;
   }
   showIcEntries(entries) {
     this._state.selectedIcLogEntries = entries;
-    this._view.icPanel.selectedLogEntries = this.#state.selectedIcLogEntries;
+    this._view.icPanel.selectedLogEntries = entries;
   }
   showSourcePositionEntries(entries) {
-    //TODO(zcankara) Handle multiple source position selection events
-    this._view.sourcePanel.selectedSourcePositions = entries;
+    //TODO: Handle multiple source position selection events
+    this._view.sourcePanel.selectedSourcePositions = entries
   }
 
   handleTimeRangeSelect(e) {
@@ -93,12 +94,9 @@ class App {
     }
   }
   selectTimeRange(start, end) {
-    this._state.timeSelection.start = start;
-    this._state.timeSelection.end = end;
-    this._state.icTimeline.selectTimeRange(start, end);
-    this._state.mapTimeline.selectTimeRange(start, end);
-    this._view.mapPanel.selectedMapLogEntries =
-      this._state.mapTimeline.selection;
+    this._state.selectTimeRange(start, end);
+    this._view.mapPanel.selectedMapLogEntries = 
+        this._state.mapTimeline.selection;
     this._view.icPanel.selectedLogEntries = this._state.icTimeline.selection;
   }
   selectMapLogEntry(entry) {
@@ -115,7 +113,7 @@ class App {
     this._view.sourcePanel.selectedSourcePositions = [sourcePositions];
   }
 
-  handleFileUpload(e) {
+  handleFileUploadStart(e) {
     this.restartApp();
     $("#container").className = "initial";
   }
@@ -125,32 +123,22 @@ class App {
     this._navigation = new Navigation(this._state, this._view);
   }
 
-  // Event log processing
-  handleLoadTextProcessor(text) {
-    let logProcessor = new Processor();
-    logProcessor.processString(text);
-    return logProcessor;
-  }
-
-  // call when a new file uploaded
-  handleDataUpload(e) {
+  handleFileUploadEnd(e) {
     if (!e.detail) return;
     $("#container").className = "loaded";
     // instantiate the app logic
     let fileData = e.detail;
-    const processor = this.handleLoadTextProcessor(fileData.chunk);
+    const processor = new Processor(fileData.chunk);
     const mapTimeline = processor.mapTimeline;
     const icTimeline = processor.icTimeline;
     const deoptTimeline = processor.deoptTimeline;
-    // Load map log events timeline.
     this._state.mapTimeline = mapTimeline;
+    this._state.icTimeline = icTimeline;
+    this._state.deoptTimeline = deoptTimeline;
     // Transitions must be set before timeline for stats panel.
     this._view.mapPanel.transitions = this._state.mapTimeline.transitions;
     this._view.mapTrack.data = mapTimeline;
-    this._state.chunks = this._view.mapTrack.chunks;
     this._view.mapPanel.timeline = mapTimeline;
-    // Load ic log events timeline.
-    this._state.icTimeline = icTimeline;
     this._view.icPanel.timeline = icTimeline;
     this._view.icTrack.data = icTimeline;
     this._view.deoptTrack.data = deoptTimeline;
@@ -161,6 +149,7 @@ class App {
   refreshTimelineTrackView() {
     this._view.mapTrack.data = this._state.mapTimeline;
     this._view.icTrack.data = this._state.icTimeline;
+    this._view.deoptTrack.data = this._state.deoptTimeline;
   }
 
   switchTheme(event) {
@@ -186,7 +175,7 @@ class Navigation {
     this.state.map = value
   }
   get chunks() {
-    return this.state.chunks
+    return this.state.mapTimeline.chunks;
   }
   increaseTimelineResolution() {
     this._view.timelinePanel.nofChunks *= 1.5;

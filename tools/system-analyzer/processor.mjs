@@ -19,7 +19,7 @@ export class Processor extends LogReader {
   _formatPCRegexp = /(.*):[0-9]+:[0-9]+$/;
   MAJOR_VERSION = 7;
   MINOR_VERSION = 6;
-  constructor() {
+  constructor(logString) {
     super();
     this.propertyICParser = [
       parseInt, parseInt, parseInt, parseInt, parseString, parseString,
@@ -98,6 +98,7 @@ export class Processor extends LogReader {
         processor: this.processPropertyIC.bind(this, 'StoreInArrayLiteralIC')
       },
     };
+    if (logString) this.processString(logString);
   }
 
   printError(str) {
