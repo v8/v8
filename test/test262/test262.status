@@ -77,34 +77,14 @@
   'language/computed-property-names/class/static/method-symbol': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4895
-  'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/BigInt/detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/detached-buffer-realm': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/BigInt/detached-buffer-realm': [FAIL],
   'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/tonumber-value-detached-buffer': [FAIL],
   'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/BigInt/tonumber-value-detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Get/detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Get/BigInt/detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Get/detached-buffer-realm': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Get/BigInt/detached-buffer-realm': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Get/infinity-detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Get/BigInt/infinity-detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/GetOwnProperty/detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/GetOwnProperty/BigInt/detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/GetOwnProperty/detached-buffer-realm': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/GetOwnProperty/BigInt/detached-buffer-realm': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/GetOwnProperty/enumerate-detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/GetOwnProperty/BigInt/enumerate-detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/HasProperty/detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/HasProperty/BigInt/detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/HasProperty/detached-buffer-realm': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/HasProperty/BigInt/detached-buffer-realm': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/HasProperty/infinity-with-detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/HasProperty/BigInt/infinity-with-detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/BigInt/detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/detached-buffer-realm': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/BigInt/detached-buffer-realm': [FAIL],
+  'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/BigInt/key-is-numericindex': [FAIL],
+  'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/BigInt/key-is-numericindex-desc-configurable': [FAIL],
+  'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/key-is-numericindex': [FAIL],
+  'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/key-is-numericindex-desc-configurable': [FAIL],
+  'built-ins/TypedArrayConstructors/internals/GetOwnProperty/BigInt/index-prop-desc': [FAIL],
+  'built-ins/TypedArrayConstructors/internals/GetOwnProperty/index-prop-desc': [FAIL],
   'built-ins/TypedArrayConstructors/internals/Set/tonumber-value-detached-buffer': [FAIL],
   'built-ins/TypedArrayConstructors/internals/Set/BigInt/tonumber-value-detached-buffer': [FAIL],
   # Some TypedArray methods throw due to the same bug, from Get
@@ -127,10 +107,10 @@
   'built-ins/TypedArray/prototype/some/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/some/BigInt/callbackfn-detachbuffer': [FAIL],
   # DataView functions should also throw on detached buffers
-  'built-ins/ArrayBuffer/prototype/byteLength/detached-buffer': [FAIL],
   'built-ins/DataView/detached-buffer': [FAIL],
   'built-ins/DataView/prototype/byteLength/detached-buffer': [FAIL],
   'built-ins/DataView/prototype/byteOffset/detached-buffer': [FAIL],
+  'built-ins/DataView/prototype/byteLength/instance-has-detached-buffer': [FAIL],
   'built-ins/DataView/custom-proto-access-detaches-buffer': [FAIL],
   # copyWithin should also throw on detached buffers
   'built-ins/TypedArray/prototype/copyWithin/coerced-values-end-detached-prototype': [FAIL],
@@ -679,9 +659,8 @@
   'language/module-code/export-expname-from-string-string': [FAIL],
   'language/module-code/export-expname-import-string-binding': [FAIL],
 
-  # http://crbug/v8/10977
-  'language/statements/class/elements/arrow-body-indirect-eval-err-contains-arguments': [FAIL],
-  'language/statements/class/elements/nested-indirect-eval-err-contains-arguments': [FAIL],
+  # http://crbug/v8/11039
+  'intl402/Locale/reject-duplicate-variants-in-tlang': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
