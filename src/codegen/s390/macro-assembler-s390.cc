@@ -174,12 +174,10 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                  Builtins::IsIsolateIndependentBuiltin(*code));
 
   int builtin_index = Builtins::kNoBuiltinId;
-  bool target_is_isolate_independent_builtin =
-      isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
-      Builtins::IsIsolateIndependent(builtin_index);
+  bool target_is_builtin =
+      isolate()->builtins()->IsBuiltinHandle(code, &builtin_index);
 
-  if (options().inline_offheap_trampolines &&
-      target_is_isolate_independent_builtin) {
+  if (options().inline_offheap_trampolines && target_is_builtin) {
     Label skip;
     if (cond != al) {
       b(NegateCondition(cond), &skip, Label::kNear);
@@ -242,12 +240,10 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   DCHECK_IMPLIES(options().isolate_independent_code,
                  Builtins::IsIsolateIndependentBuiltin(*code));
   int builtin_index = Builtins::kNoBuiltinId;
-  bool target_is_isolate_independent_builtin =
-      isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
-      Builtins::IsIsolateIndependent(builtin_index);
+  bool target_is_builtin =
+      isolate()->builtins()->IsBuiltinHandle(code, &builtin_index);
 
-  if (options().inline_offheap_trampolines &&
-      target_is_isolate_independent_builtin) {
+  if (options().inline_offheap_trampolines && target_is_builtin) {
     // Inline the trampoline.
     RecordCommentForOffHeapTrampoline(builtin_index);
     CHECK_NE(builtin_index, Builtins::kNoBuiltinId);

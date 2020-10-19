@@ -1152,7 +1152,6 @@ void RegExpMacroAssemblerPPC::CallCheckStackGuardState(Register scratch) {
   __ mov(ip, Operand(stack_guard_check));
 
   EmbeddedData d = EmbeddedData::FromBlob();
-  CHECK(Builtins::IsIsolateIndependent(Builtins::kDirectCEntry));
   Address entry = d.InstructionStartOfBuiltin(Builtins::kDirectCEntry);
   __ mov(r0, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
   __ Call(r0);
