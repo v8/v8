@@ -198,7 +198,7 @@ BackingStore::~BackingStore() {
   }
   if (custom_deleter_) {
     DCHECK(free_on_destruct_);
-    TRACE_BS("BS:custome deleter bs=%p mem=%p (length=%zu, capacity=%zu)\n",
+    TRACE_BS("BS:custom deleter bs=%p mem=%p (length=%zu, capacity=%zu)\n",
              this, buffer_start_, byte_length(), byte_capacity_);
     type_specific_data_.deleter.callback(buffer_start_, byte_length_,
                                          type_specific_data_.deleter.data);
