@@ -3115,9 +3115,6 @@ void CompilationStateImpl::PublishDetectedFeatures(Isolate* isolate) {
 
 void CompilationStateImpl::PublishCompilationResults(
     std::vector<std::unique_ptr<WasmCode>> unpublished_code) {
-  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-               "wasm.PublishCompilationResults", "num_results",
-               unpublished_code.size());
   if (unpublished_code.empty()) return;
 
   // For import wrapper compilation units, add result to the cache.

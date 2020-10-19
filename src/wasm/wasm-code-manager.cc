@@ -1085,12 +1085,16 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
 }
 
 WasmCode* NativeModule::PublishCode(std::unique_ptr<WasmCode> code) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.PublishCode");
   base::MutexGuard lock(&allocation_mutex_);
   return PublishCodeLocked(std::move(code));
 }
 
 std::vector<WasmCode*> NativeModule::PublishCode(
     Vector<std::unique_ptr<WasmCode>> codes) {
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.PublishCode", "number", codes.size());
   std::vector<WasmCode*> published_code;
   published_code.reserve(codes.size());
   base::MutexGuard lock(&allocation_mutex_);
@@ -1885,6 +1889,8 @@ std::unique_ptr<WasmCode> NativeModule::AddCompiledCode(
 
 std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
     Vector<WasmCompilationResult> results) {
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.AddCompiledCode", "num", results.size());
   DCHECK(!results.empty());
   // First, allocate code space for all the results.
   size_t total_code_space = 0;
