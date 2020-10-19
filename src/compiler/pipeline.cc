@@ -1163,11 +1163,6 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
 
   if (compilation_info()->is_osr()) data_.InitializeOsrHelper();
 
-  // Make sure that we have generated the deopt entries code.  This is in order
-  // to avoid triggering the generation of deopt entries later during code
-  // assembly.
-  Deoptimizer::EnsureCodeForDeoptimizationEntries(isolate);
-
   pipeline_.Serialize();
 
   if (!data_.broker()->is_concurrent_inlining()) {
@@ -3010,7 +3005,6 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
   PipelineImpl pipeline(&data);
 
   Linkage linkage(Linkage::ComputeIncoming(data.instruction_zone(), info));
-  Deoptimizer::EnsureCodeForDeoptimizationEntries(isolate);
 
   {
     CompilationHandleScope compilation_scope(isolate, info);
@@ -3235,7 +3229,7 @@ bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
                                            bool use_mid_tier_register_allocator,
                                            bool run_verifier) {
   OptimizedCompilationInfo info(ArrayVector("testing"), sequence->zone(),
-                                CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING);
+                                CodeKind::FOR_TESTING);
   ZoneStats zone_stats(sequence->isolate()->allocator());
   PipelineData data(&zone_stats, &info, sequence->isolate(), sequence);
   data.InitializeFrameData(nullptr);

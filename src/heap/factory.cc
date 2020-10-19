@@ -157,10 +157,6 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
       if (result.is_null()) return MaybeHandle<Code>();
     }
 
-    if (!is_movable_) {
-      result = heap->EnsureImmovableCode(result, object_size);
-    }
-
     // The code object has not been fully initialized yet.  We rely on the
     // fact that no allocation will happen from this point on.
     DisallowHeapAllocation no_gc;

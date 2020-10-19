@@ -500,12 +500,13 @@ class Deoptimizer : public Malloced {
 
   static void ComputeOutputFrames(Deoptimizer* deoptimizer);
 
-  static Address GetDeoptimizationEntry(Isolate* isolate, DeoptimizeKind kind);
+  static Builtins::Name GetDeoptimizationEntry(Isolate* isolate,
+                                               DeoptimizeKind kind);
 
   // Returns true if {addr} is a deoptimization entry and stores its type in
-  // {type}. Returns false if {addr} is not a deoptimization entry.
+  // {type_out}. Returns false if {addr} is not a deoptimization entry.
   static bool IsDeoptimizationEntry(Isolate* isolate, Address addr,
-                                    DeoptimizeKind* type);
+                                    DeoptimizeKind* type_out);
 
   // Code generation support.
   static int input_offset() { return offsetof(Deoptimizer, input_); }
@@ -520,19 +521,20 @@ class Deoptimizer : public Malloced {
 
   V8_EXPORT_PRIVATE static int GetDeoptimizedCodeCount(Isolate* isolate);
 
-  static const int kNotDeoptimizationEntry = -1;
-
-  static void EnsureCodeForDeoptimizationEntry(Isolate* isolate,
-                                               DeoptimizeKind kind);
-  static void EnsureCodeForDeoptimizationEntries(Isolate* isolate);
-
   Isolate* isolate() const { return isolate_; }
 
-  static const int kMaxNumberOfEntries = 16384;
+  static constexpr int kMaxNumberOfEntries = 16384;
+
+  // This marker is passed to Deoptimizer::New as {bailout_id} on platforms
+  // that have fixed deopt sizes (see also kSupportsFixedDeoptExitSizes). The
+  // actual deoptimization id is then calculated from the return address.
+  static constexpr unsigned kFixedExitSizeMarker = kMaxUInt32;
 
   // Set to true when the architecture supports deoptimization exit sequences
   // of a fixed size, that can be sorted so that the deoptimization index is
   // deduced from the address of the deoptimization exit.
+  // TODO(jgruber): Remove this, and support for variable deopt exit sizes,
+  // once all architectures use fixed exit sizes.
   static const bool kSupportsFixedDeoptExitSizes;
 
   // Size of deoptimization exit sequence. This is only meaningful when
@@ -555,9 +557,6 @@ class Deoptimizer : public Malloced {
   Code FindOptimizedCode();
   void DeleteFrameDescriptions();
 
-  static bool IsDeoptimizationEntry(Isolate* isolate, Address addr,
-                                    DeoptimizeKind type);
-
   void DoComputeOutputFrames();
   void DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
                                  int frame_index, bool goto_catch_handler);
@@ -578,10 +577,6 @@ class Deoptimizer : public Malloced {
 
   static unsigned ComputeIncomingArgumentSize(SharedFunctionInfo shared);
   static unsigned ComputeOutgoingArgumentSize(Code code, unsigned bailout_id);
-
-  static void GenerateDeoptimizationEntries(MacroAssembler* masm,
-                                            Isolate* isolate,
-                                            DeoptimizeKind kind);
 
   static void MarkAllCodeForContext(NativeContext native_context);
   static void DeoptimizeMarkedCodeForContext(NativeContext native_context);
@@ -825,36 +820,6 @@ class FrameDescription {
     return reinterpret_cast<intptr_t*>(reinterpret_cast<Address>(this) +
                                        frame_content_offset() + offset);
   }
-};
-
-class DeoptimizerData {
- public:
-  explicit DeoptimizerData(Heap* heap);
-  ~DeoptimizerData();
-
-#ifdef DEBUG
-  bool IsDeoptEntryCode(Code code) const {
-    for (int i = 0; i < kLastDeoptimizeKind + 1; i++) {
-      if (code == deopt_entry_code_[i]) return true;
-    }
-    return false;
-  }
-#endif  // DEBUG
-
- private:
-  Heap* heap_;
-  static const int kLastDeoptimizeKind =
-      static_cast<int>(DeoptimizeKind::kLastDeoptimizeKind);
-  Code deopt_entry_code_[kLastDeoptimizeKind + 1];
-  Code deopt_entry_code(DeoptimizeKind kind);
-  void set_deopt_entry_code(DeoptimizeKind kind, Code code);
-
-  Deoptimizer* current_;
-  StrongRootsEntry* strong_roots_entry_;
-
-  friend class Deoptimizer;
-
-  DISALLOW_COPY_AND_ASSIGN(DeoptimizerData);
 };
 
 class TranslationBuffer {

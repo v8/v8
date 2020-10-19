@@ -449,9 +449,8 @@ TEST(EmbeddedObj) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(
-                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
-                          .Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);

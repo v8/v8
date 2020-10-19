@@ -3077,8 +3077,6 @@ void Isolate::Deinit() {
 
   ReleaseSharedPtrs();
 
-  delete deoptimizer_data_;
-  deoptimizer_data_ = nullptr;
   string_table_.reset();
   builtins_.TearDown();
   bootstrapper_->TearDown();
@@ -3537,8 +3535,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     SetWasmEngine(wasm::WasmEngine::GetWasmEngine());
   }
   DCHECK_NOT_NULL(wasm_engine_);
-
-  deoptimizer_data_ = new DeoptimizerData(heap());
 
   if (setup_delegate_ == nullptr) {
     setup_delegate_ = new SetupIsolateDelegate(create_heap_objects);

@@ -203,8 +203,7 @@ TEST(TryProbeStubCache) {
 
   // Generate some number of handlers.
   for (int i = 0; i < 30; i++) {
-    handlers.push_back(
-        CreateCodeOfKind(CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING));
+    handlers.push_back(CreateCodeOfKind(CodeKind::FOR_TESTING));
   }
 
   // Ensure that GC does happen because from now on we are going to fill our

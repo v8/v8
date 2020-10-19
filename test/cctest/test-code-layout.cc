@@ -39,10 +39,9 @@ TEST(CodeLayoutWithoutUnwindingInfo) {
   code_desc.unwinding_info_size = 0;
   code_desc.origin = nullptr;
 
-  Handle<Code> code =
-      Factory::CodeBuilder(CcTest::i_isolate(), code_desc,
-                           CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
-          .Build();
+  Handle<Code> code = Factory::CodeBuilder(CcTest::i_isolate(), code_desc,
+                                           CodeKind::FOR_TESTING)
+                          .Build();
 
   CHECK(!code->has_unwinding_info());
   CHECK_EQ(code->raw_instruction_size(), buffer_size);
@@ -87,10 +86,9 @@ TEST(CodeLayoutWithUnwindingInfo) {
   code_desc.unwinding_info_size = unwinding_info_size;
   code_desc.origin = nullptr;
 
-  Handle<Code> code =
-      Factory::CodeBuilder(CcTest::i_isolate(), code_desc,
-                           CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
-          .Build();
+  Handle<Code> code = Factory::CodeBuilder(CcTest::i_isolate(), code_desc,
+                                           CodeKind::FOR_TESTING)
+                          .Build();
 
   CHECK(code->has_unwinding_info());
   CHECK_EQ(code->raw_instruction_size(), buffer_size);

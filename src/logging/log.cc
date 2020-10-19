@@ -2175,7 +2175,7 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
       return;  // We log this later using LogCompiledFunctions.
     case CodeKind::BYTECODE_HANDLER:
       return;  // We log it later by walking the dispatch table.
-    case CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING:
+    case CodeKind::FOR_TESTING:
       description = "STUB code";
       tag = CodeEventListener::STUB_TAG;
       break;
