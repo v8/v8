@@ -14,15 +14,12 @@
 //
 // Frame inheritance hierarchy (please keep in sync with frame-constants.h):
 // - CommonFrame
-//   - CommonFrameWithJSLinkage
-//     - JavaScriptFrame (aka StandardFrame)
-//       - InterpretedFrame
-//       - OptimizedFrame
-//       - ArgumentsAdaptorFrame (technically a TypedFrame)
-//     - TypedFrameWithJSLinkage
-//       - BuiltinFrame
-//       - JavaScriptBuiltinContinuationFrame
-//         - JavaScriptBuiltinContinuationWithCatchFrame
+//   - JavaScriptFrame (aka StandardFrame)
+//     - InterpretedFrame
+//     - OptimizedFrame
+//     - ArgumentsAdaptorFrame (technically a TypedFrame)
+//     - JavaScriptBuiltinContinuationFrame (*)
+//       - JavaScriptBuiltinContinuationWithCatchFrame
 //   - TypedFrame
 //     - NativeFrame
 //     - EntryFrame
@@ -32,6 +29,7 @@
 //     - StubFrame
 //       - JsToWasmFrame
 //       - CWasmEntryFrame
+//     - BuiltinFrame
 //     - Internal
 //       - ConstructFrame
 //       - BuiltinContinuationFrame
@@ -40,6 +38,11 @@
 //     - WasmDebugBreakFrame
 //     - WasmCompileLazyFrame
 //
+// (*) This is actually a BuiltinContinuationFrame with JS arguments.
+//
+
+// TODO(victorgomes): Create a class to access JS arguments and change
+// BuiltinContinuationFrame to be of type TypedFrame.
 
 namespace v8 {
 namespace internal {
@@ -466,8 +469,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
 class CommonFrame : public StackFrame {
  public:
   // Accessors.
-  virtual Object context()
-      const;  // TODO(victorgomes): CommonFrames don't have context.
+  virtual Object context() const;
   virtual int position() const;
 
   // Access the expressions in the stack frame including locals.
@@ -515,6 +517,10 @@ class CommonFrame : public StackFrame {
   // an arguments adaptor frame.
   static inline bool IsArgumentsAdaptorFrame(Address fp);
 
+  // Determines if the standard frame for the given frame pointer is a
+  // construct frame.
+  static inline bool IsConstructFrame(Address fp);
+
   // Used by OptimizedFrames and StubFrames.
   void IterateCompiledFrame(RootVisitor* v) const;
 
@@ -532,74 +538,35 @@ class TypedFrame : public CommonFrame {
   inline explicit TypedFrame(StackFrameIteratorBase* iterator);
 };
 
-class CommonFrameWithJSLinkage : public CommonFrame {
- public:
-  // Accessors.
-  virtual JSFunction function() const = 0;
-
-  // Access the parameters.
-  virtual Object receiver() const;
-  virtual Object GetParameter(int index) const;
-  virtual int ComputeParametersCount() const;
-  Handle<FixedArray> GetParameters() const;
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
-  virtual int GetActualArgumentCount() const;
-#endif
-
-  // Determine the code for the frame.
-  Code unchecked_code() const override;
-
-  // Lookup exception handler for current {pc}, returns -1 if none found. Also
-  // returns data associated with the handler site specific to the frame type:
-  //  - OptimizedFrame  : Data is not used and will not return a value.
-  //  - InterpretedFrame: Data is the register index holding the context.
-  virtual int LookupExceptionHandlerInTable(
-      int* data, HandlerTable::CatchPrediction* prediction);
-
-  // Check if this frame is a constructor frame invoked through 'new'.
-  virtual bool IsConstructor() const;
-
-  // Summarize Frame
-  void Summarize(std::vector<FrameSummary>* frames) const override;
-
- protected:
-  inline explicit CommonFrameWithJSLinkage(StackFrameIteratorBase* iterator);
-
-  // Determines if the standard frame for the given frame pointer is a
-  // construct frame.
-  static inline bool IsConstructFrame(Address fp);
-  inline Address GetParameterSlot(int index) const;
-};
-
-class TypedFrameWithJSLinkage : public CommonFrameWithJSLinkage {
- public:
-  void Iterate(RootVisitor* v) const override;
-
- protected:
-  inline explicit TypedFrameWithJSLinkage(StackFrameIteratorBase* iterator);
-};
-
-class JavaScriptFrame : public CommonFrameWithJSLinkage {
+class JavaScriptFrame : public CommonFrame {
  public:
   Type type() const override = 0;
 
-  // Accessors.
-  JSFunction function() const override;
-  Object unchecked_function() const;
-  Script script() const;
-  Object context() const override;
+  void Summarize(std::vector<FrameSummary>* frames) const override;
 
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
-  int GetActualArgumentCount() const override;
-#endif
+  // Accessors.
+  virtual JSFunction function() const;
+  Object unchecked_function() const;
+  Object receiver() const;
+  Object context() const override;
+  Script script() const;
 
   inline void set_receiver(Object value);
+
+  // Access the parameters.
+  inline Address GetParameterSlot(int index) const;
+  Object GetParameter(int index) const;
+  virtual int ComputeParametersCount() const;
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+  int GetActualArgumentCount() const;
+#endif
+  Handle<FixedArray> GetParameters() const;
 
   // Debugger access.
   void SetParameterValue(int index, Object value) const;
 
   // Check if this frame is a constructor frame invoked through 'new'.
-  bool IsConstructor() const override;
+  bool IsConstructor() const;
 
   // Determines whether this frame includes inlined activations. To get details
   // about the inlined frames use {GetFunctions} and {Summarize}.
@@ -617,10 +584,20 @@ class JavaScriptFrame : public CommonFrameWithJSLinkage {
   void Print(StringStream* accumulator, PrintMode mode,
              int index) const override;
 
+  // Determine the code for the frame.
+  Code unchecked_code() const override;
+
   // Return a list with {SharedFunctionInfo} objects of this frame.
   virtual void GetFunctions(std::vector<SharedFunctionInfo>* functions) const;
 
   void GetFunctions(std::vector<Handle<SharedFunctionInfo>>* functions) const;
+
+  // Lookup exception handler for current {pc}, returns -1 if none found. Also
+  // returns data associated with the handler site specific to the frame type:
+  //  - OptimizedFrame  : Data is not used and will not return a value.
+  //  - InterpretedFrame: Data is the register index holding the context.
+  virtual int LookupExceptionHandlerInTable(
+      int* data, HandlerTable::CatchPrediction* prediction);
 
   // Architecture-specific register description.
   static Register fp_register();
@@ -918,7 +895,7 @@ class ArgumentsAdaptorFrame : public JavaScriptFrame {
 
 // Builtin frames are built for builtins with JavaScript linkage, such as
 // various standard library functions (i.e. Math.asin, Math.floor, etc.).
-class BuiltinFrame final : public TypedFrameWithJSLinkage {
+class BuiltinFrame final : public TypedFrame {
  public:
   Type type() const final { return BUILTIN; }
 
@@ -926,9 +903,7 @@ class BuiltinFrame final : public TypedFrameWithJSLinkage {
     DCHECK(frame->is_builtin());
     return static_cast<BuiltinFrame*>(frame);
   }
-
-  JSFunction function() const override;
-  int ComputeParametersCount() const override;
+  int ComputeParametersCount() const;
 
  protected:
   inline explicit BuiltinFrame(StackFrameIteratorBase* iterator);
@@ -1128,7 +1103,7 @@ class BuiltinContinuationFrame : public InternalFrame {
   friend class StackFrameIteratorBase;
 };
 
-class JavaScriptBuiltinContinuationFrame : public TypedFrameWithJSLinkage {
+class JavaScriptBuiltinContinuationFrame : public JavaScriptFrame {
  public:
   Type type() const override { return JAVA_SCRIPT_BUILTIN_CONTINUATION; }
 
@@ -1137,7 +1112,6 @@ class JavaScriptBuiltinContinuationFrame : public TypedFrameWithJSLinkage {
     return static_cast<JavaScriptBuiltinContinuationFrame*>(frame);
   }
 
-  JSFunction function() const override;
   int ComputeParametersCount() const override;
   intptr_t GetSPToFPDelta() const;
 
