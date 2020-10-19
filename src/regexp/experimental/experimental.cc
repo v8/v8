@@ -255,8 +255,9 @@ MaybeHandle<Object> ExperimentalRegExp::Exec(
   }
 }
 
-int32_t ExperimentalRegExp::OneshotExecRaw(Isolate* isolate, JSRegExp regexp,
-                                           String subject,
+int32_t ExperimentalRegExp::OneshotExecRaw(Isolate* isolate,
+                                           Handle<JSRegExp> regexp,
+                                           Handle<String> subject,
                                            int32_t* output_registers,
                                            int32_t output_register_count,
                                            int32_t subject_index) {
@@ -264,18 +265,17 @@ int32_t ExperimentalRegExp::OneshotExecRaw(Isolate* isolate, JSRegExp regexp,
 
   if (FLAG_trace_experimental_regexp_engine) {
     StdoutStream{} << "Experimental execution (oneshot) of regexp "
-                   << regexp.Pattern() << std::endl;
+                   << regexp->Pattern() << std::endl;
   }
 
-  Handle<JSRegExp> regexp_handle(regexp, isolate);
   base::Optional<CompilationResult> compilation_result =
-      CompileImpl(isolate, regexp_handle);
+      CompileImpl(isolate, regexp);
   if (!compilation_result.has_value()) return RegExp::kInternalRegExpException;
 
   DisallowHeapAllocation no_gc;
   return ExecRawImpl(isolate, RegExp::kFromRuntime,
-                     *compilation_result->bytecode, subject,
-                     regexp.CaptureCount(), output_registers,
+                     *compilation_result->bytecode, *subject,
+                     regexp->CaptureCount(), output_registers,
                      output_register_count, subject_index);
 }
 
@@ -297,7 +297,7 @@ MaybeHandle<Object> ExperimentalRegExp::OneshotExec(
     output_registers_release.reset(output_registers);
   }
 
-  int num_matches = OneshotExecRaw(isolate, *regexp, *subject, output_registers,
+  int num_matches = OneshotExecRaw(isolate, regexp, subject, output_registers,
                                    output_register_count, subject_index);
 
   if (num_matches > 0) {

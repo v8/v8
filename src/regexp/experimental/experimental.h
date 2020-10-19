@@ -49,8 +49,9 @@ class ExperimentalRegExp final : public AllStatic {
   static MaybeHandle<Object> OneshotExec(
       Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
       int index, Handle<RegExpMatchInfo> last_match_info);
-  static int32_t OneshotExecRaw(Isolate* isolate, JSRegExp regexp,
-                                String subject, int32_t* output_registers,
+  static int32_t OneshotExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
+                                Handle<String> subject,
+                                int32_t* output_registers,
                                 int32_t output_register_count,
                                 int32_t subject_index);
 

@@ -1066,7 +1066,7 @@ int32_t* RegExpGlobalCache::FetchNext() {
     // Fall back to experimental engine if needed and possible.
     if (num_matches_ == RegExp::kInternalRegExpFallbackToExperimental) {
       num_matches_ = ExperimentalRegExp::OneshotExecRaw(
-          isolate_, *regexp_, *subject_, register_array_, register_array_size_,
+          isolate_, regexp_, subject_, register_array_, register_array_size_,
           last_end_index);
     }
 
