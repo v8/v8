@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_JS_OBJECTS_INL_H_
 #define V8_OBJECTS_JS_OBJECTS_INL_H_
 
+#include "src/common/globals.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/objects/elements.h"
 #include "src/objects/embedder-data-slot-inl.h"
@@ -656,6 +657,8 @@ DEF_GETTER(JSReceiver, HasFastProperties, bool) {
 DEF_GETTER(JSReceiver, property_dictionary, NameDictionary) {
   DCHECK(!IsJSGlobalObject(isolate));
   DCHECK(!HasFastProperties(isolate));
+  DCHECK(!V8_DICT_MODE_PROTOTYPES_BOOL);
+
   // Can't use ReadOnlyRoots(isolate) as this isolate could be produced by
   // i::GetIsolateForPtrCompr(HeapObject).
   Object prop = raw_properties_or_hash(isolate);
@@ -663,6 +666,20 @@ DEF_GETTER(JSReceiver, property_dictionary, NameDictionary) {
     return GetReadOnlyRoots(isolate).empty_property_dictionary();
   }
   return NameDictionary::cast(prop);
+}
+
+DEF_GETTER(JSReceiver, property_dictionary_ordered, OrderedNameDictionary) {
+  DCHECK(!IsJSGlobalObject(isolate));
+  DCHECK(!HasFastProperties(isolate));
+  DCHECK(V8_DICT_MODE_PROTOTYPES_BOOL);
+
+  // Can't use ReadOnlyRoots(isolate) as this isolate could be produced by
+  // i::GetIsolateForPtrCompr(HeapObject).
+  Object prop = raw_properties_or_hash(isolate);
+  if (prop.IsSmi()) {
+    return GetReadOnlyRoots(isolate).empty_ordered_property_dictionary();
+  }
+  return OrderedNameDictionary::cast(prop);
 }
 
 // TODO(gsathya): Pass isolate directly to this function and access
