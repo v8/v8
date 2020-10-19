@@ -43,9 +43,12 @@ defineCustomElement('timeline-panel', (templateText) =>
     }
 
     selectTimeRange(start, end) {
+      const timeSelection = {start, end};
+      if (start > end) {
+        throw new Error("Invalid time range");
+      }
       for (const track of this.timelineTracks) {
-        track.startTime = start;
-        track.endTime = end;
+        track.timeSelection = timeSelection;;
       }
     }
   });

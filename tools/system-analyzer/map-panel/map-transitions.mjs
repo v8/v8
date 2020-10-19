@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import { V8CustomElement, defineCustomElement } from "../helper.mjs";
-import { FocusEvent } from "../events.mjs";
+import { FocusEvent, SelectionEvent } from "../events.mjs";
 
 defineCustomElement(
   "./map-panel/map-transitions",
@@ -10,6 +10,8 @@ defineCustomElement(
     class MapTransitions extends V8CustomElement {
       _map;
       _selectedMapLogEntries;
+      _displayedMapsInTree;
+      _showMapsUpdateId;
       constructor() {
         super(templateText);
         this.transitionView.addEventListener("mousemove", (e) =>
@@ -46,29 +48,28 @@ defineCustomElement(
       }
 
       selectMap(map) {
-        this.currentMap = map;
-        this.showMap();
-        this.dispatchEvent(new FocusEvent(map));
-      }
-
-      dblClickSelectMap(map) {
-        this.dispatchEvent(new FocusEvent(map));
+        this.dispatchEvent(new SelectionEvent([map]));
       }
 
       showMap() {
-        // Called when a map selected
         if (this.currentMap === this._map) return;
         this.currentMap = this._map;
         this.selectedMapLogEntries = [this._map];
-        this.dispatchEvent(new FocusEvent(this._map));
+        this.showMaps();
       }
 
       showMaps() {
-        // Timeline dbl click to show map transitions of selected maps
+        clearTimeout(this._showMapsUpdateId);
+        this._showMapsUpdateId = setTimeout(() => this._showMaps(), 250);
+      }
+      _showMaps() {
         this.transitionView.style.display = "none";
         this.removeAllChildren(this.transitionView);
-        this.selectedMapLogEntries.forEach((map) =>
+        this._displayedMapsInTree = new Set();
+        // Limit view to 200 maps for performance reasons.
+        this.selectedMapLogEntries.slice(0, 200).forEach((map) =>
           this.addMapAndParentTransitions(map));
+        this._displayedMapsInTree = undefined;
         this.transitionView.style.display = "";
       }
 
@@ -83,6 +84,8 @@ defineCustomElement(
 
       addMapAndParentTransitions(map) {
         if (map === void 0) return;
+        if (this._displayedMapsInTree.has(map)) return;
+        this._displayedMapsInTree.add(map);
         this.currentNode = this.transitionView;
         let parents = map.getParents();
         if (parents.length > 0) {
@@ -103,26 +106,6 @@ defineCustomElement(
             1
           );
         }
-      }
-
-      addMapNode(map) {
-        let node = this.div("map");
-        if (map.edge) node.style.backgroundColor = map.edge.getColor();
-        node.map = map;
-        node.addEventListener("click", () => this.selectMap(map));
-        node.addEventListener("dblclick", () => this.dblClickSelectMap(map));
-        if (map.children.length > 1) {
-          node.innerText = map.children.length;
-          let showSubtree = this.div("showSubtransitions");
-          showSubtree.addEventListener("click", (e) =>
-            this.toggleSubtree(e, node)
-          );
-          node.appendChild(showSubtree);
-        } else if (map.children.length == 0) {
-          node.innerHTML = "&#x25CF;";
-        }
-        this.currentNode.appendChild(node);
-        return node;
       }
 
       addSubtransitions(map) {
@@ -148,7 +131,7 @@ defineCustomElement(
 
       addTransitionTo(map) {
         // transition[ transitions[ transition[...], transition[...], ...]];
-
+        this._displayedMapsInTree.add(map);
         let transition = this.div("transition");
         if (map.isDeprecated()) transition.classList.add("deprecated");
         if (map.edge) {
@@ -165,6 +148,26 @@ defineCustomElement(
 
         return mapNode;
       }
+
+      addMapNode(map) {
+        let node = this.div("map");
+        if (map.edge) node.style.backgroundColor = map.edge.getColor();
+        node.map = map;
+        node.addEventListener("click", () => this.selectMap(map));
+        if (map.children.length > 1) {
+          node.innerText = map.children.length;
+          let showSubtree = this.div("showSubtransitions");
+          showSubtree.addEventListener("click", (e) =>
+            this.toggleSubtree(e, node)
+          );
+          node.appendChild(showSubtree);
+        } else if (map.children.length == 0) {
+          node.innerHTML = "&#x25CF;";
+        }
+        this.currentNode.appendChild(node);
+        return node;
+      }
+
 
       toggleSubtree(event, node) {
         let map = node.map;

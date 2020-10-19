@@ -40,8 +40,6 @@ found in the LICENSE file. -->
 
   .chunk {
     width: 6px;
-    border: 0px var(--timeline-background-color) solid;
-    border-width: 0 2px 0 2px;
     position: absolute;
     background-size: 100% 100%;
     image-rendering: pixelated;
@@ -88,7 +86,7 @@ found in the LICENSE file. -->
   .timeline {
     background-color: var(--timeline-background-color);
   }
- 
+
   #timeline .rightHandle,
   #timeline .leftHandle {
     background-color: rgba(200, 200, 200, 0.5);
@@ -98,33 +96,36 @@ found in the LICENSE file. -->
     z-index: 3;
     cursor: col-resize;
   }
+  #timeline .leftHandle {
+    border-left: 1px solid var(--on-surface-color);
+  }
+  #timeline .rightHandle {
+    border-right: 1px solid var(--on-surface-color);
+  }
 
   #timeline .selection {
     background-color: rgba(133, 68, 163, 0.5);
     height: 100%;
     position: absolute;
-    z-index: 2;
   }
 </style>
-<div>
-  <table id="legend">
-    <thead>
-      <tr>
-        <td></td>
-        <td class="legendTypeColumn">Type</td>
-        <td>Count</td>
-        <td>Percent</td>
-      </tr>
-    </thead>
-    <tbody id="legendContent">
-    </tbody>
-  </table>
-  <div id="timeline">
-    <div class="leftHandle"></div>
-    <div class="selection"></div>
-    <div class="rightHandle"></div>
-    <div id="timelineLabel">Frequency</div>
-    <div id="timelineChunks"></div>
-    <canvas id="timelineCanvas"></canvas>
-  </div>
+<table id="legend">
+  <thead>
+    <tr>
+      <td></td>
+      <td class="legendTypeColumn">Type</td>
+      <td>Count</td>
+      <td>Percent</td>
+    </tr>
+  </thead>
+  <tbody id="legendContent">
+  </tbody>
+</table>
+<div id="timeline">
+  <div class="leftHandle"></div>
+  <div class="selection"></div>
+  <div class="rightHandle"></div>
+  <div id="timelineLabel">Frequency</div>
+  <div id="timelineChunks"></div>
+  <canvas id="timelineCanvas"></canvas>
 </div>

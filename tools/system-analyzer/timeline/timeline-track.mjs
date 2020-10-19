@@ -15,16 +15,15 @@ import {
 defineCustomElement('./timeline/timeline-track', (templateText) =>
   class TimelineTrack extends V8CustomElement {
     // TODO turn into static field once Safari supports it.
-    static get SELECTION_OFFSET() { return 20 };
+    static get SELECTION_OFFSET() { return 10 };
     _timeline;
     _nofChunks = 400;
     _chunks;
     _selectedEntry;
     _timeToPixel;
-    _timeSelection = { start: 0, end: Infinity };
-    _isSelected = false;
+    _timeSelection = { start: -1, end: Infinity };
     _timeStartOffset;
-    _mouseDownTime;
+    _selectionOriginTime;
     _typeToColor;
     constructor() {
       super(templateText);
@@ -41,32 +40,14 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
     }
 
     handleTimeSelectionMouseDown(e) {
-      if (e.target.className === "chunk") return;
-      this._isSelected = true;
-      this._mouseDownTime = this.positionToTime(e.clientX);
-    }
-
-    handleTimeSelectionMouseMove(e) {
-      if (!this._isSelected) return;
-      let mouseMoveTime = this.positionToTime(e.clientX);
-      let startTime = this._mouseDownTime;
-      let endTime = mouseMoveTime;
-      if (this.isOnLeftHandle(e.clientX)) {
-        startTime = mouseMoveTime;
-        endTime = this.positionToTime(this.rightHandlePosX);
-      } else if (this.isOnRightHandle(e.clientX)) {
-        startTime = this.positionToTime(this.leftHandlePosX);
-        endTime = mouseMoveTime;
+      let xPosition = e.clientX
+      // Update origin time in case we click on a handle.
+      if (this.isOnLeftHandle(xPosition)) {
+        xPosition  = this.rightHandlePosX;
+      } else if (this.isOnRightHandle(xPosition)) {
+        xPosition  = this.leftHandlePosX;
       }
-      this.dispatchEvent(new SynchronizeSelectionEvent(
-        Math.min(startTime, endTime),
-        Math.max(startTime, endTime)));
-    }
-
-    handleTimeSelectionMouseUp(e) {
-      this._isSelected = false;
-      this.dispatchEvent(new SelectTimeEvent(this._timeSelection.start,
-        this._timeSelection.end));
+      this._selectionOriginTime = this.positionToTime(xPosition);
     }
 
     isOnLeftHandle(posX) {
@@ -79,40 +60,46 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
         <= TimelineTrack.SELECTION_OFFSET);
     }
 
-    set startTime(value) {
-      console.assert(
-        value <= this._timeSelection.end,
-        "Selection start time greater than end time!");
-      this._timeSelection.start = value;
+    handleTimeSelectionMouseMove(e) {
+      if (!this._isSelecting) return;
+      const currentTime = this.positionToTime(e.clientX);
+      this.dispatchEvent(new SynchronizeSelectionEvent(
+        Math.min(this._selectionOriginTime, currentTime),
+        Math.max(this._selectionOriginTime, currentTime)));
+    }
+
+    handleTimeSelectionMouseUp(e) {
+      this._selectionOriginTime = -1;
+      this.dispatchEvent(new SelectTimeEvent(this._timeSelection.start,
+        this._timeSelection.end));
+    }
+
+    set timeSelection(selection) {
+      this._timeSelection.start = selection.start;
+      this._timeSelection.end= selection.end;
       this.updateSelection();
     }
 
-    set endTime(value) {
-      console.assert(
-        value > this._timeSelection.start,
-        "Selection end time smaller than start time!");
-      this._timeSelection.end = value;
-      this.updateSelection();
+    get _isSelecting() {
+      return this._selectionOriginTime >= 0;
     }
 
     updateSelection() {
-      let startTimePos = this.timeToPosition(this._timeSelection.start);
-      let endTimePos = this.timeToPosition(this._timeSelection.end);
-      this.leftHandle.style.left = startTimePos + "px";
-      this.selection.style.left = startTimePos + "px";
-      this.rightHandle.style.left = endTimePos + "px";
+      const startPosition = this.timeToPosition(this._timeSelection.start);
+      const endPosition = this.timeToPosition(this._timeSelection.end);
+      this.leftHandle.style.left = startPosition  + "px";
+      this.selection.style.left = startPosition  + "px";
+      this.rightHandle.style.left = endPosition  + "px";
       this.selection.style.width =
         Math.abs(this.rightHandlePosX - this.leftHandlePosX) + "px";
     }
 
     get leftHandlePosX() {
-      let leftHandlePosX = this.leftHandle.getBoundingClientRect().x;
-      return leftHandlePosX;
+      return this.leftHandle.getBoundingClientRect().x;
     }
 
     get rightHandlePosX() {
-      let rightHandlePosX = this.rightHandle.getBoundingClientRect().x;
-      return rightHandlePosX;
+      return this.rightHandle.getBoundingClientRect().x;
     }
 
     // Maps the clicked x position to the x position on timeline canvas
@@ -371,6 +358,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
 
     handleChunkMouseMove(event) {
       if (this.isLocked) return false;
+      if (this._isSelecting) return false;
       let chunk = event.target.chunk;
       if (!chunk) return;
       // topmost map (at chunk.height) == map #0.
