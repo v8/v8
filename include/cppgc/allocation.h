@@ -118,9 +118,9 @@ class MakeGarbageCollectedTraitBase
  * that are provided through MakeGarbageCollectedTraitBase.
  *
  * Any trait overriding construction must
- * - allocate through MakeGarbageCollectedTraitBase<T>::Allocate;
+ * - allocate through `MakeGarbageCollectedTraitBase<T>::Allocate`;
  * - mark the object as fully constructed using
- *   MakeGarbageCollectedTraitBase<T>::MarkObjectAsFullyConstructed;
+ *   `MakeGarbageCollectedTraitBase<T>::MarkObjectAsFullyConstructed`;
  */
 template <typename T>
 class MakeGarbageCollectedTrait : public MakeGarbageCollectedTraitBase<T> {

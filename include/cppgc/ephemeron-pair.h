@@ -11,7 +11,7 @@ namespace cppgc {
 
 /**
  * An ephemeron pair is used to conditionally retain an object.
- * The |value| will be kept alive only if the |key| is alive.
+ * The `value` will be kept alive only if the `key` is alive.
  */
 template <typename K, typename V>
 struct EphemeronPair {

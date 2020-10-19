@@ -16,7 +16,7 @@ namespace cppgc {
 
 /**
  * Platform provided by cppgc. Uses V8's DefaultPlatform provided by
- * libplatform internally.Exception: GetForegroundTaskRunner(), see below.
+ * libplatform internally. Exception: `GetForegroundTaskRunner()`, see below.
  */
 class V8_EXPORT DefaultPlatform : public Platform {
  public:
@@ -37,7 +37,7 @@ class V8_EXPORT DefaultPlatform : public Platform {
 
   std::shared_ptr<cppgc::TaskRunner> GetForegroundTaskRunner() override {
     // V8's default platform creates a new task runner when passed the
-    // v8::Isolate pointer the first time. For non-default platforms this will
+    // `v8::Isolate` pointer the first time. For non-default platforms this will
     // require getting the appropriate task runner.
     return v8_platform_->GetForegroundTaskRunner(kNoIsolate);
   }

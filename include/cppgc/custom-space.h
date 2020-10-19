@@ -29,7 +29,7 @@ class CustomSpaceBase {
 
 /**
  * Base class custom spaces should directly inherit from. The class inheriting
- * from CustomSpace must define kSpaceIndex as unique space index. These
+ * from `CustomSpace` must define `kSpaceIndex` as unique space index. These
  * indices need for form a sequence starting at 0.
  *
  * Example:
