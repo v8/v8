@@ -273,7 +273,8 @@ void JsonParser<Char>::ReportUnexpectedToken(JsonToken token) {
   // separated source file.
   isolate()->debug()->OnCompileError(script);
   MessageLocation location(script, pos, pos + 1);
-  isolate()->ThrowAt(factory->NewSyntaxError(message, arg1, arg2), &location);
+  Handle<Object> error = factory->NewSyntaxError(message, arg1, arg2);
+  isolate()->Throw(*error, &location);
 
   // Move the cursor to the end so we won't be able to proceed parsing.
   cursor_ = end_;

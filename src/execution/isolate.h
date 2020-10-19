@@ -818,22 +818,17 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Exception throwing support. The caller should use the result
   // of Throw() as its return value.
-  Object Throw(Object exception) { return ThrowInternal(exception, nullptr); }
-  Object ThrowAt(Handle<JSObject> exception, MessageLocation* location);
+  Object Throw(Object exception, MessageLocation* location = nullptr);
   Object ThrowIllegalOperation();
 
   template <typename T>
-  V8_WARN_UNUSED_RESULT MaybeHandle<T> Throw(Handle<Object> exception) {
-    Throw(*exception);
+  V8_WARN_UNUSED_RESULT MaybeHandle<T> Throw(
+      Handle<Object> exception, MessageLocation* location = nullptr) {
+    Throw(*exception, location);
     return MaybeHandle<T>();
   }
 
-  template <typename T>
-  V8_WARN_UNUSED_RESULT MaybeHandle<T> ThrowAt(Handle<JSObject> exception,
-                                               MessageLocation* location) {
-    ThrowAt(exception, location);
-    return MaybeHandle<T>();
-  }
+  void ThrowAt(Handle<JSObject> exception, MessageLocation* location);
 
   void FatalProcessOutOfHeapMemory(const char* location) {
     heap()->FatalProcessOutOfMemory(location);
@@ -1719,9 +1714,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   void AddCrashKeysForIsolateAndHeapPointers();
-
-  // Returns the Exception sentinel.
-  Object ThrowInternal(Object exception, MessageLocation* location);
 
   // This class contains a collection of data accessible from both C++ runtime
   // and compiled code (including assembly stubs, builtins, interpreter bytecode

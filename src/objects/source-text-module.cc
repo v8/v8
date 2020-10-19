@@ -189,7 +189,7 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
     } else if (name_set->count(export_name)) {
       // Cycle detected.
       if (must_resolve) {
-        return isolate->ThrowAt<Cell>(
+        return isolate->Throw<Cell>(
             isolate->factory()->NewSyntaxError(
                 MessageTemplate::kCyclicModuleDependency, export_name,
                 module_specifier),
@@ -274,10 +274,10 @@ MaybeHandle<Cell> SourceTextModule::ResolveExportUsingStarExports(
               .ToHandle(&cell)) {
         if (unique_cell.is_null()) unique_cell = cell;
         if (*unique_cell != *cell) {
-          return isolate->ThrowAt<Cell>(isolate->factory()->NewSyntaxError(
-                                            MessageTemplate::kAmbiguousExport,
-                                            module_specifier, export_name),
-                                        &loc);
+          return isolate->Throw<Cell>(isolate->factory()->NewSyntaxError(
+                                          MessageTemplate::kAmbiguousExport,
+                                          module_specifier, export_name),
+                                      &loc);
         }
       } else if (isolate->has_pending_exception()) {
         return MaybeHandle<Cell>();
@@ -296,7 +296,7 @@ MaybeHandle<Cell> SourceTextModule::ResolveExportUsingStarExports(
 
   // Unresolvable.
   if (must_resolve) {
-    return isolate->ThrowAt<Cell>(
+    return isolate->Throw<Cell>(
         isolate->factory()->NewSyntaxError(MessageTemplate::kUnresolvableExport,
                                            module_specifier, export_name),
         &loc);

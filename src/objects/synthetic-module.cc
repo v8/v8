@@ -59,7 +59,7 @@ MaybeHandle<Cell> SyntheticModule::ResolveExport(
 
   if (!must_resolve) return MaybeHandle<Cell>();
 
-  return isolate->ThrowAt<Cell>(
+  return isolate->Throw<Cell>(
       isolate->factory()->NewSyntaxError(MessageTemplate::kUnresolvableExport,
                                          module_specifier, export_name),
       &loc);

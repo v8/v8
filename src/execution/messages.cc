@@ -1302,12 +1302,13 @@ MessageTemplate UpdateErrorTemplate(CallPrinter::ErrorHint hint,
     case CallPrinter::ErrorHint::kNone:
       return default_id;
   }
+  return default_id;
 }
 
 }  // namespace
 
-Handle<JSObject> ErrorUtils::NewIteratorError(Isolate* isolate,
-                                              Handle<Object> source) {
+Handle<Object> ErrorUtils::NewIteratorError(Isolate* isolate,
+                                            Handle<Object> source) {
   MessageLocation location;
   CallPrinter::ErrorHint hint = CallPrinter::kNone;
   Handle<String> callsite = RenderCallSite(isolate, source, &location, &hint);
@@ -1351,13 +1352,13 @@ Object ErrorUtils::ThrowSpreadArgError(Isolate* isolate, MessageTemplate id,
     }
   }
 
-  isolate->ThrowAt(isolate->factory()->NewTypeError(id, callsite, object),
-                   &location);
-  return ReadOnlyRoots(isolate).exception();
+  Handle<Object> exception =
+      isolate->factory()->NewTypeError(id, callsite, object);
+  return isolate->Throw(*exception, &location);
 }
 
-Handle<JSObject> ErrorUtils::NewCalledNonCallableError(Isolate* isolate,
-                                                       Handle<Object> source) {
+Handle<Object> ErrorUtils::NewCalledNonCallableError(Isolate* isolate,
+                                                     Handle<Object> source) {
   MessageLocation location;
   CallPrinter::ErrorHint hint = CallPrinter::kNone;
   Handle<String> callsite = RenderCallSite(isolate, source, &location, &hint);
@@ -1366,7 +1367,7 @@ Handle<JSObject> ErrorUtils::NewCalledNonCallableError(Isolate* isolate,
   return isolate->factory()->NewTypeError(id, callsite);
 }
 
-Handle<JSObject> ErrorUtils::NewConstructedNonConstructable(
+Handle<Object> ErrorUtils::NewConstructedNonConstructable(
     Isolate* isolate, Handle<Object> source) {
   MessageLocation location;
   CallPrinter::ErrorHint hint = CallPrinter::kNone;
@@ -1375,6 +1376,10 @@ Handle<JSObject> ErrorUtils::NewConstructedNonConstructable(
   return isolate->factory()->NewTypeError(id, callsite);
 }
 
+Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
+                                                Handle<Object> object) {
+  return ThrowLoadFromNullOrUndefined(isolate, object, MaybeHandle<Object>());
+}
 Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
                                                 Handle<Object> object,
                                                 MaybeHandle<Object> key) {
@@ -1447,7 +1452,7 @@ Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
     callsite = BuildDefaultCallSite(isolate, object);
   }
 
-  Handle<JSObject> error;
+  Handle<Object> error;
   Handle<String> property_name;
   if (is_destructuring) {
     if (maybe_property_name.ToHandle(&property_name)) {
@@ -1471,12 +1476,7 @@ Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
     }
   }
 
-  if (location_computed) {
-    isolate->ThrowAt(error, &location);
-  } else {
-    isolate->Throw(*error);
-  }
-  return ReadOnlyRoots(isolate).exception();
+  return isolate->Throw(*error, location_computed ? &location : nullptr);
 }
 
 }  // namespace internal
