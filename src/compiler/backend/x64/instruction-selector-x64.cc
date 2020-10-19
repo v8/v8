@@ -2983,21 +2983,21 @@ void InstructionSelector::VisitF32x4Splat(Node* node) {
   Emit(kX64F32x4Splat, dst, g.UseRegister(node->InputAt(0)));
 }
 
-#define SIMD_VISIT_EXTRACT_LANE(Type, Sign)                              \
-  void InstructionSelector::Visit##Type##ExtractLane##Sign(Node* node) { \
-    X64OperandGenerator g(this);                                         \
-    int32_t lane = OpParameter<int32_t>(node->op());                     \
-    Emit(kX64##Type##ExtractLane##Sign, g.DefineAsRegister(node),        \
-         g.UseRegister(node->InputAt(0)), g.UseImmediate(lane));         \
+#define SIMD_VISIT_EXTRACT_LANE(Type, Sign, Op)                               \
+  void InstructionSelector::Visit##Type##ExtractLane##Sign(Node* node) {      \
+    X64OperandGenerator g(this);                                              \
+    int32_t lane = OpParameter<int32_t>(node->op());                          \
+    Emit(kX64##Op, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)), \
+         g.UseImmediate(lane));                                               \
   }
-SIMD_VISIT_EXTRACT_LANE(F64x2, )
-SIMD_VISIT_EXTRACT_LANE(F32x4, )
-SIMD_VISIT_EXTRACT_LANE(I64x2, )
-SIMD_VISIT_EXTRACT_LANE(I32x4, )
-SIMD_VISIT_EXTRACT_LANE(I16x8, U)
-SIMD_VISIT_EXTRACT_LANE(I16x8, S)
-SIMD_VISIT_EXTRACT_LANE(I8x16, U)
-SIMD_VISIT_EXTRACT_LANE(I8x16, S)
+SIMD_VISIT_EXTRACT_LANE(F64x2, , F64x2ExtractLane)
+SIMD_VISIT_EXTRACT_LANE(F32x4, , F32x4ExtractLane)
+SIMD_VISIT_EXTRACT_LANE(I64x2, , I64x2ExtractLane)
+SIMD_VISIT_EXTRACT_LANE(I32x4, , I32x4ExtractLane)
+SIMD_VISIT_EXTRACT_LANE(I16x8, S, I16x8ExtractLaneS)
+SIMD_VISIT_EXTRACT_LANE(I16x8, U, Pextrw)
+SIMD_VISIT_EXTRACT_LANE(I8x16, S, I8x16ExtractLaneS)
+SIMD_VISIT_EXTRACT_LANE(I8x16, U, Pextrb)
 #undef SIMD_VISIT_EXTRACT_LANE
 
 void InstructionSelector::VisitF32x4ReplaceLane(Node* node) {

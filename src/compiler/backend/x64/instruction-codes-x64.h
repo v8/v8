@@ -241,7 +241,6 @@ namespace compiler {
   V(X64I32x4BitMask)                      \
   V(X64I32x4DotI16x8S)                    \
   V(X64I16x8Splat)                        \
-  V(X64I16x8ExtractLaneU)                 \
   V(X64I16x8ExtractLaneS)                 \
   V(X64I16x8SConvertI8x16Low)             \
   V(X64I16x8SConvertI8x16High)            \
@@ -275,7 +274,6 @@ namespace compiler {
   V(X64I16x8Abs)                          \
   V(X64I16x8BitMask)                      \
   V(X64I8x16Splat)                        \
-  V(X64I8x16ExtractLaneU)                 \
   V(X64I8x16ExtractLaneS)                 \
   V(X64Pinsrb)                            \
   V(X64Pinsrw)                            \

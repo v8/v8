@@ -3042,11 +3042,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pshufd(dst, dst, uint8_t{0x0});
       break;
     }
-    case kX64I16x8ExtractLaneU: {
-      Register dst = i.OutputRegister();
-      __ Pextrw(dst, i.InputSimd128Register(0), i.InputUint8(1));
-      break;
-    }
     case kX64I16x8ExtractLaneS: {
       Register dst = i.OutputRegister();
       __ Pextrw(dst, i.InputSimd128Register(0), i.InputUint8(1));
@@ -3224,31 +3219,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pshufb(dst, kScratchDoubleReg);
       break;
     }
-    case kX64I8x16ExtractLaneU: {
-      Register dst = i.OutputRegister();
-      __ Pextrb(dst, i.InputSimd128Register(0), i.InputUint8(1));
-      break;
-    }
     case kX64Pextrb: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      DCHECK(HasAddressingMode(instr));
-      DCHECK(!instr->HasOutput());
-
       size_t index = 0;
-      Operand operand = i.MemoryOperand(&index);
-      __ Pextrb(operand, i.InputSimd128Register(index),
-                i.InputUint8(index + 1));
+      if (HasAddressingMode(instr)) {
+        Operand operand = i.MemoryOperand(&index);
+        __ Pextrb(operand, i.InputSimd128Register(index),
+                  i.InputUint8(index + 1));
+      } else {
+        __ Pextrb(i.OutputRegister(), i.InputSimd128Register(0),
+                  i.InputUint8(1));
+      }
       break;
     }
     case kX64Pextrw: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      DCHECK(HasAddressingMode(instr));
-      DCHECK(!instr->HasOutput());
-
       size_t index = 0;
-      Operand operand = i.MemoryOperand(&index);
-      __ Pextrw(operand, i.InputSimd128Register(index),
-                i.InputUint8(index + 1));
+      if (HasAddressingMode(instr)) {
+        Operand operand = i.MemoryOperand(&index);
+        __ Pextrw(operand, i.InputSimd128Register(index),
+                  i.InputUint8(index + 1));
+      } else {
+        __ Pextrw(i.OutputRegister(), i.InputSimd128Register(0),
+                  i.InputUint8(1));
+      }
       break;
     }
     case kX64I8x16ExtractLaneS: {
