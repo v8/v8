@@ -944,6 +944,12 @@ void LiftoffAssembler::emit_i32x4_max_u(LiftoffRegister dst,
   bailout(kUnsupportedArchitecture, "emit_i32x4_max_u");
 }
 
+void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
+                                              LiftoffRegister lhs,
+                                              LiftoffRegister rhs) {
+  bailout(kSimd, "i32x4_dot_i16x8_s");
+}
+
 void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   bailout(kUnsupportedArchitecture, "emit_i16x8splat");
