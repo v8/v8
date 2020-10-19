@@ -11,6 +11,7 @@ const kBailout: constexpr int32
 const kDeopt: constexpr int32
     generates 'static_cast<int>(DynamicMapChecksStatus::kDeopt)';
 extern runtime TryMigrateInstance(implicit context: Context)(Object): Object;
+extern macro LoadFeedbackVectorForStub(): FeedbackVector;
 
 macro PerformMapAndHandlerCheck(
     entry: constexpr int32, polymorphicArray: WeakFixedArray,
@@ -123,8 +124,10 @@ macro PerformMonomorphicCheck(
 //
 // For other cases, we bailout to the runtime.
 builtin DynamicMapChecks(implicit context: Context)(
-    feedbackVector: FeedbackVector, slotIndex: intptr, actualValue: HeapObject,
-    actualMap: Map, actualHandler: Smi|DataHandler): int32 {
+    slotIndex: intptr, actualValue: HeapObject,
+    actualHandler: Smi|DataHandler): int32 {
+  const feedbackVector = LoadFeedbackVectorForStub();
+  let actualMap = actualValue.map;
   const feedback = feedbackVector[slotIndex];
   try {
     const maybePolymorphicArray =
@@ -132,7 +135,6 @@ builtin DynamicMapChecks(implicit context: Context)(
     return PerformPolymorphicCheck(
         maybePolymorphicArray, actualMap, actualHandler);
   } label MigrateAndDoMonomorphicCheck {
-    let newActualMap = actualMap;
     if (IsDeprecatedMap(actualMap)) {
       // TODO(gsathya): Should this migration happen before the
       // polymorphic check?
@@ -140,10 +142,10 @@ builtin DynamicMapChecks(implicit context: Context)(
       if (TaggedIsSmi(result)) {
         return kDeopt;
       }
-      newActualMap = actualValue.map;
+      actualMap = actualValue.map;
     }
     return PerformMonomorphicCheck(
-        feedbackVector, slotIndex, feedback, newActualMap, actualHandler);
+        feedbackVector, slotIndex, feedback, actualMap, actualHandler);
   }
 }
 

@@ -1991,7 +1991,6 @@ void EffectControlLinearizer::LowerDynamicCheckMaps(Node* node,
   Node* actual_value = node->InputAt(0);
 
   FeedbackSource const& feedback = p.feedback();
-  Node* feedback_vector = __ HeapConstant(feedback.vector);
   Node* actual_value_map = __ LoadField(AccessBuilder::ForMap(), actual_value);
   Node* actual_handler =
       p.handler()->IsSmi()
@@ -2014,9 +2013,8 @@ void EffectControlLinearizer::LowerDynamicCheckMaps(Node* node,
       Node* slot_index = __ IntPtrConstant(feedback.index());
       Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
       auto builtin = Builtins::kDynamicMapChecks;
-      Node* result =
-          CallBuiltin(builtin, properties, feedback_vector, slot_index,
-                      actual_value, actual_value_map, actual_handler);
+      Node* result = CallBuiltin(builtin, properties, slot_index, actual_value,
+                                 actual_handler);
       __ GotoIf(__ WordEqual(result, __ IntPtrConstant(static_cast<int>(
                                          DynamicMapChecksStatus::kSuccess))),
                 &done);
@@ -2035,6 +2033,7 @@ void EffectControlLinearizer::LowerDynamicCheckMaps(Node* node,
     }
   } else {
     DCHECK_EQ(p.state(), DynamicCheckMapsParameters::kPolymorphic);
+    Node* feedback_vector = __ HeapConstant(feedback.vector);
     Node* feedback_slot =
         __ LoadField(AccessBuilder::ForFeedbackVectorSlot(feedback.index()),
                      feedback_vector);
