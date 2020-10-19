@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import { typeToColor } from '../helper.mjs';
-import { Event } from './log.mjs';
+import { LogEntry } from './log.mjs';
 
 // ===========================================================================
 // Map Log Events
@@ -34,11 +34,10 @@ define(Array.prototype, 'last', function () {
 // ===========================================================================
 // Map Log Events
 
-class MapLogEvent extends Event {
+class MapLogEntry extends LogEntry {
   edge = void 0;
   children = [];
   depth = 0;
-  // TODO(zcankara): Change this to private class field.
   #isDeprecated = false;
   deprecatedTargets = null;
   leftId = 0;
@@ -49,7 +48,7 @@ class MapLogEvent extends Event {
   constructor(id, time) {
     if (!time) throw new Error('Invalid time');
     super(id, time);
-    MapLogEvent.set(id, this);
+    MapLogEntry.set(id, this);
     this.id = id;
   }
 
@@ -172,7 +171,7 @@ class MapLogEvent extends Event {
   }
 }
 
-MapLogEvent.cache = new Map();
+MapLogEntry.cache = new Map();
 
 // ===========================================================================
 class Edge {
@@ -293,4 +292,4 @@ class Edge {
 }
 
 
-export { MapLogEvent, Edge, kChunkWidth, kChunkHeight };
+export { MapLogEntry, Edge, kChunkWidth, kChunkHeight };

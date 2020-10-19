@@ -196,16 +196,6 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       let timelineLegend = this.timelineLegend;
       let timelineLegendContent = this.timelineLegendContent;
       this.removeAllChildren(timelineLegendContent);
-      let row = this.tr();
-      row.entries = this.data.all;
-      row.classList.add('clickable');
-      row.addEventListener('dblclick', e => this.handleEntryTypeDblClick(e));
-      row.appendChild(this.td(""));
-      let td = this.td("All");
-      row.appendChild(td);
-      row.appendChild(this.td(this.data.all.length));
-      row.appendChild(this.td("100%"));
-      timelineLegendContent.appendChild(row);
       let colorIterator = 0;
       this.#timeline.uniqueTypes.forEach((entries, type) => {
         let row = this.tr();
@@ -228,6 +218,12 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
         timelineLegendContent.appendChild(row);
         colorIterator += 1;
       });
+      // Add Total row.
+      let row = this.tr();
+      row.appendChild(this.td("All"));
+      row.appendChild(this.td(this.data.all.length));
+      row.appendChild(this.td("100%"));
+      timelineLegendContent.appendChild(row);
       timelineLegend.appendChild(timelineLegendContent);
     }
 

@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 import { V8CustomElement, defineCustomElement } from "./helper.mjs";
 import { SelectionEvent, FocusEvent } from "./events.mjs";
-import { MapLogEvent } from "./log/map.mjs";
-import { IcLogEvent } from "./log/ic.mjs";
+import { MapLogEntry } from "./log/map.mjs";
+import { IcLogEntry } from "./log/ic.mjs";
 
 defineCustomElement(
   "source-panel",
@@ -26,7 +26,8 @@ defineCustomElement(
       }
       set script(script) {
         this.#script = script;
-        this.renderSourcePanel();
+        // TODO: fix undefined scripts
+        if (script !== undefined) this.renderSourcePanel();
       }
       set selectedSourcePositions(sourcePositions) {
         this.#selectedSourcePositions = sourcePositions;
@@ -67,22 +68,22 @@ defineCustomElement(
       }
 
       handleSourcePositionClick(e) {
-        let icLogEvents = [];
-        let mapLogEvents = [];
+        let icLogEntries = [];
+        let mapLogEntries = [];
         for (const entry of e.target.sourcePosition.entries) {
-          if (entry instanceof MapLogEvent) {
-            mapLogEvents.push(entry);
-          } else if (entry instanceof IcLogEvent) {
-            icLogEvents.push(entry);
+          if (entry instanceof MapLogEntry) {
+            mapLogEntries.push(entry);
+          } else if (entry instanceof IcLogEntry) {
+            icLogEntries.push(entry);
           }
         }
-        if (icLogEvents.length > 0 ) {
-          this.dispatchEvent(new SelectionEvent(icLogEvents));
-          this.dispatchEvent(new FocusEvent(icLogEvents[0]));
+        if (icLogEntries.length > 0 ) {
+          this.dispatchEvent(new SelectionEvent(icLogEntries));
+          this.dispatchEvent(new FocusEvent(icLogEntries[0]));
         }
-        if (mapLogEvents.length > 0) {
-          this.dispatchEvent(new SelectionEvent(mapLogEvents));
-          this.dispatchEvent(new FocusEvent(mapLogEvents[0]));
+        if (mapLogEntries.length > 0) {
+          this.dispatchEvent(new SelectionEvent(mapLogEntries));
+          this.dispatchEvent(new FocusEvent(mapLogEntries[0]));
         }
       }
 

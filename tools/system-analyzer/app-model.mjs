@@ -6,9 +6,9 @@ class State {
   #timeSelection = { start: 0, end: Infinity };
   #map;
   #ic;
-  #selectedMapLogEvents;
-  #selectedIcLogEvents;
-  #selectedSourcePositionLogEvents;
+  #selectedMapLogEntries;
+  #selectedIcLogEntries;
+  #selectedSourcePositions;
   #nofChunks;
   #chunks;
   #icTimeline;
@@ -75,25 +75,25 @@ class State {
     if (!value) return;
     this.#ic = value;
   }
-  get selectedMapLogEvents() {
-    return this.#selectedMapLogEvents;
+  get selectedMapLogEntries() {
+    return this.#selectedMapLogEntries;
   }
-  set selectedMapLogEvents(value) {
+  set selectedMapLogEntries(value) {
     if (!value) return;
-    this.#selectedMapLogEvents = value;
+    this.#selectedMapLogEntries = value;
   }
-  get selectedSourcePositionLogEvents() {
-    return this.#selectedSourcePositionLogEvents;
+  get selectedSourcePositions() {
+    return this.#selectedSourcePositions;
   }
-  set selectedSourcePositionLogEvents(value) {
-    this.#selectedSourcePositionLogEvents = value;
+  set selectedSourcePositions(value) {
+    this.#selectedSourcePositions = value;
   }
-  get selectedIcLogEvents() {
-    return this.#selectedIcLogEvents;
+  get selectedIcLogEntries() {
+    return this.#selectedIcLogEntries;
   }
-  set selectedIcLogEvents(value) {
+  set selectedIcLogEntries(value) {
     if (!value) return;
-    this.#selectedIcLogEvents = value;
+    this.#selectedIcLogEntries = value;
   }
   get timeSelection() {
     return this.#timeSelection;

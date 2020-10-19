@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import Processor from "./processor.mjs";
+import { IcLogEntry } from "./log/ic.mjs";
 
 // For compatibility with console scripts:
 print = console.log;
@@ -23,11 +23,11 @@ export class Group {
   }
 
   createSubGroups() {
+    // TODO: use Map
     this.groups = {};
-    for (let i = 0; i < Processor.kProperties.length; i++) {
-      let subProperty = Processor.kProperties[i];
-      if (this.property == subProperty) continue;
-      this.groups[subProperty] = Group.groupBy(this.entries, subProperty);
+    for (const propertyName of IcLogEntry.propertyNames) {
+      if (this.property == propertyName) continue;
+      this.groups[propertyName] = Group.groupBy(this.entries, propertyName);
     }
   }
 

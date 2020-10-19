@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
-class Event {
+export class LogEntry {
   #time;
   #type;
   constructor(type, time) {
@@ -17,6 +16,8 @@ class Event {
   get type() {
     return this.#type;
   }
+  // Returns an Array of all possible #type values.
+  static get allTypes() {
+    throw new Error("Not implemented.");
+  }
 }
-
-export { Event };

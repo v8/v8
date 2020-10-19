@@ -5,9 +5,9 @@
 
 import { SelectionEvent, FocusEvent, SelectTimeEvent } from "./events.mjs";
 import { State } from "./app-model.mjs";
-import { MapLogEvent } from "./log/map.mjs";
-import { IcLogEvent } from "./log/ic.mjs";
-import Processor from "./processor.mjs";
+import { MapLogEntry } from "./log/map.mjs";
+import { IcLogEntry } from "./log/ic.mjs";
+import { Processor } from "./processor.mjs";
 import { SourcePosition } from  "../profile.mjs";
 import { $ } from "./helper.mjs";
 import "./ic-panel.mjs";
@@ -54,9 +54,9 @@ class App {
     });
   }
   handleShowEntries(e) {
-    if (e.entries[0] instanceof MapLogEvent) {
+    if (e.entries[0] instanceof MapLogEntry) {
       this.showMapEntries(e.entries);
-    } else if (e.entries[0] instanceof IcLogEvent) {
+    } else if (e.entries[0] instanceof IcLogEntry) {
       this.showIcEntries(e.entries);
     } else if (e.entries[0] instanceof SourcePosition) {
       this.showSourcePositionEntries(e.entries);
@@ -65,12 +65,12 @@ class App {
     }
   }
   showMapEntries(entries) {
-    this.#state.selectedMapLogEvents = entries;
-    this.#view.mapPanel.selectedMapLogEvents = this.#state.selectedMapLogEvents;
+    this.#state.selectedMapLogEntries = entries;
+    this.#view.mapPanel.selectedMapLogEntries = this.#state.selectedMapLogEntries;
   }
   showIcEntries(entries) {
-    this.#state.selectedIcLogEvents = entries;
-    this.#view.icPanel.selectedLogEvents = this.#state.selectedIcLogEvents;
+    this.#state.selectedIcLogEntries = entries;
+    this.#view.icPanel.selectedLogEntries = this.#state.selectedIcLogEntries;
   }
   showSourcePositionEntries(entries) {
     //TODO(zcankara) Handle multiple source position selection events
@@ -81,12 +81,12 @@ class App {
     this.selectTimeRange(e.start, e.end);
   }
   handleShowEntryDetail(e) {
-    if (e.entry instanceof MapLogEvent) {
-      this.selectMapLogEvent(e.entry);
-    } else if (e.entry instanceof IcLogEvent) {
-      this.selectICLogEvent(e.entry);
+    if (e.entry instanceof MapLogEntry) {
+      this.selectMapLogEntry(e.entry);
+    } else if (e.entry instanceof IcLogEntry) {
+      this.selectICLogEntry(e.entry);
     } else if (e.entry instanceof SourcePosition) {
-      this.selectSourcePositionEvent(e.entry);
+      this.selectSourcePosition(e.entry);
     } else {
       throw new Error("Unknown selection type!");
     }
@@ -96,20 +96,20 @@ class App {
     this.#state.timeSelection.end = end;
     this.#state.icTimeline.selectTimeRange(start, end);
     this.#state.mapTimeline.selectTimeRange(start, end);
-    this.#view.mapPanel.selectedMapLogEvents =
+    this.#view.mapPanel.selectedMapLogEntries =
       this.#state.mapTimeline.selection;
-    this.#view.icPanel.selectedLogEvents = this.#state.icTimeline.selection;
+    this.#view.icPanel.selectedLogEntries = this.#state.icTimeline.selection;
   }
-  selectMapLogEvent(entry) {
+  selectMapLogEntry(entry) {
     this.#state.map = entry;
     this.#view.mapTrack.selectedEntry = entry;
     this.#view.mapPanel.map = entry;
   }
-  selectICLogEvent(entry) {
+  selectICLogEntry(entry) {
     this.#state.ic = entry;
-    this.#view.icPanel.selectedLogEvents = [entry];
+    this.#view.icPanel.selectedLogEntries = [entry];
   }
-  selectSourcePositionEvent(sourcePositions) {
+  selectSourcePosition(sourcePositions) {
     if (!sourcePositions.script) return;
     this.#view.sourcePanel.selectedSourcePositions = [sourcePositions];
   }
@@ -118,10 +118,12 @@ class App {
     this.restartApp();
     $("#container").className = "initial";
   }
+
   restartApp() {
     this.#state = new State();
     this.#navigation = new Navigation(this.#state, this.#view);
   }
+
   // Event log processing
   handleLoadTextProcessor(text) {
     let logProcessor = new Processor();

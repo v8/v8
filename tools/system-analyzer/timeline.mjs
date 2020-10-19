@@ -3,31 +3,47 @@
 // found in the LICENSE file.
 
 class Timeline {
+  // Class:
+  #model;
+  // Array of #model instances:
   #values;
+  // Current selection, subset of #values:
   #selection;
   #uniqueTypes;
-  constructor() {
+
+  constructor(model) {
+    this.#model = model;
     this.#values = [];
     this.startTime = 0;
     this.endTime = 0;
   }
+
+  get model() {
+    return this.#model;
+  }
+
   get all() {
     return this.#values;
   }
+
   get selection() {
     return this.#selection;
   }
+
   set selection(value) {
     this.#selection = value;
   }
+
   selectTimeRange(start, end) {
     this.#selection = this.filter(
       e => e.time >= start && e.time <= end);
   }
+
   getChunks(windowSizeMs) {
     //TODO(zcankara) Fill this one
     return this.chunkSizes(windowSizeMs);
   }
+
   get values() {
     //TODO(zcankara) Not to break something delete later
     return this.#values;
@@ -87,24 +103,6 @@ class Timeline {
     return this.last().time - this.first().time;
   }
 
-  groupByTypes() {
-    this.#uniqueTypes = new Map();
-    for (const entry of this.all) {
-      if (!this.#uniqueTypes.has(entry.type)) {
-        this.#uniqueTypes.set(entry.type, [entry]);
-      } else {
-        this.#uniqueTypes.get(entry.type).push(entry);
-      }
-    }
-  }
-
-  get uniqueTypes() {
-    if (this.#uniqueTypes === undefined) {
-      this.groupByTypes();
-    }
-    return this.#uniqueTypes;
-  }
-
   forEachChunkSize(count, fn) {
     const increment = this.duration() / count;
     let currentTime = this.first().time + increment;
@@ -157,6 +155,19 @@ class Timeline {
       }
     }
     return min;
+  }
+
+  initializeTypes() {
+    const types = new Map();
+    for (const entry of this.all) {
+      types.get(entry.type)?.push(entry) ?? types.set(entry.type, [entry])
+    }
+    this.#uniqueTypes = types;
+    return types;
+  }
+
+  get uniqueTypes() {
+    return this.#uniqueTypes ?? this.initializeTypes();
   }
 
   depthHistogram() {

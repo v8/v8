@@ -2,16 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { MapLogEvent, Edge } from "./log/map.mjs";
-import { IcLogEvent } from "./log/ic.mjs";
+import { MapLogEntry, Edge } from "./log/map.mjs";
+import { IcLogEntry } from "./log/ic.mjs";
 import { Timeline } from "./timeline.mjs";
 import { LogReader, parseString, parseVarArgs } from "../logreader.mjs";
 import { Profile } from "../profile.mjs";
 
 // ===========================================================================
 
-
-class Processor extends LogReader {
+export class Processor extends LogReader {
   #profile = new Profile();
   #mapTimeline = new Timeline();
   #icTimeline = new Timeline();
@@ -225,7 +224,7 @@ class Processor extends LogReader {
     let fileName = parts[1];
     let script = this.getScript(fileName);
     // TODO: Use SourcePosition here directly
-    let entry = new IcLogEvent(
+    let entry = new IcLogEntry(
       type, fnName, time, line, column, key, old_state, new_state, map,
       slow_reason, script);
     if (script) {
@@ -264,13 +263,16 @@ class Processor extends LogReader {
   processMap(type, time, from, to, pc, line, column, reason, name) {
     let time_ = parseInt(time);
     if (type === 'Deprecate') return this.deprecateMap(type, time_, from);
-    let from_ = this.getExistingMap(from, time_);
-    let to_ = this.getExistingMap(to, time_);
+    let from_ = this.getExistingMapEntry(from, time_);
+    let to_ = this.getExistingMapEntry(to, time_);
     // TODO: use SourcePosition directly.
     let edge = new Edge(type, name, reason, time, from_, to_);
     to_.filePosition = this.formatPC(pc, line, column);
     let fileName = this.processFileName(to_.filePosition);
-    to_.script = this.getScript(fileName);
+    // TODO: avoid undefined source positions.
+    if (fileName !== undefined) {
+      to_.script = this.getScript(fileName);
+    }
     if (to_.script) {
       to_.sourcePosition = to_.script.addSourcePosition(line, column, to_)
     }
@@ -278,34 +280,34 @@ class Processor extends LogReader {
   }
 
   deprecateMap(type, time, id) {
-    this.getExistingMap(id, time).deprecate();
+    this.getExistingMapEntry(id, time).deprecate();
   }
 
   processMapCreate(time, id) {
     // map-create events might override existing maps if the addresses get
     // recycled. Hence we do not check for existing maps.
-    let map = this.createMap(id, time);
+    let map = this.createMapEntry(id, time);
   }
 
   processMapDetails(time, id, string) {
     // TODO(cbruni): fix initial map logging.
-    let map = this.getExistingMap(id, time);
+    let map = this.getExistingMapEntry(id, time);
     map.description = string;
   }
 
-  createMap(id, time) {
-    let map = new MapLogEvent(id, time);
+  createMapEntry(id, time) {
+    let map = new MapLogEntry(id, time);
     this.#mapTimeline.push(map);
     return map;
   }
 
-  getExistingMap(id, time) {
+  getExistingMapEntry(id, time) {
     if (id === '0x000000000000') return undefined;
-    let map = MapLogEvent.get(id, time);
+    let map = MapLogEntry.get(id, time);
     if (map === undefined) {
       console.error('No map details provided: id=' + id);
       // Manually patch in a map to continue running.
-      return this.createMap(id, time);
+      return this.createMapEntry(id, time);
     };
     return map;
   }
@@ -331,17 +333,3 @@ class Processor extends LogReader {
     return this.#profile.scripts_.filter(script => script !== undefined);
   }
 }
-
-Processor.kProperties = [
-  'type',
-  'category',
-  'functionName',
-  'filePosition',
-  'state',
-  'key',
-  'map',
-  'reason',
-  'file'
-];
-
-export { Processor as default };

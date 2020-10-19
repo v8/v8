@@ -3,14 +3,14 @@
 // found in the LICENSE file.
 
 import { Group } from './ic-model.mjs';
-import Processor from "./processor.mjs";
-import { MapLogEvent } from "./log/map.mjs";
+import { MapLogEntry } from "./log/map.mjs";
 import { FocusEvent, SelectTimeEvent, SelectionEvent } from './events.mjs';
 import { defineCustomElement, V8CustomElement } from './helper.mjs';
+import { IcLogEntry } from './log/ic.mjs';
 
 defineCustomElement('ic-panel', (templateText) =>
   class ICPanel extends V8CustomElement {
-    #selectedLogEvents;
+    #selectedLogEntries;
     #timeline;
     constructor() {
       super(templateText);
@@ -23,7 +23,7 @@ defineCustomElement('ic-panel', (templateText) =>
     set timeline(value) {
       console.assert(value !== undefined, "timeline undefined!");
       this.#timeline = value;
-      this.selectedLogEvents = this.#timeline.all;
+      this.selectedLogEntries = this.#timeline.all;
       this.updateCount();
     }
     get groupKey() {
@@ -46,18 +46,14 @@ defineCustomElement('ic-panel', (templateText) =>
       return this.querySelectorAll("span");
     }
 
-    set selectedLogEvents(value) {
-      this.#selectedLogEvents = value;
+    set selectedLogEntries(value) {
+      this.#selectedLogEntries = value;
       this.updateCount();
       this.updateTable();
     }
 
     updateCount() {
-      this.count.innerHTML = this.selectedLogEvents.length;
-    }
-
-    get selectedLogEvents() {
-      return this.#selectedLogEvents;
+      this.count.innerHTML = this.#selectedLogEntries.length;
     }
 
     updateTable(event) {
@@ -65,7 +61,7 @@ defineCustomElement('ic-panel', (templateText) =>
       let key = select.options[select.selectedIndex].text;
       let tableBody = this.tableBody;
       this.removeAllChildren(tableBody);
-      let groups = Group.groupBy(this.selectedLogEvents, key, true);
+      let groups = Group.groupBy(this.#selectedLogEntries, key, true);
       this.render(groups, tableBody);
     }
 
@@ -102,20 +98,20 @@ defineCustomElement('ic-panel', (templateText) =>
     handleMapClick(e) {
       const entry = e.target.parentNode.entry;
       const id = entry.key;
-      const selectedMapLogEvents =
-        this.searchIcLogEventToMapLogEvent(id, entry.entries);
-      this.dispatchEvent(new SelectionEvent(selectedMapLogEvents));
+      const selectedMapLogEntries =
+        this.searchIcLogEntryToMapLogEntry(id, entry.entries);
+      this.dispatchEvent(new SelectionEvent(selectedMapLogEntries));
     }
 
-    searchIcLogEventToMapLogEvent(id, icLogEvents) {
-      // searches for mapLogEvents using the id, time
-      const selectedMapLogEventsSet = new Set();
-      for (const icLogEvent of icLogEvents) {
-        const time = icLogEvent.time;
-        const selectedMap = MapLogEvent.get(id, time);
-        selectedMapLogEventsSet.add(selectedMap);
+    searchIcLogEntryToMapLogEntry(id, icLogEntries) {
+      // searches for mapLogEntries using the id, time
+      const selectedMapLogEntriesSet = new Set();
+      for (const icLogEntry of icLogEntries) {
+        const time = icLogEntry.time;
+        const selectedMap = MapLogEntry.get(id, time);
+        selectedMapLogEntriesSet.add(selectedMap);
       }
-      return Array.from(selectedMapLogEventsSet);
+      return Array.from(selectedMapLogEntriesSet);
     }
 
     //TODO(zcankara) Handle in the processor for events with source positions.
@@ -208,9 +204,9 @@ defineCustomElement('ic-panel', (templateText) =>
     initGroupKeySelect() {
       let select = this.groupKey;
       select.options.length = 0;
-      for (let i in Processor.kProperties) {
+      for (const propertyName of IcLogEntry.propertyNames) {
         let option = document.createElement("option");
-        option.text = Processor.kProperties[i];
+        option.text = propertyName;
         select.add(option);
       }
     }

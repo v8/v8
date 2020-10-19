@@ -1,9 +1,9 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import { Event } from './log.mjs';
+import { LogEntry } from './log.mjs';
 
-class IcLogEvent extends Event {
+export class IcLogEntry extends LogEntry {
   constructor(
     type, fn_file, time, line, column, key, oldState, newState, map, reason,
     script, additional) {
@@ -28,7 +28,6 @@ class IcLogEvent extends Event {
     this.additional = additional;
     this.script = script;
   }
-
 
   parseMapProperties(parts, offset) {
     let next = parts[++offset];
@@ -55,6 +54,18 @@ class IcLogEvent extends Event {
     this.file = parts[offset];
     return offset;
   }
-}
 
-export { IcLogEvent };
+ static get propertyNames() {
+   return [
+    'type',
+    'category',
+    'functionName',
+    'filePosition',
+    'state',
+    'key',
+    'map',
+    'reason',
+    'file'
+  ];
+ }
+}
