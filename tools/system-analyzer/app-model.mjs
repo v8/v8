@@ -8,6 +8,7 @@ class State {
   _ic;
   _selectedMapLogEntries;
   _selectedIcLogEntries;
+  _selectedDeoptLogEntries;
   _selectedSourcePositions;
   _nofChunks;
   _chunks;

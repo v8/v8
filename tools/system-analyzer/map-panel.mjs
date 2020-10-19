@@ -25,10 +25,6 @@ defineCustomElement('map-panel', (templateText) =>
       }
     }
 
-    get statsPanel() {
-      return this.$('#stats-panel');
-    }
-
     get mapTransitionsPanel() {
       return this.$('#map-transitions');
     }
@@ -49,17 +45,8 @@ defineCustomElement('map-panel', (templateText) =>
       return this.mapDetailsPanel.mapDetails;
     }
 
-    // send a timeline to the stats-panel
-    set timeline(value) {
-      console.assert(value !== undefined, "timeline undefined!");
-      this.statsPanel.timeline = value;
-      this.statsPanel.update();
-    }
-    get transitions() {
-      return this.statsPanel.transitions;
-    }
-    set transitions(value) {
-      this.statsPanel.transitions = value;
+    set timeline(timeline) {
+      this._timeline = timeline;
     }
 
     set map(value) {

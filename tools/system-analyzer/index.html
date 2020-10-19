@@ -78,7 +78,7 @@ found in the LICENSE file. -->
   <script type="module">
     import { App } from './index.mjs';
 
-    globalThis.app = new App("#log-file-reader", "#map-panel",
+    globalThis.app = new App("#log-file-reader", "#map-panel", "#map-stats-panel",
       "#timeline-panel", "#ic-panel", "#map-track", "#ic-track", "#deopt-track",
       "#source-panel");
   </script>
@@ -97,6 +97,7 @@ found in the LICENSE file. -->
     </timeline-panel>
     <div class="panels">
       <map-panel id="map-panel"></map-panel>
+      <stats-panel id="map-stats-panel"></stats-panel>
       <ic-panel id="ic-panel" onchange="app.handleSelectIc(event)"></ic-panel>
       <source-panel id="source-panel"></source-panel>
     </div>

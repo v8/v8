@@ -12,6 +12,7 @@ import { SourcePosition } from  "../profile.mjs";
 import { $ } from "./helper.mjs";
 import "./ic-panel.mjs";
 import "./timeline-panel.mjs";
+import "./stats-panel.mjs";
 import "./map-panel.mjs";
 import "./log-file-reader.mjs";
 import "./source-panel.mjs";
@@ -21,13 +22,14 @@ class App {
   _state;
   _view;
   _navigation;
-  constructor(fileReaderId, mapPanelId, timelinePanelId,
+  constructor(fileReaderId, mapPanelId, mapStatsPanelId, timelinePanelId,
     icPanelId, mapTrackId, icTrackId, deoptTrackId, sourcePanelId) {
     this._view = {
       __proto__: null,
       logFileReader: $(fileReaderId),
       icPanel: $(icPanelId),
       mapPanel: $(mapPanelId),
+      mapStatsPanel: $(mapStatsPanelId),
       timelinePanel: $(timelinePanelId),
       mapTrack: $(mapTrackId),
       icTrack: $(icTrackId),
@@ -65,14 +67,19 @@ class App {
     } else {
       throw new Error("Unknown selection type!");
     }
+    e.stopPropagation();
   }
   showMapEntries(entries) {
     this._state.selectedMapLogEntries = entries;
     this._view.mapPanel.selectedMapLogEntries = entries;
+    this._view.mapStatsPanel.selectedLogEntries = entries;
   }
   showIcEntries(entries) {
     this._state.selectedIcLogEntries = entries;
     this._view.icPanel.selectedLogEntries = entries;
+  }
+  showDeoptEntries(entries) {
+    this._state.selectedDeoptLogEntries = entries;
   }
   showSourcePositionEntries(entries) {
     //TODO: Handle multiple source position selection events
@@ -81,7 +88,16 @@ class App {
 
   handleTimeRangeSelect(e) {
     this.selectTimeRange(e.start, e.end);
+    e.stopPropagation();
   }
+
+  selectTimeRange(start, end) {
+    this._state.selectTimeRange(start, end);
+    this.showMapEntries(this._state.mapTimeline.selection);
+    this.showIcEntries(this._state.icTimeline.selection);
+    this.showDeoptEntries(this._state.deoptTimeline.selection);
+  }
+
   handleShowEntryDetail(e) {
     if (e.entry instanceof MapLogEntry) {
       this.selectMapLogEntry(e.entry);
@@ -92,12 +108,7 @@ class App {
     } else {
       throw new Error("Unknown selection type!");
     }
-  }
-  selectTimeRange(start, end) {
-    this._state.selectTimeRange(start, end);
-    this._view.mapPanel.selectedMapLogEntries = 
-        this._state.mapTimeline.selection;
-    this._view.icPanel.selectedLogEntries = this._state.icTimeline.selection;
+    e.stopPropagation();
   }
   selectMapLogEntry(entry) {
     this._state.map = entry;
@@ -136,9 +147,10 @@ class App {
     this._state.icTimeline = icTimeline;
     this._state.deoptTimeline = deoptTimeline;
     // Transitions must be set before timeline for stats panel.
-    this._view.mapPanel.transitions = this._state.mapTimeline.transitions;
-    this._view.mapTrack.data = mapTimeline;
     this._view.mapPanel.timeline = mapTimeline;
+    this._view.mapTrack.data = mapTimeline;
+    this._view.mapStatsPanel.transitions = this._state.mapTimeline.transitions;
+    this._view.mapStatsPanel.timeline = mapTimeline;
     this._view.icPanel.timeline = icTimeline;
     this._view.icTrack.data = icTimeline;
     this._view.deoptTrack.data = deoptTimeline;
