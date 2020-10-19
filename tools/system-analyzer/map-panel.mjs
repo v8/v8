@@ -10,7 +10,7 @@ import { defineCustomElement, V8CustomElement } from './helper.mjs';
 
 defineCustomElement('map-panel', (templateText) =>
   class MapPanel extends V8CustomElement {
-    #map;
+    _map;
     constructor() {
       super(templateText);
       this.searchBarBtn.addEventListener(
@@ -63,8 +63,8 @@ defineCustomElement('map-panel', (templateText) =>
     }
 
     set map(value) {
-      this.#map = value;
-      this.mapTransitionsPanel.map = this.#map;
+      this._map = value;
+      this.mapTransitionsPanel.map = this._map;
     }
 
     handleSearchBar(e) {

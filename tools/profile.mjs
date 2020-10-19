@@ -56,13 +56,13 @@ export class Script {
     let sourcePosition = this.lineToColumn.get(line)?.get(column);
     if (sourcePosition === undefined) {
       sourcePosition = new SourcePosition(this, line, column, )
-      this.#addSourcePosition(line, column, sourcePosition);
+      this._addSourcePosition(line, column, sourcePosition);
     }
     sourcePosition.addEntry(entry);
     return sourcePosition;
   }
 
-  #addSourcePosition(line, column, sourcePosition) {
+  _addSourcePosition(line, column, sourcePosition) {
     let columnToSourcePosition;
     if (this.lineToColumn.has(line)) {
       columnToSourcePosition = this.lineToColumn.get(line);

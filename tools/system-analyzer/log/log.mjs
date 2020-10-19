@@ -3,18 +3,18 @@
 // found in the LICENSE file.
 
 export class LogEntry {
-  #time;
-  #type;
+  _time;
+  _type;
   constructor(type, time) {
     //TODO(zcankara) remove type and add empty getters to override
-    this.#time = time;
-    this.#type = type;
+    this._time = time;
+    this._type = type;
   }
   get time() {
-    return this.#time;
+    return this._time;
   }
   get type() {
-    return this.#type;
+    return this._type;
   }
   // Returns an Array of all possible #type values.
   static get allTypes() {

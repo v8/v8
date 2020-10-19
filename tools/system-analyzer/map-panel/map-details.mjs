@@ -10,7 +10,7 @@ defineCustomElement(
     class MapDetails extends V8CustomElement {
       constructor() {
         super(templateText);
-        this.#filePositionNode.addEventListener("click", e =>
+        this._filePositionNode.addEventListener("click", e =>
           this.handleFilePositionClick(e)
         );
         this.selectedMap = undefined;
@@ -19,7 +19,7 @@ defineCustomElement(
         return this.$("#mapDetails");
       }
 
-      get #filePositionNode() {
+      get _filePositionNode() {
         return this.$("#filePositionNode");
       }
 
@@ -36,8 +36,8 @@ defineCustomElement(
           details += "\n" + map.description;
           this.setSelectedMap(map);
         }
-        this.#filePositionNode.innerText = clickableDetails;
-        this.#filePositionNode.classList.add("clickable");
+        this._filePositionNode.innerText = clickableDetails;
+        this._filePositionNode.classList.add("clickable");
         this.mapDetails.innerText = details;
       }
 

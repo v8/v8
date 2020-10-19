@@ -38,7 +38,7 @@ class MapLogEntry extends LogEntry {
   edge = void 0;
   children = [];
   depth = 0;
-  #isDeprecated = false;
+  _isDeprecated = false;
   deprecatedTargets = null;
   leftId = 0;
   rightId = 0;
@@ -81,11 +81,11 @@ class MapLogEntry extends LogEntry {
   }
 
   isDeprecated() {
-    return this.#isDeprecated;
+    return this._isDeprecated;
   }
 
   deprecate() {
-    this.#isDeprecated = true;
+    this._isDeprecated = true;
   }
 
   isRoot() {

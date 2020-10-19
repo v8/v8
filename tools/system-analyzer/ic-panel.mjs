@@ -10,8 +10,8 @@ import { IcLogEntry } from './log/ic.mjs';
 
 defineCustomElement('ic-panel', (templateText) =>
   class ICPanel extends V8CustomElement {
-    #selectedLogEntries;
-    #timeline;
+    _selectedLogEntries;
+    _timeline;
     constructor() {
       super(templateText);
       this.initGroupKeySelect();
@@ -22,8 +22,8 @@ defineCustomElement('ic-panel', (templateText) =>
     }
     set timeline(value) {
       console.assert(value !== undefined, "timeline undefined!");
-      this.#timeline = value;
-      this.selectedLogEntries = this.#timeline.all;
+      this._timeline = value;
+      this.selectedLogEntries = this._timeline.all;
       this.updateCount();
     }
     get groupKey() {
@@ -47,13 +47,13 @@ defineCustomElement('ic-panel', (templateText) =>
     }
 
     set selectedLogEntries(value) {
-      this.#selectedLogEntries = value;
+      this._selectedLogEntries = value;
       this.updateCount();
       this.updateTable();
     }
 
     updateCount() {
-      this.count.innerHTML = this.#selectedLogEntries.length;
+      this.count.innerHTML = this._selectedLogEntries.length;
     }
 
     updateTable(event) {
@@ -61,7 +61,7 @@ defineCustomElement('ic-panel', (templateText) =>
       let key = select.options[select.selectedIndex].text;
       let tableBody = this.tableBody;
       this.removeAllChildren(tableBody);
-      let groups = Group.groupBy(this.#selectedLogEntries, key, true);
+      let groups = Group.groupBy(this._selectedLogEntries, key, true);
       this.render(groups, tableBody);
     }
 

@@ -3,7 +3,8 @@
 // found in the LICENSE file.
 
 class SelectionEvent extends CustomEvent {
-  static name = "showentries";
+  // TODO: turn into static class fields once Safari supports it.
+  static get name() { return "showentries"; }
   constructor(entries) {
     super(SelectionEvent.name, { bubbles: true, composed: true });
     if (!Array.isArray(entries) || entries.length == 0) {
@@ -14,7 +15,7 @@ class SelectionEvent extends CustomEvent {
 }
 
 class FocusEvent extends CustomEvent {
-  static name = "showentrydetail";
+  static get name() { return "showentrydetail"; }
   constructor(entry) {
     super(FocusEvent.name, { bubbles: true, composed: true });
     this.entry = entry;
@@ -22,7 +23,7 @@ class FocusEvent extends CustomEvent {
 }
 
 class SelectTimeEvent extends CustomEvent {
-  static name = 'timerangeselect';
+  static get name() { return 'timerangeselect'; }
   constructor(start, end) {
     super(SelectTimeEvent.name, { bubbles: true, composed: true });
     this.start = start;
@@ -31,7 +32,7 @@ class SelectTimeEvent extends CustomEvent {
 }
 
 class SynchronizeSelectionEvent extends CustomEvent {
-  static name = 'syncselection';
+  static get name() { return 'syncselection'; }
   constructor(start, end) {
     super(SynchronizeSelectionEvent.name, { bubbles: true, composed: true });
     this.start = start;

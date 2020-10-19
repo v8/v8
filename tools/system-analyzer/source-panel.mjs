@@ -10,9 +10,9 @@ defineCustomElement(
   "source-panel",
   (templateText) =>
     class SourcePanel extends V8CustomElement {
-      #selectedSourcePositions;
-      #scripts = [];
-      #script;
+      _selectedSourcePositions;
+      _scripts = [];
+      _script;
       constructor() {
         super(templateText);
         this.scriptDropdown.addEventListener(
@@ -25,29 +25,29 @@ defineCustomElement(
         return this.$('.scriptNode');
       }
       set script(script) {
-        this.#script = script;
+        this._script = script;
         // TODO: fix undefined scripts
         if (script !== undefined) this.renderSourcePanel();
       }
       set selectedSourcePositions(sourcePositions) {
-        this.#selectedSourcePositions = sourcePositions;
+        this._selectedSourcePositions = sourcePositions;
       }
       get selectedSourcePositions() {
-        return this.#selectedSourcePositions;
+        return this._selectedSourcePositions;
       }
       set data(value) {
-        this.#scripts = value;
+        this._scripts = value;
         this.initializeScriptDropdown();
-        this.script = this.#scripts[0];
+        this.script = this._scripts[0];
       }
       get scriptDropdown() {
         return this.$("#script-dropdown");
       }
       initializeScriptDropdown() {
-        this.#scripts.sort((a, b) => a.name.localeCompare(b.name));
+        this._scripts.sort((a, b) => a.name.localeCompare(b.name));
         let select = this.scriptDropdown;
         select.options.length = 0;
-        for (const script of this.#scripts) {
+        for (const script of this._scripts) {
           const option = document.createElement("option");
           option.text = `${script.name} (id=${script.id})`;
           option.script = script;
@@ -56,7 +56,7 @@ defineCustomElement(
       }
 
       renderSourcePanel() {
-        const builder = new LineBuilder(this, this.#script);
+        const builder = new LineBuilder(this, this._script);
         const scriptNode = builder.createScriptNode();
         const oldScriptNode = this.script.childNodes[1];
         this.script.replaceChild(scriptNode, oldScriptNode);
@@ -92,29 +92,29 @@ defineCustomElement(
 
 
 class SourcePositionIterator {
-  #entries;
-  #index = 0;
+  _entries;
+  _index = 0;
   constructor(sourcePositions) {
-    this.#entries = sourcePositions;
+    this._entries = sourcePositions;
   }
 
   *forLine(lineIndex) {
-    while(!this.#done() && this.#current().line === lineIndex) {
-      yield this.#current();
-      this.#next();
+    while(!this._done() && this._current().line === lineIndex) {
+      yield this._current();
+      this._next();
     }
   }
 
-  #current() {
-    return this.#entries[this.#index];
+  _current() {
+    return this._entries[this._index];
   }
 
-  #done() {
-    return this.#index + 1 >= this.#entries.length;
+  _done() {
+    return this._index + 1 >= this._entries.length;
   }
 
-  #next() {
-    this.#index++;
+  _next() {
+    this._index++;
   }
 }
 
@@ -132,19 +132,19 @@ function * lineIterator(source) {
 }
 
 class LineBuilder {
-  #script
-  #clickHandler
-  #sourcePositions
+  _script
+  _clickHandler
+  _sourcePositions
 
   constructor(panel, script) {
-    this.#script = script;
-    this.#clickHandler = panel.handleSourcePositionClick.bind(panel);
+    this._script = script;
+    this._clickHandler = panel.handleSourcePositionClick.bind(panel);
     // TODO: sort on script finalization.
     script.sourcePositions.sort((a, b) => {
       if (a.line === b.line) return a.column - b.column;
       return a.line - b.line;
     })
-    this.#sourcePositions
+    this._sourcePositions
         = new SourcePositionIterator(script.sourcePositions);
 
   }
@@ -152,16 +152,16 @@ class LineBuilder {
   createScriptNode() {
     const scriptNode = document.createElement("pre");
     scriptNode.classList.add('scriptNode');
-    for (let [lineIndex, line] of lineIterator(this.#script.source)) {
-      scriptNode.appendChild(this.#createLineNode(lineIndex, line));
+    for (let [lineIndex, line] of lineIterator(this._script.source)) {
+      scriptNode.appendChild(this._createLineNode(lineIndex, line));
     }
     return scriptNode;
   }
 
-  #createLineNode(lineIndex, line) {
+  _createLineNode(lineIndex, line) {
     const lineNode = document.createElement("span");
     let columnIndex  = 0;
-    for (const sourcePosition of this.#sourcePositions.forLine(lineIndex)) {
+    for (const sourcePosition of this._sourcePositions.forLine(lineIndex)) {
       const nextColumnIndex = sourcePosition.column - 1;
       lineNode.appendChild(
           document.createTextNode(
@@ -169,7 +169,7 @@ class LineBuilder {
       columnIndex = nextColumnIndex;
 
       lineNode.appendChild(
-          this.#createMarkerNode(line[columnIndex], sourcePosition));
+          this._createMarkerNode(line[columnIndex], sourcePosition));
       columnIndex++;
     }
     lineNode.appendChild(
@@ -177,14 +177,12 @@ class LineBuilder {
     return lineNode;
   }
 
-  #createMarkerNode(text, sourcePosition) {
+  _createMarkerNode(text, sourcePosition) {
     const marker = document.createElement("mark");
     marker.classList.add('marked');
     marker.textContent = text;
     marker.sourcePosition = sourcePosition;
-    marker.onclick = this.#clickHandler;
+    marker.onclick = this._clickHandler;
     return marker;
   }
-
-
 }

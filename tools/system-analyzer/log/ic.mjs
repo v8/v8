@@ -54,18 +54,18 @@ export class IcLogEntry extends LogEntry {
     this.file = parts[offset];
     return offset;
   }
-
- static get propertyNames() {
-   return [
-    'type',
-    'category',
-    'functionName',
-    'filePosition',
-    'state',
-    'key',
-    'map',
-    'reason',
-    'file'
-  ];
- }
+  
+  static get propertyNames() {
+    return [
+      'type',
+      'category',
+      'functionName',
+      'filePosition',
+      'state',
+      'key',
+      'map',
+      'reason',
+      'file'
+    ];
+  }
 }

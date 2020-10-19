@@ -11,10 +11,10 @@ import { Profile } from "../profile.mjs";
 // ===========================================================================
 
 export class Processor extends LogReader {
-  #profile = new Profile();
-  #mapTimeline = new Timeline();
-  #icTimeline = new Timeline();
-  #formatPCRegexp = /(.*):[0-9]+:[0-9]+$/;
+  _profile = new Profile();
+  _mapTimeline = new Timeline();
+  _icTimeline = new Timeline();
+  _formatPCRegexp = /(.*):[0-9]+:[0-9]+$/;
   MAJOR_VERSION = 7;
   MINOR_VERSION = 6;
   constructor() {
@@ -138,15 +138,15 @@ export class Processor extends LogReader {
 
   finalize() {
     // TODO(cbruni): print stats;
-    this.#mapTimeline.transitions = new Map();
+    this._mapTimeline.transitions = new Map();
     let id = 0;
-    this.#mapTimeline.forEach(map => {
+    this._mapTimeline.forEach(map => {
       if (map.isRoot()) id = map.finalizeRootMap(id + 1);
       if (map.edge && map.edge.name) {
         let edge = map.edge;
-        let list = this.#mapTimeline.transitions.get(edge.name);
+        let list = this._mapTimeline.transitions.get(edge.name);
         if (list === undefined) {
-          this.#mapTimeline.transitions.set(edge.name, [edge]);
+          this._mapTimeline.transitions.set(edge.name, [edge]);
         } else {
           list.push(edge);
         }
@@ -173,10 +173,10 @@ export class Processor extends LogReader {
     if (maybe_func.length) {
       let funcAddr = parseInt(maybe_func[0]);
       let state = this.parseState(maybe_func[1]);
-      this.#profile.addFuncCode(
+      this._profile.addFuncCode(
         type, name, timestamp, start, size, funcAddr, state);
     } else {
-      this.#profile.addCode(type, name, timestamp, start, size);
+      this._profile.addCode(type, name, timestamp, start, size);
     }
   }
 
@@ -192,19 +192,19 @@ export class Processor extends LogReader {
   }
 
   processScriptSource(scriptId, url, source) {
-    this.#profile.addScriptSource(scriptId, url, source);
+    this._profile.addScriptSource(scriptId, url, source);
   }
 
   processCodeMove(from, to) {
-    this.#profile.moveCode(from, to);
+    this._profile.moveCode(from, to);
   }
 
   processCodeDelete(start) {
-    this.#profile.deleteCode(start);
+    this._profile.deleteCode(start);
   }
 
   processFunctionMove(from, to) {
-    this.#profile.moveFunc(from, to);
+    this._profile.moveFunc(from, to);
   }
 
   formatName(entry) {
@@ -230,21 +230,21 @@ export class Processor extends LogReader {
     if (script) {
       entry.sourcePosition = script.addSourcePosition(line, column, entry);
     }
-    this.#icTimeline.push(entry);
+    this._icTimeline.push(entry);
   }
 
   functionName(pc) {
-    let entry = this.#profile.findEntry(pc);
+    let entry = this._profile.findEntry(pc);
     return this.formatName(entry);
   }
   formatPC(pc, line, column) {
-    let entry = this.#profile.findEntry(pc);
+    let entry = this._profile.findEntry(pc);
     if (!entry) return '<unknown>'
     if (entry.type === 'Builtin') {
       return entry.name;
     }
     let name = entry.func.getName();
-    let array = this.#formatPCRegexp.exec(name);
+    let array = this._formatPCRegexp.exec(name);
     if (array === null) {
       entry = name;
     } else {
@@ -297,7 +297,7 @@ export class Processor extends LogReader {
 
   createMapEntry(id, time) {
     let map = new MapLogEntry(id, time);
-    this.#mapTimeline.push(map);
+    this._mapTimeline.push(map);
     return map;
   }
 
@@ -313,7 +313,7 @@ export class Processor extends LogReader {
   }
 
   getScript(url) {
-    const script = this.#profile.getScript(url);
+    const script = this._profile.getScript(url);
     // TODO create placeholder script for empty urls.
     if (script === undefined) {
       console.error(`Could not find script for url: '${url}'`)
@@ -322,14 +322,14 @@ export class Processor extends LogReader {
   }
 
   get icTimeline() {
-    return this.#icTimeline;
+    return this._icTimeline;
   }
 
   get mapTimeline() {
-    return this.#mapTimeline;
+    return this._mapTimeline;
   }
 
   get scripts() {
-    return this.#profile.scripts_.filter(script => script !== undefined);
+    return this._profile.scripts_.filter(script => script !== undefined);
   }
 }

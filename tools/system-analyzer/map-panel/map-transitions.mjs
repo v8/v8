@@ -8,8 +8,8 @@ defineCustomElement(
   "./map-panel/map-transitions",
   (templateText) =>
     class MapTransitions extends V8CustomElement {
-      #map;
-      #selectedMapLogEntries;
+      _map;
+      _selectedMapLogEntries;
       constructor() {
         super(templateText);
         this.transitionView.addEventListener("mousemove", (e) =>
@@ -32,7 +32,7 @@ defineCustomElement(
       }
 
       set map(value) {
-        this.#map = value;
+        this._map = value;
         this.showMap();
       }
 
@@ -57,10 +57,10 @@ defineCustomElement(
 
       showMap() {
         // Called when a map selected
-        if (this.currentMap === this.#map) return;
-        this.currentMap = this.#map;
-        this.selectedMapLogEntries = [this.#map];
-        this.dispatchEvent(new FocusEvent(this.#map));
+        if (this.currentMap === this._map) return;
+        this.currentMap = this._map;
+        this.selectedMapLogEntries = [this._map];
+        this.dispatchEvent(new FocusEvent(this._map));
       }
 
       showMaps() {
@@ -73,12 +73,12 @@ defineCustomElement(
       }
 
       set selectedMapLogEntries(list) {
-        this.#selectedMapLogEntries = list;
+        this._selectedMapLogEntries = list;
         this.showMaps();
       }
 
       get selectedMapLogEntries() {
-        return this.#selectedMapLogEntries;
+        return this._selectedMapLogEntries;
       }
 
       addMapAndParentTransitions(map) {

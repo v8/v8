@@ -3,100 +3,100 @@
 // found in the LICENSE file.
 
 class State {
-  #timeSelection = { start: 0, end: Infinity };
-  #map;
-  #ic;
-  #selectedMapLogEntries;
-  #selectedIcLogEntries;
-  #selectedSourcePositions;
-  #nofChunks;
-  #chunks;
-  #icTimeline;
-  #mapTimeline;
-  #minStartTime = Number.POSITIVE_INFINITY;
-  #maxEndTime = Number.NEGATIVE_INFINITY;
+  _timeSelection = { start: 0, end: Infinity };
+  _map;
+  _ic;
+  _selectedMapLogEntries;
+  _selectedIcLogEntries;
+  _selectedSourcePositions;
+  _nofChunks;
+  _chunks;
+  _icTimeline;
+  _mapTimeline;
+  _minStartTime = Number.POSITIVE_INFINITY;
+  _maxEndTime = Number.NEGATIVE_INFINITY;
   get minStartTime() {
-    return this.#minStartTime;
+    return this._minStartTime;
   }
   get maxEndTime() {
-    return this.#maxEndTime;
+    return this._maxEndTime;
   }
-  #updateTimeRange(timeline) {
-    this.#minStartTime = Math.min(this.#minStartTime, timeline.startTime);
-    this.#maxEndTime = Math.max(this.#maxEndTime, timeline.endTime);
+  _updateTimeRange(timeline) {
+    this._minStartTime = Math.min(this._minStartTime, timeline.startTime);
+    this._maxEndTime = Math.max(this._maxEndTime, timeline.endTime);
   }
   get mapTimeline() {
-    return this.#mapTimeline;
+    return this._mapTimeline;
   }
   set mapTimeline(timeline) {
-    this.#updateTimeRange(timeline);
-    timeline.startTime = this.#minStartTime;
-    timeline.endTime = this.#maxEndTime;
-    this.#mapTimeline = timeline;
+    this._updateTimeRange(timeline);
+    timeline.startTime = this._minStartTime;
+    timeline.endTime = this._maxEndTime;
+    this._mapTimeline = timeline;
   }
   set icTimeline(timeline) {
-    this.#updateTimeRange(timeline);
-    timeline.startTime = this.#minStartTime;
-    timeline.endTime = this.#maxEndTime;
-    this.#icTimeline = timeline;
+    this._updateTimeRange(timeline);
+    timeline.startTime = this._minStartTime;
+    timeline.endTime = this._maxEndTime;
+    this._icTimeline = timeline;
   }
   get icTimeline() {
-    return this.#icTimeline;
+    return this._icTimeline;
   }
   set chunks(value) {
     //TODO(zcankara) split up between maps and ics, and every timeline track
-    this.#chunks = value;
+    this._chunks = value;
   }
   get chunks() {
     //TODO(zcankara) split up between maps and ics, and every timeline track
-    return this.#chunks;
+    return this._chunks;
   }
   get nofChunks() {
-    return this.#nofChunks;
+    return this._nofChunks;
   }
   set nofChunks(count) {
-    this.#nofChunks = count;
+    this._nofChunks = count;
   }
   get map() {
     //TODO(zcankara) rename as selectedMapEvents, array of selected events
-    return this.#map;
+    return this._map;
   }
   set map(value) {
     //TODO(zcankara) rename as selectedMapEvents, array of selected events
     if (!value) return;
-    this.#map = value;
+    this._map = value;
   }
   get ic() {
     //TODO(zcankara) rename selectedICEvents, array of selected events
-    return this.#ic;
+    return this._ic;
   }
   set ic(value) {
     //TODO(zcankara) rename selectedIcEvents, array of selected events
     if (!value) return;
-    this.#ic = value;
+    this._ic = value;
   }
   get selectedMapLogEntries() {
-    return this.#selectedMapLogEntries;
+    return this._selectedMapLogEntries;
   }
   set selectedMapLogEntries(value) {
     if (!value) return;
-    this.#selectedMapLogEntries = value;
+    this._selectedMapLogEntries = value;
   }
   get selectedSourcePositions() {
-    return this.#selectedSourcePositions;
+    return this._selectedSourcePositions;
   }
   set selectedSourcePositions(value) {
-    this.#selectedSourcePositions = value;
+    this._selectedSourcePositions = value;
   }
   get selectedIcLogEntries() {
-    return this.#selectedIcLogEntries;
+    return this._selectedIcLogEntries;
   }
   set selectedIcLogEntries(value) {
     if (!value) return;
-    this.#selectedIcLogEntries = value;
+    this._selectedIcLogEntries = value;
   }
   get timeSelection() {
-    return this.#timeSelection;
+    return this._timeSelection;
   }
   get entries() {
     if (!this.map) return {};
