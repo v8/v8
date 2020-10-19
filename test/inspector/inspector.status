@@ -22,11 +22,12 @@
 }],  # ALWAYS
 
 ##############################################################################
-['arch == x64 and mode == debug', {
-  # Flaky tests: https://crbug.com/v8/10876
-  'debugger/pause-on-oom-extrawide': [PASS, FAIL],
-  'debugger/pause-on-oom-wide': [PASS, FAIL],
-}],  # 'arch == x64 and mode == debug'
+['mode != debug or dcheck_always_on', {
+  # Investigating flaky tests: https://crbug.com/v8/10876. Enable only on pure debug.
+  'debugger/pause-on-oom': [SKIP],
+  'debugger/pause-on-oom-wide': [SKIP],
+  'debugger/pause-on-oom-extrawide': [SKIP],
+}],  # 'mode != debug or dcheck_always_on'
 
 ##############################################################################
 ['system == android', {
