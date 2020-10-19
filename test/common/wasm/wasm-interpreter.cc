@@ -2085,6 +2085,14 @@ class WasmInterpreterInternals {
     return true;
   }
 
+  template <typename T, T (*float_round_op)(T)>
+  T AixFpOpWorkaround(T input) {
+#if V8_OS_AIX
+    return FpOpWorkaround<T>(input, float_round_op(input));
+#else
+    return float_round_op(input);
+#endif
+  }
   bool ExecuteSimdOp(WasmOpcode opcode, Decoder* decoder, InterpreterCode* code,
                      pc_t pc, int* const len) {
     switch (opcode) {
@@ -2251,19 +2259,27 @@ class WasmInterpreterInternals {
       UNOP_CASE(F64x2Abs, f64x2, float2, 2, std::abs(a))
       UNOP_CASE(F64x2Neg, f64x2, float2, 2, -a)
       UNOP_CASE(F64x2Sqrt, f64x2, float2, 2, std::sqrt(a))
-      UNOP_CASE(F64x2Ceil, f64x2, float2, 2, ceil(a))
-      UNOP_CASE(F64x2Floor, f64x2, float2, 2, floor(a))
-      UNOP_CASE(F64x2Trunc, f64x2, float2, 2, trunc(a))
-      UNOP_CASE(F64x2NearestInt, f64x2, float2, 2, nearbyint(a))
+      UNOP_CASE(F64x2Ceil, f64x2, float2, 2,
+                (AixFpOpWorkaround<double, &ceil>(a)))
+      UNOP_CASE(F64x2Floor, f64x2, float2, 2,
+                (AixFpOpWorkaround<double, &floor>(a)))
+      UNOP_CASE(F64x2Trunc, f64x2, float2, 2,
+                (AixFpOpWorkaround<double, &trunc>(a)))
+      UNOP_CASE(F64x2NearestInt, f64x2, float2, 2,
+                (AixFpOpWorkaround<double, &nearbyint>(a)))
       UNOP_CASE(F32x4Abs, f32x4, float4, 4, std::abs(a))
       UNOP_CASE(F32x4Neg, f32x4, float4, 4, -a)
       UNOP_CASE(F32x4Sqrt, f32x4, float4, 4, std::sqrt(a))
       UNOP_CASE(F32x4RecipApprox, f32x4, float4, 4, base::Recip(a))
       UNOP_CASE(F32x4RecipSqrtApprox, f32x4, float4, 4, base::RecipSqrt(a))
-      UNOP_CASE(F32x4Ceil, f32x4, float4, 4, ceilf(a))
-      UNOP_CASE(F32x4Floor, f32x4, float4, 4, floorf(a))
-      UNOP_CASE(F32x4Trunc, f32x4, float4, 4, truncf(a))
-      UNOP_CASE(F32x4NearestInt, f32x4, float4, 4, nearbyintf(a))
+      UNOP_CASE(F32x4Ceil, f32x4, float4, 4,
+                (AixFpOpWorkaround<float, &ceilf>(a)))
+      UNOP_CASE(F32x4Floor, f32x4, float4, 4,
+                (AixFpOpWorkaround<float, &floorf>(a)))
+      UNOP_CASE(F32x4Trunc, f32x4, float4, 4,
+                (AixFpOpWorkaround<float, &truncf>(a)))
+      UNOP_CASE(F32x4NearestInt, f32x4, float4, 4,
+                (AixFpOpWorkaround<float, &nearbyintf>(a)))
       UNOP_CASE(I64x2Neg, i64x2, int2, 2, base::NegateWithWraparound(a))
       UNOP_CASE(I32x4Neg, i32x4, int4, 4, base::NegateWithWraparound(a))
       UNOP_CASE(I32x4Abs, i32x4, int4, 4, std::abs(a))

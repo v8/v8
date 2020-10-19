@@ -414,6 +414,14 @@ bool IsExtreme(float x) {
          (abs_x < kSmallFloatThreshold || abs_x > kLargeFloatThreshold);
 }
 
+#if V8_OS_AIX
+template <typename T>
+bool MightReverseSign(T float_op) {
+  return float_op == static_cast<T>(Negate) ||
+         float_op == static_cast<T>(std::abs);
+}
+#endif
+
 WASM_SIMD_TEST(S128Globals) {
   WasmRunner<int32_t> r(execution_tier, lower_simd);
   // Set up a global to hold input and output vectors.
@@ -587,7 +595,8 @@ void RunF32x4UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
     if (!exact && IsExtreme(x)) continue;
     float expected = expected_op(x);
 #if V8_OS_AIX
-    expected = FpOpWorkaround<float>(x, expected);
+    if (!MightReverseSign<FloatUnOp>(expected_op))
+      expected = FpOpWorkaround<float>(x, expected);
 #endif
     if (!PlatformCanRepresent(expected)) continue;
     r.Call(x);
@@ -1180,7 +1189,8 @@ void RunF64x2UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
     if (!exact && IsExtreme(x)) continue;
     double expected = expected_op(x);
 #if V8_OS_AIX
-    expected = FpOpWorkaround<double>(x, expected);
+    if (!MightReverseSign<DoubleUnOp>(expected_op))
+      expected = FpOpWorkaround<double>(x, expected);
 #endif
     if (!PlatformCanRepresent(expected)) continue;
     r.Call(x);
