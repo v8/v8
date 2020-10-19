@@ -70,16 +70,9 @@ namespace internal {
 namespace {
 
 int ComputeCodeObjectSize(const CodeDesc& desc) {
-  bool has_unwinding_info = desc.unwinding_info != nullptr;
-  DCHECK((has_unwinding_info && desc.unwinding_info_size > 0) ||
-         (!has_unwinding_info && desc.unwinding_info_size == 0));
-  int body_size = desc.instr_size;
-  int unwinding_info_size_field_size = kInt64Size;
-  if (has_unwinding_info) {
-    body_size = RoundUp(body_size, kInt64Size) + desc.unwinding_info_size +
-                unwinding_info_size_field_size;
-  }
-  int object_size = Code::SizeFor(RoundUp(body_size, kObjectAlignment));
+  // TODO(jgruber,v8:11036): Distinguish instruction and metadata areas.
+  int object_size = Code::SizeFor(
+      Code::AlignedBodySizeFor(desc.instr_size + desc.unwinding_info_size));
   DCHECK(IsAligned(static_cast<intptr_t>(object_size), kCodeAlignment));
   return object_size;
 }
@@ -172,12 +165,13 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     }
 
     constexpr bool kIsNotOffHeapTrampoline = false;
-    const bool has_unwinding_info = code_desc_.unwinding_info != nullptr;
 
-    code->set_raw_instruction_size(code_desc_.instr_size);
+    // TODO(jgruber,v8:11036): Distinguish instruction and metadata areas.
+    code->set_raw_instruction_size(code_desc_.instr_size +
+                                   code_desc_.unwinding_info_size);
     code->set_relocation_info(*reloc_info);
-    code->initialize_flags(kind_, has_unwinding_info, is_turbofanned_,
-                           stack_slots_, kIsNotOffHeapTrampoline);
+    code->initialize_flags(kind_, is_turbofanned_, stack_slots_,
+                           kIsNotOffHeapTrampoline);
     code->set_builtin_index(builtin_index_);
     code->set_inlined_bytecode_size(inlined_bytecode_size_);
     code->set_code_data_container(*data_container, kReleaseStore);
@@ -187,6 +181,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     code->set_handler_table_offset(code_desc_.handler_table_offset);
     code->set_constant_pool_offset(code_desc_.constant_pool_offset);
     code->set_code_comments_offset(code_desc_.code_comments_offset);
+    code->set_unwinding_info_offset(code_desc_.unwinding_info_offset());
 
     // Allow self references to created code object by patching the handle to
     // point to the newly allocated Code object.
@@ -2083,14 +2078,14 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
     const bool set_is_off_heap_trampoline = true;
     const int stack_slots =
         code->has_safepoint_info() ? code->stack_slots() : 0;
-    result->initialize_flags(code->kind(), code->has_unwinding_info(),
-                             code->is_turbofanned(), stack_slots,
+    result->initialize_flags(code->kind(), code->is_turbofanned(), stack_slots,
                              set_is_off_heap_trampoline);
     result->set_builtin_index(code->builtin_index());
     result->set_safepoint_table_offset(code->safepoint_table_offset());
     result->set_handler_table_offset(code->handler_table_offset());
     result->set_constant_pool_offset(code->constant_pool_offset());
     result->set_code_comments_offset(code->code_comments_offset());
+    result->set_unwinding_info_offset(code->unwinding_info_offset());
 
     // Replace the newly generated trampoline's RelocInfo ByteArray with the
     // canonical one stored in the roots to avoid duplicating it for every
