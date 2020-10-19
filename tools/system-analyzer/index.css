@@ -124,6 +124,7 @@ button {
   width: 10px;
   height: 10px;
   border: 1px var(--background-color) solid;
+  border-radius: 50%;
 }
 
 .primary {

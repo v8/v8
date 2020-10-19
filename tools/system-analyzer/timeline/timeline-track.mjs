@@ -4,7 +4,7 @@
 
 import {
   defineCustomElement, V8CustomElement,
-  typeToColor, CSSColor
+  kColors, CSSColor
 } from '../helper.mjs';
 import { kChunkWidth, kChunkHeight } from "../log/map.mjs";
 import {
@@ -25,6 +25,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
     _isSelected = false;
     _timeStartOffset;
     _mouseDownTime;
+    _typeToColor;
     constructor() {
       super(templateText);
       this.timeline.addEventListener("scroll",
@@ -44,6 +45,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       this._isSelected = true;
       this._mouseDownTime = this.positionToTime(e.clientX);
     }
+
     handleTimeSelectionMouseMove(e) {
       if (!this._isSelected) return;
       let mouseMoveTime = this.positionToTime(e.clientX);
@@ -60,20 +62,22 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
         Math.min(startTime, endTime),
         Math.max(startTime, endTime)));
     }
+
     handleTimeSelectionMouseUp(e) {
       this._isSelected = false;
       this.dispatchEvent(new SelectTimeEvent(this._timeSelection.start,
         this._timeSelection.end));
     }
+
     isOnLeftHandle(posX) {
       return (Math.abs(this.leftHandlePosX - posX)
         <= TimelineTrack.SELECTION_OFFSET);
     }
+
     isOnRightHandle(posX) {
       return (Math.abs(this.rightHandlePosX - posX)
         <= TimelineTrack.SELECTION_OFFSET);
     }
-
 
     set startTime(value) {
       console.assert(
@@ -82,6 +86,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       this._timeSelection.start = value;
       this.updateSelection();
     }
+
     set endTime(value) {
       console.assert(
         value > this._timeSelection.start,
@@ -104,6 +109,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       let leftHandlePosX = this.leftHandle.getBoundingClientRect().x;
       return leftHandlePosX;
     }
+
     get rightHandlePosX() {
       let rightHandlePosX = this.rightHandle.getBoundingClientRect().x;
       return rightHandlePosX;
@@ -130,9 +136,11 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
     get leftHandle() {
       return this.$('.leftHandle');
     }
+
     get rightHandle() {
       return this.$('.rightHandle');
     }
+
     get selection() {
       return this.$('.selection');
     }
@@ -158,9 +166,18 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
     }
     set data(value) {
       this._timeline = value;
+      this._resetTypeToColorCache();
       this.updateChunks();
       this.updateTimeline();
       this.renderLegend();
+    }
+
+    _resetTypeToColorCache() {
+      this._typeToColor = new Map();
+      let lastIndex = 0;
+      for (const type of this.data.uniqueTypes.keys()) {
+        this._typeToColor.set(type, kColors[lastIndex++]);
+      }
     }
 
     get data() {
@@ -172,25 +189,34 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       this.updateChunks();
       this.updateTimeline();
     }
+
     get nofChunks() {
       return this._nofChunks;
     }
+
     updateChunks() {
       this._chunks = this.data.chunks(this.nofChunks);
     }
+
     get chunks() {
       return this._chunks;
     }
+
     set selectedEntry(value) {
       this._selectedEntry = value;
       if (value.edge) this.redraw();
     }
+
     get selectedEntry() {
       return this._selectedEntry;
     }
 
     set scrollLeft(offset) {
       this.timeline.scrollLeft = offset;
+    }
+
+    typeToColor(type) {
+      return this._typeToColor.get(type);
     }
 
     renderLegend() {
@@ -203,7 +229,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
         row.entries = entries;
         row.classList.add('clickable');
         row.addEventListener('dblclick', e => this.handleEntryTypeDblClick(e));
-        let color = typeToColor(type);
+        let color = this.typeToColor(type);
         if (color !== null) {
           let div = this.div(["colorbox"]);
           div.style.backgroundColor = color;
@@ -221,6 +247,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       });
       // Add Total row.
       let row = this.tr();
+      row.appendChild(this.td(""));
       row.appendChild(this.td("All"));
       row.appendChild(this.td(this.data.all.length));
       row.appendChild(this.td("100%"));
@@ -274,14 +301,14 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       let type, count;
       if (true) {
         chunk.getBreakdown(map => map.type).forEach(([type, count]) => {
-          ctx.fillStyle = typeToColor(type);
+          ctx.fillStyle = this.typeToColor(type);
           let height = count / total * kHeight;
           ctx.fillRect(0, y, kWidth, y + height);
           y += height;
         });
       } else {
         chunk.items.forEach(map => {
-          ctx.fillStyle = typeToColor(map.type);
+          ctx.fillStyle = this.typeToColor(map.type);
           let y = chunk.yOffset(map);
           ctx.fillRect(0, y, kWidth, y + 1);
         });
@@ -380,7 +407,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
     }
 
     setEdgeStyle(edge, ctx) {
-      let color = typeToColor(edge.type);
+      let color = this.typeToColor(edge.type);
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
     }
@@ -478,7 +505,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
         ctx.lineTo(centerX + offsetX, centerY - labelOffset);
         ctx.stroke();
         ctx.textAlign = 'left';
-        ctx.fillStyle = typeToColor(edge.type);
+        ctx.fillStyle = this.typeToColor(edge.type);
         ctx.fillText(
           edge.toString(), centerX + offsetX + 2, centerY - labelOffset);
       }

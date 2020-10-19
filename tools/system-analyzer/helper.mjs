@@ -104,6 +104,18 @@ class CSSColor {
 
 }
 
+const kColors = [
+  CSSColor.green,
+  CSSColor.violet,
+  CSSColor.orange,
+  CSSColor.yellow,
+  CSSColor.primaryColor,
+  CSSColor.red,
+  CSSColor.blue,
+  CSSColor.yellow,
+  CSSColor.secondaryColor,
+];
+
 function typeToColor(type) {
   switch (type) {
     case 'new':
@@ -135,8 +147,6 @@ function typeToColor(type) {
   }
   return CSSColor.secondaryColor;
 }
-
-
 
 function div(classes) {
   let node = document.createElement('div');
@@ -191,5 +201,5 @@ class V8CustomElement extends HTMLElement {
 
 export {
   defineCustomElement, V8CustomElement, removeAllChildren,
-  $, div, typeToColor, CSSColor
+  $, div, kColors, typeToColor, CSSColor
 };

@@ -4,6 +4,7 @@
 
 import { MapLogEntry, Edge } from "./log/map.mjs";
 import { IcLogEntry } from "./log/ic.mjs";
+import { DeoptLogEntry } from "./log/deopt.mjs";
 import { Timeline } from "./timeline.mjs";
 import { LogReader, parseString, parseVarArgs } from "../logreader.mjs";
 import { Profile } from "../profile.mjs";
@@ -14,6 +15,7 @@ export class Processor extends LogReader {
   _profile = new Profile();
   _mapTimeline = new Timeline();
   _icTimeline = new Timeline();
+  _deoptTimeline = new Timeline();
   _formatPCRegexp = /(.*):[0-9]+:[0-9]+$/;
   MAJOR_VERSION = 7;
   MINOR_VERSION = 6;
@@ -31,6 +33,13 @@ export class Processor extends LogReader {
           parseVarArgs
         ],
         processor: this.processCodeCreation
+      },
+      'code-deopt': {
+        parsers: [
+          parseInt, parseInt, parseInt, parseInt, parseInt, parseString,
+          parseString, parseString
+        ],
+        processor: this.processCodeDeopt
       },
       'v8-version': {
         parsers: [
@@ -180,6 +189,10 @@ export class Processor extends LogReader {
     }
   }
 
+  processCodeDeopt(timestamp, codeSize, instructionStart, inliningId,
+                   scriptOffset, deoptKind, deoptLocation, deoptReason) {
+    this._deoptTimeline.push(new DeoptLogEntry(deoptKind, timestamp));
+  }
 
   processV8Version(majorVersion, minorVersion) {
     if (
@@ -254,10 +267,12 @@ export class Processor extends LogReader {
   }
 
   processFileName(filePositionLine) {
-    if (!(/\s/.test(filePositionLine))) return;
+    if (!filePositionLine.includes(' ')) return;
+    // Try to handle urls with file positions: https://foo.bar.com/:17:330"
     filePositionLine = filePositionLine.split(' ');
-    let file = filePositionLine[1].split(':')[0];
-    return file;
+    let parts = filePositionLine[1].split(':');
+    if (parts[0].length <= 5) return parts[0] + ':' + parts[1]
+    return parts[1];
   }
 
   processMap(type, time, from, to, pc, line, column, reason, name) {
@@ -327,6 +342,10 @@ export class Processor extends LogReader {
 
   get mapTimeline() {
     return this._mapTimeline;
+  }
+
+  get deoptTimeline() {
+    return this._deoptTimeline;
   }
 
   get scripts() {

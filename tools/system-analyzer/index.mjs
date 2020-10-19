@@ -22,7 +22,7 @@ class App {
   _view;
   _navigation;
   constructor(fileReaderId, mapPanelId, timelinePanelId,
-    icPanelId, mapTrackId, icTrackId, sourcePanelId) {
+    icPanelId, mapTrackId, icTrackId, deoptTrackId, sourcePanelId) {
     this._view = {
       logFileReader: $(fileReaderId),
       icPanel: $(icPanelId),
@@ -30,6 +30,7 @@ class App {
       timelinePanel: $(timelinePanelId),
       mapTrack: $(mapTrackId),
       icTrack: $(icTrackId),
+      deoptTrack: $(deoptTrackId),
       sourcePanel: $(sourcePanelId)
     };
     this._state = new State();
@@ -92,23 +93,13 @@ class App {
     }
   }
   selectTimeRange(start, end) {
-<<<<<<< HEAD
     this._state.timeSelection.start = start;
     this._state.timeSelection.end = end;
     this._state.icTimeline.selectTimeRange(start, end);
     this._state.mapTimeline.selectTimeRange(start, end);
-    this._view.mapPanel.selectedMapLogEntrys =
+    this._view.mapPanel.selectedMapLogEntries =
       this._state.mapTimeline.selection;
-    this._view.icPanel.selectedLogEntrys = this._state.icTimeline.selection;
-=======
-    this.#state.timeSelection.start = start;
-    this.#state.timeSelection.end = end;
-    this.#state.icTimeline.selectTimeRange(start, end);
-    this.#state.mapTimeline.selectTimeRange(start, end);
-    this.#view.mapPanel.selectedMapLogEntries =
-      this.#state.mapTimeline.selection;
-    this.#view.icPanel.selectedLogEntries = this.#state.icTimeline.selection;
->>>>>>> af96ca3c188229645eb0675363ae34180de206b3
+    this._view.icPanel.selectedLogEntries = this._state.icTimeline.selection;
   }
   selectMapLogEntry(entry) {
     this._state.map = entry;
@@ -116,13 +107,8 @@ class App {
     this._view.mapPanel.map = entry;
   }
   selectICLogEntry(entry) {
-<<<<<<< HEAD
     this._state.ic = entry;
-    this._view.icPanel.selectedLogEntrys = [entry];
-=======
-    this.#state.ic = entry;
-    this.#view.icPanel.selectedLogEntries = [entry];
->>>>>>> af96ca3c188229645eb0675363ae34180de206b3
+    this._view.icPanel.selectedLogEntries = [entry];
   }
   selectSourcePosition(sourcePositions) {
     if (!sourcePositions.script) return;
@@ -155,7 +141,7 @@ class App {
     const processor = this.handleLoadTextProcessor(fileData.chunk);
     const mapTimeline = processor.mapTimeline;
     const icTimeline = processor.icTimeline;
-    //TODO(zcankara) Make sure only one instance of src event map ic id match
+    const deoptTimeline = processor.deoptTimeline;
     // Load map log events timeline.
     this._state.mapTimeline = mapTimeline;
     // Transitions must be set before timeline for stats panel.
@@ -167,6 +153,7 @@ class App {
     this._state.icTimeline = icTimeline;
     this._view.icPanel.timeline = icTimeline;
     this._view.icTrack.data = icTimeline;
+    this._view.deoptTrack.data = deoptTimeline;
     this._view.sourcePanel.data = processor.scripts
     this.fileLoaded = true;
   }
