@@ -97,6 +97,14 @@ inline Address* StackFrame::ResolveReturnAddressLocation(Address* pc_address) {
 inline TypedFrame::TypedFrame(StackFrameIteratorBase* iterator)
     : CommonFrame(iterator) {}
 
+inline CommonFrameWithJSLinkage::CommonFrameWithJSLinkage(
+    StackFrameIteratorBase* iterator)
+    : CommonFrame(iterator) {}
+
+inline TypedFrameWithJSLinkage::TypedFrameWithJSLinkage(
+    StackFrameIteratorBase* iterator)
+    : CommonFrameWithJSLinkage(iterator) {}
+
 inline NativeFrame::NativeFrame(StackFrameIteratorBase* iterator)
     : TypedFrame(iterator) {}
 
@@ -175,16 +183,16 @@ inline bool CommonFrame::IsArgumentsAdaptorFrame(Address fp) {
   return frame_type == StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR);
 }
 
-inline bool CommonFrame::IsConstructFrame(Address fp) {
+inline bool CommonFrameWithJSLinkage::IsConstructFrame(Address fp) {
   intptr_t frame_type =
       base::Memory<intptr_t>(fp + TypedFrameConstants::kFrameTypeOffset);
   return frame_type == StackFrame::TypeToMarker(StackFrame::CONSTRUCT);
 }
 
 inline JavaScriptFrame::JavaScriptFrame(StackFrameIteratorBase* iterator)
-    : CommonFrame(iterator) {}
+    : CommonFrameWithJSLinkage(iterator) {}
 
-Address JavaScriptFrame::GetParameterSlot(int index) const {
+Address CommonFrameWithJSLinkage::GetParameterSlot(int index) const {
   DCHECK_LE(-1, index);
 #ifdef V8_NO_ARGUMENTS_ADAPTOR
   DCHECK_LT(index,
@@ -196,6 +204,12 @@ Address JavaScriptFrame::GetParameterSlot(int index) const {
   int parameter_offset = (index + 1) * kSystemPointerSize;
   return caller_sp() + parameter_offset;
 }
+
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+inline int CommonFrameWithJSLinkage::GetActualArgumentCount() const {
+  return 0;
+}
+#endif
 
 inline void JavaScriptFrame::set_receiver(Object value) {
   base::Memory<Address>(GetParameterSlot(-1)) = value.ptr();
@@ -226,7 +240,7 @@ inline ArgumentsAdaptorFrame::ArgumentsAdaptorFrame(
 }
 
 inline BuiltinFrame::BuiltinFrame(StackFrameIteratorBase* iterator)
-    : TypedFrame(iterator) {}
+    : TypedFrameWithJSLinkage(iterator) {}
 
 inline WasmFrame::WasmFrame(StackFrameIteratorBase* iterator)
     : TypedFrame(iterator) {}
@@ -264,7 +278,7 @@ inline BuiltinContinuationFrame::BuiltinContinuationFrame(
 
 inline JavaScriptBuiltinContinuationFrame::JavaScriptBuiltinContinuationFrame(
     StackFrameIteratorBase* iterator)
-    : JavaScriptFrame(iterator) {}
+    : TypedFrameWithJSLinkage(iterator) {}
 
 inline JavaScriptBuiltinContinuationWithCatchFrame::
     JavaScriptBuiltinContinuationWithCatchFrame(
