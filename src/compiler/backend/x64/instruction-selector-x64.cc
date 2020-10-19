@@ -420,10 +420,10 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
       opcode = kX64S128Load32x2U;
       break;
     case LoadTransformation::kS128Load32Zero:
-      opcode = kX64S128Load32Zero;
+      opcode = kX64Movss;
       break;
     case LoadTransformation::kS128Load64Zero:
-      opcode = kX64S128Load64Zero;
+      opcode = kX64Movsd;
       break;
     default:
       UNREACHABLE();
