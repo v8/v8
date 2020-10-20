@@ -464,10 +464,4 @@ in_category(
         properties = {"set_gclient_var": "check_v8_header_includes"},
         use_goma = GOMA.NO,
     ),
-    main_multibranch_builder(
-        name = "V8 Linux64 gcc - debug",
-        dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"set_gclient_var": "check_v8_header_includes"},
-        use_goma = GOMA.NO,
-    ),
 )

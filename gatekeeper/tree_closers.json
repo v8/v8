@@ -13,6 +13,7 @@
           "V8 Linux64 - debug - perfetto",
           "V8 Linux64 - Fuzzilli",
           "V8 Linux64 - fyi",
+          "V8 Linux64 gcc - debug",
           "V8 Linux64 - gcov coverage",
           "V8 Linux64 TSAN - concurrent marking",
           "V8 Linux64 TSAN - isolates",

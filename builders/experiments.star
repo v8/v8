@@ -51,6 +51,17 @@ experiment_builder(
 )
 
 experiment_builder(
+    name = "V8 Linux64 gcc - debug",
+    bucket = "ci",
+    triggered_by = ["v8-trigger"],
+    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+    properties = {"set_gclient_var": "check_v8_header_includes"},
+    use_goma = GOMA.NO,
+    to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
+    notify_on_step_failure = [".* nci", ".* nci_as_midtier", ".* stress_snapshot", ".* experimental_regexp"],
+)
+
+experiment_builder(
     name = "V8 Linux64 - Fuzzilli",
     bucket = "ci",
     triggered_by = ["v8-trigger"],
