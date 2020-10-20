@@ -3961,6 +3961,20 @@ Node* WasmGraphBuilder::LoadTransformBigEndian(
       result = graph()->NewNode(mcgraph()->machine()->I64x2Splat(), result);
       break;
     }
+    case LoadTransformation::kS128Load32Zero: {
+      result = graph()->NewNode(mcgraph()->machine()->S128Zero());
+      result = graph()->NewNode(
+          mcgraph()->machine()->I32x4ReplaceLane(0), result,
+          LoadMem(type, memtype, index, offset, alignment, position));
+      break;
+    }
+    case LoadTransformation::kS128Load64Zero: {
+      result = graph()->NewNode(mcgraph()->machine()->S128Zero());
+      result = graph()->NewNode(
+          mcgraph()->machine()->I64x2ReplaceLane(0), result,
+          LoadMem(type, memtype, index, offset, alignment, position));
+      break;
+    }
     default:
       UNREACHABLE();
   }
