@@ -174,7 +174,6 @@ INT_ACCESSORS(Code, raw_instruction_size, kInstructionSizeOffset)
 INT_ACCESSORS(Code, safepoint_table_offset, kSafepointTableOffsetOffset)
 INT_ACCESSORS(Code, handler_table_offset, kHandlerTableOffsetOffset)
 INT_ACCESSORS(Code, code_comments_offset, kCodeCommentsOffsetOffset)
-INT32_ACCESSORS(Code, unwinding_info_offset, kUnwindingInfoOffsetOffset)
 #define CODE_ACCESSORS(name, type, offset)           \
   ACCESSORS_CHECKED2(Code, name, type, offset, true, \
                      !ObjectInYoungGeneration(value))
@@ -199,18 +198,14 @@ void Code::WipeOutHeader() {
 }
 
 void Code::clear_padding() {
-  // Clear the padding between the header and `raw_instruction_start`.
   if (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
     memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
            FIELD_SIZE(kOptionalPaddingOffset));
   }
-
-  // Clear the padding after `raw_instruction_end`.
-  // TODO(jgruber,v8:11036): Distinguish instruction and metadata areas.
-  DCHECK_EQ(unwinding_info_offset() + unwinding_info_size(), InstructionSize());
-  size_t trailing_padding_size = body_size() - raw_instruction_size();
-  memset(reinterpret_cast<void*>(raw_instruction_end()), 0,
-         trailing_padding_size);
+  Address data_end =
+      has_unwinding_info() ? unwinding_info_end() : raw_instruction_end();
+  memset(reinterpret_cast<void*>(data_end), 0,
+         CodeSize() - (data_end - address()));
 }
 
 ByteArray Code::SourcePositionTable() const {
@@ -252,10 +247,37 @@ Address Code::InstructionEnd() const {
   return raw_instruction_end();
 }
 
+int Code::GetUnwindingInfoSizeOffset() const {
+  DCHECK(has_unwinding_info());
+  return RoundUp(kHeaderSize + raw_instruction_size(), kInt64Size);
+}
+
+int Code::unwinding_info_size() const {
+  DCHECK(has_unwinding_info());
+  return static_cast<int>(ReadField<uint64_t>(GetUnwindingInfoSizeOffset()));
+}
+
+void Code::set_unwinding_info_size(int value) {
+  DCHECK(has_unwinding_info());
+  WriteField<uint64_t>(GetUnwindingInfoSizeOffset(), value);
+}
+
+Address Code::unwinding_info_start() const {
+  DCHECK(has_unwinding_info());
+  return FIELD_ADDR(*this, GetUnwindingInfoSizeOffset()) + kInt64Size;
+}
+
+Address Code::unwinding_info_end() const {
+  DCHECK(has_unwinding_info());
+  return unwinding_info_start() + unwinding_info_size();
+}
+
 int Code::body_size() const {
-  // TODO(jgruber,v8:11036): Distinguish instruction and metadata areas.
-  DCHECK_EQ(unwinding_info_offset() + unwinding_info_size(), InstructionSize());
-  return AlignedBodySizeFor(raw_instruction_size());
+  int unpadded_body_size =
+      has_unwinding_info()
+          ? static_cast<int>(unwinding_info_end() - raw_instruction_start())
+          : raw_instruction_size();
+  return RoundUp(unpadded_body_size, kObjectAlignment);
 }
 
 int Code::SizeIncludingMetadata() const {
@@ -297,10 +319,6 @@ bool Code::contains(Address inner_pointer) {
 
 int Code::ExecutableSize() const {
   // Check that the assumptions about the layout of the code object holds.
-  // TODO(jgruber,v8:11036): It's unclear what this function should return.
-  // Currently, it counts the header, instructions, and metadata tables as
-  // 'executable'. See also ExecutableInstructionSize which counts only
-  // instructions.
   DCHECK_EQ(static_cast<int>(raw_instruction_start() - address()),
             Code::kHeaderSize);
   return raw_instruction_size() + Code::kHeaderSize;
@@ -321,11 +339,13 @@ CodeKind Code::kind() const {
   return KindField::decode(ReadField<uint32_t>(kFlagsOffset));
 }
 
-void Code::initialize_flags(CodeKind kind, bool is_turbofanned, int stack_slots,
+void Code::initialize_flags(CodeKind kind, bool has_unwinding_info,
+                            bool is_turbofanned, int stack_slots,
                             bool is_off_heap_trampoline) {
   CHECK(0 <= stack_slots && stack_slots < StackSlotsField::kMax);
   DCHECK(!CodeKindIsInterpretedJSFunction(kind));
-  uint32_t flags = KindField::encode(kind) |
+  uint32_t flags = HasUnwindingInfoField::encode(has_unwinding_info) |
+                   KindField::encode(kind) |
                    IsTurbofannedField::encode(is_turbofanned) |
                    StackSlotsField::encode(stack_slots) |
                    IsOffHeapTrampoline::encode(is_off_heap_trampoline);
@@ -356,6 +376,10 @@ inline bool Code::checks_optimization_marker() const {
 inline bool Code::has_tagged_params() const {
   return kind() != CodeKind::JS_TO_WASM_FUNCTION &&
          kind() != CodeKind::C_WASM_ENTRY && kind() != CodeKind::WASM_FUNCTION;
+}
+
+inline bool Code::has_unwinding_info() const {
+  return HasUnwindingInfoField::decode(ReadField<uint32_t>(kFlagsOffset));
 }
 
 inline bool Code::is_turbofanned() const {
@@ -537,19 +561,6 @@ Address Code::constant_pool() const {
 Address Code::code_comments() const {
   return InstructionStart() + code_comments_offset();
 }
-
-Address Code::unwinding_info_start() const {
-  return InstructionStart() + unwinding_info_offset();
-}
-
-Address Code::unwinding_info_end() const { return InstructionEnd(); }
-
-int Code::unwinding_info_size() const {
-  DCHECK_GE(unwinding_info_end(), unwinding_info_start());
-  return static_cast<int>(unwinding_info_end() - unwinding_info_start());
-}
-
-bool Code::has_unwinding_info() const { return unwinding_info_size() > 0; }
 
 Code Code::GetCodeFromTargetAddress(Address address) {
   {

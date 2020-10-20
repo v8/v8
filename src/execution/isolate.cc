@@ -390,8 +390,9 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
     // trampolines. Other data fields must remain the same.
     STATIC_ASSERT(Code::kInstructionSizeOffset == Code::kDataStart);
     STATIC_ASSERT(Code::kFlagsOffset == Code::kInstructionSizeOffsetEnd + 1);
-    STATIC_ASSERT(Code::kBuiltinIndexOffset == Code::kFlagsOffsetEnd + 1);
-    static constexpr int kStartOffset = Code::kBuiltinIndexOffset;
+    STATIC_ASSERT(Code::kSafepointTableOffsetOffset ==
+                  Code::kFlagsOffsetEnd + 1);
+    static constexpr int kStartOffset = Code::kSafepointTableOffsetOffset;
 
     for (int j = kStartOffset; j < Code::kUnalignedHeaderSize; j++) {
       hash = base::hash_combine(hash, size_t{code_ptr[j]});

@@ -62,8 +62,8 @@ int Code::constant_pool_size() const {
 bool Code::has_constant_pool() const { return constant_pool_size() > 0; }
 
 int Code::code_comments_size() const {
-  DCHECK_GE(unwinding_info_offset() - code_comments_offset(), 0);
-  return unwinding_info_offset() - code_comments_offset();
+  DCHECK_GE(InstructionSize() - code_comments_offset(), 0);
+  return InstructionSize() - code_comments_offset();
 }
 
 bool Code::has_code_comments() const { return code_comments_size() > 0; }
@@ -88,19 +88,22 @@ void Code::Relocate(intptr_t delta) {
 }
 
 void Code::FlushICache() const {
-  // TODO(jgruber,v8:11036): This should likely flush only actual instructions,
-  // not metadata.
   FlushInstructionCache(raw_instruction_start(), raw_instruction_size());
 }
 
 void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
   // Copy code.
-  // TODO(jgruber,v8:11036): Distinguish instruction and metadata areas.
   CopyBytes(reinterpret_cast<byte*>(raw_instruction_start()), desc.buffer,
             static_cast<size_t>(desc.instr_size));
-  // TODO(jgruber,v8:11036): Merge with the above.
-  CopyBytes(reinterpret_cast<byte*>(raw_instruction_start() + desc.instr_size),
-            desc.unwinding_info, static_cast<size_t>(desc.unwinding_info_size));
+
+  // Copy unwinding info, if any.
+  if (desc.unwinding_info) {
+    DCHECK_GT(desc.unwinding_info_size, 0);
+    set_unwinding_info_size(desc.unwinding_info_size);
+    CopyBytes(reinterpret_cast<byte*>(unwinding_info_start()),
+              desc.unwinding_info,
+              static_cast<size_t>(desc.unwinding_info_size));
+  }
 
   // Copy reloc info.
   CopyRelocInfoToByteArray(unchecked_relocation_info(), desc);
