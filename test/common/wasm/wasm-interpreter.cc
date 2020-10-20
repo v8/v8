@@ -2169,10 +2169,10 @@ class WasmInterpreterInternals {
     stype res;                                                \
     for (size_t i = 0; i < count; ++i) {                      \
       auto a = s1.val[LANE(i, s1)];                           \
-      auto b = s2.val[LANE(i, s1)];                           \
+      auto b = s2.val[LANE(i, s2)];                           \
       auto result = expr;                                     \
       possible_nondeterminism_ |= has_nondeterminism(result); \
-      res.val[LANE(i, s1)] = expr;                            \
+      res.val[LANE(i, res)] = expr;                           \
     }                                                         \
     Push(WasmValue(Simd128(res)));                            \
     return true;                                              \
@@ -2248,10 +2248,10 @@ class WasmInterpreterInternals {
     stype s = v.to_s128().to_##name();                        \
     stype res;                                                \
     for (size_t i = 0; i < count; ++i) {                      \
-      auto a = s.val[i];                                      \
+      auto a = s.val[LANE(i, s)];                             \
       auto result = expr;                                     \
       possible_nondeterminism_ |= has_nondeterminism(result); \
-      res.val[i] = result;                                    \
+      res.val[LANE(i, res)] = result;                         \
     }                                                         \
     Push(WasmValue(Simd128(res)));                            \
     return true;                                              \
@@ -2320,11 +2320,11 @@ class WasmInterpreterInternals {
     stype s2 = v2.to_s128().to_##name();                      \
     out_stype res;                                            \
     for (size_t i = 0; i < count; ++i) {                      \
-      auto a = s1.val[i];                                     \
-      auto b = s2.val[i];                                     \
+      auto a = s1.val[LANE(i, s1)];                           \
+      auto b = s2.val[LANE(i, s2)];                           \
       auto result = expr;                                     \
       possible_nondeterminism_ |= has_nondeterminism(result); \
-      res.val[i] = result ? -1 : 0;                           \
+      res.val[LANE(i, res)] = result ? -1 : 0;                \
     }                                                         \
     Push(WasmValue(Simd128(res)));                            \
     return true;                                              \
@@ -2419,8 +2419,8 @@ class WasmInterpreterInternals {
     stype s = v.to_s128().to_##name();           \
     stype res;                                   \
     for (size_t i = 0; i < count; ++i) {         \
-      auto a = s.val[i];                         \
-      res.val[i] = expr;                         \
+      auto a = s.val[LANE(i, s)];                \
+      res.val[LANE(i, res)] = expr;              \
     }                                            \
     Push(WasmValue(Simd128(res)));               \
     return true;                                 \
@@ -2562,7 +2562,9 @@ class WasmInterpreterInternals {
         int4 v1 = Pop().to_s128().to_i32x4();
         int4 res;
         for (size_t i = 0; i < 4; ++i) {
-          res.val[i] = v2.val[i] ^ ((v1.val[i] ^ v2.val[i]) & bool_val.val[i]);
+          res.val[LANE(i, res)] = v2.val[LANE(i, v2)] ^
+                                  ((v1.val[LANE(i, v1)] ^ v2.val[LANE(i, v2)]) &
+                                   bool_val.val[LANE(i, bool_val)]);
         }
         Push(WasmValue(Simd128(res)));
         return true;
@@ -2577,10 +2579,10 @@ class WasmInterpreterInternals {
     for (size_t i = 0; i < count / 2; ++i) {                                \
       auto result1 = s1.val[LANE(i * 2, s1)] + s1.val[LANE(i * 2 + 1, s1)]; \
       possible_nondeterminism_ |= has_nondeterminism(result1);              \
-      res.val[LANE(i, s1)] = result1;                                       \
-      auto result2 = s2.val[LANE(i * 2, s1)] + s2.val[LANE(i * 2 + 1, s1)]; \
+      res.val[LANE(i, res)] = result1;                                      \
+      auto result2 = s2.val[LANE(i * 2, s2)] + s2.val[LANE(i * 2 + 1, s2)]; \
       possible_nondeterminism_ |= has_nondeterminism(result2);              \
-      res.val[LANE(i + count / 2, s1)] = result2;                           \
+      res.val[LANE(i + count / 2, res)] = result2;                          \
     }                                                                       \
     Push(WasmValue(Simd128(res)));                                          \
     return true;                                                            \
@@ -2618,8 +2620,8 @@ class WasmInterpreterInternals {
         int16 v1 = Pop().to_s128().to_i8x16();
         int16 res;
         for (size_t i = 0; i < kSimd128Size; ++i) {
-          int lane = v2.val[LANE(i, v1)];
-          res.val[LANE(i, v1)] =
+          int lane = v2.val[LANE(i, v2)];
+          res.val[LANE(i, res)] =
               lane < kSimd128Size && lane >= 0 ? v1.val[LANE(lane, v1)] : 0;
         }
         Push(WasmValue(Simd128(res)));
@@ -2634,9 +2636,9 @@ class WasmInterpreterInternals {
         int16 res;
         for (size_t i = 0; i < kSimd128Size; ++i) {
           int lane = imm.value[i];
-          res.val[LANE(i, v1)] = lane < kSimd128Size
-                                     ? v1.val[LANE(lane, v1)]
-                                     : v2.val[LANE(lane - kSimd128Size, v1)];
+          res.val[LANE(i, res)] = lane < kSimd128Size
+                                      ? v1.val[LANE(lane, v1)]
+                                      : v2.val[LANE(lane - kSimd128Size, v2)];
         }
         Push(WasmValue(Simd128(res)));
         return true;
@@ -2645,7 +2647,8 @@ class WasmInterpreterInternals {
       case kExprV16x8AnyTrue:
       case kExprV8x16AnyTrue: {
         int4 s = Pop().to_s128().to_i32x4();
-        bool res = s.val[0] | s.val[1] | s.val[2] | s.val[3];
+        bool res = s.val[LANE(0, s)] | s.val[LANE(1, s)] | s.val[LANE(2, s)] |
+                   s.val[LANE(3, s)];
         Push(WasmValue((res)));
         return true;
       }
@@ -2654,7 +2657,7 @@ class WasmInterpreterInternals {
     stype s = Pop().to_s128().to_##name();                \
     bool res = true;                                      \
     for (size_t i = 0; i < count; ++i) {                  \
-      res = res & static_cast<bool>(s.val[i]);            \
+      res = res & static_cast<bool>(s.val[LANE(i, s)]);   \
     }                                                     \
     Push(WasmValue(res));                                 \
     return true;                                          \
@@ -2663,17 +2666,18 @@ class WasmInterpreterInternals {
         REDUCTION_CASE(V16x8AllTrue, i16x8, int8, 8, &)
         REDUCTION_CASE(V8x16AllTrue, i8x16, int16, 16, &)
 #undef REDUCTION_CASE
-#define QFM_CASE(op, name, stype, count, operation)         \
-  case kExpr##op: {                                         \
-    stype c = Pop().to_s128().to_##name();                  \
-    stype b = Pop().to_s128().to_##name();                  \
-    stype a = Pop().to_s128().to_##name();                  \
-    stype res;                                              \
-    for (size_t i = 0; i < count; i++) {                    \
-      res.val[i] = a.val[i] operation(b.val[i] * c.val[i]); \
-    }                                                       \
-    Push(WasmValue(Simd128(res)));                          \
-    return true;                                            \
+#define QFM_CASE(op, name, stype, count, operation)                           \
+  case kExpr##op: {                                                           \
+    stype c = Pop().to_s128().to_##name();                                    \
+    stype b = Pop().to_s128().to_##name();                                    \
+    stype a = Pop().to_s128().to_##name();                                    \
+    stype res;                                                                \
+    for (size_t i = 0; i < count; i++) {                                      \
+      res.val[LANE(i, res)] =                                                 \
+          a.val[LANE(i, a)] operation(b.val[LANE(i, b)] * c.val[LANE(i, c)]); \
+    }                                                                         \
+    Push(WasmValue(Simd128(res)));                                            \
+    return true;                                                              \
   }
         QFM_CASE(F32x4Qfma, f32x4, float4, 4, +)
         QFM_CASE(F32x4Qfms, f32x4, float4, 4, -)
