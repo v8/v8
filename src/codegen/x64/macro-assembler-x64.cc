@@ -1589,13 +1589,6 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   call(code_object, rmode);
 }
 
-Operand TurboAssembler::EntryFromBuiltinIndexAsOperand(
-    Builtins::Name builtin_index) {
-  DCHECK(root_array_available());
-  return Operand(kRootRegister,
-                 IsolateData::builtin_entry_slot_offset(builtin_index));
-}
-
 Operand TurboAssembler::EntryFromBuiltinIndexAsOperand(Register builtin_index) {
   if (SmiValuesAre32Bits()) {
     // The builtin_index register contains the builtin index as a Smi.
@@ -2832,18 +2825,13 @@ void TurboAssembler::ResetSpeculationPoisonRegister() {
   Set(kSpeculationPoisonRegister, -1);
 }
 
-void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,
-                                           Label* exit, DeoptimizeKind kind,
-                                           Label*) {
-  // Note: Assembler::call is used here on purpose to guarantee fixed-size
-  // exits even on Atom CPUs; see TurboAssembler::Call for Atom-specific
-  // performance tuning which emits a different instruction sequence.
-  call(EntryFromBuiltinIndexAsOperand(target));
-  DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
-            (kind == DeoptimizeKind::kLazy)
-                ? Deoptimizer::kLazyDeoptExitSize
-                : Deoptimizer::kNonLazyDeoptExitSize);
+void TurboAssembler::CallForDeoptimization(Address target, int deopt_id,
+                                           Label* exit, DeoptimizeKind kind) {
   USE(exit, kind);
+  NoRootArrayScope no_root_array(this);
+  // Save the deopt id in r13 (we don't need the roots array from now on).
+  movq(r13, Immediate(deopt_id));
+  call(target, RelocInfo::RUNTIME_ENTRY);
 }
 
 void TurboAssembler::Trap() { int3(); }

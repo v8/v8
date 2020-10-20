@@ -471,11 +471,8 @@ enum class DeoptimizeKind : uint8_t {
   kSoft,
   kBailout,
   kLazy,
+  kLastDeoptimizeKind = kLazy
 };
-constexpr DeoptimizeKind kFirstDeoptimizeKind = DeoptimizeKind::kEager;
-constexpr DeoptimizeKind kLastDeoptimizeKind = DeoptimizeKind::kLazy;
-STATIC_ASSERT(static_cast<int>(kFirstDeoptimizeKind) == 0);
-constexpr int kDeoptimizeKindCount = static_cast<int>(kLastDeoptimizeKind) + 1;
 inline size_t hash_value(DeoptimizeKind kind) {
   return static_cast<size_t>(kind);
 }
@@ -490,6 +487,7 @@ inline std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
     case DeoptimizeKind::kBailout:
       return os << "Bailout";
   }
+  UNREACHABLE();
 }
 
 // Indicates whether the lookup is related to sloppy-mode block-scoped

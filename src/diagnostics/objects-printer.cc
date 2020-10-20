@@ -1296,8 +1296,9 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
   os << "\n - kind: " << shared().kind();
   os << "\n - context: " << Brief(context());
   os << "\n - code: " << Brief(code());
-  if (code().kind() == CodeKind::FOR_TESTING) {
-    os << "\n - FOR_TESTING";
+  if (code().kind() == CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING) {
+    os << "\n - FunctionTester function";
+
   } else if (ActiveTierIsIgnition()) {
     os << "\n - interpreted";
     if (shared().HasBytecodeArray()) {

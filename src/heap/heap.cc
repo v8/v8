@@ -4984,6 +4984,33 @@ void Heap::DisableInlineAllocation() {
   }
 }
 
+HeapObject Heap::EnsureImmovableCode(HeapObject heap_object, int object_size) {
+  // Code objects which should stay at a fixed address are allocated either
+  // in the first page of code space, in large object space, or (during
+  // snapshot creation) the containing page is marked as immovable.
+  DCHECK(!heap_object.is_null());
+#ifndef V8_ENABLE_THIRD_PARTY_HEAP
+  DCHECK(code_space_->Contains(heap_object));
+#endif
+  DCHECK_GE(object_size, 0);
+  if (!Heap::IsImmovable(heap_object)) {
+    if (isolate()->serializer_enabled() ||
+        code_space_->first_page()->Contains(heap_object.address())) {
+      BasicMemoryChunk::FromHeapObject(heap_object)->MarkNeverEvacuate();
+    } else {
+      // Discard the first code allocation, which was on a page where it could
+      // be moved.
+      CreateFillerObjectAt(heap_object.address(), object_size,
+                           ClearRecordedSlots::kNo);
+      heap_object = AllocateRawCodeInLargeObjectSpace(object_size);
+      UnprotectAndRegisterMemoryChunk(heap_object);
+      ZapCodeObject(heap_object.address(), object_size);
+      OnAllocationEvent(heap_object, object_size);
+    }
+  }
+  return heap_object;
+}
+
 HeapObject Heap::AllocateRawWithLightRetrySlowPath(
     int size, AllocationType allocation, AllocationOrigin origin,
     AllocationAlignment alignment) {
@@ -5026,6 +5053,40 @@ HeapObject Heap::AllocateRawWithRetryOrFailSlowPath(
   {
     AlwaysAllocateScope scope(this);
     alloc = AllocateRaw(size, allocation, origin, alignment);
+  }
+  if (alloc.To(&result)) {
+    DCHECK(result != ReadOnlyRoots(this).exception());
+    return result;
+  }
+  // TODO(1181417): Fix this.
+  FatalProcessOutOfMemory("CALL_AND_RETRY_LAST");
+  return HeapObject();
+}
+
+// TODO(jkummerow): Refactor this. AllocateRaw should take an "immovability"
+// parameter and just do what's necessary.
+HeapObject Heap::AllocateRawCodeInLargeObjectSpace(int size) {
+  AllocationResult alloc = code_lo_space()->AllocateRaw(size);
+  HeapObject result;
+  if (alloc.To(&result)) {
+    DCHECK(result != ReadOnlyRoots(this).exception());
+    return result;
+  }
+  // Two GCs before panicking.
+  for (int i = 0; i < 2; i++) {
+    CollectGarbage(alloc.RetrySpace(),
+                   GarbageCollectionReason::kAllocationFailure);
+    alloc = code_lo_space()->AllocateRaw(size);
+    if (alloc.To(&result)) {
+      DCHECK(result != ReadOnlyRoots(this).exception());
+      return result;
+    }
+  }
+  isolate()->counters()->gc_last_resort_from_handles()->Increment();
+  CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
+  {
+    AlwaysAllocateScope scope(this);
+    alloc = code_lo_space()->AllocateRaw(size);
   }
   if (alloc.To(&result)) {
     DCHECK(result != ReadOnlyRoots(this).exception());

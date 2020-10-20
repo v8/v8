@@ -162,10 +162,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   DeoptimizeKind deopt_kind = exit->kind();
 
   DeoptimizeReason deoptimization_reason = exit->reason();
-  Builtins::Name deopt_entry =
+  Address deopt_entry =
       Deoptimizer::GetDeoptimizationEntry(tasm()->isolate(), deopt_kind);
-  Label* jump_deoptimization_entry_label =
-      &jump_deoptimization_entry_labels_[static_cast<int>(deopt_kind)];
   if (info()->source_positions()) {
     tasm()->RecordDeoptReason(deoptimization_reason, exit->pos(),
                               deoptimization_id);
@@ -179,7 +177,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   }
 
   tasm()->CallForDeoptimization(deopt_entry, deoptimization_id, exit->label(),
-                                deopt_kind, jump_deoptimization_entry_label);
+                                deopt_kind);
   exit->set_emitted();
   return kSuccess;
 }
@@ -326,7 +324,7 @@ void CodeGenerator::AssembleCode() {
 
   // For some targets, we must make sure that constant and veneer pools are
   // emitted before emitting the deoptimization exits.
-  PrepareForDeoptimizationExits(&deoptimization_exits_);
+  PrepareForDeoptimizationExits(static_cast<int>(deoptimization_exits_.size()));
 
   if (Deoptimizer::kSupportsFixedDeoptExitSizes) {
     deopt_exit_start_offset_ = tasm()->pc_offset();
@@ -340,7 +338,7 @@ void CodeGenerator::AssembleCode() {
   // Deoptimizer::kSupportsFixedDeoptExitSizes is true, lazy deopts
   // might need additional instructions.
   auto cmp = [](const DeoptimizationExit* a, const DeoptimizationExit* b) {
-    static_assert(DeoptimizeKind::kLazy == kLastDeoptimizeKind,
+    static_assert(DeoptimizeKind::kLazy == DeoptimizeKind::kLastDeoptimizeKind,
                   "lazy deopts are expected to be emitted last");
     if (a->kind() != b->kind()) {
       return a->kind() < b->kind();

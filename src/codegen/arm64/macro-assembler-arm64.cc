@@ -1878,13 +1878,6 @@ void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
   }
 }
 
-void TurboAssembler::LoadEntryFromBuiltinIndex(Builtins::Name builtin_index,
-                                               Register destination) {
-  Ldr(destination,
-      MemOperand(kRootRegister,
-                 IsolateData::builtin_entry_slot_offset(builtin_index)));
-}
-
 void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
   LoadEntryFromBuiltinIndex(builtin_index);
   Call(builtin_index);
@@ -2010,11 +2003,15 @@ bool TurboAssembler::IsNearCallOffset(int64_t offset) {
   return is_int26(offset);
 }
 
-void TurboAssembler::CallForDeoptimization(
-    Builtins::Name target, int deopt_id, Label* exit, DeoptimizeKind kind,
-    Label* jump_deoptimization_entry_label) {
+void TurboAssembler::CallForDeoptimization(Address target, int deopt_id,
+                                           Label* exit, DeoptimizeKind kind) {
   BlockPoolsScope scope(this);
-  bl(jump_deoptimization_entry_label);
+  int64_t offset = static_cast<int64_t>(target) -
+                   static_cast<int64_t>(options().code_range_start);
+  DCHECK_EQ(offset % kInstrSize, 0);
+  offset = offset / static_cast<int>(kInstrSize);
+  DCHECK(IsNearCallOffset(offset));
+  near_call(static_cast<int>(offset), RelocInfo::RUNTIME_ENTRY);
   DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
             (kind == DeoptimizeKind::kLazy)
                 ? Deoptimizer::kLazyDeoptExitSize

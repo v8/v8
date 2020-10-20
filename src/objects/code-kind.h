@@ -11,20 +11,22 @@
 namespace v8 {
 namespace internal {
 
-#define CODE_KIND_LIST(V)       \
-  V(TURBOFAN)                   \
-  V(BYTECODE_HANDLER)           \
-  V(FOR_TESTING)                \
-  V(BUILTIN)                    \
-  V(REGEXP)                     \
-  V(WASM_FUNCTION)              \
-  V(WASM_TO_CAPI_FUNCTION)      \
-  V(WASM_TO_JS_FUNCTION)        \
-  V(JS_TO_WASM_FUNCTION)        \
-  V(JS_TO_JS_FUNCTION)          \
-  V(C_WASM_ENTRY)               \
-  V(INTERPRETED_FUNCTION)       \
-  V(NATIVE_CONTEXT_INDEPENDENT) \
+// TODO(jgruber): Convert deopt entries to builtins and rename
+// DEOPT_ENTRIES_OR_FOR_TESTING to FOR_TESTING.
+#define CODE_KIND_LIST(V)         \
+  V(TURBOFAN)                     \
+  V(BYTECODE_HANDLER)             \
+  V(DEOPT_ENTRIES_OR_FOR_TESTING) \
+  V(BUILTIN)                      \
+  V(REGEXP)                       \
+  V(WASM_FUNCTION)                \
+  V(WASM_TO_CAPI_FUNCTION)        \
+  V(WASM_TO_JS_FUNCTION)          \
+  V(JS_TO_WASM_FUNCTION)          \
+  V(JS_TO_JS_FUNCTION)            \
+  V(C_WASM_ENTRY)                 \
+  V(INTERPRETED_FUNCTION)         \
+  V(NATIVE_CONTEXT_INDEPENDENT)   \
   V(TURBOPROP)
 
 enum class CodeKind {

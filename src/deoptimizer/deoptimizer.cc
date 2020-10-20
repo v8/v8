@@ -26,7 +26,6 @@
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/smi.h"
-#include "src/snapshot/embedded/embedded-data.h"
 #include "src/tracing/trace-event.h"
 #include "torque-generated/exported-class-definitions.h"
 
@@ -174,6 +173,25 @@ class FrameWriter {
   unsigned top_offset_;
 };
 
+DeoptimizerData::DeoptimizerData(Heap* heap) : heap_(heap), current_(nullptr) {
+  Code* start = &deopt_entry_code_[0];
+  Code* end = &deopt_entry_code_[DeoptimizerData::kLastDeoptimizeKind + 1];
+  strong_roots_entry_ =
+      heap_->RegisterStrongRoots(FullObjectSlot(start), FullObjectSlot(end));
+}
+
+DeoptimizerData::~DeoptimizerData() {
+  heap_->UnregisterStrongRoots(strong_roots_entry_);
+}
+
+Code DeoptimizerData::deopt_entry_code(DeoptimizeKind kind) {
+  return deopt_entry_code_[static_cast<int>(kind)];
+}
+
+void DeoptimizerData::set_deopt_entry_code(DeoptimizeKind kind, Code code) {
+  deopt_entry_code_[static_cast<int>(kind)] = code;
+}
+
 Code Deoptimizer::FindDeoptimizingCode(Address addr) {
   if (function_.IsHeapObject()) {
     // Search all deoptimizing code in the native context of the function.
@@ -190,7 +208,7 @@ Code Deoptimizer::FindDeoptimizingCode(Address addr) {
   return Code();
 }
 
-// We rely on this function not causing a GC. It is called from generated code
+// We rely on this function not causing a GC.  It is called from generated code
 // without having a real stack frame in place.
 Deoptimizer* Deoptimizer::New(Address raw_function, DeoptimizeKind kind,
                               unsigned bailout_id, Address from,
@@ -198,13 +216,16 @@ Deoptimizer* Deoptimizer::New(Address raw_function, DeoptimizeKind kind,
   JSFunction function = JSFunction::cast(Object(raw_function));
   Deoptimizer* deoptimizer = new Deoptimizer(isolate, function, kind,
                                              bailout_id, from, fp_to_sp_delta);
-  isolate->set_current_deoptimizer(deoptimizer);
+  CHECK_NULL(isolate->deoptimizer_data()->current_);
+  isolate->deoptimizer_data()->current_ = deoptimizer;
   return deoptimizer;
 }
 
 Deoptimizer* Deoptimizer::Grab(Isolate* isolate) {
-  Deoptimizer* result = isolate->GetAndClearCurrentDeoptimizer();
+  Deoptimizer* result = isolate->deoptimizer_data()->current_;
+  CHECK_NOT_NULL(result);
   result->DeleteFrameDescriptions();
+  isolate->deoptimizer_data()->current_ = nullptr;
   return result;
 }
 
@@ -471,6 +492,8 @@ const char* Deoptimizer::MessageFor(DeoptimizeKind kind, bool reuse_code) {
     case DeoptimizeKind::kBailout:
       return "bailout";
   }
+  FATAL("Unsupported deopt kind");
+  return nullptr;
 }
 
 namespace {
@@ -513,9 +536,6 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
     deoptimizing_throw_ = true;
   }
 
-  DCHECK(bailout_id_ == kFixedExitSizeMarker ||
-         bailout_id_ < kMaxNumberOfEntries);
-
   DCHECK_NE(from, kNullAddress);
   compiled_code_ = FindOptimizedCode();
   DCHECK(!compiled_code_.is_null());
@@ -544,7 +564,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
   input_ = new (size) FrameDescription(size, parameter_count);
 
   if (kSupportsFixedDeoptExitSizes) {
-    DCHECK_EQ(bailout_id_, kFixedExitSizeMarker);
+    DCHECK_EQ(bailout_id_, kMaxUInt32);
     // Calculate bailout id from return address.
     DCHECK_GT(kNonLazyDeoptExitSize, 0);
     DCHECK_GT(kLazyDeoptExitSize, 0);
@@ -556,7 +576,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
     Address lazy_deopt_start =
         deopt_start + non_lazy_deopt_count * kNonLazyDeoptExitSize;
     // The deoptimization exits are sorted so that lazy deopt exits appear last.
-    static_assert(DeoptimizeKind::kLazy == kLastDeoptimizeKind,
+    static_assert(DeoptimizeKind::kLazy == DeoptimizeKind::kLastDeoptimizeKind,
                   "lazy deopts are expected to be emitted last");
     // from_ is the value of the link register after the call to the
     // deoptimizer, so for the last lazy deopt, from_ points to the first
@@ -615,44 +635,42 @@ void Deoptimizer::DeleteFrameDescriptions() {
 #endif  // DEBUG
 }
 
-Builtins::Name Deoptimizer::GetDeoptimizationEntry(Isolate* isolate,
-                                                   DeoptimizeKind kind) {
-  switch (kind) {
-    case DeoptimizeKind::kEager:
-      return Builtins::kDeoptimizationEntry_Eager;
-    case DeoptimizeKind::kSoft:
-      return Builtins::kDeoptimizationEntry_Soft;
-    case DeoptimizeKind::kBailout:
-      return Builtins::kDeoptimizationEntry_Bailout;
-    case DeoptimizeKind::kLazy:
-      return Builtins::kDeoptimizationEntry_Lazy;
-  }
+Address Deoptimizer::GetDeoptimizationEntry(Isolate* isolate,
+                                            DeoptimizeKind kind) {
+  DeoptimizerData* data = isolate->deoptimizer_data();
+  CHECK_LE(kind, DeoptimizerData::kLastDeoptimizeKind);
+  CHECK(!data->deopt_entry_code(kind).is_null());
+  return data->deopt_entry_code(kind).raw_instruction_start();
 }
 
 bool Deoptimizer::IsDeoptimizationEntry(Isolate* isolate, Address addr,
-                                        DeoptimizeKind* type_out) {
-  Code maybe_code = InstructionStream::TryLookupCode(isolate, addr);
-  if (maybe_code.is_null()) return false;
+                                        DeoptimizeKind type) {
+  DeoptimizerData* data = isolate->deoptimizer_data();
+  CHECK_LE(type, DeoptimizerData::kLastDeoptimizeKind);
+  Code code = data->deopt_entry_code(type);
+  if (code.is_null()) return false;
+  return addr == code.raw_instruction_start();
+}
 
-  Code code = maybe_code;
-  switch (code.builtin_index()) {
-    case Builtins::kDeoptimizationEntry_Eager:
-      *type_out = DeoptimizeKind::kEager;
-      return true;
-    case Builtins::kDeoptimizationEntry_Soft:
-      *type_out = DeoptimizeKind::kSoft;
-      return true;
-    case Builtins::kDeoptimizationEntry_Bailout:
-      *type_out = DeoptimizeKind::kBailout;
-      return true;
-    case Builtins::kDeoptimizationEntry_Lazy:
-      *type_out = DeoptimizeKind::kLazy;
-      return true;
-    default:
-      return false;
+bool Deoptimizer::IsDeoptimizationEntry(Isolate* isolate, Address addr,
+                                        DeoptimizeKind* type) {
+  if (IsDeoptimizationEntry(isolate, addr, DeoptimizeKind::kEager)) {
+    *type = DeoptimizeKind::kEager;
+    return true;
   }
-
-  UNREACHABLE();
+  if (IsDeoptimizationEntry(isolate, addr, DeoptimizeKind::kSoft)) {
+    *type = DeoptimizeKind::kSoft;
+    return true;
+  }
+  if (IsDeoptimizationEntry(isolate, addr, DeoptimizeKind::kLazy)) {
+    *type = DeoptimizeKind::kLazy;
+    return true;
+  }
+  if (IsDeoptimizationEntry(isolate, addr, DeoptimizeKind::kBailout)) {
+    *type = DeoptimizeKind::kBailout;
+    return true;
+  }
+  return false;
 }
 
 int Deoptimizer::GetDeoptimizedCodeCount(Isolate* isolate) {
@@ -800,8 +818,8 @@ void Deoptimizer::TraceDeoptMarked(Isolate* isolate) {
 // without having a real stack frame in place.
 void Deoptimizer::DoComputeOutputFrames() {
   // When we call this function, the return address of the previous frame has
-  // been removed from the stack by the DeoptimizationEntry builtin, so the
-  // stack is not iterable by the SafeStackFrameIterator.
+  // been removed from the stack by GenerateDeoptimizationEntries() so the stack
+  // is not iterable by the SafeStackFrameIterator.
 #if V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK
   DCHECK_EQ(0, isolate()->isolate_data()->stack_is_iterable());
 #endif
@@ -863,7 +881,7 @@ void Deoptimizer::DoComputeOutputFrames() {
   // Do the input frame to output frame(s) translation.
   size_t count = translated_state_.frames().size();
   // If we are supposed to go to the catch handler, find the catching frame
-  // for the catch and make sure we only deoptimize up to that frame.
+  // for the catch and make sure we only deoptimize upto that frame.
   if (deoptimizing_throw_) {
     size_t catch_handler_frame_index = count;
     for (size_t i = count; i-- > 0;) {
@@ -1194,7 +1212,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
           : builtins->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
   if (is_topmost) {
     // Only the pc of the topmost frame needs to be signed since it is
-    // authenticated at the end of the DeoptimizationEntry builtin.
+    // authenticated at the end of GenerateDeoptimizationEntries.
     const intptr_t top_most_pc = PointerAuthentication::SignAndCheckPC(
         static_cast<intptr_t>(dispatch_builtin.InstructionStart()),
         frame_writer.frame()->GetTop());
@@ -1521,7 +1539,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   intptr_t pc_value = static_cast<intptr_t>(start + pc_offset);
   if (is_topmost) {
     // Only the pc of the topmost frame needs to be signed since it is
-    // authenticated at the end of the DeoptimizationEntry builtin.
+    // authenticated at the end of GenerateDeoptimizationEntries.
     output_frame->SetPc(PointerAuthentication::SignAndCheckPC(
         pc_value, frame_writer.frame()->GetTop()));
   } else {
@@ -1922,7 +1940,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
           mode, frame_info.frame_has_result_stack_slot()));
   if (is_topmost) {
     // Only the pc of the topmost frame needs to be signed since it is
-    // authenticated at the end of the DeoptimizationEntry builtin.
+    // authenticated at the end of GenerateDeoptimizationEntries.
     const intptr_t top_most_pc = PointerAuthentication::SignAndCheckPC(
         static_cast<intptr_t>(continue_to_builtin.InstructionStart()),
         frame_writer.frame()->GetTop());
@@ -2017,6 +2035,40 @@ unsigned Deoptimizer::ComputeIncomingArgumentSize(SharedFunctionInfo shared) {
   int parameter_slots = InternalFormalParameterCountWithReceiver(shared);
   if (ShouldPadArguments(parameter_slots)) parameter_slots++;
   return parameter_slots * kSystemPointerSize;
+}
+
+void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
+                                                   DeoptimizeKind kind) {
+  CHECK(kind == DeoptimizeKind::kEager || kind == DeoptimizeKind::kSoft ||
+        kind == DeoptimizeKind::kLazy || kind == DeoptimizeKind::kBailout);
+  DeoptimizerData* data = isolate->deoptimizer_data();
+  if (!data->deopt_entry_code(kind).is_null()) return;
+
+  MacroAssembler masm(isolate, CodeObjectRequired::kYes,
+                      NewAssemblerBuffer(16 * KB));
+  masm.set_emit_debug_code(false);
+  GenerateDeoptimizationEntries(&masm, masm.isolate(), kind);
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+  DCHECK(!RelocInfo::RequiresRelocationAfterCodegen(desc));
+
+  // Allocate the code as immovable since the entry addresses will be used
+  // directly and there is no support for relocating them.
+  Handle<Code> code = Factory::CodeBuilder(
+                          isolate, desc, CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING)
+                          .set_immovable()
+                          .Build();
+  CHECK(isolate->heap()->IsImmovable(*code));
+
+  CHECK(data->deopt_entry_code(kind).is_null());
+  data->set_deopt_entry_code(kind, *code);
+}
+
+void Deoptimizer::EnsureCodeForDeoptimizationEntries(Isolate* isolate) {
+  EnsureCodeForDeoptimizationEntry(isolate, DeoptimizeKind::kEager);
+  EnsureCodeForDeoptimizationEntry(isolate, DeoptimizeKind::kLazy);
+  EnsureCodeForDeoptimizationEntry(isolate, DeoptimizeKind::kSoft);
+  EnsureCodeForDeoptimizationEntry(isolate, DeoptimizeKind::kBailout);
 }
 
 FrameDescription::FrameDescription(uint32_t frame_size, int parameter_count)

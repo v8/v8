@@ -1099,7 +1099,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchDeoptimize: {
       DeoptimizationExit* exit =
           BuildTranslation(instr, -1, 0, OutputFrameStateCombine::Ignore());
-      __ jmp(exit->label());
+      CodeGenResult result = AssembleDeoptimizerCall(exit);
+      if (result != kSuccess) return result;
+      unwinding_info_writer_.MarkBlockWillExit();
       break;
     }
     case kArchRet:
@@ -4577,8 +4579,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
 
 void CodeGenerator::FinishCode() { tasm()->PatchConstPool(); }
 
-void CodeGenerator::PrepareForDeoptimizationExits(
-    ZoneDeque<DeoptimizationExit*>* exits) {}
+void CodeGenerator::PrepareForDeoptimizationExits(int deopt_count) {}
 
 void CodeGenerator::IncrementStackAccessCounter(
     InstructionOperand* source, InstructionOperand* destination) {
