@@ -3247,16 +3247,17 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
             SizeOfCodeGeneratedSince(&start_call));
 }
 
-void TurboAssembler::CallForDeoptimization(Address target, int deopt_id,
-                                           Label* exit, DeoptimizeKind kind) {
+void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,
+                                           Label* exit, DeoptimizeKind kind,
+                                           Label*) {
+  LoadP(ip, MemOperand(kRootRegister,
+                       IsolateData::builtin_entry_slot_offset(target)));
+  Call(ip);
+  DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
+            (kind == DeoptimizeKind::kLazy)
+                ? Deoptimizer::kLazyDeoptExitSize
+                : Deoptimizer::kNonLazyDeoptExitSize);
   USE(exit, kind);
-  NoRootArrayScope no_root_array(this);
-
-  // Save the deopt id in r29 (we don't need the roots array from now on).
-  DCHECK_LE(deopt_id, 0xFFFF);
-
-  mov(r29, Operand(deopt_id));
-  Call(target, RelocInfo::RUNTIME_ENTRY);
 }
 
 void TurboAssembler::ZeroExtByte(Register dst, Register src) {

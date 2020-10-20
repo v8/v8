@@ -178,18 +178,13 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
       isolate()->builtins()->IsBuiltinHandle(code, &builtin_index);
 
   if (options().inline_offheap_trampolines && target_is_builtin) {
-    Label skip;
-    if (cond != al) {
-      b(NegateCondition(cond), &skip, Label::kNear);
-    }
     // Inline the trampoline.
     RecordCommentForOffHeapTrampoline(builtin_index);
     CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
     EmbeddedData d = EmbeddedData::FromBlob();
     Address entry = d.InstructionStartOfBuiltin(builtin_index);
     mov(ip, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
-    b(ip);
-    bind(&skip);
+    b(cond, ip);
     return;
   }
   jump(code, RelocInfo::RELATIVE_CODE_TARGET, cond);
@@ -243,7 +238,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   bool target_is_builtin =
       isolate()->builtins()->IsBuiltinHandle(code, &builtin_index);
 
-  if (options().inline_offheap_trampolines && target_is_builtin) {
+  if (target_is_builtin && options().inline_offheap_trampolines) {
     // Inline the trampoline.
     RecordCommentForOffHeapTrampoline(builtin_index);
     CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
@@ -4536,15 +4531,17 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   bind(&return_label);
 }
 
-void TurboAssembler::CallForDeoptimization(Address target, int deopt_id,
-                                           Label* exit, DeoptimizeKind kind) {
+void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,
+                                           Label* exit, DeoptimizeKind kind,
+                                           Label*) {
+  LoadP(ip, MemOperand(kRootRegister,
+                       IsolateData::builtin_entry_slot_offset(target)));
+  Call(ip);
+  DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
+            (kind == DeoptimizeKind::kLazy)
+                ? Deoptimizer::kLazyDeoptExitSize
+                : Deoptimizer::kNonLazyDeoptExitSize);
   USE(exit, kind);
-  NoRootArrayScope no_root_array(this);
-
-  // Save the deopt id in r10 (we don't need the roots array from now on).
-  DCHECK_LE(deopt_id, 0xFFFF);
-  lghi(r10, Operand(deopt_id));
-  Call(target, RelocInfo::RUNTIME_ENTRY);
 }
 
 void TurboAssembler::Trap() { stop(); }

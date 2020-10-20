@@ -441,8 +441,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void JumpCodeObject(Register code_object) override;
 
   void CallBuiltinByIndex(Register builtin_index) override;
-  void CallForDeoptimization(Address target, int deopt_id, Label* exit,
-                             DeoptimizeKind kind);
+  void CallForDeoptimization(Builtins::Name target, int deopt_id, Label* exit,
+                             DeoptimizeKind kind,
+                             Label* jump_deoptimization_entry_label);
 
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the sp register.

@@ -153,8 +153,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Ret() { b(r14); }
   void Ret(Condition cond) { b(cond, r14); }
 
-  void CallForDeoptimization(Address target, int deopt_id, Label* exit,
-                             DeoptimizeKind kind);
+  void CallForDeoptimization(Builtins::Name target, int deopt_id, Label* exit,
+                             DeoptimizeKind kind,
+                             Label* jump_deoptimization_entry_label);
 
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the sp register.
