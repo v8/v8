@@ -2873,8 +2873,8 @@ class WasmInterpreterInternals {
     for (size_t dst = 0; start < end; ++start, ++dst) {
       // Need static_cast for unsigned narrow types.
       res.val[LANE(dst, res)] =
-          MultiplyLong<wide>(static_cast<narrow>(s1.val[LANE(start, s)]),
-                             static_cast<narrow>(s2.val[LANE(start, s)]));
+          MultiplyLong<wide>(static_cast<narrow>(s1.val[LANE(start, s1)]),
+                             static_cast<narrow>(s2.val[LANE(start, s2)]));
     }
     Push(WasmValue(Simd128(res)));
     return true;
