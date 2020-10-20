@@ -48,10 +48,10 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   LocalHeap* heap() { return &heap_; }
 
   inline Address isolate_root() const;
-  inline ReadOnlyHeap* read_only_heap();
-  inline Object root(RootIndex index);
+  inline ReadOnlyHeap* read_only_heap() const;
+  inline Object root(RootIndex index) const;
 
-  StringTable* string_table() { return isolate_->string_table(); }
+  StringTable* string_table() const { return isolate_->string_table(); }
 
   v8::internal::LocalFactory* factory() {
     // Upcast to the privately inherited base-class using c-style casts to avoid
@@ -75,10 +75,11 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   int GetNextUniqueSharedFunctionInfoId();
 #endif  // V8_SFI_HAS_UNIQUE_ID
 
-  bool is_collecting_type_profile();
+  bool is_collecting_type_profile() const;
 
-  LocalLogger* logger() { return logger_.get(); }
-  ThreadId thread_id() { return thread_id_; }
+  LocalLogger* logger() const { return logger_.get(); }
+  ThreadId thread_id() const { return thread_id_; }
+  Address stack_limit() const { return stack_limit_; }
 
  private:
   friend class v8::internal::LocalFactory;
@@ -87,10 +88,11 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
 
   // TODO(leszeks): Extract out the fields of the Isolate we want and store
   // those instead of the whole thing.
-  Isolate* isolate_;
+  Isolate* const isolate_;
 
   std::unique_ptr<LocalLogger> logger_;
-  ThreadId thread_id_;
+  ThreadId const thread_id_;
+  Address const stack_limit_;
 };
 
 }  // namespace internal

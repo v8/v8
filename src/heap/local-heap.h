@@ -126,7 +126,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
       AllocationOrigin origin = AllocationOrigin::kRuntime,
       AllocationAlignment alignment = kWordAligned);
 
-  bool is_main_thread() { return is_main_thread_; }
+  bool is_main_thread() const { return is_main_thread_; }
 
  private:
   enum class ThreadState {

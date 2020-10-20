@@ -85,6 +85,7 @@ class HandleScopeImplementer;
 class HeapObjectToIndexHashMap;
 class HeapProfiler;
 class InnerPointerToCodeCache;
+class LocalIsolate;
 class Logger;
 class MaterializedObjectStore;
 class Microtask;
@@ -2066,6 +2067,7 @@ class StackLimitCheck {
     StackGuard* stack_guard = isolate_->stack_guard();
     return GetCurrentStackPosition() < stack_guard->real_climit();
   }
+  static bool HasOverflowed(LocalIsolate* local_isolate);
 
   // Use this to check for interrupt request in C++ code.
   bool InterruptRequested() {
