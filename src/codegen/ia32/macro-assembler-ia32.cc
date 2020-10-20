@@ -1115,68 +1115,12 @@ void TurboAssembler::PrepareForTailCall(
 void MacroAssembler::InvokePrologue(Register expected_parameter_count,
                                     Register actual_parameter_count,
                                     Label* done, InvokeFlag flag) {
+  DCHECK_EQ(actual_parameter_count, eax);
+
   if (expected_parameter_count != actual_parameter_count) {
-    DCHECK_EQ(actual_parameter_count, eax);
     DCHECK_EQ(expected_parameter_count, ecx);
+
     Label regular_invoke;
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
-    // Skip if adaptor sentinel.
-    cmp(expected_parameter_count, Immediate(kDontAdaptArgumentsSentinel));
-    j(equal, &regular_invoke, Label::kNear);
-
-    // Skip if overapplication or if expected number of arguments.
-    sub(expected_parameter_count, actual_parameter_count);
-    j(less_equal, &regular_invoke, Label::kNear);
-
-    // We need to preserve edx, edi, esi and ebx.
-    movd(xmm0, edx);
-    movd(xmm1, edi);
-    movd(xmm2, esi);
-    movd(xmm3, ebx);
-
-    Register scratch = esi;
-
-    // Underapplication. Move the arguments already in the stack, including the
-    // receiver and the return address.
-    {
-      Label copy, check;
-      Register src = edx, dest = esp, num = edi, current = ebx;
-      mov(src, esp);
-      lea(scratch,
-          Operand(expected_parameter_count, times_system_pointer_size, 0));
-      AllocateStackSpace(scratch);
-      // Extra words are the receiver and the return address (if a jump).
-      int extra_words = flag == CALL_FUNCTION ? 1 : 2;
-      lea(num, Operand(eax, extra_words));  // Number of words to copy.
-      Set(current, 0);
-      // Fall-through to the loop body because there are non-zero words to copy.
-      bind(&copy);
-      mov(scratch, Operand(src, current, times_system_pointer_size, 0));
-      mov(Operand(dest, current, times_system_pointer_size, 0), scratch);
-      inc(current);
-      bind(&check);
-      cmp(current, num);
-      j(less, &copy);
-      lea(edx, Operand(esp, num, times_system_pointer_size, 0));
-    }
-
-    // Fill remaining expected arguments with undefined values.
-    movd(ebx, xmm3);  // Restore root.
-    LoadRoot(scratch, RootIndex::kUndefinedValue);
-    {
-      Label loop;
-      bind(&loop);
-      dec(expected_parameter_count);
-      mov(Operand(edx, expected_parameter_count, times_system_pointer_size, 0),
-          scratch);
-      j(greater, &loop, Label::kNear);
-    }
-
-    // Restore remaining registers.
-    movd(esi, xmm2);
-    movd(edi, xmm1);
-    movd(edx, xmm0);
-#else
     cmp(expected_parameter_count, actual_parameter_count);
     j(equal, &regular_invoke);
     Handle<Code> adaptor = BUILTIN_CODE(isolate(), ArgumentsAdaptorTrampoline);
@@ -1186,7 +1130,6 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     } else {
       Jump(adaptor, RelocInfo::CODE_TARGET);
     }
-#endif
     bind(&regular_invoke);
   }
 }
@@ -1241,7 +1184,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
     push(eax);
     cmpb(ExternalReferenceAsOperand(debug_hook_active, eax), Immediate(0));
     pop(eax);
-    j(not_equal, &debug_hook);
+    j(not_equal, &debug_hook, Label::kNear);
   }
   bind(&continue_after_hook);
 
@@ -1269,7 +1212,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   bind(&debug_hook);
   CallDebugOnFunctionCall(function, new_target, expected_parameter_count,
                           actual_parameter_count);
-  jmp(&continue_after_hook);
+  jmp(&continue_after_hook, Label::kNear);
 
   bind(&done);
 }

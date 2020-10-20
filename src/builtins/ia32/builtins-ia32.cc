@@ -136,11 +136,6 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     __ push(eax);
     __ SmiUntag(eax);
 
-    // TODO(victorgomes): When the arguments adaptor is completely removed, we
-    // should get the formal parameter count and copy the arguments in its
-    // correct position (including any undefined), instead of delaying this to
-    // InvokeFunction.
-
     // Set up pointer to first argument (skip receiver).
     __ lea(esi, Operand(ebp, StandardFrameConstants::kCallerSPOffset +
                                  kSystemPointerSize));
@@ -279,11 +274,6 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     __ int3();
 
     __ bind(&enough_stack_space);
-
-    // TODO(victorgomes): When the arguments adaptor is completely removed, we
-    // should get the formal parameter count and copy the arguments in its
-    // correct position (including any undefined), instead of delaying this to
-    // InvokeFunction.
 
     // Copy arguments to the expression stack.
     __ PushArray(edi, eax, ecx);
@@ -749,38 +739,22 @@ static void ReplaceClosureCodeWithOptimizedCode(MacroAssembler* masm,
 
 static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
                                   Register scratch2) {
-  Register params_size = scratch1;
-  // Get the size of the formal parameters + receiver (in bytes).
-  __ mov(params_size,
+  Register args_count = scratch1;
+  Register return_pc = scratch2;
+
+  // Get the arguments + receiver count.
+  __ mov(args_count,
          Operand(ebp, InterpreterFrameConstants::kBytecodeArrayFromFp));
-  __ mov(params_size,
-         FieldOperand(params_size, BytecodeArray::kParameterSizeOffset));
-
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
-  Register actual_params_size = scratch2;
-  // Compute the size of the actual parameters + receiver (in bytes).
-  __ mov(actual_params_size, Operand(ebp, StandardFrameConstants::kArgCOffset));
-  __ lea(actual_params_size,
-         Operand(actual_params_size, times_system_pointer_size,
-                 kSystemPointerSize));
-
-  // If actual is bigger than formal, then we should use it to free up the stack
-  // arguments.
-  Label corrected_args_count;
-  __ cmp(params_size, actual_params_size);
-  __ j(greater_equal, &corrected_args_count, Label::kNear);
-  __ mov(params_size, actual_params_size);
-  __ bind(&corrected_args_count);
-#endif
+  __ mov(args_count,
+         FieldOperand(args_count, BytecodeArray::kParameterSizeOffset));
 
   // Leave the frame (also dropping the register file).
   __ leave();
 
   // Drop receiver + arguments.
-  Register return_pc = scratch2;
-  __ PopReturnAddressTo(return_pc);
-  __ add(esp, params_size);
-  __ PushReturnAddressFrom(return_pc);
+  __ pop(return_pc);
+  __ add(esp, args_count);
+  __ push(return_pc);
 }
 
 // Tail-call |function_id| if |smi_entry| == |marker|
@@ -805,8 +779,8 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   DCHECK(!AreAliased(edx, edi, optimized_code_entry));
 
   Register closure = edi;
-  __ movd(xmm0, eax);
-  __ movd(xmm1, edx);
+
+  __ push(edx);
 
   // Check if the optimized code is marked for deopt. If it is, bailout to a
   // given label.
@@ -823,15 +797,13 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
                                       eax);
   static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
   __ LoadCodeObjectEntry(ecx, optimized_code_entry);
-  __ movd(edx, xmm1);
-  __ movd(eax, xmm0);
+  __ pop(edx);
   __ jmp(ecx);
 
   // Optimized code slot contains deoptimized code, evict it and re-enter
   // the closure's code.
   __ bind(&found_deoptimized_code);
-  __ movd(edx, xmm1);
-  __ movd(eax, xmm0);
+  __ pop(edx);
   GenerateTailCallToReturnedCode(masm, Runtime::kEvictOptimizedCodeSlot);
 }
 
@@ -2079,12 +2051,6 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
 
   __ movd(xmm1, edx);  // Preserve new.target (in case of [[Construct]]).
 
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
-  // TODO(victorgomes): Remove this copy when all the arguments adaptor frame
-  // code is erased.
-  __ mov(scratch, ebp);
-  __ mov(edx, Operand(ebp, StandardFrameConstants::kArgCOffset));
-#else
   // Check if we have an arguments adaptor frame below the function frame.
   Label arguments_adaptor, arguments_done;
   __ mov(scratch, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
@@ -2107,7 +2073,6 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     __ SmiUntag(edx);
   }
   __ bind(&arguments_done);
-#endif
 
   Label stack_done, stack_overflow;
   __ sub(edx, ecx);
