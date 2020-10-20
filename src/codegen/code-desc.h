@@ -16,11 +16,11 @@ namespace internal {
 // the buffer and grows backward. Inlined metadata sections may exist
 // at the end of the instructions.
 //
-//  │<--------------- buffer_size ----------------------------------->│
-//  │<---------------- instr_size ------------->│      │<-reloc_size->│
-//  ├───────────────────────────────────────────┼──────┼──────────────┤
-//  │ instructions │         data               │ free │  reloc info  │
-//  ├───────────────────────────────────────────┴──────┴──────────────┘
+//  |<--------------- buffer_size ----------------------------------->|
+//  |<---------------- instr_size ------------->|      |<-reloc_size->|
+//  |--------------+----------------------------+------+--------------|
+//  | instructions |         data               | free |  reloc info  |
+//  +--------------+----------------------------+------+--------------+
 
 // TODO(jgruber): Add a single chokepoint for specifying the instruction area
 // layout (i.e. the order of inlined metadata fields).
@@ -73,6 +73,11 @@ class CodeDesc {
 
   byte* unwinding_info = nullptr;
   int unwinding_info_size = 0;
+  int unwinding_info_offset() const {
+    // TODO(jgruber,v8:11036): Remove this function once unwinding_info setup
+    // is more consistent with other metadata tables.
+    return code_comments_offset + code_comments_size;
+  }
 
   Assembler* origin = nullptr;
 };

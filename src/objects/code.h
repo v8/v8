@@ -168,6 +168,20 @@ class Code : public HeapObject {
   // reserved in the code prologue.
   inline int stack_slots() const;
 
+  // The body of all Code objects has the following layout.
+  //
+  //  +--------------------------+  <-- raw_instruction_start()
+  //  |       instructions       |
+  //  |           ...            |
+  //  +--------------------------+
+  //  |     embedded metadata    |  <-- safepoint_table_offset()
+  //  |           ...            |  <-- handler_table_offset()
+  //  |                          |  <-- constant_pool_offset()
+  //  |                          |  <-- code_comments_offset()
+  //  |                          |  <-- unwinding_info_offset()
+  //  |                          |
+  //  +--------------------------+  <-- raw_instruction_end()
+
   // [safepoint_table_offset]: If {has_safepoint_info()}, the offset in the
   // instruction stream where the safepoint table starts.
   inline int safepoint_table_offset() const;
@@ -197,6 +211,14 @@ class Code : public HeapObject {
   inline Address code_comments() const;
   V8_EXPORT_PRIVATE int code_comments_size() const;
   V8_EXPORT_PRIVATE bool has_code_comments() const;
+
+  // [unwinding_info_offset]: Offset of the unwinding info section.
+  inline int32_t unwinding_info_offset() const;
+  inline void set_unwinding_info_offset(int32_t offset);
+  inline Address unwinding_info_start() const;
+  inline Address unwinding_info_end() const;
+  inline int unwinding_info_size() const;
+  inline bool has_unwinding_info() const;
 
   // The size of the executable instruction area, without embedded metadata.
   int ExecutableInstructionSize() const;
@@ -261,9 +283,8 @@ class Code : public HeapObject {
   inline void clear_padding();
   // Initialize the flags field. Similar to clear_padding above this ensure that
   // the snapshot content is deterministic.
-  inline void initialize_flags(CodeKind kind, bool has_unwinding_info,
-                               bool is_turbofanned, int stack_slots,
-                               bool is_off_heap_trampoline);
+  inline void initialize_flags(CodeKind kind, bool is_turbofanned,
+                               int stack_slots, bool is_off_heap_trampoline);
 
   // Convert a target address into a code object.
   static inline Code GetCodeFromTargetAddress(Address address);
@@ -289,12 +310,14 @@ class Code : public HeapObject {
   inline Address InstructionEnd() const;
   V8_EXPORT_PRIVATE Address OffHeapInstructionEnd() const;
 
-  // Returns the size of the instructions, padding, relocation and unwinding
-  // information.
+  // Returns the (padded) body size, including instructions and metadata.
   inline int body_size() const;
+  static int AlignedBodySizeFor(int unaligned_body_size) {
+    return RoundUp(unaligned_body_size, kObjectAlignment);
+  }
 
   // Returns the size of code and its metadata. This includes the size of code
-  // relocation information, deoptimization data and handler table.
+  // relocation information, deoptimization data.
   inline int SizeIncludingMetadata() const;
 
   // Returns the address of the first relocation info (read backwards!).
@@ -302,51 +325,6 @@ class Code : public HeapObject {
 
   // Returns the address right after the relocation info (read backwards!).
   inline byte* relocation_end() const;
-
-  // The body of all code objects has the following layout.
-  //
-  //  +--------------------------+  <-- raw_instruction_start()
-  //  |       instructions       |
-  //  |           ...            |
-  //  +--------------------------+
-  //  |     embedded metadata    |  <-- safepoint_table_offset()
-  //  |           ...            |  <-- handler_table_offset()
-  //  |                          |  <-- constant_pool_offset()
-  //  |                          |  <-- code_comments_offset()
-  //  |                          |
-  //  +--------------------------+  <-- raw_instruction_end()
-  //
-  // If has_unwinding_info() is false, raw_instruction_end() points to the first
-  // memory location after the end of the code object. Otherwise, the body
-  // continues as follows:
-  //
-  //  +--------------------------+
-  //  |    padding to the next   |
-  //  |  8-byte aligned address  |
-  //  +--------------------------+  <-- raw_instruction_end()
-  //  |   [unwinding_info_size]  |
-  //  |        as uint64_t       |
-  //  +--------------------------+  <-- unwinding_info_start()
-  //  |       unwinding info     |
-  //  |            ...           |
-  //  +--------------------------+  <-- unwinding_info_end()
-  //
-  // and unwinding_info_end() points to the first memory location after the end
-  // of the code object.
-
-  // [has_unwinding_info]: Whether this code object has unwinding information.
-  // If it doesn't, unwinding_information_start() will point to invalid data.
-  inline bool has_unwinding_info() const;
-
-  // [unwinding_info_size]: Size of the unwinding information.
-  inline int unwinding_info_size() const;
-  inline void set_unwinding_info_size(int value);
-
-  // Returns the address of the unwinding information, if any.
-  inline Address unwinding_info_start() const;
-
-  // Returns the address right after the end of the unwinding information.
-  inline Address unwinding_info_end() const;
 
   // Code entry point.
   inline Address entry() const;
@@ -424,13 +402,15 @@ class Code : public HeapObject {
   V(kDataStart, 0)                                                        \
   V(kInstructionSizeOffset, kIntSize)                                     \
   V(kFlagsOffset, kInt32Size)                                             \
+  V(kBuiltinIndexOffset, kIntSize)                                        \
+  V(kInlinedBytecodeSizeOffset, kIntSize)                                 \
+  /* Offsets describing inline metadata tables. */                        \
   V(kSafepointTableOffsetOffset, kIntSize)                                \
   V(kHandlerTableOffsetOffset, kIntSize)                                  \
   V(kConstantPoolOffsetOffset,                                            \
     FLAG_enable_embedded_constant_pool ? kIntSize : 0)                    \
   V(kCodeCommentsOffsetOffset, kIntSize)                                  \
-  V(kBuiltinIndexOffset, kIntSize)                                        \
-  V(kInlinedBytecodeSizeOffset, kIntSize)                                 \
+  V(kUnwindingInfoOffsetOffset, kInt32Size)                               \
   V(kUnalignedHeaderSize, 0)                                              \
   /* Add padding to align the instruction start following right after */  \
   /* the Code object header. */                                           \
@@ -443,35 +423,32 @@ class Code : public HeapObject {
   // This documents the amount of free space we have in each Code object header
   // due to padding for code alignment.
 #if V8_TARGET_ARCH_ARM64
-  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 16 : 28;
+  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 12 : 24;
 #elif V8_TARGET_ARCH_MIPS64
-  static constexpr int kHeaderPaddingSize = 28;
+  static constexpr int kHeaderPaddingSize = 24;
 #elif V8_TARGET_ARCH_X64
-  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 16 : 28;
+  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 12 : 24;
 #elif V8_TARGET_ARCH_ARM
-  static constexpr int kHeaderPaddingSize = 16;
+  static constexpr int kHeaderPaddingSize = 12;
 #elif V8_TARGET_ARCH_IA32
-  static constexpr int kHeaderPaddingSize = 16;
+  static constexpr int kHeaderPaddingSize = 12;
 #elif V8_TARGET_ARCH_MIPS
-  static constexpr int kHeaderPaddingSize = 16;
+  static constexpr int kHeaderPaddingSize = 12;
 #elif V8_TARGET_ARCH_PPC64
   static constexpr int kHeaderPaddingSize =
-      FLAG_enable_embedded_constant_pool ? (COMPRESS_POINTERS_BOOL ? 12 : 24)
-                                         : (COMPRESS_POINTERS_BOOL ? 16 : 28);
+      FLAG_enable_embedded_constant_pool ? (COMPRESS_POINTERS_BOOL ? 8 : 20)
+                                         : (COMPRESS_POINTERS_BOOL ? 12 : 24);
 #elif V8_TARGET_ARCH_S390X
-  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 16 : 28;
+  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 12 : 24;
 #else
 #error Unknown architecture.
 #endif
   STATIC_ASSERT(FIELD_SIZE(kOptionalPaddingOffset) == kHeaderPaddingSize);
 
-  inline int GetUnwindingInfoSizeOffset() const;
-
   class BodyDescriptor;
 
   // Flags layout.  base::BitField<type, shift, size>.
 #define CODE_FLAGS_BIT_FIELDS(V, _)    \
-  V(HasUnwindingInfoField, bool, 1, _) \
   V(KindField, CodeKind, 4, _)         \
   V(IsTurbofannedField, bool, 1, _)    \
   V(StackSlotsField, int, 24, _)       \
@@ -479,7 +456,7 @@ class Code : public HeapObject {
   DEFINE_BIT_FIELDS(CODE_FLAGS_BIT_FIELDS)
 #undef CODE_FLAGS_BIT_FIELDS
   STATIC_ASSERT(kCodeKindCount <= KindField::kNumValues);
-  STATIC_ASSERT(CODE_FLAGS_BIT_FIELDS_Ranges::kBitsCount == 31);
+  STATIC_ASSERT(CODE_FLAGS_BIT_FIELDS_Ranges::kBitsCount == 30);
   STATIC_ASSERT(CODE_FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
                 FIELD_SIZE(kFlagsOffset) * kBitsPerByte);
 
