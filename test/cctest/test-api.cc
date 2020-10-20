@@ -27568,8 +27568,8 @@ DEFINE_OPERATORS_FOR_FLAGS(ApiCheckerResultFlags)
 template <typename Value, typename Impl>
 struct BasicApiChecker {
   static void FastCallback(v8::ApiObject receiver, Value argument,
-                           int* fallback) {
-    Impl::FastCallback(receiver, argument, fallback);
+                           v8::FastApiCallbackOptions* options) {
+    Impl::FastCallback(receiver, argument, options);
   }
   static void FastCallbackNoFallback(v8::ApiObject receiver, Value argument) {
     Impl::FastCallback(receiver, argument, nullptr);
@@ -27621,10 +27621,11 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>> {
         write_to_fallback_(write_to_fallback),
         args_count_(args_count) {}
 
-  static void FastCallback(v8::ApiObject receiver, T argument, int* fallback) {
+  static void FastCallback(v8::ApiObject receiver, T argument,
+                           v8::FastApiCallbackOptions* options) {
     v8::Object* receiver_obj = reinterpret_cast<v8::Object*>(&receiver);
     if (!IsValidUnwrapObject(receiver_obj)) {
-      *fallback = 1;
+      options->fallback = 1;
       return;
     }
     ApiNumberChecker<T>* receiver_ptr =
@@ -27637,8 +27638,8 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>> {
       // the default behavior expected from the embedder. The value is checked
       // against after loading it from a stack slot, as defined in
       // EffectControlLinearizer::LowerFastApiCall.
-      CHECK_EQ(*fallback, 0);
-      *fallback = 1;
+      CHECK_EQ(options->fallback, 0);
+      options->fallback = 1;
     }
   }
 
@@ -27673,7 +27674,7 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>> {
 struct UnexpectedObjectChecker
     : BasicApiChecker<v8::ApiObject, UnexpectedObjectChecker> {
   static void FastCallback(v8::ApiObject receiver, v8::ApiObject argument,
-                           int* fallback) {
+                           v8::FastApiCallbackOptions* options) {
     v8::Object* receiver_obj = reinterpret_cast<v8::Object*>(&receiver);
     UnexpectedObjectChecker* receiver_ptr =
         GetInternalField<UnexpectedObjectChecker, kV8WrapperObjectIndex>(

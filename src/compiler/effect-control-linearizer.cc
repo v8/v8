@@ -5175,9 +5175,15 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
   if (fast_api_call_stack_slot_ == nullptr) {
     // Add the { fallback } output parameter.
     int kAlign = 4;
-    int kSize = 4;
+    int kSize = sizeof(v8::FastApiCallbackOptions);
+    // If this check fails, probably you've added new fields to
+    // v8::FastApiCallbackOptions, which means you'll need to write code
+    // that initializes and reads from them too (see the Store and Load to
+    // fast_api_call_stack_slot_ below).
+    CHECK_EQ(kSize, 1);
     fast_api_call_stack_slot_ = __ StackSlot(kSize, kAlign);
   }
+
   // Generate the store to `fast_api_call_stack_slot_`.
   __ Store(StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
            fast_api_call_stack_slot_, 0, jsgraph()->ZeroConstant());

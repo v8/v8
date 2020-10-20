@@ -37,18 +37,18 @@
  * declare their method like:
  *
  * \code
- *    void FastMethodWithFallback(int param, bool* fallback);
+ *    void FastMethodWithFallback(int param, FastApiCallbackOptions* options);
  * \endcode
  *
  * If the callback wants to signal an error condition or to perform an
- * allocation, it must set *fallback to true and do an early return from
- * the fast method. Then V8 checks the value of *fallback and if it's true,
- * falls back to executing the SlowCallback, which is capable of
- * reporting the error (either by throwing a JS exception or logging to the
- * console) or doing the allocation. It's the embedder's responsibility to
- * ensure that the fast callback is idempotent up to the point where error
- * and fallback conditions are checked, because otherwise executing the slow
- * callback might produce visible side-effects twice.
+ * allocation, it must set options->fallback to true and do an early return from
+ * the fast method. Then V8 checks the value of options->fallback and if it's
+ * true, falls back to executing the SlowCallback, which is capable of reporting
+ * the error (either by throwing a JS exception or logging to the console) or
+ * doing the allocation. It's the embedder's responsibility to ensure that the
+ * fast callback is idempotent up to the point where error and fallback
+ * conditions are checked, because otherwise executing the slow callback might
+ * produce visible side-effects twice.
  *
  * An example for custom embedder type support might employ a way to wrap/
  * unwrap various C++ types in JSObject instances, e.g:
@@ -421,6 +421,10 @@ class V8_EXPORT CFunction {
                        GetCFunctionInfo<R, true, Args...>());
     }
   };
+};
+
+struct FastApiCallbackOptions {
+  bool fallback;
 };
 
 }  // namespace v8
