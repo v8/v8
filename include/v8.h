@@ -2272,14 +2272,25 @@ enum StateTag {
   IDLE
 };
 
+// Holds the callee saved registers needed for the stack unwinder. It is the
+// empty struct if no registers are required. Implemented in
+// include/v8-unwinder-state.h.
+struct CalleeSavedRegisters;
+
 // A RegisterState represents the current state of registers used
 // by the sampling profiler API.
-struct RegisterState {
-  RegisterState() : pc(nullptr), sp(nullptr), fp(nullptr), lr(nullptr) {}
+struct V8_EXPORT RegisterState {
+  RegisterState();
+  ~RegisterState();
+  RegisterState(const RegisterState& other);
+  RegisterState& operator=(const RegisterState& other);
+
   void* pc;  // Instruction pointer.
   void* sp;  // Stack pointer.
   void* fp;  // Frame pointer.
   void* lr;  // Link register (or nullptr on platforms without a link register).
+  // Callee saved registers (or null if no callee saved registers were stored)
+  std::unique_ptr<CalleeSavedRegisters> callee_saved;
 };
 
 // The output structure filled up by GetStackSample API function.

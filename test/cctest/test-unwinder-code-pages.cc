@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "include/v8-unwinder-state.h"
 #include "include/v8.h"
-
 #include "src/api/api-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/execution/isolate.h"
@@ -16,6 +16,9 @@ namespace internal {
 namespace test_unwinder_code_pages {
 
 namespace {
+
+#define CHECK_EQ_VALUE_REGISTER(uiuntptr_value, register_value) \
+  CHECK_EQ(reinterpret_cast<void*>(uiuntptr_value), register_value)
 
 #ifdef V8_TARGET_ARCH_X64
 // How much the JSEntry frame occupies in the stack.
@@ -33,6 +36,10 @@ void BuildJSEntryStack(uintptr_t* stack) {
   stack[1] = 100;  // Return address into C++ code.
   stack[2] = reinterpret_cast<uintptr_t>(stack + 2);  // saved SP.
 }
+
+// Dummy method since we don't save callee saved registers in x64.
+void CheckCalleeSavedRegisters(const RegisterState& register_state) {}
+
 #elif V8_TARGET_ARCH_ARM
 // How much the JSEntry frame occupies in the stack.
 constexpr int kJSEntryFrameSpace = 27;
@@ -59,6 +66,19 @@ void BuildJSEntryStack(uintptr_t* stack) {
   stack[25] = 100;  // Return address into C++ code (i.e lr/pc)
   stack[26] = reinterpret_cast<uintptr_t>(stack + 26);  // saved SP.
 }
+
+// Checks that the values in the calee saved registers are the same as the ones
+// we saved in BuildJSEntryStack.
+void CheckCalleeSavedRegisters(const RegisterState& register_state) {
+  CHECK_EQ_VALUE_REGISTER(160, register_state.callee_saved->arm_r4);
+  CHECK_EQ_VALUE_REGISTER(161, register_state.callee_saved->arm_r5);
+  CHECK_EQ_VALUE_REGISTER(162, register_state.callee_saved->arm_r6);
+  CHECK_EQ_VALUE_REGISTER(163, register_state.callee_saved->arm_r7);
+  CHECK_EQ_VALUE_REGISTER(164, register_state.callee_saved->arm_r8);
+  CHECK_EQ_VALUE_REGISTER(165, register_state.callee_saved->arm_r9);
+  CHECK_EQ_VALUE_REGISTER(166, register_state.callee_saved->arm_r10);
+}
+
 #elif V8_TARGET_ARCH_ARM64
 // How much the JSEntry frame occupies in the stack.
 constexpr int kJSEntryFrameSpace = 22;
@@ -83,6 +103,10 @@ void BuildJSEntryStack(uintptr_t* stack) {
   }
   stack[21] = reinterpret_cast<uintptr_t>(stack + 21);  // saved SP.
 }
+
+// Dummy method since we don't save callee saved registers in arm64.
+void CheckCalleeSavedRegisters(const RegisterState& register_state) {}
+
 #else
 // Dummy constants for the rest of the archs which are not supported.
 constexpr int kJSEntryFrameSpace = 1;
@@ -90,16 +114,16 @@ constexpr int kFPOffset = 0;
 constexpr int kPCOffset = 0;
 constexpr int kSPOffset = 0;
 
-// Dummy function to be able to compile.
+// Dummy methods to be able to compile.
 void BuildJSEntryStack(uintptr_t* stack) { UNREACHABLE(); }
+void CheckCalleeSavedRegisters(const RegisterState& register_state) {
+  UNREACHABLE();
+}
 #endif  // V8_TARGET_ARCH_X64
 
 }  // namespace
 
 static const void* fake_stack_base = nullptr;
-
-#define CHECK_EQ_STACK_REGISTER(stack_value, register_value) \
-  CHECK_EQ(reinterpret_cast<void*>(stack_value), register_value)
 
 TEST(Unwind_BadState_Fail_CodePagesAPI) {
   JSEntryStubs entry_stubs;  // Fields are intialized to nullptr.
@@ -153,9 +177,9 @@ TEST(Unwind_BuiltinPCInMiddle_Success_CodePagesAPI) {
   bool unwound = v8::Unwinder::TryUnwindV8Frames(
       entry_stubs, pages_length, code_pages, &register_state, stack_base);
   CHECK(unwound);
-  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index], register_state.fp);
-  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index + 1], register_state.pc);
-  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index + 2], register_state.sp);
+  CHECK_EQ_VALUE_REGISTER(stack[topmost_fp_index], register_state.fp);
+  CHECK_EQ_VALUE_REGISTER(stack[topmost_fp_index + 1], register_state.pc);
+  CHECK_EQ_VALUE_REGISTER(stack[topmost_fp_index + 2], register_state.sp);
 }
 
 // The unwinder should be able to unwind even if we haven't properly set up the
@@ -208,9 +232,9 @@ TEST(Unwind_BuiltinPCAtStart_Success_CodePagesAPI) {
       entry_stubs, pages_length, code_pages, &register_state, stack_base);
 
   CHECK(unwound);
-  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index], register_state.fp);
-  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index + 1], register_state.pc);
-  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index + 2], register_state.sp);
+  CHECK_EQ_VALUE_REGISTER(stack[topmost_fp_index], register_state.fp);
+  CHECK_EQ_VALUE_REGISTER(stack[topmost_fp_index + 1], register_state.pc);
+  CHECK_EQ_VALUE_REGISTER(stack[topmost_fp_index + 2], register_state.sp);
 }
 
 const char* foo_source = R"(
@@ -296,9 +320,9 @@ TEST(Unwind_CodeObjectPCInMiddle_Success_CodePagesAPI) {
   bool unwound = v8::Unwinder::TryUnwindV8Frames(
       entry_stubs, pages_length, code_pages, &register_state, stack_base);
   CHECK(unwound);
-  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index], register_state.fp);
-  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index + 1], register_state.pc);
-  CHECK_EQ_STACK_REGISTER(stack[topmost_fp_index + 2], register_state.sp);
+  CHECK_EQ_VALUE_REGISTER(stack[topmost_fp_index], register_state.fp);
+  CHECK_EQ_VALUE_REGISTER(stack[topmost_fp_index + 1], register_state.pc);
+  CHECK_EQ_VALUE_REGISTER(stack[topmost_fp_index + 2], register_state.sp);
 }
 
 // If the PC is within JSEntry but we haven't set up the frame yet, then we
@@ -345,8 +369,8 @@ TEST(Unwind_JSEntryBeforeFrame_Fail_CodePagesAPI) {
       entry_stubs, pages_length, code_pages, &register_state, stack_base);
   CHECK(!unwound);
   // The register state should not change when unwinding fails.
-  CHECK_EQ_STACK_REGISTER(&stack[9], register_state.fp);
-  CHECK_EQ_STACK_REGISTER(&stack[5], register_state.sp);
+  CHECK_EQ_VALUE_REGISTER(&stack[9], register_state.fp);
+  CHECK_EQ_VALUE_REGISTER(&stack[5], register_state.sp);
   CHECK_EQ(jsentry_pc_value, register_state.pc);
 
   // Change the PC to a few instructions later, after the frame is set up.
@@ -358,8 +382,8 @@ TEST(Unwind_JSEntryBeforeFrame_Fail_CodePagesAPI) {
   // than just assuming the frame is unreadable.
   CHECK(!unwound);
   // The register state should not change when unwinding fails.
-  CHECK_EQ_STACK_REGISTER(&stack[9], register_state.fp);
-  CHECK_EQ_STACK_REGISTER(&stack[5], register_state.sp);
+  CHECK_EQ_VALUE_REGISTER(&stack[9], register_state.fp);
+  CHECK_EQ_VALUE_REGISTER(&stack[5], register_state.sp);
   CHECK_EQ(jsentry_pc_value, register_state.pc);
 }
 
@@ -409,12 +433,13 @@ TEST(Unwind_TwoJSFrames_Success_CodePagesAPI) {
       entry_stubs, pages_length, code_pages, &register_state, stack_base);
 
   CHECK(unwound);
-  CHECK_EQ_STACK_REGISTER(stack[top_of_js_entry + kFPOffset],
+  CHECK_EQ_VALUE_REGISTER(stack[top_of_js_entry + kFPOffset],
                           register_state.fp);
-  CHECK_EQ_STACK_REGISTER(stack[top_of_js_entry + kPCOffset],
+  CHECK_EQ_VALUE_REGISTER(stack[top_of_js_entry + kPCOffset],
                           register_state.pc);
-  CHECK_EQ_STACK_REGISTER(stack[top_of_js_entry + kSPOffset],
+  CHECK_EQ_VALUE_REGISTER(stack[top_of_js_entry + kSPOffset],
                           register_state.sp);
+  CheckCalleeSavedRegisters(register_state);
 }
 
 // If the PC is in JSEntry then the frame might not be set up correctly, meaning
@@ -543,6 +568,7 @@ TEST(Unwind_StackBounds_WithUnwinding_CodePagesAPI) {
   unwound = v8::Unwinder::TryUnwindV8Frames(
       entry_stubs, pages_length, code_pages, &register_state, stack_base);
   CHECK(unwound);
+  CheckCalleeSavedRegisters(register_state);
 }
 
 TEST(PCIsInV8_BadState_Fail_CodePagesAPI) {
@@ -737,7 +763,7 @@ TEST(Unwind_TwoNestedFunctions_CodePagesAPI) {
 }
 #endif
 
-#undef CHECK_EQ_STACK_REGISTER
+#undef CHECK_EQ_VALUE_REGISTER
 }  // namespace test_unwinder_code_pages
 }  // namespace internal
 }  // namespace v8

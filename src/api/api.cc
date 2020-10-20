@@ -14,6 +14,7 @@
 #include "include/v8-cppgc.h"
 #include "include/v8-fast-api-calls.h"
 #include "include/v8-profiler.h"
+#include "include/v8-unwinder-state.h"
 #include "include/v8-util.h"
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
@@ -11146,6 +11147,36 @@ CFunction::CFunction(const void* address, const CFunctionInfo* type_info)
       }
     }
   }
+}
+
+RegisterState::RegisterState()
+    : pc(nullptr), sp(nullptr), fp(nullptr), lr(nullptr) {}
+RegisterState::~RegisterState() = default;
+
+RegisterState::RegisterState(const RegisterState& other) V8_NOEXCEPT {
+  pc = other.pc;
+  sp = other.sp;
+  fp = other.fp;
+  lr = other.lr;
+  if (other.callee_saved) {
+    callee_saved =
+        std::make_unique<CalleeSavedRegisters>(*(other.callee_saved));
+  }
+}
+
+RegisterState& RegisterState::operator=(const RegisterState& other)
+    V8_NOEXCEPT {
+  if (&other != this) {
+    pc = other.pc;
+    sp = other.sp;
+    fp = other.fp;
+    lr = other.lr;
+    if (other.callee_saved) {
+      callee_saved =
+          std::make_unique<CalleeSavedRegisters>(*(other.callee_saved));
+    }
+  }
+  return *this;
 }
 
 namespace internal {
