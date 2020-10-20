@@ -109,7 +109,7 @@ TEST(TestLinkageStubCall) {
   Zone zone(isolate->allocator(), ZONE_NAME);
   Callable callable = Builtins::CallableFor(isolate, Builtins::kToNumber);
   OptimizedCompilationInfo info(ArrayVector("test"), &zone,
-                                CodeKind::FOR_TESTING);
+                                CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,
       Operator::kNoProperties);
@@ -130,7 +130,7 @@ TEST(TestFPLinkageStubCall) {
   Callable callable =
       Builtins::CallableFor(isolate, Builtins::kWasmFloat64ToNumber);
   OptimizedCompilationInfo info(ArrayVector("test"), &zone,
-                                CodeKind::FOR_TESTING);
+                                CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,
       Operator::kNoProperties);

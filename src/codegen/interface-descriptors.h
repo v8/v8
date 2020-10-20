@@ -593,12 +593,6 @@ using DummyDescriptor = VoidDescriptor;
 // Dummy descriptor that marks builtins with C calling convention.
 using CCallDescriptor = VoidDescriptor;
 
-// Marks deoptimization entry builtins. Precise calling conventions currently
-// differ based on the platform.
-// TODO(jgruber): Once this is unified, we could create a better description
-// here.
-using DeoptimizationEntryDescriptor = VoidDescriptor;
-
 class AllocateDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS_NO_CONTEXT(kRequestedSize)

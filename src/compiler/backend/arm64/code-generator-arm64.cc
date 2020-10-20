@@ -3135,35 +3135,13 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
 
 void CodeGenerator::FinishCode() { __ ForceConstantPoolEmissionWithoutJump(); }
 
-void CodeGenerator::PrepareForDeoptimizationExits(
-    ZoneDeque<DeoptimizationExit*>* exits) {
+void CodeGenerator::PrepareForDeoptimizationExits(int deopt_count) {
   __ ForceConstantPoolEmissionWithoutJump();
   // We are conservative here, assuming all deopts are lazy deopts.
   DCHECK_GE(Deoptimizer::kLazyDeoptExitSize,
             Deoptimizer::kNonLazyDeoptExitSize);
-  __ CheckVeneerPool(
-      false, false,
-      static_cast<int>(exits->size()) * Deoptimizer::kLazyDeoptExitSize);
-
-  // Check which deopt kinds exist in this Code object, to avoid emitting jumps
-  // to unused entries.
-  bool saw_deopt_kind[kDeoptimizeKindCount] = {false};
-  for (auto exit : *exits) {
-    saw_deopt_kind[static_cast<int>(exit->kind())] = true;
-  }
-
-  // Emit the jumps to deoptimization entries.
-  UseScratchRegisterScope scope(tasm());
-  Register scratch = scope.AcquireX();
-  STATIC_ASSERT(static_cast<int>(kFirstDeoptimizeKind) == 0);
-  for (int i = 0; i < kDeoptimizeKindCount; i++) {
-    if (!saw_deopt_kind[i]) continue;
-    __ bind(&jump_deoptimization_entry_labels_[i]);
-    __ LoadEntryFromBuiltinIndex(Deoptimizer::GetDeoptimizationEntry(
-                                     isolate(), static_cast<DeoptimizeKind>(i)),
-                                 scratch);
-    __ Jump(scratch);
-  }
+  __ CheckVeneerPool(false, false,
+                     deopt_count * Deoptimizer::kLazyDeoptExitSize);
 }
 
 void CodeGenerator::AssembleMove(InstructionOperand* source,

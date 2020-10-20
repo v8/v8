@@ -77,7 +77,7 @@ class CompilationStatistics;
 class CompilerDispatcher;
 class Counters;
 class Debug;
-class Deoptimizer;
+class DeoptimizerData;
 class DescriptorLookupCache;
 class EmbeddedFileWriterInterface;
 class EternalHandles;
@@ -1024,17 +1024,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   StubCache* load_stub_cache() { return load_stub_cache_; }
   StubCache* store_stub_cache() { return store_stub_cache_; }
-  Deoptimizer* GetAndClearCurrentDeoptimizer() {
-    Deoptimizer* result = current_deoptimizer_;
-    CHECK_NOT_NULL(result);
-    current_deoptimizer_ = nullptr;
-    return result;
-  }
-  void set_current_deoptimizer(Deoptimizer* deoptimizer) {
-    DCHECK_NULL(current_deoptimizer_);
-    DCHECK_NOT_NULL(deoptimizer);
-    current_deoptimizer_ = deoptimizer;
-  }
+  DeoptimizerData* deoptimizer_data() { return deoptimizer_data_; }
   bool deoptimizer_lazy_throw() const { return deoptimizer_lazy_throw_; }
   void set_deoptimizer_lazy_throw(bool value) {
     deoptimizer_lazy_throw_ = value;
@@ -1740,7 +1730,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Logger* logger_ = nullptr;
   StubCache* load_stub_cache_ = nullptr;
   StubCache* store_stub_cache_ = nullptr;
-  Deoptimizer* current_deoptimizer_ = nullptr;
+  DeoptimizerData* deoptimizer_data_ = nullptr;
   bool deoptimizer_lazy_throw_ = false;
   MaterializedObjectStore* materialized_object_store_ = nullptr;
   bool capture_stack_trace_for_uncaught_exceptions_ = false;

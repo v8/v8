@@ -57,10 +57,6 @@ class IsolateData final {
   static constexpr int builtin_entry_table_offset() {
     return kBuiltinEntryTableOffset - kIsolateRootBias;
   }
-  static constexpr int builtin_entry_slot_offset(Builtins::Name builtin_index) {
-    CONSTEXPR_DCHECK(Builtins::IsBuiltinId(builtin_index));
-    return builtin_entry_table_offset() + builtin_index * kSystemPointerSize;
-  }
 
   // Root-register-relative offset of the builtins table.
   static constexpr int builtins_table_offset() {

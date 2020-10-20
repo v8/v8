@@ -24,7 +24,7 @@ CodeStubAssemblerTestState::CodeStubAssemblerTestState(
     CodeStubAssemblerTest* test)
     : compiler::CodeAssemblerState(
           test->isolate(), test->zone(), VoidDescriptor{},
-          CodeKind::FOR_TESTING, "test",
+          CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING, "test",
           PoisoningMitigationLevel::kPoisonCriticalOnly) {}
 
 TARGET_TEST_F(CodeStubAssemblerTest, SmiTag) {

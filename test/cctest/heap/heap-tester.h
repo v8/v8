@@ -48,6 +48,7 @@
   V(StressHandles)                                          \
   V(TestMemoryReducerSampleJsCalls)                         \
   V(TestSizeOfObjects)                                      \
+  V(Regress5831)                                            \
   V(Regress10560)                                           \
   V(Regress538257)                                          \
   V(Regress587004)                                          \
