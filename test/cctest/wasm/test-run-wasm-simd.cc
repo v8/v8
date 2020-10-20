@@ -3720,6 +3720,22 @@ void RunLoadZeroTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   for (int i = 1; i < lanes_s; i++) {
     CHECK_EQ(S{0}, ReadLittleEndianValue<S>(&global[i]));
   }
+
+  // Test for OOB.
+  {
+    WasmRunner<int32_t, uint32_t> r(execution_tier, lower_simd);
+    r.builder().AddMemoryElems<S>(kWasmPageSize / sizeof(S));
+    r.builder().AddGlobal<S>(kWasmS128);
+
+    BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_OP(op, WASM_GET_LOCAL(0))),
+          WASM_ONE);
+
+    // Load extends load sizeof(S) bytes.
+    for (uint32_t offset = kWasmPageSize - (sizeof(S) - 1);
+         offset < kWasmPageSize; ++offset) {
+      CHECK_TRAP(r.Call(offset));
+    }
+  }
 }
 
 WASM_SIMD_TEST_NO_LOWERING(S128Load32Zero) {
