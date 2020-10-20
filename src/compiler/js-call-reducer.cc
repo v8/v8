@@ -3990,6 +3990,8 @@ bool JSCallReducer::IsBuiltinOrApiFunction(JSFunctionRef function) const {
 }
 
 Reduction JSCallReducer::ReduceJSCall(Node* node) {
+  if (broker()->StackHasOverflowed()) return NoChange();
+
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
   Node* target = n.target();

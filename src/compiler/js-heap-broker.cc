@@ -628,7 +628,7 @@ class JSBoundFunctionData : public JSObjectData {
   JSBoundFunctionData(JSHeapBroker* broker, ObjectData** storage,
                       Handle<JSBoundFunction> object);
 
-  void Serialize(JSHeapBroker* broker);
+  bool Serialize(JSHeapBroker* broker);
   bool serialized() const { return serialized_; }
 
   ObjectData* bound_target_function() const { return bound_target_function_; }
@@ -1514,19 +1514,24 @@ JSBoundFunctionData::JSBoundFunctionData(JSHeapBroker* broker,
                                          Handle<JSBoundFunction> object)
     : JSObjectData(broker, storage, object) {}
 
-void JSBoundFunctionData::Serialize(JSHeapBroker* broker) {
-  if (serialized_) return;
-  serialized_ = true;
+bool JSBoundFunctionData::Serialize(JSHeapBroker* broker) {
+  if (serialized_) return true;
+  if (broker->StackHasOverflowed()) return false;
 
   TraceScope tracer(broker, this, "JSBoundFunctionData::Serialize");
   Handle<JSBoundFunction> function = Handle<JSBoundFunction>::cast(object());
+
+  // We set {serialized_} at the end in order to correctly handle the case where
+  // a recursive call to this method reaches the stack limit.
+  bool serialized = true;
 
   DCHECK_NULL(bound_target_function_);
   bound_target_function_ =
       broker->GetOrCreateData(function->bound_target_function());
   if (!bound_target_function_->should_access_heap()) {
     if (bound_target_function_->IsJSBoundFunction()) {
-      bound_target_function_->AsJSBoundFunction()->Serialize(broker);
+      serialized =
+          bound_target_function_->AsJSBoundFunction()->Serialize(broker);
     } else if (bound_target_function_->IsJSFunction()) {
       bound_target_function_->AsJSFunction()->Serialize(broker);
     }
@@ -1540,6 +1545,9 @@ void JSBoundFunctionData::Serialize(JSHeapBroker* broker) {
 
   DCHECK_NULL(bound_this_);
   bound_this_ = broker->GetOrCreateData(function->bound_this());
+
+  serialized_ = serialized;
+  return serialized;
 }
 
 JSObjectData::JSObjectData(JSHeapBroker* broker, ObjectData** storage,
@@ -2441,7 +2449,7 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
   TRACE(this, "Constructing heap broker");
 }
 
-JSHeapBroker::~JSHeapBroker() { DCHECK(!local_heap_); }
+JSHeapBroker::~JSHeapBroker() { DCHECK_NULL(local_isolate_); }
 
 void JSHeapBroker::SetPersistentAndCopyCanonicalHandlesForTesting(
     std::unique_ptr<PersistentHandles> persistent_handles,
@@ -2471,21 +2479,22 @@ std::string JSHeapBroker::Trace() const {
   return oss.str();
 }
 
-void JSHeapBroker::InitializeLocalHeap(OptimizedCompilationInfo* info,
-                                       LocalHeap* local_heap) {
+void JSHeapBroker::AttachLocalIsolate(OptimizedCompilationInfo* info,
+                                      LocalIsolate* local_isolate) {
   set_canonical_handles(info->DetachCanonicalHandles());
-  DCHECK_NULL(local_heap_);
-  local_heap_ = local_heap;
-  DCHECK_NOT_NULL(local_heap_);
-  local_heap_->AttachPersistentHandles(info->DetachPersistentHandles());
+  DCHECK_NULL(local_isolate_);
+  local_isolate_ = local_isolate;
+  DCHECK_NOT_NULL(local_isolate_);
+  local_isolate_->heap()->AttachPersistentHandles(
+      info->DetachPersistentHandles());
 }
 
-void JSHeapBroker::TearDownLocalHeap(OptimizedCompilationInfo* info) {
+void JSHeapBroker::DetachLocalIsolate(OptimizedCompilationInfo* info) {
   DCHECK_NULL(ph_);
-  DCHECK(local_heap_);
+  DCHECK_NOT_NULL(local_isolate_);
   std::unique_ptr<PersistentHandles> ph =
-      local_heap_->DetachPersistentHandles();
-  local_heap_ = nullptr;
+      local_isolate_->heap()->DetachPersistentHandles();
+  local_isolate_ = nullptr;
   info->set_canonical_handles(DetachCanonicalHandles());
   info->set_persistent_handles(std::move(ph));
 }
@@ -4357,10 +4366,10 @@ bool JSTypedArrayRef::serialized() const {
   return data()->AsJSTypedArray()->serialized();
 }
 
-void JSBoundFunctionRef::Serialize() {
-  if (data_->should_access_heap()) return;
+bool JSBoundFunctionRef::Serialize() {
+  if (data_->should_access_heap()) return true;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsJSBoundFunction()->Serialize(broker());
+  return data()->AsJSBoundFunction()->Serialize(broker());
 }
 
 void PropertyCellRef::Serialize() {
@@ -5329,6 +5338,14 @@ BytecodeAnalysis const& JSHeapBroker::GetBytecodeAnalysis(
   DCHECK_EQ(analysis->osr_bailout_id(), osr_bailout_id);
   bytecode_analyses_[bytecode_array_data] = analysis;
   return *analysis;
+}
+
+bool JSHeapBroker::StackHasOverflowed() const {
+  DCHECK_IMPLIES(local_isolate_ == nullptr,
+                 ThreadId::Current() == isolate_->thread_id());
+  return (local_isolate_ != nullptr)
+             ? StackLimitCheck::HasOverflowed(local_isolate_)
+             : StackLimitCheck(isolate_).HasOverflowed();
 }
 
 OffHeapBytecodeArray::OffHeapBytecodeArray(BytecodeArrayRef bytecode_array)

@@ -14,6 +14,7 @@
 #include "src/compiler/processed-feedback.h"
 #include "src/compiler/refs-map.h"
 #include "src/compiler/serializer-hints.h"
+#include "src/execution/local-isolate.h"
 #include "src/handles/handles.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/local-heap.h"
@@ -33,6 +34,7 @@ namespace compiler {
 
 class BytecodeAnalysis;
 class ObjectRef;
+
 std::ostream& operator<<(std::ostream& os, const ObjectRef& ref);
 
 #define TRACE_BROKER(broker, x)                                      \
@@ -115,16 +117,21 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   enum BrokerMode { kDisabled, kSerializing, kSerialized, kRetired };
   BrokerMode mode() const { return mode_; }
-  // Initialize the local heap with the persistent and canonical handles
-  // provided by {info}.
-  void InitializeLocalHeap(OptimizedCompilationInfo* info,
-                           LocalHeap* local_heap);
-  // Tear down the local heap and pass the persistent and canonical handles
-  // provided back to {info}. {info} is responsible for disposing of them.
-  void TearDownLocalHeap(OptimizedCompilationInfo* info);
+
   void StopSerializing();
   void Retire();
   bool SerializingAllowed() const;
+
+  // Remember the local isolate and initialize its local heap with the
+  // persistent and canonical handles provided by {info}.
+  void AttachLocalIsolate(OptimizedCompilationInfo* info,
+                          LocalIsolate* local_isolate);
+  // Forget about the local isolate and pass the persistent and canonical
+  // handles provided back to {info}. {info} is responsible for disposing of
+  // them.
+  void DetachLocalIsolate(OptimizedCompilationInfo* info);
+
+  bool StackHasOverflowed() const;
 
 #ifdef DEBUG
   void PrintRefsAnalysis() const;
@@ -228,7 +235,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   bool IsSerializedForCompilation(const SharedFunctionInfoRef& shared,
                                   const FeedbackVectorRef& feedback) const;
 
-  LocalHeap* local_heap() { return local_heap_; }
+  LocalIsolate* local_isolate() const { return local_isolate_; }
 
   // Return the corresponding canonical persistent handle for {object}. Create
   // one if it does not exist.
@@ -252,8 +259,9 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       auto find_result = canonical_handles_->FindOrInsert(obj);
       if (!find_result.already_exists) {
         // Allocate new PersistentHandle if one wasn't created before.
-        DCHECK(local_heap_);
-        *find_result.entry = local_heap_->NewPersistentHandle(obj).location();
+        DCHECK_NOT_NULL(local_isolate());
+        *find_result.entry =
+            local_isolate()->heap()->NewPersistentHandle(obj).location();
       }
       return Handle<T>(*find_result.entry);
     } else {
@@ -360,7 +368,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   bool const is_concurrent_inlining_;
   CodeKind const code_kind_;
   std::unique_ptr<PersistentHandles> ph_;
-  LocalHeap* local_heap_ = nullptr;
+  LocalIsolate* local_isolate_ = nullptr;
   std::unique_ptr<CanonicalHandlesMap> canonical_handles_;
   unsigned trace_indentation_ = 0;
   PerIsolateCompilerCache* compiler_cache_ = nullptr;
@@ -452,7 +460,7 @@ class OffHeapBytecodeArray final : public interpreter::AbstractBytecodeArray {
 
 // Scope that unparks the LocalHeap, if:
 //   a) We have a JSHeapBroker,
-//   b) Said JSHeapBroker has a LocalHeap,
+//   b) Said JSHeapBroker has a LocalIsolate and thus a LocalHeap,
 //   c) Said LocalHeap has been parked and
 //   d) The given condition evaluates to true.
 // Used, for example, when printing the graph with --trace-turbo with a
@@ -462,9 +470,9 @@ class UnparkedScopeIfNeeded {
   explicit UnparkedScopeIfNeeded(JSHeapBroker* broker,
                                  bool extra_condition = true) {
     if (broker != nullptr && extra_condition) {
-      LocalHeap* local_heap = broker->local_heap();
-      if (local_heap != nullptr && local_heap->IsParked()) {
-        unparked_scope.emplace(local_heap);
+      LocalIsolate* local_isolate = broker->local_isolate();
+      if (local_isolate != nullptr && local_isolate->heap()->IsParked()) {
+        unparked_scope.emplace(local_isolate->heap());
       }
     }
   }

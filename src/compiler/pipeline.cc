@@ -766,20 +766,21 @@ class PipelineRunScope {
   RuntimeCallTimerScope runtime_call_timer_scope;
 };
 
-// LocalHeapScope encapsulates the phase where persistent handles are attached
-// to the LocalHeap.
-class LocalHeapScope {
+// LocalIsolateScope encapsulates the phase where persistent handles are
+// attached to the LocalHeap inside {local_isolate}.
+class LocalIsolateScope {
  public:
-  explicit LocalHeapScope(JSHeapBroker* broker, OptimizedCompilationInfo* info,
-                          LocalHeap* local_heap)
+  explicit LocalIsolateScope(JSHeapBroker* broker,
+                             OptimizedCompilationInfo* info,
+                             LocalIsolate* local_isolate)
       : broker_(broker), info_(info) {
-    broker_->InitializeLocalHeap(info_, local_heap);
-    info_->tick_counter().AttachLocalHeap(broker_->local_heap());
+    broker_->AttachLocalIsolate(info_, local_isolate);
+    info_->tick_counter().AttachLocalHeap(local_isolate->heap());
   }
 
-  ~LocalHeapScope() {
+  ~LocalIsolateScope() {
     info_->tick_counter().DetachLocalHeap();
-    broker_->TearDownLocalHeap(info_);
+    broker_->DetachLocalIsolate(info_);
   }
 
  private:
@@ -1185,8 +1186,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl(
   // Ensure that the RuntimeCallStats table is only available during execution
   // and not during finalization as that might be on a different thread.
   PipelineJobScope scope(&data_, stats);
-  LocalHeapScope local_heap_scope(data_.broker(), data_.info(),
-                                  local_isolate->heap());
+  LocalIsolateScope local_isolate_scope(data_.broker(), data_.info(),
+                                        local_isolate);
 
   if (data_.broker()->is_concurrent_inlining()) {
     if (!pipeline_.CreateGraph()) {
@@ -3018,7 +3019,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
     info->ReopenHandlesInNewHandleScope(isolate);
     pipeline.Serialize();
     // Emulating the proper pipeline, we call CreateGraph on different places
-    // (i.e before or after creating a LocalHeapScope) depending on
+    // (i.e before or after creating a LocalIsolateScope) depending on
     // is_concurrent_inlining.
     if (!data.broker()->is_concurrent_inlining()) {
       if (!pipeline.CreateGraph()) return MaybeHandle<Code>();
@@ -3027,7 +3028,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
 
   {
     LocalIsolate local_isolate(isolate, ThreadKind::kMain);
-    LocalHeapScope local_heap_scope(data.broker(), info, local_isolate.heap());
+    LocalIsolateScope local_isolate_scope(data.broker(), info, &local_isolate);
     if (data.broker()->is_concurrent_inlining()) {
       if (!pipeline.CreateGraph()) return MaybeHandle<Code>();
     }
