@@ -2512,7 +2512,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   //  -- r5 : new target (passed through to callee)
   // -----------------------------------
 
-  Label dont_adapt_arguments, stack_overflow, skip_adapt_arguments;
+  Label dont_adapt_arguments, stack_overflow;
   __ tmll(r4, Operand(kDontAdaptArgumentsSentinel));
   __ b(Condition(1), &dont_adapt_arguments);
   __ LoadTaggedPointerField(
@@ -2632,42 +2632,6 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // Exit frame and return.
     LeaveArgumentsAdaptorFrame(masm);
     __ Ret();
-  }
-
-  // -------------------------------------------
-  // Skip adapt arguments.
-  // -------------------------------------------
-  __ bind(&skip_adapt_arguments);
-  {
-    // The callee cannot observe the actual arguments, so it's safe to just
-    // pass the expected arguments by massaging the stack appropriately. See
-    // http://bit.ly/v8-faster-calls-with-arguments-mismatch for details.
-    Label under_application, over_application;
-    __ CmpP(r2, r4);
-    __ blt(&under_application);
-
-    __ bind(&over_application);
-    {
-      // Remove superfluous parameters from the stack.
-      __ SubP(r6, r2, r4);
-      __ lgr(r2, r4);
-      __ ShiftLeftP(r6, r6, Operand(kSystemPointerSizeLog2));
-      __ lay(sp, MemOperand(sp, r6));
-      __ b(&dont_adapt_arguments);
-    }
-
-    __ bind(&under_application);
-    {
-      // Fill remaining expected arguments with undefined values.
-      Label fill;
-      __ LoadRoot(r6, RootIndex::kUndefinedValue);
-      __ bind(&fill);
-      __ AddP(r2, r2, Operand(1));
-      __ push(r6);
-      __ CmpP(r2, r4);
-      __ blt(&fill);
-      __ b(&dont_adapt_arguments);
-    }
   }
 
   // -------------------------------------------

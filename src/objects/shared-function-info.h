@@ -466,17 +466,6 @@ class SharedFunctionInfo : public HeapObject {
   // Whether or not the number of expected properties may change.
   DECL_BOOLEAN_ACCESSORS(are_properties_final)
 
-  // Indicates that the function represented by the shared function info
-  // cannot observe the actual parameters passed at a call site, which
-  // means the function doesn't use the arguments object, doesn't use
-  // rest parameters, and is also in strict mode (meaning that there's
-  // no way to get to the actual arguments via the non-standard "arguments"
-  // accessor on sloppy mode functions). This can be used to speed up calls
-  // to this function even in the presence of arguments mismatch.
-  // See http://bit.ly/v8-faster-calls-with-arguments-mismatch for more
-  // information on this.
-  DECL_BOOLEAN_ACCESSORS(is_safe_to_skip_arguments_adaptor)
-
   // Indicates that the function has been reported for binary code coverage.
   DECL_BOOLEAN_ACCESSORS(has_reported_binary_coverage)
 

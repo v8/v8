@@ -497,8 +497,6 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   if (lit->ShouldEagerCompile()) {
     shared_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
     shared_info->UpdateAndFinalizeExpectedNofPropertiesFromEstimate(lit);
-    shared_info->set_is_safe_to_skip_arguments_adaptor(
-        lit->SafeToSkipArgumentsAdaptor());
     DCHECK_NULL(lit->produced_preparse_data());
 
     // If we're about to eager compile, we'll have the function literal
@@ -506,7 +504,6 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
     return;
   }
 
-  shared_info->set_is_safe_to_skip_arguments_adaptor(false);
   shared_info->UpdateExpectedNofPropertiesFromEstimate(lit);
 
   Handle<UncompiledData> data;

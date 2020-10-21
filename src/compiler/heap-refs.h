@@ -793,7 +793,6 @@ class ScopeInfoRef : public HeapObjectRef {
   V(bool, HasBuiltinId)                                  \
   V(bool, construct_as_builtin)                          \
   V(bool, HasBytecodeArray)                              \
-  V(bool, is_safe_to_skip_arguments_adaptor)             \
   V(SharedFunctionInfo::Inlineability, GetInlineability) \
   V(int, StartPosition)                                  \
   V(bool, is_compiled)                                   \

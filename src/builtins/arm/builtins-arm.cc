@@ -2352,7 +2352,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   //  -- r3 : new target (passed through to callee)
   // -----------------------------------
 
-  Label dont_adapt_arguments, stack_overflow, skip_adapt_arguments;
+  Label dont_adapt_arguments, stack_overflow;
   __ cmp(r2, Operand(kDontAdaptArgumentsSentinel));
   __ b(eq, &dont_adapt_arguments);
   __ ldr(r4, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
@@ -2466,41 +2466,6 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // Exit frame and return.
     LeaveArgumentsAdaptorFrame(masm);
     __ Jump(lr);
-  }
-
-  // -------------------------------------------
-  // Skip adapt arguments.
-  // -------------------------------------------
-  __ bind(&skip_adapt_arguments);
-  {
-    // The callee cannot observe the actual arguments, so it's safe to just
-    // pass the expected arguments by massaging the stack appropriately. See
-    // http://bit.ly/v8-faster-calls-with-arguments-mismatch for details.
-    Label under_application, over_application;
-    __ cmp(r0, r2);
-    __ b(lt, &under_application);
-
-    __ bind(&over_application);
-    {
-      // Remove superfluous parameters from the stack.
-      __ sub(r4, r0, r2);
-      __ mov(r0, r2);
-      __ add(sp, sp, Operand(r4, LSL, kPointerSizeLog2));
-      __ b(&dont_adapt_arguments);
-    }
-
-    __ bind(&under_application);
-    {
-      // Fill remaining expected arguments with undefined values.
-      Label fill;
-      __ LoadRoot(r4, RootIndex::kUndefinedValue);
-      __ bind(&fill);
-      __ add(r0, r0, Operand(1));
-      __ push(r4);
-      __ cmp(r0, r2);
-      __ b(lt, &fill);
-      __ b(&dont_adapt_arguments);
-    }
   }
 
   // -------------------------------------------

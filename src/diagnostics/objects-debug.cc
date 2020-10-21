@@ -874,11 +874,6 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(ReadOnlyRoots roots) {
       CHECK(!construct_as_builtin());
     }
   }
-
-  // At this point we only support skipping arguments adaptor frames
-  // for strict mode functions (see https://crbug.com/v8/8895).
-  CHECK_IMPLIES(is_safe_to_skip_arguments_adaptor(),
-                language_mode() == LanguageMode::kStrict);
 }
 
 void JSGlobalProxy::JSGlobalProxyVerify(Isolate* isolate) {

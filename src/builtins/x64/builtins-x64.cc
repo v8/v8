@@ -1910,7 +1910,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   //  -- rdi : function (passed through to callee)
   // -----------------------------------
 
-  Label dont_adapt_arguments, stack_overflow, skip_adapt_arguments;
+  Label dont_adapt_arguments, stack_overflow;
   __ cmpq(rbx, Immediate(kDontAdaptArgumentsSentinel));
   __ j(equal, &dont_adapt_arguments);
   __ LoadTaggedPointerField(
@@ -1991,44 +1991,6 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // Leave frame and return.
     LeaveArgumentsAdaptorFrame(masm);
     __ ret(0);
-  }
-
-  // -------------------------------------------
-  // Skip adapt arguments.
-  // -------------------------------------------
-  __ bind(&skip_adapt_arguments);
-  {
-    // The callee cannot observe the actual arguments, so it's safe to just
-    // pass the expected arguments by massaging the stack appropriately. See
-    // http://bit.ly/v8-faster-calls-with-arguments-mismatch for details.
-    Label under_application, over_application, invoke;
-    __ PopReturnAddressTo(rcx);
-    __ cmpq(rax, rbx);
-    __ j(less, &under_application, Label::kNear);
-
-    __ bind(&over_application);
-    {
-      // Remove superfluous parameters from the stack.
-      __ xchgq(rax, rbx);
-      __ subq(rbx, rax);
-      __ leaq(rsp, Operand(rsp, rbx, times_system_pointer_size, 0));
-      __ jmp(&invoke, Label::kNear);
-    }
-
-    __ bind(&under_application);
-    {
-      // Fill remaining expected arguments with undefined values.
-      Label fill;
-      __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
-      __ bind(&fill);
-      __ incq(rax);
-      __ Push(kScratchRegister);
-      __ cmpq(rax, rbx);
-      __ j(less, &fill);
-    }
-
-    __ bind(&invoke);
-    __ PushReturnAddressFrom(rcx);
   }
 
   // -------------------------------------------

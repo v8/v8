@@ -219,9 +219,6 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
                     is_oneshot_iife_or_properties_are_final,
                     SharedFunctionInfo::IsOneshotIifeOrPropertiesAreFinalBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
-                    is_safe_to_skip_arguments_adaptor,
-                    SharedFunctionInfo::IsSafeToSkipArgumentsAdaptorBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
                     private_name_lookup_skips_outer_class,
                     SharedFunctionInfo::PrivateNameLookupSkipsOuterClassBit)
 
