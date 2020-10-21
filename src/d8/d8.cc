@@ -835,7 +835,8 @@ MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
 
 }  // anonymous namespace
 
-MaybeLocal<Module> Shell::FetchModuleTree(Local<Context> context,
+MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
+                                          Local<Context> context,
                                           const std::string& file_name) {
   DCHECK(IsAbsolutePath(file_name));
   Isolate* isolate = context->GetIsolate();
@@ -848,8 +849,16 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Context> context,
       source_text = ReadFile(isolate, fallback_file_name.c_str());
     }
   }
+
+  ModuleEmbedderData* d = GetModuleDataFromContext(context);
   if (source_text.IsEmpty()) {
-    std::string msg = "d8: Error reading module from " + file_name;
+    std::string msg = "d8: Error reading  module from " + file_name;
+    if (!referrer.IsEmpty()) {
+      auto specifier_it =
+          d->module_to_specifier_map.find(Global<Module>(isolate, referrer));
+      CHECK(specifier_it != d->module_to_specifier_map.end());
+      msg += "\n    imported by " + specifier_it->second;
+    }
     Throw(isolate, msg.c_str());
     return MaybeLocal<Module>();
   }
@@ -863,7 +872,6 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Context> context,
     return MaybeLocal<Module>();
   }
 
-  ModuleEmbedderData* d = GetModuleDataFromContext(context);
   CHECK(d->specifier_to_module_map
             .insert(std::make_pair(file_name, Global<Module>(isolate, module)))
             .second);
@@ -878,7 +886,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Context> context,
     std::string absolute_path =
         NormalizePath(ToSTLString(isolate, name), dir_name);
     if (d->specifier_to_module_map.count(absolute_path)) continue;
-    if (FetchModuleTree(context, absolute_path).IsEmpty()) {
+    if (FetchModuleTree(module, context, absolute_path).IsEmpty()) {
       return MaybeLocal<Module>();
     }
   }
@@ -1023,7 +1031,8 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
   auto module_it = d->specifier_to_module_map.find(absolute_path);
   if (module_it != d->specifier_to_module_map.end()) {
     root_module = module_it->second.Get(isolate);
-  } else if (!FetchModuleTree(realm, absolute_path).ToLocal(&root_module)) {
+  } else if (!FetchModuleTree(Local<Module>(), realm, absolute_path)
+                  .ToLocal(&root_module)) {
     CHECK(try_catch.HasCaught());
     resolver->Reject(realm, try_catch.Exception()).ToChecked();
     return;
@@ -1090,7 +1099,8 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
 
   Local<Module> root_module;
 
-  if (!FetchModuleTree(realm, absolute_path).ToLocal(&root_module)) {
+  if (!FetchModuleTree(Local<Module>(), realm, absolute_path)
+           .ToLocal(&root_module)) {
     CHECK(try_catch.HasCaught());
     ReportException(isolate, &try_catch);
     return false;
