@@ -75,8 +75,10 @@ let kLocalNamesCode = 2;
 let kWasmFunctionTypeForm = 0x60;
 let kWasmAnyFunctionTypeForm = 0x70;
 
-let kHasMaximumFlag = 1;
-let kSharedHasMaximumFlag = 3;
+let kLimitsNoMaximum = 0
+let kLimitsHasMaximum = 1;
+let kLimitsSharedNoMaximum = 2;
+let kLimitsSharedHasMaximum = 3;
 
 // Segment flags
 let kActiveNoIndex = 0;
@@ -974,8 +976,8 @@ class WasmModuleBuilder {
     return this;
   }
 
-  addMemory(min, max, exp, shared) {
-    this.memory = {min: min, max: max, exp: exp, shared: shared};
+  addMemory(min, max, exported, shared) {
+    this.memory = {min: min, max: max, exported: exported, shared: shared};
     return this;
   }
 
@@ -1292,12 +1294,9 @@ class WasmModuleBuilder {
         section.emit_u8(1);  // one memory entry
         const has_max = wasm.memory.max !== undefined;
         const is_shared = wasm.memory.shared !== undefined;
-        // Emit flags (bit 0: reszeable max, bit 1: shared memory)
-        if (is_shared) {
-          section.emit_u8(has_max ? kSharedHasMaximumFlag : 2);
-        } else {
-          section.emit_u8(has_max ? kHasMaximumFlag : 0);
-        }
+        section.emit_u8(is_shared
+          ? (has_max ? kLimitsSharedHasMaximum : kLimitsSharedNoMaximum)
+          : (has_max ? kLimitsHasMaximum : kLimitsNoMaximum));
         section.emit_u32v(wasm.memory.min);
         if (has_max) section.emit_u32v(wasm.memory.max);
       });
@@ -1382,7 +1381,7 @@ class WasmModuleBuilder {
     }
 
     // Add export table.
-    var mem_export = (wasm.memory !== undefined && wasm.memory.exp);
+    var mem_export = (wasm.memory !== undefined && wasm.memory.exported);
     var exports_count = wasm.exports.length + (mem_export ? 1 : 0);
     if (exports_count > 0) {
       if (debug) print("emitting exports @ " + binary.length);

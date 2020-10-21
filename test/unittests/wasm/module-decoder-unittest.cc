@@ -1455,6 +1455,15 @@ TEST_F(WasmModuleVerifyTest, MaxMaximumMemorySize) {
   }
 }
 
+TEST_F(WasmModuleVerifyTest, InvalidMemoryLimits) {
+  {
+    const byte kInvalidLimits = 0x15;
+    const byte data[] = {
+        SECTION(Memory, ENTRY_COUNT(1), kInvalidLimits, 0, 10)};
+    EXPECT_FAILURE_WITH_MSG(data, "invalid memory limits flags 0x15");
+  }
+}
+
 TEST_F(WasmModuleVerifyTest, DataSegment_wrong_init_type) {
   const byte data[] = {
       SECTION(Memory, ENTRY_COUNT(1), kWithMaximum, 28, 28),
