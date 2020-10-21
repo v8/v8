@@ -837,11 +837,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       return *this;
     }
 
-    CodeBuilder& set_immovable() {
-      is_movable_ = false;
-      return *this;
-    }
-
     CodeBuilder& set_is_turbofanned() {
       is_turbofanned_ = true;
       return *this;
@@ -888,7 +883,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     BasicBlockProfilerData* profiler_data_ = nullptr;
     bool is_executable_ = true;
     bool read_only_data_container_ = false;
-    bool is_movable_ = true;
     bool is_turbofanned_ = false;
     int stack_slots_ = 0;
   };

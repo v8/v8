@@ -240,7 +240,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   callee.Return(static_cast<int>(desc->ReturnCount()), returns.get());
 
   OptimizedCompilationInfo info(ArrayVector("testing"), &zone,
-                                CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING);
+                                CodeKind::FOR_TESTING);
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, i_isolate, desc, callee.graph(),
                                        AssemblerOptions::Default(i_isolate),
@@ -286,7 +286,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   // Call the wrapper.
   OptimizedCompilationInfo wrapper_info(ArrayVector("wrapper"), &zone,
-                                        CodeKind::DEOPT_ENTRIES_OR_FOR_TESTING);
+                                        CodeKind::FOR_TESTING);
   Handle<Code> wrapper_code =
       Pipeline::GenerateCodeForTesting(
           &wrapper_info, i_isolate, wrapper_desc, caller.graph(),

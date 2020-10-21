@@ -253,8 +253,7 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
         host.as_wasm_code()->native_module()->GetRuntimeStubId(
             relocinfo->wasm_stub_call_address()));
     out->AddFormatted("    ;; wasm stub: %s", runtime_stub_name);
-  } else if (RelocInfo::IsRuntimeEntry(rmode) && isolate &&
-             isolate->deoptimizer_data() != nullptr) {
+  } else if (RelocInfo::IsRuntimeEntry(rmode) && isolate != nullptr) {
     // A runtime entry relocinfo might be a deoptimization bailout.
     Address addr = relocinfo->target_address();
     DeoptimizeKind type;
