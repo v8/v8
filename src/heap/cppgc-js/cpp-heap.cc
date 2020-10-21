@@ -14,6 +14,7 @@
 #include "src/heap/base/stack.h"
 #include "src/heap/cppgc-js/cpp-snapshot.h"
 #include "src/heap/cppgc-js/unified-heap-marking-state.h"
+#include "src/heap/cppgc-js/unified-heap-marking-verifier.h"
 #include "src/heap/cppgc-js/unified-heap-marking-visitor.h"
 #include "src/heap/cppgc/concurrent-marker.h"
 #include "src/heap/cppgc/gc-info-table.h"
@@ -209,7 +210,8 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
   marker_.reset();
   // TODO(chromium:1056170): replace build flag with dedicated flag.
 #if DEBUG
-  VerifyMarking(cppgc::Heap::StackState::kNoHeapPointers);
+  UnifiedHeapMarkingVerifier verifier(*this);
+  verifier.Run(cppgc::Heap::StackState::kNoHeapPointers);
 #endif
   {
     NoGCScope no_gc(*this);

@@ -23,7 +23,8 @@ class MarkingVerifierTest : public testing::TestWithHeap {
 
   void VerifyMarking(HeapBase& heap, StackState stack_state) {
     Heap::From(GetHeap())->object_allocator().ResetLinearAllocationBuffers();
-    MarkingVerifier verifier(heap, stack_state);
+    MarkingVerifier verifier(heap);
+    verifier.Run(stack_state);
   }
 };
 

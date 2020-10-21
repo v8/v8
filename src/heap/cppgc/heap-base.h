@@ -137,8 +137,6 @@ class V8_EXPORT_PRIVATE HeapBase {
   void AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded();
 
  protected:
-  void VerifyMarking(cppgc::Heap::StackState);
-
   virtual void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) = 0;
 

@@ -88,10 +88,6 @@ HeapBase::NoGCScope::NoGCScope(HeapBase& heap) : heap_(heap) {
 
 HeapBase::NoGCScope::~NoGCScope() { heap_.no_gc_scope_--; }
 
-void HeapBase::VerifyMarking(cppgc::Heap::StackState stack_state) {
-  MarkingVerifier verifier(*this, stack_state);
-}
-
 void HeapBase::AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded() {
   if (marker_) marker_->AdvanceMarkingOnAllocation();
 }
