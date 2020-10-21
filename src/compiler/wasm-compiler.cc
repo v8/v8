@@ -3182,59 +3182,44 @@ Node* WasmGraphBuilder::Invert(Node* node) {
 }
 
 Node* WasmGraphBuilder::BuildTruncateIntPtrToInt32(Node* value) {
-  if (mcgraph()->machine()->Is64()) {
-    value =
-        graph()->NewNode(mcgraph()->machine()->TruncateInt64ToInt32(), value);
-  }
-  return value;
+  return mcgraph()->machine()->Is64() ? gasm_->TruncateInt64ToInt32(value)
+                                      : value;
 }
 
 Node* WasmGraphBuilder::BuildChangeInt32ToIntPtr(Node* value) {
-  if (mcgraph()->machine()->Is64()) {
-    value = graph()->NewNode(mcgraph()->machine()->ChangeInt32ToInt64(), value);
-  }
-  return value;
+  return mcgraph()->machine()->Is64() ? gasm_->ChangeInt32ToInt64(value)
+                                      : value;
 }
 
 Node* WasmGraphBuilder::BuildChangeInt32ToSmi(Node* value) {
   // With pointer compression, only the lower 32 bits are used.
-  if (COMPRESS_POINTERS_BOOL) {
-    return graph()->NewNode(mcgraph()->machine()->Word32Shl(), value,
-                            BuildSmiShiftBitsConstant32());
-  }
-  value = BuildChangeInt32ToIntPtr(value);
-  return graph()->NewNode(mcgraph()->machine()->WordShl(), value,
-                          BuildSmiShiftBitsConstant());
+  return COMPRESS_POINTERS_BOOL
+             ? gasm_->Word32Shl(value, BuildSmiShiftBitsConstant32())
+             : gasm_->WordShl(BuildChangeInt32ToIntPtr(value),
+                              BuildSmiShiftBitsConstant());
 }
 
 Node* WasmGraphBuilder::BuildChangeUint31ToSmi(Node* value) {
-  if (COMPRESS_POINTERS_BOOL) {
-    return graph()->NewNode(mcgraph()->machine()->Word32Shl(), value,
-                            BuildSmiShiftBitsConstant32());
-  }
-  return graph()->NewNode(mcgraph()->machine()->WordShl(),
-                          Uint32ToUintptr(value), BuildSmiShiftBitsConstant());
+  return COMPRESS_POINTERS_BOOL
+             ? gasm_->Word32Shl(value, BuildSmiShiftBitsConstant32())
+             : graph()->NewNode(mcgraph()->machine()->WordShl(),
+                                Uint32ToUintptr(value),
+                                BuildSmiShiftBitsConstant());
 }
 
 Node* WasmGraphBuilder::BuildSmiShiftBitsConstant() {
-  return mcgraph()->IntPtrConstant(kSmiShiftSize + kSmiTagSize);
+  return gasm_->IntPtrConstant(kSmiShiftSize + kSmiTagSize);
 }
 
 Node* WasmGraphBuilder::BuildSmiShiftBitsConstant32() {
-  return mcgraph()->Int32Constant(kSmiShiftSize + kSmiTagSize);
+  return gasm_->Int32Constant(kSmiShiftSize + kSmiTagSize);
 }
 
 Node* WasmGraphBuilder::BuildChangeSmiToInt32(Node* value) {
-  if (COMPRESS_POINTERS_BOOL) {
-    value =
-        graph()->NewNode(mcgraph()->machine()->TruncateInt64ToInt32(), value);
-    value = graph()->NewNode(mcgraph()->machine()->Word32Sar(), value,
-                             BuildSmiShiftBitsConstant32());
-  } else {
-    value = BuildChangeSmiToIntPtr(value);
-    value = BuildTruncateIntPtrToInt32(value);
-  }
-  return value;
+  return COMPRESS_POINTERS_BOOL
+             ? gasm_->Word32Sar(gasm_->TruncateInt64ToInt32(value),
+                                BuildSmiShiftBitsConstant32())
+             : BuildTruncateIntPtrToInt32(BuildChangeSmiToIntPtr(value));
 }
 
 Node* WasmGraphBuilder::BuildChangeSmiToIntPtr(Node* value) {
