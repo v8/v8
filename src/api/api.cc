@@ -11154,14 +11154,7 @@ RegisterState::RegisterState()
 RegisterState::~RegisterState() = default;
 
 RegisterState::RegisterState(const RegisterState& other) V8_NOEXCEPT {
-  pc = other.pc;
-  sp = other.sp;
-  fp = other.fp;
-  lr = other.lr;
-  if (other.callee_saved) {
-    callee_saved =
-        std::make_unique<CalleeSavedRegisters>(*(other.callee_saved));
-  }
+  *this = other;
 }
 
 RegisterState& RegisterState::operator=(const RegisterState& other)
@@ -11172,8 +11165,12 @@ RegisterState& RegisterState::operator=(const RegisterState& other)
     fp = other.fp;
     lr = other.lr;
     if (other.callee_saved) {
+      // Make a deep copy if {other.callee_saved} is non-null.
       callee_saved =
           std::make_unique<CalleeSavedRegisters>(*(other.callee_saved));
+    } else {
+      // Otherwise, set {callee_saved} to null to match {other}.
+      callee_saved.reset();
     }
   }
   return *this;
