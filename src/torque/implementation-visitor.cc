@@ -3840,15 +3840,15 @@ std::string GenerateRuntimeTypeCheck(const Type* type,
     type_check << value << ".IsCleared()";
     at_start = false;
   }
-  for (const RuntimeType& runtime_type : type->GetRuntimeTypes()) {
+  for (const TypeChecker& runtime_type : type->GetTypeCheckers()) {
     if (!at_start) type_check << " || ";
     at_start = false;
     if (maybe_object) {
       bool strong = runtime_type.weak_ref_to.empty();
-      if (strong && runtime_type.type == "MaybeObject") {
-        // Rather than a generic Weak<T>, this is a basic type Tagged or
-        // WeakHeapObject. We can't validate anything more about the type of
-        // the object pointed to, so just check that it's weak.
+      if (strong && runtime_type.type == WEAK_HEAP_OBJECT) {
+        // Rather than a generic Weak<T>, this is the basic type WeakHeapObject.
+        // We can't validate anything more about the type of the object pointed
+        // to, so just check that it's weak.
         type_check << value << ".IsWeak()";
       } else {
         type_check << "(" << (strong ? "!" : "") << value << ".IsWeak() && "

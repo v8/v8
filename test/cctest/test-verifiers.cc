@@ -128,6 +128,57 @@ TEST_PAIR(TestWrongWeakTypeInIndexedStructField) {
   TaggedField<Object>::store(*descriptors, offset, *original_value);
 }
 
+TEST_PAIR(TestWrongOddball) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Value> v = CompileRun("new Date()");
+  Handle<JSDate> date = Handle<JSDate>::cast(v8::Utils::OpenHandle(*v));
+  Handle<Object> original_hour(
+      TaggedField<Object>::load(*date, JSDate::kHourOffset), i_isolate);
+
+  // There must be no GC (and therefore no verifiers running) until we can
+  // restore the modified data.
+  DisallowHeapAllocation no_gc;
+
+  // Hour is Undefined|Smi|NaN. Other oddballs like null should cause a failure.
+  TaggedField<Object>::store(*date, JSDate::kHourOffset,
+                             *i_isolate->factory()->null_value());
+  if (should_fail) {
+    TorqueGeneratedClassVerifiers::JSDateVerify(*date, i_isolate);
+  }
+
+  // Put back the original value in case verifiers run on test shutdown.
+  TaggedField<Object>::store(*date, JSDate::kHourOffset, *original_hour);
+}
+
+TEST_PAIR(TestWrongNumber) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Value> v = CompileRun("new Date()");
+  Handle<JSDate> date = Handle<JSDate>::cast(v8::Utils::OpenHandle(*v));
+  Handle<Object> original_hour(
+      TaggedField<Object>::load(*date, JSDate::kHourOffset), i_isolate);
+  v8::Local<v8::Value> v2 = CompileRun("1.1");
+  Handle<Object> float_val = v8::Utils::OpenHandle(*v2);
+
+  // There must be no GC (and therefore no verifiers running) until we can
+  // restore the modified data.
+  DisallowHeapAllocation no_gc;
+
+  // Hour is Undefined|Smi|NaN. Other doubles like 1.1 should cause a failure.
+  TaggedField<Object>::store(*date, JSDate::kHourOffset, *float_val);
+  if (should_fail) {
+    TorqueGeneratedClassVerifiers::JSDateVerify(*date, i_isolate);
+  }
+
+  // Put back the original value in case verifiers run on test shutdown.
+  TaggedField<Object>::store(*date, JSDate::kHourOffset, *original_hour);
+}
+
 #endif  // VERIFY_HEAP
 
 #undef TEST_PAIR

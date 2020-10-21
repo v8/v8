@@ -112,7 +112,7 @@ type bint generates 'TNode<BInt>' constexpr 'BInt';
 type string constexpr 'const char*';
 
 // A Smi value containing a bitfield struct as its integer data.
-type SmiTagged<T : type extends uint31> extends Smi;
+@useParentTypeChecker type SmiTagged<T : type extends uint31> extends Smi;
 
 // WARNING: The memory representation (i.e., in class fields and arrays) of
 // float64_or_hole is just a float64 that may be the hole-representing

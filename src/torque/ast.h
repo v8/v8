@@ -855,16 +855,22 @@ struct InstanceTypeConstraints {
 
 struct AbstractTypeDeclaration : TypeDeclaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(AbstractTypeDeclaration)
-  AbstractTypeDeclaration(SourcePosition pos, Identifier* name, bool transient,
+  AbstractTypeDeclaration(SourcePosition pos, Identifier* name,
+                          AbstractTypeFlags flags,
                           base::Optional<TypeExpression*> extends,
                           base::Optional<std::string> generates)
       : TypeDeclaration(kKind, pos, name),
-        is_constexpr(IsConstexprName(name->value)),
-        transient(transient),
+        flags(flags),
         extends(extends),
-        generates(std::move(generates)) {}
-  bool is_constexpr;
-  bool transient;
+        generates(std::move(generates)) {
+    CHECK_EQ(IsConstexprName(name->value),
+             !!(flags & AbstractTypeFlag::kConstexpr));
+  }
+
+  bool IsConstexpr() const { return flags & AbstractTypeFlag::kConstexpr; }
+  bool IsTransient() const { return flags & AbstractTypeFlag::kTransient; }
+
+  AbstractTypeFlags flags;
   base::Optional<TypeExpression*> extends;
   base::Optional<std::string> generates;
 };

@@ -77,7 +77,7 @@ std::string ComputeGeneratesType(base::Optional<std::string> opt_gen,
 const AbstractType* TypeVisitor::ComputeType(
     AbstractTypeDeclaration* decl, MaybeSpecializationKey specialized_from) {
   std::string generates =
-      ComputeGeneratesType(decl->generates, !decl->is_constexpr);
+      ComputeGeneratesType(decl->generates, !decl->IsConstexpr());
 
   const Type* parent_type = nullptr;
   if (decl->extends) {
@@ -90,25 +90,21 @@ const AbstractType* TypeVisitor::ComputeType(
     }
   }
 
-  if (decl->is_constexpr && decl->transient) {
+  if (decl->IsConstexpr() && decl->IsTransient()) {
     ReportError("cannot declare a transient type that is also constexpr");
   }
 
   const Type* non_constexpr_version = nullptr;
-  if (decl->is_constexpr) {
+  if (decl->IsConstexpr()) {
     QualifiedName non_constexpr_name{GetNonConstexprName(decl->name->value)};
     if (auto type = Declarations::TryLookupType(non_constexpr_name)) {
       non_constexpr_version = *type;
     }
   }
 
-  AbstractTypeFlags flags = AbstractTypeFlag::kNone;
-  if (decl->transient) flags |= AbstractTypeFlag::kTransient;
-  if (decl->is_constexpr) flags |= AbstractTypeFlag::kConstexpr;
-
-  return TypeOracle::GetAbstractType(parent_type, decl->name->value, flags,
-                                     generates, non_constexpr_version,
-                                     specialized_from);
+  return TypeOracle::GetAbstractType(parent_type, decl->name->value,
+                                     decl->flags, generates,
+                                     non_constexpr_version, specialized_from);
 }
 
 void DeclareMethods(AggregateType* container_type,

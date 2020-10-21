@@ -173,13 +173,14 @@ std::string AbstractType::GetGeneratedTNodeTypeNameImpl() const {
   return generated_type_;
 }
 
-std::vector<RuntimeType> AbstractType::GetRuntimeTypes() const {
-  std::string type_name = GetGeneratedTNodeTypeName();
+std::vector<TypeChecker> AbstractType::GetTypeCheckers() const {
+  if (UseParentTypeChecker()) return parent()->GetTypeCheckers();
+  std::string type_name = name();
   if (auto strong_type =
           Type::MatchUnaryGeneric(this, TypeOracle::GetWeakGeneric())) {
-    auto strong_runtime_types = (*strong_type)->GetRuntimeTypes();
-    std::vector<RuntimeType> result;
-    for (const RuntimeType& type : strong_runtime_types) {
+    auto strong_runtime_types = (*strong_type)->GetTypeCheckers();
+    std::vector<TypeChecker> result;
+    for (const TypeChecker& type : strong_runtime_types) {
       // Generic parameter in Weak<T> should have already been checked to
       // extend HeapObject, so it couldn't itself be another weak type.
       DCHECK(type.weak_ref_to.empty());
