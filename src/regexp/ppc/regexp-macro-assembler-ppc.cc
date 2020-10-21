@@ -177,7 +177,8 @@ void RegExpMacroAssemblerPPC::Backtrack() {
     __ LoadP(r3, MemOperand(frame_pointer(), kBacktrackCount), r0);
     __ addi(r3, r3, Operand(1));
     __ StoreP(r3, MemOperand(frame_pointer(), kBacktrackCount), r0);
-    __ cmpi(r3, Operand(backtrack_limit()));
+    __ mov(r0, Operand(backtrack_limit()));
+    __ cmp(r3, r0);
     __ bne(&next);
 
     // Backtrack limit exceeded.
