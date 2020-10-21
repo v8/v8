@@ -27,6 +27,7 @@
 #include "src/runtime/runtime.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/strings/string-stream.h"
+#include "src/strings/unicode-inl.h"
 #include "src/tracing/trace-event.h"
 #include "src/zone/zone-list-inl.h"
 
@@ -1071,7 +1072,8 @@ const AstRawString* Parser::ParseModuleSpecifier() {
 }
 
 ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
-    Scanner::Location* reserved_loc) {
+    Scanner::Location* reserved_loc,
+    Scanner::Location* string_literal_local_name_loc) {
   // ExportClause :
   //   '{' '}'
   //   '{' ExportsList '}'
@@ -1084,6 +1086,12 @@ ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
   // ExportSpecifier :
   //   IdentifierName
   //   IdentifierName 'as' IdentifierName
+  //   IdentifierName 'as' ModuleExportName
+  //   ModuleExportName
+  //   ModuleExportName 'as' ModuleExportName
+  //
+  // ModuleExportName :
+  //   StringLiteral
   ZoneChunkList<ExportClauseData>* export_data =
       zone()->New<ZoneChunkList<ExportClauseData>>(zone());
 
@@ -1091,23 +1099,27 @@ ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
 
   Token::Value name_tok;
   while ((name_tok = peek()) != Token::RBRACE) {
-    // Keep track of the first reserved word encountered in case our
-    // caller needs to report an error.
-    if (!reserved_loc->IsValid() &&
-        !Token::IsValidIdentifier(name_tok, LanguageMode::kStrict, false,
-                                  flags().is_module())) {
+    const AstRawString* local_name = ParseExportSpecifierName();
+    if (!string_literal_local_name_loc->IsValid() &&
+        name_tok == Token::STRING) {
+      // Keep track of the first string literal local name exported for error
+      // reporting. These must be followed by a 'from' clause.
+      *string_literal_local_name_loc = scanner()->location();
+    } else if (!reserved_loc->IsValid() &&
+               !Token::IsValidIdentifier(name_tok, LanguageMode::kStrict, false,
+                                         flags().is_module())) {
+      // Keep track of the first reserved word encountered in case our
+      // caller needs to report an error.
       *reserved_loc = scanner()->location();
     }
-    const AstRawString* local_name = ParsePropertyName();
-    const AstRawString* export_name = nullptr;
+    const AstRawString* export_name;
     Scanner::Location location = scanner()->location();
     if (CheckContextualKeyword(ast_value_factory()->as_string())) {
-      export_name = ParsePropertyName();
+      export_name = ParseExportSpecifierName();
       // Set the location to the whole "a as b" string, so that it makes sense
       // both for errors due to "a" and for errors due to "b".
       location.end_pos = scanner()->location().end_pos;
-    }
-    if (export_name == nullptr) {
+    } else {
       export_name = local_name;
     }
     export_data->push_back({export_name, local_name, location});
@@ -1120,6 +1132,31 @@ ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
 
   Expect(Token::RBRACE);
   return export_data;
+}
+
+const AstRawString* Parser::ParseExportSpecifierName() {
+  Token::Value next = Next();
+
+  // IdentifierName
+  if (V8_LIKELY(Token::IsPropertyName(next))) {
+    return GetSymbol();
+  }
+
+  // ModuleExportName
+  if (next == Token::STRING) {
+    const AstRawString* export_name = GetSymbol();
+    if (V8_LIKELY(export_name->is_one_byte())) return export_name;
+    if (!unibrow::Utf16::HasUnpairedSurrogate(
+            reinterpret_cast<const uint16_t*>(export_name->raw_data()),
+            export_name->length())) {
+      return export_name;
+    }
+    ReportMessage(MessageTemplate::kInvalidModuleExportName);
+    return EmptyIdentifierString();
+  }
+
+  ReportUnexpectedToken(next);
+  return EmptyIdentifierString();
 }
 
 ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
@@ -1135,12 +1172,13 @@ ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
   // ImportSpecifier :
   //   BindingIdentifier
   //   IdentifierName 'as' BindingIdentifier
+  //   ModuleExportName 'as' BindingIdentifier
 
   Expect(Token::LBRACE);
 
   auto result = zone()->New<ZonePtrList<const NamedImport>>(1, zone());
   while (peek() != Token::RBRACE) {
-    const AstRawString* import_name = ParsePropertyName();
+    const AstRawString* import_name = ParseExportSpecifierName();
     const AstRawString* local_name = import_name;
     Scanner::Location location = scanner()->location();
     // In the presence of 'as', the left-side of the 'as' can
@@ -1450,9 +1488,14 @@ void Parser::ParseExportStar() {
   //   export * as x from "...";
   // ~>
   //   import * as .x from "..."; export {.x as x};
+  //
+  // Note that the desugared internal namespace export name (.x above) will
+  // never conflict with a string literal export name, as literal string export
+  // names in local name positions (i.e. left of 'as' or in a clause without
+  // 'as') are disallowed without a following 'from' clause.
 
   ExpectContextualKeyword(ast_value_factory()->as_string());
-  const AstRawString* export_name = ParsePropertyName();
+  const AstRawString* export_name = ParseExportSpecifierName();
   Scanner::Location export_name_loc = scanner()->location();
   const AstRawString* local_name = NextInternalNamespaceExportName();
   Scanner::Location local_name_loc = Scanner::Location::invalid();
@@ -1478,12 +1521,18 @@ Statement* Parser::ParseExportDeclaration() {
   //    'export' '*' 'as' IdentifierName 'from' ModuleSpecifier ';'
   //    'export' '*' 'as' IdentifierName 'from' ModuleSpecifier
   //        [no LineTerminator here] AssertClause ';'
+  //    'export' '*' 'as' ModuleExportName 'from' ModuleSpecifier ';'
+  //    'export' '*' 'as' ModuleExportName 'from' ModuleSpecifier ';'
+  //        [no LineTerminator here] AssertClause ';'
   //    'export' ExportClause ('from' ModuleSpecifier)? ';'
   //    'export' ExportClause ('from' ModuleSpecifier [no LineTerminator here]
   //        AssertClause)? ';'
   //    'export' VariableStatement
   //    'export' Declaration
   //    'export' 'default' ... (handled in ParseExportDefault)
+  //
+  // ModuleExportName :
+  //   StringLiteral
 
   Expect(Token::EXPORT);
   Statement* result = nullptr;
@@ -1510,8 +1559,10 @@ Statement* Parser::ParseExportDeclaration() {
       // encountered, and then throw a SyntaxError if we are in the
       // non-FromClause case.
       Scanner::Location reserved_loc = Scanner::Location::invalid();
+      Scanner::Location string_literal_local_name_loc =
+          Scanner::Location::invalid();
       ZoneChunkList<ExportClauseData>* export_data =
-          ParseExportClause(&reserved_loc);
+          ParseExportClause(&reserved_loc, &string_literal_local_name_loc);
       if (CheckContextualKeyword(ast_value_factory()->from_string())) {
         Scanner::Location specifier_loc = scanner()->peek_location();
         const AstRawString* module_specifier = ParseModuleSpecifier();
@@ -1532,6 +1583,10 @@ Statement* Parser::ParseExportDeclaration() {
         if (reserved_loc.IsValid()) {
           // No FromClause, so reserved words are invalid in ExportClause.
           ReportMessageAt(reserved_loc, MessageTemplate::kUnexpectedReserved);
+          return nullptr;
+        } else if (string_literal_local_name_loc.IsValid()) {
+          ReportMessageAt(string_literal_local_name_loc,
+                          MessageTemplate::kModuleExportNameWithoutFromClause);
           return nullptr;
         }
 

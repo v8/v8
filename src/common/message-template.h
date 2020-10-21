@@ -395,6 +395,8 @@ namespace internal {
     "Async functions can only be declared at the top level or inside a "       \
     "block.")                                                                  \
   T(IllegalBreak, "Illegal break statement")                                   \
+  T(ModuleExportNameWithoutFromClause,                                         \
+    "String literal module export names must be followed by a 'from' clause")  \
   T(NoIterationStatement,                                                      \
     "Illegal continue statement: no surrounding iteration statement")          \
   T(IllegalContinue,                                                           \
@@ -419,6 +421,8 @@ namespace internal {
     "Invalid left-hand side expression in postfix operation")                  \
   T(InvalidLhsInPrefixOp,                                                      \
     "Invalid left-hand side expression in prefix operation")                   \
+  T(InvalidModuleExportName,                                                   \
+    "Invalid module export name: contains unpaired surrogate")                 \
   T(InvalidRegExpFlags, "Invalid flags supplied to RegExp constructor '%'")    \
   T(InvalidOrUnexpectedToken, "Invalid or unexpected token")                   \
   T(InvalidPrivateBrand, "Object must be an instance of class %")              \

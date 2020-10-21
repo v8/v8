@@ -649,16 +649,6 @@
   'built-ins/TypedArray/prototype/item/returns-undefined-for-holes-in-sparse-arrays': [FAIL],
   'built-ins/TypedArray/prototype/item/returns-undefined-for-out-of-range-index': [FAIL],
 
-  # http://crbug/v8/10964
-  'language/module-code/export-expname-binding-string': [FAIL],
-  'language/module-code/export-expname-from-binding-string': [FAIL],
-  'language/module-code/export-expname-from-star': [FAIL],
-  'language/module-code/export-expname-from-star-string': [FAIL],
-  'language/module-code/export-expname-from-string': [FAIL],
-  'language/module-code/export-expname-from-string-binding': [FAIL],
-  'language/module-code/export-expname-from-string-string': [FAIL],
-  'language/module-code/export-expname-import-string-binding': [FAIL],
-
   # http://crbug/v8/11039
   'intl402/Locale/reject-duplicate-variants-in-tlang': [FAIL],
 
