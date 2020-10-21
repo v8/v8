@@ -236,11 +236,10 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
   }
 }
 
-void LiftoffAssembler::LoadFromInstance(Register dst, uint32_t offset,
-                                        int size) {
-  DCHECK_LE(offset, kMaxInt);
-  movq(dst, liftoff::GetInstanceOperand());
+void LiftoffAssembler::LoadFromInstance(Register dst, int offset, int size) {
+  DCHECK_LE(0, offset);
   DCHECK(size == 4 || size == 8);
+  movq(dst, liftoff::GetInstanceOperand());
   if (size == 4) {
     movl(dst, Operand(dst, offset));
   } else {
@@ -248,9 +247,8 @@ void LiftoffAssembler::LoadFromInstance(Register dst, uint32_t offset,
   }
 }
 
-void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
-                                                     uint32_t offset) {
-  DCHECK_LE(offset, kMaxInt);
+void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst, int offset) {
+  DCHECK_LE(0, offset);
   movq(dst, liftoff::GetInstanceOperand());
   LoadTaggedPointerField(dst, Operand(dst, offset));
 }

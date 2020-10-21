@@ -478,8 +478,8 @@ class LiftoffAssembler : public TurboAssembler {
 
   inline void LoadConstant(LiftoffRegister, WasmValue,
                            RelocInfo::Mode rmode = RelocInfo::NONE);
-  inline void LoadFromInstance(Register dst, uint32_t offset, int size);
-  inline void LoadTaggedPointerFromInstance(Register dst, uint32_t offset);
+  inline void LoadFromInstance(Register dst, int offset, int size);
+  inline void LoadTaggedPointerFromInstance(Register dst, int offset);
   inline void SpillInstance(Register instance);
   inline void FillInstanceInto(Register dst);
   inline void LoadTaggedPointer(Register dst, Register src_addr,
