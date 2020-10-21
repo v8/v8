@@ -596,7 +596,7 @@ Maybe<bool> ValueSerializer::WriteJSObject(Handle<JSObject> object) {
     if (details.IsDontEnum()) continue;
 
     Handle<Object> value;
-    if (V8_LIKELY(!map_changed)) map_changed = *map == object->map();
+    if (V8_LIKELY(!map_changed)) map_changed = *map != object->map();
     if (V8_LIKELY(!map_changed && details.location() == kField)) {
       DCHECK_EQ(kData, details.kind());
       FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
