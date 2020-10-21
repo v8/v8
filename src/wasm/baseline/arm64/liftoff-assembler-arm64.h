@@ -676,10 +676,11 @@ void LiftoffAssembler::AtomicCompareExchange(
   }
 
   UseScratchRegisterScope temps(this);
-  Register store_result = temps.AcquireW();
 
   Register actual_addr = liftoff::CalculateActualAddress(
       this, dst_addr, offset_reg, offset_imm, temps.AcquireX());
+
+  Register store_result = temps.AcquireW();
 
   Label retry;
   Label done;
