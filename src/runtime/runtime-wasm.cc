@@ -137,7 +137,7 @@ RUNTIME_FUNCTION(Runtime_ThrowWasmStackOverflow) {
   return isolate->StackOverflow();
 }
 
-RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {
+RUNTIME_FUNCTION(Runtime_WasmThrowJSTypeError) {
   // This runtime function is called both from wasm and from e.g. js-to-js
   // functions. Hence the "thread in wasm" flag can be either set or not. Both
   // is OK, since throwing will trigger unwinding anyway, which sets the flag
@@ -145,7 +145,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kWasmTrapTypeError));
+      isolate, NewTypeError(MessageTemplate::kWasmTrapJSTypeError));
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {

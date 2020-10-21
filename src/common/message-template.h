@@ -557,7 +557,7 @@ namespace internal {
   T(WasmTrapTableOutOfBounds, "table index is out of bounds")                  \
   T(WasmTrapFuncSigMismatch, "function signature mismatch")                    \
   T(WasmTrapMultiReturnLengthMismatch, "multi-return length mismatch")         \
-  T(WasmTrapTypeError, "wasm function signature contains illegal type")        \
+  T(WasmTrapJSTypeError, "type incompatibility when transforming from/to JS")  \
   T(WasmTrapDataSegmentDropped, "data segment has been dropped")               \
   T(WasmTrapElemSegmentDropped, "element segment has been dropped")            \
   T(WasmTrapBrOnExnNull, "br_on_exn on null value")                            \

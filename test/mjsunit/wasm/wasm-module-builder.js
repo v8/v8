@@ -702,12 +702,11 @@ let kTrapRemByZero            = 4;
 let kTrapFloatUnrepresentable = 5;
 let kTrapTableOutOfBounds     = 6;
 let kTrapFuncSigMismatch      = 7;
-let kTrapTypeError            = 8;
-let kTrapUnalignedAccess      = 9;
-let kTrapDataSegmentDropped   = 10;
-let kTrapElemSegmentDropped   = 11;
-let kTrapBrOnExnNull          = 12;
-let kTrapRethrowNull          = 13;
+let kTrapUnalignedAccess      = 8;
+let kTrapDataSegmentDropped   = 9;
+let kTrapElemSegmentDropped   = 10;
+let kTrapBrOnExnNull          = 11;
+let kTrapRethrowNull          = 12;
 
 let kTrapMsgs = [
   "unreachable",
@@ -718,7 +717,6 @@ let kTrapMsgs = [
   "float unrepresentable in integer range",
   "table index is out of bounds",
   "function signature mismatch",
-  "wasm function signature contains illegal type",
   "operation does not support unaligned accesses",
   "data segment has been dropped",
   "element segment has been dropped",

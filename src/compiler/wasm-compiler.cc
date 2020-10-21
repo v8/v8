@@ -6226,7 +6226,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     SetControl(type_check.if_false);
 
     Node* old_effect = effect();
-    BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError, js_context,
+    BuildCallToRuntimeWithContext(Runtime::kWasmThrowJSTypeError, js_context,
                                   nullptr, 0);
 
     SetEffectControl(type_check.EffectPhi(old_effect, effect()),
@@ -6567,7 +6567,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       // Throw a TypeError. Use the js_context of the calling javascript
       // function (passed as a parameter), such that the generated code is
       // js_context independent.
-      BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError, js_context,
+      BuildCallToRuntimeWithContext(Runtime::kWasmThrowJSTypeError, js_context,
                                     nullptr, 0);
       TerminateThrow(effect(), control());
       return;
@@ -6670,7 +6670,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       // =======================================================================
       // === Runtime TypeError =================================================
       // =======================================================================
-      BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError,
+      BuildCallToRuntimeWithContext(Runtime::kWasmThrowJSTypeError,
                                     native_context, nullptr, 0);
       TerminateThrow(effect(), control());
       return false;
@@ -6992,7 +6992,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     // Throw a TypeError if the signature is incompatible with JavaScript.
     if (!wasm::IsJSCompatibleSignature(sig_, module_, enabled_features_)) {
-      BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError, context,
+      BuildCallToRuntimeWithContext(Runtime::kWasmThrowJSTypeError, context,
                                     nullptr, 0);
       TerminateThrow(effect(), control());
       return;
