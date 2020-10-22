@@ -69,7 +69,7 @@ extern bool g_is_trap_handler_enabled;
 //
 // use_v8_handler indicates that V8 should install its own handler
 // rather than relying on the embedder to do it.
-bool EnableTrapHandler(bool use_v8_handler);
+V8_EXPORT_PRIVATE bool EnableTrapHandler(bool use_v8_handler);
 
 inline bool IsTrapHandlerEnabled() {
   DCHECK_IMPLIES(g_is_trap_handler_enabled, V8_TRAP_HANDLER_SUPPORTED);

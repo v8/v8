@@ -80,6 +80,7 @@ class TrapHandlerTest : public TestWithIsolate,
                         public ::testing::WithParamInterface<TrapHandlerStyle> {
  protected:
   void SetUp() override {
+    CHECK(trap_handler::EnableTrapHandler(false));
     backing_store_ = BackingStore::AllocateWasmMemory(i_isolate(), 1, 1,
                                                       SharedFlag::kNotShared);
     CHECK(backing_store_);

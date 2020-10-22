@@ -9,6 +9,7 @@
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/logging/counters.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
@@ -23,12 +24,6 @@ namespace v8 {
 namespace internal {
 
 namespace {
-#if V8_TARGET_ARCH_64_BIT
-constexpr bool kUseGuardRegions = true;
-#else
-constexpr bool kUseGuardRegions = false;
-#endif
-
 #if V8_TARGET_ARCH_MIPS64
 // MIPS64 has a user space of 2^40 bytes on most processors,
 // address space limits needs to be smaller.
@@ -173,8 +168,11 @@ BackingStore::~BackingStore() {
   if (is_wasm_memory_) {
     DCHECK(free_on_destruct_);
     DCHECK(!custom_deleter_);
-    TRACE_BS("BSw:free  bs=%p mem=%p (length=%zu, capacity=%zu)\n", this,
-             buffer_start_, byte_length(), byte_capacity_);
+    size_t reservation_size =
+        GetReservationSize(has_guard_regions_, byte_capacity_);
+    TRACE_BS(
+        "BSw:free  bs=%p mem=%p (length=%zu, capacity=%zu, reservation=%zu)\n",
+        this, buffer_start_, byte_length(), byte_capacity_, reservation_size);
     if (is_shared_) {
       // Deallocate the list of attached memory objects.
       SharedWasmMemoryData* shared_data = get_shared_wasm_memory_data();
@@ -191,8 +189,7 @@ BackingStore::~BackingStore() {
         FreePages(GetPlatformPageAllocator(),
                   reinterpret_cast<void*>(region.begin()), region.size());
     CHECK(pages_were_freed);
-    BackingStore::ReleaseReservation(
-        GetReservationSize(has_guard_regions_, byte_capacity_));
+    BackingStore::ReleaseReservation(reservation_size);
     Clear();
     return;
   }
@@ -304,7 +301,7 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateWasmMemory(
 
   TRACE_BS("BSw:try   %zu pages, %zu max\n", initial_pages, maximum_pages);
 
-  bool guards = kUseGuardRegions;
+  bool guards = trap_handler::IsTrapHandlerEnabled();
 
   // For accounting purposes, whether a GC was necessary.
   bool did_retry = false;
@@ -348,7 +345,8 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateWasmMemory(
       FATAL("could not allocate wasm memory backing store");
     }
     RecordStatus(isolate, AllocationStatus::kAddressSpaceLimitReachedFailure);
-    TRACE_BS("BSw:try   failed to reserve address space\n");
+    TRACE_BS("BSw:try   failed to reserve address space (size %zu)\n",
+             reservation_size);
     return {};
   }
 
@@ -405,8 +403,10 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateWasmMemory(
                                  false,          // custom_deleter
                                  false);         // empty_deleter
 
-  TRACE_BS("BSw:alloc bs=%p mem=%p (length=%zu, capacity=%zu)\n", result,
-           result->buffer_start(), byte_length, byte_capacity);
+  TRACE_BS(
+      "BSw:alloc bs=%p mem=%p (length=%zu, capacity=%zu, reservation=%zu)\n",
+      result, result->buffer_start(), byte_length, byte_capacity,
+      reservation_size);
 
   // Shared Wasm memories need an anchor for the memory object list.
   if (shared == SharedFlag::kShared) {
