@@ -34,11 +34,10 @@ constexpr size_t kAddressSpaceLimit = 0x10100000000L;  // 1 TiB + 4 GiB
 constexpr size_t kAddressSpaceLimit = 0xC0000000;  // 3 GiB
 #endif
 
-constexpr uint64_t kOneGiB = 1024 * 1024 * 1024;
-constexpr uint64_t kNegativeGuardSize = 2 * kOneGiB;
+constexpr uint64_t kNegativeGuardSize = uint64_t{2} * GB;
 
 #if V8_TARGET_ARCH_64_BIT
-constexpr uint64_t kFullGuardSize = 10 * kOneGiB;
+constexpr uint64_t kFullGuardSize = uint64_t{10} * GB;
 #endif
 
 std::atomic<uint64_t> reserved_address_space_{0};
@@ -57,30 +56,26 @@ enum class AllocationStatus {
   kOtherFailure  // Failed for an unknown reason
 };
 
+base::AddressRegion GetReservedRegion(bool has_guard_regions,
+                                      void* buffer_start,
+                                      size_t byte_capacity) {
 #if V8_TARGET_ARCH_64_BIT
-base::AddressRegion GetGuardedRegion(void* buffer_start, size_t byte_length) {
-  // Guard regions always look like this:
-  // |xxx(2GiB)xxx|.......(4GiB)..xxxxx|xxxxxx(4GiB)xxxxxx|
-  //              ^ buffer_start
-  //                              ^ byte_length
-  // ^ negative guard region           ^ positive guard region
+  if (has_guard_regions) {
+    // Guard regions always look like this:
+    // |xxx(2GiB)xxx|.......(4GiB)..xxxxx|xxxxxx(4GiB)xxxxxx|
+    //              ^ buffer_start
+    //                              ^ byte_length
+    // ^ negative guard region           ^ positive guard region
 
-  Address start = reinterpret_cast<Address>(buffer_start);
-  DCHECK_EQ(8, sizeof(size_t));  // only use on 64-bit
-  DCHECK_EQ(0, start % AllocatePageSize());
-  return base::AddressRegion(start - (2 * kOneGiB),
-                             static_cast<size_t>(kFullGuardSize));
-}
+    Address start = reinterpret_cast<Address>(buffer_start);
+    DCHECK_EQ(8, sizeof(size_t));  // only use on 64-bit
+    DCHECK_EQ(0, start % AllocatePageSize());
+    return base::AddressRegion(start - kNegativeGuardSize,
+                               static_cast<size_t>(kFullGuardSize));
+  }
 #endif
 
-base::AddressRegion GetRegion(bool has_guard_regions, void* buffer_start,
-                              size_t byte_length, size_t byte_capacity) {
-#if V8_TARGET_ARCH_64_BIT
-  if (has_guard_regions) return GetGuardedRegion(buffer_start, byte_length);
-#else
   DCHECK(!has_guard_regions);
-#endif
-
   return base::AddressRegion(reinterpret_cast<Address>(buffer_start),
                              byte_capacity);
 }
@@ -181,8 +176,8 @@ BackingStore::~BackingStore() {
     }
 
     // Wasm memories are always allocated through the page allocator.
-    auto region = GetRegion(has_guard_regions_, buffer_start_, byte_length_,
-                            byte_capacity_);
+    auto region =
+        GetReservedRegion(has_guard_regions_, buffer_start_, byte_capacity_);
 
     bool pages_were_freed =
         region.size() == 0 /* no need to free any pages */ ||
@@ -383,9 +378,10 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateWasmMemory(
                           PageAllocator::kReadWrite);
   };
   if (!gc_retry(commit_memory)) {
+    TRACE_BS("BSw:try   failed to set permissions (%p, %zu)\n", buffer_start,
+             byte_length);
     // SetPermissions put us over the process memory limit.
     V8::FatalProcessOutOfMemory(nullptr, "BackingStore::AllocateWasmMemory()");
-    TRACE_BS("BSw:try   failed to set permissions\n");
   }
 
   DebugCheckZero(buffer_start, byte_length);  // touch the bytes.
