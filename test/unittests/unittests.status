@@ -4,6 +4,10 @@
 
 [
 ##############################################################################
+[ALWAYS, {
+  'WeakContainerTest.ConservativeGCTracesWeakContainer': [SKIP],  # test is flaky.
+}],
+
 ['system == macos and asan', {
   # BUG(820416).
   'BitsDeathTest*': [SKIP],
@@ -76,5 +80,4 @@
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
-
 ]
