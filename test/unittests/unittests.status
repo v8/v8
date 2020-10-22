@@ -4,10 +4,6 @@
 
 [
 ##############################################################################
-[ALWAYS, {
-  'WeakContainerTest.ConservativeGCTracesWeakContainer': [SKIP],  # test is flaky.
-}],
-
 ['system == macos and asan', {
   # BUG(820416).
   'BitsDeathTest*': [SKIP],

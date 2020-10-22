@@ -47,6 +47,11 @@ size_t NonTraceableGCed::n_trace_calls = 0u;
 
 void EmptyWeakCallback(const LivenessBroker&, const void*) {}
 
+template <typename T>
+V8_NOINLINE T access(volatile const T& t) {
+  return t;
+}
+
 }  // namespace
 
 }  // namespace internal
@@ -78,6 +83,7 @@ TEST_F(WeakContainerTest, TraceableGCedTraced) {
                                                          nullptr);
   FinishMarking(Config::StackState::kNoHeapPointers);
   EXPECT_NE(0u, TraceableGCed::n_trace_calls);
+  access(obj);
 }
 
 TEST_F(WeakContainerTest, NonTraceableGCedNotTraced) {
@@ -89,6 +95,7 @@ TEST_F(WeakContainerTest, NonTraceableGCedNotTraced) {
                                                          nullptr);
   FinishMarking(Config::StackState::kNoHeapPointers);
   EXPECT_EQ(0u, NonTraceableGCed::n_trace_calls);
+  access(obj);
 }
 
 TEST_F(WeakContainerTest, NonTraceableGCedNotTracedConservatively) {
@@ -100,6 +107,7 @@ TEST_F(WeakContainerTest, NonTraceableGCedNotTracedConservatively) {
                                                          nullptr);
   FinishMarking(Config::StackState::kMayContainHeapPointers);
   EXPECT_NE(0u, NonTraceableGCed::n_trace_calls);
+  access(obj);
 }
 
 TEST_F(WeakContainerTest, ConservativeGCTracesWeakContainer) {
@@ -113,6 +121,7 @@ TEST_F(WeakContainerTest, ConservativeGCTracesWeakContainer) {
         obj, EmptyWeakCallback, nullptr);
     FinishMarking(Config::StackState::kNoHeapPointers);
     trace_count_without_conservative = TraceableGCed::n_trace_calls;
+    access(obj);
   }
   {
     TraceableGCed* obj =
@@ -123,6 +132,7 @@ TEST_F(WeakContainerTest, ConservativeGCTracesWeakContainer) {
         obj, EmptyWeakCallback, nullptr);
     FinishMarking(Config::StackState::kMayContainHeapPointers);
     EXPECT_LT(trace_count_without_conservative, TraceableGCed::n_trace_calls);
+    access(obj);
   }
 }
 
@@ -139,6 +149,7 @@ TEST_F(WeakContainerTest, ConservativeGCTracesWeakContainerOnce) {
                                                          nullptr);
   FinishMarking(Config::StackState::kMayContainHeapPointers);
   EXPECT_EQ(1u, NonTraceableGCed::n_trace_calls);
+  access(obj);
 }
 
 namespace {
