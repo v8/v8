@@ -300,6 +300,8 @@ v8_source_set("unittests_sources") {
     "heap/spaces-unittest.cc",
     "heap/unified-heap-snapshot-unittest.cc",
     "heap/unified-heap-unittest.cc",
+    "heap/unified-heap-utils.cc",
+    "heap/unified-heap-utils.h",
     "heap/unmapper-unittest.cc",
     "heap/worklist-unittest.cc",
     "interpreter/bytecode-array-builder-unittest.cc",

@@ -9,30 +9,12 @@
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/objects/objects-inl.h"
 #include "test/unittests/heap/heap-utils.h"
+#include "test/unittests/heap/unified-heap-utils.h"
 
 namespace v8 {
 namespace internal {
 
 namespace {
-
-v8::Local<v8::Object> ConstructTraceableJSApiObject(
-    v8::Local<v8::Context> context, void* object) {
-  v8::EscapableHandleScope scope(context->GetIsolate());
-  v8::Local<v8::FunctionTemplate> function_t =
-      v8::FunctionTemplate::New(context->GetIsolate());
-  v8::Local<v8::ObjectTemplate> instance_t = function_t->InstanceTemplate();
-  instance_t->SetInternalFieldCount(2);
-  v8::Local<v8::Function> function =
-      function_t->GetFunction(context).ToLocalChecked();
-  v8::Local<v8::Object> instance =
-      function->NewInstance(context).ToLocalChecked();
-  instance->SetAlignedPointerInInternalField(0, object);
-  instance->SetAlignedPointerInInternalField(1, object);
-  CHECK(!instance.IsEmpty());
-  i::Handle<i::JSReceiver> js_obj = v8::Utils::OpenHandle(*instance);
-  CHECK_EQ(i::JS_API_OBJECT_TYPE, js_obj->map().instance_type());
-  return scope.Escape(instance);
-}
 
 void ResetWrappableConnection(v8::Local<v8::Object> api_object) {
   api_object->SetAlignedPointerInInternalField(0, nullptr);

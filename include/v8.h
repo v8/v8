@@ -135,6 +135,7 @@ class Heap;
 class HeapObject;
 class ExternalString;
 class Isolate;
+class JSMemberBase;
 class LocalEmbedderHeapTracer;
 class MicrotaskQueue;
 class PropertyCallbackArguments;
@@ -304,6 +305,7 @@ class Local {
                                 const TracedReferenceBase<T>& that);
 
  private:
+  friend class internal::JSMemberBase;
   friend class Utils;
   template<class F> friend class Eternal;
   template<class F> friend class PersistentBase;

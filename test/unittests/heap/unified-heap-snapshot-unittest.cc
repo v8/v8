@@ -10,6 +10,7 @@
 #include "include/cppgc/name-provider.h"
 #include "include/cppgc/persistent.h"
 #include "include/cppgc/platform.h"
+#include "include/v8-cppgc.h"
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
@@ -17,6 +18,7 @@
 #include "src/profiler/heap-snapshot-generator-inl.h"
 #include "src/profiler/heap-snapshot-generator.h"
 #include "test/unittests/heap/heap-utils.h"
+#include "test/unittests/heap/unified-heap-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -278,6 +280,48 @@ TEST_F(UnifiedHeapSnapshotTest, ReferenceToFinishedSCC) {
                                 GetExpectedName<BaseWithoutName>(),  // NOLINT
                                 GetExpectedName<BaseWithoutName>(),  // NOLINT
                                 GetExpectedName<GCed>()              // NOLINT
+                            }));
+}
+
+namespace {
+
+class GCedWithJSRef : public cppgc::GarbageCollected<GCedWithJSRef> {
+ public:
+  static constexpr const char kExpectedName[] =
+      "v8::internal::(anonymous namespace)::GCedWithJSRef";
+
+  virtual void Trace(cppgc::Visitor* v) const { v->Trace(v8_object_); }
+
+  void SetV8Object(v8::Isolate* isolate, v8::Local<v8::Object> object) {
+    v8_object_.Set(isolate, object);
+  }
+
+ private:
+  JSMember<v8::Object> v8_object_;
+};
+constexpr const char GCedWithJSRef::kExpectedName[];
+
+}  // namespace
+
+TEST_F(UnifiedHeapSnapshotTest, JSReferenceForcesVisibleObject) {
+  // Test ensures that a C++->JS reference forces an object to be visible in the
+  // snapshot.
+  cppgc::Persistent<GCedWithJSRef> gc_w_js_ref =
+      cppgc::MakeGarbageCollected<GCedWithJSRef>(allocation_handle());
+  v8::HandleScope scope(v8_isolate());
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
+  v8::Local<v8::Object> api_object =
+      ConstructTraceableJSApiObject(context, gc_w_js_ref.Get(), "LeafJSObject");
+  gc_w_js_ref->SetV8Object(v8_isolate(), api_object);
+  const v8::HeapSnapshot* snapshot = TakeHeapSnapshot();
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+  EXPECT_TRUE(
+      ContainsRetainingPath(*snapshot,
+                            {
+                                kExpectedCppRootsName,             // NOLINT
+                                GetExpectedName<GCedWithJSRef>(),  // NOLINT
+                                "LeafJSObject"                     // NOLINT
                             }));
 }
 

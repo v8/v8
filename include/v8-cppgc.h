@@ -15,6 +15,8 @@ class Isolate;
 template <typename T>
 class JSMember;
 class JSVisitor;
+template <typename T>
+class Local;
 
 namespace internal {
 
@@ -32,6 +34,8 @@ class V8_EXPORT JSMemberBase {
    * Clears the reference. IsEmpty() will return true after this call.
    */
   inline void Reset();
+
+  inline v8::Local<v8::Value> Get(v8::Isolate* isolate) const;
 
  private:
   static internal::Address* New(v8::Isolate* isolate,
@@ -94,6 +98,11 @@ void JSMemberBase::Reset() {
   if (IsEmpty()) return;
   Delete(val_);
   SetSlotThreadSafe(nullptr);
+}
+
+v8::Local<v8::Value> JSMemberBase::Get(v8::Isolate* isolate) const {
+  if (IsEmpty()) return Local<Value>();
+  return Local<Value>::New(isolate, reinterpret_cast<Value*>(val_));
 }
 
 template <typename U>

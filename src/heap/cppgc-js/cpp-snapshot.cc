@@ -328,6 +328,7 @@ class CppGraphBuilderImpl final {
   void Run();
 
   void VisitForVisibility(State* parent, const HeapObjectHeader&);
+  void VisitForVisibility(State& parent, const JSMemberBase&);
   void VisitRootForGraphBuilding(RootState&, const HeapObjectHeader&,
                                  const cppgc::SourceLocation&);
   void ProcessPendingObjects();
@@ -357,6 +358,18 @@ class CppGraphBuilderImpl final {
       current.set_node(AddNode(header));
     }
     graph_.AddEdge(parent.get_node(), current.get_node());
+  }
+
+  void AddEdge(State& parent, const JSMemberBase& ref) {
+    DCHECK(parent.IsVisibleNotDependent());
+    v8::Local<v8::Value> v8_value = ref.Get(cpp_heap_.isolate());
+    if (!v8_value.IsEmpty()) {
+      if (!parent.get_node()) {
+        parent.set_node(AddNode(*parent.header()));
+      }
+      auto* v8_node = graph_.V8Node(v8_value);
+      graph_.AddEdge(parent.get_node(), v8_node);
+    }
   }
 
   void AddRootEdge(RootState& root, State& child, std::string edge_name) {
@@ -462,7 +475,10 @@ class VisiblityVisitor final : public JSVisitor {
   }
 
   // JS handling.
-  void Visit(const JSMemberBase& ref) final {}
+  void Visit(const JSMemberBase& ref) final {
+    graph_builder_.VisitForVisibility(parent_scope_.ParentAsRegularState(),
+                                      ref);
+  }
 
  private:
   CppGraphBuilderImpl& graph_builder_;
@@ -492,7 +508,9 @@ class GraphBuildingVisitor final : public JSVisitor {
   void VisitWeakRoot(const void*, cppgc::TraceDescriptor, cppgc::WeakCallback,
                      const void*, const cppgc::SourceLocation&) final {}
   // JS handling.
-  void Visit(const JSMemberBase& ref) final {}
+  void Visit(const JSMemberBase& ref) final {
+    graph_builder_.AddEdge(parent_scope_.ParentAsRegularState(), ref);
+  }
 
  private:
   CppGraphBuilderImpl& graph_builder_;
@@ -582,6 +600,14 @@ void CppGraphBuilderImpl::VisitForVisibility(State* parent,
       // Eagerly update a parent object as its visibility state is now fixed.
       parent->MarkVisible();
     }
+  }
+}
+
+void CppGraphBuilderImpl::VisitForVisibility(State& parent,
+                                             const JSMemberBase& ref) {
+  v8::Local<v8::Value> v8_value = ref.Get(cpp_heap_.isolate());
+  if (!v8_value.IsEmpty()) {
+    parent.MarkVisible();
   }
 }
 
