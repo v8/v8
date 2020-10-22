@@ -20,11 +20,11 @@ namespace internal {
 TQ_OBJECT_CONSTRUCTORS_IMPL(EmbedderDataArray)
 
 Address EmbedderDataArray::slots_start() {
-  return FIELD_ADDR(*this, OffsetOfElementAt(0));
+  return field_address(OffsetOfElementAt(0));
 }
 
 Address EmbedderDataArray::slots_end() {
-  return FIELD_ADDR(*this, OffsetOfElementAt(length()));
+  return field_address(OffsetOfElementAt(length()));
 }
 
 }  // namespace internal

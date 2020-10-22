@@ -242,7 +242,7 @@ int Code::InstructionSize() const {
 }
 
 Address Code::raw_instruction_start() const {
-  return FIELD_ADDR(*this, kHeaderSize);
+  return field_address(kHeaderSize);
 }
 
 Address Code::InstructionStart() const {

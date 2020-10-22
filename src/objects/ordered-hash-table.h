@@ -478,8 +478,7 @@ class SmallOrderedHashTable : public HeapObject {
   }
 
   Address GetHashTableStartAddress(int capacity) const {
-    return FIELD_ADDR(*this,
-                      DataTableStartOffset() + DataTableSizeFor(capacity));
+    return field_address(DataTableStartOffset() + DataTableSizeFor(capacity));
   }
 
   void SetFirstEntry(int bucket, byte value) {

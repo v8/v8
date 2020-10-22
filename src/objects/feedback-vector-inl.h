@@ -37,8 +37,8 @@ INT32_ACCESSORS(FeedbackMetadata, closure_feedback_cell_count,
                 kFeedbackCellCountOffset)
 
 int32_t FeedbackMetadata::synchronized_slot_count() const {
-  return base::Acquire_Load(reinterpret_cast<const base::Atomic32*>(
-      FIELD_ADDR(*this, kSlotCountOffset)));
+  return base::Acquire_Load(
+      reinterpret_cast<const base::Atomic32*>(field_address(kSlotCountOffset)));
 }
 
 int32_t FeedbackMetadata::get(int index) const {

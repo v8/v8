@@ -394,8 +394,7 @@ void FixedDoubleArray::MoveElements(Isolate* isolate, int dst_index,
                                     int src_index, int len,
                                     WriteBarrierMode mode) {
   DCHECK_EQ(SKIP_WRITE_BARRIER, mode);
-  double* data_start =
-      reinterpret_cast<double*>(FIELD_ADDR(*this, kHeaderSize));
+  double* data_start = reinterpret_cast<double*>(field_address(kHeaderSize));
   MemMove(data_start + dst_index, data_start + src_index, len * kDoubleSize);
 }
 
@@ -529,14 +528,14 @@ void ByteArray::set(int index, byte value) {
 void ByteArray::copy_in(int index, const byte* buffer, int length) {
   DCHECK(index >= 0 && length >= 0 && length <= kMaxInt - index &&
          index + length <= this->length());
-  Address dst_addr = FIELD_ADDR(*this, kHeaderSize + index * kCharSize);
+  Address dst_addr = field_address(kHeaderSize + index * kCharSize);
   memcpy(reinterpret_cast<void*>(dst_addr), buffer, length);
 }
 
 void ByteArray::copy_out(int index, byte* buffer, int length) {
   DCHECK(index >= 0 && length >= 0 && length <= kMaxInt - index &&
          index + length <= this->length());
-  Address src_addr = FIELD_ADDR(*this, kHeaderSize + index * kCharSize);
+  Address src_addr = field_address(kHeaderSize + index * kCharSize);
   memcpy(buffer, reinterpret_cast<void*>(src_addr), length);
 }
 

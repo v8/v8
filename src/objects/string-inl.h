@@ -26,12 +26,12 @@ namespace internal {
 
 int String::synchronized_length() const {
   return base::AsAtomic32::Acquire_Load(
-      reinterpret_cast<const int32_t*>(FIELD_ADDR(*this, kLengthOffset)));
+      reinterpret_cast<const int32_t*>(field_address(kLengthOffset)));
 }
 
 void String::synchronized_set_length(int value) {
   base::AsAtomic32::Release_Store(
-      reinterpret_cast<int32_t*>(FIELD_ADDR(*this, kLengthOffset)), value);
+      reinterpret_cast<int32_t*>(field_address(kLengthOffset)), value);
 }
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(String)
@@ -554,7 +554,7 @@ void SeqOneByteString::SeqOneByteStringSet(int index, uint16_t value) {
 }
 
 Address SeqOneByteString::GetCharsAddress() {
-  return FIELD_ADDR(*this, kHeaderSize);
+  return field_address(kHeaderSize);
 }
 
 uint8_t* SeqOneByteString::GetChars(const DisallowHeapAllocation& no_gc) {
@@ -563,12 +563,12 @@ uint8_t* SeqOneByteString::GetChars(const DisallowHeapAllocation& no_gc) {
 }
 
 Address SeqTwoByteString::GetCharsAddress() {
-  return FIELD_ADDR(*this, kHeaderSize);
+  return field_address(kHeaderSize);
 }
 
 uc16* SeqTwoByteString::GetChars(const DisallowHeapAllocation& no_gc) {
   USE(no_gc);
-  return reinterpret_cast<uc16*>(FIELD_ADDR(*this, kHeaderSize));
+  return reinterpret_cast<uc16*>(GetCharsAddress());
 }
 
 uint16_t SeqTwoByteString::Get(int index) {

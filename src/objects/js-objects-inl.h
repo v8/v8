@@ -362,7 +362,7 @@ void JSObject::RawFastDoublePropertyAsBitsAtPut(FieldIndex index,
   // Double unboxing is enabled only on 64-bit platforms without pointer
   // compression.
   DCHECK_EQ(kDoubleSize, kTaggedSize);
-  Address field_addr = FIELD_ADDR(*this, index.offset());
+  Address field_addr = field_address(index.offset());
   base::Relaxed_Store(reinterpret_cast<base::AtomicWord*>(field_addr),
                       static_cast<base::AtomicWord>(bits));
 }
