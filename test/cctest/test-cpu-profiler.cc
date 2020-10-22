@@ -247,10 +247,11 @@ TEST(TickEvents) {
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame3_code, "ddd");
 
   EnqueueTickSampleEvent(processor, frame1_code->raw_instruction_start());
-  EnqueueTickSampleEvent(
-      processor,
-      frame2_code->raw_instruction_start() + frame2_code->ExecutableSize() / 2,
-      frame1_code->raw_instruction_start() + frame1_code->ExecutableSize() / 2);
+  EnqueueTickSampleEvent(processor,
+                         frame2_code->raw_instruction_start() +
+                             frame2_code->raw_instruction_size() / 2,
+                         frame1_code->raw_instruction_start() +
+                             frame1_code->raw_instruction_size() / 2);
   EnqueueTickSampleEvent(processor, frame3_code->raw_instruction_end() - 1,
                          frame2_code->raw_instruction_end() - 1,
                          frame1_code->raw_instruction_end() - 1);

@@ -67,18 +67,6 @@
 namespace v8 {
 namespace internal {
 
-namespace {
-
-int ComputeCodeObjectSize(const CodeDesc& desc) {
-  // TODO(jgruber,v8:11036): Distinguish instruction and metadata areas.
-  int object_size = Code::SizeFor(
-      Code::AlignedBodySizeFor(desc.instr_size + desc.unwinding_info_size));
-  DCHECK(IsAligned(static_cast<intptr_t>(object_size), kCodeAlignment));
-  return object_size;
-}
-
-}  // namespace
-
 Factory::CodeBuilder::CodeBuilder(Isolate* isolate, const CodeDesc& desc,
                                   CodeKind kind)
     : isolate_(isolate),
@@ -131,9 +119,12 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     isolate_->heap()->SetBasicBlockProfilingData(new_list);
   }
 
+  // TODO(jgruber,v8:11036): Distinguish instruction and metadata areas.
+  const int body_size = code_desc_.instr_size + code_desc_.unwinding_info_size;
+  const int object_size = Code::SizeFor(body_size);
+
   Handle<Code> code;
   {
-    int object_size = ComputeCodeObjectSize(code_desc_);
     Heap* heap = isolate_->heap();
 
     CodePageCollectionMemoryModificationScope code_allocation(heap);
@@ -167,8 +158,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     constexpr bool kIsNotOffHeapTrampoline = false;
 
     // TODO(jgruber,v8:11036): Distinguish instruction and metadata areas.
-    code->set_raw_instruction_size(code_desc_.instr_size +
-                                   code_desc_.unwinding_info_size);
+    code->set_raw_instruction_size(body_size);
     code->set_relocation_info(*reloc_info);
     code->initialize_flags(kind_, is_turbofanned_, stack_slots_,
                            kIsNotOffHeapTrampoline);

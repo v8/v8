@@ -519,8 +519,9 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
   CHECK_IMPLIES(info()->IsNativeContextIndependent(),
                 code->IsNativeContextIndependent(isolate()));
 
+  // Counts both compiled code and metadata.
   isolate()->counters()->total_compiled_code_size()->Increment(
-      code->raw_instruction_size());
+      code->raw_body_size());
 
   LOG_CODE_EVENT(isolate(),
                  CodeLinePosInfoRecordEvent(code->raw_instruction_start(),

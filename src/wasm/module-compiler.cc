@@ -1151,7 +1151,7 @@ void TriggerTierUp(Isolate* isolate, NativeModule* native_module,
 namespace {
 
 void RecordStats(const Code code, Counters* counters) {
-  counters->wasm_generated_code_size()->Increment(code.body_size());
+  counters->wasm_generated_code_size()->Increment(code.raw_body_size());
   counters->wasm_reloc_size()->Increment(code.relocation_info().length());
 }
 

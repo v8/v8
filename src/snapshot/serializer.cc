@@ -975,7 +975,10 @@ void Serializer::ObjectSerializer::VisitInternalReference(Code host,
   Address entry = Handle<Code>::cast(object_)->entry();
   DCHECK_GE(rinfo->target_internal_reference(), entry);
   uintptr_t target_offset = rinfo->target_internal_reference() - entry;
-  DCHECK_LE(target_offset, Handle<Code>::cast(object_)->raw_instruction_size());
+  // TODO(jgruber,v8:11036): We are being permissive for this DCHECK, but
+  // consider using raw_instruction_size() instead of raw_body_size() in the
+  // future.
+  DCHECK_LE(target_offset, Handle<Code>::cast(object_)->raw_body_size());
   sink_->Put(kInternalReference, "InternalRef");
   sink_->PutInt(target_offset, "internal ref value");
 }

@@ -70,13 +70,6 @@ int AbstractCode::SizeIncludingMetadata() {
     return GetBytecodeArray().SizeIncludingMetadata();
   }
 }
-int AbstractCode::ExecutableSize() {
-  if (IsCode()) {
-    return GetCode().ExecutableSize();
-  } else {
-    return GetBytecodeArray().BytecodeArraySize();
-  }
-}
 
 Address AbstractCode::raw_instruction_start() {
   if (IsCode()) {
@@ -199,19 +192,16 @@ void Code::WipeOutHeader() {
 }
 
 void Code::clear_padding() {
-  // Clear the padding between the header and `raw_instruction_start`.
+  // Clear the padding between the header and `raw_body_start`.
   if (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
     memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
            FIELD_SIZE(kOptionalPaddingOffset));
   }
 
-  // Clear the padding after `raw_instruction_end`.
-  // TODO(jgruber,v8:11036): Distinguish instruction and metadata areas.
-  DCHECK_EQ(unwinding_info_offset() + unwinding_info_size(), InstructionSize());
+  // Clear the padding after `raw_body_end`.
   size_t trailing_padding_size =
-      CodeSize() - Code::kHeaderSize - raw_instruction_size();
-  memset(reinterpret_cast<void*>(raw_instruction_end()), 0,
-         trailing_padding_size);
+      CodeSize() - Code::kHeaderSize - raw_body_size();
+  memset(reinterpret_cast<void*>(raw_body_end()), 0, trailing_padding_size);
 }
 
 ByteArray Code::SourcePositionTable() const {
@@ -230,9 +220,25 @@ void Code::set_next_code_link(Object value) {
   code_data_container(kAcquireLoad).set_next_code_link(value);
 }
 
-int Code::InstructionSize() const {
-  if (is_off_heap_trampoline()) return OffHeapInstructionSize();
+Address Code::raw_body_start() const { return raw_instruction_start(); }
+
+Address Code::raw_body_end() const { return raw_instruction_end(); }
+
+int Code::raw_body_size() const {
+  // TODO(jgruber,v8:11036): Distinguish instruction and metadata areas.
+  DCHECK_EQ(unwinding_info_offset() + unwinding_info_size(), InstructionSize());
   return raw_instruction_size();
+}
+
+int Code::BodySize() const {
+  // TODO(jgruber,v8:11036): Distinguish instruction and metadata areas.
+  DCHECK_EQ(unwinding_info_offset() + unwinding_info_size(), InstructionSize());
+  return InstructionSize();
+}
+
+int Code::InstructionSize() const {
+  return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapInstructionSize()
+                                               : raw_instruction_size();
 }
 
 Address Code::raw_instruction_start() const {
@@ -240,8 +246,8 @@ Address Code::raw_instruction_start() const {
 }
 
 Address Code::InstructionStart() const {
-  if (is_off_heap_trampoline()) return OffHeapInstructionStart();
-  return raw_instruction_start();
+  return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapInstructionStart()
+                                               : raw_instruction_start();
 }
 
 Address Code::raw_instruction_end() const {
@@ -249,14 +255,31 @@ Address Code::raw_instruction_end() const {
 }
 
 Address Code::InstructionEnd() const {
-  if (is_off_heap_trampoline()) return OffHeapInstructionEnd();
-  return raw_instruction_end();
+  return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapInstructionEnd()
+                                               : raw_instruction_end();
 }
 
-int Code::body_size() const {
-  // TODO(jgruber,v8:11036): Distinguish instruction and metadata areas.
-  DCHECK_EQ(unwinding_info_offset() + unwinding_info_size(), InstructionSize());
-  return AlignedBodySizeFor(raw_instruction_size());
+Address Code::raw_instruction_start_future() const {
+  return raw_instruction_start();
+}
+
+Address Code::raw_instruction_end_future() const {
+  return raw_metadata_start();
+}
+
+int Code::raw_instruction_size_future() const {
+  return raw_instruction_size() - raw_metadata_size();
+}
+
+Address Code::raw_metadata_start() const {
+  return raw_instruction_start() + safepoint_table_offset();
+}
+
+Address Code::raw_metadata_end() const { return raw_instruction_end(); }
+
+int Code::raw_metadata_size() const {
+  DCHECK_LE(raw_metadata_start(), raw_metadata_end());
+  return static_cast<int>(raw_metadata_end() - raw_metadata_start());
 }
 
 int Code::SizeIncludingMetadata() const {
@@ -296,17 +319,6 @@ bool Code::contains(Address inner_pointer) {
   return (address() <= inner_pointer) && (inner_pointer < address() + Size());
 }
 
-int Code::ExecutableSize() const {
-  // Check that the assumptions about the layout of the code object holds.
-  // TODO(jgruber,v8:11036): It's unclear what this function should return.
-  // Currently, it counts the header, instructions, and metadata tables as
-  // 'executable'. See also ExecutableInstructionSize which counts only
-  // instructions.
-  DCHECK_EQ(static_cast<int>(raw_instruction_start() - address()),
-            Code::kHeaderSize);
-  return raw_instruction_size() + Code::kHeaderSize;
-}
-
 // static
 void Code::CopyRelocInfoToByteArray(ByteArray dest, const CodeDesc& desc) {
   DCHECK_EQ(dest.length(), desc.reloc_size);
@@ -315,7 +327,7 @@ void Code::CopyRelocInfoToByteArray(ByteArray dest, const CodeDesc& desc) {
             static_cast<size_t>(desc.reloc_size));
 }
 
-int Code::CodeSize() const { return SizeFor(body_size()); }
+int Code::CodeSize() const { return SizeFor(raw_body_size()); }
 
 CodeKind Code::kind() const {
   STATIC_ASSERT(FIELD_SIZE(kFlagsOffset) == kInt32Size);

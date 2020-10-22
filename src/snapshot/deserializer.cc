@@ -660,8 +660,11 @@ void Deserializer::RelocInfoVisitor::VisitInternalReference(Code host,
 
   // Internal reference target is encoded as an offset from code entry.
   int target_offset = source().GetInt();
+  // TODO(jgruber,v8:11036): We are being permissive for this DCHECK, but
+  // consider using raw_instruction_size() instead of raw_body_size() in the
+  // future.
   DCHECK_LT(static_cast<unsigned>(target_offset),
-            static_cast<unsigned>(host.raw_instruction_size()));
+            static_cast<unsigned>(host.raw_body_size()));
   Address target = host.entry() + target_offset;
   Assembler::deserialization_set_target_internal_reference_at(
       rinfo->pc(), target, rinfo->rmode());

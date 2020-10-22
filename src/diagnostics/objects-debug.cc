@@ -959,7 +959,8 @@ void Code::CodeVerify(Isolate* isolate) {
   CHECK_LE(safepoint_table_offset(), handler_table_offset());
   CHECK_LE(handler_table_offset(), constant_pool_offset());
   CHECK_LE(constant_pool_offset(), code_comments_offset());
-  CHECK_LE(code_comments_offset(), InstructionSize());
+  CHECK_LE(code_comments_offset(), unwinding_info_offset());
+  CHECK_LE(unwinding_info_offset(), BodySize());
   CHECK_IMPLIES(!ReadOnlyHeap::Contains(*this),
                 IsAligned(raw_instruction_start(), kCodeAlignment));
   // TODO(delphick): Refactor Factory::CodeBuilder::BuildInternal, so that the
@@ -969,8 +970,7 @@ void Code::CodeVerify(Isolate* isolate) {
   // CHECK_EQ(ReadOnlyHeap::Contains(*this), !IsExecutable());
   relocation_info().ObjectVerify(isolate);
   CHECK(V8_ENABLE_THIRD_PARTY_HEAP_BOOL ||
-        Code::SizeFor(body_size()) <=
-            MemoryChunkLayout::MaxRegularCodeObjectSize() ||
+        CodeSize() <= MemoryChunkLayout::MaxRegularCodeObjectSize() ||
         isolate->heap()->InSpace(*this, CODE_LO_SPACE));
   Address last_gc_pc = kNullAddress;
 
