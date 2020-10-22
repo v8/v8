@@ -62,6 +62,12 @@ class CodeDesc {
   int code_comments_offset = 0;
   int code_comments_size = 0;
 
+  // TODO(jgruber,v8:11036): Remove these functions once CodeDesc fields have
+  // been made consistent with Code layout.
+  int body_size() const { return instr_size + unwinding_info_size; }
+  int instruction_size() const { return safepoint_table_offset; }
+  int metadata_size() const { return body_size() - instruction_size(); }
+
   // Relocation info is located at the end of the buffer and not part of the
   // instructions area.
 

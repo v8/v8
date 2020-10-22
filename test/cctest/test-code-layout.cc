@@ -91,7 +91,7 @@ TEST(CodeLayoutWithUnwindingInfo) {
                           .Build();
 
   CHECK(code->has_unwinding_info());
-  CHECK_EQ(code->raw_instruction_size(), buffer_size + unwinding_info_size);
+  CHECK_EQ(code->raw_body_size(), buffer_size + unwinding_info_size);
   CHECK_EQ(0, memcmp(reinterpret_cast<void*>(code->raw_instruction_start()),
                      buffer, buffer_size));
   CHECK_EQ(code->unwinding_info_size(), unwinding_info_size);

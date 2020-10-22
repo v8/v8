@@ -120,8 +120,8 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
   }
 
   // TODO(jgruber,v8:11036): Distinguish instruction and metadata areas.
-  const int body_size = code_desc_.instr_size + code_desc_.unwinding_info_size;
-  const int object_size = Code::SizeFor(body_size);
+  STATIC_ASSERT(Code::kOnHeapBodyIsContiguous);
+  const int object_size = Code::SizeFor(code_desc_.body_size());
 
   Handle<Code> code;
   {
@@ -157,8 +157,8 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
 
     constexpr bool kIsNotOffHeapTrampoline = false;
 
-    // TODO(jgruber,v8:11036): Distinguish instruction and metadata areas.
-    code->set_raw_instruction_size(body_size);
+    code->set_raw_instruction_size(code_desc_.instruction_size());
+    code->set_raw_metadata_size(code_desc_.metadata_size());
     code->set_relocation_info(*reloc_info);
     code->initialize_flags(kind_, is_turbofanned_, stack_slots_,
                            kIsNotOffHeapTrampoline);
@@ -167,7 +167,6 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     code->set_code_data_container(*data_container, kReleaseStore);
     code->set_deoptimization_data(*deoptimization_data_);
     code->set_source_position_table(*source_position_table_);
-    code->set_safepoint_table_offset(code_desc_.safepoint_table_offset);
     code->set_handler_table_offset(code_desc_.handler_table_offset);
     code->set_constant_pool_offset(code_desc_.constant_pool_offset);
     code->set_code_comments_offset(code_desc_.code_comments_offset);
@@ -2057,6 +2056,11 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
       isolate(), off_heap_entry,
       code->code_data_container(kAcquireLoad).kind_specific_flags(),
       generate_jump_to_instruction_stream);
+
+  // Trampolines may not contain any metadata since all metadata offsets,
+  // stored on the Code object, refer to the off-heap metadata area.
+  CHECK_EQ(result->raw_metadata_size(), 0);
+
   // The CodeDataContainer should not be modified beyond this point since it's
   // now possibly canonicalized.
 
@@ -2071,7 +2075,6 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
     result->initialize_flags(code->kind(), code->is_turbofanned(), stack_slots,
                              set_is_off_heap_trampoline);
     result->set_builtin_index(code->builtin_index());
-    result->set_safepoint_table_offset(code->safepoint_table_offset());
     result->set_handler_table_offset(code->handler_table_offset());
     result->set_constant_pool_offset(code->constant_pool_offset());
     result->set_code_comments_offset(code->code_comments_offset());

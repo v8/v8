@@ -224,11 +224,16 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
               Builtins::name(i));
     }
 
-    uint32_t length = static_cast<uint32_t>(code.raw_body_size());
+    uint32_t instruction_size =
+        static_cast<uint32_t>(code.raw_instruction_size());
+    uint32_t metadata_size = static_cast<uint32_t>(code.raw_metadata_size());
+    uint32_t length = instruction_size + metadata_size;
 
     DCHECK_EQ(0, raw_code_size % kCodeAlignment);
-    metadata[i].instructions_offset = raw_code_size;
-    metadata[i].instructions_length = length;
+    metadata[i].instruction_offset = raw_code_size;
+    metadata[i].instruction_length = instruction_size;
+    metadata[i].metadata_offset = raw_code_size + instruction_size;
+    metadata[i].metadata_length = metadata_size;
 
     // Align the start of each instruction stream.
     raw_code_size += PadAndAlign(length);
@@ -265,8 +270,9 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   // Write the raw data section.
   STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (int i = 0; i < Builtins::builtin_count; i++) {
+    STATIC_ASSERT(Code::kBodyIsContiguous);
     Code code = builtins->builtin(i);
-    uint32_t offset = metadata[i].instructions_offset;
+    uint32_t offset = metadata[i].instruction_offset;
     uint8_t* dst = raw_code_start + offset;
     DCHECK_LE(RawCodeOffset() + offset + code.raw_body_size(), blob_code_size);
     std::memcpy(dst, reinterpret_cast<uint8_t*>(code.raw_body_start()),
@@ -297,17 +303,30 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
 Address EmbeddedData::InstructionStartOfBuiltin(int i) const {
   DCHECK(Builtins::IsBuiltinId(i));
   const struct Metadata* metadata = Metadata();
-  const uint8_t* result = RawCode() + metadata[i].instructions_offset;
-  DCHECK_LE(result, code_ + code_size_);
-  DCHECK_IMPLIES(result == code_ + code_size_,
-                 InstructionSizeOfBuiltin(i) == 0);
+  const uint8_t* result = RawCode() + metadata[i].instruction_offset;
+  DCHECK_LT(result, code_ + code_size_);
   return reinterpret_cast<Address>(result);
 }
 
 uint32_t EmbeddedData::InstructionSizeOfBuiltin(int i) const {
   DCHECK(Builtins::IsBuiltinId(i));
   const struct Metadata* metadata = Metadata();
-  return metadata[i].instructions_length;
+  return metadata[i].instruction_length;
+}
+
+Address EmbeddedData::MetadataStartOfBuiltin(int i) const {
+  DCHECK(Builtins::IsBuiltinId(i));
+  STATIC_ASSERT(Code::kOffHeapBodyIsContiguous);
+  const struct Metadata* metadata = Metadata();
+  const uint8_t* result = RawCode() + metadata[i].metadata_offset;
+  DCHECK_LT(result, code_ + code_size_);
+  return reinterpret_cast<Address>(result);
+}
+
+uint32_t EmbeddedData::MetadataSizeOfBuiltin(int i) const {
+  DCHECK(Builtins::IsBuiltinId(i));
+  const struct Metadata* metadata = Metadata();
+  return metadata[i].metadata_length;
 }
 
 Address EmbeddedData::InstructionStartOfBytecodeHandlers() const {
