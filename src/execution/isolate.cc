@@ -1020,6 +1020,9 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
                                  CaptureStackTraceOptions options) {
   DisallowJavascriptExecution no_js(isolate);
 
+  TRACE_EVENT_BEGIN1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"),
+                     "CaptureStackTrace", "maxFrameCount", options.limit);
+
   wasm::WasmCodeRefScope code_ref_scope;
   FrameArrayBuilder builder(isolate, options.skip_mode, options.limit, caller,
                             options.filter_mode);
@@ -1141,7 +1144,10 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
     }
   }
 
-  return builder.GetElementsAsStackTraceFrameArray();
+  Handle<FixedArray> stack_trace = builder.GetElementsAsStackTraceFrameArray();
+  TRACE_EVENT_END1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"),
+                   "CaptureStackTrace", "frameCount", stack_trace->length());
+  return stack_trace;
 }
 
 }  // namespace
