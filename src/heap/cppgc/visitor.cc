@@ -68,7 +68,7 @@ void ConservativeTracingVisitor::TraceConservativelyIfNeeded(
 
 void ConservativeTracingVisitor::TraceConservativelyIfNeeded(
     HeapObjectHeader& header) {
-  if (!header.IsInConstruction<HeapObjectHeader::AccessMode::kNonAtomic>()) {
+  if (!header.IsInConstruction<AccessMode::kNonAtomic>()) {
     VisitFullyConstructedConservatively(header);
   } else {
     VisitInConstructionConservatively(header, TraceConservatively);

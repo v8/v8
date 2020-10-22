@@ -67,8 +67,7 @@ void VisitRememberedSlots(HeapBase& heap,
     // top level (with the guarantee that no objects are currently being in
     // construction). This can be ensured by running young GCs from safe points
     // or by reintroducing nested allocation scopes that avoid finalization.
-    DCHECK(
-        !header.IsInConstruction<HeapObjectHeader::AccessMode::kNonAtomic>());
+    DCHECK(!header.IsInConstruction<AccessMode::kNonAtomic>());
 
     void* value = *reinterpret_cast<void**>(slot);
     mutator_marking_state.DynamicallyMarkAddress(static_cast<Address>(value));
@@ -378,8 +377,8 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
             mutator_marking_state_.previously_not_fully_constructed_worklist(),
             [this](HeapObjectHeader* header) {
               mutator_marking_state_.AccountMarkedBytes(*header);
-              DynamicallyTraceMarkedObject<
-                  HeapObjectHeader::AccessMode::kNonAtomic>(visitor(), *header);
+              DynamicallyTraceMarkedObject<AccessMode::kNonAtomic>(visitor(),
+                                                                   *header);
             })) {
       return false;
     }
@@ -390,10 +389,8 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
             [this](const MarkingWorklists::MarkingItem& item) {
               const HeapObjectHeader& header =
                   HeapObjectHeader::FromPayload(item.base_object_payload);
-              DCHECK(!header.IsInConstruction<
-                      HeapObjectHeader::AccessMode::kNonAtomic>());
-              DCHECK(
-                  header.IsMarked<HeapObjectHeader::AccessMode::kNonAtomic>());
+              DCHECK(!header.IsInConstruction<AccessMode::kNonAtomic>());
+              DCHECK(header.IsMarked<AccessMode::kNonAtomic>());
               mutator_marking_state_.AccountMarkedBytes(header);
               item.callback(&visitor(), item.base_object_payload);
             })) {
@@ -405,8 +402,8 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
             mutator_marking_state_.write_barrier_worklist(),
             [this](HeapObjectHeader* header) {
               mutator_marking_state_.AccountMarkedBytes(*header);
-              DynamicallyTraceMarkedObject<
-                  HeapObjectHeader::AccessMode::kNonAtomic>(visitor(), *header);
+              DynamicallyTraceMarkedObject<AccessMode::kNonAtomic>(visitor(),
+                                                                   *header);
             })) {
       return false;
     }

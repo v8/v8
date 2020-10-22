@@ -11,8 +11,7 @@ namespace internal {
 
 void MutatorMarkingState::FlushNotFullyConstructedObjects() {
   std::unordered_set<HeapObjectHeader*> objects =
-      not_fully_constructed_worklist_.Extract<
-          MarkingWorklists::NotFullyConstructedWorklist::AccessMode::kAtomic>();
+      not_fully_constructed_worklist_.Extract<AccessMode::kAtomic>();
   for (HeapObjectHeader* object : objects) {
     if (MarkNoPush(*object))
       previously_not_fully_constructed_worklist_.Push(object);

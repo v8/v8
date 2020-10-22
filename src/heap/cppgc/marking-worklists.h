@@ -19,8 +19,6 @@ class MarkingWorklists {
  private:
   class V8_EXPORT_PRIVATE ExternalMarkingWorklist {
    public:
-    using AccessMode = HeapObjectHeader::AccessMode;
-
     template <AccessMode = AccessMode::kNonAtomic>
     void Push(HeapObjectHeader*);
     template <AccessMode = AccessMode::kNonAtomic>
@@ -132,27 +130,27 @@ class MarkingWorklists {
 
 template <>
 struct MarkingWorklists::ExternalMarkingWorklist::ConditionalMutexGuard<
-    MarkingWorklists::ExternalMarkingWorklist::AccessMode::kNonAtomic> {
+    AccessMode::kNonAtomic> {
   explicit ConditionalMutexGuard(v8::base::Mutex*) {}
 };
 
 template <>
 struct MarkingWorklists::ExternalMarkingWorklist::ConditionalMutexGuard<
-    MarkingWorklists::ExternalMarkingWorklist::AccessMode::kAtomic> {
+    AccessMode::kAtomic> {
   explicit ConditionalMutexGuard(v8::base::Mutex* lock) : guard_(lock) {}
 
  private:
   v8::base::MutexGuard guard_;
 };
 
-template <MarkingWorklists::ExternalMarkingWorklist::AccessMode mode>
+template <AccessMode mode>
 void MarkingWorklists::ExternalMarkingWorklist::Push(HeapObjectHeader* object) {
   DCHECK_NOT_NULL(object);
   ConditionalMutexGuard<mode> guard(&lock_);
   objects_.insert(object);
 }
 
-template <MarkingWorklists::ExternalMarkingWorklist::AccessMode mode>
+template <AccessMode mode>
 void MarkingWorklists::ExternalMarkingWorklist::Erase(
     HeapObjectHeader* object) {
   DCHECK_NOT_NULL(object);
@@ -160,14 +158,14 @@ void MarkingWorklists::ExternalMarkingWorklist::Erase(
   objects_.erase(object);
 }
 
-template <MarkingWorklists::ExternalMarkingWorklist::AccessMode mode>
+template <AccessMode mode>
 bool MarkingWorklists::ExternalMarkingWorklist::Contains(
     HeapObjectHeader* object) {
   ConditionalMutexGuard<mode> guard(&lock_);
   return objects_.find(object) != objects_.end();
 }
 
-template <MarkingWorklists::ExternalMarkingWorklist::AccessMode mode>
+template <AccessMode mode>
 std::unordered_set<HeapObjectHeader*>
 MarkingWorklists::ExternalMarkingWorklist::Extract() {
   ConditionalMutexGuard<mode> guard(&lock_);
@@ -177,13 +175,13 @@ MarkingWorklists::ExternalMarkingWorklist::Extract() {
   return extracted;
 }
 
-template <MarkingWorklists::ExternalMarkingWorklist::AccessMode mode>
+template <AccessMode mode>
 void MarkingWorklists::ExternalMarkingWorklist::Clear() {
   ConditionalMutexGuard<mode> guard(&lock_);
   objects_.clear();
 }
 
-template <MarkingWorklists::ExternalMarkingWorklist::AccessMode mode>
+template <AccessMode mode>
 bool MarkingWorklists::ExternalMarkingWorklist::IsEmpty() {
   ConditionalMutexGuard<mode> guard(&lock_);
   return objects_.empty();

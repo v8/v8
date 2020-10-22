@@ -150,10 +150,8 @@ void MarkingStateBase::MarkAndPush(HeapObjectHeader& header,
                                    TraceDescriptor desc) {
   DCHECK_NOT_NULL(desc.callback);
 
-  if (header.IsInConstruction<HeapObjectHeader::AccessMode::kAtomic>()) {
-    not_fully_constructed_worklist_.Push<
-        MarkingWorklists::NotFullyConstructedWorklist::AccessMode::kAtomic>(
-        &header);
+  if (header.IsInConstruction<AccessMode::kAtomic>()) {
+    not_fully_constructed_worklist_.Push<AccessMode::kAtomic>(&header);
   } else if (MarkNoPush(header)) {
     PushMarked(header, desc);
   }
@@ -164,7 +162,7 @@ bool MarkingStateBase::MarkNoPush(HeapObjectHeader& header) {
   DCHECK_EQ(&heap_, BasePage::FromPayload(&header)->heap());
   // Never mark free space objects. This would e.g. hint to marking a promptly
   // freed backing store.
-  DCHECK(!header.IsFree<HeapObjectHeader::AccessMode::kAtomic>());
+  DCHECK(!header.IsFree<AccessMode::kAtomic>());
   return header.TryMarkAtomic();
 }
 
@@ -177,8 +175,8 @@ void MarkingStateBase::MarkAndPush(HeapObjectHeader& header) {
 
 void MarkingStateBase::PushMarked(HeapObjectHeader& header,
                                   TraceDescriptor desc) {
-  DCHECK(header.IsMarked<HeapObjectHeader::AccessMode::kAtomic>());
-  DCHECK(!header.IsInConstruction<HeapObjectHeader::AccessMode::kAtomic>());
+  DCHECK(header.IsMarked<AccessMode::kAtomic>());
+  DCHECK(!header.IsInConstruction<AccessMode::kAtomic>());
   DCHECK_NOT_NULL(desc.callback);
 
   marking_worklist_.Push(desc);
@@ -192,7 +190,7 @@ void MarkingStateBase::RegisterWeakReferenceIfNeeded(const void* object,
   // ensures that any newly set value after this point is kept alive and does
   // not require the callback.
   if (HeapObjectHeader::FromPayload(desc.base_object_payload)
-          .IsMarked<HeapObjectHeader::AccessMode::kAtomic>())
+          .IsMarked<AccessMode::kAtomic>())
     return;
   RegisterWeakCallback(weak_callback, parameter);
 }
@@ -204,9 +202,7 @@ void MarkingStateBase::RegisterWeakCallback(WeakCallback callback,
 }
 
 void MarkingStateBase::RegisterWeakContainer(HeapObjectHeader& header) {
-  weak_containers_worklist_
-      .Push<MarkingWorklists::WeakContainersWorklist::AccessMode::kAtomic>(
-          &header);
+  weak_containers_worklist_.Push<AccessMode::kAtomic>(&header);
 }
 
 void MarkingStateBase::ProcessWeakContainer(const void* object,
@@ -218,10 +214,8 @@ void MarkingStateBase::ProcessWeakContainer(const void* object,
   HeapObjectHeader& header =
       HeapObjectHeader::FromPayload(const_cast<void*>(object));
 
-  if (header.IsInConstruction<HeapObjectHeader::AccessMode::kAtomic>()) {
-    not_fully_constructed_worklist_.Push<
-        MarkingWorklists::NotFullyConstructedWorklist::AccessMode::kAtomic>(
-        &header);
+  if (header.IsInConstruction<AccessMode::kAtomic>()) {
+    not_fully_constructed_worklist_.Push<AccessMode::kAtomic>(&header);
     return;
   }
 
@@ -245,8 +239,7 @@ void MarkingStateBase::ProcessEphemeron(const void* key,
   // Filter out already marked keys. The write barrier for WeakMember
   // ensures that any newly set value after this point is kept alive and does
   // not require the callback.
-  if (HeapObjectHeader::FromPayload(key)
-          .IsMarked<HeapObjectHeader::AccessMode::kAtomic>()) {
+  if (HeapObjectHeader::FromPayload(key).IsMarked<AccessMode::kAtomic>()) {
     MarkAndPush(value_desc.base_object_payload, value_desc);
     return;
   }
@@ -255,10 +248,10 @@ void MarkingStateBase::ProcessEphemeron(const void* key,
 
 void MarkingStateBase::AccountMarkedBytes(const HeapObjectHeader& header) {
   AccountMarkedBytes(
-      header.IsLargeObject<HeapObjectHeader::AccessMode::kAtomic>()
+      header.IsLargeObject<AccessMode::kAtomic>()
           ? reinterpret_cast<const LargePage*>(BasePage::FromPayload(&header))
                 ->PayloadSize()
-          : header.GetSize<HeapObjectHeader::AccessMode::kAtomic>());
+          : header.GetSize<AccessMode::kAtomic>());
 }
 
 void MarkingStateBase::AccountMarkedBytes(size_t marked_bytes) {
@@ -376,7 +369,7 @@ bool DrainWorklistWithPredicate(Predicate should_yield,
   return true;
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 void DynamicallyTraceMarkedObject(Visitor& visitor,
                                   const HeapObjectHeader& header) {
   DCHECK(!header.IsInConstruction<mode>());

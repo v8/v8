@@ -114,7 +114,7 @@ using SpaceStates = std::vector<SpaceState>;
 void StickyUnmark(HeapObjectHeader* header) {
   // Young generation in Oilpan uses sticky mark bits.
 #if !defined(CPPGC_YOUNG_GENERATION)
-  header->Unmark<HeapObjectHeader::AccessMode::kAtomic>();
+  header->Unmark<AccessMode::kAtomic>();
 #endif
 }
 
@@ -178,7 +178,7 @@ class DeferredFinalizationBuilder final {
 
 template <typename FinalizationBuilder>
 typename FinalizationBuilder::ResultType SweepNormalPage(NormalPage* page) {
-  constexpr auto kAtomicAccess = HeapObjectHeader::AccessMode::kAtomic;
+  constexpr auto kAtomicAccess = AccessMode::kAtomic;
   FinalizationBuilder builder(page);
 
   PlatformAwareObjectStartBitmap& bitmap = page->object_start_bitmap();

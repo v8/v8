@@ -48,11 +48,9 @@ class V8_EXPORT_PRIVATE BasePage {
   ConstAddress PayloadEnd() const;
 
   // |address| must refer to real object.
-  template <
-      HeapObjectHeader::AccessMode = HeapObjectHeader::AccessMode::kNonAtomic>
+  template <AccessMode = AccessMode::kNonAtomic>
   HeapObjectHeader& ObjectHeaderFromInnerAddress(void* address) const;
-  template <
-      HeapObjectHeader::AccessMode = HeapObjectHeader::AccessMode::kNonAtomic>
+  template <AccessMode = AccessMode::kNonAtomic>
   const HeapObjectHeader& ObjectHeaderFromInnerAddress(
       const void* address) const;
 
@@ -237,8 +235,7 @@ const BasePage* BasePage::FromPayload(const void* payload) {
       kGuardPageSize);
 }
 
-template <HeapObjectHeader::AccessMode mode =
-              HeapObjectHeader::AccessMode::kNonAtomic>
+template <AccessMode mode = AccessMode::kNonAtomic>
 const HeapObjectHeader* ObjectHeaderFromInnerAddressImpl(const BasePage* page,
                                                          const void* address) {
   if (page->is_large()) {
@@ -248,19 +245,18 @@ const HeapObjectHeader* ObjectHeaderFromInnerAddressImpl(const BasePage* page,
       NormalPage::From(page)->object_start_bitmap();
   const HeapObjectHeader* header =
       bitmap.FindHeader<mode>(static_cast<ConstAddress>(address));
-  DCHECK_LT(address,
-            reinterpret_cast<ConstAddress>(header) +
-                header->GetSize<HeapObjectHeader::AccessMode::kAtomic>());
+  DCHECK_LT(address, reinterpret_cast<ConstAddress>(header) +
+                         header->GetSize<AccessMode::kAtomic>());
   return header;
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddress(void* address) const {
   return const_cast<HeapObjectHeader&>(
       ObjectHeaderFromInnerAddress<mode>(const_cast<const void*>(address)));
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 const HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddress(
     const void* address) const {
   // This method might be called for |address| found via a Trace method of

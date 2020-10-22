@@ -131,8 +131,7 @@ void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace* space,
   // The marker needs to find the object start concurrently.
   NormalPage::From(BasePage::FromPayload(header))
       ->object_start_bitmap()
-      .SetBit<HeapObjectHeader::AccessMode::kAtomic>(
-          reinterpret_cast<ConstAddress>(header));
+      .SetBit<AccessMode::kAtomic>(reinterpret_cast<ConstAddress>(header));
 
   return header->Payload();
 }

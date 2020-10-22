@@ -53,8 +53,6 @@ namespace internal {
 //    to allow potentially accessing them non-atomically.
 class HeapObjectHeader {
  public:
-  enum class AccessMode : uint8_t { kNonAtomic, kAtomic };
-
   static constexpr size_t kSizeLog2 = 17;
   static constexpr size_t kMaxSize = (size_t{1} << kSizeLog2) - 1;
   static constexpr uint16_t kLargeObjectSizeInHeader = 0;
@@ -181,14 +179,14 @@ Address HeapObjectHeader::Payload() const {
          sizeof(HeapObjectHeader);
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 GCInfoIndex HeapObjectHeader::GetGCInfoIndex() const {
   const uint16_t encoded =
       LoadEncoded<mode, EncodedHalf::kHigh, std::memory_order_acquire>();
   return GCInfoIndexField::decode(encoded);
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 size_t HeapObjectHeader::GetSize() const {
   // Size is immutable after construction while either marking or sweeping
   // is running so relaxed load (if mode == kAtomic) is enough.
@@ -203,12 +201,12 @@ void HeapObjectHeader::SetSize(size_t size) {
   encoded_low_ |= EncodeSize(size);
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 bool HeapObjectHeader::IsLargeObject() const {
   return GetSize<mode>() == kLargeObjectSizeInHeader;
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 bool HeapObjectHeader::IsInConstruction() const {
   const uint16_t encoded =
       LoadEncoded<mode, EncodedHalf::kHigh, std::memory_order_acquire>();
@@ -219,14 +217,14 @@ void HeapObjectHeader::MarkAsFullyConstructed() {
   MakeGarbageCollectedTraitInternal::MarkObjectAsFullyConstructed(Payload());
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 bool HeapObjectHeader::IsMarked() const {
   const uint16_t encoded =
       LoadEncoded<mode, EncodedHalf::kLow, std::memory_order_relaxed>();
   return MarkBitField::decode(encoded);
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 void HeapObjectHeader::Unmark() {
   DCHECK(IsMarked<mode>());
   StoreEncoded<mode, EncodedHalf::kLow, std::memory_order_relaxed>(
@@ -244,12 +242,12 @@ bool HeapObjectHeader::TryMarkAtomic() {
                                                  std::memory_order_relaxed);
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 bool HeapObjectHeader::IsYoung() const {
   return !IsMarked<mode>();
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 bool HeapObjectHeader::IsFree() const {
   return GetGCInfoIndex<mode>() == kFreeListGCInfoIndex;
 }
@@ -259,7 +257,7 @@ bool HeapObjectHeader::IsFinalizable() const {
   return gc_info.finalize;
 }
 
-template <HeapObjectHeader::AccessMode mode, HeapObjectHeader::EncodedHalf part,
+template <AccessMode mode, HeapObjectHeader::EncodedHalf part,
           std::memory_order memory_order>
 uint16_t HeapObjectHeader::LoadEncoded() const {
   const uint16_t& half =
@@ -268,7 +266,7 @@ uint16_t HeapObjectHeader::LoadEncoded() const {
   return v8::base::AsAtomicPtr(&half)->load(memory_order);
 }
 
-template <HeapObjectHeader::AccessMode mode, HeapObjectHeader::EncodedHalf part,
+template <AccessMode mode, HeapObjectHeader::EncodedHalf part,
           std::memory_order memory_order>
 void HeapObjectHeader::StoreEncoded(uint16_t bits, uint16_t mask) {
   // Caveat: Not all changes to HeapObjectHeader's bitfields go through

@@ -104,8 +104,7 @@ void ConcurrentMarkingTask::ProcessWorklists(
              &concurrent_marking_visitor](HeapObjectHeader* header) {
               BasePage::FromPayload(header)->SynchronizedLoad();
               concurrent_marking_state.AccountMarkedBytes(*header);
-              DynamicallyTraceMarkedObject<
-                  HeapObjectHeader::AccessMode::kAtomic>(
+              DynamicallyTraceMarkedObject<AccessMode::kAtomic>(
                   concurrent_marking_visitor, *header);
             })) {
       return;
@@ -121,9 +120,8 @@ void ConcurrentMarkingTask::ProcessWorklists(
                   ->SynchronizedLoad();
               const HeapObjectHeader& header =
                   HeapObjectHeader::FromPayload(item.base_object_payload);
-              DCHECK(!header.IsInConstruction<
-                      HeapObjectHeader::AccessMode::kAtomic>());
-              DCHECK(header.IsMarked<HeapObjectHeader::AccessMode::kAtomic>());
+              DCHECK(!header.IsInConstruction<AccessMode::kAtomic>());
+              DCHECK(header.IsMarked<AccessMode::kAtomic>());
               concurrent_marking_state.AccountMarkedBytes(header);
               item.callback(&concurrent_marking_visitor,
                             item.base_object_payload);
@@ -139,8 +137,7 @@ void ConcurrentMarkingTask::ProcessWorklists(
              &concurrent_marking_visitor](HeapObjectHeader* header) {
               BasePage::FromPayload(header)->SynchronizedLoad();
               concurrent_marking_state.AccountMarkedBytes(*header);
-              DynamicallyTraceMarkedObject<
-                  HeapObjectHeader::AccessMode::kAtomic>(
+              DynamicallyTraceMarkedObject<AccessMode::kAtomic>(
                   concurrent_marking_visitor, *header);
             })) {
       return;
