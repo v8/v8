@@ -681,7 +681,8 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
 
 void CodeGenerator::AssembleDeconstructFrame() {
   unwinding_info_writer_.MarkFrameDeconstructed(__ pc_offset());
-  __ leave();
+  __ movq(rsp, rbp);
+  __ popq(rbp);
 }
 
 void CodeGenerator::AssemblePrepareTailCall() {

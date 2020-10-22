@@ -2495,7 +2495,8 @@ void TurboAssembler::LeaveFrame(StackFrame::Type type) {
          Immediate(StackFrame::TypeToMarker(type)));
     Check(equal, AbortReason::kStackFrameTypesMustMatch);
   }
-  leave();
+  movq(rsp, rbp);
+  popq(rbp);
 }
 
 #ifdef V8_TARGET_OS_WIN
@@ -2647,7 +2648,9 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, bool pop_arguments) {
 }
 
 void MacroAssembler::LeaveApiExitFrame() {
-  leave();
+  movq(rsp, rbp);
+  popq(rbp);
+
   LeaveExitFrameEpilogue();
 }
 

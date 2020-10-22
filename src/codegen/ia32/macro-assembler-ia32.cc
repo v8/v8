@@ -975,7 +975,9 @@ void MacroAssembler::LeaveExitFrameEpilogue() {
 }
 
 void MacroAssembler::LeaveApiExitFrame() {
-  leave();
+  mov(esp, ebp);
+  pop(ebp);
+
   LeaveExitFrameEpilogue();
 }
 

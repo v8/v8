@@ -509,7 +509,10 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }                                                  \
   } while (false)
 
-void CodeGenerator::AssembleDeconstructFrame() { __ leave(); }
+void CodeGenerator::AssembleDeconstructFrame() {
+  __ mov(esp, ebp);
+  __ pop(ebp);
+}
 
 void CodeGenerator::AssemblePrepareTailCall() {
   if (frame_access_state()->has_frame()) {
