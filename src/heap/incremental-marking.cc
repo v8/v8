@@ -246,7 +246,7 @@ void IncrementalMarking::StartMarking() {
   MarkRoots();
 
   if (FLAG_concurrent_marking && !heap_->IsTearingDown()) {
-    heap_->concurrent_marking()->ScheduleTasks();
+    heap_->concurrent_marking()->ScheduleJob();
   }
 
   // Ready to start incremental marking.
@@ -1002,7 +1002,7 @@ StepResult IncrementalMarking::Step(double max_step_size_in_ms,
     }
     if (FLAG_concurrent_marking) {
       local_marking_worklists()->ShareWork();
-      heap_->concurrent_marking()->RescheduleTasksIfNeeded();
+      heap_->concurrent_marking()->RescheduleJobIfNeeded();
     }
   }
   if (state_ == MARKING) {

@@ -478,7 +478,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   // Stop concurrent marking (either by preempting it right away or waiting for
   // it to complete as requested by |stop_request|).
-  void FinishConcurrentMarking(ConcurrentMarking::StopRequest stop_request);
+  void FinishConcurrentMarking();
 
   bool StartCompaction();
 

@@ -54,17 +54,6 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
     const bool resume_on_exit_;
   };
 
-  enum class StopRequest {
-    // Preempt ongoing tasks ASAP (and cancel unstarted tasks).
-    PREEMPT_TASKS,
-    // Wait for ongoing tasks to complete (and cancels unstarted tasks).
-    COMPLETE_ONGOING_TASKS,
-    // Wait for all scheduled tasks to complete (only use this in tests that
-    // control the full stack -- otherwise tasks cancelled by the platform can
-    // make this call hang).
-    COMPLETE_TASKS_FOR_TESTING,
-  };
-
   // TODO(gab): The only thing that prevents this being above 7 is
   // Worklist::kMaxNumTasks being maxed at 8 (concurrent marking doesn't use
   // task 0, reserved for the main thread).
@@ -73,16 +62,22 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   ConcurrentMarking(Heap* heap, MarkingWorklists* marking_worklists,
                     WeakObjects* weak_objects);
 
-  // Schedules asynchronous tasks to perform concurrent marking. Objects in the
-  // heap should not be moved while these are active (can be stopped safely via
-  // Stop() or PauseScope).
-  void ScheduleTasks();
+  // Schedules asynchronous job to perform concurrent marking at |priority|.
+  // Objects in the heap should not be moved while these are active (can be
+  // stopped safely via Stop() or PauseScope).
+  void ScheduleJob(TaskPriority priority = TaskPriority::kUserVisible);
 
-  // Stops concurrent marking per |stop_request|'s semantics. Returns true
-  // if concurrent marking was in progress, false otherwise.
-  bool Stop(StopRequest stop_request);
+  // Waits for scheduled job to complete.
+  void Join();
+  // Preempts ongoing job ASAP. Returns true if concurrent marking was in
+  // progress, false otherwise.
+  bool Pause();
 
-  void RescheduleTasksIfNeeded();
+  // Schedules asynchronous job to perform concurrent marking at |priority| if
+  // not already running, otherwise adjusts the number of workers running job
+  // and the priority if diffrent from the default kUserVisible.
+  void RescheduleJobIfNeeded(
+      TaskPriority priority = TaskPriority::kUserVisible);
   // Flushes native context sizes to the given table of the main thread.
   void FlushNativeContexts(NativeContextStats* main_stats);
   // Flushes memory chunk data using the given marking state.

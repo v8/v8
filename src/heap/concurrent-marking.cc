@@ -522,19 +522,19 @@ size_t ConcurrentMarking::GetMaxConcurrency(size_t worker_count) {
                           weak_objects_->current_ephemerons.GlobalPoolSize()}));
 }
 
-void ConcurrentMarking::ScheduleTasks() {
+void ConcurrentMarking::ScheduleJob(TaskPriority priority) {
   DCHECK(FLAG_parallel_marking || FLAG_concurrent_marking);
   DCHECK(!heap_->IsTearingDown());
   DCHECK(!job_handle_ || !job_handle_->IsValid());
 
   job_handle_ = V8::GetCurrentPlatform()->PostJob(
-      TaskPriority::kUserVisible,
+      priority,
       std::make_unique<JobTask>(this, heap_->mark_compact_collector()->epoch(),
                                 heap_->is_current_gc_forced()));
   DCHECK(job_handle_->IsValid());
 }
 
-void ConcurrentMarking::RescheduleTasksIfNeeded() {
+void ConcurrentMarking::RescheduleJobIfNeeded(TaskPriority priority) {
   DCHECK(FLAG_parallel_marking || FLAG_concurrent_marking);
   if (heap_->IsTearingDown()) return;
 
@@ -543,21 +543,26 @@ void ConcurrentMarking::RescheduleTasksIfNeeded() {
       weak_objects_->discovered_ephemerons.IsGlobalPoolEmpty()) {
     return;
   }
-  if (!job_handle_ || !job_handle_->IsValid())
-    ScheduleTasks();
-  else
+  if (!job_handle_ || !job_handle_->IsValid()) {
+    ScheduleJob(priority);
+  } else {
+    if (priority != TaskPriority::kUserVisible)
+      job_handle_->UpdatePriority(priority);
     job_handle_->NotifyConcurrencyIncrease();
+  }
 }
 
-bool ConcurrentMarking::Stop(StopRequest stop_request) {
+void ConcurrentMarking::Join() {
+  DCHECK(FLAG_parallel_marking || FLAG_concurrent_marking);
+  if (!job_handle_ || !job_handle_->IsValid()) return;
+  job_handle_->Join();
+}
+
+bool ConcurrentMarking::Pause() {
   DCHECK(FLAG_parallel_marking || FLAG_concurrent_marking);
   if (!job_handle_ || !job_handle_->IsValid()) return false;
 
-  if (stop_request == StopRequest::PREEMPT_TASKS) {
-    job_handle_->Cancel();
-  } else {
-    job_handle_->Join();
-  }
+  job_handle_->Cancel();
   return true;
 }
 
@@ -622,14 +627,12 @@ size_t ConcurrentMarking::TotalMarkedBytes() {
 
 ConcurrentMarking::PauseScope::PauseScope(ConcurrentMarking* concurrent_marking)
     : concurrent_marking_(concurrent_marking),
-      resume_on_exit_(FLAG_concurrent_marking &&
-                      concurrent_marking_->Stop(
-                          ConcurrentMarking::StopRequest::PREEMPT_TASKS)) {
+      resume_on_exit_(FLAG_concurrent_marking && concurrent_marking_->Pause()) {
   DCHECK_IMPLIES(resume_on_exit_, FLAG_concurrent_marking);
 }
 
 ConcurrentMarking::PauseScope::~PauseScope() {
-  if (resume_on_exit_) concurrent_marking_->RescheduleTasksIfNeeded();
+  if (resume_on_exit_) concurrent_marking_->RescheduleJobIfNeeded();
 }
 
 }  // namespace internal
