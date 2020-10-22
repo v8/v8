@@ -164,7 +164,7 @@ OBJECT_CONSTRUCTORS_IMPL(Code, HeapObject)
 NEVER_READ_ONLY_SPACE_IMPL(Code)
 
 INT_ACCESSORS(Code, raw_instruction_size, kInstructionSizeOffset)
-INT_ACCESSORS(Code, safepoint_table_offset, kSafepointTableOffsetOffset)
+INT_ACCESSORS(Code, raw_metadata_size, kMetadataSizeOffset)
 INT_ACCESSORS(Code, handler_table_offset, kHandlerTableOffsetOffset)
 INT_ACCESSORS(Code, code_comments_offset, kCodeCommentsOffsetOffset)
 INT32_ACCESSORS(Code, unwinding_info_offset, kUnwindingInfoOffsetOffset)
@@ -222,18 +222,30 @@ void Code::set_next_code_link(Object value) {
 
 Address Code::raw_body_start() const { return raw_instruction_start(); }
 
-Address Code::raw_body_end() const { return raw_instruction_end(); }
+Address Code::BodyStart() const {
+  STATIC_ASSERT(kBodyIsContiguous);
+  return InstructionStart();
+}
+
+Address Code::raw_body_end() const {
+  return raw_body_start() + raw_body_size();
+}
 
 int Code::raw_body_size() const {
-  // TODO(jgruber,v8:11036): Distinguish instruction and metadata areas.
-  DCHECK_EQ(unwinding_info_offset() + unwinding_info_size(), InstructionSize());
-  return raw_instruction_size();
+  return raw_instruction_size() + raw_metadata_size();
+}
+
+Address Code::BodyEnd() const {
+  STATIC_ASSERT(kBodyIsContiguous);
+  return MetadataEnd();
 }
 
 int Code::BodySize() const {
-  // TODO(jgruber,v8:11036): Distinguish instruction and metadata areas.
-  DCHECK_EQ(unwinding_info_offset() + unwinding_info_size(), InstructionSize());
-  return InstructionSize();
+  // TODO(jgruber,v8:11036): Update once embedded instructions and metadata are
+  // separate.
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapInstructionSize() + OffHeapMetadataSize()
+             : raw_body_size();
 }
 
 int Code::InstructionSize() const {
@@ -259,27 +271,37 @@ Address Code::InstructionEnd() const {
                                                : raw_instruction_end();
 }
 
-Address Code::raw_instruction_start_future() const {
-  return raw_instruction_start();
-}
-
-Address Code::raw_instruction_end_future() const {
-  return raw_metadata_start();
-}
-
-int Code::raw_instruction_size_future() const {
-  return raw_instruction_size() - raw_metadata_size();
-}
-
 Address Code::raw_metadata_start() const {
-  return raw_instruction_start() + safepoint_table_offset();
+  return raw_instruction_start() + raw_instruction_size();
 }
 
-Address Code::raw_metadata_end() const { return raw_instruction_end(); }
+Address Code::MetadataStart() const {
+  STATIC_ASSERT(kBodyIsContiguous);
+  return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapMetadataStart()
+                                               : raw_metadata_start();
+}
 
-int Code::raw_metadata_size() const {
-  DCHECK_LE(raw_metadata_start(), raw_metadata_end());
-  return static_cast<int>(raw_metadata_end() - raw_metadata_start());
+Address Code::raw_metadata_end() const {
+  return raw_metadata_start() + raw_metadata_size();
+}
+
+Address Code::MetadataEnd() const {
+  STATIC_ASSERT(kBodyIsContiguous);
+  return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapMetadataEnd()
+                                               : raw_metadata_end();
+}
+
+int Code::MetadataSize() const {
+  STATIC_ASSERT(kBodyIsContiguous);
+  return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapMetadataSize()
+                                               : raw_metadata_size();
+}
+
+int Code::safepoint_table_offset() const {
+  // TODO(jgruber,v8:11036): Update once embedded instructions and metadata are
+  // separate.
+  STATIC_ASSERT(kBodyIsContiguous);
+  return InstructionSize();
 }
 
 int Code::SizeIncludingMetadata() const {
@@ -555,7 +577,7 @@ Address Code::unwinding_info_start() const {
   return InstructionStart() + unwinding_info_offset();
 }
 
-Address Code::unwinding_info_end() const { return InstructionEnd(); }
+Address Code::unwinding_info_end() const { return MetadataEnd(); }
 
 int Code::unwinding_info_size() const {
   DCHECK_GE(unwinding_info_end(), unwinding_info_start());
