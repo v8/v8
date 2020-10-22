@@ -5226,8 +5226,9 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
         graph()->NewNode(op, num_actual_inputs + 4, input_nodes));
   }
 
-  // After we've bounds-checked, compute the effective address.
-  Node* address = gasm_->IntAdd(gasm_->UintPtrConstant(capped_offset), index);
+  // After we've bounds-checked, compute the effective offset.
+  Node* effective_offset =
+      gasm_->IntAdd(gasm_->UintPtrConstant(capped_offset), index);
 
   switch (opcode) {
     case wasm::kExprAtomicNotify: {
@@ -5236,7 +5237,8 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
               this, StubCallMode::kCallWasmRuntimeStub);
       Node* call_target = mcgraph()->RelocatableIntPtrConstant(
           wasm::WasmCode::kWasmAtomicNotify, RelocInfo::WASM_STUB_CALL);
-      return gasm_->Call(call_descriptor, call_target, address, inputs[1]);
+      return gasm_->Call(call_descriptor, call_target, effective_offset,
+                         inputs[1]);
     }
 
     case wasm::kExprI32AtomicWait: {
@@ -5248,8 +5250,8 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
       Node* call_target = mcgraph()->RelocatableIntPtrConstant(
           target, RelocInfo::WASM_STUB_CALL);
 
-      return gasm_->Call(call_descriptor, call_target, address, inputs[1],
-                         inputs[2]);
+      return gasm_->Call(call_descriptor, call_target, effective_offset,
+                         inputs[1], inputs[2]);
     }
 
     case wasm::kExprI64AtomicWait: {
@@ -5261,8 +5263,8 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
       Node* call_target = mcgraph()->RelocatableIntPtrConstant(
           target, RelocInfo::WASM_STUB_CALL);
 
-      return gasm_->Call(call_descriptor, call_target, address, inputs[1],
-                         inputs[2]);
+      return gasm_->Call(call_descriptor, call_target, effective_offset,
+                         inputs[1], inputs[2]);
     }
 
     default:

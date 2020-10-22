@@ -58,7 +58,8 @@ CAST_ACCESSOR(WasmArray)
     Object value = TaggedField<Object, offset>::load(isolate, *this); \
     return !value.IsUndefined(GetReadOnlyRoots(isolate));             \
   }                                                                   \
-  ACCESSORS(holder, name, type, offset)
+  ACCESSORS_CHECKED2(holder, name, type, offset,                      \
+                     !value.IsUndefined(GetReadOnlyRoots(isolate)), true)
 
 #define PRIMITIVE_ACCESSORS(holder, name, type, offset)                       \
   type holder::name() const {                                                 \

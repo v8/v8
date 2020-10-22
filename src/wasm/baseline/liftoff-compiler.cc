@@ -3249,13 +3249,15 @@ class LiftoffCompiler {
 
     uint32_t offset = imm.offset;
     index_reg = AddMemoryMasking(index_reg, &offset, &pinned);
-    Register index_plus_offset = index_reg;
+    Register index_plus_offset =
+        __ cache_state()->is_used(LiftoffRegister(index_reg))
+            ? pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp()
+            : index_reg;
     if (offset) {
-      if (__ cache_state()->is_used(LiftoffRegister(index_reg))) {
-        index_plus_offset =
-            pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-      }
       __ emit_i32_addi(index_plus_offset, index_reg, offset);
+      __ emit_ptrsize_zeroextend_i32(index_plus_offset, index_plus_offset);
+    } else {
+      __ emit_ptrsize_zeroextend_i32(index_plus_offset, index_reg);
     }
 
     LiftoffAssembler::VarState timeout =
@@ -3296,7 +3298,7 @@ class LiftoffCompiler {
       }
     }
 
-    ValueType sig_reps[] = {kWasmI32, type, kWasmI64};
+    ValueType sig_reps[] = {kPointerValueType, type, kWasmI64};
     FunctionSig sig(0, 3, sig_reps);
 
     __ PrepareBuiltinCall(&sig, call_descriptor,
@@ -3324,16 +3326,18 @@ class LiftoffCompiler {
 
     uint32_t offset = imm.offset;
     index_reg = AddMemoryMasking(index_reg, &offset, &pinned);
-    Register index_plus_offset = index_reg;
+    Register index_plus_offset =
+        __ cache_state()->is_used(LiftoffRegister(index_reg))
+            ? pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp()
+            : index_reg;
     if (offset) {
-      if (__ cache_state()->is_used(LiftoffRegister(index_reg))) {
-        index_plus_offset =
-            pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-      }
       __ emit_i32_addi(index_plus_offset, index_reg, offset);
+      __ emit_ptrsize_zeroextend_i32(index_plus_offset, index_plus_offset);
+    } else {
+      __ emit_ptrsize_zeroextend_i32(index_plus_offset, index_reg);
     }
 
-    ValueType sig_reps[] = {kWasmI32, kWasmI32, kWasmI32};
+    ValueType sig_reps[] = {kWasmI32, kPointerValueType, kWasmI32};
     FunctionSig sig(1, 2, sig_reps);
     auto call_descriptor =
         GetBuiltinCallDescriptor<WasmAtomicNotifyDescriptor>(compilation_zone_);
