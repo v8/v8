@@ -158,8 +158,7 @@ MarkerBase::MarkerBase(Key, HeapBase& heap, cppgc::Platform* platform,
       config_(config),
       platform_(platform),
       foreground_task_runner_(platform_->GetForegroundTaskRunner()),
-      mutator_marking_state_(heap, marking_worklists_,
-                             heap.compactor().compaction_worklists()) {}
+      mutator_marking_state_(heap, marking_worklists_) {}
 
 MarkerBase::~MarkerBase() {
   // The fixed point iteration may have found not-fully-constructed objects.
@@ -436,8 +435,6 @@ void MarkerBase::MarkNotFullyConstructedObjects() {
 
 void MarkerBase::ClearAllWorklistsForTesting() {
   marking_worklists_.ClearForTesting();
-  auto* compaction_worklists = heap_.compactor().compaction_worklists();
-  if (compaction_worklists) compaction_worklists->ClearForTesting();
 }
 
 void MarkerBase::DisableIncrementalMarkingForTesting() {
@@ -446,13 +443,6 @@ void MarkerBase::DisableIncrementalMarkingForTesting() {
 
 void MarkerBase::WaitForConcurrentMarkingForTesting() {
   concurrent_marker_->JoinForTesting();
-}
-
-void MarkerBase::NotifyCompactionCancelled() {
-  // Compaction cannot be cancelled while concurrent marking is active.
-  DCHECK_EQ(MarkingConfig::MarkingType::kAtomic, config_.marking_type);
-  DCHECK_IMPLIES(concurrent_marker_, !concurrent_marker_->IsActive());
-  mutator_marking_state_.NotifyCompactionCancelled();
 }
 
 Marker::Marker(Key key, HeapBase& heap, cppgc::Platform* platform,

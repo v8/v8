@@ -30,8 +30,6 @@ class V8_EXPORT_PRIVATE ConcurrentMarkerBase {
 
   bool NotifyIncrementalMutatorStepCompleted();
 
-  bool IsActive() const;
-
   HeapBase& heap() const { return heap_; }
   MarkingWorklists& marking_worklists() const { return marking_worklists_; }
   IncrementalMarkingSchedule& incremental_marking_schedule() const {

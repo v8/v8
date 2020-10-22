@@ -74,8 +74,7 @@ void ConcurrentMarkingTask::Run(JobDelegate* job_delegate) {
   if (!HasWorkForConcurrentMarking(concurrent_marker_.marking_worklists()))
     return;
   ConcurrentMarkingState concurrent_marking_state(
-      concurrent_marker_.heap(), concurrent_marker_.marking_worklists(),
-      concurrent_marker_.heap().compactor().compaction_worklists());
+      concurrent_marker_.heap(), concurrent_marker_.marking_worklists());
   std::unique_ptr<Visitor> concurrent_marking_visitor =
       concurrent_marker_.CreateConcurrentMarkingVisitor(
           concurrent_marking_state);
@@ -185,10 +184,6 @@ void ConcurrentMarkerBase::Cancel() {
 void ConcurrentMarkerBase::JoinForTesting() {
   if (concurrent_marking_handle_ && concurrent_marking_handle_->IsValid())
     concurrent_marking_handle_->Join();
-}
-
-bool ConcurrentMarkerBase::IsActive() const {
-  return concurrent_marking_handle_ && concurrent_marking_handle_->IsRunning();
 }
 
 ConcurrentMarkerBase::~ConcurrentMarkerBase() {

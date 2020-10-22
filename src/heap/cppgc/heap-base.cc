@@ -70,7 +70,6 @@ HeapBase::HeapBase(
       stack_(std::make_unique<heap::base::Stack>(
           v8::base::Stack::GetStackStart())),
       prefinalizer_handler_(std::make_unique<PreFinalizerHandler>()),
-      compactor_(raw_heap_),
       object_allocator_(&raw_heap_, page_backend_.get(),
                         stats_collector_.get()),
       sweeper_(&raw_heap_, platform_.get(), stats_collector_.get()),

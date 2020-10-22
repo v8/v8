@@ -75,10 +75,7 @@ class ConcurrentSweeperTest : public testing::TestWithHeap {
     heap->stats_collector()->NotifyMarkingStarted();
     heap->stats_collector()->NotifyMarkingCompleted(0);
     Sweeper& sweeper = heap->sweeper();
-    const Sweeper::SweepingConfig sweeping_config{
-        Sweeper::SweepingConfig::SweepingType::kIncrementalAndConcurrent,
-        Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep};
-    sweeper.Start(sweeping_config);
+    sweeper.Start(Sweeper::Config::kIncrementalAndConcurrent);
   }
 
   void WaitForConcurrentSweeping() {

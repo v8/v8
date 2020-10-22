@@ -12,7 +12,6 @@
 #include "include/cppgc/internal/persistent-node.h"
 #include "include/cppgc/macros.h"
 #include "src/base/macros.h"
-#include "src/heap/cppgc/compactor.h"
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/object-allocator.h"
 #include "src/heap/cppgc/raw-heap.h"
@@ -98,8 +97,6 @@ class V8_EXPORT_PRIVATE HeapBase {
 
   MarkerBase* marker() const { return marker_.get(); }
 
-  Compactor& compactor() { return compactor_; }
-
   ObjectAllocator& object_allocator() { return object_allocator_; }
 
   Sweeper& sweeper() { return sweeper_; }
@@ -157,7 +154,6 @@ class V8_EXPORT_PRIVATE HeapBase {
   std::unique_ptr<PreFinalizerHandler> prefinalizer_handler_;
   std::unique_ptr<MarkerBase> marker_;
 
-  Compactor compactor_;
   ObjectAllocator object_allocator_;
   Sweeper sweeper_;
 
