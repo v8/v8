@@ -140,8 +140,8 @@ namespace internal {
   HT(gc_scavenger_foreground, V8.GCScavengerForeground, 10000, MILLISECOND)    \
   HT(measure_memory_delay_ms, V8.MeasureMemoryDelayMilliseconds, 100000,       \
      MILLISECOND)                                                              \
-  HT(stop_the_world, V8.StopTheWorld, 10000, MILLISECOND)                      \
-  HT(time_to_collection, V8.TimeToCollection, 10000, MILLISECOND)              \
+  HT(stop_the_world, V8.StopTheWorld, 10000, MICROSECOND)                      \
+  HT(time_to_collection, V8.TimeToCollection, 10000, MICROSECOND)              \
   /* TurboFan timers. */                                                       \
   HT(turbofan_optimize_prepare, V8.TurboFanOptimizePrepare, 1000000,           \
      MICROSECOND)                                                              \

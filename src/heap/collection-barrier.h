@@ -8,6 +8,7 @@
 #include <atomic>
 
 #include "src/base/optional.h"
+#include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/mutex.h"
 #include "src/logging/counters.h"
 
@@ -21,7 +22,7 @@ class CollectionBarrier {
   Heap* heap_;
   base::Mutex mutex_;
   base::ConditionVariable cond_;
-  base::Optional<TimedHistogramScope> time_to_collection_scope_;
+  base::ElapsedTimer timer_;
 
   enum class RequestState {
     // Default state, no collection requested and tear down wasn't initated

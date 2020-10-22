@@ -276,6 +276,9 @@ class TimedHistogram : public Histogram {
   // that never got to run in a given scenario. Log if isolate non-null.
   void RecordAbandon(base::ElapsedTimer* timer, Isolate* isolate);
 
+  // Add a single sample to this histogram.
+  void AddTimedSample(base::TimeDelta sample);
+
  protected:
   friend class Counters;
   HistogramTimerResolution resolution_;
