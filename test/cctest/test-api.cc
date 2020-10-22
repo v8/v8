@@ -27568,11 +27568,12 @@ DEFINE_OPERATORS_FOR_FLAGS(ApiCheckerResultFlags)
 template <typename Value, typename Impl>
 struct BasicApiChecker {
   static void FastCallback(v8::ApiObject receiver, Value argument,
-                           v8::FastApiCallbackOptions* options) {
+                           v8::FastApiCallbackOptions& options) {
     Impl::FastCallback(receiver, argument, options);
   }
   static void FastCallbackNoFallback(v8::ApiObject receiver, Value argument) {
-    Impl::FastCallback(receiver, argument, nullptr);
+    v8::FastApiCallbackOptions options;
+    Impl::FastCallback(receiver, argument, options);
   }
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     Impl::SlowCallback(info);
@@ -27622,10 +27623,10 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>> {
         args_count_(args_count) {}
 
   static void FastCallback(v8::ApiObject receiver, T argument,
-                           v8::FastApiCallbackOptions* options) {
+                           v8::FastApiCallbackOptions& options) {
     v8::Object* receiver_obj = reinterpret_cast<v8::Object*>(&receiver);
     if (!IsValidUnwrapObject(receiver_obj)) {
-      options->fallback = 1;
+      options.fallback = 1;
       return;
     }
     ApiNumberChecker<T>* receiver_ptr =
@@ -27638,8 +27639,8 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>> {
       // the default behavior expected from the embedder. The value is checked
       // against after loading it from a stack slot, as defined in
       // EffectControlLinearizer::LowerFastApiCall.
-      CHECK_EQ(options->fallback, 0);
-      options->fallback = 1;
+      CHECK_EQ(options.fallback, 0);
+      options.fallback = 1;
     }
   }
 
@@ -27674,7 +27675,7 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>> {
 struct UnexpectedObjectChecker
     : BasicApiChecker<v8::ApiObject, UnexpectedObjectChecker> {
   static void FastCallback(v8::ApiObject receiver, v8::ApiObject argument,
-                           v8::FastApiCallbackOptions* options) {
+                           v8::FastApiCallbackOptions& options) {
     v8::Object* receiver_obj = reinterpret_cast<v8::Object*>(&receiver);
     UnexpectedObjectChecker* receiver_ptr =
         GetInternalField<UnexpectedObjectChecker, kV8WrapperObjectIndex>(
