@@ -87,13 +87,11 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
   bailout(kUnsupportedArchitecture, "LoadConstant");
 }
 
-void LiftoffAssembler::LoadFromInstance(Register dst, uint32_t offset,
-                                        int size) {
+void LiftoffAssembler::LoadFromInstance(Register dst, int offset, int size) {
   bailout(kUnsupportedArchitecture, "LoadFromInstance");
 }
 
-void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
-                                                     uint32_t offset) {
+void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst, int offset) {
   bailout(kUnsupportedArchitecture, "LoadTaggedPointerFromInstance");
 }
 
