@@ -14,8 +14,6 @@ struct CustomSpaceIndex {
   size_t value;
 };
 
-enum class CustomSpaceCompactability { kNotCompactable, kCompactable };
-
 /**
  * Top-level base class for custom spaces. Users must inherit from CustomSpace
  * below.
@@ -65,6 +63,28 @@ template <typename T, typename = void>
 struct SpaceTrait {
   using Space = void;
 };
+
+namespace internal {
+
+template <typename CustomSpace>
+struct IsAllocatedOnCompactableSpaceImpl {
+  static constexpr bool value = CustomSpace::kSupportsCompaction;
+};
+
+template <>
+struct IsAllocatedOnCompactableSpaceImpl<void> {
+  // Non-custom spaces are by default not compactable.
+  static constexpr bool value = false;
+};
+
+template <typename T>
+struct IsAllocatedOnCompactableSpace {
+ public:
+  static constexpr bool value =
+      IsAllocatedOnCompactableSpaceImpl<typename SpaceTrait<T>::Space>::value;
+};
+
+}  // namespace internal
 
 }  // namespace cppgc
 

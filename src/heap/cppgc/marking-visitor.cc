@@ -43,6 +43,12 @@ void MarkingVisitorBase::RegisterWeakCallback(WeakCallback callback,
   marking_state_.RegisterWeakCallback(callback, object);
 }
 
+void MarkingVisitorBase::HandleMovableReference(const void** slot) {
+  auto* worklist = marking_state_.movable_slots_worklist();
+  if (!worklist) return;
+  worklist->Push(slot);
+}
+
 ConservativeMarkingVisitor::ConservativeMarkingVisitor(
     HeapBase& heap, MutatorMarkingState& marking_state, cppgc::Visitor& visitor)
     : ConservativeTracingVisitor(heap, *heap.page_backend(), visitor),

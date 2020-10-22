@@ -168,7 +168,10 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
 #endif
   {
     NoGCScope no_gc(*this);
-    sweeper_.Start(config_.sweeping_type);
+    const Sweeper::SweepingConfig sweeping_config{
+        config_.sweeping_type,
+        Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep};
+    sweeper_.Start(sweeping_config);
   }
   gc_in_progress_ = false;
 }
