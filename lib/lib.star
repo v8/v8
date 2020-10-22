@@ -291,7 +291,6 @@ FAILED_STEPS_EXCLUDE = [
 
 def v8_notifier(**kwargs):
     luci.notifier(
-        on_occurrence = ["FAILURE"],
-        failed_step_regexp_exclude = FAILED_STEPS_EXCLUDE,
+        on_new_status = ["FAILURE", "INFRA_FAILURE"],
         **kwargs
     )

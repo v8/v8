@@ -8,12 +8,10 @@ def experiment_builder(**kwargs):
     to_notify = kwargs.pop("to_notify", None)
     if to_notify:
         builder_name = kwargs["name"]
-        notify_on_step_failure = kwargs.pop("notify_on_step_failure", None)
         v8_notifier(
             name = "notification for %s" % builder_name,
             notify_emails = to_notify,
             notified_by = [builder_name],
-            failed_step_regexp = notify_on_step_failure,
         )
 
     v8_builder(in_console = "experiments/V8", **kwargs)
@@ -76,7 +74,6 @@ experiment_builder(
     execution_timeout = 19800,
     properties = {"builder_group": "client.v8"},
     to_notify = ["jgruber@chromium.org"],
-    notify_on_step_failure = [".* nci", ".* nci_as_midtier", ".* stress_snapshot", ".* experimental_regexp"],
 )
 
 experiment_builder(
@@ -86,7 +83,6 @@ experiment_builder(
     execution_timeout = 19800,
     properties = {"builder_group": "client.v8"},
     to_notify = ["jgruber@chromium.org"],
-    notify_on_step_failure = [".* nci", ".* nci_as_midtier", ".* stress_snapshot", ".* experimental_regexp"],
 )
 
 experiment_builder(
