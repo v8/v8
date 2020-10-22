@@ -620,8 +620,19 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name,
     DCHECK_LE(i, maps_and_handlers.size());
   }
 
+  // Reorder the deprecated maps to be at the end, so that
+  // minimorphic ICs have the best chance of succeeding as they only
+  // check the first FLAG_max_minimorphic_map_checks maps.
+  if (deprecated_maps_and_handlers.size() > 0) {
+    maps_and_handlers.insert(maps_and_handlers.end(),
+                             deprecated_maps_and_handlers.begin(),
+                             deprecated_maps_and_handlers.end());
+  }
+
   int number_of_maps = static_cast<int>(maps_and_handlers.size());
-  int number_of_valid_maps = number_of_maps - (handler_to_overwrite != -1);
+  int deprecated_maps = static_cast<int>(deprecated_maps_and_handlers.size());
+  int number_of_valid_maps =
+      number_of_maps - deprecated_maps - (handler_to_overwrite != -1);
 
   if (number_of_valid_maps >= FLAG_max_valid_polymorphic_map_count)
     return false;
@@ -642,15 +653,6 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name,
       }
     } else {
       maps_and_handlers.push_back(MapAndHandler(map, handler));
-    }
-
-    // Reorder the deprecated maps to be at the end, so that
-    // minimorphic ICs have the best chance of succeeding as they only
-    // check the first FLAG_max_minimorphic_map_checks maps.
-    if (deprecated_maps_and_handlers.size() > 0) {
-      maps_and_handlers.insert(maps_and_handlers.end(),
-                               deprecated_maps_and_handlers.begin(),
-                               deprecated_maps_and_handlers.end());
     }
 
     ConfigureVectorState(name, maps_and_handlers);
