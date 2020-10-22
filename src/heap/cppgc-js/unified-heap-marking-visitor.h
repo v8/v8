@@ -44,6 +44,9 @@ class V8_EXPORT_PRIVATE UnifiedHeapMarkingVisitorBase : public JSVisitor {
   void Visit(const void*, TraceDescriptor) final;
   void VisitWeak(const void*, TraceDescriptor, WeakCallback, const void*) final;
   void VisitEphemeron(const void*, TraceDescriptor) final;
+  void VisitWeakContainer(const void* self, TraceDescriptor strong_desc,
+                          TraceDescriptor weak_desc, WeakCallback callback,
+                          const void* data) final;
   void RegisterWeakCallback(WeakCallback, const void*) final;
 
   // JS handling.

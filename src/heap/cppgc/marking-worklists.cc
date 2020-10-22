@@ -21,40 +21,8 @@ void MarkingWorklists::ClearForTesting() {
   ephemeron_pairs_for_processing_worklist_.Clear();
 }
 
-void MarkingWorklists::NotFullyConstructedWorklist::Push(
-    HeapObjectHeader* object) {
-  DCHECK_NOT_NULL(object);
-  v8::base::MutexGuard guard(&lock_);
-  objects_.insert(object);
-}
-
-std::unordered_set<HeapObjectHeader*>
-MarkingWorklists::NotFullyConstructedWorklist::Extract() {
-  v8::base::MutexGuard guard(&lock_);
-  std::unordered_set<HeapObjectHeader*> extracted;
-  std::swap(extracted, objects_);
-  DCHECK(objects_.empty());
-  return extracted;
-}
-
-void MarkingWorklists::NotFullyConstructedWorklist::Clear() {
-  v8::base::MutexGuard guard(&lock_);
-  objects_.clear();
-}
-
-bool MarkingWorklists::NotFullyConstructedWorklist::IsEmpty() {
-  v8::base::MutexGuard guard(&lock_);
-  return objects_.empty();
-}
-
-MarkingWorklists::NotFullyConstructedWorklist::~NotFullyConstructedWorklist() {
+MarkingWorklists::ExternalMarkingWorklist::~ExternalMarkingWorklist() {
   DCHECK(IsEmpty());
-}
-
-bool MarkingWorklists::NotFullyConstructedWorklist::ContainsForTesting(
-    HeapObjectHeader* object) {
-  v8::base::MutexGuard guard(&lock_);
-  return objects_.find(object) != objects_.end();
 }
 
 }  // namespace internal

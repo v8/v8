@@ -42,7 +42,7 @@ void VerificationState::VerifyMarked(const void* base_object_payload) const {
   }
 }
 
-void MarkingVerifierBase::VisitConservatively(
+void MarkingVerifierBase::VisitInConstructionConservatively(
     HeapObjectHeader& header, TraceConservativelyCallback callback) {
   CHECK(header.IsMarked());
   in_construction_objects_->insert(&header);
@@ -88,6 +88,18 @@ class VerificationVisitor final : public cppgc::Visitor {
     // all objects found through weak references have to point to live objects
     // at this point.
     state_.VerifyMarked(desc.base_object_payload);
+  }
+
+  void VisitWeakContainer(const void* object, TraceDescriptor,
+                          TraceDescriptor weak_desc, WeakCallback,
+                          const void*) {
+    if (!object) return;
+
+    // Contents of weak containers are found themselves through page iteration
+    // and are treated strongly, similar to how they are treated strongly when
+    // found through stack scanning. The verification here only makes sure that
+    // the container itself is properly marked.
+    state_.VerifyMarked(weak_desc.base_object_payload);
   }
 
  private:

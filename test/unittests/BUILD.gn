@@ -115,6 +115,7 @@ v8_source_set("cppgc_unittests_sources") {
     "heap/cppgc/tests.cc",
     "heap/cppgc/tests.h",
     "heap/cppgc/visitor-unittest.cc",
+    "heap/cppgc/weak-container-unittest.cc",
     "heap/cppgc/write-barrier-unittest.cc",
   ]
 

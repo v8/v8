@@ -189,6 +189,8 @@ MarkerBase::~MarkerBase() {
     marking_worklists_.discovered_ephemeron_pairs_worklist()->Clear();
 #endif
   }
+
+  marking_worklists_.weak_containers_worklist()->Clear();
 }
 
 void MarkerBase::StartMarking() {

@@ -45,8 +45,8 @@ class V8_EXPORT_PRIVATE MarkingVerifierBase
   virtual void SetCurrentParent(const HeapObjectHeader*) = 0;
 
  private:
-  void VisitConservatively(HeapObjectHeader&,
-                           TraceConservativelyCallback) final;
+  void VisitInConstructionConservatively(HeapObjectHeader&,
+                                         TraceConservativelyCallback) final;
   void VisitPointer(const void*) final;
 
   bool VisitHeapObjectHeader(HeapObjectHeader*);

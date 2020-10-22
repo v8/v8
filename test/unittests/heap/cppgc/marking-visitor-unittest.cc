@@ -220,9 +220,8 @@ TEST_F(MarkingVisitorTest, MarkMemberInConstruction) {
             visitor.Trace(object);
           });
   HeapObjectHeader& header = HeapObjectHeader::FromPayload(gced);
-  EXPECT_TRUE(visitor.marking_state()
-                  .not_fully_constructed_worklist()
-                  .ContainsForTesting(&header));
+  EXPECT_TRUE(visitor.marking_state().not_fully_constructed_worklist().Contains(
+      &header));
   EXPECT_FALSE(header.IsMarked());
 }
 
@@ -236,9 +235,8 @@ TEST_F(MarkingVisitorTest, MarkMemberMixinInConstruction) {
             visitor.Trace(mixin);
           });
   HeapObjectHeader& header = HeapObjectHeader::FromPayload(gced);
-  EXPECT_TRUE(visitor.marking_state()
-                  .not_fully_constructed_worklist()
-                  .ContainsForTesting(&header));
+  EXPECT_TRUE(visitor.marking_state().not_fully_constructed_worklist().Contains(
+      &header));
   EXPECT_FALSE(header.IsMarked());
 }
 
@@ -252,9 +250,9 @@ TEST_F(MarkingVisitorTest, DontMarkWeakMemberInConstruction) {
             visitor.Trace(object);
           });
   HeapObjectHeader& header = HeapObjectHeader::FromPayload(gced);
-  EXPECT_FALSE(visitor.marking_state()
-                   .not_fully_constructed_worklist()
-                   .ContainsForTesting(&header));
+  EXPECT_FALSE(
+      visitor.marking_state().not_fully_constructed_worklist().Contains(
+          &header));
   EXPECT_FALSE(header.IsMarked());
 }
 
@@ -268,9 +266,9 @@ TEST_F(MarkingVisitorTest, DontMarkWeakMemberMixinInConstruction) {
             visitor.Trace(mixin);
           });
   HeapObjectHeader& header = HeapObjectHeader::FromPayload(gced);
-  EXPECT_FALSE(visitor.marking_state()
-                   .not_fully_constructed_worklist()
-                   .ContainsForTesting(&header));
+  EXPECT_FALSE(
+      visitor.marking_state().not_fully_constructed_worklist().Contains(
+          &header));
   EXPECT_FALSE(header.IsMarked());
 }
 
@@ -284,9 +282,8 @@ TEST_F(MarkingVisitorTest, MarkPersistentInConstruction) {
             visitor.TraceRootForTesting(object, SourceLocation::Current());
           });
   HeapObjectHeader& header = HeapObjectHeader::FromPayload(gced);
-  EXPECT_TRUE(visitor.marking_state()
-                  .not_fully_constructed_worklist()
-                  .ContainsForTesting(&header));
+  EXPECT_TRUE(visitor.marking_state().not_fully_constructed_worklist().Contains(
+      &header));
   EXPECT_FALSE(header.IsMarked());
 }
 
@@ -300,9 +297,8 @@ TEST_F(MarkingVisitorTest, MarkPersistentMixinInConstruction) {
             visitor.TraceRootForTesting(mixin, SourceLocation::Current());
           });
   HeapObjectHeader& header = HeapObjectHeader::FromPayload(gced);
-  EXPECT_TRUE(visitor.marking_state()
-                  .not_fully_constructed_worklist()
-                  .ContainsForTesting(&header));
+  EXPECT_TRUE(visitor.marking_state().not_fully_constructed_worklist().Contains(
+      &header));
   EXPECT_FALSE(header.IsMarked());
 }
 

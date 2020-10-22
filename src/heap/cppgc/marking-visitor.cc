@@ -30,6 +30,14 @@ void MarkingVisitorBase::VisitEphemeron(const void* key,
   marking_state_.ProcessEphemeron(key, value_desc);
 }
 
+void MarkingVisitorBase::VisitWeakContainer(const void* object,
+                                            TraceDescriptor strong_desc,
+                                            TraceDescriptor weak_desc,
+                                            WeakCallback callback,
+                                            const void* data) {
+  marking_state_.ProcessWeakContainer(object, weak_desc, callback, data);
+}
+
 void MarkingVisitorBase::RegisterWeakCallback(WeakCallback callback,
                                               const void* object) {
   marking_state_.RegisterWeakCallback(callback, object);
@@ -40,8 +48,19 @@ ConservativeMarkingVisitor::ConservativeMarkingVisitor(
     : ConservativeTracingVisitor(heap, *heap.page_backend(), visitor),
       marking_state_(marking_state) {}
 
-void ConservativeMarkingVisitor::VisitConservatively(
+void ConservativeMarkingVisitor::VisitFullyConstructedConservatively(
+    HeapObjectHeader& header) {
+  if (header.IsMarked()) {
+    if (marking_state_.IsMarkedWeakContainer(header))
+      marking_state_.PushMarkedWeakContainer(header);
+    return;
+  }
+  ConservativeTracingVisitor::VisitFullyConstructedConservatively(header);
+}
+
+void ConservativeMarkingVisitor::VisitInConstructionConservatively(
     HeapObjectHeader& header, TraceConservativelyCallback callback) {
+  DCHECK(!marking_state_.IsMarkedWeakContainer(header));
   marking_state_.MarkNoPush(header);
   marking_state_.AccountMarkedBytes(header);
   callback(this, header);

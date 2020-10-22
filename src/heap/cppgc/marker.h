@@ -213,7 +213,9 @@ class V8_EXPORT_PRIVATE Marker final : public MarkerBase {
 };
 
 void MarkerBase::WriteBarrierForInConstructionObject(HeapObjectHeader& header) {
-  mutator_marking_state_.not_fully_constructed_worklist().Push(&header);
+  mutator_marking_state_.not_fully_constructed_worklist()
+      .Push<MarkingWorklists::NotFullyConstructedWorklist::AccessMode::kAtomic>(
+          &header);
 }
 
 void MarkerBase::WriteBarrierForObject(HeapObjectHeader& header) {

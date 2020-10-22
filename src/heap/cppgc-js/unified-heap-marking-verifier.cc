@@ -32,6 +32,19 @@ class UnifiedHeapVerificationVisitor final : public JSVisitor {
     // at this point.
     state_.VerifyMarked(desc.base_object_payload);
   }
+
+  void VisitWeakContainer(const void* object, cppgc::TraceDescriptor,
+                          cppgc::TraceDescriptor weak_desc, cppgc::WeakCallback,
+                          const void*) {
+    if (!object) return;
+
+    // Contents of weak containers are found themselves through page iteration
+    // and are treated strongly, similar to how they are treated strongly when
+    // found through stack scanning. The verification here only makes sure that
+    // the container itself is properly marked.
+    state_.VerifyMarked(weak_desc.base_object_payload);
+  }
+
   void Visit(const internal::JSMemberBase& ref) final {
     // TODO(chromium:1056170): Verify V8 object is indeed marked.
   }

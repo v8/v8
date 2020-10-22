@@ -10,13 +10,45 @@
 #include "include/cppgc/visitor.h"
 #include "src/base/platform/mutex.h"
 #include "src/heap/base/worklist.h"
+#include "src/heap/cppgc/heap-object-header.h"
 
 namespace cppgc {
 namespace internal {
 
-class HeapObjectHeader;
-
 class MarkingWorklists {
+ private:
+  class V8_EXPORT_PRIVATE ExternalMarkingWorklist {
+   public:
+    using AccessMode = HeapObjectHeader::AccessMode;
+
+    template <AccessMode = AccessMode::kNonAtomic>
+    void Push(HeapObjectHeader*);
+    template <AccessMode = AccessMode::kNonAtomic>
+    void Erase(HeapObjectHeader*);
+    template <AccessMode = AccessMode::kNonAtomic>
+    bool Contains(HeapObjectHeader*);
+    template <AccessMode = AccessMode::kNonAtomic>
+    std::unordered_set<HeapObjectHeader*> Extract();
+    template <AccessMode = AccessMode::kNonAtomic>
+    void Clear();
+    template <AccessMode = AccessMode::kNonAtomic>
+    bool IsEmpty();
+
+    ~ExternalMarkingWorklist();
+
+   private:
+    template <AccessMode>
+    struct ConditionalMutexGuard;
+
+    void* operator new(size_t) = delete;
+    void* operator new[](size_t) = delete;
+    void operator delete(void*) = delete;
+    void operator delete[](void*) = delete;
+
+    v8::base::Mutex lock_;
+    std::unordered_set<HeapObjectHeader*> objects_;
+  };
+
  public:
   static constexpr int kMutatorThreadId = 0;
 
@@ -42,6 +74,7 @@ class MarkingWorklists {
   // Since the work list is currently a temporary object this is not a problem.
   using MarkingWorklist =
       heap::base::Worklist<MarkingItem, 512 /* local entries */>;
+  using NotFullyConstructedWorklist = ExternalMarkingWorklist;
   using PreviouslyNotFullyConstructedWorklist =
       heap::base::Worklist<HeapObjectHeader*, 16 /* local entries */>;
   using WeakCallbackWorklist =
@@ -53,27 +86,7 @@ class MarkingWorklists {
                            64 /* local entries */>;
   using EphemeronPairsWorklist =
       heap::base::Worklist<EphemeronPairItem, 64 /* local entries */>;
-
-  class V8_EXPORT_PRIVATE NotFullyConstructedWorklist {
-   public:
-    void Push(HeapObjectHeader*);
-    std::unordered_set<HeapObjectHeader*> Extract();
-    void Clear();
-    bool IsEmpty();
-
-    ~NotFullyConstructedWorklist();
-
-    bool ContainsForTesting(HeapObjectHeader*);
-
-   private:
-    void* operator new(size_t) = delete;
-    void* operator new[](size_t) = delete;
-    void operator delete(void*) = delete;
-    void operator delete[](void*) = delete;
-
-    v8::base::Mutex lock_;
-    std::unordered_set<HeapObjectHeader*> objects_;
-  };
+  using WeakContainersWorklist = ExternalMarkingWorklist;
 
   MarkingWorklist* marking_worklist() { return &marking_worklist_; }
   NotFullyConstructedWorklist* not_fully_constructed_worklist() {
@@ -98,6 +111,9 @@ class MarkingWorklists {
   EphemeronPairsWorklist* ephemeron_pairs_for_processing_worklist() {
     return &ephemeron_pairs_for_processing_worklist_;
   }
+  WeakContainersWorklist* weak_containers_worklist() {
+    return &weak_containers_worklist_;
+  }
 
   void ClearForTesting();
 
@@ -111,7 +127,67 @@ class MarkingWorklists {
   ConcurrentMarkingBailoutWorklist concurrent_marking_bailout_worklist_;
   EphemeronPairsWorklist discovered_ephemeron_pairs_worklist_;
   EphemeronPairsWorklist ephemeron_pairs_for_processing_worklist_;
+  WeakContainersWorklist weak_containers_worklist_;
 };
+
+template <>
+struct MarkingWorklists::ExternalMarkingWorklist::ConditionalMutexGuard<
+    MarkingWorklists::ExternalMarkingWorklist::AccessMode::kNonAtomic> {
+  explicit ConditionalMutexGuard(v8::base::Mutex*) {}
+};
+
+template <>
+struct MarkingWorklists::ExternalMarkingWorklist::ConditionalMutexGuard<
+    MarkingWorklists::ExternalMarkingWorklist::AccessMode::kAtomic> {
+  explicit ConditionalMutexGuard(v8::base::Mutex* lock) : guard_(lock) {}
+
+ private:
+  v8::base::MutexGuard guard_;
+};
+
+template <MarkingWorklists::ExternalMarkingWorklist::AccessMode mode>
+void MarkingWorklists::ExternalMarkingWorklist::Push(HeapObjectHeader* object) {
+  DCHECK_NOT_NULL(object);
+  ConditionalMutexGuard<mode> guard(&lock_);
+  objects_.insert(object);
+}
+
+template <MarkingWorklists::ExternalMarkingWorklist::AccessMode mode>
+void MarkingWorklists::ExternalMarkingWorklist::Erase(
+    HeapObjectHeader* object) {
+  DCHECK_NOT_NULL(object);
+  ConditionalMutexGuard<mode> guard(&lock_);
+  objects_.erase(object);
+}
+
+template <MarkingWorklists::ExternalMarkingWorklist::AccessMode mode>
+bool MarkingWorklists::ExternalMarkingWorklist::Contains(
+    HeapObjectHeader* object) {
+  ConditionalMutexGuard<mode> guard(&lock_);
+  return objects_.find(object) != objects_.end();
+}
+
+template <MarkingWorklists::ExternalMarkingWorklist::AccessMode mode>
+std::unordered_set<HeapObjectHeader*>
+MarkingWorklists::ExternalMarkingWorklist::Extract() {
+  ConditionalMutexGuard<mode> guard(&lock_);
+  std::unordered_set<HeapObjectHeader*> extracted;
+  std::swap(extracted, objects_);
+  DCHECK(objects_.empty());
+  return extracted;
+}
+
+template <MarkingWorklists::ExternalMarkingWorklist::AccessMode mode>
+void MarkingWorklists::ExternalMarkingWorklist::Clear() {
+  ConditionalMutexGuard<mode> guard(&lock_);
+  objects_.clear();
+}
+
+template <MarkingWorklists::ExternalMarkingWorklist::AccessMode mode>
+bool MarkingWorklists::ExternalMarkingWorklist::IsEmpty() {
+  ConditionalMutexGuard<mode> guard(&lock_);
+  return objects_.empty();
+}
 
 }  // namespace internal
 }  // namespace cppgc

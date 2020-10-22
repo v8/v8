@@ -446,6 +446,21 @@ class VisiblityVisitor final : public JSVisitor {
                  const cppgc::SourceLocation&) final {}
   void VisitWeakRoot(const void*, cppgc::TraceDescriptor, cppgc::WeakCallback,
                      const void*, const cppgc::SourceLocation&) final {}
+  void VisitWeakContainer(const void* object,
+                          cppgc::TraceDescriptor strong_desc,
+                          cppgc::TraceDescriptor weak_desc, cppgc::WeakCallback,
+                          const void*) {
+    if (!weak_desc.callback) {
+      // Weak container does not contribute to liveness.
+      return;
+    }
+    // Heap snapshot is always run after a GC so we know there are no dead
+    // entries in the backing store, thus it safe to trace it strongly.
+    if (object) {
+      Visit(object, strong_desc);
+    }
+  }
+
   // JS handling.
   void Visit(const JSMemberBase& ref) final {}
 

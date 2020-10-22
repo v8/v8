@@ -37,6 +37,12 @@ void UnifiedHeapMarkingVisitorBase::VisitEphemeron(const void* key,
   marking_state_.ProcessEphemeron(key, value_desc);
 }
 
+void UnifiedHeapMarkingVisitorBase::VisitWeakContainer(
+    const void* self, TraceDescriptor strong_desc, TraceDescriptor weak_desc,
+    WeakCallback callback, const void* data) {
+  marking_state_.ProcessWeakContainer(self, weak_desc, callback, data);
+}
+
 void UnifiedHeapMarkingVisitorBase::RegisterWeakCallback(WeakCallback callback,
                                                          const void* object) {
   marking_state_.RegisterWeakCallback(callback, object);
