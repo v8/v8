@@ -1085,33 +1085,20 @@ class WasmGraphBuildingInterface {
     BitVector* assigned = WasmDecoder<validate>::AnalyzeLoopAssignment(
         decoder, decoder->pc(), decoder->num_locals() + 1, decoder->zone());
     if (decoder->failed()) return;
-    if (assigned != nullptr) {
-      // Only introduce phis for variables assigned in this loop.
-      int instance_cache_index = decoder->num_locals();
-      for (int i = decoder->num_locals() - 1; i >= 0; i--) {
-        if (!assigned->Contains(i)) continue;
-        TFNode* inputs[] = {ssa_env_->locals[i], control()};
-        ssa_env_->locals[i] = builder_->Phi(decoder->local_type(i), 1, inputs);
-      }
-      // Introduce phis for instance cache pointers if necessary.
-      if (assigned->Contains(instance_cache_index)) {
-        builder_->PrepareInstanceCacheForLoop(&ssa_env_->instance_cache,
-                                              control());
-      }
+    DCHECK_NOT_NULL(assigned);
 
-      SetEnv(Split(decoder->zone(), ssa_env_));
-      builder_->StackCheck(decoder->position());
-      return;
-    }
-
-    // Conservatively introduce phis for all local variables.
+    // Only introduce phis for variables assigned in this loop.
+    int instance_cache_index = decoder->num_locals();
     for (int i = decoder->num_locals() - 1; i >= 0; i--) {
+      if (!assigned->Contains(i)) continue;
       TFNode* inputs[] = {ssa_env_->locals[i], control()};
       ssa_env_->locals[i] = builder_->Phi(decoder->local_type(i), 1, inputs);
     }
-
-    // Conservatively introduce phis for instance cache.
-    builder_->PrepareInstanceCacheForLoop(&ssa_env_->instance_cache, control());
+    // Introduce phis for instance cache pointers if necessary.
+    if (assigned->Contains(instance_cache_index)) {
+      builder_->PrepareInstanceCacheForLoop(&ssa_env_->instance_cache,
+                                            control());
+    }
 
     SetEnv(Split(decoder->zone(), ssa_env_));
     builder_->StackCheck(decoder->position());
