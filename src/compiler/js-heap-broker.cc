@@ -4682,9 +4682,11 @@ void FilterRelevantReceiverMaps(Isolate* isolate, MapHandles* maps) {
 
 MaybeObjectHandle TryGetMinimorphicHandler(
     std::vector<MapAndHandler> const& maps_and_handlers, FeedbackSlotKind kind,
-    Handle<NativeContext> native_context) {
-  if (!FLAG_dynamic_map_checks || !IsLoadICKind(kind))
+    Handle<NativeContext> native_context, bool is_turboprop) {
+  if (!is_turboprop || !FLAG_turboprop_dynamic_map_checks ||
+      !IsLoadICKind(kind)) {
     return MaybeObjectHandle();
+  }
 
   // Don't use dynamic map checks when loading properties from Array.prototype.
   // Using dynamic map checks prevents constant folding and hence does not
@@ -4755,7 +4757,8 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
   base::Optional<NameRef> name =
       static_name.has_value() ? static_name : GetNameFeedback(nexus);
   MaybeObjectHandle handler = TryGetMinimorphicHandler(
-      maps_and_handlers, kind, target_native_context().object());
+      maps_and_handlers, kind, target_native_context().object(),
+      is_turboprop());
   if (!handler.is_null()) {
     MaybeHandle<Map> maybe_map;
     if (nexus.ic_state() == MONOMORPHIC) {

@@ -1259,7 +1259,8 @@ UNINITIALIZED_TEST(Regress10843) {
 // Tests that spill slots from optimized code don't have weak pointers.
 TEST(Regress10774) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_dynamic_map_checks = true;
+  i::FLAG_turboprop = true;
+  i::FLAG_turboprop_dynamic_map_checks = true;
 #ifdef VERIFY_HEAP
   i::FLAG_verify_heap = true;
 #endif

@@ -254,7 +254,7 @@ RUNTIME_FUNCTION(Runtime_IsConcurrentRecompilationSupported) {
 RUNTIME_FUNCTION(Runtime_DynamicMapChecksEnabled) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
-  return isolate->heap()->ToBoolean(FLAG_dynamic_map_checks);
+  return isolate->heap()->ToBoolean(FLAG_turboprop_dynamic_map_checks);
 }
 
 RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {

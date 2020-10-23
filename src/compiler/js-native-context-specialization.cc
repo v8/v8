@@ -1066,6 +1066,16 @@ Reduction JSNativeContextSpecialization::ReduceMinimorphicPropertyAccess(
               : SerializationPolicy::kSerializeIfNeeded);
   if (access_info.IsInvalid()) return NoChange();
 
+  // The dynamic map check operator loads the feedback vector from the
+  // function's frame, so we can only use this for non-inlined functions.
+  // TODO(rmcilroy): Add support for using a trampoline like LoadICTrampoline
+  // and otherwise pass feedback vector explicitly if we need support for
+  // inlined functions.
+  // TODO(rmcilroy): Ideally we would check whether we are have an inlined frame
+  // state here, but there isn't a good way to distinguish inlined from OSR
+  // framestates.
+  DCHECK(broker()->is_turboprop());
+
   PropertyAccessBuilder access_builder(jsgraph(), broker(), nullptr);
   CheckMapsFlags flags = CheckMapsFlag::kNone;
   if (feedback.has_migration_target_maps()) {
