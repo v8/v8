@@ -38,6 +38,7 @@ class JSGlobalObject;
 class JSGlobalProxy;
 class JSPromise;
 class JSWeakCollection;
+class SafepointScope;
 
 struct SourceLocation {
   SourceLocation(int entry_index, int scriptId, int line, int col)
@@ -340,7 +341,8 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   HeapEntry* AllocateEntry(HeapThing ptr) override;
   int EstimateObjectsCount();
   bool IterateAndExtractReferences(HeapSnapshotGenerator* generator);
-  void TagGlobalObjects();
+  void CollectGlobalObjectsTags();
+  void MakeGlobalObjectTagMap(const SafepointScope& safepoint_scope);
   void TagBuiltinCodeObject(Code code, const char* name);
   HeapEntry* AddEntry(Address address,
                       HeapEntry::Type type,
@@ -447,7 +449,10 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   HeapObjectsMap* heap_object_map_;
   SnapshottingProgressReportingInterface* progress_;
   HeapSnapshotGenerator* generator_ = nullptr;
-  std::unordered_map<JSGlobalObject, const char*, Object::Hasher> objects_tags_;
+  std::vector<std::pair<Handle<JSGlobalObject>, const char*>>
+      global_object_tag_pairs_;
+  std::unordered_map<JSGlobalObject, const char*, Object::Hasher>
+      global_object_tag_map_;
   std::unordered_map<Object, const char*, Object::Hasher>
       strong_gc_subroot_names_;
   std::unordered_set<JSGlobalObject, Object::Hasher> user_roots_;

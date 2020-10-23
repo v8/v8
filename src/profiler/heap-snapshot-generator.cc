@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "src/api/api-inl.h"
+#include "src/base/optional.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
@@ -598,8 +599,8 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject object) {
     const char* name = names_->GetName(
         GetConstructorName(JSObject::cast(object)));
     if (object.IsJSGlobalObject()) {
-      auto it = objects_tags_.find(JSGlobalObject::cast(object));
-      if (it != objects_tags_.end()) {
+      auto it = global_object_tag_map_.find(JSGlobalObject::cast(object));
+      if (it != global_object_tag_map_.end()) {
         name = names_->GetFormatted("%s / %s", name, it->second);
       }
     }
@@ -1822,22 +1823,26 @@ class GlobalObjectsEnumerator : public RootVisitor {
 
 
 // Modifies heap. Must not be run during heap traversal.
-void V8HeapExplorer::TagGlobalObjects() {
+void V8HeapExplorer::CollectGlobalObjectsTags() {
+  if (!global_object_name_resolver_) return;
+
   Isolate* isolate = Isolate::FromHeap(heap_);
-  HandleScope scope(isolate);
   GlobalObjectsEnumerator enumerator(isolate);
   isolate->global_handles()->IterateAllRoots(&enumerator);
-  std::vector<const char*> urls(enumerator.count());
   for (int i = 0, l = enumerator.count(); i < l; ++i) {
-    urls[i] = global_object_name_resolver_
-                  ? global_object_name_resolver_->GetName(Utils::ToLocal(
-                        Handle<JSObject>::cast(enumerator.at(i))))
-                  : nullptr;
+    Handle<JSGlobalObject> obj = enumerator.at(i);
+    const char* tag = global_object_name_resolver_->GetName(
+        Utils::ToLocal(Handle<JSObject>::cast(obj)));
+    if (tag) {
+      global_object_tag_pairs_.emplace_back(obj, tag);
+    }
   }
+}
 
-  DisallowHeapAllocation no_allocation;
-  for (int i = 0, l = enumerator.count(); i < l; ++i) {
-    if (urls[i]) objects_tags_.emplace(*enumerator.at(i), urls[i]);
+void V8HeapExplorer::MakeGlobalObjectTagMap(
+    const SafepointScope& safepoint_scope) {
+  for (const auto& pair : global_object_tag_pairs_) {
+    global_object_tag_map_.emplace(*pair.first, pair.second);
   }
 }
 
@@ -2080,7 +2085,9 @@ class NullContextForSnapshotScope {
 }  // namespace
 
 bool HeapSnapshotGenerator::GenerateSnapshot() {
-  v8_heap_explorer_.TagGlobalObjects();
+  Isolate* isolate = Isolate::FromHeap(heap_);
+  base::Optional<HandleScope> handle_scope(base::in_place, isolate);
+  v8_heap_explorer_.CollectGlobalObjectsTags();
 
   // TODO(1562) Profiler assumes that any object that is in the heap after
   // full GC is reachable from the root when computing dominators.
@@ -2091,8 +2098,10 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   heap_->PreciseCollectAllGarbage(Heap::kNoGCFlags,
                                   GarbageCollectionReason::kHeapProfiler);
 
-  NullContextForSnapshotScope null_context_scope(Isolate::FromHeap(heap_));
+  NullContextForSnapshotScope null_context_scope(isolate);
   SafepointScope scope(heap_);
+  v8_heap_explorer_.MakeGlobalObjectTagMap(scope);
+  handle_scope.reset();
 
 #ifdef VERIFY_HEAP
   Heap* debug_heap = heap_;
