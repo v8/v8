@@ -45,6 +45,9 @@ vars = {
   'download_jsfunfuzz': False,
   'check_v8_header_includes': False,
 
+  # This variable is overrided in Chromium's DEPS file.
+  'build_with_chromium': False,
+
   'checkout_google_benchmark' : False,
 
   'mac_xcode_version': 'default',
@@ -306,10 +309,15 @@ deps = {
       'url': Var('chromium_url') + '/external/github.com/kennethreitz/requests.git' + '@' + 'bfb93d4b7d269a8735f1b216093e7e9a9fdc4517',
       'condition': 'checkout_android',
   },
+  'third_party/abseil-cpp': {
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '66b870c3b1cbbb7f85b31cc9a8a785329f5ebcb8',
+    'condition': 'not build_with_chromium',
+  }
 }
 
 include_rules = [
   # Everybody can use some things.
+  '+absl',
   '+include',
   '+unicode',
   '+third_party/fdlibm',
