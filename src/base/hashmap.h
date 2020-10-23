@@ -72,6 +72,20 @@ class TemplateHashMapImpl {
   template <typename Func>
   Entry* LookupOrInsert(const Key& key, uint32_t hash, const Func& value_func);
 
+  // Heterogeneous version of LookupOrInsert, which allows a
+  // different lookup key type than the hashmap's key type.
+  // The requirement is that MatchFun has an overload:
+  //
+  //   operator()(const LookupKey& lookup_key, const Key& entry_key)
+  //
+  // If an entry with matching key is found, returns that entry.
+  // If no matching entry is found, a new entry is inserted with
+  // a key created by key_func, key hash, and value created by
+  // value_func.
+  template <typename LookupKey, typename KeyFunc, typename ValueFunc>
+  Entry* LookupOrInsert(const LookupKey& lookup_key, uint32_t hash,
+                        const KeyFunc& key_func, const ValueFunc& value_func);
+
   Entry* InsertNew(const Key& key, uint32_t hash);
 
   // Removes the entry with matching key.
@@ -115,7 +129,8 @@ class TemplateHashMapImpl {
 
  private:
   Entry* map_end() const { return impl_.map_ + impl_.capacity_; }
-  Entry* Probe(const Key& key, uint32_t hash) const;
+  template <typename LookupKey>
+  Entry* Probe(const LookupKey& key, uint32_t hash) const;
   Entry* FillEmptyEntry(Entry* entry, const Key& key, const Value& value,
                         uint32_t hash);
   void Resize();
@@ -214,13 +229,24 @@ template <typename Func>
 typename TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Entry*
 TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::LookupOrInsert(
     const Key& key, uint32_t hash, const Func& value_func) {
+  return LookupOrInsert(
+      key, hash, [&key]() { return key; }, value_func);
+}
+
+template <typename Key, typename Value, typename MatchFun,
+          class AllocationPolicy>
+template <typename LookupKey, typename KeyFunc, typename ValueFunc>
+typename TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Entry*
+TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::LookupOrInsert(
+    const LookupKey& lookup_key, uint32_t hash, const KeyFunc& key_func,
+    const ValueFunc& value_func) {
   // Find a matching entry.
-  Entry* entry = Probe(key, hash);
+  Entry* entry = Probe(lookup_key, hash);
   if (entry->exists()) {
     return entry;
   }
 
-  return FillEmptyEntry(entry, key, value_func(), hash);
+  return FillEmptyEntry(entry, key_func(), value_func(), hash);
 }
 
 template <typename Key, typename Value, typename MatchFun,
@@ -328,9 +354,10 @@ TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Next(
 
 template <typename Key, typename Value, typename MatchFun,
           class AllocationPolicy>
+template <typename LookupKey>
 typename TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Entry*
 TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Probe(
-    const Key& key, uint32_t hash) const {
+    const LookupKey& key, uint32_t hash) const {
   DCHECK(base::bits::IsPowerOfTwo(capacity()));
   size_t i = hash & (capacity() - 1);
   DCHECK(i < capacity());
