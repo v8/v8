@@ -2775,6 +2775,9 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization() {
       RequiredBaselineTierField::encode(ExecutionTier::kTurbofan) |
       RequiredTopTierField::encode(ExecutionTier::kTurbofan) |
       ReachedTierField::encode(ExecutionTier::kTurbofan);
+  finished_events_.Add(CompilationEvent::kFinishedExportWrappers);
+  finished_events_.Add(CompilationEvent::kFinishedBaselineCompilation);
+  finished_events_.Add(CompilationEvent::kFinishedTopTierCompilation);
   compilation_progress_.assign(module->num_declared_functions,
                                kProgressAfterDeserialization);
 }
