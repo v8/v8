@@ -34,6 +34,7 @@ ALL_VARIANT_FLAGS = {
   "stress": [["--stress-opt", "--no-liftoff", "--stress-lazy-source-positions"]],
   "stress_concurrent_allocation": [["--stress-concurrent-allocation"]],
   "stress_js_bg_compile_wasm_code_gc": [["--stress-background-compile",
+                                         "--finalize-streaming-on-background",
                                          "--stress-wasm-code-gc"]],
   "stress_incremental_marking": [["--stress-incremental-marking"]],
   "stress_snapshot": [["--stress-snapshot"]],
