@@ -56,6 +56,18 @@ class UnifiedHeapTest : public TestWithHeapInternals {
     cppgc::ShutdownProcess();
   }
 
+  void CollectGarbageWithEmbedderStack() {
+    heap()->SetEmbedderStackStateForNextFinalizaton(
+        EmbedderHeapTracer::EmbedderStackState::kMayContainHeapPointers);
+    CollectGarbage(OLD_SPACE);
+  }
+
+  void CollectGarbageWithoutEmbedderStack() {
+    heap()->SetEmbedderStackStateForNextFinalizaton(
+        EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers);
+    CollectGarbage(OLD_SPACE);
+  }
+
   CppHeap& cpp_heap() const { return *cpp_heap_.get(); }
 
   cppgc::AllocationHandle& allocation_handle() {
@@ -80,7 +92,7 @@ size_t Wrappable::destructor_callcount = 0;
 
 }  // namespace
 
-TEST_F(UnifiedHeapTest, OnlyGC) { CollectGarbage(OLD_SPACE); }
+TEST_F(UnifiedHeapTest, OnlyGC) { CollectGarbageWithEmbedderStack(); }
 
 TEST_F(UnifiedHeapTest, FindingV8ToBlinkReference) {
   v8::HandleScope scope(v8_isolate());
@@ -90,12 +102,12 @@ TEST_F(UnifiedHeapTest, FindingV8ToBlinkReference) {
       context, cppgc::MakeGarbageCollected<Wrappable>(allocation_handle()));
   EXPECT_FALSE(api_object.IsEmpty());
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
-  CollectGarbage(OLD_SPACE);
+  CollectGarbageWithoutEmbedderStack();
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
   ResetWrappableConnection(api_object);
-  CollectGarbage(OLD_SPACE);
+  CollectGarbageWithoutEmbedderStack();
   // Calling CollectGarbage twice to force the first GC to finish sweeping.
-  CollectGarbage(OLD_SPACE);
+  CollectGarbageWithoutEmbedderStack();
   EXPECT_EQ(1u, Wrappable::destructor_callcount);
 }
 

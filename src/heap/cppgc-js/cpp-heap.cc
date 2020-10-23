@@ -194,7 +194,7 @@ bool CppHeap::AdvanceTracing(double deadline_in_ms) {
 bool CppHeap::IsTracingDone() { return marking_done_; }
 
 void CppHeap::EnterFinalPause(EmbedderStackState stack_state) {
-  marker_->EnterAtomicPause(cppgc::Heap::StackState::kNoHeapPointers);
+  marker_->EnterAtomicPause(stack_state);
 }
 
 void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
