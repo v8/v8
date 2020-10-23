@@ -2,14 +2,27 @@
 <!-- Copyright 2020 the V8 project authors. All rights reserved.
 Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file. -->
-
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
   <title>Indicium</title>
-  <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
   <!-- <link rel="icon" type="image/png" href="/images/favicon.png"/> -->
+
+  <link rel="modulepreload" href="./log-file-reader.mjs" >
+  <link rel="modulepreload" href="./helper.mjs" >
+  <link rel="preload" href="./log-file-reader-template.html" as="fetch" crossorigin="anonymous">
+  <script type="module">
+    // Force instatiating the log-reader before anything else.
+    import "./log-file-reader.mjs";
+    // Delay loading of the main App
+    (async function() {
+      let module = await import('./index.mjs');
+      globalThis.app = new module.App("#log-file-reader", "#map-panel", "#map-stats-panel",
+        "#timeline-panel", "#ic-panel", "#map-track", "#ic-track", "#deopt-track",
+        "#source-panel");
+    })();
+  </script>
+
   <link rel="stylesheet" type="text/css" href="./index.css">
   <style>
     .theme-switch-wrapper {
@@ -75,13 +88,6 @@ found in the LICENSE file. -->
       content: ":";
     }
   </style>
-  <script type="module">
-    import { App } from './index.mjs';
-
-    globalThis.app = new App("#log-file-reader", "#map-panel", "#map-stats-panel",
-      "#timeline-panel", "#ic-panel", "#map-track", "#ic-track", "#deopt-track",
-      "#source-panel");
-  </script>
 </head>
 
 <body>
@@ -177,5 +183,4 @@ found in the LICENSE file. -->
     </section>
   </div>
 </body>
-
 </html>

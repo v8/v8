@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 import { SelectionEvent, FocusEvent, SelectTimeEvent } from "./events.mjs";
 import { State } from "./app-model.mjs";
 import { MapLogEntry } from "./log/map.mjs";
@@ -10,18 +9,13 @@ import { IcLogEntry } from "./log/ic.mjs";
 import { Processor } from "./processor.mjs";
 import { SourcePosition } from  "../profile.mjs";
 import { $ } from "./helper.mjs";
-import "./ic-panel.mjs";
-import "./timeline-panel.mjs";
-import "./stats-panel.mjs";
-import "./map-panel.mjs";
-import "./log-file-reader.mjs";
-import "./source-panel.mjs";
 
 
 class App {
   _state;
   _view;
   _navigation;
+  _startupPromise;
   constructor(fileReaderId, mapPanelId, mapStatsPanelId, timelinePanelId,
     icPanelId, mapTrackId, icTrackId, deoptTrackId, sourcePanelId) {
     this._view = {
@@ -36,10 +30,6 @@ class App {
       deoptTrack: $(deoptTrackId),
       sourcePanel: $(sourcePanelId)
     };
-    this._state = new State();
-    this._navigation = new Navigation(this._state, this._view);
-    document.addEventListener('keydown',
-      e => this._navigation.handleKeyDown(e));
     this.toggleSwitch = $('.theme-switch input[type="checkbox"]');
     this.toggleSwitch.addEventListener("change", (e) => this.switchTheme(e));
     this._view.logFileReader.addEventListener("fileuploadstart", (e) =>
@@ -48,6 +38,19 @@ class App {
     this._view.logFileReader.addEventListener("fileuploadend", (e) =>
       this.handleFileUploadEnd(e)
     );
+    this._startupPromise = this.runAsyncInitialize();
+  }
+
+  async runAsyncInitialize() {
+    await Promise.all([
+        import("./ic-panel.mjs"),
+        import("./timeline-panel.mjs"),
+        import("./stats-panel.mjs"),
+        import("./map-panel.mjs"),
+        import("./source-panel.mjs"),
+      ]);
+    document.addEventListener('keydown',
+      e => this._navigation?.handleKeyDown(e));
     Object.entries(this._view).forEach(([_, panel]) => {
       panel.addEventListener(SelectionEvent.name,
         e => this.handleShowEntries(e));
@@ -57,6 +60,7 @@ class App {
         e => this.handleTimeRangeSelect(e));
     });
   }
+
   handleShowEntries(e) {
     if (e.entries[0] instanceof MapLogEntry) {
       this.showMapEntries(e.entries);
@@ -134,27 +138,29 @@ class App {
     this._navigation = new Navigation(this._state, this._view);
   }
 
-  handleFileUploadEnd(e) {
-    if (!e.detail) return;
+  async handleFileUploadEnd(e) {
+    await this._startupPromise;
+    try {
+      const processor = new Processor(e.detail);
+      const mapTimeline = processor.mapTimeline;
+      const icTimeline = processor.icTimeline;
+      const deoptTimeline = processor.deoptTimeline;
+      this._state.mapTimeline = mapTimeline;
+      this._state.icTimeline = icTimeline;
+      this._state.deoptTimeline = deoptTimeline;
+      // Transitions must be set before timeline for stats panel.
+      this._view.mapPanel.timeline = mapTimeline;
+      this._view.mapTrack.data = mapTimeline;
+      this._view.mapStatsPanel.transitions = this._state.mapTimeline.transitions;
+      this._view.mapStatsPanel.timeline = mapTimeline;
+      this._view.icPanel.timeline = icTimeline;
+      this._view.icTrack.data = icTimeline;
+      this._view.deoptTrack.data = deoptTimeline;
+      this._view.sourcePanel.data = processor.scripts
+    } catch(e) {
+      this._view.logFileReader.error = "Log file contains errors!"
+    }
     $("#container").className = "loaded";
-    // instantiate the app logic
-    let fileData = e.detail;
-    const processor = new Processor(fileData.chunk);
-    const mapTimeline = processor.mapTimeline;
-    const icTimeline = processor.icTimeline;
-    const deoptTimeline = processor.deoptTimeline;
-    this._state.mapTimeline = mapTimeline;
-    this._state.icTimeline = icTimeline;
-    this._state.deoptTimeline = deoptTimeline;
-    // Transitions must be set before timeline for stats panel.
-    this._view.mapPanel.timeline = mapTimeline;
-    this._view.mapTrack.data = mapTimeline;
-    this._view.mapStatsPanel.transitions = this._state.mapTimeline.transitions;
-    this._view.mapStatsPanel.timeline = mapTimeline;
-    this._view.icPanel.timeline = icTimeline;
-    this._view.icTrack.data = icTimeline;
-    this._view.deoptTrack.data = deoptTimeline;
-    this._view.sourcePanel.data = processor.scripts
     this.fileLoaded = true;
   }
 

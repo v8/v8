@@ -15,6 +15,11 @@ defineCustomElement('log-file-reader', (templateText) =>
         e => this.handleKeyEvent(e));
     }
 
+    set error(message) {
+      this.updateLabel(message);
+      this.root.className = 'fail';
+    }
+
     updateLabel(text) {
       this.$('#label').innerText = text;
     }
@@ -41,36 +46,37 @@ defineCustomElement('log-file-reader', (templateText) =>
     }
 
     connectedCallback() {
-      this.$('#fileReader').focus();
+      this.fileReader.focus();
     }
+
+    get fileReader() {
+      return this.$('#fileReader');
+    }
+
+    get root() { return this.$("#root"); }
 
     readFile(file) {
       if (!file) {
-        this.updateLabel('Failed to load file.');
+        this.error = 'Failed to load file.';
         return;
       }
-      this.$('#fileReader').blur();
-      this.shadowRoot.className = 'loading';
+      this.fileReader.blur();
+      this.root.className = 'loading';
       const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          let dataModel = Object.create(null);
-          dataModel.file = file;
-          dataModel.chunk = e.target.result;
-          this.updateLabel('Finished loading \'' + file.name + '\'.');
-          this.dispatchEvent(new CustomEvent(
-            'fileuploadend', {
-            bubbles: true, composed: true,
-            detail: dataModel
-          }));
-          this.shadowRoot.className = 'success';
-          this.$('#fileReader').classList.add('done');
-        } catch (err) {
-          console.error(err);
-          this.shadowRoot.className = 'failure';
-        }
-      };
+      reader.onload = (e) => this.handleFileLoad(e, file);
       // Delay the loading a bit to allow for CSS animations to happen.
       setTimeout(() => reader.readAsText(file), 0);
+    }
+
+    handleFileLoad(e, file) {
+      const chunk = e.target.result;
+      this.updateLabel('Finished loading \'' + file.name + '\'.');
+      this.dispatchEvent(new CustomEvent(
+        'fileuploadend', {
+        bubbles: true,
+        composed: true,
+        detail: chunk,
+      }));
+      this.root.className = 'done';
     }
   });
