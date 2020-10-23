@@ -21,7 +21,14 @@ class ConcurrentSweeperTest;
 
 class V8_EXPORT_PRIVATE Sweeper final {
  public:
-  enum class Config { kAtomic, kIncrementalAndConcurrent };
+  struct SweepingConfig {
+    enum class SweepingType : uint8_t { kAtomic, kIncrementalAndConcurrent };
+    enum class CompactableSpaceHandling { kSweep, kIgnore };
+
+    SweepingType sweeping_type = SweepingType::kIncrementalAndConcurrent;
+    CompactableSpaceHandling compactable_space_handling =
+        CompactableSpaceHandling::kSweep;
+  };
 
   Sweeper(RawHeap*, cppgc::Platform*, StatsCollector*);
   ~Sweeper();
@@ -30,7 +37,7 @@ class V8_EXPORT_PRIVATE Sweeper final {
   Sweeper& operator=(const Sweeper&) = delete;
 
   // Sweeper::Start assumes the heap holds no linear allocation buffers.
-  void Start(Config);
+  void Start(SweepingConfig);
   void FinishIfRunning();
 
  private:

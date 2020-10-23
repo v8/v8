@@ -177,6 +177,12 @@ void CppHeap::TracePrologue(TraceFlags flags) {
       UnifiedHeapMarker::MarkingConfig::CollectionType::kMajor,
       cppgc::Heap::StackState::kNoHeapPointers,
       UnifiedHeapMarker::MarkingConfig::MarkingType::kIncrementalAndConcurrent};
+  if ((flags == TraceFlags::kReduceMemory) || (flags == TraceFlags::kForced)) {
+    // Only enable compaction when in a memory reduction garbage collection as
+    // it may significantly increase the final garbage collection pause.
+    compactor_.InitializeIfShouldCompact(marking_config.marking_type,
+                                         marking_config.stack_state);
+  }
   marker_ =
       cppgc::internal::MarkerFactory::CreateAndStartMarking<UnifiedHeapMarker>(
           *isolate_.heap(), AsBase(), platform_.get(), marking_config);
@@ -195,6 +201,11 @@ bool CppHeap::IsTracingDone() { return marking_done_; }
 
 void CppHeap::EnterFinalPause(EmbedderStackState stack_state) {
   marker_->EnterAtomicPause(stack_state);
+  if (compactor_.CancelIfShouldNotCompact(
+          UnifiedHeapMarker::MarkingConfig::MarkingType::kAtomic,
+          stack_state)) {
+    marker_->NotifyCompactionCancelled();
+  }
 }
 
 void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
@@ -213,10 +224,15 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
   UnifiedHeapMarkingVerifier verifier(*this);
   verifier.Run(cppgc::Heap::StackState::kNoHeapPointers);
 #endif
+  cppgc::internal::Sweeper::SweepingConfig::CompactableSpaceHandling
+      compactable_space_handling = compactor_.CompactSpacesIfEnabled();
   {
     NoGCScope no_gc(*this);
-    sweeper().Start(
-        cppgc::internal::Sweeper::Config::kIncrementalAndConcurrent);
+    const cppgc::internal::Sweeper::SweepingConfig sweeping_config{
+        cppgc::internal::Sweeper::SweepingConfig::SweepingType::
+            kIncrementalAndConcurrent,
+        compactable_space_handling};
+    sweeper().Start(sweeping_config);
   }
 }
 

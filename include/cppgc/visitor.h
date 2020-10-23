@@ -5,6 +5,7 @@
 #ifndef INCLUDE_CPPGC_VISITOR_H_
 #define INCLUDE_CPPGC_VISITOR_H_
 
+#include "cppgc/custom-space.h"
 #include "cppgc/ephemeron-pair.h"
 #include "cppgc/garbage-collected.h"
 #include "cppgc/internal/logging.h"
@@ -13,6 +14,7 @@
 #include "cppgc/member.h"
 #include "cppgc/source-location.h"
 #include "cppgc/trace-trait.h"
+#include "cppgc/type-traits.h"
 
 namespace cppgc {
 
@@ -26,7 +28,6 @@ class BasicPersistent;
 class ConservativeTracingVisitor;
 class VisitorBase;
 class VisitorFactory;
-
 }  // namespace internal
 
 using WeakCallback = void (*)(const LivenessBroker&, const void*);
@@ -82,6 +83,8 @@ class V8_EXPORT Visitor {
     static_assert(sizeof(T), "Pointee type must be fully defined.");
     static_assert(internal::IsGarbageCollectedType<T>::value,
                   "T must be GarbageCollected or GarbageCollectedMixin type");
+    static_assert(!internal::IsAllocatedOnCompactableSpace<T>::value,
+                  "Weak references to compactable objects are not allowed");
 
     const T* value = weak_member.GetRawAtomic();
 
@@ -177,6 +180,22 @@ class V8_EXPORT Visitor {
   }
 
   /**
+   * Registers a slot containing a reference to an object allocated on a
+   * compactable space. Such references maybe be arbitrarily moved by the GC.
+   *
+   * \param slot location of reference to object that might be moved by the GC.
+   */
+  template <typename T>
+  void RegisterMovableReference(const T** slot) {
+    static_assert(internal::IsAllocatedOnCompactableSpace<T>::value,
+                  "Only references to objects allocated on compactable spaces "
+                  "should be registered as movable slots.");
+    static_assert(!internal::IsGarbageCollectedMixinTypeV<T>,
+                  "Mixin types do not support compaction.");
+    HandleMovableReference(reinterpret_cast<const void**>(slot));
+  }
+
+  /**
    * Registers a weak callback that is invoked during garbage collection.
    *
    * \param callback to be invoked.
@@ -214,6 +233,7 @@ class V8_EXPORT Visitor {
   virtual void VisitWeakContainer(const void* self, TraceDescriptor strong_desc,
                                   TraceDescriptor weak_desc,
                                   WeakCallback callback, const void* data) {}
+  virtual void HandleMovableReference(const void**) {}
 
  private:
   template <typename T, void (T::*method)(const LivenessBroker&)>
@@ -261,6 +281,8 @@ class V8_EXPORT Visitor {
     static_assert(internal::IsGarbageCollectedType<PointeeType>::value,
                   "Persistent's pointee type must be GarbageCollected or "
                   "GarbageCollectedMixin");
+    static_assert(!internal::IsAllocatedOnCompactableSpace<PointeeType>::value,
+                  "Weak references to compactable objects are not allowed");
     VisitWeakRoot(p.Get(), TraceTrait<PointeeType>::GetTraceDescriptor(p.Get()),
                   &HandleWeak<WeakPersistent>, &p, loc);
   }

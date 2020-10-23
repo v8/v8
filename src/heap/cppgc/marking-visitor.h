@@ -33,6 +33,7 @@ class V8_EXPORT_PRIVATE MarkingVisitorBase : public VisitorBase {
                           TraceDescriptor weak_desc, WeakCallback callback,
                           const void* data) final;
   void RegisterWeakCallback(WeakCallback, const void*) final;
+  void HandleMovableReference(const void**) final;
 
   MarkingStateBase& marking_state_;
 };

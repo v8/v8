@@ -6,6 +6,7 @@
 #define V8_HEAP_CPPGC_MARKING_STATE_H_
 
 #include "include/cppgc/trace-trait.h"
+#include "src/heap/cppgc/compaction-worklists.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
@@ -18,7 +19,8 @@ namespace internal {
 // C++ marking implementation.
 class MarkingStateBase {
  public:
-  inline MarkingStateBase(HeapBase& heap, MarkingWorklists&);
+  inline MarkingStateBase(HeapBase& heap, MarkingWorklists&,
+                          CompactionWorklists*);
 
   MarkingStateBase(const MarkingStateBase&) = delete;
   MarkingStateBase& operator=(const MarkingStateBase&) = delete;
@@ -31,6 +33,11 @@ class MarkingStateBase {
   inline void RegisterWeakReferenceIfNeeded(const void*, TraceDescriptor,
                                             WeakCallback, const void*);
   inline void RegisterWeakCallback(WeakCallback, const void*);
+
+  void RegisterMovableReference(const void** slot) {
+    if (!movable_slots_worklist_) return;
+    movable_slots_worklist_->Push(slot);
+  }
 
   // Weak containers are special in that they may require re-tracing if
   // reachable through stack, even if the container was already traced before.
@@ -53,6 +60,7 @@ class MarkingStateBase {
     concurrent_marking_bailout_worklist_.Publish();
     discovered_ephemeron_pairs_worklist_.Publish();
     ephemeron_pairs_for_processing_worklist_.Publish();
+    if (IsCompactionEnabled()) movable_slots_worklist_->Publish();
   }
 
   MarkingWorklists::MarkingWorklist::Local& marking_worklist() {
@@ -88,12 +96,27 @@ class MarkingStateBase {
     return weak_containers_worklist_;
   }
 
+  CompactionWorklists::MovableReferencesWorklist::Local*
+  movable_slots_worklist() {
+    return movable_slots_worklist_.get();
+  }
+
+  void NotifyCompactionCancelled() {
+    DCHECK(IsCompactionEnabled());
+    movable_slots_worklist_->Clear();
+    movable_slots_worklist_.reset();
+  }
+
  protected:
   inline void MarkAndPush(HeapObjectHeader&, TraceDescriptor);
 
   inline bool MarkNoPush(HeapObjectHeader&);
 
   inline void RegisterWeakContainer(HeapObjectHeader&);
+
+  inline bool IsCompactionEnabled() const {
+    return movable_slots_worklist_.get();
+  }
 
 #ifdef DEBUG
   HeapBase& heap_;
@@ -113,12 +136,17 @@ class MarkingStateBase {
   MarkingWorklists::EphemeronPairsWorklist::Local
       ephemeron_pairs_for_processing_worklist_;
   MarkingWorklists::WeakContainersWorklist& weak_containers_worklist_;
+  // Existence of the worklist (|movable_slot_worklist_| != nullptr) denotes
+  // that compaction is currently enabled and slots must be recorded.
+  std::unique_ptr<CompactionWorklists::MovableReferencesWorklist::Local>
+      movable_slots_worklist_;
 
   size_t marked_bytes_ = 0;
 };
 
 MarkingStateBase::MarkingStateBase(HeapBase& heap,
-                                   MarkingWorklists& marking_worklists)
+                                   MarkingWorklists& marking_worklists,
+                                   CompactionWorklists* compaction_worklists)
     :
 #ifdef DEBUG
       heap_(heap),
@@ -137,6 +165,11 @@ MarkingStateBase::MarkingStateBase(HeapBase& heap,
       ephemeron_pairs_for_processing_worklist_(
           marking_worklists.ephemeron_pairs_for_processing_worklist()),
       weak_containers_worklist_(*marking_worklists.weak_containers_worklist()) {
+  if (compaction_worklists) {
+    movable_slots_worklist_ =
+        std::make_unique<CompactionWorklists::MovableReferencesWorklist::Local>(
+            compaction_worklists->movable_slots_worklist());
+  }
 }
 
 void MarkingStateBase::MarkAndPush(const void* object, TraceDescriptor desc) {
@@ -260,8 +293,9 @@ void MarkingStateBase::AccountMarkedBytes(size_t marked_bytes) {
 
 class MutatorMarkingState : public MarkingStateBase {
  public:
-  MutatorMarkingState(HeapBase& heap, MarkingWorklists& marking_worklists)
-      : MarkingStateBase(heap, marking_worklists) {}
+  MutatorMarkingState(HeapBase& heap, MarkingWorklists& marking_worklists,
+                      CompactionWorklists* compaction_worklists)
+      : MarkingStateBase(heap, marking_worklists, compaction_worklists) {}
 
   inline bool MarkNoPush(HeapObjectHeader& header) {
     return MutatorMarkingState::MarkingStateBase::MarkNoPush(header);
@@ -327,8 +361,9 @@ bool MutatorMarkingState::IsMarkedWeakContainer(HeapObjectHeader& header) {
 
 class ConcurrentMarkingState : public MarkingStateBase {
  public:
-  ConcurrentMarkingState(HeapBase& heap, MarkingWorklists& marking_worklists)
-      : MarkingStateBase(heap, marking_worklists) {}
+  ConcurrentMarkingState(HeapBase& heap, MarkingWorklists& marking_worklists,
+                         CompactionWorklists* compaction_worklists)
+      : MarkingStateBase(heap, marking_worklists, compaction_worklists) {}
 
   ~ConcurrentMarkingState() { DCHECK_EQ(last_marked_bytes_, marked_bytes_); }
 

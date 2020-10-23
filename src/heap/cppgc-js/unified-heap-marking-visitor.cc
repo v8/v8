@@ -48,6 +48,10 @@ void UnifiedHeapMarkingVisitorBase::RegisterWeakCallback(WeakCallback callback,
   marking_state_.RegisterWeakCallback(callback, object);
 }
 
+void UnifiedHeapMarkingVisitorBase::HandleMovableReference(const void** slot) {
+  marking_state_.RegisterMovableReference(slot);
+}
+
 namespace {
 void DeferredTraceJSMember(cppgc::Visitor* visitor, const void* ref) {
   static_cast<JSVisitor*>(visitor)->Trace(

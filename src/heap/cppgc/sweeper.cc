@@ -446,10 +446,19 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
 // - moves all Heap pages to local Sweeper's state (SpaceStates).
 class PrepareForSweepVisitor final
     : public HeapVisitor<PrepareForSweepVisitor> {
+  using CompactableSpaceHandling =
+      Sweeper::SweepingConfig::CompactableSpaceHandling;
+
  public:
-  explicit PrepareForSweepVisitor(SpaceStates* states) : states_(states) {}
+  PrepareForSweepVisitor(SpaceStates* states,
+                         CompactableSpaceHandling compactable_space_handling)
+      : states_(states),
+        compactable_space_handling_(compactable_space_handling) {}
 
   bool VisitNormalPageSpace(NormalPageSpace* space) {
+    if ((compactable_space_handling_ == CompactableSpaceHandling::kIgnore) &&
+        space->is_compactable())
+      return true;
     DCHECK(!space->linear_allocation_buffer().size());
     space->free_list().Clear();
     ExtractPages(space);
@@ -469,6 +478,7 @@ class PrepareForSweepVisitor final
   }
 
   SpaceStates* states_;
+  CompactableSpaceHandling compactable_space_handling_;
 };
 
 }  // namespace
@@ -485,17 +495,20 @@ class Sweeper::SweeperImpl final {
 
   ~SweeperImpl() { CancelSweepers(); }
 
-  void Start(Config config) {
+  void Start(SweepingConfig config) {
     is_in_progress_ = true;
 #if DEBUG
+    // Verify bitmap for all spaces regardless of |compactable_space_handling|.
     ObjectStartBitmapVerifier().Verify(heap_);
 #endif
-    PrepareForSweepVisitor(&space_states_).Traverse(heap_);
+    PrepareForSweepVisitor(&space_states_, config.compactable_space_handling)
+        .Traverse(heap_);
 
-    if (config == Config::kAtomic) {
+    if (config.sweeping_type == SweepingConfig::SweepingType::kAtomic) {
       Finish();
     } else {
-      DCHECK_EQ(Config::kIncrementalAndConcurrent, config);
+      DCHECK_EQ(SweepingConfig::SweepingType::kIncrementalAndConcurrent,
+                config.sweeping_type);
       ScheduleIncrementalSweeping();
       ScheduleConcurrentSweeping();
     }
@@ -620,7 +633,7 @@ Sweeper::Sweeper(RawHeap* heap, cppgc::Platform* platform,
 
 Sweeper::~Sweeper() = default;
 
-void Sweeper::Start(Config config) { impl_->Start(config); }
+void Sweeper::Start(SweepingConfig config) { impl_->Start(config); }
 void Sweeper::FinishIfRunning() { impl_->FinishIfRunning(); }
 void Sweeper::WaitForConcurrentSweepingForTesting() {
   impl_->WaitForConcurrentSweepingForTesting();
