@@ -50,8 +50,7 @@ type Zero extends PositiveSmi;
 type Uninitialized extends Tagged;
 
 extern macro MakeWeak(HeapObject): WeakHeapObject;
-extern macro GetHeapObjectAssumeWeak(WeakHeapObject):
-    HeapObject labels ClearedWeakPointer;
+extern macro GetHeapObjectAssumeWeak(MaybeObject): HeapObject labels IfCleared;
 extern macro GetHeapObjectIfStrong(MaybeObject): HeapObject labels IfNotStrong;
 extern macro IsWeakOrCleared(MaybeObject): bool;
 extern macro IsWeakReferenceToObject(MaybeObject, Object): bool;

@@ -84,9 +84,9 @@ macro PerformPolymorphicCheck(
 }
 
 macro PerformMonomorphicCheck(
-    feedbackVector: FeedbackVector, slotIndex: intptr, maybeMap: MaybeObject,
+    feedbackVector: FeedbackVector, slotIndex: intptr, expectedMap: HeapObject,
     actualMap: Map, actualHandler: Smi|DataHandler): int32 {
-  if (IsWeakReferenceToObject(maybeMap, actualMap)) {
+  if (TaggedEqual(expectedMap, actualMap)) {
     const handlerIndex = slotIndex + 1;
     assert(handlerIndex < feedbackVector.length_intptr);
     const maybeHandler =
@@ -135,17 +135,20 @@ builtin DynamicMapChecks(implicit context: Context)(
     return PerformPolymorphicCheck(
         maybePolymorphicArray, actualMap, actualHandler);
   } label MigrateAndDoMonomorphicCheck {
+    const expectedMap = GetHeapObjectAssumeWeak(feedback) otherwise Deopt;
     if (IsDeprecatedMap(actualMap)) {
       // TODO(gsathya): Should this migration happen before the
       // polymorphic check?
-      const result = TryMigrateInstance(actualMap);
+      const result = TryMigrateInstance(actualValue);
       if (TaggedIsSmi(result)) {
         return kDeopt;
       }
       actualMap = actualValue.map;
     }
     return PerformMonomorphicCheck(
-        feedbackVector, slotIndex, feedback, actualMap, actualHandler);
+        feedbackVector, slotIndex, expectedMap, actualMap, actualHandler);
+  } label Deopt {
+    return kDeopt;
   }
 }
 

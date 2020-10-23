@@ -859,9 +859,7 @@ RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTrackingForMap) {
 RUNTIME_FUNCTION(Runtime_TryMigrateInstance) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  if (!object->IsJSObject()) return Smi::zero();
-  Handle<JSObject> js_object = Handle<JSObject>::cast(object);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, js_object, 0);
   // It could have been a DCHECK but we call this function directly from tests.
   if (!js_object->map().is_deprecated()) return Smi::zero();
   // This call must not cause lazy deopts, because it's called from deferred
@@ -869,7 +867,7 @@ RUNTIME_FUNCTION(Runtime_TryMigrateInstance) {
   // ID. So we just try migration and signal failure if necessary,
   // which will also trigger a deopt.
   if (!JSObject::TryMigrateInstance(isolate, js_object)) return Smi::zero();
-  return *object;
+  return *js_object;
 }
 
 static bool IsValidAccessor(Isolate* isolate, Handle<Object> obj) {
