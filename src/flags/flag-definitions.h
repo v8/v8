@@ -864,7 +864,7 @@ DEFINE_BOOL(wasm_staging, false, "enable staged wasm features")
 FOREACH_WASM_STAGING_FEATURE_FLAG(WASM_STAGING_IMPLICATION)
 #undef WASM_STAGING_IMPLICATION
 
-DEFINE_BOOL(wasm_opt, true, "enable wasm optimization")
+DEFINE_BOOL(wasm_opt, false, "enable wasm optimization")
 DEFINE_BOOL(
     wasm_bounds_checks, true,
     "enable bounds checks (disable for performance testing only)")
