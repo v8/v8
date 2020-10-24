@@ -5522,17 +5522,18 @@ void TurboAssembler::ResetSpeculationPoisonRegister() {
   li(kSpeculationPoisonRegister, -1);
 }
 
-void TurboAssembler::CallForDeoptimization(Address target, int deopt_id,
-                                           Label* exit, DeoptimizeKind kind) {
+void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,
+                                           Label* exit, DeoptimizeKind kind,
+                                           Label*) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Lw(t9,
+     MemOperand(kRootRegister, IsolateData::builtin_entry_slot_offset(target)));
+  Call(t9);
+  DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
+            (kind == DeoptimizeKind::kLazy)
+                ? Deoptimizer::kLazyDeoptExitSize
+                : Deoptimizer::kNonLazyDeoptExitSize);
   USE(exit, kind);
-  NoRootArrayScope no_root_array(this);
-
-  // Save the deipt id in kRootRegister (we don't need the roots array from now
-  // on).
-  DCHECK_LE(deopt_id, 0xFFFF);
-  li(kRootRegister, deopt_id);
-
-  Call(target, RelocInfo::RUNTIME_ENTRY);
 }
 
 }  // namespace internal
