@@ -360,16 +360,16 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
   }
 }
 
-void LiftoffAssembler::LoadFromInstance(Register dst, uint32_t offset,
+void LiftoffAssembler::LoadFromInstance(Register dst, int32_t offset,
                                         int size) {
-  DCHECK_LE(offset, kMaxInt);
+  DCHECK_LE(0, offset);
   lw(dst, liftoff::GetInstanceOperand());
   DCHECK_EQ(4, size);
   lw(dst, MemOperand(dst, offset));
 }
 
 void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
-                                                     uint32_t offset) {
+                                                     int32_t offset) {
   LoadFromInstance(dst, offset, kTaggedSize);
 }
 
