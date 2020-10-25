@@ -896,9 +896,9 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
     source_pos_table->copy_out(0, source_pos.start(),
                                source_pos_table->length());
   }
-  STATIC_ASSERT(Code::kBodyIsContiguous);
-  Vector<const byte> instructions(reinterpret_cast<byte*>(code->BodyStart()),
-                                  static_cast<size_t>(code->BodySize()));
+  Vector<const byte> instructions(
+      reinterpret_cast<byte*>(code->InstructionStart()),
+      static_cast<size_t>(code->InstructionSize()));
   const int stack_slots = code->has_safepoint_info() ? code->stack_slots() : 0;
 
   // TODO(jgruber,v8:8758): Remove this translation. It exists only because
@@ -1370,10 +1370,10 @@ void NativeModule::AddCodeSpace(
         WASM_RUNTIME_STUB_LIST(RUNTIME_STUB, RUNTIME_STUB_TRAP)};
 #undef RUNTIME_STUB
 #undef RUNTIME_STUB_TRAP
-    STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
     Address builtin_addresses[WasmCode::kRuntimeStubCount];
     for (int i = 0; i < WasmCode::kRuntimeStubCount; ++i) {
       Builtins::Name builtin = stub_names[i];
+      CHECK(embedded_data.ContainsBuiltin(builtin));
       builtin_addresses[i] = embedded_data.InstructionStartOfBuiltin(builtin);
     }
     JumpTableAssembler::GenerateFarJumpTable(

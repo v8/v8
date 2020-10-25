@@ -75,8 +75,7 @@ class EmbeddedData final {
   Address InstructionStartOfBytecodeHandlers() const;
   Address InstructionEndOfBytecodeHandlers() const;
 
-  Address MetadataStartOfBuiltin(int i) const;
-  uint32_t MetadataSizeOfBuiltin(int i) const;
+  bool ContainsBuiltin(int i) const { return InstructionSizeOfBuiltin(i) > 0; }
 
   uint32_t AddressForHashing(Address addr) {
     Address start = reinterpret_cast<Address>(code_);
@@ -85,12 +84,9 @@ class EmbeddedData final {
   }
 
   // Padded with kCodeAlignment.
-  // TODO(v8:11045): Consider removing code alignment.
   uint32_t PaddedInstructionSizeOfBuiltin(int i) const {
-    STATIC_ASSERT(Code::kOffHeapBodyIsContiguous);
-    uint32_t size = InstructionSizeOfBuiltin(i) + MetadataSizeOfBuiltin(i);
-    CHECK_NE(size, 0);
-    return PadAndAlign(size);
+    uint32_t size = InstructionSizeOfBuiltin(i);
+    return (size == 0) ? 0 : PadAndAlign(size);
   }
 
   size_t CreateEmbeddedBlobHash() const;
@@ -103,28 +99,14 @@ class EmbeddedData final {
     return *reinterpret_cast<const size_t*>(metadata_ + IsolateHashOffset());
   }
 
-  // Blob layout information for a single instruction stream. Corresponds
-  // roughly to Code object layout (see the instruction and metadata area).
-  // TODO(jgruber): With the addition of metadata sections in Code objects,
-  // naming here has become confusing. Metadata refers to both this struct
-  // and the Code section, and the embedded instruction area currently
-  // contains both Code's instruction and metadata areas. Fix it.
   struct Metadata {
-    // The offset and (unpadded) length of this builtin's instruction area
-    // from the start of the embedded code section.
-    uint32_t instruction_offset;
-    uint32_t instruction_length;
-    // The offset and (unpadded) length of this builtin's metadata area
-    // from the start of the embedded code section.
-    // TODO(jgruber,v8:11036): Move this to the embedded metadata area.
-    uint32_t metadata_offset;
-    uint32_t metadata_length;
+    // Blob layout information.
+    uint32_t instructions_offset;
+    uint32_t instructions_length;
   };
-  STATIC_ASSERT(offsetof(Metadata, instruction_offset) == 0 * kUInt32Size);
-  STATIC_ASSERT(offsetof(Metadata, instruction_length) == 1 * kUInt32Size);
-  STATIC_ASSERT(offsetof(Metadata, metadata_offset) == 2 * kUInt32Size);
-  STATIC_ASSERT(offsetof(Metadata, metadata_length) == 3 * kUInt32Size);
-  STATIC_ASSERT(sizeof(Metadata) == 4 * kUInt32Size);
+  STATIC_ASSERT(offsetof(Metadata, instructions_offset) == 0);
+  STATIC_ASSERT(offsetof(Metadata, instructions_length) == kUInt32Size);
+  STATIC_ASSERT(sizeof(Metadata) == kUInt32Size + kUInt32Size);
 
   // The layout of the blob is as follows:
   //

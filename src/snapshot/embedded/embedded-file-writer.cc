@@ -156,8 +156,8 @@ void EmbeddedFileWriter::WriteInstructionStreams(
   w->AlignToCodeAlignment();
   w->DeclareLabel(EmbeddedBlobCodeDataSymbol().c_str());
 
-  STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (int i = 0; i < i::Builtins::builtin_count; i++) {
+    if (!blob->ContainsBuiltin(i)) continue;
     WriteBuiltin(w, blob, i);
   }
   w->Newline();

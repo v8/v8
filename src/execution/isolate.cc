@@ -386,12 +386,10 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
         reinterpret_cast<uint8_t*>(code.ptr() - kHeapObjectTag);
 
     // These static asserts ensure we don't miss relevant fields. We don't hash
-    // instruction/metadata size and flags since they change when creating the
-    // off-heap trampolines. Other data fields must remain the same.
+    // instruction size and flags since they change when creating the off-heap
+    // trampolines. Other data fields must remain the same.
     STATIC_ASSERT(Code::kInstructionSizeOffset == Code::kDataStart);
-    STATIC_ASSERT(Code::kMetadataSizeOffset ==
-                  Code::kInstructionSizeOffsetEnd + 1);
-    STATIC_ASSERT(Code::kFlagsOffset == Code::kMetadataSizeOffsetEnd + 1);
+    STATIC_ASSERT(Code::kFlagsOffset == Code::kInstructionSizeOffsetEnd + 1);
     STATIC_ASSERT(Code::kBuiltinIndexOffset == Code::kFlagsOffsetEnd + 1);
     static constexpr int kStartOffset = Code::kBuiltinIndexOffset;
 

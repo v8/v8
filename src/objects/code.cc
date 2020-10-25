@@ -88,13 +88,14 @@ void Code::Relocate(intptr_t delta) {
 }
 
 void Code::FlushICache() const {
+  // TODO(jgruber,v8:11036): This should likely flush only actual instructions,
+  // not metadata.
   FlushInstructionCache(raw_instruction_start(), raw_instruction_size());
 }
 
 void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
   // Copy code.
   // TODO(jgruber,v8:11036): Distinguish instruction and metadata areas.
-  STATIC_ASSERT(kOnHeapBodyIsContiguous);
   CopyBytes(reinterpret_cast<byte*>(raw_instruction_start()), desc.buffer,
             static_cast<size_t>(desc.instr_size));
   // TODO(jgruber,v8:11036): Merge with the above.
@@ -139,58 +140,27 @@ SafepointEntry Code::GetSafepointEntry(Address pc) {
 
 int Code::OffHeapInstructionSize() const {
   DCHECK(is_off_heap_trampoline());
-  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
+  if (Isolate::CurrentEmbeddedBlobCode() == nullptr)
     return raw_instruction_size();
-  }
   EmbeddedData d = EmbeddedData::FromBlob();
   return d.InstructionSizeOfBuiltin(builtin_index());
 }
 
 Address Code::OffHeapInstructionStart() const {
   DCHECK(is_off_heap_trampoline());
-  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
-    return raw_instruction_size();
-  }
+  if (Isolate::CurrentEmbeddedBlobCode() == nullptr)
+    return raw_instruction_start();
   EmbeddedData d = EmbeddedData::FromBlob();
   return d.InstructionStartOfBuiltin(builtin_index());
 }
 
 Address Code::OffHeapInstructionEnd() const {
   DCHECK(is_off_heap_trampoline());
-  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
-    return raw_instruction_size();
-  }
+  if (Isolate::CurrentEmbeddedBlobCode() == nullptr)
+    return raw_instruction_end();
   EmbeddedData d = EmbeddedData::FromBlob();
   return d.InstructionStartOfBuiltin(builtin_index()) +
          d.InstructionSizeOfBuiltin(builtin_index());
-}
-
-int Code::OffHeapMetadataSize() const {
-  DCHECK(is_off_heap_trampoline());
-  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
-    return raw_instruction_size();
-  }
-  EmbeddedData d = EmbeddedData::FromBlob();
-  return d.MetadataSizeOfBuiltin(builtin_index());
-}
-
-Address Code::OffHeapMetadataStart() const {
-  DCHECK(is_off_heap_trampoline());
-  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
-    return raw_instruction_size();
-  }
-  EmbeddedData d = EmbeddedData::FromBlob();
-  return d.MetadataStartOfBuiltin(builtin_index());
-}
-
-Address Code::OffHeapMetadataEnd() const {
-  DCHECK(is_off_heap_trampoline());
-  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
-    return raw_instruction_size();
-  }
-  EmbeddedData d = EmbeddedData::FromBlob();
-  return d.MetadataStartOfBuiltin(builtin_index()) +
-         d.MetadataSizeOfBuiltin(builtin_index());
 }
 
 int AbstractCode::SourcePosition(int offset) {

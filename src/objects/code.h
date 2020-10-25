@@ -83,44 +83,44 @@ class Code : public HeapObject {
   //  +--------------------------+
   //  |          header          |
   //  | padded to code alignment |
-  //  +--------------------------+  <-- raw_body_start()
-  //  |       instructions       |   == raw_instruction_start() (IS)
+  //  +--------------------------+  <-- raw_instruction_start() (= IS)
+  //  |       instructions       |
   //  |           ...            |
-  //  +--------------------------+  <-- raw_instruction_end()
-  //  |         metadata         |   == raw_metadata_start()
+  //  +--------------------------+  <-- raw_metadata_start()
+  //  |         metadata         |
   //  |           ...            |   == IS + safepoint_table_offset()
-  //  |                          |
   //  |                          |  <-- IS + handler_table_offset()
   //  |                          |  <-- IS + constant_pool_offset()
   //  |                          |  <-- IS + code_comments_offset()
   //  |                          |  <-- IS + unwinding_info_offset()
   //  | padded to obj alignment  |
-  //  +--------------------------+  <-- raw_metadata_end() == raw_body_end()
+  //  +--------------------------+  <-- raw_metadata_end()
+  //  |                          |   == raw_instruction_end()
   //  | padded to code alignment |
   //  +--------------------------+
   //
   // In other words, the variable-size 'body' consists of 'instructions' and
-  // 'metadata'.
+  // 'metadata'. Both are currently inside [InstructionStart,InstructionEnd[.
   //
   // Note the accessor functions below may be prefixed with 'raw'. In this case,
   // raw accessors (e.g. raw_instruction_start) always refer to the on-heap
   // Code object, while camel-case accessors (e.g. InstructionStart) may refer
   // to an off-heap area in the case of embedded builtins.
 
-  // TODO(jgruber,v8:11036): Update once no longer true for embedded builtins.
-  static constexpr bool kOnHeapBodyIsContiguous = true;
-  static constexpr bool kOffHeapBodyIsContiguous = true;
-  static constexpr bool kBodyIsContiguous =
-      kOnHeapBodyIsContiguous && kOffHeapBodyIsContiguous;
-
   inline Address raw_body_start() const;
-  inline Address BodyStart() const;
   inline Address raw_body_end() const;
-  inline Address BodyEnd() const;
   inline int raw_body_size() const;
+
   // TODO(jgruber,v8:11036): Replace this once the off-heap instruction and
   // metadata areas are separate.
   inline int BodySize() const;
+
+  // TODO(jgruber,v8:11036): Shrink the instructions area to contain only
+  // instructions. Until that happens, the state of the world is:
+  //
+  // raw_body_start == raw_instruction_start
+  // raw_metadata_start == raw_instruction_start + safepoint_table_offset
+  // raw_body_end == raw_instruction_end == raw_metadata_end
 
   inline Address raw_instruction_start() const;
   inline Address InstructionStart() const;
@@ -135,23 +135,21 @@ class Code : public HeapObject {
   inline int InstructionSize() const;
   V8_EXPORT_PRIVATE int OffHeapInstructionSize() const;
 
-  inline Address raw_metadata_start() const;
-  inline Address MetadataStart() const;
-  Address OffHeapMetadataStart() const;
-  inline Address raw_metadata_end() const;
-  inline Address MetadataEnd() const;
-  V8_EXPORT_PRIVATE Address OffHeapMetadataEnd() const;
-  inline int raw_metadata_size() const;
-  inline void set_raw_metadata_size(int value);
-  inline int MetadataSize() const;
-  int OffHeapMetadataSize() const;
+  // TODO(jgruber,v8:11036): Replace legacy accessors with these _future
+  // accessors. The _future accessors only refer to the range of executable
+  // instructions, *without* metadata tables.
+  inline Address raw_instruction_start_future() const;
+  inline Address raw_instruction_end_future() const;
+  inline int raw_instruction_size_future() const;
 
-  // TODO(jgruber,v8:11036): Change all these offsets to be relative to
-  // MetadataStart instead of InstructionStart.
+  inline Address raw_metadata_start() const;
+  inline Address raw_metadata_end() const;
+  inline int raw_metadata_size() const;
 
   // [safepoint_table_offset]: If {has_safepoint_info()}, the offset in the
   // instruction stream where the safepoint table starts.
   inline int safepoint_table_offset() const;
+  inline void set_safepoint_table_offset(int offset);
   Address SafepointTableAddress() const;
   int safepoint_table_size() const;
   bool has_safepoint_table() const;
@@ -415,12 +413,11 @@ class Code : public HeapObject {
   /* Objects embedded into code is visited via reloc info. */             \
   V(kDataStart, 0)                                                        \
   V(kInstructionSizeOffset, kIntSize)                                     \
-  V(kMetadataSizeOffset, kIntSize)                                        \
   V(kFlagsOffset, kInt32Size)                                             \
   V(kBuiltinIndexOffset, kIntSize)                                        \
   V(kInlinedBytecodeSizeOffset, kIntSize)                                 \
-  /* Offsets describing inline metadata tables, relative to */            \
-  /* InstructionStart. */                                                 \
+  /* Offsets describing inline metadata tables. */                        \
+  V(kSafepointTableOffsetOffset, kIntSize)                                \
   V(kHandlerTableOffsetOffset, kIntSize)                                  \
   V(kConstantPoolOffsetOffset,                                            \
     FLAG_enable_embedded_constant_pool ? kIntSize : 0)                    \

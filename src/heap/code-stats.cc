@@ -212,7 +212,9 @@ void CodeStatistics::CollectCodeCommentStatistics(HeapObject obj,
     cit.Next();
   }
 
-  STATIC_ASSERT(Code::kBodyIsContiguous);
+  // TODO(jgruber,v8:11036): Revisit this when separating instruction- and
+  // metadata areas. The logic will become a bit more complex since these areas
+  // will no longer be adjacent in some cases.
   DCHECK(0 <= prev_pc_offset && prev_pc_offset <= code.raw_body_size());
   delta += static_cast<int>(code.raw_body_size() - prev_pc_offset);
   EnterComment(isolate, "NoComment", delta);
