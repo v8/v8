@@ -188,7 +188,7 @@ in_category(
     main_multibranch_builder(
         name = "V8 Linux - vtunejit",
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"set_gclient_var": "checkout_ittapi"},
+        properties = {"gclient_vars": {"checkout_ittapi": "True"}},
         use_goma = GOMA.DEFAULT,
     ),
 )
