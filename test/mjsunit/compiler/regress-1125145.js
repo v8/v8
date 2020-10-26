@@ -11,6 +11,7 @@ for (let i = 0; i < 100000; ++i) {
 
 function main() {
   foo();
+  foo();
 }
 
 %PrepareFunctionForOptimization(main);

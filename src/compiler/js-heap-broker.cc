@@ -1521,21 +1521,30 @@ bool JSBoundFunctionData::Serialize(JSHeapBroker* broker) {
   TraceScope tracer(broker, this, "JSBoundFunctionData::Serialize");
   Handle<JSBoundFunction> function = Handle<JSBoundFunction>::cast(object());
 
-  // We set {serialized_} at the end in order to correctly handle the case where
-  // a recursive call to this method reaches the stack limit.
-  bool serialized = true;
+  // We don't immediately set {serialized_} in order to correctly handle the
+  // case where a recursive call to this method reaches the stack limit.
 
   DCHECK_NULL(bound_target_function_);
   bound_target_function_ =
       broker->GetOrCreateData(function->bound_target_function());
+  bool serialized_nested = true;
   if (!bound_target_function_->should_access_heap()) {
     if (bound_target_function_->IsJSBoundFunction()) {
-      serialized =
+      serialized_nested =
           bound_target_function_->AsJSBoundFunction()->Serialize(broker);
     } else if (bound_target_function_->IsJSFunction()) {
       bound_target_function_->AsJSFunction()->Serialize(broker);
     }
   }
+  if (!serialized_nested) {
+    // We couldn't serialize all nested bound functions due to stack
+    // overflow. Give up.
+    DCHECK(!serialized_);
+    bound_target_function_ = nullptr;  // Reset to sync with serialized_.
+    return false;
+  }
+
+  serialized_ = true;
 
   DCHECK_NULL(bound_arguments_);
   bound_arguments_ = broker->GetOrCreateData(function->bound_arguments());
@@ -1546,8 +1555,7 @@ bool JSBoundFunctionData::Serialize(JSHeapBroker* broker) {
   DCHECK_NULL(bound_this_);
   bound_this_ = broker->GetOrCreateData(function->bound_this());
 
-  serialized_ = serialized;
-  return serialized;
+  return true;
 }
 
 JSObjectData::JSObjectData(JSHeapBroker* broker, ObjectData** storage,
