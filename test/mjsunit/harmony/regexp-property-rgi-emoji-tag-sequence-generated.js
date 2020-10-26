@@ -1,4 +1,4 @@
-// Copyright 2019 the V8 project authors. All rights reserved.
+// Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 // https://gist.github.com/mathiasbynens/3b42c99a227521dabfe68d9e63f00f42.
 // Do not modify this file directly!
 
-const re = /\p{Emoji_Tag_Sequence}/u;
+const re = /\p{RGI_Emoji_Tag_Sequence}/u;
 
 assertTrue(re.test('\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}'));
 assertTrue(re.test('\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}'));
