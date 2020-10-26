@@ -6,7 +6,7 @@ import { LogEntry } from './log.mjs';
 export class IcLogEntry extends LogEntry {
   constructor(
     type, fn_file, time, line, column, key, oldState, newState, map, reason,
-    script, additional) {
+    script, modifier, additional) {
     super(type, time);
     this.category = 'other';
     if (this.type.indexOf('Store') !== -1) {
@@ -27,6 +27,7 @@ export class IcLogEntry extends LogEntry {
     this.reason = reason;
     this.additional = additional;
     this.script = script;
+    this.modifier = modifier;
   }
 
   parseMapProperties(parts, offset) {

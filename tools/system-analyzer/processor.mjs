@@ -240,7 +240,7 @@ export class Processor extends LogReader {
     // TODO: Use SourcePosition here directly
     let entry = new IcLogEntry(
       type, fnName, time, line, column, key, old_state, new_state, map,
-      slow_reason, script);
+      slow_reason, script, modifier);
     if (script) {
       entry.sourcePosition = script.addSourcePosition(line, column, entry);
     }

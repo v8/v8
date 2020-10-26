@@ -3,14 +3,26 @@
 // found in the LICENSE file.
 
 import {
-  defineCustomElement, V8CustomElement,
-  kColors, CSSColor
+  defineCustomElement, V8CustomElement, CSSColor
 } from '../helper.mjs';
 import { kChunkWidth, kChunkHeight } from "../log/map.mjs";
 import {
   SelectionEvent, FocusEvent, SelectTimeEvent,
   SynchronizeSelectionEvent
 } from '../events.mjs';
+
+
+const kColors = [
+  CSSColor.green,
+  CSSColor.violet,
+  CSSColor.orange,
+  CSSColor.yellow,
+  CSSColor.primaryColor,
+  CSSColor.red,
+  CSSColor.blue,
+  CSSColor.yellow,
+  CSSColor.secondaryColor,
+];
 
 defineCustomElement('./timeline/timeline-track', (templateText) =>
   class TimelineTrack extends V8CustomElement {

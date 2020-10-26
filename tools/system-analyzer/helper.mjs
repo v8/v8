@@ -101,20 +101,7 @@ class CSSColor {
   static get violet() {
     return CSSColor.getColor('violet');
   }
-
 }
-
-const kColors = [
-  CSSColor.green,
-  CSSColor.violet,
-  CSSColor.orange,
-  CSSColor.yellow,
-  CSSColor.primaryColor,
-  CSSColor.red,
-  CSSColor.blue,
-  CSSColor.yellow,
-  CSSColor.secondaryColor,
-];
 
 function typeToColor(type) {
   switch (type) {
@@ -201,5 +188,5 @@ class V8CustomElement extends HTMLElement {
 
 export {
   defineCustomElement, V8CustomElement, removeAllChildren,
-  $, div, kColors, typeToColor, CSSColor
+  $, div, typeToColor, CSSColor
 };

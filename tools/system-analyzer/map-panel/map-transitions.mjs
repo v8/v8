@@ -1,7 +1,7 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import { V8CustomElement, defineCustomElement } from "../helper.mjs";
+import { V8CustomElement, defineCustomElement, typeToColor } from "../helper.mjs";
 import { FocusEvent, SelectionEvent } from "../events.mjs";
 
 defineCustomElement(
@@ -122,7 +122,7 @@ defineCustomElement(
       addTransitionEdge(map) {
         let classes = ["transitionEdge"];
         let edge = this.div(classes);
-        edge.style.backgroundColor = map.edge.getColor();
+        edge.style.backgroundColor = typeToColor(map.edge);
         let labelNode = this.div("transitionLabel");
         labelNode.innerText = map.edge.toString();
         edge.appendChild(labelNode);
@@ -151,7 +151,7 @@ defineCustomElement(
 
       addMapNode(map) {
         let node = this.div("map");
-        if (map.edge) node.style.backgroundColor = map.edge.getColor();
+        if (map.edge) node.style.backgroundColor = typeToColor(map.edge);
         node.map = map;
         node.addEventListener("click", () => this.selectMap(map));
         if (map.children.length > 1) {
