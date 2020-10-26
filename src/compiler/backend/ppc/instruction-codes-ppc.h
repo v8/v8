@@ -288,6 +288,7 @@ namespace compiler {
   V(PPC_I32x4UConvertI16x8Low)       \
   V(PPC_I32x4UConvertI16x8High)      \
   V(PPC_I32x4BitMask)                \
+  V(PPC_I32x4DotI16x8S)              \
   V(PPC_F32x4Qfma)                   \
   V(PPC_F32x4Qfms)                   \
   V(PPC_I16x8Splat)                  \

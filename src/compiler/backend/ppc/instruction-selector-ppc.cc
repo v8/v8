@@ -2185,6 +2185,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I32x4GeS)              \
   V(I32x4GtU)              \
   V(I32x4GeU)              \
+  V(I32x4DotI16x8S)        \
   V(I16x8Add)              \
   V(I16x8AddHoriz)         \
   V(I16x8Sub)              \
@@ -2459,8 +2460,6 @@ void InstructionSelector::VisitF32x4Pmax(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Pmin(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF64x2Pmax(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI32x4DotI16x8S(Node* node) { UNIMPLEMENTED(); }
 
 // static
 MachineOperatorBuilder::Flags

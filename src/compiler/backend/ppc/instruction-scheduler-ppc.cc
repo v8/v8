@@ -213,6 +213,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I32x4UConvertI16x8Low:
     case kPPC_I32x4UConvertI16x8High:
     case kPPC_I32x4BitMask:
+    case kPPC_I32x4DotI16x8S:
     case kPPC_I16x8Splat:
     case kPPC_I16x8ExtractLaneU:
     case kPPC_I16x8ExtractLaneS:

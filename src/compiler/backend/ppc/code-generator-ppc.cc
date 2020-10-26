@@ -3467,6 +3467,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ mfvsrd(i.OutputRegister(), kScratchDoubleReg);
       break;
     }
+    case kPPC_I32x4DotI16x8S: {
+      __ vxor(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ vmsumshm(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1), kScratchDoubleReg);
+      break;
+    }
     case kPPC_StoreCompressTagged: {
       ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedFieldX);
       break;
