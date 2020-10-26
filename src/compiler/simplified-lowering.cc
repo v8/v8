@@ -2828,7 +2828,16 @@ class RepresentationSelector {
         return VisitUnop<T>(node, UseInfo::AnyTagged(),
                             MachineRepresentation::kTaggedPointer);
       }
-      case IrOpcode::kTierUpCheck:
+      case IrOpcode::kTierUpCheck: {
+        ProcessInput<T>(node, 0, UseInfo::AnyTagged());
+        ProcessInput<T>(node, 1, UseInfo::AnyTagged());
+        ProcessInput<T>(node, 2, UseInfo::AnyTagged());
+        ProcessInput<T>(node, 3, UseInfo::AnyTagged());
+        ProcessInput<T>(node, 4, UseInfo::AnyTagged());
+        ProcessRemainingInputs<T>(node, 5);
+        SetOutput<T>(node, MachineRepresentation::kNone);
+        return;
+      }
       case IrOpcode::kUpdateInterruptBudget: {
         ProcessInput<T>(node, 0, UseInfo::AnyTagged());
         ProcessRemainingInputs<T>(node, 1);
