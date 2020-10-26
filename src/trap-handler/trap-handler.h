@@ -65,8 +65,6 @@ void V8_EXPORT_PRIVATE ReleaseHandlerData(int index);
 #endif
 
 extern bool g_is_trap_handler_enabled;
-extern bool g_can_enable_trap_handler;
-
 // Enables trap handling for WebAssembly bounds checks.
 //
 // use_v8_handler indicates that V8 should install its own handler
@@ -75,10 +73,6 @@ V8_EXPORT_PRIVATE bool EnableTrapHandler(bool use_v8_handler);
 
 inline bool IsTrapHandlerEnabled() {
   DCHECK_IMPLIES(g_is_trap_handler_enabled, V8_TRAP_HANDLER_SUPPORTED);
-  // Disallow enabling the trap handler after retrieving the current value.
-  // Re-enabling them late can produce issues because code or objects might have
-  // been generated under the assumption that trap handlers are disabled.
-  g_can_enable_trap_handler = false;
   return g_is_trap_handler_enabled;
 }
 

@@ -249,19 +249,9 @@ bool RegisterDefaultTrapHandler() { return false; }
 void RemoveTrapHandler() {}
 #endif
 
-bool g_is_trap_handler_enabled = false;
-bool g_can_enable_trap_handler = true;
+bool g_is_trap_handler_enabled;
 
 bool EnableTrapHandler(bool use_v8_handler) {
-  if (!g_can_enable_trap_handler) {
-    // Enabling the trap handler after IsTrapHandlerEnabled was called can lead
-    // to problems because code or objects might have been generated under the
-    // assumption that trap handlers are disabled.
-    FATAL("EnableTrapHandler called after IsTrapHandlerEnabled");
-  }
-  // We should only enable the trap handler once.
-  g_can_enable_trap_handler = false;
-  CHECK(!g_is_trap_handler_enabled);
   if (!V8_TRAP_HANDLER_SUPPORTED) {
     return false;
   }
