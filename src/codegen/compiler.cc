@@ -517,19 +517,6 @@ void InstallInterpreterTrampolineCopy(Isolate* isolate,
                                    script_name, line_num, column_num));
 }
 
-void InstallCoverageInfo(Isolate* isolate, Handle<SharedFunctionInfo> shared,
-                         Handle<CoverageInfo> coverage_info) {
-  DCHECK(isolate->is_block_code_coverage());
-  isolate->debug()->InstallCoverageInfo(shared, coverage_info);
-}
-
-void InstallCoverageInfo(LocalIsolate* isolate,
-                         Handle<SharedFunctionInfo> shared,
-                         Handle<CoverageInfo> coverage_info) {
-  // We should only have coverage info when finalizing on the main thread.
-  UNREACHABLE();
-}
-
 template <typename LocalIsolate>
 void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
                             Handle<SharedFunctionInfo> shared_info,
@@ -557,12 +544,6 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
     shared_info->set_asm_wasm_data(*compilation_info->asm_wasm_data());
     shared_info->set_feedback_metadata(
         ReadOnlyRoots(isolate).empty_feedback_metadata());
-  }
-
-  if (compilation_info->has_coverage_info() &&
-      !shared_info->HasCoverageInfo()) {
-    InstallCoverageInfo(isolate, shared_info,
-                        compilation_info->coverage_info());
   }
 }
 
@@ -634,8 +615,15 @@ CompilationJob::Status FinalizeSingleUnoptimizedCompilationJob(
   CompilationJob::Status status = job->FinalizeJob(shared_info, isolate);
   if (status == CompilationJob::SUCCEEDED) {
     InstallUnoptimizedCode(compilation_info, shared_info, isolate);
+
+    MaybeHandle<CoverageInfo> coverage_info;
+    if (compilation_info->has_coverage_info() &&
+        !shared_info->HasCoverageInfo()) {
+      coverage_info = compilation_info->coverage_info();
+    }
+
     finalize_unoptimized_compilation_data_list->emplace_back(
-        isolate, shared_info, job->time_taken_to_execute(),
+        isolate, shared_info, coverage_info, job->time_taken_to_execute(),
         job->time_taken_to_finalize());
   }
   DCHECK_IMPLIES(status == CompilationJob::RETRY_ON_MAIN_THREAD,
@@ -1220,6 +1208,10 @@ void FinalizeUnoptimizedCompilation(
     if (FLAG_interpreted_frames_native_stack) {
       InstallInterpreterTrampolineCopy(isolate, shared_info);
     }
+    Handle<CoverageInfo> coverage_info;
+    if (finalize_data.coverage_info().ToHandle(&coverage_info)) {
+      isolate->debug()->InstallCoverageInfo(shared_info, coverage_info);
+    }
 
     LogUnoptimizedCompilation(isolate, shared_info, flags,
                               finalize_data.time_taken_to_execute(),
@@ -1412,11 +1404,14 @@ CompilationHandleScope::~CompilationHandleScope() {
 
 FinalizeUnoptimizedCompilationData::FinalizeUnoptimizedCompilationData(
     LocalIsolate* isolate, Handle<SharedFunctionInfo> function_handle,
+    MaybeHandle<CoverageInfo> coverage_info,
     base::TimeDelta time_taken_to_execute,
     base::TimeDelta time_taken_to_finalize)
     : time_taken_to_execute_(time_taken_to_execute),
       time_taken_to_finalize_(time_taken_to_finalize),
-      function_handle_(isolate->heap()->NewPersistentHandle(function_handle)) {}
+      function_handle_(isolate->heap()->NewPersistentHandle(function_handle)),
+      coverage_info_(isolate->heap()->NewPersistentMaybeHandle(coverage_info)) {
+}
 
 DeferredFinalizationJobData::DeferredFinalizationJobData(
     LocalIsolate* isolate, Handle<SharedFunctionInfo> function_handle,
@@ -1431,7 +1426,7 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* streamed_data,
           REPLMode::kNo)),
       compile_state_(isolate),
       info_(std::make_unique<ParseInfo>(isolate, flags_, &compile_state_)),
-      isolate_for_local_isolate_(nullptr),
+      isolate_for_local_isolate_(isolate),
       start_position_(0),
       end_position_(0),
       function_literal_id_(kFunctionLiteralIdTopLevel),
@@ -1451,13 +1446,6 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* streamed_data,
   std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(
       streamed_data->source_stream.get(), streamed_data->encoding));
   info_->set_character_stream(std::move(stream));
-
-  // TODO(leszeks): Add block coverage support to off-thread finalization.
-  finalize_on_background_thread_ =
-      FLAG_finalize_streaming_on_background && !flags_.block_coverage_enabled();
-  if (finalize_on_background_thread()) {
-    isolate_for_local_isolate_ = isolate;
-  }
 }
 
 BackgroundCompileTask::BackgroundCompileTask(
@@ -1477,8 +1465,7 @@ BackgroundCompileTask::BackgroundCompileTask(
       stack_size_(max_stack_size),
       worker_thread_runtime_call_stats_(worker_thread_runtime_stats),
       timer_(timer),
-      language_mode_(info_->language_mode()),
-      finalize_on_background_thread_(false) {
+      language_mode_(info_->language_mode()) {
   DCHECK_EQ(outer_parse_info->parameters_end_pos(), kNoSourcePosition);
   DCHECK_NULL(outer_parse_info->extension());
 
@@ -1562,7 +1549,7 @@ void BackgroundCompileTask::Run() {
   // Save the language mode.
   language_mode_ = info_->language_mode();
 
-  if (!finalize_on_background_thread_) {
+  if (!FLAG_finalize_streaming_on_background) {
     if (info_->literal() != nullptr) {
       CompileOnBackgroundThread(info_.get(), compile_state_.allocator(),
                                 &compilation_jobs_);
@@ -1857,7 +1844,7 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag,
 bool Compiler::FinalizeBackgroundCompileTask(
     BackgroundCompileTask* task, Handle<SharedFunctionInfo> shared_info,
     Isolate* isolate, ClearExceptionFlag flag) {
-  DCHECK(!task->finalize_on_background_thread());
+  DCHECK(!FLAG_finalize_streaming_on_background);
 
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.FinalizeBackgroundCompileTask");
@@ -2838,7 +2825,7 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
     // the isolate cache.
 
     Handle<Script> script;
-    if (task->finalize_on_background_thread()) {
+    if (FLAG_finalize_streaming_on_background) {
       RuntimeCallTimerScope runtimeTimerScope(
           isolate, RuntimeCallCounterId::kCompilePublishBackgroundFinalization);
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),

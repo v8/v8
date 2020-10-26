@@ -435,7 +435,7 @@ Handle<CoverageInfo> FactoryBase<Impl>::NewCoverageInfo(
   int size = CoverageInfo::SizeFor(slot_count);
   Map map = read_only_roots().coverage_info_map();
   HeapObject result =
-      AllocateRawWithImmortalMap(size, AllocationType::kYoung, map);
+      AllocateRawWithImmortalMap(size, AllocationType::kOld, map);
   Handle<CoverageInfo> info(CoverageInfo::cast(result), isolate());
 
   info->set_slot_count(slot_count);
