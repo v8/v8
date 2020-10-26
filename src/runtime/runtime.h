@@ -507,6 +507,7 @@ namespace internal {
   F(HaveSameMap, 2, 1)                        \
   F(HeapObjectVerify, 1, 1)                   \
   F(ICsAreEnabled, 0, 1)                      \
+  F(InLargeObjectSpace, 1, 1)                 \
   F(InYoungGeneration, 1, 1)                  \
   F(IsAsmWasmCode, 1, 1)                      \
   F(IsBeingInterpreted, 0, 1)                 \

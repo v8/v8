@@ -1090,6 +1090,16 @@ RUNTIME_FUNCTION(Runtime_HaveSameMap) {
   return isolate->heap()->ToBoolean(obj1.map() == obj2.map());
 }
 
+RUNTIME_FUNCTION(Runtime_InLargeObjectSpace) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(HeapObject, obj, 0);
+  return isolate->heap()->ToBoolean(
+      isolate->heap()->new_lo_space()->Contains(obj) ||
+      isolate->heap()->code_lo_space()->Contains(obj) ||
+      isolate->heap()->lo_space()->Contains(obj));
+}
+
 RUNTIME_FUNCTION(Runtime_HasElementsInALargeObjectSpace) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
