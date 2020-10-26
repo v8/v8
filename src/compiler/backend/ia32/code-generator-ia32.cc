@@ -2213,9 +2213,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ psrld(kScratchDoubleReg, 1);
         __ andps(dst, kScratchDoubleReg);
       } else {
+        // TODO(zhin) Improve codegen for this case.
         __ pcmpeqd(dst, dst);
+        __ movups(kScratchDoubleReg, src);
         __ psrld(dst, 1);
-        __ andps(dst, src);
+        __ andps(dst, kScratchDoubleReg);
       }
       break;
     }
@@ -2235,9 +2237,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ pslld(kScratchDoubleReg, 31);
         __ xorps(dst, kScratchDoubleReg);
       } else {
+        // TODO(zhin) Improve codegen for this case.
         __ pcmpeqd(dst, dst);
+        __ movups(kScratchDoubleReg, src);
         __ pslld(dst, 31);
-        __ xorps(dst, src);
+        __ xorps(dst, kScratchDoubleReg);
       }
       break;
     }
@@ -2250,7 +2254,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEF32x4Sqrt: {
-      __ sqrtps(i.OutputSimd128Register(), i.InputOperand(0));
+      // TODO(zhin) Improve codegen for this case.
+      __ movups(kScratchDoubleReg, i.InputOperand(0));
+      __ sqrtps(i.OutputSimd128Register(), kScratchDoubleReg);
       break;
     }
     case kAVXF32x4Sqrt: {
@@ -3643,8 +3649,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
         __ pxor(dst, kScratchDoubleReg);
       } else {
+        // TODO(zhin) Improve codegen for this case.
         __ pcmpeqd(dst, dst);
-        __ pxor(dst, src);
+        __ movups(kScratchDoubleReg, src);
+        __ pxor(dst, kScratchDoubleReg);
       }
       break;
     }
