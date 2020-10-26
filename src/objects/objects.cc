@@ -4790,30 +4790,43 @@ bool Script::ContainsAsmModule() {
 }
 
 namespace {
-bool GetPositionInfoSlow(const Script script, int position,
-                         Script::PositionInfo* info) {
-  if (!script.source().IsString()) return false;
-  if (position < 0) position = 0;
 
-  String source_string = String::cast(script.source());
+template <typename Char>
+bool GetPositionInfoSlowImpl(const Vector<Char>& source, int position,
+                             Script::PositionInfo* info) {
+  if (position < 0) {
+    position = 0;
+  }
   int line = 0;
-  int line_start = 0;
-  int len = source_string.length();
-  for (int pos = 0; pos <= len; ++pos) {
-    if (pos == len || source_string.Get(pos) == '\n') {
-      if (position <= pos) {
-        info->line = line;
-        info->column = position - line_start;
-        info->line_start = line_start;
-        info->line_end = pos;
-        return true;
-      }
-      line++;
-      line_start = pos + 1;
+  const auto begin = std::cbegin(source);
+  const auto end = std::cend(source);
+  for (auto line_begin = begin; line_begin < end;) {
+    const auto line_end = std::find(line_begin, end, '\n');
+    if (position <= (line_end - begin)) {
+      info->line = line;
+      info->column = static_cast<int>((begin + position) - line_begin);
+      info->line_start = static_cast<int>(line_begin - begin);
+      info->line_end = static_cast<int>(line_end - begin);
+      return true;
     }
+    ++line;
+    line_begin = line_end + 1;
   }
   return false;
 }
+bool GetPositionInfoSlow(const Script script, int position,
+                         const DisallowHeapAllocation& no_gc,
+                         Script::PositionInfo* info) {
+  if (!script.source().IsString()) {
+    return false;
+  }
+  auto source = String::cast(script.source());
+  const auto flat = source.GetFlatContent(no_gc);
+  return flat.IsOneByte()
+             ? GetPositionInfoSlowImpl(flat.ToOneByteVector(), position, info)
+             : GetPositionInfoSlowImpl(flat.ToUC16Vector(), position, info);
+}
+
 }  // namespace
 
 bool Script::GetPositionInfo(int position, PositionInfo* info,
@@ -4835,7 +4848,9 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
 
   if (line_ends().IsUndefined()) {
     // Slow mode: we do not have line_ends. We have to iterate through source.
-    if (!GetPositionInfoSlow(*this, position, info)) return false;
+    if (!GetPositionInfoSlow(*this, position, no_allocation, info)) {
+      return false;
+    }
   } else {
     DCHECK(line_ends().IsFixedArray());
     FixedArray ends = FixedArray::cast(line_ends());

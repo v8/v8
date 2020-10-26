@@ -579,9 +579,9 @@ void V8HeapExplorer::ExtractLocationForJSFunction(HeapEntry* entry,
   Script script = Script::cast(func.shared().script());
   int scriptId = script.id();
   int start = func.shared().StartPosition();
-  int line = script.GetLineNumber(start);
-  int col = script.GetColumnNumber(start);
-  snapshot_->AddLocation(entry, scriptId, line, col);
+  Script::PositionInfo info;
+  script.GetPositionInfo(start, &info, Script::WITH_OFFSET);
+  snapshot_->AddLocation(entry, scriptId, info.line, info.column);
 }
 
 HeapEntry* V8HeapExplorer::AddEntry(HeapObject object) {
