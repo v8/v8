@@ -4120,6 +4120,10 @@ WasmCompilationResult ExecuteLiftoffCompilation(
 
   Zone zone(allocator, "LiftoffCompilationZone");
   auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, func_body.sig);
+  base::Optional<TimedHistogramScope> liftoff_compile_time_scope;
+  if (counters) {
+    liftoff_compile_time_scope.emplace(counters->liftoff_compile_time());
+  }
   size_t code_size_estimate =
       WasmCodeManager::EstimateLiftoffCodeSize(func_body_size);
   // Allocate the initial buffer a bit bigger to avoid reallocation during code
@@ -4138,6 +4142,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
       debug_sidetable_builder.get(), for_debugging, func_index, breakpoints,
       dead_breakpoint);
   decoder.Decode();
+  liftoff_compile_time_scope.reset();
   LiftoffCompiler* compiler = &decoder.interface();
   if (decoder.failed()) {
     compiler->OnFirstError(&decoder);
