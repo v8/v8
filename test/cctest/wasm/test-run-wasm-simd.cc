@@ -3704,21 +3704,53 @@ void RunLoadZeroTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   FLAG_SCOPE(wasm_simd_post_mvp);
   constexpr int lanes_s = kSimd128Size / sizeof(S);
   constexpr int mem_index = 16;  // Load from mem index 16 (bytes).
-  WasmRunner<int32_t> r(execution_tier, lower_simd);
-  S* memory = r.builder().AddMemoryElems<S>(kWasmPageSize / sizeof(S));
-  S* global = r.builder().AddGlobal<S>(kWasmS128);
-  BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_OP(op, WASM_I32V(mem_index))),
+  constexpr S sentinel = S{-1};
+  S* memory;
+  S* global;
+
+  auto initialize_builder = [=](WasmRunner<int32_t>* r) -> std::tuple<S*, S*> {
+    S* memory = r->builder().AddMemoryElems<S>(kWasmPageSize / sizeof(S));
+    S* global = r->builder().AddGlobal<S>(kWasmS128);
+    r->builder().RandomizeMemory();
+    r->builder().WriteMemory(&memory[lanes_s], sentinel);
+    return std::make_tuple(memory, global);
+  };
+
+  // Check all supported alignments.
+  constexpr int max_alignment = base::bits::CountTrailingZeros(sizeof(S));
+  for (byte alignment = 0; alignment <= max_alignment; alignment++) {
+    WasmRunner<int32_t> r(execution_tier, lower_simd);
+    std::tie(memory, global) = initialize_builder(&r);
+
+    BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_OP(op, WASM_I32V(mem_index))),
+          WASM_ONE);
+    r.Call();
+
+    // Only first lane is set to sentinel.
+    CHECK_EQ(sentinel, ReadLittleEndianValue<S>(&global[0]));
+    // The other lanes are zero.
+    for (int i = 1; i < lanes_s; i++) {
+      CHECK_EQ(S{0}, ReadLittleEndianValue<S>(&global[i]));
+    }
+  }
+
+  {
+    // Use memarg to specific offset.
+    WasmRunner<int32_t> r(execution_tier, lower_simd);
+    std::tie(memory, global) = initialize_builder(&r);
+
+    BUILD(
+        r,
+        WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_OP_OFFSET(op, WASM_ZERO, mem_index)),
         WASM_ONE);
+    r.Call();
 
-  S sentinel = S{-1};
-  r.builder().WriteMemory(&memory[lanes_s], sentinel);
-  r.Call();
-
-  // Only first lane is set to sentinel.
-  CHECK_EQ(sentinel, ReadLittleEndianValue<S>(&global[0]));
-  // The other lanes are zero.
-  for (int i = 1; i < lanes_s; i++) {
-    CHECK_EQ(S{0}, ReadLittleEndianValue<S>(&global[i]));
+    // Only first lane is set to sentinel.
+    CHECK_EQ(sentinel, ReadLittleEndianValue<S>(&global[0]));
+    // The other lanes are zero.
+    for (int i = 1; i < lanes_s; i++) {
+      CHECK_EQ(S{0}, ReadLittleEndianValue<S>(&global[i]));
+    }
   }
 
   // Test for OOB.
