@@ -686,6 +686,8 @@ class ClassType final : public AggregateType {
   bool ShouldGenerateFullClassDefinition() const {
     return !IsExtern() && !(flags_ & ClassFlag::kCustomCppClass);
   }
+  // Class with multiple or non-standard maps, do not auto-generate map.
+  bool HasCustomMap() const { return flags_ & ClassFlag::kCustomMap; }
   bool ShouldExport() const { return flags_ & ClassFlag::kExport; }
   bool IsShape() const { return flags_ & ClassFlag::kIsShape; }
   bool HasStaticSize() const;

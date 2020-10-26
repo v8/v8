@@ -51,10 +51,7 @@ class Oddball : public TorqueGeneratedOddball<Oddball, PrimitiveHeapObject> {
   static const byte kSelfReferenceMarker = 10;
   static const byte kBasicBlockCountersMarker = 11;
 
-  static_assert(kStartOfWeakFieldsOffset == kEndOfWeakFieldsOffset,
-                "Ensure BodyDescriptor does not need to handle weak fields.");
-  using BodyDescriptor = FixedBodyDescriptor<kStartOfStrongFieldsOffset,
-                                             kEndOfStrongFieldsOffset, kSize>;
+  class BodyDescriptor;
 
   STATIC_ASSERT(kKindOffset == Internals::kOddballKindOffset);
   STATIC_ASSERT(kNull == Internals::kNullOddballKind);

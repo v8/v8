@@ -4220,7 +4220,8 @@ void ImplementationVisitor::GenerateClassDefinitions(
           structs_used_in_classes.insert(*field_as_struct);
         }
       }
-      if (type->ShouldExport() && !type->IsAbstract()) {
+      if (type->ShouldExport() && !type->IsAbstract() &&
+          !type->HasCustomMap()) {
         factory_header << type->HandlifiedCppTypeName() << " New"
                        << type->name() << "(";
         factory_impl << type->HandlifiedCppTypeName() << " Factory::New"

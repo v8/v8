@@ -55,7 +55,6 @@ enum InstanceType : uint16_t;
   V(JSWeakCollection)                  \
   V(Map)                               \
   V(NativeContext)                     \
-  V(Oddball)                           \
   V(PreparseData)                      \
   V(PropertyArray)                     \
   V(PropertyCell)                      \

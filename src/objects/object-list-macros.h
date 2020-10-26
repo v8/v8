@@ -180,7 +180,6 @@ class ZoneForwardList;
   V(NumberWrapper)                             \
   V(ObjectHashSet)                             \
   V(ObjectHashTable)                           \
-  V(Oddball)                                   \
   V(OrderedHashMap)                            \
   V(OrderedHashSet)                            \
   V(OrderedNameDictionary)                     \
