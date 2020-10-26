@@ -540,8 +540,8 @@ class StreamingCompileTask final : public v8::Task {
   StreamingCompileTask(Isolate* isolate,
                        v8::ScriptCompiler::StreamedSource* streamed_source)
       : isolate_(isolate),
-        script_streaming_task_(v8::ScriptCompiler::StartStreamingScript(
-            isolate, streamed_source)) {
+        script_streaming_task_(
+            v8::ScriptCompiler::StartStreaming(isolate, streamed_source)) {
     Shell::NotifyStartStreamingTask(isolate_);
   }
 

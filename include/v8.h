@@ -1859,7 +1859,7 @@ class V8_EXPORT ScriptCompiler {
 
   /**
    * A streaming task which the embedder must run on a background thread to
-   * stream scripts into V8. Returned by ScriptCompiler::StartStreamingScript.
+   * stream scripts into V8. Returned by ScriptCompiler::StartStreaming.
    */
   class V8_EXPORT ScriptStreamingTask final {
    public:
@@ -1946,9 +1946,12 @@ class V8_EXPORT ScriptCompiler {
    * This API allows to start the streaming with as little data as possible, and
    * the remaining data (for example, the ScriptOrigin) is passed to Compile.
    */
+  V8_DEPRECATE_SOON("Use ScriptCompiler::StartStreamingScript instead.")
   static ScriptStreamingTask* StartStreamingScript(
       Isolate* isolate, StreamedSource* source,
       CompileOptions options = kNoCompileOptions);
+  static ScriptStreamingTask* StartStreaming(Isolate* isolate,
+                                             StreamedSource* source);
 
   /**
    * Compiles a streamed script (bound to current context).

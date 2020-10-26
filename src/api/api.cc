@@ -2633,12 +2633,15 @@ void ScriptCompiler::ScriptStreamingTask::Run() { data_->task->Run(); }
 
 ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreamingScript(
     Isolate* v8_isolate, StreamedSource* source, CompileOptions options) {
-  if (!i::FLAG_script_streaming) {
-    return nullptr;
-  }
   // We don't support other compile options on streaming background compiles.
   // TODO(rmcilroy): remove CompileOptions from the API.
   CHECK(options == ScriptCompiler::kNoCompileOptions);
+  return StartStreaming(v8_isolate, source);
+}
+
+ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreaming(
+    Isolate* v8_isolate, StreamedSource* source) {
+  if (!i::FLAG_script_streaming) return nullptr;
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   i::ScriptStreamingData* data = source->impl();
   std::unique_ptr<i::BackgroundCompileTask> task =

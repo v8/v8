@@ -23530,7 +23530,7 @@ void RunStreamingTest(const char** chunks,
   v8::ScriptCompiler::StreamedSource source(
       std::make_unique<TestSourceStream>(chunks), encoding);
   v8::ScriptCompiler::ScriptStreamingTask* task =
-      v8::ScriptCompiler::StartStreamingScript(isolate, &source);
+      v8::ScriptCompiler::StartStreaming(isolate, &source);
 
   // TestSourceStream::GetMoreData won't block, so it's OK to just run the
   // task here in the main thread.
@@ -23802,7 +23802,7 @@ TEST(StreamingWithDebuggingEnabledLate) {
       std::make_unique<TestSourceStream>(chunks),
       v8::ScriptCompiler::StreamedSource::ONE_BYTE);
   v8::ScriptCompiler::ScriptStreamingTask* task =
-      v8::ScriptCompiler::StartStreamingScript(isolate, &source);
+      v8::ScriptCompiler::StartStreaming(isolate, &source);
 
   task->Run();
   delete task;
@@ -23910,7 +23910,7 @@ TEST(StreamingWithHarmonyScopes) {
       std::make_unique<TestSourceStream>(chunks),
       v8::ScriptCompiler::StreamedSource::ONE_BYTE);
   v8::ScriptCompiler::ScriptStreamingTask* task =
-      v8::ScriptCompiler::StartStreamingScript(isolate, &source);
+      v8::ScriptCompiler::StartStreaming(isolate, &source);
   task->Run();
   delete task;
 

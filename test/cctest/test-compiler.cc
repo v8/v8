@@ -1081,7 +1081,7 @@ TEST(ProfilerEnabledDuringBackgroundCompile) {
       std::make_unique<DummySourceStream>(source),
       v8::ScriptCompiler::StreamedSource::UTF8);
   std::unique_ptr<v8::ScriptCompiler::ScriptStreamingTask> task(
-      v8::ScriptCompiler::StartStreamingScript(isolate, &streamed_source));
+      v8::ScriptCompiler::StartStreaming(isolate, &streamed_source));
 
   // Run the background compilation task on the main thread.
   task->Run();
