@@ -53,7 +53,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"set_gclient_var": "check_v8_header_includes", "builder_group": "client.v8"},
+    properties = {"gclient_vars": {"check_v8_header_includes": "True"}, "builder_group": "client.v8"},
     use_goma = GOMA.NO,
     to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
 )

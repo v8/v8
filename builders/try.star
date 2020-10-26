@@ -58,7 +58,7 @@ try_builder(
     cq_properties = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 2700,
-    properties = {"default_targets": ["d8"], "set_gclient_var": "check_v8_header_includes"},
+    properties = {"default_targets": ["d8"], "gclient_vars": {"check_v8_header_includes": "True"}},
     use_goma = GOMA.NO,
 )
 
@@ -67,7 +67,7 @@ try_builder(
     bucket = "try",
     cq_properties = {"cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"set_gclient_var": "check_v8_header_includes"},
+    properties = {"gclient_vars": {"check_v8_header_includes": "True"}},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -108,7 +108,7 @@ try_builder(
     cq_properties = {"cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 2700,
-    properties = {"default_targets": ["d8"], "set_gclient_var": "check_v8_header_includes"},
+    properties = {"default_targets": ["d8"], "gclient_vars": {"check_v8_header_includes": "True"}},
     use_goma = GOMA.NO,
 )
 

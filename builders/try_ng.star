@@ -106,7 +106,7 @@ try_ng_pair(
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 3600,
-    properties = {"set_gclient_var": "checkout_instrumented_libraries"},
+    properties = {"gclient_vars": {"checkout_instrumented_libraries": "True"}},
     use_goma = GOMA.DEFAULT,
 )
 
@@ -267,7 +267,7 @@ try_ng_pair(
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 2700,
-    properties = {"set_gclient_var": "check_v8_header_includes"},
+    properties = {"gclient_vars": {"check_v8_header_includes": "True"}},
     use_goma = GOMA.NO,
 )
 
@@ -295,7 +295,7 @@ try_ng_pair(
     cq_properties_triggered = {"cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 2400,
-    properties = {"set_gclient_var": "download_gcmole"},
+    properties = {"gclient_vars": {"download_gcmole": "True"}},
     use_goma = GOMA.DEFAULT,
 )
 
