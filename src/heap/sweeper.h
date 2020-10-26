@@ -81,6 +81,8 @@ class Sweeper {
 
   bool sweeping_in_progress() const { return sweeping_in_progress_; }
 
+  void TearDown();
+
   void AddPage(AllocationSpace space, Page* page, AddPageMode mode);
 
   int ParallelSweepSpace(
@@ -123,7 +125,7 @@ class Sweeper {
  private:
   class IncrementalSweeperTask;
   class IterabilityTask;
-  class SweeperTask;
+  class SweeperJob;
 
   static const int kNumberOfSweepingSpaces =
       LAST_GROWABLE_PAGED_SPACE - FIRST_GROWABLE_PAGED_SPACE + 1;
@@ -172,13 +174,13 @@ class Sweeper {
     return is_done;
   }
 
-  void SweepSpaceFromTask(AllocationSpace identity);
+  size_t ConcurrentSweepingPageCount();
+
+  void ConcurrentSweepSpace(AllocationSpace identity, JobDelegate* delegate);
 
   // Sweeps incrementally one page from the given space. Returns true if
   // there are no more pages to sweep in the given space.
-  bool SweepSpaceIncrementallyFromTask(AllocationSpace identity);
-
-  void AbortAndWaitForTasks();
+  bool IncrementalSweepSpace(AllocationSpace identity);
 
   Page* GetSweepingPageSafe(AllocationSpace space);
 
@@ -202,9 +204,7 @@ class Sweeper {
 
   Heap* const heap_;
   MajorNonAtomicMarkingState* marking_state_;
-  int num_tasks_;
-  CancelableTaskManager::Id task_ids_[kNumberOfSweepingSpaces];
-  base::Semaphore pending_sweeper_tasks_semaphore_;
+  std::unique_ptr<JobHandle> job_handle_;
   base::Mutex mutex_;
   SweptList swept_list_[kNumberOfSweepingSpaces];
   SweepingList sweeping_list_[kNumberOfSweepingSpaces];
@@ -212,11 +212,6 @@ class Sweeper {
   // Main thread can finalize sweeping, while background threads allocation slow
   // path checks this flag to see whether it could support concurrent sweeping.
   std::atomic<bool> sweeping_in_progress_;
-  // Counter is actively maintained by the concurrent tasks to avoid querying
-  // the semaphore for maintaining a task counter on the main thread.
-  std::atomic<intptr_t> num_sweeping_tasks_;
-  // Used by PauseOrCompleteScope to signal early bailout to tasks.
-  std::atomic<bool> stop_sweeper_tasks_;
 
   // Pages that are only made iterable but have their free lists ignored.
   IterabilityList iterability_list_;
