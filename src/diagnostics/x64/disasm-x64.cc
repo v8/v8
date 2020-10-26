@@ -1859,13 +1859,15 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
   byte* current = data + 2;
   // At return, "current" points to the start of the next instruction.
   const char* mnemonic = TwoByteMnemonic(opcode);
+  // Not every instruction will use this, but it doesn't hurt to figure it out
+  // here, since it doesn't update any pointers.
+  int mod, regop, rm;
+  get_modrm(*current, &mod, &regop, &rm);
   if (operand_size_ == 0x66) {
     // These are three-byte opcodes, see ThreeByteOpcodeInstruction.
     DCHECK_NE(0x38, opcode);
     DCHECK_NE(0x3A, opcode);
     // 0x66 0x0F prefix.
-    int mod, regop, rm;
-    get_modrm(*current, &mod, &regop, &rm);
     if (opcode == 0xC1) {
       current += PrintOperands("xadd", OPER_REG_OP_ORDER, current);
     } else if (opcode == 0x1F) {
@@ -2082,9 +2084,6 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     }
   } else if (group_1_prefix_ == 0xF2) {
     // Beginning of instructions with prefix 0xF2.
-    int mod, regop, rm;
-    get_modrm(*current, &mod, &regop, &rm);
-
     if (opcode == 0x10) {
       // MOVSD: Move scalar double-precision fp to/from/between XMM registers.
       current += PrintOperands("movsd", XMMREG_XMMOPER_OP_ORDER, current);
@@ -2135,9 +2134,6 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     }
   } else if (group_1_prefix_ == 0xF3) {
     // Instructions with prefix 0xF3.
-    int mod, regop, rm;
-    get_modrm(*current, &mod, &regop, &rm);
-
     if (opcode == 0x10) {
       // MOVSS: Move scalar double-precision fp to/from/between XMM registers.
       current += PrintOperands("movss", XMMREG_OPER_OP_ORDER, current);
@@ -2198,16 +2194,12 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     current += PrintOperands("movlps", XMMREG_OPER_OP_ORDER, current);
   } else if (opcode == 0x13) {
     // movlps m64, xmm1
-    int mod, regop, rm;
-    get_modrm(*current, &mod, &regop, &rm);
     AppendToBuffer("movlps ");
     current += PrintRightXMMOperand(current);
     AppendToBuffer(",%s", NameOfXMMRegister(regop));
   } else if (opcode == 0x16) {
     // movlhps xmm1, xmm2
     // movhps xmm1, m64
-    int mod, regop, rm;
-    get_modrm(*current, &mod, &regop, &rm);
     if (mod == 0b11) {
       AppendToBuffer("movlhps ");
     } else {
@@ -2217,15 +2209,11 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     current += PrintRightXMMOperand(current);
   } else if (opcode == 0x17) {
     // movhps m64, xmm1
-    int mod, regop, rm;
-    get_modrm(*current, &mod, &regop, &rm);
     AppendToBuffer("movhps ");
     current += PrintRightXMMOperand(current);
     AppendToBuffer(",%s", NameOfXMMRegister(regop));
   } else if (opcode == 0x1F) {
     // NOP
-    int mod, regop, rm;
-    get_modrm(*current, &mod, &regop, &rm);
     current++;
     if (rm == 4) {  // SIB byte present.
       current++;
@@ -2239,22 +2227,16 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
 
   } else if (opcode == 0x28) {
     // movaps xmm, xmm/m128
-    int mod, regop, rm;
-    get_modrm(*current, &mod, &regop, &rm);
     AppendToBuffer("movaps %s,", NameOfXMMRegister(regop));
     current += PrintRightXMMOperand(current);
 
   } else if (opcode == 0x29) {
     // movaps xmm/m128, xmm
-    int mod, regop, rm;
-    get_modrm(*current, &mod, &regop, &rm);
     AppendToBuffer("movaps ");
     current += PrintRightXMMOperand(current);
     AppendToBuffer(",%s", NameOfXMMRegister(regop));
 
   } else if (opcode == 0x2E) {
-    int mod, regop, rm;
-    get_modrm(*current, &mod, &regop, &rm);
     AppendToBuffer("ucomiss %s,", NameOfXMMRegister(regop));
     current += PrintRightXMMOperand(current);
   } else if (opcode == 0xA2) {
@@ -2273,8 +2255,6 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         "orps",     "xorps",   "addps", "mulps", "cvtps2pd",
         "cvtdq2ps", "subps",   "minps", "divps", "maxps",
     };
-    int mod, regop, rm;
-    get_modrm(*current, &mod, &regop, &rm);
     AppendToBuffer("%s %s,", pseudo_op[opcode - 0x51],
                    NameOfXMMRegister(regop));
     current += PrintRightXMMOperand(current);
@@ -2286,8 +2266,6 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     current += PrintOperands("xadd", OPER_REG_OP_ORDER, current);
   } else if (opcode == 0xC2) {
     // cmpps xmm, xmm/m128, imm8
-    int mod, regop, rm;
-    get_modrm(*current, &mod, &regop, &rm);
     const char* const pseudo_op[] = {"eq",  "lt",  "le",  "unord",
                                      "neq", "nlt", "nle", "ord"};
     AppendToBuffer("cmpps %s, ", NameOfXMMRegister(regop));
@@ -2296,8 +2274,6 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     current += 1;
   } else if (opcode == 0xC6) {
     // shufps xmm, xmm/m128, imm8
-    int mod, regop, rm;
-    get_modrm(*current, &mod, &regop, &rm);
     AppendToBuffer("shufps %s, ", NameOfXMMRegister(regop));
     current += PrintRightXMMOperand(current);
     AppendToBuffer(", %d", (*current) & 3);
@@ -2308,8 +2284,6 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     AppendToBuffer("bswap%c %s", operand_size_code(), NameOfCPURegister(reg));
   } else if (opcode == 0x50) {
     // movmskps reg, xmm
-    int mod, regop, rm;
-    get_modrm(*current, &mod, &regop, &rm);
     AppendToBuffer("movmskps %s,", NameOfCPURegister(regop));
     current += PrintRightXMMOperand(current);
   } else if ((opcode & 0xF0) == 0x80) {
@@ -2328,8 +2302,6 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     // BT (bit test), SHLD, BTS (bit test and set),
     // SHRD (double-precision shift)
     AppendToBuffer("%s ", mnemonic);
-    int mod, regop, rm;
-    get_modrm(*current, &mod, &regop, &rm);
     current += PrintRightOperand(current);
     if (opcode == 0xAB) {
       AppendToBuffer(",%s", NameOfCPURegister(regop));
@@ -2338,8 +2310,6 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     }
   } else if (opcode == 0xBA) {
     // BTS / BTR (bit test and set/reset) with immediate
-    int mod, regop, rm;
-    get_modrm(*current, &mod, &regop, &rm);
     mnemonic = regop == 5 ? "bts" : regop == 6 ? "btr" : "?";
     AppendToBuffer("%s ", mnemonic);
     current += PrintRightOperand(current);
@@ -2347,8 +2317,6 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
   } else if (opcode == 0xB8 || opcode == 0xBC || opcode == 0xBD) {
     // POPCNT, CTZ, CLZ.
     AppendToBuffer("%s%c ", mnemonic, operand_size_code());
-    int mod, regop, rm;
-    get_modrm(*current, &mod, &regop, &rm);
     AppendToBuffer("%s,", NameOfCPURegister(regop));
     current += PrintRightOperand(current);
   } else if (opcode == 0x0B) {
