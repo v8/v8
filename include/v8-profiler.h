@@ -249,6 +249,15 @@ enum CpuProfilingLoggingMode {
   kEagerLogging,
 };
 
+// Enum for returning profiling status. Once StartProfiling is called,
+// we want to return to clients whether the profiling was able to start
+// correctly, or return a descriptive error.
+enum class CpuProfilingStatus {
+  kStarted,
+  kAlreadyStarted,
+  kErrorTooManyProfilers
+};
+
 /**
  * Optional profiling attributes.
  */
@@ -337,7 +346,8 @@ class V8_EXPORT CpuProfiler {
    * profiles may be collected at once. Attempts to start collecting several
    * profiles with the same title are silently ignored.
    */
-  void StartProfiling(Local<String> title, CpuProfilingOptions options);
+  CpuProfilingStatus StartProfiling(Local<String> title,
+                                    CpuProfilingOptions options);
 
   /**
    * Starts profiling with the same semantics as above, except with expanded
@@ -350,7 +360,7 @@ class V8_EXPORT CpuProfiler {
    * recorded by the profiler. Samples obtained after this limit will be
    * discarded.
    */
-  void StartProfiling(
+  CpuProfilingStatus StartProfiling(
       Local<String> title, CpuProfilingMode mode, bool record_samples = false,
       unsigned max_samples = CpuProfilingOptions::kNoSampleLimit);
   /**
@@ -358,7 +368,8 @@ class V8_EXPORT CpuProfiler {
    * kLeafNodeLineNumbers mode, which was the previous default behavior of the
    * profiler.
    */
-  void StartProfiling(Local<String> title, bool record_samples = false);
+  CpuProfilingStatus StartProfiling(Local<String> title,
+                                    bool record_samples = false);
 
   /**
    * Stops collecting CPU profile with a given title and returns it.

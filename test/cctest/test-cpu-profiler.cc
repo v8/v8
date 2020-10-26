@@ -3366,6 +3366,54 @@ TEST(FastStopProfiling) {
   CHECK_LT(duration, kWaitThreshold.InMillisecondsF());
 }
 
+// Tests that when current_profiles->size() is greater than the max allowable
+// number of concurrent profiles (100), we don't allow a new Profile to be
+// profiled
+TEST(MaxSimultaneousProfiles) {
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  v8::CpuProfiler* profiler = v8::CpuProfiler::New(env->GetIsolate());
+
+  // Spin up first profiler. Verify that status is kStarted
+  CpuProfilingStatus firstStatus = profiler->StartProfiling(
+      v8_str("1us"), {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                      v8::CpuProfilingOptions::kNoSampleLimit, 1});
+
+  CHECK_EQ(firstStatus, CpuProfilingStatus::kStarted);
+
+  // Spin up profiler with same title. Verify that status is kAlreadyStarted
+  CpuProfilingStatus startedStatus = profiler->StartProfiling(
+      v8_str("1us"), {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                      v8::CpuProfilingOptions::kNoSampleLimit, 1});
+
+  CHECK_EQ(startedStatus, CpuProfilingStatus::kAlreadyStarted);
+
+  // Spin up 99 more profilers, maxing out CpuProfilersCollection.
+  // Check they all return status of kStarted
+  for (int i = 2; i <= CpuProfilesCollection::kMaxSimultaneousProfiles; i++) {
+    CpuProfilingStatus status =
+        profiler->StartProfiling(v8_str((std::to_string(i) + "us").c_str()),
+                                 {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                                  v8::CpuProfilingOptions::kNoSampleLimit, i});
+    CHECK_EQ(status, CpuProfilingStatus::kStarted);
+  }
+
+  // Spin up 101st profiler. Verify status is kErrorTooManyProfilers
+  CpuProfilingStatus errorStatus = profiler->StartProfiling(
+      v8_str("101us"), {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                        v8::CpuProfilingOptions::kNoSampleLimit, 2});
+
+  CHECK_EQ(errorStatus, CpuProfilingStatus::kErrorTooManyProfilers);
+
+  // Clean up, otherwise will show a crash.
+  for (int i = 1; i <= CpuProfilesCollection::kMaxSimultaneousProfiles + 1;
+       i++) {
+    profiler->StopProfiling(v8_str((std::to_string(i) + "us").c_str()));
+  }
+}
+
 TEST(LowPrecisionSamplingStartStopInternal) {
   i::Isolate* isolate = CcTest::i_isolate();
   CpuProfilesCollection profiles(isolate);

@@ -308,13 +308,16 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   using ProfilingMode = v8::CpuProfilingMode;
   using NamingMode = v8::CpuProfilingNamingMode;
   using LoggingMode = v8::CpuProfilingLoggingMode;
+  using StartProfilingStatus = CpuProfilingStatus;
 
   base::TimeDelta sampling_interval() const { return base_sampling_interval_; }
   void set_sampling_interval(base::TimeDelta value);
   void set_use_precise_sampling(bool);
   void CollectSample();
-  void StartProfiling(const char* title, CpuProfilingOptions options = {});
-  void StartProfiling(String title, CpuProfilingOptions options = {});
+  StartProfilingStatus StartProfiling(const char* title,
+                                      CpuProfilingOptions options = {});
+  StartProfilingStatus StartProfiling(String title,
+                                      CpuProfilingOptions options = {});
 
   CpuProfile* StopProfiling(const char* title);
   CpuProfile* StopProfiling(String title);

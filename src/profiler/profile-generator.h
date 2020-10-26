@@ -446,7 +446,8 @@ class V8_EXPORT_PRIVATE CpuProfilesCollection {
   explicit CpuProfilesCollection(Isolate* isolate);
 
   void set_cpu_profiler(CpuProfiler* profiler) { profiler_ = profiler; }
-  bool StartProfiling(const char* title, CpuProfilingOptions options = {});
+  CpuProfilingStatus StartProfiling(const char* title,
+                                    CpuProfilingOptions options = {});
 
   CpuProfile* StopProfiling(const char* title);
   std::vector<std::unique_ptr<CpuProfile>>* profiles() {

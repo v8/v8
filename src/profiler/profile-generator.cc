@@ -733,24 +733,26 @@ void CodeMap::Print() {
 CpuProfilesCollection::CpuProfilesCollection(Isolate* isolate)
     : profiler_(nullptr), current_profiles_semaphore_(1) {}
 
-bool CpuProfilesCollection::StartProfiling(const char* title,
-                                           CpuProfilingOptions options) {
+CpuProfilingStatus CpuProfilesCollection::StartProfiling(
+    const char* title, CpuProfilingOptions options) {
   current_profiles_semaphore_.Wait();
+
   if (static_cast<int>(current_profiles_.size()) >= kMaxSimultaneousProfiles) {
     current_profiles_semaphore_.Signal();
-    return false;
+
+    return CpuProfilingStatus::kErrorTooManyProfilers;
   }
   for (const std::unique_ptr<CpuProfile>& profile : current_profiles_) {
     if (strcmp(profile->title(), title) == 0) {
       // Ignore attempts to start profile with the same title...
       current_profiles_semaphore_.Signal();
-      // ... though return true to force it collect a sample.
-      return true;
+      // ... though return kAlreadyStarted to force it collect a sample.
+      return CpuProfilingStatus::kAlreadyStarted;
     }
   }
   current_profiles_.emplace_back(new CpuProfile(profiler_, title, options));
   current_profiles_semaphore_.Signal();
-  return true;
+  return CpuProfilingStatus::kStarted;
 }
 
 CpuProfile* CpuProfilesCollection::StopProfiling(const char* title) {
@@ -774,7 +776,6 @@ CpuProfile* CpuProfilesCollection::StopProfiling(const char* title) {
   current_profiles_semaphore_.Signal();
   return profile;
 }
-
 
 bool CpuProfilesCollection::IsLastProfile(const char* title) {
   // Called from VM thread, and only it can mutate the list,

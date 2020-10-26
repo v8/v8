@@ -10693,24 +10693,27 @@ void CpuProfiler::SetUsePreciseSampling(bool use_precise_sampling) {
       use_precise_sampling);
 }
 
-void CpuProfiler::StartProfiling(Local<String> title,
-                                 CpuProfilingOptions options) {
-  reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
+CpuProfilingStatus CpuProfiler::StartProfiling(Local<String> title,
+                                               CpuProfilingOptions options) {
+  return reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
       *Utils::OpenHandle(*title), options);
 }
 
-void CpuProfiler::StartProfiling(Local<String> title, bool record_samples) {
+CpuProfilingStatus CpuProfiler::StartProfiling(Local<String> title,
+                                               bool record_samples) {
   CpuProfilingOptions options(
       kLeafNodeLineNumbers,
       record_samples ? CpuProfilingOptions::kNoSampleLimit : 0);
-  reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
+  return reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
       *Utils::OpenHandle(*title), options);
 }
 
-void CpuProfiler::StartProfiling(Local<String> title, CpuProfilingMode mode,
-                                 bool record_samples, unsigned max_samples) {
+CpuProfilingStatus CpuProfiler::StartProfiling(Local<String> title,
+                                               CpuProfilingMode mode,
+                                               bool record_samples,
+                                               unsigned max_samples) {
   CpuProfilingOptions options(mode, record_samples ? max_samples : 0);
-  reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
+  return reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
       *Utils::OpenHandle(*title), options);
 }
 

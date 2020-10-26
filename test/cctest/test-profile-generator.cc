@@ -615,10 +615,12 @@ TEST(Issue51919) {
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
     i::Vector<char> title = i::Vector<char>::New(16);
     i::SNPrintF(title, "%d", i);
-    CHECK(collection.StartProfiling(title.begin()));
+    CHECK_EQ(CpuProfilingStatus::kStarted,
+             collection.StartProfiling(title.begin()));
     titles[i] = title.begin();
   }
-  CHECK(!collection.StartProfiling("maximum"));
+  CHECK_EQ(CpuProfilingStatus::kErrorTooManyProfilers,
+           collection.StartProfiling("maximum"));
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i)
     i::DeleteArray(titles[i]);
 }

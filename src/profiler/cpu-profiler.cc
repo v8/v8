@@ -535,17 +535,25 @@ void CpuProfiler::CollectSample() {
   }
 }
 
-void CpuProfiler::StartProfiling(const char* title,
-                                 CpuProfilingOptions options) {
-  if (profiles_->StartProfiling(title, options)) {
+CpuProfilingStatus CpuProfiler::StartProfiling(const char* title,
+                                               CpuProfilingOptions options) {
+  StartProfilingStatus status = profiles_->StartProfiling(title, options);
+
+  // TODO(nicodubus): Revisit logic for if we want to do anything different for
+  // kAlreadyStarted
+  if (status == CpuProfilingStatus::kStarted ||
+      status == CpuProfilingStatus::kAlreadyStarted) {
     TRACE_EVENT0("v8", "CpuProfiler::StartProfiling");
     AdjustSamplingInterval();
     StartProcessorIfNotStarted();
   }
+
+  return status;
 }
 
-void CpuProfiler::StartProfiling(String title, CpuProfilingOptions options) {
-  StartProfiling(profiles_->GetName(title), options);
+CpuProfilingStatus CpuProfiler::StartProfiling(String title,
+                                               CpuProfilingOptions options) {
+  return StartProfiling(profiles_->GetName(title), options);
 }
 
 void CpuProfiler::StartProcessorIfNotStarted() {
