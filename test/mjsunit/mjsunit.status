@@ -1283,6 +1283,8 @@
   # Investigate (IsScript).
   'harmony/import-from-compilation-errored': [SKIP],
   'harmony/private-fields-special-object': [SKIP],
+  # Skip, since import errors since they refer to the script via debug symbols
+  'harmony/import-from-instantiation-errored': [SKIP],
   # Investigate (JSFunction in startup serializer).
   'regress/regress-1034394': [SKIP],
   'regress/regress-863810': [SKIP],
