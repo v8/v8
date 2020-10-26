@@ -142,9 +142,6 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // Tells whether or not the function is on the concurrent recompilation queue.
   inline bool IsInOptimizationQueue();
 
-  // Clears the optimized code slot in the function's feedback vector.
-  inline void ClearOptimizedCodeSlot(const char* reason);
-
   // Sets the optimization marker in the function's feedback vector.
   inline void SetOptimizationMarker(OptimizationMarker marker);
 

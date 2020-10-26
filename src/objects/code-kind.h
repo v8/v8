@@ -87,6 +87,16 @@ inline constexpr bool CodeKindIsStoredInOptimizedCodeCache(CodeKind kind) {
   return kind == CodeKind::TURBOFAN || kind == CodeKind::TURBOPROP;
 }
 
+inline OptimizationTier GetTierForCodeKind(CodeKind kind) {
+  if (kind == CodeKind::TURBOFAN) return OptimizationTier::kTopTier;
+  if (kind == CodeKind::TURBOPROP) return OptimizationTier::kTopTier;
+  if (kind == CodeKind::NATIVE_CONTEXT_INDEPENDENT) {
+    return FLAG_turbo_nci_as_midtier ? OptimizationTier::kMidTier
+                                     : OptimizationTier::kTopTier;
+  }
+  return OptimizationTier::kNone;
+}
+
 inline CodeKind CodeKindForTopTier() {
   return V8_UNLIKELY(FLAG_turboprop) ? CodeKind::TURBOPROP : CodeKind::TURBOFAN;
 }

@@ -14,6 +14,7 @@
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/graph-assembler.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-origin-table.h"
@@ -37,7 +38,8 @@ class EffectControlLinearizer {
                           SourcePositionTable* source_positions,
                           NodeOriginTable* node_origins,
                           MaskArrayIndexEnable mask_array_index,
-                          MaintainSchedule maintain_schedule)
+                          MaintainSchedule maintain_schedule,
+                          JSHeapBroker* broker)
       : js_graph_(js_graph),
         schedule_(schedule),
         temp_zone_(temp_zone),
@@ -45,6 +47,7 @@ class EffectControlLinearizer {
         maintain_schedule_(maintain_schedule),
         source_positions_(source_positions),
         node_origins_(node_origins),
+        broker_(broker),
         graph_assembler_(js_graph, temp_zone, base::nullopt,
                          should_maintain_schedule() ? schedule : nullptr),
         frame_state_zapper_(nullptr),
@@ -305,6 +308,7 @@ class EffectControlLinearizer {
   }
   MachineOperatorBuilder* machine() const { return js_graph_->machine(); }
   JSGraphAssembler* gasm() { return &graph_assembler_; }
+  JSHeapBroker* broker() const { return broker_; }
 
   JSGraph* js_graph_;
   Schedule* schedule_;
@@ -314,6 +318,7 @@ class EffectControlLinearizer {
   RegionObservability region_observability_ = RegionObservability::kObservable;
   SourcePositionTable* source_positions_;
   NodeOriginTable* node_origins_;
+  JSHeapBroker* broker_;
   JSGraphAssembler graph_assembler_;
   Node* frame_state_zapper_;  // For tracking down compiler::Node::New crashes.
   Node* fast_api_call_stack_slot_;  // For caching the stack slot allocated for
@@ -3679,36 +3684,26 @@ void EffectControlLinearizer::LowerTierUpCheck(Node* node) {
   TierUpCheckNode n(node);
   TNode<FeedbackVector> vector = n.feedback_vector();
 
-  Node* optimization_marker = __ LoadField(
-      AccessBuilder::ForFeedbackVectorOptimizedCodeWeakOrSmi(), vector);
+  Node* optimization_state =
+      __ LoadField(AccessBuilder::ForFeedbackVectorFlags(), vector);
 
   // TODO(jgruber): The branch introduces a sequence of spills before the
   // branch (and restores at `fallthrough`) that are completely unnecessary
   // since the IfFalse continuation ends in a tail call. Investigate how to
   // avoid these and fix it.
 
-  // TODO(jgruber): Combine the checks below for none/queued, e.g. by
-  // reorganizing OptimizationMarker values such that the least significant bit
-  // says whether the value is interesting or not. Also update the related
-  // check in the InterpreterEntryTrampoline.
-
   auto fallthrough = __ MakeLabel();
-  auto optimization_marker_is_not_none = __ MakeDeferredLabel();
-  auto optimization_marker_is_neither_none_nor_queued = __ MakeDeferredLabel();
+  auto has_optimized_code_or_marker = __ MakeDeferredLabel();
   __ BranchWithHint(
-      __ TaggedEqual(optimization_marker, __ SmiConstant(static_cast<int>(
-                                              OptimizationMarker::kNone))),
-      &fallthrough, &optimization_marker_is_not_none, BranchHint::kTrue);
+      __ Word32Equal(
+          __ Word32And(optimization_state,
+                       __ Uint32Constant(
+                           FeedbackVector::
+                               kHasNoTopTierCodeOrCompileOptimizedMarkerMask)),
+          __ Int32Constant(0)),
+      &fallthrough, &has_optimized_code_or_marker, BranchHint::kTrue);
 
-  __ Bind(&optimization_marker_is_not_none);
-  __ BranchWithHint(
-      __ TaggedEqual(optimization_marker,
-                     __ SmiConstant(static_cast<int>(
-                         OptimizationMarker::kInOptimizationQueue))),
-      &fallthrough, &optimization_marker_is_neither_none_nor_queued,
-      BranchHint::kNone);
-
-  __ Bind(&optimization_marker_is_neither_none_nor_queued);
+  __ Bind(&has_optimized_code_or_marker);
 
   // The optimization marker field contains a non-trivial value, and some
   // action has to be taken. For example, perhaps tier-up has been requested
@@ -6579,10 +6574,11 @@ void LinearizeEffectControl(JSGraph* graph, Schedule* schedule, Zone* temp_zone,
                             SourcePositionTable* source_positions,
                             NodeOriginTable* node_origins,
                             MaskArrayIndexEnable mask_array_index,
-                            MaintainSchedule maintain_schedule) {
-  EffectControlLinearizer linearizer(graph, schedule, temp_zone,
-                                     source_positions, node_origins,
-                                     mask_array_index, maintain_schedule);
+                            MaintainSchedule maintain_schedule,
+                            JSHeapBroker* broker) {
+  EffectControlLinearizer linearizer(
+      graph, schedule, temp_zone, source_positions, node_origins,
+      mask_array_index, maintain_schedule, broker);
   linearizer.Run();
 }
 

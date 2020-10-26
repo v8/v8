@@ -424,13 +424,12 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
                                                  *feedback_vector_map());
   Handle<FeedbackVector> vector(FeedbackVector::cast(result), isolate());
   vector->set_shared_function_info(*shared);
-  vector->set_optimized_code_weak_or_smi(MaybeObject::FromSmi(Smi::FromEnum(
-      FLAG_log_function_events ? OptimizationMarker::kLogFirstExecution
-                               : OptimizationMarker::kNone)));
+  vector->set_maybe_optimized_code(
+      HeapObjectReference::ClearedValue(isolate()));
   vector->set_length(length);
   vector->set_invocation_count(0);
   vector->set_profiler_ticks(0);
-  vector->clear_padding();
+  vector->InitializeOptimizationState();
   vector->set_closure_feedback_cell_array(*closure_feedback_cell_array);
 
   // TODO(leszeks): Initialize based on the feedback metadata.

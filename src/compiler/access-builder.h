@@ -345,7 +345,7 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to a FeedbackVector fields.
   static FieldAccess ForFeedbackVectorInvocationCount();
-  static FieldAccess ForFeedbackVectorOptimizedCodeWeakOrSmi();
+  static FieldAccess ForFeedbackVectorFlags();
   static FieldAccess ForFeedbackVectorClosureFeedbackCellArray();
 
  private:

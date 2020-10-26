@@ -1066,6 +1066,14 @@ void TurboAssembler::Move(Register dst, ExternalReference ext) {
   movq(dst, Immediate64(ext.address(), RelocInfo::EXTERNAL_REFERENCE));
 }
 
+void MacroAssembler::Cmp(Register dst, int32_t src) {
+  if (src == 0) {
+    testl(dst, dst);
+  } else {
+    cmpl(dst, Immediate(src));
+  }
+}
+
 void MacroAssembler::SmiTag(Register reg) {
   STATIC_ASSERT(kSmiTag == 0);
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
