@@ -190,11 +190,7 @@ int32_t float32_to_int64_wrapper(Address data) {
 
 int32_t float32_to_uint64_wrapper(Address data) {
   float input = ReadUnalignedValue<float>(data);
-  // We use "<" here to check the upper bound because of rounding problems: With
-  // "<=" some inputs would be considered within uint64 range which are actually
-  // not within uint64 range.
-  if (input > -1.0 &&
-      input < static_cast<float>(std::numeric_limits<uint64_t>::max())) {
+  if (base::IsValueInRangeForNumericType<uint64_t>(input)) {
     WriteUnalignedValue<uint64_t>(data, static_cast<uint64_t>(input));
     return 1;
   }
@@ -211,12 +207,8 @@ int32_t float64_to_int64_wrapper(Address data) {
 }
 
 int32_t float64_to_uint64_wrapper(Address data) {
-  // We use "<" here to check the upper bound because of rounding problems: With
-  // "<=" some inputs would be considered within uint64 range which are actually
-  // not within uint64 range.
   double input = ReadUnalignedValue<double>(data);
-  if (input > -1.0 &&
-      input < static_cast<double>(std::numeric_limits<uint64_t>::max())) {
+  if (base::IsValueInRangeForNumericType<uint64_t>(input)) {
     WriteUnalignedValue<uint64_t>(data, static_cast<uint64_t>(input));
     return 1;
   }
@@ -242,11 +234,7 @@ void float32_to_int64_sat_wrapper(Address data) {
 
 void float32_to_uint64_sat_wrapper(Address data) {
   float input = ReadUnalignedValue<float>(data);
-  // We use "<" here to check the upper bound because of rounding problems: With
-  // "<=" some inputs would be considered within uint64 range which are actually
-  // not within uint64 range.
-  if (input < static_cast<float>(std::numeric_limits<uint64_t>::max()) &&
-      input >= 0.0) {
+  if (base::IsValueInRangeForNumericType<uint64_t>(input)) {
     WriteUnalignedValue<uint64_t>(data, static_cast<uint64_t>(input));
     return;
   }
@@ -276,11 +264,7 @@ void float64_to_int64_sat_wrapper(Address data) {
 
 void float64_to_uint64_sat_wrapper(Address data) {
   double input = ReadUnalignedValue<double>(data);
-  // We use "<" here to check the upper bound because of rounding problems: With
-  // "<=" some inputs would be considered within int64 range which are actually
-  // not within int64 range.
-  if (input < static_cast<double>(std::numeric_limits<uint64_t>::max()) &&
-      input >= 0.0) {
+  if (base::IsValueInRangeForNumericType<uint64_t>(input)) {
     WriteUnalignedValue<uint64_t>(data, static_cast<uint64_t>(input));
     return;
   }
