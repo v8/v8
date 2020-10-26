@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GOMA", "in_console", "v8_builder")
+load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "in_console", "v8_builder")
 
 in_category = in_console("clusterfuzz")
 
@@ -157,7 +157,8 @@ in_category(
             max_batch_size = 1,
         ),
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"builder_group": "client.v8.clusterfuzz", "clobber": True, "gclient_vars": {"checkout_instrumented_libraries": "True"}, "default_targets": ["v8_clusterfuzz"], "clusterfuzz_archive": {"bucket": "v8-msan", "name": "d8-msan-no-origins"}},
+        properties = {"builder_group": "client.v8.clusterfuzz", "clobber": True, "default_targets": ["v8_clusterfuzz"], "clusterfuzz_archive": {"bucket": "v8-msan", "name": "d8-msan-no-origins"}},
+        gclient_vars = [GCLIENT_VARS.INSTRUMENTED_LIBRARIES],
         use_goma = GOMA.DEFAULT,
     ),
     v8_builder(
@@ -169,7 +170,8 @@ in_category(
             max_batch_size = 1,
         ),
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"builder_group": "client.v8.clusterfuzz", "clobber": True, "gclient_vars": {"checkout_instrumented_libraries": "True"}, "default_targets": ["v8_clusterfuzz"], "clusterfuzz_archive": {"bucket": "v8-msan", "name": "d8-msan-chained-origins"}},
+        properties = {"builder_group": "client.v8.clusterfuzz", "clobber": True, "default_targets": ["v8_clusterfuzz"], "clusterfuzz_archive": {"bucket": "v8-msan", "name": "d8-msan-chained-origins"}},
+        gclient_vars = [GCLIENT_VARS.INSTRUMENTED_LIBRARIES],
         use_goma = GOMA.DEFAULT,
     ),
     v8_builder(

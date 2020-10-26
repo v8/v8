@@ -101,6 +101,25 @@ def _goma_properties(use_goma, goma_jobs):
 
   return {"$build/goma": properties}
 
+# These settings enable overwriting variables in V8's DEPS file.
+GCLIENT_VARS = struct(
+    INSTRUMENTED_LIBRARIES = {"checkout_instrumented_libraries": "True"},
+    ITTAPI = {"checkout_ittapi": "True"},
+    V8_HEADER_INCLUDES = {"check_v8_header_includes": "True"},
+    GCMOLE = {"download_gcmole": "True"},
+    JSFUNFUZZ = {"download_jsfunfuzz": "True"},
+    XCODE12_BETA = {"mac_xcode_version": "xcode_12_beta"},
+)
+
+def _gclient_vars_properties(props):
+  gclient_vars = {}
+  for prop in props:
+    gclient_vars.update(prop)
+  if gclient_vars:
+    return {"gclient_vars": gclient_vars}
+  else:
+    return {}
+
 multibot_caches = [
     swarming.cache(
         path = "builder",
@@ -143,6 +162,7 @@ def v8_basic_builder(defaults, **kwargs):
     properties = dict(kwargs.pop("properties", {}))
     properties.update(_goma_properties(
         kwargs.pop("use_goma", GOMA.NONE), kwargs.pop("goma_jobs", None)))
+    properties.update(_gclient_vars_properties(kwargs.pop("gclient_vars", [])))
     kwargs["properties"] = properties
 
     properties["$recipe_engine/isolated"] = {

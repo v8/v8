@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GOMA", "defaults_triggered", "defaults_try", "v8_builder")
+load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "defaults_triggered", "defaults_try", "v8_builder")
 
 def try_ng_pair(name, **kwargs):
     triggered_timeout = kwargs.pop("triggered_timeout", None)
@@ -267,7 +267,7 @@ try_ng_pair(
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 2700,
-    properties = {"gclient_vars": {"check_v8_header_includes": "True"}},
+    gclient_vars = [GCLIENT_VARS.V8_HEADER_INCLUDES],
     use_goma = GOMA.NO,
 )
 
@@ -295,7 +295,7 @@ try_ng_pair(
     cq_properties_triggered = {"cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 2400,
-    properties = {"gclient_vars": {"download_gcmole": "True"}},
+    gclient_vars = [GCLIENT_VARS.GCMOLE],
     use_goma = GOMA.DEFAULT,
 )
 
@@ -360,7 +360,7 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Mac-10.15"},
-    properties = {"gclient_vars": {"mac_xcode_version": "xcode_12_beta"}},
+    gclient_vars = [GCLIENT_VARS.XCODE12_BETA],
     use_goma = GOMA.DEFAULT,
 )
 
@@ -370,7 +370,7 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Mac-10.15"},
-    properties = {"gclient_vars": {"mac_xcode_version": "xcode_12_beta"}},
+    gclient_vars = [GCLIENT_VARS.XCODE12_BETA],
     use_goma = GOMA.DEFAULT,
 )
 
@@ -380,7 +380,7 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Mac-10.15"},
-    properties = {"gclient_vars": {"mac_xcode_version": "xcode_12_beta"}},
+    gclient_vars = [GCLIENT_VARS.XCODE12_BETA],
     use_goma = GOMA.DEFAULT,
 )
 
@@ -390,7 +390,7 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Mac-10.15"},
-    properties = {"gclient_vars": {"mac_xcode_version": "xcode_12_beta"}},
+    gclient_vars = [GCLIENT_VARS.XCODE12_BETA],
     use_goma = GOMA.DEFAULT,
 )
 
@@ -400,7 +400,7 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Mac-10.15"},
-    properties = {"gclient_vars": {"mac_xcode_version": "xcode_12_beta"}},
+    gclient_vars = [GCLIENT_VARS.XCODE12_BETA],
     use_goma = GOMA.DEFAULT,
 )
 
@@ -410,7 +410,7 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Mac-10.15"},
-    properties = {"gclient_vars": {"mac_xcode_version": "xcode_12_beta"}},
+    gclient_vars = [GCLIENT_VARS.XCODE12_BETA],
     use_goma = GOMA.DEFAULT,
 )
 

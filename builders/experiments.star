@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GOMA", "v8_builder", "v8_notifier")
+load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "v8_builder", "v8_notifier")
 
 def experiment_builder(**kwargs):
     to_notify = kwargs.pop("to_notify", None)
@@ -53,7 +53,8 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"gclient_vars": {"check_v8_header_includes": "True"}, "builder_group": "client.v8"},
+    properties = {"builder_group": "client.v8"},
+    gclient_vars = [GCLIENT_VARS.V8_HEADER_INCLUDES],
     use_goma = GOMA.NO,
     to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
 )
@@ -146,7 +147,8 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    properties = {"gclient_vars": {"mac_xcode_version": "xcode_12_beta"}, "builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - release"]},
+    properties = {"builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - release"]},
+    gclient_vars = [GCLIENT_VARS.XCODE12_BETA],
     use_goma = GOMA.DEFAULT,
 )
 
@@ -163,7 +165,8 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    properties = {"gclient_vars": {"mac_xcode_version": "xcode_12_beta"}, "builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - sim - release"]},
+    properties = {"builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - sim - release"]},
+    gclient_vars = [GCLIENT_VARS.XCODE12_BETA],
     use_goma = GOMA.DEFAULT,
 )
 
@@ -180,7 +183,8 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    properties = {"gclient_vars": {"mac_xcode_version": "xcode_12_beta"}, "builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - sim - debug"]},
+    properties = {"builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - sim - debug"]},
+    gclient_vars = [GCLIENT_VARS.XCODE12_BETA],
     use_goma = GOMA.DEFAULT,
 )
 

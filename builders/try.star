@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GOMA", "GOMA_JOBS", "v8_builder")
+load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "GOMA_JOBS", "v8_builder")
 
 def try_builder(**kwargs):
     v8_builder(
@@ -58,7 +58,8 @@ try_builder(
     cq_properties = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 2700,
-    properties = {"default_targets": ["d8"], "gclient_vars": {"check_v8_header_includes": "True"}},
+    properties = {"default_targets": ["d8"]},
+    gclient_vars = [GCLIENT_VARS.V8_HEADER_INCLUDES],
     use_goma = GOMA.NO,
 )
 
@@ -67,7 +68,7 @@ try_builder(
     bucket = "try",
     cq_properties = {"cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"gclient_vars": {"check_v8_header_includes": "True"}},
+    gclient_vars = [GCLIENT_VARS.V8_HEADER_INCLUDES],
     use_goma = GOMA.DEFAULT,
 )
 
@@ -108,7 +109,8 @@ try_builder(
     cq_properties = {"cancel_stale": False},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 2700,
-    properties = {"default_targets": ["d8"], "gclient_vars": {"check_v8_header_includes": "True"}},
+    properties = {"default_targets": ["d8"]},
+    gclient_vars = [GCLIENT_VARS.V8_HEADER_INCLUDES],
     use_goma = GOMA.NO,
 )
 

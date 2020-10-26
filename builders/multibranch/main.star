@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GOMA", "multibranch_builder", "in_branch_console", "v8_builder")
+load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "multibranch_builder", "in_branch_console", "v8_builder")
 
 def main_multibranch_builder(**kwargs):
     props = kwargs.pop("properties", {})
@@ -38,7 +38,8 @@ exceptions(
             max_batch_size = 1,
         ),
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"builder_group": "client.v8", "gclient_vars": {"download_jsfunfuzz": "True"}, "triggers": ["V8 Fuzzer", "V8 Linux64 - debug", "V8 Linux64 - debug - fyi"]},
+        properties = {"builder_group": "client.v8", "triggers": ["V8 Fuzzer", "V8 Linux64 - debug", "V8 Linux64 - debug - fyi"]},
+        gclient_vars = [GCLIENT_VARS.JSFUNFUZZ],
         use_goma = GOMA.DEFAULT,
         in_console = "main/Linux64",
     ),
@@ -74,7 +75,8 @@ exceptions(
             max_batch_size = 1,
         ),
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"builder_group": "client.v8", "gclient_vars": {"download_jsfunfuzz": "True"}, "triggers": ["V8 Fuzzer", "V8 Linux64 - debug"]},
+        properties = {"builder_group": "client.v8", "triggers": ["V8 Fuzzer", "V8 Linux64 - debug"]},
+        gclient_vars = [GCLIENT_VARS.JSFUNFUZZ],
         use_goma = GOMA.DEFAULT,
         notifies = ["beta/stable notifier"],
         in_console = "br.beta/Linux64",
@@ -112,7 +114,8 @@ exceptions(
             max_batch_size = 1,
         ),
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"builder_group": "client.v8", "gclient_vars": {"download_jsfunfuzz": "True"}, "triggers": ["V8 Fuzzer", "V8 Linux64 - debug"]},
+        properties = {"builder_group": "client.v8", "triggers": ["V8 Fuzzer", "V8 Linux64 - debug"]},
+        gclient_vars = [GCLIENT_VARS.JSFUNFUZZ],
         use_goma = GOMA.DEFAULT,
         notifies = ["beta/stable notifier"],
         in_console = "br.stable/Linux64",
@@ -140,7 +143,8 @@ in_category(
             max_batch_size = 1,
         ),
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"triggers": ["V8 Linux"], "gclient_vars": {"download_gcmole": "True"}, "binary_size_tracking": {"category": "linux32", "binary": "d8"}},
+        properties = {"triggers": ["V8 Linux"], "binary_size_tracking": {"category": "linux32", "binary": "d8"}},
+        gclient_vars = [GCLIENT_VARS.GCMOLE],
         use_goma = GOMA.DEFAULT,
     ),
     main_multibranch_builder(
@@ -188,7 +192,7 @@ in_category(
     main_multibranch_builder(
         name = "V8 Linux - vtunejit",
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"gclient_vars": {"checkout_ittapi": "True"}},
+        gclient_vars = [GCLIENT_VARS.ITTAPI],
         use_goma = GOMA.DEFAULT,
     ),
 )
@@ -228,7 +232,7 @@ in_category(
     main_multibranch_builder(
         name = "V8 Linux64 - debug - header includes",
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"gclient_vars": {"check_v8_header_includes": "True"}},
+        gclient_vars = [GCLIENT_VARS.V8_HEADER_INCLUDES],
         use_goma = GOMA.DEFAULT,
     ),
     main_multibranch_builder(
@@ -410,7 +414,7 @@ in_category(
     main_multibranch_builder(
         name = "V8 Linux - arm64 - sim - MSAN",
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"gclient_vars": {"checkout_instrumented_libraries": "True"}},
+        gclient_vars = [GCLIENT_VARS.INSTRUMENTED_LIBRARIES],
         use_goma = GOMA.DEFAULT,
     ),
     main_multibranch_builder(
@@ -461,7 +465,7 @@ in_category(
     main_multibranch_builder(
         name = "V8 Linux gcc",
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-        properties = {"gclient_vars": {"check_v8_header_includes": "True"}},
+        gclient_vars = [GCLIENT_VARS.V8_HEADER_INCLUDES],
         use_goma = GOMA.NO,
     ),
 )
