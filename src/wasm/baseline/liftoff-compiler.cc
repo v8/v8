@@ -2291,15 +2291,11 @@ class LiftoffCompiler {
       return;
     }
 
-    if (transform == LoadTransformationKind::kZeroExtend) {
-      unsupported(decoder, kSimd, "prototyping s128 load zero extend");
-      return;
-    }
-
     LiftoffRegList pinned;
     Register index = pinned.set(__ PopToRegister()).gp();
-    // For load splats, LoadType is the size of the load, and for load
-    // extends, LoadType is the size of the lane, and it always loads 8 bytes.
+    // For load splats and load zero, LoadType is the size of the load, and for
+    // load extends, LoadType is the size of the lane, and it always loads 8
+    // bytes.
     uint32_t access_size =
         transform == LoadTransformationKind::kExtend ? 8 : type.size();
     if (BoundsCheckMem(decoder, access_size, imm.offset, index, pinned,

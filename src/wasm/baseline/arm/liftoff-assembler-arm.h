@@ -2257,6 +2257,8 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
            NeonMemOperand(actual_src_addr));
       vmovl(NeonU32, liftoff::GetSimd128Register(dst), dst.low_fp());
     }
+  } else if (transform == LoadTransformationKind::kZeroExtend) {
+    bailout(kSimd, "v128.load_zero unimplemented");
   } else {
     DCHECK_EQ(LoadTransformationKind::kSplat, transform);
     if (memtype == MachineType::Int8()) {

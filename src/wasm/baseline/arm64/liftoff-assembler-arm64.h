@@ -1505,6 +1505,8 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
       Ldr(dst.fp().D(), src_op);
       Uxtl(dst.fp().V2D(), dst.fp().V2S());
     }
+  } else if (transform == LoadTransformationKind::kZeroExtend) {
+    bailout(kSimd, "v128.load_zero unimplemented");
   } else {
     // ld1r only allows no offset or post-index, so emit an add.
     DCHECK_EQ(LoadTransformationKind::kSplat, transform);
