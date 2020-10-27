@@ -17,6 +17,9 @@
 #include "src/utils/vector.h"
 #include "test/inspector/isolate-data.h"
 
+namespace v8 {
+namespace internal {
+
 class TaskRunner : public v8::base::Thread {
  public:
   class Task {
@@ -68,5 +71,8 @@ class TaskRunner : public v8::base::Thread {
 
   DISALLOW_COPY_AND_ASSIGN(TaskRunner);
 };
+
+}  // namespace internal
+}  // namespace v8
 
 #endif  //  V8_TEST_INSPECTOR_PROTOCOL_TASK_RUNNER_H_

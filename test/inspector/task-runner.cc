@@ -11,6 +11,9 @@
 #include <unistd.h>  // NOLINT
 #endif               // !defined(_WIN32) && !defined(_WIN64)
 
+namespace v8 {
+namespace internal {
+
 namespace {
 
 void ReportUncaughtException(v8::Isolate* isolate,
@@ -123,3 +126,6 @@ TaskRunner::Task* TaskRunner::GetNext(bool only_protocol) {
   }
   return nullptr;
 }
+
+}  // namespace internal
+}  // namespace v8

@@ -15,6 +15,9 @@
 #include "src/base/platform/platform.h"
 #include "src/utils/vector.h"
 
+namespace v8 {
+namespace internal {
+
 class TaskRunner;
 
 class IsolateData : public v8_inspector::V8InspectorClient {
@@ -157,5 +160,8 @@ class IsolateData : public v8_inspector::V8InspectorClient {
 
   DISALLOW_COPY_AND_ASSIGN(IsolateData);
 };
+
+}  // namespace internal
+}  // namespace v8
 
 #endif  //  V8_TEST_INSPECTOR_PROTOCOL_ISOLATE_DATA_H_

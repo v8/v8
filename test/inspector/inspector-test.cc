@@ -7,20 +7,21 @@
 #endif               // !defined(_WIN32) && !defined(_WIN64)
 
 #include <locale.h>
+
 #include <string>
 #include <vector>
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
-
 #include "src/base/platform/platform.h"
 #include "src/flags/flags.h"
 #include "src/heap/read-only-heap.h"
 #include "src/utils/utils.h"
 #include "src/utils/vector.h"
-
 #include "test/inspector/isolate-data.h"
 #include "test/inspector/task-runner.h"
+#include "test/inspector/tasks.h"
+#include "test/inspector/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -33,9 +34,6 @@ extern v8::StartupData CreateSnapshotDataBlobInternal(
     const char* embedded_source, v8::Isolate* isolate);
 extern v8::StartupData WarmUpSnapshotDataBlobInternal(
     v8::StartupData cold_snapshot_blob, const char* warmup_source);
-
-}  // namespace internal
-}  // namespace v8
 
 namespace {
 
@@ -54,58 +52,6 @@ void Exit() {
   fflush(stdout);
   fflush(stderr);
   Terminate();
-}
-
-std::vector<uint16_t> ToVector(v8::Isolate* isolate,
-                               v8::Local<v8::String> str) {
-  std::vector<uint16_t> buffer(str->Length());
-  str->Write(isolate, buffer.data(), 0, str->Length());
-  return buffer;
-}
-
-std::vector<uint8_t> ToBytes(v8::Isolate* isolate, v8::Local<v8::String> str) {
-  std::vector<uint8_t> buffer(str->Length());
-  str->WriteOneByte(isolate, buffer.data(), 0, str->Length());
-  return buffer;
-}
-
-v8::Local<v8::String> ToV8String(v8::Isolate* isolate, const char* str) {
-  return v8::String::NewFromUtf8(isolate, str).ToLocalChecked();
-}
-
-v8::Local<v8::String> ToV8String(v8::Isolate* isolate,
-                                 const std::vector<uint8_t>& bytes) {
-  return v8::String::NewFromOneByte(isolate, bytes.data(),
-                                    v8::NewStringType::kNormal,
-                                    static_cast<int>(bytes.size()))
-      .ToLocalChecked();
-}
-
-v8::Local<v8::String> ToV8String(v8::Isolate* isolate,
-                                 const std::string& buffer) {
-  int length = static_cast<int>(buffer.size());
-  return v8::String::NewFromUtf8(isolate, buffer.data(),
-                                 v8::NewStringType::kNormal, length)
-      .ToLocalChecked();
-}
-
-v8::Local<v8::String> ToV8String(v8::Isolate* isolate,
-                                 const std::vector<uint16_t>& buffer) {
-  int length = static_cast<int>(buffer.size());
-  return v8::String::NewFromTwoByte(isolate, buffer.data(),
-                                    v8::NewStringType::kNormal, length)
-      .ToLocalChecked();
-}
-
-std::vector<uint16_t> ToVector(const v8_inspector::StringView& string) {
-  std::vector<uint16_t> buffer(string.length());
-  for (size_t i = 0; i < string.length(); i++) {
-    if (string.is8Bit())
-      buffer[i] = string.characters8()[i];
-    else
-      buffer[i] = string.characters16()[i];
-  }
-  return buffer;
 }
 
 class FrontendChannelImpl : public v8_inspector::V8Inspector::Channel {
@@ -164,140 +110,6 @@ class FrontendChannelImpl : public v8_inspector::V8Inspector::Channel {
   v8::Global<v8::Function> dispatch_message_callback_;
   int session_id_;
   DISALLOW_COPY_AND_ASSIGN(FrontendChannelImpl);
-};
-
-template <typename T>
-void RunSyncTask(TaskRunner* task_runner, T callback) {
-  class SyncTask : public TaskRunner::Task {
-   public:
-    SyncTask(v8::base::Semaphore* ready_semaphore, T callback)
-        : ready_semaphore_(ready_semaphore), callback_(callback) {}
-    ~SyncTask() override = default;
-    bool is_priority_task() final { return true; }
-
-   private:
-    void Run(IsolateData* data) override {
-      callback_(data);
-      if (ready_semaphore_) ready_semaphore_->Signal();
-    }
-
-    v8::base::Semaphore* ready_semaphore_;
-    T callback_;
-  };
-
-  v8::base::Semaphore ready_semaphore(0);
-  task_runner->Append(new SyncTask(&ready_semaphore, callback));
-  ready_semaphore.Wait();
-}
-
-class SendMessageToBackendTask : public TaskRunner::Task {
- public:
-  SendMessageToBackendTask(int session_id, const std::vector<uint16_t>& message)
-      : session_id_(session_id), message_(message) {}
-  bool is_priority_task() final { return true; }
-
- private:
-  void Run(IsolateData* data) override {
-    v8_inspector::StringView message_view(message_.data(), message_.size());
-    data->SendMessage(session_id_, message_view);
-  }
-
-  int session_id_;
-  std::vector<uint16_t> message_;
-};
-
-void RunAsyncTask(TaskRunner* task_runner,
-                  const v8_inspector::StringView& task_name,
-                  TaskRunner::Task* task) {
-  class AsyncTask : public TaskRunner::Task {
-   public:
-    explicit AsyncTask(TaskRunner::Task* inner) : inner_(inner) {}
-    ~AsyncTask() override = default;
-    bool is_priority_task() override { return inner_->is_priority_task(); }
-    void Run(IsolateData* data) override {
-      data->AsyncTaskStarted(inner_.get());
-      inner_->Run(data);
-      data->AsyncTaskFinished(inner_.get());
-    }
-
-   private:
-    std::unique_ptr<TaskRunner::Task> inner_;
-    DISALLOW_COPY_AND_ASSIGN(AsyncTask);
-  };
-
-  task_runner->data()->AsyncTaskScheduled(task_name, task, false);
-  task_runner->Append(new AsyncTask(task));
-}
-
-class ExecuteStringTask : public TaskRunner::Task {
- public:
-  ExecuteStringTask(v8::Isolate* isolate, int context_group_id,
-                    const std::vector<uint16_t>& expression,
-                    v8::Local<v8::String> name,
-                    v8::Local<v8::Integer> line_offset,
-                    v8::Local<v8::Integer> column_offset,
-                    v8::Local<v8::Boolean> is_module)
-      : expression_(expression),
-        name_(ToVector(isolate, name)),
-        line_offset_(line_offset.As<v8::Int32>()->Value()),
-        column_offset_(column_offset.As<v8::Int32>()->Value()),
-        is_module_(is_module->Value()),
-        context_group_id_(context_group_id) {}
-  ExecuteStringTask(const std::string& expression, int context_group_id)
-      : expression_utf8_(expression), context_group_id_(context_group_id) {}
-
-  ~ExecuteStringTask() override = default;
-  bool is_priority_task() override { return false; }
-  void Run(IsolateData* data) override {
-    v8::MicrotasksScope microtasks_scope(data->isolate(),
-                                         v8::MicrotasksScope::kRunMicrotasks);
-    v8::HandleScope handle_scope(data->isolate());
-    v8::Local<v8::Context> context = data->GetDefaultContext(context_group_id_);
-    v8::Context::Scope context_scope(context);
-    v8::ScriptOrigin origin(
-        ToV8String(data->isolate(), name_),
-        v8::Integer::New(data->isolate(), line_offset_),
-        v8::Integer::New(data->isolate(), column_offset_),
-        /* resource_is_shared_cross_origin */ v8::Local<v8::Boolean>(),
-        /* script_id */ v8::Local<v8::Integer>(),
-        /* source_map_url */ v8::Local<v8::Value>(),
-        /* resource_is_opaque */ v8::Local<v8::Boolean>(),
-        /* is_wasm */ v8::Local<v8::Boolean>(),
-        v8::Boolean::New(data->isolate(), is_module_));
-    v8::Local<v8::String> source;
-    if (expression_.size() != 0)
-      source = ToV8String(data->isolate(), expression_);
-    else
-      source = ToV8String(data->isolate(), expression_utf8_);
-
-    v8::ScriptCompiler::Source scriptSource(source, origin);
-    v8::Isolate::SafeForTerminationScope allowTermination(data->isolate());
-    if (!is_module_) {
-      v8::Local<v8::Script> script;
-      if (!v8::ScriptCompiler::Compile(context, &scriptSource).ToLocal(&script))
-        return;
-      v8::MaybeLocal<v8::Value> result;
-      result = script->Run(context);
-    } else {
-      // Register Module takes ownership of {buffer}, so we need to make a copy.
-      int length = static_cast<int>(name_.size());
-      v8::internal::Vector<uint16_t> buffer =
-          v8::internal::Vector<uint16_t>::New(length);
-      std::copy(name_.begin(), name_.end(), buffer.begin());
-      data->RegisterModule(context, buffer, &scriptSource);
-    }
-  }
-
- private:
-  std::vector<uint16_t> expression_;
-  std::string expression_utf8_;
-  std::vector<uint16_t> name_;
-  int32_t line_offset_ = 0;
-  int32_t column_offset_ = 0;
-  bool is_module_ = false;
-  int context_group_id_;
-
-  DISALLOW_COPY_AND_ASSIGN(ExecuteStringTask);
 };
 
 class UtilsExtension : public IsolateData::SetupGlobalTask {
@@ -1087,27 +899,25 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
   }
 };
 
-}  //  namespace
-
-int main(int argc, char* argv[]) {
+int InspectorTestMain(int argc, char* argv[]) {
   v8::V8::InitializeICUDefaultLocation(argv[0]);
-  std::unique_ptr<v8::Platform> platform(v8::platform::NewDefaultPlatform());
+  std::unique_ptr<Platform> platform(platform::NewDefaultPlatform());
   v8::V8::InitializePlatform(platform.get());
-  v8::internal::FLAG_abort_on_contradictory_flags = true;
+  FLAG_abort_on_contradictory_flags = true;
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::V8::InitializeExternalStartupData(argv[0]);
   v8::V8::Initialize();
   i::DisableEmbeddedBlobRefcounting();
 
-  v8::base::Semaphore ready_semaphore(0);
+  base::Semaphore ready_semaphore(0);
 
-  v8::StartupData startup_data = {nullptr, 0};
+  StartupData startup_data = {nullptr, 0};
   for (int i = 1; i < argc; ++i) {
     if (strcmp(argv[i], "--embed") == 0) {
       argv[i++] = nullptr;
       printf("Embedding script '%s'\n", argv[i]);
       startup_data = i::CreateSnapshotDataBlobInternal(
-          v8::SnapshotCreator::FunctionCodeHandling::kClear, argv[i], nullptr);
+          SnapshotCreator::FunctionCodeHandling::kClear, argv[i], nullptr);
       argv[i] = nullptr;
     }
   }
@@ -1143,7 +953,7 @@ int main(int argc, char* argv[]) {
       if (argv[i] == nullptr || argv[i][0] == '-') continue;
 
       bool exists = false;
-      std::string chars = v8::internal::ReadFile(argv[i], &exists, true);
+      std::string chars = ReadFile(argv[i], &exists, true);
       if (!exists) {
         fprintf(stderr, "Internal error: script file doesn't exists: %s\n",
                 argv[i]);
@@ -1165,4 +975,12 @@ int main(int argc, char* argv[]) {
 
   i::FreeCurrentEmbeddedBlob();
   return 0;
+}
+}  //  namespace
+
+}  // namespace internal
+}  // namespace v8
+
+int main(int argc, char* argv[]) {
+  return v8::internal::InspectorTestMain(argc, argv);
 }
