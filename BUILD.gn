@@ -1433,15 +1433,6 @@ group("v8_maybe_icu") {
   }
 }
 
-group("v8_abseil") {
-  public_deps = [ "//third_party/abseil-cpp:absl" ]
-
-  public_configs = [
-    "//third_party/abseil-cpp:absl_define_config",
-    "//third_party/abseil-cpp:absl_include_config",
-  ]
-}
-
 v8_source_set("torque_generated_initializers") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
@@ -1451,10 +1442,7 @@ v8_source_set("torque_generated_initializers") {
     ":v8_tracing",
   ]
 
-  public_deps = [
-    ":v8_abseil",
-    ":v8_maybe_icu",
-  ]
+  public_deps = [ ":v8_maybe_icu" ]
 
   sources = [
     "$target_gen_dir/torque-generated/csa-types.h",
@@ -1483,10 +1471,7 @@ v8_source_set("torque_generated_definitions") {
     ":v8_tracing",
   ]
 
-  public_deps = [
-    ":v8_abseil",
-    ":v8_maybe_icu",
-  ]
+  public_deps = [ ":v8_maybe_icu" ]
 
   sources = [
     "$target_gen_dir/torque-generated/class-definitions.cc",
@@ -1773,10 +1758,7 @@ v8_source_set("v8_snapshot") {
     # Also top-level visibility targets can depend on this.
     visibility += [ "//:gn_visibility" ]
 
-    public_deps += [
-      ":v8_abseil",
-      ":v8_maybe_icu",
-    ]
+    public_deps += [ ":v8_maybe_icu" ]
 
     sources += [ "$target_gen_dir/snapshot.cc" ]
   }
@@ -1934,10 +1916,7 @@ v8_source_set("v8_init") {
     "src/init/setup-isolate-full.cc",
   ]
 
-  public_deps = [
-    ":v8_abseil",
-    ":v8_maybe_icu",
-  ]
+  public_deps = [ ":v8_maybe_icu" ]
 
   configs = [ ":internal_config" ]
 }
@@ -2239,7 +2218,6 @@ v8_source_set("v8_compiler_opt") {
   public_deps = [
     ":generate_bytecode_builtins_list",
     ":run_torque",
-    ":v8_abseil",
     ":v8_maybe_icu",
     ":v8_tracing",
   ]
@@ -2265,7 +2243,6 @@ v8_source_set("v8_compiler") {
   public_deps = [
     ":generate_bytecode_builtins_list",
     ":run_torque",
-    ":v8_abseil",
     ":v8_maybe_icu",
     ":v8_tracing",
   ]
@@ -3813,7 +3790,6 @@ v8_source_set("v8_base_without_compiler") {
   public_deps = [
     ":generate_bytecode_builtins_list",
     ":run_torque",
-    ":v8_abseil",
     ":v8_maybe_icu",
   ]
 
@@ -5157,10 +5133,7 @@ v8_source_set("wasm_test_common") {
     ":v8_tracing",
   ]
 
-  public_deps = [
-    ":v8_abseil",
-    ":v8_maybe_icu",
-  ]
+  public_deps = [ ":v8_maybe_icu" ]
 
   configs = [
     ":external_config",
@@ -5237,10 +5210,7 @@ v8_source_set("lib_wasm_fuzzer_common") {
     ":v8_tracing",
   ]
 
-  public_deps = [
-    ":v8_abseil",
-    ":v8_maybe_icu",
-  ]
+  public_deps = [ ":v8_maybe_icu" ]
 
   configs = [
     ":external_config",

@@ -116,7 +116,6 @@ local function MakeClangCommandLine(
       .. " -I./"
       .. " -Iinclude/"
       .. " -Iout/build/gen"
-      .. " -Ithird_party/abseil-cpp"
       .. " -Ithird_party/icu/source/common"
       .. " -Ithird_party/icu/source/i18n"
       .. " " .. arch_options
