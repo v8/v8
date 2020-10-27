@@ -61,8 +61,6 @@ enum class OddballType : uint8_t {
   /* Subtypes of FixedArray */                      \
   V(ObjectBoilerplateDescription)                   \
   V(ScopeInfo)                                      \
-  /* Subtypes of Name */                            \
-  V(Symbol)                                         \
   /* Subtypes of HeapObject */                      \
   V(AccessorInfo)                                   \
   V(ArrayBoilerplateDescription)                    \
@@ -94,6 +92,7 @@ enum class OddballType : uint8_t {
   /* Subtypes of Name */                      \
   V(InternalizedString)                       \
   V(String)                                   \
+  V(Symbol)                                   \
   /* Subtypes of JSReceiver */                \
   V(JSObject)                                 \
   /* Subtypes of HeapObject */                \
