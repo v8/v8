@@ -1232,24 +1232,29 @@ CompilationExecutionResult ExecuteCompilationUnits(
   TRACE_COMPILE("ExecuteCompilationUnits (task id %d)\n", task_id);
 
   std::vector<WasmCompilationResult> results_to_publish;
-  bool compilation_failed = false;
   while (true) {
-    // (asynchronous): Execute the compilation.
-    WasmCompilationResult result = unit->ExecuteCompilation(
-        wasm_engine, &env.value(), wire_bytes, counters, &detected_features);
-    results_to_publish.emplace_back(std::move(result));
+    ExecutionTier current_tier = unit->tier();
+    const char* event_name = current_tier == ExecutionTier::kLiftoff
+                                 ? "wasm.BaselineCompilation"
+                                 : current_tier == ExecutionTier::kTurbofan
+                                       ? "wasm.TopTierCompilation"
+                                       : "wasm.OtherCompilation";
+    TRACE_EVENT0("v8.wasm", event_name);
+    while (unit->tier() == current_tier) {
+      // (asynchronous): Execute the compilation.
+      WasmCompilationResult result = unit->ExecuteCompilation(
+          wasm_engine, &env.value(), wire_bytes, counters, &detected_features);
+      results_to_publish.emplace_back(std::move(result));
 
-    bool yield = delegate && delegate->ShouldYield();
+      bool yield = delegate && delegate->ShouldYield();
 
-    // (synchronized): Publish the compilation result and get the next unit.
-    {
+      // (synchronized): Publish the compilation result and get the next unit.
       BackgroundCompileScope compile_scope(native_module);
       if (compile_scope.cancelled()) return kNoMoreUnits;
 
       if (!results_to_publish.back().succeeded()) {
-        compilation_failed = true;
         compile_scope.compilation_state()->SetError();
-        break;
+        return kNoMoreUnits;
       }
 
       // Yield or get next unit.
@@ -1284,10 +1289,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
       }
     }
   }
-  // We only get here if compilation failed. Other exits return directly.
-  DCHECK(compilation_failed);
-  USE(compilation_failed);
-  return kNoMoreUnits;
+  UNREACHABLE();
 }
 
 using JSToWasmWrapperKey = std::pair<bool, FunctionSig>;
