@@ -560,7 +560,7 @@ int Code::constant_pool_offset() const {
 
 void Code::set_constant_pool_offset(int value) {
   if (!FLAG_enable_embedded_constant_pool) return;
-  DCHECK_LE(value, InstructionSize());
+  DCHECK_LE(value, BodySize());
   WriteField<int>(kConstantPoolOffsetOffset, value);
 }
 
