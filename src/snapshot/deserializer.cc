@@ -663,6 +663,7 @@ void Deserializer::RelocInfoVisitor::VisitInternalReference(Code host,
   // TODO(jgruber,v8:11036): We are being permissive for this DCHECK, but
   // consider using raw_instruction_size() instead of raw_body_size() in the
   // future.
+  STATIC_ASSERT(Code::kOnHeapBodyIsContiguous);
   DCHECK_LT(static_cast<unsigned>(target_offset),
             static_cast<unsigned>(host.raw_body_size()));
   Address target = host.entry() + target_offset;

@@ -222,30 +222,12 @@ void Code::set_next_code_link(Object value) {
 
 Address Code::raw_body_start() const { return raw_instruction_start(); }
 
-Address Code::BodyStart() const {
-  STATIC_ASSERT(kBodyIsContiguous);
-  return InstructionStart();
-}
-
 Address Code::raw_body_end() const {
   return raw_body_start() + raw_body_size();
 }
 
 int Code::raw_body_size() const {
   return raw_instruction_size() + raw_metadata_size();
-}
-
-Address Code::BodyEnd() const {
-  STATIC_ASSERT(kBodyIsContiguous);
-  return MetadataEnd();
-}
-
-int Code::BodySize() const {
-  // TODO(jgruber,v8:11036): Update once embedded instructions and metadata are
-  // separate.
-  return V8_UNLIKELY(is_off_heap_trampoline())
-             ? OffHeapInstructionSize() + OffHeapMetadataSize()
-             : raw_body_size();
 }
 
 int Code::InstructionSize() const {
@@ -276,7 +258,7 @@ Address Code::raw_metadata_start() const {
 }
 
 Address Code::MetadataStart() const {
-  STATIC_ASSERT(kBodyIsContiguous);
+  STATIC_ASSERT(kOnHeapBodyIsContiguous);
   return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapMetadataStart()
                                                : raw_metadata_start();
 }
@@ -286,13 +268,11 @@ Address Code::raw_metadata_end() const {
 }
 
 Address Code::MetadataEnd() const {
-  STATIC_ASSERT(kBodyIsContiguous);
   return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapMetadataEnd()
                                                : raw_metadata_end();
 }
 
 int Code::MetadataSize() const {
-  STATIC_ASSERT(kBodyIsContiguous);
   return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapMetadataSize()
                                                : raw_metadata_size();
 }
@@ -547,12 +527,10 @@ bool Code::is_optimized_code() const {
 bool Code::is_wasm_code() const { return kind() == CodeKind::WASM_FUNCTION; }
 
 int Code::constant_pool_offset() const {
-  if (!FLAG_enable_embedded_constant_pool) return code_comments_offset();
   return ReadField<int>(kConstantPoolOffsetOffset);
 }
 
 void Code::set_constant_pool_offset(int value) {
-  if (!FLAG_enable_embedded_constant_pool) return;
   DCHECK_LE(value, MetadataSize());
   WriteField<int>(kConstantPoolOffsetOffset, value);
 }

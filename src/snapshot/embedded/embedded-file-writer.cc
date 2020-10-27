@@ -130,9 +130,10 @@ void EmbeddedFileWriter::WriteBuiltinLabels(PlatformEmbeddedFileWriterBase* w,
   w->DeclareLabel(name.c_str());
 }
 
-void EmbeddedFileWriter::WriteInstructionStreams(
-    PlatformEmbeddedFileWriterBase* w, const i::EmbeddedData* blob) const {
-  w->Comment("The embedded blob data starts here. It contains the builtin");
+void EmbeddedFileWriter::WriteCodeSection(PlatformEmbeddedFileWriterBase* w,
+                                          const i::EmbeddedData* blob) const {
+  w->Comment(
+      "The embedded blob code section starts here. It contains the builtin");
   w->Comment("instruction streams.");
   w->SectionText();
 

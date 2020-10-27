@@ -978,6 +978,7 @@ void Serializer::ObjectSerializer::VisitInternalReference(Code host,
   // TODO(jgruber,v8:11036): We are being permissive for this DCHECK, but
   // consider using raw_instruction_size() instead of raw_body_size() in the
   // future.
+  STATIC_ASSERT(Code::kOnHeapBodyIsContiguous);
   DCHECK_LE(target_offset, Handle<Code>::cast(object_)->raw_body_size());
   sink_->Put(kInternalReference, "InternalRef");
   sink_->PutInt(target_offset, "internal ref value");

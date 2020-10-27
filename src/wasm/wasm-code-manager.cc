@@ -878,11 +878,7 @@ CompilationEnv NativeModule::CreateCompilationEnv() const {
 
 WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   CODE_SPACE_WRITE_SCOPE
-  // For off-heap builtins, we create a copy of the off-heap instruction stream
-  // instead of the on-heap code object containing the trampoline. Ensure that
-  // we do not apply the on-heap reloc info to the off-heap instructions.
-  const size_t relocation_size =
-      code->is_off_heap_trampoline() ? 0 : code->relocation_size();
+  const size_t relocation_size = code->relocation_size();
   OwnedVector<byte> reloc_info;
   if (relocation_size > 0) {
     reloc_info = OwnedVector<byte>::Of(
@@ -896,14 +892,16 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
     source_pos_table->copy_out(0, source_pos.start(),
                                source_pos_table->length());
   }
-  STATIC_ASSERT(Code::kBodyIsContiguous);
-  Vector<const byte> instructions(reinterpret_cast<byte*>(code->BodyStart()),
-                                  static_cast<size_t>(code->BodySize()));
+  CHECK(!code->is_off_heap_trampoline());
+  STATIC_ASSERT(Code::kOnHeapBodyIsContiguous);
+  Vector<const byte> instructions(
+      reinterpret_cast<byte*>(code->raw_body_start()),
+      static_cast<size_t>(code->raw_body_size()));
   const int stack_slots = code->has_safepoint_info() ? code->stack_slots() : 0;
 
   // Metadata offsets in Code objects are relative to the start of the metadata
   // section, whereas WasmCode expects offsets relative to InstructionStart.
-  const int base_offset = code->InstructionSize();
+  const int base_offset = code->raw_instruction_size();
   // TODO(jgruber,v8:8758): Remove this translation. It exists only because
   // Code objects contains real offsets but WasmCode expects an offset of 0 to
   // mean 'empty'.
@@ -920,7 +918,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
 
   // Apply the relocation delta by iterating over the RelocInfo.
   intptr_t delta = reinterpret_cast<Address>(dst_code_bytes.begin()) -
-                   code->InstructionStart();
+                   code->raw_instruction_start();
   int mode_mask =
       RelocInfo::kApplyMask | RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
   auto jump_tables_ref =

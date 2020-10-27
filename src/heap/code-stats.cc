@@ -199,7 +199,10 @@ void CodeStatistics::CollectCodeCommentStatistics(HeapObject obj,
                                                   Isolate* isolate) {
   // Bytecode objects do not contain RelocInfo. Only process code objects
   // for code comment statistics.
-  if (!obj.IsCode()) return;
+  if (!obj.IsCode()) {
+    DCHECK(obj.IsBytecodeArray());
+    return;
+  }
 
   Code code = Code::cast(obj);
   CodeCommentsIterator cit(code.code_comments(), code.code_comments_size());
@@ -212,9 +215,8 @@ void CodeStatistics::CollectCodeCommentStatistics(HeapObject obj,
     cit.Next();
   }
 
-  STATIC_ASSERT(Code::kBodyIsContiguous);
-  DCHECK(0 <= prev_pc_offset && prev_pc_offset <= code.raw_body_size());
-  delta += static_cast<int>(code.raw_body_size() - prev_pc_offset);
+  DCHECK(0 <= prev_pc_offset && prev_pc_offset <= code.InstructionSize());
+  delta += static_cast<int>(code.InstructionSize() - prev_pc_offset);
   EnterComment(isolate, "NoComment", delta);
 }
 #endif

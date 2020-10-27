@@ -209,6 +209,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
 
   bool saw_unsafe_builtin = false;
   uint32_t raw_code_size = 0;
+  uint32_t raw_data_size = 0;
   STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (int i = 0; i < Builtins::builtin_count; i++) {
     Code code = builtins->builtin(i);
@@ -228,16 +229,16 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
     uint32_t instruction_size =
         static_cast<uint32_t>(code.raw_instruction_size());
     uint32_t metadata_size = static_cast<uint32_t>(code.raw_metadata_size());
-    uint32_t length = instruction_size + metadata_size;
 
     DCHECK_EQ(0, raw_code_size % kCodeAlignment);
     layout_descriptions[i].instruction_offset = raw_code_size;
     layout_descriptions[i].instruction_length = instruction_size;
-    layout_descriptions[i].metadata_offset = raw_code_size + instruction_size;
+    layout_descriptions[i].metadata_offset = raw_data_size;
     layout_descriptions[i].metadata_length = metadata_size;
 
-    // Align the start of each instruction stream.
-    raw_code_size += PadAndAlign(length);
+    // Align the start of each section.
+    raw_code_size += PadAndAlignCode(instruction_size);
+    raw_data_size += PadAndAlignData(metadata_size);
   }
   CHECK_WITH_MSG(
       !saw_unsafe_builtin,
@@ -245,12 +246,15 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
       "isolate-dependent code or aliases the off-heap trampoline register. "
       "If in doubt, ask jgruber@");
 
+  // Allocate space for the code section, value-initialized to 0.
+  STATIC_ASSERT(RawCodeOffset() == 0);
   const uint32_t blob_code_size = RawCodeOffset() + raw_code_size;
-  uint8_t* const blob_code = new uint8_t[blob_code_size];
-  uint8_t* const raw_code_start = blob_code + RawCodeOffset();
-  const uint32_t blob_data_size =
-      LayoutDescriptionTableOffset() + LayoutDescriptionTableSize();
-  uint8_t* const blob_data = new uint8_t[blob_data_size];
+  uint8_t* const blob_code = new uint8_t[blob_code_size]();
+
+  // Allocate space for the data section, value-initialized to 0.
+  STATIC_ASSERT(IsAligned(FixedDataSize(), Code::kMetadataAlignment));
+  const uint32_t blob_data_size = FixedDataSize() + raw_data_size;
+  uint8_t* const blob_data = new uint8_t[blob_data_size]();
 
   // Initially zap the entire blob, effectively padding the alignment area
   // between two builtins with int3's (on x64/ia32).
@@ -269,16 +273,30 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   std::memcpy(blob_data + LayoutDescriptionTableOffset(),
               layout_descriptions.data(), LayoutDescriptionTableSize());
 
-  // Write the raw data section.
+  // .. and the variable-size data section.
+  uint8_t* const raw_metadata_start = blob_data + RawMetadataOffset();
   STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (int i = 0; i < Builtins::builtin_count; i++) {
-    STATIC_ASSERT(Code::kBodyIsContiguous);
+    Code code = builtins->builtin(i);
+    uint32_t offset = layout_descriptions[i].metadata_offset;
+    uint8_t* dst = raw_metadata_start + offset;
+    DCHECK_LE(RawMetadataOffset() + offset + code.raw_metadata_size(),
+              blob_data_size);
+    std::memcpy(dst, reinterpret_cast<uint8_t*>(code.raw_metadata_start()),
+                code.raw_metadata_size());
+  }
+
+  // .. and the variable-size code section.
+  uint8_t* const raw_code_start = blob_code + RawCodeOffset();
+  STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
+  for (int i = 0; i < Builtins::builtin_count; i++) {
     Code code = builtins->builtin(i);
     uint32_t offset = layout_descriptions[i].instruction_offset;
     uint8_t* dst = raw_code_start + offset;
-    DCHECK_LE(RawCodeOffset() + offset + code.raw_body_size(), blob_code_size);
-    std::memcpy(dst, reinterpret_cast<uint8_t*>(code.raw_body_start()),
-                code.raw_body_size());
+    DCHECK_LE(RawCodeOffset() + offset + code.raw_instruction_size(),
+              blob_code_size);
+    std::memcpy(dst, reinterpret_cast<uint8_t*>(code.raw_instruction_start()),
+                code.raw_instruction_size());
   }
 
   EmbeddedData d(blob_code, blob_code_size, blob_data, blob_data_size);
@@ -318,10 +336,9 @@ uint32_t EmbeddedData::InstructionSizeOfBuiltin(int i) const {
 
 Address EmbeddedData::MetadataStartOfBuiltin(int i) const {
   DCHECK(Builtins::IsBuiltinId(i));
-  STATIC_ASSERT(Code::kOffHeapBodyIsContiguous);
   const struct LayoutDescription* descs = LayoutDescription();
-  const uint8_t* result = RawCode() + descs[i].metadata_offset;
-  DCHECK_LT(result, code_ + code_size_);
+  const uint8_t* result = RawMetadata() + descs[i].metadata_offset;
+  DCHECK_LE(descs[i].metadata_offset, data_size_);
   return reinterpret_cast<Address>(result);
 }
 

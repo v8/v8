@@ -110,7 +110,7 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
     WriteFilePrologue(writer.get());
     WriteExternalFilenames(writer.get());
     WriteDataSection(writer.get(), blob);
-    WriteInstructionStreams(writer.get(), blob);
+    WriteCodeSection(writer.get(), blob);
     WriteFileEpilogue(writer.get(), blob);
 
     fclose(fp);
@@ -185,8 +185,8 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
   void WriteBuiltinLabels(PlatformEmbeddedFileWriterBase* w,
                           std::string name) const;
 
-  void WriteInstructionStreams(PlatformEmbeddedFileWriterBase* w,
-                               const i::EmbeddedData* blob) const;
+  void WriteCodeSection(PlatformEmbeddedFileWriterBase* w,
+                        const i::EmbeddedData* blob) const;
 
   void WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
                          const i::EmbeddedData* blob) const;

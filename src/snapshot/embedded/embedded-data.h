@@ -85,10 +85,9 @@ class EmbeddedData final {
   // Padded with kCodeAlignment.
   // TODO(v8:11045): Consider removing code alignment.
   uint32_t PaddedInstructionSizeOfBuiltin(int i) const {
-    STATIC_ASSERT(Code::kOffHeapBodyIsContiguous);
-    uint32_t size = InstructionSizeOfBuiltin(i) + MetadataSizeOfBuiltin(i);
+    uint32_t size = InstructionSizeOfBuiltin(i);
     CHECK_NE(size, 0);
-    return PadAndAlign(size);
+    return PadAndAlignCode(size);
   }
 
   size_t CreateEmbeddedBlobHash() const;
@@ -129,10 +128,12 @@ class EmbeddedData final {
   // [1] hash of embedded-blob-relevant heap objects
   // [2] layout description of instruction stream 0
   // ... layout descriptions
+  // [x] metadata section of builtin 0
+  // ... metadata sections
   //
   // code:
-  // [0] instruction stream 0
-  // ... instruction streams
+  // [0] instruction section of builtin 0
+  // ... instruction sections
 
   static constexpr uint32_t kTableSize = Builtins::builtin_count;
   static constexpr uint32_t EmbeddedBlobHashOffset() { return 0; }
@@ -147,6 +148,13 @@ class EmbeddedData final {
   static constexpr uint32_t LayoutDescriptionTableSize() {
     return sizeof(struct LayoutDescription) * kTableSize;
   }
+  static constexpr uint32_t FixedDataSize() {
+    return LayoutDescriptionTableOffset() + LayoutDescriptionTableSize();
+  }
+  // The variable-size data section starts here.
+  static constexpr uint32_t RawMetadataOffset() { return FixedDataSize(); }
+
+  // Code is in its own dedicated section.
   static constexpr uint32_t RawCodeOffset() { return 0; }
 
  private:
@@ -159,28 +167,35 @@ class EmbeddedData final {
     DCHECK_LT(0, data_size);
   }
 
+  const uint8_t* RawCode() const { return code_ + RawCodeOffset(); }
+
   const LayoutDescription* LayoutDescription() const {
     return reinterpret_cast<const struct LayoutDescription*>(
         data_ + LayoutDescriptionTableOffset());
   }
-  const uint8_t* RawCode() const { return code_ + RawCodeOffset(); }
+  const uint8_t* RawMetadata() const { return data_ + RawMetadataOffset(); }
 
-  static constexpr int PadAndAlign(int size) {
+  static constexpr int PadAndAlignCode(int size) {
     // Ensure we have at least one byte trailing the actual builtin
     // instructions which we can later fill with int3.
     return RoundUp<kCodeAlignment>(size + 1);
   }
+  static constexpr int PadAndAlignData(int size) {
+    // Ensure we have at least one byte trailing the actual builtin
+    // instructions which we can later fill with int3.
+    return RoundUp<Code::kMetadataAlignment>(size);
+  }
 
   void PrintStatistics() const;
 
-  // This points to code for builtins. The contents are potentially unreadable
-  // on platforms that disallow reads from the .text section.
+  // The code section contains instruction streams. It is guaranteed to have
+  // execute permissions, and may have read permissions.
   const uint8_t* code_;
   uint32_t code_size_;
 
   // The data section contains both descriptions of the code section (hashes,
   // offsets, sizes) and metadata describing Code objects (see
-  // Code::MetadataStart()).
+  // Code::MetadataStart()). It is guaranteed to have read permissions.
   const uint8_t* data_;
   uint32_t data_size_;
 };

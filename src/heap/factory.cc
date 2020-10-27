@@ -119,7 +119,6 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     isolate_->heap()->SetBasicBlockProfilingData(new_list);
   }
 
-  // TODO(jgruber,v8:11036): Distinguish instruction and metadata areas.
   STATIC_ASSERT(Code::kOnHeapBodyIsContiguous);
   const int object_size = Code::SizeFor(code_desc_.body_size());
 

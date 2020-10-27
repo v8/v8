@@ -129,20 +129,16 @@ class Code : public HeapObject {
   //  |                          |  <-- MS + unwinding_info_offset()
   //  +--------------------------+  <-- MetadataEnd()
 
-  // TODO(jgruber,v8:11036): Update once no longer true for embedded builtins.
+  // Constants for use in static asserts, stating whether the body is adjacent,
+  // i.e. instructions and metadata areas are adjacent.
   static constexpr bool kOnHeapBodyIsContiguous = true;
-  static constexpr bool kOffHeapBodyIsContiguous = true;
+  static constexpr bool kOffHeapBodyIsContiguous = false;
   static constexpr bool kBodyIsContiguous =
       kOnHeapBodyIsContiguous && kOffHeapBodyIsContiguous;
 
   inline Address raw_body_start() const;
-  inline Address BodyStart() const;
   inline Address raw_body_end() const;
-  inline Address BodyEnd() const;
   inline int raw_body_size() const;
-  // TODO(jgruber,v8:11036): Replace this once the off-heap instruction and
-  // metadata areas are separate.
-  inline int BodySize() const;
 
   inline Address raw_instruction_start() const;
   inline Address InstructionStart() const;
@@ -171,8 +167,7 @@ class Code : public HeapObject {
   // The metadata section is aligned to this value.
   static constexpr int kMetadataAlignment = kIntSize;
 
-  // [safepoint_table_offset]: If {has_safepoint_info()}, the offset where the
-  // safepoint table starts.
+  // [safepoint_table_offset]: The offset where the safepoint table starts.
   inline int safepoint_table_offset() const { return 0; }
   Address SafepointTableAddress() const;
   int safepoint_table_size() const;
@@ -187,9 +182,9 @@ class Code : public HeapObject {
   bool has_handler_table() const;
 
   // [constant_pool offset]: Offset of the constant pool.
-  // Valid for FLAG_enable_embedded_constant_pool only
   inline int constant_pool_offset() const;
   inline void set_constant_pool_offset(int offset);
+  inline Address constant_pool() const;
   int constant_pool_size() const;
   bool has_constant_pool() const;
 
@@ -324,9 +319,6 @@ class Code : public HeapObject {
   // [is_off_heap_trampoline]: For kind BUILTIN tells whether
   // this is a trampoline to an off-heap builtin.
   inline bool is_off_heap_trampoline() const;
-
-  // [constant_pool]: The constant pool for this function.
-  inline Address constant_pool() const;
 
   // Get the safepoint entry for the given pc.
   SafepointEntry GetSafepointEntry(Address pc);
