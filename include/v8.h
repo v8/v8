@@ -83,6 +83,7 @@ class String;
 class StringObject;
 class Symbol;
 class SymbolObject;
+class TracedReferenceBase;
 class PrimitiveArray;
 class Private;
 class Uint32;
@@ -104,7 +105,7 @@ class TracedGlobal;
 template <class T>
 class TracedReference;
 template <class T>
-class TracedReferenceBase;
+class BasicTracedReference;
 template<class K, class V, class T> class PersistentValueMap;
 template <class K, class V, class T>
 class PersistentValueMapBase;
@@ -127,6 +128,7 @@ namespace internal {
 enum class ArgumentsType;
 template <ArgumentsType>
 class Arguments;
+class BasicTracedReferenceExtractor;
 template <typename T>
 class CustomArguments;
 class FunctionCallbackArguments;
@@ -135,7 +137,6 @@ class Heap;
 class HeapObject;
 class ExternalString;
 class Isolate;
-class JSMemberBase;
 class LocalEmbedderHeapTracer;
 class MicrotaskQueue;
 class PropertyCallbackArguments;
@@ -302,10 +303,10 @@ class Local {
   V8_INLINE static Local<T> New(Isolate* isolate,
                                 const PersistentBase<T>& that);
   V8_INLINE static Local<T> New(Isolate* isolate,
-                                const TracedReferenceBase<T>& that);
+                                const BasicTracedReference<T>& that);
 
  private:
-  friend class internal::JSMemberBase;
+  friend class TracedReferenceBase;
   friend class Utils;
   template<class F> friend class Eternal;
   template<class F> friend class PersistentBase;
@@ -337,7 +338,7 @@ class Local {
   template <class F>
   friend class TracedGlobal;
   template <class F>
-  friend class TracedReferenceBase;
+  friend class BasicTracedReference;
   template <class F>
   friend class TracedReference;
 
@@ -827,27 +828,11 @@ using UniquePersistent = Global<T>;
 template <typename T>
 struct TracedGlobalTrait {};
 
-/**
- * A traced handle with copy and move semantics. The handle is to be used
- * together with |v8::EmbedderHeapTracer| and specifies edges from the embedder
- * into V8's heap.
- *
- * The exact semantics are:
- * - Tracing garbage collections use |v8::EmbedderHeapTracer|.
- * - Non-tracing garbage collections refer to
- *   |v8::EmbedderHeapTracer::IsRootForNonTracingGC()| whether the handle should
- *   be treated as root or not.
- *
- * Note that the base class cannot be instantiated itself. Choose from
- * - TracedGlobal
- * - TracedReference
- */
-template <typename T>
 class TracedReferenceBase {
  public:
   /**
-   * Returns true if this TracedReferenceBase is empty, i.e., has not been
-   * assigned an object.
+   * Returns true if the reference is empty, i.e., has not been assigned
+   * object.
    */
   bool IsEmpty() const { return val_ == nullptr; }
 
@@ -858,37 +843,69 @@ class TracedReferenceBase {
   V8_INLINE void Reset();
 
   /**
+   * Construct a Local<Value> from this handle.
+   */
+  V8_INLINE v8::Local<v8::Value> Get(v8::Isolate* isolate) const;
+
+  /**
+   * Returns true if this TracedReference is empty, i.e., has not been
+   * assigned an object. This version of IsEmpty is thread-safe.
+   */
+  bool IsEmptyThreadSafe() const {
+    return this->GetSlotThreadSafe() == nullptr;
+  }
+
+ protected:
+  /**
+   * Update this reference in a thread-safe way.
+   */
+  void SetSlotThreadSafe(void* new_val) {
+    reinterpret_cast<std::atomic<void*>*>(&val_)->store(
+        new_val, std::memory_order_relaxed);
+  }
+
+  /**
+   * Get this reference in a thread-safe way
+   */
+  const void* GetSlotThreadSafe() const {
+    return reinterpret_cast<std::atomic<const void*> const*>(&val_)->load(
+        std::memory_order_relaxed);
+  }
+
+  // val_ points to a GlobalHandles node.
+  internal::Address* val_ = nullptr;
+
+  friend class internal::BasicTracedReferenceExtractor;
+  template <typename F>
+  friend class Local;
+  template <typename U>
+  friend bool operator==(const TracedReferenceBase&, const Local<U>&);
+  friend bool operator==(const TracedReferenceBase&,
+                         const TracedReferenceBase&);
+};
+
+/**
+ * A traced handle with copy and move semantics. The handle is to be used
+ * together with |v8::EmbedderHeapTracer| or as part of GarbageCollected objects
+ * (see v8-cppgc.h) and specifies edges from C++ objects to JavaScript.
+ *
+ * The exact semantics are:
+ * - Tracing garbage collections use |v8::EmbedderHeapTracer| or cppgc.
+ * - Non-tracing garbage collections refer to
+ *   |v8::EmbedderHeapTracer::IsRootForNonTracingGC()| whether the handle should
+ *   be treated as root or not.
+ *
+ * Note that the base class cannot be instantiated itself. Choose from
+ * - TracedGlobal
+ * - TracedReference
+ */
+template <typename T>
+class BasicTracedReference : public TracedReferenceBase {
+ public:
+  /**
    * Construct a Local<T> from this handle.
    */
   Local<T> Get(Isolate* isolate) const { return Local<T>::New(isolate, *this); }
-
-  template <class S>
-  V8_INLINE bool operator==(const TracedReferenceBase<S>& that) const {
-    internal::Address* a = reinterpret_cast<internal::Address*>(val_);
-    internal::Address* b = reinterpret_cast<internal::Address*>(that.val_);
-    if (a == nullptr) return b == nullptr;
-    if (b == nullptr) return false;
-    return *a == *b;
-  }
-
-  template <class S>
-  V8_INLINE bool operator==(const Local<S>& that) const {
-    internal::Address* a = reinterpret_cast<internal::Address*>(val_);
-    internal::Address* b = reinterpret_cast<internal::Address*>(that.val_);
-    if (a == nullptr) return b == nullptr;
-    if (b == nullptr) return false;
-    return *a == *b;
-  }
-
-  template <class S>
-  V8_INLINE bool operator!=(const TracedReferenceBase<S>& that) const {
-    return !operator==(that);
-  }
-
-  template <class S>
-  V8_INLINE bool operator!=(const Local<S>& that) const {
-    return !operator==(that);
-  }
 
   /**
    * Assigns a wrapper class ID to the handle.
@@ -902,40 +919,24 @@ class TracedReferenceBase {
   V8_INLINE uint16_t WrapperClassId() const;
 
   template <class S>
-  V8_INLINE TracedReferenceBase<S>& As() const {
-    return reinterpret_cast<TracedReferenceBase<S>&>(
-        const_cast<TracedReferenceBase<T>&>(*this));
+  V8_INLINE BasicTracedReference<S>& As() const {
+    return reinterpret_cast<BasicTracedReference<S>&>(
+        const_cast<BasicTracedReference<T>&>(*this));
   }
 
- protected:
-  /**
-   * Update this reference in a thread-safe way
-   */
-  void SetSlotThreadSafe(T* new_val) {
-    reinterpret_cast<std::atomic<T*>*>(&val_)->store(new_val,
-                                                     std::memory_order_relaxed);
-  }
-
-  /**
-   * Get this reference in a thread-safe way
-   */
-  const T* GetSlotThreadSafe() const {
-    return reinterpret_cast<std::atomic<const T*> const*>(&val_)->load(
-        std::memory_order_relaxed);
-  }
+  T* operator->() const { return reinterpret_cast<T*>(val_); }
+  T* operator*() const { return reinterpret_cast<T*>(val_); }
 
  private:
   enum DestructionMode { kWithDestructor, kWithoutDestructor };
 
   /**
-   * An empty TracedReferenceBase without storage cell.
+   * An empty BasicTracedReference without storage cell.
    */
-  TracedReferenceBase() = default;
+  BasicTracedReference() = default;
 
-  V8_INLINE static T* New(Isolate* isolate, T* that, void* slot,
-                          DestructionMode destruction_mode);
-
-  T* val_ = nullptr;
+  V8_INLINE static internal::Address* New(Isolate* isolate, T* that, void* slot,
+                                          DestructionMode destruction_mode);
 
   friend class EmbedderHeapTracer;
   template <typename F>
@@ -946,27 +947,29 @@ class TracedReferenceBase {
   template <typename F>
   friend class TracedReference;
   template <typename F>
+  friend class BasicTracedReference;
+  template <typename F>
   friend class ReturnValue;
 };
 
 /**
  * A traced handle with destructor that clears the handle. For more details see
- * TracedReferenceBase.
+ * BasicTracedReference.
  */
 template <typename T>
-class TracedGlobal : public TracedReferenceBase<T> {
+class TracedGlobal : public BasicTracedReference<T> {
  public:
-  using TracedReferenceBase<T>::Reset;
+  using BasicTracedReference<T>::Reset;
 
   /**
-   * Destructor resetting the handle.
+   * Destructor resetting the handle.Is
    */
   ~TracedGlobal() { this->Reset(); }
 
   /**
    * An empty TracedGlobal without storage cell.
    */
-  TracedGlobal() : TracedReferenceBase<T>() {}
+  TracedGlobal() : BasicTracedReference<T>() {}
 
   /**
    * Construct a TracedGlobal from a Local.
@@ -975,9 +978,9 @@ class TracedGlobal : public TracedReferenceBase<T> {
    * pointing to the same object.
    */
   template <class S>
-  TracedGlobal(Isolate* isolate, Local<S> that) : TracedReferenceBase<T>() {
+  TracedGlobal(Isolate* isolate, Local<S> that) : BasicTracedReference<T>() {
     this->val_ = this->New(isolate, that.val_, &this->val_,
-                           TracedReferenceBase<T>::kWithDestructor);
+                           BasicTracedReference<T>::kWithDestructor);
     static_assert(std::is_base_of<T, S>::value, "type check");
   }
 
@@ -1074,7 +1077,7 @@ class TracedGlobal : public TracedReferenceBase<T> {
  * A traced handle without destructor that clears the handle. The embedder needs
  * to ensure that the handle is not accessed once the V8 object has been
  * reclaimed. This can happen when the handle is not passed through the
- * EmbedderHeapTracer. For more details see TracedReferenceBase.
+ * EmbedderHeapTracer. For more details see BasicTracedReference.
  *
  * The reference assumes the embedder has precise knowledge about references at
  * all times. In case V8 needs to separately handle on-stack references, the
@@ -1082,14 +1085,14 @@ class TracedGlobal : public TracedReferenceBase<T> {
  * |EmbedderHeapTracer::SetStackStart|.
  */
 template <typename T>
-class TracedReference : public TracedReferenceBase<T> {
+class TracedReference : public BasicTracedReference<T> {
  public:
-  using TracedReferenceBase<T>::Reset;
+  using BasicTracedReference<T>::Reset;
 
   /**
    * An empty TracedReference without storage cell.
    */
-  TracedReference() : TracedReferenceBase<T>() {}
+  TracedReference() : BasicTracedReference<T>() {}
 
   /**
    * Construct a TracedReference from a Local.
@@ -1098,9 +1101,9 @@ class TracedReference : public TracedReferenceBase<T> {
    * pointing to the same object.
    */
   template <class S>
-  TracedReference(Isolate* isolate, Local<S> that) : TracedReferenceBase<T>() {
+  TracedReference(Isolate* isolate, Local<S> that) : BasicTracedReference<T>() {
     this->val_ = this->New(isolate, that.val_, &this->val_,
-                           TracedReferenceBase<T>::kWithoutDestructor);
+                           BasicTracedReference<T>::kWithoutDestructor);
     static_assert(std::is_base_of<T, S>::value, "type check");
   }
 
@@ -1175,14 +1178,6 @@ class TracedReference : public TracedReferenceBase<T> {
   V8_INLINE TracedReference<S>& As() const {
     return reinterpret_cast<TracedReference<S>&>(
         const_cast<TracedReference<T>&>(*this));
-  }
-
-  /**
-   * Returns true if this TracedReference is empty, i.e., has not been
-   * assigned an object. This version of IsEmpty is thread-safe.
-   */
-  bool IsEmptyThreadSafe() const {
-    return this->GetSlotThreadSafe() == nullptr;
   }
 };
 
@@ -3994,10 +3989,10 @@ class V8_EXPORT Object : public Value {
     return object.val_->InternalFieldCount();
   }
 
-  /** Same as above, but works for TracedReferenceBase. */
+  /** Same as above, but works for BasicTracedReference. */
   V8_INLINE static int InternalFieldCount(
-      const TracedReferenceBase<Object>& object) {
-    return object.val_->InternalFieldCount();
+      const BasicTracedReference<Object>& object) {
+    return object->InternalFieldCount();
   }
 
   /** Gets the value from an internal field. */
@@ -4021,8 +4016,8 @@ class V8_EXPORT Object : public Value {
 
   /** Same as above, but works for TracedGlobal. */
   V8_INLINE static void* GetAlignedPointerFromInternalField(
-      const TracedReferenceBase<Object>& object, int index) {
-    return object.val_->GetAlignedPointerFromInternalField(index);
+      const BasicTracedReference<Object>& object, int index) {
+    return object->GetAlignedPointerFromInternalField(index);
   }
 
   /**
@@ -4318,7 +4313,7 @@ class ReturnValue {
   template <typename S>
   V8_INLINE void Set(const Global<S>& handle);
   template <typename S>
-  V8_INLINE void Set(const TracedReferenceBase<S>& handle);
+  V8_INLINE void Set(const BasicTracedReference<S>& handle);
   template <typename S>
   V8_INLINE void Set(const Local<S> handle);
   // Fast primitive setters
@@ -8010,7 +8005,7 @@ class V8_EXPORT EmbedderHeapTracer {
   virtual void RegisterV8References(
       const std::vector<std::pair<void*, void*> >& embedder_fields) = 0;
 
-  void RegisterEmbedderReference(const TracedReferenceBase<v8::Data>& ref);
+  void RegisterEmbedderReference(const BasicTracedReference<v8::Data>& ref);
 
   /**
    * Called at the beginning of a GC cycle.
@@ -9886,6 +9881,8 @@ class V8_EXPORT V8 {
   static void ToLocalEmpty();
   static void InternalFieldOutOfBounds(int index);
   template <class T>
+  friend class BasicTracedReference;
+  template <class T>
   friend class Global;
   template <class T> friend class Local;
   template <class T>
@@ -9893,9 +9890,8 @@ class V8_EXPORT V8 {
   template <class T>
   friend class Maybe;
   template <class T>
-  friend class TracedReferenceBase;
-  template <class T>
   friend class TracedGlobal;
+  friend class TracedReferenceBase;
   template <class T>
   friend class TracedReference;
   template <class T>
@@ -10793,8 +10789,8 @@ Local<T> Local<T>::New(Isolate* isolate, const PersistentBase<T>& that) {
 }
 
 template <class T>
-Local<T> Local<T>::New(Isolate* isolate, const TracedReferenceBase<T>& that) {
-  return New(isolate, that.val_);
+Local<T> Local<T>::New(Isolate* isolate, const BasicTracedReference<T>& that) {
+  return New(isolate, *that);
 }
 
 template <class T>
@@ -10981,21 +10977,67 @@ Global<T>& Global<T>::operator=(Global<S>&& rhs) {
 }
 
 template <class T>
-T* TracedReferenceBase<T>::New(Isolate* isolate, T* that, void* slot,
-                               DestructionMode destruction_mode) {
+internal::Address* BasicTracedReference<T>::New(
+    Isolate* isolate, T* that, void* slot, DestructionMode destruction_mode) {
   if (that == nullptr) return nullptr;
   internal::Address* p = reinterpret_cast<internal::Address*>(that);
-  return reinterpret_cast<T*>(V8::GlobalizeTracedReference(
+  return V8::GlobalizeTracedReference(
       reinterpret_cast<internal::Isolate*>(isolate), p,
       reinterpret_cast<internal::Address*>(slot),
-      destruction_mode == kWithDestructor));
+      destruction_mode == kWithDestructor);
 }
 
-template <class T>
-void TracedReferenceBase<T>::Reset() {
+void TracedReferenceBase::Reset() {
   if (IsEmpty()) return;
   V8::DisposeTracedGlobal(reinterpret_cast<internal::Address*>(val_));
   SetSlotThreadSafe(nullptr);
+}
+
+v8::Local<v8::Value> TracedReferenceBase::Get(v8::Isolate* isolate) const {
+  if (IsEmpty()) return Local<Value>();
+  return Local<Value>::New(isolate, reinterpret_cast<Value*>(val_));
+}
+
+V8_INLINE bool operator==(const TracedReferenceBase& lhs,
+                          const TracedReferenceBase& rhs) {
+  v8::internal::Address* a = reinterpret_cast<v8::internal::Address*>(lhs.val_);
+  v8::internal::Address* b = reinterpret_cast<v8::internal::Address*>(rhs.val_);
+  if (a == nullptr) return b == nullptr;
+  if (b == nullptr) return false;
+  return *a == *b;
+}
+
+template <typename U>
+V8_INLINE bool operator==(const TracedReferenceBase& lhs,
+                          const v8::Local<U>& rhs) {
+  v8::internal::Address* a = reinterpret_cast<v8::internal::Address*>(lhs.val_);
+  v8::internal::Address* b = reinterpret_cast<v8::internal::Address*>(*rhs);
+  if (a == nullptr) return b == nullptr;
+  if (b == nullptr) return false;
+  return *a == *b;
+}
+
+template <typename U>
+V8_INLINE bool operator==(const v8::Local<U>& lhs,
+                          const TracedReferenceBase& rhs) {
+  return rhs == lhs;
+}
+
+V8_INLINE bool operator!=(const TracedReferenceBase& lhs,
+                          const TracedReferenceBase& rhs) {
+  return !(lhs == rhs);
+}
+
+template <typename U>
+V8_INLINE bool operator!=(const TracedReferenceBase& lhs,
+                          const v8::Local<U>& rhs) {
+  return !(lhs == rhs);
+}
+
+template <typename U>
+V8_INLINE bool operator!=(const v8::Local<U>& lhs,
+                          const TracedReferenceBase& rhs) {
+  return !(rhs == lhs);
 }
 
 template <class T>
@@ -11005,7 +11047,7 @@ void TracedGlobal<T>::Reset(Isolate* isolate, const Local<S>& other) {
   Reset();
   if (other.IsEmpty()) return;
   this->val_ = this->New(isolate, other.val_, &this->val_,
-                         TracedReferenceBase<T>::kWithDestructor);
+                         BasicTracedReference<T>::kWithDestructor);
 }
 
 template <class T>
@@ -11055,7 +11097,7 @@ void TracedReference<T>::Reset(Isolate* isolate, const Local<S>& other) {
   if (other.IsEmpty()) return;
   this->SetSlotThreadSafe(
       this->New(isolate, other.val_, &this->val_,
-                TracedReferenceBase<T>::kWithoutDestructor));
+                BasicTracedReference<T>::kWithoutDestructor));
 }
 
 template <class T>
@@ -11099,7 +11141,7 @@ TracedReference<T>& TracedReference<T>::operator=(const TracedReference& rhs) {
 }
 
 template <class T>
-void TracedReferenceBase<T>::SetWrapperClassId(uint16_t class_id) {
+void BasicTracedReference<T>::SetWrapperClassId(uint16_t class_id) {
   typedef internal::Internals I;
   if (IsEmpty()) return;
   internal::Address* obj = reinterpret_cast<internal::Address*>(val_);
@@ -11108,7 +11150,7 @@ void TracedReferenceBase<T>::SetWrapperClassId(uint16_t class_id) {
 }
 
 template <class T>
-uint16_t TracedReferenceBase<T>::WrapperClassId() const {
+uint16_t BasicTracedReference<T>::WrapperClassId() const {
   typedef internal::Internals I;
   if (IsEmpty()) return 0;
   internal::Address* obj = reinterpret_cast<internal::Address*>(val_);
@@ -11139,7 +11181,7 @@ void ReturnValue<T>::Set(const Global<S>& handle) {
 
 template <typename T>
 template <typename S>
-void ReturnValue<T>::Set(const TracedReferenceBase<S>& handle) {
+void ReturnValue<T>::Set(const BasicTracedReference<S>& handle) {
   static_assert(std::is_base_of<T, S>::value, "type check");
   if (V8_UNLIKELY(handle.IsEmpty())) {
     *value_ = GetDefaultValue();

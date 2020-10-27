@@ -833,8 +833,8 @@ class EmbedderHeapTracerNoDestructorNonTracingClearing final
 
     // Convention (for test): Objects that are optimized have their first field
     // set as a back pointer.
-    TracedReferenceBase<v8::Value>* original_handle =
-        reinterpret_cast<TracedReferenceBase<v8::Value>*>(
+    BasicTracedReference<v8::Value>* original_handle =
+        reinterpret_cast<BasicTracedReference<v8::Value>*>(
             v8::Object::GetAlignedPointerFromInternalField(
                 handle.As<v8::Object>(), 0));
     original_handle->Reset();

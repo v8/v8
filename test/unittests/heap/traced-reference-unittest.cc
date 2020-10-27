@@ -10,154 +10,154 @@
 namespace v8 {
 namespace internal {
 
-using JSMemberTest = TestWithIsolate;
+using TracedReferenceTest = TestWithIsolate;
 
-TEST_F(JSMemberTest, ResetFromLocal) {
+TEST_F(TracedReferenceTest, ResetFromLocal) {
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
-  v8::JSMember<v8::Object> member;
+  v8::TracedReference<v8::Object> ref;
   {
     v8::HandleScope handles(v8_isolate());
     v8::Local<v8::Object> local =
         v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
-    EXPECT_TRUE(member.IsEmpty());
-    EXPECT_NE(member, local);
-    member.Set(v8_isolate(), local);
-    EXPECT_FALSE(member.IsEmpty());
-    EXPECT_EQ(member, local);
+    EXPECT_TRUE(ref.IsEmpty());
+    EXPECT_NE(ref, local);
+    ref.Reset(v8_isolate(), local);
+    EXPECT_FALSE(ref.IsEmpty());
+    EXPECT_EQ(ref, local);
   }
 }
 
-TEST_F(JSMemberTest, ConstructFromLocal) {
-  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
-  v8::Context::Scope context_scope(context);
-  {
-    v8::HandleScope handles(v8_isolate());
-    v8::Local<v8::Object> local =
-        v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
-    v8::JSMember<v8::Object> member(v8_isolate(), local);
-    EXPECT_FALSE(member.IsEmpty());
-    EXPECT_EQ(member, local);
-  }
-}
-
-TEST_F(JSMemberTest, Reset) {
+TEST_F(TracedReferenceTest, ConstructFromLocal) {
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
   {
     v8::HandleScope handles(v8_isolate());
     v8::Local<v8::Object> local =
         v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
-    v8::JSMember<v8::Object> member(v8_isolate(), local);
-    EXPECT_FALSE(member.IsEmpty());
-    EXPECT_EQ(member, local);
-    member.Reset();
-    EXPECT_TRUE(member.IsEmpty());
-    EXPECT_NE(member, local);
+    v8::TracedReference<v8::Object> ref(v8_isolate(), local);
+    EXPECT_FALSE(ref.IsEmpty());
+    EXPECT_EQ(ref, local);
   }
 }
 
-TEST_F(JSMemberTest, Copy) {
+TEST_F(TracedReferenceTest, Reset) {
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
   {
     v8::HandleScope handles(v8_isolate());
     v8::Local<v8::Object> local =
         v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
-    v8::JSMember<v8::Object> member(v8_isolate(), local);
-    v8::JSMember<v8::Object> member_copy1(member);
-    v8::JSMember<v8::Object> member_copy2 = member;
-    EXPECT_EQ(member, local);
-    EXPECT_EQ(member_copy1, local);
-    EXPECT_EQ(member_copy2, local);
+    v8::TracedReference<v8::Object> ref(v8_isolate(), local);
+    EXPECT_FALSE(ref.IsEmpty());
+    EXPECT_EQ(ref, local);
+    ref.Reset();
+    EXPECT_TRUE(ref.IsEmpty());
+    EXPECT_NE(ref, local);
   }
 }
 
-TEST_F(JSMemberTest, CopyHeterogenous) {
+TEST_F(TracedReferenceTest, Copy) {
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
   {
     v8::HandleScope handles(v8_isolate());
     v8::Local<v8::Object> local =
         v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
-    v8::JSMember<v8::Object> member(v8_isolate(), local);
-    v8::JSMember<v8::Value> member_copy1(member);
-    v8::JSMember<v8::Value> member_copy2 = member;
-    EXPECT_EQ(member, local);
-    EXPECT_EQ(member_copy1, local);
-    EXPECT_EQ(member_copy2, local);
+    v8::TracedReference<v8::Object> ref(v8_isolate(), local);
+    v8::TracedReference<v8::Object> ref_copy1(ref);
+    v8::TracedReference<v8::Object> ref_copy2 = ref;
+    EXPECT_EQ(ref, local);
+    EXPECT_EQ(ref_copy1, local);
+    EXPECT_EQ(ref_copy2, local);
   }
 }
 
-TEST_F(JSMemberTest, Move) {
+TEST_F(TracedReferenceTest, CopyHeterogenous) {
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
   {
     v8::HandleScope handles(v8_isolate());
     v8::Local<v8::Object> local =
         v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
-    v8::JSMember<v8::Object> member(v8_isolate(), local);
-    v8::JSMember<v8::Object> member_moved1(std::move(member));
-    v8::JSMember<v8::Object> member_moved2 = std::move(member_moved1);
-    EXPECT_TRUE(member.IsEmpty());
-    EXPECT_TRUE(member_moved1.IsEmpty());
-    EXPECT_EQ(member_moved2, local);
+    v8::TracedReference<v8::Object> ref(v8_isolate(), local);
+    v8::TracedReference<v8::Value> ref_copy1(ref);
+    v8::TracedReference<v8::Value> ref_copy2 = ref;
+    EXPECT_EQ(ref, local);
+    EXPECT_EQ(ref_copy1, local);
+    EXPECT_EQ(ref_copy2, local);
   }
 }
 
-TEST_F(JSMemberTest, MoveHeterogenous) {
+TEST_F(TracedReferenceTest, Move) {
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
   {
     v8::HandleScope handles(v8_isolate());
     v8::Local<v8::Object> local =
         v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
-    v8::JSMember<v8::Object> member1(v8_isolate(), local);
-    v8::JSMember<v8::Value> member_moved1(std::move(member1));
-    v8::JSMember<v8::Object> member2(v8_isolate(), local);
-    v8::JSMember<v8::Object> member_moved2 = std::move(member2);
-    EXPECT_TRUE(member1.IsEmpty());
-    EXPECT_EQ(member_moved1, local);
-    EXPECT_TRUE(member2.IsEmpty());
-    EXPECT_EQ(member_moved2, local);
+    v8::TracedReference<v8::Object> ref(v8_isolate(), local);
+    v8::TracedReference<v8::Object> ref_moved1(std::move(ref));
+    v8::TracedReference<v8::Object> ref_moved2 = std::move(ref_moved1);
+    EXPECT_TRUE(ref.IsEmpty());
+    EXPECT_TRUE(ref_moved1.IsEmpty());
+    EXPECT_EQ(ref_moved2, local);
   }
 }
 
-TEST_F(JSMemberTest, Equality) {
+TEST_F(TracedReferenceTest, MoveHeterogenous) {
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
+  {
+    v8::HandleScope handles(v8_isolate());
+    v8::Local<v8::Object> local =
+        v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
+    v8::TracedReference<v8::Object> ref1(v8_isolate(), local);
+    v8::TracedReference<v8::Value> ref_moved1(std::move(ref1));
+    v8::TracedReference<v8::Object> ref2(v8_isolate(), local);
+    v8::TracedReference<v8::Object> ref_moved2 = std::move(ref2);
+    EXPECT_TRUE(ref1.IsEmpty());
+    EXPECT_EQ(ref_moved1, local);
+    EXPECT_TRUE(ref2.IsEmpty());
+    EXPECT_EQ(ref_moved2, local);
+  }
+}
+
+TEST_F(TracedReferenceTest, Equality) {
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
   {
     v8::HandleScope handles(v8_isolate());
     v8::Local<v8::Object> local1 =
         v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
-    v8::JSMember<v8::Object> member1(v8_isolate(), local1);
-    v8::JSMember<v8::Object> member2(v8_isolate(), local1);
-    EXPECT_EQ(member1, member2);
-    EXPECT_EQ(member2, member1);
+    v8::TracedReference<v8::Object> ref1(v8_isolate(), local1);
+    v8::TracedReference<v8::Object> ref2(v8_isolate(), local1);
+    EXPECT_EQ(ref1, ref2);
+    EXPECT_EQ(ref2, ref1);
     v8::Local<v8::Object> local2 =
         v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
-    v8::JSMember<v8::Object> member3(v8_isolate(), local2);
-    EXPECT_NE(member2, member3);
-    EXPECT_NE(member3, member2);
+    v8::TracedReference<v8::Object> ref3(v8_isolate(), local2);
+    EXPECT_NE(ref2, ref3);
+    EXPECT_NE(ref3, ref2);
   }
 }
 
-TEST_F(JSMemberTest, EqualityHeterogenous) {
+TEST_F(TracedReferenceTest, EqualityHeterogenous) {
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
   {
     v8::HandleScope handles(v8_isolate());
     v8::Local<v8::Object> local1 =
         v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
-    v8::JSMember<v8::Object> member1(v8_isolate(), local1);
-    v8::JSMember<v8::Value> member2(v8_isolate(), local1);
-    EXPECT_EQ(member1, member2);
-    EXPECT_EQ(member2, member1);
+    v8::TracedReference<v8::Object> ref1(v8_isolate(), local1);
+    v8::TracedReference<v8::Value> ref2(v8_isolate(), local1);
+    EXPECT_EQ(ref1, ref2);
+    EXPECT_EQ(ref2, ref1);
     v8::Local<v8::Object> local2 =
         v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
-    v8::JSMember<v8::Object> member3(v8_isolate(), local2);
-    EXPECT_NE(member2, member3);
-    EXPECT_NE(member3, member2);
+    v8::TracedReference<v8::Object> ref3(v8_isolate(), local2);
+    EXPECT_NE(ref2, ref3);
+    EXPECT_NE(ref3, ref2);
   }
 }
 
@@ -170,7 +170,7 @@ class JSVisitorForTesting final : public JSVisitor {
       : JSVisitor(cppgc::internal::VisitorFactory::CreateKey()),
         expected_object_(expected_object) {}
 
-  void Visit(const internal::JSMemberBase& ref) final {
+  void Visit(const TracedReferenceBase& ref) final {
     EXPECT_EQ(ref, expected_object_);
     visit_count_++;
   }
@@ -184,14 +184,14 @@ class JSVisitorForTesting final : public JSVisitor {
 
 }  // namespace
 
-TEST_F(JSMemberTest, JSMemberTrace) {
+TEST_F(TracedReferenceTest, TracedReferenceTrace) {
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
   {
     v8::HandleScope handles(v8_isolate());
     v8::Local<v8::Object> local =
         v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
-    v8::JSMember<v8::Object> js_member(v8_isolate(), local);
+    v8::TracedReference<v8::Object> js_member(v8_isolate(), local);
     JSVisitorForTesting visitor(local);
     // Cast to cppgc::Visitor to ensure that we dispatch through the base
     // visitor and use traits.

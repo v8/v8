@@ -293,11 +293,11 @@ class GCedWithJSRef : public cppgc::GarbageCollected<GCedWithJSRef> {
   virtual void Trace(cppgc::Visitor* v) const { v->Trace(v8_object_); }
 
   void SetV8Object(v8::Isolate* isolate, v8::Local<v8::Object> object) {
-    v8_object_.Set(isolate, object);
+    v8_object_.Reset(isolate, object);
   }
 
  private:
-  JSMember<v8::Object> v8_object_;
+  TracedReference<v8::Object> v8_object_;
 };
 constexpr const char GCedWithJSRef::kExpectedName[];
 

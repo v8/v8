@@ -51,7 +51,7 @@ class V8_EXPORT_PRIVATE UnifiedHeapMarkingVisitorBase : public JSVisitor {
   void HandleMovableReference(const void**) final;
 
   // JS handling.
-  void Visit(const internal::JSMemberBase& ref) final;
+  void Visit(const TracedReferenceBase& ref) final;
 
   MarkingStateBase& marking_state_;
   UnifiedHeapMarkingState& unified_heap_marking_state_;

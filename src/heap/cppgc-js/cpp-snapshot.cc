@@ -328,7 +328,7 @@ class CppGraphBuilderImpl final {
   void Run();
 
   void VisitForVisibility(State* parent, const HeapObjectHeader&);
-  void VisitForVisibility(State& parent, const JSMemberBase&);
+  void VisitForVisibility(State& parent, const TracedReferenceBase&);
   void VisitRootForGraphBuilding(RootState&, const HeapObjectHeader&,
                                  const cppgc::SourceLocation&);
   void ProcessPendingObjects();
@@ -360,7 +360,7 @@ class CppGraphBuilderImpl final {
     graph_.AddEdge(parent.get_node(), current.get_node());
   }
 
-  void AddEdge(State& parent, const JSMemberBase& ref) {
+  void AddEdge(State& parent, const TracedReferenceBase& ref) {
     DCHECK(parent.IsVisibleNotDependent());
     v8::Local<v8::Value> v8_value = ref.Get(cpp_heap_.isolate());
     if (!v8_value.IsEmpty()) {
@@ -462,7 +462,7 @@ class VisiblityVisitor final : public JSVisitor {
   void VisitWeakContainer(const void* object,
                           cppgc::TraceDescriptor strong_desc,
                           cppgc::TraceDescriptor weak_desc, cppgc::WeakCallback,
-                          const void*) {
+                          const void*) final {
     if (!weak_desc.callback) {
       // Weak container does not contribute to liveness.
       return;
@@ -475,7 +475,7 @@ class VisiblityVisitor final : public JSVisitor {
   }
 
   // JS handling.
-  void Visit(const JSMemberBase& ref) final {
+  void Visit(const TracedReferenceBase& ref) final {
     graph_builder_.VisitForVisibility(parent_scope_.ParentAsRegularState(),
                                       ref);
   }
@@ -508,7 +508,7 @@ class GraphBuildingVisitor final : public JSVisitor {
   void VisitWeakRoot(const void*, cppgc::TraceDescriptor, cppgc::WeakCallback,
                      const void*, const cppgc::SourceLocation&) final {}
   // JS handling.
-  void Visit(const JSMemberBase& ref) final {
+  void Visit(const TracedReferenceBase& ref) final {
     graph_builder_.AddEdge(parent_scope_.ParentAsRegularState(), ref);
   }
 
@@ -604,7 +604,7 @@ void CppGraphBuilderImpl::VisitForVisibility(State* parent,
 }
 
 void CppGraphBuilderImpl::VisitForVisibility(State& parent,
-                                             const JSMemberBase& ref) {
+                                             const TracedReferenceBase& ref) {
   v8::Local<v8::Value> v8_value = ref.Get(cpp_heap_.isolate());
   if (!v8_value.IsEmpty()) {
     parent.MarkVisible();

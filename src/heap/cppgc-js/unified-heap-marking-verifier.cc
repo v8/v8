@@ -45,7 +45,7 @@ class UnifiedHeapVerificationVisitor final : public JSVisitor {
     state_.VerifyMarked(weak_desc.base_object_payload);
   }
 
-  void Visit(const internal::JSMemberBase& ref) final {
+  void Visit(const TracedReferenceBase& ref) final {
     // TODO(chromium:1056170): Verify V8 object is indeed marked.
   }
 

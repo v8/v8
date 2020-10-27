@@ -4,6 +4,7 @@
 
 #include "src/heap/cppgc-js/unified-heap-marking-visitor.h"
 
+#include "include/v8.h"
 #include "src/heap/cppgc-js/unified-heap-marking-state.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/marking-state.h"
@@ -53,15 +54,15 @@ void UnifiedHeapMarkingVisitorBase::HandleMovableReference(const void** slot) {
 }
 
 namespace {
-void DeferredTraceJSMember(cppgc::Visitor* visitor, const void* ref) {
+void DeferredTraceTracedReference(cppgc::Visitor* visitor, const void* ref) {
   static_cast<JSVisitor*>(visitor)->Trace(
-      *static_cast<const internal::JSMemberBase*>(ref));
+      *static_cast<const TracedReferenceBase*>(ref));
 }
 }  // namespace
 
-void UnifiedHeapMarkingVisitorBase::Visit(const internal::JSMemberBase& ref) {
-  bool should_defer_tracing =
-      DeferTraceToMutatorThreadIfConcurrent(&ref, DeferredTraceJSMember, 0);
+void UnifiedHeapMarkingVisitorBase::Visit(const TracedReferenceBase& ref) {
+  bool should_defer_tracing = DeferTraceToMutatorThreadIfConcurrent(
+      &ref, DeferredTraceTracedReference, 0);
 
   if (!should_defer_tracing) unified_heap_marking_state_.MarkAndPush(ref);
 }
