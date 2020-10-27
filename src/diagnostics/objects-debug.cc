@@ -1383,12 +1383,19 @@ void SourceTextModule::SourceTextModuleVerify(Isolate* isolate) {
   } else if (status() == kEvaluating || status() == kEvaluated) {
     CHECK(code().IsJSGeneratorObject());
   } else {
-    CHECK((status() == kInstantiated && code().IsJSGeneratorObject()) ||
-          (status() == kInstantiating && code().IsJSFunction()) ||
-          (status() == kPreInstantiating && code().IsSharedFunctionInfo()) ||
-          (status() == kUninstantiated && code().IsSharedFunctionInfo()));
-    CHECK(top_level_capability().IsUndefined() && !AsyncParentModuleCount() &&
-          !pending_async_dependencies() && !async_evaluating());
+    if (status() == kInstantiated) {
+      CHECK(code().IsJSGeneratorObject());
+    } else if (status() == kInstantiating) {
+      CHECK(code().IsJSFunction());
+    } else if (status() == kPreInstantiating) {
+      CHECK(code().IsSharedFunctionInfo());
+    } else if (status() == kUninstantiated) {
+      CHECK(code().IsSharedFunctionInfo());
+    }
+    CHECK(top_level_capability().IsUndefined());
+    CHECK(!AsyncParentModuleCount());
+    CHECK(!pending_async_dependencies());
+    CHECK(!async_evaluating());
   }
 
   CHECK_EQ(requested_modules().length(), info().module_requests().length());
