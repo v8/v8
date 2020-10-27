@@ -159,10 +159,12 @@ class CompilationUnitQueues {
     // times.
     int units_per_thread = num_declared_functions_ / num_queues;
     int min = std::max(10, units_per_thread / 8);
+    int queue_id = 0;
     for (auto& queue : queues_) {
       // Set a limit between {min} and {2*min}, but not smaller than {10}.
-      int limit = min + (min * task_id / num_queues);
+      int limit = min + (min * queue_id / num_queues);
       queue->publish_limit.store(limit, std::memory_order_relaxed);
+      ++queue_id;
     }
 
     return queues_[task_id].get();
