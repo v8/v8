@@ -2335,6 +2335,7 @@ void InstructionSelector::VisitS128Select(Node* node) {
   IA32OperandGenerator g(this);
   InstructionOperand operand2 = g.UseRegister(node->InputAt(2));
   if (IsSupported(AVX)) {
+    // AVX supports unaligned memory operands, so Use here is okay.
     Emit(kAVXS128Select, g.DefineAsRegister(node), g.Use(node->InputAt(0)),
          g.Use(node->InputAt(1)), operand2);
   } else {
@@ -2490,11 +2491,15 @@ SIMD_BINOP_UNIFIED_SSE_AVX_LIST(VISIT_SIMD_BINOP_UNIFIED_SSE_AVX)
 #undef VISIT_SIMD_BINOP_UNIFIED_SSE_AVX
 #undef SIMD_BINOP_UNIFIED_SSE_AVX_LIST
 
+// TODO(v8:9198): SSE requires operand1 to be a register as we don't have memory
+// alignment yet. For AVX, memory operands are fine, but can have performance
+// issues if not aligned to 16/32 bytes (based on load size), see SDM Vol 1,
+// chapter 14.9
 void VisitPack(InstructionSelector* selector, Node* node, ArchOpcode avx_opcode,
                ArchOpcode sse_opcode) {
   IA32OperandGenerator g(selector);
   InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
-  InstructionOperand operand1 = g.Use(node->InputAt(1));
+  InstructionOperand operand1 = g.UseRegister(node->InputAt(1));
   if (selector->IsSupported(AVX)) {
     selector->Emit(avx_opcode, g.DefineSameAsFirst(node), operand0, operand1);
   } else {

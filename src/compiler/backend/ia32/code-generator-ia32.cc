@@ -2863,13 +2863,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kSSEI16x8SConvertI32x4: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ packssdw(i.OutputSimd128Register(), i.InputOperand(1));
+      __ packssdw(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kAVXI16x8SConvertI32x4: {
       CpuFeatureScope avx_scope(tasm(), AVX);
       __ vpackssdw(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                   i.InputOperand(1));
+                   i.InputSimd128Register(1));
       break;
     }
     case kSSEI16x8Add: {
@@ -3032,14 +3032,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kSSEI16x8UConvertI32x4: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      __ packusdw(i.OutputSimd128Register(), i.InputOperand(1));
+      __ packusdw(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kAVXI16x8UConvertI32x4: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope avx_scope(tasm(), AVX);
       XMMRegister dst = i.OutputSimd128Register();
-      __ vpackusdw(dst, dst, i.InputOperand(1));
+      __ vpackusdw(dst, dst, i.InputSimd128Register(1));
       break;
     }
     case kSSEI16x8AddSatU: {
