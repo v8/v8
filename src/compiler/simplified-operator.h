@@ -1190,12 +1190,7 @@ class TierUpCheckNode final : public SimplifiedNodeWrapperBase {
     CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kTierUpCheck);
   }
 
-#define INPUTS(V)                                       \
-  V(FeedbackVector, feedback_vector, 0, FeedbackVector) \
-  V(Target, target, 1, JSReceiver)                      \
-  V(NewTarget, new_target, 2, Object)                   \
-  V(InputCount, input_count, 3, Object)                 \
-  V(Context, context, 4, Context)
+#define INPUTS(V) V(FeedbackVector, feedback_vector, 0, FeedbackVector)
   INPUTS(DEFINE_INPUT_ACCESSORS)
 #undef INPUTS
 };

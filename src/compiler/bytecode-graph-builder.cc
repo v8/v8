@@ -1117,23 +1117,7 @@ Node* BytecodeGraphBuilder::BuildLoadNativeContext() {
 
 void BytecodeGraphBuilder::MaybeBuildTierUpCheck() {
   if (!CodeKindChecksOptimizationMarker(code_kind())) return;
-
-  int parameter_count = bytecode_array().parameter_count();
-  Node* target = GetFunctionClosure();
-  Node* new_target = graph()->NewNode(
-      common()->Parameter(
-          Linkage::GetJSCallNewTargetParamIndex(parameter_count),
-          "%new.target"),
-      graph()->start());
-  Node* argc = graph()->NewNode(
-      common()->Parameter(Linkage::GetJSCallArgCountParamIndex(parameter_count),
-                          "%argc"),
-      graph()->start());
-  DCHECK_EQ(environment()->Context()->opcode(), IrOpcode::kParameter);
-  Node* context = environment()->Context();
-
-  NewNode(simplified()->TierUpCheck(), feedback_vector_node(), target,
-          new_target, argc, context);
+  NewNode(simplified()->TierUpCheck(), feedback_vector_node());
 }
 
 void BytecodeGraphBuilder::MaybeBuildIncrementInvocationCount() {

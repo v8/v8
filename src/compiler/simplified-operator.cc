@@ -1325,7 +1325,7 @@ const Operator* SimplifiedOperatorBuilder::UpdateInterruptBudget(int delta) {
 const Operator* SimplifiedOperatorBuilder::TierUpCheck() {
   return zone()->New<Operator>(IrOpcode::kTierUpCheck,
                                Operator::kNoThrow | Operator::kNoDeopt,
-                               "TierUpCheck", 5, 1, 1, 0, 1, 0);
+                               "TierUpCheck", 1, 1, 1, 0, 1, 0);
 }
 
 const Operator* SimplifiedOperatorBuilder::AssertType(Type type) {
