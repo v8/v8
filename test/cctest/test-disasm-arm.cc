@@ -1275,6 +1275,10 @@ TEST(Neon) {
               "f3b6f100       vuzp.16 d15, d0");
       COMPARE(vuzp(Neon16, q15, q0),
               "f3f6e140       vuzp.16 q15, q0");
+      COMPARE(vrev16(Neon8, q15, q0),
+              "f3f0e140       vrev16.8 q15, q0");
+      COMPARE(vrev32(Neon8, q15, q0),
+              "f3f0e0c0       vrev32.8 q15, q0");
       COMPARE(vrev64(Neon8, q15, q0),
               "f3f0e040       vrev64.8 q15, q0");
       COMPARE(vtrn(Neon16, d15, d0),
