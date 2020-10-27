@@ -284,6 +284,9 @@ class JSReceiver : public HeapObject {
                                 TORQUE_GENERATED_JS_RECEIVER_FIELDS)
   bool HasProxyInPrototype(Isolate* isolate);
 
+  // TC39 "Dynamic Code Brand Checks"
+  bool IsCodeKind(Isolate* isolate) const;
+
   OBJECT_CONSTRUCTORS(JSReceiver, HeapObject);
 };
 

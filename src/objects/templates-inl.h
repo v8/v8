@@ -132,6 +132,14 @@ void ObjectTemplateInfo::set_immutable_proto(bool immutable) {
   return set_data(IsImmutablePrototypeBit::update(data(), immutable));
 }
 
+bool ObjectTemplateInfo::code_kind() const {
+  return IsCodeKindBit::decode(data());
+}
+
+void ObjectTemplateInfo::set_code_kind(bool is_code_kind) {
+  return set_data(IsCodeKindBit::update(data(), is_code_kind));
+}
+
 bool FunctionTemplateInfo::IsTemplateFor(JSObject object) {
   return IsTemplateFor(object.map());
 }

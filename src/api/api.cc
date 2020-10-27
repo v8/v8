@@ -2004,6 +2004,17 @@ void ObjectTemplate::SetImmutableProto() {
   self->set_immutable_proto(true);
 }
 
+bool ObjectTemplate::IsCodeKind() {
+  return Utils::OpenHandle(this)->code_kind();
+}
+
+void ObjectTemplate::SetCodeKind() {
+  auto self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
+  self->set_code_kind(true);
+}
+
 // --- S c r i p t s ---
 
 // Internally, UnboundScript is a SharedFunctionInfo, and Script is a
@@ -9042,6 +9053,9 @@ CALLBACK_SETTER(AllowCodeGenerationFromStringsCallback,
 CALLBACK_SETTER(ModifyCodeGenerationFromStringsCallback,
                 ModifyCodeGenerationFromStringsCallback,
                 modify_code_gen_callback)
+CALLBACK_SETTER(ModifyCodeGenerationFromStringsCallback,
+                ModifyCodeGenerationFromStringsCallback2,
+                modify_code_gen_callback2)
 CALLBACK_SETTER(AllowWasmCodeGenerationCallback,
                 AllowWasmCodeGenerationCallback, allow_wasm_code_gen_callback)
 
@@ -9189,6 +9203,14 @@ void v8::Isolate::LocaleConfigurationChangeNotification() {
   i_isolate->ResetDefaultLocale();
   i_isolate->ClearCachedIcuObjects();
 #endif  // V8_INTL_SUPPORT
+}
+
+bool v8::Object::IsCodeKind(v8::Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  LOG_API(i_isolate, Object, IsCodeKind);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  i::HandleScope scope(i_isolate);
+  return Utils::OpenHandle(this)->IsCodeKind(i_isolate);
 }
 
 // static

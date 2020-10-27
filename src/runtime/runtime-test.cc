@@ -1135,7 +1135,8 @@ RUNTIME_FUNCTION(Runtime_IsAsmWasmCode) {
 namespace {
 
 v8::ModifyCodeGenerationFromStringsResult DisallowCodegenFromStringsCallback(
-    v8::Local<v8::Context> context, v8::Local<v8::Value> source) {
+    v8::Local<v8::Context> context, v8::Local<v8::Value> source,
+    bool is_code_kind) {
   return {false, {}};
 }
 

@@ -2043,6 +2043,21 @@ bool JSReceiver::HasProxyInPrototype(Isolate* isolate) {
   return false;
 }
 
+bool JSReceiver::IsCodeKind(Isolate* isolate) const {
+  DisallowGarbageCollection no_gc;
+  Object maybe_constructor = map().GetConstructor();
+  if (!maybe_constructor.IsJSFunction()) return false;
+  if (!JSFunction::cast(maybe_constructor).shared().IsApiFunction()) {
+    return false;
+  }
+  Object instance_template = JSFunction::cast(maybe_constructor)
+                                 .shared()
+                                 .get_api_func_data()
+                                 .GetInstanceTemplate();
+  if (instance_template.IsUndefined(isolate)) return false;
+  return ObjectTemplateInfo::cast(instance_template).code_kind();
+}
+
 // static
 MaybeHandle<JSObject> JSObject::New(Handle<JSFunction> constructor,
                                     Handle<JSReceiver> new_target,

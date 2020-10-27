@@ -158,6 +158,7 @@ class ObjectTemplateInfo
  public:
   DECL_INT_ACCESSORS(embedder_field_count)
   DECL_BOOLEAN_ACCESSORS(immutable_proto)
+  DECL_BOOLEAN_ACCESSORS(code_kind)
 
   // Dispatched behavior.
   DECL_PRINTER(ObjectTemplateInfo)

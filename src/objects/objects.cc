@@ -1812,6 +1812,11 @@ bool Object::IterationHasObservableEffects() {
   return true;
 }
 
+bool Object::IsCodeKind(Isolate* isolate) const {
+  DisallowGarbageCollection no_gc;
+  return IsJSReceiver() && JSReceiver::cast(*this).IsCodeKind(isolate);
+}
+
 void Object::ShortPrint(FILE* out) const {
   OFStream os(out);
   os << Brief(*this);

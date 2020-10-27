@@ -4200,6 +4200,16 @@ class V8_EXPORT Object : public Value {
 
   V8_INLINE static Object* Cast(Value* obj);
 
+  /**
+   * Support for TC39 "dynamic code brand checks" proposal.
+   *
+   * This API allows to query whether an object was constructed from a
+   * "code kind" ObjectTemplate.
+   *
+   * See also: v8::ObjectTemplate::SetCodeKind
+   */
+  bool IsCodeKind(Isolate* isolate);
+
  private:
   Object();
   static void CheckCast(Value* obj);
@@ -6981,6 +6991,18 @@ class V8_EXPORT ObjectTemplate : public Template {
    */
   void SetImmutableProto();
 
+  /**
+   * Support for TC39 "dynamic code brand checks" proposal.
+   *
+   * This API allows to mark (& query) objects as "code kind", which causes
+   * them to be treated as code-like (i.e. like Strings) in the context of
+   * eval and function constructor.
+   *
+   * Reference: https://github.com/tc39/proposal-dynamic-code-brand-checks
+   */
+  void SetCodeKind();
+  bool IsCodeKind();
+
   V8_INLINE static ObjectTemplate* Cast(Data* data);
 
  private:
@@ -7555,11 +7577,15 @@ struct ModifyCodeGenerationFromStringsResult {
 
 /**
  * Callback to check if codegen is allowed from a source object, and convert
- * the source to string if necessary.See  ModifyCodeGenerationFromStrings.
+ * the source to string if necessary. See: ModifyCodeGenerationFromStrings.
  */
 typedef ModifyCodeGenerationFromStringsResult (
     *ModifyCodeGenerationFromStringsCallback)(Local<Context> context,
                                               Local<Value> source);
+typedef ModifyCodeGenerationFromStringsResult (
+    *ModifyCodeGenerationFromStringsCallback2)(Local<Context> context,
+                                               Local<Value> source,
+                                               bool is_code_kind);
 
 // --- WebAssembly compilation callbacks ---
 typedef bool (*ExtensionCallback)(const FunctionCallbackInfo<Value>&);
@@ -9443,8 +9469,15 @@ class V8_EXPORT Isolate {
       "See http://crbug.com/v8/10096.")
   void SetAllowCodeGenerationFromStringsCallback(
       AllowCodeGenerationFromStringsCallback callback);
+  V8_DEPRECATE_SOON(
+      "Use Isolate::SetModifyCodeGenerationFromStringsCallback with "
+      "ModifyCodeGenerationFromStringsCallback2 instead. See "
+      "http://crbug.com/1096017 and TC39 Dynamic Code Brand Checks proposal "
+      "at https://github.com/tc39/proposal-dynamic-code-brand-checks.")
   void SetModifyCodeGenerationFromStringsCallback(
       ModifyCodeGenerationFromStringsCallback callback);
+  void SetModifyCodeGenerationFromStringsCallback(
+      ModifyCodeGenerationFromStringsCallback2 callback);
 
   /**
    * Set the callback to invoke to check if wasm code generation should

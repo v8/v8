@@ -423,6 +423,8 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, nullptr)  \
   V(ModifyCodeGenerationFromStringsCallback, modify_code_gen_callback,         \
     nullptr)                                                                   \
+  V(ModifyCodeGenerationFromStringsCallback2, modify_code_gen_callback2,       \
+    nullptr)                                                                   \
   V(AllowWasmCodeGenerationCallback, allow_wasm_code_gen_callback, nullptr)    \
   V(ExtensionCallback, wasm_module_callback, &NoExtension)                     \
   V(ExtensionCallback, wasm_instance_callback, &NoExtension)                   \
