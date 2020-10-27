@@ -5862,6 +5862,10 @@ void V8::GetSharedMemoryStatistics(SharedMemoryStatistics* statistics) {
   i::ReadOnlyHeap::PopulateReadOnlySpaceStatistics(statistics);
 }
 
+void V8::SetIsCrossOriginIsolated() {
+  i::FLAG_harmony_sharedarraybuffer = true;
+}
+
 template <typename ObjectType>
 struct InvokeBootstrapper;
 

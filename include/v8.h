@@ -9832,6 +9832,12 @@ class V8_EXPORT V8 {
    */
   static void GetSharedMemoryStatistics(SharedMemoryStatistics* statistics);
 
+  /**
+   * Notifies V8 that the process is cross-origin-isolated, which enables
+   * defining the SharedArrayBuffer function on the global object of Contexts.
+   */
+  static void SetIsCrossOriginIsolated();
+
  private:
   V8();
 
