@@ -1692,6 +1692,9 @@ struct LoopPeelingPhase {
 
     LoopTree* loop_tree = LoopFinder::BuildLoopTree(
         data->jsgraph()->graph(), &data->info()->tick_counter(), temp_zone);
+    // We call the typer inside of PeelInnerLoopsOfTree which inspects heap
+    // objects, so we need to unpark the local heap.
+    UnparkedScopeIfNeeded scope(data->broker());
     LoopPeeler(data->graph(), data->common(), loop_tree, temp_zone,
                data->source_positions(), data->node_origins())
         .PeelInnerLoopsOfTree();

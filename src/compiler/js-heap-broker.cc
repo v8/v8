@@ -850,7 +850,9 @@ class StringData : public NameData {
 class SymbolData : public NameData {
  public:
   SymbolData(JSHeapBroker* broker, ObjectData** storage, Handle<Symbol> object)
-      : NameData(broker, storage, object) {}
+      : NameData(broker, storage, object) {
+    DCHECK(!FLAG_turbo_direct_heap_access);
+  }
 };
 
 namespace {
