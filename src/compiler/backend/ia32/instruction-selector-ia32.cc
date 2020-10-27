@@ -2433,11 +2433,20 @@ SIMD_UNOP_LIST(VISIT_SIMD_UNOP)
 #undef VISIT_SIMD_UNOP
 #undef SIMD_UNOP_LIST
 
+// TODO(v8:9198): SSE instructions that read 16 bytes from memory require the
+// operand to be 16-byte aligned. AVX instructions relax this requirement, but
+// might have reduced performance if the memory crosses cache line. But since we
+// have limited xmm registers, this might be okay to alleviate register
+// pressure.
 #define VISIT_SIMD_UNOP_PREFIX(Opcode)                                       \
   void InstructionSelector::Visit##Opcode(Node* node) {                      \
     IA32OperandGenerator g(this);                                            \
-    InstructionCode opcode = IsSupported(AVX) ? kAVX##Opcode : kSSE##Opcode; \
-    Emit(opcode, g.DefineAsRegister(node), g.Use(node->InputAt(0)));         \
+    if (IsSupported(AVX)) {                                                  \
+      Emit(kAVX##Opcode, g.DefineAsRegister(node), g.Use(node->InputAt(0))); \
+    } else {                                                                 \
+      Emit(kSSE##Opcode, g.DefineSameAsFirst(node),                          \
+           g.UseRegister(node->InputAt(0)));                                 \
+    }                                                                        \
   }
 SIMD_UNOP_PREFIX_LIST(VISIT_SIMD_UNOP_PREFIX)
 #undef VISIT_SIMD_UNOP_PREFIX
