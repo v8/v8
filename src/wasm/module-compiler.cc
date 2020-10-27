@@ -1170,6 +1170,7 @@ CompilationExecutionResult ExecuteJSToWasmWrapperCompilationUnits(
     if (!wrapper_unit) return kNoMoreUnits;
   }
 
+  TRACE_EVENT0("v8.wasm", "wasm.JSToWasmWrapperCompilation");
   while (true) {
     wrapper_unit->Execute();
     ++num_processed_wrappers;
