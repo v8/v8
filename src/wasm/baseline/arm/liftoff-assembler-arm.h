@@ -2258,7 +2258,17 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
       vmovl(NeonU32, liftoff::GetSimd128Register(dst), dst.low_fp());
     }
   } else if (transform == LoadTransformationKind::kZeroExtend) {
-    bailout(kSimd, "v128.load_zero unimplemented");
+    Simd128Register dest = liftoff::GetSimd128Register(dst);
+    if (memtype == MachineType::Int32()) {
+      vmov(dest, 0);
+      vld1s(Neon32, NeonListOperand(dst.low_fp()), 0,
+            NeonMemOperand(actual_src_addr));
+    } else {
+      DCHECK_EQ(MachineType::Int64(), memtype);
+      vmov(dest.high(), 0);
+      vld1(Neon64, NeonListOperand(dest.low()),
+           NeonMemOperand(actual_src_addr));
+    }
   } else {
     DCHECK_EQ(LoadTransformationKind::kSplat, transform);
     if (memtype == MachineType::Int8()) {

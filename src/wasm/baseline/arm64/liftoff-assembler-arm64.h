@@ -1506,7 +1506,12 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
       Uxtl(dst.fp().V2D(), dst.fp().V2S());
     }
   } else if (transform == LoadTransformationKind::kZeroExtend) {
-    bailout(kSimd, "v128.load_zero unimplemented");
+    if (memtype == MachineType::Int32()) {
+      Ldr(dst.fp().S(), src_op);
+    } else {
+      DCHECK_EQ(MachineType::Int64(), memtype);
+      Ldr(dst.fp().D(), src_op);
+    }
   } else {
     // ld1r only allows no offset or post-index, so emit an add.
     DCHECK_EQ(LoadTransformationKind::kSplat, transform);
