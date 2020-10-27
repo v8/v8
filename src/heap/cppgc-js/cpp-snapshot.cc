@@ -9,12 +9,15 @@
 #include "include/cppgc/trace-trait.h"
 #include "include/v8-cppgc.h"
 #include "include/v8-profiler.h"
+#include "src/api/api-inl.h"
 #include "src/base/logging.h"
 #include "src/execution/isolate.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-visitor.h"
+#include "src/heap/embedder-tracing.h"
 #include "src/heap/mark-compact.h"
+#include "src/objects/js-objects.h"
 #include "src/profiler/heap-profiler.h"
 
 namespace v8 {
@@ -37,8 +40,14 @@ class EmbedderNode : public v8::EmbedderGraph::Node {
   const char* Name() final { return name_; }
   size_t SizeInBytes() override { return 0; }
 
+  void SetWrapperNode(v8::EmbedderGraph::Node* wrapper_node) {
+    wrapper_node_ = wrapper_node;
+  }
+  Node* WrapperNode() final { return wrapper_node_; }
+
  private:
   const char* name_;
+  Node* wrapper_node_ = nullptr;
 };
 
 // Node representing an artificial root group, e.g., set of Persistent handles.
@@ -281,6 +290,23 @@ class StateStorage final {
   size_t state_count_ = 0;
 };
 
+bool HasEmbedderDataBackref(Isolate* isolate, v8::Local<v8::Value> v8_value,
+                            void* expected_backref) {
+  // See LocalEmbedderHeapTracer::VerboseWrapperTypeInfo for details on how
+  // wrapper objects are set up.
+  if (!v8_value->IsObject()) return false;
+
+  Handle<Object> v8_object = Utils::OpenHandle(*v8_value);
+  if (!v8_object->IsJSObject() || !JSObject::cast(*v8_object).IsApiWrapper())
+    return false;
+
+  JSObject js_object = JSObject::cast(*v8_object);
+  return js_object.GetEmbedderFieldCount() >= 2 &&
+         LocalEmbedderHeapTracer::VerboseWrapperInfo(
+             LocalEmbedderHeapTracer::ExtractWrapperInfo(isolate, js_object))
+                 .instance() == expected_backref;
+}
+
 // The following implements a snapshotting algorithm for C++ objects that also
 // filters strongly-connected components (SCCs) of only "hidden" objects that
 // are not (transitively) referencing any non-hidden objects.
@@ -369,6 +395,17 @@ class CppGraphBuilderImpl final {
       }
       auto* v8_node = graph_.V8Node(v8_value);
       graph_.AddEdge(parent.get_node(), v8_node);
+
+      // References that have a class id set may have their internal fields
+      // pointing back to the object. Set up a wrapper node for the graph so
+      // that the snapshot generator  can merge the nodes appropriately.
+      if (!ref.WrapperClassId()) return;
+
+      if (HasEmbedderDataBackref(
+              reinterpret_cast<v8::internal::Isolate*>(cpp_heap_.isolate()),
+              v8_value, parent.header()->Payload())) {
+        parent.get_node()->SetWrapperNode(v8_node);
+      }
     }
   }
 

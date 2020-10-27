@@ -855,6 +855,17 @@ class TracedReferenceBase {
     return this->GetSlotThreadSafe() == nullptr;
   }
 
+  /**
+   * Assigns a wrapper class ID to the handle.
+   */
+  V8_INLINE void SetWrapperClassId(uint16_t class_id);
+
+  /**
+   * Returns the class ID previously assigned to this handle or 0 if no class ID
+   * was previously assigned.
+   */
+  V8_INLINE uint16_t WrapperClassId() const;
+
  protected:
   /**
    * Update this reference in a thread-safe way.
@@ -906,17 +917,6 @@ class BasicTracedReference : public TracedReferenceBase {
    * Construct a Local<T> from this handle.
    */
   Local<T> Get(Isolate* isolate) const { return Local<T>::New(isolate, *this); }
-
-  /**
-   * Assigns a wrapper class ID to the handle.
-   */
-  V8_INLINE void SetWrapperClassId(uint16_t class_id);
-
-  /**
-   * Returns the class ID previously assigned to this handle or 0 if no class ID
-   * was previously assigned.
-   */
-  V8_INLINE uint16_t WrapperClassId() const;
 
   template <class S>
   V8_INLINE BasicTracedReference<S>& As() const {
@@ -11140,8 +11140,7 @@ TracedReference<T>& TracedReference<T>::operator=(const TracedReference& rhs) {
   return *this;
 }
 
-template <class T>
-void BasicTracedReference<T>::SetWrapperClassId(uint16_t class_id) {
+void TracedReferenceBase::SetWrapperClassId(uint16_t class_id) {
   typedef internal::Internals I;
   if (IsEmpty()) return;
   internal::Address* obj = reinterpret_cast<internal::Address*>(val_);
@@ -11149,8 +11148,7 @@ void BasicTracedReference<T>::SetWrapperClassId(uint16_t class_id) {
   *reinterpret_cast<uint16_t*>(addr) = class_id;
 }
 
-template <class T>
-uint16_t BasicTracedReference<T>::WrapperClassId() const {
+uint16_t TracedReferenceBase::WrapperClassId() const {
   typedef internal::Internals I;
   if (IsEmpty()) return 0;
   internal::Address* obj = reinterpret_cast<internal::Address*>(val_);

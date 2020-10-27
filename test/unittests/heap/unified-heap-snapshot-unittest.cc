@@ -296,6 +296,10 @@ class GCedWithJSRef : public cppgc::GarbageCollected<GCedWithJSRef> {
     v8_object_.Reset(isolate, object);
   }
 
+  void SetWrapperClassId(uint16_t class_id) {
+    v8_object_.SetWrapperClassId(class_id);
+  }
+
  private:
   TracedReference<v8::Object> v8_object_;
 };
@@ -322,6 +326,42 @@ TEST_F(UnifiedHeapSnapshotTest, JSReferenceForcesVisibleObject) {
                                 kExpectedCppRootsName,             // NOLINT
                                 GetExpectedName<GCedWithJSRef>(),  // NOLINT
                                 "LeafJSObject"                     // NOLINT
+                            }));
+}
+
+TEST_F(UnifiedHeapSnapshotTest, MergedWrapperNode) {
+  // Test ensures that the snapshot sets a wrapper node for C++->JS references
+  // that have a class id set and that object nodes are merged into the C++
+  // node, i.e., the directly reachable JS object is merged into the C++ object.
+  cppgc::Persistent<GCedWithJSRef> gc_w_js_ref =
+      cppgc::MakeGarbageCollected<GCedWithJSRef>(allocation_handle());
+  v8::HandleScope scope(v8_isolate());
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
+  v8::Local<v8::Object> wrapper_object =
+      ConstructTraceableJSApiObject(context, gc_w_js_ref.Get(), "MergedObject");
+  gc_w_js_ref->SetV8Object(v8_isolate(), wrapper_object);
+  gc_w_js_ref->SetWrapperClassId(1);  // Any class id will do.
+  // Chain another object to `wrapper_object`. Since `wrapper_object` should be
+  // merged into `GCedWithJSRef`, the additional object must show up as direct
+  // child from `GCedWithJSRef`.
+  v8::Local<v8::Object> next_object =
+      ConstructTraceableJSApiObject(context, nullptr, "NextObject");
+  wrapper_object
+      ->Set(context,
+            v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), "link")
+                .ToLocalChecked(),
+            next_object)
+      .ToChecked();
+  const v8::HeapSnapshot* snapshot = TakeHeapSnapshot();
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+  EXPECT_TRUE(
+      ContainsRetainingPath(*snapshot,
+                            {
+                                kExpectedCppRootsName,             // NOLINT
+                                GetExpectedName<GCedWithJSRef>(),  // NOLINT
+                                // MergedObject is merged into GCedWithJSRef.
+                                "NextObject"  // NOLINT
                             }));
 }
 
