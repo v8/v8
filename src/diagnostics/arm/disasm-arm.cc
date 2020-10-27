@@ -2434,16 +2434,18 @@ void Decoder::DecodeAdvancedSIMDElementOrStructureLoadStore(
   int op0 = instr->Bit(23);
   int op1 = instr->Bits(11, 10);
   int l = instr->Bit(21);
+  int n = instr->Bits(9, 8);
+  int Vd = instr->VFPDRegValue(kDoublePrecision);
+  int Rn = instr->VnValue();
+  int Rm = instr->VmValue();
+
   if (op0 == 0) {
     // Advanced SIMD load/store multiple structures.
     int itype = instr->Bits(11, 8);
     if (itype == 0b0010) {
       // vld1/vst1
-      int Vd = (instr->Bit(22) << 4) | instr->VdValue();
-      int Rn = instr->VnValue();
       int size = instr->Bits(7, 6);
       int align = instr->Bits(5, 4);
-      int Rm = instr->VmValue();
       const char* op = l ? "vld1.%d " : "vst1.%d ";
       out_buffer_pos_ +=
           SNPrintF(out_buffer_ + out_buffer_pos_, op, (1 << size) << 3);
@@ -2453,15 +2455,27 @@ void Decoder::DecodeAdvancedSIMDElementOrStructureLoadStore(
     } else {
       Unknown(instr);
     }
+  } else if (op1 == 0b11) {
+    // Advanced SIMD load single structure to all lanes.
+    if (l && n == 0b00) {
+      // vld1r(replicate) single element to all lanes.
+      int size = instr->Bits(7, 6);
+      DCHECK_NE(0b11, size);
+      int type = instr->Bit(5) ? nlt_2 : nlt_1;
+      out_buffer_pos_ +=
+          SNPrintF(out_buffer_ + out_buffer_pos_, "vld1.%d ", (1 << size) << 3);
+      FormatNeonList(Vd, type);
+      DCHECK_EQ(0, instr->Bit(4));  // Alignment not supported.
+      Print(", ");
+      FormatNeonMemory(Rn, 0, Rm);
+    } else {
+      Unknown(instr);
+    }
   } else if (op1 != 0b11) {
     // Advanced SIMD load/store single structure to one lane.
     int size = op1;  // size and op1 occupy the same bits in decoding.
-    int n = instr->Bits(9, 8);
     if (l && n == 0b00) {
       // VLD1 (single element to one lane) - A1, A2, A3
-      int Vd = instr->VFPDRegValue(kDoublePrecision);
-      int Rn = instr->VnValue();
-      int Rm = instr->VmValue();
       int index_align = instr->Bits(7, 4);
       int index = index_align >> (size + 1);
       // Omit alignment.

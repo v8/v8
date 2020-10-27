@@ -1000,6 +1000,10 @@ TEST(Neon) {
               "f4a1480f       vld1.32 {d4[0]}, [r1]");
       COMPARE(vld1s(Neon16, NeonListOperand(d4, 1), 3, NeonMemOperand(r1)),
               "f4a144cf       vld1.16 {d4[3]}, [r1]");
+      COMPARE(vld1r(Neon8, NeonListOperand(d4, 1), NeonMemOperand(r1)),
+              "f4a14c0f       vld1.8 {d4}, [r1]");
+      COMPARE(vld1r(Neon16, NeonListOperand(d4, 2), NeonMemOperand(r1)),
+              "f4a14c6f       vld1.16 {d4, d5}, [r1]");
       COMPARE(vst1(Neon16, NeonListOperand(d17, 4), NeonMemOperand(r9)),
               "f449124f       vst1.16 {d17, d18, d19, d20}, [r9]");
       COMPARE(vmovl(NeonU8, q3, d1), "f3886a11       vmovl.u8 q3, d1");
