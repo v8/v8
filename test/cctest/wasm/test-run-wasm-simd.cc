@@ -3785,36 +3785,62 @@ void RunLoadLaneTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
     // Not yet implemented.
     return;
   }
+
   WasmOpcode const_op =
       splat_op == kExprI64x2Splat ? kExprI64Const : kExprI32Const;
 
   constexpr int lanes_s = kSimd128Size / sizeof(T);
   constexpr int mem_index = 16;  // Load from mem index 16 (bytes).
   constexpr int splat_value = 33;
+  T sentinel = T{-1};
 
-  for (int lane_index = 0; lane_index < lanes_s; lane_index++) {
-    WasmRunner<int32_t> r(execution_tier, lower_simd);
-    T* memory = r.builder().AddMemoryElems<T>(kWasmPageSize / sizeof(T));
-    T* global = r.builder().AddGlobal<T>(kWasmS128);
+  T* memory;
+  T* global;
 
+  auto build_fn = [=, &memory, &global](WasmRunner<int32_t>& r, int mem_index,
+                                        int lane, int alignment, int offset) {
+    memory = r.builder().AddMemoryElems<T>(kWasmPageSize / sizeof(T));
+    global = r.builder().AddGlobal<T>(kWasmS128);
+    r.builder().WriteMemory(&memory[lanes_s], sentinel);
     // Splat splat_value, then only load and replace a single lane with the
     // sentinel value.
     BUILD(r, WASM_I32V(mem_index), const_op, splat_value,
-          WASM_SIMD_OP(splat_op), WASM_SIMD_OP(load_op), ZERO_ALIGNMENT,
-          ZERO_OFFSET, lane_index, kExprGlobalSet, 0, WASM_ONE);
+          WASM_SIMD_OP(splat_op), WASM_SIMD_OP(load_op), alignment, offset,
+          lane, kExprGlobalSet, 0, WASM_ONE);
+  };
 
-    T sentinel = T{-1};
-    r.builder().WriteMemory(&memory[lanes_s], sentinel);
-    r.Call();
-
+  auto check_results = [=](T* global, int sentinel_lane_index = 0) {
     // Only one lane is loaded, the rest of the lanes are unchanged.
     for (int i = 0; i < lanes_s; i++) {
-      if (i == lane_index) {
-        CHECK_EQ(sentinel, ReadLittleEndianValue<T>(&global[i]));
-      } else {
-        CHECK_EQ(T{splat_value}, ReadLittleEndianValue<T>(&global[i]));
-      }
+      T expected = i == sentinel_lane_index ? sentinel : T{splat_value};
+      CHECK_EQ(expected, ReadLittleEndianValue<T>(&global[i]));
     }
+  };
+
+  for (int lane_index = 0; lane_index < lanes_s; ++lane_index) {
+    WasmRunner<int32_t> r(execution_tier, lower_simd);
+    build_fn(r, mem_index, lane_index, /*alignment=*/0, /*offset=*/0);
+    r.Call();
+    check_results(global, lane_index);
+  }
+
+  // Check all possible alignments.
+  constexpr int max_alignment = base::bits::CountTrailingZeros(sizeof(T));
+  for (byte alignment = 0; alignment <= max_alignment; ++alignment) {
+    WasmRunner<int32_t> r(execution_tier, lower_simd);
+    build_fn(r, mem_index, /*lane=*/0, alignment, /*offset=*/0);
+    r.Call();
+    check_results(global);
+  }
+
+  {
+    // Use memarg to specify offset.
+    int lane_index = 0;
+    WasmRunner<int32_t> r(execution_tier, lower_simd);
+    build_fn(r, /*mem_index=*/0, /*lane=*/0, /*alignment=*/0,
+             /*offset=*/mem_index);
+    r.Call();
+    check_results(global, lane_index);
   }
 
   // Test for OOB.
