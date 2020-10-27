@@ -229,6 +229,8 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   }
   // Features are usually enabled by CpuFeatureScope, which also asserts that
   // the features are supported before they are enabled.
+  // IMPORTANT:  IsEnabled() should only be used by DCHECKs. For real feature
+  // detection, use IsSupported().
   bool IsEnabled(CpuFeature f) {
     return (enabled_cpu_features_ & (static_cast<uint64_t>(1) << f)) != 0;
   }

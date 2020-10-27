@@ -2134,6 +2134,23 @@ void TurboAssembler::RestoreFPRegs(Register location, Register scratch) {
   add(location, location, Operand(16 * kDoubleSize), LeaveCC, eq);
 }
 
+void TurboAssembler::SaveFPRegsToHeap(Register location, Register scratch) {
+  CpuFeatureScope scope(this, VFP32DREGS, CpuFeatureScope::kDontCheckSupported);
+  CheckFor32DRegs(scratch);
+  vstm(ia_w, location, d0, d15);
+  vstm(ia_w, location, d16, d31, ne);
+  add(location, location, Operand(16 * kDoubleSize), LeaveCC, eq);
+}
+
+void TurboAssembler::RestoreFPRegsFromHeap(Register location,
+                                           Register scratch) {
+  CpuFeatureScope scope(this, VFP32DREGS, CpuFeatureScope::kDontCheckSupported);
+  CheckFor32DRegs(scratch);
+  vldm(ia_w, location, d0, d15);
+  vldm(ia_w, location, d16, d31, ne);
+  add(location, location, Operand(16 * kDoubleSize), LeaveCC, eq);
+}
+
 template <typename T>
 void TurboAssembler::FloatMaxHelper(T result, T left, T right,
                                     Label* out_of_line) {

@@ -774,7 +774,7 @@ class FrameDescription {
     return offsetof(FrameDescription, register_values_.registers_);
   }
 
-  static int double_registers_offset() {
+  static constexpr int double_registers_offset() {
     return offsetof(FrameDescription, register_values_.double_registers_);
   }
 

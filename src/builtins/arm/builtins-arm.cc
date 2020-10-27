@@ -3151,27 +3151,18 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
                                   DeoptimizeKind deopt_kind) {
   Isolate* isolate = masm->isolate();
 
+  // Note: This is an overapproximation; we always reserve space for 32 double
+  // registers, even though the actual CPU may only support 16. In the latter
+  // case, SaveFPRegs and RestoreFPRegs still use 32 stack slots, but only fill
+  // 16.
   static constexpr int kDoubleRegsSize =
       kDoubleSize * DwVfpRegister::kNumRegisters;
 
   // Save all allocatable VFP registers before messing with them.
   {
-    // We use a run-time check for VFP32DREGS.
-    CpuFeatureScope scope(masm, VFP32DREGS,
-                          CpuFeatureScope::kDontCheckSupported);
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
-
-    // Check CPU flags for number of registers, setting the Z condition flag.
-    __ CheckFor32DRegs(scratch);
-
-    // Push registers d0-d15, and possibly d16-d31, on the stack.
-    // If d16-d31 are not pushed, decrease the stack pointer instead.
-    __ vstm(db_w, sp, d16, d31, ne);
-    // Okay to not call AllocateStackSpace here because the size is a known
-    // small number and we need to use condition codes.
-    __ sub(sp, sp, Operand(16 * kDoubleSize), LeaveCC, eq);
-    __ vstm(db_w, sp, d0, d15);
+    __ SaveFPRegs(sp, scratch);
   }
 
   // Save all general purpose registers before messing with them.
@@ -3230,7 +3221,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   // frame descriptor pointer to r1 (deoptimizer->input_);
   __ ldr(r1, MemOperand(r0, Deoptimizer::input_offset()));
 
-  // Copy core registers into FrameDescription::registers_[kNumRegisters].
+  // Copy core registers into FrameDescription::registers_.
   DCHECK_EQ(Register::kNumRegisters, kNumberOfRegisters);
   for (int i = 0; i < kNumberOfRegisters; i++) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
@@ -3238,16 +3229,19 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     __ str(r2, MemOperand(r1, offset));
   }
 
-  // Copy VFP registers to
-  // double_registers_[DoubleRegister::kNumAllocatableRegisters]
-  int double_regs_offset = FrameDescription::double_registers_offset();
-  const RegisterConfiguration* config = RegisterConfiguration::Default();
-  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
-    int code = config->GetAllocatableDoubleCode(i);
-    int dst_offset = code * kDoubleSize + double_regs_offset;
-    int src_offset = code * kDoubleSize + kNumberOfRegisters * kPointerSize;
-    __ vldr(d0, sp, src_offset);
-    __ vstr(d0, r1, dst_offset);
+  // Copy double registers to double_registers_.
+  static constexpr int kDoubleRegsOffset =
+      FrameDescription::double_registers_offset();
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    Register src_location = r4;
+    __ add(src_location, sp, Operand(kNumberOfRegisters * kPointerSize));
+    __ RestoreFPRegs(src_location, scratch);
+
+    Register dst_location = r4;
+    __ add(dst_location, r1, Operand(kDoubleRegsOffset));
+    __ SaveFPRegsToHeap(dst_location, scratch);
   }
 
   // Mark the stack as not iterable for the CPU profiler which won't be able to
@@ -3324,11 +3318,18 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ b(lt, &outer_push_loop);
 
   __ ldr(r1, MemOperand(r0, Deoptimizer::input_offset()));
-  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
-    int code = config->GetAllocatableDoubleCode(i);
-    DwVfpRegister reg = DwVfpRegister::from_code(code);
-    int src_offset = code * kDoubleSize + double_regs_offset;
-    __ vldr(reg, r1, src_offset);
+
+  // State:
+  // r1: Deoptimizer::input_ (FrameDescription*).
+  // r2: The last output FrameDescription pointer (FrameDescription*).
+
+  // Restore double registers from the input frame description.
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    Register src_location = r6;
+    __ add(src_location, r1, Operand(kDoubleRegsOffset));
+    __ RestoreFPRegsFromHeap(src_location, scratch);
   }
 
   // Push pc and continuation from the last output frame.

@@ -394,6 +394,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // values to location, restoring [d0..(d15|d31)].
   void RestoreFPRegs(Register location, Register scratch);
 
+  // As above, but with heap semantics instead of stack semantics, i.e.: the
+  // location starts at the lowest address and grows towards higher addresses,
+  // for both saves and restores.
+  void SaveFPRegsToHeap(Register location, Register scratch);
+  void RestoreFPRegsFromHeap(Register location, Register scratch);
+
   // Calculate how much stack space (in bytes) are required to store caller
   // registers excluding those specified in the arguments.
   int RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
