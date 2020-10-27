@@ -1510,31 +1510,13 @@ inline std::ostream& operator<<(std::ostream& os,
 
 using FileAndLine = std::pair<const char*, int>;
 
-enum OptimizationMarker : int32_t {
-  // These values are set so that it is easy to check if there is a marker where
-  // some processing needs to be done.
-  kNone = 0b000,
-  kInOptimizationQueue = 0b001,
-  kCompileOptimized = 0b010,
-  kCompileOptimizedConcurrent = 0b011,
-  kLogFirstExecution = 0b100,
-  kLastOptimizationMarker = kLogFirstExecution
+enum class OptimizationMarker {
+  kLogFirstExecution,
+  kNone,
+  kCompileOptimized,
+  kCompileOptimizedConcurrent,
+  kInOptimizationQueue
 };
-// For kNone or kInOptimizationQueue we don't need any special processing.
-// To check both cases using a single mask, we expect the kNone to be 0 and
-// kInOptimizationQueue to be 1 so that we can mask off the lsb for checking.
-STATIC_ASSERT(kNone == 0b000 && kInOptimizationQueue == 0b001);
-STATIC_ASSERT(kLastOptimizationMarker <= 0b111);
-static constexpr uint32_t kNoneOrInOptimizationQueueMask = 0b110;
-
-inline bool IsInOptimizationQueueMarker(OptimizationMarker marker) {
-  return marker == OptimizationMarker::kInOptimizationQueue;
-}
-
-inline bool IsCompileOptimizedMarker(OptimizationMarker marker) {
-  return marker == OptimizationMarker::kCompileOptimized ||
-         marker == OptimizationMarker::kCompileOptimizedConcurrent;
-}
 
 inline std::ostream& operator<<(std::ostream& os,
                                 const OptimizationMarker& marker) {
@@ -1550,27 +1532,8 @@ inline std::ostream& operator<<(std::ostream& os,
     case OptimizationMarker::kInOptimizationQueue:
       return os << "OptimizationMarker::kInOptimizationQueue";
   }
-}
-
-enum class OptimizationTier {
-  kNone = 0b00,
-  kMidTier = 0b01,
-  kTopTier = 0b10,
-  kLastOptimizationTier = kTopTier
-};
-static constexpr uint32_t kNoneOrMidTierMask = 0b10;
-static constexpr uint32_t kNoneMask = 0b11;
-
-inline std::ostream& operator<<(std::ostream& os,
-                                const OptimizationTier& tier) {
-  switch (tier) {
-    case OptimizationTier::kNone:
-      return os << "OptimizationTier::kNone";
-    case OptimizationTier::kMidTier:
-      return os << "OptimizationTier::kMidTier";
-    case OptimizationTier::kTopTier:
-      return os << "OptimizationTier::kTopTier";
-  }
+  UNREACHABLE();
+  return os;
 }
 
 enum class SpeculationMode { kAllowSpeculation, kDisallowSpeculation };

@@ -889,7 +889,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void Cmp(Operand dst, Handle<Object> source);
   void Cmp(Register dst, Smi src);
   void Cmp(Operand dst, Smi src);
-  void Cmp(Register dst, int32_t src);
 
   // Checks if value is in range [lower_limit, higher_limit] using a single
   // comparison.

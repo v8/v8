@@ -252,15 +252,13 @@ Handle<FeedbackVector> FeedbackVector::New(
   DCHECK_EQ(vector->length(), slot_count);
 
   DCHECK_EQ(vector->shared_function_info(), *shared);
-  DCHECK_EQ(vector->optimization_marker(),
-            FLAG_log_function_events ? OptimizationMarker::kLogFirstExecution
-                                     : OptimizationMarker::kNone);
-  // TODO(mythria): This might change if NCI code is installed on feedback
-  // vector. Update this accordingly.
-  DCHECK_EQ(vector->optimization_tier(), OptimizationTier::kNone);
+  DCHECK_EQ(
+      vector->optimized_code_weak_or_smi(),
+      MaybeObject::FromSmi(Smi::FromEnum(
+          FLAG_log_function_events ? OptimizationMarker::kLogFirstExecution
+                                   : OptimizationMarker::kNone)));
   DCHECK_EQ(vector->invocation_count(), 0);
   DCHECK_EQ(vector->profiler_ticks(), 0);
-  DCHECK(vector->maybe_optimized_code()->IsCleared());
 
   // Ensure we can skip the write barrier
   Handle<Symbol> uninitialized_sentinel = UninitializedSentinel(isolate);
@@ -385,56 +383,32 @@ void FeedbackVector::SaturatingIncrementProfilerTicks() {
 void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
                                       Handle<Code> code) {
   DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
-  DCHECK(vector->optimization_tier() == OptimizationTier::kNone ||
-         (vector->optimization_tier() == OptimizationTier::kMidTier &&
-          code->kind() == CodeKind::TURBOFAN));
-  DCHECK(vector->optimization_marker() == OptimizationMarker::kNone ||
-         vector->optimization_marker() ==
-             OptimizationMarker::kInOptimizationQueue);
-  vector->set_maybe_optimized_code(HeapObjectReference::Weak(*code));
-  int32_t state = vector->flags();
-  state = OptimizationTierBits::update(state, GetTierForCodeKind(code->kind()));
-  state = OptimizationMarkerBits::update(state, OptimizationMarker::kNone);
-  vector->set_flags(state);
+  vector->set_optimized_code_weak_or_smi(HeapObjectReference::Weak(*code));
 }
 
 void FeedbackVector::ClearOptimizedCode() {
   DCHECK(has_optimized_code());
-  DCHECK_NE(optimization_tier(), OptimizationTier::kNone);
-  set_maybe_optimized_code(HeapObjectReference::ClearedValue(GetIsolate()));
-  ClearOptimizationTier();
+  SetOptimizationMarker(OptimizationMarker::kNone);
 }
 
 void FeedbackVector::ClearOptimizationMarker() {
+  DCHECK(!has_optimized_code());
   SetOptimizationMarker(OptimizationMarker::kNone);
 }
 
 void FeedbackVector::SetOptimizationMarker(OptimizationMarker marker) {
-  int32_t state = flags();
-  state = OptimizationMarkerBits::update(state, marker);
-  set_flags(state);
-}
-
-void FeedbackVector::ClearOptimizationTier() {
-  int32_t state = flags();
-  state = OptimizationTierBits::update(state, OptimizationTier::kNone);
-  set_flags(state);
-}
-
-void FeedbackVector::InitializeOptimizationState() {
-  int32_t state = 0;
-  state = OptimizationMarkerBits::update(
-      state, FLAG_log_function_events ? OptimizationMarker::kLogFirstExecution
-                                      : OptimizationMarker::kNone);
-  state = OptimizationTierBits::update(state, OptimizationTier::kNone);
-  set_flags(state);
+  set_optimized_code_weak_or_smi(MaybeObject::FromSmi(Smi::FromEnum(marker)));
 }
 
 void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
     SharedFunctionInfo shared, const char* reason) {
-  MaybeObject slot = maybe_optimized_code();
+  MaybeObject slot = optimized_code_weak_or_smi();
+  if (slot->IsSmi()) {
+    return;
+  }
+
   if (slot->IsCleared()) {
-    ClearOptimizationTier();
+    ClearOptimizationMarker();
     return;
   }
 

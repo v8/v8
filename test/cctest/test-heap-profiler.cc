@@ -4072,11 +4072,7 @@ TEST(WeakReference) {
           .Build();
   CHECK(code->IsCode());
 
-  fv->set_maybe_optimized_code(i::HeapObjectReference::Weak(*code));
-  fv->set_flags(i::FeedbackVector::OptimizationTierBits::encode(
-                    i::OptimizationTier::kTopTier) |
-                i::FeedbackVector::OptimizationMarkerBits::encode(
-                    i::OptimizationMarker::kNone));
+  fv->set_optimized_code_weak_or_smi(i::HeapObjectReference::Weak(*code));
 
   v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();

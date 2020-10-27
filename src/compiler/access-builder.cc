@@ -1273,11 +1273,12 @@ FieldAccess AccessBuilder::ForFeedbackVectorInvocationCount() {
 }
 
 // static
-FieldAccess AccessBuilder::ForFeedbackVectorFlags() {
+FieldAccess AccessBuilder::ForFeedbackVectorOptimizedCodeWeakOrSmi() {
   FieldAccess access = {
-      kTaggedBase,        FeedbackVector::kFlagsOffset, Handle<Name>(),
-      MaybeHandle<Map>(), TypeCache::Get()->kUint32,    MachineType::Uint32(),
-      kNoWriteBarrier};
+      kTaggedBase,      FeedbackVector::kOptimizedCodeWeakOrSmiOffset,
+      Handle<Name>(),   MaybeHandle<Map>(),
+      Type::Any(),      MachineType::AnyTagged(),
+      kFullWriteBarrier};
   return access;
 }
 

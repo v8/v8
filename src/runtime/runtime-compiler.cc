@@ -141,7 +141,7 @@ RUNTIME_FUNCTION(Runtime_FunctionFirstExecution) {
   return function->code();
 }
 
-RUNTIME_FUNCTION(Runtime_HealOptimizedCodeSlot) {
+RUNTIME_FUNCTION(Runtime_EvictOptimizedCodeSlot) {
   SealHandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
@@ -149,7 +149,7 @@ RUNTIME_FUNCTION(Runtime_HealOptimizedCodeSlot) {
   DCHECK(function->shared().is_compiled());
 
   function->feedback_vector().EvictOptimizedCodeMarkedForDeoptimization(
-      function->shared(), "Runtime_HealOptimizedCodeSlot");
+      function->shared(), "Runtime_EvictOptimizedCodeSlot");
   return function->code();
 }
 
