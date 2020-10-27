@@ -107,8 +107,8 @@
 
 extern "C" const uint8_t* v8_Default_embedded_blob_code_;
 extern "C" uint32_t v8_Default_embedded_blob_code_size_;
-extern "C" const uint8_t* v8_Default_embedded_blob_metadata_;
-extern "C" uint32_t v8_Default_embedded_blob_metadata_size_;
+extern "C" const uint8_t* v8_Default_embedded_blob_data_;
+extern "C" uint32_t v8_Default_embedded_blob_data_size_;
 
 namespace v8 {
 namespace internal {
@@ -131,18 +131,18 @@ const uint8_t* DefaultEmbeddedBlobCode() {
 uint32_t DefaultEmbeddedBlobCodeSize() {
   return v8_Default_embedded_blob_code_size_;
 }
-const uint8_t* DefaultEmbeddedBlobMetadata() {
-  return v8_Default_embedded_blob_metadata_;
+const uint8_t* DefaultEmbeddedBlobData() {
+  return v8_Default_embedded_blob_data_;
 }
-uint32_t DefaultEmbeddedBlobMetadataSize() {
-  return v8_Default_embedded_blob_metadata_size_;
+uint32_t DefaultEmbeddedBlobDataSize() {
+  return v8_Default_embedded_blob_data_size_;
 }
 
 #ifdef V8_MULTI_SNAPSHOTS
 extern "C" const uint8_t* v8_Trusted_embedded_blob_code_;
 extern "C" uint32_t v8_Trusted_embedded_blob_code_size_;
-extern "C" const uint8_t* v8_Trusted_embedded_blob_metadata_;
-extern "C" uint32_t v8_Trusted_embedded_blob_metadata_size_;
+extern "C" const uint8_t* v8_Trusted_embedded_blob_data_;
+extern "C" uint32_t v8_Trusted_embedded_blob_data_size_;
 
 const uint8_t* TrustedEmbeddedBlobCode() {
   return v8_Trusted_embedded_blob_code_;
@@ -150,11 +150,11 @@ const uint8_t* TrustedEmbeddedBlobCode() {
 uint32_t TrustedEmbeddedBlobCodeSize() {
   return v8_Trusted_embedded_blob_code_size_;
 }
-const uint8_t* TrustedEmbeddedBlobMetadata() {
-  return v8_Trusted_embedded_blob_metadata_;
+const uint8_t* TrustedEmbeddedBlobData() {
+  return v8_Trusted_embedded_blob_data_;
 }
-uint32_t TrustedEmbeddedBlobMetadataSize() {
-  return v8_Trusted_embedded_blob_metadata_size_;
+uint32_t TrustedEmbeddedBlobDataSize() {
+  return v8_Trusted_embedded_blob_data_size_;
 }
 #endif
 
@@ -169,8 +169,8 @@ namespace {
 
 std::atomic<const uint8_t*> current_embedded_blob_code_(nullptr);
 std::atomic<uint32_t> current_embedded_blob_code_size_(0);
-std::atomic<const uint8_t*> current_embedded_blob_metadata_(nullptr);
-std::atomic<uint32_t> current_embedded_blob_metadata_size_(0);
+std::atomic<const uint8_t*> current_embedded_blob_data_(nullptr);
+std::atomic<uint32_t> current_embedded_blob_data_size_(0);
 
 // The various workflows around embedded snapshots are fairly complex. We need
 // to support plain old snapshot builds, nosnap builds, and the requirements of
@@ -196,16 +196,16 @@ std::atomic<uint32_t> current_embedded_blob_metadata_size_(0);
 // This mutex protects access to the following variables:
 // - sticky_embedded_blob_code_
 // - sticky_embedded_blob_code_size_
-// - sticky_embedded_blob_metadata_
-// - sticky_embedded_blob_metadata_size_
+// - sticky_embedded_blob_data_
+// - sticky_embedded_blob_data_size_
 // - enable_embedded_blob_refcounting_
 // - current_embedded_blob_refs_
 base::LazyMutex current_embedded_blob_refcount_mutex_ = LAZY_MUTEX_INITIALIZER;
 
 const uint8_t* sticky_embedded_blob_code_ = nullptr;
 uint32_t sticky_embedded_blob_code_size_ = 0;
-const uint8_t* sticky_embedded_blob_metadata_ = nullptr;
-uint32_t sticky_embedded_blob_metadata_size_ = 0;
+const uint8_t* sticky_embedded_blob_data_ = nullptr;
+uint32_t sticky_embedded_blob_data_size_ = 0;
 
 bool enable_embedded_blob_refcounting_ = true;
 int current_embedded_blob_refs_ = 0;
@@ -214,19 +214,17 @@ const uint8_t* StickyEmbeddedBlobCode() { return sticky_embedded_blob_code_; }
 uint32_t StickyEmbeddedBlobCodeSize() {
   return sticky_embedded_blob_code_size_;
 }
-const uint8_t* StickyEmbeddedBlobMetadata() {
-  return sticky_embedded_blob_metadata_;
-}
-uint32_t StickyEmbeddedBlobMetadataSize() {
-  return sticky_embedded_blob_metadata_size_;
+const uint8_t* StickyEmbeddedBlobData() { return sticky_embedded_blob_data_; }
+uint32_t StickyEmbeddedBlobDataSize() {
+  return sticky_embedded_blob_data_size_;
 }
 
 void SetStickyEmbeddedBlob(const uint8_t* code, uint32_t code_size,
-                           const uint8_t* metadata, uint32_t metadata_size) {
+                           const uint8_t* data, uint32_t data_size) {
   sticky_embedded_blob_code_ = code;
   sticky_embedded_blob_code_size_ = code_size;
-  sticky_embedded_blob_metadata_ = metadata;
-  sticky_embedded_blob_metadata_size_ = metadata_size;
+  sticky_embedded_blob_data_ = data;
+  sticky_embedded_blob_data_size_ = data_size;
 }
 
 }  // namespace
@@ -243,23 +241,22 @@ void FreeCurrentEmbeddedBlob() {
   if (StickyEmbeddedBlobCode() == nullptr) return;
 
   CHECK_EQ(StickyEmbeddedBlobCode(), Isolate::CurrentEmbeddedBlobCode());
-  CHECK_EQ(StickyEmbeddedBlobMetadata(),
-           Isolate::CurrentEmbeddedBlobMetadata());
+  CHECK_EQ(StickyEmbeddedBlobData(), Isolate::CurrentEmbeddedBlobData());
 
   InstructionStream::FreeOffHeapInstructionStream(
       const_cast<uint8_t*>(Isolate::CurrentEmbeddedBlobCode()),
       Isolate::CurrentEmbeddedBlobCodeSize(),
-      const_cast<uint8_t*>(Isolate::CurrentEmbeddedBlobMetadata()),
-      Isolate::CurrentEmbeddedBlobMetadataSize());
+      const_cast<uint8_t*>(Isolate::CurrentEmbeddedBlobData()),
+      Isolate::CurrentEmbeddedBlobDataSize());
 
   current_embedded_blob_code_.store(nullptr, std::memory_order_relaxed);
   current_embedded_blob_code_size_.store(0, std::memory_order_relaxed);
-  current_embedded_blob_metadata_.store(nullptr, std::memory_order_relaxed);
-  current_embedded_blob_metadata_size_.store(0, std::memory_order_relaxed);
+  current_embedded_blob_data_.store(nullptr, std::memory_order_relaxed);
+  current_embedded_blob_data_size_.store(0, std::memory_order_relaxed);
   sticky_embedded_blob_code_ = nullptr;
   sticky_embedded_blob_code_size_ = 0;
-  sticky_embedded_blob_metadata_ = nullptr;
-  sticky_embedded_blob_metadata_size_ = 0;
+  sticky_embedded_blob_data_ = nullptr;
+  sticky_embedded_blob_data_size_ = 0;
 }
 
 // static
@@ -279,19 +276,18 @@ bool Isolate::CurrentEmbeddedBlobIsBinaryEmbedded() {
 }
 
 void Isolate::SetEmbeddedBlob(const uint8_t* code, uint32_t code_size,
-                              const uint8_t* metadata, uint32_t metadata_size) {
+                              const uint8_t* data, uint32_t data_size) {
   CHECK_NOT_NULL(code);
-  CHECK_NOT_NULL(metadata);
+  CHECK_NOT_NULL(data);
 
   embedded_blob_code_ = code;
   embedded_blob_code_size_ = code_size;
-  embedded_blob_metadata_ = metadata;
-  embedded_blob_metadata_size_ = metadata_size;
+  embedded_blob_data_ = data;
+  embedded_blob_data_size_ = data_size;
   current_embedded_blob_code_.store(code, std::memory_order_relaxed);
   current_embedded_blob_code_size_.store(code_size, std::memory_order_relaxed);
-  current_embedded_blob_metadata_.store(metadata, std::memory_order_relaxed);
-  current_embedded_blob_metadata_size_.store(metadata_size,
-                                             std::memory_order_relaxed);
+  current_embedded_blob_data_.store(data, std::memory_order_relaxed);
+  current_embedded_blob_data_size_.store(data_size, std::memory_order_relaxed);
 
 #ifdef DEBUG
   // Verify that the contents of the embedded blob are unchanged from
@@ -314,21 +310,21 @@ void Isolate::ClearEmbeddedBlob() {
   CHECK(enable_embedded_blob_refcounting_);
   CHECK_EQ(embedded_blob_code_, CurrentEmbeddedBlobCode());
   CHECK_EQ(embedded_blob_code_, StickyEmbeddedBlobCode());
-  CHECK_EQ(embedded_blob_metadata_, CurrentEmbeddedBlobMetadata());
-  CHECK_EQ(embedded_blob_metadata_, StickyEmbeddedBlobMetadata());
+  CHECK_EQ(embedded_blob_data_, CurrentEmbeddedBlobData());
+  CHECK_EQ(embedded_blob_data_, StickyEmbeddedBlobData());
 
   embedded_blob_code_ = nullptr;
   embedded_blob_code_size_ = 0;
-  embedded_blob_metadata_ = nullptr;
-  embedded_blob_metadata_size_ = 0;
+  embedded_blob_data_ = nullptr;
+  embedded_blob_data_size_ = 0;
   current_embedded_blob_code_.store(nullptr, std::memory_order_relaxed);
   current_embedded_blob_code_size_.store(0, std::memory_order_relaxed);
-  current_embedded_blob_metadata_.store(nullptr, std::memory_order_relaxed);
-  current_embedded_blob_metadata_size_.store(0, std::memory_order_relaxed);
+  current_embedded_blob_data_.store(nullptr, std::memory_order_relaxed);
+  current_embedded_blob_data_size_.store(0, std::memory_order_relaxed);
   sticky_embedded_blob_code_ = nullptr;
   sticky_embedded_blob_code_size_ = 0;
-  sticky_embedded_blob_metadata_ = nullptr;
-  sticky_embedded_blob_metadata_size_ = 0;
+  sticky_embedded_blob_data_ = nullptr;
+  sticky_embedded_blob_data_size_ = 0;
 }
 
 const uint8_t* Isolate::embedded_blob_code() const {
@@ -337,11 +333,11 @@ const uint8_t* Isolate::embedded_blob_code() const {
 uint32_t Isolate::embedded_blob_code_size() const {
   return embedded_blob_code_size_;
 }
-const uint8_t* Isolate::embedded_blob_metadata() const {
-  return embedded_blob_metadata_;
+const uint8_t* Isolate::embedded_blob_data() const {
+  return embedded_blob_data_;
 }
-uint32_t Isolate::embedded_blob_metadata_size() const {
-  return embedded_blob_metadata_size_;
+uint32_t Isolate::embedded_blob_data_size() const {
+  return embedded_blob_data_size_;
 }
 
 // static
@@ -357,14 +353,14 @@ uint32_t Isolate::CurrentEmbeddedBlobCodeSize() {
 }
 
 // static
-const uint8_t* Isolate::CurrentEmbeddedBlobMetadata() {
-  return current_embedded_blob_metadata_.load(
+const uint8_t* Isolate::CurrentEmbeddedBlobData() {
+  return current_embedded_blob_data_.load(
       std::memory_order::memory_order_relaxed);
 }
 
 // static
-uint32_t Isolate::CurrentEmbeddedBlobMetadataSize() {
-  return current_embedded_blob_metadata_size_.load(
+uint32_t Isolate::CurrentEmbeddedBlobDataSize() {
+  return current_embedded_blob_data_size_.load(
       std::memory_order::memory_order_relaxed);
 }
 
@@ -3292,8 +3288,8 @@ namespace {
 void CreateOffHeapTrampolines(Isolate* isolate) {
   DCHECK_NOT_NULL(isolate->embedded_blob_code());
   DCHECK_NE(0, isolate->embedded_blob_code_size());
-  DCHECK_NOT_NULL(isolate->embedded_blob_metadata());
-  DCHECK_NE(0, isolate->embedded_blob_metadata_size());
+  DCHECK_NOT_NULL(isolate->embedded_blob_data());
+  DCHECK_NE(0, isolate->embedded_blob_data_size());
 
   HandleScope scope(isolate);
   Builtins* builtins = isolate->builtins();
@@ -3324,15 +3320,15 @@ bool IsolateIsCompatibleWithEmbeddedBlob(Isolate* isolate) {
 void Isolate::InitializeDefaultEmbeddedBlob() {
   const uint8_t* code = DefaultEmbeddedBlobCode();
   uint32_t code_size = DefaultEmbeddedBlobCodeSize();
-  const uint8_t* metadata = DefaultEmbeddedBlobMetadata();
-  uint32_t metadata_size = DefaultEmbeddedBlobMetadataSize();
+  const uint8_t* data = DefaultEmbeddedBlobData();
+  uint32_t data_size = DefaultEmbeddedBlobDataSize();
 
 #ifdef V8_MULTI_SNAPSHOTS
   if (!FLAG_untrusted_code_mitigations) {
     code = TrustedEmbeddedBlobCode();
     code_size = TrustedEmbeddedBlobCodeSize();
-    metadata = TrustedEmbeddedBlobMetadata();
-    metadata_size = TrustedEmbeddedBlobMetadataSize();
+    data = TrustedEmbeddedBlobData();
+    data_size = TrustedEmbeddedBlobDataSize();
   }
 #endif
 
@@ -3342,8 +3338,8 @@ void Isolate::InitializeDefaultEmbeddedBlob() {
     if (StickyEmbeddedBlobCode() != nullptr) {
       code = StickyEmbeddedBlobCode();
       code_size = StickyEmbeddedBlobCodeSize();
-      metadata = StickyEmbeddedBlobMetadata();
-      metadata_size = StickyEmbeddedBlobMetadataSize();
+      data = StickyEmbeddedBlobData();
+      data_size = StickyEmbeddedBlobDataSize();
       current_embedded_blob_refs_++;
     }
   }
@@ -3351,7 +3347,7 @@ void Isolate::InitializeDefaultEmbeddedBlob() {
   if (code == nullptr) {
     CHECK_EQ(0, code_size);
   } else {
-    SetEmbeddedBlob(code, code_size, metadata, metadata_size);
+    SetEmbeddedBlob(code, code_size, data, data_size);
   }
 }
 
@@ -3365,25 +3361,25 @@ void Isolate::CreateAndSetEmbeddedBlob() {
   // If a sticky blob has been set, we reuse it.
   if (StickyEmbeddedBlobCode() != nullptr) {
     CHECK_EQ(embedded_blob_code(), StickyEmbeddedBlobCode());
-    CHECK_EQ(embedded_blob_metadata(), StickyEmbeddedBlobMetadata());
+    CHECK_EQ(embedded_blob_data(), StickyEmbeddedBlobData());
     CHECK_EQ(CurrentEmbeddedBlobCode(), StickyEmbeddedBlobCode());
-    CHECK_EQ(CurrentEmbeddedBlobMetadata(), StickyEmbeddedBlobMetadata());
+    CHECK_EQ(CurrentEmbeddedBlobData(), StickyEmbeddedBlobData());
   } else {
     // Create and set a new embedded blob.
     uint8_t* code;
     uint32_t code_size;
-    uint8_t* metadata;
-    uint32_t metadata_size;
-    InstructionStream::CreateOffHeapInstructionStream(
-        this, &code, &code_size, &metadata, &metadata_size);
+    uint8_t* data;
+    uint32_t data_size;
+    InstructionStream::CreateOffHeapInstructionStream(this, &code, &code_size,
+                                                      &data, &data_size);
 
     CHECK_EQ(0, current_embedded_blob_refs_);
     const uint8_t* const_code = const_cast<const uint8_t*>(code);
-    const uint8_t* const_metadata = const_cast<const uint8_t*>(metadata);
-    SetEmbeddedBlob(const_code, code_size, const_metadata, metadata_size);
+    const uint8_t* const_data = const_cast<const uint8_t*>(data);
+    SetEmbeddedBlob(const_code, code_size, const_data, data_size);
     current_embedded_blob_refs_++;
 
-    SetStickyEmbeddedBlob(code, code_size, metadata, metadata_size);
+    SetStickyEmbeddedBlob(code, code_size, data, data_size);
   }
 
   CreateOffHeapTrampolines(this);
@@ -3394,9 +3390,9 @@ void Isolate::TearDownEmbeddedBlob() {
   if (StickyEmbeddedBlobCode() == nullptr) return;
 
   CHECK_EQ(embedded_blob_code(), StickyEmbeddedBlobCode());
-  CHECK_EQ(embedded_blob_metadata(), StickyEmbeddedBlobMetadata());
+  CHECK_EQ(embedded_blob_data(), StickyEmbeddedBlobData());
   CHECK_EQ(CurrentEmbeddedBlobCode(), StickyEmbeddedBlobCode());
-  CHECK_EQ(CurrentEmbeddedBlobMetadata(), StickyEmbeddedBlobMetadata());
+  CHECK_EQ(CurrentEmbeddedBlobData(), StickyEmbeddedBlobData());
 
   base::MutexGuard guard(current_embedded_blob_refcount_mutex_.Pointer());
   current_embedded_blob_refs_--;
@@ -3404,8 +3400,7 @@ void Isolate::TearDownEmbeddedBlob() {
     // We own the embedded blob and are the last holder. Free it.
     InstructionStream::FreeOffHeapInstructionStream(
         const_cast<uint8_t*>(embedded_blob_code()), embedded_blob_code_size(),
-        const_cast<uint8_t*>(embedded_blob_metadata()),
-        embedded_blob_metadata_size());
+        const_cast<uint8_t*>(embedded_blob_data()), embedded_blob_data_size());
     ClearEmbeddedBlob();
   }
 }

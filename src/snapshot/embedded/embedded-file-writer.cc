@@ -177,15 +177,14 @@ void EmbeddedFileWriter::WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
                               EmbeddedBlobCodeDataSymbol().c_str());
     w->Newline();
 
-    i::EmbeddedVector<char, kTemporaryStringLength>
-        embedded_blob_metadata_symbol;
-    i::SNPrintF(embedded_blob_metadata_symbol, "v8_%s_embedded_blob_metadata_",
+    i::EmbeddedVector<char, kTemporaryStringLength> embedded_blob_data_symbol;
+    i::SNPrintF(embedded_blob_data_symbol, "v8_%s_embedded_blob_data_",
                 embedded_variant_);
 
-    w->Comment("Pointer to the beginning of the embedded blob metadata.");
+    w->Comment("Pointer to the beginning of the embedded blob data section.");
     w->AlignToDataAlignment();
-    w->DeclarePointerToSymbol(embedded_blob_metadata_symbol.begin(),
-                              EmbeddedBlobMetadataDataSymbol().c_str());
+    w->DeclarePointerToSymbol(embedded_blob_data_symbol.begin(),
+                              EmbeddedBlobDataDataSymbol().c_str());
     w->Newline();
   }
 
@@ -202,13 +201,12 @@ void EmbeddedFileWriter::WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
     w->Newline();
 
     i::EmbeddedVector<char, kTemporaryStringLength>
-        embedded_blob_metadata_size_symbol;
-    i::SNPrintF(embedded_blob_metadata_size_symbol,
-                "v8_%s_embedded_blob_metadata_size_", embedded_variant_);
+        embedded_blob_data_size_symbol;
+    i::SNPrintF(embedded_blob_data_size_symbol,
+                "v8_%s_embedded_blob_data_size_", embedded_variant_);
 
-    w->Comment("The size of the embedded blob metadata in bytes.");
-    w->DeclareUint32(embedded_blob_metadata_size_symbol.begin(),
-                     blob->metadata_size());
+    w->Comment("The size of the embedded blob data section in bytes.");
+    w->DeclareUint32(embedded_blob_data_size_symbol.begin(), blob->data_size());
     w->Newline();
   }
 

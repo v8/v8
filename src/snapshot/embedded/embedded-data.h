@@ -32,11 +32,10 @@ class InstructionStream final : public AllStatic {
   // mksnapshot. Otherwise, off-heap code is embedded directly into the binary.
   static void CreateOffHeapInstructionStream(Isolate* isolate, uint8_t** code,
                                              uint32_t* code_size,
-                                             uint8_t** metadata,
-                                             uint32_t* metadata_size);
+                                             uint8_t** data,
+                                             uint32_t* data_size);
   static void FreeOffHeapInstructionStream(uint8_t* code, uint32_t code_size,
-                                           uint8_t* metadata,
-                                           uint32_t metadata_size);
+                                           uint8_t* data, uint32_t data_size);
 };
 
 class EmbeddedData final {
@@ -46,27 +45,26 @@ class EmbeddedData final {
   static EmbeddedData FromBlob() {
     return EmbeddedData(Isolate::CurrentEmbeddedBlobCode(),
                         Isolate::CurrentEmbeddedBlobCodeSize(),
-                        Isolate::CurrentEmbeddedBlobMetadata(),
-                        Isolate::CurrentEmbeddedBlobMetadataSize());
+                        Isolate::CurrentEmbeddedBlobData(),
+                        Isolate::CurrentEmbeddedBlobDataSize());
   }
 
   static EmbeddedData FromBlob(Isolate* isolate) {
-    return EmbeddedData(isolate->embedded_blob_code(),
-                        isolate->embedded_blob_code_size(),
-                        isolate->embedded_blob_metadata(),
-                        isolate->embedded_blob_metadata_size());
+    return EmbeddedData(
+        isolate->embedded_blob_code(), isolate->embedded_blob_code_size(),
+        isolate->embedded_blob_data(), isolate->embedded_blob_data_size());
   }
 
   const uint8_t* code() const { return code_; }
   uint32_t code_size() const { return code_size_; }
-  const uint8_t* metadata() const { return metadata_; }
-  uint32_t metadata_size() const { return metadata_size_; }
+  const uint8_t* data() const { return data_; }
+  uint32_t data_size() const { return data_size_; }
 
   void Dispose() {
     delete[] code_;
     code_ = nullptr;
-    delete[] metadata_;
-    metadata_ = nullptr;
+    delete[] data_;
+    data_ = nullptr;
   }
 
   Address InstructionStartOfBuiltin(int i) const;
@@ -95,47 +93,45 @@ class EmbeddedData final {
 
   size_t CreateEmbeddedBlobHash() const;
   size_t EmbeddedBlobHash() const {
-    return *reinterpret_cast<const size_t*>(metadata_ +
-                                            EmbeddedBlobHashOffset());
+    return *reinterpret_cast<const size_t*>(data_ + EmbeddedBlobHashOffset());
   }
 
   size_t IsolateHash() const {
-    return *reinterpret_cast<const size_t*>(metadata_ + IsolateHashOffset());
+    return *reinterpret_cast<const size_t*>(data_ + IsolateHashOffset());
   }
 
   // Blob layout information for a single instruction stream. Corresponds
   // roughly to Code object layout (see the instruction and metadata area).
-  // TODO(jgruber): With the addition of metadata sections in Code objects,
-  // naming here has become confusing. Metadata refers to both this struct
-  // and the Code section, and the embedded instruction area currently
-  // contains both Code's instruction and metadata areas. Fix it.
-  struct Metadata {
+  struct LayoutDescription {
     // The offset and (unpadded) length of this builtin's instruction area
     // from the start of the embedded code section.
     uint32_t instruction_offset;
     uint32_t instruction_length;
     // The offset and (unpadded) length of this builtin's metadata area
     // from the start of the embedded code section.
-    // TODO(jgruber,v8:11036): Move this to the embedded metadata area.
     uint32_t metadata_offset;
     uint32_t metadata_length;
   };
-  STATIC_ASSERT(offsetof(Metadata, instruction_offset) == 0 * kUInt32Size);
-  STATIC_ASSERT(offsetof(Metadata, instruction_length) == 1 * kUInt32Size);
-  STATIC_ASSERT(offsetof(Metadata, metadata_offset) == 2 * kUInt32Size);
-  STATIC_ASSERT(offsetof(Metadata, metadata_length) == 3 * kUInt32Size);
-  STATIC_ASSERT(sizeof(Metadata) == 4 * kUInt32Size);
+  STATIC_ASSERT(offsetof(LayoutDescription, instruction_offset) ==
+                0 * kUInt32Size);
+  STATIC_ASSERT(offsetof(LayoutDescription, instruction_length) ==
+                1 * kUInt32Size);
+  STATIC_ASSERT(offsetof(LayoutDescription, metadata_offset) ==
+                2 * kUInt32Size);
+  STATIC_ASSERT(offsetof(LayoutDescription, metadata_length) ==
+                3 * kUInt32Size);
+  STATIC_ASSERT(sizeof(LayoutDescription) == 4 * kUInt32Size);
 
   // The layout of the blob is as follows:
   //
-  // metadata:
+  // data:
   // [0] hash of the remaining blob
   // [1] hash of embedded-blob-relevant heap objects
-  // [2] metadata of instruction stream 0
-  // ... metadata
+  // [2] layout description of instruction stream 0
+  // ... layout descriptions
   //
   // code:
-  // [0] instruction streams 0
+  // [0] instruction stream 0
   // ... instruction streams
 
   static constexpr uint32_t kTableSize = Builtins::builtin_count;
@@ -145,30 +141,27 @@ class EmbeddedData final {
     return EmbeddedBlobHashOffset() + EmbeddedBlobHashSize();
   }
   static constexpr uint32_t IsolateHashSize() { return kSizetSize; }
-  static constexpr uint32_t MetadataTableOffset() {
+  static constexpr uint32_t LayoutDescriptionTableOffset() {
     return IsolateHashOffset() + IsolateHashSize();
   }
-  static constexpr uint32_t MetadataTableSize() {
-    return sizeof(struct Metadata) * kTableSize;
+  static constexpr uint32_t LayoutDescriptionTableSize() {
+    return sizeof(struct LayoutDescription) * kTableSize;
   }
   static constexpr uint32_t RawCodeOffset() { return 0; }
 
  private:
-  EmbeddedData(const uint8_t* code, uint32_t code_size, const uint8_t* metadata,
-               uint32_t metadata_size)
-      : code_(code),
-        code_size_(code_size),
-        metadata_(metadata),
-        metadata_size_(metadata_size) {
+  EmbeddedData(const uint8_t* code, uint32_t code_size, const uint8_t* data,
+               uint32_t data_size)
+      : code_(code), code_size_(code_size), data_(data), data_size_(data_size) {
     DCHECK_NOT_NULL(code);
     DCHECK_LT(0, code_size);
-    DCHECK_NOT_NULL(metadata);
-    DCHECK_LT(0, metadata_size);
+    DCHECK_NOT_NULL(data);
+    DCHECK_LT(0, data_size);
   }
 
-  const Metadata* Metadata() const {
-    return reinterpret_cast<const struct Metadata*>(metadata_ +
-                                                    MetadataTableOffset());
+  const LayoutDescription* LayoutDescription() const {
+    return reinterpret_cast<const struct LayoutDescription*>(
+        data_ + LayoutDescriptionTableOffset());
   }
   const uint8_t* RawCode() const { return code_ + RawCodeOffset(); }
 
@@ -185,9 +178,11 @@ class EmbeddedData final {
   const uint8_t* code_;
   uint32_t code_size_;
 
-  // This is metadata for the code.
-  const uint8_t* metadata_;
-  uint32_t metadata_size_;
+  // The data section contains both descriptions of the code section (hashes,
+  // offsets, sizes) and metadata describing Code objects (see
+  // Code::MetadataStart()).
+  const uint8_t* data_;
+  uint32_t data_size_;
 };
 
 }  // namespace internal

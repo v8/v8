@@ -106,6 +106,28 @@ class Code : public HeapObject {
   // raw accessors (e.g. raw_instruction_start) always refer to the on-heap
   // Code object, while camel-case accessors (e.g. InstructionStart) may refer
   // to an off-heap area in the case of embedded builtins.
+  //
+  // Embedded builtins are on-heap Code objects, with an out-of-line body
+  // section. The on-heap Code object contains an essentially empty body
+  // section, while accessors, as mentioned above, redirect to the off-heap
+  // area. Metadata table offsets remain relative to MetadataStart(), i.e. they
+  // point into the off-heap metadata section. The off-heap layout is described
+  // in detail in the EmbeddedData class, but at a high level one can assume a
+  // dedicated, out-of-line, instruction and metadata section for each embedded
+  // builtin *in addition* to the on-heap Code object:
+  //
+  //  +--------------------------+  <-- InstructionStart()
+  //  |   off-heap instructions  |
+  //  |           ...            |
+  //  +--------------------------+  <-- InstructionEnd()
+  //
+  //  +--------------------------+  <-- MetadataStart() (MS)
+  //  |    off-heap metadata     |
+  //  |           ...            |  <-- MS + handler_table_offset()
+  //  |                          |  <-- MS + constant_pool_offset()
+  //  |                          |  <-- MS + code_comments_offset()
+  //  |                          |  <-- MS + unwinding_info_offset()
+  //  +--------------------------+  <-- MetadataEnd()
 
   // TODO(jgruber,v8:11036): Update once no longer true for embedded builtins.
   static constexpr bool kOnHeapBodyIsContiguous = true;
