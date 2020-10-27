@@ -2040,22 +2040,14 @@ void Decoder::DecodeAdvancedSIMDDataProcessing(Instruction* instr) {
                                   "vqadd.s%d q%d, q%d, q%d", size, Vd, Vn, Vm);
     } else if (!u && opc == 1 && sz == 2 && q && op1) {
       if (Vm == Vn) {
-        // vmov Qd, Qm
-        out_buffer_pos_ +=
-            SNPrintF(out_buffer_ + out_buffer_pos_, "vmov q%d, q%d", Vd, Vm);
+        Format(instr, "vmov 'Qd, 'Qm");
       } else {
-        // vorr Qd, Qm, Qn.
-        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                    "vorr q%d, q%d, q%d", Vd, Vn, Vm);
+        Format(instr, "vorr 'Qd, 'Qn, 'Qm");
       }
     } else if (!u && opc == 1 && sz == 1 && q && op1) {
-      // vbic Qd, Qn, Qm
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "vbic q%d, q%d, q%d", Vd, Vn, Vm);
+      Format(instr, "vbic 'Qd, 'Qn, 'Qm");
     } else if (!u && opc == 1 && sz == 0 && q && op1) {
-      // vand Qd, Qm, Qn.
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "vand q%d, q%d, q%d", Vd, Vn, Vm);
+      Format(instr, "vand 'Qd, 'Qn, 'Qm");
     } else if (!u && opc == 1 && sz == 1 && q && op1) {
       // vbic Qd, Qn, Qm
       out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
@@ -2096,42 +2088,30 @@ void Decoder::DecodeAdvancedSIMDDataProcessing(Instruction* instr) {
       // vpadd.i<size> Dd, Dm, Dn.
       out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                   "vpadd.i%d d%d, d%d, d%d", size, Vd, Vn, Vm);
-    } else if (!u && opc == 0xD && !op1) {
-      const char* op = (instr->Bits(21, 20) == 0) ? "vadd" : "vsub";
-      // vadd/vsub.f32 Qd, Qm, Qn.
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "%s.f32 q%d, q%d, q%d", op, Vd, Vn, Vm);
+    } else if (!u && !(sz >> 1) && opc == 0xD && !op1) {
+      Format(instr, "vadd.f32 'Qd, 'Qn, 'Qm");
+    } else if (!u && (sz >> 1) && opc == 0xD && !op1) {
+      Format(instr, "vsub.f32 'Qd, 'Qn, 'Qm");
     } else if (!u && opc == 0xE && !sz && !op1) {
-      // vceq.f32 Qd, Qm, Qn.
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "vceq.f32 q%d, q%d, q%d", Vd, Vn, Vm);
-    } else if (!u && opc == 0xF && op1) {
-      // vrecps/vrsqrts.f32 Qd, Qm, Qn.
-      const char* op = instr->Bit(21) == 0 ? "vrecps" : "vrsqrts";
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "%s.f32 q%d, q%d, q%d", op, Vd, Vn, Vm);
-    } else if (!u && opc == 0xF && !op1) {
-      // vmin/max.f32 Qd, Qm, Qn.
-      const char* op = instr->Bit(21) == 1 ? "vmin" : "vmax";
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "%s.f32 q%d, q%d, q%d", op, Vd, Vn, Vm);
-
+      Format(instr, "vceq.f32 'Qd, 'Qn, 'Qm");
+    } else if (!u && !(sz >> 1) && opc == 0xF && op1) {
+      Format(instr, "vrecps.f32 'Qd, 'Qn, 'Qm");
+    } else if (!u && (sz >> 1) && opc == 0xF && op1) {
+      Format(instr, "vrsqrts.f32 'Qd, 'Qn, 'Qm");
+    } else if (!u && !(sz >> 1) && opc == 0xF && !op1) {
+      Format(instr, "vmax.f32 'Qd, 'Qn, 'Qm");
+    } else if (!u && (sz >> 1) && opc == 0xF && !op1) {
+      Format(instr, "vmin.f32 'Qd, 'Qn, 'Qm");
     } else if (u && opc == 0 && op1) {
       // vqadd.u<size> Qd, Qm, Qn.
       out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                   "vqadd.u%d q%d, q%d, q%d", size, Vd, Vn, Vm);
     } else if (u && opc == 1 && sz == 1 && op1) {
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "vbsl q%d, q%d, q%d", Vd, Vn, Vm);
+      Format(instr, "vbsl 'Qd, 'Qn, 'Qm");
     } else if (u && opc == 1 && sz == 0 && q && op1) {
-      // veor Qd, Qn, Qm
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "veor q%d, q%d, q%d", Vd, Vn, Vm);
+      Format(instr, "veor 'Qd, 'Qn, 'Qm");
     } else if (u && opc == 1 && sz == 0 && !q && op1) {
-      // veor Dd, Dn, Dm
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "veor d%d, d%d, d%d", Vd, Vn, Vm);
-
+      Format(instr, "veor 'Dd, 'Dn, 'Dm");
     } else if (u && opc == 1 && !op1) {
       // vrhadd.u<size> Qd, Qm, Qn.
       out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
@@ -2166,18 +2146,13 @@ void Decoder::DecodeAdvancedSIMDDataProcessing(Instruction* instr) {
       out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                   "%s.u%d d%d, d%d, d%d", op, size, Vd, Vn, Vm);
     } else if (u && opc == 0xD && sz == 0 && q && op1) {
-      // vmul.f32 Qd, Qm, Qn
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "vmul.f32 q%d, q%d, q%d", Vd, Vn, Vm);
+      Format(instr, "vmul.f32 'Qd, 'Qn, 'Qm");
     } else if (u && opc == 0xD && sz == 0 && !q && !op1) {
-      // vpadd.f32 Dd, Dm, Dn.
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "vpadd.f32 d%d, d%d, d%d", Vd, Vn, Vm);
-    } else if (u && opc == 0xE && !op1) {
-      const char* op = (instr->Bit(21) == 0) ? "vcge" : "vcgt";
-      // vcge/vcgt.f32 Qd, Qm, Qn.
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "%s.f32 q%d, q%d, q%d", op, Vd, Vn, Vm);
+      Format(instr, "vpadd.f32 'Dd, 'Dn, 'Dm");
+    } else if (u && opc == 0xE && !(sz >> 1) && !op1) {
+      Format(instr, "vcge.f32 'Qd, 'Qn, 'Qm");
+    } else if (u && opc == 0xE && (sz >> 1) && !op1) {
+      Format(instr, "vcgt.f32 'Qd, 'Qn, 'Qm");
     } else {
       Unknown(instr);
     }
@@ -2290,16 +2265,9 @@ void Decoder::DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr) {
       out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                   "vrev%d.%d q%d, q%d", op, esize, Vd, Vm);
     } else if (size == 0 && opc1 == 0b10 && opc2 == 0) {
-      if (q) {
-        out_buffer_pos_ +=
-            SNPrintF(out_buffer_ + out_buffer_pos_, "vswp q%d, q%d", Vd, Vm);
-      } else {
-        out_buffer_pos_ +=
-            SNPrintF(out_buffer_ + out_buffer_pos_, "vswp d%d, d%d", Vd, Vm);
-      }
+      Format(instr, q ? "vswp 'Qd, 'Qm" : "vswp 'Dd, 'Dm");
     } else if (opc1 == 0 && opc2 == 0b1011) {
-      out_buffer_pos_ +=
-          SNPrintF(out_buffer_ + out_buffer_pos_, "vmvn q%d, q%d", Vd, Vm);
+      Format(instr, "vmvn 'Qd, 'Qm");
     } else if (opc1 == 0b01 && (opc2 & 0b0111) == 0b110) {
       // vabs<type>.<esize> Qd, Qm.
       int esize = kBitsPerByte * (1 << size);
@@ -2347,37 +2315,17 @@ void Decoder::DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr) {
           SNPrintF(out_buffer_ + out_buffer_pos_, "%s.%c%i d%d, q%d", name,
                    type, esize, Vd, Vm);
     } else if (opc1 == 0b10 && opc2 == 0b1000) {
-      if (q) {
-        Format(instr, "vrintn.f32 'Qd, 'Qm");
-      } else {
-        Format(instr, "vrintn.f32 'Dd, 'Dm");
-      }
+      Format(instr, q ? "vrintn.f32 'Qd, 'Qm" : "vrintn.f32 'Dd, 'Dm");
     } else if (opc1 == 0b10 && opc2 == 0b1011) {
-      if (q) {
-        Format(instr, "vrintz.f32 'Qd, 'Qm");
-      } else {
-        Format(instr, "vrintz.f32 'Dd, 'Dm");
-      }
+      Format(instr, q ? "vrintz.f32 'Qd, 'Qm" : "vrintz.f32 'Dd, 'Dm");
     } else if (opc1 == 0b10 && opc2 == 0b1101) {
-      if (q) {
-        Format(instr, "vrintm.f32 'Qd, 'Qm");
-      } else {
-        Format(instr, "vrintm.f32 'Dd, 'Dm");
-      }
+      Format(instr, q ? "vrintm.f32 'Qd, 'Qm" : "vrintm.f32 'Qd, 'Qm");
     } else if (opc1 == 0b10 && opc2 == 0b1111) {
-      if (q) {
-        Format(instr, "vrintp.f32 'Qd, 'Qm");
-      } else {
-        Format(instr, "vrintp.f32 'Dd, 'Dm");
-      }
+      Format(instr, q ? "vrintp.f32 'Qd, 'Qm" : "vrintp.f32 'Qd, 'Qm");
     } else if (opc1 == 0b11 && (opc2 & 0b1101) == 0b1000) {
-      // vrecpe.f32 Qd, Qm.
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "vrecpe.f32 q%d, q%d", Vd, Vm);
+      Format(instr, "vrecpe.f32 'Qd, 'Qm");
     } else if (opc1 == 0b11 && (opc2 & 0b1101) == 0b1001) {
-      // vrsqrte.f32 Qd, Qm.
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "vrsqrte.f32 q%d, q%d", Vd, Vm);
+      Format(instr, "vrsqrte.f32 'Qd, 'Qm");
     } else if (opc1 == 0b11 && (opc2 & 0b1100) == 0b1100) {
       const char* suffix = nullptr;
       int op = instr->Bits(8, 7);
