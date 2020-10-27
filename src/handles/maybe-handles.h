@@ -45,6 +45,7 @@ class MaybeHandle final {
       : location_(maybe_handle.location_) {}
 
   V8_INLINE MaybeHandle(T object, Isolate* isolate);
+  V8_INLINE MaybeHandle(T object, LocalHeap* local_heap);
 
   V8_INLINE void Assert() const { DCHECK_NOT_NULL(location_); }
   V8_INLINE void Check() const { CHECK_NOT_NULL(location_); }
@@ -91,6 +92,8 @@ class MaybeObjectHandle {
       : reference_type_(HeapObjectReferenceType::STRONG) {}
   inline MaybeObjectHandle(MaybeObject object, Isolate* isolate);
   inline MaybeObjectHandle(Object object, Isolate* isolate);
+  inline MaybeObjectHandle(MaybeObject object, LocalHeap* local_heap);
+  inline MaybeObjectHandle(Object object, LocalHeap* local_heap);
   inline explicit MaybeObjectHandle(Handle<Object> object);
 
   static inline MaybeObjectHandle Weak(Object object, Isolate* isolate);

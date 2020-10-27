@@ -632,6 +632,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // The isolate's string table.
   StringTable* string_table() { return string_table_.get(); }
 
+  // Shared mutex for allowing concurrent read/writes to FeedbackVectors.
+  base::SharedMutex* feedback_vector_access() {
+    return &feedback_vector_access_;
+  }
+
   Address get_address_from_id(IsolateAddressId id);
 
   // Access to top context (where the current function object was created).
@@ -1746,6 +1751,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   std::shared_ptr<Counters> async_counters_;
   base::RecursiveMutex break_access_;
   base::SharedMutex transition_array_access_;
+  base::SharedMutex feedback_vector_access_;
   Logger* logger_ = nullptr;
   StubCache* load_stub_cache_ = nullptr;
   StubCache* store_stub_cache_ = nullptr;

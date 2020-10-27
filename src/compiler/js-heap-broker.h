@@ -115,6 +115,13 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   }
   bool is_turboprop() const { return code_kind_ == CodeKind::TURBOPROP; }
 
+  NexusConfig feedback_nexus_config() const {
+    // TODO(mvstanton): when the broker gathers feedback on the background
+    // thread, this should return a local NexusConfig object which points
+    // to the associated LocalHeap.
+    return NexusConfig::FromMainThread(isolate());
+  }
+
   enum BrokerMode { kDisabled, kSerializing, kSerialized, kRetired };
   BrokerMode mode() const { return mode_; }
 

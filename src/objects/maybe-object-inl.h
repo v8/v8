@@ -34,6 +34,15 @@ MaybeObject MaybeObject::MakeWeak(MaybeObject object) {
   return MaybeObject(object.ptr() | kWeakHeapObjectMask);
 }
 
+// static
+MaybeObject MaybeObject::Create(MaybeObject o) { return o; }
+
+// static
+MaybeObject MaybeObject::Create(Object o) { return FromObject(o); }
+
+// static
+MaybeObject MaybeObject::Create(Smi smi) { return FromSmi(smi); }
+
 //
 // HeapObjectReference implementation.
 //

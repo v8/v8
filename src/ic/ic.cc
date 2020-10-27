@@ -1863,7 +1863,9 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
                                       KeyedAccessStoreMode store_mode,
                                       Handle<Map> new_receiver_map) {
   std::vector<MapAndHandler> target_maps_and_handlers;
-  nexus()->ExtractMapsAndHandlers(&target_maps_and_handlers, true);
+  nexus()->ExtractMapsAndHandlers(
+      &target_maps_and_handlers,
+      [this](Handle<Map> map) { return Map::TryUpdate(isolate(), map); });
   if (target_maps_and_handlers.empty()) {
     Handle<Map> monomorphic_map = receiver_map;
     // If we transitioned to a map that is a more general map than incoming

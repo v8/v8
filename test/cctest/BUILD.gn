@@ -206,6 +206,7 @@ v8_source_set("cctest_sources") {
     "test-code-stub-assembler.cc",
     "test-compiler.cc",
     "test-concurrent-descriptor-array.cc",
+    "test-concurrent-feedback-vector.cc",
     "test-concurrent-prototype.cc",
     "test-concurrent-script-context-table.cc",
     "test-concurrent-transition-array.cc",

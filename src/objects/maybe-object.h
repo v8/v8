@@ -27,6 +27,10 @@ class MaybeObject : public TaggedImpl<HeapObjectReferenceType::WEAK, Address> {
 
   V8_INLINE static MaybeObject MakeWeak(MaybeObject object);
 
+  V8_INLINE static MaybeObject Create(MaybeObject o);
+  V8_INLINE static MaybeObject Create(Object o);
+  V8_INLINE static MaybeObject Create(Smi smi);
+
 #ifdef VERIFY_HEAP
   static void VerifyMaybeObjectPointer(Isolate* isolate, MaybeObject p);
 #endif

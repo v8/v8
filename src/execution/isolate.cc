@@ -61,6 +61,7 @@
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/elements.h"
+#include "src/objects/feedback-vector.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
