@@ -5446,6 +5446,11 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
   // 10. If then is an abrupt completion, then
   Handle<Object> then_action;
   if (!then.ToHandle(&then_action)) {
+    // The "then" lookup can cause termination.
+    if (!isolate->is_catchable_by_javascript(isolate->pending_exception())) {
+      return kNullMaybeHandle;
+    }
+
     // a. Return RejectPromise(promise, then.[[Value]]).
     Handle<Object> reason(isolate->pending_exception(), isolate);
     isolate->clear_pending_exception();
