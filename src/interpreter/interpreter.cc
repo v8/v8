@@ -78,12 +78,21 @@ Interpreter::Interpreter(Isolate* isolate)
 namespace {
 
 int BuiltinIndexFromBytecode(Bytecode bytecode, OperandScale operand_scale) {
-  int index = BytecodeOperands::OperandScaleAsIndex(operand_scale) *
-                  kNumberOfBytecodeHandlers +
-              static_cast<int>(bytecode);
-  int offset = kBytecodeToBuiltinsMapping[index];
-  return offset >= 0 ? Builtins::kFirstBytecodeHandler + offset
-                     : Builtins::kIllegalHandler;
+  int index = static_cast<int>(bytecode);
+  if (operand_scale != OperandScale::kSingle) {
+    // The table contains uint8_t offsets starting at 0 with
+    // kIllegalBytecodeHandlerEncoding for illegal bytecode/scale combinations.
+    uint8_t offset = kWideBytecodeToBuiltinsMapping[index];
+    if (offset == kIllegalBytecodeHandlerEncoding) {
+      return Builtins::kIllegalHandler;
+    } else {
+      index = kNumberOfBytecodeHandlers + offset;
+      if (operand_scale == OperandScale::kQuadruple) {
+        index += kNumberOfWideBytecodeHandlers;
+      }
+    }
+  }
+  return Builtins::kFirstBytecodeHandler + index;
 }
 
 }  // namespace
