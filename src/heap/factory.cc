@@ -167,10 +167,11 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     code->set_code_data_container(*data_container, kReleaseStore);
     code->set_deoptimization_data(*deoptimization_data_);
     code->set_source_position_table(*source_position_table_);
-    code->set_handler_table_offset(code_desc_.handler_table_offset);
-    code->set_constant_pool_offset(code_desc_.constant_pool_offset);
-    code->set_code_comments_offset(code_desc_.code_comments_offset);
-    code->set_unwinding_info_offset(code_desc_.unwinding_info_offset());
+    code->set_handler_table_offset(code_desc_.handler_table_offset_relative());
+    code->set_constant_pool_offset(code_desc_.constant_pool_offset_relative());
+    code->set_code_comments_offset(code_desc_.code_comments_offset_relative());
+    code->set_unwinding_info_offset(
+        code_desc_.unwinding_info_offset_relative());
 
     // Allow self references to created code object by patching the handle to
     // point to the newly allocated Code object.

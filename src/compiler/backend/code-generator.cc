@@ -393,6 +393,9 @@ void CodeGenerator::AssembleCode() {
   // size as reported by perf.
   unwinding_info_writer_.Finish(tasm()->pc_offset());
 
+  // Final alignment before starting on the metadata section.
+  tasm()->Align(Code::kMetadataAlignment);
+
   safepoints()->Emit(tasm(), frame()->GetTotalFrameSlotCount());
 
   // Emit the exception handler table.

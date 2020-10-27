@@ -901,14 +901,18 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
                                   static_cast<size_t>(code->BodySize()));
   const int stack_slots = code->has_safepoint_info() ? code->stack_slots() : 0;
 
+  // Metadata offsets in Code objects are relative to the start of the metadata
+  // section, whereas WasmCode expects offsets relative to InstructionStart.
+  const int base_offset = code->InstructionSize();
   // TODO(jgruber,v8:8758): Remove this translation. It exists only because
   // Code objects contains real offsets but WasmCode expects an offset of 0 to
   // mean 'empty'.
   const int safepoint_table_offset =
-      code->has_safepoint_table() ? code->safepoint_table_offset() : 0;
-  const int handler_table_offset = code->handler_table_offset();
-  const int constant_pool_offset = code->constant_pool_offset();
-  const int code_comments_offset = code->code_comments_offset();
+      code->has_safepoint_table() ? base_offset + code->safepoint_table_offset()
+                                  : 0;
+  const int handler_table_offset = base_offset + code->handler_table_offset();
+  const int constant_pool_offset = base_offset + code->constant_pool_offset();
+  const int code_comments_offset = base_offset + code->code_comments_offset();
 
   Vector<uint8_t> dst_code_bytes =
       code_allocator_.AllocateForCode(this, instructions.size());

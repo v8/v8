@@ -948,14 +948,16 @@ void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
 }
 
 void Code::CodeVerify(Isolate* isolate) {
-  CHECK_IMPLIES(
-      has_safepoint_table(),
-      IsAligned(safepoint_table_offset(), static_cast<unsigned>(kIntSize)));
+  CHECK(IsAligned(InstructionSize(),
+                  static_cast<unsigned>(Code::kMetadataAlignment)));
+  CHECK_EQ(safepoint_table_offset(), 0);
   CHECK_LE(safepoint_table_offset(), handler_table_offset());
   CHECK_LE(handler_table_offset(), constant_pool_offset());
   CHECK_LE(constant_pool_offset(), code_comments_offset());
   CHECK_LE(code_comments_offset(), unwinding_info_offset());
-  CHECK_LE(unwinding_info_offset(), BodySize());
+  CHECK_LE(unwinding_info_offset(), MetadataSize());
+  CHECK_IMPLIES(!ReadOnlyHeap::Contains(*this),
+                IsAligned(InstructionStart(), kCodeAlignment));
   CHECK_IMPLIES(!ReadOnlyHeap::Contains(*this),
                 IsAligned(raw_instruction_start(), kCodeAlignment));
   // TODO(delphick): Refactor Factory::CodeBuilder::BuildInternal, so that the

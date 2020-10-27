@@ -297,13 +297,6 @@ int Code::MetadataSize() const {
                                                : raw_metadata_size();
 }
 
-int Code::safepoint_table_offset() const {
-  // TODO(jgruber,v8:11036): Update once embedded instructions and metadata are
-  // separate.
-  STATIC_ASSERT(kBodyIsContiguous);
-  return InstructionSize();
-}
-
 int Code::SizeIncludingMetadata() const {
   int size = CodeSize();
   size += relocation_info().Size();
@@ -560,21 +553,21 @@ int Code::constant_pool_offset() const {
 
 void Code::set_constant_pool_offset(int value) {
   if (!FLAG_enable_embedded_constant_pool) return;
-  DCHECK_LE(value, BodySize());
+  DCHECK_LE(value, MetadataSize());
   WriteField<int>(kConstantPoolOffsetOffset, value);
 }
 
 Address Code::constant_pool() const {
   if (!has_constant_pool()) return kNullAddress;
-  return InstructionStart() + constant_pool_offset();
+  return MetadataStart() + constant_pool_offset();
 }
 
 Address Code::code_comments() const {
-  return InstructionStart() + code_comments_offset();
+  return MetadataStart() + code_comments_offset();
 }
 
 Address Code::unwinding_info_start() const {
-  return InstructionStart() + unwinding_info_offset();
+  return MetadataStart() + unwinding_info_offset();
 }
 
 Address Code::unwinding_info_end() const { return MetadataEnd(); }

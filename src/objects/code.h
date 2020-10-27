@@ -84,16 +84,16 @@ class Code : public HeapObject {
   //  |          header          |
   //  | padded to code alignment |
   //  +--------------------------+  <-- raw_body_start()
-  //  |       instructions       |   == raw_instruction_start() (IS)
+  //  |       instructions       |   == raw_instruction_start()
   //  |           ...            |
+  //  | padded to meta alignment |      see kMetadataAlignment
   //  +--------------------------+  <-- raw_instruction_end()
-  //  |         metadata         |   == raw_metadata_start()
-  //  |           ...            |   == IS + safepoint_table_offset()
-  //  |                          |
-  //  |                          |  <-- IS + handler_table_offset()
-  //  |                          |  <-- IS + constant_pool_offset()
-  //  |                          |  <-- IS + code_comments_offset()
-  //  |                          |  <-- IS + unwinding_info_offset()
+  //  |         metadata         |   == raw_metadata_start() (MS)
+  //  |           ...            |
+  //  |                          |  <-- MS + handler_table_offset()
+  //  |                          |  <-- MS + constant_pool_offset()
+  //  |                          |  <-- MS + code_comments_offset()
+  //  |                          |  <-- MS + unwinding_info_offset()
   //  | padded to obj alignment  |
   //  +--------------------------+  <-- raw_metadata_end() == raw_body_end()
   //  | padded to code alignment |
@@ -137,7 +137,7 @@ class Code : public HeapObject {
 
   inline Address raw_metadata_start() const;
   inline Address MetadataStart() const;
-  Address OffHeapMetadataStart() const;
+  V8_EXPORT_PRIVATE Address OffHeapMetadataStart() const;
   inline Address raw_metadata_end() const;
   inline Address MetadataEnd() const;
   V8_EXPORT_PRIVATE Address OffHeapMetadataEnd() const;
@@ -146,18 +146,18 @@ class Code : public HeapObject {
   inline int MetadataSize() const;
   int OffHeapMetadataSize() const;
 
-  // TODO(jgruber,v8:11036): Change all these offsets to be relative to
-  // MetadataStart instead of InstructionStart.
+  // The metadata section is aligned to this value.
+  static constexpr int kMetadataAlignment = kIntSize;
 
-  // [safepoint_table_offset]: If {has_safepoint_info()}, the offset in the
-  // instruction stream where the safepoint table starts.
-  inline int safepoint_table_offset() const;
+  // [safepoint_table_offset]: If {has_safepoint_info()}, the offset where the
+  // safepoint table starts.
+  inline int safepoint_table_offset() const { return 0; }
   Address SafepointTableAddress() const;
   int safepoint_table_size() const;
   bool has_safepoint_table() const;
 
-  // [handler_table_offset]: The offset in the instruction stream where the
-  // exception handler table starts.
+  // [handler_table_offset]: The offset where the exception handler table
+  // starts.
   inline int handler_table_offset() const;
   inline void set_handler_table_offset(int offset);
   Address HandlerTableAddress() const;
@@ -262,9 +262,6 @@ class Code : public HeapObject {
   // [stack_slots]: If {has_safepoint_info()}, the number of stack slots
   // reserved in the code prologue.
   inline int stack_slots() const;
-
-  // The size of the executable instruction area, without embedded metadata.
-  int ExecutableInstructionSize() const;
 
   // [marked_for_deoptimization]: If CodeKindCanDeoptimize(kind), tells whether
   // the code is going to be deoptimized.
@@ -405,31 +402,30 @@ class Code : public HeapObject {
   class OptimizedCodeIterator;
 
   // Layout description.
-#define CODE_FIELDS(V)                                                    \
-  V(kRelocationInfoOffset, kTaggedSize)                                   \
-  V(kDeoptimizationDataOffset, kTaggedSize)                               \
-  V(kSourcePositionTableOffset, kTaggedSize)                              \
-  V(kCodeDataContainerOffset, kTaggedSize)                                \
-  /* Data or code not directly visited by GC directly starts here. */     \
-  /* The serializer needs to copy bytes starting from here verbatim. */   \
-  /* Objects embedded into code is visited via reloc info. */             \
-  V(kDataStart, 0)                                                        \
-  V(kInstructionSizeOffset, kIntSize)                                     \
-  V(kMetadataSizeOffset, kIntSize)                                        \
-  V(kFlagsOffset, kInt32Size)                                             \
-  V(kBuiltinIndexOffset, kIntSize)                                        \
-  V(kInlinedBytecodeSizeOffset, kIntSize)                                 \
-  /* Offsets describing inline metadata tables, relative to */            \
-  /* InstructionStart. */                                                 \
-  V(kHandlerTableOffsetOffset, kIntSize)                                  \
-  V(kConstantPoolOffsetOffset,                                            \
-    FLAG_enable_embedded_constant_pool ? kIntSize : 0)                    \
-  V(kCodeCommentsOffsetOffset, kIntSize)                                  \
-  V(kUnwindingInfoOffsetOffset, kInt32Size)                               \
-  V(kUnalignedHeaderSize, 0)                                              \
-  /* Add padding to align the instruction start following right after */  \
-  /* the Code object header. */                                           \
-  V(kOptionalPaddingOffset, CODE_POINTER_PADDING(kOptionalPaddingOffset)) \
+#define CODE_FIELDS(V)                                                        \
+  V(kRelocationInfoOffset, kTaggedSize)                                       \
+  V(kDeoptimizationDataOffset, kTaggedSize)                                   \
+  V(kSourcePositionTableOffset, kTaggedSize)                                  \
+  V(kCodeDataContainerOffset, kTaggedSize)                                    \
+  /* Data or code not directly visited by GC directly starts here. */         \
+  /* The serializer needs to copy bytes starting from here verbatim. */       \
+  /* Objects embedded into code is visited via reloc info. */                 \
+  V(kDataStart, 0)                                                            \
+  V(kInstructionSizeOffset, kIntSize)                                         \
+  V(kMetadataSizeOffset, kIntSize)                                            \
+  V(kFlagsOffset, kInt32Size)                                                 \
+  V(kBuiltinIndexOffset, kIntSize)                                            \
+  V(kInlinedBytecodeSizeOffset, kIntSize)                                     \
+  /* Offsets describing inline metadata tables, relative to MetadataStart. */ \
+  V(kHandlerTableOffsetOffset, kIntSize)                                      \
+  V(kConstantPoolOffsetOffset,                                                \
+    FLAG_enable_embedded_constant_pool ? kIntSize : 0)                        \
+  V(kCodeCommentsOffsetOffset, kIntSize)                                      \
+  V(kUnwindingInfoOffsetOffset, kInt32Size)                                   \
+  V(kUnalignedHeaderSize, 0)                                                  \
+  /* Add padding to align the instruction start following right after */      \
+  /* the Code object header. */                                               \
+  V(kOptionalPaddingOffset, CODE_POINTER_PADDING(kOptionalPaddingOffset))     \
   V(kHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CODE_FIELDS)

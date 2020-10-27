@@ -31,7 +31,7 @@ namespace v8 {
 namespace internal {
 
 Address Code::SafepointTableAddress() const {
-  return InstructionStart() + safepoint_table_offset();
+  return MetadataStart() + safepoint_table_offset();
 }
 
 int Code::safepoint_table_size() const {
@@ -42,7 +42,7 @@ int Code::safepoint_table_size() const {
 bool Code::has_safepoint_table() const { return safepoint_table_size() > 0; }
 
 Address Code::HandlerTableAddress() const {
-  return InstructionStart() + handler_table_offset();
+  return MetadataStart() + handler_table_offset();
 }
 
 int Code::handler_table_size() const {
@@ -67,8 +67,6 @@ int Code::code_comments_size() const {
 }
 
 bool Code::has_code_comments() const { return code_comments_size() > 0; }
-
-int Code::ExecutableInstructionSize() const { return safepoint_table_offset(); }
 
 void Code::ClearEmbeddedObjects(Heap* heap) {
   HeapObject undefined = ReadOnlyRoots(heap).undefined_value();
@@ -706,8 +704,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   }
 
   {
-    // Stop before reaching any embedded tables
-    int code_size = ExecutableInstructionSize();
+    int code_size = InstructionSize();
     os << "Instructions (size = " << code_size << ")\n";
     DisassembleCodeRange(isolate, os, *this, InstructionStart(), code_size,
                          current_pc);
@@ -716,8 +713,8 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
       DCHECK_EQ(pool_size & kPointerAlignmentMask, 0);
       os << "\nConstant Pool (size = " << pool_size << ")\n";
       Vector<char> buf = Vector<char>::New(50);
-      intptr_t* ptr = reinterpret_cast<intptr_t*>(InstructionStart() +
-                                                  constant_pool_offset());
+      intptr_t* ptr =
+          reinterpret_cast<intptr_t*>(MetadataStart() + constant_pool_offset());
       for (int i = 0; i < pool_size; i += kSystemPointerSize, ptr++) {
         SNPrintF(buf, "%4d %08" V8PRIxPTR, i, *ptr);
         os << static_cast<const void*>(ptr) << "  " << buf.begin() << "\n";
