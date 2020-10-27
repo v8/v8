@@ -1702,13 +1702,12 @@ bool DescriptorArray::IsSortedNoDuplicates() {
   uint32_t current = 0;
   for (int i = 0; i < number_of_descriptors(); i++) {
     Name key = GetSortedKey(i);
-    CHECK(key.HasHashCode());
     if (key == current_key) {
       Print();
       return false;
     }
     current_key = key;
-    uint32_t hash = key.hash();
+    uint32_t hash = GetSortedKey(i).Hash();
     if (hash < current) {
       Print();
       return false;
@@ -1726,8 +1725,7 @@ bool TransitionArray::IsSortedNoDuplicates() {
 
   for (int i = 0; i < number_of_transitions(); i++) {
     Name key = GetSortedKey(i);
-    CHECK(key.HasHashCode());
-    uint32_t hash = key.hash();
+    uint32_t hash = key.Hash();
     PropertyKind kind = kData;
     PropertyAttributes attributes = NONE;
     if (!TransitionsAccessor::IsSpecialTransition(key.GetReadOnlyRoots(),
