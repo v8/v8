@@ -3696,13 +3696,9 @@ WASM_SIMD_TEST(S128Load32x2S) {
                                       kExprS128Load32x2S);
 }
 
-// TODO(v8:10713): Prototyping v128.load32_zero and v128.load64_zero.
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 || \
-    V8_TARGET_ARCH_ARM
 template <typename S>
 void RunLoadZeroTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                      WasmOpcode op) {
-  FLAG_SCOPE(wasm_simd_post_mvp);
   constexpr int lanes_s = kSimd128Size / sizeof(S);
   constexpr int mem_index = 16;  // Load from mem index 16 (bytes).
   constexpr S sentinel = S{-1};
@@ -3778,8 +3774,6 @@ WASM_SIMD_TEST_NO_LOWERING(S128Load32Zero) {
 WASM_SIMD_TEST_NO_LOWERING(S128Load64Zero) {
   RunLoadZeroTest<int64_t>(execution_tier, lower_simd, kExprS128Load64Zero);
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 ||
-        // V8_TARGET_ARCH_ARM
 
 #if V8_TARGET_ARCH_X64
 // TODO(v8:10975): Prototyping load lane and store lane.
