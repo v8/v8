@@ -369,7 +369,7 @@ class Serializer : public SerializerDeserializer {
   int recursion_depth_ = 0;
   const Snapshot::SerializerFlags flags_;
 
-  size_t allocation_size_[kNumberOfSnapshotSpaces];
+  size_t allocation_size_[kNumberOfSnapshotSpaces] = {0};
 #ifdef OBJECT_PRINT
   static constexpr int kInstanceTypes = LAST_TYPE + 1;
   std::unique_ptr<int[]> instance_type_count_[kNumberOfSnapshotSpaces];
