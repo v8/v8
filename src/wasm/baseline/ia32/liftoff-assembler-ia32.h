@@ -2712,6 +2712,7 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
       if (dst != lhs) {
         movups(dst.fp(), lhs.fp());
       }
+      CpuFeatureScope sse_scope(this, SSSE3);
       pshufb(dst.fp(), Operand(esp, 0));
     }
     mov(esp, tmp.gp());
