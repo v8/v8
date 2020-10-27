@@ -11,6 +11,7 @@
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/compiler-source-position-table.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/pipeline.h"
@@ -28,9 +29,9 @@ InstructionSelector::InstructionSelector(
     InstructionSequence* sequence, Schedule* schedule,
     SourcePositionTable* source_positions, Frame* frame,
     EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
-    size_t* max_unoptimized_frame_height, size_t* max_pushed_argument_count,
-    SourcePositionMode source_position_mode, Features features,
-    EnableScheduling enable_scheduling,
+    JSHeapBroker* broker, size_t* max_unoptimized_frame_height,
+    size_t* max_pushed_argument_count, SourcePositionMode source_position_mode,
+    Features features, EnableScheduling enable_scheduling,
     EnableRootsRelativeAddressing enable_roots_relative_addressing,
     PoisoningMitigationLevel poisoning_level, EnableTraceTurboJson trace_turbo)
     : zone_(zone),
@@ -61,6 +62,7 @@ InstructionSelector::InstructionSelector(
       instr_origins_(sequence->zone()),
       trace_turbo_(trace_turbo),
       tick_counter_(tick_counter),
+      broker_(broker),
       max_unoptimized_frame_height_(max_unoptimized_frame_height),
       max_pushed_argument_count_(max_pushed_argument_count)
 #if V8_TARGET_ARCH_64_BIT
@@ -3149,6 +3151,7 @@ void InstructionSelector::VisitUnreachable(Node* node) {
 
 void InstructionSelector::VisitStaticAssert(Node* node) {
   Node* asserted = node->InputAt(0);
+  UnparkedScopeIfNeeded scope(broker_);
   AllowHandleDereference allow_handle_dereference;
   asserted->Print(4);
   FATAL(
