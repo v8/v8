@@ -4046,7 +4046,9 @@ uint16_t Multiply(uint16_t a, uint16_t b) {
 
 void VmovImmediate(Simulator* simulator, Instruction* instr) {
   byte cmode = instr->Bits(11, 8);
-  int vd = instr->VFPDRegValue(kSimd128Precision);
+  int vd = instr->VFPDRegValue(kDoublePrecision);
+  int q = instr->Bit(6);
+  int regs = q ? 2 : 1;
   uint8_t imm = instr->Bit(24) << 7;  // i
   imm |= instr->Bits(18, 16) << 4;    // imm3
   imm |= instr->Bits(3, 0);           // imm4
@@ -4054,14 +4056,20 @@ void VmovImmediate(Simulator* simulator, Instruction* instr) {
     case 0: {
       // Set the LSB of each 64-bit halves.
       uint64_t imm64 = imm;
-      simulator->set_neon_register(vd, {imm64, imm64});
+      for (int r = 0; r < regs; r++) {
+        simulator->set_d_register(vd + r, &imm64);
+      }
       break;
     }
     case 0xe: {
       uint8_t imms[kSimd128Size];
       // Set all bytes of register.
       std::fill_n(imms, kSimd128Size, imm);
-      simulator->set_neon_register(vd, imms);
+      uint64_t imm64;
+      memcpy(&imm64, imms, 8);
+      for (int r = 0; r < regs; r++) {
+        simulator->set_d_register(vd + r, &imm64);
+      }
       break;
     }
     default: {
@@ -5743,7 +5751,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
     case 9: {
       if (instr->Bits(21, 20) == 2) {
         // Bits(11, 8) is the B field in A7.7 Advanced SIMD element or structure
-        // load/store instructions.
+        // load/store instructions. See table A7-21.
         if (instr->Bits(11, 8) == 0xC) {
           // vld1 (single element to all lanes).
           DCHECK_EQ(instr->Bits(11, 8), 0b1100);  // Type field.
@@ -5782,6 +5790,53 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           for (int r = 0; r < regs; r++) {
             set_neon_register<uint32_t, kDoubleSize>(Vd + r, q_data);
           }
+          if (Rm != 15) {
+            if (Rm == 13) {
+              set_register(Rn, address);
+            } else {
+              set_register(Rn, get_register(Rn) + get_register(Rm));
+            }
+          }
+        } else if (instr->Bits(11, 8) == 8 ||
+                   ((instr->Bits(11, 8) & 0b1011) == 0)) {
+          // vld1 (single element to one lane)
+          int Vd = (instr->Bit(22) << 4) | instr->VdValue();
+          int Rn = instr->VnValue();
+          int Rm = instr->VmValue();
+          int32_t address = get_register(Rn);
+          int size = instr->Bits(11, 10);
+          uint64_t dreg;
+          get_d_register(Vd, &dreg);
+          switch (size) {
+            case Neon8: {
+              uint64_t data = ReadBU(address);
+              DCHECK_EQ(0, instr->Bit(4));
+              int i = instr->Bits(7, 5) * 8;
+              dreg = (dreg & ~(uint64_t{0xff} << i)) | (data << i);
+              break;
+            }
+            case Neon16: {
+              DCHECK_EQ(0, instr->Bits(5, 4));  // Alignment not supported.
+              uint64_t data = ReadHU(address);
+              int i = instr->Bits(7, 6) * 16;
+              dreg = (dreg & ~(uint64_t{0xffff} << i)) | (data << i);
+              break;
+            }
+            case Neon32: {
+              DCHECK_EQ(0, instr->Bits(6, 4));  // Alignment not supported.
+              uint64_t data = static_cast<unsigned>(ReadW(address));
+              int i = instr->Bit(7) * 32;
+              dreg = (dreg & ~(uint64_t{0xffffffff} << i)) | (data << i);
+              break;
+            }
+            case Neon64: {
+              // Should have been handled by vld1 (single element to all lanes).
+              UNREACHABLE();
+            }
+          }
+          set_d_register(Vd, &dreg);
+
+          // write back
           if (Rm != 15) {
             if (Rm == 13) {
               set_register(Rn, address);

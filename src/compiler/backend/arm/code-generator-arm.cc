@@ -3264,6 +3264,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmovl(NeonU32, dst, dst.low());
       break;
     }
+    case kArmS128Load32Zero: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vmov(dst, 0);
+      __ vld1s(Neon32, NeonListOperand(dst.low()), 0, i.NeonInputOperand(0));
+      break;
+    }
+    case kArmS128Load64Zero: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vmov(dst.high(), 0);
+      __ vld1(Neon64, NeonListOperand(dst.low()), i.NeonInputOperand(0));
+      break;
+    }
     case kWord32AtomicLoadInt8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(ldrsb);
       break;

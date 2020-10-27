@@ -2514,9 +2514,10 @@ void Decoder::DecodeMemoryHintsAndBarriers(Instruction* instr) {
 void Decoder::DecodeAdvancedSIMDElementOrStructureLoadStore(
     Instruction* instr) {
   int op0 = instr->Bit(23);
+  int op1 = instr->Bits(11, 10);
+  int l = instr->Bit(21);
   if (op0 == 0) {
     // Advanced SIMD load/store multiple structures.
-    int l = instr->Bit(21);
     int itype = instr->Bits(11, 8);
     if (itype == 0b0010) {
       // vld1/vst1
@@ -2531,6 +2532,26 @@ void Decoder::DecodeAdvancedSIMDElementOrStructureLoadStore(
       FormatNeonList(Vd, itype);
       Print(", ");
       FormatNeonMemory(Rn, align, Rm);
+    } else {
+      Unknown(instr);
+    }
+  } else if (op1 != 0b11) {
+    // Advanced SIMD load/store single structure to one lane.
+    int size = op1;  // size and op1 occupy the same bits in decoding.
+    int n = instr->Bits(9, 8);
+    if (l && n == 0b00) {
+      // VLD1 (single element to one lane) - A1, A2, A3
+      int Vd = instr->VFPDRegValue(kDoublePrecision);
+      int Rn = instr->VnValue();
+      int Rm = instr->VmValue();
+      int index_align = instr->Bits(7, 4);
+      int index = index_align >> (size + 1);
+      // Omit alignment.
+      out_buffer_pos_ +=
+          SNPrintF(out_buffer_ + out_buffer_pos_, "vld1.%d {d%d[%d]}",
+                   (1 << size) << 3, Vd, index);
+      Print(", ");
+      FormatNeonMemory(Rn, 0, Rm);
     } else {
       Unknown(instr);
     }
