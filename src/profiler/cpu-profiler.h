@@ -246,6 +246,7 @@ class V8_EXPORT_PRIVATE ProfilerCodeObserver : public CodeEventObserver {
   void CodeEventHandler(const CodeEventsContainer& evt_rec) override;
 
   CodeMap* code_map() { return &code_map_; }
+  void ClearCodeMap();
 
  private:
   friend class ProfilerEventsProcessor;
@@ -331,6 +332,7 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   ProfilerListener* profiler_listener_for_test() const {
     return profiler_listener_.get();
   }
+  CodeMap* code_map_for_test() { return code_observer_.code_map(); }
 
  private:
   void StartProcessorIfNotStarted();

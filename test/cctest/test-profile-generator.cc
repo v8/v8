@@ -356,6 +356,21 @@ TEST(CodeMapMoveAndDeleteCode) {
   CHECK_EQ(entry3, code_map.FindEntry(ToAddress(0x1750)));
 }
 
+TEST(CodeMapClear) {
+  CodeMap code_map;
+  CodeEntry* entry1 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
+  CodeEntry* entry2 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "bbb");
+  code_map.AddCode(ToAddress(0x1500), entry1, 0x200);
+  code_map.AddCode(ToAddress(0x1700), entry2, 0x100);
+
+  code_map.Clear();
+  CHECK(!code_map.FindEntry(ToAddress(0x1500)));
+  CHECK(!code_map.FindEntry(ToAddress(0x1700)));
+
+  // Check that Clear() doesn't cause issues if called twice.
+  code_map.Clear();
+}
+
 namespace {
 
 class TestSetup {

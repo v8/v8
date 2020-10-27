@@ -279,6 +279,94 @@ TEST(TickEvents) {
   CHECK(top_down_ddd_children->empty());
 }
 
+TEST(CodeMapClearedBetweenProfilesWithLazyLogging) {
+  TestSetup test_setup;
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  // This gets logged when the profiler starts up and scans the heap.
+  i::Handle<i::AbstractCode> code1(CreateCode(&env), isolate);
+
+  CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging);
+  profiler.StartProfiling("");
+
+  CpuProfile* profile = profiler.StopProfiling("");
+  CHECK(profile);
+
+  // Check that our code is still in the code map.
+  CodeMap* code_map = profiler.code_map_for_test();
+  CodeEntry* code1_entry = code_map->FindEntry(code1->InstructionStart());
+  CHECK(code1_entry);
+  CHECK_EQ(0, strcmp("function_1", code1_entry->name()));
+
+  profiler.DeleteProfile(profile);
+
+  // Check that the code map is emptied once the last profile is deleted.
+  CHECK(!code_map->FindEntry(code1->InstructionStart()));
+
+  // Create code between profiles. This should not be logged yet.
+  i::Handle<i::AbstractCode> code2(CreateCode(&env), isolate);
+
+  CHECK(!code_map->FindEntry(code2->InstructionStart()));
+}
+
+TEST(CodeMapNotClearedBetweenProfilesWithEagerLogging) {
+  TestSetup test_setup;
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  // This gets logged when the profiler starts up and scans the heap.
+  i::Handle<i::AbstractCode> code1(CreateCode(&env), isolate);
+
+  CpuProfiler profiler(isolate, kDebugNaming, kEagerLogging);
+  profiler.StartProfiling("");
+
+  CpuProfile* profile = profiler.StopProfiling("");
+  CHECK(profile);
+
+  // Check that our code is still in the code map.
+  CodeMap* code_map = profiler.code_map_for_test();
+  CodeEntry* code1_entry = code_map->FindEntry(code1->InstructionStart());
+  CHECK(code1_entry);
+  CHECK_EQ(0, strcmp("function_1", code1_entry->name()));
+
+  profiler.DeleteProfile(profile);
+
+  // We should still have an entry in kEagerLogging mode.
+  code1_entry = code_map->FindEntry(code1->InstructionStart());
+  CHECK(code1_entry);
+  CHECK_EQ(0, strcmp("function_1", code1_entry->name()));
+
+  // Create code between profiles. This should be logged too.
+  i::Handle<i::AbstractCode> code2(CreateCode(&env), isolate);
+  CHECK(code_map->FindEntry(code2->InstructionStart()));
+
+  profiler.StartProfiling("");
+  CpuProfile* profile2 = profiler.StopProfiling("");
+  CHECK(profile2);
+
+  // Check that we still have code map entries for both code objects.
+  code1_entry = code_map->FindEntry(code1->InstructionStart());
+  CHECK(code1_entry);
+  CHECK_EQ(0, strcmp("function_1", code1_entry->name()));
+  CodeEntry* code2_entry = code_map->FindEntry(code2->InstructionStart());
+  CHECK(code2_entry);
+  CHECK_EQ(0, strcmp("function_2", code2_entry->name()));
+
+  profiler.DeleteProfile(profile2);
+
+  // Check that we still have code map entries for both code objects, even after
+  // the last profile is deleted.
+  code1_entry = code_map->FindEntry(code1->InstructionStart());
+  CHECK(code1_entry);
+  CHECK_EQ(0, strcmp("function_1", code1_entry->name()));
+  code2_entry = code_map->FindEntry(code2->InstructionStart());
+  CHECK(code2_entry);
+  CHECK_EQ(0, strcmp("function_2", code2_entry->name()));
+}
+
 // http://crbug/51594
 // This test must not crash.
 TEST(CrashIfStoppingLastNonExistentProfile) {

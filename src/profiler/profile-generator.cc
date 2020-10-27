@@ -644,7 +644,9 @@ void CpuProfile::Print() const {
 
 CodeMap::CodeMap() = default;
 
-CodeMap::~CodeMap() {
+CodeMap::~CodeMap() { Clear(); }
+
+void CodeMap::Clear() {
   // First clean the free list as it's otherwise impossible to tell
   // the slot type.
   unsigned free_slot = free_list_head_;
@@ -654,6 +656,10 @@ CodeMap::~CodeMap() {
     free_slot = next_slot;
   }
   for (auto slot : code_entries_) delete slot.entry;
+
+  code_entries_.clear();
+  code_map_.clear();
+  free_list_head_ = kNoFreeSlot;
 }
 
 void CodeMap::AddCode(Address addr, CodeEntry* entry, unsigned size) {

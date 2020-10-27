@@ -412,6 +412,8 @@ class V8_EXPORT_PRIVATE CodeMap {
   CodeEntry* FindEntry(Address addr, Address* out_instruction_start = nullptr);
   void Print();
 
+  void Clear();
+
  private:
   struct CodeEntryMapInfo {
     unsigned index;
@@ -431,6 +433,7 @@ class V8_EXPORT_PRIVATE CodeMap {
 
   CodeEntry* entry(unsigned index) { return code_entries_[index].entry; }
 
+  // Added state here needs to be dealt with in Clear() as well.
   std::deque<CodeEntrySlotInfo> code_entries_;
   std::map<Address, CodeEntryMapInfo> code_map_;
   unsigned free_list_head_ = kNoFreeSlot;

@@ -326,6 +326,8 @@ ProfilerCodeObserver::ProfilerCodeObserver(Isolate* isolate)
   LogBuiltins();
 }
 
+void ProfilerCodeObserver::ClearCodeMap() { code_map_.Clear(); }
+
 void ProfilerCodeObserver::CodeEventHandler(
     const CodeEventsContainer& evt_rec) {
   if (processor_) {
@@ -487,7 +489,10 @@ void CpuProfiler::ResetProfiles() {
   profiles_.reset(new CpuProfilesCollection(isolate_));
   profiles_->set_cpu_profiler(this);
   symbolizer_.reset();
-  if (!profiling_scope_) profiler_listener_.reset();
+  if (!profiling_scope_) {
+    profiler_listener_.reset();
+    code_observer_.ClearCodeMap();
+  }
 }
 
 void CpuProfiler::EnableLogging() {
