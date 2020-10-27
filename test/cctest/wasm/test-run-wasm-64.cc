@@ -250,6 +250,8 @@ WASM_EXEC_TEST(I64RemS) {
     FOR_INT64_INPUTS(j) {
       if (j == 0) {
         CHECK_TRAP64(r.Call(i, j));
+      } else if (j == -1) {
+        CHECK_EQ(0, r.Call(i, j));
       } else {
         CHECK_EQ(i % j, r.Call(i, j));
       }
