@@ -838,6 +838,16 @@ TEST_F(MachineOperatorReducerTest, Word32AndWithBitFields) {
   }
 }
 
+TEST_F(MachineOperatorReducerTest, Word32AndWithIncorrectBitField) {
+  Reduction const r = Reduce(graph()->NewNode(
+      machine()->Word32And(), Parameter(0),
+      graph()->NewNode(machine()->Word32Equal(),
+                       graph()->NewNode(machine()->Word32And(), Parameter(0),
+                                        Int32Constant(4)),
+                       Parameter(0))));
+  ASSERT_FALSE(r.Changed());
+}
+
 // -----------------------------------------------------------------------------
 // Word32Or
 
