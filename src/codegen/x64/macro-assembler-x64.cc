@@ -1880,6 +1880,42 @@ void TurboAssembler::Pslld(XMMRegister dst, byte imm8) {
   }
 }
 
+void TurboAssembler::Pblendvb(XMMRegister dst, XMMRegister src1,
+                              XMMRegister src2, XMMRegister mask) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpblendvb(dst, src1, src2, mask);
+  } else {
+    DCHECK_EQ(dst, src1);
+    DCHECK_EQ(xmm0, mask);
+    pblendvb(dst, src2);
+  }
+}
+
+void TurboAssembler::Blendvps(XMMRegister dst, XMMRegister src1,
+                              XMMRegister src2, XMMRegister mask) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vblendvps(dst, src1, src2, mask);
+  } else {
+    DCHECK_EQ(dst, src1);
+    DCHECK_EQ(xmm0, mask);
+    blendvps(dst, src2);
+  }
+}
+
+void TurboAssembler::Blendvpd(XMMRegister dst, XMMRegister src1,
+                              XMMRegister src2, XMMRegister mask) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vblendvpd(dst, src1, src2, mask);
+  } else {
+    DCHECK_EQ(dst, src1);
+    DCHECK_EQ(xmm0, mask);
+    blendvpd(dst, src2);
+  }
+}
+
 void TurboAssembler::Psrld(XMMRegister dst, byte imm8) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);

@@ -4681,6 +4681,9 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprI64x2ExtMulHighI32x4U:
       return graph()->NewNode(mcgraph()->machine()->I64x2ExtMulHighI32x4U(),
                               inputs[0], inputs[1]);
+    case wasm::kExprI64x2SignSelect:
+      return graph()->NewNode(mcgraph()->machine()->I64x2SignSelect(),
+                              inputs[0], inputs[1], inputs[2]);
     case wasm::kExprI32x4Splat:
       return graph()->NewNode(mcgraph()->machine()->I32x4Splat(), inputs[0]);
     case wasm::kExprI32x4SConvertF32x4:
@@ -4785,6 +4788,9 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprI32x4ExtMulHighI16x8U:
       return graph()->NewNode(mcgraph()->machine()->I32x4ExtMulHighI16x8U(),
                               inputs[0], inputs[1]);
+    case wasm::kExprI32x4SignSelect:
+      return graph()->NewNode(mcgraph()->machine()->I32x4SignSelect(),
+                              inputs[0], inputs[1], inputs[2]);
     case wasm::kExprI16x8Splat:
       return graph()->NewNode(mcgraph()->machine()->I16x8Splat(), inputs[0]);
     case wasm::kExprI16x8SConvertI8x16Low:
@@ -4904,6 +4910,9 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprI16x8ExtMulHighI8x16U:
       return graph()->NewNode(mcgraph()->machine()->I16x8ExtMulHighI8x16U(),
                               inputs[0], inputs[1]);
+    case wasm::kExprI16x8SignSelect:
+      return graph()->NewNode(mcgraph()->machine()->I16x8SignSelect(),
+                              inputs[0], inputs[1], inputs[2]);
     case wasm::kExprI8x16Splat:
       return graph()->NewNode(mcgraph()->machine()->I8x16Splat(), inputs[0]);
     case wasm::kExprI8x16Neg:
@@ -4995,6 +5004,9 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
       return graph()->NewNode(mcgraph()->machine()->I8x16Abs(), inputs[0]);
     case wasm::kExprI8x16BitMask:
       return graph()->NewNode(mcgraph()->machine()->I8x16BitMask(), inputs[0]);
+    case wasm::kExprI8x16SignSelect:
+      return graph()->NewNode(mcgraph()->machine()->I8x16SignSelect(),
+                              inputs[0], inputs[1], inputs[2]);
     case wasm::kExprS128And:
       return graph()->NewNode(mcgraph()->machine()->S128And(), inputs[0],
                               inputs[1]);

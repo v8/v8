@@ -1047,8 +1047,22 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         current += PrintRightOperand(current);
         AppendToBuffer(",0x%x", *current++);
         break;
+      case 0x4A: {
+        AppendToBuffer("vblendvps %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",%s", NameOfXMMRegister((*current++) >> 4));
+        break;
+      }
       case 0x4B: {
         AppendToBuffer("vblendvpd %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",%s", NameOfXMMRegister((*current++) >> 4));
+        break;
+      }
+      case 0x4C: {
+        AppendToBuffer("vpblendvb %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
         AppendToBuffer(",%s", NameOfXMMRegister((*current++) >> 4));
@@ -2353,6 +2367,18 @@ int DisassemblerX64::ThreeByteOpcodeInstruction(byte* data) {
   get_modrm(*current, &mod, &regop, &rm);
   if (second_byte == 0x38) {
     switch (third_byte) {
+      case 0x10: {
+        AppendToBuffer("pblendvb %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",<xmm0>");
+        break;
+      }
+      case 0x14: {
+        AppendToBuffer("blendvps %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",<xmm0>");
+        break;
+      }
       case 0x15: {
         current += PrintOperands("blendvpd", XMMREG_XMMOPER_OP_ORDER, current);
         AppendToBuffer(",<xmm0>");

@@ -540,6 +540,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Pslld(XMMRegister dst, byte imm8);
   void Psrld(XMMRegister dst, byte imm8);
 
+  void Pblendvb(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                XMMRegister mask);
+  void Blendvps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                XMMRegister mask);
+  void Blendvpd(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                XMMRegister mask);
+
   void CompareRoot(Register with, RootIndex index);
   void CompareRoot(Operand with, RootIndex index);
 

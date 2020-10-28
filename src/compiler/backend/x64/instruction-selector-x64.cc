@@ -3139,6 +3139,40 @@ void InstructionSelector::VisitS128Select(Node* node) {
        g.UseRegister(node->InputAt(2)));
 }
 
+namespace {
+void VisitSignSelect(InstructionSelector* selector, Node* node,
+                     ArchOpcode opcode) {
+  X64OperandGenerator g(selector);
+  // signselect(x, y, -1) = x
+  // pblendvb(dst, x, y, -1) = dst <- y, so we need to swap x and y.
+  if (selector->IsSupported(AVX)) {
+    selector->Emit(
+        opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(1)),
+        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(2)));
+  } else {
+    selector->Emit(
+        opcode, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(1)),
+        g.UseRegister(node->InputAt(0)), g.UseFixed(node->InputAt(2), xmm0));
+  }
+}
+}  // namespace
+
+void InstructionSelector::VisitI8x16SignSelect(Node* node) {
+  VisitSignSelect(this, node, kX64I8x16SignSelect);
+}
+
+void InstructionSelector::VisitI16x8SignSelect(Node* node) {
+  VisitSignSelect(this, node, kX64I16x8SignSelect);
+}
+
+void InstructionSelector::VisitI32x4SignSelect(Node* node) {
+  VisitSignSelect(this, node, kX64I32x4SignSelect);
+}
+
+void InstructionSelector::VisitI64x2SignSelect(Node* node) {
+  VisitSignSelect(this, node, kX64I64x2SignSelect);
+}
+
 void InstructionSelector::VisitS128AndNot(Node* node) {
   X64OperandGenerator g(this);
   // andnps a b does ~a & b, but we want a & !b, so flip the input.

@@ -590,6 +590,10 @@ TEST(DisasmX64) {
       __ cvtps2dq(xmm5, Operand(rdx, 4));
       __ cvtdq2ps(xmm5, xmm1);
       __ cvtdq2ps(xmm5, Operand(rdx, 4));
+
+      __ pblendvb(xmm5, xmm1);
+      __ blendvps(xmm5, xmm1);
+      __ blendvps(xmm5, Operand(rdx, 4));
       __ blendvpd(xmm5, xmm1);
       __ blendvpd(xmm5, Operand(rdx, 4));
 
@@ -829,6 +833,8 @@ TEST(DisasmX64) {
       __ vpalignr(xmm1, xmm2, xmm3, 4);
       __ vpalignr(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 4);
 
+      __ vpblendvb(xmm1, xmm2, xmm3, xmm4);
+      __ vblendvps(xmm1, xmm2, xmm3, xmm4);
       __ vblendvpd(xmm1, xmm2, xmm3, xmm4);
 
       __ vmovddup(xmm1, xmm2);

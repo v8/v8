@@ -9,6 +9,7 @@
 
 #include "src/base/overflowing-math.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/common/globals.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/objects-inl.h"
@@ -2764,6 +2765,18 @@ class WasmInterpreterInternals {
         return DoSimdStoreLane<int2, int64_t, int64_t>(
             decoder, code, pc, len, MachineRepresentation::kWord64);
       }
+      case kExprI8x16SignSelect: {
+        return DoSimdSignSelect<int16>();
+      }
+      case kExprI16x8SignSelect: {
+        return DoSimdSignSelect<int8>();
+      }
+      case kExprI32x4SignSelect: {
+        return DoSimdSignSelect<int4>();
+      }
+      case kExprI64x2SignSelect: {
+        return DoSimdSignSelect<int2>();
+      }
       default:
         return false;
     }
@@ -2879,6 +2892,21 @@ class WasmInterpreterInternals {
       res.val[LANE(dst, res)] =
           MultiplyLong<wide>(static_cast<narrow>(s1.val[LANE(start, s1)]),
                              static_cast<narrow>(s2.val[LANE(start, s2)]));
+    }
+    Push(WasmValue(Simd128(res)));
+    return true;
+  }
+
+  template <typename s_type>
+  bool DoSimdSignSelect() {
+    constexpr int lanes = kSimd128Size / sizeof(s_type::val[0]);
+    auto c = Pop().to_s128().to<s_type>();
+    auto v2 = Pop().to_s128().to<s_type>();
+    auto v1 = Pop().to_s128().to<s_type>();
+    s_type res;
+    for (int i = 0; i < lanes; ++i) {
+      res.val[LANE(i, res)] =
+          c.val[LANE(i, c)] < 0 ? v1.val[LANE(i, v1)] : v2.val[LANE(i, v2)];
     }
     Push(WasmValue(Simd128(res)));
     return true;

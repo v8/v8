@@ -8,6 +8,7 @@
 #include "src/base/bits.h"
 #include "src/base/overflowing-math.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/common/globals.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
@@ -791,6 +792,65 @@ WASM_SIMD_TEST(F32x4Lt) {
 WASM_SIMD_TEST(F32x4Le) {
   RunF32x4CompareOpTest(execution_tier, lower_simd, kExprF32x4Le, LessEqual);
 }
+
+#if V8_TARGET_ARCH_X64
+// TODO(v8:10983) Prototyping sign select.
+template <typename T>
+void RunSignSelect(TestExecutionTier execution_tier, LowerSimd lower_simd,
+                   WasmOpcode signselect, WasmOpcode splat,
+                   std::array<int8_t, kSimd128Size> mask) {
+  FLAG_SCOPE(wasm_simd_post_mvp);
+  WasmRunner<int32_t, T, T> r(execution_tier, lower_simd);
+  T* output = r.builder().template AddGlobal<T>(kWasmS128);
+
+  // Splat 2 constant values, then use a mask that selects alternate lanes.
+  BUILD(r, WASM_GET_LOCAL(0), WASM_SIMD_OP(splat), WASM_GET_LOCAL(1),
+        WASM_SIMD_OP(splat), WASM_SIMD_CONSTANT(mask), WASM_SIMD_OP(signselect),
+        kExprGlobalSet, 0, WASM_ONE);
+
+  r.Call(1, 2);
+
+  constexpr int lanes = kSimd128Size / sizeof(T);
+  for (int i = 0; i < lanes; i += 2) {
+    CHECK_EQ(1, ReadLittleEndianValue<T>(&output[i]));
+  }
+  for (int i = 1; i < lanes; i += 2) {
+    CHECK_EQ(2, ReadLittleEndianValue<T>(&output[i]));
+  }
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I8x16SignSelect) {
+  std::array<int8_t, kSimd128Size> mask = {0x80, 0, -1, 0, 0x80, 0, -1, 0,
+                                           0x80, 0, -1, 0, 0x80, 0, -1, 0};
+  RunSignSelect<int8_t>(execution_tier, lower_simd, kExprI8x16SignSelect,
+                        kExprI8x16Splat, mask);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I16x8SignSelect) {
+  std::array<int16_t, kSimd128Size / 2> selection = {0x8000, 0, -1, 0,
+                                                     0x8000, 0, -1, 0};
+  std::array<int8_t, kSimd128Size> mask;
+  memcpy(mask.data(), selection.data(), kSimd128Size);
+  RunSignSelect<int16_t>(execution_tier, lower_simd, kExprI16x8SignSelect,
+                         kExprI16x8Splat, mask);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I32x4SignSelect) {
+  std::array<int32_t, kSimd128Size / 4> selection = {0x80000000, 0, -1, 0};
+  std::array<int8_t, kSimd128Size> mask;
+  memcpy(mask.data(), selection.data(), kSimd128Size);
+  RunSignSelect<int32_t>(execution_tier, lower_simd, kExprI32x4SignSelect,
+                         kExprI32x4Splat, mask);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2SignSelect) {
+  std::array<int64_t, kSimd128Size / 8> selection = {0x8000000000000000, 0};
+  std::array<int8_t, kSimd128Size> mask;
+  memcpy(mask.data(), selection.data(), kSimd128Size);
+  RunSignSelect<int64_t>(execution_tier, lower_simd, kExprI64x2SignSelect,
+                         kExprI64x2Splat, mask);
+}
+#endif  // V8_TARGET_ARCH_X64
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 WASM_SIMD_TEST_NO_LOWERING(F32x4Qfma) {

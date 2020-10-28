@@ -1066,6 +1066,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   SSE4_INSTRUCTION_LIST(DECLARE_SSE4_INSTRUCTION)
   SSE4_UNOP_INSTRUCTION_LIST(DECLARE_SSE4_INSTRUCTION)
+  DECLARE_SSE4_INSTRUCTION(pblendvb, 66, 0F, 38, 10)
+  DECLARE_SSE4_INSTRUCTION(blendvps, 66, 0F, 38, 14)
   DECLARE_SSE4_INSTRUCTION(blendvpd, 66, 0F, 38, 15)
 #undef DECLARE_SSE4_INSTRUCTION
 
@@ -1125,6 +1127,20 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   SSSE3_UNOP_INSTRUCTION_LIST(DECLARE_SSSE3_UNOP_AVX_INSTRUCTION)
 #undef DECLARE_SSSE3_UNOP_AVX_INSTRUCTION
+
+  void vpblendvb(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister mask) {
+    vinstr(0x4C, dst, src1, src2, k66, k0F3A, kW0);
+    // The mask operand is encoded in bits[7:4] of the immediate byte.
+    emit(mask.code() << 4);
+  }
+
+  void vblendvps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister mask) {
+    vinstr(0x4A, dst, src1, src2, k66, k0F3A, kW0);
+    // The mask operand is encoded in bits[7:4] of the immediate byte.
+    emit(mask.code() << 4);
+  }
 
   void vblendvpd(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                  XMMRegister mask) {

@@ -2023,6 +2023,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI64x2ExtMulLowI32x4U(node);
     case IrOpcode::kI64x2ExtMulHighI32x4U:
       return MarkAsSimd128(node), VisitI64x2ExtMulHighI32x4U(node);
+    case IrOpcode::kI64x2SignSelect:
+      return MarkAsSimd128(node), VisitI64x2SignSelect(node);
     case IrOpcode::kI32x4Splat:
       return MarkAsSimd128(node), VisitI32x4Splat(node);
     case IrOpcode::kI32x4ExtractLane:
@@ -2091,6 +2093,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI32x4ExtMulLowI16x8U(node);
     case IrOpcode::kI32x4ExtMulHighI16x8U:
       return MarkAsSimd128(node), VisitI32x4ExtMulHighI16x8U(node);
+    case IrOpcode::kI32x4SignSelect:
+      return MarkAsSimd128(node), VisitI32x4SignSelect(node);
     case IrOpcode::kI16x8Splat:
       return MarkAsSimd128(node), VisitI16x8Splat(node);
     case IrOpcode::kI16x8ExtractLaneU:
@@ -2171,6 +2175,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI16x8ExtMulLowI8x16U(node);
     case IrOpcode::kI16x8ExtMulHighI8x16U:
       return MarkAsSimd128(node), VisitI16x8ExtMulHighI8x16U(node);
+    case IrOpcode::kI16x8SignSelect:
+      return MarkAsSimd128(node), VisitI16x8SignSelect(node);
     case IrOpcode::kI8x16Splat:
       return MarkAsSimd128(node), VisitI8x16Splat(node);
     case IrOpcode::kI8x16ExtractLaneU:
@@ -2233,6 +2239,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI8x16Abs(node);
     case IrOpcode::kI8x16BitMask:
       return MarkAsWord32(node), VisitI8x16BitMask(node);
+    case IrOpcode::kI8x16SignSelect:
+      return MarkAsSimd128(node), VisitI8x16SignSelect(node);
     case IrOpcode::kS128Const:
       return MarkAsSimd128(node), VisitS128Const(node);
     case IrOpcode::kS128Zero:
@@ -2771,6 +2779,12 @@ void InstructionSelector::VisitStoreLane(Node* node) { UNIMPLEMENTED(); }
 
 // TODO(v8:10997) Prototype i64x2.bitmask.
 void InstructionSelector::VisitI64x2BitMask(Node* node) { UNIMPLEMENTED(); }
+
+// TODO(v8:10983) Prototyping sign select.
+void InstructionSelector::VisitI8x16SignSelect(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI16x8SignSelect(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI32x4SignSelect(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI64x2SignSelect(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }

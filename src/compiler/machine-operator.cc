@@ -429,6 +429,7 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(I64x2ExtMulHighI32x4S, Operator::kCommutative, 2, 0, 1)                \
   V(I64x2ExtMulLowI32x4U, Operator::kCommutative, 2, 0, 1)                 \
   V(I64x2ExtMulHighI32x4U, Operator::kCommutative, 2, 0, 1)                \
+  V(I64x2SignSelect, Operator::kNoProperties, 3, 0, 1)                     \
   V(I32x4Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(I32x4SConvertF32x4, Operator::kNoProperties, 1, 0, 1)                  \
   V(I32x4SConvertI16x8Low, Operator::kNoProperties, 1, 0, 1)               \
@@ -461,6 +462,7 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(I32x4ExtMulHighI16x8S, Operator::kCommutative, 2, 0, 1)                \
   V(I32x4ExtMulLowI16x8U, Operator::kCommutative, 2, 0, 1)                 \
   V(I32x4ExtMulHighI16x8U, Operator::kCommutative, 2, 0, 1)                \
+  V(I32x4SignSelect, Operator::kNoProperties, 3, 0, 1)                     \
   V(I16x8Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(I16x8SConvertI8x16Low, Operator::kNoProperties, 1, 0, 1)               \
   V(I16x8SConvertI8x16High, Operator::kNoProperties, 1, 0, 1)              \
@@ -498,6 +500,7 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(I16x8ExtMulHighI8x16S, Operator::kCommutative, 2, 0, 1)                \
   V(I16x8ExtMulLowI8x16U, Operator::kCommutative, 2, 0, 1)                 \
   V(I16x8ExtMulHighI8x16U, Operator::kCommutative, 2, 0, 1)                \
+  V(I16x8SignSelect, Operator::kNoProperties, 3, 0, 1)                     \
   V(I8x16Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(I8x16Neg, Operator::kNoProperties, 1, 0, 1)                            \
   V(I8x16Shl, Operator::kNoProperties, 2, 0, 1)                            \
@@ -526,6 +529,7 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(I8x16Popcnt, Operator::kNoProperties, 1, 0, 1)                         \
   V(I8x16Abs, Operator::kNoProperties, 1, 0, 1)                            \
   V(I8x16BitMask, Operator::kNoProperties, 1, 0, 1)                        \
+  V(I8x16SignSelect, Operator::kNoProperties, 3, 0, 1)                     \
   V(S128Load, Operator::kNoProperties, 2, 0, 1)                            \
   V(S128Store, Operator::kNoProperties, 3, 0, 1)                           \
   V(S128Zero, Operator::kNoProperties, 0, 0, 1)                            \
