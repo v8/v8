@@ -47,8 +47,14 @@ namespace internal {
 // HeapObject, which is updated if the HeapObject moves.
 class SlotAccessorForHeapObject {
  public:
-  SlotAccessorForHeapObject(Handle<HeapObject> object, int index)
-      : object_(object), offset_(index * kTaggedSize) {}
+  static SlotAccessorForHeapObject ForSlotIndex(Handle<HeapObject> object,
+                                                int index) {
+    return SlotAccessorForHeapObject(object, index * kTaggedSize);
+  }
+  static SlotAccessorForHeapObject ForSlotOffset(Handle<HeapObject> object,
+                                                 int offset) {
+    return SlotAccessorForHeapObject(object, offset);
+  }
 
   MaybeObjectSlot slot() const { return object_->RawMaybeWeakField(offset_); }
   Handle<HeapObject> object() const { return object_; }
@@ -94,6 +100,9 @@ class SlotAccessorForHeapObject {
   }
 
  private:
+  SlotAccessorForHeapObject(Handle<HeapObject> object, int offset)
+      : object_(object), offset_(offset) {}
+
   const Handle<HeapObject> object_;
   const int offset_;
 };
@@ -754,7 +763,7 @@ void Deserializer::ReadData(Handle<HeapObject> object, int start_slot_index,
   while (current < end_slot_index) {
     byte data = source_.Get();
     current += ReadSingleBytecodeData(
-        data, SlotAccessorForHeapObject(object, current));
+        data, SlotAccessorForHeapObject::ForSlotIndex(object, current));
   }
   CHECK_EQ(current, end_slot_index);
 }
@@ -897,9 +906,9 @@ int Deserializer::ReadSingleBytecodeData(byte data,
       Handle<HeapObject> obj = slot_accessor.object();
       int index = source_.GetInt();
       auto& forward_ref = unresolved_forward_refs_[index];
-      TaggedField<MaybeObject>::store(
-          *forward_ref.object, forward_ref.offset,
-          HeapObjectReference::From(*obj, forward_ref.ref_type));
+      SlotAccessorForHeapObject::ForSlotOffset(forward_ref.object,
+                                               forward_ref.offset)
+          .Write(*obj, forward_ref.ref_type);
       num_unresolved_forward_refs_--;
       if (num_unresolved_forward_refs_ == 0) {
         // If there's no more pending fields, clear the entire pending field
