@@ -108,7 +108,7 @@ namespace internal {
   F(CompileLazy, 1, 1)                    \
   F(CompileOptimized_Concurrent, 1, 1)    \
   F(CompileOptimized_NotConcurrent, 1, 1) \
-  F(EvictOptimizedCodeSlot, 1, 1)         \
+  F(HealOptimizedCodeSlot, 1, 1)          \
   F(FunctionFirstExecution, 1, 1)         \
   F(InstantiateAsmJs, 4, 1)               \
   F(NotifyDeoptimized, 0, 1)              \

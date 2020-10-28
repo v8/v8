@@ -187,6 +187,21 @@ class FeedbackVector
     : public TorqueGeneratedFeedbackVector<FeedbackVector, HeapObject> {
  public:
   NEVER_READ_ONLY_SPACE
+  DEFINE_TORQUE_GENERATED_FEEDBACK_VECTOR_FLAGS()
+  STATIC_ASSERT(OptimizationMarker::kLastOptimizationMarker <
+                OptimizationMarkerBits::kMax);
+  STATIC_ASSERT(OptimizationTier::kLastOptimizationTier <
+                OptimizationTierBits::kMax);
+
+  // We want this value to be 0 to generate slightly compact code in
+  // InterpreterEntryTrampoline
+  static constexpr uint32_t kHasNoOptimizedCodeOrMarkerValue =
+      OptimizationTierBits::encode(OptimizationTier::kNone) |
+      OptimizationTierBits::encode(OptimizationTier::kNone);
+  STATIC_ASSERT(kHasNoOptimizedCodeOrMarkerValue == 0);
+  static constexpr uint32_t kHasNoTopTierCodeOrCompileOptimizedMarkerMask =
+      kNoneOrMidTierMask << OptimizationTierBits::kShift |
+      kNoneOrInOptimizationQueueMask << OptimizationMarkerBits::kShift;
 
   inline bool is_empty() const;
 
@@ -195,21 +210,21 @@ class FeedbackVector
   // Increment profiler ticks, saturating at the maximal value.
   void SaturatingIncrementProfilerTicks();
 
-  // Initialize the padding if necessary.
-  inline void clear_padding();
-
   inline void clear_invocation_count();
 
   inline Code optimized_code() const;
-  inline OptimizationMarker optimization_marker() const;
   inline bool has_optimized_code() const;
   inline bool has_optimization_marker() const;
+  inline OptimizationMarker optimization_marker() const;
+  inline OptimizationTier optimization_tier() const;
   void ClearOptimizedCode();
   void EvictOptimizedCodeMarkedForDeoptimization(SharedFunctionInfo shared,
                                                  const char* reason);
   static void SetOptimizedCode(Handle<FeedbackVector> vector,
                                Handle<Code> code);
   void SetOptimizationMarker(OptimizationMarker marker);
+  void ClearOptimizationTier();
+  void InitializeOptimizationState();
 
   // Clears the optimization marker in the feedback vector.
   void ClearOptimizationMarker();

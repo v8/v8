@@ -783,13 +783,13 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ PushReturnAddressFrom(return_pc);
 }
 
-// Tail-call |function_id| if |smi_entry| == |marker|
+// Tail-call |function_id| if |actual_marker| == |expected_marker|
 static void TailCallRuntimeIfMarkerEquals(MacroAssembler* masm,
-                                          Register smi_entry,
-                                          OptimizationMarker marker,
+                                          Register actual_marker,
+                                          OptimizationMarker expected_marker,
                                           Runtime::FunctionId function_id) {
   Label no_match;
-  __ cmp(smi_entry, Immediate(Smi::FromEnum(marker)));
+  __ cmp(actual_marker, expected_marker);
   __ j(not_equal, &no_match, Label::kNear);
   GenerateTailCallToReturnedCode(masm, function_id);
   __ bind(&no_match);
@@ -808,14 +808,19 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   __ movd(xmm0, eax);
   __ movd(xmm1, edx);
 
+  Label heal_optimized_code_slot;
+
+  // If the optimized code is cleared, go to runtime to update the optimization
+  // marker field.
+  __ LoadWeakValue(optimized_code_entry, &heal_optimized_code_slot);
+
   // Check if the optimized code is marked for deopt. If it is, bailout to a
   // given label.
-  Label found_deoptimized_code;
   __ mov(eax,
          FieldOperand(optimized_code_entry, Code::kCodeDataContainerOffset));
   __ test(FieldOperand(eax, CodeDataContainer::kKindSpecificFlagsOffset),
           Immediate(1 << Code::kMarkedForDeoptimizationBit));
-  __ j(not_zero, &found_deoptimized_code);
+  __ j(not_zero, &heal_optimized_code_slot);
 
   // Optimized code is good, get it into the closure and link the closure
   // into the optimized functions list, then tail call the optimized code.
@@ -827,12 +832,13 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   __ movd(eax, xmm0);
   __ jmp(ecx);
 
-  // Optimized code slot contains deoptimized code, evict it and re-enter
-  // the closure's code.
-  __ bind(&found_deoptimized_code);
+  // Optimized code slot contains deoptimized code or code is cleared and
+  // optimized code marker isn't updated. Evict the code, update the marker
+  // and re-enter the closure's code.
+  __ bind(&heal_optimized_code_slot);
   __ movd(edx, xmm1);
   __ movd(eax, xmm0);
-  GenerateTailCallToReturnedCode(masm, Runtime::kEvictOptimizedCodeSlot);
+  GenerateTailCallToReturnedCode(masm, Runtime::kHealOptimizedCodeSlot);
 }
 
 static void MaybeOptimizeCode(MacroAssembler* masm,
@@ -862,9 +868,7 @@ static void MaybeOptimizeCode(MacroAssembler* masm,
     // Otherwise, the marker is InOptimizationQueue, so fall through hoping
     // that an interrupt will eventually update the slot with optimized code.
     if (FLAG_debug_code) {
-      __ cmp(
-          optimization_marker,
-          Immediate(Smi::FromEnum(OptimizationMarker::kInOptimizationQueue)));
+      __ cmp(optimization_marker, OptimizationMarker::kInOptimizationQueue);
       __ Assert(equal, AbortReason::kExpectedOptimizationSentinel);
     }
   }
@@ -994,18 +998,20 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ CmpInstanceType(eax, FEEDBACK_VECTOR_TYPE);
   __ j(not_equal, &push_stack_frame);
 
-  // Read off the optimized code slot in the feedback vector.
-  // Load the optimized code from the feedback vector and re-use the register.
-  Register optimized_code_entry = ecx;
-  __ mov(optimized_code_entry,
-         FieldOperand(feedback_vector,
-                      FeedbackVector::kOptimizedCodeWeakOrSmiOffset));
+  // Load the optimization state from the feedback vector and re-use the
+  // register.
+  Register optimization_state = ecx;
+  // Store feedback_vector. We may need it if we need to load the optimze code
+  // slot entry.
+  __ movd(xmm1, feedback_vector);
+  __ mov(optimization_state,
+         FieldOperand(feedback_vector, FeedbackVector::kFlagsOffset));
 
-  // Check if the optimized code slot is not empty.
-  Label optimized_code_slot_not_empty;
-  __ cmp(optimized_code_entry,
-         Immediate(Smi::FromEnum(OptimizationMarker::kNone)));
-  __ j(not_equal, &optimized_code_slot_not_empty);
+  // Check if there is optimized code or a optimization marker that needes to be
+  // processed.
+  Label has_optimized_code_or_marker;
+  __ cmp(optimization_state, FeedbackVector::kHasNoOptimizedCodeOrMarkerValue);
+  __ j(not_equal, &has_optimized_code_or_marker);
 
   Label not_optimized;
   __ bind(&not_optimized);
@@ -1177,21 +1183,28 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   __ jmp(&after_stack_check_interrupt);
 
-  __ bind(&optimized_code_slot_not_empty);
+  __ bind(&has_optimized_code_or_marker);
   Label maybe_has_optimized_code;
   // Restore actual argument count.
   __ movd(eax, xmm0);
-  // Check if optimized code marker is actually a weak reference to the
-  // optimized code as opposed to an optimization marker.
-  __ JumpIfNotSmi(optimized_code_entry, &maybe_has_optimized_code);
-  MaybeOptimizeCode(masm, optimized_code_entry);
+
+  // Check if optimized code is available
+  __ test(optimization_state,
+          Immediate(FeedbackVector::OptimizationTierBits::kMask));
+  __ j(not_zero, &maybe_has_optimized_code);
+
+  Register optimization_marker = optimization_state;
+  __ DecodeField<FeedbackVector::OptimizationMarkerBits>(optimization_marker);
+  MaybeOptimizeCode(masm, optimization_marker);
   // Fall through if there's no runnable optimized code.
   __ jmp(&not_optimized);
 
   __ bind(&maybe_has_optimized_code);
-  // Load code entry from the weak reference, if it was cleared, resume
-  // execution of unoptimized code.
-  __ LoadWeakValue(optimized_code_entry, &not_optimized);
+  Register optimized_code_entry = optimization_marker;
+  __ movd(optimized_code_entry, xmm1);
+  __ mov(
+      optimized_code_entry,
+      FieldOperand(feedback_vector, FeedbackVector::kMaybeOptimizedCodeOffset));
   TailCallOptimizedCodeSlot(masm, optimized_code_entry);
 
   __ bind(&compile_lazy);

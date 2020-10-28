@@ -97,8 +97,8 @@ void JSFunction::MarkForOptimization(ConcurrencyMode mode) {
 }
 
 bool JSFunction::IsInOptimizationQueue() {
-  return has_feedback_vector() && feedback_vector().optimization_marker() ==
-                                      OptimizationMarker::kInOptimizationQueue;
+  if (!has_feedback_vector()) return false;
+  return IsInOptimizationQueueMarker(feedback_vector().optimization_marker());
 }
 
 void JSFunction::CompleteInobjectSlackTrackingIfActive() {
@@ -145,20 +145,6 @@ void JSFunction::set_shared(SharedFunctionInfo value, WriteBarrierMode mode) {
   // Release semantics to support acquire read in NeedsResetDueToFlushedBytecode
   RELEASE_WRITE_FIELD(*this, kSharedFunctionInfoOffset, value);
   CONDITIONAL_WRITE_BARRIER(*this, kSharedFunctionInfoOffset, value, mode);
-}
-
-void JSFunction::ClearOptimizedCodeSlot(const char* reason) {
-  if (has_feedback_vector() && feedback_vector().has_optimized_code()) {
-    if (FLAG_trace_opt) {
-      CodeTracer::Scope scope(GetIsolate()->GetCodeTracer());
-      PrintF(scope.file(),
-             "[evicting entry from optimizing code feedback slot (%s) for ",
-             reason);
-      ShortPrint(scope.file());
-      PrintF(scope.file(), "]\n");
-    }
-    feedback_vector().ClearOptimizedCode();
-  }
 }
 
 void JSFunction::SetOptimizationMarker(OptimizationMarker marker) {
