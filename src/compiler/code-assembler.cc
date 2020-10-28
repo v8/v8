@@ -318,17 +318,18 @@ TNode<Float64T> CodeAssembler::Float64Constant(double value) {
 bool CodeAssembler::ToInt32Constant(Node* node, int32_t* out_value) {
   {
     Int64Matcher m(node);
-    if (m.HasValue() && m.IsInRange(std::numeric_limits<int32_t>::min(),
-                                    std::numeric_limits<int32_t>::max())) {
-      *out_value = static_cast<int32_t>(m.Value());
+    if (m.HasResolvedValue() &&
+        m.IsInRange(std::numeric_limits<int32_t>::min(),
+                    std::numeric_limits<int32_t>::max())) {
+      *out_value = static_cast<int32_t>(m.ResolvedValue());
       return true;
     }
   }
 
   {
     Int32Matcher m(node);
-    if (m.HasValue()) {
-      *out_value = m.Value();
+    if (m.HasResolvedValue()) {
+      *out_value = m.ResolvedValue();
       return true;
     }
   }
@@ -338,8 +339,8 @@ bool CodeAssembler::ToInt32Constant(Node* node, int32_t* out_value) {
 
 bool CodeAssembler::ToInt64Constant(Node* node, int64_t* out_value) {
   Int64Matcher m(node);
-  if (m.HasValue()) *out_value = m.Value();
-  return m.HasValue();
+  if (m.HasResolvedValue()) *out_value = m.ResolvedValue();
+  return m.HasResolvedValue();
 }
 
 bool CodeAssembler::ToSmiConstant(Node* node, Smi* out_value) {
@@ -347,8 +348,8 @@ bool CodeAssembler::ToSmiConstant(Node* node, Smi* out_value) {
     node = node->InputAt(0);
   }
   IntPtrMatcher m(node);
-  if (m.HasValue()) {
-    intptr_t value = m.Value();
+  if (m.HasResolvedValue()) {
+    intptr_t value = m.ResolvedValue();
     // Make sure that the value is actually a smi
     CHECK_EQ(0, value & ((static_cast<intptr_t>(1) << kSmiShiftSize) - 1));
     *out_value = Smi(static_cast<Address>(value));
@@ -363,8 +364,8 @@ bool CodeAssembler::ToIntPtrConstant(Node* node, intptr_t* out_value) {
     node = node->InputAt(0);
   }
   IntPtrMatcher m(node);
-  if (m.HasValue()) *out_value = m.Value();
-  return m.HasValue();
+  if (m.HasResolvedValue()) *out_value = m.ResolvedValue();
+  return m.HasResolvedValue();
 }
 
 bool CodeAssembler::IsUndefinedConstant(TNode<Object> node) {

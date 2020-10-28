@@ -561,8 +561,8 @@ void InstructionSelector::VisitWord32And(Node* node) {
   Mips64OperandGenerator g(this);
   Int32BinopMatcher m(node);
   if (m.left().IsWord32Shr() && CanCover(node, m.left().node()) &&
-      m.right().HasValue()) {
-    uint32_t mask = m.right().Value();
+      m.right().HasResolvedValue()) {
+    uint32_t mask = m.right().ResolvedValue();
     uint32_t mask_width = base::bits::CountPopulation(mask);
     uint32_t mask_msb = base::bits::CountLeadingZeros32(mask);
     if ((mask_width != 0) && (mask_msb + mask_width == 32)) {
@@ -572,9 +572,9 @@ void InstructionSelector::VisitWord32And(Node* node) {
       // Select Ext for And(Shr(x, imm), mask) where the mask is in the least
       // significant bits.
       Int32BinopMatcher mleft(m.left().node());
-      if (mleft.right().HasValue()) {
+      if (mleft.right().HasResolvedValue()) {
         // Any shift value can match; int32 shifts use `value % 32`.
-        uint32_t lsb = mleft.right().Value() & 0x1F;
+        uint32_t lsb = mleft.right().ResolvedValue() & 0x1F;
 
         // Ext cannot extract bits past the register size, however since
         // shifting the original value would have introduced some zeros we can
@@ -590,8 +590,8 @@ void InstructionSelector::VisitWord32And(Node* node) {
       // Other cases fall through to the normal And operation.
     }
   }
-  if (m.right().HasValue()) {
-    uint32_t mask = m.right().Value();
+  if (m.right().HasResolvedValue()) {
+    uint32_t mask = m.right().ResolvedValue();
     uint32_t shift = base::bits::CountPopulation(~mask);
     uint32_t msb = base::bits::CountLeadingZeros32(~mask);
     if (shift != 0 && shift != 32 && msb + shift == 32) {
@@ -610,8 +610,8 @@ void InstructionSelector::VisitWord64And(Node* node) {
   Mips64OperandGenerator g(this);
   Int64BinopMatcher m(node);
   if (m.left().IsWord64Shr() && CanCover(node, m.left().node()) &&
-      m.right().HasValue()) {
-    uint64_t mask = m.right().Value();
+      m.right().HasResolvedValue()) {
+    uint64_t mask = m.right().ResolvedValue();
     uint32_t mask_width = base::bits::CountPopulation(mask);
     uint32_t mask_msb = base::bits::CountLeadingZeros64(mask);
     if ((mask_width != 0) && (mask_msb + mask_width == 64)) {
@@ -621,9 +621,10 @@ void InstructionSelector::VisitWord64And(Node* node) {
       // Select Dext for And(Shr(x, imm), mask) where the mask is in the least
       // significant bits.
       Int64BinopMatcher mleft(m.left().node());
-      if (mleft.right().HasValue()) {
+      if (mleft.right().HasResolvedValue()) {
         // Any shift value can match; int64 shifts use `value % 64`.
-        uint32_t lsb = static_cast<uint32_t>(mleft.right().Value() & 0x3F);
+        uint32_t lsb =
+            static_cast<uint32_t>(mleft.right().ResolvedValue() & 0x3F);
 
         // Dext cannot extract bits past the register size, however since
         // shifting the original value would have introduced some zeros we can
@@ -643,8 +644,8 @@ void InstructionSelector::VisitWord64And(Node* node) {
       // Other cases fall through to the normal And operation.
     }
   }
-  if (m.right().HasValue()) {
-    uint64_t mask = m.right().Value();
+  if (m.right().HasResolvedValue()) {
+    uint64_t mask = m.right().ResolvedValue();
     uint32_t shift = base::bits::CountPopulation(~mask);
     uint32_t msb = base::bits::CountLeadingZeros64(~mask);
     if (shift != 0 && shift < 32 && msb + shift == 64) {
@@ -673,7 +674,7 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
   if (m.left().IsWord32Or() && CanCover(node, m.left().node()) &&
       m.right().Is(-1)) {
     Int32BinopMatcher mleft(m.left().node());
-    if (!mleft.right().HasValue()) {
+    if (!mleft.right().HasResolvedValue()) {
       Mips64OperandGenerator g(this);
       Emit(kMips64Nor32, g.DefineAsRegister(node),
            g.UseRegister(mleft.left().node()),
@@ -696,7 +697,7 @@ void InstructionSelector::VisitWord64Xor(Node* node) {
   if (m.left().IsWord64Or() && CanCover(node, m.left().node()) &&
       m.right().Is(-1)) {
     Int64BinopMatcher mleft(m.left().node());
-    if (!mleft.right().HasValue()) {
+    if (!mleft.right().HasResolvedValue()) {
       Mips64OperandGenerator g(this);
       Emit(kMips64Nor, g.DefineAsRegister(node),
            g.UseRegister(mleft.left().node()),
@@ -722,12 +723,12 @@ void InstructionSelector::VisitWord32Shl(Node* node) {
     Int32BinopMatcher mleft(m.left().node());
     // Match Word32Shl(Word32And(x, mask), imm) to Shl where the mask is
     // contiguous, and the shift immediate non-zero.
-    if (mleft.right().HasValue()) {
-      uint32_t mask = mleft.right().Value();
+    if (mleft.right().HasResolvedValue()) {
+      uint32_t mask = mleft.right().ResolvedValue();
       uint32_t mask_width = base::bits::CountPopulation(mask);
       uint32_t mask_msb = base::bits::CountLeadingZeros32(mask);
       if ((mask_width != 0) && (mask_msb + mask_width == 32)) {
-        uint32_t shift = m.right().Value();
+        uint32_t shift = m.right().ResolvedValue();
         DCHECK_EQ(0u, base::bits::CountTrailingZeros32(mask));
         DCHECK_NE(0u, shift);
         if ((shift + mask_width) >= 32) {
@@ -746,13 +747,14 @@ void InstructionSelector::VisitWord32Shl(Node* node) {
 
 void InstructionSelector::VisitWord32Shr(Node* node) {
   Int32BinopMatcher m(node);
-  if (m.left().IsWord32And() && m.right().HasValue()) {
-    uint32_t lsb = m.right().Value() & 0x1F;
+  if (m.left().IsWord32And() && m.right().HasResolvedValue()) {
+    uint32_t lsb = m.right().ResolvedValue() & 0x1F;
     Int32BinopMatcher mleft(m.left().node());
-    if (mleft.right().HasValue() && mleft.right().Value() != 0) {
+    if (mleft.right().HasResolvedValue() &&
+        mleft.right().ResolvedValue() != 0) {
       // Select Ext for Shr(And(x, mask), imm) where the result of the mask is
       // shifted into the least-significant bits.
-      uint32_t mask = (mleft.right().Value() >> lsb) << lsb;
+      uint32_t mask = (mleft.right().ResolvedValue() >> lsb) << lsb;
       unsigned mask_width = base::bits::CountPopulation(mask);
       unsigned mask_msb = base::bits::CountLeadingZeros32(mask);
       if ((mask_msb + mask_width + lsb) == 32) {
@@ -772,10 +774,10 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
   Int32BinopMatcher m(node);
   if (m.left().IsWord32Shl() && CanCover(node, m.left().node())) {
     Int32BinopMatcher mleft(m.left().node());
-    if (m.right().HasValue() && mleft.right().HasValue()) {
+    if (m.right().HasResolvedValue() && mleft.right().HasResolvedValue()) {
       Mips64OperandGenerator g(this);
-      uint32_t sar = m.right().Value();
-      uint32_t shl = mleft.right().Value();
+      uint32_t sar = m.right().ResolvedValue();
+      uint32_t shl = mleft.right().ResolvedValue();
       if ((sar == shl) && (sar == 16)) {
         Emit(kMips64Seh, g.DefineAsRegister(node),
              g.UseRegister(mleft.left().node()));
@@ -811,12 +813,12 @@ void InstructionSelector::VisitWord64Shl(Node* node) {
     // Match Word64Shl(Word64And(x, mask), imm) to Dshl where the mask is
     // contiguous, and the shift immediate non-zero.
     Int64BinopMatcher mleft(m.left().node());
-    if (mleft.right().HasValue()) {
-      uint64_t mask = mleft.right().Value();
+    if (mleft.right().HasResolvedValue()) {
+      uint64_t mask = mleft.right().ResolvedValue();
       uint32_t mask_width = base::bits::CountPopulation(mask);
       uint32_t mask_msb = base::bits::CountLeadingZeros64(mask);
       if ((mask_width != 0) && (mask_msb + mask_width == 64)) {
-        uint64_t shift = m.right().Value();
+        uint64_t shift = m.right().ResolvedValue();
         DCHECK_EQ(0u, base::bits::CountTrailingZeros64(mask));
         DCHECK_NE(0u, shift);
 
@@ -836,13 +838,14 @@ void InstructionSelector::VisitWord64Shl(Node* node) {
 
 void InstructionSelector::VisitWord64Shr(Node* node) {
   Int64BinopMatcher m(node);
-  if (m.left().IsWord64And() && m.right().HasValue()) {
-    uint32_t lsb = m.right().Value() & 0x3F;
+  if (m.left().IsWord64And() && m.right().HasResolvedValue()) {
+    uint32_t lsb = m.right().ResolvedValue() & 0x3F;
     Int64BinopMatcher mleft(m.left().node());
-    if (mleft.right().HasValue() && mleft.right().Value() != 0) {
+    if (mleft.right().HasResolvedValue() &&
+        mleft.right().ResolvedValue() != 0) {
       // Select Dext for Shr(And(x, mask), imm) where the result of the mask is
       // shifted into the least-significant bits.
-      uint64_t mask = (mleft.right().Value() >> lsb) << lsb;
+      uint64_t mask = (mleft.right().ResolvedValue() >> lsb) << lsb;
       unsigned mask_width = base::bits::CountPopulation(mask);
       unsigned mask_msb = base::bits::CountLeadingZeros64(mask);
       if ((mask_msb + mask_width + lsb) == 64) {
@@ -934,8 +937,9 @@ void InstructionSelector::VisitInt32Add(Node* node) {
     if (m.right().opcode() == IrOpcode::kWord32Shl &&
         CanCover(node, m.left().node()) && CanCover(node, m.right().node())) {
       Int32BinopMatcher mright(m.right().node());
-      if (mright.right().HasValue() && !m.left().HasValue()) {
-        int32_t shift_value = static_cast<int32_t>(mright.right().Value());
+      if (mright.right().HasResolvedValue() && !m.left().HasResolvedValue()) {
+        int32_t shift_value =
+            static_cast<int32_t>(mright.right().ResolvedValue());
         if (shift_value > 0 && shift_value <= 31) {
           Emit(kMips64Lsa, g.DefineAsRegister(node),
                g.UseRegister(m.left().node()),
@@ -950,8 +954,9 @@ void InstructionSelector::VisitInt32Add(Node* node) {
     if (m.left().opcode() == IrOpcode::kWord32Shl &&
         CanCover(node, m.right().node()) && CanCover(node, m.left().node())) {
       Int32BinopMatcher mleft(m.left().node());
-      if (mleft.right().HasValue() && !m.right().HasValue()) {
-        int32_t shift_value = static_cast<int32_t>(mleft.right().Value());
+      if (mleft.right().HasResolvedValue() && !m.right().HasResolvedValue()) {
+        int32_t shift_value =
+            static_cast<int32_t>(mleft.right().ResolvedValue());
         if (shift_value > 0 && shift_value <= 31) {
           Emit(kMips64Lsa, g.DefineAsRegister(node),
                g.UseRegister(m.right().node()),
@@ -975,8 +980,9 @@ void InstructionSelector::VisitInt64Add(Node* node) {
     if (m.right().opcode() == IrOpcode::kWord64Shl &&
         CanCover(node, m.left().node()) && CanCover(node, m.right().node())) {
       Int64BinopMatcher mright(m.right().node());
-      if (mright.right().HasValue() && !m.left().HasValue()) {
-        int32_t shift_value = static_cast<int32_t>(mright.right().Value());
+      if (mright.right().HasResolvedValue() && !m.left().HasResolvedValue()) {
+        int32_t shift_value =
+            static_cast<int32_t>(mright.right().ResolvedValue());
         if (shift_value > 0 && shift_value <= 31) {
           Emit(kMips64Dlsa, g.DefineAsRegister(node),
                g.UseRegister(m.left().node()),
@@ -991,8 +997,9 @@ void InstructionSelector::VisitInt64Add(Node* node) {
     if (m.left().opcode() == IrOpcode::kWord64Shl &&
         CanCover(node, m.right().node()) && CanCover(node, m.left().node())) {
       Int64BinopMatcher mleft(m.left().node());
-      if (mleft.right().HasValue() && !m.right().HasValue()) {
-        int32_t shift_value = static_cast<int32_t>(mleft.right().Value());
+      if (mleft.right().HasResolvedValue() && !m.right().HasResolvedValue()) {
+        int32_t shift_value =
+            static_cast<int32_t>(mleft.right().ResolvedValue());
         if (shift_value > 0 && shift_value <= 31) {
           Emit(kMips64Dlsa, g.DefineAsRegister(node),
                g.UseRegister(m.right().node()),
@@ -1018,8 +1025,8 @@ void InstructionSelector::VisitInt64Sub(Node* node) {
 void InstructionSelector::VisitInt32Mul(Node* node) {
   Mips64OperandGenerator g(this);
   Int32BinopMatcher m(node);
-  if (m.right().HasValue() && m.right().Value() > 0) {
-    uint32_t value = static_cast<uint32_t>(m.right().Value());
+  if (m.right().HasResolvedValue() && m.right().ResolvedValue() > 0) {
+    uint32_t value = static_cast<uint32_t>(m.right().ResolvedValue());
     if (base::bits::IsPowerOfTwo(value)) {
       Emit(kMips64Shl | AddressingModeField::encode(kMode_None),
            g.DefineAsRegister(node), g.UseRegister(m.left().node()),
@@ -1073,8 +1080,8 @@ void InstructionSelector::VisitInt64Mul(Node* node) {
   Mips64OperandGenerator g(this);
   Int64BinopMatcher m(node);
   // TODO(dusmil): Add optimization for shifts larger than 32.
-  if (m.right().HasValue() && m.right().Value() > 0) {
-    uint32_t value = static_cast<uint32_t>(m.right().Value());
+  if (m.right().HasResolvedValue() && m.right().ResolvedValue() > 0) {
+    uint32_t value = static_cast<uint32_t>(m.right().ResolvedValue());
     if (base::bits::IsPowerOfTwo(value)) {
       Emit(kMips64Dshl | AddressingModeField::encode(kMode_None),
            g.DefineAsRegister(node), g.UseRegister(m.left().node()),

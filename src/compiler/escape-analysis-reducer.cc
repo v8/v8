@@ -5,6 +5,7 @@
 #include "src/compiler/escape-analysis-reducer.h"
 
 #include "src/compiler/all-nodes.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
 #include "src/execution/frame-constants.h"
@@ -67,17 +68,6 @@ Reduction EscapeAnalysisReducer::ReplaceNode(Node* original,
   ReplaceWithValue(original, original, original, control);
   return NoChange();
 }
-
-namespace {
-
-Node* SkipTypeGuards(Node* node) {
-  while (node->opcode() == IrOpcode::kTypeGuard) {
-    node = NodeProperties::GetValueInput(node, 0);
-  }
-  return node;
-}
-
-}  // namespace
 
 Node* EscapeAnalysisReducer::ObjectIdNode(const VirtualObject* vobject) {
   VirtualObject::Id id = vobject->id();
@@ -185,8 +175,8 @@ Node* EscapeAnalysisReducer::ReduceDeoptState(Node* node, Node* effect,
                                  i);
     }
     return new_node.Get();
-  } else if (const VirtualObject* vobject =
-                 analysis_result().GetVirtualObject(SkipTypeGuards(node))) {
+  } else if (const VirtualObject* vobject = analysis_result().GetVirtualObject(
+                 SkipValueIdentities(node))) {
     if (vobject->HasEscaped()) return node;
     if (deduplicator->SeenBefore(vobject)) {
       return ObjectIdNode(vobject);

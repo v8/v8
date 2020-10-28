@@ -162,12 +162,13 @@ class IA32OperandGenerator final : public OperandGenerator {
       RegisterMode register_mode = kRegister) {
     {
       LoadMatcher<ExternalReferenceMatcher> m(node);
-      if (m.index().HasValue() && m.object().HasValue() &&
-          selector()->CanAddressRelativeToRootsRegister(m.object().Value())) {
+      if (m.index().HasResolvedValue() && m.object().HasResolvedValue() &&
+          selector()->CanAddressRelativeToRootsRegister(
+              m.object().ResolvedValue())) {
         ptrdiff_t const delta =
-            m.index().Value() +
+            m.index().ResolvedValue() +
             TurboAssemblerBase::RootRegisterOffsetForExternalReference(
-                selector()->isolate(), m.object().Value());
+                selector()->isolate(), m.object().ResolvedValue());
         if (is_int32(delta)) {
           inputs[(*input_count)++] = TempImmediate(static_cast<int32_t>(delta));
           return kMode_Root;
@@ -1784,7 +1785,8 @@ void InstructionSelector::VisitFloat64InsertLowWord32(Node* node) {
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
   Float64Matcher mleft(left);
-  if (mleft.HasValue() && (bit_cast<uint64_t>(mleft.Value()) >> 32) == 0u) {
+  if (mleft.HasResolvedValue() &&
+      (bit_cast<uint64_t>(mleft.ResolvedValue()) >> 32) == 0u) {
     Emit(kSSEFloat64LoadLowWord32, g.DefineAsRegister(node), g.Use(right));
     return;
   }

@@ -191,12 +191,13 @@ class X64OperandGenerator final : public OperandGenerator {
                                                   size_t* input_count) {
     {
       LoadMatcher<ExternalReferenceMatcher> m(operand);
-      if (m.index().HasValue() && m.object().HasValue() &&
-          selector()->CanAddressRelativeToRootsRegister(m.object().Value())) {
+      if (m.index().HasResolvedValue() && m.object().HasResolvedValue() &&
+          selector()->CanAddressRelativeToRootsRegister(
+              m.object().ResolvedValue())) {
         ptrdiff_t const delta =
-            m.index().Value() +
+            m.index().ResolvedValue() +
             TurboAssemblerBase::RootRegisterOffsetForExternalReference(
-                selector()->isolate(), m.object().Value());
+                selector()->isolate(), m.object().ResolvedValue());
         if (is_int32(delta)) {
           inputs[(*input_count)++] = TempImmediate(static_cast<int32_t>(delta));
           return kMode_Root;
@@ -1122,12 +1123,14 @@ void InstructionSelector::VisitInt32Sub(Node* node) {
     // {EmitIdentity} reuses the virtual register of the first input
     // for the output. This is exactly what we want here.
     EmitIdentity(node);
-  } else if (m.right().HasValue() && g.CanBeImmediate(m.right().node())) {
+  } else if (m.right().HasResolvedValue() &&
+             g.CanBeImmediate(m.right().node())) {
     // Turn subtractions of constant values into immediate "leal" instructions
     // by negating the value.
-    Emit(kX64Lea32 | AddressingModeField::encode(kMode_MRI),
-         g.DefineAsRegister(node), g.UseRegister(m.left().node()),
-         g.TempImmediate(base::NegateWithWraparound(m.right().Value())));
+    Emit(
+        kX64Lea32 | AddressingModeField::encode(kMode_MRI),
+        g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+        g.TempImmediate(base::NegateWithWraparound(m.right().ResolvedValue())));
   } else {
     VisitBinop(this, node, kX64Sub32);
   }
@@ -1139,12 +1142,12 @@ void InstructionSelector::VisitInt64Sub(Node* node) {
   if (m.left().Is(0)) {
     Emit(kX64Neg, g.DefineSameAsFirst(node), g.UseRegister(m.right().node()));
   } else {
-    if (m.right().HasValue() && g.CanBeImmediate(m.right().node())) {
+    if (m.right().HasResolvedValue() && g.CanBeImmediate(m.right().node())) {
       // Turn subtractions of constant values into immediate "leaq" instructions
       // by negating the value.
       Emit(kX64Lea | AddressingModeField::encode(kMode_MRI),
            g.DefineAsRegister(node), g.UseRegister(m.left().node()),
-           g.TempImmediate(-static_cast<int32_t>(m.right().Value())));
+           g.TempImmediate(-static_cast<int32_t>(m.right().ResolvedValue())));
       return;
     }
     VisitBinop(this, node, kX64Sub);
@@ -2034,8 +2037,8 @@ void VisitWord64EqualImpl(InstructionSelector* selector, Node* node,
     const RootsTable& roots_table = selector->isolate()->roots_table();
     RootIndex root_index;
     HeapObjectBinopMatcher m(node);
-    if (m.right().HasValue() &&
-        roots_table.IsRootHandle(m.right().Value(), &root_index)) {
+    if (m.right().HasResolvedValue() &&
+        roots_table.IsRootHandle(m.right().ResolvedValue(), &root_index)) {
       InstructionCode opcode =
           kX64Cmp | AddressingModeField::encode(kMode_Root);
       return VisitCompare(
@@ -2061,14 +2064,14 @@ void VisitWord32EqualImpl(InstructionSelector* selector, Node* node,
     // present.
     {
       CompressedHeapObjectBinopMatcher m(node);
-      if (m.right().HasValue()) {
+      if (m.right().HasResolvedValue()) {
         left = m.left().node();
-        right = m.right().Value();
+        right = m.right().ResolvedValue();
       } else {
         HeapObjectBinopMatcher m2(node);
-        if (m2.right().HasValue()) {
+        if (m2.right().HasResolvedValue()) {
           left = m2.left().node();
-          right = m2.right().Value();
+          right = m2.right().ResolvedValue();
         }
       }
     }
@@ -2574,7 +2577,8 @@ void InstructionSelector::VisitFloat64InsertLowWord32(Node* node) {
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
   Float64Matcher mleft(left);
-  if (mleft.HasValue() && (bit_cast<uint64_t>(mleft.Value()) >> 32) == 0u) {
+  if (mleft.HasResolvedValue() &&
+      (bit_cast<uint64_t>(mleft.ResolvedValue()) >> 32) == 0u) {
     Emit(kSSEFloat64LoadLowWord32, g.DefineAsRegister(node), g.Use(right));
     return;
   }

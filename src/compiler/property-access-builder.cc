@@ -85,7 +85,7 @@ void PropertyAccessBuilder::BuildCheckMaps(
     Node* receiver, Node** effect, Node* control,
     ZoneVector<Handle<Map>> const& receiver_maps) {
   HeapObjectMatcher m(receiver);
-  if (m.HasValue()) {
+  if (m.HasResolvedValue()) {
     MapRef receiver_map = m.Ref(broker()).map();
     if (receiver_map.is_stable()) {
       for (Handle<Map> map : receiver_maps) {
@@ -159,7 +159,7 @@ Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
   if (!access_info.holder().ToHandle(&holder)) {
     // Otherwise, try to match the {receiver} as a constant.
     HeapObjectMatcher m(receiver);
-    if (!m.HasValue() || !m.Ref(broker()).IsJSObject()) return nullptr;
+    if (!m.HasResolvedValue() || !m.Ref(broker()).IsJSObject()) return nullptr;
 
     // Let us make sure the actual map of the constant receiver is among
     // the maps in {access_info}.

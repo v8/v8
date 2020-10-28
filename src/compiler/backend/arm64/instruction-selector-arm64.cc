@@ -326,7 +326,7 @@ bool TryMatchAnyExtend(Arm64OperandGenerator* g, InstructionSelector* selector,
   if (nm.IsWord32And()) {
     Int32BinopMatcher mright(right_node);
     if (mright.right().Is(0xFF) || mright.right().Is(0xFFFF)) {
-      int32_t mask = mright.right().Value();
+      int32_t mask = mright.right().ResolvedValue();
       *left_op = g->UseRegister(left_node);
       *right_op = g->UseRegister(mright.left().node());
       *opcode |= AddressingModeField::encode(
@@ -340,7 +340,7 @@ bool TryMatchAnyExtend(Arm64OperandGenerator* g, InstructionSelector* selector,
       Int32BinopMatcher mleft_of_right(mright.left().node());
       if ((mright.right().Is(16) && mleft_of_right.right().Is(16)) ||
           (mright.right().Is(24) && mleft_of_right.right().Is(24))) {
-        int32_t shift = mright.right().Value();
+        int32_t shift = mright.right().ResolvedValue();
         *left_op = g->UseRegister(left_node);
         *right_op = g->UseRegister(mleft_of_right.left().node());
         *opcode |= AddressingModeField::encode(
@@ -481,8 +481,8 @@ void VisitBinop(InstructionSelector* selector, Node* node,
     inputs[input_count++] = g.UseRegisterOrImmediateZero(left_node);
     inputs[input_count++] = g.UseRegister(m_shift.left().node());
     // We only need at most the last 6 bits of the shift.
-    inputs[input_count++] =
-        g.UseImmediate(static_cast<int>(m_shift.right().Value() & 0x3F));
+    inputs[input_count++] = g.UseImmediate(
+        static_cast<int>(m_shift.right().ResolvedValue() & 0x3F));
   } else if (can_commute && TryMatchAnyShift(selector, node, left_node, &opcode,
                                              !is_add_sub)) {
     if (must_commute_cond) cont->Commute();
@@ -490,8 +490,8 @@ void VisitBinop(InstructionSelector* selector, Node* node,
     inputs[input_count++] = g.UseRegisterOrImmediateZero(right_node);
     inputs[input_count++] = g.UseRegister(m_shift.left().node());
     // We only need at most the last 6 bits of the shift.
-    inputs[input_count++] =
-        g.UseImmediate(static_cast<int>(m_shift.right().Value() & 0x3F));
+    inputs[input_count++] = g.UseImmediate(
+        static_cast<int>(m_shift.right().ResolvedValue() & 0x3F));
   } else {
     inputs[input_count++] = g.UseRegisterOrImmediateZero(left_node);
     inputs[input_count++] = g.UseRegister(right_node);
@@ -523,12 +523,12 @@ void VisitAddSub(InstructionSelector* selector, Node* node, ArchOpcode opcode,
                  ArchOpcode negate_opcode) {
   Arm64OperandGenerator g(selector);
   Matcher m(node);
-  if (m.right().HasValue() && (m.right().Value() < 0) &&
-      (m.right().Value() > std::numeric_limits<int>::min()) &&
-      g.CanBeImmediate(-m.right().Value(), kArithmeticImm)) {
-    selector->Emit(negate_opcode, g.DefineAsRegister(node),
-                   g.UseRegister(m.left().node()),
-                   g.TempImmediate(static_cast<int32_t>(-m.right().Value())));
+  if (m.right().HasResolvedValue() && (m.right().ResolvedValue() < 0) &&
+      (m.right().ResolvedValue() > std::numeric_limits<int>::min()) &&
+      g.CanBeImmediate(-m.right().ResolvedValue(), kArithmeticImm)) {
+    selector->Emit(
+        negate_opcode, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+        g.TempImmediate(static_cast<int32_t>(-m.right().ResolvedValue())));
   } else {
     VisitBinop<Matcher>(selector, node, opcode, kArithmeticImm);
   }
@@ -540,8 +540,8 @@ void VisitAddSub(InstructionSelector* selector, Node* node, ArchOpcode opcode,
 template <typename Matcher>
 int32_t LeftShiftForReducedMultiply(Matcher* m) {
   DCHECK(m->IsInt32Mul() || m->IsInt64Mul());
-  if (m->right().HasValue() && m->right().Value() >= 3) {
-    uint64_t value_minus_one = m->right().Value() - 1;
+  if (m->right().HasResolvedValue() && m->right().ResolvedValue() >= 3) {
+    uint64_t value_minus_one = m->right().ResolvedValue() - 1;
     if (base::bits::IsPowerOfTwo(value_minus_one)) {
       return base::bits::WhichPowerOfTwo(value_minus_one);
     }
@@ -580,12 +580,12 @@ void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
   outputs[0] = g.DefineAsRegister(output == nullptr ? node : output);
 
   ExternalReferenceMatcher m(base);
-  if (m.HasValue() && g.IsIntegerConstant(index) &&
-      selector->CanAddressRelativeToRootsRegister(m.Value())) {
+  if (m.HasResolvedValue() && g.IsIntegerConstant(index) &&
+      selector->CanAddressRelativeToRootsRegister(m.ResolvedValue())) {
     ptrdiff_t const delta =
         g.GetIntegerConstantValue(index) +
         TurboAssemblerBase::RootRegisterOffsetForExternalReference(
-            selector->isolate(), m.Value());
+            selector->isolate(), m.ResolvedValue());
     input_count = 1;
     // Check that the delta is a 32-bit integer due to the limitations of
     // immediate operands.
@@ -872,12 +872,12 @@ void InstructionSelector::VisitStore(Node* node) {
     }
 
     ExternalReferenceMatcher m(base);
-    if (m.HasValue() && g.IsIntegerConstant(index) &&
-        CanAddressRelativeToRootsRegister(m.Value())) {
+    if (m.HasResolvedValue() && g.IsIntegerConstant(index) &&
+        CanAddressRelativeToRootsRegister(m.ResolvedValue())) {
       ptrdiff_t const delta =
           g.GetIntegerConstantValue(index) +
-          TurboAssemblerBase::RootRegisterOffsetForExternalReference(isolate(),
-                                                                     m.Value());
+          TurboAssemblerBase::RootRegisterOffsetForExternalReference(
+              isolate(), m.ResolvedValue());
       if (is_int32(delta)) {
         input_count = 2;
         InstructionOperand inputs[2];
@@ -996,8 +996,8 @@ void InstructionSelector::VisitWord32And(Node* node) {
   Arm64OperandGenerator g(this);
   Int32BinopMatcher m(node);
   if (m.left().IsWord32Shr() && CanCover(node, m.left().node()) &&
-      m.right().HasValue()) {
-    uint32_t mask = m.right().Value();
+      m.right().HasResolvedValue()) {
+    uint32_t mask = m.right().ResolvedValue();
     uint32_t mask_width = base::bits::CountPopulation(mask);
     uint32_t mask_msb = base::bits::CountLeadingZeros32(mask);
     if ((mask_width != 0) && (mask_width != 32) &&
@@ -1008,9 +1008,9 @@ void InstructionSelector::VisitWord32And(Node* node) {
       // Select Ubfx for And(Shr(x, imm), mask) where the mask is in the least
       // significant bits.
       Int32BinopMatcher mleft(m.left().node());
-      if (mleft.right().HasValue()) {
+      if (mleft.right().HasResolvedValue()) {
         // Any shift value can match; int32 shifts use `value % 32`.
-        uint32_t lsb = mleft.right().Value() & 0x1F;
+        uint32_t lsb = mleft.right().ResolvedValue() & 0x1F;
 
         // Ubfx cannot extract bits past the register size, however since
         // shifting the original value would have introduced some zeros we can
@@ -1036,8 +1036,8 @@ void InstructionSelector::VisitWord64And(Node* node) {
   Arm64OperandGenerator g(this);
   Int64BinopMatcher m(node);
   if (m.left().IsWord64Shr() && CanCover(node, m.left().node()) &&
-      m.right().HasValue()) {
-    uint64_t mask = m.right().Value();
+      m.right().HasResolvedValue()) {
+    uint64_t mask = m.right().ResolvedValue();
     uint64_t mask_width = base::bits::CountPopulation(mask);
     uint64_t mask_msb = base::bits::CountLeadingZeros64(mask);
     if ((mask_width != 0) && (mask_width != 64) &&
@@ -1048,9 +1048,10 @@ void InstructionSelector::VisitWord64And(Node* node) {
       // Select Ubfx for And(Shr(x, imm), mask) where the mask is in the least
       // significant bits.
       Int64BinopMatcher mleft(m.left().node());
-      if (mleft.right().HasValue()) {
+      if (mleft.right().HasResolvedValue()) {
         // Any shift value can match; int64 shifts use `value % 64`.
-        uint32_t lsb = static_cast<uint32_t>(mleft.right().Value() & 0x3F);
+        uint32_t lsb =
+            static_cast<uint32_t>(mleft.right().ResolvedValue() & 0x3F);
 
         // Ubfx cannot extract bits past the register size, however since
         // shifting the original value would have introduced some zeros we can
@@ -1106,12 +1107,12 @@ void InstructionSelector::VisitWord32Shl(Node* node) {
       m.right().IsInRange(1, 31)) {
     Arm64OperandGenerator g(this);
     Int32BinopMatcher mleft(m.left().node());
-    if (mleft.right().HasValue()) {
-      uint32_t mask = mleft.right().Value();
+    if (mleft.right().HasResolvedValue()) {
+      uint32_t mask = mleft.right().ResolvedValue();
       uint32_t mask_width = base::bits::CountPopulation(mask);
       uint32_t mask_msb = base::bits::CountLeadingZeros32(mask);
       if ((mask_width != 0) && (mask_msb + mask_width == 32)) {
-        uint32_t shift = m.right().Value();
+        uint32_t shift = m.right().ResolvedValue();
         DCHECK_EQ(0u, base::bits::CountTrailingZeros32(mask));
         DCHECK_NE(0u, shift);
 
@@ -1189,13 +1190,14 @@ bool TryEmitBitfieldExtract32(InstructionSelector* selector, Node* node) {
     // Select Ubfx or Sbfx for (x << (K & 0x1F)) OP (K & 0x1F), where
     // OP is >>> or >> and (K & 0x1F) != 0.
     Int32BinopMatcher mleft(m.left().node());
-    if (mleft.right().HasValue() && m.right().HasValue() &&
-        (mleft.right().Value() & 0x1F) != 0 &&
-        (mleft.right().Value() & 0x1F) == (m.right().Value() & 0x1F)) {
+    if (mleft.right().HasResolvedValue() && m.right().HasResolvedValue() &&
+        (mleft.right().ResolvedValue() & 0x1F) != 0 &&
+        (mleft.right().ResolvedValue() & 0x1F) ==
+            (m.right().ResolvedValue() & 0x1F)) {
       DCHECK(m.IsWord32Shr() || m.IsWord32Sar());
       ArchOpcode opcode = m.IsWord32Sar() ? kArm64Sbfx32 : kArm64Ubfx32;
 
-      int right_val = m.right().Value() & 0x1F;
+      int right_val = m.right().ResolvedValue() & 0x1F;
       DCHECK_NE(right_val, 0);
 
       selector->Emit(opcode, g.DefineAsRegister(node),
@@ -1211,14 +1213,15 @@ bool TryEmitBitfieldExtract32(InstructionSelector* selector, Node* node) {
 
 void InstructionSelector::VisitWord32Shr(Node* node) {
   Int32BinopMatcher m(node);
-  if (m.left().IsWord32And() && m.right().HasValue()) {
-    uint32_t lsb = m.right().Value() & 0x1F;
+  if (m.left().IsWord32And() && m.right().HasResolvedValue()) {
+    uint32_t lsb = m.right().ResolvedValue() & 0x1F;
     Int32BinopMatcher mleft(m.left().node());
-    if (mleft.right().HasValue() && mleft.right().Value() != 0) {
+    if (mleft.right().HasResolvedValue() &&
+        mleft.right().ResolvedValue() != 0) {
       // Select Ubfx for Shr(And(x, mask), imm) where the result of the mask is
       // shifted into the least-significant bits.
-      uint32_t mask = static_cast<uint32_t>(mleft.right().Value() >> lsb)
-                      << lsb;
+      uint32_t mask =
+          static_cast<uint32_t>(mleft.right().ResolvedValue() >> lsb) << lsb;
       unsigned mask_width = base::bits::CountPopulation(mask);
       unsigned mask_msb = base::bits::CountLeadingZeros32(mask);
       if ((mask_msb + mask_width + lsb) == 32) {
@@ -1235,13 +1238,13 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
     return;
   }
 
-  if (m.left().IsUint32MulHigh() && m.right().HasValue() &&
+  if (m.left().IsUint32MulHigh() && m.right().HasResolvedValue() &&
       CanCover(node, node->InputAt(0))) {
     // Combine this shift with the multiply and shift that would be generated
     // by Uint32MulHigh.
     Arm64OperandGenerator g(this);
     Node* left = m.left().node();
-    int shift = m.right().Value() & 0x1F;
+    int shift = m.right().ResolvedValue() & 0x1F;
     InstructionOperand const smull_operand = g.TempRegister();
     Emit(kArm64Umull, smull_operand, g.UseRegister(left->InputAt(0)),
          g.UseRegister(left->InputAt(1)));
@@ -1255,14 +1258,15 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
 
 void InstructionSelector::VisitWord64Shr(Node* node) {
   Int64BinopMatcher m(node);
-  if (m.left().IsWord64And() && m.right().HasValue()) {
-    uint32_t lsb = m.right().Value() & 0x3F;
+  if (m.left().IsWord64And() && m.right().HasResolvedValue()) {
+    uint32_t lsb = m.right().ResolvedValue() & 0x3F;
     Int64BinopMatcher mleft(m.left().node());
-    if (mleft.right().HasValue() && mleft.right().Value() != 0) {
+    if (mleft.right().HasResolvedValue() &&
+        mleft.right().ResolvedValue() != 0) {
       // Select Ubfx for Shr(And(x, mask), imm) where the result of the mask is
       // shifted into the least-significant bits.
-      uint64_t mask = static_cast<uint64_t>(mleft.right().Value() >> lsb)
-                      << lsb;
+      uint64_t mask =
+          static_cast<uint64_t>(mleft.right().ResolvedValue() >> lsb) << lsb;
       unsigned mask_width = base::bits::CountPopulation(mask);
       unsigned mask_msb = base::bits::CountLeadingZeros64(mask);
       if ((mask_msb + mask_width + lsb) == 64) {
@@ -1285,13 +1289,13 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
   }
 
   Int32BinopMatcher m(node);
-  if (m.left().IsInt32MulHigh() && m.right().HasValue() &&
+  if (m.left().IsInt32MulHigh() && m.right().HasResolvedValue() &&
       CanCover(node, node->InputAt(0))) {
     // Combine this shift with the multiply and shift that would be generated
     // by Int32MulHigh.
     Arm64OperandGenerator g(this);
     Node* left = m.left().node();
-    int shift = m.right().Value() & 0x1F;
+    int shift = m.right().ResolvedValue() & 0x1F;
     InstructionOperand const smull_operand = g.TempRegister();
     Emit(kArm64Smull, smull_operand, g.UseRegister(left->InputAt(0)),
          g.UseRegister(left->InputAt(1)));
@@ -1300,7 +1304,7 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
     return;
   }
 
-  if (m.left().IsInt32Add() && m.right().HasValue() &&
+  if (m.left().IsInt32Add() && m.right().HasResolvedValue() &&
       CanCover(node, node->InputAt(0))) {
     Node* add_node = m.left().node();
     Int32BinopMatcher madd_node(add_node);
@@ -1843,10 +1847,10 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
 
   if (value->opcode() == IrOpcode::kWord32Sar && CanCover(node, value)) {
     Int32BinopMatcher m(value);
-    if (m.right().HasValue()) {
+    if (m.right().HasResolvedValue()) {
       Arm64OperandGenerator g(this);
       // Mask the shift amount, to keep the same semantics as Word32Sar.
-      int right = m.right().Value() & 0x1F;
+      int right = m.right().ResolvedValue() & 0x1F;
       Emit(kArm64Sbfx, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
            g.TempImmediate(right), g.TempImmediate(32 - right));
       return;
@@ -2282,8 +2286,8 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 
   if (opcode == kArm64Cmp && !cont->IsPoisoned()) {
     Int64Matcher m(right);
-    if (m.HasValue()) {
-      if (TryEmitCbzOrTbz<64>(selector, left, m.Value(), node,
+    if (m.HasResolvedValue()) {
+      if (TryEmitCbzOrTbz<64>(selector, left, m.ResolvedValue(), node,
                               cont->condition(), cont)) {
         return;
       }
@@ -2299,15 +2303,16 @@ void VisitWord32Compare(InstructionSelector* selector, Node* node,
   Int32BinopMatcher m(node);
   FlagsCondition cond = cont->condition();
   if (!cont->IsPoisoned()) {
-    if (m.right().HasValue()) {
-      if (TryEmitCbzOrTbz<32>(selector, m.left().node(), m.right().Value(),
-                              node, cond, cont)) {
+    if (m.right().HasResolvedValue()) {
+      if (TryEmitCbzOrTbz<32>(selector, m.left().node(),
+                              m.right().ResolvedValue(), node, cond, cont)) {
         return;
       }
-    } else if (m.left().HasValue()) {
+    } else if (m.left().HasResolvedValue()) {
       FlagsCondition commuted_cond = CommuteFlagsCondition(cond);
-      if (TryEmitCbzOrTbz<32>(selector, m.right().node(), m.left().Value(),
-                              node, commuted_cond, cont)) {
+      if (TryEmitCbzOrTbz<32>(selector, m.right().node(),
+                              m.left().ResolvedValue(), node, commuted_cond,
+                              cont)) {
         return;
       }
     }
@@ -2384,7 +2389,7 @@ struct TestAndBranchMatcher {
 
   unsigned bit() const {
     DCHECK(Matches());
-    return base::bits::CountTrailingZeros(matcher_.right().Value());
+    return base::bits::CountTrailingZeros(matcher_.right().ResolvedValue());
   }
 
   Node* input() const {
@@ -2399,8 +2404,8 @@ struct TestAndBranchMatcher {
 
   void Initialize() {
     if (cont_->IsBranch() && !cont_->IsPoisoned() &&
-        matcher_.right().HasValue() &&
-        base::bits::IsPowerOfTwo(matcher_.right().Value())) {
+        matcher_.right().HasResolvedValue() &&
+        base::bits::IsPowerOfTwo(matcher_.right().ResolvedValue())) {
       // If the mask has only one bit set, we can use tbz/tbnz.
       DCHECK((cont_->condition() == kEqual) ||
              (cont_->condition() == kNotEqual));

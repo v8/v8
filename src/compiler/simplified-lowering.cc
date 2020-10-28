@@ -1362,8 +1362,8 @@ class RepresentationSelector {
         return kPointerWriteBarrier;
       }
       NumberMatcher m(value);
-      if (m.HasValue()) {
-        if (IsSmiDouble(m.Value())) {
+      if (m.HasResolvedValue()) {
+        if (IsSmiDouble(m.ResolvedValue())) {
           // Storing a smi doesn't need a write barrier.
           return kNoWriteBarrier;
         }
@@ -4279,7 +4279,7 @@ Node* SimplifiedLowering::Int32Div(Node* const node) {
     return graph()->NewNode(machine()->Int32Sub(), zero, lhs);
   } else if (m.right().Is(0)) {
     return rhs;
-  } else if (machine()->Int32DivIsSafe() || m.right().HasValue()) {
+  } else if (machine()->Int32DivIsSafe() || m.right().HasResolvedValue()) {
     return graph()->NewNode(machine()->Int32Div(), lhs, rhs, graph()->start());
   }
 
@@ -4350,7 +4350,7 @@ Node* SimplifiedLowering::Int32Mod(Node* const node) {
 
   if (m.right().Is(-1) || m.right().Is(0)) {
     return zero;
-  } else if (m.right().HasValue()) {
+  } else if (m.right().HasResolvedValue()) {
     return graph()->NewNode(machine()->Int32Mod(), lhs, rhs, graph()->start());
   }
 
@@ -4463,7 +4463,7 @@ Node* SimplifiedLowering::Uint32Div(Node* const node) {
 
   if (m.right().Is(0)) {
     return zero;
-  } else if (machine()->Uint32DivIsSafe() || m.right().HasValue()) {
+  } else if (machine()->Uint32DivIsSafe() || m.right().HasResolvedValue()) {
     return graph()->NewNode(machine()->Uint32Div(), lhs, rhs, graph()->start());
   }
 
@@ -4482,7 +4482,7 @@ Node* SimplifiedLowering::Uint32Mod(Node* const node) {
 
   if (m.right().Is(0)) {
     return zero;
-  } else if (m.right().HasValue()) {
+  } else if (m.right().HasResolvedValue()) {
     return graph()->NewNode(machine()->Uint32Mod(), lhs, rhs, graph()->start());
   }
 

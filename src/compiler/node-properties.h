@@ -121,6 +121,21 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   // the IfSuccess projection of {node} if present and {node} itself otherwise.
   static Node* FindSuccessfulControlProjection(Node* node);
 
+  // Returns whether the node acts as the identity function on a value
+  // input. The input that is passed through is returned via {out_value}.
+  static bool IsValueIdentity(Node* node, Node** out_value) {
+    switch (node->opcode()) {
+      case IrOpcode::kTypeGuard:
+        *out_value = GetValueInput(node, 0);
+        return true;
+      case IrOpcode::kFoldConstant:
+        *out_value = GetValueInput(node, 1);
+        return true;
+      default:
+        return false;
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Miscellaneous mutators.
 

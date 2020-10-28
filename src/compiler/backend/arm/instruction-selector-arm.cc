@@ -29,8 +29,8 @@ class ArmOperandGenerator : public OperandGenerator {
 
   bool CanBeImmediate(Node* node, InstructionCode opcode) {
     Int32Matcher m(node);
-    if (!m.HasValue()) return false;
-    int32_t value = m.Value();
+    if (!m.HasResolvedValue()) return false;
+    int32_t value = m.ResolvedValue();
     switch (ArchOpcodeField::decode(opcode)) {
       case kArmAnd:
       case kArmMov:
@@ -95,7 +95,7 @@ void VisitSimdShiftRRR(InstructionSelector* selector, ArchOpcode opcode,
                        Node* node, int width) {
   ArmOperandGenerator g(selector);
   Int32Matcher m(node->InputAt(1));
-  if (m.HasValue()) {
+  if (m.HasResolvedValue()) {
     if (m.IsMultipleOf(width)) {
       selector->EmitIdentity(node);
     } else {
@@ -389,13 +389,14 @@ void EmitLoad(InstructionSelector* selector, InstructionCode opcode,
   size_t input_count = 2;
 
   ExternalReferenceMatcher m(base);
-  if (m.HasValue() && selector->CanAddressRelativeToRootsRegister(m.Value())) {
+  if (m.HasResolvedValue() &&
+      selector->CanAddressRelativeToRootsRegister(m.ResolvedValue())) {
     Int32Matcher int_matcher(index);
-    if (int_matcher.HasValue()) {
+    if (int_matcher.HasResolvedValue()) {
       ptrdiff_t const delta =
-          int_matcher.Value() +
+          int_matcher.ResolvedValue() +
           TurboAssemblerBase::RootRegisterOffsetForExternalReference(
-              selector->isolate(), m.Value());
+              selector->isolate(), m.ResolvedValue());
       input_count = 1;
       inputs[0] = g.UseImmediate(static_cast<int32_t>(delta));
       opcode |= AddressingModeField::encode(kMode_Root);
@@ -675,13 +676,14 @@ void InstructionSelector::VisitStore(Node* node) {
     }
 
     ExternalReferenceMatcher m(base);
-    if (m.HasValue() && CanAddressRelativeToRootsRegister(m.Value())) {
+    if (m.HasResolvedValue() &&
+        CanAddressRelativeToRootsRegister(m.ResolvedValue())) {
       Int32Matcher int_matcher(index);
-      if (int_matcher.HasValue()) {
+      if (int_matcher.HasResolvedValue()) {
         ptrdiff_t const delta =
-            int_matcher.Value() +
+            int_matcher.ResolvedValue() +
             TurboAssemblerBase::RootRegisterOffsetForExternalReference(
-                isolate(), m.Value());
+                isolate(), m.ResolvedValue());
         int input_count = 2;
         InstructionOperand inputs[2];
         inputs[0] = g.UseRegister(value);
@@ -903,16 +905,16 @@ void InstructionSelector::VisitWord32And(Node* node) {
       return;
     }
   }
-  if (m.right().HasValue()) {
-    uint32_t const value = m.right().Value();
+  if (m.right().HasResolvedValue()) {
+    uint32_t const value = m.right().ResolvedValue();
     uint32_t width = base::bits::CountPopulation(value);
     uint32_t leading_zeros = base::bits::CountLeadingZeros32(value);
 
     // Try to merge SHR operations on the left hand input into this AND.
     if (m.left().IsWord32Shr()) {
       Int32BinopMatcher mshr(m.left().node());
-      if (mshr.right().HasValue()) {
-        uint32_t const shift = mshr.right().Value();
+      if (mshr.right().HasResolvedValue()) {
+        uint32_t const shift = mshr.right().ResolvedValue();
 
         if (((shift == 8) || (shift == 16) || (shift == 24)) &&
             (value == 0xFF)) {
@@ -920,14 +922,14 @@ void InstructionSelector::VisitWord32And(Node* node) {
           // bytewise rotation.
           Emit(kArmUxtb, g.DefineAsRegister(m.node()),
                g.UseRegister(mshr.left().node()),
-               g.TempImmediate(mshr.right().Value()));
+               g.TempImmediate(mshr.right().ResolvedValue()));
           return;
         } else if (((shift == 8) || (shift == 16)) && (value == 0xFFFF)) {
           // Merge SHR into AND by emitting a UXTH instruction with a
           // bytewise rotation.
           Emit(kArmUxth, g.DefineAsRegister(m.node()),
                g.UseRegister(mshr.left().node()),
-               g.TempImmediate(mshr.right().Value()));
+               g.TempImmediate(mshr.right().ResolvedValue()));
           return;
         } else if (IsSupported(ARMv7) && (width != 0) &&
                    ((leading_zeros + width) == 32)) {
@@ -1079,11 +1081,11 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
   Int32BinopMatcher m(node);
   if (IsSupported(ARMv7) && m.left().IsWord32And() &&
       m.right().IsInRange(0, 31)) {
-    uint32_t lsb = m.right().Value();
+    uint32_t lsb = m.right().ResolvedValue();
     Int32BinopMatcher mleft(m.left().node());
-    if (mleft.right().HasValue()) {
-      uint32_t value = static_cast<uint32_t>(mleft.right().Value() >> lsb)
-                       << lsb;
+    if (mleft.right().HasResolvedValue()) {
+      uint32_t value =
+          static_cast<uint32_t>(mleft.right().ResolvedValue() >> lsb) << lsb;
       uint32_t width = base::bits::CountPopulation(value);
       uint32_t msb = base::bits::CountLeadingZeros32(value);
       if ((width != 0) && (msb + width + lsb == 32)) {
@@ -1100,9 +1102,9 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
   Int32BinopMatcher m(node);
   if (CanCover(m.node(), m.left().node()) && m.left().IsWord32Shl()) {
     Int32BinopMatcher mleft(m.left().node());
-    if (m.right().HasValue() && mleft.right().HasValue()) {
-      uint32_t sar = m.right().Value();
-      uint32_t shl = mleft.right().Value();
+    if (m.right().HasResolvedValue() && mleft.right().HasResolvedValue()) {
+      uint32_t sar = m.right().ResolvedValue();
+      uint32_t shl = mleft.right().ResolvedValue();
       if ((sar == shl) && (sar == 16)) {
         Emit(kArmSxth, g.DefineAsRegister(node),
              g.UseRegister(mleft.left().node()), g.TempImmediate(0));
@@ -1204,7 +1206,7 @@ void VisitWord32PairShift(InstructionSelector* selector, InstructionCode opcode,
   // no register aliasing of input registers with output registers.
   Int32Matcher m(node->InputAt(2));
   InstructionOperand shift_operand;
-  if (m.HasValue()) {
+  if (m.HasResolvedValue()) {
     shift_operand = g.UseImmediate(m.node());
   } else {
     shift_operand = g.UseUniqueRegister(m.node());
@@ -1425,8 +1427,8 @@ void EmitInt32MulWithOverflow(InstructionSelector* selector, Node* node,
 void InstructionSelector::VisitInt32Mul(Node* node) {
   ArmOperandGenerator g(this);
   Int32BinopMatcher m(node);
-  if (m.right().HasValue() && m.right().Value() > 0) {
-    int32_t value = m.right().Value();
+  if (m.right().HasResolvedValue() && m.right().ResolvedValue() > 0) {
+    int32_t value = m.right().ResolvedValue();
     if (base::bits::IsPowerOfTwo(value - 1)) {
       Emit(kArmAdd | AddressingModeField::encode(kMode_Operand2_R_LSL_I),
            g.DefineAsRegister(node), g.UseRegister(m.left().node()),

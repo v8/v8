@@ -559,9 +559,9 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
   switch (op->opcode()) {
     case IrOpcode::kAllocate: {
       NumberMatcher size(current->ValueInput(0));
-      if (!size.HasValue()) break;
-      int size_int = static_cast<int>(size.Value());
-      if (size_int != size.Value()) break;
+      if (!size.HasResolvedValue()) break;
+      int size_int = static_cast<int>(size.ResolvedValue());
+      if (size_int != size.ResolvedValue()) break;
       if (const VirtualObject* vobject = current->InitVirtualObject(size_int)) {
         // Initialize with dead nodes as a sentinel for uninitialized memory.
         for (Variable field : *vobject) {

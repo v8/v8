@@ -1055,7 +1055,7 @@ Node* WasmGraphBuilder::TrapIfEq32(wasm::TrapReason reason, Node* node,
                                    int32_t val,
                                    wasm::WasmCodePosition position) {
   Int32Matcher m(node);
-  if (m.HasValue() && !m.Is(val)) return graph()->start();
+  if (m.HasResolvedValue() && !m.Is(val)) return graph()->start();
   if (val == 0) {
     return TrapIfFalse(reason, node, position);
   } else {
@@ -1077,7 +1077,7 @@ Node* WasmGraphBuilder::TrapIfEq64(wasm::TrapReason reason, Node* node,
                                    int64_t val,
                                    wasm::WasmCodePosition position) {
   Int64Matcher m(node);
-  if (m.HasValue() && !m.Is(val)) return graph()->start();
+  if (m.HasResolvedValue() && !m.Is(val)) return graph()->start();
   return TrapIfTrue(reason,
                     graph()->NewNode(mcgraph()->machine()->Word64Equal(), node,
                                      mcgraph()->Int64Constant(val)),
@@ -1137,9 +1137,10 @@ Node* WasmGraphBuilder::MaskShiftCount32(Node* node) {
   if (!mcgraph()->machine()->Word32ShiftIsSafe()) {
     // Shifts by constants are so common we pattern-match them here.
     Int32Matcher match(node);
-    if (match.HasValue()) {
-      int32_t masked = (match.Value() & kMask32);
-      if (match.Value() != masked) node = mcgraph()->Int32Constant(masked);
+    if (match.HasResolvedValue()) {
+      int32_t masked = (match.ResolvedValue() & kMask32);
+      if (match.ResolvedValue() != masked)
+        node = mcgraph()->Int32Constant(masked);
     } else {
       node = graph()->NewNode(mcgraph()->machine()->Word32And(), node,
                               mcgraph()->Int32Constant(kMask32));
@@ -1153,9 +1154,10 @@ Node* WasmGraphBuilder::MaskShiftCount64(Node* node) {
   if (!mcgraph()->machine()->Word32ShiftIsSafe()) {
     // Shifts by constants are so common we pattern-match them here.
     Int64Matcher match(node);
-    if (match.HasValue()) {
-      int64_t masked = (match.Value() & kMask64);
-      if (match.Value() != masked) node = mcgraph()->Int64Constant(masked);
+    if (match.HasResolvedValue()) {
+      int64_t masked = (match.ResolvedValue() & kMask64);
+      if (match.ResolvedValue() != masked)
+        node = mcgraph()->Int64Constant(masked);
     } else {
       node = graph()->NewNode(mcgraph()->machine()->Word64And(), node,
                               mcgraph()->Int64Constant(kMask64));
@@ -2350,10 +2352,10 @@ Node* WasmGraphBuilder::BuildI32AsmjsDivS(Node* left, Node* right) {
   MachineOperatorBuilder* m = mcgraph()->machine();
 
   Int32Matcher mr(right);
-  if (mr.HasValue()) {
-    if (mr.Value() == 0) {
+  if (mr.HasResolvedValue()) {
+    if (mr.ResolvedValue() == 0) {
       return mcgraph()->Int32Constant(0);
-    } else if (mr.Value() == -1) {
+    } else if (mr.ResolvedValue() == -1) {
       // The result is the negation of the left input.
       return graph()->NewNode(m->Int32Sub(), mcgraph()->Int32Constant(0), left);
     }
@@ -2393,8 +2395,8 @@ Node* WasmGraphBuilder::BuildI32AsmjsRemS(Node* left, Node* right) {
   Node* const zero = mcgraph()->Int32Constant(0);
 
   Int32Matcher mr(right);
-  if (mr.HasValue()) {
-    if (mr.Value() == 0 || mr.Value() == -1) {
+  if (mr.HasResolvedValue()) {
+    if (mr.ResolvedValue() == 0 || mr.ResolvedValue() == -1) {
       return zero;
     }
     return graph()->NewNode(m->Int32Mod(), left, right, control());
@@ -3174,9 +3176,9 @@ Node* WasmGraphBuilder::BuildI32Rol(Node* left, Node* right) {
   // Implement Rol by Ror since TurboFan does not have Rol opcode.
   // TODO(weiliang): support Word32Rol opcode in TurboFan.
   Int32Matcher m(right);
-  if (m.HasValue()) {
+  if (m.HasResolvedValue()) {
     return Binop(wasm::kExprI32Ror, left,
-                 mcgraph()->Int32Constant(32 - (m.Value() & 0x1F)));
+                 mcgraph()->Int32Constant(32 - (m.ResolvedValue() & 0x1F)));
   } else {
     return Binop(wasm::kExprI32Ror, left,
                  Binop(wasm::kExprI32Sub, mcgraph()->Int32Constant(32), right));
@@ -3188,8 +3190,8 @@ Node* WasmGraphBuilder::BuildI64Rol(Node* left, Node* right) {
   // TODO(weiliang): support Word64Rol opcode in TurboFan.
   Int64Matcher m(right);
   Node* inv_right =
-      m.HasValue()
-          ? mcgraph()->Int64Constant(64 - (m.Value() & 0x3F))
+      m.HasResolvedValue()
+          ? mcgraph()->Int64Constant(64 - (m.ResolvedValue() & 0x3F))
           : Binop(wasm::kExprI64Sub, mcgraph()->Int64Constant(64), right);
   return Binop(wasm::kExprI64Ror, left, inv_right);
 }
@@ -3643,8 +3645,8 @@ Node* WasmGraphBuilder::CheckBoundsAndAlignment(
   // Don't emit an alignment check if the index is a constant.
   // TODO(wasm): a constant match is also done above in {BoundsCheckMem}.
   UintPtrMatcher match(index);
-  if (match.HasValue()) {
-    uintptr_t effective_offset = match.Value() + capped_offset;
+  if (match.HasResolvedValue()) {
+    uintptr_t effective_offset = match.ResolvedValue() + capped_offset;
     if ((effective_offset & align_mask) != 0) {
       // statically known to be unaligned; trap.
       TrapIfEq32(wasm::kTrapUnalignedAccess, Int32Constant(0), 0, position);
@@ -3710,8 +3712,8 @@ Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
     // The end offset is smaller than the smallest memory, so only one check is
     // required. Check to see if the index is also a constant.
     UintPtrMatcher match(index);
-    if (match.HasValue()) {
-      uintptr_t index_val = match.Value();
+    if (match.HasResolvedValue()) {
+      uintptr_t index_val = match.ResolvedValue();
       if (index_val < env_->min_memory_size - end_offset) {
         // The input index is a constant and everything is statically within
         // bounds of the smallest possible memory.
@@ -4261,8 +4263,8 @@ Node* WasmGraphBuilder::Uint32ToUintptr(Node* node) {
   if (mcgraph()->machine()->Is32()) return node;
   // Fold instances of ChangeUint32ToUint64(IntConstant) directly.
   Uint32Matcher matcher(node);
-  if (matcher.HasValue()) {
-    uintptr_t value = matcher.Value();
+  if (matcher.HasResolvedValue()) {
+    uintptr_t value = matcher.ResolvedValue();
     return mcgraph()->IntPtrConstant(bit_cast<intptr_t>(value));
   }
   return graph()->NewNode(mcgraph()->machine()->ChangeUint32ToUint64(), node);

@@ -139,7 +139,7 @@ Reduction MemoryLowering::ReduceAllocateRaw(
   IntPtrMatcher m(size);
   if (m.IsInRange(0, kMaxRegularHeapObjectSize) && FLAG_inline_new &&
       allocation_folding_ == AllocationFolding::kDoAllocationFolding) {
-    intptr_t const object_size = m.Value();
+    intptr_t const object_size = m.ResolvedValue();
     AllocationState const* state = *state_ptr;
     if (state->size() <= kMaxRegularHeapObjectSize - object_size &&
         state->group()->allocation() == allocation_type) {

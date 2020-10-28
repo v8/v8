@@ -40,8 +40,8 @@ TNode<Oddball> UndefinedConstant(JSGraph* jsgraph) {
 FeedbackCellRef JSCreateClosureNode::GetFeedbackCellRefChecked(
     JSHeapBroker* broker) const {
   HeapObjectMatcher m(feedback_cell());
-  CHECK(m.HasValue());
-  return FeedbackCellRef(broker, m.Value());
+  CHECK(m.HasResolvedValue());
+  return FeedbackCellRef(broker, m.ResolvedValue());
 }
 
 std::ostream& operator<<(std::ostream& os, CallFrequency const& f) {

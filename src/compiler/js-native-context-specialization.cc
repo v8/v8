@@ -136,13 +136,13 @@ base::Optional<size_t> JSNativeContextSpecialization::GetMaxStringLength(
   }
 
   HeapObjectMatcher matcher(node);
-  if (matcher.HasValue() && matcher.Ref(broker).IsString()) {
+  if (matcher.HasResolvedValue() && matcher.Ref(broker).IsString()) {
     StringRef input = matcher.Ref(broker).AsString();
     return input.length();
   }
 
   NumberMatcher number_matcher(node);
-  if (number_matcher.HasValue()) {
+  if (number_matcher.HasResolvedValue()) {
     return kBase10MaximalLength + 1;
   }
 
@@ -157,7 +157,7 @@ Reduction JSNativeContextSpecialization::ReduceJSToString(Node* node) {
   Reduction reduction;
 
   HeapObjectMatcher matcher(input);
-  if (matcher.HasValue() && matcher.Ref(broker()).IsString()) {
+  if (matcher.HasResolvedValue() && matcher.Ref(broker()).IsString()) {
     reduction = Changed(input);  // JSToString(x:string) => x
     ReplaceWithValue(node, reduction.replacement());
     return reduction;
@@ -168,9 +168,9 @@ Reduction JSNativeContextSpecialization::ReduceJSToString(Node* node) {
   // so alternative approach should be designed if this causes performance
   // regressions and the stronger optimization should be re-implemented.
   NumberMatcher number_matcher(input);
-  if (number_matcher.HasValue()) {
-    const StringConstantBase* base =
-        shared_zone()->New<NumberToStringConstant>(number_matcher.Value());
+  if (number_matcher.HasResolvedValue()) {
+    const StringConstantBase* base = shared_zone()->New<NumberToStringConstant>(
+        number_matcher.ResolvedValue());
     reduction =
         Replace(graph()->NewNode(common()->DelayedStringConstant(base)));
     ReplaceWithValue(node, reduction.replacement());
@@ -186,11 +186,12 @@ JSNativeContextSpecialization::CreateDelayedStringConstant(Node* node) {
     return StringConstantBaseOf(node->op());
   } else {
     NumberMatcher number_matcher(node);
-    if (number_matcher.HasValue()) {
-      return shared_zone()->New<NumberToStringConstant>(number_matcher.Value());
+    if (number_matcher.HasResolvedValue()) {
+      return shared_zone()->New<NumberToStringConstant>(
+          number_matcher.ResolvedValue());
     } else {
       HeapObjectMatcher matcher(node);
-      if (matcher.HasValue() && matcher.Ref(broker()).IsString()) {
+      if (matcher.HasResolvedValue() && matcher.Ref(broker()).IsString()) {
         StringRef s = matcher.Ref(broker()).AsString();
         return shared_zone()->New<StringLiteral>(
             s.object(), static_cast<size_t>(s.length()));
@@ -208,7 +209,7 @@ bool IsStringConstant(JSHeapBroker* broker, Node* node) {
   }
 
   HeapObjectMatcher matcher(node);
-  return matcher.HasValue() && matcher.Ref(broker).IsString();
+  return matcher.HasResolvedValue() && matcher.Ref(broker).IsString();
 }
 }  // namespace
 
@@ -352,7 +353,7 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
 
   // Check if the input is a known JSFunction.
   HeapObjectMatcher m(constructor);
-  if (!m.HasValue()) return NoChange();
+  if (!m.HasResolvedValue()) return NoChange();
   JSFunctionRef function = m.Ref(broker()).AsJSFunction();
   MapRef function_map = function.map();
   if (should_disallow_heap_access() && !function_map.serialized_prototype()) {
@@ -389,7 +390,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
   // we have feedback from the InstanceOfIC.
   Handle<JSObject> receiver;
   HeapObjectMatcher m(constructor);
-  if (m.HasValue() && m.Ref(broker()).IsJSObject()) {
+  if (m.HasResolvedValue() && m.Ref(broker()).IsJSObject()) {
     receiver = m.Ref(broker()).AsJSObject().object();
   } else if (p.feedback().IsValid()) {
     ProcessedFeedback const& feedback =
@@ -594,7 +595,7 @@ Reduction JSNativeContextSpecialization::ReduceJSHasInPrototypeChain(
   // Check if we can constant-fold the prototype chain walk
   // for the given {value} and the {prototype}.
   HeapObjectMatcher m(prototype);
-  if (m.HasValue()) {
+  if (m.HasResolvedValue()) {
     InferHasInPrototypeChainResult result =
         InferHasInPrototypeChain(value, effect, m.Ref(broker()));
     if (result != kMayBeInPrototypeChain) {
@@ -615,7 +616,7 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
 
   // Check if the {constructor} is known at compile time.
   HeapObjectMatcher m(constructor);
-  if (!m.HasValue()) return NoChange();
+  if (!m.HasResolvedValue()) return NoChange();
 
   if (m.Ref(broker()).IsJSBoundFunction()) {
     // OrdinaryHasInstance on bound functions turns into a recursive invocation
@@ -681,7 +682,7 @@ Reduction JSNativeContextSpecialization::ReduceJSPromiseResolve(Node* node) {
 
   // Check if the {constructor} is the %Promise% function.
   HeapObjectMatcher m(constructor);
-  if (!m.HasValue() ||
+  if (!m.HasResolvedValue() ||
       !m.Ref(broker()).equals(native_context().promise_function())) {
     return NoChange();
   }
@@ -1387,7 +1388,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
 
   // Check if we have a constant receiver.
   HeapObjectMatcher m(receiver);
-  if (m.HasValue()) {
+  if (m.HasResolvedValue()) {
     ObjectRef object = m.Ref(broker());
     if (object.IsJSFunction() &&
         name.equals(ObjectRef(broker(), factory()->prototype_string()))) {
@@ -1555,7 +1556,7 @@ namespace {
 base::Optional<JSTypedArrayRef> GetTypedArrayConstant(JSHeapBroker* broker,
                                                       Node* receiver) {
   HeapObjectMatcher m(receiver);
-  if (!m.HasValue()) return base::nullopt;
+  if (!m.HasResolvedValue()) return base::nullopt;
   ObjectRef object = m.Ref(broker);
   if (!object.IsJSTypedArray()) return base::nullopt;
   JSTypedArrayRef typed_array = object.AsJSTypedArray();
@@ -1859,7 +1860,7 @@ Reduction JSNativeContextSpecialization::ReduceElementLoadFromHeapConstant(
   // constant-fold the load.
   NumberMatcher mkey(key);
   if (mkey.IsInteger() && mkey.IsInRange(0.0, kMaxUInt32 - 1.0)) {
-    uint32_t index = static_cast<uint32_t>(mkey.Value());
+    uint32_t index = static_cast<uint32_t>(mkey.ResolvedValue());
     base::Optional<ObjectRef> element =
         receiver_ref.GetOwnConstantElement(index);
     if (!element.has_value() && receiver_ref.IsJSArray()) {
@@ -2526,8 +2527,8 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
   if (!p.feedback().IsValid()) return NoChange();
 
   NumberMatcher mflags(n.flags());
-  CHECK(mflags.HasValue());
-  DataPropertyInLiteralFlags cflags(mflags.Value());
+  CHECK(mflags.HasResolvedValue());
+  DataPropertyInLiteralFlags cflags(mflags.ResolvedValue());
   DCHECK(!(cflags & DataPropertyInLiteralFlag::kDontEnum));
   if (cflags & DataPropertyInLiteralFlag::kSetFunctionName) return NoChange();
 
@@ -3373,7 +3374,7 @@ bool JSNativeContextSpecialization::InferReceiverMaps(
 base::Optional<MapRef> JSNativeContextSpecialization::InferReceiverRootMap(
     Node* receiver) const {
   HeapObjectMatcher m(receiver);
-  if (m.HasValue()) {
+  if (m.HasResolvedValue()) {
     MapRef map = m.Ref(broker()).map();
     return map.FindRootMap();
   } else if (m.IsJSCreate()) {

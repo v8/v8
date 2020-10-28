@@ -2725,7 +2725,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
   // to ensure any exception is thrown in the correct context.
   Node* context;
   HeapObjectMatcher m(target);
-  if (m.HasValue()) {
+  if (m.HasResolvedValue()) {
     JSFunctionRef function = m.Ref(broker()).AsJSFunction();
     if (should_disallow_heap_access() && !function.serialized()) {
       TRACE_BROKER_MISSING(broker(), "Serialize call on function " << function);
@@ -3954,7 +3954,7 @@ namespace {
 
 bool ShouldUseCallICFeedback(Node* node) {
   HeapObjectMatcher m(node);
-  if (m.HasValue() || m.IsCheckClosure() || m.IsJSCreateClosure()) {
+  if (m.HasResolvedValue() || m.IsCheckClosure() || m.IsJSCreateClosure()) {
     // Don't use CallIC feedback when we know the function
     // being called, i.e. either know the closure itself or
     // at least the SharedFunctionInfo.
@@ -4001,7 +4001,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
 
   // Try to specialize JSCall {node}s with constant {target}s.
   HeapObjectMatcher m(target);
-  if (m.HasValue()) {
+  if (m.HasResolvedValue()) {
     ObjectRef target_ref = m.Ref(broker());
     if (target_ref.IsJSFunction()) {
       JSFunctionRef function = target_ref.AsJSFunction();
@@ -4600,7 +4600,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
                     arity, feedback_target->AsAllocationSite().object()));
       return Changed(node);
     } else if (feedback_target.has_value() &&
-               !HeapObjectMatcher(new_target).HasValue() &&
+               !HeapObjectMatcher(new_target).HasResolvedValue() &&
                feedback_target->map().is_constructor()) {
       Node* new_target_feedback = jsgraph()->Constant(*feedback_target);
 
@@ -4625,7 +4625,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
 
   // Try to specialize JSConstruct {node}s with constant {target}s.
   HeapObjectMatcher m(target);
-  if (m.HasValue()) {
+  if (m.HasResolvedValue()) {
     HeapObjectRef target_ref = m.Ref(broker());
 
     // Raise a TypeError if the {target} is not a constructor.
@@ -4681,7 +4681,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
           // constructor), {value} will be ignored and therefore we can lower
           // to {JSCreate}. See https://tc39.es/ecma262/#sec-object-value.
           HeapObjectMatcher mnew_target(new_target);
-          if (mnew_target.HasValue() &&
+          if (mnew_target.HasResolvedValue() &&
               !mnew_target.Ref(broker()).equals(function)) {
             // Drop the value inputs.
             node->RemoveInput(n.FeedbackVectorIndex());
@@ -6021,7 +6021,7 @@ Reduction JSCallReducer::ReduceStringPrototypeStartsWith(Node* node) {
   Node* position = n.ArgumentOr(1, jsgraph()->ZeroConstant());
 
   HeapObjectMatcher m(search_string);
-  if (m.HasValue()) {
+  if (m.HasResolvedValue()) {
     ObjectRef target_ref = m.Ref(broker());
     if (target_ref.IsString()) {
       StringRef str = target_ref.AsString();
@@ -7345,7 +7345,7 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
 
   // Check that the {offset} is within range for the {receiver}.
   HeapObjectMatcher m(receiver);
-  if (m.HasValue()) {
+  if (m.HasResolvedValue()) {
     // We only deal with DataViews here whose [[ByteLength]] is at least
     // {element_size}, as for all other DataViews it'll be out-of-bounds.
     JSDataViewRef dataview = m.Ref(broker()).AsJSDataView();
@@ -7710,7 +7710,7 @@ Reduction JSCallReducer::ReduceBigIntAsUintN(Node* node) {
 
   NumberMatcher matcher(bits);
   if (matcher.IsInteger() && matcher.IsInRange(0, 64)) {
-    const int bits_value = static_cast<int>(matcher.Value());
+    const int bits_value = static_cast<int>(matcher.ResolvedValue());
     value = effect = graph()->NewNode(simplified()->CheckBigInt(p.feedback()),
                                       value, effect, control);
     value = graph()->NewNode(simplified()->BigIntAsUintN(bits_value), value);

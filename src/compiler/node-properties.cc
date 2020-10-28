@@ -328,7 +328,7 @@ base::Optional<MapRef> NodeProperties::GetJSCreateMap(JSHeapBroker* broker,
          receiver->opcode() == IrOpcode::kJSCreateArray);
   HeapObjectMatcher mtarget(GetValueInput(receiver, 0));
   HeapObjectMatcher mnewtarget(GetValueInput(receiver, 1));
-  if (mtarget.HasValue() && mnewtarget.HasValue() &&
+  if (mtarget.HasResolvedValue() && mnewtarget.HasResolvedValue() &&
       mnewtarget.Ref(broker).IsJSFunction()) {
     ObjectRef target = mtarget.Ref(broker);
     JSFunctionRef newtarget = mnewtarget.Ref(broker).AsJSFunction();
@@ -353,7 +353,7 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMapsUnsafe(
     JSHeapBroker* broker, Node* receiver, Node* effect,
     ZoneHandleSet<Map>* maps_return) {
   HeapObjectMatcher m(receiver);
-  if (m.HasValue()) {
+  if (m.HasResolvedValue()) {
     HeapObjectRef receiver = m.Ref(broker);
     // We don't use ICs for the Array.prototype and the Object.prototype
     // because the runtime has to be able to intercept them properly, so
@@ -423,7 +423,7 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMapsUnsafe(
           if (IsSame(receiver, object)) {
             Node* const value = GetValueInput(effect, 1);
             HeapObjectMatcher m(value);
-            if (m.HasValue()) {
+            if (m.HasResolvedValue()) {
               *maps_return = ZoneHandleSet<Map>(m.Ref(broker).AsMap().object());
               return result;
             }
