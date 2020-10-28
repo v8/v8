@@ -45,9 +45,15 @@ class EmbedderNode : public v8::EmbedderGraph::Node {
   }
   Node* WrapperNode() final { return wrapper_node_; }
 
+  void SetDetachedness(Detachedness detachedness) {
+    detachedness_ = detachedness;
+  }
+  Detachedness GetDetachedness() final { return detachedness_; }
+
  private:
   const char* name_;
   Node* wrapper_node_ = nullptr;
+  Detachedness detachedness_ = Detachedness::kUnknown;
 };
 
 // Node representing an artificial root group, e.g., set of Persistent handles.
@@ -405,6 +411,13 @@ class CppGraphBuilderImpl final {
               reinterpret_cast<v8::internal::Isolate*>(cpp_heap_.isolate()),
               v8_value, parent.header()->Payload())) {
         parent.get_node()->SetWrapperNode(v8_node);
+
+        auto* profiler =
+            reinterpret_cast<Isolate*>(cpp_heap_.isolate())->heap_profiler();
+        if (profiler->HasGetDetachednessCallback()) {
+          parent.get_node()->SetDetachedness(
+              profiler->GetDetachedness(v8_value, ref.WrapperClassId()));
+        }
       }
     }
   }
