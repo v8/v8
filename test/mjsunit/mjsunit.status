@@ -1300,6 +1300,9 @@
   'regress/regress-813440': [SKIP],
   # Investigate (segfault).
   'regress/regress-crbug-397662': [SKIP],
+  # Script referenced only through context-dependent SourceTextModule
+  # https://bugs.chromium.org/p/v8/issues/detail?id=11073
+  'tools/processor': [SKIP],
 }],  # variant == stress_snapshot and arch == x64
 
 ##############################################################################
