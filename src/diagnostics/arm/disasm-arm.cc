@@ -579,11 +579,18 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
         PrintSoftwareInterrupt(instr->SvcValue());
         return 3;
       } else if (format[1] == 'i') {  // 'sign: signed extra loads and stores
-        DCHECK(STRING_STARTS_WITH(format, "sign"));
-        if (instr->HasSign()) {
-          Print("s");
+        if (format[2] == 'g') {
+          DCHECK(STRING_STARTS_WITH(format, "sign"));
+          if (instr->HasSign()) {
+            Print("s");
+          }
+          return 4;
+        } else {  // 'size, for Advanced SIMD instructions
+          DCHECK(STRING_STARTS_WITH(format, "size"));
+          int sz = 8 << instr->Bits(21, 20);
+          out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", sz);
+          return 4;
         }
-        return 4;
       } else if (format[1] == 'p') {
         if (format[8] == '_') {  // 'spec_reg_fields
           DCHECK(STRING_STARTS_WITH(format, "spec_reg_fields"));
@@ -2032,12 +2039,9 @@ void Decoder::DecodeAdvancedSIMDDataProcessing(Instruction* instr) {
     int opc = instr->Bits(11, 8);
     int q = instr->Bit(6);
     int sz = instr->Bits(21, 20);
-    int size = kBitsPerByte * (1 << sz);
 
     if (!u && opc == 0 && op1) {
-      // vqadd.s<size> Qd, Qm, Qn.
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "vqadd.s%d q%d, q%d, q%d", size, Vd, Vn, Vm);
+      Format(instr, "vqadd.s'size 'Qd, 'Qn, 'Qm");
     } else if (!u && opc == 1 && sz == 2 && q && op1) {
       if (Vm == Vn) {
         Format(instr, "vmov 'Qd, 'Qm");
@@ -2048,46 +2052,30 @@ void Decoder::DecodeAdvancedSIMDDataProcessing(Instruction* instr) {
       Format(instr, "vbic 'Qd, 'Qn, 'Qm");
     } else if (!u && opc == 1 && sz == 0 && q && op1) {
       Format(instr, "vand 'Qd, 'Qn, 'Qm");
-    } else if (!u && opc == 1 && sz == 1 && q && op1) {
-      // vbic Qd, Qn, Qm
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "vbic q%d, q%d, q%d", Vd, Vn, Vm);
     } else if (!u && opc == 2 && op1) {
-      // vqsub.s<size> Qd, Qm, Qn.
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "vqsub.s%d q%d, q%d, q%d", size, Vd, Vn, Vm);
-    } else if (!u && opc == 3) {
-      const char* op = op1 ? "vcge" : "vcgt";
-      // vcge/vcgt.s<size> Qd, Qm, Qn.
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "%s.s%d q%d, q%d, q%d", op, size, Vd, Vn, Vm);
+      Format(instr, "vqsub.s'size 'Qd, 'Qn, 'Qm");
+    } else if (!u && opc == 3 && op1) {
+      Format(instr, "vcge.s'size 'Qd, 'Qn, 'Qm");
+    } else if (!u && opc == 3 && !op1) {
+      Format(instr, "vcgt.s'size 'Qd, 'Qn, 'Qm");
     } else if (!u && opc == 4 && !op1) {
-      // vshl.s<size> Qd, Qm, Qn.
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "vshl.s%d q%d, q%d, q%d", size, Vd, Vm, Vn);
-    } else if (!u && opc == 6) {
-      // vmin/vmax.s<size> Qd, Qm, Qn.
-      const char* op = op1 ? "vmin" : "vmax";
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "%s.s%d q%d, q%d, q%d", op, size, Vd, Vn, Vm);
-    } else if (!u && opc == 8) {
-      const char* op = op1 ? "vtst" : "vadd";
-      // vadd/vtst.i<size> Qd, Qm, Qn.
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "%s.i%d q%d, q%d, q%d", op, size, Vd, Vn, Vm);
+      Format(instr, "vshl.s'size 'Qd, 'Qm, 'Qn");
+    } else if (!u && opc == 6 && op1) {
+      Format(instr, "vmin.s'size 'Qd, 'Qn, 'Qm");
+    } else if (!u && opc == 6 && !op1) {
+      Format(instr, "vmax.s'size 'Qd, 'Qn, 'Qm");
+    } else if (!u && opc == 8 && op1) {
+      Format(instr, "vtst.i'size 'Qd, 'Qn, 'Qm");
+    } else if (!u && opc == 8 && !op1) {
+      Format(instr, "vadd.i'size 'Qd, 'Qn, 'Qm");
     } else if (opc == 9 && op1) {
-      // vmul.i<size> Qd, Qm, Qn.
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "vmul.i%d q%d, q%d, q%d", size, Vd, Vn, Vm);
-    } else if (!u && opc == 0xA) {
-      // vpmin/vpmax.s<size> Dd, Dm, Dn.
-      const char* op = op1 ? "vpmin" : "vpmax";
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "%s.s%d d%d, d%d, d%d", op, size, Vd, Vn, Vm);
+      Format(instr, "vmul.i'size 'Qd, 'Qn, 'Qm");
+    } else if (!u && opc == 0xA && op1) {
+      Format(instr, "vpmin.s'size 'Dd, 'Dn, 'Dm");
+    } else if (!u && opc == 0xA && !op1) {
+      Format(instr, "vpmax.s'size 'Dd, 'Dn, 'Dm");
     } else if (!u && opc == 0xB) {
-      // vpadd.i<size> Dd, Dm, Dn.
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "vpadd.i%d d%d, d%d, d%d", size, Vd, Vn, Vm);
+      Format(instr, "vpadd.i'size 'Dd, 'Dn, 'Dm");
     } else if (!u && !(sz >> 1) && opc == 0xD && !op1) {
       Format(instr, "vadd.f32 'Qd, 'Qn, 'Qm");
     } else if (!u && (sz >> 1) && opc == 0xD && !op1) {
@@ -2103,9 +2091,7 @@ void Decoder::DecodeAdvancedSIMDDataProcessing(Instruction* instr) {
     } else if (!u && (sz >> 1) && opc == 0xF && !op1) {
       Format(instr, "vmin.f32 'Qd, 'Qn, 'Qm");
     } else if (u && opc == 0 && op1) {
-      // vqadd.u<size> Qd, Qm, Qn.
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "vqadd.u%d q%d, q%d, q%d", size, Vd, Vn, Vm);
+      Format(instr, "vqadd.u'size 'Qd, 'Qn, 'Qm");
     } else if (u && opc == 1 && sz == 1 && op1) {
       Format(instr, "vbsl 'Qd, 'Qn, 'Qm");
     } else if (u && opc == 1 && sz == 0 && q && op1) {
@@ -2113,38 +2099,27 @@ void Decoder::DecodeAdvancedSIMDDataProcessing(Instruction* instr) {
     } else if (u && opc == 1 && sz == 0 && !q && op1) {
       Format(instr, "veor 'Dd, 'Dn, 'Dm");
     } else if (u && opc == 1 && !op1) {
-      // vrhadd.u<size> Qd, Qm, Qn.
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "vrhadd.u%d q%d, q%d, q%d", size, Vd, Vn, Vm);
+      Format(instr, "vrhadd.u'size 'Qd, 'Qn, 'Qm");
     } else if (u && opc == 2 && op1) {
-      // vqsub.u<size> Qd, Qm, Qn.
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "vqsub.u%d q%d, q%d, q%d", size, Vd, Vn, Vm);
-    } else if (u && opc == 3) {
-      const char* op = op1 ? "vcge" : "vcgt";
-      // vcge/vcgt.u<size> Qd, Qm, Qn.
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "%s.u%d q%d, q%d, q%d", op, size, Vd, Vn, Vm);
+      Format(instr, "vqsub.u'size 'Qd, 'Qn, 'Qm");
+    } else if (u && opc == 3 && op1) {
+      Format(instr, "vcge.u'size 'Qd, 'Qn, 'Qm");
+    } else if (u && opc == 3 && !op1) {
+      Format(instr, "vcgt.u'size 'Qd, 'Qn, 'Qm");
     } else if (u && opc == 4 && !op1) {
-      // vshl.u<size> Qd, Qm, Qn.
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "vshl.u%d q%d, q%d, q%d", size, Vd, Vm, Vn);
-    } else if (u && opc == 6) {
-      // vmin/vmax.u<size> Qd, Qm, Qn.
-      const char* op = op1 ? "vmin" : "vmax";
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "%s.u%d q%d, q%d, q%d", op, size, Vd, Vn, Vm);
+      Format(instr, "vshl.u'size 'Qd, 'Qm, 'Qn");
+    } else if (u && opc == 6 && op1) {
+      Format(instr, "vmin.u'size 'Qd, 'Qn, 'Qm");
+    } else if (u && opc == 6 && !op1) {
+      Format(instr, "vmax.u'size 'Qd, 'Qn, 'Qm");
     } else if (u && opc == 8 && op1) {
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "vceq.i%d q%d, q%d, q%d", size, Vd, Vn, Vm);
+      Format(instr, "vceq.i'size 'Qd, 'Qn, 'Qm");
     } else if (u && opc == 8 && !op1) {
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "vsub.i%d q%d, q%d, q%d", size, Vd, Vn, Vm);
-    } else if (u && opc == 0xA) {
-      // vpmin/vpmax.u<size> Dd, Dm, Dn.
-      const char* op = op1 ? "vpmin" : "vpmax";
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "%s.u%d d%d, d%d, d%d", op, size, Vd, Vn, Vm);
+      Format(instr, "vsub.i'size 'Qd, 'Qn, 'Qm");
+    } else if (u && opc == 0xA && op1) {
+      Format(instr, "vpmin.u'size 'Dd, 'Dn, 'Dm");
+    } else if (u && opc == 0xA && !op1) {
+      Format(instr, "vpmax.u'size 'Dd, 'Dn, 'Dm");
     } else if (u && opc == 0xD && sz == 0 && q && op1) {
       Format(instr, "vmul.f32 'Qd, 'Qn, 'Qm");
     } else if (u && opc == 0xD && sz == 0 && !q && !op1) {
