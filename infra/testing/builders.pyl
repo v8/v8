@@ -81,24 +81,6 @@
       {'name': 'test262', 'variant': 'extra', 'shards': 3},
       {'name': 'v8testing', 'shards': 3},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
-      # Noavx.
-      {
-        'name': 'mozilla',
-        'suffix': 'noavx',
-        'test_args': ['--extra-flags', '--noenable-avx']
-      },
-      {
-        'name': 'test262',
-        'suffix': 'noavx',
-        'variant': 'default',
-        'test_args': ['--extra-flags', '--noenable-avx']
-      },
-      {
-        'name': 'v8testing',
-        'suffix': 'noavx',
-        'test_args': ['--extra-flags', '--noenable-avx'],
-        'shards': 2
-      },
     ],
   },
   'v8_linux_gc_stress_dbg_ng_triggered': {
@@ -219,24 +201,6 @@
         'suffix': 'nosse4',
         'test_args': ['--extra-flags', '--noenable-sse4-1 --noenable-avx'],
         'shards': 3,
-      },
-      # Noavx.
-      {
-        'name': 'mozilla',
-        'suffix': 'noavx',
-        'test_args': ['--extra-flags', '--noenable-avx']
-      },
-      {
-        'name': 'test262',
-        'suffix': 'noavx',
-        'variant': 'default',
-        'test_args': ['--extra-flags', '--noenable-avx']
-      },
-      {
-        'name': 'v8testing',
-        'suffix': 'noavx',
-        'test_args': ['--extra-flags', '--noenable-avx'],
-        'shards': 2
       },
     ],
   },
@@ -793,24 +757,6 @@
         'suffix': 'nosse4',
         'test_args': ['--extra-flags', '--noenable-sse4-1 --noenable-avx']
       },
-      # Noavx.
-      {
-        'name': 'mozilla',
-        'suffix': 'noavx',
-        'test_args': ['--extra-flags', '--noenable-avx']
-      },
-      {
-        'name': 'test262',
-        'suffix': 'noavx',
-        'variant': 'default',
-        'test_args': ['--extra-flags', '--noenable-avx']
-      },
-      {
-        'name': 'v8testing',
-        'suffix': 'noavx',
-        'test_args': ['--extra-flags', '--noenable-avx'],
-        'shards': 2
-      },
     ],
   },
   'V8 Linux - arm64 - sim - CFI': {
@@ -892,24 +838,6 @@
         'suffix': 'nosse4',
         'test_args': ['--extra-flags', '--noenable-sse4-1 --noenable-avx'],
         'shards': 3
-      },
-      # Noavx.
-      {
-        'name': 'mozilla',
-        'suffix': 'noavx',
-        'test_args': ['--extra-flags', '--noenable-avx']
-      },
-      {
-        'name': 'test262',
-        'suffix': 'noavx',
-        'variant': 'default',
-        'test_args': ['--extra-flags', '--noenable-avx']
-      },
-      {
-        'name': 'v8testing',
-        'suffix': 'noavx',
-        'test_args': ['--extra-flags', '--noenable-avx'],
-        'shards': 2
       },
     ],
   },
