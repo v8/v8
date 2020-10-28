@@ -146,11 +146,8 @@
   'regress/wasm/regress-810973': [PASS, SLOW],
   'sealed-array-reduce': [PASS, SLOW],
   'string-replace-gc': [PASS, SLOW],
-  'wasm/asm-wasm-f32': [PASS, SLOW],
-  'wasm/asm-wasm-f64': [PASS, SLOW],
   'wasm/embenchen/*': [PASS, SLOW],
   'wasm/futex': [PASS, SLOW],
-  'wasm/grow-memory': [PASS, SLOW],
   'wasm/unreachable-validation': [PASS, SLOW],
   'wasm/atomics-stress': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['tsan', SKIP]],
   'wasm/atomics64-stress': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['tsan', SKIP]],
@@ -1057,16 +1054,12 @@
   'es6/large-classes-properties': [SKIP],
   'generated-transition-stub': [SKIP],
   'regress/regress-336820': [SKIP],
-  'wasm/grow-memory': [SKIP],
 }],  # variant == stress and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
 ['variant in (nooptimization, jitless) and arch in (arm, arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
   'regress/regress-crbug-319860': [SKIP],
-  'wasm/asm-wasm-f32': [SKIP],
-  'wasm/asm-wasm-f64': [SKIP],
-  'wasm/grow-memory': [SKIP],
 }],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
