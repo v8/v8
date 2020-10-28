@@ -1590,8 +1590,8 @@ class WasmInterpreterInternals {
   bool ExtractAtomicOpParams(Decoder* decoder, InterpreterCode* code,
                              Address* address, pc_t pc, int* const len,
                              type* val = nullptr, type* val2 = nullptr) {
-    MemoryAccessImmediate<Decoder::kNoValidation> imm(decoder, code->at(pc + 2),
-                                                      sizeof(type));
+    MemoryAccessImmediate<Decoder::kNoValidation> imm(
+        decoder, code->at(pc + *len), sizeof(type));
     if (val2) *val2 = static_cast<type>(Pop().to<op_type>());
     if (val) *val = static_cast<type>(Pop().to<op_type>());
     uint32_t index = Pop().to<uint32_t>();
