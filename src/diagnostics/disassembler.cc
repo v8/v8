@@ -425,6 +425,8 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
 
 int Disassembler::Decode(Isolate* isolate, std::ostream* os, byte* begin,
                          byte* end, CodeReference code, Address current_pc) {
+  DCHECK_WITH_MSG(FLAG_text_is_readable,
+                  "Builtins disassembly requires a readable .text section");
   V8NameConverter v8NameConverter(isolate, code);
   if (isolate) {
     // We have an isolate, so support external reference names.

@@ -246,6 +246,9 @@ bool ConstPool::AddSharedEntry(uint64_t data, int offset) {
 
 bool ConstPool::TryRecordEntry(intptr_t data, RelocInfo::Mode mode) {
   if (!FLAG_partial_constant_pool) return false;
+  DCHECK_WITH_MSG(
+      FLAG_text_is_readable,
+      "The partial constant pool requires a readable .text section");
   if (!RelocInfo::IsShareableRelocMode(mode)) return false;
 
   // Currently, partial constant pool only handles the following kinds of

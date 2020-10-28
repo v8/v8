@@ -306,13 +306,20 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
 
   // Hash the blob and store the result.
   {
-    STATIC_ASSERT(EmbeddedBlobHashSize() == kSizetSize);
-    const size_t hash = d.CreateEmbeddedBlobHash();
-    std::memcpy(blob_data + EmbeddedBlobHashOffset(), &hash,
-                EmbeddedBlobHashSize());
+    STATIC_ASSERT(EmbeddedBlobDataHashSize() == kSizetSize);
+    const size_t data_hash = d.CreateEmbeddedBlobDataHash();
+    std::memcpy(blob_data + EmbeddedBlobDataHashOffset(), &data_hash,
+                EmbeddedBlobDataHashSize());
 
-    DCHECK_EQ(hash, d.CreateEmbeddedBlobHash());
-    DCHECK_EQ(hash, d.EmbeddedBlobHash());
+    STATIC_ASSERT(EmbeddedBlobCodeHashSize() == kSizetSize);
+    const size_t code_hash = d.CreateEmbeddedBlobCodeHash();
+    std::memcpy(blob_data + EmbeddedBlobCodeHashOffset(), &code_hash,
+                EmbeddedBlobCodeHashSize());
+
+    DCHECK_EQ(data_hash, d.CreateEmbeddedBlobDataHash());
+    DCHECK_EQ(data_hash, d.EmbeddedBlobDataHash());
+    DCHECK_EQ(code_hash, d.CreateEmbeddedBlobCodeHash());
+    DCHECK_EQ(code_hash, d.EmbeddedBlobCodeHash());
   }
 
   if (FLAG_serialization_statistics) d.PrintStatistics();
@@ -361,14 +368,23 @@ Address EmbeddedData::InstructionEndOfBytecodeHandlers() const {
          InstructionSizeOfBuiltin(lastBytecodeHandler);
 }
 
-size_t EmbeddedData::CreateEmbeddedBlobHash() const {
-  STATIC_ASSERT(EmbeddedBlobHashOffset() == 0);
-  STATIC_ASSERT(EmbeddedBlobHashSize() == kSizetSize);
-  // Hash the entire blob except the hash field itself.
-  Vector<const byte> payload1(data_ + EmbeddedBlobHashSize(),
-                              data_size_ - EmbeddedBlobHashSize());
-  Vector<const byte> payload2(code_, code_size_);
-  return Checksum(payload1, payload2);
+size_t EmbeddedData::CreateEmbeddedBlobDataHash() const {
+  STATIC_ASSERT(EmbeddedBlobDataHashOffset() == 0);
+  STATIC_ASSERT(EmbeddedBlobCodeHashOffset() == EmbeddedBlobDataHashSize());
+  STATIC_ASSERT(IsolateHashOffset() ==
+                EmbeddedBlobCodeHashOffset() + EmbeddedBlobCodeHashSize());
+  static constexpr uint32_t kFirstHashedDataOffset = IsolateHashOffset();
+  // Hash the entire data section except the embedded blob hash fields
+  // themselves.
+  Vector<const byte> payload(data_ + kFirstHashedDataOffset,
+                             data_size_ - kFirstHashedDataOffset);
+  return Checksum(payload);
+}
+
+size_t EmbeddedData::CreateEmbeddedBlobCodeHash() const {
+  CHECK(FLAG_text_is_readable);
+  Vector<const byte> payload(code_, code_size_);
+  return Checksum(payload);
 }
 
 void EmbeddedData::PrintStatistics() const {

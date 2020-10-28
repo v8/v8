@@ -1547,6 +1547,11 @@ DEFINE_STRING(turbo_profiling_log_file, nullptr,
               "Path of the input file containing basic block counters for "
               "builtins. (mksnapshot only)")
 
+// On some platforms, the .text section only has execute permissions.
+DEFINE_BOOL(text_is_readable, true,
+            "Whether the .text section of binary can be read")
+DEFINE_NEG_NEG_IMPLICATION(text_is_readable, partial_constant_pool)
+
 //
 // Minor mark compact collector flags.
 //

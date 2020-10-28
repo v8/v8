@@ -90,9 +90,15 @@ class EmbeddedData final {
     return PadAndAlignCode(size);
   }
 
-  size_t CreateEmbeddedBlobHash() const;
-  size_t EmbeddedBlobHash() const {
-    return *reinterpret_cast<const size_t*>(data_ + EmbeddedBlobHashOffset());
+  size_t CreateEmbeddedBlobDataHash() const;
+  size_t CreateEmbeddedBlobCodeHash() const;
+  size_t EmbeddedBlobDataHash() const {
+    return *reinterpret_cast<const size_t*>(data_ +
+                                            EmbeddedBlobDataHashOffset());
+  }
+  size_t EmbeddedBlobCodeHash() const {
+    return *reinterpret_cast<const size_t*>(data_ +
+                                            EmbeddedBlobCodeHashOffset());
   }
 
   size_t IsolateHash() const {
@@ -124,9 +130,10 @@ class EmbeddedData final {
   // The layout of the blob is as follows:
   //
   // data:
-  // [0] hash of the remaining blob
-  // [1] hash of embedded-blob-relevant heap objects
-  // [2] layout description of instruction stream 0
+  // [0] hash of the data section
+  // [1] hash of the code section
+  // [2] hash of embedded-blob-relevant heap objects
+  // [3] layout description of instruction stream 0
   // ... layout descriptions
   // [x] metadata section of builtin 0
   // ... metadata sections
@@ -136,10 +143,14 @@ class EmbeddedData final {
   // ... instruction sections
 
   static constexpr uint32_t kTableSize = Builtins::builtin_count;
-  static constexpr uint32_t EmbeddedBlobHashOffset() { return 0; }
-  static constexpr uint32_t EmbeddedBlobHashSize() { return kSizetSize; }
+  static constexpr uint32_t EmbeddedBlobDataHashOffset() { return 0; }
+  static constexpr uint32_t EmbeddedBlobDataHashSize() { return kSizetSize; }
+  static constexpr uint32_t EmbeddedBlobCodeHashOffset() {
+    return EmbeddedBlobDataHashOffset() + EmbeddedBlobDataHashSize();
+  }
+  static constexpr uint32_t EmbeddedBlobCodeHashSize() { return kSizetSize; }
   static constexpr uint32_t IsolateHashOffset() {
-    return EmbeddedBlobHashOffset() + EmbeddedBlobHashSize();
+    return EmbeddedBlobCodeHashOffset() + EmbeddedBlobCodeHashSize();
   }
   static constexpr uint32_t IsolateHashSize() { return kSizetSize; }
   static constexpr uint32_t LayoutDescriptionTableOffset() {
