@@ -1754,6 +1754,12 @@ std::unique_ptr<ValueMirror> clientMirror(v8::Local<v8::Context> context,
                                           v8::Local<v8::Value> value,
                                           const String16& subtype) {
   // TODO(alph): description and length retrieval should move to embedder.
+  auto descriptionForValueSubtype =
+      clientFor(context)->descriptionForValueSubtype(context, value);
+  if (descriptionForValueSubtype) {
+    return std::make_unique<ObjectMirror>(
+        value, subtype, toString16(descriptionForValueSubtype->string()));
+  }
   if (subtype == "node") {
     return std::make_unique<ObjectMirror>(value, subtype,
                                           descriptionForNode(context, value));
