@@ -500,7 +500,6 @@
   'compiler/regress-9017': [SKIP],
 
   # Slow tests.
-  'array-concat': [PASS, SLOW],
   'array-indexing': [PASS, SLOW],
   'array-reduce': [PASS, SLOW],
   'array-sort': [PASS, SLOW],
