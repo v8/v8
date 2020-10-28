@@ -102,6 +102,7 @@ experiment_builder(
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     properties = {"builder_group": "client.v8", "triggers": ["V8 Linux64 TSAN - no-concurrent-marking"]},
     use_goma = GOMA.DEFAULT,
+    to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
 )
 
 experiment_builder(
@@ -109,6 +110,7 @@ experiment_builder(
     bucket = "ci",
     dimensions = {"host_class": "multibot"},
     properties = {"builder_group": "client.v8"},
+    to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
 )
 
 experiment_builder(
