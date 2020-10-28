@@ -2258,8 +2258,8 @@ void Decoder::DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr) {
       Vm = instr->VFPMRegValue(kDoublePrecision);
     }
 
+    int esize = kBitsPerByte * (1 << size);
     if (opc1 == 0 && (opc2 >> 2) == 0) {
-      int esize = kBitsPerByte * (1 << size);
       int op = kBitsPerByte << (static_cast<int>(Neon64) - instr->Bits(8, 7));
       // vrev<op>.<esize> Qd, Qm.
       out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
@@ -2270,18 +2270,15 @@ void Decoder::DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr) {
       Format(instr, "vmvn 'Qd, 'Qm");
     } else if (opc1 == 0b01 && (opc2 & 0b0111) == 0b110) {
       // vabs<type>.<esize> Qd, Qm.
-      int esize = kBitsPerByte * (1 << size);
       char type = instr->Bit(10) != 0 ? 'f' : 's';
       out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                   "vabs.%c%d q%d, q%d", type, esize, Vd, Vm);
     } else if (opc1 == 0b01 && (opc2 & 0b0111) == 0b111) {
       // vneg<type>.<esize> Qd, Qm.
-      int esize = kBitsPerByte * (1 << size);
       char type = instr->Bit(10) != 0 ? 'f' : 's';
       out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                   "vneg.%c%d q%d, q%d", type, esize, Vd, Vm);
     } else if (opc1 == 0b10 && opc2 == 0b0001) {
-      int esize = kBitsPerByte * (1 << size);
       if (q) {
         // vtrn.<esize> Qd, Qm.
         out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
@@ -2292,7 +2289,6 @@ void Decoder::DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr) {
                                     "vtrn.%d d%d, d%d", esize, Vd, Vm);
       }
     } else if (opc1 == 0b10 && (opc2 & 0b1110) == 0b0010) {
-      int esize = kBitsPerByte * (1 << size);
       const char* op = instr->Bit(7) != 0 ? "vzip" : "vuzp";
       if (q) {
         // vzip/vuzp.<esize> Qd, Qm.
@@ -2310,10 +2306,9 @@ void Decoder::DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr) {
       int op = instr->Bits(7, 6);
       const char* name = op == 0b01 ? "vqmovun" : "vqmovn";
       char type = op == 0b11 ? 'u' : 's';
-      int esize = 2 * kBitsPerByte * (1 << size);
       out_buffer_pos_ +=
           SNPrintF(out_buffer_ + out_buffer_pos_, "%s.%c%i d%d, q%d", name,
-                   type, esize, Vd, Vm);
+                   type, esize << 1, Vd, Vm);
     } else if (opc1 == 0b10 && opc2 == 0b1000) {
       Format(instr, q ? "vrintn.f32 'Qd, 'Qm" : "vrintn.f32 'Dd, 'Dm");
     } else if (opc1 == 0b10 && opc2 == 0b1011) {
