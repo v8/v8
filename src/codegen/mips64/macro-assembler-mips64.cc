@@ -5885,6 +5885,7 @@ void TurboAssembler::ResetSpeculationPoisonRegister() {
 void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,
                                            Label* exit, DeoptimizeKind kind,
                                            Label*) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   Ld(t9,
      MemOperand(kRootRegister, IsolateData::builtin_entry_slot_offset(target)));
   Call(t9);
