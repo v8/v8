@@ -817,6 +817,18 @@ class V8_EXPORT HeapProfiler {
                                              v8::EmbedderGraph* graph,
                                              void* data);
 
+  /**
+   * Callback function invoked during heap snapshot generation to retrieve
+   * the detachedness state of an object referenced by a TracedReference.
+   *
+   * The callback takes Local<Value> as parameter to allow the embedder to
+   * unpack the TracedReference into a Local and reuse that Local for different
+   * purposes.
+   */
+  using GetDetachednessCallback = EmbedderGraph::Node::Detachedness (*)(
+      v8::Isolate* isolate, const v8::Local<v8::Value>& v8_value,
+      uint16_t class_id, void* data);
+
   /** Returns the number of snapshots taken. */
   int GetSnapshotCount();
 
@@ -966,6 +978,8 @@ class V8_EXPORT HeapProfiler {
                                      void* data);
   void RemoveBuildEmbedderGraphCallback(BuildEmbedderGraphCallback callback,
                                         void* data);
+
+  void SetGetDetachednessCallback(GetDetachednessCallback callback, void* data);
 
   /**
    * Default value of persistent handle class ID. Must not be used to

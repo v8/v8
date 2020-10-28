@@ -11028,6 +11028,12 @@ void HeapProfiler::RemoveBuildEmbedderGraphCallback(
       callback, data);
 }
 
+void HeapProfiler::SetGetDetachednessCallback(GetDetachednessCallback callback,
+                                              void* data) {
+  reinterpret_cast<i::HeapProfiler*>(this)->SetGetDetachednessCallback(callback,
+                                                                       data);
+}
+
 void EmbedderHeapTracer::SetStackStart(void* stack_start) {
   CHECK(isolate_);
   reinterpret_cast<i::Isolate*>(isolate_)->global_handles()->SetStackStart(
