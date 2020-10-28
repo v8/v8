@@ -527,10 +527,18 @@ bool Code::is_optimized_code() const {
 bool Code::is_wasm_code() const { return kind() == CodeKind::WASM_FUNCTION; }
 
 int Code::constant_pool_offset() const {
+  if (!FLAG_enable_embedded_constant_pool) {
+    // Redirection needed since the field doesn't exist in this case.
+    return code_comments_offset();
+  }
   return ReadField<int>(kConstantPoolOffsetOffset);
 }
 
 void Code::set_constant_pool_offset(int value) {
+  if (!FLAG_enable_embedded_constant_pool) {
+    // Redirection needed since the field doesn't exist in this case.
+    return;
+  }
   DCHECK_LE(value, MetadataSize());
   WriteField<int>(kConstantPoolOffsetOffset, value);
 }
