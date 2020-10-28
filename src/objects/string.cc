@@ -1511,24 +1511,15 @@ int ExternalString::ExternalPayloadSize() const {
 }
 
 FlatStringReader::FlatStringReader(Isolate* isolate, Handle<String> str)
-    : Relocatable(isolate), str_(str.location()), length_(str->length()) {
+    : Relocatable(isolate), str_(str), length_(str->length()) {
   PostGarbageCollection();
 }
 
-FlatStringReader::FlatStringReader(Isolate* isolate, Vector<const char> input)
-    : Relocatable(isolate),
-      str_(nullptr),
-      is_one_byte_(true),
-      length_(input.length()),
-      start_(input.begin()) {}
-
 void FlatStringReader::PostGarbageCollection() {
-  if (str_ == nullptr) return;
-  Handle<String> str(str_);
-  DCHECK(str->IsFlat());
+  DCHECK(str_->IsFlat());
   DisallowHeapAllocation no_gc;
   // This does not actually prevent the vector from being relocated later.
-  String::FlatContent content = str->GetFlatContent(no_gc);
+  String::FlatContent content = str_->GetFlatContent(no_gc);
   DCHECK(content.IsFlat());
   is_one_byte_ = content.IsOneByte();
   if (is_one_byte_) {
