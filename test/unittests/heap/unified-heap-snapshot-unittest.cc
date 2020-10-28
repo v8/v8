@@ -25,37 +25,12 @@ namespace internal {
 
 namespace {
 
-class UnifiedHeapSnapshotTest : public TestWithHeapInternals {
+class UnifiedHeapSnapshotTest : public UnifiedHeapTest {
  public:
-  UnifiedHeapSnapshotTest()
-      : saved_incremental_marking_wrappers_(FLAG_incremental_marking_wrappers) {
-    FLAG_incremental_marking_wrappers = false;
-    cppgc::InitializeProcess(V8::GetCurrentPlatform()->GetPageAllocator());
-    cpp_heap_ = std::make_unique<CppHeap>(
-        v8_isolate(), std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>());
-    heap()->SetEmbedderHeapTracer(&cpp_heap());
-  }
-
-  ~UnifiedHeapSnapshotTest() override {
-    heap()->SetEmbedderHeapTracer(nullptr);
-    FLAG_incremental_marking_wrappers = saved_incremental_marking_wrappers_;
-    cppgc::ShutdownProcess();
-  }
-
-  CppHeap& cpp_heap() const { return *cpp_heap_.get(); }
-
-  cppgc::AllocationHandle& allocation_handle() const {
-    return cpp_heap().object_allocator();
-  }
-
   const v8::HeapSnapshot* TakeHeapSnapshot() {
     v8::HeapProfiler* heap_profiler = v8_isolate()->GetHeapProfiler();
     return heap_profiler->TakeHeapSnapshot();
   }
-
- private:
-  std::unique_ptr<CppHeap> cpp_heap_;
-  bool saved_incremental_marking_wrappers_;
 };
 
 bool IsValidSnapshot(const v8::HeapSnapshot* snapshot, int depth = 3) {
@@ -316,7 +291,7 @@ TEST_F(UnifiedHeapSnapshotTest, JSReferenceForcesVisibleObject) {
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
   v8::Local<v8::Object> api_object =
-      ConstructTraceableJSApiObject(context, gc_w_js_ref.Get(), "LeafJSObject");
+      WrapperHelper::CreateWrapper(context, gc_w_js_ref.Get(), "LeafJSObject");
   gc_w_js_ref->SetV8Object(v8_isolate(), api_object);
   const v8::HeapSnapshot* snapshot = TakeHeapSnapshot();
   EXPECT_TRUE(IsValidSnapshot(snapshot));
@@ -339,14 +314,14 @@ TEST_F(UnifiedHeapSnapshotTest, MergedWrapperNode) {
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
   v8::Local<v8::Object> wrapper_object =
-      ConstructTraceableJSApiObject(context, gc_w_js_ref.Get(), "MergedObject");
+      WrapperHelper::CreateWrapper(context, gc_w_js_ref.Get(), "MergedObject");
   gc_w_js_ref->SetV8Object(v8_isolate(), wrapper_object);
   gc_w_js_ref->SetWrapperClassId(1);  // Any class id will do.
   // Chain another object to `wrapper_object`. Since `wrapper_object` should be
   // merged into `GCedWithJSRef`, the additional object must show up as direct
   // child from `GCedWithJSRef`.
   v8::Local<v8::Object> next_object =
-      ConstructTraceableJSApiObject(context, nullptr, "NextObject");
+      WrapperHelper::CreateWrapper(context, nullptr, "NextObject");
   wrapper_object
       ->Set(context,
             v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), "link")

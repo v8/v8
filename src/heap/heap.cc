@@ -6646,7 +6646,7 @@ bool Heap::PageFlagsAreConsistent(HeapObject object) {
   return true;
 }
 
-void Heap::SetEmbedderStackStateForNextFinalizaton(
+void Heap::SetEmbedderStackStateForNextFinalization(
     EmbedderHeapTracer::EmbedderStackState stack_state) {
   local_embedder_heap_tracer()->SetEmbedderStackStateForNextFinalization(
       stack_state);

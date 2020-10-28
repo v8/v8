@@ -9819,7 +9819,7 @@ void debug::ForceGarbageCollection(
     v8::Isolate* isolate,
     v8::EmbedderHeapTracer::EmbedderStackState embedder_stack_state) {
   i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
-  heap->SetEmbedderStackStateForNextFinalizaton(embedder_stack_state);
+  heap->SetEmbedderStackStateForNextFinalization(embedder_stack_state);
   isolate->LowMemoryNotification();
 }
 
@@ -11033,7 +11033,7 @@ void EmbedderHeapTracer::GarbageCollectionForTesting(
   CHECK(isolate_);
   CHECK(i::FLAG_expose_gc);
   i::Heap* const heap = reinterpret_cast<i::Isolate*>(isolate_)->heap();
-  heap->SetEmbedderStackStateForNextFinalizaton(stack_state);
+  heap->SetEmbedderStackStateForNextFinalization(stack_state);
   heap->PreciseCollectAllGarbage(i::Heap::kNoGCFlags,
                                  i::GarbageCollectionReason::kTesting,
                                  kGCCallbackFlagForced);
