@@ -391,12 +391,9 @@ void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
   // TODO(mythria): We could see a CompileOptimized marker here either from
   // tests that use %OptimizeFunctionOnNextCall or because we re-mark the
   // function for non-concurrent optimization after an OSR. We should avoid
-  // these cases and remove the CompileOptimized expectation from this DCHECK.
-  DCHECK(vector->optimization_marker() == OptimizationMarker::kNone ||
-         vector->optimization_marker() ==
-             OptimizationMarker::kInOptimizationQueue ||
-         vector->optimization_marker() ==
-             OptimizationMarker::kCompileOptimized);
+  // these cases and also check that marker isn't kCompileOptimized.
+  DCHECK(vector->optimization_marker() !=
+         OptimizationMarker::kCompileOptimizedConcurrent);
   vector->set_maybe_optimized_code(HeapObjectReference::Weak(*code));
   int32_t state = vector->flags();
   state = OptimizationTierBits::update(state, GetTierForCodeKind(code->kind()));
