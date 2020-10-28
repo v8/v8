@@ -293,7 +293,7 @@ class RepresentationSelector {
                          RepresentationChanger* changer,
                          SourcePositionTable* source_positions,
                          NodeOriginTable* node_origins,
-                         TickCounter* tick_counter)
+                         TickCounter* tick_counter, Linkage* linkage)
       : jsgraph_(jsgraph),
         zone_(zone),
         might_need_revisit_(zone),
@@ -310,7 +310,8 @@ class RepresentationSelector {
         node_origins_(node_origins),
         type_cache_(TypeCache::Get()),
         op_typer_(broker, graph_zone()),
-        tick_counter_(tick_counter) {
+        tick_counter_(tick_counter),
+        linkage_(linkage) {
   }
 
   void ResetNodeInfoState() {
@@ -1838,9 +1839,10 @@ class RepresentationSelector {
         // here, otherwise the input conversion will fail.
         return VisitLeaf<T>(node, MachineRepresentation::kTagged);
       case IrOpcode::kParameter:
-        // TODO(titzer): use representation from linkage.
         return VisitUnop<T>(node, UseInfo::None(),
-                            MachineRepresentation::kTagged);
+                            linkage()
+                                ->GetParameterType(ParameterIndexOf(node->op()))
+                                .representation());
       case IrOpcode::kInt32Constant:
         return VisitLeaf<T>(node, MachineRepresentation::kWord32);
       case IrOpcode::kInt64Constant:
@@ -2828,7 +2830,16 @@ class RepresentationSelector {
         return VisitUnop<T>(node, UseInfo::AnyTagged(),
                             MachineRepresentation::kTaggedPointer);
       }
-      case IrOpcode::kTierUpCheck:
+      case IrOpcode::kTierUpCheck: {
+        ProcessInput<T>(node, 0, UseInfo::AnyTagged());
+        ProcessInput<T>(node, 1, UseInfo::AnyTagged());
+        ProcessInput<T>(node, 2, UseInfo::AnyTagged());
+        ProcessInput<T>(node, 3, UseInfo::TruncatingWord32());
+        ProcessInput<T>(node, 4, UseInfo::AnyTagged());
+        ProcessRemainingInputs<T>(node, 5);
+        SetOutput<T>(node, MachineRepresentation::kNone);
+        return;
+      }
       case IrOpcode::kUpdateInterruptBudget: {
         ProcessInput<T>(node, 0, UseInfo::AnyTagged());
         ProcessRemainingInputs<T>(node, 1);
@@ -3836,6 +3847,7 @@ class RepresentationSelector {
   TypeCache const* type_cache_;
   OperationTyper op_typer_;  // helper for the feedback typer
   TickCounter* const tick_counter_;
+  Linkage* const linkage_;
 
   NodeInfo* GetInfo(Node* node) {
     DCHECK(node->id() < count_);
@@ -3843,6 +3855,7 @@ class RepresentationSelector {
   }
   Zone* zone() { return zone_; }
   Zone* graph_zone() { return jsgraph_->zone(); }
+  Linkage* linkage() { return linkage_; }
 };
 
 // Template specializations
@@ -4006,7 +4019,8 @@ SimplifiedLowering::SimplifiedLowering(JSGraph* jsgraph, JSHeapBroker* broker,
                                        SourcePositionTable* source_positions,
                                        NodeOriginTable* node_origins,
                                        PoisoningMitigationLevel poisoning_level,
-                                       TickCounter* tick_counter)
+                                       TickCounter* tick_counter,
+                                       Linkage* linkage)
     : jsgraph_(jsgraph),
       broker_(broker),
       zone_(zone),
@@ -4014,13 +4028,14 @@ SimplifiedLowering::SimplifiedLowering(JSGraph* jsgraph, JSHeapBroker* broker,
       source_positions_(source_positions),
       node_origins_(node_origins),
       poisoning_level_(poisoning_level),
-      tick_counter_(tick_counter) {}
+      tick_counter_(tick_counter),
+      linkage_(linkage) {}
 
 void SimplifiedLowering::LowerAllNodes() {
   RepresentationChanger changer(jsgraph(), broker_);
   RepresentationSelector selector(jsgraph(), broker_, zone_, &changer,
                                   source_positions_, node_origins_,
-                                  tick_counter_);
+                                  tick_counter_, linkage_);
   selector.Run(this);
 }
 

@@ -1332,6 +1332,8 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kFinishRegion:
       return MarkAsTagged(node), VisitFinishRegion(node);
     case IrOpcode::kParameter: {
+      // Parameters should always be scheduled to the first block.
+      DCHECK_EQ(schedule()->block(node)->rpo_number(), 0);
       MachineType type =
           linkage()->GetParameterType(ParameterIndexOf(node->op()));
       MarkAsRepresentation(type.representation(), node);

@@ -3713,17 +3713,8 @@ void EffectControlLinearizer::LowerTierUpCheck(Node* node) {
   // Currently we delegate these tasks to the InterpreterEntryTrampoline.
   // TODO(jgruber,v8:8888): Consider a dedicated builtin instead.
 
-  const int parameter_count =
-      StartNode{graph()->start()}.FormalParameterCount();
   TNode<HeapObject> code =
       __ HeapConstant(BUILTIN_CODE(isolate(), InterpreterEntryTrampoline));
-  Node* target = __ Parameter(Linkage::kJSCallClosureParamIndex);
-  Node* new_target =
-      __ Parameter(Linkage::GetJSCallNewTargetParamIndex(parameter_count));
-  Node* argc =
-      __ Parameter(Linkage::GetJSCallArgCountParamIndex(parameter_count));
-  Node* context =
-      __ Parameter(Linkage::GetJSCallContextParamIndex(parameter_count));
 
   JSTrampolineDescriptor descriptor;
   CallDescriptor::Flags flags = CallDescriptor::kFixedTargetRegister |
@@ -3731,8 +3722,8 @@ void EffectControlLinearizer::LowerTierUpCheck(Node* node) {
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       graph()->zone(), descriptor, descriptor.GetStackParameterCount(), flags,
       Operator::kNoProperties);
-  Node* nodes[] = {code,    target,      new_target,  argc,
-                   context, __ effect(), __ control()};
+  Node* nodes[] = {code,        n.target(),  n.new_target(), n.input_count(),
+                   n.context(), __ effect(), __ control()};
 
 #ifdef DEBUG
   static constexpr int kCodeContextEffectControl = 4;

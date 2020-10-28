@@ -1668,11 +1668,11 @@ struct TypeAssertionsPhase {
 struct SimplifiedLoweringPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(SimplifiedLowering)
 
-  void Run(PipelineData* data, Zone* temp_zone) {
+  void Run(PipelineData* data, Zone* temp_zone, Linkage* linkage) {
     SimplifiedLowering lowering(data->jsgraph(), data->broker(), temp_zone,
                                 data->source_positions(), data->node_origins(),
                                 data->info()->GetPoisoningMitigationLevel(),
-                                &data->info()->tick_counter());
+                                &data->info()->tick_counter(), linkage);
 
     // RepresentationChanger accesses the heap.
     UnparkedScopeIfNeeded scope(data->broker());
@@ -2561,7 +2561,7 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   // Perform simplified lowering. This has to run w/o the Typer decorator,
   // because we cannot compute meaningful types anyways, and the computed types
   // might even conflict with the representation/truncation logic.
-  Run<SimplifiedLoweringPhase>();
+  Run<SimplifiedLoweringPhase>(linkage);
   RunPrintAndVerify(SimplifiedLoweringPhase::phase_name(), true);
 
   // From now on it is invalid to look at types on the nodes, because the types
@@ -2656,7 +2656,7 @@ bool PipelineImpl::OptimizeGraphForMidTier(Linkage* linkage) {
   // Perform simplified lowering. This has to run w/o the Typer decorator,
   // because we cannot compute meaningful types anyways, and the computed types
   // might even conflict with the representation/truncation logic.
-  Run<SimplifiedLoweringPhase>();
+  Run<SimplifiedLoweringPhase>(linkage);
   RunPrintAndVerify(SimplifiedLoweringPhase::phase_name(), true);
 
   // From now on it is invalid to look at types on the nodes, because the types
