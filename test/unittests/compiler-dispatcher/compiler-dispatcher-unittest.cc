@@ -33,6 +33,8 @@ class CompilerDispatcherTestFlags {
     CHECK_NULL(save_flags_);
     save_flags_ = new SaveFlags();
     FLAG_single_threaded = true;
+    // TODO(leszeks): Support background finalization in compiler dispatcher.
+    FLAG_finalize_streaming_on_background = false;
     FlagList::EnforceFlagImplications();
     FLAG_compiler_dispatcher = true;
   }

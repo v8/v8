@@ -35,6 +35,8 @@ class BackgroundCompileTaskTest : public TestWithNativeContext {
   static void SetUpTestCase() {
     CHECK_NULL(save_flags_);
     save_flags_ = new SaveFlags();
+    // TODO(leszeks): Support background finalization in compiler dispatcher.
+    FLAG_finalize_streaming_on_background = false;
     TestWithNativeContext::SetUpTestCase();
   }
 
