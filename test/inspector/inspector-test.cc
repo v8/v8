@@ -18,6 +18,7 @@
 #include "src/heap/read-only-heap.h"
 #include "src/utils/utils.h"
 #include "src/utils/vector.h"
+#include "test/inspector/frontend-channel.h"
 #include "test/inspector/isolate-data.h"
 #include "test/inspector/task-runner.h"
 #include "test/inspector/tasks.h"
@@ -53,64 +54,6 @@ void Exit() {
   fflush(stderr);
   Terminate();
 }
-
-class FrontendChannelImpl : public v8_inspector::V8Inspector::Channel {
- public:
-  FrontendChannelImpl(TaskRunner* task_runner, int context_group_id,
-                      v8::Isolate* isolate,
-                      v8::Local<v8::Function> dispatch_message_callback)
-      : task_runner_(task_runner),
-        context_group_id_(context_group_id),
-        dispatch_message_callback_(isolate, dispatch_message_callback) {}
-  ~FrontendChannelImpl() override = default;
-
-  void set_session_id(int session_id) { session_id_ = session_id; }
-
- private:
-  void sendResponse(
-      int callId,
-      std::unique_ptr<v8_inspector::StringBuffer> message) override {
-    task_runner_->Append(
-        new SendMessageTask(this, ToVector(message->string())));
-  }
-  void sendNotification(
-      std::unique_ptr<v8_inspector::StringBuffer> message) override {
-    task_runner_->Append(
-        new SendMessageTask(this, ToVector(message->string())));
-  }
-  void flushProtocolNotifications() override {}
-
-  class SendMessageTask : public TaskRunner::Task {
-   public:
-    SendMessageTask(FrontendChannelImpl* channel,
-                    const std::vector<uint16_t>& message)
-        : channel_(channel), message_(message) {}
-    ~SendMessageTask() override = default;
-    bool is_priority_task() final { return false; }
-
-   private:
-    void Run(IsolateData* data) override {
-      v8::MicrotasksScope microtasks_scope(data->isolate(),
-                                           v8::MicrotasksScope::kRunMicrotasks);
-      v8::HandleScope handle_scope(data->isolate());
-      v8::Local<v8::Context> context =
-          data->GetDefaultContext(channel_->context_group_id_);
-      v8::Context::Scope context_scope(context);
-      v8::Local<v8::Value> message = ToV8String(data->isolate(), message_);
-      v8::MaybeLocal<v8::Value> result;
-      result = channel_->dispatch_message_callback_.Get(data->isolate())
-                   ->Call(context, context->Global(), 1, &message);
-    }
-    FrontendChannelImpl* channel_;
-    std::vector<uint16_t> message_;
-  };
-
-  TaskRunner* task_runner_;
-  int context_group_id_;
-  v8::Global<v8::Function> dispatch_message_callback_;
-  int session_id_;
-  DISALLOW_COPY_AND_ASSIGN(FrontendChannelImpl);
-};
 
 class UtilsExtension : public IsolateData::SetupGlobalTask {
  public:
@@ -480,73 +423,6 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
 
 TaskRunner* UtilsExtension::backend_runner_ = nullptr;
 std::map<int, std::unique_ptr<FrontendChannelImpl>> UtilsExtension::channels_;
-
-class SetTimeoutTask : public TaskRunner::Task {
- public:
-  SetTimeoutTask(int context_group_id, v8::Isolate* isolate,
-                 v8::Local<v8::Function> callback)
-      : callback_(isolate, callback), context_group_id_(context_group_id) {}
-  ~SetTimeoutTask() override = default;
-  bool is_priority_task() final { return false; }
-
- private:
-  void Run(IsolateData* data) override {
-    v8::MicrotasksScope microtasks_scope(data->isolate(),
-                                         v8::MicrotasksScope::kRunMicrotasks);
-    v8::HandleScope handle_scope(data->isolate());
-    v8::Local<v8::Context> context = data->GetDefaultContext(context_group_id_);
-    v8::Context::Scope context_scope(context);
-
-    v8::Local<v8::Function> callback = callback_.Get(data->isolate());
-    v8::MaybeLocal<v8::Value> result;
-    result = callback->Call(context, context->Global(), 0, nullptr);
-  }
-
-  v8::Global<v8::Function> callback_;
-  int context_group_id_;
-};
-
-class SetTimeoutExtension : public IsolateData::SetupGlobalTask {
- public:
-  void Run(v8::Isolate* isolate,
-           v8::Local<v8::ObjectTemplate> global) override {
-    global->Set(
-        ToV8String(isolate, "setTimeout"),
-        v8::FunctionTemplate::New(isolate, &SetTimeoutExtension::SetTimeout));
-  }
-
- private:
-  static void SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 2 || !args[1]->IsNumber() ||
-        (!args[0]->IsFunction() && !args[0]->IsString()) ||
-        args[1].As<v8::Number>()->Value() != 0.0) {
-      fprintf(
-          stderr,
-          "Internal error: only setTimeout(function|code, 0) is supported.");
-      Exit();
-    }
-    v8::Isolate* isolate = args.GetIsolate();
-    v8::Local<v8::Context> context = isolate->GetCurrentContext();
-    IsolateData* data = IsolateData::FromContext(context);
-    int context_group_id = data->GetContextGroupId(context);
-    const char* task_name = "setTimeout";
-    v8_inspector::StringView task_name_view(
-        reinterpret_cast<const uint8_t*>(task_name), strlen(task_name));
-    if (args[0]->IsFunction()) {
-      RunAsyncTask(data->task_runner(), task_name_view,
-                   new SetTimeoutTask(context_group_id, isolate,
-                                      v8::Local<v8::Function>::Cast(args[0])));
-    } else {
-      RunAsyncTask(
-          data->task_runner(), task_name_view,
-          new ExecuteStringTask(
-              isolate, context_group_id,
-              ToVector(isolate, args[0].As<v8::String>()),
-              v8::String::Empty(isolate), v8::Integer::New(isolate, 0),
-              v8::Integer::New(isolate, 0), v8::Boolean::New(isolate, false)));
-    }
-  }
-};
 
 bool StrictAccessCheck(v8::Local<v8::Context> accessing_context,
                        v8::Local<v8::Object> accessed_object,

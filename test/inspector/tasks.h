@@ -10,6 +10,7 @@
 #include "include/v8-inspector.h"
 #include "include/v8.h"
 #include "src/base/platform/semaphore.h"
+#include "test/inspector/isolate-data.h"
 #include "test/inspector/task-runner.h"
 #include "test/inspector/utils.h"
 
@@ -111,6 +112,70 @@ class ExecuteStringTask : public TaskRunner::Task {
   int context_group_id_;
 
   DISALLOW_COPY_AND_ASSIGN(ExecuteStringTask);
+};
+
+class SetTimeoutTask : public TaskRunner::Task {
+ public:
+  SetTimeoutTask(int context_group_id, v8::Isolate* isolate,
+                 v8::Local<v8::Function> function)
+      : function_(isolate, function), context_group_id_(context_group_id) {}
+  ~SetTimeoutTask() override = default;
+  bool is_priority_task() final { return false; }
+
+ private:
+  void Run(IsolateData* data) override {
+    v8::MicrotasksScope microtasks_scope(data->isolate(),
+                                         v8::MicrotasksScope::kRunMicrotasks);
+    v8::HandleScope handle_scope(data->isolate());
+    v8::Local<v8::Context> context = data->GetDefaultContext(context_group_id_);
+    v8::Context::Scope context_scope(context);
+
+    v8::Local<v8::Function> function = function_.Get(data->isolate());
+    v8::MaybeLocal<v8::Value> result;
+    result = function->Call(context, context->Global(), 0, nullptr);
+  }
+
+  v8::Global<v8::Function> function_;
+  int context_group_id_;
+};
+
+class SetTimeoutExtension : public IsolateData::SetupGlobalTask {
+ public:
+  void Run(v8::Isolate* isolate,
+           v8::Local<v8::ObjectTemplate> global) override {
+    global->Set(
+        ToV8String(isolate, "setTimeout"),
+        v8::FunctionTemplate::New(isolate, &SetTimeoutExtension::SetTimeout));
+  }
+
+ private:
+  static void SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 2 || !args[1]->IsNumber() ||
+        (!args[0]->IsFunction() && !args[0]->IsString()) ||
+        args[1].As<v8::Number>()->Value() != 0.0) {
+      return;
+    }
+    v8::Isolate* isolate = args.GetIsolate();
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    IsolateData* data = IsolateData::FromContext(context);
+    int context_group_id = data->GetContextGroupId(context);
+    const char* task_name = "setTimeout";
+    v8_inspector::StringView task_name_view(
+        reinterpret_cast<const uint8_t*>(task_name), strlen(task_name));
+    if (args[0]->IsFunction()) {
+      RunAsyncTask(data->task_runner(), task_name_view,
+                   new SetTimeoutTask(context_group_id, isolate,
+                                      v8::Local<v8::Function>::Cast(args[0])));
+    } else {
+      RunAsyncTask(
+          data->task_runner(), task_name_view,
+          new ExecuteStringTask(
+              isolate, context_group_id,
+              ToVector(isolate, args[0].As<v8::String>()),
+              v8::String::Empty(isolate), v8::Integer::New(isolate, 0),
+              v8::Integer::New(isolate, 0), v8::Boolean::New(isolate, false)));
+    }
+  }
 };
 
 }  // namespace internal
