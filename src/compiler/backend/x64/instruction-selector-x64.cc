@@ -3285,6 +3285,9 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
   // Swizzles don't generally need DefineSameAsFirst to avoid a move.
   bool no_same_as_first = is_swizzle;
   // We generally need UseRegister for input0, Use for input1.
+  // TODO(v8:9198): We don't have 16-byte alignment for SIMD operands yet, but
+  // we retain this logic (continue setting these in the various shuffle match
+  // clauses), but ignore it when selecting registers or slots.
   bool src0_needs_reg = true;
   bool src1_needs_reg = false;
   ArchOpcode opcode = kX64I8x16Shuffle;  // general shuffle is the default
@@ -3393,16 +3396,18 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
   Node* input0 = node->InputAt(0);
   InstructionOperand dst =
       no_same_as_first ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
-  InstructionOperand src0 =
-      src0_needs_reg ? g.UseUniqueRegister(input0) : g.UseUnique(input0);
+  // TODO(v8:9198): Use src0_needs_reg when we have memory alignment for SIMD.
+  InstructionOperand src0 = g.UseUniqueRegister(input0);
+  USE(src0_needs_reg);
 
   int input_count = 0;
   InstructionOperand inputs[2 + kMaxImms + kMaxTemps];
   inputs[input_count++] = src0;
   if (!is_swizzle) {
     Node* input1 = node->InputAt(1);
-    inputs[input_count++] =
-        src1_needs_reg ? g.UseUniqueRegister(input1) : g.UseUnique(input1);
+    // TODO(v8:9198): Use src1_needs_reg when we have memory alignment for SIMD.
+    inputs[input_count++] = g.UseUniqueRegister(input1);
+    USE(src1_needs_reg);
   }
   for (int i = 0; i < imm_count; ++i) {
     inputs[input_count++] = g.UseImmediate(imms[i]);
