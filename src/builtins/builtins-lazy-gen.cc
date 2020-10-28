@@ -46,13 +46,15 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
       LoadObjectField<Uint32T>(feedback_vector, FeedbackVector::kFlagsOffset);
 
   // Fall through if no optimization trigger or optimized code.
-  GotoIf(Word32Equal(
-             optimization_state,
-             Int32Constant(FeedbackVector::kHasNoOptimizedCodeOrMarkerValue)),
-         &fallthrough);
+  GotoIfNot(IsSetWord32(
+                optimization_state,
+                FeedbackVector::kHasOptimizedCodeOrCompileOptimizedMarkerMask),
+            &fallthrough);
 
-  GotoIf(IsSetWord32<FeedbackVector::OptimizationTierBits>(optimization_state),
-         &may_have_optimized_code);
+  GotoIfNot(IsSetWord32(
+                optimization_state,
+                FeedbackVector::kHasCompileOptimizedOrLogFirstExecutionMarker),
+            &may_have_optimized_code);
 
   // TODO(ishell): introduce Runtime::kHandleOptimizationMarker and check
   // all these marker values there.
@@ -67,16 +69,7 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
       marker, OptimizationMarker::kCompileOptimizedConcurrent,
       Runtime::kCompileOptimized_Concurrent, function);
 
-  // Otherwise, the marker is InOptimizationQueue, so fall through hoping
-  // that an interrupt will eventually update the slot with optimized code.
-  CSA_ASSERT(
-      this, Word32Equal(marker, Int32Constant(
-                                    OptimizationMarker::kInOptimizationQueue)));
-  CSA_ASSERT(this,
-             IsCleared(LoadMaybeWeakObjectField(
-                 feedback_vector, FeedbackVector::kMaybeOptimizedCodeOffset)));
-  Goto(&fallthrough);
-
+  Unreachable();
   BIND(&may_have_optimized_code);
   {
     Label heal_optimized_code_slot(this);

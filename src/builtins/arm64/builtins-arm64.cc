@@ -1072,12 +1072,11 @@ static void MaybeOptimizeCode(MacroAssembler* masm, Register feedback_vector,
                                 OptimizationMarker::kCompileOptimizedConcurrent,
                                 Runtime::kCompileOptimized_Concurrent);
 
-  // Otherwise, the marker is InOptimizationQueue, so fall through hoping
-  // that an interrupt will eventually update the slot with optimized code.
+  // Marker should be one of LogFirstExecution / CompileOptimized /
+  // CompileOptimizedConcurrent. InOptimizationQueue and None shouldn't reach
+  // here.
   if (FLAG_debug_code) {
-    __ Cmp(optimization_marker,
-           Operand(OptimizationMarker::kInOptimizationQueue));
-    __ Assert(eq, AbortReason::kExpectedOptimizationSentinel);
+    __ Unreachable();
   }
 }
 
@@ -1216,9 +1215,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // Check if there is optimized code or a optimization marker that needes to be
   // processed.
   Label has_optimized_code_or_marker;
-  __ CompareAndBranch(optimization_state,
-                      Operand(FeedbackVector::kHasNoOptimizedCodeOrMarkerValue),
-                      ne, &has_optimized_code_or_marker);
+  __ TestAndBranchIfAnySet(
+      optimization_state,
+      FeedbackVector::kHasOptimizedCodeOrCompileOptimizedMarkerMask,
+      &has_optimized_code_or_marker);
 
   Label not_optimized;
   __ bind(&not_optimized);
@@ -1377,9 +1377,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   Label maybe_has_optimized_code;
   // Check if optimized code is available
-  __ TestAndBranchIfAnySet(optimization_state,
-                           FeedbackVector::OptimizationTierBits::kMask,
-                           &maybe_has_optimized_code);
+  __ TestAndBranchIfAllClear(
+      optimization_state,
+      FeedbackVector::kHasCompileOptimizedOrLogFirstExecutionMarker,
+      &maybe_has_optimized_code);
 
   Register optimization_marker = optimization_state;
   __ DecodeField<FeedbackVector::OptimizationMarkerBits>(optimization_marker);

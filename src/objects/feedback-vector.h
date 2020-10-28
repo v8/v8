@@ -194,15 +194,14 @@ class FeedbackVector
   STATIC_ASSERT(OptimizationTier::kLastOptimizationTier <
                 OptimizationTierBits::kMax);
 
-  // We want this value to be 0 to generate slightly compact code in
-  // InterpreterEntryTrampoline
-  static constexpr uint32_t kHasNoOptimizedCodeOrMarkerValue =
-      OptimizationTierBits::encode(OptimizationTier::kNone) |
-      OptimizationTierBits::encode(OptimizationTier::kNone);
-  STATIC_ASSERT(kHasNoOptimizedCodeOrMarkerValue == 0);
+  static constexpr uint32_t kHasCompileOptimizedOrLogFirstExecutionMarker =
+      kNoneOrInOptimizationQueueMask << OptimizationMarkerBits::kShift;
   static constexpr uint32_t kHasNoTopTierCodeOrCompileOptimizedMarkerMask =
       kNoneOrMidTierMask << OptimizationTierBits::kShift |
-      kNoneOrInOptimizationQueueMask << OptimizationMarkerBits::kShift;
+      kHasCompileOptimizedOrLogFirstExecutionMarker;
+  static constexpr uint32_t kHasOptimizedCodeOrCompileOptimizedMarkerMask =
+      OptimizationTierBits::kMask |
+      kHasCompileOptimizedOrLogFirstExecutionMarker;
 
   inline bool is_empty() const;
 

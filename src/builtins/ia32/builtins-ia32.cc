@@ -864,13 +864,11 @@ static void MaybeOptimizeCode(MacroAssembler* masm,
                                 OptimizationMarker::kCompileOptimizedConcurrent,
                                 Runtime::kCompileOptimized_Concurrent);
 
-  {
-    // Otherwise, the marker is InOptimizationQueue, so fall through hoping
-    // that an interrupt will eventually update the slot with optimized code.
-    if (FLAG_debug_code) {
-      __ cmp(optimization_marker, OptimizationMarker::kInOptimizationQueue);
-      __ Assert(equal, AbortReason::kExpectedOptimizationSentinel);
-    }
+  // Marker should be one of LogFirstExecution / CompileOptimized /
+  // CompileOptimizedConcurrent. InOptimizationQueue and None shouldn't reach
+  // here.
+  if (FLAG_debug_code) {
+    __ int3();
   }
 }
 
@@ -1010,8 +1008,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // Check if there is optimized code or a optimization marker that needes to be
   // processed.
   Label has_optimized_code_or_marker;
-  __ cmp(optimization_state, FeedbackVector::kHasNoOptimizedCodeOrMarkerValue);
-  __ j(not_equal, &has_optimized_code_or_marker);
+  __ test(
+      optimization_state,
+      Immediate(FeedbackVector::kHasOptimizedCodeOrCompileOptimizedMarkerMask));
+  __ j(not_zero, &has_optimized_code_or_marker);
 
   Label not_optimized;
   __ bind(&not_optimized);
@@ -1189,9 +1189,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ movd(eax, xmm0);
 
   // Check if optimized code is available
-  __ test(optimization_state,
-          Immediate(FeedbackVector::OptimizationTierBits::kMask));
-  __ j(not_zero, &maybe_has_optimized_code);
+  __ test(
+      optimization_state,
+      Immediate(FeedbackVector::kHasCompileOptimizedOrLogFirstExecutionMarker));
+  __ j(zero, &maybe_has_optimized_code);
 
   Register optimization_marker = optimization_state;
   __ DecodeField<FeedbackVector::OptimizationMarkerBits>(optimization_marker);
