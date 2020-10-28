@@ -552,8 +552,10 @@ class ImplementationVisitor {
   const Type* Visit(DebugStatement* stmt);
   const Type* Visit(AssertStatement* stmt);
 
-  void BeginCSAFiles();
-  void EndCSAFiles();
+  void BeginGeneratedFiles();
+  void EndGeneratedFiles();
+  // TODO(tebbi): Switch to per-file generation for runtime macros and merge
+  // these functions into {Begin,End}GeneratedFiles().
   void BeginRuntimeMacrosFile();
   void EndRuntimeMacrosFile();
 
@@ -761,20 +763,39 @@ class ImplementationVisitor {
                                          size_t i);
   std::string ExternalParameterName(const std::string& name);
 
-  std::ostream& source_out() {
+  std::ostream& csa_ccfile() {
     if (auto* streams = CurrentFileStreams::Get()) {
       return output_type_ == OutputType::kCSA ? streams->csa_ccfile
                                               : runtime_macros_cc_;
     }
     return null_stream_;
   }
-  std::ostream& header_out() {
+  std::ostream& csa_headerfile() {
     if (auto* streams = CurrentFileStreams::Get()) {
       return output_type_ == OutputType::kCSA ? streams->csa_headerfile
                                               : runtime_macros_h_;
     }
     return null_stream_;
   }
+  std::ostream& class_definition_headerfile() {
+    if (auto* streams = CurrentFileStreams::Get()) {
+      return streams->class_definition_headerfile;
+    }
+    return null_stream_;
+  }
+  std::ostream& class_definition_inline_headerfile() {
+    if (auto* streams = CurrentFileStreams::Get()) {
+      return streams->class_definition_inline_headerfile;
+    }
+    return null_stream_;
+  }
+  std::ostream& class_definition_ccfile() {
+    if (auto* streams = CurrentFileStreams::Get()) {
+      return streams->class_definition_ccfile;
+    }
+    return null_stream_;
+  }
+
   CfgAssembler& assembler() { return *assembler_; }
 
   void SetReturnValue(VisitResult return_value) {

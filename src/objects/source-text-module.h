@@ -17,6 +17,8 @@ namespace internal {
 
 class UnorderedModuleSet;
 
+#include "torque-generated/src/objects/source-text-module-tq.inc"
+
 // The runtime representation of an ECMAScript Source Text Module Record.
 // https://tc39.github.io/ecma262/#sec-source-text-module-records
 class SourceTextModule

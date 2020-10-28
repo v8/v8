@@ -20,6 +20,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-function-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSFunctionOrBoundFunction)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSBoundFunction)
 OBJECT_CONSTRUCTORS_IMPL(JSFunction, JSFunctionOrBoundFunction)

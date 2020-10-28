@@ -13,6 +13,7 @@
 #include "src/objects/name.h"
 #include "src/objects/smi.h"
 #include "src/strings/unicode-decoder.h"
+#include "torque-generated/field-offsets.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -79,6 +80,8 @@ class StringShape {
   inline void set_valid() {}
 #endif
 };
+
+#include "torque-generated/src/objects/string-tq.inc"
 
 // The String abstract class captures JavaScript string values:
 //

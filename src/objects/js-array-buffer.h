@@ -17,6 +17,8 @@ namespace internal {
 
 class ArrayBufferExtension;
 
+#include "torque-generated/src/objects/js-array-buffer-tq.inc"
+
 class JSArrayBuffer
     : public TorqueGeneratedJSArrayBuffer<JSArrayBuffer, JSObject> {
  public:

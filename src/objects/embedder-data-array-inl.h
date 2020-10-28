@@ -16,6 +16,7 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/embedder-data-array-tq-inl.inc"
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(EmbedderDataArray)
 

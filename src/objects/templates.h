@@ -14,6 +14,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/templates-tq.inc"
+
 class TemplateInfo : public TorqueGeneratedTemplateInfo<TemplateInfo, Struct> {
  public:
   NEVER_READ_ONLY_SPACE

@@ -14,6 +14,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-regexp-tq.inc"
+
 // Regular expressions
 // The regular expression holds a single reference to a FixedArray in
 // the kDataOffset field.

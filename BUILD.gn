@@ -1153,8 +1153,8 @@ torque_files = [
   "src/builtins/array.tq",
   "src/builtins/arraybuffer.tq",
   "src/builtins/base.tq",
-  "src/builtins/bigint.tq",
   "src/builtins/boolean.tq",
+  "src/builtins/builtins-bigint.tq",
   "src/builtins/builtins-string.tq",
   "src/builtins/cast.tq",
   "src/builtins/collections.tq",
@@ -1249,6 +1249,7 @@ torque_files = [
   "src/objects/allocation-site.tq",
   "src/objects/api-callbacks.tq",
   "src/objects/arguments.tq",
+  "src/objects/bigint.tq",
   "src/objects/cell.tq",
   "src/objects/code.tq",
   "src/objects/contexts.tq",
@@ -1263,11 +1264,11 @@ torque_files = [
   "src/objects/free-space.tq",
   "src/objects/heap-number.tq",
   "src/objects/heap-object.tq",
-  "src/objects/intl-objects.tq",
   "src/objects/js-array-buffer.tq",
   "src/objects/js-array.tq",
   "src/objects/js-collection-iterator.tq",
   "src/objects/js-collection.tq",
+  "src/objects/js-function.tq",
   "src/objects/js-generator.tq",
   "src/objects/js-objects.tq",
   "src/objects/js-promise.tq",
@@ -1298,14 +1299,29 @@ torque_files = [
   "src/objects/struct.tq",
   "src/objects/synthetic-module.tq",
   "src/objects/template-objects.tq",
-  "src/objects/template.tq",
+  "src/objects/templates.tq",
+  "src/objects/torque-defined-classes.tq",
   "src/wasm/wasm-objects.tq",
   "test/torque/test-torque.tq",
   "third_party/v8/builtins/array-sort.tq",
 ]
 
-if (!v8_enable_i18n_support) {
-  torque_files -= [ "src/objects/intl-objects.tq" ]
+if (v8_enable_i18n_support) {
+  torque_files += [
+    "src/objects/intl-objects.tq",
+    "src/objects/js-break-iterator.tq",
+    "src/objects/js-collator.tq",
+    "src/objects/js-date-time-format.tq",
+    "src/objects/js-display-names.tq",
+    "src/objects/js-list-format.tq",
+    "src/objects/js-locale.tq",
+    "src/objects/js-number-format.tq",
+    "src/objects/js-plural-rules.tq",
+    "src/objects/js-relative-time-format.tq",
+    "src/objects/js-segment-iterator.tq",
+    "src/objects/js-segmenter.tq",
+    "src/objects/js-segments.tq",
+  ]
 }
 
 # Template for running torque
@@ -1348,21 +1364,15 @@ template("run_torque") {
       "$target_gen_dir/torque-generated/enum-verifiers.cc",
       "$target_gen_dir/torque-generated/objects-printer.cc",
       "$target_gen_dir/torque-generated/objects-body-descriptors-inl.inc",
-      "$target_gen_dir/torque-generated/class-definitions.cc",
-      "$target_gen_dir/torque-generated/class-definitions-inl.h",
-      "$target_gen_dir/torque-generated/class-definitions.h",
       "$target_gen_dir/torque-generated/class-debug-readers.cc",
       "$target_gen_dir/torque-generated/class-debug-readers.h",
       "$target_gen_dir/torque-generated/exported-macros-assembler.cc",
       "$target_gen_dir/torque-generated/exported-macros-assembler.h",
       "$target_gen_dir/torque-generated/csa-types.h",
       "$target_gen_dir/torque-generated/instance-types.h",
-      "$target_gen_dir/torque-generated/internal-class-definitions.h",
-      "$target_gen_dir/torque-generated/internal-class-definitions-inl.h",
-      "$target_gen_dir/torque-generated/exported-class-definitions.h",
-      "$target_gen_dir/torque-generated/exported-class-definitions-inl.h",
       "$target_gen_dir/torque-generated/runtime-macros.cc",
       "$target_gen_dir/torque-generated/runtime-macros.h",
+      "$target_gen_dir/torque-generated/class-forward-declarations.h",
     ]
 
     outputs = []
@@ -1373,10 +1383,13 @@ template("run_torque") {
     }
 
     foreach(file, torque_files) {
-      filetq = string_replace(file, ".tq", "-tq-csa")
+      filetq = string_replace(file, ".tq", "-tq")
       outputs += [
-        "$destination_folder/$filetq.cc",
-        "$destination_folder/$filetq.h",
+        "$target_gen_dir/torque-generated/$filetq-csa.cc",
+        "$target_gen_dir/torque-generated/$filetq-csa.h",
+        "$target_gen_dir/torque-generated/$filetq-inl.inc",
+        "$target_gen_dir/torque-generated/$filetq.cc",
+        "$target_gen_dir/torque-generated/$filetq.inc",
       ]
     }
 
@@ -1452,10 +1465,10 @@ v8_source_set("torque_generated_initializers") {
     "src/torque/runtime-support.h",
   ]
   foreach(file, torque_files) {
-    filetq = string_replace(file, ".tq", "-tq-csa")
+    filetq = string_replace(file, ".tq", "-tq")
     sources += [
-      "$target_gen_dir/torque-generated/$filetq.cc",
-      "$target_gen_dir/torque-generated/$filetq.h",
+      "$target_gen_dir/torque-generated/$filetq-csa.cc",
+      "$target_gen_dir/torque-generated/$filetq-csa.h",
     ]
   }
 
@@ -1474,13 +1487,21 @@ v8_source_set("torque_generated_definitions") {
   public_deps = [ ":v8_maybe_icu" ]
 
   sources = [
-    "$target_gen_dir/torque-generated/class-definitions.cc",
+    "$target_gen_dir/torque-generated/class-forward-declarations.h",
     "$target_gen_dir/torque-generated/class-verifiers.cc",
     "$target_gen_dir/torque-generated/class-verifiers.h",
     "$target_gen_dir/torque-generated/factory.cc",
     "$target_gen_dir/torque-generated/objects-printer.cc",
     "$target_gen_dir/torque-generated/runtime-macros.cc",
   ]
+  foreach(file, torque_files) {
+    filetq = string_replace(file, ".tq", "-tq")
+    sources += [
+      "$target_gen_dir/torque-generated/$filetq-inl.inc",
+      "$target_gen_dir/torque-generated/$filetq.cc",
+      "$target_gen_dir/torque-generated/$filetq.inc",
+    ]
+  }
 
   configs = [ ":internal_config" ]
 }
@@ -2825,6 +2846,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/numbers/math-random.h",
     "src/numbers/strtod.cc",
     "src/numbers/strtod.h",
+    "src/objects/all-objects-inl.h",
     "src/objects/allocation-site-inl.h",
     "src/objects/allocation-site-scopes-inl.h",
     "src/objects/allocation-site-scopes.h",
@@ -2835,6 +2857,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/arguments.h",
     "src/objects/backing-store.cc",
     "src/objects/backing-store.h",
+    "src/objects/bigint-inl.h",
     "src/objects/bigint.cc",
     "src/objects/bigint.h",
     "src/objects/cell-inl.h",
@@ -2851,6 +2874,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/contexts-inl.h",
     "src/objects/contexts.cc",
     "src/objects/contexts.h",
+    "src/objects/data-handler-inl.h",
     "src/objects/data-handler.h",
     "src/objects/debug-objects-inl.h",
     "src/objects/debug-objects.cc",
@@ -2880,8 +2904,12 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/field-type.h",
     "src/objects/fixed-array-inl.h",
     "src/objects/fixed-array.h",
+    "src/objects/foreign-inl.h",
+    "src/objects/foreign.h",
     "src/objects/frame-array-inl.h",
     "src/objects/frame-array.h",
+    "src/objects/free-space-inl.h",
+    "src/objects/free-space.h",
     "src/objects/function-kind.h",
     "src/objects/hash-table-inl.h",
     "src/objects/hash-table.h",
@@ -3049,6 +3077,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/string.h",
     "src/objects/struct-inl.h",
     "src/objects/struct.h",
+    "src/objects/synthetic-module-inl.h",
     "src/objects/synthetic-module.cc",
     "src/objects/synthetic-module.h",
     "src/objects/tagged-field-inl.h",
@@ -3064,6 +3093,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/template-objects.h",
     "src/objects/templates-inl.h",
     "src/objects/templates.h",
+    "src/objects/torque-defined-classes-inl.h",
+    "src/objects/torque-defined-classes.h",
     "src/objects/transitions-inl.h",
     "src/objects/transitions.cc",
     "src/objects/transitions.h",

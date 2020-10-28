@@ -21,6 +21,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/feedback-vector-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(FeedbackVector)
 OBJECT_CONSTRUCTORS_IMPL(FeedbackMetadata, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(ClosureFeedbackCellArray, FixedArray)

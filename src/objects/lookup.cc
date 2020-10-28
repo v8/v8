@@ -9,13 +9,12 @@
 #include "src/execution/protectors-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
+#include "src/objects/arguments-inl.h"
 #include "src/objects/elements.h"
 #include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/struct-inl.h"
-#include "torque-generated/exported-class-definitions-inl.h"
-#include "torque-generated/exported-class-definitions.h"
 
 namespace v8 {
 namespace internal {

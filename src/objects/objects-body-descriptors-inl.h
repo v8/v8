@@ -8,6 +8,7 @@
 #include <algorithm>
 
 #include "src/codegen/reloc-info.h"
+#include "src/objects/arguments-inl.h"
 #include "src/objects/cell.h"
 #include "src/objects/data-handler.h"
 #include "src/objects/foreign-inl.h"
@@ -19,11 +20,9 @@
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/source-text-module.h"
 #include "src/objects/synthetic-module.h"
+#include "src/objects/torque-defined-classes-inl.h"
 #include "src/objects/transitions.h"
 #include "src/wasm/wasm-objects-inl.h"
-#include "torque-generated/class-definitions-inl.h"
-#include "torque-generated/exported-class-definitions-inl.h"
-#include "torque-generated/internal-class-definitions-inl.h"
 
 namespace v8 {
 namespace internal {

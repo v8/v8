@@ -28,6 +28,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/wasm/wasm-objects-tq-inl.inc"
+
 OBJECT_CONSTRUCTORS_IMPL(WasmExceptionObject, JSObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmExceptionTag)
 OBJECT_CONSTRUCTORS_IMPL(WasmExportedFunctionData, Struct)

@@ -16,7 +16,6 @@
 #include "src/objects/objects.h"
 #include "src/wasm/struct-types.h"
 #include "src/wasm/value-type.h"
-#include "torque-generated/class-definitions.h"
 
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"
@@ -44,12 +43,13 @@ class WasmExternalFunction;
 class WasmInstanceObject;
 class WasmJSFunction;
 class WasmModuleObject;
-class WasmIndirectFunctionTable;
 
 enum class SharedFlag : uint8_t;
 
 template <class CppType>
 class Managed;
+
+#include "torque-generated/src/wasm/wasm-objects-tq.inc"
 
 #define DECL_OPTIONAL_ACCESSORS(name, type) \
   DECL_GETTER(has_##name, bool)             \

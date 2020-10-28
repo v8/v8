@@ -38,6 +38,8 @@ class WasmCapiFunctionData;
 class WasmExportedFunctionData;
 class WasmJSFunctionData;
 
+#include "torque-generated/src/objects/shared-function-info-tq.inc"
+
 // Data collected by the pre-parser storing information about scopes and inner
 // functions.
 //

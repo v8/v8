@@ -70,8 +70,6 @@
 #include "src/strings/string-stream.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/wasm-objects.h"
-#include "torque-generated/exported-class-definitions-inl.h"
-#include "torque-generated/exported-class-definitions.h"
 
 namespace v8 {
 namespace internal {

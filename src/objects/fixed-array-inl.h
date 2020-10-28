@@ -20,13 +20,14 @@
 #include "src/objects/slots.h"
 #include "src/roots/roots-inl.h"
 #include "src/sanitizer/tsan.h"
-#include "torque-generated/class-definitions-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/fixed-array-tq-inl.inc"
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(FixedArrayBase)
 FixedArrayBase::FixedArrayBase(Address ptr,

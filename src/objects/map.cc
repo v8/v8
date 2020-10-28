@@ -12,6 +12,7 @@
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters-inl.h"
 #include "src/logging/log.h"
+#include "src/objects/arguments-inl.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/field-type.h"
@@ -25,8 +26,6 @@
 #include "src/roots/roots.h"
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-containers.h"
-#include "torque-generated/exported-class-definitions-inl.h"
-#include "torque-generated/exported-class-definitions.h"
 #include "torque-generated/field-offsets.h"
 
 namespace v8 {

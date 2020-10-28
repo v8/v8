@@ -28,6 +28,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-objects-tq-inl.inc"
+
 OBJECT_CONSTRUCTORS_IMPL(JSReceiver, HeapObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSCustomElementsObject)

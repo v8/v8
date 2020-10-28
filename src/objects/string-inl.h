@@ -24,6 +24,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/string-tq-inl.inc"
+
 int String::synchronized_length() const {
   return base::AsAtomic32::Acquire_Load(
       reinterpret_cast<const int32_t*>(field_address(kLengthOffset)));

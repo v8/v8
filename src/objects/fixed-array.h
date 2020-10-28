@@ -9,7 +9,6 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/objects.h"
 #include "src/objects/smi.h"
-#include "torque-generated/class-definitions.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -64,6 +63,8 @@ enum FixedArraySubInstanceType {
 #undef DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE
       LAST_FIXED_ARRAY_SUB_TYPE = WEAK_NEW_SPACE_OBJECT_TO_CODE_SUB_TYPE
 };
+
+#include "torque-generated/src/objects/fixed-array-tq.inc"
 
 // Common superclass for FixedArrays that allow implementations to share
 // common accessors and some code paths.

@@ -20,6 +20,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-array-buffer-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSArrayBuffer)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSArrayBufferView)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSTypedArray)

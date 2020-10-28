@@ -62,6 +62,9 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   struct PerFileStreams {
     std::stringstream csa_headerfile;
     std::stringstream csa_ccfile;
+    std::stringstream class_definition_headerfile;
+    std::stringstream class_definition_inline_headerfile;
+    std::stringstream class_definition_ccfile;
   };
   static PerFileStreams& GeneratedPerFile(SourceId file) {
     return Get().generated_per_file_[file];

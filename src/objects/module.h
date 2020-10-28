@@ -27,6 +27,8 @@ class SourceTextModuleInfoEntry;
 class String;
 class Zone;
 
+#include "torque-generated/src/objects/module-tq.inc"
+
 // Module is the base class for ECMAScript module types, roughly corresponding
 // to Abstract Module Record.
 // https://tc39.github.io/ecma262/#sec-abstract-module-records

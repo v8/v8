@@ -17,6 +17,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/feedback-cell-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(FeedbackCell)
 
 void FeedbackCell::clear_padding() {

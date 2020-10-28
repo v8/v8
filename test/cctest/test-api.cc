@@ -64,6 +64,7 @@
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/string-inl.h"
+#include "src/objects/synthetic-module-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/strings/unicode-inl.h"
 #include "src/utils/utils.h"

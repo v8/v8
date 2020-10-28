@@ -67,14 +67,14 @@
 #include "src/objects/property-descriptor-object-inl.h"
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/struct-inl.h"
+#include "src/objects/synthetic-module-inl.h"
 #include "src/objects/template-objects-inl.h"
+#include "src/objects/torque-defined-classes-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/regexp/regexp.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "torque-generated/class-verifiers.h"
-#include "torque-generated/exported-class-definitions-inl.h"
-#include "torque-generated/internal-class-definitions-inl.h"
 #include "torque-generated/runtime-macros.h"
 
 namespace v8 {

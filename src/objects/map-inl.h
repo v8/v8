@@ -29,6 +29,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/map-tq-inl.inc"
+
 OBJECT_CONSTRUCTORS_IMPL(Map, HeapObject)
 CAST_ACCESSOR(Map)
 

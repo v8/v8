@@ -17,7 +17,6 @@
 #include "src/objects/name.h"
 #include "src/objects/type-hints.h"
 #include "src/zone/zone-containers.h"
-#include "torque-generated/class-definitions.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -152,6 +151,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 using MaybeObjectHandles = std::vector<MaybeObjectHandle>;
 
 class FeedbackMetadata;
+
+#include "torque-generated/src/objects/feedback-vector-tq.inc"
 
 // ClosureFeedbackCellArray is a FixedArray that contains feedback cells used
 // when creating closures from a function. This is created once the function is

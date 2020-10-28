@@ -75,7 +75,7 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   implementation_visitor.SetDryRun(output_directory.length() == 0);
 
   implementation_visitor.GenerateInstanceTypes(output_directory);
-  implementation_visitor.BeginCSAFiles();
+  implementation_visitor.BeginGeneratedFiles();
   implementation_visitor.BeginRuntimeMacrosFile();
 
   implementation_visitor.VisitAllDeclarables();
@@ -95,7 +95,7 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   implementation_visitor.GenerateExportedMacrosAssembler(output_directory);
   implementation_visitor.GenerateCSATypes(output_directory);
 
-  implementation_visitor.EndCSAFiles();
+  implementation_visitor.EndGeneratedFiles();
   implementation_visitor.EndRuntimeMacrosFile();
   implementation_visitor.GenerateImplementation(output_directory);
 

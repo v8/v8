@@ -23,12 +23,12 @@
 #include "src/interpreter/interpreter.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
+#include "src/objects/arguments.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/smi.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/tracing/trace-event.h"
-#include "torque-generated/exported-class-definitions.h"
 
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"

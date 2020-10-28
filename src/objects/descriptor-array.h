@@ -25,6 +25,8 @@ class Handle;
 
 class Isolate;
 
+#include "torque-generated/src/objects/descriptor-array-tq.inc"
+
 // An EnumCache is a pair used to hold keys and indices caches.
 class EnumCache : public TorqueGeneratedEnumCache<EnumCache, Struct> {
  public:

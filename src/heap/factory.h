@@ -18,7 +18,9 @@
 #include "src/objects/dictionary.h"
 #include "src/objects/js-array.h"
 #include "src/objects/js-regexp.h"
+#include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
+#include "torque-generated/class-forward-declarations.h"
 
 namespace v8 {
 namespace internal {
@@ -69,6 +71,7 @@ class WasmCapiFunctionData;
 class WasmExportedFunctionData;
 class WasmJSFunctionData;
 class WeakCell;
+
 enum class SharedFlag : uint8_t;
 enum class InitializedFlag : uint8_t;
 

@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/objects/module.h"
+
 #include <unordered_map>
 #include <unordered_set>
-
-#include "src/objects/module.h"
 
 #include "src/api/api-inl.h"
 #include "src/ast/modules.h"
@@ -16,6 +16,7 @@
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/synthetic-module-inl.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {

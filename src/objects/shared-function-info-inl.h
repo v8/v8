@@ -22,6 +22,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/shared-function-info-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(PreparseData)
 
 int PreparseData::inner_start_offset() const {

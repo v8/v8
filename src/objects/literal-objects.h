@@ -17,6 +17,8 @@ namespace internal {
 
 class ClassLiteral;
 
+#include "torque-generated/src/objects/literal-objects-tq.inc"
+
 // ObjectBoilerplateDescription is a list of properties consisting of name value
 // pairs. In addition to the properties, it provides the projected number
 // of properties in the backing store. This number includes properties with

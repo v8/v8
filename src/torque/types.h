@@ -616,6 +616,8 @@ class StructType final : public AggregateType {
   // Classifies a struct as containing tagged data, untagged data, or both.
   Classification ClassifyContents() const;
 
+  SourcePosition GetPosition() const { return decl_->pos; }
+
  private:
   friend class TypeOracle;
   StructType(Namespace* nspace, const StructDeclaration* decl,
@@ -732,6 +734,7 @@ class ClassType final : public AggregateType {
     return flags_ & ClassFlag::kUndefinedLayout;
   }
   SourcePosition GetPosition() const { return decl_->pos; }
+  SourceId AttributedToFile() const;
 
   // TODO(tebbi): We should no longer pass around types as const pointers, so
   // that we can avoid mutable fields and const initializers for

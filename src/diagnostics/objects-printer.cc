@@ -5,74 +5,21 @@
 #include <iomanip>
 #include <memory>
 
+#include "src/compiler/node.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/heap/heap-inl.h"                // For InOldSpace.
 #include "src/heap/heap-write-barrier-inl.h"  // For GetIsolateFromWritableObj.
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/bytecodes.h"
-#include "src/objects/arguments-inl.h"
-#include "src/objects/cell-inl.h"
+#include "src/objects/all-objects-inl.h"
 #include "src/objects/code-kind.h"
-#include "src/objects/data-handler-inl.h"
-#include "src/objects/debug-objects-inl.h"
-#include "src/objects/embedder-data-array-inl.h"
-#include "src/objects/embedder-data-slot-inl.h"
-#include "src/objects/feedback-cell-inl.h"
-#include "src/objects/foreign-inl.h"
-#include "src/objects/free-space-inl.h"
-#include "src/objects/hash-table-inl.h"
-#include "src/objects/heap-number-inl.h"
-#include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/js-array-inl.h"
-#include "src/objects/objects-inl.h"
-#include "src/objects/objects.h"
-#include "src/snapshot/embedded/embedded-data.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/objects/js-break-iterator-inl.h"
-#include "src/objects/js-collator-inl.h"
-#endif  // V8_INTL_SUPPORT
-#include "src/objects/js-collection-inl.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/objects/js-date-time-format-inl.h"
-#include "src/objects/js-display-names-inl.h"
-#endif  // V8_INTL_SUPPORT
-#include "src/objects/js-generator-inl.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/objects/js-list-format-inl.h"
-#include "src/objects/js-locale-inl.h"
-#include "src/objects/js-number-format-inl.h"
-#include "src/objects/js-plural-rules-inl.h"
-#endif  // V8_INTL_SUPPORT
-#include "src/objects/js-regexp-inl.h"
-#include "src/objects/js-regexp-string-iterator-inl.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/objects/js-relative-time-format-inl.h"
-#include "src/objects/js-segment-iterator-inl.h"
-#include "src/objects/js-segmenter-inl.h"
-#include "src/objects/js-segments-inl.h"
-#endif  // V8_INTL_SUPPORT
-#include "src/compiler/node.h"
-#include "src/objects/js-weak-refs-inl.h"
-#include "src/objects/literal-objects-inl.h"
-#include "src/objects/microtask-inl.h"
-#include "src/objects/module-inl.h"
-#include "src/objects/oddball-inl.h"
-#include "src/objects/promise-inl.h"
-#include "src/objects/property-descriptor-object-inl.h"
-#include "src/objects/stack-frame-info-inl.h"
-#include "src/objects/string-set-inl.h"
-#include "src/objects/struct-inl.h"
-#include "src/objects/template-objects-inl.h"
-#include "src/objects/transitions-inl.h"
 #include "src/regexp/regexp.h"
+#include "src/snapshot/embedded/embedded-data.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
-#include "torque-generated/class-definitions-inl.h"
-#include "torque-generated/exported-class-definitions-inl.h"
-#include "torque-generated/internal-class-definitions-inl.h"
 
 namespace v8 {
 namespace internal {

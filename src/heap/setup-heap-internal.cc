@@ -42,11 +42,9 @@
 #include "src/objects/string.h"
 #include "src/objects/synthetic-module.h"
 #include "src/objects/template-objects-inl.h"
+#include "src/objects/torque-defined-classes-inl.h"
 #include "src/regexp/regexp.h"
 #include "src/wasm/wasm-objects.h"
-#include "torque-generated/class-definitions.h"
-#include "torque-generated/exported-class-definitions-inl.h"
-#include "torque-generated/internal-class-definitions-inl.h"
 
 namespace v8 {
 namespace internal {

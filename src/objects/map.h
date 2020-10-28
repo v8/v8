@@ -20,6 +20,8 @@
 namespace v8 {
 namespace internal {
 
+class WasmTypeInfo;
+
 enum InstanceType : uint16_t;
 
 #define DATA_ONLY_VISITOR_ID_LIST(V) \
@@ -104,6 +106,8 @@ enum class ObjectFields {
 };
 
 using MapHandles = std::vector<Handle<Map>>;
+
+#include "torque-generated/src/objects/map-tq.inc"
 
 // All heap objects have a Map that describes their structure.
 //  A Map contains information about:

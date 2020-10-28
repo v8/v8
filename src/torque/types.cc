@@ -12,6 +12,7 @@
 #include "src/torque/ast.h"
 #include "src/torque/declarable.h"
 #include "src/torque/global-context.h"
+#include "src/torque/source-positions.h"
 #include "src/torque/type-oracle.h"
 #include "src/torque/type-visitor.h"
 
@@ -901,6 +902,15 @@ bool ClassType::HasStaticSize() const {
   DCHECK(!IsAbstract());
   if (IsSubtypeOf(TypeOracle::GetJSObjectType()) && !IsShape()) return false;
   return size().SingleValue().has_value();
+}
+
+SourceId ClassType::AttributedToFile() const {
+  bool in_test_directory = StringStartsWith(
+      SourceFileMap::PathFromV8Root(GetPosition().source).substr(), "test/");
+  if (!in_test_directory && (IsExtern() || ShouldExport())) {
+    return GetPosition().source;
+  }
+  return SourceFileMap::GetSourceId("src/objects/torque-defined-classes.tq");
 }
 
 void PrintSignature(std::ostream& os, const Signature& sig, bool with_names) {

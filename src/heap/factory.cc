@@ -59,6 +59,7 @@
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/string-set-inl.h"
 #include "src/objects/struct-inl.h"
+#include "src/objects/synthetic-module-inl.h"
 #include "src/objects/template-objects-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/roots/roots.h"

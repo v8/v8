@@ -10,6 +10,7 @@
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/synthetic-module-inl.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {

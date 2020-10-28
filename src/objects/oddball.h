@@ -13,6 +13,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/oddball-tq.inc"
+
 // The Oddball describes objects null, undefined, true, and false.
 class Oddball : public TorqueGeneratedOddball<Oddball, PrimitiveHeapObject> {
  public:

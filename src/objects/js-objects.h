@@ -10,7 +10,6 @@
 #include "src/objects/internal-index.h"
 #include "src/objects/objects.h"
 #include "src/objects/property-array.h"
-#include "torque-generated/class-definitions.h"
 #include "torque-generated/field-offsets.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -28,6 +27,8 @@ class JSGlobalObject;
 class JSGlobalProxy;
 class NativeContext;
 class IsCompiledScope;
+
+#include "torque-generated/src/objects/js-objects-tq.inc"
 
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.

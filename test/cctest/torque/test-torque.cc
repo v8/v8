@@ -16,10 +16,10 @@
 #include "src/objects/elements-kind.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/promise-inl.h"
+#include "src/objects/torque-defined-classes-inl.h"
 #include "src/strings/char-predicates.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
-#include "torque-generated/exported-class-definitions-inl.h"
 
 namespace v8 {
 namespace internal {

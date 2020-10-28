@@ -7,7 +7,6 @@
 
 #include "src/objects/code-kind.h"
 #include "src/objects/js-objects.h"
-#include "torque-generated/class-definitions.h"
 #include "torque-generated/field-offsets.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -15,6 +14,8 @@
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/js-function-tq.inc"
 
 // An abstract superclass for classes representing JavaScript function values.
 // It doesn't carry any functionality but allows function classes to be

@@ -18,6 +18,7 @@ namespace v8 {
 namespace internal {
 
 class Heap;
+class PrimitiveHeapObject;
 
 // HeapObject is the superclass for all classes describing heap allocated
 // objects.
