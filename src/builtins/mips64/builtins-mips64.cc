@@ -1033,7 +1033,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // Read off the optimization state in the feedback vector, and if there
   // is optimized code or an optimization marker, call that instead.
   Register optimization_state = a4;
-  __ Ld(optimization_state,
+  __ Lw(optimization_state,
         FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
 
   // Check if the optimized code slot is not empty or has a optimization marker.
