@@ -51,60 +51,6 @@ Handle<String> PrintFToOneByteString(Isolate* isolate, const char* format,
              : isolate->factory()->NewStringFromOneByte(name).ToHandleChecked();
 }
 
-MaybeHandle<JSObject> CreateFunctionTablesObject(
-    Handle<WasmInstanceObject> instance) {
-  Isolate* isolate = instance->GetIsolate();
-  auto tables = handle(instance->tables(), isolate);
-  if (tables->length() == 0) return MaybeHandle<JSObject>();
-
-  const char* table_label = "table%d";
-  Handle<JSObject> tables_obj = isolate->factory()->NewJSObjectWithNullProto();
-  for (int table_index = 0; table_index < tables->length(); ++table_index) {
-    auto func_table =
-        handle(WasmTableObject::cast(tables->get(table_index)), isolate);
-    if (!IsSubtypeOf(func_table->type(), kWasmFuncRef, instance->module()))
-      continue;
-
-    Handle<String> table_name;
-    if (!WasmInstanceObject::GetTableNameOrNull(isolate, instance, table_index)
-             .ToHandle(&table_name)) {
-      table_name =
-          PrintFToOneByteString<true>(isolate, table_label, table_index);
-    }
-
-    Handle<JSObject> func_table_obj =
-        isolate->factory()->NewJSObjectWithNullProto();
-    JSObject::AddProperty(isolate, tables_obj, table_name, func_table_obj,
-                          NONE);
-    for (int i = 0; i < func_table->current_length(); ++i) {
-      Handle<Object> func = WasmTableObject::Get(isolate, func_table, i);
-      DCHECK(!WasmCapiFunction::IsWasmCapiFunction(*func));
-      if (func->IsNull(isolate)) continue;
-
-      Handle<String> func_name;
-      Handle<JSObject> func_obj =
-          isolate->factory()->NewJSObjectWithNullProto();
-
-      if (WasmExportedFunction::IsWasmExportedFunction(*func)) {
-        auto target_func = Handle<WasmExportedFunction>::cast(func);
-        auto target_instance = handle(target_func->instance(), isolate);
-        auto module = handle(target_instance->module_object(), isolate);
-        func_name = WasmModuleObject::GetFunctionName(
-            isolate, module, target_func->function_index());
-      } else if (WasmJSFunction::IsWasmJSFunction(*func)) {
-        auto target_func = Handle<JSFunction>::cast(func);
-        func_name = JSFunction::GetName(target_func);
-        if (func_name->length() == 0) {
-          func_name = isolate->factory()->InternalizeUtf8String("anonymous");
-        }
-      }
-      JSObject::AddProperty(isolate, func_obj, func_name, func, NONE);
-      JSObject::AddDataElement(func_table_obj, i, func_obj, NONE);
-    }
-  }
-  return tables_obj;
-}
-
 Handle<Object> WasmValueToValueObject(Isolate* isolate, WasmValue value) {
   Handle<ByteArray> bytes;
   switch (value.type().kind()) {
@@ -270,14 +216,6 @@ Handle<JSObject> GetModuleScopeObject(Handle<WasmInstanceObject> instance) {
         kExternalUint8Array, memory_buffer, 0, memory_buffer->byte_length());
     JSObject::AddProperty(isolate, module_scope_object, name, uint8_array,
                           NONE);
-  }
-
-  Handle<JSObject> function_tables_obj;
-  if (CreateFunctionTablesObject(instance).ToHandle(&function_tables_obj)) {
-    Handle<String> tables_name = isolate->factory()->InternalizeString(
-        StaticCharVector("function tables"));
-    JSObject::AddProperty(isolate, module_scope_object, tables_name,
-                          function_tables_obj, NONE);
   }
 
   auto& globals = instance->module()->globals;

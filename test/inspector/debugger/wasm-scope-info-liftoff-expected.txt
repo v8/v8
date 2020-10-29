@@ -15,8 +15,6 @@ at C (interpreted) (0:169):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    exported_memory: Uint8Array(65536)
-   function tables: 
-      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 0 (i32)
  - scope (local):
    i32_arg: 42 (i32)
@@ -27,8 +25,6 @@ at B (liftoff) (0:158):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    exported_memory: Uint8Array(65536)
-   function tables: 
-      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 0 (i32)
  - scope (local):
    0: 0 (f32)
@@ -44,8 +40,6 @@ at A (liftoff) (0:128):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    exported_memory: Uint8Array(65536)
-   function tables: 
-      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 0 (i32)
  - scope (local):
    var0: 42 (i32)
@@ -61,8 +55,6 @@ at C (interpreted) (0:171):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    exported_memory: Uint8Array(65536)
-   function tables: 
-      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 0 (i32)
  - scope (local):
    i32_arg: 42 (i32)
@@ -74,8 +66,6 @@ at B (liftoff) (0:158):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    exported_memory: Uint8Array(65536)
-   function tables: 
-      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 0 (i32)
  - scope (local):
    0: 0 (f32)
@@ -91,8 +81,6 @@ at A (liftoff) (0:128):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    exported_memory: Uint8Array(65536)
-   function tables: 
-      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 0 (i32)
  - scope (local):
    var0: 42 (i32)
@@ -108,8 +96,6 @@ at C (interpreted) (0:173):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    exported_memory: Uint8Array(65536)
-   function tables: 
-      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
    i32_arg: 42 (i32)
@@ -120,8 +106,6 @@ at B (liftoff) (0:158):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    exported_memory: Uint8Array(65536)
-   function tables: 
-      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
    0: 0 (f32)
@@ -137,8 +121,6 @@ at A (liftoff) (0:128):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    exported_memory: Uint8Array(65536)
-   function tables: 
-      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
    var0: 42 (i32)
@@ -154,8 +136,6 @@ at C (interpreted) (0:175):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    exported_memory: Uint8Array(65536)
-   function tables: 
-      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
    i32_arg: 42 (i32)
@@ -167,8 +147,6 @@ at B (liftoff) (0:158):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    exported_memory: Uint8Array(65536)
-   function tables: 
-      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
    0: 0 (f32)
@@ -184,8 +162,6 @@ at A (liftoff) (0:128):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    exported_memory: Uint8Array(65536)
-   function tables: 
-      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
    var0: 42 (i32)
@@ -201,8 +177,6 @@ at C (interpreted) (0:177):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    exported_memory: Uint8Array(65536)
-   function tables: 
-      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
    i32_arg: 42 (i32)
@@ -213,8 +187,6 @@ at B (liftoff) (0:158):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    exported_memory: Uint8Array(65536)
-   function tables: 
-      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
    0: 0 (f32)
@@ -230,8 +202,6 @@ at A (liftoff) (0:128):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    exported_memory: Uint8Array(65536)
-   function tables: 
-      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
    var0: 42 (i32)
@@ -247,8 +217,6 @@ at B (liftoff) (0:160):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    exported_memory: Uint8Array(65536)
-   function tables: 
-      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
    0: 0 (f32)
@@ -264,8 +232,6 @@ at A (liftoff) (0:128):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    exported_memory: Uint8Array(65536)
-   function tables: 
-      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
    var0: 42 (i32)
@@ -281,8 +247,6 @@ at B (liftoff) (0:161):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    exported_memory: Uint8Array(65536)
-   function tables: 
-      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
    0: 0 (f32)
@@ -297,8 +261,6 @@ at A (liftoff) (0:128):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    exported_memory: Uint8Array(65536)
-   function tables: 
-      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
    var0: 42 (i32)
@@ -314,8 +276,6 @@ at B (liftoff) (0:162):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    exported_memory: Uint8Array(65536)
-   function tables: 
-      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
    0: 0 (f32)
@@ -329,8 +289,6 @@ at A (liftoff) (0:128):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    exported_memory: Uint8Array(65536)
-   function tables: 
-      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
    var0: 42 (i32)
@@ -346,8 +304,6 @@ at A (liftoff) (0:130):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    exported_memory: Uint8Array(65536)
-   function tables: 
-      exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
    var0: 42 (i32)
