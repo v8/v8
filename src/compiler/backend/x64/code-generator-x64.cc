@@ -3007,7 +3007,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I32x4DotI16x8S: {
-      __ Pmaddwd(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(pmaddwd);
       break;
     }
     case kX64S128Const: {
@@ -3081,44 +3081,43 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I16x8SConvertI32x4: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ Packssdw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(packssdw);
       break;
     }
     case kX64I16x8Add: {
-      __ Paddw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(paddw);
       break;
     }
     case kX64I16x8AddSatS: {
-      __ Paddsw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(paddsw);
       break;
     }
     case kX64I16x8AddHoriz: {
-      __ Phaddw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(phaddw);
       break;
     }
     case kX64I16x8Sub: {
-      __ Psubw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(psubw);
       break;
     }
     case kX64I16x8SubSatS: {
-      __ Psubsw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(psubsw);
       break;
     }
     case kX64I16x8Mul: {
-      __ Pmullw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(pmullw);
       break;
     }
     case kX64I16x8MinS: {
-      __ Pminsw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(pminsw);
       break;
     }
     case kX64I16x8MaxS: {
-      __ Pmaxsw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(pmaxsw);
       break;
     }
     case kX64I16x8Eq: {
-      __ Pcmpeqw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(pcmpeqw);
       break;
     }
     case kX64I16x8Ne: {
@@ -3129,7 +3128,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I16x8GtS: {
-      __ Pcmpgtw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(pcmpgtw);
       break;
     }
     case kX64I16x8GeS: {
@@ -3160,19 +3159,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I16x8AddSatU: {
-      __ Paddusw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(paddusw);
       break;
     }
     case kX64I16x8SubSatU: {
-      __ Psubusw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(psubusw);
       break;
     }
     case kX64I16x8MinU: {
-      __ Pminuw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(pminuw);
       break;
     }
     case kX64I16x8MaxU: {
-      __ Pmaxuw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(pmaxuw);
       break;
     }
     case kX64I16x8GtU: {
@@ -3193,7 +3192,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I16x8RoundingAverageU: {
-      __ Pavgw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(pavgw);
       break;
     }
     case kX64I16x8Abs: {
@@ -3268,8 +3267,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I8x16SConvertI16x8: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ Packsswb(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(packsswb);
       break;
     }
     case kX64I8x16Neg: {
@@ -3350,19 +3348,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I8x16Add: {
-      __ Paddb(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(paddb);
       break;
     }
     case kX64I8x16AddSatS: {
-      __ Paddsb(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(paddsb);
       break;
     }
     case kX64I8x16Sub: {
-      __ Psubb(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(psubb);
       break;
     }
     case kX64I8x16SubSatS: {
-      __ Psubsb(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(psubsb);
       break;
     }
     case kX64I8x16Mul: {
@@ -3399,15 +3397,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I8x16MinS: {
-      __ Pminsb(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(pminsb);
       break;
     }
     case kX64I8x16MaxS: {
-      __ Pmaxsb(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(pmaxsb);
       break;
     }
     case kX64I8x16Eq: {
-      __ Pcmpeqb(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(pcmpeqb);
       break;
     }
     case kX64I8x16Ne: {
@@ -3418,7 +3416,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I8x16GtS: {
-      __ Pcmpgtb(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(pcmpgtb);
       break;
     }
     case kX64I8x16GeS: {
@@ -3467,19 +3465,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I8x16AddSatU: {
-      __ Paddusb(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(paddusb);
       break;
     }
     case kX64I8x16SubSatU: {
-      __ Psubusb(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(psubusb);
       break;
     }
     case kX64I8x16MinU: {
-      __ Pminub(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(pminub);
       break;
     }
     case kX64I8x16MaxU: {
-      __ Pmaxub(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(pmaxub);
       break;
     }
     case kX64I8x16GtU: {
@@ -3500,7 +3498,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I8x16RoundingAverageU: {
-      __ Pavgb(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(pavgb);
       break;
     }
     case kX64I8x16Abs: {
