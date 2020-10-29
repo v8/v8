@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import {
-  defineCustomElement, V8CustomElement, CSSColor
+  defineCustomElement, V8CustomElement, CSSColor, delay
 } from '../helper.mjs';
 import { kChunkWidth, kChunkHeight } from "../log/map.mjs";
 import {
@@ -82,6 +82,8 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
 
     handleTimeSelectionMouseUp(e) {
       this._selectionOriginTime = -1;
+      const delta = this._timeSelection.end - this._timeSelection.start;
+      if (delta <= 1 || isNaN(delta)) return;
       this.dispatchEvent(new SelectTimeEvent(this._timeSelection.start,
         this._timeSelection.end));
     }
@@ -99,11 +101,11 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
     updateSelection() {
       const startPosition = this.timeToPosition(this._timeSelection.start);
       const endPosition = this.timeToPosition(this._timeSelection.end);
+      const delta = endPosition - startPosition;
       this.leftHandle.style.left = startPosition  + "px";
       this.selection.style.left = startPosition  + "px";
       this.rightHandle.style.left = endPosition  + "px";
-      this.selection.style.width =
-        Math.abs(this.rightHandlePosX - this.leftHandlePosX) + "px";
+      this.selection.style.width = delta + "px";
     }
 
     get leftHandlePosX() {
@@ -222,7 +224,6 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       let timelineLegend = this.timelineLegend;
       let timelineLegendContent = this.timelineLegendContent;
       this.removeAllChildren(timelineLegendContent);
-      let colorIterator = 0;
       this._timeline.uniqueTypes.forEach((entries, type) => {
         let row = this.tr();
         row.entries = entries;
@@ -242,7 +243,6 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
         let percent = (entries.length / this.data.all.length) * 100;
         row.appendChild(this.td(percent.toFixed(1) + "%"));
         timelineLegendContent.appendChild(row);
-        colorIterator += 1;
       });
       // Add Total row.
       let row = this.tr();
@@ -271,23 +271,20 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       }));
     }
 
-    asyncSetTimelineChunkBackground(backgroundTodo) {
-      const kIncrement = 100;
-      let start = 0;
-      let delay = 1;
-      while (start < backgroundTodo.length) {
-        let end = Math.min(start + kIncrement, backgroundTodo.length);
-        setTimeout((from, to) => {
-          for (let i = from; i < to; i++) {
-            let [chunk, node] = backgroundTodo[i];
-            this.setTimelineChunkBackground(chunk, node);
+    async setChunkBackgrounds(backgroundTodo) {
+      const kMaxDuration = 50;
+      let lastTime = 0;
+      for (let [chunk, node] of backgroundTodo) {
+          const current = performance.now();
+          if (current - lastTime > kMaxDuration) {
+            await delay(25);
+            lastTime = current;
           }
-        }, delay++, start, end);
-        start = end;
+          this.setChunkBackground(chunk, node);
       }
     }
 
-    setTimelineChunkBackground(chunk, node) {
+    setChunkBackground(chunk, node) {
       // Render the types of transitions as bar charts
       const kHeight = chunk.height;
       const kWidth = 1;
@@ -351,7 +348,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
         backgroundTodo.push([chunk, node])
         chunksNode.appendChild(node);
       }
-      this.asyncSetTimelineChunkBackground(backgroundTodo)
+      this.setChunkBackgrounds(backgroundTodo);
 
       // Put a time marker roughly every 20 chunks.
       let expected = duration / chunks.length * 20;
@@ -385,11 +382,9 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
     }
 
     handleChunkDoubleClick(event) {
-      this.isLocked = true;
       let chunk = event.target.chunk;
       if (!chunk) return;
-      let maps = chunk.items;
-      this.dispatchEvent(new SelectionEvent(maps));
+      this.dispatchEvent(new SelectTimeEvent(chunk.start, chunk.end));
     }
 
     redraw() {

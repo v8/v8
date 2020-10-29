@@ -56,7 +56,7 @@ class MapLogEntry extends LogEntry {
     while (stack.length > 0) {
       let current = stack.pop();
       if (current.leftId !== 0) {
-        console.error('Skipping potential parent loop between maps:', current)
+        console.warn('Skipping potential parent loop between maps:', current)
         continue;
       }
       current.finalize(id)
@@ -192,11 +192,11 @@ class Edge {
     if (from === undefined) return;
     if (to === from) throw 'From and to must be distinct.';
     if (to.time < from.time) {
-      console.error('invalid time order');
+      console.warn('invalid time order');
     }
     let newDepth = from.depth + 1;
     if (to.depth > 0 && to.depth != newDepth) {
-      console.error('Depth has already been initialized');
+      console.warn('Depth has already been initialized');
     }
     to.depth = newDepth;
   }

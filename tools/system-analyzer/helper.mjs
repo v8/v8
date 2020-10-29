@@ -186,7 +186,11 @@ class V8CustomElement extends HTMLElement {
   removeAllChildren(node) { return removeAllChildren(node); }
 }
 
+function delay(time) {
+  return new Promise(resolver => setTimeout(resolver, time));
+}
+
 export {
   defineCustomElement, V8CustomElement, removeAllChildren,
-  $, div, typeToColor, CSSColor
+  $, div, typeToColor, CSSColor, delay
 };

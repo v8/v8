@@ -13,7 +13,8 @@ defineCustomElement('timeline-panel', (templateText) =>
       this.addEventListener(
         'scrolltrack', e => this.handleTrackScroll(e));
       this.addEventListener(
-        SynchronizeSelectionEvent.name, e => this.handleMouseMoveSelection(e));
+        SynchronizeSelectionEvent.name,
+        e => this.handleSelectionSyncronization(e));
     }
 
     set nofChunks(count) {
@@ -38,13 +39,12 @@ defineCustomElement('timeline-panel', (templateText) =>
       }
     }
 
-    handleMouseMoveSelection(event) {
-      this.selectTimeRange(event.start, event.end);
+    handleSelectionSyncronization(event) {
+      this.timeSelection = {start:event.start, end:event.end};
     }
 
-    selectTimeRange(start, end) {
-      const timeSelection = {start, end};
-      if (start > end) {
+    set timeSelection(timeSelection) {
+      if (timeSelection.start > timeSelection.end) {
         throw new Error("Invalid time range");
       }
       for (const track of this.timelineTracks) {

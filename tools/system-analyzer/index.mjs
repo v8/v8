@@ -51,14 +51,12 @@ class App {
       ]);
     document.addEventListener('keydown',
       e => this._navigation?.handleKeyDown(e));
-    Object.entries(this._view).forEach(([_, panel]) => {
-      panel.addEventListener(SelectionEvent.name,
-        e => this.handleShowEntries(e));
-      panel.addEventListener(FocusEvent.name,
-        e => this.handleShowEntryDetail(e));
-      panel.addEventListener(SelectTimeEvent.name,
-        e => this.handleTimeRangeSelect(e));
-    });
+    document.addEventListener(SelectionEvent.name,
+      e => this.handleShowEntries(e));
+    document.addEventListener(FocusEvent.name,
+      e => this.handleShowEntryDetail(e));
+    document.addEventListener(SelectTimeEvent.name,
+      e => this.handleTimeRangeSelect(e));
   }
 
   handleShowEntries(e) {
@@ -100,6 +98,7 @@ class App {
     this.showMapEntries(this._state.mapTimeline.selection);
     this.showIcEntries(this._state.icTimeline.selection);
     this.showDeoptEntries(this._state.deoptTimeline.selection);
+    this._view.timelinePanel.timeSelection = {start,end};
   }
 
   handleShowEntryDetail(e) {
