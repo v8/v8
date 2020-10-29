@@ -1894,9 +1894,8 @@ Object Isolate::UnwindAndFindHandler() {
       case StackFrame::BUILTIN:
         // For builtin frames we are guaranteed not to find a handler.
         if (catchable_by_js) {
-          CHECK_EQ(-1,
-                   JavaScriptFrame::cast(frame)->LookupExceptionHandlerInTable(
-                       nullptr, nullptr));
+          CHECK_EQ(-1, BuiltinFrame::cast(frame)->LookupExceptionHandlerInTable(
+                           nullptr, nullptr));
         }
         break;
 

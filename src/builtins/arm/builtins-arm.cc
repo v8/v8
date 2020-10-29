@@ -72,38 +72,6 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
 
 namespace {
 
-enum StackLimitKind { kInterruptStackLimit, kRealStackLimit };
-
-void LoadStackLimit(MacroAssembler* masm, Register destination,
-                    StackLimitKind kind) {
-  DCHECK(masm->root_array_available());
-  Isolate* isolate = masm->isolate();
-  ExternalReference limit =
-      kind == StackLimitKind::kRealStackLimit
-          ? ExternalReference::address_of_real_jslimit(isolate)
-          : ExternalReference::address_of_jslimit(isolate);
-  DCHECK(TurboAssembler::IsAddressableThroughRootRegister(isolate, limit));
-
-  intptr_t offset =
-      TurboAssembler::RootRegisterOffsetForExternalReference(isolate, limit);
-  CHECK(is_int32(offset));
-  __ ldr(destination, MemOperand(kRootRegister, offset));
-}
-
-void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
-                                 Register scratch, Label* stack_overflow) {
-  // Check the stack for overflow. We are not trying to catch
-  // interruptions (e.g. debug break and preemption) here, so the "real stack
-  // limit" is checked.
-  LoadStackLimit(masm, scratch, StackLimitKind::kRealStackLimit);
-  // Make scratch the space we have left. The stack might already be overflowed
-  // here which will cause scratch to become negative.
-  __ sub(scratch, sp, scratch);
-  // Check if the arguments will overflow the stack.
-  __ cmp(scratch, Operand(num_args, LSL, kPointerSizeLog2));
-  __ b(le, stack_overflow);  // Signed comparison.
-}
-
 void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r0     : number of arguments
@@ -118,7 +86,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
 
   Label stack_overflow;
 
-  Generate_StackOverflowCheck(masm, r0, scratch, &stack_overflow);
+  __ StackOverflowCheck(r0, scratch, &stack_overflow);
 
   // Enter a construct frame.
   {
@@ -128,6 +96,11 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     __ SmiTag(r0);
     __ Push(cp, r0);
     __ SmiUntag(r0);
+
+    // TODO(victorgomes): When the arguments adaptor is completely removed, we
+    // should get the formal parameter count and copy the arguments in its
+    // correct position (including any undefined), instead of delaying this to
+    // InvokeFunction.
 
     // Set up pointer to last argument (skip receiver).
     __ add(
@@ -248,7 +221,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     __ SmiUntag(r0);
 
     Label enough_stack_space, stack_overflow;
-    Generate_StackOverflowCheck(masm, r0, r5, &stack_overflow);
+    __ StackOverflowCheck(r0, r5, &stack_overflow);
     __ b(&enough_stack_space);
 
     __ bind(&stack_overflow);
@@ -259,6 +232,11 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     __ bkpt(0);
 
     __ bind(&enough_stack_space);
+
+    // TODO(victorgomes): When the arguments adaptor is completely removed, we
+    // should get the formal parameter count and copy the arguments in its
+    // correct position (including any undefined), instead of delaying this to
+    // InvokeFunction.
 
     // Copy arguments to the expression stack.
     __ PushArray(r4, r0, r5);
@@ -387,7 +365,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Check the stack for overflow. We are not trying to catch interruptions
   // (i.e. debug break and preemption) here, so check the "real stack limit".
   Label stack_overflow;
-  LoadStackLimit(masm, scratch, StackLimitKind::kRealStackLimit);
+  __ LoadStackLimit(scratch, StackLimitKind::kRealStackLimit);
   __ cmp(sp, scratch);
   __ b(lo, &stack_overflow);
 
@@ -724,7 +702,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Clobbers r5.
     Label enough_stack_space, stack_overflow;
     __ add(r6, r0, Operand(1));  // Add one for receiver.
-    Generate_StackOverflowCheck(masm, r6, r5, &stack_overflow);
+    __ StackOverflowCheck(r6, r5, &stack_overflow);
     __ b(&enough_stack_space);
     __ bind(&stack_overflow);
     __ CallRuntime(Runtime::kThrowStackOverflow);
@@ -816,20 +794,34 @@ static void ReplaceClosureCodeWithOptimizedCode(MacroAssembler* masm,
                       OMIT_SMI_CHECK);
 }
 
-static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch) {
-  Register args_count = scratch;
-
-  // Get the arguments + receiver count.
-  __ ldr(args_count,
+static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
+                                  Register scratch2) {
+  Register params_size = scratch1;
+  // Get the size of the formal parameters + receiver (in bytes).
+  __ ldr(params_size,
          MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
-  __ ldr(args_count,
-         FieldMemOperand(args_count, BytecodeArray::kParameterSizeOffset));
+  __ ldr(params_size,
+         FieldMemOperand(params_size, BytecodeArray::kParameterSizeOffset));
+
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+  Register actual_params_size = scratch2;
+  // Compute the size of the actual parameters + receiver (in bytes).
+  __ ldr(actual_params_size,
+         MemOperand(fp, StandardFrameConstants::kArgCOffset));
+  __ lsl(actual_params_size, actual_params_size, Operand(kPointerSizeLog2));
+  __ add(actual_params_size, actual_params_size, Operand(kSystemPointerSize));
+
+  // If actual is bigger than formal, then we should use it to free up the stack
+  // arguments.
+  __ cmp(params_size, actual_params_size);
+  __ mov(params_size, actual_params_size, LeaveCC, lt);
+#endif
 
   // Leave the frame (also dropping the register file).
   __ LeaveFrame(StackFrame::INTERPRETED);
 
   // Drop receiver + arguments.
-  __ add(sp, sp, args_count, LeaveCC);
+  __ add(sp, sp, params_size, LeaveCC);
 }
 
 // Tail-call |function_id| if |actual_marker| == |expected_marker|
@@ -1101,7 +1093,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
     // Do a stack check to ensure we don't go over the limit.
     __ sub(r9, sp, Operand(r4));
-    LoadStackLimit(masm, r2, StackLimitKind::kRealStackLimit);
+    __ LoadStackLimit(r2, StackLimitKind::kRealStackLimit);
     __ cmp(r9, Operand(r2));
     __ b(lo, &stack_overflow);
 
@@ -1130,7 +1122,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // Perform interrupt stack check.
   // TODO(solanes): Merge with the real stack limit check above.
   Label stack_check_interrupt, after_stack_check_interrupt;
-  LoadStackLimit(masm, r4, StackLimitKind::kInterruptStackLimit);
+  __ LoadStackLimit(r4, StackLimitKind::kInterruptStackLimit);
   __ cmp(sp, r4);
   __ b(lo, &stack_check_interrupt);
   __ bind(&after_stack_check_interrupt);
@@ -1173,7 +1165,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   __ bind(&do_return);
   // The return value is in r0.
-  LeaveInterpreterFrame(masm, r2);
+  LeaveInterpreterFrame(masm, r2, r4);
   __ Jump(lr);
 
   __ bind(&stack_check_interrupt);
@@ -1264,7 +1256,7 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
 
   __ add(r3, r0, Operand(1));  // Add one for receiver.
 
-  Generate_StackOverflowCheck(masm, r3, r4, &stack_overflow);
+  __ StackOverflowCheck(r3, r4, &stack_overflow);
 
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
     // Don't copy receiver. Argument count is correct.
@@ -1318,7 +1310,7 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
 
   __ add(r5, r0, Operand(1));  // Add one for receiver.
 
-  Generate_StackOverflowCheck(masm, r5, r6, &stack_overflow);
+  __ StackOverflowCheck(r5, r6, &stack_overflow);
 
   if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
     // The spread argument should not be pushed.
@@ -1833,7 +1825,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   }
 
   Label stack_overflow;
-  Generate_StackOverflowCheck(masm, r4, scratch, &stack_overflow);
+  __ StackOverflowCheck(r4, scratch, &stack_overflow);
 
   // Move the arguments already in the stack,
   // including the receiver and the return address.
@@ -1913,6 +1905,12 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     __ bind(&new_target_constructor);
   }
 
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+  // TODO(victorgomes): Remove this copy when all the arguments adaptor frame
+  // code is erased.
+  __ mov(r4, fp);
+  __ ldr(r5, MemOperand(fp, StandardFrameConstants::kArgCOffset));
+#else
   // Check if we have an arguments adaptor frame below the function frame.
   Label arguments_adaptor, arguments_done;
   __ ldr(r4, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
@@ -1936,6 +1934,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     __ SmiUntag(r5);
   }
   __ bind(&arguments_done);
+#endif
 
   Label stack_done, stack_overflow;
   __ sub(r5, r5, r2, SetCC);
@@ -1952,7 +1951,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     // -----------------------------------
 
     // Check for stack overflow.
-    Generate_StackOverflowCheck(masm, r5, scratch, &stack_overflow);
+    __ StackOverflowCheck(r5, scratch, &stack_overflow);
 
     // Forward the arguments from the caller frame.
     // Point to the first argument to copy (skipping the receiver).
@@ -2145,8 +2144,8 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
 
         // Compute the space we have left. The stack might already be overflowed
         // here which will cause remaining_stack_size to become negative.
-        LoadStackLimit(masm, remaining_stack_size,
-                       StackLimitKind::kRealStackLimit);
+        __ LoadStackLimit(remaining_stack_size,
+                          StackLimitKind::kRealStackLimit);
         __ sub(remaining_stack_size, sp, remaining_stack_size);
 
         // Check if the arguments will overflow the stack.
@@ -2383,7 +2382,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ bind(&over_application);
     {
       EnterArgumentsAdaptorFrame(masm);
-      Generate_StackOverflowCheck(masm, r2, r5, &stack_overflow);
+      __ StackOverflowCheck(r2, r5, &stack_overflow);
 
       // Calculate copy start address into r0 and copy end address into r4.
       // r0: actual number of arguments as a smi
@@ -2417,7 +2416,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ bind(&under_application);
     {
       EnterArgumentsAdaptorFrame(masm);
-      Generate_StackOverflowCheck(masm, r2, r5, &stack_overflow);
+      __ StackOverflowCheck(r2, r5, &stack_overflow);
 
       // Fill the remaining expected arguments with undefined.
       // r0: actual number of arguments as a smi
