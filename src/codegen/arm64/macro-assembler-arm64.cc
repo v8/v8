@@ -503,13 +503,15 @@ void TurboAssembler::Movi(const VRegister& vd, uint64_t imm, Shift shift,
 }
 
 void TurboAssembler::Movi(const VRegister& vd, uint64_t hi, uint64_t lo) {
-  // TODO(all): Move 128-bit values in a more efficient way.
+  // TODO(v8:11033): Move 128-bit values in a more efficient way.
   DCHECK(vd.Is128Bits());
-  UseScratchRegisterScope temps(this);
   Movi(vd.V2D(), lo);
-  Register temp = temps.AcquireX();
-  Mov(temp, hi);
-  Ins(vd.V2D(), 1, temp);
+  if (lo != hi) {
+    UseScratchRegisterScope temps(this);
+    Register temp = temps.AcquireX();
+    Mov(temp, hi);
+    Ins(vd.V2D(), 1, temp);
+  }
 }
 
 void TurboAssembler::Mvn(const Register& rd, const Operand& operand) {
