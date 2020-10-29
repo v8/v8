@@ -1319,10 +1319,6 @@
   'compiler/test-dynamic-map-*': [SKIP],
   'es6/collections-constructor-iterator-side-effect': [SKIP],
   'es6/collections-constructor-with-modified-protoype': [SKIP],
-  # Deopts due to different behavior in BytecodeGraphBuilder::GetForInMode.  In
-  # default TF, the ForInHint is kAny, in NCI mode kNone (because we currently
-  # don't use feedback).
-  'regress/regress-3650-3': [SKIP],
   # assertUnoptimized: assumes full turbofan pipeline.
   'allocation-site-info': [SKIP],
   'array-bounds-check-removal': [SKIP],
