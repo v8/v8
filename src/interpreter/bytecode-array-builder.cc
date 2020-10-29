@@ -1330,6 +1330,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ThrowSuperAlreadyCalledIfNotHole() {
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::ThrowIfNotSuperConstructor(
+    Register constructor) {
+  OutputThrowIfNotSuperConstructor(constructor);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::Debugger() {
   OutputDebugger();
   return *this;

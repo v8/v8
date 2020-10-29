@@ -277,6 +277,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit GetSuperConstructor.
   builder.GetSuperConstructor(reg);
 
+  // Constructor check for GetSuperConstructor.
+  builder.ThrowIfNotSuperConstructor(reg);
+
   // Hole checks.
   builder.ThrowReferenceErrorIfHole(name)
       .ThrowSuperAlreadyCalledIfNotHole()

@@ -709,7 +709,7 @@ ForInParameters const& ForInParametersOf(const Operator* op) {
   V(PromiseResolve, Operator::kNoProperties, 2, 1)                       \
   V(RejectPromise, Operator::kNoDeopt | Operator::kNoThrow, 3, 1)        \
   V(ResolvePromise, Operator::kNoDeopt | Operator::kNoThrow, 2, 1)       \
-  V(GetSuperConstructor, Operator::kNoWrite, 1, 1)                       \
+  V(GetSuperConstructor, Operator::kNoWrite | Operator::kNoThrow, 1, 1)  \
   V(ParseInt, Operator::kNoProperties, 2, 1)                             \
   V(RegExpTest, Operator::kNoProperties, 2, 1)
 

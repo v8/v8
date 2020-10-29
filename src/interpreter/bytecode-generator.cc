@@ -5019,6 +5019,9 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
     // First generate the array containing all arguments.
     BuildCreateArrayLiteral(args, nullptr);
 
+    // Check if the constructor is in fact a constructor.
+    builder()->ThrowIfNotSuperConstructor(constructor);
+
     // Now pass that array to %reflect_construct.
     RegisterList construct_args = register_allocator()->NewRegisterList(3);
     builder()->StoreAccumulatorInRegister(construct_args[1]);
@@ -5028,6 +5031,10 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   } else {
     RegisterList args_regs = register_allocator()->NewGrowableRegisterList();
     VisitArguments(args, &args_regs);
+
+    // Check if the constructor is in fact a constructor.
+    builder()->ThrowIfNotSuperConstructor(constructor);
+
     // The new target is loaded into the accumulator from the
     // {new.target} variable.
     VisitForAccumulatorValue(super->new_target_var());

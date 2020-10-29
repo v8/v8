@@ -1340,8 +1340,7 @@ IGNITION_HANDLER(DeletePropertySloppy, InterpreterAssembler) {
 // The result is stored in register |reg|.
 IGNITION_HANDLER(GetSuperConstructor, InterpreterAssembler) {
   TNode<JSFunction> active_function = CAST(GetAccumulator());
-  TNode<Context> context = GetContext();
-  TNode<Object> result = GetSuperConstructor(context, active_function);
+  TNode<Object> result = GetSuperConstructor(active_function);
   StoreRegisterAtOperandIndex(result, 0);
   Dispatch();
 }
@@ -2722,7 +2721,7 @@ IGNITION_HANDLER(ThrowSuperNotCalledIfHole, InterpreterAssembler) {
 
 // ThrowSuperAlreadyCalledIfNotHole
 //
-// Throws SuperAleradyCalled exception if the value in the accumulator is not
+// Throws SuperAlreadyCalled exception if the value in the accumulator is not
 // TheHole.
 IGNITION_HANDLER(ThrowSuperAlreadyCalledIfNotHole, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
@@ -2734,6 +2733,31 @@ IGNITION_HANDLER(ThrowSuperAlreadyCalledIfNotHole, InterpreterAssembler) {
   BIND(&throw_error);
   {
     CallRuntime(Runtime::kThrowSuperAlreadyCalledError, GetContext());
+    // We shouldn't ever return from a throw.
+    Abort(AbortReason::kUnexpectedReturnFromThrow);
+    Unreachable();
+  }
+}
+
+// ThrowIfNotSuperConstructor <constructor>
+//
+// Throws an exception if the value in |constructor| is not in fact a
+// constructor.
+IGNITION_HANDLER(ThrowIfNotSuperConstructor, InterpreterAssembler) {
+  TNode<HeapObject> constructor = CAST(LoadRegisterAtOperandIndex(0));
+  TNode<Context> context = GetContext();
+
+  Label is_not_constructor(this, Label::kDeferred);
+  TNode<Map> constructor_map = LoadMap(constructor);
+  GotoIfNot(IsConstructorMap(constructor_map), &is_not_constructor);
+  Dispatch();
+
+  BIND(&is_not_constructor);
+  {
+    TNode<JSFunction> function =
+        CAST(LoadRegister(Register::function_closure()));
+    CallRuntime(Runtime::kThrowNotSuperConstructor, context, constructor,
+                function);
     // We shouldn't ever return from a throw.
     Abort(AbortReason::kUnexpectedReturnFromThrow);
     Unreachable();

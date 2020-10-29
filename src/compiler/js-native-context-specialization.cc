@@ -360,13 +360,12 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
     TRACE_BROKER_MISSING(broker(), "data for map " << function_map);
     return NoChange();
   }
-  ObjectRef function_prototype = function_map.prototype();
+  HeapObjectRef function_prototype = function_map.prototype();
 
   // We can constant-fold the super constructor access if the
   // {function}s map is stable, i.e. we can use a code dependency
   // to guard against [[Prototype]] changes of {function}.
-  if (function_map.is_stable() && function_prototype.IsHeapObject() &&
-      function_prototype.AsHeapObject().map().is_constructor()) {
+  if (function_map.is_stable()) {
     dependencies()->DependOnStableMap(function_map);
     Node* value = jsgraph()->Constant(function_prototype);
     ReplaceWithValue(node, value);

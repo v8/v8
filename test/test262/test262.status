@@ -571,10 +571,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=9818
   'built-ins/AsyncFunction/proto-from-ctor-realm': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=10111
-  # super() should evaluate arguments before checking IsConstructable
-  'language/expressions/super/call-proto-not-ctor': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=10381
   'built-ins/Array/prototype/concat/arg-length-near-integer-limit': [FAIL],
 

@@ -1174,13 +1174,6 @@ TF_BUILTIN(OrdinaryHasInstance, ObjectBuiltinsAssembler) {
   Return(OrdinaryHasInstance(context, constructor, object));
 }
 
-TF_BUILTIN(GetSuperConstructor, ObjectBuiltinsAssembler) {
-  auto object = Parameter<JSFunction>(Descriptor::kObject);
-  auto context = Parameter<Context>(Descriptor::kContext);
-
-  Return(GetSuperConstructor(context, object));
-}
-
 TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   auto closure = Parameter<JSFunction>(Descriptor::kClosure);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);

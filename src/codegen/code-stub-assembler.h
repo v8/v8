@@ -3378,8 +3378,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<String> Typeof(SloppyTNode<Object> value);
 
-  TNode<Object> GetSuperConstructor(TNode<Context> context,
-                                    TNode<JSFunction> active_function);
+  TNode<HeapObject> GetSuperConstructor(TNode<JSFunction> active_function);
 
   TNode<JSReceiver> SpeciesConstructor(
       SloppyTNode<Context> context, SloppyTNode<Object> object,

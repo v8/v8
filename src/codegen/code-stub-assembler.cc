@@ -12362,28 +12362,10 @@ TNode<String> CodeStubAssembler::Typeof(SloppyTNode<Object> value) {
   return result_var.value();
 }
 
-TNode<Object> CodeStubAssembler::GetSuperConstructor(
-    TNode<Context> context, TNode<JSFunction> active_function) {
-  Label is_not_constructor(this, Label::kDeferred), out(this);
-  TVARIABLE(Object, result);
-
+TNode<HeapObject> CodeStubAssembler::GetSuperConstructor(
+    TNode<JSFunction> active_function) {
   TNode<Map> map = LoadMap(active_function);
-  TNode<HeapObject> prototype = LoadMapPrototype(map);
-  TNode<Map> prototype_map = LoadMap(prototype);
-  GotoIfNot(IsConstructorMap(prototype_map), &is_not_constructor);
-
-  result = prototype;
-  Goto(&out);
-
-  BIND(&is_not_constructor);
-  {
-    CallRuntime(Runtime::kThrowNotSuperConstructor, context, prototype,
-                active_function);
-    Unreachable();
-  }
-
-  BIND(&out);
-  return result.value();
+  return LoadMapPrototype(map);
 }
 
 TNode<JSReceiver> CodeStubAssembler::SpeciesConstructor(

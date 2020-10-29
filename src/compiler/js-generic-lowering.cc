@@ -7,6 +7,7 @@
 #include "src/ast/ast.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/codegen/code-factory.h"
+#include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-heap-broker.h"
@@ -15,6 +16,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/processed-feedback.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/scope-info.h"
@@ -480,7 +482,21 @@ void JSGenericLowering::LowerJSDeleteProperty(Node* node) {
 }
 
 void JSGenericLowering::LowerJSGetSuperConstructor(Node* node) {
-  ReplaceWithBuiltinCall(node, Builtins::kGetSuperConstructor);
+  Node* active_function = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  Node* function_map = effect = graph()->NewNode(
+      jsgraph()->simplified()->LoadField(AccessBuilder::ForMap()),
+      active_function, effect, control);
+
+  RelaxControls(node);
+  node->ReplaceInput(0, function_map);
+  node->ReplaceInput(1, effect);
+  node->ReplaceInput(2, control);
+  node->TrimInputCount(3);
+  NodeProperties::ChangeOp(node, jsgraph()->simplified()->LoadField(
+                                     AccessBuilder::ForMapPrototype()));
 }
 
 void JSGenericLowering::LowerJSHasInPrototypeChain(Node* node) {

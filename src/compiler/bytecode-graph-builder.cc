@@ -2899,6 +2899,31 @@ void BytecodeGraphBuilder::VisitThrowSuperAlreadyCalledIfNotHole() {
                          Runtime::kThrowSuperAlreadyCalledError);
 }
 
+void BytecodeGraphBuilder::VisitThrowIfNotSuperConstructor() {
+  Node* constructor =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* check_is_constructor =
+      NewNode(simplified()->ObjectIsConstructor(), constructor);
+  NewBranch(check_is_constructor, BranchHint::kTrue);
+  {
+    SubEnvironment sub_environment(this);
+    NewIfFalse();
+    BuildLoopExitsForFunctionExit(bytecode_analysis().GetInLivenessFor(
+        bytecode_iterator().current_offset()));
+    Node* node =
+        NewNode(javascript()->CallRuntime(Runtime::kThrowNotSuperConstructor),
+                constructor, GetFunctionClosure());
+    environment()->RecordAfterState(node, Environment::kAttachFrameState);
+    Node* control = NewNode(common()->Throw());
+    MergeControlToLeaveFunction(control);
+  }
+  NewIfTrue();
+
+  constructor = NewNode(common()->TypeGuard(Type::Callable()), constructor);
+  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(0),
+                              constructor);
+}
+
 void BytecodeGraphBuilder::BuildUnaryOp(const Operator* op) {
   DCHECK(JSOperator::IsUnaryWithFeedback(op->opcode()));
   PrepareEagerCheckpoint();

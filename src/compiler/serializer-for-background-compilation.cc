@@ -101,6 +101,7 @@ namespace compiler {
   V(IncBlockCounter)                  \
   V(ResumeGenerator)                  \
   V(SuspendGenerator)                 \
+  V(ThrowIfNotSuperConstructor)       \
   V(ThrowSuperAlreadyCalledIfNotHole) \
   V(ThrowSuperNotCalledIfHole)        \
   V(ToObject)
