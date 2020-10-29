@@ -72,48 +72,6 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
 
 namespace {
 
-enum StackLimitKind { kInterruptStackLimit, kRealStackLimit };
-
-void CompareStackLimit(MacroAssembler* masm, Register with,
-                       StackLimitKind kind) {
-  DCHECK(masm->root_array_available());
-  Isolate* isolate = masm->isolate();
-  // Address through the root register. No load is needed.
-  ExternalReference limit =
-      kind == StackLimitKind::kRealStackLimit
-          ? ExternalReference::address_of_real_jslimit(isolate)
-          : ExternalReference::address_of_jslimit(isolate);
-  DCHECK(TurboAssembler::IsAddressableThroughRootRegister(isolate, limit));
-
-  intptr_t offset =
-      TurboAssembler::RootRegisterOffsetForExternalReference(isolate, limit);
-  __ cmp(with, Operand(kRootRegister, offset));
-}
-
-void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
-                                 Register scratch, Label* stack_overflow,
-                                 bool include_receiver = false) {
-  // Check the stack for overflow. We are not trying to catch
-  // interruptions (e.g. debug break and preemption) here, so the "real stack
-  // limit" is checked.
-  ExternalReference real_stack_limit =
-      ExternalReference::address_of_real_jslimit(masm->isolate());
-  // Compute the space that is left as a negative number in scratch. If
-  // we already overflowed, this will be a positive number.
-  __ mov(scratch, __ ExternalReferenceAsOperand(real_stack_limit, scratch));
-  __ sub(scratch, esp);
-  // Add the size of the arguments.
-  static_assert(kSystemPointerSize == 4,
-                "The next instruction assumes kSystemPointerSize == 4");
-  __ lea(scratch, Operand(scratch, num_args, times_system_pointer_size, 0));
-  if (include_receiver) {
-    __ add(scratch, Immediate(kSystemPointerSize));
-  }
-  // See if we overflowed, i.e. scratch is positive.
-  __ cmp(scratch, Immediate(0));
-  __ j(greater, stack_overflow);  // Signed comparison.
-}
-
 void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax: number of arguments
@@ -124,7 +82,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
 
   Label stack_overflow;
 
-  Generate_StackOverflowCheck(masm, eax, ecx, &stack_overflow);
+  __ StackOverflowCheck(eax, ecx, &stack_overflow);
 
   // Enter a construct frame.
   {
@@ -268,7 +226,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // Check if we have enough stack space to push all arguments.
     // Argument count in eax. Clobbers ecx.
     Label enough_stack_space, stack_overflow;
-    Generate_StackOverflowCheck(masm, eax, ecx, &stack_overflow);
+    __ StackOverflowCheck(eax, ecx, &stack_overflow);
     __ jmp(&enough_stack_space);
 
     __ bind(&stack_overflow);
@@ -524,7 +482,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Check if we have enough stack space to push all arguments.
     // Argument count in eax. Clobbers ecx.
     Label enough_stack_space, stack_overflow;
-    Generate_StackOverflowCheck(masm, eax, ecx, &stack_overflow);
+    __ StackOverflowCheck(eax, ecx, &stack_overflow);
     __ jmp(&enough_stack_space);
 
     __ bind(&stack_overflow);
@@ -635,7 +593,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Check the stack for overflow. We are not trying to catch interruptions
   // (i.e. debug break and preemption) here, so check the "real stack limit".
   Label stack_overflow;
-  CompareStackLimit(masm, esp, StackLimitKind::kRealStackLimit);
+  __ CompareStackLimit(esp, StackLimitKind::kRealStackLimit);
   __ j(below, &stack_overflow);
 
   // Pop return address.
@@ -1077,7 +1035,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     // Do a stack check to ensure we don't go over the limit.
     __ mov(eax, esp);
     __ sub(eax, frame_size);
-    CompareStackLimit(masm, eax, StackLimitKind::kRealStackLimit);
+    __ CompareStackLimit(eax, StackLimitKind::kRealStackLimit);
     __ j(below, &stack_overflow);
 
     // If ok, push undefined as the initial value for all register file entries.
@@ -1108,7 +1066,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // Perform interrupt stack check.
   // TODO(solanes): Merge with the real stack limit check above.
   Label stack_check_interrupt, after_stack_check_interrupt;
-  CompareStackLimit(masm, esp, StackLimitKind::kInterruptStackLimit);
+  __ CompareStackLimit(esp, StackLimitKind::kInterruptStackLimit);
   __ j(below, &stack_check_interrupt);
   __ bind(&after_stack_check_interrupt);
 
@@ -1260,7 +1218,7 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
   }
 
   // Add a stack check before pushing the arguments.
-  Generate_StackOverflowCheck(masm, eax, scratch, &stack_overflow, true);
+  __ StackOverflowCheck(eax, scratch, &stack_overflow, true);
 
   __ movd(xmm0, eax);  // Spill number of arguments.
 
@@ -1338,7 +1296,7 @@ void Generate_InterpreterPushZeroAndArgsAndReturnAddress(
   // | addtl. slot |            | receiver slot |
 
   // Check for stack overflow before we increment the stack pointer.
-  Generate_StackOverflowCheck(masm, num_args, scratch1, stack_overflow, true);
+  __ StackOverflowCheck(num_args, scratch1, stack_overflow, true);
 
   // Step 1 - Update the stack pointer.
 
@@ -1988,7 +1946,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   // Check the stack for overflow. We are not trying to catch interruptions
   // (i.e. debug break and preemption) here, so check the "real stack limit".
   Label stack_overflow;
-  Generate_StackOverflowCheck(masm, kArgumentsLength, edx, &stack_overflow);
+  __ StackOverflowCheck(kArgumentsLength, edx, &stack_overflow);
 
   __ movd(xmm4, kArgumentsList);  // Spill the arguments list.
 
@@ -2140,7 +2098,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
 
     // Forward the arguments from the caller frame.
     __ movd(xmm2, edi);  // Preserve the target to call.
-    Generate_StackOverflowCheck(masm, edx, edi, &stack_overflow);
+    __ StackOverflowCheck(edx, edi, &stack_overflow);
     __ movd(xmm3, ebx);  // Preserve root register.
 
     Register scratch = ebx;
@@ -2344,7 +2302,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     // Check the stack for overflow.
     {
       Label done, stack_overflow;
-      Generate_StackOverflowCheck(masm, edx, ecx, &stack_overflow);
+      __ StackOverflowCheck(edx, ecx, &stack_overflow);
       __ jmp(&done);
       __ bind(&stack_overflow);
       {
@@ -2613,8 +2571,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     EnterArgumentsAdaptorFrame(masm);
     // edi is used as a scratch register. It should be restored from the frame
     // when needed.
-    Generate_StackOverflowCheck(masm, kExpectedNumberOfArgumentsRegister, edi,
-                                &stack_overflow);
+    __ StackOverflowCheck(kExpectedNumberOfArgumentsRegister, edi,
+                          &stack_overflow);
 
     // Copy receiver and all expected arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
@@ -2637,8 +2595,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     EnterArgumentsAdaptorFrame(masm);
     // edi is used as a scratch register. It should be restored from the frame
     // when needed.
-    Generate_StackOverflowCheck(masm, kExpectedNumberOfArgumentsRegister, edi,
-                                &stack_overflow);
+    __ StackOverflowCheck(kExpectedNumberOfArgumentsRegister, edi,
+                          &stack_overflow);
 
     // Remember expected arguments in xmm0.
     __ movd(xmm0, kExpectedNumberOfArgumentsRegister);

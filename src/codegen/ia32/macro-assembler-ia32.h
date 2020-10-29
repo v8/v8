@@ -24,6 +24,10 @@ using MemOperand = Operand;
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 
+// TODO(victorgomes): Move definition to macro-assembler.h, once all other
+// platforms are updated.
+enum class StackLimitKind { kInterruptStackLimit, kRealStackLimit };
+
 // Convenient class to access arguments below the stack pointer.
 class StackArgumentsAccessor {
  public:
@@ -839,6 +843,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   void IncrementCounter(StatsCounter* counter, int value, Register scratch);
   void DecrementCounter(StatsCounter* counter, int value, Register scratch);
+
+  // ---------------------------------------------------------------------------
+  // Stack limit utilities
+  void CompareStackLimit(Register with, StackLimitKind kind);
+  void StackOverflowCheck(Register num_args, Register scratch,
+                          Label* stack_overflow, bool include_receiver = false);
 
   static int SafepointRegisterStackIndex(Register reg) {
     return SafepointRegisterStackIndex(reg.code());

@@ -195,6 +195,7 @@
   'regress/regress-crbug-808192': [SKIP],
   'regress/regress-crbug-941743': [SKIP],
   'regress/regress-create-exception': [SKIP],
+  'stackoverflow-underapplication': [SKIP],
 
   # These tests run out of stack space in debug mode.
   'big-array-literal': [SKIP],
@@ -624,6 +625,7 @@
   'math-floor-part1': [PASS, SLOW],
   'regress/regress-430201': [SKIP],
   'regress/regress-500980': [PASS, SLOW],
+  'stackoverflow-underapplication': [SKIP],
 
   # BUG(v8:9506): times out.
   'wasm/shared-memory-worker-explicit-gc-stress': [SKIP],

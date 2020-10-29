@@ -2439,19 +2439,62 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   bind(&done);
 }
 
+Operand MacroAssembler::StackLimitAsOperand(StackLimitKind kind) {
+  DCHECK(root_array_available());
+  Isolate* isolate = this->isolate();
+  ExternalReference limit =
+      kind == StackLimitKind::kRealStackLimit
+          ? ExternalReference::address_of_real_jslimit(isolate)
+          : ExternalReference::address_of_jslimit(isolate);
+  DCHECK(TurboAssembler::IsAddressableThroughRootRegister(isolate, limit));
+
+  intptr_t offset =
+      TurboAssembler::RootRegisterOffsetForExternalReference(isolate, limit);
+  CHECK(is_int32(offset));
+  return Operand(kRootRegister, static_cast<int32_t>(offset));
+}
+
+void MacroAssembler::StackOverflowCheck(
+    Register num_args, Register scratch, Label* stack_overflow,
+    Label::Distance stack_overflow_distance) {
+  DCHECK_NE(num_args, scratch);
+  // Check the stack for overflow. We are not trying to catch
+  // interruptions (e.g. debug break and preemption) here, so the "real stack
+  // limit" is checked.
+  movq(kScratchRegister, StackLimitAsOperand(StackLimitKind::kRealStackLimit));
+  movq(scratch, rsp);
+  // Make scratch the space we have left. The stack might already be overflowed
+  // here which will cause scratch to become negative.
+  subq(scratch, kScratchRegister);
+  // TODO(victorgomes): Use ia32 approach with leaq, since it requires less
+  // instructions.
+  sarq(scratch, Immediate(kSystemPointerSizeLog2));
+  // Check if the arguments will overflow the stack.
+  cmpq(scratch, num_args);
+  // Signed comparison.
+  // TODO(victorgomes):  Save some bytes in the builtins that use stack checks
+  // by jumping to a builtin that throws the exception.
+  j(less_equal, stack_overflow, stack_overflow_distance);
+}
+
 void MacroAssembler::InvokePrologue(Register expected_parameter_count,
                                     Register actual_parameter_count,
                                     Label* done, InvokeFlag flag) {
   if (expected_parameter_count != actual_parameter_count) {
     Label regular_invoke;
 #ifdef V8_NO_ARGUMENTS_ADAPTOR
-    // Skip if adaptor sentinel.
+    // If the expected parameter count is equal to the adaptor sentinel, no need
+    // to push undefined value as arguments.
     cmpl(expected_parameter_count, Immediate(kDontAdaptArgumentsSentinel));
-    j(equal, &regular_invoke, Label::kNear);
+    j(equal, &regular_invoke, Label::kFar);
 
-    // Skip if overapplication or if expected number of arguments.
+    // If overapplication or if the actual argument count is equal to the
+    // formal parameter count, no need to push extra undefined values.
     subq(expected_parameter_count, actual_parameter_count);
-    j(less_equal, &regular_invoke, Label::kNear);
+    j(less_equal, &regular_invoke, Label::kFar);
+
+    Label stack_overflow;
+    StackOverflowCheck(expected_parameter_count, rcx, &stack_overflow);
 
     // Underapplication. Move the arguments already in the stack, including the
     // receiver and the return address.
@@ -2487,6 +2530,15 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
       movq(Operand(r8, expected_parameter_count, times_system_pointer_size, 0),
            kScratchRegister);
       j(greater, &loop, Label::kNear);
+    }
+    jmp(&regular_invoke);
+
+    bind(&stack_overflow);
+    {
+      FrameScope frame(this,
+                       has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
+      CallRuntime(Runtime::kThrowStackOverflow);
+      int3();  // This should be unreachable.
     }
 #else
     // Both expected and actual are in (different) registers. This
