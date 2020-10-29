@@ -1271,20 +1271,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   LeaveInterpreterFrame(masm, r4);
   __ Ret();
 
-  __ bind(&has_optimized_code_or_marker);
-  Label maybe_has_optimized_code;
-
-  // Check if optimized code is available
-  __ TestBitMask(optimization_state,
-                 FeedbackVector::OptimizationTierBits::kMask, r0);
-  __ bne(&maybe_has_optimized_code);
-
-  Register optimization_marker = optimization_state;
-  __ DecodeField<FeedbackVector::OptimizationMarkerBits>(optimization_marker);
-  MaybeOptimizeCode(masm, feedback_vector, optimization_marker);
-  // Fall through if there's no runnable optimized code.
-  __ jmp(&not_optimized);
-
   __ bind(&stack_check_interrupt);
   // Modify the bytecode offset in the stack to be kFunctionEntryBytecodeOffset
   // for the call to the StackGuard.
@@ -1309,6 +1295,20 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
             MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
 
   __ jmp(&after_stack_check_interrupt);
+
+  __ bind(&has_optimized_code_or_marker);
+  Label maybe_has_optimized_code;
+
+  // Check if optimized code is available
+  __ TestBitMask(optimization_state,
+                 FeedbackVector::OptimizationTierBits::kMask, r0);
+  __ bne(&maybe_has_optimized_code);
+
+  Register optimization_marker = optimization_state;
+  __ DecodeField<FeedbackVector::OptimizationMarkerBits>(optimization_marker);
+  MaybeOptimizeCode(masm, feedback_vector, optimization_marker);
+  // Fall through if there's no runnable optimized code.
+  __ jmp(&not_optimized);
 
   __ bind(&maybe_has_optimized_code);
   Register optimized_code_entry = optimization_state;
