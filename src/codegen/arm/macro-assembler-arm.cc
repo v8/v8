@@ -2372,16 +2372,18 @@ void TurboAssembler::FloatMinOutOfLine(DwVfpRegister result, DwVfpRegister left,
 }
 
 static const int kRegisterPassedArguments = 4;
+// The hardfloat calling convention passes double arguments in registers d0-d7.
+static const int kDoubleRegisterPassedArguments = 8;
 
 int TurboAssembler::CalculateStackPassedWords(int num_reg_arguments,
                                               int num_double_arguments) {
   int stack_passed_words = 0;
   if (use_eabi_hardfloat()) {
-    // In the hard floating point calling convention, we can use all double
+    // In the hard floating point calling convention, we can use the first 8
     // registers to pass doubles.
-    if (num_double_arguments > DoubleRegister::SupportedRegisterCount()) {
+    if (num_double_arguments > kDoubleRegisterPassedArguments) {
       stack_passed_words +=
-          2 * (num_double_arguments - DoubleRegister::SupportedRegisterCount());
+          2 * (num_double_arguments - kDoubleRegisterPassedArguments);
     }
   } else {
     // In the soft floating point calling convention, every double
