@@ -238,6 +238,8 @@ expected[largeLength + 2] = "X";
 var numElementsToCheck = 10;
 
 // Checking entire massive array is too slow, so check:
+// - the length,
+assertEquals(expected.length, r3.length);
 var slicesToCheck = [
   // - the first few elements,
   {start: 0, end: initialLen},
