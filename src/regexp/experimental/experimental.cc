@@ -98,6 +98,7 @@ base::Optional<CompilationResult> CompileImpl(Isolate* isolate,
 }  // namespace
 
 bool ExperimentalRegExp::Compile(Isolate* isolate, Handle<JSRegExp> re) {
+  DCHECK(FLAG_enable_experimental_regexp_engine);
   DCHECK_EQ(re->TypeTag(), JSRegExp::EXPERIMENTAL);
 #ifdef VERIFY_HEAP
   re->JSRegExpVerify(isolate);

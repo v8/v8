@@ -1642,8 +1642,12 @@ MaybeHandle<JSRegExp> ValueDeserializer::ReadJSRegExp() {
   }
 
   // Ensure the deserialized flags are valid.
-  uint32_t flags_mask = static_cast<uint32_t>(-1) << JSRegExp::kFlagCount;
-  if ((raw_flags & flags_mask) ||
+  uint32_t bad_flags_mask = static_cast<uint32_t>(-1) << JSRegExp::kFlagCount;
+  // kLinear is accepted only with the appropriate flag.
+  if (!FLAG_enable_experimental_regexp_engine) {
+    bad_flags_mask |= JSRegExp::kLinear;
+  }
+  if ((raw_flags & bad_flags_mask) ||
       !JSRegExp::New(isolate_, pattern, static_cast<JSRegExp::Flags>(raw_flags))
            .ToHandle(&regexp)) {
     return MaybeHandle<JSRegExp>();

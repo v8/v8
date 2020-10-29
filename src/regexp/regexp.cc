@@ -17,6 +17,7 @@
 #include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-macro-assembler-tracer.h"
 #include "src/regexp/regexp-parser.h"
+#include "src/regexp/regexp-utils.h"
 #include "src/strings/string-search.h"
 #include "src/utils/ostreams.h"
 
@@ -119,6 +120,10 @@ void RegExp::ThrowRegExpException(Isolate* isolate, Handle<JSRegExp> re,
                            error_text));
 }
 
+bool RegExp::IsUnmodifiedRegExp(Isolate* isolate, Handle<JSRegExp> regexp) {
+  return RegExpUtils::IsUnmodifiedRegExp(isolate, regexp);
+}
+
 // Identifies the sort of regexps where the regexp engine is faster
 // than the code used for atom matches.
 static bool HasFewDifferentCharacters(Handle<String> pattern) {
@@ -182,9 +187,22 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
 
   bool has_been_compiled = false;
 
-  if (FLAG_enable_experimental_regexp_engine &&
+  if (FLAG_default_to_experimental_regexp_engine &&
       ExperimentalRegExp::CanBeHandled(parse_result.tree, flags,
                                        parse_result.capture_count)) {
+    DCHECK(FLAG_enable_experimental_regexp_engine);
+    ExperimentalRegExp::Initialize(isolate, re, pattern, flags,
+                                   parse_result.capture_count);
+    has_been_compiled = true;
+  } else if (flags & JSRegExp::kLinear) {
+    DCHECK(FLAG_enable_experimental_regexp_engine);
+    if (!ExperimentalRegExp::CanBeHandled(parse_result.tree, flags,
+                                          parse_result.capture_count)) {
+      // TODO(mbid): The error could provide a reason for why the regexp can't
+      // be executed in linear time (e.g. due to back references).
+      return RegExp::ThrowRegExpException(isolate, re, pattern,
+                                          RegExpError::kNotLinear);
+    }
     ExperimentalRegExp::Initialize(isolate, re, pattern, flags,
                                    parse_result.capture_count);
     has_been_compiled = true;

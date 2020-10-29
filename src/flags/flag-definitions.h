@@ -1491,7 +1491,11 @@ DEFINE_BOOL(trace_regexp_parser, false, "trace regexp parsing")
 DEFINE_BOOL(trace_regexp_tier_up, false, "trace regexp tiering up execution")
 
 DEFINE_BOOL(enable_experimental_regexp_engine, false,
-            "enable experimental linear time regexp engine")
+            "recognize regexps with 'l' flag, run them on experimental engine")
+DEFINE_BOOL(default_to_experimental_regexp_engine, false,
+            "run regexps with the experimental engine where possible")
+DEFINE_IMPLICATION(default_to_experimental_regexp_engine,
+                   enable_experimental_regexp_engine)
 DEFINE_BOOL(trace_experimental_regexp_engine, false,
             "trace execution of experimental regexp engine")
 

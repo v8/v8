@@ -929,6 +929,7 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
 
     CASE_FOR_FLAG(JSRegExp::kGlobal);
     CASE_FOR_FLAG(JSRegExp::kIgnoreCase);
+    CASE_FOR_FLAG(JSRegExp::kLinear);
     CASE_FOR_FLAG(JSRegExp::kMultiline);
     CASE_FOR_FLAG(JSRegExp::kDotAll);
     CASE_FOR_FLAG(JSRegExp::kUnicode);
@@ -956,6 +957,7 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
 
     CASE_FOR_FLAG("global", JSRegExp::kGlobal);
     CASE_FOR_FLAG("ignoreCase", JSRegExp::kIgnoreCase);
+    CASE_FOR_FLAG("linear", JSRegExp::kLinear);
     CASE_FOR_FLAG("multiline", JSRegExp::kMultiline);
     CASE_FOR_FLAG("dotAll", JSRegExp::kDotAll);
     CASE_FOR_FLAG("unicode", JSRegExp::kUnicode);
@@ -986,6 +988,7 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
 
     CASE_FOR_FLAG(JSRegExp::kGlobal, 'g');
     CASE_FOR_FLAG(JSRegExp::kIgnoreCase, 'i');
+    CASE_FOR_FLAG(JSRegExp::kLinear, 'l');
     CASE_FOR_FLAG(JSRegExp::kMultiline, 'm');
     CASE_FOR_FLAG(JSRegExp::kDotAll, 's');
     CASE_FOR_FLAG(JSRegExp::kUnicode, 'u');
@@ -1206,6 +1209,8 @@ TNode<BoolT> RegExpBuiltinsAssembler::SlowFlagGetter(TNode<Context> context,
 
   Handle<String> name;
   switch (flag) {
+    case JSRegExp::kNone:
+      UNREACHABLE();
     case JSRegExp::kGlobal:
       name = isolate()->factory()->global_string();
       break;
@@ -1224,8 +1229,9 @@ TNode<BoolT> RegExpBuiltinsAssembler::SlowFlagGetter(TNode<Context> context,
     case JSRegExp::kUnicode:
       name = isolate()->factory()->unicode_string();
       break;
-    default:
-      UNREACHABLE();
+    case JSRegExp::kLinear:
+      name = isolate()->factory()->linear_string();
+      break;
   }
 
   TNode<Object> value = GetProperty(context, regexp, name);

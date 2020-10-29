@@ -226,6 +226,7 @@
   V(_, length_string, "length")                                      \
   V(_, let_string, "let")                                            \
   V(_, line_string, "line")                                          \
+  V(_, linear_string, "linear")                                      \
   V(_, LinkError_string, "LinkError")                                \
   V(_, long_string, "long")                                          \
   V(_, Map_string, "Map")                                            \

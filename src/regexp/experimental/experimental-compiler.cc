@@ -35,7 +35,7 @@ class CanBeHandledVisitor final : private RegExpVisitor {
     // future.
     static constexpr JSRegExp::Flags kAllowedFlags =
         JSRegExp::kGlobal | JSRegExp::kSticky | JSRegExp::kMultiline |
-        JSRegExp::kDotAll;
+        JSRegExp::kDotAll | JSRegExp::kLinear;
     // We support Unicode iff kUnicode is among the supported flags.
     STATIC_ASSERT(ExperimentalRegExp::kSupportsUnicode ==
                   ((kAllowedFlags & JSRegExp::kUnicode) != 0));

@@ -138,6 +138,8 @@ class RegExp final : public AllStatic {
                                                   RegExpError error);
   static void ThrowRegExpException(Isolate* isolate, Handle<JSRegExp> re,
                                    RegExpError error_text);
+
+  static bool IsUnmodifiedRegExp(Isolate* isolate, Handle<JSRegExp> regexp);
 };
 
 // Uses a special global mode of irregexp-generated code to perform a global

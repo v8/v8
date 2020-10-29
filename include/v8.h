@@ -5983,6 +5983,10 @@ class V8_EXPORT RegExp : public Object {
   /**
    * Regular expression flag bits. They can be or'ed to enable a set
    * of flags.
+   * The kLinear value ('l') is experimental and can only be used with
+   * --enable-experimental-regexp-engine.  RegExps with kLinear flag are
+   *  guaranteed to be executed in asymptotic linear time wrt. the length of
+   *  the subject string.
    */
   enum Flags {
     kNone = 0,
@@ -5992,9 +5996,10 @@ class V8_EXPORT RegExp : public Object {
     kSticky = 1 << 3,
     kUnicode = 1 << 4,
     kDotAll = 1 << 5,
+    kLinear = 1 << 6,
   };
 
-  static constexpr int kFlagCount = 6;
+  static constexpr int kFlagCount = 7;
 
   /**
    * Creates a regular expression from the given pattern string and
