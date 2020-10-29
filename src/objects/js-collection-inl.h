@@ -49,7 +49,9 @@ CAST_ACCESSOR(JSMapIterator)
 Object JSMapIterator::CurrentValue() {
   OrderedHashMap table = OrderedHashMap::cast(this->table());
   int index = Smi::ToInt(this->index());
-  Object value = table.ValueAt(index);
+  DCHECK_GE(index, 0);
+  InternalIndex entry(index);
+  Object value = table.ValueAt(entry);
   DCHECK(!value.IsTheHole());
   return value;
 }

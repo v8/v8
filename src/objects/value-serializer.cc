@@ -792,13 +792,12 @@ Maybe<bool> ValueSerializer::WriteJSMap(Handle<JSMap> map) {
   {
     DisallowHeapAllocation no_gc;
     Oddball the_hole = ReadOnlyRoots(isolate_).the_hole_value();
-    int capacity = table->UsedCapacity();
     int result_index = 0;
-    for (int i = 0; i < capacity; i++) {
-      Object key = table->KeyAt(i);
+    for (InternalIndex entry : table->IterateEntries()) {
+      Object key = table->KeyAt(entry);
       if (key == the_hole) continue;
       entries->set(result_index++, key);
-      entries->set(result_index++, table->ValueAt(i));
+      entries->set(result_index++, table->ValueAt(entry));
     }
     DCHECK_EQ(result_index, length);
   }
@@ -823,10 +822,9 @@ Maybe<bool> ValueSerializer::WriteJSSet(Handle<JSSet> set) {
   {
     DisallowHeapAllocation no_gc;
     Oddball the_hole = ReadOnlyRoots(isolate_).the_hole_value();
-    int capacity = table->UsedCapacity();
     int result_index = 0;
-    for (int i = 0; i < capacity; i++) {
-      Object key = table->KeyAt(i);
+    for (InternalIndex entry : table->IterateEntries()) {
+      Object key = table->KeyAt(entry);
       if (key == the_hole) continue;
       entries->set(result_index++, key);
     }

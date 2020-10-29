@@ -97,38 +97,34 @@ Handle<Map> SmallOrderedHashSet::GetMap(ReadOnlyRoots roots) {
   return roots.small_ordered_hash_set_map_handle();
 }
 
-inline Object OrderedHashMap::ValueAt(int entry) {
-  DCHECK_NE(entry, kNotFound);
-  DCHECK_LT(entry, UsedCapacity());
+inline Object OrderedHashMap::ValueAt(InternalIndex entry) {
+  DCHECK_LT(entry.as_int(), UsedCapacity());
   return get(EntryToIndex(entry) + kValueOffset);
 }
 
-inline Object OrderedNameDictionary::ValueAt(int entry) {
-  DCHECK_NE(entry, kNotFound);
-  DCHECK_LT(entry, UsedCapacity());
+inline Object OrderedNameDictionary::ValueAt(InternalIndex entry) {
+  DCHECK_LT(entry.as_int(), UsedCapacity());
   return get(EntryToIndex(entry) + kValueOffset);
 }
 
 // Set the value for entry.
-inline void OrderedNameDictionary::ValueAtPut(int entry, Object value) {
-  DCHECK_NE(entry, kNotFound);
-  DCHECK_LT(entry, UsedCapacity());
+inline void OrderedNameDictionary::ValueAtPut(InternalIndex entry,
+                                              Object value) {
+  DCHECK_LT(entry.as_int(), UsedCapacity());
   this->set(EntryToIndex(entry) + kValueOffset, value);
 }
 
 // Returns the property details for the property at entry.
-inline PropertyDetails OrderedNameDictionary::DetailsAt(int entry) {
-  DCHECK_NE(entry, kNotFound);
-  DCHECK_LT(entry, this->UsedCapacity());
+inline PropertyDetails OrderedNameDictionary::DetailsAt(InternalIndex entry) {
+  DCHECK_LT(entry.as_int(), this->UsedCapacity());
   // TODO(gsathya): Optimize the cast away.
   return PropertyDetails(
       Smi::cast(get(EntryToIndex(entry) + kPropertyDetailsOffset)));
 }
 
-inline void OrderedNameDictionary::DetailsAtPut(int entry,
+inline void OrderedNameDictionary::DetailsAtPut(InternalIndex entry,
                                                 PropertyDetails value) {
-  DCHECK_NE(entry, kNotFound);
-  DCHECK_LT(entry, this->UsedCapacity());
+  DCHECK_LT(entry.as_int(), this->UsedCapacity());
   // TODO(gsathya): Optimize the cast away.
   this->set(EntryToIndex(entry) + kPropertyDetailsOffset, value.AsSmi());
 }
@@ -193,7 +189,9 @@ template <class Derived, class TableType>
 Object OrderedHashTableIterator<Derived, TableType>::CurrentKey() {
   TableType table = TableType::cast(this->table());
   int index = Smi::ToInt(this->index());
-  Object key = table.KeyAt(index);
+  DCHECK_LE(0, index);
+  InternalIndex entry(index);
+  Object key = table.KeyAt(entry);
   DCHECK(!key.IsTheHole());
   return key;
 }

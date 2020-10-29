@@ -6,6 +6,7 @@
 
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
+#include "src/objects/internal-index.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
@@ -124,41 +125,41 @@ bool OrderedHashTable<Derived, entrysize>::HasKey(Isolate* isolate,
   DCHECK_IMPLIES(entrysize == 1, table.IsOrderedHashSet());
   DCHECK_IMPLIES(entrysize == 2, table.IsOrderedHashMap());
   DisallowHeapAllocation no_gc;
-  int entry = table.FindEntry(isolate, key);
-  return entry != kNotFound;
+  InternalIndex entry = table.FindEntry(isolate, key);
+  return entry.is_found();
 }
 
 template <class Derived, int entrysize>
-int OrderedHashTable<Derived, entrysize>::FindEntry(Isolate* isolate,
-                                                    Object key) {
+InternalIndex OrderedHashTable<Derived, entrysize>::FindEntry(Isolate* isolate,
+                                                              Object key) {
   if (NumberOfElements() == 0) {
     // This is not just an optimization but also ensures that we do the right
     // thing if Capacity() == 0
-    return kNotFound;
+    return InternalIndex::NotFound();
   }
 
-  int entry;
+  int raw_entry;
   // This special cases for Smi, so that we avoid the HandleScope
   // creation below.
   if (key.IsSmi()) {
     uint32_t hash = ComputeUnseededHash(Smi::ToInt(key));
-    entry = HashToEntry(hash & Smi::kMaxValue);
+    raw_entry = HashToEntryRaw(hash & Smi::kMaxValue);
   } else {
     HandleScope scope(isolate);
     Object hash = key.GetHash();
     // If the object does not have an identity hash, it was never used as a key
-    if (hash.IsUndefined(isolate)) return kNotFound;
-    entry = HashToEntry(Smi::ToInt(hash));
+    if (hash.IsUndefined(isolate)) return InternalIndex::NotFound();
+    raw_entry = HashToEntryRaw(Smi::ToInt(hash));
   }
 
   // Walk the chain in the bucket to find the key.
-  while (entry != kNotFound) {
-    Object candidate_key = KeyAt(entry);
-    if (candidate_key.SameValueZero(key)) break;
-    entry = NextChainEntry(entry);
+  while (raw_entry != kNotFound) {
+    Object candidate_key = KeyAt(InternalIndex(raw_entry));
+    if (candidate_key.SameValueZero(key)) return InternalIndex(raw_entry);
+    raw_entry = NextChainEntryRaw(raw_entry);
   }
 
-  return entry;
+  return InternalIndex::NotFound();
 }
 
 MaybeHandle<OrderedHashSet> OrderedHashSet::Add(Isolate* isolate,
@@ -166,13 +167,13 @@ MaybeHandle<OrderedHashSet> OrderedHashSet::Add(Isolate* isolate,
                                                 Handle<Object> key) {
   int hash = key->GetOrCreateHash(isolate).value();
   if (table->NumberOfElements() > 0) {
-    int entry = table->HashToEntry(hash);
+    int raw_entry = table->HashToEntryRaw(hash);
     // Walk the chain of the bucket and try finding the key.
-    while (entry != kNotFound) {
-      Object candidate_key = table->KeyAt(entry);
+    while (raw_entry != kNotFound) {
+      Object candidate_key = table->KeyAt(InternalIndex(raw_entry));
       // Do not add if we have the key already
       if (candidate_key.SameValueZero(*key)) return table;
-      entry = table->NextChainEntry(entry);
+      raw_entry = table->NextChainEntryRaw(raw_entry);
     }
   }
 
@@ -183,11 +184,11 @@ MaybeHandle<OrderedHashSet> OrderedHashSet::Add(Isolate* isolate,
   }
   // Read the existing bucket values.
   int bucket = table->HashToBucket(hash);
-  int previous_entry = table->HashToEntry(hash);
+  int previous_entry = table->HashToEntryRaw(hash);
   int nof = table->NumberOfElements();
   // Insert a new entry at the end,
   int new_entry = nof + table->NumberOfDeletedElements();
-  int new_index = table->EntryToIndex(new_entry);
+  int new_index = table->EntryToIndexRaw(new_entry);
   table->set(new_index, *key);
   table->set(new_index + kChainOffset, Smi::FromInt(previous_entry));
   // and point the bucket to the new entry.
@@ -254,17 +255,17 @@ MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
   if (!new_table_candidate.ToHandle(&new_table)) {
     return new_table_candidate;
   }
-  int nof = table->NumberOfElements();
-  int nod = table->NumberOfDeletedElements();
   int new_buckets = new_table->NumberOfBuckets();
   int new_entry = 0;
   int removed_holes_index = 0;
 
   DisallowHeapAllocation no_gc;
-  for (int old_entry = 0; old_entry < (nof + nod); ++old_entry) {
+
+  for (InternalIndex old_entry : table->IterateEntries()) {
+    int old_entry_raw = old_entry.as_int();
     Object key = table->KeyAt(old_entry);
     if (key.IsTheHole(isolate)) {
-      table->SetRemovedIndexAt(removed_holes_index++, old_entry);
+      table->SetRemovedIndexAt(removed_holes_index++, old_entry_raw);
       continue;
     }
 
@@ -272,8 +273,8 @@ MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
     int bucket = Smi::ToInt(hash) & (new_buckets - 1);
     Object chain_entry = new_table->get(HashTableStartIndex() + bucket);
     new_table->set(HashTableStartIndex() + bucket, Smi::FromInt(new_entry));
-    int new_index = new_table->EntryToIndex(new_entry);
-    int old_index = table->EntryToIndex(old_entry);
+    int new_index = new_table->EntryToIndexRaw(new_entry);
+    int old_index = table->EntryToIndexRaw(old_entry_raw);
     for (int i = 0; i < entrysize; ++i) {
       Object value = table->get(old_index + i);
       new_table->set(new_index + i, value);
@@ -282,9 +283,9 @@ MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
     ++new_entry;
   }
 
-  DCHECK_EQ(nod, removed_holes_index);
+  DCHECK_EQ(table->NumberOfDeletedElements(), removed_holes_index);
 
-  new_table->SetNumberOfElements(nof);
+  new_table->SetNumberOfElements(table->NumberOfElements());
   if (table->NumberOfBuckets() > 0) {
     // Don't try to modify the empty canonical table which lives in RO space.
     table->SetNextTable(*new_table);
@@ -330,8 +331,8 @@ template <class Derived, int entrysize>
 bool OrderedHashTable<Derived, entrysize>::Delete(Isolate* isolate,
                                                   Derived table, Object key) {
   DisallowHeapAllocation no_gc;
-  int entry = table.FindEntry(isolate, key);
-  if (entry == kNotFound) return false;
+  InternalIndex entry = table.FindEntry(isolate, key);
+  if (entry.is_not_found()) return false;
 
   int nof = table.NumberOfElements();
   int nod = table.NumberOfDeletedElements();
@@ -365,16 +366,16 @@ MaybeHandle<OrderedHashMap> OrderedHashMap::Add(Isolate* isolate,
                                                 Handle<Object> value) {
   int hash = key->GetOrCreateHash(isolate).value();
   if (table->NumberOfElements() > 0) {
-    int entry = table->HashToEntry(hash);
+    int raw_entry = table->HashToEntryRaw(hash);
     // Walk the chain of the bucket and try finding the key.
     {
       DisallowHeapAllocation no_gc;
       Object raw_key = *key;
-      while (entry != kNotFound) {
-        Object candidate_key = table->KeyAt(entry);
+      while (raw_entry != kNotFound) {
+        Object candidate_key = table->KeyAt(InternalIndex(raw_entry));
         // Do not add if we have the key already
         if (candidate_key.SameValueZero(raw_key)) return table;
-        entry = table->NextChainEntry(entry);
+        raw_entry = table->NextChainEntryRaw(raw_entry);
       }
     }
   }
@@ -386,11 +387,11 @@ MaybeHandle<OrderedHashMap> OrderedHashMap::Add(Isolate* isolate,
   }
   // Read the existing bucket values.
   int bucket = table->HashToBucket(hash);
-  int previous_entry = table->HashToEntry(hash);
+  int previous_entry = table->HashToEntryRaw(hash);
   int nof = table->NumberOfElements();
   // Insert a new entry at the end,
   int new_entry = nof + table->NumberOfDeletedElements();
-  int new_index = table->EntryToIndex(new_entry);
+  int new_index = table->EntryToIndexRaw(new_entry);
   table->set(new_index, *key);
   table->set(new_index + kValueOffset, *value);
   table->set(new_index + kChainOffset, Smi::FromInt(previous_entry));
@@ -400,7 +401,7 @@ MaybeHandle<OrderedHashMap> OrderedHashMap::Add(Isolate* isolate,
   return table;
 }
 
-int OrderedNameDictionary::FindEntry(Isolate* isolate, Object key) {
+InternalIndex OrderedNameDictionary::FindEntry(Isolate* isolate, Object key) {
   DisallowHeapAllocation no_gc;
 
   DCHECK(key.IsUniqueName());
@@ -409,11 +410,12 @@ int OrderedNameDictionary::FindEntry(Isolate* isolate, Object key) {
   if (NumberOfElements() == 0) {
     // This is not just an optimization but also ensures that we do the right
     // thing if Capacity() == 0
-    return kNotFound;
+    return InternalIndex::NotFound();
   }
 
-  int entry = HashToEntry(raw_key.Hash());
-  while (entry != kNotFound) {
+  int raw_entry = HashToEntryRaw(raw_key.Hash());
+  while (raw_entry != kNotFound) {
+    InternalIndex entry(raw_entry);
     Object candidate_key = KeyAt(entry);
     DCHECK(candidate_key.IsTheHole() ||
            Name::cast(candidate_key).IsUniqueName());
@@ -422,16 +424,16 @@ int OrderedNameDictionary::FindEntry(Isolate* isolate, Object key) {
     // TODO(gsathya): This is loading the bucket count from the hash
     // table for every iteration. This should be peeled out of the
     // loop.
-    entry = NextChainEntry(entry);
+    raw_entry = NextChainEntryRaw(raw_entry);
   }
 
-  return kNotFound;
+  return InternalIndex::NotFound();
 }
 
 MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::Add(
     Isolate* isolate, Handle<OrderedNameDictionary> table, Handle<Name> key,
     Handle<Object> value, PropertyDetails details) {
-  DCHECK_EQ(kNotFound, table->FindEntry(isolate, *key));
+  DCHECK(table->FindEntry(isolate, *key).is_not_found());
 
   MaybeHandle<OrderedNameDictionary> table_candidate =
       OrderedNameDictionary::EnsureGrowable(isolate, table);
@@ -441,11 +443,11 @@ MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::Add(
   // Read the existing bucket values.
   int hash = key->Hash();
   int bucket = table->HashToBucket(hash);
-  int previous_entry = table->HashToEntry(hash);
+  int previous_entry = table->HashToEntryRaw(hash);
   int nof = table->NumberOfElements();
   // Insert a new entry at the end,
   int new_entry = nof + table->NumberOfDeletedElements();
-  int new_index = table->EntryToIndex(new_entry);
+  int new_index = table->EntryToIndexRaw(new_entry);
   table->set(new_index, *key);
   table->set(new_index + kValueOffset, *value);
 
@@ -461,8 +463,8 @@ MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::Add(
   return table;
 }
 
-void OrderedNameDictionary::SetEntry(int entry, Object key, Object value,
-                                     PropertyDetails details) {
+void OrderedNameDictionary::SetEntry(InternalIndex entry, Object key,
+                                     Object value, PropertyDetails details) {
   DisallowHeapAllocation gc;
   DCHECK_IMPLIES(!key.IsName(), key.IsTheHole());
   DisallowHeapAllocation no_gc;
@@ -477,8 +479,9 @@ void OrderedNameDictionary::SetEntry(int entry, Object key, Object value,
 }
 
 Handle<OrderedNameDictionary> OrderedNameDictionary::DeleteEntry(
-    Isolate* isolate, Handle<OrderedNameDictionary> table, int entry) {
-  DCHECK_NE(entry, kNotFound);
+    Isolate* isolate, Handle<OrderedNameDictionary> table,
+    InternalIndex entry) {
+  DCHECK(entry.is_found());
 
   Object hole = ReadOnlyRoots(isolate).the_hole_value();
   PropertyDetails details = PropertyDetails::Empty();
@@ -556,8 +559,8 @@ template V8_EXPORT_PRIVATE bool OrderedHashTable<OrderedHashSet, 1>::HasKey(
 template V8_EXPORT_PRIVATE bool OrderedHashTable<OrderedHashSet, 1>::Delete(
     Isolate* isolate, OrderedHashSet table, Object key);
 
-template V8_EXPORT_PRIVATE int OrderedHashTable<OrderedHashSet, 1>::FindEntry(
-    Isolate* isolate, Object key);
+template V8_EXPORT_PRIVATE InternalIndex
+OrderedHashTable<OrderedHashSet, 1>::FindEntry(Isolate* isolate, Object key);
 
 template V8_EXPORT_PRIVATE MaybeHandle<OrderedHashMap>
 OrderedHashTable<OrderedHashMap, 2>::EnsureGrowable(
@@ -577,8 +580,8 @@ template V8_EXPORT_PRIVATE bool OrderedHashTable<OrderedHashMap, 2>::HasKey(
 template V8_EXPORT_PRIVATE bool OrderedHashTable<OrderedHashMap, 2>::Delete(
     Isolate* isolate, OrderedHashMap table, Object key);
 
-template V8_EXPORT_PRIVATE int OrderedHashTable<OrderedHashMap, 2>::FindEntry(
-    Isolate* isolate, Object key);
+template V8_EXPORT_PRIVATE InternalIndex
+OrderedHashTable<OrderedHashMap, 2>::FindEntry(Isolate* isolate, Object key);
 
 template V8_EXPORT_PRIVATE Handle<OrderedNameDictionary>
 OrderedHashTable<OrderedNameDictionary, 3>::Shrink(
@@ -1254,8 +1257,8 @@ void OrderedNameDictionaryHandler::SetEntry(HeapObject table, int entry,
   }
 
   DCHECK(table.IsOrderedNameDictionary());
-  return OrderedNameDictionary::cast(table).SetEntry(entry, key, value,
-                                                     details);
+  return OrderedNameDictionary::cast(table).SetEntry(InternalIndex(entry), key,
+                                                     value, details);
 }
 
 int OrderedNameDictionaryHandler::FindEntry(Isolate* isolate, HeapObject table,
@@ -1269,10 +1272,10 @@ int OrderedNameDictionaryHandler::FindEntry(Isolate* isolate, HeapObject table,
   }
 
   DCHECK(table.IsOrderedNameDictionary());
-  int entry = OrderedNameDictionary::cast(table).FindEntry(isolate, key);
-  return entry == OrderedNameDictionary::kNotFound
-             ? OrderedNameDictionaryHandler::kNotFound
-             : entry;
+  InternalIndex entry =
+      OrderedNameDictionary::cast(table).FindEntry(isolate, key);
+  return entry.is_not_found() ? OrderedNameDictionaryHandler::kNotFound
+                              : entry.as_int();
 }
 
 Object OrderedNameDictionaryHandler::ValueAt(HeapObject table, int entry) {
@@ -1281,7 +1284,7 @@ Object OrderedNameDictionaryHandler::ValueAt(HeapObject table, int entry) {
   }
 
   DCHECK(table.IsOrderedNameDictionary());
-  return OrderedNameDictionary::cast(table).ValueAt(entry);
+  return OrderedNameDictionary::cast(table).ValueAt(InternalIndex(entry));
 }
 
 void OrderedNameDictionaryHandler::ValueAtPut(HeapObject table, int entry,
@@ -1291,7 +1294,7 @@ void OrderedNameDictionaryHandler::ValueAtPut(HeapObject table, int entry,
   }
 
   DCHECK(table.IsOrderedNameDictionary());
-  OrderedNameDictionary::cast(table).ValueAtPut(entry, value);
+  OrderedNameDictionary::cast(table).ValueAtPut(InternalIndex(entry), value);
 }
 
 PropertyDetails OrderedNameDictionaryHandler::DetailsAt(HeapObject table,
@@ -1301,7 +1304,7 @@ PropertyDetails OrderedNameDictionaryHandler::DetailsAt(HeapObject table,
   }
 
   DCHECK(table.IsOrderedNameDictionary());
-  return OrderedNameDictionary::cast(table).DetailsAt(entry);
+  return OrderedNameDictionary::cast(table).DetailsAt(InternalIndex(entry));
 }
 
 void OrderedNameDictionaryHandler::DetailsAtPut(HeapObject table, int entry,
@@ -1311,7 +1314,8 @@ void OrderedNameDictionaryHandler::DetailsAtPut(HeapObject table, int entry,
   }
 
   DCHECK(table.IsOrderedNameDictionary());
-  OrderedNameDictionary::cast(table).DetailsAtPut(entry, details);
+  OrderedNameDictionary::cast(table).DetailsAtPut(InternalIndex(entry),
+                                                  details);
 }
 
 int OrderedNameDictionaryHandler::Hash(HeapObject table) {
@@ -1337,7 +1341,8 @@ Name OrderedNameDictionaryHandler::KeyAt(HeapObject table, int entry) {
     return Name::cast(SmallOrderedNameDictionary::cast(table).KeyAt(entry));
   }
 
-  return Name::cast(OrderedNameDictionary::cast(table).KeyAt(entry));
+  return Name::cast(
+      OrderedNameDictionary::cast(table).KeyAt(InternalIndex(entry)));
 }
 
 int OrderedNameDictionaryHandler::NumberOfElements(HeapObject table) {
@@ -1380,7 +1385,8 @@ Handle<HeapObject> OrderedNameDictionaryHandler::DeleteEntry(
 
   Handle<OrderedNameDictionary> large_dict =
       Handle<OrderedNameDictionary>::cast(table);
-  return OrderedNameDictionary::DeleteEntry(isolate, large_dict, entry);
+  return OrderedNameDictionary::DeleteEntry(isolate, large_dict,
+                                            InternalIndex(entry));
 }
 
 template <class Derived, class TableType>
@@ -1390,6 +1396,7 @@ void OrderedHashTableIterator<Derived, TableType>::Transition() {
   if (!table.IsObsolete()) return;
 
   int index = Smi::ToInt(this->index());
+  DCHECK_LE(0, index);
   while (table.IsObsolete()) {
     TableType next_table = table.NextTable();
 
@@ -1426,7 +1433,8 @@ bool OrderedHashTableIterator<Derived, TableType>::HasMore() {
   int index = Smi::ToInt(this->index());
   int used_capacity = table.UsedCapacity();
 
-  while (index < used_capacity && table.KeyAt(index).IsTheHole(ro_roots)) {
+  while (index < used_capacity &&
+         table.KeyAt(InternalIndex(index)).IsTheHole(ro_roots)) {
     index++;
   }
 

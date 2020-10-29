@@ -7011,10 +7011,11 @@ i::Handle<i::JSArray> MapAsArray(i::Isolate* isolate, i::Object table_obj,
     i::DisallowHeapAllocation no_gc;
     i::Oddball the_hole = i::ReadOnlyRoots(isolate).the_hole_value();
     for (int i = offset; i < capacity; ++i) {
-      i::Object key = table->KeyAt(i);
+      i::InternalIndex entry(i);
+      i::Object key = table->KeyAt(entry);
       if (key == the_hole) continue;
       if (collect_keys) result->set(result_index++, key);
-      if (collect_values) result->set(result_index++, table->ValueAt(i));
+      if (collect_values) result->set(result_index++, table->ValueAt(entry));
     }
   }
   DCHECK_GE(max_length, result_index);
@@ -7114,7 +7115,8 @@ i::Handle<i::JSArray> SetAsArray(i::Isolate* isolate, i::Object table_obj,
     i::DisallowHeapAllocation no_gc;
     i::Oddball the_hole = i::ReadOnlyRoots(isolate).the_hole_value();
     for (int i = offset; i < capacity; ++i) {
-      i::Object key = table->KeyAt(i);
+      i::InternalIndex entry(i);
+      i::Object key = table->KeyAt(entry);
       if (key == the_hole) continue;
       result->set(result_index++, key);
       if (collect_key_values) result->set(result_index++, key);
