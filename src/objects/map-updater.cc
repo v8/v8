@@ -233,10 +233,7 @@ MapUpdater::State MapUpdater::TryReconfigureToDataFieldInplace() {
         handle(old_descriptors_->GetFieldType(modified_descriptor_), isolate_),
         MaybeHandle<Object>(), new_field_type_, MaybeHandle<Object>());
   }
-  Handle<Map> field_owner(
-      old_map_->FindFieldOwner(isolate_, modified_descriptor_), isolate_);
-
-  GeneralizeField(field_owner, modified_descriptor_, new_constness_,
+  GeneralizeField(old_map_, modified_descriptor_, new_constness_,
                   new_representation_, new_field_type_);
   // Check that the descriptor array was updated.
   DCHECK(old_descriptors_->GetDetails(modified_descriptor_)
@@ -408,11 +405,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
       if (!tmp_representation.CanBeInPlaceChangedTo(generalized)) {
         break;
       }
-      Handle<Map> field_owner(tmp_map->FindFieldOwner(isolate_, i), isolate_);
       tmp_representation = generalized;
-      GeneralizeField(field_owner, i, tmp_details.constness(),
-                      tmp_representation,
-                      handle(tmp_descriptors->GetFieldType(i), isolate_));
     }
 
     if (tmp_details.location() == kField) {
