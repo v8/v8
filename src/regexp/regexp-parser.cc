@@ -1462,17 +1462,12 @@ RegExpTree* RegExpParser::GetPropertySequence(const ZoneVector<char>& name_1) {
   const char* name = name_1.data();
   const uc32* sequence_list = nullptr;
   JSRegExp::Flags flags = JSRegExp::kUnicode;
-  // https://github.com/tc39/proposal-regexp-unicode-sequence-properties#proposed-solution
-  if (NameEquals(name, "Basic_Emoji")) {
-    sequence_list = UnicodePropertySequences::kBasicEmojis;
-  } else if (NameEquals(name, "RGI_Emoji_Modifier_Sequence")) {
-    sequence_list = UnicodePropertySequences::kRGIEmojiModifierSequences;
-  } else if (NameEquals(name, "RGI_Emoji_Tag_Sequence")) {
-    sequence_list = UnicodePropertySequences::kRGIEmojiTagSequences;
-  } else if (NameEquals(name, "RGI_Emoji_ZWJ_Sequence")) {
-    sequence_list = UnicodePropertySequences::kRGIEmojiZWJSequences;
-  } else if (NameEquals(name, "RGI_Emoji")) {
-    sequence_list = UnicodePropertySequences::kRGIEmojis;
+  if (NameEquals(name, "Emoji_Flag_Sequence")) {
+    sequence_list = UnicodePropertySequences::kEmojiFlagSequences;
+  } else if (NameEquals(name, "Emoji_Tag_Sequence")) {
+    sequence_list = UnicodePropertySequences::kEmojiTagSequences;
+  } else if (NameEquals(name, "Emoji_ZWJ_Sequence")) {
+    sequence_list = UnicodePropertySequences::kEmojiZWJSequences;
   }
   if (sequence_list != nullptr) {
     // TODO(yangguo): this creates huge regexp code. Alternative to this is
@@ -1489,6 +1484,40 @@ RegExpTree* RegExpParser::GetPropertySequence(const ZoneVector<char>& name_1) {
     }
     return builder.ToRegExp();
   }
+
+  if (NameEquals(name, "Emoji_Keycap_Sequence")) {
+    // https://unicode.org/reports/tr51/#def_emoji_keycap_sequence
+    // emoji_keycap_sequence := [0-9#*] \x{FE0F 20E3}
+    RegExpBuilder builder(zone(), flags);
+    ZoneList<CharacterRange>* prefix_ranges =
+        zone()->New<ZoneList<CharacterRange>>(2, zone());
+    prefix_ranges->Add(CharacterRange::Range('0', '9'), zone());
+    prefix_ranges->Add(CharacterRange::Singleton('#'), zone());
+    prefix_ranges->Add(CharacterRange::Singleton('*'), zone());
+    builder.AddCharacterClass(
+        zone()->New<RegExpCharacterClass>(zone(), prefix_ranges, flags));
+    builder.AddCharacter(0xFE0F);
+    builder.AddCharacter(0x20E3);
+    return builder.ToRegExp();
+  } else if (NameEquals(name, "Emoji_Modifier_Sequence")) {
+    // https://unicode.org/reports/tr51/#def_emoji_modifier_sequence
+    // emoji_modifier_sequence := emoji_modifier_base emoji_modifier
+    RegExpBuilder builder(zone(), flags);
+    ZoneList<CharacterRange>* modifier_base_ranges =
+        zone()->New<ZoneList<CharacterRange>>(2, zone());
+    LookupPropertyValueName(UCHAR_EMOJI_MODIFIER_BASE, "Y", false,
+                            modifier_base_ranges, zone());
+    builder.AddCharacterClass(
+        zone()->New<RegExpCharacterClass>(zone(), modifier_base_ranges, flags));
+    ZoneList<CharacterRange>* modifier_ranges =
+        zone()->New<ZoneList<CharacterRange>>(2, zone());
+    LookupPropertyValueName(UCHAR_EMOJI_MODIFIER, "Y", false, modifier_ranges,
+                            zone());
+    builder.AddCharacterClass(
+        zone()->New<RegExpCharacterClass>(zone(), modifier_ranges, flags));
+    return builder.ToRegExp();
+  }
+
   return nullptr;
 }
 

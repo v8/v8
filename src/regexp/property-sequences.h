@@ -14,11 +14,9 @@ namespace internal {
 
 class UnicodePropertySequences : public AllStatic {
  public:
-  static const uc32 kBasicEmojis[];
-  static const uc32 kRGIEmojiModifierSequences[];
-  static const uc32 kRGIEmojiTagSequences[];
-  static const uc32 kRGIEmojiZWJSequences[];
-  static const uc32 kRGIEmojis[];
+  static const uc32 kEmojiFlagSequences[];
+  static const uc32 kEmojiTagSequences[];
+  static const uc32 kEmojiZWJSequences[];
 };
 
 }  // namespace internal
