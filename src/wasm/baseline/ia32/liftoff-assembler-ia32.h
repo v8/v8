@@ -2890,7 +2890,7 @@ void LiftoffAssembler::emit_i16x8_gt_u(LiftoffRegister dst, LiftoffRegister lhs,
     ref = liftoff::kScratchDoubleReg;
   }
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpmaxuw, &Assembler::pmaxuw>(
-      this, dst, lhs, rhs);
+      this, dst, lhs, rhs, SSE4_1);
   Pcmpeqw(dst.fp(), ref);
   Pcmpeqw(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
   Pxor(dst.fp(), liftoff::kScratchDoubleReg);
@@ -2949,7 +2949,7 @@ void LiftoffAssembler::emit_i32x4_gt_u(LiftoffRegister dst, LiftoffRegister lhs,
     ref = liftoff::kScratchDoubleReg;
   }
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpmaxud, &Assembler::pmaxud>(
-      this, dst, lhs, rhs);
+      this, dst, lhs, rhs, SSE4_1);
   Pcmpeqd(dst.fp(), ref);
   Pcmpeqd(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
   Pxor(dst.fp(), liftoff::kScratchDoubleReg);
@@ -3194,7 +3194,8 @@ void LiftoffAssembler::emit_i8x16_shri_u(LiftoffRegister dst,
   Register tmp = GetUnusedRegister(kGpReg, {}).gp();
   // Perform 16-bit shift, then mask away high bits.
   uint8_t shift = rhs & 7;
-  Psrlw(dst.fp(), lhs.fp(), byte{shift});
+  liftoff::EmitSimdShiftOpImm<&Assembler::vpsrlw, &Assembler::psrlw, 3>(
+      this, dst, lhs, rhs);
 
   uint8_t bmask = 0xff >> shift;
   uint32_t mask = bmask << 24 | bmask << 16 | bmask << 8 | bmask;
@@ -3630,7 +3631,15 @@ void LiftoffAssembler::emit_i64x2_shr_s(LiftoffRegister dst,
   Psllq(tmp, tmp, 63);
 
   Psrlq(tmp, tmp, shift);
-  Psrlq(dst.fp(), lhs.fp(), shift);
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpsrlq(dst.fp(), lhs.fp(), shift);
+  } else {
+    if (dst != lhs) {
+      movaps(dst.fp(), lhs.fp());
+    }
+    psrlq(dst.fp(), shift);
+  }
   Pxor(dst.fp(), tmp);
   Psubq(dst.fp(), tmp);
 }
@@ -3645,7 +3654,8 @@ void LiftoffAssembler::emit_i64x2_shri_s(LiftoffRegister dst,
   Psllq(tmp, tmp, 63);
 
   Psrlq(tmp, tmp, shift);
-  Psrlq(dst.fp(), lhs.fp(), shift);
+  liftoff::EmitSimdShiftOpImm<&Assembler::vpsrlq, &Assembler::psrlq, 6>(
+      this, dst, lhs, rhs);
   Pxor(dst.fp(), tmp);
   Psubq(dst.fp(), tmp);
 }
