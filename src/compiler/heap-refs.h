@@ -793,7 +793,6 @@ class ScopeInfoRef : public HeapObjectRef {
   V(bool, HasBuiltinId)                                  \
   V(bool, construct_as_builtin)                          \
   V(bool, HasBytecodeArray)                              \
-  V(SharedFunctionInfo::Inlineability, GetInlineability) \
   V(int, StartPosition)                                  \
   V(bool, is_compiled)                                   \
   V(bool, IsUserJavaScript)
@@ -807,6 +806,7 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   int builtin_id() const;
   int context_header_size() const;
   BytecodeArrayRef GetBytecodeArray() const;
+  SharedFunctionInfo::Inlineability GetInlineability() const;
 
 #define DECL_ACCESSOR(type, name) type name() const;
   BROKER_SFI_FIELDS(DECL_ACCESSOR)

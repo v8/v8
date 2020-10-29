@@ -171,7 +171,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
         debug_bytecode_array = debug_info.DebugBytecodeArray();
         sfi->SetDebugBytecodeArray(debug_info.OriginalBytecodeArray());
       }
-      sfi->set_script_or_debug_info(debug_info.script());
+      sfi->set_script_or_debug_info(debug_info.script(), kReleaseStore);
     }
     DCHECK(!sfi->HasDebugInfo());
 
@@ -179,7 +179,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
 
     // Restore debug info
     if (!debug_info.is_null()) {
-      sfi->set_script_or_debug_info(debug_info);
+      sfi->set_script_or_debug_info(debug_info, kReleaseStore);
       if (!debug_bytecode_array.is_null()) {
         sfi->SetDebugBytecodeArray(debug_bytecode_array);
       }

@@ -378,7 +378,7 @@ class SharedFunctionInfo : public HeapObject {
   // [script_or_debug_info]: One of:
   //  - Script from which the function originates.
   //  - a DebugInfo which holds the actual script [HasDebugInfo()].
-  DECL_ACCESSORS(script_or_debug_info, HeapObject)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(script_or_debug_info, HeapObject)
 
   inline HeapObject script() const;
   inline void set_script(HeapObject script);

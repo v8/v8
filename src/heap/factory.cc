@@ -3054,7 +3054,7 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   debug_info->set_debugger_hints(0);
   DCHECK_EQ(DebugInfo::kNoDebuggingId, debug_info->debugging_id());
   DCHECK(!shared->HasDebugInfo());
-  debug_info->set_script(shared->script_or_debug_info());
+  debug_info->set_script(shared->script_or_debug_info(kAcquireLoad));
   debug_info->set_original_bytecode_array(
       ReadOnlyRoots(heap).undefined_value());
   debug_info->set_debug_bytecode_array(ReadOnlyRoots(heap).undefined_value());

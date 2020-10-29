@@ -103,8 +103,8 @@ RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, function_data, Object,
                           kFunctionDataOffset)
 RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, name_or_scope_info, Object,
                           kNameOrScopeInfoOffset)
-ACCESSORS(SharedFunctionInfo, script_or_debug_info, HeapObject,
-          kScriptOrDebugInfoOffset)
+RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, script_or_debug_info, HeapObject,
+                          kScriptOrDebugInfoOffset)
 
 INT32_ACCESSORS(SharedFunctionInfo, function_literal_id,
                 kFunctionLiteralIdOffset)
@@ -686,7 +686,7 @@ bool SharedFunctionInfo::HasWasmCapiFunctionData() const {
 }
 
 HeapObject SharedFunctionInfo::script() const {
-  HeapObject maybe_script = script_or_debug_info();
+  HeapObject maybe_script = script_or_debug_info(kAcquireLoad);
   if (maybe_script.IsDebugInfo()) {
     return DebugInfo::cast(maybe_script).script();
   }
@@ -694,11 +694,11 @@ HeapObject SharedFunctionInfo::script() const {
 }
 
 void SharedFunctionInfo::set_script(HeapObject script) {
-  HeapObject maybe_debug_info = script_or_debug_info();
+  HeapObject maybe_debug_info = script_or_debug_info(kAcquireLoad);
   if (maybe_debug_info.IsDebugInfo()) {
     DebugInfo::cast(maybe_debug_info).set_script(script);
   } else {
-    set_script_or_debug_info(script);
+    set_script_or_debug_info(script, kReleaseStore);
   }
 }
 
@@ -707,18 +707,19 @@ bool SharedFunctionInfo::is_repl_mode() const {
 }
 
 bool SharedFunctionInfo::HasDebugInfo() const {
-  return script_or_debug_info().IsDebugInfo();
+  return script_or_debug_info(kAcquireLoad).IsDebugInfo();
 }
 
 DebugInfo SharedFunctionInfo::GetDebugInfo() const {
-  DCHECK(HasDebugInfo());
-  return DebugInfo::cast(script_or_debug_info());
+  auto debug_info = script_or_debug_info(kAcquireLoad);
+  DCHECK(debug_info.IsDebugInfo());
+  return DebugInfo::cast(debug_info);
 }
 
 void SharedFunctionInfo::SetDebugInfo(DebugInfo debug_info) {
   DCHECK(!HasDebugInfo());
-  DCHECK_EQ(debug_info.script(), script_or_debug_info());
-  set_script_or_debug_info(debug_info);
+  DCHECK_EQ(debug_info.script(), script_or_debug_info(kAcquireLoad));
+  set_script_or_debug_info(debug_info, kReleaseStore);
 }
 
 bool SharedFunctionInfo::HasInferredName() {

@@ -43,7 +43,8 @@ void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
   // SharedFunctionInfo in a consistent state.
   set_raw_outer_scope_info_or_feedback_metadata(ro_roots.the_hole_value(),
                                                 SKIP_WRITE_BARRIER);
-  set_script_or_debug_info(ro_roots.undefined_value(), SKIP_WRITE_BARRIER);
+  set_script_or_debug_info(ro_roots.undefined_value(), kReleaseStore,
+                           SKIP_WRITE_BARRIER);
   set_function_literal_id(kFunctionLiteralIdInvalid);
 #if V8_SFI_HAS_UNIQUE_ID
   set_unique_id(unique_id);
