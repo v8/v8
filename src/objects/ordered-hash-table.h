@@ -403,7 +403,7 @@ class SmallOrderedHashTable : public HeapObject {
   // we've already reached MaxCapacity.
   static MaybeHandle<Derived> Grow(Isolate* isolate, Handle<Derived> table);
 
-  int FindEntry(Isolate* isolate, Object key);
+  InternalIndex FindEntry(Isolate* isolate, Object key);
   static Handle<Derived> Shrink(Isolate* isolate, Handle<Derived> table);
 
   // Iterates only fields in the DataTable.
@@ -450,7 +450,11 @@ class SmallOrderedHashTable : public HeapObject {
 
   int NumberOfBuckets() const { return getByte(NumberOfBucketsOffset(), 0); }
 
-  V8_INLINE Object KeyAt(int entry) const;
+  V8_INLINE Object KeyAt(InternalIndex entry) const;
+
+  InternalIndex::Range IterateEntries() {
+    return InternalIndex::Range(UsedCapacity());
+  }
 
   DECL_VERIFIER(SmallOrderedHashTable)
 
@@ -800,32 +804,32 @@ class V8_EXPORT_PRIVATE OrderedNameDictionaryHandler
   static Handle<HeapObject> Shrink(Isolate* isolate, Handle<HeapObject> table);
 
   static Handle<HeapObject> DeleteEntry(Isolate* isolate,
-                                        Handle<HeapObject> table, int entry);
-  static int FindEntry(Isolate* isolate, HeapObject table, Name key);
-  static void SetEntry(HeapObject table, int entry, Object key, Object value,
-                       PropertyDetails details);
+                                        Handle<HeapObject> table,
+                                        InternalIndex entry);
+  static InternalIndex FindEntry(Isolate* isolate, HeapObject table, Name key);
+  static void SetEntry(HeapObject table, InternalIndex entry, Object key,
+                       Object value, PropertyDetails details);
 
   // Returns the value for entry.
-  static Object ValueAt(HeapObject table, int entry);
+  static Object ValueAt(HeapObject table, InternalIndex entry);
 
   // Set the value for entry.
-  static void ValueAtPut(HeapObject table, int entry, Object value);
+  static void ValueAtPut(HeapObject table, InternalIndex entry, Object value);
 
   // Returns the property details for the property at entry.
-  static PropertyDetails DetailsAt(HeapObject table, int entry);
+  static PropertyDetails DetailsAt(HeapObject table, InternalIndex entry);
 
   // Set the details for entry.
-  static void DetailsAtPut(HeapObject table, int entry, PropertyDetails value);
+  static void DetailsAtPut(HeapObject table, InternalIndex entry,
+                           PropertyDetails value);
 
-  static Name KeyAt(HeapObject table, int entry);
+  static Name KeyAt(HeapObject table, InternalIndex entry);
 
   static void SetHash(HeapObject table, int hash);
   static int Hash(HeapObject table);
 
   static int NumberOfElements(HeapObject table);
   static int Capacity(HeapObject table);
-
-  static const int kNotFound = -1;
 
  protected:
   static MaybeHandle<OrderedNameDictionary> AdjustRepresentation(
@@ -841,23 +845,24 @@ class SmallOrderedNameDictionary
   DECL_VERIFIER(SmallOrderedNameDictionary)
 
   // Returns the value for entry.
-  inline Object ValueAt(int entry);
+  inline Object ValueAt(InternalIndex entry);
 
   static Handle<SmallOrderedNameDictionary> Rehash(
       Isolate* isolate, Handle<SmallOrderedNameDictionary> table,
       int new_capacity);
 
   V8_EXPORT_PRIVATE static Handle<SmallOrderedNameDictionary> DeleteEntry(
-      Isolate* isolate, Handle<SmallOrderedNameDictionary> table, int entry);
+      Isolate* isolate, Handle<SmallOrderedNameDictionary> table,
+      InternalIndex entry);
 
   // Set the value for entry.
-  inline void ValueAtPut(int entry, Object value);
+  inline void ValueAtPut(InternalIndex entry, Object value);
 
   // Returns the property details for the property at entry.
-  inline PropertyDetails DetailsAt(int entry);
+  inline PropertyDetails DetailsAt(InternalIndex entry);
 
   // Set the details for entry.
-  inline void DetailsAtPut(int entry, PropertyDetails value);
+  inline void DetailsAtPut(InternalIndex entry, PropertyDetails value);
 
   inline void SetHash(int hash);
   inline int Hash();
@@ -875,7 +880,7 @@ class SmallOrderedNameDictionary
       Isolate* isolate, Handle<SmallOrderedNameDictionary> table,
       Handle<Name> key, Handle<Object> value, PropertyDetails details);
 
-  V8_EXPORT_PRIVATE void SetEntry(int entry, Object key, Object value,
+  V8_EXPORT_PRIVATE void SetEntry(InternalIndex entry, Object key, Object value,
                                   PropertyDetails details);
 
   static inline Handle<Map> GetMap(ReadOnlyRoots roots);

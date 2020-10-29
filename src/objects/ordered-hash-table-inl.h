@@ -51,9 +51,9 @@ SmallOrderedHashTable<Derived>::SmallOrderedHashTable(Address ptr)
     : HeapObject(ptr) {}
 
 template <class Derived>
-Object SmallOrderedHashTable<Derived>::KeyAt(int entry) const {
-  DCHECK_LT(entry, Capacity());
-  Offset entry_offset = GetDataEntryOffset(entry, Derived::kKeyIndex);
+Object SmallOrderedHashTable<Derived>::KeyAt(InternalIndex entry) const {
+  DCHECK_LT(entry.as_int(), Capacity());
+  Offset entry_offset = GetDataEntryOffset(entry.as_int(), Derived::kKeyIndex);
   return TaggedField<Object>::load(*this, entry_offset);
 }
 
@@ -129,27 +129,29 @@ inline void OrderedNameDictionary::DetailsAtPut(InternalIndex entry,
   this->set(EntryToIndex(entry) + kPropertyDetailsOffset, value.AsSmi());
 }
 
-inline Object SmallOrderedNameDictionary::ValueAt(int entry) {
-  return this->GetDataEntry(entry, kValueIndex);
+inline Object SmallOrderedNameDictionary::ValueAt(InternalIndex entry) {
+  return this->GetDataEntry(entry.as_int(), kValueIndex);
 }
 
 // Set the value for entry.
-inline void SmallOrderedNameDictionary::ValueAtPut(int entry, Object value) {
-  this->SetDataEntry(entry, kValueIndex, value);
+inline void SmallOrderedNameDictionary::ValueAtPut(InternalIndex entry,
+                                                   Object value) {
+  this->SetDataEntry(entry.as_int(), kValueIndex, value);
 }
 
 // Returns the property details for the property at entry.
-inline PropertyDetails SmallOrderedNameDictionary::DetailsAt(int entry) {
+inline PropertyDetails SmallOrderedNameDictionary::DetailsAt(
+    InternalIndex entry) {
   // TODO(gsathya): Optimize the cast away. And store this in the data table.
   return PropertyDetails(
-      Smi::cast(this->GetDataEntry(entry, kPropertyDetailsIndex)));
+      Smi::cast(this->GetDataEntry(entry.as_int(), kPropertyDetailsIndex)));
 }
 
 // Set the details for entry.
-inline void SmallOrderedNameDictionary::DetailsAtPut(int entry,
+inline void SmallOrderedNameDictionary::DetailsAtPut(InternalIndex entry,
                                                      PropertyDetails value) {
   // TODO(gsathya): Optimize the cast away. And store this in the data table.
-  this->SetDataEntry(entry, kPropertyDetailsIndex, value.AsSmi());
+  this->SetDataEntry(entry.as_int(), kPropertyDetailsIndex, value.AsSmi());
 }
 
 inline bool OrderedHashSet::Is(Handle<HeapObject> table) {
