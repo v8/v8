@@ -1194,15 +1194,7 @@ HEAP_TEST(Regress10560) {
     CHECK(function->shared().GetBytecodeArray().IsOld());
     CHECK(function->shared().is_compiled());
 
-    heap->set_force_oom(true);
-    heap->AddNearHeapLimitCallback(
-        [](void* data, size_t current_heap_limit,
-           size_t initial_heap_limit) -> size_t {
-          Heap* heap = static_cast<Heap*>(data);
-          heap->set_force_oom(false);
-          return 0;
-        },
-        heap);
+    heap->set_force_gc_on_next_allocation();
 
     // Allocate feedback vector.
     IsCompiledScope is_compiled_scope(
@@ -5592,6 +5584,11 @@ HEAP_TEST(Regress589413) {
     // Add the array in root set.
     handle(byte_array, isolate);
   }
+  auto reset_oom = [](void* heap, size_t limit, size_t) -> size_t {
+    reinterpret_cast<Heap*>(heap)->set_force_oom(false);
+    return limit;
+  };
+  heap->AddNearHeapLimitCallback(reset_oom, heap);
 
   {
     // Ensure that incremental marking is not started unexpectedly.
@@ -5655,6 +5652,7 @@ HEAP_TEST(Regress589413) {
   // Force allocation from the free list.
   heap->set_force_oom(true);
   CcTest::CollectGarbage(OLD_SPACE);
+  heap->RemoveNearHeapLimitCallback(reset_oom, 0);
 }
 
 TEST(Regress598319) {
@@ -6832,7 +6830,10 @@ UNINITIALIZED_TEST(OutOfMemoryLargeObjects) {
       factory->NewFixedArray(kFixedArrayLength);
     }
   }
-  CHECK_LE(state.old_generation_capacity_at_oom, kOldGenerationLimit);
+  CHECK_LE(state.old_generation_capacity_at_oom,
+           kOldGenerationLimit + state.new_space_capacity_at_oom +
+               state.new_lo_space_size_at_oom +
+               FixedArray::SizeFor(kFixedArrayLength));
   CHECK_LE(kOldGenerationLimit, state.old_generation_capacity_at_oom +
                                     state.new_space_capacity_at_oom +
                                     state.new_lo_space_size_at_oom +

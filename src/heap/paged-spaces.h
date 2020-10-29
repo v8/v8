@@ -386,6 +386,9 @@ class V8_EXPORT_PRIVATE PagedSpace
                                       AllocationAlignment alignment,
                                       AllocationOrigin origin);
 
+  V8_WARN_UNUSED_RESULT bool TryExpand(int size_in_bytes,
+                                       AllocationOrigin origin);
+
   Executability executable_;
 
   LocalSpaceKind local_space_kind_;

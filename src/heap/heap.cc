@@ -396,7 +396,7 @@ size_t Heap::Available() {
 }
 
 bool Heap::CanExpandOldGeneration(size_t size) {
-  if (force_oom_) return false;
+  if (force_oom_ || force_gc_on_next_allocation_) return false;
   if (OldGenerationCapacity() + size > max_old_generation_size()) return false;
   // The OldGenerationCapacity does not account compaction spaces used
   // during evacuation. Ensure that expanding the old generation does push
@@ -1509,15 +1509,13 @@ bool Heap::CollectGarbage(AllocationSpace space,
   const char* collector_reason = nullptr;
   GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);
   is_current_gc_forced_ = gc_callback_flags & v8::kGCCallbackFlagForced ||
-                          current_gc_flags_ & kForcedGC;
+                          current_gc_flags_ & kForcedGC ||
+                          force_gc_on_next_allocation_;
+  if (force_gc_on_next_allocation_) force_gc_on_next_allocation_ = false;
 
   DevToolsTraceEventScope devtools_trace_event_scope(
       this, IsYoungGenerationCollector(collector) ? "MinorGC" : "MajorGC",
       GarbageCollectionReasonToString(gc_reason));
-
-  if (!CanPromoteYoungAndExpandOldGeneration(0)) {
-    InvokeNearHeapLimitCallback();
-  }
 
   // Filter on-stack reference below this method.
   isolate()
@@ -1691,6 +1689,13 @@ bool Heap::CollectGarbage(AllocationSpace space,
     StartIncrementalMarkingIfAllocationLimitIsReached(
         GCFlagsForIncrementalMarking(),
         kGCCallbackScheduleIdleGarbageCollection);
+  }
+
+  if (!CanExpandOldGeneration(0)) {
+    InvokeNearHeapLimitCallback();
+    if (!CanExpandOldGeneration(0)) {
+      FatalProcessOutOfMemory("Reached heap limit");
+    }
   }
 
   return freed_global_handles > 0;
