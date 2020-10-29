@@ -70,10 +70,6 @@
   # Enable once serializing a running isolate is fully implemented.
   'serialize-deserialize-now': [SKIP],
 
-  # https://crbug.com/v8/issues/10486
-  # Enable once multi-byte prefixed opcodes are correctly handled
-  'regress/wasm/regress-1065599': [SKIP],
-
   # BUG(v8:9506): times out.
   'wasm/shared-memory-worker-explicit-gc-stress': [PASS, SLOW],
   'wasm/shared-memory-worker-gc-stress': [PASS, SLOW],
