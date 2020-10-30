@@ -667,12 +667,6 @@ template <typename Stream, typename index_t,
           enum ToIndexMode mode = kToArrayIndex>
 bool StringToIndex(Stream* stream, index_t* index);
 
-// Returns the current stack top. Works correctly with ASAN and SafeStack.
-// GetCurrentStackPosition() should not be inlined, because it works on stack
-// frames if it were inlined into a function with a huge stack frame it would
-// return an address significantly above the actual current stack position.
-V8_EXPORT_PRIVATE V8_NOINLINE uintptr_t GetCurrentStackPosition();
-
 static inline uint16_t ByteReverse16(uint16_t value) {
 #if V8_HAS_BUILTIN_BSWAP16
   return __builtin_bswap16(value);

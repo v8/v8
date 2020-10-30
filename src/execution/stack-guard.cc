@@ -4,6 +4,7 @@
 
 #include "src/execution/stack-guard.h"
 
+#include "src/base/platform/platform.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/execution/interrupts-scope.h"
 #include "src/execution/isolate.h"
@@ -200,8 +201,8 @@ void StackGuard::FreeThreadResources() {
 void StackGuard::ThreadLocal::Initialize(Isolate* isolate,
                                          const ExecutionAccess& lock) {
   const uintptr_t kLimitSize = FLAG_stack_size * KB;
-  DCHECK_GT(GetCurrentStackPosition(), kLimitSize);
-  uintptr_t limit = GetCurrentStackPosition() - kLimitSize;
+  DCHECK_GT(base::Stack::GetCurrentStackPosition(), kLimitSize);
+  uintptr_t limit = base::Stack::GetCurrentStackPosition() - kLimitSize;
   real_jslimit_ = SimulatorStack::JsLimitFromCLimit(isolate, limit);
   set_jslimit(SimulatorStack::JsLimitFromCLimit(isolate, limit));
   real_climit_ = limit;

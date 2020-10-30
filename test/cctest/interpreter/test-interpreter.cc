@@ -4,14 +4,14 @@
 
 #include <tuple>
 
-#include "src/init/v8.h"
-
 #include "src/api/api-inl.h"
 #include "src/base/overflowing-math.h"
+#include "src/base/platform/platform.h"
 #include "src/codegen/compiler.h"
 #include "src/execution/execution.h"
 #include "src/handles/handles.h"
 #include "src/heap/heap-inl.h"
+#include "src/init/v8.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-flags.h"
@@ -5152,7 +5152,7 @@ TEST(InterpreterCollectSourcePositions_StackOverflow) {
   // Make the stack limit the same as the current position so recompilation
   // overflows.
   uint64_t previous_limit = isolate->stack_guard()->real_climit();
-  isolate->stack_guard()->SetStackLimit(GetCurrentStackPosition());
+  isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition());
   Compiler::CollectSourcePositions(isolate, sfi);
   // Stack overflowed so source position table can be returned but is empty.
   ByteArray source_position_table = bytecode_array->SourcePositionTable();

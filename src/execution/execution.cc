@@ -5,6 +5,7 @@
 #include "src/execution/execution.h"
 
 #include "src/api/api-inl.h"
+#include "src/base/platform/platform.h"
 #include "src/compiler/wasm-compiler.h"  // Only for static asserts.
 #include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
@@ -533,12 +534,12 @@ void Execution::CallWasm(Isolate* isolate, Handle<Code> wrapper_code,
   Address saved_c_entry_fp = *isolate->c_entry_fp_address();
   Address saved_js_entry_sp = *isolate->js_entry_sp_address();
   if (saved_js_entry_sp == kNullAddress) {
-    *isolate->js_entry_sp_address() = GetCurrentStackPosition();
+    *isolate->js_entry_sp_address() = base::Stack::GetCurrentStackPosition();
   }
   StackHandlerMarker stack_handler;
   stack_handler.next = isolate->thread_local_top()->handler_;
 #ifdef V8_USE_ADDRESS_SANITIZER
-  stack_handler.padding = GetCurrentStackPosition();
+  stack_handler.padding = base::Stack::GetCurrentStackPosition();
 #else
   stack_handler.padding = 0;
 #endif

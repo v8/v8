@@ -5,6 +5,7 @@
 #ifndef V8_EXECUTION_SIMULATOR_H_
 #define V8_EXECUTION_SIMULATOR_H_
 
+#include "src/base/platform/platform.h"
 #include "src/common/globals.h"
 #include "src/objects/code.h"
 
@@ -82,7 +83,7 @@ class SimulatorStack : public v8::internal::AllStatic {
   static inline uintptr_t RegisterJSStackComparableAddress(
       v8::internal::Isolate* isolate) {
     USE(isolate);
-    return internal::GetCurrentStackPosition();
+    return v8::base::Stack::GetCurrentStackPosition();
   }
 
   static inline void UnregisterJSStackComparableAddress(

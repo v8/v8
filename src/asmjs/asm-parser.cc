@@ -13,6 +13,7 @@
 #include "src/asmjs/asm-types.h"
 #include "src/base/optional.h"
 #include "src/base/overflowing-math.h"
+#include "src/base/platform/platform.h"
 #include "src/flags/flags.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/parsing/scanner.h"
@@ -58,7 +59,7 @@ namespace wasm {
 #define RECURSE_OR_RETURN(ret, call)                                       \
   do {                                                                     \
     DCHECK(!failed_);                                                      \
-    if (GetCurrentStackPosition() < stack_limit_) {                        \
+    if (base::Stack::GetCurrentStackPosition() < stack_limit_) {           \
       FAIL_AND_RETURN(ret, "Stack overflow while parsing asm.js module."); \
     }                                                                      \
     call;                                                                  \

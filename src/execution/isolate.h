@@ -19,6 +19,7 @@
 #include "include/v8.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/platform/platform.h"
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
 #include "src/debug/interface-types.h"
@@ -2091,14 +2092,14 @@ class StackLimitCheck {
   // Use this to check for stack-overflows in C++ code.
   bool HasOverflowed() const {
     StackGuard* stack_guard = isolate_->stack_guard();
-    return GetCurrentStackPosition() < stack_guard->real_climit();
+    return base::Stack::GetCurrentStackPosition() < stack_guard->real_climit();
   }
   static bool HasOverflowed(LocalIsolate* local_isolate);
 
   // Use this to check for interrupt request in C++ code.
   bool InterruptRequested() {
     StackGuard* stack_guard = isolate_->stack_guard();
-    return GetCurrentStackPosition() < stack_guard->climit();
+    return base::Stack::GetCurrentStackPosition() < stack_guard->climit();
   }
 
   // Use this to check for stack-overflow when entering runtime from JS code.

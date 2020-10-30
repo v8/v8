@@ -31,16 +31,16 @@
 
 #include <memory>
 
-#include "src/init/v8.h"
-
 #include "src/api/api-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
 #include "src/base/enum-set.h"
+#include "src/base/platform/platform.h"
 #include "src/codegen/compiler.h"
 #include "src/execution/execution.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
+#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/parsing/parse-info.h"
@@ -51,7 +51,6 @@
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/token.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
-
 #include "test/cctest/cctest.h"
 #include "test/cctest/scope-test-helper.h"
 #include "test/cctest/unicode-helpers.h"
@@ -664,8 +663,8 @@ TEST(ScanHTMLEndComments) {
   // clang-format on
 
   // Parser/Scanner needs a stack limit.
-  i_isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
-                                          128 * 1024);
+  i_isolate->stack_guard()->SetStackLimit(
+      base::Stack::GetCurrentStackPosition() - 128 * 1024);
   uintptr_t stack_limit = i_isolate->stack_guard()->real_climit();
   for (int i = 0; tests[i]; i++) {
     const char* source = tests[i];
@@ -753,8 +752,8 @@ TEST(StandAlonePreParser) {
       i::UnoptimizedCompileFlags::ForTest(i_isolate);
   flags.set_allow_natives_syntax(true);
 
-  i_isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
-                                          128 * 1024);
+  i_isolate->stack_guard()->SetStackLimit(
+      base::Stack::GetCurrentStackPosition() - 128 * 1024);
 
   const char* programs[] = {"{label: 42}",
                             "var x = 42;",
@@ -791,7 +790,7 @@ TEST(StandAlonePreParserNoNatives) {
   i::UnoptimizedCompileFlags flags =
       i::UnoptimizedCompileFlags::ForTest(isolate);
 
-  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+  isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
                                         128 * 1024);
 
   const char* programs[] = {"%ArgleBargle(glop);", "var x = %_IsSmi(42);",
@@ -826,7 +825,7 @@ TEST(RegressChromium62639) {
   i::UnoptimizedCompileFlags flags =
       i::UnoptimizedCompileFlags::ForTest(isolate);
 
-  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+  isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
                                         128 * 1024);
 
   const char* program = "var x = 'something';\n"
@@ -861,7 +860,7 @@ TEST(PreParseOverflow) {
   i::UnoptimizedCompileFlags flags =
       i::UnoptimizedCompileFlags::ForTest(isolate);
 
-  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+  isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
                                         128 * 1024);
 
   size_t kProgramSize = 1024 * 1024;
@@ -1105,7 +1104,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
   v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
 
-  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+  isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
                                         128 * 1024);
 
   for (unsigned j = 0; j < arraysize(surroundings); ++j) {
@@ -1479,7 +1478,7 @@ TEST(ScopePositions) {
   v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
 
-  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+  isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
                                         128 * 1024);
 
   for (int i = 0; source_data[i].outer_prefix; i++) {
@@ -1845,7 +1844,7 @@ TEST(ParserSync) {
   v8::Context::Scope context_scope(context);
 
   CcTest::i_isolate()->stack_guard()->SetStackLimit(
-      i::GetCurrentStackPosition() - 128 * 1024);
+      base::Stack::GetCurrentStackPosition() - 128 * 1024);
 
   for (int i = 0; context_data[i][0] != nullptr; ++i) {
     for (int j = 0; statement_data[j] != nullptr; ++j) {
@@ -1919,7 +1918,7 @@ void RunParserSyncTest(
   v8::Context::Scope context_scope(context);
 
   CcTest::i_isolate()->stack_guard()->SetStackLimit(
-      i::GetCurrentStackPosition() - 128 * 1024);
+      base::Stack::GetCurrentStackPosition() - 128 * 1024);
 
   // Experimental feature flags should not go here; pass the flags as
   // always_true_flags if the test needs them.
@@ -5036,7 +5035,7 @@ TEST(BasicImportAssertionParsing) {
   v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
 
-  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+  isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
                                         128 * 1024);
 
   for (unsigned i = 0; i < arraysize(kSources); ++i) {
@@ -5105,7 +5104,7 @@ TEST(ImportAssertionParsingErrors) {
   v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
 
-  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+  isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
                                         128 * 1024);
 
   for (unsigned i = 0; i < arraysize(kErrorSources); ++i) {
@@ -7615,7 +7614,7 @@ TEST(BasicImportExportParsing) {
   v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
 
-  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+  isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
                                         128 * 1024);
 
   for (unsigned i = 0; i < arraysize(kSources); ++i) {
@@ -7670,7 +7669,7 @@ TEST(NamespaceExportParsing) {
   v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
 
-  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+  isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
                                         128 * 1024);
 
   for (unsigned i = 0; i < arraysize(kSources); ++i) {
@@ -7767,7 +7766,7 @@ TEST(ImportExportParsingErrors) {
   v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
 
-  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+  isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
                                         128 * 1024);
 
   for (unsigned i = 0; i < arraysize(kErrorSources); ++i) {
@@ -7807,7 +7806,7 @@ TEST(ModuleTopLevelFunctionDecl) {
   v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
 
-  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+  isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
                                         128 * 1024);
 
   for (unsigned i = 0; i < arraysize(kErrorSources); ++i) {
@@ -7991,7 +7990,7 @@ TEST(ModuleParsingInternals) {
   v8::HandleScope handles(CcTest::isolate());
   v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
-  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+  isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
                                         128 * 1024);
 
   static const char kSource[] =
@@ -8257,7 +8256,7 @@ void TestLanguageMode(const char* source,
   v8::HandleScope handles(CcTest::isolate());
   v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
-  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+  isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
                                         128 * 1024);
 
   i::Handle<i::Script> script =

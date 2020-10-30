@@ -4586,7 +4586,8 @@ bool StackLimitCheck::JsHasOverflowed(uintptr_t gap) const {
   uintptr_t jssp = static_cast<uintptr_t>(jssp_address);
   if (jssp - gap < stack_guard->real_jslimit()) return true;
 #endif  // USE_SIMULATOR
-  return GetCurrentStackPosition() - gap < stack_guard->real_climit();
+  return base::Stack::GetCurrentStackPosition() - gap <
+         stack_guard->real_climit();
 }
 
 SaveContext::SaveContext(Isolate* isolate) : isolate_(isolate) {

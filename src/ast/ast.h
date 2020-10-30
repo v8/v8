@@ -10,6 +10,7 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/modules.h"
 #include "src/ast/variables.h"
+#include "src/base/platform/platform.h"
 #include "src/base/threaded-list.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/label.h"
@@ -2668,45 +2669,45 @@ class AstVisitor {
     FAILURE_NODE_LIST(GENERATE_FAILURE_CASE) \
   }
 
-#define DEFINE_AST_VISITOR_SUBCLASS_MEMBERS()               \
- public:                                                    \
-  void VisitNoStackOverflowCheck(AstNode* node) {           \
-    GENERATE_AST_VISITOR_SWITCH()                           \
-  }                                                         \
-                                                            \
-  void Visit(AstNode* node) {                               \
-    if (CheckStackOverflow()) return;                       \
-    VisitNoStackOverflowCheck(node);                        \
-  }                                                         \
-                                                            \
-  void SetStackOverflow() { stack_overflow_ = true; }       \
-  void ClearStackOverflow() { stack_overflow_ = false; }    \
-  bool HasStackOverflow() const { return stack_overflow_; } \
-                                                            \
-  bool CheckStackOverflow() {                               \
-    if (stack_overflow_) return true;                       \
-    if (GetCurrentStackPosition() < stack_limit_) {         \
-      stack_overflow_ = true;                               \
-      return true;                                          \
-    }                                                       \
-    return false;                                           \
-  }                                                         \
-                                                            \
- protected:                                                 \
-  uintptr_t stack_limit() const { return stack_limit_; }    \
-                                                            \
- private:                                                   \
-  void InitializeAstVisitor(Isolate* isolate) {             \
-    stack_limit_ = isolate->stack_guard()->real_climit();   \
-    stack_overflow_ = false;                                \
-  }                                                         \
-                                                            \
-  void InitializeAstVisitor(uintptr_t stack_limit) {        \
-    stack_limit_ = stack_limit;                             \
-    stack_overflow_ = false;                                \
-  }                                                         \
-                                                            \
-  uintptr_t stack_limit_;                                   \
+#define DEFINE_AST_VISITOR_SUBCLASS_MEMBERS()                    \
+ public:                                                         \
+  void VisitNoStackOverflowCheck(AstNode* node) {                \
+    GENERATE_AST_VISITOR_SWITCH()                                \
+  }                                                              \
+                                                                 \
+  void Visit(AstNode* node) {                                    \
+    if (CheckStackOverflow()) return;                            \
+    VisitNoStackOverflowCheck(node);                             \
+  }                                                              \
+                                                                 \
+  void SetStackOverflow() { stack_overflow_ = true; }            \
+  void ClearStackOverflow() { stack_overflow_ = false; }         \
+  bool HasStackOverflow() const { return stack_overflow_; }      \
+                                                                 \
+  bool CheckStackOverflow() {                                    \
+    if (stack_overflow_) return true;                            \
+    if (base::Stack::GetCurrentStackPosition() < stack_limit_) { \
+      stack_overflow_ = true;                                    \
+      return true;                                               \
+    }                                                            \
+    return false;                                                \
+  }                                                              \
+                                                                 \
+ protected:                                                      \
+  uintptr_t stack_limit() const { return stack_limit_; }         \
+                                                                 \
+ private:                                                        \
+  void InitializeAstVisitor(Isolate* isolate) {                  \
+    stack_limit_ = isolate->stack_guard()->real_climit();        \
+    stack_overflow_ = false;                                     \
+  }                                                              \
+                                                                 \
+  void InitializeAstVisitor(uintptr_t stack_limit) {             \
+    stack_limit_ = stack_limit;                                  \
+    stack_overflow_ = false;                                     \
+  }                                                              \
+                                                                 \
+  uintptr_t stack_limit_;                                        \
   bool stack_overflow_
 
 #define DEFINE_AST_VISITOR_MEMBERS_WITHOUT_STACKOVERFLOW()    \

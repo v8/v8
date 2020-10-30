@@ -4,6 +4,7 @@
 
 #include "src/execution/local-isolate.h"
 
+#include "src/base/platform/platform.h"
 #include "src/execution/isolate.h"
 #include "src/execution/thread-id.h"
 #include "src/handles/handles-inl.h"
@@ -20,7 +21,8 @@ LocalIsolate::LocalIsolate(Isolate* isolate, ThreadKind kind)
       thread_id_(ThreadId::Current()),
       stack_limit_(kind == ThreadKind::kMain
                        ? isolate->stack_guard()->real_climit()
-                       : GetCurrentStackPosition() - FLAG_stack_size * KB) {}
+                       : base::Stack::GetCurrentStackPosition() -
+                             FLAG_stack_size * KB) {}
 
 LocalIsolate::~LocalIsolate() = default;
 
@@ -39,7 +41,7 @@ bool LocalIsolate::is_collecting_type_profile() const {
 
 // static
 bool StackLimitCheck::HasOverflowed(LocalIsolate* local_isolate) {
-  return GetCurrentStackPosition() < local_isolate->stack_limit();
+  return base::Stack::GetCurrentStackPosition() < local_isolate->stack_limit();
 }
 
 }  // namespace internal
