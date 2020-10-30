@@ -2076,7 +2076,7 @@ bool CodeGenerationFromStringsAllowed(Isolate* isolate, Handle<Context> context,
 //  or v8::Isolate::SetModifyCodeGenerationFromStringsCallback2)
 bool ModifyCodeGenerationFromStrings(Isolate* isolate, Handle<Context> context,
                                      Handle<i::Object>* source,
-                                     bool is_code_kind) {
+                                     bool is_code_like) {
   DCHECK(isolate->modify_code_gen_callback() ||
          isolate->modify_code_gen_callback2());
   DCHECK(source);
@@ -2092,7 +2092,7 @@ bool ModifyCodeGenerationFromStrings(Isolate* isolate, Handle<Context> context,
                                                 v8::Utils::ToLocal(*source))
           : isolate->modify_code_gen_callback2()(v8::Utils::ToLocal(context),
                                                  v8::Utils::ToLocal(*source),
-                                                 is_code_kind);
+                                                 is_code_like);
   if (result.codegen_allowed && !result.modified_source.IsEmpty()) {
     // Use the new source (which might be the same as the old source).
     *source =
@@ -2118,7 +2118,7 @@ bool ModifyCodeGenerationFromStrings(Isolate* isolate, Handle<Context> context,
 // static
 std::pair<MaybeHandle<String>, bool> Compiler::ValidateDynamicCompilationSource(
     Isolate* isolate, Handle<Context> context,
-    Handle<i::Object> original_source, bool is_code_kind) {
+    Handle<i::Object> original_source, bool is_code_like) {
   // Check if the context unconditionally allows code gen from strings.
   // allow_code_gen_from_strings can be many things, so we'll always check
   // against the 'false' literal, so that e.g. undefined and 'true' are treated
@@ -2133,9 +2133,9 @@ std::pair<MaybeHandle<String>, bool> Compiler::ValidateDynamicCompilationSource(
   // (I.e., let allow_code_gen_callback decide, if it has been set.)
   if (isolate->allow_code_gen_callback()) {
     // If we run into this condition, the embedder has marked some object
-    // templates as "code kind", but has given us a callback that only accepts
+    // templates as "code like", but has given us a callback that only accepts
     // strings. That makes no sense.
-    DCHECK(!original_source->IsCodeKind(isolate));
+    DCHECK(!original_source->IsCodeLike(isolate));
 
     if (!original_source->IsString()) {
       return {MaybeHandle<String>(), true};
@@ -2154,7 +2154,7 @@ std::pair<MaybeHandle<String>, bool> Compiler::ValidateDynamicCompilationSource(
       isolate->modify_code_gen_callback2()) {
     Handle<i::Object> modified_source = original_source;
     if (!ModifyCodeGenerationFromStrings(isolate, context, &modified_source,
-                                         is_code_kind)) {
+                                         is_code_like)) {
       return {MaybeHandle<String>(), false};
     }
     if (!modified_source->IsString()) {
@@ -2164,8 +2164,8 @@ std::pair<MaybeHandle<String>, bool> Compiler::ValidateDynamicCompilationSource(
   }
 
   if (!context->allow_code_gen_from_strings().IsFalse(isolate) &&
-      original_source->IsCodeKind(isolate)) {
-    // Codegen is unconditionally allowed, and we're been given a CodeKind
+      original_source->IsCodeLike(isolate)) {
+    // Codegen is unconditionally allowed, and we're been given a CodeLike
     // object. Stringify.
     MaybeHandle<String> stringified_source =
         Object::ToString(isolate, original_source);
@@ -2208,10 +2208,10 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromValidatedString(
 // static
 MaybeHandle<JSFunction> Compiler::GetFunctionFromString(
     Handle<Context> context, Handle<Object> source,
-    ParseRestriction restriction, int parameters_end_pos, bool is_code_kind) {
+    ParseRestriction restriction, int parameters_end_pos, bool is_code_like) {
   Isolate* const isolate = context->GetIsolate();
   MaybeHandle<String> validated_source =
-      ValidateDynamicCompilationSource(isolate, context, source, is_code_kind)
+      ValidateDynamicCompilationSource(isolate, context, source, is_code_like)
           .first;
   return GetFunctionFromValidatedString(context, validated_source, restriction,
                                         parameters_end_pos);

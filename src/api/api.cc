@@ -2005,15 +2005,15 @@ void ObjectTemplate::SetImmutableProto() {
   self->set_immutable_proto(true);
 }
 
-bool ObjectTemplate::IsCodeKind() {
-  return Utils::OpenHandle(this)->code_kind();
+bool ObjectTemplate::IsCodeLike() {
+  return Utils::OpenHandle(this)->code_like();
 }
 
-void ObjectTemplate::SetCodeKind() {
+void ObjectTemplate::SetCodeLike() {
   auto self = Utils::OpenHandle(this);
   i::Isolate* isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  self->set_code_kind(true);
+  self->set_code_like(true);
 }
 
 // --- S c r i p t s ---
@@ -9212,12 +9212,12 @@ void v8::Isolate::LocaleConfigurationChangeNotification() {
 #endif  // V8_INTL_SUPPORT
 }
 
-bool v8::Object::IsCodeKind(v8::Isolate* isolate) {
+bool v8::Object::IsCodeLike(v8::Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, Object, IsCodeKind);
+  LOG_API(i_isolate, Object, IsCodeLike);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScope scope(i_isolate);
-  return Utils::OpenHandle(this)->IsCodeKind(i_isolate);
+  return Utils::OpenHandle(this)->IsCodeLike(i_isolate);
 }
 
 // static

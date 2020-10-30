@@ -790,7 +790,7 @@ class RuntimeCallTimer final {
   V(Object_HasRealIndexedProperty)                         \
   V(Object_HasRealNamedCallbackProperty)                   \
   V(Object_HasRealNamedProperty)                           \
-  V(Object_IsCodeKind)                                     \
+  V(Object_IsCodeLike)                                     \
   V(Object_New)                                            \
   V(Object_ObjectProtoToString)                            \
   V(Object_Set)                                            \

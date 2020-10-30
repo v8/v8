@@ -2068,7 +2068,7 @@ bool JSReceiver::HasProxyInPrototype(Isolate* isolate) {
   return false;
 }
 
-bool JSReceiver::IsCodeKind(Isolate* isolate) const {
+bool JSReceiver::IsCodeLike(Isolate* isolate) const {
   DisallowGarbageCollection no_gc;
   Object maybe_constructor = map().GetConstructor();
   if (!maybe_constructor.IsJSFunction()) return false;
@@ -2080,7 +2080,7 @@ bool JSReceiver::IsCodeKind(Isolate* isolate) const {
                                  .get_api_func_data()
                                  .GetInstanceTemplate();
   if (instance_template.IsUndefined(isolate)) return false;
-  return ObjectTemplateInfo::cast(instance_template).code_kind();
+  return ObjectTemplateInfo::cast(instance_template).code_like();
 }
 
 // static

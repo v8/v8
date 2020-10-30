@@ -587,7 +587,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   bool IterationHasObservableEffects();
 
   // TC39 "Dynamic Code Brand Checks"
-  bool IsCodeKind(Isolate* isolate) const;
+  bool IsCodeLike(Isolate* isolate) const;
 
   EXPORT_DECL_VERIFIER(Object)
 

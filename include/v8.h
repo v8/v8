@@ -4207,11 +4207,11 @@ class V8_EXPORT Object : public Value {
    * Support for TC39 "dynamic code brand checks" proposal.
    *
    * This API allows to query whether an object was constructed from a
-   * "code kind" ObjectTemplate.
+   * "code like" ObjectTemplate.
    *
-   * See also: v8::ObjectTemplate::SetCodeKind
+   * See also: v8::ObjectTemplate::SetCodeLike
    */
-  bool IsCodeKind(Isolate* isolate);
+  bool IsCodeLike(Isolate* isolate);
 
  private:
   Object();
@@ -7007,14 +7007,14 @@ class V8_EXPORT ObjectTemplate : public Template {
   /**
    * Support for TC39 "dynamic code brand checks" proposal.
    *
-   * This API allows to mark (& query) objects as "code kind", which causes
-   * them to be treated as code-like (i.e. like Strings) in the context of
-   * eval and function constructor.
+   * This API allows to mark (& query) objects as "code like", which causes
+   * them to be treated like Strings in the context of eval and function
+   * constructor.
    *
    * Reference: https://github.com/tc39/proposal-dynamic-code-brand-checks
    */
-  void SetCodeKind();
-  bool IsCodeKind();
+  void SetCodeLike();
+  bool IsCodeLike();
 
   V8_INLINE static ObjectTemplate* Cast(Data* data);
 
@@ -7598,7 +7598,7 @@ typedef ModifyCodeGenerationFromStringsResult (
 typedef ModifyCodeGenerationFromStringsResult (
     *ModifyCodeGenerationFromStringsCallback2)(Local<Context> context,
                                                Local<Value> source,
-                                               bool is_code_kind);
+                                               bool is_code_like);
 
 // --- WebAssembly compilation callbacks ---
 typedef bool (*ExtensionCallback)(const FunctionCallbackInfo<Value>&);
