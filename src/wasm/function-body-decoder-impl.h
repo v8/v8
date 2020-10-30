@@ -2180,16 +2180,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return true;
   }
 
-  bool CheckHasMemoryForAtomics() {
-    if (CheckHasMemory()) return true;
-    if (!VALIDATE(this->module_->has_shared_memory)) {
-      this->DecodeError(this->pc_ - 1,
-                        "Atomic opcodes used without shared memory");
-      return false;
-    }
-    return true;
-  }
-
   bool CheckSimdPostMvp(WasmOpcode opcode) {
     if (!FLAG_wasm_simd_post_mvp && WasmOpcodes::IsSimdPostMvpOpcode(opcode)) {
       this->DecodeError(
@@ -4061,7 +4051,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         this->DecodeError("invalid atomic opcode");
         return 0;
     }
-    if (!CheckHasMemoryForAtomics()) return 0;
+    if (!CheckHasMemory()) return 0;
     MemoryAccessImmediate<validate> imm(
         this, this->pc_ + opcode_length,
         ElementSizeLog2Of(memtype.representation()));
