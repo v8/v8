@@ -141,11 +141,6 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
       AllocationType allocation = AllocationType::kYoung,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
 
-  // Collect the keys into the given KeyAccumulator, in ascending chronological
-  // order of property creation.
-  V8_WARN_UNUSED_RESULT static ExceptionStatus CollectKeysTo(
-      Handle<Derived> dictionary, KeyAccumulator* keys);
-
   // Allocate the next enumeration index. Possibly updates all enumeration
   // indices in the table.
   static int NextEnumerationIndex(Isolate* isolate, Handle<Derived> dictionary);
@@ -156,13 +151,6 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
   // Return the key indices sorted by its enumeration index.
   static Handle<FixedArray> IterationIndices(Isolate* isolate,
                                              Handle<Derived> dictionary);
-
-  // Copies enumerable keys to preallocated fixed array.
-  // Does not throw for uninitialized exports in module namespace objects, so
-  // this has to be checked separately.
-  static void CopyEnumKeysTo(Isolate* isolate, Handle<Derived> dictionary,
-                             Handle<FixedArray> storage, KeyCollectionMode mode,
-                             KeyAccumulator* accumulator);
 
   template <typename LocalIsolate>
   V8_WARN_UNUSED_RESULT static Handle<Derived> AddNoUpdateNextEnumerationIndex(
@@ -359,6 +347,22 @@ class NumberDictionary
 
   OBJECT_CONSTRUCTORS(NumberDictionary,
                       Dictionary<NumberDictionary, NumberDictionaryShape>);
+};
+
+// The comparator is passed two indices |a| and |b|, and it returns < 0 when the
+// property at index |a| comes before the property at index |b| in the
+// enumeration order.
+template <typename Dictionary>
+struct EnumIndexComparator {
+  explicit EnumIndexComparator(Dictionary dict) : dict(dict) {}
+  bool operator()(Tagged_t a, Tagged_t b) {
+    PropertyDetails da(
+        dict.DetailsAt(InternalIndex(Smi(static_cast<Address>(a)).value())));
+    PropertyDetails db(
+        dict.DetailsAt(InternalIndex(Smi(static_cast<Address>(b)).value())));
+    return da.dictionary_index() < db.dictionary_index();
+  }
+  Dictionary dict;
 };
 
 }  // namespace internal
