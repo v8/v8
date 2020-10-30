@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 import { V8CustomElement, defineCustomElement } from "./helper.mjs";
 import { SelectionEvent } from "./events.mjs";
+import { delay, LazyTable } from "./helper.mjs";
 
 defineCustomElement(
   "stats-panel",
@@ -24,10 +25,6 @@ defineCustomElement(
         this.selectedLogEntries = timeline.all
       }
 
-      get timeline() {
-        return this._timeline;
-      }
-
       set selectedLogEntries(entries) {
         this._selectedLogEntries = entries;
         this.update();
@@ -35,10 +32,6 @@ defineCustomElement(
 
       set transitions(value) {
         this._transitions = value;
-      }
-
-      get transitions() {
-        return this._transitions;
       }
 
       filterUniqueTransitions(filter) {
@@ -51,8 +44,8 @@ defineCustomElement(
         });
       }
 
-      update() {
-        this.removeAllChildren(this.stats);
+      async update() {
+        await delay(1);
         this.updateGeneralStats();
         this.updateNamedTransitionsStats();
       }
@@ -60,7 +53,6 @@ defineCustomElement(
       updateGeneralStats() {
         console.assert(this._timeline !== undefined, "Timeline not set yet!");
         let pairs = [
-          ["Total", null, (e) => true],
           ["Transitions", "primary", (e) => e.edge && e.edge.isTransition()],
           ["Fast to Slow", "violet", (e) => e.edge && e.edge.isFastToSlow()],
           ["Slow to Fast", "orange", (e) => e.edge && e.edge.isSlowToFast()],
@@ -82,14 +74,10 @@ defineCustomElement(
           ],
           ["Deprecated", null, (e) => e.isDeprecated()],
           ["Bootstrapped", "green", (e) => e.isBootstrapped()],
+          ["Total", null, (e) => true],
         ];
 
-        let text = "";
-        let tableNode = this.table("transitionType");
-        tableNode.innerHTML =
-          "<thead><tr><td>Color</td><td>Type</td><td>Count</td>" +
-          "<td>Percent</td></tr></thead>";
-        let name, filter;
+        let tbody = document.createElement("tbody");
         let total = this._selectedLogEntries.length;
         pairs.forEach(([name, color, filter]) => {
           let row = this.tr();
@@ -112,9 +100,9 @@ defineCustomElement(
           row.appendChild(this.td(count));
           let percent = Math.round((count / total) * 1000) / 10;
           row.appendChild(this.td(percent.toFixed(1) + "%"));
-          tableNode.appendChild(row);
+          tbody.appendChild(row);
         });
-        this.stats.appendChild(tableNode);
+        this.$("#typeTable").replaceChild(tbody, this.$("#typeTable tbody"));
       }
 
       count(filter) {
@@ -126,13 +114,9 @@ defineCustomElement(
       }
 
       updateNamedTransitionsStats() {
-        let tableNode = this.table("transitionTable");
-        let nameMapPairs = Array.from(this.transitions.entries());
-        tableNode.innerHTML =
-          "<thead><tr><td>Count</td><td>Propery Name</td></tr></thead>";
-        nameMapPairs
-          .sort((a, b) => b[1].length - a[1].length)
-          .forEach(([name, maps]) => {
+        let rowData = Array.from(this._transitions.entries());
+        rowData.sort((a, b) => b[1].length - a[1].length);
+        new LazyTable(this.$("#nameTable"), rowData, ([name, maps]) => {
             let row = this.tr();
             row.maps = maps;
             row.classList.add('clickable');
@@ -145,9 +129,8 @@ defineCustomElement(
             );
             row.appendChild(this.td(maps.length));
             row.appendChild(this.td(name));
-            tableNode.appendChild(row);
+            return row;
           });
-        this.stats.appendChild(tableNode);
       }
     }
 );

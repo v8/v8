@@ -131,7 +131,7 @@ defineCustomElement(
 
       addTransitionTo(map) {
         // transition[ transitions[ transition[...], transition[...], ...]];
-        this._displayedMapsInTree.add(map);
+        this._displayedMapsInTree?.add(map);
         let transition = this.div("transition");
         if (map.isDeprecated()) transition.classList.add("deprecated");
         if (map.edge) {

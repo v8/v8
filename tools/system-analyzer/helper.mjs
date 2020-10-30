@@ -186,11 +186,37 @@ class V8CustomElement extends HTMLElement {
   removeAllChildren(node) { return removeAllChildren(node); }
 }
 
+
+class LazyTable {
+  constructor(table, rowData, rowElementCreator) {
+    this._table = table;
+    this._rowData = rowData;
+    this._rowElementCreator = rowElementCreator;
+    const tbody = table.querySelector('tbody');
+    table.replaceChild(document.createElement('tbody'), tbody);
+    table.querySelector("tfoot td").onclick = (e) => this._addMoreRows();
+    this._addMoreRows();
+  }
+
+  _nextRowDataSlice() {
+    return this._rowData.splice(0, 100);
+  }
+
+  _addMoreRows() {
+    const fragment = new DocumentFragment();
+    for (let row of this._nextRowDataSlice()) {
+      const tr = this._rowElementCreator(row);
+      fragment.appendChild(tr);
+    }
+    this._table.querySelector('tbody').appendChild(fragment);
+  }
+}
+
 function delay(time) {
   return new Promise(resolver => setTimeout(resolver, time));
 }
 
 export {
   defineCustomElement, V8CustomElement, removeAllChildren,
-  $, div, typeToColor, CSSColor, delay
+  $, div, typeToColor, CSSColor, delay, LazyTable,
 };
