@@ -5,6 +5,7 @@
 #include "src/handles/global-handles.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <map>
 
 #include "src/api/api-inl.h"
@@ -749,13 +750,10 @@ class GlobalHandles::OnStackTracedNodeSpace final {
   void SetStackStart(void* stack_start) {
     CHECK(on_stack_nodes_.empty());
     stack_start_ =
-        GetStackAddressForSlot(reinterpret_cast<uintptr_t>(stack_start));
+        GetRealStackAddressForSlot(reinterpret_cast<uintptr_t>(stack_start));
   }
 
-  bool IsOnStack(uintptr_t slot) const {
-    const uintptr_t address = GetStackAddressForSlot(slot);
-    return stack_start_ >= address && address > GetCurrentStackPosition();
-  }
+  V8_INLINE bool IsOnStack(uintptr_t slot) const;
 
   void Iterate(RootVisitor* v);
   TracedNode* Acquire(Object value, uintptr_t address);
@@ -772,32 +770,51 @@ class GlobalHandles::OnStackTracedNodeSpace final {
     GlobalHandles* global_handles;
   };
 
-  uintptr_t GetStackAddressForSlot(uintptr_t slot) const;
+  // Returns the real stack frame if slot is part of a fake frame, and slot
+  // otherwise.
+  V8_INLINE uintptr_t GetRealStackAddressForSlot(uintptr_t slot) const;
 
-  // Keeps track of registered handles and their stack address. The data
-  // structure is cleaned on iteration and when adding new references using the
-  // current stack address.
+  // Keeps track of registered handles. The data structure is cleaned on
+  // iteration and when adding new references using the current stack address.
+  // Cleaning is based on current stack address and the key of the map which is
+  // slightly different for ASAN configs -- see below.
+#ifdef V8_USE_ADDRESS_SANITIZER
+  // Mapping from stack slots or real stack frames to the corresponding nodes.
+  // In case a reference is part of a fake frame, we map it to the real stack
+  // frame base instead of the actual stack slot. The list keeps all nodes for
+  // a particular real frame.
+  std::map<uintptr_t, std::list<NodeEntry>> on_stack_nodes_;
+#else   // !V8_USE_ADDRESS_SANITIZER
+  // Mapping from stack slots to the corresponding nodes. We don't expect
+  // aliasing with overlapping lifetimes of nodes.
   std::map<uintptr_t, NodeEntry> on_stack_nodes_;
+#endif  // !V8_USE_ADDRESS_SANITIZER
+
   uintptr_t stack_start_ = 0;
   GlobalHandles* global_handles_ = nullptr;
   size_t acquire_count_ = 0;
 };
 
-uintptr_t GlobalHandles::OnStackTracedNodeSpace::GetStackAddressForSlot(
+uintptr_t GlobalHandles::OnStackTracedNodeSpace::GetRealStackAddressForSlot(
     uintptr_t slot) const {
 #ifdef V8_USE_ADDRESS_SANITIZER
-  void* fake_stack = __asan_get_current_fake_stack();
-  if (fake_stack) {
-    void* fake_frame_start;
-    void* real_frame = __asan_addr_is_in_fake_stack(
-        fake_stack, reinterpret_cast<void*>(slot), &fake_frame_start, nullptr);
-    if (real_frame) {
-      return reinterpret_cast<uintptr_t>(real_frame) +
-             (slot - reinterpret_cast<uintptr_t>(fake_frame_start));
-    }
-  }
+  void* real_frame = __asan_addr_is_in_fake_stack(
+      __asan_get_current_fake_stack(), reinterpret_cast<void*>(slot), nullptr,
+      nullptr);
+  return real_frame ? reinterpret_cast<uintptr_t>(real_frame) : slot;
 #endif  // V8_USE_ADDRESS_SANITIZER
   return slot;
+}
+
+bool GlobalHandles::OnStackTracedNodeSpace::IsOnStack(uintptr_t slot) const {
+#ifdef V8_USE_ADDRESS_SANITIZER
+  if (__asan_addr_is_in_fake_stack(__asan_get_current_fake_stack(),
+                                   reinterpret_cast<void*>(slot), nullptr,
+                                   nullptr)) {
+    return true;
+  }
+#endif  // V8_USE_ADDRESS_SANITIZER
+  return stack_start_ >= slot && slot > GetCurrentStackPosition();
 }
 
 void GlobalHandles::OnStackTracedNodeSpace::NotifyEmptyEmbedderStack() {
@@ -805,6 +822,17 @@ void GlobalHandles::OnStackTracedNodeSpace::NotifyEmptyEmbedderStack() {
 }
 
 void GlobalHandles::OnStackTracedNodeSpace::Iterate(RootVisitor* v) {
+#ifdef V8_USE_ADDRESS_SANITIZER
+  for (auto& pair : on_stack_nodes_) {
+    for (auto& node_entry : pair.second) {
+      TracedNode& node = node_entry.node;
+      if (node.IsRetainer()) {
+        v->VisitRootPointer(Root::kGlobalHandles, "on-stack TracedReference",
+                            node.location());
+      }
+    }
+  }
+#else   // !V8_USE_ADDRESS_SANITIZER
   // Handles have been cleaned from the GC entry point which is higher up the
   // stack.
   for (auto& pair : on_stack_nodes_) {
@@ -814,6 +842,7 @@ void GlobalHandles::OnStackTracedNodeSpace::Iterate(RootVisitor* v) {
                           node.location());
     }
   }
+#endif  // !V8_USE_ADDRESS_SANITIZER
 }
 
 GlobalHandles::TracedNode* GlobalHandles::OnStackTracedNodeSpace::Acquire(
@@ -828,8 +857,13 @@ GlobalHandles::TracedNode* GlobalHandles::OnStackTracedNodeSpace::Acquire(
   NodeEntry entry;
   entry.node.Free(nullptr);
   entry.global_handles = global_handles_;
-  auto pair =
-      on_stack_nodes_.insert({GetStackAddressForSlot(slot), std::move(entry)});
+#ifdef V8_USE_ADDRESS_SANITIZER
+  auto pair = on_stack_nodes_.insert({GetRealStackAddressForSlot(slot), {}});
+  pair.first->second.push_back(std::move(entry));
+  TracedNode* result = &(pair.first->second.back().node);
+#else   // !V8_USE_ADDRESS_SANITIZER
+  auto pair = on_stack_nodes_.insert(
+      {GetRealStackAddressForSlot(slot), std::move(entry)});
   if (!pair.second) {
     // Insertion failed because there already was an entry present for that
     // stack address. This can happen because cleanup is conservative in which
@@ -838,6 +872,7 @@ GlobalHandles::TracedNode* GlobalHandles::OnStackTracedNodeSpace::Acquire(
     pair.first->second.node.Free(nullptr);
   }
   TracedNode* result = &(pair.first->second.node);
+#endif  // !V8_USE_ADDRESS_SANITIZER
   result->Acquire(value);
   result->set_is_on_stack(true);
   return result;
