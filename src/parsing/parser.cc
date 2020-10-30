@@ -1034,8 +1034,7 @@ Statement* Parser::ParseModuleItem() {
     // We must be careful not to parse a dynamic import expression as an import
     // declaration. Same for import.meta expressions.
     Token::Value peek_ahead = PeekAhead();
-    if ((!flags().allow_harmony_dynamic_import() ||
-         peek_ahead != Token::LPAREN) &&
+    if (peek_ahead != Token::LPAREN &&
         (!flags().allow_harmony_import_meta() || peek_ahead != Token::PERIOD)) {
       ParseImportDeclaration();
       return factory()->EmptyStatement();

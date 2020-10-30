@@ -242,8 +242,6 @@ DEFINE_BOOL(es_staging, false,
 DEFINE_BOOL(harmony, false, "enable all completed harmony features")
 DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 DEFINE_IMPLICATION(es_staging, harmony)
-// Enabling import.meta requires to also enable import()
-DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
 // Enabling FinalizationRegistry#cleanupSome also enables weak refs
 DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
 
@@ -285,7 +283,6 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")               \
   V(harmony_atomics, "harmony atomics")                                   \
   V(harmony_import_meta, "harmony import.meta property")                  \
-  V(harmony_dynamic_import, "harmony dynamic import")                     \
   V(harmony_promise_all_settled, "harmony Promise.allSettled")            \
   V(harmony_promise_any, "harmony Promise.any")                           \
   V(harmony_private_methods, "harmony private methods in class literals") \

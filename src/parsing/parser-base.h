@@ -1853,7 +1853,6 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       return ParseSuperExpression(is_new);
     }
     case Token::IMPORT:
-      if (!flags().allow_harmony_dynamic_import()) break;
       return ParseImportExpressions();
 
     case Token::LBRACK:
@@ -3439,10 +3438,8 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression() {
   if (peek() == Token::SUPER) {
     const bool is_new = true;
     result = ParseSuperExpression(is_new);
-  } else if (flags().allow_harmony_dynamic_import() &&
-             peek() == Token::IMPORT &&
-             (!flags().allow_harmony_import_meta() ||
-              PeekAhead() == Token::LPAREN)) {
+  } else if (peek() == Token::IMPORT && (!flags().allow_harmony_import_meta() ||
+                                         PeekAhead() == Token::LPAREN)) {
     impl()->ReportMessageAt(scanner()->peek_location(),
                             MessageTemplate::kImportCallNotNewExpression);
     return impl()->FailureExpression();
@@ -3540,8 +3537,6 @@ ParserBase<Impl>::ParseMemberExpression() {
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseImportExpressions() {
-  DCHECK(flags().allow_harmony_dynamic_import());
-
   Consume(Token::IMPORT);
   int pos = position();
   if (flags().allow_harmony_import_meta() && Check(Token::PERIOD)) {

@@ -26037,7 +26037,6 @@ v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
 }
 
 TEST(DynamicImport) {
-  i::FLAG_harmony_dynamic_import = true;
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -26071,7 +26070,6 @@ void HostInitializeImportMetaObjectCallbackStatic(Local<Context> context,
 }
 
 TEST(ImportMeta) {
-  i::FLAG_harmony_dynamic_import = true;
   i::FLAG_harmony_import_meta = true;
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
@@ -26123,7 +26121,6 @@ void HostInitializeImportMetaObjectCallbackThrow(Local<Context> context,
 }
 
 TEST(ImportMetaThrowUnhandled) {
-  i::FLAG_harmony_dynamic_import = true;
   i::FLAG_harmony_import_meta = true;
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
@@ -26164,7 +26161,6 @@ TEST(ImportMetaThrowUnhandled) {
 }
 
 TEST(ImportMetaThrowHandled) {
-  i::FLAG_harmony_dynamic_import = true;
   i::FLAG_harmony_import_meta = true;
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();

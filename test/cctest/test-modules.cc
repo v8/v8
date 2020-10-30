@@ -808,9 +808,7 @@ v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackReject(
 
 TEST(ModuleEvaluationTopLevelAwaitDynamicImport) {
   bool previous_top_level_await_flag_value = i::FLAG_harmony_top_level_await;
-  bool previous_dynamic_import_flag_value = i::FLAG_harmony_dynamic_import;
   i::FLAG_harmony_top_level_await = true;
-  i::FLAG_harmony_dynamic_import = true;
   Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
   isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
@@ -847,14 +845,11 @@ TEST(ModuleEvaluationTopLevelAwaitDynamicImport) {
     CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
   }
   i::FLAG_harmony_top_level_await = previous_top_level_await_flag_value;
-  i::FLAG_harmony_dynamic_import = previous_dynamic_import_flag_value;
 }
 
 TEST(ModuleEvaluationTopLevelAwaitDynamicImportError) {
   bool previous_top_level_await_flag_value = i::FLAG_harmony_top_level_await;
-  bool previous_dynamic_import_flag_value = i::FLAG_harmony_dynamic_import;
   i::FLAG_harmony_top_level_await = true;
-  i::FLAG_harmony_dynamic_import = true;
   Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
   isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
@@ -895,7 +890,6 @@ TEST(ModuleEvaluationTopLevelAwaitDynamicImportError) {
     CHECK(!try_catch.HasCaught());
   }
   i::FLAG_harmony_top_level_await = previous_top_level_await_flag_value;
-  i::FLAG_harmony_dynamic_import = previous_dynamic_import_flag_value;
 }
 
 TEST(TerminateExecutionTopLevelAwaitSync) {

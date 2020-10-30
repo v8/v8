@@ -1620,7 +1620,6 @@ enum ParserFlag {
   kAllowLazy,
   kAllowNatives,
   kAllowHarmonyPrivateMethods,
-  kAllowHarmonyDynamicImport,
   kAllowHarmonyImportMeta,
   kAllowHarmonyLogicalAssignment,
 };
@@ -1634,7 +1633,6 @@ enum ParserSyncTestResult {
 void SetGlobalFlags(base::EnumSet<ParserFlag> flags) {
   i::FLAG_allow_natives_syntax = flags.contains(kAllowNatives);
   i::FLAG_harmony_private_methods = flags.contains(kAllowHarmonyPrivateMethods);
-  i::FLAG_harmony_dynamic_import = flags.contains(kAllowHarmonyDynamicImport);
   i::FLAG_harmony_import_meta = flags.contains(kAllowHarmonyImportMeta);
   i::FLAG_harmony_logical_assignment =
       flags.contains(kAllowHarmonyLogicalAssignment);
@@ -1645,8 +1643,6 @@ void SetParserFlags(i::UnoptimizedCompileFlags* compile_flags,
   compile_flags->set_allow_natives_syntax(flags.contains(kAllowNatives));
   compile_flags->set_allow_harmony_private_methods(
       flags.contains(kAllowHarmonyPrivateMethods));
-  compile_flags->set_allow_harmony_dynamic_import(
-      flags.contains(kAllowHarmonyDynamicImport));
   compile_flags->set_allow_harmony_import_meta(
       flags.contains(kAllowHarmonyImportMeta));
   compile_flags->set_allow_harmony_logical_assignment(
@@ -4862,23 +4858,8 @@ TEST(ImportExpressionSuccess) {
 
   // clang-format on
 
-  // We ignore test error messages because the error message from the
-  // parser/preparser is different for the same data depending on the
-  // context.
-  // For example, a top level "import(" is parsed as an
-  // import declaration. The parser parses the import token correctly
-  // and then shows an "Unexpected token '('" error message. The
-  // preparser does not understand the import keyword (this test is
-  // run without kAllowHarmonyDynamicImport flag), so this results in
-  // an "Unexpected token 'import'" error.
-  RunParserSyncTest(context_data, data, kError);
-  RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0,
-                          nullptr, 0, true, true);
-  static const ParserFlag flags[] = {kAllowHarmonyDynamicImport};
-  RunParserSyncTest(context_data, data, kSuccess, nullptr, 0, flags,
-                    arraysize(flags));
-  RunModuleParserSyncTest(context_data, data, kSuccess, nullptr, 0, flags,
-                          arraysize(flags));
+  RunParserSyncTest(context_data, data, kSuccess);
+  RunModuleParserSyncTest(context_data, data, kSuccess);
 }
 
 TEST(ImportExpressionErrors) {
@@ -4924,13 +4905,6 @@ TEST(ImportExpressionErrors) {
 
     // clang-format on
     RunParserSyncTest(context_data, data, kError);
-    // We ignore the error messages for the reason explained in the
-    // ImportExpressionSuccess test.
-    RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0,
-                            nullptr, 0, true, true);
-    static const ParserFlag flags[] = {kAllowHarmonyDynamicImport};
-    RunParserSyncTest(context_data, data, kError, nullptr, 0, flags,
-                      arraysize(flags));
 
     // We ignore test error messages because the error message from
     // the parser/preparser is different for the same data depending
@@ -4939,8 +4913,8 @@ TEST(ImportExpressionErrors) {
     // correctly and then shows an "Unexpected end of input" error
     // message because of the '{'. The preparser shows an "Unexpected
     // token '{'" because it's not a valid token in a CallExpression.
-    RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, flags,
-                            arraysize(flags), nullptr, 0, true, true);
+    RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0,
+                            nullptr, 0, true, true);
   }
 
   {
@@ -4960,11 +4934,8 @@ TEST(ImportExpressionErrors) {
     RunParserSyncTest(context_data, data, kError);
     RunModuleParserSyncTest(context_data, data, kError);
 
-    static const ParserFlag flags[] = {kAllowHarmonyDynamicImport};
-    RunParserSyncTest(context_data, data, kError, nullptr, 0, flags,
-                      arraysize(flags));
-    RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, flags,
-                            arraysize(flags));
+    RunParserSyncTest(context_data, data, kError);
+    RunModuleParserSyncTest(context_data, data, kError);
   }
 
   // Import statements as arrow function params and destructuring targets.
@@ -4993,11 +4964,8 @@ TEST(ImportExpressionErrors) {
     RunParserSyncTest(context_data, data, kError);
     RunModuleParserSyncTest(context_data, data, kError);
 
-    static const ParserFlag flags[] = {kAllowHarmonyDynamicImport};
-    RunParserSyncTest(context_data, data, kError, nullptr, 0, flags,
-                      arraysize(flags));
-    RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, flags,
-                            arraysize(flags));
+    RunParserSyncTest(context_data, data, kError);
+    RunModuleParserSyncTest(context_data, data, kError);
   }
 }
 
@@ -9575,9 +9543,7 @@ TEST(ImportMetaSuccess) {
   RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0,
                           nullptr, 0, true, true);
 
-  static const ParserFlag flags[] = {
-      kAllowHarmonyImportMeta, kAllowHarmonyDynamicImport,
-  };
+  static const ParserFlag flags[] = {kAllowHarmonyImportMeta};
   // 2.1.1 Static Semantics: Early Errors
   // ImportMeta
   // * It is an early Syntax Error if Module is not the syntactic goal symbol.
@@ -9613,9 +9579,7 @@ TEST(ImportMetaFailure) {
 
   // clang-format on
 
-  static const ParserFlag flags[] = {
-      kAllowHarmonyImportMeta, kAllowHarmonyDynamicImport,
-  };
+  static const ParserFlag flags[] = {kAllowHarmonyImportMeta};
 
   RunParserSyncTest(context_data, data, kError, nullptr, 0, flags,
                     arraysize(flags));
