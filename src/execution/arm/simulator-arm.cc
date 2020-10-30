@@ -4299,7 +4299,28 @@ void MultiplyLong(Simulator* simulator, int Vd, int Vn, int Vm) {
   simulator->set_neon_register<WideType>(Vd, dst);
 }
 
-void Simulator::DecodeSpecialCondition(Instruction* instr) {
+void Simulator::DecodeUnconditional(Instruction* instr) {
+  // This follows the decoding in F4.1.18 Unconditional instructions.
+  int op0 = instr->Bits(26, 25);
+  int op1 = instr->Bit(20);
+
+  // Four classes of decoding:
+  // - Miscellaneous (omitted, no instructions used in V8).
+  // - Advanced SIMD data-processing.
+  // - Memory hints and barriers.
+  // - Advanced SIMD element or structure load/store.
+  if (op0 == 0b01) {
+    DecodeAdvancedSIMDDataProcessing(instr);
+  } else if ((op0 & 0b10) == 0b10 && op1) {
+    DecodeMemoryHintsAndBarriers(instr);
+  } else if (op0 == 0b10 && !op1) {
+    DecodeAdvancedSIMDElementOrStructureLoadStore(instr);
+  } else {
+    UNIMPLEMENTED();
+  }
+}
+
+void Simulator::DecodeAdvancedSIMDDataProcessing(Instruction* instr) {
   switch (instr->SpecialValue()) {
     case 4: {
       int Vd, Vm, Vn;
@@ -5663,6 +5684,33 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
         UNIMPLEMENTED();
       }
       break;
+    default:
+      UNIMPLEMENTED();
+  }
+}
+
+void Simulator::DecodeMemoryHintsAndBarriers(Instruction* instr) {
+  switch (instr->SpecialValue()) {
+    case 0xA:
+    case 0xB:
+      if ((instr->Bits(22, 20) == 5) && (instr->Bits(15, 12) == 0xF)) {
+        // pld: ignore instruction.
+      } else if (instr->SpecialValue() == 0xA && instr->Bits(22, 20) == 7) {
+        // dsb, dmb, isb: ignore instruction for now.
+        // TODO(binji): implement
+        // Also refer to the ARMv6 CP15 equivalents in DecodeTypeCP15.
+      } else {
+        UNIMPLEMENTED();
+      }
+      break;
+    default:
+      UNIMPLEMENTED();
+  }
+}
+
+void Simulator::DecodeAdvancedSIMDElementOrStructureLoadStore(
+    Instruction* instr) {
+  switch (instr->SpecialValue()) {
     case 8:
       if (instr->Bits(21, 20) == 0) {
         // vst1
@@ -5854,18 +5902,13 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
       }
       break;
     }
-    case 0xA:
-    case 0xB:
-      if ((instr->Bits(22, 20) == 5) && (instr->Bits(15, 12) == 0xF)) {
-        // pld: ignore instruction.
-      } else if (instr->SpecialValue() == 0xA && instr->Bits(22, 20) == 7) {
-        // dsb, dmb, isb: ignore instruction for now.
-        // TODO(binji): implement
-        // Also refer to the ARMv6 CP15 equivalents in DecodeTypeCP15.
-      } else {
-        UNIMPLEMENTED();
-      }
-      break;
+    default:
+      UNIMPLEMENTED();
+  }
+}
+
+void Simulator::DecodeFloatingPointDataProcessing(Instruction* instr) {
+  switch (instr->SpecialValue()) {
     case 0x1D:
       if (instr->Opc1Value() == 0x7 && instr->Opc3Value() == 0x1 &&
           instr->Bits(11, 9) == 0x5 && instr->Bits(19, 18) == 0x2) {
@@ -6031,6 +6074,21 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
     default:
       UNIMPLEMENTED();
       break;
+  }
+}
+
+void Simulator::DecodeSpecialCondition(Instruction* instr) {
+  int op0 = instr->Bits(25, 24);
+  int op1 = instr->Bits(11, 9);
+  int op2 = instr->Bit(4);
+
+  if (instr->Bit(27) == 0) {
+    DecodeUnconditional(instr);
+  } else if ((instr->Bits(27, 26) == 0b11) && (op0 == 0b10) &&
+             ((op1 >> 1) == 0b10) && !op2) {
+    DecodeFloatingPointDataProcessing(instr);
+  } else {
+    UNIMPLEMENTED();
   }
 }
 
