@@ -127,10 +127,10 @@ void DefaultJobState::CancelAndDetach() {
   is_canceled_.store(true, std::memory_order_relaxed);
 }
 
-bool DefaultJobState::IsCompleted() {
+bool DefaultJobState::IsActive() {
   base::MutexGuard guard(&mutex_);
-  return job_task_->GetMaxConcurrency(active_workers_) == 0 &&
-         active_workers_ == 0;
+  return job_task_->GetMaxConcurrency(active_workers_) != 0 ||
+         active_workers_ != 0;
 }
 
 bool DefaultJobState::CanRunFirstTask() {
@@ -235,7 +235,7 @@ void DefaultJobHandle::CancelAndDetach() {
   state_ = nullptr;
 }
 
-bool DefaultJobHandle::IsCompleted() { return state_->IsCompleted(); }
+bool DefaultJobHandle::IsActive() { return state_->IsActive(); }
 
 void DefaultJobHandle::UpdatePriority(TaskPriority priority) {
   state_->UpdatePriority(priority);

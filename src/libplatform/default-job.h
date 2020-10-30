@@ -55,7 +55,7 @@ class V8_PLATFORM_EXPORT DefaultJobState
   void Join();
   void CancelAndWait();
   void CancelAndDetach();
-  bool IsCompleted();
+  bool IsActive();
 
   // Must be called before running |job_task_| for the first time. If it returns
   // true, then the worker thread must contribute and must call DidRunTask(), or
@@ -113,7 +113,8 @@ class V8_PLATFORM_EXPORT DefaultJobHandle : public JobHandle {
   void Join() override;
   void Cancel() override;
   void CancelAndDetach() override;
-  bool IsCompleted() override;
+  bool IsCompleted() override { return !IsActive(); }
+  bool IsActive() override;
   bool IsRunning() override { return IsValid(); }
   bool IsValid() override { return state_ != nullptr; }
 

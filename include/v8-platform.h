@@ -226,8 +226,11 @@ class JobHandle {
 
   /**
    * Returns true if there's currently no work pending and no worker running.
+   * TODO(etiennep): Deprecate IsCompleted in favor of IsActive once implemented
+   * by all embedders.
    */
   virtual bool IsCompleted() = 0;
+  virtual bool IsActive() { return !IsCompleted(); }
 
   /**
    * Returns true if associated with a Job and other methods may be called.

@@ -113,6 +113,7 @@ class MockPlatform final : public TestPlatform {
     void Cancel() override { orig_handle_->Cancel(); }
     void CancelAndDetach() override { orig_handle_->CancelAndDetach(); }
     bool IsCompleted() override { return orig_handle_->IsCompleted(); }
+    bool IsActive() override { return orig_handle_->IsActive(); }
     bool IsRunning() override { return orig_handle_->IsRunning(); }
     bool IsValid() override { return orig_handle_->IsValid(); }
 

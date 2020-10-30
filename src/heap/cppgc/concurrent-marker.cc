@@ -205,7 +205,7 @@ bool ConcurrentMarkerBase::NotifyIncrementalMutatorStepCompleted() {
     concurrent_marking_handle_->NotifyConcurrencyIncrease();
     return false;
   }
-  return concurrent_marking_handle_->IsCompleted();
+  return !concurrent_marking_handle_->IsActive();
 }
 
 void ConcurrentMarkerBase::IncreaseMarkingPriorityIfNeeded() {

@@ -128,6 +128,7 @@ class MockPlatform final : public TestPlatform {
     bool IsRunning() override { return orig_handle_->IsRunning(); }
     bool IsValid() override { return orig_handle_->IsValid(); }
     bool IsCompleted() override { return orig_handle_->IsCompleted(); }
+    bool IsActive() override { return orig_handle_->IsActive(); }
 
    private:
     std::unique_ptr<JobHandle> orig_handle_;
