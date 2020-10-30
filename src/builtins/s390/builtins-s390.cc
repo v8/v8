@@ -1208,7 +1208,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   }
 
   // If the bytecode array has a valid incoming new target or generator object
-  // register, initialize it with incoming value which was passed in r6.
+  // register, initialize it with incoming value which was passed in r5.
   Label no_incoming_new_target_or_generator_register;
   __ LoadW(r8, FieldMemOperand(
                    kInterpreterBytecodeArrayRegister,
@@ -1222,9 +1222,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // Perform interrupt stack check.
   // TODO(solanes): Merge with the real stack limit check above.
   Label stack_check_interrupt, after_stack_check_interrupt;
-  __ LoadP(r5,
+  __ LoadP(r0,
            StackLimitAsMemOperand(masm, StackLimitKind::kInterruptStackLimit));
-  __ CmpLogicalP(sp, r5);
+  __ CmpLogicalP(sp, r0);
   __ blt(&stack_check_interrupt);
   __ bind(&after_stack_check_interrupt);
 
@@ -1290,8 +1290,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
          Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
 
-  __ SmiTag(r5, kInterpreterBytecodeOffsetRegister);
-  __ StoreP(r5,
+  __ SmiTag(r0, kInterpreterBytecodeOffsetRegister);
+  __ StoreP(r0,
             MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
 
   __ jmp(&after_stack_check_interrupt);

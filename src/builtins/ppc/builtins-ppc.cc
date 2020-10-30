@@ -1170,8 +1170,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // Perform interrupt stack check.
   // TODO(solanes): Merge with the real stack limit check above.
   Label stack_check_interrupt, after_stack_check_interrupt;
-  LoadStackLimit(masm, r6, StackLimitKind::kInterruptStackLimit);
-  __ cmpl(sp, r6);
+  LoadStackLimit(masm, r0, StackLimitKind::kInterruptStackLimit);
+  __ cmpl(sp, r0);
   __ blt(&stack_check_interrupt);
   __ bind(&after_stack_check_interrupt);
 
@@ -1236,8 +1236,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
          Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
 
-  __ SmiTag(r6, kInterpreterBytecodeOffsetRegister);
-  __ StoreP(r6,
+  __ SmiTag(r0, kInterpreterBytecodeOffsetRegister);
+  __ StoreP(r0,
             MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
 
   __ jmp(&after_stack_check_interrupt);
