@@ -805,8 +805,7 @@ bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
   I32_SHIFTOP(name, instruction##v)                                     \
   void LiftoffAssembler::emit_i32_##name##i(Register dst, Register src, \
                                             int amount) {               \
-    DCHECK(is_uint5(amount));                                           \
-    instruction(dst, src, amount);                                      \
+    instruction(dst, src, amount & 31);                                 \
   }
 
 I32_SHIFTOP_I(shl, sll)
@@ -905,7 +904,7 @@ I64_BINOP_I(xor, Xor)
   I64_SHIFTOP(name, instruction##v)                                            \
   void LiftoffAssembler::emit_i64_##name##i(LiftoffRegister dst,               \
                                             LiftoffRegister src, int amount) { \
-    DCHECK(is_uint6(amount));                                                  \
+    amount &= 63;                                                              \
     if (amount < 32)                                                           \
       instruction(dst.gp(), src.gp(), amount);                                 \
     else                                                                       \
