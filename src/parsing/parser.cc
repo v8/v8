@@ -1465,8 +1465,7 @@ void Parser::ParseExportStar() {
   int pos = position();
   Consume(Token::MUL);
 
-  if (!FLAG_harmony_namespace_exports ||
-      !PeekContextualKeyword(ast_value_factory()->as_string())) {
+  if (!PeekContextualKeyword(ast_value_factory()->as_string())) {
     // 'export' '*' 'from' ModuleSpecifier ';'
     Scanner::Location loc = scanner()->location();
     ExpectContextualKeyword(ast_value_factory()->from_string());
@@ -1478,7 +1477,6 @@ void Parser::ParseExportStar() {
                             specifier_loc, zone());
     return;
   }
-  if (!FLAG_harmony_namespace_exports) return;
 
   // 'export' '*' 'as' IdentifierName 'from' ModuleSpecifier ';'
   //

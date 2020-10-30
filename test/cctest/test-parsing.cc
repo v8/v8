@@ -7626,7 +7626,6 @@ TEST(NamespaceExportParsing) {
   };
   // clang-format on
 
-  i::FLAG_harmony_namespace_exports = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
 
