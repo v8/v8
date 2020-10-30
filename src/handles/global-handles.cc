@@ -749,8 +749,7 @@ class GlobalHandles::OnStackTracedNodeSpace final {
 
   void SetStackStart(void* stack_start) {
     CHECK(on_stack_nodes_.empty());
-    stack_start_ =
-        GetRealStackAddressForSlot(reinterpret_cast<uintptr_t>(stack_start));
+    stack_start_ = base::Stack::GetRealStackAddressForSlot(stack_start);
   }
 
   V8_INLINE bool IsOnStack(uintptr_t slot) const;
@@ -769,10 +768,6 @@ class GlobalHandles::OnStackTracedNodeSpace final {
     // node.
     GlobalHandles* global_handles;
   };
-
-  // Returns the real stack frame if slot is part of a fake frame, and slot
-  // otherwise.
-  V8_INLINE uintptr_t GetRealStackAddressForSlot(uintptr_t slot) const;
 
   // Keeps track of registered handles. The data structure is cleaned on
   // iteration and when adding new references using the current stack address.
@@ -795,17 +790,6 @@ class GlobalHandles::OnStackTracedNodeSpace final {
   size_t acquire_count_ = 0;
 };
 
-uintptr_t GlobalHandles::OnStackTracedNodeSpace::GetRealStackAddressForSlot(
-    uintptr_t slot) const {
-#ifdef V8_USE_ADDRESS_SANITIZER
-  void* real_frame = __asan_addr_is_in_fake_stack(
-      __asan_get_current_fake_stack(), reinterpret_cast<void*>(slot), nullptr,
-      nullptr);
-  return real_frame ? reinterpret_cast<uintptr_t>(real_frame) : slot;
-#endif  // V8_USE_ADDRESS_SANITIZER
-  return slot;
-}
-
 bool GlobalHandles::OnStackTracedNodeSpace::IsOnStack(uintptr_t slot) const {
 #ifdef V8_USE_ADDRESS_SANITIZER
   if (__asan_addr_is_in_fake_stack(__asan_get_current_fake_stack(),
@@ -814,7 +798,7 @@ bool GlobalHandles::OnStackTracedNodeSpace::IsOnStack(uintptr_t slot) const {
     return true;
   }
 #endif  // V8_USE_ADDRESS_SANITIZER
-  return stack_start_ >= slot && slot > GetCurrentStackPosition();
+  return stack_start_ >= slot && slot > base::Stack::GetCurrentStackPosition();
 }
 
 void GlobalHandles::OnStackTracedNodeSpace::NotifyEmptyEmbedderStack() {
@@ -858,12 +842,13 @@ GlobalHandles::TracedNode* GlobalHandles::OnStackTracedNodeSpace::Acquire(
   entry.node.Free(nullptr);
   entry.global_handles = global_handles_;
 #ifdef V8_USE_ADDRESS_SANITIZER
-  auto pair = on_stack_nodes_.insert({GetRealStackAddressForSlot(slot), {}});
+  auto pair = on_stack_nodes_.insert(
+      {base::Stack::GetRealStackAddressForSlot(slot), {}});
   pair.first->second.push_back(std::move(entry));
   TracedNode* result = &(pair.first->second.back().node);
 #else   // !V8_USE_ADDRESS_SANITIZER
   auto pair = on_stack_nodes_.insert(
-      {GetRealStackAddressForSlot(slot), std::move(entry)});
+      {base::Stack::GetRealStackAddressForSlot(slot), std::move(entry)});
   if (!pair.second) {
     // Insertion failed because there already was an entry present for that
     // stack address. This can happen because cleanup is conservative in which
@@ -880,7 +865,8 @@ GlobalHandles::TracedNode* GlobalHandles::OnStackTracedNodeSpace::Acquire(
 
 void GlobalHandles::OnStackTracedNodeSpace::CleanupBelowCurrentStackPosition() {
   if (on_stack_nodes_.empty()) return;
-  const auto it = on_stack_nodes_.upper_bound(GetCurrentStackPosition());
+  const auto it =
+      on_stack_nodes_.upper_bound(base::Stack::GetCurrentStackPosition());
   on_stack_nodes_.erase(on_stack_nodes_.begin(), it);
 }
 
