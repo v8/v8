@@ -1495,7 +1495,7 @@ Node* JSCreateLowering::AllocateAliasedArguments(
   }
 
   // Calculate number of argument values being aliased/mapped.
-  int mapped_count = Min(argument_count, parameter_count);
+  int mapped_count = std::min(argument_count, parameter_count);
   *has_aliased_arguments = true;
 
   // Prepare an iterator over argument values recorded in the frame state.

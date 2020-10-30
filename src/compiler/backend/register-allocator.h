@@ -825,7 +825,7 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
     bits_ = HasSlotUseField::update(bits_, SlotUseKind::kNoSlotUse);
   }
   void register_slot_use(SlotUseKind value) {
-    bits_ = HasSlotUseField::update(bits_, Max(slot_use_kind(), value));
+    bits_ = HasSlotUseField::update(bits_, std::max(slot_use_kind(), value));
   }
   SlotUseKind slot_use_kind() const { return HasSlotUseField::decode(bits_); }
 
@@ -895,7 +895,7 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
                            InstructionOperand* operand);
   void SetSpillOperand(InstructionOperand* operand);
   void SetSpillStartIndex(int start) {
-    spill_start_index_ = Min(start, spill_start_index_);
+    spill_start_index_ = std::min(start, spill_start_index_);
   }
 
   // Omits any moves from spill_move_insertion_locations_ that can be skipped.

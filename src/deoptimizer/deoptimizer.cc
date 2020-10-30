@@ -3096,7 +3096,7 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
   if (type == CreateArgumentsType::kMappedArguments) {
     // If the actual number of arguments is less than the number of formal
     // parameters, we have fewer holes to fill to not overshoot the length.
-    number_of_holes = Min(formal_parameter_count_, length);
+    number_of_holes = std::min(formal_parameter_count_, length);
   }
   for (int i = 0; i < number_of_holes; ++i) {
     frame.Add(TranslatedValue::NewTagged(this, roots.the_hole_value()));
