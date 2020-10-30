@@ -86,12 +86,12 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_tools-lint_version
   # and whatever else without interference from each other.
-  'android_sdk_cmdline-tools_version': 'ijpIFSitwBfaEdO9VXBGPqDHUVzPimXy_whw3aHTN9oC',
+  'android_sdk_cmdline-tools_version': 'V__2Ycej-H2-6AcXX5A3gi7sIk74SuN44PBm2uC_N1sC',
 }
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'acfd692611408cfd66abec91ab70de3170d9b36d',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b8645e7fa63541c0cb6d2e245528e150c5f0c011',
   'third_party/depot_tools':
     Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e8dff372902fa201728c53ff30822b203d2ddb01',
   'third_party/icu':
@@ -187,7 +187,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '15be7eb5cbfb37590d3271379ce6ae2fd54d19ea',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '24bd418544c6f5a68a023fdb51e12ff9b757b743',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -242,7 +242,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'zy6Zme4YpIqml3lhXc3o7a0r_gVd0_gcggle2n2j330C'
+              'version': 'uqYfh08DTmvjUgXl-HxNY1ptIb0KpyuY0I9MFaci9-AC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
@@ -259,7 +259,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'f9b4a22424a659376de4f755f7c06ffc94ecf7b7',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '12b3cd36d8aa21bda94bf07e55ad3e751a484791',
   'tools/luci-go': {
       'packages': [
         {
