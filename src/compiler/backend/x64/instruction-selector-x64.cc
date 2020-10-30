@@ -2819,6 +2819,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(F32x4Le)                       \
   V(I64x2Add)                      \
   V(I64x2Sub)                      \
+  V(I64x2Eq)                       \
   V(I32x4Add)                      \
   V(I32x4AddHoriz)                 \
   V(I32x4Sub)                      \
@@ -2831,6 +2832,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4MaxU)                     \
   V(I32x4DotI16x8S)                \
   V(I16x8SConvertI32x4)            \
+  V(I16x8UConvertI32x4)            \
   V(I16x8Add)                      \
   V(I16x8AddSatS)                  \
   V(I16x8AddHoriz)                 \
@@ -2847,6 +2849,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8MaxU)                     \
   V(I16x8RoundingAverageU)         \
   V(I8x16SConvertI16x8)            \
+  V(I8x16UConvertI16x8)            \
   V(I8x16Add)                      \
   V(I8x16AddSatS)                  \
   V(I8x16Sub)                      \
@@ -2870,7 +2873,6 @@ VISIT_ATOMIC_BINOP(Xor)
   V(F32x4AddHoriz)         \
   V(F32x4Min)              \
   V(F32x4Max)              \
-  V(I64x2Eq)               \
   V(I32x4GeS)              \
   V(I32x4GeU)              \
   V(I16x8GeS)              \
@@ -3258,23 +3260,11 @@ void InstructionSelector::VisitI32x4UConvertF32x4(Node* node) {
        g.UseRegister(node->InputAt(0)), arraysize(temps), temps);
 }
 
-void InstructionSelector::VisitI16x8UConvertI32x4(Node* node) {
-  X64OperandGenerator g(this);
-  Emit(kX64I16x8UConvertI32x4, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
-}
-
 void InstructionSelector::VisitI16x8BitMask(Node* node) {
   X64OperandGenerator g(this);
   InstructionOperand temps[] = {g.TempSimd128Register()};
   Emit(kX64I16x8BitMask, g.DefineAsRegister(node),
        g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps);
-}
-
-void InstructionSelector::VisitI8x16UConvertI16x8(Node* node) {
-  X64OperandGenerator g(this);
-  Emit(kX64I8x16UConvertI16x8, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
 }
 
 void InstructionSelector::VisitI8x16Mul(Node* node) {

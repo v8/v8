@@ -2810,8 +2810,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I64x2Eq: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ Pcmpeqq(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(pcmpeqq);
       break;
     }
     case kX64I64x2ShrU: {
@@ -3154,8 +3153,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I16x8UConvertI32x4: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ Packusdw(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(packusdw);
       break;
     }
     case kX64I16x8AddSatU: {
@@ -3427,8 +3425,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I8x16UConvertI16x8: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ Packuswb(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      ASSEMBLE_SIMD_BINOP(packuswb);
       break;
     }
     case kX64I8x16ShrU: {
