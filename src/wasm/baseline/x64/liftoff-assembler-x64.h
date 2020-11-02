@@ -2309,8 +2309,8 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
         CpuFeatureScope avx_scope(this, AVX);
         vbroadcastss(dst.fp(), src_op);
       } else {
-        Movss(dst.fp(), src_op);
-        Shufps(dst.fp(), dst.fp(), byte{0});
+        movss(dst.fp(), src_op);
+        shufps(dst.fp(), dst.fp(), byte{0});
       }
     } else if (memtype == MachineType::Int64()) {
       Movddup(dst.fp(), src_op);
@@ -2419,10 +2419,7 @@ void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  if (dst.fp() != src.fp()) {
-    Movss(dst.fp(), src.fp());
-  }
-  Shufps(dst.fp(), src.fp(), static_cast<byte>(0));
+  Shufps(dst.fp(), src.fp(), 0);
 }
 
 void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,

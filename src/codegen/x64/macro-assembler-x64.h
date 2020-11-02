@@ -224,7 +224,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Divpd, divpd)
   AVX_OP(Maxps, maxps)
   AVX_OP(Maxpd, maxpd)
-  AVX_OP(Shufps, shufps)
   AVX_OP(Cvtdq2ps, cvtdq2ps)
   AVX_OP(Rcpps, rcpps)
   AVX_OP(Rsqrtps, rsqrtps)
@@ -518,6 +517,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void Trap() override;
   void DebugBreak() override;
+
+  // Shufps that will mov src into dst if AVX is not supported.
+  void Shufps(XMMRegister dst, XMMRegister src, byte imm8);
 
   // Non-SSE2 instructions.
   void Pextrd(Register dst, XMMRegister src, uint8_t imm8);

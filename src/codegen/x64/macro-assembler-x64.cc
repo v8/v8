@@ -1727,6 +1727,18 @@ void TurboAssembler::RetpolineJump(Register reg) {
   ret(0);
 }
 
+void TurboAssembler::Shufps(XMMRegister dst, XMMRegister src, byte imm8) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vshufps(dst, src, src, imm8);
+  } else {
+    if (dst != src) {
+      movss(dst, src);
+    }
+    shufps(dst, src, static_cast<byte>(0));
+  }
+}
+
 void TurboAssembler::Pextrd(Register dst, XMMRegister src, uint8_t imm8) {
   if (imm8 == 0) {
     Movd(dst, src);

@@ -2491,15 +2491,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F32x4Splat: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputDoubleRegister(0);
-      if (CpuFeatures::IsSupported(AVX)) {
-        CpuFeatureScope avx_scope(tasm(), AVX);
-        __ vshufps(dst, src, src, byte{0x0});
-      } else {
-        DCHECK_EQ(dst, src);
-        __ Shufps(dst, dst, byte{0x0});
-      }
+      __ Shufps(i.OutputSimd128Register(), i.InputDoubleRegister(0), 0);
       break;
     }
     case kX64F32x4ExtractLane: {
@@ -3663,8 +3655,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         CpuFeatureScope avx_scope(tasm(), AVX);
         __ vbroadcastss(i.OutputSimd128Register(), i.MemoryOperand());
       } else {
-        __ Movss(i.OutputSimd128Register(), i.MemoryOperand());
-        __ Shufps(i.OutputSimd128Register(), i.OutputSimd128Register(),
+        __ movss(i.OutputSimd128Register(), i.MemoryOperand());
+        __ shufps(i.OutputSimd128Register(), i.OutputSimd128Register(),
                   byte{0});
       }
       break;
