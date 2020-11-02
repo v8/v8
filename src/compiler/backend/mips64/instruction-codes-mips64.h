@@ -359,6 +359,8 @@ namespace compiler {
   V(Mips64S128Load16x4U)                     \
   V(Mips64S128Load32x2S)                     \
   V(Mips64S128Load32x2U)                     \
+  V(Mips64S128Load32Zero)                    \
+  V(Mips64S128Load64Zero)                    \
   V(Mips64MsaLd)                             \
   V(Mips64MsaSt)                             \
   V(Mips64I32x4SConvertI16x8Low)             \

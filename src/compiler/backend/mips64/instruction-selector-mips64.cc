@@ -416,6 +416,12 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
     case LoadTransformation::kS128Load32x2U:
       opcode = kMips64S128Load32x2U;
       break;
+    case LoadTransformation::kS128Load32Zero:
+      opcode = kMips64S128Load32Zero;
+      break;
+    case LoadTransformation::kS128Load64Zero:
+      opcode = kMips64S128Load64Zero;
+      break;
     default:
       UNIMPLEMENTED();
   }

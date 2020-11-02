@@ -359,6 +359,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64S128Load16x4U:
     case kMips64S128Load32x2S:
     case kMips64S128Load32x2U:
+    case kMips64S128Load32Zero:
+    case kMips64S128Load64Zero:
     case kMips64Word64AtomicLoadUint8:
     case kMips64Word64AtomicLoadUint16:
     case kMips64Word64AtomicLoadUint32:

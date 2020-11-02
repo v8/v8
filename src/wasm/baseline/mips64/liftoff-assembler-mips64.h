@@ -1509,6 +1509,16 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
       fill_d(dst_msa, scratch);
       ilvr_w(dst_msa, kSimd128RegZero, dst_msa);
     }
+  } else if (transform == LoadTransformationKind::kZeroExtend) {
+    xor_v(dst_msa, dst_msa, dst_msa);
+    if (memtype == MachineType::Int32()) {
+      Lwu(scratch, src_op);
+      insert_w(dst_msa, 0, scratch);
+    } else {
+      DCHECK_EQ(MachineType::Int64(), memtype);
+      Ld(scratch, src_op);
+      insert_d(dst_msa, 0, scratch);
+    }
   } else {
     DCHECK_EQ(LoadTransformationKind::kSplat, transform);
     if (memtype == MachineType::Int8()) {

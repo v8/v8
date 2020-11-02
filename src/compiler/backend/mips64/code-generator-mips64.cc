@@ -1949,6 +1949,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ilvr_w(dst, kSimd128RegZero, dst);
       break;
     }
+    case kMips64S128Load32Zero: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ xor_v(dst, dst, dst);
+      __ Lwu(kScratchReg, i.MemoryOperand());
+      __ insert_w(dst, 0, kScratchReg);
+      break;
+    }
+    case kMips64S128Load64Zero: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ xor_v(dst, dst, dst);
+      __ Ld(kScratchReg, i.MemoryOperand());
+      __ insert_d(dst, 0, kScratchReg);
+      break;
+    }
     case kWord32AtomicLoadInt8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Lb);
       break;
