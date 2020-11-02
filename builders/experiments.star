@@ -116,6 +116,7 @@ experiment_builder(
 experiment_builder(
     name = "V8 Linux - predictable",
     bucket = "ci",
+    executable = "recipe:v8_bbagent",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     properties = {"builder_group": "client.v8"},
