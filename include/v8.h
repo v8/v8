@@ -4621,6 +4621,15 @@ class V8_EXPORT Function : public Object {
    */
   Local<Value> GetBoundFunction() const;
 
+  /**
+   * Calls builtin Function.prototype.toString on this function.
+   * This is different from Value::ToString() that may call a user-defined
+   * toString() function, and different than Object::ObjectProtoToString() which
+   * always serializes "[object Function]".
+   */
+  V8_WARN_UNUSED_RESULT MaybeLocal<String> FunctionProtoToString(
+      Local<Context> context);
+
   ScriptOrigin GetScriptOrigin() const;
   V8_INLINE static Function* Cast(Value* obj);
   static const int kLineOffsetNotFound;

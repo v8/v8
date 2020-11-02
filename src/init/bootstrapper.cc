@@ -1571,8 +1571,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kFastFunctionPrototypeBind, 1, false);
     SimpleInstallFunction(isolate_, prototype, "call",
                           Builtins::kFunctionPrototypeCall, 1, false);
-    SimpleInstallFunction(isolate_, prototype, "toString",
-                          Builtins::kFunctionPrototypeToString, 0, false);
+    Handle<JSFunction> function_to_string =
+        SimpleInstallFunction(isolate_, prototype, "toString",
+                              Builtins::kFunctionPrototypeToString, 0, false);
+    native_context()->set_function_to_string(*function_to_string);
 
     // Install the @@hasInstance function.
     Handle<JSFunction> has_instance = InstallFunctionAtSymbol(

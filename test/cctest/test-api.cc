@@ -17566,6 +17566,33 @@ THREADED_TEST(FunctionGetBoundFunction) {
            original_function->GetScriptColumnNumber());
 }
 
+THREADED_TEST(FunctionProtoToString) {
+  LocalContext context;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  // Replace Function.prototype.toString.
+  CompileRun(R"(
+      Function.prototype.toString = function() {
+        return 'customized toString';
+      })");
+
+  constexpr char kTestFunction[] = "function testFunction() { return 7; }";
+  std::string wrapped_function("(");
+  wrapped_function.append(kTestFunction).append(")");
+  Local<Function> function =
+      CompileRun(wrapped_function.c_str()).As<Function>();
+
+  Local<String> value = function->ToString(context.local()).ToLocalChecked();
+  CHECK(value->IsString());
+  CHECK(
+      value->Equals(context.local(), v8_str("customized toString")).FromJust());
+
+  // FunctionProtoToString() should not call the replaced toString function.
+  value = function->FunctionProtoToString(context.local()).ToLocalChecked();
+  CHECK(value->IsString());
+  CHECK(value->Equals(context.local(), v8_str(kTestFunction)).FromJust());
+}
 
 static void GetterWhichReturns42(
     Local<String> name,

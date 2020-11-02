@@ -5126,6 +5126,18 @@ Local<v8::Value> Function::GetBoundFunction() const {
   return v8::Undefined(reinterpret_cast<v8::Isolate*>(self->GetIsolate()));
 }
 
+MaybeLocal<String> v8::Function::FunctionProtoToString(Local<Context> context) {
+  PREPARE_FOR_EXECUTION(context, Function, FunctionProtoToString, String);
+  auto self = Utils::OpenHandle(this);
+  Local<Value> result;
+  has_pending_exception = !ToLocal<Value>(
+      i::Execution::CallBuiltin(isolate, isolate->function_to_string(), self, 0,
+                                nullptr),
+      &result);
+  RETURN_ON_FAILED_EXECUTION(String);
+  RETURN_ESCAPED(Local<String>::Cast(result));
+}
+
 int Name::GetIdentityHash() {
   auto self = Utils::OpenHandle(this);
   return static_cast<int>(self->Hash());

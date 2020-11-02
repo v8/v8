@@ -311,6 +311,7 @@ enum ContextLookupFlags {
   V(FINALIZATION_REGISTRY_CLEANUP_SOME, JSFunction,                            \
     finalization_registry_cleanup_some)                                        \
   V(FUNCTION_HAS_INSTANCE_INDEX, JSFunction, function_has_instance)            \
+  V(FUNCTION_TO_STRING_INDEX, JSFunction, function_to_string)                  \
   V(OBJECT_TO_STRING, JSFunction, object_to_string)                            \
   V(OBJECT_VALUE_OF_FUNCTION_INDEX, JSFunction, object_value_of_function)      \
   V(PROMISE_ALL_INDEX, JSFunction, promise_all)                                \
