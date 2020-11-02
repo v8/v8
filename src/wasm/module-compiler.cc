@@ -1195,6 +1195,24 @@ CompilationExecutionResult ExecuteJSToWasmWrapperCompilationUnits(
   }
 }
 
+namespace {
+const char* GetCompilationEventName(const WasmCompilationUnit& unit,
+                                    const CompilationEnv& env) {
+  ExecutionTier tier = unit.tier();
+  if (tier == ExecutionTier::kLiftoff) {
+    return "wasm.BaselineCompilation";
+  }
+  if (tier == ExecutionTier::kTurbofan) {
+    return "wasm.TopTierCompilation";
+  }
+  if (unit.func_index() <
+      static_cast<int>(env.module->num_imported_functions)) {
+    return "wasm.WasmToJSWrapperCompilation";
+  }
+  return "wasm.OtherCompilation";
+}
+}  // namespace
+
 // Run by the {BackgroundCompileJob} (on any thread).
 CompilationExecutionResult ExecuteCompilationUnits(
     std::weak_ptr<NativeModule> native_module, Counters* counters,
@@ -1243,11 +1261,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
   std::vector<WasmCompilationResult> results_to_publish;
   while (true) {
     ExecutionTier current_tier = unit->tier();
-    const char* event_name = current_tier == ExecutionTier::kLiftoff
-                                 ? "wasm.BaselineCompilation"
-                                 : current_tier == ExecutionTier::kTurbofan
-                                       ? "wasm.TopTierCompilation"
-                                       : "wasm.OtherCompilation";
+    const char* event_name = GetCompilationEventName(unit.value(), env.value());
     TRACE_EVENT0("v8.wasm", event_name);
     while (unit->tier() == current_tier) {
       // (asynchronous): Execute the compilation.
