@@ -33,10 +33,6 @@ struct SmiIndex {
   ScaleFactor scale;
 };
 
-// TODO(victorgomes): Move definition to macro-assembler.h, once all other
-// platforms are updated.
-enum class StackLimitKind { kInterruptStackLimit, kRealStackLimit };
-
 // Convenient class to access arguments below the stack pointer.
 class StackArgumentsAccessor {
  public:
@@ -1033,13 +1029,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // StatsCounter support
   void IncrementCounter(StatsCounter* counter, int value);
   void DecrementCounter(StatsCounter* counter, int value);
-
-  // ---------------------------------------------------------------------------
-  // Stack limit utilities
-  Operand StackLimitAsOperand(StackLimitKind kind);
-  void StackOverflowCheck(
-      Register num_args, Register scratch, Label* stack_overflow,
-      Label::Distance stack_overflow_distance = Label::kFar);
 
   // ---------------------------------------------------------------------------
   // In-place weak references.
