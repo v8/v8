@@ -30,7 +30,7 @@ tryserver_acls = [
 ]
 
 defaults_ci = {
-    "executable": {"name": "v8", "cipd_package": "infra/recipe_bundles/chromium.googlesource.com/chromium/tools/build", "cipd_version": "refs/heads/master"},
+    "executable": "recipe:v8",
     "swarming_tags": ["vpython:native-python-wrapper"],
     "dimensions": {"host_class": "default"},
     "service_account": "v8-ci-builder@chops-service-accounts.iam.gserviceaccount.com",
@@ -42,7 +42,7 @@ defaults_ci_br = dict(defaults_ci)
 defaults_ci_br["dimensions"]["pool"] = "luci.v8.ci"
 
 defaults_try = {
-    "executable": {"name": "v8", "cipd_package": "infra/recipe_bundles/chromium.googlesource.com/chromium/tools/build", "cipd_version": "refs/heads/master"},
+    "executable": "recipe:v8",
     "swarming_tags": ["vpython:native-python-wrapper"],
     "dimensions": {"host_class": "default", "pool": "luci.v8.try"},
     "service_account": "v8-try-builder@chops-service-accounts.iam.gserviceaccount.com",
@@ -51,7 +51,7 @@ defaults_try = {
 }
 
 defaults_triggered = {
-    "executable": {"name": "v8", "cipd_package": "infra/recipe_bundles/chromium.googlesource.com/chromium/tools/build", "cipd_version": "refs/heads/master"},
+    "executable": "recipe:v8",
     "swarming_tags": ["vpython:native-python-wrapper"],
     "dimensions": {"host_class": "multibot", "pool": "luci.v8.try"},
     "service_account": "v8-try-builder@chops-service-accounts.iam.gserviceaccount.com",
@@ -228,9 +228,6 @@ def perf_builder(**kwargs):
 
 def fix_args(defaults, **kwargs):
     args = dict(kwargs)
-    recipe_name = args.pop("recipe_name", None)
-    if recipe_name:
-        args["executable"] = {"name": recipe_name}
     overridable_keys = [
         "executable",
         "swarming_tags",
@@ -242,11 +239,10 @@ def fix_args(defaults, **kwargs):
     ]
     for key in overridable_keys:
         override_defaults(defaults, args, key)
-    mergeable_keys = ["dimensions", "properties", "executable"]
+    mergeable_keys = ["dimensions", "properties"]
     for key in mergeable_keys:
         merge_defaults(defaults, args, key)
     args["execution_timeout"] = args["execution_timeout"] * time.second
-    args["executable"] = luci.recipe(**args.get("executable"))
     if args["bucket"] in ["ci.br.beta", "ci.br.stable"]:
         args["dimensions"]["pool"] = "luci.v8.ci"
     if args.get("dimensions", {}).get("host_class", "") == "multibot":

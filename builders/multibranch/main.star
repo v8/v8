@@ -451,7 +451,7 @@ in_category(
             kind = scheduler.GREEDY_BATCHING_KIND,
             max_batch_size = 1,
         ),
-        executable = {"name": "v8/presubmit"},
+        executable = "recipe:v8/presubmit",
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
         use_goma = GOMA.NONE,

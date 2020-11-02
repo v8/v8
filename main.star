@@ -74,6 +74,8 @@ luci.bucket(name = "try.triggered", acls = tryserver_acls)
 luci.bucket(name = "ci.br.beta", acls = waterfall_acls)
 luci.bucket(name = "ci.br.stable", acls = waterfall_acls)
 
+exec("//lib/recipes.star")
+
 exec("//builders/all.star")
 
 exec("//cq.star")

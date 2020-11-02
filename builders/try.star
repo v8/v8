@@ -40,7 +40,7 @@ try_builder(
     name = "v8_full_presubmit",
     bucket = "try",
     cq_properties = {"cancel_stale": False},
-    executable = {"name": "v8/presubmit"},
+    executable = "recipe:v8/presubmit",
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
 )
 
@@ -84,7 +84,7 @@ try_builder(
     name = "v8_linux_blink_rel",
     bucket = "try",
     cq_properties = {"experiment_percentage": 10, "cancel_stale": False},
-    executable = {"name": "chromium_trybot"},
+    executable = "recipe:chromium_trybot",
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 4400,
     build_numbers = True,
@@ -95,7 +95,7 @@ try_builder(
     name = "v8_linux_chromium_gn_rel",
     bucket = "try",
     cq_properties = {"cancel_stale": False},
-    executable = {"name": "chromium_trybot"},
+    executable = "recipe:chromium_trybot",
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 3600,
     build_numbers = True,
@@ -163,7 +163,7 @@ try_builder(
     name = "v8_presubmit",
     bucket = "try",
     cq_properties = {"disable_reuse": "true", "cancel_stale": False},
-    executable = {"name": "run_presubmit"},
+    executable = "recipe:run_presubmit",
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 600,
     properties = {"runhooks": True, "repo_name": "v8"},
@@ -191,14 +191,14 @@ try_builder(
 try_builder(
     name = "v8_flako",
     bucket = "try.triggered",
-    executable = {"name": "v8/flako"},
+    executable = "recipe:v8/flako",
     execution_timeout = 14400,
 )
 
 try_builder(
     name = "v8_verify_flakes",
     bucket = "try.triggered",
-    executable = {"name": "v8/verify_flakes"},
+    executable = "recipe:v8/verify_flakes",
     execution_timeout = 16200,
     schedule = "with 3h interval",
 )

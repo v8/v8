@@ -9,7 +9,7 @@ def chromium_builder(name):
         name = name,
         bucket = "ci",
         triggered_by = ["chromium-trigger"],
-        executable = {"name": "chromium"},
+        executable = "recipe:chromium",
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.chromium"},
         use_goma = GOMA.DEFAULT,
