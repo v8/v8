@@ -1053,10 +1053,16 @@ void TurboAssembler::ShiftRightAlgPair(Register dst_low, Register dst_high,
 
 void TurboAssembler::LoadConstantPoolPointerRegisterFromCodeTargetAddress(
     Register code_target_address) {
+  // Builtins do not use the constant pool (see is_constant_pool_available).
+  STATIC_ASSERT(Code::kOnHeapBodyIsContiguous);
+
+  lwz(r0, MemOperand(code_target_address,
+                     Code::kInstructionSizeOffset - Code::kHeaderSize));
   lwz(kConstantPoolRegister,
       MemOperand(code_target_address,
                  Code::kConstantPoolOffsetOffset - Code::kHeaderSize));
   add(kConstantPoolRegister, kConstantPoolRegister, code_target_address);
+  add(kConstantPoolRegister, kConstantPoolRegister, r0);
 }
 
 void TurboAssembler::LoadPC(Register dst) {
@@ -1072,6 +1078,10 @@ void TurboAssembler::ComputeCodeStartAddress(Register dst) {
 }
 
 void TurboAssembler::LoadConstantPoolPointerRegister() {
+  //
+  // Builtins do not use the constant pool (see is_constant_pool_available).
+  STATIC_ASSERT(Code::kOnHeapBodyIsContiguous);
+
   LoadPC(kConstantPoolRegister);
   int32_t delta = -pc_offset() + 4;
   add_label_offset(kConstantPoolRegister, kConstantPoolRegister,

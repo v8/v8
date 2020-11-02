@@ -240,7 +240,9 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   bool is_constant_pool_available() const {
     if (FLAG_enable_embedded_constant_pool) {
-      return constant_pool_available_;
+      // We need to disable constant pool here for embeded builtins
+      // because the metadata section is not adjacent to instructions
+      return constant_pool_available_ && !options().isolate_independent_code;
     } else {
       // Embedded constant pool not supported on this architecture.
       UNREACHABLE();
