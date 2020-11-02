@@ -627,8 +627,9 @@ CompilationJob::Status FinalizeSingleUnoptimizedCompilationJob(
         isolate, shared_info, coverage_info, job->time_taken_to_execute(),
         job->time_taken_to_finalize());
   }
-  DCHECK_IMPLIES(status == CompilationJob::RETRY_ON_MAIN_THREAD,
-                 (std::is_same<LocalIsolate, LocalIsolate>::value));
+  DCHECK_IMPLIES(
+      status == CompilationJob::RETRY_ON_MAIN_THREAD,
+      (std::is_same<LocalIsolate, v8::internal::LocalIsolate>::value));
   return status;
 }
 
