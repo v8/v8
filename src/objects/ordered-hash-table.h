@@ -35,7 +35,7 @@ namespace internal {
 //   [kPrefixSize]: element count
 //   [kPrefixSize + 1]: deleted element count
 //   [kPrefixSize + 2]: bucket count
-//   [kPrefixSize + 3..(3 + NumberOfBuckets() - 1)]: "hash table",
+//   [kPrefixSize + 3..(kPrefixSize + 3 + NumberOfBuckets() - 1)]: "hash table",
 //                            where each item is an offset into the
 //                            data table (see below) where the first
 //                            item in this bucket is stored.
@@ -53,13 +53,15 @@ namespace internal {
 //
 // Memory layout for obsolete table:
 //   [0] : Prefix
-//   [kPrefixSize + 0]: bucket count
-//   [kPrefixSize + 1]: Next newer table
-//   [kPrefixSize + 2]: Number of removed holes or -1 when the table was
-//                      cleared.
-//   [kPrefixSize + 3..(3 + NumberOfRemovedHoles() - 1)]: The indexes
-//                      of the removed holes.
-//   [kPrefixSize + 3 + NumberOfRemovedHoles()..length]: Not used
+//   [kPrefixSize + 0]: Next newer table
+//   [kPrefixSize + 1]: deleted element count or kClearedTableSentinel if
+//                      the table was cleared
+//   [kPrefixSize + 2]: bucket count
+//   [kPrefixSize + 3..(kPrefixSize + 3 + NumberOfDeletedElements() - 1)]:
+//                      The indexes of the removed holes. This part is only
+//                      usable for non-cleared tables, as clearing removes the
+//                      deleted elements count.
+//   [kPrefixSize + 3 + NumberOfDeletedElements()..length]: Not used
 template <class Derived, int entrysize>
 class OrderedHashTable : public FixedArray {
  public:
