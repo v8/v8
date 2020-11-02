@@ -2581,7 +2581,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_LoadReverseSimd128: {
       AddressingMode mode = kMode_None;
       MemOperand operand = i.MemoryOperand(&mode);
-      if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2)) {
+      if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2) &&
+          is_uint12(operand.offset())) {
         __ vlbr(i.OutputSimd128Register(), operand, Condition(4));
       } else {
         __ lrvg(r0, operand);
@@ -2643,7 +2644,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       size_t index = 0;
       AddressingMode mode = kMode_None;
       MemOperand operand = i.MemoryOperand(&mode, &index);
-      if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2)) {
+      if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2) &&
+          is_uint12(operand.offset())) {
         __ vstbr(i.InputSimd128Register(index), operand, Condition(4));
       } else {
         __ vlgv(r0, i.InputSimd128Register(index), MemOperand(r0, 1),
