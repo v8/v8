@@ -2,17 +2,38 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <cstring>
 #include <limits>
+#include <tuple>
 #include <type_traits>
+#include <vector>
 
 #include "src/base/bits.h"
+#include "src/base/logging.h"
+#include "src/base/macros.h"
+#include "src/base/memory.h"
 #include "src/base/overflowing-math.h"
+#include "src/base/utils/random-number-generator.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/codegen/cpu-features.h"
+#include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
+#include "src/flags/flags.h"
+#include "src/utils/utils.h"
+#include "src/utils/vector.h"
+#include "src/wasm/compilation-environment.h"
+#include "src/wasm/value-type.h"
+#include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/flag-utils.h"
+#include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
 namespace v8 {
@@ -96,18 +117,12 @@ T Mul(T a, T b) {
 
 template <typename T>
 T Minimum(T a, T b) {
-  // Follow one of the possible implementation given in
-  // https://en.cppreference.com/w/cpp/algorithm/min so that it works the same
-  // way for floats (when given NaNs/Infs).
-  return (b < a) ? b : a;
+  return std::min(a, b);
 }
 
 template <typename T>
 T Maximum(T a, T b) {
-  // Follow one of the possible implementation given in
-  // https://en.cppreference.com/w/cpp/algorithm/max so that it works the same
-  // way for floats (when given NaNs/Infs).
-  return (a < b) ? b : a;
+  return std::max(a, b);
 }
 
 template <typename T>
@@ -205,49 +220,6 @@ T LogicalShiftRight(T a, int shift) {
 template <typename T>
 T ArithmeticShiftRight(T a, int shift) {
   return a >> (shift % (sizeof(T) * 8));
-}
-
-template <typename T>
-int64_t Widen(T value) {
-  static_assert(sizeof(int64_t) > sizeof(T), "T must be int32_t or smaller");
-  return static_cast<int64_t>(value);
-}
-
-template <typename T>
-int64_t UnsignedWiden(T value) {
-  static_assert(sizeof(int64_t) > sizeof(T), "T must be int32_t or smaller");
-  using UnsignedT = typename std::make_unsigned<T>::type;
-  return static_cast<int64_t>(static_cast<UnsignedT>(value));
-}
-
-template <typename T>
-T Narrow(int64_t value) {
-  return Saturate<T>(value);
-}
-
-template <typename T>
-T And(T a, T b) {
-  return a & b;
-}
-
-template <typename T>
-T Or(T a, T b) {
-  return a | b;
-}
-
-template <typename T>
-T Xor(T a, T b) {
-  return a ^ b;
-}
-
-template <typename T>
-T Not(T a) {
-  return ~a;
-}
-
-template <typename T>
-T AndNot(T a, T b) {
-  return a & ~b;
 }
 
 template <typename T>
@@ -1819,8 +1791,8 @@ WASM_SIMD_TEST(I32x4ConvertI16x8) {
 
   FOR_INT16_INPUTS(x) {
     r.Call(x);
-    int32_t expected_signed = static_cast<int32_t>(Widen<int16_t>(x));
-    int32_t expected_unsigned = static_cast<int32_t>(UnsignedWiden<int16_t>(x));
+    int32_t expected_signed = static_cast<int32_t>(x);
+    int32_t expected_unsigned = static_cast<int32_t>(static_cast<uint16_t>(x));
     for (int i = 0; i < 4; i++) {
       CHECK_EQ(expected_signed, ReadLittleEndianValue<int32_t>(&g0[i]));
       CHECK_EQ(expected_signed, ReadLittleEndianValue<int32_t>(&g1[i]));
@@ -1857,8 +1829,8 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2ConvertI32x4) {
 
   FOR_INT32_INPUTS(x) {
     r.Call(x);
-    int64_t expected_signed = static_cast<int64_t>(Widen<int32_t>(x));
-    int64_t expected_unsigned = static_cast<int64_t>(UnsignedWiden<int32_t>(x));
+    int64_t expected_signed = static_cast<int64_t>(x);
+    int64_t expected_unsigned = static_cast<int64_t>(static_cast<uint32_t>(x));
     for (int i = 0; i < 2; i++) {
       CHECK_EQ(expected_signed, ReadLittleEndianValue<int64_t>(&g0[i]));
       CHECK_EQ(expected_signed, ReadLittleEndianValue<int64_t>(&g1[i]));
@@ -1896,11 +1868,12 @@ WASM_SIMD_TEST(I32x4Neg) {
 }
 
 WASM_SIMD_TEST(I32x4Abs) {
-  RunI32x4UnOpTest(execution_tier, lower_simd, kExprI32x4Abs, Abs);
+  RunI32x4UnOpTest(execution_tier, lower_simd, kExprI32x4Abs, std::abs);
 }
 
 WASM_SIMD_TEST(S128Not) {
-  RunI32x4UnOpTest(execution_tier, lower_simd, kExprS128Not, Not);
+  RunI32x4UnOpTest(execution_tier, lower_simd, kExprS128Not,
+                   [](int32_t x) { return ~x; });
 }
 
 void RunI32x4BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
@@ -1963,20 +1936,24 @@ WASM_SIMD_TEST(I32x4MaxU) {
 }
 
 WASM_SIMD_TEST(S128And) {
-  RunI32x4BinOpTest(execution_tier, lower_simd, kExprS128And, And);
+  RunI32x4BinOpTest(execution_tier, lower_simd, kExprS128And,
+                    [](int32_t x, int32_t y) { return x & y; });
 }
 
 WASM_SIMD_TEST(S128Or) {
-  RunI32x4BinOpTest(execution_tier, lower_simd, kExprS128Or, Or);
+  RunI32x4BinOpTest(execution_tier, lower_simd, kExprS128Or,
+                    [](int32_t x, int32_t y) { return x | y; });
 }
 
 WASM_SIMD_TEST(S128Xor) {
-  RunI32x4BinOpTest(execution_tier, lower_simd, kExprS128Xor, Xor);
+  RunI32x4BinOpTest(execution_tier, lower_simd, kExprS128Xor,
+                    [](int32_t x, int32_t y) { return x ^ y; });
 }
 
 // Bitwise operation, doesn't really matter what simd type we test it with.
 WASM_SIMD_TEST(S128AndNot) {
-  RunI32x4BinOpTest(execution_tier, lower_simd, kExprS128AndNot, AndNot);
+  RunI32x4BinOpTest(execution_tier, lower_simd, kExprS128AndNot,
+                    [](int32_t x, int32_t y) { return x & ~y; });
 }
 
 WASM_SIMD_TEST(I32x4Eq) {
@@ -2092,8 +2069,8 @@ WASM_SIMD_TEST(I16x8ConvertI8x16) {
 
   FOR_INT8_INPUTS(x) {
     r.Call(x);
-    int16_t expected_signed = static_cast<int16_t>(Widen<int8_t>(x));
-    int16_t expected_unsigned = static_cast<int16_t>(UnsignedWiden<int8_t>(x));
+    int16_t expected_signed = static_cast<int16_t>(x);
+    int16_t expected_unsigned = static_cast<int16_t>(static_cast<uint8_t>(x));
     for (int i = 0; i < 8; i++) {
       CHECK_EQ(expected_signed, ReadLittleEndianValue<int16_t>(&g0[i]));
       CHECK_EQ(expected_signed, ReadLittleEndianValue<int16_t>(&g1[i]));
@@ -2123,8 +2100,8 @@ WASM_SIMD_TEST(I16x8ConvertI32x4) {
 
   FOR_INT32_INPUTS(x) {
     r.Call(x);
-    int16_t expected_signed = Narrow<int16_t>(x);
-    int16_t expected_unsigned = Narrow<uint16_t>(x);
+    int16_t expected_signed = Saturate<int16_t>(x);
+    int16_t expected_unsigned = Saturate<uint16_t>(x);
     for (int i = 0; i < 8; i++) {
       CHECK_EQ(expected_signed, ReadLittleEndianValue<int16_t>(&g0[i]));
       CHECK_EQ(expected_unsigned, ReadLittleEndianValue<int16_t>(&g1[i]));
@@ -2558,8 +2535,8 @@ WASM_SIMD_TEST(I8x16ConvertI16x8) {
 
   FOR_INT16_INPUTS(x) {
     r.Call(x);
-    int8_t expected_signed = Narrow<int8_t>(x);
-    int8_t expected_unsigned = Narrow<uint8_t>(x);
+    int8_t expected_signed = Saturate<int8_t>(x);
+    int8_t expected_unsigned = Saturate<uint8_t>(x);
     for (int i = 0; i < 16; i++) {
       CHECK_EQ(expected_signed, ReadLittleEndianValue<int8_t>(&g0[i]));
       CHECK_EQ(expected_unsigned, ReadLittleEndianValue<int8_t>(&g1[i]));
