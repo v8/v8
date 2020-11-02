@@ -125,6 +125,9 @@ class V8_EXPORT_PRIVATE CompilationState {
   // Wait until top tier compilation finished, or compilation failed.
   void WaitForTopTierFinished();
 
+  // Set a higher priority for the compilation job.
+  void SetHighPriority();
+
   bool failed() const;
   bool baseline_compilation_finished() const;
   bool top_tier_compilation_finished() const;

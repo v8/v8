@@ -507,6 +507,8 @@ class CompilationStateImpl {
 
   void WaitForBaselineFinished();
 
+  void SetHighPriority() { has_priority_ = true; }
+
   bool failed() const {
     return compile_failed_.load(std::memory_order_relaxed);
   }
@@ -571,6 +573,8 @@ class CompilationStateImpl {
   // alive by the tasks even if the NativeModule dies.
   std::vector<std::shared_ptr<JSToWasmWrapperCompilationUnit>>
       js_to_wasm_wrapper_units_;
+
+  bool has_priority_ = false;
 
   // This mutex protects all information of this {CompilationStateImpl} which is
   // being accessed concurrently.
@@ -705,6 +709,8 @@ void CompilationState::WaitForTopTierFinished() {
   });
   top_tier_finished_semaphore->Wait();
 }
+
+void CompilationState::SetHighPriority() { Impl(this)->SetHighPriority(); }
 
 void CompilationState::InitializeAfterDeserialization() {
   Impl(this)->InitializeCompilationProgressAfterDeserialization();
@@ -1541,6 +1547,8 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   native_module = isolate->wasm_engine()->NewNativeModule(
       isolate, enabled, module, code_size_estimate);
   native_module->SetWireBytes(std::move(wire_bytes_copy));
+  // Sync compilation is user blocking, so we increase the priority.
+  native_module->compilation_state()->SetHighPriority();
 
   v8::metrics::Recorder::ContextId context_id =
       isolate->GetOrRegisterRecorderContextId(isolate->native_context());
@@ -3038,10 +3046,15 @@ void CompilationStateImpl::ScheduleCompileJobForNewUnits(int new_units) {
           current_compile_concurrency_, max_compile_concurrency_);
   // TODO(wasm): Lower priority for TurboFan-only jobs.
   std::shared_ptr<JobHandle> handle = V8::GetCurrentPlatform()->PostJob(
-      TaskPriority::kUserVisible, std::move(new_compile_job));
+      has_priority_ ? TaskPriority::kUserBlocking : TaskPriority::kUserVisible,
+      std::move(new_compile_job));
   native_module_->engine()->ShepherdCompileJobHandle(handle);
   current_compile_job_ =
       std::make_unique<ThreadSafeJobHandle>(std::move(handle));
+
+  // Reset the priority. Later uses of the compilation state, e.g. for
+  // debugging, should compile with the default priority again.
+  has_priority_ = false;
 }
 
 size_t CompilationStateImpl::NumOutstandingCompilations() const {
