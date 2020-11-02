@@ -753,27 +753,6 @@ class WasmIndirectFunctionTable : public Struct {
   OBJECT_CONSTRUCTORS(WasmIndirectFunctionTable, Struct);
 };
 
-class WasmCapiFunctionData : public Struct {
- public:
-  DECL_PRIMITIVE_ACCESSORS(call_target, Address)
-  DECL_ACCESSORS(embedder_data, Foreign)
-  DECL_ACCESSORS(wrapper_code, Code)
-  DECL_ACCESSORS(serialized_signature, PodArray<wasm::ValueType>)
-
-  DECL_CAST(WasmCapiFunctionData)
-
-  DECL_PRINTER(WasmCapiFunctionData)
-  DECL_VERIFIER(WasmCapiFunctionData)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_WASM_CAPI_FUNCTION_DATA_FIELDS)
-
-  STATIC_ASSERT(kStartOfStrongFieldsOffset == kEmbedderDataOffset);
-  using BodyDescriptor = FlexibleBodyDescriptor<kStartOfStrongFieldsOffset>;
-
-  OBJECT_CONSTRUCTORS(WasmCapiFunctionData, Struct);
-};
-
 // Information for a WasmExportedFunction which is referenced as the function
 // data of the SharedFunctionInfo underlying the function. For details please
 // see the {SharedFunctionInfo::HasWasmExportedFunctionData} predicate.

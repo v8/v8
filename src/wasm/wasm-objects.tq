@@ -35,7 +35,8 @@ extern class WasmJSFunctionData extends Struct {
   serialized_signature: PodArrayOfWasmValueType;
 }
 
-extern class WasmCapiFunctionData extends Struct {
+@export
+class WasmCapiFunctionData extends HeapObject {
   call_target: RawPtr;
   embedder_data: Foreign;  // Managed<wasm::FuncData>
   wrapper_code: Code;

@@ -242,24 +242,6 @@ using Numeric = UnionT<Number, BigInt>;
 // A pointer to a builtin function, used by Torque's function pointers.
 using BuiltinPtr = Smi;
 
-class int31_t {
- public:
-  int31_t() : value_(0) {}
-  int31_t(int value) : value_(value) {  // NOLINT(runtime/explicit)
-    DCHECK_EQ((value & 0x80000000) != 0, (value & 0x40000000) != 0);
-  }
-  int31_t& operator=(int value) {
-    DCHECK_EQ((value & 0x80000000) != 0, (value & 0x40000000) != 0);
-    value_ = value;
-    return *this;
-  }
-  int32_t value() const { return value_; }
-  operator int32_t() const { return value_; }
-
- private:
-  int32_t value_;
-};
-
 template <class T, class U>
 struct is_subtype {
   static const bool value =

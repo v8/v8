@@ -75,10 +75,16 @@ std::string Type::SimpleName() const {
 std::string Type::HandlifiedCppTypeName() const {
   if (IsSubtypeOf(TypeOracle::GetSmiType())) return "int";
   if (IsSubtypeOf(TypeOracle::GetTaggedType())) {
-    return "Handle<" + ConstexprVersion()->GetGeneratedTypeName() + ">";
+    return "Handle<" + UnhandlifiedCppTypeName() + ">";
   } else {
-    return ConstexprVersion()->GetGeneratedTypeName();
+    return UnhandlifiedCppTypeName();
   }
+}
+
+std::string Type::UnhandlifiedCppTypeName() const {
+  if (IsSubtypeOf(TypeOracle::GetSmiType())) return "int";
+  if (this == TypeOracle::GetObjectType()) return "Object";
+  return GetConstexprGeneratedTypeName();
 }
 
 bool Type::IsSubtypeOf(const Type* supertype) const {

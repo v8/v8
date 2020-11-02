@@ -1840,16 +1840,14 @@ bool WasmCapiFunction::IsWasmCapiFunction(Object object) {
 Handle<WasmCapiFunction> WasmCapiFunction::New(
     Isolate* isolate, Address call_target, Handle<Foreign> embedder_data,
     Handle<PodArray<wasm::ValueType>> serialized_signature) {
-  Handle<WasmCapiFunctionData> fun_data =
-      Handle<WasmCapiFunctionData>::cast(isolate->factory()->NewStruct(
-          WASM_CAPI_FUNCTION_DATA_TYPE, AllocationType::kOld));
-  fun_data->set_call_target(call_target);
-  fun_data->set_embedder_data(*embedder_data);
-  fun_data->set_serialized_signature(*serialized_signature);
   // TODO(jkummerow): Install a JavaScript wrapper. For now, calling
   // these functions directly is unsupported; they can only be called
   // from Wasm code.
-  fun_data->set_wrapper_code(isolate->builtins()->builtin(Builtins::kIllegal));
+  Handle<WasmCapiFunctionData> fun_data =
+      isolate->factory()->NewWasmCapiFunctionData(
+          call_target, embedder_data,
+          isolate->builtins()->builtin_handle(Builtins::kIllegal),
+          serialized_signature, AllocationType::kOld);
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForWasmCapiFunction(fun_data);
   return Handle<WasmCapiFunction>::cast(

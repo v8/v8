@@ -72,6 +72,10 @@ class WasmExportedFunctionData;
 class WasmJSFunctionData;
 class WeakCell;
 
+namespace wasm {
+class ValueType;
+}  // namespace wasm
+
 enum class SharedFlag : uint8_t;
 enum class InitializedFlag : uint8_t;
 

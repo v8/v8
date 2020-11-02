@@ -4077,7 +4077,7 @@ void CppClassGenerator::GenerateFieldAccessorForTagged(const Field& f) {
   std::string offset = "k" + CamelifyString(name) + "Offset";
   bool strong_pointer = field_type->IsSubtypeOf(TypeOracle::GetObjectType());
 
-  std::string type = field_type->GetRuntimeType();
+  std::string type = field_type->UnhandlifiedCppTypeName();
   // Generate declarations in header.
   if (!field_type->IsClassType() && field_type != TypeOracle::GetObjectType()) {
     hdr_ << "  // Torque type: " << field_type->ToString() << "\n";
@@ -4264,9 +4264,12 @@ void ImplementationVisitor::GenerateClassDefinitions(
         factory_impl << "    "
                         "isolate()->heap()->AllocateRawWith<Heap::kRetryOrFail>"
                         "(size, allocation_type);\n";
+        factory_impl << "    WriteBarrierMode write_barrier_mode =\n"
+                     << "       allocation_type == AllocationType::kYoung\n"
+                     << "       ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;\n";
         factory_impl << "  result.set_map_after_allocation(roots."
                      << SnakeifyString(type->name())
-                     << "_map(), SKIP_WRITE_BARRIER);\n";
+                     << "_map(), write_barrier_mode);\n";
         factory_impl << "  " << type->HandlifiedCppTypeName()
                      << " result_handle(" << type->name()
                      << "::cast(result), isolate());\n";
@@ -4280,7 +4283,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
                     TypeOracle::GetTaggedType()) &&
                 !f.name_and_type.type->IsSubtypeOf(TypeOracle::GetSmiType())) {
               factory_impl << "*" << f.name_and_type.name
-                           << ", SKIP_WRITE_BARRIER";
+                           << ", write_barrier_mode";
             } else {
               factory_impl << f.name_and_type.name;
             }
@@ -4318,7 +4321,7 @@ void GeneratePrintDefinitionsForClass(std::ostream& impl, const ClassType* type,
   impl << template_params << "\n";
   impl << "void " << gen_name_T << "::" << type->name()
        << "Print(std::ostream& os) {\n";
-  impl << "  this->PrintHeader(os, \"" << gen_name << "\");\n";
+  impl << "  this->PrintHeader(os, \"" << type->name() << "\");\n";
   auto hierarchy = type->GetHierarchy();
   std::map<std::string, const AggregateType*> field_names;
   for (const AggregateType* aggregate_type : hierarchy) {

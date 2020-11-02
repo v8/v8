@@ -28,7 +28,7 @@ type never;
 
 type Tagged generates 'TNode<MaybeObject>' constexpr 'MaybeObject';
 type StrongTagged extends Tagged
-    generates 'TNode<Object>' constexpr 'ObjectPtr';
+    generates 'TNode<Object>' constexpr 'Object';
 type Smi extends StrongTagged generates 'TNode<Smi>' constexpr 'Smi';
 type TaggedIndex extends StrongTagged
     generates 'TNode<TaggedIndex>' constexpr 'TaggedIndex';
@@ -150,7 +150,7 @@ type ObjectHashTable extends HashTable
     generates 'TNode<ObjectHashTable>';
 extern class NumberDictionary extends HashTable;
 
-type RawPtr generates 'TNode<RawPtrT>' constexpr 'void*';
+type RawPtr generates 'TNode<RawPtrT>' constexpr 'Address';
 type ExternalPointer
     generates 'TNode<ExternalPointerT>' constexpr 'ExternalPointer_t';
 extern class Code extends HeapObject;

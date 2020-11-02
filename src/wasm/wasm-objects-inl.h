@@ -365,16 +365,6 @@ WasmCapiFunction::WasmCapiFunction(Address ptr) : JSFunction(ptr) {
 }
 CAST_ACCESSOR(WasmCapiFunction)
 
-// WasmCapiFunctionData
-OBJECT_CONSTRUCTORS_IMPL(WasmCapiFunctionData, Struct)
-CAST_ACCESSOR(WasmCapiFunctionData)
-PRIMITIVE_ACCESSORS(WasmCapiFunctionData, call_target, Address,
-                    kCallTargetOffset)
-ACCESSORS(WasmCapiFunctionData, embedder_data, Foreign, kEmbedderDataOffset)
-ACCESSORS(WasmCapiFunctionData, wrapper_code, Code, kWrapperCodeOffset)
-ACCESSORS(WasmCapiFunctionData, serialized_signature, PodArray<wasm::ValueType>,
-          kSerializedSignatureOffset)
-
 // WasmExternalFunction
 WasmExternalFunction::WasmExternalFunction(Address ptr) : JSFunction(ptr) {
   SLOW_DCHECK(IsWasmExternalFunction(*this));
