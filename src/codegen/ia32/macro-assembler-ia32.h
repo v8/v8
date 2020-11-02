@@ -480,8 +480,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #undef AVX_OP3_XO_SSE4
 #undef AVX_OP3_WITH_TYPE_SCOPE
 
-  void Pshufb(XMMRegister dst, XMMRegister src) { Pshufb(dst, Operand(src)); }
-  void Pshufb(XMMRegister dst, Operand src);
+  void Pshufb(XMMRegister dst, XMMRegister src) { Pshufb(dst, dst, src); }
+  void Pshufb(XMMRegister dst, Operand src) { Pshufb(dst, dst, src); }
+  // Handles SSE and AVX. On SSE, moves src to dst if they are not equal.
+  void Pshufb(XMMRegister dst, XMMRegister src, XMMRegister mask) {
+    Pshufb(dst, src, Operand(mask));
+  }
+  void Pshufb(XMMRegister dst, XMMRegister src, Operand mask);
   void Pblendw(XMMRegister dst, XMMRegister src, uint8_t imm8) {
     Pblendw(dst, Operand(src), imm8);
   }

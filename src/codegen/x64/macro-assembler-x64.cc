@@ -1936,6 +1936,22 @@ void TurboAssembler::Blendvpd(XMMRegister dst, XMMRegister src1,
   }
 }
 
+void TurboAssembler::Pshufb(XMMRegister dst, XMMRegister src,
+                            XMMRegister mask) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpshufb(dst, src, mask);
+  } else {
+    // Make sure these are different so that we won't overwrite mask.
+    DCHECK_NE(dst, mask);
+    if (dst != src) {
+      movapd(dst, src);
+    }
+    CpuFeatureScope sse_scope(this, SSSE3);
+    pshufb(dst, mask);
+  }
+}
+
 void TurboAssembler::Psrld(XMMRegister dst, byte imm8) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);

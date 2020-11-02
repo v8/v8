@@ -2329,22 +2329,9 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
     wasm::SimdShuffle::Pack16Lanes(imms, shuffle);
     TurboAssembler::Move(kScratchDoubleReg, make_uint64(imms[3], imms[2]),
                          make_uint64(imms[1], imms[0]));
-    if (CpuFeatures::IsSupported(AVX)) {
-      CpuFeatureScope scope(this, AVX);
-      vpshufb(dst.fp(), lhs.fp(), kScratchDoubleReg);
-    } else {
-      if (dst != lhs) {
-        movups(dst.fp(), lhs.fp());
-      }
-      CpuFeatureScope sse_scope(this, SSSE3);
-      pshufb(dst.fp(), kScratchDoubleReg);
-    }
+    Pshufb(dst.fp(), lhs.fp(), kScratchDoubleReg);
     return;
   }
-
-  LiftoffRegister tmp_simd =
-      GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dst, lhs, rhs));
-  Movups(kScratchDoubleReg, lhs.fp());
 
   uint64_t mask1[2] = {};
   for (int i = 15; i >= 0; i--) {
@@ -2353,10 +2340,8 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
     mask1[j] <<= 8;
     mask1[j] |= lane < kSimd128Size ? lane : 0x80;
   }
-  TurboAssembler::Move(tmp_simd.fp(), mask1[0]);
-  movq(kScratchRegister, mask1[1]);
-  Pinsrq(tmp_simd.fp(), kScratchRegister, uint8_t{1});
-  Pshufb(kScratchDoubleReg, tmp_simd.fp());
+  TurboAssembler::Move(liftoff::kScratchDoubleReg2, mask1[1], mask1[0]);
+  Pshufb(kScratchDoubleReg, lhs.fp(), liftoff::kScratchDoubleReg2);
 
   uint64_t mask2[2] = {};
   for (int i = 15; i >= 0; i--) {
@@ -2365,14 +2350,9 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
     mask2[j] <<= 8;
     mask2[j] |= lane >= kSimd128Size ? (lane & 0x0F) : 0x80;
   }
-  TurboAssembler::Move(tmp_simd.fp(), mask2[0]);
-  movq(kScratchRegister, mask2[1]);
-  Pinsrq(tmp_simd.fp(), kScratchRegister, uint8_t{1});
+  TurboAssembler::Move(liftoff::kScratchDoubleReg2, mask2[1], mask2[0]);
 
-  if (dst.fp() != rhs.fp()) {
-    Movups(dst.fp(), rhs.fp());
-  }
-  Pshufb(dst.fp(), tmp_simd.fp());
+  Pshufb(dst.fp(), rhs.fp(), liftoff::kScratchDoubleReg2);
   Por(dst.fp(), kScratchDoubleReg);
 }
 
@@ -2385,10 +2365,7 @@ void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
   TurboAssembler::Move(mask, uint32_t{0x70707070});
   Pshufd(mask, mask, uint8_t{0x0});
   Paddusb(mask, rhs.fp());
-  if (lhs != dst) {
-    Movaps(dst.fp(), lhs.fp());
-  }
-  Pshufb(dst.fp(), mask);
+  Pshufb(dst.fp(), lhs.fp(), mask);
 }
 
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,

@@ -2705,16 +2705,7 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
     for (int i = 3; i >= 0; i--) {
       push_imm32(imms[i]);
     }
-    if (CpuFeatures::IsSupported(AVX)) {
-      CpuFeatureScope scope(this, AVX);
-      vpshufb(dst.fp(), lhs.fp(), Operand(esp, 0));
-    } else {
-      if (dst != lhs) {
-        movups(dst.fp(), lhs.fp());
-      }
-      CpuFeatureScope sse_scope(this, SSSE3);
-      pshufb(dst.fp(), Operand(esp, 0));
-    }
+    Pshufb(dst.fp(), lhs.fp(), Operand(esp, 0));
     mov(esp, tmp.gp());
     return;
   }
@@ -2729,7 +2720,7 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
     }
     push(Immediate(mask));
   }
-  Pshufb(liftoff::kScratchDoubleReg, Operand(esp, 0));
+  Pshufb(liftoff::kScratchDoubleReg, lhs.fp(), Operand(esp, 0));
 
   for (int i = 3; i >= 0; i--) {
     uint32_t mask = 0;
@@ -2740,10 +2731,7 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
     }
     push(Immediate(mask));
   }
-  if (dst.fp() != rhs.fp()) {
-    movups(dst.fp(), rhs.fp());
-  }
-  Pshufb(dst.fp(), Operand(esp, 0));
+  Pshufb(dst.fp(), rhs.fp(), Operand(esp, 0));
   Por(dst.fp(), liftoff::kScratchDoubleReg);
   mov(esp, tmp.gp());
 }
@@ -2757,10 +2745,7 @@ void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
   TurboAssembler::Move(mask, uint32_t{0x70707070});
   Pshufd(mask, mask, uint8_t{0x0});
   Paddusb(mask, rhs.fp());
-  if (lhs != dst) {
-    Movaps(dst.fp(), lhs.fp());
-  }
-  Pshufb(dst.fp(), mask);
+  Pshufb(dst.fp(), lhs.fp(), mask);
 }
 
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,

@@ -549,6 +549,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Blendvpd(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                 XMMRegister mask);
 
+  // Supports both SSE and AVX. Move src1 to dst if they are not equal on SSE.
+  void Pshufb(XMMRegister dst, XMMRegister src1, XMMRegister src2);
+
   void CompareRoot(Register with, RootIndex index);
   void CompareRoot(Operand with, RootIndex index);
 
