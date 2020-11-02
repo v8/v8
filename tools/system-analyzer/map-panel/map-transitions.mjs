@@ -1,10 +1,10 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import { V8CustomElement, defineCustomElement, typeToColor } from "../helper.mjs";
+import { V8CustomElement, DOM, typeToColor } from "../helper.mjs";
 import { FocusEvent, SelectionEvent } from "../events.mjs";
 
-defineCustomElement(
+DOM.defineCustomElement(
   "./map-panel/map-transitions",
   (templateText) =>
     class MapTransitions extends V8CustomElement {
@@ -64,7 +64,7 @@ defineCustomElement(
       }
       _showMaps() {
         this.transitionView.style.display = "none";
-        this.removeAllChildren(this.transitionView);
+        DOM.removeAllChildren(this.transitionView);
         this._displayedMapsInTree = new Set();
         // Limit view to 200 maps for performance reasons.
         this.selectedMapLogEntries.slice(0, 200).forEach((map) =>
@@ -121,9 +121,9 @@ defineCustomElement(
 
       addTransitionEdge(map) {
         let classes = ["transitionEdge"];
-        let edge = this.div(classes);
+        let edge = DOM.div(classes);
         edge.style.backgroundColor = typeToColor(map.edge);
-        let labelNode = this.div("transitionLabel");
+        let labelNode = DOM.div("transitionLabel");
         labelNode.innerText = map.edge.toString();
         edge.appendChild(labelNode);
         return edge;
@@ -132,7 +132,7 @@ defineCustomElement(
       addTransitionTo(map) {
         // transition[ transitions[ transition[...], transition[...], ...]];
         this._displayedMapsInTree?.add(map);
-        let transition = this.div("transition");
+        let transition = DOM.div("transition");
         if (map.isDeprecated()) transition.classList.add("deprecated");
         if (map.edge) {
           transition.appendChild(this.addTransitionEdge(map));
@@ -140,7 +140,7 @@ defineCustomElement(
         let mapNode = this.addMapNode(map);
         transition.appendChild(mapNode);
 
-        let subtree = this.div("transitions");
+        let subtree = DOM.div("transitions");
         transition.appendChild(subtree);
 
         this.currentNode.appendChild(transition);
@@ -150,13 +150,13 @@ defineCustomElement(
       }
 
       addMapNode(map) {
-        let node = this.div("map");
+        let node = DOM.div("map");
         if (map.edge) node.style.backgroundColor = typeToColor(map.edge);
         node.map = map;
         node.addEventListener("click", () => this.selectMap(map));
         if (map.children.length > 1) {
           node.innerText = map.children.length;
-          let showSubtree = this.div("showSubtransitions");
+          let showSubtree = DOM.div("showSubtransitions");
           showSubtree.addEventListener("click", (e) =>
             this.toggleSubtree(e, node)
           );

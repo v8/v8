@@ -235,7 +235,7 @@ export class Processor extends LogReader {
     slow_reason) {
     let fnName = this.functionName(pc);
     let parts = fnName.split(' ');
-    let fileName = parts[1];
+    let fileName = parts[parts.length-1];
     let script = this.getScript(fileName);
     // TODO: Use SourcePosition here directly
     let entry = new IcLogEntry(

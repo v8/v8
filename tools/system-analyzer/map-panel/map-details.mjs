@@ -1,10 +1,10 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import { V8CustomElement, defineCustomElement } from "../helper.mjs";
+import { V8CustomElement, DOM} from "../helper.mjs";
 import { FocusEvent } from "../events.mjs";
 
-defineCustomElement(
+DOM.defineCustomElement(
   "./map-panel/map-details",
   (templateText) =>
     class MapDetails extends V8CustomElement {

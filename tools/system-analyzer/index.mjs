@@ -158,9 +158,11 @@ class App {
       this._view.sourcePanel.data = processor.scripts
     } catch(e) {
       this._view.logFileReader.error = "Log file contains errors!"
+      throw(e);
+    } finally {
+      $("#container").className = "loaded";
+      this.fileLoaded = true;
     }
-    $("#container").className = "loaded";
-    this.fileLoaded = true;
   }
 
   refreshTimelineTrackView() {

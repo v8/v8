@@ -1,76 +1,122 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import { V8CustomElement, defineCustomElement } from "./helper.mjs";
+import { V8CustomElement, DOM, delay, formatBytes} from "./helper.mjs";
 import { SelectionEvent, FocusEvent } from "./events.mjs";
 import { MapLogEntry } from "./log/map.mjs";
 import { IcLogEntry } from "./log/ic.mjs";
 
-defineCustomElement(
+DOM.defineCustomElement(
   "source-panel",
   (templateText) =>
     class SourcePanel extends V8CustomElement {
-      _selectedSourcePositions;
+      _selectedSourcePositions = [];
+      _sourcePositionsToMarkNodes;
       _scripts = [];
       _script;
       constructor() {
         super(templateText);
         this.scriptDropdown.addEventListener(
-          'change', e => this.handleSelectScript(e));
+          'change', e => this._handleSelectScript(e));
       }
+
       get script() {
         return this.$('#script');
       }
+
       get scriptNode() {
         return this.$('.scriptNode');
       }
+
       set script(script) {
+        if (this._script === script) return;
         this._script = script;
-        // TODO: fix undefined scripts
-        if (script !== undefined) this.renderSourcePanel();
+        this._renderSourcePanel();
+        this._updateScriptDropdownSelection();
       }
+
       set selectedSourcePositions(sourcePositions) {
         this._selectedSourcePositions = sourcePositions;
+        // TODO: highlight multiple scripts
+        this.script = sourcePositions[0]?.script;
+        this._focusSelectedMarkers();
       }
-      get selectedSourcePositions() {
-        return this._selectedSourcePositions;
+
+      set data(scripts) {
+        this._scripts = scripts;
+        this._initializeScriptDropdown();
       }
-      set data(value) {
-        this._scripts = value;
-        this.initializeScriptDropdown();
-        this.script = this._scripts[0];
-      }
+
       get scriptDropdown() {
         return this.$("#script-dropdown");
       }
-      initializeScriptDropdown() {
+
+      _initializeScriptDropdown() {
         this._scripts.sort((a, b) => a.name.localeCompare(b.name));
         let select = this.scriptDropdown;
         select.options.length = 0;
         for (const script of this._scripts) {
           const option = document.createElement("option");
-          option.text = `${script.name} (id=${script.id})`;
+          const size = formatBytes(script.source.length);
+          option.text = `${script.name} (id=${script.id} size=${size})`;
           option.script = script;
           select.add(option);
         }
       }
+      _updateScriptDropdownSelection() {
+        this.scriptDropdown.selectedIndex =
+            this._script ? this._scripts.indexOf(this._script) : -1;
+      }
 
-      renderSourcePanel() {
-        const builder = new LineBuilder(this, this._script);
-        const scriptNode = builder.createScriptNode();
+      async _renderSourcePanel() {
+        let scriptNode;
+        if (this._script) {
+          await delay(1);
+          const builder = new LineBuilder(
+                this, this._script, this._selectedSourcePositions);
+          scriptNode = builder.createScriptNode();
+          this._sourcePositionsToMarkNodes = builder.sourcePositionToMarkers;
+        } else {
+          scriptNode = document.createElement("pre");
+          this._selectedMarkNodes = undefined;
+        }
         const oldScriptNode = this.script.childNodes[1];
         this.script.replaceChild(scriptNode, oldScriptNode);
       }
 
-      handleSelectScript(e) {
-        const option = this.scriptDropdown.options[this.scriptDropdown.selectedIndex];
+      async _focusSelectedMarkers() {
+        await delay(100);
+        // Remove all marked nodes.
+        for (let markNode of this._sourcePositionsToMarkNodes.values()) {
+          markNode.className = "";
+        }
+        for (let sourcePosition of this._selectedSourcePositions) {
+          this._sourcePositionsToMarkNodes
+              .get(sourcePosition).className = "marked";
+        }
+        const sourcePosition = this._selectedSourcePositions[0];
+        if (!sourcePosition) return;
+        const markNode = this._sourcePositionsToMarkNodes.get(sourcePosition);
+        markNode.scrollIntoView({
+              behavior: "smooth", block: "nearest", inline: "center"
+            });
+      }
+
+      _handleSelectScript(e) {
+        const option =
+          this.scriptDropdown.options[this.scriptDropdown.selectedIndex];
         this.script = option.script;
+        this.selectLogEntries(this._script.entries());
       }
 
       handleSourcePositionClick(e) {
+        this.selectLogEntries(e.target.sourcePosition.entries)
+      }
+
+      selectLogEntries(logEntries) {
         let icLogEntries = [];
         let mapLogEntries = [];
-        for (const entry of e.target.sourcePosition.entries) {
+        for (const entry of logEntries) {
           if (entry instanceof MapLogEntry) {
             mapLogEntries.push(entry);
           } else if (entry instanceof IcLogEntry) {
@@ -79,14 +125,11 @@ defineCustomElement(
         }
         if (icLogEntries.length > 0 ) {
           this.dispatchEvent(new SelectionEvent(icLogEntries));
-          this.dispatchEvent(new FocusEvent(icLogEntries[0]));
         }
         if (mapLogEntries.length > 0) {
           this.dispatchEvent(new SelectionEvent(mapLogEntries));
-          this.dispatchEvent(new FocusEvent(mapLogEntries[0]));
         }
       }
-
     }
 );
 
@@ -99,8 +142,15 @@ class SourcePositionIterator {
   }
 
   *forLine(lineIndex) {
+    this._findStart(lineIndex);
     while(!this._done() && this._current().line === lineIndex) {
       yield this._current();
+      this._next();
+    }
+  }
+
+  _findStart(lineIndex) {
+    while(!this._done() && this._current().line < lineIndex) {
       this._next();
     }
   }
@@ -131,13 +181,17 @@ function * lineIterator(source) {
   if (current < source.length) yield [line, source.substring(current)];
 }
 
-class LineBuilder {
-  _script
-  _clickHandler
-  _sourcePositions
 
-  constructor(panel, script) {
+class LineBuilder {
+  _script;
+  _clickHandler;
+  _sourcePositions;
+  _selection;
+  _sourcePositionToMarkers = new Map();
+
+  constructor(panel, script, highlightPositions) {
     this._script = script;
+    this._selection = new Set(highlightPositions);
     this._clickHandler = panel.handleSourcePositionClick.bind(panel);
     // TODO: sort on script finalization.
     script.sourcePositions.sort((a, b) => {
@@ -146,7 +200,10 @@ class LineBuilder {
     })
     this._sourcePositions
         = new SourcePositionIterator(script.sourcePositions);
+  }
 
+  get sourcePositionToMarkers() {
+    return this._sourcePositionToMarkers;
   }
 
   createScriptNode() {
@@ -179,7 +236,7 @@ class LineBuilder {
 
   _createMarkerNode(text, sourcePosition) {
     const marker = document.createElement("mark");
-    marker.classList.add('marked');
+    this._sourcePositionToMarkers.set(sourcePosition, marker);
     marker.textContent = text;
     marker.sourcePosition = sourcePosition;
     marker.onclick = this._clickHandler;

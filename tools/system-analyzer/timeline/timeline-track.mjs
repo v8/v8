@@ -2,15 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {
-  defineCustomElement, V8CustomElement, CSSColor, delay
-} from '../helper.mjs';
+import { DOM, V8CustomElement, CSSColor, delay } from '../helper.mjs';
 import { kChunkWidth, kChunkHeight } from "../log/map.mjs";
 import {
   SelectionEvent, FocusEvent, SelectTimeEvent,
   SynchronizeSelectionEvent
 } from '../events.mjs';
-
 
 const kColors = [
   CSSColor.green,
@@ -24,7 +21,7 @@ const kColors = [
   CSSColor.secondaryColor,
 ];
 
-defineCustomElement('./timeline/timeline-track', (templateText) =>
+DOM.defineCustomElement('./timeline/timeline-track', (templateText) =>
   class TimelineTrack extends V8CustomElement {
     // TODO turn into static field once Safari supports it.
     static get SELECTION_OFFSET() { return 10 };
@@ -55,9 +52,9 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       let xPosition = e.clientX
       // Update origin time in case we click on a handle.
       if (this.isOnLeftHandle(xPosition)) {
-        xPosition  = this.rightHandlePosX;
+        xPosition = this.rightHandlePosX;
       } else if (this.isOnRightHandle(xPosition)) {
-        xPosition  = this.leftHandlePosX;
+        xPosition = this.leftHandlePosX;
       }
       this._selectionOriginTime = this.positionToTime(xPosition);
     }
@@ -102,9 +99,9 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       const startPosition = this.timeToPosition(this._timeSelection.start);
       const endPosition = this.timeToPosition(this._timeSelection.end);
       const delta = endPosition - startPosition;
-      this.leftHandle.style.left = startPosition  + "px";
-      this.selection.style.left = startPosition  + "px";
-      this.rightHandle.style.left = endPosition  + "px";
+      this.leftHandle.style.left = startPosition + "px";
+      this.selection.style.left = startPosition + "px";
+      this.rightHandle.style.left = endPosition + "px";
       this.selection.style.width = delta + "px";
     }
 
@@ -165,6 +162,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
     get timelineLegendContent() {
       return this.$('#legendContent');
     }
+
     set data(value) {
       this._timeline = value;
       this._resetTypeToColorCache();
@@ -223,33 +221,32 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
     renderLegend() {
       let timelineLegend = this.timelineLegend;
       let timelineLegendContent = this.timelineLegendContent;
-      this.removeAllChildren(timelineLegendContent);
+      DOM.removeAllChildren(timelineLegendContent);
       this._timeline.uniqueTypes.forEach((entries, type) => {
-        let row = this.tr();
+        let row = DOM.tr("clickable");
         row.entries = entries;
-        row.classList.add('clickable');
         row.addEventListener('dblclick', e => this.handleEntryTypeDblClick(e));
         let color = this.typeToColor(type);
         if (color !== null) {
-          let div = this.div(["colorbox"]);
+          let div = DOM.div("colorbox");
           div.style.backgroundColor = color;
-          row.appendChild(this.td(div));
+          row.appendChild(DOM.td(div));
         } else {
-          row.appendChild(this.td(""));
+          row.appendChild(DOM.td());
         }
-        let td = this.td(type);
+        let td = DOM.td(type);
         row.appendChild(td);
-        row.appendChild(this.td(entries.length));
+        row.appendChild(DOM.td(entries.length));
         let percent = (entries.length / this.data.all.length) * 100;
-        row.appendChild(this.td(percent.toFixed(1) + "%"));
+        row.appendChild(DOM.td(percent.toFixed(1) + "%"));
         timelineLegendContent.appendChild(row);
       });
       // Add Total row.
-      let row = this.tr();
-      row.appendChild(this.td(""));
-      row.appendChild(this.td("All"));
-      row.appendChild(this.td(this.data.all.length));
-      row.appendChild(this.td("100%"));
+      let row = DOM.tr();
+      row.appendChild(DOM.td(""));
+      row.appendChild(DOM.td("All"));
+      row.appendChild(DOM.td(this.data.all.length));
+      row.appendChild(DOM.td("100%"));
       timelineLegendContent.appendChild(row);
       timelineLegend.appendChild(timelineLegendContent);
     }
@@ -316,7 +313,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
 
     updateTimeline() {
       let chunksNode = this.timelineChunks;
-      this.removeAllChildren(chunksNode);
+      DOM.removeAllChildren(chunksNode);
       let chunks = this.chunks;
       let max = chunks.max(each => each.size());
       let start = this.data.startTime;
@@ -325,7 +322,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       this._timeToPixel = chunks.length * kChunkWidth / duration;
       this._timeStartOffset = start * this._timeToPixel;
       let addTimestamp = (time, name) => {
-        let timeNode = this.div('timestamp');
+        let timeNode = DOM.div('timestamp');
         timeNode.innerText = name;
         timeNode.style.left = ((time - start) * this._timeToPixel) + 'px';
         chunksNode.appendChild(timeNode);
@@ -336,7 +333,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
         let height = (chunk.size() / max * kChunkHeight);
         chunk.height = height;
         if (chunk.isEmpty()) continue;
-        let node = this.div();
+        let node = DOM.div();
         node.className = 'chunk';
         node.style.left =
           ((chunks[i].start - start) * this._timeToPixel) + 'px';

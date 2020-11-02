@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { defineCustomElement, V8CustomElement } from './helper.mjs';
+import { DOM, V8CustomElement } from './helper.mjs';
 import { SynchronizeSelectionEvent } from './events.mjs';
 import './timeline/timeline-track.mjs';
 
-defineCustomElement('timeline-panel', (templateText) =>
+DOM.defineCustomElement('timeline-panel', (templateText) =>
   class TimelinePanel extends V8CustomElement {
     constructor() {
       super(templateText);

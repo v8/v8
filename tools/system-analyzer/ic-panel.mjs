@@ -5,10 +5,10 @@
 import { Group } from './ic-model.mjs';
 import { MapLogEntry } from "./log/map.mjs";
 import { FocusEvent, SelectTimeEvent, SelectionEvent } from './events.mjs';
-import { defineCustomElement, V8CustomElement } from './helper.mjs';
+import { DOM, V8CustomElement, delay } from './helper.mjs';
 import { IcLogEntry } from './log/ic.mjs';
 
-defineCustomElement('ic-panel', (templateText) =>
+DOM.defineCustomElement('ic-panel', (templateText) =>
   class ICPanel extends V8CustomElement {
     _selectedLogEntries;
     _timeline;
@@ -17,8 +17,6 @@ defineCustomElement('ic-panel', (templateText) =>
       this.initGroupKeySelect();
       this.groupKey.addEventListener(
         'change', e => this.updateTable(e));
-      this.$('#filterICTimeBtn').addEventListener(
-        'click', e => this.handleICTimeFilter(e));
     }
     set timeline(value) {
       console.assert(value !== undefined, "timeline undefined!");
@@ -48,19 +46,24 @@ defineCustomElement('ic-panel', (templateText) =>
 
     set selectedLogEntries(value) {
       this._selectedLogEntries = value;
+      this.update();
+    }
+
+    async update() {
+      await delay(1);
       this.updateCount();
       this.updateTable();
     }
 
     updateCount() {
-      this.count.innerHTML = this._selectedLogEntries.length;
+      this.count.innerHTML = "length=" + this._selectedLogEntries.length;
     }
 
     updateTable(event) {
       let select = this.groupKey;
       let key = select.options[select.selectedIndex].text;
       let tableBody = this.tableBody;
-      this.removeAllChildren(tableBody);
+      DOM.removeAllChildren(tableBody);
       let groups = Group.groupBy(this._selectedLogEntries, key, true);
       this.render(groups, tableBody);
     }
@@ -74,32 +77,12 @@ defineCustomElement('ic-panel', (templateText) =>
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
     }
-    processValue(unsafe) {
-      if (!unsafe) return "";
-      if (!unsafe.startsWith("http")) return this.escapeHtml(unsafe);
-      let a = document.createElement("a");
-      a.href = unsafe;
-      a.textContent = unsafe;
-      return a;
-    }
-
-    td(tr, content, className) {
-      let node = document.createElement("td");
-      if (typeof content == "object") {
-        node.appendChild(content);
-      } else {
-        node.innerHTML = content;
-      }
-      node.className = className;
-      tr.appendChild(node);
-      return node
-    }
 
     handleMapClick(e) {
-      const entry = e.target.parentNode.entry;
-      const id = entry.key;
+      const group = e.target.parentNode.entry;
+      const id = group.key;
       const selectedMapLogEntries =
-        this.searchIcLogEntryToMapLogEntry(id, entry.entries);
+        this.searchIcLogEntryToMapLogEntry(id, group.entries);
       this.dispatchEvent(new SelectionEvent(selectedMapLogEntries));
     }
 
@@ -116,105 +99,97 @@ defineCustomElement('ic-panel', (templateText) =>
 
     //TODO(zcankara) Handle in the processor for events with source positions.
     handleFilePositionClick(e) {
-      const entry = e.target.parentNode.entry;
-      this.dispatchEvent(new FocusEvent(entry.filePosition));
+      const tr = e.target.parentNode;
+      const sourcePosition = tr.group.entries[0].sourcePosition;
+      this.dispatchEvent(new FocusEvent(sourcePosition));
     }
 
-    render(entries, parent) {
-      let fragment = document.createDocumentFragment();
-      let max = Math.min(1000, entries.length)
+    render(groups, parent) {
+      const fragment = document.createDocumentFragment();
+      const max = Math.min(1000, groups.length)
+      const detailsClickHandler = this.handleDetailsClick.bind(this);
+      const mapClickHandler = this.handleMapClick.bind(this);
+      const fileClickHandler = this.handleFilePositionClick.bind(this);
       for (let i = 0; i < max; i++) {
-        let entry = entries[i];
-        let tr = document.createElement("tr");
-        tr.entry = entry;
-        //TODO(zcankara) Create one bound method and use it everywhere
-        if (entry.property === "map") {
-          tr.addEventListener('click', e => this.handleMapClick(e));
-          tr.classList.add('clickable');
-        } else if (entry.property == "filePosition") {
-          tr.classList.add('clickable');
-          tr.addEventListener('click',
-            e => this.handleFilePositionClick(e));
+        const group = groups[i];
+        const tr = DOM.tr();
+        tr.group = group;
+        const details = tr.appendChild(DOM.td('', 'toggle'));
+        details.onclick = detailsClickHandler;
+        tr.appendChild(DOM.td(group.percentage + "%", 'percentage'));
+        tr.appendChild(DOM.td(group.count, 'count'));
+        const valueTd = tr.appendChild(DOM.td(group.key, 'key'));
+        if (group.property === "map") {
+          valueTd.onclick = mapClickHandler;
+          valueTd.classList.add('clickable');
+        } else if (group.property == "filePosition") {
+          valueTd.classList.add('clickable');
+          valueTd.onclick = fileClickHandler;
         }
-        let details = this.td(tr, '<span>&#8505;</a>', 'details');
-        //TODO(zcankara) don't keep the whole function context alive
-        details.onclick = _ => this.toggleDetails(details);
-        this.td(tr, entry.percentage + "%", 'percentage');
-        this.td(tr, entry.count, 'count');
-        this.td(tr, this.processValue(entry.key), 'key');
         fragment.appendChild(tr);
       }
-      let omitted = entries.length - max;
+      const omitted = groups.length - max;
       if (omitted > 0) {
-        let tr = document.createElement("tr");
-        let tdNode = this.td(tr, 'Omitted ' + omitted + " entries.");
+        const tr = DOM.tr();
+        const tdNode =
+            tr.appendChild(DOM.td('Omitted ' + omitted + " entries."));
         tdNode.colSpan = 4;
         fragment.appendChild(tr);
       }
       parent.appendChild(fragment);
     }
 
+    handleDetailsClick(event) {
+      const tr = event.target.parentNode;
+      const group = tr.group;
+      // Create subgroup in-place if the don't exist yet.
+      if (group.groups === undefined) {
+        group.createSubGroups();
+        this.renderDrilldown(group, tr);
+      }
+      let detailsTr = tr.nextSibling;
+      if (tr.classList.contains("open")) {
+        tr.classList.remove("open");
+        detailsTr.style.display = "none";
+      } else {
+        tr.classList.add("open");
+        detailsTr.style.display = "table-row";
+      }
+    }
 
-    renderDrilldown(entry, previousSibling) {
-      let tr = document.createElement('tr');
-      tr.className = "entry-details";
+    renderDrilldown(group, previousSibling) {
+      let tr = DOM.tr("entry-details");
       tr.style.display = "none";
       // indent by one td.
-      tr.appendChild(document.createElement("td"));
-      let td = document.createElement("td");
+      tr.appendChild(DOM.td());
+      let td = DOM.td();
       td.colSpan = 3;
-      for (let key in entry.groups) {
-        td.appendChild(this.renderDrilldownGroup(entry, key));
+      for (let key in group.groups) {
+        this.renderDrilldownGroup(td, group.groups[key], key);
       }
       tr.appendChild(td);
       // Append the new TR after previousSibling.
       previousSibling.parentNode.insertBefore(tr, previousSibling.nextSibling)
     }
 
-    renderDrilldownGroup(entry, key) {
-      let max = 20;
-      let group = entry.groups[key];
-      let div = document.createElement("div")
-      div.className = 'drilldown-group-title'
-      div.textContent = key + ' [top ' + max + ' out of ' + group.length + ']';
-      let table = document.createElement("table");
-      this.render(group.slice(0, max), table, false)
-      div.appendChild(table);
-      return div;
-    }
-
-    toggleDetails(node) {
-      let tr = node.parentNode;
-      let entry = tr.entry;
-      // Create subgroup in-place if the don't exist yet.
-      if (entry.groups === undefined) {
-        entry.createSubGroups();
-        this.renderDrilldown(entry, tr);
-      }
-      let details = tr.nextSibling;
-      let display = details.style.display;
-      if (display != "none") {
-        display = "none";
-      } else {
-        display = "table-row"
-      };
-      details.style.display = display;
+    renderDrilldownGroup(td, children, key) {
+      const max = 20;
+      const div = DOM.div('drilldown-group-title');
+      div.textContent =
+          `Grouped by ${key} [top ${max} out of ${children.length}]`;
+      td.appendChild(div);
+      const table = DOM.table();
+      this.render(children.slice(0, max), table, false)
+      td.appendChild(table);
     }
 
     initGroupKeySelect() {
-      let select = this.groupKey;
+      const select = this.groupKey;
       select.options.length = 0;
       for (const propertyName of IcLogEntry.propertyNames) {
-        let option = document.createElement("option");
+        const option = document.createElement("option");
         option.text = propertyName;
         select.add(option);
       }
     }
-
-    handleICTimeFilter(e) {
-      this.dispatchEvent(new SelectTimeEvent(
-        parseInt(this.$('#filter-time-start').value),
-        parseInt(this.$('#filter-time-end').value)));
-    }
-
   });
