@@ -357,6 +357,9 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_SIMDI_OP(SignSelect, "signselect")
     CASE_I64x2_OP(SignSelect, "signselect")
 
+    CASE_SIGN_OP(I32x4, ExtAddPairwiseI16x8, "extadd_pairwise_i16x8")
+    CASE_SIGN_OP(I16x8, ExtAddPairwiseI8x16, "extadd_pairwise_i8x6")
+
     // Atomic operations.
     CASE_OP(AtomicNotify, "atomic.notify")
     CASE_INT_OP(AtomicWait, "atomic.wait")

@@ -463,6 +463,8 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(I32x4ExtMulLowI16x8U, Operator::kCommutative, 2, 0, 1)                 \
   V(I32x4ExtMulHighI16x8U, Operator::kCommutative, 2, 0, 1)                \
   V(I32x4SignSelect, Operator::kNoProperties, 3, 0, 1)                     \
+  V(I32x4ExtAddPairwiseI16x8S, Operator::kNoProperties, 1, 0, 1)           \
+  V(I32x4ExtAddPairwiseI16x8U, Operator::kNoProperties, 1, 0, 1)           \
   V(I16x8Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(I16x8SConvertI8x16Low, Operator::kNoProperties, 1, 0, 1)               \
   V(I16x8SConvertI8x16High, Operator::kNoProperties, 1, 0, 1)              \
@@ -501,6 +503,8 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(I16x8ExtMulLowI8x16U, Operator::kCommutative, 2, 0, 1)                 \
   V(I16x8ExtMulHighI8x16U, Operator::kCommutative, 2, 0, 1)                \
   V(I16x8SignSelect, Operator::kNoProperties, 3, 0, 1)                     \
+  V(I16x8ExtAddPairwiseI8x16S, Operator::kNoProperties, 1, 0, 1)           \
+  V(I16x8ExtAddPairwiseI8x16U, Operator::kNoProperties, 1, 0, 1)           \
   V(I8x16Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(I8x16Neg, Operator::kNoProperties, 1, 0, 1)                            \
   V(I8x16Shl, Operator::kNoProperties, 2, 0, 1)                            \

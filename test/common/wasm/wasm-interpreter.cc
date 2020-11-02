@@ -2789,6 +2789,18 @@ class WasmInterpreterInternals {
       case kExprI64x2SignSelect: {
         return DoSimdSignSelect<int2>();
       }
+      case kExprI32x4ExtAddPairwiseI16x8S: {
+        return DoSimdExtAddPairwise<int4, int8, int32_t, int16_t>();
+      }
+      case kExprI32x4ExtAddPairwiseI16x8U: {
+        return DoSimdExtAddPairwise<int4, int8, uint32_t, uint16_t>();
+      }
+      case kExprI16x8ExtAddPairwiseI8x16S: {
+        return DoSimdExtAddPairwise<int8, int16, int16_t, int8_t>();
+      }
+      case kExprI16x8ExtAddPairwiseI8x16U: {
+        return DoSimdExtAddPairwise<int8, int16, uint16_t, uint8_t>();
+      }
       default:
         return false;
     }
@@ -2919,6 +2931,21 @@ class WasmInterpreterInternals {
     for (int i = 0; i < lanes; ++i) {
       res.val[LANE(i, res)] =
           c.val[LANE(i, c)] < 0 ? v1.val[LANE(i, v1)] : v2.val[LANE(i, v2)];
+    }
+    Push(WasmValue(Simd128(res)));
+    return true;
+  }
+
+  template <typename DstSimdType, typename SrcSimdType, typename Wide,
+            typename Narrow>
+  bool DoSimdExtAddPairwise() {
+    constexpr int lanes = kSimd128Size / sizeof(DstSimdType::val[0]);
+    auto v = Pop().to_s128().to<SrcSimdType>();
+    DstSimdType res;
+    for (int i = 0; i < lanes; ++i) {
+      res.val[LANE(i, res)] =
+          AddLong<Wide>(static_cast<Narrow>(v.val[LANE(i * 2, v)]),
+                        static_cast<Narrow>(v.val[LANE(i * 2 + 1, v)]));
     }
     Push(WasmValue(Simd128(res)));
     return true;

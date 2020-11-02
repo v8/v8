@@ -1876,6 +1876,57 @@ WASM_SIMD_TEST(S128Not) {
                    [](int32_t x) { return ~x; });
 }
 
+#if V8_TARGET_ARCH_ARM64
+// TODO(v8:11086) Prototype i32x4.extadd_pairwise_i16x8_{s,u}
+template <typename Narrow, typename Wide>
+void RunExtAddPairwiseTest(TestExecutionTier execution_tier,
+                           LowerSimd lower_simd, WasmOpcode ext_add_pairwise,
+                           WasmOpcode splat) {
+  FLAG_SCOPE(wasm_simd_post_mvp);
+  constexpr int num_lanes = kSimd128Size / sizeof(Wide);
+  WasmRunner<int32_t, Narrow> r(execution_tier, lower_simd);
+  Wide* g = r.builder().template AddGlobal<Wide>(kWasmS128);
+
+  // TODO(v8:11086) We splat the same value, so pairwise adding ends up adding
+  // the same value to itself, consider a more complicated test, like having 2
+  // vectors, and shuffling them.
+  BUILD(r, WASM_GET_LOCAL(0), WASM_SIMD_OP(splat),
+        WASM_SIMD_OP(ext_add_pairwise), kExprGlobalSet, 0, WASM_ONE);
+
+  for (Narrow x : compiler::ValueHelper::GetVector<Narrow>()) {
+    r.Call(x);
+    Wide expected = AddLong<Wide>(x, x);
+    for (int i = 0; i < num_lanes; i++) {
+      CHECK_EQ(expected, ReadLittleEndianValue<Wide>(&g[i]));
+    }
+  }
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I32x4ExtAddPairwiseI16x8S) {
+  RunExtAddPairwiseTest<int16_t, int32_t>(execution_tier, lower_simd,
+                                          kExprI32x4ExtAddPairwiseI16x8S,
+                                          kExprI16x8Splat);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I32x4ExtAddPairwiseI16x8U) {
+  RunExtAddPairwiseTest<uint16_t, uint32_t>(execution_tier, lower_simd,
+                                            kExprI32x4ExtAddPairwiseI16x8U,
+                                            kExprI16x8Splat);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I16x8ExtAddPairwiseI8x16S) {
+  RunExtAddPairwiseTest<int8_t, int16_t>(execution_tier, lower_simd,
+                                         kExprI16x8ExtAddPairwiseI8x16S,
+                                         kExprI8x16Splat);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I16x8ExtAddPairwiseI8x16U) {
+  RunExtAddPairwiseTest<uint8_t, uint16_t>(execution_tier, lower_simd,
+                                           kExprI16x8ExtAddPairwiseI8x16U,
+                                           kExprI8x16Splat);
+}
+#endif  // V8_TARGET_ARCH_ARM64
+
 void RunI32x4BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                        WasmOpcode opcode, Int32BinOp expected_op) {
   WasmRunner<int32_t, int32_t, int32_t> r(execution_tier, lower_simd);

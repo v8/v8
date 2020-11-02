@@ -1139,6 +1139,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Mul32:
       __ Mul(i.OutputRegister32(), i.InputRegister32(0), i.InputRegister32(1));
       break;
+    case kArm64Saddlp: {
+      VectorFormat dst_f = VectorFormatFillQ(MiscField::decode(opcode));
+      VectorFormat src_f = VectorFormatHalfWidthDoubleLanes(dst_f);
+      __ Saddlp(i.OutputSimd128Register().Format(dst_f),
+                i.InputSimd128Register(0).Format(src_f));
+      break;
+    }
+    case kArm64Uaddlp: {
+      VectorFormat dst_f = VectorFormatFillQ(MiscField::decode(opcode));
+      VectorFormat src_f = VectorFormatHalfWidthDoubleLanes(dst_f);
+      __ Uaddlp(i.OutputSimd128Register().Format(dst_f),
+                i.InputSimd128Register(0).Format(src_f));
+      break;
+    }
     case kArm64Smull: {
       if (instr->InputAt(0)->IsRegister()) {
         __ Smull(i.OutputRegister(), i.InputRegister32(0),

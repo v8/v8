@@ -4793,6 +4793,12 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprI32x4SignSelect:
       return graph()->NewNode(mcgraph()->machine()->I32x4SignSelect(),
                               inputs[0], inputs[1], inputs[2]);
+    case wasm::kExprI32x4ExtAddPairwiseI16x8S:
+      return graph()->NewNode(mcgraph()->machine()->I32x4ExtAddPairwiseI16x8S(),
+                              inputs[0]);
+    case wasm::kExprI32x4ExtAddPairwiseI16x8U:
+      return graph()->NewNode(mcgraph()->machine()->I32x4ExtAddPairwiseI16x8U(),
+                              inputs[0]);
     case wasm::kExprI16x8Splat:
       return graph()->NewNode(mcgraph()->machine()->I16x8Splat(), inputs[0]);
     case wasm::kExprI16x8SConvertI8x16Low:
@@ -4915,6 +4921,12 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprI16x8SignSelect:
       return graph()->NewNode(mcgraph()->machine()->I16x8SignSelect(),
                               inputs[0], inputs[1], inputs[2]);
+    case wasm::kExprI16x8ExtAddPairwiseI8x16S:
+      return graph()->NewNode(mcgraph()->machine()->I16x8ExtAddPairwiseI8x16S(),
+                              inputs[0]);
+    case wasm::kExprI16x8ExtAddPairwiseI8x16U:
+      return graph()->NewNode(mcgraph()->machine()->I16x8ExtAddPairwiseI8x16U(),
+                              inputs[0]);
     case wasm::kExprI8x16Splat:
       return graph()->NewNode(mcgraph()->machine()->I8x16Splat(), inputs[0]);
     case wasm::kExprI8x16Neg:
