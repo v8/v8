@@ -74,9 +74,14 @@ inline constexpr bool CodeKindCanOSR(CodeKind kind) {
   return kind == CodeKind::TURBOFAN || kind == CodeKind::TURBOPROP;
 }
 
-inline constexpr bool CodeKindChecksOptimizationMarker(CodeKind kind) {
+inline constexpr bool CodeKindIsOptimizedAndCanTierUp(CodeKind kind) {
+  return kind == CodeKind::NATIVE_CONTEXT_INDEPENDENT ||
+         (FLAG_turboprop_as_midtier && kind == CodeKind::TURBOPROP);
+}
+
+inline constexpr bool CodeKindCanTierUp(CodeKind kind) {
   return kind == CodeKind::INTERPRETED_FUNCTION ||
-         kind == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
+         CodeKindIsOptimizedAndCanTierUp(kind);
 }
 
 // The optimization marker field on the feedback vector has a dual purpose of

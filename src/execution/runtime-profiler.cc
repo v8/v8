@@ -92,8 +92,20 @@ void TraceHeuristicOptimizationDisallowed(JSFunction function) {
   }
 }
 
+// TODO(jgruber): Remove this once we include this tracing with --trace-opt.
+void TraceNCIRecompile(JSFunction function, OptimizationReason reason) {
+  if (FLAG_trace_turbo_nci) {
+    StdoutStream os;
+    os << "NCI tierup mark: " << Brief(function) << ", "
+       << OptimizationReasonToString(reason) << std::endl;
+  }
+}
+
 void TraceRecompile(JSFunction function, OptimizationReason reason,
-                    Isolate* isolate) {
+                    CodeKind code_kind, Isolate* isolate) {
+  if (code_kind == CodeKind::NATIVE_CONTEXT_INDEPENDENT) {
+    TraceNCIRecompile(function, reason);
+  }
   if (FLAG_trace_opt) {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintF(scope.file(), "[marking ");
@@ -104,22 +116,15 @@ void TraceRecompile(JSFunction function, OptimizationReason reason,
   }
 }
 
-void TraceNCIRecompile(JSFunction function, OptimizationReason reason) {
-  if (FLAG_trace_turbo_nci) {
-    StdoutStream os;
-    os << "NCI tierup mark: " << Brief(function) << ", "
-       << OptimizationReasonToString(reason) << std::endl;
-  }
-}
-
 }  // namespace
 
 RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
     : isolate_(isolate), any_ic_changed_(false) {}
 
-void RuntimeProfiler::Optimize(JSFunction function, OptimizationReason reason) {
+void RuntimeProfiler::Optimize(JSFunction function, OptimizationReason reason,
+                               CodeKind code_kind) {
   DCHECK_NE(reason, OptimizationReason::kDoNotOptimize);
-  TraceRecompile(function, reason, isolate_);
+  TraceRecompile(function, reason, code_kind, isolate_);
   function.MarkForOptimization(ConcurrencyMode::kConcurrent);
 }
 
@@ -150,12 +155,15 @@ void RuntimeProfiler::AttemptOnStackReplacement(InterpretedFrame* frame,
       Min(level + loop_nesting_levels, AbstractCode::kMaxLoopNestingMarker));
 }
 
-void RuntimeProfiler::MaybeOptimizeInterpretedFrame(JSFunction function,
-                                                    InterpretedFrame* frame) {
+void RuntimeProfiler::MaybeOptimizeFrame(JSFunction function,
+                                         JavaScriptFrame* frame,
+                                         CodeKind code_kind) {
+  DCHECK(CodeKindCanTierUp(code_kind));
   if (function.IsInOptimizationQueue()) {
     TraceInOptimizationQueue(function);
     return;
   }
+
   if (FLAG_testing_d8_test_runner &&
       !PendingOptimizationTable::IsHeuristicOptimizationAllowed(isolate_,
                                                                 function)) {
@@ -165,46 +173,24 @@ void RuntimeProfiler::MaybeOptimizeInterpretedFrame(JSFunction function,
 
   if (function.shared().optimization_disabled()) return;
 
-  if (FLAG_always_osr) {
-    AttemptOnStackReplacement(frame, AbstractCode::kMaxLoopNestingMarker);
-    // Fall through and do a normal optimized compile as well.
-  } else if (MaybeOSR(function, frame)) {
-    return;
-  }
-
-  OptimizationReason reason =
-      ShouldOptimize(function, function.shared().GetBytecodeArray());
-
-  if (reason != OptimizationReason::kDoNotOptimize) {
-    Optimize(function, reason);
-  }
-}
-
-void RuntimeProfiler::MaybeOptimizeNCIFrame(JSFunction function) {
-  DCHECK_EQ(function.code().kind(), CodeKind::NATIVE_CONTEXT_INDEPENDENT);
-
-  if (function.IsInOptimizationQueue()) {
-    TraceInOptimizationQueue(function);
-    return;
-  }
-  if (FLAG_testing_d8_test_runner &&
-      !PendingOptimizationTable::IsHeuristicOptimizationAllowed(isolate_,
-                                                                function)) {
-    TraceHeuristicOptimizationDisallowed(function);
-    return;
-  }
-
-  if (function.shared().optimization_disabled()) return;
-
-  // Note: We currently do not trigger OSR compilation from NCI code.
+  // Note: We currently do not trigger OSR compilation from NCI or TP code.
   // TODO(jgruber,v8:8888): But we should.
+  if (frame->is_interpreted()) {
+    DCHECK_EQ(code_kind, CodeKind::INTERPRETED_FUNCTION);
+    if (FLAG_always_osr) {
+      AttemptOnStackReplacement(InterpretedFrame::cast(frame),
+                                AbstractCode::kMaxLoopNestingMarker);
+      // Fall through and do a normal optimized compile as well.
+    } else if (MaybeOSR(function, InterpretedFrame::cast(frame))) {
+      return;
+    }
+  }
 
   OptimizationReason reason =
       ShouldOptimize(function, function.shared().GetBytecodeArray());
 
   if (reason != OptimizationReason::kDoNotOptimize) {
-    TraceNCIRecompile(function, reason);
-    Optimize(function, reason);
+    Optimize(function, reason, code_kind);
   }
 }
 
@@ -297,7 +283,7 @@ void RuntimeProfiler::MarkCandidatesForOptimizationFromBytecode() {
 
     if (!function.has_feedback_vector()) continue;
 
-    MaybeOptimizeInterpretedFrame(function, InterpretedFrame::cast(frame));
+    MaybeOptimizeFrame(function, frame, CodeKind::INTERPRETED_FUNCTION);
 
     // TODO(leszeks): Move this increment to before the maybe optimize checks,
     // and update the tests to assume the increment has already happened.
@@ -315,7 +301,8 @@ void RuntimeProfiler::MarkCandidatesForOptimizationFromCode() {
     if (!frame->is_optimized()) continue;
 
     JSFunction function = frame->function();
-    if (function.code().kind() != CodeKind::NATIVE_CONTEXT_INDEPENDENT) {
+    auto code_kind = function.code().kind();
+    if (!CodeKindIsOptimizedAndCanTierUp(code_kind)) {
       continue;
     }
 
@@ -324,7 +311,7 @@ void RuntimeProfiler::MarkCandidatesForOptimizationFromCode() {
 
     function.feedback_vector().SaturatingIncrementProfilerTicks();
 
-    MaybeOptimizeNCIFrame(function);
+    MaybeOptimizeFrame(function, frame, code_kind);
   }
 }
 

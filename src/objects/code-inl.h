@@ -356,7 +356,7 @@ inline bool Code::checks_optimization_marker() const {
   bool checks_marker =
       (builtin_index() == Builtins::kCompileLazy ||
        builtin_index() == Builtins::kInterpreterEntryTrampoline ||
-       CodeKindChecksOptimizationMarker(kind()));
+       CodeKindCanTierUp(kind()));
   return checks_marker ||
          (CodeKindCanDeoptimize(kind()) && marked_for_deoptimization());
 }

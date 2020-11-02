@@ -350,6 +350,7 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   NativeContextRef native_context() const;
   SharedFunctionInfoRef shared() const;
   FeedbackVectorRef feedback_vector() const;
+  FeedbackCellRef raw_feedback_cell() const;
   CodeRef code() const;
   int InitialMapInstanceSizeWithMinSlack() const;
 };

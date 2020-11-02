@@ -664,6 +664,7 @@ class JSFunctionData : public JSObjectData {
   ObjectData* initial_map() const { return initial_map_; }
   ObjectData* prototype() const { return prototype_; }
   ObjectData* shared() const { return shared_; }
+  ObjectData* raw_feedback_cell() const { return feedback_cell_; }
   ObjectData* feedback_vector() const { return feedback_vector_; }
   ObjectData* code() const { return code_; }
   int initial_map_instance_size_with_min_slack() const {
@@ -686,6 +687,7 @@ class JSFunctionData : public JSObjectData {
   ObjectData* prototype_ = nullptr;
   ObjectData* shared_ = nullptr;
   ObjectData* feedback_vector_ = nullptr;
+  ObjectData* feedback_cell_ = nullptr;
   ObjectData* code_ = nullptr;
   int initial_map_instance_size_with_min_slack_;
 };
@@ -1331,12 +1333,14 @@ void JSFunctionData::Serialize(JSHeapBroker* broker) {
   DCHECK_NULL(initial_map_);
   DCHECK_NULL(prototype_);
   DCHECK_NULL(shared_);
+  DCHECK_NULL(feedback_cell_);
   DCHECK_NULL(feedback_vector_);
   DCHECK_NULL(code_);
 
   context_ = broker->GetOrCreateData(function->context());
   native_context_ = broker->GetOrCreateData(function->native_context());
   shared_ = broker->GetOrCreateData(function->shared());
+  feedback_cell_ = broker->GetOrCreateData(function->raw_feedback_cell());
   feedback_vector_ = has_feedback_vector()
                          ? broker->GetOrCreateData(function->feedback_vector())
                          : nullptr;
@@ -3427,6 +3431,7 @@ BIMODAL_ACCESSOR(JSFunction, NativeContext, native_context)
 BIMODAL_ACCESSOR(JSFunction, Map, initial_map)
 BIMODAL_ACCESSOR(JSFunction, Object, prototype)
 BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
+BIMODAL_ACCESSOR(JSFunction, FeedbackCell, raw_feedback_cell)
 BIMODAL_ACCESSOR(JSFunction, FeedbackVector, feedback_vector)
 BIMODAL_ACCESSOR(JSFunction, Code, code)
 

@@ -140,7 +140,10 @@ bool JSFunction::ActiveTierIsTurboprop() const {
 CodeKind JSFunction::NextTier() const {
   if (V8_UNLIKELY(FLAG_turbo_nci_as_midtier && ActiveTierIsIgnition())) {
     return CodeKind::NATIVE_CONTEXT_INDEPENDENT;
-  } else if (V8_UNLIKELY(FLAG_turboprop)) {
+  } else if (V8_UNLIKELY(FLAG_turboprop_as_midtier &&
+                         ActiveTierIsTurboprop())) {
+    return CodeKind::TURBOFAN;
+  } else if (V8_UNLIKELY(FLAG_turboprop) && ActiveTierIsIgnition()) {
     return CodeKind::TURBOPROP;
   }
   return CodeKind::TURBOFAN;

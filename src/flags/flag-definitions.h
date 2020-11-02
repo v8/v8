@@ -559,6 +559,9 @@ DEFINE_BOOL(turboprop_mid_tier_reg_alloc, true,
 DEFINE_BOOL(turboprop_dynamic_map_checks, true,
             "use dynamic map checks when generating code for property accesses "
             "if all handlers in an IC are the same for turboprop")
+DEFINE_BOOL(turboprop_as_midtier, false,
+            "enable experimental turboprop mid-tier compiler")
+DEFINE_IMPLICATION(turboprop_as_midtier, turboprop)
 DEFINE_NEG_IMPLICATION(turboprop, turbo_inlining)
 DEFINE_IMPLICATION(turboprop, concurrent_inlining)
 DEFINE_VALUE_IMPLICATION(turboprop, interrupt_budget, 15 * KB)
