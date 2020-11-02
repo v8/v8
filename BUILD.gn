@@ -4806,6 +4806,7 @@ if (is_fuchsia && !build_with_chromium) {
 group("v8_fuzzers") {
   testonly = true
   data_deps = [
+    ":v8_simple_inspector_fuzzer",
     ":v8_simple_json_fuzzer",
     ":v8_simple_multi_return_fuzzer",
     ":v8_simple_parser_fuzzer",
@@ -5268,6 +5269,23 @@ v8_source_set("wasm_compile_fuzzer") {
 }
 
 v8_fuzzer("wasm_compile_fuzzer") {
+}
+
+v8_source_set("inspector_fuzzer") {
+  sources = [ "test/fuzzer/inspector-fuzzer.cc" ]
+
+  deps = [
+    ":fuzzer_support",
+    "test/inspector:inspector_test",
+  ]
+
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
+}
+
+v8_fuzzer("inspector_fuzzer") {
 }
 
 # Target to build all generated .cc files.

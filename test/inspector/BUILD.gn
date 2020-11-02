@@ -4,12 +4,9 @@
 
 import("../../gni/v8.gni")
 
-v8_executable("inspector-test") {
-  testonly = true
-
+v8_source_set("inspector_test") {
   sources = [
     "frontend-channel.h",
-    "inspector-test.cc",
     "isolate-data.cc",
     "isolate-data.h",
     "task-runner.cc",
@@ -20,16 +17,28 @@ v8_executable("inspector-test") {
     "utils.h",
   ]
 
+  configs = [ "../..:internal_config_base" ]
+
+  public_deps = [
+    "../..:v8",
+    "../..:v8_libbase",
+    "../..:v8_libplatform",
+    "../../src/inspector:inspector_test_headers",
+  ]
+}
+
+v8_executable("inspector-test") {
+  testonly = true
+
+  sources = [ "inspector-test.cc" ]
+
   configs = [
     "../..:external_config",
     "../..:internal_config_base",
   ]
 
   deps = [
-    "../..:v8",
-    "../..:v8_libbase",
-    "../..:v8_libplatform",
-    "../../src/inspector:inspector_test_headers",
+    ":inspector_test",
     "//build/win:default_exe_manifest",
   ]
 
