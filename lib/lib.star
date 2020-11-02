@@ -246,8 +246,6 @@ def fix_args(defaults, **kwargs):
     for key in mergeable_keys:
         merge_defaults(defaults, args, key)
     args["execution_timeout"] = args["execution_timeout"] * time.second
-    args["properties"] = dict(args["properties"].items() +
-                              args["executable"].get("properties_j", {}).items())
     args["executable"] = luci.recipe(**args.get("executable"))
     if args["bucket"] in ["ci.br.beta", "ci.br.stable"]:
         args["dimensions"]["pool"] = "luci.v8.ci"
