@@ -395,32 +395,7 @@ WasmEngine::~WasmEngine() {
   gdb_server_.reset();
 #endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
 
-  // Collect the live modules into a vector first, then cancel them while
-  // releasing our lock. This will allow the background tasks to finish.
-  std::vector<std::shared_ptr<NativeModule>> live_modules;
-  {
-    base::MutexGuard guard(&mutex_);
-    for (auto& entry : native_modules_) {
-      if (auto shared_ptr = entry.second->weak_ptr.lock()) {
-        live_modules.emplace_back(std::move(shared_ptr));
-      }
-    }
-  }
-
-  for (auto& native_module : live_modules) {
-    native_module->compilation_state()->CancelCompilation();
-  }
-  live_modules.clear();
-
-  // Now wait for all background compile tasks to actually finish.
-  std::vector<std::shared_ptr<JobHandle>> compile_job_handles;
-  {
-    base::MutexGuard guard(&mutex_);
-    compile_job_handles = compile_job_handles_;
-  }
-  for (auto& job_handle : compile_job_handles) {
-    if (job_handle->IsValid()) job_handle->Cancel();
-  }
+  operations_barrier_->CancelAndWait();
 
   // All AsyncCompileJobs have been canceled.
   DCHECK(async_compile_jobs_.empty());
@@ -1333,12 +1308,9 @@ Handle<Script> WasmEngine::GetOrCreateScript(
   }
 }
 
-void WasmEngine::ShepherdCompileJobHandle(
-    std::shared_ptr<JobHandle> job_handle) {
-  DCHECK_NOT_NULL(job_handle);
-  base::MutexGuard guard(&mutex_);
-  // TODO(clemensb): Add occasional cleanup of finished handles.
-  compile_job_handles_.emplace_back(std::move(job_handle));
+std::shared_ptr<OperationsBarrier>
+WasmEngine::GetBarrierForBackgroundCompile() {
+  return operations_barrier_;
 }
 
 void WasmEngine::TriggerGC(int8_t gc_sequence_index) {
