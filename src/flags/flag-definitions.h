@@ -431,6 +431,11 @@ DEFINE_BOOL(future, FUTURE_BOOL,
 DEFINE_WEAK_IMPLICATION(future, write_protect_code_memory)
 DEFINE_WEAK_IMPLICATION(future, finalize_streaming_on_background)
 DEFINE_WEAK_IMPLICATION(future, super_ic)
+#ifdef V8_TARGET_ARCH_X64
+// Enabled for a few rolls to gather perf data. See also:
+// https://bugs.chromium.org/p/v8/issues/detail?id=11087
+DEFINE_WEAK_IMPLICATION(future, turbo_nci)
+#endif
 
 // Flags for jitless
 DEFINE_BOOL(jitless, V8_LITE_BOOL,
