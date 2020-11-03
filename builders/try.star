@@ -48,7 +48,7 @@ try_builder(
     name = "v8_ios_simulator",
     bucket = "try",
     dimensions = {"os": "Mac-10.15"},
-    properties = {"$depot_tools/osx_sdk": {"sdk_version": "11b52"}, "target_platform": "ios"},
+    properties = {"$depot_tools/osx_sdk": {"sdk_version": "12a7209"}, "target_platform": "ios"},
     use_goma = GOMA.DEFAULT,
 )
 
