@@ -3438,8 +3438,7 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression() {
   if (peek() == Token::SUPER) {
     const bool is_new = true;
     result = ParseSuperExpression(is_new);
-  } else if (peek() == Token::IMPORT && (!flags().allow_harmony_import_meta() ||
-                                         PeekAhead() == Token::LPAREN)) {
+  } else if (peek() == Token::IMPORT && PeekAhead() == Token::LPAREN) {
     impl()->ReportMessageAt(scanner()->peek_location(),
                             MessageTemplate::kImportCallNotNewExpression);
     return impl()->FailureExpression();
@@ -3539,7 +3538,7 @@ typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseImportExpressions() {
   Consume(Token::IMPORT);
   int pos = position();
-  if (flags().allow_harmony_import_meta() && Check(Token::PERIOD)) {
+  if (Check(Token::PERIOD)) {
     ExpectContextualKeyword(ast_value_factory()->meta_string(), "import.meta",
                             pos);
     if (!flags().is_module()) {

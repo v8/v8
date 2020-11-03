@@ -26070,7 +26070,6 @@ void HostInitializeImportMetaObjectCallbackStatic(Local<Context> context,
 }
 
 TEST(ImportMeta) {
-  i::FLAG_harmony_import_meta = true;
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -26121,7 +26120,6 @@ void HostInitializeImportMetaObjectCallbackThrow(Local<Context> context,
 }
 
 TEST(ImportMetaThrowUnhandled) {
-  i::FLAG_harmony_import_meta = true;
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -26161,7 +26159,6 @@ TEST(ImportMetaThrowUnhandled) {
 }
 
 TEST(ImportMetaThrowHandled) {
-  i::FLAG_harmony_import_meta = true;
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);

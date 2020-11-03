@@ -1620,7 +1620,6 @@ enum ParserFlag {
   kAllowLazy,
   kAllowNatives,
   kAllowHarmonyPrivateMethods,
-  kAllowHarmonyImportMeta,
   kAllowHarmonyLogicalAssignment,
 };
 
@@ -1633,7 +1632,6 @@ enum ParserSyncTestResult {
 void SetGlobalFlags(base::EnumSet<ParserFlag> flags) {
   i::FLAG_allow_natives_syntax = flags.contains(kAllowNatives);
   i::FLAG_harmony_private_methods = flags.contains(kAllowHarmonyPrivateMethods);
-  i::FLAG_harmony_import_meta = flags.contains(kAllowHarmonyImportMeta);
   i::FLAG_harmony_logical_assignment =
       flags.contains(kAllowHarmonyLogicalAssignment);
 }
@@ -1643,8 +1641,6 @@ void SetParserFlags(i::UnoptimizedCompileFlags* compile_flags,
   compile_flags->set_allow_natives_syntax(flags.contains(kAllowNatives));
   compile_flags->set_allow_harmony_private_methods(
       flags.contains(kAllowHarmonyPrivateMethods));
-  compile_flags->set_allow_harmony_import_meta(
-      flags.contains(kAllowHarmonyImportMeta));
   compile_flags->set_allow_harmony_logical_assignment(
       flags.contains(kAllowHarmonyLogicalAssignment));
 }
@@ -9539,21 +9535,12 @@ TEST(ImportMetaSuccess) {
 
   // clang-format on
 
-  // Making sure the same *wouldn't* parse without the flags
-  RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0,
-                          nullptr, 0, true, true);
-
-  static const ParserFlag flags[] = {kAllowHarmonyImportMeta};
   // 2.1.1 Static Semantics: Early Errors
   // ImportMeta
   // * It is an early Syntax Error if Module is not the syntactic goal symbol.
-  RunParserSyncTest(context_data, data, kError, nullptr, 0, flags,
-                    arraysize(flags));
-  // Making sure the same wouldn't parse without the flags either
   RunParserSyncTest(context_data, data, kError);
 
-  RunModuleParserSyncTest(context_data, data, kSuccess, nullptr, 0, flags,
-                          arraysize(flags));
+  RunModuleParserSyncTest(context_data, data, kSuccess);
 }
 
 TEST(ImportMetaFailure) {
@@ -9579,16 +9566,8 @@ TEST(ImportMetaFailure) {
 
   // clang-format on
 
-  static const ParserFlag flags[] = {kAllowHarmonyImportMeta};
-
-  RunParserSyncTest(context_data, data, kError, nullptr, 0, flags,
-                    arraysize(flags));
-  RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, flags,
-                          arraysize(flags));
-
-  RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0,
-                          nullptr, 0, true, true);
   RunParserSyncTest(context_data, data, kError);
+  RunModuleParserSyncTest(context_data, data, kError);
 }
 
 TEST(ConstSloppy) {
