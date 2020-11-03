@@ -36,31 +36,30 @@ export function inherits(childCtor, parentCtor) {
 };
 
 
-function V8Profile(separateIc, separateBytecodes, separateBuiltins,
-    separateStubs) {
-  Profile.call(this);
-  var regexps = [];
-  if (!separateIc) regexps.push(V8Profile.IC_RE);
-  if (!separateBytecodes) regexps.push(V8Profile.BYTECODES_RE);
-  if (!separateBuiltins) regexps.push(V8Profile.BUILTINS_RE);
-  if (!separateStubs) regexps.push(V8Profile.STUBS_RE);
-  if (regexps.length > 0) {
-    this.skipThisFunction = function(name) {
-      for (var i=0; i<regexps.length; i++) {
-        if (regexps[i].test(name)) return true;
-      }
-      return false;
-    };
+class V8Profile extends Profile {
+  static IC_RE =
+      /^(LoadGlobalIC: )|(Handler: )|(?:CallIC|LoadIC|StoreIC)|(?:Builtin: (?:Keyed)?(?:Load|Store)IC_)/;
+  static BYTECODES_RE = /^(BytecodeHandler: )/;
+  static BUILTINS_RE = /^(Builtin: )/;
+  static STUBS_RE = /^(Stub: )/;
+
+  constructor(separateIc, separateBytecodes, separateBuiltins, separateStubs) {
+    super();
+    var regexps = [];
+    if (!separateIc) regexps.push(V8Profile.IC_RE);
+    if (!separateBytecodes) regexps.push(V8Profile.BYTECODES_RE);
+    if (!separateBuiltins) regexps.push(V8Profile.BUILTINS_RE);
+    if (!separateStubs) regexps.push(V8Profile.STUBS_RE);
+    if (regexps.length > 0) {
+      this.skipThisFunction = function(name) {
+        for (var i=0; i<regexps.length; i++) {
+          if (regexps[i].test(name)) return true;
+        }
+        return false;
+      };
+    }
   }
-};
-inherits(V8Profile, Profile);
-
-
-V8Profile.IC_RE =
-    /^(LoadGlobalIC: )|(Handler: )|(?:CallIC|LoadIC|StoreIC)|(?:Builtin: (?:Keyed)?(?:Load|Store)IC_)/;
-V8Profile.BYTECODES_RE = /^(BytecodeHandler: )/
-V8Profile.BUILTINS_RE = /^(Builtin: )/
-V8Profile.STUBS_RE = /^(Stub: )/
+}
 
 
 /**
