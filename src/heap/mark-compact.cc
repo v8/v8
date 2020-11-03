@@ -434,6 +434,7 @@ void MarkCompactCollector::TearDown() {
     // Marking barriers of LocalHeaps will be published in their destructors.
     marking_worklists()->Clear();
   }
+  sweeper()->TearDown();
 }
 
 void MarkCompactCollector::AddEvacuationCandidate(Page* p) {
