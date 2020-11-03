@@ -128,6 +128,9 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   bool is_main_thread() const { return is_main_thread_; }
 
+  // Requests GC and blocks until the collection finishes.
+  void PerformCollection();
+
  private:
   enum class ThreadState {
     // Threads in this state need to be stopped in a safepoint.

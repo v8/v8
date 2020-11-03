@@ -149,10 +149,15 @@ class LargeObjectConcurrentAllocationThread final : public v8::base::Thread {
     const size_t kLargeObjectSize = kMaxRegularHeapObjectSize * 2;
 
     for (int i = 0; i < kNumIterations; i++) {
-      Address address = local_heap.AllocateRawOrFail(
+      AllocationResult result = local_heap.AllocateRaw(
           kLargeObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
           AllocationAlignment::kWordAligned);
-      CreateFixedArray(heap_, address, kLargeObjectSize);
+      if (result.IsRetry()) {
+        local_heap.PerformCollection();
+      } else {
+        Address address = result.ToAddress();
+        CreateFixedArray(heap_, address, kLargeObjectSize);
+      }
       local_heap.Safepoint();
     }
 

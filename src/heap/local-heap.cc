@@ -160,6 +160,11 @@ void LocalHeap::UnmarkLinearAllocationArea() {
   old_space_allocator_.UnmarkLinearAllocationArea();
 }
 
+void LocalHeap::PerformCollection() {
+  ParkedScope scope(this);
+  heap_->RequestCollectionBackground(this);
+}
+
 Address LocalHeap::PerformCollectionAndAllocateAgain(
     int object_size, AllocationType type, AllocationOrigin origin,
     AllocationAlignment alignment) {
@@ -167,10 +172,7 @@ Address LocalHeap::PerformCollectionAndAllocateAgain(
   static const int kMaxNumberOfRetries = 3;
 
   for (int i = 0; i < kMaxNumberOfRetries; i++) {
-    {
-      ParkedScope scope(this);
-      heap_->RequestCollectionBackground(this);
-    }
+    PerformCollection();
 
     AllocationResult result = AllocateRaw(object_size, type, origin, alignment);
     if (!result.IsRetry()) {
