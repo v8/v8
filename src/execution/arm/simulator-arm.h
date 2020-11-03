@@ -391,6 +391,7 @@ class Simulator : public SimulatorBase {
   void DecodeAdvancedSIMDDataProcessing(Instruction* instr);
   void DecodeMemoryHintsAndBarriers(Instruction* instr);
   void DecodeAdvancedSIMDElementOrStructureLoadStore(Instruction* instr);
+  void DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr);
 
   void DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(Instruction* instr);
   void DecodeVCMP(Instruction* instr);
