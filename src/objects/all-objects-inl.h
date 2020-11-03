@@ -16,7 +16,7 @@
 #include "src/objects/bigint-inl.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/code-inl.h"
-#include "src/objects/compilation-cache-inl.h"
+#include "src/objects/compilation-cache-table-inl.h"
 #include "src/objects/compressed-slots-inl.h"
 #include "src/objects/contexts-inl.h"
 #include "src/objects/data-handler-inl.h"

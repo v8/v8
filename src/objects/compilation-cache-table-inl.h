@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_OBJECTS_COMPILATION_CACHE_INL_H_
-#define V8_OBJECTS_COMPILATION_CACHE_INL_H_
+#ifndef V8_OBJECTS_COMPILATION_CACHE_TABLE_INL_H_
+#define V8_OBJECTS_COMPILATION_CACHE_TABLE_INL_H_
 
-#include "src/objects/compilation-cache.h"
-
+#include "src/objects/compilation-cache-table.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info.h"
@@ -93,4 +92,4 @@ InfoCellPair::InfoCellPair(Isolate* isolate, SharedFunctionInfo shared,
 
 #include "src/objects/object-macros-undef.h"
 
-#endif  // V8_OBJECTS_COMPILATION_CACHE_INL_H_
+#endif  // V8_OBJECTS_COMPILATION_CACHE_TABLE_INL_H_

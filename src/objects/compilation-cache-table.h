@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_OBJECTS_COMPILATION_CACHE_H_
-#define V8_OBJECTS_COMPILATION_CACHE_H_
+#ifndef V8_OBJECTS_COMPILATION_CACHE_TABLE_H_
+#define V8_OBJECTS_COMPILATION_CACHE_TABLE_H_
 
 #include "src/objects/feedback-cell.h"
 #include "src/objects/hash-table.h"
@@ -136,4 +136,4 @@ class CompilationCacheTable
 
 #include "src/objects/object-macros-undef.h"
 
-#endif  // V8_OBJECTS_COMPILATION_CACHE_H_
+#endif  // V8_OBJECTS_COMPILATION_CACHE_TABLE_H_

@@ -16,7 +16,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/logging/counters.h"
-#include "src/objects/compilation-cache-inl.h"
+#include "src/objects/compilation-cache-table-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
