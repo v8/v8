@@ -6,7 +6,6 @@
 #define V8_PARSING_PARSER_BASE_H_
 
 #include <stdint.h>
-
 #include <utility>
 #include <vector>
 
@@ -15,7 +14,6 @@
 #include "src/ast/scopes.h"
 #include "src/base/flags.h"
 #include "src/base/hashmap.h"
-#include "src/base/platform/platform.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
@@ -858,9 +856,7 @@ class ParserBase {
   }
   void CheckStackOverflow() {
     // Any further calls to Next or peek will return the illegal token.
-    if (base::Stack::GetCurrentStackPosition() < stack_limit_) {
-      set_stack_overflow();
-    }
+    if (GetCurrentStackPosition() < stack_limit_) set_stack_overflow();
   }
 
   V8_INLINE Token::Value peek() { return scanner()->peek(); }

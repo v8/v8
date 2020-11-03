@@ -8,14 +8,12 @@
 
 #include <stdarg.h>
 #include <stdlib.h>
-
 #include <cmath>
 
 #include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/memory.h"
 #include "src/base/overflowing-math.h"
-#include "src/base/platform/platform.h"
 #include "src/codegen/arm/constants-arm.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
@@ -1084,7 +1082,7 @@ int Simulator::WriteExDW(int32_t addr, int32_t value1, int32_t value2) {
 uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   // The simulator uses a separate JS stack. If we have exhausted the C stack,
   // we also drop down the JS limit to reflect the exhaustion on the JS stack.
-  if (base::Stack::GetCurrentStackPosition() < c_limit) {
+  if (GetCurrentStackPosition() < c_limit) {
     return reinterpret_cast<uintptr_t>(get_sp());
   }
 

@@ -13,7 +13,6 @@
 #include "src/ast/scopes.h"
 #include "src/base/logging.h"
 #include "src/base/optional.h"
-#include "src/base/platform/platform.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/optimized-compilation-info.h"
@@ -1503,9 +1502,8 @@ class OffThreadParseInfoScope {
         original_runtime_call_stats_(parse_info_->runtime_call_stats()),
         original_stack_limit_(parse_info_->stack_limit()),
         worker_thread_scope_(worker_thread_runtime_stats) {
-    parse_info_->SetPerThreadState(
-        base::Stack::GetCurrentStackPosition() - stack_size * KB,
-        worker_thread_scope_.Get());
+    parse_info_->SetPerThreadState(GetCurrentStackPosition() - stack_size * KB,
+                                   worker_thread_scope_.Get());
   }
 
   ~OffThreadParseInfoScope() {
@@ -1645,8 +1643,7 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   // the parser so it aborts without setting a pending exception, which then
   // gets thrown. This would avoid the situation where potentially we'd reparse
   // several times (running out of stack each time) before hitting this limit.
-  if (base::Stack::GetCurrentStackPosition() <
-      isolate->stack_guard()->real_climit()) {
+  if (GetCurrentStackPosition() < isolate->stack_guard()->real_climit()) {
     // Stack is already exhausted.
     bytecode->SetSourcePositionsFailedToCollect();
     return false;

@@ -3,8 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/execution/thread-local-top.h"
-
-#include "src/base/platform/platform.h"
 #include "src/execution/isolate.h"
 #include "src/execution/simulator.h"
 #include "src/trap-handler/trap-handler.h"
@@ -38,7 +36,7 @@ void ThreadLocalTop::StoreCurrentStackPosition() {
 }
 #elif defined(V8_USE_ADDRESS_SANITIZER)
 void ThreadLocalTop::StoreCurrentStackPosition() {
-  last_api_entry_ = base::Stack::GetCurrentStackPosition();
+  last_api_entry_ = reinterpret_cast<Address>(GetCurrentStackPosition());
 }
 #endif
 

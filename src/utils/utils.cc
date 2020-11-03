@@ -303,6 +303,14 @@ bool DoubleToBoolean(double d) {
   return true;
 }
 
+uintptr_t GetCurrentStackPosition() {
+#if V8_CC_MSVC
+  return reinterpret_cast<uintptr_t>(_AddressOfReturnAddress());
+#else
+  return reinterpret_cast<uintptr_t>(__builtin_frame_address(0));
+#endif
+}
+
 // The filter is a pattern that matches function names in this way:
 //   "*"      all; the default
 //   "-"      all but the top-level function
