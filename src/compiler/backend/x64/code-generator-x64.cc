@@ -3014,7 +3014,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64S128Zero: {
       XMMRegister dst = i.OutputSimd128Register();
-      __ Xorps(dst, dst);
+      __ Pxor(dst, dst);
       break;
     }
     case kX64S128AllOnes: {

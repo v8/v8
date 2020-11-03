@@ -835,6 +835,12 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     return AddNode(machine()->Float64SilenceNaN(), a);
   }
 
+  // SIMD operations.
+  Node* I64x2Splat(Node* a) { return AddNode(machine()->I64x2Splat(), a); }
+  Node* I32x4Splat(Node* a) { return AddNode(machine()->I32x4Splat(), a); }
+  Node* I16x8Splat(Node* a) { return AddNode(machine()->I16x8Splat(), a); }
+  Node* I8x16Splat(Node* a) { return AddNode(machine()->I8x16Splat(), a); }
+
   // Stack operations.
   Node* LoadFramePointer() { return AddNode(machine()->LoadFramePointer()); }
   Node* LoadParentFramePointer() {

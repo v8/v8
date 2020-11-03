@@ -2966,21 +2966,30 @@ void InstructionSelector::VisitS128Zero(Node* node) {
 }
 
 #define SIMD_TYPES_FOR_SPLAT(V) \
-  V(F64x2)                      \
   V(I64x2)                      \
   V(I32x4)                      \
   V(I16x8)                      \
   V(I8x16)
 
-#define VISIT_SIMD_SPLAT(Type)                               \
-  void InstructionSelector::Visit##Type##Splat(Node* node) { \
-    X64OperandGenerator g(this);                             \
-    Emit(kX64##Type##Splat, g.DefineAsRegister(node),        \
-         g.Use(node->InputAt(0)));                           \
+// Splat with an optimization for const 0.
+#define VISIT_SIMD_SPLAT(Type)                                               \
+  void InstructionSelector::Visit##Type##Splat(Node* node) {                 \
+    X64OperandGenerator g(this);                                             \
+    Node* input = node->InputAt(0);                                          \
+    if (g.CanBeImmediate(input) && g.GetImmediateIntegerValue(input) == 0) { \
+      Emit(kX64S128Zero, g.DefineAsRegister(node));                          \
+    } else {                                                                 \
+      Emit(kX64##Type##Splat, g.DefineAsRegister(node), g.Use(input));       \
+    }                                                                        \
   }
 SIMD_TYPES_FOR_SPLAT(VISIT_SIMD_SPLAT)
 #undef VISIT_SIMD_SPLAT
 #undef SIMD_TYPES_FOR_SPLAT
+
+void InstructionSelector::VisitF64x2Splat(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64F64x2Splat, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
 
 void InstructionSelector::VisitF32x4Splat(Node* node) {
   X64OperandGenerator g(this);
