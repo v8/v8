@@ -294,7 +294,7 @@ bool operator==(DynamicCheckMapsParameters const& lhs,
   DCHECK_IMPLIES(lhs.feedback() == rhs.feedback(),
                  lhs.flags() == rhs.flags() && lhs.state() == rhs.state() &&
                      lhs.handler().address() == rhs.handler().address() &&
-                     lhs.map().address() == rhs.map().address());
+                     lhs.maps() == rhs.maps());
   return lhs.feedback() == rhs.feedback();
 }
 
@@ -308,7 +308,7 @@ size_t hash_value(DynamicCheckMapsParameters const& p) {
 std::ostream& operator<<(std::ostream& os,
                          DynamicCheckMapsParameters const& p) {
   return os << p.handler() << ", " << p.feedback() << "," << p.state() << ","
-            << p.flags() << "," << p.map().address();
+            << p.flags() << "," << p.maps();
 }
 
 DynamicCheckMapsParameters const& DynamicCheckMapsParametersOf(
@@ -1487,10 +1487,9 @@ const Operator* SimplifiedOperatorBuilder::CheckMaps(
 }
 
 const Operator* SimplifiedOperatorBuilder::DynamicCheckMaps(
-    CheckMapsFlags flags, Handle<Object> handler, MaybeHandle<Map> maybe_map,
-    const FeedbackSource& feedback) {
-  DynamicCheckMapsParameters const parameters(flags, handler, maybe_map,
-                                              feedback);
+    CheckMapsFlags flags, Handle<Object> handler,
+    ZoneHandleSet<Map> const& maps, const FeedbackSource& feedback) {
+  DynamicCheckMapsParameters const parameters(flags, handler, maps, feedback);
   return zone()->New<Operator1<DynamicCheckMapsParameters>>(  // --
       IrOpcode::kDynamicCheckMaps,                            // opcode
       Operator::kNoThrow | Operator::kNoWrite,                // flags

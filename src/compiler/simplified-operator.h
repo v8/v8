@@ -445,25 +445,22 @@ class DynamicCheckMapsParameters final {
   enum ICState { kMonomorphic, kPolymorphic };
 
   DynamicCheckMapsParameters(CheckMapsFlags flags, Handle<Object> handler,
-                             MaybeHandle<Map> maybe_map,
+                             ZoneHandleSet<Map> const& maps,
                              const FeedbackSource& feedback)
-      : flags_(flags),
-        handler_(handler),
-        maybe_map_(maybe_map),
-        feedback_(feedback) {}
+      : flags_(flags), handler_(handler), maps_(maps), feedback_(feedback) {}
 
   CheckMapsFlags flags() const { return flags_; }
   Handle<Object> handler() const { return handler_; }
-  MaybeHandle<Map> map() const { return maybe_map_; }
+  ZoneHandleSet<Map> const& maps() const { return maps_; }
   FeedbackSource const& feedback() const { return feedback_; }
   ICState state() const {
-    return maybe_map_.is_null() ? ICState::kPolymorphic : ICState::kMonomorphic;
+    return maps_.size() == 1 ? ICState::kMonomorphic : ICState::kPolymorphic;
   }
 
  private:
   CheckMapsFlags const flags_;
   Handle<Object> const handler_;
-  MaybeHandle<Map> const maybe_map_;
+  ZoneHandleSet<Map> const maps_;
   FeedbackSource const feedback_;
 };
 
@@ -901,7 +898,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckMaps(CheckMapsFlags, ZoneHandleSet<Map>,
                             const FeedbackSource& = FeedbackSource());
   const Operator* DynamicCheckMaps(CheckMapsFlags flags, Handle<Object> handler,
-                                   MaybeHandle<Map> map,
+                                   ZoneHandleSet<Map> const& maps,
                                    const FeedbackSource& feedback);
   const Operator* CheckNotTaggedHole();
   const Operator* CheckNumber(const FeedbackSource& feedback);
