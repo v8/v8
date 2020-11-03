@@ -4,6 +4,7 @@
 
 #include "src/objects/lookup.h"
 
+#include "src/common/globals.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
@@ -14,6 +15,7 @@
 #include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/ordered-hash-table.h"
 #include "src/objects/struct-inl.h"
 
 namespace v8 {
@@ -510,15 +512,24 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
       cell->set_value(*value);
       property_details_ = cell->property_details();
     } else {
-      Handle<NameDictionary> dictionary(
-          holder_obj->property_dictionary(isolate_), isolate());
-      PropertyDetails original_details =
-          dictionary->DetailsAt(dictionary_entry());
-      int enumeration_index = original_details.dictionary_index();
-      DCHECK_GT(enumeration_index, 0);
-      details = details.set_index(enumeration_index);
-      dictionary->SetEntry(dictionary_entry(), *name(), *value, details);
-      property_details_ = details;
+      if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+        Handle<OrderedNameDictionary> dictionary(
+            holder_obj->property_dictionary_ordered(isolate_), isolate());
+        dictionary->SetEntry(dictionary_entry(), *name(), *value, details);
+        DCHECK_EQ(details.AsSmi(),
+                  dictionary->DetailsAt(dictionary_entry()).AsSmi());
+        property_details_ = details;
+      } else {
+        Handle<NameDictionary> dictionary(
+            holder_obj->property_dictionary(isolate_), isolate());
+        PropertyDetails original_details =
+            dictionary->DetailsAt(dictionary_entry());
+        int enumeration_index = original_details.dictionary_index();
+        DCHECK_GT(enumeration_index, 0);
+        details = details.set_index(enumeration_index);
+        dictionary->SetEntry(dictionary_entry(), *name(), *value, details);
+        property_details_ = details;
+      }
     }
     state_ = DATA;
   }
@@ -641,18 +652,35 @@ void LookupIterator::ApplyTransitionToDataProperty(
     property_details_ = transition->GetLastDescriptorDetails(isolate_);
     state_ = DATA;
   } else if (receiver->map(isolate_).is_dictionary_map()) {
-    Handle<NameDictionary> dictionary(receiver->property_dictionary(isolate_),
-                                      isolate_);
     if (receiver->map(isolate_).is_prototype_map() &&
         receiver->IsJSObject(isolate_)) {
       JSObject::InvalidatePrototypeChains(receiver->map(isolate_));
     }
-    dictionary = NameDictionary::Add(isolate(), dictionary, name(),
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      Handle<OrderedNameDictionary> dictionary(
+          receiver->property_dictionary_ordered(isolate_), isolate_);
+
+      dictionary =
+          OrderedNameDictionary::Add(isolate(), dictionary, name(),
                                      isolate_->factory()->uninitialized_value(),
-                                     property_details_, &number_);
-    receiver->SetProperties(*dictionary);
-    // Reload details containing proper enumeration index value.
-    property_details_ = dictionary->DetailsAt(number_);
+                                     property_details_)
+              .ToHandleChecked();
+
+      // set to last used entry
+      number_ = InternalIndex(dictionary->UsedCapacity() - 1);
+      receiver->SetProperties(*dictionary);
+    } else {
+      Handle<NameDictionary> dictionary(receiver->property_dictionary(isolate_),
+                                        isolate_);
+
+      dictionary =
+          NameDictionary::Add(isolate(), dictionary, name(),
+                              isolate_->factory()->uninitialized_value(),
+                              property_details_, &number_);
+      receiver->SetProperties(*dictionary);
+      // Reload details containing proper enumeration index value.
+      property_details_ = dictionary->DetailsAt(number_);
+    }
     has_property_ = true;
     state_ = DATA;
 
@@ -837,8 +865,13 @@ Handle<Object> LookupIterator::FetchValue(
     result = holder->global_dictionary(isolate_).ValueAt(isolate_,
                                                          dictionary_entry());
   } else if (!holder_->HasFastProperties(isolate_)) {
-    result = holder_->property_dictionary(isolate_).ValueAt(isolate_,
-                                                            dictionary_entry());
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      result = holder_->property_dictionary_ordered(isolate_).ValueAt(
+          dictionary_entry());
+    } else {
+      result = holder_->property_dictionary(isolate_).ValueAt(
+          isolate_, dictionary_entry());
+    }
   } else if (property_details_.location() == kField) {
     DCHECK_EQ(kData, property_details_.kind());
     Handle<JSObject> holder = GetHolder<JSObject>();
@@ -994,8 +1027,14 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
     dictionary.CellAt(isolate_, dictionary_entry()).set_value(*value);
   } else {
     DCHECK_IMPLIES(holder->IsJSProxy(isolate_), name()->IsPrivate(isolate_));
-    NameDictionary dictionary = holder->property_dictionary(isolate_);
-    dictionary.ValueAtPut(dictionary_entry(), *value);
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      OrderedNameDictionary dictionary =
+          holder->property_dictionary_ordered(isolate_);
+      dictionary.ValueAtPut(dictionary_entry(), *value);
+    } else {
+      NameDictionary dictionary = holder->property_dictionary(isolate_);
+      dictionary.ValueAtPut(dictionary_entry(), *value);
+    }
   }
 }
 
@@ -1138,10 +1177,17 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
     property_details_ = descriptors.GetDetails(number_);
   } else {
     DCHECK_IMPLIES(holder.IsJSProxy(isolate_), name()->IsPrivate(isolate_));
-    NameDictionary dict = holder.property_dictionary(isolate_);
-    number_ = dict.FindEntry(isolate(), name_);
-    if (number_.is_not_found()) return NotFound(holder);
-    property_details_ = dict.DetailsAt(number_);
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      OrderedNameDictionary dict = holder.property_dictionary_ordered(isolate_);
+      number_ = dict.FindEntry(isolate(), *name_);
+      if (number_.is_not_found()) return NotFound(holder);
+      property_details_ = dict.DetailsAt(number_);
+    } else {
+      NameDictionary dict = holder.property_dictionary(isolate_);
+      number_ = dict.FindEntry(isolate(), name_);
+      if (number_.is_not_found()) return NotFound(holder);
+      property_details_ = dict.DetailsAt(number_);
+    }
   }
   has_property_ = true;
   switch (property_details_.kind()) {

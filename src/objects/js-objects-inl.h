@@ -640,9 +640,15 @@ void JSReceiver::initialize_properties(Isolate* isolate) {
   ReadOnlyRoots roots(isolate);
   DCHECK(!ObjectInYoungGeneration(roots.empty_fixed_array()));
   DCHECK(!ObjectInYoungGeneration(roots.empty_property_dictionary()));
+  DCHECK(!ObjectInYoungGeneration(roots.empty_ordered_property_dictionary()));
   if (map(isolate).is_dictionary_map()) {
-    WRITE_FIELD(*this, kPropertiesOrHashOffset,
-                roots.empty_property_dictionary());
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      WRITE_FIELD(*this, kPropertiesOrHashOffset,
+                  roots.empty_ordered_property_dictionary());
+    } else {
+      WRITE_FIELD(*this, kPropertiesOrHashOffset,
+                  roots.empty_property_dictionary());
+    }
   } else {
     WRITE_FIELD(*this, kPropertiesOrHashOffset, roots.empty_fixed_array());
   }
@@ -651,7 +657,8 @@ void JSReceiver::initialize_properties(Isolate* isolate) {
 DEF_GETTER(JSReceiver, HasFastProperties, bool) {
   DCHECK(raw_properties_or_hash(isolate).IsSmi() ||
          ((raw_properties_or_hash(isolate).IsGlobalDictionary(isolate) ||
-           raw_properties_or_hash(isolate).IsNameDictionary(isolate)) ==
+           raw_properties_or_hash(isolate).IsNameDictionary(isolate) ||
+           raw_properties_or_hash(isolate).IsOrderedNameDictionary(isolate)) ==
           map(isolate).is_dictionary_map()));
   return !map(isolate).is_dictionary_map();
 }

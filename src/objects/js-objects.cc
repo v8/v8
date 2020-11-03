@@ -5,6 +5,7 @@
 #include "src/objects/js-objects.h"
 
 #include "src/api/api-arguments-inl.h"
+#include "src/common/globals.h"
 #include "src/date/date.h"
 #include "src/execution/arguments.h"
 #include "src/execution/frames.h"
@@ -323,12 +324,18 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
     DCHECK(!target->IsJSProxy());
     // Convert to slow properties if we're guaranteed to overflow the number of
     // descriptors.
-    int source_length =
-        from->IsJSGlobalObject()
-            ? JSGlobalObject::cast(*from)
-                  .global_dictionary()
-                  .NumberOfEnumerableProperties()
-            : from->property_dictionary().NumberOfEnumerableProperties();
+    int source_length;
+    if (from->IsJSGlobalObject()) {
+      source_length = JSGlobalObject::cast(*from)
+                          .global_dictionary()
+                          .NumberOfEnumerableProperties();
+    } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      source_length =
+          from->property_dictionary_ordered().NumberOfEnumerableProperties();
+    } else {
+      source_length =
+          from->property_dictionary().NumberOfEnumerableProperties();
+    }
     if (source_length > kMaxNumberOfDescriptors) {
       JSObject::NormalizeProperties(isolate, Handle<JSObject>::cast(target),
                                     CLEAR_INOBJECT_PROPERTIES, source_length,
@@ -608,7 +615,8 @@ Object SetHashAndUpdateProperties(HeapObject properties, int hash) {
   ReadOnlyRoots roots = properties.GetReadOnlyRoots();
   if (properties == roots.empty_fixed_array() ||
       properties == roots.empty_property_array() ||
-      properties == roots.empty_property_dictionary()) {
+      properties == roots.empty_property_dictionary() ||
+      properties == roots.empty_ordered_property_dictionary()) {
     return Smi::FromInt(hash);
   }
 
@@ -623,8 +631,13 @@ Object SetHashAndUpdateProperties(HeapObject properties, int hash) {
     return properties;
   }
 
-  DCHECK(properties.IsNameDictionary());
-  NameDictionary::cast(properties).SetHash(hash);
+  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    DCHECK(properties.IsOrderedNameDictionary());
+    OrderedNameDictionary::cast(properties).SetHash(hash);
+  } else {
+    DCHECK(properties.IsNameDictionary());
+    NameDictionary::cast(properties).SetHash(hash);
+  }
   return properties;
 }
 
@@ -638,8 +651,12 @@ int GetIdentityHashHelper(JSReceiver object) {
   if (properties.IsPropertyArray()) {
     return PropertyArray::cast(properties).Hash();
   }
+  if (V8_DICT_MODE_PROTOTYPES_BOOL && properties.IsOrderedNameDictionary()) {
+    return OrderedNameDictionary::cast(properties).Hash();
+  }
 
   if (properties.IsNameDictionary()) {
+    DCHECK(!V8_DICT_MODE_PROTOTYPES_BOOL);
     return NameDictionary::cast(properties).Hash();
   }
 
@@ -650,7 +667,8 @@ int GetIdentityHashHelper(JSReceiver object) {
 #ifdef DEBUG
   ReadOnlyRoots roots = object.GetReadOnlyRoots();
   DCHECK(properties == roots.empty_fixed_array() ||
-         properties == roots.empty_property_dictionary());
+         properties == roots.empty_property_dictionary() ||
+         properties == roots.empty_ordered_property_dictionary());
 #endif
 
   return PropertyArray::kNoHashSentinel;
@@ -736,10 +754,19 @@ void JSReceiver::DeleteNormalizedProperty(Handle<JSReceiver> object,
 
     cell->ClearAndInvalidate(ReadOnlyRoots(isolate));
   } else {
-    Handle<NameDictionary> dictionary(object->property_dictionary(), isolate);
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      Handle<OrderedNameDictionary> dictionary(
+          object->property_dictionary_ordered(), isolate);
 
-    dictionary = NameDictionary::DeleteEntry(isolate, dictionary, entry);
-    object->SetProperties(*dictionary);
+      dictionary =
+          OrderedNameDictionary::DeleteEntry(isolate, dictionary, entry);
+      object->SetProperties(*dictionary);
+    } else {
+      Handle<NameDictionary> dictionary(object->property_dictionary(), isolate);
+
+      dictionary = NameDictionary::DeleteEntry(isolate, dictionary, entry);
+      object->SetProperties(*dictionary);
+    }
   }
   if (object->map().is_prototype_map()) {
     // Invalidate prototype validity cell as this may invalidate transitioning
@@ -2075,9 +2102,11 @@ MaybeHandle<JSObject> JSObject::New(Handle<JSFunction> constructor,
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, initial_map,
       JSFunction::GetDerivedMap(isolate, constructor, new_target), JSObject);
+  int initial_capacity = V8_DICT_MODE_PROTOTYPES_BOOL
+                             ? OrderedNameDictionary::kInitialCapacity
+                             : NameDictionary::kInitialCapacity;
   Handle<JSObject> result = isolate->factory()->NewFastOrSlowJSObjectFromMap(
-      initial_map, NameDictionary::kInitialCapacity, AllocationType::kYoung,
-      site);
+      initial_map, initial_capacity, AllocationType::kYoung, site);
   isolate->counters()->constructed_objects()->Increment();
   isolate->counters()->constructed_objects_runtime()->Increment();
   return result;
@@ -2386,21 +2415,36 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object, Handle<Name> name,
       cell->set_value(*value);
     }
   } else {
-    Handle<NameDictionary> dictionary(object->property_dictionary(), isolate);
-
-    InternalIndex entry = dictionary->FindEntry(isolate, name);
-    if (entry.is_not_found()) {
-      DCHECK_IMPLIES(object->map().is_prototype_map(),
-                     Map::IsPrototypeChainInvalidated(object->map()));
-      dictionary =
-          NameDictionary::Add(isolate, dictionary, name, value, details);
-      object->SetProperties(*dictionary);
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      Handle<OrderedNameDictionary> dictionary(
+          object->property_dictionary_ordered(), isolate);
+      InternalIndex entry = dictionary->FindEntry(isolate, *name);
+      if (entry.is_not_found()) {
+        DCHECK_IMPLIES(object->map().is_prototype_map(),
+                       Map::IsPrototypeChainInvalidated(object->map()));
+        dictionary = OrderedNameDictionary::Add(isolate, dictionary, name,
+                                                value, details)
+                         .ToHandleChecked();
+        object->SetProperties(*dictionary);
+      } else {
+        dictionary->SetEntry(entry, *name, *value, details);
+      }
     } else {
-      PropertyDetails original_details = dictionary->DetailsAt(entry);
-      int enumeration_index = original_details.dictionary_index();
-      DCHECK_GT(enumeration_index, 0);
-      details = details.set_index(enumeration_index);
-      dictionary->SetEntry(entry, *name, *value, details);
+      Handle<NameDictionary> dictionary(object->property_dictionary(), isolate);
+      InternalIndex entry = dictionary->FindEntry(isolate, name);
+      if (entry.is_not_found()) {
+        DCHECK_IMPLIES(object->map().is_prototype_map(),
+                       Map::IsPrototypeChainInvalidated(object->map()));
+        dictionary =
+            NameDictionary::Add(isolate, dictionary, name, value, details);
+        object->SetProperties(*dictionary);
+      } else {
+        PropertyDetails original_details = dictionary->DetailsAt(entry);
+        int enumeration_index = original_details.dictionary_index();
+        DCHECK_GT(enumeration_index, 0);
+        details = details.set_index(enumeration_index);
+        dictionary->SetEntry(entry, *name, *value, details);
+      }
     }
   }
 }
@@ -2901,10 +2945,20 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
     property_count += expected_additional_properties;
   } else {
     // Make space for two more properties.
-    property_count += NameDictionary::kInitialCapacity;
+    int initial_capacity = V8_DICT_MODE_PROTOTYPES_BOOL
+                               ? OrderedNameDictionary::kInitialCapacity
+                               : NameDictionary::kInitialCapacity;
+    property_count += initial_capacity;
   }
-  Handle<NameDictionary> dictionary =
-      NameDictionary::New(isolate, property_count);
+
+  Handle<NameDictionary> dictionary;
+  Handle<OrderedNameDictionary> ord_dictionary;
+  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    ord_dictionary =
+        isolate->factory()->NewOrderedNameDictionary(property_count);
+  } else {
+    dictionary = isolate->factory()->NewNameDictionary(property_count);
+  }
 
   Handle<DescriptorArray> descs(
       map->instance_descriptors(isolate, kRelaxedLoad), isolate);
@@ -2938,11 +2992,19 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
     DCHECK(!value.is_null());
     PropertyDetails d(details.kind(), details.attributes(),
                       PropertyCellType::kNoCell);
-    dictionary = NameDictionary::Add(isolate, dictionary, key, value, d);
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      ord_dictionary =
+          OrderedNameDictionary::Add(isolate, ord_dictionary, key, value, d)
+              .ToHandleChecked();
+    } else {
+      dictionary = NameDictionary::Add(isolate, dictionary, key, value, d);
+    }
   }
 
-  // Copy the next enumeration index from instance descriptor.
-  dictionary->set_next_enumeration_index(real_size + 1);
+  if (!V8_DICT_MODE_PROTOTYPES_BOOL) {
+    // Copy the next enumeration index from instance descriptor.
+    dictionary->set_next_enumeration_index(real_size + 1);
+  }
 
   // From here on we cannot fail and we shouldn't GC anymore.
   DisallowHeapAllocation no_allocation;
@@ -2970,7 +3032,11 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
   // the left-over space to avoid races with the sweeper thread.
   object->synchronized_set_map(*new_map);
 
-  object->SetProperties(*dictionary);
+  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    object->SetProperties(*ord_dictionary);
+  } else {
+    object->SetProperties(*dictionary);
+  }
 
   // Ensure that in-object space of slow-mode object does not contain random
   // garbage.
@@ -3352,26 +3418,52 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
   DCHECK(!object->IsJSGlobalObject());
   Isolate* isolate = object->GetIsolate();
   Factory* factory = isolate->factory();
-  Handle<NameDictionary> dictionary(object->property_dictionary(), isolate);
+
+  Handle<NameDictionary> dictionary;
+  Handle<OrderedNameDictionary> ord_dictionary;
+  int number_of_elements;
+  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    ord_dictionary = handle(object->property_dictionary_ordered(), isolate);
+    number_of_elements = ord_dictionary->NumberOfElements();
+  } else {
+    dictionary = handle(object->property_dictionary(), isolate);
+    number_of_elements = dictionary->NumberOfElements();
+  }
 
   // Make sure we preserve dictionary representation if there are too many
   // descriptors.
-  int number_of_elements = dictionary->NumberOfElements();
   if (number_of_elements > kMaxNumberOfDescriptors) return;
 
-  Handle<FixedArray> iteration_order =
-      NameDictionary::IterationIndices(isolate, dictionary);
+  Handle<FixedArray> iteration_order;
+  int iteration_length;
+  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    // |iteration_order| remains empty handle, we don't need it.
+    iteration_length = ord_dictionary->UsedCapacity();
+  } else {
+    iteration_order = NameDictionary::IterationIndices(isolate, dictionary);
+    iteration_length = dictionary->NumberOfElements();
+  }
 
-  int instance_descriptor_length = iteration_order->length();
   int number_of_fields = 0;
 
   // Compute the length of the instance descriptor.
   ReadOnlyRoots roots(isolate);
-  for (int i = 0; i < instance_descriptor_length; i++) {
-    InternalIndex index(Smi::ToInt(iteration_order->get(i)));
-    DCHECK(dictionary->IsKey(roots, dictionary->KeyAt(isolate, index)));
+  for (int i = 0; i < iteration_length; i++) {
+    PropertyKind kind;
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      InternalIndex index(i);
+      Object key = ord_dictionary->KeyAt(index);
+      if (!OrderedNameDictionary::IsKey(roots, key)) {
+        // Ignore deleted entries.
+        continue;
+      }
+      kind = ord_dictionary->DetailsAt(index).kind();
+    } else {
+      InternalIndex index(Smi::ToInt(iteration_order->get(i)));
+      DCHECK(dictionary->IsKey(roots, dictionary->KeyAt(isolate, index)));
+      kind = dictionary->DetailsAt(index).kind();
+    }
 
-    PropertyKind kind = dictionary->DetailsAt(index).kind();
     if (kind == kData) {
       number_of_fields += 1;
     }
@@ -3391,7 +3483,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 
   NotifyMapChange(old_map, new_map, isolate);
 
-  if (instance_descriptor_length == 0) {
+  if (number_of_elements == 0) {
     DisallowHeapAllocation no_gc;
     DCHECK_LE(unused_property_fields, inobject_props);
     // Transform the object.
@@ -3408,7 +3500,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 
   // Allocate the instance descriptor.
   Handle<DescriptorArray> descriptors =
-      DescriptorArray::Allocate(isolate, instance_descriptor_length, 0);
+      DescriptorArray::Allocate(isolate, number_of_elements, 0);
 
   int number_of_allocated_fields =
       number_of_fields + unused_property_fields - inobject_props;
@@ -3427,9 +3519,30 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 
   // Fill in the instance descriptor and the fields.
   int current_offset = 0;
-  for (int i = 0; i < instance_descriptor_length; i++) {
-    InternalIndex index(Smi::ToInt(iteration_order->get(i)));
-    Name k = dictionary->NameAt(index);
+  int descriptor_index = 0;
+  for (int i = 0; i < iteration_length; i++) {
+    Name k;
+    Object value;
+    PropertyDetails details = PropertyDetails::Empty();
+
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      InternalIndex index(i);
+      Object key_obj = ord_dictionary->KeyAt(index);
+      if (!OrderedNameDictionary::IsKey(roots, key_obj)) {
+        continue;
+      }
+      k = Name::cast(key_obj);
+
+      value = ord_dictionary->ValueAt(index);
+      details = ord_dictionary->DetailsAt(index);
+    } else {
+      InternalIndex index(Smi::ToInt(iteration_order->get(i)));
+      k = dictionary->NameAt(index);
+
+      value = dictionary->ValueAt(index);
+      details = dictionary->DetailsAt(index);
+    }
+
     // Dictionary keys are internalized upon insertion.
     // TODO(jkummerow): Turn this into a DCHECK if it's not hit in the wild.
     CHECK(k.IsUniqueName());
@@ -3440,9 +3553,6 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
       new_map->set_may_have_interesting_symbols(true);
     }
 
-    Object value = dictionary->ValueAt(index);
-
-    PropertyDetails details = dictionary->DetailsAt(index);
     DCHECK_EQ(kField, details.location());
     DCHECK_EQ(PropertyConstness::kMutable, details.constness());
 
@@ -3473,9 +3583,10 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
       }
       current_offset += details.field_width_in_words();
     }
-    descriptors->Set(InternalIndex(i), &d);
+    descriptors->Set(InternalIndex(descriptor_index++), &d);
   }
-  DCHECK(current_offset == number_of_fields);
+  DCHECK_EQ(current_offset, number_of_fields);
+  DCHECK_EQ(descriptor_index, number_of_elements);
 
   descriptors->Sort();
 
@@ -3685,8 +3796,13 @@ bool TestPropertiesIntegrityLevel(JSObject object, PropertyAttributes level) {
     return TestFastPropertiesIntegrityLevel(object.map(), level);
   }
 
-  return TestDictionaryPropertiesIntegrityLevel(
-      object.property_dictionary(), object.GetReadOnlyRoots(), level);
+  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    return TestDictionaryPropertiesIntegrityLevel(
+        object.property_dictionary_ordered(), object.GetReadOnlyRoots(), level);
+  } else {
+    return TestDictionaryPropertiesIntegrityLevel(
+        object.property_dictionary(), object.GetReadOnlyRoots(), level);
+  }
 }
 
 bool TestElementsIntegrityLevel(JSObject object, PropertyAttributes level) {
@@ -3984,6 +4100,11 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
             JSGlobalObject::cast(*object).global_dictionary(), isolate);
         JSObject::ApplyAttributesToDictionary(isolate, roots, dictionary,
                                               attrs);
+      } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+        Handle<OrderedNameDictionary> dictionary(
+            object->property_dictionary_ordered(), isolate);
+        JSObject::ApplyAttributesToDictionary(isolate, roots, dictionary,
+                                              attrs);
       } else {
         Handle<NameDictionary> dictionary(object->property_dictionary(),
                                           isolate);
@@ -4239,6 +4360,8 @@ Object JSObject::SlowReverseLookup(Object value) {
   } else if (IsJSGlobalObject()) {
     return JSGlobalObject::cast(*this).global_dictionary().SlowReverseLookup(
         value);
+  } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    return property_dictionary_ordered().SlowReverseLookup(GetIsolate(), value);
   } else {
     return property_dictionary().SlowReverseLookup(value);
   }

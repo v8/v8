@@ -3371,7 +3371,7 @@ TNode<NameDictionary> CodeStubAssembler::CopyNameDictionary(
 
 template <typename CollectionType>
 TNode<CollectionType> CodeStubAssembler::AllocateOrderedHashTable() {
-  static const int kCapacity = CollectionType::kMinNonZeroCapacity;
+  static const int kCapacity = CollectionType::kInitialCapacity;
   static const int kBucketCount = kCapacity / CollectionType::kLoadFactor;
   static const int kDataTableLength = kCapacity * CollectionType::kEntrySize;
   static const int kFixedArrayLength =

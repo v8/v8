@@ -164,10 +164,17 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<FrameArray> NewFrameArray(int number_of_frames);
 
+  // Allocates a |NameDictionary| with an internal capacity calculated such that
+  // |at_least_space_for| entries can be added without reallocating.
+  Handle<NameDictionary> NewNameDictionary(int at_least_space_for);
+
+  // Allocates an |OrderedNameDictionary| of the given capacity. This guarantees
+  // that |capacity| entries can be added without reallocating.
+  Handle<OrderedNameDictionary> NewOrderedNameDictionary(
+      int capacity = OrderedNameDictionary::kInitialCapacity);
+
   Handle<OrderedHashSet> NewOrderedHashSet();
   Handle<OrderedHashMap> NewOrderedHashMap();
-  Handle<OrderedNameDictionary> NewOrderedNameDictionary();
-
   Handle<SmallOrderedHashSet> NewSmallOrderedHashSet(
       int capacity = kSmallOrderedHashSetMinCapacity,
       AllocationType allocation = AllocationType::kYoung);

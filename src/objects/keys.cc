@@ -5,6 +5,7 @@
 #include "src/objects/keys.h"
 
 #include "src/api/api-arguments-inl.h"
+#include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
@@ -812,59 +813,91 @@ base::Optional<int> CollectOwnPropertyNamesInternal(
   return first_skipped;
 }
 
-// Copies enumerable keys to preallocated fixed array.
-// Does not throw for uninitialized exports in module namespace objects, so
-// this has to be checked separately.
-template <typename Dict>
-void CopyEnumKeysTo(Isolate* isolate, Handle<Dict> dictionary,
-                    Handle<FixedArray> storage, KeyCollectionMode mode,
-                    KeyAccumulator* accumulator) {
+// Logic shared between different specializations of CopyEnumKeysTo.
+template <typename Dictionary>
+void CommonCopyEnumKeysTo(Isolate* isolate, Handle<Dictionary> dictionary,
+                          Handle<FixedArray> storage, KeyCollectionMode mode,
+                          KeyAccumulator* accumulator) {
   DCHECK_IMPLIES(mode != KeyCollectionMode::kOwnOnly, accumulator != nullptr);
   int length = storage->length();
   int properties = 0;
   ReadOnlyRoots roots(isolate);
-  {
-    AllowHeapAllocation allow_gc;
-    for (InternalIndex i : dictionary->IterateEntries()) {
-      Object key;
-      if (!dictionary->ToKey(roots, i, &key)) continue;
-      bool is_shadowing_key = false;
-      if (key.IsSymbol()) continue;
-      PropertyDetails details = dictionary->DetailsAt(i);
-      if (details.IsDontEnum()) {
-        if (mode == KeyCollectionMode::kIncludePrototypes) {
-          is_shadowing_key = true;
-        } else {
-          continue;
-        }
-      }
-      if (is_shadowing_key) {
-        // This might allocate, but {key} is not used afterwards.
-        accumulator->AddShadowingKey(key, &allow_gc);
-        continue;
+
+  AllowHeapAllocation allow_gc;
+  for (InternalIndex i : dictionary->IterateEntries()) {
+    Object key;
+    if (!dictionary->ToKey(roots, i, &key)) continue;
+    bool is_shadowing_key = false;
+    if (key.IsSymbol()) continue;
+    PropertyDetails details = dictionary->DetailsAt(i);
+    if (details.IsDontEnum()) {
+      if (mode == KeyCollectionMode::kIncludePrototypes) {
+        is_shadowing_key = true;
       } else {
+        continue;
+      }
+    }
+    if (is_shadowing_key) {
+      // This might allocate, but {key} is not used afterwards.
+      accumulator->AddShadowingKey(key, &allow_gc);
+      continue;
+    } else {
+      if (Dictionary::kIsOrderedDictionaryType) {
+        storage->set(properties, dictionary->ValueAt(i));
+      } else {
+        // If the dictionary does not store elements in enumeration order,
+        // we need to sort it afterwards in CopyEnumKeysTo. To enable this we
+        // need to store indices at this point, rather than the values at the
+        // given indices.
         storage->set(properties, Smi::FromInt(i.as_int()));
       }
-      properties++;
-      if (mode == KeyCollectionMode::kOwnOnly && properties == length) break;
     }
+    properties++;
+    if (mode == KeyCollectionMode::kOwnOnly && properties == length) break;
   }
 
   CHECK_EQ(length, properties);
-  {
-    DisallowHeapAllocation no_gc;
-    Dict raw_dictionary = *dictionary;
-    FixedArray raw_storage = *storage;
-    EnumIndexComparator<Dict> cmp(raw_dictionary);
-    // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
-    // store operations that are safe for concurrent marking.
-    AtomicSlot start(storage->GetFirstElementAddress());
-    std::sort(start, start + length, cmp);
-    for (int i = 0; i < length; i++) {
-      InternalIndex index(Smi::ToInt(raw_storage.get(i)));
-      raw_storage.set(i, raw_dictionary.NameAt(index));
-    }
+}
+
+// Copies enumerable keys to preallocated fixed array.
+// Does not throw for uninitialized exports in module namespace objects, so
+// this has to be checked separately.
+template <typename Dictionary>
+void CopyEnumKeysTo(Isolate* isolate, Handle<Dictionary> dictionary,
+                    Handle<FixedArray> storage, KeyCollectionMode mode,
+                    KeyAccumulator* accumulator) {
+  STATIC_ASSERT(!Dictionary::kIsOrderedDictionaryType);
+
+  CommonCopyEnumKeysTo<Dictionary>(isolate, dictionary, storage, mode,
+                                   accumulator);
+
+  int length = storage->length();
+
+  DisallowHeapAllocation no_gc;
+  Dictionary raw_dictionary = *dictionary;
+  FixedArray raw_storage = *storage;
+  EnumIndexComparator<Dictionary> cmp(raw_dictionary);
+  // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
+  // store operations that are safe for concurrent marking.
+  AtomicSlot start(storage->GetFirstElementAddress());
+  std::sort(start, start + length, cmp);
+  for (int i = 0; i < length; i++) {
+    InternalIndex index(Smi::ToInt(raw_storage.get(i)));
+    raw_storage.set(i, raw_dictionary.NameAt(index));
   }
+}
+
+template <>
+void CopyEnumKeysTo(Isolate* isolate, Handle<OrderedNameDictionary> dictionary,
+                    Handle<FixedArray> storage, KeyCollectionMode mode,
+                    KeyAccumulator* accumulator) {
+  CommonCopyEnumKeysTo<OrderedNameDictionary>(isolate, dictionary, storage,
+                                              mode, accumulator);
+
+  // No need to sort, as CommonCopyEnumKeysTo on OrderedNameDictionary
+  // adds entries to |storage| in the dict's insertion order
+  // Further, the template argument true above means that |storage|
+  // now contains the actual values from |dictionary|, rather than indices.
 }
 
 template <class T>
@@ -917,14 +950,20 @@ ExceptionStatus CollectKeysFromDictionary(Handle<Dictionary> dictionary,
         if (!accessors.IsAccessorInfo()) continue;
         if (!AccessorInfo::cast(accessors).all_can_read()) continue;
       }
+      // TODO(emrich): consider storing keys instead of indices into the array
+      // in case of ordered dictionary type.
       array->set(array_size++, Smi::FromInt(i.as_int()));
     }
+    if (!Dictionary::kIsOrderedDictionaryType) {
+      // Sorting only needed if it's an unordered dictionary,
+      // otherwise we traversed elements in insertion order
 
-    EnumIndexComparator<Dictionary> cmp(*dictionary);
-    // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
-    // store operations that are safe for concurrent marking.
-    AtomicSlot start(array->GetFirstElementAddress());
-    std::sort(start, start + array_size, cmp);
+      EnumIndexComparator<Dictionary> cmp(*dictionary);
+      // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
+      // store operations that are safe for concurrent marking.
+      AtomicSlot start(array->GetFirstElementAddress());
+      std::sort(start, start + array_size, cmp);
+    }
   }
 
   bool has_seen_symbol = false;
@@ -978,6 +1017,9 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
       enum_keys = GetOwnEnumPropertyDictionaryKeys(
           isolate_, mode_, this, object,
           JSGlobalObject::cast(*object).global_dictionary());
+    } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      enum_keys = GetOwnEnumPropertyDictionaryKeys(
+          isolate_, mode_, this, object, object->property_dictionary_ordered());
     } else {
       enum_keys = GetOwnEnumPropertyDictionaryKeys(
           isolate_, mode_, this, object, object->property_dictionary());
@@ -1013,6 +1055,9 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
       RETURN_NOTHING_IF_NOT_SUCCESSFUL(CollectKeysFromDictionary(
           handle(JSGlobalObject::cast(*object).global_dictionary(), isolate_),
           this));
+    } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      RETURN_NOTHING_IF_NOT_SUCCESSFUL(CollectKeysFromDictionary(
+          handle(object->property_dictionary_ordered(), isolate_), this));
     } else {
       RETURN_NOTHING_IF_NOT_SUCCESSFUL(CollectKeysFromDictionary(
           handle(object->property_dictionary(), isolate_), this));
@@ -1034,6 +1079,9 @@ ExceptionStatus KeyAccumulator::CollectPrivateNames(Handle<JSReceiver> receiver,
     RETURN_FAILURE_IF_NOT_SUCCESSFUL(CollectKeysFromDictionary(
         handle(JSGlobalObject::cast(*object).global_dictionary(), isolate_),
         this));
+  } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    RETURN_FAILURE_IF_NOT_SUCCESSFUL(CollectKeysFromDictionary(
+        handle(object->property_dictionary_ordered(), isolate_), this));
   } else {
     RETURN_FAILURE_IF_NOT_SUCCESSFUL(CollectKeysFromDictionary(
         handle(object->property_dictionary(), isolate_), this));
@@ -1116,6 +1164,10 @@ Handle<FixedArray> KeyAccumulator::GetOwnEnumPropertyKeys(
     return GetOwnEnumPropertyDictionaryKeys(
         isolate, KeyCollectionMode::kOwnOnly, nullptr, object,
         JSGlobalObject::cast(*object).global_dictionary());
+  } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    return GetOwnEnumPropertyDictionaryKeys(
+        isolate, KeyCollectionMode::kOwnOnly, nullptr, object,
+        object->property_dictionary_ordered());
   } else {
     return GetOwnEnumPropertyDictionaryKeys(
         isolate, KeyCollectionMode::kOwnOnly, nullptr, object,
@@ -1146,8 +1198,13 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
                                                   Handle<JSProxy> proxy) {
   STACK_CHECK(isolate_, Nothing<bool>());
   if (filter_ == PRIVATE_NAMES_ONLY) {
-    RETURN_NOTHING_IF_NOT_SUCCESSFUL(CollectKeysFromDictionary(
-        handle(proxy->property_dictionary(), isolate_), this));
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      RETURN_NOTHING_IF_NOT_SUCCESSFUL(CollectKeysFromDictionary(
+          handle(proxy->property_dictionary_ordered(), isolate_), this));
+    } else {
+      RETURN_NOTHING_IF_NOT_SUCCESSFUL(CollectKeysFromDictionary(
+          handle(proxy->property_dictionary(), isolate_), this));
+    }
     return Just(true);
   }
 

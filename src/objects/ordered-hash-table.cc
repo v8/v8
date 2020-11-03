@@ -23,8 +23,7 @@ MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Allocate(
   // from number of buckets. If we decide to change kLoadFactor
   // to something other than 2, capacity should be stored as another
   // field of this object.
-  capacity =
-      base::bits::RoundUpToPowerOfTwo32(Max(kMinNonZeroCapacity, capacity));
+  capacity = base::bits::RoundUpToPowerOfTwo32(Max(kInitialCapacity, capacity));
   if (capacity > MaxCapacity()) {
     return MaybeHandle<Derived>();
   }
@@ -74,7 +73,7 @@ MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::EnsureGrowable(
   int new_capacity;
   if (capacity == 0) {
     // step from empty to minimum proper size
-    new_capacity = kMinNonZeroCapacity;
+    new_capacity = kInitialCapacity;
   } else if (nod >= (capacity >> 1)) {
     // Don't need to grow if we can simply clear out deleted entries instead.
     // Note that we can't compact in place, though, so we always allocate
@@ -108,7 +107,7 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Clear(
                                        : AllocationType::kOld;
 
   Handle<Derived> new_table =
-      Allocate(isolate, kMinNonZeroCapacity, allocation_type).ToHandleChecked();
+      Allocate(isolate, kInitialCapacity, allocation_type).ToHandleChecked();
 
   if (table->NumberOfBuckets() > 0) {
     // Don't try to modify the empty canonical table which lives in RO space.
@@ -349,6 +348,17 @@ bool OrderedHashTable<Derived, entrysize>::Delete(Isolate* isolate,
   return true;
 }
 
+// Parameter |roots| only here for compatibility with HashTable<...>::ToKey.
+template <class Derived, int entrysize>
+bool OrderedHashTable<Derived, entrysize>::ToKey(ReadOnlyRoots roots,
+                                                 InternalIndex entry,
+                                                 Object* out_key) {
+  Object k = KeyAt(entry);
+  if (!IsKey(roots, k)) return false;
+  *out_key = k;
+  return true;
+}
+
 Address OrderedHashMap::GetHash(Isolate* isolate, Address raw_key) {
   DisallowHeapAllocation no_gc;
   Object key(raw_key);
@@ -428,6 +438,38 @@ InternalIndex OrderedNameDictionary::FindEntry(Isolate* isolate, Object key) {
   }
 
   return InternalIndex::NotFound();
+}
+
+// TODO(emrich): This is almost an identical copy of
+// Dictionary<..>::SlowReverseLookup.
+// Consolidate both versions elsewhere (e.g., hash-table-utils)?
+Object OrderedNameDictionary::SlowReverseLookup(Isolate* isolate,
+                                                Object value) {
+  ReadOnlyRoots roots(isolate);
+  for (InternalIndex i : IterateEntries()) {
+    Object k;
+    if (!ToKey(roots, i, &k)) continue;
+    Object e = this->ValueAt(i);
+    if (e == value) return k;
+  }
+  return roots.undefined_value();
+}
+
+// TODO(emrich): This is almost an identical copy of
+// HashTable<..>::NumberOfEnumerableProperties.
+// Consolidate both versions elsewhere (e.g., hash-table-utils)?
+int OrderedNameDictionary::NumberOfEnumerableProperties() {
+  ReadOnlyRoots roots = this->GetReadOnlyRoots();
+  int result = 0;
+  for (InternalIndex i : this->IterateEntries()) {
+    Object k;
+    if (!this->ToKey(roots, i, &k)) continue;
+    if (k.FilterKey(ENUMERABLE_STRINGS)) continue;
+    PropertyDetails details = this->DetailsAt(i);
+    PropertyAttributes attr = details.attributes();
+    if ((attr & ONLY_ENUMERABLE) == 0) result++;
+  }
+  return result;
 }
 
 MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::Add(

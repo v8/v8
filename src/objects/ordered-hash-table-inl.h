@@ -31,6 +31,12 @@ template <class Derived, int entrysize>
 OrderedHashTable<Derived, entrysize>::OrderedHashTable(Address ptr)
     : FixedArray(ptr) {}
 
+template <class Derived, int entrysize>
+bool OrderedHashTable<Derived, entrysize>::IsKey(ReadOnlyRoots roots,
+                                                 Object k) {
+  return k != roots.the_hole_value();
+}
+
 OrderedHashSet::OrderedHashSet(Address ptr)
     : OrderedHashTable<OrderedHashSet, 1>(ptr) {
   SLOW_DCHECK(IsOrderedHashSet());
@@ -105,6 +111,10 @@ inline Object OrderedHashMap::ValueAt(InternalIndex entry) {
 inline Object OrderedNameDictionary::ValueAt(InternalIndex entry) {
   DCHECK_LT(entry.as_int(), UsedCapacity());
   return get(EntryToIndex(entry) + kValueOffset);
+}
+
+Name OrderedNameDictionary::NameAt(InternalIndex entry) {
+  return Name::cast(KeyAt(entry));
 }
 
 // Set the value for entry.

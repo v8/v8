@@ -3519,11 +3519,20 @@ Maybe<bool> JSProxy::SetPrivateSymbol(Isolate* isolate, Handle<JSProxy> proxy,
     return Just(true);
   }
 
-  Handle<NameDictionary> dict(proxy->property_dictionary(), isolate);
   PropertyDetails details(kData, DONT_ENUM, PropertyCellType::kNoCell);
-  Handle<NameDictionary> result =
-      NameDictionary::Add(isolate, dict, private_name, value, details);
-  if (!dict.is_identical_to(result)) proxy->SetProperties(*result);
+  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    Handle<OrderedNameDictionary> dict(proxy->property_dictionary_ordered(),
+                                       isolate);
+    Handle<OrderedNameDictionary> result =
+        OrderedNameDictionary::Add(isolate, dict, private_name, value, details)
+            .ToHandleChecked();
+    if (!dict.is_identical_to(result)) proxy->SetProperties(*result);
+  } else {
+    Handle<NameDictionary> dict(proxy->property_dictionary(), isolate);
+    Handle<NameDictionary> result =
+        NameDictionary::Add(isolate, dict, private_name, value, details);
+    if (!dict.is_identical_to(result)) proxy->SetProperties(*result);
+  }
   return Just(true);
 }
 

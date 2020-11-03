@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <memory>
 
+#include "src/common/globals.h"
 #include "src/compiler/node.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
@@ -274,6 +275,8 @@ bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
     return map().NumberOfOwnDescriptors() > 0;
   } else if (IsJSGlobalObject()) {
     JSGlobalObject::cast(*this).global_dictionary().Print(os);
+  } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    property_dictionary_ordered().Print(os);
   } else {
     property_dictionary().Print(os);
   }

@@ -520,21 +520,25 @@ Handle<SmallOrderedNameDictionary> Factory::NewSmallOrderedNameDictionary(
 }
 
 Handle<OrderedHashSet> Factory::NewOrderedHashSet() {
-  return OrderedHashSet::Allocate(isolate(),
-                                  OrderedHashSet::kMinNonZeroCapacity)
+  return OrderedHashSet::Allocate(isolate(), OrderedHashSet::kInitialCapacity,
+                                  AllocationType::kYoung)
       .ToHandleChecked();
 }
 
 Handle<OrderedHashMap> Factory::NewOrderedHashMap() {
-  return OrderedHashMap::Allocate(isolate(),
-                                  OrderedHashMap::kMinNonZeroCapacity)
+  return OrderedHashMap::Allocate(isolate(), OrderedHashMap::kInitialCapacity,
+                                  AllocationType::kYoung)
       .ToHandleChecked();
 }
 
-Handle<OrderedNameDictionary> Factory::NewOrderedNameDictionary() {
-  return OrderedNameDictionary::Allocate(
-             isolate(), OrderedNameDictionary::kMinNonZeroCapacity)
+Handle<OrderedNameDictionary> Factory::NewOrderedNameDictionary(int capacity) {
+  return OrderedNameDictionary::Allocate(isolate(), capacity,
+                                         AllocationType::kYoung)
       .ToHandleChecked();
+}
+
+Handle<NameDictionary> Factory::NewNameDictionary(int at_least_space_for) {
+  return NameDictionary::New(isolate(), at_least_space_for);
 }
 
 Handle<PropertyDescriptorObject> Factory::NewPropertyDescriptorObject() {

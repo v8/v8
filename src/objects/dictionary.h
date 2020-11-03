@@ -131,6 +131,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
   static const int kObjectHashIndex = kNextEnumerationIndexIndex + 1;
   static const int kEntryValueIndex = 1;
 
+  static const bool kIsOrderedDictionaryType = false;
+
   inline void SetHash(int hash);
   inline int Hash() const;
 
