@@ -3464,12 +3464,12 @@ TranslatedState::TranslatedState(const JavaScriptFrame* frame) {
   DCHECK(!data.is_null() && deopt_index != Safepoint::kNoDeoptimizationIndex);
   TranslationIterator it(data.TranslationByteArray(),
                          data.TranslationIndex(deopt_index).value());
-#ifdef V8_NO_ARGUMENT_ADAPTOR
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
   int actual_argc = frame->GetActualArgumentCount();
 #else
   int actual_argc = 0;
 #endif
-  Init(frame->isolate(), frame->fp(), kNullAddress, &it, data.LiteralArray(),
+  Init(frame->isolate(), frame->fp(), frame->fp(), &it, data.LiteralArray(),
        nullptr /* registers */, nullptr /* trace file */,
        frame->function().shared().internal_formal_parameter_count(),
        actual_argc);
