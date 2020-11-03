@@ -2301,6 +2301,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate_, promise_fun, "all", Builtins::kPromiseAll, 1, true);
     native_context()->set_promise_all(*promise_all);
 
+    InstallFunctionWithBuiltinId(isolate_, promise_fun, "allSettled",
+                                 Builtins::kPromiseAllSettled, 1, true);
+
     InstallFunctionWithBuiltinId(isolate_, promise_fun, "race",
                                  Builtins::kPromiseRace, 1, true);
 
@@ -4272,12 +4275,6 @@ void Genesis::InitializeGlobal_harmony_promise_any() {
   Handle<JSFunction> promise_any = InstallFunctionWithBuiltinId(
       isolate_, promise_fun, "any", Builtins::kPromiseAny, 1, true);
   native_context()->set_promise_any(*promise_any);
-}
-
-void Genesis::InitializeGlobal_harmony_promise_all_settled() {
-  if (!FLAG_harmony_promise_all_settled) return;
-  SimpleInstallFunction(isolate(), isolate()->promise_function(), "allSettled",
-                        Builtins::kPromiseAllSettled, 1, true);
 }
 
 void Genesis::InitializeGlobal_harmony_regexp_match_indices() {
