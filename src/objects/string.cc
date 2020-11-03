@@ -168,6 +168,11 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
     isolate->heap()->NotifyObjectLayoutChange(*this, no_allocation,
                                               InvalidateRecordedSlots::kYes);
   }
+
+  // Disallow garbage collection to avoid possible GC vs string access deadlock.
+  DisallowGarbageCollection no_gc;
+  base::SharedMutexGuard<base::kExclusive> shared_mutex_guard(
+      isolate->string_access());
   // Morph the string to an external string by replacing the map and
   // reinitializing the fields.  This won't work if the space the existing
   // string occupies is too small for a regular external string.  Instead, we
@@ -240,6 +245,11 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
     isolate->heap()->NotifyObjectLayoutChange(*this, no_allocation,
                                               InvalidateRecordedSlots::kYes);
   }
+
+  // Disallow garbage collection to avoid possible GC vs string access deadlock.
+  DisallowGarbageCollection no_gc;
+  base::SharedMutexGuard<base::kExclusive> shared_mutex_guard(
+      isolate->string_access());
   // Morph the string to an external string by replacing the map and
   // reinitializing the fields.  This won't work if the space the existing
   // string occupies is too small for a regular external string.  Instead, we

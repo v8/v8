@@ -26,6 +26,24 @@ namespace internal {
 
 #include "torque-generated/src/objects/string-tq-inl.inc"
 
+// Creates a SharedMutexGuard<kShared> for the string access if:
+// A) {str} is not a read only string, and
+// B) We are on a background thread.
+class SharedStringAccessGuardIfNeeded {
+ public:
+  explicit SharedStringAccessGuardIfNeeded(String str) {
+    // If we can get the isolate from the String, it means it is not a read only
+    // string.
+    Isolate* isolate;
+    if (GetIsolateFromHeapObject(str, &isolate) &&
+        ThreadId::Current() != isolate->thread_id())
+      mutex_guard.emplace(isolate->string_access());
+  }
+
+ private:
+  base::Optional<base::SharedMutexGuard<base::kShared>> mutex_guard;
+};
+
 int String::synchronized_length() const {
   return base::AsAtomic32::Acquire_Load(
       reinterpret_cast<const int32_t*>(field_address(kLengthOffset)));
@@ -52,7 +70,8 @@ CAST_ACCESSOR(ExternalOneByteString)
 CAST_ACCESSOR(ExternalString)
 CAST_ACCESSOR(ExternalTwoByteString)
 
-StringShape::StringShape(const String str) : type_(str.map().instance_type()) {
+StringShape::StringShape(const String str)
+    : type_(str.synchronized_map().instance_type()) {
   set_valid();
   DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
 }
@@ -420,6 +439,8 @@ Handle<String> String::Flatten(LocalIsolate* isolate, Handle<String> string,
 
 uint16_t String::Get(int index) {
   DCHECK(index >= 0 && index < length());
+
+  SharedStringAccessGuardIfNeeded scope(*this);
 
   class StringGetDispatcher : public AllStatic {
    public:
