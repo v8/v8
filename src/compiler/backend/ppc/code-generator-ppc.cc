@@ -3288,10 +3288,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I8x16Swizzle: {
-      // Reverse the input to match IBM lane numbering.
-      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src0 = i.InputSimd128Register(0),
+                      src1 = i.InputSimd128Register(1),
+                      tempFPReg1 = i.ToSimd128Register(instr->TempAt(0)),
+                      tempFPReg2 = i.ToSimd128Register(instr->TempAt(1));
+      // Saturate the indices to 5 bits. Input indices more than 31 should
+      // return 0.
+      __ xxspltib(tempFPReg2, Operand(31));
+      __ vminub(tempFPReg2, src1, tempFPReg2);
       __ addi(sp, sp, Operand(-16));
-      __ stxvd(i.InputSimd128Register(0), MemOperand(r0, sp));
+      __ stxvd(src0, MemOperand(r0, sp));
       __ ldbrx(r0, MemOperand(r0, sp));
       __ li(ip, Operand(8));
       __ ldbrx(ip, MemOperand(ip, sp));
@@ -3301,8 +3308,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ lxvd(kScratchDoubleReg, MemOperand(r0, sp));
       __ addi(sp, sp, Operand(16));
       __ vxor(tempFPReg1, tempFPReg1, tempFPReg1);
-      __ vperm(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
-               i.InputSimd128Register(1));
+      __ vperm(dst, kScratchDoubleReg, tempFPReg1, tempFPReg2);
       break;
     }
     case kPPC_F64x2Qfma: {

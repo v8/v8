@@ -1804,6 +1804,11 @@ void Assembler::stxvd(const Simd128Register rt, const MemOperand& dst) {
        SX);
 }
 
+void Assembler::xxspltib(const Simd128Register rt, const Operand& imm) {
+  int TX = 1;
+  emit(XXSPLTIB | rt.code() * B21 | imm.immediate() * B11 | TX);
+}
+
 // Pseudo instructions.
 void Assembler::nop(int type) {
   Register reg = r0;

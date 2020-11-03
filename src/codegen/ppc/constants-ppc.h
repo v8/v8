@@ -2000,7 +2000,9 @@ using Instr = uint32_t;
   /* Store VSR Vector Doubleword*2 Indexed */             \
   V(stxvd, STXVD, 0x7C000798)                             \
   /* Store VSR Vector Word*4 Indexed */                   \
-  V(stxvw, STXVW, 0x7C000718)
+  V(stxvw, STXVW, 0x7C000718)                             \
+  /* Vector Splat Immediate Byte */                       \
+  V(xxspltib, XXSPLTIB, 0xF00002D1)
 
 #define PPC_B_OPCODE_LIST(V) \
   /* Branch Conditional */   \

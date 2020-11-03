@@ -1022,6 +1022,7 @@ class Assembler : public AssemblerBase {
   void mtvsrdd(const Simd128Register rt, const Register ra, const Register rb);
   void lxvd(const Simd128Register rt, const MemOperand& src);
   void stxvd(const Simd128Register rt, const MemOperand& src);
+  void xxspltib(const Simd128Register rt, const Operand& imm);
 
   // Pseudo instructions
 
