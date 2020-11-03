@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { LogEntry } from './log.mjs';
+import {LogEntry} from './log.mjs';
 
 // ===========================================================================
 // Map Log Events
@@ -11,10 +11,10 @@ const kChunkHeight = 200;
 const kChunkWidth = 10;
 
 function define(prototype, name, fn) {
-  Object.defineProperty(prototype, name, { value: fn, enumerable: false });
+  Object.defineProperty(prototype, name, {value: fn, enumerable: false});
 }
 
-define(Array.prototype, 'max', function (fn) {
+define(Array.prototype, 'max', function(fn) {
   if (this.length === 0) return undefined;
   if (fn === undefined) fn = (each) => each;
   let max = fn(this[0]);
@@ -23,10 +23,10 @@ define(Array.prototype, 'max', function (fn) {
   }
   return max;
 })
-define(Array.prototype, 'first', function () {
+define(Array.prototype, 'first', function() {
   return this[0]
 });
-define(Array.prototype, 'last', function () {
+define(Array.prototype, 'last', function() {
   return this[this.length - 1]
 });
 
@@ -282,9 +282,8 @@ class Edge {
       return this.type + ' ' + this.symbol() + this.name;
     }
     return this.type + ' ' + (this.reason ? this.reason : '') + ' ' +
-      (this.name ? this.name : '')
+        (this.name ? this.name : '')
   }
 }
 
-
-export { MapLogEntry, Edge, kChunkWidth, kChunkHeight };
+export {MapLogEntry, Edge, kChunkWidth, kChunkHeight};

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 class State {
-  _timeSelection = { start: 0, end: Infinity };
+  _timeSelection = {start: 0, end: Infinity};
   _map;
   _ic;
   _selectedMapLogEntries;
@@ -60,11 +60,11 @@ class State {
     this._deoptTimeline = timeline;
   }
   set chunks(value) {
-    //TODO(zcankara) split up between maps and ics, and every timeline track
+    // TODO(zcankara) split up between maps and ics, and every timeline track
     this._chunks = value;
   }
   get chunks() {
-    //TODO(zcankara) split up between maps and ics, and every timeline track
+    // TODO(zcankara) split up between maps and ics, and every timeline track
     return this._chunks;
   }
   get nofChunks() {
@@ -74,20 +74,20 @@ class State {
     this._nofChunks = count;
   }
   get map() {
-    //TODO(zcankara) rename as selectedMapEvents, array of selected events
+    // TODO(zcankara) rename as selectedMapEvents, array of selected events
     return this._map;
   }
   set map(value) {
-    //TODO(zcankara) rename as selectedMapEvents, array of selected events
+    // TODO(zcankara) rename as selectedMapEvents, array of selected events
     if (!value) return;
     this._map = value;
   }
   get ic() {
-    //TODO(zcankara) rename selectedICEvents, array of selected events
+    // TODO(zcankara) rename selectedICEvents, array of selected events
     return this._ic;
   }
   set ic(value) {
-    //TODO(zcankara) rename selectedIcEvents, array of selected events
+    // TODO(zcankara) rename selectedIcEvents, array of selected events
     if (!value) return;
     this._ic = value;
   }
@@ -122,4 +122,4 @@ class State {
   }
 }
 
-export { State };
+export {State};

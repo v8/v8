@@ -1,12 +1,12 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import { LogEntry } from './log.mjs';
+import {LogEntry} from './log.mjs';
 
 export class IcLogEntry extends LogEntry {
   constructor(
-    type, fn_file, time, line, column, key, oldState, newState, map, reason,
-    script, modifier, additional) {
+      type, fn_file, time, line, column, key, oldState, newState, map, reason,
+      script, modifier, additional) {
     super(type, time);
     this.category = 'other';
     if (this.type.indexOf('Store') !== -1) {
@@ -55,18 +55,11 @@ export class IcLogEntry extends LogEntry {
     this.file = parts[offset];
     return offset;
   }
-  
+
   static get propertyNames() {
     return [
-      'type',
-      'category',
-      'functionName',
-      'filePosition',
-      'state',
-      'key',
-      'map',
-      'reason',
-      'file'
+      'type', 'category', 'functionName', 'filePosition', 'state', 'key', 'map',
+      'reason', 'file'
     ];
   }
 }

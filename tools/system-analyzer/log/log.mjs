@@ -6,7 +6,7 @@ export class LogEntry {
   _time;
   _type;
   constructor(type, time) {
-    //TODO(zcankara) remove type and add empty getters to override
+    // TODO(zcankara) remove type and add empty getters to override
     this._time = time;
     this._type = type;
   }
@@ -18,6 +18,6 @@ export class LogEntry {
   }
   // Returns an Array of all possible #type values.
   static get allTypes() {
-    throw new Error("Not implemented.");
+    throw new Error('Not implemented.');
   }
 }

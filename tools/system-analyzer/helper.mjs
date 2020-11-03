@@ -144,7 +144,7 @@ class DOM {
     if (className) node.classList.add(className);
     return node;
   }
-  
+
   static tr(className) {
     const node = document.createElement('tr');
     if (className) node.classList.add(className);
@@ -162,12 +162,13 @@ class DOM {
   }
 
   static defineCustomElement(path, generator) {
-    let name = path.substring(path.lastIndexOf("/") + 1, path.length);
+    let name = path.substring(path.lastIndexOf('/') + 1, path.length);
     path = path + '-template.html';
     fetch(path)
-      .then(stream => stream.text())
-      .then(
-        templateText => customElements.define(name, generator(templateText)));
+        .then(stream => stream.text())
+        .then(
+            templateText =>
+                customElements.define(name, generator(templateText)));
   }
 }
 
@@ -178,7 +179,7 @@ function $(id) {
 class V8CustomElement extends HTMLElement {
   constructor(templateText) {
     super();
-    const shadowRoot = this.attachShadow({ mode: 'open' });
+    const shadowRoot = this.attachShadow({mode: 'open'});
     shadowRoot.innerHTML = templateText;
   }
   $(id) {
@@ -190,7 +191,6 @@ class V8CustomElement extends HTMLElement {
   }
 }
 
-
 class LazyTable {
   constructor(table, rowData, rowElementCreator) {
     this._table = table;
@@ -198,7 +198,7 @@ class LazyTable {
     this._rowElementCreator = rowElementCreator;
     const tbody = table.querySelector('tbody');
     table.replaceChild(document.createElement('tbody'), tbody);
-    table.querySelector("tfoot td").onclick = (e) => this._addMoreRows();
+    table.querySelector('tfoot td').onclick = (e) => this._addMoreRows();
     this._addMoreRows();
   }
 
@@ -216,7 +216,6 @@ class LazyTable {
   }
 }
 
-
 class LazyTable {
   constructor(table, rowData, rowElementCreator) {
     this._table = table;
@@ -224,7 +223,7 @@ class LazyTable {
     this._rowElementCreator = rowElementCreator;
     const tbody = table.querySelector('tbody');
     table.replaceChild(document.createElement('tbody'), tbody);
-    table.querySelector("tfoot td").onclick = (e) => this._addMoreRows();
+    table.querySelector('tfoot td').onclick = (e) => this._addMoreRows();
     this._addMoreRows();
   }
 
@@ -247,6 +246,12 @@ function delay(time) {
 }
 
 export {
-  DOM, $, V8CustomElement, formatBytes,
-  typeToColor, CSSColor, delay, LazyTable,
+  DOM,
+  $,
+  V8CustomElement,
+  formatBytes,
+  typeToColor,
+  CSSColor,
+  delay,
+  LazyTable,
 };

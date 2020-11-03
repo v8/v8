@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { IcLogEntry } from "./log/ic.mjs";
+import {IcLogEntry} from './log/ic.mjs';
 
 // For compatibility with console scripts:
 print = console.log;
@@ -51,8 +51,7 @@ export class Group {
       group.percentage = Math.round(group.count / length * 100 * 100) / 100;
       result.push(group);
     }
-    result.sort((a, b) => { return b.count - a.count });
+    result.sort((a, b) => {return b.count - a.count});
     return result;
   }
-
 }

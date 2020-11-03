@@ -35,17 +35,16 @@ class Timeline {
   }
 
   selectTimeRange(start, end) {
-    this._selection = this.filter(
-      e => e.time >= start && e.time <= end);
+    this._selection = this.filter(e => e.time >= start && e.time <= end);
   }
 
   getChunks(windowSizeMs) {
-    //TODO(zcankara) Fill this one
+    // TODO(zcankara) Fill this one
     return this.chunkSizes(windowSizeMs);
   }
 
   get values() {
-    //TODO(zcankara) Not to break something delete later
+    // TODO(zcankara) Not to break something delete later
     return this._values;
   }
 
@@ -253,7 +252,7 @@ class Chunk {
     if (event_fn === void 0) {
       event_fn = each => each;
     }
-    let breakdown = { __proto__: null };
+    let breakdown = {__proto__: null};
     this.items.forEach(each => {
       const type = event_fn(each);
       const v = breakdown[type];
@@ -265,7 +264,6 @@ class Chunk {
   filter() {
     return this.items.filter(map => !map.parent() || !this.has(map.parent()));
   }
-
 }
 
-export { Timeline, Chunk };
+export {Timeline, Chunk};

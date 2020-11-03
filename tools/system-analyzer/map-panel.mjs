@@ -1,77 +1,76 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import "./stats-panel.mjs";
-import "./map-panel/map-details.mjs";
-import "./map-panel/map-transitions.mjs";
-import { FocusEvent } from './events.mjs';
-import { MapLogEntry } from "./log/map.mjs";
-import { DOM, V8CustomElement } from './helper.mjs';
+import './stats-panel.mjs';
+import './map-panel/map-details.mjs';
+import './map-panel/map-transitions.mjs';
 
-DOM.defineCustomElement('map-panel', (templateText) =>
-  class MapPanel extends V8CustomElement {
-    _map;
-    constructor() {
-      super(templateText);
-      this.searchBarBtn.addEventListener(
-        'click', e => this.handleSearchBar(e));
-      this.addEventListener(
-        FocusEvent.name, e => this.handleUpdateMapDetails(e));
-    }
+import {FocusEvent} from './events.mjs';
+import {DOM, V8CustomElement} from './helper.mjs';
+import {MapLogEntry} from './log/map.mjs';
 
-    handleUpdateMapDetails(e) {
-      if (e.entry instanceof MapLogEntry) {
-        this.mapDetailsPanel.mapDetails = e.entry;
-      }
-    }
+DOM.defineCustomElement('map-panel',
+                        (templateText) =>
+                            class MapPanel extends V8CustomElement {
+  _map;
+  constructor() {
+    super(templateText);
+    this.searchBarBtn.addEventListener('click', e => this.handleSearchBar(e));
+    this.addEventListener(FocusEvent.name, e => this.handleUpdateMapDetails(e));
+  }
 
-    get mapTransitionsPanel() {
-      return this.$('#map-transitions');
+  handleUpdateMapDetails(e) {
+    if (e.entry instanceof MapLogEntry) {
+      this.mapDetailsPanel.mapDetails = e.entry;
     }
+  }
 
-    get mapDetailsPanel() {
-      return this.$('#map-details');
-    }
+  get mapTransitionsPanel() {
+    return this.$('#map-transitions');
+  }
 
-    get searchBarBtn() {
-      return this.$('#searchBarBtn');
-    }
+  get mapDetailsPanel() {
+    return this.$('#map-details');
+  }
 
-    get searchBar() {
-      return this.$('#searchBar');
-    }
+  get searchBarBtn() {
+    return this.$('#searchBarBtn');
+  }
 
-    get mapDetails() {
-      return this.mapDetailsPanel.mapDetails;
-    }
+  get searchBar() {
+    return this.$('#searchBar');
+  }
 
-    set timeline(timeline) {
-      this._timeline = timeline;
-    }
+  get mapDetails() {
+    return this.mapDetailsPanel.mapDetails;
+  }
 
-    set map(value) {
-      this._map = value;
-      this.mapTransitionsPanel.map = this._map;
-    }
+  set timeline(timeline) {
+    this._timeline = timeline;
+  }
 
-    handleSearchBar(e) {
-      let searchBar = this.$('#searchBarInput');
-      let searchBarInput = searchBar.value;
-      //access the map from model cache
-      let selectedMap = MapLogEntry.get(parseInt(searchBarInput));
-      if (selectedMap) {
-        searchBar.className = "success";
-      } else {
-        searchBar.className = "failure";
-      }
-      this.dispatchEvent(new FocusEvent(selectedMap));
-    }
+  set map(value) {
+    this._map = value;
+    this.mapTransitionsPanel.map = this._map;
+  }
 
-    set selectedMapLogEntries(list) {
-      this.mapTransitionsPanel.selectedMapLogEntries = list;
+  handleSearchBar(e) {
+    let searchBar = this.$('#searchBarInput');
+    let searchBarInput = searchBar.value;
+    // access the map from model cache
+    let selectedMap = MapLogEntry.get(parseInt(searchBarInput));
+    if (selectedMap) {
+      searchBar.className = 'success';
+    } else {
+      searchBar.className = 'failure';
     }
-    get selectedMapLogEntries() {
-      return this.mapTransitionsPanel.selectedMapLogEntries;
-    }
+    this.dispatchEvent(new FocusEvent(selectedMap));
+  }
 
-  });
+  set selectedMapLogEntries(list) {
+    this.mapTransitionsPanel.selectedMapLogEntries = list;
+  }
+  get selectedMapLogEntries() {
+    return this.mapTransitionsPanel.selectedMapLogEntries;
+  }
+});

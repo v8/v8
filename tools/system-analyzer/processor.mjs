@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { MapLogEntry, Edge } from "./log/map.mjs";
-import { IcLogEntry } from "./log/ic.mjs";
-import { DeoptLogEntry } from "./log/deopt.mjs";
-import { Timeline } from "./timeline.mjs";
-import { LogReader, parseString, parseVarArgs } from "../logreader.mjs";
-import { Profile } from "../profile.mjs";
+import {LogReader, parseString, parseVarArgs} from '../logreader.mjs';
+import {Profile} from '../profile.mjs';
+
+import {DeoptLogEntry} from './log/deopt.mjs';
+import {IcLogEntry} from './log/ic.mjs';
+import {Edge, MapLogEntry} from './log/map.mjs';
+import {Timeline} from './timeline.mjs';
 
 // ===========================================================================
 
@@ -43,7 +44,8 @@ export class Processor extends LogReader {
       },
       'v8-version': {
         parsers: [
-          parseInt, parseInt,
+          parseInt,
+          parseInt,
         ],
         processor: this.processV8Version
       },
@@ -52,12 +54,12 @@ export class Processor extends LogReader {
         processor: this.processScriptSource
       },
       'code-move':
-        { parsers: [parseInt, parseInt], processor: this.processCodeMove },
-      'code-delete': { parsers: [parseInt], processor: this.processCodeDelete },
+          {parsers: [parseInt, parseInt], processor: this.processCodeMove},
+      'code-delete': {parsers: [parseInt], processor: this.processCodeDelete},
       'sfi-move':
-        { parsers: [parseInt, parseInt], processor: this.processFunctionMove },
+          {parsers: [parseInt, parseInt], processor: this.processFunctionMove},
       'map-create':
-        { parsers: [parseInt, parseString], processor: this.processMapCreate },
+          {parsers: [parseInt, parseString], processor: this.processMapCreate},
       'map': {
         parsers: [
           parseString, parseInt, parseString, parseString, parseInt, parseInt,
@@ -140,8 +142,8 @@ export class Processor extends LogReader {
       }
     } catch (e) {
       console.error(
-        'Error occurred during parsing line ' + i +
-        ', trying to continue: ' + e);
+          'Error occurred during parsing line ' + i +
+          ', trying to continue: ' + e);
     }
     this.finalize();
   }
@@ -184,24 +186,25 @@ export class Processor extends LogReader {
       let funcAddr = parseInt(maybe_func[0]);
       let state = this.parseState(maybe_func[1]);
       this._profile.addFuncCode(
-        type, name, timestamp, start, size, funcAddr, state);
+          type, name, timestamp, start, size, funcAddr, state);
     } else {
       this._profile.addCode(type, name, timestamp, start, size);
     }
   }
 
-  processCodeDeopt(timestamp, codeSize, instructionStart, inliningId,
-                   scriptOffset, deoptKind, deoptLocation, deoptReason) {
+  processCodeDeopt(
+      timestamp, codeSize, instructionStart, inliningId, scriptOffset,
+      deoptKind, deoptLocation, deoptReason) {
     this._deoptTimeline.push(new DeoptLogEntry(deoptKind, timestamp));
   }
 
   processV8Version(majorVersion, minorVersion) {
-    if (
-      (majorVersion == this.MAJOR_VERSION && minorVersion <= this.MINOR_VERSION)
-      || (majorVersion < this.MAJOR_VERSION)) {
+    if ((majorVersion == this.MAJOR_VERSION &&
+         minorVersion <= this.MINOR_VERSION) ||
+        (majorVersion < this.MAJOR_VERSION)) {
       window.alert(
-        `Unsupported version ${majorVersion}.${minorVersion}. \n` +
-        `Please use the matching tool for given the V8 version.`);
+          `Unsupported version ${majorVersion}.${minorVersion}. \n` +
+          `Please use the matching tool for given the V8 version.`);
     }
   }
 
@@ -231,16 +234,16 @@ export class Processor extends LogReader {
   }
 
   processPropertyIC(
-    type, pc, time, line, column, old_state, new_state, map, key, modifier,
-    slow_reason) {
+      type, pc, time, line, column, old_state, new_state, map, key, modifier,
+      slow_reason) {
     let fnName = this.functionName(pc);
     let parts = fnName.split(' ');
-    let fileName = parts[parts.length-1];
+    let fileName = parts[parts.length - 1];
     let script = this.getScript(fileName);
     // TODO: Use SourcePosition here directly
     let entry = new IcLogEntry(
-      type, fnName, time, line, column, key, old_state, new_state, map,
-      slow_reason, script, modifier);
+        type, fnName, time, line, column, key, old_state, new_state, map,
+        slow_reason, script, modifier);
     if (script) {
       entry.sourcePosition = script.addSourcePosition(line, column, entry);
     }
@@ -254,9 +257,9 @@ export class Processor extends LogReader {
   formatPC(pc, line, column) {
     let entry = this._profile.findEntry(pc);
     if (!entry) return '<unknown>'
-    if (entry.type === 'Builtin') {
-      return entry.name;
-    }
+      if (entry.type === 'Builtin') {
+        return entry.name;
+      }
     let name = entry.func.getName();
     let array = this._formatPCRegexp.exec(name);
     if (array === null) {
@@ -272,7 +275,7 @@ export class Processor extends LogReader {
     // Try to handle urls with file positions: https://foo.bar.com/:17:330"
     filePositionLine = filePositionLine.split(' ');
     let parts = filePositionLine[1].split(':');
-    if (parts[0].length <= 5) return parts[0] + ':' + parts[1]
+    if (parts[0].length <= 5) return parts[0] + ':' + parts[1];
     return parts[1];
   }
 

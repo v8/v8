@@ -2,22 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { SelectionEvent, FocusEvent, SelectTimeEvent } from "./events.mjs";
-import { State } from "./app-model.mjs";
-import { MapLogEntry } from "./log/map.mjs";
-import { IcLogEntry } from "./log/ic.mjs";
-import { Processor } from "./processor.mjs";
-import { SourcePosition } from  "../profile.mjs";
-import { $ } from "./helper.mjs";
+import {SourcePosition} from '../profile.mjs';
 
+import {State} from './app-model.mjs';
+import {FocusEvent, SelectionEvent, SelectTimeEvent} from './events.mjs';
+import {$} from './helper.mjs';
+import {IcLogEntry} from './log/ic.mjs';
+import {MapLogEntry} from './log/map.mjs';
+import {Processor} from './processor.mjs';
 
 class App {
   _state;
   _view;
   _navigation;
   _startupPromise;
-  constructor(fileReaderId, mapPanelId, mapStatsPanelId, timelinePanelId,
-    icPanelId, mapTrackId, icTrackId, deoptTrackId, sourcePanelId) {
+  constructor(
+      fileReaderId, mapPanelId, mapStatsPanelId, timelinePanelId, icPanelId,
+      mapTrackId, icTrackId, deoptTrackId, sourcePanelId) {
     this._view = {
       __proto__: null,
       logFileReader: $(fileReaderId),
@@ -31,32 +32,30 @@ class App {
       sourcePanel: $(sourcePanelId)
     };
     this.toggleSwitch = $('.theme-switch input[type="checkbox"]');
-    this.toggleSwitch.addEventListener("change", (e) => this.switchTheme(e));
-    this._view.logFileReader.addEventListener("fileuploadstart", (e) =>
-      this.handleFileUploadStart(e)
-    );
-    this._view.logFileReader.addEventListener("fileuploadend", (e) =>
-      this.handleFileUploadEnd(e)
-    );
+    this.toggleSwitch.addEventListener('change', (e) => this.switchTheme(e));
+    this._view.logFileReader.addEventListener(
+        'fileuploadstart', (e) => this.handleFileUploadStart(e));
+    this._view.logFileReader.addEventListener(
+        'fileuploadend', (e) => this.handleFileUploadEnd(e));
     this._startupPromise = this.runAsyncInitialize();
   }
 
   async runAsyncInitialize() {
     await Promise.all([
-        import("./ic-panel.mjs"),
-        import("./timeline-panel.mjs"),
-        import("./stats-panel.mjs"),
-        import("./map-panel.mjs"),
-        import("./source-panel.mjs"),
-      ]);
-    document.addEventListener('keydown',
-      e => this._navigation?.handleKeyDown(e));
-    document.addEventListener(SelectionEvent.name,
-      e => this.handleShowEntries(e));
-    document.addEventListener(FocusEvent.name,
-      e => this.handleShowEntryDetail(e));
-    document.addEventListener(SelectTimeEvent.name,
-      e => this.handleTimeRangeSelect(e));
+      import('./ic-panel.mjs'),
+      import('./timeline-panel.mjs'),
+      import('./stats-panel.mjs'),
+      import('./map-panel.mjs'),
+      import('./source-panel.mjs'),
+    ]);
+    document.addEventListener(
+        'keydown', e => this._navigation?.handleKeyDown(e));
+    document.addEventListener(
+        SelectionEvent.name, e => this.handleShowEntries(e));
+    document.addEventListener(
+        FocusEvent.name, e => this.handleShowEntryDetail(e));
+    document.addEventListener(
+        SelectTimeEvent.name, e => this.handleTimeRangeSelect(e));
   }
 
   handleShowEntries(e) {
@@ -67,7 +66,7 @@ class App {
     } else if (e.entries[0] instanceof SourcePosition) {
       this.showSourcePositionEntries(e.entries);
     } else {
-      throw new Error("Unknown selection type!");
+      throw new Error('Unknown selection type!');
     }
     e.stopPropagation();
   }
@@ -84,7 +83,7 @@ class App {
     this._state.selectedDeoptLogEntries = entries;
   }
   showSourcePositionEntries(entries) {
-    //TODO: Handle multiple source position selection events
+    // TODO: Handle multiple source position selection events
     this._view.sourcePanel.selectedSourcePositions = entries
   }
 
@@ -98,7 +97,7 @@ class App {
     this.showMapEntries(this._state.mapTimeline.selection);
     this.showIcEntries(this._state.icTimeline.selection);
     this.showDeoptEntries(this._state.deoptTimeline.selection);
-    this._view.timelinePanel.timeSelection = {start,end};
+    this._view.timelinePanel.timeSelection = {start, end};
   }
 
   handleShowEntryDetail(e) {
@@ -109,7 +108,7 @@ class App {
     } else if (e.entry instanceof SourcePosition) {
       this.selectSourcePosition(e.entry);
     } else {
-      throw new Error("Unknown selection type!");
+      throw new Error('Unknown selection type!');
     }
     e.stopPropagation();
   }
@@ -129,7 +128,7 @@ class App {
 
   handleFileUploadStart(e) {
     this.restartApp();
-    $("#container").className = "initial";
+    $('#container').className = 'initial';
   }
 
   restartApp() {
@@ -150,17 +149,18 @@ class App {
       // Transitions must be set before timeline for stats panel.
       this._view.mapPanel.timeline = mapTimeline;
       this._view.mapTrack.data = mapTimeline;
-      this._view.mapStatsPanel.transitions = this._state.mapTimeline.transitions;
+      this._view.mapStatsPanel.transitions =
+          this._state.mapTimeline.transitions;
       this._view.mapStatsPanel.timeline = mapTimeline;
       this._view.icPanel.timeline = icTimeline;
       this._view.icTrack.data = icTimeline;
       this._view.deoptTrack.data = deoptTimeline;
       this._view.sourcePanel.data = processor.scripts
-    } catch(e) {
-      this._view.logFileReader.error = "Log file contains errors!"
-      throw(e);
+    } catch (e) {
+      this._view.logFileReader.error = 'Log file contains errors!'
+      throw (e);
     } finally {
-      $("#container").className = "loaded";
+      $('#container').className = 'loaded';
       this.fileLoaded = true;
     }
   }
@@ -172,9 +172,8 @@ class App {
   }
 
   switchTheme(event) {
-    document.documentElement.dataset.theme = event.target.checked
-      ? "light"
-      : "dark";
+    document.documentElement.dataset.theme =
+        event.target.checked ? 'light' : 'dark';
     if (this.fileLoaded) {
       this.refreshTimelineTrackView();
     }
@@ -268,7 +267,7 @@ class Navigation {
   }
   handleKeyDown(event) {
     switch (event.key) {
-      case "ArrowUp":
+      case 'ArrowUp':
         event.preventDefault();
         if (event.shiftKey) {
           this.selectPrevEdge();
@@ -276,7 +275,7 @@ class Navigation {
           this.moveInChunk(-1);
         }
         return false;
-      case "ArrowDown":
+      case 'ArrowDown':
         event.preventDefault();
         if (event.shiftKey) {
           this.selectNextEdge();
@@ -284,20 +283,20 @@ class Navigation {
           this.moveInChunk(1);
         }
         return false;
-      case "ArrowLeft":
+      case 'ArrowLeft':
         this.moveInChunks(false);
         break;
-      case "ArrowRight":
+      case 'ArrowRight':
         this.moveInChunks(true);
         break;
-      case "+":
+      case '+':
         this.increaseTimelineResolution();
         break;
-      case "-":
+      case '-':
         this.decreaseTimelineResolution();
         break;
     }
   }
 }
 
-export { App };
+export {App};
