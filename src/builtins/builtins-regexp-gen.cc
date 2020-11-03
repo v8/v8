@@ -957,12 +957,37 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
 
     CASE_FOR_FLAG("global", JSRegExp::kGlobal);
     CASE_FOR_FLAG("ignoreCase", JSRegExp::kIgnoreCase);
-    CASE_FOR_FLAG("linear", JSRegExp::kLinear);
     CASE_FOR_FLAG("multiline", JSRegExp::kMultiline);
     CASE_FOR_FLAG("dotAll", JSRegExp::kDotAll);
     CASE_FOR_FLAG("unicode", JSRegExp::kUnicode);
     CASE_FOR_FLAG("sticky", JSRegExp::kSticky);
 #undef CASE_FOR_FLAG
+
+    {
+      Label next(this);
+
+      // Check the runtime value of FLAG_enable_experimental_regexp_engine
+      // first.
+      TNode<Word32T> flag_value = UncheckedCast<Word32T>(
+          Load(MachineType::Uint8(),
+               ExternalConstant(
+                   ExternalReference::
+                       address_of_enable_experimental_regexp_engine())));
+      GotoIf(Word32Equal(Word32And(flag_value, Int32Constant(0xFF)),
+                         Int32Constant(0)),
+             &next);
+
+      const TNode<Object> flag = GetProperty(
+          context, regexp, isolate->factory()->InternalizeUtf8String("linear"));
+      Label if_isflagset(this);
+      BranchIfToBooleanIsTrue(flag, &if_isflagset, &next);
+      BIND(&if_isflagset);
+      var_length = Uint32Add(var_length.value(), Uint32Constant(1));
+      var_flags =
+          Signed(WordOr(var_flags.value(), IntPtrConstant(JSRegExp::kLinear)));
+      Goto(&next);
+      BIND(&next);
+    }
   }
 
   // Allocate a string of the required length and fill it with the corresponding
@@ -1204,8 +1229,19 @@ TNode<BoolT> RegExpBuiltinsAssembler::FastFlagGetter(TNode<JSRegExp> regexp,
 TNode<BoolT> RegExpBuiltinsAssembler::SlowFlagGetter(TNode<Context> context,
                                                      TNode<Object> regexp,
                                                      JSRegExp::Flag flag) {
-  Label out(this);
+  Label out(this), if_true(this), if_false(this);
   TVARIABLE(BoolT, var_result);
+
+  // Only enabled based on a runtime flag.
+  if (flag == JSRegExp::kLinear) {
+    TNode<Word32T> flag_value = UncheckedCast<Word32T>(Load(
+        MachineType::Uint8(),
+        ExternalConstant(ExternalReference::
+                             address_of_enable_experimental_regexp_engine())));
+    GotoIf(Word32Equal(Word32And(flag_value, Int32Constant(0xFF)),
+                       Int32Constant(0)),
+           &if_false);
+  }
 
   Handle<String> name;
   switch (flag) {
@@ -1235,8 +1271,6 @@ TNode<BoolT> RegExpBuiltinsAssembler::SlowFlagGetter(TNode<Context> context,
   }
 
   TNode<Object> value = GetProperty(context, regexp, name);
-
-  Label if_true(this), if_false(this);
   BranchIfToBooleanIsTrue(value, &if_true, &if_false);
 
   BIND(&if_true);

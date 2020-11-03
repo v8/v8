@@ -475,6 +475,11 @@ ExternalReference ExternalReference::address_of_double_neg_constant() {
   return ExternalReference(reinterpret_cast<Address>(&double_negate_constant));
 }
 
+ExternalReference
+ExternalReference::address_of_enable_experimental_regexp_engine() {
+  return ExternalReference(&FLAG_enable_experimental_regexp_engine);
+}
+
 ExternalReference ExternalReference::is_profiling_address(Isolate* isolate) {
   return ExternalReference(isolate->is_profiling_address());
 }

@@ -100,6 +100,8 @@ class StatsCounter;
   V(abort_with_reason, "abort_with_reason")                                    \
   V(address_of_double_abs_constant, "double_absolute_constant")                \
   V(address_of_double_neg_constant, "double_negate_constant")                  \
+  V(address_of_enable_experimental_regexp_engine,                              \
+    "address_of_enable_experimental_regexp_engine")                            \
   V(address_of_float_abs_constant, "float_absolute_constant")                  \
   V(address_of_float_neg_constant, "float_negate_constant")                    \
   V(address_of_min_int, "LDoubleConstant::min_int")                            \
