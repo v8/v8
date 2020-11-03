@@ -239,7 +239,7 @@ uc32 FlatStringReader::Get(int index) {
 template <typename Char>
 Char FlatStringReader::Get(int index) {
   DCHECK_EQ(is_one_byte_, sizeof(Char) == 1);
-  DCHECK(0 <= index && index <= length_);
+  DCHECK(0 <= index && index < length_);
   if (sizeof(Char) == 1) {
     return static_cast<Char>(static_cast<const uint8_t*>(start_)[index]);
   } else {
