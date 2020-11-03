@@ -26,7 +26,7 @@ namespace internal {
 
 class IsCompiledScope;
 
-enum class FeedbackSlotKind {
+enum class FeedbackSlotKind : uint8_t {
   // This kind means that the slot points to the middle of other slot
   // which occupies more than one feedback vector element.
   // There must be no such slots in the system.
@@ -344,20 +344,17 @@ class FeedbackVector
 
 class V8_EXPORT_PRIVATE FeedbackVectorSpec {
  public:
-  explicit FeedbackVectorSpec(Zone* zone)
-      : slot_kinds_(zone), num_closure_feedback_cells_(0) {
+  explicit FeedbackVectorSpec(Zone* zone) : slot_kinds_(zone) {
     slot_kinds_.reserve(16);
   }
 
-  int slots() const { return static_cast<int>(slot_kinds_.size()); }
-  int closure_feedback_cells() const { return num_closure_feedback_cells_; }
+  int slot_count() const { return static_cast<int>(slot_kinds_.size()); }
+  int create_closure_slot_count() const { return create_closure_slot_count_; }
 
-  int AddFeedbackCellForCreateClosure() {
-    return num_closure_feedback_cells_++;
-  }
+  int AddCreateClosureSlot() { return create_closure_slot_count_++; }
 
   FeedbackSlotKind GetKind(FeedbackSlot slot) const {
-    return static_cast<FeedbackSlotKind>(slot_kinds_.at(slot.ToInt()));
+    return slot_kinds_.at(slot.ToInt());
   }
 
   bool HasTypeProfileSlot() const;
@@ -458,12 +455,11 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
  private:
   FeedbackSlot AddSlot(FeedbackSlotKind kind);
 
-  void append(FeedbackSlotKind kind) {
-    slot_kinds_.push_back(static_cast<unsigned char>(kind));
-  }
+  void append(FeedbackSlotKind kind) { slot_kinds_.push_back(kind); }
 
-  ZoneVector<unsigned char> slot_kinds_;
-  unsigned int num_closure_feedback_cells_;
+  STATIC_ASSERT(sizeof(FeedbackSlotKind) == sizeof(uint8_t));
+  ZoneVector<FeedbackSlotKind> slot_kinds_;
+  int create_closure_slot_count_ = 0;
 
   friend class SharedFeedbackSlot;
 };
@@ -502,7 +498,7 @@ class FeedbackMetadata : public HeapObject {
   // int32.
   // TODO(mythria): Consider using 16 bits for this and slot_count so that we
   // can save 4 bytes.
-  DECL_INT32_ACCESSORS(closure_feedback_cell_count)
+  DECL_INT32_ACCESSORS(create_closure_slot_count)
 
   // Get slot_count using an acquire load.
   inline int32_t synchronized_slot_count() const;
@@ -535,9 +531,13 @@ class FeedbackMetadata : public HeapObject {
     return OBJECT_POINTER_ALIGN(kHeaderSize + length(slot_count) * kInt32Size);
   }
 
-  static const int kSlotCountOffset = HeapObject::kHeaderSize;
-  static const int kFeedbackCellCountOffset = kSlotCountOffset + kInt32Size;
-  static const int kHeaderSize = kFeedbackCellCountOffset + kInt32Size;
+#define FIELDS(V)                              \
+  V(kSlotCountOffset, kInt32Size)              \
+  V(kCreateClosureSlotCountOffset, kInt32Size) \
+  V(kHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FIELDS)
+#undef FIELDS
 
   class BodyDescriptor;
 

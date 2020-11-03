@@ -35,8 +35,8 @@ CAST_ACCESSOR(ClosureFeedbackCellArray)
 
 INT32_ACCESSORS(FeedbackMetadata, slot_count, kSlotCountOffset)
 
-INT32_ACCESSORS(FeedbackMetadata, closure_feedback_cell_count,
-                kFeedbackCellCountOffset)
+INT32_ACCESSORS(FeedbackMetadata, create_closure_slot_count,
+                kCreateClosureSlotCountOffset)
 
 int32_t FeedbackMetadata::synchronized_slot_count() const {
   return base::Acquire_Load(

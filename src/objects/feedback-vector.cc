@@ -20,7 +20,7 @@ namespace v8 {
 namespace internal {
 
 FeedbackSlot FeedbackVectorSpec::AddSlot(FeedbackSlotKind kind) {
-  int slot = slots();
+  int slot = slot_count();
   int entries_per_slot = FeedbackMetadata::GetSlotSize(kind);
   append(kind);
   for (int i = 1; i < entries_per_slot; i++) {
@@ -39,9 +39,7 @@ FeedbackSlot FeedbackVectorSpec::AddTypeProfileSlot() {
 bool FeedbackVectorSpec::HasTypeProfileSlot() const {
   FeedbackSlot slot =
       FeedbackVector::ToSlot(FeedbackVectorSpec::kTypeProfileSlotIndex);
-  if (slots() <= slot.ToInt()) {
-    return false;
-  }
+  if (slot_count() <= slot.ToInt()) return false;
   return GetKind(slot) == FeedbackSlotKind::kTypeProfile;
 }
 
@@ -82,10 +80,10 @@ Handle<FeedbackMetadata> FeedbackMetadata::New(LocalIsolate* isolate,
                                                const FeedbackVectorSpec* spec) {
   auto* factory = isolate->factory();
 
-  const int slot_count = spec == nullptr ? 0 : spec->slots();
-  const int closure_feedback_cell_count =
-      spec == nullptr ? 0 : spec->closure_feedback_cells();
-  if (slot_count == 0 && closure_feedback_cell_count == 0) {
+  const int slot_count = spec == nullptr ? 0 : spec->slot_count();
+  const int create_closure_slot_count =
+      spec == nullptr ? 0 : spec->create_closure_slot_count();
+  if (slot_count == 0 && create_closure_slot_count == 0) {
     return factory->empty_feedback_metadata();
   }
 #ifdef DEBUG
@@ -102,7 +100,7 @@ Handle<FeedbackMetadata> FeedbackMetadata::New(LocalIsolate* isolate,
 #endif
 
   Handle<FeedbackMetadata> metadata =
-      factory->NewFeedbackMetadata(slot_count, closure_feedback_cell_count);
+      factory->NewFeedbackMetadata(slot_count, create_closure_slot_count);
 
   // Initialize the slots. The raw data section has already been pre-zeroed in
   // NewFeedbackMetadata.
@@ -123,7 +121,7 @@ template Handle<FeedbackMetadata> FeedbackMetadata::New(
 
 bool FeedbackMetadata::SpecDiffersFrom(
     const FeedbackVectorSpec* other_spec) const {
-  if (other_spec->slots() != slot_count()) {
+  if (other_spec->slot_count() != slot_count()) {
     return true;
   }
 
@@ -221,7 +219,7 @@ Handle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
   Factory* factory = isolate->factory();
 
   int num_feedback_cells =
-      shared->feedback_metadata().closure_feedback_cell_count();
+      shared->feedback_metadata().create_closure_slot_count();
 
   Handle<ClosureFeedbackCellArray> feedback_cell_array =
       factory->NewClosureFeedbackCellArray(num_feedback_cells);
