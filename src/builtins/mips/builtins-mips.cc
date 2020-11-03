@@ -879,12 +879,11 @@ static void MaybeOptimizeCode(MacroAssembler* masm, Register feedback_vector,
                                 OptimizationMarker::kCompileOptimizedConcurrent,
                                 Runtime::kCompileOptimized_Concurrent);
 
-  // Otherwise, the marker is InOptimizationQueue, so fall through hoping
-  // that an interrupt will eventually update the slot with optimized code.
+  // Marker should be one of LogFirstExecution / CompileOptimized /
+  // CompileOptimizedConcurrent. InOptimizationQueue and None shouldn't reach
+  // here.
   if (FLAG_debug_code) {
-    __ Assert(eq, AbortReason::kExpectedOptimizationSentinel,
-              optimization_marker,
-              Operand(OptimizationMarker::kInOptimizationQueue));
+    __ stop();
   }
 }
 
@@ -1021,8 +1020,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // Check if the optimized code slot is not empty or has a optimization marker.
   Label has_optimized_code_or_marker;
 
-  __ Branch(&has_optimized_code_or_marker, ne, optimization_state,
-            Operand(FeedbackVector::kHasNoOptimizedCodeOrMarkerValue));
+  __ andi(t1, optimization_state,
+          FeedbackVector::kHasOptimizedCodeOrCompileOptimizedMarkerMask);
+  __ Branch(&has_optimized_code_or_marker, ne, t1, Operand(zero_reg));
 
   Label not_optimized;
   __ bind(&not_optimized);
@@ -1169,11 +1169,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ jmp(&after_stack_check_interrupt);
 
   __ bind(&has_optimized_code_or_marker);
+
   Label maybe_has_optimized_code;
   // Check if optimized code marker is available
   __ andi(t1, optimization_state,
-          FeedbackVector::OptimizationTierBits::kMask);
-  __ Branch(&maybe_has_optimized_code, ne, t1, Operand(zero_reg));
+          FeedbackVector::kHasCompileOptimizedOrLogFirstExecutionMarker);
+  __ Branch(&maybe_has_optimized_code, eq, t1, Operand(zero_reg));
 
   Register optimization_marker = optimization_state;
   __ DecodeField<FeedbackVector::OptimizationMarkerBits>(optimization_marker);
