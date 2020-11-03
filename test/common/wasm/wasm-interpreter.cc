@@ -2034,6 +2034,10 @@ class WasmInterpreterInternals {
         *len += 1;
         break;
       case kExprI32AtomicWait: {
+        if (!module()->has_shared_memory) {
+          DoTrap(kTrapUnreachable, pc);
+          return false;
+        }
         int32_t val;
         int64_t timeout;
         uint32_t buffer_offset;
@@ -2050,6 +2054,10 @@ class WasmInterpreterInternals {
         break;
       }
       case kExprI64AtomicWait: {
+        if (!module()->has_shared_memory) {
+          DoTrap(kTrapUnreachable, pc);
+          return false;
+        }
         int64_t val;
         int64_t timeout;
         uint32_t buffer_offset;
@@ -2071,6 +2079,10 @@ class WasmInterpreterInternals {
         if (!ExtractAtomicWaitNotifyParams<int32_t>(decoder, code, pc, len,
                                                     &buffer_offset, &val)) {
           return false;
+        }
+        if (!module()->has_shared_memory) {
+          Push(WasmValue(0));
+          break;
         }
         HandleScope handle_scope(isolate_);
         Handle<JSArrayBuffer> array_buffer(
