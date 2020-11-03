@@ -1116,7 +1116,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   if (FLAG_turbo_loop_peeling) {
     compilation_info()->set_loop_peeling();
   }
-  if (FLAG_turbo_inlining &&
+  if (FLAG_turbo_inlining && !compilation_info()->IsTurboprop() &&
       !compilation_info()->IsNativeContextIndependent()) {
     compilation_info()->set_inlining();
   }

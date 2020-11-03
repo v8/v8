@@ -61,7 +61,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
   "stress_js_bg_compile_wasm_code_gc": ["--no-stress-background-compile"],
   "stress": ["--no-stress-opt", "--always-opt", "--no-always-opt", "--liftoff", "--max-inlined-bytecode-size=*",
              "--max-inlined-bytecode-size-cumulative=*", "--stress-inline"],
-  "turboprop": ["--turbo-inlining", "--interrupt-budget=*", "--no-turboprop"],
+  "turboprop": ["--interrupt-budget=*", "--no-turboprop"],
   "code_serializer": ["--cache=after-execute", "--cache=full-code-cache", "--cache=none"],
   "no_local_heaps": ["--concurrent-inlining", "--turboprop"],
   "experimental_regexp": ["--no-enable-experimental-regexp-engine", "--no-default-to-experimental-regexp-engine"],
