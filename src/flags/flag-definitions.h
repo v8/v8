@@ -448,6 +448,10 @@ DEFINE_NEG_IMPLICATION(jitless, interpreted_frames_native_stack)
 DEFINE_BOOL(assert_types, false,
             "generate runtime type assertions to test the typer")
 
+DEFINE_BOOL(trace_code_dependencies, false, "trace code dependencies")
+// Depend on --trace-deopt-verbose for reporting dependency invalidations.
+DEFINE_IMPLICATION(trace_code_dependencies, trace_deopt_verbose)
+
 // Flags for experimental implementation features.
 DEFINE_BOOL(allocation_site_pretenuring, true,
             "pretenure with allocation sites")

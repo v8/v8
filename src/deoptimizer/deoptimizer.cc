@@ -739,10 +739,10 @@ void Deoptimizer::TraceMarkForDeoptimization(Code code, const char* reason) {
 
   DeoptimizationData deopt_data = DeoptimizationData::cast(maybe_data);
   CodeTracer::Scope scope(isolate->GetCodeTracer());
-  PrintF(scope.file(), "[marking dependent code " V8PRIxPTR_FMT " ",
+  PrintF(scope.file(), "[marking dependent code " V8PRIxPTR_FMT " (",
          code.ptr());
   deopt_data.SharedFunctionInfo().ShortPrint(scope.file());
-  PrintF(" (opt id %d) for deoptimization, reason: %s]\n",
+  PrintF(") (opt id %d) for deoptimization, reason: %s]\n",
          deopt_data.OptimizationId().value(), reason);
   {
     AllowHeapAllocation yes_gc;

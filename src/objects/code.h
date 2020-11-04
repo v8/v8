@@ -641,7 +641,7 @@ class DependentCode : public WeakFixedArray {
     kAllocationSiteTransitionChangedGroup
   };
 
-  // Register a code dependency of {cell} on {object}.
+  // Register a dependency of {code} on {object}, of the kind given by {group}.
   V8_EXPORT_PRIVATE static void InstallDependency(Isolate* isolate,
                                                   const MaybeObjectHandle& code,
                                                   Handle<HeapObject> object,
