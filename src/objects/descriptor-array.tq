@@ -16,8 +16,9 @@ struct DescriptorEntry {
   value: JSAny|Weak<Map>|AccessorInfo|AccessorPair|ClassPositions;
 }
 
-@generateCppClass
-extern class DescriptorArray extends HeapObject {
+@export
+@customCppClass
+class DescriptorArray extends HeapObject {
   const number_of_all_descriptors: uint16;
   number_of_descriptors: uint16;
   raw_number_of_marked_descriptors: uint16;
@@ -27,5 +28,4 @@ extern class DescriptorArray extends HeapObject {
 }
 
 // A descriptor array where all values are held strongly.
-extern class StrongDescriptorArray extends DescriptorArray
-    generates 'TNode<DescriptorArray>';
+class StrongDescriptorArray extends DescriptorArray {}

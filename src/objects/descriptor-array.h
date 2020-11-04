@@ -170,9 +170,7 @@ class DescriptorArray
                 "Weak fields extend up to the end of the header.");
   static_assert(kDescriptorsOffset == kHeaderSize,
                 "Variable-size array follows header.");
-  // We use this visitor to also visitor to also visit the enum_cache, which is
-  // the only tagged field in the header, and placed at the end of the header.
-  using BodyDescriptor = FlexibleWeakBodyDescriptor<kStartOfStrongFieldsOffset>;
+  class BodyDescriptor;
 
   // Layout of descriptor.
   // Naming is consistent with Dictionary classes for easy templating.

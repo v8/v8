@@ -3829,7 +3829,7 @@ void CppClassGenerator::GenerateClass() {
 
   hdr_ << "};\n\n";
 
-  if (!type_->IsExtern()) {
+  if (type_->ShouldGenerateFullClassDefinition()) {
     GenerateClassExport(type_, hdr_, inl_);
   }
 }
