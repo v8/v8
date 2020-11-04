@@ -16,6 +16,9 @@ const int kLiteralInitialLength = 2;
 const int kLiteralContextOffset = 0;
 const int kLiteralLiteralsOffset = 1;
 
+// The initial placeholder insertion of the eval cache survives this many GCs.
+const int kHashGenerations = 10;
+
 int SearchLiteralsMapEntry(CompilationCacheTable cache, int cache_entry,
                            Context native_context) {
   DisallowHeapAllocation no_gc;
@@ -253,18 +256,20 @@ InfoCellPair CompilationCacheTable::LookupEval(
   InfoCellPair empty_result;
   Isolate* isolate = native_context->GetIsolate();
   src = String::Flatten(isolate, src);
+
   StringSharedKey key(src, outer_info, language_mode, position);
   InternalIndex entry = table->FindEntry(isolate, &key);
   if (entry.is_not_found()) return empty_result;
+
   int index = EntryToIndex(entry);
   if (!table->get(index).IsFixedArray()) return empty_result;
   Object obj = table->get(index + 1);
-  if (obj.IsSharedFunctionInfo()) {
-    FeedbackCell feedback_cell =
-        SearchLiteralsMap(*table, index + 2, *native_context);
-    return InfoCellPair(isolate, SharedFunctionInfo::cast(obj), feedback_cell);
-  }
-  return empty_result;
+  if (!obj.IsSharedFunctionInfo()) return empty_result;
+
+  STATIC_ASSERT(CompilationCacheShape::kEntrySize == 3);
+  FeedbackCell feedback_cell =
+      SearchLiteralsMap(*table, index + 2, *native_context);
+  return InfoCellPair(isolate, SharedFunctionInfo::cast(obj), feedback_cell);
 }
 
 Handle<Object> CompilationCacheTable::LookupRegExp(Handle<String> src,
@@ -317,6 +322,9 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
   Isolate* isolate = native_context->GetIsolate();
   src = String::Flatten(isolate, src);
   StringSharedKey key(src, outer_info, value->language_mode(), position);
+
+  // This block handles 'real' insertions, i.e. the initial dummy insert
+  // (below) has already happened earlier.
   {
     Handle<Object> k = key.AsHandle(isolate);
     InternalIndex entry = cache->FindEntry(isolate, &key);
@@ -326,6 +334,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
       // AddToFeedbackCellsMap may allocate a new sub-array to live in the
       // entry, but it won't change the cache array. Therefore EntryToIndex
       // and entry remains correct.
+      STATIC_ASSERT(CompilationCacheShape::kEntrySize == 3);
       AddToFeedbackCellsMap(cache, EntryToIndex(entry) + 2, native_context,
                             feedback_cell);
       // Add hash again even on cache hit to avoid unnecessary cache delay in
@@ -333,6 +342,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
     }
   }
 
+  // Create a dummy entry to mark that this key has already been inserted once.
   cache = EnsureCapacity(isolate, cache);
   InternalIndex entry = cache->FindInsertionEntry(isolate, key.Hash());
   Handle<Object> k =
@@ -383,28 +393,32 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutCode(
 
 void CompilationCacheTable::Age() {
   DisallowHeapAllocation no_allocation;
-  Object the_hole_value = GetReadOnlyRoots().the_hole_value();
   for (InternalIndex entry : IterateEntries()) {
-    int entry_index = EntryToIndex(entry);
-    int value_index = entry_index + 1;
+    const int entry_index = EntryToIndex(entry);
+    const int value_index = entry_index + 1;
 
-    if (get(entry_index).IsNumber()) {
-      Smi count = Smi::cast(get(value_index));
-      count = Smi::FromInt(count.value() - 1);
-      if (count.value() == 0) {
-        NoWriteBarrierSet(*this, entry_index, the_hole_value);
-        NoWriteBarrierSet(*this, value_index, the_hole_value);
-        ElementRemoved();
+    Object key = get(entry_index);
+    if (key.IsNumber()) {
+      // The ageing mechanism for the initial dummy entry in the eval cache.
+      // The 'key' is the hash represented as a Number. The 'value' is a smi
+      // counting down from kHashGenerations. On reaching zero, the entry is
+      // cleared.
+      // Note: The following static assert only establishes an explicit
+      // connection between initialization- and use-sites of the smi value
+      // field.
+      STATIC_ASSERT(kHashGenerations);
+      const int new_count = Smi::ToInt(get(value_index)) - 1;
+      if (new_count == 0) {
+        RemoveEntry(entry_index);
       } else {
-        NoWriteBarrierSet(*this, value_index, count);
+        DCHECK_GT(new_count, 0);
+        NoWriteBarrierSet(*this, value_index, Smi::FromInt(new_count));
       }
-    } else if (get(entry_index).IsFixedArray()) {
+    } else if (key.IsFixedArray()) {
+      // The ageing mechanism for script and eval caches.
       SharedFunctionInfo info = SharedFunctionInfo::cast(get(value_index));
       if (info.IsInterpreted() && info.GetBytecodeArray().IsOld()) {
-        for (int i = 0; i < kEntrySize; i++) {
-          NoWriteBarrierSet(*this, entry_index + i, the_hole_value);
-        }
-        ElementRemoved();
+        RemoveEntry(entry_index);
       }
     }
   }
@@ -412,17 +426,21 @@ void CompilationCacheTable::Age() {
 
 void CompilationCacheTable::Remove(Object value) {
   DisallowHeapAllocation no_allocation;
-  Object the_hole_value = GetReadOnlyRoots().the_hole_value();
   for (InternalIndex entry : IterateEntries()) {
     int entry_index = EntryToIndex(entry);
     int value_index = entry_index + 1;
     if (get(value_index) == value) {
-      for (int i = 0; i < kEntrySize; i++) {
-        NoWriteBarrierSet(*this, entry_index + i, the_hole_value);
-      }
-      ElementRemoved();
+      RemoveEntry(entry_index);
     }
   }
+}
+
+void CompilationCacheTable::RemoveEntry(int entry_index) {
+  Object the_hole_value = GetReadOnlyRoots().the_hole_value();
+  for (int i = 0; i < kEntrySize; i++) {
+    NoWriteBarrierSet(*this, entry_index + i, the_hole_value);
+  }
+  ElementRemoved();
 }
 
 }  // namespace internal
