@@ -50,7 +50,7 @@ vars = {
   'mac_xcode_version': 'default',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:e002e68a48d1c82648eadde2f6aafa20d08c36f2',
+  'gn_version': 'git_revision:f5f465b52e5df6d4de9fbe67cc79f1914ba4dbfc',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:1a022d3a4c50be4207ee93451255d71896416596',
