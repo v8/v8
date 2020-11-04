@@ -329,7 +329,8 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
   } else if (Builtins::IsBuiltinId(maybe_builtin_index)) {
     shared->set_builtin_id(maybe_builtin_index);
   } else {
-    shared->set_builtin_id(Builtins::kIllegal);
+    DCHECK(shared->HasBuiltinId());
+    DCHECK_EQ(Builtins::kIllegal, shared->builtin_id());
   }
 
   shared->CalculateConstructAsBuiltin();
