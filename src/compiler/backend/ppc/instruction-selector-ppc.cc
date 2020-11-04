@@ -2322,13 +2322,13 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, U)
 SIMD_VISIT_EXTRACT_LANE(I8x16, S)
 #undef SIMD_VISIT_EXTRACT_LANE
 
-#define SIMD_VISIT_REPLACE_LANE(Type)                                 \
-  void InstructionSelector::Visit##Type##ReplaceLane(Node* node) {    \
-    PPCOperandGenerator g(this);                                      \
-    int32_t lane = OpParameter<int32_t>(node->op());                  \
-    Emit(kPPC_##Type##ReplaceLane, g.DefineAsRegister(node),          \
-         g.UseUniqueRegister(node->InputAt(0)), g.UseImmediate(lane), \
-         g.UseUniqueRegister(node->InputAt(1)));                      \
+#define SIMD_VISIT_REPLACE_LANE(Type)                              \
+  void InstructionSelector::Visit##Type##ReplaceLane(Node* node) { \
+    PPCOperandGenerator g(this);                                   \
+    int32_t lane = OpParameter<int32_t>(node->op());               \
+    Emit(kPPC_##Type##ReplaceLane, g.DefineSameAsFirst(node),      \
+         g.UseRegister(node->InputAt(0)), g.UseImmediate(lane),    \
+         g.UseRegister(node->InputAt(1)));                         \
   }
 SIMD_TYPES(SIMD_VISIT_REPLACE_LANE)
 #undef SIMD_VISIT_REPLACE_LANE

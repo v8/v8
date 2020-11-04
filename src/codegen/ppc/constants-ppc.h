@@ -2216,7 +2216,15 @@ using Instr = uint32_t;
   /* Vector Extract Unsigned Byte */     \
   V(vextractub, VEXTRACTUB, 0x1000020d)  \
   /* Vector Extract Unsigned Halfword */ \
-  V(vextractuh, VEXTRACTUH, 0x1000024D)
+  V(vextractuh, VEXTRACTUH, 0x1000024D)  \
+  /* Vector Insert Byte */               \
+  V(vinsertb, VINSERTB, 0x1000030D)      \
+  /* Vector Insert Halfword */           \
+  V(vinserth, VINSERTH, 0x1000034D)      \
+  /* Vector Insert Word */               \
+  V(vinsertw, VINSERTW, 0x1000038D)      \
+  /* Vector Insert Doubleword */         \
+  V(vinsertd, VINSERTD, 0x100003CD)
 
 #define PPC_VX_OPCODE_B_FORM_LIST(V)                       \
   /* Vector Logical OR */                                  \

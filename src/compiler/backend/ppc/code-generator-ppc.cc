@@ -2350,108 +2350,60 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef SHIFT_TO_CORRECT_LANE
-#define GENERATE_REPLACE_LANE_MASK(lane, replacement_value_byte_lane, \
-                                   lane_width_in_bytes)               \
-  uint64_t mask = 0;                                                  \
-  for (int i = 0, j = 0; i <= kSimd128Size - 1; i++) {                \
-    mask <<= kBitsPerByte;                                            \
-    if (i >= lane * lane_width_in_bytes &&                            \
-        i < lane * lane_width_in_bytes + lane_width_in_bytes) {       \
-      mask |= replacement_value_byte_lane + j;                        \
-      j++;                                                            \
-    } else {                                                          \
-      mask |= i;                                                      \
-    }                                                                 \
-    if (i == (kSimd128Size / 2) - 1) {                                \
-      __ mov(r0, Operand(mask));                                      \
-      mask = 0;                                                       \
-    } else if (i >= kSimd128Size - 1) {                               \
-      __ mov(ip, Operand(mask));                                      \
-    }                                                                 \
-  }                                                                   \
-  /* Need to maintain 16 byte alignment for lvx */                    \
-  __ mr(kScratchReg, sp);                                             \
-  __ ClearRightImm(sp, sp, Operand(base::bits::WhichPowerOfTwo(16))); \
-  __ addi(sp, sp, Operand(-16));                                      \
-  __ StoreP(ip, MemOperand(sp, 0));                                   \
-  __ StoreP(r0, MemOperand(sp, 8));                                   \
-  __ lvx(kScratchDoubleReg, MemOperand(r0, sp));                      \
-  __ mr(sp, kScratchReg);
     case kPPC_F64x2ReplaceLane: {
-      Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register dst = i.OutputSimd128Register();
-      int32_t lane = 1 - i.InputInt8(1);
-      constexpr int replacement_value_byte_lane = 16;
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       constexpr int lane_width_in_bytes = 8;
-      GENERATE_REPLACE_LANE_MASK(lane, replacement_value_byte_lane,
-                                 lane_width_in_bytes)
+      Simd128Register dst = i.OutputSimd128Register();
       __ MovDoubleToInt64(r0, i.InputDoubleRegister(2));
-      __ mtvsrd(dst, r0);
-      __ vperm(dst, src, dst, kScratchDoubleReg);
+      __ mtvsrd(kScratchDoubleReg, r0);
+      __ vinsertd(dst, kScratchDoubleReg,
+                  Operand((1 - i.InputInt8(1)) * lane_width_in_bytes));
       break;
     }
     case kPPC_F32x4ReplaceLane: {
-      Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register dst = i.OutputSimd128Register();
-      int32_t lane = 3 - i.InputInt8(1);
-      constexpr int replacement_value_byte_lane = 20;
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       constexpr int lane_width_in_bytes = 4;
-      GENERATE_REPLACE_LANE_MASK(lane, replacement_value_byte_lane,
-                                 lane_width_in_bytes)
-      __ MovFloatToInt(kScratchReg, i.InputDoubleRegister(2));
-      __ mtvsrd(dst, kScratchReg);
-      __ vperm(dst, src, dst, kScratchDoubleReg);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ MovFloatToInt(r0, i.InputDoubleRegister(2));
+      __ mtvsrd(kScratchDoubleReg, r0);
+      __ vinsertw(dst, kScratchDoubleReg,
+                  Operand((3 - i.InputInt8(1)) * lane_width_in_bytes));
       break;
     }
     case kPPC_I64x2ReplaceLane: {
-      Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register dst = i.OutputSimd128Register();
-      int32_t lane = 1 - i.InputInt8(1);
-      constexpr int replacement_value_byte_lane = 16;
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       constexpr int lane_width_in_bytes = 8;
-      GENERATE_REPLACE_LANE_MASK(lane, replacement_value_byte_lane,
-                                 lane_width_in_bytes)
-      __ mtvsrd(dst, i.InputRegister(2));
-      __ vperm(dst, src, dst, kScratchDoubleReg);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ mtvsrd(kScratchDoubleReg, i.InputRegister(2));
+      __ vinsertd(dst, kScratchDoubleReg,
+                  Operand((1 - i.InputInt8(1)) * lane_width_in_bytes));
       break;
     }
     case kPPC_I32x4ReplaceLane: {
-      Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register dst = i.OutputSimd128Register();
-      int32_t lane = 3 - i.InputInt8(1);
-      constexpr int replacement_value_byte_lane = 20;
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       constexpr int lane_width_in_bytes = 4;
-      GENERATE_REPLACE_LANE_MASK(lane, replacement_value_byte_lane,
-                                 lane_width_in_bytes)
-      __ mtvsrd(dst, i.InputRegister(2));
-      __ vperm(dst, src, dst, kScratchDoubleReg);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ mtvsrd(kScratchDoubleReg, i.InputRegister(2));
+      __ vinsertw(dst, kScratchDoubleReg,
+                  Operand((3 - i.InputInt8(1)) * lane_width_in_bytes));
       break;
     }
     case kPPC_I16x8ReplaceLane: {
-      Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register dst = i.OutputSimd128Register();
-      int32_t lane = 7 - i.InputInt8(1);
-      constexpr int replacement_value_byte_lane = 22;
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       constexpr int lane_width_in_bytes = 2;
-      GENERATE_REPLACE_LANE_MASK(lane, replacement_value_byte_lane,
-                                 lane_width_in_bytes)
-      __ mtvsrd(dst, i.InputRegister(2));
-      __ vperm(dst, src, dst, kScratchDoubleReg);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ mtvsrd(kScratchDoubleReg, i.InputRegister(2));
+      __ vinserth(dst, kScratchDoubleReg,
+                  Operand((7 - i.InputInt8(1)) * lane_width_in_bytes));
       break;
     }
     case kPPC_I8x16ReplaceLane: {
-      Simd128Register src = i.InputSimd128Register(0);
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       Simd128Register dst = i.OutputSimd128Register();
-      int32_t lane = 15 - i.InputInt8(1);
-      constexpr int replacement_value_byte_lane = 23;
-      constexpr int lane_width_in_bytes = 1;
-      GENERATE_REPLACE_LANE_MASK(lane, replacement_value_byte_lane,
-                                 lane_width_in_bytes)
-      __ mtvsrd(dst, i.InputRegister(2));
-      __ vperm(dst, src, dst, kScratchDoubleReg);
+      __ mtvsrd(kScratchDoubleReg, i.InputRegister(2));
+      __ vinsertb(dst, kScratchDoubleReg, Operand(15 - i.InputInt8(1)));
       break;
     }
-#undef GENERATE_REPLACE_LANE_MASK
     case kPPC_F64x2Add: {
       __ xvadddp(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
