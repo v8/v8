@@ -508,6 +508,7 @@ domain Debugger
       enum reason
         ambiguous
         assert
+        CSPViolation
         debugCommand
         DOM
         EventListener
