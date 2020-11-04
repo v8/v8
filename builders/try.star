@@ -94,7 +94,7 @@ try_builder(
 try_builder(
     name = "v8_linux_chromium_gn_rel",
     bucket = "try",
-    cq_properties = {"cancel_stale": False},
+    cq_properties = {"experiment_percentage": 100, "cancel_stale": False},
     executable = "recipe:chromium_trybot",
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 3600,
