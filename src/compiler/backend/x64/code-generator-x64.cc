@@ -2582,7 +2582,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F32x4AddHoriz: {
-      ASSEMBLE_SIMD_BINOP(haddps);
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ Haddps(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64F32x4Sub: {
@@ -2679,11 +2680,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F32x4Pmin: {
-      ASSEMBLE_SIMD_BINOP(minps);
+      XMMRegister dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      __ Minps(dst, i.InputSimd128Register(1));
       break;
     }
     case kX64F32x4Pmax: {
-      ASSEMBLE_SIMD_BINOP(maxps);
+      XMMRegister dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      __ Maxps(dst, i.InputSimd128Register(1));
       break;
     }
     case kX64F32x4Round: {
@@ -2699,11 +2704,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F64x2Pmin: {
-      ASSEMBLE_SIMD_BINOP(minpd);
+      XMMRegister dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      __ Minpd(dst, i.InputSimd128Register(1));
       break;
     }
     case kX64F64x2Pmax: {
-      ASSEMBLE_SIMD_BINOP(maxpd);
+      XMMRegister dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      __ Maxpd(dst, i.InputSimd128Register(1));
       break;
     }
     case kX64I64x2Splat: {

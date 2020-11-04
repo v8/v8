@@ -2810,7 +2810,6 @@ VISIT_ATOMIC_BINOP(Xor)
   V(F64x2Lt)                       \
   V(F64x2Le)                       \
   V(F32x4Add)                      \
-  V(F32x4AddHoriz)                 \
   V(F32x4Sub)                      \
   V(F32x4Mul)                      \
   V(F32x4Div)                      \
@@ -2871,6 +2870,7 @@ VISIT_ATOMIC_BINOP(Xor)
 #define SIMD_BINOP_LIST(V) \
   V(F64x2Min)              \
   V(F64x2Max)              \
+  V(F32x4AddHoriz)         \
   V(F32x4Min)              \
   V(F32x4Max)              \
   V(I32x4GeS)              \
@@ -3575,10 +3575,8 @@ void VisitPminOrPmax(InstructionSelector* selector, Node* node,
   // Due to the way minps/minpd work, we want the dst to be same as the second
   // input: b = pmin(a, b) directly maps to minps b a.
   X64OperandGenerator g(selector);
-  InstructionOperand dst = selector->IsSupported(AVX)
-                               ? g.DefineAsRegister(node)
-                               : g.DefineSameAsFirst(node);
-  selector->Emit(opcode, dst, g.UseRegister(node->InputAt(1)),
+  selector->Emit(opcode, g.DefineSameAsFirst(node),
+                 g.UseRegister(node->InputAt(1)),
                  g.UseRegister(node->InputAt(0)));
 }
 }  // namespace
