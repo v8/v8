@@ -9964,6 +9964,8 @@ int debug::WasmScript::CodeOffset() const {
   i::wasm::NativeModule* native_module = script->wasm_native_module();
   const i::wasm::WasmModule* module = native_module->module();
 
+  // The code offset must have been initialized, and it cannot be zero.
+  DCHECK_NE(0, module->code.offset());
   return module->code.offset();
 }
 
