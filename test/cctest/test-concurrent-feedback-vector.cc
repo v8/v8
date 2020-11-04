@@ -126,11 +126,10 @@ class FeedbackVectorExplorationThread final : public v8::base::Thread {
         auto state = nexus.ic_state();
         CHECK_EQ(state, MEGAMORPHIC);
       }
-      all_states_seen.store(true, std::memory_order_release);
-      vector_consumed_->Signal();
-    } else {
-      all_states_seen.store(true, std::memory_order_release);
     }
+
+    all_states_seen.store(true, std::memory_order_release);
+    vector_consumed_->Signal();
 
     CHECK(!ph_);
     ph_ = local_heap.DetachPersistentHandles();
@@ -146,6 +145,12 @@ class FeedbackVectorExplorationThread final : public v8::base::Thread {
   base::Semaphore* vector_ready_;
   base::Semaphore* vector_consumed_;
 };
+
+static void CheckedWait(base::Semaphore& semaphore) {
+  while (!all_states_seen.load(std::memory_order_acquire)) {
+    if (semaphore.WaitFor(base::TimeDelta::FromMilliseconds(1))) break;
+  }
+}
 
 // Verify that a LoadIC can be cycled through different states and safely
 // read on a background thread.
@@ -208,7 +213,7 @@ TEST(CheckLoadICStates) {
       // If we haven't seen all states by the last attempt, enter an explicit
       // handshaking mode.
       vector_ready.Signal();
-      vector_consumed.Wait();
+      CheckedWait(vector_consumed);
       fprintf(stderr, "Main thread configuring monomorphic\n");
     }
     nexus.ConfigureMonomorphic(Handle<Name>(), Handle<Map>(o1->map(), isolate),
@@ -217,7 +222,7 @@ TEST(CheckLoadICStates) {
 
     if (i == (kCycles - 1)) {
       vector_ready.Signal();
-      vector_consumed.Wait();
+      CheckedWait(vector_consumed);
       fprintf(stderr, "Main thread configuring polymorphic\n");
     }
 
@@ -236,7 +241,7 @@ TEST(CheckLoadICStates) {
 
     if (i == (kCycles - 1)) {
       vector_ready.Signal();
-      vector_consumed.Wait();
+      CheckedWait(vector_consumed);
       fprintf(stderr, "Main thread configuring megamorphic\n");
     }
 
@@ -246,7 +251,7 @@ TEST(CheckLoadICStates) {
 
     if (i == (kCycles - 1)) {
       vector_ready.Signal();
-      vector_consumed.Wait();
+      CheckedWait(vector_consumed);
       fprintf(stderr, "Main thread finishing\n");
     }
 
