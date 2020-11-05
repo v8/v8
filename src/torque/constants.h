@@ -85,7 +85,6 @@ static const char* const ANNOTATION_ABSTRACT = "@abstract";
 static const char* const ANNOTATION_HAS_SAME_INSTANCE_TYPE_AS_PARENT =
     "@hasSameInstanceTypeAsParent";
 static const char* const ANNOTATION_GENERATE_CPP_CLASS = "@generateCppClass";
-static const char* const ANNOTATION_CUSTOM_CPP_CLASS = "@customCppClass";
 static const char* const ANNOTATION_HIGHEST_INSTANCE_TYPE_WITHIN_PARENT =
     "@highestInstanceTypeWithinParentClassRange";
 static const char* const ANNOTATION_LOWEST_INSTANCE_TYPE_WITHIN_PARENT =
@@ -136,7 +135,6 @@ enum class ClassFlag {
   kIsShape = 1 << 5,
   kHasSameInstanceTypeAsParent = 1 << 6,
   kGenerateCppClassDefinitions = 1 << 7,
-  kCustomCppClass = 1 << 8,
   kHighestInstanceTypeWithinParent = 1 << 9,
   kLowestInstanceTypeWithinParent = 1 << 10,
   kUndefinedLayout = 1 << 11,

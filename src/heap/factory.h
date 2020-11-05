@@ -121,10 +121,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
 #include "torque-generated/factory.inc"
 
-  // Avoid the Torque-generated factory function to shadow the one from
-  // FactoryBase.
-  using FactoryBase::NewDescriptorArray;
-
   Handle<Oddball> NewOddball(Handle<Map> map, const char* to_string,
                              Handle<Object> to_number, const char* type_of,
                              byte kind);

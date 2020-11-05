@@ -104,6 +104,7 @@ class ZoneForwardList;
   V(DataHandler)                               \
   V(DeoptimizationData)                        \
   V(DependentCode)                             \
+  V(DescriptorArray)                           \
   V(EmbedderDataArray)                         \
   V(EphemeronHashTable)                        \
   V(ExternalOneByteString)                     \
@@ -280,6 +281,7 @@ class ZoneForwardList;
   V(ModuleContext)                           \
   V(NonNullForeign)                          \
   V(ScriptContext)                           \
+  V(StrongDescriptorArray)                   \
   V(WithContext)
 
 #define HEAP_OBJECT_TYPE_LIST(V)    \

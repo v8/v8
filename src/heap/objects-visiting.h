@@ -25,6 +25,7 @@ namespace internal {
   V(Context)                           \
   V(CoverageInfo)                      \
   V(DataHandler)                       \
+  V(DescriptorArray)                   \
   V(EmbedderDataArray)                 \
   V(EphemeronHashTable)                \
   V(FeedbackCell)                      \

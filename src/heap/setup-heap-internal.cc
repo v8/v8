@@ -386,6 +386,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_PRIMITIVE_MAP(SYMBOL_TYPE, Symbol::kSize, symbol,
                            Context::SYMBOL_FUNCTION_INDEX)
     ALLOCATE_MAP(FOREIGN_TYPE, Foreign::kSize, foreign)
+    ALLOCATE_VARSIZE_MAP(STRONG_DESCRIPTOR_ARRAY_TYPE, strong_descriptor_array)
 
     ALLOCATE_PRIMITIVE_MAP(ODDBALL_TYPE, Oddball::kSize, boolean,
                            Context::BOOLEAN_FUNCTION_INDEX);
@@ -427,11 +428,8 @@ bool Heap::CreateInitialMaps() {
     TORQUE_DEFINED_FIXED_INSTANCE_TYPE_LIST(TORQUE_ALLOCATE_MAP);
 #undef TORQUE_ALLOCATE_MAP
 
-#define TORQUE_ALLOCATE_VARSIZE_MAP(NAME, Name, name)                   \
-  /* The DescriptorArray map is pre-allocated and initialized above. */ \
-  if (NAME != DESCRIPTOR_ARRAY_TYPE) {                                  \
-    ALLOCATE_VARSIZE_MAP(NAME, name)                                    \
-  }
+#define TORQUE_ALLOCATE_VARSIZE_MAP(NAME, Name, name) \
+  ALLOCATE_VARSIZE_MAP(NAME, name)
     TORQUE_DEFINED_VARSIZE_INSTANCE_TYPE_LIST(TORQUE_ALLOCATE_VARSIZE_MAP);
 #undef TORQUE_ALLOCATE_VARSIZE_MAP
 

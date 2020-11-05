@@ -683,9 +683,6 @@ class ClassType final : public AggregateType {
     return flags_ & ClassFlag::kGenerateCppClassDefinitions || !IsExtern() ||
            ShouldGenerateBodyDescriptor();
   }
-  bool ShouldGenerateFullClassDefinition() const {
-    return !IsExtern() && !(flags_ & ClassFlag::kCustomCppClass);
-  }
   bool ShouldExport() const { return flags_ & ClassFlag::kExport; }
   bool IsShape() const { return flags_ & ClassFlag::kIsShape; }
   bool HasStaticSize() const;

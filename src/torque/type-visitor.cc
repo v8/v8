@@ -287,15 +287,6 @@ const ClassType* TypeVisitor::ComputeType(
     Error("Class \"", decl->name->value,
           "\" requires a layout but doesn't have one");
   }
-  if (flags & ClassFlag::kCustomCppClass) {
-    if (!(flags & ClassFlag::kExport)) {
-      Error("Only exported classes can have a custom C++ class.");
-    }
-    if (flags & ClassFlag::kExtern) {
-      Error("No need to specify ", ANNOTATION_CUSTOM_CPP_CLASS,
-            ", extern classes always have a custom C++ class.");
-    }
-  }
   if (flags & ClassFlag::kExtern) {
     if (decl->generates) {
       bool enforce_tnode_type = true;

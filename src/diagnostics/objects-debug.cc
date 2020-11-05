@@ -252,6 +252,11 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
 #undef MAKE_TORQUE_CASE
 
+    case DESCRIPTOR_ARRAY_TYPE:
+    case STRONG_DESCRIPTOR_ARRAY_TYPE:
+      DescriptorArray::cast(*this).DescriptorArrayVerify(isolate);
+      break;
+
     case FOREIGN_TYPE:
       break;  // No interesting fields.
 

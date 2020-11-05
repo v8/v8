@@ -202,6 +202,10 @@ VisitorId Map::GetVisitorId(Map map) {
     case PROPERTY_CELL_TYPE:
       return kVisitPropertyCell;
 
+    case DESCRIPTOR_ARRAY_TYPE:
+    case STRONG_DESCRIPTOR_ARRAY_TYPE:
+      return kVisitDescriptorArray;
+
     case TRANSITION_ARRAY_TYPE:
       return kVisitTransitionArray;
 

@@ -40,6 +40,7 @@ enum InstanceType : uint16_t;
   V(CodeDataContainer)                 \
   V(Context)                           \
   V(DataHandler)                       \
+  V(DescriptorArray)                   \
   V(EmbedderDataArray)                 \
   V(EphemeronHashTable)                \
   V(FeedbackCell)                      \
