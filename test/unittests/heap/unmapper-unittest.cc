@@ -227,6 +227,8 @@ class SequentialUnmapperTest : public TestWithIsolate {
  public:
   SequentialUnmapperTest() = default;
   ~SequentialUnmapperTest() override = default;
+  SequentialUnmapperTest(const SequentialUnmapperTest&) = delete;
+  SequentialUnmapperTest& operator=(const SequentialUnmapperTest&) = delete;
 
   static void SetUpTestCase() {
     CHECK_NULL(tracking_page_allocator_);
@@ -264,8 +266,6 @@ class SequentialUnmapperTest : public TestWithIsolate {
   static TrackingPageAllocator* tracking_page_allocator_;
   static v8::PageAllocator* old_page_allocator_;
   static bool old_flag_;
-
-  DISALLOW_COPY_AND_ASSIGN(SequentialUnmapperTest);
 };
 
 TrackingPageAllocator* SequentialUnmapperTest::tracking_page_allocator_ =

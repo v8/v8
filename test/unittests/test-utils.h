@@ -32,6 +32,8 @@ class IsolateWrapper final {
  public:
   explicit IsolateWrapper(CountersMode counters_mode);
   ~IsolateWrapper();
+  IsolateWrapper(const IsolateWrapper&) = delete;
+  IsolateWrapper& operator=(const IsolateWrapper&) = delete;
 
   v8::Isolate* isolate() const { return isolate_; }
 
@@ -39,8 +41,6 @@ class IsolateWrapper final {
   std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator_;
   std::unique_ptr<CounterMap> counter_map_;
   v8::Isolate* isolate_;
-
-  DISALLOW_COPY_AND_ASSIGN(IsolateWrapper);
 };
 
 //
@@ -62,6 +62,8 @@ class WithIsolateScopeMixin : public TMixin {
  public:
   WithIsolateScopeMixin()
       : isolate_scope_(this->v8_isolate()), handle_scope_(this->v8_isolate()) {}
+  WithIsolateScopeMixin(const WithIsolateScopeMixin&) = delete;
+  WithIsolateScopeMixin& operator=(const WithIsolateScopeMixin&) = delete;
 
   v8::Isolate* isolate() const { return this->v8_isolate(); }
 
@@ -72,8 +74,6 @@ class WithIsolateScopeMixin : public TMixin {
  private:
   v8::Isolate::Scope isolate_scope_;
   v8::HandleScope handle_scope_;
-
-  DISALLOW_COPY_AND_ASSIGN(WithIsolateScopeMixin);
 };
 
 template <typename TMixin>
@@ -81,6 +81,8 @@ class WithContextMixin : public TMixin {
  public:
   WithContextMixin()
       : context_(Context::New(this->v8_isolate())), context_scope_(context_) {}
+  WithContextMixin(const WithContextMixin&) = delete;
+  WithContextMixin& operator=(const WithContextMixin&) = delete;
 
   const Local<Context>& context() const { return v8_context(); }
   const Local<Context>& v8_context() const { return context_; }
@@ -116,8 +118,6 @@ class WithContextMixin : public TMixin {
 
   v8::Local<v8::Context> context_;
   v8::Context::Scope context_scope_;
-
-  DISALLOW_COPY_AND_ASSIGN(WithContextMixin);
 };
 
 // Use v8::internal::TestWithIsolate if you are testing internals,
@@ -144,6 +144,8 @@ template <typename TMixin>
 class WithInternalIsolateMixin : public TMixin {
  public:
   WithInternalIsolateMixin() = default;
+  WithInternalIsolateMixin(const WithInternalIsolateMixin&) = delete;
+  WithInternalIsolateMixin& operator=(const WithInternalIsolateMixin&) = delete;
 
   Factory* factory() const { return isolate()->factory(); }
   Isolate* isolate() const { return TMixin::i_isolate(); }
@@ -174,9 +176,6 @@ class WithInternalIsolateMixin : public TMixin {
   base::RandomNumberGenerator* random_number_generator() const {
     return isolate()->random_number_generator();
   }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(WithInternalIsolateMixin);
 };
 
 template <typename TMixin>
@@ -184,14 +183,14 @@ class WithZoneMixin : public TMixin {
  public:
   explicit WithZoneMixin(bool support_zone_compression = false)
       : zone_(&allocator_, ZONE_NAME, support_zone_compression) {}
+  WithZoneMixin(const WithZoneMixin&) = delete;
+  WithZoneMixin& operator=(const WithZoneMixin&) = delete;
 
   Zone* zone() { return &zone_; }
 
  private:
   v8::internal::AccountingAllocator allocator_;
   Zone zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(WithZoneMixin);
 };
 
 using TestWithIsolate =         //
@@ -235,13 +234,13 @@ class SaveFlags {
  public:
   SaveFlags();
   ~SaveFlags();
+  SaveFlags(const SaveFlags&) = delete;
+  SaveFlags& operator=(const SaveFlags&) = delete;
 
  private:
 #define FLAG_MODE_APPLY(ftype, ctype, nam, def, cmt) ctype SAVED_##nam;
 #include "src/flags/flag-definitions.h"  // NOLINT
 #undef FLAG_MODE_APPLY
-
-  DISALLOW_COPY_AND_ASSIGN(SaveFlags);
 };
 
 // For GTest.

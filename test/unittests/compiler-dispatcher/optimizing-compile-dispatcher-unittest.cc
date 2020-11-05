@@ -37,6 +37,8 @@ class BlockingCompilationJob : public OptimizedCompilationJob {
         blocking_(false),
         semaphore_(0) {}
   ~BlockingCompilationJob() override = default;
+  BlockingCompilationJob(const BlockingCompilationJob&) = delete;
+  BlockingCompilationJob& operator=(const BlockingCompilationJob&) = delete;
 
   bool IsBlocking() const { return blocking_.Value(); }
   void Signal() { semaphore_.Signal(); }
@@ -60,8 +62,6 @@ class BlockingCompilationJob : public OptimizedCompilationJob {
   OptimizedCompilationInfo info_;
   base::AtomicValue<bool> blocking_;
   base::Semaphore semaphore_;
-
-  DISALLOW_COPY_AND_ASSIGN(BlockingCompilationJob);
 };
 
 }  // namespace

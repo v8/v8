@@ -26,6 +26,10 @@ using ::testing::Invoke;
 using ::testing::Return;
 
 class ValueSerializerTest : public TestWithIsolate {
+ public:
+  ValueSerializerTest(const ValueSerializerTest&) = delete;
+  ValueSerializerTest& operator=(const ValueSerializerTest&) = delete;
+
  protected:
   ValueSerializerTest()
       : serialization_context_(Context::New(isolate())),
@@ -266,8 +270,6 @@ class ValueSerializerTest : public TestWithIsolate {
   Local<Context> deserialization_context_;
   Local<FunctionTemplate> host_object_constructor_template_;
   i::Isolate* isolate_;
-
-  DISALLOW_COPY_AND_ASSIGN(ValueSerializerTest);
 };
 
 TEST_F(ValueSerializerTest, DecodeInvalid) {
