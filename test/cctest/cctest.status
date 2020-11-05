@@ -657,8 +657,7 @@
 }],
 
 ################################################################################
-['variant == nci or variant == nci_as_midtier or variant == future', {
-  # TODO(jgruber): Exclude the future variant again.
+['variant == nci or variant == nci_as_midtier', {
   # Optimizes and deopts differently than TurboFan.
   'test-api/FastApiCalls': [SKIP],
   'test-cpu-profiler/Deopt*': [SKIP],
@@ -675,6 +674,6 @@
 
   # NCI code currently does not use the feedback vector's optimized code cache.
   'test-compiler/OptimizedCodeSharing1': [SKIP],
-}],  # variant == nci or variant == nci_as_midtier or variant == future
+}],  # variant == nci or variant == nci_as_midtier
 
 ]
