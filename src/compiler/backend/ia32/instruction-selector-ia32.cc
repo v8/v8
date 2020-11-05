@@ -2238,9 +2238,15 @@ void InstructionSelector::VisitF64x2ExtractLane(Node* node) {
 
 void InstructionSelector::VisitI64x2SplatI32Pair(Node* node) {
   IA32OperandGenerator g(this);
-  InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
-  InstructionOperand operand1 = g.Use(node->InputAt(1));
-  Emit(kIA32I64x2SplatI32Pair, g.DefineAsRegister(node), operand0, operand1);
+  Int32Matcher match_left(node->InputAt(0));
+  Int32Matcher match_right(node->InputAt(1));
+  if (match_left.Is(0) && match_right.Is(0)) {
+    Emit(kIA32S128Zero, g.DefineAsRegister(node));
+  } else {
+    InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
+    InstructionOperand operand1 = g.Use(node->InputAt(1));
+    Emit(kIA32I64x2SplatI32Pair, g.DefineAsRegister(node), operand0, operand1);
+  }
 }
 
 void InstructionSelector::VisitI64x2ReplaceLaneI32Pair(Node* node) {
@@ -2356,7 +2362,13 @@ void InstructionSelector::VisitS128AndNot(Node* node) {
 
 #define VISIT_SIMD_SPLAT(Type)                               \
   void InstructionSelector::Visit##Type##Splat(Node* node) { \
-    VisitRO(this, node, kIA32##Type##Splat);                 \
+    Int32Matcher int32_matcher(node->InputAt(0));            \
+    if (int32_matcher.Is(0)) {                               \
+      IA32OperandGenerator g(this);                          \
+      Emit(kIA32S128Zero, g.DefineAsRegister(node));         \
+    } else {                                                 \
+      VisitRO(this, node, kIA32##Type##Splat);               \
+    }                                                        \
   }
 SIMD_INT_TYPES(VISIT_SIMD_SPLAT)
 #undef VISIT_SIMD_SPLAT

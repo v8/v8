@@ -840,6 +840,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   // SIMD operations.
   Node* I64x2Splat(Node* a) { return AddNode(machine()->I64x2Splat(), a); }
+  Node* I64x2SplatI32Pair(Node* a, Node* b) {
+    return AddNode(machine()->I64x2SplatI32Pair(), a, b);
+  }
   Node* I32x4Splat(Node* a) { return AddNode(machine()->I32x4Splat(), a); }
   Node* I16x8Splat(Node* a) { return AddNode(machine()->I16x8Splat(), a); }
   Node* I8x16Splat(Node* a) { return AddNode(machine()->I8x16Splat(), a); }
