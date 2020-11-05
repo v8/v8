@@ -214,7 +214,7 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
           "name, line, column, is_module).");
     }
 
-    backend_runner_->Append(new ExecuteStringTask(
+    backend_runner_->Append(std::make_unique<ExecuteStringTask>(
         args.GetIsolate(), args[0].As<v8::Int32>()->Value(),
         ToVector(args.GetIsolate(), args[1].As<v8::String>()),
         args[2].As<v8::String>(), args[3].As<v8::Int32>(),
@@ -388,7 +388,7 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
     if (args.Length() != 2 || !args[0]->IsInt32() || !args[1]->IsString()) {
       FATAL("Internal error: sendMessageToBackend(session_id, message).");
     }
-    backend_runner_->Append(new SendMessageToBackendTask(
+    backend_runner_->Append(std::make_unique<SendMessageToBackendTask>(
         args[0].As<v8::Int32>()->Value(),
         ToVector(args.GetIsolate(), args[1].As<v8::String>())));
   }
@@ -704,9 +704,10 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
         ToVector(isolate, args[1].As<v8::String>());
     v8_inspector::StringView task_name_view(task_name.data(), task_name.size());
 
-    RunAsyncTask(data->task_runner(), task_name_view,
-                 new SetTimeoutTask(context_group_id, isolate,
-                                    v8::Local<v8::Function>::Cast(args[0])));
+    RunAsyncTask(
+        data->task_runner(), task_name_view,
+        std::make_unique<SetTimeoutTask>(
+            context_group_id, isolate, v8::Local<v8::Function>::Cast(args[0])));
     if (with_empty_stack) context->Enter();
   }
 
@@ -788,8 +789,8 @@ int InspectorTestMain(int argc, char* argv[]) {
       if (!exists) {
         FATAL("Internal error: script file doesn't exists: %s\n", argv[i]);
       }
-      frontend_runner.Append(
-          new ExecuteStringTask(chars, frontend_context_group_id));
+      frontend_runner.Append(std::make_unique<ExecuteStringTask>(
+          chars, frontend_context_group_id));
     }
 
     frontend_runner.Join();

@@ -31,12 +31,12 @@ class FrontendChannelImpl : public v8_inspector::V8Inspector::Channel {
       int callId,
       std::unique_ptr<v8_inspector::StringBuffer> message) override {
     task_runner_->Append(
-        new SendMessageTask(this, ToVector(message->string())));
+        std::make_unique<SendMessageTask>(this, ToVector(message->string())));
   }
   void sendNotification(
       std::unique_ptr<v8_inspector::StringBuffer> message) override {
     task_runner_->Append(
-        new SendMessageTask(this, ToVector(message->string())));
+        std::make_unique<SendMessageTask>(this, ToVector(message->string())));
   }
   void flushProtocolNotifications() override {}
 

@@ -37,7 +37,7 @@ void RunSyncTask(TaskRunner* task_runner, T callback) {
   };
 
   v8::base::Semaphore ready_semaphore(0);
-  task_runner->Append(new SyncTask(&ready_semaphore, callback));
+  task_runner->Append(std::make_unique<SyncTask>(&ready_semaphore, callback));
   ready_semaphore.Wait();
 }
 
@@ -59,10 +59,11 @@ class SendMessageToBackendTask : public TaskRunner::Task {
 
 inline void RunAsyncTask(TaskRunner* task_runner,
                          const v8_inspector::StringView& task_name,
-                         TaskRunner::Task* task) {
+                         std::unique_ptr<TaskRunner::Task> task) {
   class AsyncTask : public TaskRunner::Task {
    public:
-    explicit AsyncTask(TaskRunner::Task* inner) : inner_(inner) {}
+    explicit AsyncTask(std::unique_ptr<TaskRunner::Task> inner)
+        : inner_(std::move(inner)) {}
     ~AsyncTask() override = default;
     bool is_priority_task() override { return inner_->is_priority_task(); }
     void Run(IsolateData* data) override {
@@ -76,8 +77,8 @@ inline void RunAsyncTask(TaskRunner* task_runner,
     DISALLOW_COPY_AND_ASSIGN(AsyncTask);
   };
 
-  task_runner->data()->AsyncTaskScheduled(task_name, task, false);
-  task_runner->Append(new AsyncTask(task));
+  task_runner->data()->AsyncTaskScheduled(task_name, task.get(), false);
+  task_runner->Append(std::make_unique<AsyncTask>(std::move(task)));
 }
 
 class ExecuteStringTask : public TaskRunner::Task {
@@ -164,12 +165,13 @@ class SetTimeoutExtension : public IsolateData::SetupGlobalTask {
         reinterpret_cast<const uint8_t*>(task_name), strlen(task_name));
     if (args[0]->IsFunction()) {
       RunAsyncTask(data->task_runner(), task_name_view,
-                   new SetTimeoutTask(context_group_id, isolate,
-                                      v8::Local<v8::Function>::Cast(args[0])));
+                   std::make_unique<SetTimeoutTask>(
+                       context_group_id, isolate,
+                       v8::Local<v8::Function>::Cast(args[0])));
     } else {
       RunAsyncTask(
           data->task_runner(), task_name_view,
-          new ExecuteStringTask(
+          std::make_unique<ExecuteStringTask>(
               isolate, context_group_id,
               ToVector(isolate, args[0].As<v8::String>()),
               v8::String::Empty(isolate), v8::Integer::New(isolate, 0),

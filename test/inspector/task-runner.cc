@@ -64,13 +64,12 @@ void TaskRunner::Run() {
 void TaskRunner::RunMessageLoop(bool only_protocol) {
   int loop_number = ++nested_loop_count_;
   while (nested_loop_count_ == loop_number && !is_terminated_) {
-    TaskRunner::Task* task = GetNext(only_protocol);
+    std::unique_ptr<TaskRunner::Task> task = GetNext(only_protocol);
     if (!task) return;
     v8::Isolate::Scope isolate_scope(isolate());
     if (catch_exceptions_) {
       v8::TryCatch try_catch(isolate());
       task->Run(data_.get());
-      delete task;
       if (try_catch.HasCaught()) {
         ReportUncaughtException(isolate(), try_catch);
         fflush(stdout);
@@ -79,8 +78,8 @@ void TaskRunner::RunMessageLoop(bool only_protocol) {
       }
     } else {
       task->Run(data_.get());
-      delete task;
     }
+    task.reset();
     // Also pump isolate's foreground task queue to ensure progress.
     // This can be removed once https://crbug.com/v8/10747 is fixed.
     // TODO(10748): Enable --stress-incremental-marking after the existing
@@ -98,8 +97,8 @@ void TaskRunner::QuitMessageLoop() {
   --nested_loop_count_;
 }
 
-void TaskRunner::Append(Task* task) {
-  queue_.Enqueue(task);
+void TaskRunner::Append(std::unique_ptr<Task> task) {
+  queue_.Enqueue(std::move(task));
   process_queue_semaphore_.Signal();
 }
 
@@ -108,17 +107,17 @@ void TaskRunner::Terminate() {
   process_queue_semaphore_.Signal();
 }
 
-TaskRunner::Task* TaskRunner::GetNext(bool only_protocol) {
+std::unique_ptr<TaskRunner::Task> TaskRunner::GetNext(bool only_protocol) {
   for (;;) {
     if (is_terminated_) return nullptr;
     if (only_protocol) {
-      Task* task = nullptr;
+      std::unique_ptr<Task> task;
       if (queue_.Dequeue(&task)) {
         if (task->is_priority_task()) return task;
-        deffered_queue_.Enqueue(task);
+        deffered_queue_.Enqueue(std::move(task));
       }
     } else {
-      Task* task = nullptr;
+      std::unique_ptr<Task> task;
       if (deffered_queue_.Dequeue(&task)) return task;
       if (queue_.Dequeue(&task)) return task;
     }

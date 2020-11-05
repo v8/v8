@@ -98,7 +98,7 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
       return;
     }
 
-    backend_runner_->Append(new ExecuteStringTask(
+    backend_runner_->Append(std::make_unique<ExecuteStringTask>(
         args.GetIsolate(), args[0].As<v8::Int32>()->Value(),
         ToVector(args.GetIsolate(), args[1].As<v8::String>()),
         args[2].As<v8::String>(), args[3].As<v8::Int32>(),
@@ -206,7 +206,7 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
     if (args.Length() != 2 || !args[0]->IsInt32() || !args[1]->IsString()) {
       return;
     }
-    backend_runner_->Append(new SendMessageToBackendTask(
+    backend_runner_->Append(std::make_unique<SendMessageToBackendTask>(
         args[0].As<v8::Int32>()->Value(),
         ToVector(args.GetIsolate(), args[1].As<v8::String>())));
   }
@@ -518,9 +518,10 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
         ToVector(isolate, args[1].As<v8::String>());
     v8_inspector::StringView task_name_view(task_name.data(), task_name.size());
 
-    RunAsyncTask(data->task_runner(), task_name_view,
-                 new SetTimeoutTask(context_group_id, isolate,
-                                    v8::Local<v8::Function>::Cast(args[0])));
+    RunAsyncTask(
+        data->task_runner(), task_name_view,
+        std::make_unique<SetTimeoutTask>(
+            context_group_id, isolate, v8::Local<v8::Function>::Cast(args[0])));
     if (with_empty_stack) context->Enter();
   }
 
@@ -593,7 +594,7 @@ void FuzzInspector(const uint8_t* data, size_t size) {
 
   Watchdog watchdog(&ready_semaphore);
 
-  frontend_runner.Append(new ExecuteStringTask(
+  frontend_runner.Append(std::make_unique<ExecuteStringTask>(
       std::string{reinterpret_cast<const char*>(data), size},
       frontend_context_group_id));
 
