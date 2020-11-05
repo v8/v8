@@ -407,6 +407,9 @@ class VirtualRegisterData final {
       }
     }
 
+    SpillRange(const SpillRange&) = delete;
+    SpillRange& operator=(const SpillRange&) = delete;
+
     bool IsLiveAt(int instr_index, InstructionBlock* block) {
       if (!live_range_.Contains(instr_index)) return false;
 
@@ -461,8 +464,6 @@ class VirtualRegisterData final {
     Range live_range_;
     const BitVector* live_blocks_;
     ZoneVector<DeferredSpillSlotOutput>* deferred_spill_outputs_;
-
-    DISALLOW_COPY_AND_ASSIGN(SpillRange);
   };
 
   bool HasSpillRange() const { return spill_range_ != nullptr; }
@@ -2666,6 +2667,8 @@ void DefineOutputs(MidTierRegisterAllocationData* data) {
 class MidTierRegisterAllocator final {
  public:
   explicit MidTierRegisterAllocator(MidTierRegisterAllocationData* data);
+  MidTierRegisterAllocator(const MidTierRegisterAllocator&) = delete;
+  MidTierRegisterAllocator& operator=(const MidTierRegisterAllocator&) = delete;
 
   void AllocateRegisters(const InstructionBlock* block);
   void UpdateSpillRangesForLoops();
@@ -2701,8 +2704,6 @@ class MidTierRegisterAllocator final {
   MidTierRegisterAllocationData* const data_;
   SinglePassRegisterAllocator general_reg_allocator_;
   SinglePassRegisterAllocator double_reg_allocator_;
-
-  DISALLOW_COPY_AND_ASSIGN(MidTierRegisterAllocator);
 };
 
 MidTierRegisterAllocator::MidTierRegisterAllocator(
@@ -2985,6 +2986,9 @@ void AllocateRegisters(MidTierRegisterAllocationData* data) {
 class MidTierSpillSlotAllocator final {
  public:
   explicit MidTierSpillSlotAllocator(MidTierRegisterAllocationData* data);
+  MidTierSpillSlotAllocator(const MidTierSpillSlotAllocator&) = delete;
+  MidTierSpillSlotAllocator& operator=(const MidTierSpillSlotAllocator&) =
+      delete;
 
   void Allocate(VirtualRegisterData* virtual_register);
 
@@ -3007,14 +3011,14 @@ class MidTierSpillSlotAllocator final {
   ZonePriorityQueue<SpillSlot*, OrderByLastUse> allocated_slots_;
   ZoneLinkedList<SpillSlot*> free_slots_;
   int position_;
-
-  DISALLOW_COPY_AND_ASSIGN(MidTierSpillSlotAllocator);
 };
 
 class MidTierSpillSlotAllocator::SpillSlot : public ZoneObject {
  public:
   SpillSlot(int stack_slot, int byte_width)
       : stack_slot_(stack_slot), byte_width_(byte_width), range_() {}
+  SpillSlot(const SpillSlot&) = delete;
+  SpillSlot& operator=(const SpillSlot&) = delete;
 
   void AddRange(const Range& range) { range_.AddRange(range); }
 
@@ -3029,8 +3033,6 @@ class MidTierSpillSlotAllocator::SpillSlot : public ZoneObject {
   int stack_slot_;
   int byte_width_;
   Range range_;
-
-  DISALLOW_COPY_AND_ASSIGN(SpillSlot);
 };
 
 bool MidTierSpillSlotAllocator::OrderByLastUse::operator()(
@@ -3125,6 +3127,9 @@ void AllocateSpillSlots(MidTierRegisterAllocationData* data) {
 class MidTierReferenceMapPopulator final {
  public:
   explicit MidTierReferenceMapPopulator(MidTierRegisterAllocationData* data);
+  MidTierReferenceMapPopulator(const MidTierReferenceMapPopulator&) = delete;
+  MidTierReferenceMapPopulator& operator=(const MidTierReferenceMapPopulator&) =
+      delete;
 
   void RecordReferences(const VirtualRegisterData& virtual_register);
 
@@ -3133,8 +3138,6 @@ class MidTierReferenceMapPopulator final {
   InstructionSequence* code() const { return data()->code(); }
 
   MidTierRegisterAllocationData* const data_;
-
-  DISALLOW_COPY_AND_ASSIGN(MidTierReferenceMapPopulator);
 };
 
 MidTierReferenceMapPopulator::MidTierReferenceMapPopulator(

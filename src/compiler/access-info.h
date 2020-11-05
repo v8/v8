@@ -258,7 +258,9 @@ class AccessInfoFactory final {
   TypeCache const* const type_cache_;
   Zone* const zone_;
 
-  DISALLOW_COPY_AND_ASSIGN(AccessInfoFactory);
+  // TODO(nicohartmann@): Move to public
+  AccessInfoFactory(const AccessInfoFactory&) = delete;
+  AccessInfoFactory& operator=(const AccessInfoFactory&) = delete;
 };
 
 }  // namespace compiler

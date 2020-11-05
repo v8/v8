@@ -42,6 +42,8 @@ class JSTypeHintLowering {
 
   JSTypeHintLowering(JSHeapBroker* broker, JSGraph* jsgraph,
                      FeedbackVectorRef feedback_vector, Flags flags);
+  JSTypeHintLowering(const JSTypeHintLowering&) = delete;
+  JSTypeHintLowering& operator=(const JSTypeHintLowering&) = delete;
 
   // {LoweringResult} describes the result of lowering. The following outcomes
   // are possible:
@@ -176,8 +178,6 @@ class JSTypeHintLowering {
   JSGraph* const jsgraph_;
   Flags const flags_;
   FeedbackVectorRef const feedback_vector_;
-
-  DISALLOW_COPY_AND_ASSIGN(JSTypeHintLowering);
 };
 
 }  // namespace compiler

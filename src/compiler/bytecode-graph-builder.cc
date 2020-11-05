@@ -42,6 +42,9 @@ class BytecodeGraphBuilder {
                        CodeKind code_kind, BytecodeGraphBuilderFlags flags,
                        TickCounter* tick_counter);
 
+  BytecodeGraphBuilder(const BytecodeGraphBuilder&) = delete;
+  BytecodeGraphBuilder& operator=(const BytecodeGraphBuilder&) = delete;
+
   // Creates a graph by visiting bytecodes.
   void CreateGraph();
 
@@ -488,8 +491,6 @@ class BytecodeGraphBuilder {
   static constexpr int kCompareOperationHintIndex = 1;
   static constexpr int kCountOperationHintIndex = 0;
   static constexpr int kUnaryOperationHintIndex = 0;
-
-  DISALLOW_COPY_AND_ASSIGN(BytecodeGraphBuilder);
 };
 
 // The abstract execution environment simulates the content of the interpreter

@@ -328,6 +328,9 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
       AlignmentRequirements alignmentRequirements =
           AlignmentRequirements::FullUnalignedAccessSupport());
 
+  MachineOperatorBuilder(const MachineOperatorBuilder&) = delete;
+  MachineOperatorBuilder& operator=(const MachineOperatorBuilder&) = delete;
+
   const Operator* Comment(const char* msg);
   const Operator* AbortCSAAssert();
   const Operator* DebugBreak();
@@ -974,8 +977,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   MachineRepresentation const word_;
   Flags const flags_;
   AlignmentRequirements const alignment_requirements_;
-
-  DISALLOW_COPY_AND_ASSIGN(MachineOperatorBuilder);
 };
 
 

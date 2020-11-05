@@ -119,6 +119,9 @@ class VariableTracker {
 
  public:
   VariableTracker(JSGraph* graph, EffectGraphReducer* reducer, Zone* zone);
+  VariableTracker(const VariableTracker&) = delete;
+  VariableTracker& operator=(const VariableTracker&) = delete;
+
   Variable NewVariable() { return Variable(next_variable_++); }
   Node* Get(Variable var, Node* effect) { return table_.Get(effect).Get(var); }
   Zone* zone() { return zone_; }
@@ -155,8 +158,6 @@ class VariableTracker {
   EffectGraphReducer* reducer_;
   int next_variable_ = 0;
   TickCounter* const tick_counter_;
-
-  DISALLOW_COPY_AND_ASSIGN(VariableTracker);
 };
 
 // Encapsulates the current state of the escape analysis reducer to preserve
@@ -170,6 +171,8 @@ class EscapeAnalysisTracker : public ZoneObject {
         variable_states_(jsgraph, reducer, zone),
         jsgraph_(jsgraph),
         zone_(zone) {}
+  EscapeAnalysisTracker(const EscapeAnalysisTracker&) = delete;
+  EscapeAnalysisTracker& operator=(const EscapeAnalysisTracker&) = delete;
 
   class Scope : public VariableTracker::Scope {
    public:
@@ -276,8 +279,6 @@ class EscapeAnalysisTracker : public ZoneObject {
   VirtualObject::Id next_object_id_ = 0;
   JSGraph* const jsgraph_;
   Zone* const zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(EscapeAnalysisTracker);
 };
 
 EffectGraphReducer::EffectGraphReducer(

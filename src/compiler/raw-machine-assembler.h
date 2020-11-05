@@ -56,6 +56,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
           PoisoningMitigationLevel::kPoisonCriticalOnly);
   ~RawMachineAssembler() = default;
 
+  RawMachineAssembler(const RawMachineAssembler&) = delete;
+  RawMachineAssembler& operator=(const RawMachineAssembler&) = delete;
+
   Isolate* isolate() const { return isolate_; }
   Graph* graph() const { return graph_; }
   Zone* zone() const { return graph()->zone(); }
@@ -1057,8 +1060,6 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   NodeVector parameters_;
   BasicBlock* current_block_;
   PoisoningMitigationLevel poisoning_level_;
-
-  DISALLOW_COPY_AND_ASSIGN(RawMachineAssembler);
 };
 
 class V8_EXPORT_PRIVATE RawMachineLabel final {
@@ -1068,6 +1069,8 @@ class V8_EXPORT_PRIVATE RawMachineLabel final {
   explicit RawMachineLabel(Type type = kNonDeferred)
       : deferred_(type == kDeferred) {}
   ~RawMachineLabel();
+  RawMachineLabel(const RawMachineLabel&) = delete;
+  RawMachineLabel& operator=(const RawMachineLabel&) = delete;
 
   BasicBlock* block() const { return block_; }
 
@@ -1077,7 +1080,6 @@ class V8_EXPORT_PRIVATE RawMachineLabel final {
   bool bound_ = false;
   bool deferred_;
   friend class RawMachineAssembler;
-  DISALLOW_COPY_AND_ASSIGN(RawMachineLabel);
 };
 
 }  // namespace compiler

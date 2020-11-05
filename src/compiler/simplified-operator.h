@@ -718,6 +718,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
     : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   explicit SimplifiedOperatorBuilder(Zone* zone);
+  SimplifiedOperatorBuilder(const SimplifiedOperatorBuilder&) = delete;
+  SimplifiedOperatorBuilder& operator=(const SimplifiedOperatorBuilder&) =
+      delete;
 
   const Operator* BooleanNot();
 
@@ -1064,8 +1067,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const SimplifiedOperatorGlobalCache& cache_;
   Zone* const zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(SimplifiedOperatorBuilder);
 };
 
 // Node wrappers.

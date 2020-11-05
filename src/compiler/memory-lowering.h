@@ -32,6 +32,9 @@ class MemoryLowering final : public Reducer {
   // An allocation state is propagated on the effect paths through the graph.
   class AllocationState final : public ZoneObject {
    public:
+    AllocationState(const AllocationState&) = delete;
+    AllocationState& operator=(const AllocationState&) = delete;
+
     static AllocationState const* Empty(Zone* zone) {
       return zone->New<AllocationState>();
     }
@@ -65,8 +68,6 @@ class MemoryLowering final : public Reducer {
     intptr_t const size_;
     Node* const top_;
     Node* const effect_;
-
-    DISALLOW_COPY_AND_ASSIGN(AllocationState);
   };
 
   using WriteBarrierAssertFailedCallback = std::function<void(

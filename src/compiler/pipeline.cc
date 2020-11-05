@@ -289,6 +289,9 @@ class PipelineData {
     DeleteGraphZone();
   }
 
+  PipelineData(const PipelineData&) = delete;
+  PipelineData& operator=(const PipelineData&) = delete;
+
   Isolate* isolate() const { return isolate_; }
   AccountingAllocator* allocator() const { return allocator_; }
   OptimizedCompilationInfo* info() const { return info_; }
@@ -636,8 +639,6 @@ class PipelineData {
 
   RuntimeCallStats* runtime_call_stats_ = nullptr;
   const ProfileDataFromFile* profile_data_ = nullptr;
-
-  DISALLOW_COPY_AND_ASSIGN(PipelineData);
 };
 
 class PipelineImpl final {
@@ -703,6 +704,8 @@ class SourcePositionWrapper final : public Reducer {
   SourcePositionWrapper(Reducer* reducer, SourcePositionTable* table)
       : reducer_(reducer), table_(table) {}
   ~SourcePositionWrapper() final = default;
+  SourcePositionWrapper(const SourcePositionWrapper&) = delete;
+  SourcePositionWrapper& operator=(const SourcePositionWrapper&) = delete;
 
   const char* reducer_name() const override { return reducer_->reducer_name(); }
 
@@ -717,8 +720,6 @@ class SourcePositionWrapper final : public Reducer {
  private:
   Reducer* const reducer_;
   SourcePositionTable* const table_;
-
-  DISALLOW_COPY_AND_ASSIGN(SourcePositionWrapper);
 };
 
 class NodeOriginsWrapper final : public Reducer {
@@ -726,6 +727,8 @@ class NodeOriginsWrapper final : public Reducer {
   NodeOriginsWrapper(Reducer* reducer, NodeOriginTable* table)
       : reducer_(reducer), table_(table) {}
   ~NodeOriginsWrapper() final = default;
+  NodeOriginsWrapper(const NodeOriginsWrapper&) = delete;
+  NodeOriginsWrapper& operator=(const NodeOriginsWrapper&) = delete;
 
   const char* reducer_name() const override { return reducer_->reducer_name(); }
 
@@ -739,8 +742,6 @@ class NodeOriginsWrapper final : public Reducer {
  private:
   Reducer* const reducer_;
   NodeOriginTable* const table_;
-
-  DISALLOW_COPY_AND_ASSIGN(NodeOriginsWrapper);
 };
 
 class PipelineRunScope {
@@ -1031,6 +1032,8 @@ class PipelineCompilationJob final : public OptimizedCompilationJob {
                          Handle<JSFunction> function, BailoutId osr_offset,
                          JavaScriptFrame* osr_frame, CodeKind code_kind);
   ~PipelineCompilationJob() final;
+  PipelineCompilationJob(const PipelineCompilationJob&) = delete;
+  PipelineCompilationJob& operator=(const PipelineCompilationJob&) = delete;
 
  protected:
   Status PrepareJobImpl(Isolate* isolate) final;
@@ -1051,8 +1054,6 @@ class PipelineCompilationJob final : public OptimizedCompilationJob {
   PipelineData data_;
   PipelineImpl pipeline_;
   Linkage* linkage_;
-
-  DISALLOW_COPY_AND_ASSIGN(PipelineCompilationJob);
 };
 
 PipelineCompilationJob::PipelineCompilationJob(
@@ -1279,6 +1280,10 @@ class WasmHeapStubCompilationJob final : public OptimizedCompilationJob {
         pipeline_(&data_),
         wasm_engine_(wasm_engine) {}
 
+  WasmHeapStubCompilationJob(const WasmHeapStubCompilationJob&) = delete;
+  WasmHeapStubCompilationJob& operator=(const WasmHeapStubCompilationJob&) =
+      delete;
+
  protected:
   Status PrepareJobImpl(Isolate* isolate) final;
   Status ExecuteJobImpl(RuntimeCallStats* stats,
@@ -1295,8 +1300,6 @@ class WasmHeapStubCompilationJob final : public OptimizedCompilationJob {
   PipelineData data_;
   PipelineImpl pipeline_;
   wasm::WasmEngine* wasm_engine_;
-
-  DISALLOW_COPY_AND_ASSIGN(WasmHeapStubCompilationJob);
 };
 
 // static

@@ -53,6 +53,9 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                 JSHeapBroker* broker, Flags flags,
                                 CompilationDependencies* dependencies,
                                 Zone* zone, Zone* shared_zone);
+  JSNativeContextSpecialization(const JSNativeContextSpecialization&) = delete;
+  JSNativeContextSpecialization& operator=(
+      const JSNativeContextSpecialization&) = delete;
 
   const char* reducer_name() const override {
     return "JSNativeContextSpecialization";
@@ -264,8 +267,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Zone* const zone_;
   Zone* const shared_zone_;
   TypeCache const* type_cache_;
-
-  DISALLOW_COPY_AND_ASSIGN(JSNativeContextSpecialization);
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(JSNativeContextSpecialization::Flags)

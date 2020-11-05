@@ -830,6 +830,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
     : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   explicit JSOperatorBuilder(Zone* zone);
+  JSOperatorBuilder(const JSOperatorBuilder&) = delete;
+  JSOperatorBuilder& operator=(const JSOperatorBuilder&) = delete;
 
   const Operator* Equal(FeedbackSource const& feedback);
   const Operator* StrictEqual(FeedbackSource const& feedback);
@@ -1024,8 +1026,6 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const JSOperatorGlobalCache& cache_;
   Zone* const zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(JSOperatorBuilder);
 };
 
 // Node wrappers.
