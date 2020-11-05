@@ -957,6 +957,9 @@ TEST(DecideToPretenureDuringCompilation) {
   FLAG_allow_natives_syntax = true;
   FLAG_allocation_site_pretenuring = true;
   FLAG_flush_bytecode = false;
+  // Turn on lazy feedback allocation, so we create exactly one allocation site.
+  // Without lazy feedback allocation, we create two allocation sites.
+  FLAG_lazy_feedback_allocation = true;
 
   // We want to trigger exactly 1 optimization.
   FLAG_use_osr = false;
