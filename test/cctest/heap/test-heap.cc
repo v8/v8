@@ -3740,7 +3740,7 @@ TEST(LargeObjectSlotRecording) {
   FixedArray old_location = *lit;
 
   // Allocate a large object.
-  int size = Max(1000000, kMaxRegularHeapObjectSize + KB);
+  int size = std::max(1000000, kMaxRegularHeapObjectSize + KB);
   CHECK_LT(kMaxRegularHeapObjectSize, size);
   Handle<FixedArray> lo =
       isolate->factory()->NewFixedArray(size, AllocationType::kOld);
@@ -5667,7 +5667,8 @@ TEST(Regress598319) {
   Isolate* isolate = heap->isolate();
 
   // The size of the array should be larger than kProgressBarScanningChunk.
-  const int kNumberOfObjects = Max(FixedArray::kMaxRegularLength + 1, 128 * KB);
+  const int kNumberOfObjects =
+      std::max(FixedArray::kMaxRegularLength + 1, 128 * KB);
 
   struct Arr {
     Arr(Isolate* isolate, int number_of_objects) {
@@ -6279,7 +6280,7 @@ TEST(RememberedSet_InsertInLargePage) {
   HandleScope scope(isolate);
 
   // Allocate an object in Large space.
-  const int count = Max(FixedArray::kMaxRegularLength + 1, 128 * KB);
+  const int count = std::max(FixedArray::kMaxRegularLength + 1, 128 * KB);
   Handle<FixedArray> arr = factory->NewFixedArray(count, AllocationType::kOld);
   CHECK(heap->lo_space()->Contains(*arr));
   CHECK_EQ(0, GetRememberedSetSize<OLD_TO_NEW>(*arr));

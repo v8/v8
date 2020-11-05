@@ -3868,7 +3868,8 @@ class WasmInterpreterInternals {
     size_t old_size = stack_limit_ - stack_.get();
     size_t requested_size =
         base::bits::RoundUpToPowerOfTwo64((sp_ - stack_.get()) + size);
-    size_t new_size = Max(size_t{8}, Max(2 * old_size, requested_size));
+    size_t new_size =
+        std::max(size_t{8}, std::max(2 * old_size, requested_size));
     std::unique_ptr<StackValue[]> new_stack(new StackValue[new_size]);
     if (old_size > 0) {
       memcpy(new_stack.get(), stack_.get(), old_size * sizeof(*sp_));

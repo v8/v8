@@ -13,7 +13,6 @@
 #include "src/base/memory.h"
 #include "src/codegen/signature.h"
 #include "src/flags/flags.h"
-#include "src/utils/utils.h"
 #include "src/utils/vector.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
@@ -482,7 +481,7 @@ class Decoder {
       }
     }
     constexpr int sign_ext_shift =
-        is_signed ? Max(0, int{8 * sizeof(IntType)} - shift - 7) : 0;
+        is_signed ? std::max(0, int{8 * sizeof(IntType)} - shift - 7) : 0;
     // Perform sign extension.
     result = (result << sign_ext_shift) >> sign_ext_shift;
     if (trace && is_signed) {
