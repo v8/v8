@@ -165,4 +165,11 @@
   'runtime-call-stats/collection': [SKIP],
 }], # stress_concurrent_allocation
 
+##############################################################################
+['asan == True', {
+  # There are lots of memory leaks, thus skip all inspector tests for now
+  # (https://crbug.com/v8/11107).
+  '*': [SKIP],
+}], # asan == True
+
 ]
