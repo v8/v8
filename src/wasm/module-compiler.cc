@@ -2479,6 +2479,8 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
     return false;
   }
 
+  decoder_.set_code_section(offset, static_cast<uint32_t>(code_section_length));
+
   prefix_hash_ = base::hash_combine(prefix_hash_,
                                     static_cast<uint32_t>(code_section_length));
   if (!wasm_engine_->GetStreamingCompilationOwnership(prefix_hash_)) {
@@ -2500,7 +2502,6 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
   job_->DoImmediately<AsyncCompileJob::PrepareAndStartCompile>(
       decoder_.shared_module(), false, code_size_estimate);
 
-  decoder_.set_code_section(offset, static_cast<uint32_t>(code_section_length));
   auto* compilation_state = Impl(job_->native_module_->compilation_state());
   compilation_state->SetWireBytesStorage(std::move(wire_bytes_storage));
   DCHECK_EQ(job_->native_module_->module()->origin, kWasmOrigin);
