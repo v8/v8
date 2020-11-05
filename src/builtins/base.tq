@@ -834,6 +834,10 @@ extern operator '==' macro
 ConstexprInt31Equal(constexpr int31, constexpr int31): constexpr bool;
 extern operator '!=' macro
 ConstexprInt31NotEqual(constexpr int31, constexpr int31): constexpr bool;
+extern operator '==' macro
+ConstexprUint32Equal(constexpr uint32, constexpr uint32): constexpr bool;
+extern operator '!=' macro
+ConstexprUint32NotEqual(constexpr uint32, constexpr uint32): constexpr bool;
 extern operator '>=' macro
 ConstexprInt31GreaterThanEqual(
     constexpr int31, constexpr int31): constexpr bool;

@@ -3135,21 +3135,20 @@ TEST(LoadJSArrayElementsMap) {
   }
 }
 
-TEST(GotoIfNotWhiteSpaceOrLineTerminator) {
+TEST(IsWhiteSpaceOrLineTerminator) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 1;
   CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
-  StringTrimAssembler m(asm_tester.state());
 
   {  // Returns true if whitespace, false otherwise.
-    Label if_not_whitespace(&m);
-
-    m.GotoIfNotWhiteSpaceOrLineTerminator(m.SmiToInt32(m.Parameter<Smi>(1)),
-                                          &if_not_whitespace);
+    CodeStubAssembler m(asm_tester.state());
+    Label if_true(&m), if_false(&m);
+    m.Branch(m.IsWhiteSpaceOrLineTerminator(m.SmiToInt32(m.Parameter<Smi>(1))),
+             &if_true, &if_false);
+    m.BIND(&if_true);
     m.Return(m.TrueConstant());
-
-    m.BIND(&if_not_whitespace);
+    m.BIND(&if_false);
     m.Return(m.FalseConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);

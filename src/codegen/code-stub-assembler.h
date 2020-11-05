@@ -3481,6 +3481,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   bool ConstexprInt31Equal(int31_t a, int31_t b) { return a == b; }
   bool ConstexprInt31NotEqual(int31_t a, int31_t b) { return a != b; }
   bool ConstexprInt31GreaterThanEqual(int31_t a, int31_t b) { return a >= b; }
+  bool ConstexprUint32Equal(uint32_t a, uint32_t b) { return a == b; }
+  bool ConstexprUint32NotEqual(uint32_t a, uint32_t b) { return a != b; }
   bool ConstexprInt32Equal(int32_t a, int32_t b) { return a == b; }
   bool ConstexprInt32NotEqual(int32_t a, int32_t b) { return a != b; }
   bool ConstexprInt32GreaterThanEqual(int32_t a, int32_t b) { return a >= b; }

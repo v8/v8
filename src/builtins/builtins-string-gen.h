@@ -184,30 +184,6 @@ class StringIncludesIndexOfAssembler : public StringBuiltinsAssembler {
                 TNode<Context> context);
 };
 
-class StringTrimAssembler : public StringBuiltinsAssembler {
- public:
-  explicit StringTrimAssembler(compiler::CodeAssemblerState* state)
-      : StringBuiltinsAssembler(state) {}
-
-  V8_EXPORT_PRIVATE void GotoIfNotWhiteSpaceOrLineTerminator(
-      const TNode<Word32T> char_code, Label* const if_not_whitespace);
-
- protected:
-  void Generate(String::TrimMode mode, const char* method, TNode<IntPtrT> argc,
-                TNode<Context> context);
-
-  void ScanForNonWhiteSpaceOrLineTerminator(
-      const TNode<RawPtrT> string_data, const TNode<IntPtrT> string_data_offset,
-      const TNode<BoolT> is_stringonebyte, TVariable<IntPtrT>* const var_index,
-      const TNode<IntPtrT> end, int increment, Label* const if_none_found);
-
-  template <typename T>
-  void BuildLoop(
-      TVariable<IntPtrT>* const var_index, const TNode<IntPtrT> end,
-      int increment, Label* const if_none_found, Label* const out,
-      const std::function<TNode<T>(const TNode<IntPtrT>)>& get_character);
-};
-
 }  // namespace internal
 }  // namespace v8
 
