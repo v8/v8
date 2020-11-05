@@ -2051,14 +2051,10 @@ void BytecodeGraphBuilder::VisitLdaNamedPropertyFromSuper() {
   Node* home_object = environment()->LookupAccumulator();
   NameRef name(broker(),
                bytecode_iterator().GetConstantForIndexOperand(1, isolate()));
+  const Operator* op = javascript()->LoadNamedFromSuper(name.object());
+  // TODO(marja, v8:9237): Use lowering.
 
-  FeedbackSource feedback =
-      CreateFeedbackSource(bytecode_iterator().GetIndexOperand(2));
-  const Operator* op =
-      javascript()->LoadNamedFromSuper(name.object(), feedback);
-  DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
-
-  Node* node = NewNode(op, receiver, home_object, feedback_vector_node());
+  Node* node = NewNode(op, receiver, home_object);
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 

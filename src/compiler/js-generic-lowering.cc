@@ -318,10 +318,8 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
 }
 
 void JSGenericLowering::LowerJSLoadNamedFromSuper(Node* node) {
-  // TODO(marja, v8:9237): Call a builtin which collects feedback.
   JSLoadNamedFromSuperNode n(node);
   NamedAccess const& p = n.Parameters();
-  node->RemoveInput(2);  // Feedback vector
   node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.name()));
   ReplaceWithRuntimeCall(node, Runtime::kLoadFromSuper);
 }

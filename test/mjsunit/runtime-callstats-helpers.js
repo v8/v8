@@ -14,7 +14,7 @@ function getRuntimeFunctionCallCount(function_name) {
     const line = lines[i];
     const m = line.match(/(?<name>\S+)\s+\S+\s+\S+\s+(?<count>\S+)/);
     if (function_name == m.groups.name) {
-      return parseInt(m.groups.count);
+      return m.groups.count;
     }
   }
   return 0;
