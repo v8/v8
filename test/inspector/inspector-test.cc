@@ -14,6 +14,7 @@
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
 #include "src/base/platform/platform.h"
+#include "src/base/small-vector.h"
 #include "src/flags/flags.h"
 #include "src/heap/read-only-heap.h"
 #include "src/utils/utils.h"
@@ -38,15 +39,13 @@ extern v8::StartupData WarmUpSnapshotDataBlobInternal(
 
 namespace {
 
-std::vector<TaskRunner*> task_runners;
+base::SmallVector<TaskRunner*, 2> task_runners;
 
 void Terminate() {
-  for (size_t i = 0; i < task_runners.size(); ++i) {
-    task_runners[i]->Terminate();
-    task_runners[i]->Join();
+  for (TaskRunner* task_runner : task_runners) {
+    task_runner->Terminate();
+    task_runner->Join();
   }
-  std::vector<TaskRunner*> empty;
-  task_runners.swap(empty);
 }
 
 class UtilsExtension : public IsolateData::SetupGlobalTask {
@@ -778,8 +777,7 @@ int InspectorTestMain(int argc, char* argv[]) {
     ready_semaphore.Wait();
     UtilsExtension::set_backend_task_runner(&backend_runner);
 
-    task_runners.push_back(&frontend_runner);
-    task_runners.push_back(&backend_runner);
+    task_runners = {&frontend_runner, &backend_runner};
 
     for (int i = 1; i < argc; ++i) {
       // Ignore unknown flags.

@@ -14,6 +14,8 @@
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
 #include "src/base/platform/platform.h"
+#include "src/base/platform/time.h"
+#include "src/base/small-vector.h"
 #include "src/flags/flags.h"
 #include "src/heap/read-only-heap.h"
 #include "src/libplatform/default-platform.h"
@@ -28,14 +30,13 @@ namespace v8 {
 namespace internal {
 namespace {
 
-std::vector<TaskRunner*> task_runners;
+base::SmallVector<TaskRunner*, 2> task_runners;
 
 void Terminate() {
   for (TaskRunner* r : task_runners) {
     r->Terminate();
     r->Join();
   }
-  task_runners.clear();
 }
 
 class UtilsExtension : public IsolateData::SetupGlobalTask {
@@ -546,6 +547,25 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
 
 using CharVector = v8::internal::Vector<const char>;
 
+constexpr auto kMaxExecutionSeconds = v8::base::TimeDelta::FromSeconds(2);
+
+class Watchdog final : public base::Thread {
+ public:
+  explicit Watchdog(base::Semaphore* semaphore)
+      : base::Thread(base::Thread::Options("InspectorFuzzerWatchdog")),
+        semaphore_(semaphore) {
+    CHECK(Start());
+  }
+
+ private:
+  void Run() override {
+    if (semaphore_->WaitFor(kMaxExecutionSeconds)) return;
+    Terminate();
+  }
+
+  base::Semaphore* const semaphore_;
+};
+
 void FuzzInspector(const uint8_t* data, size_t size) {
   base::Semaphore ready_semaphore(0);
 
@@ -569,8 +589,9 @@ void FuzzInspector(const uint8_t* data, size_t size) {
   ready_semaphore.Wait();
   UtilsExtension::set_backend_task_runner(&backend_runner);
 
-  task_runners.push_back(&frontend_runner);
-  task_runners.push_back(&backend_runner);
+  task_runners = {&frontend_runner, &backend_runner};
+
+  Watchdog watchdog(&ready_semaphore);
 
   frontend_runner.Append(new ExecuteStringTask(
       std::string{reinterpret_cast<const char*>(data), size},
@@ -578,6 +599,9 @@ void FuzzInspector(const uint8_t* data, size_t size) {
 
   frontend_runner.Join();
   backend_runner.Join();
+
+  ready_semaphore.Signal();
+  watchdog.Join();
 
   UtilsExtension::ClearAllSessions();
 
