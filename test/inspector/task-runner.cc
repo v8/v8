@@ -114,11 +114,11 @@ std::unique_ptr<TaskRunner::Task> TaskRunner::GetNext(bool only_protocol) {
       std::unique_ptr<Task> task;
       if (queue_.Dequeue(&task)) {
         if (task->is_priority_task()) return task;
-        deffered_queue_.Enqueue(std::move(task));
+        deferred_queue_.Enqueue(std::move(task));
       }
     } else {
       std::unique_ptr<Task> task;
-      if (deffered_queue_.Dequeue(&task)) return task;
+      if (deferred_queue_.Dequeue(&task)) return task;
       if (queue_.Dequeue(&task)) return task;
     }
     process_queue_semaphore_.Wait();

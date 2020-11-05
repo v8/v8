@@ -61,7 +61,7 @@ class TaskRunner : public v8::base::Thread {
   // correct order. Sometimes we skip non-protocol tasks by moving them from
   // queue_ to deferred_queue_.
   v8::internal::LockedQueue<std::unique_ptr<Task>> queue_;
-  v8::internal::LockedQueue<std::unique_ptr<Task>> deffered_queue_;
+  v8::internal::LockedQueue<std::unique_ptr<Task>> deferred_queue_;
   v8::base::Semaphore process_queue_semaphore_;
 
   int nested_loop_count_;
