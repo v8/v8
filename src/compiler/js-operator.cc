@@ -935,12 +935,13 @@ const Operator* JSOperatorBuilder::LoadNamed(Handle<Name> name,
       access);                                          // parameter
 }
 
-const Operator* JSOperatorBuilder::LoadNamedFromSuper(Handle<Name> name) {
+const Operator* JSOperatorBuilder::LoadNamedFromSuper(
+    Handle<Name> name, const FeedbackSource& feedback) {
   static constexpr int kReceiver = 1;
   static constexpr int kHomeObject = 1;
-  static constexpr int kArity = kReceiver + kHomeObject;
-  // TODO(marja, v8:9237): Use real feedback.
-  NamedAccess access(LanguageMode::kSloppy, name, FeedbackSource());
+  static constexpr int kFeedbackVector = 1;
+  static constexpr int kArity = kReceiver + kHomeObject + kFeedbackVector;
+  NamedAccess access(LanguageMode::kSloppy, name, feedback);
   return zone()->New<Operator1<NamedAccess>>(                    // --
       IrOpcode::kJSLoadNamedFromSuper, Operator::kNoProperties,  // opcode
       "JSLoadNamedFromSuper",                                    // name

@@ -70,12 +70,13 @@ std::ostream& operator<<(std::ostream& os, AccessMode access_mode) {
   UNREACHABLE();
 }
 
-ElementAccessInfo::ElementAccessInfo(ZoneVector<Handle<Map>>&& receiver_maps,
-                                     ElementsKind elements_kind, Zone* zone)
+ElementAccessInfo::ElementAccessInfo(
+    ZoneVector<Handle<Map>>&& lookup_start_object_maps,
+    ElementsKind elements_kind, Zone* zone)
     : elements_kind_(elements_kind),
-      receiver_maps_(receiver_maps),
+      lookup_start_object_maps_(lookup_start_object_maps),
       transition_sources_(zone) {
-  CHECK(!receiver_maps.empty());
+  CHECK(!lookup_start_object_maps.empty());
 }
 
 // static
@@ -158,27 +159,26 @@ MinimorphicLoadPropertyAccessInfo MinimorphicLoadPropertyAccessInfo::Invalid() {
 
 PropertyAccessInfo::PropertyAccessInfo(Zone* zone)
     : kind_(kInvalid),
-      receiver_maps_(zone),
+      lookup_start_object_maps_(zone),
       unrecorded_dependencies_(zone),
       field_representation_(Representation::None()),
       field_type_(Type::None()) {}
 
-PropertyAccessInfo::PropertyAccessInfo(Zone* zone, Kind kind,
-                                       MaybeHandle<JSObject> holder,
-                                       ZoneVector<Handle<Map>>&& receiver_maps)
+PropertyAccessInfo::PropertyAccessInfo(
+    Zone* zone, Kind kind, MaybeHandle<JSObject> holder,
+    ZoneVector<Handle<Map>>&& lookup_start_object_maps)
     : kind_(kind),
-      receiver_maps_(receiver_maps),
+      lookup_start_object_maps_(lookup_start_object_maps),
       unrecorded_dependencies_(zone),
       holder_(holder),
       field_representation_(Representation::None()),
       field_type_(Type::None()) {}
 
-PropertyAccessInfo::PropertyAccessInfo(Zone* zone, Kind kind,
-                                       MaybeHandle<JSObject> holder,
-                                       Handle<Object> constant,
-                                       ZoneVector<Handle<Map>>&& receiver_maps)
+PropertyAccessInfo::PropertyAccessInfo(
+    Zone* zone, Kind kind, MaybeHandle<JSObject> holder,
+    Handle<Object> constant, ZoneVector<Handle<Map>>&& lookup_start_object_maps)
     : kind_(kind),
-      receiver_maps_(receiver_maps),
+      lookup_start_object_maps_(lookup_start_object_maps),
       unrecorded_dependencies_(zone),
       constant_(constant),
       holder_(holder),
@@ -189,10 +189,10 @@ PropertyAccessInfo::PropertyAccessInfo(
     Kind kind, MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map,
     FieldIndex field_index, Representation field_representation,
     Type field_type, Handle<Map> field_owner_map, MaybeHandle<Map> field_map,
-    ZoneVector<Handle<Map>>&& receiver_maps,
+    ZoneVector<Handle<Map>>&& lookup_start_object_maps,
     ZoneVector<CompilationDependency const*>&& unrecorded_dependencies)
     : kind_(kind),
-      receiver_maps_(receiver_maps),
+      lookup_start_object_maps_(lookup_start_object_maps),
       unrecorded_dependencies_(std::move(unrecorded_dependencies)),
       transition_map_(transition_map),
       holder_(holder),
@@ -265,9 +265,10 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
         }
         this->field_type_ =
             Type::Union(this->field_type_, that->field_type_, zone);
-        this->receiver_maps_.insert(this->receiver_maps_.end(),
-                                    that->receiver_maps_.begin(),
-                                    that->receiver_maps_.end());
+        this->lookup_start_object_maps_.insert(
+            this->lookup_start_object_maps_.end(),
+            that->lookup_start_object_maps_.begin(),
+            that->lookup_start_object_maps_.end());
         this->unrecorded_dependencies_.insert(
             this->unrecorded_dependencies_.end(),
             that->unrecorded_dependencies_.begin(),
@@ -282,9 +283,10 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
       if (this->constant_.address() == that->constant_.address()) {
         DCHECK(this->unrecorded_dependencies_.empty());
         DCHECK(that->unrecorded_dependencies_.empty());
-        this->receiver_maps_.insert(this->receiver_maps_.end(),
-                                    that->receiver_maps_.begin(),
-                                    that->receiver_maps_.end());
+        this->lookup_start_object_maps_.insert(
+            this->lookup_start_object_maps_.end(),
+            that->lookup_start_object_maps_.begin(),
+            that->lookup_start_object_maps_.end());
         return true;
       }
       return false;
@@ -294,9 +296,10 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
     case kStringLength: {
       DCHECK(this->unrecorded_dependencies_.empty());
       DCHECK(that->unrecorded_dependencies_.empty());
-      this->receiver_maps_.insert(this->receiver_maps_.end(),
-                                  that->receiver_maps_.begin(),
-                                  that->receiver_maps_.end());
+      this->lookup_start_object_maps_.insert(
+          this->lookup_start_object_maps_.end(),
+          that->lookup_start_object_maps_.begin(),
+          that->lookup_start_object_maps_.end());
       return true;
     }
     case kModuleExport:

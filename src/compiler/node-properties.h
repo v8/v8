@@ -203,15 +203,15 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   // Walks up the {effect} chain to find a witness that provides map
   // information about the {receiver}. Can look through potentially
   // side effecting nodes.
-  enum InferReceiverMapsResult {
-    kNoReceiverMaps,         // No receiver maps inferred.
-    kReliableReceiverMaps,   // Receiver maps can be trusted.
-    kUnreliableReceiverMaps  // Receiver maps might have changed (side-effect).
+  enum InferMapsResult {
+    kNoMaps,         // No maps inferred.
+    kReliableMaps,   // Maps can be trusted.
+    kUnreliableMaps  // Maps might have changed (side-effect).
   };
-  // DO NOT USE InferReceiverMapsUnsafe IN NEW CODE. Use MapInference instead.
-  static InferReceiverMapsResult InferReceiverMapsUnsafe(
-      JSHeapBroker* broker, Node* receiver, Node* effect,
-      ZoneHandleSet<Map>* maps_return);
+  // DO NOT USE InferMapsUnsafe IN NEW CODE. Use MapInference instead.
+  static InferMapsResult InferMapsUnsafe(JSHeapBroker* broker, Node* object,
+                                         Node* effect,
+                                         ZoneHandleSet<Map>* maps);
 
   // Return the initial map of the new-target if the allocation can be inlined.
   static base::Optional<MapRef> GetJSCreateMap(JSHeapBroker* broker,

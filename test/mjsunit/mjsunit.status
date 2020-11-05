@@ -1144,6 +1144,7 @@
   'compiler/number-comparison-truncations': [SKIP],
   'compiler/redundancy-elimination': [SKIP],
   'compiler/regress-9945-*': [SKIP],
+  'es6/super-ic-opt-no-turboprop': [SKIP],
 
   # Static asserts for optimizations don't hold due to removed optimization
   # phases.
