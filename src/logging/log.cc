@@ -2068,22 +2068,17 @@ bool Logger::SetUp(Isolate* isolate) {
 
   ticker_ = std::make_unique<Ticker>(isolate, FLAG_prof_sampling_interval);
 
-  bool activate_logging = false;
-
-  if (Log::InitLogAtStart()) activate_logging = true;
+  if (Log::InitLogAtStart()) UpdateIsLogging(true);
 
   timer_.Start();
 
   if (FLAG_prof_cpp) {
+    UpdateIsLogging(true);
     profiler_ = std::make_unique<Profiler>(isolate);
-    activate_logging = true;
     profiler_->Engage();
   }
 
-  if (activate_logging) {
-    AddCodeEventListener(this);
-    UpdateIsLogging(true);
-  }
+  if (is_logging_) AddCodeEventListener(this);
 
   return true;
 }
