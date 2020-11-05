@@ -2269,87 +2269,64 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vspltb(dst, dst, Operand(7));
       break;
     }
-#define SHIFT_TO_CORRECT_LANE(starting_lane_nummber, lane_input,     \
-                              lane_width_in_bytes, input_register)   \
-  int shift_bits = abs(lane_input - starting_lane_nummber) *         \
-                   lane_width_in_bytes * kBitsPerByte;               \
-  if (shift_bits > 0) {                                              \
-    __ li(ip, Operand(shift_bits));                                  \
-    __ mtvsrd(kScratchDoubleReg, ip);                                \
-    __ vspltb(kScratchDoubleReg, kScratchDoubleReg, Operand(7));     \
-    if (lane_input < starting_lane_nummber) {                        \
-      __ vsro(kScratchDoubleReg, input_register, kScratchDoubleReg); \
-    } else {                                                         \
-      DCHECK(lane_input > starting_lane_nummber);                    \
-      __ vslo(kScratchDoubleReg, input_register, kScratchDoubleReg); \
-    }                                                                \
-    input_register = kScratchDoubleReg;                              \
-  }
     case kPPC_F64x2ExtractLane: {
-      int32_t lane = 1 - i.InputInt8(1);
-      Simd128Register src = i.InputSimd128Register(0);
-      SHIFT_TO_CORRECT_LANE(0, lane, 8, src);
-      __ mfvsrd(kScratchReg, src);
+      constexpr int lane_width_in_bytes = 8;
+      __ vextractd(kScratchDoubleReg, i.InputSimd128Register(0),
+                   Operand((1 - i.InputInt8(1)) * lane_width_in_bytes));
+      __ mfvsrd(kScratchReg, kScratchDoubleReg);
       __ MovInt64ToDouble(i.OutputDoubleRegister(), kScratchReg);
       break;
     }
     case kPPC_F32x4ExtractLane: {
-      int32_t lane = 3 - i.InputInt8(1);
-      Simd128Register src = i.InputSimd128Register(0);
-      SHIFT_TO_CORRECT_LANE(1, lane, 4, src)
-      __ mfvsrwz(kScratchReg, src);
+      constexpr int lane_width_in_bytes = 4;
+      __ vextractuw(kScratchDoubleReg, i.InputSimd128Register(0),
+                    Operand((3 - i.InputInt8(1)) * lane_width_in_bytes));
+      __ mfvsrd(kScratchReg, kScratchDoubleReg);
       __ MovIntToFloat(i.OutputDoubleRegister(), kScratchReg);
       break;
     }
     case kPPC_I64x2ExtractLane: {
-      int32_t lane = 1 - i.InputInt8(1);
-      Simd128Register src = i.InputSimd128Register(0);
-      SHIFT_TO_CORRECT_LANE(0, lane, 8, src)
-      __ mfvsrd(i.OutputRegister(), src);
+      constexpr int lane_width_in_bytes = 8;
+      __ vextractd(kScratchDoubleReg, i.InputSimd128Register(0),
+                   Operand((1 - i.InputInt8(1)) * lane_width_in_bytes));
+      __ mfvsrd(i.OutputRegister(), kScratchDoubleReg);
       break;
     }
     case kPPC_I32x4ExtractLane: {
-      int32_t lane = 3 - i.InputInt8(1);
-      Simd128Register src = i.InputSimd128Register(0);
-      SHIFT_TO_CORRECT_LANE(1, lane, 4, src)
-      __ mfvsrwz(i.OutputRegister(), src);
+      constexpr int lane_width_in_bytes = 4;
+      __ vextractuw(kScratchDoubleReg, i.InputSimd128Register(0),
+                    Operand((3 - i.InputInt8(1)) * lane_width_in_bytes));
+      __ mfvsrd(i.OutputRegister(), kScratchDoubleReg);
       break;
     }
     case kPPC_I16x8ExtractLaneU: {
-      int32_t lane = 7 - i.InputInt8(1);
-      Simd128Register src = i.InputSimd128Register(0);
-      SHIFT_TO_CORRECT_LANE(2, lane, 2, src)
-      __ mfvsrwz(r0, src);
-      __ li(ip, Operand(16));
-      __ srd(i.OutputRegister(), r0, ip);
+      constexpr int lane_width_in_bytes = 2;
+      __ vextractuh(kScratchDoubleReg, i.InputSimd128Register(0),
+                    Operand((7 - i.InputInt8(1)) * lane_width_in_bytes));
+      __ mfvsrd(i.OutputRegister(), kScratchDoubleReg);
       break;
     }
     case kPPC_I16x8ExtractLaneS: {
-      int32_t lane = 7 - i.InputInt8(1);
-      Simd128Register src = i.InputSimd128Register(0);
-      SHIFT_TO_CORRECT_LANE(2, lane, 2, src)
-      __ mfvsrwz(kScratchReg, src);
-      __ sradi(i.OutputRegister(), kScratchReg, 16);
+      constexpr int lane_width_in_bytes = 2;
+      __ vextractuh(kScratchDoubleReg, i.InputSimd128Register(0),
+                    Operand((7 - i.InputInt8(1)) * lane_width_in_bytes));
+      __ mfvsrd(kScratchReg, kScratchDoubleReg);
+      __ extsh(i.OutputRegister(), kScratchReg);
       break;
     }
     case kPPC_I8x16ExtractLaneU: {
-      int32_t lane = 15 - i.InputInt8(1);
-      Simd128Register src = i.InputSimd128Register(0);
-      SHIFT_TO_CORRECT_LANE(4, lane, 1, src)
-      __ mfvsrwz(r0, src);
-      __ li(ip, Operand(24));
-      __ srd(i.OutputRegister(), r0, ip);
+      __ vextractub(kScratchDoubleReg, i.InputSimd128Register(0),
+                    Operand(15 - i.InputInt8(1)));
+      __ mfvsrd(i.OutputRegister(), kScratchDoubleReg);
       break;
     }
     case kPPC_I8x16ExtractLaneS: {
-      int32_t lane = 15 - i.InputInt8(1);
-      Simd128Register src = i.InputSimd128Register(0);
-      SHIFT_TO_CORRECT_LANE(4, lane, 1, src)
-      __ mfvsrwz(kScratchReg, src);
-      __ sradi(i.OutputRegister(), kScratchReg, 24);
+      __ vextractub(kScratchDoubleReg, i.InputSimd128Register(0),
+                    Operand(15 - i.InputInt8(1)));
+      __ mfvsrd(kScratchReg, kScratchDoubleReg);
+      __ extsb(i.OutputRegister(), kScratchReg);
       break;
     }
-#undef SHIFT_TO_CORRECT_LANE
     case kPPC_F64x2ReplaceLane: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       constexpr int lane_width_in_bytes = 8;

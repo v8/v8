@@ -2214,9 +2214,13 @@ using Instr = uint32_t;
   /* Vector Splat Halfword */            \
   V(vsplth, VSPLTH, 0x1000024C)          \
   /* Vector Extract Unsigned Byte */     \
-  V(vextractub, VEXTRACTUB, 0x1000020d)  \
+  V(vextractub, VEXTRACTUB, 0x1000020D)  \
   /* Vector Extract Unsigned Halfword */ \
   V(vextractuh, VEXTRACTUH, 0x1000024D)  \
+  /* Vector Extract Unsigned Word */     \
+  V(vextractuw, VEXTRACTUW, 0x1000028D)  \
+  /* Vector Extract Doubleword */        \
+  V(vextractd, VEXTRACTD, 0x100002CD)    \
   /* Vector Insert Byte */               \
   V(vinsertb, VINSERTB, 0x1000030D)      \
   /* Vector Insert Halfword */           \
