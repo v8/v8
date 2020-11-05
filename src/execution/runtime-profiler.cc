@@ -210,6 +210,9 @@ bool RuntimeProfiler::MaybeOSR(JSFunction function, InterpretedFrame* frame) {
       function.HasAvailableOptimizedCode()) {
     // Attempt OSR if we are still running interpreted code even though the
     // the function has long been marked or even already been optimized.
+    // TODO(turboprop, mythria): Currently we don't tier up from Turboprop code
+    // to Turbofan OSR code. When we start supporting this, the ticks have to be
+    // scaled accordingly
     int64_t allowance =
         kOSRBytecodeSizeAllowanceBase +
         static_cast<int64_t>(ticks) * kOSRBytecodeSizeAllowancePerTick;
@@ -226,26 +229,31 @@ OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
   if (function.ActiveTierIsTurbofan()) {
     return OptimizationReason::kDoNotOptimize;
   }
-  if (V8_UNLIKELY(FLAG_turboprop) && function.ActiveTierIsTurboprop()) {
-    // TODO(turboprop): Implement tier up from Turboprop.
+  if (V8_UNLIKELY(FLAG_turboprop) && function.ActiveTierIsToptierTurboprop()) {
     return OptimizationReason::kDoNotOptimize;
   }
   int ticks = function.feedback_vector().profiler_ticks();
+  int scale_factor = function.ActiveTierIsMidtierTurboprop()
+                         ? FLAG_ticks_scale_factor_for_top_tier
+                         : 1;
   int ticks_for_optimization =
       kProfilerTicksBeforeOptimization +
       (bytecode.length() / kBytecodeSizeAllowancePerTick);
+  ticks_for_optimization *= scale_factor;
   if (ticks >= ticks_for_optimization) {
     return OptimizationReason::kHotAndStable;
   } else if (!any_ic_changed_ &&
              bytecode.length() < kMaxBytecodeSizeForEarlyOpt) {
+    // TODO(turboprop, mythria): Do we need to support small function
+    // optimization for TP->TF tier up. If so, do we want to scale the bytecode
+    // size?
     // If no IC was patched since the last tick and this function is very
     // small, optimistically optimize it now.
     return OptimizationReason::kSmallFunction;
   } else if (FLAG_trace_opt_verbose) {
     PrintF("[not yet optimizing ");
     function.PrintName();
-    PrintF(", not enough ticks: %d/%d and ", ticks,
-           kProfilerTicksBeforeOptimization);
+    PrintF(", not enough ticks: %d/%d and ", ticks, ticks_for_optimization);
     if (any_ic_changed_) {
       PrintF("ICs changed]\n");
     } else {

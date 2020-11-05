@@ -11,8 +11,10 @@
 namespace v8 {
 namespace internal {
 
+// The order of INTERPRETED_FUNCTION to TURBOFAN is important. We use it to
+// check the relative ordering of the tiers when fetching / installing optimized
+// code.
 #define CODE_KIND_LIST(V)       \
-  V(TURBOFAN)                   \
   V(BYTECODE_HANDLER)           \
   V(FOR_TESTING)                \
   V(BUILTIN)                    \
@@ -25,13 +27,19 @@ namespace internal {
   V(C_WASM_ENTRY)               \
   V(INTERPRETED_FUNCTION)       \
   V(NATIVE_CONTEXT_INDEPENDENT) \
-  V(TURBOPROP)
+  V(TURBOPROP)                  \
+  V(TURBOFAN)
 
 enum class CodeKind {
 #define DEFINE_CODE_KIND_ENUM(name) name,
   CODE_KIND_LIST(DEFINE_CODE_KIND_ENUM)
 #undef DEFINE_CODE_KIND_ENUM
 };
+STATIC_ASSERT(CodeKind::INTERPRETED_FUNCTION < CodeKind::TURBOPROP &&
+              CodeKind::INTERPRETED_FUNCTION <
+                  CodeKind::NATIVE_CONTEXT_INDEPENDENT);
+STATIC_ASSERT(CodeKind::TURBOPROP < CodeKind::TURBOFAN &&
+              CodeKind::NATIVE_CONTEXT_INDEPENDENT < CodeKind::TURBOFAN);
 
 #define V(...) +1
 static constexpr int kCodeKindCount = CODE_KIND_LIST(V);
@@ -94,7 +102,10 @@ inline constexpr bool CodeKindIsStoredInOptimizedCodeCache(CodeKind kind) {
 
 inline OptimizationTier GetTierForCodeKind(CodeKind kind) {
   if (kind == CodeKind::TURBOFAN) return OptimizationTier::kTopTier;
-  if (kind == CodeKind::TURBOPROP) return OptimizationTier::kTopTier;
+  if (kind == CodeKind::TURBOPROP) {
+    return FLAG_turboprop_as_midtier ? OptimizationTier::kMidTier
+                                     : OptimizationTier::kTopTier;
+  }
   if (kind == CodeKind::NATIVE_CONTEXT_INDEPENDENT) {
     return FLAG_turbo_nci_as_midtier ? OptimizationTier::kMidTier
                                      : OptimizationTier::kTopTier;
@@ -103,7 +114,14 @@ inline OptimizationTier GetTierForCodeKind(CodeKind kind) {
 }
 
 inline CodeKind CodeKindForTopTier() {
-  return V8_UNLIKELY(FLAG_turboprop) ? CodeKind::TURBOPROP : CodeKind::TURBOFAN;
+  // TODO(turboprop, mythria): We should make FLAG_turboprop mean turboprop is
+  // mid-tier compiler and replace FLAG_turboprop_as_midtier with
+  // FLAG_turboprop_as_top_tier to tier up to only Turboprop once
+  // FLAG_turboprop_as_midtier is stable and major regressions are addressed.
+  if (V8_UNLIKELY(FLAG_turboprop)) {
+    return FLAG_turboprop_as_midtier ? CodeKind::TURBOFAN : CodeKind::TURBOPROP;
+  }
+  return CodeKind::TURBOFAN;
 }
 
 // The dedicated CodeKindFlag enum represents all code kinds in a format

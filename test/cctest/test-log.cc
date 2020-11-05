@@ -1182,12 +1182,12 @@ UNINITIALIZED_TEST(BuiltinsNotLoggedAsLazyCompile) {
     i::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,BooleanConstructor",
                 builtin->InstructionStart(), builtin->InstructionSize());
     CHECK(logger.ContainsLine(
-        {"code-creation,Builtin,3,", std::string(buffer.begin())}));
+        {"code-creation,Builtin,2,", std::string(buffer.begin())}));
 
     i::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,", builtin->InstructionStart(),
                 builtin->InstructionSize());
     CHECK(!logger.ContainsLine(
-        {"code-creation,LazyCompile,3,", std::string(buffer.begin())}));
+        {"code-creation,LazyCompile,2,", std::string(buffer.begin())}));
   }
   isolate->Dispose();
 }

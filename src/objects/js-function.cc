@@ -131,19 +131,27 @@ bool JSFunction::ActiveTierIsNCI() const {
   return highest_tier == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
 }
 
-bool JSFunction::ActiveTierIsTurboprop() const {
+bool JSFunction::ActiveTierIsToptierTurboprop() const {
   CodeKind highest_tier;
+  if (!FLAG_turboprop) return false;
   if (!HighestTierOf(GetAvailableCodeKinds(), &highest_tier)) return false;
-  return highest_tier == CodeKind::TURBOPROP;
+  return highest_tier == CodeKind::TURBOPROP && !FLAG_turboprop_as_midtier;
+}
+
+bool JSFunction::ActiveTierIsMidtierTurboprop() const {
+  CodeKind highest_tier;
+  if (!FLAG_turboprop_as_midtier) return false;
+  if (!HighestTierOf(GetAvailableCodeKinds(), &highest_tier)) return false;
+  return highest_tier == CodeKind::TURBOPROP && FLAG_turboprop_as_midtier;
 }
 
 CodeKind JSFunction::NextTier() const {
   if (V8_UNLIKELY(FLAG_turbo_nci_as_midtier && ActiveTierIsIgnition())) {
     return CodeKind::NATIVE_CONTEXT_INDEPENDENT;
-  } else if (V8_UNLIKELY(FLAG_turboprop_as_midtier &&
-                         ActiveTierIsTurboprop())) {
+  } else if (V8_UNLIKELY(FLAG_turboprop) && ActiveTierIsMidtierTurboprop()) {
     return CodeKind::TURBOFAN;
-  } else if (V8_UNLIKELY(FLAG_turboprop) && ActiveTierIsIgnition()) {
+  } else if (V8_UNLIKELY(FLAG_turboprop)) {
+    DCHECK(ActiveTierIsIgnition());
     return CodeKind::TURBOPROP;
   }
   return CodeKind::TURBOFAN;
