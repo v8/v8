@@ -226,17 +226,25 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
   const wasm::WasmFunction function = module->functions[function_index];
   const wasm::FunctionSig* sig = function.sig;
 
+  MaybeHandle<WasmExternalFunction> maybe_result =
+      WasmInstanceObject::GetWasmExternalFunction(isolate, instance,
+                                                  function_index);
+
+  Handle<WasmExternalFunction> result;
+  if (!maybe_result.ToHandle(&result)) {
+    // We expect the result to be empty in the case of the start function,
+    // which is not an exported function to begin with.
+    DCHECK_EQ(function_index, module->start_function_index);
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
   Handle<Code> wrapper =
       wasm::JSToWasmWrapperCompilationUnit::CompileSpecificJSToWasmWrapper(
           isolate, sig, module);
 
-  function_data->set_wrapper_code(*wrapper);
-
-  MaybeHandle<WasmExternalFunction> maybe_result =
-      WasmInstanceObject::GetWasmExternalFunction(isolate, instance,
-                                                  function_index);
-  Handle<WasmExternalFunction> result = maybe_result.ToHandleChecked();
   result->set_code(*wrapper);
+
+  function_data->set_wrapper_code(*wrapper);
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
