@@ -75,11 +75,13 @@ class TestMemoryAllocatorScope {
     isolate_->GetCodePages()->swap(code_pages_);
   }
 
+  TestMemoryAllocatorScope(const TestMemoryAllocatorScope&) = delete;
+  TestMemoryAllocatorScope& operator=(const TestMemoryAllocatorScope&) = delete;
+
  private:
   Isolate* isolate_;
   std::unique_ptr<MemoryAllocator> old_allocator_;
   std::vector<MemoryRange> code_pages_;
-  DISALLOW_COPY_AND_ASSIGN(TestMemoryAllocatorScope);
 };
 
 // Temporarily sets a given code page allocator in an isolate.
@@ -98,12 +100,13 @@ class TestCodePageAllocatorScope {
     isolate_->heap()->memory_allocator()->code_page_allocator_ =
         old_code_page_allocator_;
   }
+  TestCodePageAllocatorScope(const TestCodePageAllocatorScope&) = delete;
+  TestCodePageAllocatorScope& operator=(const TestCodePageAllocatorScope&) =
+      delete;
 
  private:
   Isolate* isolate_;
   v8::PageAllocator* old_code_page_allocator_;
-
-  DISALLOW_COPY_AND_ASSIGN(TestCodePageAllocatorScope);
 };
 
 static void VerifyMemoryChunk(Isolate* isolate, Heap* heap,

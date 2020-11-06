@@ -23,6 +23,8 @@ class FrontendChannelImpl : public v8_inspector::V8Inspector::Channel {
         context_group_id_(context_group_id),
         function_(isolate, function) {}
   ~FrontendChannelImpl() override = default;
+  FrontendChannelImpl(const FrontendChannelImpl&) = delete;
+  FrontendChannelImpl& operator=(const FrontendChannelImpl&) = delete;
 
   void set_session_id(int session_id) { session_id_ = session_id; }
 
@@ -69,7 +71,6 @@ class FrontendChannelImpl : public v8_inspector::V8Inspector::Channel {
   int context_group_id_;
   v8::Global<v8::Function> function_;
   int session_id_;
-  DISALLOW_COPY_AND_ASSIGN(FrontendChannelImpl);
 };
 
 }  // namespace internal

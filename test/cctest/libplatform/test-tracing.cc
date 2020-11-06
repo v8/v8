@@ -60,6 +60,9 @@ TEST(TestTraceObject) {
 
 class ConvertableToTraceFormatMock : public v8::ConvertableToTraceFormat {
  public:
+  ConvertableToTraceFormatMock(const ConvertableToTraceFormatMock&) = delete;
+  ConvertableToTraceFormatMock& operator=(const ConvertableToTraceFormatMock&) =
+      delete;
   explicit ConvertableToTraceFormatMock(int value) : value_(value) {}
   void AppendAsTraceFormat(std::string* out) const override {
     *out += "[" + std::to_string(value_) + "," + std::to_string(value_) + "]";
@@ -67,8 +70,6 @@ class ConvertableToTraceFormatMock : public v8::ConvertableToTraceFormat {
 
  private:
   int value_;
-
-  DISALLOW_COPY_AND_ASSIGN(ConvertableToTraceFormatMock);
 };
 
 class MockTraceWriter : public TraceWriter {

@@ -80,6 +80,8 @@ class BytecodeGraphTester {
     i::FLAG_allow_natives_syntax = true;
   }
   virtual ~BytecodeGraphTester() = default;
+  BytecodeGraphTester(const BytecodeGraphTester&) = delete;
+  BytecodeGraphTester& operator=(const BytecodeGraphTester&) = delete;
 
   template <class... A>
   BytecodeGraphCallable<A...> GetCallable(
@@ -137,8 +139,6 @@ class BytecodeGraphTester {
 
     return function;
   }
-
-  DISALLOW_COPY_AND_ASSIGN(BytecodeGraphTester);
 };
 
 #define SPACE()

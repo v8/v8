@@ -83,6 +83,9 @@ class ScopedLoggerInitializer {
     if (log_file != nullptr) fclose(log_file);
   }
 
+  ScopedLoggerInitializer(const ScopedLoggerInitializer&) = delete;
+  ScopedLoggerInitializer& operator=(const ScopedLoggerInitializer&) = delete;
+
   v8::Local<v8::Context>& env() { return env_; }
 
   v8::Isolate* isolate() { return isolate_; }
@@ -212,8 +215,6 @@ class ScopedLoggerInitializer {
 
   std::string raw_log_;
   std::vector<std::string> log_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedLoggerInitializer);
 };
 
 class TestCodeEventHandler : public v8::CodeEventHandler {

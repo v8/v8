@@ -86,6 +86,8 @@ class InterpreterTester {
                     const char* filter = kFunctionName);
 
   virtual ~InterpreterTester();
+  InterpreterTester(const InterpreterTester&) = delete;
+  InterpreterTester& operator=(const InterpreterTester&) = delete;
 
   template <class... A>
   InterpreterCallableUndefinedReceiver<A...> GetCallable() {
@@ -166,8 +168,6 @@ class InterpreterTester {
     }
     return function;
   }
-
-  DISALLOW_COPY_AND_ASSIGN(InterpreterTester);
 };
 
 }  // namespace interpreter

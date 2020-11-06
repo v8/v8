@@ -65,6 +65,8 @@ inline void RunAsyncTask(TaskRunner* task_runner,
     explicit AsyncTask(std::unique_ptr<TaskRunner::Task> inner)
         : inner_(std::move(inner)) {}
     ~AsyncTask() override = default;
+    AsyncTask(const AsyncTask&) = delete;
+    AsyncTask& operator=(const AsyncTask&) = delete;
     bool is_priority_task() override { return inner_->is_priority_task(); }
     void Run(IsolateData* data) override {
       data->AsyncTaskStarted(inner_.get());
@@ -74,7 +76,6 @@ inline void RunAsyncTask(TaskRunner* task_runner,
 
    private:
     std::unique_ptr<TaskRunner::Task> inner_;
-    DISALLOW_COPY_AND_ASSIGN(AsyncTask);
   };
 
   task_runner->data()->AsyncTaskScheduled(task_name, task.get(), false);
@@ -100,6 +101,8 @@ class ExecuteStringTask : public TaskRunner::Task {
       : expression_utf8_(expression), context_group_id_(context_group_id) {}
 
   ~ExecuteStringTask() override = default;
+  ExecuteStringTask(const ExecuteStringTask&) = delete;
+  ExecuteStringTask& operator=(const ExecuteStringTask&) = delete;
   bool is_priority_task() override { return false; }
   void Run(IsolateData* data) override;
 
@@ -111,8 +114,6 @@ class ExecuteStringTask : public TaskRunner::Task {
   int32_t column_offset_ = 0;
   bool is_module_ = false;
   int context_group_id_;
-
-  DISALLOW_COPY_AND_ASSIGN(ExecuteStringTask);
 };
 
 class SetTimeoutTask : public TaskRunner::Task {

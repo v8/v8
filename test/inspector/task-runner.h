@@ -39,6 +39,8 @@ class TaskRunner : public v8::base::Thread {
              v8::base::Semaphore* ready_semaphore,
              v8::StartupData* startup_data, WithInspector with_inspector);
   ~TaskRunner() override;
+  TaskRunner(const TaskRunner&) = delete;
+  TaskRunner& operator=(const TaskRunner&) = delete;
   IsolateData* data() const { return data_.get(); }
 
   // Thread implementation.
@@ -73,8 +75,6 @@ class TaskRunner : public v8::base::Thread {
   int nested_loop_count_;
 
   std::atomic<int> is_terminated_;
-
-  DISALLOW_COPY_AND_ASSIGN(TaskRunner);
 };
 
 }  // namespace internal

@@ -39,6 +39,8 @@ class DataRange {
 
  public:
   explicit DataRange(Vector<const uint8_t> data) : data_(data) {}
+  DataRange(const DataRange&) = delete;
+  DataRange& operator=(const DataRange&) = delete;
 
   // Don't accidentally pass DataRange by value. This will reuse bytes and might
   // lead to OOM because the end might not be reached.
@@ -83,8 +85,6 @@ class DataRange {
     data_ += num_bytes;
     return result;
   }
-
-  DISALLOW_COPY_AND_ASSIGN(DataRange);
 };
 
 ValueType GetValueType(DataRange* data) {
