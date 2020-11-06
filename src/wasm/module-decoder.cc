@@ -2182,13 +2182,14 @@ ModuleResult DecodeWasmModule(
   // as the {module}.
   ModuleDecoderImpl decoder(enabled, module_start, module_end, origin);
   v8::metrics::WasmModuleDecoded metrics_event;
-  metrics::TimedScope<v8::metrics::WasmModuleDecoded> metrics_event_scope(
-      &metrics_event, &v8::metrics::WasmModuleDecoded::wall_clock_time_in_us);
+  base::ElapsedTimer timer;
+  timer.Start();
   ModuleResult result =
       decoder.DecodeModule(counters, allocator, verify_functions);
 
   // Record event metrics.
-  metrics_event_scope.Stop();
+  metrics_event.wall_clock_duration_in_us = timer.Elapsed().InMicroseconds();
+  timer.Stop();
   metrics_event.success = decoder.ok() && result.ok();
   metrics_event.async = decoding_method == DecodingMethod::kAsync ||
                         decoding_method == DecodingMethod::kAsyncStream;

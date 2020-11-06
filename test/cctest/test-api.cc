@@ -28555,7 +28555,7 @@ class MetricsRecorder : public v8::metrics::Recorder {
                           v8::metrics::Recorder::ContextId id) override {
     if (v8::metrics::Recorder::GetContext(isolate_, id).IsEmpty()) return;
     ++count_;
-    time_in_us_ = event.wall_clock_time_in_us;
+    time_in_us_ = event.wall_clock_duration_in_us;
   }
 
   void AddThreadSafeEvent(
@@ -28589,7 +28589,7 @@ TEST(TriggerMainThreadMetricsEvent) {
     // Check that event submission works.
     {
       i::metrics::TimedScope<v8::metrics::WasmModuleDecoded> timed_scope(
-          &event, &v8::metrics::WasmModuleDecoded::wall_clock_time_in_us);
+          &event);
       v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(100));
     }
     i_iso->metrics_recorder()->AddMainThreadEvent(event, context_id);
@@ -28628,7 +28628,7 @@ TEST(TriggerDelayedMainThreadMetricsEvent) {
     // Check that event submission works.
     {
       i::metrics::TimedScope<v8::metrics::WasmModuleDecoded> timed_scope(
-          &event, &v8::metrics::WasmModuleDecoded::wall_clock_time_in_us);
+          &event);
       v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(100));
     }
     i_iso->metrics_recorder()->DelayMainThreadEvent(event, context_id);

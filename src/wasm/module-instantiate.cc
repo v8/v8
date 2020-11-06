@@ -417,10 +417,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   TimedHistogramScope wasm_instantiate_module_time_scope(SELECT_WASM_COUNTER(
       isolate_->counters(), module_->origin, wasm_instantiate, module_time));
   v8::metrics::WasmModuleInstantiated wasm_module_instantiated;
-  metrics::TimedScope<v8::metrics::WasmModuleInstantiated>
-      wasm_module_instantiated_timed_scope(
-          &wasm_module_instantiated,
-          &v8::metrics::WasmModuleInstantiated::wall_clock_time_in_us);
+  base::ElapsedTimer timer;
+  timer.Start();
   NativeModule* native_module = module_object_->native_module();
 
   //--------------------------------------------------------------------------
@@ -752,7 +750,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   TRACE("Successfully built instance for module %p\n",
         module_object_->native_module());
   wasm_module_instantiated.success = true;
-  wasm_module_instantiated_timed_scope.Stop();
+  wasm_module_instantiated.wall_clock_duration_in_us =
+      timer.Elapsed().InMicroseconds();
+  timer.Stop();
   isolate_->metrics_recorder()->DelayMainThreadEvent(wasm_module_instantiated,
                                                      context_id_);
   return instance;

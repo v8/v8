@@ -311,7 +311,7 @@ COMPILE_TEST(TestEventMetrics) {
   CHECK_EQ(buffer.size(),
            recorder->module_decoded_.back().module_size_in_bytes);
   CHECK_EQ(1, recorder->module_decoded_.back().function_count);
-  CHECK_LE(0, recorder->module_decoded_.back().wall_clock_time_in_us);
+  CHECK_LE(0, recorder->module_decoded_.back().wall_clock_duration_in_us);
 
   CHECK_EQ(1, recorder->module_compiled_.size());
   CHECK(recorder->module_compiled_.back().success);
@@ -331,14 +331,14 @@ COMPILE_TEST(TestEventMetrics) {
   CHECK_GE(native_module->generated_code_size(),
            recorder->module_compiled_.back().code_size_in_bytes);
   CHECK_EQ(0, recorder->module_compiled_.back().liftoff_bailout_count);
-  CHECK_LE(0, recorder->module_compiled_.back().wall_clock_time_in_us);
+  CHECK_LE(0, recorder->module_compiled_.back().wall_clock_duration_in_us);
 
   CHECK_EQ(1, recorder->module_instantiated_.size());
   CHECK(recorder->module_instantiated_.back().success);
   // We currently don't support true async instantiation.
   CHECK(!recorder->module_instantiated_.back().async);
   CHECK_EQ(0, recorder->module_instantiated_.back().imported_function_count);
-  CHECK_LE(0, recorder->module_instantiated_.back().wall_clock_time_in_us);
+  CHECK_LE(0, recorder->module_instantiated_.back().wall_clock_duration_in_us);
 
   CHECK_EQ(1, recorder->module_tiered_up_.size());
   CHECK(!recorder->module_tiered_up_.back().lazy);
@@ -349,7 +349,7 @@ COMPILE_TEST(TestEventMetrics) {
            recorder->module_tiered_up_.back().code_size_in_bytes);
   CHECK_GE(native_module->committed_code_space(),
            recorder->module_tiered_up_.back().code_size_in_bytes);
-  CHECK_LE(0, recorder->module_tiered_up_.back().wall_clock_time_in_us);
+  CHECK_LE(0, recorder->module_tiered_up_.back().wall_clock_duration_in_us);
 }
 
 }  // namespace wasm
