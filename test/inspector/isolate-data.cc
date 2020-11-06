@@ -17,13 +17,6 @@ namespace {
 const int kIsolateDataIndex = 2;
 const int kContextGroupIdIndex = 3;
 
-// TODO(clemensb): This is a memory leak; remove this helper.
-Vector<uint16_t> ToV8Vector(v8::Isolate* isolate, v8::Local<v8::String> str) {
-  Vector<uint16_t> buffer = Vector<uint16_t>::New(str->Length());
-  str->Write(isolate, buffer.begin(), 0, str->Length());
-  return buffer;
-}
-
 void Print(v8::Isolate* isolate, const v8_inspector::StringView& string) {
   v8::Local<v8::String> v8_string = ToV8String(isolate, string);
   v8::String::Utf8Value utf8_string(isolate, v8_string);
@@ -118,7 +111,7 @@ int IsolateData::GetContextGroupId(v8::Local<v8::Context> context) {
 }
 
 void IsolateData::RegisterModule(v8::Local<v8::Context> context,
-                                 Vector<uint16_t> name,
+                                 std::vector<uint16_t> name,
                                  v8::ScriptCompiler::Source* source) {
   v8::Local<v8::Module> module;
   if (!v8::ScriptCompiler::CompileModule(isolate(), source).ToLocal(&module))
@@ -138,7 +131,7 @@ v8::MaybeLocal<v8::Module> IsolateData::ModuleResolveCallback(
     v8::Local<v8::Module> referrer) {
   IsolateData* data = IsolateData::FromContext(context);
   std::string str = *v8::String::Utf8Value(data->isolate(), specifier);
-  return data->modules_[ToV8Vector(data->isolate(), specifier)].Get(
+  return data->modules_[ToVector(data->isolate(), specifier)].Get(
       data->isolate());
 }
 
@@ -274,15 +267,15 @@ int IsolateData::HandleMessage(v8::Local<v8::Message> message,
     column_number = message->GetStartColumn(context).FromJust() + 1;
 
   v8_inspector::StringView detailed_message;
-  Vector<uint16_t> message_text_string = ToV8Vector(isolate, message->Get());
-  v8_inspector::StringView message_text(message_text_string.begin(),
-                                        message_text_string.length());
-  Vector<uint16_t> url_string;
+  std::vector<uint16_t> message_text_string = ToVector(isolate, message->Get());
+  v8_inspector::StringView message_text(message_text_string.data(),
+                                        message_text_string.size());
+  std::vector<uint16_t> url_string;
   if (message->GetScriptOrigin().ResourceName()->IsString()) {
-    url_string = ToV8Vector(
+    url_string = ToVector(
         isolate, message->GetScriptOrigin().ResourceName().As<v8::String>());
   }
-  v8_inspector::StringView url(url_string.begin(), url_string.length());
+  v8_inspector::StringView url(url_string.data(), url_string.size());
 
   v8::SealHandleScope seal_handle_scope(isolate);
   return inspector->exceptionThrown(
@@ -471,14 +464,14 @@ namespace {
 class StringBufferImpl : public v8_inspector::StringBuffer {
  public:
   StringBufferImpl(v8::Isolate* isolate, v8::Local<v8::String> string)
-      : data_(ToV8Vector(isolate, string)) {}
+      : data_(ToVector(isolate, string)) {}
 
   v8_inspector::StringView string() const override {
-    return v8_inspector::StringView(data_.begin(), data_.length());
+    return v8_inspector::StringView(data_.data(), data_.size());
   }
 
  private:
-  Vector<uint16_t> data_;
+  std::vector<uint16_t> data_;
 };
 }  // anonymous namespace
 
@@ -489,8 +482,7 @@ std::unique_ptr<v8_inspector::StringBuffer> IsolateData::resourceNameToUrl(
   v8::Local<v8::String> name = ToV8String(isolate(), resourceName);
   v8::Local<v8::String> prefix = resource_name_prefix_.Get(isolate());
   v8::Local<v8::String> url = v8::String::Concat(isolate(), prefix, name);
-  return std::unique_ptr<StringBufferImpl>(
-      new StringBufferImpl(isolate(), url));
+  return std::make_unique<StringBufferImpl>(isolate(), url);
 }
 
 }  // namespace internal

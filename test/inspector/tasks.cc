@@ -45,12 +45,7 @@ void ExecuteStringTask::Run(IsolateData* data) {
     v8::MaybeLocal<v8::Value> result;
     result = script->Run(context);
   } else {
-    // Register Module takes ownership of {buffer}, so we need to make a copy.
-    int length = static_cast<int>(name_.size());
-    v8::internal::Vector<uint16_t> buffer =
-        v8::internal::Vector<uint16_t>::New(length);
-    std::copy(name_.begin(), name_.end(), buffer.begin());
-    data->RegisterModule(context, buffer, &scriptSource);
+    data->RegisterModule(context, name_, &scriptSource);
   }
 }
 

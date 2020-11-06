@@ -44,7 +44,7 @@ class IsolateData : public v8_inspector::V8InspectorClient {
   v8::Local<v8::Context> GetDefaultContext(int context_group_id);
   int GetContextGroupId(v8::Local<v8::Context> context);
   void RegisterModule(v8::Local<v8::Context> context,
-                      v8::internal::Vector<uint16_t> name,
+                      std::vector<uint16_t> name,
                       v8::ScriptCompiler::Source* source);
 
   // Working with V8Inspector api.
@@ -87,15 +87,6 @@ class IsolateData : public v8_inspector::V8InspectorClient {
   void SetResourceNamePrefix(v8::Local<v8::String> prefix);
 
  private:
-  struct VectorCompare {
-    bool operator()(const v8::internal::Vector<uint16_t>& lhs,
-                    const v8::internal::Vector<uint16_t>& rhs) const {
-      for (int i = 0; i < lhs.length() && i < rhs.length(); ++i) {
-        if (lhs[i] != rhs[i]) return lhs[i] < rhs[i];
-      }
-      return false;
-    }
-  };
   static v8::MaybeLocal<v8::Module> ModuleResolveCallback(
       v8::Local<v8::Context> context, v8::Local<v8::String> specifier,
       v8::Local<v8::Module> referrer);
@@ -143,9 +134,7 @@ class IsolateData : public v8_inspector::V8InspectorClient {
   std::unique_ptr<v8_inspector::V8Inspector> inspector_;
   int last_context_group_id_ = 0;
   std::map<int, std::vector<v8::Global<v8::Context>>> contexts_;
-  std::map<v8::internal::Vector<uint16_t>, v8::Global<v8::Module>,
-           VectorCompare>
-      modules_;
+  std::map<std::vector<uint16_t>, v8::Global<v8::Module>> modules_;
   int last_session_id_ = 0;
   std::map<int, std::unique_ptr<v8_inspector::V8InspectorSession>> sessions_;
   std::map<v8_inspector::V8InspectorSession*, int> context_group_by_session_;

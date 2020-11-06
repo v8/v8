@@ -167,9 +167,10 @@
 
 ##############################################################################
 ['asan == True', {
-  # There are lots of memory leaks, thus skip all inspector tests for now
+  # There are still memory leaks in some inspector tests
   # (https://crbug.com/v8/11107).
-  '*': [SKIP],
+  'runtime/evaluate-async': [SKIP],
+  'debugger/step-snapshot': [SKIP],
 }], # asan == True
 
 ]
