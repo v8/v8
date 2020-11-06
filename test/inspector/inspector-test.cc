@@ -797,7 +797,7 @@ int InspectorTestMain(int argc, char* argv[]) {
     backend_runner.Join();
 
     UtilsExtension::ClearAllSessions();
-    delete startup_data.data;
+    delete[] startup_data.data;
 
     // TaskRunners go out of scope here, which causes Isolate teardown and all
     // running background tasks to be properly joined.
