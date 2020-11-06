@@ -1578,7 +1578,7 @@ void CodeStubAssembler::GotoIfMapHasSlowProperties(TNode<Map> map,
 }
 
 TNode<HeapObject> CodeStubAssembler::LoadFastProperties(
-    SloppyTNode<JSReceiver> object) {
+    TNode<JSReceiver> object) {
   CSA_SLOW_ASSERT(this, Word32BinaryNot(IsDictionaryMap(LoadMap(object))));
   TNode<Object> properties = LoadJSReceiverPropertiesOrHash(object);
   return Select<HeapObject>(
@@ -1587,7 +1587,7 @@ TNode<HeapObject> CodeStubAssembler::LoadFastProperties(
 }
 
 TNode<HeapObject> CodeStubAssembler::LoadSlowProperties(
-    SloppyTNode<JSReceiver> object) {
+    TNode<JSReceiver> object) {
   CSA_SLOW_ASSERT(this, IsDictionaryMap(LoadMap(object)));
   TNode<Object> properties = LoadJSReceiverPropertiesOrHash(object);
   return Select<HeapObject>(
@@ -1604,8 +1604,7 @@ TNode<Object> CodeStubAssembler::LoadJSArgumentsObjectLength(
   return LoadObjectField(array, offset);
 }
 
-TNode<Smi> CodeStubAssembler::LoadFastJSArrayLength(
-    SloppyTNode<JSArray> array) {
+TNode<Smi> CodeStubAssembler::LoadFastJSArrayLength(TNode<JSArray> array) {
   TNode<Number> length = LoadJSArrayLength(array);
   CSA_ASSERT(this, Word32Or(IsFastElementsKind(LoadElementsKind(array)),
                             IsElementsKindInRange(
@@ -1618,13 +1617,13 @@ TNode<Smi> CodeStubAssembler::LoadFastJSArrayLength(
 }
 
 TNode<Smi> CodeStubAssembler::LoadFixedArrayBaseLength(
-    SloppyTNode<FixedArrayBase> array) {
+    TNode<FixedArrayBase> array) {
   CSA_SLOW_ASSERT(this, IsNotWeakFixedArraySubclass(array));
   return LoadObjectField<Smi>(array, FixedArrayBase::kLengthOffset);
 }
 
 TNode<IntPtrT> CodeStubAssembler::LoadAndUntagFixedArrayBaseLength(
-    SloppyTNode<FixedArrayBase> array) {
+    TNode<FixedArrayBase> array) {
   return LoadAndUntagObjectField(array, FixedArrayBase::kLengthOffset);
 }
 
@@ -1640,7 +1639,7 @@ TNode<Smi> CodeStubAssembler::LoadWeakFixedArrayLength(
 }
 
 TNode<IntPtrT> CodeStubAssembler::LoadAndUntagWeakFixedArrayLength(
-    SloppyTNode<WeakFixedArray> array) {
+    TNode<WeakFixedArray> array) {
   return LoadAndUntagObjectField(array, WeakFixedArray::kLengthOffset);
 }
 
@@ -2618,7 +2617,7 @@ TNode<Map> CodeStubAssembler::LoadSlowObjectWithNullPrototypeMap(
 }
 
 TNode<Map> CodeStubAssembler::LoadJSArrayElementsMap(
-    SloppyTNode<Int32T> kind, SloppyTNode<NativeContext> native_context) {
+    SloppyTNode<Int32T> kind, TNode<NativeContext> native_context) {
   CSA_ASSERT(this, IsFastElementsKind(kind));
   TNode<IntPtrT> offset =
       IntPtrAdd(IntPtrConstant(Context::FIRST_JS_ARRAY_MAP_SLOT),
@@ -2627,7 +2626,7 @@ TNode<Map> CodeStubAssembler::LoadJSArrayElementsMap(
 }
 
 TNode<Map> CodeStubAssembler::LoadJSArrayElementsMap(
-    ElementsKind kind, SloppyTNode<NativeContext> native_context) {
+    ElementsKind kind, TNode<NativeContext> native_context) {
   return UncheckedCast<Map>(
       LoadContextElement(native_context, Context::ArrayMapIndex(kind)));
 }
@@ -3916,11 +3915,10 @@ template V8_EXPORT_PRIVATE TNode<FixedArrayBase>
 
 template <typename TIndex>
 TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
-    SloppyTNode<FixedArrayBase> source, TNode<TIndex> first,
-    TNode<TIndex> count, TNode<TIndex> capacity, TNode<Map> source_map,
-    ElementsKind from_kind, AllocationFlags allocation_flags,
-    ExtractFixedArrayFlags extract_flags, HoleConversionMode convert_holes,
-    TVariable<BoolT>* var_holes_converted,
+    TNode<FixedArrayBase> source, TNode<TIndex> first, TNode<TIndex> count,
+    TNode<TIndex> capacity, TNode<Map> source_map, ElementsKind from_kind,
+    AllocationFlags allocation_flags, ExtractFixedArrayFlags extract_flags,
+    HoleConversionMode convert_holes, TVariable<BoolT>* var_holes_converted,
     base::Optional<TNode<Int32T>> source_elements_kind) {
   static_assert(
       std::is_same<TIndex, Smi>::value || std::is_same<TIndex, IntPtrT>::value,
@@ -6090,7 +6088,7 @@ TNode<BoolT> CodeStubAssembler::IsPromiseReactionJobTask(
 // TODO(jgruber): It might we worth creating an empty_double_array constant to
 // simplify this case.
 TNode<BoolT> CodeStubAssembler::IsFixedArrayWithKindOrEmpty(
-    SloppyTNode<FixedArrayBase> object, ElementsKind kind) {
+    TNode<FixedArrayBase> object, ElementsKind kind) {
   Label out(this);
   TVARIABLE(BoolT, var_result, Int32TrueConstant());
 
@@ -8392,10 +8390,12 @@ TNode<NativeContext> CodeStubAssembler::GetCreationContext(
   return native_context;
 }
 
-void CodeStubAssembler::DescriptorLookup(
-    SloppyTNode<Name> unique_name, SloppyTNode<DescriptorArray> descriptors,
-    SloppyTNode<Uint32T> bitfield3, Label* if_found,
-    TVariable<IntPtrT>* var_name_index, Label* if_not_found) {
+void CodeStubAssembler::DescriptorLookup(TNode<Name> unique_name,
+                                         TNode<DescriptorArray> descriptors,
+                                         TNode<Uint32T> bitfield3,
+                                         Label* if_found,
+                                         TVariable<IntPtrT>* var_name_index,
+                                         Label* if_not_found) {
   Comment("DescriptorArrayLookup");
   TNode<Uint32T> nof =
       DecodeWord32<Map::Bits3::NumberOfOwnDescriptorsBits>(bitfield3);
@@ -8403,9 +8403,11 @@ void CodeStubAssembler::DescriptorLookup(
                           var_name_index, if_not_found);
 }
 
-void CodeStubAssembler::TransitionLookup(
-    SloppyTNode<Name> unique_name, SloppyTNode<TransitionArray> transitions,
-    Label* if_found, TVariable<IntPtrT>* var_name_index, Label* if_not_found) {
+void CodeStubAssembler::TransitionLookup(TNode<Name> unique_name,
+                                         TNode<TransitionArray> transitions,
+                                         Label* if_found,
+                                         TVariable<IntPtrT>* var_name_index,
+                                         Label* if_not_found) {
   Comment("TransitionArrayLookup");
   TNode<Uint32T> number_of_valid_transitions =
       NumberOfEntries<TransitionArray>(transitions);
@@ -8473,7 +8475,7 @@ void CodeStubAssembler::TryLookupPropertyInSimpleObject(
 
 void CodeStubAssembler::TryLookupProperty(
     SloppyTNode<HeapObject> object, TNode<Map> map,
-    SloppyTNode<Int32T> instance_type, SloppyTNode<Name> unique_name,
+    SloppyTNode<Int32T> instance_type, TNode<Name> unique_name,
     Label* if_found_fast, Label* if_found_dict, Label* if_found_global,
     TVariable<HeapObject>* var_meta_storage, TVariable<IntPtrT>* var_name_index,
     Label* if_not_found, Label* if_bailout) {
@@ -9368,14 +9370,14 @@ TNode<BoolT> CodeStubAssembler::IsOffsetInBounds(SloppyTNode<IntPtrT> offset,
 }
 
 TNode<HeapObject> CodeStubAssembler::LoadFeedbackCellValue(
-    SloppyTNode<JSFunction> closure) {
+    TNode<JSFunction> closure) {
   TNode<FeedbackCell> feedback_cell =
       LoadObjectField<FeedbackCell>(closure, JSFunction::kFeedbackCellOffset);
   return LoadObjectField<HeapObject>(feedback_cell, FeedbackCell::kValueOffset);
 }
 
 TNode<HeapObject> CodeStubAssembler::LoadFeedbackVector(
-    SloppyTNode<JSFunction> closure) {
+    TNode<JSFunction> closure) {
   TVARIABLE(HeapObject, maybe_vector, LoadFeedbackCellValue(closure));
   Label done(this);
 
@@ -9393,7 +9395,7 @@ TNode<HeapObject> CodeStubAssembler::LoadFeedbackVector(
 }
 
 TNode<ClosureFeedbackCellArray> CodeStubAssembler::LoadClosureFeedbackArray(
-    SloppyTNode<JSFunction> closure) {
+    TNode<JSFunction> closure) {
   TVARIABLE(HeapObject, feedback_cell_array, LoadFeedbackCellValue(closure));
   Label end(this);
 
@@ -9479,7 +9481,7 @@ void CodeStubAssembler::CombineFeedback(TVariable<Smi>* existing_feedback,
   *existing_feedback = SmiOr(existing_feedback->value(), feedback);
 }
 
-void CodeStubAssembler::CheckForAssociatedProtector(SloppyTNode<Name> name,
+void CodeStubAssembler::CheckForAssociatedProtector(TNode<Name> name,
                                                     Label* if_protector) {
   // This list must be kept in sync with LookupIterator::UpdateProtector!
   // TODO(jkummerow): Would it be faster to have a bit in Symbol::flags()?
@@ -12360,7 +12362,7 @@ TNode<HeapObject> CodeStubAssembler::GetSuperConstructor(
 
 TNode<JSReceiver> CodeStubAssembler::SpeciesConstructor(
     SloppyTNode<Context> context, SloppyTNode<Object> object,
-    SloppyTNode<JSReceiver> default_constructor) {
+    TNode<JSReceiver> default_constructor) {
   Isolate* isolate = this->isolate();
   TVARIABLE(JSReceiver, var_result, default_constructor);
 

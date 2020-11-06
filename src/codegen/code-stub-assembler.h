@@ -1201,26 +1201,24 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void GotoIfMapHasSlowProperties(TNode<Map> map, Label* if_slow);
 
   // Load the properties backing store of a JSReceiver.
-  TNode<HeapObject> LoadSlowProperties(SloppyTNode<JSReceiver> object);
-  TNode<HeapObject> LoadFastProperties(SloppyTNode<JSReceiver> object);
+  TNode<HeapObject> LoadSlowProperties(TNode<JSReceiver> object);
+  TNode<HeapObject> LoadFastProperties(TNode<JSReceiver> object);
   // Load the elements backing store of a JSObject.
-  TNode<FixedArrayBase> LoadElements(SloppyTNode<JSObject> object) {
+  TNode<FixedArrayBase> LoadElements(TNode<JSObject> object) {
     return LoadJSObjectElements(object);
   }
   // Load the length of a JSArray instance.
   TNode<Object> LoadJSArgumentsObjectLength(TNode<Context> context,
                                             TNode<JSArgumentsObject> array);
   // Load the length of a fast JSArray instance. Returns a positive Smi.
-  TNode<Smi> LoadFastJSArrayLength(SloppyTNode<JSArray> array);
+  TNode<Smi> LoadFastJSArrayLength(TNode<JSArray> array);
   // Load the length of a fixed array base instance.
-  TNode<Smi> LoadFixedArrayBaseLength(SloppyTNode<FixedArrayBase> array);
+  TNode<Smi> LoadFixedArrayBaseLength(TNode<FixedArrayBase> array);
   // Load the length of a fixed array base instance.
-  TNode<IntPtrT> LoadAndUntagFixedArrayBaseLength(
-      SloppyTNode<FixedArrayBase> array);
+  TNode<IntPtrT> LoadAndUntagFixedArrayBaseLength(TNode<FixedArrayBase> array);
   // Load the length of a WeakFixedArray.
   TNode<Smi> LoadWeakFixedArrayLength(TNode<WeakFixedArray> array);
-  TNode<IntPtrT> LoadAndUntagWeakFixedArrayLength(
-      SloppyTNode<WeakFixedArray> array);
+  TNode<IntPtrT> LoadAndUntagWeakFixedArrayLength(TNode<WeakFixedArray> array);
   // Load the number of descriptors in DescriptorArray.
   TNode<Int32T> LoadNumberOfDescriptors(TNode<DescriptorArray> array);
   // Load the number of own descriptors of a map.
@@ -1479,9 +1477,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<NativeContext> native_context);
 
   TNode<Map> LoadJSArrayElementsMap(ElementsKind kind,
-                                    SloppyTNode<NativeContext> native_context);
+                                    TNode<NativeContext> native_context);
   TNode<Map> LoadJSArrayElementsMap(SloppyTNode<Int32T> kind,
-                                    SloppyTNode<NativeContext> native_context);
+                                    TNode<NativeContext> native_context);
 
   TNode<BoolT> IsJSFunctionWithPrototypeSlot(TNode<HeapObject> object);
   TNode<BoolT> IsGeneratorFunction(TNode<JSFunction> function);
@@ -2100,10 +2098,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // compatible only with HOLEY_ELEMENTS and PACKED_ELEMENTS.
   template <typename TIndex>
   TNode<FixedArray> ExtractToFixedArray(
-      SloppyTNode<FixedArrayBase> source, TNode<TIndex> first,
-      TNode<TIndex> count, TNode<TIndex> capacity, TNode<Map> source_map,
-      ElementsKind from_kind, AllocationFlags allocation_flags,
-      ExtractFixedArrayFlags extract_flags, HoleConversionMode convert_holes,
+      TNode<FixedArrayBase> source, TNode<TIndex> first, TNode<TIndex> count,
+      TNode<TIndex> capacity, TNode<Map> source_map, ElementsKind from_kind,
+      AllocationFlags allocation_flags, ExtractFixedArrayFlags extract_flags,
+      HoleConversionMode convert_holes,
       TVariable<BoolT>* var_holes_converted = nullptr,
       base::Optional<TNode<Int32T>> source_runtime_kind = base::nullopt);
 
@@ -2332,7 +2330,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsFixedArraySubclass(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsFixedArrayWithKind(SloppyTNode<HeapObject> object,
                                     ElementsKind kind);
-  TNode<BoolT> IsFixedArrayWithKindOrEmpty(SloppyTNode<FixedArrayBase> object,
+  TNode<BoolT> IsFixedArrayWithKindOrEmpty(TNode<FixedArrayBase> object,
                                            ElementsKind kind);
   TNode<BoolT> IsFunctionWithPrototypeSlotMap(TNode<Map> map);
   TNode<BoolT> IsHashTable(SloppyTNode<HeapObject> object);
@@ -3032,7 +3030,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // entry! This has to be done by the caller.
   void TryLookupProperty(SloppyTNode<HeapObject> object, TNode<Map> map,
                          SloppyTNode<Int32T> instance_type,
-                         SloppyTNode<Name> unique_name, Label* if_found_fast,
+                         TNode<Name> unique_name, Label* if_found_fast,
                          Label* if_found_dict, Label* if_found_global,
                          TVariable<HeapObject>* var_meta_storage,
                          TVariable<IntPtrT>* var_name_index,
@@ -3109,19 +3107,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<FeedbackVector> LoadFeedbackVectorForStub();
 
   // Load the value from closure's feedback cell.
-  TNode<HeapObject> LoadFeedbackCellValue(SloppyTNode<JSFunction> closure);
+  TNode<HeapObject> LoadFeedbackCellValue(TNode<JSFunction> closure);
 
   // Load the object from feedback vector cell for the given closure.
   // The returned object could be undefined if the closure does not have
   // a feedback vector associated with it.
-  TNode<HeapObject> LoadFeedbackVector(SloppyTNode<JSFunction> closure);
+  TNode<HeapObject> LoadFeedbackVector(TNode<JSFunction> closure);
 
   // Load the ClosureFeedbackCellArray that contains the feedback cells
   // used when creating closures from this function. This array could be
   // directly hanging off the FeedbackCell when there is no feedback vector
   // or available from the feedback vector's header.
   TNode<ClosureFeedbackCellArray> LoadClosureFeedbackArray(
-      SloppyTNode<JSFunction> closure);
+      TNode<JSFunction> closure);
 
   // Update the type feedback vector.
   void UpdateFeedback(TNode<Smi> feedback,
@@ -3144,7 +3142,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Check if a property name might require protector invalidation when it is
   // used for a property store or deletion.
-  void CheckForAssociatedProtector(SloppyTNode<Name> name, Label* if_protector);
+  void CheckForAssociatedProtector(TNode<Name> name, Label* if_protector);
 
   TNode<Map> LoadReceiverMap(SloppyTNode<Object> receiver);
 
@@ -3380,9 +3378,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<HeapObject> GetSuperConstructor(TNode<JSFunction> active_function);
 
-  TNode<JSReceiver> SpeciesConstructor(
-      SloppyTNode<Context> context, SloppyTNode<Object> object,
-      SloppyTNode<JSReceiver> default_constructor);
+  TNode<JSReceiver> SpeciesConstructor(SloppyTNode<Context> context,
+                                       SloppyTNode<Object> object,
+                                       TNode<JSReceiver> default_constructor);
 
   TNode<Oddball> InstanceOf(TNode<Object> object, TNode<Object> callable,
                             TNode<Context> context);
@@ -3522,18 +3520,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                          TNode<Number> length);
 
   // Implements DescriptorArray::Search().
-  void DescriptorLookup(SloppyTNode<Name> unique_name,
-                        SloppyTNode<DescriptorArray> descriptors,
-                        SloppyTNode<Uint32T> bitfield3, Label* if_found,
+  void DescriptorLookup(TNode<Name> unique_name,
+                        TNode<DescriptorArray> descriptors,
+                        TNode<Uint32T> bitfield3, Label* if_found,
                         TVariable<IntPtrT>* var_name_index,
                         Label* if_not_found);
 
   // Implements TransitionArray::SearchName() - searches for first transition
   // entry with given name (note that there could be multiple entries with
   // the same name).
-  void TransitionLookup(SloppyTNode<Name> unique_name,
-                        SloppyTNode<TransitionArray> transitions,
-                        Label* if_found, TVariable<IntPtrT>* var_name_index,
+  void TransitionLookup(TNode<Name> unique_name,
+                        TNode<TransitionArray> transitions, Label* if_found,
+                        TVariable<IntPtrT>* var_name_index,
                         Label* if_not_found);
 
   // Implements generic search procedure like i::Search<Array>().
