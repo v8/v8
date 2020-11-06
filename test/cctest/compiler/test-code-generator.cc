@@ -123,10 +123,11 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
       case MachineRepresentation::kTagged:
         break;
       case MachineRepresentation::kFloat32:
-        element = __ TruncateFloat64ToFloat32(__ LoadHeapNumberValue(element));
+        element = __ TruncateFloat64ToFloat32(
+            __ LoadHeapNumberValue(__ CAST(element)));
         break;
       case MachineRepresentation::kFloat64:
-        element = __ LoadHeapNumberValue(element);
+        element = __ LoadHeapNumberValue(__ CAST(element));
         break;
       case MachineRepresentation::kSimd128: {
         Node* vector = tester.raw_assembler_for_testing()->AddNode(
