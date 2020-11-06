@@ -1187,7 +1187,7 @@
   # fixed in a later cl.
   # TODO(mythria): Reenable this when the cl that migrates deprecated maps
   # lands
-  'regress/regress-932953': [FAIL],
+  'regress/regress-932953': [PASS],
 
   # Tests failing for the lack of function context specialization in Turboprop.
   'compiler/abstract-equal-receiver': [FAIL],
