@@ -308,15 +308,14 @@ template <typename T, size_t kSize>
 class EmbeddedVector : public Vector<T> {
  public:
   EmbeddedVector() : Vector<T>(buffer_, kSize) {}
-
   explicit EmbeddedVector(const T& initial_value) : Vector<T>(buffer_, kSize) {
     std::fill_n(buffer_, kSize, initial_value);
   }
+  EmbeddedVector(const EmbeddedVector&) = delete;
+  EmbeddedVector& operator=(const EmbeddedVector&) = delete;
 
  private:
   T buffer_[kSize];
-
-  DISALLOW_COPY_AND_ASSIGN(EmbeddedVector);
 };
 
 }  // namespace internal
