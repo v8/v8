@@ -177,7 +177,7 @@ void CopyObjectToObjectElements(Isolate* isolate, FixedArrayBase from_base,
   if (raw_copy_size < 0) {
     DCHECK_EQ(kCopyToEndAndInitializeToHole, raw_copy_size);
     copy_size =
-        Min(from_base.length() - from_start, to_base.length() - to_start);
+        std::min(from_base.length() - from_start, to_base.length() - to_start);
     int start = to_start + copy_size;
     int length = to_base.length() - start;
     if (length > 0) {
@@ -250,7 +250,7 @@ void CopyDoubleToObjectElements(Isolate* isolate, FixedArrayBase from_base,
     DisallowHeapAllocation no_allocation;
     DCHECK_EQ(kCopyToEndAndInitializeToHole, raw_copy_size);
     copy_size =
-        Min(from_base.length() - from_start, to_base.length() - to_start);
+        std::min(from_base.length() - from_start, to_base.length() - to_start);
     // Also initialize the area that will be copied over since HeapNumber
     // allocation below can cause an incremental marking step, requiring all
     // existing heap objects to be propertly initialized.
@@ -294,7 +294,7 @@ void CopyDoubleToDoubleElements(FixedArrayBase from_base, uint32_t from_start,
   if (raw_copy_size < 0) {
     DCHECK_EQ(kCopyToEndAndInitializeToHole, raw_copy_size);
     copy_size =
-        Min(from_base.length() - from_start, to_base.length() - to_start);
+        std::min(from_base.length() - from_start, to_base.length() - to_start);
     for (int i = to_start + copy_size; i < to_base.length(); ++i) {
       FixedDoubleArray::cast(to_base).set_the_hole(i);
     }
@@ -702,7 +702,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
 
     // Check whether the backing store should be shrunk.
     uint32_t capacity = backing_store->length();
-    old_length = Min(old_length, capacity);
+    old_length = std::min(old_length, capacity);
     if (length == 0) {
       array->initialize_elements();
     } else if (length <= capacity) {
@@ -731,7 +731,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
       }
     } else {
       // Check whether the backing store should be expanded.
-      capacity = Max(length, JSObject::NewElementsCapacity(capacity));
+      capacity = std::max(length, JSObject::NewElementsCapacity(capacity));
       Subclass::GrowCapacityAndConvertImpl(array, capacity);
     }
 
@@ -1810,7 +1810,7 @@ class DictionaryElementsAccessor
       if (k.Number() > NumberDictionary::kRequiresSlowElementsLimit) {
         requires_slow_elements = true;
       } else {
-        max_key = Max(max_key, Smi::ToInt(k));
+        max_key = std::max(max_key, Smi::ToInt(k));
       }
     }
     if (requires_slow_elements) {

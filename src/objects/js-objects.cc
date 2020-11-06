@@ -2880,7 +2880,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
 
   // Copy (real) inobject properties. If necessary, stop at number_of_fields to
   // avoid overwriting |one_pointer_filler_map|.
-  int limit = Min(inobject, number_of_fields);
+  int limit = std::min(inobject, number_of_fields);
   for (int i = 0; i < limit; i++) {
     FieldIndex index = FieldIndex::ForPropertyIndex(*new_map, i);
     Object value = inobject_props->get(isolate, i);
@@ -4763,7 +4763,7 @@ static bool ShouldConvertToFastElements(JSObject object,
   } else {
     *new_capacity = dictionary.max_number_key() + 1;
   }
-  *new_capacity = Max(index + 1, *new_capacity);
+  *new_capacity = std::max(index + 1, *new_capacity);
 
   uint32_t dictionary_size = static_cast<uint32_t>(dictionary.Capacity()) *
                              NumberDictionary::kEntrySize;

@@ -2683,8 +2683,8 @@ void SerializerForBackgroundCompilation::ProcessHintsForRegExpTest(
 namespace {
 void ProcessMapForFunctionBind(MapRef map) {
   map.SerializePrototype();
-  int min_nof_descriptors = i::Max(JSFunction::kLengthDescriptorIndex,
-                                   JSFunction::kNameDescriptorIndex) +
+  int min_nof_descriptors = std::max(JSFunction::kLengthDescriptorIndex,
+                                     JSFunction::kNameDescriptorIndex) +
                             1;
   if (map.NumberOfOwnDescriptors() >= min_nof_descriptors) {
     map.SerializeOwnDescriptor(

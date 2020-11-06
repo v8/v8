@@ -330,7 +330,7 @@ Handle<WeakFixedArray> TransitionArray::GrowPrototypeTransitionArray(
     Handle<WeakFixedArray> array, int new_capacity, Isolate* isolate) {
   // Grow array by factor 2 up to MaxCachedPrototypeTransitions.
   int capacity = array->length() - kProtoTransitionHeaderSize;
-  new_capacity = Min(kMaxCachedPrototypeTransitions, new_capacity);
+  new_capacity = std::min(kMaxCachedPrototypeTransitions, new_capacity);
   DCHECK_GT(new_capacity, capacity);
   int grow_by = new_capacity - capacity;
   array = isolate->factory()->CopyWeakFixedArrayAndGrow(array, grow_by);
