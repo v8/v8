@@ -354,6 +354,8 @@ class V8_BASE_EXPORT Thread {
 
   // Create new thread.
   explicit Thread(const Options& options);
+  Thread(const Thread&) = delete;
+  Thread& operator=(const Thread&) = delete;
   virtual ~Thread();
 
   // Start new thread by calling the Run() method on the new thread.
@@ -427,8 +429,6 @@ class V8_BASE_EXPORT Thread {
   char name_[kMaxThreadNameLength];
   int stack_size_;
   Semaphore* start_semaphore_;
-
-  DISALLOW_COPY_AND_ASSIGN(Thread);
 };
 
 // TODO(v8:10354): Make use of the stack utilities here in V8.

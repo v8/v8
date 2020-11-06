@@ -46,6 +46,9 @@ class TemplateHashMapImpl {
                                MatchFun match = MatchFun(),
                                AllocationPolicy allocator = AllocationPolicy());
 
+  TemplateHashMapImpl(const TemplateHashMapImpl&) = delete;
+  TemplateHashMapImpl& operator=(const TemplateHashMapImpl&) = delete;
+
   // Clones the given hashmap and creates a copy with the same entries.
   explicit TemplateHashMapImpl(const TemplateHashMapImpl* original,
                                AllocationPolicy allocator = AllocationPolicy());
@@ -175,8 +178,6 @@ class TemplateHashMapImpl {
     uint32_t capacity_ = 0;
     uint32_t occupancy_ = 0;
   } impl_;
-
-  DISALLOW_COPY_AND_ASSIGN(TemplateHashMapImpl);
 };
 template <typename Key, typename Value, typename MatchFun,
           class AllocationPolicy>
@@ -469,8 +470,10 @@ class CustomMatcherTemplateHashMapImpl
       AllocationPolicy allocator = AllocationPolicy())
       : Base(original, allocator) {}
 
- private:
-  DISALLOW_COPY_AND_ASSIGN(CustomMatcherTemplateHashMapImpl);
+  CustomMatcherTemplateHashMapImpl(const CustomMatcherTemplateHashMapImpl&) =
+      delete;
+  CustomMatcherTemplateHashMapImpl& operator=(
+      const CustomMatcherTemplateHashMapImpl&) = delete;
 };
 
 using CustomMatcherHashMap =
