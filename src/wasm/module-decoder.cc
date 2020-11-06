@@ -2448,14 +2448,8 @@ void DecodeFunctionNames(const byte* module_start, const byte* module_end,
 
   // Extract from export table.
   for (const WasmExport& exp : export_table) {
-    switch (exp.kind) {
-      case kExternalFunction:
-        if (names->count(exp.index) == 0) {
-          names->insert(std::make_pair(exp.index, exp.name));
-        }
-        break;
-      default:
-        break;
+    if (exp.kind == kExternalFunction && names->count(exp.index) == 0) {
+      names->insert(std::make_pair(exp.index, exp.name));
     }
   }
 }
