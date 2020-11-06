@@ -4154,8 +4154,8 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedDoubleArrayFillingHoles(
 
     Label if_hole(this);
 
-    Node* value = LoadElementAndPrepareForStore(
-        from_array, var_from_offset.value(), kind, kind, &if_hole);
+    TNode<Float64T> value = LoadDoubleWithHoleCheck(
+        from_array, var_from_offset.value(), &if_hole, MachineType::Float64());
 
     StoreNoWriteBarrier(MachineRepresentation::kFloat64, to_array_adjusted,
                         to_offset, value);
