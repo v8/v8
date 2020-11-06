@@ -238,6 +238,7 @@ struct UnionT {
 using AnyTaggedT = UnionT<Object, MaybeObject>;
 using Number = UnionT<Smi, HeapNumber>;
 using Numeric = UnionT<Number, BigInt>;
+using ContextOrEmptyContext = UnionT<Context, Smi>;
 
 // A pointer to a builtin function, used by Torque's function pointers.
 using BuiltinPtr = Smi;

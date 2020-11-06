@@ -113,8 +113,8 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   TNode<String> AllocateConsString(TNode<Uint32T> length, TNode<String> left,
                                    TNode<String> right);
 
-  TNode<String> StringAdd(SloppyTNode<Context> context, TNode<String> left,
-                          TNode<String> right);
+  TNode<String> StringAdd(TNode<ContextOrEmptyContext> context,
+                          TNode<String> left, TNode<String> right);
 
   // Check if |string| is an indirect (thin or flat cons) string type that can
   // be dereferenced by DerefIndirectString.

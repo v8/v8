@@ -343,9 +343,11 @@ TNode<String> StringBuiltinsAssembler::AllocateConsString(TNode<Uint32T> length,
   return CAST(result);
 }
 
-TNode<String> StringBuiltinsAssembler::StringAdd(SloppyTNode<Context> context,
-                                                 TNode<String> left,
-                                                 TNode<String> right) {
+TNode<String> StringBuiltinsAssembler::StringAdd(
+    TNode<ContextOrEmptyContext> context, TNode<String> left,
+    TNode<String> right) {
+  CSA_ASSERT(this, IsZeroOrContext(context));
+
   TVARIABLE(String, result);
   Label check_right(this), runtime(this, Label::kDeferred), cons(this),
       done(this, &result), done_native(this, &result);
@@ -541,7 +543,9 @@ TNode<String> StringBuiltinsAssembler::DerefIndirectString(
 TF_BUILTIN(StringAdd_CheckNone, StringBuiltinsAssembler) {
   auto left = Parameter<String>(Descriptor::kLeft);
   auto right = Parameter<String>(Descriptor::kRight);
-  Node* context = UntypedParameter(Descriptor::kContext);
+  TNode<ContextOrEmptyContext> context =
+      UncheckedParameter<ContextOrEmptyContext>(Descriptor::kContext);
+  CSA_ASSERT(this, IsZeroOrContext(context));
   Return(StringAdd(context, left, right));
 }
 
