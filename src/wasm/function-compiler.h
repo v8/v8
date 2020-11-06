@@ -32,6 +32,8 @@ struct WasmFunction;
 class WasmInstructionBuffer final {
  public:
   WasmInstructionBuffer() = delete;
+  WasmInstructionBuffer(const WasmInstructionBuffer&) = delete;
+  WasmInstructionBuffer& operator=(const WasmInstructionBuffer&) = delete;
   ~WasmInstructionBuffer();
   std::unique_ptr<AssemblerBuffer> CreateView();
   std::unique_ptr<uint8_t[]> ReleaseBuffer();
@@ -43,9 +45,6 @@ class WasmInstructionBuffer final {
   // Override {operator delete} to avoid implicit instantiation of {operator
   // delete} with {size_t} argument. The {size_t} argument would be incorrect.
   void operator delete(void* ptr) { ::operator delete(ptr); }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(WasmInstructionBuffer);
 };
 
 struct WasmCompilationResult {

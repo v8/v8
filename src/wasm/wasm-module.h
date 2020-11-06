@@ -354,9 +354,8 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::unique_ptr<AsmJsOffsetInformation> asm_js_offset_information;
 
   explicit WasmModule(std::unique_ptr<Zone> signature_zone = nullptr);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(WasmModule);
+  WasmModule(const WasmModule&) = delete;
+  WasmModule& operator=(const WasmModule&) = delete;
 };
 
 // Static representation of a wasm indirect call table.

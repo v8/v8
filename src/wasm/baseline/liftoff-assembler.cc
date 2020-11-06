@@ -71,6 +71,8 @@ class StackTransferRecipe {
 
  public:
   explicit StackTransferRecipe(LiftoffAssembler* wasm_asm) : asm_(wasm_asm) {}
+  StackTransferRecipe(const StackTransferRecipe&) = delete;
+  StackTransferRecipe& operator=(const StackTransferRecipe&) = delete;
   ~StackTransferRecipe() { Execute(); }
 
   void Execute() {
@@ -343,8 +345,6 @@ class StackTransferRecipe {
     }
     load_dst_regs_ = {};
   }
-
-  DISALLOW_COPY_AND_ASSIGN(StackTransferRecipe);
 };
 
 class RegisterReuseMap {

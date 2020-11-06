@@ -248,6 +248,9 @@ class DebugInfoImpl {
   explicit DebugInfoImpl(NativeModule* native_module)
       : native_module_(native_module) {}
 
+  DebugInfoImpl(const DebugInfoImpl&) = delete;
+  DebugInfoImpl& operator=(const DebugInfoImpl&) = delete;
+
   int GetNumLocals(Address pc) {
     FrameInspectionScope scope(this, pc);
     if (!scope.is_inspectable()) return 0;
@@ -830,8 +833,6 @@ class DebugInfoImpl {
 
   // Isolate-specific data.
   std::unordered_map<Isolate*, PerIsolateDebugData> per_isolate_data_;
-
-  DISALLOW_COPY_AND_ASSIGN(DebugInfoImpl);
 };
 
 DebugInfo::DebugInfo(NativeModule* native_module)

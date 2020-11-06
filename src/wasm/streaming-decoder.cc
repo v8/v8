@@ -28,6 +28,8 @@ namespace wasm {
 class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
  public:
   explicit AsyncStreamingDecoder(std::unique_ptr<StreamingProcessor> processor);
+  AsyncStreamingDecoder(const AsyncStreamingDecoder&) = delete;
+  AsyncStreamingDecoder& operator=(const AsyncStreamingDecoder&) = delete;
 
   // The buffer passed into OnBytesReceived is owned by the caller.
   void OnBytesReceived(Vector<const uint8_t> bytes) override;
@@ -218,8 +220,6 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
 
   // We need wire bytes in an array for deserializing cached modules.
   std::vector<uint8_t> wire_bytes_for_deserializing_;
-
-  DISALLOW_COPY_AND_ASSIGN(AsyncStreamingDecoder);
 };
 
 void AsyncStreamingDecoder::OnBytesReceived(Vector<const uint8_t> bytes) {

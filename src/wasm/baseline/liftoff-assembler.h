@@ -1305,6 +1305,8 @@ void LiftoffAssembler::emit_i64_xori(LiftoffRegister dst, LiftoffRegister lhs,
 class LiftoffStackSlots {
  public:
   explicit LiftoffStackSlots(LiftoffAssembler* wasm_asm) : asm_(wasm_asm) {}
+  LiftoffStackSlots(const LiftoffStackSlots&) = delete;
+  LiftoffStackSlots& operator=(const LiftoffStackSlots&) = delete;
 
   void Add(const LiftoffAssembler::VarState& src, uint32_t src_offset,
            RegPairHalf half) {
@@ -1331,8 +1333,6 @@ class LiftoffStackSlots {
 
   base::SmallVector<Slot, 8> slots_;
   LiftoffAssembler* const asm_;
-
-  DISALLOW_COPY_AND_ASSIGN(LiftoffStackSlots);
 };
 
 }  // namespace wasm
