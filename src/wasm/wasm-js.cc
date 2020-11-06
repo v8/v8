@@ -108,7 +108,7 @@ WasmStreaming::WasmStreaming(std::unique_ptr<WasmStreamingImpl> impl)
 WasmStreaming::~WasmStreaming() = default;
 
 void WasmStreaming::OnBytesReceived(const uint8_t* bytes, size_t size) {
-  TRACE_EVENT1("v8.wasm", "wasm.OnBytesReceived", "num_bytes", size);
+  TRACE_EVENT1("v8.wasm", "wasm.OnBytesReceived", "bytes", size);
   impl_->OnBytesReceived(bytes, size);
 }
 

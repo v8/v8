@@ -4111,7 +4111,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
     std::unique_ptr<DebugSideTable>* debug_sidetable, int dead_breakpoint) {
   int func_body_size = static_cast<int>(func_body.end - func_body.start);
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-               "wasm.CompileBaseline", "func_index", func_index, "body_size",
+               "wasm.CompileBaseline", "funcIndex", func_index, "bodySize",
                func_body_size);
 
   Zone zone(allocator, "LiftoffCompilationZone");

@@ -858,7 +858,7 @@ void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
 void NativeModule::LogWasmCodes(Isolate* isolate) {
   if (!WasmCode::ShouldBeLogged(isolate)) return;
 
-  TRACE_EVENT1("v8.wasm", "wasm.LogWasmCodes", "num_functions",
+  TRACE_EVENT1("v8.wasm", "wasm.LogWasmCodes", "functions",
                module_->num_declared_functions);
 
   // TODO(titzer): we skip the logging of the import wrappers
