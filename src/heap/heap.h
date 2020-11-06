@@ -1845,8 +1845,8 @@ class Heap {
     uint64_t bytes = OldGenerationSizeOfObjects() +
                      AllocatedExternalMemorySinceMarkCompact();
 
-    if (old_generation_allocation_limit_ <= bytes) return 0;
-    return old_generation_allocation_limit_ - static_cast<size_t>(bytes);
+    if (old_generation_allocation_limit() <= bytes) return 0;
+    return old_generation_allocation_limit() - static_cast<size_t>(bytes);
   }
 
   void UpdateTotalGCTime(double duration);
@@ -1879,7 +1879,11 @@ class Heap {
   bool ShouldOptimizeForLoadTime();
 
   size_t old_generation_allocation_limit() const {
-    return old_generation_allocation_limit_;
+    return old_generation_allocation_limit_.load(std::memory_order_relaxed);
+  }
+
+  void set_old_generation_allocation_limit(size_t newlimit) {
+    old_generation_allocation_limit_.store(newlimit, std::memory_order_relaxed);
   }
 
   size_t global_allocation_limit() const { return global_allocation_limit_; }
@@ -2139,7 +2143,7 @@ class Heap {
   // is checked when we have already decided to do a GC to help determine
   // which collector to invoke, before expanding a paged space in the old
   // generation and on every allocation in large object space.
-  size_t old_generation_allocation_limit_ = 0;
+  std::atomic<size_t> old_generation_allocation_limit_{0};
   size_t global_allocation_limit_ = 0;
 
   // Indicates that inline bump-pointer allocation has been globally disabled
