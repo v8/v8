@@ -756,7 +756,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void Assert(const NodeGenerator<BoolT>& condition_body, const char* message,
               const char* file, int line,
               std::initializer_list<ExtraNode> extra_nodes = {});
-  void Assert(SloppyTNode<Word32T> condition_node, const char* message,
+  void Assert(TNode<Word32T> condition_node, const char* message,
               const char* file, int line,
               std::initializer_list<ExtraNode> extra_nodes = {});
   void Check(const BranchGenerator& branch, const char* message,
@@ -765,7 +765,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void Check(const NodeGenerator<BoolT>& condition_body, const char* message,
              const char* file, int line,
              std::initializer_list<ExtraNode> extra_nodes = {});
-  void Check(SloppyTNode<Word32T> condition_node, const char* message,
+  void Check(TNode<Word32T> condition_node, const char* message,
              const char* file, int line,
              std::initializer_list<ExtraNode> extra_nodes = {});
   void FailAssert(const char* message,
@@ -891,8 +891,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Int32T> TruncateIntPtrToInt32(SloppyTNode<IntPtrT> value);
 
   // Check a value for smi-ness
-  TNode<BoolT> TaggedIsSmi(SloppyTNode<MaybeObject> a);
-  TNode<BoolT> TaggedIsNotSmi(SloppyTNode<MaybeObject> a);
+  TNode<BoolT> TaggedIsSmi(TNode<MaybeObject> a);
+  TNode<BoolT> TaggedIsNotSmi(TNode<MaybeObject> a);
 
   // Check that the value is a non-negative smi.
   TNode<BoolT> TaggedIsPositiveSmi(SloppyTNode<Object> a);
@@ -1274,9 +1274,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load length field of a String object as Smi value.
   TNode<Smi> LoadStringLengthAsSmi(TNode<String> string);
   // Load length field of a String object as intptr_t value.
-  TNode<IntPtrT> LoadStringLengthAsWord(SloppyTNode<String> string);
+  TNode<IntPtrT> LoadStringLengthAsWord(TNode<String> string);
   // Load length field of a String object as uint32_t value.
-  TNode<Uint32T> LoadStringLengthAsWord32(SloppyTNode<String> string);
+  TNode<Uint32T> LoadStringLengthAsWord32(TNode<String> string);
   // Load value field of a JSPrimitiveWrapper object.
   TNode<Object> LoadJSPrimitiveWrapperValue(TNode<JSPrimitiveWrapper> object);
 
@@ -1490,7 +1490,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                             Label* if_bailout);
 
   TNode<BytecodeArray> LoadSharedFunctionInfoBytecodeArray(
-      SloppyTNode<SharedFunctionInfo> shared);
+      TNode<SharedFunctionInfo> shared);
 
   void StoreObjectByteNoWriteBarrier(TNode<HeapObject> object, int offset,
                                      TNode<Word32T> value);
@@ -2566,7 +2566,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Returns a node that contains a decoded (unsigned!) value of a bit
   // field |BitField| in |word32|. Returns result as an uint32 node.
   template <typename BitField>
-  TNode<Uint32T> DecodeWord32(SloppyTNode<Word32T> word32) {
+  TNode<Uint32T> DecodeWord32(TNode<Word32T> word32) {
     return DecodeWord32(word32, BitField::kShift, BitField::kMask);
   }
 
@@ -2580,7 +2580,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Returns a node that contains a decoded (unsigned!) value of a bit
   // field |BitField| in |word32|. Returns result as a word-size node.
   template <typename BitField>
-  TNode<UintPtrT> DecodeWordFromWord32(SloppyTNode<Word32T> word32) {
+  TNode<UintPtrT> DecodeWordFromWord32(TNode<Word32T> word32) {
     return DecodeWord<BitField>(ChangeUint32ToWord(word32));
   }
 
@@ -2593,7 +2593,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   // Decodes an unsigned (!) value from |word32| to an uint32 node.
-  TNode<Uint32T> DecodeWord32(SloppyTNode<Word32T> word32, uint32_t shift,
+  TNode<Uint32T> DecodeWord32(TNode<Word32T> word32, uint32_t shift,
                               uint32_t mask);
 
   // Decodes an unsigned (!) value from |word| to a word-size node.
@@ -2647,24 +2647,24 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Returns true if any of the |T|'s bits in given |word32| are set.
   template <typename T>
-  TNode<BoolT> IsSetWord32(SloppyTNode<Word32T> word32) {
+  TNode<BoolT> IsSetWord32(TNode<Word32T> word32) {
     return IsSetWord32(word32, T::kMask);
   }
 
   // Returns true if any of the mask's bits in given |word32| are set.
-  TNode<BoolT> IsSetWord32(SloppyTNode<Word32T> word32, uint32_t mask) {
+  TNode<BoolT> IsSetWord32(TNode<Word32T> word32, uint32_t mask) {
     return Word32NotEqual(Word32And(word32, Int32Constant(mask)),
                           Int32Constant(0));
   }
 
   // Returns true if none of the mask's bits in given |word32| are set.
-  TNode<BoolT> IsNotSetWord32(SloppyTNode<Word32T> word32, uint32_t mask) {
+  TNode<BoolT> IsNotSetWord32(TNode<Word32T> word32, uint32_t mask) {
     return Word32Equal(Word32And(word32, Int32Constant(mask)),
                        Int32Constant(0));
   }
 
   // Returns true if all of the mask's bits in a given |word32| are set.
-  TNode<BoolT> IsAllSetWord32(SloppyTNode<Word32T> word32, uint32_t mask) {
+  TNode<BoolT> IsAllSetWord32(TNode<Word32T> word32, uint32_t mask) {
     TNode<Int32T> const_mask = Int32Constant(mask);
     return Word32Equal(Word32And(word32, const_mask), const_mask);
   }
@@ -2701,12 +2701,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Returns true if all of the |T|'s bits in given |word32| are clear.
   template <typename T>
-  TNode<BoolT> IsClearWord32(SloppyTNode<Word32T> word32) {
+  TNode<BoolT> IsClearWord32(TNode<Word32T> word32) {
     return IsClearWord32(word32, T::kMask);
   }
 
   // Returns true if all of the mask's bits in given |word32| are clear.
-  TNode<BoolT> IsClearWord32(SloppyTNode<Word32T> word32, uint32_t mask) {
+  TNode<BoolT> IsClearWord32(TNode<Word32T> word32, uint32_t mask) {
     return Word32Equal(Word32And(word32, Int32Constant(mask)),
                        Int32Constant(0));
   }
@@ -2759,7 +2759,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // - |if_not_internalized| if the string is not in the string table (but
   //                         does not add it).
   // - |if_bailout| for unsupported cases (e.g. uncachable array index).
-  void TryInternalizeString(SloppyTNode<String> string, Label* if_index,
+  void TryInternalizeString(TNode<String> string, Label* if_index,
                             TVariable<IntPtrT>* var_index,
                             Label* if_internalized,
                             TVariable<Name>* var_internalized,
@@ -3419,9 +3419,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Figure out the SFI's code object using its data field.
   // If |if_compile_lazy| is provided then the execution will go to the given
   // label in case of an CompileLazy code object.
-  TNode<Code> GetSharedFunctionInfoCode(
-      SloppyTNode<SharedFunctionInfo> shared_info,
-      Label* if_compile_lazy = nullptr);
+  TNode<Code> GetSharedFunctionInfoCode(TNode<SharedFunctionInfo> shared_info,
+                                        Label* if_compile_lazy = nullptr);
 
   TNode<JSFunction> AllocateFunctionWithMapAndContext(
       TNode<Map> map, TNode<SharedFunctionInfo> shared_info,
@@ -3448,8 +3447,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Support for printf-style debugging
   void Print(const char* s);
-  void Print(const char* prefix, SloppyTNode<MaybeObject> tagged_value);
-  void Print(SloppyTNode<MaybeObject> tagged_value) {
+  void Print(const char* prefix, TNode<MaybeObject> tagged_value);
+  void Print(TNode<MaybeObject> tagged_value) {
     return Print(nullptr, tagged_value);
   }
 

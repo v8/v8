@@ -85,7 +85,7 @@ void CodeStubAssembler::Assert(const NodeGenerator<BoolT>& condition_body,
 #endif
 }
 
-void CodeStubAssembler::Assert(SloppyTNode<Word32T> condition_node,
+void CodeStubAssembler::Assert(TNode<Word32T> condition_node,
                                const char* message, const char* file, int line,
                                std::initializer_list<ExtraNode> extra_nodes) {
 #if defined(DEBUG)
@@ -129,7 +129,7 @@ void CodeStubAssembler::Check(const NodeGenerator<BoolT>& condition_body,
   Check(branch, message, file, line, extra_nodes);
 }
 
-void CodeStubAssembler::Check(SloppyTNode<Word32T> condition_node,
+void CodeStubAssembler::Check(TNode<Word32T> condition_node,
                               const char* message, const char* file, int line,
                               std::initializer_list<ExtraNode> extra_nodes) {
   BranchGenerator branch = [=](Label* ok, Label* not_ok) {
@@ -1006,7 +1006,7 @@ TNode<Int32T> CodeStubAssembler::TruncateIntPtrToInt32(
   return ReinterpretCast<Int32T>(value);
 }
 
-TNode<BoolT> CodeStubAssembler::TaggedIsSmi(SloppyTNode<MaybeObject> a) {
+TNode<BoolT> CodeStubAssembler::TaggedIsSmi(TNode<MaybeObject> a) {
   STATIC_ASSERT(kSmiTagMask < kMaxUInt32);
   return Word32Equal(
       Word32And(TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(a)),
@@ -1014,7 +1014,7 @@ TNode<BoolT> CodeStubAssembler::TaggedIsSmi(SloppyTNode<MaybeObject> a) {
       Int32Constant(0));
 }
 
-TNode<BoolT> CodeStubAssembler::TaggedIsNotSmi(SloppyTNode<MaybeObject> a) {
+TNode<BoolT> CodeStubAssembler::TaggedIsNotSmi(TNode<MaybeObject> a) {
   return Word32BinaryNot(TaggedIsSmi(a));
 }
 
@@ -1835,14 +1835,12 @@ TNode<Smi> CodeStubAssembler::LoadStringLengthAsSmi(TNode<String> string) {
   return SmiFromIntPtr(LoadStringLengthAsWord(string));
 }
 
-TNode<IntPtrT> CodeStubAssembler::LoadStringLengthAsWord(
-    SloppyTNode<String> string) {
+TNode<IntPtrT> CodeStubAssembler::LoadStringLengthAsWord(TNode<String> string) {
   return Signed(ChangeUint32ToWord(LoadStringLengthAsWord32(string)));
 }
 
 TNode<Uint32T> CodeStubAssembler::LoadStringLengthAsWord32(
-    SloppyTNode<String> string) {
-  CSA_ASSERT(this, IsString(string));
+    TNode<String> string) {
   return LoadObjectField<Uint32T>(string, String::kLengthOffset);
 }
 
@@ -2696,7 +2694,7 @@ TNode<HeapObject> CodeStubAssembler::LoadJSFunctionPrototype(
 }
 
 TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
-    SloppyTNode<SharedFunctionInfo> shared) {
+    TNode<SharedFunctionInfo> shared) {
   TNode<HeapObject> function_data = LoadObjectField<HeapObject>(
       shared, SharedFunctionInfo::kFunctionDataOffset);
 
@@ -7297,7 +7295,7 @@ TNode<Object> CodeStubAssembler::OrdinaryToPrimitive(
   return CallStub(callable, context, input);
 }
 
-TNode<Uint32T> CodeStubAssembler::DecodeWord32(SloppyTNode<Word32T> word32,
+TNode<Uint32T> CodeStubAssembler::DecodeWord32(TNode<Word32T> word32,
                                                uint32_t shift, uint32_t mask) {
   DCHECK_EQ((mask >> shift) << shift, mask);
   return Unsigned(Word32And(Word32Shr(word32, static_cast<int>(shift)),
@@ -7490,7 +7488,7 @@ void CodeStubAssembler::TryToName(SloppyTNode<Object> key, Label* if_keyisindex,
 }
 
 void CodeStubAssembler::TryInternalizeString(
-    SloppyTNode<String> string, Label* if_index, TVariable<IntPtrT>* var_index,
+    TNode<String> string, Label* if_index, TVariable<IntPtrT>* var_index,
     Label* if_internalized, TVariable<Name>* var_internalized,
     Label* if_not_internalized, Label* if_bailout) {
   TNode<ExternalReference> function = ExternalConstant(
@@ -12979,7 +12977,7 @@ TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
 }
 
 TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
-    SloppyTNode<SharedFunctionInfo> shared_info, Label* if_compile_lazy) {
+    TNode<SharedFunctionInfo> shared_info, Label* if_compile_lazy) {
   TNode<Object> sfi_data =
       LoadObjectField(shared_info, SharedFunctionInfo::kFunctionDataOffset);
 
@@ -13212,7 +13210,7 @@ void CodeStubAssembler::Print(const char* s) {
 }
 
 void CodeStubAssembler::Print(const char* prefix,
-                              SloppyTNode<MaybeObject> tagged_value) {
+                              TNode<MaybeObject> tagged_value) {
   if (prefix != nullptr) {
     std::string formatted(prefix);
     formatted += ": ";
