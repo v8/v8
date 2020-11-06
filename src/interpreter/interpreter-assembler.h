@@ -191,12 +191,10 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
                                     TNode<UintPtrT> slot_id,
                                     TNode<HeapObject> maybe_feedback_vector);
 
-  // Call runtime function with |args| arguments which will return |return_size|
-  // number of values.
-  compiler::Node* CallRuntimeN(TNode<Uint32T> function_id,
-                               TNode<Context> context,
-                               const RegListNodePair& args,
-                               int return_size = 1);
+  // Call runtime function with |args| arguments.
+  template <class T = Object>
+  TNode<T> CallRuntimeN(TNode<Uint32T> function_id, TNode<Context> context,
+                        const RegListNodePair& args, int return_count);
 
   // Jump forward relative to the current bytecode by the |jump_offset|.
   void Jump(TNode<IntPtrT> jump_offset);

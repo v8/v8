@@ -838,10 +838,6 @@ Node* CodeAssembler::StoreRoot(RootIndex root_index, Node* value) {
                                        value);
 }
 
-Node* CodeAssembler::Retain(Node* value) {
-  return raw_assembler()->Retain(value);
-}
-
 Node* CodeAssembler::Projection(int index, Node* value) {
   DCHECK_LT(index, value->op()->ValueOutputCount());
   return raw_assembler()->Projection(index, value);
@@ -897,7 +893,7 @@ class NodeArray {
 };
 }  // namespace
 
-TNode<Object> CodeAssembler::CallRuntimeImpl(
+Node* CodeAssembler::CallRuntimeImpl(
     Runtime::FunctionId function, TNode<Object> context,
     std::initializer_list<TNode<Object>> args) {
   int result_size = Runtime::FunctionForId(function)->result_size;
@@ -927,7 +923,7 @@ TNode<Object> CodeAssembler::CallRuntimeImpl(
       raw_assembler()->CallN(call_descriptor, inputs.size(), inputs.data());
   HandleException(return_value);
   CallEpilogue();
-  return UncheckedCast<Object>(return_value);
+  return return_value;
 }
 
 void CodeAssembler::TailCallRuntimeImpl(
@@ -958,8 +954,7 @@ void CodeAssembler::TailCallRuntimeImpl(
 
 Node* CodeAssembler::CallStubN(StubCallMode call_mode,
                                const CallInterfaceDescriptor& descriptor,
-                               size_t result_size, int input_count,
-                               Node* const* inputs) {
+                               int input_count, Node* const* inputs) {
   DCHECK(call_mode == StubCallMode::kCallCodeObject ||
          call_mode == StubCallMode::kCallBuiltinPointer);
 
@@ -977,7 +972,6 @@ Node* CodeAssembler::CallStubN(StubCallMode call_mode,
   // Extra arguments not mentioned in the descriptor are passed on the stack.
   int stack_parameter_count = argc - descriptor.GetRegisterParameterCount();
   DCHECK_LE(descriptor.GetStackParameterCount(), stack_parameter_count);
-  DCHECK_EQ(result_size, descriptor.GetReturnCount());
 
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), descriptor, stack_parameter_count, CallDescriptor::kNoFlags,
@@ -1013,8 +1007,7 @@ void CodeAssembler::TailCallStubImpl(const CallInterfaceDescriptor& descriptor,
 
 Node* CodeAssembler::CallStubRImpl(StubCallMode call_mode,
                                    const CallInterfaceDescriptor& descriptor,
-                                   size_t result_size, TNode<Object> target,
-                                   TNode<Object> context,
+                                   TNode<Object> target, TNode<Object> context,
                                    std::initializer_list<Node*> args) {
   DCHECK(call_mode == StubCallMode::kCallCodeObject ||
          call_mode == StubCallMode::kCallBuiltinPointer);
@@ -1029,8 +1022,7 @@ Node* CodeAssembler::CallStubRImpl(StubCallMode call_mode,
     inputs.Add(context);
   }
 
-  return CallStubN(call_mode, descriptor, result_size, inputs.size(),
-                   inputs.data());
+  return CallStubN(call_mode, descriptor, inputs.size(), inputs.data());
 }
 
 Node* CodeAssembler::CallJSStubImpl(const CallInterfaceDescriptor& descriptor,
@@ -1052,7 +1044,7 @@ Node* CodeAssembler::CallJSStubImpl(const CallInterfaceDescriptor& descriptor,
   if (descriptor.HasContextParameter()) {
     inputs.Add(context);
   }
-  return CallStubN(StubCallMode::kCallCodeObject, descriptor, 1, inputs.size(),
+  return CallStubN(StubCallMode::kCallCodeObject, descriptor, inputs.size(),
                    inputs.data());
 }
 

@@ -182,8 +182,7 @@ TNode<Object> IntrinsicsGenerator::IntrinsicAsStubCall(
   }
   stub_args[index++] = context;
   return __ CAST(__ CallStubN(StubCallMode::kCallCodeObject,
-                              callable.descriptor(), 1, input_count,
-                              stub_args));
+                              callable.descriptor(), input_count, stub_args));
 }
 
 TNode<Object> IntrinsicsGenerator::IntrinsicAsBuiltinCall(

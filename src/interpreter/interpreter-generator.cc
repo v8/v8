@@ -36,7 +36,6 @@ namespace interpreter {
 namespace {
 
 using compiler::CodeAssemblerState;
-using compiler::Node;
 using Label = CodeStubAssembler::Label;
 
 #define IGNITION_HANDLER(Name, BaseAssembler)                         \
@@ -600,7 +599,6 @@ class InterpreterStoreNamedPropertyAssembler : public InterpreterAssembler {
       : InterpreterAssembler(state, bytecode, operand_scale) {}
 
   void StaNamedProperty(Callable ic, NamedPropertyType property_type) {
-    TNode<Code> code_target = HeapConstant(ic.code());
     TNode<Object> object = LoadRegisterAtOperandIndex(0);
     TNode<Name> name = CAST(LoadConstantPoolEntryAtOperandIndex(1));
     TNode<Object> value = GetAccumulator();
@@ -609,8 +607,7 @@ class InterpreterStoreNamedPropertyAssembler : public InterpreterAssembler {
     TNode<Context> context = GetContext();
 
     TVARIABLE(Object, var_result);
-    var_result = CallStub(ic.descriptor(), code_target, context, object, name,
-                          value, slot, maybe_vector);
+    var_result = CallStub(ic, context, object, name, value, slot, maybe_vector);
     // To avoid special logic in the deoptimizer to re-materialize the value in
     // the accumulator, we overwrite the accumulator after the IC call. It
     // doesn't really matter what we write to the accumulator here, since we
@@ -1478,7 +1475,7 @@ IGNITION_HANDLER(CallRuntime, InterpreterAssembler) {
   TNode<Uint32T> function_id = BytecodeOperandRuntimeId(0);
   RegListNodePair args = GetRegisterListAtOperandIndex(1);
   TNode<Context> context = GetContext();
-  TNode<Object> result = CAST(CallRuntimeN(function_id, context, args));
+  TNode<Object> result = CallRuntimeN(function_id, context, args, 1);
   SetAccumulator(result);
   Dispatch();
 }
@@ -1509,10 +1506,11 @@ IGNITION_HANDLER(CallRuntimeForPair, InterpreterAssembler) {
   TNode<Uint32T> function_id = BytecodeOperandRuntimeId(0);
   RegListNodePair args = GetRegisterListAtOperandIndex(1);
   TNode<Context> context = GetContext();
-  Node* result_pair = CallRuntimeN(function_id, context, args, 2);
+  auto result_pair =
+      CallRuntimeN<PairT<Object, Object>>(function_id, context, args, 2);
   // Store the results in <first_return> and <first_return + 1>
-  TNode<Object> result0 = CAST(Projection(0, result_pair));
-  TNode<Object> result1 = CAST(Projection(1, result_pair));
+  TNode<Object> result0 = Projection<0>(result_pair);
+  TNode<Object> result1 = Projection<1>(result_pair);
   StoreRegisterPairAtOperandIndex(result0, result1, 3);
   Dispatch();
 }
@@ -2193,8 +2191,7 @@ IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   BIND(&osr_armed);
   {
     Callable callable = CodeFactory::InterpreterOnStackReplacement(isolate());
-    TNode<Code> target = HeapConstant(callable.code());
-    CallStub(callable.descriptor(), target, context);
+    CallStub(callable, context);
     JumpBackward(relative_jump);
   }
 }
@@ -2780,10 +2777,10 @@ IGNITION_HANDLER(Debugger, InterpreterAssembler) {
   IGNITION_HANDLER(Name, InterpreterAssembler) {                             \
     TNode<Context> context = GetContext();                                   \
     TNode<Object> accumulator = GetAccumulator();                            \
-    TNode<Object> result_pair =                                              \
-        CallRuntime(Runtime::kDebugBreakOnBytecode, context, accumulator);   \
-    TNode<Object> return_value = CAST(Projection(0, result_pair));           \
-    TNode<IntPtrT> original_bytecode = SmiUntag(Projection(1, result_pair)); \
+    TNode<PairT<Object, Smi>> result_pair = CallRuntime<PairT<Object, Smi>>( \
+        Runtime::kDebugBreakOnBytecode, context, accumulator);               \
+    TNode<Object> return_value = Projection<0>(result_pair);                 \
+    TNode<IntPtrT> original_bytecode = SmiUntag(Projection<1>(result_pair)); \
     MaybeDropFrames(context);                                                \
     SetAccumulator(return_value);                                            \
     DispatchToBytecode(original_bytecode, BytecodeOffset());                 \

@@ -991,10 +991,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // kSetOverflowToMin.
   TNode<Int32T> TruncateFloat32ToInt32(SloppyTNode<Float32T> value);
 
-  // No-op that guarantees that the value is kept alive till this point even
-  // if GC happens.
-  Node* Retain(Node* value);
-
   // Projections
   Node* Projection(int index, Node* value);
 
@@ -1007,11 +1003,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   }
 
   // Calls
-  template <class... TArgs>
-  TNode<Object> CallRuntime(Runtime::FunctionId function, TNode<Object> context,
-                            TArgs... args) {
-    return CallRuntimeImpl(function, context,
-                           {implicit_cast<TNode<Object>>(args)...});
+  template <class T = Object, class... TArgs>
+  TNode<T> CallRuntime(Runtime::FunctionId function, TNode<Object> context,
+                       TArgs... args) {
+    return UncheckedCast<T>(CallRuntimeImpl(
+        function, context, {implicit_cast<TNode<Object>>(args)...}));
   }
 
   template <class... TArgs>
@@ -1045,27 +1041,19 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<T> CallStub(const CallInterfaceDescriptor& descriptor,
                     TNode<Code> target, TNode<Object> context, TArgs... args) {
     return UncheckedCast<T>(CallStubR(StubCallMode::kCallCodeObject, descriptor,
-                                      1, target, context, args...));
-  }
-
-  template <class... TArgs>
-  Node* CallStubR(StubCallMode call_mode,
-                  const CallInterfaceDescriptor& descriptor, size_t result_size,
-                  TNode<Object> target, TNode<Object> context, TArgs... args) {
-    return CallStubRImpl(call_mode, descriptor, result_size, target, context,
-                         {args...});
+                                      target, context, args...));
   }
 
   Node* CallStubN(StubCallMode call_mode,
-                  const CallInterfaceDescriptor& descriptor, size_t result_size,
-                  int input_count, Node* const* inputs);
+                  const CallInterfaceDescriptor& descriptor, int input_count,
+                  Node* const* inputs);
 
   template <class T = Object, class... TArgs>
   TNode<T> CallBuiltinPointer(const CallInterfaceDescriptor& descriptor,
                               TNode<BuiltinPtr> target, TNode<Object> context,
                               TArgs... args) {
     return UncheckedCast<T>(CallStubR(StubCallMode::kCallBuiltinPointer,
-                                      descriptor, 1, target, context, args...));
+                                      descriptor, target, context, args...));
   }
 
   template <class... TArgs>
@@ -1212,9 +1200,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
       Node* function, MachineType return_type, SaveFPRegsMode mode,
       std::initializer_list<CFunctionArg> args);
 
-  TNode<Object> CallRuntimeImpl(Runtime::FunctionId function,
-                                TNode<Object> context,
-                                std::initializer_list<TNode<Object>> args);
+  Node* CallRuntimeImpl(Runtime::FunctionId function, TNode<Object> context,
+                        std::initializer_list<TNode<Object>> args);
 
   void TailCallRuntimeImpl(Runtime::FunctionId function, TNode<Int32T> arity,
                            TNode<Object> context,
@@ -1228,10 +1215,17 @@ class V8_EXPORT_PRIVATE CodeAssembler {
       const CallInterfaceDescriptor& descriptor, Node* target, Node* context,
       std::initializer_list<Node*> args);
 
+  template <class... TArgs>
+  Node* CallStubR(StubCallMode call_mode,
+                  const CallInterfaceDescriptor& descriptor,
+                  TNode<Object> target, TNode<Object> context, TArgs... args) {
+    return CallStubRImpl(call_mode, descriptor, target, context, {args...});
+  }
+
   Node* CallStubRImpl(StubCallMode call_mode,
                       const CallInterfaceDescriptor& descriptor,
-                      size_t result_size, TNode<Object> target,
-                      TNode<Object> context, std::initializer_list<Node*> args);
+                      TNode<Object> target, TNode<Object> context,
+                      std::initializer_list<Node*> args);
 
   Node* CallJSStubImpl(const CallInterfaceDescriptor& descriptor,
                        TNode<Object> target, TNode<Object> context,
