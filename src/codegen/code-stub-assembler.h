@@ -1226,32 +1226,32 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load the number of own descriptors of a map.
   TNode<Int32T> LoadNumberOfOwnDescriptors(TNode<Map> map);
   // Load the bit field of a Map.
-  TNode<Int32T> LoadMapBitField(SloppyTNode<Map> map);
+  TNode<Int32T> LoadMapBitField(TNode<Map> map);
   // Load bit field 2 of a map.
-  TNode<Int32T> LoadMapBitField2(SloppyTNode<Map> map);
+  TNode<Int32T> LoadMapBitField2(TNode<Map> map);
   // Load bit field 3 of a map.
-  TNode<Uint32T> LoadMapBitField3(SloppyTNode<Map> map);
+  TNode<Uint32T> LoadMapBitField3(TNode<Map> map);
   // Load the instance type of a map.
-  TNode<Uint16T> LoadMapInstanceType(SloppyTNode<Map> map);
+  TNode<Uint16T> LoadMapInstanceType(TNode<Map> map);
   // Load the ElementsKind of a map.
-  TNode<Int32T> LoadMapElementsKind(SloppyTNode<Map> map);
+  TNode<Int32T> LoadMapElementsKind(TNode<Map> map);
   TNode<Int32T> LoadElementsKind(SloppyTNode<HeapObject> object);
   // Load the instance descriptors of a map.
-  TNode<DescriptorArray> LoadMapDescriptors(SloppyTNode<Map> map);
+  TNode<DescriptorArray> LoadMapDescriptors(TNode<Map> map);
   // Load the prototype of a map.
-  TNode<HeapObject> LoadMapPrototype(SloppyTNode<Map> map);
+  TNode<HeapObject> LoadMapPrototype(TNode<Map> map);
   // Load the instance size of a Map.
-  TNode<IntPtrT> LoadMapInstanceSizeInWords(SloppyTNode<Map> map);
+  TNode<IntPtrT> LoadMapInstanceSizeInWords(TNode<Map> map);
   // Load the inobject properties start of a Map (valid only for JSObjects).
-  TNode<IntPtrT> LoadMapInobjectPropertiesStartInWords(SloppyTNode<Map> map);
+  TNode<IntPtrT> LoadMapInobjectPropertiesStartInWords(TNode<Map> map);
   // Load the constructor function index of a Map (only for primitive maps).
-  TNode<IntPtrT> LoadMapConstructorFunctionIndex(SloppyTNode<Map> map);
+  TNode<IntPtrT> LoadMapConstructorFunctionIndex(TNode<Map> map);
   // Load the constructor of a Map (equivalent to Map::GetConstructor()).
-  TNode<Object> LoadMapConstructor(SloppyTNode<Map> map);
+  TNode<Object> LoadMapConstructor(TNode<Map> map);
   // Load the EnumLength of a Map.
-  TNode<WordT> LoadMapEnumLength(SloppyTNode<Map> map);
+  TNode<WordT> LoadMapEnumLength(TNode<Map> map);
   // Load the back-pointer of a Map.
-  TNode<Object> LoadMapBackPointer(SloppyTNode<Map> map);
+  TNode<Object> LoadMapBackPointer(TNode<Map> map);
   // Checks that |map| has only simple properties, returns bitfield3.
   TNode<Uint32T> EnsureOnlyHasSimpleProperties(TNode<Map> map,
                                                TNode<Int32T> instance_type,
@@ -1266,7 +1266,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                      TNode<IntPtrT> length);
 
   // Check if the map is set for slow properties.
-  TNode<BoolT> IsDictionaryMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsDictionaryMap(TNode<Map> map);
 
   // Load the Name::hash() value of a name as an uint32 value.
   // If {if_hash_not_computed} label is specified then it also checks if
@@ -1759,10 +1759,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       SlackTrackingMode slack_tracking_mode = kNoSlackTracking);
 
   void InitializeJSObjectBodyWithSlackTracking(
-      SloppyTNode<HeapObject> object, SloppyTNode<Map> map,
+      SloppyTNode<HeapObject> object, TNode<Map> map,
       SloppyTNode<IntPtrT> instance_size);
   void InitializeJSObjectBodyNoSlackTracking(
-      SloppyTNode<HeapObject> object, SloppyTNode<Map> map,
+      SloppyTNode<HeapObject> object, TNode<Map> map,
       SloppyTNode<IntPtrT> instance_size,
       int start_offset = JSObject::kHeaderSize);
 
@@ -2316,16 +2316,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsBigIntInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsBigInt(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsBoolean(SloppyTNode<HeapObject> object);
-  TNode<BoolT> IsCallableMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsCallableMap(TNode<Map> map);
   TNode<BoolT> IsCallable(SloppyTNode<HeapObject> object);
   TNode<BoolT> TaggedIsCallable(TNode<Object> object);
   TNode<BoolT> IsConsStringInstanceType(SloppyTNode<Int32T> instance_type);
-  TNode<BoolT> IsConstructorMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsConstructorMap(TNode<Map> map);
   TNode<BoolT> IsConstructor(SloppyTNode<HeapObject> object);
-  TNode<BoolT> IsDeprecatedMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsDeprecatedMap(TNode<Map> map);
   TNode<BoolT> IsNameDictionary(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsGlobalDictionary(SloppyTNode<HeapObject> object);
-  TNode<BoolT> IsExtensibleMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsExtensibleMap(TNode<Map> map);
   TNode<BoolT> IsExtensibleNonPrototypeMap(TNode<Map> map);
   TNode<BoolT> IsExternalStringInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsFixedArray(SloppyTNode<HeapObject> object);
@@ -2334,7 +2334,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     ElementsKind kind);
   TNode<BoolT> IsFixedArrayWithKindOrEmpty(SloppyTNode<FixedArrayBase> object,
                                            ElementsKind kind);
-  TNode<BoolT> IsFunctionWithPrototypeSlotMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsFunctionWithPrototypeSlotMap(TNode<Map> map);
   TNode<BoolT> IsHashTable(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsEphemeronHashTable(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsHeapNumberInstanceType(SloppyTNode<Int32T> instance_type);
@@ -2344,39 +2344,39 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSArrayBuffer(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSDataView(TNode<HeapObject> object);
   TNode<BoolT> IsJSArrayInstanceType(SloppyTNode<Int32T> instance_type);
-  TNode<BoolT> IsJSArrayMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsJSArrayMap(TNode<Map> map);
   TNode<BoolT> IsJSArray(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSArrayIterator(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSAsyncGeneratorObject(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSFunctionInstanceType(SloppyTNode<Int32T> instance_type);
-  TNode<BoolT> IsJSFunctionMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsJSFunctionMap(TNode<Map> map);
   TNode<BoolT> IsJSFunction(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSBoundFunction(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSGeneratorObject(TNode<HeapObject> object);
   TNode<BoolT> IsJSGlobalProxyInstanceType(SloppyTNode<Int32T> instance_type);
-  TNode<BoolT> IsJSGlobalProxyMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsJSGlobalProxyMap(TNode<Map> map);
   TNode<BoolT> IsJSGlobalProxy(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSObjectInstanceType(SloppyTNode<Int32T> instance_type);
-  TNode<BoolT> IsJSObjectMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsJSObjectMap(TNode<Map> map);
   TNode<BoolT> IsJSObject(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSFinalizationRegistryMap(TNode<Map> map);
   TNode<BoolT> IsJSFinalizationRegistry(TNode<HeapObject> object);
-  TNode<BoolT> IsJSPromiseMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsJSPromiseMap(TNode<Map> map);
   TNode<BoolT> IsJSPromise(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSProxy(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSStringIterator(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSRegExpStringIterator(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSReceiverInstanceType(SloppyTNode<Int32T> instance_type);
-  TNode<BoolT> IsJSReceiverMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsJSReceiverMap(TNode<Map> map);
   TNode<BoolT> IsJSReceiver(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSRegExp(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSTypedArrayInstanceType(SloppyTNode<Int32T> instance_type);
-  TNode<BoolT> IsJSTypedArrayMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsJSTypedArrayMap(TNode<Map> map);
   TNode<BoolT> IsJSTypedArray(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSGeneratorMap(TNode<Map> map);
   TNode<BoolT> IsJSPrimitiveWrapperInstanceType(
       SloppyTNode<Int32T> instance_type);
-  TNode<BoolT> IsJSPrimitiveWrapperMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsJSPrimitiveWrapperMap(TNode<Map> map);
   TNode<BoolT> IsJSPrimitiveWrapper(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsMap(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsName(SloppyTNode<HeapObject> object);
@@ -2392,9 +2392,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsPropertyCell(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsPromiseReactionJobTask(TNode<HeapObject> object);
   TNode<BoolT> IsPrototypeInitialArrayPrototype(SloppyTNode<Context> context,
-                                                SloppyTNode<Map> map);
+                                                TNode<Map> map);
   TNode<BoolT> IsPrototypeTypedArrayPrototype(SloppyTNode<Context> context,
-                                              SloppyTNode<Map> map);
+                                              TNode<Map> map);
 
   TNode<BoolT> IsFastAliasedArgumentsMap(TNode<Context> context,
                                          TNode<Map> map);
@@ -2410,7 +2410,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsSpecialReceiverInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsCustomElementsReceiverInstanceType(
       TNode<Int32T> instance_type);
-  TNode<BoolT> IsSpecialReceiverMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsSpecialReceiverMap(TNode<Map> map);
   TNode<BoolT> IsStringInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsString(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsSeqOneByteString(TNode<HeapObject> object);
@@ -2420,7 +2420,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsUniqueName(TNode<HeapObject> object);
   TNode<BoolT> IsUniqueNameNoIndex(TNode<HeapObject> object);
   TNode<BoolT> IsUniqueNameNoCachedIndex(TNode<HeapObject> object);
-  TNode<BoolT> IsUndetectableMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsUndetectableMap(TNode<Map> map);
   TNode<BoolT> IsNotWeakFixedArraySubclass(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsZeroOrContext(SloppyTNode<Object> object);
 
@@ -3030,7 +3030,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   //
   // Note: this code does not check if the global dictionary points to deleted
   // entry! This has to be done by the caller.
-  void TryLookupProperty(SloppyTNode<HeapObject> object, SloppyTNode<Map> map,
+  void TryLookupProperty(SloppyTNode<HeapObject> object, TNode<Map> map,
                          SloppyTNode<Int32T> instance_type,
                          SloppyTNode<Name> unique_name, Label* if_found_fast,
                          Label* if_found_dict, Label* if_found_global,
