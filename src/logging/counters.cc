@@ -609,6 +609,7 @@ WorkerThreadRuntimeCallStats::~WorkerThreadRuntimeCallStats() {
 }
 
 base::Thread::LocalStorageKey WorkerThreadRuntimeCallStats::GetKey() {
+  base::MutexGuard lock(&mutex_);
   DCHECK(TracingFlags::is_runtime_stats_enabled());
   if (!tls_key_) tls_key_ = base::Thread::CreateThreadLocalKey();
   return *tls_key_;
