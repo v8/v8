@@ -2726,7 +2726,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
   // to ensure any exception is thrown in the correct context.
   Node* context;
   HeapObjectMatcher m(target);
-  if (m.HasResolvedValue()) {
+  if (m.HasResolvedValue() && m.Ref(broker()).IsJSFunction()) {
     JSFunctionRef function = m.Ref(broker()).AsJSFunction();
     if (should_disallow_heap_access() && !function.serialized()) {
       TRACE_BROKER_MISSING(broker(), "Serialize call on function " << function);
@@ -7346,7 +7346,7 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
 
   // Check that the {offset} is within range for the {receiver}.
   HeapObjectMatcher m(receiver);
-  if (m.HasResolvedValue()) {
+  if (m.HasResolvedValue() && m.Ref(broker()).IsJSDataView()) {
     // We only deal with DataViews here whose [[ByteLength]] is at least
     // {element_size}, as for all other DataViews it'll be out-of-bounds.
     JSDataViewRef dataview = m.Ref(broker()).AsJSDataView();
