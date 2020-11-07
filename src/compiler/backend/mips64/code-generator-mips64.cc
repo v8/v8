@@ -1318,7 +1318,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kMips64AbsS:
-      __ abs_s(i.OutputSingleRegister(), i.InputSingleRegister(0));
+      if (kArchVariant == kMips64r6) {
+        __ abs_s(i.OutputSingleRegister(), i.InputSingleRegister(0));
+      } else {
+        __ mfc1(kScratchReg, i.InputSingleRegister(0));
+        __ Dins(kScratchReg, zero_reg, 31, 1);
+        __ mtc1(kScratchReg, i.OutputSingleRegister());
+      }
       break;
     case kMips64NegS:
       __ Neg_s(i.OutputSingleRegister(), i.InputSingleRegister(0));
@@ -1378,7 +1384,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kMips64AbsD:
-      __ abs_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      if (kArchVariant == kMips64r6) {
+        __ abs_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      } else {
+        __ dmfc1(kScratchReg, i.InputDoubleRegister(0));
+        __ Dins(kScratchReg, zero_reg, 63, 1);
+        __ dmtc1(kScratchReg, i.OutputDoubleRegister());
+      }
       break;
     case kMips64NegD:
       __ Neg_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
