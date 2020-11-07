@@ -101,6 +101,16 @@ consts_misc = [
     { 'name': 'OddballOther',           'value': 'Oddball::kOther' },
     { 'name': 'OddballException',       'value': 'Oddball::kException' },
 
+    { 'name': 'ContextRegister',        'value': 'kContextRegister.code()' },
+    { 'name': 'ReturnRegister0',        'value': 'kReturnRegister0.code()' },
+    { 'name': 'JSFunctionRegister',     'value': 'kJSFunctionRegister.code()' },
+    { 'name': 'InterpreterBytecodeOffsetRegister',
+      'value': 'kInterpreterBytecodeOffsetRegister.code()' },
+    { 'name': 'InterpreterBytecodeArrayRegister',
+      'value': 'kInterpreterBytecodeArrayRegister.code()' },
+    { 'name': 'RuntimeCallFunctionRegister',
+      'value': 'kRuntimeCallFunctionRegister.code()' },
+
     { 'name': 'prop_kind_Data',
         'value': 'kData' },
     { 'name': 'prop_kind_Accessor',
@@ -307,6 +317,7 @@ header = '''
  */
 
 #include "src/init/v8.h"
+#include "src/codegen/register-arch.h"
 #include "src/execution/frames.h"
 #include "src/execution/frames-inl.h" /* for architecture-specific frame constants */
 #include "src/objects/contexts.h"
@@ -322,7 +333,7 @@ extern "C" {
 
 /* stack frame constants */
 #define FRAME_CONST(value, klass)       \
-    int v8dbg_frametype_##klass = StackFrame::value;
+    V8_EXPORT int v8dbg_frametype_##klass = StackFrame::value;
 
 STACK_FRAME_TYPE_LIST(FRAME_CONST)
 
@@ -675,7 +686,7 @@ def emit_set(out, consts):
         for const in consts:
                 name = ws.sub('', const['name'])
                 value = ws.sub('', str(const['value']))  # Can be a number.
-                lines.add('int v8dbg_%s = %s;\n' % (name, value))
+                lines.add('V8_EXPORT int v8dbg_%s = %s;\n' % (name, value))
 
         for line in lines:
                 out.write(line);
