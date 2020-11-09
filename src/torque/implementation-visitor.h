@@ -278,6 +278,8 @@ class Binding : public T {
 
     manager_->current_bindings_[name_] = previous_binding_;
   }
+  Binding(const Binding&) = delete;
+  Binding& operator=(const Binding&) = delete;
 
   std::string BindingTypeString() const;
   bool CheckWritten() const;
@@ -300,7 +302,6 @@ class Binding : public T {
   SourcePosition declaration_position_ = CurrentSourcePosition::Get();
   bool used_;
   bool written_;
-  DISALLOW_COPY_AND_ASSIGN(Binding);
 };
 
 template <class T>
