@@ -432,7 +432,7 @@ int ObjectLiteral::InitDepthAndFlags() {
     // literal with fast elements will be a waste of space.
     uint32_t element_index = 0;
     if (key->AsArrayIndex(&element_index)) {
-      max_element_index = std::max(element_index, max_element_index);
+      max_element_index = Max(element_index, max_element_index);
       elements++;
     } else {
       DCHECK(key->IsPropertyName());

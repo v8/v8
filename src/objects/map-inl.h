@@ -172,7 +172,7 @@ bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
   if (UnusedPropertyFields() != 0) return false;
   if (is_prototype_map()) return false;
   if (store_origin == StoreOrigin::kNamed) {
-    int limit = std::max(kMaxFastProperties, GetInObjectProperties());
+    int limit = Max(kMaxFastProperties, GetInObjectProperties());
     FieldCounts counts = GetFieldCounts();
     // Only count mutable fields so that objects with large numbers of
     // constant functions do not go to dictionary mode. That would be bad
@@ -180,7 +180,7 @@ bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
     int external = counts.mutable_count() - GetInObjectProperties();
     return external > limit || counts.GetTotal() > kMaxNumberOfDescriptors;
   } else {
-    int limit = std::max(kFastPropertiesSoftLimit, GetInObjectProperties());
+    int limit = Max(kFastPropertiesSoftLimit, GetInObjectProperties());
     int external = NumberOfFields() - GetInObjectProperties();
     return external > limit;
   }
@@ -833,7 +833,7 @@ int Map::SlackForArraySize(int old_size, int size_limit) {
     DCHECK_LE(1, max_slack);
     return 1;
   }
-  return std::min(max_slack, old_size / 4);
+  return Min(max_slack, old_size / 4);
 }
 
 int Map::InstanceSizeFromSlack(int slack) const {

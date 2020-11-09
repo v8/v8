@@ -356,7 +356,7 @@ class WeakArrayList
   }
 
   static constexpr int CapacityForLength(int length) {
-    return length + std::max(length / 2, 2);
+    return length + Max(length / 2, 2);
   }
 
   // Gives access to raw memory which stores the array's data.

@@ -23,8 +23,7 @@ MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Allocate(
   // from number of buckets. If we decide to change kLoadFactor
   // to something other than 2, capacity should be stored as another
   // field of this object.
-  capacity =
-      base::bits::RoundUpToPowerOfTwo32(std::max(kInitialCapacity, capacity));
+  capacity = base::bits::RoundUpToPowerOfTwo32(Max(kInitialCapacity, capacity));
   if (capacity > MaxCapacity()) {
     return MaybeHandle<Derived>();
   }

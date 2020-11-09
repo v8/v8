@@ -988,7 +988,7 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
       Handle<String> string(String::cast(js_value->value()), isolate);
       uint32_t length = static_cast<uint32_t>(string->length());
       uint32_t i = 0;
-      uint32_t limit = std::min(length, range);
+      uint32_t limit = Min(length, range);
       for (; i < limit; i++) {
         indices->push_back(i);
       }

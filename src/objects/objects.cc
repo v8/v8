@@ -3966,7 +3966,7 @@ Handle<FixedArray> EnsureSpaceInFixedArray(Isolate* isolate,
   int capacity = array->length();
   if (capacity < length) {
     int new_capacity = length;
-    new_capacity = new_capacity + std::max(new_capacity / 2, 2);
+    new_capacity = new_capacity + Max(new_capacity / 2, 2);
     int grow_by = new_capacity - capacity;
     array = isolate->factory()->CopyFixedArrayAndGrow(array, grow_by);
   }

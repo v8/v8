@@ -228,7 +228,7 @@ Maybe<int> JSBoundFunction::GetLength(Isolate* isolate,
                             isolate);
   int target_length = target->length();
 
-  int length = std::max(0, target_length - nof_bound_arguments);
+  int length = Max(0, target_length - nof_bound_arguments);
   return Just(length);
 }
 
@@ -627,9 +627,9 @@ bool FastInitializeDerivedMap(Isolate* isolate, Handle<JSFunction> new_target,
   // 2) the prototype chain is modified during iteration, or 3) compilation
   // failure occur during prototype chain iteration.
   // So we take the maximum of two values.
-  int expected_nof_properties = std::max(
-      static_cast<int>(constructor->shared().expected_nof_properties()),
-      JSFunction::CalculateExpectedNofProperties(isolate, new_target));
+  int expected_nof_properties =
+      Max(static_cast<int>(constructor->shared().expected_nof_properties()),
+          JSFunction::CalculateExpectedNofProperties(isolate, new_target));
   JSFunction::CalculateInstanceSizeHelper(
       instance_type, true, embedder_fields, expected_nof_properties,
       &instance_size, &in_object_properties);
@@ -917,8 +917,8 @@ void JSFunction::CalculateInstanceSizeHelper(InstanceType instance_type,
   CHECK_LE(max_nof_fields, JSObject::kMaxInObjectProperties);
   CHECK_LE(static_cast<unsigned>(requested_embedder_fields),
            static_cast<unsigned>(max_nof_fields));
-  *in_object_properties = std::min(requested_in_object_properties,
-                                   max_nof_fields - requested_embedder_fields);
+  *in_object_properties = Min(requested_in_object_properties,
+                              max_nof_fields - requested_embedder_fields);
   *instance_size =
       header_size +
       ((requested_embedder_fields + *in_object_properties) << kTaggedSizeLog2);
