@@ -3829,7 +3829,7 @@ void CppClassGenerator::GenerateClass() {
 
   hdr_ << "};\n\n";
 
-  if (!type_->IsExtern()) {
+  if (type_->ShouldGenerateFullClassDefinition()) {
     GenerateClassExport(type_, hdr_, inl_);
   }
 }
@@ -4542,8 +4542,10 @@ void ImplementationVisitor::GenerateBodyDescriptors(
       if (type->size().SingleValue()) {
         h_contents << "    return " << *type->size().SingleValue() << ";\n";
       } else {
+        // We use an unchecked_cast here because this is used for concurrent
+        // marking, where we shouldn't re-read the map.
         h_contents << "    return " << name
-                   << "::cast(raw_object).AllocatedSize();\n";
+                   << "::unchecked_cast(raw_object).AllocatedSize();\n";
       }
       h_contents << "  }\n\n";
 

@@ -347,6 +347,13 @@ FixedArray ConcurrentMarkingVisitor::Cast(HeapObject object) {
   return FixedArray::unchecked_cast(object);
 }
 
+// The Deserializer changes the map from StrongDescriptorArray to
+// DescriptorArray
+template <>
+StrongDescriptorArray ConcurrentMarkingVisitor::Cast(HeapObject object) {
+  return StrongDescriptorArray::unchecked_cast(DescriptorArray::cast(object));
+}
+
 class ConcurrentMarking::JobTask : public v8::JobTask {
  public:
   JobTask(ConcurrentMarking* concurrent_marking, unsigned mark_compact_epoch,
