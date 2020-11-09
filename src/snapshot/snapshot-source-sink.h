@@ -33,6 +33,8 @@ class SnapshotByteSource final {
       : data_(payload.begin()), length_(payload.length()), position_(0) {}
 
   ~SnapshotByteSource() = default;
+  SnapshotByteSource(const SnapshotByteSource&) = delete;
+  SnapshotByteSource& operator=(const SnapshotByteSource&) = delete;
 
   bool HasMore() { return position_ < length_; }
 
@@ -108,8 +110,6 @@ class SnapshotByteSource final {
   const byte* data_;
   int length_;
   int position_;
-
-  DISALLOW_COPY_AND_ASSIGN(SnapshotByteSource);
 };
 
 /**

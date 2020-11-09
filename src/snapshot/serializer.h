@@ -47,6 +47,8 @@ class CodeAddressMap : public CodeEventLogger {
   class NameMap {
    public:
     NameMap() : impl_() {}
+    NameMap(const NameMap&) = delete;
+    NameMap& operator=(const NameMap&) = delete;
 
     ~NameMap() {
       for (base::HashMap::Entry* p = impl_.Start(); p != nullptr;
@@ -114,8 +116,6 @@ class CodeAddressMap : public CodeEventLogger {
     }
 
     base::HashMap impl_;
-
-    DISALLOW_COPY_AND_ASSIGN(NameMap);
   };
 
   void LogRecordedBuffer(Handle<AbstractCode> code,
@@ -135,6 +135,8 @@ class CodeAddressMap : public CodeEventLogger {
 class ObjectCacheIndexMap {
  public:
   explicit ObjectCacheIndexMap(Heap* heap) : map_(heap), next_index_(0) {}
+  ObjectCacheIndexMap(const ObjectCacheIndexMap&) = delete;
+  ObjectCacheIndexMap& operator=(const ObjectCacheIndexMap&) = delete;
 
   // If |obj| is in the map, immediately return true.  Otherwise add it to the
   // map and return false. In either case set |*index_out| to the index
@@ -153,14 +155,14 @@ class ObjectCacheIndexMap {
 
   IdentityMap<int, base::DefaultAllocationPolicy> map_;
   int next_index_;
-
-  DISALLOW_COPY_AND_ASSIGN(ObjectCacheIndexMap);
 };
 
 class Serializer : public SerializerDeserializer {
  public:
   Serializer(Isolate* isolate, Snapshot::SerializerFlags flags);
   ~Serializer() override { DCHECK_EQ(unresolved_forward_refs_, 0); }
+  Serializer(const Serializer&) = delete;
+  Serializer& operator=(const Serializer&) = delete;
 
   const std::vector<byte>* Payload() const { return sink_.data(); }
 
@@ -298,6 +300,8 @@ class Serializer : public SerializerDeserializer {
    public:
     explicit HotObjectsList(Heap* heap);
     ~HotObjectsList();
+    HotObjectsList(const HotObjectsList&) = delete;
+    HotObjectsList& operator=(const HotObjectsList&) = delete;
 
     void Add(HeapObject object) {
       circular_queue_[index_] = object.ptr();
@@ -324,8 +328,6 @@ class Serializer : public SerializerDeserializer {
     StrongRootsEntry* strong_roots_entry_;
     Address circular_queue_[kSize] = {kNullAddress};
     int index_ = 0;
-
-    DISALLOW_COPY_AND_ASSIGN(HotObjectsList);
   };
 
   // Disallow GC during serialization.
@@ -380,8 +382,6 @@ class Serializer : public SerializerDeserializer {
   GlobalHandleVector<HeapObject> back_refs_;
   GlobalHandleVector<HeapObject> stack_;
 #endif  // DEBUG
-
-  DISALLOW_COPY_AND_ASSIGN(Serializer);
 };
 
 class RelocInfoIterator;

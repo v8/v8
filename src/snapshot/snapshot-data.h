@@ -30,6 +30,8 @@ class SerializedData {
     // Ensure |other| will not attempt to destroy our data in destructor.
     other.owns_data_ = false;
   }
+  SerializedData(const SerializedData&) = delete;
+  SerializedData& operator=(const SerializedData&) = delete;
 
   virtual ~SerializedData() {
     if (owns_data_) DeleteArray<byte>(data_);
@@ -62,9 +64,6 @@ class SerializedData {
   byte* data_;
   uint32_t size_;
   bool owns_data_;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(SerializedData);
 };
 
 // Wrapper around reservation sizes and the serialization payload.

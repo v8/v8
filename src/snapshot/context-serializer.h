@@ -21,6 +21,8 @@ class V8_EXPORT_PRIVATE ContextSerializer : public Serializer {
                     v8::SerializeEmbedderFieldsCallback callback);
 
   ~ContextSerializer() override;
+  ContextSerializer(const ContextSerializer&) = delete;
+  ContextSerializer& operator=(const ContextSerializer&) = delete;
 
   // Serialize the objects reachable from a single object pointer.
   void Serialize(Context* o, const DisallowGarbageCollection& no_gc);
@@ -42,7 +44,6 @@ class V8_EXPORT_PRIVATE ContextSerializer : public Serializer {
 
   // Used to store serialized data for embedder fields.
   SnapshotByteSink embedder_fields_sink_;
-  DISALLOW_COPY_AND_ASSIGN(ContextSerializer);
 };
 
 }  // namespace internal

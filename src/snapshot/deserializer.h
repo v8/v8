@@ -53,6 +53,8 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   static constexpr Smi uninitialized_field_value() { return Smi(kNullAddress); }
 
   ~Deserializer() override;
+  Deserializer(const Deserializer&) = delete;
+  Deserializer& operator=(const Deserializer&) = delete;
 
   uint32_t GetChecksum() const { return source_.GetChecksum(); }
 
@@ -138,6 +140,8 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   class HotObjectsList {
    public:
     HotObjectsList() = default;
+    HotObjectsList(const HotObjectsList&) = delete;
+    HotObjectsList& operator=(const HotObjectsList&) = delete;
 
     void Add(Handle<HeapObject> object) {
       circular_queue_[index_] = object;
@@ -155,8 +159,6 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
     STATIC_ASSERT(base::bits::IsPowerOfTwo(kSize));
     Handle<HeapObject> circular_queue_[kSize];
     int index_ = 0;
-
-    DISALLOW_COPY_AND_ASSIGN(HotObjectsList);
   };
 
   void VisitRootPointers(Root root, const char* description,
@@ -260,8 +262,6 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   Handle<HeapObject> previous_allocation_obj_;
   int previous_allocation_size_ = 0;
 #endif  // DEBUG
-
-  DISALLOW_COPY_AND_ASSIGN(Deserializer);
 };
 
 // Used to insert a deserialized internalized string into the string table.

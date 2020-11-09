@@ -20,6 +20,8 @@ class V8_EXPORT_PRIVATE ReadOnlySerializer : public RootsSerializer {
  public:
   ReadOnlySerializer(Isolate* isolate, Snapshot::SerializerFlags flags);
   ~ReadOnlySerializer() override;
+  ReadOnlySerializer(const ReadOnlySerializer&) = delete;
+  ReadOnlySerializer& operator=(const ReadOnlySerializer&) = delete;
 
   void SerializeReadOnlyRoots();
 
@@ -42,7 +44,6 @@ class V8_EXPORT_PRIVATE ReadOnlySerializer : public RootsSerializer {
   IdentityMap<int, base::DefaultAllocationPolicy> serialized_objects_;
   bool did_serialize_not_mapped_symbol_;
 #endif
-  DISALLOW_COPY_AND_ASSIGN(ReadOnlySerializer);
 };
 
 }  // namespace internal

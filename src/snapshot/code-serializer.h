@@ -18,6 +18,8 @@ class V8_EXPORT_PRIVATE ScriptData {
   ~ScriptData() {
     if (owns_data_) DeleteArray(data_);
   }
+  ScriptData(const ScriptData&) = delete;
+  ScriptData& operator=(const ScriptData&) = delete;
 
   const byte* data() const { return data_; }
   int length() const { return length_; }
@@ -40,12 +42,12 @@ class V8_EXPORT_PRIVATE ScriptData {
   bool rejected_ : 1;
   const byte* data_;
   int length_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScriptData);
 };
 
 class CodeSerializer : public Serializer {
  public:
+  CodeSerializer(const CodeSerializer&) = delete;
+  CodeSerializer& operator=(const CodeSerializer&) = delete;
   V8_EXPORT_PRIVATE static ScriptCompiler::CachedData* Serialize(
       Handle<SharedFunctionInfo> info);
 
@@ -71,7 +73,6 @@ class CodeSerializer : public Serializer {
 
   DISALLOW_HEAP_ALLOCATION(no_gc_)
   uint32_t source_hash_;
-  DISALLOW_COPY_AND_ASSIGN(CodeSerializer);
 };
 
 // Wrapper around ScriptData to provide code-serializer-specific functionality.

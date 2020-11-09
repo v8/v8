@@ -22,6 +22,8 @@ class V8_EXPORT_PRIVATE StartupSerializer : public RootsSerializer {
   StartupSerializer(Isolate* isolate, Snapshot::SerializerFlags flags,
                     ReadOnlySerializer* read_only_serializer);
   ~StartupSerializer() override;
+  StartupSerializer(const StartupSerializer&) = delete;
+  StartupSerializer& operator=(const StartupSerializer&) = delete;
 
   // Serialize the current state of the heap.  The order is:
   // 1) Strong roots
@@ -54,8 +56,6 @@ class V8_EXPORT_PRIVATE StartupSerializer : public RootsSerializer {
   ReadOnlySerializer* read_only_serializer_;
   GlobalHandleVector<AccessorInfo> accessor_infos_;
   GlobalHandleVector<CallHandlerInfo> call_handler_infos_;
-
-  DISALLOW_COPY_AND_ASSIGN(StartupSerializer);
 };
 
 class SerializedHandleChecker : public RootVisitor {
