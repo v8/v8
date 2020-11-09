@@ -29,6 +29,8 @@ class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener {
   ProfilerListener(Isolate*, CodeEventObserver*,
                    CpuProfilingNamingMode mode = kDebugNaming);
   ~ProfilerListener() override;
+  ProfilerListener(const ProfilerListener&) = delete;
+  ProfilerListener& operator=(const ProfilerListener&) = delete;
 
   void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
                        const char* name) override;
@@ -88,8 +90,6 @@ class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener {
   CodeEventObserver* observer_;
   StringsStorage function_and_resource_names_;
   const CpuProfilingNamingMode naming_mode_;
-
-  DISALLOW_COPY_AND_ASSIGN(ProfilerListener);
 };
 
 }  // namespace internal

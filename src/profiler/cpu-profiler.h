@@ -302,6 +302,8 @@ class V8_EXPORT_PRIVATE CpuProfiler {
               ProfilerEventsProcessor* test_processor);
 
   ~CpuProfiler();
+  CpuProfiler(const CpuProfiler&) = delete;
+  CpuProfiler& operator=(const CpuProfiler&) = delete;
 
   static void CollectSample(Isolate* isolate);
 
@@ -366,8 +368,6 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   std::unique_ptr<ProfilingScope> profiling_scope_;
   ProfilerCodeObserver code_observer_;
   bool is_profiling_;
-
-  DISALLOW_COPY_AND_ASSIGN(CpuProfiler);
 };
 
 }  // namespace internal

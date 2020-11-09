@@ -22,6 +22,8 @@ class V8_EXPORT_PRIVATE StringsStorage {
  public:
   StringsStorage();
   ~StringsStorage();
+  StringsStorage(const StringsStorage&) = delete;
+  StringsStorage& operator=(const StringsStorage&) = delete;
 
   // Copies the given c-string and stores it, returning the stored copy, or just
   // returns the existing string in storage if it already exists.
@@ -53,8 +55,6 @@ class V8_EXPORT_PRIVATE StringsStorage {
   const char* GetVFormatted(const char* format, va_list args);
 
   base::CustomMatcherHashMap names_;
-
-  DISALLOW_COPY_AND_ASSIGN(StringsStorage);
 };
 
 }  // namespace internal

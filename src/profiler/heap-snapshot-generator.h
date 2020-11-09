@@ -188,6 +188,8 @@ class HeapEntry {
 class HeapSnapshot {
  public:
   explicit HeapSnapshot(HeapProfiler* profiler, bool global_objects_as_roots);
+  HeapSnapshot(const HeapSnapshot&) = delete;
+  HeapSnapshot& operator=(const HeapSnapshot&) = delete;
   void Delete();
 
   HeapProfiler* profiler() const { return profiler_; }
@@ -242,8 +244,6 @@ class HeapSnapshot {
   std::vector<SourceLocation> locations_;
   SnapshotObjectId max_snapshot_js_object_id_ = -1;
   bool treat_global_objects_as_roots_;
-
-  DISALLOW_COPY_AND_ASSIGN(HeapSnapshot);
 };
 
 
@@ -260,6 +260,8 @@ class HeapObjectsMap {
   };
 
   explicit HeapObjectsMap(Heap* heap);
+  HeapObjectsMap(const HeapObjectsMap&) = delete;
+  HeapObjectsMap& operator=(const HeapObjectsMap&) = delete;
 
   Heap* heap() const { return heap_; }
 
@@ -308,8 +310,6 @@ class HeapObjectsMap {
   // Map from NativeObject to EntryInfo index in entries_.
   std::unordered_map<NativeObject, size_t> merged_native_entries_map_;
   Heap* heap_;
-
-  DISALLOW_COPY_AND_ASSIGN(HeapObjectsMap);
 };
 
 // A typedef for referencing anything that can be snapshotted living
@@ -337,6 +337,8 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
                  SnapshottingProgressReportingInterface* progress,
                  v8::HeapProfiler::ObjectNameResolver* resolver);
   ~V8HeapExplorer() override = default;
+  V8HeapExplorer(const V8HeapExplorer&) = delete;
+  V8HeapExplorer& operator=(const V8HeapExplorer&) = delete;
 
   HeapEntry* AllocateEntry(HeapThing ptr) override;
   int EstimateObjectsCount();
@@ -462,8 +464,6 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
 
   friend class IndexedReferencesExtractor;
   friend class RootsReferencesExtractor;
-
-  DISALLOW_COPY_AND_ASSIGN(V8HeapExplorer);
 };
 
 // An implementation of retained native objects extractor.
@@ -471,6 +471,8 @@ class NativeObjectsExplorer {
  public:
   NativeObjectsExplorer(HeapSnapshot* snapshot,
                         SnapshottingProgressReportingInterface* progress);
+  NativeObjectsExplorer(const NativeObjectsExplorer&) = delete;
+  NativeObjectsExplorer& operator=(const NativeObjectsExplorer&) = delete;
   bool IterateAndExtractReferences(HeapSnapshotGenerator* generator);
 
  private:
@@ -491,8 +493,6 @@ class NativeObjectsExplorer {
   static HeapThing const kNativesRootObject;
 
   friend class GlobalHandlesExtractor;
-
-  DISALLOW_COPY_AND_ASSIGN(NativeObjectsExplorer);
 };
 
 class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
@@ -505,6 +505,8 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
                         v8::ActivityControl* control,
                         v8::HeapProfiler::ObjectNameResolver* resolver,
                         Heap* heap);
+  HeapSnapshotGenerator(const HeapSnapshotGenerator&) = delete;
+  HeapSnapshotGenerator& operator=(const HeapSnapshotGenerator&) = delete;
   bool GenerateSnapshot();
 
   HeapEntry* FindEntry(HeapThing ptr) {
@@ -538,8 +540,6 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   int progress_counter_;
   int progress_total_;
   Heap* heap_;
-
-  DISALLOW_COPY_AND_ASSIGN(HeapSnapshotGenerator);
 };
 
 class OutputStreamWriter;
@@ -552,6 +552,9 @@ class HeapSnapshotJSONSerializer {
         next_node_id_(1),
         next_string_id_(1),
         writer_(nullptr) {}
+  HeapSnapshotJSONSerializer(const HeapSnapshotJSONSerializer&) = delete;
+  HeapSnapshotJSONSerializer& operator=(const HeapSnapshotJSONSerializer&) =
+      delete;
   void Serialize(v8::OutputStream* stream);
 
  private:
@@ -591,8 +594,6 @@ class HeapSnapshotJSONSerializer {
 
   friend class HeapSnapshotJSONSerializerEnumerator;
   friend class HeapSnapshotJSONSerializerIterator;
-
-  DISALLOW_COPY_AND_ASSIGN(HeapSnapshotJSONSerializer);
 };
 
 
