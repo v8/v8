@@ -803,10 +803,17 @@
 ##############################################################################
 ['system == android', {
   # Tests consistently failing on Android.
-  # Setting the locale with environment variables unavailable
+  # Setting the timezone and locale with environment variables unavailable
   'icu-date-to-string': [SKIP],
   'icu-date-lord-howe': [SKIP],
   'regress/regress-6288': [SKIP],
+  'tzoffset-transition-apia': [SKIP],
+  'tzoffset-transition-lord-howe': [SKIP],
+  'tzoffset-transition-moscow': [SKIP],
+  'tzoffset-transition-new-york': [SKIP],
+  'tzoffset-transition-new-york-noi18n': [SKIP],
+  'tzoffset-seoul': [SKIP],
+  'tzoffset-seoul-noi18n': [SKIP],
   # OOM:
   'regress/regress-752764': [FAIL],
   # Flaky OOM:
