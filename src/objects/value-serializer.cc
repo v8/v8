@@ -7,6 +7,7 @@
 #include <type_traits>
 
 #include "include/v8-value-serializer-version.h"
+#include "include/v8.h"
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
 #include "src/execution/isolate.h"
@@ -20,9 +21,11 @@
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "src/objects/oddball-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/property-descriptor.h"
+#include "src/objects/property-details.h"
 #include "src/objects/smi.h"
 #include "src/objects/transitions-inl.h"
 #include "src/snapshot/code-serializer.h"
@@ -717,13 +720,14 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
       }
     }
 
-    KeyAccumulator accumulator(isolate_, KeyCollectionMode::kOwnOnly,
-                               ENUMERABLE_STRINGS);
-    if (!accumulator.CollectOwnPropertyNames(array, array).FromMaybe(false)) {
+    Handle<FixedArray> keys;
+    if (!KeyAccumulator::GetKeys(array, KeyCollectionMode::kOwnOnly,
+                                 ENUMERABLE_STRINGS,
+                                 GetKeysConversion::kKeepNumbers, false, true)
+             .ToHandle(&keys)) {
       return Nothing<bool>();
     }
-    Handle<FixedArray> keys =
-        accumulator.GetKeys(GetKeysConversion::kConvertToString);
+
     uint32_t properties_written;
     if (!WriteJSObjectPropertiesSlow(array, keys).To(&properties_written)) {
       return Nothing<bool>();

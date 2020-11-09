@@ -654,14 +654,11 @@ bool FastKeyAccumulator::TryPrototypeInfoCache(Handle<JSReceiver> receiver) {
   return true;
 }
 
-namespace {
-
-enum IndexedOrNamed { kIndexed, kNamed };
-
-V8_WARN_UNUSED_RESULT ExceptionStatus FilterForEnumerableProperties(
+V8_WARN_UNUSED_RESULT ExceptionStatus
+KeyAccumulator::FilterForEnumerableProperties(
     Handle<JSReceiver> receiver, Handle<JSObject> object,
-    Handle<InterceptorInfo> interceptor, KeyAccumulator* accumulator,
-    Handle<JSObject> result, IndexedOrNamed type) {
+    Handle<InterceptorInfo> interceptor, Handle<JSObject> result,
+    IndexedOrNamed type) {
   DCHECK(result->IsJSArray() || result->HasSloppyArgumentsElements());
   ElementsAccessor* accessor = result->GetElementsAccessor();
 
@@ -670,8 +667,8 @@ V8_WARN_UNUSED_RESULT ExceptionStatus FilterForEnumerableProperties(
     if (!accessor->HasEntry(*result, entry)) continue;
 
     // args are invalid after args.Call(), create a new one in every iteration.
-    PropertyCallbackArguments args(accumulator->isolate(), interceptor->data(),
-                                   *receiver, *object, Just(kDontThrow));
+    PropertyCallbackArguments args(isolate_, interceptor->data(), *receiver,
+                                   *object, Just(kDontThrow));
 
     Handle<Object> element = accessor->Get(result, entry);
     Handle<Object> attributes;
@@ -689,8 +686,7 @@ V8_WARN_UNUSED_RESULT ExceptionStatus FilterForEnumerableProperties(
       int32_t value;
       CHECK(attributes->ToInt32(&value));
       if ((value & DONT_ENUM) == 0) {
-        RETURN_FAILURE_IF_NOT_SUCCESSFUL(
-            accumulator->AddKey(element, DO_NOT_CONVERT));
+        RETURN_FAILURE_IF_NOT_SUCCESSFUL(AddKey(element, DO_NOT_CONVERT));
       }
     }
   }
@@ -698,17 +694,14 @@ V8_WARN_UNUSED_RESULT ExceptionStatus FilterForEnumerableProperties(
 }
 
 // Returns |true| on success, |nothing| on exception.
-Maybe<bool> CollectInterceptorKeysInternal(Handle<JSReceiver> receiver,
-                                           Handle<JSObject> object,
-                                           Handle<InterceptorInfo> interceptor,
-                                           KeyAccumulator* accumulator,
-                                           IndexedOrNamed type) {
-  Isolate* isolate = accumulator->isolate();
-  PropertyCallbackArguments enum_args(isolate, interceptor->data(), *receiver,
+Maybe<bool> KeyAccumulator::CollectInterceptorKeysInternal(
+    Handle<JSReceiver> receiver, Handle<JSObject> object,
+    Handle<InterceptorInfo> interceptor, IndexedOrNamed type) {
+  PropertyCallbackArguments enum_args(isolate_, interceptor->data(), *receiver,
                                       *object, Just(kDontThrow));
 
   Handle<JSObject> result;
-  if (!interceptor->enumerator().IsUndefined(isolate)) {
+  if (!interceptor->enumerator().IsUndefined(isolate_)) {
     if (type == kIndexed) {
       result = enum_args.CallIndexedEnumerator(interceptor);
     } else {
@@ -716,25 +709,23 @@ Maybe<bool> CollectInterceptorKeysInternal(Handle<JSReceiver> receiver,
       result = enum_args.CallNamedEnumerator(interceptor);
     }
   }
-  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
+  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate_, Nothing<bool>());
   if (result.is_null()) return Just(true);
 
-  if ((accumulator->filter() & ONLY_ENUMERABLE) &&
-      !interceptor->query().IsUndefined(isolate)) {
+  if ((filter_ & ONLY_ENUMERABLE) &&
+      !interceptor->query().IsUndefined(isolate_)) {
     RETURN_NOTHING_IF_NOT_SUCCESSFUL(FilterForEnumerableProperties(
-        receiver, object, interceptor, accumulator, result, type));
+        receiver, object, interceptor, result, type));
   } else {
-    RETURN_NOTHING_IF_NOT_SUCCESSFUL(accumulator->AddKeys(
+    RETURN_NOTHING_IF_NOT_SUCCESSFUL(AddKeys(
         result, type == kIndexed ? CONVERT_TO_ARRAY_INDEX : DO_NOT_CONVERT));
   }
   return Just(true);
 }
 
-Maybe<bool> CollectInterceptorKeys(Handle<JSReceiver> receiver,
-                                   Handle<JSObject> object,
-                                   KeyAccumulator* accumulator,
-                                   IndexedOrNamed type) {
-  Isolate* isolate = accumulator->isolate();
+Maybe<bool> KeyAccumulator::CollectInterceptorKeys(Handle<JSReceiver> receiver,
+                                                   Handle<JSObject> object,
+                                                   IndexedOrNamed type) {
   if (type == kIndexed) {
     if (!object->HasIndexedInterceptor()) return Just(true);
   } else {
@@ -743,16 +734,12 @@ Maybe<bool> CollectInterceptorKeys(Handle<JSReceiver> receiver,
   Handle<InterceptorInfo> interceptor(type == kIndexed
                                           ? object->GetIndexedInterceptor()
                                           : object->GetNamedInterceptor(),
-                                      isolate);
-  if ((accumulator->filter() & ONLY_ALL_CAN_READ) &&
-      !interceptor->all_can_read()) {
+                                      isolate_);
+  if ((filter() & ONLY_ALL_CAN_READ) && !interceptor->all_can_read()) {
     return Just(true);
   }
-  return CollectInterceptorKeysInternal(receiver, object, interceptor,
-                                        accumulator, type);
+  return CollectInterceptorKeysInternal(receiver, object, interceptor, type);
 }
-
-}  // namespace
 
 Maybe<bool> KeyAccumulator::CollectOwnElementIndices(
     Handle<JSReceiver> receiver, Handle<JSObject> object) {
@@ -761,7 +748,7 @@ Maybe<bool> KeyAccumulator::CollectOwnElementIndices(
   ElementsAccessor* accessor = object->GetElementsAccessor();
   RETURN_NOTHING_IF_NOT_SUCCESSFUL(
       accessor->CollectElementIndices(object, this));
-  return CollectInterceptorKeys(receiver, object, this, kIndexed);
+  return CollectInterceptorKeys(receiver, object, kIndexed);
 }
 
 namespace {
@@ -1064,7 +1051,7 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
     }
   }
   // Add the property keys from the interceptor.
-  return CollectInterceptorKeys(receiver, object, this, kNamed);
+  return CollectInterceptorKeys(receiver, object, kNamed);
 }
 
 ExceptionStatus KeyAccumulator::CollectPrivateNames(Handle<JSReceiver> receiver,
@@ -1098,7 +1085,7 @@ Maybe<bool> KeyAccumulator::CollectAccessCheckInterceptorKeys(
                      handle(InterceptorInfo::cast(
                                 access_check_info->indexed_interceptor()),
                             isolate_),
-                     this, kIndexed)),
+                     kIndexed)),
                  Nothing<bool>());
   }
   MAYBE_RETURN(
@@ -1106,7 +1093,7 @@ Maybe<bool> KeyAccumulator::CollectAccessCheckInterceptorKeys(
           receiver, object,
           handle(InterceptorInfo::cast(access_check_info->named_interceptor()),
                  isolate_),
-          this, kNamed)),
+          kNamed)),
       Nothing<bool>());
   return Just(true);
 }

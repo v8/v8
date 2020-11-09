@@ -13,6 +13,7 @@ namespace v8 {
 namespace internal {
 
 class JSProxy;
+class FastKeyAccumulator;
 
 enum AddKeyConversion { DO_NOT_CONVERT, CONVERT_TO_ARRAY_INDEX };
 
@@ -50,15 +51,6 @@ class KeyAccumulator final {
       GetKeysConversion convert = GetKeysConversion::kKeepNumbers);
   Maybe<bool> CollectKeys(Handle<JSReceiver> receiver,
                           Handle<JSReceiver> object);
-  Maybe<bool> CollectOwnElementIndices(Handle<JSReceiver> receiver,
-                                       Handle<JSObject> object);
-  Maybe<bool> CollectOwnPropertyNames(Handle<JSReceiver> receiver,
-                                      Handle<JSObject> object);
-  V8_WARN_UNUSED_RESULT ExceptionStatus
-  CollectPrivateNames(Handle<JSReceiver> receiver, Handle<JSObject> object);
-  Maybe<bool> CollectAccessCheckInterceptorKeys(
-      Handle<AccessCheckInfo> access_check_info, Handle<JSReceiver> receiver,
-      Handle<JSObject> object);
 
   // Might return directly the object's enum_cache, copy the result before using
   // as an elements backing store for a JSObject.
@@ -71,10 +63,6 @@ class KeyAccumulator final {
   AddKey(Object key, AddKeyConversion convert = DO_NOT_CONVERT);
   V8_WARN_UNUSED_RESULT ExceptionStatus
   AddKey(Handle<Object> key, AddKeyConversion convert = DO_NOT_CONVERT);
-  V8_WARN_UNUSED_RESULT ExceptionStatus AddKeys(Handle<FixedArray> array,
-                                                AddKeyConversion convert);
-  V8_WARN_UNUSED_RESULT ExceptionStatus AddKeys(Handle<JSObject> array_like,
-                                                AddKeyConversion convert);
 
   // Jump to the next level, pushing the current |levelLength_| to
   // |levelLengths_| and adding a new list to |elements_|.
@@ -84,11 +72,59 @@ class KeyAccumulator final {
   // The collection mode defines whether we collect the keys from the prototype
   // chain or only look at the receiver.
   KeyCollectionMode mode() { return mode_; }
+  void set_skip_indices(bool value) { skip_indices_ = value; }
+  // Shadowing keys are used to filter keys. This happens when non-enumerable
+  // keys appear again on the prototype chain.
+  void AddShadowingKey(Object key, AllowHeapAllocation* allow_gc);
+  void AddShadowingKey(Handle<Object> key);
+
+ private:
+  enum IndexedOrNamed { kIndexed, kNamed };
+
+  V8_WARN_UNUSED_RESULT ExceptionStatus
+  CollectPrivateNames(Handle<JSReceiver> receiver, Handle<JSObject> object);
+  Maybe<bool> CollectAccessCheckInterceptorKeys(
+      Handle<AccessCheckInfo> access_check_info, Handle<JSReceiver> receiver,
+      Handle<JSObject> object);
+
+  Maybe<bool> CollectInterceptorKeysInternal(
+      Handle<JSReceiver> receiver, Handle<JSObject> object,
+      Handle<InterceptorInfo> interceptor, IndexedOrNamed type);
+  Maybe<bool> CollectInterceptorKeys(Handle<JSReceiver> receiver,
+                                     Handle<JSObject> object,
+                                     IndexedOrNamed type);
+
+  Maybe<bool> CollectOwnElementIndices(Handle<JSReceiver> receiver,
+                                       Handle<JSObject> object);
+  Maybe<bool> CollectOwnPropertyNames(Handle<JSReceiver> receiver,
+                                      Handle<JSObject> object);
+  Maybe<bool> CollectOwnKeys(Handle<JSReceiver> receiver,
+                             Handle<JSObject> object);
+  Maybe<bool> CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
+                                    Handle<JSProxy> proxy);
+  Maybe<bool> CollectOwnJSProxyTargetKeys(Handle<JSProxy> proxy,
+                                          Handle<JSReceiver> target);
+
+  V8_WARN_UNUSED_RESULT ExceptionStatus FilterForEnumerableProperties(
+      Handle<JSReceiver> receiver, Handle<JSObject> object,
+      Handle<InterceptorInfo> interceptor, Handle<JSObject> result,
+      IndexedOrNamed type);
+
+  Maybe<bool> AddKeysFromJSProxy(Handle<JSProxy> proxy,
+                                 Handle<FixedArray> keys);
+  V8_WARN_UNUSED_RESULT ExceptionStatus AddKeys(Handle<FixedArray> array,
+                                                AddKeyConversion convert);
+  V8_WARN_UNUSED_RESULT ExceptionStatus AddKeys(Handle<JSObject> array_like,
+                                                AddKeyConversion convert);
+
+  bool IsShadowed(Handle<Object> key);
+  bool HasShadowingKeys();
+  Handle<OrderedHashSet> keys();
+
   // In case of for-in loops we have to treat JSProxy keys differently and
   // deduplicate them. Additionally we convert JSProxy keys back to array
   // indices.
   void set_is_for_in(bool value) { is_for_in_ = value; }
-  void set_skip_indices(bool value) { skip_indices_ = value; }
   void set_first_prototype_map(Handle<Map> value) {
     first_prototype_map_ = value;
   }
@@ -103,23 +139,6 @@ class KeyAccumulator final {
     last_non_empty_prototype_ = object;
   }
   void set_may_have_elements(bool value) { may_have_elements_ = value; }
-  // Shadowing keys are used to filter keys. This happens when non-enumerable
-  // keys appear again on the prototype chain.
-  void AddShadowingKey(Object key, AllowHeapAllocation* allow_gc);
-  void AddShadowingKey(Handle<Object> key);
-
- private:
-  Maybe<bool> CollectOwnKeys(Handle<JSReceiver> receiver,
-                             Handle<JSObject> object);
-  Maybe<bool> CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
-                                    Handle<JSProxy> proxy);
-  Maybe<bool> CollectOwnJSProxyTargetKeys(Handle<JSProxy> proxy,
-                                          Handle<JSReceiver> target);
-  Maybe<bool> AddKeysFromJSProxy(Handle<JSProxy> proxy,
-                                 Handle<FixedArray> keys);
-  bool IsShadowed(Handle<Object> key);
-  bool HasShadowingKeys();
-  Handle<OrderedHashSet> keys();
 
   Isolate* isolate_;
   // keys_ is either an Handle<OrderedHashSet> or in the case of own JSProxy
@@ -139,6 +158,8 @@ class KeyAccumulator final {
   bool skip_shadow_check_ = true;
   bool may_have_elements_ = true;
   bool try_prototype_info_cache_ = false;
+
+  friend FastKeyAccumulator;
 };
 
 // The FastKeyAccumulator handles the cases where there are no elements on the
