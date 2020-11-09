@@ -900,10 +900,25 @@ void Simulator::SetFpResult(const double& result) {
 }
 
 void Simulator::TrashCallerSaveRegisters() {
-  // We don't trash the registers with the return value.
+  // Return registers.
+  registers_[0] = 0x50BAD4U;
+  registers_[1] = 0x50BAD4U;
+  // Caller-saved registers.
   registers_[2] = 0x50BAD4U;
   registers_[3] = 0x50BAD4U;
   registers_[12] = 0x50BAD4U;
+  // This value is a NaN in both 32-bit and 64-bit FP.
+  static const uint64_t v = 0x7ff000007f801000UL;
+  // d0 - d7 are caller-saved.
+  for (int i = 0; i < 8; i++) {
+    set_d_register(i, &v);
+  }
+  if (DoubleRegister::SupportedRegisterCount() > 16) {
+    // d16 - d31 (if supported) are caller-saved.
+    for (int i = 16; i < 32; i++) {
+      set_d_register(i, &v);
+    }
+  }
 }
 
 int Simulator::ReadW(int32_t addr) {
@@ -1673,6 +1688,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             SimulatorRuntimeCompareCall target =
                 reinterpret_cast<SimulatorRuntimeCompareCall>(external);
             iresult = target(dval0, dval1);
+#ifdef DEBUG
+            TrashCallerSaveRegisters();
+#endif
             set_register(r0, static_cast<int32_t>(iresult));
             set_register(r1, static_cast<int32_t>(iresult >> 32));
             break;
@@ -1681,6 +1699,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             SimulatorRuntimeFPFPCall target =
                 reinterpret_cast<SimulatorRuntimeFPFPCall>(external);
             dresult = target(dval0, dval1);
+#ifdef DEBUG
+            TrashCallerSaveRegisters();
+#endif
             SetFpResult(dresult);
             break;
           }
@@ -1688,6 +1709,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             SimulatorRuntimeFPCall target =
                 reinterpret_cast<SimulatorRuntimeFPCall>(external);
             dresult = target(dval0);
+#ifdef DEBUG
+            TrashCallerSaveRegisters();
+#endif
             SetFpResult(dresult);
             break;
           }
@@ -1695,6 +1719,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             SimulatorRuntimeFPIntCall target =
                 reinterpret_cast<SimulatorRuntimeFPIntCall>(external);
             dresult = target(dval0, ival);
+#ifdef DEBUG
+            TrashCallerSaveRegisters();
+#endif
             SetFpResult(dresult);
             break;
           }
@@ -1728,6 +1755,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         }
         CHECK(stack_aligned);
         UnsafeDirectApiCall(external, arg0);
+#ifdef DEBUG
+        TrashCallerSaveRegisters();
+#endif
       } else if (redirection->type() == ExternalReference::PROFILING_API_CALL) {
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
           PrintF("Call to host function at %p args %08x %08x",
@@ -1739,6 +1769,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         }
         CHECK(stack_aligned);
         UnsafeProfilingApiCall(external, arg0, arg1);
+#ifdef DEBUG
+        TrashCallerSaveRegisters();
+#endif
       } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
           PrintF("Call to host function at %p args %08x %08x",
@@ -1750,6 +1783,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         }
         CHECK(stack_aligned);
         UnsafeDirectGetterCall(external, arg0, arg1);
+#ifdef DEBUG
+        TrashCallerSaveRegisters();
+#endif
       } else if (redirection->type() ==
                  ExternalReference::PROFILING_GETTER_CALL) {
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
@@ -1764,6 +1800,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         SimulatorRuntimeProfilingGetterCall target =
             reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
         target(arg0, arg1, Redirection::ReverseRedirection(arg2));
+#ifdef DEBUG
+        TrashCallerSaveRegisters();
+#endif
       } else {
         // builtin call.
         DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL ||
@@ -1783,6 +1822,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         int64_t result =
             UnsafeGenericFunctionCall(external, arg0, arg1, arg2, arg3, arg4,
                                       arg5, arg6, arg7, arg8, arg9);
+#ifdef DEBUG
+        TrashCallerSaveRegisters();
+#endif
         int32_t lo_res = static_cast<int32_t>(result);
         int32_t hi_res = static_cast<int32_t>(result >> 32);
         if (::v8::internal::FLAG_trace_sim) {
