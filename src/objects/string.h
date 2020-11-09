@@ -876,6 +876,8 @@ class ConsStringIterator {
   inline explicit ConsStringIterator(ConsString cons_string, int offset = 0) {
     Reset(cons_string, offset);
   }
+  ConsStringIterator(const ConsStringIterator&) = delete;
+  ConsStringIterator& operator=(const ConsStringIterator&) = delete;
   inline void Reset(ConsString cons_string, int offset = 0) {
     depth_ = 0;
     // Next will always return nullptr.
@@ -914,12 +916,13 @@ class ConsStringIterator {
   int depth_;
   int maximum_depth_;
   int consumed_;
-  DISALLOW_COPY_AND_ASSIGN(ConsStringIterator);
 };
 
 class StringCharacterStream {
  public:
   inline explicit StringCharacterStream(String string, int offset = 0);
+  StringCharacterStream(const StringCharacterStream&) = delete;
+  StringCharacterStream& operator=(const StringCharacterStream&) = delete;
   inline uint16_t GetNext();
   inline bool HasMore();
   inline void Reset(String string, int offset = 0);
@@ -934,7 +937,6 @@ class StringCharacterStream {
     const uint16_t* buffer16_;
   };
   const uint8_t* end_;
-  DISALLOW_COPY_AND_ASSIGN(StringCharacterStream);
 };
 
 template <typename Char>

@@ -521,6 +521,8 @@ class Code : public HeapObject {
 class Code::OptimizedCodeIterator {
  public:
   explicit OptimizedCodeIterator(Isolate* isolate);
+  OptimizedCodeIterator(const OptimizedCodeIterator&) = delete;
+  OptimizedCodeIterator& operator=(const OptimizedCodeIterator&) = delete;
   Code Next();
 
  private:
@@ -529,7 +531,6 @@ class Code::OptimizedCodeIterator {
   Isolate* isolate_;
 
   DISALLOW_HEAP_ALLOCATION(no_gc)
-  DISALLOW_COPY_AND_ASSIGN(OptimizedCodeIterator);
 };
 
 class AbstractCode : public HeapObject {

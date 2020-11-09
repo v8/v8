@@ -406,6 +406,8 @@ class WeakArrayList
 class WeakArrayList::Iterator {
  public:
   explicit Iterator(WeakArrayList array) : index_(0), array_(array) {}
+  Iterator(const Iterator&) = delete;
+  Iterator& operator=(const Iterator&) = delete;
 
   inline HeapObject Next();
 
@@ -415,7 +417,6 @@ class WeakArrayList::Iterator {
 #ifdef DEBUG
   DisallowHeapAllocation no_gc_;
 #endif  // DEBUG
-  DISALLOW_COPY_AND_ASSIGN(Iterator);
 };
 
 // Generic array grows dynamically with O(1) amortized insertion.

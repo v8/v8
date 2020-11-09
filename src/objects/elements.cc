@@ -540,6 +540,8 @@ template <typename Subclass, typename ElementsTraitsParam>
 class ElementsAccessorBase : public InternalElementsAccessor {
  public:
   ElementsAccessorBase() = default;
+  ElementsAccessorBase(const ElementsAccessorBase&) = delete;
+  ElementsAccessorBase& operator=(const ElementsAccessorBase&) = delete;
 
   using ElementsTraits = ElementsTraitsParam;
   using BackingStore = typename ElementsTraitsParam::BackingStore;
@@ -1323,9 +1325,6 @@ class ElementsAccessorBase : public InternalElementsAccessor {
                                                         uint32_t length) {
     UNREACHABLE();
   }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(ElementsAccessorBase);
 };
 
 class DictionaryElementsAccessor

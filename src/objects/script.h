@@ -174,11 +174,12 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   class V8_EXPORT_PRIVATE Iterator {
    public:
     explicit Iterator(Isolate* isolate);
+    Iterator(const Iterator&) = delete;
+    Iterator& operator=(const Iterator&) = delete;
     Script Next();
 
    private:
     WeakArrayList::Iterator iterator_;
-    DISALLOW_COPY_AND_ASSIGN(Iterator);
   };
 
   // Dispatched behavior.

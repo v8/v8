@@ -613,6 +613,8 @@ class SharedFunctionInfo : public HeapObject {
    public:
     V8_EXPORT_PRIVATE ScriptIterator(Isolate* isolate, Script script);
     explicit ScriptIterator(Handle<WeakFixedArray> shared_function_infos);
+    ScriptIterator(const ScriptIterator&) = delete;
+    ScriptIterator& operator=(const ScriptIterator&) = delete;
     V8_EXPORT_PRIVATE SharedFunctionInfo Next();
     int CurrentIndex() const { return index_ - 1; }
 
@@ -622,7 +624,6 @@ class SharedFunctionInfo : public HeapObject {
    private:
     Handle<WeakFixedArray> shared_function_infos_;
     int index_;
-    DISALLOW_COPY_AND_ASSIGN(ScriptIterator);
   };
 
   DECL_CAST(SharedFunctionInfo)

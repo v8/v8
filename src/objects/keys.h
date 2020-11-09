@@ -38,6 +38,8 @@ class KeyAccumulator final {
                  PropertyFilter filter)
       : isolate_(isolate), mode_(mode), filter_(filter) {}
   ~KeyAccumulator() = default;
+  KeyAccumulator(const KeyAccumulator&) = delete;
+  KeyAccumulator& operator=(const KeyAccumulator&) = delete;
 
   static MaybeHandle<FixedArray> GetKeys(
       Handle<JSReceiver> object, KeyCollectionMode mode, PropertyFilter filter,
@@ -137,8 +139,6 @@ class KeyAccumulator final {
   bool skip_shadow_check_ = true;
   bool may_have_elements_ = true;
   bool try_prototype_info_cache_ = false;
-
-  DISALLOW_COPY_AND_ASSIGN(KeyAccumulator);
 };
 
 // The FastKeyAccumulator handles the cases where there are no elements on the
@@ -158,6 +158,8 @@ class FastKeyAccumulator {
         skip_indices_(skip_indices) {
     Prepare();
   }
+  FastKeyAccumulator(const FastKeyAccumulator&) = delete;
+  FastKeyAccumulator& operator=(const FastKeyAccumulator&) = delete;
 
   bool is_receiver_simple_enum() { return is_receiver_simple_enum_; }
   bool has_empty_prototype() { return has_empty_prototype_; }
@@ -193,8 +195,6 @@ class FastKeyAccumulator {
   bool has_prototype_info_cache_ = false;
   bool try_prototype_info_cache_ = false;
   bool only_own_has_simple_elements_ = false;
-
-  DISALLOW_COPY_AND_ASSIGN(FastKeyAccumulator);
 };
 
 }  // namespace internal
