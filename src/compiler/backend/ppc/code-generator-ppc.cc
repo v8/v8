@@ -1928,21 +1928,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif
                               i.OutputRegister(0), kScratchDoubleReg);
 #if V8_TARGET_ARCH_PPC64
-      if (check_conversion) {
-        // Set 2nd output to zero if conversion fails.
         CRegister cr = cr7;
         int crbit = v8::internal::Assembler::encode_crbit(
             cr, static_cast<CRBit>(VXCVI % CRWIDTH));
         __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr7
+        // Handle conversion failures (such as overflow).
         if (CpuFeatures::IsSupported(ISELECT)) {
-          __ li(i.OutputRegister(1), Operand(1));
-          __ isel(i.OutputRegister(1), r0, i.OutputRegister(1), crbit);
+          if (check_conversion) {
+            __ li(i.OutputRegister(1), Operand(1));
+            __ isel(i.OutputRegister(1), r0, i.OutputRegister(1), crbit);
+          } else {
+            __ isel(i.OutputRegister(0), r0, i.OutputRegister(0), crbit);
+          }
         } else {
-          __ li(i.OutputRegister(1), Operand::Zero());
-          __ bc(v8::internal::kInstrSize * 2, BT, crbit);
-          __ li(i.OutputRegister(1), Operand(1));
+          if (check_conversion) {
+            __ li(i.OutputRegister(1), Operand::Zero());
+            __ bc(v8::internal::kInstrSize * 2, BT, crbit);
+            __ li(i.OutputRegister(1), Operand(1));
+          } else {
+            __ mr(ip, i.OutputRegister(0));
+            __ li(i.OutputRegister(0), Operand::Zero());
+            __ bc(v8::internal::kInstrSize * 2, BT, crbit);
+            __ mr(i.OutputRegister(0), ip);
+          }
         }
-      }
 #endif
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
