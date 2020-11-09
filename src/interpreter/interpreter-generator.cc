@@ -44,12 +44,13 @@ using Label = CodeStubAssembler::Label;
     explicit Name##Assembler(compiler::CodeAssemblerState* state,     \
                              Bytecode bytecode, OperandScale scale)   \
         : BaseAssembler(state, bytecode, scale) {}                    \
+    Name##Assembler(const Name##Assembler&) = delete;                 \
+    Name##Assembler& operator=(const Name##Assembler&) = delete;      \
     static void Generate(compiler::CodeAssemblerState* state,         \
                          OperandScale scale);                         \
                                                                       \
    private:                                                           \
     void GenerateImpl();                                              \
-    DISALLOW_COPY_AND_ASSIGN(Name##Assembler);                        \
   };                                                                  \
   void Name##Assembler::Generate(compiler::CodeAssemblerState* state, \
                                  OperandScale scale) {                \

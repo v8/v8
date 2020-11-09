@@ -22,6 +22,8 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   InterpreterAssembler(compiler::CodeAssemblerState* state, Bytecode bytecode,
                        OperandScale operand_scale);
   ~InterpreterAssembler();
+  InterpreterAssembler(const InterpreterAssembler&) = delete;
+  InterpreterAssembler& operator=(const InterpreterAssembler&) = delete;
 
   // Returns the 32-bit unsigned count immediate for bytecode operand
   // |operand_index| in the current bytecode.
@@ -400,8 +402,6 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   bool made_call_;
   bool reloaded_frame_ptr_;
   bool bytecode_array_valid_;
-
-  DISALLOW_COPY_AND_ASSIGN(InterpreterAssembler);
 };
 
 }  // namespace interpreter

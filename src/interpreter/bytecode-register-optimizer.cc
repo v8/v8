@@ -24,6 +24,8 @@ class BytecodeRegisterOptimizer::RegisterInfo final : public ZoneObject {
         needs_flush_(false),
         next_(this),
         prev_(this) {}
+  RegisterInfo(const RegisterInfo&) = delete;
+  RegisterInfo& operator=(const RegisterInfo&) = delete;
 
   void AddToEquivalenceSetOf(RegisterInfo* info);
   void MoveToNewEquivalenceSet(uint32_t equivalence_id, bool materialized);
@@ -85,8 +87,6 @@ class BytecodeRegisterOptimizer::RegisterInfo final : public ZoneObject {
   // Equivalence set pointers.
   RegisterInfo* next_;
   RegisterInfo* prev_;
-
-  DISALLOW_COPY_AND_ASSIGN(RegisterInfo);
 };
 
 void BytecodeRegisterOptimizer::RegisterInfo::AddToEquivalenceSetOf(

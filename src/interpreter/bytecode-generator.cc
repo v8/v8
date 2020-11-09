@@ -108,6 +108,8 @@ class BytecodeGenerator::ControlScope {
     generator_->set_execution_control(this);
   }
   virtual ~ControlScope() { generator_->set_execution_control(outer()); }
+  ControlScope(const ControlScope&) = delete;
+  ControlScope& operator=(const ControlScope&) = delete;
 
   void Break(Statement* stmt) {
     PerformCommand(CMD_BREAK, stmt, kNoSourcePosition);
@@ -154,8 +156,6 @@ class BytecodeGenerator::ControlScope {
   BytecodeGenerator* generator_;
   ControlScope* outer_;
   ContextScope* context_;
-
-  DISALLOW_COPY_AND_ASSIGN(ControlScope);
 };
 
 // Helper class for a try-finally control scope. It can record intercepted
@@ -562,13 +562,14 @@ class BytecodeGenerator::RegisterAllocationScope final {
         outer_next_register_index_);
   }
 
+  RegisterAllocationScope(const RegisterAllocationScope&) = delete;
+  RegisterAllocationScope& operator=(const RegisterAllocationScope&) = delete;
+
   BytecodeGenerator* generator() const { return generator_; }
 
  private:
   BytecodeGenerator* generator_;
   int outer_next_register_index_;
-
-  DISALLOW_COPY_AND_ASSIGN(RegisterAllocationScope);
 };
 
 class BytecodeGenerator::AccumulatorPreservingScope final {
@@ -591,11 +592,13 @@ class BytecodeGenerator::AccumulatorPreservingScope final {
     }
   }
 
+  AccumulatorPreservingScope(const AccumulatorPreservingScope&) = delete;
+  AccumulatorPreservingScope& operator=(const AccumulatorPreservingScope&) =
+      delete;
+
  private:
   BytecodeGenerator* generator_;
   Register saved_accumulator_register_;
-
-  DISALLOW_COPY_AND_ASSIGN(AccumulatorPreservingScope);
 };
 
 // Scoped base class for determining how the result of an expression will be
@@ -613,6 +616,9 @@ class BytecodeGenerator::ExpressionResultScope {
   ~ExpressionResultScope() {
     allocator_.generator()->set_execution_result(outer_);
   }
+
+  ExpressionResultScope(const ExpressionResultScope&) = delete;
+  ExpressionResultScope& operator=(const ExpressionResultScope&) = delete;
 
   bool IsEffect() const { return kind_ == Expression::kEffect; }
   bool IsValue() const { return kind_ == Expression::kValue; }
@@ -641,8 +647,6 @@ class BytecodeGenerator::ExpressionResultScope {
   RegisterAllocationScope allocator_;
   Expression::Context kind_;
   TypeHint type_hint_;
-
-  DISALLOW_COPY_AND_ASSIGN(ExpressionResultScope);
 };
 
 // Scoped class used when the result of the current expression is not
@@ -673,6 +677,9 @@ class BytecodeGenerator::TestResultScope final : public ExpressionResultScope {
         fallthrough_(fallthrough),
         then_labels_(then_labels),
         else_labels_(else_labels) {}
+
+  TestResultScope(const TestResultScope&) = delete;
+  TestResultScope& operator=(const TestResultScope&) = delete;
 
   // Used when code special cases for TestResultScope and consumes any
   // possible value by testing and jumping to a then/else label.
@@ -719,8 +726,6 @@ class BytecodeGenerator::TestResultScope final : public ExpressionResultScope {
   TestFallthrough fallthrough_;
   BytecodeLabels* then_labels_;
   BytecodeLabels* else_labels_;
-
-  DISALLOW_COPY_AND_ASSIGN(TestResultScope);
 };
 
 // Used to build a list of toplevel declaration data.

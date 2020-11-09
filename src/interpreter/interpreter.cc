@@ -35,6 +35,9 @@ class InterpreterCompilationJob final : public UnoptimizedCompilationJob {
       ParseInfo* parse_info, FunctionLiteral* literal,
       AccountingAllocator* allocator,
       std::vector<FunctionLiteral*>* eager_inner_literals);
+  InterpreterCompilationJob(const InterpreterCompilationJob&) = delete;
+  InterpreterCompilationJob& operator=(const InterpreterCompilationJob&) =
+      delete;
 
  protected:
   Status ExecuteJobImpl() final;
@@ -57,8 +60,6 @@ class InterpreterCompilationJob final : public UnoptimizedCompilationJob {
   Zone zone_;
   UnoptimizedCompilationInfo compilation_info_;
   BytecodeGenerator generator_;
-
-  DISALLOW_COPY_AND_ASSIGN(InterpreterCompilationJob);
 };
 
 Interpreter::Interpreter(Isolate* isolate)
