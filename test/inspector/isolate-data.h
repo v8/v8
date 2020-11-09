@@ -20,6 +20,8 @@ namespace internal {
 
 class TaskRunner;
 
+enum WithInspector : bool { kWithInspector = true, kNoInspector = false };
+
 class IsolateData : public v8_inspector::V8InspectorClient {
  public:
   class SetupGlobalTask {
@@ -31,7 +33,7 @@ class IsolateData : public v8_inspector::V8InspectorClient {
   using SetupGlobalTasks = std::vector<std::unique_ptr<SetupGlobalTask>>;
 
   IsolateData(TaskRunner* task_runner, SetupGlobalTasks setup_global_tasks,
-              v8::StartupData* startup_data, bool with_inspector);
+              v8::StartupData* startup_data, WithInspector with_inspector);
   static IsolateData* FromContext(v8::Local<v8::Context> context);
 
   v8::Isolate* isolate() const { return isolate_.get(); }

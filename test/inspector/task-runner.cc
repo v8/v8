@@ -36,9 +36,10 @@ void ReportUncaughtException(v8::Isolate* isolate,
 }  //  namespace
 
 TaskRunner::TaskRunner(IsolateData::SetupGlobalTasks setup_global_tasks,
-                       bool catch_exceptions,
+                       CatchExceptions catch_exceptions,
                        v8::base::Semaphore* ready_semaphore,
-                       v8::StartupData* startup_data, bool with_inspector)
+                       v8::StartupData* startup_data,
+                       WithInspector with_inspector)
     : Thread(Options("Task Runner")),
       setup_global_tasks_(std::move(setup_global_tasks)),
       startup_data_(startup_data),

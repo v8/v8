@@ -20,6 +20,11 @@
 namespace v8 {
 namespace internal {
 
+enum CatchExceptions : bool {
+  kDoCatchExceptions = true,
+  kDontCatchExceptions = false
+};
+
 class TaskRunner : public v8::base::Thread {
  public:
   class Task {
@@ -30,8 +35,9 @@ class TaskRunner : public v8::base::Thread {
   };
 
   TaskRunner(IsolateData::SetupGlobalTasks setup_global_tasks,
-             bool catch_exceptions, v8::base::Semaphore* ready_semaphore,
-             v8::StartupData* startup_data, bool with_inspector);
+             CatchExceptions catch_exceptions,
+             v8::base::Semaphore* ready_semaphore,
+             v8::StartupData* startup_data, WithInspector with_inspector);
   ~TaskRunner() override;
   IsolateData* data() const { return data_.get(); }
 
@@ -52,8 +58,8 @@ class TaskRunner : public v8::base::Thread {
 
   IsolateData::SetupGlobalTasks setup_global_tasks_;
   v8::StartupData* startup_data_;
-  bool with_inspector_;
-  bool catch_exceptions_;
+  WithInspector with_inspector_;
+  CatchExceptions catch_exceptions_;
   v8::base::Semaphore* ready_semaphore_;
   std::unique_ptr<IsolateData> data_;
 

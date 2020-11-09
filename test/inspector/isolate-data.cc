@@ -40,7 +40,8 @@ class Inspectable : public v8_inspector::V8InspectorSession::Inspectable {
 
 IsolateData::IsolateData(TaskRunner* task_runner,
                          IsolateData::SetupGlobalTasks setup_global_tasks,
-                         v8::StartupData* startup_data, bool with_inspector)
+                         v8::StartupData* startup_data,
+                         WithInspector with_inspector)
     : task_runner_(task_runner),
       setup_global_tasks_(std::move(setup_global_tasks)) {
   v8::Isolate::CreateParams params;
