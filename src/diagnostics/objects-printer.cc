@@ -898,6 +898,7 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
     os << "\n - no optimized code";
   }
   os << "\n - optimization marker: " << optimization_marker();
+  os << "\n - optimization tier: " << optimization_tier();
   os << "\n - invocation count: " << invocation_count();
   os << "\n - profiler ticks: " << profiler_ticks();
 

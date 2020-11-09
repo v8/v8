@@ -383,8 +383,11 @@ void FeedbackVector::SaturatingIncrementProfilerTicks() {
 void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
                                       Handle<Code> code) {
   DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
-  DCHECK(vector->optimization_tier() == OptimizationTier::kNone ||
-         (vector->optimization_tier() == OptimizationTier::kMidTier &&
+  // We should only set optimized code only when there is no valid optimized
+  // code or we are tiering up.
+  DCHECK(!vector->has_optimized_code() ||
+         vector->optimized_code().marked_for_deoptimization() ||
+         (vector->optimized_code().kind() == CodeKind::TURBOPROP &&
           code->kind() == CodeKind::TURBOFAN));
   // TODO(mythria): We could see a CompileOptimized marker here either from
   // tests that use %OptimizeFunctionOnNextCall or because we re-mark the
