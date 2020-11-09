@@ -883,14 +883,13 @@ class PromiseBuiltinReducerAssembler : public JSCallReducerAssembler {
 class FastApiCallReducerAssembler : public JSCallReducerAssembler {
  public:
   FastApiCallReducerAssembler(
-      JSCallReducer* reducer, Node* node, Address c_function,
-      const CFunctionInfo* c_signature,
+      JSCallReducer* reducer, Node* node,
       const FunctionTemplateInfoRef function_template_info, Node* receiver,
       Node* holder, const SharedFunctionInfoRef shared, Node* target,
       const int arity, Node* effect)
       : JSCallReducerAssembler(reducer, node),
-        c_function_(c_function),
-        c_signature_(c_signature),
+        c_function_(function_template_info.c_function()),
+        c_signature_(function_template_info.c_signature()),
         function_template_info_(function_template_info),
         receiver_(receiver),
         holder_(holder),
@@ -3468,6 +3467,40 @@ bool HasFPParamsInSignature(const CFunctionInfo* c_signature) {
 }  // namespace
 #endif
 
+#ifndef V8_TARGET_ARCH_64_BIT
+namespace {
+bool Has64BitIntegerParamsInSignature(const CFunctionInfo* c_signature) {
+  for (unsigned int i = 0; i < c_signature->ArgumentCount(); ++i) {
+    if (c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kInt64 ||
+        c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kUint64) {
+      return true;
+    }
+  }
+  return false;
+}
+}  // namespace
+#endif
+
+bool CanOptimizeFastCall(
+    const FunctionTemplateInfoRef& function_template_info) {
+  const CFunctionInfo* c_signature = function_template_info.c_signature();
+
+  bool optimize_to_fast_call =
+      FLAG_turbo_fast_api_calls &&
+      function_template_info.c_function() != kNullAddress;
+#ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+  optimize_to_fast_call =
+      optimize_to_fast_call && !HasFPParamsInSignature(c_signature);
+#else
+  USE(c_signature);
+#endif
+#ifndef V8_TARGET_ARCH_64_BIT
+  optimize_to_fast_call =
+      optimize_to_fast_call && !Has64BitIntegerParamsInSignature(c_signature);
+#endif
+  return optimize_to_fast_call;
+}
+
 Reduction JSCallReducer::ReduceCallApiFunction(
     Node* node, const SharedFunctionInfoRef& shared) {
   DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
@@ -3639,19 +3672,9 @@ Reduction JSCallReducer::ReduceCallApiFunction(
     return NoChange();
   }
 
-  Address c_function = function_template_info.c_function();
-
-  bool optimize_to_fast_call =
-      FLAG_turbo_fast_api_calls && c_function != kNullAddress;
-  const CFunctionInfo* c_signature = function_template_info.c_signature();
-#ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
-  optimize_to_fast_call =
-      optimize_to_fast_call && !HasFPParamsInSignature(c_signature);
-#endif
-  if (optimize_to_fast_call) {
-    FastApiCallReducerAssembler a(this, node, c_function, c_signature,
-                                  function_template_info, receiver, holder,
-                                  shared, target, argc, effect);
+  if (CanOptimizeFastCall(function_template_info)) {
+    FastApiCallReducerAssembler a(this, node, function_template_info, receiver,
+                                  holder, shared, target, argc, effect);
     Node* fast_call_subgraph = a.ReduceFastApiCall();
     ReplaceWithSubgraph(&a, fast_call_subgraph);
 
