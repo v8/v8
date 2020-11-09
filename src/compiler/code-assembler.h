@@ -1044,10 +1044,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                       target, context, args...));
   }
 
-  Node* CallStubN(StubCallMode call_mode,
-                  const CallInterfaceDescriptor& descriptor, int input_count,
-                  Node* const* inputs);
-
   template <class T = Object, class... TArgs>
   TNode<T> CallBuiltinPointer(const CallInterfaceDescriptor& descriptor,
                               TNode<BuiltinPtr> target, TNode<Object> context,
@@ -1231,6 +1227,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                        TNode<Object> target, TNode<Object> context,
                        TNode<Object> function, TNode<Object> new_target,
                        TNode<Int32T> arity, std::initializer_list<Node*> args);
+
+  Node* CallStubN(StubCallMode call_mode,
+                  const CallInterfaceDescriptor& descriptor, int input_count,
+                  Node* const* inputs);
 
   // These two don't have definitions and are here only for catching use cases
   // where the cast is not necessary.
