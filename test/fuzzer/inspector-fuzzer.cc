@@ -32,13 +32,6 @@ namespace {
 
 base::SmallVector<TaskRunner*, 2> task_runners;
 
-void Terminate() {
-  for (TaskRunner* r : task_runners) {
-    r->Terminate();
-    r->Join();
-  }
-}
-
 class UtilsExtension : public IsolateData::SetupGlobalTask {
  public:
   ~UtilsExtension() override = default;
@@ -88,7 +81,9 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
   static TaskRunner* backend_runner_;
 
   static void Quit(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    Terminate();
+    // Only terminate, so not join the threads here, since joining concurrently
+    // from multiple threads can be undefined behaviour (see pthread_join).
+    for (TaskRunner* task_runner : task_runners) task_runner->Terminate();
   }
 
   static void CompileAndRunWithOrigin(
@@ -561,7 +556,7 @@ class Watchdog final : public base::Thread {
  private:
   void Run() override {
     if (semaphore_->WaitFor(kMaxExecutionSeconds)) return;
-    Terminate();
+    for (TaskRunner* task_runner : task_runners) task_runner->Terminate();
   }
 
   base::Semaphore* const semaphore_;

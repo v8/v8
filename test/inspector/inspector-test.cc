@@ -41,13 +41,6 @@ namespace {
 
 base::SmallVector<TaskRunner*, 2> task_runners;
 
-void Terminate() {
-  for (TaskRunner* task_runner : task_runners) {
-    task_runner->Terminate();
-    task_runner->Join();
-  }
-}
-
 class UtilsExtension : public IsolateData::SetupGlobalTask {
  public:
   ~UtilsExtension() override = default;
@@ -154,7 +147,9 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
   static void Quit(const v8::FunctionCallbackInfo<v8::Value>& args) {
     fflush(stdout);
     fflush(stderr);
-    Terminate();
+    // Only terminate, so not join the threads here, since joining concurrently
+    // from multiple threads can be undefined behaviour (see pthread_join).
+    for (TaskRunner* task_runner : task_runners) task_runner->Terminate();
   }
 
   static void Setlocale(const v8::FunctionCallbackInfo<v8::Value>& args) {
