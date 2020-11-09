@@ -878,8 +878,10 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
       Instr instr_branch_delay;
 
       if (IsJump(instr_j)) {
-        instr_branch_delay = instr_at(pos + 6 * kInstrSize);
+        // Case when branch delay slot is protected.
+        instr_branch_delay = nopInstr;
       } else {
+        // Case when branch delay slot is used.
         instr_branch_delay = instr_at(pos + 7 * kInstrSize);
       }
       instr_at_put(pos, instr_b);
