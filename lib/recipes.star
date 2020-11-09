@@ -52,12 +52,6 @@ build_recipe(
 )
 
 build_recipe(
-    name = "recipe:v8_bbagent",
-    recipe = "v8",
-    use_bbagent = True,
-)
-
-build_recipe(
     name = "recipe:v8/archive",
 )
 
