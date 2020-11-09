@@ -29,7 +29,7 @@ void ReportUncaughtException(v8::Isolate* isolate,
       isolate, try_catch.Message()
                    ->GetSourceLine(isolate->GetCurrentContext())
                    .ToLocalChecked());
-  fprintf(stderr, "Unhandle exception: %s @%s[%d]\n", message.data(),
+  fprintf(stderr, "Unhandled exception: %s @%s[%d]\n", message.data(),
           source_line.data(), line);
 }
 
