@@ -349,7 +349,7 @@ base::Optional<MapRef> NodeProperties::GetJSCreateMap(JSHeapBroker* broker,
 }
 
 // static
-NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMapsUnsafe(
+NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
     JSHeapBroker* broker, Node* receiver, Node* effect,
     ZoneHandleSet<Map>* maps_return) {
   HeapObjectMatcher m(receiver);
@@ -368,11 +368,11 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMapsUnsafe(
         // The {receiver_map} is only reliable when we install a stability
         // code dependency.
         *maps_return = ZoneHandleSet<Map>(receiver.map().object());
-        return kUnreliableReceiverMaps;
+        return kUnreliableMaps;
       }
     }
   }
-  InferReceiverMapsResult result = kReliableReceiverMaps;
+  InferMapsResult result = kReliableMaps;
   while (true) {
     switch (effect->opcode()) {
       case IrOpcode::kMapGuard: {
@@ -399,9 +399,9 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMapsUnsafe(
             return result;
           }
           // We reached the allocation of the {receiver}.
-          return kNoReceiverMaps;
+          return kNoMaps;
         }
-        result = kUnreliableReceiverMaps;  // JSCreate can have side-effect.
+        result = kUnreliableMaps;  // JSCreate can have side-effect.
         break;
       }
       case IrOpcode::kJSCreatePromise: {
@@ -430,7 +430,7 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMapsUnsafe(
           }
           // Without alias analysis we cannot tell whether this
           // StoreField[map] affects {receiver} or not.
-          result = kUnreliableReceiverMaps;
+          result = kUnreliableMaps;
         }
         break;
       }
@@ -453,25 +453,25 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMapsUnsafe(
         if (control->opcode() != IrOpcode::kLoop) {
           DCHECK(control->opcode() == IrOpcode::kDead ||
                  control->opcode() == IrOpcode::kMerge);
-          return kNoReceiverMaps;
+          return kNoMaps;
         }
 
         // Continue search for receiver map outside the loop. Since operations
         // inside the loop may change the map, the result is unreliable.
         effect = GetEffectInput(effect, 0);
-        result = kUnreliableReceiverMaps;
+        result = kUnreliableMaps;
         continue;
       }
       default: {
         DCHECK_EQ(1, effect->op()->EffectOutputCount());
         if (effect->op()->EffectInputCount() != 1) {
           // Didn't find any appropriate CheckMaps node.
-          return kNoReceiverMaps;
+          return kNoMaps;
         }
         if (!effect->op()->HasProperty(Operator::kNoWrite)) {
           // Without alias/escape analysis we cannot tell whether this
           // {effect} affects {receiver} or not.
-          result = kUnreliableReceiverMaps;
+          result = kUnreliableMaps;
         }
         break;
       }
@@ -479,7 +479,7 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMapsUnsafe(
 
     // Stop walking the effect chain once we hit the definition of
     // the {receiver} along the {effect}s.
-    if (IsSame(receiver, effect)) return kNoReceiverMaps;
+    if (IsSame(receiver, effect)) return kNoMaps;
 
     // Continue with the next {effect}.
     DCHECK_EQ(1, effect->op()->EffectInputCount());
