@@ -135,6 +135,7 @@ namespace internal {
     function_template_rare_data)                                              \
   V(_, INTERCEPTOR_INFO_TYPE, InterceptorInfo, interceptor_info)              \
   V(_, INTERPRETER_DATA_TYPE, InterpreterData, interpreter_data)              \
+  V(_, MODULE_REQUEST_TYPE, ModuleRequest, module_request)                    \
   V(_, PROMISE_CAPABILITY_TYPE, PromiseCapability, promise_capability)        \
   V(_, PROMISE_REACTION_TYPE, PromiseReaction, promise_reaction)              \
   V(_, PROPERTY_DESCRIPTOR_OBJECT_TYPE, PropertyDescriptorObject,             \

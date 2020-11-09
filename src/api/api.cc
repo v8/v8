@@ -2249,7 +2249,9 @@ Local<String> Module::GetModuleRequest(int i) const {
       i::Handle<i::SourceTextModule>::cast(self)->info().module_requests(),
       isolate);
   CHECK_LT(i, module_requests->length());
-  return ToApiHandle<String>(i::handle(module_requests->get(i), isolate));
+  i::Handle<i::ModuleRequest> module_request(
+      i::ModuleRequest::cast(module_requests->get(i)), isolate);
+  return ToApiHandle<String>(i::handle(module_request->specifier(), isolate));
 }
 
 Location Module::GetModuleRequestLocation(int i) const {

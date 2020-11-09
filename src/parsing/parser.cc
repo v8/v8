@@ -1306,8 +1306,8 @@ void Parser::ParseImportDeclaration() {
     const AstRawString* module_specifier = ParseModuleSpecifier();
     const ImportAssertions* import_assertions = ParseImportAssertClause();
     ExpectSemicolon();
-    module()->AddEmptyImport(module_specifier, import_assertions,
-                             specifier_loc);
+    module()->AddEmptyImport(module_specifier, import_assertions, specifier_loc,
+                             zone());
     return;
   }
 
@@ -1377,7 +1377,7 @@ void Parser::ParseImportDeclaration() {
   if (named_imports != nullptr) {
     if (named_imports->length() == 0) {
       module()->AddEmptyImport(module_specifier, import_assertions,
-                               specifier_loc);
+                               specifier_loc, zone());
     } else {
       for (const NamedImport* import : *named_imports) {
         module()->AddImport(import->import_name, import->local_name,
@@ -1567,7 +1567,7 @@ Statement* Parser::ParseExportDeclaration() {
 
         if (export_data->is_empty()) {
           module()->AddEmptyImport(module_specifier, import_assertions,
-                                   specifier_loc);
+                                   specifier_loc, zone());
         } else {
           for (const ExportClauseData& data : *export_data) {
             module()->AddExport(data.local_name, data.export_name,

@@ -13,6 +13,7 @@ namespace internal {
 
 
 class AstRawString;
+class ModuleRequest;
 class SourceTextModuleInfo;
 class SourceTextModuleInfoEntry;
 class PendingCompilationErrorHandler;
@@ -55,7 +56,7 @@ class SourceTextModuleDescriptor : public ZoneObject {
   // export {} from "foo.js";  (sic!)
   void AddEmptyImport(const AstRawString* module_request,
                       const ImportAssertions* import_assertions,
-                      const Scanner::Location specifier_loc);
+                      const Scanner::Location specifier_loc, Zone* zone);
 
   // export {x};
   // export {x as y};
@@ -123,20 +124,55 @@ class SourceTextModuleDescriptor : public ZoneObject {
   enum CellIndexKind { kInvalid, kExport, kImport };
   static CellIndexKind GetCellIndexKind(int cell_index);
 
-  struct ModuleRequest {
+  class AstModuleRequest : public ZoneObject {
+   public:
+    // TODO(v8:10958): Consider storing module request location here
+    // instead of using separate ModuleRequestLocation struct.
+    AstModuleRequest(const AstRawString* specifier,
+                     const ImportAssertions* import_assertions)
+        : specifier_(specifier), import_assertions_(import_assertions) {}
+
+    template <typename LocalIsolate>
+    Handle<v8::internal::ModuleRequest> Serialize(LocalIsolate* isolate) const;
+
+    const AstRawString* specifier() const { return specifier_; }
+    const ImportAssertions* import_assertions() const {
+      return import_assertions_;
+    }
+
+   private:
+    const AstRawString* specifier_;
+    const ImportAssertions* import_assertions_;
+  };
+
+  struct ModuleRequestLocation {
+    // The index at which we will place the request in SourceTextModuleInfo's
+    // module_requests FixedArray.
     int index;
+
+    // The JS source code position of the request, used for reporting errors.
     int position;
-    ModuleRequest(int index, int position) : index(index), position(position) {}
+
+    ModuleRequestLocation(int index, int position)
+        : index(index), position(position) {}
   };
 
   // Custom content-based comparer for the below maps, to keep them stable
   // across parses.
   struct V8_EXPORT_PRIVATE AstRawStringComparer {
     bool operator()(const AstRawString* lhs, const AstRawString* rhs) const;
+    static int ThreeWayCompare(const AstRawString* lhs,
+                               const AstRawString* rhs);
+  };
+
+  struct V8_EXPORT_PRIVATE ModuleRequestComparer {
+    bool operator()(const AstModuleRequest* lhs,
+                    const AstModuleRequest* rhs) const;
   };
 
   using ModuleRequestMap =
-      ZoneMap<const AstRawString*, ModuleRequest, AstRawStringComparer>;
+      ZoneMap<const AstModuleRequest*, ModuleRequestLocation,
+              ModuleRequestComparer>;
   using RegularExportMap =
       ZoneMultimap<const AstRawString*, Entry*, AstRawStringComparer>;
   using RegularImportMap =
@@ -233,13 +269,15 @@ class SourceTextModuleDescriptor : public ZoneObject {
   void AssignCellIndices();
 
   int AddModuleRequest(const AstRawString* specifier,
-                       Scanner::Location specifier_loc) {
+                       const ImportAssertions* import_assertions,
+                       Scanner::Location specifier_loc, Zone* zone) {
     DCHECK_NOT_NULL(specifier);
     int module_requests_count = static_cast<int>(module_requests_.size());
     auto it = module_requests_
-                  .insert(std::make_pair(specifier,
-                                         ModuleRequest(module_requests_count,
-                                                       specifier_loc.beg_pos)))
+                  .insert(std::make_pair(
+                      zone->New<AstModuleRequest>(specifier, import_assertions),
+                      ModuleRequestLocation(module_requests_count,
+                                            specifier_loc.beg_pos)))
                   .first;
     return it->second.index;
   }

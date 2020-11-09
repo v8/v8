@@ -309,6 +309,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case EVAL_CONTEXT_TYPE:
     case FUNCTION_CONTEXT_TYPE:
     case MODULE_CONTEXT_TYPE:
+    case MODULE_REQUEST_TYPE:
     case NATIVE_CONTEXT_TYPE:
     case SCRIPT_CONTEXT_TYPE:
     case WITH_CONTEXT_TYPE:

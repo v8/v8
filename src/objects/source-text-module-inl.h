@@ -17,6 +17,7 @@ namespace internal {
 
 #include "torque-generated/src/objects/source-text-module-tq-inl.inc"
 
+TQ_OBJECT_CONSTRUCTORS_IMPL(ModuleRequest)
 TQ_OBJECT_CONSTRUCTORS_IMPL(SourceTextModule)
 TQ_OBJECT_CONSTRUCTORS_IMPL(SourceTextModuleInfoEntry)
 
