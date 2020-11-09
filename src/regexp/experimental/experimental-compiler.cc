@@ -194,6 +194,11 @@ struct Label {
     DCHECK_GE(bound_index_, 0);
   }
 
+  // Don't copy, don't move.  Moving could be implemented, but it's not
+  // needed anywhere.
+  Label(const Label&) = delete;
+  Label& operator=(const Label&) = delete;
+
  private:
   friend class BytecodeAssembler;
 
@@ -204,10 +209,6 @@ struct Label {
     int unbound_patch_list_begin_ = -1;
     int bound_index_;
   };
-
-  // Don't copy, don't move.  Moving could be implemented, but it's not
-  // needed anywhere.
-  DISALLOW_COPY_AND_ASSIGN(Label);
 };
 
 class BytecodeAssembler {

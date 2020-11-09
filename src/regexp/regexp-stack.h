@@ -26,13 +26,13 @@ class RegExpStackScope {
   // Initializes the stack memory area if necessary.
   explicit RegExpStackScope(Isolate* isolate);
   ~RegExpStackScope();  // Releases the stack if it has grown.
+  RegExpStackScope(const RegExpStackScope&) = delete;
+  RegExpStackScope& operator=(const RegExpStackScope&) = delete;
 
   RegExpStack* stack() const { return regexp_stack_; }
 
  private:
   RegExpStack* regexp_stack_;
-
-  DISALLOW_COPY_AND_ASSIGN(RegExpStackScope);
 };
 
 
@@ -40,6 +40,8 @@ class RegExpStack {
  public:
   RegExpStack();
   ~RegExpStack();
+  RegExpStack(const RegExpStack&) = delete;
+  RegExpStack& operator=(const RegExpStack&) = delete;
 
   // Number of allocated locations on the stack below the limit.
   // No sequence of pushes must be longer that this without doing a stack-limit
@@ -138,8 +140,6 @@ class RegExpStack {
   friend class ExternalReference;
   friend class Isolate;
   friend class RegExpStackScope;
-
-  DISALLOW_COPY_AND_ASSIGN(RegExpStack);
 };
 
 }  // namespace internal

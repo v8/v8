@@ -125,6 +125,8 @@ uint32_t LoadPacked24Unsigned(int32_t bytecode_and_packed_arg) {
 class BacktrackStack {
  public:
   BacktrackStack() = default;
+  BacktrackStack(const BacktrackStack&) = delete;
+  BacktrackStack& operator=(const BacktrackStack&) = delete;
 
   V8_WARN_UNUSED_RESULT bool push(int v) {
     data_.emplace_back(v);
@@ -157,8 +159,6 @@ class BacktrackStack {
 
   static constexpr int kMaxSize =
       RegExpStack::kMaximumStackSize / sizeof(ValueT);
-
-  DISALLOW_COPY_AND_ASSIGN(BacktrackStack);
 };
 
 // Registers used during interpreter execution. These consist of output
