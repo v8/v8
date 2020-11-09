@@ -513,9 +513,9 @@ JSTypeHintLowering::ReduceGetIteratorOperation(const Operator* op,
 }
 
 JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceLoadNamedOperation(
-    const Operator* op, Node* effect, Node* control, FeedbackSlot slot) const {
-  DCHECK(op->opcode() == IrOpcode::kJSLoadNamed ||
-         op->opcode() == IrOpcode::kJSLoadNamedFromSuper);
+    const Operator* op, Node* receiver, Node* effect, Node* control,
+    FeedbackSlot slot) const {
+  DCHECK_EQ(IrOpcode::kJSLoadNamed, op->opcode());
   if (Node* node = TryBuildSoftDeopt(
           slot, effect, control,
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess)) {

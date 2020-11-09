@@ -83,7 +83,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceJSLoadGlobal(Node* node);
   Reduction ReduceJSStoreGlobal(Node* node);
   Reduction ReduceJSLoadNamed(Node* node);
-  Reduction ReduceJSLoadNamedFromSuper(Node* node);
   Reduction ReduceJSGetIterator(Node* node);
   Reduction ReduceJSStoreNamed(Node* node);
   Reduction ReduceJSHasProperty(Node* node);
@@ -95,7 +94,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceJSToObject(Node* node);
 
   Reduction ReduceElementAccess(Node* node, Node* index, Node* value,
-                                ElementAccessFeedback const& feedback);
+                                ElementAccessFeedback const& processed);
   // In the case of non-keyed (named) accesses, pass the name as {static_name}
   // and use {nullptr} for {key} (load/store modes are irrelevant).
   Reduction ReducePropertyAccess(Node* node, Node* key,
@@ -103,21 +102,18 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                  Node* value, FeedbackSource const& source,
                                  AccessMode access_mode);
   Reduction ReduceNamedAccess(Node* node, Node* value,
-                              NamedAccessFeedback const& feedback,
+                              NamedAccessFeedback const& processed,
                               AccessMode access_mode, Node* key = nullptr);
   Reduction ReduceMinimorphicPropertyAccess(
       Node* node, Node* value,
       MinimorphicLoadPropertyAccessFeedback const& feedback,
       FeedbackSource const& source);
-  Reduction ReduceGlobalAccess(Node* node, Node* lookup_start_object,
-                               Node* receiver, Node* value, NameRef const& name,
-                               AccessMode access_mode, Node* key = nullptr,
-                               Node* effect = nullptr);
-  Reduction ReduceGlobalAccess(Node* node, Node* lookup_start_object,
-                               Node* receiver, Node* value, NameRef const& name,
-                               AccessMode access_mode, Node* key,
-                               PropertyCellRef const& property_cell,
-                               Node* effect = nullptr);
+  Reduction ReduceGlobalAccess(Node* node, Node* receiver, Node* value,
+                               NameRef const& name, AccessMode access_mode,
+                               Node* key = nullptr);
+  Reduction ReduceGlobalAccess(Node* node, Node* receiver, Node* value,
+                               NameRef const& name, AccessMode access_mode,
+                               Node* key, PropertyCellRef const& property_cell);
   Reduction ReduceElementLoadFromHeapConstant(Node* node, Node* key,
                                               AccessMode access_mode,
                                               KeyedAccessLoadMode load_mode);
@@ -150,13 +146,14 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   };
 
   // Construct the appropriate subgraph for property access.
-  ValueEffectControl BuildPropertyAccess(
-      Node* lookup_start_object, Node* receiver, Node* value, Node* context,
-      Node* frame_state, Node* effect, Node* control, NameRef const& name,
-      ZoneVector<Node*>* if_exceptions, PropertyAccessInfo const& access_info,
-      AccessMode access_mode);
-  ValueEffectControl BuildPropertyLoad(Node* lookup_start_object,
-                                       Node* receiver, Node* context,
+  ValueEffectControl BuildPropertyAccess(Node* receiver, Node* value,
+                                         Node* context, Node* frame_state,
+                                         Node* effect, Node* control,
+                                         NameRef const& name,
+                                         ZoneVector<Node*>* if_exceptions,
+                                         PropertyAccessInfo const& access_info,
+                                         AccessMode access_mode);
+  ValueEffectControl BuildPropertyLoad(Node* receiver, Node* context,
                                        Node* frame_state, Node* effect,
                                        Node* control, NameRef const& name,
                                        ZoneVector<Node*>* if_exceptions,
@@ -215,19 +212,20 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   // code dependencies and might use the array protector cell.
   bool CanTreatHoleAsUndefined(ZoneVector<Handle<Map>> const& receiver_maps);
 
-  void RemoveImpossibleMaps(Node* object, ZoneVector<Handle<Map>>* maps) const;
+  void RemoveImpossibleReceiverMaps(
+      Node* receiver, ZoneVector<Handle<Map>>* receiver_maps) const;
 
   ElementAccessFeedback const& TryRefineElementAccessFeedback(
       ElementAccessFeedback const& feedback, Node* receiver,
       Node* effect) const;
 
-  // Try to infer maps for the given {object} at the current {effect}.
-  bool InferMaps(Node* object, Node* effect,
-                 ZoneVector<Handle<Map>>* maps) const;
+  // Try to infer maps for the given {receiver} at the current {effect}.
+  bool InferReceiverMaps(Node* receiver, Node* effect,
+                         ZoneVector<Handle<Map>>* receiver_maps) const;
 
-  // Try to infer a root map for the {object} independent of the current program
-  // location.
-  base::Optional<MapRef> InferRootMap(Node* object) const;
+  // Try to infer a root map for the {receiver} independent of the current
+  // program location.
+  base::Optional<MapRef> InferReceiverRootMap(Node* receiver) const;
 
   // Checks if we know at compile time that the {receiver} either definitely
   // has the {prototype} in it's prototype chain, or the {receiver} definitely
@@ -239,8 +237,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   };
   InferHasInPrototypeChainResult InferHasInPrototypeChain(
       Node* receiver, Node* effect, HeapObjectRef const& prototype);
-
-  Node* BuildLoadPrototypeFromObject(Node* object, Node* effect, Node* control);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
