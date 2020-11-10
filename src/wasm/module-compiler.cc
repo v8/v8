@@ -3230,24 +3230,34 @@ void CompilationStateImpl::SchedulePublishCompilationResults(
 }
 
 void CompilationStateImpl::ScheduleCompileJobForNewUnits() {
-  if (current_compile_job_ && current_compile_job_->IsValid()) {
-    current_compile_job_->NotifyConcurrencyIncrease();
-    return;
-  }
   if (failed()) return;
 
-  std::unique_ptr<JobTask> new_compile_job =
-      std::make_unique<BackgroundCompileJob>(native_module_weak_,
-                                             async_counters_);
-  // TODO(wasm): Lower priority for TurboFan-only jobs.
-  current_compile_job_ = V8::GetCurrentPlatform()->PostJob(
-      has_priority_ ? TaskPriority::kUserBlocking : TaskPriority::kUserVisible,
-      std::move(new_compile_job));
-  native_module_->engine()->ShepherdCompileJobHandle(current_compile_job_);
+  std::shared_ptr<JobHandle> new_job_handle;
+  {
+    base::MutexGuard guard(&mutex_);
+    if (current_compile_job_ && current_compile_job_->IsValid()) {
+      current_compile_job_->NotifyConcurrencyIncrease();
+      return;
+    }
 
-  // Reset the priority. Later uses of the compilation state, e.g. for
-  // debugging, should compile with the default priority again.
-  has_priority_ = false;
+    std::unique_ptr<JobTask> new_compile_job =
+        std::make_unique<BackgroundCompileJob>(native_module_weak_,
+                                               async_counters_);
+    // TODO(wasm): Lower priority for TurboFan-only jobs.
+    new_job_handle = V8::GetCurrentPlatform()->PostJob(
+        has_priority_ ? TaskPriority::kUserBlocking
+                      : TaskPriority::kUserVisible,
+        std::move(new_compile_job));
+    current_compile_job_ = new_job_handle;
+    // Reset the priority. Later uses of the compilation state, e.g. for
+    // debugging, should compile with the default priority again.
+    has_priority_ = false;
+  }
+
+  if (new_job_handle) {
+    native_module_->engine()->ShepherdCompileJobHandle(
+        std::move(new_job_handle));
+  }
 }
 
 size_t CompilationStateImpl::NumOutstandingCompilations() const {
