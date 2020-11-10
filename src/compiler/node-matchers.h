@@ -88,7 +88,7 @@ struct ValueMatcher : public NodeMatcher {
 
   bool HasResolvedValue() const { return has_resolved_value_; }
   const T& ResolvedValue() const {
-    DCHECK(HasResolvedValue());
+    CHECK(HasResolvedValue());
     return resolved_value_;
   }
 
