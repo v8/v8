@@ -2930,7 +2930,7 @@ void CompilationStateImpl::AddCompilationUnits(
   if (!js_to_wasm_wrapper_units.empty()) {
     // |js_to_wasm_wrapper_units_| can only be modified before background
     // compilation started.
-    DCHECK(!current_compile_job_ || !current_compile_job_->IsRunning());
+    DCHECK(!current_compile_job_);
     js_to_wasm_wrapper_units_.insert(js_to_wasm_wrapper_units_.end(),
                                      js_to_wasm_wrapper_units.begin(),
                                      js_to_wasm_wrapper_units.end());
