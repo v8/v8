@@ -3855,11 +3855,11 @@ void RunLoadZeroTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-WASM_SIMD_TEST_NO_LOWERING(S128Load32Zero) {
+WASM_SIMD_TEST(S128Load32Zero) {
   RunLoadZeroTest<int32_t>(execution_tier, lower_simd, kExprS128Load32Zero);
 }
 
-WASM_SIMD_TEST_NO_LOWERING(S128Load64Zero) {
+WASM_SIMD_TEST(S128Load64Zero) {
   RunLoadZeroTest<int64_t>(execution_tier, lower_simd, kExprS128Load64Zero);
 }
 

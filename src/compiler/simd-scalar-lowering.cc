@@ -368,24 +368,20 @@ void SimdScalarLowering::SetLoweredType(Node* node, Node* output) {
           replacements_[node->id()].type = SimdType::kInt8x16;
           break;
         case LoadTransformation::kS128Load16Splat:
-          replacements_[node->id()].type = SimdType::kInt16x8;
-          break;
-        case LoadTransformation::kS128Load32Splat:
-          replacements_[node->id()].type = SimdType::kInt32x4;
-          break;
-        case LoadTransformation::kS128Load64Splat:
-          replacements_[node->id()].type = SimdType::kInt64x2;
-          break;
         case LoadTransformation::kS128Load8x8S:
         case LoadTransformation::kS128Load8x8U:
           replacements_[node->id()].type = SimdType::kInt16x8;
           break;
+        case LoadTransformation::kS128Load32Splat:
         case LoadTransformation::kS128Load16x4S:
         case LoadTransformation::kS128Load16x4U:
+        case LoadTransformation::kS128Load32Zero:
           replacements_[node->id()].type = SimdType::kInt32x4;
           break;
+        case LoadTransformation::kS128Load64Splat:
         case LoadTransformation::kS128Load32x2S:
         case LoadTransformation::kS128Load32x2U:
+        case LoadTransformation::kS128Load64Zero:
           replacements_[node->id()].type = SimdType::kInt64x2;
           break;
         default:
@@ -604,12 +600,12 @@ void SimdScalarLowering::LowerLoadTransformOp(Node* node, SimdType type) {
     case LoadTransformation::kS128Load16Splat:
     case LoadTransformation::kS128Load32Splat:
     case LoadTransformation::kS128Load64Splat:
+    case LoadTransformation::kS128Load32Zero:
+    case LoadTransformation::kS128Load64Zero:
       load_rep = MachineTypeFrom(type);
       break;
     default:
-      // Lowering for s64x2 is not implemented since lowering for 64x2
-      // operations doesn't work properly yet.
-      UNIMPLEMENTED();
+      UNREACHABLE();
   }
 
   DCHECK_NE(load_rep, MachineType::None());
@@ -654,16 +650,29 @@ void SimdScalarLowering::LowerLoadTransformOp(Node* node, SimdType type) {
       effect_input = reps[i];
     }
   } else {
-    // Load splat, load from the same index for every lane.
-    for (int i = num_lanes - 1; i > 0; --i) {
-      reps[i] =
-          graph()->NewNode(load_op, base, index, effect_input, control_input);
-      effect_input = reps[i];
+    if (params.transformation == LoadTransformation::kS128Load32Zero) {
+      for (int i = num_lanes - 1; i > 0; --i) {
+        reps[i] = mcgraph_->Int32Constant(0);
+      }
+    } else if (params.transformation == LoadTransformation::kS128Load64Zero) {
+      for (int i = num_lanes - 1; i > 0; --i) {
+        reps[i] = mcgraph_->Int64Constant(0);
+      }
+    } else {
+      // Load splat, load from the same index for every lane.
+      for (int i = num_lanes - 1; i > 0; --i) {
+        reps[i] =
+            graph()->NewNode(load_op, base, index, effect_input, control_input);
+        effect_input = reps[i];
+      }
     }
   }
 
-  // Update the effect input, completing the effect chain.
-  reps[0]->ReplaceInput(2, reps[1]);
+  // Update the effect input, completing the effect chain, but only if there is
+  // an effect output (LoadZero does not have an effect output, it is zero).
+  if (reps[1]->op()->EffectOutputCount() > 0) {
+    reps[0]->ReplaceInput(2, reps[1]);
+  }
 
   // Special case, the load nodes need to be sign extended, and we do it here so
   // the loop above can connect all the effect edges correctly.
@@ -975,8 +984,9 @@ void SimdScalarLowering::LowerConvertFromFloat(Node* node, bool is_signed) {
   for (int i = 0; i < kNumLanes32; ++i) {
     Node* double_rep =
         graph()->NewNode(machine()->ChangeFloat32ToFloat64(), rep[i]);
-    Diamond nan_d(graph(), common(), graph()->NewNode(machine()->Float64Equal(),
-                                                      double_rep, double_rep));
+    Diamond nan_d(
+        graph(), common(),
+        graph()->NewNode(machine()->Float64Equal(), double_rep, double_rep));
     Node* temp =
         nan_d.Phi(MachineRepresentation::kFloat64, double_rep, double_zero);
     Diamond min_d(graph(), common(),
@@ -2243,7 +2253,9 @@ void SimdScalarLowering::LowerNode(Node* node) {
       ReplaceNode(node, rep_node, num_lanes);
       break;
     }
-    default: { DefaultLowering(node); }
+    default: {
+      DefaultLowering(node);
+    }
   }
 }
 
