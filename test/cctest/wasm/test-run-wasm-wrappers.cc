@@ -176,6 +176,144 @@ TEST(WrapperReplacement) {
   }
   Cleanup();
 }
+
+TEST(EagerWrapperReplacement) {
+  {
+    // This test assumes use of the generic wrapper.
+    FlagScope<bool> use_wasm_generic_wrapper(&FLAG_wasm_generic_wrapper, true);
+
+    TestSignatures sigs;
+    AccountingAllocator allocator;
+    Zone zone(&allocator, ZONE_NAME);
+
+    // Define three Wasm functions.
+    // Two of these functions (add and mult) will share the same signature,
+    // while the other one (id) won't.
+    WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
+    WasmFunctionBuilder* add = builder->AddFunction(sigs.i_ii());
+    add->builder()->AddExport(CStrVector("add"), add);
+    byte add_code[] = {WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+                       WASM_END};
+    add->EmitCode(add_code, sizeof(add_code));
+    WasmFunctionBuilder* mult = builder->AddFunction(sigs.i_ii());
+    mult->builder()->AddExport(CStrVector("mult"), mult);
+    byte mult_code[] = {WASM_I32_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+                        WASM_END};
+    mult->EmitCode(mult_code, sizeof(mult_code));
+    WasmFunctionBuilder* id = builder->AddFunction(sigs.i_i());
+    id->builder()->AddExport(CStrVector("id"), id);
+    byte id_code[] = {WASM_GET_LOCAL(0), WASM_END};
+    id->EmitCode(id_code, sizeof(id_code));
+
+    // Compile module.
+    ZoneBuffer buffer(&zone);
+    builder->WriteTo(&buffer);
+    Isolate* isolate = CcTest::InitIsolateOnce();
+    HandleScope scope(isolate);
+    testing::SetupIsolateForWasmModule(isolate);
+    ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
+    MaybeHandle<WasmInstanceObject> maybe_instance =
+        CompileAndInstantiateForTesting(
+            isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
+    Handle<WasmInstanceObject> instance = maybe_instance.ToHandleChecked();
+
+    // Get the exported functions.
+    Handle<WasmExportedFunction> add_export =
+        testing::GetExportedFunction(isolate, instance, "add")
+            .ToHandleChecked();
+    Handle<WasmExportedFunction> mult_export =
+        testing::GetExportedFunction(isolate, instance, "mult")
+            .ToHandleChecked();
+    Handle<WasmExportedFunction> id_export =
+        testing::GetExportedFunction(isolate, instance, "id").ToHandleChecked();
+
+    // Get the function data for all exported functions.
+    WasmExportedFunctionData add_function_data =
+        add_export->shared().wasm_exported_function_data();
+    WasmExportedFunctionData mult_function_data =
+        mult_export->shared().wasm_exported_function_data();
+    WasmExportedFunctionData id_function_data =
+        id_export->shared().wasm_exported_function_data();
+
+    // Set the call count for add to (threshold - 1),
+    // so that the next call to it will cause the function to tier up.
+    add_function_data.set_call_count(kGenericWrapperThreshold - 1);
+
+    // Verify that the call counts for all functions are correct.
+    CHECK_EQ(add_function_data.call_count(), kGenericWrapperThreshold - 1);
+    CHECK_EQ(mult_function_data.call_count(), 0);
+    CHECK_EQ(id_function_data.call_count(), 0);
+
+    // Verify that all functions are set to use the generic wrapper.
+    CHECK(add_function_data.wrapper_code().is_builtin() &&
+          add_function_data.wrapper_code().builtin_index() ==
+              Builtins::kGenericJSToWasmWrapper);
+    CHECK(mult_function_data.wrapper_code().is_builtin() &&
+          mult_function_data.wrapper_code().builtin_index() ==
+              Builtins::kGenericJSToWasmWrapper);
+    CHECK(id_function_data.wrapper_code().is_builtin() &&
+          id_function_data.wrapper_code().builtin_index() ==
+              Builtins::kGenericJSToWasmWrapper);
+
+    // Call the add function to trigger the tier up.
+    {
+      int32_t expected_value = 21;
+      Handle<Object> params[2] = {Handle<Object>(Smi::FromInt(10), isolate),
+                                  Handle<Object>(Smi::FromInt(11), isolate)};
+      Handle<Object> receiver = isolate->factory()->undefined_value();
+      MaybeHandle<Object> maybe_result =
+          Execution::Call(isolate, add_export, receiver, 2, params);
+      Handle<Object> result = maybe_result.ToHandleChecked();
+      CHECK(result->IsSmi() && Smi::ToInt(*result) == expected_value);
+    }
+
+    // Verify that the call counts for all functions are correct.
+    CHECK_EQ(add_function_data.call_count(), kGenericWrapperThreshold);
+    CHECK_EQ(mult_function_data.call_count(), 0);
+    CHECK_EQ(id_function_data.call_count(), 0);
+
+    // Verify that the tier up of the add function replaced the wrapper
+    // for both the add and the mult functions, but not the id function.
+    CHECK(add_function_data.wrapper_code().kind() ==
+          CodeKind::JS_TO_WASM_FUNCTION);
+    CHECK(mult_function_data.wrapper_code().kind() ==
+          CodeKind::JS_TO_WASM_FUNCTION);
+    CHECK(id_function_data.wrapper_code().is_builtin() &&
+          id_function_data.wrapper_code().builtin_index() ==
+              Builtins::kGenericJSToWasmWrapper);
+
+    // Call the mult function to verify that the compiled wrapper is used.
+    {
+      int32_t expected_value = 42;
+      Handle<Object> params[2] = {Handle<Object>(Smi::FromInt(7), isolate),
+                                  Handle<Object>(Smi::FromInt(6), isolate)};
+      Handle<Object> receiver = isolate->factory()->undefined_value();
+      MaybeHandle<Object> maybe_result =
+          Execution::Call(isolate, mult_export, receiver, 2, params);
+      Handle<Object> result = maybe_result.ToHandleChecked();
+      CHECK(result->IsSmi() && Smi::ToInt(*result) == expected_value);
+    }
+    // Verify that mult's call count is still 0, which means that the call
+    // didn't go through the generic wrapper.
+    CHECK_EQ(mult_function_data.call_count(), 0);
+
+    // Call the id function to verify that the generic wrapper is used.
+    {
+      int32_t expected_value = 12;
+      Handle<Object> params[1] = {
+          Handle<Object>(Smi::FromInt(expected_value), isolate)};
+      Handle<Object> receiver = isolate->factory()->undefined_value();
+      MaybeHandle<Object> maybe_result =
+          Execution::Call(isolate, id_export, receiver, 1, params);
+      Handle<Object> result = maybe_result.ToHandleChecked();
+      CHECK(result->IsSmi() && Smi::ToInt(*result) == expected_value);
+    }
+    // Verify that id's call count increased to 1, which means that the call
+    // used the generic wrapper.
+    CHECK_EQ(id_function_data.call_count(), 1);
+  }
+  Cleanup();
+}
 #endif
 
 }  // namespace test_run_wasm_wrappers
