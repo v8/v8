@@ -755,6 +755,14 @@ TEST_F(FunctionBodyDecoderTest, BlockBrBinop) {
                                 WASM_I32V_1(2))});
 }
 
+TEST_F(FunctionBodyDecoderTest, VoidBlockTypeVariants) {
+  // Valid kVoidCode encoded in 2 bytes.
+  ExpectValidates(sigs.v_v(), {kExprBlock, kVoidCode | 0x80, 0x7F, kExprEnd});
+  // Invalid code, whose last 7 bits coincide with kVoidCode.
+  ExpectFailure(sigs.v_v(), {kExprBlock, kVoidCode | 0x80, 0x45, kExprEnd},
+                kAppendEnd, "Invalid block type");
+}
+
 TEST_F(FunctionBodyDecoderTest, If_empty1) {
   ExpectValidates(sigs.v_v(), {WASM_ZERO, WASM_IF_OP, kExprEnd});
 }
@@ -4599,6 +4607,78 @@ TEST_F(WasmOpcodeLengthTest, PrefixedOpcodesLEB) {
   // kExprAtomicNotify with a 2-byte LEB-encoded opcode, and 2 i32 imm for
   // memarg.
   ExpectLength(5, 0xfe, 0x80, 0x00, 0x00, 0x00);
+}
+
+class TypeReaderTest : public TestWithZone {
+ public:
+  ValueType DecodeValueType(const byte* start, const byte* end) {
+    Decoder decoder(start, end);
+    uint32_t length;
+    return value_type_reader::read_value_type<Decoder::kFullValidation>(
+        &decoder, start, &length, enabled_features_);
+  }
+
+  HeapType DecodeHeapType(const byte* start, const byte* end) {
+    Decoder decoder(start, end);
+    uint32_t length;
+    return value_type_reader::read_heap_type<Decoder::kFullValidation>(
+        &decoder, start, &length, enabled_features_);
+  }
+
+  // This variable is modified by WASM_FEATURE_SCOPE.
+  WasmFeatures enabled_features_;
+};
+
+TEST_F(TypeReaderTest, HeapTypeDecodingTest) {
+  WASM_FEATURE_SCOPE(gc);
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+
+  HeapType heap_func = HeapType(HeapType::kFunc);
+  HeapType heap_bottom = HeapType(HeapType::kBottom);
+
+  // 1- to 5-byte representation of kFuncRefCode.
+  {
+    const byte data[] = {kFuncRefCode};
+    HeapType result = DecodeHeapType(data, data + sizeof(data));
+    EXPECT_TRUE(result == heap_func);
+  }
+  {
+    const byte data[] = {kFuncRefCode | 0x80, 0x7F};
+    HeapType result = DecodeHeapType(data, data + sizeof(data));
+    EXPECT_EQ(result, heap_func);
+  }
+  {
+    const byte data[] = {kFuncRefCode | 0x80, 0xFF, 0x7F};
+    HeapType result = DecodeHeapType(data, data + sizeof(data));
+    EXPECT_EQ(result, heap_func);
+  }
+  {
+    const byte data[] = {kFuncRefCode | 0x80, 0xFF, 0xFF, 0x7F};
+    HeapType result = DecodeHeapType(data, data + sizeof(data));
+    EXPECT_EQ(result, heap_func);
+  }
+  {
+    const byte data[] = {kFuncRefCode | 0x80, 0xFF, 0xFF, 0xFF, 0x7F};
+    HeapType result = DecodeHeapType(data, data + sizeof(data));
+    EXPECT_EQ(result, heap_func);
+  }
+
+  {
+    // Some negative number.
+    const byte data[] = {0xB4, 0x7F};
+    HeapType result = DecodeHeapType(data, data + sizeof(data));
+    EXPECT_EQ(result, heap_bottom);
+  }
+
+  {
+    // This differs from kFuncRefCode by one bit outside the 1-byte LEB128
+    // range. This should therefore NOT be decoded as HeapType::kFunc and
+    // instead fail.
+    const byte data[] = {kFuncRefCode | 0x80, 0x6F};
+    HeapType result = DecodeHeapType(data, data + sizeof(data));
+    EXPECT_EQ(result, heap_bottom);
+  }
 }
 
 using TypesOfLocals = ZoneVector<ValueType>;

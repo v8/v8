@@ -197,6 +197,12 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
                         uint32_t* const length, const WasmFeatures& enabled) {
   int64_t heap_index = decoder->read_i33v<validate>(pc, length, "heap type");
   if (heap_index < 0) {
+    int64_t min_1_byte_leb128 = -64;
+    if (heap_index < min_1_byte_leb128) {
+      DecodeError<validate>(decoder, pc, "Unknown heap type %" PRId64,
+                            heap_index);
+      return HeapType(HeapType::kBottom);
+    }
     uint8_t uint_7_mask = 0x7F;
     uint8_t code = static_cast<ValueTypeCode>(heap_index) & uint_7_mask;
     switch (code) {
@@ -457,7 +463,8 @@ struct BlockTypeImmediate {
     int64_t block_type =
         decoder->read_i33v<validate>(pc, &length, "block type");
     if (block_type < 0) {
-      if ((static_cast<uint8_t>(block_type) & byte{0x7f}) == kVoidCode) return;
+      constexpr int64_t kVoidCode_i64_extended = (~int64_t{0x7F}) | kVoidCode;
+      if (block_type == kVoidCode_i64_extended) return;
       type = value_type_reader::read_value_type<validate>(decoder, pc, &length,
                                                           enabled);
       if (!VALIDATE(type != kWasmBottom)) {
