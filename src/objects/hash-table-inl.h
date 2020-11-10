@@ -110,7 +110,7 @@ int HashTableBase::ComputeCapacity(int at_least_space_for) {
   // Must be kept in sync with CodeStubAssembler::HashTableComputeCapacity().
   int raw_cap = at_least_space_for + (at_least_space_for >> 1);
   int capacity = base::bits::RoundUpToPowerOfTwo32(raw_cap);
-  return Max(capacity, kMinCapacity);
+  return std::max({capacity, kMinCapacity});
 }
 
 void HashTableBase::SetNumberOfElements(int nof) {

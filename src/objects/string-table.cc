@@ -51,7 +51,7 @@ int ComputeStringTableCapacity(int at_least_space_for) {
   // See matching computation in StringTableHasSufficientCapacityToAdd().
   int raw_capacity = at_least_space_for + (at_least_space_for >> 1);
   int capacity = base::bits::RoundUpToPowerOfTwo32(raw_capacity);
-  return Max(capacity, kStringTableMinCapacity);
+  return std::max(capacity, kStringTableMinCapacity);
 }
 
 int ComputeStringTableCapacityWithShrink(int current_capacity,

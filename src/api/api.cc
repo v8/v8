@@ -922,9 +922,9 @@ void ResourceConstraints::ConfigureDefaultsFromHeapSize(
   i::Heap::GenerationSizesFromHeapSize(maximum_heap_size_in_bytes,
                                        &young_generation, &old_generation);
   set_max_young_generation_size_in_bytes(
-      i::Max(young_generation, i::Heap::MinYoungGenerationSize()));
+      std::max(young_generation, i::Heap::MinYoungGenerationSize()));
   set_max_old_generation_size_in_bytes(
-      i::Max(old_generation, i::Heap::MinOldGenerationSize()));
+      std::max(old_generation, i::Heap::MinOldGenerationSize()));
   if (initial_heap_size_in_bytes > 0) {
     i::Heap::GenerationSizesFromHeapSize(initial_heap_size_in_bytes,
                                          &young_generation, &old_generation);
@@ -934,7 +934,7 @@ void ResourceConstraints::ConfigureDefaultsFromHeapSize(
   }
   if (i::kPlatformRequiresCodeRange) {
     set_code_range_size_in_bytes(
-        i::Min(i::kMaximalCodeRangeSize, maximum_heap_size_in_bytes));
+        std::min(i::kMaximalCodeRangeSize, maximum_heap_size_in_bytes));
   }
 }
 
@@ -949,8 +949,8 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
 
   if (virtual_memory_limit > 0 && i::kPlatformRequiresCodeRange) {
     set_code_range_size_in_bytes(
-        i::Min(i::kMaximalCodeRangeSize,
-               static_cast<size_t>(virtual_memory_limit / 8)));
+        std::min(i::kMaximalCodeRangeSize,
+                 static_cast<size_t>(virtual_memory_limit / 8)));
   }
 }
 
@@ -7682,7 +7682,7 @@ Local<ArrayBuffer> v8::ArrayBufferView::Buffer() {
 size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
   i::Handle<i::JSArrayBufferView> self = Utils::OpenHandle(this);
   size_t byte_offset = self->byte_offset();
-  size_t bytes_to_copy = i::Min(byte_length, self->byte_length());
+  size_t bytes_to_copy = std::min(byte_length, self->byte_length());
   if (bytes_to_copy) {
     i::DisallowHeapAllocation no_gc;
     i::Isolate* isolate = self->GetIsolate();
