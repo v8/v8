@@ -456,6 +456,10 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // Resume (Ignition/TurboFan) generator object.
   {
+    __ LoadP(r2, FieldMemOperand(r6, JSFunction::kSharedFunctionInfoOffset));
+    __ LoadHalfWordP(
+        r2,
+        FieldMemOperand(r2, SharedFunctionInfo::kFormalParameterCountOffset));
     // We abuse new.target both to indicate that this is a resume call and to
     // pass in the generator object.  In ordinary calls, new.target is always
     // undefined because generator functions are non-constructable.
