@@ -595,7 +595,10 @@ class CompilationStateImpl {
 
   void WaitForCompilationEvent(CompilationEvent event);
 
-  void SetHighPriority() { has_priority_ = true; }
+  void SetHighPriority() {
+    base::MutexGuard guard(&mutex_);
+    has_priority_ = true;
+  }
 
   bool failed() const {
     return compile_failed_.load(std::memory_order_relaxed);
@@ -665,14 +668,14 @@ class CompilationStateImpl {
   std::vector<std::shared_ptr<JSToWasmWrapperCompilationUnit>>
       js_to_wasm_wrapper_units_;
 
-  bool has_priority_ = false;
-
   // This mutex protects all information of this {CompilationStateImpl} which is
   // being accessed concurrently.
   mutable base::Mutex mutex_;
 
   //////////////////////////////////////////////////////////////////////////////
   // Protected by {mutex_}:
+
+  bool has_priority_ = false;
 
   std::shared_ptr<JobHandle> current_compile_job_;
 
