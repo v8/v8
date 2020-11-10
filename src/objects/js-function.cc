@@ -434,8 +434,9 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
 
 void JSFunction::SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
                                Handle<HeapObject> prototype) {
-  if (map->prototype() != *prototype)
+  if (map->prototype() != *prototype) {
     Map::SetPrototype(function->GetIsolate(), map, prototype);
+  }
   function->set_prototype_or_initial_map(*map);
   map->SetConstructor(*function);
   if (FLAG_trace_maps) {

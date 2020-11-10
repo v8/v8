@@ -57,6 +57,17 @@ void FeedbackCell::SetInterruptBudget() {
   set_interrupt_budget(FLAG_interrupt_budget);
 }
 
+void FeedbackCell::IncrementClosureCount(Isolate* isolate) {
+  ReadOnlyRoots r(isolate);
+  if (map() == r.no_closures_cell_map()) {
+    set_map(r.one_closure_cell_map());
+  } else if (map() == r.one_closure_cell_map()) {
+    set_map(r.many_closures_cell_map());
+  } else {
+    DCHECK(map() == r.many_closures_cell_map());
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
 

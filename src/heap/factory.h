@@ -632,11 +632,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Function creation from SharedFunctionInfo.
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
-      Handle<Map> initial_map, Handle<SharedFunctionInfo> function_info,
-      Handle<Context> context, Handle<FeedbackCell> feedback_cell,
-      AllocationType allocation = AllocationType::kOld);
-
-  Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<SharedFunctionInfo> function_info, Handle<Context> context,
       Handle<FeedbackCell> feedback_cell,
       AllocationType allocation = AllocationType::kOld);
@@ -809,6 +804,43 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   HeapObject NewForTest(Handle<Map> map, AllocationType allocation) {
     return New(map, allocation);
   }
+
+  // Helper class for creating JSFunction objects.
+  class JSFunctionBuilder final {
+   public:
+    JSFunctionBuilder(Isolate* isolate, Handle<SharedFunctionInfo> sfi,
+                      Handle<Context> context);
+
+    V8_WARN_UNUSED_RESULT Handle<JSFunction> Build();
+
+    JSFunctionBuilder& set_map(Handle<Map> v) {
+      maybe_map_ = v;
+      return *this;
+    }
+    JSFunctionBuilder& set_allocation_type(AllocationType v) {
+      allocation_type_ = v;
+      return *this;
+    }
+    JSFunctionBuilder& set_feedback_cell(Handle<FeedbackCell> v) {
+      maybe_feedback_cell_ = v;
+      return *this;
+    }
+
+   private:
+    void PrepareMap();
+    void PrepareFeedbackCell();
+
+    V8_WARN_UNUSED_RESULT Handle<JSFunction> BuildRaw(Handle<Code> code);
+
+    Isolate* const isolate_;
+    Handle<SharedFunctionInfo> sfi_;
+    Handle<Context> context_;
+    MaybeHandle<Map> maybe_map_;
+    MaybeHandle<FeedbackCell> maybe_feedback_cell_;
+    AllocationType allocation_type_ = AllocationType::kOld;
+
+    friend class Factory;
+  };
 
   // Allows creation of Code objects. It provides two build methods, one of
   // which tries to gracefully handle allocation failure.

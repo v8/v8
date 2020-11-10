@@ -1815,122 +1815,6 @@ DEFINE_ERROR(WasmLinkError, wasm_link_error)
 DEFINE_ERROR(WasmRuntimeError, wasm_runtime_error)
 #undef DEFINE_ERROR
 
-Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
-                                        Handle<SharedFunctionInfo> info,
-                                        Handle<Context> context,
-                                        AllocationType allocation) {
-  Handle<JSFunction> function(JSFunction::cast(New(map, allocation)),
-                              isolate());
-
-  Handle<Code> code;
-  bool have_cached_code = info->TryGetCachedCode(isolate()).ToHandle(&code);
-
-  function->initialize_properties(isolate());
-  function->initialize_elements();
-  function->set_shared(*info);
-  function->set_code(have_cached_code ? *code : info->GetCode());
-  function->set_context(*context);
-  function->set_raw_feedback_cell(*many_closures_cell());
-  int header_size;
-  if (map->has_prototype_slot()) {
-    header_size = JSFunction::kSizeWithPrototype;
-    function->set_prototype_or_initial_map(*the_hole_value());
-  } else {
-    header_size = JSFunction::kSizeWithoutPrototype;
-  }
-  InitializeJSObjectBody(function, map, header_size);
-
-  if (have_cached_code) {
-    IsCompiledScope is_compiled_scope(info->is_compiled_scope(isolate()));
-    JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
-    if (FLAG_trace_turbo_nci) CompilationCacheCode::TraceHit(info, code);
-  }
-
-  return function;
-}
-
-Handle<JSFunction> Factory::NewFunctionForTest(Handle<String> name) {
-  NewFunctionArgs args = NewFunctionArgs::ForFunctionWithoutCode(
-      name, isolate()->sloppy_function_map(), LanguageMode::kSloppy);
-  Handle<JSFunction> result = NewFunction(args);
-  DCHECK(is_sloppy(result->shared().language_mode()));
-  return result;
-}
-
-Handle<JSFunction> Factory::NewFunction(const NewFunctionArgs& args) {
-  DCHECK(!args.name_.is_null());
-
-  // Create the SharedFunctionInfo.
-  Handle<NativeContext> context(isolate()->native_context());
-  Handle<Map> map = args.GetMap(isolate());
-  Handle<SharedFunctionInfo> info =
-      NewSharedFunctionInfo(args.name_, args.maybe_wasm_function_data_,
-                            args.maybe_builtin_id_, kNormalFunction);
-
-  // Proper language mode in shared function info will be set later.
-  DCHECK(is_sloppy(info->language_mode()));
-  DCHECK(!map->IsUndefined(isolate()));
-
-#ifdef DEBUG
-  if (isolate()->bootstrapper()->IsActive()) {
-    Handle<Code> code;
-    DCHECK(
-        // During bootstrapping some of these maps could be not created yet.
-        (*map == context->get(Context::STRICT_FUNCTION_MAP_INDEX)) ||
-        (*map ==
-         context->get(Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX)) ||
-        (*map ==
-         context->get(
-             Context::STRICT_FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX)) ||
-        // Check if it's a creation of an empty or Proxy function during
-        // bootstrapping.
-        (args.maybe_builtin_id_ == Builtins::kEmptyFunction ||
-         args.maybe_builtin_id_ == Builtins::kProxyConstructor));
-  }
-#endif
-
-  Handle<JSFunction> result = NewFunction(map, info, context);
-
-  if (args.should_set_prototype_) {
-    result->set_prototype_or_initial_map(
-        *args.maybe_prototype_.ToHandleChecked());
-  }
-
-  if (args.should_set_language_mode_) {
-    result->shared().set_language_mode(args.language_mode_);
-  }
-
-  if (args.should_create_and_set_initial_map_) {
-    ElementsKind elements_kind;
-    switch (args.type_) {
-      case JS_ARRAY_TYPE:
-        elements_kind = PACKED_SMI_ELEMENTS;
-        break;
-      case JS_ARGUMENTS_OBJECT_TYPE:
-        elements_kind = PACKED_ELEMENTS;
-        break;
-      default:
-        elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
-        break;
-    }
-    Handle<Map> initial_map = NewMap(args.type_, args.instance_size_,
-                                     elements_kind, args.inobject_properties_);
-    result->shared().set_expected_nof_properties(args.inobject_properties_);
-    // TODO(littledan): Why do we have this is_generator test when
-    // NewFunctionPrototype already handles finding an appropriately
-    // shared prototype?
-    Handle<HeapObject> prototype = args.maybe_prototype_.ToHandleChecked();
-    if (!IsResumableFunction(result->shared().kind())) {
-      if (prototype->IsTheHole(isolate())) {
-        prototype = NewFunctionPrototype(result);
-      }
-    }
-    JSFunction::SetInitialMap(result, initial_map, prototype);
-  }
-
-  return result;
-}
-
 Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
   // Make sure to use globals from the function's context, since the function
   // can be from a different context.
@@ -1963,71 +1847,6 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
   }
 
   return prototype;
-}
-
-Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
-    Handle<SharedFunctionInfo> info, Handle<Context> context,
-    AllocationType allocation) {
-  Handle<Map> initial_map(
-      Map::cast(context->native_context().get(info->function_map_index())),
-      isolate());
-  return NewFunctionFromSharedFunctionInfo(initial_map, info, context,
-                                           allocation);
-}
-
-Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
-    Handle<SharedFunctionInfo> info, Handle<Context> context,
-    Handle<FeedbackCell> feedback_cell, AllocationType allocation) {
-  Handle<Map> initial_map(
-      Map::cast(context->native_context().get(info->function_map_index())),
-      isolate());
-  return NewFunctionFromSharedFunctionInfo(initial_map, info, context,
-                                           feedback_cell, allocation);
-}
-
-Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
-    Handle<Map> initial_map, Handle<SharedFunctionInfo> info,
-    Handle<Context> context, AllocationType allocation) {
-  DCHECK_EQ(JS_FUNCTION_TYPE, initial_map->instance_type());
-  Handle<JSFunction> result =
-      NewFunction(initial_map, info, context, allocation);
-
-  // Give compiler a chance to pre-initialize.
-  Compiler::PostInstantiation(result);
-
-  return result;
-}
-
-Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
-    Handle<Map> initial_map, Handle<SharedFunctionInfo> info,
-    Handle<Context> context, Handle<FeedbackCell> feedback_cell,
-    AllocationType allocation) {
-  DCHECK_EQ(JS_FUNCTION_TYPE, initial_map->instance_type());
-  Handle<JSFunction> result =
-      NewFunction(initial_map, info, context, allocation);
-
-  // Bump the closure count that is encoded in the feedback cell's map.
-  if (feedback_cell->map() == *no_closures_cell_map()) {
-    feedback_cell->set_map(*one_closure_cell_map());
-  } else if (feedback_cell->map() == *one_closure_cell_map()) {
-    feedback_cell->set_map(*many_closures_cell_map());
-  } else {
-    DCHECK(feedback_cell->map() == *many_closures_cell_map());
-  }
-
-  // Check that the optimized code in the feedback cell wasn't marked for
-  // deoptimization while not pointed to by any live JSFunction.
-  if (feedback_cell->value().IsFeedbackVector()) {
-    FeedbackVector::cast(feedback_cell->value())
-        .EvictOptimizedCodeMarkedForDeoptimization(
-            *info, "new function from shared function info");
-  }
-  result->set_raw_feedback_cell(*feedback_cell);
-
-  // Give compiler a chance to pre-initialize.
-  Compiler::PostInstantiation(result);
-
-  return result;
 }
 
 Handle<JSObject> Factory::NewExternal(void* value) {
@@ -3776,6 +3595,218 @@ Handle<Map> NewFunctionArgs::GetMap(Isolate* isolate) const {
     }
   }
   UNREACHABLE();
+}
+
+Handle<JSFunction> Factory::NewFunctionForTest(Handle<String> name) {
+  NewFunctionArgs args = NewFunctionArgs::ForFunctionWithoutCode(
+      name, isolate()->sloppy_function_map(), LanguageMode::kSloppy);
+  Handle<JSFunction> result = NewFunction(args);
+  DCHECK(is_sloppy(result->shared().language_mode()));
+  return result;
+}
+
+Handle<JSFunction> Factory::NewFunction(const NewFunctionArgs& args) {
+  DCHECK(!args.name_.is_null());
+
+  // Create the SharedFunctionInfo.
+  Handle<NativeContext> context(isolate()->native_context());
+  Handle<Map> map = args.GetMap(isolate());
+  Handle<SharedFunctionInfo> info =
+      NewSharedFunctionInfo(args.name_, args.maybe_wasm_function_data_,
+                            args.maybe_builtin_id_, kNormalFunction);
+
+  // Proper language mode in shared function info will be set later.
+  DCHECK(is_sloppy(info->language_mode()));
+  DCHECK(!map->IsUndefined(isolate()));
+
+  if (args.should_set_language_mode_) {
+    info->set_language_mode(args.language_mode_);
+  }
+
+#ifdef DEBUG
+  if (isolate()->bootstrapper()->IsActive()) {
+    Handle<Code> code;
+    DCHECK(
+        // During bootstrapping some of these maps could be not created yet.
+        (*map == context->get(Context::STRICT_FUNCTION_MAP_INDEX)) ||
+        (*map ==
+         context->get(Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX)) ||
+        (*map ==
+         context->get(
+             Context::STRICT_FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX)) ||
+        // Check if it's a creation of an empty or Proxy function during
+        // bootstrapping.
+        (args.maybe_builtin_id_ == Builtins::kEmptyFunction ||
+         args.maybe_builtin_id_ == Builtins::kProxyConstructor));
+  }
+#endif
+
+  Handle<JSFunction> result =
+      JSFunctionBuilder{isolate(), info, context}.set_map(map).Build();
+
+  // Both of these write to `prototype_or_initial_map`.
+  // TODO(jgruber): Fix callsites and enable the DCHECK.
+  // DCHECK(!args.should_set_prototype_ ||
+  //        !args.should_create_and_set_initial_map_);
+  if (args.should_set_prototype_) {
+    result->set_prototype_or_initial_map(
+        *args.maybe_prototype_.ToHandleChecked());
+  }
+
+  if (args.should_create_and_set_initial_map_) {
+    ElementsKind elements_kind;
+    switch (args.type_) {
+      case JS_ARRAY_TYPE:
+        elements_kind = PACKED_SMI_ELEMENTS;
+        break;
+      case JS_ARGUMENTS_OBJECT_TYPE:
+        elements_kind = PACKED_ELEMENTS;
+        break;
+      default:
+        elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
+        break;
+    }
+    Handle<Map> initial_map = NewMap(args.type_, args.instance_size_,
+                                     elements_kind, args.inobject_properties_);
+    result->shared().set_expected_nof_properties(args.inobject_properties_);
+    // TODO(littledan): Why do we have this is_generator test when
+    // NewFunctionPrototype already handles finding an appropriately
+    // shared prototype?
+    Handle<HeapObject> prototype = args.maybe_prototype_.ToHandleChecked();
+    if (!IsResumableFunction(result->shared().kind())) {
+      if (prototype->IsTheHole(isolate())) {
+        prototype = NewFunctionPrototype(result);
+      }
+    }
+    JSFunction::SetInitialMap(result, initial_map, prototype);
+  }
+
+  return result;
+}
+
+Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
+                                        Handle<SharedFunctionInfo> info,
+                                        Handle<Context> context,
+                                        AllocationType allocation) {
+  // TODO(jgruber): Remove this function.
+  return JSFunctionBuilder{isolate(), info, context}
+      .set_map(map)
+      .set_allocation_type(allocation)
+      .Build();
+}
+
+Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
+    Handle<SharedFunctionInfo> info, Handle<Context> context,
+    AllocationType allocation) {
+  // TODO(jgruber): Remove this function.
+  return JSFunctionBuilder{isolate(), info, context}
+      .set_allocation_type(allocation)
+      .Build();
+}
+
+Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
+    Handle<SharedFunctionInfo> info, Handle<Context> context,
+    Handle<FeedbackCell> feedback_cell, AllocationType allocation) {
+  // TODO(jgruber): Remove this function.
+  return JSFunctionBuilder{isolate(), info, context}
+      .set_feedback_cell(feedback_cell)
+      .Build();
+}
+
+Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
+    Handle<Map> initial_map, Handle<SharedFunctionInfo> info,
+    Handle<Context> context, AllocationType allocation) {
+  // TODO(jgruber): Remove this function.
+  return JSFunctionBuilder{isolate(), info, context}
+      .set_map(initial_map)
+      .set_allocation_type(allocation)
+      .Build();
+}
+
+Factory::JSFunctionBuilder::JSFunctionBuilder(Isolate* isolate,
+                                              Handle<SharedFunctionInfo> sfi,
+                                              Handle<Context> context)
+    : isolate_(isolate), sfi_(sfi), context_(context) {}
+
+Handle<JSFunction> Factory::JSFunctionBuilder::Build() {
+  PrepareMap();
+  PrepareFeedbackCell();
+
+  // Determine the associated Code object.
+  Handle<Code> code;
+  const bool have_cached_code =
+      sfi_->TryGetCachedCode(isolate_).ToHandle(&code);
+  if (!have_cached_code) code = handle(sfi_->GetCode(), isolate_);
+
+  Handle<JSFunction> result = BuildRaw(code);
+
+  if (have_cached_code) {
+    IsCompiledScope is_compiled_scope(sfi_->is_compiled_scope(isolate_));
+    JSFunction::EnsureFeedbackVector(result, &is_compiled_scope);
+    if (FLAG_trace_turbo_nci) CompilationCacheCode::TraceHit(sfi_, code);
+  }
+
+  Compiler::PostInstantiation(result);
+  return result;
+}
+
+Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(Handle<Code> code) {
+  Isolate* isolate = isolate_;
+  Factory* factory = isolate_->factory();
+
+  Handle<Map> map = maybe_map_.ToHandleChecked();
+  Handle<FeedbackCell> feedback_cell = maybe_feedback_cell_.ToHandleChecked();
+
+  DCHECK_EQ(JS_FUNCTION_TYPE, map->instance_type());
+
+  // Allocation.
+  Handle<JSFunction> function(
+      JSFunction::cast(factory->New(map, allocation_type_)), isolate);
+
+  // Header initialization.
+  function->initialize_properties(isolate);
+  function->initialize_elements();
+  function->set_shared(*sfi_);
+  function->set_context(*context_);
+  function->set_raw_feedback_cell(*feedback_cell);
+  function->set_code(*code);
+  if (map->has_prototype_slot()) {
+    function->set_prototype_or_initial_map(
+        ReadOnlyRoots(isolate).the_hole_value());
+  }
+
+  // Potentially body initialization.
+  factory->InitializeJSObjectBody(
+      function, map, JSFunction::GetHeaderSize(map->has_prototype_slot()));
+
+  return function;
+}
+
+void Factory::JSFunctionBuilder::PrepareMap() {
+  if (maybe_map_.is_null()) {
+    // No specific map requested, use the default.
+    maybe_map_ = handle(
+        Map::cast(context_->native_context().get(sfi_->function_map_index())),
+        isolate_);
+  }
+}
+
+void Factory::JSFunctionBuilder::PrepareFeedbackCell() {
+  Handle<FeedbackCell> feedback_cell;
+  if (maybe_feedback_cell_.ToHandle(&feedback_cell)) {
+    // Track the newly-created closure, and check that the optimized code in
+    // the feedback cell wasn't marked for deoptimization while not pointed to
+    // by any live JSFunction.
+    feedback_cell->IncrementClosureCount(isolate_);
+    if (feedback_cell->value().IsFeedbackVector()) {
+      FeedbackVector::cast(feedback_cell->value())
+          .EvictOptimizedCodeMarkedForDeoptimization(
+              *sfi_, "new function from shared function info");
+    }
+  } else {
+    // Fall back to the many_closures_cell.
+    maybe_feedback_cell_ = isolate_->factory()->many_closures_cell();
+  }
 }
 
 }  // namespace internal

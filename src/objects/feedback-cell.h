@@ -36,6 +36,11 @@ class FeedbackCell : public TorqueGeneratedFeedbackCell<FeedbackCell, Struct> {
   inline void SetInitialInterruptBudget();
   inline void SetInterruptBudget();
 
+  // The closure count is encoded in the cell's map, which distinguishes
+  // between zero, one, or many closures. This function records a new closure
+  // creation by updating the map.
+  inline void IncrementClosureCount(Isolate* isolate);
+
   using BodyDescriptor =
       FixedBodyDescriptor<kValueOffset, kInterruptBudgetOffset, kAlignedSize>;
 
