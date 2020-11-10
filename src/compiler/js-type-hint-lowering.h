@@ -144,8 +144,8 @@ class JSTypeHintLowering {
                                             FeedbackSlot call_slot) const;
 
   // Potential reduction of property access operations.
-  LoweringResult ReduceLoadNamedOperation(const Operator* op, Node* obj,
-                                          Node* effect, Node* control,
+  LoweringResult ReduceLoadNamedOperation(const Operator* op, Node* effect,
+                                          Node* control,
                                           FeedbackSlot slot) const;
   LoweringResult ReduceLoadKeyedOperation(const Operator* op, Node* obj,
                                           Node* key, Node* effect,

@@ -937,7 +937,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* LoadProperty(FeedbackSource const& feedback);
   const Operator* LoadNamed(Handle<Name> name, FeedbackSource const& feedback);
-  const Operator* LoadNamedFromSuper(Handle<Name> name);
+  const Operator* LoadNamedFromSuper(Handle<Name> name,
+                                     FeedbackSource const& feedback);
 
   const Operator* StoreProperty(LanguageMode language_mode,
                                 FeedbackSource const& feedback);
@@ -1413,9 +1414,13 @@ class JSLoadNamedFromSuperNode final : public JSNodeWrapperBase {
 
   const NamedAccess& Parameters() const { return NamedAccessOf(node()->op()); }
 
-#define INPUTS(V)                  \
-  V(Receiver, receiver, 0, Object) \
-  V(Object, home_object, 1, Object)
+  // TODO(marja, v8:9237): A more intuitive order would be (home_object,
+  // receiver, feedback_vector). The order can be changed once we no longer
+  // delegate to Runtime_LoadFromSuper.
+#define INPUTS(V)                       \
+  V(Receiver, receiver, 0, Object)      \
+  V(HomeObject, home_object, 1, Object) \
+  V(FeedbackVector, feedback_vector, 2, HeapObject)
   INPUTS(DEFINE_INPUT_ACCESSORS)
 #undef INPUTS
 };
