@@ -132,29 +132,37 @@ def TorqueLintWorker(command):
     process.kill()
 
 def JSLintWorker(command):
-  try:
+  def format_file(command):
+    try:
+      file_name = command[-1]
+      with open(file_name, "r") as file_handle:
+        contents = file_handle.read()
+
+      process = subprocess.Popen(command, stdout=PIPE, stderr=subprocess.PIPE)
+      output, err = process.communicate()
+      rc = process.returncode
+      if rc != 0:
+        sys.stdout.write("error code " + str(rc) + " running clang-format.\n")
+        return rc
+
+      if output != contents:
+        return 1
+
+      return 0
+    except KeyboardInterrupt:
+      process.kill()
+    except Exception:
+      print('Error running clang-format. Please make sure you have depot_tools' +
+            ' in your $PATH. Lint check skipped.')
+      process.kill()
+
+  rc = format_file(command)
+  if rc == 1:
+    # There are files that need to be formatted, let's format them in place.
     file_name = command[-1]
-    with open(file_name, "r") as file_handle:
-      contents = file_handle.read()
-
-    process = subprocess.Popen(command, stdout=PIPE, stderr=subprocess.PIPE)
-    output, err = process.communicate()
-    rc = process.returncode
-    if rc != 0:
-      sys.stdout.write("error code " + str(rc) + " running clang-format.\n")
-      return rc
-
-    if output != contents:
-      sys.stdout.write(file_name + " requires formatting.\n")
-      return 1
-
-    return 0
-  except KeyboardInterrupt:
-    process.kill()
-  except Exception:
-    print('Error running clang-format. Please make sure you have depot_tools' +
-          ' in your $PATH. Lint check skipped.')
-    process.kill()
+    sys.stdout.write("Formatting %s.\n" % (file_name))
+    rc = format_file(command[:-1] + ["-i", file_name])
+  return rc
 
 class FileContentsCache(object):
 

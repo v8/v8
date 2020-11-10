@@ -99,7 +99,7 @@ def _V8PresubmitChecks(input_api, output_api):
   def FilterJSFile(affected_file):
     return input_api.FilterSourceFile(
       affected_file,
-      white_list=(r'.+\.m?js'))
+      files_to_check=(r'.+\.m?js'))
 
   results = []
   if not CppLintProcessor().RunOnFiles(
