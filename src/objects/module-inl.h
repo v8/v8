@@ -51,9 +51,7 @@ struct Module::Hash {
 };
 
 SourceTextModuleInfo SourceTextModule::info() const {
-  return status() == kErrored
-             ? SourceTextModuleInfo::cast(code())
-             : GetSharedFunctionInfo().scope_info().ModuleDescriptorInfo();
+  return GetSharedFunctionInfo().scope_info().ModuleDescriptorInfo();
 }
 
 OBJECT_CONSTRUCTORS_IMPL(SourceTextModuleInfo, FixedArray)

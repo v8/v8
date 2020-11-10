@@ -1552,10 +1552,11 @@ void Module::ModulePrint(std::ostream& os) {  // NOLINT
 void SourceTextModule::SourceTextModulePrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "SourceTextModule");
   PrintModuleFields(*this, os);
-  os << "\n - origin: " << Brief(script().GetNameOrSourceURL());
-  os << "\n - code: " << Brief(code());
+  os << "\n - sfi/code/info: " << Brief(code());
+  Script script = GetScript();
+  os << "\n - script: " << Brief(script);
+  os << "\n - origin: " << Brief(script.GetNameOrSourceURL());
   os << "\n - requested_modules: " << Brief(requested_modules());
-  os << "\n - script: " << Brief(script());
   os << "\n - import_meta: " << Brief(import_meta());
   os << "\n";
 }
@@ -1564,6 +1565,7 @@ void SyntheticModule::SyntheticModulePrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "SyntheticModule");
   PrintModuleFields(*this, os);
   os << "\n - export_names: " << Brief(export_names());
+  os << "\n - name: " << Brief(name());
   os << "\n";
 }
 

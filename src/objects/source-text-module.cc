@@ -7,6 +7,7 @@
 #include "src/api/api-inl.h"
 #include "src/ast/modules.h"
 #include "src/builtins/accessors.h"
+#include "src/common/assert-scope.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
@@ -77,25 +78,26 @@ class Module::ResolveSet
 };
 
 SharedFunctionInfo SourceTextModule::GetSharedFunctionInfo() const {
-  DisallowHeapAllocation no_alloc;
+  DisallowGarbageCollection no_gc;
   switch (status()) {
     case kUninstantiated:
     case kPreInstantiating:
-      DCHECK(code().IsSharedFunctionInfo());
       return SharedFunctionInfo::cast(code());
     case kInstantiating:
-      DCHECK(code().IsJSFunction());
       return JSFunction::cast(code()).shared();
     case kInstantiated:
     case kEvaluating:
     case kEvaluated:
-      DCHECK(code().IsJSGeneratorObject());
       return JSGeneratorObject::cast(code()).function().shared();
     case kErrored:
-      UNREACHABLE();
+      return SharedFunctionInfo::cast(code());
   }
-
   UNREACHABLE();
+}
+
+Script SourceTextModule::GetScript() const {
+  DisallowGarbageCollection no_gc;
+  return Script::cast(GetSharedFunctionInfo().script());
 }
 
 int SourceTextModule::ExportIndex(int cell_index) {
@@ -205,7 +207,7 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
     Handle<SourceTextModuleInfoEntry> entry =
         Handle<SourceTextModuleInfoEntry>::cast(object);
     Handle<String> import_name(String::cast(entry->import_name()), isolate);
-    Handle<Script> script(module->script(), isolate);
+    Handle<Script> script(module->GetScript(), isolate);
     MessageLocation new_loc(script, entry->beg_pos(), entry->end_pos());
 
     Handle<Cell> cell;
@@ -269,7 +271,7 @@ MaybeHandle<Cell> SourceTextModule::ResolveExportUsingStarExports(
         continue;  // Indirect export.
       }
 
-      Handle<Script> script(module->script(), isolate);
+      Handle<Script> script(module->GetScript(), isolate);
       MessageLocation new_loc(script, entry->beg_pos(), entry->end_pos());
 
       Handle<Cell> cell;
@@ -466,7 +468,7 @@ bool SourceTextModule::FinishInstantiate(
     }
   }
 
-  Handle<Script> script(module->script(), isolate);
+  Handle<Script> script(module->GetScript(), isolate);
   Handle<SourceTextModuleInfo> module_info(module->info(), isolate);
 
   // Resolve imports.

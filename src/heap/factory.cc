@@ -2289,9 +2289,9 @@ Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
 }
 
 Handle<SourceTextModule> Factory::NewSourceTextModule(
-    Handle<SharedFunctionInfo> code) {
+    Handle<SharedFunctionInfo> sfi) {
   Handle<SourceTextModuleInfo> module_info(
-      code->scope_info().ModuleDescriptorInfo(), isolate());
+      sfi->scope_info().ModuleDescriptorInfo(), isolate());
   Handle<ObjectHashTable> exports =
       ObjectHashTable::New(isolate(), module_info->RegularExportCount());
   Handle<FixedArray> regular_exports =
@@ -2309,14 +2309,13 @@ Handle<SourceTextModule> Factory::NewSourceTextModule(
       SourceTextModule::cast(
           New(source_text_module_map(), AllocationType::kOld)),
       isolate());
-  module->set_code(*code);
+  module->set_code(*sfi);
   module->set_exports(*exports);
   module->set_regular_exports(*regular_exports);
   module->set_regular_imports(*regular_imports);
   module->set_hash(isolate()->GenerateIdentityHash(Smi::kMaxValue));
   module->set_module_namespace(roots.undefined_value());
   module->set_requested_modules(*requested_modules);
-  module->set_script(Script::cast(code->script()));
   module->set_status(Module::kUninstantiated);
   module->set_exception(roots.the_hole_value());
   module->set_import_meta(roots.the_hole_value());
@@ -2324,7 +2323,7 @@ Handle<SourceTextModule> Factory::NewSourceTextModule(
   module->set_dfs_ancestor_index(-1);
   module->set_top_level_capability(roots.undefined_value());
   module->set_flags(0);
-  module->set_async(IsAsyncModule(code->kind()));
+  module->set_async(IsAsyncModule(sfi->kind()));
   module->set_async_evaluating(false);
   module->set_async_parent_modules(*async_parent_modules);
   module->set_pending_async_dependencies(0);

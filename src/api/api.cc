@@ -2268,7 +2268,7 @@ Location Module::GetModuleRequestLocation(int i) const {
   CHECK_LT(i, module_request_positions->length());
   int position = i::Smi::ToInt(module_request_positions->get(i));
   i::Handle<i::Script> script(
-      i::Handle<i::SourceTextModule>::cast(self)->script(), isolate);
+      i::Handle<i::SourceTextModule>::cast(self)->GetScript(), isolate);
   i::Script::PositionInfo info;
   i::Script::GetPositionInfo(script, position, &info, i::Script::WITH_OFFSET);
   return v8::Location(info.line, info.column);
@@ -2285,12 +2285,11 @@ Local<Value> Module::GetModuleNamespace() {
 }
 
 Local<UnboundModuleScript> Module::GetUnboundModuleScript() {
-  Utils::ApiCheck(
-      GetStatus() < kEvaluating, "v8::Module::GetUnboundScript",
-      "v8::Module::GetUnboundScript must be used on an unevaluated module");
   i::Handle<i::Module> self = Utils::OpenHandle(this);
-  CHECK(self->IsSourceTextModule());
-  return ToApiHandle<UnboundModuleScript>(i::Handle<i::SharedFunctionInfo>(
+  Utils::ApiCheck(
+      self->IsSourceTextModule(), "v8::Module::GetUnboundModuleScript",
+      "v8::Module::GetUnboundModuleScript must be used on an SourceTextModule");
+  return ToApiHandle<UnboundModuleScript>(i::handle(
       i::Handle<i::SourceTextModule>::cast(self)->GetSharedFunctionInfo(),
       self->GetIsolate()));
 }
@@ -2299,14 +2298,7 @@ int Module::ScriptId() {
   i::Handle<i::Module> self = Utils::OpenHandle(this);
   Utils::ApiCheck(self->IsSourceTextModule(), "v8::Module::ScriptId",
                   "v8::Module::ScriptId must be used on an SourceTextModule");
-
-  // The SharedFunctionInfo is not available for errored modules.
-  Utils::ApiCheck(GetStatus() != kErrored, "v8::Module::ScriptId",
-                  "v8::Module::ScriptId must not be used on an errored module");
-  i::Handle<i::SharedFunctionInfo> sfi(
-      i::Handle<i::SourceTextModule>::cast(self)->GetSharedFunctionInfo(),
-      self->GetIsolate());
-  return ToApiHandle<UnboundScript>(sfi)->GetId();
+  return i::Handle<i::SourceTextModule>::cast(self)->GetScript().id();
 }
 
 bool Module::IsGraphAsync() const {

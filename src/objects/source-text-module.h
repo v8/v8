@@ -32,6 +32,8 @@ class SourceTextModule
   // kErrored.
   SharedFunctionInfo GetSharedFunctionInfo() const;
 
+  Script GetScript() const;
+
   // Whether or not this module is an async module. Set during module creation
   // and does not change afterwards.
   DECL_BOOLEAN_ACCESSORS(async)
