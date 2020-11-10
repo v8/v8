@@ -2246,7 +2246,7 @@ bool BuiltinContinuationModeIsWithCatch(BuiltinContinuationMode mode) {
 
 InterpretedFrameInfo::InterpretedFrameInfo(int parameters_count_with_receiver,
                                            int translation_height,
-                                           bool is_topmost,
+                                           bool is_topmost, bool pad_arguments,
                                            FrameInfoKind frame_info_kind) {
   const int locals_count = translation_height;
 
@@ -2267,7 +2267,7 @@ InterpretedFrameInfo::InterpretedFrameInfo(int parameters_count_with_receiver,
   // the part described by InterpreterFrameConstants. This will include
   // argument padding, when needed.
   const int parameter_padding_slots =
-      ArgumentPaddingSlots(parameters_count_with_receiver);
+      pad_arguments ? ArgumentPaddingSlots(parameters_count_with_receiver) : 0;
   const int fixed_frame_size =
       InterpreterFrameConstants::kFixedFrameSize +
       (parameters_count_with_receiver + parameter_padding_slots) *

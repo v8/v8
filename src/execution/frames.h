@@ -1334,14 +1334,15 @@ enum class BuiltinContinuationMode {
 class InterpretedFrameInfo {
  public:
   static InterpretedFrameInfo Precise(int parameters_count_with_receiver,
-                                      int translation_height, bool is_topmost) {
+                                      int translation_height, bool is_topmost,
+                                      bool pad_arguments) {
     return {parameters_count_with_receiver, translation_height, is_topmost,
-            FrameInfoKind::kPrecise};
+            pad_arguments, FrameInfoKind::kPrecise};
   }
 
   static InterpretedFrameInfo Conservative(int parameters_count_with_receiver,
                                            int locals_count) {
-    return {parameters_count_with_receiver, locals_count, false,
+    return {parameters_count_with_receiver, locals_count, false, true,
             FrameInfoKind::kConservative};
   }
 
@@ -1356,7 +1357,7 @@ class InterpretedFrameInfo {
  private:
   InterpretedFrameInfo(int parameters_count_with_receiver,
                        int translation_height, bool is_topmost,
-                       FrameInfoKind frame_info_kind);
+                       bool pad_arguments, FrameInfoKind frame_info_kind);
 
   uint32_t register_stack_slot_count_;
   uint32_t frame_size_in_bytes_without_fixed_;

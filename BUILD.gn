@@ -112,8 +112,8 @@ declare_args() {
   # Disable arguments adaptor frame (sets -dV8_NO_ARGUMENTS_ADAPTOR).
   v8_disable_arguments_adaptor =
       v8_current_cpu == "x86" || v8_current_cpu == "x64" ||
-      v8_current_cpu == "mipsel" || v8_current_cpu == "mips64el" ||
-      v8_current_cpu == "arm"
+      v8_current_cpu == "arm" || v8_current_cpu == "arm64" ||
+      v8_current_cpu == "mipsel" || v8_current_cpu == "mips64el"
 
   # Sets -dOBJECT_PRINT.
   v8_enable_object_print = ""

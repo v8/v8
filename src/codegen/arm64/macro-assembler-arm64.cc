@@ -2079,23 +2079,148 @@ void TurboAssembler::PrepareForTailCall(Register callee_args_count,
   Mov(sp, dst_reg);
 }
 
-void MacroAssembler::InvokePrologue(Register expected_parameter_count,
-                                    Register actual_parameter_count,
-                                    Label* done, InvokeFlag flag) {
-  Label regular_invoke;
+void MacroAssembler::LoadStackLimit(Register destination, StackLimitKind kind) {
+  DCHECK(root_array_available());
+  Isolate* isolate = this->isolate();
+  ExternalReference limit =
+      kind == StackLimitKind::kRealStackLimit
+          ? ExternalReference::address_of_real_jslimit(isolate)
+          : ExternalReference::address_of_jslimit(isolate);
+  DCHECK(TurboAssembler::IsAddressableThroughRootRegister(isolate, limit));
 
-  // Check whether the expected and actual arguments count match. The registers
-  // are set up according to contract with ArgumentsAdaptorTrampoline:
+  intptr_t offset =
+      TurboAssembler::RootRegisterOffsetForExternalReference(isolate, limit);
+  Ldr(destination, MemOperand(kRootRegister, offset));
+}
+
+void MacroAssembler::StackOverflowCheck(Register num_args,
+                                        Label* stack_overflow) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+
+  // Check the stack for overflow.
+  // We are not trying to catch interruptions (e.g. debug break and
+  // preemption) here, so the "real stack limit" is checked.
+
+  LoadStackLimit(scratch, StackLimitKind::kRealStackLimit);
+  // Make scratch the space we have left. The stack might already be overflowed
+  // here which will cause scratch to become negative.
+  Sub(scratch, sp, scratch);
+  // Check if the arguments will overflow the stack.
+  Cmp(scratch, Operand(num_args, LSL, kSystemPointerSizeLog2));
+  B(le, stack_overflow);
+}
+
+void MacroAssembler::InvokePrologue(Register formal_parameter_count,
+                                    Register actual_argument_count, Label* done,
+                                    InvokeFlag flag) {
   //  x0: actual arguments count.
   //  x1: function (passed through to callee).
   //  x2: expected arguments count.
-  // The code below is made a lot easier because the calling code already sets
-  // up actual and expected registers according to the contract.
-  DCHECK_EQ(actual_parameter_count, x0);
-  DCHECK_EQ(expected_parameter_count, x2);
+  //  x3: new target
+  Label regular_invoke;
+  DCHECK_EQ(actual_argument_count, x0);
+  DCHECK_EQ(formal_parameter_count, x2);
 
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+  // If the formal parameter count is equal to the adaptor sentinel, no need
+  // to push undefined value as arguments.
+  Cmp(formal_parameter_count, Operand(kDontAdaptArgumentsSentinel));
+  B(eq, &regular_invoke);
+
+  // If overapplication or if the actual argument count is equal to the
+  // formal parameter count, no need to push extra undefined values.
+  Register extra_argument_count = x2;
+  Subs(extra_argument_count, formal_parameter_count, actual_argument_count);
+  B(le, &regular_invoke);
+
+  // The stack pointer in arm64 needs to be 16-byte aligned. We might need to
+  // (1) add an extra padding or (2) remove (re-use) the extra padding already
+  // in the stack. Let {slots_to_copy} be the number of slots (arguments) to
+  // move up in the stack and let {slots_to_claim} be the number of extra stack
+  // slots to claim.
+  Label even_extra_count, skip_move;
+  Register slots_to_copy = x4;
+  Register slots_to_claim = x5;
+
+  Add(slots_to_copy, actual_argument_count, 1);  // Copy with receiver.
+  Mov(slots_to_claim, extra_argument_count);
+  Tbz(extra_argument_count, 0, &even_extra_count);
+
+  // Calculate {slots_to_claim} when {extra_argument_count} is odd.
+  // If {actual_argument_count} is even, we need one extra padding slot
+  // {slots_to_claim = extra_argument_count + 1}.
+  // If {actual_argument_count} is odd, we know that the
+  // original arguments will have a padding slot that we can reuse
+  // {slots_to_claim = extra_argument_count - 1}.
+  {
+    Register scratch = x11;
+    Add(slots_to_claim, extra_argument_count, 1);
+    And(scratch, actual_argument_count, 1);
+    Eor(scratch, scratch, 1);
+    Sub(slots_to_claim, slots_to_claim, Operand(scratch, LSL, 1));
+  }
+
+  Bind(&even_extra_count);
+  Cbz(slots_to_claim, &skip_move);
+
+  Label stack_overflow;
+  StackOverflowCheck(slots_to_claim, &stack_overflow);
+  Claim(slots_to_claim);
+
+  // Move the arguments already in the stack including the receiver.
+  {
+    Register src = x6;
+    Register dst = x7;
+    SlotAddress(src, slots_to_claim);
+    SlotAddress(dst, 0);
+    CopyDoubleWords(dst, src, slots_to_copy);
+  }
+
+  Bind(&skip_move);
+  Register actual_argument_with_receiver = x4;
+  Register pointer_next_value = x5;
+  Add(actual_argument_with_receiver, actual_argument_count,
+      1);  // {slots_to_copy} was scratched.
+
+  // Copy extra arguments as undefined values.
+  {
+    Label loop;
+    Register undefined_value = x6;
+    Register count = x7;
+    LoadRoot(undefined_value, RootIndex::kUndefinedValue);
+    SlotAddress(pointer_next_value, actual_argument_with_receiver);
+    Mov(count, extra_argument_count);
+    Bind(&loop);
+    Str(undefined_value,
+        MemOperand(pointer_next_value, kSystemPointerSize, PostIndex));
+    Subs(count, count, 1);
+    Cbnz(count, &loop);
+  }
+
+  // Set padding if needed.
+  {
+    Label skip;
+    Register total_args_slots = x4;
+    Add(total_args_slots, actual_argument_with_receiver, extra_argument_count);
+    Tbz(total_args_slots, 0, &skip);
+    Str(padreg, MemOperand(pointer_next_value));
+    Bind(&skip);
+  }
+  B(&regular_invoke);
+
+  bind(&stack_overflow);
+  {
+    FrameScope frame(this,
+                     has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
+    CallRuntime(Runtime::kThrowStackOverflow);
+    Unreachable();
+  }
+#else
+  // Check whether the expected and actual arguments count match. The registers
+  // are set up according to contract with ArgumentsAdaptorTrampoline.ct.
   // If actual == expected perform a regular invocation.
-  Cmp(expected_parameter_count, actual_parameter_count);
+  Cmp(formal_parameter_count, actual_argument_count);
   B(eq, &regular_invoke);
 
   // The argument counts mismatch, generate a call to the argument adaptor.
@@ -2108,6 +2233,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
   } else {
     Jump(adaptor, RelocInfo::CODE_TARGET);
   }
+#endif
 
   Bind(&regular_invoke);
 }
