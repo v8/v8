@@ -456,7 +456,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // Resume (Ignition/TurboFan) generator object.
   {
-    __ LoadP(r2, FieldMemOperand(r6, JSFunction::kSharedFunctionInfoOffset));
+    __ LoadTaggedPointerField(
+        r2, FieldMemOperand(r6, JSFunction::kSharedFunctionInfoOffset));
     __ LoadHalfWordP(
         r2,
         FieldMemOperand(r2, SharedFunctionInfo::kFormalParameterCountOffset));
