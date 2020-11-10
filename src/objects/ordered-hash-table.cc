@@ -16,8 +16,9 @@ namespace v8 {
 namespace internal {
 
 template <class Derived, int entrysize>
+template <typename LocalIsolate>
 MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Allocate(
-    Isolate* isolate, int capacity, AllocationType allocation) {
+    LocalIsolate* isolate, int capacity, AllocationType allocation) {
   // Capacity must be a power of two, since we depend on being able
   // to divide and multiple by 2 (kLoadFactor) to derive capacity
   // from number of buckets. If we decide to change kLoadFactor
@@ -62,8 +63,9 @@ MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::AllocateEmpty(
 }
 
 template <class Derived, int entrysize>
+template <typename LocalIsolate>
 MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::EnsureGrowable(
-    Isolate* isolate, Handle<Derived> table) {
+    LocalIsolate* isolate, Handle<Derived> table) {
   DCHECK(!table->IsObsolete());
 
   int nof = table->NumberOfElements();
@@ -236,15 +238,17 @@ HeapObject OrderedHashMap::GetEmpty(ReadOnlyRoots ro_roots) {
 }
 
 template <class Derived, int entrysize>
+template <typename LocalIsolate>
 MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
-    Isolate* isolate, Handle<Derived> table) {
+    LocalIsolate* isolate, Handle<Derived> table) {
   return OrderedHashTable<Derived, entrysize>::Rehash(isolate, table,
                                                       table->Capacity());
 }
 
 template <class Derived, int entrysize>
+template <typename LocalIsolate>
 MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
-    Isolate* isolate, Handle<Derived> table, int new_capacity) {
+    LocalIsolate* isolate, Handle<Derived> table, int new_capacity) {
   DCHECK(!table->IsObsolete());
 
   MaybeHandle<Derived> new_table_candidate =
@@ -316,8 +320,10 @@ MaybeHandle<OrderedHashMap> OrderedHashMap::Rehash(Isolate* isolate,
   return Base::Rehash(isolate, table, new_capacity);
 }
 
+template <typename LocalIsolate>
 MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::Rehash(
-    Isolate* isolate, Handle<OrderedNameDictionary> table, int new_capacity) {
+    LocalIsolate* isolate, Handle<OrderedNameDictionary> table,
+    int new_capacity) {
   MaybeHandle<OrderedNameDictionary> new_table_candidate =
       Base::Rehash(isolate, table, new_capacity);
   Handle<OrderedNameDictionary> new_table;
@@ -346,17 +352,6 @@ bool OrderedHashTable<Derived, entrysize>::Delete(Isolate* isolate,
   table.SetNumberOfElements(nof - 1);
   table.SetNumberOfDeletedElements(nod + 1);
 
-  return true;
-}
-
-// Parameter |roots| only here for compatibility with HashTable<...>::ToKey.
-template <class Derived, int entrysize>
-bool OrderedHashTable<Derived, entrysize>::ToKey(ReadOnlyRoots roots,
-                                                 InternalIndex entry,
-                                                 Object* out_key) {
-  Object k = KeyAt(entry);
-  if (!IsKey(roots, k)) return false;
-  *out_key = k;
   return true;
 }
 
@@ -412,7 +407,9 @@ MaybeHandle<OrderedHashMap> OrderedHashMap::Add(Isolate* isolate,
   return table;
 }
 
-InternalIndex OrderedNameDictionary::FindEntry(Isolate* isolate, Object key) {
+template <typename LocalIsolate>
+InternalIndex OrderedNameDictionary::FindEntry(LocalIsolate* isolate,
+                                               Object key) {
   DisallowHeapAllocation no_gc;
 
   DCHECK(key.IsUniqueName());
@@ -473,9 +470,10 @@ int OrderedNameDictionary::NumberOfEnumerableProperties() {
   return result;
 }
 
+template <typename LocalIsolate>
 MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::Add(
-    Isolate* isolate, Handle<OrderedNameDictionary> table, Handle<Name> key,
-    Handle<Object> value, PropertyDetails details) {
+    LocalIsolate* isolate, Handle<OrderedNameDictionary> table,
+    Handle<Name> key, Handle<Object> value, PropertyDetails details) {
   DCHECK(table->FindEntry(isolate, *key).is_not_found());
 
   MaybeHandle<OrderedNameDictionary> table_candidate =
@@ -538,18 +536,21 @@ Handle<OrderedNameDictionary> OrderedNameDictionary::DeleteEntry(
   return Shrink(isolate, table);
 }
 
+template <typename LocalIsolate>
 MaybeHandle<OrderedHashSet> OrderedHashSet::Allocate(
-    Isolate* isolate, int capacity, AllocationType allocation) {
+    LocalIsolate* isolate, int capacity, AllocationType allocation) {
   return Base::Allocate(isolate, capacity, allocation);
 }
 
+template <typename LocalIsolate>
 MaybeHandle<OrderedHashMap> OrderedHashMap::Allocate(
-    Isolate* isolate, int capacity, AllocationType allocation) {
+    LocalIsolate* isolate, int capacity, AllocationType allocation) {
   return Base::Allocate(isolate, capacity, allocation);
 }
 
+template <typename LocalIsolate>
 MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::Allocate(
-    Isolate* isolate, int capacity, AllocationType allocation) {
+    LocalIsolate* isolate, int capacity, AllocationType allocation) {
   MaybeHandle<OrderedNameDictionary> table_candidate =
       Base::Allocate(isolate, capacity, allocation);
   Handle<OrderedNameDictionary> table;
@@ -596,6 +597,9 @@ template V8_EXPORT_PRIVATE Handle<OrderedHashSet>
 OrderedHashTable<OrderedHashSet, 1>::Clear(Isolate* isolate,
                                            Handle<OrderedHashSet> table);
 
+template V8_EXPORT_PRIVATE MaybeHandle<OrderedHashSet> OrderedHashSet::Allocate(
+    Isolate* isolate, int capacity, AllocationType allocation);
+
 template V8_EXPORT_PRIVATE bool OrderedHashTable<OrderedHashSet, 1>::HasKey(
     Isolate* isolate, OrderedHashSet table, Object key);
 
@@ -617,6 +621,9 @@ template V8_EXPORT_PRIVATE Handle<OrderedHashMap>
 OrderedHashTable<OrderedHashMap, 2>::Clear(Isolate* isolate,
                                            Handle<OrderedHashMap> table);
 
+template V8_EXPORT_PRIVATE MaybeHandle<OrderedHashMap> OrderedHashMap::Allocate(
+    Isolate* isolate, int capacity, AllocationType allocation);
+
 template V8_EXPORT_PRIVATE bool OrderedHashTable<OrderedHashMap, 2>::HasKey(
     Isolate* isolate, OrderedHashMap table, Object key);
 
@@ -633,6 +640,37 @@ OrderedHashTable<OrderedNameDictionary, 3>::Shrink(
 template MaybeHandle<OrderedNameDictionary>
 OrderedHashTable<OrderedNameDictionary, 3>::EnsureGrowable(
     Isolate* isolate, Handle<OrderedNameDictionary> table);
+
+template V8_EXPORT_PRIVATE MaybeHandle<OrderedNameDictionary>
+OrderedNameDictionary::Allocate(Isolate* isolate, int capacity,
+                                AllocationType allocation);
+
+template V8_EXPORT_PRIVATE MaybeHandle<OrderedNameDictionary>
+OrderedNameDictionary::Allocate(LocalIsolate* isolate, int capacity,
+                                AllocationType allocation);
+
+template V8_EXPORT_PRIVATE MaybeHandle<OrderedNameDictionary>
+OrderedNameDictionary::Rehash(Isolate* isolate,
+                              Handle<OrderedNameDictionary> table,
+                              int new_capacity);
+
+template V8_EXPORT_PRIVATE InternalIndex
+OrderedNameDictionary::FindEntry(Isolate* isolate, Object key);
+
+template V8_EXPORT_PRIVATE InternalIndex
+OrderedNameDictionary::FindEntry(LocalIsolate* isolate, Object key);
+
+template V8_EXPORT_PRIVATE MaybeHandle<OrderedNameDictionary>
+OrderedNameDictionary::Add(Isolate* isolate,
+                           Handle<OrderedNameDictionary> table,
+                           Handle<Name> key, Handle<Object> value,
+                           PropertyDetails details);
+
+template V8_EXPORT_PRIVATE MaybeHandle<OrderedNameDictionary>
+OrderedNameDictionary::Add(LocalIsolate* isolate,
+                           Handle<OrderedNameDictionary> table,
+                           Handle<Name> key, Handle<Object> value,
+                           PropertyDetails details);
 
 template <>
 Handle<SmallOrderedHashSet>

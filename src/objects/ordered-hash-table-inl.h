@@ -117,6 +117,17 @@ Name OrderedNameDictionary::NameAt(InternalIndex entry) {
   return Name::cast(KeyAt(entry));
 }
 
+// Parameter |roots| only here for compatibility with HashTable<...>::ToKey.
+template <class Derived, int entrysize>
+bool OrderedHashTable<Derived, entrysize>::ToKey(ReadOnlyRoots roots,
+                                                 InternalIndex entry,
+                                                 Object* out_key) {
+  Object k = KeyAt(entry);
+  if (!IsKey(roots, k)) return false;
+  *out_key = k;
+  return true;
+}
+
 // Set the value for entry.
 inline void OrderedNameDictionary::ValueAtPut(InternalIndex entry,
                                               Object value) {
