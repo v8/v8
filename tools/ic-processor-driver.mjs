@@ -7,7 +7,7 @@ import { WebInspector } from "./sourcemap.mjs";
 import { BaseArgumentsProcessor } from "./arguments.mjs";
 
 function processArguments(args) {
-  var processor = new ArgumentsProcessor(args);
+  const processor = new ArgumentsProcessor(args);
   if (processor.parse()) {
     return processor.result();
   } else {
@@ -33,8 +33,8 @@ function initSourceMapSupport() {
 
   // Overwrite the load function to load scripts synchronously.
   SourceMap.load = function(sourceMapURL) {
-    var content = readFile(sourceMapURL);
-    var sourceMapObject = (JSON.parse(content));
+    const content = readFile(sourceMapURL);
+    const sourceMapObject = (JSON.parse(content));
     return new SourceMap(sourceMapURL, sourceMapObject);
   };
 }
@@ -82,7 +82,7 @@ for (const ic of processor.icTimeline.all) {
       ic.type + ' (' + ic.oldState + '->' + ic.newState + ic.modifier + ') at ' +
       ic.filePosition + ' ' + ic.key +
       ' (map 0x' + ic.map.toString(16) + ')' +
-      (ic.reason ? ' ' + ic.reason : '') + ' time: ' + ic.time);
+      (ic.reason ? ` ${ic.reason}` : '') + ' time: ' + ic.time);
   accumulator[ic.type]++;
 }
 

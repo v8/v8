@@ -90,7 +90,7 @@ export class CodeMap {
    * @param {number} to The destination address.
    */
   moveCode(from, to) {
-    var removedNode = this.dynamics_.remove(from);
+    const removedNode = this.dynamics_.remove(from);
     this.deleteAllCoveredNodes_(this.dynamics_, to, to + removedNode.value.size);
     this.dynamics_.insert(to, removedNode.value);
   }
@@ -102,7 +102,7 @@ export class CodeMap {
    * @param {number} start The starting address of the entry being deleted.
    */
   deleteCode(start) {
-    var removedNode = this.dynamics_.remove(start);
+    const removedNode = this.dynamics_.remove(start);
   }
 
   /**
@@ -130,7 +130,7 @@ export class CodeMap {
    * @private
    */
   markPages_(start, end) {
-    for (var addr = start; addr <= end;
+    for (let addr = start; addr <= end;
         addr += CodeMap.PAGE_SIZE) {
       this.pages_[(addr / CodeMap.PAGE_SIZE)|0] = 1;
     }
@@ -140,16 +140,16 @@ export class CodeMap {
    * @private
    */
   deleteAllCoveredNodes_(tree, start, end) {
-    var to_delete = [];
-    var addr = end - 1;
+    const to_delete = [];
+    let addr = end - 1;
     while (addr >= start) {
-      var node = tree.findGreatestLessThan(addr);
+      const node = tree.findGreatestLessThan(addr);
       if (!node) break;
-      var start2 = node.key, end2 = start2 + node.value.size;
+      const start2 = node.key, end2 = start2 + node.value.size;
       if (start2 < end && start < end2) to_delete.push(start2);
       addr = start2 - 1;
     }
-    for (var i = 0, l = to_delete.length; i < l; ++i) tree.remove(to_delete[i]);
+    for (let i = 0, l = to_delete.length; i < l; ++i) tree.remove(to_delete[i]);
   }
 
   /**
@@ -163,7 +163,7 @@ export class CodeMap {
    * @private
    */
   findInTree_(tree, addr) {
-    var node = tree.findGreatestLessThan(addr);
+    const node = tree.findGreatestLessThan(addr);
     return node && this.isAddressBelongsTo_(addr, node) ? node : null;
   }
 
@@ -175,29 +175,29 @@ export class CodeMap {
    * @param {number} addr Address.
    */
   findAddress(addr) {
-    var pageAddr = (addr / CodeMap.PAGE_SIZE)|0;
+    const pageAddr = (addr / CodeMap.PAGE_SIZE)|0;
     if (pageAddr in this.pages_) {
       // Static code entries can contain "holes" of unnamed code.
       // In this case, the whole library is assigned to this address.
-      var result = this.findInTree_(this.statics_, addr);
+      let result = this.findInTree_(this.statics_, addr);
       if (!result) {
         result = this.findInTree_(this.libraries_, addr);
         if (!result) return null;
       }
       return { entry : result.value, offset : addr - result.key };
     }
-    var min = this.dynamics_.findMin();
-    var max = this.dynamics_.findMax();
+    const min = this.dynamics_.findMin();
+    const max = this.dynamics_.findMax();
     if (max != null && addr < (max.key + max.value.size) && addr >= min.key) {
-      var dynaEntry = this.findInTree_(this.dynamics_, addr);
+      const dynaEntry = this.findInTree_(this.dynamics_, addr);
       if (dynaEntry == null) return null;
       // Dedupe entry name.
-      var entry = dynaEntry.value;
+      const entry = dynaEntry.value;
       if (!entry.nameUpdated_) {
         entry.name = this.dynamicsNameGen_.getName(entry.name);
         entry.nameUpdated_ = true;
       }
-      return { entry : entry, offset : addr - dynaEntry.key };
+      return { entry, offset : addr - dynaEntry.key };
     }
     return null;
   }
@@ -209,7 +209,7 @@ export class CodeMap {
    * @param {number} addr Address.
    */
   findEntry(addr) {
-    var result = this.findAddress(addr);
+    const result = this.findAddress(addr);
     return result ? result.entry : null;
   }
 
@@ -219,7 +219,7 @@ export class CodeMap {
    * @param {number} addr Address.
    */
   findDynamicEntryByStartAddress(addr) {
-    var node = this.dynamics_.find(addr);
+    const node = this.dynamics_.find(addr);
     return node ? node.value : null;
   }
 
@@ -292,7 +292,7 @@ class NameGenerator {
       this.knownNames_[name] = 0;
       return name;
     }
-    var count = ++this.knownNames_[name];
+    const count = ++this.knownNames_[name];
     return name + ' {' + count + '}';
   };
 }

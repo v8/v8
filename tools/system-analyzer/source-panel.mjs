@@ -188,12 +188,11 @@ class LineBuilder {
     this._selection = new Set(highlightPositions);
     this._clickHandler = panel.handleSourcePositionClick.bind(panel);
     // TODO: sort on script finalization.
-    script.sourcePositions
-        .sort((a, b) => {
-          if (a.line === b.line) return a.column - b.column;
-          return a.line - b.line;
-        }) this._sourcePositions =
-        new SourcePositionIterator(script.sourcePositions);
+    script.sourcePositions.sort((a, b) => {
+      if (a.line === b.line) return a.column - b.column;
+      return a.line - b.line;
+    });
+    this._sourcePositions = new SourcePositionIterator(script.sourcePositions);
   }
 
   get sourcePositionToMarkers() {

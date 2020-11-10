@@ -184,9 +184,9 @@ class Edge {
   }
 
   finishSetup() {
-    let from = this.from;
+    const from = this.from;
     if (from) from.addEdge(this);
-    let to = this.to;
+    const to = this.to;
     if (to === undefined) return;
     to.edge = this;
     if (from === undefined) return;

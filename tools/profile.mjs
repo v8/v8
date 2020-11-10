@@ -144,7 +144,7 @@ export class Profile {
    * @param {number} endAddr Ending address.
    */
   addLibrary(name, startAddr, endAddr) {
-    var entry = new CodeEntry(endAddr - startAddr, name, 'SHARED_LIB');
+    const entry = new CodeEntry(endAddr - startAddr, name, 'SHARED_LIB');
     this.codeMap_.addLibrary(startAddr, entry);
     return entry;
   }
@@ -157,7 +157,7 @@ export class Profile {
    * @param {number} endAddr Ending address.
    */
   addStaticCode(name, startAddr, endAddr) {
-      var entry = new CodeEntry(endAddr - startAddr, name, 'CPP');
+      const entry = new CodeEntry(endAddr - startAddr, name, 'CPP');
     this.codeMap_.addStaticCode(startAddr, entry);
     return entry;
   }
@@ -171,7 +171,7 @@ export class Profile {
    * @param {number} size Code entry size.
    */
   addCode(type, name, timestamp, start, size) {
-    var entry = new DynamicCodeEntry(size, type, name);
+    const entry = new DynamicCodeEntry(size, type, name);
     this.codeMap_.addCode(start, entry);
     return entry;
   }
@@ -189,7 +189,7 @@ export class Profile {
   addFuncCode(type, name, timestamp, start, size, funcAddr, state) {
     // As code and functions are in the same address space,
     // it is safe to put them in a single code map.
-    var func = this.codeMap_.findDynamicEntryByStartAddress(funcAddr);
+    let func = this.codeMap_.findDynamicEntryByStartAddress(funcAddr);
     if (!func) {
       func = new FunctionEntry(name);
       this.codeMap_.addCode(funcAddr, func);
@@ -197,7 +197,7 @@ export class Profile {
       // Function object has been overwritten with a new one.
       func.name = name;
     }
-    var entry = this.codeMap_.findDynamicEntryByStartAddress(start);
+    let entry = this.codeMap_.findDynamicEntryByStartAddress(start);
     if (entry) {
       if (entry.size === size && entry.func === func) {
         // Entry state has changed.
@@ -297,7 +297,7 @@ export class Profile {
    * @param {Array<number>} stack Stack sample.
    */
   recordTick(time_ns, vmState, stack) {
-    var processedStack = this.resolveAndFilterFuncs_(stack);
+    const processedStack = this.resolveAndFilterFuncs_(stack);
     this.bottomUpTree_.addPath(processedStack);
     processedStack.reverse();
     this.topDownTree_.addPath(processedStack);
@@ -310,13 +310,13 @@ export class Profile {
    * @param {Array<number>} stack Stack sample.
    */
   resolveAndFilterFuncs_(stack) {
-    var result = [];
-    var last_seen_c_function = '';
-    var look_for_first_c_function = false;
-    for (var i = 0; i < stack.length; ++i) {
-      var entry = this.codeMap_.findEntry(stack[i]);
+    const result = [];
+    let last_seen_c_function = '';
+    let look_for_first_c_function = false;
+    for (let i = 0; i < stack.length; ++i) {
+      const entry = this.codeMap_.findEntry(stack[i]);
       if (entry) {
-        var name = entry.getName();
+        const name = entry.getName();
         if (i === 0 && (entry.type === 'CPP' || entry.type === 'SHARED_LIB')) {
           look_for_first_c_function = true;
         }
@@ -393,7 +393,7 @@ export class Profile {
       tree.computeTotalWeights();
       return tree;
     } else {
-      var subTree = tree.cloneSubtree(opt_label);
+      const subTree = tree.cloneSubtree(opt_label);
       subTree.computeTotalWeights();
       return subTree;
     }
@@ -406,11 +406,11 @@ export class Profile {
    * @param {string} opt_label Starting node label.
    */
   getFlatProfile(opt_label) {
-    var counters = new CallTree();
-    var rootLabel = opt_label || CallTree.ROOT_NODE_LABEL;
-    var precs = {};
+    const counters = new CallTree();
+    const rootLabel = opt_label || CallTree.ROOT_NODE_LABEL;
+    const precs = {};
     precs[rootLabel] = 0;
-    var root = counters.findOrAddChild(rootLabel);
+    const root = counters.findOrAddChild(rootLabel);
 
     this.topDownTree_.computeTotalWeights();
     this.topDownTree_.traverseInDepth(
@@ -418,13 +418,13 @@ export class Profile {
         if (!(node.label in precs)) {
           precs[node.label] = 0;
         }
-        var nodeLabelIsRootLabel = node.label == rootLabel;
+        const nodeLabelIsRootLabel = node.label == rootLabel;
         if (nodeLabelIsRootLabel || precs[rootLabel] > 0) {
           if (precs[rootLabel] == 0) {
             root.selfWeight += node.selfWeight;
             root.totalWeight += node.totalWeight;
           } else {
-            var rec = root.findOrAddChild(node.label);
+            const rec = root.findOrAddChild(node.label);
             rec.selfWeight += node.selfWeight;
             if (nodeLabelIsRootLabel || precs[node.label] == 0) {
               rec.totalWeight += node.totalWeight;
@@ -454,17 +454,15 @@ export class Profile {
   }
 
   getCEntryProfile() {
-    var result = [new CEntryNode("TOTAL", 0)];
-    var total_ticks = 0;
-    for (var f in this.c_entries_) {
-      var ticks = this.c_entries_[f];
+    const result = [new CEntryNode("TOTAL", 0)];
+    let total_ticks = 0;
+    for (let f in this.c_entries_) {
+      const ticks = this.c_entries_[f];
       total_ticks += ticks;
       result.push(new CEntryNode(f, ticks));
     }
     result[0].ticks = total_ticks;  // Sorting will keep this at index 0.
-    result.sort(function (n1, n2) {
-      return n2.ticks - n1.ticks || (n2.name < n1.name ? -1 : 1)
-    });
+    result.sort((n1, n2) => n2.ticks - n1.ticks || (n2.name < n1.name ? -1 : 1));
     return result;
   }
 
@@ -473,19 +471,19 @@ export class Profile {
    * Cleans up function entries that are not referenced by code entries.
    */
   cleanUpFuncEntries() {
-    var referencedFuncEntries = [];
-    var entries = this.codeMap_.getAllDynamicEntriesWithAddresses();
-    for (var i = 0, l = entries.length; i < l; ++i) {
+    const referencedFuncEntries = [];
+    const entries = this.codeMap_.getAllDynamicEntriesWithAddresses();
+    for (let i = 0, l = entries.length; i < l; ++i) {
       if (entries[i][1].constructor === FunctionEntry) {
         entries[i][1].used = false;
       }
     }
-    for (var i = 0, l = entries.length; i < l; ++i) {
+    for (let i = 0, l = entries.length; i < l; ++i) {
       if ("func" in entries[i][1]) {
         entries[i][1].func.used = true;
       }
     }
-    for (var i = 0, l = entries.length; i < l; ++i) {
+    for (let i = 0, l = entries.length; i < l; ++i) {
       if (entries[i][1].constructor === FunctionEntry &&
         !entries[i][1].used) {
         this.codeMap_.deleteCode(entries[i][0]);
@@ -556,9 +554,9 @@ class DynamicFuncCodeEntry extends CodeEntry {
   getState() {
     return DynamicFuncCodeEntry.STATE_PREFIX[this.state];
   }
-  
+
   getName() {
-    var name = this.func.getName();
+    const name = this.func.getName();
     return this.type + ': ' + this.getState() + name;
   }
 
@@ -593,12 +591,12 @@ class FunctionEntry extends CodeEntry {
    * Returns node name.
    */
   getName() {
-    var name = this.name;
+    let name = this.name;
     if (name.length == 0) {
       name = '<anonymous>';
     } else if (name.charAt(0) == ' ') {
       // An anonymous function with location: " aaa.js:10".
-      name = '<anonymous>' + name;
+      name = `<anonymous>${name}`;
     }
     return name;
   }
@@ -634,8 +632,8 @@ class CallTree {
     if (path.length == 0) {
       return;
     }
-    var curr = this.root_;
-    for (var i = 0; i < path.length; ++i) {
+    let curr = this.root_;
+    for (let i = 0; i < path.length; ++i) {
       curr = curr.findOrAddChild(path[i]);
     }
     curr.selfWeight++;
@@ -670,12 +668,12 @@ class CallTree {
    * @param {string} label The label of the new root node.
    */
   cloneSubtree(label) {
-    var subTree = new CallTree();
+    const subTree = new CallTree();
     this.traverse((node, parent) => {
       if (!parent && node.label != label) {
         return null;
       }
-      var child = (parent ? parent : subTree).findOrAddChild(node.label);
+      const child = (parent ? parent : subTree).findOrAddChild(node.label);
       child.selfWeight += node.selfWeight;
       return child;
     });
@@ -707,13 +705,13 @@ class CallTree {
    *    The second parameter is the result of calling 'f' on the parent node.
    */
   traverse(f) {
-    var pairsToProcess = new ConsArray();
+    const pairsToProcess = new ConsArray();
     pairsToProcess.concat([{ node: this.root_, param: null }]);
     while (!pairsToProcess.atEnd()) {
-      var pair = pairsToProcess.next();
-      var node = pair.node;
-      var newParam = f(node, pair.param);
-      var morePairsToProcess = [];
+      const pair = pairsToProcess.next();
+      const node = pair.node;
+      const newParam = f(node, pair.param);
+      const morePairsToProcess = [];
       node.forEachChild((child) => {
         morePairsToProcess.push({ node: child, param: newParam });
       });
@@ -773,7 +771,7 @@ class CallTree {
    * @param {string} label Child node label.
    */
   addChild(label) {
-    var child = new CallTreeNode(label, this);
+    const child = new CallTreeNode(label, this);
     this.children[label] = child;
     return child;
   }
@@ -782,7 +780,7 @@ class CallTree {
    * Computes node's total weight.
    */
   computeTotalWeight() {
-    var totalWeight = this.selfWeight;
+    let totalWeight = this.selfWeight;
     this.forEachChild(function (child) {
       totalWeight += child.computeTotalWeight();
     });
@@ -793,7 +791,7 @@ class CallTree {
    * Returns all node's children as an array.
    */
   exportChildren() {
-    var result = [];
+    const result = [];
     this.forEachChild(function (node) { result.push(node); });
     return result;
   }
@@ -823,7 +821,7 @@ class CallTree {
    * @param {function(CallTreeNode)} f Visitor function.
    */
   forEachChild(f) {
-    for (var c in this.children) {
+    for (let c in this.children) {
       f(this.children[c]);
     }
   }
@@ -834,7 +832,7 @@ class CallTree {
    * @param {function(CallTreeNode)} f Visitor function.
    */
   walkUpToRoot(f) {
-    for (var curr = this; curr != null; curr = curr.parent) {
+    for (let curr = this; curr != null; curr = curr.parent) {
       f(curr);
     }
   }
@@ -846,8 +844,9 @@ class CallTree {
    * @param {function(CallTreeNode)} opt_f Visitor function.
    */
   descendToChild(labels, opt_f) {
-    for (var pos = 0, curr = this; pos < labels.length && curr != null; pos++) {
-      var child = curr.findChild(labels[pos]);
+    let curr = this;
+    for (let pos = 0; pos < labels.length && curr != null; pos++) {
+      const child = curr.findChild(labels[pos]);
       if (opt_f) {
         opt_f(child, pos);
       }
@@ -867,7 +866,7 @@ export function JsonProfile() {
 
 JsonProfile.prototype.addLibrary = function (
   name, startAddr, endAddr) {
-  var entry = new CodeEntry(
+  const entry = new CodeEntry(
     endAddr - startAddr, name, 'SHARED_LIB');
   this.codeMap_.addLibrary(startAddr, entry);
 
@@ -878,7 +877,7 @@ JsonProfile.prototype.addLibrary = function (
 
 JsonProfile.prototype.addStaticCode = function (
   name, startAddr, endAddr) {
-  var entry = new CodeEntry(
+  const entry = new CodeEntry(
     endAddr - startAddr, name, 'CPP');
   this.codeMap_.addStaticCode(startAddr, entry);
 
@@ -897,7 +896,7 @@ JsonProfile.prototype.addCode = function (
     codeId = staticEntry.entry.codeId;
   }
 
-  var entry = new CodeEntry(size, name, 'CODE');
+  const entry = new CodeEntry(size, name, 'CODE');
   this.codeMap_.addCode(start, entry);
 
   entry.codeId = codeId;
@@ -905,7 +904,7 @@ JsonProfile.prototype.addCode = function (
     name: entry.name,
     timestamp: timestamp,
     type: entry.type,
-    kind: kind
+    kind: kind,
   };
 
   return entry;
@@ -915,22 +914,22 @@ JsonProfile.prototype.addFuncCode = function (
   kind, name, timestamp, start, size, funcAddr, state) {
   // As code and functions are in the same address space,
   // it is safe to put them in a single code map.
-  var func = this.codeMap_.findDynamicEntryByStartAddress(funcAddr);
+  let func = this.codeMap_.findDynamicEntryByStartAddress(funcAddr);
   if (!func) {
-    var func = new CodeEntry(0, name, 'SFI');
+    func = new CodeEntry(0, name, 'SFI');
     this.codeMap_.addCode(funcAddr, func);
 
     func.funcId = this.functionEntries_.length;
-    this.functionEntries_.push({ name: name, codes: [] });
+    this.functionEntries_.push({ name, codes: [] });
   } else if (func.name !== name) {
     // Function object has been overwritten with a new one.
     func.name = name;
 
     func.funcId = this.functionEntries_.length;
-    this.functionEntries_.push({ name: name, codes: [] });
+    this.functionEntries_.push({ name, codes: [] });
   }
   // TODO(jarin): Insert the code object into the SFI's code list.
-  var entry = this.codeMap_.findDynamicEntryByStartAddress(start);
+  let entry = this.codeMap_.findDynamicEntryByStartAddress(start);
   if (entry) {
     if (entry.size === size && entry.func === func) {
       // Entry state has changed.
@@ -961,7 +960,7 @@ JsonProfile.prototype.addFuncCode = function (
       type: entry.type,
       kind: kind,
       func: func.funcId,
-      tm: timestamp
+      tm: timestamp,
     });
   }
   return entry;
@@ -971,25 +970,25 @@ JsonProfile.prototype.moveCode = function (from, to) {
   try {
     this.codeMap_.moveCode(from, to);
   } catch (e) {
-    printErr("Move: unknown source " + from);
+    printErr(`Move: unknown source ${from}`);
   }
 };
 
 JsonProfile.prototype.addSourcePositions = function (
   start, script, startPos, endPos, sourcePositions, inliningPositions,
   inlinedFunctions) {
-  var entry = this.codeMap_.findDynamicEntryByStartAddress(start);
+  const entry = this.codeMap_.findDynamicEntryByStartAddress(start);
   if (!entry) return;
-  var codeId = entry.codeId;
+  const codeId = entry.codeId;
 
   // Resolve the inlined functions list.
   if (inlinedFunctions.length > 0) {
     inlinedFunctions = inlinedFunctions.substring(1).split("S");
-    for (var i = 0; i < inlinedFunctions.length; i++) {
-      var funcAddr = parseInt(inlinedFunctions[i]);
-      var func = this.codeMap_.findDynamicEntryByStartAddress(funcAddr);
+    for (let i = 0; i < inlinedFunctions.length; i++) {
+      const funcAddr = parseInt(inlinedFunctions[i]);
+      const func = this.codeMap_.findDynamicEntryByStartAddress(funcAddr);
       if (!func || func.funcId === undefined) {
-        printErr("Could not find function " + inlinedFunctions[i]);
+        printErr(`Could not find function ${inlinedFunctions[i]}`);
         inlinedFunctions[i] = null;
       } else {
         inlinedFunctions[i] = func.funcId;
@@ -1029,7 +1028,7 @@ JsonProfile.prototype.deoptCode = function (
         scriptOffset: scriptOffset,
         posText: sourcePositionText,
         reason: deoptReasonText,
-        bailoutType: bailoutType
+        bailoutType: bailoutType,
       };
     }
   }
@@ -1039,7 +1038,7 @@ JsonProfile.prototype.deleteCode = function (start) {
   try {
     this.codeMap_.deleteCode(start);
   } catch (e) {
-    printErr("Delete: unknown address " + start);
+    printErr(`Delete: unknown address ${start}`);
   }
 };
 
@@ -1056,9 +1055,9 @@ JsonProfile.prototype.findEntry = function (addr) {
 JsonProfile.prototype.recordTick = function (time_ns, vmState, stack) {
   // TODO(jarin) Resolve the frame-less case (when top of stack is
   // known code).
-  var processedStack = [];
-  for (var i = 0; i < stack.length; i++) {
-    var resolved = this.codeMap_.findAddress(stack[i]);
+  const processedStack = [];
+  for (let i = 0; i < stack.length; i++) {
+    const resolved = this.codeMap_.findAddress(stack[i]);
     if (resolved) {
       processedStack.push(resolved.entry.codeId, resolved.offset);
     } else {
@@ -1086,7 +1085,7 @@ JsonProfile.prototype.writeJson = function () {
   write(',\n');
 
   write('  "ticks": [\n');
-  for (var i = 0; i < this.ticks_.length; i++) {
+  for (let i = 0; i < this.ticks_.length; i++) {
     write('    ');
     writeJson(this.ticks_[i]);
     if (i < this.ticks_.length - 1) {

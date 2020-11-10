@@ -55,16 +55,15 @@ DOM.defineCustomElement(
       }
 
       updateCount() {
-        this.count.innerHTML = 'length=' + this._selectedLogEntries.length;
+        this.count.innerHTML = `length=${this._selectedLogEntries.length}`;
       }
 
       updateTable(event) {
         let select = this.groupKey;
         let key = select.options[select.selectedIndex].text;
-        let tableBody = this.tableBody;
-        DOM.removeAllChildren(tableBody);
+        DOM.removeAllChildren(this.tableBody);
         let groups = Group.groupBy(this._selectedLogEntries, key, true);
-        this.render(groups, tableBody);
+        this.render(groups, this.tableBody);
       }
 
       escapeHtml(unsafe) {
@@ -89,8 +88,7 @@ DOM.defineCustomElement(
         // searches for mapLogEntries using the id, time
         const selectedMapLogEntriesSet = new Set();
         for (const icLogEntry of icLogEntries) {
-          const time = icLogEntry.time;
-          const selectedMap = MapLogEntry.get(id, time);
+          const selectedMap = MapLogEntry.get(id, icLogEntry.time);
           selectedMapLogEntriesSet.add(selectedMap);
         }
         return Array.from(selectedMapLogEntriesSet);
@@ -131,8 +129,7 @@ DOM.defineCustomElement(
         const omitted = groups.length - max;
         if (omitted > 0) {
           const tr = DOM.tr();
-          const tdNode =
-              tr.appendChild(DOM.td('Omitted ' + omitted + ' entries.'));
+          const tdNode = tr.appendChild(DOM.td(`Omitted ${omitted} entries.`));
           tdNode.colSpan = 4;
           fragment.appendChild(tr);
         }

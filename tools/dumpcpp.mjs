@@ -33,7 +33,7 @@ export class CppProcessor extends LogReader {
 
   processLogFile(fileName) {
     this.lastLogFileName_ = fileName;
-    var line;
+    let line;
     while (line = readline()) {
       this.processLogLine(line);
     }
@@ -42,26 +42,26 @@ export class CppProcessor extends LogReader {
   processLogFileInTest(fileName) {
     // Hack file name to avoid dealing with platform specifics.
     this.lastLogFileName_ = 'v8.log';
-    var contents = readFile(fileName);
+    const contents = readFile(fileName);
     this.processLogChunk(contents);
   };
 
   processSharedLibrary(name, startAddr, endAddr, aslrSlide) {
-    var self = this;
-    var libFuncs = this.cppEntriesProvider_.parseVmSymbols(
+    const self = this;
+    const libFuncs = this.cppEntriesProvider_.parseVmSymbols(
         name, startAddr, endAddr, aslrSlide, function(fName, fStart, fEnd) {
-      var entry = new CodeEntry(fEnd - fStart, fName, 'CPP');
+      const entry = new CodeEntry(fEnd - fStart, fName, 'CPP');
       self.codeMap_.addStaticCode(fStart, entry);
     });
   };
 
   dumpCppSymbols() {
-    var staticEntries = this.codeMap_.getAllStaticEntriesWithAddresses();
-    var total = staticEntries.length;
-    for (var i = 0; i < total; ++i) {
-      var entry = staticEntries[i];
-      var printValues = ['cpp', '0x' + entry[0].toString(16), entry[1].size,
-                        '"' + entry[1].name + '"'];
+    const staticEntries = this.codeMap_.getAllStaticEntriesWithAddresses();
+    const total = staticEntries.length;
+    for (let i = 0; i < total; ++i) {
+      const entry = staticEntries[i];
+      const printValues = ['cpp', `0x${entry[0].toString(16)}`, entry[1].size,
+                        `"${entry[1].name}"`];
       print(printValues.join(','));
     }
   }

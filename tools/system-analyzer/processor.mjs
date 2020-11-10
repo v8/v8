@@ -125,7 +125,7 @@ export class Processor extends LogReader {
         this.processLogLine(line);
       }
     } catch (e) {
-      console.error('Error occurred during parsing, trying to continue: ' + e);
+      console.error(`Error occurred during parsing, trying to continue: ${e}`);
     }
     this.finalize();
   }
@@ -142,7 +142,7 @@ export class Processor extends LogReader {
       }
     } catch (e) {
       console.error(
-          'Error occurred during parsing line ' + i +
+          `Error occurred during parsing line ${i}` +
           ', trying to continue: ' + e);
     }
     this.finalize();
@@ -155,8 +155,8 @@ export class Processor extends LogReader {
     this._mapTimeline.forEach(map => {
       if (map.isRoot()) id = map.finalizeRootMap(id + 1);
       if (map.edge && map.edge.name) {
-        let edge = map.edge;
-        let list = this._mapTimeline.transitions.get(edge.name);
+        const edge = map.edge;
+        const list = this._mapTimeline.transitions.get(edge.name);
         if (list === undefined) {
           this._mapTimeline.transitions.set(edge.name, [edge]);
         } else {
@@ -178,13 +178,13 @@ export class Processor extends LogReader {
       case '*':
         return Profile.CodeState.OPTIMIZED;
     }
-    throw new Error('unknown code state: ' + s);
+    throw new Error(`unknown code state: ${s}`);
   }
 
   processCodeCreation(type, kind, timestamp, start, size, name, maybe_func) {
     if (maybe_func.length) {
-      let funcAddr = parseInt(maybe_func[0]);
-      let state = this.parseState(maybe_func[1]);
+      const funcAddr = parseInt(maybe_func[0]);
+      const state = this.parseState(maybe_func[1]);
       this._profile.addFuncCode(
           type, name, timestamp, start, size, funcAddr, state);
     } else {
@@ -324,7 +324,7 @@ export class Processor extends LogReader {
     if (id === '0x000000000000') return undefined;
     let map = MapLogEntry.get(id, time);
     if (map === undefined) {
-      console.error('No map details provided: id=' + id);
+      console.error(`No map details provided: id=${id}`);
       // Manually patch in a map to continue running.
       return this.createMapEntry(id, time);
     };

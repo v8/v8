@@ -220,7 +220,6 @@ DOM.defineCustomElement('./timeline/timeline-track',
   }
 
   renderLegend() {
-    let timelineLegend = this.timelineLegend;
     let timelineLegendContent = this.timelineLegendContent;
     DOM.removeAllChildren(timelineLegendContent);
     this._timeline.uniqueTypes.forEach((entries, type) => {
@@ -249,7 +248,7 @@ DOM.defineCustomElement('./timeline/timeline-track',
     row.appendChild(DOM.td(this.data.all.length));
     row.appendChild(DOM.td('100%'));
     timelineLegendContent.appendChild(row);
-    timelineLegend.appendChild(timelineLegendContent);
+    this.timelineLegend.appendChild(timelineLegendContent);
   }
 
   handleEntryTypeDblClick(e) {
@@ -306,7 +305,7 @@ DOM.defineCustomElement('./timeline/timeline-track',
     }
 
     let imageData = this.backgroundCanvas.toDataURL('image/webp', 0.2);
-    node.style.backgroundImage = 'url(' + imageData + ')';
+    node.style.backgroundImage = `url(${imageData})`;
   }
 
   updateTimeline() {

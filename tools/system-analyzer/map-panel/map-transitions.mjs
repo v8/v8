@@ -39,7 +39,7 @@ DOM.defineCustomElement('./map-panel/map-transitions',
   handleTransitionViewChange(e) {
     this.tooltip.style.left = e.pageX + 'px';
     this.tooltip.style.top = e.pageY + 'px';
-    let map = e.target.map;
+    const map = e.target.map;
     if (map) {
       this.tooltipContents.innerText = map.description;
     }

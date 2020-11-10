@@ -29,9 +29,9 @@ DOM.defineCustomElement(
         let details = '';
         let clickableDetails = '';
         if (map) {
-          clickableDetails += 'ID: ' + map.id;
-          clickableDetails += '\nSource location: ' + map.filePosition;
-          details += '\n' + map.description;
+          clickableDetails += `ID: ${map.id}`;
+          clickableDetails += `\nSource location: ${map.filePosition}`;
+          details += `\n${map.description}`;
           this.setSelectedMap(map);
         }
         this._filePositionNode.innerText = clickableDetails;
