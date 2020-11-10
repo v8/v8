@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --super-ic --opt
-// Flags: --no-always-opt --no-stress-opt
+// Flags: --no-always-opt --no-stress-opt --deopt-every-n-times=0
 
 (function TestPropertyIsInTheHomeObjectsProto() {
   // Test where the property is a constant found on home object's proto. This
