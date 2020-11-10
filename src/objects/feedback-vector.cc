@@ -390,11 +390,10 @@ void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
          (vector->optimized_code().kind() == CodeKind::TURBOPROP &&
           code->kind() == CodeKind::TURBOFAN));
   // TODO(mythria): We could see a CompileOptimized marker here either from
-  // tests that use %OptimizeFunctionOnNextCall or because we re-mark the
-  // function for non-concurrent optimization after an OSR. We should avoid
-  // these cases and also check that marker isn't kCompileOptimized.
-  DCHECK(vector->optimization_marker() !=
-         OptimizationMarker::kCompileOptimizedConcurrent);
+  // tests that use %OptimizeFunctionOnNextCall, --always-opt or because we
+  // re-mark the function for non-concurrent optimization after an OSR. We
+  // should avoid these cases and also check that marker isn't
+  // kCompileOptimized or kCompileOptimizedConcurrent.
   vector->set_maybe_optimized_code(HeapObjectReference::Weak(*code));
   int32_t state = vector->flags();
   state = OptimizationTierBits::update(state, GetTierForCodeKind(code->kind()));
