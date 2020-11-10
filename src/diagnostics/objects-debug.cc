@@ -1387,9 +1387,11 @@ void Module::ModuleVerify(Isolate* isolate) {
 
 void ModuleRequest::ModuleRequestVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ModuleRequestVerify(*this, isolate);
-  CHECK_EQ(0, import_assertions().length() % 3);
+  CHECK_EQ(0,
+           import_assertions().length() % ModuleRequest::kAssertionEntrySize);
 
-  for (int i = 0; i < import_assertions().length(); i += 3) {
+  for (int i = 0; i < import_assertions().length();
+       i += ModuleRequest::kAssertionEntrySize) {
     CHECK(import_assertions().get(i).IsString());      // Assertion key
     CHECK(import_assertions().get(i + 1).IsString());  // Assertion value
     CHECK(import_assertions().get(i + 2).IsSmi());     // Assertion location

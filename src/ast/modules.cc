@@ -139,19 +139,20 @@ Handle<ModuleRequest> SourceTextModuleDescriptor::AstModuleRequest::Serialize(
   // The import assertions will be stored in this array in the form:
   // [key1, value1, location1, key2, value2, location2, ...]
   Handle<FixedArray> import_assertions_array =
-      isolate->factory()->NewFixedArray(
-          static_cast<int>(import_assertions()->size() * 3));
+      isolate->factory()->NewFixedArray(static_cast<int>(
+          import_assertions()->size() * ModuleRequest::kAssertionEntrySize));
 
   int i = 0;
   for (auto iter = import_assertions()->cbegin();
-       iter != import_assertions()->cend(); ++iter, i += 3) {
+       iter != import_assertions()->cend();
+       ++iter, i += ModuleRequest::kAssertionEntrySize) {
     import_assertions_array->set(i, *iter->first->string());
     import_assertions_array->set(i + 1, *iter->second.first->string());
     import_assertions_array->set(i + 2,
                                  Smi::FromInt(iter->second.second.beg_pos));
   }
   return v8::internal::ModuleRequest::New(isolate, specifier()->string(),
-                                          import_assertions_array);
+                                          import_assertions_array, position());
 }
 template Handle<ModuleRequest>
 SourceTextModuleDescriptor::AstModuleRequest::Serialize(Isolate* isolate) const;

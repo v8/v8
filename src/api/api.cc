@@ -2261,13 +2261,13 @@ Location Module::GetModuleRequestLocation(int i) const {
   i::Isolate* isolate = self->GetIsolate();
   i::HandleScope scope(isolate);
   CHECK(self->IsSourceTextModule());
-  i::Handle<i::FixedArray> module_request_positions(
-      i::Handle<i::SourceTextModule>::cast(self)
-          ->info()
-          .module_request_positions(),
+  i::Handle<i::FixedArray> module_requests(
+      i::Handle<i::SourceTextModule>::cast(self)->info().module_requests(),
       isolate);
-  CHECK_LT(i, module_request_positions->length());
-  int position = i::Smi::ToInt(module_request_positions->get(i));
+  CHECK_LT(i, module_requests->length());
+  i::Handle<i::ModuleRequest> module_request(
+      i::ModuleRequest::cast(module_requests->get(i)), isolate);
+  int position = module_request->position();
   i::Handle<i::Script> script(
       i::Handle<i::SourceTextModule>::cast(self)->GetScript(), isolate);
   i::Script::PositionInfo info;

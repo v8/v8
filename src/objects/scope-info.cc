@@ -1046,20 +1046,22 @@ std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var_info) {
 template <typename LocalIsolate>
 Handle<ModuleRequest> ModuleRequest::New(LocalIsolate* isolate,
                                          Handle<String> specifier,
-                                         Handle<FixedArray> import_assertions) {
+                                         Handle<FixedArray> import_assertions,
+                                         int position) {
   Handle<ModuleRequest> result = Handle<ModuleRequest>::cast(
       isolate->factory()->NewStruct(MODULE_REQUEST_TYPE, AllocationType::kOld));
   result->set_specifier(*specifier);
   result->set_import_assertions(*import_assertions);
+  result->set_position(position);
   return result;
 }
 
 template Handle<ModuleRequest> ModuleRequest::New(
     Isolate* isolate, Handle<String> specifier,
-    Handle<FixedArray> import_assertions);
+    Handle<FixedArray> import_assertions, int position);
 template Handle<ModuleRequest> ModuleRequest::New(
     LocalIsolate* isolate, Handle<String> specifier,
-    Handle<FixedArray> import_assertions);
+    Handle<FixedArray> import_assertions, int position);
 
 template <typename LocalIsolate>
 Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
@@ -1097,14 +1099,9 @@ Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
   // Serialize module requests.
   int size = static_cast<int>(descr->module_requests().size());
   Handle<FixedArray> module_requests = isolate->factory()->NewFixedArray(size);
-  Handle<FixedArray> module_request_positions =
-      isolate->factory()->NewFixedArray(size);
   for (const auto& elem : descr->module_requests()) {
-    Handle<ModuleRequest> serialized_module_request =
-        elem.first->Serialize(isolate);
-    module_requests->set(elem.second.index, *serialized_module_request);
-    module_request_positions->set(elem.second.index,
-                                  Smi::FromInt(elem.second.position));
+    Handle<ModuleRequest> serialized_module_request = elem->Serialize(isolate);
+    module_requests->set(elem->index(), *serialized_module_request);
   }
 
   // Serialize special exports.
@@ -1154,7 +1151,6 @@ Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
   result->set(kRegularExportsIndex, *regular_exports);
   result->set(kNamespaceImportsIndex, *namespace_imports);
   result->set(kRegularImportsIndex, *regular_imports);
-  result->set(kModuleRequestPositionsIndex, *module_request_positions);
   return result;
 }
 template Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(

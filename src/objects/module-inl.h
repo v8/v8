@@ -77,18 +77,13 @@ FixedArray SourceTextModuleInfo::namespace_imports() const {
   return FixedArray::cast(get(kNamespaceImportsIndex));
 }
 
-FixedArray SourceTextModuleInfo::module_request_positions() const {
-  return FixedArray::cast(get(kModuleRequestPositionsIndex));
-}
-
 #ifdef DEBUG
 bool SourceTextModuleInfo::Equals(SourceTextModuleInfo other) const {
   return regular_exports() == other.regular_exports() &&
          regular_imports() == other.regular_imports() &&
          special_exports() == other.special_exports() &&
          namespace_imports() == other.namespace_imports() &&
-         module_requests() == other.module_requests() &&
-         module_request_positions() == other.module_request_positions();
+         module_requests() == other.module_requests();
 }
 #endif
 

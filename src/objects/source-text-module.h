@@ -205,7 +205,6 @@ class SourceTextModuleInfo : public FixedArray {
   inline FixedArray regular_exports() const;
   inline FixedArray regular_imports() const;
   inline FixedArray namespace_imports() const;
-  inline FixedArray module_request_positions() const;
 
   // Accessors for [regular_exports].
   int RegularExportCount() const;
@@ -227,7 +226,6 @@ class SourceTextModuleInfo : public FixedArray {
     kRegularExportsIndex,
     kNamespaceImportsIndex,
     kRegularImportsIndex,
-    kModuleRequestPositionsIndex,
     kLength
   };
   enum {
@@ -249,7 +247,12 @@ class ModuleRequest
   template <typename LocalIsolate>
   static Handle<ModuleRequest> New(LocalIsolate* isolate,
                                    Handle<String> specifier,
-                                   Handle<FixedArray> import_assertions);
+                                   Handle<FixedArray> import_assertions,
+                                   int position);
+
+  // The number of entries in the import_assertions FixedArray that are used for
+  // a single assertion.
+  static const size_t kAssertionEntrySize = 3;
 
   TQ_OBJECT_CONSTRUCTORS(ModuleRequest)
 };
