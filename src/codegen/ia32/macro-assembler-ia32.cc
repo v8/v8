@@ -1283,7 +1283,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
                                         Register actual_parameter_count,
                                         InvokeFlag flag) {
   // You can't call a function without a valid frame.
-  DCHECK(flag == JUMP_FUNCTION || has_frame());
+  DCHECK_IMPLIES(flag == CALL_FUNCTION, has_frame());
   DCHECK_EQ(function, edi);
   DCHECK_IMPLIES(new_target.is_valid(), new_target == edx);
   DCHECK(expected_parameter_count == ecx || expected_parameter_count == eax);

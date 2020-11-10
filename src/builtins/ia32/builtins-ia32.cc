@@ -150,161 +150,133 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   //  -- sp[...]: constructor arguments
   // -----------------------------------
 
+  FrameScope scope(masm, StackFrame::MANUAL);
   // Enter a construct frame.
-  {
-    FrameScope scope(masm, StackFrame::CONSTRUCT);
-    Label post_instantiation_deopt_entry, not_create_implicit_receiver;
+  __ EnterFrame(StackFrame::CONSTRUCT);
 
-    // Preserve the incoming parameters on the stack.
-    __ mov(ecx, eax);
-    __ SmiTag(ecx);
-    __ Push(esi);
-    __ Push(ecx);
-    __ Push(edi);
-    __ PushRoot(RootIndex::kTheHoleValue);
-    __ Push(edx);
+  Label post_instantiation_deopt_entry, not_create_implicit_receiver;
 
-    // ----------- S t a t e -------------
-    //  --         sp[0*kSystemPointerSize]: new target
-    //  --         sp[1*kSystemPointerSize]: padding
-    //  -- edi and sp[2*kSystemPointerSize]: constructor function
-    //  --         sp[3*kSystemPointerSize]: argument count
-    //  --         sp[4*kSystemPointerSize]: context
-    // -----------------------------------
+  // Preserve the incoming parameters on the stack.
+  __ mov(ecx, eax);
+  __ SmiTag(ecx);
+  __ Push(esi);
+  __ Push(ecx);
+  __ Push(edi);
+  __ PushRoot(RootIndex::kTheHoleValue);
+  __ Push(edx);
 
-    __ mov(eax, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-    __ mov(eax, FieldOperand(eax, SharedFunctionInfo::kFlagsOffset));
-    __ DecodeField<SharedFunctionInfo::FunctionKindBits>(eax);
-    __ JumpIfIsInRange(eax, kDefaultDerivedConstructor, kDerivedConstructor,
-                       ecx, &not_create_implicit_receiver, Label::kNear);
+  // ----------- S t a t e -------------
+  //  --         sp[0*kSystemPointerSize]: new target
+  //  --         sp[1*kSystemPointerSize]: padding
+  //  -- edi and sp[2*kSystemPointerSize]: constructor function
+  //  --         sp[3*kSystemPointerSize]: argument count
+  //  --         sp[4*kSystemPointerSize]: context
+  // -----------------------------------
 
-    // If not derived class constructor: Allocate the new receiver object.
-    __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1,
-                        eax);
-    __ Call(BUILTIN_CODE(masm->isolate(), FastNewObject),
-            RelocInfo::CODE_TARGET);
-    __ jmp(&post_instantiation_deopt_entry, Label::kNear);
+  __ mov(eax, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(eax, FieldOperand(eax, SharedFunctionInfo::kFlagsOffset));
+  __ DecodeField<SharedFunctionInfo::FunctionKindBits>(eax);
+  __ JumpIfIsInRange(eax, kDefaultDerivedConstructor, kDerivedConstructor, ecx,
+                     &not_create_implicit_receiver, Label::kNear);
 
-    // Else: use TheHoleValue as receiver for constructor call
-    __ bind(&not_create_implicit_receiver);
-    __ LoadRoot(eax, RootIndex::kTheHoleValue);
+  // If not derived class constructor: Allocate the new receiver object.
+  __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1,
+                      eax);
+  __ Call(BUILTIN_CODE(masm->isolate(), FastNewObject), RelocInfo::CODE_TARGET);
+  __ jmp(&post_instantiation_deopt_entry, Label::kNear);
 
-    // ----------- S t a t e -------------
-    //  --                         eax: implicit receiver
-    //  -- Slot 4 / sp[0*kSystemPointerSize]: new target
-    //  -- Slot 3 / sp[1*kSystemPointerSize]: padding
-    //  -- Slot 2 / sp[2*kSystemPointerSize]: constructor function
-    //  -- Slot 1 / sp[3*kSystemPointerSize]: number of arguments (tagged)
-    //  -- Slot 0 / sp[4*kSystemPointerSize]: context
-    // -----------------------------------
-    // Deoptimizer enters here.
-    masm->isolate()->heap()->SetConstructStubCreateDeoptPCOffset(
-        masm->pc_offset());
-    __ bind(&post_instantiation_deopt_entry);
+  // Else: use TheHoleValue as receiver for constructor call
+  __ bind(&not_create_implicit_receiver);
+  __ LoadRoot(eax, RootIndex::kTheHoleValue);
 
-    // Restore new target.
-    __ Pop(edx);
+  // ----------- S t a t e -------------
+  //  --                         eax: implicit receiver
+  //  -- Slot 4 / sp[0*kSystemPointerSize]: new target
+  //  -- Slot 3 / sp[1*kSystemPointerSize]: padding
+  //  -- Slot 2 / sp[2*kSystemPointerSize]: constructor function
+  //  -- Slot 1 / sp[3*kSystemPointerSize]: number of arguments (tagged)
+  //  -- Slot 0 / sp[4*kSystemPointerSize]: context
+  // -----------------------------------
+  // Deoptimizer enters here.
+  masm->isolate()->heap()->SetConstructStubCreateDeoptPCOffset(
+      masm->pc_offset());
+  __ bind(&post_instantiation_deopt_entry);
 
-    // Push the allocated receiver to the stack.
-    __ Push(eax);
+  // Restore new target.
+  __ Pop(edx);
 
-    // We need two copies because we may have to return the original one
-    // and the calling conventions dictate that the called function pops the
-    // receiver. The second copy is pushed after the arguments, we saved in r8
-    // since rax needs to store the number of arguments before
-    // InvokingFunction.
-    __ movd(xmm0, eax);
+  // Push the allocated receiver to the stack.
+  __ Push(eax);
 
-    // Set up pointer to first argument (skip receiver).
-    __ lea(edi, Operand(ebp, StandardFrameConstants::kCallerSPOffset +
-                                 kSystemPointerSize));
+  // We need two copies because we may have to return the original one
+  // and the calling conventions dictate that the called function pops the
+  // receiver. The second copy is pushed after the arguments, we saved in r8
+  // since rax needs to store the number of arguments before
+  // InvokingFunction.
+  __ movd(xmm0, eax);
 
-    // Restore argument count.
-    __ mov(eax, Operand(ebp, ConstructFrameConstants::kLengthOffset));
-    __ SmiUntag(eax);
+  // Set up pointer to first argument (skip receiver).
+  __ lea(edi, Operand(ebp, StandardFrameConstants::kCallerSPOffset +
+                               kSystemPointerSize));
 
-    // Check if we have enough stack space to push all arguments.
-    // Argument count in eax. Clobbers ecx.
-    Label enough_stack_space, stack_overflow;
-    __ StackOverflowCheck(eax, ecx, &stack_overflow);
-    __ jmp(&enough_stack_space);
+  // Restore argument count.
+  __ mov(eax, Operand(ebp, ConstructFrameConstants::kLengthOffset));
+  __ SmiUntag(eax);
 
-    __ bind(&stack_overflow);
-    // Restore context from the frame.
-    __ mov(esi, Operand(ebp, ConstructFrameConstants::kContextOffset));
-    __ CallRuntime(Runtime::kThrowStackOverflow);
-    // This should be unreachable.
-    __ int3();
+  // Check if we have enough stack space to push all arguments.
+  // Argument count in eax. Clobbers ecx.
+  Label stack_overflow;
+  __ StackOverflowCheck(eax, ecx, &stack_overflow);
 
-    __ bind(&enough_stack_space);
+  // TODO(victorgomes): When the arguments adaptor is completely removed, we
+  // should get the formal parameter count and copy the arguments in its
+  // correct position (including any undefined), instead of delaying this to
+  // InvokeFunction.
 
-    // TODO(victorgomes): When the arguments adaptor is completely removed, we
-    // should get the formal parameter count and copy the arguments in its
-    // correct position (including any undefined), instead of delaying this to
-    // InvokeFunction.
+  // Copy arguments to the expression stack.
+  __ PushArray(edi, eax, ecx);
 
-    // Copy arguments to the expression stack.
-    __ PushArray(edi, eax, ecx);
+  // Push implicit receiver.
+  __ movd(ecx, xmm0);
+  __ Push(ecx);
 
-    // Push implicit receiver.
-    __ movd(ecx, xmm0);
-    __ Push(ecx);
+  // Restore and and call the constructor function.
+  __ mov(edi, Operand(ebp, ConstructFrameConstants::kConstructorOffset));
+  __ InvokeFunction(edi, edx, eax, CALL_FUNCTION);
 
-    // Restore and and call the constructor function.
-    __ mov(edi, Operand(ebp, ConstructFrameConstants::kConstructorOffset));
-    __ InvokeFunction(edi, edx, eax, CALL_FUNCTION);
+  // ----------- S t a t e -------------
+  //  --                eax: constructor result
+  //  -- sp[0*kSystemPointerSize]: implicit receiver
+  //  -- sp[1*kSystemPointerSize]: padding
+  //  -- sp[2*kSystemPointerSize]: constructor function
+  //  -- sp[3*kSystemPointerSize]: number of arguments
+  //  -- sp[4*kSystemPointerSize]: context
+  // -----------------------------------
 
-    // ----------- S t a t e -------------
-    //  --                eax: constructor result
-    //  -- sp[0*kSystemPointerSize]: implicit receiver
-    //  -- sp[1*kSystemPointerSize]: padding
-    //  -- sp[2*kSystemPointerSize]: constructor function
-    //  -- sp[3*kSystemPointerSize]: number of arguments
-    //  -- sp[4*kSystemPointerSize]: context
-    // -----------------------------------
+  // Store offset of return address for deoptimizer.
+  masm->isolate()->heap()->SetConstructStubInvokeDeoptPCOffset(
+      masm->pc_offset());
 
-    // Store offset of return address for deoptimizer.
-    masm->isolate()->heap()->SetConstructStubInvokeDeoptPCOffset(
-        masm->pc_offset());
+  // If the result is an object (in the ECMA sense), we should get rid
+  // of the receiver and use the result; see ECMA-262 section 13.2.2-7
+  // on page 74.
 
-    // Restore context from the frame.
-    __ mov(esi, Operand(ebp, ConstructFrameConstants::kContextOffset));
+  Label check_result, use_receiver, do_throw, leave_and_return;
+  // If the result is undefined, we jump out to using the implicit receiver.
+  __ JumpIfNotRoot(eax, RootIndex::kUndefinedValue, &check_result,
+                   Label::kNear);
 
-    // If the result is an object (in the ECMA sense), we should get rid
-    // of the receiver and use the result; see ECMA-262 section 13.2.2-7
-    // on page 74.
-    Label use_receiver, do_throw, leave_frame;
+  // Throw away the result of the constructor invocation and use the
+  // on-stack receiver as the result.
+  __ bind(&use_receiver);
+  __ mov(eax, Operand(esp, 0 * kSystemPointerSize));
+  __ JumpIfRoot(eax, RootIndex::kTheHoleValue, &do_throw);
 
-    // If the result is undefined, we jump out to using the implicit receiver.
-    __ JumpIfRoot(eax, RootIndex::kUndefinedValue, &use_receiver, Label::kNear);
+  __ bind(&leave_and_return);
+  // Restore smi-tagged arguments count from the frame.
+  __ mov(edx, Operand(ebp, ConstructFrameConstants::kLengthOffset));
+  __ LeaveFrame(StackFrame::CONSTRUCT);
 
-    // Otherwise we do a smi check and fall through to check if the return value
-    // is a valid receiver.
-
-    // If the result is a smi, it is *not* an object in the ECMA sense.
-    __ JumpIfSmi(eax, &use_receiver, Label::kNear);
-
-    // If the type of the result (stored in its map) is less than
-    // FIRST_JS_RECEIVER_TYPE, it is not an object in the ECMA sense.
-    STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-    __ CmpObjectType(eax, FIRST_JS_RECEIVER_TYPE, ecx);
-    __ j(above_equal, &leave_frame, Label::kNear);
-    __ jmp(&use_receiver, Label::kNear);
-
-    __ bind(&do_throw);
-    __ CallRuntime(Runtime::kThrowConstructorReturnedNonObject);
-
-    // Throw away the result of the constructor invocation and use the
-    // on-stack receiver as the result.
-    __ bind(&use_receiver);
-    __ mov(eax, Operand(esp, 0 * kSystemPointerSize));
-    __ JumpIfRoot(eax, RootIndex::kTheHoleValue, &do_throw);
-
-    __ bind(&leave_frame);
-    // Restore smi-tagged arguments count from the frame.
-    __ mov(edx, Operand(ebp, ConstructFrameConstants::kLengthOffset));
-    // Leave construct frame.
-  }
   // Remove caller arguments from the stack and return.
   STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
   __ pop(ecx);
@@ -312,6 +284,34 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
                       1 * kSystemPointerSize));  // 1 ~ receiver
   __ push(ecx);
   __ ret(0);
+
+  // Otherwise we do a smi check and fall through to check if the return value
+  // is a valid receiver.
+  __ bind(&check_result);
+
+  // If the result is a smi, it is *not* an object in the ECMA sense.
+  __ JumpIfSmi(eax, &use_receiver, Label::kNear);
+
+  // If the type of the result (stored in its map) is less than
+  // FIRST_JS_RECEIVER_TYPE, it is not an object in the ECMA sense.
+  STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+  __ CmpObjectType(eax, FIRST_JS_RECEIVER_TYPE, ecx);
+  __ j(above_equal, &leave_and_return, Label::kNear);
+  __ jmp(&use_receiver, Label::kNear);
+
+  __ bind(&do_throw);
+  // Restore context from the frame.
+  __ mov(esi, Operand(ebp, ConstructFrameConstants::kContextOffset));
+  __ CallRuntime(Runtime::kThrowConstructorReturnedNonObject);
+  // This should be unreachable.
+  __ int3();
+
+  __ bind(&stack_overflow);
+  // Restore context from the frame.
+  __ mov(esi, Operand(ebp, ConstructFrameConstants::kContextOffset));
+  __ CallRuntime(Runtime::kThrowStackOverflow);
+  // This should be unreachable.
+  __ int3();
 }
 
 void Builtins::Generate_JSBuiltinsConstructStub(MacroAssembler* masm) {
