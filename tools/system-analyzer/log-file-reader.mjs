@@ -17,11 +17,11 @@ DOM.defineCustomElement('log-file-reader',
   }
 
   set error(message) {
-    this.updateLabel(message);
+    this._updateLabel(message);
     this.root.className = 'fail';
   }
 
-  updateLabel(text) {
+  _updateLabel(text) {
     this.$('#label').innerText = text;
   }
 
@@ -73,7 +73,7 @@ DOM.defineCustomElement('log-file-reader',
 
   handleFileLoad(e, file) {
     const chunk = e.target.result;
-    this.updateLabel(`Finished loading '${file.name}'.`);
+    this._updateLabel(`Finished loading '${file.name}'.`);
     this.dispatchEvent(new CustomEvent('fileuploadend', {
       bubbles: true,
       composed: true,

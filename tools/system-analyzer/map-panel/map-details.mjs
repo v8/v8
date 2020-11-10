@@ -7,13 +7,14 @@ import {DOM, V8CustomElement} from '../helper.mjs';
 DOM.defineCustomElement(
     './map-panel/map-details',
     (templateText) => class MapDetails extends V8CustomElement {
+      _map;
+
       constructor() {
         super(templateText);
-        this._filePositionNode.addEventListener(
-            'click', e => this.handleFilePositionClick(e));
-        this.selectedMap = undefined;
+        this._filePositionNode.onclick = e => this._handleFilePositionClick(e);
       }
-      get mapDetails() {
+
+      get _mapDetails() {
         return this.$('#mapDetails');
       }
 
@@ -21,25 +22,26 @@ DOM.defineCustomElement(
         return this.$('#filePositionNode');
       }
 
-      setSelectedMap(value) {
-        this.selectedMap = value;
+      set map(map) {
+        if (this._map === map) return;
+        this._map = map;
+        this.update();
       }
 
-      set mapDetails(map) {
+      _update() {
         let details = '';
         let clickableDetails = '';
-        if (map) {
-          clickableDetails += `ID: ${map.id}`;
-          clickableDetails += `\nSource location: ${map.filePosition}`;
-          details += `\n${map.description}`;
-          this.setSelectedMap(map);
+        if (this._map) {
+          clickableDetails = `ID: ${this._map.id}`;
+          clickableDetails += `\nSource location: ${this._map.filePosition}`;
+          details = this._map.description;
         }
         this._filePositionNode.innerText = clickableDetails;
         this._filePositionNode.classList.add('clickable');
-        this.mapDetails.innerText = details;
+        this._mapDetails.innerText = details;
       }
 
-      handleFilePositionClick() {
-        this.dispatchEvent(new FocusEvent(this.selectedMap.sourcePosition));
+      _handleFilePositionClick(event) {
+        this.dispatchEvent(new FocusEvent(this._map.sourcePosition));
       }
     });

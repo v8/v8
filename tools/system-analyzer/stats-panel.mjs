@@ -32,7 +32,7 @@ DOM.defineCustomElement(
         this._transitions = value;
       }
 
-      filterUniqueTransitions(filter) {
+      _filterUniqueTransitions(filter) {
         // Returns a list of Maps whose parent is not in the list.
         return this._selectedLogEntries.filter((map) => {
           if (filter(map) === false) return false;
@@ -42,13 +42,12 @@ DOM.defineCustomElement(
         });
       }
 
-      async update() {
-        await delay(1);
-        this.updateGeneralStats();
-        this.updateNamedTransitionsStats();
+      _update() {
+        this._updateGeneralStats();
+        this._updateNamedTransitionsStats();
       }
 
-      updateGeneralStats() {
+      _updateGeneralStats() {
         console.assert(this._timeline !== undefined, 'Timeline not set yet!');
         let pairs = [
           ['Transitions', 'primary', (e) => e.edge && e.edge.isTransition()],
@@ -89,12 +88,12 @@ DOM.defineCustomElement(
             // lazily compute the stats
             let node = e.target.parentNode;
             if (node.maps == undefined) {
-              node.maps = this.filterUniqueTransitions(filter);
+              node.maps = this._filterUniqueTransitions(filter);
             }
             this.dispatchEvent(new SelectionEvent(node.maps));
           };
           row.appendChild(DOM.td(name));
-          let count = this.count(filter);
+          let count = this._count(filter);
           row.appendChild(DOM.td(count));
           let percent = Math.round((count / total) * 1000) / 10;
           row.appendChild(DOM.td(percent.toFixed(1) + '%'));
@@ -103,7 +102,7 @@ DOM.defineCustomElement(
         this.$('#typeTable').replaceChild(tbody, this.$('#typeTable tbody'));
       }
 
-      count(filter) {
+      _count(filter) {
         let count = 0;
         for (const map of this._selectedLogEntries) {
           if (filter(map)) count++;
@@ -111,7 +110,7 @@ DOM.defineCustomElement(
         return count;
       }
 
-      updateNamedTransitionsStats() {
+      _updateNamedTransitionsStats() {
         let rowData = Array.from(this._transitions.entries());
         rowData.sort((a, b) => b[1].length - a[1].length);
         new LazyTable(this.$('#nameTable'), rowData, ([name, maps]) => {

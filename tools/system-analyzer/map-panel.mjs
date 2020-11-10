@@ -21,7 +21,7 @@ DOM.defineCustomElement('map-panel',
 
   handleUpdateMapDetails(e) {
     if (e.entry instanceof MapLogEntry) {
-      this.mapDetailsPanel.mapDetails = e.entry;
+      this.mapDetailsPanel.map = e.entry;
     }
   }
 
@@ -39,10 +39,6 @@ DOM.defineCustomElement('map-panel',
 
   get searchBar() {
     return this.$('#searchBar');
-  }
-
-  get mapDetails() {
-    return this.mapDetailsPanel.mapDetails;
   }
 
   set timeline(timeline) {

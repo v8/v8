@@ -177,11 +177,15 @@ function $(id) {
 }
 
 class V8CustomElement extends HTMLElement {
+  _updateTimeoutId;
+  _updateCallback = this._update.bind(this);
+
   constructor(templateText) {
     super();
     const shadowRoot = this.attachShadow({mode: 'open'});
     shadowRoot.innerHTML = templateText;
   }
+
   $(id) {
     return this.shadowRoot.querySelector(id);
   }
@@ -189,30 +193,16 @@ class V8CustomElement extends HTMLElement {
   querySelectorAll(query) {
     return this.shadowRoot.querySelectorAll(query);
   }
-}
 
-class LazyTable {
-  constructor(table, rowData, rowElementCreator) {
-    this._table = table;
-    this._rowData = rowData;
-    this._rowElementCreator = rowElementCreator;
-    const tbody = table.querySelector('tbody');
-    table.replaceChild(document.createElement('tbody'), tbody);
-    table.querySelector('tfoot td').onclick = (e) => this._addMoreRows();
-    this._addMoreRows();
+  update() {
+    // Use timeout tasks to asynchronously update the UI without blocking.
+    clearTimeout(this._updateTimeoutId);
+    const kDelayMs = 5;
+    this._updateTimeoutId = setTimeout(this._updateCallback, kDelayMs);
   }
 
-  _nextRowDataSlice() {
-    return this._rowData.splice(0, 100);
-  }
-
-  _addMoreRows() {
-    const fragment = new DocumentFragment();
-    for (let row of this._nextRowDataSlice()) {
-      const tr = this._rowElementCreator(row);
-      fragment.appendChild(tr);
-    }
-    this._table.querySelector('tbody').appendChild(fragment);
+  _update() {
+    throw Error('Subclass responsibility');
   }
 }
 

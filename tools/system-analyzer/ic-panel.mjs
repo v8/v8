@@ -21,7 +21,7 @@ DOM.defineCustomElement(
         console.assert(value !== undefined, 'timeline undefined!');
         this._timeline = value;
         this.selectedLogEntries = this._timeline.all;
-        this.updateCount();
+        this.update();
       }
       get groupKey() {
         return this.$('#group-key');
@@ -48,22 +48,21 @@ DOM.defineCustomElement(
         this.update();
       }
 
-      async update() {
-        await delay(1);
-        this.updateCount();
-        this.updateTable();
+      _update() {
+        this._updateCount();
+        this._updateTable();
       }
 
-      updateCount() {
+      _updateCount() {
         this.count.innerHTML = `length=${this._selectedLogEntries.length}`;
       }
 
-      updateTable(event) {
+      _updateTable(event) {
         let select = this.groupKey;
         let key = select.options[select.selectedIndex].text;
         DOM.removeAllChildren(this.tableBody);
         let groups = Group.groupBy(this._selectedLogEntries, key, true);
-        this.render(groups, this.tableBody);
+        this._render(groups, this.tableBody);
       }
 
       escapeHtml(unsafe) {
@@ -102,7 +101,7 @@ DOM.defineCustomElement(
         this.dispatchEvent(new FocusEvent(sourcePosition));
       }
 
-      render(groups, parent) {
+      _render(groups, parent) {
         const fragment = document.createDocumentFragment();
         const max = Math.min(1000, groups.length)
         const detailsClickHandler = this.handleDetailsClick.bind(this);
@@ -176,7 +175,7 @@ DOM.defineCustomElement(
             `Grouped by ${key} [top ${max} out of ${children.length}]`;
         td.appendChild(div);
         const table = DOM.table();
-        this.render(children.slice(0, max), table, false)
+        this._render(children.slice(0, max), table, false)
         td.appendChild(table);
       }
 

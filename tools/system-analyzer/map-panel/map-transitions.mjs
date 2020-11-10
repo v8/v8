@@ -10,7 +10,7 @@ DOM.defineCustomElement('./map-panel/map-transitions',
   _map;
   _selectedMapLogEntries;
   _displayedMapsInTree;
-  _showMapsUpdateId;
+
   constructor() {
     super(templateText);
     this.transitionView.addEventListener(
@@ -45,7 +45,7 @@ DOM.defineCustomElement('./map-panel/map-transitions',
     }
   }
 
-  selectMap(map) {
+  _selectMap(map) {
     this.dispatchEvent(new SelectionEvent([map]));
   }
 
@@ -53,14 +53,10 @@ DOM.defineCustomElement('./map-panel/map-transitions',
     if (this.currentMap === this._map) return;
     this.currentMap = this._map;
     this.selectedMapLogEntries = [this._map];
-    this.showMaps();
+    this.update();
   }
 
-  showMaps() {
-    clearTimeout(this._showMapsUpdateId);
-    this._showMapsUpdateId = setTimeout(() => this._showMaps(), 250);
-  }
-  _showMaps() {
+  _update() {
     this.transitionView.style.display = 'none';
     DOM.removeAllChildren(this.transitionView);
     this._displayedMapsInTree = new Set();
@@ -73,7 +69,7 @@ DOM.defineCustomElement('./map-panel/map-transitions',
 
   set selectedMapLogEntries(list) {
     this._selectedMapLogEntries = list;
-    this.showMaps();
+    this.update();
   }
 
   get selectedMapLogEntries() {
@@ -149,7 +145,7 @@ DOM.defineCustomElement('./map-panel/map-transitions',
     let node = DOM.div('map');
     if (map.edge) node.style.backgroundColor = typeToColor(map.edge);
     node.map = map;
-    node.addEventListener('click', () => this.selectMap(map));
+    node.addEventListener('click', () => this._selectMap(map));
     if (map.children.length > 1) {
       node.innerText = map.children.length;
       let showSubtree = DOM.div('showSubtransitions');

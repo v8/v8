@@ -50,7 +50,6 @@ DOM.defineCustomElement(
         }
         for (const track of this.timelineTracks) {
           track.timeSelection = timeSelection;
-          ;
         }
       }
     });
