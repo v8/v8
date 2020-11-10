@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-simd --enable-sse3 --enable-ssse3 --enable-sse4-1
+// FIXME(machenbach): Revert temporary removal of required flags:
+// https://crbug.com/v8/10661
+// Flags: --experimental-wasm-simd
 
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
