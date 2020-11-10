@@ -653,8 +653,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   DCHECK(shared->HasSharedName());
 
   Handle<JSFunction> result =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(shared,
-                                                            native_context);
+      Factory::JSFunctionBuilder{isolate, shared, native_context}.Build();
 
   if (obj->remove_prototype()) {
     DCHECK(prototype.is_null());

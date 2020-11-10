@@ -431,8 +431,8 @@ bool SourceTextModule::FinishInstantiate(
   Handle<SharedFunctionInfo> shared(SharedFunctionInfo::cast(module->code()),
                                     isolate);
   Handle<JSFunction> function =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          shared, isolate->native_context());
+      Factory::JSFunctionBuilder{isolate, shared, isolate->native_context()}
+          .Build();
   module->set_code(*function);
   module->SetStatus(kInstantiating);
   module->set_dfs_index(*dfs_index);

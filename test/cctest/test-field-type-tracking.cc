@@ -50,11 +50,11 @@ static Handle<AccessorPair> CreateAccessorPair(bool with_getter,
   Handle<AccessorPair> pair = factory->NewAccessorPair();
   Handle<String> empty_string = factory->empty_string();
   if (with_getter) {
-    Handle<JSFunction> func = factory->NewFunctionForTest(empty_string);
+    Handle<JSFunction> func = factory->NewFunctionForTesting(empty_string);
     pair->set_getter(*func);
   }
   if (with_setter) {
-    Handle<JSFunction> func = factory->NewFunctionForTest(empty_string);
+    Handle<JSFunction> func = factory->NewFunctionForTesting(empty_string);
     pair->set_setter(*func);
   }
   return pair;
@@ -1585,7 +1585,7 @@ TEST(ReconfigureDataFieldAttribute_SameDataConstantAfterTargetMap) {
     TestConfig() {
       Isolate* isolate = CcTest::i_isolate();
       Factory* factory = isolate->factory();
-      js_func_ = factory->NewFunctionForTest(factory->empty_string());
+      js_func_ = factory->NewFunctionForTesting(factory->empty_string());
     }
 
     Handle<Map> AddPropertyAtBranch(int branch_id, Expectations* expectations,
@@ -1626,10 +1626,14 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToDataFieldAfterTargetMap) {
       CHECK(sloppy_map->is_stable());
 
       js_func1_ =
-          factory->NewFunction(sloppy_map, info, isolate->native_context());
+          Factory::JSFunctionBuilder{isolate, info, isolate->native_context()}
+              .set_map(sloppy_map)
+              .Build();
 
       js_func2_ =
-          factory->NewFunction(sloppy_map, info, isolate->native_context());
+          Factory::JSFunctionBuilder{isolate, info, isolate->native_context()}
+              .set_map(sloppy_map)
+              .Build();
     }
 
     Handle<Map> AddPropertyAtBranch(int branch_id, Expectations* expectations,
@@ -1660,7 +1664,7 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToAccConstantAfterTargetMap) {
     TestConfig() {
       Isolate* isolate = CcTest::i_isolate();
       Factory* factory = isolate->factory();
-      js_func_ = factory->NewFunctionForTest(factory->empty_string());
+      js_func_ = factory->NewFunctionForTesting(factory->empty_string());
       pair_ = CreateAccessorPair(true, true);
     }
 
@@ -2741,7 +2745,7 @@ TEST(TransitionDataConstantToSameDataConstant) {
   Factory* factory = isolate->factory();
 
   Handle<JSFunction> js_func =
-      factory->NewFunctionForTest(factory->empty_string());
+      factory->NewFunctionForTesting(factory->empty_string());
   TransitionToDataConstantOperator transition_op(js_func);
 
   SameMapChecker checker;
@@ -2763,11 +2767,15 @@ TEST(TransitionDataConstantToAnotherDataConstant) {
   CHECK(sloppy_map->is_stable());
 
   Handle<JSFunction> js_func1 =
-      factory->NewFunction(sloppy_map, info, isolate->native_context());
+      Factory::JSFunctionBuilder{isolate, info, isolate->native_context()}
+          .set_map(sloppy_map)
+          .Build();
   TransitionToDataConstantOperator transition_op1(js_func1);
 
   Handle<JSFunction> js_func2 =
-      factory->NewFunction(sloppy_map, info, isolate->native_context());
+      Factory::JSFunctionBuilder{isolate, info, isolate->native_context()}
+          .set_map(sloppy_map)
+          .Build();
   TransitionToDataConstantOperator transition_op2(js_func2);
 
   SameMapChecker checker;
@@ -2784,7 +2792,7 @@ TEST(TransitionDataConstantToDataField) {
   Handle<FieldType> any_type = FieldType::Any(isolate);
 
   Handle<JSFunction> js_func1 =
-      factory->NewFunctionForTest(factory->empty_string());
+      factory->NewFunctionForTesting(factory->empty_string());
   TransitionToDataConstantOperator transition_op1(js_func1);
 
   Handle<Object> value2 = isolate->factory()->NewHeapNumber(0);

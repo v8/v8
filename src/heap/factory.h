@@ -627,29 +627,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<JSFunction> NewFunction(const NewFunctionArgs& args);
 
   // For testing only. Creates a sloppy function without code.
-  Handle<JSFunction> NewFunctionForTest(Handle<String> name);
-
-  // Function creation from SharedFunctionInfo.
-
-  Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
-      Handle<SharedFunctionInfo> function_info, Handle<Context> context,
-      Handle<FeedbackCell> feedback_cell,
-      AllocationType allocation = AllocationType::kOld);
-
-  Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
-      Handle<Map> initial_map, Handle<SharedFunctionInfo> function_info,
-      Handle<Context> context,
-      AllocationType allocation = AllocationType::kOld);
-
-  Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
-      Handle<SharedFunctionInfo> function_info, Handle<Context> context,
-      AllocationType allocation = AllocationType::kOld);
-
-  // The choke-point for JSFunction creation. Handles allocation and
-  // initialization. All other utility methods call into this.
-  Handle<JSFunction> NewFunction(
-      Handle<Map> map, Handle<SharedFunctionInfo> info, Handle<Context> context,
-      AllocationType allocation = AllocationType::kOld);
+  Handle<JSFunction> NewFunctionForTesting(Handle<String> name);
 
   // Create an External object for V8's external API.
   Handle<JSObject> NewExternal(void* value);
@@ -806,7 +784,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   }
 
   // Helper class for creating JSFunction objects.
-  class JSFunctionBuilder final {
+  class V8_EXPORT_PRIVATE JSFunctionBuilder final {
    public:
     JSFunctionBuilder(Isolate* isolate, Handle<SharedFunctionInfo> sfi,
                       Handle<Context> context);

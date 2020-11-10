@@ -55,8 +55,7 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
 
   Handle<Context> context = isolate->native_context();
   Handle<JSFunction> fun =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(shared_info,
-                                                            context);
+      Factory::JSFunctionBuilder{isolate, shared_info, context}.Build();
   if (mode == debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect) {
     isolate->debug()->StartSideEffectCheckMode();
   }

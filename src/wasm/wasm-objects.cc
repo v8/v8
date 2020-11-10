@@ -1851,8 +1851,8 @@ Handle<WasmCapiFunction> WasmCapiFunction::New(
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForWasmCapiFunction(fun_data);
   return Handle<WasmCapiFunction>::cast(
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          shared, isolate->native_context()));
+      Factory::JSFunctionBuilder{isolate, shared, isolate->native_context()}
+          .Build());
 }
 
 WasmInstanceObject WasmExportedFunction::instance() {

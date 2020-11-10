@@ -2050,11 +2050,14 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
   Handle<JSFunction> result;
   if (eval_result.has_shared()) {
     if (eval_result.has_feedback_cell()) {
-      result = isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          shared_info, context, feedback_cell, AllocationType::kYoung);
+      result = Factory::JSFunctionBuilder{isolate, shared_info, context}
+                   .set_feedback_cell(feedback_cell)
+                   .set_allocation_type(AllocationType::kYoung)
+                   .Build();
     } else {
-      result = isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          shared_info, context, AllocationType::kYoung);
+      result = Factory::JSFunctionBuilder{isolate, shared_info, context}
+                   .set_allocation_type(AllocationType::kYoung)
+                   .Build();
       JSFunction::InitializeFeedbackCell(result, &is_compiled_scope);
       if (allow_eval_cache) {
         // Make sure to cache this result.
@@ -2065,8 +2068,9 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
       }
     }
   } else {
-    result = isolate->factory()->NewFunctionFromSharedFunctionInfo(
-        shared_info, context, AllocationType::kYoung);
+    result = Factory::JSFunctionBuilder{isolate, shared_info, context}
+                 .set_allocation_type(AllocationType::kYoung)
+                 .Build();
     JSFunction::InitializeFeedbackCell(result, &is_compiled_scope);
     if (allow_eval_cache) {
       // Add the SharedFunctionInfo and the LiteralsArray to the eval cache if
@@ -2831,8 +2835,9 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
   }
   DCHECK(is_compiled_scope.is_compiled());
 
-  return isolate->factory()->NewFunctionFromSharedFunctionInfo(
-      wrapped, context, AllocationType::kYoung);
+  return Factory::JSFunctionBuilder{isolate, wrapped, context}
+      .set_allocation_type(AllocationType::kYoung)
+      .Build();
 }
 
 // static

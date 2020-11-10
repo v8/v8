@@ -3893,7 +3893,7 @@ bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
   // function before overwriting the context but since we're in a
   // single-threaded environment it is not strictly necessary.
   Handle<JSFunction> fun =
-      factory->NewFunctionFromSharedFunctionInfo(function_info, context);
+      Factory::JSFunctionBuilder{isolate, function_info, context}.Build();
 
   // Call function using either the runtime object or the global
   // object as the receiver. Provide no parameters.

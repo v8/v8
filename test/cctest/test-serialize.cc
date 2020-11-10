@@ -1677,8 +1677,8 @@ void TestCodeSerializerOnePlusOneImpl(bool verify_builtins_count = true) {
   CHECK(Script::cast(copy->script()).source() == *copy_source);
 
   Handle<JSFunction> copy_fun =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          copy, isolate->native_context());
+      Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
+          .Build();
   Handle<JSObject> global(isolate->context().global_object(), isolate);
   Handle<Object> copy_result =
       Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();
@@ -1764,8 +1764,8 @@ TEST(CodeSerializerInternalizedString) {
       isolate, orig_source, Handle<String>(), &script_data,
       v8::ScriptCompiler::kNoCompileOptions);
   Handle<JSFunction> orig_fun =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          orig, isolate->native_context());
+      Factory::JSFunctionBuilder{isolate, orig, isolate->native_context()}
+          .Build();
   Handle<Object> orig_result =
       Execution::Call(isolate, orig_fun, global, 0, nullptr).ToHandleChecked();
   CHECK(orig_result->IsInternalizedString());
@@ -1782,8 +1782,8 @@ TEST(CodeSerializerInternalizedString) {
   CHECK(Script::cast(copy->script()).source() == *copy_source);
 
   Handle<JSFunction> copy_fun =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          copy, isolate->native_context());
+      Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
+          .Build();
   CHECK_NE(*orig_fun, *copy_fun);
   Handle<Object> copy_result =
       Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();
@@ -1835,8 +1835,8 @@ TEST(CodeSerializerLargeCodeObject) {
   CHECK_NE(*orig, *copy);
 
   Handle<JSFunction> copy_fun =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          copy, isolate->native_context());
+      Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
+          .Build();
 
   Handle<Object> copy_result =
       Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();
@@ -1914,8 +1914,8 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   CcTest::CollectAllGarbage();
 
   Handle<JSFunction> copy_fun =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          copy, isolate->native_context());
+      Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
+          .Build();
 
   Handle<Object> copy_result =
       Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();
@@ -1964,8 +1964,8 @@ TEST(CodeSerializerLargeStrings) {
   CHECK_NE(*orig, *copy);
 
   Handle<JSFunction> copy_fun =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          copy, isolate->native_context());
+      Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
+          .Build();
 
   Handle<Object> copy_result =
       Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();
@@ -2038,8 +2038,8 @@ TEST(CodeSerializerThreeBigStrings) {
   CHECK_NE(*orig, *copy);
 
   Handle<JSFunction> copy_fun =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          copy, isolate->native_context());
+      Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
+          .Build();
 
   USE(Execution::Call(isolate, copy_fun, global, 0, nullptr));
 
@@ -2156,8 +2156,8 @@ TEST(CodeSerializerExternalString) {
   CHECK_NE(*orig, *copy);
 
   Handle<JSFunction> copy_fun =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          copy, isolate->native_context());
+      Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
+          .Build();
 
   Handle<Object> copy_result =
       Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();
@@ -2220,7 +2220,8 @@ TEST(CodeSerializerLargeExternalString) {
   CHECK_NE(*orig, *copy);
 
   Handle<JSFunction> copy_fun =
-      f->NewFunctionFromSharedFunctionInfo(copy, isolate->native_context());
+      Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
+          .Build();
 
   Handle<Object> copy_result =
       Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();
@@ -2273,7 +2274,8 @@ TEST(CodeSerializerExternalScriptName) {
   CHECK_NE(*orig, *copy);
 
   Handle<JSFunction> copy_fun =
-      f->NewFunctionFromSharedFunctionInfo(copy, isolate->native_context());
+      Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
+          .Build();
 
   Handle<Object> copy_result =
       Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();

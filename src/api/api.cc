@@ -2053,8 +2053,9 @@ Local<Script> UnboundScript::BindToCurrentContext() {
       i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
   i::Isolate* isolate = function_info->GetIsolate();
   i::Handle<i::JSFunction> function =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          function_info, isolate->native_context());
+      i::Factory::JSFunctionBuilder{isolate, function_info,
+                                    isolate->native_context()}
+          .Build();
   return ToApiHandle<Script>(function);
 }
 

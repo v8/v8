@@ -3596,7 +3596,7 @@ Handle<Map> NewFunctionArgs::GetMap(Isolate* isolate) const {
   UNREACHABLE();
 }
 
-Handle<JSFunction> Factory::NewFunctionForTest(Handle<String> name) {
+Handle<JSFunction> Factory::NewFunctionForTesting(Handle<String> name) {
   NewFunctionArgs args = NewFunctionArgs::ForFunctionWithoutCode(
       name, isolate()->sloppy_function_map(), LanguageMode::kSloppy);
   Handle<JSFunction> result = NewFunction(args);
@@ -3681,45 +3681,6 @@ Handle<JSFunction> Factory::NewFunction(const NewFunctionArgs& args) {
   }
 
   return result;
-}
-
-Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
-                                        Handle<SharedFunctionInfo> info,
-                                        Handle<Context> context,
-                                        AllocationType allocation) {
-  // TODO(jgruber): Remove this function.
-  return JSFunctionBuilder{isolate(), info, context}
-      .set_map(map)
-      .set_allocation_type(allocation)
-      .Build();
-}
-
-Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
-    Handle<SharedFunctionInfo> info, Handle<Context> context,
-    AllocationType allocation) {
-  // TODO(jgruber): Remove this function.
-  return JSFunctionBuilder{isolate(), info, context}
-      .set_allocation_type(allocation)
-      .Build();
-}
-
-Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
-    Handle<SharedFunctionInfo> info, Handle<Context> context,
-    Handle<FeedbackCell> feedback_cell, AllocationType allocation) {
-  // TODO(jgruber): Remove this function.
-  return JSFunctionBuilder{isolate(), info, context}
-      .set_feedback_cell(feedback_cell)
-      .Build();
-}
-
-Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
-    Handle<Map> initial_map, Handle<SharedFunctionInfo> info,
-    Handle<Context> context, AllocationType allocation) {
-  // TODO(jgruber): Remove this function.
-  return JSFunctionBuilder{isolate(), info, context}
-      .set_map(initial_map)
-      .set_allocation_type(allocation)
-      .Build();
 }
 
 Factory::JSFunctionBuilder::JSFunctionBuilder(Isolate* isolate,
