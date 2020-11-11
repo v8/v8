@@ -116,6 +116,6 @@ luci.tree_closer(
             "V8 Arm64 - builder - perf",
             "V8 Android Arm64 - builder - perf",
             "V8 Linux - builder - perf",
-            "V8 Linux64 - builder - perf",
+            #"V8 Linux64 - builder - perf",
     ]
 )
