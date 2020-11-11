@@ -57,6 +57,7 @@ in_category(
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
         use_goma = GOMA.DEFAULT,
+        close_tree = False,
     ),
     multibranch_builder(
         name = "V8 Linux - arm - sim - lite - debug",
@@ -64,6 +65,7 @@ in_category(
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
         use_goma = GOMA.DEFAULT,
+        close_tree = False,
     ),
     multibranch_builder(
         name = "V8 Arm",
@@ -71,6 +73,7 @@ in_category(
         dimensions = {"host_class": "multibot"},
         execution_timeout = 28800,
         properties = {"builder_group": "client.v8.ports"},
+        close_tree = False,
     ),
     multibranch_builder(
         name = "V8 Arm - debug",
@@ -124,6 +127,7 @@ in_category(
         triggered_by_gitiles = False,
         dimensions = {"host_class": "multibot"},
         properties = {"builder_group": "client.v8.ports"},
+        close_tree = False,
     ),
     multibranch_builder(
         name = "V8 Linux - arm64 - sim",
@@ -171,6 +175,7 @@ in_category(
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports", "triggers": ["V8 Linux - mipsel - sim"]},
         use_goma = GOMA.DEFAULT,
+        close_tree = False,
     ),
     multibranch_builder(
         name = "V8 Linux - mips64el - sim - builder",
@@ -178,6 +183,7 @@ in_category(
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports", "triggers": ["V8 Linux - mips64el - sim"]},
         use_goma = GOMA.DEFAULT,
+        close_tree = False,
     ),
     multibranch_builder(
         name = "V8 Linux - mipsel - sim",
@@ -185,6 +191,7 @@ in_category(
         dimensions = {"host_class": "multibot"},
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8.ports"},
+        close_tree = False,
     ),
     multibranch_builder(
         name = "V8 Linux - mips64el - sim",
@@ -192,6 +199,7 @@ in_category(
         dimensions = {"host_class": "multibot"},
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8.ports"},
+        close_tree = False,
     ),
 )
 
@@ -204,6 +212,7 @@ in_category(
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8.ports"},
         use_goma = GOMA.DEFAULT,
+        close_tree = False,
     ),
     multibranch_builder(
         name = "V8 Linux - s390x - sim",
@@ -212,5 +221,6 @@ in_category(
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8.ports"},
         use_goma = GOMA.DEFAULT,
+        close_tree = False,
     ),
 )

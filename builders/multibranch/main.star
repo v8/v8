@@ -170,6 +170,7 @@ in_category(
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
         use_goma = GOMA.DEFAULT,
+        close_tree = False,
     ),
     main_multibranch_builder(
         name = "V8 Linux - shared",
@@ -440,6 +441,7 @@ in_category(
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
         use_goma = GOMA.ATS,
+        close_tree = False,
     ),
 )
 
@@ -461,6 +463,7 @@ in_category(
         triggered_by_gitiles = False,
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8"},
+        close_tree = False,
     ),
     main_multibranch_builder(
         name = "V8 Linux gcc",

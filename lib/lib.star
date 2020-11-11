@@ -132,6 +132,10 @@ def v8_builder(defaults = None, **kwargs):
     in_console = kwargs.pop("in_console", None)
     in_list = kwargs.pop("in_list", None)
     defaults = defaults or defaults_dict[bucket_name]
+    if kwargs.pop("close_tree", False):
+        notifies = kwargs.pop("notifies", [])
+        notifies.append("v8 tree closer")
+        kwargs["notifies"] = notifies
     v8_basic_builder(defaults, **kwargs)
     if in_console:
         splited = in_console.split("/")
@@ -182,6 +186,7 @@ branch_console_dict = {
 
 def multibranch_builder(**kwargs):
     added_builders = []
+    close_tree = kwargs.pop("close_tree", True)
     for bucket_name in branch_names:
         args = dict(kwargs)
         triggered_by_gitiles = args.pop("triggered_by_gitiles", True)
@@ -191,7 +196,12 @@ def multibranch_builder(**kwargs):
             args["use_goma"] = args.get("use_goma", GOMA.DEFAULT)
         else:
             args["dimensions"] = {"host_class": "multibot"}
-        if bucket_name != "ci":
+        if bucket_name == "ci":
+            if close_tree:
+                notifies = args.pop("notifies", [])
+                notifies.append("v8 tree closer")
+                args["notifies"] = notifies
+        else:
             args["notifies"] = ["beta/stable notifier"]
             if _builder_is_not_supported(bucket_name, first_branch_version):
                 continue
