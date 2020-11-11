@@ -128,168 +128,168 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // -----------------------------------
 
   // Enter a construct frame.
-  {
-    FrameScope scope(masm, StackFrame::CONSTRUCT);
-    Label post_instantiation_deopt_entry, not_create_implicit_receiver;
+  FrameScope scope(masm, StackFrame::MANUAL);
+  Label post_instantiation_deopt_entry, not_create_implicit_receiver;
+  __ EnterFrame(StackFrame::CONSTRUCT);
 
-    // Preserve the incoming parameters on the stack.
-    __ SmiTag(a0);
-    __ Push(cp, a0, a1);
-    __ PushRoot(RootIndex::kTheHoleValue);
-    __ Push(a3);
+  // Preserve the incoming parameters on the stack.
+  __ SmiTag(a0);
+  __ Push(cp, a0, a1);
+  __ PushRoot(RootIndex::kTheHoleValue);
+  __ Push(a3);
 
-    // ----------- S t a t e -------------
-    //  --        sp[0*kPointerSize]: new target
-    //  --        sp[1*kPointerSize]: padding
-    //  -- a1 and sp[2*kPointerSize]: constructor function
-    //  --        sp[3*kPointerSize]: number of arguments (tagged)
-    //  --        sp[4*kPointerSize]: context
-    // -----------------------------------
+  // ----------- S t a t e -------------
+  //  --        sp[0*kPointerSize]: new target
+  //  --        sp[1*kPointerSize]: padding
+  //  -- a1 and sp[2*kPointerSize]: constructor function
+  //  --        sp[3*kPointerSize]: number of arguments (tagged)
+  //  --        sp[4*kPointerSize]: context
+  // -----------------------------------
 
-    __ lw(t2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-    __ lw(t2, FieldMemOperand(t2, SharedFunctionInfo::kFlagsOffset));
-    __ DecodeField<SharedFunctionInfo::FunctionKindBits>(t2);
-    __ JumpIfIsInRange(t2, kDefaultDerivedConstructor, kDerivedConstructor,
-                       &not_create_implicit_receiver);
+  __ lw(t2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+  __ lw(t2, FieldMemOperand(t2, SharedFunctionInfo::kFlagsOffset));
+  __ DecodeField<SharedFunctionInfo::FunctionKindBits>(t2);
+  __ JumpIfIsInRange(t2, kDefaultDerivedConstructor, kDerivedConstructor,
+                     &not_create_implicit_receiver);
 
-    // If not derived class constructor: Allocate the new receiver object.
-    __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1,
-                        t2, t3);
-    __ Call(BUILTIN_CODE(masm->isolate(), FastNewObject),
-            RelocInfo::CODE_TARGET);
-    __ Branch(&post_instantiation_deopt_entry);
+  // If not derived class constructor: Allocate the new receiver object.
+  __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1,
+                      t2, t3);
+  __ Call(BUILTIN_CODE(masm->isolate(), FastNewObject), RelocInfo::CODE_TARGET);
+  __ Branch(&post_instantiation_deopt_entry);
 
-    // Else: use TheHoleValue as receiver for constructor call
-    __ bind(&not_create_implicit_receiver);
-    __ LoadRoot(v0, RootIndex::kTheHoleValue);
+  // Else: use TheHoleValue as receiver for constructor call
+  __ bind(&not_create_implicit_receiver);
+  __ LoadRoot(v0, RootIndex::kTheHoleValue);
 
-    // ----------- S t a t e -------------
-    //  --                          v0: receiver
-    //  -- Slot 4 / sp[0*kPointerSize]: new target
-    //  -- Slot 3 / sp[1*kPointerSize]: padding
-    //  -- Slot 2 / sp[2*kPointerSize]: constructor function
-    //  -- Slot 1 / sp[3*kPointerSize]: number of arguments (tagged)
-    //  -- Slot 0 / sp[4*kPointerSize]: context
-    // -----------------------------------
-    // Deoptimizer enters here.
-    masm->isolate()->heap()->SetConstructStubCreateDeoptPCOffset(
-        masm->pc_offset());
-    __ bind(&post_instantiation_deopt_entry);
+  // ----------- S t a t e -------------
+  //  --                          v0: receiver
+  //  -- Slot 4 / sp[0*kPointerSize]: new target
+  //  -- Slot 3 / sp[1*kPointerSize]: padding
+  //  -- Slot 2 / sp[2*kPointerSize]: constructor function
+  //  -- Slot 1 / sp[3*kPointerSize]: number of arguments (tagged)
+  //  -- Slot 0 / sp[4*kPointerSize]: context
+  // -----------------------------------
+  // Deoptimizer enters here.
+  masm->isolate()->heap()->SetConstructStubCreateDeoptPCOffset(
+      masm->pc_offset());
+  __ bind(&post_instantiation_deopt_entry);
 
-    // Restore new target.
-    __ Pop(a3);
+  // Restore new target.
+  __ Pop(a3);
 
-    // Push the allocated receiver to the stack.
-    __ Push(v0);
-    // We need two copies because we may have to return the original one
-    // and the calling conventions dictate that the called function pops the
-    // receiver. The second copy is pushed after the arguments, we saved in s0
-    // since v0 will store the return value of callRuntime.
-    __ mov(s0, v0);
+  // Push the allocated receiver to the stack.
+  __ Push(v0);
 
-    // Set up pointer to last argument.
-    __ Addu(
-        t2, fp,
-        Operand(StandardFrameConstants::kCallerSPOffset + kSystemPointerSize));
+  // We need two copies because we may have to return the original one
+  // and the calling conventions dictate that the called function pops the
+  // receiver. The second copy is pushed after the arguments, we saved in s0
+  // since v0 will store the return value of callRuntime.
+  __ mov(s0, v0);
 
-    // ----------- S t a t e -------------
-    //  --                 r3: new target
-    //  -- sp[0*kPointerSize]: implicit receiver
-    //  -- sp[1*kPointerSize]: implicit receiver
-    //  -- sp[2*kPointerSize]: padding
-    //  -- sp[3*kPointerSize]: constructor function
-    //  -- sp[4*kPointerSize]: number of arguments (tagged)
-    //  -- sp[5*kPointerSize]: context
-    // -----------------------------------
+  // Set up pointer to last argument.
+  __ Addu(t2, fp, Operand(StandardFrameConstants::kCallerSPOffset +
+                          kSystemPointerSize));
 
-    // Restore constructor function and argument count.
-    __ lw(a1, MemOperand(fp, ConstructFrameConstants::kConstructorOffset));
-    __ lw(a0, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
-    __ SmiUntag(a0);
+  // ----------- S t a t e -------------
+  //  --                 r3: new target
+  //  -- sp[0*kPointerSize]: implicit receiver
+  //  -- sp[1*kPointerSize]: implicit receiver
+  //  -- sp[2*kPointerSize]: padding
+  //  -- sp[3*kPointerSize]: constructor function
+  //  -- sp[4*kPointerSize]: number of arguments (tagged)
+  //  -- sp[5*kPointerSize]: context
+  // -----------------------------------
 
-    Label enough_stack_space, stack_overflow;
-    __ StackOverflowCheck(a0, t0, t1, &stack_overflow);
-    __ Branch(&enough_stack_space);
+  // Restore constructor function and argument count.
+  __ lw(a1, MemOperand(fp, ConstructFrameConstants::kConstructorOffset));
+  __ lw(a0, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
+  __ SmiUntag(a0);
 
-    __ bind(&stack_overflow);
-    // Restore the context from the frame.
-    __ lw(cp, MemOperand(fp, ConstructFrameConstants::kContextOffset));
-    __ CallRuntime(Runtime::kThrowStackOverflow);
-    // Unreachable code.
-    __ break_(0xCC);
+  Label stack_overflow;
+  __ StackOverflowCheck(a0, t0, t1, &stack_overflow);
 
-    __ bind(&enough_stack_space);
+  // TODO(victorgomes): When the arguments adaptor is completely removed, we
+  // should get the formal parameter count and copy the arguments in its
+  // correct position (including any undefined), instead of delaying this to
+  // InvokeFunction.
 
-    // TODO(victorgomes): When the arguments adaptor is completely removed, we
-    // should get the formal parameter count and copy the arguments in its
-    // correct position (including any undefined), instead of delaying this to
-    // InvokeFunction.
+  // Copy arguments and receiver to the expression stack.
+  __ PushArray(t2, a0, t0, t1);
 
-    // Copy arguments and receiver to the expression stack.
-    __ PushArray(t2, a0, t0, t1);
-    // We need two copies because we may have to return the original one
-    // and the calling conventions dictate that the called function pops the
-    // receiver. The second copy is pushed after the arguments.
-    __ Push(s0);
+  // We need two copies because we may have to return the original one
+  // and the calling conventions dictate that the called function pops the
+  // receiver. The second copy is pushed after the arguments.
+  __ Push(s0);
 
-    // Call the function.
-    __ InvokeFunctionWithNewTarget(a1, a3, a0, CALL_FUNCTION);
+  // Call the function.
+  __ InvokeFunctionWithNewTarget(a1, a3, a0, CALL_FUNCTION);
 
-    // ----------- S t a t e -------------
-    //  --                 v0: constructor result
-    //  -- sp[0*kPointerSize]: implicit receiver
-    //  -- sp[1*kPointerSize]: padding
-    //  -- sp[2*kPointerSize]: constructor function
-    //  -- sp[3*kPointerSize]: number of arguments
-    //  -- sp[4*kPointerSize]: context
-    // -----------------------------------
+  // ----------- S t a t e -------------
+  //  --                 v0: constructor result
+  //  -- sp[0*kPointerSize]: implicit receiver
+  //  -- sp[1*kPointerSize]: padding
+  //  -- sp[2*kPointerSize]: constructor function
+  //  -- sp[3*kPointerSize]: number of arguments
+  //  -- sp[4*kPointerSize]: context
+  // -----------------------------------
 
-    // Store offset of return address for deoptimizer.
-    masm->isolate()->heap()->SetConstructStubInvokeDeoptPCOffset(
-        masm->pc_offset());
+  // Store offset of return address for deoptimizer.
+  masm->isolate()->heap()->SetConstructStubInvokeDeoptPCOffset(
+      masm->pc_offset());
 
-    // Restore the context from the frame.
-    __ lw(cp, MemOperand(fp, ConstructFrameConstants::kContextOffset));
+  // If the result is an object (in the ECMA sense), we should get rid
+  // of the receiver and use the result; see ECMA-262 section 13.2.2-7
+  // on page 74.
+  Label use_receiver, do_throw, leave_and_return, check_receiver;
 
-    // If the result is an object (in the ECMA sense), we should get rid
-    // of the receiver and use the result; see ECMA-262 section 13.2.2-7
-    // on page 74.
-    Label use_receiver, do_throw, leave_frame;
+  // If the result is undefined, we jump out to using the implicit receiver.
+  __ JumpIfNotRoot(v0, RootIndex::kUndefinedValue, &check_receiver);
 
-    // If the result is undefined, we jump out to using the implicit receiver.
-    __ JumpIfRoot(v0, RootIndex::kUndefinedValue, &use_receiver);
+  // Otherwise we do a smi check and fall through to check if the return value
+  // is a valid receiver.
 
-    // Otherwise we do a smi check and fall through to check if the return value
-    // is a valid receiver.
+  // Throw away the result of the constructor invocation and use the
+  // on-stack receiver as the result.
+  __ bind(&use_receiver);
+  __ lw(v0, MemOperand(sp, 0 * kPointerSize));
+  __ JumpIfRoot(v0, RootIndex::kTheHoleValue, &do_throw);
 
-    // If the result is a smi, it is *not* an object in the ECMA sense.
-    __ JumpIfSmi(v0, &use_receiver);
+  __ bind(&leave_and_return);
+  // Restore smi-tagged arguments count from the frame.
+  __ lw(a1, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
+  // Leave construct frame.
+  __ LeaveFrame(StackFrame::CONSTRUCT);
 
-    // If the type of the result (stored in its map) is less than
-    // FIRST_JS_RECEIVER_TYPE, it is not an object in the ECMA sense.
-    __ GetObjectType(v0, t2, t2);
-    STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-    __ Branch(&leave_frame, greater_equal, t2, Operand(FIRST_JS_RECEIVER_TYPE));
-    __ Branch(&use_receiver);
-
-    __ bind(&do_throw);
-    __ CallRuntime(Runtime::kThrowConstructorReturnedNonObject);
-
-    // Throw away the result of the constructor invocation and use the
-    // on-stack receiver as the result.
-    __ bind(&use_receiver);
-    __ lw(v0, MemOperand(sp, 0 * kPointerSize));
-    __ JumpIfRoot(v0, RootIndex::kTheHoleValue, &do_throw);
-
-    __ bind(&leave_frame);
-    // Restore smi-tagged arguments count from the frame.
-    __ lw(a1, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
-    // Leave construct frame.
-  }
   // Remove caller arguments from the stack and return.
   __ Lsa(sp, sp, a1, kPointerSizeLog2 - kSmiTagSize);
   __ Addu(sp, sp, kPointerSize);
   __ Ret();
+
+  __ bind(&check_receiver);
+  // If the result is a smi, it is *not* an object in the ECMA sense.
+  __ JumpIfSmi(v0, &use_receiver);
+
+  // If the type of the result (stored in its map) is less than
+  // FIRST_JS_RECEIVER_TYPE, it is not an object in the ECMA sense.
+  __ GetObjectType(v0, t2, t2);
+  STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+  __ Branch(&leave_and_return, greater_equal, t2,
+            Operand(FIRST_JS_RECEIVER_TYPE));
+  __ Branch(&use_receiver);
+
+  __ bind(&do_throw);
+  // Restore the context from the frame.
+  __ lw(cp, MemOperand(fp, ConstructFrameConstants::kContextOffset));
+  __ CallRuntime(Runtime::kThrowConstructorReturnedNonObject);
+  __ break_(0xCC);
+
+  __ bind(&stack_overflow);
+  // Restore the context from the frame.
+  __ lw(cp, MemOperand(fp, ConstructFrameConstants::kContextOffset));
+  __ CallRuntime(Runtime::kThrowStackOverflow);
+  // Unreachable code.
+  __ break_(0xCC);
 }
 
 void Builtins::Generate_JSBuiltinsConstructStub(MacroAssembler* masm) {
