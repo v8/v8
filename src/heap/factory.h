@@ -56,7 +56,6 @@ class JSTypedArray;
 class JSWeakMap;
 class LoadHandler;
 class NativeContext;
-class NewFunctionArgs;
 class PromiseResolveThenableJobTask;
 class RegExpMatchInfo;
 class ScriptContextTable;
@@ -622,10 +621,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<JSGlobalProxy> NewUninitializedJSGlobalProxy(int size);
 
-  // Creates a new JSFunction according to the given args. This is the function
-  // you'll probably want to use when creating a JSFunction from the runtime.
-  Handle<JSFunction> NewFunction(const NewFunctionArgs& args);
-
   // For testing only. Creates a sloppy function without code.
   Handle<JSFunction> NewFunctionForTesting(Handle<String> name);
 
@@ -698,6 +693,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       MaybeHandle<String> maybe_name,
       Handle<FunctionTemplateInfo> function_template_info, FunctionKind kind);
 
+  Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmExportedFunction(
+      Handle<String> name, Handle<WasmExportedFunctionData> data);
+  Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmJSFunction(
+      Handle<String> name, Handle<WasmJSFunctionData> data);
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmCapiFunction(
       Handle<WasmCapiFunctionData> data);
 
@@ -1010,63 +1009,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
  private:
   Handle<WeakArrayList> NewUninitializedWeakArrayList(
       int capacity, AllocationType allocation = AllocationType::kYoung);
-};
-
-// Utility class to simplify argument handling around JSFunction creation.
-class NewFunctionArgs final {
- public:
-  static NewFunctionArgs ForWasm(
-      Handle<String> name,
-      Handle<WasmExportedFunctionData> exported_function_data, Handle<Map> map);
-  static NewFunctionArgs ForWasm(Handle<String> name,
-                                 Handle<WasmJSFunctionData> js_function_data,
-                                 Handle<Map> map);
-  V8_EXPORT_PRIVATE static NewFunctionArgs ForBuiltin(Handle<String> name,
-                                                      Handle<Map> map,
-                                                      int builtin_id);
-  static NewFunctionArgs ForFunctionWithoutCode(Handle<String> name,
-                                                Handle<Map> map,
-                                                LanguageMode language_mode);
-  static NewFunctionArgs ForBuiltinWithPrototype(
-      Handle<String> name, Handle<HeapObject> prototype, InstanceType type,
-      int instance_size, int inobject_properties, int builtin_id,
-      MutableMode prototype_mutability);
-  static NewFunctionArgs ForBuiltinWithoutPrototype(Handle<String> name,
-                                                    int builtin_id,
-                                                    LanguageMode language_mode);
-
-  Handle<Map> GetMap(Isolate* isolate) const;
-
- private:
-  NewFunctionArgs() = default;  // Use the static factory constructors.
-
-  void SetShouldCreateAndSetInitialMap();
-  void SetShouldSetPrototype();
-  void SetShouldSetLanguageMode();
-
-  // Sentinel value.
-  static const int kUninitialized = -1;
-
-  Handle<String> name_;
-  MaybeHandle<Map> maybe_map_;
-  MaybeHandle<Struct> maybe_wasm_function_data_;
-
-  bool should_create_and_set_initial_map_ = false;
-  InstanceType type_;
-  int instance_size_ = kUninitialized;
-  int inobject_properties_ = kUninitialized;
-
-  bool should_set_prototype_ = false;
-  MaybeHandle<HeapObject> maybe_prototype_;
-
-  bool should_set_language_mode_ = false;
-  LanguageMode language_mode_;
-
-  int maybe_builtin_id_ = kUninitialized;
-
-  MutableMode prototype_mutability_;
-
-  friend class Factory;
 };
 
 }  // namespace internal

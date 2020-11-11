@@ -10133,19 +10133,20 @@ Local<Function> debug::GetBuiltin(Isolate* v8_isolate, Builtin builtin) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScope handle_scope(isolate);
-  i::Builtins::Name builtin_id;
-  switch (builtin) {
-    case kStringToLowerCase:
-      builtin_id = i::Builtins::kStringPrototypeToLocaleLowerCase;
-      break;
-    default:
-      UNREACHABLE();
-  }
 
+  CHECK_EQ(builtin, kStringToLowerCase);
+  i::Builtins::Name builtin_id = i::Builtins::kStringPrototypeToLocaleLowerCase;
+
+  i::Factory* factory = isolate->factory();
   i::Handle<i::String> name = isolate->factory()->empty_string();
-  i::NewFunctionArgs args = i::NewFunctionArgs::ForBuiltinWithoutPrototype(
-      name, builtin_id, i::LanguageMode::kStrict);
-  i::Handle<i::JSFunction> fun = isolate->factory()->NewFunction(args);
+  i::Handle<i::NativeContext> context(isolate->native_context());
+  i::Handle<i::SharedFunctionInfo> info =
+      factory->NewSharedFunctionInfoForBuiltin(name, builtin_id);
+  info->set_language_mode(i::LanguageMode::kStrict);
+  i::Handle<i::JSFunction> fun =
+      i::Factory::JSFunctionBuilder{isolate, info, context}
+          .set_map(isolate->strict_function_without_prototype_map())
+          .Build();
 
   fun->shared().set_internal_formal_parameter_count(0);
   fun->shared().set_length(0);

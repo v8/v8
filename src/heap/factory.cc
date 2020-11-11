@@ -2701,6 +2701,17 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForApiFunction(
   return shared;
 }
 
+Handle<SharedFunctionInfo>
+Factory::NewSharedFunctionInfoForWasmExportedFunction(
+    Handle<String> name, Handle<WasmExportedFunctionData> data) {
+  return NewSharedFunctionInfo(name, data, Builtins::kNoBuiltinId);
+}
+
+Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWasmJSFunction(
+    Handle<String> name, Handle<WasmJSFunctionData> data) {
+  return NewSharedFunctionInfo(name, data, Builtins::kNoBuiltinId);
+}
+
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWasmCapiFunction(
     Handle<WasmCapiFunctionData> data) {
   return NewSharedFunctionInfo(MaybeHandle<String>(), data,
@@ -3445,242 +3456,13 @@ bool Factory::EmptyStringRootIsInitialized() {
   return isolate()->roots_table()[RootIndex::kempty_string] != kNullAddress;
 }
 
-// static
-NewFunctionArgs NewFunctionArgs::ForWasm(
-    Handle<String> name,
-    Handle<WasmExportedFunctionData> exported_function_data, Handle<Map> map) {
-  DCHECK(name->IsFlat());
-
-  NewFunctionArgs args;
-  args.name_ = name;
-  args.maybe_map_ = map;
-  args.maybe_wasm_function_data_ = exported_function_data;
-  args.language_mode_ = LanguageMode::kSloppy;
-  args.prototype_mutability_ = MUTABLE;
-
-  return args;
-}
-
-// static
-NewFunctionArgs NewFunctionArgs::ForWasm(
-    Handle<String> name, Handle<WasmJSFunctionData> js_function_data,
-    Handle<Map> map) {
-  DCHECK(name->IsFlat());
-
-  NewFunctionArgs args;
-  args.name_ = name;
-  args.maybe_map_ = map;
-  args.maybe_wasm_function_data_ = js_function_data;
-  args.language_mode_ = LanguageMode::kSloppy;
-  args.prototype_mutability_ = MUTABLE;
-
-  return args;
-}
-
-// static
-NewFunctionArgs NewFunctionArgs::ForBuiltin(Handle<String> name,
-                                            Handle<Map> map, int builtin_id) {
-  DCHECK(Builtins::IsBuiltinId(builtin_id));
-  DCHECK(name->IsFlat());
-
-  NewFunctionArgs args;
-  args.name_ = name;
-  args.maybe_map_ = map;
-  args.maybe_builtin_id_ = builtin_id;
-  args.language_mode_ = LanguageMode::kStrict;
-  args.prototype_mutability_ = MUTABLE;
-
-  args.SetShouldSetLanguageMode();
-
-  return args;
-}
-
-// static
-NewFunctionArgs NewFunctionArgs::ForFunctionWithoutCode(
-    Handle<String> name, Handle<Map> map, LanguageMode language_mode) {
-  DCHECK(name->IsFlat());
-
-  NewFunctionArgs args;
-  args.name_ = name;
-  args.maybe_map_ = map;
-  args.maybe_builtin_id_ = Builtins::kIllegal;
-  args.language_mode_ = language_mode;
-  args.prototype_mutability_ = MUTABLE;
-
-  args.SetShouldSetLanguageMode();
-
-  return args;
-}
-
-// static
-NewFunctionArgs NewFunctionArgs::ForBuiltinWithPrototype(
-    Handle<String> name, Handle<HeapObject> prototype, InstanceType type,
-    int instance_size, int inobject_properties, int builtin_id,
-    MutableMode prototype_mutability) {
-  DCHECK(Builtins::IsBuiltinId(builtin_id));
-  DCHECK(name->IsFlat());
-
-  NewFunctionArgs args;
-  args.name_ = name;
-  args.type_ = type;
-  args.instance_size_ = instance_size;
-  args.inobject_properties_ = inobject_properties;
-  args.maybe_prototype_ = prototype;
-  args.maybe_builtin_id_ = builtin_id;
-  args.language_mode_ = LanguageMode::kStrict;
-  args.prototype_mutability_ = prototype_mutability;
-
-  args.SetShouldCreateAndSetInitialMap();
-  args.SetShouldSetPrototype();
-  args.SetShouldSetLanguageMode();
-
-  return args;
-}
-
-// static
-NewFunctionArgs NewFunctionArgs::ForBuiltinWithoutPrototype(
-    Handle<String> name, int builtin_id, LanguageMode language_mode) {
-  DCHECK(Builtins::IsBuiltinId(builtin_id));
-  DCHECK(name->IsFlat());
-
-  NewFunctionArgs args;
-  args.name_ = name;
-  args.maybe_builtin_id_ = builtin_id;
-  args.language_mode_ = language_mode;
-  args.prototype_mutability_ = MUTABLE;
-
-  args.SetShouldSetLanguageMode();
-
-  return args;
-}
-
-void NewFunctionArgs::SetShouldCreateAndSetInitialMap() {
-  // Needed to create the initial map.
-  maybe_prototype_.Assert();
-  DCHECK_NE(kUninitialized, instance_size_);
-  DCHECK_NE(kUninitialized, inobject_properties_);
-
-  should_create_and_set_initial_map_ = true;
-}
-
-void NewFunctionArgs::SetShouldSetPrototype() {
-  maybe_prototype_.Assert();
-  should_set_prototype_ = true;
-}
-
-void NewFunctionArgs::SetShouldSetLanguageMode() {
-  DCHECK(language_mode_ == LanguageMode::kStrict ||
-         language_mode_ == LanguageMode::kSloppy);
-  should_set_language_mode_ = true;
-}
-
-Handle<Map> NewFunctionArgs::GetMap(Isolate* isolate) const {
-  if (!maybe_map_.is_null()) {
-    return maybe_map_.ToHandleChecked();
-  } else if (maybe_prototype_.is_null()) {
-    return is_strict(language_mode_)
-               ? isolate->strict_function_without_prototype_map()
-               : isolate->sloppy_function_without_prototype_map();
-  } else {
-    DCHECK(!maybe_prototype_.is_null());
-    switch (prototype_mutability_) {
-      case MUTABLE:
-        return is_strict(language_mode_) ? isolate->strict_function_map()
-                                         : isolate->sloppy_function_map();
-      case IMMUTABLE:
-        return is_strict(language_mode_)
-                   ? isolate->strict_function_with_readonly_prototype_map()
-                   : isolate->sloppy_function_with_readonly_prototype_map();
-    }
-  }
-  UNREACHABLE();
-}
-
 Handle<JSFunction> Factory::NewFunctionForTesting(Handle<String> name) {
-  NewFunctionArgs args = NewFunctionArgs::ForFunctionWithoutCode(
-      name, isolate()->sloppy_function_map(), LanguageMode::kSloppy);
-  Handle<JSFunction> result = NewFunction(args);
-  DCHECK(is_sloppy(result->shared().language_mode()));
-  return result;
-}
-
-Handle<JSFunction> Factory::NewFunction(const NewFunctionArgs& args) {
-  DCHECK(!args.name_.is_null());
-
-  // Create the SharedFunctionInfo.
-  Handle<NativeContext> context(isolate()->native_context());
-  Handle<Map> map = args.GetMap(isolate());
   Handle<SharedFunctionInfo> info =
-      NewSharedFunctionInfo(args.name_, args.maybe_wasm_function_data_,
-                            args.maybe_builtin_id_, kNormalFunction);
-
-  // Proper language mode in shared function info will be set later.
-  DCHECK(is_sloppy(info->language_mode()));
-  DCHECK(!map->IsUndefined(isolate()));
-
-  if (args.should_set_language_mode_) {
-    info->set_language_mode(args.language_mode_);
-  }
-
-#ifdef DEBUG
-  if (isolate()->bootstrapper()->IsActive()) {
-    Handle<Code> code;
-    DCHECK(
-        // During bootstrapping some of these maps could be not created yet.
-        (*map == context->get(Context::STRICT_FUNCTION_MAP_INDEX)) ||
-        (*map ==
-         context->get(Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX)) ||
-        (*map ==
-         context->get(
-             Context::STRICT_FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX)) ||
-        // Check if it's a creation of an empty or Proxy function during
-        // bootstrapping.
-        (args.maybe_builtin_id_ == Builtins::kEmptyFunction ||
-         args.maybe_builtin_id_ == Builtins::kProxyConstructor));
-  }
-#endif
-
-  Handle<JSFunction> result =
-      JSFunctionBuilder{isolate(), info, context}.set_map(map).Build();
-
-  // Both of these write to `prototype_or_initial_map`.
-  // TODO(jgruber): Fix callsites and enable the DCHECK.
-  // DCHECK(!args.should_set_prototype_ ||
-  //        !args.should_create_and_set_initial_map_);
-  if (args.should_set_prototype_) {
-    result->set_prototype_or_initial_map(
-        *args.maybe_prototype_.ToHandleChecked());
-  }
-
-  if (args.should_create_and_set_initial_map_) {
-    ElementsKind elements_kind;
-    switch (args.type_) {
-      case JS_ARRAY_TYPE:
-        elements_kind = PACKED_SMI_ELEMENTS;
-        break;
-      case JS_ARGUMENTS_OBJECT_TYPE:
-        elements_kind = PACKED_ELEMENTS;
-        break;
-      default:
-        elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
-        break;
-    }
-    Handle<Map> initial_map = NewMap(args.type_, args.instance_size_,
-                                     elements_kind, args.inobject_properties_);
-    result->shared().set_expected_nof_properties(args.inobject_properties_);
-    // TODO(littledan): Why do we have this is_generator test when
-    // NewFunctionPrototype already handles finding an appropriately
-    // shared prototype?
-    Handle<HeapObject> prototype = args.maybe_prototype_.ToHandleChecked();
-    if (!IsResumableFunction(result->shared().kind())) {
-      if (prototype->IsTheHole(isolate())) {
-        prototype = NewFunctionPrototype(result);
-      }
-    }
-    JSFunction::SetInitialMap(result, initial_map, prototype);
-  }
-
-  return result;
+      NewSharedFunctionInfoForBuiltin(name, Builtins::kIllegal);
+  info->set_language_mode(LanguageMode::kSloppy);
+  return JSFunctionBuilder{isolate(), info, isolate()->native_context()}
+      .set_map(isolate()->sloppy_function_map())
+      .Build();
 }
 
 Factory::JSFunctionBuilder::JSFunctionBuilder(Isolate* isolate,

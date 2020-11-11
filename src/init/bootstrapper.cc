@@ -373,19 +373,110 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
 
 namespace {
 
+#ifdef DEBUG
+bool IsFunctionMapOrSpecialBuiltin(Handle<Map> map, Builtins::Name builtin_id,
+                                   Handle<Context> context) {
+  // During bootstrapping some of these maps could be not created yet.
+  return ((*map == context->get(Context::STRICT_FUNCTION_MAP_INDEX)) ||
+          (*map == context->get(
+                       Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX)) ||
+          (*map ==
+           context->get(
+               Context::STRICT_FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX)) ||
+          // Check if it's a creation of an empty or Proxy function during
+          // bootstrapping.
+          (builtin_id == Builtins::kEmptyFunction ||
+           builtin_id == Builtins::kProxyConstructor));
+}
+#endif  // DEBUG
+
+V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltin(
+    Isolate* isolate, Handle<String> name, Handle<Map> map,
+    Builtins::Name builtin_id) {
+  Factory* factory = isolate->factory();
+  Handle<NativeContext> context(isolate->native_context());
+  DCHECK(IsFunctionMapOrSpecialBuiltin(map, builtin_id, context));
+
+  Handle<SharedFunctionInfo> info =
+      factory->NewSharedFunctionInfoForBuiltin(name, builtin_id);
+  info->set_language_mode(LanguageMode::kStrict);
+
+  return Factory::JSFunctionBuilder{isolate, info, context}
+      .set_map(map)
+      .Build();
+}
+
+V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltinWithPrototype(
+    Isolate* isolate, Handle<String> name, Builtins::Name builtin_id,
+    Handle<HeapObject> prototype, InstanceType type, int instance_size,
+    int inobject_properties, MutableMode prototype_mutability) {
+  Factory* factory = isolate->factory();
+  Handle<NativeContext> context(isolate->native_context());
+  Handle<Map> map =
+      prototype_mutability == MUTABLE
+          ? isolate->strict_function_map()
+          : isolate->strict_function_with_readonly_prototype_map();
+  DCHECK(IsFunctionMapOrSpecialBuiltin(map, builtin_id, context));
+
+  Handle<SharedFunctionInfo> info =
+      factory->NewSharedFunctionInfoForBuiltin(name, builtin_id);
+  info->set_language_mode(LanguageMode::kStrict);
+  info->set_expected_nof_properties(inobject_properties);
+
+  Handle<JSFunction> result =
+      Factory::JSFunctionBuilder{isolate, info, context}.set_map(map).Build();
+
+  ElementsKind elements_kind;
+  switch (type) {
+    case JS_ARRAY_TYPE:
+      elements_kind = PACKED_SMI_ELEMENTS;
+      break;
+    case JS_ARGUMENTS_OBJECT_TYPE:
+      elements_kind = PACKED_ELEMENTS;
+      break;
+    default:
+      elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
+      break;
+  }
+  Handle<Map> initial_map =
+      factory->NewMap(type, instance_size, elements_kind, inobject_properties);
+  // TODO(littledan): Why do we have this is_generator test when
+  // NewFunctionPrototype already handles finding an appropriately
+  // shared prototype?
+  if (!IsResumableFunction(info->kind()) && prototype->IsTheHole(isolate)) {
+    prototype = factory->NewFunctionPrototype(result);
+  }
+  JSFunction::SetInitialMap(result, initial_map, prototype);
+
+  return result;
+}
+
+V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltinWithoutPrototype(
+    Isolate* isolate, Handle<String> name, Builtins::Name builtin_id) {
+  Factory* factory = isolate->factory();
+  Handle<NativeContext> context(isolate->native_context());
+  Handle<Map> map = isolate->strict_function_without_prototype_map();
+  DCHECK(IsFunctionMapOrSpecialBuiltin(map, builtin_id, context));
+
+  Handle<SharedFunctionInfo> info =
+      factory->NewSharedFunctionInfoForBuiltin(name, builtin_id);
+  info->set_language_mode(LanguageMode::kStrict);
+
+  return Factory::JSFunctionBuilder{isolate, info, context}
+      .set_map(map)
+      .Build();
+}
+
 V8_NOINLINE Handle<JSFunction> CreateFunction(
     Isolate* isolate, Handle<String> name, InstanceType type, int instance_size,
     int inobject_properties, Handle<HeapObject> prototype,
     Builtins::Name builtin_id) {
   DCHECK(Builtins::HasJSLinkage(builtin_id));
 
-  Handle<JSFunction> result;
+  Handle<JSFunction> result = CreateFunctionForBuiltinWithPrototype(
+      isolate, name, builtin_id, prototype, type, instance_size,
+      inobject_properties, IMMUTABLE);
 
-  NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithPrototype(
-      name, prototype, type, instance_size, inobject_properties, builtin_id,
-      IMMUTABLE);
-
-  result = isolate->factory()->NewFunction(args);
   // Make the JSFunction's prototype object fast.
   JSObject::MakePrototypesFast(handle(result->prototype(), isolate),
                                kStartAtReceiver, isolate);
@@ -431,9 +522,8 @@ V8_NOINLINE Handle<JSFunction> SimpleCreateFunction(Isolate* isolate,
                                                     int len, bool adapt) {
   DCHECK(Builtins::HasJSLinkage(call));
   name = String::Flatten(isolate, name, AllocationType::kOld);
-  NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithoutPrototype(
-      name, call, LanguageMode::kStrict);
-  Handle<JSFunction> fun = isolate->factory()->NewFunction(args);
+  Handle<JSFunction> fun =
+      CreateFunctionForBuiltinWithoutPrototype(isolate, name, call);
   // Make the resulting JSFunction object fast.
   JSObject::MakePrototypesFast(fun, kStartAtReceiver, isolate);
   fun->shared().set_native(true);
@@ -586,9 +676,9 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
 
   // Allocate the empty function as the prototype for function according to
   // ES#sec-properties-of-the-function-prototype-object
-  NewFunctionArgs args = NewFunctionArgs::ForBuiltin(
-      factory()->empty_string(), empty_function_map, Builtins::kEmptyFunction);
-  Handle<JSFunction> empty_function = factory()->NewFunction(args);
+  Handle<JSFunction> empty_function =
+      CreateFunctionForBuiltin(isolate(), factory()->empty_string(),
+                               empty_function_map, Builtins::kEmptyFunction);
   native_context()->set_empty_function(*empty_function);
 
   // --- E m p t y ---
@@ -639,9 +729,8 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic() {
     return restricted_properties_thrower_;
   }
   Handle<String> name = factory()->empty_string();
-  NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithoutPrototype(
-      name, Builtins::kStrictPoisonPillThrower, i::LanguageMode::kStrict);
-  Handle<JSFunction> function = factory()->NewFunction(args);
+  Handle<JSFunction> function = CreateFunctionForBuiltinWithoutPrototype(
+      isolate(), name, Builtins::kStrictPoisonPillThrower);
   function->shared().DontAdaptArguments();
 
   // %ThrowTypeError% must have a name property with an empty string value. Per
@@ -1222,10 +1311,9 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
     Handle<String> name = factory()->empty_string();
     Handle<JSObject> prototype =
         factory()->NewFunctionPrototype(isolate()->object_function());
-    NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithPrototype(
-        name, prototype, JS_GLOBAL_OBJECT_TYPE, JSGlobalObject::kHeaderSize, 0,
-        Builtins::kIllegal, MUTABLE);
-    js_global_object_function = factory()->NewFunction(args);
+    js_global_object_function = CreateFunctionForBuiltinWithPrototype(
+        isolate(), name, Builtins::kIllegal, prototype, JS_GLOBAL_OBJECT_TYPE,
+        JSGlobalObject::kHeaderSize, 0, MUTABLE);
 #ifdef DEBUG
     LookupIterator it(isolate(), prototype, factory()->constructor_string(),
                       LookupIterator::OWN_SKIP_INTERCEPTOR);
@@ -1253,11 +1341,10 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
   Handle<JSFunction> global_proxy_function;
   if (global_proxy_template.IsEmpty()) {
     Handle<String> name = factory()->empty_string();
-    NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithPrototype(
-        name, factory()->the_hole_value(), JS_GLOBAL_PROXY_TYPE,
-        JSGlobalProxy::SizeWithEmbedderFields(0), 0, Builtins::kIllegal,
+    global_proxy_function = CreateFunctionForBuiltinWithPrototype(
+        isolate(), name, Builtins::kIllegal, factory()->the_hole_value(),
+        JS_GLOBAL_PROXY_TYPE, JSGlobalProxy::SizeWithEmbedderFields(0), 0,
         MUTABLE);
-    global_proxy_function = factory()->NewFunction(args);
   } else {
     Handle<ObjectTemplateInfo> data =
         v8::Utils::OpenHandle(*global_proxy_template);
@@ -2706,10 +2793,16 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // -- C o n s o l e
     Handle<String> name = factory->InternalizeUtf8String("console");
-    NewFunctionArgs args = NewFunctionArgs::ForFunctionWithoutCode(
-        name, isolate_->strict_function_map(), LanguageMode::kStrict);
-    Handle<JSFunction> cons = factory->NewFunction(args);
 
+    Handle<NativeContext> context(isolate()->native_context());
+    Handle<SharedFunctionInfo> info =
+        factory->NewSharedFunctionInfoForBuiltin(name, Builtins::kIllegal);
+    info->set_language_mode(LanguageMode::kStrict);
+
+    Handle<JSFunction> cons =
+        Factory::JSFunctionBuilder{isolate(), info, context}
+            .set_map(isolate()->strict_function_map())
+            .Build();
     Handle<JSObject> empty = factory->NewJSObject(isolate_->object_function());
     JSFunction::SetPrototype(cons, empty);
 
@@ -3595,10 +3688,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     proxy_function_map->set_is_constructor(true);
 
     Handle<String> name = factory->Proxy_string();
-
-    NewFunctionArgs args = NewFunctionArgs::ForBuiltin(
-        name, proxy_function_map, Builtins::kProxyConstructor);
-    Handle<JSFunction> proxy_function = factory->NewFunction(args);
+    Handle<JSFunction> proxy_function = CreateFunctionForBuiltin(
+        isolate(), name, proxy_function_map, Builtins::kProxyConstructor);
 
     isolate_->proxy_map()->SetConstructor(*proxy_function);
 
@@ -3689,11 +3780,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // --- sloppy arguments map
     Handle<String> arguments_string = factory->Arguments_string();
-    NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithPrototype(
-        arguments_string, isolate_->initial_object_prototype(),
-        JS_ARGUMENTS_OBJECT_TYPE, JSSloppyArgumentsObject::kSize, 2,
-        Builtins::kIllegal, MUTABLE);
-    Handle<JSFunction> function = factory->NewFunction(args);
+    Handle<JSFunction> function = CreateFunctionForBuiltinWithPrototype(
+        isolate(), arguments_string, Builtins::kIllegal,
+        isolate()->initial_object_prototype(), JS_ARGUMENTS_OBJECT_TYPE,
+        JSSloppyArgumentsObject::kSize, 2, MUTABLE);
     Handle<Map> map(function->initial_map(), isolate());
 
     // Create the descriptor array for the arguments object.

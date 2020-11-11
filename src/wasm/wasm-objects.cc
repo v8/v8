@@ -1879,11 +1879,12 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
     DCHECK_GE(kMaxInt, jump_table_diff);
     jump_table_offset = static_cast<int>(jump_table_diff);
   }
+  Factory* factory = isolate->factory();
   const wasm::FunctionSig* sig = instance->module()->functions[func_index].sig;
   Handle<Foreign> sig_foreign =
-      isolate->factory()->NewForeign(reinterpret_cast<Address>(sig));
+      factory->NewForeign(reinterpret_cast<Address>(sig));
   Handle<WasmExportedFunctionData> function_data =
-      Handle<WasmExportedFunctionData>::cast(isolate->factory()->NewStruct(
+      Handle<WasmExportedFunctionData>::cast(factory->NewStruct(
           WASM_EXPORTED_FUNCTION_DATA_TYPE, AllocationType::kOld));
   function_data->set_wrapper_code(*export_wrapper);
   function_data->set_instance(*instance);
@@ -1907,7 +1908,7 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   if (!maybe_name.ToHandle(&name)) {
     EmbeddedVector<char, 16> buffer;
     int length = SNPrintF(buffer, "%d", func_index);
-    name = isolate->factory()
+    name = factory
                ->NewStringFromOneByte(
                    Vector<uint8_t>::cast(buffer.SubVector(0, length)))
                .ToHandleChecked();
@@ -1934,15 +1935,22 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
       function_map = isolate->strict_function_map();
       break;
   }
-  NewFunctionArgs args =
-      NewFunctionArgs::ForWasm(name, function_data, function_map);
-  Handle<JSFunction> js_function = isolate->factory()->NewFunction(args);
+
+  Handle<NativeContext> context(isolate->native_context());
+  Handle<SharedFunctionInfo> shared =
+      factory->NewSharedFunctionInfoForWasmExportedFunction(name,
+                                                            function_data);
+  Handle<JSFunction> js_function =
+      Factory::JSFunctionBuilder{isolate, shared, context}
+          .set_map(function_map)
+          .Build();
+
   // According to the spec, exported functions should not have a [[Construct]]
   // method. This does not apply to functions exported from asm.js however.
   DCHECK_EQ(is_asm_js_module, js_function->IsConstructor());
-  js_function->shared().set_length(arity);
-  js_function->shared().set_internal_formal_parameter_count(arity);
-  js_function->shared().set_script(instance->module_object().script());
+  shared->set_length(arity);
+  shared->set_internal_formal_parameter_count(arity);
+  shared->set_script(instance->module_object().script());
   return Handle<WasmExportedFunction>::cast(js_function);
 }
 
@@ -1995,9 +2003,9 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   Handle<Code> wrapper_code =
       compiler::CompileJSToJSWrapper(isolate, sig, nullptr).ToHandleChecked();
 
-  Handle<WasmJSFunctionData> function_data =
-      Handle<WasmJSFunctionData>::cast(isolate->factory()->NewStruct(
-          WASM_JS_FUNCTION_DATA_TYPE, AllocationType::kOld));
+  Factory* factory = isolate->factory();
+  Handle<WasmJSFunctionData> function_data = Handle<WasmJSFunctionData>::cast(
+      factory->NewStruct(WASM_JS_FUNCTION_DATA_TYPE, AllocationType::kOld));
   function_data->set_serialized_return_count(return_count);
   function_data->set_serialized_parameter_count(parameter_count);
   function_data->set_serialized_signature(*serialized_sig);
@@ -2027,7 +2035,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
     function_data->set_wasm_to_js_wrapper_code(*wasm_to_js_wrapper_code);
   }
 
-  Handle<String> name = isolate->factory()->Function_string();
+  Handle<String> name = factory->Function_string();
   if (callable->IsJSFunction()) {
     name = JSFunction::GetName(Handle<JSFunction>::cast(callable));
     name = String::Flatten(isolate, name);
@@ -2035,9 +2043,13 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   Handle<Map> function_map =
       Map::Copy(isolate, isolate->wasm_exported_function_map(),
                 "fresh function map for WasmJSFunction::New");
-  NewFunctionArgs args =
-      NewFunctionArgs::ForWasm(name, function_data, function_map);
-  Handle<JSFunction> js_function = isolate->factory()->NewFunction(args);
+  Handle<NativeContext> context(isolate->native_context());
+  Handle<SharedFunctionInfo> shared =
+      factory->NewSharedFunctionInfoForWasmJSFunction(name, function_data);
+  Handle<JSFunction> js_function =
+      Factory::JSFunctionBuilder{isolate, shared, context}
+          .set_map(function_map)
+          .Build();
   js_function->shared().set_internal_formal_parameter_count(parameter_count);
   return Handle<WasmJSFunction>::cast(js_function);
 }
