@@ -5172,39 +5172,6 @@ bool JSArray::WouldChangeReadOnlyLength(Handle<JSArray> array, uint32_t index) {
   return false;
 }
 
-// Certain compilers request function template instantiation when they
-// see the definition of the other template functions in the
-// class. This requires us to have the template functions put
-// together, so even though this function belongs in objects-debug.cc,
-// we keep it here instead to satisfy certain compilers.
-#ifdef OBJECT_PRINT
-template <typename Derived, typename Shape>
-void Dictionary<Derived, Shape>::Print(std::ostream& os) {
-  DisallowHeapAllocation no_gc;
-  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  ReadOnlyRoots roots = this->GetReadOnlyRoots(isolate);
-  Derived dictionary = Derived::cast(*this);
-  for (InternalIndex i : dictionary.IterateEntries()) {
-    Object k = dictionary.KeyAt(isolate, i);
-    if (!dictionary.ToKey(roots, i, &k)) continue;
-    os << "\n   ";
-    if (k.IsString()) {
-      String::cast(k).PrintUC16(os);
-    } else {
-      os << Brief(k);
-    }
-    os << ": " << Brief(dictionary.ValueAt(i)) << " ";
-    dictionary.DetailsAt(i).PrintAsSlowTo(os);
-  }
-}
-template <typename Derived, typename Shape>
-void Dictionary<Derived, Shape>::Print() {
-  StdoutStream os;
-  Print(os);
-  os << std::endl;
-}
-#endif
-
 int FixedArrayBase::GetMaxLengthForNewSpaceAllocation(ElementsKind kind) {
   return ((kMaxRegularHeapObjectSize - FixedArrayBase::kHeaderSize) >>
           ElementsKindToShiftSize(kind));

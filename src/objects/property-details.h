@@ -365,7 +365,7 @@ class PropertyDetails {
     kForTransitions = kPrintAttributes,
     kPrintFull = -1,
   };
-  void PrintAsSlowTo(std::ostream& out);
+  void PrintAsSlowTo(std::ostream& out, bool print_dict_index);
   void PrintAsFastTo(std::ostream& out, PrintMode mode = kPrintFull);
 
  private:

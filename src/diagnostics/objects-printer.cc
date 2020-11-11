@@ -65,6 +65,24 @@ void PrintHeapObjectHeaderWithoutMap(HeapObject object, std::ostream& os,
   }
 }
 
+template <typename T>
+void PrintDictionaryContents(std::ostream& os, T dict) {
+  DisallowHeapAllocation no_gc;
+  ReadOnlyRoots roots = dict.GetReadOnlyRoots();
+
+  for (InternalIndex i : dict.IterateEntries()) {
+    Object k;
+    if (!dict.ToKey(roots, i, &k)) continue;
+    os << "\n   ";
+    if (k.IsString()) {
+      String::cast(k).PrintUC16(os);
+    } else {
+      os << Brief(k);
+    }
+    os << ": " << Brief(dict.ValueAt(i)) << " ";
+    dict.DetailsAt(i).PrintAsSlowTo(os, !T::kIsOrderedDictionaryType);
+  }
+}
 }  // namespace
 
 void HeapObject::PrintHeader(std::ostream& os, const char* id) {  // NOLINT
@@ -104,10 +122,20 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       ObjectHashTable::cast(*this).ObjectHashTablePrint(os);
       break;
     case ORDERED_HASH_MAP_TYPE:
+      OrderedHashMap::cast(*this).OrderedHashMapPrint(os);
+      break;
     case ORDERED_HASH_SET_TYPE:
+      OrderedHashSet::cast(*this).OrderedHashSetPrint(os);
+      break;
     case ORDERED_NAME_DICTIONARY_TYPE:
+      OrderedNameDictionary::cast(*this).OrderedNameDictionaryPrint(os);
+      break;
     case NAME_DICTIONARY_TYPE:
+      NameDictionary::cast(*this).NameDictionaryPrint(os);
+      break;
     case GLOBAL_DICTIONARY_TYPE:
+      GlobalDictionary::cast(*this).GlobalDictionaryPrint(os);
+      break;
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
       FixedArray::cast(*this).FixedArrayPrint(os);
       break;
@@ -270,11 +298,12 @@ bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
     }
     return map().NumberOfOwnDescriptors() > 0;
   } else if (IsJSGlobalObject()) {
-    JSGlobalObject::cast(*this).global_dictionary().Print(os);
+    PrintDictionaryContents(os,
+                            JSGlobalObject::cast(*this).global_dictionary());
   } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    property_dictionary_ordered().Print(os);
+    PrintDictionaryContents(os, property_dictionary_ordered());
   } else {
-    property_dictionary().Print(os);
+    PrintDictionaryContents(os, property_dictionary());
   }
   return true;
 }
@@ -394,7 +423,7 @@ void PrintDictionaryElements(std::ostream& os, FixedArrayBase elements) {
   } else {
     os << "\n   - max_number_key: " << dict.max_number_key();
   }
-  dict.Print(os);
+  PrintDictionaryContents(os, dict);
 }
 
 void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
@@ -685,23 +714,6 @@ void PrintFixedArrayWithHeader(std::ostream& os, FixedArray array,
 }
 
 template <typename T>
-void PrintHashTableWithHeader(std::ostream& os, T table, const char* type) {
-  table.PrintHeader(os, type);
-  os << "\n - length: " << table.length();
-  os << "\n - elements: " << table.NumberOfElements();
-  os << "\n - deleted: " << table.NumberOfDeletedElements();
-  os << "\n - capacity: " << table.Capacity();
-
-  os << "\n - elements: {";
-  for (InternalIndex i : table.IterateEntries()) {
-    os << '\n'
-       << std::setw(12) << i.as_int() << ": " << Brief(table.KeyAt(i)) << " -> "
-       << Brief(table.ValueAt(i));
-  }
-  os << "\n }\n";
-}
-
-template <typename T>
 void PrintWeakArrayElements(std::ostream& os, T* array) {
   // Print in array notation for non-sparse arrays.
   MaybeObject previous_value =
@@ -727,6 +739,11 @@ void PrintWeakArrayElements(std::ostream& os, T* array) {
 }
 
 }  // namespace
+
+void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionPrint(
+    std::ostream& os) {
+  PrintFixedArrayWithHeader(os, *this, "ObjectBoilerplateDescription");
+}
 
 void EmbedderDataArray::EmbedderDataArrayPrint(std::ostream& os) {
   IsolateRoot isolate = GetIsolateForPtrCompr(*this);
@@ -767,21 +784,157 @@ void NativeContext::NativeContextPrint(std::ostream& os) {
   os << " - microtask_queue: " << microtask_queue() << "\n";
 }
 
+namespace {
+using DataPrinter = std::function<void(InternalIndex)>;
+
+// Prints the data associated with each key (but no headers or other meta
+// data) in a hash table. Works on different hash table types, like the
+// subtypes of HashTable and OrderedHashTable. |print_data_at| is given an
+// index into the table (where a valid key resides) and prints the data at
+// that index, like just the value (in case of a hash map), or value and
+// property details (in case of a property dictionary). No leading space
+// required or trailing newline required. It can be null/non-callable
+// std::function to indicate that there is no associcated data to be printed
+// (for example in case of a hash set).
+template <typename T>
+void PrintTableContentsGeneric(std::ostream& os, T dict,
+                               DataPrinter print_data_at) {
+  DisallowHeapAllocation no_gc;
+  ReadOnlyRoots roots = dict.GetReadOnlyRoots();
+
+  for (InternalIndex i : dict.IterateEntries()) {
+    Object k;
+    if (!dict.ToKey(roots, i, &k)) continue;
+    os << "\n   " << std::setw(12) << i.as_int() << ": ";
+    if (k.IsString()) {
+      String::cast(k).PrintUC16(os);
+    } else {
+      os << Brief(k);
+    }
+    if (print_data_at) {
+      os << " -> ";
+      print_data_at(i);
+    }
+  }
+}
+
+// Used for ordered and unordered dictionaries.
+template <typename T>
+void PrintDictionaryContentsFull(std::ostream& os, T dict) {
+  os << "\n - elements: {";
+  auto print_value_and_property_details = [&](InternalIndex i) {
+    os << Brief(dict.ValueAt(i)) << " ";
+    dict.DetailsAt(i).PrintAsSlowTo(os, !T::kIsOrderedDictionaryType);
+  };
+  PrintTableContentsGeneric(os, dict, print_value_and_property_details);
+  os << "\n }\n";
+}
+
+// Used for ordered and unordered hash maps.
+template <typename T>
+void PrintHashMapContentsFull(std::ostream& os, T dict) {
+  os << "\n - elements: {";
+  auto print_value = [&](InternalIndex i) { os << Brief(dict.ValueAt(i)); };
+  PrintTableContentsGeneric(os, dict, print_value);
+  os << "\n }\n";
+}
+
+// Used for ordered and unordered hash sets.
+template <typename T>
+void PrintHashSetContentsFull(std::ostream& os, T dict) {
+  os << "\n - elements: {";
+  // Passing non-callable std::function as there are no values to print.
+  PrintTableContentsGeneric(os, dict, nullptr);
+  os << "\n }\n";
+}
+
+// Used for subtypes of OrderedHashTable.
+template <typename T>
+void PrintOrderedHashTableHeaderAndBuckets(std::ostream& os, T table,
+                                           const char* type) {
+  DisallowHeapAllocation no_gc;
+
+  PrintHeapObjectHeaderWithoutMap(table, os, type);
+  os << "\n - FixedArray length: " << table.length();
+  os << "\n - elements: " << table.NumberOfElements();
+  os << "\n - deleted: " << table.NumberOfDeletedElements();
+  os << "\n - buckets: " << table.NumberOfBuckets();
+  os << "\n - capacity: " << table.Capacity();
+
+  os << "\n - buckets: {";
+  for (int bucket = 0; bucket < table.NumberOfBuckets(); bucket++) {
+    Object entry = table.get(T::HashTableStartIndex() + bucket);
+    DCHECK(entry.IsSmi());
+    os << "\n   " << std::setw(12) << bucket << ": " << Brief(entry);
+  }
+  os << "\n }";
+}
+
+// Used for subtypes of HashTable.
+template <typename T>
+void PrintHashTableHeader(std::ostream& os, T table, const char* type) {
+  PrintHeapObjectHeaderWithoutMap(table, os, type);
+  os << "\n - FixedArray length: " << table.length();
+  os << "\n - elements: " << table.NumberOfElements();
+  os << "\n - deleted: " << table.NumberOfDeletedElements();
+  os << "\n - capacity: " << table.Capacity();
+}
+}  // namespace
+
 void ObjectHashTable::ObjectHashTablePrint(std::ostream& os) {
-  PrintHashTableWithHeader(os, *this, "ObjectHashTable");
+  PrintHashTableHeader(os, *this, "ObjectHashTable");
+  PrintHashMapContentsFull(os, *this);
 }
 
 void NumberDictionary::NumberDictionaryPrint(std::ostream& os) {
-  PrintHashTableWithHeader(os, *this, "NumberDictionary");
+  PrintHashTableHeader(os, *this, "NumberDictionary");
+  PrintDictionaryContentsFull(os, *this);
 }
 
 void EphemeronHashTable::EphemeronHashTablePrint(std::ostream& os) {
-  PrintHashTableWithHeader(os, *this, "EphemeronHashTable");
+  PrintHashTableHeader(os, *this, "EphemeronHashTable");
+  PrintHashMapContentsFull(os, *this);
 }
 
-void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionPrint(
+void NameDictionary::NameDictionaryPrint(std::ostream& os) {
+  PrintHashTableHeader(os, *this, "NameDictionary");
+  PrintDictionaryContentsFull(os, *this);
+}
+
+void GlobalDictionary::GlobalDictionaryPrint(std::ostream& os) {
+  PrintHashTableHeader(os, *this, "GlobalDictionary");
+  PrintDictionaryContentsFull(os, *this);
+}
+
+void SmallOrderedHashSet::SmallOrderedHashSetPrint(std::ostream& os) {
+  PrintHeader(os, "SmallOrderedHashSet");
+  // TODO(tebbi): Print all fields.
+}
+
+void SmallOrderedHashMap::SmallOrderedHashMapPrint(std::ostream& os) {
+  PrintHeader(os, "SmallOrderedHashMap");
+  // TODO(tebbi): Print all fields.
+}
+
+void SmallOrderedNameDictionary::SmallOrderedNameDictionaryPrint(
     std::ostream& os) {
-  PrintFixedArrayWithHeader(os, *this, "ObjectBoilerplateDescription");
+  PrintHeader(os, "SmallOrderedNameDictionary");
+  // TODO(tebbi): Print all fields.
+}
+
+void OrderedHashSet::OrderedHashSetPrint(std::ostream& os) {
+  PrintOrderedHashTableHeaderAndBuckets(os, *this, "OrderedHashSet");
+  PrintHashSetContentsFull(os, *this);
+}
+
+void OrderedHashMap::OrderedHashMapPrint(std::ostream& os) {
+  PrintOrderedHashTableHeaderAndBuckets(os, *this, "OrderedHashMap");
+  PrintHashMapContentsFull(os, *this);
+}
+
+void OrderedNameDictionary::OrderedNameDictionaryPrint(std::ostream& os) {
+  PrintOrderedHashTableHeaderAndBuckets(os, *this, "OrderedNameDictionary");
+  PrintDictionaryContentsFull(os, *this);
 }
 
 void PropertyArray::PropertyArrayPrint(std::ostream& os) {  // NOLINT
@@ -1281,22 +1434,6 @@ void SharedFunctionInfo::PrintSourceCode(std::ostream& os) {
   }
 }
 
-void SmallOrderedHashSet::SmallOrderedHashSetPrint(std::ostream& os) {
-  PrintHeader(os, "SmallOrderedHashSet");
-  // TODO(tebbi): Print all fields.
-}
-
-void SmallOrderedHashMap::SmallOrderedHashMapPrint(std::ostream& os) {
-  PrintHeader(os, "SmallOrderedHashMap");
-  // TODO(tebbi): Print all fields.
-}
-
-void SmallOrderedNameDictionary::SmallOrderedNameDictionaryPrint(
-    std::ostream& os) {
-  PrintHeader(os, "SmallOrderedNameDictionary");
-  // TODO(tebbi): Print all fields.
-}
-
 void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "SharedFunctionInfo");
   os << "\n - name: ";
@@ -1374,7 +1511,7 @@ void PropertyCell::PropertyCellPrint(std::ostream& os) {  // NOLINT
   name().NamePrint(os);
   os << "\n - value: " << Brief(value());
   os << "\n - details: ";
-  property_details().PrintAsSlowTo(os);
+  property_details().PrintAsSlowTo(os, true);
   PropertyCellType cell_type = property_details().cell_type();
   os << "\n - cell_type: ";
   if (value().IsTheHole()) {

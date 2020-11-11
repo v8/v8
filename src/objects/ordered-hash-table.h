@@ -108,6 +108,8 @@ class OrderedHashTable : public FixedArray {
     return NumberOfElements() + NumberOfDeletedElements();
   }
 
+  int Capacity() { return NumberOfBuckets() * kLoadFactor; }
+
   int NumberOfBuckets() const {
     return Smi::ToInt(get(NumberOfBucketsIndex()));
   }
@@ -255,8 +257,6 @@ class OrderedHashTable : public FixedArray {
     set(NumberOfDeletedElementsIndex(), Smi::FromInt(num));
   }
 
-  // Returns the number elements that can fit into the allocated buffer.
-  int Capacity() { return NumberOfBuckets() * kLoadFactor; }
 
   void SetNextTable(Derived next_table) { set(NextTableIndex(), next_table); }
 
@@ -276,6 +276,7 @@ class V8_EXPORT_PRIVATE OrderedHashSet
 
  public:
   DECL_CAST(OrderedHashSet)
+  DECL_PRINTER(OrderedHashSet)
 
   static MaybeHandle<OrderedHashSet> Add(Isolate* isolate,
                                          Handle<OrderedHashSet> table,
@@ -310,6 +311,7 @@ class V8_EXPORT_PRIVATE OrderedHashMap
 
  public:
   DECL_CAST(OrderedHashMap)
+  DECL_PRINTER(OrderedHashMap)
 
   // Returns a value if the OrderedHashMap contains the key, otherwise
   // returns undefined.
@@ -759,6 +761,7 @@ class V8_EXPORT_PRIVATE OrderedNameDictionary
 
  public:
   DECL_CAST(OrderedNameDictionary)
+  DECL_PRINTER(OrderedNameDictionary)
 
   template <typename LocalIsolate>
   static MaybeHandle<OrderedNameDictionary> Add(
