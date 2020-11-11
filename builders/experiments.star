@@ -16,6 +16,45 @@ def experiment_builder(**kwargs):
 
     v8_builder(in_console = "experiments/V8", **kwargs)
 
+def experiment_builder_pair(name, **kwargs):
+    properties = kwargs.pop("properties", None)
+    dimensions = kwargs.pop("dimensions", None)
+    triggered_by = kwargs.pop("triggered_by", None)
+    use_goma = kwargs.pop("use_goma", None)
+
+    to_notify = kwargs.pop("to_notify", None)
+    if to_notify:
+        builder_name = name
+        v8_notifier(
+            name = "notification for %s" % builder_name,
+            notify_emails = to_notify,
+            notified_by = [builder_name, builder_name + " - builder"],
+        )
+
+    old_triggers = properties.pop("triggers", None)
+    properties["triggers"] = [name]
+
+    v8_builder(
+        in_console = "experiments/V8",
+        name = name + " - builder",
+        properties = properties,
+        dimensions = dimensions,
+        triggered_by = triggered_by,
+        use_goma = use_goma,
+        **kwargs
+    )
+
+    properties["triggers"] = old_triggers
+
+    v8_builder(
+        in_console = "experiments/V8",
+        name = name,
+        triggered_by = [name + " - builder"],
+        dimensions = {"host_class": "multibot"},
+        properties = properties,
+        **kwargs
+    )
+
 experiment_builder(
     name = "V8 iOS - sim",
     bucket = "ci",
@@ -31,21 +70,13 @@ experiment_builder(
     use_goma = GOMA.DEFAULT,
 )
 
-experiment_builder(
-    name = "V8 Linux64 - debug - perfetto - builder",
+experiment_builder_pair(
+    name = "V8 Linux64 - debug - perfetto",
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"builder_group": "client.v8", "triggers": ["V8 Linux64 - debug - perfetto"]},
-    use_goma = GOMA.DEFAULT,
-)
-
-experiment_builder(
-    name = "V8 Linux64 - debug - perfetto",
-    bucket = "ci",
-    dimensions = {"host_class": "multibot"},
-    execution_timeout = 19800,
     properties = {"builder_group": "client.v8"},
+    use_goma = GOMA.DEFAULT,
 )
 
 experiment_builder(
@@ -95,21 +126,13 @@ experiment_builder(
     use_goma = GOMA.NO,
 )
 
-experiment_builder(
-    name = "V8 Linux64 TSAN - no-concurrent-marking - builder",
+experiment_builder_pair(
+    name = "V8 Linux64 TSAN - no-concurrent-marking",
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"builder_group": "client.v8", "triggers": ["V8 Linux64 TSAN - no-concurrent-marking"]},
-    use_goma = GOMA.DEFAULT,
-    to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
-)
-
-experiment_builder(
-    name = "V8 Linux64 TSAN - no-concurrent-marking",
-    bucket = "ci",
-    dimensions = {"host_class": "multibot"},
     properties = {"builder_group": "client.v8"},
+    use_goma = GOMA.DEFAULT,
     to_notify = ["v8-waterfall-sheriff@grotations.appspotmail.com"],
 )
 
