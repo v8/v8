@@ -311,7 +311,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
 
     // Possibly compile for NCI caching.
     if (!MaybeSpawnNativeContextIndependentCompilationJob(
-            function, FLAG_concurrent_recompilation
+            function, isolate->concurrent_recompilation_enabled()
                           ? ConcurrencyMode::kConcurrent
                           : ConcurrencyMode::kNotConcurrent)) {
       return Object();
