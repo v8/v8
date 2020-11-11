@@ -933,6 +933,18 @@ void Heap::RemoveAllocationObserversFromAllSpaces(
   }
 }
 
+void Heap::PublishPendingAllocations() {
+  new_space_->MoveOriginalTopForward();
+  PagedSpaceIterator spaces(this);
+  for (PagedSpace* space = spaces.Next(); space != nullptr;
+       space = spaces.Next()) {
+    space->MoveOriginalTopForward();
+  }
+  lo_space_->ResetPendingObject();
+  new_lo_space_->ResetPendingObject();
+  code_lo_space_->ResetPendingObject();
+}
+
 namespace {
 inline bool MakePretenureDecision(
     AllocationSite site, AllocationSite::PretenureDecision current_decision,

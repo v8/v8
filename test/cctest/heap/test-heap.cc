@@ -7248,6 +7248,56 @@ UNINITIALIZED_HEAP_TEST(CodeLargeObjectSpace64k) {
   isolate->Dispose();
 }
 
+TEST(IsPendingAllocationNewSpace) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
+  HandleScope handle_scope(isolate);
+  Handle<FixedArray> object = factory->NewFixedArray(5, AllocationType::kYoung);
+  CHECK(heap->IsPendingAllocation(*object));
+  heap->PublishPendingAllocations();
+  CHECK(!heap->IsPendingAllocation(*object));
+}
+
+TEST(IsPendingAllocationNewLOSpace) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
+  HandleScope handle_scope(isolate);
+  Handle<FixedArray> object = factory->NewFixedArray(
+      FixedArray::kMaxRegularLength + 1, AllocationType::kYoung);
+  CHECK(heap->IsPendingAllocation(*object));
+  heap->PublishPendingAllocations();
+  CHECK(!heap->IsPendingAllocation(*object));
+}
+
+TEST(IsPendingAllocationOldSpace) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
+  HandleScope handle_scope(isolate);
+  Handle<FixedArray> object = factory->NewFixedArray(5, AllocationType::kOld);
+  CHECK(heap->IsPendingAllocation(*object));
+  heap->PublishPendingAllocations();
+  CHECK(!heap->IsPendingAllocation(*object));
+}
+
+TEST(IsPendingAllocationLOSpace) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
+  HandleScope handle_scope(isolate);
+  Handle<FixedArray> object = factory->NewFixedArray(
+      FixedArray::kMaxRegularLength + 1, AllocationType::kOld);
+  CHECK(heap->IsPendingAllocation(*object));
+  heap->PublishPendingAllocations();
+  CHECK(!heap->IsPendingAllocation(*object));
+}
+
 TEST(Regress10900) {
   FLAG_always_compact = true;
   CcTest::InitializeVM();

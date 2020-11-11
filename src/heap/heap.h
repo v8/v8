@@ -1447,6 +1447,16 @@ class Heap {
   void RemoveAllocationObserversFromAllSpaces(
       AllocationObserver* observer, AllocationObserver* new_space_observer);
 
+  // Check if the given object was recently allocated and its fields may appear
+  // as uninitialized to background threads.
+  // This predicate may be invoked from a background thread.
+  inline bool IsPendingAllocation(HeapObject object);
+
+  // Notifies that all previously allocated objects are properly initialized
+  // and ensures that IsPendingAllocation returns false for them. This function
+  // may be invoked only on the main thread.
+  V8_EXPORT_PRIVATE void PublishPendingAllocations();
+
   // ===========================================================================
   // Heap object allocation tracking. ==========================================
   // ===========================================================================

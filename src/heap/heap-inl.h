@@ -563,6 +563,25 @@ void Heap::UpdateAllocationSite(Map map, HeapObject object,
   (*pretenuring_feedback)[AllocationSite::unchecked_cast(Object(key))]++;
 }
 
+bool Heap::IsPendingAllocation(HeapObject object) {
+  // TODO(ulan): Optimize this function to perform 3 loads at most.
+  Address addr = object.address();
+  Address top = new_space_->original_top_acquire();
+  Address limit = new_space_->original_limit_relaxed();
+  if (top <= addr && addr < limit) return true;
+  PagedSpaceIterator spaces(this);
+  for (PagedSpace* space = spaces.Next(); space != nullptr;
+       space = spaces.Next()) {
+    top = space->original_top_acquire();
+    limit = space->original_limit_relaxed();
+    if (top <= addr && addr < limit) return true;
+  }
+  if (addr == lo_space_->pending_object()) return true;
+  if (addr == new_lo_space_->pending_object()) return true;
+  if (addr == code_lo_space_->pending_object()) return true;
+  return false;
+}
+
 void Heap::ExternalStringTable::AddString(String string) {
   DCHECK(string.IsExternalString());
   DCHECK(!Contains(string));

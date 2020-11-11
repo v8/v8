@@ -275,6 +275,9 @@ void PagedSpace::SetTopAndLimit(Address top, Address limit) {
          Page::FromAddress(top) == Page::FromAddress(limit - 1));
   BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   allocation_info_.Reset(top, limit);
+  // The order of the following two stores is important.
+  original_limit_.store(limit, std::memory_order_relaxed);
+  original_top_.store(top, std::memory_order_release);
 }
 
 size_t PagedSpace::ShrinkPageToHighWaterMark(Page* page) {
