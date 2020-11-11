@@ -3032,22 +3032,20 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
                  WasmExportedFunctionData::kInstanceOffset - kHeapObjectTag));
 
   // -------------------------------------------
-  // Increment the call count in function data.
+  // Decrement the budget of the generic wrapper in function data.
   // -------------------------------------------
   __ SmiAddConstant(
-      MemOperand(function_data,
-                 WasmExportedFunctionData::kCallCountOffset - kHeapObjectTag),
-      Smi::FromInt(1));
+      MemOperand(function_data, WasmExportedFunctionData::kWrapperBudgetOffset -
+                                    kHeapObjectTag),
+      Smi::FromInt(-1));
 
   // -------------------------------------------
-  // Check if the call count reached the threshold.
+  // Check if the budget of the generic wrapper reached 0 (zero).
   // -------------------------------------------
+  // Instead of a specific comparison, we can directly use the flags set
+  // from the previous addition.
   Label compile_wrapper, compile_wrapper_done;
-  __ SmiCompare(
-      MemOperand(function_data,
-                 WasmExportedFunctionData::kCallCountOffset - kHeapObjectTag),
-      Smi::FromInt(wasm::kGenericWrapperThreshold));
-  __ j(greater_equal, &compile_wrapper);
+  __ j(less_equal, &compile_wrapper);
   __ bind(&compile_wrapper_done);
 
   // -------------------------------------------
