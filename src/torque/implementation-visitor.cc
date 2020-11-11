@@ -4175,8 +4175,8 @@ void ImplementationVisitor::GenerateClassDefinitions(
   std::string forward_declarations_filename = "class-forward-declarations.h";
 
   {
-    factory_impl << "#include \"src/heap/factory.h\"\n";
-    factory_impl << "#include \"src/heap/factory-inl.h\"\n";
+    factory_impl << "#include \"src/heap/factory-base.h\"\n";
+    factory_impl << "#include \"src/heap/factory-base-inl.h\"\n";
     factory_impl << "#include \"src/heap/heap.h\"\n";
     factory_impl << "#include \"src/heap/heap-inl.h\"\n";
     factory_impl << "#include \"src/execution/isolate.h\"\n";
@@ -4219,24 +4219,25 @@ void ImplementationVisitor::GenerateClassDefinitions(
       }
       if (type->ShouldExport() && !type->IsAbstract() &&
           !type->HasCustomMap()) {
-        factory_header << type->HandlifiedCppTypeName() << " New"
-                       << type->name() << "(";
-        factory_impl << type->HandlifiedCppTypeName() << " Factory::New"
-                     << type->name() << "(";
-
+        std::string return_type = type->HandlifiedCppTypeName();
+        std::string function_name = "New" + type->name();
+        std::stringstream parameters;
         for (const Field& f : type->ComputeAllFields()) {
           if (f.name_and_type.name == "map") continue;
           if (!f.index) {
             std::string type_string =
                 f.name_and_type.type->HandlifiedCppTypeName();
-            factory_header << type_string << " " << f.name_and_type.name
-                           << ", ";
-            factory_impl << type_string << " " << f.name_and_type.name << ", ";
+            parameters << type_string << " " << f.name_and_type.name << ", ";
           }
         }
+        parameters << "AllocationType allocation_type";
 
-        factory_header << "AllocationType allocation_type);\n";
-        factory_impl << "AllocationType allocation_type) {\n";
+        factory_header << return_type << " " << function_name << "("
+                       << parameters.str() << ");\n";
+        factory_impl << "template <typename Impl>\n";
+        factory_impl << return_type
+                     << " TorqueGeneratedFactory<Impl>::" << function_name
+                     << "(" << parameters.str() << ") {\n";
 
         factory_impl << " int size = ";
         const ClassType* super = type->GetSuperClass();
@@ -4257,20 +4258,17 @@ void ImplementationVisitor::GenerateClassDefinitions(
         }
 
         factory_impl << ");\n";
-        factory_impl << "  ReadOnlyRoots roots(isolate());\n";
+        factory_impl << "  Map map = factory()->read_only_roots()."
+                     << SnakeifyString(type->name()) << "_map();";
         factory_impl << "  HeapObject result =\n";
-        factory_impl << "    "
-                        "isolate()->heap()->AllocateRawWith<Heap::kRetryOrFail>"
-                        "(size, allocation_type);\n";
+        factory_impl << "    factory()->AllocateRawWithImmortalMap(size, "
+                        "allocation_type, map);\n";
         factory_impl << "    WriteBarrierMode write_barrier_mode =\n"
                      << "       allocation_type == AllocationType::kYoung\n"
                      << "       ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;\n";
-        factory_impl << "  result.set_map_after_allocation(roots."
-                     << SnakeifyString(type->name())
-                     << "_map(), write_barrier_mode);\n";
         factory_impl << "  " << type->HandlifiedCppTypeName()
                      << " result_handle(" << type->name()
-                     << "::cast(result), isolate());\n";
+                     << "::cast(result), factory()->isolate());\n";
 
         for (const Field& f : type->ComputeAllFields()) {
           if (f.name_and_type.name == "map") continue;
@@ -4291,6 +4289,16 @@ void ImplementationVisitor::GenerateClassDefinitions(
 
         factory_impl << "  return result_handle;\n";
         factory_impl << "}\n\n";
+
+        factory_impl << "template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) "
+                     << return_type
+                     << "TorqueGeneratedFactory<Factory>::" << function_name
+                     << "(" << parameters.str() << ");\n";
+        factory_impl << "template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) "
+                     << return_type << "TorqueGeneratedFactory<LocalFactory>::"
+                     << function_name << "(" << parameters.str() << ");\n";
+
+        factory_impl << "\n\n";
       }
     }
 

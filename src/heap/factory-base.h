@@ -10,6 +10,7 @@
 #include "src/objects/function-kind.h"
 #include "src/objects/instance-type.h"
 #include "src/roots/roots.h"
+#include "torque-generated/class-forward-declarations.h"
 
 namespace v8 {
 namespace internal {
@@ -25,6 +26,8 @@ class ArrayBoilerplateDescription;
 class TemplateObjectDescription;
 class SourceTextModuleInfo;
 class PreparseData;
+template <class T>
+class PodArray;
 class UncompiledDataWithoutPreparseData;
 class UncompiledDataWithPreparseData;
 class BytecodeArray;
@@ -34,8 +37,28 @@ struct SourceRange;
 template <typename T>
 class ZoneVector;
 
+namespace wasm {
+class ValueType;
+}  // namespace wasm
+
 template <typename Impl>
-class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
+class FactoryBase;
+
+// Putting Torque-generated definitions in a superclass allows to shadow them
+// easily when they shouldn't be used and to reference them when they happen to
+// have the same signature.
+template <typename Impl>
+class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) TorqueGeneratedFactory {
+ private:
+  FactoryBase<Impl>* factory() { return static_cast<FactoryBase<Impl>*>(this); }
+
+ public:
+#include "torque-generated/factory.inc"
+};
+
+template <typename Impl>
+class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
+    : public TorqueGeneratedFactory<Impl> {
  public:
   // Converts the given boolean condition to JavaScript boolean value.
   inline Handle<Oddball> ToBoolean(bool value);
@@ -223,6 +246,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
 
   HeapObject AllocateRaw(int size, AllocationType allocation,
                          AllocationAlignment alignment = kWordAligned);
+
+  friend TorqueGeneratedFactory<Impl>;
 };
 
 }  // namespace internal
