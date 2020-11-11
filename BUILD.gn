@@ -4386,6 +4386,23 @@ v8_source_set("v8_cppgc_shared") {
   public_deps = [ ":v8_libbase" ]
 }
 
+# This is split out to be a non-code containing target that the Chromium browser
+# can depend upon to get basic cppgc types.
+v8_header_set("cppgc_headers") {
+  configs = [ ":internal_config" ]
+  public_configs = [ ":v8_header_features" ]
+
+  sources = [
+    "include/cppgc/garbage-collected.h",
+    "include/cppgc/member.h",
+    "include/cppgc/persistent.h",
+    "include/cppgc/type-traits.h",
+    "include/cppgc/visitor.h",
+  ]
+
+  public_deps = [ ":v8_headers" ]
+}
+
 v8_source_set("cppgc_base") {
   visibility = [ ":*" ]
 
