@@ -18,9 +18,7 @@
 #include <vector>
 
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
-// FIXME(machenbach): Temporary infrastructure test:
-// https://crbug.com/v8/10661
-// #include "src/third_party/vtune/v8-vtune.h"
+#include "src/third_party/vtune/v8-vtune.h"
 #endif
 
 #include "include/libplatform/libplatform.h"
