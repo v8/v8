@@ -810,9 +810,15 @@ Node* CodeAssembler::StoreFullTaggedNoWriteBarrier(Node* base, Node* offset,
                              BitcastTaggedToWord(tagged_value));
 }
 
-Node* CodeAssembler::AtomicStore(MachineRepresentation rep, Node* base,
-                                 Node* offset, Node* value, Node* value_high) {
-  return raw_assembler()->AtomicStore(rep, base, offset, value, value_high);
+void CodeAssembler::AtomicStore(MachineRepresentation rep, TNode<RawPtrT> base,
+                                TNode<WordT> offset, TNode<Word32T> value) {
+  raw_assembler()->AtomicStore(rep, base, offset, value);
+}
+
+void CodeAssembler::AtomicStore64(TNode<RawPtrT> base, TNode<WordT> offset,
+                                  TNode<UintPtrT> value,
+                                  TNode<UintPtrT> value_high) {
+  raw_assembler()->AtomicStore64(base, offset, value, value_high);
 }
 
 #define ATOMIC_FUNCTION(name)                                                 \

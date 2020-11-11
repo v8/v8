@@ -339,8 +339,7 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
   TVARIABLE(UintPtrT, var_high);
   BigIntToRawBytes(value_bigint, &var_low, &var_high);
   TNode<UintPtrT> high = Is64() ? TNode<UintPtrT>() : var_high.value();
-  AtomicStore(MachineRepresentation::kWord64, backing_store,
-              WordShl(index_word, 3), var_low.value(), high);
+  AtomicStore64(backing_store, WordShl(index_word, 3), var_low.value(), high);
   Return(value_bigint);
 #endif
 

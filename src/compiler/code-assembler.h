@@ -800,10 +800,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                                TNode<HeapObject> object,
                                                int offset, Node* value);
   void OptimizedStoreMap(TNode<HeapObject> object, TNode<Map>);
+  void AtomicStore(MachineRepresentation rep, TNode<RawPtrT> base,
+                   TNode<WordT> offset, TNode<Word32T> value);
   // {value_high} is used for 64-bit stores on 32-bit platforms, must be
   // nullptr in other cases.
-  Node* AtomicStore(MachineRepresentation rep, Node* base, Node* offset,
-                    Node* value, Node* value_high = nullptr);
+  void AtomicStore64(TNode<RawPtrT> base, TNode<WordT> offset,
+                     TNode<UintPtrT> value, TNode<UintPtrT> value_high);
 
   TNode<Word32T> AtomicAdd(MachineType type, TNode<RawPtrT> base,
                            TNode<UintPtrT> offset, TNode<Word32T> value);

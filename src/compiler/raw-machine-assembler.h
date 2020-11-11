@@ -244,19 +244,23 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 #endif
 
   Node* AtomicStore(MachineRepresentation rep, Node* base, Node* index,
-                    Node* value, Node* value_high) {
-    if (rep == MachineRepresentation::kWord64) {
-      if (machine()->Is64()) {
-        DCHECK_NULL(value_high);
-        return AddNode(machine()->Word64AtomicStore(rep), base, index, value);
-      } else {
-        return AddNode(machine()->Word32AtomicPairStore(), base, index,
-                       VALUE_HALVES);
-      }
-    }
-    DCHECK_NULL(value_high);
+                    Node* value) {
+    DCHECK_NE(rep, MachineRepresentation::kWord64);
     return AddNode(machine()->Word32AtomicStore(rep), base, index, value);
   }
+
+  Node* AtomicStore64(Node* base, Node* index, Node* value, Node* value_high) {
+    if (machine()->Is64()) {
+      DCHECK_NULL(value_high);
+      return AddNode(
+          machine()->Word64AtomicStore(MachineRepresentation::kWord64), base,
+          index, value);
+    } else {
+      return AddNode(machine()->Word32AtomicPairStore(), base, index,
+                     VALUE_HALVES);
+    }
+  }
+
 #define ATOMIC_FUNCTION(name)                                                  \
   Node* Atomic##name(MachineType type, Node* base, Node* index, Node* value) { \
     DCHECK_NE(type.representation(), MachineRepresentation::kWord64);          \
