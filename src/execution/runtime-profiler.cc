@@ -42,9 +42,11 @@ static const int kMaxBytecodeSizeForEarlyOpt = 90;
 // OSRed in TurboProp
 // This value is chosen so TurboProp OSRs at similar time as TurboFan. The
 // current interrupt budger of TurboFan is approximately 10 times that of
-// TurboProp and we wait for 3 ticks (2 for marking for optimization and an
-// additional tick to mark it for OSR) and hence this is set to 3 * 10.
-static const int kProfilerTicksForTurboPropOSR = 3 * 10;
+// TurboProp and we wait for 4 ticks (3 for marking for optimization and an
+// additional tick to mark it for OSR) and hence this is set to 4 * 10.
+// TODO(mythria): This value should be based on
+// FLAG_ticks_scale_factor_for_top_tier.
+static const int kProfilerTicksForTurboPropOSR = 4 * 10;
 
 #define OPTIMIZATION_REASON_LIST(V)   \
   V(DoNotOptimize, "do not optimize") \
@@ -201,6 +203,11 @@ bool RuntimeProfiler::MaybeOSR(JSFunction function, InterpretedFrame* frame) {
 
   // Turboprop optimizes quite early. So don't attempt to OSR if the loop isn't
   // hot enough.
+  // TODO(mythria): We should decide when to OSR based on number of ticks
+  // instead of checking if it has been marked for optimization. That will allow
+  // us to unify OSR decisions from different tiers and we can remove this
+  // special case here for Turboprop. If we do that also remove the code to
+  // reset the marker in Runtime_CompileForOnStackReplacement.
   if (FLAG_turboprop && ticks < kProfilerTicksForTurboPropOSR) {
     return false;
   }
@@ -210,12 +217,13 @@ bool RuntimeProfiler::MaybeOSR(JSFunction function, InterpretedFrame* frame) {
       function.HasAvailableOptimizedCode()) {
     // Attempt OSR if we are still running interpreted code even though the
     // the function has long been marked or even already been optimized.
-    // TODO(turboprop, mythria): Currently we don't tier up from Turboprop code
-    // to Turbofan OSR code. When we start supporting this, the ticks have to be
-    // scaled accordingly
-    int64_t allowance =
-        kOSRBytecodeSizeAllowanceBase +
-        static_cast<int64_t>(ticks) * kOSRBytecodeSizeAllowancePerTick;
+    // OSR should happen roughly at the same with or without FLAG_turboprop.
+    // Turboprop has much lower interrupt budget so scale the ticks accordingly.
+    int scale_factor =
+        FLAG_turboprop ? FLAG_ticks_scale_factor_for_top_tier : 1;
+    int64_t scaled_ticks = static_cast<int64_t>(ticks) / scale_factor;
+    int64_t allowance = kOSRBytecodeSizeAllowanceBase +
+                        scaled_ticks * kOSRBytecodeSizeAllowancePerTick;
     if (function.shared().GetBytecodeArray().length() <= allowance) {
       AttemptOnStackReplacement(frame);
     }
