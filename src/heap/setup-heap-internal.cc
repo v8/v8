@@ -635,6 +635,7 @@ bool Heap::CreateInitialMaps() {
                                  SKIP_WRITE_BARRIER);                       \
     WasmTypeInfo type_info = WasmTypeInfo::cast(obj);                       \
     type_info.set_subtypes(subtypes);                                       \
+    type_info.set_supertypes(roots.empty_fixed_array());                    \
     type_info.set_parent(roots.null_map());                                 \
     type_info.clear_foreign_address(isolate());                             \
     wasm_rttcanon_##which##_map().set_wasm_type_info(type_info);            \

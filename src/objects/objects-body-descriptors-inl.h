@@ -588,6 +588,7 @@ class WasmTypeInfo::BodyDescriptor final : public BodyDescriptorBase {
     Foreign::BodyDescriptor::IterateBody<ObjectVisitor>(map, obj, object_size,
                                                         v);
     IteratePointer(obj, kParentOffset, v);
+    IteratePointer(obj, kSupertypesOffset, v);
     IteratePointer(obj, kSubtypesOffset, v);
   }
 

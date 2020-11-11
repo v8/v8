@@ -1313,6 +1313,15 @@ Handle<Foreign> Factory::NewForeign(Address addr) {
 Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(Address type_address,
                                               Handle<Map> parent) {
   Handle<ArrayList> subtypes = ArrayList::New(isolate(), 0);
+  Handle<FixedArray> supertypes;
+  if (parent->IsWasmStructMap() || parent->IsWasmArrayMap()) {
+    supertypes = CopyFixedArrayAndGrow(
+        handle(parent->wasm_type_info().supertypes(), isolate()), 1);
+    supertypes->set(supertypes->length() - 1, *parent);
+  } else {
+    supertypes = NewUninitializedFixedArray(1);
+    supertypes->set(0, *parent);
+  }
   Map map = *wasm_type_info_map();
   HeapObject result = AllocateRawWithImmortalMap(map.instance_size(),
                                                  AllocationType::kYoung, map);
@@ -1320,6 +1329,7 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(Address type_address,
   info->AllocateExternalPointerEntries(isolate());
   info->set_foreign_address(isolate(), type_address);
   info->set_parent(*parent);
+  info->set_supertypes(*supertypes);
   info->set_subtypes(*subtypes);
   return info;
 }

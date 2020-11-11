@@ -806,8 +806,9 @@ class WasmGraphBuildingInterface {
     RttIsI31 rtt_is_i31 = rtt.type.heap_representation() == HeapType::kI31
                               ? RttIsI31::kRttIsI31
                               : RttIsI31::kRttIsNotI31;
+    uint8_t depth = rtt.type.depth();
     result->node = BUILD(RefTest, object.node, rtt.node, null_check, i31_check,
-                         rtt_is_i31);
+                         rtt_is_i31, depth);
   }
 
   void RefCast(FullDecoder* decoder, const Value& object, const Value& rtt,
@@ -824,12 +825,13 @@ class WasmGraphBuildingInterface {
     RttIsI31 rtt_is_i31 = rtt.type.heap_representation() == HeapType::kI31
                               ? RttIsI31::kRttIsI31
                               : RttIsI31::kRttIsNotI31;
+    uint8_t depth = rtt.type.depth();
     result->node = BUILD(RefCast, object.node, rtt.node, null_check, i31_check,
-                         rtt_is_i31, decoder->position());
+                         rtt_is_i31, depth, decoder->position());
   }
 
   void BrOnCast(FullDecoder* decoder, const Value& object, const Value& rtt,
-                Value* value_on_branch, uint32_t depth) {
+                Value* value_on_branch, uint32_t br_depth) {
     using CheckForI31 = compiler::WasmGraphBuilder::CheckForI31;
     using RttIsI31 = compiler::WasmGraphBuilder::RttIsI31;
     CheckForNull null_check = object.type.is_nullable()
@@ -842,16 +844,17 @@ class WasmGraphBuildingInterface {
     RttIsI31 rtt_is_i31 = rtt.type.heap_representation() == HeapType::kI31
                               ? RttIsI31::kRttIsI31
                               : RttIsI31::kRttIsNotI31;
+    uint8_t rtt_depth = rtt.type.depth();
     SsaEnv* match_env = Split(decoder->zone(), ssa_env_);
     SsaEnv* no_match_env = Steal(decoder->zone(), ssa_env_);
     no_match_env->SetNotMerged();
     BUILD(BrOnCast, object.node, rtt.node, null_check, i31_check, rtt_is_i31,
-          &match_env->control, &match_env->effect, &no_match_env->control,
-          &no_match_env->effect);
+          rtt_depth, &match_env->control, &match_env->effect,
+          &no_match_env->control, &no_match_env->effect);
     builder_->SetControl(no_match_env->control);
     SetEnv(match_env);
     value_on_branch->node = object.node;
-    BrOrRet(decoder, depth);
+    BrOrRet(decoder, br_depth);
     SetEnv(no_match_env);
   }
 

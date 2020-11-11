@@ -5598,12 +5598,8 @@ Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
   Node* element_size = gasm_->Int32Constant(element_type.element_size_bytes());
   Node* end_offset =
       gasm_->Int32Add(start_offset, gasm_->Int32Mul(element_size, length));
-  // "Goto" requires the graph's end to have been set up.
-  // TODO(jkummerow): Figure out if there's a more elegant solution.
-  Graph* g = mcgraph()->graph();
-  if (!g->end()) {
-    g->SetEnd(g->NewNode(mcgraph()->common()->End(0)));
-  }
+  // Loops need the graph's end to have been set up.
+  EnsureEnd(mcgraph());
   gasm_->Goto(&loop, start_offset);
   gasm_->Bind(&loop);
   {
@@ -5682,42 +5678,57 @@ void AssertFalse(MachineGraph* mcgraph, GraphAssembler* gasm, Node* condition) {
 
 Node* WasmGraphBuilder::RefTest(Node* object, Node* rtt,
                                 CheckForNull null_check, CheckForI31 i31_check,
-                                RttIsI31 rtt_is_i31) {
+                                RttIsI31 rtt_is_i31, uint8_t depth) {
   auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
-  bool need_done_label = false;
   if (i31_check == kWithI31Check) {
     if (rtt_is_i31 == kRttIsI31) {
       return IsI31(gasm_.get(), object);
     }
     gasm_->GotoIf(IsI31(gasm_.get(), object), &done, gasm_->Int32Constant(0));
-    need_done_label = true;
   } else {
     AssertFalse(mcgraph(), gasm_.get(), IsI31(gasm_.get(), object));
   }
   if (null_check == kWithNullCheck) {
     gasm_->GotoIf(gasm_->WordEqual(object, RefNull()), &done,
                   gasm_->Int32Constant(0));
-    need_done_label = true;
   }
 
   Node* map = gasm_->Load(MachineType::TaggedPointer(), object,
-                          HeapObject::kMapOffset - kHeapObjectTag);
-  // TODO(7748): Add a fast path for map == rtt.
-  Node* subtype_check = BuildChangeSmiToInt32(CALL_BUILTIN(
-      WasmIsRttSubtype, map, rtt,
-      LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer())));
+                          wasm::ObjectAccess::ToTagged(HeapObject::kMapOffset));
+  gasm_->GotoIf(gasm_->TaggedEqual(map, rtt), &done, gasm_->Int32Constant(1));
+  Node* instance_type =
+      gasm_->Load(MachineType::Uint16(), map,
+                  wasm::ObjectAccess::ToTagged(Map::kInstanceTypeOffset));
+  // TODO(jkummerow): Improve this in two ways: (1) instead of just for
+  // functions, check for any non-struct, non-array type. (2) Only do this
+  // check if the object's static type leaves room for the possibility.
+  gasm_->GotoIf(
+      gasm_->Word32Equal(instance_type, gasm_->Int32Constant(JS_FUNCTION_TYPE)),
+      &done, gasm_->Int32Constant(0));
+  Node* type_info = gasm_->Load(
+      MachineType::TaggedPointer(), map,
+      Map::kConstructorOrBackPointerOrNativeContextOffset - kHeapObjectTag);
+  Node* supertypes = gasm_->Load(
+      MachineType::TaggedPointer(), type_info,
+      wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset));
+  Node* length = BuildChangeSmiToInt32(
+      gasm_->Load(MachineType::TaggedSigned(), supertypes,
+                  wasm::ObjectAccess::ToTagged(FixedArray::kLengthOffset)));
+  gasm_->GotoIfNot(gasm_->Uint32LessThan(gasm_->Int32Constant(depth), length),
+                   &done, gasm_->Int32Constant(0));
+  Node* maybe_match =
+      gasm_->Load(MachineType::TaggedPointer(), supertypes,
+                  wasm::ObjectAccess::ToTagged(FixedArray::kHeaderSize +
+                                               depth * kTaggedSize));
+  gasm_->Goto(&done, gasm_->TaggedEqual(maybe_match, rtt));
+  gasm_->Bind(&done);
 
-  if (need_done_label) {
-    gasm_->Goto(&done, subtype_check);
-    gasm_->Bind(&done);
-    subtype_check = done.PhiAt(0);
-  }
-  return subtype_check;
+  return done.PhiAt(0);
 }
 
 Node* WasmGraphBuilder::RefCast(Node* object, Node* rtt,
                                 CheckForNull null_check, CheckForI31 i31_check,
-                                RttIsI31 rtt_is_i31,
+                                RttIsI31 rtt_is_i31, uint8_t depth,
                                 wasm::WasmCodePosition position) {
   if (i31_check == kWithI31Check) {
     if (rtt_is_i31 == kRttIsI31) {
@@ -5734,24 +5745,54 @@ Node* WasmGraphBuilder::RefCast(Node* object, Node* rtt,
                position);
   }
   Node* map = gasm_->Load(MachineType::TaggedPointer(), object,
-                          HeapObject::kMapOffset - kHeapObjectTag);
-  // TODO(7748): Add a fast path for map == rtt.
-  Node* check_result = BuildChangeSmiToInt32(CALL_BUILTIN(
-      WasmIsRttSubtype, map, rtt,
-      LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer())));
-  TrapIfFalse(wasm::kTrapIllegalCast, check_result, position);
+                          wasm::ObjectAccess::ToTagged(HeapObject::kMapOffset));
+  auto done = gasm_->MakeLabel();
+  gasm_->GotoIf(gasm_->TaggedEqual(map, rtt), &done);
+  Node* instance_type =
+      gasm_->Load(MachineType::Uint16(), map,
+                  wasm::ObjectAccess::ToTagged(Map::kInstanceTypeOffset));
+  // TODO(jkummerow): Improve this, same as above (RefTest).
+  TrapIfTrue(
+      wasm::kTrapIllegalCast,
+      gasm_->Word32Equal(instance_type, gasm_->Int32Constant(JS_FUNCTION_TYPE)),
+      position);
+  Node* type_info =
+      gasm_->Load(MachineType::TaggedPointer(), map,
+                  wasm::ObjectAccess::ToTagged(
+                      Map::kConstructorOrBackPointerOrNativeContextOffset));
+  Node* supertypes = gasm_->Load(
+      MachineType::TaggedPointer(), type_info,
+      wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset));
+  Node* length = BuildChangeSmiToInt32(
+      gasm_->Load(MachineType::TaggedSigned(), supertypes,
+                  wasm::ObjectAccess::ToTagged(FixedArray::kLengthOffset)));
+  TrapIfFalse(wasm::kTrapIllegalCast,
+              gasm_->Uint32LessThan(gasm_->Int32Constant(depth), length),
+              position);
+  Node* maybe_match =
+      gasm_->Load(MachineType::TaggedPointer(), supertypes,
+                  wasm::ObjectAccess::ToTagged(FixedArray::kHeaderSize +
+                                               depth * kTaggedSize));
+  TrapIfFalse(wasm::kTrapIllegalCast, gasm_->TaggedEqual(maybe_match, rtt),
+              position);
+  gasm_->Goto(&done);
+  gasm_->Bind(&done);
   return object;
 }
 
 Node* WasmGraphBuilder::BrOnCast(Node* object, Node* rtt,
                                  CheckForNull null_check, CheckForI31 i31_check,
-                                 RttIsI31 rtt_is_i31, Node** match_control,
-                                 Node** match_effect, Node** no_match_control,
+                                 RttIsI31 rtt_is_i31, uint8_t depth,
+                                 Node** match_control, Node** match_effect,
+                                 Node** no_match_control,
                                  Node** no_match_effect) {
-  // We have up to 3 control nodes to merge; the EffectPhi needs an additional
+  // We have up to 4 control nodes to merge; the EffectPhi needs an additional
   // input.
-  base::SmallVector<Node*, 3> merge_controls;
-  base::SmallVector<Node*, 4> merge_effects;
+  base::SmallVector<Node*, 4> no_match_controls;
+  base::SmallVector<Node*, 5> no_match_effects;
+  // We always have 2 match_controls; use the same mechanism for uniformity.
+  base::SmallVector<Node*, 2> match_controls;
+  base::SmallVector<Node*, 3> match_effects;
 
   Node* is_i31 = IsI31(gasm_.get(), object);
   if (i31_check == kWithI31Check) {
@@ -5762,9 +5803,9 @@ Node* WasmGraphBuilder::BrOnCast(Node* object, Node* rtt,
       Node* i31_branch = graph()->NewNode(
           mcgraph()->common()->Branch(BranchHint::kFalse), is_i31, control());
       SetControl(graph()->NewNode(mcgraph()->common()->IfFalse(), i31_branch));
-      merge_controls.emplace_back(
+      no_match_controls.emplace_back(
           graph()->NewNode(mcgraph()->common()->IfTrue(), i31_branch));
-      merge_effects.emplace_back(effect());
+      no_match_effects.emplace_back(effect());
     }
   } else {
     AssertFalse(mcgraph(), gasm_.get(), is_i31);
@@ -5775,42 +5816,80 @@ Node* WasmGraphBuilder::BrOnCast(Node* object, Node* rtt,
         graph()->NewNode(mcgraph()->common()->Branch(BranchHint::kFalse),
                          gasm_->WordEqual(object, RefNull()), control());
     SetControl(graph()->NewNode(mcgraph()->common()->IfFalse(), null_branch));
-    merge_controls.emplace_back(
+    no_match_controls.emplace_back(
         graph()->NewNode(mcgraph()->common()->IfTrue(), null_branch));
-    merge_effects.emplace_back(effect());
+    no_match_effects.emplace_back(effect());
   }
 
   // At this point, {object} is neither null nor an i31ref/Smi.
   Node* map = gasm_->Load(MachineType::TaggedPointer(), object,
-                          HeapObject::kMapOffset - kHeapObjectTag);
-  // TODO(7748): Add a fast path for map == rtt.
-  Node* subtype_check = BuildChangeSmiToInt32(CALL_BUILTIN(
-      WasmIsRttSubtype, map, rtt,
-      LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer())));
-  Node* cast_branch =
-      graph()->NewNode(mcgraph()->common()->Branch(BranchHint::kFalse),
-                       subtype_check, control());
-  *match_control = graph()->NewNode(mcgraph()->common()->IfTrue(), cast_branch);
-  *match_effect = effect();
-  Node* not_subtype =
-      graph()->NewNode(mcgraph()->common()->IfFalse(), cast_branch);
+                          wasm::ObjectAccess::ToTagged(HeapObject::kMapOffset));
+  Node* exact_match =
+      graph()->NewNode(mcgraph()->common()->Branch(BranchHint::kTrue),
+                       gasm_->TaggedEqual(map, rtt), control());
+  match_controls.emplace_back(
+      graph()->NewNode(mcgraph()->common()->IfTrue(), exact_match));
+  match_effects.emplace_back(effect());
+  SetControl(graph()->NewNode(mcgraph()->common()->IfFalse(), exact_match));
+  Node* instance_type =
+      gasm_->Load(MachineType::Uint16(), map,
+                  wasm::ObjectAccess::ToTagged(Map::kInstanceTypeOffset));
+  // TODO(jkummerow): Improve this, same as above (RefTest).
+  Node* is_function = graph()->NewNode(
+      mcgraph()->common()->Branch(BranchHint::kFalse),
+      gasm_->Word32Equal(instance_type, gasm_->Int32Constant(JS_FUNCTION_TYPE)),
+      control());
+  no_match_controls.emplace_back(
+      graph()->NewNode(mcgraph()->common()->IfTrue(), is_function));
+  no_match_effects.emplace_back(effect());
+  SetControl(graph()->NewNode(mcgraph()->common()->IfFalse(), is_function));
+  Node* type_info =
+      gasm_->Load(MachineType::TaggedPointer(), map,
+                  wasm::ObjectAccess::ToTagged(
+                      Map::kConstructorOrBackPointerOrNativeContextOffset));
+  Node* supertypes = gasm_->Load(
+      MachineType::TaggedPointer(), type_info,
+      wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset));
+  Node* length = BuildChangeSmiToInt32(
+      gasm_->Load(MachineType::TaggedSigned(), supertypes,
+                  wasm::ObjectAccess::ToTagged(FixedArray::kLengthOffset)));
+  Node* length_sufficient = graph()->NewNode(
+      mcgraph()->common()->Branch(BranchHint::kTrue),
+      gasm_->Uint32LessThan(gasm_->Int32Constant(depth), length), control());
+  no_match_controls.emplace_back(
+      graph()->NewNode(mcgraph()->common()->IfFalse(), length_sufficient));
+  no_match_effects.emplace_back(effect());
+  SetControl(
+      graph()->NewNode(mcgraph()->common()->IfTrue(), length_sufficient));
+  Node* maybe_match =
+      gasm_->Load(MachineType::TaggedPointer(), supertypes,
+                  wasm::ObjectAccess::ToTagged(FixedArray::kHeaderSize +
+                                               depth * kTaggedSize));
+  Node* supertype_match =
+      graph()->NewNode(mcgraph()->common()->Branch(BranchHint::kTrue),
+                       gasm_->TaggedEqual(maybe_match, rtt), control());
+  match_controls.emplace_back(
+      graph()->NewNode(mcgraph()->common()->IfTrue(), supertype_match));
+  match_effects.emplace_back(effect());
+  no_match_controls.emplace_back(
+      graph()->NewNode(mcgraph()->common()->IfFalse(), supertype_match));
+  no_match_effects.emplace_back(effect());
 
-  // Wire up the "cast attempt was unsuccessful" control nodes: merge them if
-  // there is more than one.
-  if (merge_controls.size() > 0) {
-    merge_controls.emplace_back(not_subtype);
-    merge_effects.emplace_back(effect());
-    // Range is 1..3, so casting to int is safe.
-    DCHECK_EQ(merge_controls.size(), merge_effects.size());
-    unsigned count = static_cast<unsigned>(merge_controls.size());
-    *no_match_control = Merge(count, merge_controls.data());
-    // EffectPhis need their control dependency as an additional input.
-    merge_effects.emplace_back(*no_match_control);
-    *no_match_effect = EffectPhi(count, merge_effects.data());
-  } else {
-    *no_match_control = not_subtype;
-    *no_match_effect = effect();
-  }
+  // Wire up the control/effect nodes.
+  unsigned count = static_cast<unsigned>(match_controls.size());
+  DCHECK_EQ(2, count);
+  *match_control = Merge(count, match_controls.data());
+  // EffectPhis need their control dependency as an additional input.
+  match_effects.emplace_back(*match_control);
+  *match_effect = EffectPhi(count, match_effects.data());
+  DCHECK_EQ(no_match_controls.size(), no_match_effects.size());
+  // Range is 2..4, so casting to unsigned is safe.
+  count = static_cast<unsigned>(no_match_controls.size());
+  *no_match_control = Merge(count, no_match_controls.data());
+  // EffectPhis need their control dependency as an additional input.
+  no_match_effects.emplace_back(*no_match_control);
+  *no_match_effect = EffectPhi(count, no_match_effects.data());
+
   // Return value is not used, but we need it for compatibility
   // with graph-builder-interface.
   return nullptr;

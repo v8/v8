@@ -432,12 +432,12 @@ class WasmGraphBuilder {
   Node* RttCanon(wasm::HeapType type);
   Node* RttSub(wasm::HeapType type, Node* parent_rtt);
   Node* RefTest(Node* object, Node* rtt, CheckForNull null_check,
-                CheckForI31 i31_check, RttIsI31 rtt_is_i31);
+                CheckForI31 i31_check, RttIsI31 rtt_is_i31, uint8_t depth);
   Node* RefCast(Node* object, Node* rtt, CheckForNull null_check,
-                CheckForI31 i31_check, RttIsI31 rtt_is_i31,
+                CheckForI31 i31_check, RttIsI31 rtt_is_i31, uint8_t depth,
                 wasm::WasmCodePosition position);
   Node* BrOnCast(Node* object, Node* rtt, CheckForNull null_check,
-                 CheckForI31 i31_check, RttIsI31 rtt_is_i31,
+                 CheckForI31 i31_check, RttIsI31 rtt_is_i31, uint8_t depth,
                  Node** match_control, Node** match_effect,
                  Node** no_match_control, Node** no_match_effect);
 
