@@ -275,7 +275,7 @@ class StringTableInsertionKey final : public StringTableKey {
   V8_WARN_UNUSED_RESULT Handle<String> AsHandle(LocalIsolate* isolate);
 
  private:
-  uint32_t ComputeHashField(String string);
+  uint32_t ComputeRawHashField(String string);
 
   Handle<String> string_;
   DISALLOW_HEAP_ALLOCATION(no_gc)

@@ -504,9 +504,9 @@ Handle<String> FactoryBase<Impl>::InternalizeString(
 
 template <typename Impl>
 Handle<SeqOneByteString> FactoryBase<Impl>::NewOneByteInternalizedString(
-    const Vector<const uint8_t>& str, uint32_t hash_field) {
+    const Vector<const uint8_t>& str, uint32_t raw_hash_field) {
   Handle<SeqOneByteString> result =
-      AllocateRawOneByteInternalizedString(str.length(), hash_field);
+      AllocateRawOneByteInternalizedString(str.length(), raw_hash_field);
   DisallowHeapAllocation no_gc;
   MemCopy(result->GetChars(no_gc), str.begin(), str.length());
   return result;
@@ -514,9 +514,9 @@ Handle<SeqOneByteString> FactoryBase<Impl>::NewOneByteInternalizedString(
 
 template <typename Impl>
 Handle<SeqTwoByteString> FactoryBase<Impl>::NewTwoByteInternalizedString(
-    const Vector<const uc16>& str, uint32_t hash_field) {
+    const Vector<const uc16>& str, uint32_t raw_hash_field) {
   Handle<SeqTwoByteString> result =
-      AllocateRawTwoByteInternalizedString(str.length(), hash_field);
+      AllocateRawTwoByteInternalizedString(str.length(), raw_hash_field);
   DisallowHeapAllocation no_gc;
   MemCopy(result->GetChars(no_gc), str.begin(), str.length() * kUC16Size);
   return result;
@@ -537,7 +537,7 @@ MaybeHandle<SeqOneByteString> FactoryBase<Impl>::NewRawOneByteString(
   Handle<SeqOneByteString> string =
       handle(SeqOneByteString::cast(result), isolate());
   string->set_length(length);
-  string->set_hash_field(String::kEmptyHashField);
+  string->set_raw_hash_field(String::kEmptyHashField);
   DCHECK_EQ(size, string->Size());
   return string;
 }
@@ -557,7 +557,7 @@ MaybeHandle<SeqTwoByteString> FactoryBase<Impl>::NewRawTwoByteString(
   Handle<SeqTwoByteString> string =
       handle(SeqTwoByteString::cast(result), isolate());
   string->set_length(length);
-  string->set_hash_field(String::kEmptyHashField);
+  string->set_raw_hash_field(String::kEmptyHashField);
   DCHECK_EQ(size, string->Size());
   return string;
 }
@@ -651,7 +651,7 @@ Handle<String> FactoryBase<Impl>::NewConsString(Handle<String> left,
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
 
-  result->set_hash_field(String::kEmptyHashField);
+  result->set_raw_hash_field(String::kEmptyHashField);
   result->set_length(length);
   result->set_first(*left, mode);
   result->set_second(*right, mode);
@@ -734,8 +734,8 @@ Handle<ClassPositions> FactoryBase<Impl>::NewClassPositions(int start,
 
 template <typename Impl>
 Handle<SeqOneByteString>
-FactoryBase<Impl>::AllocateRawOneByteInternalizedString(int length,
-                                                        uint32_t hash_field) {
+FactoryBase<Impl>::AllocateRawOneByteInternalizedString(
+    int length, uint32_t raw_hash_field) {
   CHECK_GE(String::kMaxLength, length);
   // The canonical empty_string is the only zero-length string we allow.
   DCHECK_IMPLIES(length == 0, !impl()->EmptyStringRootIsInitialized());
@@ -750,15 +750,15 @@ FactoryBase<Impl>::AllocateRawOneByteInternalizedString(int length,
   Handle<SeqOneByteString> answer =
       handle(SeqOneByteString::cast(result), isolate());
   answer->set_length(length);
-  answer->set_hash_field(hash_field);
+  answer->set_raw_hash_field(raw_hash_field);
   DCHECK_EQ(size, answer->Size());
   return answer;
 }
 
 template <typename Impl>
 Handle<SeqTwoByteString>
-FactoryBase<Impl>::AllocateRawTwoByteInternalizedString(int length,
-                                                        uint32_t hash_field) {
+FactoryBase<Impl>::AllocateRawTwoByteInternalizedString(
+    int length, uint32_t raw_hash_field) {
   CHECK_GE(String::kMaxLength, length);
   DCHECK_NE(0, length);  // Use Heap::empty_string() instead.
 
@@ -769,7 +769,7 @@ FactoryBase<Impl>::AllocateRawTwoByteInternalizedString(int length,
   Handle<SeqTwoByteString> answer =
       handle(SeqTwoByteString::cast(result), isolate());
   answer->set_length(length);
-  answer->set_hash_field(hash_field);
+  answer->set_raw_hash_field(raw_hash_field);
   DCHECK_EQ(size, result.Size());
   return answer;
 }

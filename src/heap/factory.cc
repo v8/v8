@@ -763,7 +763,7 @@ Handle<String> Factory::AllocateInternalizedStringImpl(T t, int chars,
                                  map);
   Handle<String> answer(String::cast(result), isolate());
   answer->set_length(chars);
-  answer->set_hash_field(hash_field);
+  answer->set_raw_hash_field(hash_field);
   DCHECK_EQ(size, answer->Size());
   DisallowHeapAllocation no_gc;
 
@@ -824,7 +824,7 @@ Handle<StringClass> Factory::InternalizeExternalString(Handle<String> string) {
       StringClass::cast(New(map, AllocationType::kOld)), isolate());
   external_string->AllocateExternalPointerEntries(isolate());
   external_string->set_length(cast_string->length());
-  external_string->set_hash_field(cast_string->hash_field());
+  external_string->set_raw_hash_field(cast_string->raw_hash_field());
   external_string->SetResource(isolate(), nullptr);
   isolate()->heap()->RegisterExternalString(*external_string);
   return external_string;
@@ -928,7 +928,7 @@ Handle<String> Factory::NewProperSubString(Handle<String> str, int begin,
   Handle<SlicedString> slice(
       SlicedString::cast(New(map, AllocationType::kYoung)), isolate());
 
-  slice->set_hash_field(String::kEmptyHashField);
+  slice->set_raw_hash_field(String::kEmptyHashField);
   slice->set_length(length);
   slice->set_parent(*str);
   slice->set_offset(offset);
@@ -950,7 +950,7 @@ MaybeHandle<String> Factory::NewExternalStringFromOneByte(
       ExternalOneByteString::cast(New(map, AllocationType::kOld)), isolate());
   external_string->AllocateExternalPointerEntries(isolate());
   external_string->set_length(static_cast<int>(length));
-  external_string->set_hash_field(String::kEmptyHashField);
+  external_string->set_raw_hash_field(String::kEmptyHashField);
   external_string->SetResource(isolate(), resource);
   isolate()->heap()->RegisterExternalString(*external_string);
 
@@ -971,7 +971,7 @@ MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
       ExternalTwoByteString::cast(New(map, AllocationType::kOld)), isolate());
   external_string->AllocateExternalPointerEntries(isolate());
   external_string->set_length(static_cast<int>(length));
-  external_string->set_hash_field(String::kEmptyHashField);
+  external_string->set_raw_hash_field(String::kEmptyHashField);
   external_string->SetResource(isolate(), resource);
   isolate()->heap()->RegisterExternalString(*external_string);
 
@@ -1002,8 +1002,8 @@ Handle<Symbol> Factory::NewSymbol(AllocationType allocation) {
   int hash = isolate()->GenerateIdentityHash(Name::kHashBitMask);
 
   Handle<Symbol> symbol(Symbol::cast(result), isolate());
-  symbol->set_hash_field(Name::kIsNotIntegerIndexMask |
-                         (hash << Name::kHashShift));
+  symbol->set_raw_hash_field(Name::kIsNotIntegerIndexMask |
+                             (hash << Name::kHashShift));
   symbol->set_description(*undefined_value());
   symbol->set_flags(0);
   DCHECK(!symbol->is_private());
@@ -2832,10 +2832,11 @@ inline Handle<String> Factory::SmiToString(Smi number, NumberCacheMode mode) {
   // Compute the hash here (rather than letting the caller take care of it) so
   // that the "cache hit" case above doesn't have to bother with it.
   STATIC_ASSERT(Smi::kMaxValue <= std::numeric_limits<uint32_t>::max());
-  if (result->hash_field() == String::kEmptyHashField && number.value() >= 0) {
-    uint32_t field = StringHasher::MakeArrayIndexHash(
+  if (result->raw_hash_field() == String::kEmptyHashField &&
+      number.value() >= 0) {
+    uint32_t raw_hash_field = StringHasher::MakeArrayIndexHash(
         static_cast<uint32_t>(number.value()), result->length());
-    result->set_hash_field(field);
+    result->set_raw_hash_field(raw_hash_field);
   }
   return result;
 }
@@ -2868,10 +2869,10 @@ Handle<String> Factory::SizeToString(size_t value, bool check_cache) {
     result = NewStringFromAsciiChecked(string);
   }
   if (value <= JSArray::kMaxArrayIndex &&
-      result->hash_field() == String::kEmptyHashField) {
-    uint32_t field = StringHasher::MakeArrayIndexHash(
+      result->raw_hash_field() == String::kEmptyHashField) {
+    uint32_t raw_hash_field = StringHasher::MakeArrayIndexHash(
         static_cast<uint32_t>(value), result->length());
-    result->set_hash_field(field);
+    result->set_raw_hash_field(raw_hash_field);
   }
   return result;
 }

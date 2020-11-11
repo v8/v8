@@ -336,7 +336,7 @@ TNode<String> StringBuiltinsAssembler::AllocateConsString(TNode<Uint32T> length,
   TNode<HeapObject> result = AllocateInNewSpace(ConsString::kSize);
   StoreMapNoWriteBarrier(result, result_map);
   StoreObjectFieldNoWriteBarrier(result, ConsString::kLengthOffset, length);
-  StoreObjectFieldNoWriteBarrier(result, ConsString::kHashFieldOffset,
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kRawHashFieldOffset,
                                  Int32Constant(String::kEmptyHashField));
   StoreObjectFieldNoWriteBarrier(result, ConsString::kFirstOffset, left);
   StoreObjectFieldNoWriteBarrier(result, ConsString::kSecondOffset, right);

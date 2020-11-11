@@ -1816,19 +1816,19 @@ TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
 }
 
 TNode<Uint32T> CodeStubAssembler::LoadNameHashAssumeComputed(TNode<Name> name) {
-  TNode<Uint32T> hash_field = LoadNameHashField(name);
+  TNode<Uint32T> hash_field = LoadNameRawHashField(name);
   CSA_ASSERT(this, IsClearWord32(hash_field, Name::kHashNotComputedMask));
   return Unsigned(Word32Shr(hash_field, Int32Constant(Name::kHashShift)));
 }
 
 TNode<Uint32T> CodeStubAssembler::LoadNameHash(TNode<Name> name,
                                                Label* if_hash_not_computed) {
-  TNode<Uint32T> hash_field = LoadNameHashField(name);
+  TNode<Uint32T> raw_hash_field = LoadNameRawHashField(name);
   if (if_hash_not_computed != nullptr) {
-    GotoIf(IsSetWord32(hash_field, Name::kHashNotComputedMask),
+    GotoIf(IsSetWord32(raw_hash_field, Name::kHashNotComputedMask),
            if_hash_not_computed);
   }
-  return Unsigned(Word32Shr(hash_field, Int32Constant(Name::kHashShift)));
+  return Unsigned(Word32Shr(raw_hash_field, Int32Constant(Name::kHashShift)));
 }
 
 TNode<Smi> CodeStubAssembler::LoadStringLengthAsSmi(TNode<String> string) {
@@ -3206,7 +3206,7 @@ TNode<String> CodeStubAssembler::AllocateSeqOneByteString(
   StoreMapNoWriteBarrier(result, RootIndex::kOneByteStringMap);
   StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kLengthOffset,
                                  Uint32Constant(length));
-  StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kHashFieldOffset,
+  StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kRawHashFieldOffset,
                                  Int32Constant(String::kEmptyHashField));
   return CAST(result);
 }
@@ -3228,7 +3228,7 @@ TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
   StoreMapNoWriteBarrier(result, RootIndex::kStringMap);
   StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kLengthOffset,
                                  Uint32Constant(length));
-  StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kHashFieldOffset,
+  StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kRawHashFieldOffset,
                                  Int32Constant(String::kEmptyHashField));
   return CAST(result);
 }
@@ -3242,7 +3242,7 @@ TNode<String> CodeStubAssembler::AllocateSlicedString(RootIndex map_root_index,
   TNode<HeapObject> result = Allocate(SlicedString::kSize);
   DCHECK(RootsTable::IsImmortalImmovable(map_root_index));
   StoreMapNoWriteBarrier(result, map_root_index);
-  StoreObjectFieldNoWriteBarrier(result, SlicedString::kHashFieldOffset,
+  StoreObjectFieldNoWriteBarrier(result, SlicedString::kRawHashFieldOffset,
                                  Int32Constant(String::kEmptyHashField));
   StoreObjectFieldNoWriteBarrier(result, SlicedString::kLengthOffset, length);
   StoreObjectFieldNoWriteBarrier(result, SlicedString::kParentOffset, parent);
@@ -6173,7 +6173,7 @@ TNode<BoolT> CodeStubAssembler::IsUniqueNameNoIndex(TNode<HeapObject> object) {
   return Select<BoolT>(
       IsInternalizedStringInstanceType(instance_type),
       [=] {
-        return IsSetWord32(LoadNameHashField(CAST(object)),
+        return IsSetWord32(LoadNameRawHashField(CAST(object)),
                            Name::kIsNotIntegerIndexMask);
       },
       [=] { return IsSymbolInstanceType(instance_type); });
@@ -6191,7 +6191,7 @@ TNode<BoolT> CodeStubAssembler::IsUniqueNameNoCachedIndex(
   return Select<BoolT>(
       IsInternalizedStringInstanceType(instance_type),
       [=] {
-        return IsSetWord32(LoadNameHashField(CAST(object)),
+        return IsSetWord32(LoadNameRawHashField(CAST(object)),
                            Name::kDoesNotContainCachedArrayIndexMask);
       },
       [=] { return IsSymbolInstanceType(instance_type); });
@@ -6672,12 +6672,12 @@ TNode<Number> CodeStubAssembler::StringToNumber(TNode<String> input) {
   TVARIABLE(Number, var_result);
 
   // Check if string has a cached array index.
-  TNode<Uint32T> hash = LoadNameHashField(input);
-  GotoIf(IsSetWord32(hash, Name::kDoesNotContainCachedArrayIndexMask),
+  TNode<Uint32T> raw_hash_field = LoadNameRawHashField(input);
+  GotoIf(IsSetWord32(raw_hash_field, Name::kDoesNotContainCachedArrayIndexMask),
          &runtime);
 
-  var_result =
-      SmiTag(Signed(DecodeWordFromWord32<String::ArrayIndexValueBits>(hash)));
+  var_result = SmiTag(Signed(
+      DecodeWordFromWord32<String::ArrayIndexValueBits>(raw_hash_field)));
   Goto(&end);
 
   BIND(&runtime);
@@ -7439,12 +7439,14 @@ void CodeStubAssembler::TryToName(SloppyTNode<Object> key, Label* if_keyisindex,
     {
       Label if_thinstring(this), if_has_cached_index(this);
 
-      TNode<Uint32T> hash = LoadNameHashField(CAST(key));
-      GotoIf(IsClearWord32(hash, Name::kDoesNotContainCachedArrayIndexMask),
+      TNode<Uint32T> raw_hash_field = LoadNameRawHashField(CAST(key));
+      GotoIf(IsClearWord32(raw_hash_field,
+                           Name::kDoesNotContainCachedArrayIndexMask),
              &if_has_cached_index);
       // No cached array index. If the string knows that it contains an index,
       // then it must be an uncacheable index. Handle this case in the runtime.
-      GotoIf(IsClearWord32(hash, Name::kIsNotIntegerIndexMask), if_bailout);
+      GotoIf(IsClearWord32(raw_hash_field, Name::kIsNotIntegerIndexMask),
+             if_bailout);
 
       GotoIf(InstanceTypeEqual(var_instance_type.value(), THIN_STRING_TYPE),
              &if_thinstring);
@@ -7468,8 +7470,8 @@ void CodeStubAssembler::TryToName(SloppyTNode<Object> key, Label* if_keyisindex,
 
       BIND(&if_has_cached_index);
       {
-        TNode<IntPtrT> index =
-            Signed(DecodeWordFromWord32<String::ArrayIndexValueBits>(hash));
+        TNode<IntPtrT> index = Signed(
+            DecodeWordFromWord32<String::ArrayIndexValueBits>(raw_hash_field));
         CSA_ASSERT(this, IntPtrLessThan(index, IntPtrConstant(INT_MAX)));
         *var_index = index;
         Goto(if_keyisindex);

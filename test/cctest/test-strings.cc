@@ -1830,13 +1830,13 @@ void TestString(i::Isolate* isolate, const IndexData& data) {
     CHECK(s->AsIntegerIndex(&index));
     CHECK_EQ(data.integer_index, index);
     s->Hash();
-    CHECK_EQ(0, s->hash_field() & String::kIsNotIntegerIndexMask);
+    CHECK_EQ(0, s->raw_hash_field() & String::kIsNotIntegerIndexMask);
     CHECK(s->HasHashCode());
   }
   if (!s->HasHashCode()) s->Hash();
   CHECK(s->HasHashCode());
   if (!data.is_integer_index) {
-    CHECK_NE(0, s->hash_field() & String::kIsNotIntegerIndexMask);
+    CHECK_NE(0, s->raw_hash_field() & String::kIsNotIntegerIndexMask);
   }
 }
 

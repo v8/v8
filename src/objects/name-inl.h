@@ -86,18 +86,18 @@ bool Name::IsHashFieldComputed(uint32_t field) {
   return (field & kHashNotComputedMask) == 0;
 }
 
-bool Name::HasHashCode() { return IsHashFieldComputed(hash_field()); }
+bool Name::HasHashCode() { return IsHashFieldComputed(raw_hash_field()); }
 
 uint32_t Name::Hash() {
   // Fast case: has hash code already been computed?
-  uint32_t field = hash_field();
+  uint32_t field = raw_hash_field();
   if (IsHashFieldComputed(field)) return field >> kHashShift;
   // Slow case: compute hash code and set it. Has to be a string.
   return String::cast(*this).ComputeAndSetHash();
 }
 
 uint32_t Name::hash() const {
-  uint32_t field = hash_field();
+  uint32_t field = raw_hash_field();
   DCHECK(IsHashFieldComputed(field));
   return field >> kHashShift;
 }
@@ -133,8 +133,8 @@ bool Name::AsIntegerIndex(size_t* index) {
 }
 
 // static
-bool Name::ContainsCachedArrayIndex(uint32_t hash) {
-  return (hash & Name::kDoesNotContainCachedArrayIndexMask) == 0;
+bool Name::ContainsCachedArrayIndex(uint32_t raw_hash_field) {
+  return (raw_hash_field & Name::kDoesNotContainCachedArrayIndexMask) == 0;
 }
 
 }  // namespace internal

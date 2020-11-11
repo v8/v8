@@ -2554,9 +2554,9 @@ enum AccessorAssembler::StubCacheTable : int {
 TNode<IntPtrT> AccessorAssembler::StubCachePrimaryOffset(TNode<Name> name,
                                                          TNode<Map> map) {
   // Compute the hash of the name (use entire hash field).
-  TNode<Uint32T> hash_field = LoadNameHashField(name);
+  TNode<Uint32T> raw_hash_field = LoadNameRawHashField(name);
   CSA_ASSERT(this,
-             Word32Equal(Word32And(hash_field,
+             Word32Equal(Word32And(raw_hash_field,
                                    Int32Constant(Name::kHashNotComputedMask)),
                          Int32Constant(0)));
 
@@ -2568,7 +2568,7 @@ TNode<IntPtrT> AccessorAssembler::StubCachePrimaryOffset(TNode<Name> name,
   TNode<Int32T> map32 = TruncateIntPtrToInt32(UncheckedCast<IntPtrT>(
       WordXor(map_word, WordShr(map_word, StubCache::kMapKeyShift))));
   // Base the offset on a simple combination of name and map.
-  TNode<Word32T> hash = Int32Add(hash_field, map32);
+  TNode<Word32T> hash = Int32Add(raw_hash_field, map32);
   uint32_t mask = (StubCache::kPrimaryTableSize - 1)
                   << StubCache::kCacheIndexShift;
   TNode<UintPtrT> result =

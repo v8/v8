@@ -108,9 +108,19 @@ const char* StringsStorage::GetConsName(const char* prefix, Name name) {
   return "";
 }
 
+namespace {
+
+inline uint32_t ComputeStringHash(const char* str, int len) {
+  uint32_t raw_hash_field =
+      StringHasher::HashSequentialString(str, len, kZeroHashSeed);
+  return raw_hash_field >> Name::kHashShift;
+}
+
+}  // namespace
+
 bool StringsStorage::Release(const char* str) {
   int len = static_cast<int>(strlen(str));
-  uint32_t hash = StringHasher::HashSequentialString(str, len, kZeroHashSeed);
+  uint32_t hash = ComputeStringHash(str, len);
   base::HashMap::Entry* entry = names_.Lookup(const_cast<char*>(str), hash);
   DCHECK(entry);
   if (!entry) {
@@ -133,7 +143,7 @@ size_t StringsStorage::GetStringCountForTesting() const {
 }
 
 base::HashMap::Entry* StringsStorage::GetEntry(const char* str, int len) {
-  uint32_t hash = StringHasher::HashSequentialString(str, len, kZeroHashSeed);
+  uint32_t hash = ComputeStringHash(str, len);
   return names_.LookupOrInsert(const_cast<char*>(str), hash);
 }
 

@@ -151,14 +151,14 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
   Handle<String> InternalizeStringWithKey(StringTableKey* key);
 
   Handle<SeqOneByteString> NewOneByteInternalizedString(
-      const Vector<const uint8_t>& str, uint32_t hash_field);
+      const Vector<const uint8_t>& str, uint32_t raw_hash_field);
   Handle<SeqTwoByteString> NewTwoByteInternalizedString(
-      const Vector<const uc16>& str, uint32_t hash_field);
+      const Vector<const uc16>& str, uint32_t raw_hash_field);
 
   Handle<SeqOneByteString> AllocateRawOneByteInternalizedString(
-      int length, uint32_t hash_field);
+      int length, uint32_t raw_hash_field);
   Handle<SeqTwoByteString> AllocateRawTwoByteInternalizedString(
-      int length, uint32_t hash_field);
+      int length, uint32_t raw_hash_field);
 
   // Allocates and partially initializes an one-byte or two-byte String. The
   // characters of the string are uninitialized. Currently used in regexp code

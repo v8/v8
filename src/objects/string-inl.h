@@ -275,9 +275,9 @@ class SequentialStringKey final : public StringTableKey {
                                 chars.begin(), chars.length(), seed),
                             chars, convert) {}
 
-  SequentialStringKey(int hash, const Vector<const Char>& chars,
+  SequentialStringKey(int raw_hash_field, const Vector<const Char>& chars,
                       bool convert = false)
-      : StringTableKey(hash, chars.length()),
+      : StringTableKey(raw_hash_field, chars.length()),
         chars_(chars),
         convert_(convert) {}
 
@@ -294,19 +294,19 @@ class SequentialStringKey final : public StringTableKey {
   Handle<String> AsHandle(Isolate* isolate) {
     if (sizeof(Char) == 1) {
       return isolate->factory()->NewOneByteInternalizedString(
-          Vector<const uint8_t>::cast(chars_), hash_field());
+          Vector<const uint8_t>::cast(chars_), raw_hash_field());
     }
     return isolate->factory()->NewTwoByteInternalizedString(
-        Vector<const uint16_t>::cast(chars_), hash_field());
+        Vector<const uint16_t>::cast(chars_), raw_hash_field());
   }
 
   Handle<String> AsHandle(LocalIsolate* isolate) {
     if (sizeof(Char) == 1) {
       return isolate->factory()->NewOneByteInternalizedString(
-          Vector<const uint8_t>::cast(chars_), hash_field());
+          Vector<const uint8_t>::cast(chars_), raw_hash_field());
     }
     return isolate->factory()->NewTwoByteInternalizedString(
-        Vector<const uint16_t>::cast(chars_), hash_field());
+        Vector<const uint16_t>::cast(chars_), raw_hash_field());
   }
 
  private:
@@ -337,9 +337,9 @@ class SeqSubStringKey final : public StringTableKey {
         convert_(convert) {
     // We have to set the hash later.
     DisallowHeapAllocation no_gc;
-    uint32_t hash = StringHasher::HashSequentialString(
+    uint32_t raw_hash_field = StringHasher::HashSequentialString(
         string->GetChars(no_gc) + from, len, HashSeed(isolate));
-    set_hash_field(hash);
+    set_raw_hash_field(raw_hash_field);
 
     DCHECK_LE(0, length());
     DCHECK_LE(from_ + length(), string_->length());
@@ -366,15 +366,15 @@ class SeqSubStringKey final : public StringTableKey {
     if (sizeof(Char) == 1 || (sizeof(Char) == 2 && convert_)) {
       Handle<SeqOneByteString> result =
           isolate->factory()->AllocateRawOneByteInternalizedString(
-              length(), hash_field());
+              length(), raw_hash_field());
       DisallowHeapAllocation no_gc;
       CopyChars(result->GetChars(no_gc), string_->GetChars(no_gc) + from_,
                 length());
       return result;
     }
     Handle<SeqTwoByteString> result =
-        isolate->factory()->AllocateRawTwoByteInternalizedString(length(),
-                                                                 hash_field());
+        isolate->factory()->AllocateRawTwoByteInternalizedString(
+            length(), raw_hash_field());
     DisallowHeapAllocation no_gc;
     CopyChars(result->GetChars(no_gc), string_->GetChars(no_gc) + from_,
               length());
@@ -834,7 +834,7 @@ void StringCharacterStream::VisitTwoByteString(const uint16_t* chars,
 
 bool String::AsArrayIndex(uint32_t* index) {
   DisallowHeapAllocation no_gc;
-  uint32_t field = hash_field();
+  uint32_t field = raw_hash_field();
   if (ContainsCachedArrayIndex(field)) {
     *index = ArrayIndexValueBits::decode(field);
     return true;
@@ -846,7 +846,7 @@ bool String::AsArrayIndex(uint32_t* index) {
 }
 
 bool String::AsIntegerIndex(size_t* index) {
-  uint32_t field = hash_field();
+  uint32_t field = raw_hash_field();
   if (ContainsCachedArrayIndex(field)) {
     *index = ArrayIndexValueBits::decode(field);
     return true;

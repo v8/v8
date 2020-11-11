@@ -71,7 +71,7 @@ int ComputeStringTableCapacityWithShrink(int current_capacity,
 
 template <typename StringTableKey>
 bool KeyIsMatch(StringTableKey* key, String string) {
-  if (string.hash_field() != key->hash_field()) return false;
+  if (string.hash() != key->hash()) return false;
   if (string.length() != key->length()) return false;
   return key->IsMatch(string);
 }
@@ -355,7 +355,7 @@ class InternalizedStringKey final : public StringTableKey {
     DCHECK(string->IsFlat());
     // Make sure hash_field is computed.
     string->Hash();
-    set_hash_field(string->hash_field());
+    set_raw_hash_field(string->raw_hash_field());
   }
 
   bool IsMatch(String string) override { return string_->SlowEquals(string); }
@@ -383,7 +383,7 @@ class InternalizedStringKey final : public StringTableKey {
     }
     // Otherwise allocate a new internalized string.
     return isolate->factory()->NewInternalizedStringImpl(
-        string_, string_->length(), string_->hash_field());
+        string_, string_->length(), string_->raw_hash_field());
   }
 
  private:
@@ -610,13 +610,14 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
   SequentialStringKey<Char> key(Vector<const Char>(chars, length), seed);
 
   // String could be an array index.
-  uint32_t hash_field = key.hash_field();
+  uint32_t raw_hash_field = key.raw_hash_field();
 
-  if (Name::ContainsCachedArrayIndex(hash_field)) {
-    return Smi::FromInt(String::ArrayIndexValueBits::decode(hash_field)).ptr();
+  if (Name::ContainsCachedArrayIndex(raw_hash_field)) {
+    return Smi::FromInt(String::ArrayIndexValueBits::decode(raw_hash_field))
+        .ptr();
   }
 
-  if ((hash_field & Name::kIsNotIntegerIndexMask) == 0) {
+  if ((raw_hash_field & Name::kIsNotIntegerIndexMask) == 0) {
     // It is an index, but it's not cached.
     return Smi::FromInt(ResultSentinel::kUnsupported).ptr();
   }

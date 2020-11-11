@@ -512,13 +512,13 @@ Handle<Object> String::ToNumber(Isolate* isolate, Handle<String> subject) {
                  (len == 1 || data[0] != '0')) {
         // String hash is not calculated yet but all the data are present.
         // Update the hash field to speed up sequential convertions.
-        uint32_t hash = StringHasher::MakeArrayIndexHash(d, len);
+        uint32_t raw_hash_field = StringHasher::MakeArrayIndexHash(d, len);
 #ifdef DEBUG
         subject->Hash();  // Force hash calculation.
-        DCHECK_EQ(static_cast<int>(subject->hash_field()),
-                  static_cast<int>(hash));
+        DCHECK_EQ(static_cast<int>(subject->raw_hash_field()),
+                  static_cast<int>(raw_hash_field));
 #endif
-        subject->set_hash_field(hash);
+        subject->set_raw_hash_field(raw_hash_field);
       }
       return handle(Smi::FromInt(d), isolate);
     }
@@ -1392,18 +1392,19 @@ uint32_t String::ComputeAndSetHash() {
   if (string.IsThinString()) {
     string = ThinString::cast(string).actual();
     if (length() == string.length()) {
-      set_hash_field(string.hash_field());
-      return hash_field() >> kHashShift;
+      set_raw_hash_field(string.raw_hash_field());
+      return hash();
     }
   }
-  uint32_t field = string.IsOneByteRepresentation()
-                       ? HashString<uint8_t>(string, start, length(), seed)
-                       : HashString<uint16_t>(string, start, length(), seed);
-  set_hash_field(field);
+  uint32_t raw_hash_field =
+      string.IsOneByteRepresentation()
+          ? HashString<uint8_t>(string, start, length(), seed)
+          : HashString<uint16_t>(string, start, length(), seed);
+  set_raw_hash_field(raw_hash_field);
 
   // Check the hash code is there.
   DCHECK(HasHashCode());
-  uint32_t result = field >> kHashShift;
+  uint32_t result = raw_hash_field >> kHashShift;
   DCHECK_NE(result, 0);  // Ensure that the hash value of 0 is never computed.
   return result;
 }
@@ -1413,7 +1414,7 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
   int length = this->length();
   if (length <= kMaxCachedArrayIndexLength) {
     Hash();  // Force computation of hash code.
-    uint32_t field = hash_field();
+    uint32_t field = raw_hash_field();
     if ((field & kIsNotIntegerIndexMask) != 0) return false;
     *index = ArrayIndexValueBits::decode(field);
     return true;
@@ -1428,7 +1429,7 @@ bool String::SlowAsIntegerIndex(size_t* index) {
   int length = this->length();
   if (length <= kMaxCachedArrayIndexLength) {
     Hash();  // Force computation of hash code.
-    uint32_t field = hash_field();
+    uint32_t field = raw_hash_field();
     if ((field & kIsNotIntegerIndexMask) != 0) return false;
     *index = ArrayIndexValueBits::decode(field);
     return true;

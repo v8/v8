@@ -648,7 +648,7 @@ void JSRegExpStringIterator::JSRegExpStringIteratorPrint(
 
 void Symbol::SymbolPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "Symbol");
-  os << "\n - hash: " << Hash();
+  os << "\n - hash: " << hash();
   os << "\n - description: " << Brief(description());
   if (description().IsUndefined()) {
     os << " (" << PrivateSymbolToName() << ")";

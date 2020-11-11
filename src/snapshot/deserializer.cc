@@ -305,7 +305,7 @@ void Deserializer::LogScriptEvents(Script script) {
 }
 
 StringTableInsertionKey::StringTableInsertionKey(Handle<String> string)
-    : StringTableKey(ComputeHashField(*string), string->length()),
+    : StringTableKey(ComputeRawHashField(*string), string->length()),
       string_(string) {
   DCHECK(string->IsInternalizedString());
 }
@@ -319,10 +319,10 @@ Handle<String> StringTableInsertionKey::AsHandle(Isolate* isolate) {
   return string_;
 }
 
-uint32_t StringTableInsertionKey::ComputeHashField(String string) {
-  // Make sure hash_field() is computed.
+uint32_t StringTableInsertionKey::ComputeRawHashField(String string) {
+  // Make sure raw_hash_field() is computed.
   string.Hash();
-  return string.hash_field();
+  return string.raw_hash_field();
 }
 
 void Deserializer::PostProcessNewObject(Handle<Map> map, Handle<HeapObject> obj,
@@ -335,7 +335,7 @@ void Deserializer::PostProcessNewObject(Handle<Map> map, Handle<HeapObject> obj,
     if (InstanceTypeChecker::IsString(instance_type)) {
       // Uninitialize hash field as we need to recompute the hash.
       Handle<String> string = Handle<String>::cast(obj);
-      string->set_hash_field(String::kEmptyHashField);
+      string->set_raw_hash_field(String::kEmptyHashField);
       // Rehash strings before read-only space is sealed. Strings outside
       // read-only space are rehashed lazily. (e.g. when rehashing dictionaries)
       if (space == SnapshotSpace::kReadOnlyHeap) {
