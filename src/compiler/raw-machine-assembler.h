@@ -221,14 +221,20 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   // Atomic memory operations.
   Node* AtomicLoad(MachineType type, Node* base, Node* index) {
-    if (type.representation() == MachineRepresentation::kWord64) {
-      if (machine()->Is64()) {
-        return AddNode(machine()->Word64AtomicLoad(type), base, index);
-      } else {
-        return AddNode(machine()->Word32AtomicPairLoad(), base, index);
-      }
-    }
+    DCHECK_NE(type.representation(), MachineRepresentation::kWord64);
     return AddNode(machine()->Word32AtomicLoad(type), base, index);
+  }
+
+  Node* AtomicLoad64(Node* base, Node* index) {
+    if (machine()->Is64()) {
+      // This uses Uint64() intentionally: AtomicLoad is not implemented for
+      // Int64(), which is fine because the machine instruction only cares
+      // about words.
+      return AddNode(machine()->Word64AtomicLoad(MachineType::Uint64()), base,
+                     index);
+    } else {
+      return AddNode(machine()->Word32AtomicPairLoad(), base, index);
+    }
   }
 
 #if defined(V8_TARGET_BIG_ENDIAN)

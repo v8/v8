@@ -43,8 +43,8 @@ class SharedArrayBufferBuiltinsAssembler : public CodeStubAssembler {
 
   // Create a BigInt from the result of a 64-bit atomic operation, using
   // projections on 32-bit platforms.
-  TNode<BigInt> BigIntFromSigned64(Node* signed64);
-  TNode<BigInt> BigIntFromUnsigned64(Node* unsigned64);
+  TNode<BigInt> BigIntFromSigned64(SloppyTNode<AtomicInt64> signed64);
+  TNode<BigInt> BigIntFromUnsigned64(SloppyTNode<AtomicUint64> unsigned64);
 };
 
 // https://tc39.es/ecma262/#sec-validateintegertypedarray
@@ -142,25 +142,25 @@ void SharedArrayBufferBuiltinsAssembler::DebugCheckAtomicIndex(
 }
 
 TNode<BigInt> SharedArrayBufferBuiltinsAssembler::BigIntFromSigned64(
-    Node* signed64) {
-  if (Is64()) {
-    return BigIntFromInt64(UncheckedCast<IntPtrT>(signed64));
-  } else {
-    TNode<IntPtrT> low = UncheckedCast<IntPtrT>(Projection(0, signed64));
-    TNode<IntPtrT> high = UncheckedCast<IntPtrT>(Projection(1, signed64));
-    return BigIntFromInt32Pair(low, high);
-  }
+    SloppyTNode<AtomicInt64> signed64) {
+#if defined(V8_HOST_ARCH_32_BIT)
+  TNode<IntPtrT> low = Projection<0>(signed64);
+  TNode<IntPtrT> high = Projection<1>(signed64);
+  return BigIntFromInt32Pair(low, high);
+#else
+  return BigIntFromInt64(signed64);
+#endif
 }
 
 TNode<BigInt> SharedArrayBufferBuiltinsAssembler::BigIntFromUnsigned64(
-    Node* unsigned64) {
-  if (Is64()) {
-    return BigIntFromUint64(UncheckedCast<UintPtrT>(unsigned64));
-  } else {
-    TNode<UintPtrT> low = UncheckedCast<UintPtrT>(Projection(0, unsigned64));
-    TNode<UintPtrT> high = UncheckedCast<UintPtrT>(Projection(1, unsigned64));
-    return BigIntFromUint32Pair(low, high);
-  }
+    SloppyTNode<AtomicUint64> unsigned64) {
+#if defined(V8_HOST_ARCH_32_BIT)
+  TNode<UintPtrT> low = Projection<0>(unsigned64);
+  TNode<UintPtrT> high = Projection<1>(unsigned64);
+  return BigIntFromUint32Pair(low, high);
+#else
+  return BigIntFromUint64(unsigned64);
+#endif
 }
 
 // https://tc39.es/ecma262/#sec-atomicload
@@ -201,28 +201,26 @@ TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
          arraysize(case_labels));
 
   BIND(&i8);
-  Return(
-      SmiFromInt32(AtomicLoad(MachineType::Int8(), backing_store, index_word)));
+  Return(SmiFromInt32(AtomicLoad<Int8T>(backing_store, index_word)));
 
   BIND(&u8);
-  Return(SmiFromInt32(
-      AtomicLoad(MachineType::Uint8(), backing_store, index_word)));
+  Return(SmiFromInt32(AtomicLoad<Uint8T>(backing_store, index_word)));
 
   BIND(&i16);
-  Return(SmiFromInt32(
-      AtomicLoad(MachineType::Int16(), backing_store, WordShl(index_word, 1))));
+  Return(
+      SmiFromInt32(AtomicLoad<Int16T>(backing_store, WordShl(index_word, 1))));
 
   BIND(&u16);
-  Return(SmiFromInt32(AtomicLoad(MachineType::Uint16(), backing_store,
-                                 WordShl(index_word, 1))));
+  Return(
+      SmiFromInt32(AtomicLoad<Uint16T>(backing_store, WordShl(index_word, 1))));
 
   BIND(&i32);
   Return(ChangeInt32ToTagged(
-      AtomicLoad(MachineType::Int32(), backing_store, WordShl(index_word, 2))));
+      AtomicLoad<Int32T>(backing_store, WordShl(index_word, 2))));
 
   BIND(&u32);
-  Return(ChangeUint32ToTagged(AtomicLoad(MachineType::Uint32(), backing_store,
-                                         WordShl(index_word, 2))));
+  Return(ChangeUint32ToTagged(
+      AtomicLoad<Uint32T>(backing_store, WordShl(index_word, 2))));
 #if V8_TARGET_ARCH_MIPS && !_MIPS_ARCH_MIPS32R6
   BIND(&i64);
   Goto(&u64);
@@ -234,15 +232,12 @@ TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
   }
 #else
   BIND(&i64);
-  // This uses Uint64() intentionally: AtomicLoad is not implemented for
-  // Int64(), which is fine because the machine instruction only cares
-  // about words.
-  Return(BigIntFromSigned64(AtomicLoad(MachineType::Uint64(), backing_store,
-                                       WordShl(index_word, 3))));
+  Return(BigIntFromSigned64(
+      AtomicLoad64<AtomicInt64>(backing_store, WordShl(index_word, 3))));
 
   BIND(&u64);
-  Return(BigIntFromUnsigned64(AtomicLoad(MachineType::Uint64(), backing_store,
-                                         WordShl(index_word, 3))));
+  Return(BigIntFromUnsigned64(
+      AtomicLoad64<AtomicUint64>(backing_store, WordShl(index_word, 3))));
 #endif
 
   // This shouldn't happen, we've already validated the type.

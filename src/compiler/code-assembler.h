@@ -178,6 +178,20 @@ HEAP_OBJECT_TEMPLATE_TYPE_LIST(OBJECT_TYPE_TEMPLATE_CASE)
 #undef OBJECT_TYPE_STRUCT_CASE
 #undef OBJECT_TYPE_TEMPLATE_CASE
 
+#if defined(V8_HOST_ARCH_32_BIT)
+#define BINT_IS_SMI
+using BInt = Smi;
+using AtomicInt64 = PairT<IntPtrT, IntPtrT>;
+using AtomicUint64 = PairT<UintPtrT, UintPtrT>;
+#elif defined(V8_HOST_ARCH_64_BIT)
+#define BINT_IS_INTPTR
+using BInt = IntPtrT;
+using AtomicInt64 = IntPtrT;
+using AtomicUint64 = UintPtrT;
+#else
+#error Unknown architecture.
+#endif
+
 // {raw_value} must be a tagged Object.
 // {raw_type} must be a tagged Smi.
 // {raw_location} must be a tagged String.
@@ -731,7 +745,13 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return UncheckedCast<Type>(
         Load(MachineTypeOf<Type>::value, base, offset, needs_poisoning));
   }
-  Node* AtomicLoad(MachineType type, Node* base, Node* offset);
+  template <class Type>
+  TNode<Type> AtomicLoad(TNode<RawPtrT> base, TNode<WordT> offset) {
+    return UncheckedCast<Type>(
+        AtomicLoad(MachineTypeOf<Type>::value, base, offset));
+  }
+  template <class Type>
+  TNode<Type> AtomicLoad64(TNode<RawPtrT> base, TNode<WordT> offset);
   // Load uncompressed tagged value from (most likely off JS heap) memory
   // location.
   TNode<Object> LoadFullTagged(
@@ -992,8 +1012,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Int32T> TruncateFloat32ToInt32(SloppyTNode<Float32T> value);
 
   // Projections
-  Node* Projection(int index, Node* value);
-
   template <int index, class T1, class T2>
   TNode<typename std::tuple_element<index, std::tuple<T1, T2>>::type>
   Projection(TNode<PairT<T1, T2>> value) {
@@ -1232,10 +1250,14 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                   const CallInterfaceDescriptor& descriptor, int input_count,
                   Node* const* inputs);
 
+  Node* AtomicLoad(MachineType type, TNode<RawPtrT> base, TNode<WordT> offset);
+
   // These two don't have definitions and are here only for catching use cases
   // where the cast is not necessary.
   TNode<Int32T> Signed(TNode<Int32T> x);
   TNode<Uint32T> Unsigned(TNode<Uint32T> x);
+
+  Node* Projection(int index, Node* value);
 
   RawMachineAssembler* raw_assembler() const;
   JSGraph* jsgraph() const;
@@ -1533,17 +1555,6 @@ class V8_EXPORT_PRIVATE ScopedExceptionHandler {
 };
 
 }  // namespace compiler
-
-#if defined(V8_HOST_ARCH_32_BIT)
-#define BINT_IS_SMI
-using BInt = Smi;
-#elif defined(V8_HOST_ARCH_64_BIT)
-#define BINT_IS_INTPTR
-using BInt = IntPtrT;
-#else
-#error Unknown architecture.
-#endif
-
 }  // namespace internal
 }  // namespace v8
 

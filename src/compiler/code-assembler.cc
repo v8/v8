@@ -667,9 +667,21 @@ TNode<Object> CodeAssembler::LoadFullTagged(Node* base, Node* offset,
       Load(MachineType::Pointer(), base, offset, needs_poisoning));
 }
 
-Node* CodeAssembler::AtomicLoad(MachineType type, Node* base, Node* offset) {
+Node* CodeAssembler::AtomicLoad(MachineType type, TNode<RawPtrT> base,
+                                TNode<WordT> offset) {
   return raw_assembler()->AtomicLoad(type, base, offset);
 }
+
+template <class Type>
+TNode<Type> CodeAssembler::AtomicLoad64(TNode<RawPtrT> base,
+                                        TNode<WordT> offset) {
+  return UncheckedCast<Type>(raw_assembler()->AtomicLoad64(base, offset));
+}
+
+template TNode<AtomicInt64> CodeAssembler::AtomicLoad64<AtomicInt64>(
+    TNode<RawPtrT> base, TNode<WordT> offset);
+template TNode<AtomicUint64> CodeAssembler::AtomicLoad64<AtomicUint64>(
+    TNode<RawPtrT> base, TNode<WordT> offset);
 
 Node* CodeAssembler::LoadFromObject(MachineType type, TNode<HeapObject> object,
                                     TNode<IntPtrT> offset) {
