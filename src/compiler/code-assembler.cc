@@ -843,14 +843,36 @@ ATOMIC_FUNCTION(Xor)
 ATOMIC_FUNCTION(Exchange)
 #undef ATOMIC_FUNCTION
 
-Node* CodeAssembler::AtomicCompareExchange(MachineType type, Node* base,
-                                           Node* offset, Node* old_value,
-                                           Node* new_value,
-                                           Node* old_value_high,
-                                           Node* new_value_high) {
-  return raw_assembler()->AtomicCompareExchange(
-      type, base, offset, old_value, old_value_high, new_value, new_value_high);
+TNode<Word32T> CodeAssembler::AtomicCompareExchange(MachineType type,
+                                                    TNode<RawPtrT> base,
+                                                    TNode<WordT> offset,
+                                                    TNode<Word32T> old_value,
+                                                    TNode<Word32T> new_value) {
+  return UncheckedCast<Word32T>(raw_assembler()->AtomicCompareExchange(
+      type, base, offset, old_value, new_value));
 }
+
+template <class Type>
+TNode<Type> CodeAssembler::AtomicCompareExchange64(
+    TNode<RawPtrT> base, TNode<WordT> offset, TNode<UintPtrT> old_value,
+    TNode<UintPtrT> new_value, TNode<UintPtrT> old_value_high,
+    TNode<UintPtrT> new_value_high) {
+  // This uses Uint64() intentionally: AtomicCompareExchange is not implemented
+  // for Int64(), which is fine because the machine instruction only cares
+  // about words.
+  return UncheckedCast<Type>(raw_assembler()->AtomicCompareExchange64(
+      base, offset, old_value, old_value_high, new_value, new_value_high));
+}
+
+template TNode<AtomicInt64> CodeAssembler::AtomicCompareExchange64<AtomicInt64>(
+    TNode<RawPtrT> base, TNode<WordT> offset, TNode<UintPtrT> old_value,
+    TNode<UintPtrT> new_value, TNode<UintPtrT> old_value_high,
+    TNode<UintPtrT> new_value_high);
+template TNode<AtomicUint64>
+CodeAssembler::AtomicCompareExchange64<AtomicUint64>(
+    TNode<RawPtrT> base, TNode<WordT> offset, TNode<UintPtrT> old_value,
+    TNode<UintPtrT> new_value, TNode<UintPtrT> old_value_high,
+    TNode<UintPtrT> new_value_high);
 
 Node* CodeAssembler::StoreRoot(RootIndex root_index, Node* value) {
   DCHECK(!RootsTable::IsImmortalImmovable(root_index));

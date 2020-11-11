@@ -10,8 +10,6 @@
 namespace v8 {
 namespace internal {
 
-using compiler::Node;
-
 class SharedArrayBufferBuiltinsAssembler : public CodeStubAssembler {
  public:
   explicit SharedArrayBufferBuiltinsAssembler(
@@ -47,8 +45,8 @@ class SharedArrayBufferBuiltinsAssembler : public CodeStubAssembler {
 
   // Create a BigInt from the result of a 64-bit atomic operation, using
   // projections on 32-bit platforms.
-  TNode<BigInt> BigIntFromSigned64(SloppyTNode<AtomicInt64> signed64);
-  TNode<BigInt> BigIntFromUnsigned64(SloppyTNode<AtomicUint64> unsigned64);
+  TNode<BigInt> BigIntFromSigned64(TNode<AtomicInt64> signed64);
+  TNode<BigInt> BigIntFromUnsigned64(TNode<AtomicUint64> unsigned64);
 };
 
 // https://tc39.es/ecma262/#sec-validateintegertypedarray
@@ -146,7 +144,7 @@ void SharedArrayBufferBuiltinsAssembler::DebugCheckAtomicIndex(
 }
 
 TNode<BigInt> SharedArrayBufferBuiltinsAssembler::BigIntFromSigned64(
-    SloppyTNode<AtomicInt64> signed64) {
+    TNode<AtomicInt64> signed64) {
 #if defined(V8_HOST_ARCH_32_BIT)
   TNode<IntPtrT> low = Projection<0>(signed64);
   TNode<IntPtrT> high = Projection<1>(signed64);
@@ -157,7 +155,7 @@ TNode<BigInt> SharedArrayBufferBuiltinsAssembler::BigIntFromSigned64(
 }
 
 TNode<BigInt> SharedArrayBufferBuiltinsAssembler::BigIntFromUnsigned64(
-    SloppyTNode<AtomicUint64> unsigned64) {
+    TNode<AtomicUint64> unsigned64) {
 #if defined(V8_HOST_ARCH_32_BIT)
   TNode<UintPtrT> low = Projection<0>(unsigned64);
   TNode<UintPtrT> high = Projection<1>(unsigned64);
@@ -559,34 +557,34 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
          arraysize(case_labels));
 
   BIND(&i8);
-  Return(SmiFromInt32(AtomicCompareExchange(MachineType::Int8(), backing_store,
-                                            index_word, old_value_word32,
-                                            new_value_word32)));
+  Return(SmiFromInt32(Signed(
+      AtomicCompareExchange(MachineType::Int8(), backing_store, index_word,
+                            old_value_word32, new_value_word32))));
 
   BIND(&u8);
-  Return(SmiFromInt32(AtomicCompareExchange(MachineType::Uint8(), backing_store,
-                                            index_word, old_value_word32,
-                                            new_value_word32)));
+  Return(SmiFromInt32(Signed(
+      AtomicCompareExchange(MachineType::Uint8(), backing_store, index_word,
+                            old_value_word32, new_value_word32))));
 
   BIND(&i16);
-  Return(SmiFromInt32(AtomicCompareExchange(
+  Return(SmiFromInt32(Signed(AtomicCompareExchange(
       MachineType::Int16(), backing_store, WordShl(index_word, 1),
-      old_value_word32, new_value_word32)));
+      old_value_word32, new_value_word32))));
 
   BIND(&u16);
-  Return(SmiFromInt32(AtomicCompareExchange(
+  Return(SmiFromInt32(Signed(AtomicCompareExchange(
       MachineType::Uint16(), backing_store, WordShl(index_word, 1),
-      old_value_word32, new_value_word32)));
+      old_value_word32, new_value_word32))));
 
   BIND(&i32);
-  Return(ChangeInt32ToTagged(AtomicCompareExchange(
+  Return(ChangeInt32ToTagged(Signed(AtomicCompareExchange(
       MachineType::Int32(), backing_store, WordShl(index_word, 2),
-      old_value_word32, new_value_word32)));
+      old_value_word32, new_value_word32))));
 
   BIND(&u32);
-  Return(ChangeUint32ToTagged(AtomicCompareExchange(
+  Return(ChangeUint32ToTagged(Unsigned(AtomicCompareExchange(
       MachineType::Uint32(), backing_store, WordShl(index_word, 2),
-      old_value_word32, new_value_word32)));
+      old_value_word32, new_value_word32))));
 
   BIND(&big);
   // 4. If typedArray.[[ContentType]] is BigInt, then
@@ -616,14 +614,14 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
   // This uses Uint64() intentionally: AtomicCompareExchange is not implemented
   // for Int64(), which is fine because the machine instruction only cares
   // about words.
-  Return(BigIntFromSigned64(AtomicCompareExchange(
-      MachineType::Uint64(), backing_store, WordShl(index_word, 3),
-      var_old_low.value(), var_new_low.value(), old_high, new_high)));
+  Return(BigIntFromSigned64(AtomicCompareExchange64<AtomicInt64>(
+      backing_store, WordShl(index_word, 3), var_old_low.value(),
+      var_new_low.value(), old_high, new_high)));
 
   BIND(&u64);
-  Return(BigIntFromUnsigned64(AtomicCompareExchange(
-      MachineType::Uint64(), backing_store, WordShl(index_word, 3),
-      var_old_low.value(), var_new_low.value(), old_high, new_high)));
+  Return(BigIntFromUnsigned64(AtomicCompareExchange64<AtomicUint64>(
+      backing_store, WordShl(index_word, 3), var_old_low.value(),
+      var_new_low.value(), old_high, new_high)));
 
   // This shouldn't happen, we've already validated the type.
   BIND(&other);

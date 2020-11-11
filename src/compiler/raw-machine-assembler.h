@@ -286,24 +286,28 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 #undef VALUE_HALVES
 
   Node* AtomicCompareExchange(MachineType type, Node* base, Node* index,
-                              Node* old_value, Node* old_value_high,
-                              Node* new_value, Node* new_value_high) {
-    if (type.representation() == MachineRepresentation::kWord64) {
-      if (machine()->Is64()) {
-        DCHECK_NULL(old_value_high);
-        DCHECK_NULL(new_value_high);
-        return AddNode(machine()->Word64AtomicCompareExchange(type), base,
-                       index, old_value, new_value);
-      } else {
-        return AddNode(machine()->Word32AtomicPairCompareExchange(), base,
-                       index, old_value, old_value_high, new_value,
-                       new_value_high);
-      }
-    }
-    DCHECK_NULL(old_value_high);
-    DCHECK_NULL(new_value_high);
+                              Node* old_value, Node* new_value) {
+    DCHECK_NE(type.representation(), MachineRepresentation::kWord64);
     return AddNode(machine()->Word32AtomicCompareExchange(type), base, index,
                    old_value, new_value);
+  }
+
+  Node* AtomicCompareExchange64(Node* base, Node* index, Node* old_value,
+                                Node* old_value_high, Node* new_value,
+                                Node* new_value_high) {
+    if (machine()->Is64()) {
+      DCHECK_NULL(old_value_high);
+      DCHECK_NULL(new_value_high);
+      // This uses Uint64() intentionally: AtomicCompareExchange is not
+      // implemented for Int64(), which is fine because the machine instruction
+      // only cares about words.
+      return AddNode(
+          machine()->Word64AtomicCompareExchange(MachineType::Uint64()), base,
+          index, old_value, new_value);
+    } else {
+      return AddNode(machine()->Word32AtomicPairCompareExchange(), base, index,
+                     old_value, old_value_high, new_value, new_value_high);
+    }
   }
 
   // Arithmetic Operations.

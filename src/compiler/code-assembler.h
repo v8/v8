@@ -844,10 +844,18 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                TNode<UintPtrT> value_high);
 
   // Compare and Exchange value at raw memory location
-  Node* AtomicCompareExchange(MachineType type, Node* base, Node* offset,
-                              Node* old_value, Node* new_value,
-                              Node* old_value_high = nullptr,
-                              Node* new_value_high = nullptr);
+  TNode<Word32T> AtomicCompareExchange(MachineType type, TNode<RawPtrT> base,
+                                       TNode<WordT> offset,
+                                       TNode<Word32T> old_value,
+                                       TNode<Word32T> new_value);
+
+  template <class Type>
+  TNode<Type> AtomicCompareExchange64(TNode<RawPtrT> base, TNode<WordT> offset,
+                                      TNode<UintPtrT> old_value,
+                                      TNode<UintPtrT> new_value,
+                                      TNode<UintPtrT> old_value_high,
+                                      TNode<UintPtrT> new_value_high);
+
   // Store a value to the root array.
   Node* StoreRoot(RootIndex root_index, Node* value);
 
