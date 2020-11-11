@@ -767,22 +767,22 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Object> LoadRoot(RootIndex root_index);
 
   // Store value to raw memory location.
-  Node* Store(Node* base, Node* value);
-  Node* Store(Node* base, Node* offset, Node* value);
-  Node* StoreEphemeronKey(Node* base, Node* offset, Node* value);
-  Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* value);
-  Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* offset,
-                            Node* value);
-  Node* UnsafeStoreNoWriteBarrier(MachineRepresentation rep, Node* base,
-                                  Node* value);
-  Node* UnsafeStoreNoWriteBarrier(MachineRepresentation rep, Node* base,
-                                  Node* offset, Node* value);
+  void Store(Node* base, Node* value);
+  void Store(Node* base, Node* offset, Node* value);
+  void StoreEphemeronKey(Node* base, Node* offset, Node* value);
+  void StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* value);
+  void StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* offset,
+                           Node* value);
+  void UnsafeStoreNoWriteBarrier(MachineRepresentation rep, Node* base,
+                                 Node* value);
+  void UnsafeStoreNoWriteBarrier(MachineRepresentation rep, Node* base,
+                                 Node* offset, Node* value);
 
   // Stores uncompressed tagged value to (most likely off JS heap) memory
   // location without write barrier.
-  Node* StoreFullTaggedNoWriteBarrier(Node* base, Node* tagged_value);
-  Node* StoreFullTaggedNoWriteBarrier(Node* base, Node* offset,
-                                      Node* tagged_value);
+  void StoreFullTaggedNoWriteBarrier(Node* base, Node* tagged_value);
+  void StoreFullTaggedNoWriteBarrier(Node* base, Node* offset,
+                                     Node* tagged_value);
 
   // Optimized memory operations that map to Turbofan simplified nodes.
   TNode<HeapObject> OptimizedAllocate(TNode<IntPtrT> size,
@@ -859,7 +859,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                       TNode<UintPtrT> new_value_high);
 
   // Store a value to the root array.
-  Node* StoreRoot(RootIndex root_index, Node* value);
+  void StoreRoot(RootIndex root_index, Node* value);
 
 // Basic arithmetic operations.
 #define DECLARE_CODE_ASSEMBLER_BINARY_OP(name, ResType, Arg1Type, Arg2Type) \

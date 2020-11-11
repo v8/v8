@@ -708,9 +708,9 @@ TNode<Object> CodeAssembler::LoadRoot(RootIndex root_index) {
       LoadFullTagged(isolate_root, IntPtrConstant(offset)));
 }
 
-Node* CodeAssembler::Store(Node* base, Node* value) {
-  return raw_assembler()->Store(MachineRepresentation::kTagged, base, value,
-                                kFullWriteBarrier);
+void CodeAssembler::Store(Node* base, Node* value) {
+  raw_assembler()->Store(MachineRepresentation::kTagged, base, value,
+                         kFullWriteBarrier);
 }
 
 void CodeAssembler::StoreToObject(MachineRepresentation rep,
@@ -763,51 +763,51 @@ void CodeAssembler::OptimizedStoreMap(TNode<HeapObject> object,
   raw_assembler()->OptimizedStoreMap(object, map);
 }
 
-Node* CodeAssembler::Store(Node* base, Node* offset, Node* value) {
-  return raw_assembler()->Store(MachineRepresentation::kTagged, base, offset,
-                                value, kFullWriteBarrier);
+void CodeAssembler::Store(Node* base, Node* offset, Node* value) {
+  raw_assembler()->Store(MachineRepresentation::kTagged, base, offset, value,
+                         kFullWriteBarrier);
 }
 
-Node* CodeAssembler::StoreEphemeronKey(Node* base, Node* offset, Node* value) {
-  return raw_assembler()->Store(MachineRepresentation::kTagged, base, offset,
-                                value, kEphemeronKeyWriteBarrier);
+void CodeAssembler::StoreEphemeronKey(Node* base, Node* offset, Node* value) {
+  raw_assembler()->Store(MachineRepresentation::kTagged, base, offset, value,
+                         kEphemeronKeyWriteBarrier);
 }
 
-Node* CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
-                                         Node* value) {
-  return raw_assembler()->Store(
+void CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
+                                        Node* value) {
+  raw_assembler()->Store(
       rep, base, value,
       CanBeTaggedPointer(rep) ? kAssertNoWriteBarrier : kNoWriteBarrier);
 }
 
-Node* CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
-                                         Node* offset, Node* value) {
-  return raw_assembler()->Store(
+void CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
+                                        Node* offset, Node* value) {
+  raw_assembler()->Store(
       rep, base, offset, value,
       CanBeTaggedPointer(rep) ? kAssertNoWriteBarrier : kNoWriteBarrier);
 }
 
-Node* CodeAssembler::UnsafeStoreNoWriteBarrier(MachineRepresentation rep,
-                                               Node* base, Node* value) {
-  return raw_assembler()->Store(rep, base, value, kNoWriteBarrier);
+void CodeAssembler::UnsafeStoreNoWriteBarrier(MachineRepresentation rep,
+                                              Node* base, Node* value) {
+  raw_assembler()->Store(rep, base, value, kNoWriteBarrier);
 }
 
-Node* CodeAssembler::UnsafeStoreNoWriteBarrier(MachineRepresentation rep,
-                                               Node* base, Node* offset,
-                                               Node* value) {
-  return raw_assembler()->Store(rep, base, offset, value, kNoWriteBarrier);
+void CodeAssembler::UnsafeStoreNoWriteBarrier(MachineRepresentation rep,
+                                              Node* base, Node* offset,
+                                              Node* value) {
+  raw_assembler()->Store(rep, base, offset, value, kNoWriteBarrier);
 }
 
-Node* CodeAssembler::StoreFullTaggedNoWriteBarrier(Node* base,
-                                                   Node* tagged_value) {
-  return StoreNoWriteBarrier(MachineType::PointerRepresentation(), base,
-                             BitcastTaggedToWord(tagged_value));
+void CodeAssembler::StoreFullTaggedNoWriteBarrier(Node* base,
+                                                  Node* tagged_value) {
+  StoreNoWriteBarrier(MachineType::PointerRepresentation(), base,
+                      BitcastTaggedToWord(tagged_value));
 }
 
-Node* CodeAssembler::StoreFullTaggedNoWriteBarrier(Node* base, Node* offset,
-                                                   Node* tagged_value) {
-  return StoreNoWriteBarrier(MachineType::PointerRepresentation(), base, offset,
-                             BitcastTaggedToWord(tagged_value));
+void CodeAssembler::StoreFullTaggedNoWriteBarrier(Node* base, Node* offset,
+                                                  Node* tagged_value) {
+  StoreNoWriteBarrier(MachineType::PointerRepresentation(), base, offset,
+                      BitcastTaggedToWord(tagged_value));
 }
 
 void CodeAssembler::AtomicStore(MachineRepresentation rep, TNode<RawPtrT> base,
@@ -880,13 +880,12 @@ CodeAssembler::AtomicCompareExchange64<AtomicUint64>(
     TNode<UintPtrT> new_value, TNode<UintPtrT> old_value_high,
     TNode<UintPtrT> new_value_high);
 
-Node* CodeAssembler::StoreRoot(RootIndex root_index, Node* value) {
+void CodeAssembler::StoreRoot(RootIndex root_index, Node* value) {
   DCHECK(!RootsTable::IsImmortalImmovable(root_index));
   TNode<ExternalReference> isolate_root =
       ExternalConstant(ExternalReference::isolate_root(isolate()));
   int offset = IsolateData::root_slot_offset(root_index);
-  return StoreFullTaggedNoWriteBarrier(isolate_root, IntPtrConstant(offset),
-                                       value);
+  StoreFullTaggedNoWriteBarrier(isolate_root, IntPtrConstant(offset), value);
 }
 
 Node* CodeAssembler::Projection(int index, Node* value) {
