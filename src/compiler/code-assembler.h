@@ -805,25 +805,43 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* AtomicStore(MachineRepresentation rep, Node* base, Node* offset,
                     Node* value, Node* value_high = nullptr);
 
-  Node* AtomicAdd(MachineType type, TNode<RawPtrT> base, TNode<UintPtrT> offset,
-                  Node* value, base::Optional<TNode<UintPtrT>> value_high);
+  TNode<Word32T> AtomicAdd(MachineType type, TNode<RawPtrT> base,
+                           TNode<UintPtrT> offset, TNode<Word32T> value);
+  template <class Type>
+  TNode<Type> AtomicAdd64(TNode<RawPtrT> base, TNode<UintPtrT> offset,
+                          TNode<UintPtrT> value, TNode<UintPtrT> value_high);
 
-  Node* AtomicSub(MachineType type, TNode<RawPtrT> base, TNode<UintPtrT> offset,
-                  Node* value, base::Optional<TNode<UintPtrT>> value_high);
+  TNode<Word32T> AtomicSub(MachineType type, TNode<RawPtrT> base,
+                           TNode<UintPtrT> offset, TNode<Word32T> value);
+  template <class Type>
+  TNode<Type> AtomicSub64(TNode<RawPtrT> base, TNode<UintPtrT> offset,
+                          TNode<UintPtrT> value, TNode<UintPtrT> value_high);
 
-  Node* AtomicAnd(MachineType type, TNode<RawPtrT> base, TNode<UintPtrT> offset,
-                  Node* value, base::Optional<TNode<UintPtrT>> value_high);
+  TNode<Word32T> AtomicAnd(MachineType type, TNode<RawPtrT> base,
+                           TNode<UintPtrT> offset, TNode<Word32T> value);
+  template <class Type>
+  TNode<Type> AtomicAnd64(TNode<RawPtrT> base, TNode<UintPtrT> offset,
+                          TNode<UintPtrT> value, TNode<UintPtrT> value_high);
 
-  Node* AtomicOr(MachineType type, TNode<RawPtrT> base, TNode<UintPtrT> offset,
-                 Node* value, base::Optional<TNode<UintPtrT>> value_high);
+  TNode<Word32T> AtomicOr(MachineType type, TNode<RawPtrT> base,
+                          TNode<UintPtrT> offset, TNode<Word32T> value);
+  template <class Type>
+  TNode<Type> AtomicOr64(TNode<RawPtrT> base, TNode<UintPtrT> offset,
+                         TNode<UintPtrT> value, TNode<UintPtrT> value_high);
 
-  Node* AtomicXor(MachineType type, TNode<RawPtrT> base, TNode<UintPtrT> offset,
-                  Node* value, base::Optional<TNode<UintPtrT>> value_high);
+  TNode<Word32T> AtomicXor(MachineType type, TNode<RawPtrT> base,
+                           TNode<UintPtrT> offset, TNode<Word32T> value);
+  template <class Type>
+  TNode<Type> AtomicXor64(TNode<RawPtrT> base, TNode<UintPtrT> offset,
+                          TNode<UintPtrT> value, TNode<UintPtrT> value_high);
 
   // Exchange value at raw memory location
-  Node* AtomicExchange(MachineType type, TNode<RawPtrT> base,
-                       TNode<UintPtrT> offset, Node* value,
-                       base::Optional<TNode<UintPtrT>> value_high);
+  TNode<Word32T> AtomicExchange(MachineType type, TNode<RawPtrT> base,
+                                TNode<UintPtrT> offset, TNode<Word32T> value);
+  template <class Type>
+  TNode<Type> AtomicExchange64(TNode<RawPtrT> base, TNode<UintPtrT> offset,
+                               TNode<UintPtrT> value,
+                               TNode<UintPtrT> value_high);
 
   // Compare and Exchange value at raw memory location
   Node* AtomicCompareExchange(MachineType type, Node* base, Node* offset,

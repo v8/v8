@@ -19,10 +19,13 @@ class SharedArrayBufferBuiltinsAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
  protected:
-  using AssemblerFunction =
-      Node* (CodeAssembler::*)(MachineType type, TNode<RawPtrT> base,
-                               TNode<UintPtrT> offset, Node* value,
-                               base::Optional<TNode<UintPtrT>> value_high);
+  using AssemblerFunction = TNode<Word32T> (CodeAssembler::*)(
+      MachineType type, TNode<RawPtrT> base, TNode<UintPtrT> offset,
+      TNode<Word32T> value);
+  template <class Type>
+  using AssemblerFunction64 = TNode<Type> (CodeAssembler::*)(
+      TNode<RawPtrT> base, TNode<UintPtrT> offset, TNode<UintPtrT> value,
+      TNode<UintPtrT> value_high);
   TNode<JSArrayBuffer> ValidateIntegerTypedArray(
       TNode<Object> maybe_array, TNode<Context> context,
       TNode<Int32T>* out_elements_kind, TNode<RawPtrT>* out_backing_store,
@@ -35,11 +38,12 @@ class SharedArrayBufferBuiltinsAssembler : public CodeStubAssembler {
   inline void DebugCheckAtomicIndex(TNode<JSTypedArray> array,
                                     TNode<UintPtrT> index);
 
-  void AtomicBinopBuiltinCommon(TNode<Object> maybe_array, TNode<Object> index,
-                                TNode<Object> value, TNode<Context> context,
-                                AssemblerFunction function,
-                                Runtime::FunctionId runtime_function,
-                                const char* method_name);
+  void AtomicBinopBuiltinCommon(
+      TNode<Object> maybe_array, TNode<Object> index, TNode<Object> value,
+      TNode<Context> context, AssemblerFunction function,
+      AssemblerFunction64<AtomicInt64> function_int_64,
+      AssemblerFunction64<AtomicUint64> function_uint_64,
+      Runtime::FunctionId runtime_function, const char* method_name);
 
   // Create a BigInt from the result of a 64-bit atomic operation, using
   // projections on 32-bit platforms.
@@ -418,32 +422,32 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
          arraysize(case_labels));
 
   BIND(&i8);
-  Return(SmiFromInt32(AtomicExchange(MachineType::Int8(), backing_store,
-                                     index_word, value_word32, base::nullopt)));
+  Return(SmiFromInt32(Signed(AtomicExchange(MachineType::Int8(), backing_store,
+                                            index_word, value_word32))));
 
   BIND(&u8);
-  Return(SmiFromInt32(AtomicExchange(MachineType::Uint8(), backing_store,
-                                     index_word, value_word32, base::nullopt)));
+  Return(SmiFromInt32(Signed(AtomicExchange(MachineType::Uint8(), backing_store,
+                                            index_word, value_word32))));
 
   BIND(&i16);
-  Return(SmiFromInt32(AtomicExchange(MachineType::Int16(), backing_store,
-                                     WordShl(index_word, UintPtrConstant(1)),
-                                     value_word32, base::nullopt)));
+  Return(SmiFromInt32(Signed(
+      AtomicExchange(MachineType::Int16(), backing_store,
+                     WordShl(index_word, UintPtrConstant(1)), value_word32))));
 
   BIND(&u16);
-  Return(SmiFromInt32(AtomicExchange(MachineType::Uint16(), backing_store,
-                                     WordShl(index_word, UintPtrConstant(1)),
-                                     value_word32, base::nullopt)));
+  Return(SmiFromInt32(Signed(
+      AtomicExchange(MachineType::Uint16(), backing_store,
+                     WordShl(index_word, UintPtrConstant(1)), value_word32))));
 
   BIND(&i32);
-  Return(ChangeInt32ToTagged(AtomicExchange(
-      MachineType::Int32(), backing_store,
-      WordShl(index_word, UintPtrConstant(2)), value_word32, base::nullopt)));
+  Return(ChangeInt32ToTagged(Signed(
+      AtomicExchange(MachineType::Int32(), backing_store,
+                     WordShl(index_word, UintPtrConstant(2)), value_word32))));
 
   BIND(&u32);
-  Return(ChangeUint32ToTagged(AtomicExchange(
-      MachineType::Uint32(), backing_store,
-      WordShl(index_word, UintPtrConstant(2)), value_word32, base::nullopt)));
+  Return(ChangeUint32ToTagged(Unsigned(
+      AtomicExchange(MachineType::Uint32(), backing_store,
+                     WordShl(index_word, UintPtrConstant(2)), value_word32))));
 
   BIND(&big);
   // 4. If typedArray.[[ContentType]] is BigInt, let v be ? ToBigInt(value).
@@ -463,17 +467,14 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
   Unreachable();
 
   BIND(&i64);
-  // This uses Uint64() intentionally: AtomicExchange is not implemented for
-  // Int64(), which is fine because the machine instruction only cares
-  // about words.
-  Return(BigIntFromSigned64(AtomicExchange(
-      MachineType::Uint64(), backing_store,
-      WordShl(index_word, UintPtrConstant(3)), var_low.value(), high)));
+  Return(BigIntFromSigned64(AtomicExchange64<AtomicInt64>(
+      backing_store, WordShl(index_word, UintPtrConstant(3)), var_low.value(),
+      high)));
 
   BIND(&u64);
-  Return(BigIntFromUnsigned64(AtomicExchange(
-      MachineType::Uint64(), backing_store,
-      WordShl(index_word, UintPtrConstant(3)), var_low.value(), high)));
+  Return(BigIntFromUnsigned64(AtomicExchange64<AtomicUint64>(
+      backing_store, WordShl(index_word, UintPtrConstant(3)), var_low.value(),
+      high)));
 
   // This shouldn't happen, we've already validated the type.
   BIND(&other);
@@ -637,15 +638,17 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
   }
 }
 
-#define BINOP_BUILTIN(op, method_name)                            \
-  TF_BUILTIN(Atomics##op, SharedArrayBufferBuiltinsAssembler) {   \
-    auto array = Parameter<Object>(Descriptor::kArray);           \
-    auto index = Parameter<Object>(Descriptor::kIndex);           \
-    auto value = Parameter<Object>(Descriptor::kValue);           \
-    auto context = Parameter<Context>(Descriptor::kContext);      \
-    AtomicBinopBuiltinCommon(array, index, value, context,        \
-                             &CodeAssembler::Atomic##op,          \
-                             Runtime::kAtomics##op, method_name); \
+#define BINOP_BUILTIN(op, method_name)                                        \
+  TF_BUILTIN(Atomics##op, SharedArrayBufferBuiltinsAssembler) {               \
+    auto array = Parameter<Object>(Descriptor::kArray);                       \
+    auto index = Parameter<Object>(Descriptor::kIndex);                       \
+    auto value = Parameter<Object>(Descriptor::kValue);                       \
+    auto context = Parameter<Context>(Descriptor::kContext);                  \
+    AtomicBinopBuiltinCommon(array, index, value, context,                    \
+                             &CodeAssembler::Atomic##op,                      \
+                             &CodeAssembler::Atomic##op##64 < AtomicInt64 >,  \
+                             &CodeAssembler::Atomic##op##64 < AtomicUint64 >, \
+                             Runtime::kAtomics##op, method_name);             \
   }
 // https://tc39.es/ecma262/#sec-atomics.add
 BINOP_BUILTIN(Add, "Atomics.add")
@@ -663,6 +666,8 @@ BINOP_BUILTIN(Xor, "Atomics.xor")
 void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
     TNode<Object> maybe_array, TNode<Object> index, TNode<Object> value,
     TNode<Context> context, AssemblerFunction function,
+    AssemblerFunction64<AtomicInt64> function_int_64,
+    AssemblerFunction64<AtomicUint64> function_uint_64,
     Runtime::FunctionId runtime_function, const char* method_name) {
   // 1. Let buffer be ? ValidateIntegerTypedArray(typedArray).
   Label detached(this);
@@ -718,29 +723,27 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
          arraysize(case_labels));
 
   BIND(&i8);
-  Return(
-      SmiFromInt32((this->*function)(MachineType::Int8(), backing_store,
-                                     index_word, value_word32, base::nullopt)));
+  Return(SmiFromInt32(Signed((this->*function)(
+      MachineType::Int8(), backing_store, index_word, value_word32))));
   BIND(&u8);
-  Return(
-      SmiFromInt32((this->*function)(MachineType::Uint8(), backing_store,
-                                     index_word, value_word32, base::nullopt)));
+  Return(SmiFromInt32(Signed((this->*function)(
+      MachineType::Uint8(), backing_store, index_word, value_word32))));
   BIND(&i16);
-  Return(SmiFromInt32((this->*function)(MachineType::Int16(), backing_store,
-                                        WordShl(index_word, UintPtrConstant(1)),
-                                        value_word32, base::nullopt)));
+  Return(SmiFromInt32(Signed((this->*function)(
+      MachineType::Int16(), backing_store,
+      WordShl(index_word, UintPtrConstant(1)), value_word32))));
   BIND(&u16);
-  Return(SmiFromInt32((this->*function)(MachineType::Uint16(), backing_store,
-                                        WordShl(index_word, UintPtrConstant(1)),
-                                        value_word32, base::nullopt)));
+  Return(SmiFromInt32(Signed((this->*function)(
+      MachineType::Uint16(), backing_store,
+      WordShl(index_word, UintPtrConstant(1)), value_word32))));
   BIND(&i32);
-  Return(ChangeInt32ToTagged((this->*function)(
+  Return(ChangeInt32ToTagged(Signed((this->*function)(
       MachineType::Int32(), backing_store,
-      WordShl(index_word, UintPtrConstant(2)), value_word32, base::nullopt)));
+      WordShl(index_word, UintPtrConstant(2)), value_word32))));
   BIND(&u32);
-  Return(ChangeUint32ToTagged((this->*function)(
+  Return(ChangeUint32ToTagged(Unsigned((this->*function)(
       MachineType::Uint32(), backing_store,
-      WordShl(index_word, UintPtrConstant(2)), value_word32, base::nullopt)));
+      WordShl(index_word, UintPtrConstant(2)), value_word32))));
   BIND(&big);
   // 4. If typedArray.[[ContentType]] is BigInt, let v be ? ToBigInt(value).
   TNode<BigInt> value_bigint = ToBigInt(context, value);
@@ -759,17 +762,14 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
   Unreachable();
 
   BIND(&i64);
-  // This uses Uint64() intentionally: Atomic* ops are not implemented for
-  // Int64(), which is fine because the machine instructions only care
-  // about words.
-  Return(BigIntFromSigned64((this->*function)(
-      MachineType::Uint64(), backing_store,
-      WordShl(index_word, UintPtrConstant(3)), var_low.value(), high)));
+  Return(BigIntFromSigned64((this->*function_int_64)(
+      backing_store, WordShl(index_word, UintPtrConstant(3)), var_low.value(),
+      high)));
   BIND(&u64);
-  Return(BigIntFromUnsigned64((this->*function)(
-      MachineType::Uint64(), backing_store,
-      WordShl(index_word, UintPtrConstant(3)), var_low.value(), high)));
-  // This shouldn't happen, we've already validated the type.
+  Return(BigIntFromUnsigned64((this->*function_uint_64)(
+      backing_store, WordShl(index_word, UintPtrConstant(3)), var_low.value(),
+      high)));
+  // // This shouldn't happen, we've already validated the type.
   BIND(&other);
   Unreachable();
 #endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64

@@ -815,15 +815,26 @@ Node* CodeAssembler::AtomicStore(MachineRepresentation rep, Node* base,
   return raw_assembler()->AtomicStore(rep, base, offset, value, value_high);
 }
 
-#define ATOMIC_FUNCTION(name)                                        \
-  Node* CodeAssembler::Atomic##name(                                 \
-      MachineType type, TNode<RawPtrT> base, TNode<UintPtrT> offset, \
-      Node* value, base::Optional<TNode<UintPtrT>> value_high) {     \
-    Node* value_high_node = nullptr;                                 \
-    if (value_high) value_high_node = *value_high;                   \
-    return raw_assembler()->Atomic##name(type, base, offset, value,  \
-                                         value_high_node);           \
-  }
+#define ATOMIC_FUNCTION(name)                                                 \
+  TNode<Word32T> CodeAssembler::Atomic##name(                                 \
+      MachineType type, TNode<RawPtrT> base, TNode<UintPtrT> offset,          \
+      TNode<Word32T> value) {                                                 \
+    return UncheckedCast<Word32T>(                                            \
+        raw_assembler()->Atomic##name(type, base, offset, value));            \
+  }                                                                           \
+  template <class Type>                                                       \
+  TNode<Type> CodeAssembler::Atomic##name##64(                                \
+      TNode<RawPtrT> base, TNode<UintPtrT> offset, TNode<UintPtrT> value,     \
+      TNode<UintPtrT> value_high) {                                           \
+    return UncheckedCast<Type>(                                               \
+        raw_assembler()->Atomic##name##64(base, offset, value, value_high));  \
+  }                                                                           \
+  template TNode<AtomicInt64> CodeAssembler::Atomic##name##64 < AtomicInt64 > \
+      (TNode<RawPtrT> base, TNode<UintPtrT> offset, TNode<UintPtrT> value,    \
+       TNode<UintPtrT> value_high);                                           \
+  template TNode<AtomicUint64> CodeAssembler::Atomic##name##64 <              \
+      AtomicUint64 > (TNode<RawPtrT> base, TNode<UintPtrT> offset,            \
+                      TNode<UintPtrT> value, TNode<UintPtrT> value_high);
 ATOMIC_FUNCTION(Add)
 ATOMIC_FUNCTION(Sub)
 ATOMIC_FUNCTION(And)
