@@ -2800,9 +2800,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     info->set_language_mode(LanguageMode::kStrict);
 
     Handle<JSFunction> cons =
-        Factory::JSFunctionBuilder{isolate(), info, context}
-            .set_map(isolate()->strict_function_map())
-            .Build();
+        Factory::JSFunctionBuilder{isolate(), info, context}.Build();
     Handle<JSObject> empty = factory->NewJSObject(isolate_->object_function());
     JSFunction::SetPrototype(cons, empty);
 

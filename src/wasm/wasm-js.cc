@@ -2099,9 +2099,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
       factory->NewSharedFunctionInfoForBuiltin(name, Builtins::kIllegal);
   info->set_language_mode(LanguageMode::kStrict);
 
-  Handle<JSFunction> cons = Factory::JSFunctionBuilder{isolate, info, context}
-                                .set_map(isolate->strict_function_map())
-                                .Build();
+  Handle<JSFunction> cons =
+      Factory::JSFunctionBuilder{isolate, info, context}.Build();
   JSFunction::SetPrototype(cons, isolate->initial_object_prototype());
   Handle<JSObject> webassembly =
       factory->NewJSObject(cons, AllocationType::kOld);

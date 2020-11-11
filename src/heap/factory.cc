@@ -3461,7 +3461,6 @@ Handle<JSFunction> Factory::NewFunctionForTesting(Handle<String> name) {
       NewSharedFunctionInfoForBuiltin(name, Builtins::kIllegal);
   info->set_language_mode(LanguageMode::kSloppy);
   return JSFunctionBuilder{isolate(), info, isolate()->native_context()}
-      .set_map(isolate()->sloppy_function_map())
       .Build();
 }
 

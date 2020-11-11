@@ -168,7 +168,6 @@ BUILTIN(ConsoleContext) {
 
   Handle<JSFunction> cons =
       Factory::JSFunctionBuilder{isolate, info, isolate->native_context()}
-          .set_map(isolate->sloppy_function_map())
           .Build();
 
   Handle<JSObject> prototype = factory->NewJSObject(isolate->object_function());

@@ -142,9 +142,7 @@ TEST(StressJS) {
       factory->function_string(), Builtins::kEmptyFunction);
   info->set_language_mode(LanguageMode::kStrict);
   Handle<JSFunction> function =
-      Factory::JSFunctionBuilder{isolate, info, context}
-          .set_map(isolate->sloppy_function_map())
-          .Build();
+      Factory::JSFunctionBuilder{isolate, info, context}.Build();
   CHECK(!function->shared().construct_as_builtin());
 
   // Force the creation of an initial map.
