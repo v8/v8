@@ -4177,7 +4177,6 @@ v8_component("v8_libbase") {
 
     libs = [
       "dl",
-      "rt",
     ]
   } else if (is_android) {
     if (current_toolchain == host_toolchain) {
