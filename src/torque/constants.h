@@ -103,6 +103,8 @@ static const char* const ANNOTATION_EXPORT = "@export";
 static const char* const ANNOTATION_DO_NOT_GENERATE_CAST = "@doNotGenerateCast";
 static const char* const ANNOTATION_USE_PARENT_TYPE_CHECKER =
     "@useParentTypeChecker";
+// Generate C++ accessors with relaxed write semantics.
+static const char* const ANNOTATION_RELAXED_WRITE = "@relaxedWrite";
 
 inline bool IsConstexprName(const std::string& name) {
   return name.substr(0, std::strlen(CONSTEXPR_TYPE_PREFIX)) ==

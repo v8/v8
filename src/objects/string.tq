@@ -18,7 +18,6 @@ extern class ConsString extends String {
 }
 
 @abstract
-@generateBodyDescriptor
 @doNotGenerateCast
 extern class ExternalString extends String {
   resource: ExternalPointer;

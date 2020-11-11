@@ -22,7 +22,6 @@ namespace internal {
   V(Cell)                              \
   V(Code)                              \
   V(CodeDataContainer)                 \
-  V(Context)                           \
   V(CoverageInfo)                      \
   V(DataHandler)                       \
   V(EmbedderDataArray)                 \

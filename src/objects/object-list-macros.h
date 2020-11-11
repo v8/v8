@@ -98,7 +98,6 @@ class ZoneForwardList;
   V(CompilationCacheTable)                     \
   V(ConsString)                                \
   V(Constructor)                               \
-  V(Context)                                   \
   V(CoverageInfo)                              \
   V(ClosureFeedbackCellArray)                  \
   V(DataHandler)                               \

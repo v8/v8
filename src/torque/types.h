@@ -227,6 +227,7 @@ struct Field {
   bool is_weak;
   bool const_qualified;
   bool generate_verify;
+  bool relaxed_write;
 };
 
 std::ostream& operator<<(std::ostream& os, const Field& name_and_type);
@@ -668,8 +669,8 @@ class ClassType final : public AggregateType {
                            (!HasUndefinedLayout() && !IsShape()));
   }
   bool ShouldGenerateBodyDescriptor() const {
-    if (IsAbstract()) return false;
-    return flags_ & ClassFlag::kGenerateBodyDescriptor || !IsExtern();
+    return flags_ & ClassFlag::kGenerateBodyDescriptor ||
+           (!IsAbstract() && !IsExtern());
   }
   bool DoNotGenerateCast() const {
     return flags_ & ClassFlag::kDoNotGenerateCast;

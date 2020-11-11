@@ -212,6 +212,7 @@ const StructType* TypeVisitor::ComputeType(
             offset.SingleValue(),
             false,
             field.const_qualified,
+            false,
             false};
     auto optional_size = SizeOf(f.name_and_type.type);
     struct_type->RegisterField(f);
@@ -313,8 +314,7 @@ const ClassType* TypeVisitor::ComputeType(
         Error("non-external classes must have defined layouts");
       }
     }
-    flags = flags | ClassFlag::kGeneratePrint | ClassFlag::kGenerateVerify |
-            ClassFlag::kGenerateBodyDescriptor;
+    flags = flags | ClassFlag::kGeneratePrint | ClassFlag::kGenerateVerify;
   }
   if (!(flags & ClassFlag::kExtern) &&
       (flags & ClassFlag::kHasSameInstanceTypeAsParent)) {
@@ -428,7 +428,8 @@ void TypeVisitor::VisitClassFieldsAndMethods(
          class_offset.SingleValue(),
          field_expression.weak,
          field_expression.const_qualified,
-         field_expression.generate_verify});
+         field_expression.generate_verify,
+         field_expression.relaxed_write});
     ResidueClass field_size = std::get<0>(field.GetFieldSizeInformation());
     if (field.index) {
       // Validate that a value at any index in a packed array is aligned

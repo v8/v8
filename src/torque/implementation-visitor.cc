@@ -3781,8 +3781,9 @@ void CppClassGenerator::GenerateClass() {
   if (!index_fields.has_value()) {
     hdr_ << "  // SizeFor implementations not generated due to complex array "
             "lengths\n\n";
-  } else if (!type_->IsAbstract() &&
-             !type_->IsSubtypeOf(TypeOracle::GetJSObjectType())) {
+  } else if (type_->ShouldGenerateBodyDescriptor() ||
+             (!type_->IsAbstract() &&
+              !type_->IsSubtypeOf(TypeOracle::GetJSObjectType()))) {
     hdr_ << "  V8_INLINE static constexpr int32_t SizeFor(";
     bool first = true;
     for (const Field& field : *index_fields) {
@@ -4060,12 +4061,15 @@ void CppClassGenerator::GenerateFieldAccessorForSmi(const Field& f) {
     inl_ << "int i, ";
   }
   inl_ << type << " value) {\n";
+  const char* write_macro =
+      f.relaxed_write ? "RELAXED_WRITE_FIELD" : "WRITE_FIELD";
   if (f.index) {
     GenerateBoundsDCheck(inl_, "i", type_, f);
     inl_ << "  int offset = " << offset << " + i * kTaggedSize;\n";
-    inl_ << "  WRITE_FIELD(*this, offset, Smi::FromInt(value));\n";
+    inl_ << "  " << write_macro << "(*this, offset, Smi::FromInt(value));\n";
   } else {
-    inl_ << "  WRITE_FIELD(*this, " << offset << ", Smi::FromInt(value));\n";
+    inl_ << "  " << write_macro << "(*this, " << offset
+         << ", Smi::FromInt(value));\n";
   }
   inl_ << "}\n\n";
 }
@@ -4105,12 +4109,6 @@ void CppClassGenerator::GenerateFieldAccessorForTagged(const Field& f) {
   inl_ << type << " " << gen_name_ << "<D, P>::" << name
        << "(IsolateRoot isolate" << (f.index ? ", int i" : "") << ") const {\n";
 
-  // TODO(tebbi): The distinction between relaxed and non-relaxed accesses here
-  // is pretty arbitrary and just tries to preserve what was there before.
-  // It currently doesn't really make a difference due to concurrent marking
-  // turning all loads and stores to be relaxed. We should probably drop the
-  // distinction at some point, even though in principle non-relaxed operations
-  // would give us TSAN protection.
   if (f.index) {
     GenerateBoundsDCheck(inl_, "i", type_, f);
     inl_ << "  int offset = " << offset << " + i * kTaggedSize;\n";
@@ -4135,16 +4133,15 @@ void CppClassGenerator::GenerateFieldAccessorForTagged(const Field& f) {
   if (!type_check.empty()) {
     inl_ << "  SLOW_DCHECK(" << type_check << ");\n";
   }
+  const char* write_macro =
+      strong_pointer ? (f.relaxed_write ? "RELAXED_WRITE_FIELD" : "WRITE_FIELD")
+                     : "RELAXED_WRITE_WEAK_FIELD";
   if (f.index) {
     GenerateBoundsDCheck(inl_, "i", type_, f);
-    const char* write_macro =
-        strong_pointer ? "WRITE_FIELD" : "RELAXED_WRITE_WEAK_FIELD";
     inl_ << "  int offset = " << offset << " + i * kTaggedSize;\n";
     offset = "offset";
     inl_ << "  " << write_macro << "(*this, offset, value);\n";
   } else {
-    const char* write_macro =
-        strong_pointer ? "RELAXED_WRITE_FIELD" : "RELAXED_WRITE_WEAK_FIELD";
     inl_ << "  " << write_macro << "(*this, " << offset << ", value);\n";
   }
   const char* write_barrier = strong_pointer ? "CONDITIONAL_WRITE_BARRIER"

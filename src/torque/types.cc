@@ -903,9 +903,6 @@ void ClassType::GenerateSliceAccessor(size_t field_index) {
 }
 
 bool ClassType::HasStaticSize() const {
-  // Abstract classes don't have instances directly, so asking this question
-  // doesn't make sense.
-  DCHECK(!IsAbstract());
   if (IsSubtypeOf(TypeOracle::GetJSObjectType()) && !IsShape()) return false;
   return size().SingleValue().has_value();
 }
