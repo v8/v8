@@ -1619,7 +1619,6 @@ const char* ReadString(unsigned* start) {
 enum ParserFlag {
   kAllowLazy,
   kAllowNatives,
-  kAllowHarmonyPrivateMethods,
   kAllowHarmonyLogicalAssignment,
 };
 
@@ -1631,7 +1630,6 @@ enum ParserSyncTestResult {
 
 void SetGlobalFlags(base::EnumSet<ParserFlag> flags) {
   i::FLAG_allow_natives_syntax = flags.contains(kAllowNatives);
-  i::FLAG_harmony_private_methods = flags.contains(kAllowHarmonyPrivateMethods);
   i::FLAG_harmony_logical_assignment =
       flags.contains(kAllowHarmonyLogicalAssignment);
 }
@@ -1639,8 +1637,6 @@ void SetGlobalFlags(base::EnumSet<ParserFlag> flags) {
 void SetParserFlags(i::UnoptimizedCompileFlags* compile_flags,
                     base::EnumSet<ParserFlag> flags) {
   compile_flags->set_allow_natives_syntax(flags.contains(kAllowNatives));
-  compile_flags->set_allow_harmony_private_methods(
-      flags.contains(kAllowHarmonyPrivateMethods));
   compile_flags->set_allow_harmony_logical_assignment(
       flags.contains(kAllowHarmonyLogicalAssignment));
 }
@@ -5697,11 +5693,7 @@ TEST(PrivateMethodsNoErrors) {
   };
   // clang-format on
 
-  RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    private_methods, arraysize(private_methods));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 TEST(PrivateMethodsAndFieldsNoErrors) {
@@ -5755,13 +5747,7 @@ TEST(PrivateMethodsAndFieldsNoErrors) {
   };
   // clang-format on
 
-  RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag private_methods_and_fields[] = {
-      kAllowHarmonyPrivateMethods};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    private_methods_and_fields,
-                    arraysize(private_methods_and_fields));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 TEST(PrivateMethodsErrors) {
@@ -5830,10 +5816,6 @@ TEST(PrivateMethodsErrors) {
   // clang-format on
 
   RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    private_methods, arraysize(private_methods));
 }
 
 // Test that private members parse in class bodies nested in object literals
@@ -5856,9 +5838,7 @@ TEST(PrivateMembersNestedInObjectLiteralsNoErrors) {
   };
   // clang-format on
 
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    private_methods, arraysize(private_methods));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 // Test that private members parse in class bodies nested in classes
@@ -5883,9 +5863,7 @@ TEST(PrivateMembersInNestedClassNoErrors) {
   };
   // clang-format on
 
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    private_methods, arraysize(private_methods));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 // Test that private members do not parse outside class bodies
@@ -5915,10 +5893,6 @@ TEST(PrivateMembersInNonClassErrors) {
   // clang-format on
 
   RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    private_methods, arraysize(private_methods));
 }
 
 // Test that nested private members parse
@@ -5941,9 +5915,7 @@ TEST(PrivateMembersNestedNoErrors) {
   };
   // clang-format on
 
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    private_methods, arraysize(private_methods));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 // Test that acessing undeclared private members result in early errors
@@ -5964,10 +5936,6 @@ TEST(PrivateMembersEarlyErrors) {
   // clang-format on
 
   RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    private_methods, arraysize(private_methods));
 }
 
 // Test that acessing wrong kind private members do not error early.
@@ -6032,9 +6000,7 @@ TEST(PrivateMembersWrongAccessNoEarlyErrors) {
   };
   // clang-format on
 
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    private_methods, arraysize(private_methods));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 TEST(PrivateStaticClassMethodsAndAccessorsNoErrors) {
@@ -6057,11 +6023,7 @@ TEST(PrivateStaticClassMethodsAndAccessorsNoErrors) {
   };
   // clang-format on
 
-  RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    private_methods, arraysize(private_methods));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 TEST(PrivateStaticClassMethodsAndAccessorsDuplicateErrors) {
@@ -6095,10 +6057,6 @@ TEST(PrivateStaticClassMethodsAndAccessorsDuplicateErrors) {
   // clang-format on
 
   RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    private_methods, arraysize(private_methods));
 }
 
 TEST(PrivateClassFieldsNoErrors) {
@@ -6279,15 +6237,9 @@ TEST(PrivateClassFieldsErrors) {
     "#constructor = function() {}",
 
     "# a = 0",
-    "#a() { }",
-    "get #a() { }",
     "#get a() { }",
-    "set #a() { }",
     "#set a() { }",
-    "*#a() { }",
     "#*a() { }",
-    "async #a() { }",
-    "async *#a() { }",
     "async #*a() { }",
 
     "#0 = 0;",

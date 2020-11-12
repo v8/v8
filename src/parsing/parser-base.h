@@ -2161,13 +2161,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
         prop_info->kind = ParsePropertyKind::kNotSet;
         return impl()->FailureExpression();
       }
-      if (V8_UNLIKELY(!flags().allow_harmony_private_methods() &&
-                      (IsAccessor(prop_info->kind) ||
-                       prop_info->kind == ParsePropertyKind::kMethod))) {
-        ReportUnexpectedToken(Next());
-        prop_info->kind = ParsePropertyKind::kNotSet;
-        return impl()->FailureExpression();
-      }
       break;
 
     case Token::STRING:

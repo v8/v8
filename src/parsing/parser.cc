@@ -3047,9 +3047,6 @@ void Parser::DeclarePrivateClassMember(ClassScope* scope,
                                        ClassLiteralProperty* property,
                                        ClassLiteralProperty::Kind kind,
                                        bool is_static, ClassInfo* class_info) {
-  DCHECK_IMPLIES(kind != ClassLiteralProperty::Kind::FIELD,
-                 flags().allow_harmony_private_methods());
-
   if (kind == ClassLiteralProperty::Kind::FIELD) {
     if (is_static) {
       class_info->static_fields->Add(property, zone());

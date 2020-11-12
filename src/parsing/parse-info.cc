@@ -32,7 +32,6 @@ UnoptimizedCompileFlags::UnoptimizedCompileFlags(Isolate* isolate,
   set_might_always_opt(FLAG_always_opt || FLAG_prepare_always_opt);
   set_allow_natives_syntax(FLAG_allow_natives_syntax);
   set_allow_lazy_compile(FLAG_lazy);
-  set_allow_harmony_private_methods(FLAG_harmony_private_methods);
   set_collect_source_positions(!FLAG_enable_lazy_source_positions ||
                                isolate->NeedsDetailedOptimizedCodeLineInfo());
   set_allow_harmony_top_level_await(FLAG_harmony_top_level_await);

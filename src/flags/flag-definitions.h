@@ -280,7 +280,6 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
 #define HARMONY_SHIPPING_BASE(V)                                          \
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")               \
   V(harmony_atomics, "harmony atomics")                                   \
-  V(harmony_private_methods, "harmony private methods in class literals") \
   V(harmony_weak_refs, "harmony weak references")                         \
   V(harmony_string_replaceall, "harmony String.prototype.replaceAll")     \
   V(harmony_logical_assignment, "harmony logical assignment")             \

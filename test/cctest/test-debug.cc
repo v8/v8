@@ -4859,7 +4859,6 @@ TEST(GetPrivateFields) {
 }
 
 TEST(GetPrivateMethodsAndAccessors) {
-  i::FLAG_harmony_private_methods = true;
   LocalContext env;
   v8::Isolate* v8_isolate = CcTest::isolate();
   v8::HandleScope scope(v8_isolate);
@@ -4996,7 +4995,6 @@ TEST(GetPrivateMethodsAndAccessors) {
 }
 
 TEST(GetPrivateStaticMethodsAndAccessors) {
-  i::FLAG_harmony_private_methods = true;
   LocalContext env;
   v8::Isolate* v8_isolate = CcTest::isolate();
   v8::HandleScope scope(v8_isolate);
@@ -5047,7 +5045,6 @@ TEST(GetPrivateStaticMethodsAndAccessors) {
 }
 
 TEST(GetPrivateStaticAndInstanceMethodsAndAccessors) {
-  i::FLAG_harmony_private_methods = true;
   LocalContext env;
   v8::Isolate* v8_isolate = CcTest::isolate();
   v8::HandleScope scope(v8_isolate);
