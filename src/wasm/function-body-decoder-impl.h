@@ -3407,17 +3407,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     for (int i = 0; i < br_arity; ++i) {
       if (this->enabled_.has_reftypes()) {
         // The expected type is the biggest common sub type of all targets.
-        ValueType type = (*result_types)[i];
         (*result_types)[i] =
             CommonSubtype((*result_types)[i], (*merge)[i].type, this->module_);
-        if (!VALIDATE((*result_types)[i] != kWasmBottom)) {
-          this->DecodeError(pos,
-                            "inconsistent type in br_table target %u (previous "
-                            "was %s, this one is %s)",
-                            index, type.name().c_str(),
-                            (*merge)[i].type.name().c_str());
-          return false;
-        }
       } else {
         // All target must have the same signature.
         if (!VALIDATE((*result_types)[i] == (*merge)[i].type)) {
