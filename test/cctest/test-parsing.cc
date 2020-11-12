@@ -8267,7 +8267,7 @@ TEST(ModuleParsingInternalsWithImportAssertions) {
   }
 }
 
-TEST(ModuleParsingImportAssertionOrdering) {
+TEST(ModuleParsingModuleRequestOrdering) {
   i::FLAG_harmony_import_assertions = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
@@ -8339,7 +8339,13 @@ TEST(ModuleParsingImportAssertionOrdering) {
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("a"));
   ++request_iterator;
 
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("aa"));
+  ++request_iterator;
+
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("b"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("baaaaaar"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("c"));
@@ -8356,6 +8362,9 @@ TEST(ModuleParsingImportAssertionOrdering) {
   CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
   ++request_iterator;
 
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("foo"));
+  ++request_iterator;
+
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("g"));
   CHECK_EQ(0, (*request_iterator)->import_assertions()->size());
   ++request_iterator;
@@ -8509,14 +8518,6 @@ TEST(ModuleParsingImportAssertionOrdering) {
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("p"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
-  CHECK((*request_iterator)
-            ->import_assertions()
-            ->at(z_string)
-            .first->IsOneByteEqualTo("c"));
-  ++request_iterator;
-
-  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("p"));
   CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
   CHECK((*request_iterator)
             ->import_assertions()
@@ -8528,13 +8529,107 @@ TEST(ModuleParsingImportAssertionOrdering) {
             .first->IsOneByteEqualTo("c"));
   ++request_iterator;
 
-  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("aa"));
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("p"));
+  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK((*request_iterator)
+            ->import_assertions()
+            ->at(z_string)
+            .first->IsOneByteEqualTo("c"));
+}
+
+TEST(ModuleParsingImportAssertionKeySorting) {
+  i::FLAG_harmony_import_assertions = true;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+  isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
+                                        128 * 1024);
+
+  static const char kSource[] =
+      "import 'a' assert { 'b':'z', 'a': 'c' };"
+      "import 'b' assert { 'aaaaaa': 'c', 'b': 'z' };"
+      "import 'c' assert { '': 'c', 'b': 'z' };"
+      "import 'd' assert { 'aabbbb': 'c', 'aaabbb': 'z' };"
+      // zzzz\u0005 is a one-byte string, yyyy\u0100 is a two-byte string.
+      "import 'e' assert { 'zzzz\\u0005': 'second', 'yyyy\\u0100': 'first' };"
+      // Both keys are two-byte strings.
+      "import 'f' assert { 'xxxx\\u0005\\u0101': 'first', "
+      "'xxxx\\u0100\\u0101': 'second' };";
+  i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
+  i::Handle<i::Script> script = factory->NewScript(source);
+  i::UnoptimizedCompileState compile_state(isolate);
+  i::UnoptimizedCompileFlags flags =
+      i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+  flags.set_is_module(true);
+  i::ParseInfo info(isolate, flags, &compile_state);
+  CHECK_PARSE_PROGRAM(&info, script, isolate);
+
+  i::FunctionLiteral* func = info.literal();
+  i::ModuleScope* module_scope = func->scope()->AsModuleScope();
+  CHECK(module_scope->is_module_scope());
+
+  i::SourceTextModuleDescriptor* descriptor = module_scope->module();
+  CHECK_NOT_NULL(descriptor);
+
+  CHECK_EQ(6u, descriptor->module_requests().size());
+  auto request_iterator = descriptor->module_requests().cbegin();
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("a"));
+  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  auto assertion_iterator = (*request_iterator)->import_assertions()->cbegin();
+  CHECK(assertion_iterator->first->IsOneByteEqualTo("a"));
+  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("c"));
+  ++assertion_iterator;
+  CHECK(assertion_iterator->first->IsOneByteEqualTo("b"));
+  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("z"));
   ++request_iterator;
 
-  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("foo"));
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("b"));
+  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  assertion_iterator = (*request_iterator)->import_assertions()->cbegin();
+  CHECK(assertion_iterator->first->IsOneByteEqualTo("aaaaaa"));
+  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("c"));
+  ++assertion_iterator;
+  CHECK(assertion_iterator->first->IsOneByteEqualTo("b"));
+  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("z"));
   ++request_iterator;
 
-  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("baaaaaar"));
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("c"));
+  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  assertion_iterator = (*request_iterator)->import_assertions()->cbegin();
+  CHECK(assertion_iterator->first->IsOneByteEqualTo(""));
+  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("c"));
+  ++assertion_iterator;
+  CHECK(assertion_iterator->first->IsOneByteEqualTo("b"));
+  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("z"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("d"));
+  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  assertion_iterator = (*request_iterator)->import_assertions()->cbegin();
+  CHECK(assertion_iterator->first->IsOneByteEqualTo("aaabbb"));
+  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("z"));
+  ++assertion_iterator;
+  CHECK(assertion_iterator->first->IsOneByteEqualTo("aabbbb"));
+  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("c"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("e"));
+  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  assertion_iterator = (*request_iterator)->import_assertions()->cbegin();
+  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("first"));
+  ++assertion_iterator;
+  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("second"));
+  ++request_iterator;
+
+  CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("f"));
+  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  assertion_iterator = (*request_iterator)->import_assertions()->cbegin();
+  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("first"));
+  ++assertion_iterator;
+  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("second"));
 }
 
 TEST(DuplicateProtoError) {

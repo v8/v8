@@ -1210,7 +1210,7 @@ ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
   return result;
 }
 
-Parser::ImportAssertions* Parser::ParseImportAssertClause() {
+ImportAssertions* Parser::ParseImportAssertClause() {
   // AssertClause :
   //    assert '{' '}'
   //    assert '{' AssertEntries '}'

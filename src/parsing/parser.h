@@ -14,6 +14,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/threaded-list.h"
 #include "src/common/globals.h"
+#include "src/parsing/import-assertions.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser-base.h"
 #include "src/parsing/parsing.h"
@@ -283,9 +284,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   };
   const AstRawString* ParseExportSpecifierName();
   ZonePtrList<const NamedImport>* ParseNamedImports(int pos);
-  using ImportAssertions =
-      ZoneMap<const AstRawString*,
-              std::pair<const AstRawString*, Scanner::Location>>;
+
   ImportAssertions* ParseImportAssertClause();
   Statement* BuildInitializationBlock(DeclarationParsingResult* parsing_result);
   Expression* RewriteReturn(Expression* return_value, int pos);

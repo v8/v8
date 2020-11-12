@@ -114,7 +114,7 @@ uint16_t AstRawString::FirstCharacter() const {
   return *c;
 }
 
-bool AstRawString::Compare(const AstRawString* lhs, const AstRawString* rhs) {
+bool AstRawString::Equal(const AstRawString* lhs, const AstRawString* rhs) {
   DCHECK_EQ(lhs->Hash(), rhs->Hash());
 
   if (lhs->length() != rhs->length()) return false;
@@ -143,6 +143,44 @@ bool AstRawString::Compare(const AstRawString* lhs, const AstRawString* rhs) {
                                   length) == 0;
     }
   }
+}
+
+int AstRawString::Compare(const AstRawString* lhs, const AstRawString* rhs) {
+  // Fast path for equal pointers.
+  if (lhs == rhs) return 0;
+
+  const unsigned char* lhs_data = lhs->raw_data();
+  const unsigned char* rhs_data = rhs->raw_data();
+  size_t length = std::min(lhs->byte_length(), rhs->byte_length());
+
+  // Code point order by contents.
+  if (lhs->is_one_byte()) {
+    if (rhs->is_one_byte()) {
+      if (int result = CompareCharsUnsigned(
+              reinterpret_cast<const uint8_t*>(lhs_data),
+              reinterpret_cast<const uint8_t*>(rhs_data), length))
+        return result;
+    } else {
+      if (int result = CompareCharsUnsigned(
+              reinterpret_cast<const uint8_t*>(lhs_data),
+              reinterpret_cast<const uint16_t*>(rhs_data), length))
+        return result;
+    }
+  } else {
+    if (rhs->is_one_byte()) {
+      if (int result = CompareCharsUnsigned(
+              reinterpret_cast<const uint16_t*>(lhs_data),
+              reinterpret_cast<const uint8_t*>(rhs_data), length))
+        return result;
+    } else {
+      if (int result = CompareCharsUnsigned(
+              reinterpret_cast<const uint16_t*>(lhs_data),
+              reinterpret_cast<const uint16_t*>(rhs_data), length))
+        return result;
+    }
+  }
+
+  return lhs->byte_length() - rhs->byte_length();
 }
 
 template <typename LocalIsolate>

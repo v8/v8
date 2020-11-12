@@ -16,44 +16,35 @@ namespace internal {
 
 bool SourceTextModuleDescriptor::AstRawStringComparer::operator()(
     const AstRawString* lhs, const AstRawString* rhs) const {
-  return ThreeWayCompare(lhs, rhs) < 0;
-}
-
-int SourceTextModuleDescriptor::AstRawStringComparer::ThreeWayCompare(
-    const AstRawString* lhs, const AstRawString* rhs) {
-  // Fast path for equal pointers: a pointer is not strictly less than itself.
-  if (lhs == rhs) return false;
-
-  // Order by contents (ordering by hash is unstable across runs).
-  if (lhs->is_one_byte() != rhs->is_one_byte()) {
-    return lhs->is_one_byte() ? -1 : 1;
-  }
-  if (lhs->byte_length() != rhs->byte_length()) {
-    return lhs->byte_length() - rhs->byte_length();
-  }
-  return memcmp(lhs->raw_data(), rhs->raw_data(), lhs->byte_length());
+  return AstRawString::Compare(lhs, rhs) < 0;
 }
 
 bool SourceTextModuleDescriptor::ModuleRequestComparer::operator()(
     const AstModuleRequest* lhs, const AstModuleRequest* rhs) const {
-  if (int specifier_comparison = AstRawStringComparer::ThreeWayCompare(
-          lhs->specifier(), rhs->specifier()))
+  if (int specifier_comparison =
+          AstRawString::Compare(lhs->specifier(), rhs->specifier())) {
     return specifier_comparison < 0;
-
-  if (lhs->import_assertions()->size() != rhs->import_assertions()->size())
-    return (lhs->import_assertions()->size() <
-            rhs->import_assertions()->size());
+  }
 
   auto lhsIt = lhs->import_assertions()->cbegin();
   auto rhsIt = rhs->import_assertions()->cbegin();
-  for (; lhsIt != lhs->import_assertions()->cend(); ++lhsIt, ++rhsIt) {
+  for (; lhsIt != lhs->import_assertions()->cend() &&
+         rhsIt != rhs->import_assertions()->cend();
+       ++lhsIt, ++rhsIt) {
     if (int assertion_key_comparison =
-            AstRawStringComparer::ThreeWayCompare(lhsIt->first, rhsIt->first))
+            AstRawString::Compare(lhsIt->first, rhsIt->first)) {
       return assertion_key_comparison < 0;
+    }
 
-    if (int assertion_value_comparison = AstRawStringComparer::ThreeWayCompare(
-            lhsIt->second.first, rhsIt->second.first))
+    if (int assertion_value_comparison =
+            AstRawString::Compare(lhsIt->second.first, rhsIt->second.first)) {
       return assertion_value_comparison < 0;
+    }
+  }
+
+  if (lhs->import_assertions()->size() != rhs->import_assertions()->size()) {
+    return (lhs->import_assertions()->size() <
+            rhs->import_assertions()->size());
   }
 
   return false;

@@ -5,6 +5,7 @@
 #ifndef V8_AST_MODULES_H_
 #define V8_AST_MODULES_H_
 
+#include "src/parsing/import-assertions.h"
 #include "src/parsing/scanner.h"  // Only for Scanner::Location.
 #include "src/zone/zone-containers.h"
 
@@ -13,6 +14,7 @@ namespace internal {
 
 
 class AstRawString;
+class AstRawStringComparer;
 class ModuleRequest;
 class SourceTextModuleInfo;
 class SourceTextModuleInfoEntry;
@@ -26,10 +28,6 @@ class SourceTextModuleDescriptor : public ZoneObject {
         namespace_imports_(zone),
         regular_exports_(zone),
         regular_imports_(zone) {}
-
-  using ImportAssertions =
-      ZoneMap<const AstRawString*,
-              std::pair<const AstRawString*, Scanner::Location>>;
 
   // The following Add* methods are high-level convenience functions for use by
   // the parser.
@@ -161,8 +159,6 @@ class SourceTextModuleDescriptor : public ZoneObject {
   // across parses.
   struct V8_EXPORT_PRIVATE AstRawStringComparer {
     bool operator()(const AstRawString* lhs, const AstRawString* rhs) const;
-    static int ThreeWayCompare(const AstRawString* lhs,
-                               const AstRawString* rhs);
   };
 
   struct V8_EXPORT_PRIVATE ModuleRequestComparer {
