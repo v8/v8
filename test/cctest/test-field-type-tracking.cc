@@ -3,16 +3,15 @@
 // found in the LICENSE file.
 
 #include <stdlib.h>
+
 #include <utility>
 
-#include "test/cctest/test-api.h"
-
-#include "src/init/v8.h"
-
+#include "src/base/logging.h"
 #include "src/execution/execution.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/factory-inl.h"
 #include "src/ic/stub-cache.h"
+#include "src/init/v8.h"
 #include "src/objects/field-type.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/objects-inl.h"
@@ -20,6 +19,7 @@
 #include "src/objects/struct-inl.h"
 #include "src/objects/transitions.h"
 #include "src/utils/ostreams.h"
+#include "test/cctest/test-api.h"
 
 namespace v8 {
 namespace internal {
@@ -823,9 +823,8 @@ TEST(GeneralizeSmiFieldToTagged) {
   TestGeneralizeField(
       {PropertyConstness::kMutable, Representation::Smi(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-      !FLAG_modify_field_representation_inplace,
-      FLAG_modify_field_representation_inplace);
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type}, false,
+      true);
 }
 
 TEST(GeneralizeDoubleFieldToTagged) {
@@ -841,8 +840,7 @@ TEST(GeneralizeDoubleFieldToTagged) {
       {PropertyConstness::kMutable, Representation::Double(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
       {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-      FLAG_unbox_double_fields || !FLAG_modify_field_representation_inplace,
-      !FLAG_unbox_double_fields && FLAG_modify_field_representation_inplace);
+      FLAG_unbox_double_fields, !FLAG_unbox_double_fields);
 }
 
 TEST(GeneralizeHeapObjectFieldToTagged) {
@@ -857,9 +855,8 @@ TEST(GeneralizeHeapObjectFieldToTagged) {
   TestGeneralizeField(
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
       {PropertyConstness::kMutable, Representation::Smi(), any_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-      !FLAG_modify_field_representation_inplace,
-      FLAG_modify_field_representation_inplace);
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type}, false,
+      true);
 }
 
 TEST(GeneralizeHeapObjectFieldToHeapObject) {
@@ -1039,9 +1036,8 @@ namespace {
 //
 // where "p2A" and "p2B" differ only in the attributes.
 //
-void TestReconfigureDataFieldAttribute_GeneralizeField(
-    const CRFTData& from, const CRFTData& to, const CRFTData& expected,
-    bool expected_deprecation) {
+void TestReconfigureDataFieldAttribute_GeneralizeFieldWithDeprecation(
+    const CRFTData& from, const CRFTData& to, const CRFTData& expected) {
   Isolate* isolate = CcTest::i_isolate();
 
   Expectations expectations(isolate);
@@ -1114,25 +1110,20 @@ void TestReconfigureDataFieldAttribute_GeneralizeField(
     expectations.SetDataField(i, expected.constness, expected.representation,
                               expected.type);
   }
-  if (expected_deprecation) {
-    // |map| should be deprecated and |new_map| should match new expectations.
-    CHECK(map->is_deprecated());
-    CHECK(!code_field_type->marked_for_deoptimization());
-    CHECK(!code_field_repr->marked_for_deoptimization());
-    CHECK(!code_field_const->marked_for_deoptimization());
-    CHECK_NE(*map, *new_map);
+  // |map| should be deprecated and |new_map| should match new expectations.
+  CHECK(map->is_deprecated());
+  CHECK(!code_field_type->marked_for_deoptimization());
+  CHECK(!code_field_repr->marked_for_deoptimization());
+  CHECK(!code_field_const->marked_for_deoptimization());
+  CHECK_NE(*map, *new_map);
 
-    CHECK(!new_map->is_deprecated());
-    CHECK(expectations.Check(*new_map));
+  CHECK(!new_map->is_deprecated());
+  CHECK(expectations.Check(*new_map));
 
-    // Update deprecated |map|, it should become |new_map|.
-    Handle<Map> updated_map = Map::Update(isolate, map);
-    CHECK_EQ(*new_map, *updated_map);
-    CheckMigrationTarget(isolate, *map, *updated_map);
-  } else {
-    CHECK(!map->is_deprecated());
-    CHECK(expectations.Check(*map));
-  }
+  // Update deprecated |map|, it should become |new_map|.
+  Handle<Map> updated_map = Map::Update(isolate, map);
+  CHECK_EQ(*new_map, *updated_map);
+  CheckMigrationTarget(isolate, *map, *updated_map);
 }
 
 // This test ensures that trivial field generalization (from HeapObject to
@@ -1145,6 +1136,7 @@ void TestReconfigureDataFieldAttribute_GeneralizeField(
 //
 // where "p2A" and "p2B" differ only in the attributes.
 //
+// TODO(ishell): rename to XXX_GeneralizeFieldInplace here and around.
 void TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
     const CRFTData& from, const CRFTData& to, const CRFTData& expected,
     bool expected_field_owner_dependency = true) {
@@ -1236,6 +1228,24 @@ void TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
   CHECK_EQ(*new_map, *updated_map);
 }
 
+// This is an entry point to either
+// TestReconfigureDataFieldAttribute_GeneralizeFieldWithDeprecation() or
+// TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial() depending on
+// whether the deprecation is expected or not. In the latter case the relevant
+// code dependencies must be triggered.
+void TestReconfigureDataFieldAttribute_GeneralizeField(
+    const CRFTData& from, const CRFTData& to, const CRFTData& expected,
+    bool expected_deprecation) {
+  if (expected_deprecation) {
+    TestReconfigureDataFieldAttribute_GeneralizeFieldWithDeprecation(from, to,
+                                                                     expected);
+  } else {
+    const bool expected_field_owner_dependency = true;
+    TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
+        from, to, expected, expected_field_owner_dependency);
+  }
+}
+
 }  // namespace
 
 TEST(ReconfigureDataFieldAttribute_GeneralizeSmiFieldToDouble) {
@@ -1275,29 +1285,25 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeSmiFieldToTagged) {
   Handle<FieldType> value_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
-  TestReconfigureDataFieldAttribute_GeneralizeField(
+  TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
       {PropertyConstness::kConst, Representation::Smi(), any_type},
       {PropertyConstness::kConst, Representation::HeapObject(), value_type},
-      {PropertyConstness::kConst, Representation::Tagged(), any_type},
-      !FLAG_modify_field_representation_inplace);
+      {PropertyConstness::kConst, Representation::Tagged(), any_type});
 
-  TestReconfigureDataFieldAttribute_GeneralizeField(
+  TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
       {PropertyConstness::kConst, Representation::Smi(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-      !FLAG_modify_field_representation_inplace);
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
 
-  TestReconfigureDataFieldAttribute_GeneralizeField(
+  TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
       {PropertyConstness::kMutable, Representation::Smi(), any_type},
       {PropertyConstness::kConst, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-      !FLAG_modify_field_representation_inplace);
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
 
-  TestReconfigureDataFieldAttribute_GeneralizeField(
+  TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
       {PropertyConstness::kMutable, Representation::Smi(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-      !FLAG_modify_field_representation_inplace);
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
 }
 
 TEST(ReconfigureDataFieldAttribute_GeneralizeDoubleFieldToTagged) {
@@ -1313,25 +1319,25 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeDoubleFieldToTagged) {
       {PropertyConstness::kConst, Representation::Double(), any_type},
       {PropertyConstness::kConst, Representation::HeapObject(), value_type},
       {PropertyConstness::kConst, Representation::Tagged(), any_type},
-      FLAG_unbox_double_fields || !FLAG_modify_field_representation_inplace);
+      FLAG_unbox_double_fields);
 
   TestReconfigureDataFieldAttribute_GeneralizeField(
       {PropertyConstness::kConst, Representation::Double(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
       {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-      FLAG_unbox_double_fields || !FLAG_modify_field_representation_inplace);
+      FLAG_unbox_double_fields);
 
   TestReconfigureDataFieldAttribute_GeneralizeField(
       {PropertyConstness::kMutable, Representation::Double(), any_type},
       {PropertyConstness::kConst, Representation::HeapObject(), value_type},
       {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-      FLAG_unbox_double_fields || !FLAG_modify_field_representation_inplace);
+      FLAG_unbox_double_fields);
 
   TestReconfigureDataFieldAttribute_GeneralizeField(
       {PropertyConstness::kMutable, Representation::Double(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
       {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-      FLAG_unbox_double_fields || !FLAG_modify_field_representation_inplace);
+      FLAG_unbox_double_fields);
 }
 
 TEST(ReconfigureDataFieldAttribute_GeneralizeHeapObjFieldToHeapObj) {
@@ -1414,11 +1420,10 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeHeapObjectFieldToTagged) {
   Handle<FieldType> value_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
-  TestReconfigureDataFieldAttribute_GeneralizeField(
+  TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
       {PropertyConstness::kMutable, Representation::Smi(), any_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-      !FLAG_modify_field_representation_inplace);
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
 }
 
 // Checks that given |map| is deprecated and that it updates to given |new_map|
@@ -2343,13 +2348,14 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
         {PropertyConstness::kMutable, Representation::Smi(), any_type},
         {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
         {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-        !FLAG_modify_field_representation_inplace);
+        false);
+
     TestGeneralizeFieldWithSpecialTransition(
         &configs[i],
         {PropertyConstness::kMutable, Representation::Double(), any_type},
         {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
         {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-        FLAG_unbox_double_fields || !FLAG_modify_field_representation_inplace);
+        FLAG_unbox_double_fields);
   }
 }
 
@@ -2410,13 +2416,14 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
         {PropertyConstness::kMutable, Representation::Smi(), any_type},
         {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
         {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-        !FLAG_modify_field_representation_inplace);
+        false);
+
     TestGeneralizeFieldWithSpecialTransition(
         &configs[i],
         {PropertyConstness::kMutable, Representation::Double(), any_type},
         {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
         {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-        FLAG_unbox_double_fields || !FLAG_modify_field_representation_inplace);
+        FLAG_unbox_double_fields);
   }
 }
 
@@ -2452,14 +2459,14 @@ TEST(PrototypeTransitionFromMapOwningDescriptor) {
   TestGeneralizeFieldWithSpecialTransition(
       &config, {PropertyConstness::kMutable, Representation::Smi(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-      !FLAG_modify_field_representation_inplace);
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type}, false);
+
   TestGeneralizeFieldWithSpecialTransition(
       &config,
       {PropertyConstness::kMutable, Representation::Double(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
       {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-      FLAG_unbox_double_fields || !FLAG_modify_field_representation_inplace);
+      FLAG_unbox_double_fields);
 }
 
 TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
@@ -2505,14 +2512,14 @@ TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
   TestGeneralizeFieldWithSpecialTransition(
       &config, {PropertyConstness::kMutable, Representation::Smi(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-      !FLAG_modify_field_representation_inplace);
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type}, false);
+
   TestGeneralizeFieldWithSpecialTransition(
       &config,
       {PropertyConstness::kMutable, Representation::Double(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
       {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-      FLAG_unbox_double_fields || !FLAG_modify_field_representation_inplace);
+      FLAG_unbox_double_fields);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2799,15 +2806,8 @@ TEST(TransitionDataConstantToDataField) {
   TransitionToDataFieldOperator transition_op2(
       PropertyConstness::kMutable, Representation::Tagged(), any_type, value2);
 
-  if (FLAG_modify_field_representation_inplace) {
-    SameMapChecker checker;
-    TestTransitionTo(&transition_op1, &transition_op2, &checker);
-  } else {
-    FieldGeneralizationChecker checker(kPropCount - 1,
-                                       PropertyConstness::kMutable,
-                                       Representation::Tagged(), any_type);
-    TestTransitionTo(&transition_op1, &transition_op2, &checker);
-  }
+  SameMapChecker checker;
+  TestTransitionTo(&transition_op1, &transition_op2, &checker);
 }
 
 
@@ -3063,6 +3063,30 @@ TEST(NormalizeToMigrationTarget) {
       "Test_NormalizeToMigrationTarget_NewMap");
   CHECK_EQ(*existing_normalized_map, *new_normalized_map);
   CHECK(new_normalized_map->is_migration_target());
+}
+
+TEST(RepresentationPredicatesAreInSync) {
+  STATIC_ASSERT(Representation::kNumRepresentations == 5);
+  static Representation reps[] = {
+      Representation::None(), Representation::Smi(), Representation::Double(),
+      Representation::HeapObject(), Representation::Tagged()};
+
+  for (Representation from : reps) {
+    Representation most_generic_rep = from.MostGenericInPlaceChange();
+    CHECK(from.CanBeInPlaceChangedTo(most_generic_rep));
+
+    bool might_be_deprecated = false;
+
+    for (Representation to : reps) {
+      // Skip representation narrowing cases.
+      if (!from.fits_into(to)) continue;
+
+      if (!from.CanBeInPlaceChangedTo(to)) {
+        might_be_deprecated = true;
+      }
+    }
+    CHECK_EQ(from.MightCauseMapDeprecation(), might_be_deprecated);
+  }
 }
 
 }  // namespace test_field_type_tracking

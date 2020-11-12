@@ -217,6 +217,14 @@ MapUpdater::State MapUpdater::TryReconfigureToDataFieldInplace() {
 
   PropertyDetails old_details =
       old_descriptors_->GetDetails(modified_descriptor_);
+
+  if (old_details.attributes() != new_attributes_ ||
+      old_details.kind() != new_kind_ ||
+      old_details.location() != new_location_) {
+    // These changes can't be done in-place.
+    return state_;  // Not done yet.
+  }
+
   Representation old_representation = old_details.representation();
   if (!old_representation.CanBeInPlaceChangedTo(new_representation_)) {
     return state_;  // Not done yet.

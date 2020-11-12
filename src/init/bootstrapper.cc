@@ -3603,10 +3603,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
               .ToHandleChecked();
 
     // done
-    // TODO(bmeurer): Once FLAG_modify_field_representation_inplace is always
-    // on, we can say Representation::HeapObject() here and have the inplace
-    // update logic take care of the case where someone ever stores a Smi into
-    // the done field.
+    // TODO(ishell): Consider using Representation::HeapObject() here and rely
+    // on the inplace update logic to take care of the case where someone ever
+    // stores a Smi into the done field. The logic works fine but in --jitless
+    // mode FLAG_track_heap_object_fields is off and the logic doesn't handle
+    // generalizations of HeapObject representation properly.
     map = Map::CopyWithField(isolate(), map, factory->done_string(),
                              FieldType::Any(isolate()), NONE,
                              PropertyConstness::kConst,
