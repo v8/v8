@@ -870,10 +870,12 @@ StringData::StringData(JSHeapBroker* broker, ObjectData** storage,
 class InternalizedStringData : public StringData {
  public:
   InternalizedStringData(JSHeapBroker* broker, ObjectData** storage,
-                         Handle<InternalizedString> object)
-      : StringData(broker, storage, object) {
-    DCHECK(!FLAG_turbo_direct_heap_access);
-  }
+                         Handle<InternalizedString> object);
+
+  uint32_t array_index() const { return array_index_; }
+
+ private:
+  uint32_t array_index_;
 };
 
 ObjectData* StringData::GetCharAsString(JSHeapBroker* broker, uint32_t index,
@@ -895,6 +897,11 @@ ObjectData* StringData::GetCharAsString(JSHeapBroker* broker, uint32_t index,
   chars_as_strings_.push_back({index, result});
   return result;
 }
+
+InternalizedStringData::InternalizedStringData(
+    JSHeapBroker* broker, ObjectData** storage,
+    Handle<InternalizedString> object)
+    : StringData(broker, storage, object) {}
 
 namespace {
 
