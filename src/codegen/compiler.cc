@@ -1938,7 +1938,8 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
   // Check postconditions on success.
   DCHECK(!isolate->has_pending_exception());
   DCHECK(function->shared().is_compiled());
-  DCHECK(function->is_compiled());
+  DCHECK(IsForNativeContextIndependentCachingOnly(code_kind) ||
+         function->is_compiled());
   if (UsesOptimizationMarker(code_kind)) {
     DCHECK_IMPLIES(function->HasOptimizationMarker(),
                    function->IsInOptimizationQueue());
