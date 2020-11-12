@@ -782,9 +782,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   // Stores uncompressed tagged value to (most likely off JS heap) memory
   // location without write barrier.
-  void StoreFullTaggedNoWriteBarrier(Node* base, Node* tagged_value);
-  void StoreFullTaggedNoWriteBarrier(Node* base, Node* offset,
-                                     Node* tagged_value);
+  void StoreFullTaggedNoWriteBarrier(TNode<RawPtrT> base,
+                                     TNode<Object> tagged_value);
+  void StoreFullTaggedNoWriteBarrier(TNode<RawPtrT> base, TNode<IntPtrT> offset,
+                                     TNode<Object> tagged_value);
 
   // Optimized memory operations that map to Turbofan simplified nodes.
   TNode<HeapObject> OptimizedAllocate(TNode<IntPtrT> size,
@@ -861,7 +862,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                       TNode<UintPtrT> new_value_high);
 
   // Store a value to the root array.
-  void StoreRoot(RootIndex root_index, Node* value);
+  void StoreRoot(RootIndex root_index, TNode<Object> value);
 
 // Basic arithmetic operations.
 #define DECLARE_CODE_ASSEMBLER_BINARY_OP(name, ResType, Arg1Type, Arg2Type) \

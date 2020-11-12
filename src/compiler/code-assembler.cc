@@ -811,14 +811,15 @@ void CodeAssembler::UnsafeStoreNoWriteBarrier(MachineRepresentation rep,
   raw_assembler()->Store(rep, base, offset, value, kNoWriteBarrier);
 }
 
-void CodeAssembler::StoreFullTaggedNoWriteBarrier(Node* base,
-                                                  Node* tagged_value) {
+void CodeAssembler::StoreFullTaggedNoWriteBarrier(TNode<RawPtrT> base,
+                                                  TNode<Object> tagged_value) {
   StoreNoWriteBarrier(MachineType::PointerRepresentation(), base,
                       BitcastTaggedToWord(tagged_value));
 }
 
-void CodeAssembler::StoreFullTaggedNoWriteBarrier(Node* base, Node* offset,
-                                                  Node* tagged_value) {
+void CodeAssembler::StoreFullTaggedNoWriteBarrier(TNode<RawPtrT> base,
+                                                  TNode<IntPtrT> offset,
+                                                  TNode<Object> tagged_value) {
   StoreNoWriteBarrier(MachineType::PointerRepresentation(), base, offset,
                       BitcastTaggedToWord(tagged_value));
 }
@@ -893,7 +894,7 @@ CodeAssembler::AtomicCompareExchange64<AtomicUint64>(
     TNode<UintPtrT> new_value, TNode<UintPtrT> old_value_high,
     TNode<UintPtrT> new_value_high);
 
-void CodeAssembler::StoreRoot(RootIndex root_index, Node* value) {
+void CodeAssembler::StoreRoot(RootIndex root_index, TNode<Object> value) {
   DCHECK(!RootsTable::IsImmortalImmovable(root_index));
   TNode<ExternalReference> isolate_root =
       ExternalConstant(ExternalReference::isolate_root(isolate()));
