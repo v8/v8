@@ -315,7 +315,8 @@ TNode<Float64T> CodeAssembler::Float64Constant(double value) {
   return UncheckedCast<Float64T>(jsgraph()->Float64Constant(value));
 }
 
-bool CodeAssembler::ToInt32Constant(Node* node, int32_t* out_value) {
+bool CodeAssembler::TryToInt32Constant(TNode<IntegralT> node,
+                                       int32_t* out_value) {
   {
     Int64Matcher m(node);
     if (m.HasResolvedValue() &&
@@ -337,16 +338,22 @@ bool CodeAssembler::ToInt32Constant(Node* node, int32_t* out_value) {
   return false;
 }
 
-bool CodeAssembler::ToInt64Constant(Node* node, int64_t* out_value) {
+bool CodeAssembler::TryToInt64Constant(TNode<IntegralT> node,
+                                       int64_t* out_value) {
   Int64Matcher m(node);
   if (m.HasResolvedValue()) *out_value = m.ResolvedValue();
   return m.HasResolvedValue();
 }
 
-bool CodeAssembler::ToSmiConstant(Node* node, Smi* out_value) {
+bool CodeAssembler::TryToSmiConstant(TNode<Smi> tnode, Smi* out_value) {
+  Node* node = tnode;
   if (node->opcode() == IrOpcode::kBitcastWordToTaggedSigned) {
     node = node->InputAt(0);
   }
+  return TryToSmiConstant(ReinterpretCast<IntPtrT>(tnode), out_value);
+}
+
+bool CodeAssembler::TryToSmiConstant(TNode<IntegralT> node, Smi* out_value) {
   IntPtrMatcher m(node);
   if (m.HasResolvedValue()) {
     intptr_t value = m.ResolvedValue();
@@ -358,11 +365,17 @@ bool CodeAssembler::ToSmiConstant(Node* node, Smi* out_value) {
   return false;
 }
 
-bool CodeAssembler::ToIntPtrConstant(Node* node, intptr_t* out_value) {
+bool CodeAssembler::TryToIntPtrConstant(TNode<Smi> tnode, intptr_t* out_value) {
+  Node* node = tnode;
   if (node->opcode() == IrOpcode::kBitcastWordToTaggedSigned ||
       node->opcode() == IrOpcode::kBitcastWordToTagged) {
     node = node->InputAt(0);
   }
+  return TryToIntPtrConstant(ReinterpretCast<IntPtrT>(tnode), out_value);
+}
+
+bool CodeAssembler::TryToIntPtrConstant(TNode<IntegralT> node,
+                                        intptr_t* out_value) {
   IntPtrMatcher m(node);
   if (m.HasResolvedValue()) *out_value = m.ResolvedValue();
   return m.HasResolvedValue();
@@ -577,13 +590,13 @@ TNode<Word32T> CodeAssembler::Word32Sar(SloppyTNode<Word32T> value, int shift) {
     return UncheckedCast<BoolT>(raw_assembler()->Name(left, right));      \
   }
 
-CODE_ASSEMBLER_COMPARE(IntPtrEqual, WordT, intptr_t, ToIntPtrConstant, ==)
-CODE_ASSEMBLER_COMPARE(WordEqual, WordT, intptr_t, ToIntPtrConstant, ==)
-CODE_ASSEMBLER_COMPARE(WordNotEqual, WordT, intptr_t, ToIntPtrConstant, !=)
-CODE_ASSEMBLER_COMPARE(Word32Equal, Word32T, int32_t, ToInt32Constant, ==)
-CODE_ASSEMBLER_COMPARE(Word32NotEqual, Word32T, int32_t, ToInt32Constant, !=)
-CODE_ASSEMBLER_COMPARE(Word64Equal, Word64T, int64_t, ToInt64Constant, ==)
-CODE_ASSEMBLER_COMPARE(Word64NotEqual, Word64T, int64_t, ToInt64Constant, !=)
+CODE_ASSEMBLER_COMPARE(IntPtrEqual, WordT, intptr_t, TryToIntPtrConstant, ==)
+CODE_ASSEMBLER_COMPARE(WordEqual, WordT, intptr_t, TryToIntPtrConstant, ==)
+CODE_ASSEMBLER_COMPARE(WordNotEqual, WordT, intptr_t, TryToIntPtrConstant, !=)
+CODE_ASSEMBLER_COMPARE(Word32Equal, Word32T, int32_t, TryToInt32Constant, ==)
+CODE_ASSEMBLER_COMPARE(Word32NotEqual, Word32T, int32_t, TryToInt32Constant, !=)
+CODE_ASSEMBLER_COMPARE(Word64Equal, Word64T, int64_t, TryToInt64Constant, ==)
+CODE_ASSEMBLER_COMPARE(Word64NotEqual, Word64T, int64_t, TryToInt64Constant, !=)
 #undef CODE_ASSEMBLER_COMPARE
 
 TNode<UintPtrT> CodeAssembler::ChangeUint32ToWord(TNode<Word32T> value) {
@@ -1202,7 +1215,7 @@ void CodeAssembler::GotoIfNot(TNode<IntegralT> condition, Label* false_label) {
 void CodeAssembler::Branch(TNode<IntegralT> condition, Label* true_label,
                            Label* false_label) {
   int32_t constant;
-  if (ToInt32Constant(condition, &constant)) {
+  if (TryToInt32Constant(condition, &constant)) {
     if ((true_label->is_used() || true_label->is_bound()) &&
         (false_label->is_used() || false_label->is_bound())) {
       return Goto(constant ? true_label : false_label);
@@ -1218,7 +1231,7 @@ void CodeAssembler::Branch(TNode<BoolT> condition,
                            const std::function<void()>& true_body,
                            const std::function<void()>& false_body) {
   int32_t constant;
-  if (ToInt32Constant(condition, &constant)) {
+  if (TryToInt32Constant(condition, &constant)) {
     return constant ? true_body() : false_body();
   }
 
@@ -1235,7 +1248,7 @@ void CodeAssembler::Branch(TNode<BoolT> condition,
 void CodeAssembler::Branch(TNode<BoolT> condition, Label* true_label,
                            const std::function<void()>& false_body) {
   int32_t constant;
-  if (ToInt32Constant(condition, &constant)) {
+  if (TryToInt32Constant(condition, &constant)) {
     return constant ? Goto(true_label) : false_body();
   }
 
@@ -1249,7 +1262,7 @@ void CodeAssembler::Branch(TNode<BoolT> condition,
                            const std::function<void()>& true_body,
                            Label* false_label) {
   int32_t constant;
-  if (ToInt32Constant(condition, &constant)) {
+  if (TryToInt32Constant(condition, &constant)) {
     return constant ? true_body() : Goto(false_label);
   }
 

@@ -565,10 +565,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return value ? Int32TrueConstant() : Int32FalseConstant();
   }
 
-  bool ToInt32Constant(Node* node, int32_t* out_value);
-  bool ToInt64Constant(Node* node, int64_t* out_value);
-  bool ToIntPtrConstant(Node* node, intptr_t* out_value);
-  bool ToSmiConstant(Node* node, Smi* out_value);
+  bool TryToInt32Constant(TNode<IntegralT> node, int32_t* out_value);
+  bool TryToInt64Constant(TNode<IntegralT> node, int64_t* out_value);
+  bool TryToIntPtrConstant(TNode<IntegralT> node, intptr_t* out_value);
+  bool TryToIntPtrConstant(TNode<Smi> tnode, intptr_t* out_value);
+  bool TryToSmiConstant(TNode<IntegralT> node, Smi* out_value);
+  bool TryToSmiConstant(TNode<Smi> node, Smi* out_value);
 
   bool IsUndefinedConstant(TNode<Object> node);
   bool IsNullConstant(TNode<Object> node);

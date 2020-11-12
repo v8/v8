@@ -292,7 +292,7 @@ TNode<RawPtrT> CodeStubAssembler::IntPtrOrSmiConstant<RawPtrT>(int value) {
 bool CodeStubAssembler::TryGetIntPtrOrSmiConstantValue(
     TNode<Smi> maybe_constant, int* value) {
   Smi smi_constant;
-  if (ToSmiConstant(maybe_constant, &smi_constant)) {
+  if (TryToSmiConstant(maybe_constant, &smi_constant)) {
     *value = Smi::ToInt(smi_constant);
     return true;
   }
@@ -302,10 +302,10 @@ bool CodeStubAssembler::TryGetIntPtrOrSmiConstantValue(
 bool CodeStubAssembler::TryGetIntPtrOrSmiConstantValue(
     TNode<IntPtrT> maybe_constant, int* value) {
   int32_t int32_constant;
-    if (ToInt32Constant(maybe_constant, &int32_constant)) {
-      *value = int32_constant;
-      return true;
-    }
+  if (TryToInt32Constant(maybe_constant, &int32_constant)) {
+    *value = int32_constant;
+    return true;
+  }
   return false;
 }
 
@@ -322,7 +322,7 @@ TNode<IntPtrT> CodeStubAssembler::IntPtrRoundUpToPowerOfTwo32(
 
 TNode<BoolT> CodeStubAssembler::WordIsPowerOfTwo(SloppyTNode<IntPtrT> value) {
   intptr_t constant;
-  if (ToIntPtrConstant(value, &constant)) {
+  if (TryToIntPtrConstant(value, &constant)) {
     return BoolConstant(base::bits::IsPowerOfTwo(constant));
   }
   // value && !(value & (value - 1))
@@ -628,7 +628,7 @@ TNode<Smi> CodeStubAssembler::SmiFromUint32(TNode<Uint32T> value) {
 
 TNode<BoolT> CodeStubAssembler::IsValidPositiveSmi(TNode<IntPtrT> value) {
   intptr_t constant_value;
-  if (ToIntPtrConstant(value, &constant_value)) {
+  if (TryToIntPtrConstant(value, &constant_value)) {
     return (static_cast<uintptr_t>(constant_value) <=
             static_cast<uintptr_t>(Smi::kMaxValue))
                ? Int32TrueConstant()
@@ -640,7 +640,8 @@ TNode<BoolT> CodeStubAssembler::IsValidPositiveSmi(TNode<IntPtrT> value) {
 
 TNode<Smi> CodeStubAssembler::SmiTag(SloppyTNode<IntPtrT> value) {
   int32_t constant_value;
-  if (ToInt32Constant(value, &constant_value) && Smi::IsValid(constant_value)) {
+  if (TryToInt32Constant(value, &constant_value) &&
+      Smi::IsValid(constant_value)) {
     return SmiConstant(constant_value);
   }
   if (COMPRESS_POINTERS_BOOL) {
@@ -653,7 +654,7 @@ TNode<Smi> CodeStubAssembler::SmiTag(SloppyTNode<IntPtrT> value) {
 
 TNode<IntPtrT> CodeStubAssembler::SmiUntag(SloppyTNode<Smi> value) {
   intptr_t constant_value;
-  if (ToIntPtrConstant(value, &constant_value)) {
+  if (TryToIntPtrConstant(value, &constant_value)) {
     return IntPtrConstant(constant_value >> (kSmiShiftSize + kSmiTagSize));
   }
   TNode<IntPtrT> raw_bits = BitcastTaggedToWordForTagAndSmiBits(value);
@@ -1086,7 +1087,7 @@ TNode<HeapObject> CodeStubAssembler::AllocateRaw(TNode<IntPtrT> size_in_bytes,
 
   intptr_t size_in_bytes_constant;
   bool size_in_bytes_is_constant = false;
-  if (ToIntPtrConstant(size_in_bytes, &size_in_bytes_constant)) {
+  if (TryToIntPtrConstant(size_in_bytes, &size_in_bytes_constant)) {
     size_in_bytes_is_constant = true;
     CHECK(Internals::IsValidSmi(size_in_bytes_constant));
     CHECK_GT(size_in_bytes_constant, 0);
@@ -1243,7 +1244,7 @@ TNode<HeapObject> CodeStubAssembler::Allocate(TNode<IntPtrT> size_in_bytes,
       !new_space || !allow_large_objects || FLAG_young_generation_large_objects;
   if (!allow_large_objects) {
     intptr_t size_constant;
-    if (ToIntPtrConstant(size_in_bytes, &size_constant)) {
+    if (TryToIntPtrConstant(size_in_bytes, &size_constant)) {
       CHECK_LE(size_constant, kMaxRegularHeapObjectSize);
     } else {
       CSA_ASSERT(this, IsRegularHeapObjectSize(size_in_bytes));
@@ -2055,7 +2056,7 @@ void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
   DCHECK(IsAligned(additional_offset, kTaggedSize));
   TNode<Smi> effective_index;
   Smi constant_index;
-  bool index_is_constant = ToSmiConstant(index, &constant_index);
+  bool index_is_constant = TryToSmiConstant(index, &constant_index);
   if (index_is_constant) {
     effective_index = SmiConstant(Smi::ToInt(constant_index) +
                                   additional_offset / kTaggedSize);
@@ -2735,7 +2736,7 @@ void CodeStubAssembler::StoreObjectField(TNode<HeapObject> object,
                                          TNode<IntPtrT> offset,
                                          TNode<Object> value) {
   int const_offset;
-  if (ToInt32Constant(offset, &const_offset)) {
+  if (TryToInt32Constant(offset, &const_offset)) {
     StoreObjectField(object, const_offset, value);
   } else {
     Store(object, IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)), value);
@@ -3593,7 +3594,7 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
   Label out(this), empty(this), nonempty(this);
 
   int capacity_int;
-  if (ToInt32Constant(capacity, &capacity_int)) {
+  if (TryToInt32Constant(capacity, &capacity_int)) {
     if (capacity_int == 0) {
       TNode<FixedArray> empty_array = EmptyFixedArrayConstant();
       array = AllocateJSArray(array_map, empty_array, length, allocation_site,
@@ -7630,8 +7631,8 @@ TNode<IntPtrT> CodeStubAssembler::IntPtrMax(SloppyTNode<IntPtrT> left,
                                             SloppyTNode<IntPtrT> right) {
   intptr_t left_constant;
   intptr_t right_constant;
-  if (ToIntPtrConstant(left, &left_constant) &&
-      ToIntPtrConstant(right, &right_constant)) {
+  if (TryToIntPtrConstant(left, &left_constant) &&
+      TryToIntPtrConstant(right, &right_constant)) {
     return IntPtrConstant(std::max(left_constant, right_constant));
   }
   return SelectConstant<IntPtrT>(IntPtrGreaterThanOrEqual(left, right), left,
@@ -7642,8 +7643,8 @@ TNode<IntPtrT> CodeStubAssembler::IntPtrMin(SloppyTNode<IntPtrT> left,
                                             SloppyTNode<IntPtrT> right) {
   intptr_t left_constant;
   intptr_t right_constant;
-  if (ToIntPtrConstant(left, &left_constant) &&
-      ToIntPtrConstant(right, &right_constant)) {
+  if (TryToIntPtrConstant(left, &left_constant) &&
+      TryToIntPtrConstant(right, &right_constant)) {
     return IntPtrConstant(std::min(left_constant, right_constant));
   }
   return SelectConstant<IntPtrT>(IntPtrLessThanOrEqual(left, right), left,
@@ -7654,8 +7655,8 @@ TNode<UintPtrT> CodeStubAssembler::UintPtrMin(TNode<UintPtrT> left,
                                               TNode<UintPtrT> right) {
   intptr_t left_constant;
   intptr_t right_constant;
-  if (ToIntPtrConstant(left, &left_constant) &&
-      ToIntPtrConstant(right, &right_constant)) {
+  if (TryToIntPtrConstant(left, &left_constant) &&
+      TryToIntPtrConstant(right, &right_constant)) {
     return UintPtrConstant(std::min(static_cast<uintptr_t>(left_constant),
                                     static_cast<uintptr_t>(right_constant)));
   }
@@ -9295,7 +9296,7 @@ TNode<IntPtrT> CodeStubAssembler::ElementOffsetFromIndex(
     int const kSmiShiftBits = kSmiShiftSize + kSmiTagSize;
     element_size_shift -= kSmiShiftBits;
     Smi smi_index;
-    constant_index = ToSmiConstant(smi_index_node, &smi_index);
+    constant_index = TryToSmiConstant(smi_index_node, &smi_index);
     if (constant_index) {
       index = smi_index.value();
     } else {
@@ -9309,10 +9310,10 @@ TNode<IntPtrT> CodeStubAssembler::ElementOffsetFromIndex(
         ReinterpretCast<TaggedIndex>(index_node);
     element_size_shift -= kSmiTagSize;
     intptr_index_node = BitcastTaggedToWordForTagAndSmiBits(tagged_index_node);
-    constant_index = ToIntPtrConstant(intptr_index_node, &index);
+    constant_index = TryToIntPtrConstant(intptr_index_node, &index);
   } else {
     intptr_index_node = ReinterpretCast<IntPtrT>(index_node);
-    constant_index = ToIntPtrConstant(intptr_index_node, &index);
+    constant_index = TryToIntPtrConstant(intptr_index_node, &index);
   }
   if (constant_index) {
     return IntPtrConstant(base_size + element_size * index);
@@ -10387,7 +10388,7 @@ TNode<TIndex> CodeStubAssembler::BuildFastLoop(const VariableList& vars,
   // loop actually iterates.
   TNode<BoolT> first_check = IntPtrOrSmiEqual(var.value(), end_index);
   int32_t first_check_val;
-  if (ToInt32Constant(first_check, &first_check_val)) {
+  if (TryToInt32Constant(first_check, &first_check_val)) {
     if (first_check_val) return var.value();
     Goto(&loop);
   } else {
@@ -10435,23 +10436,24 @@ void CodeStubAssembler::BuildFastArrayForEach(
   CSA_SLOW_ASSERT(this, Word32Or(IsFixedArrayWithKind(array, kind),
                                  IsPropertyArray(array)));
 
-  int32_t first_val;
-  bool constant_first = ToInt32Constant(first_element_inclusive, &first_val);
-  int32_t last_val;
-  bool constent_last = ToInt32Constant(last_element_exclusive, &last_val);
+  intptr_t first_val;
+  bool constant_first =
+      TryToIntPtrConstant(first_element_inclusive, &first_val);
+  intptr_t last_val;
+  bool constent_last = TryToIntPtrConstant(last_element_exclusive, &last_val);
   if (constant_first && constent_last) {
-    int delta = last_val - first_val;
+    intptr_t delta = last_val - first_val;
     DCHECK_GE(delta, 0);
     if (delta <= kElementLoopUnrollThreshold) {
       if (direction == ForEachDirection::kForward) {
-        for (int i = first_val; i < last_val; ++i) {
+        for (intptr_t i = first_val; i < last_val; ++i) {
           TNode<IntPtrT> index = IntPtrConstant(i);
           TNode<IntPtrT> offset = ElementOffsetFromIndex(
               index, kind, FixedArray::kHeaderSize - kHeapObjectTag);
           body(array, offset);
         }
       } else {
-        for (int i = last_val - 1; i >= first_val; --i) {
+        for (intptr_t i = last_val - 1; i >= first_val; --i) {
           TNode<IntPtrT> index = IntPtrConstant(i);
           TNode<IntPtrT> offset = ElementOffsetFromIndex(
               index, kind, FixedArray::kHeaderSize - kHeapObjectTag);

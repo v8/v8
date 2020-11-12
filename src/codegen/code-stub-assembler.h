@@ -341,9 +341,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<TIndex> TaggedToParameter(TNode<Smi> value);
 
   bool ToParameterConstant(TNode<Smi> node, intptr_t* out) {
-    Smi constant;
-    if (ToSmiConstant(node, &constant)) {
-      *out = static_cast<intptr_t>(constant.value());
+    if (TryToIntPtrConstant(node, out)) {
       return true;
     }
     return false;
@@ -351,7 +349,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   bool ToParameterConstant(TNode<IntPtrT> node, intptr_t* out) {
     intptr_t constant;
-    if (ToIntPtrConstant(node, &constant)) {
+    if (TryToIntPtrConstant(node, &constant)) {
       *out = constant;
       return true;
     }
@@ -1508,7 +1506,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                       SloppyTNode<IntPtrT> offset,
                                       TNode<T> value) {
     int const_offset;
-    if (ToInt32Constant(offset, &const_offset)) {
+    if (TryToInt32Constant(offset, &const_offset)) {
       return StoreObjectFieldNoWriteBarrier<T>(object, const_offset, value);
     }
     StoreNoWriteBarrier(MachineRepresentationOf<T>::value, object,
