@@ -71,18 +71,15 @@ void EphemeronHashTable::set_key(int index, Object value,
 }
 
 int HashTableBase::NumberOfElements() const {
-  int offset = OffsetOfElementAt(kNumberOfElementsIndex);
-  return TaggedField<Smi>::load(*this, offset).value();
+  return Smi::cast(get(kNumberOfElementsIndex)).value();
 }
 
 int HashTableBase::NumberOfDeletedElements() const {
-  int offset = OffsetOfElementAt(kNumberOfDeletedElementsIndex);
-  return TaggedField<Smi>::load(*this, offset).value();
+  return Smi::cast(get(kNumberOfDeletedElementsIndex)).value();
 }
 
 int HashTableBase::Capacity() const {
-  int offset = OffsetOfElementAt(kCapacityIndex);
-  return TaggedField<Smi>::load(*this, offset).value();
+  return Smi::cast(get(kCapacityIndex)).value();
 }
 
 InternalIndex::Range HashTableBase::IterateEntries() const {
