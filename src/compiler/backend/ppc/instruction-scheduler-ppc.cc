@@ -137,6 +137,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_F64x2Floor:
     case kPPC_F64x2Trunc:
     case kPPC_F64x2NearestInt:
+    case kPPC_F64x2Pmin:
+    case kPPC_F64x2Pmax:
     case kPPC_F32x4Splat:
     case kPPC_F32x4ExtractLane:
     case kPPC_F32x4ReplaceLane:
@@ -164,6 +166,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_F32x4Floor:
     case kPPC_F32x4Trunc:
     case kPPC_F32x4NearestInt:
+    case kPPC_F32x4Pmin:
+    case kPPC_F32x4Pmax:
     case kPPC_I64x2Splat:
     case kPPC_I64x2ExtractLane:
     case kPPC_I64x2ReplaceLane:

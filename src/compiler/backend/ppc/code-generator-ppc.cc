@@ -3417,6 +3417,38 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   i.InputSimd128Register(1), kScratchDoubleReg);
       break;
     }
+    case kPPC_F32x4Pmin: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src0 = i.InputSimd128Register(0),
+                      src1 = i.InputSimd128Register(1);
+      __ xvcmpgtsp(kScratchDoubleReg, src0, src1);
+      __ vsel(dst, src0, src1, kScratchDoubleReg);
+      break;
+    }
+    case kPPC_F32x4Pmax: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src0 = i.InputSimd128Register(0),
+                      src1 = i.InputSimd128Register(1);
+      __ xvcmpgtsp(kScratchDoubleReg, src1, src0);
+      __ vsel(dst, src0, src1, kScratchDoubleReg);
+      break;
+    }
+    case kPPC_F64x2Pmin: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src0 = i.InputSimd128Register(0),
+                      src1 = i.InputSimd128Register(1);
+      __ xvcmpgtdp(kScratchDoubleReg, src0, src1);
+      __ vsel(dst, src0, src1, kScratchDoubleReg);
+      break;
+    }
+    case kPPC_F64x2Pmax: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src0 = i.InputSimd128Register(0),
+                      src1 = i.InputSimd128Register(1);
+      __ xvcmpgtdp(kScratchDoubleReg, src1, src0);
+      __ vsel(dst, src0, src1, kScratchDoubleReg);
+      break;
+    }
     case kPPC_StoreCompressTagged: {
       ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedFieldX);
       break;
