@@ -753,9 +753,10 @@ int InspectorTestMain(int argc, char* argv[]) {
   {
     IsolateData::SetupGlobalTasks frontend_extensions;
     frontend_extensions.emplace_back(new UtilsExtension());
-    TaskRunner frontend_runner(
-        std::move(frontend_extensions), kDoCatchExceptions, &ready_semaphore,
-        startup_data.data ? &startup_data : nullptr, kNoInspector);
+    TaskRunner frontend_runner(std::move(frontend_extensions),
+                               kFailOnUncaughtExceptions, &ready_semaphore,
+                               startup_data.data ? &startup_data : nullptr,
+                               kNoInspector);
     ready_semaphore.Wait();
 
     int frontend_context_group_id = 0;
@@ -768,8 +769,9 @@ int InspectorTestMain(int argc, char* argv[]) {
     backend_extensions.emplace_back(new SetTimeoutExtension());
     backend_extensions.emplace_back(new InspectorExtension());
     TaskRunner backend_runner(
-        std::move(backend_extensions), kDontCatchExceptions, &ready_semaphore,
-        startup_data.data ? &startup_data : nullptr, kWithInspector);
+        std::move(backend_extensions), kStandardPropagateUncaughtExceptions,
+        &ready_semaphore, startup_data.data ? &startup_data : nullptr,
+        kWithInspector);
     ready_semaphore.Wait();
     UtilsExtension::set_backend_task_runner(&backend_runner);
 

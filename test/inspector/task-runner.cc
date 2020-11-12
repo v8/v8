@@ -68,18 +68,17 @@ void TaskRunner::RunMessageLoop(bool only_protocol) {
     std::unique_ptr<TaskRunner::Task> task = GetNext(only_protocol);
     if (!task) return;
     v8::Isolate::Scope isolate_scope(isolate());
-    if (catch_exceptions_) {
-      v8::TryCatch try_catch(isolate());
-      task->Run(data_.get());
-      if (try_catch.HasCaught()) {
-        ReportUncaughtException(isolate(), try_catch);
-        fflush(stdout);
-        fflush(stderr);
-        _exit(0);
-      }
-    } else {
-      task->Run(data_.get());
+    v8::TryCatch try_catch(isolate());
+    if (catch_exceptions_ == kStandardPropagateUncaughtExceptions) {
+      try_catch.SetVerbose(true);
     }
+    task->Run(data_.get());
+    if (catch_exceptions_ == kFailOnUncaughtExceptions &&
+        try_catch.HasCaught()) {
+      ReportUncaughtException(isolate(), try_catch);
+      base::OS::ExitProcess(0);
+    }
+    try_catch.Reset();
     task.reset();
     // Also pump isolate's foreground task queue to ensure progress.
     // This can be removed once https://crbug.com/v8/10747 is fixed.

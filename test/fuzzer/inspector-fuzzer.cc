@@ -568,8 +568,8 @@ void FuzzInspector(const uint8_t* data, size_t size) {
   IsolateData::SetupGlobalTasks frontend_extensions;
   frontend_extensions.emplace_back(new UtilsExtension());
   TaskRunner frontend_runner(std::move(frontend_extensions),
-                             kDontCatchExceptions, &ready_semaphore, nullptr,
-                             kNoInspector);
+                             kSuppressUncaughtExceptions, &ready_semaphore,
+                             nullptr, kNoInspector);
   ready_semaphore.Wait();
 
   int frontend_context_group_id = 0;
@@ -581,8 +581,9 @@ void FuzzInspector(const uint8_t* data, size_t size) {
   IsolateData::SetupGlobalTasks backend_extensions;
   backend_extensions.emplace_back(new SetTimeoutExtension());
   backend_extensions.emplace_back(new InspectorExtension());
-  TaskRunner backend_runner(std::move(backend_extensions), kDontCatchExceptions,
-                            &ready_semaphore, nullptr, kWithInspector);
+  TaskRunner backend_runner(std::move(backend_extensions),
+                            kSuppressUncaughtExceptions, &ready_semaphore,
+                            nullptr, kWithInspector);
   ready_semaphore.Wait();
   UtilsExtension::set_backend_task_runner(&backend_runner);
 

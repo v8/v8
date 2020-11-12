@@ -20,9 +20,10 @@
 namespace v8 {
 namespace internal {
 
-enum CatchExceptions : bool {
-  kDoCatchExceptions = true,
-  kDontCatchExceptions = false
+enum CatchExceptions {
+  kFailOnUncaughtExceptions,
+  kStandardPropagateUncaughtExceptions,
+  kSuppressUncaughtExceptions
 };
 
 class TaskRunner : public v8::base::Thread {
