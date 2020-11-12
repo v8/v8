@@ -2106,9 +2106,6 @@ void SimdScalarLowering::LowerNode(Node* node) {
     }
     case IrOpcode::kS128Select: {
       DCHECK_EQ(3, node->InputCount());
-      DCHECK(ReplacementType(node->InputAt(0)) == SimdType::kInt32x4 ||
-             ReplacementType(node->InputAt(0)) == SimdType::kInt16x8 ||
-             ReplacementType(node->InputAt(0)) == SimdType::kInt8x16);
       Node** boolean_input =
           GetReplacementsWithType(node->InputAt(0), rep_type);
       Node** rep_left = GetReplacementsWithType(node->InputAt(1), rep_type);
