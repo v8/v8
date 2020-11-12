@@ -857,31 +857,12 @@ class SymbolData : public NameData {
   }
 };
 
-namespace {
-
-// String to double helper without heap allocation.
-base::Optional<double> StringToDouble(Handle<String> object) {
-  const int kMaxLengthForDoubleConversion = 23;
-  String string = *object;
-  int length = string.length();
-  if (length <= kMaxLengthForDoubleConversion) {
-    const int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
-    uc16 buffer[kMaxLengthForDoubleConversion];
-    String::WriteToFlat(*object, buffer, 0, length);
-    Vector<const uc16> v(buffer, length);
-    return StringToDouble(v, flags);
-  }
-  return base::nullopt;
-}
-
-}  // namespace
-
 StringData::StringData(JSHeapBroker* broker, ObjectData** storage,
                        Handle<String> object)
     : NameData(broker, storage, object),
       length_(object->length()),
       first_char_(length_ > 0 ? object->Get(0) : 0),
-      to_number_(StringToDouble(object)),
+      to_number_(TryStringToDouble(object)),
       is_external_string_(object->IsExternalString()),
       is_seq_string_(object->IsSeqString()),
       chars_as_strings_(broker->zone()) {}
@@ -3208,6 +3189,15 @@ bool MapRef::IsUnboxedDoubleField(InternalIndex descriptor_index) const {
       .is_unboxed_double_field;
 }
 
+int StringRef::length() const {
+  if (data_->should_access_heap()) {
+    AllowHandleDereferenceIfNeeded allow_handle_dereference(data()->kind(),
+                                                            broker()->mode());
+    return object()->synchronized_length();
+  }
+  return data()->AsString()->length();
+}
+
 uint16_t StringRef::GetFirstChar() {
   if (data_->should_access_heap()) {
     AllowHandleDereferenceIfNeeded allow_handle_dereference(data()->kind(),
@@ -3223,7 +3213,7 @@ base::Optional<double> StringRef::ToNumber() {
                                                             broker()->mode());
     AllowHandleAllocationIfNeeded allow_handle_allocation(data()->kind(),
                                                           broker()->mode());
-    return StringToDouble(object());
+    return TryStringToDouble(object());
   }
   return data()->AsString()->to_number();
 }
@@ -3602,8 +3592,6 @@ BROKER_SFI_FIELDS(DEF_SFI_ACCESSOR)
 #undef DEF_SFI_ACCESSOR
 BIMODAL_ACCESSOR_C(SharedFunctionInfo, SharedFunctionInfo::Inlineability,
                    GetInlineability)
-
-BIMODAL_ACCESSOR_C(String, int, length)
 
 BIMODAL_ACCESSOR(FeedbackCell, HeapObject, value)
 
