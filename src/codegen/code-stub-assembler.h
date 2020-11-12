@@ -3631,16 +3631,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<JSFinalizationRegistry> finalization_registry,
       TNode<WeakCell> weak_cell);
 
-  TNode<IntPtrT> FeedbackIteratorSizeFor(int number_of_entries) {
-    return IntPtrConstant(FeedbackIterator::SizeFor(number_of_entries));
+  TNode<IntPtrT> FeedbackIteratorEntrySize() {
+    return IntPtrConstant(FeedbackIterator::kEntrySize);
   }
 
-  TNode<IntPtrT> FeedbackIteratorMapIndexForEntry(int entry) {
-    return IntPtrConstant(FeedbackIterator::MapIndexForEntry(entry));
-  }
-
-  TNode<IntPtrT> FeedbackIteratorHandlerIndexForEntry(int entry) {
-    return IntPtrConstant(FeedbackIterator::HandlerIndexForEntry(entry));
+  TNode<IntPtrT> FeedbackIteratorHandlerOffset() {
+    return IntPtrConstant(FeedbackIterator::kHandlerOffset);
   }
 
  private:

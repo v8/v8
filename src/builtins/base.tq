@@ -1712,8 +1712,7 @@ macro ConstantIterator<T: type>(value: T): ConstantIterator<T> {
   return ConstantIterator{value};
 }
 
-extern macro FeedbackIteratorSizeFor(constexpr int32): intptr;
-extern macro FeedbackIteratorMapIndexForEntry(constexpr int32): intptr;
-extern macro FeedbackIteratorHandlerIndexForEntry(constexpr int32): intptr;
+extern macro FeedbackIteratorEntrySize(): intptr;
+extern macro FeedbackIteratorHandlerOffset(): intptr;
 extern operator '[]' macro LoadWeakFixedArrayElement(
     WeakFixedArray, intptr): MaybeObject;

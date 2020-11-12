@@ -13,74 +13,36 @@ const kDeopt: constexpr int32
 extern runtime TryMigrateInstance(implicit context: Context)(Object): Object;
 extern macro LoadFeedbackVectorForStub(): FeedbackVector;
 
-macro PerformMapAndHandlerCheck(
-    entry: constexpr int32, polymorphicArray: WeakFixedArray,
-    weakActualMap: WeakHeapObject,
-    actualHandler: Smi|DataHandler): void labels Next,
-    Deopt {
-  const mapIndex = FeedbackIteratorMapIndexForEntry(entry);
-  assert(mapIndex < polymorphicArray.length_intptr);
-
-  const maybeCachedMap = UnsafeCast<WeakHeapObject>(polymorphicArray[mapIndex]);
-  if (maybeCachedMap != weakActualMap) {
-    goto Next;
-  }
-
-  const handlerIndex = FeedbackIteratorHandlerIndexForEntry(entry);
-  assert(handlerIndex < polymorphicArray.length_intptr);
-  const maybeHandler =
-      Cast<Object>(polymorphicArray[handlerIndex]) otherwise unreachable;
-  if (TaggedNotEqual(maybeHandler, actualHandler)) {
-    goto Deopt;
-  }
-}
-
 macro PerformPolymorphicCheck(
     expectedPolymorphicArray: HeapObject, actualMap: Map,
     actualHandler: Smi|DataHandler): int32 {
   if (!Is<WeakFixedArray>(expectedPolymorphicArray)) {
     return kDeopt;
   }
-  try {
-    const polymorphicArray =
-        UnsafeCast<WeakFixedArray>(expectedPolymorphicArray);
-    const weakActualMap = MakeWeak(actualMap);
-    const length = polymorphicArray.length_intptr;
-    assert(length > 0);
 
-    try {
-      if (length >= FeedbackIteratorSizeFor(4)) goto Len4;
-      if (length == FeedbackIteratorSizeFor(3)) goto Len3;
-      if (length == FeedbackIteratorSizeFor(2)) goto Len2;
-      if (length == FeedbackIteratorSizeFor(1)) goto Len1;
+  const polymorphicArray = UnsafeCast<WeakFixedArray>(expectedPolymorphicArray);
+  const weakActualMap = MakeWeak(actualMap);
+  const length = polymorphicArray.length_intptr;
+  assert(length > 0);
 
-      unreachable;
-    } label Len4 {
-      PerformMapAndHandlerCheck(
-          3, polymorphicArray, weakActualMap, actualHandler) otherwise Len3,
-          Deopt;
-      return kSuccess;
-    } label Len3 {
-      PerformMapAndHandlerCheck(
-          2, polymorphicArray, weakActualMap, actualHandler) otherwise Len2,
-          Deopt;
-      return kSuccess;
-    } label Len2 {
-      PerformMapAndHandlerCheck(
-          1, polymorphicArray, weakActualMap, actualHandler) otherwise Len1,
-          Deopt;
-      return kSuccess;
-    } label Len1 {
-      PerformMapAndHandlerCheck(
-          0, polymorphicArray, weakActualMap, actualHandler)
-          otherwise Bailout, Deopt;
-      return kSuccess;
+  for (let mapIndex: intptr = 0; mapIndex < length;
+       mapIndex += FeedbackIteratorEntrySize()) {
+    const maybeCachedMap =
+        UnsafeCast<WeakHeapObject>(polymorphicArray[mapIndex]);
+    if (maybeCachedMap == weakActualMap) {
+      const handlerIndex = mapIndex + FeedbackIteratorHandlerOffset();
+      assert(handlerIndex < length);
+      const maybeHandler =
+          Cast<Object>(polymorphicArray[handlerIndex]) otherwise unreachable;
+      if (TaggedEqual(maybeHandler, actualHandler)) {
+        return kSuccess;
+      } else {
+        return kDeopt;
+      }
     }
-  } label Bailout {
-    return kBailout;
-  } label Deopt {
-    return kDeopt;
   }
+
+  return kBailout;
 }
 
 macro PerformMonomorphicCheck(
