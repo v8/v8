@@ -805,12 +805,12 @@ class WasmArray::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
-    if (!WasmArray::type(map)->element_type().is_reference_type()) return;
+    if (!WasmArray::GcSafeType(map)->element_type().is_reference_type()) return;
     IteratePointers(obj, WasmArray::kHeaderSize, object_size, v);
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return WasmArray::SizeFor(map, WasmArray::cast(object).length());
+    return WasmArray::GcSafeSizeFor(map, WasmArray::cast(object).length());
   }
 };
 

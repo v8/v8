@@ -35,12 +35,12 @@ class Simd128;
   V(I8, 0, I8, Int8, 'b', "i8")          \
   V(I16, 1, I16, Int16, 'h', "i16")
 
-#define FOREACH_VALUE_TYPE(V)                                               \
-  V(Stmt, -1, Void, None, 'v', "<stmt>")                                    \
-  FOREACH_NUMERIC_VALUE_TYPE(V)                                             \
-  V(Rtt, kSystemPointerSizeLog2, Rtt, TaggedPointer, 't', "rtt")            \
-  V(Ref, kSystemPointerSizeLog2, Ref, TaggedPointer, 'r', "ref")            \
-  V(OptRef, kSystemPointerSizeLog2, OptRef, TaggedPointer, 'n', "ref null") \
+#define FOREACH_VALUE_TYPE(V)                                    \
+  V(Stmt, -1, Void, None, 'v', "<stmt>")                         \
+  FOREACH_NUMERIC_VALUE_TYPE(V)                                  \
+  V(Rtt, kTaggedSizeLog2, Rtt, TaggedPointer, 't', "rtt")        \
+  V(Ref, kTaggedSizeLog2, Ref, AnyTagged, 'r', "ref")            \
+  V(OptRef, kTaggedSizeLog2, OptRef, AnyTagged, 'n', "ref null") \
   V(Bottom, -1, Void, None, '*', "<bot>")
 
 // Represents a WebAssembly heap type, as per the typed-funcref and gc

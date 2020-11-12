@@ -446,6 +446,11 @@ int WasmArray::SizeFor(Map map, int length) {
   return kHeaderSize + RoundUp(element_size * length, kTaggedSize);
 }
 
+int WasmArray::GcSafeSizeFor(Map map, int length) {
+  int element_size = GcSafeType(map)->element_type().element_size_bytes();
+  return kHeaderSize + RoundUp(element_size * length, kTaggedSize);
+}
+
 void WasmTypeInfo::clear_foreign_address(Isolate* isolate) {
 #ifdef V8_HEAP_SANDBOX
   // Due to the type-specific pointer tags for external pointers, we need to

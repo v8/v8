@@ -2127,6 +2127,10 @@ Handle<AsmWasmData> AsmWasmData::New(
   return result;
 }
 
+static_assert(wasm::kV8MaxWasmArrayLength <=
+                  (Smi::kMaxValue - WasmArray::kHeaderSize) / kDoubleSize,
+              "max Wasm array size must fit into max object size");
+
 namespace wasm {
 
 bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,

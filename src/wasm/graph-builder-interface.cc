@@ -734,16 +734,18 @@ class WasmGraphBuildingInterface {
                        const ArrayIndexImmediate<validate>& imm,
                        const Value& length, const Value& initial_value,
                        const Value& rtt, Value* result) {
-    result->node = BUILD(ArrayNewWithRtt, imm.index, imm.array_type,
-                         length.node, initial_value.node, rtt.node);
+    result->node =
+        BUILD(ArrayNewWithRtt, imm.index, imm.array_type, length.node,
+              initial_value.node, rtt.node, decoder->position());
   }
 
   void ArrayNewDefault(FullDecoder* decoder,
                        const ArrayIndexImmediate<validate>& imm,
                        const Value& length, const Value& rtt, Value* result) {
     TFNode* initial_value = DefaultValue(imm.array_type->element_type());
-    result->node = BUILD(ArrayNewWithRtt, imm.index, imm.array_type,
-                         length.node, initial_value, rtt.node);
+    result->node =
+        BUILD(ArrayNewWithRtt, imm.index, imm.array_type, length.node,
+              initial_value, rtt.node, decoder->position());
   }
 
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,

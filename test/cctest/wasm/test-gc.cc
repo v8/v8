@@ -120,6 +120,7 @@ class WasmGCTester {
     DCHECK(*sig == *instance_->module()->functions[function_index].sig);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     CallFunctionImpl(function_index, sig, &packer);
+    CHECK(!isolate_->has_pending_exception());
     packer.Reset();
     CHECK_EQ(expected, packer.Pop<int32_t>());
   }
@@ -130,6 +131,7 @@ class WasmGCTester {
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     packer.Push(arg);
     CallFunctionImpl(function_index, sig, &packer);
+    CHECK(!isolate_->has_pending_exception());
     packer.Reset();
     CHECK_EQ(expected, packer.Pop<int32_t>());
   }
@@ -138,8 +140,17 @@ class WasmGCTester {
     const FunctionSig* sig = instance_->module()->functions[function_index].sig;
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     CallFunctionImpl(function_index, sig, &packer);
+    CHECK(!isolate_->has_pending_exception());
     packer.Reset();
     return Handle<Object>(Object(packer.Pop<Address>()), isolate_);
+  }
+
+  void CheckHasThrown(uint32_t function_index) {
+    const FunctionSig* sig = instance_->module()->functions[function_index].sig;
+    CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
+    CallFunctionImpl(function_index, sig, &packer);
+    CHECK(isolate_->has_pending_exception());
+    isolate_->clear_pending_exception();
   }
 
   void CheckHasThrown(uint32_t function_index, int32_t arg) {
@@ -605,6 +616,20 @@ TEST(WasmBasicArray) {
                                WASM_RTT_CANON(type_index)),
        kExprEnd});
 
+  const uint32_t kLongLength = 1u << 15;
+  const byte kAllocateLarge = tester.DefineFunction(
+      &sig_q_v, {},
+      {WASM_ARRAY_NEW_DEFAULT(type_index, WASM_I32V(kLongLength),
+                              WASM_RTT_CANON(type_index)),
+       kExprEnd});
+
+  const uint32_t kTooLong = kV8MaxWasmArrayLength + 1;
+  const byte kAllocateTooLarge = tester.DefineFunction(
+      &sig_q_v, {},
+      {WASM_ARRAY_NEW_DEFAULT(type_index, WASM_I32V(kTooLong),
+                              WASM_RTT_CANON(type_index)),
+       kExprEnd});
+
   tester.CompileModule();
 
   tester.CheckResult(kGetElem, 12, 0);
@@ -619,6 +644,15 @@ TEST(WasmBasicArray) {
 #if OBJECT_PRINT
   h_result.ToHandleChecked()->Print();
 #endif
+
+  MaybeHandle<Object> maybe_large_result =
+      tester.GetResultObject(kAllocateLarge);
+  Handle<Object> large_result = maybe_large_result.ToHandleChecked();
+  CHECK(large_result->IsWasmArray());
+  CHECK(Handle<WasmArray>::cast(large_result)->Size() >
+        kMaxRegularHeapObjectSize);
+
+  tester.CheckHasThrown(kAllocateTooLarge);
 }
 
 TEST(WasmPackedArrayU) {
@@ -1036,6 +1070,106 @@ TEST(I31Casts) {
   tester.CheckResult(kTestFalse, 0);
   tester.CheckHasThrown(kCastI31ToStruct, 0);
   tester.CheckHasThrown(kCastStructToI31, 0);
+}
+
+// This flushed out a few bugs, so it serves as a regression test. It can also
+// be modified (made to run longer) to measure performance of casts.
+TEST(CastsBenchmark) {
+  WasmGCTester tester;
+  const byte SuperType = tester.DefineStruct({F(wasm::kWasmI32, true)});
+  const byte SubType =
+      tester.DefineStruct({F(wasm::kWasmI32, true), F(wasm::kWasmI32, true)});
+  const byte ListType = tester.DefineArray(wasm::kWasmEqRef, true);
+
+  const byte List =
+      tester.AddGlobal(ValueType::Ref(ListType, kNullable), true,
+                       WasmInitExpr::RefNullConst(
+                           static_cast<HeapType::Representation>(ListType)));
+  const byte RttSuper = tester.AddGlobal(
+      ValueType::Rtt(SuperType, 1), false,
+      WasmInitExpr::RttCanon(static_cast<HeapType::Representation>(SuperType)));
+  const byte RttSub = tester.AddGlobal(
+      ValueType::Rtt(SubType, 2), false,
+      WasmInitExpr::RttSub(static_cast<HeapType::Representation>(SubType),
+                           WasmInitExpr::GlobalGet(RttSuper)));
+  const byte RttList = tester.AddGlobal(
+      ValueType::Rtt(ListType, 1), false,
+      WasmInitExpr::RttCanon(static_cast<HeapType::Representation>(ListType)));
+
+  const uint32_t kListLength = 1024;
+  const uint32_t i = 0;
+  const byte Prepare = tester.DefineFunction(
+      tester.sigs.i_v(), {wasm::kWasmI32},
+      {// List = new eqref[kListLength];
+       WASM_SET_GLOBAL(List,
+                       WASM_ARRAY_NEW_DEFAULT(ListType, WASM_I32V(kListLength),
+                                              WASM_GET_GLOBAL(RttList))),
+       // for (int i = 0; i < kListLength; ) {
+       //   List[i] = new Super(i);
+       //   i++;
+       //   List[i] = new Sub(i, 0);
+       //   i++;
+       // }
+       WASM_SET_LOCAL(i, WASM_I32V_1(0)),
+       WASM_LOOP(
+           WASM_ARRAY_SET(ListType, WASM_GET_GLOBAL(List), WASM_GET_LOCAL(i),
+                          WASM_STRUCT_NEW_WITH_RTT(SuperType, WASM_GET_LOCAL(i),
+                                                   WASM_GET_GLOBAL(RttSuper))),
+           WASM_SET_LOCAL(i, WASM_I32_ADD(WASM_GET_LOCAL(i), WASM_I32V_1(1))),
+           WASM_ARRAY_SET(ListType, WASM_GET_GLOBAL(List), WASM_GET_LOCAL(i),
+                          WASM_STRUCT_NEW_WITH_RTT(SubType, WASM_GET_LOCAL(i),
+                                                   WASM_I32V_1(0),
+                                                   WASM_GET_GLOBAL(RttSub))),
+           WASM_SET_LOCAL(i, WASM_I32_ADD(WASM_GET_LOCAL(i), WASM_I32V_1(1))),
+           WASM_BR_IF(0,
+                      WASM_I32_NE(WASM_GET_LOCAL(i), WASM_I32V(kListLength)))),
+       // return 42;  // Dummy value, due to test framework.
+       WASM_I32V_1(42), kExprEnd});
+
+  const uint32_t sum = 1;  // Index of the local.
+  const uint32_t list = 2;
+  const uint32_t kLoops = 2;
+  const uint32_t kIterations = kLoops * kListLength;
+  const byte Main = tester.DefineFunction(
+      tester.sigs.i_v(),
+      {
+          wasm::kWasmI32,
+          wasm::kWasmI32,
+          ValueType::Ref(ListType, kNullable),
+      },
+      {WASM_SET_LOCAL(list, WASM_GET_GLOBAL(List)),
+       // sum = 0;
+       WASM_SET_LOCAL(sum, WASM_I32V_1(0)),
+       // for (int i = 0; i < kIterations; i++) {
+       //   sum += ref.cast<super>(List[i & kListLength]).x
+       // }
+       WASM_SET_LOCAL(i, WASM_I32V_1(0)),
+       WASM_LOOP(
+           WASM_SET_LOCAL(
+               sum, WASM_I32_ADD(
+                        WASM_GET_LOCAL(sum),
+                        WASM_STRUCT_GET(
+                            SuperType, 0,
+                            WASM_REF_CAST(
+                                kEqRefCode, SuperType,
+                                WASM_ARRAY_GET(
+                                    ListType, WASM_GET_LOCAL(list),
+                                    WASM_I32_AND(WASM_GET_LOCAL(i),
+                                                 WASM_I32V(kListLength - 1))),
+                                WASM_GET_GLOBAL(RttSuper))))),
+           WASM_SET_LOCAL(i, WASM_I32_ADD(WASM_GET_LOCAL(i), WASM_I32V_1(1))),
+           WASM_BR_IF(0,
+                      WASM_I32_LTS(WASM_GET_LOCAL(i), WASM_I32V(kIterations)))),
+       // return sum;
+       WASM_GET_LOCAL(sum), kExprEnd});
+
+  tester.CompileModule();
+  tester.CheckResult(Prepare, 42);
+
+  // Time this section to get a benchmark for subtyping checks.
+  // Note: if you bump kIterations or kListLength, you may have to take i32
+  // overflow into account.
+  tester.CheckResult(Main, (kListLength * (kListLength - 1) / 2) * kLoops);
 }
 
 TEST(GlobalInitReferencingGlobal) {

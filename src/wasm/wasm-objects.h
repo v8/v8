@@ -932,6 +932,7 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, HeapObject> {
   static inline wasm::ArrayType* GcSafeType(Map map);
 
   static inline int SizeFor(Map map, int length);
+  static inline int GcSafeSizeFor(Map map, int length);
 
   DECL_CAST(WasmArray)
   DECL_PRINTER(WasmArray)

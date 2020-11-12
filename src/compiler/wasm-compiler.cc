@@ -5627,7 +5627,12 @@ Node* WasmGraphBuilder::StructNewWithRtt(uint32_t struct_index,
 Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
                                         const wasm::ArrayType* type,
                                         Node* length, Node* initial_value,
-                                        Node* rtt) {
+                                        Node* rtt,
+                                        wasm::WasmCodePosition position) {
+  TrapIfFalse(wasm::kTrapArrayOutOfBounds,
+              gasm_->Uint32LessThanOrEqual(
+                  length, gasm_->Uint32Constant(wasm::kV8MaxWasmArrayLength)),
+              position);
   wasm::ValueType element_type = type->element_type();
   Node* a = CALL_BUILTIN(
       WasmAllocateArrayWithRtt, rtt, BuildChangeUint31ToSmi(length),

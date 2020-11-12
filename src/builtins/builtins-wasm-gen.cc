@@ -120,7 +120,8 @@ TF_BUILTIN(WasmAllocateArrayWithRtt, WasmBuiltinsAssembler) {
               IntPtrConstant(~kObjectAlignmentMask));
   TNode<IntPtrT> instance_size =
       IntPtrAdd(IntPtrConstant(WasmArray::kHeaderSize), rounded_size);
-  TNode<WasmArray> result = UncheckedCast<WasmArray>(Allocate(instance_size));
+  TNode<WasmArray> result = UncheckedCast<WasmArray>(
+      Allocate(instance_size, kAllowLargeObjectAllocation));
   StoreMap(result, map);
   StoreObjectFieldNoWriteBarrier(result, WasmArray::kLengthOffset,
                                  TruncateIntPtrToInt32(untagged_length));
