@@ -1340,27 +1340,105 @@ void TurboAssembler::PrepareForTailCall(Register callee_args_count,
   mr(sp, dst_reg);
 }
 
+void MacroAssembler::LoadStackLimit(Register destination, StackLimitKind kind) {
+  DCHECK(root_array_available());
+  Isolate* isolate = this->isolate();
+  ExternalReference limit =
+      kind == StackLimitKind::kRealStackLimit
+          ? ExternalReference::address_of_real_jslimit(isolate)
+          : ExternalReference::address_of_jslimit(isolate);
+  DCHECK(TurboAssembler::IsAddressableThroughRootRegister(isolate, limit));
+
+  intptr_t offset =
+      TurboAssembler::RootRegisterOffsetForExternalReference(isolate, limit);
+  CHECK(is_int32(offset));
+  LoadP(destination, MemOperand(kRootRegister, offset), r0);
+}
+
+void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch,
+                                        Label* stack_overflow) {
+  // Check the stack for overflow. We are not trying to catch
+  // interruptions (e.g. debug break and preemption) here, so the "real stack
+  // limit" is checked.
+  LoadStackLimit(scratch, StackLimitKind::kRealStackLimit);
+  // Make scratch the space we have left. The stack might already be overflowed
+  // here which will cause scratch to become negative.
+  sub(scratch, sp, scratch);
+  // Check if the arguments will overflow the stack.
+  ShiftLeftImm(r0, num_args, Operand(kSystemPointerSizeLog2));
+  cmp(scratch, r0);
+  ble(stack_overflow);  // Signed comparison.
+}
+
 void MacroAssembler::InvokePrologue(Register expected_parameter_count,
                                     Register actual_parameter_count,
                                     Label* done, InvokeFlag flag) {
   Label regular_invoke;
 
-  // Check whether the expected and actual arguments count match. If not,
-  // setup registers according to contract with ArgumentsAdaptorTrampoline:
   //  r3: actual arguments count
   //  r4: function (passed through to callee)
   //  r5: expected arguments count
 
-  // The code below is made a lot easier because the calling code already sets
-  // up actual and expected registers according to the contract if values are
-  // passed in registers.
+  DCHECK_EQ(actual_parameter_count, r3);
+  DCHECK_EQ(expected_parameter_count, r5);
 
-  // The code below is made a lot easier because the calling code already sets
-  // up actual and expected registers according to the contract.
-  // ARM has some checks as per below, considering add them for PPC
-  // DCHECK_EQ(actual_parameter_count, r3);
-  // DCHECK_EQ(expected_parameter_count, r5);
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+  // If the expected parameter count is equal to the adaptor sentinel, no need
+  // to push undefined value as arguments.
+  mov(r0, Operand(kDontAdaptArgumentsSentinel));
+  cmp(expected_parameter_count, r0);
+  beq(&regular_invoke);
 
+  // If overapplication or if the actual argument count is equal to the
+  // formal parameter count, no need to push extra undefined values.
+  sub(expected_parameter_count, expected_parameter_count,
+      actual_parameter_count, LeaveOE, SetRC);
+  ble(&regular_invoke, cr0);
+
+  Label stack_overflow;
+  Register scratch = r7;
+  StackOverflowCheck(expected_parameter_count, scratch, &stack_overflow);
+
+  // Underapplication. Move the arguments already in the stack, including the
+  // receiver and the return address.
+  {
+    Label copy;
+    Register src = r9, dest = r8;
+    addi(src, sp, Operand(-kSystemPointerSize));
+    ShiftLeftImm(r0, expected_parameter_count, Operand(kSystemPointerSizeLog2));
+    sub(sp, sp, r0);
+    // Update stack pointer.
+    addi(dest, sp, Operand(-kSystemPointerSize));
+    addi(r0, actual_parameter_count, Operand(1));
+    mtctr(r0);
+
+    bind(&copy);
+    LoadPU(r0, MemOperand(src, kSystemPointerSize));
+    StorePU(r0, MemOperand(dest, kSystemPointerSize));
+    bdnz(&copy);
+  }
+
+  // Fill remaining expected arguments with undefined values.
+  LoadRoot(scratch, RootIndex::kUndefinedValue);
+  {
+    mtctr(expected_parameter_count);
+
+    Label loop;
+    bind(&loop);
+    StorePU(scratch, MemOperand(r8, kSystemPointerSize));
+    bdnz(&loop);
+  }
+  b(&regular_invoke);
+
+  bind(&stack_overflow);
+  {
+    FrameScope frame(this, StackFrame::MANUAL);
+    CallRuntime(Runtime::kThrowStackOverflow);
+    bkpt(0);
+  }
+#else
+  // Check whether the expected and actual arguments count match. If not,
+  // setup registers according to contract with ArgumentsAdaptorTrampoline.
   cmp(expected_parameter_count, actual_parameter_count);
   beq(&regular_invoke);
 
@@ -1371,7 +1449,8 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
   } else {
     Jump(adaptor, RelocInfo::CODE_TARGET);
   }
-    bind(&regular_invoke);
+#endif
+  bind(&regular_invoke);
 }
 
 void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
