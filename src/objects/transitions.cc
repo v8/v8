@@ -230,11 +230,9 @@ Map TransitionsAccessor::SearchTransition(Name name, PropertyKind kind,
       return map;
     }
     case kFullTransitionArray: {
-      if (concurrent_access_) isolate_->transition_array_access()->LockShared();
-      Map result = transitions().SearchAndGetTarget(kind, name, attributes);
-      if (concurrent_access_)
-        isolate_->transition_array_access()->UnlockShared();
-      return result;
+      base::SharedMutexGuardIf<base::kShared> scope(
+          isolate_->transition_array_access(), concurrent_access_);
+      return transitions().SearchAndGetTarget(kind, name, attributes);
     }
   }
   UNREACHABLE();

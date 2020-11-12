@@ -7,6 +7,7 @@
 
 #include "src/base/base-export.h"
 #include "src/base/lazy-instance.h"
+#include "src/base/optional.h"
 #if V8_OS_WIN
 #include "src/base/win32-headers.h"
 #endif
@@ -338,6 +339,20 @@ class SharedMutexGuard final {
                    mutex_ != nullptr);
     return Behavior == NullBehavior::kRequireNotNull || mutex_ != nullptr;
   }
+};
+
+template <MutexSharedType kIsShared,
+          NullBehavior Behavior = NullBehavior::kRequireNotNull>
+class SharedMutexGuardIf final {
+ public:
+  SharedMutexGuardIf(SharedMutex* mutex, bool enable_mutex) {
+    if (enable_mutex) mutex_.emplace(mutex);
+  }
+  SharedMutexGuardIf(const SharedMutexGuardIf&) = delete;
+  SharedMutexGuardIf& operator=(const SharedMutexGuardIf&) = delete;
+
+ private:
+  base::Optional<SharedMutexGuard<kIsShared, Behavior>> mutex_;
 };
 
 }  // namespace base
