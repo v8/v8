@@ -2393,6 +2393,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallFunctionWithBuiltinId(isolate_, promise_fun, "allSettled",
                                  Builtins::kPromiseAllSettled, 1, true);
 
+    Handle<JSFunction> promise_any = InstallFunctionWithBuiltinId(
+        isolate_, promise_fun, "any", Builtins::kPromiseAny, 1, true);
+    native_context()->set_promise_any(*promise_any);
+
     InstallFunctionWithBuiltinId(isolate_, promise_fun, "race",
                                  Builtins::kPromiseRace, 1, true);
 
@@ -2651,6 +2655,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   // -- E r r o r
   InstallError(isolate_, global, factory->Error_string(),
                Context::ERROR_FUNCTION_INDEX);
+
+  // -- A g g r e g a t e E r r o r
+  InstallError(isolate_, global, factory->AggregateError_string(),
+               Context::AGGREGATE_ERROR_FUNCTION_INDEX,
+               Builtins::kAggregateErrorConstructor, 2, 2);
 
   // -- E v a l E r r o r
   InstallError(isolate_, global, factory->EvalError_string(),
@@ -4337,34 +4346,6 @@ void Genesis::InitializeGlobal_harmony_weak_refs_with_cleanup_some() {
                         factory()->InternalizeUtf8String("cleanupSome"),
                         isolate()->finalization_registry_cleanup_some(),
                         DONT_ENUM);
-}
-
-void Genesis::InitializeGlobal_harmony_promise_any() {
-  if (!FLAG_harmony_promise_any) {
-    return;
-  }
-
-  Factory* factory = isolate()->factory();
-  Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
-
-  InstallError(isolate_, global, factory->AggregateError_string(),
-               Context::AGGREGATE_ERROR_FUNCTION_INDEX,
-               Builtins::kAggregateErrorConstructor, 2, 2);
-
-  // Setup %AggregateErrorPrototype%.
-  Handle<JSFunction> aggregate_error_function(
-      native_context()->aggregate_error_function(), isolate());
-  Handle<JSObject> prototype(
-      JSObject::cast(aggregate_error_function->instance_prototype()),
-      isolate());
-
-  Handle<JSFunction> promise_fun(
-      JSFunction::cast(
-          isolate()->native_context()->get(Context::PROMISE_FUNCTION_INDEX)),
-      isolate());
-  Handle<JSFunction> promise_any = InstallFunctionWithBuiltinId(
-      isolate_, promise_fun, "any", Builtins::kPromiseAny, 1, true);
-  native_context()->set_promise_any(*promise_any);
 }
 
 void Genesis::InitializeGlobal_harmony_regexp_match_indices() {
