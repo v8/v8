@@ -575,9 +575,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
       DCHECK(!value->IsTheHole(isolate_));
       // Don't set enumeration index (it will be set during value store).
       property_details_ = PropertyDetails(
-          kData, attributes,
-          PropertyCell::TypeForUninitializedCell(isolate_, value));
-
+          kData, attributes, PropertyCell::InitialType(isolate_, value));
       transition_ = cell;
       has_property_ = true;
     } else {

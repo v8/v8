@@ -207,26 +207,18 @@ static const int kMaxNumberOfDescriptors = (1 << kDescriptorIndexBitCount) - 4;
 static const int kInvalidEnumCacheSentinel =
     (1 << kDescriptorIndexBitCount) - 1;
 
+// A PropertyCell's property details contains a cell type that is meaningful if
+// the cell is still valid (does not hold the hole).
 enum class PropertyCellType {
-  // Meaningful when a property cell does not contain the hole.
   kUndefined,     // The PREMONOMORPHIC of property cells.
   kConstant,      // Cell has been assigned only once.
   kConstantType,  // Cell has been assigned only one type.
   kMutable,       // Cell will no longer be tracked as constant.
-
-  // Meaningful when a property cell contains the hole.
-  kUninitialized = kUndefined,  // Cell has never been initialized.
-  kInvalidated = kConstant,     // Cell has been deleted, invalidated or never
-                                // existed.
-
-  // For dictionaries not holding cells.
+  // Arbitrary choice for dictionaries not holding cells.
   kNoCell = kMutable,
 };
 
-enum class PropertyCellConstantType {
-  kSmi,
-  kStableMap,
-};
+std::ostream& operator<<(std::ostream& os, PropertyCellType type);
 
 // PropertyDetails captures type and attributes for a property.
 // They are used both in property dictionaries and instance descriptors.

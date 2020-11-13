@@ -270,8 +270,6 @@ class GlobalPropertyDependency final : public CompilationDependency {
     // The dependency is never valid if the cell is 'invalidated'. This is
     // marked by setting the value to the hole.
     if (cell->value() == *(cell_.isolate()->factory()->the_hole_value())) {
-      DCHECK_EQ(cell->property_details().cell_type(),
-                PropertyCellType::kInvalidated);
       return false;
     }
     return type_ == cell->property_details().cell_type() &&
