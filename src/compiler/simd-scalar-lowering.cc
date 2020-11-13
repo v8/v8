@@ -159,6 +159,8 @@ void SimdScalarLowering::LowerGraph() {
   V(S128Or)                       \
   V(S128Xor)                      \
   V(S128Not)                      \
+  V(S128AndNot)                   \
+  V(S128Select)                   \
   V(V32x4AnyTrue)                 \
   V(V32x4AllTrue)                 \
   V(V16x8AnyTrue)                 \
