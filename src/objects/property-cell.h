@@ -17,7 +17,7 @@ namespace internal {
 class PropertyCell : public HeapObject {
  public:
   // [name]: the name of the global property.
-  DECL_ACCESSORS(name, Name)
+  DECL_GETTER(name, Name)
   // [property_details]: details of the global property.
   DECL_ACCESSORS(property_details_raw, Smi)
   // [value]: value of the global property.
@@ -70,6 +70,11 @@ class PropertyCell : public HeapObject {
   using BodyDescriptor = FixedBodyDescriptor<kNameOffset, kSize, kSize>;
 
   OBJECT_CONSTRUCTORS(PropertyCell, HeapObject);
+
+ private:
+  friend class Factory;
+
+  DECL_SETTER(name, Name)
 };
 
 }  // namespace internal
