@@ -10,7 +10,6 @@ gclient_gn_args = [
   # Remove when migration is complete.
   'checkout_fuchsia_for_arm64_host',
   'checkout_google_benchmark',
-  'mac_xcode_version',
 ]
 
 vars = {
@@ -46,8 +45,6 @@ vars = {
   'check_v8_header_includes': False,
 
   'checkout_google_benchmark' : False,
-
-  'mac_xcode_version': 'default',
 
   # GN CIPD package version.
   'gn_version': 'git_revision:53d92014bf94c3893886470a1c7c1289f8818db0',
@@ -490,8 +487,7 @@ hooks = [
     'name': 'mac_toolchain',
     'pattern': '.',
     'condition': 'checkout_mac',
-    'action': ['python', 'build/mac_toolchain.py',
-               '--xcode-version', Var('mac_xcode_version')],
+    'action': ['python', 'build/mac_toolchain.py'],
   },
   # Pull binutils for linux, enabled debug fission for faster linking /
   # debugging when used with clang on Ubuntu Precise.
