@@ -116,7 +116,6 @@ declare_args() {
       v8_current_cpu == "mipsel" || v8_current_cpu == "mips64el" ||
       v8_current_cpu == "ppc64" || v8_current_cpu == "s390x"
 
-
   # Sets -dOBJECT_PRINT.
   v8_enable_object_print = ""
 
@@ -4177,9 +4176,7 @@ v8_component("v8_libbase") {
       "src/base/platform/platform-aix.cc",
     ]
 
-    libs = [
-      "dl",
-    ]
+    libs = [ "dl" ]
   } else if (is_android) {
     if (current_toolchain == host_toolchain) {
       libs = [
@@ -4786,7 +4783,10 @@ group("v8_python_base") {
 group("v8_clusterfuzz") {
   testonly = true
 
-  deps = [ ":d8" ]
+  deps = [
+    ":d8",
+    ":v8_simple_inspector_fuzzer",
+  ]
 
   if (v8_multi_arch_build) {
     deps += [
