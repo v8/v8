@@ -4230,48 +4230,6 @@ bool JSFunctionRef::serialized() const {
   return data()->AsJSFunction()->serialized();
 }
 
-JSArrayRef SharedFunctionInfoRef::GetTemplateObject(
-    TemplateObjectDescriptionRef description, FeedbackSource const& source,
-    SerializationPolicy policy) {
-  // First, see if we have processed feedback from the vector, respecting
-  // the serialization policy.
-  ProcessedFeedback const& feedback =
-      policy == SerializationPolicy::kSerializeIfNeeded
-          ? broker()->ProcessFeedbackForTemplateObject(source)
-          : broker()->GetFeedbackForTemplateObject(source);
-
-  if (!feedback.IsInsufficient()) {
-    return feedback.AsTemplateObject().value();
-  }
-
-  if (data_->should_access_heap()) {
-    AllowHandleAllocationIfNeeded allow_handle_allocation(data()->kind(),
-                                                          broker()->mode());
-    AllowHandleDereferenceIfNeeded allow_handle_dereference(data()->kind(),
-                                                            broker()->mode());
-    Handle<JSArray> template_object =
-        TemplateObjectDescription::GetTemplateObject(
-            isolate(), broker()->target_native_context().object(),
-            description.object(), object(), source.slot.ToInt());
-    return JSArrayRef(broker(), template_object);
-  }
-
-  ObjectData* array =
-      data()->AsSharedFunctionInfo()->GetTemplateObject(source.slot);
-  if (array != nullptr) return JSArrayRef(broker(), array);
-
-  CHECK_EQ(policy, SerializationPolicy::kSerializeIfNeeded);
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-
-  Handle<JSArray> template_object =
-      TemplateObjectDescription::GetTemplateObject(
-          broker()->isolate(), broker()->target_native_context().object(),
-          description.object(), object(), source.slot.ToInt());
-  array = broker()->GetOrCreateData(template_object);
-  data()->AsSharedFunctionInfo()->SetTemplateObject(source.slot, array);
-  return JSArrayRef(broker(), array);
-}
-
 void SharedFunctionInfoRef::SerializeFunctionTemplateInfo() {
   if (data_->should_access_heap()) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);

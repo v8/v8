@@ -1375,11 +1375,16 @@ void SerializerForBackgroundCompilation::VisitGetTemplateObject(
       broker(), iterator->GetConstantForIndexOperand(0, broker()->isolate()));
   FeedbackSlot slot = iterator->GetSlotOperand(1);
   FeedbackSource source(feedback_vector(), slot);
-  SharedFunctionInfoRef shared(broker(), function().shared());
-  JSArrayRef template_object = shared.GetTemplateObject(
-      description, source, SerializationPolicy::kSerializeIfNeeded);
-  environment()->accumulator_hints() =
-      Hints::SingleConstant(template_object.object(), zone());
+
+  ProcessedFeedback const& feedback =
+      broker()->ProcessFeedbackForTemplateObject(source);
+  if (feedback.IsInsufficient()) {
+    environment()->accumulator_hints() = Hints();
+  } else {
+    JSArrayRef template_object = feedback.AsTemplateObject().value();
+    environment()->accumulator_hints() =
+        Hints::SingleConstant(template_object.object(), zone());
+  }
 }
 
 void SerializerForBackgroundCompilation::VisitLdaTrue(

@@ -1723,6 +1723,10 @@ struct GenericLoweringPhase {
     JSGenericLowering generic_lowering(data->jsgraph(), &graph_reducer,
                                        data->broker());
     AddReducer(data, &graph_reducer, &generic_lowering);
+
+    // JSGEnericLowering accesses the heap due to ObjectRef's type checks.
+    UnparkedScopeIfNeeded scope(data->broker());
+
     graph_reducer.ReduceGraph();
   }
 };
