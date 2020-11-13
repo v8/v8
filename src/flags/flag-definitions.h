@@ -1913,6 +1913,7 @@ DEFINE_NEG_IMPLICATION(single_threaded_gc, concurrent_store_buffer)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, minor_mc_parallel_marking)
 #endif  // ENABLE_MINOR_MC
 DEFINE_NEG_IMPLICATION(single_threaded_gc, concurrent_array_buffer_sweeping)
+DEFINE_NEG_IMPLICATION(single_threaded_gc, stress_concurrent_allocation)
 
 #undef FLAG
 
