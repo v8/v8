@@ -1671,13 +1671,13 @@ const Operator* MachineOperatorBuilder::Word64PoisonOnSpeculation() {
   return GetCachedOperator<Word64PoisonOnSpeculationOperator>();
 }
 
-#define EXTRACT_LANE_OP(Type, Sign, lane_count)                                \
-  const Operator* MachineOperatorBuilder::Type##ExtractLane##Sign(             \
-      int32_t lane_index) {                                                    \
-    DCHECK(0 <= lane_index && lane_index < lane_count);                        \
-    return zone_->New<Operator1<int32_t>>(                                     \
-        IrOpcode::k##Type##ExtractLane##Sign, Operator::kPure, "Extract lane", \
-        1, 0, 0, 1, 0, 0, lane_index);                                         \
+#define EXTRACT_LANE_OP(Type, Sign, lane_count)                      \
+  const Operator* MachineOperatorBuilder::Type##ExtractLane##Sign(   \
+      int32_t lane_index) {                                          \
+    DCHECK(0 <= lane_index && lane_index < lane_count);              \
+    return zone_->New<Operator1<int32_t>>(                           \
+        IrOpcode::k##Type##ExtractLane##Sign, Operator::kPure,       \
+        "" #Type "ExtractLane" #Sign, 1, 0, 0, 1, 0, 0, lane_index); \
   }
 EXTRACT_LANE_OP(F64x2, , 2)
 EXTRACT_LANE_OP(F32x4, , 4)
