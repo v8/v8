@@ -4561,13 +4561,41 @@ void Isolate::CollectSourcePositionsForAllBytecodeArrays() {
 }
 
 #ifdef V8_INTL_SUPPORT
-icu::UMemory* Isolate::get_cached_icu_object(ICUObjectCacheType cache_type) {
-  return icu_object_cache_[cache_type].get();
+namespace {
+std::string GetStringFromLocale(Handle<Object> locales_obj) {
+  DCHECK(locales_obj->IsString() || locales_obj->IsUndefined());
+  if (locales_obj->IsString()) {
+    return std::string(String::cast(*locales_obj).ToCString().get());
+  }
+
+  return "";
+}
+}  // namespace
+
+icu::UMemory* Isolate::get_cached_icu_object(ICUObjectCacheType cache_type,
+                                             Handle<Object> locales_obj) {
+  std::string locale = GetStringFromLocale(locales_obj);
+  auto value = icu_object_cache_.find(cache_type);
+  if (value == icu_object_cache_.end()) return nullptr;
+
+  ICUCachePair pair = value->second;
+  if (pair.first != locale) return nullptr;
+
+  return pair.second.get();
 }
 
-void Isolate::set_icu_object_in_cache(ICUObjectCacheType cache_type,
-                                      std::shared_ptr<icu::UMemory> obj) {
-  icu_object_cache_[cache_type] = obj;
+void Isolate::set_icu_object_in_cache(
+    ICUObjectCacheType cache_type, Handle<Object> locales_obj,
+    std::shared_ptr<icu::UMemory> icu_formatter) {
+  std::string locale = GetStringFromLocale(locales_obj);
+  ICUCachePair pair = std::make_pair(locale, icu_formatter);
+
+  auto it = icu_object_cache_.find(cache_type);
+  if (it == icu_object_cache_.end()) {
+    icu_object_cache_.insert({cache_type, pair});
+  } else {
+    it->second = pair;
+  }
 }
 
 void Isolate::clear_cached_icu_object(ICUObjectCacheType cache_type) {
