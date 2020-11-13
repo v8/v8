@@ -77,7 +77,11 @@ class AstRawString final : public ZoneObject {
 
   // For storing AstRawStrings in a hash map.
   uint32_t raw_hash_field() const { return raw_hash_field_; }
-  uint32_t Hash() const { return raw_hash_field_ >> Name::kHashShift; }
+  uint32_t Hash() const {
+    // Hash field must be computed.
+    DCHECK_EQ(raw_hash_field_ & Name::kHashNotComputedMask, 0);
+    return raw_hash_field_ >> Name::kHashShift;
+  }
 
   // This function can be called after internalizing.
   V8_INLINE Handle<String> string() const {

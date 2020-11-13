@@ -1026,8 +1026,8 @@ void Heap::CreateInitialObjects() {
           AllocationType::kReadOnly));
 
   // Evaluate the hash values which will then be cached in the strings.
-  isolate()->factory()->zero_string()->Hash();
-  isolate()->factory()->one_string()->Hash();
+  isolate()->factory()->zero_string()->EnsureHash();
+  isolate()->factory()->one_string()->EnsureHash();
 
   // Initialize builtins constants table.
   set_builtins_constants_table(roots.empty_fixed_array());

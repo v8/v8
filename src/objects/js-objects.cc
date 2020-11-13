@@ -2389,7 +2389,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object, Handle<Name> name,
   DCHECK(name->IsUniqueName());
   Isolate* isolate = object->GetIsolate();
 
-  uint32_t hash = name->Hash();
+  uint32_t hash = name->hash();
 
   if (object->IsJSGlobalObject()) {
     Handle<JSGlobalObject> global_obj = Handle<JSGlobalObject>::cast(object);

@@ -192,7 +192,7 @@ void Log::MessageBuilder::AppendSymbolName(Symbol symbol) {
     AppendSymbolNameDetails(String::cast(symbol.description()), false);
     os << "\" ";
   }
-  os << "hash " << std::hex << symbol.Hash() << std::dec << ")";
+  os << "hash " << std::hex << symbol.hash() << std::dec << ")";
 }
 
 void Log::MessageBuilder::AppendSymbolNameDetails(String str,

@@ -223,7 +223,7 @@ void DescriptorArray::Append(Descriptor* desc) {
   set_number_of_descriptors(descriptor_number + 1);
   Set(InternalIndex(descriptor_number), desc);
 
-  uint32_t hash = desc->GetKey()->Hash();
+  uint32_t hash = desc->GetKey()->hash();
 
   int insertion;
 

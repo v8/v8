@@ -1829,11 +1829,11 @@ void TestString(i::Isolate* isolate, const IndexData& data) {
     size_t index;
     CHECK(s->AsIntegerIndex(&index));
     CHECK_EQ(data.integer_index, index);
-    s->Hash();
+    s->EnsureHash();
     CHECK_EQ(0, s->raw_hash_field() & String::kIsNotIntegerIndexMask);
     CHECK(s->HasHashCode());
   }
-  if (!s->HasHashCode()) s->Hash();
+  if (!s->HasHashCode()) s->EnsureHash();
   CHECK(s->HasHashCode());
   if (!data.is_integer_index) {
     CHECK_NE(0, s->raw_hash_field() & String::kIsNotIntegerIndexMask);
@@ -1850,11 +1850,11 @@ TEST(HashArrayIndexStrings) {
 
   CHECK_EQ(StringHasher::MakeArrayIndexHash(0 /* value */, 1 /* length */) >>
                Name::kHashShift,
-           isolate->factory()->zero_string()->Hash());
+           isolate->factory()->zero_string()->hash());
 
   CHECK_EQ(StringHasher::MakeArrayIndexHash(1 /* value */, 1 /* length */) >>
                Name::kHashShift,
-           isolate->factory()->one_string()->Hash());
+           isolate->factory()->one_string()->hash());
 
   IndexData tests[] = {
     {"", false, 0, false, 0},

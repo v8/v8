@@ -278,7 +278,7 @@ void HeapObject::VerifyHeapPointer(Isolate* isolate, Object p) {
 void Symbol::SymbolVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::SymbolVerify(*this, isolate);
   CHECK(HasHashCode());
-  CHECK_GT(Hash(), 0);
+  CHECK_GT(hash(), 0);
   CHECK(description().IsUndefined(isolate) || description().IsString());
   CHECK_IMPLIES(IsPrivateName(), IsPrivate());
   CHECK_IMPLIES(IsPrivateBrand(), IsPrivateName());
@@ -938,7 +938,13 @@ void Oddball::OddballVerify(Isolate* isolate) {
   }
 }
 
-USE_TORQUE_VERIFIER(PropertyCell)
+void PropertyCell::PropertyCellVerify(Isolate* isolate) {
+  // TODO(torque): replace with USE_TORQUE_VERIFIER(PropertyCell) once
+  // it supports UniqueName type.
+  TorqueGeneratedClassVerifiers::PropertyCellVerify(*this, isolate);
+
+  CHECK(name().IsUniqueName());
+}
 
 void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
   CHECK(IsCodeDataContainer());

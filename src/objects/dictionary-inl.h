@@ -279,11 +279,13 @@ bool NameDictionaryShape::IsMatch(Handle<Name> key, Object other) {
 }
 
 uint32_t NameDictionaryShape::Hash(ReadOnlyRoots roots, Handle<Name> key) {
-  return key->Hash();
+  DCHECK(key->IsUniqueName());
+  return key->hash();
 }
 
 uint32_t NameDictionaryShape::HashForObject(ReadOnlyRoots roots, Object other) {
-  return Name::cast(other).Hash();
+  DCHECK(other.IsUniqueName());
+  return Name::cast(other).hash();
 }
 
 bool GlobalDictionaryShape::IsMatch(Handle<Name> key, Object other) {
@@ -294,7 +296,7 @@ bool GlobalDictionaryShape::IsMatch(Handle<Name> key, Object other) {
 
 uint32_t GlobalDictionaryShape::HashForObject(ReadOnlyRoots roots,
                                               Object other) {
-  return PropertyCell::cast(other).name().Hash();
+  return PropertyCell::cast(other).name().hash();
 }
 
 Handle<Object> NameDictionaryShape::AsHandle(Isolate* isolate,

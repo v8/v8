@@ -1044,11 +1044,11 @@ Object Object::GetSimpleHash(Object object) {
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
   if (object.IsName()) {
-    uint32_t hash = Name::cast(object).Hash();
+    uint32_t hash = Name::cast(object).EnsureHash();
     return Smi::FromInt(hash);
   }
   if (object.IsOddball()) {
-    uint32_t hash = Oddball::cast(object).to_string().Hash();
+    uint32_t hash = Oddball::cast(object).to_string().EnsureHash();
     return Smi::FromInt(hash);
   }
   if (object.IsBigInt()) {

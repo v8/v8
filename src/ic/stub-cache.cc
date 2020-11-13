@@ -71,7 +71,6 @@ bool CommonStubCacheChecks(StubCache* stub_cache, Name name, Map map,
   DCHECK(!Heap::InYoungGeneration(name));
   DCHECK(!Heap::InYoungGeneration(handler));
   DCHECK(name.IsUniqueName());
-  DCHECK(name.HasHashCode());
   if (handler->ptr() != kNullAddress) DCHECK(IC::IsHandler(handler));
   return true;
 }

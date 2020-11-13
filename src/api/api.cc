@@ -5135,7 +5135,7 @@ MaybeLocal<String> v8::Function::FunctionProtoToString(Local<Context> context) {
 
 int Name::GetIdentityHash() {
   auto self = Utils::OpenHandle(this);
-  return static_cast<int>(self->Hash());
+  return static_cast<int>(self->EnsureHash());
 }
 
 int String::Length() const {

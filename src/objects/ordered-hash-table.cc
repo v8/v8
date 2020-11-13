@@ -421,7 +421,7 @@ InternalIndex OrderedNameDictionary::FindEntry(LocalIsolate* isolate,
     return InternalIndex::NotFound();
   }
 
-  int raw_entry = HashToEntryRaw(raw_key.Hash());
+  int raw_entry = HashToEntryRaw(raw_key.hash());
   while (raw_entry != kNotFound) {
     InternalIndex entry(raw_entry);
     Object candidate_key = KeyAt(entry);
@@ -474,6 +474,7 @@ template <typename LocalIsolate>
 MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::Add(
     LocalIsolate* isolate, Handle<OrderedNameDictionary> table,
     Handle<Name> key, Handle<Object> value, PropertyDetails details) {
+  DCHECK(key->IsUniqueName());
   DCHECK(table->FindEntry(isolate, *key).is_not_found());
 
   MaybeHandle<OrderedNameDictionary> table_candidate =
@@ -482,7 +483,7 @@ MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::Add(
     return table_candidate;
   }
   // Read the existing bucket values.
-  int hash = key->Hash();
+  int hash = key->hash();
   int bucket = table->HashToBucket(hash);
   int previous_entry = table->HashToEntryRaw(hash);
   int nof = table->NumberOfElements();
@@ -834,7 +835,7 @@ SmallOrderedHashTable<SmallOrderedNameDictionary>::FindEntry(Isolate* isolate,
   DCHECK(key.IsUniqueName());
   Name raw_key = Name::cast(key);
 
-  int raw_entry = HashToFirstEntry(raw_key.Hash());
+  int raw_entry = HashToFirstEntry(raw_key.hash());
 
   // Walk the chain in the bucket to find the key.
   while (raw_entry != kNotFound) {
@@ -850,6 +851,7 @@ SmallOrderedHashTable<SmallOrderedNameDictionary>::FindEntry(Isolate* isolate,
 MaybeHandle<SmallOrderedNameDictionary> SmallOrderedNameDictionary::Add(
     Isolate* isolate, Handle<SmallOrderedNameDictionary> table,
     Handle<Name> key, Handle<Object> value, PropertyDetails details) {
+  DCHECK(key->IsUniqueName());
   DCHECK(table->FindEntry(isolate, *key).is_not_found());
 
   if (table->UsedCapacity() >= table->Capacity()) {
@@ -863,7 +865,7 @@ MaybeHandle<SmallOrderedNameDictionary> SmallOrderedNameDictionary::Add(
   int nof = table->NumberOfElements();
 
   // Read the existing bucket values.
-  int hash = key->Hash();
+  int hash = key->hash();
   int bucket = table->HashToBucket(hash);
   int previous_entry = table->HashToFirstEntry(hash);
 

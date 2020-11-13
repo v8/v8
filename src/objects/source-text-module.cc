@@ -19,7 +19,7 @@ namespace internal {
 
 struct StringHandleHash {
   V8_INLINE size_t operator()(Handle<String> string) const {
-    return string->Hash();
+    return string->EnsureHash();
   }
 };
 

@@ -321,7 +321,7 @@ Handle<String> StringTableInsertionKey::AsHandle(Isolate* isolate) {
 
 uint32_t StringTableInsertionKey::ComputeRawHashField(String string) {
   // Make sure raw_hash_field() is computed.
-  string.Hash();
+  string.EnsureHash();
   return string.raw_hash_field();
 }
 

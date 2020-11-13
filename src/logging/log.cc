@@ -124,7 +124,7 @@ class CodeEventLogger::NameBuffer {
         AppendBytes("\" ");
       }
       AppendBytes("hash ");
-      AppendHex(symbol.Hash());
+      AppendHex(symbol.hash());
       AppendByte(')');
     }
   }
@@ -232,7 +232,7 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
     name_buffer_->AppendString(String::cast(*script_name));
   } else {
     name_buffer_->AppendBytes("symbol(hash ");
-    name_buffer_->AppendHex(Name::cast(*script_name).Hash());
+    name_buffer_->AppendHex(Name::cast(*script_name).hash());
     name_buffer_->AppendByte(')');
   }
   name_buffer_->AppendByte(':');
