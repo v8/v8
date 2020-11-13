@@ -392,6 +392,8 @@ class V8_EXPORT_PRIVATE Debug {
 
   void RemoveBreakInfoAndMaybeFree(Handle<DebugInfo> debug_info);
 
+  static char* Iterate(RootVisitor* v, char* thread_storage);
+
  private:
   explicit Debug(Isolate* isolate);
   ~Debug();
@@ -545,6 +547,8 @@ class V8_EXPORT_PRIVATE Debug {
     // debugger to break on next function call.
     bool break_on_next_function_call_;
   };
+
+  static void Iterate(RootVisitor* v, ThreadLocal* thread_local_data);
 
   // Storage location for registers when handling debug break calls
   ThreadLocal thread_local_;

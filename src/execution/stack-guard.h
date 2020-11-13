@@ -16,6 +16,7 @@ class ExecutionAccess;
 class InterruptsScope;
 class Isolate;
 class Object;
+class RootVisitor;
 
 // StackGuard contains the handling of the limits that are used to limit the
 // number of nested invocations of JavaScript and the stack size used in each
@@ -87,6 +88,10 @@ class V8_EXPORT_PRIVATE StackGuard final {
   Object HandleInterrupts();
 
   static constexpr int kSizeInBytes = 7 * kSystemPointerSize;
+
+  static char* Iterate(RootVisitor* v, char* thread_storage) {
+    return thread_storage + ArchiveSpacePerThread();
+  }
 
  private:
   bool CheckInterrupt(InterruptFlag flag);
