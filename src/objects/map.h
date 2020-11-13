@@ -177,10 +177,9 @@ using MapHandles = std::vector<Handle<Map>>;
 // +---------------+------------------------------------------------+
 // | TaggedPointer | [instance_descriptors]                         |
 // +****************************************************************+
-// ! TaggedPointer ! [layout_descriptors]                           !
+// ! TaggedPointer ! [layout_descriptor]                            !
 // !               ! Field is only present if compile-time flag     !
 // !               ! FLAG_unbox_double_fields is enabled            !
-// !               ! (basically on 64 bit architectures)            !
 // +****************************************************************+
 // | TaggedPointer | [dependent_code]                               |
 // +---------------+------------------------------------------------+

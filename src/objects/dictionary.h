@@ -60,8 +60,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   // Returns the key (slow).
   Object SlowReverseLookup(Object value);
 
-  // Sets the entry to (key, value) pair.
   inline void ClearEntry(InternalIndex entry);
+
+  // Sets the entry to (key, value) pair.
   inline void SetEntry(InternalIndex entry, Object key, Object value,
                        PropertyDetails details);
 

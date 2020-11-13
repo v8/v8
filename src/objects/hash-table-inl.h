@@ -142,6 +142,7 @@ template <typename Derived, typename Shape>
 InternalIndex HashTable<Derived, Shape>::FindEntry(IsolateRoot isolate,
                                                    ReadOnlyRoots roots, Key key,
                                                    int32_t hash) {
+  DisallowGarbageCollection no_gc;
   uint32_t capacity = Capacity();
   uint32_t count = 1;
   Object undefined = roots.undefined_value();

@@ -287,6 +287,7 @@ uint32_t NameDictionaryShape::HashForObject(ReadOnlyRoots roots, Object other) {
 }
 
 bool GlobalDictionaryShape::IsMatch(Handle<Name> key, Object other) {
+  DCHECK(key->IsUniqueName());
   DCHECK(PropertyCell::cast(other).name().IsUniqueName());
   return *key == PropertyCell::cast(other).name();
 }
