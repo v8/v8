@@ -6444,9 +6444,14 @@ Handle<PropertyCell> PropertyCell::PrepareForValue(
     cell->set_value(*value);
   }
 
-  // Deopt when transitioning from a constant type.
-  if (!invalidate && (original_details.cell_type() != new_type ||
-                      original_details.IsReadOnly() != details.IsReadOnly())) {
+  // Deopt when transitioning from a constant type or when making a writable
+  // property read-only. Making a read-only property writable again is not
+  // interesting because Turbofan does not currently rely on read-only unless
+  // the property is also configurable, in which case it will stay read-only
+  // forever.
+  if (!invalidate &&
+      (original_details.cell_type() != new_type ||
+       (!original_details.IsReadOnly() && details.IsReadOnly()))) {
     cell->dependent_code().DeoptimizeDependentCodeGroup(
         DependentCode::kPropertyCellChangedGroup);
   }
