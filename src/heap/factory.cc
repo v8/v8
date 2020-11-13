@@ -2070,7 +2070,7 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
   LOG(isolate(), MapDetails(*new_map));
 
   // Set up the global object as a normalized object.
-  global->set_global_dictionary(*dictionary);
+  global->set_global_dictionary(*dictionary, kReleaseStore);
   global->synchronized_set_map(*new_map);
 
   // Make sure result is a global object with properties in dictionary.

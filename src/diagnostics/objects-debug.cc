@@ -884,7 +884,8 @@ void JSGlobalProxy::JSGlobalProxyVerify(Isolate* isolate) {
 void JSGlobalObject::JSGlobalObjectVerify(Isolate* isolate) {
   CHECK(IsJSGlobalObject());
   // Do not check the dummy global object for the builtins.
-  if (global_dictionary().NumberOfElements() == 0 && elements().length() == 0) {
+  if (global_dictionary(kAcquireLoad).NumberOfElements() == 0 &&
+      elements().length() == 0) {
     return;
   }
   JSObjectVerify(isolate);
@@ -1629,7 +1630,8 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
     info->number_of_fast_used_fields_ += map().NextFreePropertyIndex();
     info->number_of_fast_unused_fields_ += map().UnusedPropertyFields();
   } else if (IsJSGlobalObject()) {
-    GlobalDictionary dict = JSGlobalObject::cast(*this).global_dictionary();
+    GlobalDictionary dict =
+        JSGlobalObject::cast(*this).global_dictionary(kAcquireLoad);
     info->number_of_slow_used_properties_ += dict.NumberOfElements();
     info->number_of_slow_unused_properties_ +=
         dict.Capacity() - dict.NumberOfElements();

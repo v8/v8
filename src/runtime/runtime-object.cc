@@ -624,7 +624,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
       if (holder->IsJSGlobalObject()) {
         // Attempt dictionary lookup.
         GlobalDictionary dictionary =
-            JSGlobalObject::cast(*holder).global_dictionary();
+            JSGlobalObject::cast(*holder).global_dictionary(kAcquireLoad);
         InternalIndex entry = dictionary.FindEntry(isolate, key);
         if (entry.is_found()) {
           PropertyCell cell = dictionary.CellAt(entry);

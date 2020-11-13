@@ -966,9 +966,7 @@ class JSGlobalObject : public JSSpecialObject {
   // [global proxy]: the global proxy object of the context
   DECL_ACCESSORS(global_proxy, JSGlobalProxy)
 
-  // Gets global object properties.
-  DECL_GETTER(global_dictionary, GlobalDictionary)
-  inline void set_global_dictionary(GlobalDictionary dictionary);
+  DECL_RELEASE_ACQUIRE_ACCESSORS(global_dictionary, GlobalDictionary)
 
   static void InvalidatePropertyCell(Handle<JSGlobalObject> object,
                                      Handle<Name> name);

@@ -407,7 +407,8 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
 
   if (holder_obj->IsJSGlobalObject(isolate_)) {
     Handle<GlobalDictionary> dictionary(
-        JSGlobalObject::cast(*holder_obj).global_dictionary(isolate_),
+        JSGlobalObject::cast(*holder_obj)
+            .global_dictionary(isolate_, kAcquireLoad),
         isolate());
     Handle<PropertyCell> cell(dictionary->CellAt(isolate_, dictionary_entry()),
                               isolate());
@@ -504,7 +505,8 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
     }
     if (holder_obj->IsJSGlobalObject(isolate_)) {
       Handle<GlobalDictionary> dictionary(
-          JSGlobalObject::cast(*holder_obj).global_dictionary(isolate_),
+          JSGlobalObject::cast(*holder_obj)
+              .global_dictionary(isolate_, kAcquireLoad),
           isolate());
 
       Handle<PropertyCell> cell = PropertyCell::PrepareForValue(
@@ -615,13 +617,13 @@ void LookupIterator::ApplyTransitionToDataProperty(
     // Install a property cell.
     Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(receiver);
     DCHECK(!global->HasFastProperties());
-    Handle<GlobalDictionary> dictionary(global->global_dictionary(isolate_),
-                                        isolate_);
+    Handle<GlobalDictionary> dictionary(
+        global->global_dictionary(isolate_, kAcquireLoad), isolate_);
 
     dictionary =
         GlobalDictionary::Add(isolate_, dictionary, name(), transition_cell(),
                               property_details_, &number_);
-    global->set_global_dictionary(*dictionary);
+    global->set_global_dictionary(*dictionary, kReleaseStore);
 
     // Reload details containing proper enumeration index value.
     property_details_ = transition_cell()->property_details();
@@ -862,8 +864,8 @@ Handle<Object> LookupIterator::FetchValue(
     return accessor->Get(holder, number_);
   } else if (holder_->IsJSGlobalObject(isolate_)) {
     Handle<JSGlobalObject> holder = GetHolder<JSGlobalObject>();
-    result = holder->global_dictionary(isolate_).ValueAt(isolate_,
-                                                         dictionary_entry());
+    result = holder->global_dictionary(isolate_, kAcquireLoad)
+                 .ValueAt(isolate_, dictionary_entry());
   } else if (!holder_->HasFastProperties(isolate_)) {
     if (V8_DICT_MODE_PROTOTYPES_BOOL) {
       result = holder_->property_dictionary_ordered(isolate_).ValueAt(
@@ -983,9 +985,9 @@ Handle<FieldType> LookupIterator::GetFieldType() const {
 Handle<PropertyCell> LookupIterator::GetPropertyCell() const {
   DCHECK(!IsElement(*holder_));
   Handle<JSGlobalObject> holder = GetHolder<JSGlobalObject>();
-  return handle(
-      holder->global_dictionary(isolate_).CellAt(isolate_, dictionary_entry()),
-      isolate_);
+  return handle(holder->global_dictionary(isolate_, kAcquireLoad)
+                    .CellAt(isolate_, dictionary_entry()),
+                isolate_);
 }
 
 Handle<Object> LookupIterator::GetAccessors() const {
@@ -1023,7 +1025,7 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
     }
   } else if (holder->IsJSGlobalObject(isolate_)) {
     GlobalDictionary dictionary =
-        JSGlobalObject::cast(*holder).global_dictionary(isolate_);
+        JSGlobalObject::cast(*holder).global_dictionary(isolate_, kAcquireLoad);
     dictionary.CellAt(isolate_, dictionary_entry()).set_value(*value);
   } else {
     DCHECK_IMPLIES(holder->IsJSProxy(isolate_), name()->IsPrivate(isolate_));
@@ -1118,8 +1120,8 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
       V8_FALLTHROUGH;
     case INTERCEPTOR:
       if (map.IsJSGlobalObjectMap() && !is_js_array_element(is_element)) {
-        GlobalDictionary dict =
-            JSGlobalObject::cast(holder).global_dictionary(isolate_);
+        GlobalDictionary dict = JSGlobalObject::cast(holder).global_dictionary(
+            isolate_, kAcquireLoad);
         number_ = dict.FindEntry(isolate(), name_);
         if (number_.is_not_found()) return NOT_FOUND;
         PropertyCell cell = dict.CellAt(isolate_, number_);

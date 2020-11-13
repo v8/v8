@@ -298,8 +298,8 @@ bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
     }
     return map().NumberOfOwnDescriptors() > 0;
   } else if (IsJSGlobalObject()) {
-    PrintDictionaryContents(os,
-                            JSGlobalObject::cast(*this).global_dictionary());
+    PrintDictionaryContents(
+        os, JSGlobalObject::cast(*this).global_dictionary(kAcquireLoad));
   } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
     PrintDictionaryContents(os, property_dictionary_ordered());
   } else {

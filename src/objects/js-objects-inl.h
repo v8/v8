@@ -619,16 +619,9 @@ DEF_GETTER(JSObject, HasIndexedInterceptor, bool) {
   return map(isolate).has_indexed_interceptor();
 }
 
-DEF_GETTER(JSGlobalObject, global_dictionary, GlobalDictionary) {
-  DCHECK(!HasFastProperties(isolate));
-  DCHECK(IsJSGlobalObject(isolate));
-  return GlobalDictionary::cast(raw_properties_or_hash(isolate));
-}
-
-void JSGlobalObject::set_global_dictionary(GlobalDictionary dictionary) {
-  DCHECK(IsJSGlobalObject());
-  set_raw_properties_or_hash(dictionary);
-}
+RELEASE_ACQUIRE_ACCESSORS_CHECKED2(JSGlobalObject, global_dictionary,
+                                   GlobalDictionary, kPropertiesOrHashOffset,
+                                   !HasFastProperties(isolate), true)
 
 DEF_GETTER(JSObject, element_dictionary, NumberDictionary) {
   DCHECK(HasDictionaryElements(isolate) ||

@@ -327,7 +327,7 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
     int source_length;
     if (from->IsJSGlobalObject()) {
       source_length = JSGlobalObject::cast(*from)
-                          .global_dictionary()
+                          .global_dictionary(kAcquireLoad)
                           .NumberOfEnumerableProperties();
     } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
       source_length =
@@ -744,13 +744,14 @@ void JSReceiver::DeleteNormalizedProperty(Handle<JSReceiver> object,
     // If we have a global object, invalidate the cell and remove it from the
     // global object's dictionary.
     Handle<GlobalDictionary> dictionary(
-        JSGlobalObject::cast(*object).global_dictionary(), isolate);
+        JSGlobalObject::cast(*object).global_dictionary(kAcquireLoad), isolate);
 
     Handle<PropertyCell> cell(dictionary->CellAt(entry), isolate);
 
     Handle<GlobalDictionary> new_dictionary =
         GlobalDictionary::DeleteEntry(isolate, dictionary, entry);
-    JSGlobalObject::cast(*object).set_global_dictionary(*new_dictionary);
+    JSGlobalObject::cast(*object).set_global_dictionary(*new_dictionary,
+                                                        kReleaseStore);
 
     cell->ClearAndInvalidate(ReadOnlyRoots(isolate));
   } else {
@@ -2392,8 +2393,8 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object, Handle<Name> name,
 
   if (object->IsJSGlobalObject()) {
     Handle<JSGlobalObject> global_obj = Handle<JSGlobalObject>::cast(object);
-    Handle<GlobalDictionary> dictionary(global_obj->global_dictionary(),
-                                        isolate);
+    Handle<GlobalDictionary> dictionary(
+        global_obj->global_dictionary(kAcquireLoad), isolate);
     ReadOnlyRoots roots(isolate);
     InternalIndex entry = dictionary->FindEntry(isolate, roots, name, hash);
 
@@ -2408,7 +2409,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object, Handle<Name> name,
       value = cell;
       dictionary =
           GlobalDictionary::Add(isolate, dictionary, name, value, details);
-      global_obj->set_global_dictionary(*dictionary);
+      global_obj->set_global_dictionary(*dictionary, kReleaseStore);
     } else {
       Handle<PropertyCell> cell = PropertyCell::PrepareForValue(
           isolate, dictionary, entry, value, details);
@@ -4097,7 +4098,8 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
       ReadOnlyRoots roots(isolate);
       if (object->IsJSGlobalObject()) {
         Handle<GlobalDictionary> dictionary(
-            JSGlobalObject::cast(*object).global_dictionary(), isolate);
+            JSGlobalObject::cast(*object).global_dictionary(kAcquireLoad),
+            isolate);
         JSObject::ApplyAttributesToDictionary(isolate, roots, dictionary,
                                               attrs);
       } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
@@ -4358,8 +4360,9 @@ Object JSObject::SlowReverseLookup(Object value) {
     }
     return GetReadOnlyRoots().undefined_value();
   } else if (IsJSGlobalObject()) {
-    return JSGlobalObject::cast(*this).global_dictionary().SlowReverseLookup(
-        value);
+    return JSGlobalObject::cast(*this)
+        .global_dictionary(kAcquireLoad)
+        .SlowReverseLookup(value);
   } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
     return property_dictionary_ordered().SlowReverseLookup(GetIsolate(), value);
   } else {
@@ -5035,7 +5038,8 @@ void JSGlobalObject::InvalidatePropertyCell(Handle<JSGlobalObject> global,
   JSObject::InvalidatePrototypeValidityCell(*global);
 
   DCHECK(!global->HasFastProperties());
-  auto dictionary = handle(global->global_dictionary(), global->GetIsolate());
+  auto dictionary =
+      handle(global->global_dictionary(kAcquireLoad), global->GetIsolate());
   InternalIndex entry = dictionary->FindEntry(global->GetIsolate(), name);
   if (entry.is_not_found()) return;
   PropertyCell::InvalidateAndReplaceEntry(global->GetIsolate(), dictionary,
