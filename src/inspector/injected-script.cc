@@ -803,12 +803,14 @@ Response InjectedScript::createExceptionDetails(
     exceptionDetails->setScriptId(String16::fromInteger(
         static_cast<int>(message->GetScriptOrigin().ScriptID()->Value())));
     v8::Local<v8::StackTrace> stackTrace = message->GetStackTrace();
-    if (!stackTrace.IsEmpty() && stackTrace->GetFrameCount() > 0)
-      exceptionDetails->setStackTrace(
-          m_context->inspector()
-              ->debugger()
-              ->createStackTrace(stackTrace)
-              ->buildInspectorObjectImpl(m_context->inspector()->debugger()));
+    if (!stackTrace.IsEmpty() && stackTrace->GetFrameCount() > 0) {
+      std::unique_ptr<V8StackTraceImpl> v8StackTrace =
+          m_context->inspector()->debugger()->createStackTrace(stackTrace);
+      if (v8StackTrace) {
+        exceptionDetails->setStackTrace(v8StackTrace->buildInspectorObjectImpl(
+            m_context->inspector()->debugger()));
+      }
+    }
   }
   Response response =
       addExceptionToDetails(exception, exceptionDetails.get(), objectGroup);
