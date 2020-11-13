@@ -3351,61 +3351,148 @@ TNode<NameDictionary> CodeStubAssembler::CopyNameDictionary(
 }
 
 template <typename CollectionType>
-TNode<CollectionType> CodeStubAssembler::AllocateOrderedHashTable() {
-  static const int kCapacity = CollectionType::kInitialCapacity;
-  static const int kBucketCount = kCapacity / CollectionType::kLoadFactor;
-  static const int kDataTableLength = kCapacity * CollectionType::kEntrySize;
-  static const int kFixedArrayLength =
-      CollectionType::HashTableStartIndex() + kBucketCount + kDataTableLength;
-  static const int kDataTableStartIndex =
-      CollectionType::HashTableStartIndex() + kBucketCount;
+TNode<CollectionType> CodeStubAssembler::AllocateOrderedHashTable(
+    TNode<IntPtrT> capacity) {
+  capacity = IntPtrRoundUpToPowerOfTwo32(capacity);
+  capacity =
+      IntPtrMax(capacity, IntPtrConstant(CollectionType::kInitialCapacity));
+  return AllocateOrderedHashTableWithCapacity<CollectionType>(capacity);
+}
 
-  STATIC_ASSERT(base::bits::IsPowerOfTwo(kCapacity));
-  STATIC_ASSERT(kCapacity <= CollectionType::MaxCapacity());
+template <typename CollectionType>
+TNode<CollectionType> CodeStubAssembler::AllocateOrderedHashTableWithCapacity(
+    TNode<IntPtrT> capacity) {
+  CSA_ASSERT(this, WordIsPowerOfTwo(capacity));
+  CSA_ASSERT(this,
+             IntPtrGreaterThanOrEqual(
+                 capacity, IntPtrConstant(CollectionType::kInitialCapacity)));
+  CSA_ASSERT(this,
+             IntPtrLessThanOrEqual(
+                 capacity, IntPtrConstant(CollectionType::MaxCapacity())));
+
+  STATIC_ASSERT(CollectionType::kLoadFactor == 2);
+  TNode<IntPtrT> bucket_count = Signed(WordShr(capacity, IntPtrConstant(1)));
+  TNode<IntPtrT> data_table_length =
+      IntPtrMul(capacity, IntPtrConstant(CollectionType::kEntrySize));
+
+  TNode<IntPtrT> data_table_start_index = IntPtrAdd(
+      IntPtrConstant(CollectionType::HashTableStartIndex()), bucket_count);
+  TNode<IntPtrT> fixed_array_length =
+      IntPtrAdd(data_table_start_index, data_table_length);
 
   // Allocate the table and add the proper map.
   const ElementsKind elements_kind = HOLEY_ELEMENTS;
-  TNode<IntPtrT> length_intptr = IntPtrConstant(kFixedArrayLength);
   TNode<Map> fixed_array_map =
       HeapConstant(CollectionType::GetMap(ReadOnlyRoots(isolate())));
   TNode<CollectionType> table =
-      CAST(AllocateFixedArray(elements_kind, length_intptr,
+      CAST(AllocateFixedArray(elements_kind, fixed_array_length,
                               kAllowLargeObjectAllocation, fixed_array_map));
 
-  // Initialize the OrderedHashTable fields.
+  Comment("Initialize the OrderedHashTable fields.");
   const WriteBarrierMode barrier_mode = SKIP_WRITE_BARRIER;
-  StoreFixedArrayElement(table, CollectionType::NumberOfElementsIndex(),
-                         SmiConstant(0), barrier_mode);
-  StoreFixedArrayElement(table, CollectionType::NumberOfDeletedElementsIndex(),
-                         SmiConstant(0), barrier_mode);
-  StoreFixedArrayElement(table, CollectionType::NumberOfBucketsIndex(),
-                         SmiConstant(kBucketCount), barrier_mode);
+  UnsafeStoreFixedArrayElement(table, CollectionType::NumberOfElementsIndex(),
+                               SmiConstant(0), barrier_mode);
+  UnsafeStoreFixedArrayElement(table,
+                               CollectionType::NumberOfDeletedElementsIndex(),
+                               SmiConstant(0), barrier_mode);
+  UnsafeStoreFixedArrayElement(table, CollectionType::NumberOfBucketsIndex(),
+                               SmiFromIntPtr(bucket_count), barrier_mode);
 
-  // Fill the buckets with kNotFound.
-  TNode<Smi> not_found = SmiConstant(CollectionType::kNotFound);
+  TNode<IntPtrT> object_address = BitcastTaggedToWord(table);
+
   STATIC_ASSERT(CollectionType::HashTableStartIndex() ==
                 CollectionType::NumberOfBucketsIndex() + 1);
-  STATIC_ASSERT((CollectionType::HashTableStartIndex() + kBucketCount) ==
-                kDataTableStartIndex);
-  for (int i = 0; i < kBucketCount; i++) {
-    StoreFixedArrayElement(table, CollectionType::HashTableStartIndex() + i,
-                           not_found, barrier_mode);
-  }
 
-  // Fill the data table with undefined.
-  STATIC_ASSERT(kDataTableStartIndex + kDataTableLength == kFixedArrayLength);
-  for (int i = 0; i < kDataTableLength; i++) {
-    StoreFixedArrayElement(table, kDataTableStartIndex + i, UndefinedConstant(),
-                           barrier_mode);
+  TNode<Smi> not_found_sentinel = SmiConstant(CollectionType::kNotFound);
+
+  intptr_t const_capacity;
+  if (TryToIntPtrConstant(capacity, &const_capacity) &&
+      const_capacity == CollectionType::kInitialCapacity) {
+    int const_bucket_count =
+        static_cast<int>(const_capacity / CollectionType::kLoadFactor);
+    int const_data_table_length =
+        static_cast<int>(const_capacity * CollectionType::kEntrySize);
+    int const_data_table_start_index = static_cast<int>(
+        CollectionType::HashTableStartIndex() + const_bucket_count);
+
+    Comment("Fill the buckets with kNotFound (constant capacity).");
+    for (int i = 0; i < const_bucket_count; i++) {
+      UnsafeStoreFixedArrayElement(table,
+                                   CollectionType::HashTableStartIndex() + i,
+                                   not_found_sentinel, barrier_mode);
+    }
+
+    Comment("Fill the data table with undefined (constant capacity).");
+    for (int i = 0; i < const_data_table_length; i++) {
+      UnsafeStoreFixedArrayElement(table, const_data_table_start_index + i,
+                                   UndefinedConstant(), barrier_mode);
+    }
+  } else {
+    Comment("Fill the buckets with kNotFound.");
+    TNode<IntPtrT> buckets_start_address =
+        IntPtrAdd(object_address,
+                  IntPtrConstant(FixedArray::OffsetOfElementAt(
+                                     CollectionType::HashTableStartIndex()) -
+                                 kHeapObjectTag));
+    TNode<IntPtrT> buckets_end_address =
+        IntPtrAdd(buckets_start_address, TimesTaggedSize(bucket_count));
+
+    StoreFieldsNoWriteBarrier(buckets_start_address, buckets_end_address,
+                              not_found_sentinel);
+
+    Comment("Fill the data table with undefined.");
+    TNode<IntPtrT> data_start_address = buckets_end_address;
+    TNode<IntPtrT> data_end_address = IntPtrAdd(
+        object_address,
+        IntPtrAdd(IntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag),
+                  TimesTaggedSize(fixed_array_length)));
+
+    StoreFieldsNoWriteBarrier(data_start_address, data_end_address,
+                              UndefinedConstant());
+
+#ifdef DEBUG
+    TNode<IntPtrT> ptr_diff =
+        IntPtrSub(data_end_address, buckets_start_address);
+    TNode<IntPtrT> array_length = LoadAndUntagFixedArrayBaseLength(table);
+    TNode<IntPtrT> array_data_fields = IntPtrSub(
+        array_length, IntPtrConstant(CollectionType::HashTableStartIndex()));
+    TNode<IntPtrT> expected_end =
+        IntPtrAdd(data_start_address,
+                  TimesTaggedSize(IntPtrMul(
+                      capacity, IntPtrConstant(CollectionType::kEntrySize))));
+
+    CSA_ASSERT(this, IntPtrEqual(ptr_diff, TimesTaggedSize(array_data_fields)));
+    CSA_ASSERT(this, IntPtrEqual(expected_end, data_end_address));
+#endif
   }
 
   return table;
 }
 
-template TNode<OrderedHashMap>
-CodeStubAssembler::AllocateOrderedHashTable<OrderedHashMap>();
-template TNode<OrderedHashSet>
-CodeStubAssembler::AllocateOrderedHashTable<OrderedHashSet>();
+TNode<OrderedNameDictionary> CodeStubAssembler::AllocateOrderedNameDictionary(
+    TNode<IntPtrT> capacity) {
+  TNode<OrderedNameDictionary> table =
+      AllocateOrderedHashTable<OrderedNameDictionary>(capacity);
+  StoreFixedArrayElement(table, OrderedNameDictionary::PrefixIndex(),
+                         SmiConstant(PropertyArray::kNoHashSentinel),
+                         SKIP_WRITE_BARRIER);
+  return table;
+}
+
+TNode<OrderedNameDictionary> CodeStubAssembler::AllocateOrderedNameDictionary(
+    int capacity) {
+  return AllocateOrderedNameDictionary(IntPtrConstant(capacity));
+}
+
+TNode<OrderedHashSet> CodeStubAssembler::AllocateOrderedHashSet() {
+  return AllocateOrderedHashTableWithCapacity<OrderedHashSet>(
+      IntPtrConstant(OrderedHashSet::kInitialCapacity));
+}
+
+TNode<OrderedHashMap> CodeStubAssembler::AllocateOrderedHashMap() {
+  return AllocateOrderedHashTableWithCapacity<OrderedHashMap>(
+      IntPtrConstant(OrderedHashMap::kInitialCapacity));
+}
 
 TNode<JSObject> CodeStubAssembler::AllocateJSObjectFromMap(
     TNode<Map> map, base::Optional<TNode<HeapObject>> properties,

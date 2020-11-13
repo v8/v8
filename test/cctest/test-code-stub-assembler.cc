@@ -1902,7 +1902,20 @@ TEST(AllocateJSObjectFromMap) {
   }
 }
 
-TEST(AllocateNameDictionary) {
+namespace {
+
+template <typename Dictionary>
+using CSAAllocator =
+    std::function<TNode<Dictionary>(CodeStubAssembler&, TNode<IntPtrT>)> const&;
+
+template <typename Dictionary>
+using Allocator = std::function<Handle<Dictionary>(Isolate*, int)> const&;
+
+// Tests that allocation code emitted by {csa_alloc} yields ordered hash tables
+// identical to those produced by {alloc}.
+template <typename Dictionary>
+void TestDictionaryAllocation(CSAAllocator<Dictionary> csa_alloc,
+                              Allocator<Dictionary> alloc, int max_capacity) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 1;
@@ -1911,24 +1924,69 @@ TEST(AllocateNameDictionary) {
 
   {
     auto capacity = m.Parameter<Smi>(1);
-    TNode<NameDictionary> result =
-        m.AllocateNameDictionary(m.SmiUntag(capacity));
+    TNode<Dictionary> result = csa_alloc(m, m.SmiUntag(capacity));
     m.Return(result);
   }
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   {
-    for (int i = 0; i < 256; i = i * 1.1 + 1) {
+    for (int i = 0; i < max_capacity; i = i * 1.1 + 1) {
       Handle<HeapObject> result = Handle<HeapObject>::cast(
           ft.Call(handle(Smi::FromInt(i), isolate)).ToHandleChecked());
-      Handle<NameDictionary> dict = NameDictionary::New(isolate, i);
+      Handle<Dictionary> dict = alloc(isolate, i);
       // Both dictionaries should be memory equal.
       int size = dict->Size();
       CHECK_EQ(0, memcmp(reinterpret_cast<void*>(dict->address()),
                          reinterpret_cast<void*>(result->address()), size));
     }
   }
+}
+
+}  // namespace
+
+TEST(AllocateNameDictionary) {
+  auto csa_alloc = [](CodeStubAssembler& m, TNode<IntPtrT> cap) {
+    return m.AllocateNameDictionary(cap);
+  };
+  auto alloc = [](Isolate* isolate, int capacity) {
+    return NameDictionary::New(isolate, capacity);
+  };
+  TestDictionaryAllocation<NameDictionary>(csa_alloc, alloc, 256);
+}
+
+TEST(AllocateOrderedNameDictionary) {
+  auto csa_alloc = [](CodeStubAssembler& m, TNode<IntPtrT> cap) {
+    return m.AllocateOrderedNameDictionary(cap);
+  };
+  auto alloc = [](Isolate* isolate, int capacity) {
+    return OrderedNameDictionary::Allocate(isolate, capacity).ToHandleChecked();
+  };
+  TestDictionaryAllocation<OrderedNameDictionary>(csa_alloc, alloc, 256);
+}
+
+TEST(AllocateOrderedHashSet) {
+  // ignoring capacitites, as the API cannot take them
+  auto csa_alloc = [](CodeStubAssembler& m, TNode<IntPtrT> cap) {
+    return m.AllocateOrderedHashSet();
+  };
+  auto alloc = [](Isolate* isolate, int capacity) {
+    return OrderedHashSet::Allocate(isolate, OrderedHashSet::kInitialCapacity)
+        .ToHandleChecked();
+  };
+  TestDictionaryAllocation<OrderedHashSet>(csa_alloc, alloc, 1);
+}
+
+TEST(AllocateOrderedHashMap) {
+  // ignoring capacities, as the API cannot take them
+  auto csa_alloc = [](CodeStubAssembler& m, TNode<IntPtrT> cap) {
+    return m.AllocateOrderedHashMap();
+  };
+  auto alloc = [](Isolate* isolate, int capacity) {
+    return OrderedHashMap::Allocate(isolate, OrderedHashMap::kInitialCapacity)
+        .ToHandleChecked();
+  };
+  TestDictionaryAllocation<OrderedHashMap>(csa_alloc, alloc, 1);
 }
 
 TEST(PopAndReturnFromJSBuiltinWithStackParameters) {

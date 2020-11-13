@@ -1735,8 +1735,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<NameDictionary> CopyNameDictionary(TNode<NameDictionary> dictionary,
                                            Label* large_object_fallback);
 
-  template <typename CollectionType>
-  TNode<CollectionType> AllocateOrderedHashTable();
+  TNode<OrderedHashSet> AllocateOrderedHashSet();
+
+  TNode<OrderedHashMap> AllocateOrderedHashMap();
+
+  // Allocates an OrderedNameDictionary of the given capacity. This guarantees
+  // that |capacity| entries can be added without reallocating.
+  TNode<OrderedNameDictionary> AllocateOrderedNameDictionary(
+      TNode<IntPtrT> capacity);
+  TNode<OrderedNameDictionary> AllocateOrderedNameDictionary(int capacity);
 
   TNode<JSObject> AllocateJSObjectFromMap(
       TNode<Map> map,
@@ -3661,6 +3668,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Map> array_map, TNode<Smi> length,
       base::Optional<TNode<AllocationSite>> allocation_site,
       TNode<IntPtrT> size_in_bytes);
+
+  // Increases the provided capacity to the next valid value, if necessary.
+  template <typename CollectionType>
+  TNode<CollectionType> AllocateOrderedHashTable(TNode<IntPtrT> capacity);
+
+  // Uses the provided capacity (which must be valid) in verbatim.
+  template <typename CollectionType>
+  TNode<CollectionType> AllocateOrderedHashTableWithCapacity(
+      TNode<IntPtrT> capacity);
 
   TNode<IntPtrT> SmiShiftBitsConstant() {
     return IntPtrConstant(kSmiShiftSize + kSmiTagSize);
