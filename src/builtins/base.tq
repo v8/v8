@@ -45,6 +45,8 @@ type PositiveSmi extends Smi;
 
 // The Smi value zero, which is often used as null for HeapObject types.
 type Zero extends PositiveSmi;
+// A tagged value represented by an all-zero bitpattern.
+type TaggedZeroPattern extends TaggedIndex;
 
 // A value with the size of Tagged which may contain arbitrary data.
 type Uninitialized extends Tagged;
@@ -151,6 +153,7 @@ type ObjectHashTable extends HashTable
 extern class NumberDictionary extends HashTable;
 
 type RawPtr generates 'TNode<RawPtrT>' constexpr 'Address';
+type RawPtr<To: type> extends RawPtr;
 type ExternalPointer
     generates 'TNode<ExternalPointerT>' constexpr 'ExternalPointer_t';
 extern class Code extends HeapObject;
@@ -440,6 +443,8 @@ const kReturnString: String = ReturnStringConstant();
 
 const kNaN: NaN = NanConstant();
 const kZero: Zero = %RawDownCast<Zero>(SmiConstant(0));
+const kZeroBitPattern: TaggedZeroPattern = %RawDownCast<TaggedZeroPattern>(
+    Convert<Tagged>(BitcastWordToTaggedSigned(Convert<intptr>(0))));
 
 const true: constexpr bool generates 'true';
 const false: constexpr bool generates 'false';

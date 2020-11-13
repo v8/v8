@@ -1124,12 +1124,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Reference is the CSA-equivalent of a Torque reference value,
   // representing an inner pointer into a HeapObject.
+  // The object can be a HeapObject or an all-zero bitpattern.
   // TODO(gsps): Remove in favor of flattened {Load,Store}Reference interface
   struct Reference {
-    TNode<HeapObject> object;
+    TNode<Object> object;
     TNode<IntPtrT> offset;
 
-    std::tuple<TNode<HeapObject>, TNode<IntPtrT>> Flatten() const {
+    std::tuple<TNode<Object>, TNode<IntPtrT>> Flatten() const {
       return std::make_tuple(object, offset);
     }
   };
@@ -1140,6 +1141,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<T> LoadReference(Reference reference) {
     TNode<IntPtrT> offset =
         IntPtrSub(reference.offset, IntPtrConstant(kHeapObjectTag));
+    CSA_ASSERT(this, TaggedIsNotSmi(reference.object));
     return CAST(
         LoadFromObject(MachineTypeOf<T>::value, reference.object, offset));
   }
@@ -1168,6 +1170,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     }
     TNode<IntPtrT> offset =
         IntPtrSub(reference.offset, IntPtrConstant(kHeapObjectTag));
+    CSA_ASSERT(this, TaggedIsNotSmi(reference.object));
     StoreToObject(rep, reference.object, offset, value, write_barrier);
   }
   template <class T, typename std::enable_if<

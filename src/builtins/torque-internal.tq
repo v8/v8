@@ -13,7 +13,7 @@ struct Unsafe {}
 intrinsic %SizeOf<T: type>(): constexpr int31;
 
 struct Reference<T: type> {
-  const object: HeapObject;
+  const object: HeapObject|TaggedZeroPattern;
   const offset: intptr;
   unsafeMarker: Unsafe;
 }
@@ -21,9 +21,17 @@ type ConstReference<T: type> extends Reference<T>;
 type MutableReference<T: type> extends ConstReference<T>;
 
 namespace unsafe {
-macro NewReference<T: type>(object: HeapObject, offset: intptr):&T {
+macro NewReference<T: type>(
+    object: HeapObject|TaggedZeroPattern, offset: intptr):&T {
   return %RawDownCast<&T>(
       Reference<T>{object: object, offset: offset, unsafeMarker: Unsafe {}});
+}
+macro NewOffHeapReference<T: type>(ptr: RawPtr<T>):&T {
+  return %RawDownCast<&T>(Reference<T>{
+    object: kZeroBitPattern,
+    offset: Convert<intptr>(Convert<RawPtr>(ptr)) + kHeapObjectTag,
+    unsafeMarker: Unsafe {}
+  });
 }
 macro ReferenceCast<T: type, U: type>(ref:&U):&T {
   const ref = NewReference<T>(ref.object, ref.offset);
@@ -83,13 +91,15 @@ struct Slice<T: type> {
     };
   }
 
-  const object: HeapObject;
+  const object: HeapObject|TaggedZeroPattern;
   const offset: intptr;
   const length: intptr;
   unsafeMarker: Unsafe;
 }
 
-macro UnsafeNewSlice<T: type>(
+namespace unsafe {
+
+macro NewSlice<T: type>(
     object: HeapObject, offset: intptr, length: intptr): Slice<T> {
   return Slice<T>{
     object: object,
@@ -98,6 +108,18 @@ macro UnsafeNewSlice<T: type>(
     unsafeMarker: Unsafe {}
   };
 }
+
+macro NewOffHeapSlice<T: type>(
+    startPointer: RawPtr<T>, length: intptr): Slice<T> {
+  return Slice<T>{
+    object: kZeroBitPattern,
+    offset: Convert<intptr>(Convert<RawPtr>(startPointer)) + kHeapObjectTag,
+    length: length,
+    unsafeMarker: Unsafe {}
+  };
+}
+
+}  // namespace unsafe
 
 struct SliceIterator<T: type> {
   macro Empty(): bool {
@@ -118,7 +140,7 @@ struct SliceIterator<T: type> {
     }
   }
 
-  object: HeapObject;
+  object: HeapObject|TaggedZeroPattern;
   start: intptr;
   end: intptr;
   unsafeMarker: Unsafe;
@@ -191,13 +213,15 @@ extern macro StoreDoubleHole(HeapObject, intptr);
 
 macro LoadFloat64OrHole(r:&float64_or_hole): float64_or_hole {
   return float64_or_hole{
-    is_hole: IsDoubleHole(r.object, r.offset - kHeapObjectTag),
+    is_hole: IsDoubleHole(
+        %RawDownCast<HeapObject>(r.object), r.offset - kHeapObjectTag),
     value: *unsafe::NewReference<float64>(r.object, r.offset)
   };
 }
 macro StoreFloat64OrHole(r:&float64_or_hole, value: float64_or_hole) {
   if (value.is_hole) {
-    StoreDoubleHole(r.object, r.offset - kHeapObjectTag);
+    StoreDoubleHole(
+        %RawDownCast<HeapObject>(r.object), r.offset - kHeapObjectTag);
   } else {
     *unsafe::NewReference<float64>(r.object, r.offset) = value.value;
   }

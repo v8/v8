@@ -202,6 +202,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(HEAP_OBJECT_TYPE_STRING);
   }
 
+  static const Type* GetTaggedZeroPatternType() {
+    return Get().GetBuiltinType(TAGGED_ZERO_PATTERN_TYPE_STRING);
+  }
+
   static const Type* GetJSAnyType() {
     return Get().GetBuiltinType(JSANY_TYPE_STRING);
   }
