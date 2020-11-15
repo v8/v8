@@ -39,6 +39,7 @@
 #include "src/heap/combined-heap.h"
 #include "src/heap/concurrent-allocator.h"
 #include "src/heap/concurrent-marking.h"
+#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/finalization-registry-cleanup-task.h"
 #include "src/heap/gc-idle-time-handler.h"
@@ -4665,6 +4666,12 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
   configured_ = true;
 }
 
+void Heap::ConfigureCppHeap(std::shared_ptr<CppHeapCreateParams> params) {
+  cpp_heap_ = std::make_unique<CppHeap>(
+      reinterpret_cast<v8::Isolate*>(isolate()), params->custom_spaces);
+  SetEmbedderHeapTracer(CppHeap::From(cpp_heap_.get()));
+}
+
 void Heap::AddToRingBuffer(const char* string) {
   size_t first_part =
       Min(strlen(string), kTraceRingBufferSize - ring_buffer_end_);
@@ -5441,6 +5448,7 @@ void Heap::TearDown() {
   dead_object_stats_.reset();
 
   local_embedder_heap_tracer_.reset();
+  cpp_heap_.reset();
 
   external_string_table_.TearDown();
 

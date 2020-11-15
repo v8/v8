@@ -5,11 +5,46 @@
 #ifndef INCLUDE_V8_CPPGC_H_
 #define INCLUDE_V8_CPPGC_H_
 
+#include <memory>
+#include <vector>
+
+#include "cppgc/custom-space.h"
 #include "cppgc/visitor.h"
 #include "v8-internal.h"  // NOLINT(build/include_directory)
 #include "v8.h"  // NOLINT(build/include_directory)
 
+namespace cppgc {
+class AllocationHandle;
+}  // namespace cppgc
+
 namespace v8 {
+
+namespace internal {
+class CppHeap;
+}  // namespace internal
+
+struct V8_EXPORT CppHeapCreateParams {
+  std::vector<std::unique_ptr<cppgc::CustomSpaceBase>> custom_spaces;
+};
+
+/**
+ * A heap for allocating managed C++ objects.
+ */
+class V8_EXPORT CppHeap {
+ public:
+  virtual ~CppHeap() = default;
+
+  /**
+   * \returns the opaque handle for allocating objects using
+   * `MakeGarbageCollected()`.
+   */
+  cppgc::AllocationHandle& GetAllocationHandle();
+
+ private:
+  CppHeap() = default;
+
+  friend class internal::CppHeap;
+};
 
 class JSVisitor : public cppgc::Visitor {
  public:

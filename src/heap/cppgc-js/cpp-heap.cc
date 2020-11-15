@@ -33,6 +33,11 @@
 #include "src/profiler/heap-profiler.h"
 
 namespace v8 {
+
+cppgc::AllocationHandle& CppHeap::GetAllocationHandle() {
+  return internal::CppHeap::From(this)->object_allocator();
+}
+
 namespace internal {
 
 namespace {
@@ -149,13 +154,17 @@ CppHeap::CppHeap(
                                     kSupportsConservativeStackScan),
       isolate_(*reinterpret_cast<Isolate*>(isolate)) {
   CHECK(!FLAG_incremental_marking_wrappers);
-  isolate_.heap_profiler()->AddBuildEmbedderGraphCallback(&CppGraphBuilder::Run,
-                                                          this);
+  if (isolate_.heap_profiler()) {
+    isolate_.heap_profiler()->AddBuildEmbedderGraphCallback(
+        &CppGraphBuilder::Run, this);
+  }
 }
 
 CppHeap::~CppHeap() {
-  isolate_.heap_profiler()->RemoveBuildEmbedderGraphCallback(
-      &CppGraphBuilder::Run, this);
+  if (isolate_.heap_profiler()) {
+    isolate_.heap_profiler()->RemoveBuildEmbedderGraphCallback(
+        &CppGraphBuilder::Run, this);
+  }
 }
 
 void CppHeap::RegisterV8References(

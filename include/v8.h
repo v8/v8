@@ -48,6 +48,8 @@ class Boolean;
 class BooleanObject;
 class CFunction;
 class Context;
+class CppHeap;
+struct CppHeapCreateParams;
 class Data;
 class Date;
 class External;
@@ -8251,26 +8253,15 @@ class V8_EXPORT Isolate {
   /**
    * Initial configuration parameters for a new Isolate.
    */
-  struct CreateParams {
-    CreateParams()
-        : code_event_handler(nullptr),
-          snapshot_blob(nullptr),
-          counter_lookup_callback(nullptr),
-          create_histogram_callback(nullptr),
-          add_histogram_sample_callback(nullptr),
-          array_buffer_allocator(nullptr),
-          array_buffer_allocator_shared(),
-          external_references(nullptr),
-          allow_atomics_wait(true),
-          only_terminate_in_safe_scope(false),
-          embedder_wrapper_type_index(-1),
-          embedder_wrapper_object_index(-1) {}
+  struct V8_EXPORT CreateParams {
+    CreateParams();
+    ~CreateParams();
 
     /**
      * Allows the host application to provide the address of a function that is
      * notified each time code is added, moved or removed.
      */
-    JitCodeEventHandler code_event_handler;
+    JitCodeEventHandler code_event_handler = nullptr;
 
     /**
      * ResourceConstraints to use for the new Isolate.
@@ -8280,14 +8271,13 @@ class V8_EXPORT Isolate {
     /**
      * Explicitly specify a startup snapshot blob. The embedder owns the blob.
      */
-    StartupData* snapshot_blob;
-
+    StartupData* snapshot_blob = nullptr;
 
     /**
      * Enables the host application to provide a mechanism for recording
      * statistics counters.
      */
-    CounterLookupCallback counter_lookup_callback;
+    CounterLookupCallback counter_lookup_callback = nullptr;
 
     /**
      * Enables the host application to provide a mechanism for recording
@@ -8295,8 +8285,8 @@ class V8_EXPORT Isolate {
      * histogram which will later be passed to the AddHistogramSample
      * function.
      */
-    CreateHistogramCallback create_histogram_callback;
-    AddHistogramSampleCallback add_histogram_sample_callback;
+    CreateHistogramCallback create_histogram_callback = nullptr;
+    AddHistogramSampleCallback add_histogram_sample_callback = nullptr;
 
     /**
      * The ArrayBuffer::Allocator to use for allocating and freeing the backing
@@ -8307,7 +8297,7 @@ class V8_EXPORT Isolate {
      * to the allocator, in order to facilitate lifetime
      * management for the allocator instance.
      */
-    ArrayBuffer::Allocator* array_buffer_allocator;
+    ArrayBuffer::Allocator* array_buffer_allocator = nullptr;
     std::shared_ptr<ArrayBuffer::Allocator> array_buffer_allocator_shared;
 
     /**
@@ -8316,28 +8306,37 @@ class V8_EXPORT Isolate {
      * deserialization. This array and its content must stay valid for the
      * entire lifetime of the isolate.
      */
-    const intptr_t* external_references;
+    const intptr_t* external_references = nullptr;
 
     /**
      * Whether calling Atomics.wait (a function that may block) is allowed in
      * this isolate. This can also be configured via SetAllowAtomicsWait.
      */
-    bool allow_atomics_wait;
+    bool allow_atomics_wait = true;
 
     /**
      * Termination is postponed when there is no active SafeForTerminationScope.
      */
-    bool only_terminate_in_safe_scope;
+    bool only_terminate_in_safe_scope = false;
 
     /**
      * The following parameters describe the offsets for addressing type info
      * for wrapped API objects and are used by the fast C API
      * (for details see v8-fast-api-calls.h).
      */
-    int embedder_wrapper_type_index;
-    int embedder_wrapper_object_index;
-  };
+    int embedder_wrapper_type_index = -1;
+    int embedder_wrapper_object_index = -1;
 
+    /**
+     * If parameters are set, V8 creates a managed C++ heap as extension to its
+     * JavaScript heap.
+     *
+     * See v8::Isolate::GetCppHeap() for working with the heap.
+     *
+     * This is an experimental feature and may still change significantly.
+     */
+    std::shared_ptr<CppHeapCreateParams> cpp_heap_params;
+  };
 
   /**
    * Stack-allocated class which sets the isolate for all operations
@@ -8938,6 +8937,12 @@ class V8_EXPORT Isolate {
    * Gets the currently active heap tracer for the isolate.
    */
   EmbedderHeapTracer* GetEmbedderHeapTracer();
+
+  /**
+   * \returns the C++ heap managed by V8. Only available if the Isolate was
+   *   created with proper CreatePrams::cpp_heap_params option.
+   */
+  CppHeap* GetCppHeap() const;
 
   /**
    * Use for |AtomicsWaitCallback| to indicate the type of event it receives.

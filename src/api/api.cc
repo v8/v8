@@ -11,6 +11,7 @@
 #include <utility>  // For move
 #include <vector>
 
+#include "include/cppgc/custom-space.h"
 #include "include/v8-cppgc.h"
 #include "include/v8-fast-api-calls.h"
 #include "include/v8-profiler.h"
@@ -8249,6 +8250,11 @@ EmbedderHeapTracer* Isolate::GetEmbedderHeapTracer() {
   return isolate->heap()->GetEmbedderHeapTracer();
 }
 
+CppHeap* Isolate::GetCppHeap() const {
+  const i::Isolate* isolate = reinterpret_cast<const i::Isolate*>(this);
+  return isolate->heap()->cpp_heap();
+}
+
 void Isolate::SetGetExternallyAllocatedMemoryInBytesCallback(
     GetExternallyAllocatedMemoryInBytesCallback callback) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
@@ -8305,6 +8311,10 @@ Isolate* Isolate::Allocate() {
   return reinterpret_cast<Isolate*>(i::Isolate::New());
 }
 
+Isolate::CreateParams::CreateParams() = default;
+
+Isolate::CreateParams::~CreateParams() = default;
+
 // static
 // This is separate so that tests can provide a different |isolate|.
 void Isolate::Initialize(Isolate* isolate,
@@ -8352,6 +8362,9 @@ void Isolate::Initialize(Isolate* isolate,
   i_isolate->set_allow_atomics_wait(params.allow_atomics_wait);
 
   i_isolate->heap()->ConfigureHeap(params.constraints);
+  if (params.cpp_heap_params) {
+    i_isolate->heap()->ConfigureCppHeap(params.cpp_heap_params);
+  }
   if (params.constraints.stack_limit() != nullptr) {
     uintptr_t limit =
         reinterpret_cast<uintptr_t>(params.constraints.stack_limit());

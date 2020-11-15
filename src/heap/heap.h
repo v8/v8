@@ -68,6 +68,7 @@ class BasicMemoryChunk;
 class CodeLargeObjectSpace;
 class CollectionBarrier;
 class ConcurrentMarking;
+class CppHeap;
 class GCIdleTimeHandler;
 class GCIdleTimeHeapState;
 class GCTracer;
@@ -1132,6 +1133,15 @@ class Heap {
       EmbedderHeapTracer::EmbedderStackState stack_state);
 
   EmbedderHeapTracer::TraceFlags flags_for_embedder_tracer() const;
+
+  // ===========================================================================
+  // Unified heap (C++) support. ===============================================
+  // ===========================================================================
+
+  V8_EXPORT_PRIVATE void ConfigureCppHeap(
+      std::shared_ptr<CppHeapCreateParams> params);
+
+  v8::CppHeap* cpp_heap() const { return cpp_heap_.get(); }
 
   // ===========================================================================
   // External string table API. ================================================
@@ -2219,6 +2229,7 @@ class Heap {
   std::unique_ptr<AllocationObserver> stress_concurrent_allocation_observer_;
   std::unique_ptr<LocalEmbedderHeapTracer> local_embedder_heap_tracer_;
   std::unique_ptr<MarkingBarrier> marking_barrier_;
+  std::unique_ptr<v8::CppHeap> cpp_heap_;
 
   StrongRootsEntry* strong_roots_head_ = nullptr;
   base::Mutex strong_roots_mutex_;
