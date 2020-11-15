@@ -91,7 +91,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c604b39380e3444c14df32414ab448083fb18155',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0616471e43426f56dce52d548ea743bfb920600c',
   'third_party/depot_tools':
     Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'fd5c198347e13bdb96f6685fdab451c1183e21ff',
   'third_party/icu':
@@ -242,7 +242,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'BisfFk67ojvPEsXt398o1XuIEAeGMM6KsrXCD1gY2RIC'
+              'version': 'NZcWyIyONpZ4Tdm_zmWgSBEWd15zhCNYWLuyJj8_IUcC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
