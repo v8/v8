@@ -1353,6 +1353,8 @@
   'compiler/dataview-set': [SKIP],
   'compiler/deopt-inlined-from-call': [SKIP],
   'compiler/field-representation-tracking': [SKIP],
+  'compiler/globals-change-writable': [SKIP],
+  'compiler/globals-freeze-*': [SKIP],
   'compiler/manual-concurrent-recompile': [SKIP],
   'compiler/native-context-specialization-hole-check': [SKIP],
   'compiler/number-divide': [SKIP],
