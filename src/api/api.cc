@@ -954,17 +954,6 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
   }
 }
 
-size_t ResourceConstraints::max_semi_space_size_in_kb() const {
-  return i::Heap::SemiSpaceSizeFromYoungGenerationSize(
-             max_young_generation_size_) /
-         i::KB;
-}
-
-void ResourceConstraints::set_max_semi_space_size_in_kb(size_t limit_in_kb) {
-  set_max_young_generation_size_in_bytes(
-      i::Heap::YoungGenerationSizeFromSemiSpaceSize(limit_in_kb * i::KB));
-}
-
 i::Address* V8::GlobalizeReference(i::Isolate* isolate, i::Address* obj) {
   LOG_API(isolate, Persistent, New);
   i::Handle<i::Object> result = isolate->global_handles()->Create(*obj);
@@ -8172,14 +8161,6 @@ v8::Local<v8::Context> Isolate::GetCurrentContext() {
   return Utils::ToLocal(i::Handle<i::Context>(native_context, isolate));
 }
 
-v8::Local<v8::Context> Isolate::GetEnteredContext() {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  i::Handle<i::Object> last =
-      isolate->handle_scope_implementer()->LastEnteredContext();
-  if (last.is_null()) return Local<Context>();
-  return Utils::ToLocal(i::Handle<i::Context>::cast(last));
-}
-
 v8::Local<v8::Context> Isolate::GetEnteredOrMicrotaskContext() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   i::Handle<i::Object> last =
@@ -9063,8 +9044,6 @@ size_t Isolate::CopyCodePages(size_t capacity, MemoryRange* code_pages_out) {
 
 CALLBACK_SETTER(FatalErrorHandler, FatalErrorCallback, exception_behavior)
 CALLBACK_SETTER(OOMErrorHandler, OOMErrorCallback, oom_behavior)
-CALLBACK_SETTER(AllowCodeGenerationFromStringsCallback,
-                AllowCodeGenerationFromStringsCallback, allow_code_gen_callback)
 CALLBACK_SETTER(ModifyCodeGenerationFromStringsCallback,
                 ModifyCodeGenerationFromStringsCallback,
                 modify_code_gen_callback)
