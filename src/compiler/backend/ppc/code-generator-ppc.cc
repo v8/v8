@@ -3927,7 +3927,6 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     }
     __ Drop(argc_reg);
   } else if (additional_pop_count->IsImmediate()) {
-    DCHECK_EQ(Constant::kInt32, g.ToConstant(additional_pop_count).type());
     int additional_count = g.ToConstant(additional_pop_count).ToInt32();
     __ Drop(parameter_count + additional_count);
   } else if (parameter_count == 0) {
