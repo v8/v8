@@ -199,7 +199,7 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
   int64_t heap_index = decoder->read_i33v<validate>(pc, length, "heap type");
   if (heap_index < 0) {
     int64_t min_1_byte_leb128 = -64;
-    if (heap_index < min_1_byte_leb128) {
+    if (!VALIDATE(heap_index >= min_1_byte_leb128)) {
       DecodeError<validate>(decoder, pc, "Unknown heap type %" PRId64,
                             heap_index);
       return HeapType(HeapType::kBottom);
@@ -249,16 +249,18 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
   }
 }
 
-// Read a value type starting at address 'pc' in 'decoder'.
-// No bytes are consumed. The result is written into the 'result' parameter.
-// Returns the amount of bytes read, or 0 if decoding failed.
-// Registers an error if the type opcode is invalid iff validate is set.
+// Read a value type starting at address {pc} using {decoder}.
+// No bytes are consumed.
+// The length of the read value type is written in {length}.
+// Registers an error for an invalid type only if {validate} is not
+// kNoValidate.
 template <Decoder::ValidateFlag validate>
 ValueType read_value_type(Decoder* decoder, const byte* pc,
                           uint32_t* const length, const WasmFeatures& enabled) {
   *length = 1;
   byte val = decoder->read_u8<validate>(pc, "value type opcode");
   if (decoder->failed()) {
+    *length = 0;
     return kWasmBottom;
   }
   ValueTypeCode code = static_cast<ValueTypeCode>(val);
@@ -312,9 +314,8 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
             "invalid value type 'rtt', enable with --experimental-wasm-gc");
         return kWasmBottom;
       }
-      uint32_t depth_length;
-      uint32_t depth =
-          decoder->read_u32v<validate>(pc + 1, &depth_length, "depth");
+      uint32_t depth = decoder->read_u32v<validate>(pc + 1, length, "depth");
+      *length += 1;
       if (!VALIDATE(depth <= kV8MaxRttSubtypingDepth)) {
         DecodeError<validate>(
             decoder, pc,
@@ -323,9 +324,10 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
             depth, kV8MaxRttSubtypingDepth);
         return kWasmBottom;
       }
-      HeapType heap_type = read_heap_type<validate>(
-          decoder, pc + depth_length + 1, length, enabled);
-      *length += depth_length + 1;
+      uint32_t heap_type_length;
+      HeapType heap_type = read_heap_type<validate>(decoder, pc + *length,
+                                                    &heap_type_length, enabled);
+      *length += heap_type_length;
       return heap_type.is_bottom() ? kWasmBottom
                                    : ValueType::Rtt(heap_type, depth);
     }
@@ -344,9 +346,15 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
     case kVoidCode:
     case kI8Code:
     case kI16Code:
+      if (validate) {
+        DecodeError<validate>(decoder, pc, "invalid value type 0x%x", code);
+      }
       return kWasmBottom;
   }
   // Anything that doesn't match an enumeration value is an invalid type code.
+  if (validate) {
+    DecodeError<validate>(decoder, pc, "invalid value type 0x%x", code);
+  }
   return kWasmBottom;
 }
 }  // namespace value_type_reader
@@ -446,9 +454,6 @@ struct SelectTypeImmediate {
     type = value_type_reader::read_value_type<validate>(decoder, pc + length,
                                                         &type_length, enabled);
     length += type_length;
-    if (!VALIDATE(type != kWasmBottom)) {
-      DecodeError<validate>(decoder, pc + 1, "invalid select type");
-    }
   }
 };
 
@@ -464,14 +469,17 @@ struct BlockTypeImmediate {
     int64_t block_type =
         decoder->read_i33v<validate>(pc, &length, "block type");
     if (block_type < 0) {
-      constexpr int64_t kVoidCode_i64_extended = (~int64_t{0x7F}) | kVoidCode;
-      if (block_type == kVoidCode_i64_extended) return;
+      // All valid negative types are 1 byte in length, so we check against the
+      // minimum 1-byte LEB128 value.
+      constexpr int64_t min_1_byte_leb128 = -64;
+      if (!VALIDATE(block_type >= min_1_byte_leb128)) {
+        DecodeError<validate>(decoder, pc, "invalid block type %" PRId64,
+                              block_type);
+        return;
+      }
+      if (static_cast<ValueTypeCode>(block_type & 0x7F) == kVoidCode) return;
       type = value_type_reader::read_value_type<validate>(decoder, pc, &length,
                                                           enabled);
-      if (!VALIDATE(type != kWasmBottom)) {
-        DecodeError<validate>(decoder, pc, "Invalid block type %" PRId64,
-                              block_type);
-      }
     } else {
       if (!VALIDATE(enabled.has_mv())) {
         DecodeError<validate>(decoder, pc,
@@ -1122,13 +1130,11 @@ class WasmDecoder : public Decoder {
                                : local_types_.begin();
 
     // Decode local declarations, if any.
-    uint32_t entries =
-        read_u32v<kFullValidation>(pc, &length, "local decls count");
+    uint32_t entries = read_u32v<validate>(pc, &length, "local decls count");
     if (!VALIDATE(ok())) {
       DecodeError(pc + *total_length, "invalid local decls count");
       return false;
     }
-
     *total_length += length;
     TRACE("local decls count: %u\n", entries);
 
@@ -1138,8 +1144,9 @@ class WasmDecoder : public Decoder {
                     "expected more local decls but reached end of input");
         return false;
       }
-      uint32_t count = read_u32v<kFullValidation>(pc + *total_length, &length,
-                                                  "local count");
+
+      uint32_t count =
+          read_u32v<validate>(pc + *total_length, &length, "local count");
       if (!VALIDATE(ok())) {
         DecodeError(pc + *total_length, "invalid local count");
         return false;
@@ -1151,12 +1158,9 @@ class WasmDecoder : public Decoder {
       }
       *total_length += length;
 
-      ValueType type = value_type_reader::read_value_type<kFullValidation>(
+      ValueType type = value_type_reader::read_value_type<validate>(
           this, pc + *total_length, &length, enabled_);
-      if (!VALIDATE(type != kWasmBottom)) {
-        DecodeError(pc + *total_length, "invalid local type");
-        return false;
-      }
+      if (!VALIDATE(type != kWasmBottom)) return false;
       *total_length += length;
 
       if (insert_position.has_value()) {

@@ -760,7 +760,7 @@ TEST_F(FunctionBodyDecoderTest, VoidBlockTypeVariants) {
   ExpectValidates(sigs.v_v(), {kExprBlock, kVoidCode | 0x80, 0x7F, kExprEnd});
   // Invalid code, whose last 7 bits coincide with kVoidCode.
   ExpectFailure(sigs.v_v(), {kExprBlock, kVoidCode | 0x80, 0x45, kExprEnd},
-                kAppendEnd, "Invalid block type");
+                kAppendEnd, "invalid block type");
 }
 
 TEST_F(FunctionBodyDecoderTest, If_empty1) {
@@ -4132,7 +4132,7 @@ TEST_F(FunctionBodyDecoderTest, PackedTypesAsLocals) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
   AddLocals(kWasmI8, 1);
-  ExpectFailure(sigs.v_v(), {}, kAppendEnd, "invalid local type");
+  ExpectFailure(sigs.v_v(), {}, kAppendEnd, "invalid value type");
 }
 
 TEST_F(FunctionBodyDecoderTest, RttCanon) {

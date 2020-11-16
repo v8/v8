@@ -1849,7 +1849,6 @@ class ModuleDecoderImpl : public Decoder {
     ValueType result = value_type_reader::read_value_type<kFullValidation>(
         this, this->pc(), &type_length,
         origin_ == kWasmOrigin ? enabled_features_ : WasmFeatures::None());
-    if (result == kWasmBottom) error(pc_, "invalid value type");
     // We use capacity() over size() so this function works
     // mid-DecodeTypeSection.
     if (result.has_index() && result.ref_index() >= module_->types.capacity()) {
