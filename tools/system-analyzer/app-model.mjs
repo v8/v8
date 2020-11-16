@@ -32,33 +32,44 @@ class State {
     this._deoptTimeline.selectTimeRange(start, end);
   }
 
-  _updateTimeRange(timeline) {
-    this._minStartTime = Math.min(this._minStartTime, timeline.startTime);
-    this._maxEndTime = Math.max(this._maxEndTime, timeline.endTime);
-    timeline.startTime = this._minStartTime;
-    timeline.endTime = this._maxEndTime;
+  _updateTimeRange() {
+    for (let timeline of this.timelines) {
+      if (timeline === undefined) return;
+      this._minStartTime = Math.min(this._minStartTime, timeline.startTime);
+      this._maxEndTime = Math.max(this._maxEndTime, timeline.endTime);
+    }
+    for (let timeline of this.timelines) {
+      timeline.startTime = this._minStartTime;
+      timeline.endTime = this._maxEndTime;
+    }
   }
+
   get mapTimeline() {
     return this._mapTimeline;
   }
   set mapTimeline(timeline) {
-    this._updateTimeRange(timeline);
     this._mapTimeline = timeline;
+    this._updateTimeRange();
   }
   get icTimeline() {
     return this._icTimeline;
   }
   set icTimeline(timeline) {
-    this._updateTimeRange(timeline);
     this._icTimeline = timeline;
+    this._updateTimeRange();
   }
   get deoptTimeline() {
     return this._deoptTimeline;
   }
   set deoptTimeline(timeline) {
-    this._updateTimeRange(timeline);
     this._deoptTimeline = timeline;
+    this._updateTimeRange();
   }
+
+  get timelines() {
+    return [this.mapTimeline, this.icTimeline, this.deoptTimeline];
+  }
+
   set chunks(value) {
     // TODO(zcankara) split up between maps and ics, and every timeline track
     this._chunks = value;

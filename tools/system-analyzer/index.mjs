@@ -6,6 +6,7 @@ import {SourcePosition} from '../profile.mjs';
 
 import {State} from './app-model.mjs';
 import {FocusEvent, SelectionEvent, SelectTimeEvent} from './events.mjs';
+import {CSSColor} from './helper.mjs';
 import {$} from './helper.mjs';
 import {IcLogEntry} from './log/ic.mjs';
 import {MapLogEntry} from './log/map.mjs';
@@ -174,9 +175,9 @@ class App {
   switchTheme(event) {
     document.documentElement.dataset.theme =
         event.target.checked ? 'light' : 'dark';
-    if (this.fileLoaded) {
-      this.refreshTimelineTrackView();
-    }
+    CSSColor.reset();
+    if (!this.fileLoaded) return;
+    this.refreshTimelineTrackView();
   }
 }
 

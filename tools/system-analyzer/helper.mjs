@@ -23,63 +23,76 @@ function formatSeconds(millis) {
 }
 
 class CSSColor {
-  static getColor(name) {
+  static _cache = new Map();
+
+  static get(name) {
+    let color = this._cache.get(name);
+    if (color !== undefined) return color;
     const style = getComputedStyle(document.body);
-    return style.getPropertyValue(`--${name}`);
+    color = style.getPropertyValue(`--${name}`);
+    if (color === undefined) {
+      throw new Error(`CSS color does not exist: ${name}`);
+    }
+    this._cache.set(name, color);
+    return color;
   }
+  static reset() {
+    this._cache.clear();
+  }
+
   static get backgroundColor() {
-    return CSSColor.getColor('backgroud-color');
+    return this.get('background-color');
   }
   static get surfaceColor() {
-    return CSSColor.getColor('surface-color');
+    return this.get('surface-color');
   }
   static get primaryColor() {
-    return CSSColor.getColor('primary-color');
+    return this.get('primary-color');
   }
   static get secondaryColor() {
-    return CSSColor.getColor('secondary-color');
+    return this.get('secondary-color');
   }
   static get onSurfaceColor() {
-    return CSSColor.getColor('on-surface-color');
+    return this.get('on-surface-color');
   }
   static get onBackgroundColor() {
-    return CSSColor.getColor('on-background-color');
+    return this.get('on-background-color');
   }
   static get onPrimaryColor() {
-    return CSSColor.getColor('on-primary-color');
+    return this.get('on-primary-color');
   }
   static get onSecondaryColor() {
-    return CSSColor.getColor('on-secondary-color');
+    return this.get('on-secondary-color');
   }
   static get defaultColor() {
-    return CSSColor.getColor('default-color');
+    return this.get('default-color');
   }
   static get errorColor() {
-    return CSSColor.getColor('error-color');
+    return this.get('error-color');
   }
   static get mapBackgroundColor() {
-    return CSSColor.getColor('map-background-color');
+    return this.get('map-background-color');
   }
   static get timelineBackgroundColor() {
-    return CSSColor.getColor('timeline-background-color');
+    return this.get('timeline-background-color');
   }
   static get red() {
-    return CSSColor.getColor('red');
+    return this.get('red');
   }
   static get green() {
-    return CSSColor.getColor('green');
+    return this.get('green');
   }
   static get yellow() {
-    return CSSColor.getColor('yellow');
+    return this.get('yellow');
   }
   static get blue() {
-    return CSSColor.getColor('blue');
+    return this.get('blue');
   }
   static get orange() {
-    return CSSColor.getColor('orange');
+    return this.get('orange');
   }
   static get violet() {
-    return CSSColor.getColor('violet');
+    return this.get('violet');
   }
 }
 
@@ -120,7 +133,7 @@ class DOM {
     const node = document.createElement('div');
     if (classes !== void 0) {
       if (typeof classes === 'string') {
-        node.classList.add(classes);
+        node.className = classes;
       } else {
         classes.forEach(cls => node.classList.add(cls));
       }
@@ -130,7 +143,7 @@ class DOM {
 
   static table(className) {
     const node = document.createElement('table');
-    if (className) node.classList.add(className);
+    if (className) node.className = className;
     return node;
   }
 
@@ -141,13 +154,13 @@ class DOM {
     } else if (textOrNode) {
       node.innerText = textOrNode;
     }
-    if (className) node.classList.add(className);
+    if (className) node.className = className;
     return node;
   }
 
   static tr(className) {
     const node = document.createElement('tr');
-    if (className) node.classList.add(className);
+    if (className) node.className = className;
     return node;
   }
 
@@ -184,6 +197,7 @@ class V8CustomElement extends HTMLElement {
     super();
     const shadowRoot = this.attachShadow({mode: 'open'});
     shadowRoot.innerHTML = templateText;
+    this._updateCallback = this._update.bind(this);
   }
 
   $(id) {

@@ -13,6 +13,7 @@ DOM.defineCustomElement('source-panel',
   _sourcePositionsToMarkNodes;
   _scripts = [];
   _script;
+
   constructor() {
     super(templateText);
     this.scriptDropdown.addEventListener(

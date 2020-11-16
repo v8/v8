@@ -12,10 +12,15 @@ DOM.defineCustomElement(
     'ic-panel', (templateText) => class ICPanel extends V8CustomElement {
       _selectedLogEntries;
       _timeline;
+
+      _detailsClickHandler = this.handleDetailsClick.bind(this);
+      _mapClickHandler = this.handleMapClick.bind(this);
+      _fileClickHandler = this.handleFilePositionClick.bind(this);
+
       constructor() {
         super(templateText);
         this.initGroupKeySelect();
-        this.groupKey.addEventListener('change', e => this.updateTable(e));
+        this.groupKey.addEventListener('change', e => this.update());
       }
       set timeline(value) {
         console.assert(value !== undefined, 'timeline undefined!');
@@ -104,24 +109,21 @@ DOM.defineCustomElement(
       _render(groups, parent) {
         const fragment = document.createDocumentFragment();
         const max = Math.min(1000, groups.length)
-        const detailsClickHandler = this.handleDetailsClick.bind(this);
-        const mapClickHandler = this.handleMapClick.bind(this);
-        const fileClickHandler = this.handleFilePositionClick.bind(this);
         for (let i = 0; i < max; i++) {
           const group = groups[i];
           const tr = DOM.tr();
           tr.group = group;
           const details = tr.appendChild(DOM.td('', 'toggle'));
-          details.onclick = detailsClickHandler;
+          details.onclick = this._detailsClickHandler;
           tr.appendChild(DOM.td(group.percentage + '%', 'percentage'));
           tr.appendChild(DOM.td(group.count, 'count'));
           const valueTd = tr.appendChild(DOM.td(group.key, 'key'));
           if (group.property === 'map') {
-            valueTd.onclick = mapClickHandler;
+            valueTd.onclick = this._mapClickHandler;
             valueTd.classList.add('clickable');
           } else if (group.property == 'filePosition') {
             valueTd.classList.add('clickable');
-            valueTd.onclick = fileClickHandler;
+            valueTd.onclick = this._fileClickHandler;
           }
           fragment.appendChild(tr);
         }

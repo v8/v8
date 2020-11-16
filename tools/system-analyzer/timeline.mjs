@@ -248,17 +248,27 @@ class Chunk {
     return chunk;
   }
 
-  getBreakdown(event_fn) {
-    if (event_fn === void 0) {
-      event_fn = each => each;
+  getBreakdown(keyFunction) {
+    if (this.items.length === 0) return [];
+    if (keyFunction === void 0) {
+      keyFunction = each => each;
     }
-    let breakdown = {__proto__: null};
-    this.items.forEach(each => {
-      const type = event_fn(each);
-      const v = breakdown[type];
-      breakdown[type] = (v | 0) + 1;
-    });
-    return Object.entries(breakdown).sort((a, b) => a[1] - b[1]);
+    const typeToindex = new Map();
+    const breakdown = [];
+    // This is performance critical, resorting to for-loop
+    for (let i = 0; i < this.items.length; i++) {
+      const each = this.items[i];
+      const type = keyFunction(each);
+      const index = typeToindex.get(type);
+      if (index === void 0) {
+        typeToindex.set(type, breakdown.length);
+        breakdown.push([type, 0]);
+      } else {
+        breakdown[index][1]++;
+      }
+    }
+    // Sort by count
+    return breakdown.sort((a, b) => a[1] - b[1]);
   }
 
   filter() {
