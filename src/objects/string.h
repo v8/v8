@@ -21,6 +21,8 @@
 namespace v8 {
 namespace internal {
 
+class SharedStringAccessGuardIfNeeded;
+
 enum InstanceType : uint16_t;
 
 enum AllowNullsFlag { ALLOW_NULLS, DISALLOW_NULLS };
@@ -174,9 +176,17 @@ class String : public TorqueGeneratedString<String, Name> {
   V8_INLINE Vector<const Char> GetCharVector(
       const DisallowHeapAllocation& no_gc);
 
-  // Get chars from sequential or external strings.
+  // Get chars from sequential or external strings. May only be called when a
+  // SharedStringAccessGuard is not needed (i.e. on the main thread or on
+  // read-only strings).
   template <typename Char>
   inline const Char* GetChars(const DisallowHeapAllocation& no_gc);
+
+  // Get chars from sequential or external strings.
+  template <typename Char>
+  inline const Char* GetChars(
+      const DisallowHeapAllocation& no_gc,
+      const SharedStringAccessGuardIfNeeded& access_guard);
 
   // Returns the address of the character at an offset into this string.
   // Requires: this->IsFlat()
@@ -575,7 +585,14 @@ class SeqOneByteString
   // Get the address of the characters in this string.
   inline Address GetCharsAddress();
 
+  // Get a pointer to the characters of the string. May only be called when a
+  // SharedStringAccessGuard is not needed (i.e. on the main thread or on
+  // read-only strings).
   inline uint8_t* GetChars(const DisallowHeapAllocation& no_gc);
+
+  // Get a pointer to the characters of the string.
+  inline uint8_t* GetChars(const DisallowHeapAllocation& no_gc,
+                           const SharedStringAccessGuardIfNeeded& access_guard);
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic.
@@ -613,7 +630,14 @@ class SeqTwoByteString
   // Get the address of the characters in this string.
   inline Address GetCharsAddress();
 
+  // Get a pointer to the characters of the string. May only be called when a
+  // SharedStringAccessGuard is not needed (i.e. on the main thread or on
+  // read-only strings).
   inline uc16* GetChars(const DisallowHeapAllocation& no_gc);
+
+  // Get a pointer to the characters of the string.
+  inline uc16* GetChars(const DisallowHeapAllocation& no_gc,
+                        const SharedStringAccessGuardIfNeeded& access_guard);
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic.
