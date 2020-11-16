@@ -3381,6 +3381,11 @@ int BytecodeArrayRef::handler_table_size() const {
     IF_ACCESS_FROM_HEAP_WITH_FLAG_C(name);                 \
     return ObjectRef::data()->As##holder()->name();        \
   }
+#define BIMODAL_ACCESSOR_WITH_FLAG_B(holder, field, name, BitField)    \
+  typename BitField::FieldType holder##Ref::name() const {             \
+    IF_ACCESS_FROM_HEAP_WITH_FLAG_C(name);                             \
+    return BitField::decode(ObjectRef::data()->As##holder()->field()); \
+  }
 
 BIMODAL_ACCESSOR(AllocationSite, Object, nested_site)
 BIMODAL_ACCESSOR_C(AllocationSite, bool, CanInlineCall)
@@ -3429,25 +3434,28 @@ BIMODAL_ACCESSOR_C(JSTypedArray, bool, is_on_heap)
 BIMODAL_ACCESSOR_C(JSTypedArray, size_t, length)
 BIMODAL_ACCESSOR(JSTypedArray, HeapObject, buffer)
 
-BIMODAL_ACCESSOR_B(Map, bit_field2, elements_kind, Map::Bits2::ElementsKindBits)
-BIMODAL_ACCESSOR_B(Map, bit_field3, is_dictionary_map,
-                   Map::Bits3::IsDictionaryMapBit)
-BIMODAL_ACCESSOR_B(Map, bit_field3, is_deprecated, Map::Bits3::IsDeprecatedBit)
-BIMODAL_ACCESSOR_B(Map, bit_field3, NumberOfOwnDescriptors,
-                   Map::Bits3::NumberOfOwnDescriptorsBits)
-BIMODAL_ACCESSOR_B(Map, bit_field3, is_migration_target,
-                   Map::Bits3::IsMigrationTargetBit)
-BIMODAL_ACCESSOR_B(Map, bit_field3, is_extensible, Map::Bits3::IsExtensibleBit)
-BIMODAL_ACCESSOR_B(Map, bit_field, has_prototype_slot,
-                   Map::Bits1::HasPrototypeSlotBit)
-BIMODAL_ACCESSOR_B(Map, bit_field, is_access_check_needed,
-                   Map::Bits1::IsAccessCheckNeededBit)
-BIMODAL_ACCESSOR_B(Map, bit_field, is_callable, Map::Bits1::IsCallableBit)
-BIMODAL_ACCESSOR_B(Map, bit_field, has_indexed_interceptor,
-                   Map::Bits1::HasIndexedInterceptorBit)
-BIMODAL_ACCESSOR_B(Map, bit_field, is_constructor, Map::Bits1::IsConstructorBit)
-BIMODAL_ACCESSOR_B(Map, bit_field, is_undetectable,
-                   Map::Bits1::IsUndetectableBit)
+BIMODAL_ACCESSOR_WITH_FLAG_B(Map, bit_field2, elements_kind,
+                             Map::Bits2::ElementsKindBits)
+BIMODAL_ACCESSOR_WITH_FLAG_B(Map, bit_field3, is_dictionary_map,
+                             Map::Bits3::IsDictionaryMapBit)
+BIMODAL_ACCESSOR_WITH_FLAG_B(Map, bit_field3, is_deprecated,
+                             Map::Bits3::IsDeprecatedBit)
+BIMODAL_ACCESSOR_WITH_FLAG_B(Map, bit_field3, NumberOfOwnDescriptors,
+                             Map::Bits3::NumberOfOwnDescriptorsBits)
+BIMODAL_ACCESSOR_WITH_FLAG_B(Map, bit_field3, is_migration_target,
+                             Map::Bits3::IsMigrationTargetBit)
+BIMODAL_ACCESSOR_WITH_FLAG_B(Map, bit_field, has_prototype_slot,
+                             Map::Bits1::HasPrototypeSlotBit)
+BIMODAL_ACCESSOR_WITH_FLAG_B(Map, bit_field, is_access_check_needed,
+                             Map::Bits1::IsAccessCheckNeededBit)
+BIMODAL_ACCESSOR_WITH_FLAG_B(Map, bit_field, is_callable,
+                             Map::Bits1::IsCallableBit)
+BIMODAL_ACCESSOR_WITH_FLAG_B(Map, bit_field, has_indexed_interceptor,
+                             Map::Bits1::HasIndexedInterceptorBit)
+BIMODAL_ACCESSOR_WITH_FLAG_B(Map, bit_field, is_constructor,
+                             Map::Bits1::IsConstructorBit)
+BIMODAL_ACCESSOR_WITH_FLAG_B(Map, bit_field, is_undetectable,
+                             Map::Bits1::IsUndetectableBit)
 BIMODAL_ACCESSOR_C(Map, int, instance_size)
 BIMODAL_ACCESSOR_C(Map, int, NextFreePropertyIndex)
 BIMODAL_ACCESSOR_C(Map, int, UnusedPropertyFields)
@@ -3644,7 +3652,7 @@ void* JSTypedArrayRef::data_ptr() const {
 }
 
 bool MapRef::IsInobjectSlackTrackingInProgress() const {
-  IF_ACCESS_FROM_HEAP_C(IsInobjectSlackTrackingInProgress);
+  IF_ACCESS_FROM_HEAP_WITH_FLAG_C(IsInobjectSlackTrackingInProgress);
   return Map::Bits3::ConstructionCounterBits::decode(
              data()->AsMap()->bit_field3()) != Map::kNoSlackTracking;
 }

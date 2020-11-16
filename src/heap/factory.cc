@@ -1473,7 +1473,7 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
   // Must be called only after |instance_type|, |instance_size| and
   // |layout_descriptor| are set.
   map.set_visitor_id(Map::GetVisitorId(map));
-  map.set_relaxed_bit_field(0);
+  map.set_bit_field(0);
   map.set_bit_field2(Map::Bits2::NewTargetIsBaseBit::encode(true));
   int bit_field3 =
       Map::Bits3::EnumLengthBits::encode(kInvalidEnumCacheSentinel) |

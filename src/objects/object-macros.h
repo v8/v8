@@ -487,8 +487,17 @@
   static_cast<uint32_t>(base::Relaxed_Load(  \
       reinterpret_cast<const base::Atomic32*>(FIELD_ADDR(p, offset))))
 
+#define ACQUIRE_READ_UINT32_FIELD(p, offset) \
+  static_cast<uint32_t>(base::Acquire_Load(  \
+      reinterpret_cast<const base::Atomic32*>(FIELD_ADDR(p, offset))))
+
 #define RELAXED_WRITE_UINT32_FIELD(p, offset, value)            \
   base::Relaxed_Store(                                          \
+      reinterpret_cast<base::Atomic32*>(FIELD_ADDR(p, offset)), \
+      static_cast<base::Atomic32>(value));
+
+#define RELEASE_WRITE_UINT32_FIELD(p, offset, value)            \
+  base::Release_Store(                                          \
       reinterpret_cast<base::Atomic32*>(FIELD_ADDR(p, offset)), \
       static_cast<base::Atomic32>(value));
 
@@ -510,8 +519,16 @@
   static_cast<byte>(base::Relaxed_Load(    \
       reinterpret_cast<const base::Atomic8*>(FIELD_ADDR(p, offset))))
 
+#define ACQUIRE_READ_BYTE_FIELD(p, offset) \
+  static_cast<byte>(base::Acquire_Load(    \
+      reinterpret_cast<const base::Atomic8*>(FIELD_ADDR(p, offset))))
+
 #define RELAXED_WRITE_BYTE_FIELD(p, offset, value)                             \
   base::Relaxed_Store(reinterpret_cast<base::Atomic8*>(FIELD_ADDR(p, offset)), \
+                      static_cast<base::Atomic8>(value));
+
+#define RELEASE_WRITE_BYTE_FIELD(p, offset, value)                             \
+  base::Release_Store(reinterpret_cast<base::Atomic8*>(FIELD_ADDR(p, offset)), \
                       static_cast<base::Atomic8>(value));
 
 #ifdef OBJECT_PRINT
