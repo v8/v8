@@ -162,6 +162,13 @@ struct WasmInstanceCacheNodes {
 // the wasm decoder from the internal details of TurboFan.
 class WasmGraphBuilder {
  public:
+  struct ObjectReferenceKnowledge {
+    bool object_can_be_null;
+    bool object_must_be_data_ref;
+    bool object_can_be_i31;
+    bool rtt_is_i31;
+    uint8_t rtt_depth;
+  };
   enum EnforceBoundsCheck : bool {  // --
     kNeedsBoundsCheck = true,
     kCanOmitBoundsCheck = false
@@ -173,14 +180,6 @@ class WasmGraphBuilder {
   enum CheckForNull : bool {  // --
     kWithNullCheck = true,
     kWithoutNullCheck = false
-  };
-  enum CheckForI31 : bool {  // --
-    kWithI31Check = true,
-    kNoI31Check = false
-  };
-  enum RttIsI31 : bool {  // --
-    kRttIsI31 = true,
-    kRttIsNotI31 = false
   };
 
   V8_EXPORT_PRIVATE WasmGraphBuilder(
@@ -431,13 +430,10 @@ class WasmGraphBuilder {
   Node* I31GetU(Node* input);
   Node* RttCanon(wasm::HeapType type);
   Node* RttSub(wasm::HeapType type, Node* parent_rtt);
-  Node* RefTest(Node* object, Node* rtt, CheckForNull null_check,
-                CheckForI31 i31_check, RttIsI31 rtt_is_i31, uint8_t depth);
-  Node* RefCast(Node* object, Node* rtt, CheckForNull null_check,
-                CheckForI31 i31_check, RttIsI31 rtt_is_i31, uint8_t depth,
+  Node* RefTest(Node* object, Node* rtt, ObjectReferenceKnowledge config);
+  Node* RefCast(Node* object, Node* rtt, ObjectReferenceKnowledge config,
                 wasm::WasmCodePosition position);
-  Node* BrOnCast(Node* object, Node* rtt, CheckForNull null_check,
-                 CheckForI31 i31_check, RttIsI31 rtt_is_i31, uint8_t depth,
+  Node* BrOnCast(Node* object, Node* rtt, ObjectReferenceKnowledge config,
                  Node** match_control, Node** match_effect,
                  Node** no_match_control, Node** no_match_effect);
 
