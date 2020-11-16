@@ -616,7 +616,7 @@ TEST(WasmBasicArray) {
                                WASM_RTT_CANON(type_index)),
        kExprEnd});
 
-  const uint32_t kLongLength = 1u << 15;
+  const uint32_t kLongLength = 1u << 16;
   const byte kAllocateLarge = tester.DefineFunction(
       &sig_q_v, {},
       {WASM_ARRAY_NEW_DEFAULT(type_index, WASM_I32V(kLongLength),
