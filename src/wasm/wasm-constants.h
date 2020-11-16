@@ -123,8 +123,8 @@ constexpr uint32_t kExceptionAttribute = 0;
 
 constexpr int kAnonymousFuncIndex = -1;
 
-// The number of calls to an exported wasm function that will be handled
-// by the generic wrapper. Once this threshold is reached, a specific wrapper
+// The number of calls to an exported Wasm function that will be handled
+// by the generic wrapper. Once the budget is exhausted, a specific wrapper
 // is to be compiled for the function's signature.
 constexpr uint32_t kGenericWrapperBudget = 6;
 
