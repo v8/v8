@@ -108,7 +108,6 @@ GCLIENT_VARS = struct(
     V8_HEADER_INCLUDES = {"check_v8_header_includes": "True"},
     GCMOLE = {"download_gcmole": "True"},
     JSFUNFUZZ = {"download_jsfunfuzz": "True"},
-    XCODE12_BETA = {"mac_xcode_version": "xcode_12_beta"},
 )
 
 def _gclient_vars_properties(props):

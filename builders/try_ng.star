@@ -360,7 +360,6 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Mac-10.15"},
-    gclient_vars = [GCLIENT_VARS.XCODE12_BETA],
     use_goma = GOMA.DEFAULT,
 )
 
@@ -370,7 +369,6 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Mac-10.15"},
-    gclient_vars = [GCLIENT_VARS.XCODE12_BETA],
     use_goma = GOMA.DEFAULT,
 )
 
@@ -380,7 +378,6 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Mac-10.15"},
-    gclient_vars = [GCLIENT_VARS.XCODE12_BETA],
     use_goma = GOMA.DEFAULT,
 )
 
@@ -390,7 +387,6 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Mac-10.15"},
-    gclient_vars = [GCLIENT_VARS.XCODE12_BETA],
     use_goma = GOMA.DEFAULT,
 )
 
@@ -400,7 +396,6 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Mac-10.15"},
-    gclient_vars = [GCLIENT_VARS.XCODE12_BETA],
     use_goma = GOMA.DEFAULT,
 )
 
@@ -410,7 +405,6 @@ try_ng_pair(
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Mac-10.15"},
-    gclient_vars = [GCLIENT_VARS.XCODE12_BETA],
     use_goma = GOMA.DEFAULT,
 )
 

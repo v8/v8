@@ -174,7 +174,6 @@ experiment_builder(
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
     properties = {"builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - release"]},
-    gclient_vars = [GCLIENT_VARS.XCODE12_BETA],
     use_goma = GOMA.DEFAULT,
 )
 
@@ -192,7 +191,6 @@ experiment_builder(
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
     properties = {"builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - sim - release"]},
-    gclient_vars = [GCLIENT_VARS.XCODE12_BETA],
     use_goma = GOMA.DEFAULT,
 )
 
@@ -210,7 +208,6 @@ experiment_builder(
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
     properties = {"builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - sim - debug"]},
-    gclient_vars = [GCLIENT_VARS.XCODE12_BETA],
     use_goma = GOMA.DEFAULT,
 )
 
