@@ -883,6 +883,9 @@ MaybeHandle<Object> Object::OrdinaryHasInstance(Isolate* isolate,
   // Check if {callable} is a bound function, and if so retrieve its
   // [[BoundTargetFunction]] and use that instead of {callable}.
   if (callable->IsJSBoundFunction()) {
+    // Since there is a mutual recursion here, we might run out of stack
+    // space for long chains of bound functions.
+    STACK_CHECK(isolate, MaybeHandle<Object>());
     Handle<Object> bound_callable(
         Handle<JSBoundFunction>::cast(callable)->bound_target_function(),
         isolate);
