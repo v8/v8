@@ -339,6 +339,7 @@ void SimdScalarLowering::SetLoweredType(Node* node, Node* output) {
     FOREACH_INT32X4_OPCODE(CASE_STMT)
     case IrOpcode::kReturn:
     case IrOpcode::kParameter:
+    case IrOpcode::kPhi:
     case IrOpcode::kCall: {
       replacements_[node->id()].type = SimdType::kInt32x4;
       break;
@@ -1090,7 +1091,14 @@ void SimdScalarLowering::LowerPack(Node* node, SimdType input_rep_type,
 
 void SimdScalarLowering::LowerShiftOp(Node* node, SimdType type) {
   DCHECK_EQ(2, node->InputCount());
-  Node* shift_node = Mask(node->InputAt(1), GetMaskForShift(node));
+
+  // The shift node, if it has a replacement, should be a single scalar.
+  DCHECK_GE(1, ReplacementCount(node->InputAt(1)));
+  Node* val = (HasReplacement(0, node->InputAt(1)))
+                  ? GetReplacements(node->InputAt(1))[0]
+                  : node->InputAt(1);
+
+  Node* shift_node = Mask(val, GetMaskForShift(node));
   Node** rep = GetReplacementsWithType(node->InputAt(0), type);
   int num_lanes = NumLanes(type);
   Node** rep_node = zone()->NewArray<Node*>(num_lanes);
@@ -1237,10 +1245,7 @@ void SimdScalarLowering::LowerAllTrueOp(Node* node, SimdType rep_type) {
     tmp_result = d.Phi(MachineRepresentation::kWord32, zero, tmp_result);
   }
   rep_node[0] = tmp_result;
-  for (int i = 1; i < num_lanes; ++i) {
-    rep_node[i] = nullptr;
-  }
-  ReplaceNode(node, rep_node, num_lanes);
+  ReplaceNode(node, rep_node, 1);
 }
 
 void SimdScalarLowering::LowerFloatPseudoMinMax(Node* node, const Operator* op,
@@ -1464,7 +1469,11 @@ void SimdScalarLowering::LowerNode(Node* node) {
       // arguments need to be converted to i32x4 as well.
       for (int i = NodeProperties::PastValueIndex(node) - 1; i >= 0; i--) {
         Node* input = node->InputAt(i);
-        if (HasReplacement(0, input)) {
+        if (ReplacementCount(input) == 1) {
+          // Special case for extract lanes
+          Node** reps = GetReplacements(input);
+          ReplaceNode(input, reps, 1);
+        } else if (HasReplacement(0, input)) {
           Node** reps = GetReplacementsWithType(input, SimdType::kInt32x4);
           ReplaceNode(input, reps, NumLanes(SimdType::kInt32x4));
         }
@@ -1995,7 +2004,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
     case IrOpcode::kI8x16ExtractLaneU:
     case IrOpcode::kI8x16ExtractLaneS: {
       int32_t lane = OpParameter<int32_t>(node->op());
-      Node** rep_node = zone()->NewArray<Node*>(num_lanes);
+      Node** rep_node = zone()->NewArray<Node*>(1);
       rep_node[0] = GetReplacementsWithType(node->InputAt(0), rep_type)[lane];
 
       // If unsigned, mask the top bits.
@@ -2005,11 +2014,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
         rep_node[0] = Mask(rep_node[0], kMask8);
       }
 
-      for (int i = 1; i < num_lanes; ++i) {
-        rep_node[i] = nullptr;
-      }
-
-      ReplaceNode(node, rep_node, num_lanes);
+      ReplaceNode(node, rep_node, 1);
       break;
     }
     case IrOpcode::kF64x2ReplaceLane:
@@ -2184,7 +2189,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
       // but we still need GetReplacementsWithType if input is float.
       DCHECK_EQ(ReplacementType(node), SimdType::kInt32x4);
       Node** reps = GetReplacementsWithType(node->InputAt(0), rep_type);
-      Node** rep_node = zone()->NewArray<Node*>(num_lanes);
+      Node** rep_node = zone()->NewArray<Node*>(1);
       Node* true_node = mcgraph_->Int32Constant(1);
       Node* zero = mcgraph_->Int32Constant(0);
       Node* tmp_result = zero;
@@ -2195,10 +2200,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
             d.Phi(MachineRepresentation::kWord32, tmp_result, true_node);
       }
       rep_node[0] = tmp_result;
-      for (int i = 1; i < num_lanes; ++i) {
-        rep_node[i] = nullptr;
-      }
-      ReplaceNode(node, rep_node, num_lanes);
+      ReplaceNode(node, rep_node, 1);
       break;
     }
     case IrOpcode::kV32x4AllTrue: {
@@ -2435,6 +2437,11 @@ void SimdScalarLowering::Int32ToInt64(Node** replacements, Node** result) {
 }
 
 Node** SimdScalarLowering::GetReplacementsWithType(Node* node, SimdType type) {
+  // Operations like extract lane, bitmask, any_true, all_true replaces a SIMD
+  // node with a scalar. Those won't be correctly handled here. They should be
+  // special cased and replaced with the appropriate scalar.
+  DCHECK_LT(1, ReplacementCount(node));
+
   Node** replacements = GetReplacements(node);
   if (type == ReplacementType(node)) {
     return replacements;
