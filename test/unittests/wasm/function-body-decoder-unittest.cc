@@ -185,19 +185,18 @@ class TestModuleBuilder {
   WasmModule mod;
 };
 
-class FunctionBodyDecoderTest : public TestWithZone {
+template <class BaseTest>
+class FunctionBodyDecoderTestBase : public WithZoneMixin<BaseTest> {
  public:
   using LocalsDecl = std::pair<uint32_t, ValueType>;
   // All features are disabled by default and must be activated with
   // a WASM_FEATURE_SCOPE in individual tests.
   WasmFeatures enabled_features_ = WasmFeatures::None();
 
-  FunctionBodyDecoderTest() : local_decls(zone()) {}
-
   TestSignatures sigs;
   TestModuleBuilder builder;
   WasmModule* module = builder.module();
-  LocalDeclEncoder local_decls;
+  LocalDeclEncoder local_decls{this->zone()};
 
   void AddLocals(ValueType type, uint32_t count) {
     local_decls.AddLocals(count, type);
@@ -210,7 +209,7 @@ class FunctionBodyDecoderTest : public TestWithZone {
     size_t locals_size = local_decls.Size();
     size_t total_size =
         code.size() + locals_size + (append_end == kAppendEnd ? 1 : 0);
-    byte* buffer = zone()->NewArray<byte>(total_size);
+    byte* buffer = this->zone()->template NewArray<byte>(total_size);
     // Prepend the local decls to the code.
     local_decls.Emit(buffer);
     // Emit the code.
@@ -250,7 +249,7 @@ class FunctionBodyDecoderTest : public TestWithZone {
     FunctionBody body(sig, 0, code.begin(), code.end());
     WasmFeatures unused_detected_features = WasmFeatures::None();
     DecodeResult result =
-        VerifyWasmCode(zone()->allocator(), enabled_features_, module,
+        VerifyWasmCode(this->zone()->allocator(), enabled_features_, module,
                        &unused_detected_features, body);
 
     std::ostringstream str;
@@ -328,6 +327,8 @@ class FunctionBodyDecoderTest : public TestWithZone {
     }
   }
 };
+
+using FunctionBodyDecoderTest = FunctionBodyDecoderTestBase<::testing::Test>;
 
 TEST_F(FunctionBodyDecoderTest, Int32Const1) {
   byte code[] = {kExprI32Const, 0};
@@ -3134,7 +3135,7 @@ TEST_F(FunctionBodyDecoderTest, Regression709741) {
     FunctionBody body(sigs.v_v(), 0, code, code + i);
     WasmFeatures unused_detected_features;
     DecodeResult result =
-        VerifyWasmCode(zone()->allocator(), WasmFeatures::All(), nullptr,
+        VerifyWasmCode(this->zone()->allocator(), WasmFeatures::All(), nullptr,
                        &unused_detected_features, body);
     if (result.ok()) {
       std::ostringstream str;
@@ -4944,25 +4945,34 @@ TEST_F(BytecodeIteratorTest, WithLocalDecls) {
  * Memory64 tests
  ******************************************************************************/
 
-TEST_F(FunctionBodyDecoderTest, IndexTypesOn32BitMemory) {
-  builder.InitializeMemory(kMemory32);
-  ExpectValidates(sigs.i_v(), {WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO)});
-  ExpectFailure(sigs.i_v(), {WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO64)});
-  ExpectValidates(sigs.v_v(),
-                  {WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO, WASM_ZERO)});
-  ExpectFailure(sigs.v_v(),
-                {WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO64, WASM_ZERO)});
+using FunctionBodyDecoderTestOnBothMemoryTypes =
+    FunctionBodyDecoderTestBase<::testing::TestWithParam<MemoryType>>;
+
+std::string PrintMemoryType(::testing::TestParamInfo<MemoryType> info) {
+  switch (info.param) {
+    case kMemory32:
+      return "kMemory32";
+    case kMemory64:
+      return "kMemory64";
+  }
+  UNREACHABLE();
 }
 
-TEST_F(FunctionBodyDecoderTest, IndexTypesOn64BitMemory) {
-  builder.InitializeMemory(kMemory64);
-  ExpectFailure(sigs.i_v(), {WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO)});
-  ExpectValidates(sigs.i_v(),
-                  {WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO64)});
-  ExpectFailure(sigs.v_v(),
-                {WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO, WASM_ZERO)});
-  ExpectValidates(sigs.v_v(), {WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO64,
-                                              WASM_ZERO)});
+INSTANTIATE_TEST_SUITE_P(MemoryTypes, FunctionBodyDecoderTestOnBothMemoryTypes,
+                         ::testing::Values(kMemory32, kMemory64),
+                         PrintMemoryType);
+
+TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, IndexTypes) {
+  builder.InitializeMemory(GetParam());
+  const bool is_memory64 = GetParam() == kMemory64;
+  Validate(!is_memory64, sigs.i_v(),
+           {WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO)});
+  Validate(is_memory64, sigs.i_v(),
+           {WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO64)});
+  Validate(!is_memory64, sigs.v_v(),
+           {WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO, WASM_ZERO)});
+  Validate(is_memory64, sigs.v_v(),
+           {WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO64, WASM_ZERO)});
 }
 
 #undef B1
