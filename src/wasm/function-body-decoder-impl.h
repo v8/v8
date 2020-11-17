@@ -1402,22 +1402,30 @@ class WasmDecoder : public Decoder {
       case kExprF64x2ReplaceLane:
       case kExprI64x2ExtractLane:
       case kExprI64x2ReplaceLane:
+      case kExprS128Load64Lane:
+      case kExprS128Store64Lane:
         num_lanes = 2;
         break;
       case kExprF32x4ExtractLane:
       case kExprF32x4ReplaceLane:
       case kExprI32x4ExtractLane:
       case kExprI32x4ReplaceLane:
+      case kExprS128Load32Lane:
+      case kExprS128Store32Lane:
         num_lanes = 4;
         break;
       case kExprI16x8ExtractLaneS:
       case kExprI16x8ExtractLaneU:
       case kExprI16x8ReplaceLane:
+      case kExprS128Load16Lane:
+      case kExprS128Store16Lane:
         num_lanes = 8;
         break;
       case kExprI8x16ExtractLaneS:
       case kExprI8x16ExtractLaneU:
       case kExprI8x16ReplaceLane:
+      case kExprS128Load8Lane:
+      case kExprS128Store8Lane:
         num_lanes = 16;
         break;
       default:
@@ -3321,12 +3329,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return opcode_length + imm.length;
   }
 
-  int DecodeLoadLane(LoadType type, uint32_t opcode_length) {
+  int DecodeLoadLane(WasmOpcode opcode, LoadType type, uint32_t opcode_length) {
     if (!CheckHasMemory()) return 0;
     MemoryAccessImmediate<validate> mem_imm(this, this->pc_ + opcode_length,
                                             type.size_log_2());
     SimdLaneImmediate<validate> lane_imm(
         this, this->pc_ + opcode_length + mem_imm.length);
+    if (!this->Validate(this->pc_ + opcode_length, opcode, lane_imm)) return 0;
     Value v128 = Pop(1, kWasmS128);
     Value index = Pop(0, kWasmI32);
 
@@ -3336,12 +3345,14 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return opcode_length + mem_imm.length + lane_imm.length;
   }
 
-  int DecodeStoreLane(StoreType type, uint32_t opcode_length) {
+  int DecodeStoreLane(WasmOpcode opcode, StoreType type,
+                      uint32_t opcode_length) {
     if (!CheckHasMemory()) return 0;
     MemoryAccessImmediate<validate> mem_imm(this, this->pc_ + opcode_length,
                                             type.size_log_2());
     SimdLaneImmediate<validate> lane_imm(
         this, this->pc_ + opcode_length + mem_imm.length);
+    if (!this->Validate(this->pc_ + opcode_length, opcode, lane_imm)) return 0;
     Value v128 = Pop(1, kWasmS128);
     Value index = Pop(0, kWasmI32);
 
@@ -3577,28 +3588,28 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                                       LoadTransformationKind::kExtend,
                                       opcode_length);
       case kExprS128Load8Lane: {
-        return DecodeLoadLane(LoadType::kI32Load8S, opcode_length);
+        return DecodeLoadLane(opcode, LoadType::kI32Load8S, opcode_length);
       }
       case kExprS128Load16Lane: {
-        return DecodeLoadLane(LoadType::kI32Load16S, opcode_length);
+        return DecodeLoadLane(opcode, LoadType::kI32Load16S, opcode_length);
       }
       case kExprS128Load32Lane: {
-        return DecodeLoadLane(LoadType::kI32Load, opcode_length);
+        return DecodeLoadLane(opcode, LoadType::kI32Load, opcode_length);
       }
       case kExprS128Load64Lane: {
-        return DecodeLoadLane(LoadType::kI64Load, opcode_length);
+        return DecodeLoadLane(opcode, LoadType::kI64Load, opcode_length);
       }
       case kExprS128Store8Lane: {
-        return DecodeStoreLane(StoreType::kI32Store8, opcode_length);
+        return DecodeStoreLane(opcode, StoreType::kI32Store8, opcode_length);
       }
       case kExprS128Store16Lane: {
-        return DecodeStoreLane(StoreType::kI32Store16, opcode_length);
+        return DecodeStoreLane(opcode, StoreType::kI32Store16, opcode_length);
       }
       case kExprS128Store32Lane: {
-        return DecodeStoreLane(StoreType::kI32Store, opcode_length);
+        return DecodeStoreLane(opcode, StoreType::kI32Store, opcode_length);
       }
       case kExprS128Store64Lane: {
-        return DecodeStoreLane(StoreType::kI64Store, opcode_length);
+        return DecodeStoreLane(opcode, StoreType::kI64Store, opcode_length);
       }
       case kExprS128Const:
         return SimdConstOp(opcode_length);
