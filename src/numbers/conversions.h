@@ -161,10 +161,10 @@ inline uint64_t PositiveNumberToUint64(Object number);
 double StringToDouble(Isolate* isolate, Handle<String> string, int flags,
                       double empty_string_val = 0.0);
 
-// String to double helper without heap allocation. It will acquire the string
-// lock in order to be thread-safe. Returns base::nullopt if the string is
-// longer than {max_length_for_conversion}. 23 was chosen because any
-// representable double can be represented using a string of length 23.
+// String to double helper without heap allocation.
+// Returns base::nullopt if the string is longer than
+// {max_length_for_conversion}. 23 was chosen because any representable double
+// can be represented using a string of length 23.
 V8_EXPORT_PRIVATE base::Optional<double> TryStringToDouble(
     Handle<String> object, int max_length_for_conversion = 23);
 

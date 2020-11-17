@@ -117,9 +117,6 @@
   'test-code-stub-assembler/PopAndReturnFromJSBuiltinWithStackParameters' : [FAIL],
   'test-code-stub-assembler/PopAndReturnFromTFCBuiltinWithStackParameters' : [FAIL],
 
-  # BUG(v8:11171).
-  'test-concurrent-string/InspectOneIntoTwoByteExternalizing' : [SKIP],
-
 ############################################################################
   # Slow tests.
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],

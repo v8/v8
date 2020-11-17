@@ -1379,17 +1379,7 @@ base::Optional<double> TryStringToDouble(Handle<String> object,
 
   const int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
   auto buffer = std::make_unique<uc16[]>(max_length_for_conversion);
-  Isolate* isolate = nullptr;
-  // Read only strings have no isolate associated to them and we don't need a
-  // lock for those.
-  const bool need_lock = GetIsolateFromHeapObject(*object, &isolate);
-  if (need_lock) {
-    isolate->string_access()->LockShared();
-  }
   String::WriteToFlat(*object, buffer.get(), 0, length);
-  if (need_lock) {
-    isolate->string_access()->UnlockShared();
-  }
   Vector<const uc16> v(buffer.get(), length);
   return StringToDouble(v, flags);
 }
