@@ -13,28 +13,20 @@
 #include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
-#include "src/utils/pointer-with-payload.h"
 
 namespace v8 {
 namespace internal {
 
 // Forward declarations.
 class Isolate;
-class PerThreadAssertData;
-
-template <>
-struct PointerWithPayloadTraits<PerThreadAssertData> {
-  static constexpr int value = 1;
-};
 
 enum PerThreadAssertType {
-  GARBAGE_COLLECTION_ASSERT,
+  SAFEPOINTS_ASSERT,
   HEAP_ALLOCATION_ASSERT,
   HANDLE_ALLOCATION_ASSERT,
   HANDLE_DEREFERENCE_ASSERT,
   CODE_DEPENDENCY_CHANGE_ASSERT,
-  CODE_ALLOCATION_ASSERT,
-  LAST_PER_THREAD_ASSERT_TYPE
+  CODE_ALLOCATION_ASSERT
 };
 
 enum PerIsolateAssertType {
@@ -52,31 +44,18 @@ class PerThreadAssertScope {
   V8_EXPORT_PRIVATE PerThreadAssertScope();
   V8_EXPORT_PRIVATE ~PerThreadAssertScope();
 
+  PerThreadAssertScope(const PerThreadAssertScope&) = delete;
+  PerThreadAssertScope& operator=(const PerThreadAssertScope&) = delete;
+
   V8_EXPORT_PRIVATE static bool IsAllowed();
 
   void Release();
 
  private:
-  PointerWithPayload<PerThreadAssertData, bool, 1> data_and_old_state_;
-
-  V8_INLINE void set_data(PerThreadAssertData* data) {
-    data_and_old_state_.SetPointer(data);
-  }
-
-  V8_INLINE PerThreadAssertData* data() const {
-    return data_and_old_state_.GetPointer();
-  }
-
-  V8_INLINE void set_old_state(bool old_state) {
-    return data_and_old_state_.SetPayload(old_state);
-  }
-
-  V8_INLINE bool old_state() const { return data_and_old_state_.GetPayload(); }
-
-  DISALLOW_COPY_AND_ASSIGN(PerThreadAssertScope);
+  base::Optional<uint32_t> old_data_;
 };
 
-template <PerIsolateAssertType type, bool allow>
+template <PerIsolateAssertType kType, bool kAllow>
 class PerIsolateAssertScope {
  public:
   V8_EXPORT_PRIVATE explicit PerIsolateAssertScope(Isolate* isolate);
@@ -91,9 +70,50 @@ class PerIsolateAssertScope {
   DISALLOW_COPY_AND_ASSIGN(PerIsolateAssertScope);
 };
 
-template <PerThreadAssertType type, bool allow>
+template <typename... Scopes>
+class CombinationAssertScope;
+
+// Base case for CombinationAssertScope (equivalent to Scope).
+template <typename Scope>
+class CombinationAssertScope<Scope> : public Scope {
+ public:
+  V8_EXPORT_PRIVATE static bool IsAllowed() {
+    // Define IsAllowed() explicitly rather than with using Scope::IsAllowed, to
+    // allow SFINAE removal of IsAllowed() when it's not defined (under debug).
+    return Scope::IsAllowed();
+  }
+  using Scope::Release;
+  using Scope::Scope;
+};
+
+// Inductive case for CombinationAssertScope.
+template <typename Scope, typename... Scopes>
+class CombinationAssertScope<Scope, Scopes...>
+    : public Scope, public CombinationAssertScope<Scopes...> {
+  using NextScopes = CombinationAssertScope<Scopes...>;
+
+ public:
+  // Constructor for per-thread scopes.
+  V8_EXPORT_PRIVATE CombinationAssertScope() : Scope(), NextScopes() {}
+  // Constructor for per-isolate scopes.
+  V8_EXPORT_PRIVATE explicit CombinationAssertScope(Isolate* isolate)
+      : Scope(isolate), NextScopes(isolate) {}
+
+  V8_EXPORT_PRIVATE static bool IsAllowed() {
+    return Scope::IsAllowed() && NextScopes::IsAllowed();
+  }
+
+  void Release() {
+    // Release in reverse order.
+    NextScopes::Release();
+    Scope::Release();
+  }
+};
+
+template <PerThreadAssertType kType, bool kAllow>
 #ifdef DEBUG
-class PerThreadAssertScopeDebugOnly : public PerThreadAssertScope<type, allow> {
+class PerThreadAssertScopeDebugOnly
+    : public PerThreadAssertScope<kType, kAllow> {
 #else
 class PerThreadAssertScopeDebugOnly {
  public:
@@ -104,13 +124,13 @@ class PerThreadAssertScopeDebugOnly {
 #endif
 };
 
-template <PerIsolateAssertType type, bool allow>
+template <PerIsolateAssertType kType, bool kAllow>
 #ifdef DEBUG
 class PerIsolateAssertScopeDebugOnly
-    : public PerIsolateAssertScope<type, allow> {
+    : public PerIsolateAssertScope<kType, kAllow> {
  public:
   explicit PerIsolateAssertScopeDebugOnly(Isolate* isolate)
-      : PerIsolateAssertScope<type, allow>(isolate) {}
+      : PerIsolateAssertScope<kType, kAllow>(isolate) {}
 #else
 class PerIsolateAssertScopeDebugOnly {
  public:
@@ -128,22 +148,12 @@ using DisallowHandleAllocation =
 using AllowHandleAllocation =
     PerThreadAssertScopeDebugOnly<HANDLE_ALLOCATION_ASSERT, true>;
 
-// Scope to document where we do not expect garbage collections. It differs from
-// DisallowHeapAllocation by also forbidding safepoints.
-using DisallowGarbageCollection =
-    PerThreadAssertScopeDebugOnly<GARBAGE_COLLECTION_ASSERT, false>;
-// The DISALLOW_GARBAGE_COLLECTION macro can be used to define a
-// DisallowGarbageCollection field in classes that isn't present in release
-// builds.
-#ifdef DEBUG
-#define DISALLOW_GARBAGE_COLLECTION(name) DisallowGarbageCollection name;
-#else
-#define DISALLOW_GARBAGE_COLLECTION(name)
-#endif
+// Scope to document where we do not expect safepoints to be entered.
+using DisallowSafepoints =
+    PerThreadAssertScopeDebugOnly<SAFEPOINTS_ASSERT, false>;
 
-// Scope to introduce an exception to DisallowGarbageCollection.
-using AllowGarbageCollection =
-    PerThreadAssertScopeDebugOnly<GARBAGE_COLLECTION_ASSERT, true>;
+// Scope to introduce an exception to DisallowSafepoints.
+using AllowSafepoints = PerThreadAssertScopeDebugOnly<SAFEPOINTS_ASSERT, true>;
 
 // Scope to document where we do not expect any allocation and GC. Deprecated
 // and will eventually be removed, use DisallowGarbageCollection instead.
@@ -186,12 +196,33 @@ using DisallowCodeAllocation =
 using AllowCodeAllocation =
     PerThreadAssertScopeDebugOnly<CODE_ALLOCATION_ASSERT, true>;
 
-class DisallowHeapAccess {
-  DisallowCodeDependencyChange no_dependency_change_;
-  DisallowHandleAllocation no_handle_allocation_;
-  DisallowHandleDereference no_handle_dereference_;
-  DisallowHeapAllocation no_heap_allocation_;
-};
+// Scope to document where we do not expect garbage collections. It differs from
+// DisallowHeapAllocation by also forbidding safepoints.
+using DisallowGarbageCollection =
+    CombinationAssertScope<DisallowSafepoints, DisallowHeapAllocation>;
+// The DISALLOW_GARBAGE_COLLECTION macro can be used to define a
+// DisallowGarbageCollection field in classes that isn't present in release
+// builds.
+#ifdef DEBUG
+#define DISALLOW_GARBAGE_COLLECTION(name) DisallowGarbageCollection name;
+#else
+#define DISALLOW_GARBAGE_COLLECTION(name)
+#endif
+
+// Scope to introduce an exception to DisallowGarbageCollection.
+using AllowGarbageCollection =
+    CombinationAssertScope<AllowSafepoints, AllowHeapAllocation>;
+
+// Scope to document where we do not expect any access to the heap.
+using DisallowHeapAccess =
+    CombinationAssertScope<DisallowCodeDependencyChange,
+                           DisallowHandleDereference, DisallowHandleAllocation,
+                           DisallowHeapAllocation>;
+
+// Scope to introduce an exception to DisallowHeapAccess.
+using AllowHeapAccess =
+    CombinationAssertScope<AllowCodeDependencyChange, AllowHandleDereference,
+                           AllowHandleAllocation, AllowHeapAllocation>;
 
 class DisallowHeapAccessIf {
  public:
@@ -286,6 +317,8 @@ using AllowExceptions =
 // Explicit instantiation declarations.
 extern template class PerThreadAssertScope<HEAP_ALLOCATION_ASSERT, false>;
 extern template class PerThreadAssertScope<HEAP_ALLOCATION_ASSERT, true>;
+extern template class PerThreadAssertScope<SAFEPOINTS_ASSERT, false>;
+extern template class PerThreadAssertScope<SAFEPOINTS_ASSERT, true>;
 extern template class PerThreadAssertScope<HANDLE_ALLOCATION_ASSERT, false>;
 extern template class PerThreadAssertScope<HANDLE_ALLOCATION_ASSERT, true>;
 extern template class PerThreadAssertScope<HANDLE_DEREFERENCE_ASSERT, false>;

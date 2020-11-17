@@ -205,7 +205,6 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
   DCHECK(CodeKindCanDeoptimize(deoptimizer->compiled_code()->kind()));
   DCHECK(deoptimizer->compiled_code()->is_turbofanned());
-  DCHECK(AllowHeapAllocation::IsAllowed());
   DCHECK(AllowGarbageCollection::IsAllowed());
   DCHECK(isolate->context().is_null());
 

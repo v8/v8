@@ -19,7 +19,6 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
   DCHECK_EQ(LocalHeap::Current(), this);
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
-  DCHECK(AllowGarbageCollection::IsAllowed());
   DCHECK_IMPLIES(type == AllocationType::kCode || type == AllocationType::kMap,
                  alignment == AllocationAlignment::kWordAligned);
   Heap::HeapState state = heap()->gc_state();

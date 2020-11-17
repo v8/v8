@@ -1590,7 +1590,7 @@ class ProblemsFinder : public clang::ASTConsumer,
     clang::CXXRecordDecl* no_heap_access_decl =
         r.ResolveNamespace("v8")
             .ResolveNamespace("internal")
-            .Resolve<clang::CXXRecordDecl>("DisallowHeapAccess");
+            .ResolveTemplate("DisallowHeapAccess");
 
     clang::CXXRecordDecl* object_decl =
         r.ResolveNamespace("v8").ResolveNamespace("internal").
@@ -1611,9 +1611,6 @@ class ProblemsFinder : public clang::ASTConsumer,
       maybe_object_decl = maybe_object_decl->getDefinition();
 
     if (smi_decl != NULL) smi_decl = smi_decl->getDefinition();
-
-    if (no_heap_access_decl != NULL)
-      no_heap_access_decl = no_heap_access_decl->getDefinition();
 
     if (object_decl != NULL && smi_decl != NULL && maybe_object_decl != NULL) {
       function_analyzer_ = new FunctionAnalyzer(

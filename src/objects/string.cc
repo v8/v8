@@ -44,7 +44,6 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
   }
 
   DCHECK(AllowHeapAllocation::IsAllowed());
-  DCHECK(AllowGarbageCollection::IsAllowed());
   int length = cons->length();
   allocation =
       ObjectInYoungGeneration(*cons) ? allocation : AllocationType::kOld;

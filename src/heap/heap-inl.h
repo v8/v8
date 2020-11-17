@@ -170,7 +170,6 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
                                    AllocationAlignment alignment) {
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
-  DCHECK(AllowGarbageCollection::IsAllowed());
   DCHECK_IMPLIES(type == AllocationType::kCode || type == AllocationType::kMap,
                  alignment == AllocationAlignment::kWordAligned);
   DCHECK_EQ(gc_state(), NOT_IN_GC);
@@ -271,7 +270,6 @@ HeapObject Heap::AllocateRawWith(int size, AllocationType allocation,
                                  AllocationAlignment alignment) {
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
-  DCHECK(AllowGarbageCollection::IsAllowed());
   DCHECK_EQ(gc_state(), NOT_IN_GC);
   Heap* heap = isolate()->heap();
   if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL &&

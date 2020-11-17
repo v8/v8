@@ -45,9 +45,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   // Frequently invoked by local thread to check whether safepoint was requested
   // from the main thread.
   void Safepoint() {
-    // In case garbage collection is disabled, the thread isn't even allowed to
-    // invoke Safepoint(). Otherwise a GC might happen here.
-    DCHECK(AllowGarbageCollection::IsAllowed());
+    DCHECK(AllowSafepoints::IsAllowed());
 
     if (IsSafepointRequested()) {
       ClearSafepointRequested();

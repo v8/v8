@@ -838,7 +838,8 @@ void Heap::GarbageCollectionPrologue() {
   UpdateMaximumCommitted();
 
 #ifdef DEBUG
-  DCHECK(!AllowHeapAllocation::IsAllowed() && gc_state() == NOT_IN_GC);
+  DCHECK(!AllowHeapAllocation::IsAllowed());
+  DCHECK_EQ(gc_state(), NOT_IN_GC);
 
   if (FLAG_gc_verbose) Print();
 #endif  // DEBUG
@@ -1572,9 +1573,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
 
   {
     tracer()->Start(collector, gc_reason, collector_reason);
-    DCHECK(AllowHeapAllocation::IsAllowed());
     DCHECK(AllowGarbageCollection::IsAllowed());
-    DisallowHeapAllocation no_allocation_during_gc;
     DisallowGarbageCollection no_gc_during_gc;
     GarbageCollectionPrologue();
 

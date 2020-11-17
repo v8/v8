@@ -94,7 +94,8 @@ if [ ! -e "${BUILD_DIR}" ]; then
 fi
 cd "${BUILD_DIR}"
 cmake -GNinja -DCMAKE_CXX_FLAGS="-static-libstdc++" -DLLVM_ENABLE_TERMINFO=OFF \
-    -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS=clang "${LLVM_PROJECT_DIR}/llvm"
+    -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS=clang \
+    -DLLVM_ENABLE_Z3_SOLVER=OFF "${LLVM_PROJECT_DIR}/llvm"
 MACOSX_DEPLOYMENT_TARGET=10.5 ninja -j"${NUM_JOBS}"
 
 # Strip the clang binary.

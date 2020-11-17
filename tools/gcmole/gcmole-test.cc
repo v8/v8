@@ -164,10 +164,10 @@ void TestDeadVarAnalysis(Isolate* isolate) {
 void TestGuardedDeadVarAnalysis(Isolate* isolate) {
   JSObject raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
 
-  // Note: having DisallowHeapAllocation with the same function as CauseGC
+  // Note: having DisallowGarbageCollection with the same function as CauseGC
   // normally doesn't make sense, but we want to test whether the gurads
   // are recognized by GCMole.
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   CauseGCRaw(raw_obj, isolate);
 
   // Shouldn't cause warning.
@@ -177,8 +177,8 @@ void TestGuardedDeadVarAnalysis(Isolate* isolate) {
 void TestGuardedDeadVarAnalysisNotOnStack(Isolate* isolate) {
   JSObject raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
 
-  // {DisallowHeapAccess} has a {DisallowHeapAllocation} embedded as a member
-  // field, so both are treated equally by gcmole.
+  // {DisallowHeapAccess} has {DisallowHeapAllocation} as a superclass, so both
+  // are treated equally by gcmole.
   DisallowHeapAccess no_gc;
   CauseGCRaw(raw_obj, isolate);
 
