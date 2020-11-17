@@ -47,7 +47,6 @@
 #include "src/heap/mark-compact.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/memory-reducer.h"
-#include "src/heap/parked-scope.h"
 #include "src/heap/remembered-set-inl.h"
 #include "src/heap/safepoint.h"
 #include "src/ic/ic.h"
@@ -7119,11 +7118,12 @@ TEST(GarbageCollectionWithLocalHeap) {
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
 
-  LocalHeap* local_heap = CcTest::i_isolate()->main_thread_local_heap();
+  Heap* heap = CcTest::i_isolate()->heap();
 
+  LocalHeap local_heap(heap, ThreadKind::kMain);
+  UnparkedScope unparked_scope(&local_heap);
   CcTest::CollectGarbage(OLD_SPACE);
-
-  { ParkedScope parked_scope(local_heap); }
+  { ParkedScope parked_scope(&local_heap); }
   CcTest::CollectGarbage(OLD_SPACE);
 }
 

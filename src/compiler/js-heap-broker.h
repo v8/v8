@@ -18,7 +18,6 @@
 #include "src/handles/handles.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/local-heap.h"
-#include "src/heap/parked-scope.h"
 #include "src/interpreter/bytecode-array-accessor.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/feedback-vector.h"

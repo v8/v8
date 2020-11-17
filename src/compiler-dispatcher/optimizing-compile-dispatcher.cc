@@ -10,7 +10,6 @@
 #include "src/execution/isolate.h"
 #include "src/execution/local-isolate.h"
 #include "src/heap/local-heap.h"
-#include "src/heap/parked-scope.h"
 #include "src/init/v8.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
