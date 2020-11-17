@@ -8734,6 +8734,14 @@ size_t Isolate::NumberOfPhantomHandleResetsSinceLastCall() {
 
 int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
     int64_t change_in_bytes) {
+  // Try to check for unreasonably large or small values from the embedder.
+  const int64_t kMaxReasonableBytes = int64_t(1) << 60;
+  const int64_t kMinReasonableBytes = -kMaxReasonableBytes;
+  STATIC_ASSERT(kMaxReasonableBytes >= i::JSArrayBuffer::kMaxByteLength);
+
+  CHECK(kMinReasonableBytes <= change_in_bytes &&
+        change_in_bytes < kMaxReasonableBytes);
+
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   int64_t amount = i_isolate->heap()->update_external_memory(change_in_bytes);
 
