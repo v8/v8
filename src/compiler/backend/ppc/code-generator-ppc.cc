@@ -1918,9 +1918,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #if V8_TARGET_ARCH_PPC64
       bool check_conversion =
           (opcode == kPPC_DoubleToInt64 && i.OutputCount() > 1);
-      if (check_conversion) {
         __ mtfsb0(VXCVI);  // clear FPSCR:VXCVI bit
-      }
 #endif
       __ ConvertDoubleToInt64(i.InputDoubleRegister(0),
 #if !V8_TARGET_ARCH_PPC64
