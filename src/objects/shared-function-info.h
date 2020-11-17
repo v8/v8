@@ -101,18 +101,10 @@ class PreparseData
 class UncompiledData
     : public TorqueGeneratedUncompiledData<UncompiledData, HeapObject> {
  public:
-  template <typename LocalIsolate>
-  inline void Init(LocalIsolate* isolate, String inferred_name,
-                   int start_position, int end_position);
-
   inline void InitAfterBytecodeFlush(
       String inferred_name, int start_position, int end_position,
       std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
           gc_notify_updated_slot);
-
-  using BodyDescriptor =
-      FixedBodyDescriptor<kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
-                          kHeaderSize>;
 
   TQ_OBJECT_CONSTRUCTORS(UncompiledData)
 };
@@ -124,10 +116,7 @@ class UncompiledDataWithoutPreparseData
     : public TorqueGeneratedUncompiledDataWithoutPreparseData<
           UncompiledDataWithoutPreparseData, UncompiledData> {
  public:
-  DECL_PRINTER(UncompiledDataWithoutPreparseData)
-
-  // No extra fields compared to UncompiledData.
-  using BodyDescriptor = UncompiledData::BodyDescriptor;
+  class BodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(UncompiledDataWithoutPreparseData)
 };
@@ -138,17 +127,7 @@ class UncompiledDataWithPreparseData
     : public TorqueGeneratedUncompiledDataWithPreparseData<
           UncompiledDataWithPreparseData, UncompiledData> {
  public:
-  DECL_PRINTER(UncompiledDataWithPreparseData)
-
-  template <typename LocalIsolate>
-  inline void Init(LocalIsolate* isolate, String inferred_name,
-                   int start_position, int end_position,
-                   PreparseData scope_data);
-
-  using BodyDescriptor = SubclassBodyDescriptor<
-      UncompiledData::BodyDescriptor,
-      FixedBodyDescriptor<kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
-                          kSize>>;
+  class BodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(UncompiledDataWithPreparseData)
 };

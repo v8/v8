@@ -2330,23 +2330,6 @@ void PreparseData::PreparseDataPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-void UncompiledDataWithoutPreparseData::UncompiledDataWithoutPreparseDataPrint(
-    std::ostream& os) {  // NOLINT
-  PrintHeader(os, "UncompiledDataWithoutPreparseData");
-  os << "\n - start position: " << start_position();
-  os << "\n - end position: " << end_position();
-  os << "\n";
-}
-
-void UncompiledDataWithPreparseData::UncompiledDataWithPreparseDataPrint(
-    std::ostream& os) {  // NOLINT
-  PrintHeader(os, "UncompiledDataWithPreparseData");
-  os << "\n - start position: " << start_position();
-  os << "\n - end position: " << end_position();
-  os << "\n - preparse_data: " << Brief(preparse_data());
-  os << "\n";
-}
-
 void InterpreterData::InterpreterDataPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "InterpreterData");
   os << "\n - bytecode_array: " << Brief(bytecode_array());

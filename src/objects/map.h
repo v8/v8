@@ -68,8 +68,6 @@ enum InstanceType : uint16_t;
   V(Symbol)                            \
   V(SyntheticModule)                   \
   V(TransitionArray)                   \
-  V(UncompiledDataWithoutPreparseData) \
-  V(UncompiledDataWithPreparseData)    \
   V(WasmIndirectFunctionTable)         \
   V(WasmInstanceObject)                \
   V(WasmArray)                         \

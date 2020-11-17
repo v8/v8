@@ -275,14 +275,8 @@ Handle<UncompiledDataWithoutPreparseData>
 FactoryBase<Impl>::NewUncompiledDataWithoutPreparseData(
     Handle<String> inferred_name, int32_t start_position,
     int32_t end_position) {
-  Handle<UncompiledDataWithoutPreparseData> result = handle(
-      UncompiledDataWithoutPreparseData::cast(NewWithImmortalMap(
-          impl()->read_only_roots().uncompiled_data_without_preparse_data_map(),
-          AllocationType::kOld)),
-      isolate());
-
-  result->Init(impl(), *inferred_name, start_position, end_position);
-  return result;
+  return TorqueGeneratedFactory<Impl>::NewUncompiledDataWithoutPreparseData(
+      inferred_name, start_position, end_position, AllocationType::kOld);
 }
 
 template <typename Impl>
@@ -290,16 +284,9 @@ Handle<UncompiledDataWithPreparseData>
 FactoryBase<Impl>::NewUncompiledDataWithPreparseData(
     Handle<String> inferred_name, int32_t start_position, int32_t end_position,
     Handle<PreparseData> preparse_data) {
-  Handle<UncompiledDataWithPreparseData> result = handle(
-      UncompiledDataWithPreparseData::cast(NewWithImmortalMap(
-          impl()->read_only_roots().uncompiled_data_with_preparse_data_map(),
-          AllocationType::kOld)),
-      isolate());
-
-  result->Init(impl(), *inferred_name, start_position, end_position,
-               *preparse_data);
-
-  return result;
+  return TorqueGeneratedFactory<Impl>::NewUncompiledDataWithPreparseData(
+      inferred_name, start_position, end_position, preparse_data,
+      AllocationType::kOld);
 }
 
 template <typename Impl>

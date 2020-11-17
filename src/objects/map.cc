@@ -248,12 +248,6 @@ VisitorId Map::GetVisitorId(Map map) {
     case PREPARSE_DATA_TYPE:
       return kVisitPreparseData;
 
-    case UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE:
-      return kVisitUncompiledDataWithoutPreparseData;
-
-    case UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE:
-      return kVisitUncompiledDataWithPreparseData;
-
     case COVERAGE_INFO_TYPE:
       return kVisitCoverageInfo;
 

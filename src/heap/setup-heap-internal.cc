@@ -495,12 +495,6 @@ bool Heap::CreateInitialMaps() {
                  next_call_side_effect_free_call_handler_info)
 
     ALLOCATE_VARSIZE_MAP(PREPARSE_DATA_TYPE, preparse_data)
-    ALLOCATE_MAP(UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE,
-                 UncompiledDataWithoutPreparseData::kSize,
-                 uncompiled_data_without_preparse_data)
-    ALLOCATE_MAP(UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE,
-                 UncompiledDataWithPreparseData::kSize,
-                 uncompiled_data_with_preparse_data)
     ALLOCATE_MAP(SHARED_FUNCTION_INFO_TYPE, SharedFunctionInfo::kAlignedSize,
                  shared_function_info)
     ALLOCATE_MAP(SOURCE_TEXT_MODULE_TYPE, SourceTextModule::kSize,

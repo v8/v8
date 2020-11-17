@@ -277,11 +277,6 @@ TYPED_ARRAYS(TYPED_ARRAY_IS_TYPE_FUNCTION_DECL)
   V(_, SymbolMap, symbol_map, Symbol)                                       \
   V(_, TransitionArrayMap, transition_array_map, TransitionArray)           \
   V(_, Tuple2Map, tuple2_map, Tuple2)                                       \
-  V(_, UncompiledDataWithoutPreparseDataMap,                                \
-    uncompiled_data_without_preparse_data_map,                              \
-    UncompiledDataWithoutPreparseData)                                      \
-  V(_, UncompiledDataWithPreparseDataMap,                                   \
-    uncompiled_data_with_preparse_data_map, UncompiledDataWithPreparseData) \
   V(_, WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArray)             \
   TORQUE_DEFINED_MAP_CSA_LIST_GENERATOR(V, _)
 

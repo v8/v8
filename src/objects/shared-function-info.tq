@@ -63,19 +63,22 @@ extern class SharedFunctionInfo extends HeapObject {
 }
 
 @abstract
-@generateCppClass
-extern class UncompiledData extends HeapObject {
+@export
+@customCppClass
+class UncompiledData extends HeapObject {
   inferred_name: String;
   start_position: int32;
   end_position: int32;
 }
 
-@generateCppClass
-extern class UncompiledDataWithoutPreparseData extends UncompiledData {
+@export
+@customCppClass
+class UncompiledDataWithoutPreparseData extends UncompiledData {
 }
 
-@generateCppClass
-extern class UncompiledDataWithPreparseData extends UncompiledData {
+@export
+@customCppClass
+class UncompiledDataWithPreparseData extends UncompiledData {
   preparse_data: PreparseData;
 }
 

@@ -4425,8 +4425,8 @@ base::Optional<std::string> MatchSimpleBodyDescriptor(const ClassType* type) {
                     "BodyDescriptor<", start_offset, ">");
   }
   if (!has_weak_pointers) {
-    return ToString("FixedRangeDescriptor<", start_offset, ", ", end_offset,
-                    ", ", *type->size().SingleValue(), ">");
+    return ToString("FixedRangeBodyDescriptor<", start_offset, ", ", end_offset,
+                    ">");
   }
   return base::nullopt;
 }

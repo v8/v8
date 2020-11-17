@@ -109,10 +109,6 @@ class Symbol;
   V(Map, small_ordered_name_dictionary_map, SmallOrderedNameDictionaryMap)     \
   V(Map, source_text_module_map, SourceTextModuleMap)                          \
   V(Map, synthetic_module_map, SyntheticModuleMap)                             \
-  V(Map, uncompiled_data_without_preparse_data_map,                            \
-    UncompiledDataWithoutPreparseDataMap)                                      \
-  V(Map, uncompiled_data_with_preparse_data_map,                               \
-    UncompiledDataWithPreparseDataMap)                                         \
   V(Map, wasm_type_info_map, WasmTypeInfoMap)                                  \
   V(Map, weak_fixed_array_map, WeakFixedArrayMap)                              \
   V(Map, weak_array_list_map, WeakArrayListMap)                                \

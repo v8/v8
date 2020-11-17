@@ -644,14 +644,6 @@ void SharedFunctionInfo::ClearPreparseData() {
   DCHECK(HasUncompiledDataWithoutPreparseData());
 }
 
-template <typename LocalIsolate>
-void UncompiledData::Init(LocalIsolate* isolate, String inferred_name,
-                          int start_position, int end_position) {
-  set_inferred_name(inferred_name);
-  set_start_position(start_position);
-  set_end_position(end_position);
-}
-
 void UncompiledData::InitAfterBytecodeFlush(
     String inferred_name, int start_position, int end_position,
     std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
@@ -661,16 +653,6 @@ void UncompiledData::InitAfterBytecodeFlush(
                          inferred_name);
   set_start_position(start_position);
   set_end_position(end_position);
-}
-
-template <typename LocalIsolate>
-void UncompiledDataWithPreparseData::Init(LocalIsolate* isolate,
-                                          String inferred_name,
-                                          int start_position, int end_position,
-                                          PreparseData scope_data) {
-  this->UncompiledData::Init(isolate, inferred_name, start_position,
-                             end_position);
-  set_preparse_data(scope_data);
 }
 
 bool SharedFunctionInfo::HasWasmExportedFunctionData() const {

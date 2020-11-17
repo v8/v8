@@ -215,9 +215,6 @@ class ZoneForwardList;
   V(TemplateList)                              \
   V(ThinString)                                \
   V(TransitionArray)                           \
-  V(UncompiledData)                            \
-  V(UncompiledDataWithPreparseData)            \
-  V(UncompiledDataWithoutPreparseData)         \
   V(Undetectable)                              \
   V(UniqueName)                                \
   V(WasmArray)                                 \
