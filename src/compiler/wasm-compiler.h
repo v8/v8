@@ -192,7 +192,6 @@ class WasmGraphBuilder {
   //-----------------------------------------------------------------------
   // Operations independent of {control} or {effect}.
   //-----------------------------------------------------------------------
-  Node* Error();
   Node* Start(unsigned params);
   Node* Param(unsigned index);
   Node* Loop(Node* entry);
@@ -239,7 +238,6 @@ class WasmGraphBuilder {
   // Operations that read and/or write {control} and {effect}.
   //-----------------------------------------------------------------------
   Node* BranchNoHint(Node* cond, Node** true_node, Node** false_node);
-  Node* BranchExpectTrue(Node* cond, Node** true_node, Node** false_node);
   Node* BranchExpectFalse(Node* cond, Node** true_node, Node** false_node);
 
   Node* TrapIfTrue(wasm::TrapReason reason, Node* cond,
@@ -464,16 +462,6 @@ class WasmGraphBuilder {
   // BoundsCheckMem receives a uint32 {index} node and returns a ptrsize index.
   Node* BoundsCheckMem(uint8_t access_size, Node* index, uint64_t offset,
                        wasm::WasmCodePosition, EnforceBoundsCheck);
-  // Check that the range [start, start + size) is in the range [0, max).
-  // Also updates *size with the valid range. Returns true if the range is
-  // partially out-of-bounds, traps if it is completely out-of-bounds.
-  Node* BoundsCheckRange(Node* start, Node** size, Node* max,
-                         wasm::WasmCodePosition);
-  // BoundsCheckMemRange receives a uint32 {start} and {size}, and checks if it
-  // is in bounds. Also updates *size with the valid range, and converts *start
-  // to a pointer into memory at that index. Returns true if the range is
-  // partially out-of-bounds, traps if it is completely out-of-bounds.
-  Node* BoundsCheckMemRange(Node** start, Node** size, wasm::WasmCodePosition);
 
   Node* CheckBoundsAndAlignment(int8_t access_size, Node* index,
                                 uint64_t offset, wasm::WasmCodePosition);
