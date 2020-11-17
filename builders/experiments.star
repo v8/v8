@@ -14,7 +14,11 @@ def experiment_builder(**kwargs):
             notified_by = [builder_name],
         )
 
-    v8_builder(in_console = "experiments/V8", **kwargs)
+    v8_builder(
+        in_console = "experiments/V8",
+        executable = "recipe:v8_bbagent",
+        **kwargs
+    )
 
 def experiment_builder_pair(name, **kwargs):
     properties = kwargs.pop("properties", None)
@@ -139,7 +143,6 @@ experiment_builder_pair(
 experiment_builder(
     name = "V8 Linux - predictable",
     bucket = "ci",
-    executable = "recipe:v8_bbagent",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     properties = {"builder_group": "client.v8"},
