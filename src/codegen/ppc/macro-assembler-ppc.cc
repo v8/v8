@@ -3339,6 +3339,7 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
 void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,
                                            Label* exit, DeoptimizeKind kind,
                                            Label*) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   LoadP(ip, MemOperand(kRootRegister,
                        IsolateData::builtin_entry_slot_offset(target)));
   Call(ip);
