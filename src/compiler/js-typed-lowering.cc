@@ -2371,7 +2371,7 @@ Reduction JSTypedLowering::Reduce(Node* node) {
 
   const IrOpcode::Value opcode = node->opcode();
   if (broker()->generate_full_feedback_collection() &&
-      IrOpcode::IsFeedbackCollectingOpcode(opcode)) {
+      IrOpcode::OpcodeMustCollectFeedbackForNCI(opcode)) {
     // In NCI code, it is not valid to reduce feedback-collecting JS opcodes
     // into non-feedback-collecting lower-level opcodes; missed feedback would
     // result in soft deopts.

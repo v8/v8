@@ -17,11 +17,18 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
 // The number of generations for each sub cache.
-static const int kRegExpGenerations = 2;
+constexpr int kRegExpGenerations = 2;
 
 // Initial size of each compilation cache table allocated.
-static const int kInitialCacheSize = 64;
+constexpr int kInitialCacheSize = 64;
+
+// The index of the youngest generation table.
+constexpr int kYoungestTableIndex = 0;
+
+}  // namespace
 
 CompilationCache::CompilationCache(Isolate* isolate)
     : isolate_(isolate),
@@ -41,15 +48,20 @@ CompilationCache::CompilationCache(Isolate* isolate)
 Handle<CompilationCacheTable> CompilationSubCache::GetTable(int generation) {
   DCHECK_LT(generation, generations());
   Handle<CompilationCacheTable> result;
-  if (tables_[generation].IsUndefined(isolate())) {
-    result = CompilationCacheTable::New(isolate(), kInitialCacheSize);
-    tables_[generation] = *result;
-  } else {
+  if (has_table(generation)) {
     CompilationCacheTable table =
         CompilationCacheTable::cast(tables_[generation]);
     result = Handle<CompilationCacheTable>(table, isolate());
+  } else {
+    result = CompilationCacheTable::New(isolate(), kInitialCacheSize);
+    tables_[generation] = *result;
   }
   return result;
+}
+
+bool CompilationSubCache::has_table(int generation) const {
+  DCHECK_LT(generation, generations());
+  return !tables_[generation].IsUndefined(isolate());
 }
 
 // static
@@ -62,14 +74,15 @@ void CompilationSubCache::AgeByGeneration(CompilationSubCache* c) {
   }
 
   // Set the first generation as unborn.
-  c->tables_[0] = ReadOnlyRoots(c->isolate()).undefined_value();
+  c->tables_[kYoungestTableIndex] =
+      ReadOnlyRoots(c->isolate()).undefined_value();
 }
 
 // static
 void CompilationSubCache::AgeCustom(CompilationSubCache* c) {
   DCHECK_EQ(c->generations(), 1);
-  if (c->tables_[0].IsUndefined(c->isolate())) return;
-  CompilationCacheTable::cast(c->tables_[0]).Age();
+  if (!c->has_table(kYoungestTableIndex)) return;
+  CompilationCacheTable::cast(c->tables_[kYoungestTableIndex]).Age();
 }
 
 void CompilationCacheScript::Age() {
@@ -270,43 +283,77 @@ void CompilationCacheRegExp::Put(Handle<String> source, JSRegExp::Flags flags,
       CompilationCacheTable::PutRegExp(isolate(), table, source, flags, data));
 }
 
-MaybeHandle<Code> CompilationCacheCode::Lookup(Handle<SharedFunctionInfo> key) {
-  // Make sure not to leak the table into the surrounding handle
-  // scope. Otherwise, we risk keeping old tables around even after
-  // having cleared the cache.
-  HandleScope scope(isolate());
-  MaybeHandle<Code> maybe_value;
+bool CompilationCacheCode::Lookup(
+    Handle<SharedFunctionInfo> key, MaybeHandle<Code>* code_out,
+    MaybeHandle<SerializedFeedback>* feedback_out) {
+  Code raw_code;
+  SerializedFeedback raw_feedback;
+
   int generation = 0;
-  for (; generation < generations(); generation++) {
-    Handle<CompilationCacheTable> table = GetTable(generation);
-    maybe_value = table->LookupCode(key);
-    if (!maybe_value.is_null()) break;
+  {
+    // Make sure not to leak the table into the surrounding handle
+    // scope. Otherwise, we risk keeping old tables around even after
+    // having cleared the cache.
+    HandleScope scope(isolate());
+    MaybeHandle<Code> maybe_code;
+    MaybeHandle<SerializedFeedback> maybe_feedback;
+    bool found = false;
+    for (; generation < generations(); generation++) {
+      Handle<CompilationCacheTable> table = GetTable(generation);
+      found = table->LookupCode(key, &maybe_code, &maybe_feedback);
+      if (found) break;
+    }
+
+    if (!found) {
+      isolate()->counters()->compilation_cache_misses()->Increment();
+      return false;
+    }
+
+    raw_code = *maybe_code.ToHandleChecked();
+    raw_feedback = *maybe_feedback.ToHandleChecked();
   }
 
-  if (maybe_value.is_null()) {
-    isolate()->counters()->compilation_cache_misses()->Increment();
-    return MaybeHandle<Code>();
-  }
+  // The Code object shouldn't be marked for deoptimization, otherwise it'd
+  // immediately be thrown out on the next call.
+  DCHECK(!raw_code.marked_for_deoptimization());
 
-  Handle<Code> value = maybe_value.ToHandleChecked();
-  if (generation != 0) Put(key, value);  // Add to the first generation.
+  *code_out = handle(raw_code, isolate());
+  *feedback_out = handle(raw_feedback, isolate());
+
+  if (generation != kYoungestTableIndex) {
+    // Copy to youngest generation.
+    Put(key, code_out->ToHandleChecked(), feedback_out->ToHandleChecked());
+  }
   isolate()->counters()->compilation_cache_hits()->Increment();
-  return scope.CloseAndEscape(value);
+  return true;
 }
 
 void CompilationCacheCode::Put(Handle<SharedFunctionInfo> key,
-                               Handle<Code> value) {
+                               Handle<Code> value_code,
+                               Handle<SerializedFeedback> value_feedback) {
   HandleScope scope(isolate());
   Handle<CompilationCacheTable> table = GetFirstTable();
-  SetFirstTable(CompilationCacheTable::PutCode(isolate(), table, key, value));
+  SetFirstTable(CompilationCacheTable::PutCode(isolate(), table, key,
+                                               value_code, value_feedback));
 }
 
+// static
 void CompilationCacheCode::TraceAgeing() {
   DCHECK(FLAG_trace_turbo_nci);
   StdoutStream os;
   os << "NCI cache ageing: Removing oldest generation" << std::endl;
 }
 
+// static
+void CompilationCacheCode::TraceRemovalForDeoptimization(SharedFunctionInfo key,
+                                                         Code value) {
+  DCHECK(FLAG_trace_turbo_nci);
+  StdoutStream os;
+  os << "NCI cache removal for deoptimization: " << Brief(key) << ", "
+     << Brief(value) << std::endl;
+}
+
+// static
 void CompilationCacheCode::TraceInsertion(Handle<SharedFunctionInfo> key,
                                           Handle<Code> value) {
   DCHECK(FLAG_trace_turbo_nci);
@@ -315,6 +362,7 @@ void CompilationCacheCode::TraceInsertion(Handle<SharedFunctionInfo> key,
      << std::endl;
 }
 
+// static
 void CompilationCacheCode::TraceHit(Handle<SharedFunctionInfo> key,
                                     Handle<Code> value) {
   DCHECK(FLAG_trace_turbo_nci);
@@ -375,8 +423,10 @@ MaybeHandle<FixedArray> CompilationCache::LookupRegExp(Handle<String> source,
   return reg_exp_.Lookup(source, flags);
 }
 
-MaybeHandle<Code> CompilationCache::LookupCode(Handle<SharedFunctionInfo> sfi) {
-  return code_.Lookup(sfi);
+bool CompilationCache::LookupCode(
+    Handle<SharedFunctionInfo> sfi, MaybeHandle<Code>* code_out,
+    MaybeHandle<SerializedFeedback>* feedback_out) {
+  return code_.Lookup(sfi, code_out, feedback_out);
 }
 
 void CompilationCache::PutScript(Handle<String> source,
@@ -419,8 +469,18 @@ void CompilationCache::PutRegExp(Handle<String> source, JSRegExp::Flags flags,
 }
 
 void CompilationCache::PutCode(Handle<SharedFunctionInfo> shared,
-                               Handle<Code> code) {
-  code_.Put(shared, code);
+                               Handle<Code> code,
+                               Handle<SerializedFeedback> feedback) {
+  code_.Put(shared, code, feedback);
+}
+
+void CompilationCache::ClearDeoptimizedCode() { code_.ClearDeoptimizedCode(); }
+
+void CompilationCacheCode::ClearDeoptimizedCode() {
+  for (int i = 0; i < generations(); i++) {
+    if (!has_table(i)) continue;
+    GetTable(i)->ClearDeoptimizedCode();
+  }
 }
 
 void CompilationCache::Clear() {

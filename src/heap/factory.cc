@@ -3484,18 +3484,27 @@ Handle<JSFunction> Factory::JSFunctionBuilder::Build() {
   PrepareMap();
   PrepareFeedbackCell();
 
-  // Determine the associated Code object.
-  Handle<Code> code;
-  const bool have_cached_code =
-      sfi_->TryGetCachedCode(isolate_).ToHandle(&code);
-  if (!have_cached_code) code = handle(sfi_->GetCode(), isolate_);
+  // Determine the associated Code object. If we hit the NCI cache, take that;
+  // otherwise, ask the SharedFunctionInfo for the appropriate Code object.
+  MaybeHandle<Code> maybe_code;
+  MaybeHandle<SerializedFeedback> maybe_feedback;
+  const bool have_nci_cache = sfi_->TryGetCachedCodeAndSerializedFeedback(
+      isolate_, &maybe_code, &maybe_feedback);
+  Handle<Code> code = have_nci_cache ? maybe_code.ToHandleChecked()
+                                     : handle(sfi_->GetCode(), isolate_);
 
   Handle<JSFunction> result = BuildRaw(code);
 
-  if (have_cached_code) {
-    IsCompiledScope is_compiled_scope(sfi_->is_compiled_scope(isolate_));
-    JSFunction::EnsureFeedbackVector(result, &is_compiled_scope);
+  if (have_nci_cache) {
     if (FLAG_trace_turbo_nci) CompilationCacheCode::TraceHit(sfi_, code);
+    if (!result->has_feedback_vector()) {
+      IsCompiledScope is_compiled_scope(sfi_->is_compiled_scope(isolate_));
+      JSFunction::EnsureFeedbackVector(result, &is_compiled_scope);
+      // TODO(jgruber,v8:8888): Consider combining shared feedback with
+      // existing feedback here.
+      maybe_feedback.ToHandleChecked()->DeserializeInto(
+          result->feedback_vector());
+    }
   }
 
   Compiler::PostInstantiation(result);

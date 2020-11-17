@@ -34,6 +34,7 @@ class CompilationSubCache {
 
   // Get the compilation cache tables for a specific generation.
   Handle<CompilationCacheTable> GetTable(int generation);
+  bool has_table(int generation) const;
 
   // Accessors for first generation.
   Handle<CompilationCacheTable> GetFirstTable() {
@@ -159,8 +160,11 @@ class CompilationCacheCode : public CompilationSubCache {
   explicit CompilationCacheCode(Isolate* isolate)
       : CompilationSubCache(isolate, kGenerations) {}
 
-  MaybeHandle<Code> Lookup(Handle<SharedFunctionInfo> key);
-  void Put(Handle<SharedFunctionInfo> key, Handle<Code> value);
+  bool Lookup(Handle<SharedFunctionInfo> key, MaybeHandle<Code>* code_out,
+              MaybeHandle<SerializedFeedback>* feedback_out);
+  void Put(Handle<SharedFunctionInfo> key, Handle<Code> value_code,
+           Handle<SerializedFeedback> value_feedback);
+  void ClearDeoptimizedCode();
 
   void Age() override;
 
@@ -170,6 +174,7 @@ class CompilationCacheCode : public CompilationSubCache {
   static constexpr int kGenerations = 2;
 
   static void TraceAgeing();
+  static void TraceRemovalForDeoptimization(SharedFunctionInfo key, Code value);
   static void TraceInsertion(Handle<SharedFunctionInfo> key,
                              Handle<Code> value);
   static void TraceHit(Handle<SharedFunctionInfo> key, Handle<Code> value);
@@ -205,7 +210,8 @@ class V8_EXPORT_PRIVATE CompilationCache {
   MaybeHandle<FixedArray> LookupRegExp(Handle<String> source,
                                        JSRegExp::Flags flags);
 
-  MaybeHandle<Code> LookupCode(Handle<SharedFunctionInfo> sfi);
+  bool LookupCode(Handle<SharedFunctionInfo> sfi, MaybeHandle<Code>* code_out,
+                  MaybeHandle<SerializedFeedback>* feedback_out);
 
   // Associate the (source, kind) pair to the shared function
   // info. This may overwrite an existing mapping.
@@ -225,7 +231,9 @@ class V8_EXPORT_PRIVATE CompilationCache {
   void PutRegExp(Handle<String> source, JSRegExp::Flags flags,
                  Handle<FixedArray> data);
 
-  void PutCode(Handle<SharedFunctionInfo> shared, Handle<Code> code);
+  void PutCode(Handle<SharedFunctionInfo> shared, Handle<Code> code,
+               Handle<SerializedFeedback> feedback);
+  void ClearDeoptimizedCode();
 
   // Clear the cache - also used to initialize the cache at startup.
   void Clear();

@@ -422,10 +422,21 @@ std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v) {
   }
 }
 
+bool SharedFunctionInfo::TryGetCachedCodeAndSerializedFeedback(
+    Isolate* isolate, MaybeHandle<Code>* code_out,
+    MaybeHandle<SerializedFeedback>* feedback_out) {
+  if (!may_have_cached_code()) return {};
+  Handle<SharedFunctionInfo> sfi(*this, isolate);
+  return isolate->compilation_cache()->LookupCode(sfi, code_out, feedback_out);
+}
+
 MaybeHandle<Code> SharedFunctionInfo::TryGetCachedCode(Isolate* isolate) {
   if (!may_have_cached_code()) return {};
-  Handle<SharedFunctionInfo> zis(*this, isolate);
-  return isolate->compilation_cache()->LookupCode(zis);
+  Handle<SharedFunctionInfo> sfi(*this, isolate);
+  MaybeHandle<Code> maybe_code;
+  MaybeHandle<SerializedFeedback> maybe_feedback;
+  isolate->compilation_cache()->LookupCode(sfi, &maybe_code, &maybe_feedback);
+  return maybe_code;
 }
 
 void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {

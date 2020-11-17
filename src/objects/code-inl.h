@@ -458,7 +458,6 @@ int Code::stack_slots() const {
 }
 
 bool Code::marked_for_deoptimization() const {
-  DCHECK(CodeKindCanDeoptimize(kind()));
   int32_t flags = code_data_container(kAcquireLoad).kind_specific_flags();
   return MarkedForDeoptimizationField::decode(flags);
 }

@@ -1089,12 +1089,48 @@ class V8_EXPORT_PRIVATE IrOpcode {
     return kJSCreateFunctionContext <= value && value <= kJSCreateBlockContext;
   }
 
+  // These opcodes *must* collect full feedback in NCI code in order to avoid
+  // deopts after tier-up to Turbofan.
+  // TODO(jgruber,v8:8888): The goal is for this to be the empty set at some
+  // point in the future.
+  static bool OpcodeMustCollectFeedbackForNCI(Value value) {
+    switch (value) {
+      case kJSCall:
+      case kJSCallWithArrayLike:
+      case kJSCallWithSpread:
+      case kJSCloneObject:
+      case kJSConstruct:
+      case kJSConstructWithArrayLike:
+      case kJSConstructWithSpread:
+      case kJSCreateEmptyLiteralArray:
+      case kJSCreateLiteralArray:
+      case kJSCreateLiteralObject:
+      case kJSCreateLiteralRegExp:
+      case kJSGetIterator:
+      case kJSGetTemplateObject:
+      case kJSHasProperty:
+      case kJSInstanceOf:
+      case kJSLoadGlobal:
+      case kJSLoadNamed:
+      case kJSLoadNamedFromSuper:
+      case kJSLoadProperty:
+      case kJSStoreDataPropertyInLiteral:
+      case kJSStoreGlobal:
+      case kJSStoreInArrayLiteral:
+      case kJSStoreNamed:
+      case kJSStoreNamedOwn:
+      case kJSStoreProperty:
+        return true;
+      default:
+        return false;
+    }
+    UNREACHABLE();
+  }
+
   // These opcode take the feedback vector as an input, and implement
   // feedback-collecting logic in generic lowering.
   static bool IsFeedbackCollectingOpcode(Value value) {
-#define CASE(Name, ...) \
-  case k##Name:         \
-    return true;
+#define CASE(Name, ...) case k##Name:
     switch (value) {
       JS_ARITH_BINOP_LIST(CASE)
       JS_ARITH_UNOP_LIST(CASE)

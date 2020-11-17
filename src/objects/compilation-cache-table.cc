@@ -4,7 +4,9 @@
 
 #include "src/objects/compilation-cache-table.h"
 
+#include "src/codegen/compilation-cache.h"
 #include "src/objects/compilation-cache-table-inl.h"
+#include "src/objects/serialized-feedback-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -282,14 +284,32 @@ Handle<Object> CompilationCacheTable::LookupRegExp(Handle<String> src,
   return Handle<Object>(get(EntryToIndex(entry) + 1), isolate);
 }
 
-MaybeHandle<Code> CompilationCacheTable::LookupCode(
-    Handle<SharedFunctionInfo> key) {
+namespace {
+
+constexpr int CodeCacheSFIIndex(InternalIndex entry) {
+  return CompilationCacheTable::EntryToIndex(entry) + 0;
+}
+constexpr int CodeCacheCodeIndex(InternalIndex entry) {
+  return CompilationCacheTable::EntryToIndex(entry) + 1;
+}
+constexpr int CodeCacheFeedbackIndex(InternalIndex entry) {
+  return CompilationCacheTable::EntryToIndex(entry) + 2;
+}
+
+}  // namespace
+
+bool CompilationCacheTable::LookupCode(
+    Handle<SharedFunctionInfo> key, MaybeHandle<Code>* code_out,
+    MaybeHandle<SerializedFeedback>* feedback_out) {
   Isolate* isolate = GetIsolate();
   DisallowHeapAllocation no_allocation;
   CodeKey k(key);
   InternalIndex entry = FindEntry(isolate, &k);
-  if (entry.is_not_found()) return {};
-  return Handle<Code>(Code::cast(get(EntryToIndex(entry) + 1)), isolate);
+  if (entry.is_not_found()) return false;
+  *code_out = handle(Code::cast(get(CodeCacheCodeIndex(entry))), isolate);
+  *feedback_out = handle(
+      SerializedFeedback::cast(get(CodeCacheFeedbackIndex(entry))), isolate);
+  return true;
 }
 
 Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
@@ -369,15 +389,18 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutRegExp(
 
 Handle<CompilationCacheTable> CompilationCacheTable::PutCode(
     Isolate* isolate, Handle<CompilationCacheTable> cache,
-    Handle<SharedFunctionInfo> key, Handle<Code> value) {
+    Handle<SharedFunctionInfo> key, Handle<Code> value_code,
+    Handle<SerializedFeedback> value_feedback) {
+  STATIC_ASSERT(CompilationCacheShape::kEntrySize >= 3);
   CodeKey k(key);
 
   {
     InternalIndex entry = cache->FindEntry(isolate, &k);
     if (entry.is_found()) {
       // Update.
-      cache->set(EntryToIndex(entry), *key);
-      cache->set(EntryToIndex(entry) + 1, *value);
+      cache->set(CodeCacheSFIIndex(entry), *key);
+      cache->set(CodeCacheCodeIndex(entry), *value_code);
+      cache->set(CodeCacheFeedbackIndex(entry), *value_feedback);
       return cache;
     }
   }
@@ -385,8 +408,9 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutCode(
   // Insert.
   cache = EnsureCapacity(isolate, cache);
   InternalIndex entry = cache->FindInsertionEntry(isolate, k.Hash());
-  cache->set(EntryToIndex(entry), *key);
-  cache->set(EntryToIndex(entry) + 1, *value);
+  cache->set(CodeCacheSFIIndex(entry), *key);
+  cache->set(CodeCacheCodeIndex(entry), *value_code);
+  cache->set(CodeCacheFeedbackIndex(entry), *value_feedback);
   cache->ElementAdded();
   return cache;
 }
@@ -420,6 +444,35 @@ void CompilationCacheTable::Age() {
       if (info.IsInterpreted() && info.GetBytecodeArray().IsOld()) {
         RemoveEntry(entry_index);
       }
+    }
+  }
+}
+
+void CompilationCacheTable::ClearDeoptimizedCode() {
+  DisallowHeapAllocation no_allocation;
+  Object the_hole_value = GetReadOnlyRoots().the_hole_value();
+  Object undefined_value = GetReadOnlyRoots().undefined_value();
+  for (InternalIndex entry : IterateEntries()) {
+    Object maybe_code = get(CodeCacheCodeIndex(entry));
+    if (maybe_code == the_hole_value) continue;
+    // TODO(jgruber): There should only be one not-present value. Undefined is
+    // used as the initial filler on allocation. The hole is inserted by
+    // deletions.
+    if (maybe_code == undefined_value) continue;
+
+    SharedFunctionInfo sfi =
+        SharedFunctionInfo::cast(get(CodeCacheSFIIndex(entry)));
+    Code code = Code::cast(maybe_code);
+    if (code.marked_for_deoptimization()) {
+      // TODO(jgruber): Due to design of the compilation cache, there's a
+      // strange layering violation here in which we call the higher-level
+      // tracing function from the lower-level implementation. At some point,
+      // the entire compilation cache design should be reconsidered.
+      if (FLAG_trace_turbo_nci) {
+        CompilationCacheCode::TraceRemovalForDeoptimization(sfi, code);
+      }
+      sfi.set_may_have_cached_code(false);
+      RemoveEntry(EntryToIndex(entry));
     }
   }
 }

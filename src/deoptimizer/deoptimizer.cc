@@ -10,6 +10,7 @@
 #include "src/builtins/accessors.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/callable.h"
+#include "src/codegen/compilation-cache.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
 #include "src/common/assert-scope.h"
@@ -392,6 +393,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
     MarkAllCodeForContext(native_context);
     OSROptimizedCodeCache::Clear(native_context);
     DeoptimizeMarkedCodeForContext(native_context);
+    isolate->compilation_cache()->ClearDeoptimizedCode();
     context = native_context.next_context_link();
   }
 }
@@ -452,6 +454,16 @@ void Deoptimizer::DeoptimizeFunction(JSFunction function, Code code) {
     // this call from here.
     OSROptimizedCodeCache::Compact(
         Handle<NativeContext>(function.context().native_context(), isolate));
+
+    // Remove deoptimized Code from the NCI cache - such objects currently
+    // cannot be reused.
+    // TODO(jgruber): Instead of removal (and possibly later re-insertion), we
+    // should learn from deopts. Potentially this already happens now;
+    // re-insertion will also insert updated (generalized) feedback. We should
+    // still take a closer look at this in the future though.
+    if (code.kind() == CodeKind::NATIVE_CONTEXT_INDEPENDENT) {
+      isolate->compilation_cache()->ClearDeoptimizedCode();
+    }
   }
 }
 

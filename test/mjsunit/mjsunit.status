@@ -1444,6 +1444,19 @@
   'compiler/serializer-transition-propagation': [SKIP],
   # crbug.com/v8/11110
   'es6/super-ic-opt*': [SKIP],
+  # Rely on optimizations not yet enabled for NCI. For example, preserving
+  # kIdentifyZero for kNumberFloor (and thus avoiding later deopts) only works
+  # if the JSCallReducer reduces the Math.floor builtin call to the
+  # kNumberFloor operator.
+  'compiler/number-floor': [SKIP],
+  'compiler/number-ceil': [SKIP],
+  'compiler/number-min': [SKIP],
+  'compiler/number-modulus': [SKIP],
+  'compiler/number-toboolean': [SKIP],
+  'compiler/number-abs': [SKIP],
+  'compiler/number-round': [SKIP],
+  'compiler/number-max': [SKIP],
+  'compiler/number-trunc': [SKIP],
 }],  # variant == nci or variant == nci_as_midtier
 
 ['((arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips) or (arch in [ppc64, s390x])', {
