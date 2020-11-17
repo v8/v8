@@ -281,6 +281,69 @@ TEST(EagerWrapperReplacement) {
   }
   Cleanup();
 }
+
+TEST(WrapperReplacement_IndirectExport) {
+  {
+    // This test assumes use of the generic wrapper.
+    FlagScope<bool> use_wasm_generic_wrapper(&FLAG_wasm_generic_wrapper, true);
+
+    // Initialize the environment and create a module builder.
+    AccountingAllocator allocator;
+    Zone zone(&allocator, ZONE_NAME);
+    Isolate* isolate = CcTest::InitIsolateOnce();
+    HandleScope scope(isolate);
+    WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
+
+    // Define a Wasm function, but do not add it to the exports.
+    TestSignatures sigs;
+    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
+    byte code[] = {WASM_GET_LOCAL(0), WASM_END};
+    f->EmitCode(code, sizeof(code));
+    uint32_t function_index = f->func_index();
+
+    // Export a table of indirect functions.
+    uint32_t table_index = builder->AllocateIndirectFunctions(2);
+    builder->AddExport(CStrVector("exported_table"), kExternalTable, 0);
+    // Point from the exported table to the Wasm function.
+    builder->SetIndirectFunction(0, function_index);
+
+    // Compile the module.
+    Handle<WasmInstanceObject> instance =
+        CompileModule(&zone, isolate, builder);
+
+    // Get the exported table.
+    Handle<WasmTableObject> table = handle(
+        WasmTableObject::cast(instance->tables().get(table_index)), isolate);
+    // Get the Wasm function through the exported table.
+    Handle<Object> function =
+        WasmTableObject::Get(isolate, table, function_index);
+    Handle<WasmExportedFunction> indirect_function =
+        handle(WasmExportedFunction::cast(*function), isolate);
+    // Get the function data.
+    Handle<WasmExportedFunctionData> indirect_function_data = handle(
+        indirect_function->shared().wasm_exported_function_data(), isolate);
+
+    // Verify that the generic-wrapper budget has initially a value of
+    // kGenericWrapperBudget and the wrapper to be used for calls to the
+    // indirect function is the generic one.
+    CHECK(IsGeneric(indirect_function_data->wrapper_code()));
+    CHECK(indirect_function_data->wrapper_budget() == kGenericWrapperBudget);
+
+    // Set the remaining generic-wrapper budget for the indirect function to 1,
+    // so that the next call to it will cause the function to tier up.
+    indirect_function_data->set_wrapper_budget(1);
+
+    // Call the Wasm function.
+    Handle<Object> params[1] = {SmiHandle(isolate, 6)};
+    SmiCall(isolate, indirect_function, 1, params, 6);
+
+    // Verify that the budget is now exhausted and the generic wrapper has been
+    // replaced by a specific one.
+    CHECK_EQ(indirect_function_data->wrapper_budget(), 0);
+    CHECK(IsSpecific(indirect_function_data->wrapper_code()));
+  }
+  Cleanup();
+}
 #endif
 
 }  // namespace test_run_wasm_wrappers
