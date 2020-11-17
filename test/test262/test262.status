@@ -90,6 +90,8 @@
   # Some TypedArray methods throw due to the same bug, from Get
   'built-ins/TypedArray/prototype/every/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/every/BigInt/callbackfn-detachbuffer': [FAIL],
+  'built-ins/TypedArray/prototype/filter/callbackfn-detachbuffer': [FAIL],
+  'built-ins/TypedArray/prototype/filter/BigInt/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/find/predicate-may-detach-buffer': [FAIL],
   'built-ins/TypedArray/prototype/find/BigInt/predicate-may-detach-buffer': [FAIL],
   'built-ins/TypedArray/prototype/findIndex/predicate-may-detach-buffer': [FAIL],
@@ -567,6 +569,12 @@
 
   # https://github.com/tc39/test262/pull/2349
   'intl402/Locale/constructor-options-region-valid': [FAIL],
+
+  # http://crbug/v8/11174
+  'intl402/DateTimeFormat/intl-legacy-constructed-symbol': [FAIL],
+  'intl402/DateTimeFormat/intl-legacy-constructed-symbol-on-unwrap': [FAIL],
+  'intl402/NumberFormat/intl-legacy-constructed-symbol': [FAIL],
+  'intl402/NumberFormat/intl-legacy-constructed-symbol-on-unwrap': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9818
   'built-ins/AsyncFunction/proto-from-ctor-realm': [FAIL],
