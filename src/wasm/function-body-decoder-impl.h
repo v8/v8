@@ -3050,6 +3050,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         this->pc_, &opcode_length);
     if (!VALIDATE(this->ok())) return 0;
     trace_msg->AppendOpcode(full_opcode);
+    if (!CheckSimdPostMvp(full_opcode)) {
+      return 0;
+    }
     return DecodeSimdOpcode(full_opcode, opcode_length);
   }
 
@@ -3605,9 +3608,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       case kExprS128Const:
         return SimdConstOp(opcode_length);
       default: {
-        if (!CheckSimdPostMvp(opcode)) {
-          return 0;
-        }
         const FunctionSig* sig = WasmOpcodes::Signature(opcode);
         if (!VALIDATE(sig != nullptr)) {
           this->DecodeError("invalid simd opcode");
