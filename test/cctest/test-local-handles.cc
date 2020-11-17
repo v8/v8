@@ -14,6 +14,7 @@
 #include "src/handles/local-handles.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
+#include "src/heap/parked-scope.h"
 #include "src/heap/safepoint.h"
 #include "src/objects/heap-number.h"
 #include "test/cctest/cctest.h"
@@ -102,11 +103,7 @@ TEST(CreateLocalHandlesWithoutLocalHandleScope) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
 
-  {
-    LocalHeap local_heap(isolate->heap(), ThreadKind::kMain);
-    UnparkedScope scope(&local_heap);
-    handle(Smi::FromInt(17), &local_heap);
-  }
+  handle(Smi::FromInt(17), isolate->main_thread_local_heap());
 }
 
 TEST(DereferenceLocalHandle) {
@@ -124,7 +121,8 @@ TEST(DereferenceLocalHandle) {
     ph = phs->NewHandle(number);
   }
   {
-    LocalHeap local_heap(isolate->heap(), ThreadKind::kMain, std::move(phs));
+    LocalHeap local_heap(isolate->heap(), ThreadKind::kBackground,
+                         std::move(phs));
     UnparkedScope unparked_scope(&local_heap);
     LocalHandleScope scope(&local_heap);
     Handle<HeapNumber> local_number = handle(*ph, &local_heap);

@@ -2716,6 +2716,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/paged-spaces.cc",
     "src/heap/paged-spaces.h",
     "src/heap/parallel-work-item.h",
+    "src/heap/parked-scope.h",
     "src/heap/read-only-heap-inl.h",
     "src/heap/read-only-heap.cc",
     "src/heap/read-only-heap.h",

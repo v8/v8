@@ -3034,8 +3034,8 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
   }
 
   {
-    LocalIsolate local_isolate(isolate, ThreadKind::kMain);
-    LocalIsolateScope local_isolate_scope(data.broker(), info, &local_isolate);
+    LocalIsolateScope local_isolate_scope(data.broker(), info,
+                                          isolate->main_thread_local_isolate());
     if (data.broker()->is_concurrent_inlining()) {
       if (!pipeline.CreateGraph()) return MaybeHandle<Code>();
     }

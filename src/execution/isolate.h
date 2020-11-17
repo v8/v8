@@ -1625,6 +1625,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   MaybeLocal<v8::Context> GetContextFromRecorderContextId(
       v8::metrics::Recorder::ContextId id);
 
+  LocalIsolate* main_thread_local_isolate() {
+    return main_thread_local_isolate_.get();
+  }
+
+  LocalHeap* main_thread_local_heap();
+
 #ifdef V8_HEAP_SANDBOX
   ExternalPointerTable& external_pointer_table() {
     return isolate_data_.external_pointer_table_;
@@ -1960,6 +1966,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool promise_hook_or_async_event_delegate_ = false;
   bool promise_hook_or_debug_is_active_or_async_event_delegate_ = false;
   int async_task_count_ = 0;
+
+  std::unique_ptr<LocalIsolate> main_thread_local_isolate_;
 
   v8::Isolate::AbortOnUncaughtExceptionCallback
       abort_on_uncaught_exception_callback_ = nullptr;
