@@ -17,6 +17,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/string-constants.h"
@@ -2002,7 +2003,7 @@ void Assembler::Nop(int n) {
     EnsureSpace ensure_space(this);
     int nop_bytes = std::min(n, 9);
     const char* sequence = kNopSequences + kNopOffsets[nop_bytes];
-    memcpy(pc_, sequence, nop_bytes);
+    base::Memcpy(pc_, sequence, nop_bytes);
     pc_ += nop_bytes;
     n -= nop_bytes;
   } while (n);

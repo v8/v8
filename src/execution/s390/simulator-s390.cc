@@ -9,10 +9,13 @@
 
 #include <stdarg.h>
 #include <stdlib.h>
+
 #include <cmath>
 
 #include "src/base/bits.h"
 #include "src/base/once.h"
+#include "src/base/platform/platform.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
@@ -732,7 +735,7 @@ void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
              0);
   } else {
     // Cache miss.  Load memory into the cache.
-    memcpy(cached_line, line, CachePage::kLineLength);
+    base::Memcpy(cached_line, line, CachePage::kLineLength);
     *cache_valid_byte = CachePage::LINE_VALID;
   }
 }
@@ -1561,7 +1564,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   size_t stack_size = MB;  // allocate 1MB for stack
 #endif
   stack_size += 2 * stack_protection_size_;
-  stack_ = reinterpret_cast<char*>(malloc(stack_size));
+  stack_ = reinterpret_cast<char*>(base::Malloc(stack_size));
   pc_modified_ = false;
   icount_ = 0;
   break_pc_ = nullptr;
@@ -1596,7 +1599,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   last_debugger_input_ = nullptr;
 }
 
-Simulator::~Simulator() { free(stack_); }
+Simulator::~Simulator() { base::Free(stack_); }
 
 // Get the active Simulator for the current thread.
 Simulator* Simulator::current(Isolate* isolate) {
@@ -1672,8 +1675,8 @@ double Simulator::get_double_from_register_pair(int reg) {
   // Read the bits from the unsigned integer register_[] array
   // into the double precision floating point value and return it.
   char buffer[sizeof(fp_registers_[0])];
-  memcpy(buffer, &registers_[reg], 2 * sizeof(registers_[0]));
-  memcpy(&dm_val, buffer, 2 * sizeof(registers_[0]));
+  base::Memcpy(buffer, &registers_[reg], 2 * sizeof(registers_[0]));
+  base::Memcpy(&dm_val, buffer, 2 * sizeof(registers_[0]));
 #endif
   return (dm_val);
 }
@@ -1812,7 +1815,7 @@ float Simulator::ReadFloat(intptr_t addr) {
 uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   // The simulator uses a separate JS stack. If we have exhausted the C stack,
   // we also drop down the JS limit to reflect the exhaustion on the JS stack.
-  if (GetCurrentStackPosition() < c_limit) {
+  if (base::Stack::GetCurrentStackPosition() < c_limit) {
     return reinterpret_cast<uintptr_t>(get_sp());
   }
 
@@ -2140,8 +2143,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             set_register(r2, x);
             set_register(r3, y);
           } else {
-            memcpy(reinterpret_cast<void*>(result_buffer), &result,
-                   sizeof(ObjectPair));
+            base::Memcpy(reinterpret_cast<void*>(result_buffer), &result,
+                         sizeof(ObjectPair));
             set_register(r2, result_buffer);
           }
         } else {
@@ -2570,8 +2573,8 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   // Store remaining arguments on stack, from low to high memory.
   intptr_t* stack_argument =
       reinterpret_cast<intptr_t*>(entry_stack + kCalleeRegisterSaveAreaSize);
-  memcpy(stack_argument, arguments + reg_arg_count,
-         stack_arg_count * sizeof(*arguments));
+  base::Memcpy(stack_argument, arguments + reg_arg_count,
+               stack_arg_count * sizeof(*arguments));
   set_register(sp, entry_stack);
 
 // Prepare to execute the code at entry
@@ -3031,7 +3034,7 @@ EVALUATE(VLGV) {
   const int size_by_byte = 1 << m4;
   int8_t* src = get_simd_register(r3).int8 + index * size_by_byte;
   set_register(r1, 0);
-  memcpy(&get_register(r1), src, size_by_byte);
+  base::Memcpy(&get_register(r1), src, size_by_byte);
   return length;
 }
 
@@ -3042,7 +3045,7 @@ EVALUATE(VLVG) {
   int64_t index = b2_val + d2;
   const int size_by_byte = 1 << m4;
   int8_t* dst = get_simd_register(r1).int8 + index * size_by_byte;
-  memcpy(dst, &get_register(r3), size_by_byte);
+  base::Memcpy(dst, &get_register(r3), size_by_byte);
   return length;
 }
 
@@ -3062,7 +3065,7 @@ EVALUATE(VREP) {
   int8_t* src = get_simd_register(r3).int8;
   int8_t* dst = get_simd_register(r1).int8;
   for (int i = 0; i < kSimd128Size; i += size_by_byte) {
-    memcpy(dst + i, src + i2 * size_by_byte, size_by_byte);
+    base::Memcpy(dst + i, src + i2 * size_by_byte, size_by_byte);
   }
   return length;
 }
@@ -3076,7 +3079,7 @@ EVALUATE(VLREP) {
   int8_t* src = reinterpret_cast<int8_t*>(addr);
   set_simd_register(r1, fp_zero);
   for (int i = 0; i < kSimd128Size; i += size_by_byte) {
-    memcpy(dst + i, src, size_by_byte);
+    base::Memcpy(dst + i, src, size_by_byte);
   }
   return length;
 }
@@ -3089,7 +3092,7 @@ EVALUATE(VREPI) {
   uint64_t immediate = static_cast<uint64_t>(i2);
   set_simd_register(r1, fp_zero);
   for (int i = 0; i < kSimd128Size; i += size_by_byte) {
-    memcpy(dst + i, &immediate, size_by_byte);
+    base::Memcpy(dst + i, &immediate, size_by_byte);
   }
   return length;
 }
@@ -3133,7 +3136,7 @@ inline static void VectorBinaryOp(void* dst, void* src1, void* src2,
     T& src1_val = *reinterpret_cast<T*>(src1_ptr + i);
     T& src2_val = *reinterpret_cast<T*>(src2_ptr + i);
     dst_val = op(src1_val, src2_val);
-    memcpy(dst_ptr + i, &dst_val, sizeof(T));
+    base::Memcpy(dst_ptr + i, &dst_val, sizeof(T));
   }
 }
 
@@ -3259,8 +3262,8 @@ void VectorSum(void* dst, void* src1, void* src2) {
     value += *(reinterpret_cast<S*>(src1) + i);
     if ((i + 1) % (sizeof(D) / sizeof(S)) == 0) {
       value += *(reinterpret_cast<S*>(src2) + i);
-      memcpy(reinterpret_cast<D*>(dst) + i / (sizeof(D) / sizeof(S)), &value,
-             sizeof(D));
+      base::Memcpy(reinterpret_cast<D*>(dst) + i / (sizeof(D) / sizeof(S)),
+                   &value, sizeof(D));
       value = 0;
     }
   }
@@ -3317,14 +3320,14 @@ void VectorPack(void* dst, void* src1, void* src2, bool saturate,
       src = reinterpret_cast<S*>(src2);
       count = 0;
     }
-    memcpy(&value, src + count, sizeof(S));
+    base::Memcpy(&value, src + count, sizeof(S));
     if (saturate) {
       if (value > max)
         value = max;
       else if (value < min)
         value = min;
     }
-    memcpy(reinterpret_cast<D*>(dst) + i, &value, sizeof(D));
+    base::Memcpy(reinterpret_cast<D*>(dst) + i, &value, sizeof(D));
   }
 }
 
@@ -3409,7 +3412,7 @@ void VectorUnpackHigh(void* dst, void* src) {
   D value = 0;
   for (size_t i = 0; i < kItemCount; i++) {
     value = *(reinterpret_cast<S*>(src) + i + kItemCount);
-    memcpy(reinterpret_cast<D*>(dst) + i, &value, sizeof(D));
+    base::Memcpy(reinterpret_cast<D*>(dst) + i, &value, sizeof(D));
   }
 }
 
@@ -3470,7 +3473,7 @@ void VectorUnpackLow(void* dst, void* src) {
     temps[i] = static_cast<D>(*(reinterpret_cast<S*>(src) + i));
   }
   for (size_t i = 0; i < kItemCount; i++) {
-    memcpy(reinterpret_cast<D*>(dst) + i, &temps[i], sizeof(D));
+    base::Memcpy(reinterpret_cast<D*>(dst) + i, &temps[i], sizeof(D));
   }
 }
 
@@ -3707,7 +3710,7 @@ void VectorLoadComplement(void* dst, void* src) {
     T& src_val = *reinterpret_cast<T*>(src_ptr + i);
     T& dst_val = *reinterpret_cast<T*>(dst_ptr + i);
     dst_val = -(uint64_t)src_val;
-    memcpy(dst_ptr + i, &dst_val, sizeof(T));
+    base::Memcpy(dst_ptr + i, &dst_val, sizeof(T));
   }
 }
 
@@ -3812,7 +3815,7 @@ void VectorShift(void* dst, void* src, unsigned int shift, Operation op) {
     T& dst_val = *reinterpret_cast<T*>(dst_ptr + i);
     T& src_val = *reinterpret_cast<T*>(src_ptr + i);
     dst_val = op(src_val, shift);
-    memcpy(dst_ptr + i, &dst_val, sizeof(T));
+    base::Memcpy(dst_ptr + i, &dst_val, sizeof(T));
   }
 }
 
@@ -4070,7 +4073,7 @@ void VectorFPMaxMin(void* dst, void* src1, void* src2, int mode, Operation op) {
     T src1_val = *(src1_ptr + i);
     T src2_val = *(src2_ptr + i);
     T value = op(src1_val, src2_val, mode);
-    memcpy(dst_ptr + i, &value, sizeof(T));
+    base::Memcpy(dst_ptr + i, &value, sizeof(T));
   }
 }
 
@@ -4144,7 +4147,7 @@ void VectorFPCompare(void* dst, void* src1, void* src2, Operation op) {
     S src1_val = *(src1_ptr + i);
     S src2_val = *(src2_ptr + i);
     D value = op(src1_val, src2_val);
-    memcpy(dst_ptr + i, &value, sizeof(D));
+    base::Memcpy(dst_ptr + i, &value, sizeof(D));
   }
 }
 
@@ -4213,33 +4216,33 @@ void VectorSignOp(void* dst, void* src, int m4, int m5) {
     case 0:
       if (m4 == 8) {
         T value = -(*src_ptr);
-        memcpy(dst_ptr, &value, sizeof(T));
+        base::Memcpy(dst_ptr, &value, sizeof(T));
       } else {
         for (size_t i = 0; i < kSimd128Size / sizeof(T); i++) {
           T value = -(*(src_ptr + i));
-          memcpy(dst_ptr + i, &value, sizeof(T));
+          base::Memcpy(dst_ptr + i, &value, sizeof(T));
         }
       }
       break;
     case 1:
       if (m4 == 8) {
         T value = -abs(*src_ptr);
-        memcpy(dst_ptr, &value, sizeof(T));
+        base::Memcpy(dst_ptr, &value, sizeof(T));
       } else {
         for (size_t i = 0; i < kSimd128Size / sizeof(T); i++) {
           T value = -abs(*(src_ptr + i));
-          memcpy(dst_ptr + i, &value, sizeof(T));
+          base::Memcpy(dst_ptr + i, &value, sizeof(T));
         }
       }
       break;
     case 2:
       if (m4 == 8) {
         T value = abs(*src_ptr);
-        memcpy(dst_ptr, &value, sizeof(T));
+        base::Memcpy(dst_ptr, &value, sizeof(T));
       } else {
         for (size_t i = 0; i < kSimd128Size / sizeof(T); i++) {
           T value = abs(*(src_ptr + i));
-          memcpy(dst_ptr + i, &value, sizeof(T));
+          base::Memcpy(dst_ptr + i, &value, sizeof(T));
         }
       }
       break;
@@ -4276,7 +4279,7 @@ void VectorFPSqrt(void* dst, void* src) {
   T* src_ptr = reinterpret_cast<T*>(src);
   for (size_t i = 0; i < kSimd128Size / sizeof(T); i++) {
     T value = sqrt(*(src_ptr + i));
-    memcpy(dst_ptr + i, &value, sizeof(T));
+    base::Memcpy(dst_ptr + i, &value, sizeof(T));
   }
 }
 

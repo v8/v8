@@ -33,8 +33,10 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
+
 #include <memory>
 
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/source-position-table.h"
 #include "src/diagnostics/eh-frame.h"
@@ -145,7 +147,7 @@ void PerfJitLogger::OpenJitDumpFile() {
 
 void PerfJitLogger::CloseJitDumpFile() {
   if (perf_output_handle_ == nullptr) return;
-  fclose(perf_output_handle_);
+  base::Fclose(perf_output_handle_);
   perf_output_handle_ = nullptr;
 }
 

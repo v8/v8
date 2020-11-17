@@ -16,6 +16,7 @@
 
 #include "src/base/once.h"
 #include "src/base/platform/time.h"
+#include "src/base/platform/wrappers.h"
 #include "src/d8/async-hooks-wrapper.h"
 #include "src/strings/string-hasher.h"
 #include "src/utils/allocation.h"
@@ -137,7 +138,7 @@ class SerializationData {
 
  private:
   struct DataDeleter {
-    void operator()(uint8_t* p) const { free(p); }
+    void operator()(uint8_t* p) const { base::Free(p); }
   };
 
   std::unique_ptr<uint8_t, DataDeleter> data_;

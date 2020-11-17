@@ -103,6 +103,7 @@
 #endif  // V8_OS_WIN64
 
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#include "src/base/platform/wrappers.h"
 #include "src/heap/conservative-stack-visitor.h"
 #endif
 
@@ -3110,7 +3111,7 @@ void Isolate::Deinit() {
 
   heap_.TearDown();
   FILE* logfile = logger_->TearDownAndGetLogFile();
-  if (logfile != nullptr) fclose(logfile);
+  if (logfile != nullptr) base::Fclose(logfile);
 
   if (wasm_engine_) {
     wasm_engine_->RemoveIsolate(this);

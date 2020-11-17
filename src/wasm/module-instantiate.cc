@@ -6,6 +6,7 @@
 
 #include "src/api/api.h"
 #include "src/asmjs/asm-js.h"
+#include "src/base/platform/wrappers.h"
 #include "src/logging/counters.h"
 #include "src/logging/metrics.h"
 #include "src/numbers/conversions-inl.h"
@@ -885,7 +886,7 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
                                         instance->memory_size()));
       byte* dest = instance->memory_start() + dest_offset;
       const byte* src = wire_bytes.begin() + segment.source.offset();
-      memcpy(dest, src, size);
+      base::Memcpy(dest, src, size);
     }
   }
 }
@@ -1675,8 +1676,8 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
           size_t size = (global.type == kWasmI64 || global.type == kWasmF64)
                             ? sizeof(double)
                             : sizeof(int32_t);
-          memcpy(raw_buffer_ptr(untagged_globals_, new_offset),
-                 raw_buffer_ptr(untagged_globals_, old_offset), size);
+          base::Memcpy(raw_buffer_ptr(untagged_globals_, new_offset),
+                       raw_buffer_ptr(untagged_globals_, old_offset), size);
         }
         break;
       }

@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "src/base/platform/wrappers.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/wasm/value-type.h"
@@ -818,7 +819,7 @@ class WasmInitExpr {
     immediate_.f64_const = v;
   }
   explicit WasmInitExpr(uint8_t v[kSimd128Size]) : kind_(kS128Const) {
-    memcpy(immediate_.s128_const.data(), v, kSimd128Size);
+    base::Memcpy(immediate_.s128_const.data(), v, kSimd128Size);
   }
 
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmInitExpr);

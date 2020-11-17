@@ -530,14 +530,14 @@ void ByteArray::copy_in(int index, const byte* buffer, int length) {
   DCHECK(index >= 0 && length >= 0 && length <= kMaxInt - index &&
          index + length <= this->length());
   Address dst_addr = field_address(kHeaderSize + index * kCharSize);
-  memcpy(reinterpret_cast<void*>(dst_addr), buffer, length);
+  base::Memcpy(reinterpret_cast<void*>(dst_addr), buffer, length);
 }
 
 void ByteArray::copy_out(int index, byte* buffer, int length) {
   DCHECK(index >= 0 && length >= 0 && length <= kMaxInt - index &&
          index + length <= this->length());
   Address src_addr = field_address(kHeaderSize + index * kCharSize);
-  memcpy(buffer, reinterpret_cast<void*>(src_addr), length);
+  base::Memcpy(buffer, reinterpret_cast<void*>(src_addr), length);
 }
 
 int ByteArray::get_int(int index) const {
@@ -632,6 +632,7 @@ void TemplateList::set(int index, Object value) {
 }  // namespace internal
 }  // namespace v8
 
+#include "src/base/platform/wrappers.h"
 #include "src/objects/object-macros-undef.h"
 
 #endif  // V8_OBJECTS_FIXED_ARRAY_INL_H_

@@ -96,6 +96,7 @@
 #include "src/heap/conservative-stack-visitor.h"
 #endif
 
+#include "src/base/platform/wrappers.h"
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
@@ -4667,12 +4668,12 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
 void Heap::AddToRingBuffer(const char* string) {
   size_t first_part =
       Min(strlen(string), kTraceRingBufferSize - ring_buffer_end_);
-  memcpy(trace_ring_buffer_ + ring_buffer_end_, string, first_part);
+  base::Memcpy(trace_ring_buffer_ + ring_buffer_end_, string, first_part);
   ring_buffer_end_ += first_part;
   if (first_part < strlen(string)) {
     ring_buffer_full_ = true;
     size_t second_part = strlen(string) - first_part;
-    memcpy(trace_ring_buffer_, string + first_part, second_part);
+    base::Memcpy(trace_ring_buffer_, string + first_part, second_part);
     ring_buffer_end_ = second_part;
   }
 }
@@ -4682,9 +4683,9 @@ void Heap::GetFromRingBuffer(char* buffer) {
   size_t copied = 0;
   if (ring_buffer_full_) {
     copied = kTraceRingBufferSize - ring_buffer_end_;
-    memcpy(buffer, trace_ring_buffer_ + ring_buffer_end_, copied);
+    base::Memcpy(buffer, trace_ring_buffer_ + ring_buffer_end_, copied);
   }
-  memcpy(buffer + copied, trace_ring_buffer_, ring_buffer_end_);
+  base::Memcpy(buffer + copied, trace_ring_buffer_, ring_buffer_end_);
 }
 
 void Heap::ConfigureHeapDefault() {
@@ -6690,7 +6691,7 @@ void Heap::IncrementObjectCounters() {
 // heap as a strong root array, saves that entry in StrongRootsEntry*, and
 // returns a pointer to Address 1.
 Address* StrongRootBlockAllocator::allocate(size_t n) {
-  void* block = malloc(sizeof(StrongRootsEntry*) + n * sizeof(Address));
+  void* block = base::Malloc(sizeof(StrongRootsEntry*) + n * sizeof(Address));
 
   StrongRootsEntry** header = reinterpret_cast<StrongRootsEntry**>(block);
   Address* ret = reinterpret_cast<Address*>(reinterpret_cast<char*>(block) +
@@ -6711,7 +6712,7 @@ void StrongRootBlockAllocator::deallocate(Address* p, size_t n) noexcept {
 
   heap_->UnregisterStrongRoots(*header);
 
-  free(block);
+  base::Free(block);
 }
 
 }  // namespace internal

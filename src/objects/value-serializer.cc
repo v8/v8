@@ -10,6 +10,7 @@
 #include "include/v8.h"
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
+#include "src/base/platform/wrappers.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
@@ -246,7 +247,7 @@ ValueSerializer::~ValueSerializer() {
     if (delegate_) {
       delegate_->FreeBufferMemory(buffer_);
     } else {
-      free(buffer_);
+      base::Free(buffer_);
     }
   }
 }
@@ -326,7 +327,7 @@ void ValueSerializer::WriteBigIntContents(BigInt bigint) {
 void ValueSerializer::WriteRawBytes(const void* source, size_t length) {
   uint8_t* dest;
   if (ReserveRawBytes(length).To(&dest) && length > 0) {
-    memcpy(dest, source, length);
+    base::Memcpy(dest, source, length);
   }
 }
 
@@ -353,7 +354,7 @@ Maybe<bool> ValueSerializer::ExpandBuffer(size_t required_capacity) {
     new_buffer = delegate_->ReallocateBufferMemory(buffer_, requested_capacity,
                                                    &provided_capacity);
   } else {
-    new_buffer = realloc(buffer_, requested_capacity);
+    new_buffer = base::Realloc(buffer_, requested_capacity);
     provided_capacity = requested_capacity;
   }
   if (new_buffer) {
@@ -1176,7 +1177,7 @@ Maybe<double> ValueDeserializer::ReadDouble() {
   // Warning: this uses host endianness.
   if (position_ > end_ - sizeof(double)) return Nothing<double>();
   double value;
-  memcpy(&value, position_, sizeof(double));
+  base::Memcpy(&value, position_, sizeof(double));
   position_ += sizeof(double);
   if (std::isnan(value)) value = std::numeric_limits<double>::quiet_NaN();
   return Just(value);
@@ -1413,7 +1414,7 @@ MaybeHandle<String> ValueDeserializer::ReadTwoByteString() {
   // Copy the bytes directly into the new string.
   // Warning: this uses host endianness.
   DisallowHeapAllocation no_gc;
-  memcpy(string->GetChars(no_gc), bytes.begin(), bytes.length());
+  base::Memcpy(string->GetChars(no_gc), bytes.begin(), bytes.length());
   return string;
 }
 
@@ -1771,7 +1772,7 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
   if (!result.ToHandle(&array_buffer)) return result;
 
   if (byte_length > 0) {
-    memcpy(array_buffer->backing_store(), position_, byte_length);
+    base::Memcpy(array_buffer->backing_store(), position_, byte_length);
   }
   position_ += byte_length;
   AddObjectWithID(id, array_buffer);

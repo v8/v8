@@ -8,6 +8,7 @@
 #include <unordered_map>
 
 #include "src/base/optional.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/common/assert-scope.h"
 #include "src/compiler/wasm-compiler.h"
@@ -57,31 +58,31 @@ Handle<Object> WasmValueToValueObject(Isolate* isolate, WasmValue value) {
     case ValueType::kI32: {
       int32_t val = value.to_i32();
       bytes = isolate->factory()->NewByteArray(sizeof(val));
-      memcpy(bytes->GetDataStartAddress(), &val, sizeof(val));
+      base::Memcpy(bytes->GetDataStartAddress(), &val, sizeof(val));
       break;
     }
     case ValueType::kI64: {
       int64_t val = value.to_i64();
       bytes = isolate->factory()->NewByteArray(sizeof(val));
-      memcpy(bytes->GetDataStartAddress(), &val, sizeof(val));
+      base::Memcpy(bytes->GetDataStartAddress(), &val, sizeof(val));
       break;
     }
     case ValueType::kF32: {
       float val = value.to_f32();
       bytes = isolate->factory()->NewByteArray(sizeof(val));
-      memcpy(bytes->GetDataStartAddress(), &val, sizeof(val));
+      base::Memcpy(bytes->GetDataStartAddress(), &val, sizeof(val));
       break;
     }
     case ValueType::kF64: {
       double val = value.to_f64();
       bytes = isolate->factory()->NewByteArray(sizeof(val));
-      memcpy(bytes->GetDataStartAddress(), &val, sizeof(val));
+      base::Memcpy(bytes->GetDataStartAddress(), &val, sizeof(val));
       break;
     }
     case ValueType::kS128: {
       Simd128 s128 = value.to_s128();
       bytes = isolate->factory()->NewByteArray(kSimd128Size);
-      memcpy(bytes->GetDataStartAddress(), s128.bytes(), kSimd128Size);
+      base::Memcpy(bytes->GetDataStartAddress(), s128.bytes(), kSimd128Size);
       break;
     }
     case ValueType::kOptRef: {

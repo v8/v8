@@ -8,6 +8,7 @@
 #include <sstream>
 #include <string>
 
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/source-position.h"
 #include "src/compiler/all-nodes.h"
@@ -255,7 +256,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   }
 
   char* buffer = new char[full_filename.length() + 1];
-  memcpy(buffer, full_filename.begin(), full_filename.length());
+  base::Memcpy(buffer, full_filename.begin(), full_filename.length());
   buffer[full_filename.length()] = '\0';
   return std::unique_ptr<char[]>(buffer);
 }

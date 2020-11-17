@@ -4,6 +4,7 @@
 
 #include "src/wasm/wasm-serialization.h"
 
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/external-reference-table.h"
 #include "src/objects/objects-inl.h"
@@ -57,7 +58,7 @@ class Writer {
   void WriteVector(const Vector<const byte> v) {
     DCHECK_GE(current_size(), v.size());
     if (v.size() > 0) {
-      memcpy(current_location(), v.begin(), v.size());
+      base::Memcpy(current_location(), v.begin(), v.size());
       pos_ += v.size();
     }
     if (FLAG_trace_wasm_serialization) {
@@ -381,7 +382,7 @@ bool NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
     code_start = aligned_buffer.get();
   }
 #endif
-  memcpy(code_start, code->instructions().begin(), code_size);
+  base::Memcpy(code_start, code->instructions().begin(), code_size);
   // Relocate the code.
   int mask = RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
              RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
@@ -428,7 +429,7 @@ bool NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   }
   // If we copied to an aligned buffer, copy code into serialized buffer.
   if (code_start != serialized_code_start) {
-    memcpy(serialized_code_start, code_start, code_size);
+    base::Memcpy(serialized_code_start, code_start, code_size);
   }
   return true;
 }

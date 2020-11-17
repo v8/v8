@@ -131,6 +131,7 @@
 #include "include/v8-wasm-trap-handler-win.h"
 #include "src/trap-handler/handler-inside-win.h"
 #if defined(V8_OS_WIN64)
+#include "src/base/platform/wrappers.h"
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif  // V8_OS_WIN64
 #endif  // V8_OS_WIN
@@ -549,7 +550,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
     // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
     void* data = __linux_calloc(length, 1);
 #else
-    void* data = calloc(length, 1);
+    void* data = base::Calloc(length, 1);
 #endif
     return data;
   }
@@ -560,12 +561,12 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
     // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
     void* data = __linux_malloc(length);
 #else
-    void* data = malloc(length);
+    void* data = base::Malloc(length);
 #endif
     return data;
   }
 
-  void Free(void* data, size_t) override { free(data); }
+  void Free(void* data, size_t) override { base::Free(data); }
 
   void* Reallocate(void* data, size_t old_length, size_t new_length) override {
 #if V8_OS_AIX && _LINUX_SOURCE_COMPAT
@@ -573,7 +574,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
     // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
     void* new_data = __linux_realloc(data, new_length);
 #else
-    void* new_data = realloc(data, new_length);
+    void* new_data = base::Realloc(data, new_length);
 #endif
     if (new_length > old_length) {
       memset(reinterpret_cast<uint8_t*>(new_data) + old_length, 0,
@@ -3148,11 +3149,11 @@ void* ValueSerializer::Delegate::ReallocateBufferMemory(void* old_buffer,
                                                         size_t size,
                                                         size_t* actual_size) {
   *actual_size = size;
-  return realloc(old_buffer, size);
+  return base::Realloc(old_buffer, size);
 }
 
 void ValueSerializer::Delegate::FreeBufferMemory(void* buffer) {
-  return free(buffer);
+  return base::Free(buffer);
 }
 
 struct ValueSerializer::PrivateData {
@@ -5319,7 +5320,7 @@ static int WriteUtf8Impl(i::Vector<const Char> string, char* write_start,
       for (int i = read_index; i < up_to; i++) char_mask |= read_start[i];
       if ((char_mask & 0x80) == 0) {
         int copy_length = up_to - read_index;
-        memcpy(current_write, read_start + read_index, copy_length);
+        base::Memcpy(current_write, read_start + read_index, copy_length);
         current_write += copy_length;
         read_index = up_to;
       } else {
@@ -7370,7 +7371,7 @@ void* v8::ArrayBuffer::Allocator::Reallocate(void* data, size_t old_length,
       reinterpret_cast<uint8_t*>(AllocateUninitialized(new_length));
   if (new_data == nullptr) return nullptr;
   size_t bytes_to_copy = std::min(old_length, new_length);
-  memcpy(new_data, data, bytes_to_copy);
+  base::Memcpy(new_data, data, bytes_to_copy);
   if (new_length > bytes_to_copy) {
     memset(new_data + bytes_to_copy, 0, new_length - bytes_to_copy);
   }
@@ -7677,7 +7678,7 @@ size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
                                              isolate);
       source = reinterpret_cast<char*>(typed_array->DataPtr());
     }
-    memcpy(dest, source + byte_offset, bytes_to_copy);
+    base::Memcpy(dest, source + byte_offset, bytes_to_copy);
   }
   return bytes_to_copy;
 }

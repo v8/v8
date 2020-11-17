@@ -5,6 +5,7 @@
 #include "src/snapshot/deserializer.h"
 
 #include "src/base/logging.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/common/assert-scope.h"
 #include "src/common/external-pointer.h"
@@ -191,7 +192,7 @@ class SlotAccessorForHandle {
 template <typename TSlot>
 int Deserializer::WriteAddress(TSlot dest, Address value) {
   DCHECK(!next_reference_is_weak_);
-  memcpy(dest.ToVoidPtr(), &value, kSystemPointerSize);
+  base::Memcpy(dest.ToVoidPtr(), &value, kSystemPointerSize);
   STATIC_ASSERT(IsAligned(kSystemPointerSize, TSlot::kSlotDataSize));
   return (kSystemPointerSize / TSlot::kSlotDataSize);
 }
