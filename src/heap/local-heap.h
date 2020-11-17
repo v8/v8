@@ -111,6 +111,10 @@ class V8_EXPORT_PRIVATE LocalHeap {
   // with the current thread.
   static LocalHeap* Current();
 
+#ifdef DEBUG
+  void VerifyCurrent();
+#endif
+
   // Allocate an uninitialized object.
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRaw(
       int size_in_bytes, AllocationType allocation,
@@ -185,47 +189,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   friend class ParkedScope;
   friend class UnparkedScope;
   friend class ConcurrentAllocator;
-};
-
-// Scope that explicitly parks LocalHeap prohibiting access to the heap and the
-// creation of Handles.
-class ParkedScope {
- public:
-  explicit ParkedScope(LocalHeap* local_heap) : local_heap_(local_heap) {
-    local_heap_->Park();
-  }
-
-  ~ParkedScope() { local_heap_->Unpark(); }
-
- private:
-  LocalHeap* const local_heap_;
-};
-
-// Scope that explicitly unparks LocalHeap allowing access to the heap and the
-// creation of Handles.
-class UnparkedScope {
- public:
-  explicit UnparkedScope(LocalHeap* local_heap) : local_heap_(local_heap) {
-    local_heap_->Unpark();
-  }
-
-  ~UnparkedScope() { local_heap_->Park(); }
-
- private:
-  LocalHeap* const local_heap_;
-};
-
-class ParkedMutexGuard {
-  base::Mutex* guard_;
-
- public:
-  explicit ParkedMutexGuard(LocalHeap* local_heap, base::Mutex* guard)
-      : guard_(guard) {
-    ParkedScope scope(local_heap);
-    guard_->Lock();
-  }
-
-  ~ParkedMutexGuard() { guard_->Unlock(); }
+  friend class Isolate;
 };
 
 }  // namespace internal

@@ -38,6 +38,7 @@ class CompilerDispatcherTestFlags {
     FLAG_single_threaded = true;
     FlagList::EnforceFlagImplications();
     FLAG_compiler_dispatcher = true;
+    FLAG_finalize_streaming_on_background = false;
   }
 
   static void RestoreFlags() {

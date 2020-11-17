@@ -7,6 +7,8 @@
 #include "src/api/api.h"
 #include "src/base/logging.h"
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/execution/isolate.h"
+#include "src/execution/thread-id.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/objects-inl.h"
 #include "src/roots/roots-inl.h"
@@ -43,8 +45,19 @@ bool HandleBase::IsDereferenceAllowed() const {
   }
   if (isolate->IsBuiltinsTableHandleLocation(location_)) return true;
 
-  LocalHeap* local_heap = LocalHeap::Current();
-  if (FLAG_local_heaps && local_heap) {
+  if (FLAG_local_heaps) {
+    LocalHeap* local_heap = LocalHeap::Current();
+
+    if (local_heap == nullptr) {
+      // We are on the main thread and can thus load the LocalHeap from the
+      // Isolate itself. The DCHECK makes sure that we are not accidentally
+      // dereferencing a handle on a background thread without an active
+      // LocalHeap.
+      DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+      local_heap = isolate->main_thread_local_heap();
+    }
+
+    // Local heap can't access handles when parked
     if (!local_heap->IsHandleDereferenceAllowed()) {
       StdoutStream{} << "Cannot dereference handle owned by "
                      << "non-running local heap\n";

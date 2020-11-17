@@ -14,6 +14,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/local-heap.h"
+#include "src/heap/parked-scope.h"
 #include "src/heap/safepoint.h"
 #include "src/objects/heap-number.h"
 #include "test/cctest/cctest.h"
@@ -129,7 +130,8 @@ TEST(DereferencePersistentHandle) {
     ph = phs->NewHandle(number);
   }
   {
-    LocalHeap local_heap(isolate->heap(), ThreadKind::kMain, std::move(phs));
+    LocalHeap local_heap(isolate->heap(), ThreadKind::kBackground,
+                         std::move(phs));
     UnparkedScope scope(&local_heap);
     CHECK_EQ(42, ph->value());
     DisallowHandleDereference disallow_scope;
@@ -141,7 +143,7 @@ TEST(NewPersistentHandleFailsWhenParked) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
 
-  LocalHeap local_heap(isolate->heap(), ThreadKind::kMain);
+  LocalHeap local_heap(isolate->heap(), ThreadKind::kBackground);
   // Fail here in debug mode: Persistent handles can't be created if local heap
   // is parked
   local_heap.NewPersistentHandle(Smi::FromInt(1));
@@ -151,7 +153,7 @@ TEST(NewPersistentHandleFailsWhenParkedExplicit) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
 
-  LocalHeap local_heap(isolate->heap(), ThreadKind::kMain,
+  LocalHeap local_heap(isolate->heap(), ThreadKind::kBackground,
                        isolate->NewPersistentHandles());
   // Fail here in debug mode: Persistent handles can't be created if local heap
   // is parked
