@@ -1014,6 +1014,9 @@
 ['system == aix', {
   # stack overflow
   'regress/regress-crbug-178790': [PASS, ['mode == debug', SKIP]],
+  # PASE environment currently ships with no tzdata database
+  'tzoffset-transition-new-york-noi18n': [SKIP],
+  'tzoffset-seoul-noi18n': [SKIP],
 }],  # 'system == aix'
 
 ##############################################################################
