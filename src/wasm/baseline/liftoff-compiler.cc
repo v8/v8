@@ -2150,7 +2150,7 @@ class LiftoffCompiler {
   }
 
   void AlignmentCheckMem(FullDecoder* decoder, uint32_t access_size,
-                         uintptr_t offset, Register index,
+                         uint32_t offset, Register index,
                          LiftoffRegList pinned) {
     Label* trap_label = AddOutOfLineTrap(
         decoder->position(), WasmCode::kThrowWasmTrapUnalignedAccess, 0);
@@ -2166,16 +2166,16 @@ class LiftoffCompiler {
       // Then we can also avoid using the temp register here.
       __ emit_i32_andi(address, index, align_mask);
       __ emit_cond_jump(kUnequal, trap_label, kWasmI32, address);
-    } else {
-      // For alignment checks we only look at the lower 32-bits in {offset}.
-      __ emit_i32_addi(address, index, static_cast<uint32_t>(offset));
-      __ emit_i32_andi(address, address, align_mask);
-      __ emit_cond_jump(kUnequal, trap_label, kWasmI32, address);
+      return;
     }
+    __ emit_i32_addi(address, index, offset);
+    __ emit_i32_andi(address, address, align_mask);
+
+    __ emit_cond_jump(kUnequal, trap_label, kWasmI32, address);
   }
 
   void TraceMemoryOperation(bool is_store, MachineRepresentation rep,
-                            Register index, uintptr_t offset,
+                            Register index, uint32_t offset,
                             WasmCodePosition position) {
     // Before making the runtime call, spill all cache registers.
     __ SpillAllRegisters();
@@ -2184,9 +2184,7 @@ class LiftoffCompiler {
     // Get one register for computing the effective offset (offset + index).
     LiftoffRegister effective_offset =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    // TODO(clemensb): Do a 64-bit addition here if memory64 is used.
-    DCHECK_GE(kMaxUInt32, offset);
-    __ LoadConstant(effective_offset, WasmValue(static_cast<uint32_t>(offset)));
+    __ LoadConstant(effective_offset, WasmValue(offset));
     __ emit_i32_add(effective_offset.gp(), effective_offset.gp(), index);
 
     // Get a register to hold the stack slot for MemoryTracingInfo.
@@ -2231,7 +2229,7 @@ class LiftoffCompiler {
     __ DeallocateStackSlot(sizeof(MemoryTracingInfo));
   }
 
-  Register AddMemoryMasking(Register index, uintptr_t* offset,
+  Register AddMemoryMasking(Register index, uint32_t* offset,
                             LiftoffRegList* pinned) {
     if (!FLAG_untrusted_code_mitigations || env_->use_trap_handler) {
       return index;
@@ -2242,15 +2240,12 @@ class LiftoffCompiler {
       Register old_index = index;
       pinned->clear(LiftoffRegister(old_index));
       index = pinned->set(__ GetUnusedRegister(kGpReg, *pinned)).gp();
-      // TODO(clemensb): Use kWasmI64 if memory64 is used.
       if (index != old_index) __ Move(index, old_index, kWasmI32);
     }
     Register tmp = __ GetUnusedRegister(kGpReg, *pinned).gp();
-    // TODO(clemensb): Use 64-bit operations if memory64 is used.
-    DCHECK_GE(kMaxUInt32, *offset);
-    __ emit_i32_addi(index, index, static_cast<uint32_t>(*offset));
+    __ emit_ptrsize_addi(index, index, *offset);
     LOAD_INSTANCE_FIELD(tmp, MemoryMask, kSystemPointerSize);
-    __ emit_i32_and(index, index, tmp);
+    __ emit_ptrsize_and(index, index, tmp);
     *offset = 0;
     return index;
   }
@@ -2267,7 +2262,7 @@ class LiftoffCompiler {
                        kDontForceCheck)) {
       return;
     }
-    uintptr_t offset = imm.offset;
+    uint32_t offset = imm.offset;
     index = AddMemoryMasking(index, &offset, &pinned);
     DEBUG_CODE_COMMENT("load from memory");
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
@@ -2312,7 +2307,7 @@ class LiftoffCompiler {
       return;
     }
 
-    uintptr_t offset = imm.offset;
+    uint32_t offset = imm.offset;
     index = AddMemoryMasking(index, &offset, &pinned);
     DEBUG_CODE_COMMENT("load with transformation");
     Register addr = __ GetUnusedRegister(kGpReg, pinned).gp();
@@ -2358,7 +2353,7 @@ class LiftoffCompiler {
                        kDontForceCheck)) {
       return;
     }
-    uintptr_t offset = imm.offset;
+    uint32_t offset = imm.offset;
     index = AddMemoryMasking(index, &offset, &pinned);
     DEBUG_CODE_COMMENT("store to memory");
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
@@ -3087,7 +3082,7 @@ class LiftoffCompiler {
       return;
     }
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
-    uintptr_t offset = imm.offset;
+    uint32_t offset = imm.offset;
     index = AddMemoryMasking(index, &offset, &pinned);
     DEBUG_CODE_COMMENT("atomic store to memory");
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
@@ -3111,7 +3106,7 @@ class LiftoffCompiler {
       return;
     }
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
-    uintptr_t offset = imm.offset;
+    uint32_t offset = imm.offset;
     index = AddMemoryMasking(index, &offset, &pinned);
     DEBUG_CODE_COMMENT("atomic load from memory");
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
@@ -3130,7 +3125,7 @@ class LiftoffCompiler {
   void AtomicBinop(FullDecoder* decoder, StoreType type,
                    const MemoryAccessImmediate<validate>& imm,
                    void (LiftoffAssembler::*emit_fn)(Register, Register,
-                                                     uintptr_t, LiftoffRegister,
+                                                     uint32_t, LiftoffRegister,
                                                      LiftoffRegister,
                                                      StoreType)) {
     ValueType result_type = type.value_type();
@@ -3159,7 +3154,7 @@ class LiftoffCompiler {
     }
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
 
-    uintptr_t offset = imm.offset;
+    uint32_t offset = imm.offset;
     index = AddMemoryMasking(index, &offset, &pinned);
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize);
@@ -3184,7 +3179,7 @@ class LiftoffCompiler {
     }
     AlignmentCheckMem(decoder, type.size(), imm.offset, index_reg, pinned);
 
-    uintptr_t offset = imm.offset;
+    uint32_t offset = imm.offset;
     index_reg = AddMemoryMasking(index_reg, &offset, &pinned);
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize);
@@ -3216,7 +3211,7 @@ class LiftoffCompiler {
     }
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
 
-    uintptr_t offset = imm.offset;
+    uint32_t offset = imm.offset;
     index = AddMemoryMasking(index, &offset, &pinned);
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize);
@@ -3252,16 +3247,17 @@ class LiftoffCompiler {
     AlignmentCheckMem(decoder, type.element_size_bytes(), imm.offset, index_reg,
                       pinned);
 
-    uintptr_t offset = imm.offset;
+    uint32_t offset = imm.offset;
     index_reg = AddMemoryMasking(index_reg, &offset, &pinned);
     Register index_plus_offset =
         __ cache_state()->is_used(LiftoffRegister(index_reg))
             ? pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp()
             : index_reg;
-    // TODO(clemensb): Skip this if memory is 64 bit.
-    __ emit_ptrsize_zeroextend_i32(index_plus_offset, index_reg);
     if (offset) {
-      __ emit_ptrsize_addi(index_plus_offset, index_plus_offset, offset);
+      __ emit_i32_addi(index_plus_offset, index_reg, offset);
+      __ emit_ptrsize_zeroextend_i32(index_plus_offset, index_plus_offset);
+    } else {
+      __ emit_ptrsize_zeroextend_i32(index_plus_offset, index_reg);
     }
 
     LiftoffAssembler::VarState timeout =
@@ -3328,16 +3324,17 @@ class LiftoffCompiler {
     AlignmentCheckMem(decoder, kWasmI32.element_size_bytes(), imm.offset,
                       index_reg, pinned);
 
-    uintptr_t offset = imm.offset;
+    uint32_t offset = imm.offset;
     index_reg = AddMemoryMasking(index_reg, &offset, &pinned);
     Register index_plus_offset =
         __ cache_state()->is_used(LiftoffRegister(index_reg))
             ? pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp()
             : index_reg;
-    // TODO(clemensb): Skip this if memory is 64 bit.
-    __ emit_ptrsize_zeroextend_i32(index_plus_offset, index_reg);
     if (offset) {
-      __ emit_ptrsize_addi(index_plus_offset, index_plus_offset, offset);
+      __ emit_i32_addi(index_plus_offset, index_reg, offset);
+      __ emit_ptrsize_zeroextend_i32(index_plus_offset, index_plus_offset);
+    } else {
+      __ emit_ptrsize_zeroextend_i32(index_plus_offset, index_reg);
     }
 
     ValueType sig_reps[] = {kWasmI32, kPointerValueType, kWasmI32};

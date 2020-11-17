@@ -72,7 +72,7 @@ inline MemOperand GetMemOp(LiftoffAssembler* assm,
 inline Register CalculateActualAddress(LiftoffAssembler* assm,
                                        UseScratchRegisterScope* temps,
                                        Register addr_reg, Register offset_reg,
-                                       uintptr_t offset_imm,
+                                       int32_t offset_imm,
                                        Register result_reg = no_reg) {
   if (offset_reg == no_reg && offset_imm == 0) {
     if (result_reg == no_reg) {
@@ -139,14 +139,14 @@ template <void (Assembler::*op)(Register, Register, const Operand&, SBit,
           void (Assembler::*op_with_carry)(Register, Register, const Operand&,
                                            SBit, Condition)>
 inline void I64BinopI(LiftoffAssembler* assm, LiftoffRegister dst,
-                      LiftoffRegister lhs, int64_t imm) {
+                      LiftoffRegister lhs, int32_t imm) {
   // The compiler allocated registers such that either {dst == lhs} or there is
   // no overlap between the two.
   DCHECK_NE(dst.low_gp(), lhs.high_gp());
-  int32_t imm_low_word = static_cast<int32_t>(imm);
-  int32_t imm_high_word = static_cast<int32_t>(imm >> 32);
-  (assm->*op)(dst.low_gp(), lhs.low_gp(), Operand(imm_low_word), SetCC, al);
-  (assm->*op_with_carry)(dst.high_gp(), lhs.high_gp(), Operand(imm_high_word),
+  (assm->*op)(dst.low_gp(), lhs.low_gp(), Operand(imm), SetCC, al);
+  // Top half of the immediate sign extended, either 0 or -1.
+  int32_t sign_extend = imm < 0 ? -1 : 0;
+  (assm->*op_with_carry)(dst.high_gp(), lhs.high_gp(), Operand(sign_extend),
                          LeaveCC, al);
 }
 
@@ -1625,7 +1625,7 @@ void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
 }
 
 void LiftoffAssembler::emit_i64_addi(LiftoffRegister dst, LiftoffRegister lhs,
-                                     int64_t imm) {
+                                     int32_t imm) {
   liftoff::I64BinopI<&Assembler::add, &Assembler::adc>(this, dst, lhs, imm);
 }
 
@@ -2224,7 +2224,7 @@ bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
 }
 
 void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
-                                     Register offset_reg, uintptr_t offset_imm,
+                                     Register offset_reg, uint32_t offset_imm,
                                      LoadType type,
                                      LoadTransformationKind transform,
                                      uint32_t* protected_load_pc) {
