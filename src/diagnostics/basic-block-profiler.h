@@ -33,7 +33,7 @@ class BasicBlockProfilerData {
     DCHECK_EQ(block_ids_.size(), counts_.size());
     return block_ids_.size();
   }
-  const uint32_t* counts() const { return &counts_[0]; }
+  const double* counts() const { return &counts_[0]; }
 
   void SetCode(const std::ostringstream& os);
   void SetFunctionName(std::unique_ptr<char[]> name);
@@ -55,13 +55,15 @@ class BasicBlockProfilerData {
 
   V8_EXPORT_PRIVATE void ResetCounts();
 
+  void CopyFromJSHeap(OnHeapBasicBlockProfilerData js_heap_data);
+
   // These vectors are indexed by reverse post-order block number.
   std::vector<int32_t> block_ids_;
-  std::vector<uint32_t> counts_;
+  std::vector<double> counts_;
   std::string function_name_;
   std::string schedule_;
   std::string code_;
-  int hash_;
+  int hash_ = 0;
   DISALLOW_COPY_AND_ASSIGN(BasicBlockProfilerData);
 };
 
@@ -79,7 +81,7 @@ class BasicBlockProfiler {
   V8_EXPORT_PRIVATE void Print(std::ostream& os, Isolate* isolate);
 
   // Coverage bitmap in this context includes only on heap BasicBlockProfiler
-  // data It is used to export coverage of builtins function loaded from
+  // data. It is used to export coverage of builtins function loaded from
   // snapshot.
   V8_EXPORT_PRIVATE std::vector<bool> GetCoverageBitmap(Isolate* isolate);
 

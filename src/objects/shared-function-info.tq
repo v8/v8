@@ -85,7 +85,7 @@ class UncompiledDataWithPreparseData extends UncompiledData {
 @export
 class OnHeapBasicBlockProfilerData extends HeapObject {
   block_ids: ByteArray;  // Stored as 4-byte ints
-  counts: ByteArray;     // Stored as 4-byte ints
+  counts: ByteArray;     // Stored as 8-byte floats
   name: String;
   schedule: String;
   code: String;

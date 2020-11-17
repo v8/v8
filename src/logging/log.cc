@@ -1102,7 +1102,7 @@ void Logger::TimerEvent(Logger::StartEnd se, const char* name) {
 }
 
 void Logger::BasicBlockCounterEvent(const char* name, int block_id,
-                                    uint32_t count) {
+                                    double count) {
   if (!FLAG_turbo_profiling_log_builtins) return;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
