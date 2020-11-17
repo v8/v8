@@ -5456,10 +5456,6 @@ int String::Write(Isolate* isolate, uint16_t* buffer, int start, int length,
                      start, length, options);
 }
 
-bool v8::String::IsExternal() const {
-  return IsExternalTwoByte();
-}
-
 bool v8::String::IsExternalTwoByte() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
   return i::StringShape(*str).IsExternalTwoByte();
@@ -8836,36 +8832,12 @@ MicrotasksPolicy Isolate::GetMicrotasksPolicy() const {
   return isolate->default_microtask_queue()->microtasks_policy();
 }
 
-namespace {
-
-void MicrotasksCompletedCallbackAdapter(v8::Isolate* isolate, void* data) {
-  auto callback = reinterpret_cast<void (*)(v8::Isolate*)>(data);
-  callback(isolate);
-}
-
-}  // namespace
-
-void Isolate::AddMicrotasksCompletedCallback(
-    MicrotasksCompletedCallback callback) {
-  DCHECK(callback);
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->default_microtask_queue()->AddMicrotasksCompletedCallback(
-      &MicrotasksCompletedCallbackAdapter, reinterpret_cast<void*>(callback));
-}
-
 void Isolate::AddMicrotasksCompletedCallback(
     MicrotasksCompletedCallbackWithData callback, void* data) {
   DCHECK(callback);
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->default_microtask_queue()->AddMicrotasksCompletedCallback(callback,
                                                                      data);
-}
-
-void Isolate::RemoveMicrotasksCompletedCallback(
-    MicrotasksCompletedCallback callback) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->default_microtask_queue()->RemoveMicrotasksCompletedCallback(
-      &MicrotasksCompletedCallbackAdapter, reinterpret_cast<void*>(callback));
 }
 
 void Isolate::RemoveMicrotasksCompletedCallback(
@@ -9066,9 +9038,6 @@ size_t Isolate::CopyCodePages(size_t capacity, MemoryRange* code_pages_out) {
 
 CALLBACK_SETTER(FatalErrorHandler, FatalErrorCallback, exception_behavior)
 CALLBACK_SETTER(OOMErrorHandler, OOMErrorCallback, oom_behavior)
-CALLBACK_SETTER(ModifyCodeGenerationFromStringsCallback,
-                ModifyCodeGenerationFromStringsCallback,
-                modify_code_gen_callback)
 CALLBACK_SETTER(ModifyCodeGenerationFromStringsCallback,
                 ModifyCodeGenerationFromStringsCallback2,
                 modify_code_gen_callback2)
