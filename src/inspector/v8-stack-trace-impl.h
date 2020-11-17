@@ -57,6 +57,8 @@ class V8StackTraceImpl : public V8StackTrace {
                                                    int maxStackSize);
 
   ~V8StackTraceImpl() override;
+  V8StackTraceImpl(const V8StackTraceImpl&) = delete;
+  V8StackTraceImpl& operator=(const V8StackTraceImpl&) = delete;
   std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObjectImpl(
       V8Debugger* debugger) const;
 
@@ -105,12 +107,12 @@ class V8StackTraceImpl : public V8StackTrace {
   int m_maxAsyncDepth;
   std::weak_ptr<AsyncStackTrace> m_asyncParent;
   V8StackTraceId m_externalParent;
-
-  DISALLOW_COPY_AND_ASSIGN(V8StackTraceImpl);
 };
 
 class AsyncStackTrace {
  public:
+  AsyncStackTrace(const AsyncStackTrace&) = delete;
+  AsyncStackTrace& operator=(const AsyncStackTrace&) = delete;
   static std::shared_ptr<AsyncStackTrace> capture(V8Debugger*,
                                                   int contextGroupId,
                                                   const String16& description,
@@ -155,8 +157,6 @@ class AsyncStackTrace {
   std::vector<std::shared_ptr<StackFrame>> m_frames;
   std::weak_ptr<AsyncStackTrace> m_asyncParent;
   V8StackTraceId m_externalParent;
-
-  DISALLOW_COPY_AND_ASSIGN(AsyncStackTrace);
 };
 
 }  // namespace v8_inspector

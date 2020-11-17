@@ -59,6 +59,8 @@ class V8InspectorImpl : public V8Inspector {
  public:
   V8InspectorImpl(v8::Isolate*, V8InspectorClient*);
   ~V8InspectorImpl() override;
+  V8InspectorImpl(const V8InspectorImpl&) = delete;
+  V8InspectorImpl& operator=(const V8InspectorImpl&) = delete;
 
   v8::Isolate* isolate() const { return m_isolate; }
   V8InspectorClient* client() { return m_client; }
@@ -179,8 +181,6 @@ class V8InspectorImpl : public V8Inspector {
   std::unique_ptr<V8Console> m_console;
 
   Counters* m_counters = nullptr;
-
-  DISALLOW_COPY_AND_ASSIGN(V8InspectorImpl);
 };
 
 }  // namespace v8_inspector

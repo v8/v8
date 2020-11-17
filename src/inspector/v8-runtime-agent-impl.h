@@ -57,6 +57,8 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
   V8RuntimeAgentImpl(V8InspectorSessionImpl*, protocol::FrontendChannel*,
                      protocol::DictionaryValue* state);
   ~V8RuntimeAgentImpl() override;
+  V8RuntimeAgentImpl(const V8RuntimeAgentImpl&) = delete;
+  V8RuntimeAgentImpl& operator=(const V8RuntimeAgentImpl&) = delete;
   void restore();
 
   // Part of the protocol.
@@ -146,8 +148,6 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
   std::unordered_map<String16, std::unique_ptr<v8::Global<v8::Script>>>
       m_compiledScripts;
   std::set<String16> m_activeBindings;
-
-  DISALLOW_COPY_AND_ASSIGN(V8RuntimeAgentImpl);
 };
 
 }  // namespace v8_inspector

@@ -66,6 +66,8 @@ class V8Debugger : public v8::debug::DebugDelegate,
  public:
   V8Debugger(v8::Isolate*, V8InspectorImpl*);
   ~V8Debugger() override;
+  V8Debugger(const V8Debugger&) = delete;
+  V8Debugger& operator=(const V8Debugger&) = delete;
 
   bool enabled() const;
   v8::Isolate* isolate() const { return m_isolate; }
@@ -273,8 +275,6 @@ class V8Debugger : public v8::debug::DebugDelegate,
   std::unordered_map<int, V8DebuggerId> m_contextGroupIdToDebuggerId;
 
   std::unique_ptr<TerminateExecutionCallback> m_terminateExecutionCallback;
-
-  DISALLOW_COPY_AND_ASSIGN(V8Debugger);
 };
 
 }  // namespace v8_inspector

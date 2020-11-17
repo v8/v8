@@ -43,6 +43,9 @@ class ConsoleHelper {
         m_contextId(InspectedContext::contextId(m_context)),
         m_groupId(m_inspector->contextGroupId(m_contextId)) {}
 
+  ConsoleHelper(const ConsoleHelper&) = delete;
+  ConsoleHelper& operator=(const ConsoleHelper&) = delete;
+
   int contextId() const { return m_contextId; }
   int groupId() const { return m_groupId; }
 
@@ -156,8 +159,6 @@ class ConsoleHelper {
   V8InspectorImpl* m_inspector = nullptr;
   int m_contextId;
   int m_groupId;
-
-  DISALLOW_COPY_AND_ASSIGN(ConsoleHelper);
 };
 
 void returnDataCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
