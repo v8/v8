@@ -1176,7 +1176,7 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
   return result;
 }
 
-WasmCode* NativeModule::AddDeserializedCode(
+std::unique_ptr<WasmCode> NativeModule::AllocateDeserializedCode(
     int index, Vector<const byte> instructions, int stack_slots,
     int tagged_parameter_slots, int safepoint_table_offset,
     int handler_table_offset, int constant_pool_offset,
@@ -1184,23 +1184,15 @@ WasmCode* NativeModule::AddDeserializedCode(
     Vector<const byte> protected_instructions_data,
     Vector<const byte> reloc_info, Vector<const byte> source_position_table,
     WasmCode::Kind kind, ExecutionTier tier) {
-  // CodeSpaceWriteScope is provided by the caller.
   Vector<uint8_t> dst_code_bytes =
       code_allocator_.AllocateForCode(this, instructions.size());
   UpdateCodeSize(dst_code_bytes.size(), tier, kNoDebugging);
-  base::Memcpy(dst_code_bytes.begin(), instructions.begin(),
-               instructions.size());
 
-  std::unique_ptr<WasmCode> code{new WasmCode{
+  return std::unique_ptr<WasmCode>{new WasmCode{
       this, index, dst_code_bytes, stack_slots, tagged_parameter_slots,
       safepoint_table_offset, handler_table_offset, constant_pool_offset,
       code_comments_offset, unpadded_binary_size, protected_instructions_data,
       reloc_info, source_position_table, kind, tier, kNoDebugging}};
-
-  // Note: we do not flush the i-cache here, since the code needs to be
-  // relocated anyway. The caller is responsible for flushing the i-cache later.
-
-  return PublishCode(std::move(code));
 }
 
 std::vector<WasmCode*> NativeModule::SnapshotCodeTable() const {

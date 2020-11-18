@@ -497,7 +497,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   WasmCode* PublishCode(std::unique_ptr<WasmCode>);
   std::vector<WasmCode*> PublishCode(Vector<std::unique_ptr<WasmCode>>);
 
-  WasmCode* AddDeserializedCode(
+  std::unique_ptr<WasmCode> AllocateDeserializedCode(
       int index, Vector<const byte> instructions, int stack_slots,
       int tagged_parameter_slots, int safepoint_table_offset,
       int handler_table_offset, int constant_pool_offset,
