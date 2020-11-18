@@ -90,7 +90,8 @@ Object ThrowWasmError(Isolate* isolate, MessageTemplate message) {
 
 RUNTIME_FUNCTION(Runtime_WasmIsValidRefValue) {
   // This code is called from wrappers, so the "thread is wasm" flag is not set.
-  DCHECK(!trap_handler::IsThreadInWasm());
+  DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
+                 !trap_handler::IsThreadInWasm());
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0)
