@@ -21,54 +21,6 @@
 namespace v8 {
 namespace internal {
 
-RUNTIME_FUNCTION(Runtime_CompileLazy) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-
-  Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
-
-#ifdef DEBUG
-  if (FLAG_trace_lazy && !sfi->is_compiled()) {
-    PrintF("[unoptimized: ");
-    function->PrintName();
-    PrintF("]\n");
-  }
-#endif
-
-  StackLimitCheck check(isolate);
-  if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
-    return isolate->StackOverflow();
-  }
-  IsCompiledScope is_compiled_scope;
-  if (!Compiler::Compile(function, Compiler::KEEP_EXCEPTION,
-                         &is_compiled_scope)) {
-    return ReadOnlyRoots(isolate).exception();
-  }
-  if (sfi->may_have_cached_code()) {
-    MaybeHandle<Code> maybe_code;
-    MaybeHandle<SerializedFeedback> maybe_feedback;
-    if (sfi->TryGetCachedCodeAndSerializedFeedback(isolate, &maybe_code,
-                                                   &maybe_feedback)) {
-      Handle<Code> code = maybe_code.ToHandleChecked();
-      if (FLAG_trace_turbo_nci) CompilationCacheCode::TraceHit(sfi, code);
-      function->set_code(*code);
-
-      if (!function->has_feedback_vector()) {
-        JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
-        // TODO(jgruber,v8:8888): Consider combining shared feedback with
-        // existing feedback here.
-        maybe_feedback.ToHandleChecked()->DeserializeInto(
-            function->feedback_vector());
-      }
-
-      return *code;
-    }
-  }
-  DCHECK(function->is_compiled());
-  return function->code();
-}
-
 namespace {
 
 // Returns false iff an exception was thrown.
@@ -117,7 +69,76 @@ Object CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
   return function->code();
 }
 
+void TryInstallNCICode(Isolate* isolate, Handle<JSFunction> function,
+                       Handle<SharedFunctionInfo> sfi,
+                       IsCompiledScope* is_compiled_scope) {
+  // This function should only be called if there's a possibility that cached
+  // code exists.
+  DCHECK(sfi->may_have_cached_code());
+  DCHECK_EQ(function->shared(), *sfi);
+
+  MaybeHandle<Code> maybe_code;
+  MaybeHandle<SerializedFeedback> maybe_feedback;
+  if (sfi->TryGetCachedCodeAndSerializedFeedback(isolate, &maybe_code,
+                                                 &maybe_feedback)) {
+    Handle<Code> code = maybe_code.ToHandleChecked();
+    if (FLAG_trace_turbo_nci) CompilationCacheCode::TraceHit(sfi, code);
+    function->set_code(*code);
+
+    if (!function->has_feedback_vector()) {
+      JSFunction::EnsureFeedbackVector(function, is_compiled_scope);
+      // TODO(jgruber,v8:8888): Consider combining shared feedback with
+      // existing feedback here.
+      maybe_feedback.ToHandleChecked()->DeserializeInto(
+          function->feedback_vector());
+    }
+  }
+}
+
 }  // namespace
+
+RUNTIME_FUNCTION(Runtime_CompileLazy) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
+  Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
+
+#ifdef DEBUG
+  if (FLAG_trace_lazy && !sfi->is_compiled()) {
+    PrintF("[unoptimized: ");
+    function->PrintName();
+    PrintF("]\n");
+  }
+#endif
+
+  StackLimitCheck check(isolate);
+  if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
+    return isolate->StackOverflow();
+  }
+  IsCompiledScope is_compiled_scope;
+  if (!Compiler::Compile(function, Compiler::KEEP_EXCEPTION,
+                         &is_compiled_scope)) {
+    return ReadOnlyRoots(isolate).exception();
+  }
+  if (sfi->may_have_cached_code()) {
+    TryInstallNCICode(isolate, function, sfi, &is_compiled_scope);
+  }
+  DCHECK(function->is_compiled());
+  return function->code();
+}
+
+RUNTIME_FUNCTION(Runtime_TryInstallNCICode) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  DCHECK(function->is_compiled());
+  Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
+  IsCompiledScope is_compiled_scope(*sfi, isolate);
+  TryInstallNCICode(isolate, function, sfi, &is_compiled_scope);
+  DCHECK(function->is_compiled());
+  return function->code();
+}
 
 RUNTIME_FUNCTION(Runtime_CompileOptimized_Concurrent) {
   HandleScope scope(isolate);
