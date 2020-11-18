@@ -1236,6 +1236,10 @@
 
 ##############################################################################
 ['variant == stress_snapshot and arch == x64', {
+  # https://bugs.chromium.org/p/v8/issues/detail?id=11166
+  'compiler/globals-freeze-constant': [SKIP],
+  'compiler/globals-freeze-constanttype': [SKIP],
+  'compiler/globals-freeze-mutable': [SKIP],
   # Crashes the serializer due to recursion.
   'deep-recursion': [SKIP],
   'string-replace-gc': [SKIP],
