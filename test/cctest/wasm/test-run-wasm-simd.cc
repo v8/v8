@@ -3579,6 +3579,33 @@ WASM_SIMD_TEST(SimdLoadStoreLoad) {
     r.builder().WriteMemory(&memory[1], expected);
     CHECK_EQ(expected, r.Call());
   }
+
+  {
+    // OOB tests for loads.
+    WasmRunner<int32_t, uint32_t> r(execution_tier, lower_simd);
+    r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
+    BUILD(r, WASM_SIMD_I32x4_EXTRACT_LANE(
+                 0, WASM_SIMD_LOAD_MEM(WASM_GET_LOCAL(0))));
+
+    for (uint32_t offset = kWasmPageSize - (kSimd128Size - 1);
+         offset < kWasmPageSize; ++offset) {
+      CHECK_TRAP(r.Call(offset));
+    }
+  }
+
+  {
+    // OOB tests for stores.
+    WasmRunner<int32_t, uint32_t> r(execution_tier, lower_simd);
+    r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
+    BUILD(r,
+          WASM_SIMD_STORE_MEM(WASM_GET_LOCAL(0), WASM_SIMD_LOAD_MEM(WASM_ZERO)),
+          WASM_ONE);
+
+    for (uint32_t offset = kWasmPageSize - (kSimd128Size - 1);
+         offset < kWasmPageSize; ++offset) {
+      CHECK_TRAP(r.Call(offset));
+    }
+  }
 }
 
 WASM_SIMD_TEST(SimdLoadStoreLoadMemargOffset) {
@@ -3601,6 +3628,32 @@ WASM_SIMD_TEST(SimdLoadStoreLoadMemargOffset) {
     // Index 1 of memory (int32_t) will be bytes 4 to 8.
     r.builder().WriteMemory(&memory[1], expected);
     CHECK_EQ(expected, r.Call());
+  }
+
+  {
+    // OOB tests for loads with offsets.
+    for (uint32_t offset = kWasmPageSize - (kSimd128Size - 1);
+         offset < kWasmPageSize; ++offset) {
+      WasmRunner<int32_t> r(execution_tier, lower_simd);
+      r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
+      BUILD(r, WASM_SIMD_I32x4_EXTRACT_LANE(
+                   0, WASM_SIMD_LOAD_MEM_OFFSET(U32V_3(offset), WASM_ZERO)));
+      CHECK_TRAP(r.Call());
+    }
+  }
+
+  {
+    // OOB tests for stores with offsets
+    for (uint32_t offset = kWasmPageSize - (kSimd128Size - 1);
+         offset < kWasmPageSize; ++offset) {
+      WasmRunner<int32_t, uint32_t> r(execution_tier, lower_simd);
+      r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
+      BUILD(r,
+            WASM_SIMD_STORE_MEM_OFFSET(U32V_3(offset), WASM_ZERO,
+                                       WASM_SIMD_LOAD_MEM(WASM_ZERO)),
+            WASM_ONE);
+      CHECK_TRAP(r.Call(offset));
+    }
   }
 }
 
