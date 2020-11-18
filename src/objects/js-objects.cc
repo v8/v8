@@ -5068,6 +5068,7 @@ MaybeHandle<JSDate> JSDate::New(Handle<JSFunction> constructor,
 // static
 double JSDate::CurrentTimeValue(Isolate* isolate) {
   if (FLAG_log_internal_timer_events) LOG(isolate, CurrentTimeEvent());
+  if (FLAG_correctness_fuzzer_suppressions) return 4.2;
 
   // According to ECMA-262, section 15.9.1, page 117, the precision of
   // the number in a Date object representing a particular instant in
