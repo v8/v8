@@ -31,6 +31,7 @@
 #include <memory>
 
 #include "include/libplatform/v8-tracing.h"
+#include "include/v8-fast-api-calls.h"
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/platform.h"
@@ -52,6 +53,7 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 #include "test/cctest/profiler-extension.h"
+#include "test/common/flag-utils.h"
 
 #ifdef V8_USE_PERFETTO
 #include "protos/perfetto/trace/trace.pb.h"
@@ -3873,6 +3875,162 @@ UNINITIALIZED_TEST(DetailedSourcePositionAPI_Inlining) {
   }
 
   isolate->Dispose();
+}
+
+namespace {
+
+struct FastApiReceiver {
+  static void FastCallback(v8::ApiObject receiver, int argument,
+                           int* fallback) {
+    v8::Object* receiver_obj = reinterpret_cast<v8::Object*>(&receiver);
+    if (!IsValidUnwrapObject(receiver_obj)) {
+      *fallback = 1;
+      return;
+    }
+    FastApiReceiver* receiver_ptr =
+        GetInternalField<FastApiReceiver, kV8WrapperObjectIndex>(receiver_obj);
+
+    receiver_ptr->result_ |= ApiCheckerResult::kFastCalled;
+
+    // Artificially slow down the callback with a predictable amount of time.
+    // This ensures the test has a relatively stable run time on various
+    // platforms and protects it from flakyness.
+    v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(100));
+  }
+
+  static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    v8::Object* receiver_obj = v8::Object::Cast(*info.Holder());
+    if (!IsValidUnwrapObject(receiver_obj)) {
+      info.GetIsolate()->ThrowException(v8_str("Called with a non-object."));
+      return;
+    }
+    FastApiReceiver* receiver =
+        GetInternalField<FastApiReceiver, kV8WrapperObjectIndex>(receiver_obj);
+
+    receiver->result_ |= ApiCheckerResult::kSlowCalled;
+  }
+
+  bool DidCallFast() const { return (result_ & ApiCheckerResult::kFastCalled); }
+  bool DidCallSlow() const { return (result_ & ApiCheckerResult::kSlowCalled); }
+
+  ApiCheckerResultFlags result_ = ApiCheckerResult::kNotCalled;
+};
+
+}  // namespace
+
+v8::Local<v8::Function> CreateApiCode(LocalContext* env) {
+  const char* foo_name = "foo";
+  const char* script =
+      "function foo(arg) {"
+      "  for (let i = 0; i < arg; ++i) { receiver.api_func(i); }"
+      "}"
+      "%PrepareFunctionForOptimization(foo);"
+      "foo(42); foo(42);"
+      "%OptimizeFunctionOnNextCall(foo);";
+  CompileRun(script);
+
+  return GetFunction(env->local(), foo_name);
+}
+
+TEST(FastApiCPUProfiler) {
+#if !defined(V8_LITE_MODE) && !defined(USE_SIMULATOR)
+  if (i::FLAG_jitless) return;
+  if (i::FLAG_turboprop) return;
+
+  FLAG_SCOPE_EXTERNAL(opt);
+  FLAG_SCOPE_EXTERNAL(turbo_fast_api_calls);
+  FLAG_SCOPE_EXTERNAL(allow_natives_syntax);
+  // Disable --always_opt, otherwise we haven't generated the necessary
+  // feedback to go down the "best optimization" path for the fast call.
+  UNFLAG_SCOPE_EXTERNAL(always_opt);
+  UNFLAG_SCOPE_EXTERNAL(prof_browser_mode);
+
+  CcTest::InitializeVM();
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->set_embedder_wrapper_type_index(kV8WrapperTypeIndex);
+  i_isolate->set_embedder_wrapper_object_index(kV8WrapperObjectIndex);
+
+  i::HandleScope scope(i_isolate);
+
+  // Setup the fast call.
+  FastApiReceiver receiver;
+
+  v8::TryCatch try_catch(isolate);
+
+  v8::CFunction c_func =
+      v8::CFunction::MakeWithFallbackSupport(FastApiReceiver::FastCallback);
+
+  Local<v8::FunctionTemplate> receiver_templ = v8::FunctionTemplate::New(
+      isolate, FastApiReceiver::SlowCallback, v8::Local<v8::Value>(),
+      v8::Local<v8::Signature>(), 1, v8::ConstructorBehavior::kAllow,
+      v8::SideEffectType::kHasSideEffect, &c_func);
+
+  v8::Local<v8::ObjectTemplate> object_template =
+      v8::ObjectTemplate::New(isolate);
+  object_template->SetInternalFieldCount(kV8WrapperObjectIndex + 1);
+  const char* api_func_str = "api_func";
+  object_template->Set(isolate, api_func_str, receiver_templ);
+
+  v8::Local<v8::Object> object =
+      object_template->NewInstance(env.local()).ToLocalChecked();
+  object->SetAlignedPointerInInternalField(kV8WrapperObjectIndex,
+                                           reinterpret_cast<void*>(&receiver));
+
+  int num_runs_arg = 100;
+  env->Global()->Set(env.local(), v8_str("receiver"), object).Check();
+
+  // Prepare the code.
+  v8::Local<v8::Function> function = CreateApiCode(&env);
+
+  // Setup and start CPU profiler.
+  v8::Local<v8::Value> args[] = {
+      v8::Integer::New(env->GetIsolate(), num_runs_arg)};
+  ProfilerHelper helper(env.local());
+  // TODO(mslekova): We could tweak the following count to reduce test
+  // runtime, while still keeping the test stable.
+  unsigned external_samples = 1000;
+  v8::CpuProfile* profile =
+      helper.Run(function, args, arraysize(args), 0, external_samples);
+
+  // Check if the fast and slow callbacks got executed.
+  CHECK(receiver.DidCallFast());
+  CHECK(receiver.DidCallSlow());
+  CHECK(!try_catch.HasCaught());
+
+  // Check that generated profile has the expected structure.
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* foo_node = GetChild(env.local(), root, "foo");
+  const v8::CpuProfileNode* api_func_node =
+      GetChild(env.local(), foo_node, api_func_str);
+  CHECK_NOT_NULL(api_func_node);
+  CHECK_EQ(api_func_node->GetSourceType(), CpuProfileNode::kCallback);
+
+  // Check that the CodeEntry is the expected one, i.e. the fast callback.
+  CodeEntry* code_entry =
+      reinterpret_cast<const ProfileNode*>(api_func_node)->entry();
+  CodeMap* code_map = reinterpret_cast<CpuProfile*>(profile)
+                          ->cpu_profiler()
+                          ->code_map_for_test();
+  CodeEntry* expected_code_entry =
+      code_map->FindEntry(reinterpret_cast<Address>(c_func.GetAddress()));
+  CHECK_EQ(code_entry, expected_code_entry);
+
+  int foo_ticks = foo_node->GetHitCount();
+  int api_func_ticks = api_func_node->GetHitCount();
+  // Check that at least 80% of the samples in foo hit the fast callback.
+  CHECK_LE(foo_ticks, api_func_ticks * 0.2);
+  // The following constant in the CHECK is because above we expect at least
+  // 1000 samples with EXTERNAL type (see external_samples). Since the only
+  // thing that generates those kind of samples is the fast callback, then
+  // we're supposed to have close to 1000 ticks in its node. Since the CPU
+  // profiler is nondeterministic, we've allowed for some slack, otherwise
+  // this could be 1000 instead of 800.
+  CHECK_GE(api_func_ticks, 800);
+
+  profile->Delete();
+#endif
 }
 
 }  // namespace test_cpu_profiler

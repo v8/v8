@@ -406,3 +406,11 @@ int main(int argc, char* argv[]) {
 
 RegisterThreadedTest* RegisterThreadedTest::first_ = nullptr;
 int RegisterThreadedTest::count_ = 0;
+
+bool IsValidUnwrapObject(v8::Object* object) {
+  i::Address addr = *reinterpret_cast<i::Address*>(object);
+  auto instance_type = i::Internals::GetInstanceType(addr);
+  return (instance_type == i::Internals::kJSObjectType ||
+          instance_type == i::Internals::kJSApiObjectType ||
+          instance_type == i::Internals::kJSSpecialApiObjectType);
+}

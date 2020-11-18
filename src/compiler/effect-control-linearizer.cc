@@ -5085,9 +5085,16 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
 
   call_descriptor->SetCFunctionInfo(c_signature);
 
+  // CPU profiler support
+  Node* target_address = __ ExternalConstant(
+      ExternalReference::fast_api_call_target_address(isolate()));
+  __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
+                               kNoWriteBarrier),
+           target_address, 0, n.target());
+
   Node** const inputs = graph()->zone()->NewArray<Node*>(
       c_arg_count + FastApiCallNode::kFastCallExtraInputCount);
-  inputs[0] = NodeProperties::GetValueInput(node, 0);  // the target
+  inputs[0] = n.target();
   for (int i = FastApiCallNode::kFastTargetInputCount;
        i < c_arg_count + FastApiCallNode::kFastTargetInputCount; ++i) {
     if (c_signature->ArgumentInfo(i - 1).GetType() ==
@@ -5099,11 +5106,16 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
     }
   }
   inputs[c_arg_count + 1] = fast_api_call_stack_slot_;
+
   inputs[c_arg_count + 2] = __ effect();
   inputs[c_arg_count + 3] = __ control();
 
   __ Call(call_descriptor,
           c_arg_count + FastApiCallNode::kFastCallExtraInputCount, inputs);
+
+  __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
+                               kNoWriteBarrier),
+           target_address, 0, __ IntPtrConstant(0));
 
   // Generate the load from `fast_api_call_stack_slot_`.
   Node* load = __ Load(MachineType::Int32(), fast_api_call_stack_slot_, 0);

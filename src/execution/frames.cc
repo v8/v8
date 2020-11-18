@@ -301,13 +301,13 @@ SafeStackFrameIterator::SafeStackFrameIterator(Isolate* isolate, Address pc,
     frame_ = nullptr;
     return;
   }
-  // 'Fast C calls' are a special type of C call where we call directly from JS
-  // to C without an exit frame inbetween. The CEntryStub is responsible for
-  // setting Isolate::c_entry_fp, meaning that it won't be set for fast C calls.
-  // To keep the stack iterable, we store the FP and PC of the caller of the
-  // fast C call on the isolate. This is guaranteed to be the topmost JS frame,
-  // because fast C calls cannot call back into JS. We start iterating the stack
-  // from this topmost JS frame.
+  // 'Fast C calls' are a special type of C call where we call directly from
+  // JS to C without an exit frame inbetween. The CEntryStub is responsible
+  // for setting Isolate::c_entry_fp, meaning that it won't be set for fast C
+  // calls. To keep the stack iterable, we store the FP and PC of the caller
+  // of the fast C call on the isolate. This is guaranteed to be the topmost
+  // JS frame, because fast C calls cannot call back into JS. We start
+  // iterating the stack from this topmost JS frame.
   if (fast_c_fp) {
     DCHECK_NE(kNullAddress, isolate->isolate_data()->fast_c_call_caller_pc());
     type = StackFrame::Type::OPTIMIZED;
@@ -402,6 +402,7 @@ void SafeStackFrameIterator::AdvanceOneFrame() {
   DCHECK(!done());
   StackFrame* last_frame = frame_;
   Address last_sp = last_frame->sp(), last_fp = last_frame->fp();
+
   // Before advancing to the next stack frame, perform pointer validity tests.
   if (!IsValidFrame(last_frame) || !IsValidCaller(last_frame)) {
     frame_ = nullptr;

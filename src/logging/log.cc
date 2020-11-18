@@ -2299,8 +2299,14 @@ void ExistingCodeLogger::LogExistingFunction(
 #if USES_FUNCTION_DESCRIPTORS
       entry_point = *FUNCTION_ENTRYPOINT_ADDRESS(entry_point);
 #endif
-      CALL_CODE_EVENT_HANDLER(
-          CallbackEvent(handle(shared->DebugName(), isolate_), entry_point))
+      Handle<String> fun_name(shared->DebugName(), isolate_);
+      CALL_CODE_EVENT_HANDLER(CallbackEvent(fun_name, entry_point))
+
+      // Fast API function.
+      Address c_function = v8::ToCData<Address>(fun_data.GetCFunction());
+      if (c_function != kNullAddress) {
+        CALL_CODE_EVENT_HANDLER(CallbackEvent(fun_name, c_function))
+      }
     }
   }
 }

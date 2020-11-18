@@ -826,6 +826,12 @@ ExternalReference ExternalReference::fast_c_call_caller_pc_address(
       isolate->isolate_data()->fast_c_call_caller_pc_address());
 }
 
+ExternalReference ExternalReference::fast_api_call_target_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->isolate_data()->fast_api_call_target_address());
+}
+
 ExternalReference ExternalReference::stack_is_iterable_address(
     Isolate* isolate) {
   return ExternalReference(

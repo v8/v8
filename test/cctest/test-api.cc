@@ -66,6 +66,7 @@
 #include "src/objects/string-inl.h"
 #include "src/objects/synthetic-module-inl.h"
 #include "src/profiler/cpu-profiler.h"
+#include "src/profiler/symbolizer.h"
 #include "src/strings/unicode-inl.h"
 #include "src/utils/utils.h"
 #include "test/cctest/heap/heap-tester.h"
@@ -27454,10 +27455,6 @@ UNINITIALIZED_TEST(NestedIsolates) {
 
 #ifndef V8_LITE_MODE
 namespace {
-// The following should correspond to Chromium's kV8DOMWrapperObjectIndex.
-static const int kV8WrapperTypeIndex = 0;
-static const int kV8WrapperObjectIndex = 1;
-
 template <typename T>
 struct ConvertJSValue {
   static Maybe<T> Get(v8::Local<v8::Value> value,
@@ -27578,14 +27575,6 @@ struct ConvertJSValue<bool> {
   }
 };
 
-enum class ApiCheckerResult : uint8_t {
-  kNotCalled = 0,
-  kSlowCalled = 1 << 0,
-  kFastCalled = 1 << 1,
-};
-using ApiCheckerResultFlags = v8::base::Flags<ApiCheckerResult>;
-DEFINE_OPERATORS_FOR_FLAGS(ApiCheckerResultFlags)
-
 template <typename Value, typename Impl>
 struct BasicApiChecker {
   static void FastCallback(v8::ApiObject receiver, Value argument,
@@ -27605,22 +27594,6 @@ struct BasicApiChecker {
 
   ApiCheckerResultFlags result_ = ApiCheckerResult::kNotCalled;
 };
-
-bool IsValidUnwrapObject(v8::Object* object) {
-  v8::internal::Address addr =
-      *reinterpret_cast<v8::internal::Address*>(object);
-  auto instance_type = v8::internal::Internals::GetInstanceType(addr);
-  return (instance_type == v8::internal::Internals::kJSObjectType ||
-          instance_type == v8::internal::Internals::kJSApiObjectType ||
-          instance_type == v8::internal::Internals::kJSSpecialApiObjectType);
-}
-
-template <typename T, int offset>
-T* GetInternalField(v8::Object* wrapper) {
-  assert(offset < wrapper->InternalFieldCount());
-  return reinterpret_cast<T*>(
-      wrapper->GetAlignedPointerFromInternalField(offset));
-}
 
 enum class Behavior {
   kNoException,
