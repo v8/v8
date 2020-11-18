@@ -21,6 +21,7 @@
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/source-text-module.h"
 #include "src/objects/string-inl.h"
+#include "src/objects/string.h"
 #include "src/objects/template-objects-inl.h"
 
 namespace v8 {
@@ -508,7 +509,8 @@ Handle<SeqOneByteString> FactoryBase<Impl>::NewOneByteInternalizedString(
   Handle<SeqOneByteString> result =
       AllocateRawOneByteInternalizedString(str.length(), hash_field);
   DisallowHeapAllocation no_gc;
-  MemCopy(result->GetChars(no_gc), str.begin(), str.length());
+  MemCopy(result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()),
+          str.begin(), str.length());
   return result;
 }
 
@@ -518,7 +520,8 @@ Handle<SeqTwoByteString> FactoryBase<Impl>::NewTwoByteInternalizedString(
   Handle<SeqTwoByteString> result =
       AllocateRawTwoByteInternalizedString(str.length(), hash_field);
   DisallowHeapAllocation no_gc;
-  MemCopy(result->GetChars(no_gc), str.begin(), str.length() * kUC16Size);
+  MemCopy(result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()),
+          str.begin(), str.length() * kUC16Size);
   return result;
 }
 
@@ -606,21 +609,31 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
       Handle<SeqOneByteString> result =
           NewRawOneByteString(length, allocation).ToHandleChecked();
       DisallowHeapAllocation no_gc;
-      uint8_t* dest = result->GetChars(no_gc);
+      uint8_t* dest =
+          result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded());
       // Copy left part.
-      const uint8_t* src = left->template GetChars<uint8_t>(no_gc);
-      CopyChars(dest, src, left_length);
+      {
+        SharedStringAccessGuardIfNeeded access_guard(*left);
+        const uint8_t* src =
+            left->template GetChars<uint8_t>(no_gc, access_guard);
+        CopyChars(dest, src, left_length);
+      }
       // Copy right part.
-      src = right->template GetChars<uint8_t>(no_gc);
-      CopyChars(dest + left_length, src, right_length);
+      {
+        SharedStringAccessGuardIfNeeded access_guard(*right);
+        const uint8_t* src =
+            right->template GetChars<uint8_t>(no_gc, access_guard);
+        CopyChars(dest + left_length, src, right_length);
+      }
       return result;
     }
 
     Handle<SeqTwoByteString> result =
         NewRawTwoByteString(length, allocation).ToHandleChecked();
 
-    DisallowHeapAllocation pointer_stays_valid;
-    uc16* sink = result->GetChars(pointer_stays_valid);
+    DisallowHeapAllocation no_gc;
+    uc16* sink =
+        result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded());
     String::WriteToFlat(*left, sink, 0, left->length());
     String::WriteToFlat(*right, sink + left->length(), 0, right->length());
     return result;

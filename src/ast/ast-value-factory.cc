@@ -34,6 +34,7 @@
 #include "src/heap/local-factory-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
+#include "src/objects/string.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/strings/string-hasher.h"
 #include "src/utils/utils-inl.h"
@@ -193,14 +194,17 @@ Handle<String> AstConsString::AllocateFlat(LocalIsolate* isolate) const {
             ->NewRawOneByteString(result_length, AllocationType::kOld)
             .ToHandleChecked();
     DisallowHeapAllocation no_gc;
-    uint8_t* dest = result->GetChars(no_gc) + result_length;
+    uint8_t* dest =
+        result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()) +
+        result_length;
     for (const AstConsString::Segment* current = &segment_; current != nullptr;
          current = current->next) {
       int length = current->string->length();
       dest -= length;
       CopyChars(dest, current->string->raw_data(), length);
     }
-    DCHECK_EQ(dest, result->GetChars(no_gc));
+    DCHECK_EQ(dest, result->GetChars(
+                        no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()));
     return result;
   }
 
@@ -209,7 +213,9 @@ Handle<String> AstConsString::AllocateFlat(LocalIsolate* isolate) const {
           ->NewRawTwoByteString(result_length, AllocationType::kOld)
           .ToHandleChecked();
   DisallowHeapAllocation no_gc;
-  uint16_t* dest = result->GetChars(no_gc) + result_length;
+  uint16_t* dest =
+      result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()) +
+      result_length;
   for (const AstConsString::Segment* current = &segment_; current != nullptr;
        current = current->next) {
     int length = current->string->length();
@@ -222,7 +228,8 @@ Handle<String> AstConsString::AllocateFlat(LocalIsolate* isolate) const {
                 length);
     }
   }
-  DCHECK_EQ(dest, result->GetChars(no_gc));
+  DCHECK_EQ(dest, result->GetChars(
+                      no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()));
   return result;
 }
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)

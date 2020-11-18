@@ -358,7 +358,10 @@ class InternalizedStringKey final : public StringTableKey {
     set_hash_field(string->hash_field());
   }
 
-  bool IsMatch(String string) override { return string_->SlowEquals(string); }
+  bool IsMatch(String string) override {
+    DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(string));
+    return string_->SlowEquals(string);
+  }
 
   Handle<String> AsHandle(Isolate* isolate) {
     // Internalize the string if possible.
