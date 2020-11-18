@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 import {DOM, V8CustomElement} from './helper.mjs';
 
-DOM.defineCustomElement('log-file-reader',
+DOM.defineCustomElement('view/log-file-reader',
                         (templateText) =>
                             class LogFileReader extends V8CustomElement {
   constructor() {

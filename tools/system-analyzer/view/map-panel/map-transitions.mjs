@@ -1,11 +1,12 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import {FocusEvent, SelectionEvent} from '../events.mjs';
-import {DOM, typeToColor, V8CustomElement} from '../helper.mjs';
+import {FocusEvent, SelectionEvent} from '../../events.mjs';
+import {CSSColor} from '../helper.mjs';
+import {DOM, V8CustomElement} from '../helper.mjs';
 
 DOM.defineCustomElement(
-    './map-panel/map-transitions',
+    './view/map-panel/map-transitions',
     (templateText) => class MapTransitions extends V8CustomElement {
       _map;
       _selectedMapLogEntries;
@@ -38,6 +39,35 @@ DOM.defineCustomElement(
         this._showMap();
       }
 
+      set selectedMapLogEntries(list) {
+        this._selectedMapLogEntries = list;
+        this.update();
+      }
+
+      get selectedMapLogEntries() {
+        return this._selectedMapLogEntries;
+      }
+
+      _typeToColor(type) {
+        switch (type) {
+          case 'new':
+            return CSSColor.green;
+          case 'Normalize':
+            return CSSColor.violet;
+          case 'SlowToFast':
+            return CSSColor.orange;
+          case 'InitialMap':
+            return CSSColor.yellow;
+          case 'Transition':
+            return CSSColor.primaryColor;
+          case 'ReplaceDescriptors':
+            return CSSColor.red;
+          case 'LoadGlobalIC':
+            return CSSColor.green;
+        }
+        return CSSColor.secondaryColor;
+      }
+
       _handleTransitionViewChange(e) {
         this.tooltip.style.left = e.pageX + 'px';
         this.tooltip.style.top = e.pageY + 'px';
@@ -67,15 +97,6 @@ DOM.defineCustomElement(
             (map) => this._addMapAndParentTransitions(map));
         this._displayedMapsInTree = undefined;
         this.transitionView.style.display = '';
-      }
-
-      set selectedMapLogEntries(list) {
-        this._selectedMapLogEntries = list;
-        this.update();
-      }
-
-      get selectedMapLogEntries() {
-        return this._selectedMapLogEntries;
       }
 
       _addMapAndParentTransitions(map) {
@@ -116,7 +137,7 @@ DOM.defineCustomElement(
       _addTransitionEdge(map) {
         let classes = ['transitionEdge'];
         let edge = DOM.div(classes);
-        edge.style.backgroundColor = typeToColor(map.edge);
+        edge.style.backgroundColor = this._typeToColor(map.edge);
         let labelNode = DOM.div('transitionLabel');
         labelNode.innerText = map.edge.toString();
         edge.appendChild(labelNode);
@@ -145,7 +166,7 @@ DOM.defineCustomElement(
 
       _addMapNode(map) {
         let node = DOM.div('map');
-        if (map.edge) node.style.backgroundColor = typeToColor(map.edge);
+        if (map.edge) node.style.backgroundColor = this._typeToColor(map.edge);
         node.map = map;
         node.onclick = this._selectMapHandler
         if (map.children.length > 1) {

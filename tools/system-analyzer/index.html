@@ -8,12 +8,13 @@ found in the LICENSE file. -->
   <title>Indicium</title>
   <!-- <link rel="icon" type="image/png" href="/images/favicon.png"/> -->
 
-  <link rel="modulepreload" href="./log-file-reader.mjs" >
   <link rel="modulepreload" href="./helper.mjs" >
-  <link rel="preload" href="./log-file-reader-template.html" as="fetch" crossorigin="anonymous">
+  <link rel="modulepreload" href="./view/log-file-reader.mjs" >
+  <link rel="modulepreload" href="./view/helper.mjs" >
+  <link rel="preload" href="./view/log-file-reader-template.html" as="fetch" crossorigin="anonymous">
   <script type="module">
     // Force instatiating the log-reader before anything else.
-    import "./log-file-reader.mjs";
+    import "./view/log-file-reader.mjs";
     // Delay loading of the main App
     (async function() {
       let module = await import('./index.mjs');

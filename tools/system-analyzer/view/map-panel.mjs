@@ -5,11 +5,12 @@ import './stats-panel.mjs';
 import './map-panel/map-details.mjs';
 import './map-panel/map-transitions.mjs';
 
-import {FocusEvent} from './events.mjs';
-import {DOM, V8CustomElement} from './helper.mjs';
-import {MapLogEntry} from './log/map.mjs';
+import {FocusEvent} from '../events.mjs';
+import {MapLogEntry} from '../log/map.mjs';
 
-DOM.defineCustomElement('map-panel',
+import {DOM, V8CustomElement} from './helper.mjs';
+
+DOM.defineCustomElement('view/map-panel',
                         (templateText) =>
                             class MapPanel extends V8CustomElement {
   _map;

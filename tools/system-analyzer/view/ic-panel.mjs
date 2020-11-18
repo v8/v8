@@ -2,14 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {FocusEvent, SelectionEvent, SelectTimeEvent} from './events.mjs';
-import {delay, DOM, V8CustomElement} from './helper.mjs';
-import {Group} from './ic-model.mjs';
-import {IcLogEntry} from './log/ic.mjs';
-import {MapLogEntry} from './log/map.mjs';
+import {FocusEvent, SelectionEvent, SelectTimeEvent} from '../events.mjs';
+import {Group} from '../ic-model.mjs';
+import {IcLogEntry} from '../log/ic.mjs';
+import {MapLogEntry} from '../log/map.mjs';
+
+import {DOM, V8CustomElement} from './helper.mjs';
 
 DOM.defineCustomElement(
-    'ic-panel', (templateText) => class ICPanel extends V8CustomElement {
+    'view/ic-panel', (templateText) => class ICPanel extends V8CustomElement {
       _selectedLogEntries;
       _timeline;
 

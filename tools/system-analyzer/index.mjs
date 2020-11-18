@@ -6,11 +6,10 @@ import {SourcePosition} from '../profile.mjs';
 
 import {State} from './app-model.mjs';
 import {FocusEvent, SelectionEvent, SelectTimeEvent} from './events.mjs';
-import {CSSColor} from './helper.mjs';
-import {$} from './helper.mjs';
 import {IcLogEntry} from './log/ic.mjs';
 import {MapLogEntry} from './log/map.mjs';
 import {Processor} from './processor.mjs';
+import {$, CSSColor} from './view/helper.mjs';
 
 class App {
   _state;
@@ -43,11 +42,11 @@ class App {
 
   async runAsyncInitialize() {
     await Promise.all([
-      import('./ic-panel.mjs'),
-      import('./timeline-panel.mjs'),
-      import('./stats-panel.mjs'),
-      import('./map-panel.mjs'),
-      import('./source-panel.mjs'),
+      import('./view/ic-panel.mjs'),
+      import('./view/timeline-panel.mjs'),
+      import('./view/stats-panel.mjs'),
+      import('./view/map-panel.mjs'),
+      import('./view/source-panel.mjs'),
     ]);
     document.addEventListener(
         'keydown', e => this._navigation?.handleKeyDown(e));

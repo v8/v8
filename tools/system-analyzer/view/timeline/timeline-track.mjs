@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {FocusEvent, SelectionEvent, SelectTimeEvent, SynchronizeSelectionEvent} from '../events.mjs';
-import {CSSColor, delay, DOM, V8CustomElement} from '../helper.mjs';
-import {kChunkHeight, kChunkWidth} from '../log/map.mjs';
-import {MapLogEntry} from '../log/map.mjs';
+import {FocusEvent, SelectionEvent, SelectTimeEvent, SynchronizeSelectionEvent} from '../../events.mjs';
+import {kChunkHeight, kChunkWidth} from '../../log/map.mjs';
+import {MapLogEntry} from '../../log/map.mjs';
+import {CSSColor, DOM, V8CustomElement} from '../helper.mjs';
 
 const kColors = [
   CSSColor.green,
@@ -19,7 +19,7 @@ const kColors = [
   CSSColor.secondaryColor,
 ];
 
-DOM.defineCustomElement('./timeline/timeline-track',
+DOM.defineCustomElement('view/timeline/timeline-track',
                         (templateText) =>
                             class TimelineTrack extends V8CustomElement {
   // TODO turn into static field once Safari supports it.
