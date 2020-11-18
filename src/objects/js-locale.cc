@@ -104,6 +104,9 @@ Handle<Object> UnicodeKeywordValue(Isolate* isolate, Handle<JSLocale> locale,
   if (value == "yes") {
     value = "true";
   }
+  if (value == "true" && strcmp(key, "kf") == 0) {
+    return isolate->factory()->NewStringFromStaticChars("");
+  }
   return isolate->factory()->NewStringFromAsciiChecked(value.c_str());
 }
 
@@ -242,10 +245,12 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, Handle<String> tag,
     return Just(false);
   }
   UErrorCode status = U_ZERO_ERROR;
-  builder->build(status);
+  icu::Locale canonicalized = builder->build(status);
+  canonicalized.canonicalize(status);
   if (U_FAILURE(status)) {
     return Just(false);
   }
+  builder->setLocale(canonicalized);
 
   // 3. Let language be ? GetOption(options, "language", "string", undefined,
   // undefined).
@@ -346,6 +351,9 @@ MaybeHandle<JSLocale> JSLocale::New(Isolate* isolate, Handle<Map> map,
   MAYBE_RETURN(maybe_insert, MaybeHandle<JSLocale>());
   UErrorCode status = U_ZERO_ERROR;
   icu::Locale icu_locale = builder.build(status);
+
+  icu_locale.canonicalize(status);
+
   if (!maybe_insert.FromJust() || U_FAILURE(status)) {
     THROW_NEW_ERROR(isolate,
                     NewRangeError(MessageTemplate::kLocaleBadParameters),

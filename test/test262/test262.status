@@ -546,29 +546,22 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=9049
   'language/comments/hashbang/use-strict': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9613
+  # https://github.com/tc39/test262/pull/2903
   'intl402/Intl/getCanonicalLocales/canonicalized-tags': [FAIL],
-  'intl402/Intl/getCanonicalLocales/grandfathered': [FAIL],
-  'intl402/Intl/getCanonicalLocales/preferred-grandfathered': [FAIL],
   'intl402/Intl/getCanonicalLocales/preferred-variant': [FAIL],
-  'intl402/Locale/constructor-apply-options-canonicalizes-twice': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9613
   'intl402/Locale/likely-subtags-grandfathered': [FAIL],
 
+  # http://crbug/v8/11039
+  'intl402/Locale/reject-duplicate-variants-in-tlang': [FAIL],
+
   # http://crbug/v8/10447
-  'intl402/Intl/getCanonicalLocales/complex-language-subtag-replacement': [FAIL],
-  'intl402/Intl/getCanonicalLocales/complex-region-subtag-replacement': [FAIL],
   'intl402/Intl/getCanonicalLocales/transformed-ext-canonical': [FAIL],
   'intl402/Intl/getCanonicalLocales/transformed-ext-invalid': [FAIL],
   'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-region': [FAIL],
   'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-subdivision': [FAIL],
   'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-yes-to-true': [FAIL],
-  'intl402/Intl/getCanonicalLocales/unicode-ext-key-with-digit': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9742
-  'intl402/Locale/getters': [FAIL],
-
-  # https://github.com/tc39/test262/pull/2349
-  'intl402/Locale/constructor-options-region-valid': [FAIL],
 
   # http://crbug/v8/11174
   'intl402/DateTimeFormat/intl-legacy-constructed-symbol': [FAIL],
@@ -652,9 +645,6 @@
   'built-ins/TypedArray/prototype/item/returns-item-relative-index': [FAIL],
   'built-ins/TypedArray/prototype/item/returns-undefined-for-holes-in-sparse-arrays': [FAIL],
   'built-ins/TypedArray/prototype/item/returns-undefined-for-out-of-range-index': [FAIL],
-
-  # http://crbug/v8/11039
-  'intl402/Locale/reject-duplicate-variants-in-tlang': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 

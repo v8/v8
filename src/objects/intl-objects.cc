@@ -744,22 +744,12 @@ bool IsTwoLetterLanguage(const std::string& locale) {
          IsAsciiLower(locale[1]);
 }
 
-bool IsDeprecatedLanguage(const std::string& locale) {
+bool IsDeprecatedOrLegacyLanguage(const std::string& locale) {
   //  Check if locale is one of the deprecated language tags:
   return locale == "in" || locale == "iw" || locale == "ji" || locale == "jw" ||
-         locale == "mo";
-}
-
-// Reference:
-// https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry
-bool IsGrandfatheredTagWithoutPreferredVaule(const std::string& locale) {
-  if (V8_UNLIKELY(locale == "zh-min" || locale == "cel-gaulish")) return true;
-  if (locale.length() > 6 /* i-mingo is 7 chars long */ &&
-      V8_UNLIKELY(locale[0] == 'i' && locale[1] == '-')) {
-    return locale.substr(2) == "default" || locale.substr(2) == "enochian" ||
-           locale.substr(2) == "mingo";
-  }
-  return false;
+         locale == "mo" ||
+         //  Check if locale is one of the legacy language tags:
+         locale == "sh" || locale == "tl" || locale == "no";
 }
 
 bool IsStructurallyValidLanguageTag(const std::string& tag) {
@@ -788,7 +778,7 @@ Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
   // (in, iw, ji, jw). Don't check for ~70 of 3-letter deprecated language
   // codes. Instead, let them be handled by ICU in the slow path. However,
   // fast-track 'fil' (3-letter canonical code).
-  if ((IsTwoLetterLanguage(locale) && !IsDeprecatedLanguage(locale)) ||
+  if ((IsTwoLetterLanguage(locale) && !IsDeprecatedOrLegacyLanguage(locale)) ||
       locale == "fil") {
     return Just(locale);
   }
@@ -796,13 +786,6 @@ Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
   // Because per BCP 47 2.1.1 language tags are case-insensitive, lowercase
   // the input before any more check.
   std::transform(locale.begin(), locale.end(), locale.begin(), ToAsciiLower);
-
-  // ICU maps a few grandfathered tags to what looks like a regular language
-  // tag even though IANA language tag registry does not have a preferred
-  // entry map for them. Return them as they're with lowercasing.
-  if (IsGrandfatheredTagWithoutPreferredVaule(locale)) {
-    return Just(locale);
-  }
 
   // // ECMA 402 6.2.3
   // TODO(jshin): uloc_{for,to}TanguageTag can fail even for a structually valid
@@ -817,6 +800,32 @@ Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
   // is structurally valid. Due to a couple of bugs, we can't use it
   // without Chromium patches or ICU 62 or earlier.
   icu::Locale icu_locale = icu::Locale::forLanguageTag(locale.c_str(), error);
+
+  if (U_FAILURE(error) || icu_locale.isBogus()) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(
+            MessageTemplate::kInvalidLanguageTag,
+            isolate->factory()->NewStringFromAsciiChecked(locale.c_str())),
+        Nothing<std::string>());
+  }
+
+  // reject attribute of wrong length.
+  if (std::strstr(icu_locale.getName(), "attribute=") != nullptr) {
+    std::string attribute =
+        icu_locale.getKeywordValue<std::string>("attribute", error);
+    if (U_SUCCESS(error) &&
+        (attribute.length() < 3 || attribute.length() > 8)) {
+      THROW_NEW_ERROR_RETURN_VALUE(
+          isolate,
+          NewRangeError(
+              MessageTemplate::kInvalidLanguageTag,
+              isolate->factory()->NewStringFromAsciiChecked(locale.c_str())),
+          Nothing<std::string>());
+    }
+  }
+
+  icu_locale.canonicalize(error);
   if (U_FAILURE(error) || icu_locale.isBogus()) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
