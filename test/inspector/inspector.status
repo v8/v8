@@ -170,6 +170,9 @@
   # There are still memory leaks in some inspector tests
   # (https://crbug.com/v8/11107).
   'runtime/evaluate-async': [SKIP],
+
+  # https://crbug.com/v8/11176.
+  'runtime/remote-object' : [SKIP],
 }], # asan == True
 
 ]
