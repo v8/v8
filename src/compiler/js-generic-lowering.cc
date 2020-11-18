@@ -234,8 +234,19 @@ void JSGenericLowering::LowerJSStrictEqual(Node* node) {
 }
 
 namespace {
+
+// The megamorphic load builtin can be used as a performance optimization in
+// some cases - unlike the full builtin, the megamorphic builtin does fewer
+// checks and does not collect feedback.
 bool ShouldUseMegamorphicLoadBuiltin(FeedbackSource const& source,
                                      JSHeapBroker* broker) {
+  if (broker->is_native_context_independent()) {
+    // The decision to use the megamorphic load builtin is made based on
+    // current feedback, and is thus context-dependent. It cannot be used when
+    // generating NCI code.
+    return false;
+  }
+
   ProcessedFeedback const& feedback = broker->GetFeedback(source);
 
   if (feedback.kind() == ProcessedFeedback::kElementAccess) {
