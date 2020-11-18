@@ -383,7 +383,8 @@
   # TODO(ppc): Implement load/store reverse byte instructions
   'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad': [SKIP],
   'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad_turbofan': [SKIP],
-
+  # slow in PASE emulator
+  'test-cpu-profiler/Inlining2': [PASS, SLOW],
 }],  # 'system == aix or (arch == ppc64 and byteorder == big)'
 
 ##############################################################################
