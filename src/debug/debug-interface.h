@@ -423,6 +423,8 @@ class V8_EXPORT_PRIVATE ScopeIterator {
 
   ScopeIterator() = default;
   virtual ~ScopeIterator() = default;
+  ScopeIterator(const ScopeIterator&) = delete;
+  ScopeIterator& operator=(const ScopeIterator&) = delete;
 
   enum ScopeType {
     ScopeTypeGlobal = 0,
@@ -449,9 +451,6 @@ class V8_EXPORT_PRIVATE ScopeIterator {
 
   virtual bool SetVariableValue(v8::Local<v8::String> name,
                                 v8::Local<v8::Value> value) = 0;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(ScopeIterator);
 };
 
 class V8_EXPORT_PRIVATE StackTraceIterator {
@@ -461,6 +460,8 @@ class V8_EXPORT_PRIVATE StackTraceIterator {
                                                     int index = 0);
   StackTraceIterator() = default;
   virtual ~StackTraceIterator() = default;
+  StackTraceIterator(const StackTraceIterator&) = delete;
+  StackTraceIterator& operator=(const StackTraceIterator&) = delete;
 
   virtual bool Done() const = 0;
   virtual void Advance() = 0;
@@ -479,9 +480,6 @@ class V8_EXPORT_PRIVATE StackTraceIterator {
                                              bool throw_on_side_effect) = 0;
   virtual v8::MaybeLocal<v8::String> EvaluateWasm(
       internal::Vector<const internal::byte> source, int frame_index) = 0;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(StackTraceIterator);
 };
 
 class QueryObjectPredicate {

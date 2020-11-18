@@ -51,6 +51,9 @@ class TaskRunner {
         nested_loop_count_(0),
         is_terminated_(false) {}
 
+  TaskRunner(const TaskRunner&) = delete;
+  TaskRunner& operator=(const TaskRunner&) = delete;
+
   // Starts the task runner. All tasks posted are run, in order, in the thread
   // that calls this function.
   void Run() {
@@ -100,8 +103,6 @@ class TaskRunner {
   v8::base::Semaphore process_queue_semaphore_;
   int nested_loop_count_;
   std::atomic<bool> is_terminated_;
-
-  DISALLOW_COPY_AND_ASSIGN(TaskRunner);
 };
 
 GdbServer::GdbServer() { task_runner_ = std::make_unique<TaskRunner>(); }

@@ -24,6 +24,9 @@ class TaskRunner;
 // the Wasm engine.
 class GdbServer {
  public:
+  GdbServer(const GdbServer&) = delete;
+  GdbServer& operator=(const GdbServer&) = delete;
+
   // Factory method: creates and returns a GdbServer. Spawns a "GDB-remote"
   // thread that will be used to communicate with the debugger.
   // May return null on failure.
@@ -189,8 +192,6 @@ class GdbServer {
 
   // End of fields always accessed in the isolate thread.
   //////////////////////////////////////////////////////////////////////////////
-
-  DISALLOW_COPY_AND_ASSIGN(GdbServer);
 };
 
 }  // namespace gdb_server

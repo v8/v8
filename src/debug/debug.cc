@@ -47,6 +47,8 @@ class Debug::TemporaryObjectsTracker : public HeapObjectAllocationTracker {
  public:
   TemporaryObjectsTracker() = default;
   ~TemporaryObjectsTracker() override = default;
+  TemporaryObjectsTracker(const TemporaryObjectsTracker&) = delete;
+  TemporaryObjectsTracker& operator=(const TemporaryObjectsTracker&) = delete;
 
   void AllocationEvent(Address addr, int) override { objects_.insert(addr); }
 
@@ -80,7 +82,6 @@ class Debug::TemporaryObjectsTracker : public HeapObjectAllocationTracker {
  private:
   std::unordered_set<Address> objects_;
   base::Mutex mutex_;
-  DISALLOW_COPY_AND_ASSIGN(TemporaryObjectsTracker);
 };
 
 Debug::Debug(Isolate* isolate)
