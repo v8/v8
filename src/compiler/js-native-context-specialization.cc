@@ -824,17 +824,11 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
     DCHECK_EQ(receiver, lookup_start_object);
     if (property_details.IsReadOnly()) {
       // Don't even bother trying to lower stores to read-only data properties.
+      // TODO(neis): We could generate code that checks if the new value equals
+      // the old one and then does nothing or deopts, respectively.
       return NoChange();
     } else if (property_cell_type == PropertyCellType::kUndefined) {
-      // There's no fast-path for dealing with undefined property cells.
       return NoChange();
-    } else if (property_cell_type == PropertyCellType::kConstantType) {
-      // There's also no fast-path to store to a global cell which pretended
-      // to be stable, but is no longer stable now.
-      if (property_cell_value.IsHeapObject() &&
-          !property_cell_value.AsHeapObject().map().is_stable()) {
-        return NoChange();
-      }
     }
   } else if (access_mode == AccessMode::kHas) {
     DCHECK_EQ(receiver, lookup_start_object);
@@ -947,23 +941,30 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
       }
       case PropertyCellType::kConstantType: {
         // Record a code dependency on the cell, and just deoptimize if the new
-        // values' type doesn't match the type of the previous value in the
+        // value's type doesn't match the type of the previous value in the
         // cell.
         dependencies()->DependOnGlobalProperty(property_cell);
         Type property_cell_value_type;
         MachineRepresentation representation = MachineRepresentation::kTagged;
         if (property_cell_value.IsHeapObject()) {
-          // We cannot do anything if the {property_cell_value}s map is no
-          // longer stable.
           MapRef property_cell_value_map =
               property_cell_value.AsHeapObject().map();
-          dependencies()->DependOnStableMap(property_cell_value_map);
+          if (property_cell_value_map.is_stable()) {
+            dependencies()->DependOnStableMap(property_cell_value_map);
+          } else {
+            // The value's map is already unstable. If this store were to go
+            // through the C++ runtime, it would transition the PropertyCell to
+            // kMutable. We don't want to change the cell type from generated
+            // code (to simplify concurrent heap access), however, so we keep
+            // it as kConstantType and do the store anyways (if the new value's
+            // map matches). This is safe because it merely prolongs the limbo
+            // state that we are in already.
+          }
 
           // Check that the {value} is a HeapObject.
           value = effect = graph()->NewNode(simplified()->CheckHeapObject(),
                                             value, effect, control);
-
-          // Check {value} map against the {property_cell} map.
+          // Check {value} map against the {property_cell_value} map.
           effect = graph()->NewNode(
               simplified()->CheckMaps(
                   CheckMapsFlag::kNone,
