@@ -2345,6 +2345,12 @@ void JSRegExpData::SerializeAsRegExpBoilerplate(JSHeapBroker* broker) {
   last_index_ = broker->GetOrCreateData(boilerplate->last_index());
 }
 
+#ifdef DEBUG
+bool ObjectRef::IsNeverSerializedHeapObject() const {
+  return data_->kind() == ObjectDataKind::kNeverSerializedHeapObject;
+}
+#endif  // DEBUG
+
 bool ObjectRef::equals(const ObjectRef& other) const {
 #ifdef DEBUG
   if (broker()->mode() == JSHeapBroker::kSerialized &&

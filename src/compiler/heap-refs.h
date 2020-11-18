@@ -178,6 +178,10 @@ class V8_EXPORT_PRIVATE ObjectRef {
     }
   };
 
+#ifdef DEBUG
+  bool IsNeverSerializedHeapObject() const;
+#endif  // DEBUG
+
  protected:
   JSHeapBroker* broker() const;
   ObjectData* data() const;
