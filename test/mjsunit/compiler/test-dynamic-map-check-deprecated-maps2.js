@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turboprop --turboprop-dynamic-map-checks
+// Flags: --allow-natives-syntax --turboprop --turbo-dynamic-map-checks
 // Flags: --opt --no-always-opt --deopt-every-n-times=0
 
 function b(a) { return a; }

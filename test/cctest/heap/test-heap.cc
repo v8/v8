@@ -1251,7 +1251,7 @@ UNINITIALIZED_TEST(Regress10843) {
 TEST(Regress10774) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_turboprop = true;
-  i::FLAG_turboprop_dynamic_map_checks = true;
+  i::FLAG_turbo_dynamic_map_checks = true;
 #ifdef VERIFY_HEAP
   i::FLAG_verify_heap = true;
 #endif

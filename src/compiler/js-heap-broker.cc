@@ -4665,8 +4665,7 @@ void FilterRelevantReceiverMaps(Isolate* isolate, MapHandles* maps) {
 MaybeObjectHandle TryGetMinimorphicHandler(
     std::vector<MapAndHandler> const& maps_and_handlers, FeedbackSlotKind kind,
     Handle<NativeContext> native_context, bool is_turboprop) {
-  if (!is_turboprop || !FLAG_turboprop_dynamic_map_checks ||
-      !IsLoadICKind(kind)) {
+  if (!is_turboprop || !FLAG_turbo_dynamic_map_checks || !IsLoadICKind(kind)) {
     return MaybeObjectHandle();
   }
 
