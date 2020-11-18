@@ -41,6 +41,10 @@ class SharedStringAccessGuardIfNeeded {
   }
 
   static bool IsNeeded(String str, Isolate** out_isolate = nullptr) {
+    LocalHeap* local_heap = LocalHeap::Current();
+    // Don't acquire the lock for the main thread.
+    if (!local_heap || local_heap->is_main_thread()) return false;
+
     Isolate* isolate;
     if (!GetIsolateFromHeapObject(str, &isolate)) {
       // If we can't get the isolate from the String, it must be read-only.
@@ -48,7 +52,7 @@ class SharedStringAccessGuardIfNeeded {
       return false;
     }
     if (out_isolate) *out_isolate = isolate;
-    return ThreadId::Current() != isolate->thread_id();
+    return true;
   }
 
  private:
