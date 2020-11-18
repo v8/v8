@@ -1400,6 +1400,11 @@ void Genesis::HookUpGlobalObject(Handle<JSGlobalObject> global_object) {
   native_context()->set_security_token(*global_object);
 
   TransferNamedProperties(global_object_from_snapshot, global_object);
+  if (global_object_from_snapshot->HasDictionaryElements()) {
+    JSObject::NormalizeElements(global_object);
+  }
+  DCHECK_EQ(global_object_from_snapshot->GetElementsKind(),
+            global_object->GetElementsKind());
   TransferIndexedProperties(global_object_from_snapshot, global_object);
 }
 
