@@ -42,7 +42,7 @@ extern "C" void __sanitizer_cov_trace_pc_guard_init(uint32_t* start,
   const char* shm_key = getenv("SHM_ID");
   if (!shm_key) {
     puts("[COV] no shared memory bitmap available, skipping");
-    shmem = (struct shmem_data*)base::Malloc(SHM_SIZE);
+    shmem = (struct shmem_data*)v8::base::Malloc(SHM_SIZE);
   } else {
     int fd = shm_open(shm_key, O_RDWR, S_IREAD | S_IWRITE);
     if (fd <= -1) {
