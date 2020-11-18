@@ -49,5 +49,5 @@ echo $(readlink -f "${PACKAGE_FILE}")
 echo
 echo You can now run gcmole using this command:
 echo
-echo CLANG_BIN=\"tools/gcmole/gcmole-tools/bin\" lua tools/gcmole/gcmole.lua
+echo CLANG_BIN=\"tools/gcmole/gcmole-tools/bin\" python tools/gcmole/gcmole.py
 echo
