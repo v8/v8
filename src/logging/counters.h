@@ -868,6 +868,7 @@ class RuntimeCallTimer final {
   V(ValueDeserializer_ReadHeader)                          \
   V(ValueDeserializer_ReadValue)                           \
   V(ValueSerializer_WriteValue)                            \
+  V(Value_Equals)                                          \
   V(Value_InstanceOf)                                      \
   V(Value_Int32Value)                                      \
   V(Value_IntegerValue)                                    \
