@@ -4113,7 +4113,7 @@ TEST(vabs_32) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  auto f = AssembleCode<F_iiiii>([](Assembler& assm) {
+  auto f = AssembleCode<F_iiiii>(isolate, [](Assembler& assm) {
     __ vmov(s0, r0);
     __ vabs(s0, s0);
     __ vmov(r0, s0);
@@ -4131,7 +4131,7 @@ TEST(vabs_64) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  auto f = AssembleCode<F_iiiii>([](Assembler& assm) {
+  auto f = AssembleCode<F_iiiii>(isolate, [](Assembler& assm) {
     __ vmov(d0, r0, r1);
     __ vabs(d0, d0);
     __ vmov(r1, r0, d0);
@@ -4151,7 +4151,7 @@ TEST(vneg_32) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  auto f = AssembleCode<F_iiiii>([](Assembler& assm) {
+  auto f = AssembleCode<F_iiiii>(isolate, [](Assembler& assm) {
     __ vmov(s0, r0);
     __ vneg(s0, s0);
     __ vmov(r0, s0);
@@ -4169,7 +4169,7 @@ TEST(vneg_64) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  auto f = AssembleCode<F_iiiii>([](Assembler& assm) {
+  auto f = AssembleCode<F_iiiii>(isolate, [](Assembler& assm) {
     __ vmov(d0, r0, r1);
     __ vneg(d0, d0);
     __ vmov(r1, r0, d0);
@@ -4189,7 +4189,7 @@ TEST(move_pair) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  auto f = AssembleCode<F_piiii>([](MacroAssembler& assm) {
+  auto f = AssembleCode<F_piiii>(isolate, [](MacroAssembler& assm) {
     RegList used_callee_saved =
         r4.bit() | r5.bit() | r6.bit() | r7.bit() | r8.bit();
     __ stm(db_w, sp, used_callee_saved);
