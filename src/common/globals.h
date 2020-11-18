@@ -434,6 +434,8 @@ inline LanguageMode stricter_language_mode(LanguageMode mode1,
                                    static_cast<int>(mode2));
 }
 
+enum class ScriptType { kClassic, kModule };
+
 // A non-keyed store is of the form a.x = foo or a["x"] = foo whereas
 // a keyed store is of the form a[expression] = foo.
 enum class StoreOrigin { kMaybeKeyed, kNamed };

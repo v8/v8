@@ -23544,7 +23544,7 @@ class TestSourceStream : public v8::ScriptCompiler::ExternalSourceStream {
 
 
 // Helper function for running streaming tests.
-void RunStreamingTest(const char** chunks,
+void RunStreamingTest(const char** chunks, i::ScriptType type,
                       v8::ScriptCompiler::StreamedSource::Encoding encoding =
                           v8::ScriptCompiler::StreamedSource::ONE_BYTE,
                       bool expected_success = true,
@@ -23558,7 +23558,9 @@ void RunStreamingTest(const char** chunks,
   v8::ScriptCompiler::StreamedSource source(
       std::make_unique<TestSourceStream>(chunks), encoding);
   v8::ScriptCompiler::ScriptStreamingTask* task =
-      v8::ScriptCompiler::StartStreaming(isolate, &source);
+      type == i::ScriptType::kClassic
+          ? v8::ScriptCompiler::StartStreaming(isolate, &source)
+          : v8::ScriptCompiler::StartStreamingModule(isolate, &source);
 
   // TestSourceStream::GetMoreData won't block, so it's OK to just run the
   // task here in the main thread.
@@ -23568,23 +23570,63 @@ void RunStreamingTest(const char** chunks,
   // Possible errors are only produced while compiling.
   CHECK(!try_catch.HasCaught());
 
-  v8::ScriptOrigin origin(v8_str("http://foo.com"));
+  v8::ScriptOrigin origin(
+      v8_str("http://foo.com"), v8::Local<v8::Integer>(),
+      v8::Local<v8::Integer>(), v8::Local<v8::Boolean>(),
+      v8::Local<v8::Integer>(), v8::Local<v8::Value>(),
+      v8::Local<v8::Boolean>(), v8::Local<v8::Boolean>(),
+      type == i::ScriptType::kModule ? v8::True(isolate) : v8::False(isolate));
+
   char* full_source = TestSourceStream::FullSourceString(chunks);
-  v8::MaybeLocal<Script> script = v8::ScriptCompiler::Compile(
-      env.local(), &source, v8_str(full_source), origin);
-  if (expected_success) {
-    CHECK(!script.IsEmpty());
-    v8::Local<Value> result(
-        script.ToLocalChecked()->Run(env.local()).ToLocalChecked());
-    // All scripts are supposed to return the fixed value 13 when ran.
-    CHECK_EQ(13, result->Int32Value(env.local()).FromJust());
-    CheckMagicComments(isolate, script.ToLocalChecked(), expected_source_url,
-                       expected_source_mapping_url);
+  if (type == i::ScriptType::kClassic) {
+    v8::MaybeLocal<Script> script = v8::ScriptCompiler::Compile(
+        env.local(), &source, v8_str(full_source), origin);
+    if (expected_success) {
+      CHECK(!script.IsEmpty());
+      v8::Local<Value> result(
+          script.ToLocalChecked()->Run(env.local()).ToLocalChecked());
+      // All scripts are supposed to return the fixed value 13 when ran.
+      CHECK_EQ(13, result->Int32Value(env.local()).FromJust());
+      CheckMagicComments(isolate, script.ToLocalChecked(), expected_source_url,
+                         expected_source_mapping_url);
+    } else {
+      CHECK(script.IsEmpty());
+    }
   } else {
-    CHECK(script.IsEmpty());
-    CHECK(try_catch.HasCaught());
+    v8::MaybeLocal<Module> maybe_module = v8::ScriptCompiler::CompileModule(
+        env.local(), &source, v8_str(full_source), origin);
+    if (expected_success) {
+      v8::Local<v8::Module> module = maybe_module.ToLocalChecked();
+      CHECK(module->InstantiateModule(env.local(), nullptr).FromJust());
+      CHECK_EQ(Module::kInstantiated, module->GetStatus());
+      v8::Local<Value> result = module->Evaluate(env.local()).ToLocalChecked();
+      CHECK_EQ(Module::kEvaluated, module->GetStatus());
+      if (i::FLAG_harmony_top_level_await) {
+        v8::Local<v8::Promise> promise = result.As<v8::Promise>();
+        CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+        CHECK_EQ(13, promise->Result()->Int32Value(env.local()).FromJust());
+      } else {
+        CHECK(!result.IsEmpty());
+        CHECK_EQ(13, result->Int32Value(env.local()).FromJust());
+      }
+    } else {
+      CHECK(maybe_module.IsEmpty());
+    }
   }
+  if (!expected_success) CHECK(try_catch.HasCaught());
   delete[] full_source;
+}
+
+void RunStreamingTest(const char** chunks,
+                      v8::ScriptCompiler::StreamedSource::Encoding encoding =
+                          v8::ScriptCompiler::StreamedSource::ONE_BYTE,
+                      bool expected_success = true,
+                      const char* expected_source_url = nullptr,
+                      const char* expected_source_mapping_url = nullptr) {
+  RunStreamingTest(chunks, i::ScriptType::kClassic, encoding, expected_success,
+                   expected_source_url, expected_source_mapping_url);
+  RunStreamingTest(chunks, i::ScriptType::kModule, encoding, expected_success,
+                   expected_source_url, expected_source_mapping_url);
 }
 
 TEST(StreamingSimpleScript) {
@@ -23619,7 +23661,8 @@ TEST(StreamingScriptEvalShadowing) {
       "  })()\n"
       "})()\n";
   const char* chunks[] = {chunk1, nullptr};
-  RunStreamingTest(chunks);
+  // Only run the script version of this test.
+  RunStreamingTest(chunks, i::ScriptType::kClassic);
 }
 
 TEST(StreamingBiggerScript) {

@@ -257,6 +257,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
     // Retrieve it from shared function info.
     flags.set_outer_language_mode(shared_info->language_mode());
   } else if (scope_info->scope_type() == MODULE_SCOPE) {
+    DCHECK(script->origin_options().IsModule());
     DCHECK(flags.is_module());
   } else {
     DCHECK(scope_info->scope_type() == SCRIPT_SCOPE ||

@@ -13,6 +13,7 @@
 #include <iterator>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -539,10 +540,14 @@ class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
 class StreamingCompileTask final : public v8::Task {
  public:
   StreamingCompileTask(Isolate* isolate,
-                       v8::ScriptCompiler::StreamedSource* streamed_source)
+                       v8::ScriptCompiler::StreamedSource* streamed_source,
+                       i::ScriptType type)
       : isolate_(isolate),
         script_streaming_task_(
-            v8::ScriptCompiler::StartStreaming(isolate, streamed_source)) {
+            type == i::ScriptType::kClassic
+                ? v8::ScriptCompiler::StartStreaming(isolate, streamed_source)
+                : v8::ScriptCompiler::StartStreamingModule(isolate,
+                                                           streamed_source)) {
     Shell::NotifyStartStreamingTask(isolate_);
   }
 
@@ -565,6 +570,80 @@ class StreamingCompileTask final : public v8::Task {
   std::unique_ptr<v8::ScriptCompiler::ScriptStreamingTask>
       script_streaming_task_;
 };
+
+namespace {
+template <class T>
+MaybeLocal<T> CompileStreamed(Local<Context> context,
+                              ScriptCompiler::StreamedSource* v8_source,
+                              Local<String> full_source_string,
+                              const ScriptOrigin& origin) {}
+
+template <>
+MaybeLocal<Script> CompileStreamed(Local<Context> context,
+                                   ScriptCompiler::StreamedSource* v8_source,
+                                   Local<String> full_source_string,
+                                   const ScriptOrigin& origin) {
+  return ScriptCompiler::Compile(context, v8_source, full_source_string,
+                                 origin);
+}
+
+template <>
+MaybeLocal<Module> CompileStreamed(Local<Context> context,
+                                   ScriptCompiler::StreamedSource* v8_source,
+                                   Local<String> full_source_string,
+                                   const ScriptOrigin& origin) {
+  return ScriptCompiler::CompileModule(context, v8_source, full_source_string,
+                                       origin);
+}
+
+template <class T>
+MaybeLocal<T> Compile(Local<Context> context, ScriptCompiler::Source* source,
+                      ScriptCompiler::CompileOptions options) {}
+template <>
+MaybeLocal<Script> Compile(Local<Context> context,
+                           ScriptCompiler::Source* source,
+                           ScriptCompiler::CompileOptions options) {
+  return ScriptCompiler::Compile(context, source, options);
+}
+
+template <>
+MaybeLocal<Module> Compile(Local<Context> context,
+                           ScriptCompiler::Source* source,
+                           ScriptCompiler::CompileOptions options) {
+  return ScriptCompiler::CompileModule(context->GetIsolate(), source, options);
+}
+
+}  // namespace
+
+template <class T>
+MaybeLocal<T> Shell::CompileString(Isolate* isolate, Local<Context> context,
+                                   Local<String> source,
+                                   const ScriptOrigin& origin) {
+  if (options.streaming_compile) {
+    v8::ScriptCompiler::StreamedSource streamed_source(
+        std::make_unique<DummySourceStream>(source),
+        v8::ScriptCompiler::StreamedSource::UTF8);
+    PostBlockingBackgroundTask(std::make_unique<StreamingCompileTask>(
+        isolate, &streamed_source,
+        std::is_same<T, Module>::value ? i::ScriptType::kModule
+                                       : i::ScriptType::kClassic));
+    // Pump the loop until the streaming task completes.
+    Shell::CompleteMessageLoop(isolate);
+    return CompileStreamed<T>(context, &streamed_source, source, origin);
+  }
+
+  ScriptCompiler::CachedData* cached_code = nullptr;
+  if (options.compile_options == ScriptCompiler::kConsumeCodeCache) {
+    cached_code = LookupCodeCache(isolate, source);
+  }
+  ScriptCompiler::Source script_source(source, origin, cached_code);
+  MaybeLocal<T> result =
+      Compile<T>(context, &script_source,
+                 cached_code ? ScriptCompiler::kConsumeCodeCache
+                             : ScriptCompiler::kNoCompileOptions);
+  if (cached_code) CHECK(!cached_code->rejected);
+  return result;
+}
 
 // Executes a string within the current v8 context.
 bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
@@ -619,40 +698,9 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     Local<Context> context(isolate->GetCurrentContext());
     ScriptOrigin origin(name);
 
-    if (options.compile_options == ScriptCompiler::kConsumeCodeCache) {
-      ScriptCompiler::CachedData* cached_code =
-          LookupCodeCache(isolate, source);
-      if (cached_code != nullptr) {
-        ScriptCompiler::Source script_source(source, origin, cached_code);
-        maybe_script = ScriptCompiler::Compile(context, &script_source,
-                                               options.compile_options);
-        CHECK(!cached_code->rejected);
-      } else {
-        ScriptCompiler::Source script_source(source, origin);
-        maybe_script = ScriptCompiler::Compile(
-            context, &script_source, ScriptCompiler::kNoCompileOptions);
-      }
-    } else if (options.streaming_compile) {
-      v8::ScriptCompiler::StreamedSource streamed_source(
-          std::make_unique<DummySourceStream>(source),
-          v8::ScriptCompiler::StreamedSource::UTF8);
-
-      PostBlockingBackgroundTask(
-          std::make_unique<StreamingCompileTask>(isolate, &streamed_source));
-
-      // Pump the loop until the streaming task completes.
-      Shell::CompleteMessageLoop(isolate);
-
-      maybe_script =
-          ScriptCompiler::Compile(context, &streamed_source, source, origin);
-    } else {
-      ScriptCompiler::Source script_source(source, origin);
-      maybe_script = ScriptCompiler::Compile(context, &script_source,
-                                             options.compile_options);
-    }
-
     Local<Script> script;
-    if (!maybe_script.ToLocal(&script)) {
+    if (!CompileString<Script>(isolate, context, source, origin)
+             .ToLocal(&script)) {
       return false;
     }
 
@@ -867,9 +915,10 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
       String::NewFromUtf8(isolate, file_name.c_str()).ToLocalChecked(),
       Local<Integer>(), Local<Integer>(), Local<Boolean>(), Local<Integer>(),
       Local<Value>(), Local<Boolean>(), Local<Boolean>(), True(isolate));
-  ScriptCompiler::Source source(source_text, origin);
+
   Local<Module> module;
-  if (!ScriptCompiler::CompileModule(isolate, &source).ToLocal(&module)) {
+  if (!CompileString<Module>(isolate, context, source_text, origin)
+           .ToLocal(&module)) {
     return MaybeLocal<Module>();
   }
 

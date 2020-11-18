@@ -85,6 +85,7 @@
 #include "src/objects/property-details.h"
 #include "src/objects/property.h"
 #include "src/objects/prototype.h"
+#include "src/objects/shared-function-info.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/objects/stack-frame-info-inl.h"
@@ -2525,8 +2526,6 @@ MaybeLocal<Module> ScriptCompiler::CompileModule(
     NoCacheReason no_cache_reason) {
   CHECK(options == kNoCompileOptions || options == kConsumeCodeCache);
 
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-
   Utils::ApiCheck(source->GetResourceOptions().IsModule(),
                   "v8::ScriptCompiler::CompileModule",
                   "Invalid ScriptOrigin: is_module must be true");
@@ -2536,6 +2535,7 @@ MaybeLocal<Module> ScriptCompiler::CompileModule(
   if (!maybe.ToLocal(&unbound)) return MaybeLocal<Module>();
 
   i::Handle<i::SharedFunctionInfo> shared = Utils::OpenHandle(*unbound);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   return ToApiHandle<Module>(i_isolate->factory()->NewSourceTextModule(shared));
 }
 
@@ -2662,10 +2662,39 @@ ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreaming(
   ASSERT_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::ScriptStreamingData* data = source->impl();
   std::unique_ptr<i::BackgroundCompileTask> task =
-      std::make_unique<i::BackgroundCompileTask>(data, isolate);
+      std::make_unique<i::BackgroundCompileTask>(data, isolate,
+                                                 i::ScriptType::kClassic);
   data->task = std::move(task);
   return new ScriptCompiler::ScriptStreamingTask(data);
 }
+
+ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreamingModule(
+    Isolate* v8_isolate, StreamedSource* source) {
+  if (!i::FLAG_script_streaming) return nullptr;
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  i::ScriptStreamingData* data = source->impl();
+  std::unique_ptr<i::BackgroundCompileTask> task =
+      std::make_unique<i::BackgroundCompileTask>(data, isolate,
+                                                 i::ScriptType::kModule);
+  data->task = std::move(task);
+  return new ScriptCompiler::ScriptStreamingTask(data);
+}
+
+namespace {
+i::MaybeHandle<i::SharedFunctionInfo> CompileStreamedSource(
+    i::Isolate* isolate, ScriptCompiler::StreamedSource* v8_source,
+    Local<String> full_source_string, const ScriptOrigin& origin) {
+  i::Handle<i::String> str = Utils::OpenHandle(*(full_source_string));
+  i::Compiler::ScriptDetails script_details = GetScriptDetails(
+      isolate, origin.ResourceName(), origin.ResourceLineOffset(),
+      origin.ResourceColumnOffset(), origin.SourceMapUrl(),
+      origin.HostDefinedOptions());
+  i::ScriptStreamingData* data = v8_source->impl();
+  return i::Compiler::GetSharedFunctionInfoForStreamedScript(
+      isolate, str, script_details, origin.Options(), data);
+}
+
+}  // namespace
 
 MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
                                            StreamedSource* v8_source,
@@ -2675,29 +2704,35 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.ScriptCompiler");
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileStreamedScript");
-
-  i::Handle<i::String> str = Utils::OpenHandle(*(full_source_string));
-  i::Compiler::ScriptDetails script_details = GetScriptDetails(
-      isolate, origin.ResourceName(), origin.ResourceLineOffset(),
-      origin.ResourceColumnOffset(), origin.SourceMapUrl(),
-      origin.HostDefinedOptions());
-  i::ScriptStreamingData* data = v8_source->impl();
-
-  i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
-      i::Compiler::GetSharedFunctionInfoForStreamedScript(
-          isolate, str, script_details, origin.Options(), data);
-
-  i::Handle<i::SharedFunctionInfo> result;
-  has_pending_exception = !maybe_function_info.ToHandle(&result);
+  i::Handle<i::SharedFunctionInfo> sfi;
+  i::MaybeHandle<i::SharedFunctionInfo> maybe_sfi =
+      CompileStreamedSource(isolate, v8_source, full_source_string, origin);
+  has_pending_exception = !maybe_sfi.ToHandle(&sfi);
   if (has_pending_exception) isolate->ReportPendingMessages();
-
   RETURN_ON_FAILED_EXECUTION(Script);
-
-  Local<UnboundScript> generic = ToApiHandle<UnboundScript>(result);
+  Local<UnboundScript> generic = ToApiHandle<UnboundScript>(sfi);
   if (generic.IsEmpty()) return Local<Script>();
   Local<Script> bound = generic->BindToCurrentContext();
   if (bound.IsEmpty()) return Local<Script>();
   RETURN_ESCAPED(bound);
+}
+
+MaybeLocal<Module> ScriptCompiler::CompileModule(
+    Local<Context> context, StreamedSource* v8_source,
+    Local<String> full_source_string, const ScriptOrigin& origin) {
+  PREPARE_FOR_EXECUTION(context, ScriptCompiler, Compile, Module);
+  TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.ScriptCompiler");
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.CompileStreamedModule");
+  i::Handle<i::SharedFunctionInfo> sfi;
+  i::MaybeHandle<i::SharedFunctionInfo> maybe_sfi =
+      CompileStreamedSource(isolate, v8_source, full_source_string, origin);
+  has_pending_exception = !maybe_sfi.ToHandle(&sfi);
+  if (has_pending_exception) isolate->ReportPendingMessages();
+  RETURN_ON_FAILED_EXECUTION(Module);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  RETURN_ESCAPED(
+      ToApiHandle<Module>(i_isolate->factory()->NewSourceTextModule(sfi)));
 }
 
 uint32_t ScriptCompiler::CachedDataVersionTag() {

@@ -1948,12 +1948,15 @@ class V8_EXPORT ScriptCompiler {
    * This API allows to start the streaming with as little data as possible, and
    * the remaining data (for example, the ScriptOrigin) is passed to Compile.
    */
-  V8_DEPRECATED("Use ScriptCompiler::StartStreamingScript instead.")
+  V8_DEPRECATED("Use ScriptCompiler::StartStreaming instead.")
   static ScriptStreamingTask* StartStreamingScript(
       Isolate* isolate, StreamedSource* source,
       CompileOptions options = kNoCompileOptions);
   static ScriptStreamingTask* StartStreaming(Isolate* isolate,
                                              StreamedSource* source);
+  // The same as ScriptCompiler::StartStreaming but for module scripts.
+  static ScriptStreamingTask* StartStreamingModule(Isolate* isolate,
+                                                   StreamedSource* source);
 
   /**
    * Compiles a streamed script (bound to current context).
@@ -1997,6 +2000,17 @@ class V8_EXPORT ScriptCompiler {
       Isolate* isolate, Source* source,
       CompileOptions options = kNoCompileOptions,
       NoCacheReason no_cache_reason = kNoCacheNoReason);
+
+  /**
+   * Compiles a streamed module script.
+   *
+   * This can only be called after the streaming has finished
+   * (ScriptStreamingTask has been run). V8 doesn't construct the source string
+   * during streaming, so the embedder needs to pass the full source here.
+   */
+  static V8_WARN_UNUSED_RESULT MaybeLocal<Module> CompileModule(
+      Local<Context> context, StreamedSource* v8_source,
+      Local<String> full_source_string, const ScriptOrigin& origin);
 
   /**
    * Compile a function for a given context. This is equivalent to running

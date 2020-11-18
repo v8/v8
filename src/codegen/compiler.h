@@ -459,7 +459,8 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   // script associated with |data| and can be finalized with
   // Compiler::GetSharedFunctionInfoForStreamedScript.
   // Note: does not take ownership of |data|.
-  BackgroundCompileTask(ScriptStreamingData* data, Isolate* isolate);
+  BackgroundCompileTask(ScriptStreamingData* data, Isolate* isolate,
+                        ScriptType type);
   ~BackgroundCompileTask();
 
   // Creates a new task that when run will parse and compile the

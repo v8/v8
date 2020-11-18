@@ -612,6 +612,12 @@ class Shell : public i::AllStatic {
   static MaybeLocal<Module> FetchModuleTree(v8::Local<v8::Module> origin_module,
                                             v8::Local<v8::Context> context,
                                             const std::string& file_name);
+
+  template <class T>
+  static MaybeLocal<T> CompileString(Isolate* isolate, Local<Context> context,
+                                     Local<String> source,
+                                     const ScriptOrigin& origin);
+
   static ScriptCompiler::CachedData* LookupCodeCache(Isolate* isolate,
                                                      Local<Value> name);
   static void StoreInCodeCache(Isolate* isolate, Local<Value> name,
