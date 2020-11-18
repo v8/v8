@@ -37,3 +37,29 @@ luci.tree_closer(
             ".* \\(without patch\\)",
     ],
 )
+
+luci.notifier(
+    name = "api stability notifier",
+    on_occurrence = ["FAILURE"],
+    failed_step_regexp = [
+        "compile",
+    ],
+    notify_emails = [
+        "machenbach@chromium.org",
+        "hablich@chromium.org",
+    ],
+    notified_by = [
+        "Linux V8 API Stability",
+    ],
+)
+
+luci.notifier(
+    name = "vtunejit notifier",
+    on_occurrence = ["FAILURE"],
+    failed_step_regexp = [
+        "gclient runhooks",
+        "compile",
+    ],
+    notify_emails = ["chunyang.dai@intel.com"],
+    notified_by = ["ci/V8 Linux - vtunejit"],
+)

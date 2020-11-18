@@ -1,5 +1,6 @@
 {
-  "comment": ["This is a configuration file for gatekeeper_ng.py",
+  "comment": ["TODO: migrate to lucy.notify",
+              "This is a configuration file for gatekeeper_ng.py",
               "Look at that for documentation on this file's format."],
   "masters": {
     "https://build.chromium.org/p/client.v8": [
