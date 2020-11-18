@@ -2147,8 +2147,13 @@ Handle<JSObject> Factory::NewSlowJSObjectFromMap(
     Handle<Map> map, int capacity, AllocationType allocation,
     Handle<AllocationSite> allocation_site) {
   DCHECK(map->is_dictionary_map());
-  Handle<NameDictionary> object_properties =
-      NameDictionary::New(isolate(), capacity);
+  Handle<HeapObject> object_properties;
+  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    object_properties =
+        OrderedNameDictionary::Allocate(isolate(), capacity).ToHandleChecked();
+  } else {
+    object_properties = NameDictionary::New(isolate(), capacity);
+  }
   Handle<JSObject> js_object =
       NewJSObjectFromMap(map, allocation, allocation_site);
   js_object->set_raw_properties_or_hash(*object_properties);
@@ -2156,8 +2161,12 @@ Handle<JSObject> Factory::NewSlowJSObjectFromMap(
 }
 
 Handle<JSObject> Factory::NewSlowJSObjectWithPropertiesAndElements(
-    Handle<HeapObject> prototype, Handle<NameDictionary> properties,
+    Handle<HeapObject> prototype, Handle<HeapObject> properties,
     Handle<FixedArrayBase> elements) {
+  DCHECK_IMPLIES(V8_DICT_MODE_PROTOTYPES_BOOL,
+                 properties->IsOrderedNameDictionary());
+  DCHECK_IMPLIES(!V8_DICT_MODE_PROTOTYPES_BOOL, properties->IsNameDictionary());
+
   Handle<Map> object_map = isolate()->slow_object_with_object_prototype_map();
   if (object_map->prototype() != *prototype) {
     object_map = Map::TransitionToPrototype(isolate(), object_map, prototype);

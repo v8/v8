@@ -512,7 +512,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // fast elements, or a NumberDictionary, in which case the resulting
   // object will have dictionary elements.
   Handle<JSObject> NewSlowJSObjectWithPropertiesAndElements(
-      Handle<HeapObject> prototype, Handle<NameDictionary> properties,
+      Handle<HeapObject> prototype, Handle<HeapObject> properties,
       Handle<FixedArrayBase> elements);
 
   // JS arrays are pretenured when allocated by the parser.

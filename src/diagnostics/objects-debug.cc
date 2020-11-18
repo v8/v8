@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/codegen/assembler-inl.h"
+#include "src/common/globals.h"
 #include "src/date/date.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
@@ -1638,6 +1639,11 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
   } else if (IsJSGlobalObject()) {
     GlobalDictionary dict =
         JSGlobalObject::cast(*this).global_dictionary(kAcquireLoad);
+    info->number_of_slow_used_properties_ += dict.NumberOfElements();
+    info->number_of_slow_unused_properties_ +=
+        dict.Capacity() - dict.NumberOfElements();
+  } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    OrderedNameDictionary dict = property_dictionary_ordered();
     info->number_of_slow_used_properties_ += dict.NumberOfElements();
     info->number_of_slow_unused_properties_ +=
         dict.Capacity() - dict.NumberOfElements();

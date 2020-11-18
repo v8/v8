@@ -21,6 +21,7 @@
 #include "src/extensions/ignition-statistics-extension.h"
 #include "src/extensions/statistics-extension.h"
 #include "src/extensions/trigger-failure-extension.h"
+#include "src/objects/objects.h"
 #ifdef ENABLE_VTUNE_TRACEMARK
 #include "src/extensions/vtunedomain-support-extension.h"
 #endif  // ENABLE_VTUNE_TRACEMARK
@@ -5168,6 +5169,29 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       if (value->IsTheHole(isolate())) continue;
       PropertyDetails details = cell->property_details();
       if (details.kind() != kData) continue;
+      JSObject::AddProperty(isolate(), to, key, value, details.attributes());
+    }
+
+  } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    // Copy all keys and values in enumeration order.
+    Handle<OrderedNameDictionary> properties = Handle<OrderedNameDictionary>(
+        from->property_dictionary_ordered(), isolate());
+    ReadOnlyRoots roots(isolate());
+    for (InternalIndex entry : properties->IterateEntries()) {
+      Object raw_key;
+      if (!properties->ToKey(roots, entry, &raw_key)) continue;
+
+      DCHECK(raw_key.IsName());
+      Handle<Name> key(Name::cast(raw_key), isolate());
+      // If the property is already there we skip it.
+      if (PropertyAlreadyExists(isolate(), to, key)) continue;
+      // Set the property.
+      Handle<Object> value =
+          Handle<Object>(properties->ValueAt(entry), isolate());
+      DCHECK(!value->IsCell());
+      DCHECK(!value->IsTheHole(isolate()));
+      PropertyDetails details = properties->DetailsAt(entry);
+      DCHECK_EQ(kData, details.kind());
       JSObject::AddProperty(isolate(), to, key, value, details.attributes());
     }
   } else {

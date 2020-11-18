@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/ast/prettyprinter.h"
+#include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments-inl.h"
@@ -365,11 +366,21 @@ RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
 
   DCHECK(name->IsUniqueName());
 
-  Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
   PropertyDetails property_details(kData, NONE, PropertyCellType::kNoCell);
-  dictionary =
-      NameDictionary::Add(isolate, dictionary, name, value, property_details);
-  receiver->SetProperties(*dictionary);
+  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    Handle<OrderedNameDictionary> dictionary(
+        receiver->property_dictionary_ordered(), isolate);
+    dictionary = OrderedNameDictionary::Add(isolate, dictionary, name, value,
+                                            property_details)
+                     .ToHandleChecked();
+    receiver->SetProperties(*dictionary);
+  } else {
+    Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
+    dictionary =
+        NameDictionary::Add(isolate, dictionary, name, value, property_details);
+    receiver->SetProperties(*dictionary);
+  }
+
   return *value;
 }
 
@@ -636,11 +647,21 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
         }
       } else if (!holder->HasFastProperties()) {
         // Attempt dictionary lookup.
-        NameDictionary dictionary = holder->property_dictionary();
-        InternalIndex entry = dictionary.FindEntry(isolate, key);
-        if ((entry.is_found()) &&
-            (dictionary.DetailsAt(entry).kind() == kData)) {
-          return dictionary.ValueAt(entry);
+        if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+          OrderedNameDictionary dictionary =
+              holder->property_dictionary_ordered();
+          InternalIndex entry = dictionary.FindEntry(isolate, *key);
+          if (entry.is_found() &&
+              (dictionary.DetailsAt(entry).kind() == kData)) {
+            return dictionary.ValueAt(entry);
+          }
+        } else {
+          NameDictionary dictionary = holder->property_dictionary();
+          InternalIndex entry = dictionary.FindEntry(isolate, key);
+          if ((entry.is_found()) &&
+              (dictionary.DetailsAt(entry).kind() == kData)) {
+            return dictionary.ValueAt(entry);
+          }
         }
       }
     } else if (key_obj->IsSmi()) {
@@ -760,10 +781,19 @@ RUNTIME_FUNCTION(Runtime_ShrinkPropertyDictionary) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
-  Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
-  Handle<NameDictionary> new_properties =
-      NameDictionary::Shrink(isolate, dictionary);
-  receiver->SetProperties(*new_properties);
+  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    Handle<OrderedNameDictionary> dictionary(
+        receiver->property_dictionary_ordered(), isolate);
+    Handle<OrderedNameDictionary> new_properties =
+        OrderedNameDictionary::Shrink(isolate, dictionary);
+    receiver->SetProperties(*new_properties);
+  } else {
+    Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
+    Handle<NameDictionary> new_properties =
+        NameDictionary::Shrink(isolate, dictionary);
+    receiver->SetProperties(*new_properties);
+  }
+
   return Smi::zero();
 }
 

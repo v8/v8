@@ -1365,6 +1365,17 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject js_obj,
       PropertyDetails details = cell.property_details();
       SetDataOrAccessorPropertyReference(details.kind(), entry, name, value);
     }
+  } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    OrderedNameDictionary dictionary = js_obj.property_dictionary_ordered();
+    ReadOnlyRoots roots(isolate);
+    for (InternalIndex i : dictionary.IterateEntries()) {
+      Object k = dictionary.KeyAt(i);
+      if (!dictionary.IsKey(roots, k)) continue;
+      Object value = dictionary.ValueAt(i);
+      PropertyDetails details = dictionary.DetailsAt(i);
+      SetDataOrAccessorPropertyReference(details.kind(), entry, Name::cast(k),
+                                         value);
+    }
   } else {
     NameDictionary dictionary = js_obj.property_dictionary();
     ReadOnlyRoots roots(isolate);

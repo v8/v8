@@ -830,7 +830,7 @@ void CommonCopyEnumKeysTo(Isolate* isolate, Handle<Dictionary> dictionary,
       continue;
     } else {
       if (Dictionary::kIsOrderedDictionaryType) {
-        storage->set(properties, dictionary->ValueAt(i));
+        storage->set(properties, dictionary->NameAt(i));
       } else {
         // If the dictionary does not store elements in enumeration order,
         // we need to sort it afterwards in CopyEnumKeysTo. To enable this we

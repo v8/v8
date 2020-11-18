@@ -4,6 +4,7 @@
 
 #include "src/objects/js-regexp.h"
 
+#include "src/common/globals.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/regexp/regexp.h"
@@ -135,7 +136,12 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   // their corresponding capture indices.
   Handle<FixedArray> names(Handle<FixedArray>::cast(maybe_names));
   int num_names = names->length() >> 1;
-  Handle<NameDictionary> group_names = NameDictionary::New(isolate, num_names);
+  Handle<HeapObject> group_names;
+  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    group_names = isolate->factory()->NewOrderedNameDictionary(num_names);
+  } else {
+    group_names = isolate->factory()->NewNameDictionary(num_names);
+  }
   for (int i = 0; i < num_names; i++) {
     int base_offset = i * 2;
     int name_offset = base_offset;
@@ -147,8 +153,17 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     if (!capture_indices->IsUndefined(isolate)) {
       capture_indices = Handle<JSArray>::cast(capture_indices);
     }
-    group_names = NameDictionary::Add(
-        isolate, group_names, name, capture_indices, PropertyDetails::Empty());
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      group_names =
+          OrderedNameDictionary::Add(
+              isolate, Handle<OrderedNameDictionary>::cast(group_names), name,
+              capture_indices, PropertyDetails::Empty())
+              .ToHandleChecked();
+    } else {
+      group_names = NameDictionary::Add(
+          isolate, Handle<NameDictionary>::cast(group_names), name,
+          capture_indices, PropertyDetails::Empty());
+    }
   }
 
   // Convert group_names to a JSObject and store at the groups property of the
