@@ -639,11 +639,9 @@ std::unique_ptr<char[]> String::ToCString(AllowNullsFlag allow_nulls,
 }
 
 template <typename sinkchar>
-void String::WriteToFlat(String src, sinkchar* sink, int f, int t) {
+void String::WriteToFlat(String source, sinkchar* sink, int from, int to) {
   DisallowHeapAllocation no_gc;
-  String source = src;
-  int from = f;
-  int to = t;
+  SharedStringAccessGuardIfNeeded access_guard(source);
   while (from < to) {
     DCHECK_LE(0, from);
     DCHECK_LE(to, source.length());
@@ -659,13 +657,17 @@ void String::WriteToFlat(String src, sinkchar* sink, int f, int t) {
         return;
       }
       case kOneByteStringTag | kSeqStringTag: {
-        CopyChars(sink, SeqOneByteString::cast(source).GetChars(no_gc) + from,
-                  to - from);
+        CopyChars(
+            sink,
+            SeqOneByteString::cast(source).GetChars(no_gc, access_guard) + from,
+            to - from);
         return;
       }
       case kTwoByteStringTag | kSeqStringTag: {
-        CopyChars(sink, SeqTwoByteString::cast(source).GetChars(no_gc) + from,
-                  to - from);
+        CopyChars(
+            sink,
+            SeqTwoByteString::cast(source).GetChars(no_gc, access_guard) + from,
+            to - from);
         return;
       }
       case kOneByteStringTag | kConsStringTag:
@@ -698,9 +700,10 @@ void String::WriteToFlat(String src, sinkchar* sink, int f, int t) {
             if (to - boundary == 1) {
               sink[boundary - from] = static_cast<sinkchar>(second.Get(0));
             } else if (second.IsSeqOneByteString()) {
-              CopyChars(sink + boundary - from,
-                        SeqOneByteString::cast(second).GetChars(no_gc),
-                        to - boundary);
+              CopyChars(
+                  sink + boundary - from,
+                  SeqOneByteString::cast(second).GetChars(no_gc, access_guard),
+                  to - boundary);
             } else {
               WriteToFlat(second, sink + boundary - from, 0, to - boundary);
             }

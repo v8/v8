@@ -32,15 +32,34 @@ namespace internal {
 class SharedStringAccessGuardIfNeeded {
  public:
   explicit SharedStringAccessGuardIfNeeded(String str) {
-    // If we can get the isolate from the String, it means it is not a read only
-    // string.
     Isolate* isolate;
-    if (GetIsolateFromHeapObject(str, &isolate) &&
-        ThreadId::Current() != isolate->thread_id())
-      mutex_guard.emplace(isolate->string_access());
+    if (IsNeeded(str, &isolate)) mutex_guard.emplace(isolate->string_access());
+  }
+
+  static SharedStringAccessGuardIfNeeded NotNeeded() {
+    return SharedStringAccessGuardIfNeeded();
+  }
+
+  static bool IsNeeded(String str, Isolate** out_isolate = nullptr) {
+    Isolate* isolate;
+    if (!GetIsolateFromHeapObject(str, &isolate)) {
+      // If we can't get the isolate from the String, it must be read-only.
+      DCHECK(ReadOnlyHeap::Contains(str));
+      return false;
+    }
+    if (out_isolate) *out_isolate = isolate;
+    return ThreadId::Current() != isolate->thread_id();
   }
 
  private:
+  // Default constructor and move constructor required for the NotNeeded()
+  // static constructor.
+  constexpr SharedStringAccessGuardIfNeeded() = default;
+  constexpr SharedStringAccessGuardIfNeeded(SharedStringAccessGuardIfNeeded&&)
+      V8_NOEXCEPT {
+    DCHECK(!mutex_guard.has_value());
+  }
+
   base::Optional<base::SharedMutexGuard<base::kShared>> mutex_guard;
 };
 
@@ -282,12 +301,13 @@ class SequentialStringKey final : public StringTableKey {
         convert_(convert) {}
 
   bool IsMatch(String s) override {
+    SharedStringAccessGuardIfNeeded access_guard(s);
     DisallowHeapAllocation no_gc;
     if (s.IsOneByteRepresentation()) {
-      const uint8_t* chars = s.GetChars<uint8_t>(no_gc);
+      const uint8_t* chars = s.GetChars<uint8_t>(no_gc, access_guard);
       return CompareChars(chars, chars_.begin(), chars_.length()) == 0;
     }
-    const uint16_t* chars = s.GetChars<uint16_t>(no_gc);
+    const uint16_t* chars = s.GetChars<uint16_t>(no_gc, access_guard);
     return CompareChars(chars, chars_.begin(), chars_.length()) == 0;
   }
 
@@ -411,6 +431,16 @@ const Char* String::GetChars(const DisallowHeapAllocation& no_gc) {
   return StringShape(*this).IsExternal()
              ? CharTraits<Char>::ExternalString::cast(*this).GetChars()
              : CharTraits<Char>::String::cast(*this).GetChars(no_gc);
+}
+
+template <typename Char>
+const Char* String::GetChars(
+    const DisallowHeapAllocation& no_gc,
+    const SharedStringAccessGuardIfNeeded& access_guard) {
+  return StringShape(*this).IsExternal()
+             ? CharTraits<Char>::ExternalString::cast(*this).GetChars()
+             : CharTraits<Char>::String::cast(*this).GetChars(no_gc,
+                                                              access_guard);
 }
 
 Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
@@ -582,6 +612,15 @@ Address SeqOneByteString::GetCharsAddress() {
 
 uint8_t* SeqOneByteString::GetChars(const DisallowHeapAllocation& no_gc) {
   USE(no_gc);
+  DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
+  return reinterpret_cast<uint8_t*>(GetCharsAddress());
+}
+
+uint8_t* SeqOneByteString::GetChars(
+    const DisallowHeapAllocation& no_gc,
+    const SharedStringAccessGuardIfNeeded& access_guard) {
+  USE(no_gc);
+  USE(access_guard);
   return reinterpret_cast<uint8_t*>(GetCharsAddress());
 }
 
@@ -591,6 +630,15 @@ Address SeqTwoByteString::GetCharsAddress() {
 
 uc16* SeqTwoByteString::GetChars(const DisallowHeapAllocation& no_gc) {
   USE(no_gc);
+  DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
+  return reinterpret_cast<uc16*>(GetCharsAddress());
+}
+
+uc16* SeqTwoByteString::GetChars(
+    const DisallowHeapAllocation& no_gc,
+    const SharedStringAccessGuardIfNeeded& access_guard) {
+  USE(no_gc);
+  USE(access_guard);
   return reinterpret_cast<uc16*>(GetCharsAddress());
 }
 
