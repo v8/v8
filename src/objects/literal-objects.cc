@@ -143,8 +143,10 @@ constexpr int ComputeEnumerationIndex(int value_index) {
                    ClassBoilerplate::kMinimumPrototypePropertiesCount});
 }
 
+constexpr int kAccessorNotDefined = -1;
+
 inline int GetExistingValueIndex(Object value) {
-  return value.IsSmi() ? Smi::ToInt(value) : -1;
+  return value.IsSmi() ? Smi::ToInt(value) : kAccessorNotDefined;
 }
 
 template <typename LocalIsolate, typename Dictionary, typename Key>
@@ -155,13 +157,14 @@ void AddToDictionaryTemplate(LocalIsolate* isolate,
                              Smi value) {
   InternalIndex entry = dictionary->FindEntry(isolate, key);
 
+  const bool is_elements_dictionary =
+      std::is_same<Dictionary, NumberDictionary>::value;
+  STATIC_ASSERT(is_elements_dictionary !=
+                (std::is_same<Dictionary, NameDictionary>::value ||
+                 std::is_same<Dictionary, OrderedNameDictionary>::value));
+
   if (entry.is_not_found()) {
     // Entry not found, add new one.
-    const bool is_elements_dictionary =
-        std::is_same<Dictionary, NumberDictionary>::value;
-    STATIC_ASSERT(is_elements_dictionary !=
-                  (std::is_same<Dictionary, NameDictionary>::value ||
-                   std::is_same<Dictionary, OrderedNameDictionary>::value));
     int enum_order =
         Dictionary::kIsOrderedDictionaryType || is_elements_dictionary
             ? kDummyEnumerationIndex
@@ -193,9 +196,15 @@ void AddToDictionaryTemplate(LocalIsolate* isolate,
 
   } else {
     // Entry found, update it.
-    int enum_order = Dictionary::kIsOrderedDictionaryType
-                         ? kDummyEnumerationIndex
-                         : dictionary->DetailsAt(entry).dictionary_index();
+    int enum_order_existing =
+        Dictionary::kIsOrderedDictionaryType
+            ? kDummyEnumerationIndex
+            : dictionary->DetailsAt(entry).dictionary_index();
+    int enum_order_computed =
+        Dictionary::kIsOrderedDictionaryType || is_elements_dictionary
+            ? kDummyEnumerationIndex
+            : ComputeEnumerationIndex(key_index);
+
     Object existing_value = dictionary->ValueAt(entry);
     if (value_kind == ClassBoilerplate::kData) {
       // Computed value is a normal method.
@@ -207,6 +216,7 @@ void AddToDictionaryTemplate(LocalIsolate* isolate,
         int existing_setter_index =
             GetExistingValueIndex(current_pair.setter());
         // At least one of the accessors must already be defined.
+        STATIC_ASSERT(kAccessorNotDefined < 0);
         DCHECK(existing_getter_index >= 0 || existing_setter_index >= 0);
         if (existing_getter_index < key_index &&
             existing_setter_index < key_index) {
@@ -214,46 +224,81 @@ void AddToDictionaryTemplate(LocalIsolate* isolate,
           // method or just one of them was defined before while the other one
           // was not defined yet, so overwrite property to kData.
           PropertyDetails details(kData, DONT_ENUM, PropertyCellType::kNoCell,
-                                  enum_order);
+                                  enum_order_existing);
           dictionary->DetailsAtPut(entry, details);
           dictionary->ValueAtPut(entry, value);
 
-        } else {
-          // The data property was defined "between" accessors so the one that
-          // was overwritten has to be cleared.
-          if (existing_getter_index < key_index) {
-            DCHECK_LT(key_index, existing_setter_index);
-            // Getter was defined and it was done before the computed method
-            // and then it was overwritten by the current computed method which
-            // in turn was later overwritten by the setter method. So we clear
-            // the getter.
-            current_pair.set_getter(*isolate->factory()->null_value());
+        } else if (existing_getter_index != kAccessorNotDefined &&
+                   existing_getter_index < key_index) {
+          DCHECK_LT(key_index, existing_setter_index);
+          // Getter was defined and it was done before the computed method
+          // and then it was overwritten by the current computed method which
+          // in turn was later overwritten by the setter method. So we clear
+          // the getter.
+          current_pair.set_getter(*isolate->factory()->null_value());
 
-          } else if (existing_setter_index < key_index) {
-            DCHECK_LT(key_index, existing_getter_index);
-            // Setter was defined and it was done before the computed method
-            // and then it was overwritten by the current computed method which
-            // in turn was later overwritten by the getter method. So we clear
-            // the setter.
-            current_pair.set_setter(*isolate->factory()->null_value());
+        } else if (existing_setter_index != kAccessorNotDefined &&
+                   existing_setter_index < key_index) {
+          DCHECK_LT(key_index, existing_getter_index);
+          // Setter was defined and it was done before the computed method
+          // and then it was overwritten by the current computed method which
+          // in turn was later overwritten by the getter method. So we clear
+          // the setter.
+          current_pair.set_setter(*isolate->factory()->null_value());
+
+        } else {
+          // One of the following cases holds:
+          // The computed method was defined before ...
+          // 1.) the getter and setter, both of which are defined,
+          // 2.) the getter, and the setter isn't defined,
+          // 3.) the setter, and the getter isn't defined.
+          // Therefore, the computed value is overwritten, receiving the
+          // computed property's enum index.
+          DCHECK(key_index < existing_getter_index ||
+                 existing_getter_index == kAccessorNotDefined);
+          DCHECK(key_index < existing_setter_index ||
+                 existing_setter_index == kAccessorNotDefined);
+          DCHECK(existing_getter_index != kAccessorNotDefined ||
+                 existing_setter_index != kAccessorNotDefined);
+          if (!is_elements_dictionary) {
+            // The enum index is unused by elements dictionaries,
+            // which is why we don't need to update the property details if
+            // |is_elements_dictionary| holds.
+            PropertyDetails details = dictionary->DetailsAt(entry);
+            details = details.set_index(enum_order_computed);
+            dictionary->DetailsAtPut(entry, details);
           }
         }
-      } else {
-        // Overwrite existing value if it was defined before the computed one
-        // (AccessorInfo "length" property is always defined before).
+      } else {  // if (existing_value.IsAccessorPair()) ends here
+        DCHECK(value_kind == ClassBoilerplate::kData);
+
         DCHECK_IMPLIES(!existing_value.IsSmi(),
                        existing_value.IsAccessorInfo());
         DCHECK_IMPLIES(!existing_value.IsSmi(),
                        AccessorInfo::cast(existing_value).name() ==
                            *isolate->factory()->length_string());
         if (!existing_value.IsSmi() || Smi::ToInt(existing_value) < key_index) {
+          // Overwrite existing value because it was defined before the computed
+          // one (AccessorInfo "length" property is always defined before).
           PropertyDetails details(kData, DONT_ENUM, PropertyCellType::kNoCell,
-                                  enum_order);
+                                  enum_order_existing);
           dictionary->DetailsAtPut(entry, details);
           dictionary->ValueAtPut(entry, value);
+        } else {
+          // The computed value appears before the existing one. Set the
+          // existing entry's enum index to that of the computed one.
+          if (!is_elements_dictionary) {
+            // The enum index is unused by elements dictionaries,
+            // which is why we don't need to update the property details if
+            // |is_elements_dictionary| holds.
+
+            PropertyDetails details(kData, DONT_ENUM, PropertyCellType::kNoCell,
+                                    enum_order_computed);
+            dictionary->DetailsAtPut(entry, details);
+          }
         }
       }
-    } else {
+    } else {  // if (value_kind == ClassBoilerplate::kData) ends here
       AccessorComponent component = value_kind == ClassBoilerplate::kGetter
                                         ? ACCESSOR_GETTER
                                         : ACCESSOR_SETTER;
@@ -265,16 +310,51 @@ void AddToDictionaryTemplate(LocalIsolate* isolate,
             GetExistingValueIndex(current_pair.get(component));
         if (existing_component_index < key_index) {
           current_pair.set(component, value);
+        } else {
+          // The existing accessor property overwrites the computed one, update
+          // its enumeration order accordingly.
+
+          if (!is_elements_dictionary) {
+            // The enum index is unused by elements dictionaries,
+            // which is why we don't need to update the property details if
+            // |is_elements_dictionary| holds.
+
+            PropertyDetails details(kAccessor, DONT_ENUM,
+                                    PropertyCellType::kNoCell,
+                                    enum_order_computed);
+            dictionary->DetailsAtPut(entry, details);
+          }
         }
 
       } else {
-        // Overwrite existing value with new AccessorPair.
-        Handle<AccessorPair> pair(isolate->factory()->NewAccessorPair());
-        pair->set(component, value);
-        PropertyDetails details(kAccessor, DONT_ENUM, PropertyCellType::kNoCell,
-                                enum_order);
-        dictionary->DetailsAtPut(entry, details);
-        dictionary->ValueAtPut(entry, *pair);
+        DCHECK(!existing_value.IsAccessorPair());
+        DCHECK(value_kind != ClassBoilerplate::kData);
+
+        if (!existing_value.IsSmi() || Smi::ToInt(existing_value) < key_index) {
+          // Overwrite the existing data property because it was defined before
+          // the computed accessor property.
+          Handle<AccessorPair> pair(isolate->factory()->NewAccessorPair());
+          pair->set(component, value);
+          PropertyDetails details(kAccessor, DONT_ENUM,
+                                  PropertyCellType::kNoCell,
+                                  enum_order_existing);
+          dictionary->DetailsAtPut(entry, details);
+          dictionary->ValueAtPut(entry, *pair);
+        } else {
+          // The computed accessor property appears before the existing data
+          // property. Set the existing entry's enum index to that of the
+          // computed one.
+
+          if (!is_elements_dictionary) {
+            // The enum index is unused by elements dictionaries,
+            // which is why we don't need to update the property details if
+            // |is_elements_dictionary| holds.
+
+            PropertyDetails details(kData, DONT_ENUM, PropertyCellType::kNoCell,
+                                    enum_order_computed);
+            dictionary->DetailsAtPut(entry, details);
+          }
+        }
       }
     }
   }
