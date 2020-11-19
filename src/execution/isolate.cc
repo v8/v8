@@ -3110,9 +3110,12 @@ void Isolate::Deinit() {
   // This stops cancelable tasks (i.e. concurrent marking tasks)
   cancelable_task_manager()->CancelAndWait();
 
-  main_thread_local_isolate_.reset();
+  main_thread_local_isolate_->heap()->FreeLinearAllocationArea();
 
   heap_.TearDown();
+
+  main_thread_local_isolate_.reset();
+
   FILE* logfile = logger_->TearDownAndGetLogFile();
   if (logfile != nullptr) base::Fclose(logfile);
 

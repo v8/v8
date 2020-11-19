@@ -55,6 +55,7 @@ bool HandleBase::IsDereferenceAllowed() const {
       // LocalHeap.
       DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
       local_heap = isolate->main_thread_local_heap();
+      DCHECK_NOT_NULL(local_heap);
     }
 
     // Local heap can't access handles when parked
