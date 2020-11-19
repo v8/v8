@@ -668,9 +668,6 @@
 
   # NCI code currently does not use the feedback vector's optimized code cache.
   'test-compiler/OptimizedCodeSharing1': [SKIP],
-
-  # TODO(v8:11178): Re-enable once the cause of the failure is fixed.
-  'test-cpu-profiler/FastApiCPUProfiler': [SKIP],
 }],  # variant == nci or variant == nci_as_midtier
 
 ]

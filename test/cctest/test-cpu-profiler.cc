@@ -3934,8 +3934,10 @@ v8::Local<v8::Function> CreateApiCode(LocalContext* env) {
 
 TEST(FastApiCPUProfiler) {
 #if !defined(V8_LITE_MODE) && !defined(USE_SIMULATOR)
+  // None of the following configurations include JSCallReducer.
   if (i::FLAG_jitless) return;
   if (i::FLAG_turboprop) return;
+  if (i::FLAG_turbo_nci_as_midtier) return;
 
   FLAG_SCOPE_EXTERNAL(opt);
   FLAG_SCOPE_EXTERNAL(turbo_fast_api_calls);
