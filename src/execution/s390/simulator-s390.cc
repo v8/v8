@@ -7630,22 +7630,50 @@ EVALUATE(CLFEBR) {
 
 EVALUATE(CLFDBR) {
   DCHECK_OPCODE(CLFDBR);
-  DECODE_RRE_INSTRUCTION(r1, r2);
+  DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
+  USE(m4);
+  DCHECK_EQ(m4, 0);
   double a = get_double_from_d_register(r2);
-  double n = std::round(a);
-  uint32_t r1_val = static_cast<uint32_t>(n);
-  set_low_register(r1, r1_val);
-  if (std::isfinite(a) && a < 0.0) {
-    DCHECK(n <= 0.0 && std::isfinite(n));
+
+  double n = 0;
+  switch (m3) {
+    case 4:
+      n = std::round(a);
+      break;
+    case 5:
+      n = std::trunc(a);
+      break;
+    case 6:
+      n = std::ceil(a);
+      break;
+    case 7:
+      n = std::floor(a);
+      break;
+    default:
+      UNIMPLEMENTED();
+  }
+
+  uint32_t r1_val = 0;
+
+  if (-std::numeric_limits<double>::infinity() <= a && a < 0.0) {
     condition_reg_ = (n < 0.0) ? 0x1 : 0x4;
+    r1_val = 0;
   } else if (a == 0.0) {
     condition_reg_ = 0x8;
-  } else if (std::isfinite(a) && a > 0.0) {
-    DCHECK(n >= 0.0 && std::isfinite(n));
-    condition_reg_ = (n <= static_cast<double>(UINT32_MAX)) ? 0x2 : 0x1;
-  } else {
+    r1_val = 0;
+  } else if (0.0 < a && a <= std::numeric_limits<uint32_t>::max()) {
+    condition_reg_ = 0x2;
+    r1_val = static_cast<uint32_t>(n);
+  } else if (a > std::numeric_limits<uint32_t>::max() &&
+             a <= std::numeric_limits<double>::infinity()) {
+    condition_reg_ = n == std::numeric_limits<uint32_t>::max() ? 0x2 : 0x1;
+    r1_val = std::numeric_limits<uint32_t>::max();
+  } else if (std::isnan(a)) {
     condition_reg_ = 0x1;
+    r1_val = 0;
   }
+
+  set_low_register(r1, r1_val);
   return length;
 }
 
