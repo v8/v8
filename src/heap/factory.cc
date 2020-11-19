@@ -1562,8 +1562,11 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
       clone->set_raw_properties_or_hash(*prop);
     }
   } else {
-    Handle<FixedArray> properties(
-        FixedArray::cast(source->property_dictionary()), isolate());
+    Handle<FixedArray> properties =
+        handle(V8_DICT_MODE_PROTOTYPES_BOOL
+                   ? FixedArray::cast(source->property_dictionary_ordered())
+                   : FixedArray::cast(source->property_dictionary()),
+               isolate());
     Handle<FixedArray> prop = CopyFixedArray(properties);
     clone->set_raw_properties_or_hash(*prop);
   }

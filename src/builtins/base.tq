@@ -395,6 +395,11 @@ extern enum PrimitiveType { kString, kBoolean, kSymbol, kNumber }
 
 const kNameDictionaryInitialCapacity:
     constexpr int32 generates 'NameDictionary::kInitialCapacity';
+const kOrderedNameDictionaryInitialCapacity:
+    constexpr int32 generates 'OrderedNameDictionary::kInitialCapacity';
+
+const kDictModePrototypes:
+    constexpr bool generates 'V8_DICT_MODE_PROTOTYPES_BOOL';
 
 type TheHole extends Oddball;
 type Null extends Oddball;
@@ -614,6 +619,8 @@ extern macro SpeciesConstructor(implicit context: Context)(
 extern macro ConstructorBuiltinsAssembler::IsDictionaryMap(Map): bool;
 extern macro CodeStubAssembler::AllocateNameDictionary(constexpr int32):
     NameDictionary;
+extern macro CodeStubAssembler::AllocateOrderedNameDictionary(constexpr int32):
+    OrderedNameDictionary;
 
 extern builtin ToObject(Context, JSAny): JSReceiver;
 extern macro ToObject_Inline(Context, JSAny): JSReceiver;

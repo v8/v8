@@ -1590,10 +1590,26 @@ TNode<HeapObject> CodeStubAssembler::LoadSlowProperties(
     TNode<JSReceiver> object) {
   CSA_SLOW_ASSERT(this, IsDictionaryMap(LoadMap(object)));
   TNode<Object> properties = LoadJSReceiverPropertiesOrHash(object);
-  return Select<HeapObject>(
-      TaggedIsSmi(properties),
-      [=] { return EmptyPropertyDictionaryConstant(); },
-      [=] { return CAST(properties); });
+  NodeGenerator<HeapObject> make_empty = [=]() -> TNode<HeapObject> {
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      return EmptyOrderedPropertyDictionaryConstant();
+    } else {
+      return EmptyPropertyDictionaryConstant();
+    }
+  };
+  NodeGenerator<HeapObject> cast_properties = [=] {
+    TNode<HeapObject> dict = CAST(properties);
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      CSA_ASSERT(this, Word32Or(IsOrderedNameDictionary(dict),
+                                IsGlobalDictionary(dict)));
+    } else {
+      CSA_ASSERT(this,
+                 Word32Or(IsNameDictionary(dict), IsGlobalDictionary(dict)));
+    }
+    return dict;
+  };
+  return Select<HeapObject>(TaggedIsSmi(properties), make_empty,
+                            cast_properties);
 }
 
 TNode<Object> CodeStubAssembler::LoadJSArgumentsObjectLength(
@@ -1763,7 +1779,8 @@ TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
     SloppyTNode<Object> receiver, Label* if_no_hash) {
   TVARIABLE(IntPtrT, var_hash);
   Label done(this), if_smi(this), if_property_array(this),
-      if_property_dictionary(this), if_fixed_array(this);
+      if_ordered_property_dictionary(this), if_property_dictionary(this),
+      if_fixed_array(this);
 
   TNode<Object> properties_or_hash =
       LoadObjectField(TNode<HeapObject>::UncheckedCast(receiver),
@@ -1776,6 +1793,11 @@ TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
 
   GotoIf(InstanceTypeEqual(properties_instance_type, PROPERTY_ARRAY_TYPE),
          &if_property_array);
+  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    GotoIf(InstanceTypeEqual(properties_instance_type,
+                             ORDERED_NAME_DICTIONARY_TYPE),
+           &if_ordered_property_dictionary);
+  }
   Branch(InstanceTypeEqual(properties_instance_type, NAME_DICTIONARY_TYPE),
          &if_property_dictionary, &if_fixed_array);
 
@@ -1798,6 +1820,14 @@ TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
     var_hash = TNode<IntPtrT>::UncheckedCast(
         DecodeWord<PropertyArray::HashField>(length_and_hash));
     Goto(&done);
+  }
+  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    BIND(&if_ordered_property_dictionary);
+    {
+      var_hash = SmiUntag(CAST(LoadFixedArrayElement(
+          CAST(properties), OrderedNameDictionary::HashIndex())));
+      Goto(&done);
+    }
   }
 
   BIND(&if_property_dictionary);
@@ -3522,8 +3552,9 @@ void CodeStubAssembler::InitializeJSObjectFromMap(
     StoreObjectFieldRoot(object, JSObject::kPropertiesOrHashOffset,
                          RootIndex::kEmptyFixedArray);
   } else {
-    CSA_ASSERT(this, Word32Or(Word32Or(IsPropertyArray(*properties),
-                                       IsNameDictionary(*properties)),
+    CSA_ASSERT(this, Word32Or(Word32Or(Word32Or(IsPropertyArray(*properties),
+                                                IsNameDictionary(*properties)),
+                                       IsOrderedNameDictionary(*properties)),
                               IsEmptyFixedArray(*properties)));
     StoreObjectFieldNoWriteBarrier(object, JSObject::kPropertiesOrHashOffset,
                                    *properties);
@@ -6321,6 +6352,10 @@ TNode<BoolT> CodeStubAssembler::IsEphemeronHashTable(TNode<HeapObject> object) {
 TNode<BoolT> CodeStubAssembler::IsNameDictionary(TNode<HeapObject> object) {
   return HasInstanceType(object, NAME_DICTIONARY_TYPE);
 }
+TNode<BoolT> CodeStubAssembler::IsOrderedNameDictionary(
+    TNode<HeapObject> object) {
+  return HasInstanceType(object, ORDERED_NAME_DICTIONARY_TYPE);
+}
 
 TNode<BoolT> CodeStubAssembler::IsGlobalDictionary(TNode<HeapObject> object) {
   return HasInstanceType(object, GLOBAL_DICTIONARY_TYPE);
@@ -8031,6 +8066,27 @@ void CodeStubAssembler::Add(TNode<Dictionary> dictionary, TNode<Name> key,
 template void CodeStubAssembler::Add<NameDictionary>(TNode<NameDictionary>,
                                                      TNode<Name>, TNode<Object>,
                                                      Label*);
+
+template <class Dictionary>
+TNode<Smi> CodeStubAssembler::GetNumberOfElements(
+    TNode<Dictionary> dictionary) {
+  return CAST(
+      LoadFixedArrayElement(dictionary, Dictionary::kNumberOfElementsIndex));
+}
+
+template <>
+TNode<Smi> CodeStubAssembler::GetNumberOfElements(
+    TNode<OrderedNameDictionary> dictionary) {
+  return CAST(LoadFixedArrayElement(
+      dictionary, OrderedNameDictionary::NumberOfElementsIndex()));
+}
+
+template TNode<Smi> CodeStubAssembler::GetNumberOfElements(
+    TNode<NameDictionary> dictionary);
+template TNode<Smi> CodeStubAssembler::GetNumberOfElements(
+    TNode<NumberDictionary> dictionary);
+template TNode<Smi> CodeStubAssembler::GetNumberOfElements(
+    TNode<GlobalDictionary> dictionary);
 
 template <typename Array>
 void CodeStubAssembler::LookupLinear(TNode<Name> unique_name,
@@ -13259,13 +13315,32 @@ TNode<Map> CodeStubAssembler::CheckEnumCache(TNode<JSReceiver> receiver,
   {
     // Avoid runtime-call for empty dictionary receivers.
     GotoIfNot(IsDictionaryMap(receiver_map), if_runtime);
-    TNode<HashTableBase> properties =
-        UncheckedCast<HashTableBase>(LoadSlowProperties(receiver));
-    CSA_ASSERT(this, Word32Or(IsNameDictionary(properties),
-                              IsGlobalDictionary(properties)));
-    STATIC_ASSERT(static_cast<int>(NameDictionary::kNumberOfElementsIndex) ==
-                  static_cast<int>(GlobalDictionary::kNumberOfElementsIndex));
-    TNode<Smi> length = GetNumberOfElements(properties);
+    TNode<Smi> length;
+    TNode<HeapObject> properties = LoadSlowProperties(receiver);
+
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      CSA_ASSERT(this, Word32Or(IsOrderedNameDictionary(properties),
+                                IsGlobalDictionary(properties)));
+
+      length = Select<Smi>(
+          IsOrderedNameDictionary(properties),
+          [=] {
+            return GetNumberOfElements(
+                UncheckedCast<OrderedNameDictionary>(properties));
+          },
+          [=] {
+            return GetNumberOfElements(
+                UncheckedCast<GlobalDictionary>(properties));
+          });
+
+    } else {
+      CSA_ASSERT(this, Word32Or(IsNameDictionary(properties),
+                                IsGlobalDictionary(properties)));
+      STATIC_ASSERT(static_cast<int>(NameDictionary::kNumberOfElementsIndex) ==
+                    static_cast<int>(GlobalDictionary::kNumberOfElementsIndex));
+      length = GetNumberOfElements(UncheckedCast<HashTableBase>(properties));
+    }
+
     GotoIfNot(TaggedEqual(length, SmiConstant(0)), if_runtime);
     // Check that there are no elements on the {receiver} and its prototype
     // chain. Given that we do not create an EnumCache for dict-mode objects,

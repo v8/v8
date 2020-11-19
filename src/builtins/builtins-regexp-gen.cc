@@ -11,6 +11,7 @@
 #include "src/codegen/code-factory.h"
 #include "src/codegen/code-stub-assembler.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/common/globals.h"
 #include "src/execution/protectors.h"
 #include "src/heap/factory-inl.h"
 #include "src/logging/counters.h"
@@ -289,8 +290,14 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     TNode<IntPtrT> num_properties = WordSar(names_length, 1);
     TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<Map> map = LoadSlowObjectWithNullPrototypeMap(native_context);
-    TNode<NameDictionary> properties =
-        AllocateNameDictionary(num_properties, kAllowLargeObjectAllocation);
+    TNode<HeapObject> properties;
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      // AllocateOrderedNameDictionary always uses kAllowLargeObjectAllocation.
+      properties = AllocateOrderedNameDictionary(num_properties);
+    } else {
+      properties =
+          AllocateNameDictionary(num_properties, kAllowLargeObjectAllocation);
+    }
 
     TNode<JSObject> group_object = AllocateJSObjectFromMap(map, properties);
     StoreObjectField(result, JSRegExpResult::kGroupsOffset, group_object);
@@ -325,7 +332,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
       // - Receiver is extensible
       // - Receiver has no interceptors
       Label add_dictionary_property_slow(this, Label::kDeferred);
-      Add<NameDictionary>(properties, name, capture,
+      Add<NameDictionary>(CAST(properties), name, capture,
                           &add_dictionary_property_slow);
 
       var_i = i_plus_2;

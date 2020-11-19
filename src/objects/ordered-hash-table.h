@@ -831,6 +831,8 @@ class V8_EXPORT_PRIVATE OrderedNameDictionary
   static const int kPropertyDetailsOffset = 2;
   static const int kPrefixSize = 1;
 
+  static constexpr int HashIndex() { return PrefixIndex(); }
+
   static const bool kIsOrderedDictionaryType = true;
 
   OBJECT_CONSTRUCTORS(OrderedNameDictionary,

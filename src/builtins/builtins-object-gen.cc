@@ -5,6 +5,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-stub-assembler.h"
+#include "src/common/globals.h"
 #include "src/heap/factory-inl.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/keyed-store-generic.h"
@@ -1068,7 +1069,12 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     BIND(&null_proto);
     {
       map = LoadSlowObjectWithNullPrototypeMap(native_context);
-      properties = AllocateNameDictionary(NameDictionary::kInitialCapacity);
+      if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+        properties = AllocateOrderedNameDictionary(
+            OrderedNameDictionary::kInitialCapacity);
+      } else {
+        properties = AllocateNameDictionary(NameDictionary::kInitialCapacity);
+      }
       Goto(&instantiate_map);
     }
 

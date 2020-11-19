@@ -232,11 +232,11 @@ inline int SmallOrderedNameDictionary::Hash() {
 
 inline void OrderedNameDictionary::SetHash(int hash) {
   DCHECK(PropertyArray::HashField::is_valid(hash));
-  this->set(PrefixIndex(), Smi::FromInt(hash));
+  this->set(HashIndex(), Smi::FromInt(hash));
 }
 
 inline int OrderedNameDictionary::Hash() {
-  Object hash_obj = this->get(PrefixIndex());
+  Object hash_obj = this->get(HashIndex());
   int hash = Smi::ToInt(hash_obj);
   DCHECK(PropertyArray::HashField::is_valid(hash));
   return hash;
