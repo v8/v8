@@ -23,7 +23,8 @@ class TestPlatform : public DefaultPlatform {
     TestPlatform* platform_;
   };
 
-  TestPlatform();
+  TestPlatform(
+      std::unique_ptr<v8::TracingController> tracing_controller = nullptr);
 
   std::unique_ptr<cppgc::JobHandle> PostJob(
       cppgc::TaskPriority priority,

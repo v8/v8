@@ -67,6 +67,10 @@ class CppgcPlatformAdapter final : public cppgc::Platform {
     return platform_->PostJob(priority, std::move(job_task));
   }
 
+  TracingController* GetTracingController() override {
+    return platform_->GetTracingController();
+  }
+
  private:
   v8::Platform* platform_;
   v8::Isolate* isolate_;
@@ -185,7 +189,10 @@ void CppHeap::TracePrologue(TraceFlags flags) {
   const UnifiedHeapMarker::MarkingConfig marking_config{
       UnifiedHeapMarker::MarkingConfig::CollectionType::kMajor,
       cppgc::Heap::StackState::kNoHeapPointers,
-      UnifiedHeapMarker::MarkingConfig::MarkingType::kIncrementalAndConcurrent};
+      UnifiedHeapMarker::MarkingConfig::MarkingType::kIncrementalAndConcurrent,
+      flags == TraceFlags::kForced
+          ? UnifiedHeapMarker::MarkingConfig::IsForcedGC::kForced
+          : UnifiedHeapMarker::MarkingConfig::IsForcedGC::kNotForced};
   if ((flags == TraceFlags::kReduceMemory) || (flags == TraceFlags::kForced)) {
     // Only enable compaction when in a memory reduction garbage collection as
     // it may significantly increase the final garbage collection pause.

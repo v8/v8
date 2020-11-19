@@ -195,7 +195,8 @@ MarkerBase::~MarkerBase() {
 
 void MarkerBase::StartMarking() {
   DCHECK(!is_marking_started_);
-  heap().stats_collector()->NotifyMarkingStarted();
+  heap().stats_collector()->NotifyMarkingStarted(config_.collection_type,
+                                                 config_.is_forced_gc);
 
   is_marking_started_ = true;
   if (EnterIncrementalMarkingIfNeeded(config_, heap())) {

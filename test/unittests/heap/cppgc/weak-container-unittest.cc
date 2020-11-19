@@ -27,6 +27,7 @@ class WeakContainerTest : public testing::TestWithHeap {
 
   void FinishMarking(Config::StackState stack_state) {
     GetMarkerRef()->FinishMarking(stack_state);
+    GetMarkerRef().reset();
     Heap::From(GetHeap())->stats_collector()->NotifySweepingCompleted();
   }
 };

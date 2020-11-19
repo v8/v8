@@ -3825,7 +3825,8 @@ v8_source_set("v8_base_without_compiler") {
     ":cppgc_base_config",
   ]
 
-  defines = []
+  defines = [ "CPPGC_BUILD_IN_V8" ]
+
   deps = [
     ":cppgc_base",
     ":torque_generated_definitions",
@@ -4426,6 +4427,7 @@ v8_source_set("cppgc_base") {
   visibility = [ ":*" ]
 
   sources = [
+    "//base/trace_event/common/trace_event_common.h",
     "include/cppgc/allocation.h",
     "include/cppgc/common.h",
     "include/cppgc/custom-space.h",
@@ -4521,6 +4523,7 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/sweeper.cc",
     "src/heap/cppgc/sweeper.h",
     "src/heap/cppgc/task-handle.h",
+    "src/heap/cppgc/trace-event.h",
     "src/heap/cppgc/trace-trait.cc",
     "src/heap/cppgc/virtual-memory.cc",
     "src/heap/cppgc/virtual-memory.h",

@@ -43,7 +43,8 @@ void Heap::ForceGarbageCollectionSlow(const char* source, const char* reason,
   internal::Heap::From(this)->CollectGarbage(
       {internal::GarbageCollector::Config::CollectionType::kMajor, stack_state,
        internal::GarbageCollector::Config::MarkingType::kAtomic,
-       internal::GarbageCollector::Config::SweepingType::kAtomic});
+       internal::GarbageCollector::Config::SweepingType::kAtomic,
+       internal::GarbageCollector::Config::IsForcedGC::kForced});
 }
 
 AllocationHandle& Heap::GetAllocationHandle() {
@@ -142,7 +143,8 @@ void Heap::StartGarbageCollection(Config config) {
 #endif
 
   const Marker::MarkingConfig marking_config{
-      config.collection_type, config.stack_state, config.marking_type};
+      config.collection_type, config.stack_state, config.marking_type,
+      config.is_forced_gc};
   marker_ = MarkerFactory::CreateAndStartMarking<Marker>(
       AsBase(), platform_.get(), marking_config);
 }

@@ -23,7 +23,9 @@ class FakeGarbageCollector : public GarbageCollector {
   void SetLiveBytes(size_t live_bytes) { live_bytes_ = live_bytes; }
 
   void CollectGarbage(GarbageCollector::Config config) override {
-    stats_collector_->NotifyMarkingStarted();
+    stats_collector_->NotifyMarkingStarted(
+        GarbageCollector::Config::CollectionType::kMajor,
+        GarbageCollector::Config::IsForcedGC::kNotForced);
     stats_collector_->NotifyMarkingCompleted(live_bytes_);
     stats_collector_->NotifySweepingCompleted();
     callcount_++;
