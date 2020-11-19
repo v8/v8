@@ -1134,6 +1134,7 @@ action("postmortem-metadata") {
 
 torque_files = [
   "src/builtins/aggregate-error.tq",
+  "src/builtins/array-at.tq",
   "src/builtins/array-copywithin.tq",
   "src/builtins/array-every.tq",
   "src/builtins/array-filter.tq",
@@ -1216,6 +1217,7 @@ torque_files = [
   "src/builtins/regexp-split.tq",
   "src/builtins/regexp-test.tq",
   "src/builtins/regexp.tq",
+  "src/builtins/string-at.tq",
   "src/builtins/string-endswith.tq",
   "src/builtins/string-html.tq",
   "src/builtins/string-iterator.tq",
@@ -1229,6 +1231,7 @@ torque_files = [
   "src/builtins/string-trim.tq",
   "src/builtins/symbol.tq",
   "src/builtins/torque-internal.tq",
+  "src/builtins/typed-array-at.tq",
   "src/builtins/typed-array-createtypedarray.tq",
   "src/builtins/typed-array-every.tq",
   "src/builtins/typed-array-entries.tq",

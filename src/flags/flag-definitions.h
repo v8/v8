@@ -253,7 +253,8 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
   V(harmony_weak_refs_with_cleanup_some,                                       \
     "harmony weak references with FinalizationRegistry.prototype.cleanupSome") \
   V(harmony_regexp_match_indices, "harmony regexp match indices")              \
-  V(harmony_import_assertions, "harmony import assertions")
+  V(harmony_import_assertions, "harmony import assertions")                    \
+  V(harmony_relative_indexing_methods, "harmony relative indexing methods")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V)                       \

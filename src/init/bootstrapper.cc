@@ -4391,6 +4391,40 @@ void Genesis::InitializeGlobal_regexp_linear_flag() {
   native_context()->set_regexp_prototype_map(regexp_prototype->map());
 }
 
+void Genesis::InitializeGlobal_harmony_relative_indexing_methods() {
+  if (!FLAG_harmony_relative_indexing_methods) return;
+
+  {
+    Handle<JSFunction> array_function(native_context()->array_function(),
+                                      isolate());
+    Handle<JSObject> array_prototype(
+        JSObject::cast(array_function->instance_prototype()), isolate());
+
+    SimpleInstallFunction(isolate(), array_prototype, "at",
+                          Builtins::kArrayPrototypeAt, 1, true);
+  }
+
+  {
+    Handle<JSFunction> string_function(native_context()->string_function(),
+                                       isolate());
+    Handle<JSObject> string_prototype(
+        JSObject::cast(string_function->instance_prototype()), isolate());
+
+    SimpleInstallFunction(isolate(), string_prototype, "at",
+                          Builtins::kStringPrototypeAt, 1, true);
+  }
+
+  {
+    Handle<JSFunction> typed_array_function(
+        native_context()->typed_array_function(), isolate());
+    Handle<JSObject> typed_array_prototype(
+        JSObject::cast(typed_array_function->instance_prototype()), isolate());
+
+    SimpleInstallFunction(isolate(), typed_array_prototype, "at",
+                          Builtins::kTypedArrayPrototypeAt, 1, true);
+  }
+}
+
 #ifdef V8_INTL_SUPPORT
 
 void Genesis::InitializeGlobal_harmony_intl_segmenter() {

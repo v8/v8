@@ -567,6 +567,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kArrayIndexOf:
     case Builtins::kArrayPrototypeValues:
     case Builtins::kArrayIncludes:
+    case Builtins::kArrayPrototypeAt:
     case Builtins::kArrayPrototypeEntries:
     case Builtins::kArrayPrototypeFill:
     case Builtins::kArrayPrototypeFind:
@@ -592,6 +593,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kTrace:
     // TypedArray builtins.
     case Builtins::kTypedArrayConstructor:
+    case Builtins::kTypedArrayPrototypeAt:
     case Builtins::kTypedArrayPrototypeBuffer:
     case Builtins::kTypedArrayPrototypeByteLength:
     case Builtins::kTypedArrayPrototypeByteOffset:
@@ -759,6 +761,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kStringFromCodePoint:
     case Builtins::kStringConstructor:
     case Builtins::kStringPrototypeAnchor:
+    case Builtins::kStringPrototypeAt:
     case Builtins::kStringPrototypeBig:
     case Builtins::kStringPrototypeBlink:
     case Builtins::kStringPrototypeBold:
