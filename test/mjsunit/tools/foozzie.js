@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --correctness-fuzzer-suppressions
+// Flags: --allow-natives-syntax
 // Files: tools/clusterfuzz/v8_mock.js
 
 // Test foozzie mocks for differential fuzzing.
@@ -21,11 +21,6 @@ assertEquals(710, new Date.prototype.constructor().getUTCMilliseconds());
 // Deterministic arguments in constructor keep working.
 assertEquals(819134640000,
              new Date('December 17, 1995 03:24:00 GMT+1000').getTime());
-
-// Deterministic DateTimeFormat.
-const df = new Intl.DateTimeFormat(undefined, {fractionalSecondDigits: 3});
-assertEquals('004', df.format());
-assertEquals('004', df.formatToParts()[0].value);
 
 // Dummy performance methods.
 assertEquals(1.2, performance.now());
