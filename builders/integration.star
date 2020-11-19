@@ -17,6 +17,7 @@ in_category(
         execution_timeout = 10800,
         properties = {"builder_group": "client.v8.fyi"},
         use_goma = GOMA.ATS,
+        notifies = ["beta/stable notifier"],
     ),
     v8_builder(
         name = "V8 Blink Mac",
@@ -33,6 +34,7 @@ in_category(
             ),
         ],
         use_goma = GOMA.DEFAULT,
+        notifies = ["beta/stable notifier"],
     ),
     v8_builder(
         name = "V8 Blink Linux",
@@ -47,6 +49,7 @@ in_category(
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.fyi"},
         use_goma = GOMA.DEFAULT,
+        notifies = ["beta/stable notifier"],
     ),
     v8_builder(
         name = "V8 Blink Linux Debug",
@@ -60,6 +63,7 @@ in_category(
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.fyi"},
         use_goma = GOMA.DEFAULT,
+        notifies = ["beta/stable notifier"],
     ),
     v8_builder(
         name = "V8 Blink Linux Future",
@@ -69,6 +73,7 @@ in_category(
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.fyi"},
         use_goma = GOMA.DEFAULT,
+        notifies = ["beta/stable notifier"],
     ),
 )
 
@@ -91,6 +96,7 @@ in_category(
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.fyi"},
         use_goma = GOMA.DEFAULT,
+        notifies = ["beta/stable notifier"],
     ),
     v8_builder(
         name = "V8 Android GN (dbg)",
@@ -100,6 +106,7 @@ in_category(
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.fyi"},
         use_goma = GOMA.DEFAULT,
+        notifies = ["beta/stable notifier"],
     ),
     v8_builder(
         name = "Linux ASAN Builder",
@@ -180,5 +187,6 @@ in_category(
         dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
         properties = {"v8_tot": True, "builder_group": "client.v8.fyi"},
         use_goma = GOMA.DEFAULT,
+        notifies = ["beta/stable notifier"],
     ),
 )

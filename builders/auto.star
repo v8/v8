@@ -26,6 +26,7 @@ auto_builder(
     },
     schedule = "8,23,38,53 * * * *",
     in_list = "infra",
+    notifies = ["infra"],
 )
 
 auto_builder(

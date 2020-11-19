@@ -11,6 +11,7 @@ v8_builder(
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     properties = {"triggers_proxy": True, "builder_group": "client.v8"},
     use_goma = GOMA.DEFAULT,
+    notifies = ["beta/stable notifier"],
 )
 
 v8_builder(

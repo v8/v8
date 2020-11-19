@@ -13,6 +13,33 @@ luci.notifier(
     ],
 )
 
+luci.notifier(
+    name = "infra",
+    on_occurrence = ["FAILURE"],
+    failed_step_regexp_exclude = FAILED_STEPS_EXCLUDE,
+    notify_emails = [
+        "v8-infra@google.com",
+    ],
+)
+
+luci.notifier(
+    name = "memory sheriffs",
+    on_occurrence = ["FAILURE"],
+    failed_step_regexp_exclude = FAILED_STEPS_EXCLUDE,
+    notify_emails = [
+        "v8-memory-sheriffs@google.com",
+    ],
+)
+
+luci.notifier(
+    name = "jsvu/esvu maintainer",
+    on_occurrence = ["FAILURE"],
+    failed_step_regexp_exclude = FAILED_STEPS_EXCLUDE,
+    notify_emails = [
+        "mathiasb@google.com",
+    ],
+)
+
 # Enable luci.tree_closer.
 lucicfg.enable_experiment("crbug.com/1054172")
 
