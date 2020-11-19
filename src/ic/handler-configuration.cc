@@ -335,22 +335,15 @@ void PrintSmiLoadHandler(int raw_handler, std::ostream& os) {
       os << "kGlobal";
       break;
     case LoadHandler::Kind::kField: {
-      CompactElementsKind compact_elements_kind =
-          LoadHandler::CompactElementsKindBits::decode(raw_handler);
       os << "kField, is in object = "
          << LoadHandler::IsInobjectBits::decode(raw_handler)
          << ", is double = " << LoadHandler::IsDoubleBits::decode(raw_handler)
          << ", field index = "
-         << LoadHandler::FieldIndexBits::decode(raw_handler)
-         << ", elements kind = "
-         << CompactElementsKindToString(compact_elements_kind);
+         << LoadHandler::FieldIndexBits::decode(raw_handler);
       break;
     }
     case LoadHandler::Kind::kConstantFromPrototype: {
-      CompactElementsKind compact_elements_kind =
-          LoadHandler::CompactElementsKindBits::decode(raw_handler);
-      os << "kConstantFromPrototype, elements kind = "
-         << CompactElementsKindToString(compact_elements_kind);
+      os << "kConstantFromPrototype ";
       break;
     }
     case LoadHandler::Kind::kAccessor:
