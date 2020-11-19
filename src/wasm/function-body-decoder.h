@@ -69,10 +69,8 @@ V8_EXPORT_PRIVATE bool DecodeLocalDecls(const WasmFeatures& enabled,
                                         BodyLocalDecls* decls,
                                         const byte* start, const byte* end);
 
-V8_EXPORT_PRIVATE BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone,
-                                                             size_t num_locals,
-                                                             const byte* start,
-                                                             const byte* end);
+V8_EXPORT_PRIVATE BitVector* AnalyzeLoopAssignmentForTesting(
+    Zone* zone, uint32_t num_locals, const byte* start, const byte* end);
 
 // Computes the length of the opcode at the given address.
 V8_EXPORT_PRIVATE unsigned OpcodeLength(const byte* pc, const byte* end);

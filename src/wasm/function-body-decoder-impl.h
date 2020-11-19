@@ -1185,36 +1185,36 @@ class WasmDecoder : public Decoder {
     wasm::DecodeError<validate>(this, std::forward<Args>(args)...);
   }
 
+  // Returns a BitVector of length {locals_count + 1} representing the set of
+  // variables that are assigned in the loop starting at {pc}. The additional
+  // position at the end of the vector represents possible assignments to
+  // the instance cache.
   static BitVector* AnalyzeLoopAssignment(WasmDecoder* decoder, const byte* pc,
                                           uint32_t locals_count, Zone* zone) {
     if (pc >= decoder->end()) return nullptr;
     if (*pc != kExprLoop) return nullptr;
-
-    // The number of locals_count is augmented by 2 so that 'locals_count - 2'
-    // can be used to track mem_size, and 'locals_count - 1' to track mem_start.
-    BitVector* assigned = zone->New<BitVector>(locals_count, zone);
+    // The number of locals_count is augmented by 1 so that the 'locals_count'
+    // index can be used to track the instance cache.
+    BitVector* assigned = zone->New<BitVector>(locals_count + 1, zone);
     int depth = 0;
     // Iteratively process all AST nodes nested inside the loop.
     while (pc < decoder->end() && VALIDATE(decoder->ok())) {
       WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
-      uint32_t length = 1;
       switch (opcode) {
         case kExprLoop:
         case kExprIf:
         case kExprBlock:
         case kExprTry:
-          length = OpcodeLength(decoder, pc);
+        case kExprLet:
           depth++;
           break;
-        case kExprLocalSet:  // fallthru
+        case kExprLocalSet:
         case kExprLocalTee: {
           LocalIndexImmediate<validate> imm(decoder, pc + 1);
-          if (assigned->length() > 0 &&
-              imm.index < static_cast<uint32_t>(assigned->length())) {
+          if (imm.index < locals_count) {
             // Unverified code might have an out-of-bounds index.
             assigned->Add(imm.index);
           }
-          length = 1 + imm.length;
           break;
         }
         case kExprMemoryGrow:
@@ -1222,20 +1222,19 @@ class WasmDecoder : public Decoder {
         case kExprCallIndirect:
         case kExprReturnCall:
         case kExprReturnCallIndirect:
-          // Add instance cache nodes to the assigned set.
-          // TODO(titzer): make this more clear.
-          assigned->Add(locals_count - 1);
-          length = OpcodeLength(decoder, pc);
+        case kExprCallRef:
+        case kExprReturnCallRef:
+          // Add instance cache to the assigned set.
+          assigned->Add(locals_count);
           break;
         case kExprEnd:
           depth--;
           break;
         default:
-          length = OpcodeLength(decoder, pc);
           break;
       }
       if (depth <= 0) break;
-      pc += length;
+      pc += OpcodeLength(decoder, pc);
     }
     return VALIDATE(decoder->ok()) ? assigned : nullptr;
   }

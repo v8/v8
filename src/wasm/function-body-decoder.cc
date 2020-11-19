@@ -301,13 +301,13 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
   return decoder.ok();
 }
 
-BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, size_t num_locals,
+BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, uint32_t num_locals,
                                            const byte* start, const byte* end) {
   WasmFeatures no_features = WasmFeatures::None();
   WasmDecoder<Decoder::kFullValidation> decoder(
       zone, nullptr, no_features, &no_features, nullptr, start, end, 0);
   return WasmDecoder<Decoder::kFullValidation>::AnalyzeLoopAssignment(
-      &decoder, start, static_cast<uint32_t>(num_locals), zone);
+      &decoder, start, num_locals, zone);
 }
 
 }  // namespace wasm
