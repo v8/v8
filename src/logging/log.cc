@@ -227,7 +227,7 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
                                       int column) {
   name_buffer_->Init(tag);
   name_buffer_->AppendBytes(ComputeMarker(*shared, *code));
-  name_buffer_->AppendString(shared->DebugName());
+  name_buffer_->AppendBytes(shared->DebugNameCStr().get());
   name_buffer_->AppendByte(' ');
   if (script_name->IsString()) {
     name_buffer_->AppendString(String::cast(*script_name));
@@ -1274,8 +1274,8 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
     if (!msg_ptr) return;
     Log::MessageBuilder& msg = *msg_ptr.get();
     AppendCodeCreateHeader(msg, tag, *code, Time());
-    msg << shared->DebugName() << " " << *script_name << ":" << line << ":"
-        << column << kNext << reinterpret_cast<void*>(shared->address())
+    msg << shared->DebugNameCStr().get() << " " << *script_name << ":" << line
+        << ":" << column << kNext << reinterpret_cast<void*>(shared->address())
         << kNext << ComputeMarker(*shared, *code);
     msg.WriteToLogFile();
   }
@@ -1450,7 +1450,7 @@ void Logger::CodeDisableOptEvent(Handle<AbstractCode> code,
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
   msg << kLogEventsNames[CodeEventListener::CODE_DISABLE_OPT_EVENT] << kNext
-      << shared->DebugName() << kNext
+      << shared->DebugNameCStr().get() << kNext
       << GetBailoutReason(shared->disable_optimization_reason());
   msg.WriteToLogFile();
 }
@@ -1809,7 +1809,7 @@ void Logger::MapEvent(const char* type, Handle<Map> from, Handle<Map> to,
       msg << Name::cast(*name_or_sfi);
     } else if (name_or_sfi->IsSharedFunctionInfo()) {
       SharedFunctionInfo sfi = SharedFunctionInfo::cast(*name_or_sfi);
-      msg << sfi.DebugName();
+      msg << sfi.DebugNameCStr().get();
 #if V8_SFI_HAS_UNIQUE_ID
       msg << " " << sfi.unique_id();
 #endif  // V8_SFI_HAS_UNIQUE_ID
@@ -2299,7 +2299,7 @@ void ExistingCodeLogger::LogExistingFunction(
 #if USES_FUNCTION_DESCRIPTORS
       entry_point = *FUNCTION_ENTRYPOINT_ADDRESS(entry_point);
 #endif
-      Handle<String> fun_name(shared->DebugName(), isolate_);
+      Handle<String> fun_name = SharedFunctionInfo::DebugName(shared);
       CALL_CODE_EVENT_HANDLER(CallbackEvent(fun_name, entry_point))
 
       // Fast API function.

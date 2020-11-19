@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/pipeline-statistics.h"
+
 #include <memory>
 
 #include "src/codegen/optimized-compilation-info.h"
-#include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/zone-stats.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
@@ -64,8 +65,7 @@ PipelineStatistics::PipelineStatistics(OptimizedCompilationInfo* info,
       phase_kind_name_(nullptr),
       phase_name_(nullptr) {
   if (info->has_shared_info()) {
-    std::unique_ptr<char[]> name = info->shared_info()->DebugName().ToCString();
-    function_name_ = name.get();
+    function_name_.assign(info->shared_info()->DebugNameCStr().get());
   }
   total_stats_.Begin(this);
 }

@@ -63,7 +63,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
-  rec->entry = new CodeEntry(tag, GetName(shared->DebugName()),
+  rec->entry = new CodeEntry(tag, GetName(shared->DebugNameCStr().get()),
                              GetName(InferScriptName(*script_name, *shared)),
                              CpuProfileNode::kNoLineNumberInfo,
                              CpuProfileNode::kNoColumnNumberInfo, nullptr);
@@ -305,7 +305,7 @@ Name ProfilerListener::InferScriptName(Name name, SharedFunctionInfo info) {
 const char* ProfilerListener::GetFunctionName(SharedFunctionInfo shared) {
   switch (naming_mode_) {
     case kDebugNaming:
-      return GetName(shared.DebugName());
+      return GetName(shared.DebugNameCStr().get());
     case kStandardNaming:
       return GetName(shared.Name());
     default:

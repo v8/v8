@@ -496,7 +496,7 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
           int return_value_count = iterator.Next();
           Object shared_info = LiteralArray().get(shared_info_id);
           os << "{bytecode_offset=" << bytecode_offset << ", function="
-             << Brief(SharedFunctionInfo::cast(shared_info).DebugName())
+             << SharedFunctionInfo::cast(shared_info).DebugNameCStr().get()
              << ", height=" << height << ", retval=@" << return_value_offset
              << "(#" << return_value_count << ")}";
           break;
@@ -508,7 +508,7 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
           Object shared_info = LiteralArray().get(shared_info_id);
           unsigned height = iterator.Next();
           os << "{bailout_id=" << bailout_id << ", function="
-             << Brief(SharedFunctionInfo::cast(shared_info).DebugName())
+             << SharedFunctionInfo::cast(shared_info).DebugNameCStr().get()
              << ", height=" << height << "}";
           break;
         }
@@ -521,7 +521,7 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
           Object shared_info = LiteralArray().get(shared_info_id);
           unsigned height = iterator.Next();
           os << "{bailout_id=" << bailout_id << ", function="
-             << Brief(SharedFunctionInfo::cast(shared_info).DebugName())
+             << SharedFunctionInfo::cast(shared_info).DebugNameCStr().get()
              << ", height=" << height << "}";
           break;
         }
@@ -531,7 +531,7 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
           Object shared_info = LiteralArray().get(shared_info_id);
           unsigned height = iterator.Next();
           os << "{function="
-             << Brief(SharedFunctionInfo::cast(shared_info).DebugName())
+             << SharedFunctionInfo::cast(shared_info).DebugNameCStr().get()
              << ", height=" << height << "}";
           break;
         }

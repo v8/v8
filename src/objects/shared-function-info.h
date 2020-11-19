@@ -350,7 +350,8 @@ class SharedFunctionInfo : public HeapObject {
   CoverageInfo GetCoverageInfo() const;
 
   // The function's name if it is non-empty, otherwise the inferred name.
-  String DebugName();
+  std::unique_ptr<char[]> DebugNameCStr();
+  static Handle<String> DebugName(Handle<SharedFunctionInfo>);
 
   // Used for flags such as --turbo-filter.
   bool PassesFilter(const char* raw_filter);

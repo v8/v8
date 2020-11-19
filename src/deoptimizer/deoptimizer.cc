@@ -994,7 +994,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   TranslatedFrame::iterator function_iterator = value_iterator++;
   if (verbose_tracing_enabled()) {
     PrintF(trace_scope()->file(), "  translating interpreted frame ");
-    std::unique_ptr<char[]> name = shared.DebugName().ToCString();
+    std::unique_ptr<char[]> name = shared.DebugNameCStr();
     PrintF(trace_scope()->file(), "%s", name.get());
     PrintF(trace_scope()->file(),
            " => bytecode_offset=%d, variable_frame_size=%d, frame_size=%d%s\n",
@@ -2934,7 +2934,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       int return_value_offset = iterator->Next();
       int return_value_count = iterator->Next();
       if (trace_file != nullptr) {
-        std::unique_ptr<char[]> name = shared_info.DebugName().ToCString();
+        std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
         PrintF(trace_file, "  reading input frame %s", name.get());
         int arg_count = InternalFormalParameterCountWithReceiver(shared_info);
         PrintF(trace_file,
@@ -2953,7 +2953,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
-        std::unique_ptr<char[]> name = shared_info.DebugName().ToCString();
+        std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
         PrintF(trace_file, "  reading arguments adaptor frame %s", name.get());
         PrintF(trace_file, " => height=%d; inputs:\n", height);
       }
@@ -2966,7 +2966,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
-        std::unique_ptr<char[]> name = shared_info.DebugName().ToCString();
+        std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
         PrintF(trace_file, "  reading construct stub frame %s", name.get());
         PrintF(trace_file, " => bailout_id=%d, height=%d; inputs:\n",
                bailout_id.ToInt(), height);
@@ -2981,7 +2981,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
-        std::unique_ptr<char[]> name = shared_info.DebugName().ToCString();
+        std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
         PrintF(trace_file, "  reading builtin continuation frame %s",
                name.get());
         PrintF(trace_file, " => bailout_id=%d, height=%d; inputs:\n",
@@ -2997,7 +2997,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
-        std::unique_ptr<char[]> name = shared_info.DebugName().ToCString();
+        std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
         PrintF(trace_file, "  reading JavaScript builtin continuation frame %s",
                name.get());
         PrintF(trace_file, " => bailout_id=%d, height=%d; inputs:\n",
@@ -3012,7 +3012,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
-        std::unique_ptr<char[]> name = shared_info.DebugName().ToCString();
+        std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
         PrintF(trace_file,
                "  reading JavaScript builtin continuation frame with catch %s",
                name.get());

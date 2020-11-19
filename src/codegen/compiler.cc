@@ -231,8 +231,6 @@ void LogFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
                                    line_num, column_num));
   if (!FLAG_log_function_events) return;
 
-  DisallowHeapAllocation no_gc;
-
   std::string name = optimizing ? "optimize" : "compile";
   switch (tag) {
     case CodeEventListener::EVAL_TAG:
@@ -249,9 +247,11 @@ void LogFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
       UNREACHABLE();
   }
 
+  Handle<String> debug_name = SharedFunctionInfo::DebugName(shared);
+  DisallowHeapAllocation no_gc;
   LOG(isolate, FunctionEvent(name.c_str(), script->id(), time_taken_ms,
                              shared->StartPosition(), shared->EndPosition(),
-                             shared->DebugName()));
+                             *debug_name));
 }
 
 ScriptOriginOptions OriginOptionsForEval(Object script) {

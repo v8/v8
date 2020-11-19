@@ -434,15 +434,16 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
 
 void JSFunction::SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
                                Handle<HeapObject> prototype) {
+  Isolate* isolate = function->GetIsolate();
   if (map->prototype() != *prototype) {
-    Map::SetPrototype(function->GetIsolate(), map, prototype);
+    Map::SetPrototype(isolate, map, prototype);
   }
   function->set_prototype_or_initial_map(*map);
   map->SetConstructor(*function);
   if (FLAG_trace_maps) {
-    LOG(function->GetIsolate(), MapEvent("InitialMap", Handle<Map>(), map, "",
-                                         handle(function->shared().DebugName(),
-                                                function->GetIsolate())));
+    LOG(isolate, MapEvent("InitialMap", Handle<Map>(), map, "",
+                          SharedFunctionInfo::DebugName(
+                              handle(function->shared(), isolate))));
   }
 }
 
@@ -737,8 +738,7 @@ int JSFunction::ComputeInstanceSizeWithMinSlack(Isolate* isolate) {
 }
 
 void JSFunction::PrintName(FILE* out) {
-  std::unique_ptr<char[]> name = shared().DebugName().ToCString();
-  PrintF(out, "%s", name.get());
+  PrintF(out, "%s", shared().DebugNameCStr().get());
 }
 
 Handle<String> JSFunction::GetName(Handle<JSFunction> function) {
@@ -746,7 +746,7 @@ Handle<String> JSFunction::GetName(Handle<JSFunction> function) {
   Handle<Object> name =
       JSReceiver::GetDataProperty(function, isolate->factory()->name_string());
   if (name->IsString()) return Handle<String>::cast(name);
-  return handle(function->shared().DebugName(), isolate);
+  return SharedFunctionInfo::DebugName(handle(function->shared(), isolate));
 }
 
 Handle<String> JSFunction::GetDebugName(Handle<JSFunction> function) {

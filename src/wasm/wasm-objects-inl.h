@@ -339,6 +339,10 @@ ACCESSORS(WasmExportedFunctionData, wasm_call_target, Object,
           kWasmCallTargetOffset)
 SMI_ACCESSORS(WasmExportedFunctionData, packed_args_size, kPackedArgsSizeOffset)
 
+wasm::FunctionSig* WasmExportedFunctionData::sig() const {
+  return reinterpret_cast<wasm::FunctionSig*>(signature().foreign_address());
+}
+
 // WasmJSFunction
 WasmJSFunction::WasmJSFunction(Address ptr) : JSFunction(ptr) {
   SLOW_DCHECK(IsWasmJSFunction(*this));

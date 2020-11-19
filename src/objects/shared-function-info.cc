@@ -233,17 +233,35 @@ CoverageInfo SharedFunctionInfo::GetCoverageInfo() const {
   return CoverageInfo::cast(GetDebugInfo().coverage_info());
 }
 
-String SharedFunctionInfo::DebugName() {
+std::unique_ptr<char[]> SharedFunctionInfo::DebugNameCStr() {
+  if (HasWasmExportedFunctionData()) {
+    return WasmExportedFunction::GetDebugName(
+        wasm_exported_function_data().sig());
+  }
   DisallowHeapAllocation no_gc;
   String function_name = Name();
-  if (function_name.length() > 0) return function_name;
-  return inferred_name();
+  if (function_name.length() == 0) function_name = inferred_name();
+  return function_name.ToCString();
+}
+
+// static
+Handle<String> SharedFunctionInfo::DebugName(
+    Handle<SharedFunctionInfo> shared) {
+  if (shared->HasWasmExportedFunctionData()) {
+    return shared->GetIsolate()
+        ->factory()
+        ->NewStringFromUtf8(CStrVector(shared->DebugNameCStr().get()))
+        .ToHandleChecked();
+  }
+  DisallowHeapAllocation no_gc;
+  String function_name = shared->Name();
+  if (function_name.length() == 0) function_name = shared->inferred_name();
+  return handle(function_name, shared->GetIsolate());
 }
 
 bool SharedFunctionInfo::PassesFilter(const char* raw_filter) {
   Vector<const char> filter = CStrVector(raw_filter);
-  std::unique_ptr<char[]> cstrname(DebugName().ToCString());
-  return v8::internal::PassesFilter(CStrVector(cstrname.get()), filter);
+  return v8::internal::PassesFilter(CStrVector(DebugNameCStr().get()), filter);
 }
 
 bool SharedFunctionInfo::HasSourceCode() const {

@@ -1106,11 +1106,10 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
 
 void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
     HeapEntry* entry, SharedFunctionInfo shared) {
-  String shared_name = shared.DebugName();
-  const char* name = nullptr;
-  if (shared_name != ReadOnlyRoots(heap_).empty_string()) {
-    name = names_->GetName(shared_name);
-    TagObject(shared.GetCode(), names_->GetFormatted("(code for %s)", name));
+  std::unique_ptr<char[]> name = shared.DebugNameCStr();
+  if (name[0] != '\0') {
+    TagObject(shared.GetCode(),
+              names_->GetFormatted("(code for %s)", name.get()));
   } else {
     TagObject(shared.GetCode(),
               names_->GetFormatted("(%s code)",

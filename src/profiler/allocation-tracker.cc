@@ -242,7 +242,7 @@ unsigned AllocationTracker::AddFunctionInfo(SharedFunctionInfo shared,
       reinterpret_cast<void*>(id), SnapshotObjectIdHash(id));
   if (entry->value == nullptr) {
     FunctionInfo* info = new FunctionInfo();
-    info->name = names_->GetName(shared.DebugName());
+    info->name = names_->GetCopy(shared.DebugNameCStr().get());
     info->function_id = id;
     if (shared.script().IsScript()) {
       Script script = Script::cast(shared.script());
