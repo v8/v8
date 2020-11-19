@@ -8217,7 +8217,7 @@ void CodeStubAssembler::LookupBinary(TNode<Name> unique_name,
 
 void CodeStubAssembler::ForEachEnumerableOwnProperty(
     TNode<Context> context, TNode<Map> map, TNode<JSObject> object,
-    ForEachEnumerationMode mode, const ForEachKeyValueFunction& body,
+    PropertiesEnumerationMode mode, const ForEachKeyValueFunction& body,
     Label* bailout) {
   TNode<Uint16T> type = LoadMapInstanceType(map);
   TNode<Uint32T> bit_field3 = EnsureOnlyHasSimpleProperties(map, type, bailout);

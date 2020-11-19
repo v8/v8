@@ -3600,20 +3600,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   using ForEachKeyValueFunction =
       std::function<void(TNode<Name> key, TNode<Object> value)>;
 
-  enum ForEachEnumerationMode {
-    // String and then Symbol properties according to the spec
-    // ES#sec-object.assign
-    kEnumerationOrder,
-    // Order of property addition
-    kPropertyAdditionOrder,
-  };
-
   // For each JSObject property (in DescriptorArray order), check if the key is
   // enumerable, and if so, load the value from the receiver and evaluate the
   // closure.
   void ForEachEnumerableOwnProperty(TNode<Context> context, TNode<Map> map,
                                     TNode<JSObject> object,
-                                    ForEachEnumerationMode mode,
+                                    PropertiesEnumerationMode mode,
                                     const ForEachKeyValueFunction& body,
                                     Label* bailout);
 

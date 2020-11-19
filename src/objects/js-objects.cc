@@ -193,6 +193,7 @@ bool HasExcludedProperty(
 
 V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
     Handle<JSReceiver> target, Handle<Object> source,
+    PropertiesEnumerationMode mode,
     const ScopedVector<Handle<Object>>* excluded_properties, bool use_set) {
   // Non-empty strings are the only non-JSReceivers that need to be handled
   // explicitly by Object.assign.
@@ -225,86 +226,111 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
 
   bool stable = true;
 
-  for (InternalIndex i : map->IterateOwnDescriptors()) {
-    HandleScope inner_scope(isolate);
+  // Process symbols last and only do that if we found symbols.
+  bool has_symbol = false;
+  bool process_symbol_only = false;
+  while (true) {
+    for (InternalIndex i : map->IterateOwnDescriptors()) {
+      HandleScope inner_scope(isolate);
 
-    Handle<Name> next_key(descriptors->GetKey(i), isolate);
-    Handle<Object> prop_value;
-    // Directly decode from the descriptor array if |from| did not change shape.
-    if (stable) {
-      DCHECK_EQ(from->map(), *map);
-      DCHECK_EQ(*descriptors, map->instance_descriptors(kRelaxedLoad));
-
-      PropertyDetails details = descriptors->GetDetails(i);
-      if (!details.IsEnumerable()) continue;
-      if (details.kind() == kData) {
-        if (details.location() == kDescriptor) {
-          prop_value = handle(descriptors->GetStrongValue(i), isolate);
+      Handle<Name> next_key(descriptors->GetKey(i), isolate);
+      if (mode == PropertiesEnumerationMode::kEnumerationOrder) {
+        if (next_key->IsSymbol()) {
+          has_symbol = true;
+          if (!process_symbol_only) continue;
         } else {
-          Representation representation = details.representation();
-          FieldIndex index = FieldIndex::ForPropertyIndex(
-              *map, details.field_index(), representation);
-          prop_value = JSObject::FastPropertyAt(from, representation, index);
+          if (process_symbol_only) continue;
+        }
+      }
+      Handle<Object> prop_value;
+      // Directly decode from the descriptor array if |from| did not change
+      // shape.
+      if (stable) {
+        DCHECK_EQ(from->map(), *map);
+        DCHECK_EQ(*descriptors, map->instance_descriptors(kRelaxedLoad));
+
+        PropertyDetails details = descriptors->GetDetails(i);
+        if (!details.IsEnumerable()) continue;
+        if (details.kind() == kData) {
+          if (details.location() == kDescriptor) {
+            prop_value = handle(descriptors->GetStrongValue(i), isolate);
+          } else {
+            Representation representation = details.representation();
+            FieldIndex index = FieldIndex::ForPropertyIndex(
+                *map, details.field_index(), representation);
+            prop_value = JSObject::FastPropertyAt(from, representation, index);
+          }
+        } else {
+          LookupIterator it(isolate, from, next_key,
+                            LookupIterator::OWN_SKIP_INTERCEPTOR);
+          ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+              isolate, prop_value, Object::GetProperty(&it), Nothing<bool>());
+          stable = from->map() == *map;
+          descriptors.PatchValue(map->instance_descriptors(kRelaxedLoad));
         }
       } else {
-        LookupIterator it(isolate, from, next_key,
+        // If the map did change, do a slower lookup. We are still guaranteed
+        // that the object has a simple shape, and that the key is a name.
+        LookupIterator it(isolate, from, next_key, from,
                           LookupIterator::OWN_SKIP_INTERCEPTOR);
+        if (!it.IsFound()) continue;
+        DCHECK(it.state() == LookupIterator::DATA ||
+               it.state() == LookupIterator::ACCESSOR);
+        if (!it.IsEnumerable()) continue;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, prop_value, Object::GetProperty(&it), Nothing<bool>());
-        stable = from->map() == *map;
-        descriptors.PatchValue(map->instance_descriptors(kRelaxedLoad));
       }
-    } else {
-      // If the map did change, do a slower lookup. We are still guaranteed that
-      // the object has a simple shape, and that the key is a name.
-      LookupIterator it(isolate, from, next_key, from,
-                        LookupIterator::OWN_SKIP_INTERCEPTOR);
-      if (!it.IsFound()) continue;
-      DCHECK(it.state() == LookupIterator::DATA ||
-             it.state() == LookupIterator::ACCESSOR);
-      if (!it.IsEnumerable()) continue;
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-          isolate, prop_value, Object::GetProperty(&it), Nothing<bool>());
+
+      if (use_set) {
+        // The lookup will walk the prototype chain, so we have to be careful
+        // to treat any key correctly for any receiver/holder.
+        LookupIterator::Key key(isolate, next_key);
+        LookupIterator it(isolate, target, key);
+        Maybe<bool> result =
+            Object::SetProperty(&it, prop_value, StoreOrigin::kNamed,
+                                Just(ShouldThrow::kThrowOnError));
+        if (result.IsNothing()) return result;
+        if (stable) {
+          stable = from->map() == *map;
+          descriptors.PatchValue(map->instance_descriptors(kRelaxedLoad));
+        }
+      } else {
+        if (excluded_properties != nullptr &&
+            HasExcludedProperty(excluded_properties, next_key)) {
+          continue;
+        }
+
+        // 4a ii 2. Perform ? CreateDataProperty(target, nextKey, propValue).
+        // This is an OWN lookup, so constructing a named-mode LookupIterator
+        // from {next_key} is safe.
+        LookupIterator it(isolate, target, next_key, LookupIterator::OWN);
+        CHECK(JSObject::CreateDataProperty(&it, prop_value, Just(kThrowOnError))
+                  .FromJust());
+      }
     }
-
-    if (use_set) {
-      // The lookup will walk the prototype chain, so we have to be careful
-      // to treat any key correctly for any receiver/holder.
-      LookupIterator::Key key(isolate, next_key);
-      LookupIterator it(isolate, target, key);
-      Maybe<bool> result =
-          Object::SetProperty(&it, prop_value, StoreOrigin::kNamed,
-                              Just(ShouldThrow::kThrowOnError));
-      if (result.IsNothing()) return result;
-      if (stable) {
-        stable = from->map() == *map;
-        descriptors.PatchValue(map->instance_descriptors(kRelaxedLoad));
+    if (mode == PropertiesEnumerationMode::kEnumerationOrder) {
+      if (process_symbol_only || !has_symbol) {
+        return Just(true);
+      }
+      if (has_symbol) {
+        process_symbol_only = true;
       }
     } else {
-      if (excluded_properties != nullptr &&
-          HasExcludedProperty(excluded_properties, next_key)) {
-        continue;
-      }
-
-      // 4a ii 2. Perform ? CreateDataProperty(target, nextKey, propValue).
-      // This is an OWN lookup, so constructing a named-mode LookupIterator
-      // from {next_key} is safe.
-      LookupIterator it(isolate, target, next_key, LookupIterator::OWN);
-      CHECK(JSObject::CreateDataProperty(&it, prop_value, Just(kThrowOnError))
-                .FromJust());
+      DCHECK_EQ(mode, PropertiesEnumerationMode::kPropertyAdditionOrder);
+      return Just(true);
     }
   }
-
-  return Just(true);
+  UNREACHABLE();
 }
 }  // namespace
 
 // static
 Maybe<bool> JSReceiver::SetOrCopyDataProperties(
     Isolate* isolate, Handle<JSReceiver> target, Handle<Object> source,
+    PropertiesEnumerationMode mode,
     const ScopedVector<Handle<Object>>* excluded_properties, bool use_set) {
   Maybe<bool> fast_assign =
-      FastAssign(target, source, excluded_properties, use_set);
+      FastAssign(target, source, mode, excluded_properties, use_set);
   if (fast_assign.IsNothing()) return Nothing<bool>();
   if (fast_assign.FromJust()) return Just(true);
 

@@ -660,6 +660,7 @@ TF_BUILTIN(SetDataProperties, SetOrCopyDataPropertiesAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
 
   Label if_runtime(this, Label::kDeferred);
+  GotoIfForceSlowPath(&if_runtime);
   Return(SetOrCopyDataProperties(context, target, source, &if_runtime, true));
 
   BIND(&if_runtime);

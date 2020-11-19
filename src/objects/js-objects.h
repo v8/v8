@@ -112,6 +112,7 @@ class JSReceiver : public HeapObject {
   // maybe_excluded_properties list.
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetOrCopyDataProperties(
       Isolate* isolate, Handle<JSReceiver> target, Handle<Object> source,
+      PropertiesEnumerationMode mode,
       const ScopedVector<Handle<Object>>* excluded_properties = nullptr,
       bool use_set = true);
 

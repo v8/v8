@@ -1069,7 +1069,9 @@ RUNTIME_FUNCTION(Runtime_SetDataProperties) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(isolate, target, source),
+  MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(
+                   isolate, target, source,
+                   PropertiesEnumerationMode::kEnumerationOrder),
                ReadOnlyRoots(isolate).exception());
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -1085,9 +1087,11 @@ RUNTIME_FUNCTION(Runtime_CopyDataProperties) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(isolate, target, source,
-                                                   nullptr, false),
-               ReadOnlyRoots(isolate).exception());
+  MAYBE_RETURN(
+      JSReceiver::SetOrCopyDataProperties(
+          isolate, target, source,
+          PropertiesEnumerationMode::kPropertyAdditionOrder, nullptr, false),
+      ReadOnlyRoots(isolate).exception());
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -1120,8 +1124,10 @@ RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedProperties) {
 
   Handle<JSObject> target =
       isolate->factory()->NewJSObject(isolate->object_function());
-  MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(isolate, target, source,
-                                                   &excluded_properties, false),
+  MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(
+                   isolate, target, source,
+                   PropertiesEnumerationMode::kPropertyAdditionOrder,
+                   &excluded_properties, false),
                ReadOnlyRoots(isolate).exception());
   return *target;
 }
