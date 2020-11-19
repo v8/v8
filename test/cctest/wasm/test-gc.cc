@@ -853,6 +853,80 @@ TEST(BasicRTT) {
   tester.CheckResult(kRefCast, 43);
 }
 
+TEST(AnyRefRtt) {
+  WasmGCTester tester;
+
+  ValueType any_rtt_0_type = ValueType::Rtt(HeapType::kAny, 0);
+  FunctionSig sig_any_canon(1, 0, &any_rtt_0_type);
+  byte kAnyRttCanon = tester.DefineFunction(
+      &sig_any_canon, {}, {WASM_RTT_CANON(kAnyRefCode), kExprEnd});
+
+  ValueType any_rtt_1_type = ValueType::Rtt(HeapType::kAny, 1);
+  FunctionSig sig_any_sub(1, 0, &any_rtt_1_type);
+  byte kAnyRttSub = tester.DefineFunction(
+      &sig_any_sub, {},
+      {WASM_RTT_SUB(kAnyRefCode, WASM_RTT_CANON(kAnyRefCode)), kExprEnd});
+
+  ValueType func_rtt_1_type = ValueType::Rtt(HeapType::kFunc, 1);
+  FunctionSig sig_func_sub(1, 0, &func_rtt_1_type);
+  byte kFuncRttSub = tester.DefineFunction(
+      &sig_func_sub, {},
+      {WASM_RTT_SUB(kFuncRefCode, WASM_RTT_CANON(kAnyRefCode)), kExprEnd});
+
+  ValueType eq_rtt_1_type = ValueType::Rtt(HeapType::kEq, 1);
+  FunctionSig sig_eq_sub(1, 0, &eq_rtt_1_type);
+  byte kEqRttSub = tester.DefineFunction(
+      &sig_eq_sub, {},
+      {WASM_RTT_SUB(kEqRefCode, WASM_RTT_CANON(kAnyRefCode)), kExprEnd});
+
+  const byte type_index = tester.DefineArray(kWasmI32, true);
+  ValueType array_rtt_type = ValueType::Rtt(type_index, 1);
+  FunctionSig sig_array_canon(1, 0, &array_rtt_type);
+  byte kArrayRttCanon = tester.DefineFunction(
+      &sig_array_canon, {}, {WASM_RTT_CANON(type_index), kExprEnd});
+
+  byte kCheckArrayAgainstAny = tester.DefineFunction(
+      tester.sigs.i_v(), {kWasmAnyRef},
+      {WASM_SET_LOCAL(0, WASM_ARRAY_NEW_DEFAULT(type_index, WASM_I32V(5),
+                                                WASM_RTT_CANON(type_index))),
+       WASM_REF_TEST(kAnyRefCode, type_index, WASM_GET_LOCAL(0),
+                     WASM_RTT_CANON(type_index)),
+       kExprEnd});
+
+  byte kCheckAnyAgainstAny = tester.DefineFunction(
+      tester.sigs.i_v(), {kWasmAnyRef},
+      {WASM_SET_LOCAL(0, WASM_ARRAY_NEW_DEFAULT(type_index, WASM_I32V(5),
+                                                WASM_RTT_CANON(type_index))),
+       WASM_REF_TEST(kAnyRefCode, kAnyRefCode, WASM_GET_LOCAL(0),
+                     WASM_RTT_CANON(kAnyRefCode)),
+       kExprEnd});
+
+  tester.CompileModule();
+
+  // Check (rtt.canon any).
+  Handle<Object> result_any_canon =
+      tester.GetResultObject(kAnyRttCanon).ToHandleChecked();
+  CHECK(result_any_canon->IsMap());
+  Handle<Map> any_map = Handle<Map>::cast(result_any_canon);
+  CHECK_EQ(any_map->wasm_type_info().parent(),
+           tester.isolate()->root(RootIndex::kNullMap));
+  CHECK_EQ(any_map->wasm_type_info().supertypes().length(), 0);
+
+  for (byte func_index : {kArrayRttCanon, kAnyRttSub, kFuncRttSub, kEqRttSub}) {
+    Handle<Object> result =
+        tester.GetResultObject(func_index).ToHandleChecked();
+    CHECK(result->IsMap());
+    Handle<Map> map = Handle<Map>::cast(result);
+    // Its parent should be (rtt.canon any).
+    CHECK_EQ(map->wasm_type_info().parent(), *any_map);
+    CHECK_EQ(map->wasm_type_info().supertypes().get(0), *any_map);
+    CHECK_EQ(map->wasm_type_info().supertypes().length(), 1);
+  }
+
+  tester.CheckResult(kCheckArrayAgainstAny, 1);
+  tester.CheckResult(kCheckAnyAgainstAny, 1);
+}
+
 TEST(ArrayNewMap) {
   WasmGCTester tester;
   const byte type_index = tester.DefineArray(kWasmI32, true);

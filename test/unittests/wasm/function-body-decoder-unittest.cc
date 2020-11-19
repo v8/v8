@@ -3617,6 +3617,7 @@ TEST_F(FunctionBodyDecoderTest, RefEq) {
       kWasmExnRef,
       kWasmExternRef,
       kWasmFuncRef,
+      kWasmAnyRef,
       ValueType::Ref(HeapType::kExn, kNonNullable),
       ValueType::Ref(HeapType::kExtern, kNonNullable),
       ValueType::Ref(HeapType::kFunc, kNonNullable)};
@@ -3655,7 +3656,7 @@ TEST_F(FunctionBodyDecoderTest, RefAsNonNull) {
   byte array_type_index = builder.AddArray(kWasmI32, true);
   uint32_t heap_types[] = {
       struct_type_index, array_type_index,  HeapType::kExn, HeapType::kFunc,
-      HeapType::kEq,     HeapType::kExtern, HeapType::kI31};
+      HeapType::kEq,     HeapType::kExtern, HeapType::kI31, HeapType::kAny};
 
   ValueType non_compatible_types[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64,
                                       kWasmS128};
@@ -3698,7 +3699,7 @@ TEST_F(FunctionBodyDecoderTest, RefNull) {
   byte array_type_index = builder.AddArray(kWasmI32, true);
   uint32_t type_reprs[] = {
       struct_type_index, array_type_index,  HeapType::kExn, HeapType::kFunc,
-      HeapType::kEq,     HeapType::kExtern, HeapType::kI31};
+      HeapType::kEq,     HeapType::kExtern, HeapType::kI31, HeapType::kAny};
   // It works with heap types.
   for (uint32_t type_repr : type_reprs) {
     const ValueType type = ValueType::Ref(type_repr, kNullable);
@@ -3728,7 +3729,7 @@ TEST_F(FunctionBodyDecoderTest, RefIsNull) {
   byte array_type_index = builder.AddArray(kWasmI32, true);
   uint32_t heap_types[] = {
       struct_type_index, array_type_index,  HeapType::kExn, HeapType::kFunc,
-      HeapType::kEq,     HeapType::kExtern, HeapType::kI31};
+      HeapType::kEq,     HeapType::kExtern, HeapType::kI31, HeapType::kAny};
 
   for (uint32_t heap_type : heap_types) {
     const ValueType types[] = {kWasmI32, ValueType::Ref(heap_type, kNullable)};
@@ -4148,13 +4149,16 @@ TEST_F(FunctionBodyDecoderTest, RttCanon) {
 
   for (HeapType::Representation heap :
        {HeapType::kExtern, HeapType::kEq, HeapType::kExn, HeapType::kI31,
-        static_cast<HeapType::Representation>(array_type_index),
+        HeapType::kAny, static_cast<HeapType::Representation>(array_type_index),
         static_cast<HeapType::Representation>(struct_type_index)}) {
-    ValueType rtt1 = ValueType::Rtt(HeapType(heap), 1);
+    ValueType rtt1 =
+        ValueType::Rtt(HeapType(heap), heap == HeapType::kAny ? 0 : 1);
     FunctionSig sig1(1, 0, &rtt1);
     ExpectValidates(&sig1, {WASM_RTT_CANON(rtt1.heap_type().code() & 0x7F)});
 
-    ValueType rtt2 = ValueType::Rtt(HeapType(heap), 2);
+    // rtt.canon should fail for incorrect depth.
+    ValueType rtt2 =
+        ValueType::Rtt(HeapType(heap), heap == HeapType::kAny ? 1 : 2);
     FunctionSig sig2(1, 0, &rtt2);
     ExpectFailure(&sig2, {WASM_RTT_CANON(rtt2.heap_type().code() & 0x7F)},
                   kAppendEnd, "type error in merge[0]");
@@ -4180,6 +4184,43 @@ TEST_F(FunctionBodyDecoderTest, RttSub) {
     FunctionSig sig(1, 0, &type);
     ExpectValidates(&sig,
                     {WASM_RTT_SUB(kFuncRefCode, WASM_RTT_CANON(kFuncRefCode))});
+  }
+
+  {
+    // Can build an rtt.sub from a generic type with itself.
+    ValueType type = ValueType::Rtt(HeapType::kAny, 1);
+    FunctionSig sig(1, 0, &type);
+    ExpectValidates(&sig,
+                    {WASM_RTT_SUB(kAnyRefCode, WASM_RTT_CANON(kAnyRefCode))});
+  }
+
+  // Can build an rtt.sub between related generic types.
+  {
+    ValueType type = ValueType::Rtt(HeapType::kFunc, 1);
+    FunctionSig sig(1, 0, &type);
+    ExpectValidates(&sig,
+                    {WASM_RTT_SUB(kFuncRefCode, WASM_RTT_CANON(kAnyRefCode))});
+  }
+  {
+    ValueType type = ValueType::Rtt(HeapType::kEq, 1);
+    FunctionSig sig(1, 0, &type);
+    ExpectValidates(&sig,
+                    {WASM_RTT_SUB(kEqRefCode, WASM_RTT_CANON(kAnyRefCode))});
+  }
+  {
+    ValueType type = ValueType::Rtt(HeapType::kI31, 2);
+    FunctionSig sig(1, 0, &type);
+    ExpectValidates(&sig,
+                    {WASM_RTT_SUB(kI31RefCode, WASM_RTT_CANON(kEqRefCode))});
+  }
+
+  // Cannot build an rtt.sub between unrelated generic types.
+  {
+    ValueType type = ValueType::Rtt(HeapType::kFunc, 2);
+    FunctionSig sig(1, 0, &type);
+    ExpectFailure(&sig,
+                  {WASM_RTT_SUB(kFuncRefCode, WASM_RTT_CANON(kI31RefCode))},
+                  kAppendEnd, "rtt.sub requires a supertype rtt on stack");
   }
 
   // Trivial type error.
@@ -4254,10 +4295,10 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
 
   // Passing/failing tests due to static subtyping.
   std::pair<HeapType::Representation, HeapType::Representation> valid_pairs[] =
-      {{HeapType::kEq, HeapType::kI31},
-       {HeapType::kFunc, HeapType::kFunc},
-       {HeapType::kEq, array_heap},
-       {HeapType::kEq, super_struct_heap},
+      {{HeapType::kAny, HeapType::kI31},    {HeapType::kAny, HeapType::kFunc},
+       {HeapType::kAny, array_heap},        {HeapType::kAny, super_struct_heap},
+       {HeapType::kEq, HeapType::kI31},     {HeapType::kFunc, HeapType::kFunc},
+       {HeapType::kEq, array_heap},         {HeapType::kEq, super_struct_heap},
        {super_struct_heap, sub_struct_heap}};
 
   for (auto pair : valid_pairs) {
@@ -4279,10 +4320,10 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
   }
 
   std::pair<HeapType::Representation, HeapType::Representation>
-      invalid_pairs[] = {{HeapType::kI31, HeapType::kEq},
-                         {array_heap, super_struct_heap},
-                         {array_heap, HeapType::kEq},
-                         {HeapType::kExtern, HeapType::kExn}};
+      invalid_pairs[] = {
+          {array_heap, HeapType::kAny},    {HeapType::kEq, HeapType::kAny},
+          {HeapType::kI31, HeapType::kEq}, {array_heap, super_struct_heap},
+          {array_heap, HeapType::kEq},     {HeapType::kExtern, HeapType::kExn}};
 
   for (auto pair : invalid_pairs) {
     HeapType from_heap = HeapType(pair.first);

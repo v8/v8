@@ -446,6 +446,7 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
   switch (table->type().heap_representation()) {
     case wasm::HeapType::kExtern:
     case wasm::HeapType::kExn:
+    case wasm::HeapType::kAny:
       entries->set(entry_index, *entry);
       return;
     case wasm::HeapType::kFunc:
@@ -500,6 +501,7 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
       break;
     case wasm::HeapType::kEq:
     case wasm::HeapType::kI31:
+    case wasm::HeapType::kAny:
       // TODO(7748): Implement once we have a story for struct/arrays/i31ref in
       // JS.
       UNIMPLEMENTED();
@@ -2155,6 +2157,7 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
         }
         case HeapType::kExtern:
         case HeapType::kExn:
+        case HeapType::kAny:
           return true;
         case HeapType::kEq: {
           // TODO(7748): Change this when we have a decision on the JS API for

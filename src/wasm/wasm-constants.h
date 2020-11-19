@@ -33,7 +33,7 @@ enum ValueTypeCode : uint8_t {
   kI16Code = 0x79,
   kFuncRefCode = 0x70,
   kExternRefCode = 0x6f,
-  // kAnyCode = 0x6e, // TODO(7748): Implement
+  kAnyRefCode = 0x6e,
   kEqRefCode = 0x6d,
   kOptRefCode = 0x6c,
   kRefCode = 0x6b,

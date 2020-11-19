@@ -187,7 +187,9 @@ V8_INLINE WasmFeature feature_for_heap_type(HeapType heap_type) {
       return WasmFeature::kFeature_eh;
     case HeapType::kEq:
     case HeapType::kI31:
+    case HeapType::kAny:
       return WasmFeature::kFeature_gc;
+    case HeapType::kBottom:
     default:
       UNREACHABLE();
   }
@@ -211,7 +213,8 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
       case kExnRefCode:
       case kEqRefCode:
       case kExternRefCode:
-      case kI31RefCode: {
+      case kI31RefCode:
+      case kAnyRefCode: {
         HeapType result = HeapType::from_code(code);
         if (!VALIDATE(enabled.contains(feature_for_heap_type(result)))) {
           DecodeError<validate>(
@@ -269,7 +272,8 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
     case kExnRefCode:
     case kEqRefCode:
     case kExternRefCode:
-    case kI31RefCode: {
+    case kI31RefCode:
+    case kAnyRefCode: {
       HeapType heap_type = HeapType::from_code(code);
       ValueType result = ValueType::Ref(
           heap_type, code == kI31RefCode ? kNonNullable : kNullable);
@@ -3875,7 +3879,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         HeapTypeImmediate<validate> imm(this->enabled_, this,
                                         this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        Value* value = Push(ValueType::Rtt(imm.type, 1));
+        Value* value =
+            Push(ValueType::Rtt(imm.type, imm.type == HeapType::kAny ? 0 : 1));
         CALL_INTERFACE_IF_REACHABLE(RttCanon, imm, value);
         return opcode_length + imm.length;
       }
@@ -3905,7 +3910,16 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           }
           Value* value =
               Push(ValueType::Rtt(imm.type, parent.type.depth() + 1));
-          CALL_INTERFACE_IF_REACHABLE(RttSub, imm, parent, value);
+          // (rtt.sub $t (rtt.canon any)) is reduced to (rtt.canon $t),
+          // unless t == any.
+          // This is important because other canonical rtts are not cached in
+          // (rtt.canon any)'s subtype list.
+          if (parent.type == ValueType::Rtt(HeapType::kAny, 0) &&
+              imm.type != HeapType::kAny) {
+            CALL_INTERFACE_IF_REACHABLE(RttCanon, imm, value);
+          } else {
+            CALL_INTERFACE_IF_REACHABLE(RttSub, imm, parent, value);
+          }
         }
         return opcode_length + imm.length;
       }

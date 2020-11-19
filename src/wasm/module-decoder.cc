@@ -1358,10 +1358,10 @@ class ModuleDecoderImpl : public Decoder {
       }
       case WasmInitExpr::kRefNullConst:
         return ValueType::Ref(expr.immediate().heap_type, kNullable);
-      case WasmInitExpr::kRttCanon:
-        // TODO(7748): If heaptype is "anyref" (not introduced yet),
-        // then this should be uint8_t{0}.
-        return ValueType::Rtt(expr.immediate().heap_type, uint8_t{1});
+      case WasmInitExpr::kRttCanon: {
+        uint8_t depth = expr.immediate().heap_type == HeapType::kAny ? 0 : 1;
+        return ValueType::Rtt(expr.immediate().heap_type, depth);
+      }
       case WasmInitExpr::kRttSub: {
         ValueType operand_type = TypeOf(*expr.operand());
         if (operand_type.is_rtt()) {

@@ -603,24 +603,24 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Create maps for managed objects (GC proposal).
   // Must happen before {InitGlobals} because globals can refer to these maps.
+  // We do not need to cache the canonical rtts to (rtt.canon any)'s subtype
+  // list.
   //--------------------------------------------------------------------------
   if (enabled_.has_gc()) {
     Handle<FixedArray> maps = isolate_->factory()->NewUninitializedFixedArray(
         static_cast<int>(module_->type_kinds.size()));
-    // TODO(7748): Do we want a different sentinel here?
-    Handle<Map> anyref_sentinel_map = isolate_->factory()->null_map();
+    Handle<Map> anyref_map =
+        Handle<Map>::cast(isolate_->root_handle(RootIndex::kWasmRttAnyrefMap));
     for (int map_index = 0;
          map_index < static_cast<int>(module_->type_kinds.size());
          map_index++) {
       Handle<Map> map;
       switch (module_->type_kinds[map_index]) {
         case kWasmStructTypeCode:
-          map = CreateStructMap(isolate_, module_, map_index,
-                                anyref_sentinel_map);
+          map = CreateStructMap(isolate_, module_, map_index, anyref_map);
           break;
         case kWasmArrayTypeCode:
-          map =
-              CreateArrayMap(isolate_, module_, map_index, anyref_sentinel_map);
+          map = CreateArrayMap(isolate_, module_, map_index, anyref_map);
           break;
         case kWasmFunctionTypeCode:
           // TODO(7748): Think about canonicalizing rtts to make them work for
@@ -1599,6 +1599,8 @@ Handle<Object> InstanceBuilder::RecursivelyEvaluateGlobalInitializer(
           return isolate_->root_handle(RootIndex::kWasmRttFuncrefMap);
         case wasm::HeapType::kI31:
           return isolate_->root_handle(RootIndex::kWasmRttI31refMap);
+        case wasm::HeapType::kAny:
+          return isolate_->root_handle(RootIndex::kWasmRttAnyrefMap);
         case wasm::HeapType::kExn:
           UNIMPLEMENTED();  // TODO(jkummerow): This is going away?
         case wasm::HeapType::kBottom:

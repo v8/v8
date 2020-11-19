@@ -133,7 +133,11 @@ const char* ValueTypeToConstantName(ValueType type) {
           return "kWasmFuncRef";
         case HeapType::kExn:
           return "kWasmExnRef";
+        case HeapType::kAny:
+        case HeapType::kI31:
+        case HeapType::kBottom:
         default:
+          // TODO(7748): Implement these if fuzzing for them is enabled.
           UNREACHABLE();
       }
     default:
