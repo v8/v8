@@ -120,7 +120,9 @@ class MarkingStateBase {
     return movable_slots_worklist_.get();
   }
 
+#ifdef DEBUG
   HeapBase& heap_;
+#endif  // DEBUG
 
   MarkingWorklists::MarkingWorklist::Local marking_worklist_;
   MarkingWorklists::NotFullyConstructedWorklist&
@@ -148,7 +150,9 @@ MarkingStateBase::MarkingStateBase(HeapBase& heap,
                                    MarkingWorklists& marking_worklists,
                                    CompactionWorklists* compaction_worklists)
     :
+#ifdef DEBUG
       heap_(heap),
+#endif  // DEBUG
       marking_worklist_(marking_worklists.marking_worklist()),
       not_fully_constructed_worklist_(
           *marking_worklists.not_fully_constructed_worklist()),

@@ -206,26 +206,16 @@ void CppHeap::TracePrologue(TraceFlags flags) {
 }
 
 bool CppHeap::AdvanceTracing(double deadline_in_ms) {
-  v8::base::TimeDelta deadline =
-      is_in_final_pause_
-          ? v8::base::TimeDelta::Max()
-          : v8::base::TimeDelta::FromMillisecondsD(deadline_in_ms);
-  cppgc::internal::StatsCollector::EnabledScope stats_scope(
-      AsBase(),
-      is_in_final_pause_
-          ? cppgc::internal::StatsCollector::kAtomicPauseMarkTransitiveClosure
-          : cppgc::internal::StatsCollector::kUnifiedMarkingStep);
-  // TODO(chromium:1056170): Replace when unified heap transitions to
-  // bytes-based deadline.
-  marking_done_ = marker_->AdvanceMarkingWithMaxDuration(deadline);
-  DCHECK_IMPLIES(is_in_final_pause_, marking_done_);
+  // TODO(chromium:1056170): Replace std::numeric_limits<size_t>::max() with a
+  // proper deadline when unified heap transitions to bytes-based deadline.
+  marking_done_ = marker_->AdvanceMarkingWithMaxDuration(
+      v8::base::TimeDelta::FromMillisecondsD(deadline_in_ms));
   return marking_done_;
 }
 
 bool CppHeap::IsTracingDone() { return marking_done_; }
 
 void CppHeap::EnterFinalPause(EmbedderStackState stack_state) {
-  is_in_final_pause_ = true;
   marker_->EnterAtomicPause(stack_state);
   if (compactor_.CancelIfShouldNotCompact(
           UnifiedHeapMarker::MarkingConfig::MarkingType::kAtomic,
@@ -235,40 +225,30 @@ void CppHeap::EnterFinalPause(EmbedderStackState stack_state) {
 }
 
 void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
-  CHECK(is_in_final_pause_);
   CHECK(marking_done_);
   {
+    // Weakness callbacks and pre-finalizers are forbidden from allocating
+    // objects.
     cppgc::internal::ObjectAllocator::NoAllocationScope no_allocation_scope_(
         object_allocator_);
     marker_->LeaveAtomicPause();
-    is_in_final_pause_ = false;
+    prefinalizer_handler()->InvokePreFinalizers();
   }
-  {
-    cppgc::internal::StatsCollector::EnabledScope stats(
-        AsBase(), cppgc::internal::StatsCollector::kAtomicPauseSweepAndCompact);
-
-    {
-      cppgc::internal::ObjectAllocator::NoAllocationScope no_allocation_scope_(
-          object_allocator_);
-      prefinalizer_handler()->InvokePreFinalizers();
-    }
-    marker_.reset();
-    // TODO(chromium:1056170): replace build flag with dedicated flag.
+  marker_.reset();
+  // TODO(chromium:1056170): replace build flag with dedicated flag.
 #if DEBUG
-    UnifiedHeapMarkingVerifier verifier(*this);
-    verifier.Run(cppgc::Heap::StackState::kNoHeapPointers);
+  UnifiedHeapMarkingVerifier verifier(*this);
+  verifier.Run(cppgc::Heap::StackState::kNoHeapPointers);
 #endif
-
-    {
-      NoGCScope no_gc(*this);
-      cppgc::internal::Sweeper::SweepingConfig::CompactableSpaceHandling
-          compactable_space_handling = compactor_.CompactSpacesIfEnabled();
-      const cppgc::internal::Sweeper::SweepingConfig sweeping_config{
-          cppgc::internal::Sweeper::SweepingConfig::SweepingType::
-              kIncrementalAndConcurrent,
-          compactable_space_handling};
-      sweeper().Start(sweeping_config);
-    }
+  cppgc::internal::Sweeper::SweepingConfig::CompactableSpaceHandling
+      compactable_space_handling = compactor_.CompactSpacesIfEnabled();
+  {
+    NoGCScope no_gc(*this);
+    const cppgc::internal::Sweeper::SweepingConfig sweeping_config{
+        cppgc::internal::Sweeper::SweepingConfig::SweepingType::
+            kIncrementalAndConcurrent,
+        compactable_space_handling};
+    sweeper().Start(sweeping_config);
   }
   sweeper().NotifyDoneIfNeeded();
 }

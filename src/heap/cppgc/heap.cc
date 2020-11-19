@@ -12,7 +12,6 @@
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/marking-verifier.h"
 #include "src/heap/cppgc/prefinalizer-handler.h"
-#include "src/heap/cppgc/stats-collector.h"
 
 namespace cppgc {
 
@@ -156,28 +155,20 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
   config_.stack_state = stack_state;
   DCHECK(marker_);
   {
-    // This guards atomic pause marking, meaning that no internal method or
+    // Pre finalizers are forbidden from allocating objects. Note that this also
+    // guard atomic pause marking below, meaning that no internal method or
     // external callbacks are allowed to allocate new objects.
     ObjectAllocator::NoAllocationScope no_allocation_scope_(object_allocator_);
     marker_->FinishMarking(stack_state);
+    prefinalizer_handler_->InvokePreFinalizers();
   }
-  {
-    StatsCollector::EnabledScope stats(
-        *this, StatsCollector::kAtomicPauseSweepAndCompact);
-
-    {
-      // Pre finalizers are forbidden from allocating objects.
-      ObjectAllocator::NoAllocationScope no_allocation_scope_(
-          object_allocator_);
-      prefinalizer_handler_->InvokePreFinalizers();
-    }
-    marker_.reset();
-    // TODO(chromium:1056170): replace build flag with dedicated flag.
+  marker_.reset();
+  // TODO(chromium:1056170): replace build flag with dedicated flag.
 #if DEBUG
-    MarkingVerifier verifier(*this);
-    verifier.Run(stack_state);
+  MarkingVerifier verifier(*this);
+  verifier.Run(stack_state);
 #endif
-
+  {
     NoGCScope no_gc(*this);
     const Sweeper::SweepingConfig sweeping_config{
         config_.sweeping_type,
@@ -190,14 +181,6 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
 void Heap::PostGarbageCollection() { gc_in_progress_ = false; }
 
 void Heap::DisableHeapGrowingForTesting() { growing_.DisableForTesting(); }
-
-void Heap::FinalizeIncrementalGarbageCollectionIfNeeded(
-    Config::StackState stack_state) {
-  StatsCollector::EnabledScope stats_scope(
-      *this, StatsCollector::kIncrementalMarkingFinalize);
-
-  FinalizeGarbageCollection(stack_state);
-}
 
 }  // namespace internal
 }  // namespace cppgc

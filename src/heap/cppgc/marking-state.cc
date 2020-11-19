@@ -6,8 +6,6 @@
 
 #include <unordered_set>
 
-#include "src/heap/cppgc/stats-collector.h"
-
 namespace cppgc {
 namespace internal {
 
@@ -21,8 +19,6 @@ void MutatorMarkingState::FlushNotFullyConstructedObjects() {
 }
 
 void MutatorMarkingState::FlushDiscoveredEphemeronPairs() {
-  StatsCollector::EnabledScope stats_scope(
-      heap_, StatsCollector::kMarkFlushEphemeronPairs);
   discovered_ephemeron_pairs_worklist_.Publish();
   if (!discovered_ephemeron_pairs_worklist_.IsGlobalEmpty()) {
     ephemeron_pairs_for_processing_worklist_.Merge(

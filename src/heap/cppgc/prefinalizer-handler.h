@@ -12,14 +12,12 @@
 namespace cppgc {
 namespace internal {
 
-class HeapBase;
-
 class PreFinalizerHandler final {
  public:
   using PreFinalizer =
       cppgc::internal::PreFinalizerRegistrationDispatcher::PreFinalizer;
 
-  explicit PreFinalizerHandler(HeapBase& heap);
+  PreFinalizerHandler();
 
   void RegisterPrefinalizer(PreFinalizer pre_finalizer);
 
@@ -35,7 +33,6 @@ class PreFinalizerHandler final {
   // back-to-front.
   std::vector<PreFinalizer> ordered_pre_finalizers_;
 
-  HeapBase& heap_;
 #ifdef DEBUG
   int creation_thread_id_;
 #endif

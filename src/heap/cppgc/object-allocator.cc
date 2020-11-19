@@ -134,11 +134,7 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace* space,
 
   // 3. Lazily sweep pages of this heap until we find a freed area for
   // this allocation or we finish sweeping all pages of this heap.
-  // {
-  //   StatsCollector::EnabledScope stats_scope(
-  //       *space->raw_heap()->heap(), StatsCollector::kLazySweepOnAllocation);
-  //   // TODO(chromium:1056170): Add lazy sweep.
-  // }
+  // TODO(chromium:1056170): Add lazy sweep.
 
   // 4. Complete sweeping.
   raw_heap_->heap()->sweeper().FinishIfRunning();

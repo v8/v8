@@ -16,7 +16,6 @@
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-space.h"
 #include "src/heap/cppgc/raw-heap.h"
-#include "src/heap/cppgc/stats-collector.h"
 
 namespace cppgc {
 namespace internal {
@@ -483,9 +482,6 @@ bool Compactor::CancelIfShouldNotCompact(
 
 Compactor::CompactableSpaceHandling Compactor::CompactSpacesIfEnabled() {
   if (!is_enabled_) return CompactableSpaceHandling::kSweep;
-
-  StatsCollector::DisabledScope stats_scope(
-      *heap_.heap(), StatsCollector::kAtomicPauseCompaction);
 
   MovableReferences movable_references(*heap_.heap());
 
