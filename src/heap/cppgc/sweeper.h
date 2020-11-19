@@ -39,6 +39,7 @@ class V8_EXPORT_PRIVATE Sweeper final {
   // Sweeper::Start assumes the heap holds no linear allocation buffers.
   void Start(SweepingConfig);
   void FinishIfRunning();
+  void NotifyDoneIfNeeded();
 
  private:
   void WaitForConcurrentSweepingForTesting();

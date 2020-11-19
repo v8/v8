@@ -139,6 +139,9 @@ class V8_EXPORT_PRIVATE HeapBase {
 
   void AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded();
 
+  // Notifies the heap that a GC is done.
+  virtual void PostGarbageCollection() = 0;
+
  protected:
   virtual void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) = 0;

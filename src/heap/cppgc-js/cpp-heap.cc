@@ -243,6 +243,7 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
         compactable_space_handling};
     sweeper().Start(sweeping_config);
   }
+  sweeper().NotifyDoneIfNeeded();
 }
 
 }  // namespace internal

@@ -54,6 +54,8 @@ class V8_EXPORT_PRIVATE CppHeap final : public cppgc::internal::HeapBase,
     // finalization is not needed) thus this method is left empty.
   }
 
+  void PostGarbageCollection() final {}
+
   Isolate& isolate_;
   bool marking_done_ = false;
 };

@@ -173,8 +173,10 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
         Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep};
     sweeper_.Start(sweeping_config);
   }
-  gc_in_progress_ = false;
+  sweeper_.NotifyDoneIfNeeded();
 }
+
+void Heap::PostGarbageCollection() { gc_in_progress_ = false; }
 
 void Heap::DisableHeapGrowingForTesting() { growing_.DisableForTesting(); }
 

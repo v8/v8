@@ -49,6 +49,8 @@ class V8_EXPORT_PRIVATE Heap final : public HeapBase,
     FinalizeGarbageCollection(stack_state);
   }
 
+  void PostGarbageCollection() final;
+
   Config config_;
   GCInvoker gc_invoker_;
   HeapGrowing growing_;

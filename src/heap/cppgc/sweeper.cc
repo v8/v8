@@ -13,6 +13,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/heap/cppgc/free-list.h"
 #include "src/heap/cppgc/globals.h"
+#include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-space.h"
@@ -523,6 +524,7 @@ class Sweeper::SweeperImpl final {
           cppgc::TaskPriority::kUserBlocking);
     }
     Finish();
+    NotifyDone();
   }
 
   void Finish() {
@@ -536,12 +538,28 @@ class Sweeper::SweeperImpl final {
     MutatorThreadSweeper sweeper(&space_states_, platform_);
     sweeper.Sweep();
 
+    FinalizeSweep();
+  }
+
+  void FinalizeSweep() {
     // Synchronize with the concurrent sweeper and call remaining finalizers.
     SynchronizeAndFinalizeConcurrentSweeping();
-
     is_in_progress_ = false;
+    notify_done_pending_ = true;
+  }
 
+  void NotifyDone() {
+    DCHECK(!is_in_progress_);
+    DCHECK(notify_done_pending_);
+    notify_done_pending_ = false;
     stats_collector_->NotifySweepingCompleted();
+    // Notify the heap that GC is finished.
+    heap_->heap()->PostGarbageCollection();
+  }
+
+  void NotifyDoneIfNeeded() {
+    if (!notify_done_pending_) return;
+    NotifyDone();
   }
 
   void WaitForConcurrentSweepingForTesting() {
@@ -573,7 +591,8 @@ class Sweeper::SweeperImpl final {
           sweeper.SweepWithDeadline(deadline_in_seconds);
 
       if (sweep_complete) {
-        sweeper_->SynchronizeAndFinalizeConcurrentSweeping();
+        sweeper_->FinalizeSweep();
+        sweeper_->NotifyDone();
       } else {
         sweeper_->ScheduleIncrementalSweeping();
       }
@@ -625,6 +644,7 @@ class Sweeper::SweeperImpl final {
   IncrementalSweepTask::Handle incremental_sweeper_handle_;
   std::unique_ptr<cppgc::JobHandle> concurrent_sweeper_handle_;
   bool is_in_progress_ = false;
+  bool notify_done_pending_ = false;
 };
 
 Sweeper::Sweeper(RawHeap* heap, cppgc::Platform* platform,
@@ -638,6 +658,7 @@ void Sweeper::FinishIfRunning() { impl_->FinishIfRunning(); }
 void Sweeper::WaitForConcurrentSweepingForTesting() {
   impl_->WaitForConcurrentSweepingForTesting();
 }
+void Sweeper::NotifyDoneIfNeeded() { impl_->NotifyDoneIfNeeded(); }
 
 }  // namespace internal
 }  // namespace cppgc
