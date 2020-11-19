@@ -810,21 +810,8 @@ Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
         Nothing<std::string>());
   }
 
-  // reject attribute of wrong length.
-  if (std::strstr(icu_locale.getName(), "attribute=") != nullptr) {
-    std::string attribute =
-        icu_locale.getKeywordValue<std::string>("attribute", error);
-    if (U_SUCCESS(error) &&
-        (attribute.length() < 3 || attribute.length() > 8)) {
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate,
-          NewRangeError(
-              MessageTemplate::kInvalidLanguageTag,
-              isolate->factory()->NewStringFromAsciiChecked(locale.c_str())),
-          Nothing<std::string>());
-    }
-  }
-
+  // Use LocaleBuilder to validate locale.
+  icu_locale = icu::LocaleBuilder().setLocale(icu_locale).build(error);
   icu_locale.canonicalize(error);
   if (U_FAILURE(error) || icu_locale.isBogus()) {
     THROW_NEW_ERROR_RETURN_VALUE(
