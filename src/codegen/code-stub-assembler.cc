@@ -8371,9 +8371,10 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
             // guaranteed that the object has a simple shape, and that the key
             // is a name.
             var_map = LoadMap(object);
-            TryLookupPropertyInSimpleObject(
-                object, var_map.value(), next_key, &if_found_fast,
-                &if_found_dict, &var_meta_storage, &var_entry, &next_iteration);
+            TryLookupPropertyInSimpleObject(object, var_map.value(), next_key,
+                                            &if_found_fast, &if_found_dict,
+                                            &var_meta_storage, &var_entry,
+                                            &next_iteration, bailout);
           }
 
           BIND(&if_found_fast);
@@ -8394,6 +8395,12 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
           }
           BIND(&if_found_dict);
           {
+            if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+              // TODO(v8:11167, v8:11177) Only here due to SetDataProperties
+              // workaround.
+              GotoIf(Int32TrueConstant(), bailout);
+            }
+
             TNode<NameDictionary> dictionary = CAST(var_meta_storage.value());
             TNode<IntPtrT> entry = var_entry.value();
 
@@ -8575,7 +8582,7 @@ void CodeStubAssembler::TryLookupPropertyInSimpleObject(
     TNode<JSObject> object, TNode<Map> map, TNode<Name> unique_name,
     Label* if_found_fast, Label* if_found_dict,
     TVariable<HeapObject>* var_meta_storage, TVariable<IntPtrT>* var_name_index,
-    Label* if_not_found) {
+    Label* if_not_found, Label* bailout) {
   CSA_ASSERT(this, IsSimpleObjectMap(map));
   CSA_ASSERT(this, IsUniqueNameNoCachedIndex(unique_name));
 
@@ -8593,6 +8600,11 @@ void CodeStubAssembler::TryLookupPropertyInSimpleObject(
   }
   BIND(&if_isslowmap);
   {
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      // TODO(v8:11167, v8:11177) Only here due to SetDataProperties workaround.
+      GotoIf(Int32TrueConstant(), bailout);
+    }
+
     TNode<NameDictionary> dictionary = CAST(LoadSlowProperties(object));
     *var_meta_storage = dictionary;
 
@@ -8612,7 +8624,7 @@ void CodeStubAssembler::TryLookupProperty(
 
   TryLookupPropertyInSimpleObject(CAST(object), map, unique_name, if_found_fast,
                                   if_found_dict, var_meta_storage,
-                                  var_name_index, if_not_found);
+                                  var_name_index, if_not_found, if_bailout);
 
   BIND(&if_objectisspecial);
   {
@@ -12245,6 +12257,11 @@ TNode<Oddball> CodeStubAssembler::HasProperty(TNode<Context> context,
                                               HasPropertyLookupMode mode) {
   Label call_runtime(this, Label::kDeferred), return_true(this),
       return_false(this), end(this), if_proxy(this, Label::kDeferred);
+
+  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    // TODO(v8:11167) remove once OrderedNameDictionary supported.
+    GotoIf(Int32TrueConstant(), &call_runtime);
+  }
 
   CodeStubAssembler::LookupPropertyInHolder lookup_property_in_holder =
       [this, &return_true](

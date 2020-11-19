@@ -332,18 +332,28 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
       // - Receiver is extensible
       // - Receiver has no interceptors
       Label add_dictionary_property_slow(this, Label::kDeferred);
-      Add<NameDictionary>(CAST(properties), name, capture,
-                          &add_dictionary_property_slow);
+      if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+        // TODO(v8:11167) remove once OrderedNameDictionary supported.
+        CallRuntime(Runtime::kAddDictionaryProperty, context, group_object,
+                    name, capture);
+      } else {
+        Add<NameDictionary>(CAST(properties), name, capture,
+                            &add_dictionary_property_slow);
+      }
 
       var_i = i_plus_2;
       Branch(IntPtrGreaterThanOrEqual(var_i.value(), names_length), &out,
              &loop);
 
-      BIND(&add_dictionary_property_slow);
-      // If the dictionary needs resizing, the above Add call will jump here
-      // before making any changes. This shouldn't happen because we allocated
-      // the dictionary with enough space above.
-      Unreachable();
+      if (!V8_DICT_MODE_PROTOTYPES_BOOL) {
+        // TODO(v8:11167) make unconditional  once OrderedNameDictionary
+        // supported.
+        BIND(&add_dictionary_property_slow);
+        // If the dictionary needs resizing, the above Add call will jump here
+        // before making any changes. This shouldn't happen because we allocated
+        // the dictionary with enough space above.
+        Unreachable();
+      }
     }
   }
 

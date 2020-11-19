@@ -868,6 +868,11 @@ TNode<Object> AccessorAssembler::HandleProtoHandler(
 
       BIND(&if_lookup_on_lookup_start_object);
       {
+        if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+          // TODO(v8:11167) remove once OrderedNameDictionary supported.
+          GotoIf(Int32TrueConstant(), miss);
+        }
+
         // Dictionary lookup on lookup start object is not necessary for
         // Load/StoreGlobalIC (which is the only case when the
         // lookup_start_object can be a JSGlobalObject) because prototype
@@ -2444,6 +2449,11 @@ void AccessorAssembler::GenericPropertyLoad(
 
   BIND(&if_property_dictionary);
   {
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      // TODO(v8:11167) remove once OrderedNameDictionary supported.
+      GotoIf(Int32TrueConstant(), slow);
+    }
+
     Comment("dictionary property load");
     // We checked for LAST_CUSTOM_ELEMENTS_RECEIVER before, which rules out
     // seeing global objects here (which would need special handling).

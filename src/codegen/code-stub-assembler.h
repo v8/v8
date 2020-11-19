@@ -3041,13 +3041,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // This is a building block for TryLookupProperty() above. Supports only
   // non-special fast and dictionary objects.
+  // TODO(v8:11167, v8:11177) |bailout| only needed for SetDataProperties
+  // workaround.
   void TryLookupPropertyInSimpleObject(TNode<JSObject> object, TNode<Map> map,
                                        TNode<Name> unique_name,
                                        Label* if_found_fast,
                                        Label* if_found_dict,
                                        TVariable<HeapObject>* var_meta_storage,
                                        TVariable<IntPtrT>* var_name_index,
-                                       Label* if_not_found);
+                                       Label* if_not_found, Label* bailout);
 
   // This method jumps to if_found if the element is known to exist. To
   // if_absent if it's known to not exist. To if_not_found if the prototype

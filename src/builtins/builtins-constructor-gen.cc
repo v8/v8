@@ -468,6 +468,11 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
            &if_dictionary, &if_fast);
     BIND(&if_dictionary);
     {
+      if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+        // TODO(v8:11167) remove once OrderedNameDictionary supported.
+        GotoIf(Int32TrueConstant(), call_runtime);
+      }
+
       Comment("Copy dictionary properties");
       var_properties = CopyNameDictionary(CAST(LoadSlowProperties(boilerplate)),
                                           call_runtime);
