@@ -2195,9 +2195,9 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreProperty(Node* node) {
 }
 
 Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
-    Node* receiver, Node* context, Node* frame_state, Node** effect,
-    Node** control, ZoneVector<Node*>* if_exceptions,
-    PropertyAccessInfo const& access_info) {
+    Node* receiver, ConvertReceiverMode receiver_mode, Node* context,
+    Node* frame_state, Node** effect, Node** control,
+    ZoneVector<Node*>* if_exceptions, PropertyAccessInfo const& access_info) {
   ObjectRef constant(broker(), access_info.constant());
   Node* target = jsgraph()->Constant(constant);
   FrameStateInfo const& frame_info = FrameStateInfoOf(frame_state->op());
@@ -2208,7 +2208,7 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
     value = *effect = *control = graph()->NewNode(
         jsgraph()->javascript()->Call(JSCallNode::ArityForArgc(0),
                                       CallFrequency(), FeedbackSource(),
-                                      ConvertReceiverMode::kNotNullOrUndefined),
+                                      receiver_mode),
         target, receiver, feedback, context, frame_state, *effect, *control);
   } else {
     Node* holder = access_info.holder().is_null()
@@ -2343,8 +2343,13 @@ JSNativeContextSpecialization::BuildPropertyLoad(
   if (access_info.IsNotFound()) {
     value = jsgraph()->UndefinedConstant();
   } else if (access_info.IsAccessorConstant()) {
-    value = InlinePropertyGetterCall(receiver, context, frame_state, &effect,
-                                     &control, if_exceptions, access_info);
+    ConvertReceiverMode receiver_mode =
+        receiver == lookup_start_object
+            ? ConvertReceiverMode::kNotNullOrUndefined
+            : ConvertReceiverMode::kAny;
+    value =
+        InlinePropertyGetterCall(receiver, receiver_mode, context, frame_state,
+                                 &effect, &control, if_exceptions, access_info);
   } else if (access_info.IsModuleExport()) {
     Node* cell = jsgraph()->Constant(
         ObjectRef(broker(), access_info.constant()).AsCell());
