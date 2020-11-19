@@ -59,6 +59,8 @@ bool ExitIncrementalMarkingIfNeeded(Marker::MarkingConfig config,
 void VisitRememberedSlots(HeapBase& heap,
                           MutatorMarkingState& mutator_marking_state) {
 #if defined(CPPGC_YOUNG_GENERATION)
+  StatsCollector::EnabledScope stats_scope(
+      heap(), StatsCollector::kVisitRememberedSets);
   for (void* slot : heap.remembered_slots()) {
     auto& slot_header = BasePage::FromInnerAddress(&heap, slot)
                             ->ObjectHeaderFromInnerAddress(slot);
@@ -200,6 +202,9 @@ void MarkerBase::StartMarking() {
 
   is_marking_started_ = true;
   if (EnterIncrementalMarkingIfNeeded(config_, heap())) {
+    StatsCollector::EnabledScope stats_scope(
+        heap(), StatsCollector::kIncrementalMarkingStartMarking);
+
     // Performing incremental or concurrent marking.
     schedule_.NotifyIncrementalMarkingStart();
     // Scanning the stack is expensive so we only do it at the atomic pause.
@@ -214,6 +219,9 @@ void MarkerBase::StartMarking() {
 }
 
 void MarkerBase::EnterAtomicPause(MarkingConfig::StackState stack_state) {
+  StatsCollector::EnabledScope stats_scope(
+      heap(), StatsCollector::kAtomicPauseMarkPrologue);
+
   if (ExitIncrementalMarkingIfNeeded(config_, heap())) {
     // Cancel remaining concurrent/incremental tasks.
     concurrent_marker_->Cancel();
@@ -228,66 +236,102 @@ void MarkerBase::EnterAtomicPause(MarkingConfig::StackState stack_state) {
   // is either cleared or the object is retained.
   g_process_mutex.Pointer()->Lock();
 
-  // VisitRoots also resets the LABs.
-  VisitRoots(config_.stack_state);
-  if (config_.stack_state == MarkingConfig::StackState::kNoHeapPointers) {
-    mutator_marking_state_.FlushNotFullyConstructedObjects();
-    DCHECK(marking_worklists_.not_fully_constructed_worklist()->IsEmpty());
-  } else {
-    MarkNotFullyConstructedObjects();
+  {
+    StatsCollector::EnabledScope inner_stats_scope(
+        heap(), StatsCollector::kAtomicPauseMarkRoots);
+    // VisitRoots also resets the LABs.
+    VisitRoots(config_.stack_state);
+    if (config_.stack_state == MarkingConfig::StackState::kNoHeapPointers) {
+      mutator_marking_state_.FlushNotFullyConstructedObjects();
+      DCHECK(marking_worklists_.not_fully_constructed_worklist()->IsEmpty());
+    } else {
+      MarkNotFullyConstructedObjects();
+    }
   }
 }
 
 void MarkerBase::LeaveAtomicPause() {
+  StatsCollector::EnabledScope stats_scope(
+      heap(), StatsCollector::kAtomicPauseMarkEpilogue);
   DCHECK(!incremental_marking_handle_);
   ResetRememberedSet(heap());
   heap().stats_collector()->NotifyMarkingCompleted(
       // GetOverallMarkedBytes also includes concurrently marked bytes.
       schedule_.GetOverallMarkedBytes());
   is_marking_started_ = false;
-  ProcessWeakness();
+  {
+    // Weakness callbacks are forbidden from allocating objects.
+    ObjectAllocator::NoAllocationScope no_allocation_scope_(
+        heap_.object_allocator());
+    ProcessWeakness();
+  }
   g_process_mutex.Pointer()->Unlock();
 }
 
 void MarkerBase::FinishMarking(MarkingConfig::StackState stack_state) {
   DCHECK(is_marking_started_);
   EnterAtomicPause(stack_state);
-  CHECK(ProcessWorklistsWithDeadline(std::numeric_limits<size_t>::max(),
-                                     v8::base::TimeTicks::Max()));
+  {
+    StatsCollector::EnabledScope advance_tracing_scope(
+        heap(), StatsCollector::kAtomicPauseMarkTransitiveClosure);
+    CHECK(ProcessWorklistsWithDeadline(std::numeric_limits<size_t>::max(),
+                                       v8::base::TimeTicks::Max()));
+  }
   mutator_marking_state_.Publish();
   LeaveAtomicPause();
 }
 
 void MarkerBase::ProcessWeakness() {
   DCHECK_EQ(MarkingConfig::MarkingType::kAtomic, config_.marking_type);
+
   heap().GetWeakPersistentRegion().Trace(&visitor());
   // Processing cross-thread handles requires taking the process lock.
   g_process_mutex.Get().AssertHeld();
   heap().GetWeakCrossThreadPersistentRegion().Trace(&visitor());
 
-  // Call weak callbacks on objects that may now be pointing to dead objects.
-  MarkingWorklists::WeakCallbackItem item;
-  LivenessBroker broker = LivenessBrokerFactory::Create();
-  MarkingWorklists::WeakCallbackWorklist::Local& local =
-      mutator_marking_state_.weak_callback_worklist();
-  while (local.Pop(&item)) {
-    item.callback(broker, item.parameter);
+  {
+    StatsCollector::DisabledScope stats_scope(
+        heap(), StatsCollector::kMarkWeakProcessing);
+    // Call weak callbacks on objects that may now be pointing to dead objects.
+    MarkingWorklists::WeakCallbackItem item;
+    LivenessBroker broker = LivenessBrokerFactory::Create();
+    MarkingWorklists::WeakCallbackWorklist::Local& local =
+        mutator_marking_state_.weak_callback_worklist();
+    while (local.Pop(&item)) {
+      item.callback(broker, item.parameter);
+    }
   }
   // Weak callbacks should not add any new objects for marking.
   DCHECK(marking_worklists_.marking_worklist()->IsEmpty());
 }
 
 void MarkerBase::VisitRoots(MarkingConfig::StackState stack_state) {
+  StatsCollector::EnabledScope stats_scope(heap(), StatsCollector::kVisitRoots);
+
   // Reset LABs before scanning roots. LABs are cleared to allow
   // ObjectStartBitmap handling without considering LABs.
   heap().object_allocator().ResetLinearAllocationBuffers();
 
-  heap().GetStrongPersistentRegion().Trace(&visitor());
-  if (config_.marking_type == MarkingConfig::MarkingType::kAtomic) {
-    g_process_mutex.Get().AssertHeld();
-    heap().GetStrongCrossThreadPersistentRegion().Trace(&visitor());
+  {
+    StatsCollector::DisabledScope stats_scope(
+        heap(), StatsCollector::kVisitPersistentRoots);
+
+    {
+      StatsCollector::DisabledScope inner_stats_scope(
+          heap(), StatsCollector::kVisitPersistents);
+      heap().GetStrongPersistentRegion().Trace(&visitor());
+    }
+    if (config_.marking_type == MarkingConfig::MarkingType::kAtomic) {
+      StatsCollector::DisabledScope inner_stats_scope(
+          heap(), StatsCollector::kVisitCrossThreadPersistents);
+      g_process_mutex.Get().AssertHeld();
+      heap().GetStrongCrossThreadPersistentRegion().Trace(&visitor());
+    }
   }
+
   if (stack_state != MarkingConfig::StackState::kNoHeapPointers) {
+    StatsCollector::DisabledScope stack_stats_scope(
+        heap(), StatsCollector::kVisitStackRoots);
     heap().stack()->IteratePointers(&stack_visitor());
   }
   if (config_.collection_type == MarkingConfig::CollectionType::kMinor) {
@@ -308,6 +352,9 @@ bool MarkerBase::IncrementalMarkingStepForTesting(
 }
 
 bool MarkerBase::IncrementalMarkingStep(MarkingConfig::StackState stack_state) {
+  StatsCollector::EnabledScope stats_scope(
+      heap(), StatsCollector::kIncrementalMarkingStep);
+
   if (stack_state == MarkingConfig::StackState::kNoHeapPointers) {
     mutator_marking_state_.FlushNotFullyConstructedObjects();
   }
@@ -333,6 +380,9 @@ bool MarkerBase::AdvanceMarkingWithDeadline(v8::base::TimeDelta max_duration) {
   if (!incremental_marking_disabled_for_testing_) {
     size_t step_size_in_bytes =
         GetNextIncrementalStepDuration(schedule_, heap_);
+    StatsCollector::EnabledScope deadline_scope(
+        heap(), StatsCollector::kIncrementalMarkingWithDeadline, "deadline_ms",
+        max_duration.InMillisecondsF());
     is_done = ProcessWorklistsWithDeadline(
         mutator_marking_state_.marked_bytes() + step_size_in_bytes,
         v8::base::TimeTicks::Now() + max_duration);
@@ -360,70 +410,97 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
       mutator_marking_state_.FlushDiscoveredEphemeronPairs();
     }
 
+    StatsCollector::EnabledScope stats_scope(
+        heap(), StatsCollector::kMarkProcessWorklists);
+
     // Bailout objects may be complicated to trace and thus might take longer
     // than other objects. Therefore we reduce the interval between deadline
     // checks to guarantee the deadline is not exceeded.
-    if (!DrainWorklistWithBytesAndTimeDeadline<kDefaultDeadlineCheckInterval /
-                                               5>(
-            mutator_marking_state_, marked_bytes_deadline, time_deadline,
-            mutator_marking_state_.concurrent_marking_bailout_worklist(),
-            [this](const MarkingWorklists::ConcurrentMarkingBailoutItem& item) {
-              mutator_marking_state_.AccountMarkedBytes(item.bailedout_size);
-              item.callback(&visitor(), item.parameter);
-            })) {
-      return false;
+    {
+      StatsCollector::EnabledScope inner_scope(
+          heap(), StatsCollector::kMarkBailOutObjects);
+      if (!DrainWorklistWithBytesAndTimeDeadline<kDefaultDeadlineCheckInterval /
+                                                 5>(
+              mutator_marking_state_, marked_bytes_deadline, time_deadline,
+              mutator_marking_state_.concurrent_marking_bailout_worklist(),
+              [this](
+                  const MarkingWorklists::ConcurrentMarkingBailoutItem& item) {
+                mutator_marking_state_.AccountMarkedBytes(item.bailedout_size);
+                item.callback(&visitor(), item.parameter);
+              })) {
+        return false;
+      }
     }
 
-    if (!DrainWorklistWithBytesAndTimeDeadline(
-            mutator_marking_state_, marked_bytes_deadline, time_deadline,
-            mutator_marking_state_.previously_not_fully_constructed_worklist(),
-            [this](HeapObjectHeader* header) {
-              mutator_marking_state_.AccountMarkedBytes(*header);
-              DynamicallyTraceMarkedObject<AccessMode::kNonAtomic>(visitor(),
-                                                                   *header);
-            })) {
-      return false;
+    {
+      StatsCollector::EnabledScope inner_scope(
+          heap(), StatsCollector::kMarkProcessNotFullyconstructeddWorklist);
+      if (!DrainWorklistWithBytesAndTimeDeadline(
+              mutator_marking_state_, marked_bytes_deadline, time_deadline,
+              mutator_marking_state_
+                  .previously_not_fully_constructed_worklist(),
+              [this](HeapObjectHeader* header) {
+                mutator_marking_state_.AccountMarkedBytes(*header);
+                DynamicallyTraceMarkedObject<AccessMode::kNonAtomic>(visitor(),
+                                                                     *header);
+              })) {
+        return false;
+      }
     }
 
-    if (!DrainWorklistWithBytesAndTimeDeadline(
-            mutator_marking_state_, marked_bytes_deadline, time_deadline,
-            mutator_marking_state_.marking_worklist(),
-            [this](const MarkingWorklists::MarkingItem& item) {
-              const HeapObjectHeader& header =
-                  HeapObjectHeader::FromPayload(item.base_object_payload);
-              DCHECK(!header.IsInConstruction<AccessMode::kNonAtomic>());
-              DCHECK(header.IsMarked<AccessMode::kNonAtomic>());
-              mutator_marking_state_.AccountMarkedBytes(header);
-              item.callback(&visitor(), item.base_object_payload);
-            })) {
-      return false;
+    {
+      StatsCollector::EnabledScope inner_scope(
+          heap(), StatsCollector::kMarkProcessMarkingWorklist);
+      if (!DrainWorklistWithBytesAndTimeDeadline(
+              mutator_marking_state_, marked_bytes_deadline, time_deadline,
+              mutator_marking_state_.marking_worklist(),
+              [this](const MarkingWorklists::MarkingItem& item) {
+                const HeapObjectHeader& header =
+                    HeapObjectHeader::FromPayload(item.base_object_payload);
+                DCHECK(!header.IsInConstruction<AccessMode::kNonAtomic>());
+                DCHECK(header.IsMarked<AccessMode::kNonAtomic>());
+                mutator_marking_state_.AccountMarkedBytes(header);
+                item.callback(&visitor(), item.base_object_payload);
+              })) {
+        return false;
+      }
     }
 
-    if (!DrainWorklistWithBytesAndTimeDeadline(
-            mutator_marking_state_, marked_bytes_deadline, time_deadline,
-            mutator_marking_state_.write_barrier_worklist(),
-            [this](HeapObjectHeader* header) {
-              mutator_marking_state_.AccountMarkedBytes(*header);
-              DynamicallyTraceMarkedObject<AccessMode::kNonAtomic>(visitor(),
-                                                                   *header);
-            })) {
-      return false;
+    {
+      StatsCollector::EnabledScope inner_scope(
+          heap(), StatsCollector::kMarkProcessWriteBarrierWorklist);
+      if (!DrainWorklistWithBytesAndTimeDeadline(
+              mutator_marking_state_, marked_bytes_deadline, time_deadline,
+              mutator_marking_state_.write_barrier_worklist(),
+              [this](HeapObjectHeader* header) {
+                mutator_marking_state_.AccountMarkedBytes(*header);
+                DynamicallyTraceMarkedObject<AccessMode::kNonAtomic>(visitor(),
+                                                                     *header);
+              })) {
+        return false;
+      }
     }
 
-    if (!DrainWorklistWithBytesAndTimeDeadline(
-            mutator_marking_state_, marked_bytes_deadline, time_deadline,
-            mutator_marking_state_.ephemeron_pairs_for_processing_worklist(),
-            [this](const MarkingWorklists::EphemeronPairItem& item) {
-              mutator_marking_state_.ProcessEphemeron(item.key,
-                                                      item.value_desc);
-            })) {
-      return false;
+    {
+      StatsCollector::EnabledScope stats_scope(
+          heap(), StatsCollector::kMarkInvokeEphemeronCallbacks);
+      if (!DrainWorklistWithBytesAndTimeDeadline(
+              mutator_marking_state_, marked_bytes_deadline, time_deadline,
+              mutator_marking_state_.ephemeron_pairs_for_processing_worklist(),
+              [this](const MarkingWorklists::EphemeronPairItem& item) {
+                mutator_marking_state_.ProcessEphemeron(item.key,
+                                                        item.value_desc);
+              })) {
+        return false;
+      }
     }
   } while (!mutator_marking_state_.marking_worklist().IsLocalAndGlobalEmpty());
   return true;
 }
 
 void MarkerBase::MarkNotFullyConstructedObjects() {
+  StatsCollector::DisabledScope stats_scope(
+      heap(), StatsCollector::kMarkNotFullyConstructedObjects);
   std::unordered_set<HeapObjectHeader*> objects =
       mutator_marking_state_.not_fully_constructed_worklist().Extract();
   for (HeapObjectHeader* object : objects) {

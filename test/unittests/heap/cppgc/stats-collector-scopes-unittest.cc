@@ -76,7 +76,7 @@ class CppgcTracingScopesTest : public testing::TestWithHeap {
     Heap::From(GetHeap())->stats_collector()->NotifySweepingCompleted();
   }
 
-  void ResetTestTracingController(const char* expected_name = nullptr) {
+  void ResetDelegatingTracingController(const char* expected_name = nullptr) {
     DelegatingTracingControllerImpl::AddTraceEvent_callcount = 0u;
     DelegatingTracingControllerImpl::stored_num_args = 0;
     DelegatingTracingControllerImpl::stored_arg_names.clear();
@@ -102,10 +102,10 @@ class CppgcTracingScopesTest : public testing::TestWithHeap {
 
 TEST_F(CppgcTracingScopesTest, DisabledScope) {
   StartGC();
-  ResetTestTracingController();
+  ResetDelegatingTracingController();
   {
     StatsCollector::DisabledScope scope(
-        *Heap::From(GetHeap()), StatsCollector::kMainThreadScopeForTests1);
+        *Heap::From(GetHeap()), StatsCollector::kMarkProcessMarkingWorklist);
   }
   EXPECT_EQ(0u, DelegatingTracingControllerImpl::AddTraceEvent_callcount);
   EndGC();
@@ -114,20 +114,21 @@ TEST_F(CppgcTracingScopesTest, DisabledScope) {
 TEST_F(CppgcTracingScopesTest, EnabledScope) {
   {
     StartGC();
-    ResetTestTracingController("CppGC.MainThreadScopeForTests1");
+    ResetDelegatingTracingController("CppGC.MarkProcessMarkingWorklist");
     {
       StatsCollector::EnabledScope scope(
-          *Heap::From(GetHeap()), StatsCollector::kMainThreadScopeForTests1);
+          *Heap::From(GetHeap()), StatsCollector::kMarkProcessMarkingWorklist);
     }
     EXPECT_EQ(2u, DelegatingTracingControllerImpl::AddTraceEvent_callcount);
     EndGC();
   }
   {
     StartGC();
-    ResetTestTracingController("CppGC.MainThreadScopeForTests2");
+    ResetDelegatingTracingController("CppGC.MarkProcessWriteBarrierWorklist");
     {
       StatsCollector::EnabledScope scope(
-          *Heap::From(GetHeap()), StatsCollector::kMainThreadScopeForTests2);
+          *Heap::From(GetHeap()),
+          StatsCollector::kMarkProcessWriteBarrierWorklist);
     }
     EXPECT_EQ(2u, DelegatingTracingControllerImpl::AddTraceEvent_callcount);
     EndGC();
@@ -138,20 +139,20 @@ TEST_F(CppgcTracingScopesTest, EnabledScopeWithArgs) {
   // Scopes always add 2 arguments: epoch and is_forced_gc.
   {
     StartGC();
-    ResetTestTracingController();
+    ResetDelegatingTracingController();
     {
       StatsCollector::EnabledScope scope(
-          *Heap::From(GetHeap()), StatsCollector::kMainThreadScopeForTests1);
+          *Heap::From(GetHeap()), StatsCollector::kMarkProcessMarkingWorklist);
     }
     EXPECT_EQ(2, DelegatingTracingControllerImpl::stored_num_args);
     EndGC();
   }
   {
     StartGC();
-    ResetTestTracingController();
+    ResetDelegatingTracingController();
     {
       StatsCollector::EnabledScope scope(
-          *Heap::From(GetHeap()), StatsCollector::kMainThreadScopeForTests1,
+          *Heap::From(GetHeap()), StatsCollector::kMarkProcessMarkingWorklist,
           "arg1", 1);
     }
     EXPECT_EQ(3, DelegatingTracingControllerImpl::stored_num_args);
@@ -159,10 +160,10 @@ TEST_F(CppgcTracingScopesTest, EnabledScopeWithArgs) {
   }
   {
     StartGC();
-    ResetTestTracingController();
+    ResetDelegatingTracingController();
     {
       StatsCollector::EnabledScope scope(
-          *Heap::From(GetHeap()), StatsCollector::kMainThreadScopeForTests1,
+          *Heap::From(GetHeap()), StatsCollector::kMarkProcessMarkingWorklist,
           "arg1", 1, "arg2", 2);
     }
     EXPECT_EQ(4, DelegatingTracingControllerImpl::stored_num_args);
@@ -173,10 +174,10 @@ TEST_F(CppgcTracingScopesTest, EnabledScopeWithArgs) {
 TEST_F(CppgcTracingScopesTest, CheckScopeArgs) {
   {
     StartGC();
-    ResetTestTracingController();
+    ResetDelegatingTracingController();
     {
       StatsCollector::EnabledScope scope(
-          *Heap::From(GetHeap()), StatsCollector::kMainThreadScopeForTests1,
+          *Heap::From(GetHeap()), StatsCollector::kMarkProcessMarkingWorklist,
           "uint_arg", 13u, "bool_arg", false);
     }
     FindArgument("uint_arg", TRACE_VALUE_TYPE_UINT, 13);
@@ -185,10 +186,10 @@ TEST_F(CppgcTracingScopesTest, CheckScopeArgs) {
   }
   {
     StartGC();
-    ResetTestTracingController();
+    ResetDelegatingTracingController();
     {
       StatsCollector::EnabledScope scope(
-          *Heap::From(GetHeap()), StatsCollector::kMainThreadScopeForTests1,
+          *Heap::From(GetHeap()), StatsCollector::kMarkProcessMarkingWorklist,
           "neg_int_arg", -5, "pos_int_arg", 7);
     }
     FindArgument("neg_int_arg", TRACE_VALUE_TYPE_INT, -5);
@@ -197,12 +198,12 @@ TEST_F(CppgcTracingScopesTest, CheckScopeArgs) {
   }
   {
     StartGC();
-    ResetTestTracingController();
+    ResetDelegatingTracingController();
     double double_value = 1.2;
     const char* string_value = "test";
     {
       StatsCollector::EnabledScope scope(
-          *Heap::From(GetHeap()), StatsCollector::kMainThreadScopeForTests1,
+          *Heap::From(GetHeap()), StatsCollector::kMarkProcessMarkingWorklist,
           "string_arg", string_value, "double_arg", double_value);
     }
     FindArgument("string_arg", TRACE_VALUE_TYPE_STRING,
@@ -214,10 +215,14 @@ TEST_F(CppgcTracingScopesTest, CheckScopeArgs) {
 }
 
 TEST_F(CppgcTracingScopesTest, InitalScopesAreZero) {
-  StartGC();
-  EndGC();
+  StatsCollector* stats_collector = Heap::From(GetHeap())->stats_collector();
+  stats_collector->NotifyMarkingStarted(
+      GarbageCollector::Config::CollectionType::kMajor,
+      GarbageCollector::Config::IsForcedGC::kNotForced);
+  stats_collector->NotifyMarkingCompleted(0);
+  stats_collector->NotifySweepingCompleted();
   const StatsCollector::Event& event =
-      Heap::From(GetHeap())->stats_collector()->GetPreviousEventForTesting();
+      stats_collector->GetPreviousEventForTesting();
   for (int i = 0; i < StatsCollector::kNumScopeIds; ++i) {
     EXPECT_TRUE(event.scope_data[i].IsZero());
   }
@@ -228,7 +233,10 @@ TEST_F(CppgcTracingScopesTest, InitalScopesAreZero) {
 
 TEST_F(CppgcTracingScopesTest, TestIndividualScopes) {
   for (int scope_id = 0; scope_id < StatsCollector::kNumScopeIds; ++scope_id) {
-    StartGC();
+    StatsCollector* stats_collector = Heap::From(GetHeap())->stats_collector();
+    stats_collector->NotifyMarkingStarted(
+        GarbageCollector::Config::CollectionType::kMajor,
+        GarbageCollector::Config::IsForcedGC::kNotForced);
     DelegatingTracingControllerImpl::check_expectations = false;
     {
       StatsCollector::EnabledScope scope(
@@ -239,9 +247,10 @@ TEST_F(CppgcTracingScopesTest, TestIndividualScopes) {
         // Force time to progress before destroying scope.
       }
     }
-    EndGC();
+    stats_collector->NotifyMarkingCompleted(0);
+    stats_collector->NotifySweepingCompleted();
     const StatsCollector::Event& event =
-        Heap::From(GetHeap())->stats_collector()->GetPreviousEventForTesting();
+        stats_collector->GetPreviousEventForTesting();
     for (int i = 0; i < StatsCollector::kNumScopeIds; ++i) {
       if (i == scope_id)
         EXPECT_LT(v8::base::TimeDelta(), event.scope_data[i]);
@@ -257,7 +266,10 @@ TEST_F(CppgcTracingScopesTest, TestIndividualScopes) {
 TEST_F(CppgcTracingScopesTest, TestIndividualConcurrentScopes) {
   for (int scope_id = 0; scope_id < StatsCollector::kNumConcurrentScopeIds;
        ++scope_id) {
-    StartGC();
+    StatsCollector* stats_collector = Heap::From(GetHeap())->stats_collector();
+    stats_collector->NotifyMarkingStarted(
+        GarbageCollector::Config::CollectionType::kMajor,
+        GarbageCollector::Config::IsForcedGC::kNotForced);
     DelegatingTracingControllerImpl::check_expectations = false;
     {
       StatsCollector::EnabledConcurrentScope scope(
@@ -268,9 +280,10 @@ TEST_F(CppgcTracingScopesTest, TestIndividualConcurrentScopes) {
         // Force time to progress before destroying scope.
       }
     }
-    EndGC();
+    stats_collector->NotifyMarkingCompleted(0);
+    stats_collector->NotifySweepingCompleted();
     const StatsCollector::Event& event =
-        Heap::From(GetHeap())->stats_collector()->GetPreviousEventForTesting();
+        stats_collector->GetPreviousEventForTesting();
     for (int i = 0; i < StatsCollector::kNumScopeIds; ++i) {
       EXPECT_TRUE(event.scope_data[i].IsZero());
     }

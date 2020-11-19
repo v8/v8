@@ -19,11 +19,42 @@
 namespace cppgc {
 namespace internal {
 
-#define CPPGC_FOR_ALL_SCOPES(V) \
-  V(MainThreadScopeForTests1)   \
-  V(MainThreadScopeForTests2)
+#define CPPGC_FOR_ALL_SCOPES(V)              \
+  V(AtomicPauseCompaction)                   \
+  V(AtomicPauseMarkEpilogue)                 \
+  V(AtomicPauseMarkPrologue)                 \
+  V(AtomicPauseMarkRoots)                    \
+  V(AtomicPauseMarkTransitiveClosure)        \
+  V(AtomicPauseSweepAndCompact)              \
+  V(CompleteSweep)                           \
+  V(IncrementalMarkingFinalize)              \
+  V(IncrementalMarkingStartMarking)          \
+  V(IncrementalMarkingStep)                  \
+  V(IncrementalMarkingWithDeadline)          \
+  V(InvokePreFinalizers)                     \
+  V(LazySweepInIdle)                         \
+  V(LazySweepOnAllocation)                   \
+  V(MarkBailOutObjects)                      \
+  V(MarkInvokeEphemeronCallbacks)            \
+  V(MarkFlushEphemeronPairs)                 \
+  V(MarkProcessWorklists)                    \
+  V(MarkProcessMarkingWorklist)              \
+  V(MarkProcessWriteBarrierWorklist)         \
+  V(MarkProcessNotFullyconstructeddWorklist) \
+  V(MarkNotFullyConstructedObjects)          \
+  V(MarkWeakProcessing)                      \
+  V(UnifiedMarkingStep)                      \
+  V(VisitCrossThreadPersistents)             \
+  V(VisitPersistentRoots)                    \
+  V(VisitPersistents)                        \
+  V(VisitRoots)                              \
+  V(VisitStackRoots)                         \
+  V(VisitRememberedSets)
 
-#define CPPGC_FOR_ALL_CONCURRENT_SCOPES(V) V(ConcurrentThreadScopeForTests)
+#define CPPGC_FOR_ALL_CONCURRENT_SCOPES(V)  \
+  V(ConcurrentMarkInvokeEphemeronCallbacks) \
+  V(ConcurrentMarkingStep)                  \
+  V(ConcurrentSweepingStep)
 
 // Sink for various time and memory statistics.
 class V8_EXPORT_PRIVATE StatsCollector final {

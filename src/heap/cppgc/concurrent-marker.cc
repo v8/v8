@@ -10,6 +10,7 @@
 #include "src/heap/cppgc/liveness-broker.h"
 #include "src/heap/cppgc/marking-state.h"
 #include "src/heap/cppgc/marking-visitor.h"
+#include "src/heap/cppgc/stats-collector.h"
 
 namespace cppgc {
 namespace internal {
@@ -71,6 +72,9 @@ ConcurrentMarkingTask::ConcurrentMarkingTask(
     : concurrent_marker_(concurrent_marker) {}
 
 void ConcurrentMarkingTask::Run(JobDelegate* job_delegate) {
+  StatsCollector::EnabledConcurrentScope stats_scope(
+      concurrent_marker_.heap(), StatsCollector::kConcurrentMarkingStep);
+
   if (!HasWorkForConcurrentMarking(concurrent_marker_.marking_worklists()))
     return;
   ConcurrentMarkingState concurrent_marking_state(
@@ -144,16 +148,22 @@ void ConcurrentMarkingTask::ProcessWorklists(
       return;
     }
 
-    if (!DrainWorklistWithYielding(
-            job_delegate, concurrent_marking_state,
-            concurrent_marker_.incremental_marking_schedule(),
-            concurrent_marking_state.ephemeron_pairs_for_processing_worklist(),
-            [&concurrent_marking_state](
-                const MarkingWorklists::EphemeronPairItem& item) {
-              concurrent_marking_state.ProcessEphemeron(item.key,
-                                                        item.value_desc);
-            })) {
-      return;
+    {
+      StatsCollector::DisabledConcurrentScope stats_scope(
+          concurrent_marker_.heap(),
+          StatsCollector::kConcurrentMarkInvokeEphemeronCallbacks);
+      if (!DrainWorklistWithYielding(
+              job_delegate, concurrent_marking_state,
+              concurrent_marker_.incremental_marking_schedule(),
+              concurrent_marking_state
+                  .ephemeron_pairs_for_processing_worklist(),
+              [&concurrent_marking_state](
+                  const MarkingWorklists::EphemeronPairItem& item) {
+                concurrent_marking_state.ProcessEphemeron(item.key,
+                                                          item.value_desc);
+              })) {
+        return;
+      }
     }
   } while (
       !concurrent_marking_state.marking_worklist().IsLocalAndGlobalEmpty());

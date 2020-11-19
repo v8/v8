@@ -44,10 +44,7 @@ class V8_EXPORT_PRIVATE Heap final : public HeapBase,
   void StartGarbageCollection(Config);
   void FinalizeGarbageCollection(Config::StackState);
 
-  void FinalizeIncrementalGarbageCollectionIfNeeded(
-      Config::StackState stack_state) final {
-    FinalizeGarbageCollection(stack_state);
-  }
+  void FinalizeIncrementalGarbageCollectionIfNeeded(Config::StackState) final;
 
   void PostGarbageCollection() final;
 

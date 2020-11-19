@@ -392,9 +392,13 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
   friend class HeapVisitor<ConcurrentSweepTask>;
 
  public:
-  explicit ConcurrentSweepTask(SpaceStates* states) : states_(states) {}
+  explicit ConcurrentSweepTask(HeapBase& heap, SpaceStates* states)
+      : heap_(heap), states_(states) {}
 
   void Run(cppgc::JobDelegate* delegate) final {
+    StatsCollector::EnabledConcurrentScope stats_scope(
+        heap_, StatsCollector::kConcurrentSweepingStep);
+
     for (SpaceState& state : *states_) {
       while (auto page = state.unswept_pages.Pop()) {
         Traverse(*page);
@@ -438,6 +442,7 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
     return true;
   }
 
+  HeapBase& heap_;
   SpaceStates* states_;
   std::atomic_bool is_completed_{false};
 };
@@ -518,12 +523,16 @@ class Sweeper::SweeperImpl final {
   void FinishIfRunning() {
     if (!is_in_progress_) return;
 
-    if (concurrent_sweeper_handle_ && concurrent_sweeper_handle_->IsValid() &&
-        concurrent_sweeper_handle_->UpdatePriorityEnabled()) {
-      concurrent_sweeper_handle_->UpdatePriority(
-          cppgc::TaskPriority::kUserBlocking);
+    {
+      StatsCollector::EnabledScope stats_scope(*heap_->heap(),
+                                               StatsCollector::kCompleteSweep);
+      if (concurrent_sweeper_handle_ && concurrent_sweeper_handle_->IsValid() &&
+          concurrent_sweeper_handle_->UpdatePriorityEnabled()) {
+        concurrent_sweeper_handle_->UpdatePriority(
+            cppgc::TaskPriority::kUserBlocking);
+      }
+      Finish();
     }
-    Finish();
     NotifyDone();
   }
 
@@ -587,9 +596,16 @@ class Sweeper::SweeperImpl final {
 
       MutatorThreadSweeper sweeper(&sweeper_->space_states_,
                                    sweeper_->platform_);
-      const bool sweep_complete =
-          sweeper.SweepWithDeadline(deadline_in_seconds);
+      bool sweep_complete;
+      {
+        StatsCollector::EnabledScope stats_scope(
+            *sweeper_->heap_->heap(), StatsCollector::kLazySweepInIdle,
+            "idleDeltaInSeconds",
+            (deadline_in_seconds -
+             sweeper_->platform_->MonotonicallyIncreasingTime()));
 
+        sweep_complete = sweeper.SweepWithDeadline(deadline_in_seconds);
+      }
       if (sweep_complete) {
         sweeper_->FinalizeSweep();
         sweeper_->NotifyDone();
@@ -620,7 +636,7 @@ class Sweeper::SweeperImpl final {
 
     concurrent_sweeper_handle_ = platform_->PostJob(
         cppgc::TaskPriority::kUserVisible,
-        std::make_unique<ConcurrentSweepTask>(&space_states_));
+        std::make_unique<ConcurrentSweepTask>(*heap_->heap(), &space_states_));
   }
 
   void CancelSweepers() {
