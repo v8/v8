@@ -24,7 +24,9 @@ class DelegatingTracingControllerImpl : public TracingController {
     static char phases[2] = {'B', 'E'};
     EXPECT_EQ(phases[AddTraceEvent_callcount], phase);
     EXPECT_TRUE(*category_enabled_flag);
-    if (expected_name) EXPECT_EQ(0, strcmp(expected_name, name));
+    if (expected_name) {
+      EXPECT_EQ(0, strcmp(expected_name, name));
+    }
     stored_num_args += num_args;
     for (int i = 0; i < num_args; ++i) {
       stored_arg_names.push_back(arg_names[i]);
