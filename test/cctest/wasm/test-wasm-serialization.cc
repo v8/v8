@@ -341,6 +341,7 @@ TEST(TierDownAfterDeserialization) {
   CHECK_EQ(1, native_module->module()->functions.size());
   WasmCodeRefScope code_ref_scope;
   auto* turbofan_code = native_module->GetCode(0);
+  CHECK_NOT_NULL(turbofan_code);
   CHECK_EQ(ExecutionTier::kTurbofan, turbofan_code->tier());
 
   isolate->wasm_engine()->TierDownAllModulesPerIsolate(isolate);

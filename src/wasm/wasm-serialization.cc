@@ -473,6 +473,30 @@ struct DeserializationUnit {
   std::unique_ptr<WasmCode> code;
 };
 
+class DeserializationQueue {
+ public:
+  void Add(std::unique_ptr<std::vector<DeserializationUnit>> batch) {
+    base::MutexGuard guard(&mutex_);
+    queue_.push(std::move(batch));
+    cv_.NotifyOne();
+  }
+
+  std::unique_ptr<std::vector<DeserializationUnit>> Pop() {
+    base::MutexGuard guard(&mutex_);
+    while (queue_.empty()) {
+      cv_.Wait(&mutex_);
+    }
+    auto batch = std::move(queue_.front());
+    if (batch) queue_.pop();
+    return batch;
+  }
+
+ private:
+  base::Mutex mutex_;
+  base::ConditionVariable cv_;
+  std::queue<std::unique_ptr<std::vector<DeserializationUnit>>> queue_;
+};
+
 class V8_EXPORT_PRIVATE NativeModuleDeserializer {
  public:
   explicit NativeModuleDeserializer(NativeModule*);
@@ -482,13 +506,44 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
   bool Read(Reader* reader);
 
  private:
+  friend class NativeModuleDeserializerTask;
+
   bool ReadHeader(Reader* reader);
   DeserializationUnit ReadCodeAndAlloc(int fn_index, Reader* reader);
   void CopyAndRelocate(const DeserializationUnit& unit);
-  void Publish(DeserializationUnit unit);
+  void Publish(std::unique_ptr<std::vector<DeserializationUnit>> batch);
 
   NativeModule* const native_module_;
   bool read_called_;
+};
+
+class NativeModuleDeserializerTask : public CancelableTask {
+ public:
+  NativeModuleDeserializerTask(NativeModuleDeserializer* deserializer,
+                               DeserializationQueue& from_queue,
+                               DeserializationQueue& to_queue,
+                               CancelableTaskManager* task_manager)
+      : CancelableTask(task_manager),
+        deserializer_(deserializer),
+        from_queue_(from_queue),
+        to_queue_(to_queue) {}
+
+  void RunInternal() override {
+    CODE_SPACE_WRITE_SCOPE
+    for (;;) {
+      auto batch = from_queue_.Pop();
+      if (!batch) break;
+      for (auto& unit : *batch) {
+        deserializer_->CopyAndRelocate(unit);
+      }
+      to_queue_.Add(std::move(batch));
+    }
+  }
+
+ private:
+  NativeModuleDeserializer* deserializer_;
+  DeserializationQueue& from_queue_;
+  DeserializationQueue& to_queue_;
 };
 
 NativeModuleDeserializer::NativeModuleDeserializer(NativeModule* native_module)
@@ -502,22 +557,55 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
   uint32_t total_fns = native_module_->num_functions();
   uint32_t first_wasm_fn = native_module_->num_imported_functions();
   WasmCodeRefScope wasm_code_ref_scope;
-  std::vector<DeserializationUnit> units;
+
+  DeserializationQueue reloc_queue;
+  DeserializationQueue publish_queue;
+
+  CancelableTaskManager cancelable_task_manager;
+  auto task = std::make_unique<NativeModuleDeserializerTask>(
+      this, reloc_queue, publish_queue, &cancelable_task_manager);
+  V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
+
+  auto batch = std::make_unique<std::vector<DeserializationUnit>>();
+  int num_batches = 0;
   for (uint32_t i = first_wasm_fn; i < total_fns; ++i) {
     DeserializationUnit unit = ReadCodeAndAlloc(i, reader);
     if (unit.code) {
-      units.push_back(std::move(unit));
+      batch->push_back(std::move(unit));
+    }
+    constexpr int kBatchSize = 100;
+    if (batch->size() == kBatchSize) {
+      reloc_queue.Add(std::move(batch));
+      num_batches++;
+      batch = std::make_unique<std::vector<DeserializationUnit>>();
     }
   }
-  {
-    CODE_SPACE_WRITE_SCOPE
-    for (DeserializationUnit& unit : units) {
+
+  if (!batch->empty()) {
+    reloc_queue.Add(std::move(batch));
+    num_batches++;
+  }
+  reloc_queue.Add(nullptr);
+
+  // Participate to deserialization in the main thread to ensure progress even
+  // if background tasks are not scheduled.
+  int published = 0;
+  for (;;) {
+    auto batch = reloc_queue.Pop();
+    if (!batch) break;
+    for (auto& unit : *batch) {
       CopyAndRelocate(unit);
     }
+    Publish(std::move(batch));
+    ++published;
   }
-  for (DeserializationUnit& unit : units) {
-    Publish(std::move(unit));
+  // Now publish oustanding batches added by the background task, if any.
+  for (; published < num_batches; ++published) {
+    auto batch = publish_queue.Pop();
+    DCHECK(batch);
+    Publish(std::move(batch));
   }
+  cancelable_task_manager.CancelAndWait();
   return reader->current_size() == 0;
 }
 
@@ -622,10 +710,15 @@ void NativeModuleDeserializer::CopyAndRelocate(
                         unit.code->instructions().size());
 }
 
-void NativeModuleDeserializer::Publish(DeserializationUnit unit) {
-  WasmCode* published_code = native_module_->PublishCode(std::move(unit).code);
-  published_code->MaybePrint();
-  published_code->Validate();
+void NativeModuleDeserializer::Publish(
+    std::unique_ptr<std::vector<DeserializationUnit>> batch) {
+  DCHECK_NOT_NULL(batch);
+  for (auto& unit : *batch) {
+    WasmCode* published_code =
+        native_module_->PublishCode(std::move(unit).code);
+    published_code->MaybePrint();
+    published_code->Validate();
+  }
 }
 
 bool IsSupportedVersion(Vector<const byte> header) {
