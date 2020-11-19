@@ -973,6 +973,7 @@ bool GetOptimizedCodeNow(OptimizedCompilationJob* job, Isolate* isolate,
     ParkedScope parked_scope(isolate->main_thread_local_isolate());
     if (job->ExecuteJob(isolate->counters()->runtime_call_stats(),
                         isolate->main_thread_local_isolate())) {
+      UnparkedScope unparked_scope(isolate->main_thread_local_isolate());
       CompilerTracer::TraceAbortedJob(isolate, compilation_info);
       return false;
     }
