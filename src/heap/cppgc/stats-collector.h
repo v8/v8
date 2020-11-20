@@ -147,9 +147,10 @@ class V8_EXPORT_PRIVATE StatsCollector final {
           start_time_(v8::base::TimeTicks::Now()),
           scope_id_(scope_id) {
       DCHECK_LE(0, scope_id_);
-      DCHECK_LT(scope_id_, scope_category == kMutatorThread
-                               ? kNumScopeIds
-                               : kNumConcurrentScopeIds);
+      DCHECK_LT(static_cast<int>(scope_id_),
+                scope_category == kMutatorThread
+                    ? static_cast<int>(kNumScopeIds)
+                    : static_cast<int>(kNumConcurrentScopeIds));
       StartTrace(args...);
     }
 
