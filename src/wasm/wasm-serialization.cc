@@ -491,6 +491,13 @@ class DeserializationQueue {
     return batch;
   }
 
+  std::unique_ptr<std::vector<DeserializationUnit>> UnlockedPop() {
+    DCHECK(!queue_.empty());
+    auto batch = std::move(queue_.front());
+    queue_.pop();
+    return batch;
+  }
+
  private:
   base::Mutex mutex_;
   base::ConditionVariable cv_;
@@ -506,7 +513,8 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
   bool Read(Reader* reader);
 
  private:
-  friend class NativeModuleDeserializerTask;
+  friend class CopyAndRelocTask;
+  friend class PublishTask;
 
   bool ReadHeader(Reader* reader);
   DeserializationUnit ReadCodeAndAlloc(int fn_index, Reader* reader);
@@ -515,14 +523,17 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
 
   NativeModule* const native_module_;
   bool read_called_;
+#ifdef DEBUG
+  std::atomic<int> total_published_{0};
+#endif
 };
 
-class NativeModuleDeserializerTask : public CancelableTask {
+class CopyAndRelocTask : public CancelableTask {
  public:
-  NativeModuleDeserializerTask(NativeModuleDeserializer* deserializer,
-                               DeserializationQueue& from_queue,
-                               DeserializationQueue& to_queue,
-                               CancelableTaskManager* task_manager)
+  CopyAndRelocTask(NativeModuleDeserializer* deserializer,
+                   DeserializationQueue& from_queue,
+                   DeserializationQueue& to_queue,
+                   CancelableTaskManager* task_manager)
       : CancelableTask(task_manager),
         deserializer_(deserializer),
         from_queue_(from_queue),
@@ -538,12 +549,36 @@ class NativeModuleDeserializerTask : public CancelableTask {
       }
       to_queue_.Add(std::move(batch));
     }
+    to_queue_.Add(nullptr);
   }
 
  private:
   NativeModuleDeserializer* deserializer_;
   DeserializationQueue& from_queue_;
   DeserializationQueue& to_queue_;
+};
+
+class PublishTask : public CancelableTask {
+ public:
+  PublishTask(NativeModuleDeserializer* deserializer,
+              DeserializationQueue& from_queue,
+              CancelableTaskManager* task_manager)
+      : CancelableTask(task_manager),
+        deserializer_(deserializer),
+        from_queue_(from_queue) {}
+
+  void RunInternal() override {
+    WasmCodeRefScope code_scope;
+    for (;;) {
+      auto batch = from_queue_.Pop();
+      if (!batch) break;
+      deserializer_->Publish(std::move(batch));
+    }
+  }
+
+ private:
+  NativeModuleDeserializer* deserializer_;
+  DeserializationQueue& from_queue_;
 };
 
 NativeModuleDeserializer::NativeModuleDeserializer(NativeModule* native_module)
@@ -562,9 +597,14 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
   DeserializationQueue publish_queue;
 
   CancelableTaskManager cancelable_task_manager;
-  auto task = std::make_unique<NativeModuleDeserializerTask>(
+
+  auto copy_task = std::make_unique<CopyAndRelocTask>(
       this, reloc_queue, publish_queue, &cancelable_task_manager);
-  V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
+  V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(copy_task));
+
+  auto publish_task = std::make_unique<PublishTask>(this, publish_queue,
+                                                    &cancelable_task_manager);
+  V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(publish_task));
 
   auto batch = std::make_unique<std::vector<DeserializationUnit>>();
   int num_batches = 0;
@@ -599,13 +639,22 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
     Publish(std::move(batch));
     ++published;
   }
-  // Now publish oustanding batches added by the background task, if any.
-  for (; published < num_batches; ++published) {
-    auto batch = publish_queue.Pop();
-    DCHECK(batch);
-    Publish(std::move(batch));
+
+  if (published == num_batches) {
+    // {CopyAndRelocTask} did not take any work from the reloc queue, probably
+    // because it was not scheduled yet. Ensure that the end marker gets added
+    // to the queue in this case.
+    publish_queue.Add(nullptr);
   }
   cancelable_task_manager.CancelAndWait();
+
+  // Process the publish queue now in case {PublishTask} was canceled.
+  for (;;) {
+    auto batch = publish_queue.UnlockedPop();
+    if (!batch) break;
+    Publish(std::move(batch));
+  }
+  DCHECK_EQ(total_published_.load(), num_batches);
   return reader->current_size() == 0;
 }
 
@@ -719,6 +768,9 @@ void NativeModuleDeserializer::Publish(
     published_code->MaybePrint();
     published_code->Validate();
   }
+#ifdef DEBUG
+  total_published_.fetch_add(1);
+#endif
 }
 
 bool IsSupportedVersion(Vector<const byte> header) {
