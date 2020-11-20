@@ -930,6 +930,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   void DecodeCodeSection(bool verify_functions) {
+    StartCodeSection();
     uint32_t pos = pc_offset();
     uint32_t functions_count = consume_u32v("functions count");
     CheckFunctionsCount(functions_count, pos);
@@ -948,6 +949,14 @@ class ModuleDecoderImpl : public Decoder {
     }
     DCHECK_GE(pc_offset(), pos);
     set_code_section(pos, pc_offset() - pos);
+  }
+
+  void StartCodeSection() {
+    if (ok()) {
+      // Make sure global offset were calculated before they get accessed during
+      // function compilation.
+      CalculateGlobalOffsets(module_.get());
+    }
   }
 
   bool CheckFunctionsCount(uint32_t functions_count, uint32_t offset) {
@@ -1207,6 +1216,10 @@ class ModuleDecoderImpl : public Decoder {
 
   ModuleResult FinishDecoding(bool verify_functions = true) {
     if (ok() && CheckMismatchedCounts()) {
+      // We calculate the global offsets here, because there may not be a global
+      // section and code section that would have triggered the calculation
+      // before. Even without the globals section the calculation is needed
+      // because globals can also be defined in the import section.
       CalculateGlobalOffsets(module_.get());
     }
 
@@ -1407,7 +1420,18 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   // Calculate individual global offsets and total size of globals table.
+  // This function should be called after all globals have been defined, which
+  // is after the import section and the global section, but before the global
+  // offsets are accessed, e.g. by the function compilers. The moment when this
+  // function should be called is not well-defined, as the global section may
+  // not exist. Therefore this function is called multiple times.
   void CalculateGlobalOffsets(WasmModule* module) {
+    if (module->globals.empty() || module->untagged_globals_buffer_size != 0 ||
+        module->tagged_globals_buffer_size != 0) {
+      // This function has already been executed before, so we don't have to
+      // execute it again.
+      return;
+    }
     uint32_t untagged_offset = 0;
     uint32_t tagged_offset = 0;
     uint32_t num_imported_mutable_globals = 0;
@@ -2239,6 +2263,8 @@ void ModuleDecoder::DecodeFunctionBody(uint32_t index, uint32_t length,
                                        uint32_t offset, bool verify_functions) {
   impl_->DecodeFunctionBody(index, length, offset, verify_functions);
 }
+
+void ModuleDecoder::StartCodeSection() { impl_->StartCodeSection(); }
 
 bool ModuleDecoder::CheckFunctionsCount(uint32_t functions_count,
                                         uint32_t offset) {
