@@ -470,7 +470,9 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(S128Store8Lane, 0xfd5c, v_is)           \
   V(S128Store16Lane, 0xfd5d, v_is)          \
   V(S128Store32Lane, 0xfd5e, v_is)          \
-  V(S128Store64Lane, 0xfd5f, v_is)
+  V(S128Store64Lane, 0xfd5f, v_is)          \
+  V(PrefetchT, 0xfdc5, v_i)                 \
+  V(PrefetchNT, 0xfdc6, v_i)
 
 #define FOREACH_SIMD_POST_MVP_OPCODE(V)     \
   V(I8x16Mul, 0xfd75, s_ss)                 \
@@ -706,6 +708,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(d_f, kWasmF64, kWasmF32)                        \
   V(d_i, kWasmF64, kWasmI32)                        \
   V(d_l, kWasmF64, kWasmI64)                        \
+  V(v_i, kWasmStmt, kWasmI32)                       \
   V(v_ii, kWasmStmt, kWasmI32, kWasmI32)            \
   V(v_id, kWasmStmt, kWasmI32, kWasmF64)            \
   V(d_id, kWasmF64, kWasmI32, kWasmF64)             \

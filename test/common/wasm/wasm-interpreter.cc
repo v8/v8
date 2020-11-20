@@ -2801,6 +2801,16 @@ class WasmInterpreterInternals {
       case kExprI16x8ExtAddPairwiseI8x16U: {
         return DoSimdExtAddPairwise<int8, int16, uint16_t, uint8_t>();
       }
+      case kExprPrefetchT:
+      case kExprPrefetchNT: {
+        // Max alignment doesn't matter, use an arbitrary value.
+        MemoryAccessImmediate<Decoder::kNoValidation> imm(
+            decoder, code->at(pc + *len), 4);
+        // Pop address and do nothing.
+        Pop().to<uint32_t>();
+        *len += imm.length;
+        return true;
+      }
       default:
         return false;
     }

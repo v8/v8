@@ -1414,6 +1414,37 @@ void Assembler::stlxrh(const Register& rs, const Register& rt,
   Emit(STLXR_h | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
 
+void Assembler::prfm(int prfop, const MemOperand& addr) {
+  // Restricted support for prfm, only register offset.
+  // This can probably be merged with Assembler::LoadStore as we expand support.
+  DCHECK(addr.IsRegisterOffset());
+  DCHECK(is_uint5(prfop));
+  Instr memop = PRFM | prfop | RnSP(addr.base());
+
+  Extend ext = addr.extend();
+  Shift shift = addr.shift();
+  unsigned shift_amount = addr.shift_amount();
+
+  // LSL is encoded in the option field as UXTX.
+  if (shift == LSL) {
+    ext = UXTX;
+  }
+
+  // Shifts are encoded in one bit, indicating a left shift by the memory
+  // access size.
+  DCHECK((shift_amount == 0) ||
+         (shift_amount == static_cast<unsigned>(CalcLSDataSize(PRFM))));
+
+  Emit(LoadStoreRegisterOffsetFixed | memop | Rm(addr.regoffset()) |
+       ExtendMode(ext) | ImmShiftLS((shift_amount > 0) ? 1 : 0));
+}
+
+void Assembler::prfm(PrefetchOperation prfop, const MemOperand& addr) {
+  // Restricted support for prfm, only register offset.
+  // This can probably be merged with Assembler::LoadStore as we expand support.
+  prfm(static_cast<int>(prfop), addr);
+}
+
 void Assembler::NEON3DifferentL(const VRegister& vd, const VRegister& vn,
                                 const VRegister& vm, NEON3DifferentOp vop) {
   DCHECK(AreSameFormat(vn, vm));

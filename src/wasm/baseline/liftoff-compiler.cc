@@ -2255,6 +2255,12 @@ class LiftoffCompiler {
     return index;
   }
 
+  void Prefetch(FullDecoder* decoder,
+                const MemoryAccessImmediate<validate>& imm,
+                const Value& index_val, bool temporal) {
+    unsupported(decoder, kSimd, "simd prefetch");
+  }
+
   void LoadMem(FullDecoder* decoder, LoadType type,
                const MemoryAccessImmediate<validate>& imm,
                const Value& index_val, Value* result) {

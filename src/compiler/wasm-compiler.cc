@@ -4158,6 +4158,17 @@ Node* WasmGraphBuilder::LoadTransform(wasm::ValueType type, MachineType memtype,
   return load;
 }
 
+Node* WasmGraphBuilder::Prefetch(Node* index, uint64_t offset,
+                                 uint32_t alignment, bool temporal) {
+  uintptr_t capped_offset = static_cast<uintptr_t>(offset);
+  const Operator* prefetchOp =
+      temporal ? mcgraph()->machine()->PrefetchTemporal()
+               : mcgraph()->machine()->PrefetchNonTemporal();
+  Node* prefetch = SetEffect(graph()->NewNode(
+      prefetchOp, MemBuffer(capped_offset), index, effect(), control()));
+  return prefetch;
+}
+
 Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
                                 Node* index, uint64_t offset,
                                 uint32_t alignment,

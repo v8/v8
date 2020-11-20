@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <bitset>
+
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/base/platform/platform.h"
@@ -4266,12 +4268,19 @@ int DisassemblingDecoder::SubstitutePrefetchField(Instruction* instr,
   USE(format);
 
   int prefetch_mode = instr->PrefetchMode();
+  const std::array<std::string, 3> hints = {"ld", "li", "st"};
+  unsigned hint = instr->PrefetchHint();
+  unsigned target = instr->PrefetchTarget() + 1;
 
-  const char* ls = (prefetch_mode & 0x10) ? "st" : "ld";
-  int level = (prefetch_mode >> 1) + 1;
-  const char* ks = (prefetch_mode & 1) ? "strm" : "keep";
+  if (hint >= hints.size() || target > 3) {
+    std::bitset<5> prefetch_mode(instr->ImmPrefetchOperation());
+    AppendToOutput("#0b%s", prefetch_mode.to_string().c_str());
+  } else {
+    const char* ks = (prefetch_mode & 1) ? "strm" : "keep";
 
-  AppendToOutput("p%sl%d%s", ls, level, ks);
+    AppendToOutput("p%sl%d%s", hints[hint].c_str(), target, ks);
+  }
+
   return 6;
 }
 

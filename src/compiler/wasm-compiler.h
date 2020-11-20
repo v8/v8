@@ -301,6 +301,8 @@ class WasmGraphBuilder {
   Node* CurrentMemoryPages();
   Node* TraceMemoryOperation(bool is_store, MachineRepresentation, Node* index,
                              uintptr_t offset, wasm::WasmCodePosition);
+  Node* Prefetch(Node* index, uint64_t offset, uint32_t alignment,
+                 bool temporal);
   Node* LoadMem(wasm::ValueType type, MachineType memtype, Node* index,
                 uint64_t offset, uint32_t alignment,
                 wasm::WasmCodePosition position);

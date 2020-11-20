@@ -828,6 +828,9 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* LoadTransform(MemoryAccessKind kind,
                                 LoadTransformation transform);
 
+  const Operator* PrefetchTemporal();
+  const Operator* PrefetchNonTemporal();
+
   // SIMD load: replace a specified lane with [base + index].
   const Operator* LoadLane(MemoryAccessKind kind, LoadRepresentation rep,
                            uint8_t laneidx);
