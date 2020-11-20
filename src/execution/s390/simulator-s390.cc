@@ -4959,9 +4959,11 @@ EVALUATE(CDR) {
 }
 
 EVALUATE(LER) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LER);
+  DECODE_RR_INSTRUCTION(r1, r2);
+  int64_t r2_val = get_f_register(r2);
+  set_d_register(r1, r2_val);
+  return length;
 }
 
 EVALUATE(STH) {
@@ -7288,9 +7290,10 @@ EVALUATE(LCDFR) {
 }
 
 EVALUATE(LZER) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LZER);
+  DECODE_RRE_INSTRUCTION_NO_R2(r1);
+  set_d_register_from_float32(r1, 0.0);
+  return length;
 }
 
 EVALUATE(LZDR) {

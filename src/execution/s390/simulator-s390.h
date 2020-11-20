@@ -157,6 +157,13 @@ class Simulator : public SimulatorBase {
     return get_simd_register_by_lane<int64_t>(dreg, 0);
   }
 
+  int64_t get_f_register(int dreg) {
+    DCHECK(dreg >= 0 && dreg < kNumFPRs);
+    int64_t d_val = get_simd_register_by_lane<int64_t>(dreg, 0);
+    int64_t f_val = d_val >> 32;
+    return f_val << 32;
+  }
+
   void set_d_register_from_float32(int dreg, const float f) {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
 
