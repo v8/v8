@@ -53,6 +53,25 @@ class CachePage {
   char validity_map_[kValidityMapSize];  // One byte per line.
 };
 
+template <class T>
+static T ComputeRounding(T a, int mode) {
+  switch (mode) {
+    case ROUND_TO_NEAREST_WITH_TIES_AWAY_FROM_0:
+      return std::round(a);
+    case ROUND_TO_NEAREST_WITH_TIES_TO_EVEN:
+      return std::nearbyint(a);
+    case ROUND_TOWARD_0:
+      return std::trunc(a);
+    case ROUND_TOWARD_PLUS_INFINITE:
+      return std::ceil(a);
+    case ROUND_TOWARD_MINUS_INFINITE:
+      return std::floor(a);
+    default:
+      UNIMPLEMENTED();
+  }
+  return 0;
+}
+
 class Simulator : public SimulatorBase {
  public:
   friend class S390Debugger;
@@ -271,66 +290,6 @@ class Simulator : public SimulatorBase {
 
   // S390
   void Trace(Instruction* instr);
-
-  // Used by the CL**BR instructions.
-  template <typename T1, typename T2>
-  void SetS390RoundConditionCode(T1 r2_val, T2 max, T2 min) {
-    condition_reg_ = 0;
-    double r2_dval = static_cast<double>(r2_val);
-    double dbl_min = static_cast<double>(min);
-    double dbl_max = static_cast<double>(max);
-
-    if (r2_dval == 0.0)
-      condition_reg_ = 8;
-    else if (r2_dval < 0.0 && r2_dval >= dbl_min && std::isfinite(r2_dval))
-      condition_reg_ = 4;
-    else if (r2_dval > 0.0 && r2_dval <= dbl_max && std::isfinite(r2_dval))
-      condition_reg_ = 2;
-    else
-      condition_reg_ = 1;
-  }
-
-  template <typename T1>
-  void SetS390RoundConditionCode(T1 r2_val, int64_t max, int64_t min) {
-    condition_reg_ = 0;
-    double r2_dval = static_cast<double>(r2_val);
-    double dbl_min = static_cast<double>(min);
-    double dbl_max = static_cast<double>(max);
-
-    // Note that the IEEE 754 floating-point representations (both 32 and
-    // 64 bit) cannot exactly represent INT64_MAX. The closest it can get
-    // is INT64_max + 1. IEEE 754 FP can, though, represent INT64_MIN
-    // exactly.
-
-    // This is not an issue for INT32, as IEEE754 64-bit can represent
-    // INT32_MAX and INT32_MIN with exact precision.
-
-    if (r2_dval == 0.0)
-      condition_reg_ = 8;
-    else if (r2_dval < 0.0 && r2_dval >= dbl_min && std::isfinite(r2_dval))
-      condition_reg_ = 4;
-    else if (r2_dval > 0.0 && r2_dval < dbl_max && std::isfinite(r2_dval))
-      condition_reg_ = 2;
-    else
-      condition_reg_ = 1;
-  }
-
-  // Used by the CL**BR instructions.
-  template <typename T1, typename T2, typename T3>
-  void SetS390ConvertConditionCode(T1 src, T2 dst, T3 max) {
-    condition_reg_ = 0;
-    if (src == static_cast<T1>(0.0)) {
-      condition_reg_ |= 8;
-    } else if (src < static_cast<T1>(0.0) && static_cast<T2>(src) == 0 &&
-               std::isfinite(src)) {
-      condition_reg_ |= 4;
-    } else if (src > static_cast<T1>(0.0) && std::isfinite(src) &&
-               src < static_cast<T1>(max)) {
-      condition_reg_ |= 2;
-    } else {
-      condition_reg_ |= 1;
-    }
-  }
 
   template <typename T>
   void SetS390ConditionCode(T lhs, T rhs) {
