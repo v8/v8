@@ -5,6 +5,7 @@
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/handles.h"
+#include "src/heap/local-heap.h"
 #include "src/objects/foreign-inl.h"
 #include "src/objects/managed.h"
 #include "src/objects/maybe-object.h"
@@ -14,6 +15,8 @@ namespace v8 {
 namespace internal {
 
 // ------- Test simple argument evaluation order problems ---------
+
+void Safepoint() { LocalHeap::Current()->Safepoint(); }
 
 Handle<Object> CauseGC(Handle<Object> obj, Isolate* isolate) {
   isolate->heap()->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
@@ -161,6 +164,14 @@ void TestDeadVarAnalysis(Isolate* isolate) {
   raw_obj.Print();
 }
 
+void TestDeadVarBecauseOfSafepointAnalysis(Isolate* isolate) {
+  JSObject raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
+  Safepoint();
+
+  // Should cause warning.
+  raw_obj.Print();
+}
+
 void TestGuardedDeadVarAnalysis(Isolate* isolate) {
   JSObject raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
 
@@ -174,15 +185,28 @@ void TestGuardedDeadVarAnalysis(Isolate* isolate) {
   raw_obj.Print();
 }
 
-void TestGuardedDeadVarAnalysisNotOnStack(Isolate* isolate) {
+void TestGuardedAgainstSafepointDeadVarAnalysis(Isolate* isolate) {
   JSObject raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
 
-  // {DisallowHeapAccess} has {DisallowHeapAllocation} as a superclass, so both
-  // are treated equally by gcmole.
+  // Note: having DisallowGarbageCollection with the same function as CauseGC
+  // normally doesn't make sense, but we want to test whether the gurads
+  // are recognized by GCMole.
+  DisallowGarbageCollection no_gc;
+  Safepoint();
+
+  // Shouldn't cause warning.
+  raw_obj.Print();
+}
+
+void TestOnlyHeapGuardedDeadVarAnalysisInCompound(Isolate* isolate) {
+  JSObject raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
+
+  // {DisallowHeapAccess} has a {DisallowHeapAllocation}, but no
+  // {DisallowSafepoints}, so it could see objects move due to safepoints.
   DisallowHeapAccess no_gc;
   CauseGCRaw(raw_obj, isolate);
 
-  // Shouldn't cause warning.
+  // Should cause warning.
   raw_obj.Print();
 }
 
@@ -204,7 +228,7 @@ void TestGuardedDeadVarAnalysisCaller(Isolate* isolate) {
 }
 
 JSObject GuardedAllocation(Isolate* isolate) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   return *isolate->factory()->NewJSObjectWithNullProto();
 }
 
@@ -224,7 +248,7 @@ void TestGuardedDeadVarAnalysisMidFunction(Isolate* isolate) {
   CauseGCRaw(raw_obj, isolate);
 
   // Guarding the rest of the function from triggering a GC.
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   // Should cause warning.
   raw_obj.Print();
 }

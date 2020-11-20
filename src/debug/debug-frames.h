@@ -78,7 +78,7 @@ class RedirectActiveFunctions : public ThreadVisitor {
  private:
   SharedFunctionInfo shared_;
   Mode mode_;
-  DisallowHeapAllocation no_gc_;
+  DISALLOW_GARBAGE_COLLECTION(no_gc_)
 };
 
 }  // namespace internal

@@ -2157,7 +2157,7 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
     ModuleResult result;
     {
       DisallowHandleAllocation no_handle;
-      DisallowHeapAllocation no_allocation;
+      DisallowGarbageCollection no_gc;
       // Decode the module bytes.
       TRACE_COMPILE("(1) Decoding module...\n");
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),

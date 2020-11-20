@@ -81,7 +81,7 @@ class WasmSerializationTest {
     Handle<WasmModuleObject> module_object;
     CHECK(Deserialize().ToHandle(&module_object));
     {
-      DisallowHeapAllocation assume_no_gc;
+      DisallowGarbageCollection assume_no_gc;
       Vector<const byte> deserialized_module_wire_bytes =
           module_object->native_module()->wire_bytes();
       CHECK_EQ(deserialized_module_wire_bytes.size(), wire_bytes_.size());

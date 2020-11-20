@@ -131,7 +131,7 @@ void Accessors::ReconfigureToDataProperty(
 void Accessors::ArgumentsIteratorGetter(
     v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   HandleScope scope(isolate);
   Object result = isolate->native_context()->array_values_iterator();
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
@@ -151,7 +151,7 @@ void Accessors::ArrayLengthGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RuntimeCallTimerScope timer(isolate,
                               RuntimeCallCounterId::kArrayLengthGetter);
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   HandleScope scope(isolate);
   JSArray holder = JSArray::cast(*Utils::OpenHandle(*info.Holder()));
   Object result = holder.length();
@@ -278,7 +278,7 @@ void Accessors::StringLengthGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RuntimeCallTimerScope timer(isolate,
                               RuntimeCallCounterId::kStringLengthGetter);
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   HandleScope scope(isolate);
 
   // We have a slight impedance mismatch between the external API and the way we

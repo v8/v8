@@ -100,7 +100,7 @@ void AllocationCounter::InvokeAllocationObservers(Address soon_object,
   for (AllocationObserverCounter& aoc : observers_) {
     if (aoc.next_counter_ - current_counter_ <= aligned_object_size) {
       {
-        DisallowHeapAllocation disallow_heap_allocation;
+        DisallowGarbageCollection no_gc;
         aoc.observer_->Step(
             static_cast<int>(current_counter_ - aoc.prev_counter_), soon_object,
             object_size);

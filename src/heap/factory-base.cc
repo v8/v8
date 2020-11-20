@@ -495,7 +495,7 @@ Handle<SeqOneByteString> FactoryBase<Impl>::NewOneByteInternalizedString(
     const Vector<const uint8_t>& str, uint32_t raw_hash_field) {
   Handle<SeqOneByteString> result =
       AllocateRawOneByteInternalizedString(str.length(), raw_hash_field);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   MemCopy(result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()),
           str.begin(), str.length());
   return result;
@@ -506,7 +506,7 @@ Handle<SeqTwoByteString> FactoryBase<Impl>::NewTwoByteInternalizedString(
     const Vector<const uc16>& str, uint32_t raw_hash_field) {
   Handle<SeqTwoByteString> result =
       AllocateRawTwoByteInternalizedString(str.length(), raw_hash_field);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   MemCopy(result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()),
           str.begin(), str.length() * kUC16Size);
   return result;
@@ -595,7 +595,7 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
     if (is_one_byte) {
       Handle<SeqOneByteString> result =
           NewRawOneByteString(length, allocation).ToHandleChecked();
-      DisallowHeapAllocation no_gc;
+      DisallowGarbageCollection no_gc;
       uint8_t* dest =
           result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded());
       // Copy left part.
@@ -618,7 +618,7 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
     Handle<SeqTwoByteString> result =
         NewRawTwoByteString(length, allocation).ToHandleChecked();
 
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     uc16* sink =
         result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded());
     String::WriteToFlat(*left, sink, 0, left->length());
@@ -648,7 +648,7 @@ Handle<String> FactoryBase<Impl>::NewConsString(Handle<String> left,
                                    allocation)),
       isolate());
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
 
   result->set_raw_hash_field(String::kEmptyHashField);

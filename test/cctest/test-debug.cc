@@ -4531,7 +4531,7 @@ UNINITIALIZED_TEST(LoadedAtStartupScripts) {
                       v8_bool(false));
     std::unordered_map<int, int> count_by_type;
     {
-      i::DisallowHeapAllocation no_gc;
+      i::DisallowGarbageCollection no_gc;
       i::Script::Iterator iterator(i_isolate);
       for (i::Script script = iterator.Next(); !script.is_null();
            script = iterator.Next()) {

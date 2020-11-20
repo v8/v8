@@ -191,7 +191,7 @@ void FixedArray::MoveElements(Isolate* isolate, int dst_index, int src_index,
   if (len == 0) return;
   DCHECK_LE(dst_index + len, length());
   DCHECK_LE(src_index + len, length());
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   ObjectSlot dst_slot(RawFieldOfElementAt(dst_index));
   ObjectSlot src_slot(RawFieldOfElementAt(src_index));
   isolate->heap()->MoveRange(*this, dst_slot, src_slot, len, mode);
@@ -202,7 +202,7 @@ void FixedArray::CopyElements(Isolate* isolate, int dst_index, FixedArray src,
   if (len == 0) return;
   DCHECK_LE(dst_index + len, length());
   DCHECK_LE(src_index + len, src.length());
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   ObjectSlot dst_slot(RawFieldOfElementAt(dst_index));
   ObjectSlot src_slot(src.RawFieldOfElementAt(src_index));
@@ -433,7 +433,7 @@ void WeakFixedArray::CopyElements(Isolate* isolate, int dst_index,
   if (len == 0) return;
   DCHECK_LE(dst_index + len, length());
   DCHECK_LE(src_index + len, src.length());
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   MaybeObjectSlot dst_slot(data_start() + dst_index);
   MaybeObjectSlot src_slot(src.data_start() + src_index);
@@ -464,7 +464,7 @@ void WeakArrayList::CopyElements(Isolate* isolate, int dst_index,
   if (len == 0) return;
   DCHECK_LE(dst_index + len, capacity());
   DCHECK_LE(src_index + len, src.capacity());
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   MaybeObjectSlot dst_slot(data_start() + dst_index);
   MaybeObjectSlot src_slot(src.data_start() + src_index);

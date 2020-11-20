@@ -675,7 +675,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
 }
 
 Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
 
   int root_nof = root_map_->NumberOfOwnDescriptors();
   Map current = *root_map_;
@@ -683,7 +683,7 @@ Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
     Name name = descriptors->GetKey(i);
     PropertyDetails details = descriptors->GetDetails(i);
     Map next =
-        TransitionsAccessor(isolate_, current, &no_allocation)
+        TransitionsAccessor(isolate_, current, &no_gc)
             .SearchTransition(name, details.kind(), details.attributes());
     if (next.is_null()) break;
     DescriptorArray next_descriptors = next.instance_descriptors(kRelaxedLoad);

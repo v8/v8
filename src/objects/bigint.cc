@@ -1185,7 +1185,7 @@ void BigInt::BigIntShortPrint(std::ostream& os) {
 // Internal helpers.
 
 void MutableBigInt::AbsoluteAdd(MutableBigInt result, BigInt x, BigInt y) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   digit_t carry = 0;
   int i = 0;
   for (; i < y.length(); i++) {
@@ -1247,7 +1247,7 @@ Handle<BigInt> MutableBigInt::AbsoluteSub(Isolate* isolate, Handle<BigInt> x,
 }
 
 void MutableBigInt::AbsoluteSub(MutableBigInt result, BigInt x, BigInt y) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   digit_t borrow = 0;
   int i = 0;
   for (; i < y.length(); i++) {
@@ -1447,7 +1447,7 @@ int MutableBigInt::AbsoluteCompare(Handle<BigIntBase> x, Handle<BigIntBase> y) {
 }
 
 int MutableBigInt::AbsoluteCompare(BigIntBase x, BigIntBase y) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   int diff = x.length() - y.length();
   if (diff != 0) return diff;
   int i = x.length() - 1;
@@ -2094,7 +2094,7 @@ MaybeHandle<String> MutableBigInt::ToStringBasePowerOfTwo(
       isolate->factory()
           ->NewRawOneByteString(static_cast<int>(chars_required))
           .ToHandleChecked();
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   uint8_t* buffer = result->GetChars(no_gc);
   // Print the number into the string, starting from the last position.
   int pos = static_cast<int>(chars_required - 1);
@@ -2171,7 +2171,7 @@ MaybeHandle<String> MutableBigInt::ToStringGeneric(Isolate* isolate,
 #if DEBUG
   // Zap the string first.
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     uint8_t* chars = result->GetChars(no_gc);
     for (int i = 0; i < static_cast<int>(chars_required); i++) chars[i] = '?';
   }
@@ -2205,7 +2205,7 @@ MaybeHandle<String> MutableBigInt::ToStringGeneric(Isolate* isolate,
       AbsoluteDivSmall(isolate, *dividend, chunk_divisor, &rest, &chunk);
       DCHECK(!rest.is_null());
       dividend = reinterpret_cast<Handle<BigIntBase>*>(&rest);
-      DisallowHeapAllocation no_gc;
+      DisallowGarbageCollection no_gc;
       uint8_t* chars = result->GetChars(no_gc);
       for (int i = 0; i < chunk_chars; i++) {
         chars[pos++] = kConversionChars[chunk % radix];
@@ -2227,7 +2227,7 @@ MaybeHandle<String> MutableBigInt::ToStringGeneric(Isolate* isolate,
         StackLimitCheck interrupt_check(isolate);
         if (interrupt_check.InterruptRequested()) {
           {
-            AllowHeapAllocation might_throw;
+            AllowGarbageCollection might_throw;
             if (isolate->stack_guard()->HandleInterrupts().IsException(
                     isolate)) {
               return MaybeHandle<String>();
@@ -2241,7 +2241,7 @@ MaybeHandle<String> MutableBigInt::ToStringGeneric(Isolate* isolate,
     } while (nonzero_digit > 0);
     last_digit = rest->digit(0);
   }
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   uint8_t* chars = result->GetChars(no_gc);
   do {
     chars[pos++] = kConversionChars[last_digit % radix];
@@ -2735,7 +2735,7 @@ void MutableBigInt::set_64_bits(uint64_t bits) {
 
 #ifdef OBJECT_PRINT
 void BigIntBase::BigIntBasePrint(std::ostream& os) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   PrintHeader(os, "BigInt");
   int len = length();
   os << "\n- length: " << len;

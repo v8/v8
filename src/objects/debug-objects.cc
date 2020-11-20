@@ -397,7 +397,7 @@ void CoverageInfo::ResetBlockCount(int slot_index) {
 void CoverageInfo::CoverageInfoPrint(std::ostream& os,
                                      std::unique_ptr<char[]> function_name) {
   DCHECK(FLAG_trace_block_coverage);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   os << "Coverage info (";
   if (function_name == nullptr) {

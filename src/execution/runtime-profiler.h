@@ -57,7 +57,7 @@ class RuntimeProfiler {
    private:
     HandleScope handle_scope_;
     RuntimeProfiler* const profiler_;
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
   };
 
   Isolate* isolate_;

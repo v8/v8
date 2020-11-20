@@ -37,7 +37,7 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
   class ByteData : public PreparseByteDataConstants {
    public:
     // Reading from the ByteData is only allowed when a ReadingScope is on the
-    // stack. This ensures that we have a DisallowHeapAllocation in place
+    // stack. This ensures that we have a DisallowGarbageCollection in place
     // whenever ByteData holds a raw pointer into the heap.
     class ReadingScope {
      public:
@@ -58,7 +58,7 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
 
      private:
       ByteData* consumed_data_;
-      DISALLOW_HEAP_ALLOCATION(no_gc)
+      DISALLOW_GARBAGE_COLLECTION(no_gc)
     };
 
     void SetPosition(int position) {

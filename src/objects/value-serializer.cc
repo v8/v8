@@ -482,7 +482,7 @@ void ValueSerializer::WriteBigInt(BigInt bigint) {
 
 void ValueSerializer::WriteString(Handle<String> string) {
   string = String::Flatten(isolate_, string);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   String::FlatContent flat = string->GetFlatContent(no_gc);
   DCHECK(flat.IsFlat());
   if (flat.IsOneByte()) {
@@ -795,7 +795,7 @@ Maybe<bool> ValueSerializer::WriteJSMap(Handle<JSMap> map) {
   int length = table->NumberOfElements() * 2;
   Handle<FixedArray> entries = isolate_->factory()->NewFixedArray(length);
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     Oddball the_hole = ReadOnlyRoots(isolate_).the_hole_value();
     int result_index = 0;
     for (InternalIndex entry : table->IterateEntries()) {
@@ -825,7 +825,7 @@ Maybe<bool> ValueSerializer::WriteJSSet(Handle<JSSet> set) {
   int length = table->NumberOfElements();
   Handle<FixedArray> entries = isolate_->factory()->NewFixedArray(length);
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     Oddball the_hole = ReadOnlyRoots(isolate_).the_hole_value();
     int result_index = 0;
     for (InternalIndex entry : table->IterateEntries()) {
@@ -1413,13 +1413,13 @@ MaybeHandle<String> ValueDeserializer::ReadTwoByteString() {
 
   // Copy the bytes directly into the new string.
   // Warning: this uses host endianness.
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   base::Memcpy(string->GetChars(no_gc), bytes.begin(), bytes.length());
   return string;
 }
 
 bool ValueDeserializer::ReadExpectedString(Handle<String> expected) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   // In the case of failure, the position in the stream is reset.
   const uint8_t* original_position = position_;
 
@@ -1983,7 +1983,7 @@ static void CommitProperties(Handle<JSObject> object, Handle<Map> map,
   JSObject::AllocateStorageForMap(object, map);
   DCHECK(!object->map().is_dictionary_map());
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   DescriptorArray descriptors =
       object->map().instance_descriptors(kRelaxedLoad);
   for (InternalIndex i : InternalIndex::Range(properties.size())) {

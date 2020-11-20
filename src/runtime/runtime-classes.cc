@@ -200,7 +200,7 @@ Object GetMethodWithSharedNameAndSetHomeObject(
     Isolate* isolate,
     RuntimeArguments& args,  // NOLINT(runtime/references)
     Object index, JSObject home_object) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   int int_index = Smi::ToInt(index);
 
   // Class constructor and prototype values do not require post processing.
@@ -352,7 +352,7 @@ bool AddDescriptorsByTemplate(
           isolate, handle(AccessorPair::cast(value), isolate));
       value = *pair;
     }
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     Name name = descriptors_template->GetKey(i);
     DCHECK(name.IsUniqueName());
     PropertyDetails details = descriptors_template->GetDetails(i);

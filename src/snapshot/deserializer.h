@@ -278,7 +278,7 @@ class StringTableInsertionKey final : public StringTableKey {
   uint32_t ComputeRawHashField(String string);
 
   Handle<String> string_;
-  DISALLOW_HEAP_ALLOCATION(no_gc)
+  DISALLOW_GARBAGE_COLLECTION(no_gc)
 };
 
 }  // namespace internal

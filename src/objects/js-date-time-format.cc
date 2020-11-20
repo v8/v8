@@ -1861,7 +1861,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   // Now all properties are ready, so we can allocate the result object.
   Handle<JSDateTimeFormat> date_time_format = Handle<JSDateTimeFormat>::cast(
       isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   date_time_format->set_flags(0);
   if (date_style != DateTimeStyle::kUndefined) {
     date_time_format->set_date_style(date_style);

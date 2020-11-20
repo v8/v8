@@ -155,18 +155,9 @@ using DisallowSafepoints =
 // Scope to introduce an exception to DisallowSafepoints.
 using AllowSafepoints = PerThreadAssertScopeDebugOnly<SAFEPOINTS_ASSERT, true>;
 
-// Scope to document where we do not expect any allocation and GC. Deprecated
-// and will eventually be removed, use DisallowGarbageCollection instead.
+// Scope to document where we do not expect any allocation.
 using DisallowHeapAllocation =
     PerThreadAssertScopeDebugOnly<HEAP_ALLOCATION_ASSERT, false>;
-// The DISALLOW_HEAP_ALLOCATION macro can be used to define a
-// DisallowHeapAllocation field in classes that isn't present in release
-// builds.
-#ifdef DEBUG
-#define DISALLOW_HEAP_ALLOCATION(name) DisallowHeapAllocation name;
-#else
-#define DISALLOW_HEAP_ALLOCATION(name)
-#endif
 
 // Scope to introduce an exception to DisallowHeapAllocation.
 using AllowHeapAllocation =
@@ -224,6 +215,15 @@ using AllowHeapAccess =
     CombinationAssertScope<AllowCodeDependencyChange, AllowHandleDereference,
                            AllowHandleAllocation, AllowHeapAllocation>;
 
+// The DISALLOW_GARBAGE_COLLECTION macro can be used to define a
+// DisallowSafepoints field in classes that isn't present in release
+// builds.
+#ifdef DEBUG
+#define DISALLOW_GARBAGE_COLLECTION(name) DisallowGarbageCollection name;
+#else
+#define DISALLOW_GARBAGE_COLLECTION(name)
+#endif
+
 class DisallowHeapAccessIf {
  public:
   explicit DisallowHeapAccessIf(bool condition) {
@@ -234,12 +234,12 @@ class DisallowHeapAccessIf {
   base::Optional<DisallowHeapAccess> maybe_disallow_;
 };
 
-// Like MutexGuard but also asserts that no heap allocation happens while
+// Like MutexGuard but also asserts that no garbage collection happens while
 // we're holding the mutex.
-class NoHeapAllocationMutexGuard {
+class NoGarbageCollectionMutexGuard {
  public:
-  explicit NoHeapAllocationMutexGuard(base::Mutex* mutex)
-      : guard_(mutex), mutex_(mutex), no_gc_(new DisallowHeapAllocation()) {}
+  explicit NoGarbageCollectionMutexGuard(base::Mutex* mutex)
+      : guard_(mutex), mutex_(mutex), no_gc_(new DisallowGarbageCollection()) {}
 
   void Unlock() {
     mutex_->Unlock();
@@ -247,13 +247,13 @@ class NoHeapAllocationMutexGuard {
   }
   void Lock() {
     mutex_->Lock();
-    no_gc_.reset(new DisallowHeapAllocation());
+    no_gc_.reset(new DisallowGarbageCollection());
   }
 
  private:
   base::MutexGuard guard_;
   base::Mutex* mutex_;
-  std::unique_ptr<DisallowHeapAllocation> no_gc_;
+  std::unique_ptr<DisallowGarbageCollection> no_gc_;
 };
 
 // Per-isolate assert scopes.

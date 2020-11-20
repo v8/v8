@@ -76,7 +76,7 @@ class OnHeapStream {
   // The no_gc argument is only here because of the templated way this class
   // is used along with other implementations that require V8 heap access.
   Range<Char> GetDataAt(size_t pos, RuntimeCallStats* stats,
-                        DisallowHeapAllocation* no_gc) {
+                        DisallowGarbageCollection* no_gc) {
     return {&string_->GetChars(*no_gc)[start_offset_ + Min(length_, pos)],
             &string_->GetChars(*no_gc)[start_offset_ + length_]};
   }
@@ -111,7 +111,7 @@ class ExternalStringStream {
   // The no_gc argument is only here because of the templated way this class
   // is used along with other implementations that require V8 heap access.
   Range<Char> GetDataAt(size_t pos, RuntimeCallStats* stats,
-                        DisallowHeapAllocation* no_gc = nullptr) {
+                        DisallowGarbageCollection* no_gc = nullptr) {
     return {&data_[Min(length_, pos)], &data_[length_]};
   }
 
@@ -133,7 +133,7 @@ class TestingStream {
   // The no_gc argument is only here because of the templated way this class
   // is used along with other implementations that require V8 heap access.
   Range<Char> GetDataAt(size_t pos, RuntimeCallStats* stats,
-                        DisallowHeapAllocation* no_gc = nullptr) {
+                        DisallowGarbageCollection* no_gc = nullptr) {
     return {&data_[Min(length_, pos)], &data_[length_]};
   }
 
@@ -160,7 +160,7 @@ class ChunkedStream {
   // The no_gc argument is only here because of the templated way this class
   // is used along with other implementations that require V8 heap access.
   Range<Char> GetDataAt(size_t pos, RuntimeCallStats* stats,
-                        DisallowHeapAllocation* no_gc = nullptr) {
+                        DisallowGarbageCollection* no_gc = nullptr) {
     Chunk chunk = FindChunk(pos, stats);
     size_t buffer_end = chunk.length;
     size_t buffer_pos = Min(buffer_end, pos - chunk.position);
@@ -256,7 +256,7 @@ class BufferedCharacterStream : public Utf16CharacterStream {
     buffer_start_ = &buffer_[0];
     buffer_cursor_ = buffer_start_;
 
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     Range<uint8_t> range =
         byte_stream_.GetDataAt(position, runtime_call_stats(), &no_gc);
     if (range.length() == 0) {
@@ -310,7 +310,7 @@ class UnbufferedCharacterStream : public Utf16CharacterStream {
   bool ReadBlock() final {
     size_t position = pos();
     buffer_pos_ = position;
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     Range<uint16_t> range =
         byte_stream_.GetDataAt(position, runtime_call_stats(), &no_gc);
     buffer_start_ = range.start;
@@ -357,7 +357,7 @@ class RelocatingCharacterStream final
   }
 
   void UpdateBufferPointers() {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     Range<uint16_t> range =
         byte_stream_.GetDataAt(buffer_pos_, runtime_call_stats(), &no_gc);
     if (range.start != buffer_start_) {

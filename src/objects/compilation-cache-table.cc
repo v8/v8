@@ -5,6 +5,7 @@
 #include "src/objects/compilation-cache-table.h"
 
 #include "src/codegen/compilation-cache.h"
+#include "src/common/assert-scope.h"
 #include "src/objects/compilation-cache-table-inl.h"
 #include "src/objects/serialized-feedback-inl.h"
 
@@ -23,7 +24,7 @@ const int kHashGenerations = 10;
 
 int SearchLiteralsMapEntry(CompilationCacheTable cache, int cache_entry,
                            Context native_context) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   DCHECK(native_context.IsNativeContext());
   Object obj = cache.get(cache_entry);
 
@@ -153,7 +154,7 @@ class StringSharedKey : public HashTableKey {
         position_(position) {}
 
   bool IsMatch(Object other) override {
-    DisallowHeapAllocation no_allocation;
+    DisallowGarbageCollection no_gc;
     if (!other.IsFixedArray()) {
       DCHECK(other.IsNumber());
       uint32_t other_hash = static_cast<uint32_t>(other.Number());
@@ -277,7 +278,7 @@ InfoCellPair CompilationCacheTable::LookupEval(
 Handle<Object> CompilationCacheTable::LookupRegExp(Handle<String> src,
                                                    JSRegExp::Flags flags) {
   Isolate* isolate = GetIsolate();
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   RegExpKey key(src, flags);
   InternalIndex entry = FindEntry(isolate, &key);
   if (entry.is_not_found()) return isolate->factory()->undefined_value();
@@ -302,7 +303,7 @@ bool CompilationCacheTable::LookupCode(
     Handle<SharedFunctionInfo> key, MaybeHandle<Code>* code_out,
     MaybeHandle<SerializedFeedback>* feedback_out) {
   Isolate* isolate = GetIsolate();
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   CodeKey k(key);
   InternalIndex entry = FindEntry(isolate, &k);
   if (entry.is_not_found()) return false;
@@ -416,7 +417,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutCode(
 }
 
 void CompilationCacheTable::Age() {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   for (InternalIndex entry : IterateEntries()) {
     const int entry_index = EntryToIndex(entry);
     const int value_index = entry_index + 1;
@@ -449,7 +450,7 @@ void CompilationCacheTable::Age() {
 }
 
 void CompilationCacheTable::ClearDeoptimizedCode() {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   Object the_hole_value = GetReadOnlyRoots().the_hole_value();
   Object undefined_value = GetReadOnlyRoots().undefined_value();
   for (InternalIndex entry : IterateEntries()) {
@@ -478,7 +479,7 @@ void CompilationCacheTable::ClearDeoptimizedCode() {
 }
 
 void CompilationCacheTable::Remove(Object value) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   for (InternalIndex entry : IterateEntries()) {
     int entry_index = EntryToIndex(entry);
     int value_index = entry_index + 1;

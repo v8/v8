@@ -413,7 +413,7 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
     } else if (string->IsSlicedString()) {
       STATIC_ASSERT(static_cast<int>(ConsString::kSize) ==
                     static_cast<int>(SlicedString::kSize));
-      DisallowHeapAllocation no_gc;
+      DisallowGarbageCollection no_gc;
       bool one_byte = result->IsOneByteRepresentation();
       Handle<Map> map = one_byte
                             ? isolate->factory()->cons_one_byte_string_map()
@@ -593,7 +593,7 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
   // Ideally it would be a free function in an anonymous namespace, but that
   // causes issues around method and class visibility.
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   uint64_t seed = HashSeed(isolate);
 
   int length = string.length();

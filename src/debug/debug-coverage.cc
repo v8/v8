@@ -44,7 +44,7 @@ class SharedToCounterMap
     return static_cast<uint32_t>(key.ptr());
   }
 
-  DisallowHeapAllocation no_gc;
+  DISALLOW_GARBAGE_COLLECTION(no_gc)
 };
 
 namespace {

@@ -332,7 +332,7 @@ void AccumulateStats(ConsString cons_string, ConsStringStats* stats) {
 }
 
 void AccumulateStats(Handle<String> cons_string, ConsStringStats* stats) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   if (cons_string->IsConsString()) {
     return AccumulateStats(ConsString::cast(*cons_string), stats);
   }
@@ -601,7 +601,7 @@ TEST(ConsStringWithEmptyFirstFlatten) {
   CHECK_EQ(initial_length, cons->length());
 
   // Make sure Flatten doesn't alloc a new string.
-  DisallowHeapAllocation no_alloc;
+  DisallowGarbageCollection no_alloc;
   i::Handle<i::String> flat = i::String::Flatten(isolate, cons);
   CHECK(flat->IsFlat());
   CHECK_EQ(initial_length, flat->length());
@@ -665,7 +665,7 @@ void TestStringCharacterStream(BuildString build, int test_cases) {
     Handle<String> cons_string = build(i, &data);
     ConsStringStats cons_string_stats;
     AccumulateStats(cons_string, &cons_string_stats);
-    DisallowHeapAllocation no_allocation;
+    DisallowGarbageCollection no_gc;
     PrintStats(data);
     // Full verify of cons string.
     cons_string_stats.VerifyEqual(flat_string_stats);
@@ -1937,7 +1937,7 @@ TEST(Regress876759) {
   {
     Handle<SeqTwoByteString> raw =
         factory->NewRawTwoByteString(kLength).ToHandleChecked();
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     CopyChars(raw->GetChars(no_gc), two_byte_buf, kLength);
     parent = raw;
   }

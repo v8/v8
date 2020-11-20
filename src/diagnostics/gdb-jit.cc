@@ -1978,7 +1978,7 @@ static void AddJITCodeEntry(CodeMap* map, const AddressRange& range,
 
 static void AddCode(const char* name, Code code, SharedFunctionInfo shared,
                     LineInfo* lineinfo) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   CodeMap* code_map = GetCodeMap();
   AddressRange range;

@@ -72,7 +72,7 @@ SamplingHeapProfiler::~SamplingHeapProfiler() {
 }
 
 void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
 
   // Check if the area is iterable by confirming that it starts with a map.
   DCHECK((*ObjectSlot(soon_object)).IsMap());

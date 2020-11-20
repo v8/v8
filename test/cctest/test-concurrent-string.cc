@@ -207,7 +207,7 @@ TEST(InspectTwoByteExternalizing) {
   {
     Handle<SeqTwoByteString> raw =
         factory->NewRawTwoByteString(kLength).ToHandleChecked();
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     CopyChars(raw->GetChars(no_gc), two_byte_array, kLength);
     two_bytes_string = raw;
   }

@@ -125,7 +125,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
   JavaScriptFrameIterator it(isolate());
   JavaScriptFrame* frame = it.frame();
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   JSFunction function = frame->function();
 
   ICStats::instance()->Begin();
@@ -579,7 +579,7 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name,
   int handler_to_overwrite = -1;
 
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     int i = 0;
     for (FeedbackIterator it(nexus()); !it.done(); it.Advance()) {
       if (it.handler()->IsCleared()) continue;
@@ -2703,7 +2703,7 @@ RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
 }
 
 static bool CanFastCloneObject(Handle<Map> map) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   if (map->IsNullOrUndefinedMap()) return true;
   if (!map->IsJSObjectMap() ||
       !IsSmiOrObjectElementsKind(map->elements_kind()) ||

@@ -475,7 +475,7 @@ void Map::MapVerify(Isolate* isolate) {
     }
   }
   SLOW_DCHECK(instance_descriptors(kRelaxedLoad).IsSortedNoDuplicates());
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   SLOW_DCHECK(
       TransitionsAccessor(isolate, *this, &no_gc).IsSortedNoDuplicates());
   SLOW_DCHECK(TransitionsAccessor(isolate, *this, &no_gc)

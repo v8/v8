@@ -1820,7 +1820,7 @@ void Logger::MapEvent(const char* type, Handle<Map> from, Handle<Map> to,
 
 void Logger::MapCreate(Map map) {
   if (!FLAG_trace_maps) return;
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1830,7 +1830,7 @@ void Logger::MapCreate(Map map) {
 
 void Logger::MapDetails(Map map) {
   if (!FLAG_trace_maps) return;
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
@@ -1859,7 +1859,7 @@ static int EnumerateCompiledFunctions(Heap* heap,
                                       Handle<SharedFunctionInfo>* sfis,
                                       Handle<AbstractCode>* code_objects) {
   HeapObjectIterator iterator(heap);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   int compiled_funcs_count = 0;
 
   // Iterate the heap to find JSFunctions and record their optimized code.
@@ -1911,7 +1911,7 @@ static int EnumerateCompiledFunctions(Heap* heap,
 static int EnumerateWasmModuleObjects(
     Heap* heap, Handle<WasmModuleObject>* module_objects) {
   HeapObjectIterator iterator(heap);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   int module_objects_count = 0;
 
   for (HeapObject obj = iterator.Next(); !obj.is_null();
@@ -1946,7 +1946,7 @@ void Logger::LogCompiledFunctions() {
 void Logger::LogAccessorCallbacks() {
   Heap* heap = isolate_->heap();
   HeapObjectIterator iterator(heap);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     if (!obj.IsAccessorInfo()) continue;
@@ -1972,7 +1972,7 @@ void Logger::LogAccessorCallbacks() {
 }
 
 void Logger::LogAllMaps() {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Heap* heap = isolate_->heap();
   CombinedHeapObjectIterator iterator(heap);
   for (HeapObject obj = iterator.Next(); !obj.is_null();
@@ -2220,7 +2220,7 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
 void ExistingCodeLogger::LogCodeObjects() {
   Heap* heap = isolate_->heap();
   HeapObjectIterator iterator(heap);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     if (obj.IsCode()) LogCodeObject(obj);

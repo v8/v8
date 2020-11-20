@@ -386,13 +386,13 @@ class TranslatedState {
                                        std::stack<int>* worklist);
   Handle<HeapObject> InitializeObjectAt(TranslatedValue* slot);
   void InitializeCapturedObjectAt(int object_index, std::stack<int>* worklist,
-                                  const DisallowHeapAllocation& no_allocation);
+                                  const DisallowGarbageCollection& no_gc);
   void InitializeJSObjectAt(TranslatedFrame* frame, int* value_index,
                             TranslatedValue* slot, Handle<Map> map,
-                            const DisallowHeapAllocation& no_allocation);
+                            const DisallowGarbageCollection& no_gc);
   void InitializeObjectWithTaggedFieldsAt(
       TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
-      Handle<Map> map, const DisallowHeapAllocation& no_allocation);
+      Handle<Map> map, const DisallowGarbageCollection& no_gc);
 
   void ReadUpdateFeedback(TranslationIterator* iterator,
                           FixedArray literal_array, FILE* trace_file);

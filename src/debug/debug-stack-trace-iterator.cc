@@ -103,7 +103,7 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
     if (!scope_iterator.ClosureScopeHasThisReference()) {
       return v8::MaybeLocal<v8::Value>();
     }
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     VariableMode mode;
     InitializationFlag flag;
     MaybeAssignedFlag maybe_assigned_flag;

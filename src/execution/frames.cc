@@ -829,7 +829,7 @@ const char* StringForStackFrameType(StackFrame::Type type) {
 
 void StackFrame::Print(StringStream* accumulator, PrintMode mode,
                        int index) const {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   PrintIndex(accumulator, mode, index);
   accumulator->Add(StringForStackFrameType(type()));
   accumulator->Add(" [pc: %p]\n", reinterpret_cast<void*>(pc()));
@@ -837,7 +837,7 @@ void StackFrame::Print(StringStream* accumulator, PrintMode mode,
 
 void BuiltinExitFrame::Print(StringStream* accumulator, PrintMode mode,
                              int index) const {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Object receiver = this->receiver();
   JSFunction function = this->function();
 
@@ -1217,7 +1217,7 @@ void JavaScriptFrame::PrintFunctionAndOffset(JSFunction function,
 void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
                                bool print_line_number) {
   // constructor calls
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   JavaScriptFrameIterator it(isolate);
   while (!it.done()) {
     if (it.frame()->is_java_script()) {
@@ -1650,7 +1650,7 @@ void OptimizedFrame::GetFunctions(
     return JavaScriptFrame::GetFunctions(functions);
   }
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
   DeoptimizationData const data = GetDeoptimizationData(&deopt_index);
   DCHECK(!data.is_null());
@@ -2003,7 +2003,7 @@ void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
   Handle<SharedFunctionInfo> shared = handle(function().shared(), isolate());
   SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate(), shared);
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Object receiver = this->receiver();
   JSFunction function = this->function();
 

@@ -143,7 +143,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
 
     // The code object has not been fully initialized yet.  We rely on the
     // fact that no allocation will happen from this point on.
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
 
     result.set_map_after_allocation(*factory->code_map(), SKIP_WRITE_BARRIER);
     code = handle(Code::cast(result), isolate_);
@@ -596,7 +596,7 @@ MaybeHandle<String> Factory::NewStringFromOneByte(
                              NewRawOneByteString(string.length(), allocation),
                              String);
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   // Copy the characters into the new object.
   CopyChars(SeqOneByteString::cast(*result).GetChars(no_gc), string.begin(),
             length);
@@ -617,7 +617,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8(const Vector<const char>& string,
         isolate(), result,
         NewRawOneByteString(decoder.utf16_length(), allocation), String);
 
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     decoder.Decode(result->GetChars(no_gc), utf8_data);
     return result;
   }
@@ -628,7 +628,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8(const Vector<const char>& string,
       isolate(), result,
       NewRawTwoByteString(decoder.utf16_length(), allocation), String);
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   decoder.Decode(result->GetChars(no_gc), utf8_data);
   return result;
 }
@@ -638,7 +638,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8SubString(
     AllocationType allocation) {
   Vector<const uint8_t> utf8_data;
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     utf8_data = Vector<const uint8_t>(str->GetChars(no_gc) + begin, length);
   }
   Utf8Decoder decoder(utf8_data);
@@ -664,7 +664,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8SubString(
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result,
         NewRawOneByteString(decoder.utf16_length(), allocation), String);
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     // Update pointer references, since the original string may have moved after
     // allocation.
     utf8_data = Vector<const uint8_t>(str->GetChars(no_gc) + begin, length);
@@ -678,7 +678,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8SubString(
       isolate(), result,
       NewRawTwoByteString(decoder.utf16_length(), allocation), String);
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   // Update pointer references, since the original string may have moved after
   // allocation.
   utf8_data = Vector<const uint8_t>(str->GetChars(no_gc) + begin, length);
@@ -696,14 +696,14 @@ MaybeHandle<String> Factory::NewStringFromTwoByte(const uc16* string,
     Handle<SeqOneByteString> result;
     ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
                                NewRawOneByteString(length, allocation), String);
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     CopyChars(result->GetChars(no_gc), string, length);
     return result;
   } else {
     Handle<SeqTwoByteString> result;
     ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
                                NewRawTwoByteString(length, allocation), String);
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     CopyChars(result->GetChars(no_gc), string, length);
     return result;
   }
@@ -765,7 +765,7 @@ Handle<String> Factory::AllocateInternalizedStringImpl(T t, int chars,
   answer->set_length(chars);
   answer->set_raw_hash_field(hash_field);
   DCHECK_EQ(size, answer->Size());
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   if (is_one_byte) {
     WriteOneByteData(t, SeqOneByteString::cast(*answer).GetChars(no_gc), chars);
@@ -838,7 +838,7 @@ template Handle<ExternalTwoByteString>
 Handle<String> Factory::LookupSingleCharacterStringFromCode(uint16_t code) {
   if (code <= unibrow::Latin1::kMaxChar) {
     {
-      DisallowHeapAllocation no_allocation;
+      DisallowGarbageCollection no_gc;
       Object value = single_character_string_cache()->get(code);
       if (value != *undefined_value()) {
         return handle(String::cast(value), isolate());
@@ -861,8 +861,8 @@ Handle<String> Factory::NewSurrogatePairString(uint16_t lead, uint16_t trail) {
 
   Handle<SeqTwoByteString> str =
       isolate()->factory()->NewRawTwoByteString(2).ToHandleChecked();
-  DisallowHeapAllocation no_allocation;
-  uc16* dest = str->GetChars(no_allocation);
+  DisallowGarbageCollection no_gc;
+  uc16* dest = str->GetChars(no_gc);
   dest[0] = lead;
   dest[1] = trail;
   return str;
@@ -895,14 +895,14 @@ Handle<String> Factory::NewProperSubString(Handle<String> str, int begin,
     if (str->IsOneByteRepresentation()) {
       Handle<SeqOneByteString> result =
           NewRawOneByteString(length).ToHandleChecked();
-      DisallowHeapAllocation no_gc;
+      DisallowGarbageCollection no_gc;
       uint8_t* dest = result->GetChars(no_gc);
       String::WriteToFlat(*str, dest, begin, end);
       return result;
     } else {
       Handle<SeqTwoByteString> result =
           NewRawTwoByteString(length).ToHandleChecked();
-      DisallowHeapAllocation no_gc;
+      DisallowGarbageCollection no_gc;
       uc16* dest = result->GetChars(no_gc);
       String::WriteToFlat(*str, dest, begin, end);
       return result;
@@ -1216,7 +1216,7 @@ Handle<AliasedArgumentsEntry> Factory::NewAliasedArgumentsEntry(
 Handle<AccessorInfo> Factory::NewAccessorInfo() {
   Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(
       NewStruct(ACCESSOR_INFO_TYPE, AllocationType::kOld));
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   info->set_name(*empty_string());
   info->set_flags(0);  // Must clear the flags, it was initialized as undefined.
   info->set_is_sloppy(true);
@@ -1602,7 +1602,7 @@ Handle<T> Factory::CopyArrayWithMap(Handle<T> src, Handle<Map> map) {
   Handle<T> result(T::cast(obj), isolate());
   initialize_length(result, len);
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
   result->CopyElements(isolate(), 0, *src, 0, len, mode);
   return result;
@@ -1622,7 +1622,7 @@ Handle<T> Factory::CopyArrayAndGrow(Handle<T> src, int grow_by,
   initialize_length(result, new_len);
 
   // Copy the content.
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   WriteBarrierMode mode = obj.GetWriteBarrierMode(no_gc);
   result->CopyElements(isolate(), 0, *src, 0, old_len, mode);
   MemsetTagged(ObjectSlot(result->data_start() + old_len),
@@ -1680,7 +1680,7 @@ Handle<WeakArrayList> Factory::CopyWeakArrayListAndGrow(
   result->set_length(old_len);
 
   // Copy the content.
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
   result->CopyElements(isolate(), 0, *src, 0, old_len, mode);
   MemsetTagged(ObjectSlot(result->data_start() + old_len),
@@ -1696,7 +1696,7 @@ Handle<WeakArrayList> Factory::CompactWeakArrayList(Handle<WeakArrayList> src,
       NewUninitializedWeakArrayList(new_capacity, allocation);
 
   // Copy the content.
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
   int copy_to = 0, length = src->length();
   for (int i = 0; i < length; i++) {
@@ -1730,7 +1730,7 @@ Handle<FixedArray> Factory::CopyFixedArrayUpTo(Handle<FixedArray> array,
   result->set_length(new_len);
 
   // Copy the content.
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
   result->CopyElements(isolate(), 0, *array, 0, new_len, mode);
   return result;
@@ -2227,7 +2227,7 @@ Handle<JSArray> Factory::NewJSArrayWithUnverifiedElements(
   }
   Handle<JSArray> array = Handle<JSArray>::cast(
       NewJSObjectFromMap(handle(map, isolate()), allocation));
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   array->set_elements(*elements);
   array->set_length(Smi::FromInt(length));
   return array;
@@ -2668,7 +2668,7 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
 
   // In order to keep heap in consistent state there must be no allocations
   // before object re-initialization is finished.
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
 
   // Reset the map for the object.
   object->synchronized_set_map(*map);
@@ -2788,7 +2788,7 @@ void Factory::NumberToStringCacheSet(Handle<Object> number, int hash,
 }
 
 Handle<Object> Factory::NumberToStringCacheGet(Object number, int hash) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Object key = number_string_cache()->get(hash * 2);
   if (key == number || (key.IsHeapNumber() && number.IsHeapNumber() &&
                         key.Number() == number.Number())) {
@@ -3011,7 +3011,7 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
   Handle<StackFrameInfo> info = Handle<StackFrameInfo>::cast(
       NewStruct(STACK_FRAME_INFO_TYPE, AllocationType::kYoung));
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   info->set_flag(0);
   info->set_is_wasm(is_wasm);

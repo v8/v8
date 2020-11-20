@@ -168,7 +168,7 @@ void BasicBlockProfiler::Print(std::ostream& os, Isolate* isolate) {
 }
 
 std::vector<bool> BasicBlockProfiler::GetCoverageBitmap(Isolate* isolate) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   ArrayList list(isolate->heap()->basic_block_profiling_data());
   std::vector<bool> out;
   int list_length = list.Length();

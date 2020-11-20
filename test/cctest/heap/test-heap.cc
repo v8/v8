@@ -2915,7 +2915,7 @@ TEST(OptimizedAllocationArrayLiterals) {
 }
 
 static int CountMapTransitions(i::Isolate* isolate, Map map) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   return TransitionsAccessor(isolate, map, &no_gc).NumberOfTransitions();
 }
 

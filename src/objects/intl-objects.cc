@@ -194,7 +194,7 @@ const uint8_t* Intl::ToLatin1LowerTable() { return &kToLower[0]; }
 icu::UnicodeString Intl::ToICUUnicodeString(Isolate* isolate,
                                             Handle<String> string) {
   DCHECK(string->IsFlat());
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   std::unique_ptr<uc16[]> sap;
   // Short one-byte strings can be expanded on the stack to avoid allocating a
   // temporary buffer.
@@ -215,7 +215,7 @@ icu::UnicodeString Intl::ToICUUnicodeString(Isolate* isolate,
 namespace {
 icu::StringPiece ToICUStringPiece(Isolate* isolate, Handle<String> string) {
   DCHECK(string->IsFlat());
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   const String::FlatContent& flat = string->GetFlatContent(no_gc);
   if (!flat.IsOneByte()) return icu::StringPiece(nullptr, 0);
@@ -249,7 +249,7 @@ MaybeHandle<String> LocaleConvertCase(Isolate* isolate, Handle<String> s,
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result, isolate->factory()->NewRawTwoByteString(dest_length),
         String);
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     DCHECK(s->IsFlat());
     String::FlatContent flat = s->GetFlatContent(no_gc);
     const UChar* src = GetUCharBufferFromFlat(flat, &sap, src_length);
@@ -285,7 +285,7 @@ String Intl::ConvertOneByteToLower(String src, String dst) {
   DCHECK(src.IsFlat());
   DCHECK(dst.IsSeqOneByteString());
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   const int length = src.length();
   String::FlatContent src_flat = src.GetFlatContent(no_gc);
@@ -365,7 +365,7 @@ MaybeHandle<String> Intl::ConvertToUpper(Isolate* isolate, Handle<String> s) {
     int sharp_s_count;
     bool is_result_single_byte;
     {
-      DisallowHeapAllocation no_gc;
+      DisallowGarbageCollection no_gc;
       String::FlatContent flat = s->GetFlatContent(no_gc);
       uint8_t* dest = result->GetChars(no_gc);
       if (flat.IsOneByte()) {
@@ -405,7 +405,7 @@ MaybeHandle<String> Intl::ConvertToUpper(Isolate* isolate, Handle<String> s) {
         isolate, result,
         isolate->factory()->NewRawOneByteString(length + sharp_s_count),
         String);
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     String::FlatContent flat = s->GetFlatContent(no_gc);
     if (flat.IsOneByte()) {
       ToUpperWithSharpS(flat.ToOneByteVector(), result);
@@ -433,7 +433,7 @@ std::string Intl::GetNumberingSystem(const icu::Locale& icu_locale) {
 namespace {
 
 Maybe<icu::Locale> CreateICULocale(const std::string& bcp47_locale) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   // Convert BCP47 into ICU locale format.
   UErrorCode status = U_ZERO_ERROR;

@@ -27,7 +27,7 @@ uint32_t SharedFunctionInfo::Hash() {
 }
 
 void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
 
   // Set the function data to the "illegal" builtin. Ideally we'd use some sort
   // of "uninitialized" marker here, but it's cheaper to use a valid buitin and
@@ -157,7 +157,7 @@ void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
                                    HeapObject script_object,
                                    int function_literal_id,
                                    bool reset_preparsed_scope_data) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   if (script() == script_object) return;
 
@@ -238,7 +238,7 @@ std::unique_ptr<char[]> SharedFunctionInfo::DebugNameCStr() {
     return WasmExportedFunction::GetDebugName(
         wasm_exported_function_data().sig());
   }
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   String function_name = Name();
   if (function_name.length() == 0) function_name = inferred_name();
   return function_name.ToCString();
@@ -275,7 +275,7 @@ void SharedFunctionInfo::DiscardCompiledMetadata(
     Isolate* isolate,
     std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
         gc_notify_updated_slot) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   if (is_compiled()) {
     if (FLAG_trace_flush_bytecode) {
       CodeTracer::Scope scope(GetIsolate()->GetCodeTracer());

@@ -195,7 +195,7 @@ JSRegExp::Flags JSRegExp::FlagsFromString(Isolate* isolate,
   if (length > JSRegExp::kFlagCount) return JSRegExp::Flags(0);
   JSRegExp::Flags value(0);
   if (flags->IsSeqOneByteString()) {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     SeqOneByteString seq_flags = SeqOneByteString::cast(*flags);
     for (int i = 0; i < length; i++) {
       base::Optional<JSRegExp::Flag> maybe_flag =
@@ -208,7 +208,7 @@ JSRegExp::Flags JSRegExp::FlagsFromString(Isolate* isolate,
     }
   } else {
     flags = String::Flatten(isolate, flags);
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     String::FlatContent flags_content = flags->GetFlatContent(no_gc);
     for (int i = 0; i < length; i++) {
       base::Optional<JSRegExp::Flag> maybe_flag =
@@ -326,7 +326,7 @@ bool IsLineTerminator(int c) {
 // and move related code closer to each other.
 template <typename Char>
 int CountAdditionalEscapeChars(Handle<String> source, bool* needs_escapes_out) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   int escapes = 0;
   bool needs_escapes = false;
   bool in_char_class = false;
@@ -381,7 +381,7 @@ void WriteStringToCharVector(Vector<Char> v, int* d, const char* string) {
 template <typename Char, typename StringType>
 Handle<StringType> WriteEscapedRegExpSource(Handle<String> source,
                                             Handle<StringType> result) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Vector<const Char> src = source->GetCharVector<Char>(no_gc);
   Vector<Char> dst(result->GetChars(no_gc), result->length());
   int s = 0;

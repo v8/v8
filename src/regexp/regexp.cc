@@ -318,7 +318,7 @@ int RegExpImpl::AtomExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
   DCHECK_LE(index, subject->length());
 
   subject = String::Flatten(isolate, subject);
-  DisallowHeapAllocation no_gc;  // ensure vectors stay valid
+  DisallowGarbageCollection no_gc;  // ensure vectors stay valid
 
   String needle = String::cast(regexp->DataAt(JSRegExp::kAtomPatternIndex));
   int needle_len = needle.length();
@@ -728,7 +728,7 @@ Handle<RegExpMatchInfo> RegExp::SetLastMatchInfo(
 
   int capture_register_count =
       JSRegExp::RegistersForCaptureCount(capture_count);
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   if (match != nullptr) {
     for (int i = 0; i < capture_register_count; i += 2) {
       result->SetCapture(i, match[i]);
@@ -1058,7 +1058,7 @@ int32_t* RegExpGlobalCache::FetchNext() {
         break;
       case JSRegExp::EXPERIMENTAL: {
         DCHECK(ExperimentalRegExp::IsCompiled(regexp_, isolate_));
-        DisallowHeapAllocation no_gc;
+        DisallowGarbageCollection no_gc;
         num_matches_ = ExperimentalRegExp::ExecRaw(
             isolate_, RegExp::kFromRuntime, *regexp_, *subject_,
             register_array_, register_array_size_, last_end_index);

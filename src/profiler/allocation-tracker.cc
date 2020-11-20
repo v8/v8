@@ -200,7 +200,7 @@ void AllocationTracker::PrepareForSerialization() {
 
 
 void AllocationTracker::AllocationEvent(Address addr, int size) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   Heap* heap = ids_->heap();
 
   // Mark the new block as FreeSpace to make sure the heap is iterable

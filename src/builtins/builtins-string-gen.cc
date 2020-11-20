@@ -1656,8 +1656,9 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
     BuildFastLoop<IntPtrT>(
         IntPtrConstant(0), length,
         [&](TNode<IntPtrT> index) {
-          // TODO(jkummerow): Implement a CSA version of DisallowHeapAllocation
-          // and use that to guard ToDirectStringAssembler.PointerToData().
+          // TODO(jkummerow): Implement a CSA version of
+          // DisallowGarbageCollection and use that to guard
+          // ToDirectStringAssembler.PointerToData().
           CSA_ASSERT(this, WordEqual(to_direct.PointerToData(&call_runtime),
                                      string_data));
           TNode<Int32T> char_code =

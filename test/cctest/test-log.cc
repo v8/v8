@@ -856,7 +856,7 @@ void ValidateMapDetailsLogging(v8::Isolate* isolate,
   // Iterate over all maps on the heap.
   i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
   i::HeapObjectIterator iterator(heap);
-  i::DisallowHeapAllocation no_gc;
+  i::DisallowGarbageCollection no_gc;
   size_t i = 0;
   for (i::HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {

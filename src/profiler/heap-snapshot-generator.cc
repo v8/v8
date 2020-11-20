@@ -1440,7 +1440,7 @@ void V8HeapExplorer::ExtractInternalReferences(JSObject js_obj,
 
 JSFunction V8HeapExplorer::GetConstructor(JSReceiver receiver) {
   Isolate* isolate = receiver.GetIsolate();
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   HandleScope scope(isolate);
   MaybeHandle<JSFunction> maybe_constructor =
       JSReceiver::GetConstructor(handle(receiver, isolate));
@@ -1453,7 +1453,7 @@ JSFunction V8HeapExplorer::GetConstructor(JSReceiver receiver) {
 String V8HeapExplorer::GetConstructorName(JSObject object) {
   Isolate* isolate = object.GetIsolate();
   if (object.IsJSFunction()) return ReadOnlyRoots(isolate).closure_string();
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   HandleScope scope(isolate);
   return *JSReceiver::GetConstructorName(handle(object, isolate));
 }
@@ -2029,7 +2029,7 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
   if (FLAG_heap_profiler_use_embedder_graph &&
       snapshot_->profiler()->HasBuildEmbedderGraphCallback()) {
     v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate_));
-    DisallowHeapAllocation no_allocation;
+    DisallowGarbageCollection no_gc;
     EmbedderGraphImpl graph;
     snapshot_->profiler()->BuildEmbedderGraph(isolate_, &graph);
     for (const auto& node : graph.nodes()) {

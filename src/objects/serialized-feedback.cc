@@ -4,6 +4,7 @@
 
 #include "src/objects/serialized-feedback.h"
 
+#include "src/common/assert-scope.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/serialized-feedback-inl.h"
 
@@ -92,7 +93,7 @@ Handle<SerializedFeedback> SerializedFeedback::Serialize(
 }
 
 void SerializedFeedback::DeserializeInto(FeedbackVector vector) const {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   FeedbackMetadata metadata = vector.metadata();
 
   const int slot_count = metadata.slot_count();

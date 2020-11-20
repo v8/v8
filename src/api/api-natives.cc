@@ -357,7 +357,7 @@ void UncacheTemplateInstantiation(Isolate* isolate,
 
 bool IsSimpleInstantiation(Isolate* isolate, ObjectTemplateInfo info,
                            JSReceiver new_target) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   if (!new_target.IsJSFunction()) return false;
   JSFunction fun = JSFunction::cast(new_target);

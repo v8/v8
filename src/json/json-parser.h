@@ -309,7 +309,7 @@ class JsonParser final {
   }
 
   void UpdatePointers() {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     const Char* chars = Handle<SeqString>::cast(source_)->GetChars(no_gc);
     if (chars_ != chars) {
       size_t position = cursor_ - chars_;
@@ -342,7 +342,7 @@ class JsonParser final {
   // Cached pointer to the raw chars in source. In case source is on-heap, we
   // register an UpdatePointers callback. For this reason, chars_, cursor_ and
   // end_ should never be locally cached across a possible allocation. The scope
-  // in which we cache chars has to be guarded by a DisallowHeapAllocation
+  // in which we cache chars has to be guarded by a DisallowGarbageCollection
   // scope.
   const Char* cursor_;
   const Char* end_;

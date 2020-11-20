@@ -303,7 +303,7 @@ size_t GetScriptNameLength(const SourcePositionInfo& info) {
 
 Vector<const char> GetScriptName(const SourcePositionInfo& info,
                                  std::unique_ptr<char[]>* storage,
-                                 const DisallowHeapAllocation& no_gc) {
+                                 const DisallowGarbageCollection& no_gc) {
   if (!info.script.is_null()) {
     Object name_or_url = info.script->GetNameOrSourceURL();
     if (name_or_url.IsSeqOneByteString()) {
@@ -324,7 +324,7 @@ SourcePositionInfo GetSourcePositionInfo(Handle<Code> code,
                                          Handle<SharedFunctionInfo> function,
                                          SourcePosition pos) {
   if (code->is_turbofanned()) {
-    DisallowHeapAllocation disallow;
+    DisallowGarbageCollection disallow;
     return pos.InliningStack(code)[0];
   } else {
     return SourcePositionInfo(pos, function);
@@ -384,7 +384,7 @@ void PerfJitLogger::LogWriteDebugInfo(Handle<Code> code,
     entry.column_ = info.column + 1;
     LogWriteBytes(reinterpret_cast<const char*>(&entry), sizeof(entry));
     // The extracted name may point into heap-objects, thus disallow GC.
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     std::unique_ptr<char[]> name_storage;
     Vector<const char> name_string = GetScriptName(info, &name_storage, no_gc);
     LogWriteBytes(name_string.begin(),

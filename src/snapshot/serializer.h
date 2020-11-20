@@ -151,7 +151,7 @@ class ObjectCacheIndexMap {
   }
 
  private:
-  DisallowHeapAllocation no_allocation_;
+  DISALLOW_GARBAGE_COLLECTION(no_gc_)
 
   IdentityMap<int, base::DefaultAllocationPolicy> map_;
   int next_index_;
@@ -332,7 +332,7 @@ class Serializer : public SerializerDeserializer {
 
   // Disallow GC during serialization.
   // TODO(leszeks, v8:10815): Remove this constraint.
-  DISALLOW_HEAP_ALLOCATION(no_gc)
+  DISALLOW_GARBAGE_COLLECTION(no_gc)
 
   Isolate* isolate_;
   HotObjectsList hot_objects_;

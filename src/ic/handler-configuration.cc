@@ -171,7 +171,7 @@ Handle<Object> LoadHandler::LoadFullChain(Isolate* isolate,
 
 // static
 KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(MaybeObject handler) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   if (handler->IsSmi()) {
     int const raw_handler = handler.ToSmi().value();
     Kind const kind = KindBits::decode(raw_handler);
@@ -186,7 +186,7 @@ KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(MaybeObject handler) {
 // static
 KeyedAccessStoreMode StoreHandler::GetKeyedAccessStoreMode(
     MaybeObject handler) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   if (handler->IsSmi()) {
     int const raw_handler = handler.ToSmi().value();
     Kind const kind = KindBits::decode(raw_handler);
@@ -465,7 +465,7 @@ void PrintSmiStoreHandler(int raw_handler, std::ostream& os) {
 
 // static
 void LoadHandler::PrintHandler(Object handler, std::ostream& os) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   if (handler.IsSmi()) {
     int raw_handler = handler.ToSmi().value();
     os << "LoadHandler(Smi)(";
@@ -497,7 +497,7 @@ void LoadHandler::PrintHandler(Object handler, std::ostream& os) {
 }
 
 void StoreHandler::PrintHandler(Object handler, std::ostream& os) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   if (handler.IsSmi()) {
     int raw_handler = handler.ToSmi().value();
     os << "StoreHandler(Smi)(";

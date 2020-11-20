@@ -806,11 +806,11 @@ void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
       os << info->optimization_id() << "," << source_id << "} start{";
       os << shared->StartPosition() << "} ---\n";
       {
-        DisallowHeapAllocation no_allocation;
+        DisallowGarbageCollection no_gc;
         int start = shared->StartPosition();
         int len = shared->EndPosition() - start;
-        SubStringRange source(String::cast(script->source()), no_allocation,
-                              start, len);
+        SubStringRange source(String::cast(script->source()), no_gc, start,
+                              len);
         for (const auto& c : source) {
           os << AsReversiblyEscapedUC16(c);
         }
@@ -1236,7 +1236,7 @@ void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
   std::vector<Handle<Map>> maps;
   DCHECK(code->is_optimized_code());
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     int const mode_mask = RelocInfo::EmbeddedObjectModeMask();
     for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
       DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));

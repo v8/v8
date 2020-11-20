@@ -149,7 +149,7 @@ void Module::Reset(Isolate* isolate, Handle<Module> module) {
 }
 
 Object Module::GetException() {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   DCHECK_EQ(status(), Module::kErrored);
   DCHECK(!exception().IsTheHole());
   return exception();

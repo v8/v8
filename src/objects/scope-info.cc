@@ -172,7 +172,7 @@ Handle<ScopeInfo> ScopeInfo::Create(LocalIsolate* isolate, Zone* zone,
       isolate->factory()->NewScopeInfo(length);
   int index = kVariablePartIndex;
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     ScopeInfo scope_info = *scope_info_handle;
     WriteBarrierMode mode = scope_info.GetWriteBarrierMode(no_gc);
 
@@ -864,7 +864,7 @@ bool ScopeInfo::VariableIsSynthetic(String name) {
 int ScopeInfo::ModuleIndex(String name, VariableMode* mode,
                            InitializationFlag* init_flag,
                            MaybeAssignedFlag* maybe_assigned_flag) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   DCHECK(name.IsInternalizedString());
   DCHECK_EQ(scope_type(), MODULE_SCOPE);
   DCHECK_NOT_NULL(mode);
@@ -892,7 +892,7 @@ int ScopeInfo::ContextSlotIndex(ScopeInfo scope_info, String name,
                                 InitializationFlag* init_flag,
                                 MaybeAssignedFlag* maybe_assigned_flag,
                                 IsStaticFlag* is_static_flag) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   DCHECK(name.IsInternalizedString());
   DCHECK_NOT_NULL(mode);
   DCHECK_NOT_NULL(init_flag);

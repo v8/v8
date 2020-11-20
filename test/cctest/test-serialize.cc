@@ -1557,7 +1557,7 @@ TEST(TestThatAlwaysFails) {
 int CountBuiltins() {
   // Check that we have not deserialized any additional builtin.
   HeapObjectIterator iterator(CcTest::heap());
-  DisallowGarbageCollection no_allocation;
+  DisallowGarbageCollection no_gc;
   int counter = 0;
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {

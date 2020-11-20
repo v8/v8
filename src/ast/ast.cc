@@ -655,7 +655,7 @@ void ArrayLiteral::BuildBoilerplateDescription(LocalIsolate* isolate) {
 
       Object boilerplate_value = *GetBoilerplateValue(element, isolate);
       // We shouldn't allocate after creating the boilerplate value.
-      DisallowHeapAllocation no_gc;
+      DisallowGarbageCollection no_gc;
 
       if (boilerplate_value.IsTheHole(isolate)) {
         DCHECK(IsHoleyElementsKind(kind));

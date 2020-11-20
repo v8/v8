@@ -47,7 +47,7 @@ Handle<Object> ScopeIterator::GetFunctionDebugName() const {
   if (!function_.is_null()) return JSFunction::GetDebugName(function_);
 
   if (!context_->IsNativeContext()) {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     ScopeInfo closure_info = context_->closure_context().scope_info();
     Handle<String> debug_name(closure_info.FunctionDebugName(), isolate_);
     if (debug_name->length() > 0) return debug_name;
@@ -1049,7 +1049,7 @@ bool ScopeIterator::SetContextExtensionValue(Handle<String> variable_name,
 
 bool ScopeIterator::SetContextVariableValue(Handle<String> variable_name,
                                             Handle<Object> new_value) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   VariableMode mode;
   InitializationFlag flag;
   MaybeAssignedFlag maybe_assigned_flag;
@@ -1065,7 +1065,7 @@ bool ScopeIterator::SetContextVariableValue(Handle<String> variable_name,
 
 bool ScopeIterator::SetModuleVariableValue(Handle<String> variable_name,
                                            Handle<Object> new_value) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   int cell_index;
   VariableMode mode;
   InitializationFlag init_flag;

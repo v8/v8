@@ -60,9 +60,7 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
   // v8::Task overrides.
   void RunInternal() override {
     LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);
-    DisallowHeapAllocation no_allocation;
-    DisallowHandleAllocation no_handles;
-    DisallowHandleDereference no_deref;
+    DCHECK(local_isolate.heap()->IsParked());
 
     {
       WorkerThreadRuntimeCallStatsScope runtime_call_stats_scope(

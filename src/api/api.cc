@@ -801,7 +801,7 @@ StartupData SnapshotCreator::CreateBlob(
 
   // Create a vector with all contexts and clear associated Persistent fields.
   // Note these contexts may be dead after calling Clear(), but will not be
-  // collected until serialization completes and the DisallowHeapAllocation
+  // collected until serialization completes and the DisallowGarbageCollection
   // scope above goes out of scope.
   std::vector<i::Context> contexts;
   contexts.reserve(num_contexts);
@@ -1159,7 +1159,7 @@ void SealHandleScope::operator delete[](void*, size_t) { base::OS::Abort(); }
 bool Data::IsModule() const { return Utils::OpenHandle(this)->IsModule(); }
 
 bool Data::IsValue() const {
-  i::DisallowHeapAllocation no_gc;
+  i::DisallowGarbageCollection no_gc;
   i::Handle<i::Object> self = Utils::OpenHandle(this);
   if (self->IsSmi()) {
     return true;
@@ -1431,7 +1431,7 @@ static Local<FunctionTemplate> FunctionTemplateNew(
       i::Handle<i::FunctionTemplateInfo>::cast(struct_obj);
   {
     // Disallow GC until all fields of obj have acceptable types.
-    i::DisallowHeapAllocation no_gc;
+    i::DisallowGarbageCollection no_gc;
     InitializeFunctionTemplate(obj);
     obj->set_length(length);
     obj->set_do_not_cache(do_not_cache);
@@ -1652,7 +1652,7 @@ static Local<ObjectTemplate> ObjectTemplateNew(
       i::Handle<i::ObjectTemplateInfo>::cast(struct_obj);
   {
     // Disallow GC until all fields of obj have acceptable types.
-    i::DisallowHeapAllocation no_gc;
+    i::DisallowGarbageCollection no_gc;
     InitializeTemplate(obj, Consts::OBJECT_TEMPLATE);
     int next_serial_number = 0;
     if (!do_not_cache) {
@@ -2545,7 +2545,7 @@ bool IsIdentifier(i::Isolate* isolate, i::Handle<i::String> string) {
   const int length = string->length();
   if (length == 0) return false;
   if (!i::IsIdentifierStart(string->Get(0))) return false;
-  i::DisallowHeapAllocation no_gc;
+  i::DisallowGarbageCollection no_gc;
   i::String::FlatContent flat = string->GetFlatContent(no_gc);
   if (flat.IsOneByte()) {
     auto vector = flat.ToOneByteVector();
@@ -4870,7 +4870,7 @@ Local<v8::Context> v8::Object::CreationContext() {
 }
 
 int v8::Object::GetIdentityHash() {
-  i::DisallowHeapAllocation no_gc;
+  i::DisallowGarbageCollection no_gc;
   auto self = Utils::OpenHandle(this);
   auto isolate = self->GetIsolate();
   ASSERT_NO_SCRIPT_NO_EXCEPTION(isolate);
@@ -5307,7 +5307,7 @@ int String::Utf8Length(Isolate* isolate) const {
   str = i::String::Flatten(reinterpret_cast<i::Isolate*>(isolate), str);
   int length = str->length();
   if (length == 0) return 0;
-  i::DisallowHeapAllocation no_gc;
+  i::DisallowGarbageCollection no_gc;
   i::String::FlatContent flat = str->GetFlatContent(no_gc);
   DCHECK(flat.IsFlat());
   int utf8_length = 0;
@@ -5461,7 +5461,7 @@ int String::WriteUtf8(Isolate* v8_isolate, char* buffer, int capacity,
   LOG_API(isolate, String, WriteUtf8);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   str = i::String::Flatten(isolate, str);
-  i::DisallowHeapAllocation no_gc;
+  i::DisallowGarbageCollection no_gc;
   i::String::FlatContent content = str->GetFlatContent(no_gc);
   if (content.IsOneByte()) {
     return WriteUtf8Impl<uint8_t>(content.ToOneByteVector(), buffer, capacity,
@@ -5516,7 +5516,7 @@ bool v8::String::IsExternalOneByte() const {
 
 void v8::String::VerifyExternalStringResource(
     v8::String::ExternalStringResource* value) const {
-  i::DisallowHeapAllocation no_allocation;
+  i::DisallowGarbageCollection no_gc;
   i::String str = *Utils::OpenHandle(this);
   const v8::String::ExternalStringResource* expected;
 
@@ -5535,7 +5535,7 @@ void v8::String::VerifyExternalStringResource(
 
 void v8::String::VerifyExternalStringResourceBase(
     v8::String::ExternalStringResourceBase* value, Encoding encoding) const {
-  i::DisallowHeapAllocation no_allocation;
+  i::DisallowGarbageCollection no_gc;
   i::String str = *Utils::OpenHandle(this);
   const v8::String::ExternalStringResourceBase* expected;
   Encoding expectedEncoding;
@@ -5562,7 +5562,7 @@ void v8::String::VerifyExternalStringResourceBase(
 }
 
 String::ExternalStringResource* String::GetExternalStringResourceSlow() const {
-  i::DisallowHeapAllocation no_allocation;
+  i::DisallowGarbageCollection no_gc;
   using I = internal::Internals;
   i::String str = *Utils::OpenHandle(this);
 
@@ -5582,7 +5582,7 @@ String::ExternalStringResource* String::GetExternalStringResourceSlow() const {
 
 String::ExternalStringResourceBase* String::GetExternalStringResourceBaseSlow(
     String::Encoding* encoding_out) const {
-  i::DisallowHeapAllocation no_allocation;
+  i::DisallowGarbageCollection no_gc;
   using I = internal::Internals;
   ExternalStringResourceBase* resource = nullptr;
   i::String str = *Utils::OpenHandle(this);
@@ -5607,7 +5607,7 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBaseSlow(
 
 const v8::String::ExternalOneByteStringResource*
 v8::String::GetExternalOneByteStringResource() const {
-  i::DisallowHeapAllocation no_allocation;
+  i::DisallowGarbageCollection no_gc;
   i::String str = *Utils::OpenHandle(this);
   if (i::StringShape(str).IsExternalOneByte()) {
     return i::ExternalOneByteString::cast(str).resource();
@@ -5737,7 +5737,7 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
                                                    void* values[]) {
   i::Handle<i::JSReceiver> obj = Utils::OpenHandle(this);
   const char* location = "v8::Object::SetAlignedPointerInInternalFields()";
-  i::DisallowHeapAllocation no_gc;
+  i::DisallowGarbageCollection no_gc;
   i::JSObject js_obj = i::JSObject::cast(*obj);
   int nof_embedder_fields = js_obj.GetEmbedderFieldCount();
   for (int i = 0; i < argc; i++) {
@@ -6557,7 +6557,7 @@ MaybeLocal<String> v8::String::NewExternalOneByte(
 }
 
 bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
-  i::DisallowHeapAllocation no_allocation;
+  i::DisallowGarbageCollection no_gc;
 
   i::String obj = *Utils::OpenHandle(this);
 
@@ -6584,7 +6584,7 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
 bool v8::String::MakeExternal(
     v8::String::ExternalOneByteStringResource* resource) {
-  i::DisallowHeapAllocation no_allocation;
+  i::DisallowGarbageCollection no_gc;
 
   i::String obj = *Utils::OpenHandle(this);
 
@@ -6609,7 +6609,7 @@ bool v8::String::MakeExternal(
 }
 
 bool v8::String::CanMakeExternal() {
-  i::DisallowHeapAllocation no_allocation;
+  i::DisallowGarbageCollection no_gc;
   i::String obj = *Utils::OpenHandle(this);
 
   if (obj.IsThinString()) {
@@ -7094,7 +7094,7 @@ i::Handle<i::JSArray> MapAsArray(i::Isolate* isolate, i::Object table_obj,
   i::Handle<i::FixedArray> result = factory->NewFixedArray(max_length);
   int result_index = 0;
   {
-    i::DisallowHeapAllocation no_gc;
+    i::DisallowGarbageCollection no_gc;
     i::Oddball the_hole = i::ReadOnlyRoots(isolate).the_hole_value();
     for (int i = offset; i < capacity; ++i) {
       i::InternalIndex entry(i);
@@ -7198,7 +7198,7 @@ i::Handle<i::JSArray> SetAsArray(i::Isolate* isolate, i::Object table_obj,
   i::Handle<i::FixedArray> result = factory->NewFixedArray(max_length);
   int result_index = 0;
   {
-    i::DisallowHeapAllocation no_gc;
+    i::DisallowGarbageCollection no_gc;
     i::Oddball the_hole = i::ReadOnlyRoots(isolate).the_hole_value();
     for (int i = offset; i < capacity; ++i) {
       i::InternalIndex entry(i);
@@ -7752,7 +7752,7 @@ size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
   size_t byte_offset = self->byte_offset();
   size_t bytes_to_copy = std::min(byte_length, self->byte_length());
   if (bytes_to_copy) {
-    i::DisallowHeapAllocation no_gc;
+    i::DisallowGarbageCollection no_gc;
     i::Isolate* isolate = self->GetIsolate();
     i::Handle<i::JSArrayBuffer> buffer(i::JSArrayBuffer::cast(self->buffer()),
                                        isolate);
@@ -9198,7 +9198,7 @@ void Isolate::RemoveMessageListeners(MessageCallback that) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScope scope(isolate);
-  i::DisallowHeapAllocation no_gc;
+  i::DisallowGarbageCollection no_gc;
   i::TemplateList listeners = isolate->heap()->message_listeners();
   for (int i = 0; i < listeners.length(); i++) {
     if (listeners.get(i).IsUndefined(isolate)) continue;  // skip deleted ones
@@ -9235,13 +9235,13 @@ bool Isolate::IsInUse() {
 
 void Isolate::VisitHandlesWithClassIds(PersistentHandleVisitor* visitor) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  i::DisallowHeapAllocation no_allocation;
+  i::DisallowGarbageCollection no_gc;
   isolate->global_handles()->IterateAllRootsWithClassIds(visitor);
 }
 
 void Isolate::VisitWeakHandles(PersistentHandleVisitor* visitor) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  i::DisallowHeapAllocation no_allocation;
+  i::DisallowGarbageCollection no_gc;
   isolate->global_handles()->IterateYoungWeakRootsWithClassIds(visitor);
 }
 
@@ -9955,7 +9955,7 @@ MemorySpan<const char> debug::WasmScript::ExternalSymbolsURL() const {
 }
 
 int debug::WasmScript::NumFunctions() const {
-  i::DisallowHeapAllocation no_gc;
+  i::DisallowGarbageCollection no_gc;
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
   i::wasm::NativeModule* native_module = script->wasm_native_module();
@@ -9965,7 +9965,7 @@ int debug::WasmScript::NumFunctions() const {
 }
 
 int debug::WasmScript::NumImportedFunctions() const {
-  i::DisallowHeapAllocation no_gc;
+  i::DisallowGarbageCollection no_gc;
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
   i::wasm::NativeModule* native_module = script->wasm_native_module();
@@ -9983,7 +9983,7 @@ MemorySpan<const uint8_t> debug::WasmScript::Bytecode() const {
 
 std::pair<int, int> debug::WasmScript::GetFunctionRange(
     int function_index) const {
-  i::DisallowHeapAllocation no_gc;
+  i::DisallowGarbageCollection no_gc;
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
   i::wasm::NativeModule* native_module = script->wasm_native_module();
@@ -9998,7 +9998,7 @@ std::pair<int, int> debug::WasmScript::GetFunctionRange(
 }
 
 int debug::WasmScript::GetContainingFunction(int byte_offset) const {
-  i::DisallowHeapAllocation no_gc;
+  i::DisallowGarbageCollection no_gc;
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
   i::wasm::NativeModule* native_module = script->wasm_native_module();
@@ -10009,7 +10009,7 @@ int debug::WasmScript::GetContainingFunction(int byte_offset) const {
 }
 
 uint32_t debug::WasmScript::GetFunctionHash(int function_index) {
-  i::DisallowHeapAllocation no_gc;
+  i::DisallowGarbageCollection no_gc;
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
   i::wasm::NativeModule* native_module = script->wasm_native_module();
@@ -10064,7 +10064,7 @@ void debug::GetLoadedScripts(v8::Isolate* v8_isolate,
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   {
-    i::DisallowHeapAllocation no_gc;
+    i::DisallowGarbageCollection no_gc;
     i::Script::Iterator iterator(isolate);
     for (i::Script script = iterator.Next(); !script.is_null();
          script = iterator.Next()) {
@@ -10127,7 +10127,7 @@ void debug::ResetBlackboxedStateCache(Isolate* v8_isolate,
                                       v8::Local<debug::Script> script) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  i::DisallowHeapAllocation no_gc;
+  i::DisallowGarbageCollection no_gc;
   i::SharedFunctionInfo::ScriptIterator iter(isolate,
                                              *Utils::OpenHandle(*script));
   for (i::SharedFunctionInfo info = iter.Next(); !info.is_null();
@@ -11179,7 +11179,7 @@ void EmbedderHeapTracer::RegisterEmbedderReference(
 void EmbedderHeapTracer::IterateTracedGlobalHandles(
     TracedGlobalHandleVisitor* visitor) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(isolate_);
-  i::DisallowHeapAllocation no_allocation;
+  i::DisallowGarbageCollection no_gc;
   isolate->global_handles()->IterateTracedNodes(visitor);
 }
 

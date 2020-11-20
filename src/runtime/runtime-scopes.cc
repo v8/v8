@@ -521,7 +521,7 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
   if (argument_count) {
     Handle<FixedArray> array =
         isolate->factory()->NewUninitializedFixedArray(argument_count);
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     WriteBarrierMode mode = array->GetWriteBarrierMode(no_gc);
     for (int i = 0; i < argument_count; i++) {
       array->set(i, *arguments[i], mode);
@@ -547,7 +547,7 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
       PACKED_ELEMENTS, num_elements, num_elements,
       DONT_INITIALIZE_ARRAY_ELEMENTS);
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     FixedArray elements = FixedArray::cast(result->elements());
     WriteBarrierMode mode = elements.GetWriteBarrierMode(no_gc);
     for (int i = 0; i < num_elements; i++) {

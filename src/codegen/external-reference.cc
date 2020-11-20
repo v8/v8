@@ -663,7 +663,7 @@ ExternalReference ExternalReference::search_string_raw_two_two() {
 FUNCTION_REFERENCE(orderedhashmap_gethash_raw, OrderedHashMap::GetHash)
 
 Address GetOrCreateHash(Isolate* isolate, Address raw_key) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   return Object(raw_key).GetOrCreateHash(isolate).ptr();
 }
 
@@ -678,7 +678,7 @@ FUNCTION_REFERENCE(jsreceiver_create_identity_hash,
                    JSReceiverCreateIdentityHash)
 
 static uint32_t ComputeSeededIntegerHash(Isolate* isolate, int32_t key) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   return ComputeSeededHash(static_cast<uint32_t>(key), HashSeed(isolate));
 }
 

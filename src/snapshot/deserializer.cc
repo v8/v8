@@ -289,7 +289,7 @@ void Deserializer::LogNewMapEvents() {
 }
 
 void Deserializer::WeakenDescriptorArrays() {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   for (Handle<DescriptorArray> descriptor_array : new_descriptor_arrays_) {
     DCHECK(descriptor_array->IsStrongDescriptorArray());
     descriptor_array->set_map(ReadOnlyRoots(isolate()).descriptor_array_map());

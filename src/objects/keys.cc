@@ -287,7 +287,7 @@ bool KeyAccumulator::IsShadowed(Handle<Object> key) {
 }
 
 void KeyAccumulator::AddShadowingKey(Object key,
-                                     AllowHeapAllocation* allow_gc) {
+                                     AllowGarbageCollection* allow_gc) {
   if (mode_ == KeyCollectionMode::kOwnOnly) return;
   AddShadowingKey(handle(key, isolate_));
 }
@@ -322,7 +322,7 @@ bool CheckAndInitalizeEmptyEnumCache(JSReceiver object) {
 }  // namespace
 
 void FastKeyAccumulator::Prepare() {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   // Directly go for the fast path for OWN_ONLY keys.
   if (mode_ == KeyCollectionMode::kOwnOnly) return;
   // Fully walk the prototype chain and find the last prototype with keys.
@@ -406,7 +406,7 @@ Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
   bool fields_only = true;
   keys = isolate->factory()->NewFixedArray(enum_length);
   for (InternalIndex i : map->IterateOwnDescriptors()) {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     PropertyDetails details = descriptors->GetDetails(i);
     if (details.IsDontEnum()) continue;
     Object key = descriptors->GetKey(i);
@@ -423,7 +423,7 @@ Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
     indices = isolate->factory()->NewFixedArray(enum_length);
     index = 0;
     for (InternalIndex i : map->IterateOwnDescriptors()) {
-      DisallowHeapAllocation no_gc;
+      DisallowGarbageCollection no_gc;
       PropertyDetails details = descriptors->GetDetails(i);
       if (details.IsDontEnum()) continue;
       Object key = descriptors->GetKey(i);
@@ -757,7 +757,7 @@ template <bool skip_symbols>
 base::Optional<int> CollectOwnPropertyNamesInternal(
     Handle<JSObject> object, KeyAccumulator* keys,
     Handle<DescriptorArray> descs, int start_index, int limit) {
-  AllowHeapAllocation allow_gc;
+  AllowGarbageCollection allow_gc;
   int first_skipped = -1;
   PropertyFilter filter = keys->filter();
   KeyCollectionMode mode = keys->mode();
@@ -810,7 +810,7 @@ void CommonCopyEnumKeysTo(Isolate* isolate, Handle<Dictionary> dictionary,
   int properties = 0;
   ReadOnlyRoots roots(isolate);
 
-  AllowHeapAllocation allow_gc;
+  AllowGarbageCollection allow_gc;
   for (InternalIndex i : dictionary->IterateEntries()) {
     Object key;
     if (!dictionary->ToKey(roots, i, &key)) continue;
@@ -860,7 +860,7 @@ void CopyEnumKeysTo(Isolate* isolate, Handle<Dictionary> dictionary,
 
   int length = storage->length();
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Dictionary raw_dictionary = *dictionary;
   FixedArray raw_storage = *storage;
   EnumIndexComparator<Dictionary> cmp(raw_dictionary);
@@ -918,7 +918,7 @@ ExceptionStatus CollectKeysFromDictionary(Handle<Dictionary> dictionary,
   // Handle enumerable strings in CopyEnumKeysTo.
   DCHECK_NE(keys->filter(), ENUMERABLE_STRINGS);
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     for (InternalIndex i : dictionary->IterateEntries()) {
       Object key;
       Dictionary raw_dictionary = *dictionary;
@@ -926,7 +926,7 @@ ExceptionStatus CollectKeysFromDictionary(Handle<Dictionary> dictionary,
       if (key.FilterKey(filter)) continue;
       PropertyDetails details = raw_dictionary.DetailsAt(i);
       if ((details.attributes() & filter) != 0) {
-        AllowHeapAllocation gc;
+        AllowGarbageCollection gc;
         // This might allocate, but {key} is not used afterwards.
         keys->AddShadowingKey(key, &gc);
         continue;
@@ -990,7 +990,7 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
       int nof_descriptors = map.NumberOfOwnDescriptors();
       if (enum_keys->length() != nof_descriptors) {
         if (map.prototype(isolate_) != ReadOnlyRoots(isolate_).null_value()) {
-          AllowHeapAllocation allow_gc;
+          AllowGarbageCollection allow_gc;
           Handle<DescriptorArray> descs = Handle<DescriptorArray>(
               map.instance_descriptors(kRelaxedLoad), isolate_);
           for (InternalIndex i : InternalIndex::Range(nof_descriptors)) {
@@ -1116,7 +1116,7 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(Handle<JSReceiver> receiver,
     DCHECK_EQ(KeyCollectionMode::kOwnOnly, mode_);
     Handle<AccessCheckInfo> access_check_info;
     {
-      DisallowHeapAllocation no_gc;
+      DisallowGarbageCollection no_gc;
       AccessCheckInfo maybe_info = AccessCheckInfo::Get(isolate_, object);
       if (!maybe_info.is_null()) {
         access_check_info = handle(maybe_info, isolate_);

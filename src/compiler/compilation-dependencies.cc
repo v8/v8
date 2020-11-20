@@ -168,7 +168,7 @@ class FieldRepresentationDependency final : public CompilationDependency {
   }
 
   bool IsValid() const override {
-    DisallowHeapAllocation no_heap_allocation;
+    DisallowGarbageCollection no_heap_allocation;
     Handle<Map> owner = owner_.object();
     return representation_.Equals(owner->instance_descriptors(kRelaxedLoad)
                                       .GetDetails(descriptor_)
@@ -206,7 +206,7 @@ class FieldTypeDependency final : public CompilationDependency {
   }
 
   bool IsValid() const override {
-    DisallowHeapAllocation no_heap_allocation;
+    DisallowGarbageCollection no_heap_allocation;
     Handle<Map> owner = owner_.object();
     Handle<Object> type = type_.object();
     return *type ==
@@ -235,7 +235,7 @@ class FieldConstnessDependency final : public CompilationDependency {
   }
 
   bool IsValid() const override {
-    DisallowHeapAllocation no_heap_allocation;
+    DisallowGarbageCollection no_heap_allocation;
     Handle<Map> owner = owner_.object();
     return PropertyConstness::kConst ==
            owner->instance_descriptors(kRelaxedLoad)

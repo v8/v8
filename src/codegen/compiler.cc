@@ -248,7 +248,7 @@ void LogFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
   }
 
   Handle<String> debug_name = SharedFunctionInfo::DebugName(shared);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   LOG(isolate, FunctionEvent(name.c_str(), script->id(), time_taken_ms,
                              shared->StartPosition(), shared->EndPosition(),
                              *debug_name));
@@ -355,7 +355,7 @@ CompilationJob::Status OptimizedCompilationJob::PrepareJob(Isolate* isolate) {
 
 CompilationJob::Status OptimizedCompilationJob::ExecuteJob(
     RuntimeCallStats* stats, LocalIsolate* local_isolate) {
-  DisallowHeapAccess no_heap_access;
+  DCHECK_IMPLIES(local_isolate, local_isolate->heap()->IsParked());
   // Delegate to the underlying implementation.
   DCHECK_EQ(state(), State::kReadyToExecute);
   ScopedTimer t(&time_taken_to_execute_);
@@ -841,7 +841,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeCache(
       RuntimeCallCounterId::kCompileGetFromOptimizedCodeMap);
   Handle<SharedFunctionInfo> shared(function->shared(), function->GetIsolate());
   Isolate* isolate = function->GetIsolate();
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Code code;
   if (osr_offset.IsNone() && function->has_feedback_vector()) {
     FeedbackVector feedback_vector = function->feedback_vector();
@@ -2466,7 +2466,7 @@ struct ScriptCompileTimerScope {
 
 void SetScriptFieldsFromDetails(Isolate* isolate, Script script,
                                 Compiler::ScriptDetails script_details,
-                                DisallowHeapAllocation* no_gc) {
+                                DisallowGarbageCollection* no_gc) {
   Handle<Object> script_name;
   if (script_details.name_obj.ToHandle(&script_name)) {
     script.set_name(*script_name);
@@ -2496,7 +2496,7 @@ Handle<Script> NewScript(
   // Create a script object describing the script to be compiled.
   Handle<Script> script = parse_info->CreateScript(
       isolate, source, maybe_wrapped_arguments, origin_options, natives);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   SetScriptFieldsFromDetails(isolate, *script, script_details, &no_gc);
   LOG(isolate, ScriptDetails(*script));
   return script;
@@ -2954,7 +2954,7 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
     // Set the script fields after finalization, to keep this path the same
     // between main-thread and off-thread finalization.
     {
-      DisallowHeapAllocation no_gc;
+      DisallowGarbageCollection no_gc;
       SetScriptFieldsFromDetails(isolate, *script, script_details, &no_gc);
       LOG(isolate, ScriptDetails(*script));
     }

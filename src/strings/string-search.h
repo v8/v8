@@ -545,7 +545,7 @@ template <typename SubjectChar, typename PatternChar>
 intptr_t SearchStringRaw(Isolate* isolate, const SubjectChar* subject_ptr,
                          int subject_length, const PatternChar* pattern_ptr,
                          int pattern_length, int start_index) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Vector<const SubjectChar> subject(subject_ptr, subject_length);
   Vector<const PatternChar> pattern(pattern_ptr, pattern_length);
   return SearchString(isolate, subject, pattern, start_index);

@@ -1179,13 +1179,13 @@ RUNTIME_FUNCTION(Runtime_IsWasmCode) {
 }
 
 RUNTIME_FUNCTION(Runtime_IsWasmTrapHandlerEnabled) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   DCHECK_EQ(0, args.length());
   return isolate->heap()->ToBoolean(trap_handler::IsTrapHandlerEnabled());
 }
 
 RUNTIME_FUNCTION(Runtime_IsThreadInWasm) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   DCHECK_EQ(0, args.length());
   return isolate->heap()->ToBoolean(trap_handler::IsThreadInWasm());
 }
@@ -1575,7 +1575,7 @@ RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTracking) {
 
 RUNTIME_FUNCTION(Runtime_FreezeWasmLazyCompilation) {
   DCHECK_EQ(1, args.length());
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   CONVERT_ARG_CHECKED(WasmInstanceObject, instance, 0);
 
   instance.module_object().native_module()->set_lazy_compile_frozen(true);

@@ -686,16 +686,12 @@ class FunctionAnalyzer {
                    clang::CXXRecordDecl* maybe_object_decl,
                    clang::CXXRecordDecl* smi_decl,
                    clang::CXXRecordDecl* no_gc_decl,
-                   clang::CXXRecordDecl* no_gc_or_safepoint_decl,
-                   clang::CXXRecordDecl* no_heap_access_decl,
                    clang::DiagnosticsEngine& d, clang::SourceManager& sm)
       : ctx_(ctx),
         object_decl_(object_decl),
         maybe_object_decl_(maybe_object_decl),
         smi_decl_(smi_decl),
         no_gc_decl_(no_gc_decl),
-        no_gc_or_safepoint_decl_(no_gc_or_safepoint_decl),
-        no_heap_access_decl_(no_heap_access_decl),
         d_(d),
         sm_(sm),
         block_(NULL) {}
@@ -1414,11 +1410,7 @@ class FunctionAnalyzer {
       return false;
     }
 
-    return (no_gc_decl_ && IsDerivedFrom(definition, no_gc_decl_)) ||
-           (no_gc_or_safepoint_decl_ &&
-            IsDerivedFrom(definition, no_gc_or_safepoint_decl_)) ||
-           (no_heap_access_decl_ &&
-            IsDerivedFrom(definition, no_heap_access_decl_));
+    return no_gc_decl_ && IsDerivedFrom(definition, no_gc_decl_);
   }
 
   Environment VisitDecl(clang::Decl* decl, Environment& env) {
@@ -1503,7 +1495,6 @@ class FunctionAnalyzer {
   clang::CXXRecordDecl* maybe_object_decl_;
   clang::CXXRecordDecl* smi_decl_;
   clang::CXXRecordDecl* no_gc_decl_;
-  clang::CXXRecordDecl* no_gc_or_safepoint_decl_;
   clang::CXXRecordDecl* no_heap_access_decl_;
 
   clang::DiagnosticsEngine& d_;
@@ -1575,22 +1566,12 @@ class ProblemsFinder : public clang::ASTConsumer,
     Resolver r(ctx);
 
     // It is a valid situation that no_gc_decl == NULL when the
-    // DisallowHeapAllocation is not included and can't be resolved.
+    // DisallowGarbageCollection is not included and can't be resolved.
     // This is gracefully handled in the FunctionAnalyzer later.
     clang::CXXRecordDecl* no_gc_decl =
         r.ResolveNamespace("v8")
             .ResolveNamespace("internal")
-            .ResolveTemplate("DisallowHeapAllocation");
-
-    clang::CXXRecordDecl* no_gc_or_safepoint_decl =
-        r.ResolveNamespace("v8")
-            .ResolveNamespace("internal")
             .ResolveTemplate("DisallowGarbageCollection");
-
-    clang::CXXRecordDecl* no_heap_access_decl =
-        r.ResolveNamespace("v8")
-            .ResolveNamespace("internal")
-            .ResolveTemplate("DisallowHeapAccess");
 
     clang::CXXRecordDecl* object_decl =
         r.ResolveNamespace("v8").ResolveNamespace("internal").
@@ -1615,8 +1596,7 @@ class ProblemsFinder : public clang::ASTConsumer,
     if (object_decl != NULL && smi_decl != NULL && maybe_object_decl != NULL) {
       function_analyzer_ = new FunctionAnalyzer(
           clang::ItaniumMangleContext::create(ctx, d_), object_decl,
-          maybe_object_decl, smi_decl, no_gc_decl, no_gc_or_safepoint_decl,
-          no_heap_access_decl, d_, sm_);
+          maybe_object_decl, smi_decl, no_gc_decl, d_, sm_);
       TraverseDecl(ctx.getTranslationUnitDecl());
     } else {
       if (object_decl == NULL) {

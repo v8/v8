@@ -126,7 +126,7 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetResumeMode) {
 // Return true if {generator}'s PC has a catch handler. This allows
 // catch prediction to happen from the AsyncGeneratorResumeNext stub.
 RUNTIME_FUNCTION(Runtime_AsyncGeneratorHasCatchHandlerForPC) {
-  DisallowHeapAllocation no_allocation_scope;
+  DisallowGarbageCollection no_gc_scope;
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(JSAsyncGeneratorObject, generator, 0);
 

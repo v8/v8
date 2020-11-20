@@ -292,7 +292,7 @@ class ActivationsFinder : public ThreadVisitor {
 // and replace pc on the stack for codes marked for deoptimization.
 // static
 void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
 
   Isolate* isolate = native_context.GetIsolate();
   Code topmost_optimized_code;
@@ -385,7 +385,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   TraceDeoptAll(isolate);
   isolate->AbortConcurrentOptimization(BlockingBehavior::kBlock);
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   // For all contexts, mark all code, then deoptimize.
   Object context = isolate->heap()->native_contexts_list();
   while (!context.IsUndefined(isolate)) {
@@ -404,7 +404,7 @@ void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   TraceDeoptMarked(isolate);
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   // For all contexts, deoptimize code already marked.
   Object context = isolate->heap()->native_contexts_list();
   while (!context.IsUndefined(isolate)) {
@@ -743,7 +743,7 @@ void Deoptimizer::TraceDeoptEnd(double deopt_duration) {
 void Deoptimizer::TraceMarkForDeoptimization(Code code, const char* reason) {
   if (!FLAG_trace_deopt_verbose) return;
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Isolate* isolate = code.GetIsolate();
   Object maybe_data = code.deoptimization_data();
   if (maybe_data == ReadOnlyRoots(isolate).empty_fixed_array()) return;
@@ -755,8 +755,9 @@ void Deoptimizer::TraceMarkForDeoptimization(Code code, const char* reason) {
   deopt_data.SharedFunctionInfo().ShortPrint(scope.file());
   PrintF(") (opt id %d) for deoptimization, reason: %s]\n",
          deopt_data.OptimizationId().value(), reason);
+
+  no_gc.Release();
   {
-    AllowHeapAllocation yes_gc;
     HandleScope scope(isolate);
     PROFILE(
         isolate,
@@ -773,7 +774,7 @@ void Deoptimizer::TraceEvictFromOptimizedCodeCache(SharedFunctionInfo sfi,
                                                    const char* reason) {
   if (!FLAG_trace_deopt_verbose) return;
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   CodeTracer::Scope scope(sfi.GetIsolate()->GetCodeTracer());
   PrintF(scope.file(),
          "[evicting optimized code marked for deoptimization (%s) for ",
@@ -3609,7 +3610,7 @@ TranslatedValue* TranslatedState::GetValueByObjectIndex(int object_index) {
 Handle<HeapObject> TranslatedState::InitializeObjectAt(TranslatedValue* slot) {
   slot = ResolveCapturedObject(slot);
 
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   if (slot->materialization_state() != TranslatedValue::kFinished) {
     std::stack<int> worklist;
     worklist.push(slot->object_index());
@@ -3618,7 +3619,7 @@ Handle<HeapObject> TranslatedState::InitializeObjectAt(TranslatedValue* slot) {
     while (!worklist.empty()) {
       int index = worklist.top();
       worklist.pop();
-      InitializeCapturedObjectAt(index, &worklist, no_allocation);
+      InitializeCapturedObjectAt(index, &worklist, no_gc);
     }
   }
   return slot->storage();
@@ -3626,7 +3627,7 @@ Handle<HeapObject> TranslatedState::InitializeObjectAt(TranslatedValue* slot) {
 
 void TranslatedState::InitializeCapturedObjectAt(
     int object_index, std::stack<int>* worklist,
-    const DisallowHeapAllocation& no_allocation) {
+    const DisallowGarbageCollection& no_gc) {
   CHECK_LT(static_cast<size_t>(object_index), object_positions_.size());
   TranslatedState::ObjectPosition pos = object_positions_[object_index];
   int value_index = pos.value_index_;
@@ -3693,13 +3694,12 @@ void TranslatedState::InitializeCapturedObjectAt(
     case PROPERTY_ARRAY_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
     case SLOPPY_ARGUMENTS_ELEMENTS_TYPE:
-      InitializeObjectWithTaggedFieldsAt(frame, &value_index, slot, map,
-                                         no_allocation);
+      InitializeObjectWithTaggedFieldsAt(frame, &value_index, slot, map, no_gc);
       break;
 
     default:
       CHECK(map->IsJSObjectMap());
-      InitializeJSObjectAt(frame, &value_index, slot, map, no_allocation);
+      InitializeJSObjectAt(frame, &value_index, slot, map, no_gc);
       break;
   }
   CHECK_EQ(value_index, children_init_index);
@@ -4017,7 +4017,7 @@ Handle<Object> TranslatedState::GetValueAndAdvance(TranslatedFrame* frame,
 
 void TranslatedState::InitializeJSObjectAt(
     TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
-    Handle<Map> map, const DisallowHeapAllocation& no_allocation) {
+    Handle<Map> map, const DisallowGarbageCollection& no_gc) {
   Handle<HeapObject> object_storage = Handle<HeapObject>::cast(slot->storage_);
   DCHECK_EQ(TranslatedValue::kCapturedObject, slot->kind());
 
@@ -4025,7 +4025,7 @@ void TranslatedState::InitializeJSObjectAt(
   CHECK_GE(slot->GetChildrenCount(), 2);
 
   // Notify the concurrent marker about the layout change.
-  isolate()->heap()->NotifyObjectLayoutChange(*object_storage, no_allocation);
+  isolate()->heap()->NotifyObjectLayoutChange(*object_storage, no_gc);
 
   // Fill the property array field.
   {
@@ -4068,7 +4068,7 @@ void TranslatedState::InitializeJSObjectAt(
 
 void TranslatedState::InitializeObjectWithTaggedFieldsAt(
     TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
-    Handle<Map> map, const DisallowHeapAllocation& no_allocation) {
+    Handle<Map> map, const DisallowGarbageCollection& no_gc) {
   Handle<HeapObject> object_storage = Handle<HeapObject>::cast(slot->storage_);
 
   // Skip the writes if we already have the canonical empty fixed array.
@@ -4080,7 +4080,7 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
   }
 
   // Notify the concurrent marker about the layout change.
-  isolate()->heap()->NotifyObjectLayoutChange(*object_storage, no_allocation);
+  isolate()->heap()->NotifyObjectLayoutChange(*object_storage, no_gc);
 
   // Write the fields to the object.
   for (int i = 1; i < slot->GetChildrenCount(); i++) {

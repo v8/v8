@@ -285,7 +285,7 @@ Handle<WasmTableObject> WasmTableObject::New(
       isolate->native_context()->wasm_table_constructor(), isolate);
   auto table_obj = Handle<WasmTableObject>::cast(
       isolate->factory()->NewJSObject(table_ctor));
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   if (!instance.is_null()) table_obj->set_instance(*instance);
   table_obj->set_entries(*backing_store);
@@ -1002,7 +1002,7 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
       isolate->factory()->NewJSObject(global_ctor));
   {
     // Disallow GC until all fields have acceptable types.
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     if (!instance.is_null()) global_obj->set_instance(*instance);
     global_obj->set_type(type);
     global_obj->set_offset(offset);

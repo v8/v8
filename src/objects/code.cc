@@ -347,7 +347,7 @@ bool Code::IsNativeContextIndependent(Isolate* isolate) {
 bool Code::Inlines(SharedFunctionInfo sfi) {
   // We can only check for inlining for optimized code.
   DCHECK(is_optimized_code());
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   DeoptimizationData const data =
       DeoptimizationData::cast(deoptimization_data());
   if (data.length() == 0) return false;
@@ -670,7 +670,7 @@ inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os, Code code,
                                  Address current_pc) {
   Address end = begin + size;
   AllowHandleAllocation allow_handles;
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   HandleScope handle_scope(isolate);
   Disassembler::Decode(isolate, &os, reinterpret_cast<byte*>(begin),
                        reinterpret_cast<byte*>(end),
@@ -812,7 +812,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
 #endif  // ENABLE_DISASSEMBLER
 
 void BytecodeArray::Disassemble(std::ostream& os) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   os << "Parameter count " << parameter_count() << "\n";
   os << "Register count " << register_count() << "\n";
@@ -1042,7 +1042,7 @@ bool DependentCode::MarkCodeForDeoptimization(
     return next_link().MarkCodeForDeoptimization(group);
   }
   DCHECK_EQ(group, this->group());
-  DisallowHeapAllocation no_allocation_scope;
+  DisallowGarbageCollection no_gc_scope;
   // Mark all the code that needs to be deoptimized.
   bool marked = false;
   int count = this->count();
@@ -1064,7 +1064,7 @@ bool DependentCode::MarkCodeForDeoptimization(
 
 void DependentCode::DeoptimizeDependentCodeGroup(
     DependentCode::DependencyGroup group) {
-  DisallowHeapAllocation no_allocation_scope;
+  DisallowGarbageCollection no_gc_scope;
   bool marked = MarkCodeForDeoptimization(group);
   if (marked) {
     DCHECK(AllowCodeDependencyChange::IsAllowed());

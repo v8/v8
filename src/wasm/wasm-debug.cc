@@ -794,7 +794,7 @@ class DebugInfoImpl {
   }
 
   bool IsAtReturn(WasmFrame* frame) {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     int position = frame->position();
     NativeModule* native_module =
         frame->wasm_instance().module_object().native_module();
@@ -1162,7 +1162,7 @@ bool WasmScript::GetPossibleBreakpoints(
     wasm::NativeModule* native_module, const v8::debug::Location& start,
     const v8::debug::Location& end,
     std::vector<v8::debug::BreakLocation>* locations) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   const wasm::WasmModule* module = native_module->module();
   const std::vector<wasm::WasmFunction>& functions = module->functions;

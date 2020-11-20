@@ -367,7 +367,7 @@ MaybeHandle<JSLocale> JSLocale::New(Isolate* isolate, Handle<Map> map,
   // Now all properties are ready, so we can allocate the result object.
   Handle<JSLocale> locale = Handle<JSLocale>::cast(
       isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   locale->set_icu_locale(*managed_locale);
   return locale;
 }
@@ -389,7 +389,7 @@ MaybeHandle<JSLocale> Construct(Isolate* isolate,
 
   Handle<JSLocale> locale = Handle<JSLocale>::cast(
       isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   locale->set_icu_locale(*managed_locale);
   return locale;
 }

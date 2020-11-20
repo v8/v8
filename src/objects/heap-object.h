@@ -153,12 +153,12 @@ class HeapObject : public Object {
   DECL_CAST(HeapObject)
 
   // Return the write barrier mode for this. Callers of this function
-  // must be able to present a reference to an DisallowHeapAllocation
+  // must be able to present a reference to an DisallowGarbageCollection
   // object as a sign that they are not going to use this function
   // from code that allocates and thus invalidates the returned write
   // barrier mode.
   inline WriteBarrierMode GetWriteBarrierMode(
-      const DisallowHeapAllocation& promise);
+      const DisallowGarbageCollection& promise);
 
   // Dispatched behavior.
   void HeapObjectShortPrint(std::ostream& os);  // NOLINT

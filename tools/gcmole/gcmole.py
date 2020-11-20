@@ -305,6 +305,10 @@ class GCSuspectsCollector:
         self.gc[name] = True
         self.AddCause(name, "<GC>")
 
+      if re.search(",EnterSafepoint", name):
+        self.gc[name] = True
+        self.AddCause(name, "<Safepoint>")
+
       if self.allowlist:
         for allow in ALLOWLIST:
           if re.search(allow, name):

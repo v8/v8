@@ -197,7 +197,7 @@ TEST_F(TestWithNativeContext, RecreateScopeInfoWithLocalsBlocklistWorks) {
   Handle<ScopeInfo> scope_info = ScopeInfo::RecreateWithBlockList(
       isolate(), original_scope_info, blocklist);
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   EXPECT_TRUE(scope_info->HasLocalsBlockList());
   EXPECT_TRUE(scope_info->LocalsBlockList().Has(isolate(), foo_string));
   EXPECT_FALSE(scope_info->LocalsBlockList().Has(isolate(), bar_string));

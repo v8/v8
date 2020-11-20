@@ -621,7 +621,7 @@ void SharedFunctionInfo::ClearPreparseData() {
 
   // Trim off the pre-parsed scope data from the uncompiled data by swapping the
   // map, leaving only an uncompiled data without pre-parsed scope.
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Heap* heap = GetHeapFromWritableObject(data);
 
   // Swap the map.

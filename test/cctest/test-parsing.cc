@@ -978,7 +978,7 @@ void TestScanRegExp(const char* re_source, const char* expected) {
       scanner.CurrentSymbol(&ast_value_factory);
   ast_value_factory.Internalize(CcTest::i_isolate());
   i::Handle<i::String> val = current_symbol->string();
-  i::DisallowHeapAllocation no_alloc;
+  i::DisallowGarbageCollection no_alloc;
   i::String::FlatContent content = val->GetFlatContent(no_alloc);
   CHECK(content.IsOneByte());
   i::Vector<const uint8_t> actual = content.ToOneByteVector();

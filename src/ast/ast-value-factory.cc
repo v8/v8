@@ -232,7 +232,7 @@ Handle<String> AstConsString::AllocateFlat(LocalIsolate* isolate) const {
         isolate->factory()
             ->NewRawOneByteString(result_length, AllocationType::kOld)
             .ToHandleChecked();
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     uint8_t* dest =
         result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()) +
         result_length;
@@ -251,7 +251,7 @@ Handle<String> AstConsString::AllocateFlat(LocalIsolate* isolate) const {
       isolate->factory()
           ->NewRawTwoByteString(result_length, AllocationType::kOld)
           .ToHandleChecked();
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   uint16_t* dest =
       result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()) +
       result_length;
@@ -338,7 +338,7 @@ const AstRawString* AstValueFactory::GetTwoByteStringInternal(
 
 const AstRawString* AstValueFactory::GetString(Handle<String> literal) {
   const AstRawString* result = nullptr;
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   String::FlatContent content = literal->GetFlatContent(no_gc);
   if (content.IsOneByte()) {
     result = GetOneByteStringInternal(content.ToOneByteVector());

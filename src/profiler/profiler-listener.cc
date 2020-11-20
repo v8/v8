@@ -250,7 +250,7 @@ void ProfilerListener::RegExpCodeCreateEvent(Handle<AbstractCode> code,
 }
 
 void ProfilerListener::CodeMoveEvent(AbstractCode from, AbstractCode to) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_MOVE);
   CodeMoveEventRecord* rec = &evt_rec.CodeMoveEventRecord_;
   rec->from_instruction_start = from.InstructionStart();

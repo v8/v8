@@ -78,8 +78,7 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
         ScannerStream::ForTesting(utf16_source.data(), utf16_source.size()));
 
     {
-      DisallowHeapAllocation no_allocation;
-      DisallowHandleAllocation no_handles;
+      DisallowGarbageCollection no_gc;
       DisallowHeapAccess no_heap_access;
 
       Parser parser(parse_info());

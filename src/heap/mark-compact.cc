@@ -2130,7 +2130,7 @@ void MarkCompactCollector::ClearPotentialSimpleMapTransition(Map dead_target) {
   Object potential_parent = dead_target.constructor_or_backpointer();
   if (potential_parent.IsMap()) {
     Map parent = Map::cast(potential_parent);
-    DisallowHeapAllocation no_gc_obviously;
+    DisallowGarbageCollection no_gc_obviously;
     if (non_atomic_marking_state()->IsBlackOrGrey(parent) &&
         TransitionsAccessor(isolate(), parent, &no_gc_obviously)
             .HasSimpleTransitionTo(dead_target)) {

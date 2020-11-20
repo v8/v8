@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_LOCAL_HEAP_INL_H_
 #define V8_HEAP_LOCAL_HEAP_INL_H_
 
+#include "src/common/assert-scope.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/concurrent-allocator-inl.h"
 #include "src/heap/local-heap.h"

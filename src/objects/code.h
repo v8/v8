@@ -530,7 +530,7 @@ class Code::OptimizedCodeIterator {
   Code current_code_;
   Isolate* isolate_;
 
-  DISALLOW_HEAP_ALLOCATION(no_gc)
+  DISALLOW_GARBAGE_COLLECTION(no_gc)
 };
 
 class AbstractCode : public HeapObject {

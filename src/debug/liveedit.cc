@@ -1233,7 +1233,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     // Check that all the functions in the new script are valid, that their
     // function literals match what is expected, and that start positions are
     // unique.
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
 
     SharedFunctionInfo::ScriptIterator it(isolate, *new_script);
     std::set<int> start_positions;

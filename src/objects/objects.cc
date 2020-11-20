@@ -1646,7 +1646,7 @@ Maybe<bool> Object::SetPropertyWithDefinedSetter(
 }
 
 Map Object::GetPrototypeChainRootMap(Isolate* isolate) const {
-  DisallowHeapAllocation no_alloc;
+  DisallowGarbageCollection no_alloc;
   if (IsSmi()) {
     Context native_context = isolate->context().native_context();
     return native_context.number_function().initial_map();
@@ -1657,7 +1657,7 @@ Map Object::GetPrototypeChainRootMap(Isolate* isolate) const {
 }
 
 Smi Object::GetOrCreateHash(Isolate* isolate) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Object hash = Object::GetSimpleHash(*this);
   if (hash.IsSmi()) return Smi::cast(hash);
 
@@ -2899,7 +2899,7 @@ struct FixedArrayAppender {
   }
   static void Insert(Handle<Name> key, Handle<AccessorInfo> entry,
                      int valid_descriptors, Handle<FixedArray> array) {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     array->set(valid_descriptors, *entry);
   }
 };
@@ -3917,7 +3917,7 @@ void FixedArray::Shrink(Isolate* isolate, int new_length) {
 }
 
 void FixedArray::CopyTo(int pos, FixedArray dest, int dest_pos, int len) const {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   // Return early if len == 0 so that we don't try to read the write barrier off
   // a canonical read-only empty fixed array.
   if (len == 0) return;
@@ -4574,7 +4574,7 @@ namespace {
 template <typename sinkchar>
 void WriteFixedArrayToFlat(FixedArray fixed_array, int length, String separator,
                            sinkchar* sink, int sink_length) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   CHECK_GT(length, 0);
   CHECK_LE(length, fixed_array.length());
 #ifdef DEBUG
@@ -4589,8 +4589,7 @@ void WriteFixedArrayToFlat(FixedArray fixed_array, int length, String separator,
   if (use_one_byte_separator_fast_path) {
     CHECK(StringShape(separator).IsSequentialOneByte());
     CHECK_EQ(separator.length(), 1);
-    separator_one_char =
-        SeqOneByteString::cast(separator).GetChars(no_allocation)[0];
+    separator_one_char = SeqOneByteString::cast(separator).GetChars(no_gc)[0];
   }
 
   uint32_t num_separators = 0;
@@ -4657,7 +4656,7 @@ Address JSArray::ArrayJoinConcatToSequentialString(Isolate* isolate,
                                                    intptr_t length,
                                                    Address raw_separator,
                                                    Address raw_dest) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate);
   FixedArray fixed_array = FixedArray::cast(Object(raw_fixed_array));
   String separator = String::cast(Object(raw_separator));
@@ -4668,12 +4667,12 @@ Address JSArray::ArrayJoinConcatToSequentialString(Isolate* isolate,
 
   if (StringShape(dest).IsSequentialOneByte()) {
     WriteFixedArrayToFlat(fixed_array, static_cast<int>(length), separator,
-                          SeqOneByteString::cast(dest).GetChars(no_allocation),
+                          SeqOneByteString::cast(dest).GetChars(no_gc),
                           dest.length());
   } else {
     DCHECK(StringShape(dest).IsSequentialTwoByte());
     WriteFixedArrayToFlat(fixed_array, static_cast<int>(length), separator,
-                          SeqTwoByteString::cast(dest).GetChars(no_allocation),
+                          SeqTwoByteString::cast(dest).GetChars(no_gc),
                           dest.length());
   }
   return dest.ptr();
@@ -4805,7 +4804,7 @@ bool Script::GetPositionInfo(Handle<Script> script, int position,
 bool Script::IsUserJavaScript() const { return type() == Script::TYPE_NORMAL; }
 
 bool Script::ContainsAsmModule() {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   SharedFunctionInfo::ScriptIterator iter(this->GetIsolate(), *this);
   for (SharedFunctionInfo info = iter.Next(); !info.is_null();
        info = iter.Next()) {
@@ -4840,7 +4839,7 @@ bool GetPositionInfoSlowImpl(const Vector<Char>& source, int position,
   return false;
 }
 bool GetPositionInfoSlow(const Script script, int position,
-                         const DisallowHeapAllocation& no_gc,
+                         const DisallowGarbageCollection& no_gc,
                          Script::PositionInfo* info) {
   if (!script.source().IsString()) {
     return false;
@@ -4856,7 +4855,7 @@ bool GetPositionInfoSlow(const Script script, int position,
 
 bool Script::GetPositionInfo(int position, PositionInfo* info,
                              OffsetFlag offset_flag) const {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
 
   // For wasm, we use the byte offset as the column.
   if (type() == Script::TYPE_WASM) {
@@ -4873,7 +4872,7 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
 
   if (line_ends().IsUndefined()) {
     // Slow mode: we do not have line_ends. We have to iterate through source.
-    if (!GetPositionInfoSlow(*this, position, no_allocation, info)) {
+    if (!GetPositionInfoSlow(*this, position, no_gc, info)) {
       return false;
     }
   } else {
@@ -5433,7 +5432,7 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
   // We need to reverse the {reactions} here, since we record them
   // on the JSPromise in the reverse order.
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     Object current = *reactions;
     Object reversed = Smi::zero();
     while (!current.IsSmi()) {
@@ -5504,7 +5503,7 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
           static_cast<int>(PromiseFulfillReactionJobTask::
                                kContinuationPreservedEmbedderDataOffset));
     } else {
-      DisallowHeapAllocation no_gc;
+      DisallowGarbageCollection no_gc;
       task->synchronized_set_map(
           ReadOnlyRoots(isolate).promise_reject_reaction_job_task_map());
       Handle<PromiseRejectReactionJobTask>::cast(task)->set_argument(*argument);
@@ -5580,7 +5579,7 @@ Handle<Derived> HashTable<Derived, Shape>::NewInternal(
 
 template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::Rehash(IsolateRoot isolate, Derived new_table) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   WriteBarrierMode mode = new_table.GetWriteBarrierMode(no_gc);
 
   DCHECK_LT(NumberOfElements(), new_table.Capacity());
@@ -5644,7 +5643,7 @@ void HashTable<Derived, Shape>::Swap(InternalIndex entry1, InternalIndex entry2,
 
 template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::Rehash(IsolateRoot isolate) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   WriteBarrierMode mode = GetWriteBarrierMode(no_gc);
   ReadOnlyRoots roots = GetReadOnlyRoots(isolate);
   uint32_t capacity = Capacity();
@@ -5965,7 +5964,7 @@ Handle<SimpleNumberDictionary> SimpleNumberDictionary::Set(
 
 void NumberDictionary::UpdateMaxNumberKey(uint32_t key,
                                           Handle<JSObject> dictionary_holder) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   // If the dictionary requires slow elements an element has already
   // been added at a high index.
   if (requires_slow_elements()) return;
@@ -6002,7 +6001,7 @@ Handle<NumberDictionary> NumberDictionary::Set(
 void NumberDictionary::CopyValuesTo(FixedArray elements) {
   ReadOnlyRoots roots = GetReadOnlyRoots();
   int pos = 0;
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   WriteBarrierMode mode = elements.GetWriteBarrierMode(no_gc);
   for (InternalIndex i : this->IterateEntries()) {
     Object k;
@@ -6036,7 +6035,7 @@ Handle<FixedArray> BaseNameDictionary<Derived, Shape>::IterationIndices(
   ReadOnlyRoots roots(isolate);
   int array_size = 0;
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     Derived raw_dictionary = *dictionary;
     for (InternalIndex i : dictionary->IterateEntries()) {
       Object k;
@@ -6088,7 +6087,7 @@ template <typename Derived, typename Shape>
 Object ObjectHashTableBase<Derived, Shape>::Lookup(IsolateRoot isolate,
                                                    Handle<Object> key,
                                                    int32_t hash) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   ReadOnlyRoots roots = this->GetReadOnlyRoots(isolate);
   DCHECK(this->IsKey(roots, *key));
 
@@ -6099,7 +6098,7 @@ Object ObjectHashTableBase<Derived, Shape>::Lookup(IsolateRoot isolate,
 
 template <typename Derived, typename Shape>
 Object ObjectHashTableBase<Derived, Shape>::Lookup(Handle<Object> key) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   ReadOnlyRoots roots = this->GetReadOnlyRoots(isolate);
@@ -6325,7 +6324,7 @@ Handle<JSArray> JSWeakCollection::GetEntries(Handle<JSWeakCollection> holder,
   }
 
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     ReadOnlyRoots roots = ReadOnlyRoots(isolate);
     int count = 0;
     for (int i = 0;
@@ -6496,7 +6495,7 @@ int JSGeneratorObject::source_position() const {
 // static
 AccessCheckInfo AccessCheckInfo::Get(Isolate* isolate,
                                      Handle<JSObject> receiver) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   DCHECK(receiver->map().is_access_check_needed());
   Object maybe_constructor = receiver->map().GetConstructor();
   if (maybe_constructor.IsFunctionTemplateInfo()) {
@@ -6532,7 +6531,7 @@ MaybeHandle<Name> FunctionTemplateInfo::TryGetCachedPropertyName(
 }
 
 Address Smi::LexicographicCompare(Isolate* isolate, Smi x, Smi y) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate);
 
   int x_value = Smi::ToInt(x);
@@ -6693,7 +6692,7 @@ EXTERN_DEFINE_BASE_NAME_DICTIONARY(GlobalDictionary, GlobalDictionaryShape)
 void JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
     Isolate* isolate, Address raw_finalization_registry,
     Address raw_weak_cell) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   JSFinalizationRegistry finalization_registry =
       JSFinalizationRegistry::cast(Object(raw_finalization_registry));
   WeakCell weak_cell = WeakCell::cast(Object(raw_weak_cell));

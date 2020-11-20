@@ -61,7 +61,7 @@ void LookupIterator::Start() {
   holder_ = GetRoot(isolate_, lookup_start_object_, index_);
 
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
 
     has_property_ = false;
     state_ = NOT_FOUND;
@@ -82,7 +82,7 @@ template void LookupIterator::Start<false>();
 void LookupIterator::Next() {
   DCHECK_NE(JSPROXY, state_);
   DCHECK_NE(TRANSITION, state_);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   has_property_ = false;
 
   JSReceiver holder = *holder_;
@@ -231,7 +231,7 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
       return;
     }
     if (receiver->map(isolate).is_prototype_map()) {
-      DisallowHeapAllocation no_gc;
+      DisallowGarbageCollection no_gc;
       // Setting the constructor of any prototype with the @@species protector
       // (of any realm) also needs to invalidate the protector.
       // For typed arrays, we check a prototype of this receiver since
@@ -1060,7 +1060,7 @@ bool LookupIterator::SkipInterceptor(JSObject holder) {
 }
 
 JSReceiver LookupIterator::NextHolder(Map map) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   if (map.prototype(isolate_) == ReadOnlyRoots(isolate_).null_value()) {
     return JSReceiver();
   }
@@ -1148,7 +1148,7 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
 template <bool is_element>
 LookupIterator::State LookupIterator::LookupInRegularHolder(
     Map const map, JSReceiver const holder) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   if (interceptor_state_ == InterceptorState::kProcessNonMasking) {
     return NOT_FOUND;
   }
@@ -1203,7 +1203,7 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
 Handle<InterceptorInfo> LookupIterator::GetInterceptorForFailedAccessCheck()
     const {
   DCHECK_EQ(ACCESS_CHECK, state_);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   AccessCheckInfo access_check_info =
       AccessCheckInfo::Get(isolate_, Handle<JSObject>::cast(holder_));
   if (!access_check_info.is_null()) {

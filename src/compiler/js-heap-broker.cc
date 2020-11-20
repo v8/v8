@@ -137,7 +137,7 @@ class AllowHeapAllocationIfNeeded {
 
 namespace {
 bool IsReadOnlyHeapObject(Object object) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   return (object.IsCode() && Code::cast(object).is_builtin()) ||
          (object.IsHeapObject() &&
           ReadOnlyHeap::Contains(HeapObject::cast(object)));
@@ -2601,7 +2601,7 @@ void JSHeapBroker::SetTargetNativeContextRef(
 }
 
 void JSHeapBroker::CollectArrayAndObjectPrototypes() {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   CHECK_EQ(mode(), kSerializing);
   CHECK(array_and_object_prototypes_.empty());
 

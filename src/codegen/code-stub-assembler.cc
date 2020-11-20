@@ -10127,7 +10127,7 @@ void CodeStubAssembler::EmitElementStore(
     // There must be no allocations between the buffer load and
     // and the actual store to backing store, because GC may decide that
     // the buffer is not alive or move the elements.
-    // TODO(ishell): introduce DisallowHeapAllocationCode scope here.
+    // TODO(ishell): introduce DisallowGarbageCollectionCode scope here.
 
     // Check if buffer has been detached.
     TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(typed_array);

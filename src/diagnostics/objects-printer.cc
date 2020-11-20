@@ -67,7 +67,7 @@ void PrintHeapObjectHeaderWithoutMap(HeapObject object, std::ostream& os,
 
 template <typename T>
 void PrintDictionaryContents(std::ostream& os, T dict) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   ReadOnlyRoots roots = dict.GetReadOnlyRoots();
 
   for (InternalIndex i : dict.IterateEntries()) {
@@ -455,7 +455,7 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
 
 void PrintEmbedderData(IsolateRoot isolate, std::ostream& os,
                        EmbedderDataSlot slot) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Object value = slot.load_tagged();
   os << Brief(value);
   void* raw_pointer;
@@ -608,7 +608,7 @@ void JSGeneratorObject::JSGeneratorObjectPrint(std::ostream& os) {  // NOLINT
   if (is_executing()) os << " (executing)";
   if (is_suspended()) os << " (suspended)";
   if (is_suspended()) {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     SharedFunctionInfo fun_info = function().shared();
     if (fun_info.HasSourceCode()) {
       Script script = Script::cast(fun_info.script());
@@ -799,7 +799,7 @@ using DataPrinter = std::function<void(InternalIndex)>;
 template <typename T>
 void PrintTableContentsGeneric(std::ostream& os, T dict,
                                DataPrinter print_data_at) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   ReadOnlyRoots roots = dict.GetReadOnlyRoots();
 
   for (InternalIndex i : dict.IterateEntries()) {
@@ -852,7 +852,7 @@ void PrintHashSetContentsFull(std::ostream& os, T dict) {
 template <typename T>
 void PrintOrderedHashTableHeaderAndBuckets(std::ostream& os, T table,
                                            const char* type) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   PrintHeapObjectHeaderWithoutMap(table, os, type);
   os << "\n - FixedArray length: " << table.length();
@@ -2420,7 +2420,7 @@ int Name::NameShortPrint(Vector<char> str) {
 }
 
 void Map::PrintMapDetails(std::ostream& os) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   this->MapPrint(os);
   instance_descriptors(kRelaxedLoad).PrintDescriptors(os);
 }
@@ -2486,7 +2486,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   // the isolate to iterate over the transitions.
   if (!IsReadOnlyHeapObject(*this)) {
     Isolate* isolate = GetIsolateFromWritableObject(*this);
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     TransitionsAccessor transitions(isolate, *this, &no_gc);
     int nof_transitions = transitions.NumberOfTransitions();
     if (nof_transitions > 0) {
@@ -2631,13 +2631,13 @@ void TransitionsAccessor::PrintTransitions(std::ostream& os) {  // NOLINT
 void TransitionsAccessor::PrintTransitionTree() {
   StdoutStream os;
   os << "map= " << Brief(map_);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   PrintTransitionTree(os, 0, &no_gc);
   os << "\n" << std::flush;
 }
 
-void TransitionsAccessor::PrintTransitionTree(std::ostream& os, int level,
-                                              DisallowHeapAllocation* no_gc) {
+void TransitionsAccessor::PrintTransitionTree(
+    std::ostream& os, int level, DisallowGarbageCollection* no_gc) {
   ReadOnlyRoots roots = ReadOnlyRoots(isolate_);
   int num_transitions = NumberOfTransitions();
   if (num_transitions == 0) return;
@@ -2680,7 +2680,7 @@ void TransitionsAccessor::PrintTransitionTree(std::ostream& os, int level,
 }
 
 void JSObject::PrintTransitions(std::ostream& os) {  // NOLINT
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   TransitionsAccessor ta(GetIsolate(), map(), &no_gc);
   if (ta.NumberOfTransitions() == 0) return;
   os << "\n - transitions";
@@ -2780,7 +2780,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_TransitionTree(void* object) {
     printf("Please provide a valid Map\n");
   } else {
 #if defined(DEBUG) || defined(OBJECT_PRINT)
-    i::DisallowHeapAllocation no_gc;
+    i::DisallowGarbageCollection no_gc;
     i::Map map = i::Map::unchecked_cast(o);
     i::TransitionsAccessor transitions(i::Isolate::Current(), map, &no_gc);
     transitions.PrintTransitionTree();

@@ -306,7 +306,7 @@ class SequentialStringKey final : public StringTableKey {
 
   bool IsMatch(String s) override {
     SharedStringAccessGuardIfNeeded access_guard(s);
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     if (s.IsOneByteRepresentation()) {
       const uint8_t* chars = s.GetChars<uint8_t>(no_gc, access_guard);
       return CompareChars(chars, chars_.begin(), chars_.length()) == 0;
@@ -360,7 +360,7 @@ class SeqSubStringKey final : public StringTableKey {
         from_(from),
         convert_(convert) {
     // We have to set the hash later.
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     uint32_t raw_hash_field = StringHasher::HashSequentialString(
         string->GetChars(no_gc) + from, len, HashSeed(isolate));
     set_raw_hash_field(raw_hash_field);
@@ -375,7 +375,7 @@ class SeqSubStringKey final : public StringTableKey {
 #endif
 
   bool IsMatch(String string) override {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     if (string.IsOneByteRepresentation()) {
       const uint8_t* data = string.GetChars<uint8_t>(no_gc);
       return CompareChars(string_->GetChars(no_gc) + from_, data, length()) ==
@@ -391,7 +391,7 @@ class SeqSubStringKey final : public StringTableKey {
       Handle<SeqOneByteString> result =
           isolate->factory()->AllocateRawOneByteInternalizedString(
               length(), raw_hash_field());
-      DisallowHeapAllocation no_gc;
+      DisallowGarbageCollection no_gc;
       CopyChars(result->GetChars(no_gc), string_->GetChars(no_gc) + from_,
                 length());
       return result;
@@ -399,7 +399,7 @@ class SeqSubStringKey final : public StringTableKey {
     Handle<SeqTwoByteString> result =
         isolate->factory()->AllocateRawTwoByteInternalizedString(
             length(), raw_hash_field());
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     CopyChars(result->GetChars(no_gc), string_->GetChars(no_gc) + from_,
               length());
     return result;
@@ -431,7 +431,7 @@ bool String::Equals(Isolate* isolate, Handle<String> one, Handle<String> two) {
 }
 
 template <typename Char>
-const Char* String::GetChars(const DisallowHeapAllocation& no_gc) {
+const Char* String::GetChars(const DisallowGarbageCollection& no_gc) {
   return StringShape(*this).IsExternal()
              ? CharTraits<Char>::ExternalString::cast(*this).GetChars()
              : CharTraits<Char>::String::cast(*this).GetChars(no_gc);
@@ -439,7 +439,7 @@ const Char* String::GetChars(const DisallowHeapAllocation& no_gc) {
 
 template <typename Char>
 const Char* String::GetChars(
-    const DisallowHeapAllocation& no_gc,
+    const DisallowGarbageCollection& no_gc,
     const SharedStringAccessGuardIfNeeded& access_guard) {
   return StringShape(*this).IsExternal()
              ? CharTraits<Char>::ExternalString::cast(*this).GetChars()
@@ -523,7 +523,7 @@ String String::GetUnderlying() {
 template <class Visitor>
 ConsString String::VisitFlat(Visitor* visitor, String string,
                              const int offset) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   int slice_offset = offset;
   const int length = string.length();
   DCHECK(offset <= length);
@@ -579,7 +579,7 @@ ConsString String::VisitFlat(Visitor* visitor, String string,
 
 template <>
 inline Vector<const uint8_t> String::GetCharVector(
-    const DisallowHeapAllocation& no_gc) {
+    const DisallowGarbageCollection& no_gc) {
   String::FlatContent flat = GetFlatContent(no_gc);
   DCHECK(flat.IsOneByte());
   return flat.ToOneByteVector();
@@ -587,7 +587,7 @@ inline Vector<const uint8_t> String::GetCharVector(
 
 template <>
 inline Vector<const uc16> String::GetCharVector(
-    const DisallowHeapAllocation& no_gc) {
+    const DisallowGarbageCollection& no_gc) {
   String::FlatContent flat = GetFlatContent(no_gc);
   DCHECK(flat.IsTwoByte());
   return flat.ToUC16Vector();
@@ -614,14 +614,14 @@ Address SeqOneByteString::GetCharsAddress() {
   return field_address(kHeaderSize);
 }
 
-uint8_t* SeqOneByteString::GetChars(const DisallowHeapAllocation& no_gc) {
+uint8_t* SeqOneByteString::GetChars(const DisallowGarbageCollection& no_gc) {
   USE(no_gc);
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
   return reinterpret_cast<uint8_t*>(GetCharsAddress());
 }
 
 uint8_t* SeqOneByteString::GetChars(
-    const DisallowHeapAllocation& no_gc,
+    const DisallowGarbageCollection& no_gc,
     const SharedStringAccessGuardIfNeeded& access_guard) {
   USE(no_gc);
   USE(access_guard);
@@ -632,14 +632,14 @@ Address SeqTwoByteString::GetCharsAddress() {
   return field_address(kHeaderSize);
 }
 
-uc16* SeqTwoByteString::GetChars(const DisallowHeapAllocation& no_gc) {
+uc16* SeqTwoByteString::GetChars(const DisallowGarbageCollection& no_gc) {
   USE(no_gc);
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
   return reinterpret_cast<uc16*>(GetCharsAddress());
 }
 
 uc16* SeqTwoByteString::GetChars(
-    const DisallowHeapAllocation& no_gc,
+    const DisallowGarbageCollection& no_gc,
     const SharedStringAccessGuardIfNeeded& access_guard) {
   USE(no_gc);
   USE(access_guard);
@@ -885,7 +885,7 @@ void StringCharacterStream::VisitTwoByteString(const uint16_t* chars,
 }
 
 bool String::AsArrayIndex(uint32_t* index) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   uint32_t field = raw_hash_field();
   if (ContainsCachedArrayIndex(field)) {
     *index = ArrayIndexValueBits::decode(field);
@@ -910,8 +910,8 @@ bool String::AsIntegerIndex(size_t* index) {
 }
 
 SubStringRange::SubStringRange(String string,
-                               const DisallowHeapAllocation& no_gc, int first,
-                               int length)
+                               const DisallowGarbageCollection& no_gc,
+                               int first, int length)
     : string_(string),
       first_(first),
       length_(length == -1 ? string.length() : length),
@@ -943,7 +943,7 @@ class SubStringRange::iterator final {
  private:
   friend class String;
   friend class SubStringRange;
-  iterator(String from, int offset, const DisallowHeapAllocation& no_gc)
+  iterator(String from, int offset, const DisallowGarbageCollection& no_gc)
       : content_(from.GetFlatContent(no_gc)), offset_(offset) {}
   String::FlatContent content_;
   int offset_;

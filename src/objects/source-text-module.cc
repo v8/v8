@@ -139,7 +139,7 @@ void SourceTextModule::CreateExport(Isolate* isolate,
 }
 
 Cell SourceTextModule::GetCell(int cell_index) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Object cell;
   switch (SourceTextModuleDescriptor::GetCellIndexKind(cell_index)) {
     case SourceTextModuleDescriptor::kImport:
@@ -163,7 +163,7 @@ Handle<Object> SourceTextModule::LoadVariable(Isolate* isolate,
 
 void SourceTextModule::StoreVariable(Handle<SourceTextModule> module,
                                      int cell_index, Handle<Object> value) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   DCHECK_EQ(SourceTextModuleDescriptor::GetCellIndexKind(cell_index),
             SourceTextModuleDescriptor::kExport);
   module->GetCell(cell_index).set_value(*value);

@@ -362,7 +362,7 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
   if (output_type_ == OutputType::kCC) {
     // For now, generated C++ is only for field offset computations. If we ever
     // generate C++ code that can allocate, then it should be handlified.
-    csa_ccfile() << "  DisallowHeapAllocation no_gc;\n";
+    csa_ccfile() << "  DisallowGarbageCollection no_gc;\n";
   } else {
     csa_ccfile() << "  compiler::CodeAssembler ca_(state_);\n";
     csa_ccfile()
