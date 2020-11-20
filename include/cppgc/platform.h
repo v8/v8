@@ -116,9 +116,11 @@ class V8_EXPORT Platform {
   }
 
   /**
-   * Returns an instance of a TracingController. This must be non-nullptr.
+   * Returns an instance of a `TracingController`. This must be non-nullptr. The
+   * default implementation returns an empty `TracingController` that consumes
+   * trace data without effect.
    */
-  virtual TracingController* GetTracingController() = 0;
+  virtual TracingController* GetTracingController();
 };
 
 /**
