@@ -9999,6 +9999,40 @@ TNode<Float64T> CodeStubAssembler::PrepareValueForWriteToTypedArray<Float64T>(
   return var_result.value();
 }
 
+template <>
+TNode<BigInt> CodeStubAssembler::PrepareValueForWriteToTypedArray<BigInt>(
+    TNode<Object> input, ElementsKind elements_kind, TNode<Context> context) {
+  DCHECK(elements_kind == BIGINT64_ELEMENTS ||
+         elements_kind == BIGUINT64_ELEMENTS);
+  return ToBigInt(context, input);
+}
+
+template <>
+TNode<UntaggedT> CodeStubAssembler::PrepareValueForWriteToTypedArray(
+    TNode<Object> input, ElementsKind elements_kind, TNode<Context> context) {
+  DCHECK(IsTypedArrayElementsKind(elements_kind));
+
+  switch (elements_kind) {
+    case UINT8_ELEMENTS:
+    case INT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+    case INT32_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS:
+      return PrepareValueForWriteToTypedArray<Word32T>(input, elements_kind,
+                                                       context);
+    case FLOAT32_ELEMENTS:
+      return PrepareValueForWriteToTypedArray<Float32T>(input, elements_kind,
+                                                        context);
+    case FLOAT64_ELEMENTS:
+      return PrepareValueForWriteToTypedArray<Float64T>(input, elements_kind,
+                                                        context);
+    default:
+      UNREACHABLE();
+  }
+}
+
 Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
     TNode<Object> input, ElementsKind elements_kind, TNode<Context> context) {
   DCHECK(IsTypedArrayElementsKind(elements_kind));
