@@ -58,6 +58,7 @@ class V8_EXPORT_PRIVATE CppHeap final : public cppgc::internal::HeapBase,
 
   Isolate& isolate_;
   bool marking_done_ = false;
+  bool is_in_final_pause_ = false;
 };
 
 }  // namespace internal

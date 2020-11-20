@@ -82,7 +82,7 @@ enum CategoryGroupEnabledFlags {
 // Implementation detail: trace event macros create temporary variables
 // to keep instrumentation overhead low. These macros give each temporary
 // variable a unique name based on the line number to prevent name collisions.
-#define INTERNAL_TRACE_EVENT_UID3(a, b) trace_event_unique_##a##b
+#define INTERNAL_TRACE_EVENT_UID3(a, b) cppgc_trace_event_unique_##a##b
 #define INTERNAL_TRACE_EVENT_UID2(a, b) INTERNAL_TRACE_EVENT_UID3(a, b)
 #define INTERNAL_TRACE_EVENT_UID(name_prefix) \
   INTERNAL_TRACE_EVENT_UID2(name_prefix, __LINE__)
