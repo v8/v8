@@ -56,15 +56,15 @@ class CachePage {
 template <class T>
 static T ComputeRounding(T a, int mode) {
   switch (mode) {
-    case ROUND_TO_NEAREST_WITH_TIES_AWAY_FROM_0:
+    case ROUND_TO_NEAREST_AWAY_FROM_0:
       return std::round(a);
-    case ROUND_TO_NEAREST_WITH_TIES_TO_EVEN:
+    case ROUND_TO_NEAREST_TO_EVEN:
       return std::nearbyint(a);
     case ROUND_TOWARD_0:
       return std::trunc(a);
-    case ROUND_TOWARD_PLUS_INFINITE:
+    case ROUND_TOWARD_POS_INF:
       return std::ceil(a);
-    case ROUND_TOWARD_MINUS_INFINITE:
+    case ROUND_TOWARD_NEG_INF:
       return std::floor(a);
     default:
       UNIMPLEMENTED();

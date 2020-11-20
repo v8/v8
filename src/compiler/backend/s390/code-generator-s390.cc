@@ -2047,16 +2047,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_UNARY_OP(D_DInstr(sqdbr), nullInstr, nullInstr);
       break;
     case kS390_FloorFloat:
-      __ fiebra(v8::internal::Assembler::FIDBRA_ROUND_TOWARD_NEG_INF,
-                i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      __ fiebra(ROUND_TOWARD_NEG_INF, i.OutputDoubleRegister(),
+                i.InputDoubleRegister(0));
       break;
     case kS390_CeilFloat:
-      __ fiebra(v8::internal::Assembler::FIDBRA_ROUND_TOWARD_POS_INF,
-                i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      __ fiebra(ROUND_TOWARD_POS_INF, i.OutputDoubleRegister(),
+                i.InputDoubleRegister(0));
       break;
     case kS390_TruncateFloat:
-      __ fiebra(v8::internal::Assembler::FIDBRA_ROUND_TOWARD_0,
-                i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      __ fiebra(ROUND_TOWARD_0, i.OutputDoubleRegister(),
+                i.InputDoubleRegister(0));
       break;
     //  Double operations
     case kS390_ModDouble:
@@ -2148,20 +2148,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ lpdbr(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_FloorDouble:
-      __ fidbra(v8::internal::Assembler::FIDBRA_ROUND_TOWARD_NEG_INF,
-                i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      __ fidbra(ROUND_TOWARD_NEG_INF, i.OutputDoubleRegister(),
+                i.InputDoubleRegister(0));
       break;
     case kS390_CeilDouble:
-      __ fidbra(v8::internal::Assembler::FIDBRA_ROUND_TOWARD_POS_INF,
-                i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      __ fidbra(ROUND_TOWARD_POS_INF, i.OutputDoubleRegister(),
+                i.InputDoubleRegister(0));
       break;
     case kS390_TruncateDouble:
-      __ fidbra(v8::internal::Assembler::FIDBRA_ROUND_TOWARD_0,
-                i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      __ fidbra(ROUND_TOWARD_0, i.OutputDoubleRegister(),
+                i.InputDoubleRegister(0));
       break;
     case kS390_RoundDouble:
-      __ fidbra(v8::internal::Assembler::FIDBRA_ROUND_TO_NEAREST_AWAY_FROM_0,
-                i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      __ fidbra(ROUND_TO_NEAREST_AWAY_FROM_0, i.OutputDoubleRegister(),
+                i.InputDoubleRegister(0));
       break;
     case kS390_NegFloat:
       ASSEMBLE_UNARY_OP(D_DInstr(lcebr), nullInstr, nullInstr);

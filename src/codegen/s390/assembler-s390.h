@@ -402,6 +402,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   S390_RRE_OPCODE_LIST(DECLARE_S390_RRE_INSTRUCTIONS)
   // Special format
   void lzdr(DoubleRegister r1) { rre_format(LZDR, r1.code(), 0); }
+  void lzer(DoubleRegister r1) { rre_format(LZER, r1.code(), 0); }
 #undef DECLARE_S390_RRE_INSTRUCTIONS
 
 #define DECLARE_S390_RX_INSTRUCTIONS(name, op_name, op_value)            \
@@ -676,15 +677,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   S390_RRF_E_OPCODE_LIST(DECLARE_S390_RRF_E_INSTRUCTIONS)
 #undef DECLARE_S390_RRF_E_INSTRUCTIONS
-
-  enum FIDBRA_FLAGS {
-    FIDBRA_CURRENT_ROUNDING_MODE = 0,
-    FIDBRA_ROUND_TO_NEAREST_AWAY_FROM_0 = 1,
-    // ...
-    FIDBRA_ROUND_TOWARD_0 = 5,
-    FIDBRA_ROUND_TOWARD_POS_INF = 6,
-    FIDBRA_ROUND_TOWARD_NEG_INF = 7
-  };
 
   inline void rsi_format(Opcode op, int f1, int f2, int f3) {
     DCHECK(is_uint8(op));
