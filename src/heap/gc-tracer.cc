@@ -335,6 +335,34 @@ void GCTracer::Stop(GarbageCollector collector) {
 
   double duration = current_.end_time - current_.start_time;
 
+  auto record =
+    [&](double duration) {
+      heap_->UpdateTotalMajorGCTime(duration);
+      int64_t gced = static_cast<int64_t>(current_.start_object_size) - current_.end_object_size;
+      std::cout
+        << "gc, name: " << heap_->name_
+        << " size: " << current_.start_object_size << " duration: " << duration << " speed: " << current_.start_object_size / duration
+        << " garbage collected: " << gced << " speed: " << gced / duration
+        << " heap limit: " << heap_->old_generation_allocation_limit() << " size before gc: " << current_.start_object_size << " guid: " << heap_->guid()
+        << std::endl;
+      auto bad = MakeBytesAndDuration(gced, duration);
+      CHECK(!heap_->major_gc_bad);
+      heap_->major_gc_bad = bad;
+      if (has_last_gc) {
+        // assumption broken due to incremental gc
+        // CHECK(current_.start_object_size >= last_gc_end_bytes);
+        CHECK(current_.end_time - last_gc_end_time - duration > 0);
+        auto bad = MakeBytesAndDuration(std::max<int64_t>(0,
+                                                          current_.start_object_size - last_gc_end_bytes + heap_->AllocatedExternalMemorySinceMarkCompact()),
+                                        current_.end_time - last_gc_end_time - duration);
+        CHECK(!heap_->major_allocation_bad);
+        heap_->major_allocation_bad = bad;
+      }
+      has_last_gc = true;
+      last_gc_end_bytes = current_.end_object_size;
+      last_gc_end_time = current_.end_time;
+    };
+
   switch (current_.type) {
     case Event::SCAVENGER:
     case Event::MINOR_MARK_COMPACTOR:
@@ -362,6 +390,7 @@ void GCTracer::Stop(GarbageCollector collector) {
       ResetIncrementalMarkingCounters();
       combined_mark_compact_speed_cache_ = 0.0;
       FetchBackgroundMarkCompactCounters();
+      record(duration + current_.incremental_marking_duration);
       break;
     case Event::MARK_COMPACTOR:
       DCHECK_EQ(0u, current_.incremental_marking_bytes);
@@ -374,6 +403,7 @@ void GCTracer::Stop(GarbageCollector collector) {
       ResetIncrementalMarkingCounters();
       combined_mark_compact_speed_cache_ = 0.0;
       FetchBackgroundMarkCompactCounters();
+      record(duration);
       break;
     case Event::START:
       UNREACHABLE();

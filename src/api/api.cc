@@ -8750,6 +8750,18 @@ i::Address* Isolate::GetDataFromSnapshotOnce(size_t index) {
   return GetSerializedDataFromFixedArray(i_isolate, list, index);
 }
 
+std::string Isolate::GetName() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  i::Heap* heap = isolate->heap();
+  return heap->name_;
+}
+
+void Isolate::SetName(const std::string& name) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  i::Heap* heap = isolate->heap();
+  heap->name_ = name;
+}
+
 void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   i::Heap* heap = isolate->heap();

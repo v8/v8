@@ -8856,6 +8856,8 @@ class V8_EXPORT Isolate {
    */
   void GetHeapStatistics(HeapStatistics* heap_statistics);
 
+  std::string GetName();
+  void SetName(const std::string& name);
   /**
    * Returns the number of spaces in the heap.
    */

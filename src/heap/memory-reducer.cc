@@ -137,11 +137,19 @@ bool MemoryReducer::WatchdogGC(const State& state, const Event& event) {
          event.time_ms > state.last_gc_time_ms + kWatchdogDelayMs;
 }
 
+inline std::string get_env(const std::string& env_name) {
+  char* ret = getenv(env_name.c_str());
+  return ret ? std::string(ret) : std::string();
+}
+
+inline bool use_membalancer() {
+  return get_env("USE_MEMBALANCER") == "1";
+}
 
 // For specification of this function see the comment for MemoryReducer class.
 MemoryReducer::State MemoryReducer::Step(const State& state,
                                          const Event& event) {
-  if (!FLAG_incremental_marking || !FLAG_memory_reducer) {
+  if (use_membalancer() || !FLAG_incremental_marking || !FLAG_memory_reducer) {
     return State(kDone, 0, 0, state.last_gc_time_ms, 0);
   }
   switch (state.action) {
