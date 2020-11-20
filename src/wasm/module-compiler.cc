@@ -1463,7 +1463,6 @@ class CompilationTimeCallback {
           true,                                    // success
           native_module->liftoff_code_size(),      // code_size_in_bytes
           native_module->liftoff_bailout_count(),  // liftoff_bailout_count
-          duration.InMicroseconds(),               // wall_clock_time_in_us
           duration.InMicroseconds()                // wall_clock_duration_in_us
       };
       metrics_recorder_->DelayMainThreadEvent(event, context_id_);
@@ -1475,7 +1474,6 @@ class CompilationTimeCallback {
       v8::metrics::WasmModuleTieredUp event{
           FLAG_wasm_lazy_compilation,           // lazy
           native_module->turbofan_code_size(),  // code_size_in_bytes
-          duration.InMicroseconds(),            // wall_clock_time_in_us
           duration.InMicroseconds()             // wall_clock_duration_in_us
       };
       metrics_recorder_->DelayMainThreadEvent(event, context_id_);
@@ -1490,7 +1488,6 @@ class CompilationTimeCallback {
           false,                                   // success
           native_module->liftoff_code_size(),      // code_size_in_bytes
           native_module->liftoff_bailout_count(),  // liftoff_bailout_count
-          duration.InMicroseconds(),               // wall_clock_time_in_us
           duration.InMicroseconds()                // wall_clock_duration_in_us
       };
       metrics_recorder_->DelayMainThreadEvent(event, context_id_);
@@ -1880,7 +1877,6 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
           !compilation_state->failed(),             // success
           native_module_->liftoff_code_size(),      // code_size_in_bytes
           native_module_->liftoff_bailout_count(),  // liftoff_bailout_count
-          duration.InMicroseconds(),                // wall_clock_time_in_us
           duration.InMicroseconds()                 // wall_clock_duration_in_us
       };
       isolate_->metrics_recorder()->DelayMainThreadEvent(event, context_id_);
@@ -2395,7 +2391,6 @@ void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(
   job_->metrics_event_.streamed = true;
   job_->metrics_event_.module_size_in_bytes = job_->wire_bytes_.length();
   job_->metrics_event_.function_count = num_functions_;
-  job_->metrics_event_.wall_clock_time_in_us = duration.InMicroseconds();
   job_->metrics_event_.wall_clock_duration_in_us = duration.InMicroseconds();
   job_->isolate_->metrics_recorder()->DelayMainThreadEvent(job_->metrics_event_,
                                                            job_->context_id_);
@@ -2619,7 +2614,6 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
   job_->metrics_event_.streamed = true;
   job_->metrics_event_.module_size_in_bytes = job_->wire_bytes_.length();
   job_->metrics_event_.function_count = num_functions_;
-  job_->metrics_event_.wall_clock_time_in_us = duration.InMicroseconds();
   job_->metrics_event_.wall_clock_duration_in_us = duration.InMicroseconds();
   job_->isolate_->metrics_recorder()->DelayMainThreadEvent(job_->metrics_event_,
                                                            job_->context_id_);
