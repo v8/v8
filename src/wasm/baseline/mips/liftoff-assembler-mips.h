@@ -861,9 +861,15 @@ I32_SHIFTOP_I(shr, srl)
 #undef I32_SHIFTOP_I
 
 void LiftoffAssembler::emit_i64_addi(LiftoffRegister dst, LiftoffRegister lhs,
-                                     int32_t imm) {
+                                     int64_t imm) {
+  LiftoffRegister imm_reg =
+    GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dst, lhs));
+  int32_t imm_low_word = static_cast<int32_t>(imm);
+  int32_t imm_high_word = static_cast<int32_t>(imm >> 32);
+  TurboAssembler::li(imm_reg.low_gp(), imm_low_word);
+  TurboAssembler::li(imm_reg.high_gp(), imm_high_word);
   TurboAssembler::AddPair(dst.low_gp(), dst.high_gp(), lhs.low_gp(),
-                          lhs.high_gp(), imm,
+                          lhs.high_gp(), imm_reg.low_gp(), imm_reg.high_gp(),
                           kScratchReg, kScratchReg2);
 }
 
@@ -1608,7 +1614,7 @@ bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
 }
 
 void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
-                                     Register offset_reg, uint32_t offset_imm,
+                                     Register offset_reg, uintptr_t offset_imm,
                                      LoadType type,
                                      LoadTransformationKind transform,
                                      uint32_t* protected_load_pc) {
