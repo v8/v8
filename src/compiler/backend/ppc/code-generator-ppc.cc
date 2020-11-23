@@ -2892,9 +2892,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vxor(dst, i.InputSimd128Register(0), src);
       break;
     }
+    case kPPC_S128Const: {
+      Simd128Register dst = i.OutputSimd128Register();
+      constexpr int lane_width_in_bytes = 8;
+      uint64_t low = make_uint64(i.InputUint32(1), i.InputUint32(0));
+      uint64_t high = make_uint64(i.InputUint32(3), i.InputUint32(2));
+      __ mov(r0, Operand(low));
+      __ mov(ip, Operand(high));
+      __ mtvsrd(dst, ip);
+      __ mtvsrd(kScratchDoubleReg, r0);
+      __ vinsertd(dst, kScratchDoubleReg, Operand(1 * lane_width_in_bytes));
+      break;
+    }
     case kPPC_S128Zero: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vxor(dst, dst, dst);
+      break;
+    }
+    case kPPC_S128AllOnes: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vcmpequb(dst, dst, dst);
       break;
     }
     case kPPC_S128Not: {

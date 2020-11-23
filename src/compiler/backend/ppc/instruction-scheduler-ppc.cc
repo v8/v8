@@ -296,7 +296,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_S128And:
     case kPPC_S128Or:
     case kPPC_S128Xor:
+    case kPPC_S128Const:
     case kPPC_S128Zero:
+    case kPPC_S128AllOnes:
     case kPPC_S128Not:
     case kPPC_S128Select:
     case kPPC_S128AndNot:
