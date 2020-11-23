@@ -569,7 +569,7 @@ void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* page) {
 void Scavenger::ScavengePage(MemoryChunk* page) {
   CodePageMemoryModificationScope memory_modification_scope(page);
 
-  if (page->slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() != nullptr) {
+  if (page->slot_set<OLD_TO_NEW, AccessMode::ATOMIC>() != nullptr) {
     InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(page);
     RememberedSet<OLD_TO_NEW>::IterateAndTrackEmptyBuckets(
         page,
