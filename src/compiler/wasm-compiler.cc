@@ -6201,12 +6201,19 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           return node;
         }
         if (representation == wasm::HeapType::kEq) {
+          // TODO(7748): Update this when JS interop is settled.
           return BuildAllocateObjectWrapper(node);
         }
         if (representation == wasm::HeapType::kAny) {
-          // TODO(7748): Add wrapping for arrays/structs, or proper JS API when
-          // available.
-          return node;
+          // Only wrap {node} if it is an array or struct.
+          // TODO(7748): Update this when JS interop is settled.
+          auto done = gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
+          gasm_->GotoIfNot(gasm_->IsDataRefMap(gasm_->LoadMap(node)), &done,
+                           node);
+          Node* wrapped = BuildAllocateObjectWrapper(node);
+          gasm_->Goto(&done, wrapped);
+          gasm_->Bind(&done);
+          return done.PhiAt(0);
         }
         if (type.has_index() && module_->has_signature(type.ref_index())) {
           // Typed function
@@ -6236,7 +6243,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
   }
 
-  Node* BuildUnpackObjectWrapper(Node* input) {
+  enum UnpackFailureBehavior : bool { kReturnInput, kReturnNull };
+
+  Node* BuildUnpackObjectWrapper(Node* input, UnpackFailureBehavior failure) {
     Node* obj = CALL_BUILTIN(
         WasmGetOwnProperty, input,
         LOAD_FULL_POINTER(BuildLoadIsolateRoot(),
@@ -6244,7 +6253,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                               RootIndex::kwasm_wrapped_object_symbol)),
         LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
     // Invalid object wrappers (i.e. any other JS object that doesn't have the
-    // magic hidden property) will return {undefined}. Map that to {null}.
+    // magic hidden property) will return {undefined}. Map that to {null} or
+    // {input}, depending on the value of {failure}.
     Node* undefined = LOAD_FULL_POINTER(
         BuildLoadIsolateRoot(),
         IsolateData::root_slot_offset(RootIndex::kUndefinedValue));
@@ -6252,7 +6262,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Diamond check(graph(), mcgraph()->common(), is_undefined,
                   BranchHint::kFalse);
     check.Chain(control());
-    return check.Phi(MachineRepresentation::kTagged, RefNull(), obj);
+    return check.Phi(MachineRepresentation::kTagged,
+                     failure == kReturnInput ? input : RefNull(), obj);
   }
 
   Node* BuildChangeInt64ToBigInt(Node* input) {
@@ -6327,16 +6338,18 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         switch (type.heap_representation()) {
           case wasm::HeapType::kExtern:
           case wasm::HeapType::kExn:
-          // TODO(7748): Possibly implement different cases for 'any' when the
-          // JS API has settled.
-          case wasm::HeapType::kAny:
             return input;
+          case wasm::HeapType::kAny:
+            // If this is a wrapper for arrays/structs, unpack it.
+            // TODO(7748): Update this when JS interop has settled.
+            return BuildUnpackObjectWrapper(input, kReturnInput);
           case wasm::HeapType::kFunc:
             BuildCheckValidRefValue(input, js_context, type);
             return input;
           case wasm::HeapType::kEq:
+            // TODO(7748): Update this when JS interop has settled.
             BuildCheckValidRefValue(input, js_context, type);
-            return BuildUnpackObjectWrapper(input);
+            return BuildUnpackObjectWrapper(input, kReturnNull);
           case wasm::HeapType::kI31:
             // If this is reached, then IsJSCompatibleSignature() is too
             // permissive.

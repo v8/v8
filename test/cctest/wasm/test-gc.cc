@@ -1276,71 +1276,73 @@ TEST(IndirectNullSetManually) {
 }
 
 TEST(JsAccess) {
-  WasmGCTester tester;
-  const byte type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
-  ValueType kRefTypes[] = {ref(type_index)};
-  ValueType kEqRefTypes[] = {kWasmEqRef};
-  ValueType kEqToI[] = {kWasmI32, kWasmEqRef};
-  FunctionSig sig_t_v(1, 0, kRefTypes);
-  FunctionSig sig_q_v(1, 0, kEqRefTypes);
-  FunctionSig sig_i_q(1, 1, kEqToI);
+  for (ValueType supertype : {kWasmEqRef, kWasmAnyRef}) {
+    WasmGCTester tester;
+    const byte type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
+    ValueType kRefType = ref(type_index);
+    ValueType kSupertypeToI[] = {kWasmI32, supertype};
+    FunctionSig sig_t_v(1, 0, &kRefType);
+    FunctionSig sig_super_v(1, 0, &supertype);
+    FunctionSig sig_i_super(1, 1, kSupertypeToI);
 
-  tester.DefineExportedFunction(
-      "disallowed", &sig_t_v,
-      {WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(42),
-                                WASM_RTT_CANON(type_index)),
-       kExprEnd});
-  // Same code, different signature.
-  tester.DefineExportedFunction(
-      "producer", &sig_q_v,
-      {WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(42),
-                                WASM_RTT_CANON(type_index)),
-       kExprEnd});
-  tester.DefineExportedFunction(
-      "consumer", &sig_i_q,
-      {WASM_STRUCT_GET(type_index, 0,
-                       WASM_REF_CAST(kEqRefCode, type_index, WASM_GET_LOCAL(0),
-                                     WASM_RTT_CANON(type_index))),
-       kExprEnd});
+    tester.DefineExportedFunction(
+        "disallowed", &sig_t_v,
+        {WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(42),
+                                  WASM_RTT_CANON(type_index)),
+         kExprEnd});
+    // Same code, different signature.
+    tester.DefineExportedFunction(
+        "producer", &sig_super_v,
+        {WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(42),
+                                  WASM_RTT_CANON(type_index)),
+         kExprEnd});
+    tester.DefineExportedFunction(
+        "consumer", &sig_i_super,
+        {WASM_STRUCT_GET(
+             type_index, 0,
+             WASM_REF_CAST(supertype.value_type_code(), type_index,
+                           WASM_GET_LOCAL(0), WASM_RTT_CANON(type_index))),
+         kExprEnd});
 
-  tester.CompileModule();
-  Isolate* isolate = tester.isolate();
-  TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-  MaybeHandle<Object> maybe_result =
-      tester.CallExportedFunction("disallowed", 0, nullptr);
-  CHECK(maybe_result.is_null());
-  CHECK(try_catch.HasCaught());
-  try_catch.Reset();
-  isolate->clear_pending_exception();
+    tester.CompileModule();
+    Isolate* isolate = tester.isolate();
+    TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
+    MaybeHandle<Object> maybe_result =
+        tester.CallExportedFunction("disallowed", 0, nullptr);
+    CHECK(maybe_result.is_null());
+    CHECK(try_catch.HasCaught());
+    try_catch.Reset();
+    isolate->clear_pending_exception();
 
-  maybe_result = tester.CallExportedFunction("producer", 0, nullptr);
-  if (maybe_result.is_null()) {
-    FATAL("Calling 'producer' failed: %s",
-          *v8::String::Utf8Value(reinterpret_cast<v8::Isolate*>(isolate),
-                                 try_catch.Message()->Get()));
+    maybe_result = tester.CallExportedFunction("producer", 0, nullptr);
+    if (maybe_result.is_null()) {
+      FATAL("Calling 'producer' failed: %s",
+            *v8::String::Utf8Value(reinterpret_cast<v8::Isolate*>(isolate),
+                                   try_catch.Message()->Get()));
+    }
+    {
+      Handle<Object> args[] = {maybe_result.ToHandleChecked()};
+      maybe_result = tester.CallExportedFunction("consumer", 1, args);
+    }
+    if (maybe_result.is_null()) {
+      FATAL("Calling 'consumer' failed: %s",
+            *v8::String::Utf8Value(reinterpret_cast<v8::Isolate*>(isolate),
+                                   try_catch.Message()->Get()));
+    }
+    Handle<Object> result = maybe_result.ToHandleChecked();
+    CHECK(result->IsSmi());
+    CHECK_EQ(42, Smi::cast(*result).value());
+    // Calling {consumer} with any other object (e.g. the Smi we just got as
+    // {result}) should trap.
+    {
+      Handle<Object> args[] = {result};
+      maybe_result = tester.CallExportedFunction("consumer", 1, args);
+    }
+    CHECK(maybe_result.is_null());
+    CHECK(try_catch.HasCaught());
+    try_catch.Reset();
+    isolate->clear_pending_exception();
   }
-  {
-    Handle<Object> args[] = {maybe_result.ToHandleChecked()};
-    maybe_result = tester.CallExportedFunction("consumer", 1, args);
-  }
-  if (maybe_result.is_null()) {
-    FATAL("Calling 'consumer' failed: %s",
-          *v8::String::Utf8Value(reinterpret_cast<v8::Isolate*>(isolate),
-                                 try_catch.Message()->Get()));
-  }
-  Handle<Object> result = maybe_result.ToHandleChecked();
-  CHECK(result->IsSmi());
-  CHECK_EQ(42, Smi::cast(*result).value());
-  // Calling {consumer} with any other object (e.g. the Smi we just got as
-  // {result}) should trap.
-  {
-    Handle<Object> args[] = {result};
-    maybe_result = tester.CallExportedFunction("consumer", 1, args);
-  }
-  CHECK(maybe_result.is_null());
-  CHECK(try_catch.HasCaught());
-  try_catch.Reset();
-  isolate->clear_pending_exception();
 }
 
 }  // namespace test_gc
