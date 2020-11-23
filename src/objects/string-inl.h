@@ -26,14 +26,22 @@ namespace internal {
 
 #include "torque-generated/src/objects/string-tq-inl.inc"
 
-// Creates a SharedMutexGuard<kShared> for the string access if:
-// A) {str} is not a read only string, and
-// B) We are on a background thread.
 class SharedStringAccessGuardIfNeeded {
  public:
+  // Creates a SharedMutexGuard<kShared> for the string access if:
+  // A) {str} is not a read only string, and
+  // B) We are on a background thread.
   explicit SharedStringAccessGuardIfNeeded(String str) {
     Isolate* isolate;
     if (IsNeeded(str, &isolate)) mutex_guard.emplace(isolate->string_access());
+  }
+
+  // Creates a SharedMutexGuard<kShared> for the string access if it was called
+  // from a background thread.
+  SharedStringAccessGuardIfNeeded(String str, LocalIsolate* local_isolate) {
+    if (IsNeeded(str, local_isolate)) {
+      mutex_guard.emplace(local_isolate->string_access());
+    }
   }
 
   static SharedStringAccessGuardIfNeeded NotNeeded() {
@@ -53,6 +61,10 @@ class SharedStringAccessGuardIfNeeded {
     }
     if (out_isolate) *out_isolate = isolate;
     return true;
+  }
+
+  static bool IsNeeded(String str, LocalIsolate* local_isolate) {
+    return !local_isolate->heap()->is_main_thread();
   }
 
  private:
@@ -471,10 +483,18 @@ Handle<String> String::Flatten(LocalIsolate* isolate, Handle<String> string,
   return string;
 }
 
-uint16_t String::Get(int index) {
-  DCHECK(index >= 0 && index < length());
+uint16_t String::Get(int index, Isolate* isolate) {
+  DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
+  return GetImpl(index);
+}
 
-  SharedStringAccessGuardIfNeeded scope(*this);
+uint16_t String::Get(int index, LocalIsolate* local_isolate) {
+  SharedStringAccessGuardIfNeeded scope(*this, local_isolate);
+  return GetImpl(index);
+}
+
+uint16_t String::GetImpl(int index) {
+  DCHECK(index >= 0 && index < length());
 
   class StringGetDispatcher : public AllStatic {
    public:

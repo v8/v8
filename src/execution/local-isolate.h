@@ -52,6 +52,7 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   inline Object root(RootIndex index) const;
 
   StringTable* string_table() const { return isolate_->string_table(); }
+  base::SharedMutex* string_access() { return isolate_->string_access(); }
 
   v8::internal::LocalFactory* factory() {
     // Upcast to the privately inherited base-class using c-style casts to avoid

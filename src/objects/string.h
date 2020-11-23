@@ -214,7 +214,10 @@ class String : public TorqueGeneratedString<String, Name> {
   inline void Set(int index, uint16_t value);
   // Get individual two byte char in the string.  Repeated calls
   // to this method are not efficient unless the string is flat.
-  V8_INLINE uint16_t Get(int index);
+  // If it is called from a background thread, the LocalIsolate version should
+  // be used.
+  V8_INLINE uint16_t Get(int index, Isolate* isolate = nullptr);
+  V8_INLINE uint16_t Get(int index, LocalIsolate* local_isolate);
 
   // ES6 section 7.1.3.1 ToNumber Applied to the String Type
   static Handle<Object> ToNumber(Isolate* isolate, Handle<String> subject);
@@ -509,6 +512,9 @@ class String : public TorqueGeneratedString<String, Name> {
   friend class Name;
   friend class StringTableInsertionKey;
   friend class InternalizedStringKey;
+
+  // Implementation of the Get() public methods. Do not use directly.
+  V8_INLINE uint16_t GetImpl(int index);
 
   V8_EXPORT_PRIVATE static Handle<String> SlowFlatten(
       Isolate* isolate, Handle<ConsString> cons, AllocationType allocation);

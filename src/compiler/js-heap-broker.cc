@@ -3206,7 +3206,13 @@ uint16_t StringRef::GetFirstChar() {
   if (data_->should_access_heap()) {
     AllowHandleDereferenceIfNeeded allow_handle_dereference(data()->kind(),
                                                             broker()->mode());
-    return object()->Get(0);
+    if (broker()->local_isolate()) {
+      return object()->Get(0, broker()->local_isolate());
+    } else {
+      // TODO(solanes, v8:7790): Remove this case once we always have a local
+      // isolate, i.e. the inlining phase is done concurrently all the time.
+      return object()->Get(0);
+    }
   }
   return data()->AsString()->first_char();
 }

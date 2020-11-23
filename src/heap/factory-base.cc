@@ -569,8 +569,8 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
   int length = left_length + right_length;
 
   if (length == 2) {
-    uint16_t c1 = left->Get(0);
-    uint16_t c2 = right->Get(0);
+    uint16_t c1 = left->Get(0, isolate());
+    uint16_t c2 = right->Get(0, isolate());
     return MakeOrFindTwoCharacterString(c1, c2);
   }
 
