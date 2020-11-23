@@ -182,6 +182,10 @@ inline void EmitAllTrue(LiftoffAssembler* assm, LiftoffRegister dst,
 int LiftoffAssembler::PrepareStackFrame() {
   int offset = pc_offset();
   InstructionAccurateScope scope(this, 1);
+  // Next we reserve the memory for the whole stack frame. We do not know yet
+  // how big the stack frame will be so we just emit a placeholder instruction.
+  // PatchPrepareStackFrame will patch this in order to increase the stack
+  // appropriately.
   sub(sp, sp, 0);
   return offset;
 }
