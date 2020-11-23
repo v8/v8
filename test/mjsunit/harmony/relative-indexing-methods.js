@@ -45,3 +45,5 @@ assertThrows(() => {
     a.at(0);
   }, TypeError);
 }
+
+assertEquals(Array.prototype[Symbol.unscopables].at, true);

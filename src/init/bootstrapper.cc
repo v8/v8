@@ -4406,6 +4406,12 @@ void Genesis::InitializeGlobal_harmony_relative_indexing_methods() {
 
     SimpleInstallFunction(isolate(), array_prototype, "at",
                           Builtins::kArrayPrototypeAt, 1, true);
+
+    Handle<JSObject> unscopables = Handle<JSObject>::cast(
+        JSReceiver::GetProperty(isolate(), array_prototype,
+                                factory()->unscopables_symbol())
+            .ToHandleChecked());
+    InstallTrueValuedProperty(isolate(), unscopables, "at");
   }
 
   {
