@@ -298,7 +298,7 @@ JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
     : is_import_(is_import),
       sig_(sig),
       use_generic_wrapper_(allow_generic && UseGenericWrapper(sig) &&
-                           !is_import),
+                           !is_import && !is_asmjs_module(module)),
       job_(use_generic_wrapper_ ? nullptr
                                 : compiler::NewJSToWasmCompilationJob(
                                       isolate, wasm_engine, sig, module,
