@@ -994,6 +994,12 @@ TEST(Neon) {
 
   if (CpuFeatures::IsSupported(NEON)) {
     CpuFeatureScope scope(&assm, NEON);
+      COMPARE(vld1(Neon8, NeonListOperand(d4, 1), NeonMemOperand(r1)),
+              "f421470f       vld1.8 {d4}, [r1]");
+      COMPARE(vld1(Neon8, NeonListOperand(d4, 2), NeonMemOperand(r1)),
+              "f4214a0f       vld1.8 {d4, d5}, [r1]");
+      COMPARE(vld1(Neon8, NeonListOperand(d4, 3), NeonMemOperand(r1)),
+              "f421460f       vld1.8 {d4, d5, d6}, [r1]");
       COMPARE(vld1(Neon8, NeonListOperand(d4, 4), NeonMemOperand(r1)),
               "f421420f       vld1.8 {d4, d5, d6, d7}, [r1]");
       COMPARE(vld1s(Neon32, NeonListOperand(d4, 1), 0, NeonMemOperand(r1)),
@@ -1004,6 +1010,12 @@ TEST(Neon) {
               "f4a14c0f       vld1.8 {d4}, [r1]");
       COMPARE(vld1r(Neon16, NeonListOperand(d4, 2), NeonMemOperand(r1)),
               "f4a14c6f       vld1.16 {d4, d5}, [r1]");
+      COMPARE(vst1(Neon8, NeonListOperand(d4, 1), NeonMemOperand(r6)),
+              "f406470f       vst1.8 {d4}, [r6]")
+      COMPARE(vst1(Neon8, NeonListOperand(q4), NeonMemOperand(r6)),
+              "f4068a0f       vst1.8 {d8, d9}, [r6]")
+      COMPARE(vst1(Neon8, NeonListOperand(d4, 3), NeonMemOperand(r6)),
+              "f406460f       vst1.8 {d4, d5, d6}, [r6]")
       COMPARE(vst1(Neon16, NeonListOperand(d17, 4), NeonMemOperand(r9)),
               "f449124f       vst1.16 {d17, d18, d19, d20}, [r9]");
       COMPARE(vmovl(NeonU8, q3, d1), "f3886a11       vmovl.u8 q3, d1");

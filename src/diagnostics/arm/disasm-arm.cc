@@ -2442,7 +2442,7 @@ void Decoder::DecodeAdvancedSIMDElementOrStructureLoadStore(
   if (op0 == 0) {
     // Advanced SIMD load/store multiple structures.
     int itype = instr->Bits(11, 8);
-    if (itype == 0b0010) {
+    if (itype == nlt_1 || itype == nlt_2 || itype == nlt_3 || itype == nlt_4) {
       // vld1/vst1
       int size = instr->Bits(7, 6);
       int align = instr->Bits(5, 4);
