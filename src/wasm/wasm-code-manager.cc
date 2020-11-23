@@ -1478,7 +1478,11 @@ NativeModule::JumpTablesRef NativeModule::FindJumpTablesForRegion(
     size_t max_distance = std::max(
         code_region.end() > table_start ? code_region.end() - table_start : 0,
         table_end > code_region.begin() ? table_end - code_region.begin() : 0);
-    return max_distance < WasmCodeAllocator::kMaxCodeSpaceSize;
+    // We can allow a max_distance that is equal to kMaxCodeSpaceSize, because
+    // every call or jump will target an address *within* the region, but never
+    // exactly the end of the region. So all occuring offsets are actually
+    // smaller than max_distance.
+    return max_distance <= WasmCodeAllocator::kMaxCodeSpaceSize;
   };
 
   // Fast path: Try to use {main_jump_table_} and {main_far_jump_table_}.
