@@ -1630,7 +1630,7 @@ WASM_SIMD_TEST(I32x4BitMask) {
 }
 
 // TODO(v8:10997) Prototyping i64x2.bitmask.
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 WASM_SIMD_TEST_NO_LOWERING(I64x2BitMask) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
@@ -1648,7 +1648,7 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2BitMask) {
     CHECK_EQ(actual, expected);
   }
 }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 WASM_SIMD_TEST(I8x16Splat) {
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);

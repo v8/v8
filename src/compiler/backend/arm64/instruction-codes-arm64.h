@@ -233,6 +233,7 @@ namespace compiler {
   V(Arm64I64x2Mul)                          \
   V(Arm64I64x2Eq)                           \
   V(Arm64I64x2ShrU)                         \
+  V(Arm64I64x2BitMask)                      \
   V(Arm64I32x4Splat)                        \
   V(Arm64I32x4ExtractLane)                  \
   V(Arm64I32x4ReplaceLane)                  \

@@ -2208,6 +2208,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_SHIFT_RIGHT(Ushr, 6, V2D, Ushl, X);
       break;
     }
+    case kArm64I64x2BitMask: {
+      UseScratchRegisterScope scope(tasm());
+      Register dst = i.OutputRegister32();
+      VRegister src = i.InputSimd128Register(0);
+      VRegister tmp1 = scope.AcquireV(kFormat2D);
+      Register tmp2 = scope.AcquireX();
+      __ Ushr(tmp1.V2D(), src.V2D(), 63);
+      __ Mov(dst.X(), tmp1.D(), 0);
+      __ Mov(tmp2.X(), tmp1.D(), 1);
+      __ Add(dst.W(), dst.W(), Operand(tmp2.W(), LSL, 1));
+      break;
+    }
     case kArm64I32x4Splat: {
       __ Dup(i.OutputSimd128Register().V4S(), i.InputRegister32(0));
       break;
@@ -2265,10 +2277,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_CASE(kArm64I32x4GeU, Cmhs, 4S);
       SIMD_UNOP_CASE(kArm64I32x4Abs, Abs, 4S);
     case kArm64I32x4BitMask: {
+      UseScratchRegisterScope scope(tasm());
       Register dst = i.OutputRegister32();
       VRegister src = i.InputSimd128Register(0);
-      VRegister tmp = i.TempSimd128Register(0);
-      VRegister mask = i.TempSimd128Register(1);
+      VRegister tmp = scope.AcquireQ();
+      VRegister mask = scope.AcquireQ();
 
       __ Sshr(tmp.V4S(), src.V4S(), 31);
       // Set i-th bit of each lane i. When AND with tmp, the lanes that
@@ -2384,10 +2397,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_CASE(kArm64I16x8Q15MulRSatS, Sqrdmulh, 8H);
       SIMD_UNOP_CASE(kArm64I16x8Abs, Abs, 8H);
     case kArm64I16x8BitMask: {
+      UseScratchRegisterScope scope(tasm());
       Register dst = i.OutputRegister32();
       VRegister src = i.InputSimd128Register(0);
-      VRegister tmp = i.TempSimd128Register(0);
-      VRegister mask = i.TempSimd128Register(1);
+      VRegister tmp = scope.AcquireQ();
+      VRegister mask = scope.AcquireQ();
 
       __ Sshr(tmp.V8H(), src.V8H(), 15);
       // Set i-th bit of each lane i. When AND with tmp, the lanes that
@@ -2490,10 +2504,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_CASE(kArm64I8x16RoundingAverageU, Urhadd, 16B);
       SIMD_UNOP_CASE(kArm64I8x16Abs, Abs, 16B);
     case kArm64I8x16BitMask: {
+      UseScratchRegisterScope scope(tasm());
       Register dst = i.OutputRegister32();
       VRegister src = i.InputSimd128Register(0);
-      VRegister tmp = i.TempSimd128Register(0);
-      VRegister mask = i.TempSimd128Register(1);
+      VRegister tmp = scope.AcquireQ();
+      VRegister mask = scope.AcquireQ();
 
       // Set i-th bit of each lane i. When AND with tmp, the lanes that
       // are signed will have i-th bit set, unsigned will be 0.

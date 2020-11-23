@@ -3305,32 +3305,36 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8)                \
   V(I8x16)
 
-#define SIMD_UNOP_LIST(V)                                 \
-  V(F64x2Abs, kArm64F64x2Abs)                             \
-  V(F64x2Neg, kArm64F64x2Neg)                             \
-  V(F64x2Sqrt, kArm64F64x2Sqrt)                           \
-  V(F32x4SConvertI32x4, kArm64F32x4SConvertI32x4)         \
-  V(F32x4UConvertI32x4, kArm64F32x4UConvertI32x4)         \
-  V(F32x4Abs, kArm64F32x4Abs)                             \
-  V(F32x4Neg, kArm64F32x4Neg)                             \
-  V(F32x4Sqrt, kArm64F32x4Sqrt)                           \
-  V(F32x4RecipApprox, kArm64F32x4RecipApprox)             \
-  V(F32x4RecipSqrtApprox, kArm64F32x4RecipSqrtApprox)     \
-  V(I64x2Neg, kArm64I64x2Neg)                             \
-  V(I32x4SConvertF32x4, kArm64I32x4SConvertF32x4)         \
-  V(I32x4Neg, kArm64I32x4Neg)                             \
-  V(I32x4UConvertF32x4, kArm64I32x4UConvertF32x4)         \
-  V(I32x4Abs, kArm64I32x4Abs)                             \
-  V(I16x8Neg, kArm64I16x8Neg)                             \
-  V(I16x8Abs, kArm64I16x8Abs)                             \
-  V(I8x16Neg, kArm64I8x16Neg)                             \
-  V(I8x16Abs, kArm64I8x16Abs)                             \
-  V(S128Not, kArm64S128Not)                               \
-  V(V32x4AnyTrue, kArm64V128AnyTrue)                      \
-  V(V32x4AllTrue, kArm64V32x4AllTrue)                     \
-  V(V16x8AnyTrue, kArm64V128AnyTrue)                      \
-  V(V16x8AllTrue, kArm64V16x8AllTrue)                     \
-  V(V8x16AnyTrue, kArm64V128AnyTrue)                      \
+#define SIMD_UNOP_LIST(V)                             \
+  V(F64x2Abs, kArm64F64x2Abs)                         \
+  V(F64x2Neg, kArm64F64x2Neg)                         \
+  V(F64x2Sqrt, kArm64F64x2Sqrt)                       \
+  V(F32x4SConvertI32x4, kArm64F32x4SConvertI32x4)     \
+  V(F32x4UConvertI32x4, kArm64F32x4UConvertI32x4)     \
+  V(F32x4Abs, kArm64F32x4Abs)                         \
+  V(F32x4Neg, kArm64F32x4Neg)                         \
+  V(F32x4Sqrt, kArm64F32x4Sqrt)                       \
+  V(F32x4RecipApprox, kArm64F32x4RecipApprox)         \
+  V(F32x4RecipSqrtApprox, kArm64F32x4RecipSqrtApprox) \
+  V(I64x2Neg, kArm64I64x2Neg)                         \
+  V(I64x2BitMask, kArm64I64x2BitMask)                 \
+  V(I32x4SConvertF32x4, kArm64I32x4SConvertF32x4)     \
+  V(I32x4Neg, kArm64I32x4Neg)                         \
+  V(I32x4UConvertF32x4, kArm64I32x4UConvertF32x4)     \
+  V(I32x4Abs, kArm64I32x4Abs)                         \
+  V(I32x4BitMask, kArm64I32x4BitMask)                 \
+  V(I16x8Neg, kArm64I16x8Neg)                         \
+  V(I16x8Abs, kArm64I16x8Abs)                         \
+  V(I16x8BitMask, kArm64I16x8BitMask)                 \
+  V(I8x16Neg, kArm64I8x16Neg)                         \
+  V(I8x16Abs, kArm64I8x16Abs)                         \
+  V(I8x16BitMask, kArm64I8x16BitMask)                 \
+  V(S128Not, kArm64S128Not)                           \
+  V(V32x4AnyTrue, kArm64V128AnyTrue)                  \
+  V(V32x4AllTrue, kArm64V32x4AllTrue)                 \
+  V(V16x8AnyTrue, kArm64V128AnyTrue)                  \
+  V(V16x8AllTrue, kArm64V16x8AllTrue)                 \
+  V(V8x16AnyTrue, kArm64V128AnyTrue)                  \
   V(V8x16AllTrue, kArm64V8x16AllTrue)
 
 #define SIMD_SHIFT_OP_LIST(V) \
@@ -3577,29 +3581,6 @@ VISIT_SIMD_QFMOP(F64x2Qfms)
 VISIT_SIMD_QFMOP(F32x4Qfma)
 VISIT_SIMD_QFMOP(F32x4Qfms)
 #undef VISIT_SIMD_QFMOP
-
-namespace {
-template <ArchOpcode opcode>
-void VisitBitMask(InstructionSelector* selector, Node* node) {
-  Arm64OperandGenerator g(selector);
-  InstructionOperand temps[] = {g.TempSimd128Register(),
-                                g.TempSimd128Register()};
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(node->InputAt(0)), arraysize(temps), temps);
-}
-}  // namespace
-
-void InstructionSelector::VisitI8x16BitMask(Node* node) {
-  VisitBitMask<kArm64I8x16BitMask>(this, node);
-}
-
-void InstructionSelector::VisitI16x8BitMask(Node* node) {
-  VisitBitMask<kArm64I16x8BitMask>(this, node);
-}
-
-void InstructionSelector::VisitI32x4BitMask(Node* node) {
-  VisitBitMask<kArm64I32x4BitMask>(this, node);
-}
 
 namespace {
 
