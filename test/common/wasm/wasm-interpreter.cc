@@ -193,7 +193,7 @@ namespace {
 constexpr uint32_t kFloat32SignBitMask = uint32_t{1} << 31;
 constexpr uint64_t kFloat64SignBitMask = uint64_t{1} << 63;
 
-inline int32_t ExecuteI32DivS(int32_t a, int32_t b, TrapReason* trap) {
+int32_t ExecuteI32DivS(int32_t a, int32_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapDivByZero;
     return 0;
@@ -205,7 +205,7 @@ inline int32_t ExecuteI32DivS(int32_t a, int32_t b, TrapReason* trap) {
   return a / b;
 }
 
-inline uint32_t ExecuteI32DivU(uint32_t a, uint32_t b, TrapReason* trap) {
+uint32_t ExecuteI32DivU(uint32_t a, uint32_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapDivByZero;
     return 0;
@@ -213,7 +213,7 @@ inline uint32_t ExecuteI32DivU(uint32_t a, uint32_t b, TrapReason* trap) {
   return a / b;
 }
 
-inline int32_t ExecuteI32RemS(int32_t a, int32_t b, TrapReason* trap) {
+int32_t ExecuteI32RemS(int32_t a, int32_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapRemByZero;
     return 0;
@@ -222,7 +222,7 @@ inline int32_t ExecuteI32RemS(int32_t a, int32_t b, TrapReason* trap) {
   return a % b;
 }
 
-inline uint32_t ExecuteI32RemU(uint32_t a, uint32_t b, TrapReason* trap) {
+uint32_t ExecuteI32RemU(uint32_t a, uint32_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapRemByZero;
     return 0;
@@ -230,19 +230,19 @@ inline uint32_t ExecuteI32RemU(uint32_t a, uint32_t b, TrapReason* trap) {
   return a % b;
 }
 
-inline uint32_t ExecuteI32Shl(uint32_t a, uint32_t b, TrapReason* trap) {
+uint32_t ExecuteI32Shl(uint32_t a, uint32_t b, TrapReason* trap) {
   return a << (b & 0x1F);
 }
 
-inline uint32_t ExecuteI32ShrU(uint32_t a, uint32_t b, TrapReason* trap) {
+uint32_t ExecuteI32ShrU(uint32_t a, uint32_t b, TrapReason* trap) {
   return a >> (b & 0x1F);
 }
 
-inline int32_t ExecuteI32ShrS(int32_t a, int32_t b, TrapReason* trap) {
+int32_t ExecuteI32ShrS(int32_t a, int32_t b, TrapReason* trap) {
   return a >> (b & 0x1F);
 }
 
-inline int64_t ExecuteI64DivS(int64_t a, int64_t b, TrapReason* trap) {
+int64_t ExecuteI64DivS(int64_t a, int64_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapDivByZero;
     return 0;
@@ -254,7 +254,7 @@ inline int64_t ExecuteI64DivS(int64_t a, int64_t b, TrapReason* trap) {
   return a / b;
 }
 
-inline uint64_t ExecuteI64DivU(uint64_t a, uint64_t b, TrapReason* trap) {
+uint64_t ExecuteI64DivU(uint64_t a, uint64_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapDivByZero;
     return 0;
@@ -262,7 +262,7 @@ inline uint64_t ExecuteI64DivU(uint64_t a, uint64_t b, TrapReason* trap) {
   return a / b;
 }
 
-inline int64_t ExecuteI64RemS(int64_t a, int64_t b, TrapReason* trap) {
+int64_t ExecuteI64RemS(int64_t a, int64_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapRemByZero;
     return 0;
@@ -271,7 +271,7 @@ inline int64_t ExecuteI64RemS(int64_t a, int64_t b, TrapReason* trap) {
   return a % b;
 }
 
-inline uint64_t ExecuteI64RemU(uint64_t a, uint64_t b, TrapReason* trap) {
+uint64_t ExecuteI64RemU(uint64_t a, uint64_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapRemByZero;
     return 0;
@@ -279,61 +279,57 @@ inline uint64_t ExecuteI64RemU(uint64_t a, uint64_t b, TrapReason* trap) {
   return a % b;
 }
 
-inline uint64_t ExecuteI64Shl(uint64_t a, uint64_t b, TrapReason* trap) {
+uint64_t ExecuteI64Shl(uint64_t a, uint64_t b, TrapReason* trap) {
   return a << (b & 0x3F);
 }
 
-inline uint64_t ExecuteI64ShrU(uint64_t a, uint64_t b, TrapReason* trap) {
+uint64_t ExecuteI64ShrU(uint64_t a, uint64_t b, TrapReason* trap) {
   return a >> (b & 0x3F);
 }
 
-inline int64_t ExecuteI64ShrS(int64_t a, int64_t b, TrapReason* trap) {
+int64_t ExecuteI64ShrS(int64_t a, int64_t b, TrapReason* trap) {
   return a >> (b & 0x3F);
 }
 
-inline uint32_t ExecuteI32Ror(uint32_t a, uint32_t b, TrapReason* trap) {
+uint32_t ExecuteI32Ror(uint32_t a, uint32_t b, TrapReason* trap) {
   return (a >> (b & 0x1F)) | (a << ((32 - b) & 0x1F));
 }
 
-inline uint32_t ExecuteI32Rol(uint32_t a, uint32_t b, TrapReason* trap) {
+uint32_t ExecuteI32Rol(uint32_t a, uint32_t b, TrapReason* trap) {
   return (a << (b & 0x1F)) | (a >> ((32 - b) & 0x1F));
 }
 
-inline uint64_t ExecuteI64Ror(uint64_t a, uint64_t b, TrapReason* trap) {
+uint64_t ExecuteI64Ror(uint64_t a, uint64_t b, TrapReason* trap) {
   return (a >> (b & 0x3F)) | (a << ((64 - b) & 0x3F));
 }
 
-inline uint64_t ExecuteI64Rol(uint64_t a, uint64_t b, TrapReason* trap) {
+uint64_t ExecuteI64Rol(uint64_t a, uint64_t b, TrapReason* trap) {
   return (a << (b & 0x3F)) | (a >> ((64 - b) & 0x3F));
 }
 
-inline float ExecuteF32Min(float a, float b, TrapReason* trap) {
-  return JSMin(a, b);
-}
+float ExecuteF32Min(float a, float b, TrapReason* trap) { return JSMin(a, b); }
 
-inline float ExecuteF32Max(float a, float b, TrapReason* trap) {
-  return JSMax(a, b);
-}
+float ExecuteF32Max(float a, float b, TrapReason* trap) { return JSMax(a, b); }
 
-inline Float32 ExecuteF32CopySign(Float32 a, Float32 b, TrapReason* trap) {
+Float32 ExecuteF32CopySign(Float32 a, Float32 b, TrapReason* trap) {
   return Float32::FromBits((a.get_bits() & ~kFloat32SignBitMask) |
                            (b.get_bits() & kFloat32SignBitMask));
 }
 
-inline double ExecuteF64Min(double a, double b, TrapReason* trap) {
+double ExecuteF64Min(double a, double b, TrapReason* trap) {
   return JSMin(a, b);
 }
 
-inline double ExecuteF64Max(double a, double b, TrapReason* trap) {
+double ExecuteF64Max(double a, double b, TrapReason* trap) {
   return JSMax(a, b);
 }
 
-inline Float64 ExecuteF64CopySign(Float64 a, Float64 b, TrapReason* trap) {
+Float64 ExecuteF64CopySign(Float64 a, Float64 b, TrapReason* trap) {
   return Float64::FromBits((a.get_bits() & ~kFloat64SignBitMask) |
                            (b.get_bits() & kFloat64SignBitMask));
 }
 
-inline int32_t ExecuteI32AsmjsDivS(int32_t a, int32_t b, TrapReason* trap) {
+int32_t ExecuteI32AsmjsDivS(int32_t a, int32_t b, TrapReason* trap) {
   if (b == 0) return 0;
   if (b == -1 && a == std::numeric_limits<int32_t>::min()) {
     return std::numeric_limits<int32_t>::min();
@@ -341,35 +337,35 @@ inline int32_t ExecuteI32AsmjsDivS(int32_t a, int32_t b, TrapReason* trap) {
   return a / b;
 }
 
-inline uint32_t ExecuteI32AsmjsDivU(uint32_t a, uint32_t b, TrapReason* trap) {
+uint32_t ExecuteI32AsmjsDivU(uint32_t a, uint32_t b, TrapReason* trap) {
   if (b == 0) return 0;
   return a / b;
 }
 
-inline int32_t ExecuteI32AsmjsRemS(int32_t a, int32_t b, TrapReason* trap) {
+int32_t ExecuteI32AsmjsRemS(int32_t a, int32_t b, TrapReason* trap) {
   if (b == 0) return 0;
   if (b == -1) return 0;
   return a % b;
 }
 
-inline uint32_t ExecuteI32AsmjsRemU(uint32_t a, uint32_t b, TrapReason* trap) {
+uint32_t ExecuteI32AsmjsRemU(uint32_t a, uint32_t b, TrapReason* trap) {
   if (b == 0) return 0;
   return a % b;
 }
 
-inline int32_t ExecuteI32AsmjsSConvertF32(float a, TrapReason* trap) {
+int32_t ExecuteI32AsmjsSConvertF32(float a, TrapReason* trap) {
   return DoubleToInt32(a);
 }
 
-inline uint32_t ExecuteI32AsmjsUConvertF32(float a, TrapReason* trap) {
+uint32_t ExecuteI32AsmjsUConvertF32(float a, TrapReason* trap) {
   return DoubleToUint32(a);
 }
 
-inline int32_t ExecuteI32AsmjsSConvertF64(double a, TrapReason* trap) {
+int32_t ExecuteI32AsmjsSConvertF64(double a, TrapReason* trap) {
   return DoubleToInt32(a);
 }
 
-inline uint32_t ExecuteI32AsmjsUConvertF64(double a, TrapReason* trap) {
+uint32_t ExecuteI32AsmjsUConvertF64(double a, TrapReason* trap) {
   return DoubleToUint32(a);
 }
 
@@ -385,7 +381,7 @@ uint32_t ExecuteI32Popcnt(uint32_t val, TrapReason* trap) {
   return base::bits::CountPopulation(val);
 }
 
-inline uint32_t ExecuteI32Eqz(uint32_t val, TrapReason* trap) {
+uint32_t ExecuteI32Eqz(uint32_t val, TrapReason* trap) {
   return val == 0 ? 1 : 0;
 }
 
@@ -393,60 +389,56 @@ int64_t ExecuteI64Clz(uint64_t val, TrapReason* trap) {
   return base::bits::CountLeadingZeros(val);
 }
 
-inline uint64_t ExecuteI64Ctz(uint64_t val, TrapReason* trap) {
+uint64_t ExecuteI64Ctz(uint64_t val, TrapReason* trap) {
   return base::bits::CountTrailingZeros(val);
 }
 
-inline int64_t ExecuteI64Popcnt(uint64_t val, TrapReason* trap) {
+int64_t ExecuteI64Popcnt(uint64_t val, TrapReason* trap) {
   return base::bits::CountPopulation(val);
 }
 
-inline int32_t ExecuteI64Eqz(uint64_t val, TrapReason* trap) {
+int32_t ExecuteI64Eqz(uint64_t val, TrapReason* trap) {
   return val == 0 ? 1 : 0;
 }
 
-inline Float32 ExecuteF32Abs(Float32 a, TrapReason* trap) {
+Float32 ExecuteF32Abs(Float32 a, TrapReason* trap) {
   return Float32::FromBits(a.get_bits() & ~kFloat32SignBitMask);
 }
 
-inline Float32 ExecuteF32Neg(Float32 a, TrapReason* trap) {
+Float32 ExecuteF32Neg(Float32 a, TrapReason* trap) {
   return Float32::FromBits(a.get_bits() ^ kFloat32SignBitMask);
 }
 
-inline float ExecuteF32Ceil(float a, TrapReason* trap) { return ceilf(a); }
+float ExecuteF32Ceil(float a, TrapReason* trap) { return ceilf(a); }
 
-inline float ExecuteF32Floor(float a, TrapReason* trap) { return floorf(a); }
+float ExecuteF32Floor(float a, TrapReason* trap) { return floorf(a); }
 
-inline float ExecuteF32Trunc(float a, TrapReason* trap) { return truncf(a); }
+float ExecuteF32Trunc(float a, TrapReason* trap) { return truncf(a); }
 
-inline float ExecuteF32NearestInt(float a, TrapReason* trap) {
-  return nearbyintf(a);
-}
+float ExecuteF32NearestInt(float a, TrapReason* trap) { return nearbyintf(a); }
 
-inline float ExecuteF32Sqrt(float a, TrapReason* trap) {
+float ExecuteF32Sqrt(float a, TrapReason* trap) {
   float result = sqrtf(a);
   return result;
 }
 
-inline Float64 ExecuteF64Abs(Float64 a, TrapReason* trap) {
+Float64 ExecuteF64Abs(Float64 a, TrapReason* trap) {
   return Float64::FromBits(a.get_bits() & ~kFloat64SignBitMask);
 }
 
-inline Float64 ExecuteF64Neg(Float64 a, TrapReason* trap) {
+Float64 ExecuteF64Neg(Float64 a, TrapReason* trap) {
   return Float64::FromBits(a.get_bits() ^ kFloat64SignBitMask);
 }
 
-inline double ExecuteF64Ceil(double a, TrapReason* trap) { return ceil(a); }
+double ExecuteF64Ceil(double a, TrapReason* trap) { return ceil(a); }
 
-inline double ExecuteF64Floor(double a, TrapReason* trap) { return floor(a); }
+double ExecuteF64Floor(double a, TrapReason* trap) { return floor(a); }
 
-inline double ExecuteF64Trunc(double a, TrapReason* trap) { return trunc(a); }
+double ExecuteF64Trunc(double a, TrapReason* trap) { return trunc(a); }
 
-inline double ExecuteF64NearestInt(double a, TrapReason* trap) {
-  return nearbyint(a);
-}
+double ExecuteF64NearestInt(double a, TrapReason* trap) { return nearbyint(a); }
 
-inline double ExecuteF64Sqrt(double a, TrapReason* trap) { return sqrt(a); }
+double ExecuteF64Sqrt(double a, TrapReason* trap) { return sqrt(a); }
 
 template <typename int_type, typename float_type>
 int_type ExecuteConvert(float_type a, TrapReason* trap) {
@@ -471,7 +463,7 @@ int_type ExecuteConvertSaturate(float_type a) {
 }
 
 template <typename dst_type, typename src_type, void (*fn)(Address)>
-inline dst_type CallExternalIntToFloatFunction(src_type input) {
+dst_type CallExternalIntToFloatFunction(src_type input) {
   uint8_t data[std::max(sizeof(dst_type), sizeof(src_type))];
   Address data_addr = reinterpret_cast<Address>(data);
   WriteUnalignedValue<src_type>(data_addr, input);
@@ -480,8 +472,7 @@ inline dst_type CallExternalIntToFloatFunction(src_type input) {
 }
 
 template <typename dst_type, typename src_type, int32_t (*fn)(Address)>
-inline dst_type CallExternalFloatToIntFunction(src_type input,
-                                               TrapReason* trap) {
+dst_type CallExternalFloatToIntFunction(src_type input, TrapReason* trap) {
   uint8_t data[std::max(sizeof(dst_type), sizeof(src_type))];
   Address data_addr = reinterpret_cast<Address>(data);
   WriteUnalignedValue<src_type>(data_addr, input);
@@ -489,7 +480,7 @@ inline dst_type CallExternalFloatToIntFunction(src_type input,
   return ReadUnalignedValue<dst_type>(data_addr);
 }
 
-inline uint32_t ExecuteI32ConvertI64(int64_t a, TrapReason* trap) {
+uint32_t ExecuteI32ConvertI64(int64_t a, TrapReason* trap) {
   return static_cast<uint32_t>(a & 0xFFFFFFFF);
 }
 
@@ -557,69 +548,69 @@ uint64_t ExecuteI64UConvertSatF64(double a) {
                                   : std::numeric_limits<uint64_t>::max());
 }
 
-inline int64_t ExecuteI64SConvertI32(int32_t a, TrapReason* trap) {
+int64_t ExecuteI64SConvertI32(int32_t a, TrapReason* trap) {
   return static_cast<int64_t>(a);
 }
 
-inline int64_t ExecuteI64UConvertI32(uint32_t a, TrapReason* trap) {
+int64_t ExecuteI64UConvertI32(uint32_t a, TrapReason* trap) {
   return static_cast<uint64_t>(a);
 }
 
-inline float ExecuteF32SConvertI32(int32_t a, TrapReason* trap) {
+float ExecuteF32SConvertI32(int32_t a, TrapReason* trap) {
   return static_cast<float>(a);
 }
 
-inline float ExecuteF32UConvertI32(uint32_t a, TrapReason* trap) {
+float ExecuteF32UConvertI32(uint32_t a, TrapReason* trap) {
   return static_cast<float>(a);
 }
 
-inline float ExecuteF32SConvertI64(int64_t a, TrapReason* trap) {
+float ExecuteF32SConvertI64(int64_t a, TrapReason* trap) {
   return static_cast<float>(a);
 }
 
-inline float ExecuteF32UConvertI64(uint64_t a, TrapReason* trap) {
+float ExecuteF32UConvertI64(uint64_t a, TrapReason* trap) {
   return CallExternalIntToFloatFunction<float, uint64_t,
                                         uint64_to_float32_wrapper>(a);
 }
 
-inline float ExecuteF32ConvertF64(double a, TrapReason* trap) {
+float ExecuteF32ConvertF64(double a, TrapReason* trap) {
   return DoubleToFloat32(a);
 }
 
-inline Float32 ExecuteF32ReinterpretI32(int32_t a, TrapReason* trap) {
+Float32 ExecuteF32ReinterpretI32(int32_t a, TrapReason* trap) {
   return Float32::FromBits(a);
 }
 
-inline double ExecuteF64SConvertI32(int32_t a, TrapReason* trap) {
+double ExecuteF64SConvertI32(int32_t a, TrapReason* trap) {
   return static_cast<double>(a);
 }
 
-inline double ExecuteF64UConvertI32(uint32_t a, TrapReason* trap) {
+double ExecuteF64UConvertI32(uint32_t a, TrapReason* trap) {
   return static_cast<double>(a);
 }
 
-inline double ExecuteF64SConvertI64(int64_t a, TrapReason* trap) {
+double ExecuteF64SConvertI64(int64_t a, TrapReason* trap) {
   return static_cast<double>(a);
 }
 
-inline double ExecuteF64UConvertI64(uint64_t a, TrapReason* trap) {
+double ExecuteF64UConvertI64(uint64_t a, TrapReason* trap) {
   return CallExternalIntToFloatFunction<double, uint64_t,
                                         uint64_to_float64_wrapper>(a);
 }
 
-inline double ExecuteF64ConvertF32(float a, TrapReason* trap) {
+double ExecuteF64ConvertF32(float a, TrapReason* trap) {
   return static_cast<double>(a);
 }
 
-inline Float64 ExecuteF64ReinterpretI64(int64_t a, TrapReason* trap) {
+Float64 ExecuteF64ReinterpretI64(int64_t a, TrapReason* trap) {
   return Float64::FromBits(a);
 }
 
-inline int32_t ExecuteI32ReinterpretF32(WasmValue a) {
+int32_t ExecuteI32ReinterpretF32(WasmValue a) {
   return a.to_f32_boxed().get_bits();
 }
 
-inline int64_t ExecuteI64ReinterpretF64(WasmValue a) {
+int64_t ExecuteI64ReinterpretF64(WasmValue a) {
   return a.to_f64_boxed().get_bits();
 }
 
@@ -1495,7 +1486,7 @@ class WasmInterpreterInternals {
     ResetStack(dest + arity);
   }
 
-  inline Address EffectiveAddress(uint32_t index) {
+  Address EffectiveAddress(uint32_t index) {
     // Compute the effective address of the access, making sure to condition
     // the index even in the in-bounds case.
     return reinterpret_cast<Address>(instance_object_->memory_start()) +
@@ -1503,7 +1494,7 @@ class WasmInterpreterInternals {
   }
 
   template <typename mtype>
-  inline Address BoundsCheckMem(uint32_t offset, uint32_t index) {
+  Address BoundsCheckMem(uint32_t offset, uint32_t index) {
     uint32_t effective_index = offset + index;
     if (effective_index < index) {
       return kNullAddress;  // wraparound => oob
@@ -1515,8 +1506,8 @@ class WasmInterpreterInternals {
     return EffectiveAddress(effective_index);
   }
 
-  inline bool BoundsCheckMemRange(uint32_t index, uint32_t* size,
-                                  Address* out_address) {
+  bool BoundsCheckMemRange(uint32_t index, uint32_t* size,
+                           Address* out_address) {
     bool ok = base::ClampToBounds(
         index, size, static_cast<uint32_t>(instance_object_->memory_size()));
     *out_address = EffectiveAddress(index);
