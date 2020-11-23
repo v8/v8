@@ -153,7 +153,7 @@ int AstRawString::Compare(const AstRawString* lhs, const AstRawString* rhs) {
 
   const unsigned char* lhs_data = lhs->raw_data();
   const unsigned char* rhs_data = rhs->raw_data();
-  size_t length = std::min(lhs->byte_length(), rhs->byte_length());
+  size_t length = std::min(lhs->length(), rhs->length());
 
   // Code point order by contents.
   if (lhs->is_one_byte()) {
