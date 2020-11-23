@@ -1014,10 +1014,14 @@ void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
     node->InsertInput(zone(), 0, stub_code);
     node->InsertInput(zone(), 3, stub_arity);
     node->InsertInput(zone(), 4, slot);
-    node->InsertInput(zone(), 5, spread);
-    node->InsertInput(zone(), 6, feedback_vector);
+    // Arguments in the stack should be inserted in reversed order, ie, the last
+    // arguments defined in the interface descriptor should be inserted first.
+    DCHECK_EQ(callable.descriptor().GetStackArgumentOrder(),
+              StackArgumentOrder::kJS);
+    node->InsertInput(zone(), 5, feedback_vector);
+    node->InsertInput(zone(), 6, spread);
     node->InsertInput(zone(), 7, receiver);
-    // After: {code, target, new_target, arity, slot, spread, vector, receiver,
+    // After: {code, target, new_target, arity, slot, vector, spread, receiver,
     // ...args}.
 
     NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
