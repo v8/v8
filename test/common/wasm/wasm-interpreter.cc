@@ -1486,7 +1486,10 @@ class WasmInterpreterInternals {
     ResetStack(dest + arity);
   }
 
-  Address EffectiveAddress(uint32_t index) {
+  Address EffectiveAddress(uint64_t index) {
+    DCHECK_GE(std::numeric_limits<uintptr_t>::max(),
+              instance_object_->memory_size());
+    DCHECK_GE(instance_object_->memory_size(), index);
     // Compute the effective address of the access, making sure to condition
     // the index even in the in-bounds case.
     return reinterpret_cast<Address>(instance_object_->memory_start()) +
@@ -1494,8 +1497,8 @@ class WasmInterpreterInternals {
   }
 
   template <typename mtype>
-  Address BoundsCheckMem(uint32_t offset, uint32_t index) {
-    uint32_t effective_index = offset + index;
+  Address BoundsCheckMem(uint64_t offset, uint64_t index) {
+    uint64_t effective_index = offset + index;
     if (effective_index < index) {
       return kNullAddress;  // wraparound => oob
     }
@@ -1506,12 +1509,20 @@ class WasmInterpreterInternals {
     return EffectiveAddress(effective_index);
   }
 
-  bool BoundsCheckMemRange(uint32_t index, uint32_t* size,
+  bool BoundsCheckMemRange(uint64_t index, uint64_t* size,
                            Address* out_address) {
-    bool ok = base::ClampToBounds(
-        index, size, static_cast<uint32_t>(instance_object_->memory_size()));
+    DCHECK_GE(std::numeric_limits<uintptr_t>::max(),
+              instance_object_->memory_size());
+    if (!base::ClampToBounds<uint64_t>(index, size,
+                                       instance_object_->memory_size())) {
+      return false;
+    }
     *out_address = EffectiveAddress(index);
-    return ok;
+    return true;
+  }
+
+  uint64_t ToMemType(WasmValue value) {
+    return module()->is_memory64 ? value.to<uint64_t>() : value.to<uint32_t>();
   }
 
   template <typename ctype, typename mtype>
@@ -1524,7 +1535,7 @@ class WasmInterpreterInternals {
     // those will report at the middle of an opcode.
     MemoryAccessImmediate<Decoder::kNoValidation> imm(
         decoder, code->at(pc + prefix_len), sizeof(ctype));
-    uint32_t index = Pop().to<uint32_t>();
+    uint64_t index = ToMemType(Pop());
     Address addr = BoundsCheckMem<mtype>(imm.offset, index);
     if (!addr) {
       DoTrap(kTrapMemOutOfBounds, pc);
@@ -1558,7 +1569,7 @@ class WasmInterpreterInternals {
         decoder, code->at(pc + prefix_len), sizeof(ctype));
     ctype val = Pop().to<ctype>();
 
-    uint32_t index = Pop().to<uint32_t>();
+    uint64_t index = ToMemType(Pop());
     Address addr = BoundsCheckMem<mtype>(imm.offset, index);
     if (!addr) {
       DoTrap(kTrapMemOutOfBounds, pc);
@@ -1585,7 +1596,7 @@ class WasmInterpreterInternals {
         decoder, code->at(pc + *len), sizeof(type));
     if (val2) *val2 = static_cast<type>(Pop().to<op_type>());
     if (val) *val = static_cast<type>(Pop().to<op_type>());
-    uint32_t index = Pop().to<uint32_t>();
+    uint64_t index = ToMemType(Pop());
     *address = BoundsCheckMem<type>(imm.offset, index);
     if (!*address) {
       DoTrap(kTrapMemOutOfBounds, pc);
@@ -1602,7 +1613,7 @@ class WasmInterpreterInternals {
   template <typename type>
   bool ExtractAtomicWaitNotifyParams(Decoder* decoder, InterpreterCode* code,
                                      pc_t pc, int* const len,
-                                     uint32_t* buffer_offset, type* val,
+                                     uint64_t* buffer_offset, type* val,
                                      int64_t* timeout = nullptr) {
     // TODO(manoskouk): Introduce test which exposes wrong pc offset below.
     MemoryAccessImmediate<Decoder::kFullValidation> imm(
@@ -1611,9 +1622,9 @@ class WasmInterpreterInternals {
       *timeout = Pop().to<int64_t>();
     }
     *val = Pop().to<type>();
-    auto index = Pop().to<uint32_t>();
+    uint64_t index = ToMemType(Pop());
     // Check bounds.
-    Address address = BoundsCheckMem<uint32_t>(imm.offset, index);
+    Address address = BoundsCheckMem<uint64_t>(imm.offset, index);
     *buffer_offset = index + imm.offset;
     if (!address) {
       DoTrap(kTrapMemOutOfBounds, pc);
@@ -1663,11 +1674,11 @@ class WasmInterpreterInternals {
         // validation.
         DCHECK_LT(imm.data_segment_index, module()->num_declared_data_segments);
         *len += imm.length;
-        auto size = Pop().to<uint32_t>();
-        auto src = Pop().to<uint32_t>();
-        auto dst = Pop().to<uint32_t>();
+        uint64_t size = ToMemType(Pop());
+        uint64_t src = ToMemType(Pop());
+        uint64_t dst = ToMemType(Pop());
         Address dst_addr;
-        auto src_max =
+        uint64_t src_max =
             instance_object_->data_segment_sizes()[imm.data_segment_index];
         if (!BoundsCheckMemRange(dst, &size, &dst_addr) ||
             !base::IsInBounds(src, size, src_max)) {
@@ -1695,9 +1706,9 @@ class WasmInterpreterInternals {
         MemoryCopyImmediate<Decoder::kNoValidation> imm(decoder,
                                                         code->at(pc + 2));
         *len += imm.length;
-        auto size = Pop().to<uint32_t>();
-        auto src = Pop().to<uint32_t>();
-        auto dst = Pop().to<uint32_t>();
+        uint64_t size = ToMemType(Pop());
+        uint64_t src = ToMemType(Pop());
+        uint64_t dst = ToMemType(Pop());
         Address dst_addr;
         Address src_addr;
         if (!BoundsCheckMemRange(dst, &size, &dst_addr) ||
@@ -1714,12 +1725,11 @@ class WasmInterpreterInternals {
         MemoryIndexImmediate<Decoder::kNoValidation> imm(decoder,
                                                          code->at(pc + 2));
         *len += imm.length;
-        auto size = Pop().to<uint32_t>();
-        auto value = Pop().to<uint32_t>();
-        auto dst = Pop().to<uint32_t>();
+        uint64_t size = ToMemType(Pop());
+        uint32_t value = Pop().to<uint32_t>();
+        uint64_t dst = ToMemType(Pop());
         Address dst_addr;
-        bool ok = BoundsCheckMemRange(dst, &size, &dst_addr);
-        if (!ok) {
+        if (!BoundsCheckMemRange(dst, &size, &dst_addr)) {
           DoTrap(kTrapMemOutOfBounds, pc);
           return false;
         }
@@ -2031,7 +2041,7 @@ class WasmInterpreterInternals {
         }
         int32_t val;
         int64_t timeout;
-        uint32_t buffer_offset;
+        uint64_t buffer_offset;
         if (!ExtractAtomicWaitNotifyParams<int32_t>(
                 decoder, code, pc, len, &buffer_offset, &val, &timeout)) {
           return false;
@@ -2051,7 +2061,7 @@ class WasmInterpreterInternals {
         }
         int64_t val;
         int64_t timeout;
-        uint32_t buffer_offset;
+        uint64_t buffer_offset;
         if (!ExtractAtomicWaitNotifyParams<int64_t>(
                 decoder, code, pc, len, &buffer_offset, &val, &timeout)) {
           return false;
@@ -2066,7 +2076,7 @@ class WasmInterpreterInternals {
       }
       case kExprAtomicNotify: {
         int32_t val;
-        uint32_t buffer_offset;
+        uint64_t buffer_offset;
         if (!ExtractAtomicWaitNotifyParams<int32_t>(decoder, code, pc, len,
                                                     &buffer_offset, &val)) {
           return false;
@@ -3702,6 +3712,7 @@ class WasmInterpreterInternals {
         case kExprMemoryGrow: {
           MemoryIndexImmediate<Decoder::kNoValidation> imm(&decoder,
                                                            code->at(pc + 1));
+          // TODO(clemensb): Fix this for memory64.
           uint32_t delta_pages = Pop().to<uint32_t>();
           HandleScope handle_scope(isolate_);  // Avoid leaking handles.
           Handle<WasmMemoryObject> memory(instance_object_->memory_object(),
@@ -3718,8 +3729,10 @@ class WasmInterpreterInternals {
         case kExprMemorySize: {
           MemoryIndexImmediate<Decoder::kNoValidation> imm(&decoder,
                                                            code->at(pc + 1));
-          Push(WasmValue(static_cast<uint32_t>(instance_object_->memory_size() /
-                                               kWasmPageSize)));
+          uint64_t num_pages = instance_object_->memory_size() / kWasmPageSize;
+          Push(module()->is_memory64
+                   ? WasmValue(num_pages)
+                   : WasmValue(static_cast<uint32_t>(num_pages)));
           len = 1 + imm.length;
           break;
         }
