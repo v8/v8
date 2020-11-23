@@ -49,7 +49,6 @@ namespace compiler {
   V(MipsSubS)                      \
   V(MipsMulS)                      \
   V(MipsDivS)                      \
-  V(MipsModS)                      \
   V(MipsAbsS)                      \
   V(MipsSqrtS)                     \
   V(MipsMaxS)                      \

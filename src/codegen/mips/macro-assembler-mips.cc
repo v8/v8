@@ -2698,67 +2698,6 @@ void TurboAssembler::Popcnt(Register rd, Register rs) {
   srl(rd, rd, shift);
 }
 
-void MacroAssembler::EmitFPUTruncate(
-    FPURoundingMode rounding_mode, Register result, DoubleRegister double_input,
-    Register scratch, DoubleRegister double_scratch, Register except_flag,
-    CheckForInexactConversion check_inexact) {
-  DCHECK(result != scratch);
-  DCHECK(double_input != double_scratch);
-  DCHECK(except_flag != scratch);
-
-  Label done;
-
-  // Clear the except flag (0 = no exception)
-  mov(except_flag, zero_reg);
-
-  // Test for values that can be exactly represented as a signed 32-bit integer.
-  cvt_w_d(double_scratch, double_input);
-  mfc1(result, double_scratch);
-  cvt_d_w(double_scratch, double_scratch);
-  CompareF64(EQ, double_input, double_scratch);
-  BranchTrueShortF(&done);
-
-  int32_t except_mask = kFCSRFlagMask;  // Assume interested in all exceptions.
-
-  if (check_inexact == kDontCheckForInexactConversion) {
-    // Ignore inexact exceptions.
-    except_mask &= ~kFCSRInexactFlagMask;
-  }
-
-  // Save FCSR.
-  cfc1(scratch, FCSR);
-  // Disable FPU exceptions.
-  ctc1(zero_reg, FCSR);
-
-  // Do operation based on rounding mode.
-  switch (rounding_mode) {
-    case kRoundToNearest:
-      Round_w_d(double_scratch, double_input);
-      break;
-    case kRoundToZero:
-      Trunc_w_d(double_scratch, double_input);
-      break;
-    case kRoundToPlusInf:
-      Ceil_w_d(double_scratch, double_input);
-      break;
-    case kRoundToMinusInf:
-      Floor_w_d(double_scratch, double_input);
-      break;
-  }  // End of switch-statement.
-
-  // Retrieve FCSR.
-  cfc1(except_flag, FCSR);
-  // Restore FCSR.
-  ctc1(scratch, FCSR);
-  // Move the converted value into the result register.
-  mfc1(result, double_scratch);
-
-  // Check for fpu exceptions.
-  And(except_flag, except_flag, Operand(except_mask));
-
-  bind(&done);
-}
-
 void TurboAssembler::TryInlineTruncateDoubleToI(Register result,
                                                 DoubleRegister double_input,
                                                 Label* done) {

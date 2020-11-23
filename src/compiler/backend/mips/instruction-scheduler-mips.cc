@@ -330,7 +330,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
       return kIsLoadOperation;
 
     case kMipsModD:
-    case kMipsModS:
     case kMipsMsaSt:
     case kMipsPush:
     case kMipsSb:
@@ -1530,7 +1529,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return RorLatency(instr->InputAt(1)->IsRegister());
     case kMipsLsa:
       return LsaLatency();
-    case kMipsModS:
     case kMipsModD:
       return PrepareCallCFunctionLatency() + MovToFloatParametersLatency() +
              CallCFunctionLatency() + MovFromFloatResultLatency();

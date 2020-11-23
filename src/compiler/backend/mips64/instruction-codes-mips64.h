@@ -68,7 +68,6 @@ namespace compiler {
   V(Mips64SubS)                              \
   V(Mips64MulS)                              \
   V(Mips64DivS)                              \
-  V(Mips64ModS)                              \
   V(Mips64AbsS)                              \
   V(Mips64NegS)                              \
   V(Mips64SqrtS)                             \
