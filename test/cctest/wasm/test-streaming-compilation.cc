@@ -67,6 +67,7 @@ class MockPlatform final : public TestPlatform {
   class MockTaskRunner final : public TaskRunner {
    public:
     void PostTask(std::unique_ptr<v8::Task> task) override {
+      base::MutexGuard lock_scope(&tasks_lock_);
       tasks_.push(std::move(task));
     }
 
@@ -93,14 +94,20 @@ class MockPlatform final : public TestPlatform {
     bool NonNestableDelayedTasksEnabled() const override { return true; }
 
     void ExecuteTasks() {
-      while (!tasks_.empty()) {
-        std::unique_ptr<Task> task = std::move(tasks_.front());
-        tasks_.pop();
+      std::queue<std::unique_ptr<v8::Task>> tasks;
+      {
+        base::MutexGuard lock_scope(&tasks_lock_);
+        tasks.swap(tasks_);
+      }
+      while (!tasks.empty()) {
+        std::unique_ptr<Task> task = std::move(tasks.front());
+        tasks.pop();
         task->Run();
       }
     }
 
    private:
+    base::Mutex tasks_lock_;
     // We do not execute tasks concurrently, so we only need one list of tasks.
     std::queue<std::unique_ptr<v8::Task>> tasks_;
   };
