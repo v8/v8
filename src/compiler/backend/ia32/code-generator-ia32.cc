@@ -262,7 +262,7 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
 
   void Generate() final {
     __ AllocateStackSpace(kDoubleSize);
-    __ movsd(MemOperand(esp, 0), input_);
+    __ Movsd(MemOperand(esp, 0), input_);
     if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       // A direct call to a wasm runtime stub defined in this module.
       // Just encode the stub index. This will be patched when the code
@@ -1693,20 +1693,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kIA32Movsd:
       if (instr->HasOutput()) {
-        __ movsd(i.OutputDoubleRegister(), i.MemoryOperand());
+        __ Movsd(i.OutputDoubleRegister(), i.MemoryOperand());
       } else {
         size_t index = 0;
         Operand operand = i.MemoryOperand(&index);
-        __ movsd(operand, i.InputDoubleRegister(index));
+        __ Movsd(operand, i.InputDoubleRegister(index));
       }
       break;
     case kIA32Movss:
       if (instr->HasOutput()) {
-        __ movss(i.OutputDoubleRegister(), i.MemoryOperand());
+        __ Movss(i.OutputDoubleRegister(), i.MemoryOperand());
       } else {
         size_t index = 0;
         Operand operand = i.MemoryOperand(&index);
-        __ movss(operand, i.InputDoubleRegister(index));
+        __ Movss(operand, i.InputDoubleRegister(index));
       }
       break;
     case kIA32Movdqu:
@@ -1722,14 +1722,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (instr->InputAt(0)->IsFPStackSlot()) {
         __ mov(i.OutputRegister(), i.InputOperand(0));
       } else {
-        __ movd(i.OutputRegister(), i.InputDoubleRegister(0));
+        __ Movd(i.OutputRegister(), i.InputDoubleRegister(0));
       }
       break;
     case kIA32BitcastIF:
       if (HasRegisterInput(instr, 0)) {
-        __ movd(i.OutputDoubleRegister(), i.InputRegister(0));
+        __ Movd(i.OutputDoubleRegister(), i.InputRegister(0));
       } else {
-        __ movss(i.OutputDoubleRegister(), i.InputOperand(0));
+        __ Movss(i.OutputDoubleRegister(), i.InputOperand(0));
       }
       break;
     case kIA32Lea: {
@@ -1774,45 +1774,45 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32PushFloat32:
       if (instr->InputAt(0)->IsFPRegister()) {
         __ AllocateStackSpace(kFloatSize);
-        __ movss(Operand(esp, 0), i.InputDoubleRegister(0));
+        __ Movss(Operand(esp, 0), i.InputDoubleRegister(0));
         frame_access_state()->IncreaseSPDelta(kFloatSize / kSystemPointerSize);
       } else if (HasImmediateInput(instr, 0)) {
         __ Move(kScratchDoubleReg, i.InputFloat32(0));
         __ AllocateStackSpace(kFloatSize);
-        __ movss(Operand(esp, 0), kScratchDoubleReg);
+        __ Movss(Operand(esp, 0), kScratchDoubleReg);
         frame_access_state()->IncreaseSPDelta(kFloatSize / kSystemPointerSize);
       } else {
-        __ movss(kScratchDoubleReg, i.InputOperand(0));
+        __ Movss(kScratchDoubleReg, i.InputOperand(0));
         __ AllocateStackSpace(kFloatSize);
-        __ movss(Operand(esp, 0), kScratchDoubleReg);
+        __ Movss(Operand(esp, 0), kScratchDoubleReg);
         frame_access_state()->IncreaseSPDelta(kFloatSize / kSystemPointerSize);
       }
       break;
     case kIA32PushFloat64:
       if (instr->InputAt(0)->IsFPRegister()) {
         __ AllocateStackSpace(kDoubleSize);
-        __ movsd(Operand(esp, 0), i.InputDoubleRegister(0));
+        __ Movsd(Operand(esp, 0), i.InputDoubleRegister(0));
         frame_access_state()->IncreaseSPDelta(kDoubleSize / kSystemPointerSize);
       } else if (HasImmediateInput(instr, 0)) {
         __ Move(kScratchDoubleReg, i.InputDouble(0));
         __ AllocateStackSpace(kDoubleSize);
-        __ movsd(Operand(esp, 0), kScratchDoubleReg);
+        __ Movsd(Operand(esp, 0), kScratchDoubleReg);
         frame_access_state()->IncreaseSPDelta(kDoubleSize / kSystemPointerSize);
       } else {
-        __ movsd(kScratchDoubleReg, i.InputOperand(0));
+        __ Movsd(kScratchDoubleReg, i.InputOperand(0));
         __ AllocateStackSpace(kDoubleSize);
-        __ movsd(Operand(esp, 0), kScratchDoubleReg);
+        __ Movsd(Operand(esp, 0), kScratchDoubleReg);
         frame_access_state()->IncreaseSPDelta(kDoubleSize / kSystemPointerSize);
       }
       break;
     case kIA32PushSimd128:
       if (instr->InputAt(0)->IsFPRegister()) {
         __ AllocateStackSpace(kSimd128Size);
-        __ movups(Operand(esp, 0), i.InputSimd128Register(0));
+        __ Movups(Operand(esp, 0), i.InputSimd128Register(0));
       } else {
-        __ movups(kScratchDoubleReg, i.InputOperand(0));
+        __ Movups(kScratchDoubleReg, i.InputOperand(0));
         __ AllocateStackSpace(kSimd128Size);
-        __ movups(Operand(esp, 0), kScratchDoubleReg);
+        __ Movups(Operand(esp, 0), kScratchDoubleReg);
       }
       frame_access_state()->IncreaseSPDelta(kSimd128Size / kSystemPointerSize);
       break;
@@ -1824,7 +1824,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         frame_access_state()->IncreaseSPDelta(kFloatSize / kSystemPointerSize);
       } else if (instr->InputAt(0)->IsFPRegister()) {
         __ AllocateStackSpace(kFloatSize);
-        __ movsd(Operand(esp, 0), i.InputDoubleRegister(0));
+        __ Movsd(Operand(esp, 0), i.InputDoubleRegister(0));
         frame_access_state()->IncreaseSPDelta(kFloatSize / kSystemPointerSize);
       } else if (HasImmediateInput(instr, 0)) {
         __ push(i.InputImmediate(0));
@@ -1850,12 +1850,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (instr->OutputAt(0)->IsFPRegister()) {
         LocationOperand* op = LocationOperand::cast(instr->OutputAt(0));
         if (op->representation() == MachineRepresentation::kFloat64) {
-          __ movsd(i.OutputDoubleRegister(), Operand(ebp, offset));
+          __ Movsd(i.OutputDoubleRegister(), Operand(ebp, offset));
         } else if (op->representation() == MachineRepresentation::kFloat32) {
-          __ movss(i.OutputFloatRegister(), Operand(ebp, offset));
+          __ Movss(i.OutputFloatRegister(), Operand(ebp, offset));
         } else {
           DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
-          __ movdqu(i.OutputSimd128Register(), Operand(ebp, offset));
+          __ Movdqu(i.OutputSimd128Register(), Operand(ebp, offset));
         }
       } else {
         __ mov(i.OutputRegister(), Operand(ebp, offset));
@@ -2334,7 +2334,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister src0 = i.InputSimd128Register(0);
       Operand src1 = i.InputOperand(1);
       // See comment above for correction of minps.
-      __ movups(kScratchDoubleReg, src1);
+      __ vmovups(kScratchDoubleReg, src1);
       __ vminps(kScratchDoubleReg, kScratchDoubleReg, src0);
       __ vminps(dst, src0, src1);
       __ vorps(dst, dst, kScratchDoubleReg);
@@ -3727,7 +3727,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Pshufb(dst, Operand(esp, 0));
       } else {  // two input operands
         DCHECK_EQ(6, instr->InputCount());
-        __ movups(kScratchDoubleReg, src0);
+        __ Movups(kScratchDoubleReg, src0);
         for (int j = 5; j > 1; j--) {
           uint32_t lanes = i.InputUint32(j);
           uint32_t mask = 0;
@@ -3739,7 +3739,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         }
         __ Pshufb(kScratchDoubleReg, Operand(esp, 0));
         Operand src1 = i.InputOperand(1);
-        if (!src1.is_reg(dst)) __ movups(dst, src1);
+        if (!src1.is_reg(dst)) __ Movups(dst, src1);
         for (int j = 5; j > 1; j--) {
           uint32_t lanes = i.InputUint32(j);
           uint32_t mask = 0;
@@ -4888,7 +4888,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ mov(g.ToRegister(destination), g.ToRegister(source));
       } else {
         DCHECK(source->IsFPRegister());
-        __ movaps(g.ToDoubleRegister(destination), g.ToDoubleRegister(source));
+        __ Movaps(g.ToDoubleRegister(destination), g.ToDoubleRegister(source));
       }
       return;
     case MoveType::kRegisterToStack: {
@@ -4901,12 +4901,12 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         MachineRepresentation rep =
             LocationOperand::cast(source)->representation();
         if (rep == MachineRepresentation::kFloat32) {
-          __ movss(dst, src);
+          __ Movss(dst, src);
         } else if (rep == MachineRepresentation::kFloat64) {
-          __ movsd(dst, src);
+          __ Movsd(dst, src);
         } else {
           DCHECK_EQ(MachineRepresentation::kSimd128, rep);
-          __ movups(dst, src);
+          __ Movups(dst, src);
         }
       }
       return;
@@ -4921,12 +4921,12 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         MachineRepresentation rep =
             LocationOperand::cast(source)->representation();
         if (rep == MachineRepresentation::kFloat32) {
-          __ movss(dst, src);
+          __ Movss(dst, src);
         } else if (rep == MachineRepresentation::kFloat64) {
-          __ movsd(dst, src);
+          __ Movsd(dst, src);
         } else {
           DCHECK_EQ(MachineRepresentation::kSimd128, rep);
-          __ movups(dst, src);
+          __ Movups(dst, src);
         }
       }
       return;
@@ -4941,15 +4941,15 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         MachineRepresentation rep =
             LocationOperand::cast(source)->representation();
         if (rep == MachineRepresentation::kFloat32) {
-          __ movss(kScratchDoubleReg, src);
-          __ movss(dst, kScratchDoubleReg);
+          __ Movss(kScratchDoubleReg, src);
+          __ Movss(dst, kScratchDoubleReg);
         } else if (rep == MachineRepresentation::kFloat64) {
-          __ movsd(kScratchDoubleReg, src);
-          __ movsd(dst, kScratchDoubleReg);
+          __ Movsd(kScratchDoubleReg, src);
+          __ Movsd(dst, kScratchDoubleReg);
         } else {
           DCHECK_EQ(MachineRepresentation::kSimd128, rep);
-          __ movups(kScratchDoubleReg, src);
-          __ movups(dst, kScratchDoubleReg);
+          __ Movups(kScratchDoubleReg, src);
+          __ Movups(dst, kScratchDoubleReg);
         }
       }
       return;
@@ -5019,9 +5019,9 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
         DCHECK(source->IsFPRegister());
         XMMRegister src = g.ToDoubleRegister(source);
         XMMRegister dst = g.ToDoubleRegister(destination);
-        __ movaps(kScratchDoubleReg, src);
-        __ movaps(src, dst);
-        __ movaps(dst, kScratchDoubleReg);
+        __ Movaps(kScratchDoubleReg, src);
+        __ Movaps(src, dst);
+        __ Movaps(dst, kScratchDoubleReg);
       }
       return;
     }
@@ -5042,18 +5042,18 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
         MachineRepresentation rep =
             LocationOperand::cast(source)->representation();
         if (rep == MachineRepresentation::kFloat32) {
-          __ movss(kScratchDoubleReg, dst);
-          __ movss(dst, src);
-          __ movaps(src, kScratchDoubleReg);
+          __ Movss(kScratchDoubleReg, dst);
+          __ Movss(dst, src);
+          __ Movaps(src, kScratchDoubleReg);
         } else if (rep == MachineRepresentation::kFloat64) {
-          __ movsd(kScratchDoubleReg, dst);
-          __ movsd(dst, src);
-          __ movaps(src, kScratchDoubleReg);
+          __ Movsd(kScratchDoubleReg, dst);
+          __ Movsd(dst, src);
+          __ Movaps(src, kScratchDoubleReg);
         } else {
           DCHECK_EQ(MachineRepresentation::kSimd128, rep);
-          __ movups(kScratchDoubleReg, dst);
-          __ movups(dst, src);
-          __ movups(src, kScratchDoubleReg);
+          __ Movups(kScratchDoubleReg, dst);
+          __ Movups(dst, src);
+          __ Movups(src, kScratchDoubleReg);
         }
       }
       return;
@@ -5077,20 +5077,20 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
         MachineRepresentation rep =
             LocationOperand::cast(source)->representation();
         if (rep == MachineRepresentation::kFloat32) {
-          __ movss(kScratchDoubleReg, dst0);  // Save dst in scratch register.
+          __ Movss(kScratchDoubleReg, dst0);  // Save dst in scratch register.
           __ push(src0);  // Then use stack to copy src to destination.
           __ pop(dst0);
-          __ movss(src0, kScratchDoubleReg);
+          __ Movss(src0, kScratchDoubleReg);
         } else if (rep == MachineRepresentation::kFloat64) {
-          __ movsd(kScratchDoubleReg, dst0);  // Save dst in scratch register.
+          __ Movsd(kScratchDoubleReg, dst0);  // Save dst in scratch register.
           __ push(src0);  // Then use stack to copy src to destination.
           __ pop(dst0);
           __ push(g.ToOperand(source, kSystemPointerSize));
           __ pop(g.ToOperand(destination, kSystemPointerSize));
-          __ movsd(src0, kScratchDoubleReg);
+          __ Movsd(src0, kScratchDoubleReg);
         } else {
           DCHECK_EQ(MachineRepresentation::kSimd128, rep);
-          __ movups(kScratchDoubleReg, dst0);  // Save dst in scratch register.
+          __ Movups(kScratchDoubleReg, dst0);  // Save dst in scratch register.
           __ push(src0);  // Then use stack to copy src to destination.
           __ pop(dst0);
           __ push(g.ToOperand(source, kSystemPointerSize));
@@ -5099,7 +5099,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
           __ pop(g.ToOperand(destination, 2 * kSystemPointerSize));
           __ push(g.ToOperand(source, 3 * kSystemPointerSize));
           __ pop(g.ToOperand(destination, 3 * kSystemPointerSize));
-          __ movups(src0, kScratchDoubleReg);
+          __ Movups(src0, kScratchDoubleReg);
         }
       }
       return;

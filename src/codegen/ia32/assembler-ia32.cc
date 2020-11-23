@@ -3079,6 +3079,16 @@ void Assembler::sse4_instr(XMMRegister dst, Operand src, byte prefix,
   emit_sse_operand(dst, src);
 }
 
+void Assembler::vinstr(byte op, XMMRegister dst, XMMRegister src1,
+                       XMMRegister src2, SIMDPrefix pp, LeadingOpcode m,
+                       VexW w) {
+  DCHECK(IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(src1, kL128, pp, m, w);
+  EMIT(op);
+  emit_sse_operand(dst, src2);
+}
+
 void Assembler::vinstr(byte op, XMMRegister dst, XMMRegister src1, Operand src2,
                        SIMDPrefix pp, LeadingOpcode m, VexW w) {
   DCHECK(IsEnabled(AVX));

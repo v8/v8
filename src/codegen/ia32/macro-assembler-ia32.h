@@ -285,6 +285,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     }                                                           \
   }
 
+  AVX_OP2_WITH_TYPE(Movss, movss, Operand, XMMRegister)
+  AVX_OP2_WITH_TYPE(Movss, movss, XMMRegister, Operand)
+  AVX_OP2_WITH_TYPE(Movsd, movsd, Operand, XMMRegister)
+  AVX_OP2_WITH_TYPE(Movsd, movsd, XMMRegister, Operand)
   AVX_OP2_WITH_TYPE(Rcpps, rcpps, XMMRegister, const Operand&)
   AVX_OP2_WITH_TYPE(Rsqrtps, rsqrtps, XMMRegister, const Operand&)
   AVX_OP2_WITH_TYPE(Movdqu, movdqu, XMMRegister, Operand)
@@ -300,6 +304,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP2_WITH_TYPE(Sqrtpd, sqrtpd, XMMRegister, XMMRegister)
   AVX_OP2_WITH_TYPE(Sqrtpd, sqrtpd, XMMRegister, const Operand&)
   AVX_OP2_WITH_TYPE(Movaps, movaps, XMMRegister, XMMRegister)
+  AVX_OP2_WITH_TYPE(Movups, movups, XMMRegister, Operand)
+  AVX_OP2_WITH_TYPE(Movups, movups, XMMRegister, XMMRegister)
+  AVX_OP2_WITH_TYPE(Movups, movups, Operand, XMMRegister)
   AVX_OP2_WITH_TYPE(Movapd, movapd, XMMRegister, XMMRegister)
   AVX_OP2_WITH_TYPE(Movapd, movapd, XMMRegister, const Operand&)
   AVX_OP2_WITH_TYPE(Movupd, movupd, XMMRegister, const Operand&)
