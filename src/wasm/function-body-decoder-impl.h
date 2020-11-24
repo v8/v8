@@ -1582,20 +1582,80 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
+  // Returns the length of the opcode under {pc}.
   static uint32_t OpcodeLength(WasmDecoder* decoder, const byte* pc) {
     WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
     switch (opcode) {
-#define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
-      FOREACH_LOAD_MEM_OPCODE(DECLARE_OPCODE_CASE)
-      FOREACH_STORE_MEM_OPCODE(DECLARE_OPCODE_CASE)
-#undef DECLARE_OPCODE_CASE
-      {
-        MemoryAccessImmediate<validate> imm(decoder, pc + 1, UINT32_MAX);
+      /********** Control opcodes **********/
+      case kExprUnreachable:
+      case kExprNop:
+      case kExprElse:
+      case kExprEnd:
+      case kExprReturn:
+        return 1;
+      case kExprTry:
+      case kExprIf:
+      case kExprLoop:
+      case kExprBlock: {
+        BlockTypeImmediate<validate> imm(WasmFeatures::All(), decoder, pc + 1);
         return 1 + imm.length;
       }
       case kExprBr:
-      case kExprBrIf: {
+      case kExprBrIf:
+      case kExprBrOnNull: {
         BranchDepthImmediate<validate> imm(decoder, pc + 1);
+        return 1 + imm.length;
+      }
+      case kExprBrTable: {
+        BranchTableImmediate<validate> imm(decoder, pc + 1);
+        BranchTableIterator<validate> iterator(decoder, imm);
+        return 1 + iterator.length();
+      }
+      case kExprThrow: {
+        ExceptionIndexImmediate<validate> imm(decoder, pc + 1);
+        return 1 + imm.length;
+      }
+      case kExprCatch:
+      case kExprRethrow:
+        return 1;
+      case kExprBrOnExn: {
+        BranchOnExceptionImmediate<validate> imm(decoder, pc + 1);
+        return 1 + imm.length;
+      }
+      case kExprLet: {
+        BlockTypeImmediate<validate> imm(WasmFeatures::All(), decoder, pc + 1);
+        uint32_t locals_length;
+        bool locals_result =
+            decoder->DecodeLocals(decoder->pc() + 1 + imm.length,
+                                  &locals_length, base::Optional<uint32_t>());
+        return 1 + imm.length + (locals_result ? locals_length : 0);
+      }
+
+      /********** Misc opcodes **********/
+      case kExprCallFunction:
+      case kExprReturnCall: {
+        CallFunctionImmediate<validate> imm(decoder, pc + 1);
+        return 1 + imm.length;
+      }
+      case kExprCallIndirect:
+      case kExprReturnCallIndirect: {
+        CallIndirectImmediate<validate> imm(WasmFeatures::All(), decoder,
+                                            pc + 1);
+        return 1 + imm.length;
+      }
+      case kExprCallRef:
+      case kExprReturnCallRef:
+      case kExprDrop:
+      case kExprSelect:
+        return 1;
+      case kExprSelectWithType: {
+        SelectTypeImmediate<validate> imm(WasmFeatures::All(), decoder, pc + 1);
+        return 1 + imm.length;
+      }
+      case kExprLocalGet:
+      case kExprLocalSet:
+      case kExprLocalTee: {
+        LocalIndexImmediate<validate> imm(decoder, pc + 1);
         return 1 + imm.length;
       }
       case kExprGlobalGet:
@@ -1608,65 +1668,6 @@ class WasmDecoder : public Decoder {
         TableIndexImmediate<validate> imm(decoder, pc + 1);
         return 1 + imm.length;
       }
-      case kExprCallFunction:
-      case kExprReturnCall: {
-        CallFunctionImmediate<validate> imm(decoder, pc + 1);
-        return 1 + imm.length;
-      }
-      case kExprCallIndirect:
-      case kExprReturnCallIndirect: {
-        CallIndirectImmediate<validate> imm(WasmFeatures::All(), decoder,
-                                            pc + 1);
-        return 1 + imm.length;
-      }
-
-      case kExprTry:
-      case kExprIf:  // fall through
-      case kExprLoop:
-      case kExprBlock: {
-        BlockTypeImmediate<validate> imm(WasmFeatures::All(), decoder, pc + 1);
-        return 1 + imm.length;
-      }
-
-      case kExprLet: {
-        BlockTypeImmediate<validate> imm(WasmFeatures::All(), decoder, pc + 1);
-        uint32_t locals_length;
-        bool locals_result =
-            decoder->DecodeLocals(decoder->pc() + 1 + imm.length,
-                                  &locals_length, base::Optional<uint32_t>());
-        return 1 + imm.length + (locals_result ? locals_length : 0);
-      }
-
-      case kExprThrow: {
-        ExceptionIndexImmediate<validate> imm(decoder, pc + 1);
-        return 1 + imm.length;
-      }
-
-      case kExprBrOnExn: {
-        BranchOnExceptionImmediate<validate> imm(decoder, pc + 1);
-        return 1 + imm.length;
-      }
-
-      case kExprBrOnNull: {
-        BranchDepthImmediate<validate> imm(decoder, pc + 1);
-        return 1 + imm.length;
-      }
-
-      case kExprLocalGet:
-      case kExprLocalSet:
-      case kExprLocalTee: {
-        LocalIndexImmediate<validate> imm(decoder, pc + 1);
-        return 1 + imm.length;
-      }
-      case kExprSelectWithType: {
-        SelectTypeImmediate<validate> imm(WasmFeatures::All(), decoder, pc + 1);
-        return 1 + imm.length;
-      }
-      case kExprBrTable: {
-        BranchTableImmediate<validate> imm(decoder, pc + 1);
-        BranchTableIterator<validate> iterator(decoder, imm);
-        return 1 + iterator.length();
-      }
       case kExprI32Const: {
         ImmI32Immediate<validate> imm(decoder, pc + 1);
         return 1 + imm.length;
@@ -1675,6 +1676,10 @@ class WasmDecoder : public Decoder {
         ImmI64Immediate<validate> imm(decoder, pc + 1);
         return 1 + imm.length;
       }
+      case kExprF32Const:
+        return 5;
+      case kExprF64Const:
+        return 9;
       case kExprRefNull: {
         HeapTypeImmediate<validate> imm(WasmFeatures::All(), decoder, pc + 1);
         return 1 + imm.length;
@@ -1686,15 +1691,28 @@ class WasmDecoder : public Decoder {
         FunctionIndexImmediate<validate> imm(decoder, pc + 1);
         return 1 + imm.length;
       }
+      case kExprRefAsNonNull:
+        return 1;
+
+#define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
+        // clang-format off
+      /********** Simple and memory opcodes **********/
+      FOREACH_SIMPLE_OPCODE(DECLARE_OPCODE_CASE)
+      FOREACH_SIMPLE_PROTOTYPE_OPCODE(DECLARE_OPCODE_CASE)
+        return 1;
+      FOREACH_LOAD_MEM_OPCODE(DECLARE_OPCODE_CASE)
+      FOREACH_STORE_MEM_OPCODE(DECLARE_OPCODE_CASE) {
+        MemoryAccessImmediate<validate> imm(decoder, pc + 1, UINT32_MAX);
+        return 1 + imm.length;
+      }
+      // clang-format on
       case kExprMemoryGrow:
       case kExprMemorySize: {
         MemoryIndexImmediate<validate> imm(decoder, pc + 1);
         return 1 + imm.length;
       }
-      case kExprF32Const:
-        return 5;
-      case kExprF64Const:
-        return 9;
+
+      /********** Prefixed opcodes **********/
       case kNumericPrefix: {
         uint32_t length = 0;
         opcode = decoder->read_prefixed_opcode<validate>(pc, &length);
@@ -1743,7 +1761,9 @@ class WasmDecoder : public Decoder {
             return length + imm.length;
           }
           default:
-            decoder->DecodeError(pc, "invalid numeric opcode");
+            if (validate) {
+              decoder->DecodeError(pc, "invalid numeric opcode");
+            }
             return length;
         }
       }
@@ -1751,17 +1771,13 @@ class WasmDecoder : public Decoder {
         uint32_t length = 0;
         opcode = decoder->read_prefixed_opcode<validate>(pc, &length);
         switch (opcode) {
-#define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
+          // clang-format off
           FOREACH_SIMD_0_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
-#undef DECLARE_OPCODE_CASE
-          return length;
-#define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
+            return length;
           FOREACH_SIMD_1_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
-#undef DECLARE_OPCODE_CASE
-          return length + 1;
-#define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
+            return length + 1;
+          // clang-format on
           FOREACH_SIMD_MEM_OPCODE(DECLARE_OPCODE_CASE)
-#undef DECLARE_OPCODE_CASE
           case kExprPrefetchT:
           case kExprPrefetchNT: {
             MemoryAccessImmediate<validate> imm(decoder, pc + length,
@@ -1786,7 +1802,9 @@ class WasmDecoder : public Decoder {
           case kExprI8x16Shuffle:
             return length + kSimd128Size;
           default:
-            decoder->DecodeError(pc, "invalid SIMD opcode");
+            if (validate) {
+              decoder->DecodeError(pc, "invalid SIMD opcode");
+            }
             return length;
         }
       }
@@ -1795,22 +1813,18 @@ class WasmDecoder : public Decoder {
         opcode = decoder->read_prefixed_opcode<validate>(pc, &length,
                                                          "atomic_index");
         switch (opcode) {
-#define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
-          FOREACH_ATOMIC_OPCODE(DECLARE_OPCODE_CASE)
-#undef DECLARE_OPCODE_CASE
-          {
+          FOREACH_ATOMIC_OPCODE(DECLARE_OPCODE_CASE) {
             MemoryAccessImmediate<validate> imm(decoder, pc + length,
                                                 UINT32_MAX);
             return length + imm.length;
           }
-#define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
-          FOREACH_ATOMIC_0_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
-#undef DECLARE_OPCODE_CASE
-          {
+          FOREACH_ATOMIC_0_OPERAND_OPCODE(DECLARE_OPCODE_CASE) {
             return length + 1;
           }
           default:
-            decoder->DecodeError(pc, "invalid Atomics opcode");
+            if (validate) {
+              decoder->DecodeError(pc, "invalid Atomics opcode");
+            }
             return length;
         }
       }
@@ -1853,7 +1867,6 @@ class WasmDecoder : public Decoder {
                                             pc + length);
             return length + imm.length;
           }
-
           case kExprI31New:
           case kExprI31GetS:
           case kExprI31GetU:
@@ -1866,16 +1879,36 @@ class WasmDecoder : public Decoder {
                                             pc + length + ht1.length);
             return length + ht1.length + ht2.length;
           }
-
           default:
             // This is unreachable except for malformed modules.
-            decoder->DecodeError(pc, "invalid gc opcode");
+            if (validate) {
+              decoder->DecodeError(pc, "invalid gc opcode");
+            }
             return length;
         }
       }
-      default:
+
+        // clang-format off
+      /********** Asmjs opcodes **********/
+      FOREACH_ASMJS_COMPAT_OPCODE(DECLARE_OPCODE_CASE)
         return 1;
+
+      // Prefixed opcodes (already handled, included here for completeness of
+      // switch)
+      FOREACH_SIMD_OPCODE(DECLARE_OPCODE_CASE)
+      FOREACH_NUMERIC_OPCODE(DECLARE_OPCODE_CASE)
+      FOREACH_ATOMIC_OPCODE(DECLARE_OPCODE_CASE)
+      FOREACH_ATOMIC_0_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
+      FOREACH_GC_OPCODE(DECLARE_OPCODE_CASE)
+        UNREACHABLE();
+        // clang-format on
+#undef DECLARE_OPCODE_CASE
     }
+    // Invalid modules will reach this point.
+    if (validate) {
+      decoder->DecodeError(pc, "invalid opcode");
+    }
+    return 1;
   }
 
   // TODO(clemensb): This is only used by the interpreter; move there.

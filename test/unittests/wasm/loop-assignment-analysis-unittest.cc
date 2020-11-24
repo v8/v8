@@ -183,6 +183,12 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Malformed) {
   CHECK_NULL(assigned);
 }
 
+TEST_F(WasmLoopAssignmentAnalyzerTest, InvalidOpcode) {
+  byte code[] = {WASM_LOOP(0xFF)};
+  BitVector* assigned = Analyze(code, code + arraysize(code));
+  EXPECT_EQ(assigned, nullptr);
+}
+
 TEST_F(WasmLoopAssignmentAnalyzerTest, regress_642867) {
   static const byte code[] = {
       WASM_LOOP(WASM_ZERO, kExprLocalSet, 0xFA, 0xFF, 0xFF, 0xFF,
