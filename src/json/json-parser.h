@@ -231,7 +231,7 @@ class JsonParser final {
     STATIC_ASSERT(N > 2);
     size_t remaining = static_cast<size_t>(end_ - cursor_);
     if (V8_LIKELY(remaining >= N - 1 &&
-                  CompareChars(s + 1, cursor_ + 1, N - 2) == 0)) {
+                  CompareCharsEqual(s + 1, cursor_ + 1, N - 2))) {
       cursor_ += N - 1;
       return;
     }

@@ -126,23 +126,23 @@ bool AstRawString::Equal(const AstRawString* lhs, const AstRawString* rhs) {
   size_t length = rhs->length();
   if (lhs->is_one_byte()) {
     if (rhs->is_one_byte()) {
-      return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(l),
-                                  reinterpret_cast<const uint8_t*>(r),
-                                  length) == 0;
+      return CompareCharsEqualUnsigned(reinterpret_cast<const uint8_t*>(l),
+                                       reinterpret_cast<const uint8_t*>(r),
+                                       length);
     } else {
-      return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(l),
-                                  reinterpret_cast<const uint16_t*>(r),
-                                  length) == 0;
+      return CompareCharsEqualUnsigned(reinterpret_cast<const uint8_t*>(l),
+                                       reinterpret_cast<const uint16_t*>(r),
+                                       length);
     }
   } else {
     if (rhs->is_one_byte()) {
-      return CompareCharsUnsigned(reinterpret_cast<const uint16_t*>(l),
-                                  reinterpret_cast<const uint8_t*>(r),
-                                  length) == 0;
+      return CompareCharsEqualUnsigned(reinterpret_cast<const uint16_t*>(l),
+                                       reinterpret_cast<const uint8_t*>(r),
+                                       length);
     } else {
-      return CompareCharsUnsigned(reinterpret_cast<const uint16_t*>(l),
-                                  reinterpret_cast<const uint16_t*>(r),
-                                  length) == 0;
+      return CompareCharsEqualUnsigned(reinterpret_cast<const uint16_t*>(l),
+                                       reinterpret_cast<const uint16_t*>(r),
+                                       length);
     }
   }
 }

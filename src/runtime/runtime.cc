@@ -66,9 +66,7 @@ struct IntrinsicFunctionIdentifier {
     const IntrinsicFunctionIdentifier* rhs =
         static_cast<IntrinsicFunctionIdentifier*>(key2);
     if (lhs->length_ != rhs->length_) return false;
-    return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(lhs->data_),
-                                reinterpret_cast<const uint8_t*>(rhs->data_),
-                                rhs->length_) == 0;
+    return CompareCharsEqual(lhs->data_, rhs->data_, rhs->length_);
   }
 
   uint32_t Hash() {

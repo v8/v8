@@ -799,7 +799,7 @@ IrregexpInterpreter::Result RawMatch(
       int len = registers[LoadPacked24Unsigned(insn) + 1] - from;
       if (from >= 0 && len > 0) {
         if (current + len > subject.length() ||
-            CompareChars(&subject[from], &subject[current], len) != 0) {
+            !CompareCharsEqual(&subject[from], &subject[current], len)) {
           SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
           DISPATCH();
         }
@@ -813,7 +813,7 @@ IrregexpInterpreter::Result RawMatch(
       int len = registers[LoadPacked24Unsigned(insn) + 1] - from;
       if (from >= 0 && len > 0) {
         if (current - len < 0 ||
-            CompareChars(&subject[from], &subject[current - len], len) != 0) {
+            !CompareCharsEqual(&subject[from], &subject[current - len], len)) {
           SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
           DISPATCH();
         }

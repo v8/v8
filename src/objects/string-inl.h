@@ -450,25 +450,25 @@ bool String::IsEqualTo(Vector<const Char> str,
         SeqOneByteString str, const Char* data, size_t len,
         const DisallowGarbageCollection& no_gc,
         const SharedStringAccessGuardIfNeeded& access_guard) {
-      return CompareChars(str.GetChars(no_gc, access_guard), data, len) == 0;
+      return CompareCharsEqual(str.GetChars(no_gc, access_guard), data, len);
     }
     static inline bool HandleSeqTwoByteString(
         SeqTwoByteString str, const Char* data, size_t len,
         const DisallowGarbageCollection& no_gc,
         const SharedStringAccessGuardIfNeeded& access_guard) {
-      return CompareChars(str.GetChars(no_gc, access_guard), data, len) == 0;
+      return CompareCharsEqual(str.GetChars(no_gc, access_guard), data, len);
     }
     static inline bool HandleExternalOneByteString(
         ExternalOneByteString str, const Char* data, size_t len,
         const DisallowGarbageCollection& no_gc,
         const SharedStringAccessGuardIfNeeded& access_guard) {
-      return CompareChars(str.GetChars(), data, len) == 0;
+      return CompareCharsEqual(str.GetChars(), data, len);
     }
     static inline bool HandleExternalTwoByteString(
         ExternalTwoByteString str, const Char* data, size_t len,
         const DisallowGarbageCollection& no_gc,
         const SharedStringAccessGuardIfNeeded& access_guard) {
-      return CompareChars(str.GetChars(), data, len) == 0;
+      return CompareCharsEqual(str.GetChars(), data, len);
     }
     static inline bool HandleConsString(
         ConsString str, const Char* data, size_t len,
