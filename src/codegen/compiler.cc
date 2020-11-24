@@ -1927,9 +1927,6 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
                                 ConcurrencyMode mode, CodeKind code_kind) {
   DCHECK(CodeKindIsOptimizedJSFunction(code_kind));
 
-  // If the requested code kind is already available, do nothing.
-  if (function->HasAvailableCodeKind(code_kind)) return true;
-
   Isolate* isolate = function->GetIsolate();
   DCHECK(AllowCompilation::IsAllowed(isolate));
 

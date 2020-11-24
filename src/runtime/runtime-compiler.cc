@@ -65,6 +65,8 @@ Object CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
     return ReadOnlyRoots(isolate).exception();
   }
 
+  // As a post-condition of CompileOptimized, the function *must* be compiled,
+  // i.e. the installed Code object must not be the CompileLazy builtin.
   DCHECK(function->is_compiled());
   return function->code();
 }
