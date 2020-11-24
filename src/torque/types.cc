@@ -511,16 +511,6 @@ void ClassType::Finalize() const {
   TypeVisitor::VisitClassFieldsAndMethods(const_cast<ClassType*>(this),
                                           this->decl_);
   is_finalized_ = true;
-  if (GenerateCppClassDefinitions() || !IsExtern()) {
-    for (const Field& f : fields()) {
-      if (f.is_weak) {
-        Error("Generation of C++ class for Torque class ", name(),
-              " is not supported yet, because field ", f.name_and_type.name,
-              ": ", *f.name_and_type.type, " is a weak field.")
-            .Position(f.pos);
-      }
-    }
-  }
   CheckForDuplicateFields();
 }
 

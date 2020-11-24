@@ -43,7 +43,6 @@ namespace internal {
   V(PropertyArray)                     \
   V(PropertyCell)                      \
   V(PrototypeInfo)                     \
-  V(SharedFunctionInfo)                \
   V(SmallOrderedHashMap)               \
   V(SmallOrderedHashSet)               \
   V(SmallOrderedNameDictionary)        \

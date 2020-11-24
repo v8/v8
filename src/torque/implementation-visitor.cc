@@ -3735,7 +3735,8 @@ void CppClassGenerator::GenerateClass() {
        << "    \"Pass in " << super_->name()
        << " as second template parameter for " << gen_name_ << ".\");\n";
   hdr_ << " public: \n";
-  hdr_ << "  using Super = P;\n\n";
+  hdr_ << "  using Super = P;\n";
+  hdr_ << "  using TorqueGeneratedClass = " << gen_name_ << "<D,P>;\n\n";
   if (!type_->ShouldExport() && !type_->IsExtern()) {
     hdr_ << " protected: // not extern or @export\n";
   }
@@ -3806,9 +3807,9 @@ void CppClassGenerator::GenerateClass() {
         hdr_ << "    size += " << index_name_and_type.name << " * "
              << field_size << ";\n";
       }
-      if (type_->size().Alignment() < TargetArchitecture::TaggedSize()) {
-        hdr_ << "    size = OBJECT_POINTER_ALIGN(size);\n";
-      }
+    }
+    if (type_->size().Alignment() < TargetArchitecture::TaggedSize()) {
+      hdr_ << "    size = OBJECT_POINTER_ALIGN(size);\n";
     }
     hdr_ << "    return size;\n";
     hdr_ << "  }\n\n";
@@ -4273,7 +4274,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
         for (const Field& f : type->ComputeAllFields()) {
           if (f.name_and_type.name == "map") continue;
           if (!f.index) {
-            factory_impl << "  result_handle->set_"
+            factory_impl << "  result_handle->TorqueGeneratedClass::set_"
                          << SnakeifyString(f.name_and_type.name) << "(";
             if (f.name_and_type.type->IsSubtypeOf(
                     TypeOracle::GetTaggedType()) &&

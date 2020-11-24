@@ -187,6 +187,23 @@
 #define ACCESSORS(holder, name, type, offset) \
   ACCESSORS_CHECKED(holder, name, type, offset, true)
 
+#define RENAME_TORQUE_ACCESSORS(holder, name, torque_name, type)      \
+  inline type holder::name() const {                                  \
+    return TorqueGeneratedClass::torque_name();                       \
+  }                                                                   \
+  inline void holder::set_##name(type value, WriteBarrierMode mode) { \
+    TorqueGeneratedClass::set_##torque_name(value, mode);             \
+  }
+
+#define RENAME_UINT16_TORQUE_ACCESSORS(holder, name, torque_name) \
+  uint16_t holder::name() const {                                 \
+    return TorqueGeneratedClass::torque_name();                   \
+  }                                                               \
+  void holder::set_##name(int value) {                            \
+    DCHECK_EQ(value, static_cast<uint16_t>(value));               \
+    TorqueGeneratedClass::set_##torque_name(value);               \
+  }
+
 #define RELAXED_ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \
                                    set_condition)                             \
   type holder::name(RelaxedLoadTag tag) const {                               \

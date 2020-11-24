@@ -209,9 +209,6 @@ VisitorId Map::GetVisitorId(Map map) {
     case CALL_HANDLER_INFO_TYPE:
       return kVisitStruct;
 
-    case SHARED_FUNCTION_INFO_TYPE:
-      return kVisitSharedFunctionInfo;
-
     case JS_PROXY_TYPE:
       return kVisitStruct;
 

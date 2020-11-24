@@ -94,9 +94,8 @@ ACCESSORS(InterpreterData, bytecode_array, BytecodeArray, kBytecodeArrayOffset)
 ACCESSORS(InterpreterData, interpreter_trampoline, Code,
           kInterpreterTrampolineOffset)
 
-OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfo, HeapObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfo)
 NEVER_READ_ONLY_SPACE_IMPL(SharedFunctionInfo)
-CAST_ACCESSOR(SharedFunctionInfo)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
 
 RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, function_data, Object,
@@ -106,19 +105,15 @@ RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, name_or_scope_info, Object,
 RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, script_or_debug_info, HeapObject,
                           kScriptOrDebugInfoOffset)
 
-INT32_ACCESSORS(SharedFunctionInfo, function_literal_id,
-                kFunctionLiteralIdOffset)
+RENAME_TORQUE_ACCESSORS(SharedFunctionInfo,
+                        raw_outer_scope_info_or_feedback_metadata,
+                        outer_scope_info_or_feedback_metadata, HeapObject)
+RENAME_UINT16_TORQUE_ACCESSORS(SharedFunctionInfo,
+                               internal_formal_parameter_count,
+                               formal_parameter_count)
+RENAME_UINT16_TORQUE_ACCESSORS(SharedFunctionInfo, raw_function_token_offset,
+                               function_token_offset)
 
-#if V8_SFI_HAS_UNIQUE_ID
-INT_ACCESSORS(SharedFunctionInfo, unique_id, kUniqueIdOffset)
-#endif
-UINT16_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
-UINT16_ACCESSORS(SharedFunctionInfo, internal_formal_parameter_count,
-                 kFormalParameterCountOffset)
-UINT8_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
-                kExpectedNofPropertiesOffset)
-UINT16_ACCESSORS(SharedFunctionInfo, raw_function_token_offset,
-                 kFunctionTokenOffsetOffset)
 RELAXED_INT32_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
 UINT8_ACCESSORS(SharedFunctionInfo, flags2, kFlags2Offset)
 
@@ -361,9 +356,6 @@ void SharedFunctionInfo::set_raw_scope_info(ScopeInfo scope_info,
   WRITE_FIELD(*this, kNameOrScopeInfoOffset, scope_info);
   CONDITIONAL_WRITE_BARRIER(*this, kNameOrScopeInfoOffset, scope_info, mode);
 }
-
-ACCESSORS(SharedFunctionInfo, raw_outer_scope_info_or_feedback_metadata,
-          HeapObject, kOuterScopeInfoOrFeedbackMetadataOffset)
 
 HeapObject SharedFunctionInfo::outer_scope_info() const {
   DCHECK(!is_compiled());

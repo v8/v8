@@ -269,30 +269,6 @@ class JSFinalizationRegistry::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class SharedFunctionInfo::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    static_assert(kEndOfWeakFieldsOffset == kStartOfStrongFieldsOffset,
-                  "Leverage that strong fields directly follow weak fields"
-                  "to call FixedBodyDescriptor<...>::IsValidSlot below");
-    return FixedBodyDescriptor<kStartOfWeakFieldsOffset,
-                               kEndOfStrongFieldsOffset,
-                               kAlignedSize>::IsValidSlot(map, obj, offset);
-  }
-
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Map map, HeapObject obj, int object_size,
-                                 ObjectVisitor* v) {
-    IterateCustomWeakPointer(obj, kFunctionDataOffset, v);
-    IteratePointers(obj, SharedFunctionInfo::kStartOfStrongFieldsOffset,
-                    SharedFunctionInfo::kEndOfStrongFieldsOffset, v);
-  }
-
-  static inline int SizeOf(Map map, HeapObject object) {
-    return map.instance_size();
-  }
-};
-
 class AllocationSite::BodyDescriptor final : public BodyDescriptorBase {
  public:
   STATIC_ASSERT(AllocationSite::kCommonPointerFieldEndOffset ==
@@ -1068,11 +1044,6 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case FREE_SPACE_TYPE:
     case BIGINT_TYPE:
       return ReturnType();
-
-    case SHARED_FUNCTION_INFO_TYPE: {
-      return Op::template apply<SharedFunctionInfo::BodyDescriptor>(p1, p2, p3,
-                                                                    p4);
-    }
     case ALLOCATION_SITE_TYPE:
       return Op::template apply<AllocationSite::BodyDescriptor>(p1, p2, p3, p4);
 

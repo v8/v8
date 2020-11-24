@@ -195,7 +195,6 @@ class ZoneForwardList;
   V(SeqOneByteString)                          \
   V(SeqString)                                 \
   V(SeqTwoByteString)                          \
-  V(SharedFunctionInfo)                        \
   V(SimpleNumberDictionary)                    \
   V(SlicedString)                              \
   V(SmallOrderedHashMap)                       \
