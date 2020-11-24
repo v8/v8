@@ -57,7 +57,7 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
   bailout(kUnsupportedArchitecture, "PrepareTailCall");
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(int offset, int frame_size) {
+void LiftoffAssembler::PatchPrepareStackFrame(int offset) {
   bailout(kUnsupportedArchitecture, "PatchPrepareStackFrame");
 }
 
