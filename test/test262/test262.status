@@ -563,12 +563,6 @@
   'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-subdivision': [FAIL],
   'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-yes-to-true': [FAIL],
 
-  # http://crbug/v8/11174
-  'intl402/DateTimeFormat/intl-legacy-constructed-symbol': [FAIL],
-  'intl402/DateTimeFormat/intl-legacy-constructed-symbol-on-unwrap': [FAIL],
-  'intl402/NumberFormat/intl-legacy-constructed-symbol': [FAIL],
-  'intl402/NumberFormat/intl-legacy-constructed-symbol-on-unwrap': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9818
   'built-ins/AsyncFunction/proto-from-ctor-realm': [FAIL],
 

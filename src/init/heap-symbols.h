@@ -369,17 +369,17 @@
   V(_, wasm_wrapped_object_symbol)                    \
   V(_, uninitialized_symbol)
 
-#define PUBLIC_SYMBOL_LIST_GENERATOR(V, _)          \
-  V(_, async_iterator_symbol, Symbol.asyncIterator) \
-  V(_, iterator_symbol, Symbol.iterator)            \
-  V(_, intl_fallback_symbol, IntlFallback)          \
-  V(_, match_all_symbol, Symbol.matchAll)           \
-  V(_, match_symbol, Symbol.match)                  \
-  V(_, replace_symbol, Symbol.replace)              \
-  V(_, search_symbol, Symbol.search)                \
-  V(_, species_symbol, Symbol.species)              \
-  V(_, split_symbol, Symbol.split)                  \
-  V(_, to_primitive_symbol, Symbol.toPrimitive)     \
+#define PUBLIC_SYMBOL_LIST_GENERATOR(V, _)                \
+  V(_, async_iterator_symbol, Symbol.asyncIterator)       \
+  V(_, iterator_symbol, Symbol.iterator)                  \
+  V(_, intl_fallback_symbol, IntlLegacyConstructedSymbol) \
+  V(_, match_all_symbol, Symbol.matchAll)                 \
+  V(_, match_symbol, Symbol.match)                        \
+  V(_, replace_symbol, Symbol.replace)                    \
+  V(_, search_symbol, Symbol.search)                      \
+  V(_, species_symbol, Symbol.species)                    \
+  V(_, split_symbol, Symbol.split)                        \
+  V(_, to_primitive_symbol, Symbol.toPrimitive)           \
   V(_, unscopables_symbol, Symbol.unscopables)
 
 // Well-Known Symbols are "Public" symbols, which have a bit set which causes
