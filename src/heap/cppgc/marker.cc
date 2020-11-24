@@ -60,7 +60,7 @@ void VisitRememberedSlots(HeapBase& heap,
                           MutatorMarkingState& mutator_marking_state) {
 #if defined(CPPGC_YOUNG_GENERATION)
   StatsCollector::EnabledScope stats_scope(
-      heap(), StatsCollector::kVisitRememberedSets);
+      heap, StatsCollector::kVisitRememberedSets);
   for (void* slot : heap.remembered_slots()) {
     auto& slot_header = BasePage::FromInnerAddress(&heap, slot)
                             ->ObjectHeaderFromInnerAddress(slot);
@@ -69,7 +69,7 @@ void VisitRememberedSlots(HeapBase& heap,
     // top level (with the guarantee that no objects are currently being in
     // construction). This can be ensured by running young GCs from safe points
     // or by reintroducing nested allocation scopes that avoid finalization.
-    DCHECK(!header.IsInConstruction<AccessMode::kNonAtomic>());
+    DCHECK(!slot_header.template IsInConstruction<AccessMode::kNonAtomic>());
 
     void* value = *reinterpret_cast<void**>(slot);
     mutator_marking_state.DynamicallyMarkAddress(static_cast<Address>(value));

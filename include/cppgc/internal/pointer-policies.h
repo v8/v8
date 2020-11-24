@@ -28,7 +28,7 @@ struct DijkstraWriteBarrierPolicy {
     // barrier doesn't break the tri-color invariant.
   }
   static void AssigningBarrier(const void* slot, const void* value) {
-    WriteBarrier::MarkingBarrier(slot, value);
+    WriteBarrier::DijkstraMarkingBarrier(slot, value);
   }
 };
 

@@ -52,6 +52,8 @@ AllocationHandle& Heap::GetAllocationHandle() {
   return internal::Heap::From(this)->object_allocator();
 }
 
+HeapHandle& Heap::GetHeapHandle() { return *internal::Heap::From(this); }
+
 namespace internal {
 
 namespace {

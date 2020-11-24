@@ -15,6 +15,7 @@
 
 namespace cppgc {
 class AllocationHandle;
+class HeapHandle;
 }  // namespace cppgc
 
 namespace v8 {
@@ -39,6 +40,12 @@ class V8_EXPORT CppHeap {
    * `MakeGarbageCollected()`.
    */
   cppgc::AllocationHandle& GetAllocationHandle();
+
+  /**
+   * \returns the opaque heap handle which may be used to refer to this heap in
+   *   other APIs. Valid as long as the underlying `CppHeap` is alive.
+   */
+  cppgc::HeapHandle& GetHeapHandle();
 
  private:
   CppHeap() = default;

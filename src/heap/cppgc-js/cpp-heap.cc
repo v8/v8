@@ -38,6 +38,10 @@ cppgc::AllocationHandle& CppHeap::GetAllocationHandle() {
   return internal::CppHeap::From(this)->object_allocator();
 }
 
+cppgc::HeapHandle& CppHeap::GetHeapHandle() {
+  return *internal::CppHeap::From(this);
+}
+
 namespace internal {
 
 namespace {

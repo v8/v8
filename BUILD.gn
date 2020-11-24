@@ -4438,6 +4438,7 @@ v8_source_set("cppgc_base") {
     "include/cppgc/default-platform.h",
     "include/cppgc/ephemeron-pair.h",
     "include/cppgc/garbage-collected.h",
+    "include/cppgc/heap-consistency.h",
     "include/cppgc/heap.h",
     "include/cppgc/internal/api-constants.h",
     "include/cppgc/internal/atomic-entry-flag.h",

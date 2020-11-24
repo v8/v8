@@ -103,7 +103,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
   MutatorMarkingState& MutatorMarkingStateForTesting() {
     return mutator_marking_state_;
   }
-  cppgc::Visitor& VisitorForTesting() { return visitor(); }
+  cppgc::Visitor& Visitor() { return visitor(); }
   void ClearAllWorklistsForTesting();
 
   bool IncrementalMarkingStepForTesting(MarkingConfig::StackState);

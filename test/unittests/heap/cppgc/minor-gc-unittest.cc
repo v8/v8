@@ -207,8 +207,8 @@ TYPED_TEST(MinorGCTestForType, OmitGenerationalBarrierForOnStackObject) {
 
   // Try issuing generational barrier for on-stack object.
   stack_object.ptr = new_object;
-  WriteBarrier::MarkingBarrier(reinterpret_cast<void*>(&stack_object.ptr),
-                               new_object);
+  WriteBarrier::DijkstraMarkingBarrier(
+      reinterpret_cast<void*>(&stack_object.ptr), new_object);
 
   EXPECT_EQ(set_size_before_barrier, set.size());
 }
