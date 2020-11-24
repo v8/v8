@@ -88,8 +88,9 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
 
   static void CompileAndRunWithOrigin(
       const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 5 || !args[0]->IsInt32() || !args[1]->IsString() ||
-        !args[2]->IsString() || !args[3]->IsInt32() || !args[4]->IsInt32()) {
+    if (args.Length() != 6 || !args[0]->IsInt32() || !args[1]->IsString() ||
+        !args[2]->IsString() || !args[3]->IsInt32() || !args[4]->IsInt32() ||
+        !args[5]->IsBoolean()) {
       return;
     }
 
@@ -97,7 +98,7 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
         args.GetIsolate(), args[0].As<v8::Int32>()->Value(),
         ToVector(args.GetIsolate(), args[1].As<v8::String>()),
         args[2].As<v8::String>(), args[3].As<v8::Int32>(),
-        args[4].As<v8::Int32>(), v8::Boolean::New(args.GetIsolate(), false)));
+        args[4].As<v8::Int32>(), args[5].As<v8::Boolean>()));
   }
 
   static void SchedulePauseOnNextStatement(
