@@ -1534,7 +1534,8 @@ class WasmInterpreterInternals {
     // the operation to keep trap reporting and tracing accurate, otherwise
     // those will report at the middle of an opcode.
     MemoryAccessImmediate<Decoder::kNoValidation> imm(
-        decoder, code->at(pc + prefix_len), sizeof(ctype));
+        decoder, code->at(pc + prefix_len), sizeof(ctype),
+        module()->is_memory64);
     uint64_t index = ToMemType(Pop());
     Address addr = BoundsCheckMem<mtype>(imm.offset, index);
     if (!addr) {
@@ -1566,7 +1567,8 @@ class WasmInterpreterInternals {
     // the operation to keep trap reporting and tracing accurate, otherwise
     // those will report at the middle of an opcode.
     MemoryAccessImmediate<Decoder::kNoValidation> imm(
-        decoder, code->at(pc + prefix_len), sizeof(ctype));
+        decoder, code->at(pc + prefix_len), sizeof(ctype),
+        module()->is_memory64);
     ctype val = Pop().to<ctype>();
 
     uint64_t index = ToMemType(Pop());
@@ -1593,7 +1595,7 @@ class WasmInterpreterInternals {
                              Address* address, pc_t pc, int* const len,
                              type* val = nullptr, type* val2 = nullptr) {
     MemoryAccessImmediate<Decoder::kNoValidation> imm(
-        decoder, code->at(pc + *len), sizeof(type));
+        decoder, code->at(pc + *len), sizeof(type), module()->is_memory64);
     if (val2) *val2 = static_cast<type>(Pop().to<op_type>());
     if (val) *val = static_cast<type>(Pop().to<op_type>());
     uint64_t index = ToMemType(Pop());
@@ -1617,7 +1619,7 @@ class WasmInterpreterInternals {
                                      int64_t* timeout = nullptr) {
     // TODO(manoskouk): Introduce test which exposes wrong pc offset below.
     MemoryAccessImmediate<Decoder::kFullValidation> imm(
-        decoder, code->at(pc + *len), sizeof(type));
+        decoder, code->at(pc + *len), sizeof(type), module()->is_memory64);
     if (timeout) {
       *timeout = Pop().to<int64_t>();
     }
@@ -2806,7 +2808,7 @@ class WasmInterpreterInternals {
       case kExprPrefetchNT: {
         // Max alignment doesn't matter, use an arbitrary value.
         MemoryAccessImmediate<Decoder::kNoValidation> imm(
-            decoder, code->at(pc + *len), 4);
+            decoder, code->at(pc + *len), 4, module()->is_memory64);
         // Pop address and do nothing.
         Pop().to<uint32_t>();
         *len += imm.length;
@@ -2897,7 +2899,7 @@ class WasmInterpreterInternals {
     s_type value = Pop().to_s128().to<s_type>();
 
     MemoryAccessImmediate<Decoder::kNoValidation> imm(
-        decoder, code->at(pc + *len), sizeof(load_type));
+        decoder, code->at(pc + *len), sizeof(load_type), module()->is_memory64);
 
     SimdLaneImmediate<Decoder::kNoValidation> lane_imm(
         decoder, code->at(pc + *len + imm.length));

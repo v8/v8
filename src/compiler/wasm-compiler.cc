@@ -4082,7 +4082,7 @@ Node* WasmGraphBuilder::LoadTransformBigEndian(
 #endif
 
 Node* WasmGraphBuilder::LoadLane(MachineType memtype, Node* value, Node* index,
-                                 uint32_t offset, uint8_t laneidx,
+                                 uint64_t offset, uint8_t laneidx,
                                  wasm::WasmCodePosition position) {
   has_simd_ = true;
   Node* load;
@@ -4093,9 +4093,12 @@ Node* WasmGraphBuilder::LoadLane(MachineType memtype, Node* value, Node* index,
   MemoryAccessKind load_kind =
       GetMemoryAccessKind(mcgraph(), memtype, use_trap_handler());
 
+  // {offset} is validated to be within uintptr_t range in {BoundsCheckMem}.
+  uintptr_t capped_offset = static_cast<uintptr_t>(offset);
+
   load = SetEffect(graph()->NewNode(
       mcgraph()->machine()->LoadLane(load_kind, memtype, laneidx),
-      MemBuffer(offset), index, value, effect(), control()));
+      MemBuffer(capped_offset), index, value, effect(), control()));
 
   if (load_kind == MemoryAccessKind::kProtected) {
     SetSourcePosition(load, position);
@@ -4221,7 +4224,7 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
 }
 
 Node* WasmGraphBuilder::StoreLane(MachineRepresentation mem_rep, Node* index,
-                                  uint32_t offset, uint32_t alignment,
+                                  uint64_t offset, uint32_t alignment,
                                   Node* val, uint8_t laneidx,
                                   wasm::WasmCodePosition position,
                                   wasm::ValueType type) {

@@ -4945,8 +4945,15 @@ TEST_F(BytecodeIteratorTest, WithLocalDecls) {
  * Memory64 tests
  ******************************************************************************/
 
-using FunctionBodyDecoderTestOnBothMemoryTypes =
-    FunctionBodyDecoderTestBase<::testing::TestWithParam<MemoryType>>;
+class FunctionBodyDecoderTestOnBothMemoryTypes
+    : public FunctionBodyDecoderTestBase<::testing::TestWithParam<MemoryType>> {
+ public:
+  bool is_memory64() const { return GetParam() == kMemory64; }
+
+  WasmOpcode index_type_const() const {
+    return is_memory64() ? kExprI64Const : kExprI32Const;
+  }
+};
 
 std::string PrintMemoryType(::testing::TestParamInfo<MemoryType> info) {
   switch (info.param) {
@@ -4964,15 +4971,36 @@ INSTANTIATE_TEST_SUITE_P(MemoryTypes, FunctionBodyDecoderTestOnBothMemoryTypes,
 
 TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, IndexTypes) {
   builder.InitializeMemory(GetParam());
-  const bool is_memory64 = GetParam() == kMemory64;
-  Validate(!is_memory64, sigs.i_v(),
+  Validate(!is_memory64(), sigs.i_v(),
            {WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO)});
-  Validate(is_memory64, sigs.i_v(),
+  Validate(is_memory64(), sigs.i_v(),
            {WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO64)});
-  Validate(!is_memory64, sigs.v_v(),
+  Validate(!is_memory64(), sigs.v_v(),
            {WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO, WASM_ZERO)});
-  Validate(is_memory64, sigs.v_v(),
+  Validate(is_memory64(), sigs.v_v(),
            {WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO64, WASM_ZERO)});
+}
+
+TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, 64BitOffset) {
+  builder.InitializeMemory(GetParam());
+  // Macro for defining a zero constant of the right type.
+#define ZERO_FOR_TYPE WASM_SEQ(index_type_const(), 0)
+  // Offset is zero encoded in 5 bytes (works always).
+  Validate(
+      true, sigs.i_v(),
+      {WASM_LOAD_MEM_OFFSET(MachineType::Int32(), U64V_5(0), ZERO_FOR_TYPE)});
+  // Offset is zero encoded in 6 bytes (works only in memory64).
+  Validate(
+      is_memory64(), sigs.i_v(),
+      {WASM_LOAD_MEM_OFFSET(MachineType::Int32(), U64V_6(0), ZERO_FOR_TYPE)});
+  // Same with store.
+  Validate(true, sigs.v_v(),
+           {WASM_STORE_MEM_OFFSET(MachineType::Int32(), U64V_5(0),
+                                  ZERO_FOR_TYPE, WASM_ZERO)});
+  Validate(is_memory64(), sigs.v_v(),
+           {WASM_STORE_MEM_OFFSET(MachineType::Int32(), U64V_6(0),
+                                  ZERO_FOR_TYPE, WASM_ZERO)});
+#undef ZERO_FOR_TYPE
 }
 
 #undef B1
