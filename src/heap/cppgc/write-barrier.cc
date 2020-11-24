@@ -116,7 +116,7 @@ void WriteBarrier::SteeleMarkingBarrierSlow(const void* value) {
 
 #if defined(CPPGC_YOUNG_GENERATION)
 // static
-void WriteBarrier::GenerationalBarrierSlow(CagedHeapLocalData& local_data,
+void WriteBarrier::GenerationalBarrierSlow(const CagedHeapLocalData& local_data,
                                            const AgeTable& age_table,
                                            const void* slot,
                                            uintptr_t value_offset) {
@@ -126,6 +126,13 @@ void WriteBarrier::GenerationalBarrierSlow(CagedHeapLocalData& local_data,
   local_data.heap_base->remembered_slots().insert(const_cast<void*>(slot));
 }
 #endif
+
+#if V8_ENABLE_CHECKS
+// static
+void WriteBarrier::CheckParams(Type expected_type, const Params& params) {
+  CHECK_EQ(expected_type, params.type);
+}
+#endif  // V8_ENABLE_CHECKS
 
 }  // namespace internal
 }  // namespace cppgc
