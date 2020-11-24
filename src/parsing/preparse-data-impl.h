@@ -144,6 +144,8 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
   };
 
   BaseConsumedPreparseData() : scope_data_(new ByteData()), child_index_(0) {}
+  BaseConsumedPreparseData(const BaseConsumedPreparseData&) = delete;
+  BaseConsumedPreparseData& operator=(const BaseConsumedPreparseData&) = delete;
 
   virtual Data GetScopeData() = 0;
 
@@ -174,8 +176,6 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
   // When consuming the data, these indexes point to the data we're going to
   // consume next.
   int child_index_;
-
-  DISALLOW_COPY_AND_ASSIGN(BaseConsumedPreparseData);
 };
 
 // Implementation of ConsumedPreparseData for on-heap data.
@@ -198,6 +198,9 @@ class ZonePreparseData : public ZoneObject {
   V8_EXPORT_PRIVATE ZonePreparseData(Zone* zone, Vector<uint8_t>* byte_data,
                                      int child_length);
 
+  ZonePreparseData(const ZonePreparseData&) = delete;
+  ZonePreparseData& operator=(const ZonePreparseData&) = delete;
+
   Handle<PreparseData> Serialize(Isolate* isolate);
   Handle<PreparseData> Serialize(LocalIsolate* isolate);
 
@@ -215,8 +218,6 @@ class ZonePreparseData : public ZoneObject {
  private:
   ZoneVector<uint8_t> byte_data_;
   ZoneVector<ZonePreparseData*> children_;
-
-  DISALLOW_COPY_AND_ASSIGN(ZonePreparseData);
 };
 
 ZonePreparseData* PreparseDataBuilder::ByteData::CopyToZone(
