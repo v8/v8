@@ -27,51 +27,51 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
                                                const WasmFeatures&);
 
 // Control expressions and blocks.
-#define FOREACH_CONTROL_OPCODE(V)               \
-  V(Unreachable, 0x00, _)                       \
-  V(Nop, 0x01, _)                               \
-  V(Block, 0x02, _)                             \
-  V(Loop, 0x03, _)                              \
-  V(If, 0x04, _)                                \
-  V(Else, 0x05, _)                              \
-  V(Try, 0x06, _ /* eh_prototype */)            \
-  V(Catch, 0x07, _ /* eh_prototype */)          \
-  V(Throw, 0x08, _ /* eh_prototype */)          \
-  V(Rethrow, 0x09, _ /* eh_prototype */)        \
-  V(BrOnExn, 0x0a, _ /* eh prototype */)        \
-  V(End, 0x0b, _)                               \
-  V(Br, 0x0c, _)                                \
-  V(BrIf, 0x0d, _)                              \
-  V(BrTable, 0x0e, _)                           \
-  V(Return, 0x0f, _)                            \
-  V(Let, 0x17, _ /* typed_funcref prototype */) \
+#define FOREACH_CONTROL_OPCODE(V)                         \
+  V(Unreachable, 0x00, _)                                 \
+  V(Nop, 0x01, _)                                         \
+  V(Block, 0x02, _)                                       \
+  V(Loop, 0x03, _)                                        \
+  V(If, 0x04, _)                                          \
+  V(Else, 0x05, _)                                        \
+  V(Try, 0x06, _ /* eh_prototype */)                      \
+  V(Catch, 0x07, _ /* eh_prototype */)                    \
+  V(Throw, 0x08, _ /* eh_prototype */)                    \
+  V(Rethrow, 0x09, _ /* eh_prototype */)                  \
+  V(BrOnExn, 0x0a, _ /* eh prototype */)                  \
+  V(End, 0x0b, _)                                         \
+  V(Br, 0x0c, _)                                          \
+  V(BrIf, 0x0d, _)                                        \
+  V(BrTable, 0x0e, _)                                     \
+  V(Return, 0x0f, _)                                      \
+  V(CallRef, 0x14, _ /* typed_funcref prototype */)       \
+  V(ReturnCallRef, 0x15, _ /* typed_funcref prototype */) \
+  V(Let, 0x17, _ /* typed_funcref prototype */)           \
   V(BrOnNull, 0xd4, _ /* gc prototype */)
 
 // Constants, locals, globals, and calls.
-#define FOREACH_MISC_OPCODE(V)                            \
-  V(CallFunction, 0x10, _)                                \
-  V(CallIndirect, 0x11, _)                                \
-  V(ReturnCall, 0x12, _)                                  \
-  V(ReturnCallIndirect, 0x13, _)                          \
-  V(CallRef, 0x14, _ /* typed_funcref prototype */)       \
-  V(ReturnCallRef, 0x15, _ /* typed_funcref prototype */) \
-  V(Drop, 0x1a, _)                                        \
-  V(Select, 0x1b, _)                                      \
-  V(SelectWithType, 0x1c, _)                              \
-  V(LocalGet, 0x20, _)                                    \
-  V(LocalSet, 0x21, _)                                    \
-  V(LocalTee, 0x22, _)                                    \
-  V(GlobalGet, 0x23, _)                                   \
-  V(GlobalSet, 0x24, _)                                   \
-  V(TableGet, 0x25, _)                                    \
-  V(TableSet, 0x26, _)                                    \
-  V(I32Const, 0x41, _)                                    \
-  V(I64Const, 0x42, _)                                    \
-  V(F32Const, 0x43, _)                                    \
-  V(F64Const, 0x44, _)                                    \
-  V(RefNull, 0xd0, _)                                     \
-  V(RefIsNull, 0xd1, _)                                   \
-  V(RefFunc, 0xd2, _)                                     \
+#define FOREACH_MISC_OPCODE(V)   \
+  V(CallFunction, 0x10, _)       \
+  V(CallIndirect, 0x11, _)       \
+  V(ReturnCall, 0x12, _)         \
+  V(ReturnCallIndirect, 0x13, _) \
+  V(Drop, 0x1a, _)               \
+  V(Select, 0x1b, _)             \
+  V(SelectWithType, 0x1c, _)     \
+  V(LocalGet, 0x20, _)           \
+  V(LocalSet, 0x21, _)           \
+  V(LocalTee, 0x22, _)           \
+  V(GlobalGet, 0x23, _)          \
+  V(GlobalSet, 0x24, _)          \
+  V(TableGet, 0x25, _)           \
+  V(TableSet, 0x26, _)           \
+  V(I32Const, 0x41, _)           \
+  V(I64Const, 0x42, _)           \
+  V(F32Const, 0x43, _)           \
+  V(F64Const, 0x44, _)           \
+  V(RefNull, 0xd0, _)            \
+  V(RefIsNull, 0xd1, _)          \
+  V(RefFunc, 0xd2, _)            \
   V(RefAsNonNull, 0xd3, _ /* typed_funcref prototype */)
 
 // Load memory expressions.
@@ -540,14 +540,6 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V) \
   FOREACH_SIMD_1_OPERAND_2_PARAM_OPCODE(V)
 
-#define FOREACH_SIMD_OPCODE(V)        \
-  FOREACH_SIMD_0_OPERAND_OPCODE(V)    \
-  FOREACH_SIMD_1_OPERAND_OPCODE(V)    \
-  FOREACH_SIMD_MASK_OPERAND_OPCODE(V) \
-  FOREACH_SIMD_MEM_OPCODE(V)          \
-  FOREACH_SIMD_POST_MVP_MEM_OPCODE(V) \
-  FOREACH_SIMD_CONST_OPCODE(V)
-
 #define FOREACH_NUMERIC_OPCODE(V)                         \
   V(I32SConvertSatF32, 0xfc00, i_f)                       \
   V(I32UConvertSatF32, 0xfc01, i_f)                       \
@@ -668,19 +660,24 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(AtomicFence, 0xfe03, v_v)
 
 // All opcodes.
-#define FOREACH_OPCODE(V)            \
-  FOREACH_CONTROL_OPCODE(V)          \
-  FOREACH_MISC_OPCODE(V)             \
-  FOREACH_SIMPLE_OPCODE(V)           \
-  FOREACH_SIMPLE_PROTOTYPE_OPCODE(V) \
-  FOREACH_STORE_MEM_OPCODE(V)        \
-  FOREACH_LOAD_MEM_OPCODE(V)         \
-  FOREACH_MISC_MEM_OPCODE(V)         \
-  FOREACH_ASMJS_COMPAT_OPCODE(V)     \
-  FOREACH_SIMD_OPCODE(V)             \
-  FOREACH_ATOMIC_OPCODE(V)           \
-  FOREACH_ATOMIC_0_OPERAND_OPCODE(V) \
-  FOREACH_NUMERIC_OPCODE(V)          \
+#define FOREACH_OPCODE(V)             \
+  FOREACH_CONTROL_OPCODE(V)           \
+  FOREACH_MISC_OPCODE(V)              \
+  FOREACH_SIMPLE_OPCODE(V)            \
+  FOREACH_SIMPLE_PROTOTYPE_OPCODE(V)  \
+  FOREACH_STORE_MEM_OPCODE(V)         \
+  FOREACH_LOAD_MEM_OPCODE(V)          \
+  FOREACH_MISC_MEM_OPCODE(V)          \
+  FOREACH_ASMJS_COMPAT_OPCODE(V)      \
+  FOREACH_SIMD_0_OPERAND_OPCODE(V)    \
+  FOREACH_SIMD_1_OPERAND_OPCODE(V)    \
+  FOREACH_SIMD_MASK_OPERAND_OPCODE(V) \
+  FOREACH_SIMD_MEM_OPCODE(V)          \
+  FOREACH_SIMD_POST_MVP_MEM_OPCODE(V) \
+  FOREACH_SIMD_CONST_OPCODE(V)        \
+  FOREACH_ATOMIC_OPCODE(V)            \
+  FOREACH_ATOMIC_0_OPERAND_OPCODE(V)  \
+  FOREACH_NUMERIC_OPCODE(V)           \
   FOREACH_GC_OPCODE(V)
 
 // All signatures.
