@@ -9,11 +9,16 @@
 namespace {
 
 using v8::Context;
+using v8::Data;
+using v8::FixedArray;
 using v8::HandleScope;
+using v8::Int32;
 using v8::Isolate;
 using v8::Local;
+using v8::Location;
 using v8::MaybeLocal;
 using v8::Module;
+using v8::ModuleRequest;
 using v8::Promise;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
@@ -60,15 +65,27 @@ TEST(ModuleInstantiationFailures1) {
       ScriptCompiler::Source source(source_text, origin);
       module = ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
       CHECK_EQ(Module::kUninstantiated, module->GetStatus());
-      CHECK_EQ(2, module->GetModuleRequestsLength());
-      CHECK(v8_str("./foo.js")->StrictEquals(module->GetModuleRequest(0)));
-      v8::Location loc = module->GetModuleRequestLocation(0);
+      Local<FixedArray> module_requests = module->GetModuleRequests();
+      CHECK_EQ(2, module_requests->Length());
+      Local<ModuleRequest> module_request_0 =
+          module_requests->Get(env.local(), 0).As<ModuleRequest>();
+      CHECK(v8_str("./foo.js")->StrictEquals(module_request_0->GetSpecifier()));
+      int offset = module_request_0->GetSourceOffset();
+      CHECK_EQ(7, offset);
+      Location loc = module->SourceOffsetToLocation(offset);
       CHECK_EQ(0, loc.GetLineNumber());
       CHECK_EQ(7, loc.GetColumnNumber());
-      CHECK(v8_str("./bar.js")->StrictEquals(module->GetModuleRequest(1)));
-      loc = module->GetModuleRequestLocation(1);
+      CHECK_EQ(0, module_request_0->GetImportAssertions()->Length());
+
+      Local<ModuleRequest> module_request_1 =
+          module_requests->Get(env.local(), 1).As<ModuleRequest>();
+      CHECK(v8_str("./bar.js")->StrictEquals(module_request_1->GetSpecifier()));
+      offset = module_request_1->GetSourceOffset();
+      CHECK_EQ(34, offset);
+      loc = module->SourceOffsetToLocation(offset);
       CHECK_EQ(1, loc.GetLineNumber());
       CHECK_EQ(15, loc.GetColumnNumber());
+      CHECK_EQ(0, module_request_1->GetImportAssertions()->Length());
     }
 
     // Instantiation should fail.
@@ -112,6 +129,85 @@ TEST(ModuleInstantiationFailures1) {
     CHECK(!try_catch.HasCaught());
   }
   i::FLAG_harmony_top_level_await = prev_top_level_await;
+}
+
+TEST(ModuleInstantiationFailures1WithImportAssertions) {
+  bool prev_top_level_await = i::FLAG_harmony_top_level_await;
+  bool prev_import_assertions = i::FLAG_harmony_import_assertions;
+  i::FLAG_harmony_import_assertions = true;
+  for (auto top_level_await : {true, false}) {
+    i::FLAG_harmony_top_level_await = top_level_await;
+    Isolate* isolate = CcTest::isolate();
+    HandleScope scope(isolate);
+    LocalContext env;
+    v8::TryCatch try_catch(isolate);
+
+    Local<Module> module;
+    {
+      Local<String> source_text = v8_str(
+          "import './foo.js' assert { };\n"
+          "export {} from './bar.js' assert { a: 'b' };");
+      ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
+      ScriptCompiler::Source source(source_text, origin);
+      module = ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+      CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+      Local<FixedArray> module_requests = module->GetModuleRequests();
+      CHECK_EQ(2, module_requests->Length());
+      Local<ModuleRequest> module_request_0 =
+          module_requests->Get(env.local(), 0).As<ModuleRequest>();
+      CHECK(v8_str("./foo.js")->StrictEquals(module_request_0->GetSpecifier()));
+      int offset = module_request_0->GetSourceOffset();
+      CHECK_EQ(7, offset);
+      Location loc = module->SourceOffsetToLocation(offset);
+      CHECK_EQ(0, loc.GetLineNumber());
+      CHECK_EQ(7, loc.GetColumnNumber());
+      CHECK_EQ(0, module_request_0->GetImportAssertions()->Length());
+
+      Local<ModuleRequest> module_request_1 =
+          module_requests->Get(env.local(), 1).As<ModuleRequest>();
+      CHECK(v8_str("./bar.js")->StrictEquals(module_request_1->GetSpecifier()));
+      offset = module_request_1->GetSourceOffset();
+      CHECK_EQ(45, offset);
+      loc = module->SourceOffsetToLocation(offset);
+      CHECK_EQ(1, loc.GetLineNumber());
+      CHECK_EQ(15, loc.GetColumnNumber());
+
+      Local<FixedArray> import_assertions_1 =
+          module_request_1->GetImportAssertions();
+      CHECK_EQ(3, import_assertions_1->Length());
+      Local<String> assertion_key =
+          import_assertions_1->Get(env.local(), 0).As<Value>().As<String>();
+      CHECK(v8_str("a")->StrictEquals(assertion_key));
+      Local<String> assertion_value =
+          import_assertions_1->Get(env.local(), 1).As<Value>().As<String>();
+      CHECK(v8_str("b")->StrictEquals(assertion_value));
+      Local<Data> assertion_source_offset_data =
+          import_assertions_1->Get(env.local(), 2);
+      Local<Int32> assertion_source_offset_int32 =
+          assertion_source_offset_data.As<Value>()
+              ->ToInt32(env.local())
+              .ToLocalChecked();
+      int32_t assertion_source_offset = assertion_source_offset_int32->Value();
+      CHECK_EQ(65, assertion_source_offset);
+      loc = module->SourceOffsetToLocation(assertion_source_offset);
+      CHECK_EQ(1, loc.GetLineNumber());
+      CHECK_EQ(35, loc.GetColumnNumber());
+    }
+
+    // Instantiation should fail.
+    {
+      v8::TryCatch inner_try_catch(isolate);
+      CHECK(
+          module->InstantiateModule(env.local(), ResolveCallback).IsNothing());
+      CHECK(inner_try_catch.HasCaught());
+      CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
+      CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+    }
+
+    CHECK(!try_catch.HasCaught());
+  }
+  i::FLAG_harmony_top_level_await = prev_top_level_await;
+  i::FLAG_harmony_import_assertions = prev_import_assertions;
 }
 
 TEST(ModuleInstantiationFailures2) {

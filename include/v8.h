@@ -1524,6 +1524,43 @@ class V8_EXPORT Location {
 };
 
 /**
+ * A fixed-sized array with elements of type Data.
+ */
+class V8_EXPORT FixedArray : public Data {
+ public:
+  int Length() const;
+  Local<Data> Get(Local<Context> context, int i) const;
+};
+
+class V8_EXPORT ModuleRequest : public Data {
+ public:
+  /**
+   * Returns the module specifier for this ModuleRequest.
+   */
+  Local<String> GetSpecifier() const;
+
+  /**
+   * Returns the source code offset of this module request.
+   * Use Module::SourceOffsetToLocation to convert this to line/column numbers.
+   */
+  int GetSourceOffset() const;
+
+  /**
+   * Contains the import assertions for this request in the form:
+   * [key1, value1, source_offset1, key2, value2, source_offset2, ...].
+   * The keys and values are of type v8::String, and the source offsets are of
+   * type Int32. Use Module::SourceOffsetToLocation to convert the source
+   * offsets to Locations with line/column numbers.
+   */
+  Local<FixedArray> GetImportAssertions() const;
+
+  V8_INLINE static ModuleRequest* Cast(Data* data);
+
+ private:
+  static void CheckCast(Data* obj);
+};
+
+/**
  * A compiled JavaScript module.
  */
 class V8_EXPORT Module : public Data {
@@ -1557,19 +1594,36 @@ class V8_EXPORT Module : public Data {
   /**
    * Returns the number of modules requested by this module.
    */
+  V8_DEPRECATE_SOON("Use Module::GetModuleRequests() and FixedArray::Length().")
   int GetModuleRequestsLength() const;
 
   /**
    * Returns the ith module specifier in this module.
    * i must be < GetModuleRequestsLength() and >= 0.
    */
+  V8_DEPRECATE_SOON(
+      "Use Module::GetModuleRequests() and ModuleRequest::GetSpecifier().")
   Local<String> GetModuleRequest(int i) const;
 
   /**
    * Returns the source location (line number and column number) of the ith
    * module specifier's first occurrence in this module.
    */
+  V8_DEPRECATE_SOON(
+      "Use Module::GetModuleRequests(), ModuleRequest::GetSourceOffset(), and "
+      "Module::SourceOffsetToLocation().")
   Location GetModuleRequestLocation(int i) const;
+
+  /**
+   * Returns the ModuleRequests for this module.
+   */
+  Local<FixedArray> GetModuleRequests() const;
+
+  /**
+   * For the given source text offset in this module, returns the corresponding
+   * Location with line and column numbers.
+   */
+  Location SourceOffsetToLocation(int offset) const;
 
   /**
    * Returns the identity hash for this object.
@@ -11744,6 +11798,13 @@ Private* Private::Cast(Data* data) {
   CheckCast(data);
 #endif
   return reinterpret_cast<Private*>(data);
+}
+
+ModuleRequest* ModuleRequest::Cast(Data* data) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(data);
+#endif
+  return reinterpret_cast<ModuleRequest*>(data);
 }
 
 Module* Module::Cast(Data* data) {

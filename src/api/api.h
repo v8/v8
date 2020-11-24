@@ -134,7 +134,9 @@ class RegisteredExtension {
   V(Primitive, Object)                         \
   V(PrimitiveArray, FixedArray)                \
   V(BigInt, BigInt)                            \
-  V(ScriptOrModule, Script)
+  V(ScriptOrModule, Script)                    \
+  V(FixedArray, FixedArray)                    \
+  V(ModuleRequest, ModuleRequest)
 
 class Utils {
  public:

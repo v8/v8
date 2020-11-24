@@ -2205,6 +2205,35 @@ Local<Primitive> PrimitiveArray::Get(Isolate* v8_isolate, int index) {
   return ToApiHandle<Primitive>(i_item);
 }
 
+int FixedArray::Length() const {
+  i::Handle<i::FixedArray> self = Utils::OpenHandle(this);
+  return self->length();
+}
+
+Local<Data> FixedArray::Get(Local<Context> context, int i) const {
+  i::Handle<i::FixedArray> self = Utils::OpenHandle(this);
+  auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  CHECK_LT(i, self->length());
+  i::Handle<i::Object> entry(self->get(i), isolate);
+  return ToApiHandle<Data>(entry);
+}
+
+Local<String> ModuleRequest::GetSpecifier() const {
+  i::Handle<i::ModuleRequest> self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
+  return ToApiHandle<String>(i::handle(self->specifier(), isolate));
+}
+
+int ModuleRequest::GetSourceOffset() const {
+  return Utils::OpenHandle(this)->position();
+}
+
+Local<FixedArray> ModuleRequest::GetImportAssertions() const {
+  i::Handle<i::ModuleRequest> self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
+  return ToApiHandle<FixedArray>(i::handle(self->import_assertions(), isolate));
+}
+
 Module::Status Module::GetStatus() const {
   i::Handle<i::Module> self = Utils::OpenHandle(this);
   switch (self->status()) {
@@ -2280,6 +2309,33 @@ Location Module::GetModuleRequestLocation(int i) const {
       i::Handle<i::SourceTextModule>::cast(self)->GetScript(), isolate);
   i::Script::PositionInfo info;
   i::Script::GetPositionInfo(script, position, &info, i::Script::WITH_OFFSET);
+  return v8::Location(info.line, info.column);
+}
+
+Local<FixedArray> Module::GetModuleRequests() const {
+  i::Handle<i::Module> self = Utils::OpenHandle(this);
+  Utils::ApiCheck(
+      self->IsSourceTextModule(), "v8::Module::GetModuleRequests",
+      "v8::Module::GetModuleRequests must be used on an SourceTextModule");
+  i::Isolate* isolate = self->GetIsolate();
+  i::Handle<i::FixedArray> module_requests(
+      i::Handle<i::SourceTextModule>::cast(self)->info().module_requests(),
+      isolate);
+  return ToApiHandle<FixedArray>(module_requests);
+}
+
+Location Module::SourceOffsetToLocation(int offset) const {
+  i::Handle<i::Module> self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
+  i::HandleScope scope(isolate);
+  Utils::ApiCheck(
+      self->IsSourceTextModule(), "v8::Module::SourceOffsetToLocation",
+      "v8::Module::SourceOffsetToLocation must be used on an SourceTextModule");
+  i::Handle<i::Script> script(
+      i::Handle<i::SourceTextModule>::cast(self)->GetScript(), isolate);
+  i::Script::PositionInfo info;
+  i::Script::GetPositionInfo(script, offset, &info, i::Script::WITH_OFFSET);
   return v8::Location(info.line, info.column);
 }
 
@@ -3772,6 +3828,12 @@ void v8::Private::CheckCast(v8::Data* that) {
   Utils::ApiCheck(
       obj->IsSymbol() && i::Handle<i::Symbol>::cast(obj)->is_private(),
       "v8::Private::Cast", "Value is not a Private");
+}
+
+void v8::ModuleRequest::CheckCast(v8::Data* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  Utils::ApiCheck(obj->IsModuleRequest(), "v8::ModuleRequest::Cast",
+                  "Value is not a ModuleRequest");
 }
 
 void v8::Module::CheckCast(v8::Data* that) {
