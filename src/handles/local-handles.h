@@ -62,6 +62,14 @@ class V8_NODISCARD LocalHandleScope {
   // Close the handle scope resetting limits to a previous state.
   static inline void CloseScope(LocalHeap* local_heap, Address* prev_next,
                                 Address* prev_limit);
+  V8_EXPORT_PRIVATE static void CloseMainThreadScope(LocalHeap* local_heap,
+                                                     Address* prev_next,
+                                                     Address* prev_limit);
+
+  V8_EXPORT_PRIVATE void OpenMainThreadScope(LocalHeap* local_heap);
+
+  V8_EXPORT_PRIVATE static Address* GetMainThreadHandle(LocalHeap* local_heap,
+                                                        Address value);
 
   LocalHeap* local_heap_;
   Address* prev_limit_;

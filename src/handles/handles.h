@@ -266,6 +266,7 @@ class V8_NODISCARD HandleScope {
   friend class HandleScopeImplementer;
   friend class Isolate;
   friend class LocalHandles;
+  friend class LocalHandleScope;
   friend class PersistentHandles;
 };
 

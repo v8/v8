@@ -102,6 +102,7 @@ TEST(CreateLocalHandlesWithoutLocalHandleScope) {
   heap::EnsureFlagLocalHeapsEnabled();
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
+  HandleScope handle_scope(isolate);
 
   handle(Smi::FromInt(17), isolate->main_thread_local_heap());
 }

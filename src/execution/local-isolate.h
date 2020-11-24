@@ -82,6 +82,8 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   ThreadId thread_id() const { return thread_id_; }
   Address stack_limit() const { return stack_limit_; }
 
+  bool is_main_thread() const { return heap_.is_main_thread(); }
+
  private:
   friend class v8::internal::LocalFactory;
 
