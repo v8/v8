@@ -89,7 +89,7 @@ void MemoryAllocator::InitializeCodePageAllocator(
                 page_allocator->AllocatePageSize());
   VirtualMemory reservation(
       page_allocator, requested, reinterpret_cast<void*>(hint),
-      Max(kMinExpectedOSPageSize, page_allocator->AllocatePageSize()));
+      std::max(kMinExpectedOSPageSize, page_allocator->AllocatePageSize()));
   if (!reservation.IsReserved()) {
     V8::FatalProcessOutOfMemory(isolate_,
                                 "CodeRange setup: allocate virtual memory");

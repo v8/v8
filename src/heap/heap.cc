@@ -226,8 +226,8 @@ size_t Heap::YoungGenerationSizeFromOldGenerationSize(size_t old_generation) {
                      ? kOldGenerationToSemiSpaceRatioLowMemory
                      : kOldGenerationToSemiSpaceRatio;
   size_t semi_space = old_generation / ratio;
-  semi_space = Min<size_t>(semi_space, kMaxSemiSpaceSize);
-  semi_space = Max<size_t>(semi_space, kMinSemiSpaceSize);
+  semi_space = std::min({semi_space, kMaxSemiSpaceSize});
+  semi_space = std::max({semi_space, kMinSemiSpaceSize});
   semi_space = RoundUp(semi_space, Page::kPageSize);
   return YoungGenerationSizeFromSemiSpaceSize(semi_space);
 }
@@ -238,8 +238,10 @@ size_t Heap::HeapSizeFromPhysicalMemory(uint64_t physical_memory) {
                             kPhysicalMemoryToOldGenerationRatio *
                             kHeapLimitMultiplier;
   old_generation =
-      Min<uint64_t>(old_generation, MaxOldGenerationSize(physical_memory));
-  old_generation = Max<uint64_t>(old_generation, V8HeapTrait::kMinSize);
+      std::min(old_generation,
+               static_cast<uint64_t>(MaxOldGenerationSize(physical_memory)));
+  old_generation =
+      std::max({old_generation, static_cast<uint64_t>(V8HeapTrait::kMinSize)});
   old_generation = RoundUp(old_generation, Page::kPageSize);
 
   size_t young_generation = YoungGenerationSizeFromOldGenerationSize(
@@ -302,7 +304,7 @@ size_t Heap::MaxOldGenerationSize(uint64_t physical_memory) {
     DCHECK_EQ(max_size / GB, 2);
     max_size *= 2;
   }
-  return Min(max_size, AllocatorLimitOnMaxOldGenerationSize());
+  return std::min(max_size, AllocatorLimitOnMaxOldGenerationSize());
 }
 
 size_t Heap::YoungGenerationSizeFromSemiSpaceSize(size_t semi_space_size) {
@@ -1475,9 +1477,9 @@ void Heap::ReportExternalMemoryPressure() {
     // Incremental marking is turned on an has already been started.
     const double kMinStepSize = 5;
     const double kMaxStepSize = 10;
-    const double ms_step = Min(
-        kMaxStepSize,
-        Max(kMinStepSize, static_cast<double>(current) / limit * kMinStepSize));
+    const double ms_step = std::min(
+        kMaxStepSize, std::max(kMinStepSize, static_cast<double>(current) /
+                                                 limit * kMinStepSize));
     const double deadline = MonotonicallyIncreasingTimeInMs() + ms_step;
     // Extend the gc callback flags with external memory flags.
     current_gc_callback_flags_ = static_cast<GCCallbackFlags>(
@@ -1546,7 +1548,8 @@ bool Heap::CollectGarbage(AllocationSpace space,
   // of allocation sequences and we assume that a garbage collection will allow
   // the subsequent allocation attempts to go through.
   if (FLAG_random_gc_interval > 0 || FLAG_gc_interval >= 0) {
-    allocation_timeout_ = Max(6, NextAllocationTimeout(allocation_timeout_));
+    allocation_timeout_ =
+        std::max(6, NextAllocationTimeout(allocation_timeout_));
   }
 #endif
 
@@ -2067,7 +2070,8 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
                   this, max_global_memory_size_, embedder_gc_speed,
                   embedder_speed)
             : 0;
-    global_growing_factor = Max(v8_growing_factor, embedder_growing_factor);
+    global_growing_factor =
+        std::max(v8_growing_factor, embedder_growing_factor);
   }
 
   size_t old_gen_size = OldGenerationSizeOfObjects();
@@ -2795,10 +2799,10 @@ void Heap::ConfigureInitialOldGenerationSize() {
         MemoryController<V8HeapTrait>::MinimumAllocationLimitGrowingStep(
             CurrentHeapGrowingMode());
     const size_t new_old_generation_allocation_limit =
-        Max(OldGenerationSizeOfObjects() + minimum_growing_step,
-            static_cast<size_t>(
-                static_cast<double>(old_generation_allocation_limit()) *
-                (tracer()->AverageSurvivalRatio() / 100)));
+        std::max(OldGenerationSizeOfObjects() + minimum_growing_step,
+                 static_cast<size_t>(
+                     static_cast<double>(old_generation_allocation_limit()) *
+                     (tracer()->AverageSurvivalRatio() / 100)));
     if (new_old_generation_allocation_limit <
         old_generation_allocation_limit()) {
       set_old_generation_allocation_limit(new_old_generation_allocation_limit);
@@ -2806,7 +2810,7 @@ void Heap::ConfigureInitialOldGenerationSize() {
       old_generation_size_configured_ = true;
     }
     if (UseGlobalMemoryScheduling()) {
-      const size_t new_global_memory_limit = Max(
+      const size_t new_global_memory_limit = std::max(
           GlobalSizeOfObjects() + minimum_growing_step,
           static_cast<size_t>(static_cast<double>(global_allocation_limit_) *
                               (tracer()->AverageSurvivalRatio() / 100)));
@@ -3783,7 +3787,7 @@ bool Heap::InvokeNearHeapLimitCallback() {
                                  initial_max_old_generation_size_);
     if (heap_limit > max_old_generation_size()) {
       set_max_old_generation_size(
-          Min(heap_limit, AllocatorLimitOnMaxOldGenerationSize()));
+          std::min(heap_limit, AllocatorLimitOnMaxOldGenerationSize()));
       return true;
     }
   }
@@ -4477,8 +4481,8 @@ void Heap::IterateStackRoots(RootVisitor* v) {
 namespace {
 size_t GlobalMemorySizeFromV8Size(size_t v8_size) {
   const size_t kGlobalMemoryToV8Ratio = 2;
-  return Min(static_cast<uint64_t>(std::numeric_limits<size_t>::max()),
-             static_cast<uint64_t>(v8_size) * kGlobalMemoryToV8Ratio);
+  return std::min(static_cast<uint64_t>(std::numeric_limits<size_t>::max()),
+                  static_cast<uint64_t>(v8_size) * kGlobalMemoryToV8Ratio);
 }
 }  // anonymous namespace
 
@@ -4515,7 +4519,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
     max_semi_space_size_ =
         static_cast<size_t>(base::bits::RoundUpToPowerOfTwo64(
             static_cast<uint64_t>(max_semi_space_size_)));
-    max_semi_space_size_ = Max(max_semi_space_size_, kMinSemiSpaceSize);
+    max_semi_space_size_ = std::max({max_semi_space_size_, kMinSemiSpaceSize});
     max_semi_space_size_ = RoundDown<Page::kPageSize>(max_semi_space_size_);
   }
 
@@ -4537,9 +4541,9 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
                                     : 0;
     }
     max_old_generation_size =
-        Max(max_old_generation_size, MinOldGenerationSize());
-    max_old_generation_size =
-        Min(max_old_generation_size, AllocatorLimitOnMaxOldGenerationSize());
+        std::max(max_old_generation_size, MinOldGenerationSize());
+    max_old_generation_size = std::min(max_old_generation_size,
+                                       AllocatorLimitOnMaxOldGenerationSize());
     max_old_generation_size =
         RoundDown<Page::kPageSize>(max_old_generation_size);
 
@@ -4557,7 +4561,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
     if (max_semi_space_size_ == kMaxSemiSpaceSize) {
       // Start with at least 1*MB semi-space on machines with a lot of memory.
       initial_semispace_size_ =
-          Max(initial_semispace_size_, static_cast<size_t>(1 * MB));
+          std::max(initial_semispace_size_, static_cast<size_t>(1 * MB));
     }
     if (constraints.initial_young_generation_size_in_bytes() > 0) {
       initial_semispace_size_ = SemiSpaceSizeFromYoungGenerationSize(
@@ -4576,7 +4580,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
           static_cast<size_t>(FLAG_min_semi_space_size) * MB;
     }
     initial_semispace_size_ =
-        Min(initial_semispace_size_, max_semi_space_size_);
+        std::min(initial_semispace_size_, max_semi_space_size_);
     initial_semispace_size_ =
         RoundDown<Page::kPageSize>(initial_semispace_size_);
   }
@@ -4610,7 +4614,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
       old_generation_size_configured_ = true;
     }
     initial_old_generation_size_ =
-        Min(initial_old_generation_size_, max_old_generation_size() / 2);
+        std::min(initial_old_generation_size_, max_old_generation_size() / 2);
     initial_old_generation_size_ =
         RoundDown<Page::kPageSize>(initial_old_generation_size_);
   }
@@ -4651,7 +4655,7 @@ void Heap::ConfigureCppHeap(std::shared_ptr<CppHeapCreateParams> params) {
 
 void Heap::AddToRingBuffer(const char* string) {
   size_t first_part =
-      Min(strlen(string), kTraceRingBufferSize - ring_buffer_end_);
+      std::min(strlen(string), kTraceRingBufferSize - ring_buffer_end_);
   base::Memcpy(trace_ring_buffer_ + ring_buffer_end_, string, first_part);
   ring_buffer_end_ += first_part;
   if (first_part < strlen(string)) {
@@ -4759,12 +4763,12 @@ bool Heap::AllocationLimitOvershotByLargeMargin() {
 
   // Overshoot margin is 50% of allocation limit or half-way to the max heap
   // with special handling of small heaps.
-  const size_t v8_margin =
-      Min(Max(old_generation_allocation_limit() / 2, kMarginForSmallHeaps),
-          (max_old_generation_size() - old_generation_allocation_limit()) / 2);
+  const size_t v8_margin = std::min(
+      std::max(old_generation_allocation_limit() / 2, kMarginForSmallHeaps),
+      (max_old_generation_size() - old_generation_allocation_limit()) / 2);
   const size_t global_margin =
-      Min(Max(global_allocation_limit_ / 2, kMarginForSmallHeaps),
-          (max_global_memory_size_ - global_allocation_limit_) / 2);
+      std::min(std::max(global_allocation_limit_ / 2, kMarginForSmallHeaps),
+               (max_global_memory_size_ - global_allocation_limit_) / 2);
 
   return v8_overshoot >= v8_margin || global_overshoot >= global_margin;
 }

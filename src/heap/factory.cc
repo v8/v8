@@ -485,8 +485,9 @@ Handle<T> Factory::AllocateSmallOrderedHashTable(Handle<Map> map, int capacity,
   // to something other than 2, capacity should be stored as another
   // field of this object.
   DCHECK_EQ(T::kLoadFactor, 2);
-  capacity = base::bits::RoundUpToPowerOfTwo32(Max(T::kMinCapacity, capacity));
-  capacity = Min(capacity, T::kMaxCapacity);
+  capacity =
+      base::bits::RoundUpToPowerOfTwo32(std::max({T::kMinCapacity, capacity}));
+  capacity = std::min({capacity, T::kMaxCapacity});
 
   DCHECK_LT(0, capacity);
   DCHECK_EQ(0, capacity % T::kLoadFactor);

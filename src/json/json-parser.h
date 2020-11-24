@@ -237,7 +237,7 @@ class JsonParser final {
     }
 
     cursor_++;
-    for (size_t i = 0; i < Min(N - 2, remaining - 1); i++) {
+    for (size_t i = 0; i < std::min(N - 2, remaining - 1); i++) {
       if (*(s + 1 + i) != *cursor_) {
         ReportUnexpectedCharacter(*cursor_);
         return;

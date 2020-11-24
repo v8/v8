@@ -638,7 +638,7 @@ class FrameArrayBuilder {
         break;
     }
 
-    elements_ = isolate->factory()->NewFrameArray(Min(limit, 10));
+    elements_ = isolate->factory()->NewFrameArray(std::min(limit, 10));
   }
 
   void AppendAsyncFrame(Handle<JSGeneratorObject> generator_object) {
@@ -880,7 +880,7 @@ bool GetStackTraceLimit(Isolate* isolate, int* result) {
   if (!stack_trace_limit->IsNumber()) return false;
 
   // Ensure that limit is not negative.
-  *result = Max(FastD2IChecked(stack_trace_limit->Number()), 0);
+  *result = std::max(FastD2IChecked(stack_trace_limit->Number()), 0);
 
   if (*result != FLAG_stack_trace_limit) {
     isolate->CountUsage(v8::Isolate::kErrorStackTraceLimit);
@@ -1261,7 +1261,7 @@ Address Isolate::GetAbstractPC(int* line, int* column) {
 Handle<FixedArray> Isolate::CaptureCurrentStackTrace(
     int frame_limit, StackTrace::StackTraceOptions stack_trace_options) {
   CaptureStackTraceOptions options;
-  options.limit = Max(frame_limit, 0);  // Ensure no negative values.
+  options.limit = std::max(frame_limit, 0);  // Ensure no negative values.
   options.skip_mode = SKIP_NONE;
   options.capture_builtin_exit_frames = false;
   options.async_stack_trace = false;

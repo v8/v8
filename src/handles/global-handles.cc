@@ -1738,9 +1738,9 @@ void EternalHandles::IterateAllRoots(RootVisitor* visitor) {
   int limit = size_;
   for (Address* block : blocks_) {
     DCHECK_GT(limit, 0);
-    visitor->VisitRootPointers(Root::kEternalHandles, nullptr,
-                               FullObjectSlot(block),
-                               FullObjectSlot(block + Min(limit, kSize)));
+    visitor->VisitRootPointers(
+        Root::kEternalHandles, nullptr, FullObjectSlot(block),
+        FullObjectSlot(block + std::min({limit, kSize})));
     limit -= kSize;
   }
 }

@@ -639,7 +639,7 @@ class V8_EXPORT_PRIVATE TypedSlots {
   static const size_t kInitialBufferSize = 100;
   static const size_t kMaxBufferSize = 16 * KB;
   static size_t NextCapacity(size_t capacity) {
-    return Min(kMaxBufferSize, capacity * 2);
+    return std::min({kMaxBufferSize, capacity * 2});
   }
   Chunk* EnsureChunk();
   Chunk* NewChunk(Chunk* next, size_t capacity);

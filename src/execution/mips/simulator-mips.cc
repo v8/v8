@@ -4406,16 +4406,16 @@ T Simulator::MsaI5InstrHelper(uint32_t opcode, T ws, int32_t i5) {
       res = static_cast<T>(ws - ui5);
       break;
     case MAXI_S:
-      res = static_cast<T>(Max(ws, static_cast<T>(i5)));
+      res = static_cast<T>(std::max(ws, static_cast<T>(i5)));
       break;
     case MINI_S:
-      res = static_cast<T>(Min(ws, static_cast<T>(i5)));
+      res = static_cast<T>(std::min(ws, static_cast<T>(i5)));
       break;
     case MAXI_U:
-      res = static_cast<T>(Max(ws_u64, ui5_u64));
+      res = static_cast<T>(std::max(ws_u64, ui5_u64));
       break;
     case MINI_U:
-      res = static_cast<T>(Min(ws_u64, ui5_u64));
+      res = static_cast<T>(std::min(ws_u64, ui5_u64));
       break;
     case CEQI:
       res = static_cast<T>(!Compare(ws, static_cast<T>(i5)) ? -1ull : 0ull);
@@ -4904,16 +4904,16 @@ T Simulator::Msa3RInstrHelper(uint32_t opcode, T wd, T ws, T wt) {
       res = ws - wt;
       break;
     case MAX_S:
-      res = Max(ws, wt);
+      res = std::max(ws, wt);
       break;
     case MAX_U:
-      res = static_cast<T>(Max(static_cast<uT>(ws), static_cast<uT>(wt)));
+      res = static_cast<T>(std::max(static_cast<uT>(ws), static_cast<uT>(wt)));
       break;
     case MIN_S:
-      res = Min(ws, wt);
+      res = std::min(ws, wt);
       break;
     case MIN_U:
-      res = static_cast<T>(Min(static_cast<uT>(ws), static_cast<uT>(wt)));
+      res = static_cast<T>(std::min(static_cast<uT>(ws), static_cast<uT>(wt)));
       break;
     case MAX_A:
       // We use negative abs in order to avoid problems

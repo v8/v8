@@ -355,8 +355,8 @@ int Log2ForSize(size_t size) {
 
 int ObjectStats::HistogramIndexFromSize(size_t size) {
   if (size == 0) return 0;
-  return Min(Max(Log2ForSize(size) + 1 - kFirstBucketShift, 0),
-             kLastValueBucketIndex);
+  return std::min({std::max(Log2ForSize(size) + 1 - kFirstBucketShift, 0),
+                   kLastValueBucketIndex});
 }
 
 void ObjectStats::RecordObjectStats(InstanceType type, size_t size,

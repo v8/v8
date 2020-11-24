@@ -461,7 +461,7 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
   if (page == nullptr) return AllocationResult::Retry(identity());
 
   // The size of the first object may exceed the capacity.
-  capacity_ = Max(capacity_, SizeOfObjects());
+  capacity_ = std::max(capacity_, SizeOfObjects());
 
   HeapObject result = page->GetObject();
   page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
@@ -524,7 +524,7 @@ void NewLargeObjectSpace::FreeDeadObjects(
 }
 
 void NewLargeObjectSpace::SetCapacity(size_t capacity) {
-  capacity_ = Max(capacity, SizeOfObjects());
+  capacity_ = std::max(capacity, SizeOfObjects());
 }
 
 CodeLargeObjectSpace::CodeLargeObjectSpace(Heap* heap)

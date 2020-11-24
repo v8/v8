@@ -2206,7 +2206,7 @@ class OutputStreamWriter {
     const char* s_end = s + n;
     while (s < s_end) {
       int s_chunk_size =
-          Min(chunk_size_ - chunk_pos_, static_cast<int>(s_end - s));
+          std::min(chunk_size_ - chunk_pos_, static_cast<int>(s_end - s));
       DCHECK_GT(s_chunk_size, 0);
       MemCopy(chunk_.begin() + chunk_pos_, s, s_chunk_size);
       s += s_chunk_size;

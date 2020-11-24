@@ -177,7 +177,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
     this->VisitMapPointer(object);
     start = FixedArray::BodyDescriptor::kStartOffset;
   }
-  int end = Min(size, start + kProgressBarScanningChunk);
+  int end = std::min(size, start + kProgressBarScanningChunk);
   if (start < end) {
     VisitPointers(object, object.RawField(start), object.RawField(end));
     bool success = chunk->TrySetProgressBar(current_progress_bar, end);

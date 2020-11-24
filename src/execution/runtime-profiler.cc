@@ -153,8 +153,8 @@ void RuntimeProfiler::AttemptOnStackReplacement(InterpretedFrame* frame,
 
   DCHECK_EQ(StackFrame::INTERPRETED, frame->type());
   int level = frame->GetBytecodeArray().osr_loop_nesting_level();
-  frame->GetBytecodeArray().set_osr_loop_nesting_level(
-      Min(level + loop_nesting_levels, AbstractCode::kMaxLoopNestingMarker));
+  frame->GetBytecodeArray().set_osr_loop_nesting_level(std::min(
+      {level + loop_nesting_levels, AbstractCode::kMaxLoopNestingMarker}));
 }
 
 void RuntimeProfiler::MaybeOptimizeFrame(JSFunction function,

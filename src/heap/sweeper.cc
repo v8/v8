@@ -373,10 +373,10 @@ int Sweeper::RawSweep(
     Address free_end = object.address();
     if (free_end != free_start) {
       max_freed_bytes =
-          Max(max_freed_bytes,
-              FreeAndProcessFreedMemory(free_start, free_end, p, space,
-                                        non_empty_typed_slots, free_list_mode,
-                                        free_space_mode));
+          std::max(max_freed_bytes,
+                   FreeAndProcessFreedMemory(free_start, free_end, p, space,
+                                             non_empty_typed_slots,
+                                             free_list_mode, free_space_mode));
       CleanupRememberedSetEntriesForFreedMemory(
           free_start, free_end, p, non_empty_typed_slots, &free_ranges_map,
           &old_to_new_cleanup);
@@ -395,10 +395,10 @@ int Sweeper::RawSweep(
   Address free_end = p->area_end();
   if (free_end != free_start) {
     max_freed_bytes =
-        Max(max_freed_bytes,
-            FreeAndProcessFreedMemory(free_start, free_end, p, space,
-                                      non_empty_typed_slots, free_list_mode,
-                                      free_space_mode));
+        std::max(max_freed_bytes,
+                 FreeAndProcessFreedMemory(free_start, free_end, p, space,
+                                           non_empty_typed_slots,
+                                           free_list_mode, free_space_mode));
     CleanupRememberedSetEntriesForFreedMemory(
         free_start, free_end, p, non_empty_typed_slots, &free_ranges_map,
         &old_to_new_cleanup);
@@ -458,7 +458,7 @@ int Sweeper::ParallelSweepSpace(
       continue;
     }
     DCHECK_GE(freed, 0);
-    max_freed = Max(max_freed, freed);
+    max_freed = std::max(max_freed, freed);
     if ((required_freed_bytes) > 0 && (max_freed >= required_freed_bytes))
       return max_freed;
     if ((max_pages > 0) && (pages_freed >= max_pages)) return max_freed;

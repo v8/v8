@@ -1613,7 +1613,7 @@ TEST(Latin1IgnoreCase) {
       CheckCanonicalEquivalence(c, test);
       continue;
     }
-    CHECK_EQ(Min(upper, lower), test);
+    CHECK_EQ(std::min(upper, lower), test);
   }
 }
 #endif

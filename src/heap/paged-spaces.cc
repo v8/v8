@@ -640,7 +640,7 @@ PagedSpace::TryAllocationFromFreeListBackground(LocalHeap* local_heap,
 
   heap()->StartIncrementalMarkingIfAllocationLimitIsReachedBackground();
 
-  size_t used_size_in_bytes = Min(new_node_size, max_size_in_bytes);
+  size_t used_size_in_bytes = std::min(new_node_size, max_size_in_bytes);
 
   Address start = new_node.address();
   Address end = new_node.address() + new_node_size;

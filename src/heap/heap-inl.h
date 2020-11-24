@@ -642,8 +642,8 @@ int Heap::MaxNumberToStringCacheSize() const {
   // size to ensure that it is bigger after being made 'full size'.
   size_t number_string_cache_size = max_semi_space_size_ / 512;
   number_string_cache_size =
-      Max(static_cast<size_t>(kInitialNumberStringCacheSize * 2),
-          Min<size_t>(0x4000u, number_string_cache_size));
+      std::max(static_cast<size_t>(kInitialNumberStringCacheSize * 2),
+               std::min(static_cast<size_t>(0x4000), number_string_cache_size));
   // There is a string and a number per entry so the length is twice the number
   // of entries.
   return static_cast<int>(number_string_cache_size * 2);

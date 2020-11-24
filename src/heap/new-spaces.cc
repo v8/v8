@@ -421,9 +421,9 @@ void NewSpace::Grow() {
   DCHECK_IMPLIES(FLAG_local_heaps, heap()->safepoint()->IsActive());
   // Double the semispace size but only up to maximum capacity.
   DCHECK(TotalCapacity() < MaximumCapacity());
-  size_t new_capacity =
-      Min(MaximumCapacity(),
-          static_cast<size_t>(FLAG_semi_space_growth_factor) * TotalCapacity());
+  size_t new_capacity = std::min(
+      MaximumCapacity(),
+      static_cast<size_t>(FLAG_semi_space_growth_factor) * TotalCapacity());
   if (to_space_.GrowTo(new_capacity)) {
     // Only grow from space if we managed to grow to-space.
     if (!from_space_.GrowTo(new_capacity)) {
@@ -440,7 +440,7 @@ void NewSpace::Grow() {
 }
 
 void NewSpace::Shrink() {
-  size_t new_capacity = Max(InitialTotalCapacity(), 2 * Size());
+  size_t new_capacity = std::max(InitialTotalCapacity(), 2 * Size());
   size_t rounded_new_capacity = ::RoundUp(new_capacity, Page::kPageSize);
   if (rounded_new_capacity < TotalCapacity() &&
       to_space_.ShrinkTo(rounded_new_capacity)) {

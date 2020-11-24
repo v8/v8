@@ -77,7 +77,7 @@ class OnHeapStream {
   // is used along with other implementations that require V8 heap access.
   Range<Char> GetDataAt(size_t pos, RuntimeCallStats* stats,
                         DisallowGarbageCollection* no_gc) {
-    return {&string_->GetChars(*no_gc)[start_offset_ + Min(length_, pos)],
+    return {&string_->GetChars(*no_gc)[start_offset_ + std::min(length_, pos)],
             &string_->GetChars(*no_gc)[start_offset_ + length_]};
   }
 
@@ -112,7 +112,7 @@ class ExternalStringStream {
   // is used along with other implementations that require V8 heap access.
   Range<Char> GetDataAt(size_t pos, RuntimeCallStats* stats,
                         DisallowGarbageCollection* no_gc = nullptr) {
-    return {&data_[Min(length_, pos)], &data_[length_]};
+    return {&data_[std::min(length_, pos)], &data_[length_]};
   }
 
   static const bool kCanBeCloned = true;
@@ -134,7 +134,7 @@ class TestingStream {
   // is used along with other implementations that require V8 heap access.
   Range<Char> GetDataAt(size_t pos, RuntimeCallStats* stats,
                         DisallowGarbageCollection* no_gc = nullptr) {
-    return {&data_[Min(length_, pos)], &data_[length_]};
+    return {&data_[std::min(length_, pos)], &data_[length_]};
   }
 
   static const bool kCanBeCloned = true;
@@ -163,7 +163,7 @@ class ChunkedStream {
                         DisallowGarbageCollection* no_gc = nullptr) {
     Chunk chunk = FindChunk(pos, stats);
     size_t buffer_end = chunk.length;
-    size_t buffer_pos = Min(buffer_end, pos - chunk.position);
+    size_t buffer_pos = std::min(buffer_end, pos - chunk.position);
     return {&chunk.data[buffer_pos], &chunk.data[buffer_end]};
   }
 
@@ -264,7 +264,7 @@ class BufferedCharacterStream : public Utf16CharacterStream {
       return false;
     }
 
-    size_t length = Min(kBufferSize, range.length());
+    size_t length = std::min({kBufferSize, range.length()});
     i::CopyChars(buffer_, range.start, length);
     buffer_end_ = &buffer_[length];
     return true;
@@ -605,7 +605,7 @@ void Utf8ExternalStreamingStream::FillBufferFromCurrentChunk() {
     // Fast path for ascii sequences.
     size_t remaining = end - cursor;
     size_t max_buffer = max_buffer_end - output_cursor;
-    int max_length = static_cast<int>(Min(remaining, max_buffer));
+    int max_length = static_cast<int>(std::min(remaining, max_buffer));
     DCHECK_EQ(state, unibrow::Utf8::State::kAccept);
     int ascii_length = NonAsciiStart(cursor, max_length);
     CopyChars(output_cursor, cursor, ascii_length);

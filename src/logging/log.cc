@@ -139,7 +139,7 @@ class CodeEventLogger::NameBuffer {
   }
 
   void AppendBytes(const char* bytes, int size) {
-    size = Min(size, kUtf8BufferSize - utf8_pos_);
+    size = std::min(size, kUtf8BufferSize - utf8_pos_);
     MemCopy(utf8_buffer_ + utf8_pos_, bytes, size);
     utf8_pos_ += size;
   }

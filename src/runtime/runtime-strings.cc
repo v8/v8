@@ -383,7 +383,8 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
   CONVERT_NUMBER_CHECKED(uint32_t, limit, Uint32, args[1]);
 
   s = String::Flatten(isolate, s);
-  const int length = static_cast<int>(Min<uint32_t>(s->length(), limit));
+  const int length =
+      static_cast<int>(std::min(static_cast<uint32_t>(s->length()), limit));
 
   Handle<FixedArray> elements;
   int position = 0;

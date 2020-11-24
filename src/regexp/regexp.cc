@@ -127,7 +127,7 @@ bool RegExp::IsUnmodifiedRegExp(Isolate* isolate, Handle<JSRegExp> regexp) {
 // Identifies the sort of regexps where the regexp engine is faster
 // than the code used for atom matches.
 static bool HasFewDifferentCharacters(Handle<String> pattern) {
-  int length = Min(kMaxLookaheadForBoyerMoore, pattern->length());
+  int length = std::min(kMaxLookaheadForBoyerMoore, pattern->length());
   if (length <= kPatternTooShortForBoyerMoore) return false;
   const int kMod = 128;
   bool character_found[kMod];
@@ -799,7 +799,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
   sample_subject = String::Flatten(isolate, sample_subject);
   int chars_sampled = 0;
   int half_way = (sample_subject->length() - kSampleSize) / 2;
-  for (int i = Max(0, half_way);
+  for (int i = std::max(0, half_way);
        i < sample_subject->length() && chars_sampled < kSampleSize;
        i++, chars_sampled++) {
     compiler.frequency_collator()->CountCharacter(sample_subject->Get(i));
@@ -975,8 +975,8 @@ RegExpGlobalCache::RegExpGlobalCache(Handle<JSRegExp> regexp,
         register_array_size_ = registers_per_match_;
         max_matches_ = 1;
       } else {
-        register_array_size_ = Max(registers_per_match_,
-                                   Isolate::kJSRegexpStaticOffsetsVectorSize);
+        register_array_size_ = std::max(
+            {registers_per_match_, Isolate::kJSRegexpStaticOffsetsVectorSize});
       }
       break;
     }
@@ -989,8 +989,8 @@ RegExpGlobalCache::RegExpGlobalCache(Handle<JSRegExp> regexp,
       }
       registers_per_match_ =
           JSRegExp::RegistersForCaptureCount(regexp->CaptureCount());
-      register_array_size_ =
-          Max(registers_per_match_, Isolate::kJSRegexpStaticOffsetsVectorSize);
+      register_array_size_ = std::max(
+          {registers_per_match_, Isolate::kJSRegexpStaticOffsetsVectorSize});
       break;
     }
   }

@@ -1243,7 +1243,7 @@ char* DoubleToPrecisionCString(double value, int p) {
       builder.AddString(decimal_rep);
       builder.AddPadding('0', p - decimal_rep_length);
     } else {
-      const int m = Min(decimal_rep_length, decimal_point);
+      const int m = std::min(decimal_rep_length, decimal_point);
       builder.AddSubstring(decimal_rep, m);
       builder.AddPadding('0', decimal_point - decimal_rep_length);
       if (decimal_point < p) {
@@ -1253,7 +1253,7 @@ char* DoubleToPrecisionCString(double value, int p) {
           const size_t len = strlen(decimal_rep + decimal_point);
           DCHECK_GE(kMaxInt, len);
           const int n =
-              Min(static_cast<int>(len), p - (builder.position() - extra));
+              std::min(static_cast<int>(len), p - (builder.position() - extra));
           builder.AddSubstring(decimal_rep + decimal_point, n);
         }
         builder.AddPadding('0', extra + (p - builder.position()));

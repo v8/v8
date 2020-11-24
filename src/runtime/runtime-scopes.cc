@@ -414,7 +414,7 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
   int parameter_count = callee->shared().internal_formal_parameter_count();
   if (argument_count > 0) {
     if (parameter_count > 0) {
-      int mapped_count = Min(argument_count, parameter_count);
+      int mapped_count = std::min(argument_count, parameter_count);
 
       // Store the context and the arguments array at the beginning of the
       // parameter map.

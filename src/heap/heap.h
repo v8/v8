@@ -784,7 +784,7 @@ class Heap {
     // Do not set the limit lower than the live size + some slack.
     size_t min_limit = SizeOfObjects() + SizeOfObjects() / 4;
     set_max_old_generation_size(
-        Min(max_old_generation_size(), Max(heap_limit, min_limit)));
+        std::min(max_old_generation_size(), std::max(heap_limit, min_limit)));
   }
 
   // ===========================================================================

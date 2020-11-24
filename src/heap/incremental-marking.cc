@@ -507,7 +507,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
 void IncrementalMarking::UpdateMarkedBytesAfterScavenge(
     size_t dead_bytes_in_new_space) {
   if (!IsMarking()) return;
-  bytes_marked_ -= Min(bytes_marked_, dead_bytes_in_new_space);
+  bytes_marked_ -= std::min(bytes_marked_, dead_bytes_in_new_space);
 }
 
 void IncrementalMarking::ProcessBlackAllocatedObject(HeapObject obj) {
@@ -594,7 +594,7 @@ void IncrementalMarking::Stop() {
         "[IncrementalMarking] Stopping: old generation %dMB, limit %dMB, "
         "overshoot %dMB\n",
         old_generation_size_mb, old_generation_limit_mb,
-        Max(0, old_generation_size_mb - old_generation_limit_mb));
+        std::max(0, old_generation_size_mb - old_generation_limit_mb));
   }
 
   SpaceIterator it(heap_);
@@ -653,7 +653,7 @@ double IncrementalMarking::CurrentTimeToMarkingTask() const {
   const double current_time_to_marking_task =
       incremental_marking_job_.CurrentTimeToTask(heap_);
   if (recorded_time_to_marking_task == 0.0) return 0.0;
-  return Max(recorded_time_to_marking_task, current_time_to_marking_task);
+  return std::max(recorded_time_to_marking_task, current_time_to_marking_task);
 }
 
 void IncrementalMarking::MarkingComplete(CompletionAction action) {
@@ -667,7 +667,7 @@ void IncrementalMarking::MarkingComplete(CompletionAction action) {
     if (time_to_force_completion_ == 0.0) {
       const double now = heap_->MonotonicallyIncreasingTimeInMs();
       const double overshoot_ms =
-          Max(kMinOvershootMs, (now - start_time_ms_) * kAllowedOvershoot);
+          std::max(kMinOvershootMs, (now - start_time_ms_) * kAllowedOvershoot);
       const double time_to_marking_task = CurrentTimeToMarkingTask();
       if (time_to_marking_task == 0.0 || time_to_marking_task > overshoot_ms) {
         if (FLAG_trace_incremental_marking) {
@@ -751,7 +751,7 @@ void IncrementalMarking::ScheduleBytesToMarkBasedOnTime(double time_ms) {
   constexpr double kMinTimeBetweenScheduleInMs = 10;
   if (schedule_update_time_ms_ + kMinTimeBetweenScheduleInMs > time_ms) return;
   double delta_ms =
-      Min(time_ms - schedule_update_time_ms_, kTargetMarkingWallTimeInMs);
+      std::min(time_ms - schedule_update_time_ms_, kTargetMarkingWallTimeInMs);
   schedule_update_time_ms_ = time_ms;
 
   size_t bytes_to_mark =
@@ -839,9 +839,9 @@ size_t IncrementalMarking::StepSizeToMakeProgress() {
     return heap()->OldGenerationSizeOfObjects() / kTargetStepCountAtOOM;
   }
 
-  return Min(Max(initial_old_generation_size_ / kTargetStepCount,
-                 IncrementalMarking::kMinStepSizeInBytes),
-             kMaxStepSizeInByte);
+  return std::min(std::max({initial_old_generation_size_ / kTargetStepCount,
+                            IncrementalMarking::kMinStepSizeInBytes}),
+                  kMaxStepSizeInByte);
 }
 
 void IncrementalMarking::AddScheduledBytesToMark(size_t bytes_to_mark) {
@@ -963,8 +963,9 @@ StepResult IncrementalMarking::Step(double max_step_size_in_ms,
         heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond();
     size_t max_step_size = GCIdleTimeHandler::EstimateMarkingStepSize(
         max_step_size_in_ms, marking_speed);
-    bytes_to_process = Min(ComputeStepSizeInBytes(step_origin), max_step_size);
-    bytes_to_process = Max(bytes_to_process, kMinStepSizeInBytes);
+    bytes_to_process =
+        std::min(ComputeStepSizeInBytes(step_origin), max_step_size);
+    bytes_to_process = std::max({bytes_to_process, kMinStepSizeInBytes});
 
     // Perform a single V8 and a single embedder step. In case both have been
     // observed as empty back to back, we can finalize.
@@ -979,8 +980,8 @@ StepResult IncrementalMarking::Step(double max_step_size_in_ms,
     StepResult embedder_result = StepResult::kNoImmediateWork;
     if (heap_->local_embedder_heap_tracer()->InUse()) {
       embedder_deadline =
-          Min(max_step_size_in_ms,
-              static_cast<double>(bytes_to_process) / marking_speed);
+          std::min(max_step_size_in_ms,
+                   static_cast<double>(bytes_to_process) / marking_speed);
       // TODO(chromium:1056170): Replace embedder_deadline with bytes_to_process
       // after migrating blink to the cppgc library and after v8 can directly
       // push objects to Oilpan.
