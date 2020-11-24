@@ -36,6 +36,9 @@ class Counters;
 
 class StatsTable {
  public:
+  StatsTable(const StatsTable&) = delete;
+  StatsTable& operator=(const StatsTable&) = delete;
+
   // Register an application-defined function for recording
   // subsequent counter statistics.
   void SetCounterFunction(CounterLookupCallback f);
@@ -90,8 +93,6 @@ class StatsTable {
   CounterLookupCallback lookup_function_;
   CreateHistogramCallback create_histogram_function_;
   AddHistogramSampleCallback add_histogram_sample_function_;
-
-  DISALLOW_COPY_AND_ASSIGN(StatsTable);
 };
 
 // Base class for stats counters.
@@ -1288,11 +1289,12 @@ class RuntimeCallTimerScope {
     }
   }
 
+  RuntimeCallTimerScope(const RuntimeCallTimerScope&) = delete;
+  RuntimeCallTimerScope& operator=(const RuntimeCallTimerScope&) = delete;
+
  private:
   RuntimeCallStats* stats_ = nullptr;
   RuntimeCallTimer timer_;
-
-  DISALLOW_COPY_AND_ASSIGN(RuntimeCallTimerScope);
 };
 
 // This file contains all the v8 counters that are in use.

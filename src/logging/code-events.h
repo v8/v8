@@ -115,6 +115,8 @@ class CodeEventDispatcher : public CodeEventListener {
   using LogEventsAndTags = CodeEventListener::LogEventsAndTags;
 
   CodeEventDispatcher() = default;
+  CodeEventDispatcher(const CodeEventDispatcher&) = delete;
+  CodeEventDispatcher& operator=(const CodeEventDispatcher&) = delete;
 
   bool AddListener(CodeEventListener* listener) {
     base::MutexGuard guard(&mutex_);
@@ -231,8 +233,6 @@ class CodeEventDispatcher : public CodeEventListener {
  private:
   std::unordered_set<CodeEventListener*> listeners_;
   base::Mutex mutex_;
-
-  DISALLOW_COPY_AND_ASSIGN(CodeEventDispatcher);
 };
 
 }  // namespace internal
