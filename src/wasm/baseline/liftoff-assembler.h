@@ -469,7 +469,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline int PrepareStackFrame();
   inline void PrepareTailCall(int num_callee_stack_params,
                               int stack_param_delta);
-  inline void PatchPrepareStackFrame(int offset, int frame_size);
+  inline void PatchPrepareStackFrame(int offset);
   inline void FinishCode();
   inline void AbortCompilation();
   inline static constexpr int StaticStackFrameSize();
