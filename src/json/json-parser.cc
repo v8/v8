@@ -986,14 +986,7 @@ bool Matches(const Vector<const Char>& chars, Handle<String> string) {
   DCHECK(!string.is_null());
 
   if (chars.length() != string->length()) return false;
-
-  DisallowGarbageCollection no_gc;
-  if (string->IsOneByteRepresentation()) {
-    const uint8_t* string_data = string->GetChars<uint8_t>(no_gc);
-    return CompareChars(chars.begin(), string_data, chars.length()) == 0;
-  }
-  const uint16_t* string_data = string->GetChars<uint16_t>(no_gc);
-  return CompareChars(chars.begin(), string_data, chars.length()) == 0;
+  return string->IsEqualTo(chars);
 }
 
 }  // namespace

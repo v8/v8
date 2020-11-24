@@ -316,16 +316,7 @@ class SequentialStringKey final : public StringTableKey {
         chars_(chars),
         convert_(convert) {}
 
-  bool IsMatch(String s) override {
-    SharedStringAccessGuardIfNeeded access_guard(s);
-    DisallowGarbageCollection no_gc;
-    if (s.IsOneByteRepresentation()) {
-      const uint8_t* chars = s.GetChars<uint8_t>(no_gc, access_guard);
-      return CompareChars(chars, chars_.begin(), chars_.length()) == 0;
-    }
-    const uint16_t* chars = s.GetChars<uint16_t>(no_gc, access_guard);
-    return CompareChars(chars, chars_.begin(), chars_.length()) == 0;
-  }
+  bool IsMatch(String s) override { return s.IsEqualTo(chars_); }
 
   Handle<String> AsHandle(Isolate* isolate) {
     if (sizeof(Char) == 1) {
@@ -388,13 +379,8 @@ class SeqSubStringKey final : public StringTableKey {
 
   bool IsMatch(String string) override {
     DisallowGarbageCollection no_gc;
-    if (string.IsOneByteRepresentation()) {
-      const uint8_t* data = string.GetChars<uint8_t>(no_gc);
-      return CompareChars(string_->GetChars(no_gc) + from_, data, length()) ==
-             0;
-    }
-    const uint16_t* data = string.GetChars<uint16_t>(no_gc);
-    return CompareChars(string_->GetChars(no_gc) + from_, data, length()) == 0;
+    return string.IsEqualTo(
+        Vector<const Char>(string_->GetChars(no_gc) + from_, length()));
   }
 
   template <typename LocalIsolate>
@@ -441,6 +427,80 @@ bool String::Equals(Isolate* isolate, Handle<String> one, Handle<String> two) {
   }
   return SlowEquals(isolate, one, two);
 }
+
+template <typename Char>
+bool String::IsEqualTo(Vector<const Char> str,
+                       String::EqualityType eq_type) const {
+  size_t len = str.size();
+  switch (eq_type) {
+    case EqualityType::kWholeString:
+      if (static_cast<size_t>(length()) != len) return false;
+      break;
+    case EqualityType::kPrefix:
+      if (static_cast<size_t>(length()) < len) return false;
+      break;
+  }
+
+  SharedStringAccessGuardIfNeeded access_guard(*this);
+  DisallowGarbageCollection no_gc;
+
+  class IsEqualToDispatcher : public AllStatic {
+   public:
+    static inline bool HandleSeqOneByteString(
+        SeqOneByteString str, const Char* data, size_t len,
+        const DisallowGarbageCollection& no_gc,
+        const SharedStringAccessGuardIfNeeded& access_guard) {
+      return CompareChars(str.GetChars(no_gc, access_guard), data, len) == 0;
+    }
+    static inline bool HandleSeqTwoByteString(
+        SeqTwoByteString str, const Char* data, size_t len,
+        const DisallowGarbageCollection& no_gc,
+        const SharedStringAccessGuardIfNeeded& access_guard) {
+      return CompareChars(str.GetChars(no_gc, access_guard), data, len) == 0;
+    }
+    static inline bool HandleExternalOneByteString(
+        ExternalOneByteString str, const Char* data, size_t len,
+        const DisallowGarbageCollection& no_gc,
+        const SharedStringAccessGuardIfNeeded& access_guard) {
+      return CompareChars(str.GetChars(), data, len) == 0;
+    }
+    static inline bool HandleExternalTwoByteString(
+        ExternalTwoByteString str, const Char* data, size_t len,
+        const DisallowGarbageCollection& no_gc,
+        const SharedStringAccessGuardIfNeeded& access_guard) {
+      return CompareChars(str.GetChars(), data, len) == 0;
+    }
+    static inline bool HandleConsString(
+        ConsString str, const Char* data, size_t len,
+        const DisallowGarbageCollection& no_gc,
+        const SharedStringAccessGuardIfNeeded& access_guard) {
+      UNREACHABLE();
+    }
+    static inline bool HandleSlicedString(
+        SlicedString str, const Char* data, size_t len,
+        const DisallowGarbageCollection& no_gc,
+        const SharedStringAccessGuardIfNeeded& access_guard) {
+      UNREACHABLE();
+    }
+    static inline bool HandleThinString(
+        ThinString str, const Char* data, size_t len,
+        const DisallowGarbageCollection& no_gc,
+        const SharedStringAccessGuardIfNeeded& access_guard) {
+      UNREACHABLE();
+    }
+    static inline bool HandleInvalidString(
+        String str, const Char* data, size_t len,
+        const DisallowGarbageCollection& no_gc,
+        const SharedStringAccessGuardIfNeeded& access_guard) {
+      UNREACHABLE();
+    }
+  };
+
+  return StringShape(*this).DispatchToSpecificType<IsEqualToDispatcher, bool>(
+      *this, str.data(), len, no_gc, access_guard);
+}
+
+bool String::IsOneByteEqualTo(Vector<const char> str) { return IsEqualTo(str); }
 
 template <typename Char>
 const Char* String::GetChars(const DisallowGarbageCollection& no_gc) {

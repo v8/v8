@@ -1302,50 +1302,8 @@ Object String::LastIndexOf(Isolate* isolate, Handle<Object> receiver,
   return Smi::FromInt(last_index);
 }
 
-template <>
-bool String::IsEqualTo(Vector<const uint8_t> str) {
-  return IsOneByteEqualTo(str);
-}
-
-template <>
-bool String::IsEqualTo(Vector<const uc16> str) {
-  return IsTwoByteEqualTo(str);
-}
-
 bool String::HasOneBytePrefix(Vector<const char> str) {
-  int slen = str.length();
-  if (slen > length()) return false;
-  DisallowGarbageCollection no_gc;
-  FlatContent content = GetFlatContent(no_gc);
-  if (content.IsOneByte()) {
-    return CompareChars(content.ToOneByteVector().begin(), str.begin(), slen) ==
-           0;
-  }
-  return CompareChars(content.ToUC16Vector().begin(), str.begin(), slen) == 0;
-}
-
-bool String::IsOneByteEqualTo(Vector<const uint8_t> str) {
-  int slen = length();
-  if (str.length() != slen) return false;
-  DisallowGarbageCollection no_gc;
-  FlatContent content = GetFlatContent(no_gc);
-  if (content.IsOneByte()) {
-    return CompareChars(content.ToOneByteVector().begin(), str.begin(), slen) ==
-           0;
-  }
-  return CompareChars(content.ToUC16Vector().begin(), str.begin(), slen) == 0;
-}
-
-bool String::IsTwoByteEqualTo(Vector<const uc16> str) {
-  int slen = length();
-  if (str.length() != slen) return false;
-  DisallowGarbageCollection no_gc;
-  FlatContent content = GetFlatContent(no_gc);
-  if (content.IsOneByte()) {
-    return CompareChars(content.ToOneByteVector().begin(), str.begin(), slen) ==
-           0;
-  }
-  return CompareChars(content.ToUC16Vector().begin(), str.begin(), slen) == 0;
+  return IsEqualTo(str, EqualityType::kPrefix);
 }
 
 namespace {

@@ -317,16 +317,14 @@ class String : public TorqueGeneratedString<String, Name> {
   inline static bool Equals(Isolate* isolate, Handle<String> one,
                             Handle<String> two);
 
-  // Dispatches to Is{One,Two}ByteEqualTo.
+  enum class EqualityType { kWholeString, kPrefix };
   template <typename Char>
-  bool IsEqualTo(Vector<const Char> str);
+  inline bool IsEqualTo(
+      Vector<const Char> str,
+      EqualityType eq_type = EqualityType::kWholeString) const;
 
   V8_EXPORT_PRIVATE bool HasOneBytePrefix(Vector<const char> str);
-  V8_EXPORT_PRIVATE bool IsOneByteEqualTo(Vector<const uint8_t> str);
-  V8_EXPORT_PRIVATE bool IsOneByteEqualTo(Vector<const char> str) {
-    return IsOneByteEqualTo(Vector<const uint8_t>::cast(str));
-  }
-  bool IsTwoByteEqualTo(Vector<const uc16> str);
+  V8_EXPORT_PRIVATE inline bool IsOneByteEqualTo(Vector<const char> str);
 
   // Return a UTF8 representation of the string.  The string is null
   // terminated but may optionally contain nulls.  Length is returned
