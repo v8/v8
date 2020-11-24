@@ -912,9 +912,9 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
     return MaybeLocal<Module>();
   }
   ScriptOrigin origin(
-      String::NewFromUtf8(isolate, file_name.c_str()).ToLocalChecked(),
-      Local<Integer>(), Local<Integer>(), Local<Boolean>(), Local<Integer>(),
-      Local<Value>(), Local<Boolean>(), Local<Boolean>(), True(isolate));
+      String::NewFromUtf8(isolate, file_name.c_str()).ToLocalChecked(), 0, 0,
+      false, -1, Local<Value>(), false, false, true);
+  ScriptCompiler::Source source(source_text, origin);
 
   Local<Module> module;
   if (!CompileString<Module>(isolate, context, source_text, origin)

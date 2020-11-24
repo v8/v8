@@ -800,8 +800,8 @@ Response InjectedScript::createExceptionDetails(
                   : message->GetStartColumn(m_context->context()).FromMaybe(0))
           .build();
   if (!message.IsEmpty()) {
-    exceptionDetails->setScriptId(String16::fromInteger(
-        static_cast<int>(message->GetScriptOrigin().ScriptID()->Value())));
+    exceptionDetails->setScriptId(
+        String16::fromInteger(message->GetScriptOrigin().ScriptId()));
     v8::Local<v8::StackTrace> stackTrace = message->GetStackTrace();
     if (!stackTrace.IsEmpty() && stackTrace->GetFrameCount() > 0) {
       std::unique_ptr<V8StackTraceImpl> v8StackTrace =

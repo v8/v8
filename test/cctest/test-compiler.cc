@@ -652,9 +652,7 @@ TEST(CompileFunctionInContextScriptOrigin) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
-  v8::ScriptOrigin origin(v8_str("test"),
-                          v8::Integer::New(CcTest::isolate(), 22),
-                          v8::Integer::New(CcTest::isolate(), 41));
+  v8::ScriptOrigin origin(v8_str("test"), 22, 41);
   v8::ScriptCompiler::Source script_source(v8_str("throw new Error()"), origin);
   Local<ScriptOrModule> script;
   v8::Local<v8::Function> fun =
@@ -700,7 +698,7 @@ void TestCompileFunctionInContextToStringImpl() {
 
     // Regression test for v8:6190
     {
-      v8::ScriptOrigin origin(v8_str("test"), v8_int(22), v8_int(41));
+      v8::ScriptOrigin origin(v8_str("test"), 22, 41);
       v8::ScriptCompiler::Source script_source(v8_str("return event"), origin);
 
       v8::Local<v8::String> params[] = {v8_str("event")};
@@ -727,7 +725,7 @@ void TestCompileFunctionInContextToStringImpl() {
 
     // With no parameters:
     {
-      v8::ScriptOrigin origin(v8_str("test"), v8_int(17), v8_int(31));
+      v8::ScriptOrigin origin(v8_str("test"), 17, 31);
       v8::ScriptCompiler::Source script_source(v8_str("return 0"), origin);
 
       v8::TryCatch try_catch(CcTest::isolate());
@@ -752,7 +750,7 @@ void TestCompileFunctionInContextToStringImpl() {
 
     // With a name:
     {
-      v8::ScriptOrigin origin(v8_str("test"), v8_int(17), v8_int(31));
+      v8::ScriptOrigin origin(v8_str("test"), 17, 31);
       v8::ScriptCompiler::Source script_source(v8_str("return 0"), origin);
 
       v8::TryCatch try_catch(CcTest::isolate());

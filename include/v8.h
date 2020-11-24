@@ -1424,10 +1424,10 @@ class ScriptOriginOptions {
  */
 class ScriptOrigin {
  public:
-  V8_INLINE ScriptOrigin(
-      Local<Value> resource_name,
-      Local<Integer> resource_line_offset = Local<Integer>(),
-      Local<Integer> resource_column_offset = Local<Integer>(),
+  V8_DEPRECATE_SOON("Use constructor with primitvie C++ types")
+  V8_INLINE explicit ScriptOrigin(
+      Local<Value> resource_name, Local<Integer> resource_line_offset,
+      Local<Integer> resource_column_offset,
       Local<Boolean> resource_is_shared_cross_origin = Local<Boolean>(),
       Local<Integer> script_id = Local<Integer>(),
       Local<Value> source_map_url = Local<Value>(),
@@ -1435,21 +1435,36 @@ class ScriptOrigin {
       Local<Boolean> is_wasm = Local<Boolean>(),
       Local<Boolean> is_module = Local<Boolean>(),
       Local<PrimitiveArray> host_defined_options = Local<PrimitiveArray>());
+  V8_INLINE explicit ScriptOrigin(
+      Local<Value> resource_name, int resource_line_offset = 0,
+      int resource_column_offset = 0,
+      bool resource_is_shared_cross_origin = false, int script_id = -1,
+      Local<Value> source_map_url = Local<Value>(),
+      bool resource_is_opaque = false, bool is_wasm = false,
+      bool is_module = false,
+      Local<PrimitiveArray> host_defined_options = Local<PrimitiveArray>());
 
   V8_INLINE Local<Value> ResourceName() const;
+  V8_DEPRECATE_SOON("Use getter with primitvie C++ types.")
   V8_INLINE Local<Integer> ResourceLineOffset() const;
+  V8_DEPRECATE_SOON("Use getter with primitvie C++ types.")
   V8_INLINE Local<Integer> ResourceColumnOffset() const;
+  V8_DEPRECATE_SOON("Use getter with primitvie C++ types.")
   V8_INLINE Local<Integer> ScriptID() const;
+  V8_INLINE int LineOffset() const;
+  V8_INLINE int ColumnOffset() const;
+  V8_INLINE int ScriptId() const;
   V8_INLINE Local<Value> SourceMapUrl() const;
   V8_INLINE Local<PrimitiveArray> HostDefinedOptions() const;
   V8_INLINE ScriptOriginOptions Options() const { return options_; }
 
  private:
+  Isolate* isolate_;
   Local<Value> resource_name_;
-  Local<Integer> resource_line_offset_;
-  Local<Integer> resource_column_offset_;
+  int resource_line_offset_;
+  int resource_column_offset_;
   ScriptOriginOptions options_;
-  Local<Integer> script_id_;
+  int script_id_;
   Local<Value> source_map_url_;
   Local<PrimitiveArray> host_defined_options_;
 };
@@ -1748,8 +1763,8 @@ class V8_EXPORT ScriptCompiler {
     // Source takes ownership of CachedData.
     V8_INLINE Source(Local<String> source_string, const ScriptOrigin& origin,
                      CachedData* cached_data = nullptr);
-    V8_INLINE Source(Local<String> source_string,
-                     CachedData* cached_data = nullptr);
+    V8_INLINE explicit Source(Local<String> source_string,
+                              CachedData* cached_data = nullptr);
     V8_INLINE ~Source();
 
     // Ownership of the CachedData or its buffers is *not* transferred to the
@@ -1770,8 +1785,8 @@ class V8_EXPORT ScriptCompiler {
 
     // Origin information
     Local<Value> resource_name;
-    Local<Integer> resource_line_offset;
-    Local<Integer> resource_column_offset;
+    int resource_line_offset;
+    int resource_column_offset;
     ScriptOriginOptions resource_options;
     Local<Value> source_map_url;
     Local<PrimitiveArray> host_defined_options;
@@ -11377,23 +11392,33 @@ int FunctionCallbackInfo<T>::Length() const {
   return length_;
 }
 
-ScriptOrigin::ScriptOrigin(Local<Value> resource_name,
-                           Local<Integer> resource_line_offset,
-                           Local<Integer> resource_column_offset,
-                           Local<Boolean> resource_is_shared_cross_origin,
-                           Local<Integer> script_id,
-                           Local<Value> source_map_url,
-                           Local<Boolean> resource_is_opaque,
-                           Local<Boolean> is_wasm, Local<Boolean> is_module,
+ScriptOrigin::ScriptOrigin(
+    Local<Value> resource_name, Local<Integer> line_offset,
+    Local<Integer> column_offset, Local<Boolean> is_shared_cross_origin,
+    Local<Integer> script_id, Local<Value> source_map_url,
+    Local<Boolean> is_opaque, Local<Boolean> is_wasm, Local<Boolean> is_module,
+    Local<PrimitiveArray> host_defined_options)
+    : ScriptOrigin(
+          resource_name,
+          line_offset.IsEmpty() ? 0 : static_cast<int>(line_offset->Value()),
+          column_offset.IsEmpty() ? 0
+                                  : static_cast<int>(column_offset->Value()),
+          !is_shared_cross_origin.IsEmpty() && is_shared_cross_origin->IsTrue(),
+          static_cast<int>(script_id.IsEmpty() ? -1 : script_id->Value()),
+          source_map_url, !is_opaque.IsEmpty() && is_opaque->IsTrue(),
+          !is_wasm.IsEmpty() && is_wasm->IsTrue(),
+          !is_module.IsEmpty() && is_module->IsTrue(), host_defined_options) {}
+
+ScriptOrigin::ScriptOrigin(Local<Value> resource_name, int line_offset,
+                           int column_offset, bool is_shared_cross_origin,
+                           int script_id, Local<Value> source_map_url,
+                           bool is_opaque, bool is_wasm, bool is_module,
                            Local<PrimitiveArray> host_defined_options)
-    : resource_name_(resource_name),
-      resource_line_offset_(resource_line_offset),
-      resource_column_offset_(resource_column_offset),
-      options_(!resource_is_shared_cross_origin.IsEmpty() &&
-                   resource_is_shared_cross_origin->IsTrue(),
-               !resource_is_opaque.IsEmpty() && resource_is_opaque->IsTrue(),
-               !is_wasm.IsEmpty() && is_wasm->IsTrue(),
-               !is_module.IsEmpty() && is_module->IsTrue()),
+    : isolate_(Isolate::GetCurrent()),
+      resource_name_(resource_name),
+      resource_line_offset_(line_offset),
+      resource_column_offset_(column_offset),
+      options_(is_shared_cross_origin, is_opaque, is_wasm, is_module),
       script_id_(script_id),
       source_map_url_(source_map_url),
       host_defined_options_(host_defined_options) {}
@@ -11405,17 +11430,22 @@ Local<PrimitiveArray> ScriptOrigin::HostDefinedOptions() const {
 }
 
 Local<Integer> ScriptOrigin::ResourceLineOffset() const {
-  return resource_line_offset_;
+  return v8::Integer::New(isolate_, resource_line_offset_);
 }
-
 
 Local<Integer> ScriptOrigin::ResourceColumnOffset() const {
-  return resource_column_offset_;
+  return v8::Integer::New(isolate_, resource_column_offset_);
 }
 
+Local<Integer> ScriptOrigin::ScriptID() const {
+  return v8::Integer::New(isolate_, script_id_);
+}
 
-Local<Integer> ScriptOrigin::ScriptID() const { return script_id_; }
+int ScriptOrigin::LineOffset() const { return resource_line_offset_; }
 
+int ScriptOrigin::ColumnOffset() const { return resource_column_offset_; }
+
+int ScriptOrigin::ScriptId() const { return script_id_; }
 
 Local<Value> ScriptOrigin::SourceMapUrl() const { return source_map_url_; }
 
@@ -11423,8 +11453,8 @@ ScriptCompiler::Source::Source(Local<String> string, const ScriptOrigin& origin,
                                CachedData* data)
     : source_string(string),
       resource_name(origin.ResourceName()),
-      resource_line_offset(origin.ResourceLineOffset()),
-      resource_column_offset(origin.ResourceColumnOffset()),
+      resource_line_offset(origin.LineOffset()),
+      resource_column_offset(origin.ColumnOffset()),
       resource_options(origin.Options()),
       source_map_url(origin.SourceMapUrl()),
       host_defined_options(origin.HostDefinedOptions()),
