@@ -2248,7 +2248,7 @@ class LiftoffCompiler {
     Register tmp = __ GetUnusedRegister(kGpReg, *pinned).gp();
     // TODO(clemensb): Use 64-bit operations if memory64 is used.
     DCHECK_GE(kMaxUInt32, *offset);
-    __ emit_i32_addi(index, index, static_cast<uint32_t>(*offset));
+    if (*offset) __ emit_i32_addi(index, index, static_cast<uint32_t>(*offset));
     LOAD_INSTANCE_FIELD(tmp, MemoryMask, kSystemPointerSize);
     __ emit_i32_and(index, index, tmp);
     *offset = 0;
