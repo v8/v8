@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !CPPGC_BUILD_IN_V8
+
 #include "src/heap/cppgc/stats-collector.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -300,3 +302,5 @@ TEST_F(CppgcTracingScopesTest, TestIndividualConcurrentScopes) {
 
 }  // namespace internal
 }  // namespace cppgc
+
+#endif  // !CPPGC_BUILD_IN_V8

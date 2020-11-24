@@ -460,6 +460,10 @@ config("libbase_config") {
   }
 }
 
+# Standalone cppgc cannot be built within chrome or with perfetto.
+assert(!cppgc_is_standalone || !build_with_chromium)
+assert(!cppgc_is_standalone || !v8_use_perfetto)
+
 # This config should be applied to code using the cppgc_base.
 config("cppgc_base_config") {
   defines = []
@@ -471,6 +475,9 @@ config("cppgc_base_config") {
   }
   if (cppgc_enable_young_generation) {
     defines += [ "CPPGC_YOUNG_GENERATION" ]
+  }
+  if (!cppgc_is_standalone) {
+    defines += [ "CPPGC_BUILD_IN_V8" ]
   }
 }
 
@@ -3825,8 +3832,6 @@ v8_source_set("v8_base_without_compiler") {
     ":cppgc_base_config",
   ]
 
-  defines = [ "CPPGC_BUILD_IN_V8" ]
-
   deps = [
     ":cppgc_base",
     ":torque_generated_definitions",
@@ -4427,7 +4432,6 @@ v8_source_set("cppgc_base") {
   visibility = [ ":*" ]
 
   sources = [
-    "//base/trace_event/common/trace_event_common.h",
     "include/cppgc/allocation.h",
     "include/cppgc/common.h",
     "include/cppgc/custom-space.h",
@@ -4530,6 +4534,10 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/visitor.cc",
     "src/heap/cppgc/write-barrier.cc",
   ]
+
+  if (cppgc_is_standalone) {
+    sources += [ "//base/trace_event/common/trace_event_common.h" ]
+  }
 
   if (cppgc_enable_caged_heap) {
     sources += [
@@ -4905,16 +4913,22 @@ if (is_component_build) {
 
     configs = [ ":internal_config" ]
 
+    if (!cppgc_is_standalone) {
+      deps = [ ":v8" ]
+    }
+
     public_configs = [ ":external_config" ]
   }
 
-  v8_component("cppgc_for_testing") {
-    testonly = true
+  if (cppgc_is_standalone) {
+    v8_component("cppgc_for_testing") {
+      testonly = true
 
-    public_deps = [ ":cppgc_base" ]
+      public_deps = [ ":cppgc_base" ]
 
-    configs = [ ":internal_config" ]
-    public_configs = [ ":external_config" ]
+      configs = [ ":internal_config" ]
+      public_configs = [ ":external_config" ]
+    }
   }
 
   v8_component("v8_cppgc_shared_for_testing") {
@@ -4952,15 +4966,21 @@ if (is_component_build) {
   group("cppgc") {
     public_deps = [ ":cppgc_base" ]
 
+    if (!cppgc_is_standalone) {
+      deps = [ ":v8" ]
+    }
+
     public_configs = [ ":external_config" ]
   }
 
-  group("cppgc_for_testing") {
-    testonly = true
+  if (cppgc_is_standalone) {
+    group("cppgc_for_testing") {
+      testonly = true
 
-    public_deps = [ ":cppgc_base" ]
+      public_deps = [ ":cppgc_base" ]
 
-    public_configs = [ ":external_config" ]
+      public_configs = [ ":external_config" ]
+    }
   }
 
   group("v8_cppgc_shared_for_testing") {
@@ -5082,34 +5102,36 @@ if (want_v8_shell) {
   }
 }
 
-v8_executable("cppgc_for_v8_embedders") {
-  sources = [ "samples/cppgc/cppgc-for-v8-embedders.cc" ]
+if (cppgc_is_standalone) {
+  v8_executable("cppgc_standalone") {
+    sources = [ "samples/cppgc/cppgc-standalone.cc" ]
 
-  configs = [
-    # Note: don't use :internal_config here because this target will get
-    # the :external_config applied to it by virtue of depending on :cppgc, and
-    # you can't have both applied to the same target.
-    ":internal_config_base",
-  ]
+    configs = [
+      # Note: don't use :internal_config here because this target will get
+      # the :external_config applied to it by virtue of depending on :cppgc, and
+      # you can't have both applied to the same target.
+      ":internal_config_base",
+    ]
 
-  deps = [
-    ":cppgc",
-    ":v8_libplatform",
-    "//build/win:default_exe_manifest",
-  ]
-}
+    deps = [ ":cppgc" ]
+  }
+} else {
+  v8_executable("cppgc_for_v8_embedders") {
+    sources = [ "samples/cppgc/cppgc-for-v8-embedders.cc" ]
 
-v8_executable("cppgc_standalone") {
-  sources = [ "samples/cppgc/cppgc-standalone.cc" ]
+    configs = [
+      # Note: don't use :internal_config here because this target will get
+      # the :external_config applied to it by virtue of depending on :cppgc, and
+      # you can't have both applied to the same target.
+      ":internal_config_base",
+    ]
 
-  configs = [
-    # Note: don't use :internal_config here because this target will get
-    # the :external_config applied to it by virtue of depending on :cppgc, and
-    # you can't have both applied to the same target.
-    ":internal_config_base",
-  ]
-
-  deps = [ ":cppgc" ]
+    deps = [
+      ":v8",
+      ":v8_libplatform",
+      "//build/win:default_exe_manifest",
+    ]
+  }
 }
 
 template("v8_fuzzer") {

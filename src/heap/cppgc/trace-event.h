@@ -7,6 +7,7 @@
 
 #if CPPGC_BUILD_IN_V8
 #include "src/tracing/trace-event.h"
+using ConvertableToTraceFormat = v8::ConvertableToTraceFormat;
 #else
 // This is a subset of stc/tracing/trace-event.h required to support
 // tracing in the cppgc standalone library using TracingController.
