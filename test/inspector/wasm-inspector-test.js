@@ -52,7 +52,6 @@ async function getScopeValues(name, value) {
   if (value.type == 'object') {
     if (value.subtype == 'typedarray') return value.description;
     if (name == 'instance') return dumpInstanceProperties(value);
-    if (name == 'function tables') return dumpTables(value);
 
     let msg = await Protocol.Runtime.getProperties({objectId: value.objectId});
     printIfFailure(msg);
@@ -78,23 +77,6 @@ async function recursiveGetProperties(value, depth) {
     return recursiveProperties.flat();
   }
   return value;
-}
-
-async function dumpTables(tablesObj) {
-  let msg = await Protocol.Runtime.getProperties({objectId: tablesObj.objectId});
-  var tables_str = [];
-  for (var table of msg.result.result) {
-    const func_entries = await recursiveGetPropertiesWrapper(table, 2);
-    var functions = [];
-    for (var func of func_entries) {
-      for (var value of func.result.result) {
-        functions.push(`${value.name}: ${value.value.description}`);
-      }
-    }
-    const functions_str = functions.join(', ');
-    tables_str.push(`      ${table.name}: ${functions_str}`);
-  }
-  return '\n' + tables_str.join('\n');
 }
 
 async function dumpInstanceProperties(instanceObj) {
