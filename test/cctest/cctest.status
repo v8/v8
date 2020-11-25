@@ -385,6 +385,7 @@
   'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad_turbofan': [SKIP],
   # slow in PASE emulator
   'test-cpu-profiler/Inlining2': [PASS, SLOW],
+  'test-cpu-profiler/CollectCpuProfileCallerLineNumbers': [PASS, SLOW],
 }],  # 'system == aix or (arch == ppc64 and byteorder == big)'
 
 ##############################################################################
