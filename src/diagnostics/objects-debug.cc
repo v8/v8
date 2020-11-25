@@ -827,7 +827,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(LocalIsolate* isolate) {
 void SharedFunctionInfo::SharedFunctionInfoVerify(ReadOnlyRoots roots) {
   Object value = name_or_scope_info(kAcquireLoad);
   if (value.IsScopeInfo()) {
-    CHECK_LT(0, ScopeInfo::cast(value).length());
+    CHECK(!ScopeInfo::cast(value).IsEmpty());
     CHECK_NE(value, roots.empty_scope_info());
   }
 
@@ -855,7 +855,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(ReadOnlyRoots roots) {
       language_mode(), kind(), HasSharedName(), needs_home_object());
   CHECK_EQ(expected_map_index, function_map_index());
 
-  if (scope_info().length() > 0) {
+  if (!scope_info().IsEmpty()) {
     ScopeInfo info = scope_info();
     CHECK(kind() == info.function_kind());
     CHECK_EQ(internal::IsModule(kind()), info.scope_type() == MODULE_SCOPE);

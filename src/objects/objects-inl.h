@@ -1129,11 +1129,8 @@ bool ScopeInfo::HasSimpleParameters() const {
 #define FIELD_ACCESSORS(name)                                                 \
   void ScopeInfo::Set##name(int value) { set(k##name, Smi::FromInt(value)); } \
   int ScopeInfo::name() const {                                               \
-    if (length() > 0) {                                                       \
-      return Smi::ToInt(get(k##name));                                        \
-    } else {                                                                  \
-      return 0;                                                               \
-    }                                                                         \
+    DCHECK_GE(length(), kVariablePartIndex);                                  \
+    return Smi::ToInt(get(k##name));                                          \
   }
 FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(FIELD_ACCESSORS)
 #undef FIELD_ACCESSORS

@@ -373,7 +373,7 @@ bool SharedFunctionInfo::HasOuterScopeInfo() const {
     if (!scope_info().HasOuterScopeInfo()) return false;
     outer_info = scope_info().OuterScopeInfo();
   }
-  return outer_info.length() > 0;
+  return !outer_info.IsEmpty();
 }
 
 ScopeInfo SharedFunctionInfo::GetOuterScopeInfo() const {

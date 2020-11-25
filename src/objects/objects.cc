@@ -2077,8 +2077,8 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     case SCOPE_INFO_TYPE: {
       ScopeInfo scope = ScopeInfo::cast(*this);
       os << "<ScopeInfo";
-      if (scope.length()) os << " " << scope.scope_type() << " ";
-      os << "[" << scope.length() << "]>";
+      if (!scope.IsEmpty()) os << " " << scope.scope_type();
+      os << ">";
       break;
     }
     case CODE_TYPE: {

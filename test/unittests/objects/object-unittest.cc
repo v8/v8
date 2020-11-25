@@ -171,7 +171,6 @@ TEST_F(TestWithNativeContext, EmptyFunctionScopeInfo) {
       isolate()->empty_function()->shared().scope_info(),
       function->GetIsolate());
 
-  EXPECT_EQ(scope_info->length(), empty_function_scope_info->length());
   EXPECT_EQ(scope_info->Flags(), empty_function_scope_info->Flags());
   EXPECT_EQ(scope_info->ParameterCount(),
             empty_function_scope_info->ParameterCount());
