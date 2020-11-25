@@ -5,7 +5,7 @@
 #ifndef V8_HEAP_CPPGC_TRACE_EVENT_H_
 #define V8_HEAP_CPPGC_TRACE_EVENT_H_
 
-#if CPPGC_BUILD_IN_V8
+#if !CPPGC_IS_STANDALONE
 #include "src/tracing/trace-event.h"
 using ConvertableToTraceFormat = v8::ConvertableToTraceFormat;
 #else
@@ -237,6 +237,6 @@ static V8_INLINE uint64_t AddTraceEvent(
 }  // namespace internal
 }  // namespace cppgc
 
-#endif  // CPPGC_BUILD_IN_V8
+#endif  // !CPPGC_IS_STANDALONE
 
 #endif  // V8_HEAP_CPPGC_TRACE_EVENT_H_
