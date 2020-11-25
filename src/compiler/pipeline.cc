@@ -1056,6 +1056,15 @@ class PipelineCompilationJob final : public OptimizedCompilationJob {
   Linkage* linkage_;
 };
 
+namespace {
+
+bool ShouldUseConcurrentInlining(CodeKind code_kind, bool is_osr) {
+  if (is_osr) return false;
+  return code_kind == CodeKind::TURBOPROP || FLAG_concurrent_inlining;
+}
+
+}  // namespace
+
 PipelineCompilationJob::PipelineCompilationJob(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
     Handle<JSFunction> function, BailoutId osr_offset,
@@ -1074,7 +1083,7 @@ PipelineCompilationJob::PipelineCompilationJob(
           compilation_info(), function->GetIsolate(), &zone_stats_)),
       data_(&zone_stats_, function->GetIsolate(), compilation_info(),
             pipeline_statistics_.get(),
-            FLAG_concurrent_inlining && osr_offset.IsNone()),
+            ShouldUseConcurrentInlining(code_kind, !osr_offset.IsNone())),
       pipeline_(&data_),
       linkage_(nullptr) {
   compilation_info_.SetOptimizingForOsr(osr_offset, osr_frame);

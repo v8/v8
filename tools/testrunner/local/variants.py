@@ -65,7 +65,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
              "--max-inlined-bytecode-size-cumulative=*", "--stress-inline"],
   "turboprop": ["--interrupt-budget=*", "--no-turboprop"],
   "code_serializer": ["--cache=after-execute", "--cache=full-code-cache", "--cache=none"],
-  "no_local_heaps": ["--concurrent-inlining", "--turboprop"],
+  "no_local_heaps": ["--concurrent-inlining"],
   "experimental_regexp": ["--no-enable-experimental-regexp-engine", "--no-default-to-experimental-regexp-engine"],
 }
 
