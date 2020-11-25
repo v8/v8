@@ -74,8 +74,6 @@ class SemiSpace : public Space {
 
   bool EnsureCurrentCapacity();
 
-  Address space_end() { return memory_chunk_list_.back()->area_end(); }
-
   // Returns the start address of the first page of the space.
   Address space_start() {
     DCHECK_NE(memory_chunk_list_.front(), nullptr);
@@ -146,9 +144,6 @@ class SemiSpace : public Space {
 
   const Page* first_page() const {
     return reinterpret_cast<const Page*>(Space::first_page());
-  }
-  const Page* last_page() const {
-    return reinterpret_cast<const Page*>(Space::last_page());
   }
 
   iterator begin() { return iterator(first_page()); }
