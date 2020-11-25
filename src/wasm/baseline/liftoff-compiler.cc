@@ -1934,8 +1934,6 @@ class LiftoffCompiler {
     __ jmp(target->label.get());
   }
 
-  void Br(FullDecoder* decoder, Control* target) { BrImpl(target); }
-
   void BrOrRet(FullDecoder* decoder, uint32_t depth) {
     if (depth == decoder->control_depth() - 1) {
       ReturnImpl(decoder);

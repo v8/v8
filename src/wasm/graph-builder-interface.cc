@@ -362,14 +362,14 @@ class WasmGraphBuildingInterface {
       if (ret_count > 0) {
         GetNodes(values.begin(), decoder->stack_value(ret_count), ret_count);
       }
+      if (FLAG_trace_wasm) {
+        BUILD(TraceFunctionExit, VectorOf(values), decoder->position());
+      }
       BUILD(Return, VectorOf(values));
     } else {
-      Br(decoder, decoder->control_at(depth));
+      Control* target = decoder->control_at(depth);
+      MergeValuesInto(decoder, target, target->br_merge());
     }
-  }
-
-  void Br(FullDecoder* decoder, Control* target) {
-    MergeValuesInto(decoder, target, target->br_merge());
   }
 
   void BrIf(FullDecoder* decoder, const Value& cond, uint32_t depth) {
