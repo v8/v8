@@ -4558,6 +4558,8 @@ v8_source_set("cppgc_base") {
 
   if (cppgc_is_standalone) {
     sources += [ "//base/trace_event/common/trace_event_common.h" ]
+  } else {
+    deps = [ ":v8_tracing" ]
   }
 
   if (cppgc_enable_caged_heap) {
