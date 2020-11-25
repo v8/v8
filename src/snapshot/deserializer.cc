@@ -311,7 +311,7 @@ StringTableInsertionKey::StringTableInsertionKey(Handle<String> string)
   DCHECK(string->IsInternalizedString());
 }
 
-bool StringTableInsertionKey::IsMatch(String string) {
+bool StringTableInsertionKey::IsMatch(Isolate* isolate, String string) {
   // We want to compare the content of two strings here.
   return string_->SlowEquals(string);
 }

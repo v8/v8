@@ -862,7 +862,7 @@ StringData::StringData(JSHeapBroker* broker, ObjectData** storage,
     : NameData(broker, storage, object),
       length_(object->length()),
       first_char_(length_ > 0 ? object->Get(0) : 0),
-      to_number_(TryStringToDouble(object)),
+      to_number_(TryStringToDouble(broker->local_isolate(), object)),
       is_external_string_(object->IsExternalString()),
       is_seq_string_(object->IsSeqString()),
       chars_as_strings_(broker->zone()) {}
@@ -3223,7 +3223,7 @@ base::Optional<double> StringRef::ToNumber() {
                                                             broker()->mode());
     AllowHandleAllocationIfNeeded allow_handle_allocation(data()->kind(),
                                                           broker()->mode());
-    return TryStringToDouble(object());
+    return TryStringToDouble(broker()->local_isolate(), object());
   }
   return data()->AsString()->to_number();
 }

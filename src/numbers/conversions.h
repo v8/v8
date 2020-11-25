@@ -166,7 +166,8 @@ double StringToDouble(Isolate* isolate, Handle<String> string, int flags,
 // {max_length_for_conversion}. 23 was chosen because any representable double
 // can be represented using a string of length 23.
 V8_EXPORT_PRIVATE base::Optional<double> TryStringToDouble(
-    Handle<String> object, int max_length_for_conversion = 23);
+    LocalIsolate* isolate, Handle<String> object,
+    int max_length_for_conversion = 23);
 
 inline bool TryNumberToSize(Object number, size_t* result);
 

@@ -596,18 +596,16 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
       Handle<SeqOneByteString> result =
           NewRawOneByteString(length, allocation).ToHandleChecked();
       DisallowGarbageCollection no_gc;
-      uint8_t* dest =
-          result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded());
+      SharedStringAccessGuardIfNeeded access_guard(isolate());
+      uint8_t* dest = result->GetChars(no_gc, access_guard);
       // Copy left part.
       {
-        SharedStringAccessGuardIfNeeded access_guard(*left);
         const uint8_t* src =
             left->template GetChars<uint8_t>(no_gc, access_guard);
         CopyChars(dest, src, left_length);
       }
       // Copy right part.
       {
-        SharedStringAccessGuardIfNeeded access_guard(*right);
         const uint8_t* src =
             right->template GetChars<uint8_t>(no_gc, access_guard);
         CopyChars(dest + left_length, src, right_length);
@@ -619,10 +617,11 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
         NewRawTwoByteString(length, allocation).ToHandleChecked();
 
     DisallowGarbageCollection no_gc;
-    uc16* sink =
-        result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded());
-    String::WriteToFlat(*left, sink, 0, left->length());
-    String::WriteToFlat(*right, sink + left->length(), 0, right->length());
+    SharedStringAccessGuardIfNeeded access_guard(isolate());
+    uc16* sink = result->GetChars(no_gc, access_guard);
+    String::WriteToFlat(*left, sink, 0, left->length(), access_guard);
+    String::WriteToFlat(*right, sink + left->length(), 0, right->length(),
+                        access_guard);
     return result;
   }
 

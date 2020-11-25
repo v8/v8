@@ -641,8 +641,15 @@ std::unique_ptr<char[]> String::ToCString(AllowNullsFlag allow_nulls,
 
 template <typename sinkchar>
 void String::WriteToFlat(String source, sinkchar* sink, int from, int to) {
+  DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(source));
+  return WriteToFlat(source, sink, from, to,
+                     SharedStringAccessGuardIfNeeded::NotNeeded());
+}
+
+template <typename sinkchar>
+void String::WriteToFlat(String source, sinkchar* sink, int from, int to,
+                         const SharedStringAccessGuardIfNeeded& access_guard) {
   DisallowGarbageCollection no_gc;
-  SharedStringAccessGuardIfNeeded access_guard(source);
   while (from < to) {
     DCHECK_LE(0, from);
     DCHECK_LE(to, source.length());
@@ -679,7 +686,7 @@ void String::WriteToFlat(String source, sinkchar* sink, int from, int to) {
         if (to - boundary >= boundary - from) {
           // Right hand side is longer.  Recurse over left.
           if (from < boundary) {
-            WriteToFlat(first, sink, from, boundary);
+            WriteToFlat(first, sink, from, boundary, access_guard);
             if (from == 0 && cons_string.second() == first) {
               CopyChars(sink + boundary, sink, boundary);
               return;
@@ -706,7 +713,8 @@ void String::WriteToFlat(String source, sinkchar* sink, int from, int to) {
                   SeqOneByteString::cast(second).GetChars(no_gc, access_guard),
                   to - boundary);
             } else {
-              WriteToFlat(second, sink + boundary - from, 0, to - boundary);
+              WriteToFlat(second, sink + boundary - from, 0, to - boundary,
+                          access_guard);
             }
             to = boundary;
           }
@@ -718,7 +726,8 @@ void String::WriteToFlat(String source, sinkchar* sink, int from, int to) {
       case kTwoByteStringTag | kSlicedStringTag: {
         SlicedString slice = SlicedString::cast(source);
         unsigned offset = slice.offset();
-        WriteToFlat(slice.parent(), sink, from + offset, to + offset);
+        WriteToFlat(slice.parent(), sink, from + offset, to + offset,
+                    access_guard);
         return;
       }
       case kOneByteStringTag | kThinStringTag:
@@ -1680,6 +1689,8 @@ const byte* String::AddressOfCharacterAt(
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::WriteToFlat(
     String source, uint16_t* sink, int from, int to);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::WriteToFlat(
+    String source, uint8_t* sink, int from, int to);
 
 }  // namespace internal
 }  // namespace v8

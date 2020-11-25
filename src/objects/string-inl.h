@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_STRING_INL_H_
 #define V8_OBJECTS_STRING_INL_H_
 
+#include "src/common/assert-scope.h"
 #include "src/common/external-pointer-inl.h"
 #include "src/common/external-pointer.h"
 #include "src/common/globals.h"
@@ -17,6 +18,7 @@
 #include "src/objects/string-table-inl.h"
 #include "src/objects/string.h"
 #include "src/strings/string-hasher-inl.h"
+#include "src/utils/utils.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -28,18 +30,14 @@ namespace internal {
 
 class V8_NODISCARD SharedStringAccessGuardIfNeeded {
  public:
-  // Creates a SharedMutexGuard<kShared> for the string access if:
-  // A) {str} is not a read only string, and
-  // B) We are on a background thread.
-  explicit SharedStringAccessGuardIfNeeded(String str) {
-    Isolate* isolate;
-    if (IsNeeded(str, &isolate)) mutex_guard.emplace(isolate->string_access());
-  }
+  // Creates no SharedMutexGuard<kShared> for the string access since it was
+  // called from the main thread.
+  explicit SharedStringAccessGuardIfNeeded(Isolate* isolate) {}
 
   // Creates a SharedMutexGuard<kShared> for the string access if it was called
   // from a background thread.
-  SharedStringAccessGuardIfNeeded(String str, LocalIsolate* local_isolate) {
-    if (IsNeeded(str, local_isolate)) {
+  explicit SharedStringAccessGuardIfNeeded(LocalIsolate* local_isolate) {
+    if (IsNeeded(local_isolate)) {
       mutex_guard.emplace(local_isolate->string_access());
     }
   }
@@ -48,7 +46,8 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
     return SharedStringAccessGuardIfNeeded();
   }
 
-  static bool IsNeeded(String str, Isolate** out_isolate = nullptr) {
+#ifdef DEBUG
+  static bool IsNeeded(String str) {
     LocalHeap* local_heap = LocalHeap::Current();
     // Don't acquire the lock for the main thread.
     if (!local_heap || local_heap->is_main_thread()) return false;
@@ -59,12 +58,15 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
       DCHECK(ReadOnlyHeap::Contains(str));
       return false;
     }
-    if (out_isolate) *out_isolate = isolate;
     return true;
   }
+#endif
 
-  static bool IsNeeded(String str, LocalIsolate* local_isolate) {
-    return !local_isolate->heap()->is_main_thread();
+  static bool IsNeeded(Isolate* isolate) { return false; }
+
+  static bool IsNeeded(LocalIsolate* local_isolate) {
+    // TODO(leszeks): Remove the nullptr check for local_isolate.
+    return local_isolate && !local_isolate->heap()->is_main_thread();
   }
 
  private:
@@ -316,7 +318,10 @@ class SequentialStringKey final : public StringTableKey {
         chars_(chars),
         convert_(convert) {}
 
-  bool IsMatch(String s) override { return s.IsEqualTo(chars_); }
+  template <typename LocalIsolate>
+  bool IsMatch(LocalIsolate* isolate, String s) {
+    return s.IsEqualTo(isolate, chars_);
+  }
 
   Handle<String> AsHandle(Isolate* isolate) {
     if (sizeof(Char) == 1) {
@@ -377,14 +382,15 @@ class SeqSubStringKey final : public StringTableKey {
 #pragma warning(pop)
 #endif
 
-  bool IsMatch(String string) override {
+  bool IsMatch(Isolate* isolate, String string) {
+    DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(string));
+    DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*string_));
     DisallowGarbageCollection no_gc;
     return string.IsEqualTo(
         Vector<const Char>(string_->GetChars(no_gc) + from_, length()));
   }
 
-  template <typename LocalIsolate>
-  Handle<String> AsHandle(LocalIsolate* isolate) {
+  Handle<String> AsHandle(Isolate* isolate) {
     if (sizeof(Char) == 1 || (sizeof(Char) == 2 && convert_)) {
       Handle<SeqOneByteString> result =
           isolate->factory()->AllocateRawOneByteInternalizedString(
@@ -431,6 +437,22 @@ bool String::Equals(Isolate* isolate, Handle<String> one, Handle<String> two) {
 template <typename Char>
 bool String::IsEqualTo(Vector<const Char> str,
                        String::EqualityType eq_type) const {
+  DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
+  return IsEqualToImpl(str, eq_type,
+                       SharedStringAccessGuardIfNeeded::NotNeeded());
+}
+
+template <typename Char>
+bool String::IsEqualTo(LocalIsolate* isolate, Vector<const Char> str,
+                       String::EqualityType eq_type) const {
+  SharedStringAccessGuardIfNeeded access_guard(isolate);
+  return IsEqualToImpl(str, eq_type, access_guard);
+}
+
+template <typename Char>
+bool String::IsEqualToImpl(
+    Vector<const Char> str, String::EqualityType eq_type,
+    const SharedStringAccessGuardIfNeeded& access_guard) const {
   size_t len = str.size();
   switch (eq_type) {
     case EqualityType::kWholeString:
@@ -441,7 +463,6 @@ bool String::IsEqualTo(Vector<const Char> str,
       break;
   }
 
-  SharedStringAccessGuardIfNeeded access_guard(*this);
   DisallowGarbageCollection no_gc;
 
   class IsEqualToDispatcher : public AllStatic {
@@ -504,6 +525,7 @@ bool String::IsOneByteEqualTo(Vector<const char> str) { return IsEqualTo(str); }
 
 template <typename Char>
 const Char* String::GetChars(const DisallowGarbageCollection& no_gc) {
+  DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
   return StringShape(*this).IsExternal()
              ? CharTraits<Char>::ExternalString::cast(*this).GetChars()
              : CharTraits<Char>::String::cast(*this).GetChars(no_gc);
@@ -549,7 +571,7 @@ uint16_t String::Get(int index, Isolate* isolate) {
 }
 
 uint16_t String::Get(int index, LocalIsolate* local_isolate) {
-  SharedStringAccessGuardIfNeeded scope(*this, local_isolate);
+  SharedStringAccessGuardIfNeeded scope(local_isolate);
   return GetImpl(index);
 }
 

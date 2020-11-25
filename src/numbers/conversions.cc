@@ -17,6 +17,7 @@
 #include "src/numbers/strtod.h"
 #include "src/objects/bigint.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/string-inl.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/utils/allocation.h"
 #include "src/utils/utils.h"
@@ -1369,7 +1370,8 @@ double StringToDouble(Isolate* isolate, Handle<String> string, int flags,
   }
 }
 
-base::Optional<double> TryStringToDouble(Handle<String> object,
+base::Optional<double> TryStringToDouble(LocalIsolate* isolate,
+                                         Handle<String> object,
                                          int max_length_for_conversion) {
   DisallowGarbageCollection no_gc;
   int length = object->length();
@@ -1379,7 +1381,8 @@ base::Optional<double> TryStringToDouble(Handle<String> object,
 
   const int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
   auto buffer = std::make_unique<uc16[]>(max_length_for_conversion);
-  String::WriteToFlat(*object, buffer.get(), 0, length);
+  SharedStringAccessGuardIfNeeded access_guard(isolate);
+  String::WriteToFlat(*object, buffer.get(), 0, length, access_guard);
   Vector<const uc16> v(buffer.get(), length);
   return StringToDouble(v, flags);
 }

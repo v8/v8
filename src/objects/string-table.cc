@@ -69,11 +69,11 @@ int ComputeStringTableCapacityWithShrink(int current_capacity,
   return new_capacity;
 }
 
-template <typename StringTableKey>
-bool KeyIsMatch(StringTableKey* key, String string) {
+template <typename LocalIsolate, typename StringTableKey>
+bool KeyIsMatch(LocalIsolate* isolate, StringTableKey* key, String string) {
   if (string.hash() != key->hash()) return false;
   if (string.length() != key->length()) return false;
-  return key->IsMatch(string);
+  return key->IsMatch(isolate, string);
 }
 
 }  // namespace
@@ -135,14 +135,14 @@ class StringTable::Data {
   int number_of_elements() const { return number_of_elements_; }
   int number_of_deleted_elements() const { return number_of_deleted_elements_; }
 
-  template <typename StringTableKey>
-  InternalIndex FindEntry(IsolateRoot isolate, StringTableKey* key,
+  template <typename LocalIsolate, typename StringTableKey>
+  InternalIndex FindEntry(LocalIsolate* isolate, StringTableKey* key,
                           uint32_t hash) const;
 
   InternalIndex FindInsertionEntry(IsolateRoot isolate, uint32_t hash) const;
 
-  template <typename StringTableKey>
-  InternalIndex FindEntryOrInsertionEntry(IsolateRoot isolate,
+  template <typename LocalIsolate, typename StringTableKey>
+  InternalIndex FindEntryOrInsertionEntry(LocalIsolate* isolate,
                                           StringTableKey* key,
                                           uint32_t hash) const;
 
@@ -247,8 +247,8 @@ std::unique_ptr<StringTable::Data> StringTable::Data::Resize(
   return new_data;
 }
 
-template <typename StringTableKey>
-InternalIndex StringTable::Data::FindEntry(IsolateRoot isolate,
+template <typename LocalIsolate, typename StringTableKey>
+InternalIndex StringTable::Data::FindEntry(LocalIsolate* isolate,
                                            StringTableKey* key,
                                            uint32_t hash) const {
   uint32_t count = 1;
@@ -262,7 +262,7 @@ InternalIndex StringTable::Data::FindEntry(IsolateRoot isolate,
     if (element == empty_element()) return InternalIndex::NotFound();
     if (element == deleted_element()) continue;
     String string = String::cast(element);
-    if (KeyIsMatch(key, string)) return entry;
+    if (KeyIsMatch(isolate, key, string)) return entry;
   }
 }
 
@@ -281,9 +281,9 @@ InternalIndex StringTable::Data::FindInsertionEntry(IsolateRoot isolate,
   }
 }
 
-template <typename StringTableKey>
+template <typename LocalIsolate, typename StringTableKey>
 InternalIndex StringTable::Data::FindEntryOrInsertionEntry(
-    IsolateRoot isolate, StringTableKey* key, uint32_t hash) const {
+    LocalIsolate* isolate, StringTableKey* key, uint32_t hash) const {
   InternalIndex insertion_entry = InternalIndex::NotFound();
   uint32_t count = 1;
   // EnsureCapacity will guarantee the hash table is never full.
@@ -307,7 +307,7 @@ InternalIndex StringTable::Data::FindEntryOrInsertionEntry(
     }
 
     String string = String::cast(element);
-    if (KeyIsMatch(key, string)) return entry;
+    if (KeyIsMatch(isolate, key, string)) return entry;
   }
 }
 
@@ -358,7 +358,7 @@ class InternalizedStringKey final : public StringTableKey {
     set_raw_hash_field(string->raw_hash_field());
   }
 
-  bool IsMatch(String string) override {
+  bool IsMatch(Isolate* isolate, String string) {
     DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(string));
     return string_->SlowEquals(string);
   }
@@ -532,10 +532,6 @@ template Handle<String> StringTable::LookupKey(LocalIsolate* isolate,
                                                OneByteStringKey* key);
 template Handle<String> StringTable::LookupKey(LocalIsolate* isolate,
                                                TwoByteStringKey* key);
-template Handle<String> StringTable::LookupKey(LocalIsolate* isolate,
-                                               SeqOneByteSubStringKey* key);
-template Handle<String> StringTable::LookupKey(LocalIsolate* isolate,
-                                               SeqTwoByteSubStringKey* key);
 
 template Handle<String> StringTable::LookupKey(Isolate* isolate,
                                                StringTableInsertionKey* key);

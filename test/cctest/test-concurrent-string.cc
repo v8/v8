@@ -86,7 +86,7 @@ class ConcurrentStringThread final : public v8::base::Thread {
     for (unsigned int i = 0; i < length_; ++i) {
       CHECK_EQ(str_->Get(i, &local_isolate), chars_[i]);
     }
-    CHECK_EQ(TryStringToDouble(str_).value(), DOUBLE_VALUE);
+    CHECK_EQ(TryStringToDouble(&local_isolate, str_).value(), DOUBLE_VALUE);
   }
 
  private:
