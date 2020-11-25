@@ -1103,6 +1103,14 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         current += PrintRightXMMOperand(current);
         AppendToBuffer(",%s", NameOfXMMRegister(regop));
         break;
+      case 0x12:
+        AppendToBuffer("vmovlps %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x16:
+        AppendToBuffer("vmovhps %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x28:
         AppendToBuffer("vmovaps %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
@@ -1820,7 +1828,15 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
         // Not every instruction use this, and it is safe to index data+2 as all
         // instructions are at least 3 bytes with operands.
         get_modrm(*(data + 2), &mod, &regop, &rm);
-        if (f0byte == 0x18) {
+        if (f0byte == 0x12) {
+          data += 2;
+          AppendToBuffer("movlps %s,%s", NameOfXMMRegister(regop),
+                         NameOfXMMRegister(rm));
+        } else if (f0byte == 0x16) {
+          data += 2;
+          AppendToBuffer("movhps %s,%s", NameOfXMMRegister(regop),
+                         NameOfXMMRegister(rm));
+        } else if (f0byte == 0x18) {
           data += 2;
           const char* suffix[] = {"nta", "1", "2", "3"};
           AppendToBuffer("%s%s ", f0mnem, suffix[regop & 0x03]);

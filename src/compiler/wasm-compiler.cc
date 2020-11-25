@@ -4093,16 +4093,18 @@ Node* WasmGraphBuilder::LoadLane(MachineType memtype, Node* value, Node* index,
   MemoryAccessKind load_kind =
       GetMemoryAccessKind(mcgraph(), memtype, use_trap_handler());
 
+  // {offset} is validated to be within uintptr_t range in {BoundsCheckMem}.
+  uintptr_t capped_offset = static_cast<uintptr_t>(offset);
   load = SetEffect(graph()->NewNode(
       mcgraph()->machine()->LoadLane(load_kind, memtype, laneidx),
-      MemBuffer(offset), index, value, effect(), control()));
+      MemBuffer(capped_offset), index, value, effect(), control()));
 
   if (load_kind == MemoryAccessKind::kProtected) {
     SetSourcePosition(load, position);
   }
 
   if (FLAG_trace_wasm_memory) {
-    TraceMemoryOperation(false, memtype.representation(), index, offset,
+    TraceMemoryOperation(false, memtype.representation(), index, capped_offset,
                          position);
   }
 

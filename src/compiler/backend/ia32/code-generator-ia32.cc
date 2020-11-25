@@ -509,6 +509,25 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }                                                  \
   } while (false)
 
+#define ASSEMBLE_SIMD_PINSR(OPCODE, CPU_FEATURE)             \
+  do {                                                       \
+    XMMRegister dst = i.OutputSimd128Register();             \
+    XMMRegister src = i.InputSimd128Register(0);             \
+    int8_t laneidx = i.InputInt8(1);                         \
+    if (HasAddressingMode(instr)) {                          \
+      if (CpuFeatures::IsSupported(AVX)) {                   \
+        CpuFeatureScope avx_scope(tasm(), AVX);              \
+        __ v##OPCODE(dst, src, i.MemoryOperand(2), laneidx); \
+      } else {                                               \
+        DCHECK_EQ(dst, src);                                 \
+        CpuFeatureScope sse_scope(tasm(), CPU_FEATURE);      \
+        __ OPCODE(dst, i.MemoryOperand(2), laneidx);         \
+      }                                                      \
+    } else {                                                 \
+      UNIMPLEMENTED();                                       \
+    }                                                        \
+  } while (false)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ mov(esp, ebp);
   __ pop(ebp);
@@ -3172,6 +3191,33 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope avx_scope(tasm(), AVX);
       __ vpinsrb(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputOperand(2), i.InputInt8(1));
+      break;
+    }
+    case kIA32Pinsrb: {
+      // TODO(zhin): Move i8x16 replace lane into this opcode.
+      ASSEMBLE_SIMD_PINSR(pinsrb, SSE4_1);
+      break;
+    }
+    case kIA32Pinsrw: {
+      // TODO(zhin): Move i16x8 replace lane into this opcode.
+      ASSEMBLE_SIMD_PINSR(pinsrw, SSE4_1);
+      break;
+    }
+    case kIA32Pinsrd: {
+      // TODO(zhin): Move i32x4 replace lane into this opcode.
+      ASSEMBLE_SIMD_PINSR(pinsrd, SSE4_1);
+      break;
+    }
+    case kIA32Movlps: {
+      DCHECK(instr->HasOutput());  // Move to memory unimplemented for now.
+      __ Movlps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.MemoryOperand(2));
+      break;
+    }
+    case kIA32Movhps: {
+      DCHECK(instr->HasOutput());  // Move to memory unimplemented for now.
+      __ Movhps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.MemoryOperand(2));
       break;
     }
     case kSSEI8x16SConvertI16x8: {

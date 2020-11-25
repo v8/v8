@@ -277,6 +277,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I8x16ExtractLaneS:
     case kSSEI8x16ReplaceLane:
     case kAVXI8x16ReplaceLane:
+    case kIA32Pinsrb:
+    case kIA32Pinsrw:
+    case kIA32Pinsrd:
     case kSSEI8x16SConvertI16x8:
     case kAVXI8x16SConvertI16x8:
     case kIA32I8x16Neg:
@@ -398,6 +401,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32Movss:
     case kIA32Movsd:
     case kIA32Movdqu:
+    case kIA32Movlps:
+    case kIA32Movhps:
     // Moves are used for memory load/store operations.
     case kIA32S128Load8Splat:
     case kIA32S128Load16Splat:

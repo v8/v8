@@ -396,6 +396,9 @@ TEST(DisasmIa320) {
     __ cvtsd2ss(xmm0, Operand(ebx, ecx, times_4, 10000));
     __ movq(xmm0, Operand(edx, 4));
 
+    __ movlps(xmm0, Operand(ebx, ecx, times_4, 10000));
+    __ movhps(xmm0, Operand(ebx, ecx, times_4, 10000));
+
     // logic operation
     __ andps(xmm0, xmm1);
     __ andps(xmm0, Operand(ebx, ecx, times_4, 10000));
@@ -697,6 +700,9 @@ TEST(DisasmIa320) {
       __ vshufps(xmm0, xmm1, Operand(edx, 4), 3);
       __ vhaddps(xmm0, xmm1, xmm2);
       __ vhaddps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+
+      __ vmovlps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vmovhps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
 
       __ vcmpeqps(xmm5, xmm4, xmm1);
       __ vcmpeqps(xmm5, xmm4, Operand(ebx, ecx, times_4, 10000));

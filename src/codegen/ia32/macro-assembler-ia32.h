@@ -418,6 +418,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_PACKED_OP3_WITH_TYPE(Psrlq, psrlq, XMMRegister, uint8_t)
   AVX_PACKED_OP3_WITH_TYPE(Psraw, psraw, XMMRegister, uint8_t)
   AVX_PACKED_OP3_WITH_TYPE(Psrad, psrad, XMMRegister, uint8_t)
+
+  AVX_PACKED_OP3_WITH_TYPE(Movlps, movlps, XMMRegister, Operand)
+  AVX_PACKED_OP3_WITH_TYPE(Movhps, movhps, XMMRegister, Operand)
 #undef AVX_PACKED_OP3_WITH_TYPE
 
 // Non-SSE2 instructions.

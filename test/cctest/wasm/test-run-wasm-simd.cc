@@ -3970,7 +3970,7 @@ WASM_SIMD_TEST(S128Load64Zero) {
   RunLoadZeroTest<int64_t>(execution_tier, lower_simd, kExprS128Load64Zero);
 }
 
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
 // TODO(v8:10975): Prototyping load lane and store lane.
 template <typename T>
 void RunLoadLaneTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
@@ -4075,7 +4075,9 @@ WASM_SIMD_TEST_NO_LOWERING(S128Load64Lane) {
   RunLoadLaneTest<int64_t>(execution_tier, lower_simd, kExprS128Load64Lane,
                            kExprI64x2Splat);
 }
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
 
+#if V8_TARGET_ARCH_X64
 template <typename T>
 void RunStoreLaneTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                       WasmOpcode store_op, WasmOpcode splat_op) {

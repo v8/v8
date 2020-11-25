@@ -364,6 +364,54 @@ void InstructionSelector::VisitAbortCSAAssert(Node* node) {
   Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), edx));
 }
 
+void InstructionSelector::VisitLoadLane(Node* node) {
+  LoadLaneParameters params = LoadLaneParametersOf(node->op());
+  InstructionCode opcode = kArchNop;
+  if (params.rep == MachineType::Int8()) {
+    opcode = kIA32Pinsrb;
+  } else if (params.rep == MachineType::Int16()) {
+    opcode = kIA32Pinsrw;
+  } else if (params.rep == MachineType::Int32()) {
+    opcode = kIA32Pinsrd;
+  } else if (params.rep == MachineType::Int64()) {
+    // pinsrq not available on IA32.
+    if (params.laneidx == 0) {
+      opcode = kIA32Movlps;
+    } else {
+      DCHECK_EQ(1, params.laneidx);
+      opcode = kIA32Movhps;
+    }
+  } else {
+    UNREACHABLE();
+  }
+
+  IA32OperandGenerator g(this);
+  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+  // Input 0 is value node, 1 is lane idx, and GetEffectiveAddressMemoryOperand
+  // uses up to 3 inputs. This ordering is consistent with other operations that
+  // use the same opcode.
+  InstructionOperand inputs[5];
+  size_t input_count = 0;
+
+  inputs[input_count++] = g.UseRegister(node->InputAt(2));
+  inputs[input_count++] = g.UseImmediate(params.laneidx);
+
+  AddressingMode mode =
+      g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
+  opcode |= AddressingModeField::encode(mode);
+
+  DCHECK_GE(5, input_count);
+
+  // IA32 supports unaligned loads.
+  DCHECK_NE(params.kind, MemoryAccessKind::kUnaligned);
+  // Trap handler is not supported on IA32.
+  DCHECK_NE(params.kind, MemoryAccessKind::kProtected);
+
+  Emit(opcode, 1, outputs, input_count, inputs);
+}
+
+void InstructionSelector::VisitStoreLane(Node* node) {}
+
 void InstructionSelector::VisitLoadTransform(Node* node) {
   LoadTransformParameters params = LoadTransformParametersOf(node->op());
   InstructionCode opcode;
