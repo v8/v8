@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Unfortunately, MutableSlice<> is currently not a subtype of ConstSlice.
+// This would require struct subtyping, which is not yet supported.
+type MutableSlice<T: type> extends torque_internal::Slice<T, &T>;
+type ConstSlice<T: type> extends torque_internal::Slice<T, const &T>;
+
 namespace torque_internal {
 // Unsafe is a marker that we require to be passed when calling internal APIs
 // that might lead to unsoundness when used incorrectly. Unsafe markers should
@@ -40,8 +45,8 @@ macro ReferenceCast<T: type, U: type>(ref:&U):&T {
 }
 }  // namespace unsafe
 
-struct Slice<T: type> {
-  macro TryAtIndex(index: intptr):&T labels OutOfBounds {
+struct Slice<T: type, Reference: type> {
+  macro TryAtIndex(index: intptr): Reference labels OutOfBounds {
     if (Convert<uintptr>(index) < Convert<uintptr>(this.length)) {
       return unsafe::NewReference<T>(
           this.object, this.offset + index * %SizeOf<T>());
@@ -50,40 +55,41 @@ struct Slice<T: type> {
     }
   }
 
-  macro AtIndex(index: intptr):&T {
+  macro AtIndex(index: intptr): Reference {
     return this.TryAtIndex(index) otherwise unreachable;
   }
 
-  macro AtIndex(index: uintptr):&T {
+  macro AtIndex(index: uintptr): Reference {
     return this.TryAtIndex(Convert<intptr>(index)) otherwise unreachable;
   }
 
-  macro AtIndex(index: constexpr int31):&T {
+  macro AtIndex(index: constexpr int31): Reference {
     const i: intptr = Convert<intptr>(index);
     return this.TryAtIndex(i) otherwise unreachable;
   }
 
-  macro AtIndex(index: Smi):&T {
+  macro AtIndex(index: Smi): Reference {
     const i: intptr = Convert<intptr>(index);
     return this.TryAtIndex(i) otherwise unreachable;
   }
 
-  macro Iterator(): SliceIterator<T> {
+  macro Iterator(): SliceIterator<T, Reference> {
     const end = this.offset + this.length * %SizeOf<T>();
-    return SliceIterator<T>{
+    return SliceIterator<T, Reference>{
       object: this.object,
       start: this.offset,
       end: end,
       unsafeMarker: Unsafe {}
     };
   }
-  macro Iterator(startIndex: intptr, endIndex: intptr): SliceIterator<T> {
+  macro Iterator(
+      startIndex: intptr, endIndex: intptr): SliceIterator<T, Reference> {
     check(
         Convert<uintptr>(endIndex) <= Convert<uintptr>(this.length) &&
         Convert<uintptr>(startIndex) <= Convert<uintptr>(endIndex));
     const start = this.offset + startIndex * %SizeOf<T>();
     const end = this.offset + endIndex * %SizeOf<T>();
-    return SliceIterator<T>{
+    return SliceIterator<T, Reference>{
       object: this.object,
       start,
       end,
@@ -99,29 +105,39 @@ struct Slice<T: type> {
 
 namespace unsafe {
 
-macro NewSlice<T: type>(
-    object: HeapObject, offset: intptr, length: intptr): Slice<T> {
-  return Slice<T>{
+macro NewMutableSlice<T: type>(
+    object: HeapObject, offset: intptr, length: intptr): MutableSlice<T> {
+  return %RawDownCast<MutableSlice<T>>(Slice<T, &T>{
     object: object,
     offset: offset,
     length: length,
     unsafeMarker: Unsafe {}
-  };
+  });
 }
 
-macro NewOffHeapSlice<T: type>(
-    startPointer: RawPtr<T>, length: intptr): Slice<T> {
-  return Slice<T>{
+macro NewConstSlice<T: type>(
+    object: HeapObject, offset: intptr, length: intptr): ConstSlice<T> {
+  return %RawDownCast<ConstSlice<T>>(Slice<T, const &T>{
+    object: object,
+    offset: offset,
+    length: length,
+    unsafeMarker: Unsafe {}
+  });
+}
+
+macro NewOffHeapConstSlice<T: type>(
+    startPointer: RawPtr<T>, length: intptr): ConstSlice<T> {
+  return %RawDownCast<ConstSlice<T>>(Slice<T, const &T>{
     object: kZeroBitPattern,
     offset: Convert<intptr>(Convert<RawPtr>(startPointer)) + kHeapObjectTag,
     length: length,
     unsafeMarker: Unsafe {}
-  };
+  });
 }
 
 }  // namespace unsafe
 
-struct SliceIterator<T: type> {
+struct SliceIterator<T: type, Reference: type> {
   macro Empty(): bool {
     return this.start == this.end;
   }
@@ -130,7 +146,7 @@ struct SliceIterator<T: type> {
     return *this.NextReference() otherwise NoMore;
   }
 
-  macro NextReference():&T labels NoMore {
+  macro NextReference(): Reference labels NoMore {
     if (this.Empty()) {
       goto NoMore;
     } else {
@@ -194,7 +210,7 @@ macro AllocateFromNew(
 }
 
 macro InitializeFieldsFromIterator<T: type, Iterator: type>(
-    target: Slice<T>, originIterator: Iterator) {
+    target: MutableSlice<T>, originIterator: Iterator) {
   let targetIterator = target.Iterator();
   let originIterator = originIterator;
   while (true) {
@@ -204,9 +220,9 @@ macro InitializeFieldsFromIterator<T: type, Iterator: type>(
 }
 // Dummy implementations: do not initialize for UninitializedIterator.
 InitializeFieldsFromIterator<char8, UninitializedIterator>(
-    _target: Slice<char8>, _originIterator: UninitializedIterator) {}
+    _target: MutableSlice<char8>, _originIterator: UninitializedIterator) {}
 InitializeFieldsFromIterator<char16, UninitializedIterator>(
-    _target: Slice<char16>, _originIterator: UninitializedIterator) {}
+    _target: MutableSlice<char16>, _originIterator: UninitializedIterator) {}
 
 extern macro IsDoubleHole(HeapObject, intptr): bool;
 extern macro StoreDoubleHole(HeapObject, intptr);

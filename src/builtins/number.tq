@@ -97,13 +97,13 @@ macro NumberToStringSmi(x: int32, radix: int32): String labels Slow {
   while (n > 0) {
     const digit: int32 = n % radix;
     n = n / radix;
-    strSeq.chars[cursor] = ToCharCode(digit);
+    *UnsafeConstCast(&strSeq.chars[cursor]) = ToCharCode(digit);
     cursor = cursor - 1;
   }
   if (isNegative) {
     assert(cursor == 0);
     // Insert '-' to result.
-    strSeq.chars[0] = 45;
+    *UnsafeConstCast(&strSeq.chars[0]) = 45;
   } else {
     assert(cursor == -1);
     // In sync with Factory::SmiToString: If radix = 10 and positive number,

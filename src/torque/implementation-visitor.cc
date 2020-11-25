@@ -1380,7 +1380,8 @@ LocationReference ImplementationVisitor::GenerateFieldReferenceForInit(
     VisitResult length =
         GenerateCopy(layout.array_lengths.at(field.name_and_type.name));
     result_range.Extend(length.stack_range());
-    const Type* slice_type = TypeOracle::GetSliceType(field.name_and_type.type);
+    const Type* slice_type =
+        TypeOracle::GetMutableSliceType(field.name_and_type.type);
     return LocationReference::HeapSlice(VisitResult(slice_type, result_range));
   } else {
     // Const fields are writable during initialization.
@@ -2235,8 +2236,8 @@ LocationReference ImplementationVisitor::GetLocationReference(
   VisitResult index = Visit(expr->index);
   if (reference.IsHeapSlice()) {
     Arguments arguments{{index}, {}};
-    const AggregateType* slice_type =
-        AggregateType::cast(reference.heap_slice().type());
+    const StructType* slice_type =
+        *reference.heap_slice().type()->StructSupertype();
     Method* method = LookupMethod("AtIndex", slice_type, arguments, {});
     // The reference has to be treated like a normal value when calling methods
     // on the underlying slice implementation.
@@ -2953,7 +2954,7 @@ VisitResult ImplementationVisitor::Visit(CallMethodExpression* expr) {
     target = LocationReference::Temporary(result, "this parameter");
   }
   const AggregateType* target_type =
-      AggregateType::DynamicCast(*target.ReferencedType());
+      (*target.ReferencedType())->AggregateSupertype().value_or(nullptr);
   if (!target_type) {
     ReportError("target of method call not a struct or class type");
   }

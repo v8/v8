@@ -51,13 +51,13 @@ extern class SeqString extends String {
 @generateBodyDescriptor
 @doNotGenerateCast
 extern class SeqOneByteString extends SeqString {
-  chars[length]: char8;
+  const chars[length]: char8;
 }
 @generateCppClass
 @generateBodyDescriptor
 @doNotGenerateCast
 extern class SeqTwoByteString extends SeqString {
-  chars[length]: char16;
+  const chars[length]: char16;
 }
 
 @generateCppClass
