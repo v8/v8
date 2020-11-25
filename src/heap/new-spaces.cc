@@ -262,6 +262,13 @@ void SemiSpace::PrependPage(Page* page) {
   }
 }
 
+void SemiSpace::MovePageToTheEnd(Page* page) {
+  DCHECK_EQ(page->owner(), this);
+  memory_chunk_list_.Remove(page);
+  memory_chunk_list_.PushBack(page);
+  current_page_ = page;
+}
+
 void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
   // We won't be swapping semispaces without data in them.
   DCHECK(from->first_page());
@@ -415,6 +422,10 @@ void NewSpace::TearDown() {
   from_space_.TearDown();
 }
 
+void NewSpace::ResetParkedAllocationBuffers() {
+  parked_allocation_buffers_.clear();
+}
+
 void NewSpace::Flip() { SemiSpace::Swap(&from_space_, &to_space_); }
 
 void NewSpace::Grow() {
@@ -465,10 +476,10 @@ bool NewSpace::Rebalance() {
          from_space_.EnsureCurrentCapacity();
 }
 
-void NewSpace::UpdateLinearAllocationArea() {
+void NewSpace::UpdateLinearAllocationArea(Address known_top) {
   AdvanceAllocationObservers();
 
-  Address new_top = to_space_.page_low();
+  Address new_top = known_top == 0 ? to_space_.page_low() : known_top;
   BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   allocation_info_.Reset(new_top, to_space_.page_high());
   // The order of the following two stores is important.
@@ -509,15 +520,23 @@ bool NewSpace::AddFreshPage() {
   Address top = allocation_info_.top();
   DCHECK(!OldSpace::IsAtPageStart(top));
 
+  // Clear remainder of current page.
+  Address limit = Page::FromAllocationAreaAddress(top)->area_end();
+  int remaining_in_page = static_cast<int>(limit - top);
+  heap()->CreateFillerObjectAt(top, remaining_in_page, ClearRecordedSlots::kNo);
+
   if (!to_space_.AdvancePage()) {
     // No more pages left to advance.
     return false;
   }
 
-  // Clear remainder of current page.
-  Address limit = Page::FromAllocationAreaAddress(top)->area_end();
-  int remaining_in_page = static_cast<int>(limit - top);
-  heap()->CreateFillerObjectAt(top, remaining_in_page, ClearRecordedSlots::kNo);
+  // We park unused allocation buffer space of allocations happenting from the
+  // mutator.
+  if (FLAG_allocation_buffer_parking && heap()->gc_state() == Heap::NOT_IN_GC &&
+      remaining_in_page >= kAllocationBufferParkingThreshold) {
+    parked_allocation_buffers_.push_back(
+        ParkedAllocationBuffer(remaining_in_page, top));
+  }
   UpdateLinearAllocationArea();
 
   return true;
@@ -526,6 +545,30 @@ bool NewSpace::AddFreshPage() {
 bool NewSpace::AddFreshPageSynchronized() {
   base::MutexGuard guard(&mutex_);
   return AddFreshPage();
+}
+
+bool NewSpace::AddParkedAllocationBuffer(int size_in_bytes,
+                                         AllocationAlignment alignment) {
+  int parked_size = 0;
+  Address start = 0;
+  for (auto it = parked_allocation_buffers_.begin();
+       it != parked_allocation_buffers_.end();) {
+    parked_size = it->first;
+    start = it->second;
+    int filler_size = Heap::GetFillToAlign(start, alignment);
+    if (size_in_bytes + filler_size <= parked_size) {
+      parked_allocation_buffers_.erase(it);
+      Page* page = Page::FromAddress(start);
+      // We move a page with a parked allocaiton to the end of the pages list
+      // to maintain the invariant that the last page is the used one.
+      to_space_.MovePageToTheEnd(page);
+      UpdateLinearAllocationArea(start);
+      return true;
+    } else {
+      it++;
+    }
+  }
+  return false;
 }
 
 bool NewSpace::EnsureAllocation(int size_in_bytes,
@@ -544,7 +587,10 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
 
   // Not enough room in the page, try to allocate a new one.
   if (!AddFreshPage()) {
-    return false;
+    // When we cannot grow NewSpace anymore we query for parked allocations.
+    if (!FLAG_allocation_buffer_parking ||
+        !AddParkedAllocationBuffer(size_in_bytes, alignment))
+      return false;
   }
 
   old_top = allocation_info_.top();

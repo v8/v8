@@ -6,10 +6,12 @@
 #define V8_HEAP_NEW_SPACES_H_
 
 #include <atomic>
+#include <map>
 #include <memory>
 
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
+#include "src/common/globals.h"
 #include "src/heap/heap.h"
 #include "src/heap/spaces.h"
 #include "src/logging/log.h"
@@ -22,6 +24,9 @@ class Heap;
 class MemoryChunk;
 
 enum SemiSpaceId { kFromSpace = 0, kToSpace = 1 };
+
+using ParkedAllocationBuffer = std::pair<int, Address>;
+using ParkedAllocationBuffersVector = std::vector<ParkedAllocationBuffer>;
 
 // -----------------------------------------------------------------------------
 // SemiSpace in young generation
@@ -105,6 +110,7 @@ class SemiSpace : public Space {
 
   void RemovePage(Page* page);
   void PrependPage(Page* page);
+  void MovePageToTheEnd(Page* page);
 
   Page* InitializePage(MemoryChunk* chunk);
 
@@ -247,6 +253,8 @@ class V8_EXPORT_PRIVATE NewSpace
   // Tears down the space.  Heap memory was not allocated by the space, so it
   // is not deallocated here.
   void TearDown();
+
+  void ResetParkedAllocationBuffers();
 
   // Flip the pair of spaces.
   void Flip();
@@ -415,6 +423,9 @@ class V8_EXPORT_PRIVATE NewSpace
   bool AddFreshPage();
   bool AddFreshPageSynchronized();
 
+  bool AddParkedAllocationBuffer(int size_in_bytes,
+                                 AllocationAlignment alignment);
+
 #ifdef VERIFY_HEAP
   // Verify the active semispace.
   virtual void Verify(Isolate* isolate);
@@ -463,8 +474,10 @@ class V8_EXPORT_PRIVATE NewSpace
   void MaybeFreeUnusedLab(LinearAllocationArea info);
 
  private:
+  static const int kAllocationBufferParkingThreshold = 4 * KB;
+
   // Update linear allocation area to match the current to-space page.
-  void UpdateLinearAllocationArea();
+  void UpdateLinearAllocationArea(Address known_top = 0);
 
   base::Mutex mutex_;
 
@@ -477,6 +490,8 @@ class V8_EXPORT_PRIVATE NewSpace
   SemiSpace to_space_;
   SemiSpace from_space_;
   VirtualMemory reservation_;
+
+  ParkedAllocationBuffersVector parked_allocation_buffers_;
 
   // Internal allocation methods.
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult

@@ -863,6 +863,7 @@ void Heap::GarbageCollectionPrologueInSafepoint() {
 
   UpdateNewSpaceAllocationCounter();
   CheckNewSpaceExpansionCriteria();
+  new_space_->ResetParkedAllocationBuffers();
 }
 
 size_t Heap::SizeOfObjects() {
