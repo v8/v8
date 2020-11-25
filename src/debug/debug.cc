@@ -1102,8 +1102,8 @@ void Debug::PrepareStep(StepAction step_action) {
     wasm::WasmCodeRefScope code_ref_scope;
     wasm::WasmCode* code = wasm_frame->wasm_code();
     if (code->is_liftoff()) {
-      wasm_frame->native_module()->GetDebugInfo()->PrepareStep(isolate_,
-                                                               frame_id);
+      auto* debug_info = wasm_frame->native_module()->GetDebugInfo();
+      debug_info->PrepareStep(wasm_frame);
     }
     // In case the wasm code returns, prepare the next frame (if JS) to break.
     step_action = StepOut;

@@ -495,32 +495,26 @@ class DebugInfoImpl {
     WasmCode* new_code = RecompileLiftoffWithBreakpoints(
         frame->function_index(), VectorOf(&offset, 1), 0);
     UpdateReturnAddress(frame, new_code, return_location);
+
+    per_isolate_data_[frame->isolate()].stepping_frame = frame->id();
   }
 
-  void PrepareStep(Isolate* isolate, StackFrameId break_frame_id) {
-    StackTraceFrameIterator it(isolate, break_frame_id);
-    DCHECK(!it.done());
-    DCHECK(it.frame()->is_wasm());
-    WasmFrame* frame = WasmFrame::cast(it.frame());
-    StepAction step_action = isolate->debug()->last_step_action();
-
-    // If we are flooding the top frame, the return location is after a
-    // breakpoints. Otherwise, it's after a call.
-    ReturnLocation return_location = kAfterBreakpoint;
+  void PrepareStep(WasmFrame* frame) {
+    Isolate* isolate = frame->isolate();
 
     // If we are at a return instruction, then any stepping action is equivalent
     // to StepOut, and we need to flood the parent function.
-    if (IsAtReturn(frame) || step_action == StepOut) {
+    if (IsAtReturn(frame) || isolate->debug()->last_step_action() == StepOut) {
+      StackTraceFrameIterator it(isolate, isolate->debug()->break_frame_id());
+      DCHECK(!it.done());
+      DCHECK(it.frame()->is_wasm());
       it.Advance();
       if (it.done() || !it.frame()->is_wasm()) return;
       frame = WasmFrame::cast(it.frame());
-      return_location = kAfterWasmCall;
+      FloodWithBreakpoints(frame, kAfterWasmCall);
+    } else {
+      FloodWithBreakpoints(frame, kAfterBreakpoint);
     }
-
-    FloodWithBreakpoints(frame, return_location);
-
-    base::MutexGuard guard(&mutex_);
-    per_isolate_data_[isolate].stepping_frame = frame->id();
   }
 
   void ClearStepping(Isolate* isolate) {
@@ -880,9 +874,7 @@ void DebugInfo::SetBreakpoint(int func_index, int offset,
   impl_->SetBreakpoint(func_index, offset, current_isolate);
 }
 
-void DebugInfo::PrepareStep(Isolate* isolate, StackFrameId break_frame_id) {
-  impl_->PrepareStep(isolate, break_frame_id);
-}
+void DebugInfo::PrepareStep(WasmFrame* frame) { impl_->PrepareStep(frame); }
 
 void DebugInfo::ClearStepping(Isolate* isolate) {
   impl_->ClearStepping(isolate);

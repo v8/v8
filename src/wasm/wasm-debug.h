@@ -170,7 +170,7 @@ class V8_EXPORT_PRIVATE DebugInfo {
 
   void SetBreakpoint(int func_index, int offset, Isolate* current_isolate);
 
-  void PrepareStep(Isolate*, StackFrameId);
+  void PrepareStep(WasmFrame*);
 
   void ClearStepping(Isolate*);
 
