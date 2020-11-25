@@ -4082,7 +4082,7 @@ Node* WasmGraphBuilder::LoadTransformBigEndian(
 #endif
 
 Node* WasmGraphBuilder::LoadLane(MachineType memtype, Node* value, Node* index,
-                                 uint32_t offset, uint8_t laneidx,
+                                 uint64_t offset, uint8_t laneidx,
                                  wasm::WasmCodePosition position) {
   has_simd_ = true;
   Node* load;
@@ -4223,7 +4223,7 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
 }
 
 Node* WasmGraphBuilder::StoreLane(MachineRepresentation mem_rep, Node* index,
-                                  uint32_t offset, uint32_t alignment,
+                                  uint64_t offset, uint32_t alignment,
                                   Node* val, uint8_t laneidx,
                                   wasm::WasmCodePosition position,
                                   wasm::ValueType type) {

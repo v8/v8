@@ -67,6 +67,23 @@
       static_cast<byte>((((x) >> 21) & MASK_7) | 0x80), \
       static_cast<byte>((((x) >> 28) & MASK_7))
 
+#define U64V_1(x) U32V_1(static_cast<uint32_t>(x))
+#define U64V_2(x) U32V_2(static_cast<uint32_t>(x))
+#define U64V_3(x) U32V_3(static_cast<uint32_t>(x))
+#define U64V_4(x) U32V_4(static_cast<uint32_t>(x))
+#define U64V_5(x)                                                  \
+  static_cast<uint8_t>((uint64_t{x} & MASK_7) | 0x80),             \
+      static_cast<uint8_t>(((uint64_t{x} >> 7) & MASK_7) | 0x80),  \
+      static_cast<uint8_t>(((uint64_t{x} >> 14) & MASK_7) | 0x80), \
+      static_cast<uint8_t>(((uint64_t{x} >> 21) & MASK_7) | 0x80), \
+      static_cast<uint8_t>(((uint64_t{x} >> 28) & MASK_7))
+#define U64V_6(x)                                                  \
+  static_cast<uint8_t>((uint64_t{x} & MASK_7) | 0x80),             \
+      static_cast<uint8_t>(((uint64_t{x} >> 7) & MASK_7) | 0x80),  \
+      static_cast<uint8_t>(((uint64_t{x} >> 14) & MASK_7) | 0x80), \
+      static_cast<uint8_t>(((uint64_t{x} >> 21) & MASK_7) | 0x80), \
+      static_cast<uint8_t>(((uint64_t{x} >> 28) & MASK_7) | 0x80), \
+      static_cast<uint8_t>(((uint64_t{x} >> 35) & MASK_7))
 #define U64V_10(x)                                                 \
   static_cast<uint8_t>((uint64_t{x} & MASK_7) | 0x80),             \
       static_cast<uint8_t>(((uint64_t{x} >> 7) & MASK_7) | 0x80),  \
