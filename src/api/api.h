@@ -340,6 +340,9 @@ class HandleScopeImplementer {
 
   ~HandleScopeImplementer() { DeleteArray(spare_); }
 
+  HandleScopeImplementer(const HandleScopeImplementer&) = delete;
+  HandleScopeImplementer& operator=(const HandleScopeImplementer&) = delete;
+
   // Threading support for handle data.
   static int ArchiveSpacePerThread();
   char* RestoreThread(char* from);
@@ -436,8 +439,6 @@ class HandleScopeImplementer {
 
   friend class HandleScopeImplementerOffsets;
   friend class PersistentHandlesScope;
-
-  DISALLOW_COPY_AND_ASSIGN(HandleScopeImplementer);
 };
 
 const int kHandleBlockSize = v8::internal::KB - 2;  // fit in one page

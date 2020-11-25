@@ -329,6 +329,9 @@ class V8_NODISCARD CallDepthScope {
     isolate_->set_next_v8_call_is_safe_for_termination(safe_for_termination_);
   }
 
+  CallDepthScope(const CallDepthScope&) = delete;
+  CallDepthScope& operator=(const CallDepthScope&) = delete;
+
   void Escape() {
     DCHECK(!escaped_);
     escaped_ = true;
@@ -361,7 +364,6 @@ class V8_NODISCARD CallDepthScope {
   friend class i::ThreadLocalTop;
 
   DISALLOW_NEW_AND_DELETE()
-  DISALLOW_COPY_AND_ASSIGN(CallDepthScope);
 };
 
 }  // namespace
@@ -5294,6 +5296,9 @@ static inline const uint16_t* Align(const uint16_t* chars) {
 class ContainsOnlyOneByteHelper {
  public:
   ContainsOnlyOneByteHelper() : is_one_byte_(true) {}
+  ContainsOnlyOneByteHelper(const ContainsOnlyOneByteHelper&) = delete;
+  ContainsOnlyOneByteHelper& operator=(const ContainsOnlyOneByteHelper&) =
+      delete;
   bool Check(i::String string) {
     i::ConsString cons_string = i::String::VisitFlat(this, string, 0);
     if (cons_string.is_null()) return is_one_byte_;
@@ -5374,7 +5379,6 @@ class ContainsOnlyOneByteHelper {
     return is_one_byte_;
   }
   bool is_one_byte_;
-  DISALLOW_COPY_AND_ASSIGN(ContainsOnlyOneByteHelper);
 };
 
 bool String::ContainsOnlyOneByte() const {
