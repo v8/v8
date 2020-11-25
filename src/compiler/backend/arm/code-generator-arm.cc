@@ -2167,6 +2167,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_SHIFT_RIGHT(vshr, 6, Neon32, NeonU64);
       break;
     }
+    case kArmI64x2BitMask: {
+      UseScratchRegisterScope temps(tasm());
+      Register dst = i.OutputRegister();
+      Simd128Register src = i.InputSimd128Register(0);
+      QwNeonRegister tmp1 = temps.AcquireQ();
+      Register tmp = temps.Acquire();
+
+      __ vshr(NeonU64, tmp1, src, 63);
+      __ vmov(NeonU32, dst, tmp1.low(), 0);
+      __ vmov(NeonU32, tmp, tmp1.high(), 0);
+      __ add(dst, dst, Operand(tmp, LSL, 1));
+      break;
+    }
     case kArmF32x4Splat: {
       int src_code = i.InputFloatRegister(0).code();
       __ vdup(Neon32, i.OutputSimd128Register(),
