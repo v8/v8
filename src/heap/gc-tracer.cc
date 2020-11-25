@@ -40,9 +40,9 @@ RuntimeCallCounterId GCTracer::RCSCounterFromScope(Scope::ScopeId id) {
 RuntimeCallCounterId GCTracer::RCSCounterFromBackgroundScope(
     BackgroundScope::ScopeId id) {
   STATIC_ASSERT(Scope::FIRST_BACKGROUND_SCOPE ==
-                Scope::BACKGROUND_ARRAY_BUFFER_FREE);
+                Scope::BACKGROUND_ARRAY_BUFFER_SWEEP);
   STATIC_ASSERT(
-      0 == static_cast<int>(BackgroundScope::BACKGROUND_ARRAY_BUFFER_FREE));
+      0 == static_cast<int>(BackgroundScope::BACKGROUND_ARRAY_BUFFER_SWEEP));
   return static_cast<RuntimeCallCounterId>(
       static_cast<int>(RCSCounterFromScope(Scope::FIRST_BACKGROUND_SCOPE)) +
       static_cast<int>(id));
@@ -585,8 +585,6 @@ void GCTracer::PrintNVP() const {
           "scavenge.update_refs=%.2f "
           "scavenge.sweep_array_buffers=%.2f "
           "background.scavenge.parallel=%.2f "
-          "background.array_buffer_free=%.2f "
-          "background.store_buffer=%.2f "
           "background.unmapper=%.2f "
           "incremental.steps_count=%d "
           "incremental.steps_took=%.1f "
@@ -630,8 +628,6 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::SCAVENGER_SCAVENGE_UPDATE_REFS],
           current_.scopes[Scope::SCAVENGER_SWEEP_ARRAY_BUFFERS],
           current_.scopes[Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL],
-          current_.scopes[Scope::BACKGROUND_ARRAY_BUFFER_FREE],
-          current_.scopes[Scope::BACKGROUND_STORE_BUFFER],
           current_.scopes[Scope::BACKGROUND_UNMAPPER],
           current_.incremental_marking_scopes[GCTracer::Scope::MC_INCREMENTAL]
               .steps,
@@ -674,8 +670,6 @@ void GCTracer::PrintNVP() const {
           "background.mark=%.2f "
           "background.evacuate.copy=%.2f "
           "background.evacuate.update_pointers=%.2f "
-          "background.array_buffer_free=%.2f "
-          "background.store_buffer=%.2f "
           "background.unmapper=%.2f "
           "update_marking_deque=%.2f "
           "reset_liveness=%.2f\n",
@@ -700,8 +694,6 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MINOR_MC_BACKGROUND_MARKING],
           current_.scopes[Scope::MINOR_MC_BACKGROUND_EVACUATE_COPY],
           current_.scopes[Scope::MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS],
-          current_.scopes[Scope::BACKGROUND_ARRAY_BUFFER_FREE],
-          current_.scopes[Scope::BACKGROUND_STORE_BUFFER],
           current_.scopes[Scope::BACKGROUND_UNMAPPER],
           current_.scopes[Scope::MINOR_MC_MARKING_DEQUE],
           current_.scopes[Scope::MINOR_MC_RESET_LIVENESS]);
@@ -725,7 +717,6 @@ void GCTracer::PrintNVP() const {
           "clear.dependent_code=%.1f "
           "clear.maps=%.1f "
           "clear.slots_buffer=%.1f "
-          "clear.store_buffer=%.1f "
           "clear.string_table=%.1f "
           "clear.weak_collections=%.1f "
           "clear.weak_lists=%.1f "
@@ -786,8 +777,6 @@ void GCTracer::PrintNVP() const {
           "background.sweep=%.1f "
           "background.evacuate.copy=%.1f "
           "background.evacuate.update_pointers=%.1f "
-          "background.array_buffer_free=%.2f "
-          "background.store_buffer=%.2f "
           "background.unmapper=%.1f "
           "total_size_before=%zu "
           "total_size_after=%zu "
@@ -820,7 +809,6 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_CLEAR_DEPENDENT_CODE],
           current_.scopes[Scope::MC_CLEAR_MAPS],
           current_.scopes[Scope::MC_CLEAR_SLOTS_BUFFER],
-          current_.scopes[Scope::MC_CLEAR_STORE_BUFFER],
           current_.scopes[Scope::MC_CLEAR_STRING_TABLE],
           current_.scopes[Scope::MC_CLEAR_WEAK_COLLECTIONS],
           current_.scopes[Scope::MC_CLEAR_WEAK_LISTS],
@@ -888,8 +876,6 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_BACKGROUND_SWEEPING],
           current_.scopes[Scope::MC_BACKGROUND_EVACUATE_COPY],
           current_.scopes[Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS],
-          current_.scopes[Scope::BACKGROUND_ARRAY_BUFFER_FREE],
-          current_.scopes[Scope::BACKGROUND_STORE_BUFFER],
           current_.scopes[Scope::BACKGROUND_UNMAPPER],
           current_.start_object_size, current_.end_object_size,
           current_.start_holes_size, current_.end_holes_size,
