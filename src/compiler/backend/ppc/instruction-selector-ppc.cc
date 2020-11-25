@@ -2483,7 +2483,56 @@ void InstructionSelector::EmitPrepareResults(
   }
 }
 
-void InstructionSelector::VisitLoadTransform(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitLoadTransform(Node* node) {
+  LoadTransformParameters params = LoadTransformParametersOf(node->op());
+  PPCOperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+
+  ArchOpcode opcode;
+  switch (params.transformation) {
+    case LoadTransformation::kS128Load8Splat:
+      opcode = kPPC_S128Load8Splat;
+      break;
+    case LoadTransformation::kS128Load16Splat:
+      opcode = kPPC_S128Load16Splat;
+      break;
+    case LoadTransformation::kS128Load32Splat:
+      opcode = kPPC_S128Load32Splat;
+      break;
+    case LoadTransformation::kS128Load64Splat:
+      opcode = kPPC_S128Load64Splat;
+      break;
+    case LoadTransformation::kS128Load8x8S:
+      opcode = kPPC_S128Load8x8S;
+      break;
+    case LoadTransformation::kS128Load8x8U:
+      opcode = kPPC_S128Load8x8U;
+      break;
+    case LoadTransformation::kS128Load16x4S:
+      opcode = kPPC_S128Load16x4S;
+      break;
+    case LoadTransformation::kS128Load16x4U:
+      opcode = kPPC_S128Load16x4U;
+      break;
+    case LoadTransformation::kS128Load32x2S:
+      opcode = kPPC_S128Load32x2S;
+      break;
+    case LoadTransformation::kS128Load32x2U:
+      opcode = kPPC_S128Load32x2U;
+      break;
+    case LoadTransformation::kS128Load32Zero:
+      opcode = kPPC_S128Load32Zero;
+      break;
+    case LoadTransformation::kS128Load64Zero:
+      opcode = kPPC_S128Load64Zero;
+      break;
+    default:
+      UNREACHABLE();
+  }
+  Emit(opcode | AddressingModeField::encode(kMode_MRR),
+       g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(index));
+}
 
 // static
 MachineOperatorBuilder::Flags

@@ -322,6 +322,18 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_LoadDecompressTaggedSigned:
     case kPPC_LoadDecompressTaggedPointer:
     case kPPC_LoadDecompressAnyTagged:
+    case kPPC_S128Load8Splat:
+    case kPPC_S128Load16Splat:
+    case kPPC_S128Load32Splat:
+    case kPPC_S128Load64Splat:
+    case kPPC_S128Load8x8S:
+    case kPPC_S128Load8x8U:
+    case kPPC_S128Load16x4S:
+    case kPPC_S128Load16x4U:
+    case kPPC_S128Load32x2S:
+    case kPPC_S128Load32x2U:
+    case kPPC_S128Load32Zero:
+    case kPPC_S128Load64Zero:
       return kIsLoadOperation;
 
     case kPPC_StoreWord8:

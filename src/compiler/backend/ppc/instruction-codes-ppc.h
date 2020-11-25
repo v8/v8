@@ -379,6 +379,18 @@ namespace compiler {
   V(PPC_S128Not)                     \
   V(PPC_S128Select)                  \
   V(PPC_S128AndNot)                  \
+  V(PPC_S128Load8Splat)              \
+  V(PPC_S128Load16Splat)             \
+  V(PPC_S128Load32Splat)             \
+  V(PPC_S128Load64Splat)             \
+  V(PPC_S128Load8x8S)                \
+  V(PPC_S128Load8x8U)                \
+  V(PPC_S128Load16x4S)               \
+  V(PPC_S128Load16x4U)               \
+  V(PPC_S128Load32x2S)               \
+  V(PPC_S128Load32x2U)               \
+  V(PPC_S128Load32Zero)              \
+  V(PPC_S128Load64Zero)              \
   V(PPC_StoreCompressTagged)         \
   V(PPC_LoadDecompressTaggedSigned)  \
   V(PPC_LoadDecompressTaggedPointer) \
