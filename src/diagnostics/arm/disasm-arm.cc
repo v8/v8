@@ -54,6 +54,8 @@ class Decoder {
   }
 
   ~Decoder() {}
+  Decoder(const Decoder&) = delete;
+  Decoder& operator=(const Decoder&) = delete;
 
   // Writes one disassembled instruction into 'buffer' (0-terminated).
   // Returns the length of the disassembled machine instruction in bytes.
@@ -134,8 +136,6 @@ class Decoder {
   const disasm::NameConverter& converter_;
   Vector<char> out_buffer_;
   int out_buffer_pos_;
-
-  DISALLOW_COPY_AND_ASSIGN(Decoder);
 };
 
 // Support for assertions in the Decoder formatting functions.

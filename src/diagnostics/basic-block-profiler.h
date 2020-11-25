@@ -29,6 +29,9 @@ class BasicBlockProfilerData {
   V8_EXPORT_PRIVATE BasicBlockProfilerData(
       OnHeapBasicBlockProfilerData js_heap_data);
 
+  BasicBlockProfilerData(const BasicBlockProfilerData&) = delete;
+  BasicBlockProfilerData& operator=(const BasicBlockProfilerData&) = delete;
+
   size_t n_blocks() const {
     DCHECK_EQ(block_ids_.size(), counts_.size());
     return block_ids_.size();
@@ -64,7 +67,6 @@ class BasicBlockProfilerData {
   std::string schedule_;
   std::string code_;
   int hash_ = 0;
-  DISALLOW_COPY_AND_ASSIGN(BasicBlockProfilerData);
 };
 
 class BasicBlockProfiler {
@@ -73,6 +75,8 @@ class BasicBlockProfiler {
 
   BasicBlockProfiler() = default;
   ~BasicBlockProfiler() = default;
+  BasicBlockProfiler(const BasicBlockProfiler&) = delete;
+  BasicBlockProfiler& operator=(const BasicBlockProfiler&) = delete;
 
   V8_EXPORT_PRIVATE static BasicBlockProfiler* Get();
   BasicBlockProfilerData* NewData(size_t n_blocks);
@@ -90,8 +94,6 @@ class BasicBlockProfiler {
  private:
   DataList data_list_;
   base::Mutex data_list_mutex_;
-
-  DISALLOW_COPY_AND_ASSIGN(BasicBlockProfiler);
 };
 
 std::ostream& operator<<(std::ostream& os, const BasicBlockProfilerData& s);
