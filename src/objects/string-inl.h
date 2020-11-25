@@ -26,7 +26,7 @@ namespace internal {
 
 #include "torque-generated/src/objects/string-tq-inl.inc"
 
-class SharedStringAccessGuardIfNeeded {
+class V8_NODISCARD SharedStringAccessGuardIfNeeded {
  public:
   // Creates a SharedMutexGuard<kShared> for the string access if:
   // A) {str} is not a read only string, and

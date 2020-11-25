@@ -282,7 +282,7 @@ class V8_BASE_EXPORT SharedMutex final {
 enum class NullBehavior { kRequireNotNull, kIgnoreIfNull };
 
 template <typename Mutex, NullBehavior Behavior = NullBehavior::kRequireNotNull>
-class LockGuard final {
+class V8_NODISCARD LockGuard final {
  public:
   explicit LockGuard(Mutex* mutex) : mutex_(mutex) {
     if (has_mutex()) mutex_->Lock();
@@ -310,7 +310,7 @@ enum MutexSharedType : bool { kShared = true, kExclusive = false };
 
 template <MutexSharedType kIsShared,
           NullBehavior Behavior = NullBehavior::kRequireNotNull>
-class SharedMutexGuard final {
+class V8_NODISCARD SharedMutexGuard final {
  public:
   explicit SharedMutexGuard(SharedMutex* mutex) : mutex_(mutex) {
     if (!has_mutex()) return;
@@ -343,7 +343,7 @@ class SharedMutexGuard final {
 
 template <MutexSharedType kIsShared,
           NullBehavior Behavior = NullBehavior::kRequireNotNull>
-class SharedMutexGuardIf final {
+class V8_NODISCARD SharedMutexGuardIf final {
  public:
   SharedMutexGuardIf(SharedMutex* mutex, bool enable_mutex) {
     if (enable_mutex) mutex_.emplace(mutex);

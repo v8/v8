@@ -21,7 +21,7 @@ class RootVisitor;
 // StackGuard contains the handling of the limits that are used to limit the
 // number of nested invocations of JavaScript and the stack size used in each
 // invocation.
-class V8_EXPORT_PRIVATE StackGuard final {
+class V8_EXPORT_PRIVATE V8_NODISCARD StackGuard final {
  public:
   explicit StackGuard(Isolate* isolate) : isolate_(isolate) {}
 

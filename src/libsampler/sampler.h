@@ -97,7 +97,7 @@ using AtomicMutex = std::atomic_bool;
 
 // A helper that uses an std::atomic_bool to create a lock that is obtained on
 // construction and released on destruction.
-class V8_EXPORT_PRIVATE AtomicGuard {
+class V8_EXPORT_PRIVATE V8_NODISCARD AtomicGuard {
  public:
   // Attempt to obtain the lock represented by |atomic|. |is_blocking|
   // determines whether we will block to obtain the lock, or only make one

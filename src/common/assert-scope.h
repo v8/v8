@@ -236,7 +236,7 @@ class DisallowHeapAccessIf {
 
 // Like MutexGuard but also asserts that no garbage collection happens while
 // we're holding the mutex.
-class NoGarbageCollectionMutexGuard {
+class V8_NODISCARD NoGarbageCollectionMutexGuard {
  public:
   explicit NoGarbageCollectionMutexGuard(base::Mutex* mutex)
       : guard_(mutex), mutex_(mutex), no_gc_(new DisallowGarbageCollection()) {}

@@ -44,7 +44,7 @@ class UnparkedScope {
   LocalHeap* const local_heap_;
 };
 
-class ParkedMutexGuard {
+class V8_NODISCARD ParkedMutexGuard {
   base::Mutex* guard_;
 
  public:
