@@ -926,12 +926,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src, int shift);
   void vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
             QwNeonRegister shift);
-  void vshr(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src, int shift);
   void vshr(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src, int shift);
   void vsli(NeonSize size, DwVfpRegister dst, DwVfpRegister src, int shift);
   void vsri(NeonSize size, DwVfpRegister dst, DwVfpRegister src, int shift);
-  void vsra(NeonDataType size, DwVfpRegister dst, DwVfpRegister src, int imm);
-
   // vrecpe and vrsqrte only support floating point lanes.
   void vrecpe(QwNeonRegister dst, QwNeonRegister src);
   void vrsqrte(QwNeonRegister dst, QwNeonRegister src);

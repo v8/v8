@@ -2153,38 +2153,11 @@ void Decoder::DecodeAdvancedSIMDDataProcessing(Instruction* instr) {
         int imm7 = (l << 6) | instr->Bits(21, 16);
         int size = base::bits::RoundDownToPowerOfTwo32(imm7);
         int shift = 2 * size - imm7;
-        if (q) {
-          int Vd = instr->VFPDRegValue(kSimd128Precision);
-          int Vm = instr->VFPMRegValue(kSimd128Precision);
-          out_buffer_pos_ +=
-              SNPrintF(out_buffer_ + out_buffer_pos_, "vshr.%s%d q%d, q%d, #%d",
-                       u ? "u" : "s", size, Vd, Vm, shift);
-        } else {
-          int Vd = instr->VFPDRegValue(kDoublePrecision);
-          int Vm = instr->VFPMRegValue(kDoublePrecision);
-          out_buffer_pos_ +=
-              SNPrintF(out_buffer_ + out_buffer_pos_, "vshr.%s%d d%d, d%d, #%d",
-                       u ? "u" : "s", size, Vd, Vm, shift);
-        }
-      } else if (imm3H_L != 0 && opc == 1) {
-        // vsra.<type><size> Qd, Qm, shift
-        // vsra.<type><size> Dd, Dm, shift
-        int imm7 = (l << 6) | instr->Bits(21, 16);
-        int size = base::bits::RoundDownToPowerOfTwo32(imm7);
-        int shift = 2 * size - imm7;
-        if (q) {
-          int Vd = instr->VFPDRegValue(kSimd128Precision);
-          int Vm = instr->VFPMRegValue(kSimd128Precision);
-          out_buffer_pos_ +=
-              SNPrintF(out_buffer_ + out_buffer_pos_, "vsra.%s%d q%d, q%d, #%d",
-                       u ? "u" : "s", size, Vd, Vm, shift);
-        } else {
-          int Vd = instr->VFPDRegValue(kDoublePrecision);
-          int Vm = instr->VFPMRegValue(kDoublePrecision);
-          out_buffer_pos_ +=
-              SNPrintF(out_buffer_ + out_buffer_pos_, "vsra.%s%d d%d, d%d, #%d",
-                       u ? "u" : "s", size, Vd, Vm, shift);
-        }
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        out_buffer_pos_ +=
+            SNPrintF(out_buffer_ + out_buffer_pos_, "vshr.%s%d q%d, q%d, #%d",
+                     u ? "u" : "s", size, Vd, Vm, shift);
       } else if (imm3H_L != 0 && imm3L == 0 && opc == 0b1010 && !q) {
         // vmovl
         if ((instr->VdValue() & 1) != 0) Unknown(instr);

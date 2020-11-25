@@ -2984,10 +2984,6 @@ void InstructionSelector::VisitI32x4BitMask(Node* node) {
   VisitBitMask<kArmI32x4BitMask>(this, node);
 }
 
-void InstructionSelector::VisitI64x2BitMask(Node* node) {
-  VisitBitMask<kArmI64x2BitMask>(this, node);
-}
-
 namespace {
 void VisitF32x4PminOrPmax(InstructionSelector* selector, ArchOpcode opcode,
                           Node* node) {
