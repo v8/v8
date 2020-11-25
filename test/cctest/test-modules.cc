@@ -35,7 +35,9 @@ static Local<Module> dep1;
 static Local<Module> dep2;
 MaybeLocal<Module> ResolveCallback(Local<Context> context,
                                    Local<String> specifier,
+                                   Local<FixedArray> import_assertions,
                                    Local<Module> referrer) {
+  CHECK_EQ(0, import_assertions->Length());
   Isolate* isolate = CcTest::isolate();
   if (specifier->StrictEquals(v8_str("./dep1.js"))) {
     return dep1;
@@ -131,7 +133,46 @@ TEST(ModuleInstantiationFailures1) {
   i::FLAG_harmony_top_level_await = prev_top_level_await;
 }
 
-TEST(ModuleInstantiationFailures1WithImportAssertions) {
+static Local<Module> fooModule;
+static Local<Module> barModule;
+MaybeLocal<Module> ResolveCallbackWithImportAssertions(
+    Local<Context> context, Local<String> specifier,
+    Local<FixedArray> import_assertions, Local<Module> referrer) {
+  Isolate* isolate = CcTest::isolate();
+  LocalContext env;
+
+  if (specifier->StrictEquals(v8_str("./foo.js"))) {
+    CHECK_EQ(0, import_assertions->Length());
+
+    return fooModule;
+  } else if (specifier->StrictEquals(v8_str("./bar.js"))) {
+    CHECK_EQ(3, import_assertions->Length());
+    Local<String> assertion_key =
+        import_assertions->Get(env.local(), 0).As<Value>().As<String>();
+    CHECK(v8_str("a")->StrictEquals(assertion_key));
+    Local<String> assertion_value =
+        import_assertions->Get(env.local(), 1).As<Value>().As<String>();
+    CHECK(v8_str("b")->StrictEquals(assertion_value));
+    Local<Data> assertion_source_offset_object =
+        import_assertions->Get(env.local(), 2);
+    Local<Int32> assertion_source_offset_int32 =
+        assertion_source_offset_object.As<Value>()
+            ->ToInt32(context)
+            .ToLocalChecked();
+    int32_t assertion_source_offset = assertion_source_offset_int32->Value();
+    CHECK_EQ(65, assertion_source_offset);
+    Location loc = referrer->SourceOffsetToLocation(assertion_source_offset);
+    CHECK_EQ(1, loc.GetLineNumber());
+    CHECK_EQ(35, loc.GetColumnNumber());
+
+    return barModule;
+  } else {
+    isolate->ThrowException(v8_str("boom"));
+    return MaybeLocal<Module>();
+  }
+}
+
+TEST(ModuleInstantiationWithImportAssertions) {
   bool prev_top_level_await = i::FLAG_harmony_top_level_await;
   bool prev_import_assertions = i::FLAG_harmony_import_assertions;
   i::FLAG_harmony_import_assertions = true;
@@ -194,16 +235,40 @@ TEST(ModuleInstantiationFailures1WithImportAssertions) {
       CHECK_EQ(35, loc.GetColumnNumber());
     }
 
-    // Instantiation should fail.
+    // foo.js
     {
-      v8::TryCatch inner_try_catch(isolate);
-      CHECK(
-          module->InstantiateModule(env.local(), ResolveCallback).IsNothing());
-      CHECK(inner_try_catch.HasCaught());
-      CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
-      CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+      Local<String> source_text = v8_str("Object.expando = 40");
+      ScriptOrigin origin = ModuleOrigin(v8_str("foo.js"), CcTest::isolate());
+      ScriptCompiler::Source source(source_text, origin);
+      fooModule =
+          ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
     }
 
+    // bar.js
+    {
+      Local<String> source_text = v8_str("Object.expando += 2");
+      ScriptOrigin origin = ModuleOrigin(v8_str("bar.js"), CcTest::isolate());
+      ScriptCompiler::Source source(source_text, origin);
+      barModule =
+          ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    }
+
+    CHECK(module
+              ->InstantiateModule(env.local(),
+                                  ResolveCallbackWithImportAssertions)
+              .FromJust());
+    CHECK_EQ(Module::kInstantiated, module->GetStatus());
+
+    MaybeLocal<Value> result = module->Evaluate(env.local());
+    CHECK_EQ(Module::kEvaluated, module->GetStatus());
+    if (i::FLAG_harmony_top_level_await) {
+      Local<Promise> promise = Local<Promise>::Cast(result.ToLocalChecked());
+      CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+      CHECK(promise->Result()->IsUndefined());
+    } else {
+      CHECK(!result.IsEmpty());
+      ExpectInt32("Object.expando", 42);
+    }
     CHECK(!try_catch.HasCaught());
   }
   i::FLAG_harmony_top_level_await = prev_top_level_await;
@@ -296,7 +361,9 @@ TEST(ModuleInstantiationFailures2) {
 }
 
 static MaybeLocal<Module> CompileSpecifierAsModuleResolveCallback(
-    Local<Context> context, Local<String> specifier, Local<Module> referrer) {
+    Local<Context> context, Local<String> specifier,
+    Local<FixedArray> import_assertions, Local<Module> referrer) {
+  CHECK_EQ(0, import_assertions->Length());
   ScriptOrigin origin = ModuleOrigin(v8_str("module.js"), CcTest::isolate());
   ScriptCompiler::Source source(specifier, origin);
   return ScriptCompiler::CompileModule(CcTest::isolate(), &source)
@@ -417,7 +484,9 @@ TEST(ModuleEvaluationError1) {
 static Local<Module> failure_module;
 static Local<Module> dependent_module;
 MaybeLocal<Module> ResolveCallbackForModuleEvaluationError2(
-    Local<Context> context, Local<String> specifier, Local<Module> referrer) {
+    Local<Context> context, Local<String> specifier,
+    Local<FixedArray> import_assertions, Local<Module> referrer) {
+  CHECK_EQ(0, import_assertions->Length());
   if (specifier->StrictEquals(v8_str("./failure.js"))) {
     return failure_module;
   } else {
@@ -1087,7 +1156,9 @@ static Local<Module> cycle_self_module;
 static Local<Module> cycle_one_module;
 static Local<Module> cycle_two_module;
 MaybeLocal<Module> ResolveCallbackForIsGraphAsyncTopLevelAwait(
-    Local<Context> context, Local<String> specifier, Local<Module> referrer) {
+    Local<Context> context, Local<String> specifier,
+    Local<FixedArray> import_assertions, Local<Module> referrer) {
+  CHECK_EQ(0, import_assertions->Length());
   if (specifier->StrictEquals(v8_str("./async_leaf.js"))) {
     return async_leaf_module;
   } else if (specifier->StrictEquals(v8_str("./sync_leaf.js"))) {

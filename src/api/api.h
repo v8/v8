@@ -242,7 +242,9 @@ class Utils {
       v8::internal::Handle<v8::internal::JSReceiver> obj);
   static inline Local<Primitive> ToLocalPrimitive(
       v8::internal::Handle<v8::internal::Object> obj);
-  static inline Local<PrimitiveArray> ToLocal(
+  static inline Local<FixedArray> FixedArrayToLocal(
+      v8::internal::Handle<v8::internal::FixedArray> obj);
+  static inline Local<PrimitiveArray> PrimitiveArrayToLocal(
       v8::internal::Handle<v8::internal::FixedArray> obj);
   static inline Local<ScriptOrModule> ScriptOrModuleToLocal(
       v8::internal::Handle<v8::internal::Script> obj);

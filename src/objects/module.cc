@@ -174,14 +174,16 @@ MaybeHandle<Cell> Module::ResolveExport(Isolate* isolate, Handle<Module> module,
   }
 }
 
-bool Module::Instantiate(Isolate* isolate, Handle<Module> module,
-                         v8::Local<v8::Context> context,
-                         v8::Module::ResolveCallback callback) {
+bool Module::Instantiate(
+    Isolate* isolate, Handle<Module> module, v8::Local<v8::Context> context,
+    v8::Module::ResolveModuleCallback callback,
+    DeprecatedResolveCallback callback_without_import_assertions) {
 #ifdef DEBUG
   PrintStatusMessage(*module, "Instantiating module ");
 #endif  // DEBUG
 
-  if (!PrepareInstantiate(isolate, module, context, callback)) {
+  if (!PrepareInstantiate(isolate, module, context, callback,
+                          callback_without_import_assertions)) {
     ResetGraph(isolate, module);
     DCHECK_EQ(module->status(), kUninstantiated);
     return false;
@@ -200,9 +202,10 @@ bool Module::Instantiate(Isolate* isolate, Handle<Module> module,
   return true;
 }
 
-bool Module::PrepareInstantiate(Isolate* isolate, Handle<Module> module,
-                                v8::Local<v8::Context> context,
-                                v8::Module::ResolveCallback callback) {
+bool Module::PrepareInstantiate(
+    Isolate* isolate, Handle<Module> module, v8::Local<v8::Context> context,
+    v8::Module::ResolveModuleCallback callback,
+    DeprecatedResolveCallback callback_without_import_assertions) {
   DCHECK_NE(module->status(), kEvaluating);
   DCHECK_NE(module->status(), kInstantiating);
   if (module->status() >= kPreInstantiating) return true;
@@ -211,10 +214,11 @@ bool Module::PrepareInstantiate(Isolate* isolate, Handle<Module> module,
 
   if (module->IsSourceTextModule()) {
     return SourceTextModule::PrepareInstantiate(
-        isolate, Handle<SourceTextModule>::cast(module), context, callback);
+        isolate, Handle<SourceTextModule>::cast(module), context, callback,
+        callback_without_import_assertions);
   } else {
     return SyntheticModule::PrepareInstantiate(
-        isolate, Handle<SyntheticModule>::cast(module), context, callback);
+        isolate, Handle<SyntheticModule>::cast(module), context);
   }
 }
 

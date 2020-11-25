@@ -869,7 +869,9 @@ void DisposeModuleEmbedderData(Local<Context> context) {
 
 MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
                                          Local<String> specifier,
+                                         Local<FixedArray> import_assertions,
                                          Local<Module> referrer) {
+  // TODO(v8:11189) Consider JSON modules support in d8.
   Isolate* isolate = context->GetIsolate();
   ModuleEmbedderData* d = GetModuleDataFromContext(context);
   auto specifier_it =
