@@ -1197,7 +1197,7 @@ class TracedReference : public BasicTracedReference<T> {
  * handle and may deallocate it.  The behavior of accessing a handle
  * for which the handle scope has been deleted is undefined.
  */
-class V8_EXPORT HandleScope {
+class V8_EXPORT V8_NODISCARD HandleScope {
  public:
   explicit HandleScope(Isolate* isolate);
 
@@ -1244,12 +1244,11 @@ class V8_EXPORT HandleScope {
   friend class Context;
 };
 
-
 /**
  * A HandleScope which first allocates a handle in the current scope
  * which will be later filled with the escape value.
  */
-class V8_EXPORT EscapableHandleScope : public HandleScope {
+class V8_EXPORT V8_NODISCARD EscapableHandleScope : public HandleScope {
  public:
   explicit EscapableHandleScope(Isolate* isolate);
   V8_INLINE ~EscapableHandleScope() = default;
@@ -1290,7 +1289,7 @@ class V8_EXPORT EscapableHandleScope : public HandleScope {
  * are allowed. It can be useful for debugging handle leaks.
  * Handles can be allocated within inner normal HandleScopes.
  */
-class V8_EXPORT SealHandleScope {
+class V8_EXPORT V8_NODISCARD SealHandleScope {
  public:
   explicit SealHandleScope(Isolate* isolate);
   ~SealHandleScope();
@@ -1310,7 +1309,6 @@ class V8_EXPORT SealHandleScope {
   internal::Address* prev_limit_;
   int prev_sealed_level_;
 };
-
 
 // --- Special objects ---
 
@@ -7590,7 +7588,7 @@ class V8_EXPORT MicrotaskQueue {
  * kDoNotRunMicrotasks should be used to annotate calls not intended to trigger
  * microtasks.
  */
-class V8_EXPORT MicrotasksScope {
+class V8_EXPORT V8_NODISCARD MicrotasksScope {
  public:
   enum Type { kRunMicrotasks, kDoNotRunMicrotasks };
 
@@ -7622,7 +7620,6 @@ class V8_EXPORT MicrotasksScope {
   internal::MicrotaskQueue* const microtask_queue_;
   bool run_;
 };
-
 
 // --- Failed Access Check Callback ---
 typedef void (*FailedAccessCheckCallback)(Local<Object> target,
@@ -8415,7 +8412,7 @@ class V8_EXPORT Isolate {
    * Stack-allocated class which sets the isolate for all operations
    * executed within a local scope.
    */
-  class V8_EXPORT Scope {
+  class V8_EXPORT V8_NODISCARD Scope {
    public:
     explicit Scope(Isolate* isolate) : isolate_(isolate) {
       isolate->Enter();
@@ -8431,11 +8428,10 @@ class V8_EXPORT Isolate {
     Isolate* const isolate_;
   };
 
-
   /**
    * Assert that no Javascript code is invoked.
    */
-  class V8_EXPORT DisallowJavascriptExecutionScope {
+  class V8_EXPORT V8_NODISCARD DisallowJavascriptExecutionScope {
    public:
     enum OnFailure { CRASH_ON_FAILURE, THROW_ON_FAILURE, DUMP_ON_FAILURE };
 
@@ -8453,11 +8449,10 @@ class V8_EXPORT Isolate {
     void* internal_;
   };
 
-
   /**
    * Introduce exception to DisallowJavascriptExecutionScope.
    */
-  class V8_EXPORT AllowJavascriptExecutionScope {
+  class V8_EXPORT V8_NODISCARD AllowJavascriptExecutionScope {
    public:
     explicit AllowJavascriptExecutionScope(Isolate* isolate);
     ~AllowJavascriptExecutionScope();
@@ -8478,7 +8473,7 @@ class V8_EXPORT Isolate {
    * Do not run microtasks while this scope is active, even if microtasks are
    * automatically executed otherwise.
    */
-  class V8_EXPORT SuppressMicrotaskExecutionScope {
+  class V8_EXPORT V8_NODISCARD SuppressMicrotaskExecutionScope {
    public:
     explicit SuppressMicrotaskExecutionScope(
         Isolate* isolate, MicrotaskQueue* microtask_queue = nullptr);
@@ -8502,7 +8497,7 @@ class V8_EXPORT Isolate {
    * This scope allows terminations inside direct V8 API calls and forbid them
    * inside any recursive API calls without explicit SafeForTerminationScope.
    */
-  class V8_EXPORT SafeForTerminationScope {
+  class V8_EXPORT V8_NODISCARD SafeForTerminationScope {
    public:
     explicit SafeForTerminationScope(v8::Isolate* isolate);
     ~SafeForTerminationScope();
@@ -10638,7 +10633,7 @@ class V8_EXPORT Context {
    * Stack-allocated class which sets the execution context for all
    * operations executed within a local scope.
    */
-  class Scope {
+  class V8_NODISCARD Scope {
    public:
     explicit V8_INLINE Scope(Local<Context> context) : context_(context) {
       context_->Enter();
@@ -10654,7 +10649,7 @@ class V8_EXPORT Context {
    * stack.
    * https://html.spec.whatwg.org/multipage/webappapis.html#backup-incumbent-settings-object-stack
    */
-  class V8_EXPORT BackupIncumbentScope final {
+  class V8_EXPORT V8_NODISCARD BackupIncumbentScope final {
    public:
     /**
      * |backup_incumbent_context| is pushed onto the backup incumbent settings
