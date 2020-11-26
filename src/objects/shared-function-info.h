@@ -610,7 +610,7 @@ class SharedFunctionInfo
   static const uint16_t kFunctionTokenOutOfRange = static_cast<uint16_t>(-1);
   STATIC_ASSERT(kMaximumFunctionTokenOffset + 1 == kFunctionTokenOutOfRange);
 
-  static const int kAlignedSize = SizeFor();
+  static const int kAlignedSize = OBJECT_POINTER_ALIGN(kSize);
 
   class BodyDescriptor;
 
