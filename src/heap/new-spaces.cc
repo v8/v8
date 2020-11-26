@@ -136,6 +136,7 @@ bool SemiSpace::Uncommit() {
     heap()->memory_allocator()->Free<MemoryAllocator::kPooledAndQueue>(chunk);
   }
   current_page_ = nullptr;
+  current_capacity_ = 0;
   AccountUncommitted(target_capacity_);
   heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
   return true;
