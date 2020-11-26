@@ -133,7 +133,7 @@ constexpr ValueType kSupportedTypesWithoutRefsArr[] = {
 constexpr Vector<const ValueType> kSupportedTypesWithoutRefs =
     ArrayVector(kSupportedTypesWithoutRefsArr);
 
-constexpr Condition GetCompareCondition(WasmOpcode opcode) {
+constexpr LiftoffCondition GetCompareCondition(WasmOpcode opcode) {
   switch (opcode) {
     case kExprI32Eq:
       return kEqual;
@@ -1963,7 +1963,7 @@ class LiftoffCompiler {
       outstanding_op_ = kNoOutstandingOp;
     } else {
       // Otherwise, it's an i32 compare opcode.
-      Condition cond = NegateCondition(GetCompareCondition(outstanding_op_));
+      LiftoffCondition cond = Negate(GetCompareCondition(outstanding_op_));
       Register rhs = value;
       Register lhs = __ PopToRegister(LiftoffRegList::ForRegs(rhs)).gp();
       __ emit_cond_jump(cond, &cont_false, kWasmI32, lhs, rhs);

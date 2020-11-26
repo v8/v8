@@ -516,9 +516,9 @@ void LiftoffAssembler::emit_jump(Register target) {
   bailout(kUnsupportedArchitecture, "emit_jump");
 }
 
-void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
-                                      ValueType type, Register lhs,
-                                      Register rhs) {
+void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
+                                      Label* label, ValueType type,
+                                      Register lhs, Register rhs) {
   bailout(kUnsupportedArchitecture, "emit_cond_jump");
 }
 
@@ -526,8 +526,9 @@ void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
   bailout(kUnsupportedArchitecture, "emit_i32_eqz");
 }
 
-void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
-                                         Register lhs, Register rhs) {
+void LiftoffAssembler::emit_i32_set_cond(LiftoffCondition liftoff_cond,
+                                         Register dst, Register lhs,
+                                         Register rhs) {
   bailout(kUnsupportedArchitecture, "emit_i32_set_cond");
 }
 
@@ -535,20 +536,20 @@ void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {
   bailout(kUnsupportedArchitecture, "emit_i64_eqz");
 }
 
-void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
-                                         LiftoffRegister lhs,
+void LiftoffAssembler::emit_i64_set_cond(LiftoffCondition liftoff_cond,
+                                         Register dst, LiftoffRegister lhs,
                                          LiftoffRegister rhs) {
   bailout(kUnsupportedArchitecture, "emit_i64_set_cond");
 }
 
-void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
-                                         DoubleRegister lhs,
+void LiftoffAssembler::emit_f32_set_cond(LiftoffCondition liftoff_cond,
+                                         Register dst, DoubleRegister lhs,
                                          DoubleRegister rhs) {
   bailout(kUnsupportedArchitecture, "emit_f32_set_cond");
 }
 
-void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
-                                         DoubleRegister lhs,
+void LiftoffAssembler::emit_f64_set_cond(LiftoffCondition liftoff_cond,
+                                         Register dst, DoubleRegister lhs,
                                          DoubleRegister rhs) {
   bailout(kUnsupportedArchitecture, "emit_f64_set_cond");
 }
