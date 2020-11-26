@@ -7,6 +7,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/platform/platform.h"
+#include "src/base/platform/time.h"
 #include "src/base/ring-buffer.h"
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
@@ -404,6 +405,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   // accounting of events within a GC is not necessary which is why the
   // recording takes place at the end of the atomic pause.
   void RecordGCSumCounters(double atomic_pause_duration);
+
+  double MonotonicallyIncreasingTimeInMs();
 
   // Print one detailed trace line in name=value format.
   // TODO(ernstm): Move to Heap.

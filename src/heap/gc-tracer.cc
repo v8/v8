@@ -48,17 +48,26 @@ RuntimeCallCounterId GCTracer::RCSCounterFromBackgroundScope(
       static_cast<int>(id));
 }
 
+double GCTracer::MonotonicallyIncreasingTimeInMs() {
+  if (V8_UNLIKELY(FLAG_predictable)) {
+    return heap_->MonotonicallyIncreasingTimeInMs();
+  } else {
+    return base::TimeTicks::Now().ToInternalValue() /
+           static_cast<double>(base::Time::kMicrosecondsPerMillisecond);
+  }
+}
+
 GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope)
     : tracer_(tracer), scope_(scope) {
-  start_time_ = tracer_->heap_->MonotonicallyIncreasingTimeInMs();
+  start_time_ = tracer_->MonotonicallyIncreasingTimeInMs();
   if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
   runtime_stats_ = tracer_->heap_->isolate()->counters()->runtime_call_stats();
   runtime_stats_->Enter(&timer_, GCTracer::RCSCounterFromScope(scope));
 }
 
 GCTracer::Scope::~Scope() {
-  tracer_->AddScopeSample(
-      scope_, tracer_->heap_->MonotonicallyIncreasingTimeInMs() - start_time_);
+  double delta = tracer_->MonotonicallyIncreasingTimeInMs() - start_time_;
+  tracer_->AddScopeSample(scope_, delta);
   if (V8_LIKELY(runtime_stats_ == nullptr)) return;
   runtime_stats_->Leave(&timer_);
 }
@@ -66,16 +75,15 @@ GCTracer::Scope::~Scope() {
 GCTracer::BackgroundScope::BackgroundScope(GCTracer* tracer, ScopeId scope,
                                            RuntimeCallStats* runtime_stats)
     : tracer_(tracer), scope_(scope), runtime_stats_(runtime_stats) {
-  start_time_ = tracer_->heap_->MonotonicallyIncreasingTimeInMs();
+  start_time_ = tracer_->MonotonicallyIncreasingTimeInMs();
   if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
   runtime_stats_->Enter(&timer_,
                         GCTracer::RCSCounterFromBackgroundScope(scope));
 }
 
 GCTracer::BackgroundScope::~BackgroundScope() {
-  double duration_ms =
-      tracer_->heap_->MonotonicallyIncreasingTimeInMs() - start_time_;
-  tracer_->AddBackgroundScopeSample(scope_, duration_ms);
+  double delta = tracer_->MonotonicallyIncreasingTimeInMs() - start_time_;
+  tracer_->AddBackgroundScopeSample(scope_, delta);
   if (V8_LIKELY(runtime_stats_ == nullptr)) return;
   runtime_stats_->Leave(&timer_);
 }
@@ -175,7 +183,7 @@ GCTracer::GCTracer(Heap* heap)
   // We assume that MC_INCREMENTAL is the first scope so that we can properly
   // map it to RuntimeCallStats.
   STATIC_ASSERT(0 == Scope::MC_INCREMENTAL);
-  current_.end_time = heap_->MonotonicallyIncreasingTimeInMs();
+  current_.end_time = MonotonicallyIncreasingTimeInMs();
   for (int i = 0; i < BackgroundScope::NUMBER_OF_SCOPES; i++) {
     background_counter_[i].total_duration_ms = 0;
   }
@@ -183,7 +191,7 @@ GCTracer::GCTracer(Heap* heap)
 
 void GCTracer::ResetForTesting() {
   current_ = Event(Event::START, GarbageCollectionReason::kTesting, nullptr);
-  current_.end_time = heap_->MonotonicallyIncreasingTimeInMs();
+  current_.end_time = MonotonicallyIncreasingTimeInMs();
   previous_ = current_;
   ResetIncrementalMarkingCounters();
   allocation_time_ms_ = 0.0;
@@ -248,7 +256,7 @@ void GCTracer::Start(GarbageCollector collector,
   }
 
   current_.reduce_memory = heap_->ShouldReduceMemory();
-  current_.start_time = heap_->MonotonicallyIncreasingTimeInMs();
+  current_.start_time = MonotonicallyIncreasingTimeInMs();
   current_.start_object_size = 0;
   current_.start_memory_size = 0;
   current_.start_holes_size = 0;
@@ -322,7 +330,7 @@ void GCTracer::Stop(GarbageCollector collector) {
           (current_.type == Event::MARK_COMPACTOR ||
            current_.type == Event::INCREMENTAL_MARK_COMPACTOR)));
 
-  current_.end_time = heap_->MonotonicallyIncreasingTimeInMs();
+  current_.end_time = MonotonicallyIncreasingTimeInMs();
 
   AddAllocation(current_.end_time);
 
