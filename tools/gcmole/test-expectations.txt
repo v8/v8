@@ -1,4 +1,3 @@
-
 tools/gcmole/gcmole-test.cc:30:10: warning: Possibly dead variable.
   return obj;
          ^

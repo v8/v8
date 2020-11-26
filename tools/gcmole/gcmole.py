@@ -11,11 +11,16 @@ from __future__ import print_function
 
 import collections
 import difflib
-import multiprocessing
+from multiprocessing import cpu_count
 import os
 import re
 import subprocess
 import sys
+import threading
+if sys.version_info.major > 2:
+  import queue
+else:
+  import Queue as queue
 
 ArchCfg = collections.namedtuple("ArchCfg",
                                  ["triple", "arch_define", "arch_options"])
@@ -103,16 +108,34 @@ def MakeClangCommandLine(plugin, plugin_args, arch_cfg, clang_bin_dir,
 
 
 def InvokeClangPluginForFile(filename, cmd_line, verbose):
+  if verbose:
+    print("popen ", " ".join(cmd_line + [filename]))
+  p = subprocess.Popen(
+      cmd_line + [filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+  stdout, stderr = p.communicate()
+  return p.returncode, stdout, stderr
+
+
+def InvokeClangPluginForFilesInQueue(i, input_queue, output_queue, cancel_event,
+                                     cmd_line, verbose):
+  success = False
   try:
-    log("-- {}", filename)
-    if verbose:
-      print("popen ", " ".join(cmd_line + [filename]))
-    p = subprocess.Popen(cmd_line + [filename], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = p.communicate()
-    return p.returncode, stdout, stderr
+    while not cancel_event.is_set():
+      filename = input_queue.get_nowait()
+      ret, stdout, stderr = InvokeClangPluginForFile(filename, cmd_line,
+                                                     verbose)
+      output_queue.put_nowait((filename, ret, stdout.decode('utf-8'), stderr.decode('utf-8')))
+      if ret != 0:
+        break
   except KeyboardInterrupt:
-    log("-- Interrupting {}", filename)
-    return 1, ""
+    log("-- [{}] Interrupting", i)
+  except queue.Empty:
+    success = True
+  finally:
+    # Emit a success bool so that the reader knows that there was either an
+    # error or all files were processed.
+    output_queue.put_nowait(success)
+
 
 def InvokeClangPluginForEachFile(
     filenames,
@@ -126,48 +149,58 @@ def InvokeClangPluginForEachFile(
   cmd_line = MakeClangCommandLine(plugin, plugin_args, arch_cfg, clang_bin_dir,
                                   clang_plugins_dir)
   verbose = flags["verbose"]
-  outputs = {}
   if flags["sequential"]:
     log("** Sequential execution.")
     for filename in filenames:
-      returncode, stdout, stderr = InvokeClangPluginForFile(filename, cmd_line, verbose)
+      log("-- {}", filename)
+      returncode, stdout, stderr = InvokeClangPluginForFile(
+          filename, cmd_line, verbose)
       if returncode != 0:
         sys.stderr.write(stderr)
         sys.exit(returncode)
-      outputs[filename] = (stdout, stderr)
+      yield filename, stdout, stderr
   else:
     log("** Parallel execution.")
-    cpus = multiprocessing.cpu_count()
-    pool = multiprocessing.Pool(cpus)
+    cpus = cpu_count()
+    input_queue = queue.Queue()
+    output_queue = queue.Queue()
+    threads = []
     try:
-      # Track active invokes with a semaphore, to prevent submitting too many
-      # concurrent invokes to the pool.
-      execution_slots = multiprocessing.BoundedSemaphore(cpus)
-
-      async_outputs = {}
       for filename in filenames:
-        execution_slots.acquire()
-        def callback(output):
-          execution_slots.release()
+        input_queue.put(filename)
 
-        async_outputs[filename] = pool.apply_async(
-            InvokeClangPluginForFile, (filename, cmd_line, verbose),
-            callback=callback)
+      cancel_event = threading.Event()
 
-      for filename, output in async_outputs.items():
-        returncode, stdout, stderr = output.get()
+      for i in range(min(len(filenames), cpus)):
+        threads.append(
+            threading.Thread(
+                target=InvokeClangPluginForFilesInQueue,
+                args=(i, input_queue, output_queue, cancel_event, cmd_line,
+                      verbose)))
+
+      for t in threads:
+        t.start()
+
+      num_finished = 0
+      while num_finished < len(threads):
+        output = output_queue.get()
+        if type(output) == bool:
+          if output:
+            num_finished += 1
+            continue
+          else:
+            break
+        filename, returncode, stdout, stderr = output
+        log("-- {}", filename)
         if returncode != 0:
           sys.stderr.write(stderr)
           sys.exit(returncode)
-        outputs[filename] = (stdout, stderr)
-    except KeyboardInterrupt as e:
-      pool.terminate()
-      pool.join()
-      raise e
-    finally:
-      pool.close()
+        yield filename, stdout, stderr
 
-  return outputs
+    finally:
+      cancel_event.set()
+      for t in threads:
+        t.join()
 
 
 # -----------------------------------------------------------------------------
@@ -249,7 +282,7 @@ def FilesForTest(arch):
 #
 # This means that we can match just the function name by matching only
 # after a comma.
-ALLOWLIST = set([
+ALLOWLIST = [
     # The following functions call CEntryStub which is always present.
     "MacroAssembler.*,CallRuntime",
     "CompileCallLoadPropertyWithInterceptor",
@@ -270,7 +303,27 @@ ALLOWLIST = set([
     # CodeCreateEvent receives AbstractCode (a raw ptr) as an argument.
     "CodeCreateEvent",
     "WriteField",
-])
+]
+
+GC_PATTERN = ",.*Collect.*Garbage"
+SAFEPOINT_PATTERN = ",EnterSafepoint"
+ALLOWLIST_PATTERN = "|".join("(?:%s)" % p for p in ALLOWLIST)
+
+
+def MergeRegexp(pattern_dict):
+  return re.compile("|".join(
+      "(?P<%s>%s)" % (key, value) for (key, value) in pattern_dict.items()))
+
+
+IS_SPECIAL_WITHOUT_ALLOW_LIST = MergeRegexp({
+    "gc": GC_PATTERN,
+    "safepoint": SAFEPOINT_PATTERN
+})
+IS_SPECIAL_WITH_ALLOW_LIST = MergeRegexp({
+    "gc": GC_PATTERN,
+    "safepoint": SAFEPOINT_PATTERN,
+    "allow": ALLOWLIST_PATTERN
+})
 
 
 class GCSuspectsCollector:
@@ -279,8 +332,9 @@ class GCSuspectsCollector:
     self.gc = {}
     self.gc_caused = collections.defaultdict(lambda: [])
     self.funcs = {}
-    self.current_scope = None
+    self.current_caller = None
     self.allowlist = flags["allowlist"]
+    self.is_special = IS_SPECIAL_WITH_ALLOW_LIST if self.allowlist else IS_SPECIAL_WITHOUT_ALLOW_LIST
 
   def AddCause(self, name, cause):
     self.gc_caused[name].append(cause)
@@ -292,27 +346,25 @@ class GCSuspectsCollector:
 
       if funcname[0] != "\t":
         self.Resolve(funcname)
-        self.current_scope = funcname
+        self.current_caller = funcname
       else:
         name = funcname[1:]
-        self.Resolve(name)[self.current_scope] = True
+        callers_for_name = self.Resolve(name)
+        callers_for_name.add(self.current_caller)
 
   def Resolve(self, name):
     if name not in self.funcs:
-      self.funcs[name] = {}
-
-      if re.search(",.*Collect.*Garbage", name):
-        self.gc[name] = True
-        self.AddCause(name, "<GC>")
-
-      if re.search(",EnterSafepoint", name):
-        self.gc[name] = True
-        self.AddCause(name, "<Safepoint>")
-
-      if self.allowlist:
-        for allow in ALLOWLIST:
-          if re.search(allow, name):
-            self.gc[name] = False
+      self.funcs[name] = set()
+      m = self.is_special.search(name)
+      if m:
+        if m.group("gc"):
+          self.gc[name] = True
+          self.AddCause(name, "<GC>")
+        elif m.group("safepoint"):
+          self.gc[name] = True
+          self.AddCause(name, "<Safepoint>")
+        elif m.group("allow"):
+          self.gc[name] = False
 
     return self.funcs[name]
 
@@ -338,10 +390,10 @@ def GenerateGCSuspects(arch, files, arch_cfg, flags, clang_bin_dir,
   collector = GCSuspectsCollector(flags)
 
   log("** Building GC Suspects for {}", arch)
-  for filename, (stdout, stderr) in InvokeClangPluginForEachFile(
+  for filename, stdout, stderr in InvokeClangPluginForEachFile(
       files, "dump-callees", [], arch_cfg, flags, clang_bin_dir,
-      clang_plugins_dir).items():
-    collector.Parse(stdout.split('\n'))
+      clang_plugins_dir):
+    collector.Parse(stdout.splitlines())
 
   collector.Propagate()
 
@@ -380,7 +432,6 @@ def CheckCorrectnessForArch(arch, for_test, flags, clang_bin_dir,
   else:
     log("** Reusing GCSuspects for {}", arch)
 
-
   processed_files = 0
   errors_found = False
   output = ""
@@ -395,7 +446,7 @@ def CheckCorrectnessForArch(arch, for_test, flags, clang_bin_dir,
     plugin_args.append("--dead-vars")
   if flags["verbose_trace"]:
     plugin_args.append("--verbose")
-  for filename, (stdout, stderr) in InvokeClangPluginForEachFile(
+  for filename, stdout, stderr in InvokeClangPluginForEachFile(
       files,
       "find-problems",
       plugin_args,
@@ -403,16 +454,15 @@ def CheckCorrectnessForArch(arch, for_test, flags, clang_bin_dir,
       flags,
       clang_bin_dir,
       clang_plugins_dir,
-  ).items():
+  ):
     processed_files = processed_files + 1
-    for l in stderr.split('\n'):
-      if not errors_found:
-        errors_found = re.match("^[^:]+:\d+:\d+: (warning|error)",
-                                l) is not None
-      if for_test:
-        output = output + "\n" + l
-      else:
-        print(l)
+    if not errors_found:
+      errors_found = re.search("^[^:]+:\d+:\d+: (warning|error)", stderr,
+                               re.MULTILINE) is not None
+    if for_test:
+      output = output + stderr
+    else:
+      sys.stdout.write(stderr)
 
   log(
       "** Done processing {} files. {}",
@@ -440,8 +490,8 @@ def TestRun(flags, clang_bin_dir, clang_plugins_dir):
     log("** Output mismatch from running tests. Please run them manually.")
 
     for line in difflib.context_diff(
-        expectations.split("\n"),
-        output.split("\n"),
+        expectations.splitlines(),
+        output.splitlines(),
         fromfile=filename,
         tofile="output",
         lineterm="",
