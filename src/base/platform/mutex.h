@@ -222,36 +222,43 @@ class V8_BASE_EXPORT SharedMutex final {
   // holding the mutex in exclusive ownership, a call to {LockShared()} will
   // block execution until shared ownership can be acquired.
   // If {LockShared()} is called by a thread that already owns the mutex in any
-  // mode (exclusive or shared), the behavior is undefined.
+  // mode (exclusive or shared), the behavior is undefined and outright fails
+  // with dchecks on.
   void LockShared();
 
   // Locks the SharedMutex. If another thread has already locked the mutex, a
   // call to {LockExclusive()} will block execution until the lock is acquired.
   // If {LockExclusive()} is called by a thread that already owns the mutex in
-  // any mode (shared or exclusive), the behavior is undefined.
+  // any mode (shared or exclusive), the behavior is undefined and outright
+  // fails with dchecks on.
   void LockExclusive();
 
   // Releases the {SharedMutex} from shared ownership by the calling thread.
   // The mutex must be locked by the current thread of execution in shared mode,
-  // otherwise, the behavior is undefined.
+  // otherwise, the behavior is undefined and outright fails with dchecks on.
   void UnlockShared();
 
   // Unlocks the {SharedMutex}. It must be locked by the current thread of
-  // execution, otherwise, the behavior is undefined.
+  // execution, otherwise, the behavior is undefined and outright fails with
+  // dchecks on.
   void UnlockExclusive();
 
   // Tries to lock the {SharedMutex} in shared mode. Returns immediately. On
   // successful lock acquisition returns true, otherwise returns false.
   // This function is allowed to fail spuriously and return false even if the
   // mutex is not currenly exclusively locked by any other thread.
+  // If it is called by a thread that already owns the mutex in any mode
+  // (shared or exclusive), the behavior is undefined, and outright fails with
+  // dchecks on.
   bool TryLockShared() V8_WARN_UNUSED_RESULT;
 
   // Tries to lock the {SharedMutex}. Returns immediately. On successful lock
   // acquisition returns true, otherwise returns false.
   // This function is allowed to fail spuriously and return false even if the
   // mutex is not currently locked by any other thread.
-  // If try_lock is called by a thread that already owns the mutex in any mode
-  // (shared or exclusive), the behavior is undefined.
+  // If it is called by a thread that already owns the mutex in any mode
+  // (shared or exclusive), the behavior is undefined, and outright fails with
+  // dchecks on.
   bool TryLockExclusive() V8_WARN_UNUSED_RESULT;
 
  private:
