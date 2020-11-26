@@ -320,7 +320,7 @@ class SequentialStringKey final : public StringTableKey {
 
   template <typename LocalIsolate>
   bool IsMatch(LocalIsolate* isolate, String s) {
-    return s.IsEqualTo(isolate, chars_);
+    return s.IsEqualTo<String::EqualityType::kNoLengthCheck>(chars_, isolate);
   }
 
   Handle<String> AsHandle(Isolate* isolate) {
@@ -386,7 +386,7 @@ class SeqSubStringKey final : public StringTableKey {
     DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(string));
     DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*string_));
     DisallowGarbageCollection no_gc;
-    return string.IsEqualTo(
+    return string.IsEqualTo<String::EqualityType::kNoLengthCheck>(
         Vector<const Char>(string_->GetChars(no_gc) + from_, length()));
   }
 
@@ -434,32 +434,33 @@ bool String::Equals(Isolate* isolate, Handle<String> one, Handle<String> two) {
   return SlowEquals(isolate, one, two);
 }
 
-template <typename Char>
-bool String::IsEqualTo(Vector<const Char> str,
-                       String::EqualityType eq_type) const {
+template <String::EqualityType kEqType, typename Char>
+bool String::IsEqualTo(Vector<const Char> str, Isolate* isolate) const {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
-  return IsEqualToImpl(str, eq_type,
-                       SharedStringAccessGuardIfNeeded::NotNeeded());
+  return IsEqualToImpl<kEqType>(str,
+                                SharedStringAccessGuardIfNeeded::NotNeeded());
 }
 
-template <typename Char>
-bool String::IsEqualTo(LocalIsolate* isolate, Vector<const Char> str,
-                       String::EqualityType eq_type) const {
+template <String::EqualityType kEqType, typename Char>
+bool String::IsEqualTo(Vector<const Char> str, LocalIsolate* isolate) const {
   SharedStringAccessGuardIfNeeded access_guard(isolate);
-  return IsEqualToImpl(str, eq_type, access_guard);
+  return IsEqualToImpl<kEqType>(str, access_guard);
 }
 
-template <typename Char>
+template <String::EqualityType kEqType, typename Char>
 bool String::IsEqualToImpl(
-    Vector<const Char> str, String::EqualityType eq_type,
+    Vector<const Char> str,
     const SharedStringAccessGuardIfNeeded& access_guard) const {
   size_t len = str.size();
-  switch (eq_type) {
+  switch (kEqType) {
     case EqualityType::kWholeString:
       if (static_cast<size_t>(length()) != len) return false;
       break;
     case EqualityType::kPrefix:
       if (static_cast<size_t>(length()) < len) return false;
+      break;
+    case EqualityType::kNoLengthCheck:
+      DCHECK_EQ(length(), len);
       break;
   }
 

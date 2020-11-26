@@ -317,39 +317,24 @@ class String : public TorqueGeneratedString<String, Name> {
   inline static bool Equals(Isolate* isolate, Handle<String> one,
                             Handle<String> two);
 
-  enum class EqualityType { kWholeString, kPrefix };
-
-  // Check if this string matches the given vector of characters, either as a
-  // whole string or just a prefix.
-  //
-  // This overload should only be called on the main thread.
-  template <typename Char>
-  inline bool IsEqualTo(
-      Vector<const Char> str,
-      EqualityType eq_type = EqualityType::kWholeString) const;
+  enum class EqualityType { kWholeString, kPrefix, kNoLengthCheck };
 
   // Check if this string matches the given vector of characters, either as a
   // whole string or just a prefix.
   //
   // The Isolate is passed as "evidence" that this call is on the main thread,
-  // and to distiguish from the LocalIsolate overload. It is otherwise
-  // equivalent to the no-Isolate overload.
-  template <typename Char>
-  inline bool IsEqualTo(
-      Isolate* isolate, Vector<const Char> str,
-      EqualityType eq_type = EqualityType::kWholeString) const {
-    return IsEqualTo(str, eq_type);
-  }
+  // and to distiguish from the LocalIsolate overload.
+  template <EqualityType kEqType = EqualityType::kWholeString, typename Char>
+  inline bool IsEqualTo(Vector<const Char> str,
+                        Isolate* isolate = nullptr) const;
 
   // Check if this string matches the given vector of characters, either as a
   // whole string or just a prefix.
   //
   // The LocalIsolate is passed to provide access to the string access lock,
   // which is taken when reading the string's contents on a background thread.
-  template <typename Char>
-  inline bool IsEqualTo(
-      LocalIsolate* isolate, Vector<const Char> str,
-      EqualityType eq_type = EqualityType::kWholeString) const;
+  template <EqualityType kEqType = EqualityType::kWholeString, typename Char>
+  inline bool IsEqualTo(Vector<const Char> str, LocalIsolate* isolate) const;
 
   V8_EXPORT_PRIVATE bool HasOneBytePrefix(Vector<const char> str);
   V8_EXPORT_PRIVATE inline bool IsOneByteEqualTo(Vector<const char> str);
@@ -546,9 +531,9 @@ class String : public TorqueGeneratedString<String, Name> {
   V8_INLINE uint16_t GetImpl(int index);
 
   // Implementation of the IsEqualTo() public methods. Do not use directly.
-  template <typename Char>
+  template <EqualityType kEqType, typename Char>
   V8_INLINE bool IsEqualToImpl(
-      Vector<const Char> str, EqualityType eq_type,
+      Vector<const Char> str,
       const SharedStringAccessGuardIfNeeded& access_guard) const;
 
   V8_EXPORT_PRIVATE static Handle<String> SlowFlatten(

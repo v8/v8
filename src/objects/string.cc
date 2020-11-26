@@ -1311,7 +1311,7 @@ Object String::LastIndexOf(Isolate* isolate, Handle<Object> receiver,
 }
 
 bool String::HasOneBytePrefix(Vector<const char> str) {
-  return IsEqualTo(str, EqualityType::kPrefix);
+  return IsEqualTo<EqualityType::kPrefix>(str);
 }
 
 namespace {

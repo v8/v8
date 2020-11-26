@@ -984,8 +984,6 @@ namespace {
 template <typename Char>
 bool Matches(const Vector<const Char>& chars, Handle<String> string) {
   DCHECK(!string.is_null());
-
-  if (chars.length() != string->length()) return false;
   return string->IsEqualTo(chars);
 }
 
