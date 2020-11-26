@@ -762,11 +762,14 @@ void NativeModuleDeserializer::CopyAndRelocate(
 void NativeModuleDeserializer::Publish(
     std::unique_ptr<std::vector<DeserializationUnit>> batch) {
   DCHECK_NOT_NULL(batch);
+  std::vector<std::unique_ptr<WasmCode>> codes;
   for (auto& unit : *batch) {
-    WasmCode* published_code =
-        native_module_->PublishCode(std::move(unit).code);
-    published_code->MaybePrint();
-    published_code->Validate();
+    codes.push_back(std::move(unit).code);
+  }
+  auto published_codes = native_module_->PublishCode(VectorOf(codes));
+  for (auto* wasm_code : published_codes) {
+    wasm_code->MaybePrint();
+    wasm_code->Validate();
   }
 #ifdef DEBUG
   total_published_.fetch_add(1);
