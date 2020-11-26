@@ -17,22 +17,24 @@ namespace internal {
 namespace testing {
 class DelegatingTracingController : public TracingController {
  public:
-  virtual const uint8_t* GetCategoryGroupEnabled(const char* name) {
+#if !defined(V8_USE_PERFETTO)
+  const uint8_t* GetCategoryGroupEnabled(const char* name) override {
     static uint8_t yes = 1;
     return &yes;
   }
 
-  virtual uint64_t AddTraceEvent(
+  uint64_t AddTraceEvent(
       char phase, const uint8_t* category_enabled_flag, const char* name,
       const char* scope, uint64_t id, uint64_t bind_id, int32_t num_args,
       const char** arg_names, const uint8_t* arg_types,
       const uint64_t* arg_values,
       std::unique_ptr<ConvertableToTraceFormat>* arg_convertables,
-      unsigned int flags) {
+      unsigned int flags) override {
     return tracing_controller_->AddTraceEvent(
         phase, category_enabled_flag, name, scope, id, bind_id, num_args,
         arg_names, arg_types, arg_values, arg_convertables, flags);
   }
+#endif  // !defined(V8_USE_PERFETTO)
 
   void SetTracingController(
       std::unique_ptr<TracingController> tracing_controller_impl) {
