@@ -4062,7 +4062,7 @@ UNINITIALIZED_TEST(SnapshotCreatorAnonClassWithKeep) {
   delete[] blob.data;
 }
 
-class DisableLazySourcePositionScope {
+class V8_NODISCARD DisableLazySourcePositionScope {
  public:
   DisableLazySourcePositionScope()
       : backup_value_(FLAG_enable_lazy_source_positions) {

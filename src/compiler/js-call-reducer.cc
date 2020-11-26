@@ -318,7 +318,7 @@ class JSCallReducerAssembler : public JSGraphAssembler {
   // custom catch logic within the reduction itself; or a catch handler in the
   // outside graph into which the reduction will be integrated (in this case
   // the scope is called 'outermost').
-  class CatchScope {
+  class V8_NODISCARD CatchScope {
    private:
     // Only used to partially construct the outermost scope.
     explicit CatchScope(Zone* zone) : if_exception_nodes_(zone) {}

@@ -65,7 +65,7 @@ static std::vector<std::string> Split(const std::string& s, char delimiter) {
   return result;
 }
 
-class ScopedLoggerInitializer {
+class V8_NODISCARD ScopedLoggerInitializer {
  public:
   explicit ScopedLoggerInitializer(v8::Isolate* isolate)
       : temp_file_(nullptr),

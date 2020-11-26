@@ -85,7 +85,8 @@ namespace interpreter {
 static const char* kGoldenFileDirectory =
     "test/cctest/interpreter/bytecode_expectations/";
 
-class InitializedIgnitionHandleScope : public InitializedHandleScope {
+class V8_NODISCARD InitializedIgnitionHandleScope
+    : public InitializedHandleScope {
  public:
   InitializedIgnitionHandleScope() {
     i::FLAG_always_opt = false;

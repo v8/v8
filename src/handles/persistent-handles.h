@@ -102,7 +102,7 @@ class PersistentHandlesList {
 
 // PersistentHandlesScope sets up a scope in which all created main thread
 // handles become persistent handles that can be sent to another thread.
-class PersistentHandlesScope {
+class V8_NODISCARD PersistentHandlesScope {
  public:
   V8_EXPORT_PRIVATE explicit PersistentHandlesScope(Isolate* isolate);
   V8_EXPORT_PRIVATE ~PersistentHandlesScope();

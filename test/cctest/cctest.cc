@@ -235,7 +235,7 @@ void LocalContext::Initialize(v8::Isolate* isolate,
 
 // This indirection is needed because HandleScopes cannot be heap-allocated, and
 // we don't want any unnecessary #includes in cctest.h.
-class InitializedHandleScopeImpl {
+class V8_NODISCARD InitializedHandleScopeImpl {
  public:
   explicit InitializedHandleScopeImpl(i::Isolate* isolate)
       : handle_scope_(isolate) {}

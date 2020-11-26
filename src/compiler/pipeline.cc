@@ -744,7 +744,7 @@ class NodeOriginsWrapper final : public Reducer {
   NodeOriginTable* const table_;
 };
 
-class PipelineRunScope {
+class V8_NODISCARD PipelineRunScope {
  public:
   PipelineRunScope(
       PipelineData* data, const char* phase_name,
@@ -769,7 +769,7 @@ class PipelineRunScope {
 
 // LocalIsolateScope encapsulates the phase where persistent handles are
 // attached to the LocalHeap inside {local_isolate}.
-class LocalIsolateScope {
+class V8_NODISCARD LocalIsolateScope {
  public:
   explicit LocalIsolateScope(JSHeapBroker* broker,
                              OptimizedCompilationInfo* info,
@@ -1096,7 +1096,7 @@ namespace {
 // duration of the job phase and unset immediately afterwards. Each job
 // needs to set the correct RuntimeCallStats table depending on whether it
 // is running on a background or foreground thread.
-class PipelineJobScope {
+class V8_NODISCARD PipelineJobScope {
  public:
   PipelineJobScope(PipelineData* data, RuntimeCallStats* stats) : data_(data) {
     data_->set_runtime_call_stats(stats);

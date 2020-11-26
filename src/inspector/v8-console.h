@@ -24,7 +24,7 @@ class V8Console : public v8::debug::ConsoleDelegate {
   void installMemoryGetter(v8::Local<v8::Context> context,
                            v8::Local<v8::Object> console);
 
-  class CommandLineAPIScope {
+  class V8_NODISCARD CommandLineAPIScope {
    public:
     CommandLineAPIScope(v8::Local<v8::Context>,
                         v8::Local<v8::Object> commandLineAPI,

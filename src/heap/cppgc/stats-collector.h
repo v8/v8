@@ -135,7 +135,7 @@ class V8_EXPORT_PRIVATE StatsCollector final {
   // Trace a particular scope. Will emit a trace event and record the time in
   // the corresponding StatsCollector.
   template <TraceCategory trace_category, ScopeContext scope_category>
-  class InternalScope {
+  class V8_NODISCARD InternalScope {
     using ScopeIdType = std::conditional_t<scope_category == kMutatorThread,
                                            ScopeId, ConcurrentScopeId>;
 

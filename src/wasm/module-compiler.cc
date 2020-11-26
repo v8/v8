@@ -81,7 +81,7 @@ enum class CompileStrategy : uint8_t {
 
 class CompilationStateImpl;
 
-class BackgroundCompileScope {
+class V8_NODISCARD BackgroundCompileScope {
  public:
   explicit BackgroundCompileScope(std::weak_ptr<NativeModule> native_module)
       : native_module_(native_module.lock()) {}

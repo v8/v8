@@ -1212,7 +1212,7 @@ void Heap::GarbageCollectionEpilogue() {
   last_gc_time_ = MonotonicallyIncreasingTimeInMs();
 }
 
-class GCCallbacksScope {
+class V8_NODISCARD GCCallbacksScope {
  public:
   explicit GCCallbacksScope(Heap* heap) : heap_(heap) {
     heap_->gc_callbacks_depth_++;

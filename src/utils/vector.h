@@ -141,7 +141,7 @@ class Vector {
 };
 
 template <typename T>
-class ScopedVector : public Vector<T> {
+class V8_NODISCARD ScopedVector : public Vector<T> {
  public:
   explicit ScopedVector(size_t length)
       : Vector<T>(NewArray<T>(length), length) {}

@@ -55,7 +55,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   // NoGCScope allows going over limits and avoids triggering garbage
   // collection triggered through allocations or even explicitly.
-  class V8_EXPORT_PRIVATE NoGCScope final {
+  class V8_EXPORT_PRIVATE V8_NODISCARD NoGCScope final {
     CPPGC_STACK_ALLOCATED();
 
    public:

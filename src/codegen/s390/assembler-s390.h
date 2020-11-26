@@ -1477,7 +1477,7 @@ class EnsureSpace {
   explicit EnsureSpace(Assembler* assembler) { assembler->CheckBuffer(); }
 };
 
-class V8_EXPORT_PRIVATE UseScratchRegisterScope {
+class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
  public:
   explicit UseScratchRegisterScope(Assembler* assembler);
   ~UseScratchRegisterScope();

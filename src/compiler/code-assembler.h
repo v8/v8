@@ -649,7 +649,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void SetSourcePosition(const char* file, int line);
   void PushSourcePosition();
   void PopSourcePosition();
-  class SourcePositionScope {
+  class V8_NODISCARD SourcePositionScope {
    public:
     explicit SourcePositionScope(CodeAssembler* ca) : ca_(ca) {
       ca->PushSourcePosition();
@@ -1565,7 +1565,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   VariableId NextVariableId() { return next_variable_id_++; }
 };
 
-class V8_EXPORT_PRIVATE ScopedExceptionHandler {
+class V8_EXPORT_PRIVATE V8_NODISCARD ScopedExceptionHandler {
  public:
   ScopedExceptionHandler(CodeAssembler* assembler,
                          CodeAssemblerExceptionHandlerLabel* label);

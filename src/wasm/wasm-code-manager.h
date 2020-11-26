@@ -887,7 +887,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
 //    and even if we did, the resulting set of pages may be fragmented.
 //    Currently, we try and keep the number of syscalls low.
 // -  similar argument for debug time.
-class NativeModuleModificationScope final {
+class V8_NODISCARD NativeModuleModificationScope final {
  public:
   explicit NativeModuleModificationScope(NativeModule* native_module);
   ~NativeModuleModificationScope();
@@ -899,7 +899,7 @@ class NativeModuleModificationScope final {
 // {WasmCodeRefScope}s form a perfect stack. New {WasmCode} pointers generated
 // by e.g. creating new code or looking up code by its address are added to the
 // top-most {WasmCodeRefScope}.
-class V8_EXPORT_PRIVATE WasmCodeRefScope {
+class V8_EXPORT_PRIVATE V8_NODISCARD WasmCodeRefScope {
  public:
   WasmCodeRefScope();
   WasmCodeRefScope(const WasmCodeRefScope&) = delete;

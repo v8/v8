@@ -210,7 +210,7 @@ class Utf16CharacterStream {
 class V8_EXPORT_PRIVATE Scanner {
  public:
   // Scoped helper for a re-settable bookmark.
-  class V8_EXPORT_PRIVATE BookmarkScope {
+  class V8_EXPORT_PRIVATE V8_NODISCARD BookmarkScope {
    public:
     explicit BookmarkScope(Scanner* scanner)
         : scanner_(scanner),

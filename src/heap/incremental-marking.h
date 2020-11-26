@@ -39,7 +39,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   using AtomicMarkingState = MarkCompactCollector::AtomicMarkingState;
   using NonAtomicMarkingState = MarkCompactCollector::NonAtomicMarkingState;
 
-  class PauseBlackAllocationScope {
+  class V8_NODISCARD PauseBlackAllocationScope {
    public:
     explicit PauseBlackAllocationScope(IncrementalMarking* marking)
         : marking_(marking), paused_(false) {

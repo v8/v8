@@ -178,7 +178,7 @@ class Serializer : public SerializerDeserializer {
   using PendingObjectReferences = std::vector<int>*;
 
   class ObjectSerializer;
-  class RecursionScope {
+  class V8_NODISCARD RecursionScope {
    public:
     explicit RecursionScope(Serializer* serializer) : serializer_(serializer) {
       serializer_->recursion_depth_++;

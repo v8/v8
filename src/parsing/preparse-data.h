@@ -109,7 +109,7 @@ class V8_EXPORT_PRIVATE PreparseDataBuilder : public ZoneObject,
   // For gathering the inner function data and splitting it up according to the
   // laziness boundaries. Each lazy function gets its own
   // ProducedPreparseData, and so do all lazy functions inside it.
-  class DataGatheringScope {
+  class V8_NODISCARD DataGatheringScope {
    public:
     explicit DataGatheringScope(PreParser* preparser)
         : preparser_(preparser), builder_(nullptr) {}

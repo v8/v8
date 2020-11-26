@@ -49,7 +49,7 @@ class RuntimeProfiler {
                 CodeKind code_kind);
   void Baseline(JSFunction function, OptimizationReason reason);
 
-  class MarkCandidatesForOptimizationScope final {
+  class V8_NODISCARD MarkCandidatesForOptimizationScope final {
    public:
     explicit MarkCandidatesForOptimizationScope(RuntimeProfiler* profiler);
     ~MarkCandidatesForOptimizationScope();

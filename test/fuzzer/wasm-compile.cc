@@ -111,7 +111,7 @@ class WasmGenerator {
     builder_->Emit(Op);
   }
 
-  class BlockScope {
+  class V8_NODISCARD BlockScope {
    public:
     BlockScope(WasmGenerator* gen, WasmOpcode block_type,
                Vector<const ValueType> param_types,

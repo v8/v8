@@ -39,7 +39,7 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
     // Reading from the ByteData is only allowed when a ReadingScope is on the
     // stack. This ensures that we have a DisallowGarbageCollection in place
     // whenever ByteData holds a raw pointer into the heap.
-    class ReadingScope {
+    class V8_NODISCARD ReadingScope {
      public:
       ReadingScope(ByteData* consumed_data, Data data)
           : consumed_data_(consumed_data) {

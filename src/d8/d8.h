@@ -242,7 +242,7 @@ class PerIsolateData {
     return reinterpret_cast<PerIsolateData*>(isolate->GetData(0));
   }
 
-  class RealmScope {
+  class V8_NODISCARD RealmScope {
    public:
     explicit RealmScope(PerIsolateData* data);
     ~RealmScope();

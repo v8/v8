@@ -18,7 +18,7 @@
 namespace v8 {
 namespace internal {
 
-class ScopedExternalStringLock {
+class V8_NODISCARD ScopedExternalStringLock {
  public:
   explicit ScopedExternalStringLock(ExternalString string) {
     DCHECK(!string.is_null());

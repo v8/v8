@@ -598,7 +598,7 @@ static inline void EmptyMessageQueues(v8::Isolate* isolate) {
 
 class InitializedHandleScopeImpl;
 
-class InitializedHandleScope {
+class V8_NODISCARD InitializedHandleScope {
  public:
   InitializedHandleScope();
   ~InitializedHandleScope();
@@ -611,7 +611,7 @@ class InitializedHandleScope {
   std::unique_ptr<InitializedHandleScopeImpl> initialized_handle_scope_impl_;
 };
 
-class HandleAndZoneScope : public InitializedHandleScope {
+class V8_NODISCARD HandleAndZoneScope : public InitializedHandleScope {
  public:
   explicit HandleAndZoneScope(bool support_zone_compression = false);
   ~HandleAndZoneScope();
@@ -638,7 +638,7 @@ class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
   const char* data_;
 };
 
-class ManualGCScope {
+class V8_NODISCARD ManualGCScope {
  public:
   ManualGCScope()
       : flag_concurrent_marking_(i::FLAG_concurrent_marking),

@@ -721,7 +721,7 @@ void AstPrinter::PrintLiteral(const AstConsString* value, bool quote) {
 
 //-----------------------------------------------------------------------------
 
-class IndentedScope {
+class V8_NODISCARD IndentedScope {
  public:
   IndentedScope(AstPrinter* printer, const char* txt)
       : ast_printer_(printer) {
@@ -744,7 +744,6 @@ class IndentedScope {
  private:
   AstPrinter* ast_printer_;
 };
-
 
 //-----------------------------------------------------------------------------
 

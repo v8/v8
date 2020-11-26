@@ -285,7 +285,7 @@ class GCedWithJSRef : public cppgc::GarbageCollected<GCedWithJSRef> {
 };
 constexpr const char GCedWithJSRef::kExpectedName[];
 
-class JsTestingScope {
+class V8_NODISCARD JsTestingScope {
  public:
   explicit JsTestingScope(v8::Isolate* isolate)
       : isolate_(isolate),

@@ -608,7 +608,7 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
 
 // Clear and later restore the next link in the weak cell or allocation site.
 // TODO(all): replace this with proper iteration of weak slots in serializer.
-class UnlinkWeakNextScope {
+class V8_NODISCARD UnlinkWeakNextScope {
  public:
   explicit UnlinkWeakNextScope(Heap* heap, Handle<HeapObject> object) {
     if (object->IsAllocationSite() &&

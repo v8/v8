@@ -41,7 +41,7 @@ class LocalHandles {
   friend class LocalHandleScope;
 };
 
-class LocalHandleScope {
+class V8_NODISCARD LocalHandleScope {
  public:
   explicit inline LocalHandleScope(LocalIsolate* local_isolate);
   explicit inline LocalHandleScope(LocalHeap* local_heap);

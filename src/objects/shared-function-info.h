@@ -673,7 +673,7 @@ struct SourceCodeOf {
 // IsCompiledScope enables a caller to check if a function is compiled, and
 // ensure it remains compiled (i.e., doesn't have it's bytecode flushed) while
 // the scope is retained.
-class IsCompiledScope {
+class V8_NODISCARD IsCompiledScope {
  public:
   inline IsCompiledScope(const SharedFunctionInfo shared, Isolate* isolate);
   inline IsCompiledScope(const SharedFunctionInfo shared,

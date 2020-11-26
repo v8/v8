@@ -435,11 +435,11 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   // All labels created while a LoopScope is live are considered to be inside
   // the loop.
   template <MachineRepresentation... Reps>
-  class LoopScope final {
+  class V8_NODISCARD LoopScope final {
    private:
     // The internal scope is only here to increment the graph assembler's
     // nesting level prior to `loop_header_label` creation below.
-    class LoopScopeInternal {
+    class V8_NODISCARD LoopScopeInternal {
      public:
       explicit LoopScopeInternal(GraphAssembler* gasm)
           : previous_loop_nesting_level_(gasm->loop_nesting_level_),
@@ -486,7 +486,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   };
 
   // Upon destruction, restores effect and control to the state at construction.
-  class RestoreEffectControlScope {
+  class V8_NODISCARD RestoreEffectControlScope {
    public:
     explicit RestoreEffectControlScope(GraphAssembler* gasm)
         : gasm_(gasm), effect_(gasm->effect()), control_(gasm->control()) {}

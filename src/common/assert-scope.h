@@ -39,7 +39,7 @@ enum PerIsolateAssertType {
 };
 
 template <PerThreadAssertType kType, bool kAllow>
-class PerThreadAssertScope {
+class V8_NODISCARD PerThreadAssertScope {
  public:
   V8_EXPORT_PRIVATE PerThreadAssertScope();
   V8_EXPORT_PRIVATE ~PerThreadAssertScope();
@@ -56,7 +56,7 @@ class PerThreadAssertScope {
 };
 
 template <PerIsolateAssertType kType, bool kAllow>
-class PerIsolateAssertScope {
+class V8_NODISCARD PerIsolateAssertScope {
  public:
   V8_EXPORT_PRIVATE explicit PerIsolateAssertScope(Isolate* isolate);
   V8_EXPORT_PRIVATE ~PerIsolateAssertScope();
@@ -75,7 +75,7 @@ class CombinationAssertScope;
 
 // Base case for CombinationAssertScope (equivalent to Scope).
 template <typename Scope>
-class CombinationAssertScope<Scope> : public Scope {
+class V8_NODISCARD CombinationAssertScope<Scope> : public Scope {
  public:
   V8_EXPORT_PRIVATE static bool IsAllowed() {
     // Define IsAllowed() explicitly rather than with using Scope::IsAllowed, to
@@ -115,7 +115,7 @@ template <PerThreadAssertType kType, bool kAllow>
 class PerThreadAssertScopeDebugOnly
     : public PerThreadAssertScope<kType, kAllow> {
 #else
-class PerThreadAssertScopeDebugOnly {
+class V8_NODISCARD PerThreadAssertScopeDebugOnly {
  public:
   PerThreadAssertScopeDebugOnly() {  // NOLINT (modernize-use-equals-default)
     // Define a constructor to avoid unused variable warnings.
@@ -132,7 +132,7 @@ class PerIsolateAssertScopeDebugOnly
   explicit PerIsolateAssertScopeDebugOnly(Isolate* isolate)
       : PerIsolateAssertScope<kType, kAllow>(isolate) {}
 #else
-class PerIsolateAssertScopeDebugOnly {
+class V8_NODISCARD PerIsolateAssertScopeDebugOnly {
  public:
   explicit PerIsolateAssertScopeDebugOnly(Isolate* isolate) {}
 #endif

@@ -237,7 +237,7 @@ ScavengerCollector::ScavengerCollector(Heap* heap)
     : isolate_(heap->isolate()), heap_(heap) {}
 
 // Remove this crashkey after chromium:1010312 is fixed.
-class ScopedFullHeapCrashKey {
+class V8_NODISCARD ScopedFullHeapCrashKey {
  public:
   explicit ScopedFullHeapCrashKey(Isolate* isolate) : isolate_(isolate) {
     isolate_->AddCrashKey(v8::CrashKeyId::kDumpType, "heap");

@@ -2398,7 +2398,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   using BlockConstPoolScope = ConstantPool::BlockScope;
 
-  class BlockPoolsScope {
+  class V8_NODISCARD BlockPoolsScope {
    public:
     // Block veneer and constant pool. Emits pools if necessary to ensure that
     // {margin} more bytes can be emitted without triggering pool emission.

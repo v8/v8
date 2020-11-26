@@ -414,7 +414,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   static const uint32_t kInitialRefsBucketCount = 1024;  // must be power of 2
 };
 
-class TraceScope {
+class V8_NODISCARD TraceScope {
  public:
   TraceScope(JSHeapBroker* broker, const char* label)
       : TraceScope(broker, static_cast<void*>(broker), label) {}
@@ -473,7 +473,7 @@ class OffHeapBytecodeArray final : public interpreter::AbstractBytecodeArray {
 //   d) The given condition evaluates to true.
 // Used, for example, when printing the graph with --trace-turbo with a
 // previously parked LocalHeap.
-class UnparkedScopeIfNeeded {
+class V8_NODISCARD UnparkedScopeIfNeeded {
  public:
   explicit UnparkedScopeIfNeeded(JSHeapBroker* broker,
                                  bool extra_condition = true) {

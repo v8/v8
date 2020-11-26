@@ -106,7 +106,7 @@ class GlobalSafepoint {
   friend class PersistentHandles;
 };
 
-class SafepointScope {
+class V8_NODISCARD SafepointScope {
  public:
   V8_EXPORT_PRIVATE explicit SafepointScope(Heap* heap);
   V8_EXPORT_PRIVATE ~SafepointScope();

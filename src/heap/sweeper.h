@@ -32,7 +32,7 @@ class Sweeper {
   using FreeRangesMap = std::map<uint32_t, uint32_t>;
 
   // Pauses the sweeper tasks or completes sweeping.
-  class PauseOrCompleteScope final {
+  class V8_NODISCARD PauseOrCompleteScope final {
    public:
     explicit PauseOrCompleteScope(Sweeper* sweeper);
     ~PauseOrCompleteScope();
@@ -45,7 +45,7 @@ class Sweeper {
   // sweeper to be paused. Allows for pages to be added to the sweeper while
   // in this scope. Note that the original list of sweeping pages is restored
   // after exiting this scope.
-  class FilterSweepingPagesScope final {
+  class V8_NODISCARD FilterSweepingPagesScope final {
    public:
     FilterSweepingPagesScope(
         Sweeper* sweeper, const PauseOrCompleteScope& pause_or_complete_scope);

@@ -416,7 +416,7 @@ void f32x4_nearest_int_wrapper(Address data) {
 }
 
 namespace {
-class ThreadNotInWasmScope {
+class V8_NODISCARD ThreadNotInWasmScope {
 // Asan on Windows triggers exceptions to allocate shadow memory lazily. When
 // this function is called from WebAssembly, these exceptions would be handled
 // by the trap handler before they get handled by Asan, and thereby confuse the

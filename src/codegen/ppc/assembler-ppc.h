@@ -1076,7 +1076,7 @@ class Assembler : public AssemblerBase {
   }
 
   // Class for scoping postponing the trampoline pool generation.
-  class BlockTrampolinePoolScope {
+  class V8_NODISCARD BlockTrampolinePoolScope {
    public:
     explicit BlockTrampolinePoolScope(Assembler* assem) : assem_(assem) {
       assem_->StartBlockTrampolinePool();
@@ -1090,7 +1090,7 @@ class Assembler : public AssemblerBase {
   };
 
   // Class for scoping disabling constant pool entry merging
-  class BlockConstantPoolEntrySharingScope {
+  class V8_NODISCARD BlockConstantPoolEntrySharingScope {
    public:
     explicit BlockConstantPoolEntrySharingScope(Assembler* assem)
         : assem_(assem) {
@@ -1416,7 +1416,7 @@ class PatchingAssembler : public Assembler {
   ~PatchingAssembler();
 };
 
-class V8_EXPORT_PRIVATE UseScratchRegisterScope {
+class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
  public:
   explicit UseScratchRegisterScope(Assembler* assembler);
   ~UseScratchRegisterScope();

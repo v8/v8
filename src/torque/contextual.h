@@ -35,7 +35,7 @@ class ContextualVariable {
   // variable is restored to the state before the {Scope} was created. Scopes
   // have to follow a stack discipline:  A {Scope} has to be destructed before
   // any older scope is destructed.
-  class Scope {
+  class V8_NODISCARD Scope {
    public:
     template <class... Args>
     explicit Scope(Args&&... args)

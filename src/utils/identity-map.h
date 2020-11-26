@@ -184,7 +184,7 @@ class IdentityMap : public IdentityMapBase {
     friend class IdentityMap;
   };
 
-  class IteratableScope {
+  class V8_NODISCARD IteratableScope {
    public:
     explicit IteratableScope(IdentityMap* map) : map_(map) {
       CHECK(!map_->is_iterable());

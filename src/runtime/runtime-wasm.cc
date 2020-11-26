@@ -64,7 +64,7 @@ Context GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
   return GetWasmInstanceOnStackTop(isolate).native_context();
 }
 
-class ClearThreadInWasmScope {
+class V8_NODISCARD ClearThreadInWasmScope {
  public:
   ClearThreadInWasmScope() {
     DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),

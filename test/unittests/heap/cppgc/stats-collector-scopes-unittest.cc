@@ -56,7 +56,7 @@ std::vector<std::string> DelegatingTracingControllerImpl::stored_arg_names;
 std::vector<uint8_t> DelegatingTracingControllerImpl::stored_arg_types;
 std::vector<uint64_t> DelegatingTracingControllerImpl::stored_arg_values;
 
-class CppgcTracingScopesTest : public testing::TestWithHeap {
+class V8_NODISCARD CppgcTracingScopesTest : public testing::TestWithHeap {
   using Config = Marker::MarkingConfig;
 
  public:

@@ -96,7 +96,7 @@ class ProgramOptions final {
   std::string test_function_name_;
 };
 
-class V8InitializationScope final {
+class V8_NODISCARD V8InitializationScope final {
  public:
   explicit V8InitializationScope(const char* exec_path);
   ~V8InitializationScope();

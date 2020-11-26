@@ -66,7 +66,7 @@ class V8_EXPORT_PRIVATE GCTracer {
     int steps;
   };
 
-  class Scope {
+  class V8_NODISCARD Scope {
    public:
     enum ScopeId {
 #define DEFINE_SCOPE(scope) scope,
@@ -104,7 +104,7 @@ class V8_EXPORT_PRIVATE GCTracer {
     DISALLOW_COPY_AND_ASSIGN(Scope);
   };
 
-  class V8_EXPORT_PRIVATE BackgroundScope {
+  class V8_EXPORT_PRIVATE V8_NODISCARD BackgroundScope {
    public:
     enum ScopeId {
 #define DEFINE_SCOPE(scope) scope,

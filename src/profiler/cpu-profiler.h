@@ -129,7 +129,7 @@ class CodeEventsContainer {
 
 // Maintains the number of active CPU profilers in an isolate, and routes
 // logging to a given ProfilerListener.
-class ProfilingScope {
+class V8_NODISCARD ProfilingScope {
  public:
   ProfilingScope(Isolate* isolate, ProfilerListener* listener);
   ~ProfilingScope();

@@ -565,7 +565,7 @@ class V8_EXPORT_PRIVATE Debug {
 
 // This scope is used to load and enter the debug context and create a new
 // break state.  Leaving the scope will restore the previous state.
-class DebugScope {
+class V8_NODISCARD DebugScope {
  public:
   explicit DebugScope(Debug* debug);
   ~DebugScope();
@@ -587,7 +587,7 @@ class DebugScope {
 // When there are nested debug breaks, we use this to restore the return
 // value to the previous state. This is not merged with DebugScope because
 // return_value_ will not be cleared when we use DebugScope.
-class ReturnValueScope {
+class V8_NODISCARD ReturnValueScope {
  public:
   explicit ReturnValueScope(Debug* debug);
   ~ReturnValueScope();

@@ -14,7 +14,7 @@ namespace internal {
 
 // Scope that explicitly parks a thread, prohibiting access to the heap and the
 // creation of handles.
-class ParkedScope {
+class V8_NODISCARD ParkedScope {
  public:
   explicit ParkedScope(LocalIsolate* local_isolate)
       : ParkedScope(local_isolate->heap()) {}
@@ -30,7 +30,7 @@ class ParkedScope {
 
 // Scope that explicitly unparks a thread, allowing access to the heap and the
 // creation of handles.
-class UnparkedScope {
+class V8_NODISCARD UnparkedScope {
  public:
   explicit UnparkedScope(LocalIsolate* local_isolate)
       : UnparkedScope(local_isolate->heap()) {}

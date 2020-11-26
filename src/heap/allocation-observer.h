@@ -113,7 +113,7 @@ class AllocationObserver {
   DISALLOW_COPY_AND_ASSIGN(AllocationObserver);
 };
 
-class V8_EXPORT_PRIVATE PauseAllocationObserversScope {
+class V8_EXPORT_PRIVATE V8_NODISCARD PauseAllocationObserversScope {
  public:
   explicit PauseAllocationObserversScope(Heap* heap);
   ~PauseAllocationObserversScope();
