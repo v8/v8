@@ -39,7 +39,7 @@ Page* SemiSpace::InitializePage(MemoryChunk* chunk) {
 bool SemiSpace::EnsureCurrentCapacity() {
   if (is_committed()) {
     const int expected_pages =
-        static_cast<int>(current_capacity_ / Page::kPageSize);
+        static_cast<int>(target_capacity_ / Page::kPageSize);
     MemoryChunk* current_page = first_page();
     int actual_pages = 0;
 
@@ -91,7 +91,7 @@ bool SemiSpace::EnsureCurrentCapacity() {
 void SemiSpace::SetUp(size_t initial_capacity, size_t maximum_capacity) {
   DCHECK_GE(maximum_capacity, static_cast<size_t>(Page::kPageSize));
   minimum_capacity_ = RoundDown(initial_capacity, Page::kPageSize);
-  current_capacity_ = minimum_capacity_;
+  target_capacity_ = minimum_capacity_;
   maximum_capacity_ = RoundDown(maximum_capacity, Page::kPageSize);
   committed_ = false;
 }
@@ -101,12 +101,12 @@ void SemiSpace::TearDown() {
   if (is_committed()) {
     Uncommit();
   }
-  current_capacity_ = maximum_capacity_ = 0;
+  target_capacity_ = maximum_capacity_ = 0;
 }
 
 bool SemiSpace::Commit() {
   DCHECK(!is_committed());
-  const int num_pages = static_cast<int>(current_capacity_ / Page::kPageSize);
+  const int num_pages = static_cast<int>(target_capacity_ / Page::kPageSize);
   for (int pages_added = 0; pages_added < num_pages; pages_added++) {
     // Pages in the new spaces can be moved to the old space by the full
     // collector. Therefore, they must be initialized with the same FreeList as
@@ -122,7 +122,7 @@ bool SemiSpace::Commit() {
     memory_chunk_list_.PushBack(new_page);
   }
   Reset();
-  AccountCommitted(current_capacity_);
+  AccountCommitted(target_capacity_);
   if (age_mark_ == kNullAddress) {
     age_mark_ = first_page()->area_start();
   }
@@ -138,7 +138,7 @@ bool SemiSpace::Uncommit() {
     heap()->memory_allocator()->Free<MemoryAllocator::kPooledAndQueue>(chunk);
   }
   current_page_ = nullptr;
-  AccountUncommitted(current_capacity_);
+  AccountUncommitted(target_capacity_);
   committed_ = false;
   heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
   return true;
@@ -159,8 +159,8 @@ bool SemiSpace::GrowTo(size_t new_capacity) {
   }
   DCHECK_EQ(new_capacity & kPageAlignmentMask, 0u);
   DCHECK_LE(new_capacity, maximum_capacity_);
-  DCHECK_GT(new_capacity, current_capacity_);
-  const size_t delta = new_capacity - current_capacity_;
+  DCHECK_GT(new_capacity, target_capacity_);
+  const size_t delta = new_capacity - target_capacity_;
   DCHECK(IsAligned(delta, AllocatePageSize()));
   const int delta_pages = static_cast<int>(delta / Page::kPageSize);
   DCHECK(last_page());
@@ -181,7 +181,7 @@ bool SemiSpace::GrowTo(size_t new_capacity) {
     new_page->SetFlags(last_page()->GetFlags(), Page::kCopyOnFlipFlagsMask);
   }
   AccountCommitted(delta);
-  current_capacity_ = new_capacity;
+  target_capacity_ = new_capacity;
   return true;
 }
 
@@ -199,16 +199,16 @@ void SemiSpace::RewindPages(int num_pages) {
 bool SemiSpace::ShrinkTo(size_t new_capacity) {
   DCHECK_EQ(new_capacity & kPageAlignmentMask, 0u);
   DCHECK_GE(new_capacity, minimum_capacity_);
-  DCHECK_LT(new_capacity, current_capacity_);
+  DCHECK_LT(new_capacity, target_capacity_);
   if (is_committed()) {
-    const size_t delta = current_capacity_ - new_capacity;
+    const size_t delta = target_capacity_ - new_capacity;
     DCHECK(IsAligned(delta, Page::kPageSize));
     int delta_pages = static_cast<int>(delta / Page::kPageSize);
     RewindPages(delta_pages);
     AccountUncommitted(delta);
     heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
   }
-  current_capacity_ = new_capacity;
+  target_capacity_ = new_capacity;
   return true;
 }
 
@@ -234,7 +234,7 @@ void SemiSpace::Reset() {
   DCHECK(first_page());
   DCHECK(last_page());
   current_page_ = first_page();
-  pages_used_ = 0;
+  current_capacity_ = Page::kPageSize;
 }
 
 void SemiSpace::RemovePage(Page* page) {
@@ -255,7 +255,7 @@ void SemiSpace::PrependPage(Page* page) {
                  static_cast<uintptr_t>(Page::kCopyAllFlags));
   page->set_owner(this);
   memory_chunk_list_.PushFront(page);
-  pages_used_++;
+  current_capacity_ += Page::kPageSize;
   for (size_t i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
     ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
     IncrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
@@ -277,7 +277,7 @@ void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
   intptr_t saved_to_space_flags = to->current_page()->GetFlags();
 
   // We swap all properties but id_.
-  std::swap(from->current_capacity_, to->current_capacity_);
+  std::swap(from->target_capacity_, to->target_capacity_);
   std::swap(from->maximum_capacity_, to->maximum_capacity_);
   std::swap(from->minimum_capacity_, to->minimum_capacity_);
   std::swap(from->age_mark_, to->age_mark_);
@@ -440,7 +440,7 @@ void NewSpace::Grow() {
     if (!from_space_.GrowTo(new_capacity)) {
       // If we managed to grow to-space but couldn't grow from-space,
       // attempt to shrink to-space.
-      if (!to_space_.ShrinkTo(from_space_.current_capacity())) {
+      if (!to_space_.ShrinkTo(from_space_.target_capacity())) {
         // We are in an inconsistent state because we could not
         // commit/uncommit memory from new space.
         FATAL("inconsistent state");
@@ -460,7 +460,7 @@ void NewSpace::Shrink() {
     if (!from_space_.ShrinkTo(rounded_new_capacity)) {
       // If we managed to shrink to-space but couldn't shrink from
       // space, attempt to grow to-space again.
-      if (!to_space_.GrowTo(from_space_.current_capacity())) {
+      if (!to_space_.GrowTo(from_space_.target_capacity())) {
         // We are in an inconsistent state because we could not
         // commit/uncommit memory from new space.
         FATAL("inconsistent state");

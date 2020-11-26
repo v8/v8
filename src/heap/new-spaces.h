@@ -44,13 +44,13 @@ class SemiSpace : public Space {
   SemiSpace(Heap* heap, SemiSpaceId semispace)
       : Space(heap, NEW_SPACE, new NoFreeList()),
         current_capacity_(0),
+        target_capacity_(0),
         maximum_capacity_(0),
         minimum_capacity_(0),
         age_mark_(kNullAddress),
         committed_(false),
         id_(semispace),
-        current_page_(nullptr),
-        pages_used_(0) {}
+        current_page_(nullptr) {}
 
   inline bool Contains(HeapObject o) const;
   inline bool Contains(Object o) const;
@@ -81,7 +81,6 @@ class SemiSpace : public Space {
   }
 
   Page* current_page() { return current_page_; }
-  int pages_used() { return pages_used_; }
 
   // Returns the start address of the current page of the space.
   Address page_low() { return current_page_->area_start(); }
@@ -91,15 +90,14 @@ class SemiSpace : public Space {
 
   bool AdvancePage() {
     Page* next_page = current_page_->next_page();
-    // We cannot expand if we reached the maximum number of pages already. Note
+    // We cannot expand if we reached the target capcity. Note
     // that we need to account for the next page already for this check as we
     // could potentially fill the whole page after advancing.
-    const bool reached_max_pages = (pages_used_ + 1) == max_pages();
-    if (next_page == nullptr || reached_max_pages) {
+    if (next_page == nullptr || (current_capacity_ == target_capacity_)) {
       return false;
     }
     current_page_ = next_page;
-    pages_used_++;
+    current_capacity_ += Page::kPageSize;
     return true;
   }
 
@@ -118,6 +116,9 @@ class SemiSpace : public Space {
 
   // Returns the current capacity of the semispace.
   size_t current_capacity() { return current_capacity_; }
+
+  // Returns the target capacity of the semispace.
+  size_t target_capacity() { return target_capacity_; }
 
   // Returns the maximum capacity of the semispace.
   size_t maximum_capacity() { return maximum_capacity_; }
@@ -172,15 +173,14 @@ class SemiSpace : public Space {
  private:
   void RewindPages(int num_pages);
 
-  inline int max_pages() {
-    return static_cast<int>(current_capacity_ / Page::kPageSize);
-  }
-
   // Copies the flags into the masked positions on all pages in the space.
   void FixPagesFlags(intptr_t flags, intptr_t flag_mask);
 
   // The currently committed space capacity.
   size_t current_capacity_;
+
+  // The targetted committed space capacity.
+  size_t target_capacity_;
 
   // The maximum capacity that can be used by this space. A space cannot grow
   // beyond that size.
@@ -196,8 +196,6 @@ class SemiSpace : public Space {
   SemiSpaceId id_;
 
   Page* current_page_;
-
-  int pages_used_;
 
   friend class NewSpace;
   friend class SemiSpaceObjectIterator;
@@ -264,7 +262,7 @@ class V8_EXPORT_PRIVATE NewSpace
   // Return the allocated bytes in the active semispace.
   size_t Size() final {
     DCHECK_GE(top(), to_space_.page_low());
-    return to_space_.pages_used() *
+    return (to_space_.current_capacity() - Page::kPageSize) / Page::kPageSize *
                MemoryChunkLayout::AllocatableMemoryInDataPage() +
            static_cast<size_t>(top() - to_space_.page_low());
   }
@@ -273,16 +271,16 @@ class V8_EXPORT_PRIVATE NewSpace
 
   // Return the allocatable capacity of a semispace.
   size_t Capacity() {
-    SLOW_DCHECK(to_space_.current_capacity() == from_space_.current_capacity());
-    return (to_space_.current_capacity() / Page::kPageSize) *
+    SLOW_DCHECK(to_space_.target_capacity() == from_space_.target_capacity());
+    return (to_space_.target_capacity() / Page::kPageSize) *
            MemoryChunkLayout::AllocatableMemoryInDataPage();
   }
 
   // Return the current size of a semispace, allocatable and non-allocatable
   // memory.
   size_t TotalCapacity() {
-    DCHECK(to_space_.current_capacity() == from_space_.current_capacity());
-    return to_space_.current_capacity();
+    DCHECK(to_space_.target_capacity() == from_space_.target_capacity());
+    return to_space_.target_capacity();
   }
 
   // Committed memory for NewSpace is the committed memory of both semi-spaces
