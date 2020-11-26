@@ -170,7 +170,11 @@ class V8_EXPORT_PRIVATE DebugInfo {
 
   void SetBreakpoint(int func_index, int offset, Isolate* current_isolate);
 
-  void PrepareStep(WasmFrame*);
+  // Returns true if we stay inside the passed frame (or a called frame) after
+  // the step. False if the frame will return after the step.
+  bool PrepareStep(WasmFrame*);
+
+  void PrepareStepOutTo(WasmFrame*);
 
   void ClearStepping(Isolate*);
 

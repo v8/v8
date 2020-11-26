@@ -1096,16 +1096,17 @@ void Debug::PrepareStep(StepAction step_action) {
     thread_local_.last_frame_count_ = current_frame_count;
     // No longer perform the current async step.
     clear_suspended_generator();
-  } else if (frame->is_wasm()) {
-    // Handle stepping in Liftoff code.
+  } else if (frame->is_wasm() && step_action != StepOut) {
+    // Handle stepping in wasm.
     WasmFrame* wasm_frame = WasmFrame::cast(frame);
-    wasm::WasmCodeRefScope code_ref_scope;
-    wasm::WasmCode* code = wasm_frame->wasm_code();
-    if (code->is_liftoff()) {
-      auto* debug_info = wasm_frame->native_module()->GetDebugInfo();
-      debug_info->PrepareStep(wasm_frame);
+    auto* debug_info = wasm_frame->native_module()->GetDebugInfo();
+    if (debug_info->PrepareStep(wasm_frame)) {
+      UpdateHookOnFunctionCall();
+      return;
     }
-    // In case the wasm code returns, prepare the next frame (if JS) to break.
+    // If the wasm code is not debuggable or will return after this step
+    // (indicated by {PrepareStep} returning false), then step out of that frame
+    // instead.
     step_action = StepOut;
     UpdateHookOnFunctionCall();
   }
@@ -1131,8 +1132,15 @@ void Debug::PrepareStep(StepAction step_action) {
       bool in_current_frame = true;
       for (; !frames_it.done(); frames_it.Advance()) {
         if (frames_it.frame()->is_wasm()) {
-          in_current_frame = false;
-          continue;
+          if (in_current_frame) {
+            in_current_frame = false;
+            continue;
+          }
+          // Handle stepping out into Wasm.
+          WasmFrame* wasm_frame = WasmFrame::cast(frames_it.frame());
+          auto* debug_info = wasm_frame->native_module()->GetDebugInfo();
+          debug_info->PrepareStepOutTo(wasm_frame);
+          return;
         }
         JavaScriptFrame* frame = JavaScriptFrame::cast(frames_it.frame());
         if (last_step_action() == StepIn) {
@@ -1146,7 +1154,7 @@ void Debug::PrepareStep(StepAction step_action) {
           Handle<SharedFunctionInfo> info = infos.back();
           infos.pop_back();
           if (in_current_frame) {
-            // We want to skip out, so skip the current frame.
+            // We want to step out, so skip the current frame.
             in_current_frame = false;
             continue;
           }
@@ -1162,7 +1170,6 @@ void Debug::PrepareStep(StepAction step_action) {
       thread_local_.target_frame_count_ = current_frame_count;
       V8_FALLTHROUGH;
     case StepIn:
-      // TODO(clemensb): Implement stepping from JS into wasm.
       FloodWithOneShot(shared);
       break;
   }

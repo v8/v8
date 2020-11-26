@@ -12,14 +12,14 @@ WasmInspectorTest.evalWithUrl = (code, url) =>
         .evaluate({'expression': code + '\n//# sourceURL=v8://test/' + url})
         .then(printIfFailure);
 
-WasmInspectorTest.instantiateFromBuffer = function(bytes) {
+WasmInspectorTest.instantiateFromBuffer = function(bytes, imports) {
   var buffer = new ArrayBuffer(bytes.length);
   var view = new Uint8Array(buffer);
   for (var i = 0; i < bytes.length; ++i) {
     view[i] = bytes[i] | 0;
   }
   const module = new WebAssembly.Module(buffer);
-  return new WebAssembly.Instance(module);
+  return new WebAssembly.Instance(module, imports);
 }
 
 WasmInspectorTest.instantiate = async function(bytes, instance_name = 'instance') {
