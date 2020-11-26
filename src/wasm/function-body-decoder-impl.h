@@ -2651,6 +2651,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   DECODE(Br) {
     BranchDepthImmediate<validate> imm(this, this->pc_ + 1);
+    if (this->failed()) return 0;
     if (!this->Validate(this->pc_ + 1, imm, control_.size())) return 0;
     Control* c = control_at(imm.depth);
     TypeCheckBranchResult check_result = TypeCheckBranch(c, false);
@@ -4403,8 +4404,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   bool TypeCheckMergeValues(Control* c, Merge<Value>* merge) {
-    // This is a CHECK instead of a DCHECK because {validate} is a constexpr,
-    // and a CHECK makes the whole function unreachable.
     static_assert(validate, "Call this function only within VALIDATE");
     DCHECK(merge == &c->start_merge || merge == &c->end_merge);
     DCHECK_GE(stack_size(), c->stack_depth + merge->arity);
@@ -4485,6 +4484,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     kInvalidStack,
   };
 
+  // If the type code is reachable, check if the current stack values are
+  // compatible with a jump to {c}, based on their number and types.
+  // Otherwise, we have a polymorphic stack: check if any values that may exist
+  // on top of the stack are compatible with {c}, and push back to the stack
+  // values based on the type of {c}.
   TypeCheckBranchResult TypeCheckBranch(Control* c, bool conditional_branch) {
     if (V8_LIKELY(control_.back().reachable())) {
       // We only do type-checking here. This is only needed during validation.
