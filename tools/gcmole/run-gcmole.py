@@ -26,7 +26,7 @@ if not os.path.isfile("out/build/gen/torque-generated/builtin-definitions.h"):
   sys.exit(-1)
 
 proc = subprocess.Popen(
-    ["python", DRIVER] + sys.argv[1:],
+    [sys.executable, DRIVER] + sys.argv[1:],
     env={'CLANG_BIN': CLANG_BIN, 'CLANG_PLUGINS': CLANG_PLUGINS},
     cwd=BASE_PATH,
 )

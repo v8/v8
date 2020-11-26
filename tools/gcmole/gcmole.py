@@ -9,13 +9,13 @@
 # for py2/py3 compatibility
 from __future__ import print_function
 
-import sys
+import collections
+import difflib
+import multiprocessing
 import os
 import re
-import difflib
 import subprocess
-import multiprocessing
-import collections
+import sys
 
 ArchCfg = collections.namedtuple("ArchCfg",
                                  ["triple", "arch_define", "arch_options"])
