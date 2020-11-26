@@ -6,24 +6,26 @@ found in the LICENSE file. -->
   <link href="./index.css" rel="stylesheet">
 </head>
 <style>
-  pre.scriptNode {
-    white-space: pre-wrap;
+  .scriptNode {
+    font-family: Consolas, monospace;
   }
 
-  pre.scriptNode:before {
+  .scriptNode:before {
     counter-reset: sourceLineCounter;
   }
 
-  pre.scriptNode span {
-    counter-increment: sourceLineCounter;
+  .scriptNode span {
+    counter-increment: sourceLineCounter 1111;
+    text-indent: -3.5em;
+    padding-left: 3.5em;
+    display: block;
   }
 
-  pre.scriptNode span::before {
+  .scriptNode span::before {
     content: counter(sourceLineCounter) ": ";
+    width: 3.5em;
     display: inline-block;
-    width: 4em;
-    padding-left: auto;
-    margin-left: auto;
+    white-space: pre;
     text-align: right;
   }
 
@@ -49,6 +51,6 @@ found in the LICENSE file. -->
   <h2>Source Panel</h2>
   <select id="script-dropdown"></select>
   <div id="script" class="panelBody">
-    <pre class="scripNode"></pre>
+    <div class="scriptNode"></div>
   </div>
 </div>

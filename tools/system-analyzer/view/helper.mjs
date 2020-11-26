@@ -100,7 +100,17 @@ class DOM {
     }
     return node;
   }
-
+  static span(classes) {
+    const node = document.createElement('span');
+    if (classes !== undefined) {
+      if (typeof classes === 'string') {
+        node.className = classes;
+      } else {
+        classes.forEach(cls => node.classList.add(cls));
+      }
+    }
+    return node;
+  }
   static table(className) {
     const node = document.createElement('table');
     if (className) node.className = className;

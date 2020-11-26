@@ -51,6 +51,10 @@ export class Script {
     this.lineToColumn = new Map();
   }
 
+  get length() {
+    return this.source.length;
+  }
+
   addSourcePosition(line, column, entry) {
     let sourcePosition = this.lineToColumn.get(line)?.get(column);
     if (sourcePosition === undefined) {
