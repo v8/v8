@@ -7,4 +7,7 @@ export class DeoptLogEntry extends LogEntry {
   constructor(type, time) {
     super(type, time);
   }
+  toString() {
+    return `Deopt(${this.type})`;
+  }
 }

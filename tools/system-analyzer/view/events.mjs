@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-class SelectionEvent extends CustomEvent {
+export class SelectionEvent extends CustomEvent {
   // TODO: turn into static class fields once Safari supports it.
   static get name() {
     return 'showentries';
@@ -16,7 +16,7 @@ class SelectionEvent extends CustomEvent {
   }
 }
 
-class FocusEvent extends CustomEvent {
+export class FocusEvent extends CustomEvent {
   static get name() {
     return 'showentrydetail';
   }
@@ -26,7 +26,7 @@ class FocusEvent extends CustomEvent {
   }
 }
 
-class SelectTimeEvent extends CustomEvent {
+export class SelectTimeEvent extends CustomEvent {
   static get name() {
     return 'timerangeselect';
   }
@@ -37,7 +37,7 @@ class SelectTimeEvent extends CustomEvent {
   }
 }
 
-class SynchronizeSelectionEvent extends CustomEvent {
+export class SynchronizeSelectionEvent extends CustomEvent {
   static get name() {
     return 'syncselection';
   }
@@ -48,4 +48,25 @@ class SynchronizeSelectionEvent extends CustomEvent {
   }
 }
 
-export {SelectionEvent, FocusEvent, SelectTimeEvent, SynchronizeSelectionEvent};
+export class ToolTipEvent extends CustomEvent {
+  static get name() {
+    return 'showtooltip';
+  }
+
+  constructor(content, positionOrTargetNode) {
+    super(ToolTipEvent.name, {bubbles: true, composed: true});
+    this._content = content;
+    if (!positionOrTargetNode && !node) {
+      throw Error('Either provide a valid position or targetNode');
+    }
+    this._positionOrTargetNode = positionOrTargetNode;
+  }
+
+  get content() {
+    return this._content;
+  }
+
+  get positionOrTargetNode() {
+    return this._positionOrTargetNode;
+  }
+}

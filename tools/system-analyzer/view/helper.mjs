@@ -168,11 +168,17 @@ class V8CustomElement extends HTMLElement {
     return this.shadowRoot.querySelectorAll(query);
   }
 
-  update() {
-    // Use timeout tasks to asynchronously update the UI without blocking.
-    clearTimeout(this._updateTimeoutId);
-    const kDelayMs = 5;
-    this._updateTimeoutId = setTimeout(this._updateCallback, kDelayMs);
+  update(useAnimation = false) {
+    if (useAnimation) {
+      window.cancelAnimationFrame(this._updateTimeoutId);
+      this._updateTimeoutId =
+          window.requestAnimationFrame(this._updateCallback);
+    } else {
+      // Use timeout tasks to asynchronously update the UI without blocking.
+      clearTimeout(this._updateTimeoutId);
+      const kDelayMs = 5;
+      this._updateTimeoutId = setTimeout(this._updateCallback, kDelayMs);
+    }
   }
 
   _update() {

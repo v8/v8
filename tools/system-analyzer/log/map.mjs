@@ -44,11 +44,16 @@ class MapLogEntry extends LogEntry {
   filePosition = '';
   script = '';
   id = -1;
+  description = '';
   constructor(id, time) {
     if (!time) throw new Error('Invalid time');
     super(id, time);
     MapLogEntry.set(id, this);
     this.id = id;
+  }
+
+  toString() {
+    return `Map(${this.id}):\n${this.description}`;
   }
 
   finalizeRootMap(id) {

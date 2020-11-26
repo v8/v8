@@ -20,7 +20,7 @@ found in the LICENSE file. -->
       let module = await import('./index.mjs');
       globalThis.app = new module.App("#log-file-reader", "#map-panel", "#map-stats-panel",
         "#timeline-panel", "#ic-panel", "#map-track", "#ic-track", "#deopt-track",
-        "#source-panel");
+        "#source-panel", "#tool-tip");
     })();
   </script>
 
@@ -92,6 +92,8 @@ found in the LICENSE file. -->
 </head>
 
 <body>
+  <tool-tip id="tool-tip"></tool-tip>
+
   <section id="file-reader">
     <log-file-reader id="log-file-reader"></log-file-reader>
   </section>

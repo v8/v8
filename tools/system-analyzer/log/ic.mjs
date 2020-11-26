@@ -30,6 +30,10 @@ export class IcLogEntry extends LogEntry {
     this.modifier = modifier;
   }
 
+  toString() {
+    return `IC(${this.type}):\n${this.state}`;
+  }
+
   parseMapProperties(parts, offset) {
     let next = parts[++offset];
     if (!next.startsWith('dict')) return offset;

@@ -4,7 +4,7 @@
 
 import './timeline/timeline-track.mjs';
 
-import {SynchronizeSelectionEvent} from '../events.mjs';
+import {SynchronizeSelectionEvent} from './events.mjs';
 import {DOM, V8CustomElement} from './helper.mjs';
 
 DOM.defineCustomElement(

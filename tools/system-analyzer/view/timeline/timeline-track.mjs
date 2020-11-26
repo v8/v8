@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {FocusEvent, SelectionEvent, SelectTimeEvent, SynchronizeSelectionEvent} from '../../events.mjs';
 import {kChunkHeight, kChunkWidth} from '../../log/map.mjs';
 import {MapLogEntry} from '../../log/map.mjs';
+import {FocusEvent, SelectionEvent, SelectTimeEvent, SynchronizeSelectionEvent, ToolTipEvent,} from '../events.mjs';
 import {CSSColor, DOM, V8CustomElement} from '../helper.mjs';
 
 const kColors = [
@@ -372,8 +372,9 @@ DOM.defineCustomElement('view/timeline/timeline-track',
     // topmost map (at chunk.height) == map #0.
     let relativeIndex =
         Math.round(event.layerY / event.target.offsetHeight * chunk.size());
-    let map = chunk.at(relativeIndex);
-    this.dispatchEvent(new FocusEvent(map));
+    let logEntry = chunk.at(relativeIndex);
+    this.dispatchEvent(new FocusEvent(logEntry));
+    this.dispatchEvent(new ToolTipEvent(logEntry.toString(), event.target));
   }
 
   handleChunkClick(event) {

@@ -1,10 +1,10 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import {FocusEvent, SelectionEvent} from '../events.mjs';
 import {IcLogEntry} from '../log/ic.mjs';
 import {MapLogEntry} from '../log/map.mjs';
 
+import {FocusEvent, SelectionEvent, ToolTipEvent} from './events.mjs';
 import {delay, DOM, formatBytes, V8CustomElement} from './helper.mjs';
 
 DOM.defineCustomElement('view/source-panel',
@@ -111,6 +111,14 @@ DOM.defineCustomElement('view/source-panel',
   handleSourcePositionClick(e) {
     this.selectLogEntries(e.target.sourcePosition.entries)
   }
+  handleSourcePositionMouseOver(e) {
+    const entries = e.target.sourcePosition.entries;
+    let list =
+        entries
+            .map(entry => `${entry.__proto__.constructor.name}: ${entry.type}`)
+            .join('<br/>');
+    this.dispatchEvent(new ToolTipEvent(list, e.target));
+  }
 
   selectLogEntries(logEntries) {
     let icLogEntries = [];
@@ -181,6 +189,7 @@ function* lineIterator(source) {
 class LineBuilder {
   _script;
   _clickHandler;
+  _mouseoverHandler;
   _sourcePositions;
   _selection;
   _sourcePositionToMarkers = new Map();
@@ -189,6 +198,7 @@ class LineBuilder {
     this._script = script;
     this._selection = new Set(highlightPositions);
     this._clickHandler = panel.handleSourcePositionClick.bind(panel);
+    this._mouseoverHandler = panel.handleSourcePositionMouseOver.bind(panel);
     // TODO: sort on script finalization.
     script.sourcePositions.sort((a, b) => {
       if (a.line === b.line) return a.column - b.column;
@@ -234,6 +244,7 @@ class LineBuilder {
     marker.textContent = text;
     marker.sourcePosition = sourcePosition;
     marker.onclick = this._clickHandler;
+    marker.onmouseover = this._mouseoverHandler;
     return marker;
   }
 }
