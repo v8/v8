@@ -232,6 +232,27 @@ bool RuntimeProfiler::MaybeOSR(JSFunction function, InterpretedFrame* frame) {
   return false;
 }
 
+namespace {
+
+bool ShouldOptimizeAsSmallFunction(int bytecode_size, int ticks,
+                                   bool any_ic_changed,
+                                   bool active_tier_is_turboprop) {
+  if (any_ic_changed || bytecode_size >= kMaxBytecodeSizeForEarlyOpt)
+    return false;
+  // Without turboprop we always allow early optimizations for small functions
+  if (!FLAG_turboprop) return true;
+  // For turboprop, we only do small function optimizations when tiering up from
+  // TP-> TF. We should also scale the ticks, so we optimize small functions
+  // when reaching one tick for top tier.
+  // TODO(turboprop, mythria): Investigate if small function optimization is
+  // required at all and avoid this if possible by changing the heuristics to
+  // take function size into account.
+  return active_tier_is_turboprop &&
+         ticks > FLAG_ticks_scale_factor_for_top_tier;
+}
+
+}  // namespace
+
 OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
                                                    BytecodeArray bytecode) {
   if (function.ActiveTierIsTurbofan()) {
@@ -241,20 +262,26 @@ OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
     return OptimizationReason::kDoNotOptimize;
   }
   int ticks = function.feedback_vector().profiler_ticks();
-  int scale_factor = function.ActiveTierIsMidtierTurboprop()
-                         ? FLAG_ticks_scale_factor_for_top_tier
-                         : 1;
+  bool active_tier_is_turboprop = function.ActiveTierIsMidtierTurboprop();
+  int scale_factor =
+      active_tier_is_turboprop ? FLAG_ticks_scale_factor_for_top_tier : 1;
+  // TODO(turboprop, mythria): There is a difference in when we increment the
+  // profiler ticks on the feedback vector. For interrupts from interpreted code
+  // we increment after the tier up decision and from optimized code we
+  // increment before the decision. So we need to adjust the ticks here if we
+  // are tiering up from Turboprop to Turbofan. The right fix is to make the
+  // increments consistent in both places and avoid adding one additional tick
+  // here.
   int ticks_for_optimization =
       kProfilerTicksBeforeOptimization +
-      (bytecode.length() / kBytecodeSizeAllowancePerTick);
+      (bytecode.length() / kBytecodeSizeAllowancePerTick) +
+      (active_tier_is_turboprop ? 1 : 0);
   ticks_for_optimization *= scale_factor;
   if (ticks >= ticks_for_optimization) {
     return OptimizationReason::kHotAndStable;
-  } else if (!any_ic_changed_ &&
-             bytecode.length() < kMaxBytecodeSizeForEarlyOpt) {
-    // TODO(turboprop, mythria): Do we need to support small function
-    // optimization for TP->TF tier up. If so, do we want to scale the bytecode
-    // size?
+  } else if (ShouldOptimizeAsSmallFunction(bytecode.length(), ticks,
+                                           any_ic_changed_,
+                                           active_tier_is_turboprop)) {
     // If no IC was patched since the last tick and this function is very
     // small, optimistically optimize it now.
     return OptimizationReason::kSmallFunction;
