@@ -2645,6 +2645,54 @@ void Shell::OnExit(v8::Isolate* isolate) {
 
   delete counters_file_;
   delete counter_map_;
+
+  if (options.simulate_errors) {
+    // Simulate several errors detectable by fuzzers behind a flag.
+    SimulateErrors();
+  }
+}
+
+void Dummy(char* arg) {}
+
+void Shell::SimulateErrors() {
+  // Initialize a fresh RNG to not interfere with JS execution.
+  std::unique_ptr<base::RandomNumberGenerator> rng;
+  int64_t seed = internal::FLAG_random_seed;
+  if (seed != 0) {
+    rng = std::make_unique<base::RandomNumberGenerator>(seed);
+  } else {
+    rng = std::make_unique<base::RandomNumberGenerator>();
+  }
+
+  double p = rng->NextDouble();
+  if (p < 0.1) {
+    // Caught in all build types.
+    FATAL("Fake error.");
+  } else if (p < 0.2) {
+    // Caught in debug builds.
+    DCHECK(false);
+  } else if (p < 0.3) {
+    // Caught by UBSAN.
+    int32_t val = -1;
+    USE(val << 8);
+  } else if (p < 0.4) {
+    // Use-after-free caught by ASAN.
+    std::vector<bool>* storage = new std::vector<bool>(3);
+    delete storage;
+    USE(storage->at(1));
+  } else if (p < 0.5) {
+    // Use-of-uninitialized-value caught by MSAN.
+    int uninitialized[1];
+    if (uninitialized[0])
+      USE(uninitialized);
+  } else if (p < 0.6) {
+    // Control flow violation caught by CFI.
+    void (*func)() = (void (*)()) & Dummy;
+    func();
+  } else if (p < 0.7) {
+    // Observable difference caught by differential fuzzing.
+    printf("___fake_difference___\n");
+  }
 }
 
 static FILE* FOpen(const char* path, const char* mode) {
@@ -3391,6 +3439,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       break;
     } else if (strcmp(argv[i], "--no-arguments") == 0) {
       options.include_arguments = false;
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--simulate-errors") == 0) {
+      options.simulate_errors = true;
       argv[i] = nullptr;
     } else if (strcmp(argv[i], "--stress-opt") == 0) {
       options.stress_opt = true;
