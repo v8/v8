@@ -271,7 +271,6 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(ChangeFloat64ToInt64, Operator::kNoProperties, 1, 0, 1)                \
   V(ChangeFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)               \
   V(ChangeFloat64ToUint64, Operator::kNoProperties, 1, 0, 1)               \
-  V(TruncateFloat64ToInt64, Operator::kNoProperties, 1, 0, 1)              \
   V(TruncateFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)             \
   V(TryTruncateFloat32ToInt64, Operator::kNoProperties, 1, 0, 2)           \
   V(TryTruncateFloat64ToInt64, Operator::kNoProperties, 1, 0, 2)           \
@@ -1135,6 +1134,25 @@ const Operator* MachineOperatorBuilder::TruncateFloat32ToInt32(
     case TruncateKind::kSetOverflowToMin:
       return GetCachedOperator<
           TruncateFloat32ToInt32Operator<TruncateKind::kSetOverflowToMin>>();
+  }
+}
+
+template <TruncateKind kind>
+struct TruncateFloat64ToInt64Operator : Operator1<TruncateKind> {
+  TruncateFloat64ToInt64Operator()
+      : Operator1(IrOpcode::kTruncateFloat64ToInt64, Operator::kPure,
+                  "TruncateFloat64ToInt64", 1, 0, 0, 1, 0, 0, kind) {}
+};
+
+const Operator* MachineOperatorBuilder::TruncateFloat64ToInt64(
+    TruncateKind kind) {
+  switch (kind) {
+    case TruncateKind::kArchitectureDefault:
+      return GetCachedOperator<
+          TruncateFloat64ToInt64Operator<TruncateKind::kArchitectureDefault>>();
+    case TruncateKind::kSetOverflowToMin:
+      return GetCachedOperator<
+          TruncateFloat64ToInt64Operator<TruncateKind::kSetOverflowToMin>>();
   }
 }
 

@@ -465,7 +465,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* ChangeFloat64ToInt64();
   const Operator* ChangeFloat64ToUint32();  // narrowing
   const Operator* ChangeFloat64ToUint64();
-  const Operator* TruncateFloat64ToInt64();
+  const Operator* TruncateFloat64ToInt64(TruncateKind kind);
   const Operator* TruncateFloat64ToUint32();
   const Operator* TruncateFloat32ToInt32(TruncateKind kind);
   const Operator* TruncateFloat32ToUint32(TruncateKind kind);

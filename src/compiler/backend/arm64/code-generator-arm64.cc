@@ -1645,15 +1645,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Cset(i.OutputRegister(1), vc);
       }
       break;
-    case kArm64Float64ToInt64:
+    case kArm64Float64ToInt64: {
       __ Fcvtzs(i.OutputRegister(0), i.InputDoubleRegister(0));
-      if (i.OutputCount() > 1) {
+      bool set_overflow_to_min_i64 = MiscField::decode(instr->opcode());
+      DCHECK_IMPLIES(set_overflow_to_min_i64, i.OutputCount() == 1);
+      if (set_overflow_to_min_i64) {
+        // Avoid INT64_MAX as an overflow indicator and use INT64_MIN instead,
+        // because INT64_MIN allows easier out-of-bounds detection.
+        __ Cmn(i.OutputRegister64(), 1);
+        __ Csinc(i.OutputRegister64(), i.OutputRegister64(),
+                 i.OutputRegister64(), vc);
+      } else if (i.OutputCount() > 1) {
         // See kArm64Float32ToInt64 for a detailed description.
         __ Fcmp(i.InputDoubleRegister(0), static_cast<double>(INT64_MIN));
         __ Ccmp(i.OutputRegister(0), -1, VFlag, ge);
         __ Cset(i.OutputRegister(1), vc);
       }
       break;
+    }
     case kArm64Float32ToUint64:
       __ Fcvtzu(i.OutputRegister64(), i.InputFloat32Register(0));
       if (i.OutputCount() > 1) {

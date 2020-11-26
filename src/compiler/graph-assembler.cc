@@ -495,6 +495,11 @@ Node* GraphAssembler::Float64RoundTruncate(Node* value) {
       graph()->NewNode(machine()->Float64RoundTruncate().op(), value));
 }
 
+Node* GraphAssembler::TruncateFloat64ToInt64(Node* value, TruncateKind kind) {
+  return AddNode(
+      graph()->NewNode(machine()->TruncateFloat64ToInt64(kind), value));
+}
+
 Node* GraphAssembler::Projection(int index, Node* value) {
   return AddNode(
       graph()->NewNode(common()->Projection(index), value, control()));

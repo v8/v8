@@ -28250,13 +28250,10 @@ TEST(FastApiCalls) {
   CallAndCheck<uint64_t>(0, Behavior::kNoException,
                          expected_path_for_64bit_test, v8_num(-0.0));
 
-#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_MIPS64)
-  // TODO(v8:11121): Currently the tests below are executed for non-arm64
-  // and non-mips64 because they fall down the fast path due to incorrect
-  // behaviour of CheckedFloat64ToInt64 on arm64 and mips64 (see the
-  // linked issue for details). Eventually we want to remove the conditional
-  // compilation and ensure consistent behaviour on all platforms.
-#else
+  // TODO(v8:11121): Currently the tests below are successful only for
+  // non-mips64 because they fall down the fast path due to incorrect
+  // behaviour of CheckedFloat64ToInt64 on mips64 (see the
+  // linked issue for details). Please port the arm64 fix from v8:11121.
   // TODO(mslekova): We deopt for unsafe integers, but ultimately we want to
   // stay on the fast path.
   CallAndCheck<int64_t>(std::numeric_limits<int64_t>::min(),
@@ -28275,7 +28272,6 @@ TEST(FastApiCalls) {
   CallAndCheck<uint64_t>(1ull << 63, Behavior::kNoException,
                          ApiCheckerResult::kSlowCalled,
                          v8_num(static_cast<double>(1ull << 63)));
-#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS64
 
   // Corner cases - float and double
 #ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE

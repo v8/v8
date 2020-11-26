@@ -48,7 +48,6 @@ class BasicBlock;
   V(Float64SilenceNaN)                   \
   V(RoundFloat64ToInt32)                 \
   V(TruncateFloat64ToFloat32)            \
-  V(TruncateFloat64ToInt64)              \
   V(TruncateFloat64ToWord32)             \
   V(TruncateInt64ToInt32)                \
   V(Word32ReverseBytes)                  \
@@ -284,6 +283,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 
   Node* Float64RoundDown(Node* value);
   Node* Float64RoundTruncate(Node* value);
+  Node* TruncateFloat64ToInt64(Node* value, TruncateKind kind);
 
   Node* BitcastWordToTagged(Node* value);
   Node* BitcastWordToTaggedSigned(Node* value);
