@@ -133,6 +133,10 @@ v8_source_set("cppgc_unittests_sources") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  if (!cppgc_is_standalone) {
+    deps += [ "../..:v8_tracing" ]
+  }
 }
 
 v8_executable("unittests") {
