@@ -22,7 +22,7 @@ void MutatorMarkingState::FlushNotFullyConstructedObjects() {
 
 void MutatorMarkingState::FlushDiscoveredEphemeronPairs() {
   StatsCollector::EnabledScope stats_scope(
-      heap_, StatsCollector::kMarkFlushEphemeronPairs);
+      heap_, StatsCollector::kMarkFlushEphemerons);
   discovered_ephemeron_pairs_worklist_.Publish();
   if (!discovered_ephemeron_pairs_worklist_.IsGlobalEmpty()) {
     ephemeron_pairs_for_processing_worklist_.Merge(

@@ -136,7 +136,7 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace* space,
   // this allocation or we finish sweeping all pages of this heap.
   // {
   //   StatsCollector::EnabledScope stats_scope(
-  //       *space->raw_heap()->heap(), StatsCollector::kLazySweepOnAllocation);
+  //       *space->raw_heap()->heap(), StatsCollector::kSweepOnAllocation);
   //   // TODO(chromium:1056170): Add lazy sweep.
   // }
 

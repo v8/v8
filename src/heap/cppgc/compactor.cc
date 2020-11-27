@@ -484,8 +484,8 @@ bool Compactor::CancelIfShouldNotCompact(
 Compactor::CompactableSpaceHandling Compactor::CompactSpacesIfEnabled() {
   if (!is_enabled_) return CompactableSpaceHandling::kSweep;
 
-  StatsCollector::DisabledScope stats_scope(
-      *heap_.heap(), StatsCollector::kAtomicPauseCompaction);
+  StatsCollector::DisabledScope stats_scope(*heap_.heap(),
+                                            StatsCollector::kAtomicCompact);
 
   MovableReferences movable_references(*heap_.heap());
 

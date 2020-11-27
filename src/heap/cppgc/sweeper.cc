@@ -397,7 +397,7 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
 
   void Run(cppgc::JobDelegate* delegate) final {
     StatsCollector::EnabledConcurrentScope stats_scope(
-        heap_, StatsCollector::kConcurrentSweepingStep);
+        heap_, StatsCollector::kConcurrentSweep);
 
     for (SpaceState& state : *states_) {
       while (auto page = state.unswept_pages.Pop()) {
@@ -502,6 +502,8 @@ class Sweeper::SweeperImpl final {
   ~SweeperImpl() { CancelSweepers(); }
 
   void Start(SweepingConfig config) {
+    StatsCollector::EnabledScope stats_scope(*heap_->heap(),
+                                             StatsCollector::kAtomicSweep);
     is_in_progress_ = true;
 #if DEBUG
     // Verify bitmap for all spaces regardless of |compactable_space_handling|.
@@ -524,8 +526,10 @@ class Sweeper::SweeperImpl final {
     if (!is_in_progress_) return;
 
     {
-      StatsCollector::EnabledScope stats_scope(*heap_->heap(),
-                                               StatsCollector::kCompleteSweep);
+      StatsCollector::EnabledScope stats_scope(
+          *heap_->heap(), StatsCollector::kIncrementalSweep);
+      StatsCollector::EnabledScope inner_scope(*heap_->heap(),
+                                               StatsCollector::kSweepFinalize);
       if (concurrent_sweeper_handle_ && concurrent_sweeper_handle_->IsValid() &&
           concurrent_sweeper_handle_->UpdatePriorityEnabled()) {
         concurrent_sweeper_handle_->UpdatePriority(
@@ -594,24 +598,29 @@ class Sweeper::SweeperImpl final {
     void Run(double deadline_in_seconds) override {
       if (handle_.IsCanceled() || !sweeper_->is_in_progress_) return;
 
-      MutatorThreadSweeper sweeper(&sweeper_->space_states_,
-                                   sweeper_->platform_);
       bool sweep_complete;
       {
         StatsCollector::EnabledScope stats_scope(
-            *sweeper_->heap_->heap(), StatsCollector::kLazySweepInIdle,
-            "idleDeltaInSeconds",
-            (deadline_in_seconds -
-             sweeper_->platform_->MonotonicallyIncreasingTime()));
+            *sweeper_->heap_->heap(), StatsCollector::kIncrementalSweep);
 
-        sweep_complete = sweeper.SweepWithDeadline(deadline_in_seconds);
+        MutatorThreadSweeper sweeper(&sweeper_->space_states_,
+                                     sweeper_->platform_);
+        {
+          StatsCollector::EnabledScope stats_scope(
+              *sweeper_->heap_->heap(), StatsCollector::kSweepIdleStep,
+              "idleDeltaInSeconds",
+              (deadline_in_seconds -
+               sweeper_->platform_->MonotonicallyIncreasingTime()));
+
+          sweep_complete = sweeper.SweepWithDeadline(deadline_in_seconds);
+        }
+        if (sweep_complete) {
+          sweeper_->FinalizeSweep();
+        } else {
+          sweeper_->ScheduleIncrementalSweeping();
+        }
       }
-      if (sweep_complete) {
-        sweeper_->FinalizeSweep();
-        sweeper_->NotifyDone();
-      } else {
-        sweeper_->ScheduleIncrementalSweeping();
-      }
+      if (sweep_complete) sweeper_->NotifyDone();
     }
 
     Handle GetHandle() const { return handle_; }

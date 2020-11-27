@@ -164,28 +164,22 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
     marker_->FinishMarking(stack_state);
   }
   {
-    StatsCollector::EnabledScope stats(
-        *this, StatsCollector::kAtomicPauseSweepAndCompact);
-
-    {
-      // Pre finalizers are forbidden from allocating objects.
-      ObjectAllocator::NoAllocationScope no_allocation_scope_(
-          object_allocator_);
-      prefinalizer_handler_->InvokePreFinalizers();
-    }
-    marker_.reset();
-    // TODO(chromium:1056170): replace build flag with dedicated flag.
+    // Pre finalizers are forbidden from allocating objects.
+    ObjectAllocator::NoAllocationScope no_allocation_scope_(object_allocator_);
+    prefinalizer_handler_->InvokePreFinalizers();
+  }
+  marker_.reset();
+  // TODO(chromium:1056170): replace build flag with dedicated flag.
 #if DEBUG
-    MarkingVerifier verifier(*this);
-    verifier.Run(stack_state);
+  MarkingVerifier verifier(*this);
+  verifier.Run(stack_state);
 #endif
 
-    NoGCScope no_gc(*this);
-    const Sweeper::SweepingConfig sweeping_config{
-        config_.sweeping_type,
-        Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep};
-    sweeper_.Start(sweeping_config);
-  }
+  NoGCScope no_gc(*this);
+  const Sweeper::SweepingConfig sweeping_config{
+      config_.sweeping_type,
+      Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep};
+  sweeper_.Start(sweeping_config);
   sweeper_.NotifyDoneIfNeeded();
 }
 
@@ -196,8 +190,7 @@ void Heap::DisableHeapGrowingForTesting() { growing_.DisableForTesting(); }
 void Heap::FinalizeIncrementalGarbageCollectionIfNeeded(
     Config::StackState stack_state) {
   StatsCollector::EnabledScope stats_scope(
-      *this, StatsCollector::kIncrementalMarkingFinalize);
-
+      *this, StatsCollector::kMarkIncrementalFinalize);
   FinalizeGarbageCollection(stack_state);
 }
 
