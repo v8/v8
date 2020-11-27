@@ -398,8 +398,8 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap,
 
 void ConcurrentMarking::Run(JobDelegate* delegate, unsigned mark_compact_epoch,
                             bool is_forced_gc) {
-  TRACE_BACKGROUND_GC(heap_->tracer(),
-                      GCTracer::BackgroundScope::MC_BACKGROUND_MARKING);
+  TRACE_GC1(heap_->tracer(), GCTracer::Scope::MC_BACKGROUND_MARKING,
+            ThreadKind::kBackground);
   size_t kBytesUntilInterruptCheck = 64 * KB;
   int kObjectsUntilInterrupCheck = 1000;
   uint8_t task_id = delegate->GetTaskId() + 1;

@@ -4,6 +4,7 @@
 
 #include "src/heap/sweeper.h"
 
+#include "src/common/globals.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/code-object-registry.h"
 #include "src/heap/free-list-inl.h"
@@ -95,8 +96,8 @@ class Sweeper::SweeperTask final : public CancelableTask {
 
  private:
   void RunInternal() final {
-    TRACE_BACKGROUND_GC(tracer_,
-                        GCTracer::BackgroundScope::MC_BACKGROUND_SWEEPING);
+    TRACE_GC1(tracer_, GCTracer::Scope::MC_BACKGROUND_SWEEPING,
+              ThreadKind::kBackground);
     DCHECK(IsValidSweepingSpace(space_to_start_));
     const int offset = space_to_start_ - FIRST_GROWABLE_PAGED_SPACE;
     for (int i = 0; i < kNumberOfSweepingSpaces; i++) {
@@ -608,8 +609,8 @@ class Sweeper::IterabilityTask final : public CancelableTask {
 
  private:
   void RunInternal() final {
-    TRACE_BACKGROUND_GC(tracer_,
-                        GCTracer::BackgroundScope::MC_BACKGROUND_SWEEPING);
+    TRACE_GC1(tracer_, GCTracer::Scope::MC_BACKGROUND_SWEEPING,
+              ThreadKind::kBackground);
     for (Page* page : sweeper_->iterability_list_) {
       sweeper_->MakeIterable(page);
     }

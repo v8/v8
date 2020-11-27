@@ -6,6 +6,7 @@
 #define V8_HEAP_GC_TRACER_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/base/optional.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/base/ring-buffer.h"
@@ -29,17 +30,16 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
 #define TRACE_GC_CATEGORIES \
   "devtools.timeline," TRACE_DISABLED_BY_DEFAULT("v8.gc")
 
-#define TRACE_GC(tracer, scope_id)                             \
-  GCTracer::Scope::ScopeId gc_tracer_scope_id(scope_id);       \
-  GCTracer::Scope gc_tracer_scope(tracer, gc_tracer_scope_id); \
+#define TRACE_GC(tracer, scope_id)                            \
+  GCTracer::Scope::ScopeId gc_tracer_scope_id(scope_id);      \
+  GCTracer::Scope gc_tracer_scope(tracer, gc_tracer_scope_id, \
+                                  ThreadKind::kMain);         \
   TRACE_EVENT0(TRACE_GC_CATEGORIES, GCTracer::Scope::Name(gc_tracer_scope_id))
 
-#define TRACE_BACKGROUND_GC(tracer, scope_id)                                 \
-  WorkerThreadRuntimeCallStatsScope runtime_call_stats_scope(                 \
-      tracer->worker_thread_runtime_call_stats());                            \
-  GCTracer::BackgroundScope background_scope(tracer, scope_id,                \
-                                             runtime_call_stats_scope.Get()); \
-  TRACE_EVENT0(TRACE_GC_CATEGORIES, GCTracer::BackgroundScope::Name(scope_id))
+#define TRACE_GC1(tracer, scope_id, thread_kind)                            \
+  GCTracer::Scope::ScopeId gc_tracer_scope_id(scope_id);                    \
+  GCTracer::Scope gc_tracer_scope(tracer, gc_tracer_scope_id, thread_kind); \
+  TRACE_EVENT0(TRACE_GC_CATEGORIES, GCTracer::Scope::Name(gc_tracer_scope_id))
 
 // GCTracer collects and prints ONE line after each garbage collector
 // invocation IFF --trace_gc is used.
@@ -67,7 +67,7 @@ class V8_EXPORT_PRIVATE GCTracer {
     int steps;
   };
 
-  class V8_NODISCARD Scope {
+  class V8_EXPORT_PRIVATE V8_NODISCARD Scope {
    public:
     enum ScopeId {
 #define DEFINE_SCOPE(scope) scope,
@@ -91,47 +91,20 @@ class V8_EXPORT_PRIVATE GCTracer {
       FIRST_BACKGROUND_SCOPE = FIRST_GENERAL_BACKGROUND_SCOPE
     };
 
-    Scope(GCTracer* tracer, ScopeId scope);
+    Scope(GCTracer* tracer, ScopeId scope, ThreadKind thread_kind);
     ~Scope();
     static const char* Name(ScopeId id);
 
    private:
     GCTracer* tracer_;
     ScopeId scope_;
+    ThreadKind thread_kind_;
     double start_time_;
     RuntimeCallTimer timer_;
     RuntimeCallStats* runtime_stats_ = nullptr;
+    base::Optional<WorkerThreadRuntimeCallStatsScope> runtime_call_stats_scope_;
 
     DISALLOW_COPY_AND_ASSIGN(Scope);
-  };
-
-  class V8_EXPORT_PRIVATE V8_NODISCARD BackgroundScope {
-   public:
-    enum ScopeId {
-#define DEFINE_SCOPE(scope) scope,
-      TRACER_BACKGROUND_SCOPES(DEFINE_SCOPE)
-#undef DEFINE_SCOPE
-          NUMBER_OF_SCOPES,
-      FIRST_GENERAL_BACKGROUND_SCOPE = BACKGROUND_ARRAY_BUFFER_SWEEP,
-      LAST_GENERAL_BACKGROUND_SCOPE = BACKGROUND_UNMAPPER,
-      FIRST_MC_BACKGROUND_SCOPE = MC_BACKGROUND_EVACUATE_COPY,
-      LAST_MC_BACKGROUND_SCOPE = MC_BACKGROUND_SWEEPING,
-      FIRST_MINOR_GC_BACKGROUND_SCOPE = MINOR_MC_BACKGROUND_EVACUATE_COPY,
-      LAST_MINOR_GC_BACKGROUND_SCOPE = SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL
-    };
-    BackgroundScope(GCTracer* tracer, ScopeId scope,
-                    RuntimeCallStats* runtime_stats);
-    ~BackgroundScope();
-
-    static const char* Name(ScopeId id);
-
-   private:
-    GCTracer* tracer_;
-    ScopeId scope_;
-    double start_time_;
-    RuntimeCallTimer timer_;
-    RuntimeCallStats* runtime_stats_;
-    DISALLOW_COPY_AND_ASSIGN(BackgroundScope);
   };
 
   class Event {
@@ -212,8 +185,6 @@ class V8_EXPORT_PRIVATE GCTracer {
                                                    double optional_speed);
 
   static RuntimeCallCounterId RCSCounterFromScope(Scope::ScopeId id);
-  static RuntimeCallCounterId RCSCounterFromBackgroundScope(
-      BackgroundScope::ScopeId id);
 
   explicit GCTracer(Heap* heap);
 
@@ -350,8 +321,7 @@ class V8_EXPORT_PRIVATE GCTracer {
     }
   }
 
-  void AddBackgroundScopeSample(BackgroundScope::ScopeId scope,
-                                double duration);
+  void AddScopeSampleBackground(Scope::ScopeId scope, double duration);
 
   void RecordGCPhasesHistograms(TimedHistogram* gc_timer);
 
@@ -428,9 +398,7 @@ class V8_EXPORT_PRIVATE GCTracer {
            current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE];
   }
 
-  void FetchBackgroundCounters(int first_global_scope, int last_global_scope,
-                               int first_background_scope,
-                               int last_background_scope);
+  void FetchBackgroundCounters(int first_scope, int last_scope);
   void FetchBackgroundMinorGCCounters();
   void FetchBackgroundMarkCompactCounters();
   void FetchBackgroundGeneralCounters();
@@ -502,7 +470,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   base::RingBuffer<double> recorded_survival_ratios_;
 
   base::Mutex background_counter_mutex_;
-  BackgroundCounter background_counter_[BackgroundScope::NUMBER_OF_SCOPES];
+  BackgroundCounter background_counter_[Scope::NUMBER_OF_SCOPES];
 
   DISALLOW_COPY_AND_ASSIGN(GCTracer);
 };
