@@ -37,7 +37,7 @@ Page* SemiSpace::InitializePage(MemoryChunk* chunk) {
 }
 
 bool SemiSpace::EnsureCurrentCapacity() {
-  if (is_committed()) {
+  if (IsCommitted()) {
     const int expected_pages =
         static_cast<int>(target_capacity_ / Page::kPageSize);
     MemoryChunk* current_page = first_page();
@@ -93,20 +93,20 @@ void SemiSpace::SetUp(size_t initial_capacity, size_t maximum_capacity) {
   minimum_capacity_ = RoundDown(initial_capacity, Page::kPageSize);
   target_capacity_ = minimum_capacity_;
   maximum_capacity_ = RoundDown(maximum_capacity, Page::kPageSize);
-  committed_ = false;
 }
 
 void SemiSpace::TearDown() {
   // Properly uncommit memory to keep the allocator counters in sync.
-  if (is_committed()) {
+  if (IsCommitted()) {
     Uncommit();
   }
   target_capacity_ = maximum_capacity_ = 0;
 }
 
 bool SemiSpace::Commit() {
-  DCHECK(!is_committed());
+  DCHECK(!IsCommitted());
   const int num_pages = static_cast<int>(target_capacity_ / Page::kPageSize);
+  DCHECK(num_pages);
   for (int pages_added = 0; pages_added < num_pages; pages_added++) {
     // Pages in the new spaces can be moved to the old space by the full
     // collector. Therefore, they must be initialized with the same FreeList as
@@ -117,6 +117,7 @@ bool SemiSpace::Commit() {
             NOT_EXECUTABLE);
     if (new_page == nullptr) {
       if (pages_added) RewindPages(pages_added);
+      DCHECK(!IsCommitted());
       return false;
     }
     memory_chunk_list_.PushBack(new_page);
@@ -126,12 +127,12 @@ bool SemiSpace::Commit() {
   if (age_mark_ == kNullAddress) {
     age_mark_ = first_page()->area_start();
   }
-  committed_ = true;
+  DCHECK(IsCommitted());
   return true;
 }
 
 bool SemiSpace::Uncommit() {
-  DCHECK(is_committed());
+  DCHECK(IsCommitted());
   while (!memory_chunk_list_.Empty()) {
     MemoryChunk* chunk = memory_chunk_list_.front();
     memory_chunk_list_.Remove(chunk);
@@ -140,13 +141,13 @@ bool SemiSpace::Uncommit() {
   current_page_ = nullptr;
   current_capacity_ = 0;
   AccountUncommitted(target_capacity_);
-  committed_ = false;
   heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
+  DCHECK(!IsCommitted());
   return true;
 }
 
 size_t SemiSpace::CommittedPhysicalMemory() {
-  if (!is_committed()) return 0;
+  if (!IsCommitted()) return 0;
   size_t size = 0;
   for (Page* p : *this) {
     size += p->CommittedPhysicalMemory();
@@ -155,7 +156,7 @@ size_t SemiSpace::CommittedPhysicalMemory() {
 }
 
 bool SemiSpace::GrowTo(size_t new_capacity) {
-  if (!is_committed()) {
+  if (!IsCommitted()) {
     if (!Commit()) return false;
   }
   DCHECK_EQ(new_capacity & kPageAlignmentMask, 0u);
@@ -201,7 +202,7 @@ bool SemiSpace::ShrinkTo(size_t new_capacity) {
   DCHECK_EQ(new_capacity & kPageAlignmentMask, 0u);
   DCHECK_GE(new_capacity, minimum_capacity_);
   DCHECK_LT(new_capacity, target_capacity_);
-  if (is_committed()) {
+  if (IsCommitted()) {
     const size_t delta = target_capacity_ - new_capacity;
     DCHECK(IsAligned(delta, Page::kPageSize));
     int delta_pages = static_cast<int>(delta / Page::kPageSize);
@@ -282,7 +283,6 @@ void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
   std::swap(from->maximum_capacity_, to->maximum_capacity_);
   std::swap(from->minimum_capacity_, to->minimum_capacity_);
   std::swap(from->age_mark_, to->age_mark_);
-  std::swap(from->committed_, to->committed_);
   std::swap(from->memory_chunk_list_, to->memory_chunk_list_);
   std::swap(from->current_page_, to->current_page_);
   std::swap(from->external_backing_store_bytes_,
@@ -390,7 +390,7 @@ size_t NewSpace::CommittedPhysicalMemory() {
   if (!base::OS::HasLazyCommits()) return CommittedMemory();
   BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   size_t size = to_space_.CommittedPhysicalMemory();
-  if (from_space_.is_committed()) {
+  if (from_space_.IsCommitted()) {
     size += from_space_.CommittedPhysicalMemory();
   }
   return size;
@@ -412,7 +412,7 @@ NewSpace::NewSpace(Heap* heap, v8::PageAllocator* page_allocator,
   if (!to_space_.Commit()) {
     V8::FatalProcessOutOfMemory(heap->isolate(), "New space setup");
   }
-  DCHECK(!from_space_.is_committed());  // No need to use memory yet.
+  DCHECK(!from_space_.IsCommitted());  // No need to use memory yet.
   ResetLinearAllocationArea();
 }
 
@@ -457,7 +457,7 @@ void NewSpace::Shrink() {
   if (rounded_new_capacity < TotalCapacity() &&
       to_space_.ShrinkTo(rounded_new_capacity)) {
     // Only shrink from-space if we managed to shrink to-space.
-    if (from_space_.is_committed()) from_space_.Reset();
+    if (from_space_.IsCommitted()) from_space_.Reset();
     if (!from_space_.ShrinkTo(rounded_new_capacity)) {
       // If we managed to shrink to-space but couldn't shrink from
       // space, attempt to grow to-space again.

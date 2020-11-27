@@ -48,7 +48,6 @@ class SemiSpace : public Space {
         maximum_capacity_(0),
         minimum_capacity_(0),
         age_mark_(kNullAddress),
-        committed_(false),
         id_(semispace),
         current_page_(nullptr) {}
 
@@ -61,7 +60,7 @@ class SemiSpace : public Space {
 
   bool Commit();
   bool Uncommit();
-  bool is_committed() { return committed_; }
+  bool IsCommitted() { return !memory_chunk_list_.Empty(); }
 
   // Grow the semispace to the new capacity.  The new capacity requested must
   // be larger than the current capacity and less than the maximum capacity.
@@ -192,7 +191,6 @@ class SemiSpace : public Space {
   // Used to govern object promotion during mark-compact collection.
   Address age_mark_;
 
-  bool committed_;
   SemiSpaceId id_;
 
   Page* current_page_;
@@ -431,16 +429,16 @@ class V8_EXPORT_PRIVATE NewSpace
 
   // Return whether the operation succeeded.
   bool CommitFromSpaceIfNeeded() {
-    if (from_space_.is_committed()) return true;
+    if (from_space_.IsCommitted()) return true;
     return from_space_.Commit();
   }
 
   bool UncommitFromSpace() {
-    if (!from_space_.is_committed()) return true;
+    if (!from_space_.IsCommitted()) return true;
     return from_space_.Uncommit();
   }
 
-  bool IsFromSpaceCommitted() { return from_space_.is_committed(); }
+  bool IsFromSpaceCommitted() { return from_space_.IsCommitted(); }
 
   SemiSpace* active_space() { return &to_space_; }
 
