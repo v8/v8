@@ -59,7 +59,6 @@ class App {
     document.addEventListener(
         SelectTimeEvent.name, e => this.handleTimeRangeSelect(e));
     document.addEventListener(ToolTipEvent.name, e => this.handleToolTip(e));
-    window.addEventListener('scroll', e => console.log(e));
   }
 
   handleShowEntries(e) {

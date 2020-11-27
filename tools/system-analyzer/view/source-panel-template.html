@@ -15,7 +15,7 @@ found in the LICENSE file. -->
   }
 
   .scriptNode span {
-    counter-increment: sourceLineCounter 1111;
+    counter-increment: sourceLineCounter 1;
     text-indent: -3.5em;
     padding-left: 3.5em;
     display: block;
@@ -40,6 +40,25 @@ found in the LICENSE file. -->
 
   .marked {
     background-color: var(--secondary-color);
+    animation: pulse 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0% {
+      box-shadow: 0px 0px 0px 0px var(--secondary-color);
+    }
+    5% {
+      box-shadow: 0px 0px 0px 10px var(--secondary-color);
+    }
+    10% {
+      box-shadow: 0px 0px 0px 0px var(--secondary-color);
+    }
+    15% {
+      box-shadow: 0px 0px 0px 10px var(--secondary-color);
+    }
+    20% {
+      box-shadow: 0px 0px 0px 0px var(--secondary-color);
+    }
   }
 
   #script-dropdown {

@@ -162,16 +162,24 @@ class Timeline {
     return minIndex;
   }
 
-  initializeTypes() {
+  _initializeTypes() {
     const types = new Map();
+    let index = 0;
     for (const entry of this.all) {
-      types.get(entry.type)?.push(entry) ?? types.set(entry.type, [entry])
+      let entries = types.get(entry.type);
+      if (entries != undefined) {
+        entries.push(entry)
+      } else {
+        entries = [entry];
+        entries.index = index++;
+        types.set(entry.type, entries)
+      }
     }
     return this._uniqueTypes = types;
   }
 
   get uniqueTypes() {
-    return this._uniqueTypes ?? this.initializeTypes();
+    return this._uniqueTypes ?? this._initializeTypes();
   }
 
   depthHistogram() {

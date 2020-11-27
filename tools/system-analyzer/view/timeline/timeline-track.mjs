@@ -5,19 +5,7 @@
 import {kChunkHeight, kChunkWidth} from '../../log/map.mjs';
 import {MapLogEntry} from '../../log/map.mjs';
 import {FocusEvent, SelectionEvent, SelectTimeEvent, SynchronizeSelectionEvent, ToolTipEvent,} from '../events.mjs';
-import {CSSColor, DOM, V8CustomElement} from '../helper.mjs';
-
-const kColors = [
-  CSSColor.green,
-  CSSColor.violet,
-  CSSColor.orange,
-  CSSColor.yellow,
-  CSSColor.primaryColor,
-  CSSColor.red,
-  CSSColor.blue,
-  CSSColor.yellow,
-  CSSColor.secondaryColor,
-];
+import {CSSColor, DOM, kColors, V8CustomElement} from '../helper.mjs';
 
 DOM.defineCustomElement('view/timeline/timeline-track',
                         (templateText) =>

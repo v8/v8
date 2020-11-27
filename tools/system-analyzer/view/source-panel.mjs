@@ -109,8 +109,11 @@ DOM.defineCustomElement('view/source-panel',
   }
 
   handleSourcePositionClick(e) {
-    this.selectLogEntries(e.target.sourcePosition.entries)
+    const sourcePosition = e.target.sourcePosition;
+    this.selectLogEntries(sourcePosition.entries);
+    this.dispatchEvent(new SelectionEvent([sourcePosition]));
   }
+
   handleSourcePositionMouseOver(e) {
     const entries = e.target.sourcePosition.entries;
     let list =

@@ -44,11 +44,13 @@ DOM.defineCustomElement('view/map-panel',
 
   set timeline(timeline) {
     this._timeline = timeline;
+    this.mapTransitionsPanel.timeline = timeline;
   }
 
-  set map(value) {
-    this._map = value;
-    this.mapTransitionsPanel.map = this._map;
+  set map(map) {
+    this._map = map;
+    this.mapTransitionsPanel.map = map;
+    this.mapDetailsPanel.map = map;
   }
 
   handleSearchBar(e) {
