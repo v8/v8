@@ -1752,6 +1752,7 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
 
   bool ProcessCodeSectionHeader(int num_functions, uint32_t offset,
                                 std::shared_ptr<WireBytesStorage>,
+                                int code_section_start,
                                 int code_section_length) override;
 
   bool ProcessFunctionBody(Vector<const uint8_t> bytes,
@@ -2487,7 +2488,7 @@ bool AsyncStreamingProcessor::ProcessSection(SectionCode section_code,
 bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
     int num_functions, uint32_t offset,
     std::shared_ptr<WireBytesStorage> wire_bytes_storage,
-    int code_section_length) {
+    int code_section_start, int code_section_length) {
   DCHECK_LE(0, code_section_length);
   before_code_section_ = false;
   TRACE_STREAMING("Start the code section with %d functions...\n",
@@ -2499,7 +2500,8 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
     return false;
   }
 
-  decoder_.set_code_section(offset, static_cast<uint32_t>(code_section_length));
+  decoder_.set_code_section(code_section_start,
+                            static_cast<uint32_t>(code_section_length));
 
   prefix_hash_ = base::hash_combine(prefix_hash_,
                                     static_cast<uint32_t>(code_section_length));

@@ -283,6 +283,8 @@ struct V8_EXPORT_PRIVATE WasmModule {
   uint32_t num_declared_functions = 0;  // excluding imported
   uint32_t num_exported_functions = 0;
   uint32_t num_declared_data_segments = 0;  // From the DataCount section.
+  // Position and size of the code section (payload only, i.e. without section
+  // ID and length).
   WireBytesRef code = {0, 0};
   WireBytesRef name = {0, 0};
   std::vector<TypeDefinition> types;  // by type index
