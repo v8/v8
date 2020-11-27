@@ -3049,9 +3049,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register dst = i.OutputRegister();
       constexpr int bit_number = 24;
       __ li(r0, Operand(0));
-      __ li(ip, Operand(-1));
+      __ li(ip, Operand(1));
       // Check if both lanes are 0, if so then return false.
       __ vxor(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ mtcrf(0xFF, r0);  // Clear cr.
       __ vcmpequd(kScratchDoubleReg, src, kScratchDoubleReg, SetRC);
       __ isel(dst, r0, ip, bit_number);
       break;
@@ -3061,9 +3062,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   Register dst = i.OutputRegister();                                \
   constexpr int bit_number = 24;                                    \
   __ li(r0, Operand(0));                                            \
-  __ li(ip, Operand(-1));                                           \
+  __ li(ip, Operand(1));                                            \
   /* Check if all lanes > 0, if not then return false.*/            \
   __ vxor(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg); \
+  __ mtcrf(0xFF, r0); /* Clear cr.*/                                \
   __ opcode(kScratchDoubleReg, src, kScratchDoubleReg, SetRC);      \
   __ isel(dst, ip, r0, bit_number);
     case kPPC_V64x2AllTrue: {
