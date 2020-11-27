@@ -243,6 +243,10 @@ class ExecutionConfig(object):
   def flags(self):
     return self.command.flags
 
+  @property
+  def is_error_simulation(self):
+    return '--simulate-errors' in self.flags
+
 
 def parse_args():
   first_config_arguments = ExecutionArgumentsConfig('first')
@@ -396,11 +400,13 @@ def run_comparisons(suppress, execution_configs, test_case, timeout,
   baseline_config = execution_configs[0]
   baseline_output = run_test_case(baseline_config)
   has_crashed = baseline_output.HasCrashed()
+  simulated = baseline_config.is_error_simulation
 
   # Iterate over the remaining configurations, run and compare.
   for comparison_config in execution_configs[1:]:
     comparison_output = run_test_case(comparison_config)
     has_crashed = has_crashed or comparison_output.HasCrashed()
+    simulated = simulated or comparison_config.is_error_simulation
     difference, source = suppress.diff(baseline_output, comparison_output)
 
     if difference:
@@ -421,10 +427,11 @@ def run_comparisons(suppress, execution_configs, test_case, timeout,
       # detected. This is only for the statistics during experiments.
       raise PassException('# V8 correctness - C-R-A-S-H')
     else:
-      # Subsume unexpected crashes (e.g. during sanity checks) with one failure
-      # state.
+      # Subsume simulated and unexpected crashes (e.g. during sanity checks)
+      # with one failure state.
+      crash_state = 'simulated crash' if simulated else 'unexpected crash'
       raise FailException(FAILURE_HEADER_TEMPLATE % dict(
-          configs='', source_key='', suppression='unexpected crash'))
+          configs='', source_key='', suppression=crash_state))
 
 
 def main():
