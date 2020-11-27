@@ -31,7 +31,7 @@ print("https://crbug.com/985154");
   print(Object.getOwnPropertyNames(foo().bar));
 })();
 
-print("Suppresses sensitive natives");
+print("Sensitive runtime functions are neutered");
 (function () {
   function foo() {}
   %PrepareFunctionForOptimization(foo);
