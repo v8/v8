@@ -615,7 +615,7 @@ Response V8RuntimeAgentImpl::queryObjects(
     return Response::ServerError("Prototype should be instance of Object");
   }
   v8::Local<v8::Array> resultArray = m_inspector->debugger()->queryObjects(
-      scope.context(), v8::Local<v8::Object>::Cast(scope.object()));
+      scope.context(), scope.object().As<v8::Object>());
   return scope.injectedScript()->wrapObject(
       resultArray, objectGroup.fromMaybe(scope.objectGroupName()),
       WrapMode::kNoPreview, objects);
@@ -735,10 +735,8 @@ void V8RuntimeAgentImpl::bindingCallback(
   int contextId = InspectedContext::contextId(isolate->GetCurrentContext());
   int contextGroupId = inspector->contextGroupId(contextId);
 
-  String16 name =
-      toProtocolString(isolate, v8::Local<v8::String>::Cast(info.Data()));
-  String16 payload =
-      toProtocolString(isolate, v8::Local<v8::String>::Cast(info[0]));
+  String16 name = toProtocolString(isolate, info.Data().As<v8::String>());
+  String16 payload = toProtocolString(isolate, info[0].As<v8::String>());
 
   inspector->forEachSession(
       contextGroupId,

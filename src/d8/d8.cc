@@ -397,7 +397,7 @@ class TraceConfigParser {
     Local<String> source =
         String::NewFromUtf8(isolate, json_str).ToLocalChecked();
     Local<Value> result = JSON::Parse(context, source).ToLocalChecked();
-    Local<v8::Object> trace_config_object = Local<v8::Object>::Cast(result);
+    Local<v8::Object> trace_config_object = result.As<v8::Object>();
 
     UpdateIncludedCategoriesList(isolate, context, trace_config_object,
                                  trace_config);
@@ -410,7 +410,7 @@ class TraceConfigParser {
     Local<Value> value =
         GetValue(isolate, context, object, kIncludedCategoriesParam);
     if (value->IsArray()) {
-      Local<Array> v8_array = Local<Array>::Cast(value);
+      Local<Array> v8_array = value.As<Array>();
       for (int i = 0, length = v8_array->Length(); i < length; ++i) {
         Local<Value> v = v8_array->Get(context, i)
                              .ToLocalChecked()
@@ -1029,8 +1029,7 @@ MaybeLocal<Promise> Shell::HostImportModuleDynamically(
   Local<Promise::Resolver> resolver;
   if (maybe_resolver.ToLocal(&resolver)) {
     DynamicImportData* data = new DynamicImportData(
-        isolate, Local<String>::Cast(referrer->GetResourceName()), specifier,
-        resolver);
+        isolate, referrer->GetResourceName().As<String>(), specifier, resolver);
     isolate->EnqueueMicrotask(Shell::DoHostImportModuleDynamically, data);
     return resolver->GetPromise();
   }
@@ -1108,7 +1107,7 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
 
   Local<Value> module_namespace = root_module->GetModuleNamespace();
   if (i::FLAG_harmony_top_level_await) {
-    Local<Promise> result_promise(Local<Promise>::Cast(result));
+    Local<Promise> result_promise(result.As<Promise>());
     if (result_promise->State() == Promise::kRejected) {
       resolver->Reject(realm, result_promise->Result()).ToChecked();
       return;
@@ -1176,7 +1175,7 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
     // Loop until module execution finishes
     // TODO(cbruni): This is a bit wonky. "Real" engines would not be
     // able to just busy loop waiting for execution to finish.
-    Local<Promise> result_promise(Local<Promise>::Cast(result));
+    Local<Promise> result_promise(result.As<Promise>());
     while (result_promise->State() == Promise::kPending) {
       isolate->PerformMicrotaskCheckpoint();
     }
@@ -1653,7 +1652,7 @@ void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& args) {
     Local<String> str_obj;
 
     if (arg->IsSymbol()) {
-      arg = Local<Symbol>::Cast(arg)->Description();
+      arg = arg.As<Symbol>()->Description();
     }
     if (!arg->ToString(args.GetIsolate()->GetCurrentContext())
              .ToLocal(&str_obj)) {
@@ -1776,7 +1775,7 @@ void Shell::SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   args.GetReturnValue().Set(v8::Number::New(isolate, 0));
   if (args.Length() == 0 || !args[0]->IsFunction()) return;
-  Local<Function> callback = Local<Function>::Cast(args[0]);
+  Local<Function> callback = args[0].As<Function>();
   Local<Context> context = isolate->GetCurrentContext();
   PerIsolateData::Get(isolate)->SetTimeout(callback, context);
 }
@@ -1879,7 +1878,7 @@ void Shell::WorkerPostMessage(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   Local<Value> message = args[0];
   Local<Value> transfer =
-      args.Length() >= 2 ? args[1] : Local<Value>::Cast(Undefined(isolate));
+      args.Length() >= 2 ? args[1] : Undefined(isolate).As<Value>();
   std::unique_ptr<SerializationData> data =
       Shell::SerializeValue(isolate, message, transfer);
   if (data) {
@@ -2065,8 +2064,7 @@ void Shell::ReportException(Isolate* isolate, Local<v8::Message> message,
   if (v8::TryCatch::StackTrace(context, exception_obj)
           .ToLocal(&stack_trace_string) &&
       stack_trace_string->IsString()) {
-    v8::String::Utf8Value stack_trace(isolate,
-                                      Local<String>::Cast(stack_trace_string));
+    v8::String::Utf8Value stack_trace(isolate, stack_trace_string.As<String>());
     printf("%s\n", ToCString(stack_trace));
   }
   printf("\n");
@@ -2858,11 +2856,10 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
     if (callback->IsFunction()) {
       v8::TryCatch try_catch(isolate_);
       Local<Value> args[] = {message};
-      USE(Local<Function>::Cast(callback)->Call(context, Undefined(isolate_), 1,
-                                                args));
+      USE(callback.As<Function>()->Call(context, Undefined(isolate_), 1, args));
 #ifdef DEBUG
       if (try_catch.HasCaught()) {
-        Local<Object> exception = Local<Object>::Cast(try_catch.Exception());
+        Local<Object> exception = try_catch.Exception().As<Object>();
         Local<String> key = v8::String::NewFromUtf8Literal(
             isolate_, "message", NewStringType::kInternalized);
         Local<String> expected = v8::String::NewFromUtf8Literal(
@@ -2917,8 +2914,7 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
     is_paused = true;
 
     while (is_paused) {
-      USE(Local<Function>::Cast(callback)->Call(context, Undefined(isolate_), 0,
-                                                {}));
+      USE(callback.As<Function>()->Call(context, Undefined(isolate_), 0, {}));
       if (try_catch.HasCaught()) {
         is_paused = false;
       }
@@ -3293,7 +3289,7 @@ void Worker::ProcessMessage(std::unique_ptr<SerializationData> data) {
   if (!onmessage->IsFunction()) {
     return;
   }
-  Local<Function> onmessage_fun = Local<Function>::Cast(onmessage);
+  Local<Function> onmessage_fun = onmessage.As<Function>();
 
   v8::TryCatch try_catch(isolate_);
   try_catch.SetVerbose(true);
@@ -3419,7 +3415,7 @@ void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& args) {
       Shell::SerializeValue(isolate, message, transfer);
   if (data) {
     DCHECK(args.Data()->IsExternal());
-    Local<External> this_value = Local<External>::Cast(args.Data());
+    Local<External> this_value = args.Data().As<External>();
     Worker* worker = static_cast<Worker*>(this_value->Value());
     worker->out_queue_.Enqueue(std::move(data));
     worker->out_semaphore_.Signal();
@@ -3954,7 +3950,7 @@ class Serializer : public ValueSerializer::Delegate {
  private:
   Maybe<bool> PrepareTransfer(Local<Context> context, Local<Value> transfer) {
     if (transfer->IsArray()) {
-      Local<Array> transfer_array = Local<Array>::Cast(transfer);
+      Local<Array> transfer_array = transfer.As<Array>();
       uint32_t length = transfer_array->Length();
       for (uint32_t i = 0; i < length; ++i) {
         Local<Value> element;
@@ -3964,7 +3960,7 @@ class Serializer : public ValueSerializer::Delegate {
             return Nothing<bool>();
           }
 
-          Local<ArrayBuffer> array_buffer = Local<ArrayBuffer>::Cast(element);
+          Local<ArrayBuffer> array_buffer = element.As<ArrayBuffer>();
 
           if (std::find(array_buffers_.begin(), array_buffers_.end(),
                         array_buffer) != array_buffers_.end()) {

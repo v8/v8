@@ -70,8 +70,8 @@ InspectedContext::InspectedContext(V8InspectorImpl* inspector,
   if (global->Get(info.context, toV8String(m_inspector->isolate(), "console"))
           .ToLocal(&console) &&
       console->IsObject()) {
-    m_inspector->console()->installMemoryGetter(
-        info.context, v8::Local<v8::Object>::Cast(console));
+    m_inspector->console()->installMemoryGetter(info.context,
+                                                console.As<v8::Object>());
   }
 }
 

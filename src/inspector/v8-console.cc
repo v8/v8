@@ -545,7 +545,7 @@ void V8Console::monitorFunctionCallback(
   v8::Local<v8::Function> function;
   if (!helper.firstArgAsFunction().ToLocal(&function)) return;
   v8::Local<v8::Value> name = function->GetName();
-  if (!name->IsString() || !v8::Local<v8::String>::Cast(name)->Length())
+  if (!name->IsString() || !name.As<v8::String>()->Length())
     name = function->GetInferredName();
   String16 functionName =
       toProtocolStringWithTypeCheck(info.GetIsolate(), name);
@@ -844,7 +844,7 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
     if (!m_installedMethods->Add(context, name).ToLocal(&m_installedMethods))
       continue;
     if (!m_global
-             ->SetAccessor(context, v8::Local<v8::Name>::Cast(name),
+             ->SetAccessor(context, name.As<v8::Name>(),
                            CommandLineAPIScope::accessorGetterCallback,
                            CommandLineAPIScope::accessorSetterCallback,
                            m_thisReference, v8::DEFAULT, v8::DontEnum,
@@ -869,10 +869,9 @@ V8Console::CommandLineAPIScope::~CommandLineAPIScope() {
     if (!names->Get(m_context, i).ToLocal(&name) || !name->IsName()) continue;
     if (name->IsString()) {
       v8::Local<v8::Value> descriptor;
-      bool success = m_global
-                         ->GetOwnPropertyDescriptor(
-                             m_context, v8::Local<v8::String>::Cast(name))
-                         .ToLocal(&descriptor);
+      bool success =
+          m_global->GetOwnPropertyDescriptor(m_context, name.As<v8::String>())
+              .ToLocal(&descriptor);
       USE(success);
     }
   }

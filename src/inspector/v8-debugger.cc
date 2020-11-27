@@ -657,7 +657,7 @@ v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
   switch (kind) {
     case FUNCTION:
       iterator = v8::debug::ScopeIterator::CreateForFunction(
-          m_isolate, v8::Local<v8::Function>::Cast(value));
+          m_isolate, value.As<v8::Function>());
       break;
     case GENERATOR:
       v8::Local<v8::debug::GeneratorObject> generatorObject =
@@ -665,7 +665,7 @@ v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
       if (!generatorObject->IsSuspended()) return v8::MaybeLocal<v8::Value>();
 
       iterator = v8::debug::ScopeIterator::CreateForGeneratorObject(
-          m_isolate, v8::Local<v8::Object>::Cast(value));
+          m_isolate, value.As<v8::Object>());
       break;
   }
   if (!iterator) return v8::MaybeLocal<v8::Value>();

@@ -63,11 +63,10 @@ bool IsWasmCompileAllowed(v8::Isolate* isolate, v8::Local<v8::Value> value,
   DCHECK_GT(GetPerIsolateWasmControls()->count(isolate), 0);
   const WasmCompileControls& ctrls = GetPerIsolateWasmControls()->at(isolate);
   return (is_async && ctrls.AllowAnySizeForAsync) ||
-         (value->IsArrayBuffer() &&
-          v8::Local<v8::ArrayBuffer>::Cast(value)->ByteLength() <=
-              ctrls.MaxWasmBufferSize) ||
+         (value->IsArrayBuffer() && value.As<v8::ArrayBuffer>()->ByteLength() <=
+                                        ctrls.MaxWasmBufferSize) ||
          (value->IsArrayBufferView() &&
-          v8::Local<v8::ArrayBufferView>::Cast(value)->ByteLength() <=
+          value.As<v8::ArrayBufferView>()->ByteLength() <=
               ctrls.MaxWasmBufferSize);
 }
 

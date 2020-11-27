@@ -2276,6 +2276,7 @@ THREADED_TEST(TestDataTypeChecks) {
     CHECK(!x->IsObjectTemplate());
     CHECK(!x->IsFunctionTemplate());
     v8::Local<v8::Value>::Cast(x);
+    x.As<v8::Value>();
   }
 
   v8::ScriptOrigin origin(v8_str(""), 0, 0, false, -1, Local<v8::Value>(),
@@ -2290,6 +2291,7 @@ THREADED_TEST(TestDataTypeChecks) {
   CHECK(!module->IsObjectTemplate());
   CHECK(!module->IsFunctionTemplate());
   v8::Local<v8::Module>::Cast(module);
+  module.As<v8::Module>();
 
   v8::Local<v8::Data> p = v8::Private::New(isolate);
   CHECK(!p->IsModule());
@@ -2604,7 +2606,7 @@ THREADED_TEST(DescriptorInheritance2) {
 
 void SimpleAccessorGetter(Local<String> name,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
-  Local<Object> self = Local<Object>::Cast(info.This());
+  Local<Object> self = info.This().As<Object>();
   info.GetReturnValue().Set(
       self->Get(info.GetIsolate()->GetCurrentContext(),
                 String::Concat(info.GetIsolate(), v8_str("accessor_"), name))
@@ -2613,7 +2615,7 @@ void SimpleAccessorGetter(Local<String> name,
 
 void SimpleAccessorSetter(Local<String> name, Local<Value> value,
                           const v8::PropertyCallbackInfo<void>& info) {
-  Local<Object> self = Local<Object>::Cast(info.This());
+  Local<Object> self = info.This().As<Object>();
   CHECK(self->Set(info.GetIsolate()->GetCurrentContext(),
                   String::Concat(info.GetIsolate(), v8_str("accessor_"), name),
                   value)
@@ -2623,7 +2625,7 @@ void SimpleAccessorSetter(Local<String> name, Local<Value> value,
 void SymbolAccessorGetter(Local<Name> name,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(name->IsSymbol());
-  Local<Symbol> sym = Local<Symbol>::Cast(name);
+  Local<Symbol> sym = name.As<Symbol>();
   if (sym->Description()->IsUndefined()) return;
   SimpleAccessorGetter(Local<String>::Cast(sym->Description()), info);
 }
@@ -2631,7 +2633,7 @@ void SymbolAccessorGetter(Local<Name> name,
 void SymbolAccessorSetter(Local<Name> name, Local<Value> value,
                           const v8::PropertyCallbackInfo<void>& info) {
   CHECK(name->IsSymbol());
-  Local<Symbol> sym = Local<Symbol>::Cast(name);
+  Local<Symbol> sym = name.As<Symbol>();
   if (sym->Description()->IsUndefined()) return;
   SimpleAccessorSetter(Local<String>::Cast(sym->Description()), value, info);
 }
@@ -2639,7 +2641,7 @@ void SymbolAccessorSetter(Local<Name> name, Local<Value> value,
 void SymbolAccessorGetterReturnsDefault(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(name->IsSymbol());
-  Local<Symbol> sym = Local<Symbol>::Cast(name);
+  Local<Symbol> sym = name.As<Symbol>();
   if (sym->Description()->IsUndefined()) return;
   info.GetReturnValue().Set(info.Data());
 }
@@ -8828,7 +8830,7 @@ static void YGetter(Local<String> name,
 static void YSetter(Local<String> name,
                     Local<Value> value,
                     const v8::PropertyCallbackInfo<void>& info) {
-  Local<Object> this_obj = Local<Object>::Cast(info.This());
+  Local<Object> this_obj = info.This().As<Object>();
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
   if (this_obj->Has(context, name).FromJust())
     this_obj->Delete(context, name).FromJust();
@@ -17588,7 +17590,8 @@ static void SetterWhichSetsYOnThisTo23(
     const v8::PropertyCallbackInfo<void>& info) {
   CHECK(v8::Utils::OpenHandle(*info.This())->IsJSObject());
   CHECK(v8::Utils::OpenHandle(*info.Holder())->IsJSObject());
-  Local<Object>::Cast(info.This())
+  info.This()
+      .As<Object>()
       ->Set(info.GetIsolate()->GetCurrentContext(), v8_str("y"), v8_num(23))
       .FromJust();
 }
@@ -17614,7 +17617,8 @@ void FooSetInterceptor(Local<Name> name, Local<Value> value,
            .FromJust()) {
     return;
   }
-  Local<Object>::Cast(info.This())
+  info.This()
+      .As<Object>()
       ->Set(info.GetIsolate()->GetCurrentContext(), v8_str("y"), v8_num(23))
       .FromJust();
   info.GetReturnValue().Set(v8_num(23));
@@ -17678,7 +17682,8 @@ static void NamedPropertySetterWhichSetsYOnThisTo23(
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   if (name->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("x"))
           .FromJust()) {
-    Local<Object>::Cast(info.This())
+    info.This()
+        .As<Object>()
         ->Set(info.GetIsolate()->GetCurrentContext(), v8_str("y"), v8_num(23))
         .FromJust();
   }
