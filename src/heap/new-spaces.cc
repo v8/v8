@@ -457,7 +457,7 @@ void NewSpace::Shrink() {
   if (rounded_new_capacity < TotalCapacity() &&
       to_space_.ShrinkTo(rounded_new_capacity)) {
     // Only shrink from-space if we managed to shrink to-space.
-    from_space_.Reset();
+    if (from_space_.is_committed()) from_space_.Reset();
     if (!from_space_.ShrinkTo(rounded_new_capacity)) {
       // If we managed to shrink to-space but couldn't shrink from
       // space, attempt to grow to-space again.

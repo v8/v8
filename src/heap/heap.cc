@@ -1406,10 +1406,6 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   }
 
   set_current_gc_flags(kNoGCFlags);
-  new_space_->Shrink();
-  new_lo_space_->SetCapacity(new_space_->Capacity() *
-                             kNewLargeObjectSpaceToSemiSpaceRatio);
-  UncommitFromSpace();
   EagerlyFreeExternalMemory();
 
   if (FLAG_trace_duplicate_threshold_kb) {
