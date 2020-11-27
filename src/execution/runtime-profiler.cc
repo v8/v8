@@ -22,7 +22,7 @@ namespace internal {
 
 // Number of times a function has to be seen on the stack before it is
 // optimized.
-static const int kProfilerTicksBeforeOptimization = 2;
+static const int kProfilerTicksBeforeOptimization = 3;
 
 // The number of ticks required for optimizing a function increases with
 // the size of the bytecode. This is in addition to the
@@ -30,7 +30,7 @@ static const int kProfilerTicksBeforeOptimization = 2;
 static const int kBytecodeSizeAllowancePerTick = 1200;
 
 // Maximum size in bytes of generate code for a function to allow OSR.
-static const int kOSRBytecodeSizeAllowanceBase = 180;
+static const int kOSRBytecodeSizeAllowanceBase = 132;
 
 static const int kOSRBytecodeSizeAllowancePerTick = 48;
 
@@ -265,17 +265,9 @@ OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
   bool active_tier_is_turboprop = function.ActiveTierIsMidtierTurboprop();
   int scale_factor =
       active_tier_is_turboprop ? FLAG_ticks_scale_factor_for_top_tier : 1;
-  // TODO(turboprop, mythria): There is a difference in when we increment the
-  // profiler ticks on the feedback vector. For interrupts from interpreted code
-  // we increment after the tier up decision and from optimized code we
-  // increment before the decision. So we need to adjust the ticks here if we
-  // are tiering up from Turboprop to Turbofan. The right fix is to make the
-  // increments consistent in both places and avoid adding one additional tick
-  // here.
   int ticks_for_optimization =
       kProfilerTicksBeforeOptimization +
-      (bytecode.length() / kBytecodeSizeAllowancePerTick) +
-      (active_tier_is_turboprop ? 1 : 0);
+      (bytecode.length() / kBytecodeSizeAllowancePerTick);
   ticks_for_optimization *= scale_factor;
   if (ticks >= ticks_for_optimization) {
     return OptimizationReason::kHotAndStable;
@@ -326,11 +318,9 @@ void RuntimeProfiler::MarkCandidatesForOptimizationFromBytecode() {
 
     if (!function.has_feedback_vector()) continue;
 
-    MaybeOptimizeFrame(function, frame, CodeKind::INTERPRETED_FUNCTION);
-
-    // TODO(leszeks): Move this increment to before the maybe optimize checks,
-    // and update the tests to assume the increment has already happened.
     function.feedback_vector().SaturatingIncrementProfilerTicks();
+
+    MaybeOptimizeFrame(function, frame, CodeKind::INTERPRETED_FUNCTION);
   }
 }
 
