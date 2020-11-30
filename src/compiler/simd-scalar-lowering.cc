@@ -511,11 +511,20 @@ void SimdScalarLowering::GetIndexNodes(Node* index, Node** new_indices,
   int num_lanes = NumLanes(type);
   int lane_width = kSimd128Size / num_lanes;
   int laneIndex = kLaneOffsets[0] / lane_width;
-  new_indices[laneIndex] = index;
+
+  Node* rep = index;
+
+  if (HasReplacement(0, index)) {
+    // Index nodes are lowered to scalar nodes.
+    DCHECK_EQ(1, ReplacementCount(index));
+    rep = GetReplacements(index)[0];
+  }
+
+  new_indices[laneIndex] = rep;
   for (int i = 1; i < num_lanes; ++i) {
     laneIndex = kLaneOffsets[i * lane_width] / lane_width;
     new_indices[laneIndex] = graph()->NewNode(
-        machine()->Int32Add(), index,
+        machine()->Int32Add(), rep,
         graph()->NewNode(
             common()->Int32Constant(static_cast<int>(i) * lane_width)));
   }
@@ -663,9 +672,13 @@ void SimdScalarLowering::LowerLoadTransformOp(Node* node, SimdType type) {
       }
     } else {
       // Load splat, load from the same index for every lane.
+      Node* rep = HasReplacement(0, index) ? GetReplacements(index)[0] : index;
+
+      // Replace first node, we only called ChangeOp above.
+      reps[0]->ReplaceInput(1, rep);
       for (int i = num_lanes - 1; i > 0; --i) {
         reps[i] =
-            graph()->NewNode(load_op, base, index, effect_input, control_input);
+            graph()->NewNode(load_op, base, rep, effect_input, control_input);
         effect_input = reps[i];
       }
     }
