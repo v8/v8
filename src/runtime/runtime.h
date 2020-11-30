@@ -540,6 +540,7 @@ namespace internal {
   F(SetWasmInstantiateControls, 0, 1)         \
   F(SetWasmThreadsEnabled, 1, 1)              \
   F(SimulateNewspaceFull, 0, 1)               \
+  F(ScheduleGCInStackCheck, 0, 1)             \
   F(StringIteratorProtector, 0, 1)            \
   F(SystemBreak, 0, 1)                        \
   F(TraceEnter, 0, 1)                         \

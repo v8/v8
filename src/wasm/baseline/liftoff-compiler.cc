@@ -301,38 +301,60 @@ class LiftoffCompiler {
     explicit SpilledRegistersForInspection(Zone* zone) : entries(zone) {}
   };
 
+  struct OutOfLineSafepointInfo {
+    ZoneVector<int> slots;
+    LiftoffRegList spills;
+
+    explicit OutOfLineSafepointInfo(Zone* zone) : slots(zone) {}
+  };
+
   struct OutOfLineCode {
     MovableLabel label;
     MovableLabel continuation;
     WasmCode::RuntimeStubId stub;
     WasmCodePosition position;
     LiftoffRegList regs_to_save;
+    OutOfLineSafepointInfo* safepoint_info;
     uint32_t pc;  // for trap handler.
     // These two pointers will only be used for debug code:
-    DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder;
     SpilledRegistersForInspection* spilled_registers;
+    DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder;
 
     // Named constructors:
     static OutOfLineCode Trap(
-        WasmCode::RuntimeStubId s, WasmCodePosition pos, uint32_t pc,
-        DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder,
-        SpilledRegistersForInspection* spilled_registers) {
+        WasmCode::RuntimeStubId s, WasmCodePosition pos,
+        SpilledRegistersForInspection* spilled_registers,
+        OutOfLineSafepointInfo* safepoint_info, uint32_t pc,
+        DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder) {
       DCHECK_LT(0, pos);
-      return {{},
-              {},
-              s,
-              pos,
-              {},
-              pc,
-              debug_sidetable_entry_builder,
-              spilled_registers};
+      return {
+          {},                            // label
+          {},                            // continuation
+          s,                             // stub
+          pos,                           // position
+          {},                            // regs_to_save
+          safepoint_info,                // safepoint_info
+          pc,                            // pc
+          spilled_registers,             // spilled_registers
+          debug_sidetable_entry_builder  // debug_side_table_entry_builder
+      };
     }
     static OutOfLineCode StackCheck(
         WasmCodePosition pos, LiftoffRegList regs_to_save,
         SpilledRegistersForInspection* spilled_regs,
+        OutOfLineSafepointInfo* safepoint_info,
         DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder) {
-      return {{},           {}, WasmCode::kWasmStackGuard,     pos,
-              regs_to_save, 0,  debug_sidetable_entry_builder, spilled_regs};
+      return {
+          {},                            // label
+          {},                            // continuation
+          WasmCode::kWasmStackGuard,     // stub
+          pos,                           // position
+          regs_to_save,                  // regs_to_save
+          safepoint_info,                // safepoint_info
+          0,                             // pc
+          spilled_regs,                  // spilled_registers
+          debug_sidetable_entry_builder  // debug_side_table_entry_builder
+      };
     }
   };
 
@@ -437,10 +459,6 @@ class LiftoffCompiler {
     return false;
   }
 
-  int GetSafepointTableOffset() const {
-    return safepoint_table_builder_.GetCodeOffset();
-  }
-
   void UnuseLabels(FullDecoder* decoder) {
 #ifdef DEBUG
     auto Unuse = [](Label* label) {
@@ -510,12 +528,20 @@ class LiftoffCompiler {
     LiftoffRegList regs_to_save = __ cache_state()->used_registers;
     SpilledRegistersForInspection* spilled_regs = nullptr;
     Register limit_address = __ GetUnusedRegister(kGpReg, {}).gp();
+
+    OutOfLineSafepointInfo* safepoint_info =
+        compilation_zone_->New<OutOfLineSafepointInfo>(compilation_zone_);
+    __ cache_state()->GetTaggedSlotsForOOLCode(
+        &safepoint_info->slots, &safepoint_info->spills,
+        for_debugging_
+            ? LiftoffAssembler::CacheState::SpillLocation::kStackSlots
+            : LiftoffAssembler::CacheState::SpillLocation::kTopOfStack);
     if (V8_UNLIKELY(for_debugging_)) {
       regs_to_save = {};
       spilled_regs = GetSpilledRegistersForInspection();
     }
     out_of_line_code_.push_back(OutOfLineCode::StackCheck(
-        position, regs_to_save, spilled_regs,
+        position, regs_to_save, spilled_regs, safepoint_info,
         RegisterDebugSideTableEntry(DebugSideTableBuilder::kAssumeSpilling)));
     OutOfLineCode& ool = out_of_line_code_.back();
     LOAD_INSTANCE_FIELD(limit_address, StackLimitAddress, kSystemPointerSize);
@@ -734,8 +760,38 @@ class LiftoffCompiler {
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(ool->position), true);
     __ CallRuntimeStub(ool->stub);
-    // TODO(ahaas): Define a proper safepoint here.
-    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
+    Safepoint safepoint = safepoint_table_builder_.DefineSafepoint(
+        &asm_, Safepoint::kNoLazyDeopt);
+
+    if (ool->safepoint_info) {
+      for (auto index : ool->safepoint_info->slots) {
+        safepoint.DefinePointerSlot(index);
+      }
+
+      int total_frame_size = __ GetTotalFrameSize();
+      LiftoffRegList gp_regs = ool->regs_to_save & kGpCacheRegList;
+      // {total_frame_size} is the highest offset from the FP that is used to
+      // store a value. The offset of the first spill slot should therefore be
+      // {(total_frame_size / kSystemPointerSize) + 1}. However, spill slots
+      // don't start at offset '0' but at offset '-1' (or
+      // {-kSystemPointerSize}). Therefore we have to add another '+ 1' to the
+      // index of the first spill slot.
+      int index = (total_frame_size / kSystemPointerSize) + 2;
+      // The size of the stack frame in addition to {total_frame_size} that may
+      // contain references.
+      int spill_space_size = 0;
+      while (!gp_regs.is_empty()) {
+        LiftoffRegister reg = gp_regs.GetFirstRegSet();
+        if (ool->safepoint_info->spills.has(reg)) {
+          safepoint.DefinePointerSlot(index);
+        }
+        gp_regs.clear(reg);
+        ++index;
+        spill_space_size += kSystemPointerSize;
+      }
+      __ RecordOolSpillSpaceSize(spill_space_size);
+    }
+
     DCHECK_EQ(!debug_sidetable_builder_, !ool->debug_sidetable_entry_builder);
     if (V8_UNLIKELY(ool->debug_sidetable_entry_builder)) {
       ool->debug_sidetable_entry_builder->set_pc_offset(__ pc_offset());
@@ -2075,12 +2131,24 @@ class LiftoffCompiler {
   Label* AddOutOfLineTrap(WasmCodePosition position,
                           WasmCode::RuntimeStubId stub, uint32_t pc = 0) {
     DCHECK(FLAG_wasm_bounds_checks);
-
+    OutOfLineSafepointInfo* safepoint_info = nullptr;
+    if (V8_UNLIKELY(for_debugging_)) {
+      // Execution does not return after a trap. Therefore we don't have to
+      // define a safepoint for traps that would preserve references on the
+      // stack. However, if this is debug code, then we have to preserve the
+      // references so that they can be inspected.
+      safepoint_info =
+          compilation_zone_->New<OutOfLineSafepointInfo>(compilation_zone_);
+      __ cache_state()->GetTaggedSlotsForOOLCode(
+          &safepoint_info->slots, &safepoint_info->spills,
+          LiftoffAssembler::CacheState::SpillLocation::kStackSlots);
+    }
     out_of_line_code_.push_back(OutOfLineCode::Trap(
-        stub, position, pc,
-        RegisterDebugSideTableEntry(DebugSideTableBuilder::kAssumeSpilling),
+        stub, position,
         V8_UNLIKELY(for_debugging_) ? GetSpilledRegistersForInspection()
-                                    : nullptr));
+                                    : nullptr,
+        safepoint_info, pc,
+        RegisterDebugSideTableEntry(DebugSideTableBuilder::kAssumeSpilling)));
     return out_of_line_code_.back().label.get();
   }
 

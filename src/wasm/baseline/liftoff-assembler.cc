@@ -489,21 +489,45 @@ void LiftoffAssembler::CacheState::Split(const CacheState& source) {
   *this = source;
 }
 
+namespace {
+int GetSafepointIndexForStackSlot(const VarState& slot) {
+  // index = 0 is for the stack slot at 'fp + kFixedFrameSizeAboveFp -
+  // kSystemPointerSize', the location of the current stack slot is 'fp -
+  // slot.offset()'. The index we need is therefore '(fp +
+  // kFixedFrameSizeAboveFp - kSystemPointerSize) - (fp - slot.offset())' =
+  // 'slot.offset() + kFixedFrameSizeAboveFp - kSystemPointerSize'.
+  // Concretely, the index of the first stack slot is '4'.
+  return (slot.offset() + StandardFrameConstants::kFixedFrameSizeAboveFp -
+          kSystemPointerSize) /
+         kSystemPointerSize;
+}
+}  // namespace
+
+void LiftoffAssembler::CacheState::GetTaggedSlotsForOOLCode(
+    ZoneVector<int>* slots, LiftoffRegList* spills,
+    SpillLocation spill_location) {
+  for (const auto& slot : stack_state) {
+    if (!slot.type().is_reference_type()) continue;
+
+    if (spill_location == SpillLocation::kTopOfStack && slot.is_reg()) {
+      // Registers get spilled just before the call to the runtime. In {spills}
+      // we store which of the spilled registers contain references, so that we
+      // can add the spill slots to the safepoint.
+      spills->set(slot.reg());
+      continue;
+    }
+    DCHECK_IMPLIES(slot.is_reg(), spill_location == SpillLocation::kStackSlots);
+
+    slots->push_back(GetSafepointIndexForStackSlot(slot));
+  }
+}
+
 void LiftoffAssembler::CacheState::DefineSafepoint(Safepoint& safepoint) {
-  for (auto slot : stack_state) {
+  for (const auto& slot : stack_state) {
     DCHECK(!slot.is_reg());
 
     if (slot.type().is_reference_type()) {
-      // index = 0 is for the stack slot at 'fp + kFixedFrameSizeAboveFp -
-      // kSystemPointerSize', the location of the current stack slot is 'fp -
-      // slot.offset()'. The index we need is therefore '(fp +
-      // kFixedFrameSizeAboveFp - kSystemPointerSize) - (fp - slot.offset())' =
-      // 'slot.offset() + kFixedFrameSizeAboveFp - kSystemPointerSize'.
-      auto index =
-          (slot.offset() + StandardFrameConstants::kFixedFrameSizeAboveFp -
-           kSystemPointerSize) /
-          kSystemPointerSize;
-      safepoint.DefinePointerSlot(index);
+      safepoint.DefinePointerSlot(GetSafepointIndexForStackSlot(slot));
     }
   }
 }
@@ -514,7 +538,8 @@ int LiftoffAssembler::GetTotalFrameSlotCountForGC() const {
   // that the offset of the first spill slot is kSystemPointerSize and not
   // '0'. Therefore we don't have to add '+1' here.
   return (max_used_spill_offset_ +
-          StandardFrameConstants::kFixedFrameSizeAboveFp) /
+          StandardFrameConstants::kFixedFrameSizeAboveFp +
+          ool_spill_space_size_) /
          kSystemPointerSize;
 }
 

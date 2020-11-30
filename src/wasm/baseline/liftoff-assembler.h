@@ -173,6 +173,18 @@ class LiftoffAssembler : public TurboAssembler {
     // Disallow copy construction.
     CacheState(const CacheState&) = delete;
 
+    enum class SpillLocation { kTopOfStack, kStackSlots };
+    // Generates two lists of locations that contain references. {slots}
+    // contains the indices of slots on the value stack that contain references.
+    // {spills} contains all registers that contain references. The
+    // {spill_location} defines where register values will be spilled for a
+    // function call within the out-of-line code. {kStackSlots} means that the
+    // values in the registers will be written back to their stack slots.
+    // {kTopOfStack} means that the registers will be spilled on the stack with
+    // a {push} instruction.
+    void GetTaggedSlotsForOOLCode(/*out*/ ZoneVector<int>* slots,
+                                  /*out*/ LiftoffRegList* spills,
+                                  SpillLocation spill_location);
     void DefineSafepoint(Safepoint& safepoint);
 
     base::SmallVector<VarState, 8> stack_state;
@@ -450,6 +462,10 @@ class LiftoffAssembler : public TurboAssembler {
   // spill slot can be tracked and the stack frame will be allocated big enough.
   void RecordUsedSpillOffset(int offset) {
     if (offset >= max_used_spill_offset_) max_used_spill_offset_ = offset;
+  }
+
+  void RecordOolSpillSpaceSize(int size) {
+    if (size > ool_spill_space_size_) ool_spill_space_size_ = size;
   }
 
   // Load parameters into the right registers / stack slots for the call.
@@ -1225,7 +1241,10 @@ class LiftoffAssembler : public TurboAssembler {
   static_assert(sizeof(ValueType) == 4,
                 "Reconsider this inlining if ValueType gets bigger");
   CacheState cache_state_;
+  // The maximum spill offset for slots in the value stack.
   int max_used_spill_offset_ = StaticStackFrameSize();
+  // The amount of memory needed for register spills in OOL code.
+  int ool_spill_space_size_ = 0;
   LiftoffBailoutReason bailout_reason_ = kSuccess;
   const char* bailout_detail_ = nullptr;
 

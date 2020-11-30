@@ -751,6 +751,18 @@ RUNTIME_FUNCTION(Runtime_SimulateNewspaceFull) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_ScheduleGCInStackCheck) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  isolate->RequestInterrupt(
+      [](v8::Isolate* isolate, void*) {
+        isolate->RequestGarbageCollectionForTesting(
+            v8::Isolate::kFullGarbageCollection);
+      },
+      nullptr);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 static void DebugPrintImpl(MaybeObject maybe_object) {
   StdoutStream os;
   if (maybe_object->IsCleared()) {
