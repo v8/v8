@@ -69,7 +69,7 @@ class SemiSpace : public Space {
   // Shrinks the semispace to the new capacity.  The new capacity requested
   // must be more than the amount of used memory in the semispace and less
   // than the current capacity.
-  bool ShrinkTo(size_t new_capacity);
+  void ShrinkTo(size_t new_capacity);
 
   bool EnsureCurrentCapacity();
 

@@ -198,7 +198,7 @@ void SemiSpace::RewindPages(int num_pages) {
   }
 }
 
-bool SemiSpace::ShrinkTo(size_t new_capacity) {
+void SemiSpace::ShrinkTo(size_t new_capacity) {
   DCHECK_EQ(new_capacity & kPageAlignmentMask, 0u);
   DCHECK_GE(new_capacity, minimum_capacity_);
   DCHECK_LT(new_capacity, target_capacity_);
@@ -211,7 +211,6 @@ bool SemiSpace::ShrinkTo(size_t new_capacity) {
     heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
   }
   target_capacity_ = new_capacity;
-  return true;
 }
 
 void SemiSpace::FixPagesFlags(intptr_t flags, intptr_t mask) {
@@ -441,11 +440,7 @@ void NewSpace::Grow() {
     if (!from_space_.GrowTo(new_capacity)) {
       // If we managed to grow to-space but couldn't grow from-space,
       // attempt to shrink to-space.
-      if (!to_space_.ShrinkTo(from_space_.target_capacity())) {
-        // We are in an inconsistent state because we could not
-        // commit/uncommit memory from new space.
-        FATAL("inconsistent state");
-      }
+      to_space_.ShrinkTo(from_space_.target_capacity());
     }
   }
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
@@ -454,19 +449,11 @@ void NewSpace::Grow() {
 void NewSpace::Shrink() {
   size_t new_capacity = std::max(InitialTotalCapacity(), 2 * Size());
   size_t rounded_new_capacity = ::RoundUp(new_capacity, Page::kPageSize);
-  if (rounded_new_capacity < TotalCapacity() &&
-      to_space_.ShrinkTo(rounded_new_capacity)) {
+  if (rounded_new_capacity < TotalCapacity()) {
+    to_space_.ShrinkTo(rounded_new_capacity);
     // Only shrink from-space if we managed to shrink to-space.
     if (from_space_.IsCommitted()) from_space_.Reset();
-    if (!from_space_.ShrinkTo(rounded_new_capacity)) {
-      // If we managed to shrink to-space but couldn't shrink from
-      // space, attempt to grow to-space again.
-      if (!to_space_.GrowTo(from_space_.target_capacity())) {
-        // We are in an inconsistent state because we could not
-        // commit/uncommit memory from new space.
-        FATAL("inconsistent state");
-      }
-    }
+    from_space_.ShrinkTo(rounded_new_capacity);
   }
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
