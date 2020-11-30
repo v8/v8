@@ -86,7 +86,10 @@ void TaskRunner::RunMessageLoop(bool only_protocol) {
     // tests are fixed.
     if (!i::FLAG_stress_incremental_marking) {
       while (v8::platform::PumpMessageLoop(
-          v8::internal::V8::GetCurrentPlatform(), isolate())) {
+          v8::internal::V8::GetCurrentPlatform(), isolate(),
+          isolate()->HasPendingBackgroundTasks()
+              ? platform::MessageLoopBehavior::kWaitForWork
+              : platform::MessageLoopBehavior::kDoNotWait)) {
       }
     }
   }
