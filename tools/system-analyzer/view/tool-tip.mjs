@@ -91,6 +91,7 @@ DOM.defineCustomElement(
       hide() {
         this._isHidden = true;
         this.bodyNode.style.display = 'none';
+        this.targetNode = undefined;
       }
 
       show() {
