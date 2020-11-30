@@ -87,7 +87,7 @@ DOM.defineCustomElement(
       }
 
       _addMapAndParentTransitions(map) {
-        if (map === void 0) return;
+        if (map === undefined) return;
         if (this._displayedMapsInTree.has(map)) return;
         this._displayedMapsInTree.add(map);
         this.currentNode = this.transitionView;
@@ -191,7 +191,7 @@ DOM.defineCustomElement(
           // Add subtransitions except the one that's already shown.
           let visibleTransitionMap = subtransitionNodes.length == 1 ?
               transitionsNode.querySelector('.map').map :
-              void 0;
+              undefined;
           map.children.forEach((edge) => {
             if (edge.to != visibleTransitionMap) {
               this.currentNode = transitionsNode;
