@@ -2455,13 +2455,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     for (int i = 0; i < value_count; ++i) Push(sig->GetParam(i));
     Vector<Value> values(stack_ + c->stack_depth, value_count);
     TypeCheckBranchResult check_result = TypeCheckBranch(c, true);
-    if (this->failed()) return 0;
     if (V8_LIKELY(check_result == kReachableBranch)) {
-      CALL_INTERFACE(BrOnException, exception, imm.index, imm.depth.depth,
-                     values);
+      CALL_INTERFACE_IF_REACHABLE(BrOnException, exception, imm.index,
+                                  imm.depth.depth, values);
       c->br_merge()->reached = true;
-    } else if (check_result == kInvalidStack) {
-      return 0;
     }
     for (int i = value_count - 1; i >= 0; i--) Pop(i);
     Value* pexception = Push(kWasmExnRef);
@@ -2474,13 +2471,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     BranchDepthImmediate<validate> imm(this, this->pc_ + 1);
     if (!this->Validate(this->pc_ + 1, imm, control_.size())) return 0;
     Value ref_object = Pop(0);
-    if (this->failed()) return 0;
     Control* c = control_at(imm.depth);
     TypeCheckBranchResult check_result = TypeCheckBranch(c, true);
     if (V8_LIKELY(check_result == kReachableBranch)) {
       switch (ref_object.type.kind()) {
         case ValueType::kBottom:
-          // We are in unreachable code, just forward the bottom value.
+          UNREACHABLE();  // This can only happen in unreachable code.
         case ValueType::kRef: {
           Value* result = Push(ref_object.type);
           CALL_INTERFACE(PassThrough, ref_object, result);
@@ -2490,7 +2486,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           // We need to Push the result value after calling BrOnNull on
           // the interface. Therefore we must sync the ref_object and
           // result nodes afterwards (in PassThrough).
-          CALL_INTERFACE(BrOnNull, ref_object, imm.depth);
+          CALL_INTERFACE_IF_REACHABLE(BrOnNull, ref_object, imm.depth);
           Value* result =
               Push(ValueType::Ref(ref_object.type.heap_type(), kNonNullable));
           CALL_INTERFACE(PassThrough, ref_object, result);
@@ -2501,8 +2497,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           this->DecodeError("invalid argument type to br_on_null");
           return 0;
       }
-    } else if (check_result == kInvalidStack) {
-      return 0;
     }
     return 1 + imm.length;
   }
@@ -2651,15 +2645,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   DECODE(Br) {
     BranchDepthImmediate<validate> imm(this, this->pc_ + 1);
-    if (this->failed()) return 0;
     if (!this->Validate(this->pc_ + 1, imm, control_.size())) return 0;
     Control* c = control_at(imm.depth);
     TypeCheckBranchResult check_result = TypeCheckBranch(c, false);
     if (V8_LIKELY(check_result == kReachableBranch)) {
-      CALL_INTERFACE(BrOrRet, imm.depth);
+      CALL_INTERFACE_IF_REACHABLE(BrOrRet, imm.depth);
       c->br_merge()->reached = true;
-    } else if (check_result == kInvalidStack) {
-      return 0;
     }
     EndControl();
     return 1 + imm.length;
@@ -2669,14 +2660,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     BranchDepthImmediate<validate> imm(this, this->pc_ + 1);
     if (!this->Validate(this->pc_ + 1, imm, control_.size())) return 0;
     Value cond = Pop(0, kWasmI32);
-    if (this->failed()) return 0;
     Control* c = control_at(imm.depth);
     TypeCheckBranchResult check_result = TypeCheckBranch(c, true);
     if (V8_LIKELY(check_result == kReachableBranch)) {
-      CALL_INTERFACE(BrIf, cond, imm.depth);
+      CALL_INTERFACE_IF_REACHABLE(BrIf, cond, imm.depth);
       c->br_merge()->reached = true;
-    } else if (check_result == kInvalidStack) {
-      return 0;
     }
     return 1 + imm.length;
   }
