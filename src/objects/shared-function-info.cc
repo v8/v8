@@ -705,5 +705,41 @@ void SharedFunctionInfo::EnsureSourcePositionsAvailable(
   }
 }
 
+// static
+void SharedFunctionInfo::InstallDebugBytecode(Handle<SharedFunctionInfo> shared,
+                                              Isolate* isolate) {
+  DCHECK(shared->HasBytecodeArray());
+  Handle<BytecodeArray> original_bytecode_array(shared->GetBytecodeArray(),
+                                                isolate);
+  Handle<BytecodeArray> debug_bytecode_array =
+      isolate->factory()->CopyBytecodeArray(original_bytecode_array);
+
+  {
+    DisallowGarbageCollection no_gc;
+    base::SharedMutexGuard<base::kExclusive> mutex_guard(
+        isolate->shared_function_info_access());
+    DebugInfo debug_info = shared->GetDebugInfo();
+    debug_info.set_original_bytecode_array(*original_bytecode_array,
+                                           kReleaseStore);
+    debug_info.set_debug_bytecode_array(*debug_bytecode_array, kReleaseStore);
+    shared->SetActiveBytecodeArray(*debug_bytecode_array);
+  }
+}
+
+// static
+void SharedFunctionInfo::UninstallDebugBytecode(SharedFunctionInfo shared,
+                                                Isolate* isolate) {
+  DisallowGarbageCollection no_gc;
+  base::SharedMutexGuard<base::kExclusive> mutex_guard(
+      isolate->shared_function_info_access());
+  DebugInfo debug_info = shared.GetDebugInfo();
+  BytecodeArray original_bytecode_array = debug_info.OriginalBytecodeArray();
+  shared.SetActiveBytecodeArray(original_bytecode_array);
+  debug_info.set_original_bytecode_array(
+      ReadOnlyRoots(isolate).undefined_value(), kReleaseStore);
+  debug_info.set_debug_bytecode_array(ReadOnlyRoots(isolate).undefined_value(),
+                                      kReleaseStore);
+}
+
 }  // namespace internal
 }  // namespace v8

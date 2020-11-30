@@ -1266,19 +1266,9 @@ void Debug::PrepareFunctionForDebugExecution(
   Handle<DebugInfo> debug_info = GetOrCreateDebugInfo(shared);
   if (debug_info->flags() & DebugInfo::kPreparedForDebugExecution) return;
 
-  // Make a copy of the bytecode array if available.
-  Handle<HeapObject> maybe_original_bytecode_array =
-      isolate_->factory()->undefined_value();
   if (shared->HasBytecodeArray()) {
-    Handle<BytecodeArray> original_bytecode_array =
-        handle(shared->GetBytecodeArray(), isolate_);
-    Handle<BytecodeArray> debug_bytecode_array =
-        isolate_->factory()->CopyBytecodeArray(original_bytecode_array);
-    debug_info->set_debug_bytecode_array(*debug_bytecode_array);
-    shared->SetDebugBytecodeArray(*debug_bytecode_array);
-    maybe_original_bytecode_array = original_bytecode_array;
+    SharedFunctionInfo::InstallDebugBytecode(shared, isolate_);
   }
-  debug_info->set_original_bytecode_array(*maybe_original_bytecode_array);
 
   if (debug_info->CanBreakAtEntry()) {
     // Deopt everything in case the function is inlined anywhere.

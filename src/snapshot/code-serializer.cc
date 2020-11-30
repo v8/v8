@@ -169,7 +169,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
       debug_info = sfi->GetDebugInfo();
       if (debug_info.HasInstrumentedBytecodeArray()) {
         debug_bytecode_array = debug_info.DebugBytecodeArray();
-        sfi->SetDebugBytecodeArray(debug_info.OriginalBytecodeArray());
+        sfi->SetActiveBytecodeArray(debug_info.OriginalBytecodeArray());
       }
       sfi->set_script_or_debug_info(debug_info.script(), kReleaseStore);
     }
@@ -181,7 +181,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
     if (!debug_info.is_null()) {
       sfi->set_script_or_debug_info(debug_info, kReleaseStore);
       if (!debug_bytecode_array.is_null()) {
-        sfi->SetDebugBytecodeArray(debug_bytecode_array);
+        sfi->SetActiveBytecodeArray(debug_bytecode_array);
       }
     }
     return;

@@ -639,6 +639,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return &transition_array_access_;
   }
 
+  // Shared mutex for allowing concurrent read/writes to SharedFunctionInfos.
+  base::SharedMutex* shared_function_info_access() {
+    return &shared_function_info_access_;
+  }
+
   // The isolate's string table.
   StringTable* string_table() { return string_table_.get(); }
 
@@ -1772,6 +1777,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   base::SharedMutex feedback_vector_access_;
   base::SharedMutex string_access_;
   base::SharedMutex transition_array_access_;
+  base::SharedMutex shared_function_info_access_;
   Logger* logger_ = nullptr;
   StubCache* load_stub_cache_ = nullptr;
   StubCache* store_stub_cache_ = nullptr;

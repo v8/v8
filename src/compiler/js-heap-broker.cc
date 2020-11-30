@@ -3603,7 +3603,7 @@ BIMODAL_ACCESSOR_C(ScopeInfo, bool, HasOuterScopeInfo)
 BIMODAL_ACCESSOR(ScopeInfo, ScopeInfo, OuterScopeInfo)
 
 BIMODAL_ACCESSOR_C(SharedFunctionInfo, int, builtin_id)
-BIMODAL_ACCESSOR(SharedFunctionInfo, BytecodeArray, GetBytecodeArray)
+BIMODAL_ACCESSOR_WITH_FLAG(SharedFunctionInfo, BytecodeArray, GetBytecodeArray)
 #define DEF_SFI_ACCESSOR(type, name) \
   BIMODAL_ACCESSOR_WITH_FLAG_C(SharedFunctionInfo, type, name)
 BROKER_SFI_FIELDS(DEF_SFI_ACCESSOR)

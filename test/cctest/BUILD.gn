@@ -95,6 +95,7 @@ v8_source_set("cctest_sources") {
     "compiler/test-branch-combine.cc",
     "compiler/test-code-assembler.cc",
     "compiler/test-code-generator.cc",
+    "compiler/test-concurrent-shared-function-info.cc",
     "compiler/test-gap-resolver.cc",
     "compiler/test-graph-visualizer.cc",
     "compiler/test-instruction-scheduler.cc",
