@@ -1484,6 +1484,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr(0x7E, src, xmm0, dst, k66, k0F, kWIG);
   }
 
+  void vmovmskpd(Register dst, XMMRegister src);
   void vmovmskps(Register dst, XMMRegister src);
 
   void vpmovmskb(Register dst, XMMRegister src);

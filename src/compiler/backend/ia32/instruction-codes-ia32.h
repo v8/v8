@@ -148,6 +148,7 @@ namespace compiler {
   V(IA32I64x2Sub)                  \
   V(IA32I64x2Mul)                  \
   V(IA32I64x2ShrU)                 \
+  V(IA32I64x2BitMask)              \
   V(SSEF32x4Splat)                 \
   V(AVXF32x4Splat)                 \
   V(SSEF32x4ExtractLane)           \

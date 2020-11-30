@@ -2999,6 +2999,14 @@ void Assembler::vroundpd(XMMRegister dst, XMMRegister src, RoundingMode mode) {
   EMIT(static_cast<byte>(mode) | 0x8);  // Mask precision exception.
 }
 
+void Assembler::vmovmskpd(Register dst, XMMRegister src) {
+  DCHECK(IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(xmm0, kL128, k66, k0F, kWIG);
+  EMIT(0x50);
+  emit_sse_operand(dst, src);
+}
+
 void Assembler::vmovmskps(Register dst, XMMRegister src) {
   DCHECK(IsEnabled(AVX));
   EnsureSpace ensure_space(this);

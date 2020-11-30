@@ -550,6 +550,7 @@ TEST(DisasmIa320) {
     __ pinsrw(xmm5, edx, 5);
     __ pinsrw(xmm5, Operand(edx, 4), 5);
 
+    __ movmskpd(edx, xmm5);
     __ movmskps(edx, xmm5);
     __ pmovmskb(edx, xmm5);
 
@@ -796,6 +797,7 @@ TEST(DisasmIa320) {
       __ vmovd(eax, xmm1);
       __ vmovd(Operand(ebx, ecx, times_4, 10000), xmm1);
 
+      __ vmovmskpd(edx, xmm5);
       __ vmovmskps(edx, xmm5);
       __ vpmovmskb(ebx, xmm1);
 

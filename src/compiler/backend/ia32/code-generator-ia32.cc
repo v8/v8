@@ -2142,6 +2142,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_SHIFT(Psrlq, 6);
       break;
     }
+    case kIA32I64x2BitMask: {
+      __ Movmskpd(i.OutputRegister(), i.InputSimd128Register(0));
+      break;
+    }
     case kSSEF32x4Splat: {
       DCHECK_EQ(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       XMMRegister dst = i.OutputSimd128Register();

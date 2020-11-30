@@ -1218,6 +1218,11 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         AppendToBuffer("vmovapd %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
         break;
+      case 0x50:
+        AppendToBuffer("vmovmskpd %s,%s", NameOfCPURegister(regop),
+                       NameOfXMMRegister(rm));
+        current++;
+        break;
       case 0x54:
         AppendToBuffer("vandpd %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
