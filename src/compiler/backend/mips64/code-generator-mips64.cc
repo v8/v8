@@ -2410,6 +2410,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kMips64I64x2BitMask: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Register dst = i.OutputRegister();
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register scratch0 = kSimd128RegZero;
+      Simd128Register scratch1 = kSimd128ScratchReg;
+      __ srli_d(scratch0, src, 63);
+      __ shf_w(scratch1, scratch0, 0x02);
+      __ slli_d(scratch1, scratch1, 1);
+      __ or_v(scratch0, scratch0, scratch1);
+      __ copy_u_b(dst, scratch0, 0);
+      break;
+    }
     case kMips64F32x4Splat: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ FmoveLow(kScratchReg, i.InputSingleRegister(0));
