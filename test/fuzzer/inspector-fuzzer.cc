@@ -40,9 +40,12 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
     v8::Local<v8::ObjectTemplate> utils = v8::ObjectTemplate::New(isolate);
     auto Set = [isolate](v8::Local<v8::ObjectTemplate> tmpl, const char* str,
                          v8::Local<v8::Data> value) {
+      // Do not set {ReadOnly}, because fuzzer inputs might overwrite individual
+      // methods, or the whole "utils" global. See the
+      // `testing/libfuzzer/fuzzers/generate_v8_inspector_fuzzer_corpus.py` file
+      // in chromium.
       tmpl->Set(ToV8String(isolate, str), value,
                 static_cast<v8::PropertyAttribute>(
-                    v8::PropertyAttribute::ReadOnly |
                     v8::PropertyAttribute::DontDelete));
     };
     Set(utils, "quit",
