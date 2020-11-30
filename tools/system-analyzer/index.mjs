@@ -176,8 +176,8 @@ class App {
           this._state.mapTimeline.transitions;
       this._view.mapStatsPanel.timeline = mapTimeline;
       this._view.icPanel.timeline = icTimeline;
-      this._view.sourcePanel.data =
-          processor.scripts this.refreshTimelineTrackView();
+      this._view.sourcePanel.data = processor.scripts;
+      this.refreshTimelineTrackView();
     } catch (e) {
       this._view.logFileReader.error = 'Log file contains errors!'
       throw (e);
