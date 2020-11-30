@@ -507,7 +507,8 @@
   F(STOP_THE_WORLD)
 
 #define TRACER_BACKGROUND_SCOPES(F)               \
-  F(BACKGROUND_ARRAY_BUFFER_SWEEP)                \
+  F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP)          \
+  F(BACKGROUND_FULL_ARRAY_BUFFER_SWEEP)           \
   F(BACKGROUND_COLLECTION)                        \
   F(BACKGROUND_UNMAPPER)                          \
   F(MC_BACKGROUND_EVACUATE_COPY)                  \
