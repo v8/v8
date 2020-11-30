@@ -1992,9 +1992,11 @@ void WebAssemblyGlobalType(const v8::FunctionCallbackInfo<v8::Value>& args) {
 // TODO(titzer): we use the API to create the function template because the
 // internal guts are too ugly to replicate here.
 static i::Handle<i::FunctionTemplateInfo> NewFunctionTemplate(
-    i::Isolate* i_isolate, FunctionCallback func, bool has_prototype) {
+    i::Isolate* i_isolate, FunctionCallback func, bool has_prototype,
+    SideEffectType side_effect_type = SideEffectType::kHasSideEffect) {
   Isolate* isolate = reinterpret_cast<Isolate*>(i_isolate);
-  Local<FunctionTemplate> templ = FunctionTemplate::New(isolate, func);
+  Local<FunctionTemplate> templ = FunctionTemplate::New(
+      isolate, func, {}, {}, 0, ConstructorBehavior::kAllow, side_effect_type);
   has_prototype ? templ->ReadOnlyPrototype() : templ->RemovePrototype();
   return v8::Utils::OpenHandle(*templ);
 }
@@ -2008,22 +2010,26 @@ static i::Handle<i::ObjectTemplateInfo> NewObjectTemplate(
 
 namespace internal {
 
-Handle<JSFunction> CreateFunc(Isolate* isolate, Handle<String> name,
-                              FunctionCallback func, bool has_prototype) {
+Handle<JSFunction> CreateFunc(
+    Isolate* isolate, Handle<String> name, FunctionCallback func,
+    bool has_prototype,
+    SideEffectType side_effect_type = SideEffectType::kHasSideEffect) {
   Handle<FunctionTemplateInfo> temp =
-      NewFunctionTemplate(isolate, func, has_prototype);
+      NewFunctionTemplate(isolate, func, has_prototype, side_effect_type);
   Handle<JSFunction> function =
       ApiNatives::InstantiateFunction(temp, name).ToHandleChecked();
   DCHECK(function->shared().HasSharedName());
   return function;
 }
 
-Handle<JSFunction> InstallFunc(Isolate* isolate, Handle<JSObject> object,
-                               const char* str, FunctionCallback func,
-                               int length, bool has_prototype = false,
-                               PropertyAttributes attributes = NONE) {
+Handle<JSFunction> InstallFunc(
+    Isolate* isolate, Handle<JSObject> object, const char* str,
+    FunctionCallback func, int length, bool has_prototype = false,
+    PropertyAttributes attributes = NONE,
+    SideEffectType side_effect_type = SideEffectType::kHasSideEffect) {
   Handle<String> name = v8_str(isolate, str);
-  Handle<JSFunction> function = CreateFunc(isolate, name, func, has_prototype);
+  Handle<JSFunction> function =
+      CreateFunc(isolate, name, func, has_prototype, side_effect_type);
   function->shared().set_length(length);
   JSObject::AddProperty(isolate, object, name, function, attributes);
   return function;
@@ -2045,7 +2051,8 @@ void InstallGetter(Isolate* isolate, Handle<JSObject> object, const char* str,
                    FunctionCallback func) {
   Handle<String> name = v8_str(isolate, str);
   Handle<JSFunction> function =
-      CreateFunc(isolate, GetterName(isolate, name), func, false);
+      CreateFunc(isolate, GetterName(isolate, name), func, false,
+                 SideEffectType::kHasNoSideEffect);
 
   Utils::ToLocal(object)->SetAccessorProperty(Utils::ToLocal(name),
                                               Utils::ToLocal(function),
@@ -2942,8 +2949,10 @@ Handle<JSProxy> GetJSProxy(
   Handle<BigInt> callee_fp = BigInt::FromInt64(isolate, frame->callee_fp());
   JSObject::AddProperty(isolate, handler, "callee_fp", callee_fp, DONT_ENUM);
 
-  InstallFunc(isolate, handler, "get", get_callback, 3, false, READ_ONLY);
-  InstallFunc(isolate, handler, "has", has_callback, 2, false, READ_ONLY);
+  InstallFunc(isolate, handler, "get", get_callback, 3, false, READ_ONLY,
+              SideEffectType::kHasNoSideEffect);
+  InstallFunc(isolate, handler, "has", has_callback, 2, false, READ_ONLY,
+              SideEffectType::kHasNoSideEffect);
 
   return factory->NewJSProxy(target, handler);
 }
@@ -3007,9 +3016,9 @@ Handle<JSProxy> WasmJs::GetJSDebugProxy(WasmFrame* frame) {
   // The top level proxy delegates lookups to the index space proxies.
   Handle<JSObject> handler = factory->NewJSObjectWithNullProto();
   InstallFunc(isolate, handler, "get", ToplevelGetTrapCallback, 3, false,
-              READ_ONLY);
+              READ_ONLY, SideEffectType::kHasNoSideEffect);
   InstallFunc(isolate, handler, "has", ToplevelHasTrapCallback, 2, false,
-              READ_ONLY);
+              READ_ONLY, SideEffectType::kHasNoSideEffect);
 
   Handle<JSObject> target = factory->NewJSObjectWithNullProto();
 
