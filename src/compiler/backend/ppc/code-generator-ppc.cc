@@ -3398,6 +3398,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ xvrspi(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
+    case kPPC_I64x2BitMask: {
+      __ mov(kScratchReg,
+             Operand(0x8080808080800040));  // Select 0 for the high bits.
+      __ mtvsrd(kScratchDoubleReg, kScratchReg);
+      __ vbpermq(kScratchDoubleReg, i.InputSimd128Register(0),
+                 kScratchDoubleReg);
+      __ vextractub(kScratchDoubleReg, kScratchDoubleReg, Operand(6));
+      __ mfvsrd(i.OutputRegister(), kScratchDoubleReg);
+      break;
+    }
     case kPPC_I32x4BitMask: {
       __ mov(kScratchReg,
              Operand(0x8080808000204060));  // Select 0 for the high bits.

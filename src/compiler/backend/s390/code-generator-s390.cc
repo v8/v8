@@ -4225,6 +4225,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif
       break;
     }
+    case kS390_I64x2BitMask: {
+#ifdef V8_TARGET_BIG_ENDIAN
+      __ lgfi(kScratchReg, Operand(0x80800040));
+      __ iihf(kScratchReg, Operand(0x80808080));  // Zeroing the high bits.
+#else
+      __ lgfi(kScratchReg, Operand(0x80808080));
+      __ iihf(kScratchReg, Operand(0x40008080));
+#endif
+      __ vlvg(kScratchDoubleReg, kScratchReg, MemOperand(r0, 1), Condition(3));
+      __ vbperm(kScratchDoubleReg, i.InputSimd128Register(0), kScratchDoubleReg,
+                Condition(0), Condition(0), Condition(0));
+      __ vlgv(i.OutputRegister(), kScratchDoubleReg, MemOperand(r0, 7),
+              Condition(0));
+      break;
+    }
     case kS390_I32x4BitMask: {
 #ifdef V8_TARGET_BIG_ENDIAN
       __ lgfi(kScratchReg, Operand(0x204060));

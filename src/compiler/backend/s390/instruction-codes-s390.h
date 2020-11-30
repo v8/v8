@@ -261,6 +261,7 @@ namespace compiler {
   V(S390_I64x2ReplaceLane)                  \
   V(S390_I64x2ExtractLane)                  \
   V(S390_I64x2Eq)                           \
+  V(S390_I64x2BitMask)                      \
   V(S390_I32x4Splat)                        \
   V(S390_I32x4ExtractLane)                  \
   V(S390_I32x4ReplaceLane)                  \
