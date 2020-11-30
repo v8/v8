@@ -1289,9 +1289,11 @@ TEST(15) {
     uint32_t vsub8[4], vsub16[4], vsub32[4];
     uint32_t vqsub_u8[4], vqsub_s16[4], vqsub_u32[4];
     uint32_t vmul8[4], vmul16[4], vmul32[4];
-    uint32_t vshl8[4], vshl16[4], vshl32[5];
-    uint32_t vshr_s8[4], vshr_u16[4], vshr_s32[5];
+    uint32_t vshl8[4], vshl16[4], vshl32[4];
+    uint32_t vshr_s8[4], vshr_u16[4], vshr_s32[4];
+    uint32_t vshr_s8_d[2], vshr_u16_d[2], vshr_s32_d[2];
     uint32_t vsli_64[2], vsri_64[2], vsli_32[2], vsri_32[2];
+    uint32_t vsra_64[2], vsra_32[2], vsra_16[2];
     uint32_t vceq[4], vceqf[4], vcgef[4], vcgtf[4];
     uint32_t vcge_s8[4], vcge_u16[4], vcge_s32[4];
     uint32_t vcgt_s8[4], vcgt_u16[4], vcgt_s32[4];
@@ -1801,6 +1803,19 @@ TEST(15) {
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vshr_s32))));
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
 
+    // vshr.s, vshr.u with d registers.
+    __ mov(r4, Operand(0x80));
+    __ vdup(Neon8, q0, r4);
+    __ vshr(NeonS8, d1, d0, 1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vshr_s8_d))));
+    __ vst1(Neon8, NeonListOperand(d1), NeonMemOperand(r4));
+    __ vshr(NeonU16, d2, d0, 9);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vshr_u16_d))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ vshr(NeonS32, d2, d0, 17);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vshr_s32_d))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+
     // vsli, vsri.
     __ mov(r4, Operand(0xFFFFFFFF));
     __ mov(r5, Operand(0x1));
@@ -1820,6 +1835,20 @@ TEST(15) {
     __ vmov(d1, r5, r5);
     __ vsri(Neon32, d1, d0, 16);
     __ vstr(d1, r0, offsetof(T, vsri_32));
+
+    // vsra.
+    __ vmov(d0, r4, r5);
+    // Check same dst and src registers.
+    __ vsra(NeonU64, d0, d0, 1);
+    __ vstr(d0, r0, offsetof(T, vsra_64));
+    __ vmov(d0, r4, r5);
+    __ vmov(d1, r5, r4);
+    __ vsra(NeonS32, d1, d0, 16);
+    __ vstr(d1, r0, offsetof(T, vsra_32));
+    __ vmov(d0, r4, r5);
+    __ vmov(d1, r5, r4);
+    __ vsra(NeonU16, d1, d0, 2);
+    __ vstr(d1, r0, offsetof(T, vsra_16));
 
     // vceq.
     __ mov(r4, Operand(0x03));
@@ -2197,10 +2226,16 @@ TEST(15) {
     CHECK_EQ_SPLAT(vshr_s8, 0xC0C0C0C0u);
     CHECK_EQ_SPLAT(vshr_u16, 0x00400040u);
     CHECK_EQ_SPLAT(vshr_s32, 0xFFFFC040u);
+    CHECK_EQ_32X2(vshr_s8_d, 0xC0C0C0C0u, 0xC0C0C0C0u);
+    CHECK_EQ_32X2(vshr_u16_d, 0x00400040u, 0x00400040u);
+    CHECK_EQ_32X2(vshr_s32_d, 0xFFFFC040u, 0xFFFFC040u);
     CHECK_EQ_32X2(vsli_64, 0x01u, 0xFFFFFFFFu);
     CHECK_EQ_32X2(vsri_64, 0xFFFFFFFFu, 0x01u);
     CHECK_EQ_32X2(vsli_32, 0xFFFF0001u, 0x00010001u);
     CHECK_EQ_32X2(vsri_32, 0x00000000u, 0x0000FFFFu);
+    CHECK_EQ_32X2(vsra_64, 0xFFFFFFFEu, 0x2);
+    CHECK_EQ_32X2(vsra_32, 0x0, 0xFFFFFFFFu);
+    CHECK_EQ_32X2(vsra_16, 0x3FFF4000, 0xFFFFFFFFu);
     CHECK_EQ_SPLAT(vceq, 0x00FF00FFu);
     // [0, 3, 0, 3, ...] >= [3, 3, 3, 3, ...]
     CHECK_EQ_SPLAT(vcge_s8, 0x00FF00FFu);
