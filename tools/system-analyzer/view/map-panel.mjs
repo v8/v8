@@ -68,6 +68,7 @@ DOM.defineCustomElement('view/map-panel',
 
   set selectedMapLogEntries(list) {
     this.mapTransitionsPanel.selectedMapLogEntries = list;
+    if (list.length === 1) this.mapDetailsPanel.map = list[0];
   }
   get selectedMapLogEntries() {
     return this.mapTransitionsPanel.selectedMapLogEntries;
