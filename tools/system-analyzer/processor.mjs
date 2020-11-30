@@ -5,7 +5,7 @@
 import {LogReader, parseString, parseVarArgs} from '../logreader.mjs';
 import {Profile} from '../profile.mjs';
 
-import {DeoptLogEntry} from './log/deopt.mjs';
+import {CodeLogEntry, DeoptLogEntry} from './log/code.mjs';
 import {IcLogEntry} from './log/ic.mjs';
 import {Edge, MapLogEntry} from './log/map.mjs';
 import {Timeline} from './timeline.mjs';
@@ -17,6 +17,7 @@ export class Processor extends LogReader {
   _mapTimeline = new Timeline();
   _icTimeline = new Timeline();
   _deoptTimeline = new Timeline();
+  _codeTimeline = new Timeline();
   _formatPCRegexp = /(.*):[0-9]+:[0-9]+$/;
   MAJOR_VERSION = 7;
   MINOR_VERSION = 6;
@@ -182,20 +183,24 @@ export class Processor extends LogReader {
   }
 
   processCodeCreation(type, kind, timestamp, start, size, name, maybe_func) {
+    let entry;
     if (maybe_func.length) {
       const funcAddr = parseInt(maybe_func[0]);
       const state = this.parseState(maybe_func[1]);
-      this._profile.addFuncCode(
+      entry = this._profile.addFuncCode(
           type, name, timestamp, start, size, funcAddr, state);
     } else {
-      this._profile.addCode(type, name, timestamp, start, size);
+      entry = this._profile.addCode(type, name, timestamp, start, size);
     }
+    this._codeTimeline.push(new CodeLogEntry(type, timestamp, kind, entry));
   }
 
   processCodeDeopt(
       timestamp, codeSize, instructionStart, inliningId, scriptOffset,
       deoptKind, deoptLocation, deoptReason) {
-    this._deoptTimeline.push(new DeoptLogEntry(deoptKind, timestamp));
+    this._deoptTimeline.push(new DeoptLogEntry(
+        deoptKind, timestamp, deoptReason, deoptLocation, scriptOffset,
+        instructionStart, codeSize, inliningId));
   }
 
   processV8Version(majorVersion, minorVersion) {
@@ -350,6 +355,10 @@ export class Processor extends LogReader {
 
   get deoptTimeline() {
     return this._deoptTimeline;
+  }
+
+  get codeTimeline() {
+    return this._codeTimeline;
   }
 
   get scripts() {

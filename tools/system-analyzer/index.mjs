@@ -18,7 +18,8 @@ class App {
   _startupPromise;
   constructor(
       fileReaderId, mapPanelId, mapStatsPanelId, timelinePanelId, icPanelId,
-      mapTrackId, icTrackId, deoptTrackId, sourcePanelId, toolTipId) {
+      mapTrackId, icTrackId, deoptTrackId, codeTrackId, sourcePanelId,
+      toolTipId) {
     this._view = {
       __proto__: null,
       logFileReader: $(fileReaderId),
@@ -29,6 +30,7 @@ class App {
       mapTrack: $(mapTrackId),
       icTrack: $(icTrackId),
       deoptTrack: $(deoptTrackId),
+      codeTrack: $(codeTrackId),
       sourcePanel: $(sourcePanelId),
       toolTip: $(toolTipId),
     };
@@ -73,18 +75,28 @@ class App {
     }
     e.stopPropagation();
   }
+
   showMapEntries(entries) {
     this._state.selectedMapLogEntries = entries;
     this._view.mapPanel.selectedMapLogEntries = entries;
     this._view.mapStatsPanel.selectedLogEntries = entries;
   }
+
   showIcEntries(entries) {
     this._state.selectedIcLogEntries = entries;
     this._view.icPanel.selectedLogEntries = entries;
   }
+
   showDeoptEntries(entries) {
+    // TODO: creat list panel.
     this._state.selectedDeoptLogEntries = entries;
   }
+
+  showCodeEntries(entries) {
+    // TODO: creat list panel
+    this._state.selectedCodeLogEntries = entries;
+  }
+
   showSourcePositionEntries(entries) {
     // TODO: Handle multiple source position selection events
     this._view.sourcePanel.selectedSourcePositions = entries
@@ -100,6 +112,7 @@ class App {
     this.showMapEntries(this._state.mapTimeline.selection);
     this.showIcEntries(this._state.icTimeline.selection);
     this.showDeoptEntries(this._state.deoptTimeline.selection);
+    this.showCodeEntries(this._state.codeTimeline.selection);
     this._view.timelinePanel.timeSelection = {start, end};
   }
 
@@ -115,15 +128,18 @@ class App {
     }
     e.stopPropagation();
   }
+
   selectMapLogEntry(entry) {
     this._state.map = entry;
     this._view.mapTrack.selectedEntry = entry;
     this._view.mapPanel.map = entry;
   }
+
   selectICLogEntry(entry) {
     this._state.ic = entry;
     this._view.icPanel.selectedLogEntries = [entry];
   }
+
   selectSourcePosition(sourcePositions) {
     if (!sourcePositions.script) return;
     this._view.sourcePanel.selectedSourcePositions = [sourcePositions];
@@ -151,19 +167,17 @@ class App {
       const mapTimeline = processor.mapTimeline;
       const icTimeline = processor.icTimeline;
       const deoptTimeline = processor.deoptTimeline;
-      this._state.mapTimeline = mapTimeline;
-      this._state.icTimeline = icTimeline;
-      this._state.deoptTimeline = deoptTimeline;
+      const codeTimeline = processor.codeTimeline;
+      this._state.setTimelines(
+          mapTimeline, icTimeline, deoptTimeline, codeTimeline);
       // Transitions must be set before timeline for stats panel.
       this._view.mapPanel.timeline = mapTimeline;
-      this._view.mapTrack.data = mapTimeline;
       this._view.mapStatsPanel.transitions =
           this._state.mapTimeline.transitions;
       this._view.mapStatsPanel.timeline = mapTimeline;
       this._view.icPanel.timeline = icTimeline;
-      this._view.icTrack.data = icTimeline;
-      this._view.deoptTrack.data = deoptTimeline;
-      this._view.sourcePanel.data = processor.scripts
+      this._view.sourcePanel.data =
+          processor.scripts this.refreshTimelineTrackView();
     } catch (e) {
       this._view.logFileReader.error = 'Log file contains errors!'
       throw (e);
@@ -177,6 +191,7 @@ class App {
     this._view.mapTrack.data = this._state.mapTimeline;
     this._view.icTrack.data = this._state.icTimeline;
     this._view.deoptTrack.data = this._state.deoptTimeline;
+    this._view.codeTrack.data = this._state.codeTimeline;
   }
 
   switchTheme(event) {

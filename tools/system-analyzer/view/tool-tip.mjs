@@ -79,10 +79,11 @@ DOM.defineCustomElement(
         this.show();
         if (typeof content === 'string') {
           this.contentNode.innerHTML = content;
+          this.contentNode.className = 'textContent';
         } else {
           const newContent = DOM.div();
           newContent.appendChild(content);
-          this.contentNode.replaceWih(newContent);
+          this.contentNode.replaceWith(newContent);
           newContent.id = 'content';
         }
       }

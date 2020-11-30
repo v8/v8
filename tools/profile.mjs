@@ -232,7 +232,7 @@ export class Profile {
     }
   }
 
-  deoptCode(  timestamp, code, inliningId, scriptOffset, bailoutType,
+  deoptCode(timestamp, code, inliningId, scriptOffset, bailoutType,
     sourcePositionText, deoptReasonText) {
   }
 

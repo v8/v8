@@ -20,7 +20,7 @@ found in the LICENSE file. -->
       let module = await import('./index.mjs');
       globalThis.app = new module.App("#log-file-reader", "#map-panel", "#map-stats-panel",
         "#timeline-panel", "#ic-panel", "#map-track", "#ic-track", "#deopt-track",
-        "#source-panel", "#tool-tip");
+        "#code-track", "#source-panel", "#tool-tip");
     })();
   </script>
 
@@ -103,6 +103,7 @@ found in the LICENSE file. -->
       <timeline-track id="map-track"></timeline-track>
       <timeline-track id="ic-track"></timeline-track>
       <timeline-track id="deopt-track"></timeline-track>
+      <timeline-track id="code-track"></timeline-track>
     </timeline-panel>
     <div class="panels">
       <map-panel id="map-panel"></map-panel>
