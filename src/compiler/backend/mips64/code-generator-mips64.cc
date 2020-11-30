@@ -1555,13 +1555,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kMips64TruncWS: {
       FPURegister scratch = kScratchDoubleReg;
+      bool set_overflow_to_min_i32 = MiscField::decode(instr->opcode());
       __ trunc_w_s(scratch, i.InputDoubleRegister(0));
       __ mfc1(i.OutputRegister(), scratch);
-      // Avoid INT32_MAX as an overflow indicator and use INT32_MIN instead,
-      // because INT32_MIN allows easier out-of-bounds detection.
-      __ addiu(kScratchReg, i.OutputRegister(), 1);
-      __ slt(kScratchReg2, kScratchReg, i.OutputRegister());
-      __ Movn(i.OutputRegister(), kScratchReg, kScratchReg2);
+      if (set_overflow_to_min_i32) {
+        // Avoid INT32_MAX as an overflow indicator and use INT32_MIN instead,
+        // because INT32_MIN allows easier out-of-bounds detection.
+        __ addiu(kScratchReg, i.OutputRegister(), 1);
+        __ slt(kScratchReg2, kScratchReg, i.OutputRegister());
+        __ Movn(i.OutputRegister(), kScratchReg, kScratchReg2);
+      }
       break;
     }
     case kMips64TruncLS: {
@@ -1597,7 +1600,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register tmp_fcsr = kScratchReg;
       Register result = kScratchReg2;
 
+      bool set_overflow_to_min_i64 = MiscField::decode(instr->opcode());
       bool load_status = instr->OutputCount() > 1;
+      DCHECK_IMPLIES(set_overflow_to_min_i64, i.OutputCount() == 1);
       if (load_status) {
         // Save FCSR.
         __ cfc1(tmp_fcsr, FCSR);
@@ -1618,6 +1623,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // Restore FCSR
         __ ctc1(tmp_fcsr, FCSR);
       }
+      if (set_overflow_to_min_i64) {
+        // Avoid INT64_MAX as an overflow indicator and use INT64_MIN instead,
+        // because INT64_MIN allows easier out-of-bounds detection.
+        __ Daddu(kScratchReg, i.OutputRegister(), 1);
+        __ slt(kScratchReg2, kScratchReg, i.OutputRegister());
+        __ Movn(i.OutputRegister(), kScratchReg, kScratchReg2);
+      }
       break;
     }
     case kMips64TruncUwD: {
@@ -1627,11 +1639,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kMips64TruncUwS: {
       FPURegister scratch = kScratchDoubleReg;
+      bool set_overflow_to_min_i32 = MiscField::decode(instr->opcode());
       __ Trunc_uw_s(i.OutputRegister(), i.InputDoubleRegister(0), scratch);
-      // Avoid UINT32_MAX as an overflow indicator and use 0 instead,
-      // because 0 allows easier out-of-bounds detection.
-      __ addiu(kScratchReg, i.OutputRegister(), 1);
-      __ Movz(i.OutputRegister(), zero_reg, kScratchReg);
+      if (set_overflow_to_min_i32) {
+        // Avoid UINT32_MAX as an overflow indicator and use 0 instead,
+        // because 0 allows easier out-of-bounds detection.
+        __ addiu(kScratchReg, i.OutputRegister(), 1);
+        __ Movz(i.OutputRegister(), zero_reg, kScratchReg);
+      }
       break;
     }
     case kMips64TruncUlS: {

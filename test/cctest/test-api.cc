@@ -28259,10 +28259,6 @@ TEST(FastApiCalls) {
   CallAndCheck<uint64_t>(0, Behavior::kNoException,
                          expected_path_for_64bit_test, v8_num(-0.0));
 
-  // TODO(v8:11121): Currently the tests below are successful only for
-  // non-mips64 because they fall down the fast path due to incorrect
-  // behaviour of CheckedFloat64ToInt64 on mips64 (see the
-  // linked issue for details). Please port the arm64 fix from v8:11121.
   // TODO(mslekova): We deopt for unsafe integers, but ultimately we want to
   // stay on the fast path.
   CallAndCheck<int64_t>(std::numeric_limits<int64_t>::min(),
