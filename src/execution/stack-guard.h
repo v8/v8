@@ -23,6 +23,9 @@ class RootVisitor;
 // invocation.
 class V8_EXPORT_PRIVATE V8_NODISCARD StackGuard final {
  public:
+  StackGuard(const StackGuard&) = delete;
+  StackGuard& operator=(const StackGuard&) = delete;
+
   explicit StackGuard(Isolate* isolate) : isolate_(isolate) {}
 
   // Pass the address beyond which the stack should not grow.  The stack
@@ -179,8 +182,6 @@ class V8_EXPORT_PRIVATE V8_NODISCARD StackGuard final {
   friend class Isolate;
   friend class StackLimitCheck;
   friend class InterruptsScope;
-
-  DISALLOW_COPY_AND_ASSIGN(StackGuard);
 };
 
 STATIC_ASSERT(StackGuard::kSizeInBytes == sizeof(StackGuard));

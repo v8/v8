@@ -845,10 +845,11 @@ class V8_NODISCARD PrepareStackTraceScope {
 
   ~PrepareStackTraceScope() { isolate_->set_formatting_stack_trace(false); }
 
+  PrepareStackTraceScope(const PrepareStackTraceScope&) = delete;
+  PrepareStackTraceScope& operator=(const PrepareStackTraceScope&) = delete;
+
  private:
   Isolate* isolate_;
-
-  DISALLOW_COPY_AND_ASSIGN(PrepareStackTraceScope);
 };
 
 }  // namespace

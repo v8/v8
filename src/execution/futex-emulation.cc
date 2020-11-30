@@ -27,6 +27,8 @@ using AtomicsWaitEvent = v8::Isolate::AtomicsWaitEvent;
 class FutexWaitList {
  public:
   FutexWaitList() = default;
+  FutexWaitList(const FutexWaitList&) = delete;
+  FutexWaitList& operator=(const FutexWaitList&) = delete;
 
   void AddNode(FutexWaitListNode* node);
   void RemoveNode(FutexWaitListNode* node);
@@ -95,8 +97,6 @@ class FutexWaitList {
   // Isolate* -> linked list of Nodes which are waiting for their Promises to
   // be resolved.
   std::map<Isolate*, HeadAndTail> isolate_promises_to_resolve_;
-
-  DISALLOW_COPY_AND_ASSIGN(FutexWaitList);
 };
 
 namespace {

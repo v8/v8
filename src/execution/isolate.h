@@ -483,6 +483,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   class EntryStackItem;
 
  public:
+  Isolate(const Isolate&) = delete;
+  Isolate& operator=(const Isolate&) = delete;
+
   using HandleScopeType = HandleScope;
   void* operator new(size_t) = delete;
   void operator delete(void*) = delete;
@@ -504,6 +507,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     {
     }
     ~PerIsolateThreadData();
+    PerIsolateThreadData(const PerIsolateThreadData&) = delete;
+    PerIsolateThreadData& operator=(const PerIsolateThreadData&) = delete;
     Isolate* isolate() const { return isolate_; }
     ThreadId thread_id() const { return thread_id_; }
 
@@ -531,8 +536,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     friend class Isolate;
     friend class ThreadDataTable;
     friend class EntryStackItem;
-
-    DISALLOW_COPY_AND_ASSIGN(PerIsolateThreadData);
   };
 
   static void InitializeOncePerProcess();
@@ -1697,14 +1700,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
           previous_thread_data(previous_thread_data),
           previous_isolate(previous_isolate),
           previous_item(previous_item) {}
+    EntryStackItem(const EntryStackItem&) = delete;
+    EntryStackItem& operator=(const EntryStackItem&) = delete;
 
     int entry_count;
     PerIsolateThreadData* previous_thread_data;
     Isolate* previous_isolate;
     EntryStackItem* previous_item;
-
-   private:
-    DISALLOW_COPY_AND_ASSIGN(EntryStackItem);
   };
 
   static base::Thread::LocalStorageKey per_isolate_thread_data_key_;
@@ -2022,8 +2024,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   friend class heap::HeapTester;
   friend class TestSerializer;
-
-  DISALLOW_COPY_AND_ASSIGN(Isolate);
 };
 
 #undef FIELD_ACCESSOR

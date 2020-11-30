@@ -31,6 +31,9 @@ class IsolateData final {
  public:
   explicit IsolateData(Isolate* isolate) : stack_guard_(isolate) {}
 
+  IsolateData(const IsolateData&) = delete;
+  IsolateData& operator=(const IsolateData&) = delete;
+
   static constexpr intptr_t kIsolateRootBias = kRootRegisterBias;
 
   // The value of the kRootRegister.
@@ -219,8 +222,6 @@ class IsolateData final {
   friend class Heap;
   FRIEND_TEST(HeapTest, ExternalLimitDefault);
   FRIEND_TEST(HeapTest, ExternalLimitStaysAboveDefaultForExplicitHandling);
-
-  DISALLOW_COPY_AND_ASSIGN(IsolateData);
 };
 
 // IsolateData object must have "predictable" layout which does not change when
