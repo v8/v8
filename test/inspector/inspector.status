@@ -147,14 +147,6 @@
 }], # gc_stress
 
 ##############################################################################
-['variant == stress_incremental_marking', {
-  # Because of https://crbug.com/v8/10748 we skip pumping the message loop
-  # in inspector tests, which makes this test fail.
-  'debugger/wasm-script-code-offset': [SKIP],
-  'debugger/wasm-script-code-offset-streaming': [SKIP],
-}], # variant == stress_incremental_marking
-
-##############################################################################
 ['variant == stress_js_bg_compile_wasm_code_gc', {
   # Skip tests that fail with GC stress: https://crbug.com/v8/10748
   'debugger/wasm-debug-command': [SKIP],
