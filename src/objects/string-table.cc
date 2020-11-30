@@ -464,57 +464,53 @@ Handle<String> StringTable::LookupKey(LocalIsolate* isolate,
   // allocation if another write also did an allocation. This assumes that
   // writes are rarer than reads.
 
-  Handle<String> new_string;
-  while (true) {
-    // Load the current string table data, in case another thread updates the
-    // data while we're reading.
-    const Data* data = data_.load(std::memory_order_acquire);
+  // Load the current string table data, in case another thread updates the
+  // data while we're reading.
+  const Data* data = data_.load(std::memory_order_acquire);
 
-    // First try to find the string in the table. This is safe to do even if the
-    // table is now reallocated; we won't find a stale entry in the old table
-    // because the new table won't delete it's corresponding entry until the
-    // string is dead, in which case it will die in this table too and worst
-    // case we'll have a false miss.
-    InternalIndex entry = data->FindEntry(isolate, key, key->hash());
-    if (entry.is_found()) {
-      return handle(String::cast(data->Get(isolate, entry)), isolate);
-    }
+  // First try to find the string in the table. This is safe to do even if the
+  // table is now reallocated; we won't find a stale entry in the old table
+  // because the new table won't delete it's corresponding entry until the
+  // string is dead, in which case it will die in this table too and worst
+  // case we'll have a false miss.
+  InternalIndex entry = data->FindEntry(isolate, key, key->hash());
+  if (entry.is_found()) {
+    return handle(String::cast(data->Get(isolate, entry)), isolate);
+  }
 
-    // No entry found, so adding new string.
+  // No entry found, so adding new string.
 
-    // Allocate the string before the first insertion attempt, reuse this
-    // allocated value on insertion retries. If another thread concurrently
-    // allocates the same string, the insert will fail, the lookup above will
-    // succeed, and this string will be discarded.
-    if (new_string.is_null()) new_string = key->AsHandle(isolate);
+  // Allocate the string before the first insertion attempt, reuse this
+  // allocated value on insertion retries. If another thread concurrently
+  // allocates the same string, the insert will fail, the lookup above will
+  // succeed, and this string will be discarded.
+  Handle<String> new_string = key->AsHandle(isolate);
 
-    {
-      base::MutexGuard table_write_guard(&write_mutex_);
+  {
+    base::MutexGuard table_write_guard(&write_mutex_);
 
-      Data* data = EnsureCapacity(isolate, 1);
+    Data* data = EnsureCapacity(isolate, 1);
 
-      // Check one last time if the key is present in the table, in case it was
-      // added after the check.
-      InternalIndex entry =
-          data->FindEntryOrInsertionEntry(isolate, key, key->hash());
+    // Check one last time if the key is present in the table, in case it was
+    // added after the check.
+    entry = data->FindEntryOrInsertionEntry(isolate, key, key->hash());
 
-      Object element = data->Get(isolate, entry);
-      if (element == empty_element()) {
-        // This entry is empty, so write it and register that we added an
-        // element.
-        data->Set(entry, *new_string);
-        data->ElementAdded();
-        return new_string;
-      } else if (element == deleted_element()) {
-        // This entry was deleted, so overwrite it and register that we
-        // overwrote a deleted element.
-        data->Set(entry, *new_string);
-        data->DeletedElementOverwritten();
-        return new_string;
-      } else {
-        // Return the existing string as a handle.
-        return handle(String::cast(element), isolate);
-      }
+    Object element = data->Get(isolate, entry);
+    if (element == empty_element()) {
+      // This entry is empty, so write it and register that we added an
+      // element.
+      data->Set(entry, *new_string);
+      data->ElementAdded();
+      return new_string;
+    } else if (element == deleted_element()) {
+      // This entry was deleted, so overwrite it and register that we
+      // overwrote a deleted element.
+      data->Set(entry, *new_string);
+      data->DeletedElementOverwritten();
+      return new_string;
+    } else {
+      // Return the existing string as a handle.
+      return handle(String::cast(element), isolate);
     }
   }
 }
