@@ -796,10 +796,12 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
 
   CodeStubArguments arguments(this, argc);
+  TNode<Uint32T> unsigned_argc =
+      Unsigned(TruncateIntPtrToInt32(arguments.GetLength()));
   // Check if we have exactly one argument (plus the implicit receiver), i.e.
   // if the parent frame is not an arguments adaptor frame.
   Label if_oneargument(this), if_notoneargument(this);
-  Branch(Word32Equal(argc, Int32Constant(1)), &if_oneargument,
+  Branch(IntPtrEqual(arguments.GetLength(), IntPtrConstant(1)), &if_oneargument,
          &if_notoneargument);
 
   BIND(&if_oneargument);
@@ -820,7 +822,7 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
   {
     Label two_byte(this);
     // Assume that the resulting string contains only one-byte characters.
-    TNode<String> one_byte_result = AllocateSeqOneByteString(Unsigned(argc));
+    TNode<String> one_byte_result = AllocateSeqOneByteString(unsigned_argc);
 
     TVARIABLE(IntPtrT, var_max_index, IntPtrConstant(0));
 
@@ -851,7 +853,7 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
     // At least one of the characters in the string requires a 16-bit
     // representation.  Allocate a SeqTwoByteString to hold the resulting
     // string.
-    TNode<String> two_byte_result = AllocateSeqTwoByteString(Unsigned(argc));
+    TNode<String> two_byte_result = AllocateSeqTwoByteString(unsigned_argc);
 
     // Copy the characters that have already been put in the 8-bit string into
     // their corresponding positions in the new 16-bit string.
@@ -1100,11 +1102,11 @@ void StringIncludesIndexOfAssembler::Generate(SearchVariant variant,
   Label argc_1(this), argc_2(this), call_runtime(this, Label::kDeferred),
       fast_path(this);
 
-  GotoIf(IntPtrEqual(argc, IntPtrConstant(1)), &argc_1);
-  GotoIf(IntPtrGreaterThan(argc, IntPtrConstant(1)), &argc_2);
+  GotoIf(IntPtrEqual(arguments.GetLength(), IntPtrConstant(1)), &argc_1);
+  GotoIf(IntPtrGreaterThan(arguments.GetLength(), IntPtrConstant(1)), &argc_2);
   {
     Comment("0 Argument case");
-    CSA_ASSERT(this, IntPtrEqual(argc, IntPtrConstant(0)));
+    CSA_ASSERT(this, IntPtrEqual(arguments.GetLength(), IntPtrConstant(0)));
     TNode<Oddball> undefined = UndefinedConstant();
     var_search_string = undefined;
     var_position = undefined;

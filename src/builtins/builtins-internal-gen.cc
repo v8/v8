@@ -1097,8 +1097,8 @@ TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {
   // pushed is the maximum of actual arguments count and formal parameters
   // count.
   Label argc_lt_param_count(this), argc_ge_param_count(this);
-  Branch(Int32LessThan(arg_count, parameter_count), &argc_lt_param_count,
-         &argc_ge_param_count);
+  Branch(IntPtrLessThan(args.GetLength(), ChangeInt32ToIntPtr(parameter_count)),
+         &argc_lt_param_count, &argc_ge_param_count);
   BIND(&argc_lt_param_count);
   PopAndReturn(Int32Add(parameter_count, Int32Constant(1)),
                maybe_result_or_smi_zero);

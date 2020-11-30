@@ -12966,6 +12966,7 @@ CodeStubArguments::CodeStubArguments(CodeStubAssembler* assembler,
   TNode<IntPtrT> offset = assembler_->IntPtrConstant(
       (StandardFrameConstants::kFixedSlotCountAboveFp + 1) *
       kSystemPointerSize);
+  DCHECK_NOT_NULL(argc_);
   // base_ points to the first argument, not the receiver
   // whether present or not.
   base_ = assembler_->RawPtrAdd(fp_, offset);
@@ -12996,6 +12997,12 @@ TNode<Object> CodeStubArguments::AtIndex(TNode<IntPtrT> index) const {
 
 TNode<Object> CodeStubArguments::AtIndex(int index) const {
   return AtIndex(assembler_->IntPtrConstant(index));
+}
+
+TNode<IntPtrT> CodeStubArguments::GetLengthWithReceiver() const {
+  TNode<IntPtrT> argc = GetLength();
+  argc = assembler_->IntPtrAdd(argc, assembler_->IntPtrConstant(1));
+  return argc;
 }
 
 TNode<Object> CodeStubArguments::GetOptionalArgumentValue(

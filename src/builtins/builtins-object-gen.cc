@@ -436,7 +436,7 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
 
   Label done(this);
   // 2. If only one argument was passed, return to.
-  GotoIf(UintPtrLessThanOrEqual(argc, IntPtrConstant(1)), &done);
+  GotoIf(UintPtrLessThanOrEqual(args.GetLength(), IntPtrConstant(1)), &done);
 
   // 3. Let sources be the List of argument values starting with the
   //    second argument.
