@@ -28,6 +28,7 @@
 import { CodeMap, CodeEntry } from "./codemap.mjs";
 import { ConsArray } from "./consarray.mjs";
 
+// Used to associate log entries with source positions in scripts.
 // TODO: move to separate modules
 export class SourcePosition {
   constructor(script, line, column) {
@@ -42,13 +43,19 @@ export class SourcePosition {
 }
 
 export class Script {
-  constructor(id, name, source) {
+  name;
+  source;
+  // Map<line, Map<column, SourcePosition>>
+  lineToColumn = new Map();
+
+  constructor(id) {
     this.id = id;
+    this.sourcePositions = [];
+  }
+
+  update(name, source) {
     this.name = name;
     this.source = source;
-    this.sourcePositions = [];
-    // Map<line, Map<column, SourcePosition>>
-    this.lineToColumn = new Map();
   }
 
   get length() {
@@ -75,6 +82,18 @@ export class Script {
     }
     this.sourcePositions.push(sourcePosition);
     columnToSourcePosition.set(column, sourcePosition);
+  }
+}
+
+
+class SourcePositionInfo{
+  constructor(script, startPos, endPos, sourcePositionTable, inliningPositions, inlinedFunctions) {
+    this.script = script;
+    this.start = startPos;
+    this.end = endPos;
+    this.positions = sourcePositionTable;
+    this.inlined = inliningPositions;
+    this.fns = inlinedFunctions;
   }
 }
 
@@ -252,23 +271,52 @@ export class Profile {
   /**
    * Adds source positions for given code.
    */
-  addSourcePositions(start, script, startPos, endPos, sourcePositions,
+  addSourcePositions(start, scriptId, startPos, endPos, sourcePositionTable,
         inliningPositions, inlinedFunctions) {
-    // CLI does not need source code => ignore.
+    const script = this.getOrCreateScript(scriptId);
+    const entry = this.codeMap_.findDynamicEntryByStartAddress(start);
+    if (!entry) return;
+    const codeId = entry.codeId;
+
+    // Resolve the inlined functions list.
+    if (inlinedFunctions.length > 0) {
+      inlinedFunctions = inlinedFunctions.substring(1).split("S");
+      for (let i = 0; i < inlinedFunctions.length; i++) {
+        const funcAddr = parseInt(inlinedFunctions[i]);
+        const func = this.codeMap_.findDynamicEntryByStartAddress(funcAddr);
+        if (!func || func.funcId === undefined) {
+          // TODO: fix
+          console.warn(`Could not find function ${inlinedFunctions[i]}`);
+          inlinedFunctions[i] = null;
+        } else {
+          inlinedFunctions[i] = func.funcId;
+        }
+      }
+    } else {
+      inlinedFunctions = [];
+    }
+
+    entry.source =
+      new SourcePositionInfo(
+          script, startPos, endPos, sourcePositionTable, inliningPositions,
+          inlinedFunctions);
   }
 
-  /**
-   * Adds script source code.
-   */
   addScriptSource(id, url, source) {
-    const script = new Script(id, url, source);
-    this.scripts_[id] = script;
+    const script = this.getOrCreateScript(id);
+    script.update(url, source);
     this.urlToScript_.set(url, script);
   }
 
-  /**
-   * Adds script source code.
-   */
+  getOrCreateScript(id) {
+    let script = this.scripts_[id];
+    if (!script) {
+      script = new Script(id);
+      this.scripts_[id] = script;
+    }
+    return script;
+  }
+
   getScript(url) {
     return this.urlToScript_.get(url);
   }
