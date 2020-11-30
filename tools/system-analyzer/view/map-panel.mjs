@@ -57,13 +57,13 @@ DOM.defineCustomElement('view/map-panel',
     let searchBar = this.$('#searchBarInput');
     let searchBarInput = searchBar.value;
     // access the map from model cache
-    let selectedMap = MapLogEntry.get(parseInt(searchBarInput));
+    let selectedMap = MapLogEntry.get(searchBarInput);
     if (selectedMap) {
       searchBar.className = 'success';
+      this.dispatchEvent(new FocusEvent(selectedMap));
     } else {
       searchBar.className = 'failure';
     }
-    this.dispatchEvent(new FocusEvent(selectedMap));
   }
 
   set selectedMapLogEntries(list) {
