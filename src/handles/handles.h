@@ -199,6 +199,8 @@ class V8_NODISCARD HandleScope {
  public:
   explicit inline HandleScope(Isolate* isolate);
   inline HandleScope(HandleScope&& other) V8_NOEXCEPT;
+  HandleScope(const HandleScope&) = delete;
+  HandleScope& operator=(const HandleScope&) = delete;
 
   // Allow placement new.
   void* operator new(size_t size, void* storage) {
@@ -265,8 +267,6 @@ class V8_NODISCARD HandleScope {
   friend class Isolate;
   friend class LocalHandles;
   friend class PersistentHandles;
-
-  DISALLOW_COPY_AND_ASSIGN(HandleScope);
 };
 
 // Forward declarations for CanonicalHandleScope.
