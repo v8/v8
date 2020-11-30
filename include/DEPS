@@ -4,5 +4,6 @@ include_rules = [
   "+cppgc/common.h",
   # Used by v8-cppgc.h to bridge to cppgc.
   "+cppgc/custom-space.h",
+  "+cppgc/internal/write-barrier.h",
   "+cppgc/visitor.h",
 ]

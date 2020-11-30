@@ -73,6 +73,12 @@ class V8_EXPORT WriteBarrier final {
                                             const void* slot) {}
 #endif  // CPPGC_YOUNG_GENERATION
 
+#if V8_ENABLE_CHECKS
+  static void CheckParams(Type expected_type, const Params& params);
+#else   // !V8_ENABLE_CHECKS
+  static void CheckParams(Type expected_type, const Params& params) {}
+#endif  // !V8_ENABLE_CHECKS
+
  private:
   WriteBarrier() = delete;
 
@@ -91,12 +97,6 @@ class V8_EXPORT WriteBarrier final {
                                               TraceCallback trace_callback);
   static void SteeleMarkingBarrierSlow(const void* value);
   static void SteeleMarkingBarrierSlowWithSentinelCheck(const void* value);
-
-#if V8_ENABLE_CHECKS
-  static void CheckParams(Type expected_type, const Params& params);
-#else   // !V8_ENABLE_CHECKS
-  static void CheckParams(Type expected_type, const Params& params) {}
-#endif  // !V8_ENABLE_CHECKS
 
 #if defined(CPPGC_YOUNG_GENERATION)
   static void GenerationalBarrierSlow(const CagedHeapLocalData& local_data,

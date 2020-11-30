@@ -42,6 +42,12 @@ cppgc::HeapHandle& CppHeap::GetHeapHandle() {
   return *internal::CppHeap::From(this);
 }
 
+void JSHeapConsistency::DijkstraMarkingBarrierSlow(
+    cppgc::HeapHandle& heap_handle, const TracedReferenceBase& ref) {
+  auto& heap_base = cppgc::internal::HeapBase::From(heap_handle);
+  static_cast<JSVisitor*>(&heap_base.marker()->Visitor())->Trace(ref);
+}
+
 namespace internal {
 
 namespace {
