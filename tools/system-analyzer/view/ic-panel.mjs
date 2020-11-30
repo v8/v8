@@ -82,7 +82,7 @@ DOM.defineCustomElement(
       }
 
       handleMapClick(e) {
-        const group = e.target.parentNode.entry;
+        const group = e.target.parentNode.group;
         const id = group.key;
         const selectedMapLogEntries =
             this.searchIcLogEntryToMapLogEntry(id, group.entries);
