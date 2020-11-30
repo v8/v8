@@ -1373,7 +1373,6 @@ void InstructionSelector::EmitPrepareResults(
     Node* node) {
   MipsOperandGenerator g(this);
 
-  int reverse_slot = 0;
   for (PushParameter output : *results) {
     if (!output.location.IsCallerFrameSlot()) continue;
     // Skip any alignment holes in nodes.
@@ -1384,10 +1383,11 @@ void InstructionSelector::EmitPrepareResults(
       } else if (output.location.GetType() == MachineType::Float64()) {
         MarkAsFloat64(output.node);
       }
+      int offset = call_descriptor->GetOffsetToReturns();
+      int reverse_slot = -output.location.GetLocation() - offset;
       Emit(kMipsPeek, g.DefineAsRegister(output.node),
            g.UseImmediate(reverse_slot));
     }
-    reverse_slot += output.location.GetSizeInPointers();
   }
 }
 

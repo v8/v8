@@ -884,8 +884,6 @@ void LiftoffAssembler::PrepareCall(const FunctionSig* sig,
 
 void LiftoffAssembler::FinishCall(const FunctionSig* sig,
                                   compiler::CallDescriptor* call_descriptor) {
-  // Offset of the current return value relative to the stack pointer.
-  int return_offset = 0;
   int call_desc_return_idx = 0;
   for (ValueType return_type : sig->returns()) {
     DCHECK_LT(call_desc_return_idx, call_descriptor->ReturnCount());
@@ -907,10 +905,11 @@ void LiftoffAssembler::FinishCall(const FunctionSig* sig,
       } else {
         DCHECK(loc.IsCallerFrameSlot());
         reg_pair[pair_idx] = GetUnusedRegister(rc, pinned);
-        LoadReturnStackSlot(reg_pair[pair_idx], return_offset, lowered_type);
-        const int type_size = lowered_type.element_size_bytes();
-        const int slot_size = RoundUp<kSystemPointerSize>(type_size);
-        return_offset += slot_size;
+        // Get slot offset relative to the stack pointer.
+        int offset = call_descriptor->GetOffsetToReturns();
+        int return_slot = -loc.GetLocation() - offset - 1;
+        LoadReturnStackSlot(reg_pair[pair_idx],
+                            return_slot * kSystemPointerSize, lowered_type);
       }
       if (pair_idx == 0) {
         pinned.set(reg_pair[0]);
@@ -923,7 +922,8 @@ void LiftoffAssembler::FinishCall(const FunctionSig* sig,
                                                          reg_pair[1].gp()));
     }
   }
-  RecordUsedSpillOffset(TopSpillOffset() + return_offset);
+  int return_slots = static_cast<int>(call_descriptor->StackReturnCount());
+  RecordUsedSpillOffset(TopSpillOffset() + return_slots * kSystemPointerSize);
 }
 
 void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src,

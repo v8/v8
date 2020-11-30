@@ -1826,8 +1826,6 @@ void InstructionSelector::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,
     Node* node) {
   X64OperandGenerator g(this);
-
-  int reverse_slot = 1;
   for (PushParameter output : *results) {
     if (!output.location.IsCallerFrameSlot()) continue;
     // Skip any alignment holes in nodes.
@@ -1841,10 +1839,11 @@ void InstructionSelector::EmitPrepareResults(
         MarkAsSimd128(output.node);
       }
       InstructionOperand result = g.DefineAsRegister(output.node);
+      int offset = call_descriptor->GetOffsetToReturns();
+      int reverse_slot = -output.location.GetLocation() - offset;
       InstructionOperand slot = g.UseImmediate(reverse_slot);
       Emit(kX64Peek, 1, &result, 1, &slot);
     }
-    reverse_slot += output.location.GetSizeInPointers();
   }
 }
 

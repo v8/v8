@@ -883,13 +883,9 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
       buffer->output_nodes.push_back(result);
     } else {
       buffer->output_nodes.resize(ret_count);
-      int stack_count = 0;
       for (size_t i = 0; i < ret_count; ++i) {
         LinkageLocation location = buffer->descriptor->GetReturnLocation(i);
         buffer->output_nodes[i] = PushParameter(nullptr, location);
-        if (location.IsCallerFrameSlot()) {
-          stack_count += location.GetSizeInPointers();
-        }
       }
       for (Edge const edge : call->use_edges()) {
         if (!NodeProperties::IsValueEdge(edge)) continue;
@@ -901,7 +897,9 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
         DCHECK(!buffer->output_nodes[index].node);
         buffer->output_nodes[index].node = node;
       }
-      frame_->EnsureReturnSlots(stack_count);
+
+      frame_->EnsureReturnSlots(
+          static_cast<int>(buffer->descriptor->StackReturnCount()));
     }
 
     // Filter out the outputs that aren't live because no projection uses them.

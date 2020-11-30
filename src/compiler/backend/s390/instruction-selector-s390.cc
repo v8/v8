@@ -2891,7 +2891,6 @@ void InstructionSelector::EmitPrepareResults(
     Node* node) {
   S390OperandGenerator g(this);
 
-  int reverse_slot = 1;
   for (PushParameter output : *results) {
     if (!output.location.IsCallerFrameSlot()) continue;
     // Skip any alignment holes in nodes.
@@ -2904,10 +2903,11 @@ void InstructionSelector::EmitPrepareResults(
       } else if (output.location.GetType() == MachineType::Simd128()) {
         MarkAsSimd128(output.node);
       }
+      int offset = call_descriptor->GetOffsetToReturns();
+      int reverse_slot = -output.location.GetLocation() - offset;
       Emit(kS390_Peek, g.DefineAsRegister(output.node),
            g.UseImmediate(reverse_slot));
     }
-    reverse_slot += output.location.GetSizeInPointers();
   }
 }
 
