@@ -12,6 +12,7 @@ import {DOM, V8CustomElement} from './helper.mjs';
 DOM.defineCustomElement(
     'view/ic-panel', (templateText) => class ICPanel extends V8CustomElement {
       _selectedLogEntries;
+      _selectedLogEntry;
       _timeline;
 
       _detailsClickHandler = this.handleDetailsClick.bind(this);
@@ -52,6 +53,10 @@ DOM.defineCustomElement(
       set selectedLogEntries(value) {
         this._selectedLogEntries = value;
         this.update();
+      }
+
+      set selectedLogEntry(entry) {
+        // TODO: show details
       }
 
       _update() {

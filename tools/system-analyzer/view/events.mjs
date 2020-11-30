@@ -30,7 +30,7 @@ export class SelectTimeEvent extends CustomEvent {
   static get name() {
     return 'timerangeselect';
   }
-  constructor(start, end) {
+  constructor(start = -1, end = Infinity) {
     super(SelectTimeEvent.name, {bubbles: true, composed: true});
     this.start = start;
     this.end = end;

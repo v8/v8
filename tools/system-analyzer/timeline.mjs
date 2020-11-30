@@ -9,13 +9,13 @@ class Timeline {
   _values;
   // Current selection, subset of #values:
   _selection;
-  _uniqueTypes;
+  _breakdown;
 
-  constructor(model) {
+  constructor(model, values = [], startTime = 0, endTime = 0) {
     this._model = model;
-    this._values = [];
-    this.startTime = 0;
-    this.endTime = 0;
+    this._values = values;
+    this.startTime = startTime;
+    this.endTime = endTime;
   }
 
   get model() {
@@ -35,16 +35,19 @@ class Timeline {
   }
 
   selectTimeRange(startTime, endTime) {
-    this._selection = this.range(startTime, endTime);
+    const items = this.range(startTime, endTime);
+    this._selection = new Timeline(this._model, items, startTime, endTime);
+  }
+
+  clearSelection() {
+    this._selection = undefined;
   }
 
   getChunks(windowSizeMs) {
-    // TODO(zcankara) Fill this one
     return this.chunkSizes(windowSizeMs);
   }
 
   get values() {
-    // TODO(zcankara) Not to break something delete later
     return this._values;
   }
 
@@ -94,6 +97,10 @@ class Timeline {
     return this._values.length;
   }
 
+  slice(startIndex, endIndex) {
+    return this._values.slice(startIndex, endIndex);
+  }
+
   first() {
     return this._values[0];
   }
@@ -102,11 +109,17 @@ class Timeline {
     return this._values[this._values.length - 1];
   }
 
+  * [Symbol.iterator]() {
+    yield* this._values;
+  }
+
   duration() {
+    if (this.isEmpty()) return 0;
     return this.last().time - this.first().time;
   }
 
   forEachChunkSize(count, fn) {
+    if (this.isEmpty()) return;
     const increment = this.duration() / count;
     let currentTime = this.first().time + increment;
     let index = 0;
@@ -162,24 +175,12 @@ class Timeline {
     return minIndex;
   }
 
-  _initializeTypes() {
-    const types = new Map();
-    let index = 0;
-    for (const entry of this.all) {
-      let entries = types.get(entry.type);
-      if (entries != undefined) {
-        entries.push(entry)
-      } else {
-        entries = [entry];
-        entries.index = index++;
-        types.set(entry.type, entries)
-      }
+  getBreakdown(keyFunction) {
+    if (keyFunction) return breakdown(this._values, keyFunction);
+    if (this._breakdown === undefined) {
+      this._breakdown = breakdown(this._values, each => each.type);
     }
-    return this._uniqueTypes = types;
-  }
-
-  get uniqueTypes() {
-    return this._uniqueTypes ?? this._initializeTypes();
+    return this._breakdown;
   }
 
   depthHistogram() {
@@ -259,31 +260,34 @@ class Chunk {
   }
 
   getBreakdown(keyFunction) {
-    if (this.items.length === 0) return [];
-    if (keyFunction === void 0) {
-      keyFunction = each => each;
-    }
-    const typeToindex = new Map();
-    const breakdown = [];
-    // This is performance critical, resorting to for-loop
-    for (let i = 0; i < this.items.length; i++) {
-      const each = this.items[i];
-      const type = keyFunction(each);
-      const index = typeToindex.get(type);
-      if (index === void 0) {
-        typeToindex.set(type, breakdown.length);
-        breakdown.push([type, 0]);
-      } else {
-        breakdown[index][1]++;
-      }
-    }
-    // Sort by count
-    return breakdown.sort((a, b) => a[1] - b[1]);
+    return breakdown(this.items, keyFunction);
   }
 
   filter() {
     return this.items.filter(map => !map.parent() || !this.has(map.parent()));
   }
+}
+
+function breakdown(array, keyFunction) {
+  if (array.length === 0) return [];
+  if (keyFunction === undefined) keyFunction = each => each;
+  const typeToindex = new Map();
+  const breakdown = [];
+  let id = 0;
+  // This is performance critical, resorting to for-loop
+  for (let i = 0; i < array.length; i++) {
+    const each = array[i];
+    const type = keyFunction(each);
+    const index = typeToindex.get(type);
+    if (index === void 0) {
+      typeToindex.set(type, breakdown.length);
+      breakdown.push({type: type, count: 0, id: id++});
+    } else {
+      breakdown[index].count++;
+    }
+  }
+  // Sort by count
+  return breakdown.sort((a, b) => b.count - a.count);
 }
 
 export {Timeline, Chunk};

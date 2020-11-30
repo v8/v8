@@ -13,7 +13,7 @@ class CSSColor {
     if (color === undefined) {
       throw new Error(`CSS color does not exist: ${name}`);
     }
-    this._cache.set(name, color);
+    this._cache.set(name, color.trim());
     return color;
   }
   static reset() {
@@ -74,51 +74,61 @@ class CSSColor {
   static get violet() {
     return this.get('violet');
   }
+  static at(index) {
+    return this.list[index % this.list.length];
+  }
+  static get list() {
+    if (!this._colors) {
+      this._colors = [
+        this.green,
+        this.violet,
+        this.orange,
+        this.yellow,
+        this.primaryColor,
+        this.red,
+        this.blue,
+        this.yellow,
+        this.secondaryColor,
+      ];
+    }
+    return this._colors;
+  }
 }
 
-const kColors = [
-  CSSColor.green,
-  CSSColor.violet,
-  CSSColor.orange,
-  CSSColor.yellow,
-  CSSColor.primaryColor,
-  CSSColor.red,
-  CSSColor.blue,
-  CSSColor.yellow,
-  CSSColor.secondaryColor,
-];
-
 class DOM {
+  static element(type, classes) {
+    const node = document.createElement(type);
+    if (classes === undefined) return node;
+    if (typeof classes === 'string') {
+      node.className = classes;
+    } else {
+      classes.forEach(cls => node.classList.add(cls));
+    }
+    return node;
+  }
+
+  static text(string) {
+    return document.createTextNode(string);
+  }
+
   static div(classes) {
-    const node = document.createElement('div');
-    if (classes !== void 0) {
-      if (typeof classes === 'string') {
-        node.className = classes;
-      } else {
-        classes.forEach(cls => node.classList.add(cls));
-      }
-    }
-    return node;
+    return this.element('div', classes);
   }
+
   static span(classes) {
-    const node = document.createElement('span');
-    if (classes !== undefined) {
-      if (typeof classes === 'string') {
-        node.className = classes;
-      } else {
-        classes.forEach(cls => node.classList.add(cls));
-      }
-    }
-    return node;
+    return this.element('span', classes);
   }
-  static table(className) {
-    const node = document.createElement('table');
-    if (className) node.className = className;
-    return node;
+
+  static table(classes) {
+    return this.element('table', classes);
+  }
+
+  static tbody(classes) {
+    return this.element('tbody', classes);
   }
 
   static td(textOrNode, className) {
-    const node = document.createElement('td');
+    const node = this.element('td');
     if (typeof textOrNode === 'object') {
       node.appendChild(textOrNode);
     } else if (textOrNode) {
@@ -128,14 +138,8 @@ class DOM {
     return node;
   }
 
-  static tr(className) {
-    const node = document.createElement('tr');
-    if (className) node.className = className;
-    return node;
-  }
-
-  static text(string) {
-    return document.createTextNode(string);
+  static tr(classes) {
+    return this.element('tr', classes);
   }
 
   static removeAllChildren(node) {
@@ -225,7 +229,6 @@ export * from '../helper.mjs';
 export {
   DOM,
   $,
-  kColors,
   V8CustomElement,
   CSSColor,
   LazyTable,

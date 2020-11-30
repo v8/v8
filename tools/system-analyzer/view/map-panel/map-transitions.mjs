@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import {FocusEvent, ToolTipEvent} from '../events.mjs';
-import {kColors} from '../helper.mjs';
+import {CSSColor} from '../helper.mjs';
 import {DOM, V8CustomElement} from '../helper.mjs';
 
 DOM.defineCustomElement(
@@ -10,6 +10,7 @@ DOM.defineCustomElement(
     (templateText) => class MapTransitions extends V8CustomElement {
       _timeline;
       _map;
+      _edgeToColor = new Map();
       _selectedMapLogEntries;
       _displayedMapsInTree;
       _toggleSubtreeHandler = this._handleToggleSubtree.bind(this);
@@ -42,6 +43,10 @@ DOM.defineCustomElement(
 
       set timeline(timeline) {
         this._timeline = timeline;
+        this._edgeToColor.clear();
+        timeline.getBreakdown().forEach(breakdown => {
+          this._edgeToColor.set(breakdown.type, CSSColor.at(breakdown.id));
+        });
       }
 
       set selectedMapLogEntries(list) {
@@ -51,11 +56,6 @@ DOM.defineCustomElement(
 
       get selectedMapLogEntries() {
         return this._selectedMapLogEntries;
-      }
-
-      _edgeToColor(edge) {
-        const index = this._timeline.uniqueTypes.get(edge.type).index
-        return kColors[index % kColors.length];
       }
 
       _handleTransitionViewChange(e) {
@@ -124,7 +124,7 @@ DOM.defineCustomElement(
       _addTransitionEdge(map) {
         let classes = ['transitionEdge'];
         let edge = DOM.div(classes);
-        edge.style.backgroundColor = this._edgeToColor(map.edge);
+        edge.style.backgroundColor = this._edgeToColor.get(map.edge.type);
         let labelNode = DOM.div('transitionLabel');
         labelNode.innerText = map.edge.toString();
         edge.appendChild(labelNode);
@@ -153,7 +153,8 @@ DOM.defineCustomElement(
 
       _addMapNode(map) {
         let node = DOM.div('map');
-        if (map.edge) node.style.backgroundColor = this._edgeToColor(map.edge);
+        if (map.edge)
+          node.style.backgroundColor = this._edgeToColor.get(map.edge.type);
         node.map = map;
         node.onclick = this._selectMapHandler
         node.onmouseover = this._mouseoverMapHandler

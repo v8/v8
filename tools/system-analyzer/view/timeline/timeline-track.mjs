@@ -5,113 +5,59 @@
 import {kChunkHeight, kChunkWidth} from '../../log/map.mjs';
 import {MapLogEntry} from '../../log/map.mjs';
 import {FocusEvent, SelectionEvent, SelectTimeEvent, SynchronizeSelectionEvent, ToolTipEvent,} from '../events.mjs';
-import {CSSColor, DOM, kColors, V8CustomElement} from '../helper.mjs';
+import {CSSColor, DOM, V8CustomElement} from '../helper.mjs';
 
 DOM.defineCustomElement('view/timeline/timeline-track',
                         (templateText) =>
                             class TimelineTrack extends V8CustomElement {
-  // TODO turn into static field once Safari supports it.
-  static get SELECTION_OFFSET() {
-    return 10
-  };
   _timeline;
   _nofChunks = 400;
   _chunks;
   _selectedEntry;
   _timeToPixel;
-  _timeSelection = {start: -1, end: Infinity};
   _timeStartOffset;
-  _selectionOriginTime;
   _typeToColor;
+  _legend;
 
-  _entryTypeDoubleClickHandler = this.handleEntryTypeDoubleClick.bind(this);
-  _chunkMouseMoveHandler = this.handleChunkMouseMove.bind(this);
-  _chunkClickHandler = this.handleChunkClick.bind(this);
-  _chunkDoubleClickHandler = this.handleChunkDoubleClick.bind(this);
+  _chunkMouseMoveHandler = this._handleChunkMouseMove.bind(this);
+  _chunkClickHandler = this._handleChunkClick.bind(this);
+  _chunkDoubleClickHandler = this._handleChunkDoubleClick.bind(this);
 
   constructor() {
     super(templateText);
-    this.timeline.addEventListener('scroll', e => this.handleTimelineScroll(e));
-    this.timeline.addEventListener(
-        'mousedown', e => this.handleTimeSelectionMouseDown(e));
-    this.timeline.addEventListener(
-        'mouseup', e => this.handleTimeSelectionMouseUp(e));
-    this.timeline.addEventListener(
-        'mousemove', e => this.handleTimeSelectionMouseMove(e));
+    this._selectionHandler = new SelectionHandler(this);
+    this._legend = new Legend(this.$('#legend'));
+    this.timelineNode.addEventListener(
+        'scroll', e => this._handleTimelineScroll(e));
+    this.timelineNode.ondblclick = (e) =>
+        this._selectionHandler.clearSelection();
     this.isLocked = false;
   }
 
-  handleTimeSelectionMouseDown(e) {
-    let xPosition = e.clientX
-    // Update origin time in case we click on a handle.
-    if (this.isOnLeftHandle(xPosition)) {
-      xPosition = this.rightHandlePosX;
-    }
-    else if (this.isOnRightHandle(xPosition)) {
-      xPosition = this.leftHandlePosX;
-    }
-    this._selectionOriginTime = this.positionToTime(xPosition);
-  }
-
-  isOnLeftHandle(posX) {
-    return (
-        Math.abs(this.leftHandlePosX - posX) <= TimelineTrack.SELECTION_OFFSET);
-  }
-
-  isOnRightHandle(posX) {
-    return (
-        Math.abs(this.rightHandlePosX - posX) <=
-        TimelineTrack.SELECTION_OFFSET);
-  }
-
-  handleTimeSelectionMouseMove(e) {
-    if (!this._isSelecting) return;
-    const currentTime = this.positionToTime(e.clientX);
-    this.dispatchEvent(new SynchronizeSelectionEvent(
-        Math.min(this._selectionOriginTime, currentTime),
-        Math.max(this._selectionOriginTime, currentTime)));
-  }
-
-  handleTimeSelectionMouseUp(e) {
-    this._selectionOriginTime = -1;
-    const delta = this._timeSelection.end - this._timeSelection.start;
-    if (delta <= 1 || isNaN(delta)) return;
-    this.dispatchEvent(new SelectTimeEvent(
-        this._timeSelection.start, this._timeSelection.end));
+  set data(timeline) {
+    this._timeline = timeline;
+    this._typeToColor = new Map();
+    timeline.getBreakdown().forEach(
+        each => this._typeToColor.set(each.type, CSSColor.at(each.id)));
+    this._legend.timeline = timeline;
+    this._updateChunks();
+    this.update();
   }
 
   set timeSelection(selection) {
-    this._timeSelection.start = selection.start;
-    this._timeSelection.end = selection.end;
+    this._selectionHandler.timeSelection = selection;
     this.updateSelection();
   }
 
-  get _isSelecting() {
-    return this._selectionOriginTime >= 0;
-  }
-
   updateSelection() {
-    const startPosition = this.timeToPosition(this._timeSelection.start);
-    const endPosition = this.timeToPosition(this._timeSelection.end);
-    const delta = endPosition - startPosition;
-    this.leftHandle.style.left = startPosition + 'px';
-    this.selection.style.left = startPosition + 'px';
-    this.rightHandle.style.left = endPosition + 'px';
-    this.selection.style.width = delta + 'px';
-  }
-
-  get leftHandlePosX() {
-    return this.leftHandle.getBoundingClientRect().x;
-  }
-
-  get rightHandlePosX() {
-    return this.rightHandle.getBoundingClientRect().x;
+    this._selectionHandler.update();
+    this._legend.update();
   }
 
   // Maps the clicked x position to the x position on timeline canvas
   positionOnTimeline(posX) {
-    let rect = this.timeline.getBoundingClientRect();
-    let posClickedX = posX - rect.left + this.timeline.scrollLeft;
+    let rect = this.timelineNode.getBoundingClientRect();
+    let posClickedX = posX - rect.left + this.timelineNode.scrollLeft;
     return posClickedX;
   }
 
@@ -122,20 +68,8 @@ DOM.defineCustomElement('view/timeline/timeline-track',
 
   timeToPosition(time) {
     let posX = time * this._timeToPixel;
-    posX -= this._timeStartOffset
+    posX -= this._timeStartOffset;
     return posX;
-  }
-
-  get leftHandle() {
-    return this.$('.leftHandle');
-  }
-
-  get rightHandle() {
-    return this.$('.rightHandle');
-  }
-
-  get selection() {
-    return this.$('.selection');
   }
 
   get timelineCanvas() {
@@ -146,41 +80,13 @@ DOM.defineCustomElement('view/timeline/timeline-track',
     return this.$('#timelineChunks');
   }
 
-  get timeline() {
+  get timelineNode() {
     return this.$('#timeline');
-  }
-
-  get timelineLegend() {
-    return this.$('#legend');
-  }
-
-  get timelineLegendContent() {
-    return this.$('#legendContent');
-  }
-
-  set data(value) {
-    this._timeline = value;
-    this._resetTypeToColorCache();
-    // Only update legend if the timeline data has changed.
-    this._updateLegend();
-    this._updateChunks();
-    this.update();
   }
 
   _update() {
     this._updateTimeline();
-  }
-
-  _resetTypeToColorCache() {
-    this._typeToColor = new Map();
-    let lastIndex = 0;
-    for (const type of this.data.uniqueTypes.keys()) {
-      this._typeToColor.set(type, kColors[lastIndex++]);
-    }
-  }
-
-  get data() {
-    return this._timeline;
+    this._legend.update();
   }
 
   set nofChunks(count) {
@@ -194,7 +100,7 @@ DOM.defineCustomElement('view/timeline/timeline-track',
   }
 
   _updateChunks() {
-    this._chunks = this.data.chunks(this.nofChunks);
+    this._chunks = this._timeline.chunks(this.nofChunks);
   }
 
   get chunks() {
@@ -211,43 +117,7 @@ DOM.defineCustomElement('view/timeline/timeline-track',
   }
 
   set scrollLeft(offset) {
-    this.timeline.scrollLeft = offset;
-  }
-
-  typeToColor(type) {
-    return this._typeToColor.get(type);
-  }
-
-  _updateLegend() {
-    let timelineLegendContent = this.timelineLegendContent;
-    DOM.removeAllChildren(timelineLegendContent);
-    this._timeline.uniqueTypes.forEach((entries, type) => {
-      let row = DOM.tr('clickable');
-      row.entries = entries;
-      row.ondblclick = this.entryTypeDoubleClickHandler_;
-      let color = this.typeToColor(type);
-      if (color !== null) {
-        let div = DOM.div('colorbox');
-        div.style.backgroundColor = color;
-        row.appendChild(DOM.td(div));
-      } else {
-        row.appendChild(DOM.td());
-      }
-      let td = DOM.td(type);
-      row.appendChild(td);
-      row.appendChild(DOM.td(entries.length));
-      let percent = (entries.length / this.data.all.length) * 100;
-      row.appendChild(DOM.td(percent.toFixed(1) + '%'));
-      timelineLegendContent.appendChild(row);
-    });
-    // Add Total row.
-    let row = DOM.tr();
-    row.appendChild(DOM.td(''));
-    row.appendChild(DOM.td('All'));
-    row.appendChild(DOM.td(this.data.all.length));
-    row.appendChild(DOM.td('100%'));
-    timelineLegendContent.appendChild(row);
-    this.timelineLegend.appendChild(timelineLegendContent);
+    this.timelineNode.scrollLeft = offset;
   }
 
   handleEntryTypeDoubleClick(e) {
@@ -255,10 +125,10 @@ DOM.defineCustomElement('view/timeline/timeline-track',
   }
 
   timelineIndicatorMove(offset) {
-    this.timeline.scrollLeft += offset;
+    this.timelineNode.scrollLeft += offset;
   }
 
-  handleTimelineScroll(e) {
+  _handleTimelineScroll(e) {
     let horizontal = e.currentTarget.scrollLeft;
     this.dispatchEvent(new CustomEvent(
         'scrolltrack', {bubbles: true, composed: true, detail: horizontal}));
@@ -271,11 +141,9 @@ DOM.defineCustomElement('view/timeline/timeline-track',
     let increment = 0;
     let lastHeight = 0.0;
     const stops = [];
-    const breakDown = chunk.getBreakdown(map => map.type);
-    for (let i = 0; i < breakDown.length; i++) {
-      let [type, count] = breakDown[i];
-      const color = this.typeToColor(type);
-      increment += count;
+    for (let breakdown of chunk.getBreakdown(map => map.type)) {
+      const color = CSSColor.at(breakdown.id);
+      increment += breakdown.count;
       let height = (increment / total * kHeight) | 0;
       stops.push(`${color} ${lastHeight}px ${height}px`)
       lastHeight = height;
@@ -288,8 +156,8 @@ DOM.defineCustomElement('view/timeline/timeline-track',
     let fragment = new DocumentFragment();
     let chunks = this.chunks;
     let max = chunks.max(each => each.size());
-    let start = this.data.startTime;
-    let end = this.data.endTime;
+    let start = this._timeline.startTime;
+    let end = this._timeline.endTime;
     let duration = end - start;
     this._timeToPixel = chunks.length * kChunkWidth / duration;
     this._timeStartOffset = start * this._timeToPixel;
@@ -307,7 +175,7 @@ DOM.defineCustomElement('view/timeline/timeline-track',
         node = DOM.div('chunk');
         node.onmousemove = this._chunkMouseMoveHandler;
         node.onclick = this._chunkClickHandler;
-        node.ondblclick = this.chunkDoubleClickHandler;
+        node.ondblclick = this._chunkDoubleClickHandler;
       }
       const style = node.style;
       style.left = `${((chunk.start - start) * this._timeToPixel) | 0}px`;
@@ -352,26 +220,28 @@ DOM.defineCustomElement('view/timeline/timeline-track',
     this.redraw();
   }
 
-  handleChunkMouseMove(event) {
+  _handleChunkMouseMove(event) {
     if (this.isLocked) return false;
-    if (this._isSelecting) return false;
+    if (this._selectionHandler.isSelecting) return false;
     let chunk = event.target.chunk;
     if (!chunk) return;
+    if (chunk.isEmpty()) return;
     // topmost map (at chunk.height) == map #0.
-    let relativeIndex =
-        Math.round(event.layerY / event.target.offsetHeight * chunk.size());
+    let relativeIndex = Math.round(
+        event.layerY / event.target.offsetHeight * (chunk.size() - 1));
     let logEntry = chunk.at(relativeIndex);
     this.dispatchEvent(new FocusEvent(logEntry));
     this.dispatchEvent(new ToolTipEvent(logEntry.toString(), event.target));
   }
 
-  handleChunkClick(event) {
+  _handleChunkClick(event) {
     this.isLocked = !this.isLocked;
   }
 
-  handleChunkDoubleClick(event) {
+  _handleChunkDoubleClick(event) {
     let chunk = event.target.chunk;
     if (!chunk) return;
+    event.stopPropagation();
     this.dispatchEvent(new SelectTimeEvent(chunk.start, chunk.end));
   }
 
@@ -391,13 +261,14 @@ DOM.defineCustomElement('view/timeline/timeline-track',
     if (!this.selectedEntry || !this.selectedEntry.edge) return;
     this.drawEdges(ctx);
   }
+
   setMapStyle(map, ctx) {
     ctx.fillStyle = map.edge && map.edge.from ? CSSColor.onBackgroundColor :
                                                 CSSColor.onPrimaryColor;
   }
 
   setEdgeStyle(edge, ctx) {
-    let color = this.typeToColor(edge.type);
+    let color = this._typeToColor.get(edge.type);
     ctx.strokeStyle = color;
     ctx.fillStyle = color;
   }
@@ -495,7 +366,7 @@ DOM.defineCustomElement('view/timeline/timeline-track',
       ctx.lineTo(centerX + offsetX, centerY - labelOffset);
       ctx.stroke();
       ctx.textAlign = 'left';
-      ctx.fillStyle = this.typeToColor(edge.type);
+      ctx.fillStyle = this._typeToColor.get(edge.type);
       ctx.fillText(
           edge.toString(), centerX + offsetX + 2, centerY - labelOffset);
     }
@@ -515,3 +386,171 @@ DOM.defineCustomElement('view/timeline/timeline-track',
     }
   }
 });
+
+class SelectionHandler {
+  // TODO turn into static field once Safari supports it.
+  static get SELECTION_OFFSET() {
+    return 10
+  };
+
+  _timeSelection = {start: -1, end: Infinity};
+  _selectionOriginTime = -1;
+
+  constructor(timeline) {
+    this._timeline = timeline;
+    this._timelineNode.addEventListener(
+        'mousedown', e => this._handleTimeSelectionMouseDown(e));
+    this._timelineNode.addEventListener(
+        'mouseup', e => this._handleTimeSelectionMouseUp(e));
+    this._timelineNode.addEventListener(
+        'mousemove', e => this._handleTimeSelectionMouseMove(e));
+  }
+
+  update() {
+    if (!this.hasSelection) {
+      this._selectionNode.style.display = 'none';
+      return;
+    }
+    this._selectionNode.style.display = 'inherit';
+    const startPosition = this.timeToPosition(this._timeSelection.start);
+    const endPosition = this.timeToPosition(this._timeSelection.end);
+    this._leftHandleNode.style.left = startPosition + 'px';
+    this._rightHandleNode.style.left = endPosition + 'px';
+    const delta = endPosition - startPosition;
+    const selectionNode = this._selectionBackgroundNode;
+    selectionNode.style.left = startPosition + 'px';
+    selectionNode.style.width = delta + 'px';
+  }
+
+  set timeSelection(selection) {
+    this._timeSelection.start = selection.start;
+    this._timeSelection.end = selection.end;
+  }
+
+  clearSelection() {
+    this._timeline.dispatchEvent(new SelectTimeEvent());
+  }
+
+  timeToPosition(posX) {
+    return this._timeline.timeToPosition(posX);
+  }
+
+  positionToTime(posX) {
+    return this._timeline.positionToTime(posX);
+  }
+
+  get isSelecting() {
+    return this._selectionOriginTime >= 0;
+  }
+
+  get hasSelection() {
+    return this._timeSelection.start >= 0;
+  }
+
+  get _timelineNode() {
+    return this._timeline.$('#timeline');
+  }
+
+  get _selectionNode() {
+    return this._timeline.$('#selection');
+  }
+
+  get _selectionBackgroundNode() {
+    return this._timeline.$('#selectionBackground');
+  }
+
+  get _leftHandleNode() {
+    return this._timeline.$('#leftHandle');
+  }
+
+  get _rightHandleNode() {
+    return this._timeline.$('#rightHandle');
+  }
+
+  get _leftHandlePosX() {
+    return this._leftHandleNode.getBoundingClientRect().x;
+  }
+
+  get _rightHandlePosX() {
+    return this._rightHandleNode.getBoundingClientRect().x;
+  }
+
+  _isOnLeftHandle(posX) {
+    return Math.abs(this._leftHandlePosX - posX) <=
+        SelectionHandler.SELECTION_OFFSET;
+  }
+
+  _isOnRightHandle(posX) {
+    return Math.abs(this._rightHandlePosX - posX) <=
+        SelectionHandler.SELECTION_OFFSET;
+  }
+
+  _handleTimeSelectionMouseDown(e) {
+    let xPosition = e.clientX
+    // Update origin time in case we click on a handle.
+    if (this._isOnLeftHandle(xPosition)) {
+      xPosition = this._rightHandlePosX;
+    }
+    else if (this._isOnRightHandle(xPosition)) {
+      xPosition = this._leftHandlePosX;
+    }
+    this._selectionOriginTime = this.positionToTime(xPosition);
+  }
+
+  _handleTimeSelectionMouseMove(e) {
+    if (!this.isSelecting) return;
+    const currentTime = this.positionToTime(e.clientX);
+    this._timeline.dispatchEvent(new SynchronizeSelectionEvent(
+        Math.min(this._selectionOriginTime, currentTime),
+        Math.max(this._selectionOriginTime, currentTime)));
+  }
+
+  _handleTimeSelectionMouseUp(e) {
+    this._selectionOriginTime = -1;
+    const delta = this._timeSelection.end - this._timeSelection.start;
+    if (delta <= 1 || isNaN(delta)) return;
+    this._timeline.dispatchEvent(new SelectTimeEvent(
+        this._timeSelection.start, this._timeSelection.end));
+  }
+}
+
+class Legend {
+  _timeline;
+
+  constructor(table) {
+    this._table = table;
+  }
+
+  set timeline(timeline) {
+    this._timeline = timeline;
+  }
+
+  update() {
+    const tbody = DOM.tbody();
+    const selection = this._timeline.selection ?? this._timeline;
+    const length = selection.length;
+    selection.getBreakdown().forEach(breakdown => {
+      const color = CSSColor.at(breakdown.id);
+      let colorDiv;
+      if (color !== null) {
+        colorDiv = DOM.div('colorbox');
+        colorDiv.style.backgroundColor = color;
+      }
+      let percent = `${(breakdown.count / length * 100).toFixed(1)}%`;
+      tbody.appendChild(
+          this.row(colorDiv, breakdown.type, breakdown.count, percent));
+    });
+    tbody.appendChild(this.row('', 'Selection', length, '100%'));
+    tbody.appendChild(this.row('', 'All', this._timeline.length, '100%'));
+    this._table.tBodies[0].replaceWith(tbody);
+  }
+
+  row(color, type, count, percent) {
+    const row = DOM.tr();
+    row.appendChild(DOM.td(color));
+    row.appendChild(DOM.td(type));
+    row.appendChild(DOM.td(count));
+    row.appendChild(DOM.td(percent));
+    return row
+  }
+}

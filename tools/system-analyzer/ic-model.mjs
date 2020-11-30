@@ -34,8 +34,7 @@ export class Group {
   static groupBy(entries, property) {
     let accumulator = Object.create(null);
     let length = entries.length;
-    for (let i = 0; i < length; i++) {
-      let entry = entries[i];
+    for (let entry of entries) {
       let key = entry[property];
       if (accumulator[key] == undefined) {
         accumulator[key] = new Group(property, key, entry);

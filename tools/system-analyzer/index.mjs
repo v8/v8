@@ -64,11 +64,12 @@ class App {
   }
 
   handleShowEntries(e) {
-    if (e.entries[0] instanceof MapLogEntry) {
+    const entry = e.entries[0];
+    if (entry instanceof MapLogEntry) {
       this.showMapEntries(e.entries);
-    } else if (e.entries[0] instanceof IcLogEntry) {
+    } else if (entry instanceof IcLogEntry) {
       this.showIcEntries(e.entries);
-    } else if (e.entries[0] instanceof SourcePosition) {
+    } else if (entry instanceof SourcePosition) {
       this.showSourcePositionEntries(e.entries);
     } else {
       throw new Error('Unknown selection type!');
@@ -117,11 +118,12 @@ class App {
   }
 
   handleShowEntryDetail(e) {
-    if (e.entry instanceof MapLogEntry) {
+    const entry = e.entry;
+    if (entry instanceof MapLogEntry) {
       this.selectMapLogEntry(e.entry);
-    } else if (e.entry instanceof IcLogEntry) {
+    } else if (entry instanceof IcLogEntry) {
       this.selectICLogEntry(e.entry);
-    } else if (e.entry instanceof SourcePosition) {
+    } else if (entry instanceof SourcePosition) {
       this.selectSourcePosition(e.entry);
     } else {
       throw new Error('Unknown selection type!');
@@ -137,7 +139,7 @@ class App {
 
   selectICLogEntry(entry) {
     this._state.ic = entry;
-    this._view.icPanel.selectedLogEntries = [entry];
+    this._view.icPanel.selectedEntry = [entry];
   }
 
   selectSourcePosition(sourcePositions) {

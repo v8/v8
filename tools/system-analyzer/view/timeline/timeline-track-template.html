@@ -85,6 +85,10 @@ found in the LICENSE file. -->
   #legend td:nth-of-type(4n+4) {
     text-align: right;
   }
+  /* Center colors */
+  #legend td:nth-of-type(4n+1) {
+    text-align: center;;
+  }
 
   .legendTypeColumn {
     width: 100%;
@@ -94,8 +98,8 @@ found in the LICENSE file. -->
     background-color: var(--timeline-background-color);
   }
 
-  #timeline .rightHandle,
-  #timeline .leftHandle {
+  #rightHandle,
+  #leftHandle {
     background-color: rgba(200, 200, 200, 0.5);
     height: 100%;
     width: 5px;
@@ -103,14 +107,14 @@ found in the LICENSE file. -->
     z-index: 3;
     cursor: col-resize;
   }
-  #timeline .leftHandle {
+  #leftHandle {
     border-left: 1px solid var(--on-surface-color);
   }
-  #timeline .rightHandle {
+  #rightHandle {
     border-right: 1px solid var(--on-surface-color);
   }
 
-  #timeline .selection {
+  #selectionBackground {
     background-color: rgba(133, 68, 163, 0.5);
     height: 100%;
     position: absolute;
@@ -125,13 +129,14 @@ found in the LICENSE file. -->
       <td>Percent</td>
     </tr>
   </thead>
-  <tbody id="legendContent">
-  </tbody>
+  <tbody></tbody>
 </table>
 <div id="timeline">
-  <div class="leftHandle"></div>
-  <div class="selection"></div>
-  <div class="rightHandle"></div>
+  <div id="selection">
+    <div id="leftHandle"></div>
+    <div id="selectionBackground"></div>
+    <div id="rightHandle"></div>
+  </div>
   <div id="timelineLabel">Frequency</div>
   <div id="timelineChunks"></div>
   <canvas id="timelineCanvas"></canvas>
