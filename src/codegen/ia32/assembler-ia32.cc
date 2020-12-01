@@ -1628,7 +1628,7 @@ void Assembler::jmp_rel(int offset) {
   EnsureSpace ensure_space(this);
   const int short_size = 2;
   const int long_size = 5;
-  if (is_int8(offset - short_size)) {
+  if (is_int8(offset - short_size) && !predictable_code_size()) {
     // 1110 1011 #8-bit disp.
     EMIT(0xEB);
     EMIT((offset - short_size) & 0xFF);

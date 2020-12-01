@@ -812,6 +812,14 @@ Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeReason reason,
                          frame_state, is_safety_check);
 }
 
+Node* GraphAssembler::DynamicMapCheckUnless(Node* condition, Node* slot_index,
+                                            Node* value, Node* map,
+                                            Node* frame_state) {
+  return AddNode(graph()->NewNode(common()->DynamicMapCheckUnless(), condition,
+                                  slot_index, value, map, frame_state, effect(),
+                                  control()));
+}
+
 TNode<Object> GraphAssembler::Call(const CallDescriptor* call_descriptor,
                                    int inputs_size, Node** inputs) {
   return Call(common()->Call(call_descriptor), inputs_size, inputs);

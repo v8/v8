@@ -160,10 +160,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   }
 
   DeoptimizeKind deopt_kind = exit->kind();
-
   DeoptimizeReason deoptimization_reason = exit->reason();
-  Builtins::Name deopt_entry =
-      Deoptimizer::GetDeoptimizationEntry(tasm()->isolate(), deopt_kind);
   Label* jump_deoptimization_entry_label =
       &jump_deoptimization_entry_labels_[static_cast<int>(deopt_kind)];
   if (info()->source_positions()) {
@@ -172,15 +169,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   }
 
   if (deopt_kind == DeoptimizeKind::kLazy) {
+    ++lazy_deopt_count_;
     tasm()->BindExceptionHandler(exit->label());
   } else {
-    ++non_lazy_deopt_count_;
+    if (deopt_kind != DeoptimizeKind::kEagerWithResume) {
+      ++eager_soft_and_bailout_deopt_count_;
+    }
     tasm()->bind(exit->label());
   }
-
-  tasm()->CallForDeoptimization(deopt_entry, deoptimization_id, exit->label(),
-                                deopt_kind, jump_deoptimization_entry_label);
+  Builtins::Name target =
+      deopt_kind == DeoptimizeKind::kEagerWithResume
+          ? Deoptimizer::GetDeoptWithResumeBuiltin(deoptimization_reason)
+          : Deoptimizer::GetDeoptimizationEntry(deopt_kind);
+  tasm()->CallForDeoptimization(target, deoptimization_id, exit->label(),
+                                deopt_kind, exit->continue_label(),
+                                jump_deoptimization_entry_label);
   exit->set_emitted();
+
   return kSuccess;
 }
 
@@ -336,12 +341,17 @@ void CodeGenerator::AssembleCode() {
   offsets_info_.deoptimization_exits = tasm()->pc_offset();
   int last_updated = 0;
   // We sort the deoptimization exits here so that the lazy ones will
-  // be visited last. We need this as on architectures where
-  // Deoptimizer::kSupportsFixedDeoptExitSizes is true, lazy deopts
-  // might need additional instructions.
+  // be visited second last, and eagerwithresume last. We need this as on
+  // architectures where Deoptimizer::kSupportsFixedDeoptExitSizes is true,
+  // lazy deopts and eagerwithresume might need additional instructions.
   auto cmp = [](const DeoptimizationExit* a, const DeoptimizationExit* b) {
-    static_assert(DeoptimizeKind::kLazy == kLastDeoptimizeKind,
-                  "lazy deopts are expected to be emitted last");
+    // The deoptimization exits are sorted so that lazy deopt exits appear after
+    // eager deopts, and eager with resume deopts appear last.
+    static_assert(DeoptimizeKind::kEagerWithResume == kLastDeoptimizeKind,
+                  "eager with resume deopts are expected to be emitted last");
+    static_assert(static_cast<int>(DeoptimizeKind::kLazy) ==
+                      static_cast<int>(kLastDeoptimizeKind) - 1,
+                  "lazy deopts are expected to be emitted second from last");
     if (a->kind() != b->kind()) {
       return a->kind() < b->kind();
     }
@@ -788,15 +798,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
       size_t frame_state_offset = MiscField::decode(instr->opcode());
       DeoptimizationExit* const exit =
           AddDeoptimizationExit(instr, frame_state_offset);
-      Label continue_label;
       BranchInfo branch;
       branch.condition = condition;
       branch.true_label = exit->label();
-      branch.false_label = &continue_label;
+      branch.false_label = exit->continue_label();
       branch.fallthru = true;
-      // Assemble architecture-specific branch.
       AssembleArchDeoptBranch(instr, &branch);
-      tasm()->bind(&continue_label);
+      tasm()->bind(exit->continue_label());
       if (mode == kFlags_deoptimize_and_poison) {
         AssembleBranchPoisoning(NegateFlagsCondition(branch.condition), instr);
       }
@@ -928,7 +936,9 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   data->SetOptimizationId(Smi::FromInt(info->optimization_id()));
 
   data->SetDeoptExitStart(Smi::FromInt(deopt_exit_start_offset_));
-  data->SetNonLazyDeoptCount(Smi::FromInt(non_lazy_deopt_count_));
+  data->SetEagerSoftAndBailoutDeoptCount(
+      Smi::FromInt(eager_soft_and_bailout_deopt_count_));
+  data->SetLazyDeoptCount(Smi::FromInt(lazy_deopt_count_));
 
   if (info->has_shared_info()) {
     data->SetSharedFunctionInfo(*info->shared_info());

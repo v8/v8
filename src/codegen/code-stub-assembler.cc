@@ -9561,6 +9561,16 @@ TNode<FeedbackVector> CodeStubAssembler::LoadFeedbackVectorForStub() {
   return CAST(LoadFeedbackVector(function));
 }
 
+TNode<FeedbackVector>
+CodeStubAssembler::LoadFeedbackVectorForStubWithTrampoline() {
+  TNode<RawPtrT> frame_pointer = LoadParentFramePointer();
+  TNode<RawPtrT> parent_frame_pointer = Load<RawPtrT>(frame_pointer);
+  TNode<JSFunction> function = CAST(
+      LoadFullTagged(parent_frame_pointer,
+                     IntPtrConstant(StandardFrameConstants::kFunctionOffset)));
+  return CAST(LoadFeedbackVector(function));
+}
+
 void CodeStubAssembler::UpdateFeedback(TNode<Smi> feedback,
                                        TNode<HeapObject> maybe_vector,
                                        TNode<UintPtrT> slot_id) {

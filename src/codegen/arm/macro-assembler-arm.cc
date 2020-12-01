@@ -2587,7 +2587,7 @@ void TurboAssembler::ResetSpeculationPoisonRegister() {
 
 void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,
                                            Label* exit, DeoptimizeKind kind,
-                                           Label*) {
+                                           Label* ret, Label*) {
   BlockConstPoolScope block_const_pool(this);
   ldr(ip, MemOperand(kRootRegister,
                      IsolateData::builtin_entry_slot_offset(target)));
@@ -2596,7 +2596,12 @@ void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,
             (kind == DeoptimizeKind::kLazy)
                 ? Deoptimizer::kLazyDeoptExitSize
                 : Deoptimizer::kNonLazyDeoptExitSize);
-  USE(exit, kind);
+
+  if (kind == DeoptimizeKind::kEagerWithResume) {
+    b(ret);
+    DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
+              Deoptimizer::kEagerWithResumeDeoptExitSize);
+  }
 }
 
 void TurboAssembler::Trap() { stop(); }

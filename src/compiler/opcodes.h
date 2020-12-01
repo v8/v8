@@ -25,6 +25,7 @@
   V(Deoptimize)            \
   V(DeoptimizeIf)          \
   V(DeoptimizeUnless)      \
+  V(DynamicMapCheckUnless) \
   V(TrapIf)                \
   V(TrapUnless)            \
   V(Return)                \

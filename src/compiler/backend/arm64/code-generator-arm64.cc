@@ -3222,17 +3222,24 @@ void CodeGenerator::FinishCode() { __ ForceConstantPoolEmissionWithoutJump(); }
 void CodeGenerator::PrepareForDeoptimizationExits(
     ZoneDeque<DeoptimizationExit*>* exits) {
   __ ForceConstantPoolEmissionWithoutJump();
-  // We are conservative here, assuming all deopts are lazy deopts.
+  // We are conservative here, assuming all deopts are eager with resume deopts.
+  DCHECK_GE(Deoptimizer::kEagerWithResumeDeoptExitSize,
+            Deoptimizer::kLazyDeoptExitSize);
   DCHECK_GE(Deoptimizer::kLazyDeoptExitSize,
             Deoptimizer::kNonLazyDeoptExitSize);
-  __ CheckVeneerPool(
-      false, false,
-      static_cast<int>(exits->size()) * Deoptimizer::kLazyDeoptExitSize);
+  __ CheckVeneerPool(false, false,
+                     static_cast<int>(exits->size()) *
+                         Deoptimizer::kEagerWithResumeDeoptExitSize);
 
   // Check which deopt kinds exist in this Code object, to avoid emitting jumps
   // to unused entries.
   bool saw_deopt_kind[kDeoptimizeKindCount] = {false};
+  constexpr auto eager_with_resume_reason = DeoptimizeReason::kDynamicMapCheck;
   for (auto exit : *exits) {
+    // TODO(rmcilroy): If we add any other kinds of kEagerWithResume deoptimize
+    // we will need to create a seperate array for each kEagerWithResume builtin
+    DCHECK_IMPLIES(exit->kind() == DeoptimizeKind::kEagerWithResume,
+                   exit->reason() == eager_with_resume_reason);
     saw_deopt_kind[static_cast<int>(exit->kind())] = true;
   }
 
@@ -3243,9 +3250,15 @@ void CodeGenerator::PrepareForDeoptimizationExits(
   for (int i = 0; i < kDeoptimizeKindCount; i++) {
     if (!saw_deopt_kind[i]) continue;
     __ bind(&jump_deoptimization_entry_labels_[i]);
-    __ LoadEntryFromBuiltinIndex(Deoptimizer::GetDeoptimizationEntry(
-                                     isolate(), static_cast<DeoptimizeKind>(i)),
-                                 scratch);
+    DeoptimizeKind kind = static_cast<DeoptimizeKind>(i);
+    if (kind == DeoptimizeKind::kEagerWithResume) {
+      __ LoadEntryFromBuiltinIndex(
+          Deoptimizer::GetDeoptWithResumeBuiltin(eager_with_resume_reason),
+          scratch);
+    } else {
+      __ LoadEntryFromBuiltinIndex(Deoptimizer::GetDeoptimizationEntry(kind),
+                                   scratch);
+    }
     __ Jump(scratch);
   }
 }

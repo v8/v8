@@ -3110,6 +3110,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Load type feedback vector from the stub caller's frame.
   TNode<FeedbackVector> LoadFeedbackVectorForStub();
+  // Load type feedback vector from the stub caller's frame, skipping an
+  // intermediate trampoline frame.
+  TNode<FeedbackVector> LoadFeedbackVectorForStubWithTrampoline();
 
   // Load the value from closure's feedback cell.
   TNode<HeapObject> LoadFeedbackCellValue(TNode<JSFunction> closure);

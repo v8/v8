@@ -2194,13 +2194,22 @@ void TurboAssembler::ComputeCodeStartAddress(Register dst) {
 
 void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,
                                            Label* exit, DeoptimizeKind kind,
-                                           Label*) {
+                                           Label* ret, Label*) {
   CallBuiltin(target);
   DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
             (kind == DeoptimizeKind::kLazy)
                 ? Deoptimizer::kLazyDeoptExitSize
                 : Deoptimizer::kNonLazyDeoptExitSize);
-  USE(exit, kind);
+
+  if (kind == DeoptimizeKind::kEagerWithResume) {
+    bool old_predictable_code_size = predictable_code_size();
+    set_predictable_code_size(true);
+
+    jmp(ret);
+    DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
+              Deoptimizer::kEagerWithResumeDeoptExitSize);
+    set_predictable_code_size(old_predictable_code_size);
+  }
 }
 
 void TurboAssembler::Trap() { int3(); }

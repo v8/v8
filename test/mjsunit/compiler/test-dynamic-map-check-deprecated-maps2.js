@@ -37,7 +37,9 @@ o1.c = 20.23;
 f(o1, true);
 assertOptimized(f);
 
-// We should migrates o's map without bailing out.
+// We should migrates o's map with a bailout, but then should not bailout after
+// migrating.
+f(o, true);
 f(o, false);
 f(o1, false);
 f(o2, false);

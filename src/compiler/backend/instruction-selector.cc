@@ -785,6 +785,12 @@ Instruction* InstructionSelector::EmitWithContinuation(
     continuation_inputs_.push_back(g.Label(cont->true_block()));
     continuation_inputs_.push_back(g.Label(cont->false_block()));
   } else if (cont->IsDeoptimize()) {
+    if (cont->has_extra_args()) {
+      for (int i = 0; i < cont->extra_args_count(); i++) {
+        continuation_inputs_.push_back(cont->extra_args()[i]);
+        input_count++;
+      }
+    }
     opcode |= MiscField::encode(static_cast<int>(input_count));
     AppendDeoptimizeArguments(&continuation_inputs_, cont->kind(),
                               cont->reason(), cont->feedback(),
@@ -1376,6 +1382,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitDeoptimizeIf(node);
     case IrOpcode::kDeoptimizeUnless:
       return VisitDeoptimizeUnless(node);
+    case IrOpcode::kDynamicMapCheckUnless:
+      return VisitDynamicMapCheckUnless(node);
     case IrOpcode::kTrapIf:
       return VisitTrapIf(node, TrapIdOf(node->op()));
     case IrOpcode::kTrapUnless:
@@ -3161,6 +3169,39 @@ void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
     FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
         kEqual, p.kind(), p.reason(), p.feedback(), node->InputAt(1));
     VisitWordCompareZero(node, node->InputAt(0), &cont);
+  }
+}
+
+void InstructionSelector::VisitDynamicMapCheckUnless(Node* node) {
+  OperandGenerator g(this);
+  DynamicMapChecksUnlessNode n(node);
+  DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
+
+  DynamicMapChecksDescriptor descriptor;
+  // Note: We use Operator::kNoDeopt here because this builtin does not lazy
+  // deoptimize (which is the meaning of Operator::kNoDeopt), even though it can
+  // eagerly deoptimize.
+  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      zone(), descriptor, descriptor.GetStackParameterCount(),
+      CallDescriptor::kNoFlags, Operator::kNoDeopt | Operator::kNoThrow);
+  // TODO(rmcilroy): Pass the constant values as immediates and move them into
+  // the correct location out of the fast-path (e.g., at deopt or in trampoline)
+  InstructionOperand dynamic_check_args[] = {
+      g.UseLocation(n.slot(), call_descriptor->GetInputLocation(1)),
+      g.UseLocation(n.map(), call_descriptor->GetInputLocation(2)),
+      g.UseLocation(n.handler(), call_descriptor->GetInputLocation(3)),
+  };
+
+  if (NeedsPoisoning(IsSafetyCheck::kCriticalSafetyCheck)) {
+    FlagsContinuation cont = FlagsContinuation::ForDeoptimizeAndPoison(
+        kEqual, p.kind(), p.reason(), p.feedback(), n.frame_state(),
+        dynamic_check_args, 3);
+    VisitWordCompareZero(node, n.condition(), &cont);
+  } else {
+    FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
+        kEqual, p.kind(), p.reason(), p.feedback(), n.frame_state(),
+        dynamic_check_args, 3);
+    VisitWordCompareZero(node, n.condition(), &cont);
   }
 }
 

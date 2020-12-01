@@ -58,6 +58,7 @@ namespace internal {
   V(ConstructWithSpread_WithFeedback)    \
   V(ContextOnly)                         \
   V(CppBuiltinAdaptor)                   \
+  V(DynamicMapChecks)                    \
   V(EphemeronKeyBarrier)                 \
   V(FastNewObject)                       \
   V(FrameDropperTrampoline)              \
@@ -871,6 +872,17 @@ class LoadGlobalWithVectorDescriptor : public LoadGlobalDescriptor {
     return LoadWithVectorDescriptor::VectorRegister();
   }
 #endif
+};
+
+class DynamicMapChecksDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kSlot, kMap, kHandler)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Int32(),          // return val
+                                    MachineType::IntPtr(),         // kSlot
+                                    MachineType::TaggedPointer(),  // kMap
+                                    MachineType::TaggedSigned())   // kHandler
+
+  DECLARE_DESCRIPTOR(DynamicMapChecksDescriptor, CallInterfaceDescriptor)
 };
 
 class FastNewObjectDescriptor : public CallInterfaceDescriptor {

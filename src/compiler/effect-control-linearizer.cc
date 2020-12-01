@@ -287,12 +287,6 @@ class EffectControlLinearizer {
                               FeedbackSource const& feedback_source,
                               DeoptimizeReason reason);
 
-  // Helper functions used in LowerDynamicCheckMaps
-  void BuildCallDynamicMapChecksBuiltin(Node* actual_value,
-                                        Node* actual_handler,
-                                        int feedback_slot_index,
-                                        GraphAssemblerLabel<0>* done,
-                                        Node* frame_state);
   bool should_maintain_schedule() const {
     return maintain_schedule_ == MaintainSchedule::kMaintain;
   }
@@ -1889,29 +1883,6 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
   }
 }
 
-void EffectControlLinearizer::BuildCallDynamicMapChecksBuiltin(
-    Node* actual_value, Node* actual_handler, int feedback_slot_index,
-    GraphAssemblerLabel<0>* done, Node* frame_state) {
-  Node* slot_index = __ IntPtrConstant(feedback_slot_index);
-  Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
-  auto builtin = Builtins::kDynamicMapChecks;
-  Node* result = CallBuiltin(builtin, properties, slot_index, actual_value,
-                             actual_handler);
-  __ GotoIf(__ WordEqual(result, __ IntPtrConstant(static_cast<int>(
-                                     DynamicMapChecksStatus::kSuccess))),
-            done);
-  __ DeoptimizeIf(DeoptimizeKind::kBailout, DeoptimizeReason::kMissingMap,
-                  FeedbackSource(),
-                  __ WordEqual(result, __ IntPtrConstant(static_cast<int>(
-                                           DynamicMapChecksStatus::kBailout))),
-                  frame_state, IsSafetyCheck::kCriticalSafetyCheck);
-  __ DeoptimizeIf(DeoptimizeReason::kWrongHandler, FeedbackSource(),
-                  __ WordEqual(result, __ IntPtrConstant(static_cast<int>(
-                                           DynamicMapChecksStatus::kDeopt))),
-                  frame_state, IsSafetyCheck::kCriticalSafetyCheck);
-  __ Unreachable(done);
-}
-
 void EffectControlLinearizer::LowerDynamicCheckMaps(Node* node,
                                                     Node* frame_state) {
   DynamicCheckMapsParameters const& p =
@@ -1919,14 +1890,16 @@ void EffectControlLinearizer::LowerDynamicCheckMaps(Node* node,
   Node* actual_value = node->InputAt(0);
 
   FeedbackSource const& feedback = p.feedback();
+  Node* slot_index = __ IntPtrConstant(feedback.index());
   Node* actual_value_map = __ LoadField(AccessBuilder::ForMap(), actual_value);
   Node* actual_handler =
       p.handler()->IsSmi()
           ? __ SmiConstant(Smi::ToInt(*p.handler()))
           : __ HeapConstant(Handle<HeapObject>::cast(p.handler()));
 
+  // TODO(rmcilroy) Add support to perform the instance migration of deprecated
+  // maps if the map might need migration.
   auto done = __ MakeLabel();
-  auto call_builtin = __ MakeDeferredLabel();
 
   ZoneHandleSet<Map> maps = p.maps();
   size_t const map_count = maps.size();
@@ -1934,18 +1907,14 @@ void EffectControlLinearizer::LowerDynamicCheckMaps(Node* node,
     Node* map = __ HeapConstant(maps[i]);
     Node* check = __ TaggedEqual(actual_value_map, map);
     if (i == map_count - 1) {
-      __ BranchWithCriticalSafetyCheck(check, &done, &call_builtin);
+      __ DynamicMapCheckUnless(check, slot_index, actual_value_map,
+                               actual_handler, frame_state);
+      __ Goto(&done);
     } else {
       auto next_map = __ MakeLabel();
       __ BranchWithCriticalSafetyCheck(check, &done, &next_map);
       __ Bind(&next_map);
     }
-  }
-
-  __ Bind(&call_builtin);
-  {
-    BuildCallDynamicMapChecksBuiltin(actual_value, actual_handler,
-                                     feedback.index(), &done, frame_state);
   }
 
   __ Bind(&done);

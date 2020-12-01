@@ -516,7 +516,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void RetpolineJump(Register reg);
 
   void CallForDeoptimization(Builtins::Name target, int deopt_id, Label* exit,
-                             DeoptimizeKind kind,
+                             DeoptimizeKind kind, Label* ret,
                              Label* jump_deoptimization_entry_label);
 
   void Trap() override;

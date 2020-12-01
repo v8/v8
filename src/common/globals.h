@@ -465,14 +465,18 @@ constexpr int kNoDeoptimizationId = -1;
 // - Bailout: a check failed in the optimized code but we don't
 //   deoptimize the code, but try to heal the feedback and try to rerun
 //   the optimized code again.
+// - EagerWithResume: a check failed in the optimized code, but we can execute
+//   a more expensive check in a builtin that might either result in us resuming
+//   execution in the optimized code, or deoptimizing immediately.
 enum class DeoptimizeKind : uint8_t {
   kEager,
   kSoft,
   kBailout,
   kLazy,
+  kEagerWithResume,
 };
 constexpr DeoptimizeKind kFirstDeoptimizeKind = DeoptimizeKind::kEager;
-constexpr DeoptimizeKind kLastDeoptimizeKind = DeoptimizeKind::kLazy;
+constexpr DeoptimizeKind kLastDeoptimizeKind = DeoptimizeKind::kEagerWithResume;
 STATIC_ASSERT(static_cast<int>(kFirstDeoptimizeKind) == 0);
 constexpr int kDeoptimizeKindCount = static_cast<int>(kLastDeoptimizeKind) + 1;
 inline size_t hash_value(DeoptimizeKind kind) {
@@ -488,6 +492,8 @@ inline std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
       return os << "Lazy";
     case DeoptimizeKind::kBailout:
       return os << "Bailout";
+    case DeoptimizeKind::kEagerWithResume:
+      return os << "EagerMaybeResume";
   }
 }
 

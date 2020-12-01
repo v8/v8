@@ -2958,7 +2958,7 @@ void TurboAssembler::ResetSpeculationPoisonRegister() {
 
 void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,
                                            Label* exit, DeoptimizeKind kind,
-                                           Label*) {
+                                           Label* ret, Label*) {
   // Note: Assembler::call is used here on purpose to guarantee fixed-size
   // exits even on Atom CPUs; see TurboAssembler::Call for Atom-specific
   // performance tuning which emits a different instruction sequence.
@@ -2967,7 +2967,15 @@ void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,
             (kind == DeoptimizeKind::kLazy)
                 ? Deoptimizer::kLazyDeoptExitSize
                 : Deoptimizer::kNonLazyDeoptExitSize);
-  USE(exit, kind);
+
+  if (kind == DeoptimizeKind::kEagerWithResume) {
+    bool old_predictable_code_size = predictable_code_size();
+    set_predictable_code_size(true);
+    jmp(ret);
+    DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
+              Deoptimizer::kEagerWithResumeDeoptExitSize);
+    set_predictable_code_size(old_predictable_code_size);
+  }
 }
 
 void TurboAssembler::Trap() { int3(); }

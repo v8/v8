@@ -3385,6 +3385,51 @@ void Builtins::Generate_DeoptimizationEntry_Lazy(MacroAssembler* masm) {
   Generate_DeoptimizationEntry(masm, DeoptimizeKind::kLazy);
 }
 
+void Builtins::Generate_DynamicMapChecksTrampoline(MacroAssembler* masm) {
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ EnterFrame(StackFrame::INTERNAL);
+
+  // Only save the registers that the DynamicMapChecks builtin can clobber.
+  DynamicMapChecksDescriptor descriptor;
+  RegList registers = descriptor.allocatable_registers();
+  // FLAG_debug_code is enabled CSA checks will call C function and so we need
+  // to save all CallerSaved registers too.
+  if (FLAG_debug_code) registers |= kCallerSaved;
+  __ SaveRegisters(registers);
+
+  __ Call(BUILTIN_CODE(masm->isolate(), DynamicMapChecks),
+          RelocInfo::CODE_TARGET);
+
+  Label deopt, bailout;
+  __ cmp_raw_immediate(r0, static_cast<int>(DynamicMapChecksStatus::kSuccess));
+  __ b(ne, &deopt);
+
+  __ RestoreRegisters(registers);
+  __ LeaveFrame(StackFrame::INTERNAL);
+  __ Ret();
+
+  __ bind(&deopt);
+  __ cmp_raw_immediate(r0, static_cast<int>(DynamicMapChecksStatus::kBailout));
+  __ b(eq, &bailout);
+
+  if (FLAG_debug_code) {
+    __ cmp_raw_immediate(r0, static_cast<int>(DynamicMapChecksStatus::kDeopt));
+    __ Assert(eq, AbortReason::kUnexpectedDynamicMapChecksStatus);
+  }
+  __ RestoreRegisters(registers);
+  __ LeaveFrame(StackFrame::INTERNAL);
+  Handle<Code> deopt_eager = masm->isolate()->builtins()->builtin_handle(
+      Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind::kEager));
+  __ Jump(deopt_eager, RelocInfo::CODE_TARGET);
+
+  __ bind(&bailout);
+  __ RestoreRegisters(registers);
+  __ LeaveFrame(StackFrame::INTERNAL);
+  Handle<Code> deopt_bailout = masm->isolate()->builtins()->builtin_handle(
+      Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind::kBailout));
+  __ Jump(deopt_bailout, RelocInfo::CODE_TARGET);
+}
+
 #undef __
 
 }  // namespace internal

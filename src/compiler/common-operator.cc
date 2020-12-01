@@ -112,7 +112,8 @@ std::ostream& operator<<(std::ostream& os, DeoptimizeParameters p) {
 DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const op) {
   DCHECK(op->opcode() == IrOpcode::kDeoptimize ||
          op->opcode() == IrOpcode::kDeoptimizeIf ||
-         op->opcode() == IrOpcode::kDeoptimizeUnless);
+         op->opcode() == IrOpcode::kDeoptimizeUnless ||
+         op->opcode() == IrOpcode::kDynamicMapCheckUnless);
   return OpParameter<DeoptimizeParameters>(op);
 }
 
@@ -782,6 +783,20 @@ struct CommonOperatorGlobalCache final {
   CACHED_DEOPTIMIZE_UNLESS_LIST(CACHED_DEOPTIMIZE_UNLESS)
 #undef CACHED_DEOPTIMIZE_UNLESS
 
+  struct DynamicMapCheckOperator final : Operator1<DeoptimizeParameters> {
+    DynamicMapCheckOperator()
+        : Operator1<DeoptimizeParameters>(               // --
+              IrOpcode::kDynamicMapCheckUnless,          // opcode
+              Operator::kFoldable | Operator::kNoThrow,  // properties
+              "DynamicMapCheckUnless",                   // name
+              5, 1, 1, 0, 1, 1,                          // counts
+              DeoptimizeParameters(DeoptimizeKind::kEagerWithResume,
+                                   DeoptimizeReason::kDynamicMapCheck,
+                                   FeedbackSource(),
+                                   IsSafetyCheck::kCriticalSafetyCheck)) {}
+  };
+  DynamicMapCheckOperator kDynamicMapCheckUnless;
+
   template <TrapId trap_id>
   struct TrapIfOperator final : public Operator1<TrapId> {
     TrapIfOperator()
@@ -1017,6 +1032,10 @@ const Operator* CommonOperatorBuilder::DeoptimizeUnless(
       "DeoptimizeUnless",                               // name
       2, 1, 1, 0, 1, 1,                                 // counts
       parameter);                                       // parameter
+}
+
+const Operator* CommonOperatorBuilder::DynamicMapCheckUnless() {
+  return &cache_.kDynamicMapCheckUnless;
 }
 
 const Operator* CommonOperatorBuilder::TrapIf(TrapId trap_id) {

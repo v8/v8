@@ -2015,14 +2015,19 @@ bool TurboAssembler::IsNearCallOffset(int64_t offset) {
 
 void TurboAssembler::CallForDeoptimization(
     Builtins::Name target, int deopt_id, Label* exit, DeoptimizeKind kind,
-    Label* jump_deoptimization_entry_label) {
+    Label* ret, Label* jump_deoptimization_entry_label) {
   BlockPoolsScope scope(this);
   bl(jump_deoptimization_entry_label);
   DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
             (kind == DeoptimizeKind::kLazy)
                 ? Deoptimizer::kLazyDeoptExitSize
                 : Deoptimizer::kNonLazyDeoptExitSize);
-  USE(exit, kind);
+
+  if (kind == DeoptimizeKind::kEagerWithResume) {
+    b(ret);
+    DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
+              Deoptimizer::kEagerWithResumeDeoptExitSize);
+  }
 }
 
 void TurboAssembler::PrepareForTailCall(Register callee_args_count,
