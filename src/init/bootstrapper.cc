@@ -247,13 +247,14 @@ class Genesis {
   class ExtensionStates {
    public:
     ExtensionStates();
+    ExtensionStates(const ExtensionStates&) = delete;
+    ExtensionStates& operator=(const ExtensionStates&) = delete;
     ExtensionTraversalState get_state(RegisteredExtension* extension);
     void set_state(RegisteredExtension* extension,
                    ExtensionTraversalState state);
 
    private:
     base::HashMap map_;
-    DISALLOW_COPY_AND_ASSIGN(ExtensionStates);
   };
 
   // Used both for deserialized and from-scratch contexts to add the extensions
