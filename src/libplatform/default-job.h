@@ -116,9 +116,7 @@ class V8_PLATFORM_EXPORT DefaultJobHandle : public JobHandle {
   void Join() override;
   void Cancel() override;
   void CancelAndDetach() override;
-  bool IsCompleted() override { return !IsActive(); }
   bool IsActive() override;
-  bool IsRunning() override { return IsValid(); }
   bool IsValid() override { return state_ != nullptr; }
 
   bool UpdatePriorityEnabled() const override { return true; }

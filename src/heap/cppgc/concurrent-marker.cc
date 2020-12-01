@@ -198,7 +198,7 @@ void ConcurrentMarkerBase::JoinForTesting() {
 }
 
 bool ConcurrentMarkerBase::IsActive() const {
-  return concurrent_marking_handle_ && concurrent_marking_handle_->IsRunning();
+  return concurrent_marking_handle_ && concurrent_marking_handle_->IsValid();
 }
 
 ConcurrentMarkerBase::~ConcurrentMarkerBase() {

@@ -247,7 +247,7 @@ void Sweeper::SupportConcurrentSweeping() {
 }
 
 bool Sweeper::AreSweeperTasksRunning() {
-  return job_handle_ && job_handle_->IsValid() && !job_handle_->IsCompleted();
+  return job_handle_ && job_handle_->IsValid() && job_handle_->IsActive();
 }
 
 V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
