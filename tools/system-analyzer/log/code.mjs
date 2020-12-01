@@ -15,6 +15,7 @@ export class DeoptLogEntry extends LogEntry {
     this._codeSize = codeSize;
     this._inliningId = inliningId;
   }
+
   toString() {
     return `Deopt(${this.type})${this._deoptReason}: ${this._deoptLocation}`;
   }
@@ -26,7 +27,12 @@ export class CodeLogEntry extends LogEntry {
     this._kind = kind;
     this._entry = entry;
   }
+
   toString() {
     return `Code(${this.type}): ${this._entry.toString()}`;
+  }
+
+  get disassemble() {
+    return this._entry?.source?.disassemble;
   }
 }

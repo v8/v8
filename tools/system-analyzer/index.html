@@ -20,7 +20,7 @@ found in the LICENSE file. -->
       let module = await import('./index.mjs');
       globalThis.app = new module.App("#log-file-reader", "#map-panel", "#map-stats-panel",
         "#timeline-panel", "#ic-panel", "#map-track", "#ic-track", "#deopt-track",
-        "#code-track", "#source-panel", "#tool-tip");
+        "#code-track", "#source-panel", "#code-panel", "#tool-tip");
     })();
   </script>
 
@@ -110,6 +110,7 @@ found in the LICENSE file. -->
       <stats-panel id="map-stats-panel"></stats-panel>
       <ic-panel id="ic-panel" onchange="app.handleSelectIc(event)"></ic-panel>
       <source-panel id="source-panel"></source-panel>
+      <code-panel id="code-panel"></code-panel>
     </div>
   </section>
 
@@ -133,29 +134,53 @@ found in the LICENSE file. -->
       For generating a v8.log file from <a href="https://v8.dev/docs/build">d8</a>:
       <ul>
         <li>
-          <code>/path/do/d8 --trace-maps --trace_ic --log-source-code $FILE</code>
+          <code>/path/do/d8 $LOG_FLAGS $FILE</code>
         </li>
       </ul>
       For generating a v8.log file from Chrome:
       <ul>
         <li>
           <code>/path/to/chrome --user-data-dir=/var/tmp/chr$RANDOM --no-sandbox
-          --js-flags='--trace-ic --trace-maps --log-source-code’
+          --js-flags='$LOG_FLAGS’
           $WEBSITE_URL</code>
         </li>
       </ul>
 
-      <h3>Log Options:</h3>
+      <h3><code>LOG_FLAGS</code>:</h3>
       <dl class="d8-options">
-        <dt><code>--trace-maps</code></dt>
+        <dt>
+          <a href="https://source.chromium.org/search?q=FLAG_log_all">
+            <code>--log-all</code>
+          </a>
+        </dt>
+        <dd>Enable all V8 logging options.</dd>
+        <dt>
+          <a href="https://source.chromium.org/search?q=FLAG_trace_maps">
+            <code>--trace-maps</code>
+          </a>
+        </dt>
         <dd>Log<a href="https://v8.dev/blog/fast-properties" target="_blank">
             Maps</a></dd>
-        <dt><code>--trace-ic</code></dt>
+        <dt>
+          <a href="https://source.chromium.org/search?q=FLAG_trace_ic">
+            <code>--trace-ic</code>
+          </a>
+        </dt>
         <dd>Log
           <a href="https://mathiasbynens.be/notes/shapes-ics" target="_blank">
             ICs</a></dd>
-        <dt><code>--log-source-code</code></dt>
+        <dt>
+          <a href="https://source.chromium.org/search?q=FLAG_log_source_code">
+            <code>--log-source-code</code>
+          </a>
+        </dt>
         <dd>Log source code</dd>
+        <dt>
+          <a href="https://source.chromium.org/search?q=FLAG_log_code_disassemble">
+            <code>--log-code-disassemble</code>
+          </a>
+        </dt>
+        <dd>Log detailed generated generated code</dd>
       </dl>
 
       <h3>Keyboard Shortcuts for Navigation</h3>

@@ -60,6 +60,14 @@ export class Processor extends LogReader {
         ],
         processor: this.processCodeSourceInfo
       },
+      'code-disassemble': {
+        parsers: [
+          parseInt,
+          parseString,
+          parseString,
+        ],
+        processor: this.processCodeDisassemble
+      },
       'script-source': {
         parsers: [parseInt, parseString, parseString],
         processor: this.processScriptSource
@@ -176,15 +184,18 @@ export class Processor extends LogReader {
 
   processCodeCreation(type, kind, timestamp, start, size, name, maybe_func) {
     let entry;
+    let stateName = '';
     if (maybe_func.length) {
       const funcAddr = parseInt(maybe_func[0]);
+      stateName = maybe_func[1] ?? '';
       const state = Profile.parseState(maybe_func[1]);
       entry = this._profile.addFuncCode(
           type, name, timestamp, start, size, funcAddr, state);
     } else {
       entry = this._profile.addCode(type, name, timestamp, start, size);
     }
-    this._codeTimeline.push(new CodeLogEntry(type, timestamp, kind, entry));
+    this._codeTimeline.push(
+        new CodeLogEntry(type + stateName, timestamp, kind, entry));
   }
 
   processCodeDeopt(
@@ -227,6 +238,10 @@ export class Processor extends LogReader {
     this._profile.addSourcePositions(
         start, script, startPos, endPos, sourcePositions, inliningPositions,
         inlinedFunctions);
+  }
+
+  processCodeDisassemble(start, kind, disassemble) {
+    this._profile.addDisassemble(start, kind, disassemble);
   }
 
   processPropertyIC(

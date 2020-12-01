@@ -86,14 +86,26 @@ export class Script {
 }
 
 
-class SourcePositionInfo{
-  constructor(script, startPos, endPos, sourcePositionTable, inliningPositions, inlinedFunctions) {
+class SourceInfo{
+   script;
+   start;
+   end;
+   positions;
+   inlined ;
+   fns;
+   disassemble;
+
+  setSourcePositionInfo(script, startPos, endPos, sourcePositionTable, inliningPositions, inlinedFunctions) {
     this.script = script;
     this.start = startPos;
     this.end = endPos;
     this.positions = sourcePositionTable;
     this.inlined = inliningPositions;
     this.fns = inlinedFunctions;
+  }
+
+  setDisassemble(code) {
+    this.disassemble = code;
   }
 }
 
@@ -297,8 +309,6 @@ export class Profile {
     const script = this.getOrCreateScript(scriptId);
     const entry = this.codeMap_.findDynamicEntryByStartAddress(start);
     if (!entry) return;
-    const codeId = entry.codeId;
-
     // Resolve the inlined functions list.
     if (inlinedFunctions.length > 0) {
       inlinedFunctions = inlinedFunctions.substring(1).split("S");
@@ -317,10 +327,19 @@ export class Profile {
       inlinedFunctions = [];
     }
 
-    entry.source =
-      new SourcePositionInfo(
+    this.getOrCreateSourceInfo(entry).setSourcePositionInfo(
           script, startPos, endPos, sourcePositionTable, inliningPositions,
           inlinedFunctions);
+  }
+
+  addDisassemble(start, kind, disassemble) {
+    const entry = this.codeMap_.findDynamicEntryByStartAddress(start);
+    if (!entry) return;
+    this.getOrCreateSourceInfo(entry).setDisassemble(disassemble);
+  }
+
+  getOrCreateSourceInfo(entry) {
+    return entry.source ?? (entry.source = new SourceInfo());
   }
 
   addScriptSource(id, url, source) {

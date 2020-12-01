@@ -5,6 +5,7 @@
 import {SourcePosition} from '../profile.mjs';
 
 import {State} from './app-model.mjs';
+import {CodeLogEntry} from './log/code.mjs';
 import {IcLogEntry} from './log/ic.mjs';
 import {MapLogEntry} from './log/map.mjs';
 import {Processor} from './processor.mjs';
@@ -19,7 +20,7 @@ class App {
   constructor(
       fileReaderId, mapPanelId, mapStatsPanelId, timelinePanelId, icPanelId,
       mapTrackId, icTrackId, deoptTrackId, codeTrackId, sourcePanelId,
-      toolTipId) {
+      codePanelId, toolTipId) {
     this._view = {
       __proto__: null,
       logFileReader: $(fileReaderId),
@@ -32,6 +33,7 @@ class App {
       deoptTrack: $(deoptTrackId),
       codeTrack: $(codeTrackId),
       sourcePanel: $(sourcePanelId),
+      codePanel: $(codePanelId),
       toolTip: $(toolTipId),
     };
     this.toggleSwitch = $('.theme-switch input[type="checkbox"]');
@@ -50,6 +52,7 @@ class App {
       import('./view/stats-panel.mjs'),
       import('./view/map-panel.mjs'),
       import('./view/source-panel.mjs'),
+      import('./view/code-panel.mjs'),
       import('./view/tool-tip.mjs'),
     ]);
     document.addEventListener(
@@ -71,6 +74,8 @@ class App {
       this.showIcEntries(e.entries);
     } else if (entry instanceof SourcePosition) {
       this.showSourcePositionEntries(e.entries);
+    } else if (e.entries[0] instanceof CodeLogEntry) {
+      this.showCodeEntries(e.entries);
     } else {
       throw new Error('Unknown selection type!');
     }
@@ -96,6 +101,7 @@ class App {
   showCodeEntries(entries) {
     // TODO: creat list panel
     this._state.selectedCodeLogEntries = entries;
+    this._view.codePanel.selectedEntries = entries;
   }
 
   showSourcePositionEntries(entries) {
@@ -125,6 +131,8 @@ class App {
       this.selectICLogEntry(e.entry);
     } else if (entry instanceof SourcePosition) {
       this.selectSourcePosition(e.entry);
+    } else if (e.entry instanceof CodeLogEntry) {
+      this.selectCodeLogEntry(e.entry);
     } else {
       throw new Error('Unknown selection type!');
     }
@@ -140,6 +148,11 @@ class App {
   selectICLogEntry(entry) {
     this._state.ic = entry;
     this._view.icPanel.selectedEntry = [entry];
+  }
+
+  selectCodeLogEntry(entry) {
+    this._state.code = entry;
+    this._view.codePanel.entry = entry;
   }
 
   selectSourcePosition(sourcePositions) {
@@ -179,6 +192,7 @@ class App {
       this._view.mapStatsPanel.timeline = mapTimeline;
       this._view.icPanel.timeline = icTimeline;
       this._view.sourcePanel.data = processor.scripts;
+      this._view.codePanel.timeline = codeTimeline;
       this.refreshTimelineTrackView();
     } catch (e) {
       this._view.logFileReader.error = 'Log file contains errors!'
