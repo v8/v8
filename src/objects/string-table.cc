@@ -253,7 +253,6 @@ InternalIndex StringTable::Data::FindEntry(LocalIsolate* isolate,
                                            uint32_t hash) const {
   uint32_t count = 1;
   // EnsureCapacity will guarantee the hash table is never full.
-  DCHECK_LT(number_of_elements_, capacity_);
   for (InternalIndex entry = FirstProbe(hash, capacity_);;
        entry = NextProbe(entry, count++, capacity_)) {
     // TODO(leszeks): Consider delaying the decompression until after the
@@ -270,7 +269,6 @@ InternalIndex StringTable::Data::FindInsertionEntry(IsolateRoot isolate,
                                                     uint32_t hash) const {
   uint32_t count = 1;
   // EnsureCapacity will guarantee the hash table is never full.
-  DCHECK_LT(number_of_elements_, capacity_);
   for (InternalIndex entry = FirstProbe(hash, capacity_);;
        entry = NextProbe(entry, count++, capacity_)) {
     // TODO(leszeks): Consider delaying the decompression until after the
@@ -287,7 +285,6 @@ InternalIndex StringTable::Data::FindEntryOrInsertionEntry(
   InternalIndex insertion_entry = InternalIndex::NotFound();
   uint32_t count = 1;
   // EnsureCapacity will guarantee the hash table is never full.
-  DCHECK_LT(number_of_elements_, capacity_);
   for (InternalIndex entry = FirstProbe(hash, capacity_);;
        entry = NextProbe(entry, count++, capacity_)) {
     // TODO(leszeks): Consider delaying the decompression until after the
