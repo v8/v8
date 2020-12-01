@@ -81,6 +81,9 @@ class Sweeper::SweeperJob final : public JobTask {
 
   ~SweeperJob() override = default;
 
+  SweeperJob(const SweeperJob&) = delete;
+  SweeperJob& operator=(const SweeperJob&) = delete;
+
   void Run(JobDelegate* delegate) final {
     if (delegate->IsJoiningThread()) {
       TRACE_GC(tracer_, GCTracer::Scope::MC_SWEEP);
@@ -116,8 +119,6 @@ class Sweeper::SweeperJob final : public JobTask {
   }
   Sweeper* const sweeper_;
   GCTracer* const tracer_;
-
-  DISALLOW_COPY_AND_ASSIGN(SweeperJob);
 };
 
 class Sweeper::IncrementalSweeperTask final : public CancelableTask {
@@ -126,6 +127,9 @@ class Sweeper::IncrementalSweeperTask final : public CancelableTask {
       : CancelableTask(isolate), isolate_(isolate), sweeper_(sweeper) {}
 
   ~IncrementalSweeperTask() override = default;
+
+  IncrementalSweeperTask(const IncrementalSweeperTask&) = delete;
+  IncrementalSweeperTask& operator=(const IncrementalSweeperTask&) = delete;
 
  private:
   void RunInternal() final {
@@ -143,7 +147,6 @@ class Sweeper::IncrementalSweeperTask final : public CancelableTask {
 
   Isolate* const isolate_;
   Sweeper* const sweeper_;
-  DISALLOW_COPY_AND_ASSIGN(IncrementalSweeperTask);
 };
 
 void Sweeper::TearDown() {
@@ -594,6 +597,9 @@ class Sweeper::IterabilityTask final : public CancelableTask {
 
   ~IterabilityTask() override = default;
 
+  IterabilityTask(const IterabilityTask&) = delete;
+  IterabilityTask& operator=(const IterabilityTask&) = delete;
+
  private:
   void RunInternal() final {
     TRACE_GC1(tracer_, GCTracer::Scope::MC_BACKGROUND_SWEEPING,
@@ -608,8 +614,6 @@ class Sweeper::IterabilityTask final : public CancelableTask {
   Sweeper* const sweeper_;
   base::Semaphore* const pending_iterability_task_;
   GCTracer* const tracer_;
-
-  DISALLOW_COPY_AND_ASSIGN(IterabilityTask);
 };
 
 void Sweeper::StartIterabilityTasks() {

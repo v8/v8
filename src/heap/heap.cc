@@ -2949,6 +2949,11 @@ class LeftTrimmerVerifierRootVisitor : public RootVisitor {
   explicit LeftTrimmerVerifierRootVisitor(FixedArrayBase to_check)
       : to_check_(to_check) {}
 
+  LeftTrimmerVerifierRootVisitor(const LeftTrimmerVerifierRootVisitor&) =
+      delete;
+  LeftTrimmerVerifierRootVisitor& operator=(
+      const LeftTrimmerVerifierRootVisitor&) = delete;
+
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override {
     for (FullObjectSlot p = start; p < end; ++p) {
@@ -2966,8 +2971,6 @@ class LeftTrimmerVerifierRootVisitor : public RootVisitor {
 
  private:
   FixedArrayBase to_check_;
-
-  DISALLOW_COPY_AND_ASSIGN(LeftTrimmerVerifierRootVisitor);
 };
 }  // namespace
 #endif  // ENABLE_SLOW_DCHECKS
@@ -3646,13 +3649,15 @@ class MemoryPressureInterruptTask : public CancelableTask {
       : CancelableTask(heap->isolate()), heap_(heap) {}
 
   ~MemoryPressureInterruptTask() override = default;
+  MemoryPressureInterruptTask(const MemoryPressureInterruptTask&) = delete;
+  MemoryPressureInterruptTask& operator=(const MemoryPressureInterruptTask&) =
+      delete;
 
  private:
   // v8::internal::CancelableTask overrides.
   void RunInternal() override { heap_->CheckMemoryPressure(); }
 
   Heap* heap_;
-  DISALLOW_COPY_AND_ASSIGN(MemoryPressureInterruptTask);
 };
 
 void Heap::CheckMemoryPressure() {

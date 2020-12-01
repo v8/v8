@@ -39,6 +39,9 @@ class PossiblyEmptyBuckets {
 
   ~PossiblyEmptyBuckets() { Release(); }
 
+  PossiblyEmptyBuckets(const PossiblyEmptyBuckets&) = delete;
+  PossiblyEmptyBuckets& operator=(const PossiblyEmptyBuckets&) = delete;
+
   void Initialize() {
     bitmap_ = kNullAddress;
     DCHECK(!IsAllocated());
@@ -117,8 +120,6 @@ class PossiblyEmptyBuckets {
   }
 
   FRIEND_TEST(PossiblyEmptyBucketsTest, WordsForBuckets);
-
-  DISALLOW_COPY_AND_ASSIGN(PossiblyEmptyBuckets);
 };
 
 STATIC_ASSERT(std::is_standard_layout<PossiblyEmptyBuckets>::value);

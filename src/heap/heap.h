@@ -1568,6 +1568,8 @@ class Heap {
   class ExternalStringTable {
    public:
     explicit ExternalStringTable(Heap* heap) : heap_(heap) {}
+    ExternalStringTable(const ExternalStringTable&) = delete;
+    ExternalStringTable& operator=(const ExternalStringTable&) = delete;
 
     // Registers an external string.
     inline void AddString(String string);
@@ -1600,8 +1602,6 @@ class Heap {
     // strings.
     std::vector<Object> young_strings_;
     std::vector<Object> old_strings_;
-
-    DISALLOW_COPY_AND_ASSIGN(ExternalStringTable);
   };
 
   struct StringTypeTable {
@@ -1653,6 +1653,9 @@ class Heap {
 
   Heap();
   ~Heap();
+
+  Heap(const Heap&) = delete;
+  Heap& operator=(const Heap&) = delete;
 
   static bool IsRegularObjectAllocation(AllocationType allocation) {
     return AllocationType::kYoung == allocation ||
@@ -2370,8 +2373,6 @@ class Heap {
 
   // Used in cctest.
   friend class heap::HeapTester;
-
-  DISALLOW_COPY_AND_ASSIGN(Heap);
 };
 
 class HeapStats {

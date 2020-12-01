@@ -45,6 +45,9 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
 // invocation IFF --trace_gc is used.
 class V8_EXPORT_PRIVATE GCTracer {
  public:
+  GCTracer(const GCTracer&) = delete;
+  GCTracer& operator=(const GCTracer&) = delete;
+
   struct IncrementalMarkingInfos {
     IncrementalMarkingInfos() : duration(0), longest_step(0), steps(0) {}
 
@@ -93,6 +96,8 @@ class V8_EXPORT_PRIVATE GCTracer {
 
     Scope(GCTracer* tracer, ScopeId scope, ThreadKind thread_kind);
     ~Scope();
+    Scope(const Scope&) = delete;
+    Scope& operator=(const Scope&) = delete;
     static const char* Name(ScopeId id);
 
    private:
@@ -103,8 +108,6 @@ class V8_EXPORT_PRIVATE GCTracer {
     RuntimeCallTimer timer_;
     RuntimeCallStats* runtime_stats_ = nullptr;
     base::Optional<WorkerThreadRuntimeCallStatsScope> runtime_call_stats_scope_;
-
-    DISALLOW_COPY_AND_ASSIGN(Scope);
   };
 
   class Event {
@@ -471,8 +474,6 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   base::Mutex background_counter_mutex_;
   BackgroundCounter background_counter_[Scope::NUMBER_OF_SCOPES];
-
-  DISALLOW_COPY_AND_ASSIGN(GCTracer);
 };
 
 }  // namespace internal

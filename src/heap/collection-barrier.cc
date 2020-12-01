@@ -32,13 +32,16 @@ class BackgroundCollectionInterruptTask : public CancelableTask {
       : CancelableTask(heap->isolate()), heap_(heap) {}
 
   ~BackgroundCollectionInterruptTask() override = default;
+  BackgroundCollectionInterruptTask(const BackgroundCollectionInterruptTask&) =
+      delete;
+  BackgroundCollectionInterruptTask& operator=(
+      const BackgroundCollectionInterruptTask&) = delete;
 
  private:
   // v8::internal::CancelableTask overrides.
   void RunInternal() override { heap_->CheckCollectionRequested(); }
 
   Heap* heap_;
-  DISALLOW_COPY_AND_ASSIGN(BackgroundCollectionInterruptTask);
 };
 
 void CollectionBarrier::AwaitCollectionBackground() {
