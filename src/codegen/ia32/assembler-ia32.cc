@@ -2421,11 +2421,25 @@ void Assembler::movlps(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::movlps(Operand dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0x13);
+  emit_sse_operand(src, dst);
+}
+
 void Assembler::movhps(XMMRegister dst, Operand src) {
   EnsureSpace ensure_space(this);
   EMIT(0x0F);
   EMIT(0x16);
   emit_sse_operand(dst, src);
+}
+
+void Assembler::movhps(Operand dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0x17);
+  emit_sse_operand(src, dst);
 }
 
 void Assembler::movdqa(Operand dst, XMMRegister src) {
@@ -2516,6 +2530,18 @@ void Assembler::movd(Operand dst, XMMRegister src) {
   EMIT(0x0F);
   EMIT(0x7E);
   emit_sse_operand(src, dst);
+}
+
+void Assembler::extractps(Operand dst, XMMRegister src, byte imm8) {
+  DCHECK(IsEnabled(SSE4_1));
+  DCHECK(is_uint8(imm8));
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x3A);
+  EMIT(0x17);
+  emit_sse_operand(src, dst);
+  EMIT(imm8);
 }
 
 void Assembler::extractps(Register dst, XMMRegister src, byte imm8) {
@@ -2853,8 +2879,16 @@ void Assembler::vmovlps(XMMRegister dst, XMMRegister src1, Operand src2) {
   vinstr(0x12, dst, src1, src2, kNone, k0F, kWIG);
 }
 
+void Assembler::vmovlps(Operand dst, XMMRegister src) {
+  vinstr(0x13, src, xmm0, dst, kNone, k0F, kWIG);
+}
+
 void Assembler::vmovhps(XMMRegister dst, XMMRegister src1, Operand src2) {
   vinstr(0x16, dst, src1, src2, kNone, k0F, kWIG);
+}
+
+void Assembler::vmovhps(Operand dst, XMMRegister src) {
+  vinstr(0x17, src, xmm0, dst, kNone, k0F, kWIG);
 }
 
 void Assembler::vcmpps(XMMRegister dst, XMMRegister src1, Operand src2,
@@ -3021,6 +3055,11 @@ void Assembler::vpmovmskb(Register dst, XMMRegister src) {
   emit_vex_prefix(xmm0, kL128, k66, k0F, kWIG);
   EMIT(0xD7);
   emit_sse_operand(dst, src);
+}
+
+void Assembler::vextractps(Operand dst, XMMRegister src, byte imm8) {
+  vinstr(0x17, src, xmm0, dst, k66, k0F3A, VexW::kWIG);
+  EMIT(imm8);
 }
 
 void Assembler::bmi1(byte op, Register reg, Register vreg, Operand rm) {

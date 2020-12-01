@@ -1107,9 +1107,19 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         AppendToBuffer("vmovlps %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
         break;
+      case 0x13:
+        AppendToBuffer("vmovlps ");
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",%s", NameOfXMMRegister(regop));
+        break;
       case 0x16:
         AppendToBuffer("vmovhps %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
+        break;
+      case 0x17:
+        AppendToBuffer("vmovhps ");
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",%s", NameOfXMMRegister(regop));
         break;
       case 0x28:
         AppendToBuffer("vmovaps %s,", NameOfXMMRegister(regop));
@@ -1835,12 +1845,22 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
         get_modrm(*(data + 2), &mod, &regop, &rm);
         if (f0byte == 0x12) {
           data += 2;
-          AppendToBuffer("movlps %s,%s", NameOfXMMRegister(regop),
-                         NameOfXMMRegister(rm));
+          AppendToBuffer("movlps %s,", NameOfXMMRegister(regop));
+          data += PrintRightXMMOperand(data);
+        } else if (f0byte == 0x13) {
+          data += 2;
+          AppendToBuffer("movlps ");
+          data += PrintRightXMMOperand(data);
+          AppendToBuffer(",%s", NameOfXMMRegister(regop));
         } else if (f0byte == 0x16) {
           data += 2;
-          AppendToBuffer("movhps %s,%s", NameOfXMMRegister(regop),
-                         NameOfXMMRegister(rm));
+          AppendToBuffer("movhps %s,", NameOfXMMRegister(regop));
+          data += PrintRightXMMOperand(data);
+        } else if (f0byte == 0x17) {
+          data += 2;
+          AppendToBuffer("movhps ");
+          data += PrintRightXMMOperand(data);
+          AppendToBuffer(",%s", NameOfXMMRegister(regop));
         } else if (f0byte == 0x18) {
           data += 2;
           const char* suffix[] = {"nta", "1", "2", "3"};

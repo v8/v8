@@ -3213,15 +3213,55 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32Movlps: {
-      DCHECK(instr->HasOutput());  // Move to memory unimplemented for now.
-      __ Movlps(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.MemoryOperand(2));
+      if (instr->HasOutput()) {
+        __ Movlps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.MemoryOperand(2));
+      } else {
+        size_t index = 0;
+        Operand dst = i.MemoryOperand(&index);
+        __ Movlps(dst, i.InputSimd128Register(index));
+      }
       break;
     }
     case kIA32Movhps: {
-      DCHECK(instr->HasOutput());  // Move to memory unimplemented for now.
-      __ Movhps(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.MemoryOperand(2));
+      if (instr->HasOutput()) {
+        __ Movhps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.MemoryOperand(2));
+      } else {
+        size_t index = 0;
+        Operand dst = i.MemoryOperand(&index);
+        __ Movhps(dst, i.InputSimd128Register(index));
+      }
+      break;
+    }
+    case kIA32Pextrb: {
+      // TODO(zhin): Move i8x16 extract lane u into this opcode.
+      DCHECK(HasAddressingMode(instr));
+      size_t index = 0;
+      Operand operand = i.MemoryOperand(&index);
+      __ Pextrb(operand, i.InputSimd128Register(index),
+                i.InputUint8(index + 1));
+      break;
+    }
+    case kIA32Pextrw: {
+      // TODO(zhin): Move i16x8 extract lane u into this opcode.
+      DCHECK(HasAddressingMode(instr));
+      size_t index = 0;
+      Operand operand = i.MemoryOperand(&index);
+      __ Pextrw(operand, i.InputSimd128Register(index),
+                i.InputUint8(index + 1));
+      break;
+    }
+    case kIA32S128Store32Lane: {
+      size_t index = 0;
+      Operand operand = i.MemoryOperand(&index);
+      uint8_t laneidx = i.InputUint8(index + 1);
+      if (laneidx == 0) {
+        __ Movss(operand, i.InputSimd128Register(index));
+      } else {
+        DCHECK_GE(3, laneidx);
+        __ Extractps(operand, i.InputSimd128Register(index), 1);
+      }
       break;
     }
     case kSSEI8x16SConvertI16x8: {
