@@ -26,7 +26,7 @@ bool DecodeLocalDecls(const WasmFeatures& enabled, BodyLocalDecls* decls,
   WasmDecoder<Decoder::kFullValidation> decoder(
       zone, nullptr, enabled, &no_features, nullptr, start, end, 0);
   uint32_t length;
-  if (!decoder.DecodeLocals(decoder.pc(), &length, 0)) {
+  if (decoder.DecodeLocals(decoder.pc(), &length, 0) < 0) {
     decls->encoded_size = 0;
     return false;
   }
