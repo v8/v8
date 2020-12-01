@@ -1467,4 +1467,9 @@
   'regress/regress-set-flags-stress-compact': [SKIP],
 }],  # variant == stress_sampling
 
+##############################################################################
+['variant == stress_incremental_marking', {
+  'wasm/shared-memory-worker-stress': [PASS, SLOW],
+}],  # variant == stress_incremental_marking
+
 ]
