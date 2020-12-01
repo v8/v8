@@ -3166,6 +3166,15 @@ ParserBase<Impl>::ParseAwaitExpression() {
 
   ExpressionT value = ParseUnaryExpression();
 
+  // 'await' is a unary operator according to the spec, even though it's treated
+  // specially in the parser.
+  if (peek() == Token::EXP) {
+    impl()->ReportMessageAt(
+        Scanner::Location(await_pos, peek_end_position()),
+        MessageTemplate::kUnexpectedTokenUnaryExponentiation);
+    return impl()->FailureExpression();
+  }
+
   ExpressionT expr = factory()->NewAwait(value, await_pos);
   function_state_->AddSuspend();
   impl()->RecordSuspendSourceRange(expr, PositionAfterSemicolon());
