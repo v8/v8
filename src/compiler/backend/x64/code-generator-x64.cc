@@ -2719,10 +2719,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       if (HasRegisterInput(instr, 0)) {
         __ Movq(dst, i.InputRegister(0));
+        __ Movddup(dst, dst);
       } else {
-        __ Movq(dst, i.InputOperand(0));
+        __ Movddup(dst, i.InputOperand(0));
       }
-      __ Movddup(dst, dst);
       break;
     }
     case kX64I64x2ExtractLane: {
@@ -2815,6 +2815,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (HasRegisterInput(instr, 0)) {
         __ Movd(dst, i.InputRegister(0));
       } else {
+        // TODO(v8:9198): Pshufd can load from aligned memory once supported.
         __ Movd(dst, i.InputOperand(0));
       }
       __ Pshufd(dst, dst, uint8_t{0x0});
