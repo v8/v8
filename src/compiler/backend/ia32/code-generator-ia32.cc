@@ -2146,6 +2146,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Movmskpd(i.OutputRegister(), i.InputSimd128Register(0));
       break;
     }
+    case kIA32I64x2Eq: {
+      __ Pcmpeqq(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
+      break;
+    }
     case kSSEF32x4Splat: {
       DCHECK_EQ(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       XMMRegister dst = i.OutputSimd128Register();

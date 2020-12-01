@@ -75,6 +75,7 @@
   V(pabsd, 66, 0F, 38, 1E)
 
 #define SSE4_INSTRUCTION_LIST(V) \
+  V(pcmpeqq, 66, 0F, 38, 29)     \
   V(packusdw, 66, 0F, 38, 2B)    \
   V(pminsb, 66, 0F, 38, 38)      \
   V(pminsd, 66, 0F, 38, 39)      \

@@ -2724,13 +2724,18 @@ void InstructionSelector::VisitI64x2Splat(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ExtractLane(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_MIPS64
-void InstructionSelector::VisitI64x2Eq(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Qfma(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Qfms(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Qfma(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Qfms(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM64
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X
+
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_ARM64 && \
+    !V8_TARGET_ARCH_IA32
+void InstructionSelector::VisitI64x2Eq(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_ARM64
+        // && !V8_TARGET_ARCH_IA32
 
 #if !V8_TARGET_ARCH_ARM64
 // TODO(v8:10971) Prototype i16x8.q15mulr_sat_s

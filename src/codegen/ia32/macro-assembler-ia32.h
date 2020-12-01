@@ -497,6 +497,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #undef AVX_OP3_XO_SSE4
 #undef AVX_OP3_WITH_TYPE_SCOPE
 
+  void Pcmpeqq(XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void Pshufb(XMMRegister dst, XMMRegister src) { Pshufb(dst, dst, src); }
   void Pshufb(XMMRegister dst, Operand src) { Pshufb(dst, dst, src); }
   // Handles SSE and AVX. On SSE, moves src to dst if they are not equal.

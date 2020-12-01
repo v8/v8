@@ -9,6 +9,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/callable.h"
 #include "src/codegen/code-factory.h"
+#include "src/codegen/cpu-features.h"
 #include "src/codegen/external-reference-table.h"
 #include "src/codegen/ia32/assembler-ia32-inl.h"
 #include "src/codegen/macro-assembler.h"
@@ -1599,6 +1600,20 @@ void TurboAssembler::Psignd(XMMRegister dst, Operand src) {
     return;
   }
   FATAL("no AVX or SSE3 support");
+}
+
+void TurboAssembler::Pcmpeqq(XMMRegister dst, XMMRegister src1,
+                             XMMRegister src2) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpcmpeqq(dst, src1, src2);
+  } else {
+    // pcmpeqq is only used by Wasm SIMD, which requires SSE4_1.
+    DCHECK(CpuFeatures::IsSupported(SSE4_1));
+    CpuFeatureScope scope(this, SSE4_1);
+    DCHECK_EQ(dst, src1);
+    pcmpeqq(dst, src2);
+  }
 }
 
 void TurboAssembler::Pshufb(XMMRegister dst, XMMRegister src, Operand mask) {
