@@ -70,7 +70,6 @@ ALLOWED_LINE_DIFFS = [
 # Lines matching any of the following regular expressions will be ignored.
 # Use uncompiled regular expressions - they'll be compiled later.
 IGNORE_LINES = [
-  r'^Warning: unknown flag .*$',
   r'^Warning: .+ is deprecated.*$',
   r'^Try --help for options$',
 

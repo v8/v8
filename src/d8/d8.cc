@@ -3600,7 +3600,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(str, "--module") == 0) {
       // Pass on to SourceGroup, which understands this option.
     } else if (strncmp(str, "--", 2) == 0) {
-      printf("Warning: unknown flag %s.\nTry --help for options\n", str);
+      if (!i::FLAG_correctness_fuzzer_suppressions) {
+        printf("Warning: unknown flag %s.\nTry --help for options\n", str);
+      }
     } else if (strcmp(str, "-e") == 0 && i + 1 < argc) {
       set_script_executed();
     } else if (strncmp(str, "-", 1) != 0) {
