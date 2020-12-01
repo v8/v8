@@ -108,6 +108,7 @@ class StatsCounter;
   V(address_of_min_int, "LDoubleConstant::min_int")                            \
   V(address_of_mock_arraybuffer_allocator_flag,                                \
     "FLAG_mock_arraybuffer_allocator")                                         \
+  V(address_of_builtin_subclassing_flag, "FLAG_builtin_subclassing")           \
   V(address_of_one_half, "LDoubleConstant::one_half")                          \
   V(address_of_runtime_stats_flag, "TracingFlags::runtime_stats")              \
   V(address_of_the_hole_nan, "the_hole_nan")                                   \
