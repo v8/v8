@@ -303,49 +303,35 @@ RuntimeProfiler::MarkCandidatesForOptimizationScope::
   profiler_->any_ic_changed_ = false;
 }
 
-void RuntimeProfiler::MarkCandidatesForOptimizationFromBytecode() {
+void RuntimeProfiler::MarkCandidatesForOptimization(JavaScriptFrame* frame) {
   if (!isolate_->use_optimizer()) return;
   MarkCandidatesForOptimizationScope scope(this);
-  int i = 0;
-  for (JavaScriptFrameIterator it(isolate_); i < FLAG_frame_count && !it.done();
-       i++, it.Advance()) {
-    JavaScriptFrame* frame = it.frame();
-    if (!frame->is_interpreted()) continue;
 
-    JSFunction function = frame->function();
-    DCHECK(function.shared().is_compiled());
-    if (!function.shared().IsInterpreted()) continue;
+  JSFunction function = frame->function();
+  CodeKind code_kind = frame->is_interpreted() ? CodeKind::INTERPRETED_FUNCTION
+                                               : function.code().kind();
 
-    if (!function.has_feedback_vector()) continue;
+  DCHECK(function.shared().is_compiled());
+  DCHECK(function.shared().IsInterpreted());
 
-    function.feedback_vector().SaturatingIncrementProfilerTicks();
+  DCHECK_IMPLIES(CodeKindIsOptimizedJSFunction(code_kind),
+                 function.has_feedback_vector());
+  if (!function.has_feedback_vector()) return;
 
-    MaybeOptimizeFrame(function, frame, CodeKind::INTERPRETED_FUNCTION);
-  }
+  function.feedback_vector().SaturatingIncrementProfilerTicks();
+  MaybeOptimizeFrame(function, frame, code_kind);
+}
+
+void RuntimeProfiler::MarkCandidatesForOptimizationFromBytecode() {
+  JavaScriptFrameIterator it(isolate_);
+  DCHECK(it.frame()->is_interpreted());
+  MarkCandidatesForOptimization(it.frame());
 }
 
 void RuntimeProfiler::MarkCandidatesForOptimizationFromCode() {
-  if (!isolate_->use_optimizer()) return;
-  MarkCandidatesForOptimizationScope scope(this);
-  int i = 0;
-  for (JavaScriptFrameIterator it(isolate_); i < FLAG_frame_count && !it.done();
-       i++, it.Advance()) {
-    JavaScriptFrame* frame = it.frame();
-    if (!frame->is_optimized()) continue;
-
-    JSFunction function = frame->function();
-    auto code_kind = function.code().kind();
-    if (!CodeKindIsOptimizedAndCanTierUp(code_kind)) {
-      continue;
-    }
-
-    DCHECK(function.shared().is_compiled());
-    DCHECK(function.has_feedback_vector());
-
-    function.feedback_vector().SaturatingIncrementProfilerTicks();
-
-    MaybeOptimizeFrame(function, frame, code_kind);
-  }
+  JavaScriptFrameIterator it(isolate_);
+  DCHECK(it.frame()->is_optimized());
+  MarkCandidatesForOptimization(it.frame());
 }
 
 }  // namespace internal

@@ -35,6 +35,9 @@ class RuntimeProfiler {
                                  int nesting_levels = 1);
 
  private:
+  // Helper function called from MarkCandidatesForOptimization*
+  void MarkCandidatesForOptimization(JavaScriptFrame* frame);
+
   // Make the decision whether to optimize the given function, and mark it for
   // optimization if the decision was 'yes'.
   void MaybeOptimizeFrame(JSFunction function, JavaScriptFrame* frame,
