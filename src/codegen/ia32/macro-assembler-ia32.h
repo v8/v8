@@ -313,6 +313,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP2_WITH_TYPE(Pmovmskb, pmovmskb, Register, XMMRegister)
   AVX_OP2_WITH_TYPE(Movmskpd, movmskpd, Register, XMMRegister)
   AVX_OP2_WITH_TYPE(Movmskps, movmskps, Register, XMMRegister)
+  AVX_OP2_WITH_TYPE(Movlps, movlps, Operand, XMMRegister)
+  AVX_OP2_WITH_TYPE(Movhps, movlps, Operand, XMMRegister)
 
 #undef AVX_OP2_WITH_TYPE
 
@@ -519,7 +521,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   }
   void Palignr(XMMRegister dst, Operand src, uint8_t imm8);
 
+  void Pextrb(Operand dst, XMMRegister src, uint8_t imm8);
   void Pextrb(Register dst, XMMRegister src, uint8_t imm8);
+  void Pextrw(Operand dst, XMMRegister src, uint8_t imm8);
   void Pextrw(Register dst, XMMRegister src, uint8_t imm8);
   void Pextrd(Register dst, XMMRegister src, uint8_t imm8);
   void Pinsrb(XMMRegister dst, Register src, int8_t imm8) {
@@ -535,6 +539,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   }
   void Pinsrw(XMMRegister dst, Operand src, int8_t imm8);
   void Vbroadcastss(XMMRegister dst, Operand src);
+  void Extractps(Operand dst, XMMRegister src, uint8_t imm8);
 
   // Expression support
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which

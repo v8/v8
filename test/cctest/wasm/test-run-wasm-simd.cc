@@ -4077,9 +4077,7 @@ WASM_SIMD_TEST_NO_LOWERING(S128Load64Lane) {
   RunLoadLaneTest<int64_t>(execution_tier, lower_simd, kExprS128Load64Lane,
                            kExprI64x2Splat);
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
 
-#if V8_TARGET_ARCH_X64
 template <typename T>
 void RunStoreLaneTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                       WasmOpcode store_op, WasmOpcode splat_op) {
@@ -4090,23 +4088,24 @@ void RunStoreLaneTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   }
 
   constexpr int lanes = kSimd128Size / sizeof(T);
-  constexpr int mem_index = 16;  // Store from mem index 16 (bytes).
+  constexpr int mem_index = 16;  // Store to mem index 16 (bytes).
   constexpr int splat_value = 33;
   WasmOpcode const_op =
       splat_op == kExprI64x2Splat ? kExprI64Const : kExprI32Const;
 
-  for (int lane_index = 0; lane_index < lanes; lane_index++) {
-    WasmRunner<int32_t> r(execution_tier, lower_simd);
-    T* memory = r.builder().AddMemoryElems<T>(kWasmPageSize / sizeof(T));
+  T* memory;  // Will be set by build_fn.
 
-    // Splat splat_value, then only Store and replace a single lane with the
+  auto build_fn = [=, &memory](WasmRunner<int32_t>& r, int mem_index,
+                               int lane_index, int alignment, int offset) {
+    memory = r.builder().AddMemoryElems<T>(kWasmPageSize / sizeof(T));
+    // Splat splat_value, then only Store and replace a single lane.
     BUILD(r, WASM_I32V(mem_index), const_op, splat_value,
-          WASM_SIMD_OP(splat_op), WASM_SIMD_OP(store_op), ZERO_ALIGNMENT,
-          ZERO_OFFSET, lane_index, WASM_ONE);
-
+          WASM_SIMD_OP(splat_op), WASM_SIMD_OP(store_op), alignment, offset,
+          lane_index, WASM_ONE);
     r.builder().BlankMemory();
-    r.Call();
+  };
 
+  auto check_results = [=](WasmRunner<int32_t>& r, T* memory) {
     for (int i = 0; i < lanes; i++) {
       CHECK_EQ(0, r.builder().ReadMemory(&memory[i]));
     }
@@ -4116,6 +4115,30 @@ void RunStoreLaneTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
     for (int i = lanes + 1; i < lanes * 2; i++) {
       CHECK_EQ(0, r.builder().ReadMemory(&memory[i]));
     }
+  };
+
+  for (int lane_index = 0; lane_index < lanes; lane_index++) {
+    WasmRunner<int32_t> r(execution_tier, lower_simd);
+    build_fn(r, mem_index, lane_index, ZERO_ALIGNMENT, ZERO_OFFSET);
+    r.Call();
+    check_results(r, memory);
+  }
+
+  // Check all possible alignments.
+  constexpr int max_alignment = base::bits::CountTrailingZeros(sizeof(T));
+  for (byte alignment = 0; alignment <= max_alignment; ++alignment) {
+    WasmRunner<int32_t> r(execution_tier, lower_simd);
+    build_fn(r, mem_index, /*lane_index=*/0, alignment, ZERO_OFFSET);
+    r.Call();
+    check_results(r, memory);
+  }
+
+  {
+    // Use memarg for offset.
+    WasmRunner<int32_t> r(execution_tier, lower_simd);
+    build_fn(r, /*mem_index=*/0, /*lane_index=*/0, ZERO_ALIGNMENT, mem_index);
+    r.Call();
+    check_results(r, memory);
   }
 
   // OOB stores
@@ -4154,7 +4177,7 @@ WASM_SIMD_TEST_NO_LOWERING(S128Store64Lane) {
                             kExprI64x2Splat);
 }
 
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
 
 #define WASM_SIMD_ANYTRUE_TEST(format, lanes, max, param_type)                \
   WASM_SIMD_TEST(S##format##AnyTrue) {                                        \

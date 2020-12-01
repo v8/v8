@@ -302,6 +302,9 @@ namespace compiler {
   V(IA32Pinsrb)                    \
   V(IA32Pinsrw)                    \
   V(IA32Pinsrd)                    \
+  V(IA32Pextrb)                    \
+  V(IA32Pextrw)                    \
+  V(IA32S128Store32Lane)           \
   V(SSEI8x16SConvertI16x8)         \
   V(AVXI8x16SConvertI16x8)         \
   V(IA32I8x16Neg)                  \
