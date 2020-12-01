@@ -429,7 +429,7 @@ def run_comparisons(suppress, execution_configs, test_case, timeout,
     else:
       # Subsume simulated and unexpected crashes (e.g. during smoke tests)
       # with one failure state.
-      crash_state = 'simulated crash' if simulated else 'unexpected crash'
+      crash_state = '_simulated_crash_' if simulated else '_unexpected_crash_'
       raise FailException(FAILURE_HEADER_TEMPLATE % dict(
           configs='', source_key='', suppression=crash_state))
 

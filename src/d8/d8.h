@@ -343,6 +343,7 @@ class ShellOptions {
   DisallowReassignment<bool> omit_quit = {"omit-quit", false};
   DisallowReassignment<bool> wait_for_background_tasks = {
       "wait-for-background-tasks", true};
+  DisallowReassignment<bool> simulate_errors = {"simulate-errors", false};
   DisallowReassignment<bool> stress_opt = {"stress-opt", false};
   DisallowReassignment<int> stress_runs = {"stress-runs", 1};
   DisallowReassignment<bool> stress_snapshot = {"stress-snapshot", false};
@@ -557,6 +558,11 @@ class Shell : public i::AllStatic {
            !options.test_shell;
   }
 
+  static void update_script_size(int size) {
+    if (size > 0) valid_fuzz_script_.store(true);
+  }
+  static bool is_valid_fuzz_script() { return valid_fuzz_script_.load(); }
+
   static void WaitForRunningWorkers();
   static void AddRunningWorker(std::shared_ptr<Worker> worker);
   static void RemoveRunningWorker(const std::shared_ptr<Worker>& worker);
@@ -584,8 +590,9 @@ class Shell : public i::AllStatic {
   static bool allow_new_workers_;
   static std::unordered_set<std::shared_ptr<Worker>> running_workers_;
 
-  // Multiple isolates may update this flag concurrently.
+  // Multiple isolates may update these flags concurrently.
   static std::atomic<bool> script_executed_;
+  static std::atomic<bool> valid_fuzz_script_;
 
   static void WriteIgnitionDispatchCountersFile(v8::Isolate* isolate);
   // Append LCOV coverage data to file.
@@ -632,6 +639,20 @@ class Shell : public i::AllStatic {
   static std::map<std::string, std::unique_ptr<ScriptCompiler::CachedData>>
       cached_code_map_;
   static std::atomic<int> unhandled_promise_rejections_;
+};
+
+class FuzzerMonitor : public i::AllStatic {
+ public:
+  static void SimulateErrors();
+
+ private:
+  static void ControlFlowViolation();
+  static void DCheck();
+  static void Fatal();
+  static void ObservableDifference();
+  static void UndefinedBehavior();
+  static void UseAfterFree();
+  static void UseOfUninitializedValue();
 };
 
 }  // namespace v8

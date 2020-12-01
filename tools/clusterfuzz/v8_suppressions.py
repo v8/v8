@@ -57,6 +57,8 @@ IGNORE_TEST_CASES = {
 IGNORE_OUTPUT = {
   'crbug.com/689877':
       re.compile(r'^.*SyntaxError: .*Stack overflow$', re.M),
+  '_fake_difference_':
+      re.compile(r'^.*___fake_difference___$', re.M),
 }
 
 # Lines matching any of the following regular expressions will be ignored

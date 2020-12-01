@@ -465,6 +465,7 @@ base::LazyMutex Shell::workers_mutex_;
 bool Shell::allow_new_workers_ = true;
 std::unordered_set<std::shared_ptr<Worker>> Shell::running_workers_;
 std::atomic<bool> Shell::script_executed_{false};
+std::atomic<bool> Shell::valid_fuzz_script_{false};
 base::LazyMutex Shell::isolate_status_lock_;
 std::map<v8::Isolate*, bool> Shell::isolate_status_;
 std::map<v8::Isolate*, int> Shell::isolate_running_streaming_tasks_;
@@ -2642,6 +2643,84 @@ void Shell::OnExit(v8::Isolate* isolate) {
 
   delete counters_file_;
   delete counter_map_;
+
+  if (options.simulate_errors && is_valid_fuzz_script()) {
+    // Simulate several errors detectable by fuzzers behind a flag if the
+    // minimum file size for fuzzing was executed.
+    FuzzerMonitor::SimulateErrors();
+  }
+}
+
+void Dummy(char* arg) {}
+
+V8_NOINLINE void FuzzerMonitor::SimulateErrors() {
+  // Initialize a fresh RNG to not interfere with JS execution.
+  std::unique_ptr<base::RandomNumberGenerator> rng;
+  int64_t seed = internal::FLAG_random_seed;
+  if (seed != 0) {
+    rng = std::make_unique<base::RandomNumberGenerator>(seed);
+  } else {
+    rng = std::make_unique<base::RandomNumberGenerator>();
+  }
+
+  double p = rng->NextDouble();
+  if (p < 0.1) {
+    ControlFlowViolation();
+  } else if (p < 0.2) {
+    DCheck();
+  } else if (p < 0.3) {
+    Fatal();
+  } else if (p < 0.4) {
+    ObservableDifference();
+  } else if (p < 0.5) {
+    UndefinedBehavior();
+  } else if (p < 0.6) {
+    UseAfterFree();
+  } else if (p < 0.7) {
+    UseOfUninitializedValue();
+  }
+}
+
+V8_NOINLINE void FuzzerMonitor::ControlFlowViolation() {
+  // Control flow violation caught by CFI.
+  void (*func)() = (void (*)()) & Dummy;
+  func();
+}
+
+V8_NOINLINE void FuzzerMonitor::DCheck() {
+  // Caught in debug builds.
+  DCHECK(false);
+}
+
+V8_NOINLINE void FuzzerMonitor::Fatal() {
+  // Caught in all build types.
+  FATAL("Fake error.");
+}
+
+V8_NOINLINE void FuzzerMonitor::ObservableDifference() {
+  // Observable difference caught by differential fuzzing.
+  printf("___fake_difference___\n");
+}
+
+V8_NOINLINE void FuzzerMonitor::UndefinedBehavior() {
+  // Caught by UBSAN.
+  int32_t val = -1;
+  USE(val << 8);
+}
+
+V8_NOINLINE void FuzzerMonitor::UseAfterFree() {
+  // Use-after-free caught by ASAN.
+  std::vector<bool>* storage = new std::vector<bool>(3);
+  delete storage;
+  USE(storage->at(1));
+}
+
+V8_NOINLINE void FuzzerMonitor::UseOfUninitializedValue() {
+// Use-of-uninitialized-value caught by MSAN.
+#if defined(__clang__)
+  int uninitialized[1];
+  if (uninitialized[0]) USE(uninitialized);
+#endif
 }
 
 static FILE* FOpen(const char* path, const char* mode) {
@@ -3013,6 +3092,7 @@ bool SourceGroup::Execute(Isolate* isolate) {
       base::OS::ExitProcess(1);
     }
     Shell::set_script_executed();
+    Shell::update_script_size(source->Length());
     if (!Shell::ExecuteString(isolate, source, file_name, Shell::kNoPrintResult,
                               Shell::kReportExceptions,
                               Shell::kProcessMessageQueue)) {
@@ -3386,6 +3466,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       break;
     } else if (strcmp(argv[i], "--no-arguments") == 0) {
       options.include_arguments = false;
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--simulate-errors") == 0) {
+      options.simulate_errors = true;
       argv[i] = nullptr;
     } else if (strcmp(argv[i], "--stress-opt") == 0) {
       options.stress_opt = true;
