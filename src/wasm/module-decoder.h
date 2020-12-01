@@ -212,7 +212,7 @@ class ModuleDecoder {
 
   void StartCodeSection();
 
-  bool CheckFunctionsCount(uint32_t functions_count, uint32_t offset);
+  bool CheckFunctionsCount(uint32_t functions_count, uint32_t error_offset);
 
   void DecodeFunctionBody(uint32_t index, uint32_t size, uint32_t offset,
                           bool verify_functions = true);

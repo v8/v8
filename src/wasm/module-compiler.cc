@@ -1735,7 +1735,8 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
   bool ProcessSection(SectionCode section_code, Vector<const uint8_t> bytes,
                       uint32_t offset) override;
 
-  bool ProcessCodeSectionHeader(int num_functions, uint32_t offset,
+  bool ProcessCodeSectionHeader(int num_functions,
+                                uint32_t functions_mismatch_error_offset,
                                 std::shared_ptr<WireBytesStorage>,
                                 int code_section_start,
                                 int code_section_length) override;
@@ -2471,7 +2472,7 @@ bool AsyncStreamingProcessor::ProcessSection(SectionCode section_code,
 
 // Start the code section.
 bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
-    int num_functions, uint32_t offset,
+    int num_functions, uint32_t functions_mismatch_error_offset,
     std::shared_ptr<WireBytesStorage> wire_bytes_storage,
     int code_section_start, int code_section_length) {
   DCHECK_LE(0, code_section_length);
@@ -2480,7 +2481,7 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
                   num_functions);
   decoder_.StartCodeSection();
   if (!decoder_.CheckFunctionsCount(static_cast<uint32_t>(num_functions),
-                                    offset)) {
+                                    functions_mismatch_error_offset)) {
     FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false).error());
     return false;
   }

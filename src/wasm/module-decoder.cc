@@ -931,9 +931,9 @@ class ModuleDecoderImpl : public Decoder {
 
   void DecodeCodeSection(bool verify_functions) {
     StartCodeSection();
-    uint32_t pos = pc_offset();
+    uint32_t code_section_start = pc_offset();
     uint32_t functions_count = consume_u32v("functions count");
-    CheckFunctionsCount(functions_count, pos);
+    CheckFunctionsCount(functions_count, code_section_start);
     for (uint32_t i = 0; ok() && i < functions_count; ++i) {
       const byte* pos = pc();
       uint32_t size = consume_u32v("body size");
@@ -947,8 +947,8 @@ class ModuleDecoderImpl : public Decoder {
       if (failed()) break;
       DecodeFunctionBody(i, size, offset, verify_functions);
     }
-    DCHECK_GE(pc_offset(), pos);
-    set_code_section(pos, pc_offset() - pos);
+    DCHECK_GE(pc_offset(), code_section_start);
+    set_code_section(code_section_start, pc_offset() - code_section_start);
   }
 
   void StartCodeSection() {
@@ -959,10 +959,9 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
-  bool CheckFunctionsCount(uint32_t functions_count, uint32_t offset) {
+  bool CheckFunctionsCount(uint32_t functions_count, uint32_t error_offset) {
     if (functions_count != module_->num_declared_functions) {
-      Reset(nullptr, nullptr, offset);
-      errorf(nullptr, "function body count %u mismatch (%u expected)",
+      errorf(error_offset, "function body count %u mismatch (%u expected)",
              functions_count, module_->num_declared_functions);
       return false;
     }
@@ -2267,8 +2266,8 @@ void ModuleDecoder::DecodeFunctionBody(uint32_t index, uint32_t length,
 void ModuleDecoder::StartCodeSection() { impl_->StartCodeSection(); }
 
 bool ModuleDecoder::CheckFunctionsCount(uint32_t functions_count,
-                                        uint32_t offset) {
-  return impl_->CheckFunctionsCount(functions_count, offset);
+                                        uint32_t error_offset) {
+  return impl_->CheckFunctionsCount(functions_count, error_offset);
 }
 
 ModuleResult ModuleDecoder::FinishDecoding(bool verify_functions) {
