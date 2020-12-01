@@ -1972,36 +1972,40 @@ using Instr = uint32_t;
   PPC_VA_OPCODE_A_FORM_LIST(V) \
   PPC_VA_OPCODE_UNUSED_LIST(V)
 
-#define PPC_XX1_OPCODE_LIST(V)                            \
-  /* Load VSR Scalar Doubleword Indexed */                \
-  V(lxsdx, LXSDX, 0x7C000498)                             \
-  /* Load VSX Scalar as Integer Word Algebraic Indexed */ \
-  V(lxsiwax, LXSIWAX, 0x7C000098)                         \
-  /* Load VSX Scalar as Integer Word and Zero Indexed */  \
-  V(lxsiwzx, LXSIWZX, 0x7C000018)                         \
-  /* Load VSX Scalar Single-Precision Indexed */          \
-  V(lxsspx, LXSSPX, 0x7C000418)                           \
-  /* Load VSR Vector Doubleword*2 Indexed */              \
-  V(lxvd, LXVD, 0x7C000698)                               \
-  /* Load VSR Vector Doubleword & Splat Indexed */        \
-  V(lxvdsx, LXVDSX, 0x7C000298)                           \
-  /* Load VSR Vector Word*4 Indexed */                    \
-  V(lxvw, LXVW, 0x7C000618)                               \
-  /* Move From VSR Doubleword */                          \
-  V(mfvsrd, MFVSRD, 0x7C000066)                           \
-  /* Move From VSR Word and Zero */                       \
-  V(mfvsrwz, MFVSRWZ, 0x7C0000E6)                         \
-  /* Store VSR Scalar Doubleword Indexed */               \
-  V(stxsdx, STXSDX, 0x7C000598)                           \
-  /* Store VSX Scalar as Integer Word Indexed */          \
-  V(stxsiwx, STXSIWX, 0x7C000118)                         \
-  /* Store VSR Scalar Word Indexed */                     \
-  V(stxsspx, STXSSPX, 0x7C000518)                         \
-  /* Store VSR Vector Doubleword*2 Indexed */             \
-  V(stxvd, STXVD, 0x7C000798)                             \
-  /* Store VSR Vector Word*4 Indexed */                   \
-  V(stxvw, STXVW, 0x7C000718)                             \
-  /* Vector Splat Immediate Byte */                       \
+#define PPC_XX1_OPCODE_LIST(V)                             \
+  /* Load VSR Scalar Doubleword Indexed */                 \
+  V(lxsdx, LXSDX, 0x7C000498)                              \
+  /* Load VSX Scalar as Integer Word Algebraic Indexed */  \
+  V(lxsiwax, LXSIWAX, 0x7C000098)                          \
+  /* Load VSX Scalar as Integer Byte & Zero Indexed */     \
+  V(lxsibzx, LXSIBZX, 0x7C00061A)                          \
+  /* Load VSX Scalar as Integer Halfword & Zero Indexed */ \
+  V(lxsihzx, LXSIHZX, 0x7C00065A)                          \
+  /* Load VSX Scalar as Integer Word and Zero Indexed */   \
+  V(lxsiwzx, LXSIWZX, 0x7C000018)                          \
+  /* Load VSX Scalar Single-Precision Indexed */           \
+  V(lxsspx, LXSSPX, 0x7C000418)                            \
+  /* Load VSR Vector Doubleword*2 Indexed */               \
+  V(lxvd, LXVD, 0x7C000698)                                \
+  /* Load VSR Vector Doubleword & Splat Indexed */         \
+  V(lxvdsx, LXVDSX, 0x7C000298)                            \
+  /* Load VSR Vector Word*4 Indexed */                     \
+  V(lxvw, LXVW, 0x7C000618)                                \
+  /* Move From VSR Doubleword */                           \
+  V(mfvsrd, MFVSRD, 0x7C000066)                            \
+  /* Move From VSR Word and Zero */                        \
+  V(mfvsrwz, MFVSRWZ, 0x7C0000E6)                          \
+  /* Store VSR Scalar Doubleword Indexed */                \
+  V(stxsdx, STXSDX, 0x7C000598)                            \
+  /* Store VSX Scalar as Integer Word Indexed */           \
+  V(stxsiwx, STXSIWX, 0x7C000118)                          \
+  /* Store VSR Scalar Word Indexed */                      \
+  V(stxsspx, STXSSPX, 0x7C000518)                          \
+  /* Store VSR Vector Doubleword*2 Indexed */              \
+  V(stxvd, STXVD, 0x7C000798)                              \
+  /* Store VSR Vector Word*4 Indexed */                    \
+  V(stxvw, STXVW, 0x7C000718)                              \
+  /* Vector Splat Immediate Byte */                        \
   V(xxspltib, XXSPLTIB, 0xF00002D1)
 
 #define PPC_B_OPCODE_LIST(V) \
