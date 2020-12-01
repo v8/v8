@@ -862,9 +862,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void shufpd(XMMRegister dst, XMMRegister src, byte imm8);
 
   void movlps(XMMRegister dst, Operand src);
-  void movlps(Operand dst, XMMRegister src);
   void movhps(XMMRegister dst, Operand src);
-  void movhps(Operand dst, XMMRegister src);
 
   void maxss(XMMRegister dst, XMMRegister src) { maxss(dst, Operand(src)); }
   void maxss(XMMRegister dst, Operand src);
@@ -1006,8 +1004,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void movss(XMMRegister dst, Operand src);
   void movss(Operand dst, XMMRegister src);
   void movss(XMMRegister dst, XMMRegister src) { movss(dst, Operand(src)); }
-
-  void extractps(Operand dst, XMMRegister src, byte imm8);
   void extractps(Register dst, XMMRegister src, byte imm8);
 
   void psllw(XMMRegister reg, uint8_t shift);
@@ -1359,9 +1355,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vmovsd(XMMRegister dst, Operand src) {
     vinstr(0x10, dst, xmm0, src, kF2, k0F, kWIG);
   }
-
-  void vextractps(Operand dst, XMMRegister src, byte imm8);
-
   void vmovaps(XMMRegister dst, XMMRegister src) { vmovaps(dst, Operand(src)); }
   void vmovaps(XMMRegister dst, Operand src) { vps(0x28, dst, xmm0, src); }
   void vmovapd(XMMRegister dst, XMMRegister src) { vmovapd(dst, Operand(src)); }
@@ -1380,9 +1373,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vshufpd(XMMRegister dst, XMMRegister src1, Operand src2, byte imm8);
 
   void vmovlps(XMMRegister dst, XMMRegister src1, Operand src2);
-  void vmovlps(Operand dst, XMMRegister src);
   void vmovhps(XMMRegister dst, XMMRegister src1, Operand src2);
-  void vmovhps(Operand dst, XMMRegister src);
 
   void vpsllw(XMMRegister dst, XMMRegister src, uint8_t imm8);
   void vpslld(XMMRegister dst, XMMRegister src, uint8_t imm8);

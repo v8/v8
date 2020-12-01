@@ -281,9 +281,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32Pinsrb:
     case kIA32Pinsrw:
     case kIA32Pinsrd:
-    case kIA32Pextrb:
-    case kIA32Pextrw:
-    case kIA32S128Store32Lane:
     case kSSEI8x16SConvertI16x8:
     case kAVXI8x16SConvertI16x8:
     case kIA32I8x16Neg:

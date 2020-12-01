@@ -1648,18 +1648,6 @@ void TurboAssembler::Palignr(XMMRegister dst, Operand src, uint8_t imm8) {
   FATAL("no AVX or SSE3 support");
 }
 
-void TurboAssembler::Pextrb(Operand dst, XMMRegister src, uint8_t imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpextrb(dst, src, imm8);
-    return;
-  }
-  DCHECK(CpuFeatures::IsSupported(SSE4_1));
-  CpuFeatureScope sse_scope(this, SSE4_1);
-  pextrb(dst, src, imm8);
-  return;
-}
-
 void TurboAssembler::Pextrb(Register dst, XMMRegister src, uint8_t imm8) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
@@ -1672,18 +1660,6 @@ void TurboAssembler::Pextrb(Register dst, XMMRegister src, uint8_t imm8) {
     return;
   }
   FATAL("no AVX or SSE4.1 support");
-}
-
-void TurboAssembler::Pextrw(Operand dst, XMMRegister src, uint8_t imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpextrw(dst, src, imm8);
-    return;
-  }
-  DCHECK(CpuFeatures::IsSupported(SSE4_1));
-  CpuFeatureScope sse_scope(this, SSE4_1);
-  pextrw(dst, src, imm8);
-  return;
 }
 
 void TurboAssembler::Pextrw(Register dst, XMMRegister src, uint8_t imm8) {
@@ -1788,17 +1764,6 @@ void TurboAssembler::Vbroadcastss(XMMRegister dst, Operand src) {
   }
   movss(dst, src);
   shufps(dst, dst, static_cast<byte>(0));
-}
-
-void TurboAssembler::Extractps(Operand dst, XMMRegister src, uint8_t imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vextractps(dst, src, imm8);
-  }
-
-  DCHECK(CpuFeatures::IsSupported(SSE4_1));
-  CpuFeatureScope avx_scope(this, SSE4_1);
-  extractps(dst, src, imm8);
 }
 
 void TurboAssembler::Lzcnt(Register dst, Operand src) {

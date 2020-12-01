@@ -410,6 +410,8 @@ void InstructionSelector::VisitLoadLane(Node* node) {
   Emit(opcode, 1, outputs, input_count, inputs);
 }
 
+void InstructionSelector::VisitStoreLane(Node* node) {}
+
 void InstructionSelector::VisitLoadTransform(Node* node) {
   LoadTransformParameters params = LoadTransformParametersOf(node->op());
   InstructionCode opcode;
@@ -612,41 +614,6 @@ void InstructionSelector::VisitStore(Node* node) {
 void InstructionSelector::VisitProtectedStore(Node* node) {
   // TODO(eholk)
   UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitStoreLane(Node* node) {
-  IA32OperandGenerator g(this);
-
-  StoreLaneParameters params = StoreLaneParametersOf(node->op());
-  InstructionCode opcode = kArchNop;
-  if (params.rep == MachineRepresentation::kWord8) {
-    opcode = kIA32Pextrb;
-  } else if (params.rep == MachineRepresentation::kWord16) {
-    opcode = kIA32Pextrw;
-  } else if (params.rep == MachineRepresentation::kWord32) {
-    opcode = kIA32S128Store32Lane;
-  } else if (params.rep == MachineRepresentation::kWord64) {
-    if (params.laneidx == 0) {
-      opcode = kIA32Movlps;
-    } else {
-      DCHECK_EQ(1, params.laneidx);
-      opcode = kIA32Movhps;
-    }
-  } else {
-    UNREACHABLE();
-  }
-
-  InstructionOperand inputs[4];
-  size_t input_count = 0;
-  AddressingMode addressing_mode =
-      g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
-  opcode |= AddressingModeField::encode(addressing_mode);
-
-  InstructionOperand value_operand = g.UseRegister(node->InputAt(2));
-  inputs[input_count++] = value_operand;
-  inputs[input_count++] = g.UseImmediate(params.laneidx);
-  DCHECK_GE(4, input_count);
-  Emit(opcode, 0, nullptr, input_count, inputs);
 }
 
 // Architecture supports unaligned access, therefore VisitLoad is used instead
