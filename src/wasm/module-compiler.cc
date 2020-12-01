@@ -595,9 +595,11 @@ class CompilationStateImpl {
 
   void WaitForCompilationEvent(CompilationEvent event);
 
-  void SetHighPriority() {
+  void ReduceCompilationPriority() {
     base::MutexGuard guard(&mutex_);
-    has_priority_ = true;
+    if (current_compile_job_ && current_compile_job_->UpdatePriorityEnabled()) {
+      current_compile_job_->UpdatePriority(TaskPriority::kUserVisible);
+    }
   }
 
   bool failed() const {
@@ -674,8 +676,6 @@ class CompilationStateImpl {
 
   //////////////////////////////////////////////////////////////////////////////
   // Protected by {mutex_}:
-
-  bool has_priority_ = false;
 
   std::shared_ptr<JobHandle> current_compile_job_;
 
@@ -798,8 +798,6 @@ void CompilationState::WaitForTopTierFinished() {
   });
   top_tier_finished_semaphore->Wait();
 }
-
-void CompilationState::SetHighPriority() { Impl(this)->SetHighPriority(); }
 
 void CompilationState::InitializeAfterDeserialization() {
   Impl(this)->InitializeCompilationProgressAfterDeserialization();
@@ -1638,8 +1636,6 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   native_module = isolate->wasm_engine()->NewNativeModule(
       isolate, enabled, module, code_size_estimate);
   native_module->SetWireBytes(std::move(wire_bytes_copy));
-  // Sync compilation is user blocking, so we increase the priority.
-  native_module->compilation_state()->SetHighPriority();
 
   v8::metrics::Recorder::ContextId context_id =
       isolate->GetOrRegisterRecorderContextId(isolate->native_context());
@@ -2721,7 +2717,13 @@ CompilationStateImpl::CompilationStateImpl(
                         ? CompileMode::kTiering
                         : CompileMode::kRegular),
       async_counters_(std::move(async_counters)),
-      compilation_unit_queues_(native_module->num_functions()) {}
+      compilation_unit_queues_(native_module->num_functions()) {
+  AddCallback([&](CompilationEvent event) {
+    if (event == CompilationEvent::kFinishedBaselineCompilation) {
+      ReduceCompilationPriority();
+    }
+  });
+}
 
 void CompilationStateImpl::CancelCompilation() {
   // No more callbacks after abort.
@@ -3245,13 +3247,8 @@ void CompilationStateImpl::ScheduleCompileJobForNewUnits() {
                                                async_counters_);
     // TODO(wasm): Lower priority for TurboFan-only jobs.
     new_job_handle = V8::GetCurrentPlatform()->PostJob(
-        has_priority_ ? TaskPriority::kUserBlocking
-                      : TaskPriority::kUserVisible,
-        std::move(new_compile_job));
+        TaskPriority::kUserBlocking, std::move(new_compile_job));
     current_compile_job_ = new_job_handle;
-    // Reset the priority. Later uses of the compilation state, e.g. for
-    // debugging, should compile with the default priority again.
-    has_priority_ = false;
   }
 
   if (new_job_handle) {
@@ -3374,7 +3371,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
   auto job = std::make_unique<CompileJSToWasmWrapperJob>(
       &queue, &compilation_units, max_concurrency);
   auto job_handle = V8::GetCurrentPlatform()->PostJob(
-      TaskPriority::kUserVisible, std::move(job));
+      TaskPriority::kUserBlocking, std::move(job));
 
   // Wait for completion, while contributing to the work.
   job_handle->Join();
