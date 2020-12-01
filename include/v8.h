@@ -1772,6 +1772,7 @@ class V8_EXPORT Script {
   Local<UnboundScript> GetUnboundScript();
 };
 
+enum class ScriptType { kClassic, kModule };
 
 /**
  * For compiling scripts.
@@ -2028,11 +2029,9 @@ class V8_EXPORT ScriptCompiler {
   static ScriptStreamingTask* StartStreamingScript(
       Isolate* isolate, StreamedSource* source,
       CompileOptions options = kNoCompileOptions);
-  static ScriptStreamingTask* StartStreaming(Isolate* isolate,
-                                             StreamedSource* source);
-  // The same as ScriptCompiler::StartStreaming but for module scripts.
-  static ScriptStreamingTask* StartStreamingModule(Isolate* isolate,
-                                                   StreamedSource* source);
+  static ScriptStreamingTask* StartStreaming(
+      Isolate* isolate, StreamedSource* source,
+      ScriptType type = ScriptType::kClassic);
 
   /**
    * Compiles a streamed script (bound to current context).

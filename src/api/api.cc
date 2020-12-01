@@ -2714,26 +2714,13 @@ ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreamingScript(
 }
 
 ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreaming(
-    Isolate* v8_isolate, StreamedSource* source) {
+    Isolate* v8_isolate, StreamedSource* source, v8::ScriptType type) {
   if (!i::FLAG_script_streaming) return nullptr;
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ASSERT_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::ScriptStreamingData* data = source->impl();
   std::unique_ptr<i::BackgroundCompileTask> task =
-      std::make_unique<i::BackgroundCompileTask>(data, isolate,
-                                                 i::ScriptType::kClassic);
-  data->task = std::move(task);
-  return new ScriptCompiler::ScriptStreamingTask(data);
-}
-
-ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreamingModule(
-    Isolate* v8_isolate, StreamedSource* source) {
-  if (!i::FLAG_script_streaming) return nullptr;
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i::ScriptStreamingData* data = source->impl();
-  std::unique_ptr<i::BackgroundCompileTask> task =
-      std::make_unique<i::BackgroundCompileTask>(data, isolate,
-                                                 i::ScriptType::kModule);
+      std::make_unique<i::BackgroundCompileTask>(data, isolate, type);
   data->task = std::move(task);
   return new ScriptCompiler::ScriptStreamingTask(data);
 }

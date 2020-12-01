@@ -541,13 +541,10 @@ class StreamingCompileTask final : public v8::Task {
  public:
   StreamingCompileTask(Isolate* isolate,
                        v8::ScriptCompiler::StreamedSource* streamed_source,
-                       i::ScriptType type)
+                       v8::ScriptType type)
       : isolate_(isolate),
-        script_streaming_task_(
-            type == i::ScriptType::kClassic
-                ? v8::ScriptCompiler::StartStreaming(isolate, streamed_source)
-                : v8::ScriptCompiler::StartStreamingModule(isolate,
-                                                           streamed_source)) {
+        script_streaming_task_(v8::ScriptCompiler::StartStreaming(
+            isolate, streamed_source, type)) {
     Shell::NotifyStartStreamingTask(isolate_);
   }
 
@@ -625,8 +622,8 @@ MaybeLocal<T> Shell::CompileString(Isolate* isolate, Local<Context> context,
         v8::ScriptCompiler::StreamedSource::UTF8);
     PostBlockingBackgroundTask(std::make_unique<StreamingCompileTask>(
         isolate, &streamed_source,
-        std::is_same<T, Module>::value ? i::ScriptType::kModule
-                                       : i::ScriptType::kClassic));
+        std::is_same<T, Module>::value ? v8::ScriptType::kModule
+                                       : v8::ScriptType::kClassic));
     // Pump the loop until the streaming task completes.
     Shell::CompleteMessageLoop(isolate);
     return CompileStreamed<T>(context, &streamed_source, source, origin);
