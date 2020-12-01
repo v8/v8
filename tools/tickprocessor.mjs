@@ -75,19 +75,6 @@ export function readFile(fileName) {
 }
 
 
-/**
- * Parser for dynamic code optimization state.
- */
-function parseState(s) {
-  switch (s) {
-  case "": return Profile.CodeState.COMPILED;
-  case "~": return Profile.CodeState.OPTIMIZABLE;
-  case "*": return Profile.CodeState.OPTIMIZED;
-  }
-  throw new Error(`unknown code state: ${s}`);
-}
-
-
 export function TickProcessor(
     cppEntriesProvider,
     separateIc,
@@ -305,7 +292,7 @@ TickProcessor.prototype.processCodeCreation = function(
     type, kind, timestamp, start, size, name, maybe_func) {
   if (maybe_func.length) {
     const funcAddr = parseInt(maybe_func[0]);
-    const state = parseState(maybe_func[1]);
+    const state = Profile.parseState(maybe_func[1]);
     this.profile_.addFuncCode(type, name, timestamp, start, size, funcAddr, state);
   } else {
     this.profile_.addCode(type, name, timestamp, start, size);

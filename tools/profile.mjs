@@ -141,8 +141,29 @@ export class Profile {
    */
   static CodeState = {
     COMPILED: 0,
-    OPTIMIZABLE: 1,
-    OPTIMIZED: 2
+    IGNITION: 1,
+    NATIVE_CONTEXT_INDEPENDENT: 2,
+    TURBOPROP: 3,
+    TURBOFAN: 4,
+  }
+
+  /**
+   * Parser for dynamic code optimization state.
+   */
+  static parseState(s) {
+    switch (s) {
+      case '':
+        return this.CodeState.COMPILED;
+      case '~':
+        return this.CodeState.IGNITION;
+      case '-':
+        return this.CodeState.NATIVE_CONTEXT_INDEPENDENT;
+      case '=':
+        return this.CodeState.TURBOPROP;
+      case '*':
+        return this.CodeState.TURBOFAN;
+    }
+    throw new Error(`unknown code state: ${s}`);
   }
 
   /**
@@ -602,7 +623,7 @@ class DynamicFuncCodeEntry extends CodeEntry {
     this.state = state;
   }
 
-  static STATE_PREFIX = ["", "~", "*"];
+  static STATE_PREFIX = ["", "~", "-", "+", "*"];
   getState() {
     return DynamicFuncCodeEntry.STATE_PREFIX[this.state];
   }

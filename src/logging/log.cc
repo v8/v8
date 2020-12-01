@@ -34,6 +34,7 @@
 #include "src/logging/log-inl.h"
 #include "src/logging/log-utils.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/code-kind.h"
 #include "src/profiler/tick-sample.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/strings/string-stream.h"
@@ -79,17 +80,11 @@ static v8::CodeEventType GetCodeEventTypeForTag(
   }
 
 static const char* ComputeMarker(SharedFunctionInfo shared, AbstractCode code) {
-  // TODO(mythria,jgruber): Use different markers for Turboprop/NCI.
-  switch (code.kind()) {
-    case CodeKind::INTERPRETED_FUNCTION:
-      return shared.optimization_disabled() ? "" : "~";
-    case CodeKind::TURBOFAN:
-    case CodeKind::NATIVE_CONTEXT_INDEPENDENT:
-    case CodeKind::TURBOPROP:
-      return "*";
-    default:
-      return "";
+  if (shared.optimization_disabled() &&
+      code.kind() == CodeKind::INTERPRETED_FUNCTION) {
+    return "";
   }
+  return CodeKindToMarker(code.kind());
 }
 
 static const char* ComputeMarker(const wasm::WasmCode* code) {

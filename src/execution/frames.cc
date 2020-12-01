@@ -1189,7 +1189,7 @@ void JavaScriptFrame::PrintFunctionAndOffset(JSFunction function,
                                              AbstractCode code, int code_offset,
                                              FILE* file,
                                              bool print_line_number) {
-  PrintF(file, "%s", CodeKindIsOptimizedJSFunction(code.kind()) ? "*" : "~");
+  PrintF(file, "%s", CodeKindToMarker(code.kind()));
   function.PrintName(file);
   PrintF(file, "+%d", code_offset);
   if (print_line_number) {

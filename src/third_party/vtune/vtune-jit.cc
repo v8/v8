@@ -146,7 +146,8 @@ static std::string GetFunctionNameFromMixedName(const char* str, int length) {
 
   while (str[index++] != ':' && (index < length)) {}
 
-  if (str[index] == '*' || str[index] == '~' ) index++;
+  const char state = str[index];
+  if (state == '*' || state == '+' || state == '-' || state == '~') index++;
   if (index >= length) return std::string();
 
   start_ptr = const_cast<char*>(str + index);

@@ -174,26 +174,11 @@ export class Processor extends LogReader {
     });
   }
 
-  /**
-   * Parser for dynamic code optimization state.
-   */
-  parseState(s) {
-    switch (s) {
-      case '':
-        return Profile.CodeState.COMPILED;
-      case '~':
-        return Profile.CodeState.OPTIMIZABLE;
-      case '*':
-        return Profile.CodeState.OPTIMIZED;
-    }
-    throw new Error(`unknown code state: ${s}`);
-  }
-
   processCodeCreation(type, kind, timestamp, start, size, name, maybe_func) {
     let entry;
     if (maybe_func.length) {
       const funcAddr = parseInt(maybe_func[0]);
-      const state = this.parseState(maybe_func[1]);
+      const state = Profile.parseState(maybe_func[1]);
       entry = this._profile.addFuncCode(
           type, name, timestamp, start, size, funcAddr, state);
     } else {
