@@ -45,7 +45,6 @@
 #include "src/objects/js-function-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/object-list-macros.h"
-#include "src/objects/serialized-feedback.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
 #include "src/parsing/parse-info.h"
@@ -919,19 +918,10 @@ void InsertCodeIntoCompilationCache(Isolate* isolate,
   Handle<Code> code = info->code();
   DCHECK(!info->function_context_specializing());
 
-  Handle<SerializedFeedback> serialized_feedback =
-      SerializedFeedback::Serialize(
-          isolate, handle(info->closure()->feedback_vector(), isolate));
-
   Handle<SharedFunctionInfo> sfi = info->shared_info();
   CompilationCache* cache = isolate->compilation_cache();
-  cache->PutCode(sfi, code, serialized_feedback);
-
-#ifdef DEBUG
-  MaybeHandle<Code> maybe_code;
-  MaybeHandle<SerializedFeedback> maybe_feedback;
-  DCHECK(cache->LookupCode(sfi, &maybe_code, &maybe_feedback));
-#endif  // DEBUG
+  cache->PutCode(sfi, code);
+  DCHECK(!cache->LookupCode(sfi).is_null());
 
   sfi->set_may_have_cached_code(true);
 

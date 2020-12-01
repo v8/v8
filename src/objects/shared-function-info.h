@@ -34,7 +34,6 @@ class BytecodeArray;
 class CoverageInfo;
 class DebugInfo;
 class IsCompiledScope;
-class SerializedFeedback;
 class WasmCapiFunctionData;
 class WasmExportedFunctionData;
 class WasmJSFunctionData;
@@ -397,12 +396,8 @@ class SharedFunctionInfo
   // hence the 'may'.
   DECL_BOOLEAN_ACCESSORS(may_have_cached_code)
 
-  // Fetches cached NCI artifacts, if they exist. Some callsites only care
-  // about the cached Code object; to distinguish them clearly, there's a
-  // dedicated helper that only returns the Code object.
-  bool TryGetCachedCodeAndSerializedFeedback(
-      Isolate* isolate, MaybeHandle<Code>* code_out,
-      MaybeHandle<SerializedFeedback>* feedback_out);
+  // Returns the cached Code object for this SFI if it exists, an empty handle
+  // otherwise.
   MaybeHandle<Code> TryGetCachedCode(Isolate* isolate);
 
   // Is this function a top-level function (scripts, evals).

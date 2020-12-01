@@ -79,21 +79,11 @@ void TryInstallNCICode(Isolate* isolate, Handle<JSFunction> function,
   DCHECK(sfi->may_have_cached_code());
   DCHECK_EQ(function->shared(), *sfi);
 
-  MaybeHandle<Code> maybe_code;
-  MaybeHandle<SerializedFeedback> maybe_feedback;
-  if (sfi->TryGetCachedCodeAndSerializedFeedback(isolate, &maybe_code,
-                                                 &maybe_feedback)) {
-    Handle<Code> code = maybe_code.ToHandleChecked();
-    if (FLAG_trace_turbo_nci) CompilationCacheCode::TraceHit(sfi, code);
+  Handle<Code> code;
+  if (sfi->TryGetCachedCode(isolate).ToHandle(&code)) {
     function->set_code(*code);
-
-    if (!function->has_feedback_vector()) {
-      JSFunction::EnsureFeedbackVector(function, is_compiled_scope);
-      // TODO(jgruber,v8:8888): Consider combining shared feedback with
-      // existing feedback here.
-      maybe_feedback.ToHandleChecked()->DeserializeInto(
-          function->feedback_vector());
-    }
+    JSFunction::EnsureFeedbackVector(function, is_compiled_scope);
+    if (FLAG_trace_turbo_nci) CompilationCacheCode::TraceHit(sfi, code);
   }
 }
 

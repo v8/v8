@@ -8,7 +8,6 @@
 #include "src/objects/feedback-cell.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/js-regexp.h"
-#include "src/objects/serialized-feedback.h"
 #include "src/objects/shared-function-info.h"
 #include "src/roots/roots.h"
 
@@ -123,14 +122,10 @@ class CompilationCacheTable
 
   // The Code cache shares native-context-independent (NCI) code between
   // contexts.
-  bool LookupCode(Handle<SharedFunctionInfo> key, MaybeHandle<Code>* code_out,
-                  MaybeHandle<SerializedFeedback>* feedback_out);
+  MaybeHandle<Code> LookupCode(Handle<SharedFunctionInfo> key);
   static Handle<CompilationCacheTable> PutCode(
       Isolate* isolate, Handle<CompilationCacheTable> cache,
-      Handle<SharedFunctionInfo> key, Handle<Code> value_code,
-      Handle<SerializedFeedback> value_feedback);
-  // Removes Code objects that are marked_for_deoptimization from the cache.
-  void ClearDeoptimizedCode();
+      Handle<SharedFunctionInfo> key, Handle<Code> value);
 
   void Remove(Object value);
   void Age();
