@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "include/libplatform/libplatform.h"
 #include "src/api/api-inl.h"
 #include "src/init/v8.h"
 #include "src/objects/managed.h"
@@ -39,8 +38,7 @@ class MockPlatform final : public TestPlatform {
   std::unique_ptr<v8::JobHandle> PostJob(
       v8::TaskPriority priority,
       std::unique_ptr<v8::JobTask> job_task) override {
-    auto orig_job_handle = v8::platform::NewDefaultJobHandle(
-        this, priority, std::move(job_task), 1);
+    auto orig_job_handle = TestPlatform::PostJob(priority, std::move(job_task));
     auto job_handle =
         std::make_unique<MockJobHandle>(std::move(orig_job_handle), this);
     job_handles_.insert(job_handle.get());
