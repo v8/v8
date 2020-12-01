@@ -1127,18 +1127,15 @@ class WasmDecoder : public Decoder {
   }
 
   // Decodes local definitions in the current decoder.
-  // Returns true iff locals are found.
-  // Writes the total length of decoded locals in 'total_length'.
-  // If insert_position is present, the decoded locals will be inserted into the
-  // 'local_types_' of this decoder. Otherwise, this function is used just to
-  // check validity and determine the encoding length of the locals in bytes.
-  // The decoder's pc is not advanced. If no locals are found (i.e., no
-  // compressed uint32 is found at pc), this will exit as 'false' and without an
-  // error.
-  bool DecodeLocals(const byte* pc, uint32_t* total_length,
-                    const base::Optional<uint32_t> insert_position) {
+  // Returns the number of newly defined locals, or -1 if decoding failed.
+  // Writes the total length of decoded locals in {total_length}.
+  // If {insert_position} is defined, the decoded locals will be inserted into
+  // the {this->local_types_}. The decoder's pc is not advanced.
+  int DecodeLocals(const byte* pc, uint32_t* total_length,
+                   const base::Optional<uint32_t> insert_position) {
     uint32_t length;
     *total_length = 0;
+    int total_count = 0;
 
     // The 'else' value is useless, we pass it for convenience.
     auto insert_iterator = insert_position.has_value()
@@ -1149,7 +1146,7 @@ class WasmDecoder : public Decoder {
     uint32_t entries = read_u32v<validate>(pc, &length, "local decls count");
     if (!VALIDATE(ok())) {
       DecodeError(pc + *total_length, "invalid local decls count");
-      return false;
+      return -1;
     }
     *total_length += length;
     TRACE("local decls count: %u\n", entries);
@@ -1158,36 +1155,37 @@ class WasmDecoder : public Decoder {
       if (!VALIDATE(more())) {
         DecodeError(end(),
                     "expected more local decls but reached end of input");
-        return false;
+        return -1;
       }
 
       uint32_t count =
           read_u32v<validate>(pc + *total_length, &length, "local count");
       if (!VALIDATE(ok())) {
         DecodeError(pc + *total_length, "invalid local count");
-        return false;
+        return -1;
       }
       DCHECK_LE(local_types_.size(), kV8MaxWasmFunctionLocals);
       if (!VALIDATE(count <= kV8MaxWasmFunctionLocals - local_types_.size())) {
         DecodeError(pc + *total_length, "local count too large");
-        return false;
+        return -1;
       }
       *total_length += length;
 
       ValueType type = value_type_reader::read_value_type<validate>(
           this, pc + *total_length, &length, enabled_);
-      if (!VALIDATE(type != kWasmBottom)) return false;
+      if (!VALIDATE(type != kWasmBottom)) return -1;
       *total_length += length;
+      total_count += count;
 
       if (insert_position.has_value()) {
         // Move the insertion iterator to the end of the newly inserted locals.
         insert_iterator =
             local_types_.insert(insert_iterator, count, type) + count;
-        num_locals_ += count;
       }
     }
     DCHECK(ok());
-    return true;
+    if (insert_position.has_value()) num_locals_ += total_count;
+    return total_count;
   }
 
   // Shorthand that forwards to the {DecodeError} functions above, passing our
@@ -1640,10 +1638,9 @@ class WasmDecoder : public Decoder {
       case kExprLet: {
         BlockTypeImmediate<validate> imm(WasmFeatures::All(), decoder, pc + 1);
         uint32_t locals_length;
-        bool locals_result =
-            decoder->DecodeLocals(decoder->pc() + 1 + imm.length,
-                                  &locals_length, base::Optional<uint32_t>());
-        return 1 + imm.length + (locals_result ? locals_length : 0);
+        int new_locals_count = decoder->DecodeLocals(
+            pc + 1 + imm.length, &locals_length, base::Optional<uint32_t>());
+        return 1 + imm.length + ((new_locals_count >= 0) ? locals_length : 0);
       }
 
       /********** Misc opcodes **********/
@@ -2505,19 +2502,19 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     CHECK_PROTOTYPE_OPCODE(typed_funcref);
     BlockTypeImmediate<validate> imm(this->enabled_, this, this->pc_ + 1);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    uint32_t old_local_count = this->num_locals();
     // Temporarily add the let-defined values to the beginning of the function
     // locals.
     uint32_t locals_length;
-    if (!this->DecodeLocals(this->pc() + 1 + imm.length, &locals_length, 0)) {
+    int new_locals_count =
+        this->DecodeLocals(this->pc() + 1 + imm.length, &locals_length, 0);
+    if (new_locals_count < 0) {
       return 0;
     }
-    uint32_t num_added_locals = this->num_locals() - old_local_count;
     ArgVector let_local_values =
         PopArgs(static_cast<uint32_t>(imm.in_arity()),
-                VectorOf(this->local_types_.data(), num_added_locals));
+                VectorOf(this->local_types_.data(), new_locals_count));
     ArgVector args = PopArgs(imm.sig);
-    Control* let_block = PushControl(kControlLet, num_added_locals);
+    Control* let_block = PushControl(kControlLet, new_locals_count);
     SetBlockType(let_block, imm, args.begin());
     CALL_INTERFACE_IF_REACHABLE(Block, let_block);
     PushMergeValues(let_block, &let_block->start_merge);
