@@ -775,7 +775,11 @@ class WasmGraphBuildingInterface {
   }
 
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
-    result->node = BUILD(ArrayLen, array_obj.node, decoder->position());
+    CheckForNull null_check = array_obj.type.is_nullable()
+                                  ? CheckForNull::kWithNullCheck
+                                  : CheckForNull::kWithoutNullCheck;
+    result->node =
+        BUILD(ArrayLen, array_obj.node, null_check, decoder->position());
   }
 
   void I31New(FullDecoder* decoder, const Value& input, Value* result) {

@@ -425,7 +425,8 @@ class WasmGraphBuilder {
   Node* ArraySet(Node* array_object, const wasm::ArrayType* type, Node* index,
                  Node* value, CheckForNull null_check,
                  wasm::WasmCodePosition position);
-  Node* ArrayLen(Node* array_object, wasm::WasmCodePosition position);
+  Node* ArrayLen(Node* array_object, CheckForNull null_check,
+                 wasm::WasmCodePosition position);
   Node* I31New(Node* input);
   Node* I31GetS(Node* input);
   Node* I31GetU(Node* input);

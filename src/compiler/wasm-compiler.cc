@@ -5937,10 +5937,12 @@ Node* WasmGraphBuilder::ArraySet(Node* array_object,
                                          type->element_type());
 }
 
-Node* WasmGraphBuilder::ArrayLen(Node* array_object,
+Node* WasmGraphBuilder::ArrayLen(Node* array_object, CheckForNull null_check,
                                  wasm::WasmCodePosition position) {
-  TrapIfTrue(wasm::kTrapNullDereference,
-             gasm_->WordEqual(array_object, RefNull()), position);
+  if (null_check == kWithNullCheck) {
+    TrapIfTrue(wasm::kTrapNullDereference,
+               gasm_->WordEqual(array_object, RefNull()), position);
+  }
   return gasm_->LoadWasmArrayLength(array_object);
 }
 
