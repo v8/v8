@@ -3119,8 +3119,8 @@ class PageEvacuationJob : public v8::JobTask {
       TRACE_GC(tracer_, evacuator->GetTracingScope());
       ProcessItems(delegate, evacuator);
     } else {
-      TRACE_GC1(tracer_, evacuator->GetBackgroundTracingScope(),
-                ThreadKind::kBackground);
+      TRACE_GC_EPOCH(tracer_, evacuator->GetBackgroundTracingScope(),
+                     ThreadKind::kBackground);
       ProcessItems(delegate, evacuator);
     }
   }
@@ -3493,7 +3493,7 @@ class PointersUpdatingJob : public v8::JobTask {
       TRACE_GC(tracer_, scope_);
       UpdatePointers(delegate);
     } else {
-      TRACE_GC1(tracer_, background_scope_, ThreadKind::kBackground);
+      TRACE_GC_EPOCH(tracer_, background_scope_, ThreadKind::kBackground);
       UpdatePointers(delegate);
     }
   }
@@ -4866,9 +4866,9 @@ class YoungGenerationMarkingJob : public v8::JobTask {
                GCTracer::Scope::MINOR_MC_MARK_PARALLEL);
       ProcessItems(delegate);
     } else {
-      TRACE_GC1(collector_->heap()->tracer(),
-                GCTracer::Scope::MINOR_MC_BACKGROUND_MARKING,
-                ThreadKind::kBackground);
+      TRACE_GC_EPOCH(collector_->heap()->tracer(),
+                     GCTracer::Scope::MINOR_MC_BACKGROUND_MARKING,
+                     ThreadKind::kBackground);
       ProcessItems(delegate);
     }
   }

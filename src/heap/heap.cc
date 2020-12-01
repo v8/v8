@@ -104,6 +104,14 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+std::atomic<CollectionEpoch> global_epoch{0};
+
+CollectionEpoch next_epoch() {
+  return global_epoch.fetch_add(1, std::memory_order_relaxed) + 1;
+}
+}  // namespace
+
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
 Isolate* Heap::GetIsolateFromWritableObject(HeapObject object) {
   return reinterpret_cast<Isolate*>(
@@ -1732,6 +1740,8 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
 void Heap::StartIncrementalMarking(int gc_flags,
                                    GarbageCollectionReason gc_reason,
                                    GCCallbackFlags gc_callback_flags) {
+  epoch_full_ = next_epoch();
+
   DCHECK(incremental_marking()->IsStopped());
   SafepointScope safepoint(this);
   set_current_gc_flags(gc_flags);
@@ -1946,23 +1956,43 @@ void Heap::UpdateSurvivalStatistics(int start_new_space_size) {
   tracer()->AddSurvivalRatio(survival_rate);
 }
 
+namespace {
+GCTracer::Scope::ScopeId CollectorScopeId(GarbageCollector collector) {
+  switch (collector) {
+    case MARK_COMPACTOR:
+      return GCTracer::Scope::ScopeId::MARK_COMPACTOR;
+    case MINOR_MARK_COMPACTOR:
+      return GCTracer::Scope::ScopeId::MINOR_MARK_COMPACTOR;
+    case SCAVENGER:
+      return GCTracer::Scope::ScopeId::SCAVENGER;
+  }
+  UNREACHABLE();
+}
+}  // namespace
+
 size_t Heap::PerformGarbageCollection(
     GarbageCollector collector, const v8::GCCallbackFlags gc_callback_flags) {
   DisallowJavascriptExecution no_js(isolate());
   base::Optional<SafepointScope> optional_safepoint_scope;
 
+  UpdateCurrentEpoch(collector);
+
   // Stop time-to-collection timer before safepoint - we do not want to measure
   // time for safepointing.
   collection_barrier_->StopTimeToCollectionTimer();
 
+  TRACE_GC_EPOCH(tracer(), CollectorScopeId(collector), ThreadKind::kMain);
+
   if (FLAG_local_heaps) {
     optional_safepoint_scope.emplace(this);
   }
+
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     Verify();
   }
 #endif
+
   tracer()->StartInSafepoint();
 
   GarbageCollectionPrologueInSafepoint();
@@ -2040,6 +2070,14 @@ size_t Heap::PerformGarbageCollection(
   tracer()->StopInSafepoint();
 
   return freed_global_handles;
+}
+
+void Heap::UpdateCurrentEpoch(GarbageCollector collector) {
+  if (IsYoungGenerationCollector(collector)) {
+    epoch_young_ = next_epoch();
+  } else if (incremental_marking()->IsStopped()) {
+    epoch_full_ = next_epoch();
+  }
 }
 
 void Heap::RecomputeLimits(GarbageCollector collector) {
@@ -3416,8 +3454,9 @@ void Heap::FinalizeIncrementalMarkingIncrementally(
 
   HistogramTimerScope incremental_marking_scope(
       isolate()->counters()->gc_incremental_marking_finalize());
-  TRACE_EVENT0("v8", "V8.GCIncrementalMarkingFinalize");
-  TRACE_GC(tracer(), GCTracer::Scope::MC_INCREMENTAL_FINALIZE);
+  TRACE_EVENT1("v8", "V8.GCIncrementalMarkingFinalize", "epoch", epoch_full());
+  TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MC_INCREMENTAL_FINALIZE,
+                 ThreadKind::kMain);
 
   SafepointScope safepoint(this);
   InvokeIncrementalMarkingPrologueCallbacks();

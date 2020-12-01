@@ -160,8 +160,8 @@ class MemoryAllocator::Unmapper::UnmapFreeMemoryJob : public JobTask {
       : unmapper_(unmapper), tracer_(isolate->heap()->tracer()) {}
 
   void Run(JobDelegate* delegate) override {
-    TRACE_GC1(tracer_, GCTracer::Scope::BACKGROUND_UNMAPPER,
-              ThreadKind::kBackground);
+    TRACE_GC_EPOCH(tracer_, GCTracer::Scope::BACKGROUND_UNMAPPER,
+                   ThreadKind::kBackground);
     unmapper_->PerformFreeMemoryOnQueuedChunks<FreeMode::kUncommitPooled>(
         delegate);
     if (FLAG_trace_unmapper) {

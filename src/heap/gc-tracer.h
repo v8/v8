@@ -41,6 +41,13 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   GCTracer::Scope gc_tracer_scope(tracer, gc_tracer_scope_id, thread_kind); \
   TRACE_EVENT0(TRACE_GC_CATEGORIES, GCTracer::Scope::Name(gc_tracer_scope_id))
 
+#define TRACE_GC_EPOCH(tracer, scope_id, thread_kind)                          \
+  GCTracer::Scope::ScopeId gc_tracer_scope_id(scope_id);                       \
+  GCTracer::Scope gc_tracer_scope(tracer, gc_tracer_scope_id, thread_kind);    \
+  CollectionEpoch epoch = tracer->CurrentEpoch(scope_id);                      \
+  TRACE_EVENT1(TRACE_GC_CATEGORIES, GCTracer::Scope::Name(gc_tracer_scope_id), \
+               "epoch", epoch)
+
 // GCTracer collects and prints ONE line after each garbage collector
 // invocation IFF --trace_gc is used.
 class V8_EXPORT_PRIVATE GCTracer {
@@ -94,6 +101,7 @@ class V8_EXPORT_PRIVATE GCTracer {
     Scope(GCTracer* tracer, ScopeId scope, ThreadKind thread_kind);
     ~Scope();
     static const char* Name(ScopeId id);
+    static bool NeedsYoungEpoch(ScopeId id);
 
    private:
     GCTracer* tracer_;
@@ -333,6 +341,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   void RecordTimeToIncrementalMarkingTask(double time_to_task);
 
   WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats();
+
+  CollectionEpoch CurrentEpoch(Scope::ScopeId id);
 
  private:
   FRIEND_TEST(GCTracer, AverageSpeed);
