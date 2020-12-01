@@ -1520,6 +1520,9 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
                           Map::kSize - offset));
     }
 #endif
+    if (FLAG_trace_maps) {
+      LOG(isolate, MapEvent("NormalizeCached", fast_map, new_map, reason));
+    }
   } else {
     new_map = Map::CopyNormalized(isolate, fast_map, mode);
     new_map->set_elements_kind(new_elements_kind);
@@ -1527,9 +1530,9 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
       cache->Set(fast_map, new_map);
       isolate->counters()->maps_normalized()->Increment();
     }
-  }
-  if (FLAG_trace_maps) {
-    LOG(isolate, MapEvent("Normalize", fast_map, new_map, reason));
+    if (FLAG_trace_maps) {
+      LOG(isolate, MapEvent("Normalize", fast_map, new_map, reason));
+    }
   }
   fast_map->NotifyLeafMapLayoutChange(isolate);
   return new_map;
@@ -1732,6 +1735,7 @@ Handle<Map> Map::CopyReplaceDescriptors(
   DCHECK(descriptors->IsSortedNoDuplicates());
 
   Handle<Map> result = CopyDropDescriptors(isolate, map);
+  bool is_connected = false;
 
   // Properly mark the {result} if the {name} is an "interesting symbol".
   Handle<Name> name;
@@ -1748,17 +1752,14 @@ Handle<Map> Map::CopyReplaceDescriptors(
 
       DCHECK(!maybe_name.is_null());
       ConnectTransition(isolate, map, result, name, simple_flag);
+      is_connected = true;
     } else {
       descriptors->GeneralizeAllFields();
       result->InitializeDescriptors(isolate, *descriptors,
                                     LayoutDescriptor::FastPointerLayout());
     }
   }
-  if (FLAG_trace_maps &&
-      // Mirror conditions above that did not call ConnectTransition().
-      (map->IsDetached(isolate) ||
-       !(flag == INSERT_TRANSITION &&
-         TransitionsAccessor(isolate, map).CanHaveMoreTransitions()))) {
+  if (FLAG_trace_maps && !is_connected) {
     LOG(isolate, MapEvent("ReplaceDescriptors", map, result, reason,
                           maybe_name.is_null() ? Handle<HeapObject>() : name));
   }

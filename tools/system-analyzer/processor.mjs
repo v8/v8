@@ -284,10 +284,21 @@ export class Processor extends LogReader {
   }
 
   processMap(type, time, from, to, pc, line, column, reason, name) {
-    let time_ = parseInt(time);
+    const time_ = parseInt(time);
     if (type === 'Deprecate') return this.deprecateMap(type, time_, from);
-    let from_ = this.getExistingMapEntry(from, time_);
-    let to_ = this.getExistingMapEntry(to, time_);
+    // Skip normalized maps that were cached so we don't introduce multiple
+    // edges with the same source and target map.
+    if (type === 'NormalizeCached') return;
+    const from_ = this.getMapEntry(from, time_);
+    const to_ = this.getMapEntry(to, time_);
+    if (type === 'Normalize') {
+      // Fix a bug where we log "Normalize" transitions for maps created from
+      // the NormalizedMapCache.
+      if (to_.parent()?.id === from || to_.time < from_.time || to_.depth > 0) {
+        console.log(`Skipping transition to cached normalized map`);
+        return;
+      }
+    }
     // TODO: use SourcePosition directly.
     let edge = new Edge(type, name, reason, time, from_, to_);
     const profileEntry = this._profile.findEntry(pc)
@@ -297,40 +308,44 @@ export class Processor extends LogReader {
       to_.script = script;
       to_.sourcePosition = to_.script.addSourcePosition(line, column, to_)
     }
-    edge.finishSetup();
+    if (to_.parent() !== undefined && to_.parent() === from_) {
+      // Fix bug where we double log transitions.
+      console.warn('Fixing up double transition');
+      to_.edge.updateFrom(edge);
+    } else {
+      edge.finishSetup();
+    }
   }
 
   deprecateMap(type, time, id) {
-    this.getExistingMapEntry(id, time).deprecate();
+    this.getMapEntry(id, time).deprecate();
   }
 
   processMapCreate(time, id) {
     // map-create events might override existing maps if the addresses get
     // recycled. Hence we do not check for existing maps.
-    let map = this.createMapEntry(id, time);
+    this.createMapEntry(id, time);
   }
 
   processMapDetails(time, id, string) {
     // TODO(cbruni): fix initial map logging.
-    let map = this.getExistingMapEntry(id, time);
+    const map = this.getMapEntry(id, time);
     map.description = string;
   }
 
   createMapEntry(id, time) {
-    let map = new MapLogEntry(id, time);
+    const map = new MapLogEntry(id, time);
     this._mapTimeline.push(map);
     return map;
   }
 
-  getExistingMapEntry(id, time) {
+  getMapEntry(id, time) {
     if (id === '0x000000000000') return undefined;
-    let map = MapLogEntry.get(id, time);
-    if (map === undefined) {
-      console.error(`No map details provided: id=${id}`);
-      // Manually patch in a map to continue running.
-      return this.createMapEntry(id, time);
-    };
-    return map;
+    const map = MapLogEntry.get(id, time);
+    if (map !== undefined) return map;
+    console.warn(`No map details provided: id=${id}`);
+    // Manually patch in a map to continue running.
+    return this.createMapEntry(id, time);
   }
 
   getScript(url) {
