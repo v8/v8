@@ -1181,10 +1181,11 @@ class WasmDecoder : public Decoder {
         // Move the insertion iterator to the end of the newly inserted locals.
         insert_iterator =
             local_types_.insert(insert_iterator, count, type) + count;
+        num_locals_ += count;
       }
     }
+
     DCHECK(ok());
-    if (insert_position.has_value()) num_locals_ += total_count;
     return total_count;
   }
 

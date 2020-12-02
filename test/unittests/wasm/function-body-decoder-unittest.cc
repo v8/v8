@@ -4381,6 +4381,16 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
   }
 }
 
+// This tests that num_locals_ in decoder remains consistent, even if we fail
+// mid-DecodeLocals().
+TEST_F(FunctionBodyDecoderTest, Regress_1154439) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  AddLocals(kWasmI32, 1);
+  AddLocals(kWasmI64, 1000000);
+  ExpectFailure(sigs.v_v(), {}, kAppendEnd, "local count too large");
+}
+
 class BranchTableIteratorTest : public TestWithZone {
  public:
   BranchTableIteratorTest() : TestWithZone() {}
