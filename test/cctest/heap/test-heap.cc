@@ -5914,7 +5914,7 @@ TEST(Regress631969) {
 
   {
     StaticOneByteResource external_string("12345678901234");
-    s3->MakeExternal(&external_string);
+    CHECK(s3->MakeExternal(&external_string));
     CcTest::CollectGarbage(OLD_SPACE);
     // This avoids the GC from trying to free stack allocated resources.
     i::Handle<i::ExternalOneByteString>::cast(s3)->SetResource(isolate,

@@ -182,7 +182,9 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   ReadOnlyRoots roots(isolate);
   if (size < ExternalString::kSizeOfAllExternalStrings) {
     if (is_internalized) {
-      new_map = roots.uncached_external_internalized_string_map();
+      // We do not support this case since accessing internal external
+      // uncached strings is not thread-safe.
+      return false;
     } else {
       new_map = roots.uncached_external_string_map();
     }
@@ -259,9 +261,13 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   Map new_map;
   ReadOnlyRoots roots(isolate);
   if (size < ExternalString::kSizeOfAllExternalStrings) {
-    new_map = is_internalized
-                  ? roots.uncached_external_one_byte_internalized_string_map()
-                  : roots.uncached_external_one_byte_string_map();
+    if (is_internalized) {
+      // We do not support this case since accessing internal external
+      // uncached strings is not thread-safe.
+      return false;
+    } else {
+      new_map = roots.uncached_external_one_byte_string_map();
+    }
   } else {
     new_map = is_internalized
                   ? roots.external_one_byte_internalized_string_map()
@@ -308,6 +314,11 @@ bool String::SupportsExternalization() {
 #else
   DCHECK_LE(ExternalString::kUncachedSize, this->Size());
 #endif
+
+  if (this->Size() < ExternalString::kSizeOfAllExternalStrings &&
+      this->IsInternalizedString()) {
+    return false;
+  }
 
   Isolate* isolate = GetIsolateFromWritableObject(*this);
   return !isolate->heap()->IsInGCPostProcessing();
