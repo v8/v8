@@ -10,6 +10,7 @@ namespace internal {
 const bool Deoptimizer::kSupportsFixedDeoptExitSizes = true;
 const int Deoptimizer::kNonLazyDeoptExitSize = 3 * kInstrSize;
 const int Deoptimizer::kLazyDeoptExitSize = 3 * kInstrSize;
+const int Deoptimizer::kEagerWithResumeDeoptExitSize = 5 * kInstrSize;
 
 // Maximum size of a table entry generated below.
 #ifdef _MIPS_ARCH_MIPS64R6
