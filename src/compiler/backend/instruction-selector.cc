@@ -2732,10 +2732,10 @@ void InstructionSelector::VisitF32x4Qfms(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X
 
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_ARM64 && \
-    !V8_TARGET_ARCH_IA32
+    !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM
 void InstructionSelector::VisitI64x2Eq(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_ARM64
-        // && !V8_TARGET_ARCH_IA32
+        // && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM
 
 #if !V8_TARGET_ARCH_ARM64
 // TODO(v8:10971) Prototype i16x8.q15mulr_sat_s
