@@ -269,7 +269,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
     // Add locals.
     BodyLocalDecls decls(&tmp_zone);
-    DecodeLocalDecls(enabled_features, &decls, func_code.begin(),
+    DecodeLocalDecls(enabled_features, &decls, module, func_code.begin(),
                      func_code.end());
     if (!decls.type_list.empty()) {
       os << "  ";

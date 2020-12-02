@@ -1648,22 +1648,6 @@ class ModuleDecoderImpl : public Decoder {
     return true;
   }
 
-  // TODO(manoskouk): This is copy-modified from function-body-decoder-impl.h.
-  // We should find a way to share this code.
-  V8_INLINE bool Validate(const byte* pc,
-                          HeapTypeImmediate<kFullValidation>& imm) {
-    if (V8_UNLIKELY(imm.type.is_bottom())) {
-      error(pc, "invalid heap type");
-      return false;
-    }
-    if (V8_UNLIKELY(!(imm.type.is_generic() ||
-                      module_->has_type(imm.type.ref_index())))) {
-      errorf(pc, "Type index %u is out of bounds", imm.type.ref_index());
-      return false;
-    }
-    return true;
-  }
-
   WasmInitExpr consume_init_expr(WasmModule* module, ValueType expected,
                                  size_t current_global_index) {
     constexpr Decoder::ValidateFlag validate = Decoder::kFullValidation;
@@ -1735,10 +1719,10 @@ class ModuleDecoderImpl : public Decoder {
                    kExprRefNull);
             return {};
           }
-          HeapTypeImmediate<Decoder::kFullValidation> imm(enabled_features_,
-                                                          this, pc() + 1);
+          HeapTypeImmediate<Decoder::kFullValidation> imm(
+              enabled_features_, this, pc() + 1, module_.get());
+          if (V8_UNLIKELY(failed())) return {};
           len = 1 + imm.length;
-          if (!Validate(pc() + 1, imm)) return {};
           stack.push_back(
               WasmInitExpr::RefNullConst(imm.type.representation()));
           break;
@@ -1786,19 +1770,19 @@ class ModuleDecoderImpl : public Decoder {
           opcode = read_prefixed_opcode<validate>(pc(), &len);
           switch (opcode) {
             case kExprRttCanon: {
-              HeapTypeImmediate<validate> imm(enabled_features_, this,
-                                              pc() + 2);
+              HeapTypeImmediate<validate> imm(enabled_features_, this, pc() + 2,
+                                              module_.get());
+              if (V8_UNLIKELY(failed())) return {};
               len += imm.length;
-              if (!Validate(pc() + len, imm)) return {};
               stack.push_back(
                   WasmInitExpr::RttCanon(imm.type.representation()));
               break;
             }
             case kExprRttSub: {
-              HeapTypeImmediate<validate> imm(enabled_features_, this,
-                                              pc() + 2);
+              HeapTypeImmediate<validate> imm(enabled_features_, this, pc() + 2,
+                                              module_.get());
+              if (V8_UNLIKELY(failed())) return {};
               len += imm.length;
-              if (!Validate(pc() + len, imm)) return {};
               if (stack.empty()) {
                 error(pc(), "calling rtt.sub without arguments");
                 return {};
@@ -1870,13 +1854,8 @@ class ModuleDecoderImpl : public Decoder {
   ValueType consume_value_type() {
     uint32_t type_length;
     ValueType result = value_type_reader::read_value_type<kFullValidation>(
-        this, this->pc(), &type_length,
+        this, this->pc(), &type_length, module_.get(),
         origin_ == kWasmOrigin ? enabled_features_ : WasmFeatures::None());
-    // We use capacity() over size() so this function works
-    // mid-DecodeTypeSection.
-    if (result.has_index() && result.ref_index() >= module_->types.capacity()) {
-      errorf(pc(), "Type index %u is out of bounds", result.ref_index());
-    }
     consume_bytes(type_length, "value type");
     return result;
   }
@@ -2166,7 +2145,7 @@ class ModuleDecoderImpl : public Decoder {
     switch (opcode) {
       case kExprRefNull: {
         HeapTypeImmediate<kFullValidation> imm(WasmFeatures::All(), this,
-                                               this->pc());
+                                               this->pc(), module_.get());
         consume_bytes(imm.length, "ref.null immediate");
         index = WasmElemSegment::kNullIndex;
         break;

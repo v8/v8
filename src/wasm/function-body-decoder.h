@@ -67,6 +67,7 @@ struct BodyLocalDecls {
 
 V8_EXPORT_PRIVATE bool DecodeLocalDecls(const WasmFeatures& enabled,
                                         BodyLocalDecls* decls,
+                                        const WasmModule* module,
                                         const byte* start, const byte* end);
 
 V8_EXPORT_PRIVATE BitVector* AnalyzeLoopAssignmentForTesting(
