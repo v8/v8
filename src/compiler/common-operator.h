@@ -488,9 +488,10 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
       DeoptimizeKind kind, DeoptimizeReason reason,
       FeedbackSource const& feedback,
       IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
-  // DynamicMapCheckUnless will call the dynamic map check builtin if the
-  // condition is false, which may then either deoptimize or resume execution.
-  const Operator* DynamicMapCheckUnless();
+  // DynamicCheckMapsWithDeoptUnless will call the dynamic map check builtin if
+  // the condition is false, which may then either deoptimize or resume
+  // execution.
+  const Operator* DynamicCheckMapsWithDeoptUnless();
   const Operator* TrapIf(TrapId trap_id);
   const Operator* TrapUnless(TrapId trap_id);
   const Operator* Return(int value_input_count = 1);
@@ -639,11 +640,12 @@ class StartNode final : public CommonNodeWrapperBase {
   }
 };
 
-class DynamicMapChecksUnlessNode final : public CommonNodeWrapperBase {
+class DynamicCheckMapsWithDeoptUnlessNode final : public CommonNodeWrapperBase {
  public:
-  explicit constexpr DynamicMapChecksUnlessNode(Node* node)
+  explicit constexpr DynamicCheckMapsWithDeoptUnlessNode(Node* node)
       : CommonNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kDynamicMapCheckUnless);
+    CONSTEXPR_DCHECK(node->opcode() ==
+                     IrOpcode::kDynamicCheckMapsWithDeoptUnless);
   }
 
 #define INPUTS(V)                   \

@@ -620,7 +620,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitCall(Node* call, BasicBlock* handler = nullptr);
   void VisitDeoptimizeIf(Node* node);
   void VisitDeoptimizeUnless(Node* node);
-  void VisitDynamicMapCheckUnless(Node* node);
+  void VisitDynamicCheckMapsWithDeoptUnless(Node* node);
   void VisitTrapIf(Node* node, TrapId trap_id);
   void VisitTrapUnless(Node* node, TrapId trap_id);
   void VisitTailCall(Node* call);

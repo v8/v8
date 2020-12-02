@@ -635,8 +635,8 @@ void Deoptimizer::DeleteFrameDescriptions() {
 
 Builtins::Name Deoptimizer::GetDeoptWithResumeBuiltin(DeoptimizeReason reason) {
   switch (reason) {
-    case DeoptimizeReason::kDynamicMapCheck:
-      return Builtins::kDynamicMapChecksTrampoline;
+    case DeoptimizeReason::kDynamicCheckMaps:
+      return Builtins::kDynamicCheckMapsTrampoline;
     default:
       UNREACHABLE();
   }

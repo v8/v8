@@ -107,7 +107,7 @@ TEST(DeoptExitSizeIsFixed) {
     if (kind == DeoptimizeKind::kEagerWithResume) {
       masm.bind(&before_exit);
       Builtins::Name target = Deoptimizer::GetDeoptWithResumeBuiltin(
-          DeoptimizeReason::kDynamicMapCheck);
+          DeoptimizeReason::kDynamicCheckMaps);
       masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
                                  &before_exit);
       CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),

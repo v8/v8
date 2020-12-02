@@ -10,28 +10,28 @@
 #include "src/common/globals.h"
 
 // Opcodes for control operators.
-#define CONTROL_OP_LIST(V) \
-  V(Start)                 \
-  V(Loop)                  \
-  V(Branch)                \
-  V(Switch)                \
-  V(IfTrue)                \
-  V(IfFalse)               \
-  V(IfSuccess)             \
-  V(IfException)           \
-  V(IfValue)               \
-  V(IfDefault)             \
-  V(Merge)                 \
-  V(Deoptimize)            \
-  V(DeoptimizeIf)          \
-  V(DeoptimizeUnless)      \
-  V(DynamicMapCheckUnless) \
-  V(TrapIf)                \
-  V(TrapUnless)            \
-  V(Return)                \
-  V(TailCall)              \
-  V(Terminate)             \
-  V(Throw)                 \
+#define CONTROL_OP_LIST(V)           \
+  V(Start)                           \
+  V(Loop)                            \
+  V(Branch)                          \
+  V(Switch)                          \
+  V(IfTrue)                          \
+  V(IfFalse)                         \
+  V(IfSuccess)                       \
+  V(IfException)                     \
+  V(IfValue)                         \
+  V(IfDefault)                       \
+  V(Merge)                           \
+  V(Deoptimize)                      \
+  V(DeoptimizeIf)                    \
+  V(DeoptimizeUnless)                \
+  V(DynamicCheckMapsWithDeoptUnless) \
+  V(TrapIf)                          \
+  V(TrapUnless)                      \
+  V(Return)                          \
+  V(TailCall)                        \
+  V(Terminate)                       \
+  V(Throw)                           \
   V(End)
 
 // Opcodes for constant operators.

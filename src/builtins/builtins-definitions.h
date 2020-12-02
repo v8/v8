@@ -232,9 +232,9 @@ namespace internal {
   TFH(KeyedHasIC_SloppyArguments, LoadWithVector)                              \
   TFH(HasIndexedInterceptorIC, LoadWithVector)                                 \
                                                                                \
-  /* Dynamic map checks */                                                     \
-  ASM(DynamicMapChecksTrampoline, DynamicMapChecks)                            \
-  TFC(DynamicMapChecks, DynamicMapChecks)                                      \
+  /* Dynamic check maps */                                                     \
+  ASM(DynamicCheckMapsTrampoline, DynamicCheckMaps)                            \
+  TFC(DynamicCheckMaps, DynamicCheckMaps)                                      \
                                                                                \
   /* Microtask helpers */                                                      \
   TFS(EnqueueMicrotask, kMicrotask)                                            \

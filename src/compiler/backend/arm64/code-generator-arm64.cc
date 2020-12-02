@@ -3247,7 +3247,7 @@ void CodeGenerator::PrepareForDeoptimizationExits(
   // Check which deopt kinds exist in this Code object, to avoid emitting jumps
   // to unused entries.
   bool saw_deopt_kind[kDeoptimizeKindCount] = {false};
-  constexpr auto eager_with_resume_reason = DeoptimizeReason::kDynamicMapCheck;
+  constexpr auto eager_with_resume_reason = DeoptimizeReason::kDynamicCheckMaps;
   for (auto exit : *exits) {
     // TODO(rmcilroy): If we add any other kinds of kEagerWithResume deoptimize
     // we will need to create a seperate array for each kEagerWithResume builtin

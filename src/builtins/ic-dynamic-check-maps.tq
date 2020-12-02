@@ -5,11 +5,11 @@
 namespace ic {
 
 const kSuccess: constexpr int32
-    generates 'static_cast<int>(DynamicMapChecksStatus::kSuccess)';
+    generates 'static_cast<int>(DynamicCheckMapsStatus::kSuccess)';
 const kBailout: constexpr int32
-    generates 'static_cast<int>(DynamicMapChecksStatus::kBailout)';
+    generates 'static_cast<int>(DynamicCheckMapsStatus::kBailout)';
 const kDeopt: constexpr int32
-    generates 'static_cast<int>(DynamicMapChecksStatus::kDeopt)';
+    generates 'static_cast<int>(DynamicCheckMapsStatus::kDeopt)';
 extern macro LoadFeedbackVectorForStubWithTrampoline(): FeedbackVector;
 
 macro PerformPolymorphicCheck(
@@ -81,7 +81,7 @@ macro PerformMonomorphicCheck(
 // status to bailout to the interpreter and update the feedback. If we have seen
 // the map, but the associated handler check fails then we return kDeopt status.
 @export
-macro DynamicMapChecks(
+macro DynamicCheckMaps(
     slotIndex: intptr, actualMap: Map, actualHandler: Smi|DataHandler): int32 {
   const feedbackVector = LoadFeedbackVectorForStubWithTrampoline();
   const feedback = feedbackVector[slotIndex];

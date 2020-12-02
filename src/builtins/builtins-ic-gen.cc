@@ -55,11 +55,11 @@ IC_BUILTIN_PARAM(LoadGlobalICTrampoline, LoadGlobalICTrampoline,
 IC_BUILTIN_PARAM(LoadGlobalICInsideTypeofTrampoline, LoadGlobalICTrampoline,
                  INSIDE_TYPEOF)
 
-TF_BUILTIN(DynamicMapChecks, CodeStubAssembler) {
+TF_BUILTIN(DynamicCheckMaps, CodeStubAssembler) {
   auto slot = UncheckedParameter<IntPtrT>(Descriptor::kSlot);
   auto map = Parameter<Map>(Descriptor::kMap);
   auto handler = Parameter<Object>(Descriptor::kHandler);
-  TNode<Int32T> status = DynamicMapChecks(slot, map, handler);
+  TNode<Int32T> status = DynamicCheckMaps(slot, map, handler);
   Return(status);
 }
 

@@ -1382,8 +1382,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitDeoptimizeIf(node);
     case IrOpcode::kDeoptimizeUnless:
       return VisitDeoptimizeUnless(node);
-    case IrOpcode::kDynamicMapCheckUnless:
-      return VisitDynamicMapCheckUnless(node);
+    case IrOpcode::kDynamicCheckMapsWithDeoptUnless:
+      return VisitDynamicCheckMapsWithDeoptUnless(node);
     case IrOpcode::kTrapIf:
       return VisitTrapIf(node, TrapIdOf(node->op()));
     case IrOpcode::kTrapUnless:
@@ -3177,12 +3177,12 @@ void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
   }
 }
 
-void InstructionSelector::VisitDynamicMapCheckUnless(Node* node) {
+void InstructionSelector::VisitDynamicCheckMapsWithDeoptUnless(Node* node) {
   OperandGenerator g(this);
-  DynamicMapChecksUnlessNode n(node);
+  DynamicCheckMapsWithDeoptUnlessNode n(node);
   DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
 
-  DynamicMapChecksDescriptor descriptor;
+  DynamicCheckMapsDescriptor descriptor;
   // Note: We use Operator::kNoDeopt here because this builtin does not lazy
   // deoptimize (which is the meaning of Operator::kNoDeopt), even though it can
   // eagerly deoptimize.

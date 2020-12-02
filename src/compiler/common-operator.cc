@@ -113,7 +113,7 @@ DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const op) {
   DCHECK(op->opcode() == IrOpcode::kDeoptimize ||
          op->opcode() == IrOpcode::kDeoptimizeIf ||
          op->opcode() == IrOpcode::kDeoptimizeUnless ||
-         op->opcode() == IrOpcode::kDynamicMapCheckUnless);
+         op->opcode() == IrOpcode::kDynamicCheckMapsWithDeoptUnless);
   return OpParameter<DeoptimizeParameters>(op);
 }
 
@@ -785,17 +785,17 @@ struct CommonOperatorGlobalCache final {
 
   struct DynamicMapCheckOperator final : Operator1<DeoptimizeParameters> {
     DynamicMapCheckOperator()
-        : Operator1<DeoptimizeParameters>(               // --
-              IrOpcode::kDynamicMapCheckUnless,          // opcode
-              Operator::kFoldable | Operator::kNoThrow,  // properties
-              "DynamicMapCheckUnless",                   // name
-              5, 1, 1, 0, 1, 1,                          // counts
+        : Operator1<DeoptimizeParameters>(                 // --
+              IrOpcode::kDynamicCheckMapsWithDeoptUnless,  // opcode
+              Operator::kFoldable | Operator::kNoThrow,    // properties
+              "DynamicCheckMapsWithDeoptUnless",           // name
+              5, 1, 1, 0, 1, 1,                            // counts
               DeoptimizeParameters(DeoptimizeKind::kEagerWithResume,
-                                   DeoptimizeReason::kDynamicMapCheck,
+                                   DeoptimizeReason::kDynamicCheckMaps,
                                    FeedbackSource(),
                                    IsSafetyCheck::kCriticalSafetyCheck)) {}
   };
-  DynamicMapCheckOperator kDynamicMapCheckUnless;
+  DynamicMapCheckOperator kDynamicCheckMapsWithDeoptUnless;
 
   template <TrapId trap_id>
   struct TrapIfOperator final : public Operator1<TrapId> {
@@ -1034,8 +1034,8 @@ const Operator* CommonOperatorBuilder::DeoptimizeUnless(
       parameter);                                       // parameter
 }
 
-const Operator* CommonOperatorBuilder::DynamicMapCheckUnless() {
-  return &cache_.kDynamicMapCheckUnless;
+const Operator* CommonOperatorBuilder::DynamicCheckMapsWithDeoptUnless() {
+  return &cache_.kDynamicCheckMapsWithDeoptUnless;
 }
 
 const Operator* CommonOperatorBuilder::TrapIf(TrapId trap_id) {

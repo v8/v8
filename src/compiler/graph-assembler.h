@@ -330,8 +330,9 @@ class V8_EXPORT_PRIVATE GraphAssembler {
       DeoptimizeReason reason, FeedbackSource const& feedback, Node* condition,
       Node* frame_state,
       IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
-  Node* DynamicMapCheckUnless(Node* condition, Node* slot_index, Node* map,
-                              Node* handler, Node* frame_state);
+  Node* DynamicCheckMapsWithDeoptUnless(Node* condition, Node* slot_index,
+                                        Node* map, Node* handler,
+                                        Node* frame_state);
   TNode<Object> Call(const CallDescriptor* call_descriptor, int inputs_size,
                      Node** inputs);
   TNode<Object> Call(const Operator* op, int inputs_size, Node** inputs);

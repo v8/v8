@@ -1907,8 +1907,8 @@ void EffectControlLinearizer::LowerDynamicCheckMaps(Node* node,
     Node* map = __ HeapConstant(maps[i]);
     Node* check = __ TaggedEqual(actual_value_map, map);
     if (i == map_count - 1) {
-      __ DynamicMapCheckUnless(check, slot_index, actual_value_map,
-                               actual_handler, frame_state);
+      __ DynamicCheckMapsWithDeoptUnless(check, slot_index, actual_value_map,
+                                         actual_handler, frame_state);
       __ Goto(&done);
     } else {
       auto next_map = __ MakeLabel();

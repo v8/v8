@@ -58,7 +58,7 @@ namespace internal {
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                 \
   V(kUnalignedCellInWriteBarrier, "Unaligned cell in write barrier")           \
   V(kUnexpectedAdditionalPopValue, "Unexpected additional pop value")          \
-  V(kUnexpectedDynamicMapChecksStatus, "Unexpected dynamic map checks status") \
+  V(kUnexpectedDynamicCheckMapsStatus, "Unexpected dynamic map checks status") \
   V(kUnexpectedElementsKindInArrayConstructor,                                 \
     "Unexpected ElementsKind in array constructor")                            \
   V(kUnexpectedFPCRMode, "Unexpected FPCR mode.")                              \
