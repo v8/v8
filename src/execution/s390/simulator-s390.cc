@@ -3029,10 +3029,19 @@ EVALUATE(VLGV) {
   DECODE_VRS_INSTRUCTION(r1, r3, b2, d2, m4);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t index = b2_val + d2;
-  const int size_by_byte = 1 << m4;
-  int8_t* src = get_simd_register(r3).int8 + index * size_by_byte;
-  set_register(r1, 0);
-  base::Memcpy(&get_register(r1), src, size_by_byte);
+#define CASE(i, type)                                             \
+  case i:                                                         \
+    set_register(r1, get_simd_register_by_lane<type>(r3, index)); \
+    break;
+  switch (m4) {
+    CASE(0, uint8_t);
+    CASE(1, uint16_t);
+    CASE(2, uint32_t);
+    CASE(3, uint64_t);
+    default:
+      UNREACHABLE();
+  }
+#undef CASE
   return length;
 }
 
@@ -3041,9 +3050,20 @@ EVALUATE(VLVG) {
   DECODE_VRS_INSTRUCTION(r1, r3, b2, d2, m4);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t index = b2_val + d2;
-  const int size_by_byte = 1 << m4;
-  int8_t* dst = get_simd_register(r1).int8 + index * size_by_byte;
-  base::Memcpy(dst, &get_register(r3), size_by_byte);
+#define CASE(i, type)                                                     \
+  case i:                                                                 \
+    set_simd_register_by_lane<type>(r1, index,                            \
+                                    static_cast<type>(get_register(r3))); \
+    break;
+  switch (m4) {
+    CASE(0, uint8_t);
+    CASE(1, uint16_t);
+    CASE(2, uint32_t);
+    CASE(3, uint64_t);
+    default:
+      UNREACHABLE();
+  }
+#undef CASE
   return length;
 }
 
@@ -3055,16 +3075,29 @@ EVALUATE(VLVGP) {
   return length;
 }
 
+#define FOR_EACH_LANE(i, type) \
+  for (uint32_t i = 0; i < kSimd128Size / sizeof(type); i++)
+
 EVALUATE(VREP) {
   DCHECK_OPCODE(VREP);
   DECODE_VRI_C_INSTRUCTION(r1, r3, i2, m4);
-  const int size_by_byte = 1 << m4;
-  DCHECK(i2 >= 0 && i2 < kSimd128Size / size_by_byte);
-  int8_t* src = get_simd_register(r3).int8;
-  int8_t* dst = get_simd_register(r1).int8;
-  for (int i = 0; i < kSimd128Size; i += size_by_byte) {
-    base::Memcpy(dst + i, src + i2 * size_by_byte, size_by_byte);
+#define CASE(i, type)                                      \
+  case i: {                                                \
+    FOR_EACH_LANE(j, type) {                               \
+      set_simd_register_by_lane<type>(                     \
+          r1, j, get_simd_register_by_lane<type>(r3, i2)); \
+    }                                                      \
+    break;                                                 \
   }
+  switch (m4) {
+    CASE(0, uint8_t);
+    CASE(1, uint16_t);
+    CASE(2, uint32_t);
+    CASE(3, uint64_t);
+    default:
+      UNREACHABLE();
+  }
+#undef CASE
   return length;
 }
 
@@ -3072,26 +3105,44 @@ EVALUATE(VLREP) {
   DCHECK_OPCODE(VLREP);
   DECODE_VRX_INSTRUCTION(r1, x2, b2, d2, m3);
   intptr_t addr = GET_ADDRESS(x2, b2, d2);
-  const int size_by_byte = 1 << m3;
-  int8_t* dst = get_simd_register(r1).int8;
-  int8_t* src = reinterpret_cast<int8_t*>(addr);
-  set_simd_register(r1, fp_zero);
-  for (int i = 0; i < kSimd128Size; i += size_by_byte) {
-    base::Memcpy(dst + i, src, size_by_byte);
+#define CASE(i, type)                                                         \
+  case i: {                                                                   \
+    FOR_EACH_LANE(j, type) {                                                  \
+      set_simd_register_by_lane<type>(r1, j, *reinterpret_cast<type*>(addr)); \
+    }                                                                         \
+    break;                                                                    \
   }
+  switch (m3) {
+    CASE(0, uint8_t);
+    CASE(1, uint16_t);
+    CASE(2, uint32_t);
+    CASE(3, uint64_t);
+    default:
+      UNREACHABLE();
+  }
+#undef CASE
   return length;
 }
 
 EVALUATE(VREPI) {
   DCHECK_OPCODE(VREPI);
   DECODE_VRI_A_INSTRUCTION(r1, i2, m3);
-  const int size_by_byte = 1 << m3;
-  int8_t* dst = get_simd_register(r1).int8;
-  uint64_t immediate = static_cast<uint64_t>(i2);
-  set_simd_register(r1, fp_zero);
-  for (int i = 0; i < kSimd128Size; i += size_by_byte) {
-    base::Memcpy(dst + i, &immediate, size_by_byte);
+#define CASE(i, type)                                                \
+  case i: {                                                          \
+    FOR_EACH_LANE(j, type) {                                         \
+      set_simd_register_by_lane<type>(r1, j, static_cast<type>(i2)); \
+    }                                                                \
+    break;                                                           \
   }
+  switch (m3) {
+    CASE(0, int8_t);
+    CASE(1, int16_t);
+    CASE(2, int32_t);
+    CASE(3, int64_t);
+    default:
+      UNREACHABLE();
+  }
+#undef CASE
   return length;
 }
 
@@ -3123,25 +3174,20 @@ EVALUATE(VLEF) {
   return length;
 }
 
+// TODO(john): unify most fp binary operations
 template <class T, class Operation>
-inline static void VectorBinaryOp(void* dst, void* src1, void* src2,
+inline static void VectorBinaryOp(Simulator* sim, int dst, int src1, int src2,
                                   Operation op) {
-  int8_t* src1_ptr = reinterpret_cast<int8_t*>(src1);
-  int8_t* src2_ptr = reinterpret_cast<int8_t*>(src2);
-  int8_t* dst_ptr = reinterpret_cast<int8_t*>(dst);
-  for (int i = 0; i < kSimd128Size; i += sizeof(T)) {
-    T& dst_val = *reinterpret_cast<T*>(dst_ptr + i);
-    T& src1_val = *reinterpret_cast<T*>(src1_ptr + i);
-    T& src2_val = *reinterpret_cast<T*>(src2_ptr + i);
-    dst_val = op(src1_val, src2_val);
-    base::Memcpy(dst_ptr + i, &dst_val, sizeof(T));
+  FOR_EACH_LANE(i, T) {
+    T src1_val = sim->get_simd_register_by_lane<T>(src1, i);
+    T src2_val = sim->get_simd_register_by_lane<T>(src2, i);
+    T dst_val = op(src1_val, src2_val);
+    sim->set_simd_register_by_lane<T>(dst, i, dst_val);
   }
 }
 
-#define VECTOR_BINARY_OP_FOR_TYPE(type, op)                            \
-  VectorBinaryOp<type>(&get_simd_register(r1), &get_simd_register(r2), \
-                       &get_simd_register(r3),                         \
-                       [](type a, type b) { return a op b; });
+#define VECTOR_BINARY_OP_FOR_TYPE(type, op) \
+  VectorBinaryOp<type>(this, r1, r2, r3, [](type a, type b) { return a op b; });
 
 #define VECTOR_BINARY_OP(op)                 \
   switch (m4) {                              \
@@ -3254,33 +3300,31 @@ EVALUATE(VNC) {
 }
 
 template <class S, class D>
-void VectorSum(void* dst, void* src1, void* src2) {
+void VectorSum(Simulator* sim, int dst, int src1, int src2) {
   D value = 0;
-  for (size_t i = 0; i < kSimd128Size / sizeof(S); i++) {
-    value += *(reinterpret_cast<S*>(src1) + i);
+  FOR_EACH_LANE(i, S) {
+    value += sim->get_simd_register_by_lane<S>(src1, i);
     if ((i + 1) % (sizeof(D) / sizeof(S)) == 0) {
-      value += *(reinterpret_cast<S*>(src2) + i);
-      base::Memcpy(reinterpret_cast<D*>(dst) + i / (sizeof(D) / sizeof(S)),
-                   &value, sizeof(D));
+      value += sim->get_simd_register_by_lane<S>(src2, i);
+      sim->set_simd_register_by_lane<D>(dst, i / (sizeof(D) / sizeof(S)),
+                                        value);
       value = 0;
     }
   }
 }
 
+#define CASE(i, S, D)                  \
+  case i:                              \
+    VectorSum<S, D>(this, r1, r2, r3); \
+    break;
 EVALUATE(VSUM) {
   DCHECK_OPCODE(VSUM);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
   USE(m6);
   USE(m5);
-  fpr_t src1 = get_simd_register(r2);
-  fpr_t src2 = get_simd_register(r3);
   switch (m4) {
-    case 0:
-      VectorSum<int8_t, int32_t>(&get_simd_register(r1), &src1, &src2);
-      break;
-    case 1:
-      VectorSum<int16_t, int32_t>(&get_simd_register(r1), &src1, &src2);
-      break;
+    CASE(1, int8_t, int32_t);
+    CASE(2, int16_t, int32_t);
     default:
       UNREACHABLE();
   }
@@ -3292,60 +3336,51 @@ EVALUATE(VSUMG) {
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
   USE(m6);
   USE(m5);
-  fpr_t src1 = get_simd_register(r2);
-  fpr_t src2 = get_simd_register(r3);
   switch (m4) {
-    case 1:
-      VectorSum<int16_t, int64_t>(&get_simd_register(r1), &src1, &src2);
-      break;
-    case 2:
-      VectorSum<int32_t, int64_t>(&get_simd_register(r1), &src1, &src2);
-      break;
+    CASE(1, int16_t, int64_t);
+    CASE(2, int32_t, int64_t);
     default:
       UNREACHABLE();
   }
   return length;
 }
+#undef CASE
 
 template <class S, class D>
-void VectorPack(void* dst, void* src1, void* src2, bool saturate,
+void VectorPack(Simulator* sim, int dst, int src1, int src2, bool saturate,
                 const D& max = 0, const D& min = 0) {
-  S* src = reinterpret_cast<S*>(src1);
+  int src = src1;
   int count = 0;
   S value = 0;
   for (size_t i = 0; i < kSimd128Size / sizeof(D); i++, count++) {
     if (count == kSimd128Size / sizeof(S)) {
-      src = reinterpret_cast<S*>(src2);
+      src = src2;
       count = 0;
     }
-    base::Memcpy(&value, src + count, sizeof(S));
+    value = sim->get_simd_register_by_lane<S>(src, count);
     if (saturate) {
       if (value > max)
         value = max;
       else if (value < min)
         value = min;
     }
-    base::Memcpy(reinterpret_cast<D*>(dst) + i, &value, sizeof(D));
+    sim->set_simd_register_by_lane<D>(dst, i, value);
   }
 }
 
+#define CASE(i, S, D, SAT, MAX, MIN)                   \
+  case i:                                              \
+    VectorPack<S, D>(this, r1, r2, r3, SAT, MAX, MIN); \
+    break;
 EVALUATE(VPK) {
   DCHECK_OPCODE(VPK);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
   USE(m6);
   USE(m5);
-  fpr_t src1 = get_simd_register(r2);
-  fpr_t src2 = get_simd_register(r3);
   switch (m4) {
-    case 1:
-      VectorPack<int16_t, int8_t>(&get_simd_register(r1), &src1, &src2, false);
-      break;
-    case 2:
-      VectorPack<int32_t, int16_t>(&get_simd_register(r1), &src1, &src2, false);
-      break;
-    case 3:
-      VectorPack<int64_t, int32_t>(&get_simd_register(r1), &src1, &src2, false);
-      break;
+    CASE(1, int16_t, int8_t, false, 0, 0);
+    CASE(2, int32_t, int16_t, false, 0, 0);
+    CASE(3, int64_t, int32_t, false, 0, 0);
     default:
       UNREACHABLE();
   }
@@ -3357,21 +3392,10 @@ EVALUATE(VPKS) {
   DECODE_VRR_B_INSTRUCTION(r1, r2, r3, m5, m4);
   USE(m5);
   USE(m4);
-  fpr_t src1 = get_simd_register(r2);
-  fpr_t src2 = get_simd_register(r3);
   switch (m4) {
-    case 1:
-      VectorPack<int16_t, int8_t>(&get_simd_register(r1), &src1, &src2, true,
-                                  INT8_MAX, INT8_MIN);
-      break;
-    case 2:
-      VectorPack<int32_t, int16_t>(&get_simd_register(r1), &src1, &src2, true,
-                                   INT16_MAX, INT16_MIN);
-      break;
-    case 3:
-      VectorPack<int64_t, int32_t>(&get_simd_register(r1), &src1, &src2, true,
-                                   INT32_MAX, INT32_MIN);
-      break;
+    CASE(1, int16_t, int8_t, true, INT8_MAX, INT8_MIN);
+    CASE(2, int32_t, int16_t, true, INT16_MAX, INT16_MIN);
+    CASE(3, int64_t, int32_t, true, INT32_MAX, INT32_MIN);
     default:
       UNREACHABLE();
   }
@@ -3383,36 +3407,31 @@ EVALUATE(VPKLS) {
   DECODE_VRR_B_INSTRUCTION(r1, r2, r3, m5, m4);
   USE(m5);
   USE(m4);
-  fpr_t src1 = get_simd_register(r2);
-  fpr_t src2 = get_simd_register(r3);
   switch (m4) {
-    case 1:
-      VectorPack<uint16_t, uint8_t>(&get_simd_register(r1), &src1, &src2, true,
-                                    UINT8_MAX, 0);
-      break;
-    case 2:
-      VectorPack<uint32_t, uint16_t>(&get_simd_register(r1), &src1, &src2, true,
-                                     UINT16_MAX, 0);
-      break;
-    case 3:
-      VectorPack<uint64_t, uint32_t>(&get_simd_register(r1), &src1, &src2, true,
-                                     UINT32_MAX, 0);
-      break;
+    CASE(1, uint16_t, uint8_t, true, UINT8_MAX, 0);
+    CASE(2, uint32_t, uint16_t, true, UINT16_MAX, 0);
+    CASE(3, uint64_t, uint32_t, true, UINT32_MAX, 0);
     default:
       UNREACHABLE();
   }
   return length;
 }
 
+#undef CASE
 template <class S, class D>
-void VectorUnpackHigh(void* dst, void* src) {
+void VectorUnpackHigh(Simulator* sim, int dst, int src) {
   constexpr size_t kItemCount = kSimd128Size / sizeof(D);
   D value = 0;
   for (size_t i = 0; i < kItemCount; i++) {
-    value = *(reinterpret_cast<S*>(src) + i + kItemCount);
-    base::Memcpy(reinterpret_cast<D*>(dst) + i, &value, sizeof(D));
+    value = sim->get_simd_register_by_lane<S>(src, i + kItemCount);
+    sim->set_simd_register_by_lane<D>(dst, i, value);
   }
 }
+
+#define CASE(i, S, D)                     \
+  case i:                                 \
+    VectorUnpackHigh<S, D>(this, r1, r2); \
+    break;
 
 EVALUATE(VUPH) {
   DCHECK_OPCODE(VUPH);
@@ -3420,18 +3439,9 @@ EVALUATE(VUPH) {
   USE(m5);
   USE(m4);
   switch (m3) {
-    case 0:
-      VectorUnpackHigh<int8_t, int16_t>(&get_simd_register(r1),
-                                        &get_simd_register(r2));
-      break;
-    case 1:
-      VectorUnpackHigh<int16_t, int32_t>(&get_simd_register(r1),
-                                         &get_simd_register(r2));
-      break;
-    case 2:
-      VectorUnpackHigh<int32_t, int64_t>(&get_simd_register(r1),
-                                         &get_simd_register(r2));
-      break;
+    CASE(0, int8_t, int16_t);
+    CASE(1, int16_t, int32_t);
+    CASE(2, int32_t, int64_t);
     default:
       UNREACHABLE();
   }
@@ -3444,55 +3454,38 @@ EVALUATE(VUPLH) {
   USE(m5);
   USE(m4);
   switch (m3) {
-    case 0:
-      VectorUnpackHigh<uint8_t, uint16_t>(&get_simd_register(r1),
-                                          &get_simd_register(r2));
-      break;
-    case 1:
-      VectorUnpackHigh<uint16_t, uint32_t>(&get_simd_register(r1),
-                                           &get_simd_register(r2));
-      break;
-    case 2:
-      VectorUnpackHigh<uint32_t, uint64_t>(&get_simd_register(r1),
-                                           &get_simd_register(r2));
-      break;
+    CASE(0, uint8_t, uint16_t);
+    CASE(1, uint16_t, uint32_t);
+    CASE(2, uint32_t, uint64_t);
     default:
       UNREACHABLE();
   }
   return length;
 }
+#undef CASE
 
 template <class S, class D>
-void VectorUnpackLow(void* dst, void* src) {
+void VectorUnpackLow(Simulator* sim, int dst, int src) {
   constexpr size_t kItemCount = kSimd128Size / sizeof(D);
   D temps[kItemCount] = {0};
   // About overwriting if src and dst are the same register.
-  for (size_t i = 0; i < kItemCount; i++) {
-    temps[i] = static_cast<D>(*(reinterpret_cast<S*>(src) + i));
-  }
-  for (size_t i = 0; i < kItemCount; i++) {
-    base::Memcpy(reinterpret_cast<D*>(dst) + i, &temps[i], sizeof(D));
-  }
+  FOR_EACH_LANE(i, D) { temps[i] = sim->get_simd_register_by_lane<S>(src, i); }
+  FOR_EACH_LANE(i, D) { sim->set_simd_register_by_lane<D>(dst, i, temps[i]); }
 }
 
+#define CASE(i, S, D)                    \
+  case i:                                \
+    VectorUnpackLow<S, D>(this, r1, r2); \
+    break;
 EVALUATE(VUPL) {
   DCHECK_OPCODE(VUPL);
   DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
   USE(m5);
   USE(m4);
   switch (m3) {
-    case 0:
-      VectorUnpackLow<int8_t, int16_t>(&get_simd_register(r1),
-                                       &get_simd_register(r2));
-      break;
-    case 1:
-      VectorUnpackLow<int16_t, int32_t>(&get_simd_register(r1),
-                                        &get_simd_register(r2));
-      break;
-    case 2:
-      VectorUnpackLow<int32_t, int64_t>(&get_simd_register(r1),
-                                        &get_simd_register(r2));
-      break;
+    CASE(0, int8_t, int16_t);
+    CASE(1, int16_t, int32_t);
+    CASE(2, int32_t, int64_t);
     default:
       UNREACHABLE();
   }
@@ -3505,27 +3498,18 @@ EVALUATE(VUPLL) {
   USE(m5);
   USE(m4);
   switch (m3) {
-    case 0:
-      VectorUnpackLow<uint8_t, uint16_t>(&get_simd_register(r1),
-                                         &get_simd_register(r2));
-      break;
-    case 1:
-      VectorUnpackLow<uint16_t, uint32_t>(&get_simd_register(r1),
-                                          &get_simd_register(r2));
-      break;
-    case 2:
-      VectorUnpackLow<uint32_t, uint64_t>(&get_simd_register(r1),
-                                          &get_simd_register(r2));
-      break;
+    CASE(0, uint8_t, uint16_t);
+    CASE(1, uint16_t, uint32_t);
+    CASE(2, uint32_t, uint64_t);
     default:
       UNREACHABLE();
   }
   return length;
 }
+#undef CASE
 
-#define VECTOR_MAX_MIN_FOR_TYPE(type, op)                              \
-  VectorBinaryOp<type>(&get_simd_register(r1), &get_simd_register(r2), \
-                       &get_simd_register(r3),                         \
+#define VECTOR_MAX_MIN_FOR_TYPE(type, op) \
+  VectorBinaryOp<type>(this, r1, r2, r3,  \
                        [](type a, type b) { return (a op b) ? a : b; });
 
 #define VECTOR_MAX_MIN(op, sign)                 \
@@ -3583,9 +3567,8 @@ EVALUATE(VMNL) {
   return length;
 }
 
-#define VECTOR_COMPARE_FOR_TYPE(type, op)                              \
-  VectorBinaryOp<type>(&get_simd_register(r1), &get_simd_register(r2), \
-                       &get_simd_register(r3),                         \
+#define VECTOR_COMPARE_FOR_TYPE(type, op) \
+  VectorBinaryOp<type>(this, r1, r2, r3,  \
                        [](type a, type b) { return (a op b) ? -1 : 0; });
 
 #define VECTOR_COMPARE(op, sign)                 \
@@ -3701,14 +3684,10 @@ EVALUATE(VNO) {
 #undef VECTOR_NOR
 
 template <class T>
-void VectorLoadComplement(void* dst, void* src) {
-  int8_t* src_ptr = reinterpret_cast<int8_t*>(src);
-  int8_t* dst_ptr = reinterpret_cast<int8_t*>(dst);
-  for (int i = 0; i < kSimd128Size; i += sizeof(T)) {
-    T& src_val = *reinterpret_cast<T*>(src_ptr + i);
-    T& dst_val = *reinterpret_cast<T*>(dst_ptr + i);
-    dst_val = -(uint64_t)src_val;
-    base::Memcpy(dst_ptr + i, &dst_val, sizeof(T));
+void VectorLoadComplement(Simulator* sim, int dst, int src) {
+  FOR_EACH_LANE(i, T) {
+    T src_val = sim->get_simd_register_by_lane<T>(src, i);
+    sim->set_simd_register_by_lane<T>(dst, i, -src_val);
   }
 }
 
@@ -3718,24 +3697,17 @@ EVALUATE(VLC) {
   USE(m5);
   USE(m4);
   switch (m3) {
-    case 0:
-      VectorLoadComplement<int8_t>(&get_simd_register(r1),
-                                   &get_simd_register(r2));
-      break;
-    case 1:
-      VectorLoadComplement<int16_t>(&get_simd_register(r1),
-                                    &get_simd_register(r2));
-      break;
-    case 2:
-      VectorLoadComplement<int32_t>(&get_simd_register(r1),
-                                    &get_simd_register(r2));
-      break;
-    case 3:
-      VectorLoadComplement<int64_t>(&get_simd_register(r1),
-                                    &get_simd_register(r2));
-      break;
+#define CASE(i, type)                         \
+  case i:                                     \
+    VectorLoadComplement<type>(this, r1, r2); \
+    break;
+    CASE(0, int8_t);
+    CASE(1, int16_t);
+    CASE(2, int32_t);
+    CASE(3, int64_t);
     default:
       UNREACHABLE();
+#undef CASE
   }
   return length;
 }
@@ -3806,19 +3778,17 @@ EVALUATE(VSEL) {
 }
 
 template <class T, class Operation>
-void VectorShift(void* dst, void* src, unsigned int shift, Operation op) {
-  int8_t* src_ptr = reinterpret_cast<int8_t*>(src);
-  int8_t* dst_ptr = reinterpret_cast<int8_t*>(dst);
-  for (int i = 0; i < kSimd128Size; i += sizeof(T)) {
-    T& dst_val = *reinterpret_cast<T*>(dst_ptr + i);
-    T& src_val = *reinterpret_cast<T*>(src_ptr + i);
-    dst_val = op(src_val, shift);
-    base::Memcpy(dst_ptr + i, &dst_val, sizeof(T));
+void VectorShift(Simulator* sim, int dst, int src, unsigned int shift,
+                 Operation op) {
+  FOR_EACH_LANE(i, T) {
+    T src_val = sim->get_simd_register_by_lane<T>(src, i);
+    T dst_val = op(src_val, shift);
+    sim->set_simd_register_by_lane<T>(dst, i, dst_val);
   }
 }
 
-#define VECTOR_SHIFT_FOR_TYPE(type, op, shift)                             \
-  VectorShift<type>(&get_simd_register(r1), &get_simd_register(r3), shift, \
+#define VECTOR_SHIFT_FOR_TYPE(type, op, shift) \
+  VectorShift<type>(this, r1, r3, shift,       \
                     [](type a, unsigned int shift) { return a op shift; });
 
 #define VECTOR_SHIFT(op, sign)                        \
@@ -4063,33 +4033,29 @@ EVALUATE(VFNMS) {
 #undef VECTOR_FP_MULTIPLY_QFMS_OPERATION
 
 template <class T, class Operation>
-void VectorFPMaxMin(void* dst, void* src1, void* src2, int mode, Operation op) {
-  T* dst_ptr = reinterpret_cast<T*>(dst);
-  T* src1_ptr = reinterpret_cast<T*>(src1);
-  T* src2_ptr = reinterpret_cast<T*>(src2);
+void VectorFPMaxMin(Simulator* sim, int dst, int src1, int src2, int mode,
+                    Operation op) {
   for (size_t i = 0; i < kSimd128Size / sizeof(T); i++) {
-    T src1_val = *(src1_ptr + i);
-    T src2_val = *(src2_ptr + i);
+    T src1_val = sim->get_simd_register_by_lane<T>(src1, i);
+    T src2_val = sim->get_simd_register_by_lane<T>(src2, i);
     T value = op(src1_val, src2_val, mode);
-    base::Memcpy(dst_ptr + i, &value, sizeof(T));
+    sim->set_simd_register_by_lane<T>(dst, i, value);
   }
 }
 
-#define VECTOR_FP_MAX_MIN_FOR_TYPE(type, op, std_op)                   \
-  VectorFPMaxMin<type>(&get_simd_register(r1), &get_simd_register(r2), \
-                       &get_simd_register(r3), m6,                     \
-                       [](type a, type b, int mode) {                  \
-                         if (mode == 3) {                              \
-                           return std::std_op(a, b);                   \
-                         }                                             \
-                         if (isnan(a) || isnan(b))                     \
-                           return static_cast<type>(NAN);              \
-                         else if (signbit(b) op signbit(a))            \
-                           return a;                                   \
-                         else if (signbit(b) != signbit(a))            \
-                           return b;                                   \
-                         return (a op b) ? a : b;                      \
-                       });
+#define VECTOR_FP_MAX_MIN_FOR_TYPE(type, op, std_op)                        \
+  VectorFPMaxMin<type>(this, r1, r2, r3, m6, [](type a, type b, int mode) { \
+    if (mode == 3) {                                                        \
+      return std::std_op(a, b);                                             \
+    }                                                                       \
+    if (isnan(a) || isnan(b))                                               \
+      return static_cast<type>(NAN);                                        \
+    else if (signbit(b) op signbit(a))                                      \
+      return a;                                                             \
+    else if (signbit(b) != signbit(a))                                      \
+      return b;                                                             \
+    return (a op b) ? a : b;                                                \
+  });
 
 #define VECTOR_FP_MAX_MIN(op, std_op)                                          \
   switch (m4) {                                                                \
@@ -4137,21 +4103,20 @@ EVALUATE(VFMAX) {
 }
 
 template <class S, class D, class Operation>
-void VectorFPCompare(void* dst, void* src1, void* src2, Operation op) {
-  D* dst_ptr = reinterpret_cast<D*>(dst);
-  S* src1_ptr = reinterpret_cast<S*>(src1);
-  S* src2_ptr = reinterpret_cast<S*>(src2);
-  for (size_t i = 0; i < kSimd128Size / sizeof(D); i++) {
-    S src1_val = *(src1_ptr + i);
-    S src2_val = *(src2_ptr + i);
+void VectorFPCompare(Simulator* sim, int dst, int src1, int src2,
+                     Operation op) {
+  static_assert(sizeof(S) == sizeof(D),
+                "Expect input type size == output type size");
+  FOR_EACH_LANE(i, D) {
+    S src1_val = sim->get_simd_register_by_lane<S>(src1, i);
+    S src2_val = sim->get_simd_register_by_lane<S>(src2, i);
     D value = op(src1_val, src2_val);
-    base::Memcpy(dst_ptr + i, &value, sizeof(D));
+    sim->set_simd_register_by_lane<D>(dst, i, value);
   }
 }
 
-#define VECTOR_FP_COMPARE_FOR_TYPE(S, D, op)                            \
-  VectorFPCompare<S, D>(&get_simd_register(r1), &get_simd_register(r2), \
-                        &get_simd_register(r3),                         \
+#define VECTOR_FP_COMPARE_FOR_TYPE(S, D, op) \
+  VectorFPCompare<S, D>(this, r1, r2, r3,    \
                         [](S a, S b) { return (a op b) ? -1 : 0; });
 
 #define VECTOR_FP_COMPARE(op)                                               \
@@ -4206,79 +4171,54 @@ EVALUATE(VFCH) {
   return length;
 }
 
+// TODO(john): unify most fp unary operations
+// sec = Single Element Control mask
+template <class T, class Op>
+static void VectorUnaryOp(Simulator* sim, int dst, int src, int sec, Op op) {
+  if (sec == 8) {
+    T value = op(sim->get_fpr<T>(src));
+    sim->set_fpr(dst, value);
+  } else {
+    CHECK_EQ(sec, 0);
+    FOR_EACH_LANE(i, T) {
+      T value = op(sim->get_simd_register_by_lane<T>(src, i));
+      sim->set_simd_register_by_lane<T>(dst, i, value);
+    }
+  }
+}
+
+#define CASE(i, T, op)                       \
+  case i:                                    \
+    VectorUnaryOp<T>(sim, dst, src, m4, op); \
+    break;
+
 template <class T>
-void VectorSignOp(void* dst, void* src, int m4, int m5) {
-  T* src_ptr = reinterpret_cast<T*>(src);
-  T* dst_ptr = reinterpret_cast<T*>(dst);
+void VectorSignOp(Simulator* sim, int dst, int src, int m4, int m5) {
   switch (m5) {
-    case 0:
-      if (m4 == 8) {
-        T value = -(*src_ptr);
-        base::Memcpy(dst_ptr, &value, sizeof(T));
-      } else {
-        for (size_t i = 0; i < kSimd128Size / sizeof(T); i++) {
-          T value = -(*(src_ptr + i));
-          base::Memcpy(dst_ptr + i, &value, sizeof(T));
-        }
-      }
-      break;
-    case 1:
-      if (m4 == 8) {
-        T value = -abs(*src_ptr);
-        base::Memcpy(dst_ptr, &value, sizeof(T));
-      } else {
-        for (size_t i = 0; i < kSimd128Size / sizeof(T); i++) {
-          T value = -abs(*(src_ptr + i));
-          base::Memcpy(dst_ptr + i, &value, sizeof(T));
-        }
-      }
-      break;
-    case 2:
-      if (m4 == 8) {
-        T value = abs(*src_ptr);
-        base::Memcpy(dst_ptr, &value, sizeof(T));
-      } else {
-        for (size_t i = 0; i < kSimd128Size / sizeof(T); i++) {
-          T value = abs(*(src_ptr + i));
-          base::Memcpy(dst_ptr + i, &value, sizeof(T));
-        }
-      }
-      break;
+    CASE(0, T, [](T value) { return -value; });
+    CASE(1, T, [](T value) { return -std::abs(value); });
+    CASE(2, T, [](T value) { return std::abs(value); });
     default:
       UNREACHABLE();
   }
 }
+#undef CASE
 
 EVALUATE(VFPSO) {
   DCHECK_OPCODE(VFPSO);
   DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
-  USE(m5);
-  USE(m4);
-  USE(m3);
   switch (m3) {
-    case 2:
-      DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));
-      VectorSignOp<float>(&get_simd_register(r1), &get_simd_register(r2), m4,
-                          m5);
-      break;
-    case 3:
-      VectorSignOp<double>(&get_simd_register(r1), &get_simd_register(r2), m4,
-                           m5);
-      break;
+#define CASE(i, T)                         \
+  case i:                                  \
+    VectorSignOp<T>(this, r1, r2, m4, m5); \
+    break;
+    CASE(2, float);
+    CASE(3, double);
     default:
       UNREACHABLE();
+#undef CASE
   }
   return length;
-}
-
-template <class T>
-void VectorFPSqrt(void* dst, void* src) {
-  T* dst_ptr = reinterpret_cast<T*>(dst);
-  T* src_ptr = reinterpret_cast<T*>(src);
-  for (size_t i = 0; i < kSimd128Size / sizeof(T); i++) {
-    T value = sqrt(*(src_ptr + i));
-    base::Memcpy(dst_ptr + i, &value, sizeof(T));
-  }
 }
 
 EVALUATE(VFSQ) {
@@ -4286,25 +4226,15 @@ EVALUATE(VFSQ) {
   DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
   USE(m5);
   switch (m3) {
-    case 2:
-      DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));
-      if (m4 == 8) {
-        float src = get_simd_register_by_lane<float>(r2, 0);
-        set_simd_register_by_lane<float>(r1, 0, sqrt(src));
-      } else {
-        VectorFPSqrt<float>(&get_simd_register(r1), &get_simd_register(r2));
-      }
-      break;
-    case 3:
-      if (m4 == 8) {
-        double src = get_simd_register_by_lane<double>(r2, 0);
-        set_simd_register_by_lane<double>(r1, 0, sqrt(src));
-      } else {
-        VectorFPSqrt<double>(&get_simd_register(r1), &get_simd_register(r2));
-      }
-      break;
+#define CASE(i, T)                                                            \
+  case i:                                                                     \
+    VectorUnaryOp<T>(this, r1, r2, m4, [](T val) { return std::sqrt(val); }); \
+    break;
+    CASE(2, float);
+    CASE(3, double);
     default:
       UNREACHABLE();
+#undef CASE
   }
   return length;
 }
@@ -5315,8 +5245,8 @@ EVALUATE(STE) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t addr = b2_val + x2_val + d2_val;
-  int64_t frs_val = get_fpr<int64_t>(r1) >> 32;
-  WriteW(addr, static_cast<int32_t>(frs_val), instr);
+  int32_t frs_val = get_fpr<int32_t>(r1);
+  WriteW(addr, frs_val, instr);
   return length;
 }
 
@@ -11064,8 +10994,8 @@ EVALUATE(STEY) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t addr = x2_val + b2_val + d2;
-  int64_t frs_val = get_fpr<int64_t>(r1) >> 32;
-  WriteW(addr, static_cast<int32_t>(frs_val), instr);
+  int32_t frs_val = get_fpr<int32_t>(r1);
+  WriteW(addr, frs_val, instr);
   return length;
 }
 

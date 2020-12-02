@@ -140,27 +140,23 @@ class Simulator : public SimulatorBase {
   template <class T>
   T get_fpr(int dreg) {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
-    uint64_t x = get_simd_register_by_lane<uint64_t>(dreg, 0);
     if (sizeof(T) == 8) {
-      return *bit_cast<T*>(&x);
+      return get_simd_register_by_lane<T>(dreg, 0);
     } else {
       DCHECK_EQ(sizeof(T), 4);
-      x >>= 32;
-      return *bit_cast<T*>(&x);
+      return get_simd_register_by_lane<T>(dreg, 1);
     }
   }
 
   template <class T>
   void set_fpr(int dreg, const T val) {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
-    uint64_t value = 0;
     if (sizeof(T) == 8) {
-      value = *bit_cast<uint64_t*>(&val);
+      set_simd_register_by_lane(dreg, 0, val);
     } else {
-      value = *bit_cast<uint32_t*>(&val);
-      value <<= 32;
+      DCHECK_EQ(sizeof(T), 4);
+      set_simd_register_by_lane(dreg, 1, val);
     }
-    set_simd_register_by_lane<uint64_t>(dreg, 0, value);
   }
 
   // Special case of set_register and get_register to access the raw PC value.
@@ -379,24 +375,30 @@ class Simulator : public SimulatorBase {
 
   static constexpr fpr_t fp_zero = {{0}};
 
-  fpr_t& get_simd_register(int reg) { return fp_registers_[reg]; }
+  fpr_t get_simd_register(int reg) {
+    return get_simd_register_by_lane<fpr_t>(reg, 0);
+  }
 
   void set_simd_register(int reg, const fpr_t& v) {
-    get_simd_register(reg) = v;
+    set_simd_register_by_lane(reg, 0, v);
   }
 
   template <class T>
-  T& get_simd_register_by_lane(int reg, int lane) {
-    DCHECK_LE(lane, kSimd128Size / sizeof(T));
-    DCHECK_LT(reg, kNumFPRs);
-    DCHECK_GE(lane, 0);
-    DCHECK_GE(reg, 0);
-    return (reinterpret_cast<T*>(&get_simd_register(reg)))[lane];
+  T get_simd_register_by_lane(int reg, int lane) {
+    CHECK_LE(lane, kSimd128Size / sizeof(T));
+    CHECK_LT(reg, kNumFPRs);
+    CHECK_GE(lane, 0);
+    CHECK_GE(reg, 0);
+    return (reinterpret_cast<T*>(&fp_registers_[reg]))[lane];
   }
 
   template <class T>
   void set_simd_register_by_lane(int reg, int lane, const T& value) {
-    get_simd_register_by_lane<T>(reg, lane) = value;
+    CHECK_LE(lane, kSimd128Size / sizeof(T));
+    CHECK_LT(reg, kNumFPRs);
+    CHECK_GE(lane, 0);
+    CHECK_GE(reg, 0);
+    (reinterpret_cast<T*>(&fp_registers_[reg]))[lane] = value;
   }
 
   // Condition Code register. In S390, the last 4 bits are used.
