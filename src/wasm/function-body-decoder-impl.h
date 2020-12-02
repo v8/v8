@@ -2474,30 +2474,39 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     Value ref_object = Pop(0);
     Control* c = control_at(imm.depth);
     TypeCheckBranchResult check_result = TypeCheckBranch(c, true);
-    if (V8_LIKELY(check_result == kReachableBranch)) {
-      switch (ref_object.type.kind()) {
-        case ValueType::kBottom:
-          UNREACHABLE();  // This can only happen in unreachable code.
-        case ValueType::kRef: {
-          Value* result = Push(ref_object.type);
+    switch (ref_object.type.kind()) {
+      // For bottom and non-nullable reference, simply forward the popped
+      // argument to the result.
+      case ValueType::kBottom:
+        DCHECK(check_result != kReachableBranch);
+        V8_FALLTHROUGH;
+      case ValueType::kRef: {
+        Value* result = Push(ref_object.type);
+        if (V8_LIKELY(check_result == kReachableBranch)) {
           CALL_INTERFACE(PassThrough, ref_object, result);
-          break;
         }
-        case ValueType::kOptRef: {
-          // We need to Push the result value after calling BrOnNull on
-          // the interface. Therefore we must sync the ref_object and
-          // result nodes afterwards (in PassThrough).
+        break;
+      }
+      case ValueType::kOptRef: {
+        // We need to Push the result value after calling BrOnNull on
+        // the interface. Therefore we must sync the ref_object and
+        // result nodes afterwards (in PassThrough).
+        if (V8_LIKELY(check_result == kReachableBranch)) {
           CALL_INTERFACE_IF_REACHABLE(BrOnNull, ref_object, imm.depth);
-          Value* result =
-              Push(ValueType::Ref(ref_object.type.heap_type(), kNonNullable));
+        }
+        Value* result =
+            Push(ValueType::Ref(ref_object.type.heap_type(), kNonNullable));
+        if (V8_LIKELY(check_result == kReachableBranch)) {
           CALL_INTERFACE(PassThrough, ref_object, result);
           c->br_merge()->reached = true;
-          break;
         }
-        default:
-          this->DecodeError("invalid argument type to br_on_null");
-          return 0;
+        break;
       }
+      default:
+        this->DecodeError(
+            "br_on_null[0]: Expected object reference, found %s of type %s",
+            SafeOpcodeNameAt(ref_object.pc()), ref_object.type.name().c_str());
+        return 0;
     }
     return 1 + imm.length;
   }

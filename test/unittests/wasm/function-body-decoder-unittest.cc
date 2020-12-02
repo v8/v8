@@ -1096,7 +1096,6 @@ TEST_F(FunctionBodyDecoderTest, UnreachableRefTypes) {
   FunctionSig sig_v_s(0, 1, &struct_type);
   byte struct_consumer = builder.AddFunction(&sig_v_s);
 
-  ExpectValidates(sigs.v_v(), {WASM_BLOCK(WASM_UNREACHABLE, kExprBrOnNull, 0)});
   ExpectValidates(sigs.i_v(), {WASM_UNREACHABLE, kExprRefIsNull});
   ExpectValidates(sigs.v_v(), {WASM_UNREACHABLE, kExprRefAsNonNull, kExprDrop});
 
@@ -1153,6 +1152,22 @@ TEST_F(FunctionBodyDecoderTest, UnreachableRefTypes) {
   ExpectValidates(sigs.v_v(),
                   {WASM_UNREACHABLE, WASM_GC_OP(kExprRttSub), array_index,
                    WASM_GC_OP(kExprRttSub), array_index, kExprDrop});
+
+  ExpectValidates(sigs.v_v(), {WASM_UNREACHABLE, kExprBrOnNull, 0, WASM_DROP});
+
+  ExpectValidates(&sig_v_s, {WASM_UNREACHABLE, WASM_GET_LOCAL(0), kExprBrOnNull,
+                             0, kExprCallFunction, struct_consumer});
+
+  ValueType opt_struct_type = ValueType::Ref(struct_index, kNullable);
+  FunctionSig sig_v_os(0, 1, &opt_struct_type);
+  ExpectValidates(&sig_v_os,
+                  {WASM_UNREACHABLE, WASM_GET_LOCAL(0), kExprBrOnNull, 0,
+                   kExprCallFunction, struct_consumer});
+
+  ExpectFailure(
+      sigs.v_v(), {WASM_UNREACHABLE, WASM_I32V(42), kExprBrOnNull, 0},
+      kAppendEnd,
+      "br_on_null[0]: Expected object reference, found i32.const of type i32");
 }
 
 TEST_F(FunctionBodyDecoderTest, If1) {
