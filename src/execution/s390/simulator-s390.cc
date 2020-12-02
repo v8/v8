@@ -88,11 +88,11 @@ double S390Debugger::GetRegisterPairDoubleValue(int regnum) {
 }
 
 double S390Debugger::GetFPDoubleRegisterValue(int regnum) {
-  return sim_->get_double_from_d_register(regnum);
+  return sim_->get_fpr<double>(regnum);
 }
 
 float S390Debugger::GetFPFloatRegisterValue(int regnum) {
-  return sim_->get_float32_from_d_register(regnum);
+  return sim_->get_fpr<float>(regnum);
 }
 
 bool S390Debugger::GetValue(const char* desc, intptr_t* value) {
@@ -115,7 +115,7 @@ bool S390Debugger::GetValue(const char* desc, intptr_t* value) {
 bool S390Debugger::GetFPDoubleValue(const char* desc, double* value) {
   int regnum = DoubleRegisters::Number(desc);
   if (regnum != kNoRegister) {
-    *value = sim_->get_double_from_d_register(regnum);
+    *value = sim_->get_fpr<double>(regnum);
     return true;
   }
   return false;
@@ -1699,15 +1699,13 @@ intptr_t Simulator::get_pc() const { return special_reg_pc_; }
 // - one double argument and zero or one integer arguments.
 // All are consructed here from d1, d2 and r2.
 void Simulator::GetFpArgs(double* x, double* y, intptr_t* z) {
-  *x = get_double_from_d_register(0);
-  *y = get_double_from_d_register(2);
+  *x = get_fpr<double>(0);
+  *y = get_fpr<double>(2);
   *z = get_register(2);
 }
 
 // The return value is in d0.
-void Simulator::SetFpResult(const double& result) {
-  set_d_register_from_double(0, result);
-}
+void Simulator::SetFpResult(const double& result) { set_fpr(0, result); }
 
 void Simulator::TrashCallerSaveRegisters() {
 // We don't trash the registers with the return value.
@@ -2659,8 +2657,8 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
 }
 
 void Simulator::CallFP(Address entry, double d0, double d1) {
-  set_d_register_from_double(0, d0);
-  set_d_register_from_double(1, d1);
+  set_fpr(0, d0);
+  set_fpr(1, d1);
   CallInternal(entry);
 }
 
@@ -2672,7 +2670,7 @@ int32_t Simulator::CallFPReturnsInt(Address entry, double d0, double d1) {
 
 double Simulator::CallFPReturnsDouble(Address entry, double d0, double d1) {
   CallFP(entry, d0, d1);
-  return get_double_from_d_register(0);
+  return get_fpr<double>(0);
 }
 
 uintptr_t Simulator::PushAddress(uintptr_t address) {
@@ -4947,8 +4945,8 @@ EVALUATE(SLR) {
 EVALUATE(LDR) {
   DCHECK_OPCODE(LDR);
   DECODE_RR_INSTRUCTION(r1, r2);
-  int64_t r2_val = get_d_register(r2);
-  set_d_register(r1, r2_val);
+  int64_t r2_val = get_fpr<int64_t>(r2);
+  set_fpr(r1, r2_val);
   return length;
 }
 
@@ -4961,8 +4959,8 @@ EVALUATE(CDR) {
 EVALUATE(LER) {
   DCHECK_OPCODE(LER);
   DECODE_RR_INSTRUCTION(r1, r2);
-  int64_t r2_val = get_f_register(r2);
-  set_d_register(r1, r2_val);
+  int64_t r2_val = get_fpr<int64_t>(r2);
+  set_fpr(r1, r2_val);
   return length;
 }
 
@@ -5289,7 +5287,7 @@ EVALUATE(STD) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t addr = b2_val + x2_val + d2_val;
-  int64_t frs_val = get_d_register(r1);
+  int64_t frs_val = get_fpr<int64_t>(r1);
   WriteDW(addr, frs_val);
   return length;
 }
@@ -5301,7 +5299,7 @@ EVALUATE(LD) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t addr = b2_val + x2_val + d2_val;
   int64_t dbl_val = *reinterpret_cast<int64_t*>(addr);
-  set_d_register(r1, dbl_val);
+  set_fpr(r1, dbl_val);
   return length;
 }
 
@@ -5317,7 +5315,7 @@ EVALUATE(STE) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t addr = b2_val + x2_val + d2_val;
-  int64_t frs_val = get_d_register(r1) >> 32;
+  int64_t frs_val = get_fpr<int64_t>(r1) >> 32;
   WriteW(addr, static_cast<int32_t>(frs_val), instr);
   return length;
 }
@@ -5340,7 +5338,7 @@ EVALUATE(LE) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t addr = b2_val + x2_val + d2_val;
   float float_val = *reinterpret_cast<float*>(addr);
-  set_d_register_from_float32(r1, float_val);
+  set_fpr(r1, float_val);
   return length;
 }
 
@@ -6828,10 +6826,10 @@ EVALUATE(TRAP4) {
 EVALUATE(LPEBR) {
   DCHECK_OPCODE(LPEBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  float fr1_val = get_float32_from_d_register(r1);
-  float fr2_val = get_float32_from_d_register(r2);
+  float fr1_val = get_fpr<float>(r1);
+  float fr2_val = get_fpr<float>(r2);
   fr1_val = std::fabs(fr2_val);
-  set_d_register_from_float32(r1, fr1_val);
+  set_fpr(r1, fr1_val);
   if (fr2_val != fr2_val) {  // input is NaN
     condition_reg_ = CC_OF;
   } else if (fr2_val == 0) {
@@ -6852,20 +6850,20 @@ EVALUATE(LNEBR) {
 EVALUATE(LTEBR) {
   DCHECK_OPCODE(LTEBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  int64_t r2_val = get_d_register(r2);
-  float fr2_val = get_float32_from_d_register(r2);
+  int64_t r2_val = get_fpr<int64_t>(r2);
+  float fr2_val = get_fpr<float>(r2);
   SetS390ConditionCode<float>(fr2_val, 0.0);
-  set_d_register(r1, r2_val);
+  set_fpr(r1, r2_val);
   return length;
 }
 
 EVALUATE(LCEBR) {
   DCHECK_OPCODE(LCEBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  float fr1_val = get_float32_from_d_register(r1);
-  float fr2_val = get_float32_from_d_register(r2);
+  float fr1_val = get_fpr<float>(r1);
+  float fr2_val = get_fpr<float>(r2);
   fr1_val = -fr2_val;
-  set_d_register_from_float32(r1, fr1_val);
+  set_fpr(r1, fr1_val);
   if (fr2_val != fr2_val) {  // input is NaN
     condition_reg_ = CC_OF;
   } else if (fr2_val == 0) {
@@ -6881,9 +6879,9 @@ EVALUATE(LCEBR) {
 EVALUATE(LDEBR) {
   DCHECK_OPCODE(LDEBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  float fp_val = get_float32_from_d_register(r2);
+  float fp_val = get_fpr<float>(r2);
   double db_val = static_cast<double>(fp_val);
-  set_d_register_from_double(r1, db_val);
+  set_fpr(r1, db_val);
   return length;
 }
 
@@ -6914,8 +6912,8 @@ EVALUATE(KEBR) {
 EVALUATE(CEBR) {
   DCHECK_OPCODE(CEBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  float fr1_val = get_float32_from_d_register(r1);
-  float fr2_val = get_float32_from_d_register(r2);
+  float fr1_val = get_fpr<float>(r1);
+  float fr2_val = get_fpr<float>(r2);
   if (isNaN(fr1_val) || isNaN(fr2_val)) {
     condition_reg_ = CC_OF;
   } else {
@@ -6928,10 +6926,10 @@ EVALUATE(CEBR) {
 EVALUATE(AEBR) {
   DCHECK_OPCODE(AEBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  float fr1_val = get_float32_from_d_register(r1);
-  float fr2_val = get_float32_from_d_register(r2);
+  float fr1_val = get_fpr<float>(r1);
+  float fr2_val = get_fpr<float>(r2);
   fr1_val += fr2_val;
-  set_d_register_from_float32(r1, fr1_val);
+  set_fpr(r1, fr1_val);
   SetS390ConditionCode<float>(fr1_val, 0);
 
   return length;
@@ -6940,10 +6938,10 @@ EVALUATE(AEBR) {
 EVALUATE(SEBR) {
   DCHECK_OPCODE(SEBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  float fr1_val = get_float32_from_d_register(r1);
-  float fr2_val = get_float32_from_d_register(r2);
+  float fr1_val = get_fpr<float>(r1);
+  float fr2_val = get_fpr<float>(r2);
   fr1_val -= fr2_val;
-  set_d_register_from_float32(r1, fr1_val);
+  set_fpr(r1, fr1_val);
   SetS390ConditionCode<float>(fr1_val, 0);
 
   return length;
@@ -6958,10 +6956,10 @@ EVALUATE(MDEBR) {
 EVALUATE(DEBR) {
   DCHECK_OPCODE(DEBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  float fr1_val = get_float32_from_d_register(r1);
-  float fr2_val = get_float32_from_d_register(r2);
+  float fr1_val = get_fpr<float>(r1);
+  float fr2_val = get_fpr<float>(r2);
   fr1_val /= fr2_val;
-  set_d_register_from_float32(r1, fr1_val);
+  set_fpr(r1, fr1_val);
   return length;
 }
 
@@ -6980,10 +6978,10 @@ EVALUATE(MSEBR) {
 EVALUATE(LPDBR) {
   DCHECK_OPCODE(LPDBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  double r1_val = get_double_from_d_register(r1);
-  double r2_val = get_double_from_d_register(r2);
+  double r1_val = get_fpr<double>(r1);
+  double r2_val = get_fpr<double>(r2);
   r1_val = std::fabs(r2_val);
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   if (r2_val != r2_val) {  // input is NaN
     condition_reg_ = CC_OF;
   } else if (r2_val == 0) {
@@ -7003,19 +7001,19 @@ EVALUATE(LNDBR) {
 EVALUATE(LTDBR) {
   DCHECK_OPCODE(LTDBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  int64_t r2_val = get_d_register(r2);
+  int64_t r2_val = get_fpr<int64_t>(r2);
   SetS390ConditionCode<double>(bit_cast<double, int64_t>(r2_val), 0.0);
-  set_d_register(r1, r2_val);
+  set_fpr(r1, r2_val);
   return length;
 }
 
 EVALUATE(LCDBR) {
   DCHECK_OPCODE(LCDBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  double r1_val = get_double_from_d_register(r1);
-  double r2_val = get_double_from_d_register(r2);
+  double r1_val = get_fpr<double>(r1);
+  double r2_val = get_fpr<double>(r2);
   r1_val = -r2_val;
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   if (r2_val != r2_val) {  // input is NaN
     condition_reg_ = CC_OF;
   } else if (r2_val == 0) {
@@ -7031,20 +7029,20 @@ EVALUATE(LCDBR) {
 EVALUATE(SQEBR) {
   DCHECK_OPCODE(SQEBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  float fr1_val = get_float32_from_d_register(r1);
-  float fr2_val = get_float32_from_d_register(r2);
+  float fr1_val = get_fpr<float>(r1);
+  float fr2_val = get_fpr<float>(r2);
   fr1_val = std::sqrt(fr2_val);
-  set_d_register_from_float32(r1, fr1_val);
+  set_fpr(r1, fr1_val);
   return length;
 }
 
 EVALUATE(SQDBR) {
   DCHECK_OPCODE(SQDBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  double r1_val = get_double_from_d_register(r1);
-  double r2_val = get_double_from_d_register(r2);
+  double r1_val = get_fpr<double>(r1);
+  double r2_val = get_fpr<double>(r2);
   r1_val = std::sqrt(r2_val);
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
@@ -7057,10 +7055,10 @@ EVALUATE(SQXBR) {
 EVALUATE(MEEBR) {
   DCHECK_OPCODE(MEEBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  float fr1_val = get_float32_from_d_register(r1);
-  float fr2_val = get_float32_from_d_register(r2);
+  float fr1_val = get_fpr<float>(r1);
+  float fr2_val = get_fpr<float>(r2);
   fr1_val *= fr2_val;
-  set_d_register_from_float32(r1, fr1_val);
+  set_fpr(r1, fr1_val);
   return length;
 }
 
@@ -7073,8 +7071,8 @@ EVALUATE(KDBR) {
 EVALUATE(CDBR) {
   DCHECK_OPCODE(CDBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  double r1_val = get_double_from_d_register(r1);
-  double r2_val = get_double_from_d_register(r2);
+  double r1_val = get_fpr<double>(r1);
+  double r2_val = get_fpr<double>(r2);
   if (isNaN(r1_val) || isNaN(r2_val)) {
     condition_reg_ = CC_OF;
   } else {
@@ -7086,10 +7084,10 @@ EVALUATE(CDBR) {
 EVALUATE(ADBR) {
   DCHECK_OPCODE(ADBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  double r1_val = get_double_from_d_register(r1);
-  double r2_val = get_double_from_d_register(r2);
+  double r1_val = get_fpr<double>(r1);
+  double r2_val = get_fpr<double>(r2);
   r1_val += r2_val;
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   SetS390ConditionCode<double>(r1_val, 0);
   return length;
 }
@@ -7097,10 +7095,10 @@ EVALUATE(ADBR) {
 EVALUATE(SDBR) {
   DCHECK_OPCODE(SDBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  double r1_val = get_double_from_d_register(r1);
-  double r2_val = get_double_from_d_register(r2);
+  double r1_val = get_fpr<double>(r1);
+  double r2_val = get_fpr<double>(r2);
   r1_val -= r2_val;
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   SetS390ConditionCode<double>(r1_val, 0);
   return length;
 }
@@ -7108,31 +7106,31 @@ EVALUATE(SDBR) {
 EVALUATE(MDBR) {
   DCHECK_OPCODE(MDBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  double r1_val = get_double_from_d_register(r1);
-  double r2_val = get_double_from_d_register(r2);
+  double r1_val = get_fpr<double>(r1);
+  double r2_val = get_fpr<double>(r2);
   r1_val *= r2_val;
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
 EVALUATE(DDBR) {
   DCHECK_OPCODE(DDBR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  double r1_val = get_double_from_d_register(r1);
-  double r2_val = get_double_from_d_register(r2);
+  double r1_val = get_fpr<double>(r1);
+  double r2_val = get_fpr<double>(r2);
   r1_val /= r2_val;
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
 EVALUATE(MADBR) {
   DCHECK_OPCODE(MADBR);
   DECODE_RRD_INSTRUCTION(r1, r2, r3);
-  double r1_val = get_double_from_d_register(r1);
-  double r2_val = get_double_from_d_register(r2);
-  double r3_val = get_double_from_d_register(r3);
+  double r1_val = get_fpr<double>(r1);
+  double r2_val = get_fpr<double>(r2);
+  double r3_val = get_fpr<double>(r3);
   r1_val += r2_val * r3_val;
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   SetS390ConditionCode<double>(r1_val, 0);
   return length;
 }
@@ -7170,8 +7168,8 @@ EVALUATE(LCXBR) {
 EVALUATE(LEDBRA) {
   DCHECK_OPCODE(LEDBRA);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  double r2_val = get_double_from_d_register(r2);
-  set_d_register_from_float32(r1, static_cast<float>(r2_val));
+  double r2_val = get_fpr<double>(r2);
+  set_fpr(r1, static_cast<float>(r2_val));
   return length;
 }
 
@@ -7292,14 +7290,14 @@ EVALUATE(LCDFR) {
 EVALUATE(LZER) {
   DCHECK_OPCODE(LZER);
   DECODE_RRE_INSTRUCTION_NO_R2(r1);
-  set_d_register_from_float32(r1, 0.0);
+  set_fpr(r1, 0.0);
   return length;
 }
 
 EVALUATE(LZDR) {
   DCHECK_OPCODE(LZDR);
   DECODE_RRE_INSTRUCTION_NO_R2(r1);
-  set_d_register_from_double(r1, 0.0);
+  set_fpr(r1, 0.0);
   return length;
 }
 
@@ -7332,7 +7330,7 @@ EVALUATE(CELFBR) {
   DECODE_RRE_INSTRUCTION(r1, r2);
   uint32_t r2_val = get_low_register<uint32_t>(r2);
   float r1_val = static_cast<float>(r2_val);
-  set_d_register_from_float32(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
@@ -7341,7 +7339,7 @@ EVALUATE(CDLFBR) {
   DECODE_RRE_INSTRUCTION(r1, r2);
   uint32_t r2_val = get_low_register<uint32_t>(r2);
   double r1_val = static_cast<double>(r2_val);
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
@@ -7356,7 +7354,7 @@ EVALUATE(CEFBRA) {
   DECODE_RRE_INSTRUCTION(r1, r2);
   int32_t fr2_val = get_low_register<int32_t>(r2);
   float fr1_val = static_cast<float>(fr2_val);
-  set_d_register_from_float32(r1, fr1_val);
+  set_fpr(r1, fr1_val);
   return length;
 }
 
@@ -7365,7 +7363,7 @@ EVALUATE(CDFBRA) {
   DECODE_RRE_INSTRUCTION(r1, r2);
   int32_t r2_val = get_low_register<int32_t>(r2);
   double r1_val = static_cast<double>(r2_val);
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
@@ -7380,9 +7378,9 @@ EVALUATE(FIDBRA) {
   DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
   DCHECK_EQ(m4, 0);
   USE(m4);
-  double a = get_double_from_d_register(r2);
+  double a = get_fpr<double>(r2);
   double n = ComputeRounding<double>(a, m3);
-  set_d_register_from_double(r1, n);
+  set_fpr(r1, n);
   return length;
 }
 
@@ -7391,9 +7389,9 @@ EVALUATE(FIEBRA) {
   DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
   DCHECK_EQ(m4, 0);
   USE(m4);
-  float a = get_float32_from_d_register(r2);
+  float a = get_fpr<float>(r2);
   float n = ComputeRounding<float>(a, m3);
-  set_d_register_from_float32(r1, n);
+  set_fpr(r1, n);
   return length;
 }
 
@@ -7462,7 +7460,7 @@ EVALUATE(CFDBRA) {
   DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
   DCHECK_EQ(m4, 0);
   USE(m4);
-  double a = get_double_from_d_register(r2);
+  double a = get_fpr<double>(r2);
   double n = ComputeRounding<double>(a, m3);
   int32_t r1_val = ComputeSignedRoundingResult<double, int32_t>(a, n);
   condition_reg_ = ComputeSignedRoundingConditionCode<double, int32_t>(a, n);
@@ -7476,7 +7474,7 @@ EVALUATE(CFEBRA) {
   DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
   DCHECK_EQ(m4, 0);
   USE(m4);
-  float a = get_float32_from_d_register(r2);
+  float a = get_fpr<float>(r2);
   float n = ComputeRounding<float>(a, m3);
   int32_t r1_val = ComputeSignedRoundingResult<float, int32_t>(a, n);
   condition_reg_ = ComputeSignedRoundingConditionCode<float, int32_t>(a, n);
@@ -7490,7 +7488,7 @@ EVALUATE(CGEBRA) {
   DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
   DCHECK_EQ(m4, 0);
   USE(m4);
-  float a = get_float32_from_d_register(r2);
+  float a = get_fpr<float>(r2);
   float n = ComputeRounding<float>(a, m3);
   int64_t r1_val = ComputeSignedRoundingResult<float, int64_t>(a, n);
   condition_reg_ = ComputeSignedRoundingConditionCode<float, int64_t>(a, n);
@@ -7504,7 +7502,7 @@ EVALUATE(CGDBRA) {
   DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
   DCHECK_EQ(m4, 0);
   USE(m4);
-  double a = get_double_from_d_register(r2);
+  double a = get_fpr<double>(r2);
   double n = ComputeRounding<double>(a, m3);
   int64_t r1_val = ComputeSignedRoundingResult<double, int64_t>(a, n);
   condition_reg_ = ComputeSignedRoundingConditionCode<double, int64_t>(a, n);
@@ -7572,7 +7570,7 @@ EVALUATE(CLFEBR) {
   DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
   DCHECK_EQ(m4, 0);
   USE(m4);
-  float a = get_float32_from_d_register(r2);
+  float a = get_fpr<float>(r2);
   float n = ComputeRounding<float>(a, m3);
   uint32_t r1_val = ComputeLogicalRoundingResult<float, uint32_t>(a, n);
   condition_reg_ = ComputeLogicalRoundingConditionCode<float, uint32_t>(a, n);
@@ -7586,7 +7584,7 @@ EVALUATE(CLFDBR) {
   DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
   DCHECK_EQ(m4, 0);
   USE(m4);
-  double a = get_double_from_d_register(r2);
+  double a = get_fpr<double>(r2);
   double n = ComputeRounding<double>(a, m3);
   uint32_t r1_val = ComputeLogicalRoundingResult<double, uint32_t>(a, n);
   condition_reg_ = ComputeLogicalRoundingConditionCode<double, uint32_t>(a, n);
@@ -7600,7 +7598,7 @@ EVALUATE(CLGDBR) {
   DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
   DCHECK_EQ(m4, 0);
   USE(m4);
-  double a = get_double_from_d_register(r2);
+  double a = get_fpr<double>(r2);
   double n = ComputeRounding<double>(a, m3);
   uint64_t r1_val = ComputeLogicalRoundingResult<double, uint64_t>(a, n);
   condition_reg_ = ComputeLogicalRoundingConditionCode<double, uint64_t>(a, n);
@@ -7614,7 +7612,7 @@ EVALUATE(CLGEBR) {
   DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
   DCHECK_EQ(m4, 0);
   USE(m4);
-  float a = get_float32_from_d_register(r2);
+  float a = get_fpr<float>(r2);
   float n = ComputeRounding<float>(a, m3);
   uint64_t r1_val = ComputeLogicalRoundingResult<float, uint64_t>(a, n);
   condition_reg_ = ComputeLogicalRoundingConditionCode<float, uint64_t>(a, n);
@@ -7634,7 +7632,7 @@ EVALUATE(CELGBR) {
   DECODE_RRE_INSTRUCTION(r1, r2);
   uint64_t r2_val = get_register(r2);
   float r1_val = static_cast<float>(r2_val);
-  set_d_register_from_float32(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
@@ -7643,7 +7641,7 @@ EVALUATE(CDLGBR) {
   DECODE_RRE_INSTRUCTION(r1, r2);
   uint64_t r2_val = get_register(r2);
   double r1_val = static_cast<double>(r2_val);
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
@@ -7658,7 +7656,7 @@ EVALUATE(CEGBRA) {
   DECODE_RRE_INSTRUCTION(r1, r2);
   int64_t fr2_val = get_register(r2);
   float fr1_val = static_cast<float>(fr2_val);
-  set_d_register_from_float32(r1, fr1_val);
+  set_fpr(r1, fr1_val);
   return length;
 }
 
@@ -7667,7 +7665,7 @@ EVALUATE(CDGBRA) {
   DECODE_RRE_INSTRUCTION(r1, r2);
   int64_t r2_val = get_register(r2);
   double r1_val = static_cast<double>(r2_val);
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
@@ -7700,9 +7698,7 @@ EVALUATE(LDGR) {
   // Load FPR from GPR (L <- 64)
   DECODE_RRE_INSTRUCTION(r1, r2);
   uint64_t int_val = get_register(r2);
-  // double double_val = bit_cast<double, uint64_t>(int_val);
-  // set_d_register_from_double(rreInst->R1Value(), double_val);
-  set_d_register(r1, int_val);
+  set_fpr(r1, int_val);
   return length;
 }
 
@@ -7728,7 +7724,7 @@ EVALUATE(LGDR) {
   DCHECK_OPCODE(LGDR);
   DECODE_RRE_INSTRUCTION(r1, r2);
   // Load GPR from FPR (64 <- L)
-  int64_t double_val = get_d_register(r2);
+  int64_t double_val = get_fpr<int64_t>(r2);
   set_register(r1, double_val);
   return length;
 }
@@ -10741,7 +10737,7 @@ EVALUATE(LDEB) {
   int64_t rb_val = (rb == 0) ? 0 : get_register(rb);
   int64_t rx_val = (rx == 0) ? 0 : get_register(rx);
   float fval = ReadFloat(rx_val + rb_val + offset);
-  set_d_register_from_double(r1, static_cast<double>(fval));
+  set_fpr(r1, static_cast<double>(fval));
   return length;
 }
 
@@ -10776,7 +10772,7 @@ EVALUATE(CEB) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  float r1_val = get_float32_from_d_register(r1);
+  float r1_val = get_fpr<float>(r1);
   float fval = ReadFloat(b2_val + x2_val + d2_val);
   SetS390ConditionCode<float>(r1_val, fval);
   return length;
@@ -10788,10 +10784,10 @@ EVALUATE(AEB) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  float r1_val = get_float32_from_d_register(r1);
+  float r1_val = get_fpr<float>(r1);
   float fval = ReadFloat(b2_val + x2_val + d2_val);
   r1_val += fval;
-  set_d_register_from_float32(r1, r1_val);
+  set_fpr(r1, r1_val);
   SetS390ConditionCode<float>(r1_val, 0);
   return length;
 }
@@ -10802,10 +10798,10 @@ EVALUATE(SEB) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  float r1_val = get_float32_from_d_register(r1);
+  float r1_val = get_fpr<float>(r1);
   float fval = ReadFloat(b2_val + x2_val + d2_val);
   r1_val -= fval;
-  set_d_register_from_float32(r1, r1_val);
+  set_fpr(r1, r1_val);
   SetS390ConditionCode<float>(r1_val, 0);
   return length;
 }
@@ -10822,10 +10818,10 @@ EVALUATE(DEB) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  float r1_val = get_float32_from_d_register(r1);
+  float r1_val = get_fpr<float>(r1);
   float fval = ReadFloat(b2_val + x2_val + d2_val);
   r1_val /= fval;
-  set_d_register_from_float32(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
@@ -10871,10 +10867,10 @@ EVALUATE(SQDB) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  double r1_val = get_double_from_d_register(r1);
+  double r1_val = get_fpr<double>(r1);
   double dbl_val = ReadDouble(b2_val + x2_val + d2_val);
   r1_val = std::sqrt(dbl_val);
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
@@ -10884,10 +10880,10 @@ EVALUATE(MEEB) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  float r1_val = get_float32_from_d_register(r1);
+  float r1_val = get_fpr<float>(r1);
   float fval = ReadFloat(b2_val + x2_val + d2_val);
   r1_val *= fval;
-  set_d_register_from_float32(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
@@ -10904,7 +10900,7 @@ EVALUATE(CDB) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  double r1_val = get_double_from_d_register(r1);
+  double r1_val = get_fpr<double>(r1);
   double dbl_val = ReadDouble(b2_val + x2_val + d2_val);
   SetS390ConditionCode<double>(r1_val, dbl_val);
   return length;
@@ -10917,10 +10913,10 @@ EVALUATE(ADB) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  double r1_val = get_double_from_d_register(r1);
+  double r1_val = get_fpr<double>(r1);
   double dbl_val = ReadDouble(b2_val + x2_val + d2_val);
   r1_val += dbl_val;
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   SetS390ConditionCode<double>(r1_val, 0);
   return length;
 }
@@ -10931,10 +10927,10 @@ EVALUATE(SDB) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  double r1_val = get_double_from_d_register(r1);
+  double r1_val = get_fpr<double>(r1);
   double dbl_val = ReadDouble(b2_val + x2_val + d2_val);
   r1_val -= dbl_val;
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   SetS390ConditionCode<double>(r1_val, 0);
   return length;
 }
@@ -10945,10 +10941,10 @@ EVALUATE(MDB) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  double r1_val = get_double_from_d_register(r1);
+  double r1_val = get_fpr<double>(r1);
   double dbl_val = ReadDouble(b2_val + x2_val + d2_val);
   r1_val *= dbl_val;
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
@@ -10958,10 +10954,10 @@ EVALUATE(DDB) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
-  double r1_val = get_double_from_d_register(r1);
+  double r1_val = get_fpr<double>(r1);
   double dbl_val = ReadDouble(b2_val + x2_val + d2_val);
   r1_val /= dbl_val;
-  set_d_register_from_double(r1, r1_val);
+  set_fpr(r1, r1_val);
   return length;
 }
 
@@ -11045,7 +11041,7 @@ EVALUATE(LEY) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t addr = x2_val + b2_val + d2;
   float float_val = *reinterpret_cast<float*>(addr);
-  set_d_register_from_float32(r1, float_val);
+  set_fpr(r1, float_val);
   return length;
 }
 
@@ -11057,7 +11053,7 @@ EVALUATE(LDY) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t addr = x2_val + b2_val + d2;
   uint64_t dbl_val = *reinterpret_cast<uint64_t*>(addr);
-  set_d_register(r1, dbl_val);
+  set_fpr(r1, dbl_val);
   return length;
 }
 
@@ -11068,7 +11064,7 @@ EVALUATE(STEY) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t addr = x2_val + b2_val + d2;
-  int64_t frs_val = get_d_register(r1) >> 32;
+  int64_t frs_val = get_fpr<int64_t>(r1) >> 32;
   WriteW(addr, static_cast<int32_t>(frs_val), instr);
   return length;
 }
@@ -11080,7 +11076,7 @@ EVALUATE(STDY) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t addr = x2_val + b2_val + d2;
-  int64_t frs_val = get_d_register(r1);
+  int64_t frs_val = get_fpr<int64_t>(r1);
   WriteDW(addr, frs_val);
   return length;
 }

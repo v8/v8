@@ -137,47 +137,30 @@ class Simulator : public SimulatorBase {
   void set_high_register(int reg, uint32_t value);
 
   double get_double_from_register_pair(int reg);
-  void set_d_register_from_double(int dreg, const double dbl) {
+  template <class T>
+  T get_fpr(int dreg) {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
-    set_simd_register_by_lane<double>(dreg, 0, dbl);
+    uint64_t x = get_simd_register_by_lane<uint64_t>(dreg, 0);
+    if (sizeof(T) == 8) {
+      return *bit_cast<T*>(&x);
+    } else {
+      DCHECK_EQ(sizeof(T), 4);
+      x >>= 32;
+      return *bit_cast<T*>(&x);
+    }
   }
 
-  double get_double_from_d_register(int dreg) {
+  template <class T>
+  void set_fpr(int dreg, const T val) {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
-    return get_simd_register_by_lane<double>(dreg, 0);
-  }
-
-  void set_d_register(int dreg, int64_t value) {
-    DCHECK(dreg >= 0 && dreg < kNumFPRs);
-    set_simd_register_by_lane<int64_t>(dreg, 0, value);
-  }
-
-  int64_t get_d_register(int dreg) {
-    DCHECK(dreg >= 0 && dreg < kNumFPRs);
-    return get_simd_register_by_lane<int64_t>(dreg, 0);
-  }
-
-  int64_t get_f_register(int dreg) {
-    DCHECK(dreg >= 0 && dreg < kNumFPRs);
-    int64_t d_val = get_simd_register_by_lane<int64_t>(dreg, 0);
-    int64_t f_val = d_val >> 32;
-    return f_val << 32;
-  }
-
-  void set_d_register_from_float32(int dreg, const float f) {
-    DCHECK(dreg >= 0 && dreg < kNumFPRs);
-
-    int32_t f_int = *bit_cast<int32_t*>(&f);
-    int64_t finalval = static_cast<int64_t>(f_int) << 32;
-    set_d_register(dreg, finalval);
-  }
-
-  float get_float32_from_d_register(int dreg) {
-    DCHECK(dreg >= 0 && dreg < kNumFPRs);
-
-    int64_t regval = get_d_register(dreg) >> 32;
-    int32_t regval32 = static_cast<int32_t>(regval);
-    return *bit_cast<float*>(&regval32);
+    uint64_t value = 0;
+    if (sizeof(T) == 8) {
+      value = *bit_cast<uint64_t*>(&val);
+    } else {
+      value = *bit_cast<uint32_t*>(&val);
+      value <<= 32;
+    }
+    set_simd_register_by_lane<uint64_t>(dreg, 0, value);
   }
 
   // Special case of set_register and get_register to access the raw PC value.
@@ -224,7 +207,6 @@ class Simulator : public SimulatorBase {
   // below (bad_lr, end_sim_pc).
   bool has_bad_pc() const;
 
- private:
   enum special_values {
     // Known bad pc value to ensure that the simulator does not execute
     // without being properly setup.
