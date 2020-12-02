@@ -5,7 +5,10 @@
 #include "src/base/bits.h"
 #include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/codegen/machine-type.h"
+#include "src/common/globals.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
+#include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 
@@ -637,6 +640,57 @@ void InstructionSelector::VisitPrefetchNonTemporal(Node* node) {
   Emit(opcode, 0, nullptr, 2, inputs);
 }
 
+namespace {
+// Manually add base and index into a register to get the actual address.
+// This should be used prior to instructions that only support
+// immediate/post-index addressing, like ld1 and st1.
+InstructionOperand EmitAddBeforeLoadOrStore(InstructionSelector* selector,
+                                            Node* node,
+                                            InstructionCode* opcode) {
+  Arm64OperandGenerator g(selector);
+  InstructionOperand addr = g.TempRegister();
+  selector->Emit(kArm64Add, addr, g.UseRegister(node->InputAt(0)),
+                 g.UseRegister(node->InputAt(1)));
+  *opcode |= AddressingModeField::encode(kMode_MRI);
+  return addr;
+}
+}  // namespace
+
+void InstructionSelector::VisitLoadLane(Node* node) {
+  LoadLaneParameters params = LoadLaneParametersOf(node->op());
+  DCHECK(
+      params.rep == MachineType::Int8() || params.rep == MachineType::Int16() ||
+      params.rep == MachineType::Int32() || params.rep == MachineType::Int64());
+
+  InstructionCode opcode = kArm64LoadLane;
+  opcode |= MiscField::encode(params.rep.MemSize() * kBitsPerByte);
+
+  Arm64OperandGenerator g(this);
+  InstructionOperand addr = EmitAddBeforeLoadOrStore(this, node, &opcode);
+  Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(2)),
+       g.UseImmediate(params.laneidx), addr, g.TempImmediate(0));
+}
+
+void InstructionSelector::VisitStoreLane(Node* node) {
+  StoreLaneParameters params = StoreLaneParametersOf(node->op());
+  DCHECK_LE(MachineRepresentation::kWord8, params.rep);
+  DCHECK_GE(MachineRepresentation::kWord64, params.rep);
+
+  InstructionCode opcode = kArm64StoreLane;
+  opcode |= MiscField::encode(ElementSizeInBytes(params.rep) * kBitsPerByte);
+
+  Arm64OperandGenerator g(this);
+  InstructionOperand addr = EmitAddBeforeLoadOrStore(this, node, &opcode);
+  InstructionOperand inputs[4] = {
+      g.UseRegister(node->InputAt(2)),
+      g.UseImmediate(params.laneidx),
+      addr,
+      g.TempImmediate(0),
+  };
+
+  Emit(opcode, 0, nullptr, 4, inputs);
+}
+
 void InstructionSelector::VisitLoadTransform(Node* node) {
   LoadTransformParameters params = LoadTransformParametersOf(node->op());
   InstructionCode opcode = kArchNop;
@@ -705,9 +759,7 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
   if (require_add) {
     // ld1r uses post-index, so construct address first.
     // TODO(v8:9886) If index can be immediate, use vldr without this add.
-    InstructionOperand addr = g.TempRegister();
-    Emit(kArm64Add, 1, &addr, 2, inputs);
-    inputs[0] = addr;
+    inputs[0] = EmitAddBeforeLoadOrStore(this, node, &opcode);
     inputs[1] = g.TempImmediate(0);
     opcode |= AddressingModeField::encode(kMode_MRI);
   } else {

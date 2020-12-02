@@ -371,6 +371,8 @@ namespace compiler {
   V(Arm64V16x8AllTrue)                      \
   V(Arm64V8x16AllTrue)                      \
   V(Arm64LoadSplat)                         \
+  V(Arm64LoadLane)                          \
+  V(Arm64StoreLane)                         \
   V(Arm64S128Load8x8S)                      \
   V(Arm64S128Load8x8U)                      \
   V(Arm64S128Load16x4S)                     \

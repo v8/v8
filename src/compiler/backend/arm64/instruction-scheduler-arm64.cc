@@ -360,6 +360,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64LdrDecompressAnyTagged:
     case kArm64Peek:
     case kArm64LoadSplat:
+    case kArm64LoadLane:
     case kArm64S128Load8x8S:
     case kArm64S128Load8x8U:
     case kArm64S128Load16x4S:
@@ -384,6 +385,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64DmbIsh:
     case kArm64DsbIsb:
     case kArm64Prfm:
+    case kArm64StoreLane:
       return kHasSideEffect;
 
     case kArm64Word64AtomicLoadUint8:
