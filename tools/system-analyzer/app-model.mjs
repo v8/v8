@@ -31,10 +31,11 @@ class State {
   selectTimeRange(start, end) {
     this.timeSelection.start = start;
     this.timeSelection.end = end;
-    this._icTimeline.selectTimeRange(start, end);
-    this._mapTimeline.selectTimeRange(start, end);
-    this._deoptTimeline.selectTimeRange(start, end);
-    this._codeTimeline.selectTimeRange(start, end);
+    if (start == 0 && end == Infinity) {
+      this.timelines.forEach(each => each.clearSelection());
+    } else {
+      this.timelines.forEach(each => each.selectTimeRange(start, end));
+    }
   }
 
   setTimelines(mapTimeline, icTimeline, deoptTimeline, codeTimeline) {

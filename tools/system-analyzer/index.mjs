@@ -116,10 +116,10 @@ class App {
 
   selectTimeRange(start, end) {
     this._state.selectTimeRange(start, end);
-    this.showMapEntries(this._state.mapTimeline.selection);
-    this.showIcEntries(this._state.icTimeline.selection);
-    this.showDeoptEntries(this._state.deoptTimeline.selection);
-    this.showCodeEntries(this._state.codeTimeline.selection);
+    this.showMapEntries(this._state.mapTimeline.selection ?? []);
+    this.showIcEntries(this._state.icTimeline.selection ?? []);
+    this.showDeoptEntries(this._state.deoptTimeline.selection ?? []);
+    this.showCodeEntries(this._state.codeTimeline.selection ?? []);
     this._view.timelinePanel.timeSelection = {start, end};
   }
 

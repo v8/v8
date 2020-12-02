@@ -16,7 +16,6 @@ DOM.defineCustomElement('view/timeline/timeline-track',
   _selectedEntry;
   _timeToPixel;
   _timeStartOffset;
-  _typeToColor;
   _legend;
 
   _chunkMouseMoveHandler = this._handleChunkMouseMove.bind(this);
@@ -27,6 +26,7 @@ DOM.defineCustomElement('view/timeline/timeline-track',
     super(templateText);
     this._selectionHandler = new SelectionHandler(this);
     this._legend = new Legend(this.$('#legend'));
+    this._legend.onFilter = (type) => this._handleFilterTimeline();
     this.timelineNode.addEventListener(
         'scroll', e => this._handleTimelineScroll(e));
     this.timelineNode.ondblclick = (e) =>
@@ -34,14 +34,14 @@ DOM.defineCustomElement('view/timeline/timeline-track',
     this.isLocked = false;
   }
 
+  _handleFilterTimeline(type) {
+    this._updateChunks();
+  }
+
   set data(timeline) {
     this._timeline = timeline;
-    this._typeToColor = new Map();
-    timeline.getBreakdown().forEach(
-        each => this._typeToColor.set(each.type, CSSColor.at(each.id)));
     this._legend.timeline = timeline;
     this._updateChunks();
-    this.update();
   }
 
   set timeSelection(selection) {
@@ -92,7 +92,6 @@ DOM.defineCustomElement('view/timeline/timeline-track',
   set nofChunks(count) {
     this._nofChunks = count;
     this._updateChunks();
-    this.update();
   }
 
   get nofChunks() {
@@ -100,7 +99,9 @@ DOM.defineCustomElement('view/timeline/timeline-track',
   }
 
   _updateChunks() {
-    this._chunks = this._timeline.chunks(this.nofChunks);
+    this._chunks = this._timeline.chunks(
+        this.nofChunks, each => this._legend.filter(each));
+    this.update();
   }
 
   get chunks() {
@@ -142,7 +143,7 @@ DOM.defineCustomElement('view/timeline/timeline-track',
     let lastHeight = 0.0;
     const stops = [];
     for (let breakdown of chunk.getBreakdown(map => map.type)) {
-      const color = CSSColor.at(breakdown.id);
+      const color = this._legend.colorForType(breakdown.type);
       increment += breakdown.count;
       let height = (increment / total * kHeight) | 0;
       stops.push(`${color} ${lastHeight}px ${height}px`)
@@ -268,7 +269,7 @@ DOM.defineCustomElement('view/timeline/timeline-track',
   }
 
   setEdgeStyle(edge, ctx) {
-    let color = this._typeToColor.get(edge.type);
+    let color = this._legend.colorForType(edge.type);
     ctx.strokeStyle = color;
     ctx.fillStyle = color;
   }
@@ -366,7 +367,7 @@ DOM.defineCustomElement('view/timeline/timeline-track',
       ctx.lineTo(centerX + offsetX, centerY - labelOffset);
       ctx.stroke();
       ctx.textAlign = 'left';
-      ctx.fillStyle = this._typeToColor.get(edge.type);
+      ctx.fillStyle = this._legend.colorForType(edge.type);
       ctx.fillText(
           edge.toString(), centerX + offsetX + 2, centerY - labelOffset);
     }
@@ -444,7 +445,8 @@ class SelectionHandler {
   }
 
   get hasSelection() {
-    return this._timeSelection.start >= 0;
+    return this._timeSelection.start >= 0 &&
+        this._timeSelection.end != Infinity;
   }
 
   get _timelineNode() {
@@ -516,6 +518,9 @@ class SelectionHandler {
 
 class Legend {
   _timeline;
+  _typesFilters = new Map();
+  _typeClickHandler = this._handleTypeClick.bind(this);
+  onFilter = () => {};
 
   constructor(table) {
     this._table = table;
@@ -523,34 +528,71 @@ class Legend {
 
   set timeline(timeline) {
     this._timeline = timeline;
+    this._typesFilters =
+        new Map(timeline.getBreakdown().map(each => [each.type, true]));
+    this._colors = new Map(
+        timeline.getBreakdown().map(each => [each.type, CSSColor.at(each.id)]));
+  }
+
+  get selection() {
+    return this._timeline.selection ?? this._timeline;
+  }
+
+  colorForType(type) {
+    return this._colors.get(type);
+  }
+
+  filter(logEntry) {
+    return this._typesFilters.get(logEntry.type);
   }
 
   update() {
     const tbody = DOM.tbody();
-    const selection = this._timeline.selection ?? this._timeline;
-    const length = selection.length;
-    selection.getBreakdown().forEach(breakdown => {
-      const color = CSSColor.at(breakdown.id);
-      let colorDiv;
-      if (color !== null) {
-        colorDiv = DOM.div('colorbox');
-        colorDiv.style.backgroundColor = color;
-      }
-      let percent = `${(breakdown.count / length * 100).toFixed(1)}%`;
-      tbody.appendChild(
-          this.row(colorDiv, breakdown.type, breakdown.count, percent));
+    const missingTypes = new Set(this._typesFilters.keys());
+    this.selection.getBreakdown().forEach(each => {
+      tbody.appendChild(this._breakdownRow(each));
+      missingTypes.delete(each.type);
     });
-    tbody.appendChild(this.row('', 'Selection', length, '100%'));
-    tbody.appendChild(this.row('', 'All', this._timeline.length, '100%'));
+    missingTypes.forEach(
+        each => tbody.appendChild(this._row('', each, 0, '0%')));
+    if (this._timeline.selection) {
+      tbody.appendChild(
+          this._row('', 'Selection', this.selection.length, '100%'));
+    }
+    tbody.appendChild(this._row('', 'All', this._timeline.length, ''));
     this._table.tBodies[0].replaceWith(tbody);
   }
 
-  row(color, type, count, percent) {
+  _row(color, type, count, percent) {
     const row = DOM.tr();
     row.appendChild(DOM.td(color));
     row.appendChild(DOM.td(type));
-    row.appendChild(DOM.td(count));
+    row.appendChild(DOM.td(count.toString()));
     row.appendChild(DOM.td(percent));
     return row
+  }
+
+  _breakdownRow(breakdown) {
+    const color = this.colorForType(breakdown.type);
+    const colorDiv = DOM.div('colorbox');
+    if (this._typesFilters.get(breakdown.type)) {
+      colorDiv.style.backgroundColor = color;
+    } else {
+      colorDiv.style.borderColor = color;
+      colorDiv.style.backgroundColor = CSSColor.backgroundImage;
+    }
+    let percent =
+        `${(breakdown.count / this.selection.length * 100).toFixed(1)}%`;
+    const row = this._row(colorDiv, breakdown.type, breakdown.count, percent);
+    row.className = 'clickable';
+    row.onclick = this._typeClickHandler;
+    row.data = breakdown.type;
+    return row;
+  }
+
+  _handleTypeClick(e) {
+    const type = e.currentTarget.data;
+    this._typesFilters.set(type, !this._typesFilters.get(type));
+    this.onFilter(type);
   }
 }

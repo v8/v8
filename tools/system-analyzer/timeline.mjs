@@ -124,8 +124,8 @@ class Timeline {
     let currentTime = this.first().time + increment;
     let index = 0;
     for (let i = 0; i < count; i++) {
-      let nextIndex = this.find(currentTime, index);
-      let nextTime = currentTime + increment;
+      const nextIndex = this.find(currentTime, index);
+      const nextTime = currentTime + increment;
       fn(index, nextIndex, currentTime, nextTime);
       index = nextIndex;
       currentTime = nextTime;
@@ -133,15 +133,16 @@ class Timeline {
   }
 
   chunkSizes(count) {
-    let chunks = [];
+    const chunks = [];
     this.forEachChunkSize(count, (start, end) => chunks.push(end - start));
     return chunks;
   }
 
-  chunks(count) {
-    let chunks = [];
+  chunks(count, predicate = undefined) {
+    const chunks = [];
     this.forEachChunkSize(count, (start, end, startTime, endTime) => {
       let items = this._values.slice(start, end);
+      if (predicate !== undefined) items = items.filter(predicate);
       chunks.push(new Chunk(chunks.length, startTime, endTime, items));
     });
     return chunks;

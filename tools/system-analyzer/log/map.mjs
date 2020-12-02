@@ -115,9 +115,10 @@ class MapLogEntry extends LogEntry {
   }
 
   position(chunks) {
-    let index = this.chunkIndex(chunks);
-    let xFrom = (index + 1.5) * kChunkWidth;
-    let yFrom = kChunkHeight - chunks[index].yOffset(this);
+    const index = this.chunkIndex(chunks);
+    if (index === -1) return [0, 0];
+    const xFrom = (index + 1.5) * kChunkWidth;
+    const yFrom = kChunkHeight - chunks[index].yOffset(this);
     return [xFrom, yFrom];
   }
 
