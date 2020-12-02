@@ -3164,23 +3164,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I16x8SConvertI32x4: {
-      __ vpkswss(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
+      __ vpkswss(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                 i.InputSimd128Register(0));
       break;
     }
     case kPPC_I16x8UConvertI32x4: {
-      __ vpkswus(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
+      __ vpkswus(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                 i.InputSimd128Register(0));
       break;
     }
     case kPPC_I8x16SConvertI16x8: {
-      __ vpkshss(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
+      __ vpkshss(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                 i.InputSimd128Register(0));
       break;
     }
     case kPPC_I8x16UConvertI16x8: {
-      __ vpkshus(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
+      __ vpkshus(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                 i.InputSimd128Register(0));
       break;
     }
     case kPPC_I8x16Shuffle: {
