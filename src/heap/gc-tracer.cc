@@ -48,6 +48,14 @@ double GCTracer::MonotonicallyIncreasingTimeInMs() {
   }
 }
 
+CollectionEpoch GCTracer::CurrentEpoch(Scope::ScopeId scope_id) {
+  if (Scope::NeedsYoungEpoch(scope_id)) {
+    return heap_->epoch_young();
+  } else {
+    return heap_->epoch_full();
+  }
+}
+
 GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope, ThreadKind thread_kind)
     : tracer_(tracer), scope_(scope), thread_kind_(thread_kind) {
   start_time_ = tracer_->MonotonicallyIncreasingTimeInMs();
@@ -93,6 +101,19 @@ const char* GCTracer::Scope::Name(ScopeId id) {
 #undef CASE
   UNREACHABLE();
   return nullptr;
+}
+
+bool GCTracer::Scope::NeedsYoungEpoch(ScopeId id) {
+#define CASE(scope)  \
+  case Scope::scope: \
+    return true;
+  switch (id) {
+    TRACER_YOUNG_EPOCH_SCOPES(CASE)
+    default:
+      return false;
+  }
+#undef CASE
+  UNREACHABLE();
 }
 
 GCTracer::Event::Event(Type type, GarbageCollectionReason gc_reason,
