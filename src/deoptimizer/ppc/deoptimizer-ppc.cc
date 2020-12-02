@@ -14,6 +14,7 @@ namespace internal {
 const bool Deoptimizer::kSupportsFixedDeoptExitSizes = true;
 const int Deoptimizer::kNonLazyDeoptExitSize = 3 * kInstrSize;
 const int Deoptimizer::kLazyDeoptExitSize = 3 * kInstrSize;
+const int Deoptimizer::kEagerWithResumeDeoptExitSize = 4 * kInstrSize;
 
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {
   float float_val = static_cast<float>(double_registers_[n].get_scalar());
