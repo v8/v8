@@ -2347,34 +2347,6 @@ void Simulator::PrintStopInfo(uint32_t code) {
 #define CheckOverflowForShiftLeft(src1, src2) \
   (((src1) << (src2)) >> (src2) != (src1))
 
-int16_t Simulator::ByteReverse(int16_t hword) {
-#if defined(__GNUC__)
-  return __builtin_bswap16(hword);
-#else
-  return (hword << 8) | ((hword >> 8) & 0x00FF);
-#endif
-}
-
-int32_t Simulator::ByteReverse(int32_t word) {
-#if defined(__GNUC__)
-  return __builtin_bswap32(word);
-#else
-  int32_t result = word << 24;
-  result |= (word << 8) & 0x00FF0000;
-  result |= (word >> 8) & 0x0000FF00;
-  result |= (word >> 24) & 0x00000FF;
-  return result;
-#endif
-}
-
-int64_t Simulator::ByteReverse(int64_t dword) {
-#if defined(__GNUC__)
-  return __builtin_bswap64(dword);
-#else
-#error unsupport __builtin_bswap64
-#endif
-}
-
 int Simulator::DecodeInstruction(Instruction* instr) {
   Opcode op = instr->S390OpcodeValue();
   DCHECK_NOT_NULL(EvalTable[op]);
