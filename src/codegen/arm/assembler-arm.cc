@@ -4799,7 +4799,7 @@ void Assembler::vext(QwNeonRegister dst, QwNeonRegister src1,
        n * B7 | B6 | m * B5 | vm);
 }
 
-enum NeonSizedOp { VZIP, VUZP, VREV16, VREV32, VREV64, VTRN, VCNT };
+enum NeonSizedOp { VZIP, VUZP, VREV16, VREV32, VREV64, VTRN };
 
 static Instr EncodeNeonSizedOp(NeonSizedOp op, NeonRegType reg_type,
                                NeonSize size, int dst_code, int src_code) {
@@ -4822,9 +4822,6 @@ static Instr EncodeNeonSizedOp(NeonSizedOp op, NeonRegType reg_type,
       break;
     case VTRN:
       op_encoding = 0x2 * B16 | B7;
-      break;
-    case VCNT:
-      op_encoding = 0xA * B7;
       break;
     default:
       UNREACHABLE();
@@ -4908,13 +4905,6 @@ void Assembler::vtrn(NeonSize size, QwNeonRegister src1, QwNeonRegister src2) {
   // vtrn.<size>(Qn, Qm) SIMD element transpose.
   // Instruction details available in ARM DDI 0406C.b, A8-1096.
   emit(EncodeNeonSizedOp(VTRN, NEON_Q, size, src1.code(), src2.code()));
-}
-
-void Assembler::vcnt(QwNeonRegister dst, QwNeonRegister src) {
-  // Qd = vcnt(Qm) SIMD Vector Count Set Bits.
-  // Instruction details available at ARM DDI 0487F.b, F6-5094.
-  DCHECK(IsEnabled(NEON));
-  emit(EncodeNeonSizedOp(VCNT, NEON_Q, Neon8, dst.code(), src.code()));
 }
 
 // Encode NEON vtbl / vtbx instruction.

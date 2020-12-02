@@ -1323,8 +1323,6 @@ TEST(Neon) {
               "f3b1fa45       vtbx.8 d15, {d1, d2, d3}, d5");
       COMPARE(vtbx(d15, NeonListOperand(d1, 4), d5),
               "f3b1fb45       vtbx.8 d15, {d1, d2, d3, d4}, d5");
-      COMPARE(vcnt(q1, q2),
-              "f3b02544       vcnt.8 q1, q2");
   }
 
   VERIFY_RUN();

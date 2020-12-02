@@ -966,8 +966,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vtbx(DwVfpRegister dst, const NeonListOperand& list,
             DwVfpRegister index);
 
-  void vcnt(QwNeonRegister dst, QwNeonRegister src);
-
   // Pseudo instructions
 
   // Different nop operations are used by the code generator to detect certain
