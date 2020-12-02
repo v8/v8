@@ -4207,9 +4207,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vpor(dst, dst, kScratchDoubleReg);
       break;
     }
-    case kIA32V32x4AnyTrue:
-    case kIA32V16x8AnyTrue:
-    case kIA32V8x16AnyTrue: {
+    case kIA32S128AnyTrue: {
       Register dst = i.OutputRegister();
       XMMRegister src = i.InputSimd128Register(0);
       Register tmp = i.TempRegister(0);

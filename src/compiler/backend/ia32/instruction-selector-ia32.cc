@@ -2550,11 +2550,12 @@ SIMD_UNOP_PREFIX_LIST(VISIT_SIMD_UNOP_PREFIX)
 #undef VISIT_SIMD_UNOP_PREFIX
 #undef SIMD_UNOP_PREFIX_LIST
 
+// The implementation of AnyTrue is the same for all shapes.
 #define VISIT_SIMD_ANYTRUE(Opcode)                                  \
   void InstructionSelector::Visit##Opcode(Node* node) {             \
     IA32OperandGenerator g(this);                                   \
     InstructionOperand temps[] = {g.TempRegister()};                \
-    Emit(kIA32##Opcode, g.DefineAsRegister(node),                   \
+    Emit(kIA32S128AnyTrue, g.DefineAsRegister(node),                \
          g.UseRegister(node->InputAt(0)), arraysize(temps), temps); \
   }
 SIMD_ANYTRUE_LIST(VISIT_SIMD_ANYTRUE)

@@ -380,11 +380,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXS8x4Reverse:
     case kSSES8x2Reverse:
     case kAVXS8x2Reverse:
-    case kIA32V32x4AnyTrue:
+    case kIA32S128AnyTrue:
     case kIA32V32x4AllTrue:
-    case kIA32V16x8AnyTrue:
     case kIA32V16x8AllTrue:
-    case kIA32V8x16AnyTrue:
     case kIA32V8x16AllTrue:
       return (instr->addressing_mode() == kMode_None)
                  ? kNoOpcodeFlags
