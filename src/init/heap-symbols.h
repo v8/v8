@@ -426,6 +426,7 @@
   F(HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES)               \
   F(HEAP_PROLOGUE)                                   \
   F(HEAP_PROLOGUE_SAFEPOINT)                         \
+  F(MARK_COMPACTOR)                                  \
   TOP_MC_SCOPES(F)                                   \
   F(MC_CLEAR_DEPENDENT_CODE)                         \
   F(MC_CLEAR_FLUSHABLE_BYTECODE)                     \
@@ -467,6 +468,7 @@
   F(MC_SWEEP_CODE)                                   \
   F(MC_SWEEP_MAP)                                    \
   F(MC_SWEEP_OLD)                                    \
+  F(MINOR_MARK_COMPACTOR)                            \
   F(MINOR_MC)                                        \
   F(MINOR_MC_CLEAR)                                  \
   F(MINOR_MC_CLEAR_STRING_TABLE)                     \
@@ -492,6 +494,7 @@
   F(MINOR_MC_MARKING_DEQUE)                          \
   F(MINOR_MC_RESET_LIVENESS)                         \
   F(MINOR_MC_SWEEPING)                               \
+  F(SCAVENGER)                                       \
   F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)          \
   F(SCAVENGER_FAST_PROMOTE)                          \
   F(SCAVENGER_FREE_REMEMBERED_SET)                   \
@@ -519,6 +522,12 @@
   F(MINOR_MC_BACKGROUND_EVACUATE_COPY)            \
   F(MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS) \
   F(MINOR_MC_BACKGROUND_MARKING)                  \
+  F(SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL)
+
+#define TRACER_YOUNG_EPOCH_SCOPES(F)     \
+  F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP) \
+  F(MINOR_MARK_COMPACTOR)                \
+  F(SCAVENGER)                           \
   F(SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL)
 
 #endif  // V8_INIT_HEAP_SYMBOLS_H_
