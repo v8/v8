@@ -3560,23 +3560,23 @@ void Builtins::Generate_DeoptimizationEntry_Lazy(MacroAssembler* masm) {
   Generate_DeoptimizationEntry(masm, DeoptimizeKind::kLazy);
 }
 
-void Builtins::Generate_DynamicMapChecksTrampoline(MacroAssembler* masm) {
+void Builtins::Generate_DynamicCheckMapsTrampoline(MacroAssembler* masm) {
   FrameScope scope(masm, StackFrame::MANUAL);
   __ EnterFrame(StackFrame::INTERNAL);
 
-  // Only save the registers that the DynamicMapChecks builtin can clobber.
-  DynamicMapChecksDescriptor descriptor;
+  // Only save the registers that the DynamicCheckMaps builtin can clobber.
+  DynamicCheckMapsDescriptor descriptor;
   RegList registers = descriptor.allocatable_registers();
   // FLAG_debug_code is enabled CSA checks will call C function and so we need
   // to save all CallerSaved registers too.
   if (FLAG_debug_code) registers |= kJSCallerSaved;
   __ SaveRegisters(registers);
 
-  __ Call(BUILTIN_CODE(masm->isolate(), DynamicMapChecks),
+  __ Call(BUILTIN_CODE(masm->isolate(), DynamicCheckMaps),
           RelocInfo::CODE_TARGET);
 
   Label deopt, bailout;
-  __ cmpi(r3, Operand(static_cast<int>(DynamicMapChecksStatus::kSuccess)));
+  __ cmpi(r3, Operand(static_cast<int>(DynamicCheckMapsStatus::kSuccess)));
   __ bne(&deopt);
 
   __ RestoreRegisters(registers);
@@ -3584,12 +3584,12 @@ void Builtins::Generate_DynamicMapChecksTrampoline(MacroAssembler* masm) {
   __ Ret();
 
   __ bind(&deopt);
-  __ cmpi(r3, Operand(static_cast<int>(DynamicMapChecksStatus::kBailout)));
+  __ cmpi(r3, Operand(static_cast<int>(DynamicCheckMapsStatus::kBailout)));
   __ beq(&bailout);
 
   if (FLAG_debug_code) {
-    __ cmpi(r3, Operand(static_cast<int>(DynamicMapChecksStatus::kDeopt)));
-    __ Assert(eq, AbortReason::kUnexpectedDynamicMapChecksStatus);
+    __ cmpi(r3, Operand(static_cast<int>(DynamicCheckMapsStatus::kDeopt)));
+    __ Assert(eq, AbortReason::kUnexpectedDynamicCheckMapsStatus);
   }
   __ RestoreRegisters(registers);
   __ LeaveFrame(StackFrame::INTERNAL);

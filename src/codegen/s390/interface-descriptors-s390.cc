@@ -34,7 +34,7 @@ void RecordWriteDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(kParameterCount, default_stub_registers);
 }
 
-void DynamicMapChecksDescriptor::InitializePlatformSpecific(
+void DynamicCheckMapsDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register default_stub_registers[] = {r2, r3, r4, r5, cp};
 
