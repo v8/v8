@@ -1124,10 +1124,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                            Map::kConstructorOrBackPointerOrNativeContextOffset);
   }
 
-  // Reference is the CSA-equivalent of a Torque reference value,
-  // representing an inner pointer into a HeapObject.
-  // The object can be a HeapObject or an all-zero bitpattern.
-  // TODO(gsps): Remove in favor of flattened {Load,Store}Reference interface
+  // Reference is the CSA-equivalent of a Torque reference value, representing
+  // an inner pointer into a HeapObject.
+  //
+  // The object can be a HeapObject or an all-zero bitpattern. The latter is
+  // used for off-heap data, in which case the offset holds the actual address
+  // and the data must be untagged (i.e. accessed via the Load-/StoreReference
+  // overloads for TNode<UntaggedT>-convertible types below).
+  //
+  // TODO(gsps): Remove in favor of flattened {Load,Store}Reference interface.
   struct Reference {
     TNode<Object> object;
     TNode<IntPtrT> offset;
