@@ -133,6 +133,10 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
 
   CallInterfaceDescriptorData() = default;
 
+  CallInterfaceDescriptorData(const CallInterfaceDescriptorData&) = delete;
+  CallInterfaceDescriptorData& operator=(const CallInterfaceDescriptorData&) =
+      delete;
+
   // A copy of the passed in registers and param_representations is made
   // and owned by the CallInterfaceDescriptorData.
 
@@ -223,8 +227,6 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   // runtime static initializers which we don't want.
   Register* register_params_ = nullptr;
   MachineType* machine_types_ = nullptr;
-
-  DISALLOW_COPY_AND_ASSIGN(CallInterfaceDescriptorData);
 };
 
 class V8_EXPORT_PRIVATE CallDescriptors : public AllStatic {

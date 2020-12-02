@@ -461,6 +461,8 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   // Note: does not take ownership of |data|.
   BackgroundCompileTask(ScriptStreamingData* data, Isolate* isolate,
                         v8::ScriptType type);
+  BackgroundCompileTask(const BackgroundCompileTask&) = delete;
+  BackgroundCompileTask& operator=(const BackgroundCompileTask&) = delete;
   ~BackgroundCompileTask();
 
   // Creates a new task that when run will parse and compile the
@@ -534,8 +536,6 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;
   TimedHistogram* timer_;
   LanguageMode language_mode_;
-
-  DISALLOW_COPY_AND_ASSIGN(BackgroundCompileTask);
 };
 
 // Contains all data which needs to be transmitted between threads for
@@ -544,6 +544,8 @@ struct ScriptStreamingData {
   ScriptStreamingData(
       std::unique_ptr<ScriptCompiler::ExternalSourceStream> source_stream,
       ScriptCompiler::StreamedSource::Encoding encoding);
+  ScriptStreamingData(const ScriptStreamingData&) = delete;
+  ScriptStreamingData& operator=(const ScriptStreamingData&) = delete;
   ~ScriptStreamingData();
 
   void Release();
@@ -554,8 +556,6 @@ struct ScriptStreamingData {
 
   // Task that performs background parsing and compilation.
   std::unique_ptr<BackgroundCompileTask> task;
-
-  DISALLOW_COPY_AND_ASSIGN(ScriptStreamingData);
 };
 
 }  // namespace internal

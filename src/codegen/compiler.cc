@@ -1535,6 +1535,9 @@ class V8_NODISCARD OffThreadParseInfoScope {
                                    worker_thread_scope_.Get());
   }
 
+  OffThreadParseInfoScope(const OffThreadParseInfoScope&) = delete;
+  OffThreadParseInfoScope& operator=(const OffThreadParseInfoScope&) = delete;
+
   ~OffThreadParseInfoScope() {
     DCHECK_NOT_NULL(parse_info_);
     parse_info_->SetPerThreadState(original_stack_limit_,
@@ -1546,8 +1549,6 @@ class V8_NODISCARD OffThreadParseInfoScope {
   RuntimeCallStats* original_runtime_call_stats_;
   uintptr_t original_stack_limit_;
   WorkerThreadRuntimeCallStatsScope worker_thread_scope_;
-
-  DISALLOW_COPY_AND_ASSIGN(OffThreadParseInfoScope);
 };
 
 }  // namespace
