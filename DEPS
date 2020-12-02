@@ -88,9 +88,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b031112684a2a4ee47da9dd91d9aa50e17ab14d4',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6ca160d19873bc07a7e76f9d4bae4177bdef1c26',
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '6d2a0fef93155cb26724fbc0430f7a6f1d1aaed1',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '80cea4f5fc66293424679e313c1b5c53d8a7b962',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '6a33b647c0647c3eb97eae5432153ef2dfca7baa',
   'third_party/instrumented_libraries':
@@ -206,7 +206,7 @@ deps = {
   'third_party/markupsafe':
     Var('chromium_url') + '/chromium/src/third_party/markupsafe.git' + '@' + '0944e71f4b2cb9a871bcbe353f95e889b64a611a',
   'tools/swarming_client':
-    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + 'd46ea7635f2911208268170512cb611412488fd8',
+    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '1a072711d4388c62e02480fabc26c68c24494be9',
   'test/benchmarks/data':
     Var('chromium_url') + '/v8/deps/third_party/benchmarks.git' + '@' + '05d7188267b4560491ff9155c5ee13e207ecd65f',
   'test/mozilla/data':
@@ -239,7 +239,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'jfuzh1KU9b_qTmPrfQ2v7GW8FB2tUz0uUUjeyB_2LdQC'
+              'version': 'DQxYsB8PVOoG7iQxYf01AM0DSgvbu3DKEyrTvcT79zAC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
