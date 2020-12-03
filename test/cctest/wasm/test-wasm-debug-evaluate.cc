@@ -257,24 +257,24 @@ class WasmJSBreakHandler : public debug::DebugDelegate {
     Maybe<std::string> error = Nothing<std::string>();
   };
 
-  WasmJSBreakHandler(Isolate* isolate, Handle<String> snippet)
-      : isolate_(isolate),
-        snippet_(snippet),
-        result_(Nothing<EvaluationResult>()) {
+  WasmJSBreakHandler(Isolate* isolate, std::vector<Handle<String>> snippets)
+      : isolate_(isolate), snippets_(std::move(snippets)) {
     v8::debug::SetDebugDelegate(reinterpret_cast<v8::Isolate*>(isolate_), this);
   }
+  WasmJSBreakHandler(Isolate* isolate, Handle<String> snippet)
+      : WasmJSBreakHandler(isolate, std::vector<Handle<String>>({snippet})) {}
 
   ~WasmJSBreakHandler() override {
     v8::debug::SetDebugDelegate(reinterpret_cast<v8::Isolate*>(isolate_),
                                 nullptr);
   }
 
-  const Maybe<EvaluationResult>& result() const { return result_; }
+  const std::vector<EvaluationResult>& results() const { return results_; }
 
  private:
   Isolate* isolate_;
-  Handle<String> snippet_;
-  Maybe<EvaluationResult> result_;
+  std::vector<Handle<String>> snippets_;
+  std::vector<EvaluationResult> results_;
 
   Maybe<std::string> GetPendingExceptionAsString() const {
     if (!isolate_->has_pending_exception()) return Nothing<std::string>();
@@ -304,14 +304,16 @@ class WasmJSBreakHandler : public debug::DebugDelegate {
     WasmFrame* frame = WasmFrame::cast(frame_it.frame());
     Handle<WasmInstanceObject> instance{frame->wasm_instance(), isolate_};
 
-    MaybeHandle<Object> result_handle = DebugEvaluate::WebAssembly(
-        instance, frame_it.frame()->id(), snippet_, false);
+    for (Handle<String> snippet : snippets_) {
+      MaybeHandle<Object> result_handle = DebugEvaluate::WebAssembly(
+          instance, frame_it.frame()->id(), snippet, false);
 
-    Maybe<std::string> error_message = GetPendingExceptionAsString();
-    Maybe<std::string> result_message = GetResultAsString(result_handle);
+      Maybe<std::string> error_message = GetPendingExceptionAsString();
+      Maybe<std::string> result_message = GetResultAsString(result_handle);
 
-    isolate_->clear_pending_exception();
-    result_ = Just<EvaluationResult>({result_message, error_message});
+      isolate_->clear_pending_exception();
+      results_.emplace_back(EvaluationResult{result_message, error_message});
+    }
   }
 };
 
@@ -541,7 +543,9 @@ WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_JavaScript) {
                "$var0, "
                "$main, "
                "$memory0, "
+               "globals.$nope, "
                "globals[0], "
+               "globals[1], "
                "tables[0], "
                "locals[0], "
                "functions[0], "
@@ -560,13 +564,39 @@ WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_JavaScript) {
   WasmJSBreakHandler break_handler(isolate, snippet);
   CHECK(!code.Run(&runner).is_null());
 
-  WasmJSBreakHandler::EvaluationResult result =
-      break_handler.result().ToChecked();
+  WasmJSBreakHandler::EvaluationResult result = break_handler.results().front();
   CHECK_WITH_MSG(result.error.IsNothing(), result.error.ToChecked().c_str());
   CHECK_EQ(result.result.ToChecked(),
-           "[\"66\",{},\"65\",\"function 0() { [native code] }\",{},"
-           "\"66\",{},\"65\",\"function 0() { [native code] }\",{},"
-           "{},{},{\"0\":\"65\"},{},{},{},{},{}]");
+           "[\"66\",{},\"65\",\"function 0() { [native code] "
+           "}\",{},null,\"66\",null,{},\"65\",\"function 0() { [native code] "
+           "}\",{},{},{},{\"0\":\"65\"},{},{},{},{},{}]");
+}
+
+WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_JavaScript_Caching) {
+  WasmRunner<int> runner(execution_tier);
+  runner.builder().AddGlobal<int32_t>();
+
+  TestCode<int32_t> code(
+      &runner,
+      {WASM_SET_GLOBAL(0, WASM_I32V_2('B')), WASM_RETURN1(WASM_GET_GLOBAL(0))},
+      {});
+  code.BreakOnReturn(&runner);
+
+  Isolate* isolate = runner.main_isolate();
+  Handle<String> snippet = V8String(isolate, "JSON.stringify($global0)");
+
+  WasmJSBreakHandler break_handler(isolate, {snippet, snippet});
+  CHECK(!code.Run(&runner).is_null());
+
+  auto results = break_handler.results();
+  CHECK_EQ(results.size(), 2);
+
+  CHECK_WITH_MSG(results[0].error.IsNothing(),
+                 results[0].error.ToChecked().c_str());
+  CHECK_EQ(results[0].result.ToChecked(), "66");
+  CHECK_WITH_MSG(results[1].error.IsNothing(),
+                 results[1].error.ToChecked().c_str());
+  CHECK_EQ(results[1].result.ToChecked(), "66");
 }
 
 }  // namespace
