@@ -553,8 +553,7 @@ bool CodeGenerator::IsNextInAssemblyOrder(RpoNumber block) const {
 void CodeGenerator::RecordSafepoint(ReferenceMap* references,
                                     Safepoint::DeoptMode deopt_mode) {
   Safepoint safepoint = safepoints()->DefineSafepoint(tasm(), deopt_mode);
-  int stackSlotToSpillSlotDelta =
-      frame()->GetTotalFrameSlotCount() - frame()->GetSpillSlotCount();
+  int frame_header_offset = frame()->GetFixedSlotCount();
   for (const InstructionOperand& operand : references->reference_operands()) {
     if (operand.IsStackSlot()) {
       int index = LocationOperand::cast(operand).index();
@@ -564,7 +563,7 @@ void CodeGenerator::RecordSafepoint(ReferenceMap* references,
       // and therefore don't work with the SafepointTable currently, but
       // we also don't need to worry about them, since the GC has special
       // knowledge about those fields anyway.
-      if (index < stackSlotToSpillSlotDelta) continue;
+      if (index < frame_header_offset) continue;
       safepoint.DefinePointerSlot(index);
     }
   }
