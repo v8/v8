@@ -2545,7 +2545,7 @@ WASM_SIMD_TEST(I8x16Abs) {
   RunI8x16UnOpTest(execution_tier, lower_simd, kExprI8x16Abs, Abs);
 }
 
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_ARM64
 // TODO(v8:11002) Prototype i8x16.popcnt.
 WASM_SIMD_TEST_NO_LOWERING(I8x16Popcnt) {
   FLAG_SCOPE(wasm_simd_post_mvp);
@@ -2568,7 +2568,7 @@ WASM_SIMD_TEST_NO_LOWERING(I8x16Popcnt) {
     }
   }
 }
-#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
+#endif  // V8_TARGET_ARCH_ARM64
 
 // Tests both signed and unsigned conversion from I16x8 (packing).
 WASM_SIMD_TEST(I8x16ConvertI16x8) {
