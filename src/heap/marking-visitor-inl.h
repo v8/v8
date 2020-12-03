@@ -420,7 +420,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorsForMap(
   if (descriptors.IsStrongDescriptorArray()) {
     return 0;
   }
-
+  concrete_visitor()->SynchronizePageAccess(descriptors);
   int size = MarkDescriptorArrayBlack(descriptors);
   int number_of_own_descriptors = map.NumberOfOwnDescriptors();
   if (number_of_own_descriptors) {
