@@ -261,7 +261,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
   Zone* shared_zone() const { return shared_zone_; }
-  bool should_disallow_heap_access() const;
 
   JSGraph* const jsgraph_;
   JSHeapBroker* const broker_;

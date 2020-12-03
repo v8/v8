@@ -8,6 +8,7 @@
 #include "src/base/platform/wrappers.h"
 #include "src/codegen/source-position-table.h"
 #include "src/codegen/tick-counter.h"
+#include "src/common/assert-scope.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/compiler-source-position-table.h"
@@ -411,10 +412,6 @@ class BytecodeGraphBuilder {
   JSHeapBroker* broker() const { return broker_; }
   NativeContextRef native_context() const { return native_context_; }
   SharedFunctionInfoRef shared_info() const { return shared_info_; }
-
-  bool should_disallow_heap_access() const {
-    return broker_->is_concurrent_inlining();
-  }
 
 #define DECLARE_VISIT_BYTECODE(name, ...) void Visit##name();
   BYTECODE_LIST(DECLARE_VISIT_BYTECODE)
@@ -1018,7 +1015,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       bytecode_analysis_(broker_->GetBytecodeAnalysis(
           bytecode_array().object(), osr_offset,
           flags & BytecodeGraphBuilderFlag::kAnalyzeEnvironmentLiveness,
-          should_disallow_heap_access()
+          broker->is_concurrent_inlining()
               ? SerializationPolicy::kAssumeSerialized
               : SerializationPolicy::kSerializeIfNeeded)),
       environment_(nullptr),
@@ -1175,7 +1172,6 @@ FeedbackSource BytecodeGraphBuilder::CreateFeedbackSource(FeedbackSlot slot) {
 }
 
 void BytecodeGraphBuilder::CreateGraph() {
-  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   SourcePositionTable::Scope pos_scope(source_positions_, start_position_);
 
   // Set up the basic structure of the graph. Outputs for {Start} are the formal
@@ -1508,7 +1504,8 @@ void BytecodeGraphBuilder::VisitBytecodes() {
     VisitSingleBytecode();
   }
 
-  if (!should_disallow_heap_access() && has_one_shot_bytecode) {
+  // TODO(leszeks): Increment usage counter on BG thread.
+  if (!FLAG_concurrent_inlining && has_one_shot_bytecode) {
     // (For concurrent inlining this is done in the serializer instead.)
     isolate()->CountUsage(
         v8::Isolate::UseCounterFeature::kOptimizedFunctionWithOneShotBytecode);
@@ -2246,7 +2243,6 @@ void BytecodeGraphBuilder::VisitCreateClosure() {
 }
 
 void BytecodeGraphBuilder::VisitCreateBlockContext() {
-  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
   ScopeInfoRef scope_info(
       broker(), bytecode_iterator().GetConstantForIndexOperand(0, isolate()));
   const Operator* op = javascript()->CreateBlockContext(scope_info.object());
@@ -2255,7 +2251,6 @@ void BytecodeGraphBuilder::VisitCreateBlockContext() {
 }
 
 void BytecodeGraphBuilder::VisitCreateFunctionContext() {
-  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
   ScopeInfoRef scope_info(
       broker(), bytecode_iterator().GetConstantForIndexOperand(0, isolate()));
   uint32_t slots = bytecode_iterator().GetUnsignedImmediateOperand(1);
@@ -2266,7 +2261,6 @@ void BytecodeGraphBuilder::VisitCreateFunctionContext() {
 }
 
 void BytecodeGraphBuilder::VisitCreateEvalContext() {
-  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
   ScopeInfoRef scope_info(
       broker(), bytecode_iterator().GetConstantForIndexOperand(0, isolate()));
   uint32_t slots = bytecode_iterator().GetUnsignedImmediateOperand(1);
@@ -2277,7 +2271,6 @@ void BytecodeGraphBuilder::VisitCreateEvalContext() {
 }
 
 void BytecodeGraphBuilder::VisitCreateCatchContext() {
-  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
   interpreter::Register reg = bytecode_iterator().GetRegisterOperand(0);
   Node* exception = environment()->LookupRegister(reg);
   ScopeInfoRef scope_info(
@@ -2289,7 +2282,6 @@ void BytecodeGraphBuilder::VisitCreateCatchContext() {
 }
 
 void BytecodeGraphBuilder::VisitCreateWithContext() {
-  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
   Node* object =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   ScopeInfoRef scope_info(
@@ -2409,7 +2401,6 @@ void BytecodeGraphBuilder::VisitCloneObject() {
 }
 
 void BytecodeGraphBuilder::VisitGetTemplateObject() {
-  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
   FeedbackSource source =
       CreateFeedbackSource(bytecode_iterator().GetIndexOperand(1));
   TemplateObjectDescriptionRef description(

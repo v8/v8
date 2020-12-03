@@ -2367,8 +2367,6 @@ Reduction JSTypedLowering::ReduceJSResolvePromise(Node* node) {
 }
 
 Reduction JSTypedLowering::Reduce(Node* node) {
-  DisallowHeapAccess no_heap_access;
-
   const IrOpcode::Value opcode = node->opcode();
   if (broker()->generate_full_feedback_collection() &&
       IrOpcode::IsFeedbackCollectingOpcode(opcode)) {
@@ -2479,7 +2477,6 @@ Reduction JSTypedLowering::Reduce(Node* node) {
   }
   return NoChange();
 }
-
 
 Factory* JSTypedLowering::factory() const { return jsgraph()->factory(); }
 

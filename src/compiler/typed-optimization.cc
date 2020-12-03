@@ -34,7 +34,7 @@ TypedOptimization::TypedOptimization(Editor* editor,
 TypedOptimization::~TypedOptimization() = default;
 
 Reduction TypedOptimization::Reduce(Node* node) {
-  DisallowHeapAccess no_heap_access;
+  DisallowHeapAccessIf no_heap_access(!FLAG_turbo_direct_heap_access);
   switch (node->opcode()) {
     case IrOpcode::kConvertReceiver:
       return ReduceConvertReceiver(node);

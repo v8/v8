@@ -8,6 +8,7 @@
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
+#include "src/common/assert-scope.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/local-handles-inl.h"
 #include "src/handles/persistent-handles.h"
@@ -134,6 +135,25 @@ TEST(DereferencePersistentHandle) {
                          std::move(phs));
     UnparkedScope scope(&local_heap);
     CHECK_EQ(42, ph->value());
+  }
+}
+
+TEST(DereferencePersistentHandleFailsWhenDisallowed) {
+  heap::EnsureFlagLocalHeapsEnabled();
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+
+  std::unique_ptr<PersistentHandles> phs = isolate->NewPersistentHandles();
+  Handle<HeapNumber> ph;
+  {
+    HandleScope handle_scope(isolate);
+    Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(42.0);
+    ph = phs->NewHandle(number);
+  }
+  {
+    LocalHeap local_heap(isolate->heap(), ThreadKind::kBackground,
+                         std::move(phs));
+    UnparkedScope scope(&local_heap);
     DisallowHandleDereference disallow_scope;
     CHECK_EQ(42, ph->value());
   }

@@ -55,7 +55,6 @@ const int kBlockContextAllocationLimit = 16;
 }  // namespace
 
 Reduction JSCreateLowering::Reduce(Node* node) {
-  DisallowHeapAccess disallow_heap_access;
   switch (node->opcode()) {
     case IrOpcode::kJSCreate:
       return ReduceJSCreate(node);

@@ -44,20 +44,10 @@ bool HandleBase::IsDereferenceAllowed() const {
     return true;
   }
   if (isolate->IsBuiltinsTableHandleLocation(location_)) return true;
+  if (!AllowHandleDereference::IsAllowed()) return false;
 
-  if (FLAG_local_heaps) {
-    LocalHeap* local_heap = LocalHeap::Current();
-
-    if (local_heap == nullptr) {
-      // We are on the main thread and can thus load the LocalHeap from the
-      // Isolate itself. The DCHECK makes sure that we are not accidentally
-      // dereferencing a handle on a background thread without an active
-      // LocalHeap.
-      DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
-      local_heap = isolate->main_thread_local_heap();
-      DCHECK_NOT_NULL(local_heap);
-    }
-
+  LocalHeap* local_heap = LocalHeap::Current();
+  if (FLAG_local_heaps && local_heap) {
     // Local heap can't access handles when parked
     if (!local_heap->IsHandleDereferenceAllowed()) {
       StdoutStream{} << "Cannot dereference handle owned by "
@@ -65,14 +55,20 @@ bool HandleBase::IsDereferenceAllowed() const {
       return false;
     }
 
-    if (local_heap->ContainsPersistentHandle(location_) ||
-        local_heap->ContainsLocalHandle(location_)) {
-      // The current thread owns the handle and thus can dereference it.
-      return true;
-    }
+    // The current thread owns the handle and thus can dereference it.
+    return local_heap->ContainsPersistentHandle(location_) ||
+           local_heap->ContainsLocalHandle(location_);
+  }
+  // If the local_heap is null, we're on the main thread -- if we were to check
+  // main thread HandleScopes here, we should additionally check the main-thread
+  // LocalHeap.
+  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  if (FLAG_local_heaps) {
+    DCHECK_NOT_NULL(isolate->main_thread_local_heap());
   }
 
-  return AllowHandleDereference::IsAllowed();
+  // TODO(leszeks): Check if the main thread owns this handle.
+  return true;
 }
 #endif
 

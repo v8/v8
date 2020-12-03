@@ -855,7 +855,7 @@ void CodeGenerator::AssembleSourcePosition(SourcePosition source_position) {
         tasm()->isolate()->concurrent_recompilation_enabled()) {
       buffer << source_position;
     } else {
-      AllowHeapAllocation allocation;
+      AllowGarbageCollection allocation;
       AllowHandleAllocation handles;
       AllowHandleDereference deref;
       buffer << source_position.InliningStack(info);

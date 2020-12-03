@@ -119,8 +119,10 @@ OptimizedCompilationJob* OptimizingCompileDispatcher::NextInput(
   if (check_if_flushing) {
     if (mode_ == FLUSH) {
       UnparkedScope scope(local_isolate->heap());
-      AllowHandleDereference allow_handle_dereference;
+      local_isolate->heap()->AttachPersistentHandles(
+          job->compilation_info()->DetachPersistentHandles());
       DisposeCompilationJob(job, true);
+      local_isolate->heap()->DetachPersistentHandles();
       return nullptr;
     }
   }
