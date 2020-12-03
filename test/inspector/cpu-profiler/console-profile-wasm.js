@@ -60,26 +60,27 @@ function checkError(message) {
 }
 
 let found_good_profile = false;
+let found_wasm_script_id;
 let finished_profiles = 0;
 Protocol.Profiler.onConsoleProfileFinished(e => {
   ++finished_profiles;
   let function_names =
       e.params.profile.nodes.map(n => n.callFrame.functionName);
+  let script_ids = e.params.profile.nodes.map(n => n.callFrame.scriptId);
   // Enable this line for debugging:
   // InspectorTest.log(function_names.join(', '));
   // Check for at least one full cycle of
   // fib -> wasm-to-js -> imp -> js-to-wasm -> fib.
   // There are two different kinds of js-to-wasm-wrappers, so there are two
   // possible positive traces.
-  const expected_generic =
-      ['fib', 'wasm-to-js:i:i', 'imp', 'GenericJSToWasmWrapper', 'fib'];
-  const expected_optimized =
-      ['fib', 'wasm-to-js:i:i', 'imp', 'js-to-wasm:i:i', 'fib'];
-  for (let i = 0; i <= function_names.length - expected_generic.length; ++i) {
-    if (expected_generic.every((val, idx) => val == function_names[i + idx]) ||
-        expected_optimized.every(
-            (val, idx) => val == function_names[i + idx])) {
+  const expected = [
+    ['fib'], ['wasm-to-js:i:i'], ['imp'],
+    ['GenericJSToWasmWrapper', 'js-to-wasm:i:i'], ['fib']
+  ];
+  for (let i = 0; i <= function_names.length - expected.length; ++i) {
+    if (expected.every((val, idx) => val.includes(function_names[i + idx]))) {
       found_good_profile = true;
+      found_wasm_script_id = script_ids[i] != 0;
     }
   }
 });
@@ -103,6 +104,8 @@ async function runFibUntilProfileFound() {
     }
   }
   InspectorTest.log('Found expected functions in profile.');
+  InspectorTest.log(
+      'Wasm script id is ' + (found_wasm_script_id ? 'set.' : 'NOT SET.'));
 }
 
 async function compileWasm() {
