@@ -33,11 +33,6 @@ namespace wasm {
 using base::ReadLittleEndianValue;
 using base::WriteLittleEndianValue;
 
-namespace {
-byte* raw_buffer_ptr(MaybeHandle<JSArrayBuffer> buffer, int offset) {
-  return static_cast<byte*>(buffer.ToHandleChecked()->backing_store()) + offset;
-}
-
 uint32_t EvalUint32InitExpr(Handle<WasmInstanceObject> instance,
                             const WasmInitExpr& expr) {
   switch (expr.kind()) {
@@ -54,6 +49,12 @@ uint32_t EvalUint32InitExpr(Handle<WasmInstanceObject> instance,
     default:
       UNREACHABLE();
   }
+}
+
+namespace {
+
+byte* raw_buffer_ptr(MaybeHandle<JSArrayBuffer> buffer, int offset) {
+  return static_cast<byte*>(buffer.ToHandleChecked()->backing_store()) + offset;
 }
 
 using ImportWrapperQueue = WrapperQueue<WasmImportWrapperCache::CacheKey,
