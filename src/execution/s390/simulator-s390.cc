@@ -4004,64 +4004,112 @@ EVALUATE(VFNMS) {
 #undef VECTOR_FP_MULTIPLY_QFMS
 #undef VECTOR_FP_MULTIPLY_QFMS_OPERATION
 
-template <class T, class Operation>
-void VectorFPMaxMin(Simulator* sim, int dst, int src1, int src2, int mode,
-                    Operation op) {
-  for (size_t i = 0; i < kSimd128Size / sizeof(T); i++) {
-    T src1_val = sim->get_simd_register_by_lane<T>(src1, i);
-    T src2_val = sim->get_simd_register_by_lane<T>(src2, i);
-    T value = op(src1_val, src2_val, mode);
-    sim->set_simd_register_by_lane<T>(dst, i, value);
+template <class FP_Type>
+static FP_Type JavaMathMax(FP_Type x, FP_Type y) {
+  if (std::isnan(x) || std::isnan(y)) return NAN;
+  if (std::signbit(x) < std::signbit(y)) return x;
+  return x > y ? x : y;
+}
+
+template <class FP_Type>
+static FP_Type IEEE_maxNum(FP_Type x, FP_Type y) {
+  if (x > y) return x;
+  if (x < y) return y;
+  if (x == y) return x;
+  if (!std::isnan(x)) return x;
+  if (!std::isnan(y)) return y;
+  return NAN;
+}
+
+template <class FP_Type>
+static FP_Type FPMax(int m6, FP_Type lhs, FP_Type rhs) {
+  switch (m6) {
+    case 0:
+      return IEEE_maxNum(lhs, rhs);
+    case 1:
+      return JavaMathMax(lhs, rhs);
+    case 3:
+      return std::max(lhs, rhs);
+    case 4:
+      return std::fmax(lhs, rhs);
+    default:
+      UNIMPLEMENTED();
+  }
+  return static_cast<FP_Type>(0);
+}
+
+template <class FP_Type>
+static FP_Type JavaMathMin(FP_Type x, FP_Type y) {
+  if (isnan(x) || isnan(y))
+    return NAN;
+  else if (signbit(y) < signbit(x))
+    return x;
+  else if (signbit(y) != signbit(x))
+    return y;
+  return (x < y) ? x : y;
+}
+
+template <class FP_Type>
+static FP_Type IEEE_minNum(FP_Type x, FP_Type y) {
+  if (x > y) return y;
+  if (x < y) return x;
+  if (x == y) return x;
+  if (!std::isnan(x)) return x;
+  if (!std::isnan(y)) return y;
+  return NAN;
+}
+
+template <class FP_Type>
+static FP_Type FPMin(int m6, FP_Type lhs, FP_Type rhs) {
+  switch (m6) {
+    case 0:
+      return IEEE_minNum(lhs, rhs);
+    case 1:
+      return JavaMathMin(lhs, rhs);
+    case 3:
+      return std::min(lhs, rhs);
+    case 4:
+      return std::fmin(lhs, rhs);
+    default:
+      UNIMPLEMENTED();
+  }
+  return static_cast<FP_Type>(0);
+}
+
+// TODO(john.yan): use generic binary operation
+template <class FP_Type, class Operation>
+static void FPMinMaxForEachLane(Simulator* sim, Operation Op, int dst, int lhs,
+                                int rhs, int m5, int m6) {
+  DCHECK(m5 == 8 || m5 == 0);
+  if (m5 == 8) {
+    FP_Type src1 = sim->get_fpr<FP_Type>(lhs);
+    FP_Type src2 = sim->get_fpr<FP_Type>(rhs);
+    FP_Type res = Op(m6, src1, src2);
+    sim->set_fpr(dst, res);
+  } else {
+    FOR_EACH_LANE(i, FP_Type) {
+      FP_Type src1 = sim->get_simd_register_by_lane<FP_Type>(lhs, i);
+      FP_Type src2 = sim->get_simd_register_by_lane<FP_Type>(rhs, i);
+      FP_Type res = Op(m6, src1, src2);
+      sim->set_simd_register_by_lane<FP_Type>(dst, i, res);
+    }
   }
 }
 
-#define VECTOR_FP_MAX_MIN_FOR_TYPE(type, op, std_op)                        \
-  VectorFPMaxMin<type>(this, r1, r2, r3, m6, [](type a, type b, int mode) { \
-    if (mode == 3) {                                                        \
-      return std::std_op(a, b);                                             \
-    }                                                                       \
-    if (isnan(a) || isnan(b))                                               \
-      return static_cast<type>(NAN);                                        \
-    else if (signbit(b) op signbit(a))                                      \
-      return a;                                                             \
-    else if (signbit(b) != signbit(a))                                      \
-      return b;                                                             \
-    return (a op b) ? a : b;                                                \
-  });
-
-#define VECTOR_FP_MAX_MIN(op, std_op)                                          \
-  switch (m4) {                                                                \
-    case 2:                                                                    \
-      if (m5 == 8) {                                                           \
-        float src1 = get_simd_register_by_lane<float>(r2, 0);                  \
-        float src2 = get_simd_register_by_lane<float>(r3, 0);                  \
-        set_simd_register_by_lane<float>(r1, 0, (src1 op src2) ? src1 : src2); \
-      } else {                                                                 \
-        DCHECK_EQ(m5, 0);                                                      \
-        VECTOR_FP_MAX_MIN_FOR_TYPE(float, op, std_op)                          \
-      }                                                                        \
-      break;                                                                   \
-    case 3:                                                                    \
-      if (m5 == 8) {                                                           \
-        double src1 = get_simd_register_by_lane<double>(r2, 0);                \
-        double src2 = get_simd_register_by_lane<double>(r3, 0);                \
-        set_simd_register_by_lane<double>(r1, 0,                               \
-                                          (src1 op src2) ? src1 : src2);       \
-      } else {                                                                 \
-        DCHECK_EQ(m5, 0);                                                      \
-        VECTOR_FP_MAX_MIN_FOR_TYPE(double, op, std_op)                         \
-      }                                                                        \
-      break;                                                                   \
-    default:                                                                   \
-      UNREACHABLE();                                                           \
-      break;                                                                   \
-  }
-
+#define CASE(i, type, op)                                          \
+  case i:                                                          \
+    FPMinMaxForEachLane<type>(this, op<type>, r1, r2, r3, m5, m6); \
+    break;
 EVALUATE(VFMIN) {
   DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));
   DCHECK_OPCODE(VFMIN);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
-  VECTOR_FP_MAX_MIN(<, min)  // NOLINT
+  switch (m4) {
+    CASE(2, float, FPMin);
+    CASE(3, double, FPMin);
+    default:
+      UNIMPLEMENTED();
+  }
   return length;
 }
 
@@ -4069,10 +4117,15 @@ EVALUATE(VFMAX) {
   DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));
   DCHECK_OPCODE(VFMAX);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
-  USE(m6);
-  VECTOR_FP_MAX_MIN(>, max)  // NOLINT
+  switch (m4) {
+    CASE(2, float, FPMax);
+    CASE(3, double, FPMax);
+    default:
+      UNIMPLEMENTED();
+  }
   return length;
 }
+#undef CASE
 
 template <class S, class D, class Operation>
 void VectorFPCompare(Simulator* sim, int dst, int src1, int src2,
