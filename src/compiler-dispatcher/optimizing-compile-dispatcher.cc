@@ -54,6 +54,9 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
     ++dispatcher_->ref_count_;
   }
 
+  CompileTask(const CompileTask&) = delete;
+  CompileTask& operator=(const CompileTask&) = delete;
+
   ~CompileTask() override = default;
 
  private:
@@ -92,8 +95,6 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
   Isolate* isolate_;
   WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;
   OptimizingCompileDispatcher* dispatcher_;
-
-  DISALLOW_COPY_AND_ASSIGN(CompileTask);
 };
 
 OptimizingCompileDispatcher::~OptimizingCompileDispatcher() {
