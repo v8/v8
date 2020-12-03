@@ -894,7 +894,8 @@ enum ControlKind : uint8_t {
   kControlLoop,
   kControlLet,
   kControlTry,
-  kControlTryCatch
+  kControlTryCatch,
+  kControlTryCatchAll
 };
 
 enum Reachability : uint8_t {
@@ -953,7 +954,10 @@ struct ControlBase : public PcForErrors<validate> {
   bool is_loop() const { return kind == kControlLoop; }
   bool is_incomplete_try() const { return kind == kControlTry; }
   bool is_try_catch() const { return kind == kControlTryCatch; }
-  bool is_try() const { return is_incomplete_try() || is_try_catch(); }
+  bool is_try_catchall() const { return kind == kControlTryCatchAll; }
+  bool is_try() const {
+    return is_incomplete_try() || is_try_catch() || is_try_catchall();
+  }
 
   inline Merge<Value>* br_merge() {
     return is_loop() ? &this->start_merge : &this->end_merge;
@@ -974,7 +978,6 @@ struct ControlBase : public PcForErrors<validate> {
   F(Block, Control* block)                                                     \
   F(Loop, Control* block)                                                      \
   F(Try, Control* block)                                                       \
-  F(Catch, Control* block, Value* exception)                                   \
   F(If, const Value& cond, Control* if_block)                                  \
   F(FallThruTo, Control* c)                                                    \
   F(PopControl, Control* block)                                                \
@@ -1049,10 +1052,10 @@ struct ControlBase : public PcForErrors<validate> {
     const Value& input0, const Value& input1, Value* result)                   \
   F(Throw, const ExceptionIndexImmediate<validate>& imm,                       \
     const Vector<Value>& args)                                                 \
-  F(Rethrow, const Value& exception)                                           \
-  F(BrOnException, const Value& exception,                                     \
-    const ExceptionIndexImmediate<validate>& imm, uint32_t depth,              \
-    Vector<Value> values)                                                      \
+  F(Rethrow, Control* block)                                                   \
+  F(CatchException, const ExceptionIndexImmediate<validate>& imm,              \
+    Control* block, Vector<Value> caught_values)                               \
+  F(CatchAll, Control* block)                                                  \
   F(AtomicOp, WasmOpcode opcode, Vector<Value> args,                           \
     const MemoryAccessImmediate<validate>& imm, Value* result)                 \
   F(AtomicFence)                                                               \
@@ -1631,6 +1634,7 @@ class WasmDecoder : public Decoder {
                                          nullptr);
         return 1 + imm.length;
       }
+      case kExprRethrow:
       case kExprBr:
       case kExprBrIf:
       case kExprBrOnNull: {
@@ -1642,15 +1646,9 @@ class WasmDecoder : public Decoder {
         BranchTableIterator<validate> iterator(decoder, imm);
         return 1 + iterator.length();
       }
-      case kExprThrow: {
+      case kExprThrow:
+      case kExprCatch: {
         ExceptionIndexImmediate<validate> imm(decoder, pc + 1);
-        return 1 + imm.length;
-      }
-      case kExprCatch:
-      case kExprRethrow:
-        return 1;
-      case kExprBrOnExn: {
-        BranchOnExceptionImmediate<validate> imm(decoder, pc + 1);
         return 1 + imm.length;
       }
       case kExprLet: {
@@ -1678,12 +1676,14 @@ class WasmDecoder : public Decoder {
       case kExprReturnCallRef:
       case kExprDrop:
       case kExprSelect:
+      case kExprCatchAll:
         return 1;
       case kExprSelectWithType: {
         SelectTypeImmediate<validate> imm(WasmFeatures::All(), decoder, pc + 1,
                                           nullptr);
         return 1 + imm.length;
       }
+
       case kExprLocalGet:
       case kExprLocalSet:
       case kExprLocalTee: {
@@ -2016,7 +2016,6 @@ class WasmDecoder : public Decoder {
       case kExprElse:
       case kExprTry:
       case kExprCatch:
-      case kExprBrOnExn:
       case kExprNop:
       case kExprReturn:
       case kExprReturnCall:
@@ -2344,6 +2343,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           case kControlIfElse:
           case kControlTryCatch:
+          case kControlTryCatchAll:
           case kControlLet:  // TODO(7748): Implement
             break;
         }
@@ -2404,10 +2404,16 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   DECODE(Rethrow) {
     CHECK_PROTOTYPE_OPCODE(eh);
-    Value exception = Pop(0, kWasmExnRef);
-    CALL_INTERFACE_IF_REACHABLE(Rethrow, exception);
+    BranchDepthImmediate<validate> imm(this, this->pc_ + 1);
+    if (!this->Validate(this->pc_ + 1, imm, control_.size())) return 0;
+    Control* c = control_at(imm.depth);
+    if (!VALIDATE(c->is_try_catchall() || c->is_try_catch())) {
+      this->error("rethrow not targeting catch or catch-all");
+      return 0;
+    }
+    CALL_INTERFACE_IF_REACHABLE(Rethrow, c);
     EndControl();
-    return 1;
+    return 1 + imm.length;
   }
 
   DECODE(Throw) {
@@ -2435,6 +2441,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   DECODE(Catch) {
     CHECK_PROTOTYPE_OPCODE(eh);
+    ExceptionIndexImmediate<validate> imm(this, this->pc_ + 1);
+    if (!this->Validate(this->pc_ + 1, imm)) return 0;
     if (!VALIDATE(!control_.empty())) {
       this->DecodeError("catch does not match any try");
       return 0;
@@ -2444,8 +2452,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       this->DecodeError("catch does not match any try");
       return 0;
     }
-    if (!VALIDATE(c->is_incomplete_try())) {
-      this->DecodeError("catch already present for try");
+    if (!VALIDATE(!c->is_try_catchall())) {
+      this->DecodeError("catch after catch-all for try");
       return 0;
     }
     c->kind = kControlTryCatch;
@@ -2453,37 +2461,37 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     DCHECK_LE(stack_ + c->stack_depth, stack_end_);
     stack_end_ = stack_ + c->stack_depth;
     c->reachability = control_at(1)->innerReachability();
+    const WasmExceptionSig* sig = imm.exception->sig;
+    for (size_t i = 0, e = sig->parameter_count(); i < e; ++i) {
+      Push(sig->GetParam(i));
+    }
+    Vector<Value> values(stack_ + c->stack_depth, sig->parameter_count());
+    CALL_INTERFACE_IF_PARENT_REACHABLE(CatchException, imm, c, values);
     current_code_reachable_ = this->ok() && c->reachable();
-    Value* exception = Push(kWasmExnRef);
-    CALL_INTERFACE_IF_PARENT_REACHABLE(Catch, c, exception);
-    return 1;
+    return 1 + imm.length;
   }
 
-  DECODE(BrOnExn) {
-    CHECK_PROTOTYPE_OPCODE(eh);
-    BranchOnExceptionImmediate<validate> imm(this, this->pc_ + 1);
-    if (!this->Validate(this->pc() + 1, imm, control_.size())) return 0;
-    Control* c = control_at(imm.depth.depth);
-    Value exception = Pop(0, kWasmExnRef);
-    const WasmExceptionSig* sig = imm.index.exception->sig;
-    int value_count = static_cast<int>(sig->parameter_count());
-    // TODO(wasm): This operand stack mutation is an ugly hack to make
-    // both type checking here as well as environment merging in the
-    // graph builder interface work out of the box. We should introduce
-    // special handling for both and do minimal/no stack mutation here.
-    EnsureStackSpace(value_count);
-    for (int i = 0; i < value_count; ++i) Push(sig->GetParam(i));
-    Vector<Value> values(stack_ + c->stack_depth, value_count);
-    TypeCheckBranchResult check_result = TypeCheckBranch(c, true);
-    if (V8_LIKELY(check_result == kReachableBranch)) {
-      CALL_INTERFACE_IF_REACHABLE(BrOnException, exception, imm.index,
-                                  imm.depth.depth, values);
-      c->br_merge()->reached = true;
+  DECODE(CatchAll) {
+    if (!VALIDATE(!control_.empty())) {
+      this->error("catch-all does not match any try");
+      return 0;
     }
-    for (int i = value_count - 1; i >= 0; i--) Pop(i);
-    Value* pexception = Push(kWasmExnRef);
-    *pexception = exception;
-    return 1 + imm.length;
+    Control* c = &control_.back();
+    if (!VALIDATE(c->is_try())) {
+      this->error("catch-all does not match any try");
+      return 0;
+    }
+    if (!VALIDATE(!c->is_try_catchall())) {
+      this->error("catch-all already present for try");
+      return 0;
+    }
+    c->kind = kControlTryCatchAll;
+    FallThruTo(c);
+    stack_end_ = stack_ + c->stack_depth;
+    c->reachability = control_at(1)->innerReachability();
+    CALL_INTERFACE_IF_PARENT_REACHABLE(CatchAll, c);
+    current_code_reachable_ = this->ok() && c->reachable();
+    return 1;
   }
 
   DECODE(BrOnNull) {
@@ -2623,6 +2631,16 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       }
       if (!TypeCheckOneArmedIf(c)) return 0;
     }
+    if (c->is_try_catch()) {
+      // Emulate catch-all + re-throw.
+      FallThruTo(c);
+      c->reachability = control_at(1)->innerReachability();
+      CALL_INTERFACE_IF_PARENT_REACHABLE(CatchAll, c);
+      current_code_reachable_ = this->ok() && control_.back().reachable();
+      CALL_INTERFACE_IF_REACHABLE(Rethrow, c);
+      EndControl();
+    }
+
     if (c->is_let()) {
       this->local_types_.erase(this->local_types_.begin(),
                                this->local_types_.begin() + c->locals_count);
@@ -3197,7 +3215,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     DECODE_IMPL(Throw);
     DECODE_IMPL(Try);
     DECODE_IMPL(Catch);
-    DECODE_IMPL(BrOnExn);
+    DECODE_IMPL(CatchAll);
     DECODE_IMPL(BrOnNull);
     DECODE_IMPL(Let);
     DECODE_IMPL(Loop);

@@ -935,8 +935,18 @@ class LiftoffCompiler {
     unsupported(decoder, kExceptionHandling, "try");
   }
 
-  void Catch(FullDecoder* decoder, Control* block, Value* exception) {
+  void CatchException(FullDecoder* decoder,
+                      const ExceptionIndexImmediate<validate>& imm,
+                      Control* block, Vector<Value> values) {
     unsupported(decoder, kExceptionHandling, "catch");
+  }
+
+  void Rethrow(FullDecoder* decoder, Control* block) {
+    unsupported(decoder, kExceptionHandling, "rethrow");
+  }
+
+  void CatchAll(FullDecoder* decoder, Control* block) {
+    unsupported(decoder, kExceptionHandling, "catch-all");
   }
 
   void If(FullDecoder* decoder, const Value& cond, Control* if_block) {
@@ -3142,12 +3152,6 @@ class LiftoffCompiler {
   void Rethrow(FullDecoder* decoder, const Value& exception) {
     unsupported(decoder, kExceptionHandling, "rethrow");
   }
-  void BrOnException(FullDecoder* decoder, const Value& exception,
-                     const ExceptionIndexImmediate<validate>& imm,
-                     uint32_t depth, Vector<Value> values) {
-    unsupported(decoder, kExceptionHandling, "br_on_exn");
-  }
-
   void AtomicStoreMem(FullDecoder* decoder, StoreType type,
                       const MemoryAccessImmediate<validate>& imm) {
     LiftoffRegList pinned;

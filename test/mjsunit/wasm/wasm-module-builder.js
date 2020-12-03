@@ -218,7 +218,7 @@ const kWasmOpcodes = {
   'Catch': 0x07,
   'Throw': 0x08,
   'Rethrow': 0x09,
-  'BrOnExn': 0x0a,
+  'CatchAll': 0x0a,
   'End': 0x0b,
   'Br': 0x0c,
   'BrIf': 0x0d,
@@ -734,7 +734,6 @@ let kTrapFuncSigMismatch      = 7;
 let kTrapUnalignedAccess      = 8;
 let kTrapDataSegmentDropped   = 9;
 let kTrapElemSegmentDropped   = 10;
-let kTrapBrOnExnNull          = 11;
 let kTrapRethrowNull          = 12;
 
 let kTrapMsgs = [

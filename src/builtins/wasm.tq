@@ -392,10 +392,6 @@ builtin ThrowWasmTrapTableOutOfBounds(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapTableOutOfBounds));
 }
 
-builtin ThrowWasmTrapBrOnExnNull(): JSAny {
-  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapBrOnExnNull));
-}
-
 builtin ThrowWasmTrapRethrowNull(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapRethrowNull));
 }

@@ -887,20 +887,6 @@ class SideTable : public ZoneObject {
           stack_height = c->end_label->target_stack_height + kCatchInArity;
           break;
         }
-        case kExprBrOnExn: {
-          BranchOnExceptionImmediate<Decoder::kNoValidation> imm(&i,
-                                                                 i.pc() + 1);
-          uint32_t depth = imm.depth.depth;  // Extracted for convenience.
-          imm.index.exception = &module->exceptions[imm.index.index];
-          DCHECK_EQ(0, imm.index.exception->sig->return_count());
-          size_t params = imm.index.exception->sig->parameter_count();
-          // Taken branches pop the exception and push the encoded values.
-          int32_t height = stack_height - 1 + static_cast<int32_t>(params);
-          TRACE("control @%u: BrOnExn[depth=%u]\n", i.pc_offset(), depth);
-          Control* c = &control_stack[control_stack.size() - depth - 1];
-          if (!unreachable) c->end_label->Ref(i.pc(), height);
-          break;
-        }
         case kExprEnd: {
           Control* c = &control_stack.back();
           TRACE("control @%u: End\n", i.pc_offset());
@@ -3306,25 +3292,6 @@ class WasmInterpreterInternals {
           if (!DoRethrowException(ex)) return;
           ReloadFromFrameOnException(&decoder, &code, &pc, &limit);
           continue;  // Do not bump pc.
-        }
-        case kExprBrOnExn: {
-          BranchOnExceptionImmediate<Decoder::kNoValidation> imm(
-              &decoder, code->at(pc + 1));
-          HandleScope handle_scope(isolate_);  // Avoid leaking handles.
-          WasmValue ex = Pop();
-          Handle<Object> exception = ex.to_externref();
-          if (exception->IsNull()) return DoTrap(kTrapBrOnExnNull, pc);
-          if (MatchingExceptionTag(exception, imm.index.index)) {
-            imm.index.exception = &module()->exceptions[imm.index.index];
-            DoUnpackException(imm.index.exception, exception);
-            len = DoBreak(code, pc, imm.depth.depth);
-            TRACE("  match => @%zu\n", pc + len);
-          } else {
-            Push(ex);  // Exception remains on stack.
-            TRACE("  false => fallthrough\n");
-            len = 1 + imm.length;
-          }
-          break;
         }
         case kExprSelectWithType: {
           SelectTypeImmediate<Decoder::kNoValidation> imm(
