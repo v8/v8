@@ -34,7 +34,7 @@ class WasmLoopAssignmentAnalyzerTest : public TestWithZone {
 TEST_F(WasmLoopAssignmentAnalyzerTest, Empty0) {
   byte code[] = { 0 };
   BitVector* assigned = Analyze(code, code);
-  CHECK_NULL(assigned);
+  EXPECT_EQ(assigned, nullptr);
 }
 
 TEST_F(WasmLoopAssignmentAnalyzerTest, Empty1) {
@@ -42,7 +42,7 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Empty1) {
   for (int i = 0; i < 5; i++) {
     BitVector* assigned = Analyze(code, code + arraysize(code));
     for (int j = 0; j < assigned->length(); j++) {
-      CHECK_EQ(false, assigned->Contains(j));
+      EXPECT_FALSE(assigned->Contains(j));
     }
     num_locals++;
   }
@@ -54,7 +54,7 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, One) {
     byte code[] = {WASM_LOOP(WASM_SET_ZERO(i))};
     BitVector* assigned = Analyze(code, code + arraysize(code));
     for (int j = 0; j < assigned->length(); j++) {
-      CHECK_EQ(j == i, assigned->Contains(j));
+      EXPECT_EQ(j == i, assigned->Contains(j));
     }
   }
 }
@@ -65,7 +65,7 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, TeeOne) {
     byte code[] = {WASM_LOOP(WASM_TEE_LOCAL(i, WASM_ZERO))};
     BitVector* assigned = Analyze(code, code + arraysize(code));
     for (int j = 0; j < assigned->length(); j++) {
-      CHECK_EQ(j == i, assigned->Contains(j));
+      EXPECT_EQ(j == i, assigned->Contains(j));
     }
   }
 }
@@ -76,7 +76,7 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, OneBeyond) {
     byte code[] = {WASM_LOOP(WASM_SET_ZERO(i)), WASM_SET_ZERO(1)};
     BitVector* assigned = Analyze(code, code + arraysize(code));
     for (int j = 0; j < assigned->length(); j++) {
-      CHECK_EQ(j == i, assigned->Contains(j));
+      EXPECT_EQ(j == i, assigned->Contains(j));
     }
   }
 }
@@ -89,7 +89,7 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Two) {
       BitVector* assigned = Analyze(code, code + arraysize(code));
       for (int k = 0; k < assigned->length(); k++) {
         bool expected = k == i || k == j;
-        CHECK_EQ(expected, assigned->Contains(k));
+        EXPECT_EQ(expected, assigned->Contains(k));
       }
     }
   }
@@ -103,7 +103,7 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, NestedIf) {
     BitVector* assigned = Analyze(code, code + arraysize(code));
     for (int j = 0; j < assigned->length(); j++) {
       bool expected = i == j || j == 0 || j == 1;
-      CHECK_EQ(expected, assigned->Contains(j));
+      EXPECT_EQ(expected, assigned->Contains(j));
     }
   }
 }
@@ -116,7 +116,7 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, BigLocal) {
     BitVector* assigned = Analyze(code, code + arraysize(code));
     for (int j = 0; j < assigned->length(); j++) {
       bool expected = i == j;
-      CHECK_EQ(expected, assigned->Contains(j));
+      EXPECT_EQ(expected, assigned->Contains(j));
     }
   }
 }
@@ -130,7 +130,7 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Break) {
   BitVector* assigned = Analyze(code, code + arraysize(code));
   for (int j = 0; j < assigned->length(); j++) {
     bool expected = j == 1;
-    CHECK_EQ(expected, assigned->Contains(j));
+    EXPECT_EQ(expected, assigned->Contains(j));
   }
 }
 
@@ -146,7 +146,7 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Loop1) {
   BitVector* assigned = Analyze(code, code + arraysize(code));
   for (int j = 0; j < assigned->length(); j++) {
     bool expected = j == 3;
-    CHECK_EQ(expected, assigned->Contains(j));
+    EXPECT_EQ(expected, assigned->Contains(j));
   }
 }
 
@@ -171,7 +171,7 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Loop2) {
   BitVector* assigned = Analyze(code + 2, code + arraysize(code));
   for (int j = 0; j < assigned->length(); j++) {
     bool expected = j == kIter || j == kSum;
-    CHECK_EQ(expected, assigned->Contains(j));
+    EXPECT_EQ(expected, assigned->Contains(j));
   }
 }
 
@@ -180,7 +180,7 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Malformed) {
                  'e',       'l',       'l',         'o',          ',',  ' ',
                  'w',       'o',       'r',         'l',          'd',  '!'};
   BitVector* assigned = Analyze(code, code + arraysize(code));
-  CHECK_NULL(assigned);
+  EXPECT_EQ(assigned, nullptr);
 }
 
 TEST_F(WasmLoopAssignmentAnalyzerTest, InvalidOpcode) {
@@ -195,6 +195,39 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, regress_642867) {
                 0x0F)};  // local index LEB128 0xFFFFFFFA
   // Just make sure that the analysis does not crash.
   Analyze(code, code + arraysize(code));
+}
+
+TEST_F(WasmLoopAssignmentAnalyzerTest, LetInLoopAssigned) {
+  num_locals = 5;
+  static const byte code[] = {
+      WASM_LOOP(WASM_LET_1_V(kI32Code, WASM_I32V_1(42), WASM_SET_ZERO(3)))};
+  BitVector* assigned = Analyze(code, code + arraysize(code));
+  for (uint32_t i = 0; i <= num_locals; i++) {
+    EXPECT_EQ(assigned->Contains(i), i == 2);
+  }
+}
+
+TEST_F(WasmLoopAssignmentAnalyzerTest, LetInLoopNotAssigned) {
+  num_locals = 2;
+  static const byte code[] = {WASM_LOOP(
+      WASM_LET_1_V(kI32Code, WASM_I32V_1(42),
+                   WASM_LET_1_V(kI32Code, WASM_I32V_1(42), WASM_SET_ZERO(0),
+                                WASM_SET_ZERO(1))))};
+  BitVector* assigned = Analyze(code, code + arraysize(code));
+  for (uint32_t i = 0; i <= num_locals; i++) {
+    EXPECT_FALSE(assigned->Contains(i));
+  }
+}
+
+TEST_F(WasmLoopAssignmentAnalyzerTest, AssignmentOutsideOfLet) {
+  num_locals = 5;
+  static const byte code[] = {
+      WASM_LOOP(WASM_LET_1_V(kI32Code, WASM_I32V_1(42), WASM_SET_ZERO(3)),
+                WASM_SET_ZERO(4))};
+  BitVector* assigned = Analyze(code, code + arraysize(code));
+  for (uint32_t i = 0; i <= num_locals; i++) {
+    EXPECT_EQ(assigned->Contains(i), i == 2 || i == 4);
+  }
 }
 
 #undef WASM_SET_ZERO

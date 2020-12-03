@@ -1217,7 +1217,12 @@ class WasmDecoder : public Decoder {
     // The number of locals_count is augmented by 1 so that the 'locals_count'
     // index can be used to track the instance cache.
     BitVector* assigned = zone->New<BitVector>(locals_count + 1, zone);
-    int depth = 0;
+    int depth = -1;  // We will increment the depth to 0 when we decode the
+                     // starting 'loop' opcode.
+    // Since 'let' can add additional locals at the beginning of the locals
+    // index space, we need to track this offset for every depth up to the
+    // current depth.
+    base::SmallVector<uint32_t, 8> local_offsets(8);
     // Iteratively process all AST nodes nested inside the loop.
     while (pc < decoder->end() && VALIDATE(decoder->ok())) {
       WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
@@ -1226,15 +1231,29 @@ class WasmDecoder : public Decoder {
         case kExprIf:
         case kExprBlock:
         case kExprTry:
-        case kExprLet:
           depth++;
+          local_offsets.resize_no_init(depth + 1);
+          // No additional locals.
+          local_offsets[depth] = depth > 0 ? local_offsets[depth - 1] : 0;
           break;
+        case kExprLet: {
+          depth++;
+          local_offsets.resize_no_init(depth + 1);
+          BlockTypeImmediate<validate> imm(WasmFeatures::All(), decoder, pc + 1,
+                                           nullptr);
+          uint32_t locals_length;
+          int new_locals_count = decoder->DecodeLocals(
+              pc + 1 + imm.length, &locals_length, base::Optional<uint32_t>());
+          local_offsets[depth] = local_offsets[depth - 1] + new_locals_count;
+          break;
+        }
         case kExprLocalSet:
         case kExprLocalTee: {
           LocalIndexImmediate<validate> imm(decoder, pc + 1);
-          if (imm.index < locals_count) {
-            // Unverified code might have an out-of-bounds index.
-            assigned->Add(imm.index);
+          // Unverified code might have an out-of-bounds index.
+          if (imm.index >= local_offsets[depth] &&
+              imm.index - local_offsets[depth] < locals_count) {
+            assigned->Add(imm.index - local_offsets[depth]);
           }
           break;
         }
@@ -1254,7 +1273,7 @@ class WasmDecoder : public Decoder {
         default:
           break;
       }
-      if (depth <= 0) break;
+      if (depth < 0) break;
       pc += OpcodeLength(decoder, pc);
     }
     return VALIDATE(decoder->ok()) ? assigned : nullptr;
