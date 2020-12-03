@@ -59,6 +59,8 @@ template <PerIsolateAssertType kType, bool kAllow>
 class V8_NODISCARD PerIsolateAssertScope {
  public:
   V8_EXPORT_PRIVATE explicit PerIsolateAssertScope(Isolate* isolate);
+  PerIsolateAssertScope(const PerIsolateAssertScope&) = delete;
+  PerIsolateAssertScope& operator=(const PerIsolateAssertScope&) = delete;
   V8_EXPORT_PRIVATE ~PerIsolateAssertScope();
 
   static bool IsAllowed(Isolate* isolate);
@@ -66,8 +68,6 @@ class V8_NODISCARD PerIsolateAssertScope {
  private:
   Isolate* isolate_;
   uint32_t old_data_;
-
-  DISALLOW_COPY_AND_ASSIGN(PerIsolateAssertScope);
 };
 
 template <typename... Scopes>
