@@ -4842,9 +4842,9 @@ void Simulator::DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr) {
     // Advanced SIMD three registers of different lengths.
     int u = instr->Bit(24);
     int opc = instr->Bits(11, 8);
+    NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
     if (opc == 0b1000) {
       // vmlal.u<size> Qd, Dn, Dm
-      NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
       if (size != Neon32) UNIMPLEMENTED();
 
       int Vd = instr->VFPDRegValue(kSimd128Precision);
@@ -4859,33 +4859,46 @@ void Simulator::DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr) {
       dst[1] += (src1 >> 32) * (src2 >> 32);
       set_neon_register<uint64_t>(Vd, dst);
     } else if (opc == 0b1100) {
+      int Vd = instr->VFPDRegValue(kSimd128Precision);
+      int Vn = instr->VFPNRegValue(kDoublePrecision);
+      int Vm = instr->VFPMRegValue(kDoublePrecision);
       if (u) {
         // vmull.u<size> Qd, Dn, Dm
-        NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
-        int Vd = instr->VFPDRegValue(kSimd128Precision);
-        int Vn = instr->VFPNRegValue(kDoublePrecision);
-        int Vm = instr->VFPMRegValue(kDoublePrecision);
         switch (size) {
+          case Neon8: {
+            MultiplyLong<uint8_t, uint16_t>(this, Vd, Vn, Vm);
+            break;
+          }
+          case Neon16: {
+            MultiplyLong<uint16_t, uint32_t>(this, Vd, Vn, Vm);
+            break;
+          }
           case Neon32: {
             MultiplyLong<uint32_t, uint64_t>(this, Vd, Vn, Vm);
             break;
           }
-          default:
+          case Neon64: {
             UNIMPLEMENTED();
+          }
         }
       } else {
         // vmull.s<size> Qd, Dn, Dm
-        NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
-        int Vd = instr->VFPDRegValue(kSimd128Precision);
-        int Vn = instr->VFPNRegValue(kDoublePrecision);
-        int Vm = instr->VFPMRegValue(kDoublePrecision);
         switch (size) {
+          case Neon8: {
+            MultiplyLong<int8_t, int16_t>(this, Vd, Vn, Vm);
+            break;
+          }
           case Neon16: {
             MultiplyLong<int16_t, int32_t>(this, Vd, Vn, Vm);
             break;
           }
-          default:
+          case Neon32: {
+            MultiplyLong<int32_t, int64_t>(this, Vd, Vn, Vm);
+            break;
+          }
+          case Neon64: {
             UNIMPLEMENTED();
+          }
         }
       }
     }

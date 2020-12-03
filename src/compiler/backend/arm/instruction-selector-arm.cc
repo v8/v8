@@ -86,7 +86,8 @@ void VisitRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
                  g.UseRegister(node->InputAt(0)));
 }
 
-void VisitRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
+void VisitRRR(InstructionSelector* selector, InstructionCode opcode,
+              Node* node) {
   ArmOperandGenerator g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)),
@@ -3095,6 +3096,30 @@ void InstructionSelector::VisitF64x2Pmin(Node* node) {
 void InstructionSelector::VisitF64x2Pmax(Node* node) {
   VisitF64x2PminOrPMax(this, kArmF64x2Pmax, node);
 }
+
+#define EXT_MUL_LIST(V)                            \
+  V(I16x8ExtMulLowI8x16S, kArmVmullLow, NeonS8)    \
+  V(I16x8ExtMulHighI8x16S, kArmVmullHigh, NeonS8)  \
+  V(I16x8ExtMulLowI8x16U, kArmVmullLow, NeonU8)    \
+  V(I16x8ExtMulHighI8x16U, kArmVmullHigh, NeonU8)  \
+  V(I32x4ExtMulLowI16x8S, kArmVmullLow, NeonS16)   \
+  V(I32x4ExtMulHighI16x8S, kArmVmullHigh, NeonS16) \
+  V(I32x4ExtMulLowI16x8U, kArmVmullLow, NeonU16)   \
+  V(I32x4ExtMulHighI16x8U, kArmVmullHigh, NeonU16) \
+  V(I64x2ExtMulLowI32x4S, kArmVmullLow, NeonS32)   \
+  V(I64x2ExtMulHighI32x4S, kArmVmullHigh, NeonS32) \
+  V(I64x2ExtMulLowI32x4U, kArmVmullLow, NeonU32)   \
+  V(I64x2ExtMulHighI32x4U, kArmVmullHigh, NeonU32)
+
+#define VISIT_EXT_MUL(OPCODE, VMULL, NEONSIZE)                 \
+  void InstructionSelector::Visit##OPCODE(Node* node) {        \
+    VisitRRR(this, VMULL | MiscField::encode(NEONSIZE), node); \
+  }
+
+EXT_MUL_LIST(VISIT_EXT_MUL)
+
+#undef VISIT_EXT_MUL
+#undef EXT_MUL_LIST
 
 void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {
   ArmOperandGenerator g(this);

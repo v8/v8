@@ -1862,6 +1862,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ and_(i.OutputRegister(0), i.InputRegister(0),
               Operand(kSpeculationPoisonRegister));
       break;
+    case kArmVmullLow: {
+      auto dt = static_cast<NeonDataType>(MiscField::decode(instr->opcode()));
+      __ vmull(dt, i.OutputSimd128Register(), i.InputSimd128Register(0).low(),
+               i.InputSimd128Register(1).low());
+      break;
+    }
+    case kArmVmullHigh: {
+      auto dt = static_cast<NeonDataType>(MiscField::decode(instr->opcode()));
+      __ vmull(dt, i.OutputSimd128Register(), i.InputSimd128Register(0).high(),
+               i.InputSimd128Register(1).high());
+      break;
+    }
     case kArmF64x2Splat: {
       Simd128Register dst = i.OutputSimd128Register();
       DoubleRegister src = i.InputDoubleRegister(0);

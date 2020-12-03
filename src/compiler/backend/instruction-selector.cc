@@ -2737,30 +2737,7 @@ void InstructionSelector::VisitI64x2Eq(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_ARM64
         // && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM
 
-#if !V8_TARGET_ARCH_ARM64
-// TODO(v8:10971) Prototype i16x8.q15mulr_sat_s
-void InstructionSelector::VisitI16x8Q15MulRSatS(Node* node) { UNIMPLEMENTED(); }
-
-// TODO(v8:10972) Prototype i64x2 widen i32x4.
-void InstructionSelector::VisitI64x2SConvertI32x4Low(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitI64x2SConvertI32x4High(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitI64x2UConvertI32x4Low(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitI64x2UConvertI32x4High(Node* node) {
-  UNIMPLEMENTED();
-}
-
-// TODO(v8:11002) Prototype i8x16.popcnt.
-void InstructionSelector::VisitI8x16Popcnt(Node* node) { UNIMPLEMENTED(); }
-
+#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM
 // TODO(v8:11008) Prototype extended multiplication.
 void InstructionSelector::VisitI64x2ExtMulLowI32x4S(Node* node) {
   UNIMPLEMENTED();
@@ -2798,6 +2775,31 @@ void InstructionSelector::VisitI16x8ExtMulLowI8x16U(Node* node) {
 void InstructionSelector::VisitI16x8ExtMulHighI8x16U(Node* node) {
   UNIMPLEMENTED();
 }
+#endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM
+
+#if !V8_TARGET_ARCH_ARM64
+// TODO(v8:10971) Prototype i16x8.q15mulr_sat_s
+void InstructionSelector::VisitI16x8Q15MulRSatS(Node* node) { UNIMPLEMENTED(); }
+
+// TODO(v8:10972) Prototype i64x2 widen i32x4.
+void InstructionSelector::VisitI64x2SConvertI32x4Low(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitI64x2SConvertI32x4High(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitI64x2UConvertI32x4Low(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitI64x2UConvertI32x4High(Node* node) {
+  UNIMPLEMENTED();
+}
+
+// TODO(v8:11002) Prototype i8x16.popcnt.
+void InstructionSelector::VisitI8x16Popcnt(Node* node) { UNIMPLEMENTED(); }
 
 // TODO(v8:11086) Prototype extended pairwise add.
 void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8S(Node* node) {
