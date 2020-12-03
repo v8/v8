@@ -133,8 +133,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXF32x4Splat:
     case kSSEF32x4ExtractLane:
     case kAVXF32x4ExtractLane:
-    case kSSEF32x4ReplaceLane:
-    case kAVXF32x4ReplaceLane:
+    case kIA32Insertps:
     case kIA32F32x4SConvertI32x4:
     case kSSEF32x4UConvertI32x4:
     case kAVXF32x4UConvertI32x4:
@@ -173,8 +172,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32F32x4Round:
     case kIA32I32x4Splat:
     case kIA32I32x4ExtractLane:
-    case kSSEI32x4ReplaceLane:
-    case kAVXI32x4ReplaceLane:
     case kSSEI32x4SConvertF32x4:
     case kAVXI32x4SConvertF32x4:
     case kIA32I32x4SConvertI16x8Low:
@@ -219,10 +216,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I32x4BitMask:
     case kIA32I32x4DotI16x8S:
     case kIA32I16x8Splat:
-    case kIA32I16x8ExtractLaneU:
     case kIA32I16x8ExtractLaneS:
-    case kSSEI16x8ReplaceLane:
-    case kAVXI16x8ReplaceLane:
     case kIA32I16x8SConvertI8x16Low:
     case kIA32I16x8SConvertI8x16High:
     case kIA32I16x8Neg:
@@ -275,10 +269,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I16x8Abs:
     case kIA32I16x8BitMask:
     case kIA32I8x16Splat:
-    case kIA32I8x16ExtractLaneU:
     case kIA32I8x16ExtractLaneS:
-    case kSSEI8x16ReplaceLane:
-    case kAVXI8x16ReplaceLane:
     case kIA32Pinsrb:
     case kIA32Pinsrw:
     case kIA32Pinsrd:

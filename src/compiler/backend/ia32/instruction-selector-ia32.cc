@@ -2454,38 +2454,49 @@ void InstructionSelector::VisitS128AndNot(Node* node) {
     }                                                        \
   }
 SIMD_INT_TYPES(VISIT_SIMD_SPLAT)
+#undef SIMD_INT_TYPES
 #undef VISIT_SIMD_SPLAT
 
-#define SIMD_VISIT_EXTRACT_LANE(Type, Sign)                              \
-  void InstructionSelector::Visit##Type##ExtractLane##Sign(Node* node) { \
-    VisitRRISimd(this, node, kIA32##Type##ExtractLane##Sign);            \
-  }
-SIMD_VISIT_EXTRACT_LANE(I32x4, )
-SIMD_VISIT_EXTRACT_LANE(I16x8, U)
-SIMD_VISIT_EXTRACT_LANE(I16x8, S)
-SIMD_VISIT_EXTRACT_LANE(I8x16, U)
-SIMD_VISIT_EXTRACT_LANE(I8x16, S)
-#undef SIMD_VISIT_EXTRACT_LANE
+void InstructionSelector::VisitI8x16ExtractLaneU(Node* node) {
+  VisitRRISimd(this, node, kIA32Pextrb);
+}
 
-#define VISIT_SIMD_REPLACE_LANE(Type)                                    \
-  void InstructionSelector::Visit##Type##ReplaceLane(Node* node) {       \
-    IA32OperandGenerator g(this);                                        \
-    InstructionOperand operand0 = g.UseRegister(node->InputAt(0));       \
-    InstructionOperand operand1 =                                        \
-        g.UseImmediate(OpParameter<int32_t>(node->op()));                \
-    InstructionOperand operand2 = g.Use(node->InputAt(1));               \
-    if (IsSupported(AVX)) {                                              \
-      Emit(kAVX##Type##ReplaceLane, g.DefineAsRegister(node), operand0,  \
-           operand1, operand2);                                          \
-    } else {                                                             \
-      Emit(kSSE##Type##ReplaceLane, g.DefineSameAsFirst(node), operand0, \
-           operand1, operand2);                                          \
-    }                                                                    \
+void InstructionSelector::VisitI8x16ExtractLaneS(Node* node) {
+  VisitRRISimd(this, node, kIA32I8x16ExtractLaneS);
+}
+
+void InstructionSelector::VisitI16x8ExtractLaneU(Node* node) {
+  VisitRRISimd(this, node, kIA32Pextrw);
+}
+
+void InstructionSelector::VisitI16x8ExtractLaneS(Node* node) {
+  VisitRRISimd(this, node, kIA32I16x8ExtractLaneS);
+}
+
+void InstructionSelector::VisitI32x4ExtractLane(Node* node) {
+  VisitRRISimd(this, node, kIA32I32x4ExtractLane);
+}
+
+#define SIMD_REPLACE_LANE_TYPE_OP(V) \
+  V(I32x4, kIA32Pinsrd)              \
+  V(I16x8, kIA32Pinsrw)              \
+  V(I8x16, kIA32Pinsrb)              \
+  V(F32x4, kIA32Insertps)
+
+#define VISIT_SIMD_REPLACE_LANE(TYPE, OPCODE)                              \
+  void InstructionSelector::Visit##TYPE##ReplaceLane(Node* node) {         \
+    IA32OperandGenerator g(this);                                          \
+    InstructionOperand operand0 = g.UseRegister(node->InputAt(0));         \
+    InstructionOperand operand1 =                                          \
+        g.UseImmediate(OpParameter<int32_t>(node->op()));                  \
+    InstructionOperand operand2 = g.Use(node->InputAt(1));                 \
+    InstructionOperand dst = IsSupported(AVX) ? g.DefineAsRegister(node)   \
+                                              : g.DefineSameAsFirst(node); \
+    Emit(OPCODE, dst, operand0, operand1, operand2);                       \
   }
-SIMD_INT_TYPES(VISIT_SIMD_REPLACE_LANE)
-VISIT_SIMD_REPLACE_LANE(F32x4)
+SIMD_REPLACE_LANE_TYPE_OP(VISIT_SIMD_REPLACE_LANE)
 #undef VISIT_SIMD_REPLACE_LANE
-#undef SIMD_INT_TYPES
+#undef SIMD_REPLACE_LANE_TYPE_OP
 
 // The difference between this and VISIT_SIMD_REPLACE_LANE is that this forces
 // operand2 to be UseRegister, because the codegen relies on insertps using

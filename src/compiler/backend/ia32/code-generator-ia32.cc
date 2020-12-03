@@ -524,7 +524,14 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         __ OPCODE(dst, i.MemoryOperand(2), laneidx);         \
       }                                                      \
     } else {                                                 \
-      UNIMPLEMENTED();                                       \
+      if (CpuFeatures::IsSupported(AVX)) {                   \
+        CpuFeatureScope avx_scope(tasm(), AVX);              \
+        __ v##OPCODE(dst, src, i.InputOperand(2), laneidx);  \
+      } else {                                               \
+        DCHECK_EQ(dst, src);                                 \
+        CpuFeatureScope sse_scope(tasm(), CPU_FEATURE);      \
+        __ OPCODE(dst, i.InputOperand(2), laneidx);          \
+      }                                                      \
     }                                                        \
   } while (false)
 
@@ -2186,17 +2193,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kSSEF32x4ReplaceLane: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      __ insertps(i.OutputSimd128Register(), i.InputOperand(2),
-                  i.InputInt8(1) << 4);
-      break;
-    }
-    case kAVXF32x4ReplaceLane: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vinsertps(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                   i.InputOperand(2), i.InputInt8(1) << 4);
+    case kIA32Insertps: {
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope avx_scope(tasm(), AVX);
+        __ vinsertps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                     i.InputOperand(2), i.InputInt8(1) << 4);
+      } else {
+        DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+        CpuFeatureScope sse_scope(tasm(), SSE4_1);
+        __ insertps(i.OutputSimd128Register(), i.InputOperand(2),
+                    i.InputInt8(1) << 4);
+      }
       break;
     }
     case kIA32F32x4SConvertI32x4: {
@@ -2480,18 +2487,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32I32x4ExtractLane: {
       __ Pextrd(i.OutputRegister(), i.InputSimd128Register(0), i.InputInt8(1));
-      break;
-    }
-    case kSSEI32x4ReplaceLane: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      __ pinsrd(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
-      break;
-    }
-    case kAVXI32x4ReplaceLane: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vpinsrd(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputOperand(2), i.InputInt8(1));
       break;
     }
     case kSSEI32x4SConvertF32x4: {
@@ -2837,26 +2832,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pshufd(dst, dst, 0x0);
       break;
     }
-    case kIA32I16x8ExtractLaneU: {
-      Register dst = i.OutputRegister();
-      __ Pextrw(dst, i.InputSimd128Register(0), i.InputInt8(1));
-      break;
-    }
     case kIA32I16x8ExtractLaneS: {
       Register dst = i.OutputRegister();
       __ Pextrw(dst, i.InputSimd128Register(0), i.InputInt8(1));
       __ movsx_w(dst, dst);
-      break;
-    }
-    case kSSEI16x8ReplaceLane: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ pinsrw(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
-      break;
-    }
-    case kAVXI16x8ReplaceLane: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vpinsrw(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputOperand(2), i.InputInt8(1));
       break;
     }
     case kIA32I16x8SConvertI8x16Low: {
@@ -3179,41 +3158,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pshufb(dst, kScratchDoubleReg);
       break;
     }
-    case kIA32I8x16ExtractLaneU: {
-      Register dst = i.OutputRegister();
-      __ Pextrb(dst, i.InputSimd128Register(0), i.InputInt8(1));
-      break;
-    }
     case kIA32I8x16ExtractLaneS: {
       Register dst = i.OutputRegister();
       __ Pextrb(dst, i.InputSimd128Register(0), i.InputInt8(1));
       __ movsx_b(dst, dst);
       break;
     }
-    case kSSEI8x16ReplaceLane: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      __ pinsrb(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
-      break;
-    }
-    case kAVXI8x16ReplaceLane: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vpinsrb(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputOperand(2), i.InputInt8(1));
-      break;
-    }
     case kIA32Pinsrb: {
-      // TODO(zhin): Move i8x16 replace lane into this opcode.
       ASSEMBLE_SIMD_PINSR(pinsrb, SSE4_1);
       break;
     }
     case kIA32Pinsrw: {
-      // TODO(zhin): Move i16x8 replace lane into this opcode.
       ASSEMBLE_SIMD_PINSR(pinsrw, SSE4_1);
       break;
     }
     case kIA32Pinsrd: {
-      // TODO(zhin): Move i32x4 replace lane into this opcode.
       ASSEMBLE_SIMD_PINSR(pinsrd, SSE4_1);
       break;
     }
@@ -3240,21 +3199,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32Pextrb: {
-      // TODO(zhin): Move i8x16 extract lane u into this opcode.
-      DCHECK(HasAddressingMode(instr));
-      size_t index = 0;
-      Operand operand = i.MemoryOperand(&index);
-      __ Pextrb(operand, i.InputSimd128Register(index),
-                i.InputUint8(index + 1));
+      if (HasAddressingMode(instr)) {
+        size_t index = 0;
+        Operand operand = i.MemoryOperand(&index);
+        __ Pextrb(operand, i.InputSimd128Register(index),
+                  i.InputUint8(index + 1));
+      } else {
+        Register dst = i.OutputRegister();
+        __ Pextrb(dst, i.InputSimd128Register(0), i.InputInt8(1));
+      }
       break;
     }
     case kIA32Pextrw: {
-      // TODO(zhin): Move i16x8 extract lane u into this opcode.
-      DCHECK(HasAddressingMode(instr));
-      size_t index = 0;
-      Operand operand = i.MemoryOperand(&index);
-      __ Pextrw(operand, i.InputSimd128Register(index),
-                i.InputUint8(index + 1));
+      if (HasAddressingMode(instr)) {
+        size_t index = 0;
+        Operand operand = i.MemoryOperand(&index);
+        __ Pextrw(operand, i.InputSimd128Register(index),
+                  i.InputUint8(index + 1));
+      } else {
+        Register dst = i.OutputRegister();
+        __ Pextrw(dst, i.InputSimd128Register(0), i.InputInt8(1));
+      }
       break;
     }
     case kIA32S128Store32Lane: {
