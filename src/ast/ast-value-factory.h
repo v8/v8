@@ -286,6 +286,8 @@ using AstRawStringMap =
 class AstStringConstants final {
  public:
   AstStringConstants(Isolate* isolate, uint64_t hash_seed);
+  AstStringConstants(const AstStringConstants&) = delete;
+  AstStringConstants& operator=(const AstStringConstants&) = delete;
 
 #define F(name, str) \
   const AstRawString* name##_string() const { return name##_string_; }
@@ -303,8 +305,6 @@ class AstStringConstants final {
 #define F(name, str) AstRawString* name##_string_;
   AST_STRING_CONSTANTS(F)
 #undef F
-
-  DISALLOW_COPY_AND_ASSIGN(AstStringConstants);
 };
 
 class AstValueFactory {
