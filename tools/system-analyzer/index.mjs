@@ -5,6 +5,8 @@
 import {SourcePosition} from '../profile.mjs';
 
 import {State} from './app-model.mjs';
+import {ApiLogEntry} from './log/api.mjs';
+import {DeoptLogEntry} from './log/code.mjs';
 import {CodeLogEntry} from './log/code.mjs';
 import {IcLogEntry} from './log/ic.mjs';
 import {MapLogEntry} from './log/map.mjs';
@@ -17,24 +19,22 @@ class App {
   _view;
   _navigation;
   _startupPromise;
-  constructor(
-      fileReaderId, mapPanelId, mapStatsPanelId, timelinePanelId, icPanelId,
-      mapTrackId, icTrackId, deoptTrackId, codeTrackId, sourcePanelId,
-      codePanelId, toolTipId) {
+  constructor() {
     this._view = {
       __proto__: null,
-      logFileReader: $(fileReaderId),
-      icPanel: $(icPanelId),
-      mapPanel: $(mapPanelId),
-      mapStatsPanel: $(mapStatsPanelId),
-      timelinePanel: $(timelinePanelId),
-      mapTrack: $(mapTrackId),
-      icTrack: $(icTrackId),
-      deoptTrack: $(deoptTrackId),
-      codeTrack: $(codeTrackId),
-      sourcePanel: $(sourcePanelId),
-      codePanel: $(codePanelId),
-      toolTip: $(toolTipId),
+      logFileReader: $('#log-file-reader'),
+      mapPanel: $('#map-panel'),
+      mapStatsPanel: $('#map-stats-panel'),
+      timelinePanel: $('#timeline-panel'),
+      mapTrack: $('#map-track'),
+      icTrack: $('#ic-track'),
+      icPanel: $('#ic-panel'),
+      deoptTrack: $('#deopt-track'),
+      codePanel: $('#code-panel'),
+      codeTrack: $('#code-track'),
+      apiTrack: $('#api-track'),
+      sourcePanel: $('#source-panel'),
+      toolTip: $('#tool-tip'),
     };
     this.toggleSwitch = $('.theme-switch input[type="checkbox"]');
     this.toggleSwitch.addEventListener('change', (e) => this.switchTheme(e));
@@ -67,19 +67,61 @@ class App {
   }
 
   handleShowEntries(e) {
-    const entry = e.entries[0];
-    if (entry instanceof MapLogEntry) {
-      this.showMapEntries(e.entries);
-    } else if (entry instanceof IcLogEntry) {
-      this.showIcEntries(e.entries);
-    } else if (entry instanceof SourcePosition) {
-      this.showSourcePositionEntries(e.entries);
-    } else if (e.entries[0] instanceof CodeLogEntry) {
-      this.showCodeEntries(e.entries);
-    } else {
-      throw new Error('Unknown selection type!');
-    }
     e.stopPropagation();
+    this.showEntries(e.entries);
+  }
+
+  showEntries(entries) {
+    const groups = new Map();
+    for (let entry of entries) {
+      const group = groups.get(entry.constructor);
+      if (group !== undefined) {
+        group.push(entry);
+      } else {
+        groups.set(entry.constructor, [entry]);
+      }
+    }
+    groups.forEach(entries => this.showEntriesOfSingleType(entries));
+  }
+
+  showEntriesOfSingleType(entries) {
+    switch (entries[0].constructor) {
+      case SourcePosition:
+        return this.showSourcePositions(entries);
+      case MapLogEntry:
+        return this.showMapEntries(entries);
+      case IcLogEntry:
+        return this.showIcEntries(entries);
+      case ApiLogEntry:
+        return this.showApiEntries(entries);
+      case CodeLogEntry:
+        return this.showCodeEntries(entries);
+      case DeoptLogEntry:
+        return this.showDeoptEntries(entries);
+      default:
+        throw new Error('Unknown selection type!');
+    }
+  }
+
+  handleShowEntryDetail(e) {
+    e.stopPropagation();
+    const entry = e.entry;
+    switch (entry.constructor) {
+      case SourcePosition:
+        return this.selectSourcePosition(entry);
+      case MapLogEntry:
+        return this.selectMapLogEntry(entry);
+      case IcLogEntry:
+        return this.selectIcLogEntry(entry);
+      case ApiLogEntry:
+        return this.selectApiLogEntry(entry);
+      case CodeLogEntry:
+        return this.selectCodeLogEntry(entry);
+      case DeoptLogEntry:
+        return this.selectDeoptLogEntry(entry);
+      default:
+        throw new Error('Unknown selection type!');
+    }
   }
 
   showMapEntries(entries) {
@@ -94,17 +136,22 @@ class App {
   }
 
   showDeoptEntries(entries) {
-    // TODO: creat list panel.
+    // TODO: create list panel.
     this._state.selectedDeoptLogEntries = entries;
   }
 
   showCodeEntries(entries) {
-    // TODO: creat list panel
+    // TODO: create list panel
     this._state.selectedCodeLogEntries = entries;
     this._view.codePanel.selectedEntries = entries;
   }
 
-  showSourcePositionEntries(entries) {
+  showApiEntries(entries) {
+    // TODO: create list panel
+    this._state.selectedApiLogEntries = entries;
+  }
+
+  showSourcePositions(entries) {
     // TODO: Handle multiple source position selection events
     this._view.sourcePanel.selectedSourcePositions = entries
   }
@@ -120,23 +167,8 @@ class App {
     this.showIcEntries(this._state.icTimeline.selection ?? []);
     this.showDeoptEntries(this._state.deoptTimeline.selection ?? []);
     this.showCodeEntries(this._state.codeTimeline.selection ?? []);
+    this.showApiEntries(this._state.apiTimeline.selection ?? []);
     this._view.timelinePanel.timeSelection = {start, end};
-  }
-
-  handleShowEntryDetail(e) {
-    const entry = e.entry;
-    if (entry instanceof MapLogEntry) {
-      this.selectMapLogEntry(e.entry);
-    } else if (entry instanceof IcLogEntry) {
-      this.selectICLogEntry(e.entry);
-    } else if (entry instanceof SourcePosition) {
-      this.selectSourcePosition(e.entry);
-    } else if (e.entry instanceof CodeLogEntry) {
-      this.selectCodeLogEntry(e.entry);
-    } else {
-      throw new Error('Unknown selection type!');
-    }
-    e.stopPropagation();
   }
 
   selectMapLogEntry(entry) {
@@ -145,7 +177,7 @@ class App {
     this._view.mapPanel.map = entry;
   }
 
-  selectICLogEntry(entry) {
+  selectIcLogEntry(entry) {
     this._state.ic = entry;
     this._view.icPanel.selectedEntry = [entry];
   }
@@ -153,6 +185,15 @@ class App {
   selectCodeLogEntry(entry) {
     this._state.code = entry;
     this._view.codePanel.entry = entry;
+  }
+
+  selectDeoptLogEntry(entry) {
+    // TODO
+  }
+
+  selectApiLogEntry(entry) {
+    this._state.apiLogEntry = entry;
+    this._view.apiTrack.selectedEntry = entry;
   }
 
   selectSourcePosition(sourcePositions) {
@@ -183,8 +224,9 @@ class App {
       const icTimeline = processor.icTimeline;
       const deoptTimeline = processor.deoptTimeline;
       const codeTimeline = processor.codeTimeline;
+      const apiTimeline = processor.apiTimeline;
       this._state.setTimelines(
-          mapTimeline, icTimeline, deoptTimeline, codeTimeline);
+          mapTimeline, icTimeline, deoptTimeline, codeTimeline, apiTimeline);
       // Transitions must be set before timeline for stats panel.
       this._view.mapPanel.timeline = mapTimeline;
       this._view.mapStatsPanel.transitions =
@@ -208,6 +250,7 @@ class App {
     this._view.icTrack.data = this._state.icTimeline;
     this._view.deoptTrack.data = this._state.deoptTimeline;
     this._view.codeTrack.data = this._state.codeTimeline;
+    this._view.apiTrack.data = this._state.apiTimeline;
   }
 
   switchTheme(event) {

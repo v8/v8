@@ -18,9 +18,7 @@ found in the LICENSE file. -->
     // Delay loading of the main App
     (async function() {
       let module = await import('./index.mjs');
-      globalThis.app = new module.App("#log-file-reader", "#map-panel", "#map-stats-panel",
-        "#timeline-panel", "#ic-panel", "#map-track", "#ic-track", "#deopt-track",
-        "#code-track", "#source-panel", "#code-panel", "#tool-tip");
+      globalThis.app = new module.App();
     })();
   </script>
 
@@ -104,6 +102,7 @@ found in the LICENSE file. -->
       <timeline-track id="ic-track"></timeline-track>
       <timeline-track id="deopt-track"></timeline-track>
       <timeline-track id="code-track"></timeline-track>
+      <timeline-track id="api-track"></timeline-track>
     </timeline-panel>
     <div class="panels">
       <map-panel id="map-panel"></map-panel>
@@ -159,16 +158,17 @@ found in the LICENSE file. -->
             <code>--trace-maps</code>
           </a>
         </dt>
-        <dd>Log<a href="https://v8.dev/blog/fast-properties" target="_blank">
-            Maps</a></dd>
+        <dd>
+            Log<a href="https://v8.dev/blog/fast-properties">Maps</a>
+        </dd>
         <dt>
           <a href="https://source.chromium.org/search?q=FLAG_trace_ic">
             <code>--trace-ic</code>
           </a>
         </dt>
-        <dd>Log
-          <a href="https://mathiasbynens.be/notes/shapes-ics" target="_blank">
-            ICs</a></dd>
+        <dd>
+          Log <a href="https://mathiasbynens.be/notes/shapes-ics">ICs</a>
+        </dd>
         <dt>
           <a href="https://source.chromium.org/search?q=FLAG_log_source_code">
             <code>--log-source-code</code>
@@ -181,6 +181,12 @@ found in the LICENSE file. -->
           </a>
         </dt>
         <dd>Log detailed generated generated code</dd>
+        <dt>
+          <a href="https://source.chromium.org/search?q=FLAG_log_api">
+            <code>--log-api</code>
+          </a>
+        </dt>
+        <dd>Log various API uses.</dd>
       </dl>
 
       <h3>Keyboard Shortcuts for Navigation</h3>

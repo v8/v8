@@ -105,7 +105,7 @@ DOM.defineCustomElement('view/source-panel',
     const option =
         this.scriptDropdown.options[this.scriptDropdown.selectedIndex];
     this.script = option.script;
-    this.selectLogEntries(this._script.entries());
+    this.selectLogEntries(this._script.entries);
   }
 
   handleSourcePositionClick(e) {
@@ -124,21 +124,7 @@ DOM.defineCustomElement('view/source-panel',
   }
 
   selectLogEntries(logEntries) {
-    let icLogEntries = [];
-    let mapLogEntries = [];
-    for (const entry of logEntries) {
-      if (entry instanceof MapLogEntry) {
-        mapLogEntries.push(entry);
-      } else if (entry instanceof IcLogEntry) {
-        icLogEntries.push(entry);
-      }
-    }
-    if (icLogEntries.length > 0) {
-      this.dispatchEvent(new SelectionEvent(icLogEntries));
-    }
-    if (mapLogEntries.length > 0) {
-      this.dispatchEvent(new SelectionEvent(mapLogEntries));
-    }
+    this.dispatchEvent(new SelectionEvent(logEntries));
   }
 });
 

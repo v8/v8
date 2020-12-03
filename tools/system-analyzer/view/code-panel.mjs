@@ -25,6 +25,8 @@ DOM.defineCustomElement(
 
       set selectedEntries(entries) {
         this._selectedEntries = entries;
+        // TODO: add code selection dropdown
+        this._entry = entries.first();
         this.update();
       }
 

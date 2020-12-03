@@ -25,7 +25,7 @@ DOM.defineCustomElement('view/timeline/timeline-track',
   constructor() {
     super(templateText);
     this._selectionHandler = new SelectionHandler(this);
-    this._legend = new Legend(this.$('#legend'));
+    this._legend = new Legend(this.$('#legendTable'));
     this._legend.onFilter = (type) => this._handleFilterTimeline();
     this.timelineNode.addEventListener(
         'scroll', e => this._handleTimelineScroll(e));

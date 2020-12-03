@@ -14,7 +14,7 @@ export class IcLogEntry extends LogEntry {
     } else if (this.type.indexOf('Load') !== -1) {
       this.category = 'Load';
     }
-    let parts = fn_file.split(' ');
+    const parts = fn_file.split(' ');
     this.functionName = parts[0];
     this.file = parts[1];
     let position = line + ':' + column;

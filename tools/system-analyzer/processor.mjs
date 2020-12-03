@@ -5,6 +5,7 @@
 import {LogReader, parseString, parseVarArgs} from '../logreader.mjs';
 import {Profile} from '../profile.mjs';
 
+import {ApiLogEntry} from './log/api.mjs';
 import {CodeLogEntry, DeoptLogEntry} from './log/code.mjs';
 import {IcLogEntry} from './log/ic.mjs';
 import {Edge, MapLogEntry} from './log/map.mjs';
@@ -18,7 +19,10 @@ export class Processor extends LogReader {
   _icTimeline = new Timeline();
   _deoptTimeline = new Timeline();
   _codeTimeline = new Timeline();
+  _apiTimeline = new Timeline();
   _formatPCRegexp = /(.*):[0-9]+:[0-9]+$/;
+  _lastTimestamp = 0;
+  _lastCodeLogEntry;
   MAJOR_VERSION = 7;
   MINOR_VERSION = 6;
   constructor(logString) {
@@ -115,6 +119,10 @@ export class Processor extends LogReader {
         parsers: propertyICParser,
         processor: this.processPropertyIC.bind(this, 'StoreInArrayLiteralIC')
       },
+      'api': {
+        parsers: [parseString, parseVarArgs],
+        processor: this.processApiEvent
+      },
     };
     if (logString) this.processString(logString);
   }
@@ -182,7 +190,21 @@ export class Processor extends LogReader {
     });
   }
 
+  processV8Version(majorVersion, minorVersion) {
+    if ((majorVersion == this.MAJOR_VERSION &&
+         minorVersion <= this.MINOR_VERSION) ||
+        (majorVersion < this.MAJOR_VERSION)) {
+      window.alert(
+          `Unsupported version ${majorVersion}.${minorVersion}. \n` +
+          `Please use the matching tool for given the V8 version.`);
+    }
+  }
+
   processCodeCreation(type, kind, timestamp, start, size, name, maybe_func) {
+    this._lastTimestamp = timestamp;
+    if (timestamp == 5724567) {
+      console.log(start);
+    }
     let entry;
     let stateName = '';
     if (maybe_func.length) {
@@ -194,26 +216,20 @@ export class Processor extends LogReader {
     } else {
       entry = this._profile.addCode(type, name, timestamp, start, size);
     }
-    this._codeTimeline.push(
-        new CodeLogEntry(type + stateName, timestamp, kind, entry));
+    this._lastCodeLogEntry =
+        new CodeLogEntry(type + stateName, timestamp, kind, entry);
+    this._codeTimeline.push(this._lastCodeLogEntry);
   }
 
   processCodeDeopt(
       timestamp, codeSize, instructionStart, inliningId, scriptOffset,
       deoptKind, deoptLocation, deoptReason) {
-    this._deoptTimeline.push(new DeoptLogEntry(
+    this._lastTimestamp = timestamp;
+    const logEntry = new DeoptLogEntry(
         deoptKind, timestamp, deoptReason, deoptLocation, scriptOffset,
-        instructionStart, codeSize, inliningId));
-  }
-
-  processV8Version(majorVersion, minorVersion) {
-    if ((majorVersion == this.MAJOR_VERSION &&
-         minorVersion <= this.MINOR_VERSION) ||
-        (majorVersion < this.MAJOR_VERSION)) {
-      window.alert(
-          `Unsupported version ${majorVersion}.${minorVersion}. \n` +
-          `Please use the matching tool for given the V8 version.`);
-    }
+        instructionStart, codeSize, inliningId);
+    this._deoptTimeline.push(logEntry);
+    this.addSourcePosition(this._profile.findEntry(instructionStart), logEntry);
   }
 
   processScriptSource(scriptId, url, source) {
@@ -233,11 +249,24 @@ export class Processor extends LogReader {
   }
 
   processCodeSourceInfo(
-      start, script, startPos, endPos, sourcePositions, inliningPositions,
+      start, scriptId, startPos, endPos, sourcePositions, inliningPositions,
       inlinedFunctions) {
     this._profile.addSourcePositions(
-        start, script, startPos, endPos, sourcePositions, inliningPositions,
+        start, scriptId, startPos, endPos, sourcePositions, inliningPositions,
         inlinedFunctions);
+    let profileEntry = this._profile.findEntry(start);
+    if (profileEntry !== this._lastCodeLogEntry._entry) return;
+    this.addSourcePosition(profileEntry, this._lastCodeLogEntry);
+    this._lastCodeLogEntry = undefined;
+  }
+
+  addSourcePosition(profileEntry, logEntry) {
+    let script = this.getProfileEntryScript(profileEntry);
+    const parts = profileEntry.getRawName().split(':');
+    if (parts.length < 3) return;
+    const line = parseInt(parts[parts.length - 2]);
+    const column = parseInt(parts[parts.length - 1]);
+    logEntry.sourcePosition = script.addSourcePosition(line, column, logEntry);
   }
 
   processCodeDisassemble(start, kind, disassemble) {
@@ -247,6 +276,7 @@ export class Processor extends LogReader {
   processPropertyIC(
       type, pc, time, line, column, old_state, new_state, map, key, modifier,
       slow_reason) {
+    this._lastTimestamp = time;
     let profileEntry = this._profile.findEntry(pc);
     let fnName = this.formatProfileEntry(profileEntry);
     let script = this.getProfileEntryScript(profileEntry);
@@ -284,6 +314,7 @@ export class Processor extends LogReader {
   }
 
   processMap(type, time, from, to, pc, line, column, reason, name) {
+    this._lastTimestamp = time;
     const time_ = parseInt(time);
     if (type === 'Deprecate') return this.deprecateMap(type, time_, from);
     // Skip normalized maps that were cached so we don't introduce multiple
@@ -318,12 +349,14 @@ export class Processor extends LogReader {
   }
 
   deprecateMap(type, time, id) {
+    this._lastTimestamp = time;
     this.getMapEntry(id, time).deprecate();
   }
 
   processMapCreate(time, id) {
     // map-create events might override existing maps if the addresses get
     // recycled. Hence we do not check for existing maps.
+    this._lastTimestamp = time;
     this.createMapEntry(id, time);
   }
 
@@ -334,6 +367,7 @@ export class Processor extends LogReader {
   }
 
   createMapEntry(id, time) {
+    this._lastTimestamp = time;
     const map = new MapLogEntry(id, time);
     this._mapTimeline.push(map);
     return map;
@@ -357,6 +391,16 @@ export class Processor extends LogReader {
     return script;
   }
 
+  processApiEvent(name, varArgs) {
+    if (varArgs.length == 0) {
+      varArgs = [name];
+      const index = name.indexOf(':');
+      if (index > 0) name = name.substr(0, index);
+    }
+    this._apiTimeline.push(
+        new ApiLogEntry(name, this._lastTimestamp, varArgs[0]));
+  }
+
   get icTimeline() {
     return this._icTimeline;
   }
@@ -371,6 +415,10 @@ export class Processor extends LogReader {
 
   get codeTimeline() {
     return this._codeTimeline;
+  }
+
+  get apiTimeline() {
+    return this._apiTimeline;
   }
 
   get scripts() {

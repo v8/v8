@@ -34,17 +34,6 @@ define(Array.prototype, 'last', function() {
 // Map Log Events
 
 class MapLogEntry extends LogEntry {
-  id = -1;
-  edge = undefined;
-  children = [];
-  depth = 0;
-  _isDeprecated = false;
-  deprecatedTargets = null;
-  leftId = 0;
-  rightId = 0;
-  filePosition = '';
-  script = '';
-  description = '';
   constructor(id, time) {
     if (!time) throw new Error('Invalid time');
     // Use MapLogEntry.type getter instead of property, since we only know the
@@ -52,6 +41,17 @@ class MapLogEntry extends LogEntry {
     super(undefined, time);
     this.id = id;
     MapLogEntry.set(id, this);
+    this.id = -1;
+    this.edge = undefined;
+    this.children = [];
+    this.depth = 0;
+    this._isDeprecated = false;
+    this.deprecatedTargets = null;
+    this.leftId = 0;
+    this.rightId = 0;
+    this.filePosition = '';
+    this.script = '';
+    this.description = '';
   }
 
   toString() {

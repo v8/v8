@@ -47,6 +47,7 @@ export class Script {
   source;
   // Map<line, Map<column, SourcePosition>>
   lineToColumn = new Map();
+  _entries = [];
 
   constructor(id) {
     this.id = id;
@@ -62,6 +63,10 @@ export class Script {
     return this.source.length;
   }
 
+  get entries() {
+    return this._entries;
+  }
+
   addSourcePosition(line, column, entry) {
     let sourcePosition = this.lineToColumn.get(line)?.get(column);
     if (sourcePosition === undefined) {
@@ -69,6 +74,7 @@ export class Script {
       this._addSourcePosition(line, column, sourcePosition);
     }
     sourcePosition.addEntry(entry);
+    this._entries.push(entry);
     return sourcePosition;
   }
 
@@ -83,10 +89,12 @@ export class Script {
     this.sourcePositions.push(sourcePosition);
     columnToSourcePosition.set(column, sourcePosition);
   }
+
+
 }
 
 
-class SourceInfo{
+class SourceInfo {
    script;
    start;
    end;
@@ -106,6 +114,10 @@ class SourceInfo{
 
   setDisassemble(code) {
     this.disassemble = code;
+  }
+
+  getSourceCode() {
+    return this.script.source?.substring(this.start, this.end);
   }
 }
 
@@ -170,7 +182,7 @@ export class Profile {
         return this.CodeState.IGNITION;
       case '-':
         return this.CodeState.NATIVE_CONTEXT_INDEPENDENT;
-      case '=':
+      case '+':
         return this.CodeState.TURBOPROP;
       case '*':
         return this.CodeState.TURBOFAN;
@@ -639,7 +651,12 @@ class DynamicFuncCodeEntry extends CodeEntry {
   constructor(size, type, func, state) {
     super(size, '', type);
     this.func = func;
+    func.addDynamicCode(this);
     this.state = state;
+  }
+
+  getSourceCode() {
+    return this.source?.getSourceCode();
   }
 
   static STATE_PREFIX = ["", "~", "-", "+", "*"];
@@ -675,8 +692,24 @@ class DynamicFuncCodeEntry extends CodeEntry {
  * @constructor
  */
 class FunctionEntry extends CodeEntry {
+  
+  // Contains the list of generated code for this function.
+  _codeEntries = new Set();
+
   constructor(name) {
     super(0, name);
+  }
+
+  addDynamicCode(code) {
+    if (code.func != this) {
+      throw new Error("Adding dynamic code to wrong function");
+    }
+    this._codeEntries.add(code);
+  }
+
+  getSourceCode() {
+    // All code entries should map to the same source positions.
+    return this._codeEntries.values().next().value.getSourceCode();
   }
 
   /**
