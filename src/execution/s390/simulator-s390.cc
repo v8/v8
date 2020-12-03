@@ -7245,14 +7245,14 @@ EVALUATE(LCDFR) {
 EVALUATE(LZER) {
   DCHECK_OPCODE(LZER);
   DECODE_RRE_INSTRUCTION_NO_R2(r1);
-  set_fpr(r1, 0.0);
+  set_fpr<float>(r1, 0.0);
   return length;
 }
 
 EVALUATE(LZDR) {
   DCHECK_OPCODE(LZDR);
   DECODE_RRE_INSTRUCTION_NO_R2(r1);
-  set_fpr(r1, 0.0);
+  set_fpr<double>(r1, 0.0);
   return length;
 }
 

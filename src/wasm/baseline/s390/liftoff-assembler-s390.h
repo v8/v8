@@ -5,8 +5,11 @@
 #ifndef V8_WASM_BASELINE_S390_LIFTOFF_ASSEMBLER_S390_H_
 #define V8_WASM_BASELINE_S390_LIFTOFF_ASSEMBLER_S390_H_
 
+#include "src/base/platform/wrappers.h"
+#include "src/codegen/assembler.h"
+#include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
-
+#include "src/wasm/simd-shuffle.h"
 
 namespace v8 {
 namespace internal {
@@ -79,11 +82,181 @@ inline constexpr bool UseSignedOp(LiftoffCondition liftoff_cond) {
 //
 constexpr int32_t kInstanceOffset = 2 * kSystemPointerSize;
 
-inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
-  int32_t half_offset =
-      half == kLowWord ? 0 : LiftoffAssembler::kStackSlotSize / 2;
-  return MemOperand(fp, -offset + half_offset);
+inline MemOperand GetStackSlot(uint32_t offset) {
+  return MemOperand(fp, -offset);
 }
+
+inline MemOperand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
+
+#define __ assm->
+inline void FloatMax(LiftoffAssembler* assm, DoubleRegister result_reg,
+                     DoubleRegister left_reg, DoubleRegister right_reg) {
+  Label check_nan_left, check_zero, return_left, return_right, done;
+  __ cebr(left_reg, right_reg);
+  __ bunordered(&check_nan_left, Label::kNear);
+  __ beq(&check_zero);
+  __ bge(&return_left, Label::kNear);
+  __ b(&return_right, Label::kNear);
+
+  __ bind(&check_zero);
+  __ lzer(kDoubleRegZero);
+  __ cebr(left_reg, kDoubleRegZero);
+  /* left == right != 0. */
+  __ bne(&return_left, Label::kNear);
+  /* At this point, both left and right are either 0 or -0. */
+  /* N.B. The following works because +0 + -0 == +0 */
+  /* For max we want logical-and of sign bit: (L + R) */
+  __ ldr(result_reg, left_reg);
+  __ aebr(result_reg, right_reg);
+  __ b(&done, Label::kNear);
+
+  __ bind(&check_nan_left);
+  __ cebr(left_reg, left_reg);
+  // left == NaN.
+  __ bunordered(&return_left, Label::kNear);
+
+  __ bind(&return_right);
+  if (right_reg != result_reg) {
+    __ ldr(result_reg, right_reg);
+  }
+  __ b(&done, Label::kNear);
+
+  __ bind(&return_left);
+  if (left_reg != result_reg) {
+    __ ldr(result_reg, left_reg);
+  }
+  __ bind(&done);
+}
+
+inline void FloatMin(LiftoffAssembler* assm, DoubleRegister result_reg,
+                     DoubleRegister left_reg, DoubleRegister right_reg) {
+  Label check_nan_left, check_zero, return_left, return_right, done;
+  __ cebr(left_reg, right_reg);
+  __ bunordered(&check_nan_left, Label::kNear);
+  __ beq(&check_zero);
+  __ ble(&return_left, Label::kNear);
+  __ b(&return_right, Label::kNear);
+
+  __ bind(&check_zero);
+  __ lzer(kDoubleRegZero);
+  __ cebr(left_reg, kDoubleRegZero);
+  // left == right != 0.
+  __ bne(&return_left, Label::kNear);
+  // At this point, both left and right are either 0 or -0. */
+  // N.B. The following works because +0 + -0 == +0 */
+  // For min we want logical-or of sign bit: -(-L + -R) */
+  __ lcebr(left_reg, left_reg);
+  __ ldr(result_reg, left_reg);
+  if (left_reg == right_reg) {
+    __ aebr(result_reg, right_reg);
+  } else {
+    __ sebr(result_reg, right_reg);
+  }
+  __ lcebr(result_reg, result_reg);
+  __ b(&done, Label::kNear);
+
+  __ bind(&check_nan_left);
+  __ cebr(left_reg, left_reg);
+  /* left == NaN. */
+  __ bunordered(&return_left, Label::kNear);
+
+  __ bind(&return_right);
+  if (right_reg != result_reg) {
+    __ ldr(result_reg, right_reg);
+  }
+  __ b(&done, Label::kNear);
+
+  __ bind(&return_left);
+  if (left_reg != result_reg) {
+    __ ldr(result_reg, left_reg);
+  }
+  __ bind(&done);
+}
+
+inline void DoubleMax(LiftoffAssembler* assm, DoubleRegister result_reg,
+                      DoubleRegister left_reg, DoubleRegister right_reg) {
+  Label check_nan_left, check_zero, return_left, return_right, done;
+  __ cdbr(left_reg, right_reg);
+  __ bunordered(&check_nan_left, Label::kNear);
+  __ beq(&check_zero);
+  __ bge(&return_left, Label::kNear);
+  __ b(&return_right, Label::kNear);
+
+  __ bind(&check_zero);
+  __ lzdr(kDoubleRegZero);
+  __ cdbr(left_reg, kDoubleRegZero);
+  /* left == right != 0. */
+  __ bne(&return_left, Label::kNear);
+  /* At this point, both left and right are either 0 or -0. */
+  /* N.B. The following works because +0 + -0 == +0 */
+  /* For max we want logical-and of sign bit: (L + R) */
+  __ ldr(result_reg, left_reg);
+  __ adbr(result_reg, right_reg);
+  __ b(&done, Label::kNear);
+
+  __ bind(&check_nan_left);
+  __ cdbr(left_reg, left_reg);
+  /* left == NaN. */
+  __ bunordered(&return_left, Label::kNear);
+
+  __ bind(&return_right);
+  if (right_reg != result_reg) {
+    __ ldr(result_reg, right_reg);
+  }
+  __ b(&done, Label::kNear);
+
+  __ bind(&return_left);
+  if (left_reg != result_reg) {
+    __ ldr(result_reg, left_reg);
+  }
+  __ bind(&done);
+}
+
+inline void DoubleMin(LiftoffAssembler* assm, DoubleRegister result_reg,
+                      DoubleRegister left_reg, DoubleRegister right_reg) {
+  Label check_nan_left, check_zero, return_left, return_right, done;
+  __ cdbr(left_reg, right_reg);
+  __ bunordered(&check_nan_left, Label::kNear);
+  __ beq(&check_zero);
+  __ ble(&return_left, Label::kNear);
+  __ b(&return_right, Label::kNear);
+
+  __ bind(&check_zero);
+  __ lzdr(kDoubleRegZero);
+  __ cdbr(left_reg, kDoubleRegZero);
+  /* left == right != 0. */
+  __ bne(&return_left, Label::kNear);
+  /* At this point, both left and right are either 0 or -0. */
+  /* N.B. The following works because +0 + -0 == +0 */
+  /* For min we want logical-or of sign bit: -(-L + -R) */
+  __ lcdbr(left_reg, left_reg);
+  __ ldr(result_reg, left_reg);
+  if (left_reg == right_reg) {
+    __ adbr(result_reg, right_reg);
+  } else {
+    __ sdbr(result_reg, right_reg);
+  }
+  __ lcdbr(result_reg, result_reg);
+  __ b(&done, Label::kNear);
+
+  __ bind(&check_nan_left);
+  __ cdbr(left_reg, left_reg);
+  /* left == NaN. */
+  __ bunordered(&return_left, Label::kNear);
+
+  __ bind(&return_right);
+  if (right_reg != result_reg) {
+    __ ldr(result_reg, right_reg);
+  }
+  __ b(&done, Label::kNear);
+
+  __ bind(&return_left);
+  if (left_reg != result_reg) {
+    __ ldr(result_reg, left_reg);
+  }
+  __ bind(&done);
+}
+#undef __
 
 }  // namespace liftoff
 
@@ -291,12 +464,11 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     // instructions per slot.
     uint32_t remainder = size;
     for (; remainder >= kStackSlotSize; remainder -= kStackSlotSize) {
-      StoreP(r0, liftoff::GetHalfStackSlot(start + remainder, kLowWord));
-      StoreP(r0, liftoff::GetHalfStackSlot(start + remainder, kHighWord));
+      StoreP(r0, liftoff::GetStackSlot(start + remainder));
     }
     DCHECK(remainder == 4 || remainder == 0);
     if (remainder) {
-      StoreP(r0, liftoff::GetHalfStackSlot(start + remainder, kLowWord));
+      StoreW(r0, liftoff::GetStackSlot(start + remainder));
     }
   } else {
     // General case for bigger counts (9 instructions).
@@ -405,8 +577,6 @@ UNIMPLEMENTED_FP_BINOP(f32_add)
 UNIMPLEMENTED_FP_BINOP(f32_sub)
 UNIMPLEMENTED_FP_BINOP(f32_mul)
 UNIMPLEMENTED_FP_BINOP(f32_div)
-UNIMPLEMENTED_FP_BINOP(f32_min)
-UNIMPLEMENTED_FP_BINOP(f32_max)
 UNIMPLEMENTED_FP_BINOP(f32_copysign)
 UNIMPLEMENTED_FP_UNOP(f32_abs)
 UNIMPLEMENTED_FP_UNOP(f32_neg)
@@ -419,8 +589,6 @@ UNIMPLEMENTED_FP_BINOP(f64_add)
 UNIMPLEMENTED_FP_BINOP(f64_sub)
 UNIMPLEMENTED_FP_BINOP(f64_mul)
 UNIMPLEMENTED_FP_BINOP(f64_div)
-UNIMPLEMENTED_FP_BINOP(f64_min)
-UNIMPLEMENTED_FP_BINOP(f64_max)
 UNIMPLEMENTED_FP_BINOP(f64_copysign)
 UNIMPLEMENTED_FP_UNOP(f64_abs)
 UNIMPLEMENTED_FP_UNOP(f64_neg)
@@ -455,6 +623,42 @@ bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
 void LiftoffAssembler::emit_i64_addi(LiftoffRegister dst, LiftoffRegister lhs,
                                      int64_t imm) {
   bailout(kUnsupportedArchitecture, "i64_addi");
+}
+
+void LiftoffAssembler::emit_f64_min(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {
+  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1)) {
+    vfmin(dst, lhs, rhs, Condition(1), Condition(8), Condition(3));
+    return;
+  }
+  liftoff::DoubleMin(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_f32_min(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {
+  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1)) {
+    vfmin(dst, lhs, rhs, Condition(1), Condition(8), Condition(2));
+    return;
+  }
+  liftoff::FloatMin(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {
+  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1)) {
+    vfmax(dst, lhs, rhs, Condition(1), Condition(8), Condition(3));
+    return;
+  }
+  liftoff::DoubleMax(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_f32_max(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {
+  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1)) {
+    vfmax(dst, lhs, rhs, Condition(1), Condition(8), Condition(2));
+    return;
+  }
+  liftoff::FloatMax(this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
