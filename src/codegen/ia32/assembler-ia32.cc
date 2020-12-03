@@ -2973,6 +2973,24 @@ void Assembler::vpshufd(XMMRegister dst, Operand src, uint8_t shuffle) {
   EMIT(shuffle);
 }
 
+void Assembler::vblendvps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                          XMMRegister mask) {
+  vinstr(0x4A, dst, src1, src2, k66, k0F3A, kW0);
+  EMIT(mask.code() << 4);
+}
+
+void Assembler::vblendvpd(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                          XMMRegister mask) {
+  vinstr(0x4B, dst, src1, src2, k66, k0F3A, kW0);
+  EMIT(mask.code() << 4);
+}
+
+void Assembler::vpblendvb(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                          XMMRegister mask) {
+  vinstr(0x4C, dst, src1, src2, k66, k0F3A, kW0);
+  EMIT(mask.code() << 4);
+}
+
 void Assembler::vpblendw(XMMRegister dst, XMMRegister src1, Operand src2,
                          uint8_t mask) {
   vinstr(0x0E, dst, src1, src2, k66, k0F3A, kWIG);

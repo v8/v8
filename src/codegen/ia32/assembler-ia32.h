@@ -1406,6 +1406,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   void vpshufd(XMMRegister dst, Operand src, uint8_t shuffle);
 
+  void vblendvps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister mask);
+  void vblendvpd(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister mask);
+  void vpblendvb(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister mask);
+
   void vpblendw(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                 uint8_t mask) {
     vpblendw(dst, src1, Operand(src2), mask);
@@ -1692,6 +1699,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   SSE4_INSTRUCTION_LIST(DECLARE_SSE4_INSTRUCTION)
   SSE4_RM_INSTRUCTION_LIST(DECLARE_SSE4_INSTRUCTION)
+  DECLARE_SSE4_INSTRUCTION(blendvps, 66, 0F, 38, 14)
+  DECLARE_SSE4_INSTRUCTION(blendvpd, 66, 0F, 38, 15)
+  DECLARE_SSE4_INSTRUCTION(pblendvb, 66, 0F, 38, 10)
 #undef DECLARE_SSE4_INSTRUCTION
 
 #define DECLARE_SSE34_AVX_INSTRUCTION(instruction, prefix, escape1, escape2,  \

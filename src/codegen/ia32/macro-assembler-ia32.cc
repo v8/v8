@@ -1635,6 +1635,45 @@ void TurboAssembler::Pshufb(XMMRegister dst, XMMRegister src, Operand mask) {
   FATAL("no AVX or SSE3 support");
 }
 
+void TurboAssembler::Blendvps(XMMRegister dst, XMMRegister src1,
+                              XMMRegister src2, XMMRegister mask) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vblendvps(dst, src1, src2, mask);
+  } else {
+    CpuFeatureScope scope(this, SSE4_1);
+    DCHECK_EQ(dst, src1);
+    DCHECK_EQ(xmm0, mask);
+    blendvps(dst, src2);
+  }
+}
+
+void TurboAssembler::Blendvpd(XMMRegister dst, XMMRegister src1,
+                              XMMRegister src2, XMMRegister mask) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vblendvpd(dst, src1, src2, mask);
+  } else {
+    CpuFeatureScope scope(this, SSE4_1);
+    DCHECK_EQ(dst, src1);
+    DCHECK_EQ(xmm0, mask);
+    blendvpd(dst, src2);
+  }
+}
+
+void TurboAssembler::Pblendvb(XMMRegister dst, XMMRegister src1,
+                              XMMRegister src2, XMMRegister mask) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpblendvb(dst, src1, src2, mask);
+  } else {
+    CpuFeatureScope scope(this, SSE4_1);
+    DCHECK_EQ(dst, src1);
+    DCHECK_EQ(xmm0, mask);
+    pblendvb(dst, src2);
+  }
+}
+
 void TurboAssembler::Pblendw(XMMRegister dst, Operand src, uint8_t imm8) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);

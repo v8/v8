@@ -505,6 +505,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     Pshufb(dst, src, Operand(mask));
   }
   void Pshufb(XMMRegister dst, XMMRegister src, Operand mask);
+
+  void Blendvps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                XMMRegister mask);
+  void Blendvpd(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                XMMRegister mask);
+  void Pblendvb(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                XMMRegister mask);
+
   void Pblendw(XMMRegister dst, XMMRegister src, uint8_t imm8) {
     Pblendw(dst, Operand(src), imm8);
   }

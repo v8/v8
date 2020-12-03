@@ -2993,6 +2993,40 @@ void InstructionSelector::VisitF64x2Pmax(Node* node) {
   VisitPminOrPmax(this, node, kIA32F64x2Pmax);
 }
 
+namespace {
+void VisitSignSelect(InstructionSelector* selector, Node* node,
+                     ArchOpcode opcode) {
+  IA32OperandGenerator g(selector);
+  // signselect(x, y, -1) = x
+  // pblendvb(dst, x, y, -1) = dst <- y, so we need to swap x and y.
+  if (selector->IsSupported(AVX)) {
+    selector->Emit(
+        opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(1)),
+        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(2)));
+  } else {
+    selector->Emit(
+        opcode, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(1)),
+        g.UseRegister(node->InputAt(0)), g.UseFixed(node->InputAt(2), xmm0));
+  }
+}
+}  // namespace
+
+void InstructionSelector::VisitI8x16SignSelect(Node* node) {
+  VisitSignSelect(this, node, kIA32I8x16SignSelect);
+}
+
+void InstructionSelector::VisitI16x8SignSelect(Node* node) {
+  VisitSignSelect(this, node, kIA32I16x8SignSelect);
+}
+
+void InstructionSelector::VisitI32x4SignSelect(Node* node) {
+  VisitSignSelect(this, node, kIA32I32x4SignSelect);
+}
+
+void InstructionSelector::VisitI64x2SignSelect(Node* node) {
+  VisitSignSelect(this, node, kIA32I64x2SignSelect);
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

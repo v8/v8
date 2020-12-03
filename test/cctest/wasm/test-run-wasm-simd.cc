@@ -765,7 +765,7 @@ WASM_SIMD_TEST(F32x4Le) {
   RunF32x4CompareOpTest(execution_tier, lower_simd, kExprF32x4Le, LessEqual);
 }
 
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
 // TODO(v8:10983) Prototyping sign select.
 template <typename T>
 void RunSignSelect(TestExecutionTier execution_tier, LowerSimd lower_simd,
@@ -822,7 +822,7 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2SignSelect) {
   RunSignSelect<int64_t>(execution_tier, lower_simd, kExprI64x2SignSelect,
                          kExprI64x2Splat, mask);
 }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 WASM_SIMD_TEST_NO_LOWERING(F32x4Qfma) {

@@ -2158,6 +2158,40 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputSimd128Register(1));
       break;
     }
+    case kIA32I8x16SignSelect: {
+      __ Pblendvb(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1), i.InputSimd128Register(2));
+      break;
+    }
+    case kIA32I16x8SignSelect: {
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope avx_scope(tasm(), AVX);
+        __ vpsraw(kScratchDoubleReg, i.InputSimd128Register(2), 15);
+        __ vpblendvb(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                     i.InputSimd128Register(1), kScratchDoubleReg);
+      } else {
+        DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+        XMMRegister mask = i.InputSimd128Register(2);
+        DCHECK_EQ(xmm0, mask);
+        __ movapd(kScratchDoubleReg, mask);
+        __ pxor(mask, mask);
+        __ pcmpgtw(mask, kScratchDoubleReg);
+        __ pblendvb(i.OutputSimd128Register(), i.InputSimd128Register(1));
+        // Restore mask.
+        __ movapd(mask, kScratchDoubleReg);
+      }
+      break;
+    }
+    case kIA32I32x4SignSelect: {
+      __ Blendvps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1), i.InputSimd128Register(2));
+      break;
+    }
+    case kIA32I64x2SignSelect: {
+      __ Blendvpd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1), i.InputSimd128Register(2));
+      break;
+    }
     case kSSEF32x4Splat: {
       DCHECK_EQ(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       XMMRegister dst = i.OutputSimd128Register();
