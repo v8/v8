@@ -24258,6 +24258,7 @@ TEST(CreateSyntheticModule) {
   CHECK_EQ(i_module->status(), i::Module::kInstantiated);
   CHECK(module->IsSyntheticModule());
   CHECK(!module->IsSourceTextModule());
+  CHECK_EQ(module->GetModuleRequests()->Length(), 0);
 }
 
 TEST(CreateSyntheticModuleGC) {

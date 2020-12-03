@@ -2316,14 +2316,18 @@ Location Module::GetModuleRequestLocation(int i) const {
 
 Local<FixedArray> Module::GetModuleRequests() const {
   i::Handle<i::Module> self = Utils::OpenHandle(this);
-  Utils::ApiCheck(
-      self->IsSourceTextModule(), "v8::Module::GetModuleRequests",
-      "v8::Module::GetModuleRequests must be used on an SourceTextModule");
-  i::Isolate* isolate = self->GetIsolate();
-  i::Handle<i::FixedArray> module_requests(
-      i::Handle<i::SourceTextModule>::cast(self)->info().module_requests(),
-      isolate);
-  return ToApiHandle<FixedArray>(module_requests);
+  if (self->IsSyntheticModule()) {
+    // Synthetic modules are leaf nodes in the module graph. They have no
+    // ModuleRequests.
+    return ToApiHandle<FixedArray>(
+        self->GetReadOnlyRoots().empty_fixed_array_handle());
+  } else {
+    i::Isolate* isolate = self->GetIsolate();
+    i::Handle<i::FixedArray> module_requests(
+        i::Handle<i::SourceTextModule>::cast(self)->info().module_requests(),
+        isolate);
+    return ToApiHandle<FixedArray>(module_requests);
+  }
 }
 
 Location Module::SourceOffsetToLocation(int offset) const {
