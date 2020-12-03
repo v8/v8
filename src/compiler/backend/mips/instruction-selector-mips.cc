@@ -1382,6 +1382,8 @@ void InstructionSelector::EmitPrepareResults(
         MarkAsFloat32(output.node);
       } else if (output.location.GetType() == MachineType::Float64()) {
         MarkAsFloat64(output.node);
+      } else if (output.location.GetType() == MachineType::Simd128()) {
+        MarkAsSimd128(output.node);
       }
       int offset = call_descriptor->GetOffsetToReturns();
       int reverse_slot = -output.location.GetLocation() - offset;

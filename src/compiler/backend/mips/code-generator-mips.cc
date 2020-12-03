@@ -1677,17 +1677,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kMipsPeek: {
-      // The incoming value is 0-based, but we need a 1-based value.
-      int reverse_slot = i.InputInt32(0) + 1;
+      int reverse_slot = i.InputInt32(0);
       int offset =
           FrameSlotToFPOffset(frame()->GetTotalFrameSlotCount() - reverse_slot);
       if (instr->OutputAt(0)->IsFPRegister()) {
         LocationOperand* op = LocationOperand::cast(instr->OutputAt(0));
         if (op->representation() == MachineRepresentation::kFloat64) {
           __ Ldc1(i.OutputDoubleRegister(), MemOperand(fp, offset));
-        } else {
-          DCHECK_EQ(op->representation(), MachineRepresentation::kFloat32);
+        } else if (op->representation() == MachineRepresentation::kFloat32) {
           __ lwc1(i.OutputSingleRegister(0), MemOperand(fp, offset));
+        } else {
+          DCHECK_EQ(op->representation(), MachineRepresentation::kSimd128);
+          __ ld_b(i.OutputSimd128Register(), MemOperand(fp, offset));
         }
       } else {
         __ lw(i.OutputRegister(0), MemOperand(fp, offset));
