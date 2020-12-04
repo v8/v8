@@ -34,6 +34,177 @@
 namespace v8 {
 namespace internal {
 
+void TurboAssembler::DoubleMax(DoubleRegister result_reg,
+                               DoubleRegister left_reg,
+                               DoubleRegister right_reg) {
+  Label check_zero, return_left, return_right, return_nan, done;
+  cdbr(left_reg, right_reg);
+  bunordered(&return_nan, Label::kNear);
+  beq(&check_zero);
+  bge(&return_left, Label::kNear);
+  b(&return_right, Label::kNear);
+
+  bind(&check_zero);
+  lzdr(kDoubleRegZero);
+  cdbr(left_reg, kDoubleRegZero);
+  /* left == right != 0. */
+  bne(&return_left, Label::kNear);
+  /* At this point, both left and right are either 0 or -0. */
+  /* N.B. The following works because +0 + -0 == +0 */
+  /* For max we want logical-and of sign bit: (L + R) */
+  ldr(result_reg, left_reg);
+  adbr(result_reg, right_reg);
+  b(&done, Label::kNear);
+
+  bind(&return_nan);
+  /* If left or right are NaN, adbr propagates the appropriate one.*/
+  adbr(left_reg, right_reg);
+  b(&return_left, Label::kNear);
+
+  bind(&return_right);
+  if (right_reg != result_reg) {
+    ldr(result_reg, right_reg);
+  }
+  b(&done, Label::kNear);
+
+  bind(&return_left);
+  if (left_reg != result_reg) {
+    ldr(result_reg, left_reg);
+  }
+  bind(&done);
+}
+
+void TurboAssembler::DoubleMin(DoubleRegister result_reg,
+                               DoubleRegister left_reg,
+                               DoubleRegister right_reg) {
+  Label check_zero, return_left, return_right, return_nan, done;
+  cdbr(left_reg, right_reg);
+  bunordered(&return_nan, Label::kNear);
+  beq(&check_zero);
+  ble(&return_left, Label::kNear);
+  b(&return_right, Label::kNear);
+
+  bind(&check_zero);
+  lzdr(kDoubleRegZero);
+  cdbr(left_reg, kDoubleRegZero);
+  /* left == right != 0. */
+  bne(&return_left, Label::kNear);
+  /* At this point, both left and right are either 0 or -0. */
+  /* N.B. The following works because +0 + -0 == +0 */
+  /* For min we want logical-or of sign bit: -(-L + -R) */
+  lcdbr(left_reg, left_reg);
+  ldr(result_reg, left_reg);
+  if (left_reg == right_reg) {
+    adbr(result_reg, right_reg);
+  } else {
+    sdbr(result_reg, right_reg);
+  }
+  lcdbr(result_reg, result_reg);
+  b(&done, Label::kNear);
+
+  bind(&return_nan);
+  /* If left or right are NaN, adbr propagates the appropriate one.*/
+  adbr(left_reg, right_reg);
+  b(&return_left, Label::kNear);
+
+  bind(&return_right);
+  if (right_reg != result_reg) {
+    ldr(result_reg, right_reg);
+  }
+  b(&done, Label::kNear);
+
+  bind(&return_left);
+  if (left_reg != result_reg) {
+    ldr(result_reg, left_reg);
+  }
+  bind(&done);
+}
+
+void TurboAssembler::FloatMax(DoubleRegister result_reg,
+                              DoubleRegister left_reg,
+                              DoubleRegister right_reg) {
+  Label check_zero, return_left, return_right, return_nan, done;
+  cebr(left_reg, right_reg);
+  bunordered(&return_nan, Label::kNear);
+  beq(&check_zero);
+  bge(&return_left, Label::kNear);
+  b(&return_right, Label::kNear);
+
+  bind(&check_zero);
+  lzdr(kDoubleRegZero);
+  cebr(left_reg, kDoubleRegZero);
+  /* left == right != 0. */
+  bne(&return_left, Label::kNear);
+  /* At this point, both left and right are either 0 or -0. */
+  /* N.B. The following works because +0 + -0 == +0 */
+  /* For max we want logical-and of sign bit: (L + R) */
+  ldr(result_reg, left_reg);
+  aebr(result_reg, right_reg);
+  b(&done, Label::kNear);
+
+  bind(&return_nan);
+  /* If left or right are NaN, aebr propagates the appropriate one.*/
+  aebr(left_reg, right_reg);
+  b(&return_left, Label::kNear);
+
+  bind(&return_right);
+  if (right_reg != result_reg) {
+    ldr(result_reg, right_reg);
+  }
+  b(&done, Label::kNear);
+
+  bind(&return_left);
+  if (left_reg != result_reg) {
+    ldr(result_reg, left_reg);
+  }
+  bind(&done);
+}
+
+void TurboAssembler::FloatMin(DoubleRegister result_reg,
+                              DoubleRegister left_reg,
+                              DoubleRegister right_reg) {
+  Label check_zero, return_left, return_right, return_nan, done;
+  cebr(left_reg, right_reg);
+  bunordered(&return_nan, Label::kNear);
+  beq(&check_zero);
+  ble(&return_left, Label::kNear);
+  b(&return_right, Label::kNear);
+
+  bind(&check_zero);
+  lzdr(kDoubleRegZero);
+  cebr(left_reg, kDoubleRegZero);
+  /* left == right != 0. */
+  bne(&return_left, Label::kNear);
+  /* At this point, both left and right are either 0 or -0. */
+  /* N.B. The following works because +0 + -0 == +0 */
+  /* For min we want logical-or of sign bit: -(-L + -R) */
+  lcebr(left_reg, left_reg);
+  ldr(result_reg, left_reg);
+  if (left_reg == right_reg) {
+    aebr(result_reg, right_reg);
+  } else {
+    sebr(result_reg, right_reg);
+  }
+  lcebr(result_reg, result_reg);
+  b(&done, Label::kNear);
+
+  bind(&return_nan);
+  /* If left or right are NaN, aebr propagates the appropriate one.*/
+  aebr(left_reg, right_reg);
+  b(&return_left, Label::kNear);
+
+  bind(&return_right);
+  if (right_reg != result_reg) {
+    ldr(result_reg, right_reg);
+  }
+  b(&done, Label::kNear);
+
+  bind(&return_left);
+  if (left_reg != result_reg) {
+    ldr(result_reg, left_reg);
+  }
+  bind(&done);
+}
 int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion1,
                                                     Register exclusion2,

@@ -88,175 +88,6 @@ inline MemOperand GetStackSlot(uint32_t offset) {
 
 inline MemOperand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
 
-#define __ assm->
-inline void FloatMax(LiftoffAssembler* assm, DoubleRegister result_reg,
-                     DoubleRegister left_reg, DoubleRegister right_reg) {
-  Label check_nan_left, check_zero, return_left, return_right, done;
-  __ cebr(left_reg, right_reg);
-  __ bunordered(&check_nan_left, Label::kNear);
-  __ beq(&check_zero);
-  __ bge(&return_left, Label::kNear);
-  __ b(&return_right, Label::kNear);
-
-  __ bind(&check_zero);
-  __ lzer(kDoubleRegZero);
-  __ cebr(left_reg, kDoubleRegZero);
-  /* left == right != 0. */
-  __ bne(&return_left, Label::kNear);
-  /* At this point, both left and right are either 0 or -0. */
-  /* N.B. The following works because +0 + -0 == +0 */
-  /* For max we want logical-and of sign bit: (L + R) */
-  __ ldr(result_reg, left_reg);
-  __ aebr(result_reg, right_reg);
-  __ b(&done, Label::kNear);
-
-  __ bind(&check_nan_left);
-  __ cebr(left_reg, left_reg);
-  // left == NaN.
-  __ bunordered(&return_left, Label::kNear);
-
-  __ bind(&return_right);
-  if (right_reg != result_reg) {
-    __ ldr(result_reg, right_reg);
-  }
-  __ b(&done, Label::kNear);
-
-  __ bind(&return_left);
-  if (left_reg != result_reg) {
-    __ ldr(result_reg, left_reg);
-  }
-  __ bind(&done);
-}
-
-inline void FloatMin(LiftoffAssembler* assm, DoubleRegister result_reg,
-                     DoubleRegister left_reg, DoubleRegister right_reg) {
-  Label check_nan_left, check_zero, return_left, return_right, done;
-  __ cebr(left_reg, right_reg);
-  __ bunordered(&check_nan_left, Label::kNear);
-  __ beq(&check_zero);
-  __ ble(&return_left, Label::kNear);
-  __ b(&return_right, Label::kNear);
-
-  __ bind(&check_zero);
-  __ lzer(kDoubleRegZero);
-  __ cebr(left_reg, kDoubleRegZero);
-  // left == right != 0.
-  __ bne(&return_left, Label::kNear);
-  // At this point, both left and right are either 0 or -0. */
-  // N.B. The following works because +0 + -0 == +0 */
-  // For min we want logical-or of sign bit: -(-L + -R) */
-  __ lcebr(left_reg, left_reg);
-  __ ldr(result_reg, left_reg);
-  if (left_reg == right_reg) {
-    __ aebr(result_reg, right_reg);
-  } else {
-    __ sebr(result_reg, right_reg);
-  }
-  __ lcebr(result_reg, result_reg);
-  __ b(&done, Label::kNear);
-
-  __ bind(&check_nan_left);
-  __ cebr(left_reg, left_reg);
-  /* left == NaN. */
-  __ bunordered(&return_left, Label::kNear);
-
-  __ bind(&return_right);
-  if (right_reg != result_reg) {
-    __ ldr(result_reg, right_reg);
-  }
-  __ b(&done, Label::kNear);
-
-  __ bind(&return_left);
-  if (left_reg != result_reg) {
-    __ ldr(result_reg, left_reg);
-  }
-  __ bind(&done);
-}
-
-inline void DoubleMax(LiftoffAssembler* assm, DoubleRegister result_reg,
-                      DoubleRegister left_reg, DoubleRegister right_reg) {
-  Label check_nan_left, check_zero, return_left, return_right, done;
-  __ cdbr(left_reg, right_reg);
-  __ bunordered(&check_nan_left, Label::kNear);
-  __ beq(&check_zero);
-  __ bge(&return_left, Label::kNear);
-  __ b(&return_right, Label::kNear);
-
-  __ bind(&check_zero);
-  __ lzdr(kDoubleRegZero);
-  __ cdbr(left_reg, kDoubleRegZero);
-  /* left == right != 0. */
-  __ bne(&return_left, Label::kNear);
-  /* At this point, both left and right are either 0 or -0. */
-  /* N.B. The following works because +0 + -0 == +0 */
-  /* For max we want logical-and of sign bit: (L + R) */
-  __ ldr(result_reg, left_reg);
-  __ adbr(result_reg, right_reg);
-  __ b(&done, Label::kNear);
-
-  __ bind(&check_nan_left);
-  __ cdbr(left_reg, left_reg);
-  /* left == NaN. */
-  __ bunordered(&return_left, Label::kNear);
-
-  __ bind(&return_right);
-  if (right_reg != result_reg) {
-    __ ldr(result_reg, right_reg);
-  }
-  __ b(&done, Label::kNear);
-
-  __ bind(&return_left);
-  if (left_reg != result_reg) {
-    __ ldr(result_reg, left_reg);
-  }
-  __ bind(&done);
-}
-
-inline void DoubleMin(LiftoffAssembler* assm, DoubleRegister result_reg,
-                      DoubleRegister left_reg, DoubleRegister right_reg) {
-  Label check_nan_left, check_zero, return_left, return_right, done;
-  __ cdbr(left_reg, right_reg);
-  __ bunordered(&check_nan_left, Label::kNear);
-  __ beq(&check_zero);
-  __ ble(&return_left, Label::kNear);
-  __ b(&return_right, Label::kNear);
-
-  __ bind(&check_zero);
-  __ lzdr(kDoubleRegZero);
-  __ cdbr(left_reg, kDoubleRegZero);
-  /* left == right != 0. */
-  __ bne(&return_left, Label::kNear);
-  /* At this point, both left and right are either 0 or -0. */
-  /* N.B. The following works because +0 + -0 == +0 */
-  /* For min we want logical-or of sign bit: -(-L + -R) */
-  __ lcdbr(left_reg, left_reg);
-  __ ldr(result_reg, left_reg);
-  if (left_reg == right_reg) {
-    __ adbr(result_reg, right_reg);
-  } else {
-    __ sdbr(result_reg, right_reg);
-  }
-  __ lcdbr(result_reg, result_reg);
-  __ b(&done, Label::kNear);
-
-  __ bind(&check_nan_left);
-  __ cdbr(left_reg, left_reg);
-  /* left == NaN. */
-  __ bunordered(&return_left, Label::kNear);
-
-  __ bind(&return_right);
-  if (right_reg != result_reg) {
-    __ ldr(result_reg, right_reg);
-  }
-  __ b(&done, Label::kNear);
-
-  __ bind(&return_left);
-  if (left_reg != result_reg) {
-    __ ldr(result_reg, left_reg);
-  }
-  __ bind(&done);
-}
-#undef __
 
 }  // namespace liftoff
 
@@ -631,7 +462,7 @@ void LiftoffAssembler::emit_f64_min(DoubleRegister dst, DoubleRegister lhs,
     vfmin(dst, lhs, rhs, Condition(1), Condition(8), Condition(3));
     return;
   }
-  liftoff::DoubleMin(this, dst, lhs, rhs);
+  DoubleMin(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_f32_min(DoubleRegister dst, DoubleRegister lhs,
@@ -640,7 +471,7 @@ void LiftoffAssembler::emit_f32_min(DoubleRegister dst, DoubleRegister lhs,
     vfmin(dst, lhs, rhs, Condition(1), Condition(8), Condition(2));
     return;
   }
-  liftoff::FloatMin(this, dst, lhs, rhs);
+  FloatMin(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
@@ -649,7 +480,7 @@ void LiftoffAssembler::emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
     vfmax(dst, lhs, rhs, Condition(1), Condition(8), Condition(3));
     return;
   }
-  liftoff::DoubleMax(this, dst, lhs, rhs);
+  DoubleMax(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_f32_max(DoubleRegister dst, DoubleRegister lhs,
@@ -658,7 +489,7 @@ void LiftoffAssembler::emit_f32_max(DoubleRegister dst, DoubleRegister lhs,
     vfmax(dst, lhs, rhs, Condition(1), Condition(8), Condition(2));
     return;
   }
-  liftoff::FloatMax(this, dst, lhs, rhs);
+  FloatMax(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,

@@ -130,6 +130,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
  public:
   using TurboAssemblerBase::TurboAssemblerBase;
 
+  void DoubleMax(DoubleRegister result_reg, DoubleRegister left_reg,
+                 DoubleRegister right_reg);
+  void DoubleMin(DoubleRegister result_reg, DoubleRegister left_reg,
+                 DoubleRegister right_reg);
+  void FloatMax(DoubleRegister result_reg, DoubleRegister left_reg,
+                DoubleRegister right_reg);
+  void FloatMin(DoubleRegister result_reg, DoubleRegister left_reg,
+                DoubleRegister right_reg);
   void LoadFromConstantsTable(Register destination,
                               int constant_index) override;
   void LoadRootRegisterOffset(Register destination, intptr_t offset) override;
