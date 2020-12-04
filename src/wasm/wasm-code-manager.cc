@@ -862,13 +862,12 @@ void NativeModule::LogWasmCodes(Isolate* isolate) {
   TRACE_EVENT1("v8.wasm", "wasm.LogWasmCodes", "functions",
                module_->num_declared_functions);
 
-  // TODO(titzer): we skip the logging of the import wrappers
-  // here, but they should be included somehow.
-  int start = module_->num_imported_functions;
-  int end = start + module_->num_declared_functions;
+  // Log all owned code, not just the current entries in the code table. This
+  // will also include import wrappers.
   WasmCodeRefScope code_ref_scope;
-  for (int func_index = start; func_index < end; ++func_index) {
-    if (WasmCode* code = GetCode(func_index)) code->LogCode(isolate);
+  base::MutexGuard lock(&allocation_mutex_);
+  for (auto& owned_entry : owned_code_) {
+    owned_entry.second->LogCode(isolate);
   }
 }
 

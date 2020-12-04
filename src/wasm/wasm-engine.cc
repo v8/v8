@@ -1026,9 +1026,6 @@ void WasmEngine::EnableCodeLogging(Isolate* isolate) {
 }
 
 void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
-  // If by now we should not log code any more, do not log it.
-  if (!WasmCode::ShouldBeLogged(isolate)) return;
-
   // Under the mutex, get the vector of wasm code to log. Then log and decrement
   // the ref count without holding the mutex.
   std::vector<WasmCode*> code_to_log;
@@ -1037,6 +1034,10 @@ void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
     DCHECK_EQ(1, isolates_.count(isolate));
     code_to_log.swap(isolates_[isolate]->code_to_log);
   }
+
+  // If by now we should not log code any more, do not log it.
+  if (!WasmCode::ShouldBeLogged(isolate)) return;
+
   TRACE_EVENT1("v8.wasm", "wasm.LogCode", "codeObjects", code_to_log.size());
   if (code_to_log.empty()) return;
   for (WasmCode* code : code_to_log) {
