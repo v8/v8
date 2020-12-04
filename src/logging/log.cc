@@ -1801,23 +1801,13 @@ void Logger::MapDetails(Map map) {
   msg.WriteToLogFile();
 }
 
-static void AddFunctionAndCode(SharedFunctionInfo sfi, AbstractCode code_object,
-                               Handle<SharedFunctionInfo>* sfis,
-                               Handle<AbstractCode>* code_objects, int offset) {
-  if (sfis != nullptr) {
-    sfis[offset] = Handle<SharedFunctionInfo>(sfi, sfi.GetIsolate());
-  }
-  if (code_objects != nullptr) {
-    code_objects[offset] = Handle<AbstractCode>(code_object, sfi.GetIsolate());
-  }
-}
-
-static int EnumerateCompiledFunctions(Heap* heap,
-                                      Handle<SharedFunctionInfo>* sfis,
-                                      Handle<AbstractCode>* code_objects) {
+static std::vector<std::pair<Handle<SharedFunctionInfo>, Handle<AbstractCode>>>
+EnumerateCompiledFunctions(Heap* heap) {
   HeapObjectIterator iterator(heap);
   DisallowGarbageCollection no_gc;
-  int compiled_funcs_count = 0;
+  std::vector<std::pair<Handle<SharedFunctionInfo>, Handle<AbstractCode>>>
+      compiled_funcs;
+  Isolate* isolate = heap->isolate();
 
   // Iterate the heap to find JSFunctions and record their optimized code.
   for (HeapObject obj = iterator.Next(); !obj.is_null();
@@ -1825,9 +1815,9 @@ static int EnumerateCompiledFunctions(Heap* heap,
     if (obj.IsSharedFunctionInfo()) {
       SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
       if (sfi.is_compiled() && !sfi.IsInterpreted()) {
-        AddFunctionAndCode(sfi, AbstractCode::cast(sfi.abstract_code()), sfis,
-                           code_objects, compiled_funcs_count);
-        ++compiled_funcs_count;
+        compiled_funcs.emplace_back(
+            handle(sfi, isolate),
+            handle(AbstractCode::cast(sfi.abstract_code()), isolate));
       }
     } else if (obj.IsJSFunction()) {
       // Given that we no longer iterate over all optimized JSFunctions, we need
@@ -1838,10 +1828,9 @@ static int EnumerateCompiledFunctions(Heap* heap,
       // only on a type feedback vector. We should make this mroe precise.
       if (function.HasAttachedOptimizedCode() &&
           Script::cast(function.shared().script()).HasValidSource()) {
-        AddFunctionAndCode(function.shared(),
-                           AbstractCode::cast(function.code()), sfis,
-                           code_objects, compiled_funcs_count);
-        ++compiled_funcs_count;
+        compiled_funcs.emplace_back(
+            handle(function.shared(), isolate),
+            handle(AbstractCode::cast(function.code()), isolate));
       }
     }
   }
@@ -1855,34 +1844,30 @@ static int EnumerateCompiledFunctions(Heap* heap,
     for (SharedFunctionInfo sfi = sfi_iterator.Next(); !sfi.is_null();
          sfi = sfi_iterator.Next()) {
       if (sfi.is_compiled()) {
-        AddFunctionAndCode(sfi, AbstractCode::cast(sfi.abstract_code()), sfis,
-                           code_objects, compiled_funcs_count);
-        ++compiled_funcs_count;
+        compiled_funcs.emplace_back(
+            handle(sfi, isolate),
+            handle(AbstractCode::cast(sfi.abstract_code()), isolate));
       }
     }
   }
 
-  return compiled_funcs_count;
+  return compiled_funcs;
 }
 
-static int EnumerateWasmModuleObjects(
-    Heap* heap, Handle<WasmModuleObject>* module_objects) {
+static std::vector<Handle<WasmModuleObject>> EnumerateWasmModuleObjects(
+    Heap* heap) {
   HeapObjectIterator iterator(heap);
   DisallowGarbageCollection no_gc;
-  int module_objects_count = 0;
+  std::vector<Handle<WasmModuleObject>> module_objects;
 
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     if (obj.IsWasmModuleObject()) {
       WasmModuleObject module = WasmModuleObject::cast(obj);
-      if (module_objects != nullptr) {
-        module_objects[module_objects_count] =
-            handle(module, Isolate::FromHeap(heap));
-      }
-      module_objects_count++;
+      module_objects.emplace_back(module, Isolate::FromHeap(heap));
     }
   }
-  return module_objects_count;
+  return module_objects;
 }
 
 void Logger::LogCodeObjects() { existing_code_logger_.LogCodeObjects(); }
@@ -2184,35 +2169,30 @@ void ExistingCodeLogger::LogCodeObjects() {
 void ExistingCodeLogger::LogCompiledFunctions() {
   Heap* heap = isolate_->heap();
   HandleScope scope(isolate_);
-  const int compiled_funcs_count =
-      EnumerateCompiledFunctions(heap, nullptr, nullptr);
-  ScopedVector<Handle<SharedFunctionInfo>> sfis(compiled_funcs_count);
-  ScopedVector<Handle<AbstractCode>> code_objects(compiled_funcs_count);
-  EnumerateCompiledFunctions(heap, sfis.begin(), code_objects.begin());
+  std::vector<std::pair<Handle<SharedFunctionInfo>, Handle<AbstractCode>>>
+      compiled_funcs = EnumerateCompiledFunctions(heap);
 
   // During iteration, there can be heap allocation due to
   // GetScriptLineNumber call.
-  for (int i = 0; i < compiled_funcs_count; ++i) {
-    SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, sfis[i]);
-    if (sfis[i]->function_data(kAcquireLoad).IsInterpreterData()) {
+  for (auto& pair : compiled_funcs) {
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, pair.first);
+    if (pair.first->function_data(kAcquireLoad).IsInterpreterData()) {
       LogExistingFunction(
-          sfis[i],
+          pair.first,
           Handle<AbstractCode>(
-              AbstractCode::cast(sfis[i]->InterpreterTrampoline()), isolate_),
+              AbstractCode::cast(pair.first->InterpreterTrampoline()),
+              isolate_),
           CodeEventListener::INTERPRETED_FUNCTION_TAG);
     }
-    if (code_objects[i].is_identical_to(BUILTIN_CODE(isolate_, CompileLazy)))
+    if (pair.second.is_identical_to(BUILTIN_CODE(isolate_, CompileLazy)))
       continue;
-    LogExistingFunction(sfis[i], code_objects[i]);
+    LogExistingFunction(pair.first, pair.second);
   }
 
-  const int wasm_module_objects_count =
-      EnumerateWasmModuleObjects(heap, nullptr);
-  ScopedVector<Handle<WasmModuleObject>> module_objects(
-      wasm_module_objects_count);
-  EnumerateWasmModuleObjects(heap, module_objects.begin());
-  for (int i = 0; i < wasm_module_objects_count; ++i) {
-    module_objects[i]->native_module()->LogWasmCodes(isolate_);
+  const std::vector<Handle<WasmModuleObject>> wasm_module_objects =
+      EnumerateWasmModuleObjects(heap);
+  for (auto& module_object : wasm_module_objects) {
+    module_object->native_module()->LogWasmCodes(isolate_);
   }
 }
 
