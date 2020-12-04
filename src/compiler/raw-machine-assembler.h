@@ -927,14 +927,15 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   // Call to a C function.
   template <class... CArgs>
-  Node* CallCFunction(Node* function, MachineType return_type, CArgs... cargs) {
+  Node* CallCFunction(Node* function, base::Optional<MachineType> return_type,
+                      CArgs... cargs) {
     static_assert(v8::internal::conjunction<
                       std::is_convertible<CArgs, CFunctionArg>...>::value,
                   "invalid argument types");
     return CallCFunction(function, return_type, {cargs...});
   }
 
-  Node* CallCFunction(Node* function, MachineType return_type,
+  Node* CallCFunction(Node* function, base::Optional<MachineType> return_type,
                       std::initializer_list<CFunctionArg> args);
 
   // Call to a C function without a function discriptor on AIX.

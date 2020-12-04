@@ -660,6 +660,37 @@ ExternalReference ExternalReference::search_string_raw_two_two() {
   return search_string_raw<const uc16, const uc16>();
 }
 
+namespace {
+
+void StringWriteToFlatOneByte(Address source, uint8_t* sink, int32_t from,
+                              int32_t to) {
+  return String::WriteToFlat<uint8_t>(String::cast(Object(source)), sink, from,
+                                      to);
+}
+
+void StringWriteToFlatTwoByte(Address source, uint16_t* sink, int32_t from,
+                              int32_t to) {
+  return String::WriteToFlat<uint16_t>(String::cast(Object(source)), sink, from,
+                                       to);
+}
+
+const uint8_t* ExternalOneByteStringGetChars(Address string) {
+  return ExternalOneByteString::cast(Object(string)).GetChars();
+}
+const uint16_t* ExternalTwoByteStringGetChars(Address string) {
+  return ExternalTwoByteString::cast(Object(string)).GetChars();
+}
+
+}  // namespace
+
+FUNCTION_REFERENCE(string_write_to_flat_one_byte, StringWriteToFlatOneByte)
+FUNCTION_REFERENCE(string_write_to_flat_two_byte, StringWriteToFlatTwoByte)
+
+FUNCTION_REFERENCE(external_one_byte_string_get_chars,
+                   ExternalOneByteStringGetChars)
+FUNCTION_REFERENCE(external_two_byte_string_get_chars,
+                   ExternalTwoByteStringGetChars)
+
 FUNCTION_REFERENCE(orderedhashmap_gethash_raw, OrderedHashMap::GetHash)
 
 Address GetOrCreateHash(Isolate* isolate, Address raw_key) {

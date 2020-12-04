@@ -13,41 +13,41 @@ extern enum TrimMode extends uint31 constexpr 'String::TrimMode' {
 }
 
 @export
-macro IsWhiteSpaceOrLineTerminator(charCode: int32): bool {
+macro IsWhiteSpaceOrLineTerminator(charCode: char16): bool {
   // 0x0020 - SPACE (Intentionally out of order to fast path a commmon case)
-  if (charCode == Int32Constant(0x0020)) {
+  if (charCode == 0x0020) {
     return true;
   }
 
   // 0x0009 - HORIZONTAL TAB
-  if (charCode < Int32Constant(0x0009)) {
+  if (charCode < 0x0009) {
     return false;
   }
   // 0x000A - LINE FEED OR NEW LINE
   // 0x000B - VERTICAL TAB
   // 0x000C - FORMFEED
   // 0x000D - HORIZONTAL TAB
-  if (charCode <= Int32Constant(0x000D)) {
+  if (charCode <= 0x000D) {
     return true;
   }
 
   // Common Non-whitespace characters
-  if (charCode < Int32Constant(0x00A0)) {
+  if (charCode < 0x00A0) {
     return false;
   }
 
   // 0x00A0 - NO-BREAK SPACE
-  if (charCode == Int32Constant(0x00A0)) {
+  if (charCode == 0x00A0) {
     return true;
   }
 
   // 0x1680 - Ogham Space Mark
-  if (charCode == Int32Constant(0x1680)) {
+  if (charCode == 0x1680) {
     return true;
   }
 
   // 0x2000 - EN QUAD
-  if (charCode < Int32Constant(0x2000)) {
+  if (charCode < 0x2000) {
     return false;
   }
   // 0x2001 - EM QUAD
@@ -60,32 +60,32 @@ macro IsWhiteSpaceOrLineTerminator(charCode: int32): bool {
   // 0x2008 - PUNCTUATION SPACE
   // 0x2009 - THIN SPACE
   // 0x200A - HAIR SPACE
-  if (charCode <= Int32Constant(0x200A)) {
+  if (charCode <= 0x200A) {
     return true;
   }
 
   // 0x2028 - LINE SEPARATOR
-  if (charCode == Int32Constant(0x2028)) {
+  if (charCode == 0x2028) {
     return true;
   }
   // 0x2029 - PARAGRAPH SEPARATOR
-  if (charCode == Int32Constant(0x2029)) {
+  if (charCode == 0x2029) {
     return true;
   }
   // 0x202F - NARROW NO-BREAK SPACE
-  if (charCode == Int32Constant(0x202F)) {
+  if (charCode == 0x202F) {
     return true;
   }
   // 0x205F - MEDIUM MATHEMATICAL SPACE
-  if (charCode == Int32Constant(0x205F)) {
+  if (charCode == 0x205F) {
     return true;
   }
   // 0xFEFF - BYTE ORDER MARK
-  if (charCode == Int32Constant(0xFEFF)) {
+  if (charCode == 0xFEFF) {
     return true;
   }
   // 0x3000 - IDEOGRAPHIC SPACE
-  if (charCode == Int32Constant(0x3000)) {
+  if (charCode == 0x3000) {
     return true;
   }
 

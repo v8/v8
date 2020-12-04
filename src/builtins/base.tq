@@ -101,7 +101,7 @@ type uint16 extends uint31
 type int8 extends int16 generates 'TNode<Int8T>' constexpr 'int8_t';
 type uint8 extends uint16
     generates 'TNode<Uint8T>' constexpr 'uint8_t';
-type char8 extends int8 constexpr 'char';
+type char8 extends uint8 constexpr 'char';
 type char16 extends uint16 constexpr 'char16_t';
 type int64 generates 'TNode<Int64T>' constexpr 'int64_t';
 type intptr generates 'TNode<IntPtrT>' constexpr 'intptr_t';
@@ -626,7 +626,6 @@ extern macro ToObject_Inline(Context, JSAny): JSReceiver;
 extern macro IsUndefined(Object): bool;
 extern macro IsNullOrUndefined(Object): bool;
 extern macro IsString(HeapObject): bool;
-extern macro IsSeqOneByteString(HeapObject): bool;
 extern transitioning builtin NonPrimitiveToPrimitive_String(
     Context, JSAny): JSPrimitive;
 extern transitioning builtin NonPrimitiveToPrimitive_Default(
@@ -655,9 +654,9 @@ extern macro LoadBufferIntptr(RawPtr, constexpr int32): intptr;
 
 extern runtime StringEqual(Context, String, String): Oddball;
 extern builtin StringLessThan(Context, String, String): Boolean;
-extern macro StringCharCodeAt(String, uintptr): int32;
-extern runtime StringCompareSequence(Context, String, String, Number): Boolean;
-extern macro StringFromSingleCharCode(int32): String;
+extern macro StringCharCodeAt(String, uintptr): char16;
+extern macro StringFromSingleCharCode(char8): String;
+extern macro StringFromSingleCharCode(char16): String;
 
 extern macro NumberToString(Number): String;
 extern macro StringToNumber(String): Number;

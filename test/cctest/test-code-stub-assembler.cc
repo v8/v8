@@ -3202,7 +3202,8 @@ TEST(IsWhiteSpaceOrLineTerminator) {
   {  // Returns true if whitespace, false otherwise.
     CodeStubAssembler m(asm_tester.state());
     Label if_true(&m), if_false(&m);
-    m.Branch(m.IsWhiteSpaceOrLineTerminator(m.SmiToInt32(m.Parameter<Smi>(1))),
+    m.Branch(m.IsWhiteSpaceOrLineTerminator(
+                 m.UncheckedCast<Uint16T>(m.SmiToInt32(m.Parameter<Smi>(1)))),
              &if_true, &if_false);
     m.BIND(&if_true);
     m.Return(m.TrueConstant());

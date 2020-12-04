@@ -178,6 +178,10 @@ class StatsCounter;
   V(search_string_raw_one_two, "search_string_raw_one_two")                    \
   V(search_string_raw_two_one, "search_string_raw_two_one")                    \
   V(search_string_raw_two_two, "search_string_raw_two_two")                    \
+  V(string_write_to_flat_one_byte, "string_write_to_flat_one_byte")            \
+  V(string_write_to_flat_two_byte, "string_write_to_flat_two_byte")            \
+  V(external_one_byte_string_get_chars, "external_one_byte_string_get_chars")  \
+  V(external_two_byte_string_get_chars, "external_two_byte_string_get_chars")  \
   V(smi_lexicographic_compare_function, "smi_lexicographic_compare_function")  \
   V(string_to_array_index_function, "String::ToArrayIndex")                    \
   V(try_string_to_index_or_lookup_existing,                                    \

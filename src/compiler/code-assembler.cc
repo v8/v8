@@ -1177,7 +1177,7 @@ Node* CodeAssembler::CallCFunctionN(Signature<MachineType>* signature,
 }
 
 Node* CodeAssembler::CallCFunction(
-    Node* function, MachineType return_type,
+    Node* function, base::Optional<MachineType> return_type,
     std::initializer_list<CodeAssembler::CFunctionArg> args) {
   return raw_assembler()->CallCFunction(function, return_type, args);
 }

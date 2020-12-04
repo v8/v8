@@ -40,12 +40,6 @@ TNode<RawPtrT> StringBuiltinsAssembler::DirectStringData(
 
   BIND(&if_external);
   {
-    // This is only valid for ExternalStrings where the resource data
-    // pointer is cached (i.e. no uncached external strings).
-    CSA_ASSERT(this, Word32NotEqual(
-                         Word32And(string_instance_type,
-                                   Int32Constant(kUncachedExternalStringMask)),
-                         Int32Constant(kUncachedExternalStringTag)));
     var_data = LoadExternalStringResourceDataPtr(CAST(string));
     Goto(&if_join);
   }

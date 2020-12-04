@@ -1034,6 +1034,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<RawPtrT> LoadExternalStringResourceDataPtr(
       TNode<ExternalString> object) {
+    // This is only valid for ExternalStrings where the resource data
+    // pointer is cached (i.e. no uncached external strings).
+    CSA_ASSERT(this, Word32NotEqual(
+                         Word32And(LoadInstanceType(object),
+                                   Int32Constant(kUncachedExternalStringMask)),
+                         Int32Constant(kUncachedExternalStringTag)));
     return LoadExternalPointerFromObject(object,
                                          ExternalString::kResourceDataOffset,
                                          kExternalStringResourceDataTag);
@@ -1188,6 +1194,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
         IntPtrSub(reference.offset, IntPtrConstant(kHeapObjectTag));
     StoreToObject(MachineRepresentationOf<T>::value, reference.object, offset,
                   value, StoreToObjectWriteBarrier::kNone);
+  }
+
+  TNode<RawPtrT> GCUnsafeReferenceToRawPtr(TNode<Object> object,
+                                           TNode<IntPtrT> offset) {
+    return ReinterpretCast<RawPtrT>(
+        IntPtrAdd(BitcastTaggedToWord(object),
+                  IntPtrSub(offset, IntPtrConstant(kHeapObjectTag))));
   }
 
   // Load the floating point value of a HeapNumber.
@@ -2520,7 +2533,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // String helpers.
   // Load a character from a String (might flatten a ConsString).
-  TNode<Int32T> StringCharCodeAt(TNode<String> string, TNode<UintPtrT> index);
+  TNode<Uint16T> StringCharCodeAt(TNode<String> string, TNode<UintPtrT> index);
   // Return the single character string with only {code}.
   TNode<String> StringFromSingleCharCode(TNode<Int32T> code);
 
@@ -2765,6 +2778,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                  TVariable<IntPtrT>* var_index, Label* if_keyisunique,
                  TVariable<Name>* var_unique, Label* if_bailout,
                  Label* if_notinternalized = nullptr);
+
+  // Call non-allocating runtime String::WriteToFlat using fast C-calls.
+  void StringWriteToFlatOneByte(TNode<String> source, TNode<RawPtrT> sink,
+                                TNode<Int32T> from, TNode<Int32T> to);
+  void StringWriteToFlatTwoByte(TNode<String> source, TNode<RawPtrT> sink,
+                                TNode<Int32T> from, TNode<Int32T> to);
+
+  // Calls External{One,Two}ByteString::GetChars with a fast C-call.
+  TNode<RawPtr<Uint8T>> ExternalOneByteStringGetChars(
+      TNode<ExternalOneByteString> string);
+  TNode<RawPtr<Uint16T>> ExternalTwoByteStringGetChars(
+      TNode<ExternalTwoByteString> string);
 
   // Performs a hash computation and string table lookup for the given string,
   // and jumps to:

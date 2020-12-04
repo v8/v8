@@ -1174,7 +1174,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   // Call to a C function.
   template <class... CArgs>
-  Node* CallCFunction(Node* function, MachineType return_type, CArgs... cargs) {
+  Node* CallCFunction(Node* function, base::Optional<MachineType> return_type,
+                      CArgs... cargs) {
     static_assert(v8::internal::conjunction<
                       std::is_convertible<CArgs, CFunctionArg>...>::value,
                   "invalid argument types");
@@ -1234,7 +1235,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
  private:
   void HandleException(Node* result);
 
-  Node* CallCFunction(Node* function, MachineType return_type,
+  Node* CallCFunction(Node* function, base::Optional<MachineType> return_type,
                       std::initializer_list<CFunctionArg> args);
 
   Node* CallCFunctionWithoutFunctionDescriptor(

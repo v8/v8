@@ -6548,11 +6548,11 @@ TNode<BoolT> CodeStubAssembler::FixedArraySizeDoesntFitInNewSpace(
       element_count, IntPtrOrSmiConstant<TIndex>(max_newspace_elements));
 }
 
-TNode<Int32T> CodeStubAssembler::StringCharCodeAt(TNode<String> string,
-                                                  TNode<UintPtrT> index) {
+TNode<Uint16T> CodeStubAssembler::StringCharCodeAt(TNode<String> string,
+                                                   TNode<UintPtrT> index) {
   CSA_ASSERT(this, UintPtrLessThan(index, LoadStringLengthAsWord(string)));
 
-  TVARIABLE(Int32T, var_result);
+  TVARIABLE(Uint16T, var_result);
 
   Label return_result(this), if_runtime(this, Label::kDeferred),
       if_stringistwobyte(this), if_stringisonebyte(this);
@@ -6570,14 +6570,13 @@ TNode<Int32T> CodeStubAssembler::StringCharCodeAt(TNode<String> string,
 
   BIND(&if_stringisonebyte);
   {
-    var_result = UncheckedCast<Int32T>(Load<Uint8T>(string_data, offset));
+    var_result = Load<Uint8T>(string_data, offset);
     Goto(&return_result);
   }
 
   BIND(&if_stringistwobyte);
   {
-    var_result = UncheckedCast<Int32T>(
-        Load<Uint16T>(string_data, WordShl(offset, IntPtrConstant(1))));
+    var_result = Load<Uint16T>(string_data, WordShl(offset, IntPtrConstant(1)));
     Goto(&return_result);
   }
 
@@ -6586,7 +6585,7 @@ TNode<Int32T> CodeStubAssembler::StringCharCodeAt(TNode<String> string,
     TNode<Object> result =
         CallRuntime(Runtime::kStringCharCodeAt, NoContextConstant(), string,
                     ChangeUintPtrToTagged(index));
-    var_result = SmiToInt32(CAST(result));
+    var_result = UncheckedCast<Uint16T>(SmiToInt32(CAST(result)));
     Goto(&return_result);
   }
 
@@ -7610,6 +7609,50 @@ void CodeStubAssembler::TryToName(SloppyTNode<Object> key, Label* if_keyisindex,
       Goto(if_keyisunique);
     }
   }
+}
+
+void CodeStubAssembler::StringWriteToFlatOneByte(TNode<String> source,
+                                                 TNode<RawPtrT> sink,
+                                                 TNode<Int32T> from,
+                                                 TNode<Int32T> to) {
+  TNode<ExternalReference> function =
+      ExternalConstant(ExternalReference::string_write_to_flat_one_byte());
+  CallCFunction(function, base::nullopt,
+                std::make_pair(MachineType::AnyTagged(), source),
+                std::make_pair(MachineType::Pointer(), sink),
+                std::make_pair(MachineType::Int32(), from),
+                std::make_pair(MachineType::Int32(), to));
+}
+
+void CodeStubAssembler::StringWriteToFlatTwoByte(TNode<String> source,
+                                                 TNode<RawPtrT> sink,
+                                                 TNode<Int32T> from,
+                                                 TNode<Int32T> to) {
+  TNode<ExternalReference> function =
+      ExternalConstant(ExternalReference::string_write_to_flat_two_byte());
+  CallCFunction(function, base::nullopt,
+                std::make_pair(MachineType::AnyTagged(), source),
+                std::make_pair(MachineType::Pointer(), sink),
+                std::make_pair(MachineType::Int32(), from),
+                std::make_pair(MachineType::Int32(), to));
+}
+
+TNode<RawPtr<Uint8T>> CodeStubAssembler::ExternalOneByteStringGetChars(
+    TNode<ExternalOneByteString> string) {
+  TNode<ExternalReference> function =
+      ExternalConstant(ExternalReference::external_one_byte_string_get_chars());
+  return UncheckedCast<RawPtr<Uint8T>>(
+      CallCFunction(function, MachineType::Pointer(),
+                    std::make_pair(MachineType::AnyTagged(), string)));
+}
+
+TNode<RawPtr<Uint16T>> CodeStubAssembler::ExternalTwoByteStringGetChars(
+    TNode<ExternalTwoByteString> string) {
+  TNode<ExternalReference> function =
+      ExternalConstant(ExternalReference::external_two_byte_string_get_chars());
+  return UncheckedCast<RawPtr<Uint16T>>(
+      CallCFunction(function, MachineType::Pointer(),
+                    std::make_pair(MachineType::AnyTagged(), string)));
 }
 
 void CodeStubAssembler::TryInternalizeString(

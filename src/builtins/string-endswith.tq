@@ -3,25 +3,47 @@
 // found in the LICENSE file.
 
 namespace string {
-macro TryFastStringCompareSequence(
-    string: String, searchStr: String, start: uintptr,
-    searchLength: uintptr): Boolean labels Slow {
-  const directString = Cast<DirectString>(string) otherwise Slow;
-  const directSearchStr = Cast<DirectString>(searchStr) otherwise Slow;
 
-  let searchIndex: uintptr = 0;
-  let stringIndex: uintptr = start;
+// TODO(tebbi): This could be replaced with a fast C-call to
+// CompareCharsUnsigned.
+macro IsSubstringAt<A: type, B: type>(
+    string: ConstSlice<A>, searchStr: ConstSlice<B>, start: intptr): bool {
+  const subslice =
+      Subslice(string, start, searchStr.length) otherwise return false;
+  let stringIterator = subslice.Iterator();
+  let searchIterator = searchStr.Iterator();
 
-  while (searchIndex < searchLength) {
-    if (StringCharCodeAt(directSearchStr, searchIndex) !=
-        StringCharCodeAt(directString, stringIndex)) {
-      return False;
+  while (true) {
+    const searchChar = searchIterator.Next() otherwise return true;
+    const stringChar = stringIterator.Next() otherwise unreachable;
+    if (searchChar != stringChar) {
+      return false;
     }
-
-    searchIndex++;
-    stringIndex++;
   }
-  return True;
+  VerifiedUnreachable();
+}
+
+macro IsSubstringAt(string: String, searchStr: String, start: intptr): bool {
+  // TODO(tebbi): Avoid repeating this verbose pattern.
+  try {
+    GetStringData(string) otherwise FirstOneByte, FirstTwoByte;
+  } label FirstOneByte(string: ConstSlice<char8>) {
+    try {
+      GetStringData(searchStr) otherwise SecondOneByte, SecondTwoByte;
+    } label SecondOneByte(searchStr: ConstSlice<char8>) {
+      return IsSubstringAt(string, searchStr, start);
+    } label SecondTwoByte(searchStr: ConstSlice<char16>) {
+      return IsSubstringAt(string, searchStr, start);
+    }
+  } label FirstTwoByte(string: ConstSlice<char16>) {
+    try {
+      GetStringData(searchStr) otherwise SecondOneByte, SecondTwoByte;
+    } label SecondOneByte(searchStr: ConstSlice<char8>) {
+      return IsSubstringAt(string, searchStr, start);
+    } label SecondTwoByte(searchStr: ConstSlice<char16>) {
+      return IsSubstringAt(string, searchStr, start);
+    }
+  }
 }
 
 // https://tc39.github.io/ecma262/#sec-string.prototype.endswith
@@ -58,23 +80,15 @@ transitioning javascript builtin StringPrototypeEndsWith(
   const searchLength: uintptr = searchStr.length_uintptr;
 
   // 10. Let start be end - searchLength.
-  const start: uintptr = end - searchLength;
+  const start = Signed(end - searchLength);
 
   // 11. If start is less than 0, return false.
-  if (Signed(start) < 0) return False;
+  if (start < 0) return False;
 
   // 12. If the sequence of code units of S starting at start of length
   // searchLength is the same as the full code unit sequence of searchStr,
   // return true.
   // 13. Otherwise, return false.
-  try {
-    // Fast Path: If both strings are direct and relevant indices are Smis.
-    return TryFastStringCompareSequence(string, searchStr, start, searchLength)
-        otherwise Slow;
-  } label Slow {
-    // Slow Path: If either of the string is indirect, bail into runtime.
-    return StringCompareSequence(
-        context, string, searchStr, Convert<Number>(start));
-  }
+  return Convert<Boolean>(IsSubstringAt(string, searchStr, start));
 }
 }

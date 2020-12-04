@@ -63,8 +63,9 @@ transitioning macro ThisNumberValue(implicit context: Context)(
 
 macro ToCharCode(input: int32): char8 {
   assert(0 <= input && input < 36);
-  return input < 10 ? %RawDownCast<char8>(input + kAsciiZero) :
-                      %RawDownCast<char8>(input - 10 + kAsciiLowerCaseA);
+  return input < 10 ?
+      %RawDownCast<char8>(Unsigned(input + kAsciiZero)) :
+      %RawDownCast<char8>(Unsigned(input - 10 + kAsciiLowerCaseA));
 }
 
 @export
@@ -92,7 +93,7 @@ macro NumberToStringSmi(x: int32, radix: int32): String labels Slow {
     length = length + 1;
   }
   assert(length > 0);
-  const strSeq: SeqOneByteString = AllocateSeqOneByteString(Unsigned(length));
+  const strSeq = AllocateNonEmptySeqOneByteString(Unsigned(length));
   let cursor: intptr = Convert<intptr>(length) - 1;
   while (n > 0) {
     const digit: int32 = n % radix;

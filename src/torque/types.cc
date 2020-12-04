@@ -471,6 +471,11 @@ std::vector<Method*> AggregateType::Methods(const std::string& name) const {
   std::vector<Method*> result;
   std::copy_if(methods_.begin(), methods_.end(), std::back_inserter(result),
                [name](Macro* macro) { return macro->ReadableName() == name; });
+  if (result.empty() && parent() != nullptr) {
+    if (auto aggregate_parent = parent()->AggregateSupertype()) {
+      return (*aggregate_parent)->Methods(name);
+    }
+  }
   return result;
 }
 
