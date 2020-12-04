@@ -633,14 +633,17 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
   // Participate to deserialization in the main thread to ensure progress even
   // if background tasks are not scheduled.
   int published = 0;
-  for (;;) {
-    auto batch = reloc_queue.Pop();
-    if (!batch) break;
-    for (auto& unit : *batch) {
-      CopyAndRelocate(unit);
+  {
+    CODE_SPACE_WRITE_SCOPE
+    for (;;) {
+      auto batch = reloc_queue.Pop();
+      if (!batch) break;
+      for (auto& unit : *batch) {
+        CopyAndRelocate(unit);
+      }
+      Publish(std::move(batch));
+      ++published;
     }
-    Publish(std::move(batch));
-    ++published;
   }
 
   if (published == num_batches) {
