@@ -1948,14 +1948,67 @@ class LiftoffCompiler {
     __ Store(addr, no_reg, offset, reg, type, {}, nullptr, true);
   }
 
-  void TableGet(FullDecoder* decoder, const Value& index, Value* result,
+  void TableGet(FullDecoder* decoder, const Value&, Value*,
                 const TableIndexImmediate<validate>& imm) {
-    unsupported(decoder, kRefTypes, "table_get");
+    LiftoffRegList pinned;
+
+    LiftoffRegister table_index_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    __ LoadConstant(table_index_reg, WasmValue(imm.index));
+    LiftoffAssembler::VarState table_index(kPointerValueType, table_index_reg,
+                                           0);
+
+    LiftoffAssembler::VarState index = __ cache_state()->stack_state.back();
+
+    WasmCode::RuntimeStubId target = WasmCode::kWasmTableGet;
+    compiler::CallDescriptor* call_descriptor =
+        GetBuiltinCallDescriptor<WasmTableGetDescriptor>(compilation_zone_);
+
+    ValueType result_type = env_->module->tables[imm.index].type;
+    ValueType sig_reps[] = {result_type, kWasmI32, kWasmI32};
+    FunctionSig sig(1, 2, sig_reps);
+
+    __ PrepareBuiltinCall(&sig, call_descriptor, {table_index, index});
+    __ CallRuntimeStub(target);
+    DefineSafepoint();
+
+    // Pop parameters from the value stack.
+    __ cache_state()->stack_state.pop_back(1);
+
+    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+
+    __ PushRegister(result_type, LiftoffRegister(kReturnRegister0));
   }
 
-  void TableSet(FullDecoder* decoder, const Value& index, const Value& value,
+  void TableSet(FullDecoder* decoder, const Value&, const Value&,
                 const TableIndexImmediate<validate>& imm) {
-    unsupported(decoder, kRefTypes, "table_set");
+    LiftoffRegList pinned;
+
+    LiftoffRegister table_index_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    __ LoadConstant(table_index_reg, WasmValue(imm.index));
+    LiftoffAssembler::VarState table_index(kPointerValueType, table_index_reg,
+                                           0);
+
+    LiftoffAssembler::VarState value = __ cache_state()->stack_state.end()[-1];
+    LiftoffAssembler::VarState index = __ cache_state()->stack_state.end()[-2];
+
+    WasmCode::RuntimeStubId target = WasmCode::kWasmTableSet;
+    compiler::CallDescriptor* call_descriptor =
+        GetBuiltinCallDescriptor<WasmTableSetDescriptor>(compilation_zone_);
+
+    ValueType sig_reps[] = {kWasmI32, kWasmI32,
+                            env_->module->tables[imm.index].type};
+    FunctionSig sig(0, 3, sig_reps);
+
+    __ PrepareBuiltinCall(&sig, call_descriptor, {table_index, index, value});
+    __ CallRuntimeStub(target);
+    DefineSafepoint();
+
+    // Pop parameters from the value stack.
+    __ cache_state()->stack_state.pop_back(2);
+
+    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
   }
 
   void Unreachable(FullDecoder* decoder) {
