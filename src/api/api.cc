@@ -3809,23 +3809,23 @@ void v8::Function::CheckCast(Value* that) {
                   "Value is not a Function");
 }
 
-void v8::Boolean::CheckCast(v8::Value* that) {
+void v8::Boolean::CheckCast(v8::Data* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsBoolean(), "v8::Boolean::Cast",
                   "Value is not a Boolean");
 }
 
-void v8::Name::CheckCast(v8::Value* that) {
+void v8::Name::CheckCast(v8::Data* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsName(), "v8::Name::Cast", "Value is not a Name");
 }
 
-void v8::String::CheckCast(v8::Value* that) {
+void v8::String::CheckCast(v8::Data* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsString(), "v8::String::Cast", "Value is not a String");
 }
 
-void v8::Symbol::CheckCast(v8::Value* that) {
+void v8::Symbol::CheckCast(v8::Data* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsSymbol(), "v8::Symbol::Cast", "Value is not a Symbol");
 }
@@ -3848,30 +3848,30 @@ void v8::Module::CheckCast(v8::Data* that) {
   Utils::ApiCheck(obj->IsModule(), "v8::Module::Cast", "Value is not a Module");
 }
 
-void v8::Number::CheckCast(v8::Value* that) {
+void v8::Number::CheckCast(v8::Data* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsNumber(), "v8::Number::Cast()",
                   "Value is not a Number");
 }
 
-void v8::Integer::CheckCast(v8::Value* that) {
+void v8::Integer::CheckCast(v8::Data* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsNumber(), "v8::Integer::Cast",
                   "Value is not an Integer");
 }
 
-void v8::Int32::CheckCast(v8::Value* that) {
-  Utils::ApiCheck(that->IsInt32(), "v8::Int32::Cast",
+void v8::Int32::CheckCast(v8::Data* that) {
+  Utils::ApiCheck(Value::Cast(that)->IsInt32(), "v8::Int32::Cast",
                   "Value is not a 32-bit signed integer");
 }
 
-void v8::Uint32::CheckCast(v8::Value* that) {
-  Utils::ApiCheck(that->IsUint32(), "v8::Uint32::Cast",
+void v8::Uint32::CheckCast(v8::Data* that) {
+  Utils::ApiCheck(Value::Cast(that)->IsUint32(), "v8::Uint32::Cast",
                   "Value is not a 32-bit unsigned integer");
 }
 
-void v8::BigInt::CheckCast(v8::Value* that) {
-  Utils::ApiCheck(that->IsBigInt(), "v8::BigInt::Cast",
+void v8::BigInt::CheckCast(v8::Data* that) {
+  Utils::ApiCheck(Value::Cast(that)->IsBigInt(), "v8::BigInt::Cast",
                   "Value is not a BigInt");
 }
 

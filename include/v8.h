@@ -3090,11 +3090,11 @@ class V8_EXPORT Primitive : public Value { };
 class V8_EXPORT Boolean : public Primitive {
  public:
   bool Value() const;
-  V8_INLINE static Boolean* Cast(v8::Value* obj);
+  V8_INLINE static Boolean* Cast(v8::Data* data);
   V8_INLINE static Local<Boolean> New(Isolate* isolate, bool value);
 
  private:
-  static void CheckCast(v8::Value* obj);
+  static void CheckCast(v8::Data* that);
 };
 
 
@@ -3112,10 +3112,10 @@ class V8_EXPORT Name : public Primitive {
    */
   int GetIdentityHash();
 
-  V8_INLINE static Name* Cast(Value* obj);
+  V8_INLINE static Name* Cast(Data* data);
 
  private:
-  static void CheckCast(Value* obj);
+  static void CheckCast(Data* that);
 };
 
 /**
@@ -3363,7 +3363,7 @@ class V8_EXPORT String : public Name {
    */
   const ExternalOneByteStringResource* GetExternalOneByteStringResource() const;
 
-  V8_INLINE static String* Cast(v8::Value* obj);
+  V8_INLINE static String* Cast(v8::Data* data);
 
   /**
    * Allocates a new string from a UTF-8 literal. This is equivalent to calling
@@ -3520,7 +3520,7 @@ class V8_EXPORT String : public Name {
                                               const char* literal,
                                               NewStringType type, int length);
 
-  static void CheckCast(v8::Value* obj);
+  static void CheckCast(v8::Data* that);
 };
 
 // Zero-length string specialization (templated string size includes
@@ -3580,11 +3580,11 @@ class V8_EXPORT Symbol : public Name {
   static Local<Symbol> GetToStringTag(Isolate* isolate);
   static Local<Symbol> GetUnscopables(Isolate* isolate);
 
-  V8_INLINE static Symbol* Cast(Value* obj);
+  V8_INLINE static Symbol* Cast(Data* data);
 
  private:
   Symbol();
-  static void CheckCast(Value* obj);
+  static void CheckCast(Data* that);
 };
 
 
@@ -3633,10 +3633,11 @@ class V8_EXPORT Number : public Primitive {
  public:
   double Value() const;
   static Local<Number> New(Isolate* isolate, double value);
-  V8_INLINE static Number* Cast(v8::Value* obj);
+  V8_INLINE static Number* Cast(v8::Data* data);
+
  private:
   Number();
-  static void CheckCast(v8::Value* obj);
+  static void CheckCast(v8::Data* that);
 };
 
 
@@ -3648,10 +3649,11 @@ class V8_EXPORT Integer : public Number {
   static Local<Integer> New(Isolate* isolate, int32_t value);
   static Local<Integer> NewFromUnsigned(Isolate* isolate, uint32_t value);
   int64_t Value() const;
-  V8_INLINE static Integer* Cast(v8::Value* obj);
+  V8_INLINE static Integer* Cast(v8::Data* data);
+
  private:
   Integer();
-  static void CheckCast(v8::Value* obj);
+  static void CheckCast(v8::Data* that);
 };
 
 
@@ -3661,11 +3663,11 @@ class V8_EXPORT Integer : public Number {
 class V8_EXPORT Int32 : public Integer {
  public:
   int32_t Value() const;
-  V8_INLINE static Int32* Cast(v8::Value* obj);
+  V8_INLINE static Int32* Cast(v8::Data* data);
 
  private:
   Int32();
-  static void CheckCast(v8::Value* obj);
+  static void CheckCast(v8::Data* that);
 };
 
 
@@ -3675,11 +3677,11 @@ class V8_EXPORT Int32 : public Integer {
 class V8_EXPORT Uint32 : public Integer {
  public:
   uint32_t Value() const;
-  V8_INLINE static Uint32* Cast(v8::Value* obj);
+  V8_INLINE static Uint32* Cast(v8::Data* data);
 
  private:
   Uint32();
-  static void CheckCast(v8::Value* obj);
+  static void CheckCast(v8::Data* that);
 };
 
 /**
@@ -3730,11 +3732,11 @@ class V8_EXPORT BigInt : public Primitive {
    */
   void ToWordsArray(int* sign_bit, int* word_count, uint64_t* words) const;
 
-  V8_INLINE static BigInt* Cast(v8::Value* obj);
+  V8_INLINE static BigInt* Cast(v8::Data* data);
 
  private:
   BigInt();
-  static void CheckCast(v8::Value* obj);
+  static void CheckCast(v8::Data* that);
 };
 
 /**
@@ -11648,13 +11650,12 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
   return SlowGetAlignedPointerFromInternalField(index);
 }
 
-String* String::Cast(v8::Value* value) {
+String* String::Cast(v8::Data* data) {
 #ifdef V8_ENABLE_CHECKS
-  CheckCast(value);
+  CheckCast(data);
 #endif
-  return static_cast<String*>(value);
+  return static_cast<String*>(data);
 }
-
 
 Local<String> String::Empty(Isolate* isolate) {
   typedef internal::Address S;
@@ -11794,29 +11795,26 @@ V8_INLINE Value* Value::Cast(Data* value) {
   return static_cast<Value*>(value);
 }
 
-Boolean* Boolean::Cast(v8::Value* value) {
+Boolean* Boolean::Cast(v8::Data* data) {
 #ifdef V8_ENABLE_CHECKS
-  CheckCast(value);
+  CheckCast(data);
 #endif
-  return static_cast<Boolean*>(value);
+  return static_cast<Boolean*>(data);
 }
 
-
-Name* Name::Cast(v8::Value* value) {
+Name* Name::Cast(v8::Data* data) {
 #ifdef V8_ENABLE_CHECKS
-  CheckCast(value);
+  CheckCast(data);
 #endif
-  return static_cast<Name*>(value);
+  return static_cast<Name*>(data);
 }
 
-
-Symbol* Symbol::Cast(v8::Value* value) {
+Symbol* Symbol::Cast(v8::Data* data) {
 #ifdef V8_ENABLE_CHECKS
-  CheckCast(value);
+  CheckCast(data);
 #endif
-  return static_cast<Symbol*>(value);
+  return static_cast<Symbol*>(data);
 }
-
 
 Private* Private::Cast(Data* data) {
 #ifdef V8_ENABLE_CHECKS
@@ -11839,42 +11837,39 @@ Module* Module::Cast(Data* data) {
   return reinterpret_cast<Module*>(data);
 }
 
-Number* Number::Cast(v8::Value* value) {
+Number* Number::Cast(v8::Data* data) {
 #ifdef V8_ENABLE_CHECKS
-  CheckCast(value);
+  CheckCast(data);
 #endif
-  return static_cast<Number*>(value);
+  return static_cast<Number*>(data);
 }
 
-
-Integer* Integer::Cast(v8::Value* value) {
+Integer* Integer::Cast(v8::Data* data) {
 #ifdef V8_ENABLE_CHECKS
-  CheckCast(value);
+  CheckCast(data);
 #endif
-  return static_cast<Integer*>(value);
+  return static_cast<Integer*>(data);
 }
 
-
-Int32* Int32::Cast(v8::Value* value) {
+Int32* Int32::Cast(v8::Data* data) {
 #ifdef V8_ENABLE_CHECKS
-  CheckCast(value);
+  CheckCast(data);
 #endif
-  return static_cast<Int32*>(value);
+  return static_cast<Int32*>(data);
 }
 
-
-Uint32* Uint32::Cast(v8::Value* value) {
+Uint32* Uint32::Cast(v8::Data* data) {
 #ifdef V8_ENABLE_CHECKS
-  CheckCast(value);
+  CheckCast(data);
 #endif
-  return static_cast<Uint32*>(value);
+  return static_cast<Uint32*>(data);
 }
 
-BigInt* BigInt::Cast(v8::Value* value) {
+BigInt* BigInt::Cast(v8::Data* data) {
 #ifdef V8_ENABLE_CHECKS
-  CheckCast(value);
+  CheckCast(data);
 #endif
-  return static_cast<BigInt*>(value);
+  return static_cast<BigInt*>(data);
 }
 
 Date* Date::Cast(v8::Value* value) {

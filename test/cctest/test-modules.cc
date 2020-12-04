@@ -217,18 +217,13 @@ TEST(ModuleInstantiationWithImportAssertions) {
           module_request_1->GetImportAssertions();
       CHECK_EQ(3, import_assertions_1->Length());
       Local<String> assertion_key =
-          import_assertions_1->Get(env.local(), 0).As<Value>().As<String>();
+          import_assertions_1->Get(env.local(), 0).As<String>();
       CHECK(v8_str("a")->StrictEquals(assertion_key));
       Local<String> assertion_value =
-          import_assertions_1->Get(env.local(), 1).As<Value>().As<String>();
+          import_assertions_1->Get(env.local(), 1).As<String>();
       CHECK(v8_str("b")->StrictEquals(assertion_value));
-      Local<Data> assertion_source_offset_data =
-          import_assertions_1->Get(env.local(), 2);
-      Local<Int32> assertion_source_offset_int32 =
-          assertion_source_offset_data.As<Value>()
-              ->ToInt32(env.local())
-              .ToLocalChecked();
-      int32_t assertion_source_offset = assertion_source_offset_int32->Value();
+      int32_t assertion_source_offset =
+          import_assertions_1->Get(env.local(), 2).As<Int32>()->Value();
       CHECK_EQ(65, assertion_source_offset);
       loc = module->SourceOffsetToLocation(assertion_source_offset);
       CHECK_EQ(1, loc.GetLineNumber());
