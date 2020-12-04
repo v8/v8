@@ -3335,7 +3335,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   __ xvcmpeqdp(tempFPReg1, i.InputSimd128Register(1),                   \
                i.InputSimd128Register(1));                              \
   __ vsel(i.OutputSimd128Register(), i.InputSimd128Register(1), result, \
-          tempFPReg1);
+          tempFPReg1);                                                  \
+  /* Use xvmindp to turn any selected SNANs to QNANs. */                \
+  __ xvmindp(i.OutputSimd128Register(), i.OutputSimd128Register(),      \
+             i.OutputSimd128Register());
     case kPPC_F64x2Min: {
       __ xvmindp(kScratchDoubleReg, i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
