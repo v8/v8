@@ -404,16 +404,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Load 32bit
   void Load(Register dst, const MemOperand& opnd);
   void Load(Register dst, const Operand& opnd);
-  void LoadW(Register dst, const MemOperand& opnd, Register scratch = no_reg);
-  void LoadW(Register dst, Register src);
-  void LoadlW(Register dst, const MemOperand& opnd, Register scratch = no_reg);
-  void LoadlW(Register dst, Register src);
-  void LoadLogicalHalfWordP(Register dst, const MemOperand& opnd);
-  void LoadLogicalHalfWordP(Register dst, Register src);
-  void LoadB(Register dst, const MemOperand& opnd);
-  void LoadB(Register dst, Register src);
-  void LoadlB(Register dst, const MemOperand& opnd);
-  void LoadlB(Register dst, Register src);
+  void LoadS32(Register dst, const MemOperand& opnd, Register scratch = no_reg);
+  void LoadS32(Register dst, Register src);
+  void LoadU32(Register dst, const MemOperand& opnd, Register scratch = no_reg);
+  void LoadU32(Register dst, Register src);
+  void LoadU16(Register dst, const MemOperand& opnd);
+  void LoadU16(Register dst, Register src);
+  void LoadS8(Register dst, const MemOperand& opnd);
+  void LoadS8(Register dst, Register src);
+  void LoadU8(Register dst, const MemOperand& opnd);
+  void LoadU8(Register dst, Register src);
 
   void LoadLogicalReversedWordP(Register dst, const MemOperand& opnd);
   void LoadLogicalReversedHalfWordP(Register dst, const MemOperand& opnd);
@@ -427,8 +427,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadAndTestP(Register dst, const MemOperand& opnd);
 
   // Load Floating Point
-  void LoadDouble(DoubleRegister dst, const MemOperand& opnd);
-  void LoadFloat32(DoubleRegister dst, const MemOperand& opnd);
+  void LoadF64(DoubleRegister dst, const MemOperand& opnd);
+  void LoadF32(DoubleRegister dst, const MemOperand& opnd);
   void LoadFloat32ConvertToDouble(DoubleRegister dst, const MemOperand& mem);
   void LoadSimd128(Simd128Register dst, const MemOperand& mem,
                    Register scratch);
@@ -540,7 +540,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   }
 
   void pop(DoubleRegister dst) {
-    LoadDouble(dst, MemOperand(sp));
+    LoadF64(dst, MemOperand(sp));
     la(sp, MemOperand(sp, kSystemPointerSize));
   }
 
@@ -768,9 +768,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void StoreW(Register src, const MemOperand& mem, Register scratch = no_reg);
 
-  void LoadHalfWordP(Register dst, Register src);
+  void LoadS16(Register dst, Register src);
 
-  void LoadHalfWordP(Register dst, const MemOperand& mem,
+  void LoadS16(Register dst, const MemOperand& mem,
                      Register scratch = no_reg);
 
   void StoreHalfWord(Register src, const MemOperand& mem,
@@ -979,7 +979,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     } else if (is_int20(value.offset())) {
       tmy(value, Operand(1));
     } else {
-      LoadB(r0, value);
+      LoadS8(r0, value);
       tmll(r0, Operand(1));
     }
   }

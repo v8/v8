@@ -40,7 +40,7 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
   __ LeaveFrame(StackFrame::INTERNAL);
   __ LoadTaggedPointerField(
       r2, FieldMemOperand(r3, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadLogicalHalfWordP(
+  __ LoadU16(
       r2, FieldMemOperand(r2, SharedFunctionInfo::kFormalParameterCountOffset));
   __ LoadRR(r4, r2);
 

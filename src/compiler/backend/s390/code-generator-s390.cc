@@ -485,7 +485,7 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
   ([&](int index) {                                                   \
     DCHECK(HasImmediateInput(instr, (index)));                        \
     int doZeroExt = i.InputInt32(index);                              \
-    if (doZeroExt) __ LoadlW(i.OutputRegister(), i.OutputRegister()); \
+    if (doZeroExt) __ LoadU32(i.OutputRegister(), i.OutputRegister()); \
   })(num)
 
 #define ASSEMBLE_BIN32_OP(_rr, _rm, _ri) \
@@ -605,7 +605,7 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     __ LoadRR(r0, i.InputRegister(0));          \
     __ shift_instr(r0, Operand(32));            \
     __ div_instr(r0, i.InputRegister(1));       \
-    __ LoadlW(i.OutputRegister(), r0);          \
+    __ LoadU32(i.OutputRegister(), r0);          \
   } while (0)
 
 #define ASSEMBLE_FLOAT_MODULO()                                             \
@@ -722,7 +722,7 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
 
 #define ATOMIC_COMP_EXCHANGE(start, end, shift_amount, offset)              \
   {                                                                         \
-    __ LoadlW(temp0, MemOperand(addr, offset));                             \
+    __ LoadU32(temp0, MemOperand(addr, offset));                             \
     __ llgfr(temp1, temp0);                                                 \
     __ RotateInsertSelectBits(temp0, old_val, Operand(start), Operand(end), \
                               Operand(shift_amount), false);                \
@@ -842,7 +842,7 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     MemOperand op = i.MemoryOperand(&mode, &index);   \
     __ lay(addr, op);                                 \
     __ CmpAndSwap(output, new_val, MemOperand(addr)); \
-    __ LoadlW(output, output);                        \
+    __ LoadU32(output, output);                        \
   } while (false)
 
 #define ASSEMBLE_ATOMIC_BINOP_WORD(load_and_op)      \
@@ -854,7 +854,7 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     MemOperand op = i.MemoryOperand(&mode);          \
     __ lay(addr, op);                                \
     __ load_and_op(result, value, MemOperand(addr)); \
-    __ LoadlW(result, result);                       \
+    __ LoadU32(result, result);                       \
   } while (false)
 
 #define ASSEMBLE_ATOMIC_BINOP_WORD64(load_and_op)    \
@@ -871,7 +871,7 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
 #define ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end)           \
   do {                                                                      \
     Label do_cs;                                                            \
-    __ LoadlW(prev, MemOperand(addr, offset));                              \
+    __ LoadU32(prev, MemOperand(addr, offset));                              \
     __ bind(&do_cs);                                                        \
     __ RotateInsertSelectBits(temp, value, Operand(start), Operand(end),    \
                               Operand(static_cast<intptr_t>(shift_amount)), \
@@ -1155,7 +1155,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
   __ LoadTaggedPointerField(
       ip, MemOperand(kJavaScriptCallCodeStartRegister, offset), r0);
-  __ LoadW(ip,
+  __ LoadS32(ip,
            FieldMemOperand(ip, CodeDataContainer::kKindSpecificFlagsOffset));
   __ TestBit(ip, Code::kMarkedForDeoptimizationBit);
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
@@ -1500,9 +1500,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (instr->OutputAt(0)->IsFPRegister()) {
         LocationOperand* op = LocationOperand::cast(instr->OutputAt(0));
         if (op->representation() == MachineRepresentation::kFloat64) {
-          __ LoadDouble(i.OutputDoubleRegister(), MemOperand(fp, offset));
+          __ LoadF64(i.OutputDoubleRegister(), MemOperand(fp, offset));
         } else if (op->representation() == MachineRepresentation::kFloat32) {
-          __ LoadFloat32(i.OutputFloatRegister(), MemOperand(fp, offset));
+          __ LoadF32(i.OutputFloatRegister(), MemOperand(fp, offset));
         } else {
           DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
           __ LoadSimd128(i.OutputSimd128Register(), MemOperand(fp, offset),
@@ -2335,11 +2335,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ldgr(i.OutputDoubleRegister(), kScratchReg);
       break;
     case kS390_LoadWordS8:
-      ASSEMBLE_LOAD_INTEGER(LoadB);
+      ASSEMBLE_LOAD_INTEGER(LoadS8);
       EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_BitcastFloat32ToInt32:
-      ASSEMBLE_UNARY_OP(R_DInstr(MovFloatToInt), R_MInstr(LoadlW), nullInstr);
+      ASSEMBLE_UNARY_OP(R_DInstr(MovFloatToInt), R_MInstr(LoadU32), nullInstr);
       break;
     case kS390_BitcastInt32ToFloat32:
       __ MovIntToFloat(i.OutputDoubleRegister(), i.InputRegister(0));
@@ -2353,23 +2353,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #endif
     case kS390_LoadWordU8:
-      ASSEMBLE_LOAD_INTEGER(LoadlB);
+      ASSEMBLE_LOAD_INTEGER(LoadU8);
       EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadWordU16:
-      ASSEMBLE_LOAD_INTEGER(LoadLogicalHalfWordP);
+      ASSEMBLE_LOAD_INTEGER(LoadU16);
       EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadWordS16:
-      ASSEMBLE_LOAD_INTEGER(LoadHalfWordP);
+      ASSEMBLE_LOAD_INTEGER(LoadS16);
       EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadWordU32:
-      ASSEMBLE_LOAD_INTEGER(LoadlW);
+      ASSEMBLE_LOAD_INTEGER(LoadU32);
       EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadWordS32:
-      ASSEMBLE_LOAD_INTEGER(LoadW);
+      ASSEMBLE_LOAD_INTEGER(LoadS32);
       EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadReverse16:
@@ -2429,10 +2429,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kS390_LoadFloat32:
-      ASSEMBLE_LOAD_FLOAT(LoadFloat32);
+      ASSEMBLE_LOAD_FLOAT(LoadF32);
       break;
     case kS390_LoadDouble:
-      ASSEMBLE_LOAD_FLOAT(LoadDouble);
+      ASSEMBLE_LOAD_FLOAT(LoadF64);
       break;
     case kS390_LoadSimd128: {
       AddressingMode mode = kMode_None;
@@ -2503,7 +2503,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #define ATOMIC_EXCHANGE(start, end, shift_amount, offset)              \
   {                                                                    \
     Label do_cs;                                                       \
-    __ LoadlW(output, MemOperand(r1, offset));                         \
+    __ LoadU32(output, MemOperand(r1, offset));                         \
     __ bind(&do_cs);                                                   \
     __ llgfr(r0, output);                                              \
     __ RotateInsertSelectBits(r0, value, Operand(start), Operand(end), \
@@ -2627,25 +2627,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register output = i.OutputRegister();
       Label do_cs;
       __ lay(r1, MemOperand(base, index));
-      __ LoadlW(output, MemOperand(r1));
+      __ LoadU32(output, MemOperand(r1));
       __ bind(&do_cs);
       __ cs(output, value, MemOperand(r1));
       __ bne(&do_cs, Label::kNear);
       break;
     }
     case kWord32AtomicCompareExchangeInt8:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_BYTE(LoadB);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_BYTE(LoadS8);
       break;
     case kS390_Word64AtomicCompareExchangeUint8:
     case kWord32AtomicCompareExchangeUint8:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_BYTE(LoadlB);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_BYTE(LoadU8);
       break;
     case kWord32AtomicCompareExchangeInt16:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_HALFWORD(LoadHalfWordP);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_HALFWORD(LoadS16);
       break;
     case kS390_Word64AtomicCompareExchangeUint16:
     case kWord32AtomicCompareExchangeUint16:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_HALFWORD(LoadLogicalHalfWordP);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_HALFWORD(LoadU16);
       break;
     case kS390_Word64AtomicCompareExchangeUint32:
     case kWord32AtomicCompareExchangeWord32:
@@ -2656,7 +2656,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     ASSEMBLE_ATOMIC_BINOP_BYTE(inst, [&]() {                                 \
       intptr_t shift_right = static_cast<intptr_t>(shift_amount);            \
       __ srlk(result, prev, Operand(shift_right));                           \
-      __ LoadB(result, result);                                              \
+      __ LoadS8(result, result);                                              \
     });                                                                      \
     break;                                                                   \
   case kS390_Word64Atomic##op##Uint8:                                        \
@@ -2672,7 +2672,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     ASSEMBLE_ATOMIC_BINOP_HALFWORD(inst, [&]() {                             \
       intptr_t shift_right = static_cast<intptr_t>(shift_amount);            \
       __ srlk(result, prev, Operand(shift_right));                           \
-      __ LoadHalfWordP(result, result);                                      \
+      __ LoadS16(result, result);                                      \
     });                                                                      \
     break;                                                                   \
   case kS390_Word64Atomic##op##Uint16:                                       \
@@ -4781,9 +4781,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     if (destination->IsFPRegister()) {
       LocationOperand* op = LocationOperand::cast(source);
       if (op->representation() == MachineRepresentation::kFloat64) {
-        __ LoadDouble(g.ToDoubleRegister(destination), src);
+        __ LoadF64(g.ToDoubleRegister(destination), src);
       } else if (op->representation() == MachineRepresentation::kFloat32) {
-        __ LoadFloat32(g.ToDoubleRegister(destination), src);
+        __ LoadF32(g.ToDoubleRegister(destination), src);
       } else {
         DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
         __ LoadSimd128(g.ToSimd128Register(destination), g.ToMemOperand(source),
@@ -4793,10 +4793,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       LocationOperand* op = LocationOperand::cast(source);
       DoubleRegister temp = kScratchDoubleReg;
       if (op->representation() == MachineRepresentation::kFloat64) {
-        __ LoadDouble(temp, src);
+        __ LoadF64(temp, src);
         __ StoreDouble(temp, g.ToMemOperand(destination));
       } else if (op->representation() == MachineRepresentation::kFloat32) {
-        __ LoadFloat32(temp, src);
+        __ LoadF32(temp, src);
         __ StoreFloat32(temp, g.ToMemOperand(destination));
       } else {
         DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
