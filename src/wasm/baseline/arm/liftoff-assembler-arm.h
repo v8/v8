@@ -477,16 +477,18 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset) {
   // anymore.
   int frame_size = GetTotalFrameSize() - kSystemPointerSize;
 
-#ifdef USE_SIMULATOR
   // When using the simulator, deal with Liftoff which allocates the stack
   // before checking it.
   // TODO(arm): Remove this when the stack check mechanism will be updated.
+  // Note: This check is only needed for simulator runs, but we run it
+  // unconditionally to make sure that the simulator executes the same code
+  // that's also executed on native hardware (see https://crbug.com/v8/11041).
   if (frame_size > KB / 2) {
     bailout(kOtherReason,
             "Stack limited to 512 bytes to avoid a bug in StackCheck");
     return;
   }
-#endif
+
   PatchingAssembler patching_assembler(AssemblerOptions{},
                                        buffer_start_ + offset,
                                        liftoff::kPatchInstructionsRequired);
