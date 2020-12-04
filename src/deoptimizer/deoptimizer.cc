@@ -761,7 +761,7 @@ void Deoptimizer::TraceDeoptEnd(double deopt_duration) {
 
 // static
 void Deoptimizer::TraceMarkForDeoptimization(Code code, const char* reason) {
-  if (!FLAG_trace_deopt_verbose) return;
+  if (!FLAG_trace_deopt) return;
 
   DisallowGarbageCollection no_gc;
   Isolate* isolate = code.GetIsolate();
