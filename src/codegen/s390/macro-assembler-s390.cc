@@ -1223,68 +1223,6 @@ void TurboAssembler::ConvertDoubleToUnsignedInt32(
   clfdbr(m, Condition(0), dst, double_input);
 }
 
-#if !V8_TARGET_ARCH_S390X
-void TurboAssembler::ShiftLeftPair(Register dst_low, Register dst_high,
-                                   Register src_low, Register src_high,
-                                   Register scratch, Register shift) {
-  LoadRR(r0, src_high);
-  LoadRR(r1, src_low);
-  sldl(r0, shift, Operand::Zero());
-  LoadRR(dst_high, r0);
-  LoadRR(dst_low, r1);
-}
-
-void TurboAssembler::ShiftLeftPair(Register dst_low, Register dst_high,
-                                   Register src_low, Register src_high,
-                                   uint32_t shift) {
-  LoadRR(r0, src_high);
-  LoadRR(r1, src_low);
-  sldl(r0, r0, Operand(shift));
-  LoadRR(dst_high, r0);
-  LoadRR(dst_low, r1);
-}
-
-void TurboAssembler::ShiftRightPair(Register dst_low, Register dst_high,
-                                    Register src_low, Register src_high,
-                                    Register scratch, Register shift) {
-  LoadRR(r0, src_high);
-  LoadRR(r1, src_low);
-  srdl(r0, shift, Operand::Zero());
-  LoadRR(dst_high, r0);
-  LoadRR(dst_low, r1);
-}
-
-void TurboAssembler::ShiftRightPair(Register dst_low, Register dst_high,
-                                    Register src_low, Register src_high,
-                                    uint32_t shift) {
-  LoadRR(r0, src_high);
-  LoadRR(r1, src_low);
-  srdl(r0, Operand(shift));
-  LoadRR(dst_high, r0);
-  LoadRR(dst_low, r1);
-}
-
-void TurboAssembler::ShiftRightArithPair(Register dst_low, Register dst_high,
-                                         Register src_low, Register src_high,
-                                         Register scratch, Register shift) {
-  LoadRR(r0, src_high);
-  LoadRR(r1, src_low);
-  srda(r0, shift, Operand::Zero());
-  LoadRR(dst_high, r0);
-  LoadRR(dst_low, r1);
-}
-
-void TurboAssembler::ShiftRightArithPair(Register dst_low, Register dst_high,
-                                         Register src_low, Register src_high,
-                                         uint32_t shift) {
-  LoadRR(r0, src_high);
-  LoadRR(r1, src_low);
-  srda(r0, r0, Operand(shift));
-  LoadRR(dst_high, r0);
-  LoadRR(dst_low, r1);
-}
-#endif
-
 void TurboAssembler::MovDoubleToInt64(Register dst, DoubleRegister src) {
   lgdr(dst, src);
 }
@@ -2721,12 +2659,6 @@ void TurboAssembler::Add32(Register dst, const Operand& opnd) {
     afi(dst, opnd);
 }
 
-// Add 32-bit (Register dst = Register dst + Immediate opnd)
-void TurboAssembler::Add32_RI(Register dst, const Operand& opnd) {
-  // Just a wrapper for above
-  Add32(dst, opnd);
-}
-
 // Add Pointer Size (Register dst = Register dst + Immediate opnd)
 void TurboAssembler::AddP(Register dst, const Operand& opnd) {
 #if V8_TARGET_ARCH_S390X
@@ -2749,13 +2681,6 @@ void TurboAssembler::Add32(Register dst, Register src, const Operand& opnd) {
     lr(dst, src);
   }
   Add32(dst, opnd);
-}
-
-// Add 32-bit (Register dst = Register src + Immediate opnd)
-void TurboAssembler::Add32_RRI(Register dst, Register src,
-                               const Operand& opnd) {
-  // Just a wrapper for above
-  Add32(dst, src, opnd);
 }
 
 // Add Pointer Size (Register dst = Register src + Immediate opnd)
@@ -2898,23 +2823,6 @@ void TurboAssembler::AddP(const MemOperand& opnd, const Operand& imm) {
 //----------------------------------------------------------------------------
 //  Add Logical Instructions
 //----------------------------------------------------------------------------
-
-// Add Logical With Carry 32-bit (Register dst = Register src1 + Register src2)
-void TurboAssembler::AddLogicalWithCarry32(Register dst, Register src1,
-                                           Register src2) {
-  if (dst != src2 && dst != src1) {
-    lr(dst, src1);
-    alcr(dst, src2);
-  } else if (dst != src2) {
-    // dst == src1
-    DCHECK(dst == src1);
-    alcr(dst, src2);
-  } else {
-    // dst == src2
-    DCHECK(dst == src2);
-    alcr(dst, src1);
-  }
-}
 
 // Add Logical 32-bit (Register dst = Register src1 + Register src2)
 void TurboAssembler::AddLogical32(Register dst, Register src1, Register src2) {

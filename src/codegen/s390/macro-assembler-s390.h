@@ -260,10 +260,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Add (Register - Immediate)
   void Add32(Register dst, const Operand& imm);
-  void Add32_RI(Register dst, const Operand& imm);
   void AddP(Register dst, const Operand& imm);
   void Add32(Register dst, Register src, const Operand& imm);
-  void Add32_RRI(Register dst, Register src, const Operand& imm);
   void AddP(Register dst, Register src, const Operand& imm);
 
   // Add (Register - Register)
@@ -725,22 +723,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void ConvertFloat32ToUnsignedInt64(
       const Register result, const DoubleRegister double_input,
       FPRoundingMode rounding_mode = kRoundToZero);
-
-#if !V8_TARGET_ARCH_S390X
-  void ShiftLeftPair(Register dst_low, Register dst_high, Register src_low,
-                     Register src_high, Register scratch, Register shift);
-  void ShiftLeftPair(Register dst_low, Register dst_high, Register src_low,
-                     Register src_high, uint32_t shift);
-  void ShiftRightPair(Register dst_low, Register dst_high, Register src_low,
-                      Register src_high, Register scratch, Register shift);
-  void ShiftRightPair(Register dst_low, Register dst_high, Register src_low,
-                      Register src_high, uint32_t shift);
-  void ShiftRightArithPair(Register dst_low, Register dst_high,
-                           Register src_low, Register src_high,
-                           Register scratch, Register shift);
-  void ShiftRightArithPair(Register dst_low, Register dst_high,
-                           Register src_low, Register src_high, uint32_t shift);
-#endif
 
   // Generates function and stub prologue code.
   void StubPrologue(StackFrame::Type type, Register base = no_reg,
