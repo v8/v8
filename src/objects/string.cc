@@ -1702,6 +1702,12 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::WriteToFlat(
     String source, uint16_t* sink, int from, int to);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::WriteToFlat(
     String source, uint8_t* sink, int from, int to);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::WriteToFlat(
+    String source, uint16_t* sink, int from, int to,
+    const SharedStringAccessGuardIfNeeded&);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::WriteToFlat(
+    String source, uint8_t* sink, int from, int to,
+    const SharedStringAccessGuardIfNeeded&);
 
 namespace {
 // Check that the constants defined in src/objects/instance-type.h coincides
