@@ -23350,16 +23350,6 @@ TEST(ScriptSourceURLAndSourceMappingURL) {
                   "//# sourceURL=bar15\t.js   \n"
                   "//# sourceMappingURL=bar16\t.js \n",
                   nullptr, nullptr);
-  SourceURLHelper(isolate,
-                  "function foo() {}\n"
-                  "//# sourceURL=bar17'.js   \n"
-                  "//# sourceMappingURL=bar18'.js \n",
-                  nullptr, nullptr);
-  SourceURLHelper(isolate,
-                  "function foo() {}\n"
-                  "//# sourceURL=bar19\".js   \n"
-                  "//# sourceMappingURL=bar20\".js \n",
-                  nullptr, nullptr);
 
   // Not too much whitespace.
   SourceURLHelper(isolate,
@@ -23367,6 +23357,25 @@ TEST(ScriptSourceURLAndSourceMappingURL) {
                   "//# sourceURL=  bar21.js   \n"
                   "//# sourceMappingURL=  bar22.js \n",
                   "bar21.js", "bar22.js");
+
+  // Comments in eval'd script should be ignored.
+  SourceURLHelper(isolate,
+                  "function foo() {}\n"
+                  "eval(\"\\\n//# sourceURL=bar23.js\");\n"
+                  "eval(\"\\\n//# sourceMappingURL=bar24.js\");\n",
+                  nullptr, nullptr);
+  SourceURLHelper(isolate,
+                  "function foo() {}\n"
+                  "eval('\\\n//# sourceURL=bar23.js');\n"
+                  "eval('\\\n//# sourceMappingURL=bar24.js');\n",
+                  nullptr, nullptr);
+
+  // Inline data: URLs are allowed.
+  SourceURLHelper(
+      isolate,
+      "function foo() {}\n"
+      "//# sourceMappingURL=  data:application/json,{\"version\":3}  \n",
+      nullptr, "data:application/json,{\"version\":3}");
 }
 
 

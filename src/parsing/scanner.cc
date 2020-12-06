@@ -254,11 +254,6 @@ void Scanner::TryToParseSourceURLComment() {
     Advance();
   }
   while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
-    // Disallowed characters.
-    if (c0_ == '"' || c0_ == '\'') {
-      value->Start();
-      return;
-    }
     if (IsWhiteSpace(c0_)) {
       break;
     }
