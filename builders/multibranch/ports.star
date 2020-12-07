@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GOMA", "multibranch_builder", "in_branch_console")
+load("//lib/lib.star", "GOMA", "in_branch_console", "multibranch_builder")
 
 in_category = in_branch_console("ports")
 
@@ -222,5 +222,27 @@ in_category(
         properties = {"builder_group": "client.v8.ports"},
         use_goma = GOMA.DEFAULT,
         close_tree = False,
+    ),
+)
+
+in_category(
+    "RISC-V",
+    multibranch_builder(
+        name = "V8 Linux - riscv64 - sim - builder",
+        triggered_by_gitiles = True,
+        dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+        properties = {"triggers": ["V8 Linux - riscv64 - sim"], "builder_group": "client.v8.ports"},
+        use_goma = GOMA.DEFAULT,
+        close_tree = False,
+        first_branch_version = "8.9",
+    ),
+    multibranch_builder(
+        name = "V8 Linux - riscv64 - sim",
+        triggered_by_gitiles = False,
+        dimensions = {"host_class": "multibot"},
+        execution_timeout = 19800,
+        properties = {"builder_group": "client.v8.ports"},
+        close_tree = False,
+        first_branch_version = "8.9",
     ),
 )
