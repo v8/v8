@@ -2869,7 +2869,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAVXI16x8SConvertI32x4: {
       CpuFeatureScope avx_scope(tasm(), AVX);
       __ vpackssdw(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                   i.InputSimd128Register(1));
+                   i.InputOperand(1));
       break;
     }
     case kSSEI16x8Add: {
