@@ -2427,6 +2427,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/builtins/constants-table-builder.cc",
     "src/builtins/constants-table-builder.h",
     "src/builtins/profile-data-reader.h",
+    "src/codegen/aligned-slot-allocator.cc",
+    "src/codegen/aligned-slot-allocator.h",
     "src/codegen/assembler-arch.h",
     "src/codegen/assembler-inl.h",
     "src/codegen/assembler.cc",
