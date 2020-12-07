@@ -286,6 +286,9 @@ class EffectControlLinearizer {
   void MigrateInstanceOrDeopt(Node* value, Node* value_map, Node* frame_state,
                               FeedbackSource const& feedback_source,
                               DeoptimizeReason reason);
+  // Tries to migrate |value| if its map |value_map| is deprecated, but doesn't
+  // deopt on failure.
+  void TryMigrateInstance(Node* value, Node* value_map);
 
   bool should_maintain_schedule() const {
     return maintain_schedule_ == MaintainSchedule::kMaintain;
@@ -1883,31 +1886,61 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
   }
 }
 
+void EffectControlLinearizer::TryMigrateInstance(Node* value, Node* value_map) {
+  auto done = __ MakeLabel();
+  // If map is not deprecated the migration attempt does not make sense.
+  Node* bitfield3 = __ LoadField(AccessBuilder::ForMapBitField3(), value_map);
+  Node* is_not_deprecated = __ Word32Equal(
+      __ Word32And(bitfield3,
+                   __ Int32Constant(Map::Bits3::IsDeprecatedBit::kMask)),
+      __ Int32Constant(0));
+  __ GotoIf(is_not_deprecated, &done);
+  Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
+  Runtime::FunctionId id = Runtime::kTryMigrateInstance;
+  auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
+      graph()->zone(), id, 1, properties, CallDescriptor::kNoFlags);
+  __ Call(call_descriptor, __ CEntryStubConstant(1), value,
+          __ ExternalConstant(ExternalReference::Create(id)),
+          __ Int32Constant(1), __ NoContextConstant());
+  __ Goto(&done);
+  __ Bind(&done);
+}
+
 void EffectControlLinearizer::LowerDynamicCheckMaps(Node* node,
                                                     Node* frame_state) {
   DynamicCheckMapsParameters const& p =
       DynamicCheckMapsParametersOf(node->op());
-  Node* actual_value = node->InputAt(0);
+  Node* value = node->InputAt(0);
 
   FeedbackSource const& feedback = p.feedback();
   Node* slot_index = __ IntPtrConstant(feedback.index());
-  Node* actual_value_map = __ LoadField(AccessBuilder::ForMap(), actual_value);
+  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* actual_handler =
       p.handler()->IsSmi()
           ? __ SmiConstant(Smi::ToInt(*p.handler()))
           : __ HeapConstant(Handle<HeapObject>::cast(p.handler()));
 
-  // TODO(rmcilroy) Add support to perform the instance migration of deprecated
-  // maps if the map might need migration.
   auto done = __ MakeLabel();
 
   ZoneHandleSet<Map> maps = p.maps();
   size_t const map_count = maps.size();
   for (size_t i = 0; i < map_count; ++i) {
     Node* map = __ HeapConstant(maps[i]);
-    Node* check = __ TaggedEqual(actual_value_map, map);
+    Node* check = __ TaggedEqual(value_map, map);
     if (i == map_count - 1) {
-      __ DynamicCheckMapsWithDeoptUnless(check, slot_index, actual_value_map,
+      if (p.flags() & CheckMapsFlag::kTryMigrateInstance) {
+        auto migrate = __ MakeDeferredLabel();
+        __ BranchWithCriticalSafetyCheck(check, &done, &migrate);
+
+        __ Bind(&migrate);
+        TryMigrateInstance(value, value_map);
+
+        // Reload the current map of the {value} before performing the dynanmic
+        // map check.
+        value_map = __ LoadField(AccessBuilder::ForMap(), value);
+      }
+
+      __ DynamicCheckMapsWithDeoptUnless(check, slot_index, value_map,
                                          actual_handler, frame_state);
       __ Goto(&done);
     } else {
