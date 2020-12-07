@@ -2830,13 +2830,13 @@ void InstructionSelector::VisitStoreLane(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64
         // && !V8_TARGET_ARCH_ARM
 
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64
 // TODO(v8:10983) Prototyping sign select.
 void InstructionSelector::VisitI8x16SignSelect(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI16x8SignSelect(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI32x4SignSelect(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2SignSelect(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64
 
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && \
     !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_MIPS

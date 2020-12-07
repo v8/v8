@@ -7,6 +7,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
+#include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
@@ -209,6 +210,14 @@ void VisitRRIR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)), g.UseImmediate(imm),
                  g.UseUniqueRegister(node->InputAt(1)));
+}
+
+void VisitRRRR(InstructionSelector* selector, InstructionCode opcode,
+               Node* node) {
+  Arm64OperandGenerator g(selector);
+  selector->Emit(
+      opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+      g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
 }
 
 struct ExtendingLoadMatcher {
@@ -3590,6 +3599,18 @@ SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 #undef SIMD_BINOP_LIST
+
+#define VISIT_SIGN_SELECT(NAME, SIZE)                 \
+  void InstructionSelector::Visit##NAME(Node* node) { \
+    InstructionCode opcode = kArm64SignSelect;        \
+    opcode |= MiscField::encode(SIZE);                \
+    VisitRRRR(this, opcode, node);                    \
+  }
+
+VISIT_SIGN_SELECT(I8x16SignSelect, 8)
+VISIT_SIGN_SELECT(I16x8SignSelect, 16)
+VISIT_SIGN_SELECT(I32x4SignSelect, 32)
+VISIT_SIGN_SELECT(I64x2SignSelect, 64)
 
 void InstructionSelector::VisitI64x2Mul(Node* node) {
   Arm64OperandGenerator g(this);

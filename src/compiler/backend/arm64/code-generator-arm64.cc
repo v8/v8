@@ -2534,6 +2534,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Mov(dst.W(), tmp.V8H(), 0);
       break;
     }
+    case kArm64SignSelect: {
+      VectorFormat f = VectorFormatFillQ(MiscField::decode(opcode));
+      __ Cmlt(i.OutputSimd128Register().Format(f),
+              i.InputSimd128Register(2).Format(f), 0);
+      __ Bsl(i.OutputSimd128Register().V16B(), i.InputSimd128Register(0).V16B(),
+             i.InputSimd128Register(1).V16B());
+      break;
+    }
     case kArm64S128Const: {
       uint64_t imm1 = make_uint64(i.InputUint32(1), i.InputUint32(0));
       uint64_t imm2 = make_uint64(i.InputUint32(3), i.InputUint32(2));
