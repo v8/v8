@@ -150,6 +150,7 @@ namespace compiler {
   V(IA32I64x2ShrU)                 \
   V(IA32I64x2BitMask)              \
   V(IA32I64x2Eq)                   \
+  V(IA32I64x2SignSelect)           \
   V(SSEF32x4Splat)                 \
   V(AVXF32x4Splat)                 \
   V(SSEF32x4ExtractLane)           \
@@ -236,6 +237,7 @@ namespace compiler {
   V(IA32I32x4Abs)                  \
   V(IA32I32x4BitMask)              \
   V(IA32I32x4DotI16x8S)            \
+  V(IA32I32x4SignSelect)           \
   V(IA32I16x8Splat)                \
   V(IA32I16x8ExtractLaneS)         \
   V(IA32I16x8SConvertI8x16Low)     \
@@ -289,6 +291,7 @@ namespace compiler {
   V(IA32I16x8RoundingAverageU)     \
   V(IA32I16x8Abs)                  \
   V(IA32I16x8BitMask)              \
+  V(IA32I16x8SignSelect)           \
   V(IA32I8x16Splat)                \
   V(IA32I8x16ExtractLaneS)         \
   V(IA32Pinsrb)                    \
@@ -342,6 +345,7 @@ namespace compiler {
   V(IA32I8x16RoundingAverageU)     \
   V(IA32I8x16Abs)                  \
   V(IA32I8x16BitMask)              \
+  V(IA32I8x16SignSelect)           \
   V(IA32S128Const)                 \
   V(IA32S128Zero)                  \
   V(IA32S128AllOnes)               \

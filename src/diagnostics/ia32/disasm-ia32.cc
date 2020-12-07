@@ -856,6 +856,24 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         AppendToBuffer(",%d", Imm8(current));
         current++;
         break;
+      case 0x4A:
+        AppendToBuffer("vblendvps %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",%s", NameOfXMMRegister(*current >> 4));
+        break;
+      case 0x4B:
+        AppendToBuffer("vblendvps %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",%s", NameOfXMMRegister(*current >> 4));
+        break;
+      case 0x4C:
+        AppendToBuffer("vpblendvb %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",%s", NameOfXMMRegister(*current >> 4));
+        break;
       default:
         UnimplementedInstruction();
     }
@@ -2189,6 +2207,21 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
               SSE4_INSTRUCTION_LIST(SSE34_DIS_CASE)
               SSE4_RM_INSTRUCTION_LIST(SSE34_DIS_CASE)
 #undef SSE34_DIS_CASE
+              case 0x10:
+                AppendToBuffer("pblendvb %s,", NameOfXMMRegister(regop));
+                data += PrintRightXMMOperand(data);
+                AppendToBuffer(",xmm0");
+                break;
+              case 0x14:
+                AppendToBuffer("blendvps %s,", NameOfXMMRegister(regop));
+                data += PrintRightXMMOperand(data);
+                AppendToBuffer(",xmm0");
+                break;
+              case 0x15:
+                AppendToBuffer("blendvps %s,", NameOfXMMRegister(regop));
+                data += PrintRightXMMOperand(data);
+                AppendToBuffer(",xmm0");
+                break;
               default:
                 UnimplementedInstruction();
             }

@@ -627,6 +627,10 @@ TEST(DisasmIa320) {
       __ pinsrd(xmm1, Operand(edx, 4), 0);
       __ extractps(eax, xmm1, 0);
 
+      __ blendvps(xmm3, xmm1);
+      __ blendvpd(xmm3, xmm1);
+      __ pblendvb(xmm3, xmm1);
+
       SSE4_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
       SSE4_RM_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
     }
@@ -785,6 +789,10 @@ TEST(DisasmIa320) {
       __ vpinsrw(xmm0, xmm1, Operand(edx, 4), 0);
       __ vpinsrd(xmm0, xmm1, eax, 0);
       __ vpinsrd(xmm0, xmm1, Operand(edx, 4), 0);
+
+      __ vblendvps(xmm3, xmm1, xmm4, xmm6);
+      __ vblendvpd(xmm3, xmm1, xmm4, xmm6);
+      __ vpblendvb(xmm3, xmm1, xmm4, xmm6);
 
       __ vcvtdq2ps(xmm1, xmm0);
       __ vcvtdq2ps(xmm1, Operand(ebx, ecx, times_4, 10000));

@@ -535,6 +535,32 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }                                                        \
   } while (false)
 
+// Helper macro to help define signselect opcodes. This should not be used for
+// i16x8.signselect, because there is no native word-sized blend instruction.
+// We choose a helper macro here instead of a macro-assembler function because
+// the blend instruction requires xmm0 as an implicit argument, and the codegen
+// relies on xmm0 being the scratch register, so we can freely overwrite it as
+// required.
+#define ASSEMBLE_SIMD_SIGN_SELECT(BLEND_OP)       \
+  do {                                            \
+    XMMRegister dst = i.OutputSimd128Register();  \
+    XMMRegister src1 = i.InputSimd128Register(0); \
+    XMMRegister src2 = i.InputSimd128Register(1); \
+    XMMRegister mask = i.InputSimd128Register(2); \
+    if (CpuFeatures::IsSupported(AVX)) {          \
+      CpuFeatureScope avx_scope(tasm(), AVX);     \
+      __ v##BLEND_OP(dst, src1, src2, mask);      \
+    } else {                                      \
+      CpuFeatureScope scope(tasm(), SSE4_1);      \
+      DCHECK_EQ(dst, src1);                       \
+      DCHECK_EQ(kScratchDoubleReg, xmm0);         \
+      if (mask != xmm0) {                         \
+        __ movaps(xmm0, mask);                    \
+      }                                           \
+      __ BLEND_OP(dst, src2);                     \
+    }                                             \
+  } while (false)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ mov(esp, ebp);
   __ pop(ebp);
@@ -2156,6 +2182,37 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32I64x2Eq: {
       __ Pcmpeqq(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
+      break;
+    }
+    case kIA32I8x16SignSelect: {
+      ASSEMBLE_SIMD_SIGN_SELECT(pblendvb);
+      break;
+    }
+    case kIA32I16x8SignSelect: {
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src1 = i.InputSimd128Register(0);
+      XMMRegister src2 = i.InputSimd128Register(1);
+      XMMRegister mask = i.InputSimd128Register(2);
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope avx_scope(tasm(), AVX);
+        __ vpsraw(kScratchDoubleReg, mask, 15);
+        __ vpblendvb(dst, src1, src2, kScratchDoubleReg);
+      } else {
+        CpuFeatureScope sse_scope(tasm(), SSE4_1);
+        DCHECK_EQ(dst, src1);
+        DCHECK_EQ(kScratchDoubleReg, xmm0);
+        __ pxor(kScratchDoubleReg, kScratchDoubleReg);
+        __ pcmpgtw(kScratchDoubleReg, mask);
+        __ pblendvb(dst, src2);
+      }
+      break;
+    }
+    case kIA32I32x4SignSelect: {
+      ASSEMBLE_SIMD_SIGN_SELECT(blendvps);
+      break;
+    }
+    case kIA32I64x2SignSelect: {
+      ASSEMBLE_SIMD_SIGN_SELECT(blendvpd);
       break;
     }
     case kSSEF32x4Splat: {
