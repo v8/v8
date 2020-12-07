@@ -4,6 +4,8 @@
 
 #include "src/execution/arm/simulator-arm.h"
 
+#include "src/base/logging.h"
+
 #if defined(USE_SIMULATOR)
 
 #include <stdarg.h>
@@ -77,6 +79,17 @@ void Simulator::DebugAtNextPC() {
   PrintF("Starting debugger on the next instruction:\n");
   set_pc(get_pc() + kInstrSize);
   ArmDebugger(this).Debug();
+}
+
+void Simulator::AdvancedSIMDElementOrStructureLoadStoreWriteback(int Rn, int Rm,
+                                                                 int ebytes) {
+  if (Rm != 15) {
+    if (Rm == 13) {
+      set_register(Rn, get_register(Rn) + ebytes);
+    } else {
+      set_register(Rn, get_register(Rn) + get_register(Rm));
+    }
+  }
 }
 
 int32_t ArmDebugger::GetRegisterValue(int regnum) {
@@ -2340,7 +2353,7 @@ void Simulator::DecodeType01(Instruction* instr) {
     int rn = instr->RnValue();
     int32_t rn_val = get_register(rn);
     int32_t shifter_operand = 0;
-    bool shifter_carry_out = 0;
+    bool shifter_carry_out = false;
     if (type == 0) {
       shifter_operand = GetShiftRm(instr, &shifter_carry_out);
     } else {
@@ -2633,7 +2646,7 @@ void Simulator::DecodeType3(Instruction* instr) {
   int rd = instr->RdValue();
   int rn = instr->RnValue();
   int32_t rn_val = get_register(rn);
-  bool shifter_carry_out = 0;
+  bool shifter_carry_out = false;
   int32_t shifter_operand = GetShiftRm(instr, &shifter_carry_out);
   int32_t addr = 0;
   switch (instr->PUField()) {
@@ -5626,231 +5639,197 @@ void Simulator::DecodeMemoryHintsAndBarriers(Instruction* instr) {
 
 void Simulator::DecodeAdvancedSIMDElementOrStructureLoadStore(
     Instruction* instr) {
-  switch (instr->SpecialValue()) {
-    case 8:
-      if (instr->Bits(21, 20) == 0) {
-        // vst1
-        int Vd = (instr->Bit(22) << 4) | instr->VdValue();
-        int Rn = instr->VnValue();
-        int type = instr->Bits(11, 8);
-        int Rm = instr->VmValue();
-        int32_t address = get_register(Rn);
-        int regs = 0;
-        switch (type) {
-          case nlt_1:
-            regs = 1;
-            break;
-          case nlt_2:
-            regs = 2;
-            break;
-          case nlt_3:
-            regs = 3;
-            break;
-          case nlt_4:
-            regs = 4;
-            break;
-          default:
-            UNIMPLEMENTED();
-            break;
-        }
-        int r = 0;
-        while (r < regs) {
-          uint32_t data[2];
-          get_d_register(Vd + r, data);
-          WriteW(address, data[0]);
-          WriteW(address + 4, data[1]);
-          address += 8;
-          r++;
-        }
-        if (Rm != 15) {
-          if (Rm == 13) {
-            set_register(Rn, address);
-          } else {
-            set_register(Rn, get_register(Rn) + get_register(Rm));
-          }
-        }
-      } else if (instr->Bits(21, 20) == 2) {
-        // vld1
-        int Vd = (instr->Bit(22) << 4) | instr->VdValue();
-        int Rn = instr->VnValue();
-        int type = instr->Bits(11, 8);
-        int Rm = instr->VmValue();
-        int32_t address = get_register(Rn);
-        int regs = 0;
-        switch (type) {
-          case nlt_1:
-            regs = 1;
-            break;
-          case nlt_2:
-            regs = 2;
-            break;
-          case nlt_3:
-            regs = 3;
-            break;
-          case nlt_4:
-            regs = 4;
-            break;
-          default:
-            UNIMPLEMENTED();
-            break;
-        }
-        int r = 0;
-        while (r < regs) {
-          uint32_t data[2];
-          data[0] = ReadW(address);
-          data[1] = ReadW(address + 4);
-          set_d_register(Vd + r, data);
-          address += 8;
-          r++;
-        }
-        if (Rm != 15) {
-          if (Rm == 13) {
-            set_register(Rn, address);
-          } else {
-            set_register(Rn, get_register(Rn) + get_register(Rm));
-          }
-        }
-      } else {
-        UNIMPLEMENTED();
-      }
-      break;
-    case 9: {
-      int Vd = instr->VFPDRegValue(kDoublePrecision);
-      int Rn = instr->VnValue();
-      int Rm = instr->VmValue();
-      int32_t address = get_register(Rn);
-      if (instr->Bits(21, 20) == 2) {
-        // Bits(11, 8) is the B field in A7.7 Advanced SIMD element or structure
-        // load/store instructions. See table A7-21.
-        if (instr->Bits(11, 8) == 0xC) {
-          // vld1 (single element to all lanes).
-          DCHECK_EQ(instr->Bits(11, 8), 0b1100);  // Type field.
-          int regs = instr->Bit(5) + 1;
-          int size = instr->Bits(7, 6);
-          uint32_t q_data[2];
-          switch (size) {
-            case Neon8: {
-              uint8_t data = ReadBU(address);
-              uint8_t* dst = reinterpret_cast<uint8_t*>(q_data);
-              for (int i = 0; i < 8; i++) {
-                dst[i] = data;
-              }
-              break;
-            }
-            case Neon16: {
-              uint16_t data = ReadHU(address);
-              uint16_t* dst = reinterpret_cast<uint16_t*>(q_data);
-              for (int i = 0; i < 4; i++) {
-                dst[i] = data;
-              }
-              break;
-            }
-            case Neon32: {
-              uint32_t data = ReadW(address);
-              for (int i = 0; i < 2; i++) {
-                q_data[i] = data;
-              }
-              break;
-            }
-          }
-          for (int r = 0; r < regs; r++) {
-            set_neon_register<uint32_t, kDoubleSize>(Vd + r, q_data);
-          }
-          if (Rm != 15) {
-            if (Rm == 13) {
-              set_register(Rn, address);
-            } else {
-              set_register(Rn, get_register(Rn) + get_register(Rm));
-            }
-          }
-        } else if (instr->Bits(11, 8) == 8 ||
-                   ((instr->Bits(11, 8) & 0b1011) == 0)) {
-          // vld1 (single element to one lane)
-          int size = instr->Bits(11, 10);
-          uint64_t dreg;
-          get_d_register(Vd, &dreg);
-          switch (size) {
-            case Neon8: {
-              uint64_t data = ReadBU(address);
-              DCHECK_EQ(0, instr->Bit(4));
-              int i = instr->Bits(7, 5) * 8;
-              dreg = (dreg & ~(uint64_t{0xff} << i)) | (data << i);
-              break;
-            }
-            case Neon16: {
-              DCHECK_EQ(0, instr->Bits(5, 4));  // Alignment not supported.
-              uint64_t data = ReadHU(address);
-              int i = instr->Bits(7, 6) * 16;
-              dreg = (dreg & ~(uint64_t{0xffff} << i)) | (data << i);
-              break;
-            }
-            case Neon32: {
-              DCHECK_EQ(0, instr->Bits(6, 4));  // Alignment not supported.
-              uint64_t data = static_cast<unsigned>(ReadW(address));
-              int i = instr->Bit(7) * 32;
-              dreg = (dreg & ~(uint64_t{0xffffffff} << i)) | (data << i);
-              break;
-            }
-            case Neon64: {
-              // Should have been handled by vld1 (single element to all lanes).
-              UNREACHABLE();
-            }
-          }
-          set_d_register(Vd, &dreg);
+  int op0 = instr->Bit(23);
+  int op1 = instr->Bits(11, 10);
 
-          // write back
-          if (Rm != 15) {
-            if (Rm == 13) {
-              set_register(Rn, address);
-            } else {
-              set_register(Rn, get_register(Rn) + get_register(Rm));
-            }
-          }
-        } else {
-          UNIMPLEMENTED();
-        }
-      } else if (instr->Bits(21, 20) == 0) {
-        // TODO(zhin): Refactor this function to follow decoding guide.
-        // vst1s (single element from one lane).
-        int size = instr->Bits(11, 10);
-        DCHECK_NE(3, size);
-        uint64_t dreg;
-        get_d_register(Vd, &dreg);
-        switch (size) {
-          case Neon8: {
-            DCHECK_EQ(0, instr->Bit(4));
-            int i = instr->Bits(7, 5) * 8;
-            dreg = (dreg >> i) & 0xff;
-            WriteB(address, static_cast<uint8_t>(dreg));
-            break;
-          }
-          case Neon16: {
-            DCHECK_EQ(0, instr->Bits(5, 4));  // Alignment not supported.
-            int i = instr->Bits(7, 6) * 16;
-            dreg = (dreg >> i) & 0xffff;
-            WriteH(address, static_cast<uint16_t>(dreg));
-            break;
-          }
-          case Neon32: {
-            DCHECK_EQ(0, instr->Bits(6, 4));  // Alignment not supported.
-            int i = instr->Bit(7) * 32;
-            dreg = (dreg >> i) & 0xffffffff;
-            WriteW(address, bit_cast<int>(static_cast<uint32_t>(dreg)));
-            break;
-          }
-          case Neon64: {
-            // Should have been handled by vst1 (single element to all lanes).
-            UNREACHABLE();
-          }
-        }
+  if (!op0) {
+    DecodeAdvancedSIMDLoadStoreMultipleStructures(instr);
+  } else if (op1 == 0b11) {
+    DecodeAdvancedSIMDLoadSingleStructureToAllLanes(instr);
+  } else {
+    DecodeAdvancedSIMDLoadStoreSingleStructureToOneLane(instr);
+  }
+}
 
-      } else {
-        UNIMPLEMENTED();
-      }
+void Simulator::DecodeAdvancedSIMDLoadStoreMultipleStructures(
+    Instruction* instr) {
+  int Vd = instr->VFPDRegValue(kDoublePrecision);
+  int Rn = instr->VnValue();
+  int Rm = instr->VmValue();
+  int type = instr->Bits(11, 8);
+  int32_t address = get_register(Rn);
+  int regs = 0;
+  switch (type) {
+    case nlt_1:
+      regs = 1;
       break;
-    }
+    case nlt_2:
+      regs = 2;
+      break;
+    case nlt_3:
+      regs = 3;
+      break;
+    case nlt_4:
+      regs = 4;
+      break;
     default:
       UNIMPLEMENTED();
+      break;
+  }
+  if (instr->Bit(21)) {
+    // vld1
+    int r = 0;
+    while (r < regs) {
+      uint32_t data[2];
+      data[0] = ReadW(address);
+      data[1] = ReadW(address + 4);
+      set_d_register(Vd + r, data);
+      address += 8;
+      r++;
+    }
+  } else {
+    // vst1
+    int r = 0;
+    while (r < regs) {
+      uint32_t data[2];
+      get_d_register(Vd + r, data);
+      WriteW(address, data[0]);
+      WriteW(address + 4, data[1]);
+      address += 8;
+      r++;
+    }
+  }
+  AdvancedSIMDElementOrStructureLoadStoreWriteback(Rn, Rm, 8 * regs);
+}
+
+void Simulator::DecodeAdvancedSIMDLoadSingleStructureToAllLanes(
+    Instruction* instr) {
+  DCHECK_NE(0, instr->Bit(21));
+  int N = instr->Bits(9, 8);
+
+  int Vd = instr->VFPDRegValue(kDoublePrecision);
+  int Rn = instr->VnValue();
+  int Rm = instr->VmValue();
+  int32_t address = get_register(Rn);
+
+  if (!N) {
+    // vld1 (single element to all lanes).
+    int regs = instr->Bit(5) + 1;
+    int size = instr->Bits(7, 6);
+    uint32_t q_data[2];
+    switch (size) {
+      case Neon8: {
+        uint8_t data = ReadBU(address);
+        uint8_t* dst = reinterpret_cast<uint8_t*>(q_data);
+        for (int i = 0; i < 8; i++) {
+          dst[i] = data;
+        }
+        break;
+      }
+      case Neon16: {
+        uint16_t data = ReadHU(address);
+        uint16_t* dst = reinterpret_cast<uint16_t*>(q_data);
+        for (int i = 0; i < 4; i++) {
+          dst[i] = data;
+        }
+        break;
+      }
+      case Neon32: {
+        uint32_t data = ReadW(address);
+        for (int i = 0; i < 2; i++) {
+          q_data[i] = data;
+        }
+        break;
+      }
+    }
+    for (int r = 0; r < regs; r++) {
+      set_neon_register<uint32_t, kDoubleSize>(Vd + r, q_data);
+    }
+    AdvancedSIMDElementOrStructureLoadStoreWriteback(Rn, Rm, 1 << size);
+  } else {
+    UNIMPLEMENTED();
+  }
+}
+
+void Simulator::DecodeAdvancedSIMDLoadStoreSingleStructureToOneLane(
+    Instruction* instr) {
+  int L = instr->Bit(21);
+  int size = instr->Bits(11, 10);
+  int N = instr->Bits(9, 8);
+  int Vd = instr->VFPDRegValue(kDoublePrecision);
+  int Rn = instr->VnValue();
+  int Rm = instr->VmValue();
+  int32_t address = get_register(Rn);
+
+  if (L && N == 0) {
+    // vld1 (single element to one lane)
+    DCHECK_NE(3, size);
+    uint64_t dreg;
+    get_d_register(Vd, &dreg);
+    switch (size) {
+      case Neon8: {
+        uint64_t data = ReadBU(address);
+        DCHECK_EQ(0, instr->Bit(4));
+        int i = instr->Bits(7, 5) * 8;
+        dreg = (dreg & ~(uint64_t{0xff} << i)) | (data << i);
+        break;
+      }
+      case Neon16: {
+        DCHECK_EQ(0, instr->Bits(5, 4));  // Alignment not supported.
+        uint64_t data = ReadHU(address);
+        int i = instr->Bits(7, 6) * 16;
+        dreg = (dreg & ~(uint64_t{0xffff} << i)) | (data << i);
+        break;
+      }
+      case Neon32: {
+        DCHECK_EQ(0, instr->Bits(6, 4));  // Alignment not supported.
+        uint64_t data = static_cast<unsigned>(ReadW(address));
+        int i = instr->Bit(7) * 32;
+        dreg = (dreg & ~(uint64_t{0xffffffff} << i)) | (data << i);
+        break;
+      }
+      case Neon64: {
+        // Should have been handled by vld1 (single element to all lanes).
+        UNREACHABLE();
+      }
+    }
+    set_d_register(Vd, &dreg);
+    AdvancedSIMDElementOrStructureLoadStoreWriteback(Rn, Rm, 1 << size);
+  } else if (!L && N == 0) {
+    // vst1s (single element from one lane).
+    DCHECK_NE(3, size);
+    uint64_t dreg;
+    get_d_register(Vd, &dreg);
+    switch (size) {
+      case Neon8: {
+        DCHECK_EQ(0, instr->Bit(4));
+        int i = instr->Bits(7, 5) * 8;
+        dreg = (dreg >> i) & 0xff;
+        WriteB(address, static_cast<uint8_t>(dreg));
+        break;
+      }
+      case Neon16: {
+        DCHECK_EQ(0, instr->Bits(5, 4));  // Alignment not supported.
+        int i = instr->Bits(7, 6) * 16;
+        dreg = (dreg >> i) & 0xffff;
+        WriteH(address, static_cast<uint16_t>(dreg));
+        break;
+      }
+      case Neon32: {
+        DCHECK_EQ(0, instr->Bits(6, 4));  // Alignment not supported.
+        int i = instr->Bit(7) * 32;
+        dreg = (dreg >> i) & 0xffffffff;
+        WriteW(address, bit_cast<int>(static_cast<uint32_t>(dreg)));
+        break;
+      }
+      case Neon64: {
+        // Should have been handled by vst1 (single element to all lanes).
+        UNREACHABLE();
+      }
+    }
+    AdvancedSIMDElementOrStructureLoadStoreWriteback(Rn, Rm, 1 << size);
+  } else {
+    UNIMPLEMENTED();
   }
 }
 
