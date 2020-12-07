@@ -136,7 +136,8 @@ class RegisteredExtension {
   V(BigInt, BigInt)                            \
   V(ScriptOrModule, Script)                    \
   V(FixedArray, FixedArray)                    \
-  V(ModuleRequest, ModuleRequest)
+  V(ModuleRequest, ModuleRequest)              \
+  V(WasmMemoryObject, WasmMemoryObject)
 
 class Utils {
  public:

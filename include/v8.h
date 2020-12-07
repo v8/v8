@@ -91,6 +91,7 @@ class Private;
 class Uint32;
 class Utils;
 class Value;
+class WasmMemoryObject;
 class WasmModuleObject;
 template <class T> class Local;
 template <class T>
@@ -2963,6 +2964,11 @@ class V8_EXPORT Value : public Data {
   bool IsProxy() const;
 
   /**
+   * Returns true if this value is a WasmMemoryObject.
+   */
+  bool IsWasmMemoryObject() const;
+
+  /**
    * Returns true if this value is a WasmModuleObject.
    */
   bool IsWasmModuleObject() const;
@@ -4978,6 +4984,22 @@ class V8_EXPORT CompiledWasmModule {
 
   const std::shared_ptr<internal::wasm::NativeModule> native_module_;
   const std::string source_url_;
+};
+
+// An instance of WebAssembly.Memory.
+class V8_EXPORT WasmMemoryObject : public Object {
+ public:
+  WasmMemoryObject() = delete;
+
+  /**
+   * Returns underlying ArrayBuffer.
+   */
+  Local<ArrayBuffer> Buffer();
+
+  V8_INLINE static WasmMemoryObject* Cast(Value* obj);
+
+ private:
+  static void CheckCast(Value* object);
 };
 
 // An instance of WebAssembly.Module.
@@ -11954,6 +11976,13 @@ Proxy* Proxy::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<Proxy*>(value);
+}
+
+WasmMemoryObject* WasmMemoryObject::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<WasmMemoryObject*>(value);
 }
 
 WasmModuleObject* WasmModuleObject::Cast(v8::Value* value) {

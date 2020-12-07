@@ -22,6 +22,10 @@ using protocol::Runtime::PropertyPreview;
 using protocol::Runtime::RemoteObject;
 
 namespace {
+
+// WebAssembly memory is organized in pages of size 64KiB.
+const size_t kWasmPageSize = 64 * 1024;
+
 V8InspectorClient* clientFor(v8::Local<v8::Context> context) {
   return static_cast<V8InspectorImpl*>(
              v8::debug::GetInspector(context->GetIsolate()))
@@ -1908,6 +1912,13 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
     return std::make_unique<ObjectMirror>(
         value, RemoteObject::SubtypeEnum::Dataview,
         descriptionForCollection(isolate, view, view->ByteLength()));
+  }
+  if (value->IsWasmMemoryObject()) {
+    v8::Local<v8::WasmMemoryObject> memory = value.As<v8::WasmMemoryObject>();
+    return std::make_unique<ObjectMirror>(
+        value, RemoteObject::SubtypeEnum::Webassemblymemory,
+        descriptionForCollection(
+            isolate, memory, memory->Buffer()->ByteLength() / kWasmPageSize));
   }
   V8InternalValueType internalType =
       v8InternalValueTypeFrom(context, value.As<v8::Object>());

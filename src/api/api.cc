@@ -3583,6 +3583,7 @@ VALUE_IS_SPECIFIC_TYPE(SymbolObject, SymbolWrapper)
 VALUE_IS_SPECIFIC_TYPE(Date, JSDate)
 VALUE_IS_SPECIFIC_TYPE(Map, JSMap)
 VALUE_IS_SPECIFIC_TYPE(Set, JSSet)
+VALUE_IS_SPECIFIC_TYPE(WasmMemoryObject, WasmMemoryObject)
 VALUE_IS_SPECIFIC_TYPE(WasmModuleObject, WasmModuleObject)
 VALUE_IS_SPECIFIC_TYPE(WeakMap, JSWeakMap)
 VALUE_IS_SPECIFIC_TYPE(WeakSet, JSWeakSet)
@@ -3901,6 +3902,11 @@ void v8::Promise::Resolver::CheckCast(Value* that) {
 
 void v8::Proxy::CheckCast(Value* that) {
   Utils::ApiCheck(that->IsProxy(), "v8::Proxy::Cast", "Value is not a Proxy");
+}
+
+void v8::WasmMemoryObject::CheckCast(Value* that) {
+  Utils::ApiCheck(that->IsWasmMemoryObject(), "v8::WasmMemoryObject::Cast",
+                  "Value is not a WasmMemoryObject");
 }
 
 void v8::WasmModuleObject::CheckCast(Value* that) {
@@ -7500,6 +7506,12 @@ OwnedBuffer CompiledWasmModule::Serialize() {
 MemorySpan<const uint8_t> CompiledWasmModule::GetWireBytesRef() {
   i::Vector<const uint8_t> bytes_vec = native_module_->wire_bytes();
   return {bytes_vec.begin(), bytes_vec.size()};
+}
+
+Local<ArrayBuffer> v8::WasmMemoryObject::Buffer() {
+  i::Handle<i::WasmMemoryObject> obj = Utils::OpenHandle(this);
+  i::Handle<i::JSArrayBuffer> buffer(obj->array_buffer(), obj->GetIsolate());
+  return Utils::ToLocal(buffer);
 }
 
 CompiledWasmModule WasmModuleObject::GetCompiledModule() {

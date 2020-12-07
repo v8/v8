@@ -211,11 +211,8 @@ Handle<JSObject> GetModuleScopeObject(Handle<WasmInstanceObject> instance) {
       const char* label = "memory%d";
       name = PrintFToOneByteString<true>(isolate, label, memory_index);
     }
-    Handle<JSArrayBuffer> memory_buffer(
-        instance->memory_object().array_buffer(), isolate);
-    Handle<JSTypedArray> uint8_array = isolate->factory()->NewJSTypedArray(
-        kExternalUint8Array, memory_buffer, 0, memory_buffer->byte_length());
-    JSObject::AddProperty(isolate, module_scope_object, name, uint8_array,
+    Handle<WasmMemoryObject> memory_object(instance->memory_object(), isolate);
+    JSObject::AddProperty(isolate, module_scope_object, name, memory_object,
                           NONE);
   }
 

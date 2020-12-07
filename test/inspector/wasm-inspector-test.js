@@ -50,7 +50,7 @@ function printIfFailure(message) {
 
 async function getScopeValues(name, value) {
   if (value.type == 'object') {
-    if (value.subtype == 'typedarray') return value.description;
+    if (value.subtype === 'typedarray' || value.subtype == 'webassemblymemory') return value.description;
     if (name == 'instance') return dumpInstanceProperties(value);
 
     let msg = await Protocol.Runtime.getProperties({objectId: value.objectId});
