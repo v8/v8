@@ -12,7 +12,7 @@ import {IcLogEntry} from './log/ic.mjs';
 import {MapLogEntry} from './log/map.mjs';
 import {Processor} from './processor.mjs';
 import {FocusEvent, SelectionEvent, SelectTimeEvent, ToolTipEvent,} from './view/events.mjs';
-import {$, CSSColor} from './view/helper.mjs';
+import {$, CSSColor, groupBy} from './view/helper.mjs';
 
 class App {
   _state;
@@ -23,17 +23,24 @@ class App {
     this._view = {
       __proto__: null,
       logFileReader: $('#log-file-reader'),
-      mapPanel: $('#map-panel'),
-      mapStatsPanel: $('#map-stats-panel'),
+
       timelinePanel: $('#timeline-panel'),
       mapTrack: $('#map-track'),
       icTrack: $('#ic-track'),
-      icPanel: $('#ic-panel'),
       deoptTrack: $('#deopt-track'),
-      codePanel: $('#code-panel'),
       codeTrack: $('#code-track'),
       apiTrack: $('#api-track'),
+
+      icList: $('#ic-list'),
+      mapList: $('#map-list'),
+      codeList: $('#code-list'),
+      deoptList: $('#deopt-list'),
+      apiList: $('#api-list'),
+
+      mapPanel: $('#map-panel'),
+      codePanel: $('#code-panel'),
       sourcePanel: $('#source-panel'),
+
       toolTip: $('#tool-tip'),
     };
     this.toggleSwitch = $('.theme-switch input[type="checkbox"]');
@@ -47,9 +54,8 @@ class App {
 
   async runAsyncInitialize() {
     await Promise.all([
-      import('./view/ic-panel.mjs'),
+      import('./view/list-panel.mjs'),
       import('./view/timeline-panel.mjs'),
-      import('./view/stats-panel.mjs'),
       import('./view/map-panel.mjs'),
       import('./view/source-panel.mjs'),
       import('./view/code-panel.mjs'),
@@ -72,16 +78,8 @@ class App {
   }
 
   showEntries(entries) {
-    const groups = new Map();
-    for (let entry of entries) {
-      const group = groups.get(entry.constructor);
-      if (group !== undefined) {
-        group.push(entry);
-      } else {
-        groups.set(entry.constructor, [entry]);
-      }
-    }
-    groups.forEach(entries => this.showEntriesOfSingleType(entries));
+    groupBy(entries, each => each.constructor, true)
+        .forEach(group => this.showEntriesOfSingleType(group.entries));
   }
 
   showEntriesOfSingleType(entries) {
@@ -126,33 +124,32 @@ class App {
 
   showMapEntries(entries) {
     this._state.selectedMapLogEntries = entries;
-    this._view.mapPanel.selectedMapLogEntries = entries;
-    this._view.mapStatsPanel.selectedLogEntries = entries;
+    this._view.mapPanel.selectedLogEntries = entries;
+    this._view.mapList.selectedLogEntries = entries;
   }
 
   showIcEntries(entries) {
     this._state.selectedIcLogEntries = entries;
-    this._view.icPanel.selectedLogEntries = entries;
+    this._view.icList.selectedLogEntries = entries;
   }
 
   showDeoptEntries(entries) {
-    // TODO: create list panel.
     this._state.selectedDeoptLogEntries = entries;
+    this._view.deoptList.selectedLogEntries = entries;
   }
 
   showCodeEntries(entries) {
-    // TODO: create list panel
     this._state.selectedCodeLogEntries = entries;
     this._view.codePanel.selectedEntries = entries;
+    this._view.codeList.selectedLogEntries = entries;
   }
 
   showApiEntries(entries) {
-    // TODO: create list panel
     this._state.selectedApiLogEntries = entries;
+    this._view.apiList.selectedLogEntries = entries;
   }
 
   showSourcePositions(entries) {
-    // TODO: Handle multiple source position selection events
     this._view.sourcePanel.selectedSourcePositions = entries
   }
 
@@ -163,11 +160,11 @@ class App {
 
   selectTimeRange(start, end) {
     this._state.selectTimeRange(start, end);
-    this.showMapEntries(this._state.mapTimeline.selection ?? []);
-    this.showIcEntries(this._state.icTimeline.selection ?? []);
-    this.showDeoptEntries(this._state.deoptTimeline.selection ?? []);
-    this.showCodeEntries(this._state.codeTimeline.selection ?? []);
-    this.showApiEntries(this._state.apiTimeline.selection ?? []);
+    this.showMapEntries(this._state.mapTimeline.selectionOrSelf);
+    this.showIcEntries(this._state.icTimeline.selectionOrSelf);
+    this.showDeoptEntries(this._state.deoptTimeline.selectionOrSelf);
+    this.showCodeEntries(this._state.codeTimeline.selectionOrSelf);
+    this.showApiEntries(this._state.apiTimeline.selectionOrSelf);
     this._view.timelinePanel.timeSelection = {start, end};
   }
 
@@ -175,25 +172,28 @@ class App {
     this._state.map = entry;
     this._view.mapTrack.selectedEntry = entry;
     this._view.mapPanel.map = entry;
+    this._view.mapList.selectedLogEntry = entry;
   }
 
   selectIcLogEntry(entry) {
     this._state.ic = entry;
-    this._view.icPanel.selectedEntry = [entry];
+    this._view.icList.selectedLogEntry = entry;
   }
 
   selectCodeLogEntry(entry) {
     this._state.code = entry;
     this._view.codePanel.entry = entry;
+    this._view.codeList.selectedLogEntry = entry;
   }
 
   selectDeoptLogEntry(entry) {
-    // TODO
+    this._view.deoptList.selectedLogEntry = entry;
   }
 
   selectApiLogEntry(entry) {
     this._state.apiLogEntry = entry;
     this._view.apiTrack.selectedEntry = entry;
+    this._view.apiList.selectedLogEntry = entry;
   }
 
   selectSourcePosition(sourcePositions) {
@@ -227,12 +227,12 @@ class App {
       const apiTimeline = processor.apiTimeline;
       this._state.setTimelines(
           mapTimeline, icTimeline, deoptTimeline, codeTimeline, apiTimeline);
-      // Transitions must be set before timeline for stats panel.
       this._view.mapPanel.timeline = mapTimeline;
-      this._view.mapStatsPanel.transitions =
-          this._state.mapTimeline.transitions;
-      this._view.mapStatsPanel.timeline = mapTimeline;
-      this._view.icPanel.timeline = icTimeline;
+      this._view.icList.timeline = icTimeline;
+      this._view.mapList.timeline = mapTimeline;
+      this._view.deoptList.timeline = deoptTimeline;
+      this._view.codeList.timeline = codeTimeline;
+      this._view.apiList.timeline = apiTimeline;
       this._view.sourcePanel.data = processor.scripts;
       this._view.codePanel.timeline = codeTimeline;
       this.refreshTimelineTrackView();

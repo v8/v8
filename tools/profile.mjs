@@ -37,8 +37,17 @@ export class SourcePosition {
     this.column = column;
     this.entries = [];
   }
+
   addEntry(entry) {
     this.entries.push(entry);
+  }
+
+  toString() {
+   return `${this.script.name}:${this.line}:${this.column}`;
+  }
+
+  toStringLong() {
+    return this.toString();
   }
 }
 
@@ -90,7 +99,13 @@ export class Script {
     columnToSourcePosition.set(column, sourcePosition);
   }
 
+  toString() {
+    return this.name;
+  }
 
+  toStringLong() {
+    return this.source;
+  }
 }
 
 

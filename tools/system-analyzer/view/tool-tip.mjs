@@ -70,6 +70,7 @@ DOM.defineCustomElement(
       _useBottom(viewportY) {
         return viewportY <= 400;
       }
+
       _useRight(viewportX) {
         return viewportX < document.documentElement.clientWidth / 2;
       }

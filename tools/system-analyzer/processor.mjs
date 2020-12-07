@@ -274,16 +274,17 @@ export class Processor extends LogReader {
   }
 
   processPropertyIC(
-      type, pc, time, line, column, old_state, new_state, map, key, modifier,
+      type, pc, time, line, column, old_state, new_state, mapId, key, modifier,
       slow_reason) {
     this._lastTimestamp = time;
-    let profileEntry = this._profile.findEntry(pc);
-    let fnName = this.formatProfileEntry(profileEntry);
-    let script = this.getProfileEntryScript(profileEntry);
+    const profileEntry = this._profile.findEntry(pc);
+    const fnName = this.formatProfileEntry(profileEntry);
+    const script = this.getProfileEntryScript(profileEntry);
+    const map = this.getOrCreateMapEntry(mapId, time);
     // TODO: Use SourcePosition here directly
     let entry = new IcLogEntry(
         type, fnName, time, line, column, key, old_state, new_state, map,
-        slow_reason, script, modifier);
+        slow_reason, modifier);
     if (script) {
       entry.sourcePosition = script.addSourcePosition(line, column, entry);
     }
@@ -320,8 +321,8 @@ export class Processor extends LogReader {
     // Skip normalized maps that were cached so we don't introduce multiple
     // edges with the same source and target map.
     if (type === 'NormalizeCached') return;
-    const from_ = this.getMapEntry(from, time_);
-    const to_ = this.getMapEntry(to, time_);
+    const from_ = this.getOrCreateMapEntry(from, time_);
+    const to_ = this.getOrCreateMapEntry(to, time_);
     if (type === 'Normalize') {
       // Fix a bug where we log "Normalize" transitions for maps created from
       // the NormalizedMapCache.
@@ -336,8 +337,7 @@ export class Processor extends LogReader {
     to_.filePosition = this.formatProfileEntry(profileEntry, line, column);
     let script = this.getProfileEntryScript(profileEntry);
     if (script) {
-      to_.script = script;
-      to_.sourcePosition = to_.script.addSourcePosition(line, column, to_)
+      to_.sourcePosition = script.addSourcePosition(line, column, to_)
     }
     if (to_.parent() !== undefined && to_.parent() === from_) {
       // Fix bug where we double log transitions.
@@ -350,7 +350,7 @@ export class Processor extends LogReader {
 
   deprecateMap(type, time, id) {
     this._lastTimestamp = time;
-    this.getMapEntry(id, time).deprecate();
+    this.getOrCreateMapEntry(id, time).deprecate();
   }
 
   processMapCreate(time, id) {
@@ -362,7 +362,7 @@ export class Processor extends LogReader {
 
   processMapDetails(time, id, string) {
     // TODO(cbruni): fix initial map logging.
-    const map = this.getMapEntry(id, time);
+    const map = this.getOrCreateMapEntry(id, time);
     map.description = string;
   }
 
@@ -373,7 +373,7 @@ export class Processor extends LogReader {
     return map;
   }
 
-  getMapEntry(id, time) {
+  getOrCreateMapEntry(id, time) {
     if (id === '0x000000000000') return undefined;
     const map = MapLogEntry.get(id, time);
     if (map !== undefined) return map;

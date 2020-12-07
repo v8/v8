@@ -1,6 +1,7 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import {groupBy} from '../helper.mjs';
 import {IcLogEntry} from '../log/ic.mjs';
 import {MapLogEntry} from '../log/map.mjs';
 
@@ -116,11 +117,18 @@ DOM.defineCustomElement('view/source-panel',
 
   handleSourcePositionMouseOver(e) {
     const entries = e.target.sourcePosition.entries;
-    let list =
-        entries
-            .map(entry => `${entry.__proto__.constructor.name}: ${entry.type}`)
-            .join('<br/>');
-    this.dispatchEvent(new ToolTipEvent(list, e.target));
+    let text = groupBy(entries, each => each.constructor, true)
+                   .map(group => {
+                     let text = `${group.key.name}: ${group.count}\n`
+                     text += groupBy(group.entries, each => each.type, true)
+                                 .map(group => {
+                                   return `  - ${group.key}: ${group.count}`;
+                                 })
+                                 .join('\n');
+                     return text;
+                   })
+                   .join('\n');
+    this.dispatchEvent(new ToolTipEvent(text, e.target));
   }
 
   selectLogEntries(logEntries) {

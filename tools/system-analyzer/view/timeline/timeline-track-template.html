@@ -63,6 +63,19 @@ found in the LICENSE file. -->
     font-size: 10px;
   }
 
+  #title {
+    position: relative;
+    float: left;
+    width: 20px;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    margin: 0 0 0 -10px;
+    padding: 5px 5px 0px 5px;
+    overflow: hidden;
+    border-radius: 7px;
+    font-weight: 400;
+  }
+
   .legend {
     position: relative;
     float: right;
@@ -102,6 +115,10 @@ found in the LICENSE file. -->
     background-color: var(--timeline-background-color);
   }
 
+  #selection {
+    display: none;
+  }
+
   #rightHandle,
   #leftHandle {
     background-color: rgba(200, 200, 200, 0.5);
@@ -124,6 +141,8 @@ found in the LICENSE file. -->
     position: absolute;
   }
 </style>
+
+<h3 id="title"></h3>
 <div class="legend">
   <table id="legendTable">
     <thead>

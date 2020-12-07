@@ -7,11 +7,22 @@ found in the LICENSE file. -->
   <style>
     .panel {
       padding-bottom: 0px;
+      position: relative;
+    }
+    .titleBackground {
+      position: absolute;
+      left: 0px;
+      top: 34px;
+      border-radius: 0 0 0 7px;
+      height: calc(100% - 34px);
+      width: 30px;
+      background-color: rgba(var(--border-color),0.2);
     }
   </style>
 </head>
 <div class="panel">
   <h2>Timeline Panel</h2>
+  <div class="titleBackground"></div>
   <div>
     <slot></slot>
   </div>

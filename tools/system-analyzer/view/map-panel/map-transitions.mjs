@@ -11,7 +11,7 @@ DOM.defineCustomElement(
       _timeline;
       _map;
       _edgeToColor = new Map();
-      _selectedMapLogEntries;
+      _selectedLogEntries;
       _displayedMapsInTree;
       _toggleSubtreeHandler = this._handleToggleSubtree.bind(this);
       _selectMapHandler = this._handleSelectMap.bind(this);
@@ -49,13 +49,13 @@ DOM.defineCustomElement(
         });
       }
 
-      set selectedMapLogEntries(list) {
-        this._selectedMapLogEntries = list;
+      set selectedLogEntries(list) {
+        this._selectedLogEntries = list;
         this.update();
       }
 
-      get selectedMapLogEntries() {
-        return this._selectedMapLogEntries;
+      get selectedLogEntries() {
+        return this._selectedLogEntries;
       }
 
       _handleTransitionViewChange(e) {
@@ -80,7 +80,7 @@ DOM.defineCustomElement(
         DOM.removeAllChildren(this.transitionView);
         this._displayedMapsInTree = new Set();
         // Limit view to 200 maps for performance reasons.
-        this.selectedMapLogEntries.slice(0, 200).forEach(
+        this.selectedLogEntries.slice(0, 200).forEach(
             (map) => this._addMapAndParentTransitions(map));
         this._displayedMapsInTree = undefined;
         this.transitionView.style.display = '';
@@ -177,7 +177,7 @@ DOM.defineCustomElement(
 
       _handleMouseoverMap(event) {
         this.dispatchEvent(new ToolTipEvent(
-            event.currentTarget.map.toString(), event.currentTarget));
+            event.currentTarget.map.toStringLong(), event.currentTarget));
       }
 
       _handleToggleSubtree(event) {

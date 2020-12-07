@@ -1,7 +1,6 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import './stats-panel.mjs';
 import './map-panel/map-details.mjs';
 import './map-panel/map-transitions.mjs';
 
@@ -66,11 +65,12 @@ DOM.defineCustomElement('view/map-panel',
     }
   }
 
-  set selectedMapLogEntries(list) {
-    this.mapTransitionsPanel.selectedMapLogEntries = list;
-    if (list.length === 1) this.mapDetailsPanel.map = list[0];
+  set selectedLogEntries(list) {
+    this.mapTransitionsPanel.selectedLogEntries = list;
+    if (list.length === 1) this.mapDetailsPanel.map = list.first();
   }
-  get selectedMapLogEntries() {
-    return this.mapTransitionsPanel.selectedMapLogEntries;
+
+  get selectedLogEntries() {
+    return this.mapTransitionsPanel.selectedLogEntries;
   }
 });

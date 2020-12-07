@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {groupBy} from './helper.mjs'
+
 class Timeline {
   // Class:
   _model;
@@ -28,6 +30,10 @@ class Timeline {
 
   get selection() {
     return this._selection;
+  }
+
+  get selectionOrSelf() {
+    return this._selection ?? this;
   }
 
   set selection(value) {
@@ -177,9 +183,9 @@ class Timeline {
   }
 
   getBreakdown(keyFunction) {
-    if (keyFunction) return breakdown(this._values, keyFunction);
+    if (keyFunction) return groupBy(this._values, keyFunction);
     if (this._breakdown === undefined) {
-      this._breakdown = breakdown(this._values, each => each.type);
+      this._breakdown = groupBy(this._values, each => each.type);
     }
     return this._breakdown;
   }
@@ -261,34 +267,12 @@ class Chunk {
   }
 
   getBreakdown(keyFunction) {
-    return breakdown(this.items, keyFunction);
+    return groupBy(this.items, keyFunction);
   }
 
   filter() {
     return this.items.filter(map => !map.parent() || !this.has(map.parent()));
   }
-}
-
-function breakdown(array, keyFunction) {
-  if (array.length === 0) return [];
-  if (keyFunction === undefined) keyFunction = each => each;
-  const typeToindex = new Map();
-  const breakdown = [];
-  let id = 0;
-  // This is performance critical, resorting to for-loop
-  for (let i = 0; i < array.length; i++) {
-    const each = array[i];
-    const type = keyFunction(each);
-    const index = typeToindex.get(type);
-    if (index === void 0) {
-      typeToindex.set(type, breakdown.length);
-      breakdown.push({type: type, count: 0, id: id++});
-    } else {
-      breakdown[index].count++;
-    }
-  }
-  // Sort by count
-  return breakdown.sort((a, b) => b.count - a.count);
 }
 
 export {Timeline, Chunk};

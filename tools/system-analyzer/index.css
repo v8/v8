@@ -110,9 +110,10 @@ dd {
 .panel {
   background-color: var(--surface-color);
   color: var(--on-surface-color);
-  padding: 10px 10px 10px 10px;
+  padding: 10px;
   border-radius: 10px;
   border: 3px solid rgba(var(--border-color), 0.2);
+  overflow: hidden;
 }
 
 .panelBody {
@@ -121,8 +122,18 @@ dd {
   margin: 0 -10px -10px 0;
 }
 
-.panel > h2 {
-  margin-top: 5px;
+.panel > h2, .panelTitle {
+  margin: -10px -10px 0 -10px;
+  padding: 5px 10px 5px 10px;
+  background-color: rgba(var(--border-color),0.2);
+  border-radius: 7px 7px 0 0;
+  font-weight: 400;
+}
+
+
+.panel > select{
+  width: calc(100% + 20px);
+  margin: 0 -10px 10px -10px;
 }
 
 button {
@@ -200,4 +211,22 @@ button:hover {
   background-color: var(--primary-color);
   color: var(--on-primary-color);
   cursor: pointer;
+}
+
+
+#legend {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  background-color: var(--surface-color);
+  border-radius: 5px;
+  border: 3px solid rgba(var(--border-color), 0.2);
+  padding: 0 10px 0 10px;
+}
+
+#legend dt  {
+  font-family: monospace;
+}
+#legend h3 {
+  margin-top: 10px;
 }

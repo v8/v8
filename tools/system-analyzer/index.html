@@ -74,7 +74,7 @@ found in the LICENSE file. -->
       width: 100%;
     }
 
-    .panels{
+    .panels {
       display: grid;
       align-content: center;
       grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
@@ -98,16 +98,40 @@ found in the LICENSE file. -->
 
   <section id="container" class="initial">
     <timeline-panel id="timeline-panel">
-      <timeline-track id="map-track"></timeline-track>
-      <timeline-track id="ic-track"></timeline-track>
-      <timeline-track id="deopt-track"></timeline-track>
-      <timeline-track id="code-track"></timeline-track>
-      <timeline-track id="api-track"></timeline-track>
+      <timeline-track id="map-track" title="Map"></timeline-track>
+      <timeline-track id="ic-track" title="IC"></timeline-track>
+      <timeline-track id="deopt-track" title="Deopt"></timeline-track>
+      <timeline-track id="code-track" title="Code"></timeline-track>
+      <timeline-track id="api-track" title="API"></timeline-track>
     </timeline-panel>
+
     <div class="panels">
       <map-panel id="map-panel"></map-panel>
-      <stats-panel id="map-stats-panel"></stats-panel>
-      <ic-panel id="ic-panel" onchange="app.handleSelectIc(event)"></ic-panel>
+      <list-panel id="ic-list" title="ICs">
+        <div id="legend">
+          <h3>Legend</h3>
+          <dl>
+            <dt>0</dt>
+            <dd>uninitialized</dd>
+            <dt>X</dt>
+            <dd>no feedback</dd>
+            <dt>1</dt>
+            <dd>monomorphic</dd>
+            <dt>^</dt>
+            <dd>recompute handler</dd>
+            <dt>P</dt>
+            <dd>polymorphic</dd>
+            <dt>N</dt>
+            <dd>megamorphic</dd>
+            <dt>G</dt>
+            <dd>generic</dd>
+          </dl>
+        </div>
+      </list-panel>
+      <list-panel id="map-list" title="Maps"></list-panel>
+      <list-panel id="deopt-list" title="Deopts"></list-panel>
+      <list-panel id="code-list" title="Code"></list-panel>
+      <list-panel id="api-list" title="API"></list-panel>
       <source-panel id="source-panel"></source-panel>
       <code-panel id="code-panel"></code-panel>
     </div>

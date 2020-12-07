@@ -200,28 +200,60 @@ class V8CustomElement extends HTMLElement {
   }
 }
 
-class LazyTable {
-  constructor(table, rowData, rowElementCreator) {
-    this._table = table;
-    this._rowData = rowData;
-    this._rowElementCreator = rowElementCreator;
-    const tbody = table.querySelector('tbody');
-    table.replaceChild(document.createElement('tbody'), tbody);
-    table.querySelector('tfoot td').onclick = (e) => this._addMoreRows();
-    this._addMoreRows();
+class Chunked {
+  constructor(iterable, limit) {
+    this._iterator = iterable[Symbol.iterator]();
+    this._limit = limit;
   }
 
-  _nextRowDataSlice() {
-    return this._rowData.splice(0, 100);
+  * next() {
+    for (let i = 0; i < this._limit; i++) {
+      const {value, done} = this._iterator.next();
+      if (done) {
+        this._iterator = undefined;
+        return;
+      };
+      yield value;
+    }
+  }
+
+  get hasMore() {
+    return this._iterator !== undefined;
+  }
+}
+
+class LazyTable {
+  constructor(table, rowData, rowElementCreator, limit = 100) {
+    this._table = table;
+    this._chunkedRowData = new Chunked(rowData, limit);
+    this._rowElementCreator = rowElementCreator;
+    if (table.tBodies.length == 0) {
+      table.appendChild(DOM.tbody());
+    } else {
+      table.replaceChild(DOM.tbody(), table.tBodies[0]);
+    }
+    if (!table.tFoot) {
+      const td = table.appendChild(DOM.element('tfoot'))
+                     .appendChild(DOM.tr('clickable'))
+                     .appendChild(DOM.td(`Show more...`));
+      td.setAttribute('colspan', 100);
+    }
+    this._clickHandler = this._addMoreRows.bind(this);
+    table.tFoot.addEventListener('click', this._clickHandler);
+    this._addMoreRows();
   }
 
   _addMoreRows() {
     const fragment = new DocumentFragment();
-    for (let row of this._nextRowDataSlice()) {
+    for (let row of this._chunkedRowData.next()) {
       const tr = this._rowElementCreator(row);
       fragment.appendChild(tr);
     }
-    this._table.querySelector('tbody').appendChild(fragment);
+    this._table.tBodies[0].appendChild(fragment);
+    if (!this._chunkedRowData.hasMore) {
+      this._table.tFoot.removeEventListener('click', this._clickHandler);
+      this._table.tFoot.style.display = 'none';
+    }
   }
 }
 

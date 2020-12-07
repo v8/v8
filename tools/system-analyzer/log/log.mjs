@@ -17,6 +17,18 @@ export class LogEntry {
     return this._type;
   }
 
+  get script() {
+    return this.sourcePosition?.script;
+  }
+
+  toString() {
+    return `${this.constructor.name}(${this._type})`;
+  }
+
+  toStringLong() {
+    return this.toString();
+  }
+
   // Returns an Array of all possible #type values.
   static get allTypes() {
     throw new Error('Not implemented.');
