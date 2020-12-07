@@ -3749,6 +3749,22 @@ void Assembler::vst1(NeonSize size, const NeonListOperand& src,
        src.type() * B8 | size * B6 | dst.align() * B4 | dst.rm().code());
 }
 
+void Assembler::vst1s(NeonSize size, const NeonListOperand& src, uint8_t index,
+                      const NeonMemOperand& dst) {
+  // Instruction details available in ARM DDI 0487F.b F6.1.236.
+  // 1111(31-28) | 01001(27-23) | D(22) | 00(21-20) | Rn(19-16) |
+  // Vd(15-12) | size(11-10) | 00(9-8) | index_align(7-4) | Rm(3-0)
+  DCHECK(IsEnabled(NEON));
+  DCHECK_NE(size, 0x3);
+  DCHECK_GT(1 << (3 - size), index);
+  // Specifying alignment not supported, use standard alignment.
+  uint8_t index_align = index << (size + 1);
+  int vd, d;
+  src.base().split_code(&vd, &d);
+  emit(0xFU * B28 | 9 * B23 | d * B22 | dst.rn().code() * B16 | vd * B12 |
+       size * B10 | index_align * B4 | dst.rm().code());
+}
+
 void Assembler::vmovl(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src) {
   // Instruction details available in ARM DDI 0406C.b, A8.8.346.
   // 1111(31-28) | 001(27-25) | U(24) | 1(23) | D(22) | imm3(21-19) |

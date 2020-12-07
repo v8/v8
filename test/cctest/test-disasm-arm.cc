@@ -1018,6 +1018,12 @@ TEST(Neon) {
               "f406460f       vst1.8 {d4, d5, d6}, [r6]")
       COMPARE(vst1(Neon16, NeonListOperand(d17, 4), NeonMemOperand(r9)),
               "f449124f       vst1.16 {d17, d18, d19, d20}, [r9]");
+      COMPARE(vst1s(Neon8, NeonListOperand(d4), 1, NeonMemOperand(r1)),
+              "f481402f       vst1.8 {d4[1]}, [r1]");
+      COMPARE(vst1s(Neon16, NeonListOperand(d4), 2, NeonMemOperand(r1)),
+              "f481448f       vst1.16 {d4[2]}, [r1]");
+      COMPARE(vst1s(Neon32, NeonListOperand(d4), 0, NeonMemOperand(r1)),
+              "f481480f       vst1.32 {d4[0]}, [r1]");
       COMPARE(vmovl(NeonU8, q3, d1), "f3886a11       vmovl.u8 q3, d1");
       COMPARE(vmovl(NeonU8, q4, d2), "f3888a12       vmovl.u8 q4, d2");
       COMPARE(vmovl(NeonS16, q4, d2), "f2908a12       vmovl.s16 q4, d2");

@@ -1162,6 +1162,26 @@ void TurboAssembler::ReplaceLane(QwNeonRegister dst, QwNeonRegister src,
   vmov(double_dst, src_lane);
 }
 
+void TurboAssembler::LoadLane(NeonSize sz, NeonListOperand dst_list,
+                              uint8_t lane, NeonMemOperand src) {
+  if (sz == Neon64) {
+    // vld1s is not valid for Neon64.
+    vld1(Neon64, dst_list, src);
+  } else {
+    vld1s(sz, dst_list, lane, src);
+  }
+}
+
+void TurboAssembler::StoreLane(NeonSize sz, NeonListOperand src_list,
+                               uint8_t lane, NeonMemOperand dst) {
+  if (sz == Neon64) {
+    // vst1s is not valid for Neon64.
+    vst1(Neon64, src_list, dst);
+  } else {
+    vst1s(sz, src_list, lane, dst);
+  }
+}
+
 void TurboAssembler::LslPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
                              Register shift) {

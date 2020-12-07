@@ -463,6 +463,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void ReplaceLane(QwNeonRegister dst, QwNeonRegister src,
                    DwVfpRegister src_lane, int lane);
 
+  void LoadLane(NeonSize sz, NeonListOperand dst_list, uint8_t lane,
+                NeonMemOperand src);
+  void StoreLane(NeonSize sz, NeonListOperand src_list, uint8_t lane,
+                 NeonMemOperand dst);
+
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Smi smi);
   void Move(Register dst, Handle<HeapObject> value);

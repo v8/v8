@@ -846,6 +846,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
              const NeonMemOperand& src);
   void vst1(NeonSize size, const NeonListOperand& src,
             const NeonMemOperand& dst);
+  // vst1s(single element from one lane).
+  void vst1s(NeonSize size, const NeonListOperand& src, uint8_t index,
+             const NeonMemOperand& dst);
   // dt represents the narrower type
   void vmovl(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src);
   // dst_dt represents the narrower type, src_dt represents the src type.

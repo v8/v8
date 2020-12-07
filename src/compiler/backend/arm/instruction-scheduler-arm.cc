@@ -328,6 +328,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmS128Load32x2U:
     case kArmS128Load32Zero:
     case kArmS128Load64Zero:
+    case kArmS128LoadLaneLow:
+    case kArmS128LoadLaneHigh:
       return kIsLoadOperation;
 
     case kArmVstrF32:
@@ -349,6 +351,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmWord32AtomicPairXor:
     case kArmWord32AtomicPairExchange:
     case kArmWord32AtomicPairCompareExchange:
+    case kArmS128StoreLaneLow:
+    case kArmS128StoreLaneHigh:
       return kHasSideEffect;
 
 #define CASE(Name) case k##Name:

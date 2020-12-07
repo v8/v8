@@ -2501,14 +2501,15 @@ void Decoder::DecodeAdvancedSIMDElementOrStructureLoadStore(
   } else if (op1 != 0b11) {
     // Advanced SIMD load/store single structure to one lane.
     int size = op1;  // size and op1 occupy the same bits in decoding.
-    if (l && n == 0b00) {
-      // VLD1 (single element to one lane) - A1, A2, A3
-      int index_align = instr->Bits(7, 4);
-      int index = index_align >> (size + 1);
+    int index_align = instr->Bits(7, 4);
+    int index = index_align >> (size + 1);
+    if (n == 0b00) {
+      // vld1 (single element to one lane) - A1, A2, A3.
+      // vst1 (single element to one lane) - A1, A2, A3.
       // Omit alignment.
       out_buffer_pos_ +=
-          SNPrintF(out_buffer_ + out_buffer_pos_, "vld1.%d {d%d[%d]}",
-                   (1 << size) << 3, Vd, index);
+          SNPrintF(out_buffer_ + out_buffer_pos_, "v%s1.%d {d%d[%d]}",
+                   (l ? "ld" : "st"), (1 << size) << 3, Vd, index);
       Print(", ");
       FormatNeonMemory(Rn, 0, Rm);
     } else {

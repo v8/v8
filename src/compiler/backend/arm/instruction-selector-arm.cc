@@ -6,6 +6,7 @@
 #include "src/base/enum-set.h"
 #include "src/base/iterator.h"
 #include "src/base/platform/wrappers.h"
+#include "src/codegen/machine-type.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -498,6 +499,76 @@ void InstructionSelector::VisitStackSlot(Node* node) {
 void InstructionSelector::VisitAbortCSAAssert(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), r1));
+}
+
+namespace {
+// Helper struct for load lane and store lane to indicate which opcode to use
+// and what memory size to be encoded in the opcode, and the new lane index.
+struct LoadStoreLaneParams {
+  bool low_op;
+  NeonSize sz;
+  uint8_t laneidx;
+  LoadStoreLaneParams(uint8_t laneidx, NeonSize sz, int lanes)
+      : low_op(laneidx < lanes), sz(sz), laneidx(laneidx % lanes) {}
+};
+
+// The register mapping on ARM (1 Q to 2 D), means that loading/storing high
+// lanes of a Q register is equivalent to loading/storing the high D reg, modulo
+// number of lanes in a D reg. This function decides, based on the laneidx and
+// load/store size, whether the low or high D reg is accessed, and what the new
+// lane index is.
+LoadStoreLaneParams GetLoadStoreLaneParams(MachineRepresentation rep,
+                                           uint8_t laneidx) {
+  if (rep == MachineRepresentation::kWord8) {
+    return LoadStoreLaneParams(laneidx, Neon8, 8);
+  } else if (rep == MachineRepresentation::kWord16) {
+    return LoadStoreLaneParams(laneidx, Neon16, 4);
+  } else if (rep == MachineRepresentation::kWord32) {
+    return LoadStoreLaneParams(laneidx, Neon32, 2);
+  } else if (rep == MachineRepresentation::kWord64) {
+    return LoadStoreLaneParams(laneidx, Neon64, 1);
+  } else {
+    UNREACHABLE();
+  }
+}
+}  // namespace
+
+void InstructionSelector::VisitStoreLane(Node* node) {
+  StoreLaneParameters params = StoreLaneParametersOf(node->op());
+  LoadStoreLaneParams f = GetLoadStoreLaneParams(params.rep, params.laneidx);
+  InstructionCode opcode =
+      f.low_op ? kArmS128StoreLaneLow : kArmS128StoreLaneHigh;
+  opcode |= MiscField::encode(f.sz);
+
+  ArmOperandGenerator g(this);
+  InstructionOperand inputs[4];
+  size_t input_count = 4;
+  inputs[0] = g.UseRegister(node->InputAt(2));
+  inputs[1] = g.UseImmediate(f.laneidx);
+  inputs[2] = g.UseRegister(node->InputAt(0));
+  inputs[3] = g.UseRegister(node->InputAt(1));
+  EmitAddBeforeS128LoadStore(this, &opcode, &input_count, &inputs[2]);
+  Emit(opcode, 0, nullptr, input_count, inputs);
+}
+
+void InstructionSelector::VisitLoadLane(Node* node) {
+  LoadLaneParameters params = LoadLaneParametersOf(node->op());
+  LoadStoreLaneParams f =
+      GetLoadStoreLaneParams(params.rep.representation(), params.laneidx);
+  InstructionCode opcode =
+      f.low_op ? kArmS128LoadLaneLow : kArmS128LoadLaneHigh;
+  opcode |= MiscField::encode(f.sz);
+
+  ArmOperandGenerator g(this);
+  InstructionOperand output = g.DefineSameAsFirst(node);
+  InstructionOperand inputs[4];
+  size_t input_count = 4;
+  inputs[0] = g.UseRegister(node->InputAt(2));
+  inputs[1] = g.UseImmediate(f.laneidx);
+  inputs[2] = g.UseRegister(node->InputAt(0));
+  inputs[3] = g.UseRegister(node->InputAt(1));
+  EmitAddBeforeS128LoadStore(this, &opcode, &input_count, &inputs[2]);
+  Emit(opcode, 1, &output, input_count, inputs);
 }
 
 void InstructionSelector::VisitLoadTransform(Node* node) {

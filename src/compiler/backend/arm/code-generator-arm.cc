@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/codegen/arm/constants-arm.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
@@ -3297,6 +3298,36 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register dst = i.OutputSimd128Register();
       __ vmov(dst.high(), 0);
       __ vld1(Neon64, NeonListOperand(dst.low()), i.NeonInputOperand(0));
+      break;
+    }
+    case kArmS128LoadLaneLow: {
+      Simd128Register dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      auto sz = static_cast<NeonSize>(MiscField::decode(instr->opcode()));
+      NeonListOperand dst_list = NeonListOperand(dst.low());
+      __ LoadLane(sz, dst_list, i.InputUint8(1), i.NeonInputOperand(2));
+      break;
+    }
+    case kArmS128LoadLaneHigh: {
+      Simd128Register dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      auto sz = static_cast<NeonSize>(MiscField::decode(instr->opcode()));
+      NeonListOperand dst_list = NeonListOperand(dst.high());
+      __ LoadLane(sz, dst_list, i.InputUint8(1), i.NeonInputOperand(2));
+      break;
+    }
+    case kArmS128StoreLaneLow: {
+      Simd128Register src = i.InputSimd128Register(0);
+      NeonListOperand src_list = NeonListOperand(src.low());
+      auto sz = static_cast<NeonSize>(MiscField::decode(instr->opcode()));
+      __ StoreLane(sz, src_list, i.InputUint8(1), i.NeonInputOperand(2));
+      break;
+    }
+    case kArmS128StoreLaneHigh: {
+      Simd128Register src = i.InputSimd128Register(0);
+      NeonListOperand src_list = NeonListOperand(src.high());
+      auto sz = static_cast<NeonSize>(MiscField::decode(instr->opcode()));
+      __ StoreLane(sz, src_list, i.InputUint8(1), i.NeonInputOperand(2));
       break;
     }
     case kWord32AtomicLoadInt8:

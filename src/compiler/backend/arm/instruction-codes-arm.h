@@ -335,6 +335,10 @@ namespace compiler {
   V(ArmS128Load32x2U)              \
   V(ArmS128Load32Zero)             \
   V(ArmS128Load64Zero)             \
+  V(ArmS128LoadLaneLow)            \
+  V(ArmS128LoadLaneHigh)           \
+  V(ArmS128StoreLaneLow)           \
+  V(ArmS128StoreLaneHigh)          \
   V(ArmWord32AtomicPairLoad)       \
   V(ArmWord32AtomicPairStore)      \
   V(ArmWord32AtomicPairAdd)        \
