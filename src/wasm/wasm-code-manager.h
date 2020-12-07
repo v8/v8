@@ -199,7 +199,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
                    Address current_pc = kNullAddress) const;
 
   static bool ShouldBeLogged(Isolate* isolate);
-  void LogCode(Isolate* isolate) const;
+  void LogCode(Isolate* isolate, int script_id) const;
 
   WasmCode(const WasmCode&) = delete;
   WasmCode& operator=(const WasmCode&) = delete;
@@ -571,7 +571,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // on the fly, and bypass the instance builder pipeline.
   void ReserveCodeTableForTesting(uint32_t max_functions);
 
-  void LogWasmCodes(Isolate* isolate);
+  void LogWasmCodes(Isolate* isolate, int script_id);
 
   CompilationState* compilation_state() { return compilation_state_.get(); }
 
