@@ -2312,7 +2312,7 @@ void InstructionSelector::VisitF64x2Max(Node* node) {
 }
 
 void InstructionSelector::VisitF64x2Splat(Node* node) {
-  VisitRRSimd(this, node, kAVXF64x2Splat, kSSEF64x2Splat);
+  VisitRRSimd(this, node, kIA32F64x2Splat, kIA32F64x2Splat);
 }
 
 void InstructionSelector::VisitF64x2ExtractLane(Node* node) {
@@ -2379,7 +2379,7 @@ void InstructionSelector::VisitI64x2Mul(Node* node) {
 }
 
 void InstructionSelector::VisitF32x4Splat(Node* node) {
-  VisitRRSimd(this, node, kAVXF32x4Splat, kSSEF32x4Splat);
+  VisitRRSimd(this, node, kIA32F32x4Splat, kIA32F32x4Splat);
 }
 
 void InstructionSelector::VisitF32x4ExtractLane(Node* node) {

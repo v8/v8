@@ -1914,16 +1914,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kSSEF64x2Splat: {
-      DCHECK_EQ(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
-      XMMRegister dst = i.OutputSimd128Register();
-      __ shufpd(dst, dst, 0x0);
-      break;
-    }
-    case kAVXF64x2Splat: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
+    case kIA32F64x2Splat: {
+      XMMRegister dst = i.OutputDoubleRegister();
       XMMRegister src = i.InputDoubleRegister(0);
-      __ vshufpd(i.OutputSimd128Register(), src, src, 0x0);
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope avx_scope(tasm(), AVX);
+        __ vshufpd(i.OutputSimd128Register(), src, src, 0x0);
+      } else {
+        DCHECK_EQ(dst, src);
+        __ shufpd(dst, src, 0x0);
+      }
       break;
     }
     case kSSEF64x2ExtractLane: {
@@ -2215,16 +2215,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_SIGN_SELECT(blendvpd);
       break;
     }
-    case kSSEF32x4Splat: {
-      DCHECK_EQ(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
-      XMMRegister dst = i.OutputSimd128Register();
-      __ shufps(dst, dst, 0x0);
-      break;
-    }
-    case kAVXF32x4Splat: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      XMMRegister src = i.InputFloatRegister(0);
-      __ vshufps(i.OutputSimd128Register(), src, src, 0x0);
+    case kIA32F32x4Splat: {
+      XMMRegister dst = i.OutputDoubleRegister();
+      XMMRegister src = i.InputDoubleRegister(0);
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope avx_scope(tasm(), AVX);
+        __ vshufps(i.OutputSimd128Register(), src, src, 0x0);
+      } else {
+        DCHECK_EQ(dst, src);
+        __ shufps(dst, src, 0x0);
+      }
       break;
     }
     case kSSEF32x4ExtractLane: {

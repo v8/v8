@@ -98,8 +98,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXFloat32Neg:
     case kIA32BitcastFI:
     case kIA32BitcastIF:
-    case kSSEF64x2Splat:
-    case kAVXF64x2Splat:
+    case kIA32F64x2Splat:
     case kSSEF64x2ExtractLane:
     case kAVXF64x2ExtractLane:
     case kSSEF64x2ReplaceLane:
@@ -130,8 +129,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I64x2BitMask:
     case kIA32I64x2Eq:
     case kIA32I64x2SignSelect:
-    case kSSEF32x4Splat:
-    case kAVXF32x4Splat:
+    case kIA32F32x4Splat:
     case kSSEF32x4ExtractLane:
     case kAVXF32x4ExtractLane:
     case kIA32Insertps:
