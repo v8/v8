@@ -190,6 +190,21 @@ export class Profile {
     throw new Error(`unknown code state: ${s}`);
   }
 
+  static getKindFromState(state) {
+    if (state === this.CodeState.COMPILED) {
+      return "Builtin";
+    } else if (state === this.CodeState.IGNITION) {
+      return "Unopt";
+    } else if (state === this.CodeState.NATIVE_CONTEXT_INDEPENDENT) {
+      return "NCI";
+    } else if (state === this.CodeState.TURBOPROP) {
+      return "Turboprop";
+    } else if (state === this.CodeState.TURBOFAN) {
+      return "Opt";
+    }
+    throw new Error(`unknown code state: ${state}`);
+  }
+
   /**
    * Called whenever the specified operation has failed finding a function
    * containing the specified address. Should be overriden by subclasses.
@@ -1072,13 +1087,7 @@ JsonProfile.prototype.addFuncCode = function (
 
     this.functionEntries_[func.funcId].codes.push(entry.codeId);
 
-    if (state === 0) {
-      kind = "Builtin";
-    } else if (state === 1) {
-      kind = "Unopt";
-    } else if (state === 2) {
-      kind = "Opt";
-    }
+    kind = Profile.getKindFromState(state);
 
     this.codeEntries_.push({
       name: entry.name,
