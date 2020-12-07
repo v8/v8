@@ -514,10 +514,8 @@ void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position) {
     return;
   }
 
-  Node* limit_address = graph()->NewNode(
-      mcgraph()->machine()->Load(MachineType::Pointer()), instance_node_.get(),
-      mcgraph()->Int32Constant(WASM_INSTANCE_OBJECT_OFFSET(StackLimitAddress)),
-      effect(), control());
+  Node* limit_address =
+      LOAD_INSTANCE_FIELD(StackLimitAddress, MachineType::Pointer());
   Node* limit = SetEffect(graph()->NewNode(
       mcgraph()->machine()->Load(MachineType::Pointer()), limit_address,
       mcgraph()->IntPtrConstant(0), limit_address, control()));
@@ -3496,12 +3494,8 @@ void WasmGraphBuilder::SetEffectControl(Node* effect, Node* control) {
 Node* WasmGraphBuilder::GetImportedMutableGlobals() {
   if (imported_mutable_globals_ == nullptr) {
     // Load imported_mutable_globals_ from the instance object at runtime.
-    imported_mutable_globals_ = graph()->NewNode(
-        mcgraph()->machine()->Load(MachineType::UintPtr()),
-        instance_node_.get(),
-        mcgraph()->Int32Constant(
-            WASM_INSTANCE_OBJECT_OFFSET(ImportedMutableGlobals)),
-        graph()->start(), graph()->start());
+    imported_mutable_globals_ =
+        LOAD_INSTANCE_FIELD(ImportedMutableGlobals, MachineType::UintPtr());
   }
   return imported_mutable_globals_.get();
 }
@@ -6052,16 +6046,12 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
   Node* BuildLoadUndefinedValueFromInstance() {
     if (undefined_value_node_ == nullptr) {
-      Node* isolate_root = graph()->NewNode(
-          mcgraph()->machine()->Load(MachineType::Pointer()),
-          instance_node_.get(),
-          mcgraph()->Int32Constant(WASM_INSTANCE_OBJECT_OFFSET(IsolateRoot)),
-          graph()->start(), graph()->start());
-      undefined_value_node_ = graph()->NewNode(
-          mcgraph()->machine()->Load(MachineType::Pointer()), isolate_root,
+      Node* isolate_root =
+          LOAD_INSTANCE_FIELD(IsolateRoot, MachineType::Pointer());
+      undefined_value_node_ = gasm_->Load(
+          MachineType::Pointer(), isolate_root,
           mcgraph()->Int32Constant(
-              IsolateData::root_slot_offset(RootIndex::kUndefinedValue)),
-          isolate_root, graph()->start());
+              IsolateData::root_slot_offset(RootIndex::kUndefinedValue)));
     }
     return undefined_value_node_.get();
   }
@@ -6552,7 +6542,14 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     Node* jsval;
     if (sig_->return_count() == 0) {
-      jsval = BuildLoadUndefinedValueFromInstance();
+      // We do not use {BuildLoadUndefinedValueFromInstance} here because it
+      // would create an invalid graph.
+      Node* isolate_root =
+          LOAD_INSTANCE_FIELD(IsolateRoot, MachineType::Pointer());
+      jsval = gasm_->Load(
+          MachineType::Pointer(), isolate_root,
+          mcgraph()->Int32Constant(
+              IsolateData::root_slot_offset(RootIndex::kUndefinedValue)));
     } else if (sig_->return_count() == 1) {
       jsval = ToJS(rets[0], sig_->GetReturn());
     } else {

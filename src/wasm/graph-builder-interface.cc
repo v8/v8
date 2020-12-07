@@ -121,10 +121,8 @@ class WasmGraphBuildingInterface {
     uint32_t num_locals = decoder->num_locals();
     SsaEnv* ssa_env = decoder->zone()->New<SsaEnv>(
         decoder->zone(), SsaEnv::kReached, start, start, num_locals);
+    SetEnv(ssa_env);
 
-    // Initialize effect and control before initializing the locals default
-    // values (which might require instance loads) or loading the context.
-    builder_->SetEffectControl(start);
     // Initialize the instance parameter (index 0).
     builder_->set_instance_node(builder_->Param(kWasmInstanceParameterIndex));
     // Initialize local variables. Parameters are shifted by 1 because of the
@@ -141,7 +139,6 @@ class WasmGraphBuildingInterface {
         ssa_env->locals[index++] = node;
       }
     }
-    SetEnv(ssa_env);
     LoadContextIntoSsa(ssa_env);
 
     if (FLAG_trace_wasm) BUILD(TraceFunctionEntry, decoder->position());
