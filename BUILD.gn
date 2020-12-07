@@ -834,6 +834,7 @@ config("toolchain") {
       defines += [ "V8_TARGET_ARCH_PPC" ]
     } else if (v8_current_cpu == "ppc64") {
       defines += [ "V8_TARGET_ARCH_PPC64" ]
+      cflags += [ "-ffp-contract=off" ]
     }
     if (host_byteorder == "little") {
       defines += [ "V8_TARGET_ARCH_PPC_LE" ]
