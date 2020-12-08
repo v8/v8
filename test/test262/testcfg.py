@@ -44,9 +44,7 @@ from testrunner.outproc import test262
 
 # TODO(littledan): move the flag mapping into the status file
 FEATURE_FLAGS = {
-  'Intl.Segmenter': '--harmony-intl-segmenter',
   'Intl.DateTimeFormat-dayPeriod': '--harmony-intl-dateformat-day-period',
-  'Intl.DateTimeFormat-quarter': '--harmony-intl-dateformat-quarter',
   'String.prototype.replaceAll': '--harmony_string_replaceall',
   'Symbol.prototype.description': '--harmony-symbol-description',
   'FinalizationRegistry': '--harmony-weak-refs-with-cleanup-some',
