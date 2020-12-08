@@ -212,6 +212,10 @@ namespace compiler {
   V(X64I64x2Eq)                           \
   V(X64I64x2ShrU)                         \
   V(X64I64x2SignSelect)                   \
+  V(X64I64x2ExtMulLowI32x4S)              \
+  V(X64I64x2ExtMulHighI32x4S)             \
+  V(X64I64x2ExtMulLowI32x4U)              \
+  V(X64I64x2ExtMulHighI32x4U)             \
   V(X64I32x4Splat)                        \
   V(X64I32x4ExtractLane)                  \
   V(X64I32x4SConvertF32x4)                \
@@ -242,6 +246,10 @@ namespace compiler {
   V(X64I32x4BitMask)                      \
   V(X64I32x4DotI16x8S)                    \
   V(X64I32x4SignSelect)                   \
+  V(X64I32x4ExtMulLowI16x8S)              \
+  V(X64I32x4ExtMulHighI16x8S)             \
+  V(X64I32x4ExtMulLowI16x8U)              \
+  V(X64I32x4ExtMulHighI16x8U)             \
   V(X64I16x8Splat)                        \
   V(X64I16x8ExtractLaneS)                 \
   V(X64I16x8SConvertI8x16Low)             \
@@ -276,6 +284,10 @@ namespace compiler {
   V(X64I16x8Abs)                          \
   V(X64I16x8BitMask)                      \
   V(X64I16x8SignSelect)                   \
+  V(X64I16x8ExtMulLowI8x16S)              \
+  V(X64I16x8ExtMulHighI8x16S)             \
+  V(X64I16x8ExtMulLowI8x16U)              \
+  V(X64I16x8ExtMulHighI8x16U)             \
   V(X64I8x16Splat)                        \
   V(X64I8x16ExtractLaneS)                 \
   V(X64Pinsrb)                            \

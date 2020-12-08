@@ -2819,6 +2819,10 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I64x2Add)                      \
   V(I64x2Sub)                      \
   V(I64x2Eq)                       \
+  V(I64x2ExtMulLowI32x4S)          \
+  V(I64x2ExtMulHighI32x4S)         \
+  V(I64x2ExtMulLowI32x4U)          \
+  V(I64x2ExtMulHighI32x4U)         \
   V(I32x4Add)                      \
   V(I32x4AddHoriz)                 \
   V(I32x4Sub)                      \
@@ -2830,6 +2834,10 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4MinU)                     \
   V(I32x4MaxU)                     \
   V(I32x4DotI16x8S)                \
+  V(I32x4ExtMulLowI16x8S)          \
+  V(I32x4ExtMulHighI16x8S)         \
+  V(I32x4ExtMulLowI16x8U)          \
+  V(I32x4ExtMulHighI16x8U)         \
   V(I16x8SConvertI32x4)            \
   V(I16x8UConvertI32x4)            \
   V(I16x8Add)                      \
@@ -2847,6 +2855,10 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8MinU)                     \
   V(I16x8MaxU)                     \
   V(I16x8RoundingAverageU)         \
+  V(I16x8ExtMulLowI8x16S)          \
+  V(I16x8ExtMulHighI8x16S)         \
+  V(I16x8ExtMulLowI8x16U)          \
+  V(I16x8ExtMulHighI8x16U)         \
   V(I8x16SConvertI16x8)            \
   V(I8x16UConvertI16x8)            \
   V(I8x16Add)                      \

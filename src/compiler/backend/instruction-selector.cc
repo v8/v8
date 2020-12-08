@@ -2737,7 +2737,7 @@ void InstructionSelector::VisitI64x2Eq(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_ARM64
         // && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM
 
-#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM
+#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64
 // TODO(v8:11008) Prototype extended multiplication.
 void InstructionSelector::VisitI64x2ExtMulLowI32x4S(Node* node) {
   UNIMPLEMENTED();
@@ -2775,7 +2775,7 @@ void InstructionSelector::VisitI16x8ExtMulLowI8x16U(Node* node) {
 void InstructionSelector::VisitI16x8ExtMulHighI8x16U(Node* node) {
   UNIMPLEMENTED();
 }
-#endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM
+#endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM
 
 #if !V8_TARGET_ARCH_ARM64
 // TODO(v8:10971) Prototype i16x8.q15mulr_sat_s

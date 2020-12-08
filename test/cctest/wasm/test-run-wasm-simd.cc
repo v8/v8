@@ -2333,7 +2333,7 @@ WASM_SIMD_TEST_NO_LOWERING(I16x8Q15MulRSatS) {
 }
 #endif  // V8_TARGET_ARCH_ARM64
 
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64
 // TODO(v8:11008) Prototype extended multiplication.
 namespace {
 enum class MulHalf { kLow, kHigh };
@@ -2445,7 +2445,7 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2ExtMulHighI32x4U) {
                                     kExprI64x2ExtMulHighI32x4U, MultiplyLong,
                                     kExprI32x4Splat, MulHalf::kHigh);
 }
-#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
+#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64
 
 WASM_SIMD_TEST(I32x4DotI16x8S) {
   WasmRunner<int32_t, int16_t, int16_t> r(execution_tier, lower_simd);

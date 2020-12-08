@@ -2041,6 +2041,10 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         mnemonic = "psrad";
       } else if (opcode == 0xE3) {
         mnemonic = "pavgw";
+      } else if (opcode == 0xE4) {
+        mnemonic = "pmulhuw";
+      } else if (opcode == 0xE5) {
+        mnemonic = "pmulhw";
       } else if (opcode == 0xE8) {
         mnemonic = "psubsb";
       } else if (opcode == 0xE9) {

@@ -77,6 +77,8 @@
   V(pminsw, 66, 0F, EA)          \
   V(pminub, 66, 0F, DA)          \
   V(pmullw, 66, 0F, D5)          \
+  V(pmulhuw, 66, 0F, E4)         \
+  V(pmulhw, 66, 0F, E5)          \
   V(pmuludq, 66, 0F, F4)         \
   V(psllw, 66, 0F, F1)           \
   V(pslld, 66, 0F, F2)           \
@@ -143,6 +145,7 @@
   V(pabsd, 66, 0F, 38, 1E)
 
 #define SSE4_INSTRUCTION_LIST(V) \
+  V(pmuldq, 66, 0F, 38, 28)      \
   V(pcmpeqq, 66, 0F, 38, 29)     \
   V(packusdw, 66, 0F, 38, 2B)    \
   V(pminsb, 66, 0F, 38, 38)      \

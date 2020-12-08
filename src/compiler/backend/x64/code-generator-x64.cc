@@ -5,6 +5,7 @@
 #include <limits>
 
 #include "src/base/overflowing-math.h"
+#include "src/codegen/assembler.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/x64/assembler-x64.h"
@@ -677,6 +678,72 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     } else {                                                          \
       __ ASM_INSTR(dst, src, i.InputOperand(2), laneidx);             \
     }                                                                 \
+  } while (false)
+
+#define ASSEMBLE_SIMD_I16X8_EXT_MUL_LOW(EXTEND_MACRO_INSTR)              \
+  do {                                                                   \
+    XMMRegister dst = i.OutputSimd128Register();                         \
+    __ EXTEND_MACRO_INSTR(kScratchDoubleReg, i.InputSimd128Register(0)); \
+    __ EXTEND_MACRO_INSTR(dst, i.InputSimd128Register(1));               \
+    __ Pmullw(dst, kScratchDoubleReg);                                   \
+  } while (false)
+
+#define ASSEMBLE_SIMD_I16X8_EXT_MUL_HIGH(EXTEND_MACRO_INSTR)              \
+  do {                                                                    \
+    XMMRegister dst = i.OutputSimd128Register();                          \
+    __ Palignr(kScratchDoubleReg, i.InputSimd128Register(0), uint8_t{8}); \
+    __ EXTEND_MACRO_INSTR(kScratchDoubleReg, kScratchDoubleReg);          \
+    __ Palignr(dst, i.InputSimd128Register(1), uint8_t{8});               \
+    __ EXTEND_MACRO_INSTR(dst, dst);                                      \
+    __ Pmullw(dst, kScratchDoubleReg);                                    \
+  } while (false)
+
+// 1. Multiply low word into scratch.
+// 2. Multiply high word (can be signed or unsigned) into dst.
+// 3. Unpack and interleave scratch and dst into dst.
+#define ASSEMBLE_SIMD_I32X4_EXT_MUL(MUL_HIGH_INSTR, UNPACK_INSTR) \
+  do {                                                            \
+    XMMRegister dst = i.OutputSimd128Register();                  \
+    XMMRegister src0 = i.InputSimd128Register(0);                 \
+    XMMRegister src1 = i.InputSimd128Register(1);                 \
+    if (CpuFeatures::IsSupported(AVX)) {                          \
+      CpuFeatureScope avx_scope(tasm(), AVX);                     \
+      __ vpmullw(kScratchDoubleReg, src0, src1);                  \
+      __ v##MUL_HIGH_INSTR(dst, src0, src1);                      \
+      __ v##UNPACK_INSTR(dst, kScratchDoubleReg, dst);            \
+    } else {                                                      \
+      DCHECK_EQ(dst, src0);                                       \
+      __ movdqu(kScratchDoubleReg, src0);                         \
+      __ pmullw(kScratchDoubleReg, src1);                         \
+      __ MUL_HIGH_INSTR(dst, src1);                               \
+      __ UNPACK_INSTR(kScratchDoubleReg, dst);                    \
+      __ movdqu(dst, kScratchDoubleReg);                          \
+    }                                                             \
+  } while (false)
+
+// 1. Unpack src0, src0 into even-number elements of scratch.
+// 2. Unpack src1, src1 into even-number elements of dst.
+// 3. Multiply 1. with 2.
+// For non-AVX, use non-destructive pshufd instead of punpckldq/punpckhdq.
+// We only need SSE4_1 for pmuldq (signed ext mul), but to reduce macro
+// duplication we enable it in all cases.
+#define ASSEMBLE_SIMD_I64X2_EXT_MUL(UNPACK_INSTR, MUL_INSTR, SHUFFLE_CONST) \
+  do {                                                                      \
+    XMMRegister dst = i.OutputSimd128Register();                            \
+    XMMRegister src0 = i.InputSimd128Register(0);                           \
+    XMMRegister src1 = i.InputSimd128Register(1);                           \
+    if (CpuFeatures::IsSupported(AVX)) {                                    \
+      CpuFeatureScope avx_scope(tasm(), AVX);                               \
+      __ v##UNPACK_INSTR(kScratchDoubleReg, src0, src0);                    \
+      __ v##UNPACK_INSTR(dst, src1, src1);                                  \
+      __ v##MUL_INSTR(dst, kScratchDoubleReg, dst);                         \
+    } else {                                                                \
+      CpuFeatureScope avx_scope(tasm(), SSE4_1);                            \
+      DCHECK_EQ(dst, src0);                                                 \
+      __ pshufd(kScratchDoubleReg, src0, SHUFFLE_CONST);                    \
+      __ pshufd(dst, src1, SHUFFLE_CONST);                                  \
+      __ MUL_INSTR(dst, kScratchDoubleReg);                                 \
+    }                                                                       \
   } while (false)
 
 void CodeGenerator::AssembleDeconstructFrame() {
@@ -2810,6 +2877,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_SHIFT(psrlq, 6);
       break;
     }
+    case kX64I64x2ExtMulLowI32x4S: {
+      ASSEMBLE_SIMD_I64X2_EXT_MUL(punpckldq, pmuldq, 0x50);
+      break;
+    }
+    case kX64I64x2ExtMulHighI32x4S: {
+      ASSEMBLE_SIMD_I64X2_EXT_MUL(punpckhdq, pmuldq, 0xFA);
+      break;
+    }
+    case kX64I64x2ExtMulLowI32x4U: {
+      ASSEMBLE_SIMD_I64X2_EXT_MUL(punpckldq, pmuludq, 0x50);
+      break;
+    }
+    case kX64I64x2ExtMulHighI32x4U: {
+      ASSEMBLE_SIMD_I64X2_EXT_MUL(punpckhdq, pmuludq, 0xFA);
+      break;
+    }
     case kX64I32x4Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       if (HasRegisterInput(instr, 0)) {
@@ -3198,6 +3281,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ shrq(dst, Immediate(8));
       break;
     }
+    case kX64I16x8ExtMulLowI8x16S: {
+      ASSEMBLE_SIMD_I16X8_EXT_MUL_LOW(Pmovsxbw);
+      break;
+    }
+    case kX64I16x8ExtMulHighI8x16S: {
+      ASSEMBLE_SIMD_I16X8_EXT_MUL_HIGH(Pmovsxbw);
+      break;
+    }
+    case kX64I16x8ExtMulLowI8x16U: {
+      ASSEMBLE_SIMD_I16X8_EXT_MUL_LOW(Pmovzxbw);
+      break;
+    }
+    case kX64I16x8ExtMulHighI8x16U: {
+      ASSEMBLE_SIMD_I16X8_EXT_MUL_HIGH(Pmovzxbw);
+      break;
+    }
     case kX64I8x16Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       if (HasRegisterInput(instr, 0)) {
@@ -3526,6 +3625,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64I32x4SignSelect: {
       __ Blendvps(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1), i.InputSimd128Register(2));
+      break;
+    }
+    case kX64I32x4ExtMulLowI16x8S: {
+      ASSEMBLE_SIMD_I32X4_EXT_MUL(pmulhw, punpcklwd);
+      break;
+    }
+    case kX64I32x4ExtMulHighI16x8S: {
+      ASSEMBLE_SIMD_I32X4_EXT_MUL(pmulhw, punpckhwd);
+      break;
+    }
+    case kX64I32x4ExtMulLowI16x8U: {
+      ASSEMBLE_SIMD_I32X4_EXT_MUL(pmulhuw, punpcklwd);
+      break;
+    }
+    case kX64I32x4ExtMulHighI16x8U: {
+      ASSEMBLE_SIMD_I32X4_EXT_MUL(pmulhuw, punpckhwd);
       break;
     }
     case kX64I64x2SignSelect: {
@@ -4113,6 +4228,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   return kSuccess;
 }  // NOLadability/fn_size)
 
+#undef ASSEMBLE_SIMD_I64X2_EXT_MUL
+#undef ASSEMBLE_SIMD_I32X4_EXT_MUL
+#undef ASSEMBLE_SIMD_I16X8_EXT_MUL_HIGH
+#undef ASSEMBLE_SIMD_I16X8_EXT_MUL_LOW
+#undef ASSEMBLE_PINSR
 #undef ASSEMBLE_UNOP
 #undef ASSEMBLE_BINOP
 #undef ASSEMBLE_COMPARE
