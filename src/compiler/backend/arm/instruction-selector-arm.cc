@@ -80,7 +80,8 @@ class ArmOperandGenerator : public OperandGenerator {
 
 namespace {
 
-void VisitRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
+void VisitRR(InstructionSelector* selector, InstructionCode opcode,
+             Node* node) {
   ArmOperandGenerator g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)));
@@ -3120,6 +3121,16 @@ EXT_MUL_LIST(VISIT_EXT_MUL)
 
 #undef VISIT_EXT_MUL
 #undef EXT_MUL_LIST
+
+#define VISIT_EXTADD_PAIRWISE(OPCODE, NEONSIZE)                    \
+  void InstructionSelector::Visit##OPCODE(Node* node) {            \
+    VisitRR(this, kArmVpaddl | MiscField::encode(NEONSIZE), node); \
+  }
+VISIT_EXTADD_PAIRWISE(I16x8ExtAddPairwiseI8x16S, NeonS8)
+VISIT_EXTADD_PAIRWISE(I16x8ExtAddPairwiseI8x16U, NeonU8)
+VISIT_EXTADD_PAIRWISE(I32x4ExtAddPairwiseI16x8S, NeonS16)
+VISIT_EXTADD_PAIRWISE(I32x4ExtAddPairwiseI16x8U, NeonU16)
+#undef VISIT_EXTADD_PAIRWISE
 
 void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {
   ArmOperandGenerator g(this);

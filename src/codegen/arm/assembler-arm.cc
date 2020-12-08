@@ -3991,7 +3991,9 @@ enum UnaryOp {
   VREV64,
   VTRN,
   VRECPE,
-  VRSQRTE
+  VRSQRTE,
+  VPADDL_S,
+  VPADDL_U
 };
 
 // Encoding helper for "Advanced SIMD two registers misc" decode group. See ARM
@@ -4059,6 +4061,12 @@ static Instr EncodeNeonUnaryOp(UnaryOp op, NeonRegType reg_type, NeonSize size,
     case VRSQRTE:
       // Only support floating point.
       op_encoding = 0x3 * B16 | 0xB * B7;
+      break;
+    case VPADDL_S:
+      op_encoding = 0x4 * B7;
+      break;
+    case VPADDL_U:
+      op_encoding = 0x5 * B7;
       break;
     default:
       UNREACHABLE();
@@ -4909,6 +4917,14 @@ void Assembler::vtrn(NeonSize size, QwNeonRegister src1, QwNeonRegister src2) {
   // vtrn.<size>(Qn, Qm) SIMD element transpose.
   // Instruction details available in ARM DDI 0406C.b, A8-1096.
   emit(EncodeNeonUnaryOp(VTRN, NEON_Q, size, src1.code(), src2.code()));
+}
+
+void Assembler::vpaddl(NeonDataType dt, QwNeonRegister dst,
+                       QwNeonRegister src) {
+  DCHECK(IsEnabled(NEON));
+  // vpaddl.<dt>(Qd, Qm) SIMD Vector Pairwise Add Long.
+  emit(EncodeNeonUnaryOp(NeonU(dt) ? VPADDL_U : VPADDL_S, NEON_Q,
+                         NeonDataTypeToSize(dt), dst.code(), src.code()));
 }
 
 // Encode NEON vtbl / vtbx instruction.

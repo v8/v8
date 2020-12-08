@@ -1282,6 +1282,8 @@ TEST(15) {
     uint32_t vmin_s8[4], vmin_u16[4], vmin_s32[4];
     uint32_t vmax_s8[4], vmax_u16[4], vmax_s32[4];
     uint32_t vpadd_i8[2], vpadd_i16[2], vpadd_i32[2];
+    uint32_t vpaddl_s8[4], vpaddl_s16[4], vpaddl_s32[4];
+    uint32_t vpaddl_u8[4], vpaddl_u16[4], vpaddl_u32[4];
     uint32_t vpmin_s8[2], vpmin_u16[2], vpmin_s32[2];
     uint32_t vpmax_s8[2], vpmax_u16[2], vpmax_s32[2];
     uint32_t vadd8[4], vadd16[4], vadd32[4];
@@ -1644,6 +1646,35 @@ TEST(15) {
     __ vstr(d0, r0, offsetof(T, vpadd_i16));
     __ vpadd(Neon32, d0, d0, d2);
     __ vstr(d0, r0, offsetof(T, vpadd_i32));
+
+    // vpaddl signed.
+    __ mov(r4, Operand(0x81));
+    __ vdup(Neon8, q0, r4);
+
+    __ vpaddl(NeonS8, q2, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vpaddl_s8))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+
+    __ vpaddl(NeonS16, q2, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vpaddl_s16))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+
+    __ vpaddl(NeonS32, q2, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vpaddl_s32))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+
+    // vpaddl unsigned.
+    __ vpaddl(NeonU8, q2, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vpaddl_u8))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+
+    __ vpaddl(NeonU16, q2, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vpaddl_u16))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+
+    __ vpaddl(NeonU32, q2, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vpaddl_u32))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
 
     // vpmin/vpmax integer.
     __ mov(r4, Operand(0x03));
@@ -2197,6 +2228,15 @@ TEST(15) {
     CHECK_EQ_32X2(vpadd_i8, 0x03030303u, 0x06060606u);
     CHECK_EQ_32X2(vpadd_i16, 0x0C0C0606u, 0x06060606u);
     CHECK_EQ_32X2(vpadd_i32, 0x12120C0Cu, 0x06060606u);
+
+    CHECK_EQ_32X4(vpaddl_s8, 0xFF02FF02, 0xFF02FF02, 0xFF02FF02, 0xFF02FF02);
+    CHECK_EQ_32X4(vpaddl_s16, 0xFFFF0302, 0xFFFF0302, 0xFFFF0302, 0xFFFF0302);
+    CHECK_EQ_32X4(vpaddl_s32, 0x03030302, 0xFFFFFFFF, 0x03030302, 0xFFFFFFFF);
+
+    CHECK_EQ_32X4(vpaddl_u8, 0x01020102, 0x01020102, 0x01020102, 0x01020102);
+    CHECK_EQ_32X4(vpaddl_u16, 0x00010302, 0x00010302, 0x00010302, 0x00010302);
+    CHECK_EQ_32X4(vpaddl_u32, 0x03030302, 0x00000001, 0x03030302, 0x00000001);
+
     CHECK_EQ_32X2(vpmin_s8, 0x00000000u, 0x03030303u);
     CHECK_EQ_32X2(vpmax_s8, 0x03030303u, 0x03030303u);
     // [0, ffff, 0, ffff] and [ffff, ffff]

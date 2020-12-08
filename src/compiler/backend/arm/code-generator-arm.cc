@@ -1874,6 +1874,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputSimd128Register(1).high());
       break;
     }
+    case kArmVpaddl: {
+      auto dt = static_cast<NeonDataType>(MiscField::decode(instr->opcode()));
+      __ vpaddl(dt, i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
     case kArmF64x2Splat: {
       Simd128Register dst = i.OutputSimd128Register();
       DoubleRegister src = i.InputDoubleRegister(0);

@@ -1880,7 +1880,7 @@ WASM_SIMD_TEST(S128Not) {
                    [](int32_t x) { return ~x; });
 }
 
-#if V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
 // TODO(v8:11086) Prototype i32x4.extadd_pairwise_i16x8_{s,u}
 template <typename Narrow, typename Wide>
 void RunExtAddPairwiseTest(TestExecutionTier execution_tier,
@@ -1929,7 +1929,7 @@ WASM_SIMD_TEST_NO_LOWERING(I16x8ExtAddPairwiseI8x16U) {
                                            kExprI16x8ExtAddPairwiseI8x16U,
                                            kExprI8x16Splat);
 }
-#endif  // V8_TARGET_ARCH_ARM64
+#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
 
 void RunI32x4BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                        WasmOpcode opcode, Int32BinOp expected_op) {

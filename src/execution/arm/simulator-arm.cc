@@ -4288,6 +4288,20 @@ void PairwiseAdd(Simulator* simulator, int Vd, int Vm, int Vn) {
   simulator->set_neon_register<T, kDoubleSize>(Vd, dst);
 }
 
+template <typename NarrowType, typename WideType, int SIZE = kSimd128Size>
+void PairwiseAddLong(Simulator* simulator, int Vd, int Vm) {
+  DCHECK_EQ(sizeof(WideType), 2 * sizeof(NarrowType));
+  static constexpr int kSElems = SIZE / sizeof(NarrowType);
+  static constexpr int kTElems = SIZE / sizeof(WideType);
+  NarrowType src[kSElems];
+  WideType dst[kTElems];
+  simulator->get_neon_register<NarrowType, SIZE>(Vm, src);
+  for (int i = 0; i < kTElems; i++) {
+    dst[i] = WideType{src[i * 2]} + WideType{src[i * 2 + 1]};
+  }
+  simulator->set_neon_register<WideType, SIZE>(Vd, dst);
+}
+
 template <typename T, int SIZE = kSimd128Size>
 void RoundingAverageUnsigned(Simulator* simulator, int Vd, int Vm, int Vn) {
   static_assert(std::is_unsigned<T>::value,
@@ -4453,6 +4467,28 @@ void Simulator::DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr) {
         default:
           UNREACHABLE();
           break;
+      }
+    } else if (opc1 == 0 && (opc2 == 0b0100 || opc2 == 0b0101)) {
+      DCHECK_EQ(1, instr->Bit(6));  // Only support Q regs.
+      int Vd = instr->VFPDRegValue(kSimd128Precision);
+      int Vm = instr->VFPMRegValue(kSimd128Precision);
+      int is_signed = instr->Bit(7) == 0;
+      // vpaddl Qd, Qm.
+      switch (size) {
+        case Neon8:
+          is_signed ? PairwiseAddLong<int8_t, int16_t>(this, Vd, Vm)
+                    : PairwiseAddLong<uint8_t, uint16_t>(this, Vd, Vm);
+          break;
+        case Neon16:
+          is_signed ? PairwiseAddLong<int16_t, int32_t>(this, Vd, Vm)
+                    : PairwiseAddLong<uint16_t, uint32_t>(this, Vd, Vm);
+          break;
+        case Neon32:
+          is_signed ? PairwiseAddLong<int32_t, int64_t>(this, Vd, Vm)
+                    : PairwiseAddLong<uint32_t, uint64_t>(this, Vd, Vm);
+          break;
+        case Neon64:
+          UNREACHABLE();
       }
     } else if (size == 0 && opc1 == 0b10 && opc2 == 0) {
       if (instr->Bit(6) == 0) {

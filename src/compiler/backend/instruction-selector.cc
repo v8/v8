@@ -2801,6 +2801,14 @@ void InstructionSelector::VisitI64x2UConvertI32x4High(Node* node) {
 // TODO(v8:11002) Prototype i8x16.popcnt.
 void InstructionSelector::VisitI8x16Popcnt(Node* node) { UNIMPLEMENTED(); }
 
+// TODO(v8:11168): Prototyping prefetch.
+void InstructionSelector::VisitPrefetchTemporal(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitPrefetchNonTemporal(Node* node) {
+  UNIMPLEMENTED();
+}
+#endif  // !V8_TARGET_ARCH_ARM64
+
+#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM
 // TODO(v8:11086) Prototype extended pairwise add.
 void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8S(Node* node) {
   UNIMPLEMENTED();
@@ -2814,13 +2822,7 @@ void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16S(Node* node) {
 void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16U(Node* node) {
   UNIMPLEMENTED();
 }
-
-// TODO(v8:11168): Prototyping prefetch.
-void InstructionSelector::VisitPrefetchTemporal(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitPrefetchNonTemporal(Node* node) {
-  UNIMPLEMENTED();
-}
-#endif  // !V8_TARGET_ARCH_ARM64
+#endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM
 
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64 && \
     !V8_TARGET_ARCH_ARM
