@@ -442,8 +442,9 @@ class WasmGraphBuildingInterface {
   void LoadLane(FullDecoder* decoder, LoadType type, const Value& value,
                 const Value& index, const MemoryAccessImmediate<validate>& imm,
                 const uint8_t laneidx, Value* result) {
-    result->node = BUILD(LoadLane, type.mem_type(), value.node, index.node,
-                         imm.offset, laneidx, decoder->position());
+    result->node = BUILD(LoadLane, type.value_type(), type.mem_type(),
+                         value.node, index.node, imm.offset, imm.alignment,
+                         laneidx, decoder->position());
   }
 
   void StoreMem(FullDecoder* decoder, StoreType type,

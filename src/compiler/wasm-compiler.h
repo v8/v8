@@ -316,7 +316,8 @@ class WasmGraphBuilder {
                       wasm::LoadTransformationKind transform, Node* index,
                       uint64_t offset, uint32_t alignment,
                       wasm::WasmCodePosition position);
-  Node* LoadLane(MachineType memtype, Node* value, Node* index, uint64_t offset,
+  Node* LoadLane(wasm::ValueType type, MachineType memtype, Node* value,
+                 Node* index, uint64_t offset, uint32_t alignment,
                  uint8_t laneidx, wasm::WasmCodePosition position);
   Node* StoreMem(MachineRepresentation mem_rep, Node* index, uint64_t offset,
                  uint32_t alignment, Node* val, wasm::WasmCodePosition position,

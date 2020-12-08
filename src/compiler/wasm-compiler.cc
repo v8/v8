@@ -4072,8 +4072,9 @@ Node* WasmGraphBuilder::LoadTransformBigEndian(
 }
 #endif
 
-Node* WasmGraphBuilder::LoadLane(MachineType memtype, Node* value, Node* index,
-                                 uint64_t offset, uint8_t laneidx,
+Node* WasmGraphBuilder::LoadLane(wasm::ValueType type, MachineType memtype,
+                                 Node* value, Node* index, uint64_t offset,
+                                 uint32_t alignment, uint8_t laneidx,
                                  wasm::WasmCodePosition position) {
   has_simd_ = true;
   Node* load;
@@ -4081,11 +4082,29 @@ Node* WasmGraphBuilder::LoadLane(MachineType memtype, Node* value, Node* index,
   index =
       BoundsCheckMem(access_size, index, offset, position, kCanOmitBoundsCheck);
 
+  // {offset} is validated to be within uintptr_t range in {BoundsCheckMem}.
+  uintptr_t capped_offset = static_cast<uintptr_t>(offset);
+#if defined(V8_TARGET_BIG_ENDIAN) || defined(V8_TARGET_ARCH_S390_LE_SIM)
+  load = LoadMem(type, memtype, index, offset, alignment, position);
+  if (memtype == MachineType::Int8()) {
+    load = graph()->NewNode(mcgraph()->machine()->I8x16ReplaceLane(laneidx),
+                            value, load);
+  } else if (memtype == MachineType::Int16()) {
+    load = graph()->NewNode(mcgraph()->machine()->I16x8ReplaceLane(laneidx),
+                            value, load);
+  } else if (memtype == MachineType::Int32()) {
+    load = graph()->NewNode(mcgraph()->machine()->I32x4ReplaceLane(laneidx),
+                            value, load);
+  } else if (memtype == MachineType::Int64()) {
+    load = graph()->NewNode(mcgraph()->machine()->I64x2ReplaceLane(laneidx),
+                            value, load);
+  } else {
+    UNREACHABLE();
+  }
+#else
   MemoryAccessKind load_kind =
       GetMemoryAccessKind(mcgraph(), memtype, use_trap_handler());
 
-  // {offset} is validated to be within uintptr_t range in {BoundsCheckMem}.
-  uintptr_t capped_offset = static_cast<uintptr_t>(offset);
   load = SetEffect(graph()->NewNode(
       mcgraph()->machine()->LoadLane(load_kind, memtype, laneidx),
       MemBuffer(capped_offset), index, value, effect(), control()));
@@ -4093,7 +4112,7 @@ Node* WasmGraphBuilder::LoadLane(MachineType memtype, Node* value, Node* index,
   if (load_kind == MemoryAccessKind::kProtected) {
     SetSourcePosition(load, position);
   }
-
+#endif
   if (FLAG_trace_wasm_memory) {
     TraceMemoryOperation(false, memtype.representation(), index, capped_offset,
                          position);
@@ -4223,12 +4242,30 @@ Node* WasmGraphBuilder::StoreLane(MachineRepresentation mem_rep, Node* index,
   index = BoundsCheckMem(i::ElementSizeInBytes(mem_rep), index, offset,
                          position, kCanOmitBoundsCheck);
 
+  // {offset} is validated to be within uintptr_t range in {BoundsCheckMem}.
+  uintptr_t capped_offset = static_cast<uintptr_t>(offset);
+#if defined(V8_TARGET_BIG_ENDIAN) || defined(V8_TARGET_ARCH_S390_LE_SIM)
+  Node* output;
+  if (mem_rep == MachineRepresentation::kWord8) {
+    output =
+        graph()->NewNode(mcgraph()->machine()->I8x16ExtractLaneS(laneidx), val);
+  } else if (mem_rep == MachineRepresentation::kWord16) {
+    output =
+        graph()->NewNode(mcgraph()->machine()->I16x8ExtractLaneS(laneidx), val);
+  } else if (mem_rep == MachineRepresentation::kWord32) {
+    output =
+        graph()->NewNode(mcgraph()->machine()->I32x4ExtractLane(laneidx), val);
+  } else if (mem_rep == MachineRepresentation::kWord64) {
+    output =
+        graph()->NewNode(mcgraph()->machine()->I64x2ExtractLane(laneidx), val);
+  } else {
+    UNREACHABLE();
+  }
+  store = StoreMem(mem_rep, index, offset, alignment, output, position, type);
+#else
   MachineType memtype = MachineType(mem_rep, MachineSemantic::kNone);
   MemoryAccessKind load_kind =
       GetMemoryAccessKind(mcgraph(), memtype, use_trap_handler());
-
-  // {offset} is validated to be within uintptr_t range in {BoundsCheckMem}.
-  uintptr_t capped_offset = static_cast<uintptr_t>(offset);
 
   store = SetEffect(graph()->NewNode(
       mcgraph()->machine()->StoreLane(load_kind, mem_rep, laneidx),
@@ -4237,7 +4274,7 @@ Node* WasmGraphBuilder::StoreLane(MachineRepresentation mem_rep, Node* index,
   if (load_kind == MemoryAccessKind::kProtected) {
     SetSourcePosition(store, position);
   }
-
+#endif
   if (FLAG_trace_wasm_memory) {
     TraceMemoryOperation(true, mem_rep, index, capped_offset, position);
   }
