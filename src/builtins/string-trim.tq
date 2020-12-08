@@ -13,10 +13,15 @@ extern enum TrimMode extends uint31 constexpr 'String::TrimMode' {
 }
 
 @export
-macro IsWhiteSpaceOrLineTerminator(charCode: char16): bool {
+macro IsWhiteSpaceOrLineTerminator(charCode: char16|char8): bool {
   // 0x0020 - SPACE (Intentionally out of order to fast path a commmon case)
   if (charCode == 0x0020) {
     return true;
+  }
+
+  // Common Non-whitespace characters from (0x000E, 0x00A0)
+  if (Unsigned(Convert<int32>(charCode) - 0x000E) < 0x0092) {
+    return false;
   }
 
   // 0x0009 - HORIZONTAL TAB
@@ -29,11 +34,6 @@ macro IsWhiteSpaceOrLineTerminator(charCode: char16): bool {
   // 0x000D - HORIZONTAL TAB
   if (charCode <= 0x000D) {
     return true;
-  }
-
-  // Common Non-whitespace characters
-  if (charCode < 0x00A0) {
-    return false;
   }
 
   // 0x00A0 - NO-BREAK SPACE
@@ -92,49 +92,59 @@ macro IsWhiteSpaceOrLineTerminator(charCode: char16): bool {
   return false;
 }
 
-transitioning macro StringTrim(implicit context: Context)(
-    receiver: JSAny, _arguments: Arguments, methodName: constexpr string,
-    variant: constexpr TrimMode): String {
-  const receiverString: String = ToThisString(receiver, methodName);
-  const stringLength: intptr = receiverString.length_intptr;
+transitioning macro StringTrimLoop<T: type>(implicit context: Context)(
+    stringSlice: ConstSlice<T>, startIndex: intptr, endIndex: intptr,
+    increment: intptr): intptr {
+  let index = startIndex;
+  while (true) {
+    if (index == endIndex) {
+      return index;
+    }
 
-  const directString = Cast<DirectString>(receiverString)
-      otherwise return runtime::StringTrim(
-      receiverString, SmiTag<TrimMode>(variant));
+    const char: T = *stringSlice.AtIndex(index);
+    if (!IsWhiteSpaceOrLineTerminator(char)) {
+      return index;
+    }
+    index = index + increment;
+  }
+  unreachable;
+}
+
+transitioning macro StringTrimBody<T: type>(implicit context: Context)(
+    string: String, slice: ConstSlice<T>, variant: constexpr TrimMode): String {
+  const stringLength: intptr = string.length_intptr;
 
   let startIndex: intptr = 0;
   let endIndex: intptr = stringLength - 1;
-
-  // TODO(duongn): It would probably be more efficient to turn StringTrim into a
-  // tempalate for the different string types and specialize the loop for them.
   if (variant == TrimMode::kTrim || variant == TrimMode::kTrimStart) {
-    while (true) {
-      if (startIndex == stringLength) {
-        return EmptyStringConstant();
-      }
-      if (!IsWhiteSpaceOrLineTerminator(
-              StringCharCodeAt(directString, Unsigned(startIndex)))) {
-        break;
-      }
-      startIndex++;
+    startIndex = StringTrimLoop(slice, startIndex, stringLength, 1);
+    if (startIndex == stringLength) {
+      return kEmptyString;
     }
   }
 
   if (variant == TrimMode::kTrim || variant == TrimMode::kTrimEnd) {
-    while (true) {
-      if (endIndex == -1) {
-        return EmptyStringConstant();
-      }
-      if (!IsWhiteSpaceOrLineTerminator(
-              StringCharCodeAt(directString, Unsigned(endIndex)))) {
-        break;
-      }
-      endIndex--;
+    endIndex = StringTrimLoop(slice, endIndex, -1, -1);
+    if (endIndex == -1) {
+      return kEmptyString;
     }
   }
 
-  return SubString(
-      receiverString, Unsigned(startIndex), Unsigned(endIndex + 1));
+  return SubString(string, Unsigned(startIndex), Unsigned(endIndex + 1));
+}
+
+transitioning macro StringTrim(implicit context: Context)(
+    receiver: JSAny, _arguments: Arguments, methodName: constexpr string,
+    variant: constexpr TrimMode): String {
+  const receiverString: String = ToThisString(receiver, methodName);
+
+  try {
+    GetStringData(receiverString) otherwise OneByte, TwoByte;
+  } label OneByte(slice: ConstSlice<char8>) {
+    return StringTrimBody(receiverString, slice, variant);
+  } label TwoByte(slice: ConstSlice<char16>) {
+    return StringTrimBody(receiverString, slice, variant);
+  }
 }
 
 // ES6 #sec-string.prototype.trim
@@ -160,9 +170,4 @@ StringPrototypeTrimEnd(
   const methodName: constexpr string = 'String.prototype.trimRight';
   return StringTrim(receiver, arguments, methodName, TrimMode::kTrimEnd);
 }
-}
-
-namespace runtime {
-extern runtime StringTrim(implicit context: Context)(
-    String, SmiTagged<string::TrimMode>): String;
 }

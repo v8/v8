@@ -335,7 +335,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(StringReplaceOneCharWithString)           \
   V(StringSubstring)                          \
   V(StringToNumber)                           \
-  V(StringTrim)                               \
   /* BigInts */                               \
   V(BigIntEqualToBigInt)                      \
   V(BigIntToBoolean)                          \
