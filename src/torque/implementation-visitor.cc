@@ -66,9 +66,10 @@ void ImplementationVisitor::BeginGeneratedFiles() {
   }
 
   for (SourceId file : SourceFileMap::AllSources()) {
+    auto& streams = GlobalContext::GeneratedPerFile(file);
     // Output beginning of CSA .cc file.
     {
-      std::ostream& out = GlobalContext::GeneratedPerFile(file).csa_ccfile;
+      std::ostream& out = streams.csa_ccfile;
 
       for (const std::string& include_path : GlobalContext::CppIncludes()) {
         out << "#include " << StringLiteralQuote(include_path) << "\n";
@@ -87,12 +88,12 @@ void ImplementationVisitor::BeginGeneratedFiles() {
     }
     // Output beginning of CSA .h file.
     {
-      std::ostream& out = GlobalContext::GeneratedPerFile(file).csa_headerfile;
-      std::string headerDefine =
+      std::ostream& out = streams.csa_headerfile;
+      std::string header_define =
           "V8_GEN_TORQUE_GENERATED_" +
-          UnderlinifyPath(SourceFileMap::PathFromV8Root(file)) + "_H_";
-      out << "#ifndef " << headerDefine << "\n";
-      out << "#define " << headerDefine << "\n\n";
+          UnderlinifyPath(SourceFileMap::PathFromV8Root(file)) + "_CSA_H_";
+      out << "#ifndef " << header_define << "\n";
+      out << "#define " << header_define << "\n\n";
       out << "#include \"src/builtins/torque-csa-header-includes.h\"\n";
       out << "\n";
 
@@ -102,7 +103,6 @@ void ImplementationVisitor::BeginGeneratedFiles() {
     }
     // Output beginning of class definition .cc file.
     {
-      auto& streams = GlobalContext::GeneratedPerFile(file);
       std::ostream& out = streams.class_definition_ccfile;
       if (contains_class_definitions.count(file) != 0) {
         out << "#include \""
@@ -120,73 +120,33 @@ void ImplementationVisitor::BeginGeneratedFiles() {
 
 void ImplementationVisitor::EndGeneratedFiles() {
   for (SourceId file : SourceFileMap::AllSources()) {
+    auto& streams = GlobalContext::GeneratedPerFile(file);
     {
-      std::ostream& out = GlobalContext::GeneratedPerFile(file).csa_ccfile;
+      std::ostream& out = streams.csa_ccfile;
 
       out << "}  // namespace internal\n"
           << "}  // namespace v8\n"
           << "\n";
     }
     {
-      std::ostream& out = GlobalContext::GeneratedPerFile(file).csa_headerfile;
+      std::ostream& out = streams.csa_headerfile;
 
-      std::string headerDefine =
+      std::string header_define =
           "V8_GEN_TORQUE_GENERATED_" +
-          UnderlinifyPath(SourceFileMap::PathFromV8Root(file)) + "_H_";
+          UnderlinifyPath(SourceFileMap::PathFromV8Root(file)) + "_CSA_H_";
 
       out << "}  // namespace internal\n"
           << "}  // namespace v8\n"
           << "\n";
-      out << "#endif  // " << headerDefine << "\n";
+      out << "#endif  // " << header_define << "\n";
     }
     {
-      std::ostream& out =
-          GlobalContext::GeneratedPerFile(file).class_definition_ccfile;
+      std::ostream& out = streams.class_definition_ccfile;
 
       out << "} // namespace v8\n";
       out << "} // namespace internal\n";
     }
   }
-}
-
-void ImplementationVisitor::BeginRuntimeMacrosFile() {
-  std::ostream& source = runtime_macros_cc_;
-  std::ostream& header = runtime_macros_h_;
-
-  source << "#include \"torque-generated/runtime-macros.h\"\n\n";
-  source << "#include \"src/torque/runtime-macro-shims.h\"\n";
-  for (const std::string& include_path : GlobalContext::CppIncludes()) {
-    source << "#include " << StringLiteralQuote(include_path) << "\n";
-  }
-  source << "\n";
-
-  source << "namespace v8 {\n"
-         << "namespace internal {\n"
-         << "\n";
-
-  const char* kHeaderDefine = "V8_GEN_TORQUE_GENERATED_RUNTIME_MACROS_H_";
-  header << "#ifndef " << kHeaderDefine << "\n";
-  header << "#define " << kHeaderDefine << "\n\n";
-  header << "#include \"src/builtins/torque-csa-header-includes.h\"\n";
-  header << "\n";
-
-  header << "namespace v8 {\n"
-         << "namespace internal {\n"
-         << "\n";
-}
-
-void ImplementationVisitor::EndRuntimeMacrosFile() {
-  std::ostream& source = runtime_macros_cc_;
-  std::ostream& header = runtime_macros_h_;
-
-  source << "}  // namespace internal\n"
-         << "}  // namespace v8\n"
-         << "\n";
-
-  header << "\n}  // namespace internal\n"
-         << "}  // namespace v8\n"
-         << "\n";
-  header << "#endif  // V8_GEN_TORQUE_GENERATED_RUNTIME_MACROS_H_\n";
 }
 
 void ImplementationVisitor::Visit(NamespaceConstant* decl) {
@@ -356,6 +316,14 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
   GenerateMacroFunctionDeclaration(csa_headerfile(), macro);
   csa_headerfile() << ";\n";
 
+  // Avoid multiple-definition errors since it is possible for multiple
+  // generated -inl.inc files to all contain function definitions for the same
+  // Torque macro.
+  if (output_type_ == OutputType::kCC) {
+    csa_ccfile() << "#ifndef V8_INTERNAL_DEFINED_" << macro->CCName() << "\n";
+    csa_ccfile() << "#define V8_INTERNAL_DEFINED_" << macro->CCName() << "\n";
+  }
+
   GenerateMacroFunctionDeclaration(csa_ccfile(), macro);
   csa_ccfile() << " {\n";
 
@@ -469,7 +437,12 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
     }
     csa_ccfile() << ";\n";
   }
-  csa_ccfile() << "}\n\n";
+  csa_ccfile() << "}\n";
+  if (output_type_ == OutputType::kCC) {
+    csa_ccfile() << "#endif //  V8_INTERNAL_DEFINED_" << macro->CCName()
+                 << "\n";
+  }
+  csa_ccfile() << "\n";
 }
 
 void ImplementationVisitor::Visit(TorqueMacro* macro) {
@@ -1697,13 +1670,13 @@ void ImplementationVisitor::GenerateImplementation(const std::string& dir) {
     WriteFile(base_filename + "-tq-csa.h", streams.csa_headerfile.str());
     WriteFile(base_filename + "-tq.inc",
               streams.class_definition_headerfile.str());
-    WriteFile(base_filename + "-tq-inl.inc",
-              streams.class_definition_inline_headerfile.str());
+    WriteFile(
+        base_filename + "-tq-inl.inc",
+        streams.class_definition_inline_headerfile_macro_declarations.str() +
+            streams.class_definition_inline_headerfile_macro_definitions.str() +
+            streams.class_definition_inline_headerfile.str());
     WriteFile(base_filename + "-tq.cc", streams.class_definition_ccfile.str());
   }
-
-  WriteFile(dir + "/runtime-macros.h", runtime_macros_h_.str());
-  WriteFile(dir + "/runtime-macros.cc", runtime_macros_cc_.str());
 }
 
 void ImplementationVisitor::GenerateMacroFunctionDeclaration(std::ostream& o,
@@ -1719,6 +1692,9 @@ std::vector<std::string> ImplementationVisitor::GenerateFunctionDeclaration(
     const Signature& signature, const NameVector& parameter_names,
     bool pass_code_assembler_state) {
   std::vector<std::string> generated_parameter_names;
+  if (output_type_ == OutputType::kCC) {
+    o << "inline ";
+  }
   if (signature.return_type->IsVoidOrNever()) {
     o << "void";
   } else {
@@ -2677,10 +2653,12 @@ VisitResult ImplementationVisitor::GenerateCall(
 
     // If we're currently generating a C++ macro and it's calling another macro,
     // then we need to make sure that we also generate C++ code for the called
-    // macro.
+    // macro within the same -inl.inc file.
     if (output_type_ == OutputType::kCC && !inline_macro) {
       if (auto* torque_macro = TorqueMacro::DynamicCast(macro)) {
-        GlobalContext::EnsureInCCOutputList(torque_macro);
+        auto* streams = CurrentFileStreams::Get();
+        SourceId file = streams ? streams->file : SourceId::Invalid();
+        GlobalContext::EnsureInCCOutputList(torque_macro, file);
       }
     }
 
@@ -3176,11 +3154,11 @@ void ImplementationVisitor::VisitAllDeclarables() {
 
   // Do the same for macros which generate C++ code.
   output_type_ = OutputType::kCC;
-  const std::vector<TorqueMacro*>& cc_macros =
+  const std::vector<std::pair<TorqueMacro*, SourceId>>& cc_macros =
       GlobalContext::AllMacrosForCCOutput();
   for (size_t i = 0; i < cc_macros.size(); ++i) {
     try {
-      Visit(static_cast<Declarable*>(cc_macros[i]));
+      Visit(static_cast<Declarable*>(cc_macros[i].first), cc_macros[i].second);
     } catch (TorqueAbortCompilation&) {
       // Recover from compile errors here. The error is recorded already.
     }
@@ -3188,11 +3166,13 @@ void ImplementationVisitor::VisitAllDeclarables() {
   output_type_ = OutputType::kCSA;
 }
 
-void ImplementationVisitor::Visit(Declarable* declarable) {
+void ImplementationVisitor::Visit(Declarable* declarable,
+                                  base::Optional<SourceId> file) {
   CurrentScope::Scope current_scope(declarable->ParentScope());
   CurrentSourcePosition::Scope current_source_position(declarable->Position());
   CurrentFileStreams::Scope current_file_streams(
-      &GlobalContext::GeneratedPerFile(declarable->Position().source));
+      &GlobalContext::GeneratedPerFile(file ? *file
+                                            : declarable->Position().source));
   if (Callable* callable = Callable::DynamicCast(declarable)) {
     if (!callable->ShouldGenerateExternalCode(output_type_))
       CurrentFileStreams::Get() = nullptr;
@@ -4686,12 +4666,14 @@ void ImplementationVisitor::GenerateClassVerifiers(
     cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
     cc_contents << "#include "
                    "\"src/objects/all-objects-inl.h\"\n";
-    cc_contents << "#include \"torque-generated/runtime-macros.h\"\n";
 
     IncludeObjectMacrosScope object_macros(cc_contents);
 
     NamespaceScope h_namespaces(h_contents, {"v8", "internal"});
     NamespaceScope cc_namespaces(cc_contents, {"v8", "internal"});
+
+    cc_contents
+        << "#include \"torque-generated/test/torque/test-torque-tq-inl.inc\"\n";
 
     // Generate forward declarations to avoid including any headers.
     h_contents << "class Isolate;\n";

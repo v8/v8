@@ -897,7 +897,8 @@ void ClassType::GenerateSliceAccessor(size_t field_index) {
 
   Macro* macro = Declarations::DeclareMacro(macro_name, true, base::nullopt,
                                             signature, block, base::nullopt);
-  GlobalContext::EnsureInCCOutputList(TorqueMacro::cast(macro));
+  GlobalContext::EnsureInCCOutputList(TorqueMacro::cast(macro),
+                                      macro->Position().source);
 }
 
 bool ClassType::HasStaticSize() const {

@@ -20,6 +20,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/ordered-hash-table-tq-inl.inc"
+
 CAST_ACCESSOR(OrderedNameDictionary)
 CAST_ACCESSOR(SmallOrderedNameDictionary)
 CAST_ACCESSOR(OrderedHashMap)

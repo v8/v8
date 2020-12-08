@@ -1400,8 +1400,6 @@ template("run_torque") {
       "$target_gen_dir/torque-generated/exported-macros-assembler.h",
       "$target_gen_dir/torque-generated/csa-types.h",
       "$target_gen_dir/torque-generated/instance-types.h",
-      "$target_gen_dir/torque-generated/runtime-macros.cc",
-      "$target_gen_dir/torque-generated/runtime-macros.h",
       "$target_gen_dir/torque-generated/class-forward-declarations.h",
     ]
 
@@ -1522,7 +1520,6 @@ v8_source_set("torque_generated_definitions") {
     "$target_gen_dir/torque-generated/class-verifiers.h",
     "$target_gen_dir/torque-generated/factory.cc",
     "$target_gen_dir/torque-generated/objects-printer.cc",
-    "$target_gen_dir/torque-generated/runtime-macros.cc",
   ]
   foreach(file, torque_files) {
     filetq = string_replace(file, ".tq", "-tq")

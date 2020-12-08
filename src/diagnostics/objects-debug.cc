@@ -76,7 +76,6 @@
 #include "src/utils/ostreams.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "torque-generated/class-verifiers.h"
-#include "torque-generated/runtime-macros.h"
 
 namespace v8 {
 namespace internal {
