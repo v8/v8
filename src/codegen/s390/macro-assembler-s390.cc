@@ -4707,8 +4707,8 @@ void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,
                 ? Deoptimizer::kLazyDeoptExitSize
                 : Deoptimizer::kNonLazyDeoptExitSize);
   if (kind == DeoptimizeKind::kEagerWithResume) {
-    b(ret);
-    DCHECK_LE(SizeOfCodeGeneratedSince(exit),
+    bc_long(Condition::al, ret);
+    DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
               Deoptimizer::kEagerWithResumeDeoptExitSize);
   }
 }

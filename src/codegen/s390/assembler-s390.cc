@@ -633,9 +633,10 @@ void Assembler::load_label_offset(Register r1, Label* L) {
 }
 
 // Pseudo op - branch on condition
-void Assembler::branchOnCond(Condition c, int branch_offset, bool is_bound) {
+void Assembler::branchOnCond(Condition c, int branch_offset, bool is_bound,
+                             bool force_long_branch) {
   int offset_in_halfwords = branch_offset / 2;
-  if (is_bound && is_int16(offset_in_halfwords)) {
+  if (is_bound && is_int16(offset_in_halfwords) && !force_long_branch) {
     brc(c, Operand(offset_in_halfwords));  // short jump
   } else {
     brcl(c, Operand(offset_in_halfwords));  // long jump

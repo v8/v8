@@ -948,17 +948,20 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   // Conditional Branch Instruction - Generates either BRC / BRCL
-  void branchOnCond(Condition c, int branch_offset, bool is_bound = false);
+  void branchOnCond(Condition c, int branch_offset, bool is_bound = false,
+                    bool force_long_branch = false);
 
   // Helpers for conditional branch to Label
-  void b(Condition cond, Label* l, Label::Distance dist = Label::kFar) {
+  void b(Condition cond, Label* l, Label::Distance dist = Label::kFar,
+         bool force_long_branch = false) {
     branchOnCond(cond, branch_offset(l),
-                 l->is_bound() || (dist == Label::kNear));
+                 l->is_bound() || (dist == Label::kNear), force_long_branch);
   }
 
   void bc_short(Condition cond, Label* l, Label::Distance dist = Label::kFar) {
     b(cond, l, Label::kNear);
   }
+  void bc_long(Condition cond, Label* l) { b(cond, l, Label::kFar, true); }
   // Helpers for conditional branch to Label
   void beq(Label* l, Label::Distance dist = Label::kFar) { b(eq, l, dist); }
   void bne(Label* l, Label::Distance dist = Label::kFar) { b(ne, l, dist); }
