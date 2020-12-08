@@ -157,5 +157,17 @@ TEST_F(StringsStorageWithIsolate, InvalidRelease) {
 #endif  // DEBUG
 }
 
+TEST_F(StringsStorageWithIsolate, CopyAndConsShareStorage) {
+  StringsStorage storage;
+
+  Handle<String> str = isolate()->factory()->NewStringFromAsciiChecked("foo");
+
+  const char* copy_str = storage.GetCopy("get foo");
+  const char* cons_str = storage.GetConsName("get ", *str);
+
+  CHECK_EQ(storage.GetStringCountForTesting(), 1);
+  CHECK_EQ(copy_str, cons_str);
+}
+
 }  // namespace internal
 }  // namespace v8

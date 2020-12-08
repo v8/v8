@@ -101,7 +101,7 @@ const char* StringsStorage::GetConsName(const char* prefix, Name name) {
     char* cons_result = NewArray<char>(cons_length);
     snprintf(cons_result, cons_length, "%s%s", prefix, data.get());
 
-    return AddOrDisposeString(cons_result, cons_length);
+    return AddOrDisposeString(cons_result, cons_length - 1);
   } else if (name.IsSymbol()) {
     return "<symbol>";
   }
