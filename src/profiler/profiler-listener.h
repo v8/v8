@@ -43,7 +43,7 @@ class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener {
                        Handle<SharedFunctionInfo> shared,
                        Handle<Name> script_name, int line, int column) override;
   void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
-                       wasm::WasmName name, int script_id) override;
+                       wasm::WasmName name) override;
 
   void CallbackEvent(Handle<Name> name, Address entry_point) override;
   void GetterCallbackEvent(Handle<Name> name, Address entry_point) override;

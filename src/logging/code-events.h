@@ -84,7 +84,7 @@ class CodeEventListener {
                                Handle<Name> script_name, int line,
                                int column) = 0;
   virtual void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
-                               wasm::WasmName name, int script_id) = 0;
+                               wasm::WasmName name) = 0;
 
   virtual void CallbackEvent(Handle<Name> name, Address entry_point) = 0;
   virtual void GetterCallbackEvent(Handle<Name> name, Address entry_point) = 0;
@@ -170,9 +170,9 @@ class CodeEventDispatcher : public CodeEventListener {
     });
   }
   void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
-                       wasm::WasmName name, int script_id) override {
+                       wasm::WasmName name) override {
     DispatchEventToListeners([=](CodeEventListener* listener) {
-      listener->CodeCreateEvent(tag, code, name, script_id);
+      listener->CodeCreateEvent(tag, code, name);
     });
   }
   void CallbackEvent(Handle<Name> name, Address entry_point) override {

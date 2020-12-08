@@ -1080,9 +1080,8 @@ bool IsLazyModule(const WasmModule* module) {
 
 }  // namespace
 
-bool CompileLazy(Isolate* isolate, Handle<WasmModuleObject> module_object,
+bool CompileLazy(Isolate* isolate, NativeModule* native_module,
                  int func_index) {
-  NativeModule* native_module = module_object->native_module();
   const WasmModule* module = native_module->module();
   auto enabled_features = native_module->enabled_features();
   Counters* counters = isolate->counters();
@@ -1129,9 +1128,7 @@ bool CompileLazy(Isolate* isolate, Handle<WasmModuleObject> module_object,
       native_module->AddCompiledCode(std::move(result)));
   DCHECK_EQ(func_index, code->index());
 
-  if (WasmCode::ShouldBeLogged(isolate)) {
-    code->LogCode(isolate, module_object->script().id());
-  }
+  if (WasmCode::ShouldBeLogged(isolate)) code->LogCode(isolate);
 
   counters->wasm_lazily_compiled_functions()->Increment();
 
@@ -1923,10 +1920,6 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
   // We can only update the feature counts once the entire compile is done.
   compilation_state->PublishDetectedFeatures(isolate_);
 
-  // Finally, log all generated code (it does not matter if this happens
-  // repeatedly in case the script is shared).
-  native_module_->LogWasmCodes(isolate_, script->id());
-
   FinishModule();
 }
 
@@ -2662,6 +2655,7 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
   } else {
     job_->native_module_->SetWireBytes(
         {std::move(job_->bytes_copy_), job_->wire_bytes_.length()});
+    job_->native_module_->LogWasmCodes(job_->isolate_);
   }
   const bool needs_finish = job_->DecrementAndCheckFinisherCount();
   DCHECK_IMPLIES(!has_code_section, needs_finish);

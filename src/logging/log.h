@@ -201,7 +201,7 @@ class Logger : public CodeEventListener {
                        Handle<SharedFunctionInfo> shared,
                        Handle<Name> script_name, int line, int column) override;
   void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
-                       wasm::WasmName name, int script_id) override;
+                       wasm::WasmName name) override;
 
   void CallbackEvent(Handle<Name> name, Address entry_point) override;
   void GetterCallbackEvent(Handle<Name> name, Address entry_point) override;
@@ -403,7 +403,7 @@ class V8_EXPORT_PRIVATE CodeEventLogger : public CodeEventListener {
                        Handle<SharedFunctionInfo> shared,
                        Handle<Name> script_name, int line, int column) override;
   void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
-                       wasm::WasmName name, int script_id) override;
+                       wasm::WasmName name) override;
 
   void RegExpCodeCreateEvent(Handle<AbstractCode> code,
                              Handle<String> source) override;
@@ -462,7 +462,7 @@ class ExternalCodeEventListener : public CodeEventListener {
                        Handle<SharedFunctionInfo> shared, Handle<Name> source,
                        int line, int column) override;
   void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
-                       wasm::WasmName name, int script_id) override;
+                       wasm::WasmName name) override;
 
   void RegExpCodeCreateEvent(Handle<AbstractCode> code,
                              Handle<String> source) override;

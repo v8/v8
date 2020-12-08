@@ -217,7 +217,7 @@ bool WasmCode::ShouldBeLogged(Isolate* isolate) {
          isolate->is_profiling();
 }
 
-void WasmCode::LogCode(Isolate* isolate, int script_id) const {
+void WasmCode::LogCode(Isolate* isolate) const {
   DCHECK(ShouldBeLogged(isolate));
   if (IsAnonymous()) return;
 
@@ -268,8 +268,8 @@ void WasmCode::LogCode(Isolate* isolate, int script_id) const {
                  "wasm-function[%d]", index()));
     name = VectorOf(name_buffer);
   }
-  PROFILE(isolate, CodeCreateEvent(CodeEventListener::FUNCTION_TAG, this, name,
-                                   script_id));
+  PROFILE(isolate,
+          CodeCreateEvent(CodeEventListener::FUNCTION_TAG, this, name));
 
   if (!source_positions().empty()) {
     LOG_CODE_EVENT(isolate, CodeLinePosInfoRecordEvent(instruction_start(),
@@ -856,7 +856,7 @@ void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
   code_space_data_[0].jump_table = main_jump_table_;
 }
 
-void NativeModule::LogWasmCodes(Isolate* isolate, int script_id) {
+void NativeModule::LogWasmCodes(Isolate* isolate) {
   if (!WasmCode::ShouldBeLogged(isolate)) return;
 
   TRACE_EVENT1("v8.wasm", "wasm.LogWasmCodes", "functions",
@@ -867,7 +867,7 @@ void NativeModule::LogWasmCodes(Isolate* isolate, int script_id) {
   WasmCodeRefScope code_ref_scope;
   base::MutexGuard lock(&allocation_mutex_);
   for (auto& owned_entry : owned_code_) {
-    owned_entry.second->LogCode(isolate, script_id);
+    owned_entry.second->LogCode(isolate);
   }
 }
 

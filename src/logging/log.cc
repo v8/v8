@@ -239,8 +239,7 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
 
 void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
                                       const wasm::WasmCode* code,
-                                      wasm::WasmName name,
-                                      int /* script_id */) {
+                                      wasm::WasmName name) {
   name_buffer_->Init(tag);
   DCHECK(!name.empty());
   name_buffer_->AppendBytes(name.begin(), name.length());
@@ -466,8 +465,7 @@ void ExternalCodeEventListener::CodeCreateEvent(
 
 void ExternalCodeEventListener::CodeCreateEvent(LogEventsAndTags tag,
                                                 const wasm::WasmCode* code,
-                                                wasm::WasmName name,
-                                                int script_id) {
+                                                wasm::WasmName name) {
   // TODO(mmarchini): handle later
 }
 
@@ -1362,7 +1360,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
 }
 
 void Logger::CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
-                             wasm::WasmName name, int /* script_id */) {
+                             wasm::WasmName name) {
   if (!is_listening_to_code_events()) return;
   if (!FLAG_log_code) return;
   MSG_BUILDER();
@@ -2194,8 +2192,7 @@ void ExistingCodeLogger::LogCompiledFunctions() {
   const std::vector<Handle<WasmModuleObject>> wasm_module_objects =
       EnumerateWasmModuleObjects(heap);
   for (auto& module_object : wasm_module_objects) {
-    int script_id = module_object->script().id();
-    module_object->native_module()->LogWasmCodes(isolate_, script_id);
+    module_object->native_module()->LogWasmCodes(isolate_);
   }
 }
 

@@ -129,9 +129,9 @@ class WasmGCForegroundTask : public CancelableTask {
 
 class WeakScriptHandle {
  public:
-  explicit WeakScriptHandle(Handle<Script> script) : script_id_(script->id()) {
+  explicit WeakScriptHandle(Handle<Script> handle) {
     auto global_handle =
-        script->GetIsolate()->global_handles()->Create(*script);
+        handle->GetIsolate()->global_handles()->Create(*handle);
     location_ = std::make_unique<Address*>(global_handle.location());
     GlobalHandles::MakeWeak(location_.get());
   }
@@ -146,18 +146,12 @@ class WeakScriptHandle {
 
   WeakScriptHandle(WeakScriptHandle&&) V8_NOEXCEPT = default;
 
-  Handle<Script> handle() const { return Handle<Script>(*location_); }
-
-  int script_id() const { return script_id_; }
+  Handle<Script> handle() { return Handle<Script>(*location_); }
 
  private:
   // Store the location in a unique_ptr so that its address stays the same even
   // when this object is moved/copied.
   std::unique_ptr<Address*> location_;
-
-  // Store the script ID independent of the weak handle, such that it's always
-  // available.
-  int script_id_;
 };
 
 }  // namespace
@@ -357,9 +351,8 @@ struct WasmEngine::IsolateInfo {
   // The currently scheduled LogCodesTask.
   LogCodesTask* log_codes_task = nullptr;
 
-  // The vector of code objects and associated script IDs that still need to be
-  // logged in this isolate.
-  std::vector<std::pair<std::vector<WasmCode*>, int>> code_to_log;
+  // The vector of code objects that still need to be logged in this isolate.
+  std::vector<WasmCode*> code_to_log;
 
   // The foreground task runner of the isolate (can be called from background).
   std::shared_ptr<v8::TaskRunner> foreground_task_runner;
@@ -515,7 +508,7 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   }
 
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
-  // in {CompileToNativeModule}.
+  // in {CompileToModuleObject}.
   Handle<FixedArray> export_wrappers;
   std::shared_ptr<NativeModule> native_module =
       CompileToNativeModule(isolate, enabled, thrower,
@@ -534,8 +527,6 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
 #endif
 
   Handle<Script> script = GetOrCreateScript(isolate, native_module);
-
-  native_module->LogWasmCodes(isolate, script->id());
 
   // Create the compiled module object and populate with compiled functions
   // and information needed at instantiation time. This object needs to be
@@ -994,8 +985,9 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
     if (RemoveIsolateFromCurrentGC(isolate)) PotentiallyFinishCurrentGC();
   }
   if (auto* task = info->log_codes_task) task->Cancel();
-  for (auto& pair : info->code_to_log) {
-    WasmCode::DecrementRefCount(VectorOf(pair.first));
+  if (!info->code_to_log.empty()) {
+    WasmCode::DecrementRefCount(VectorOf(info->code_to_log));
+    info->code_to_log.clear();
   }
 }
 
@@ -1017,21 +1009,8 @@ void WasmEngine::LogCode(Vector<WasmCode*> code_vec) {
     if (info->code_to_log.empty()) {
       isolate->stack_guard()->RequestLogWasmCode();
     }
-    auto script_it = info->scripts.find(native_module);
-    if (script_it == info->scripts.end()) {
-      // Script does not yet exist, logging will happen later.
-      continue;
-    }
-    int script_id = script_it->second.script_id();
-    if (!info->code_to_log.empty() &&
-        info->code_to_log.back().second == script_id) {
-      info->code_to_log.back().first.insert(
-          info->code_to_log.back().first.end(), code_vec.begin(),
-          code_vec.end());
-    } else {
-      info->code_to_log.emplace_back(
-          std::vector<WasmCode*>{code_vec.begin(), code_vec.end()}, script_id);
-    }
+    info->code_to_log.insert(info->code_to_log.end(), code_vec.begin(),
+                             code_vec.end());
     for (WasmCode* code : code_vec) {
       DCHECK_EQ(native_module, code->native_module());
       code->IncRef();
@@ -1049,7 +1028,7 @@ void WasmEngine::EnableCodeLogging(Isolate* isolate) {
 void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
   // Under the mutex, get the vector of wasm code to log. Then log and decrement
   // the ref count without holding the mutex.
-  std::vector<std::pair<std::vector<WasmCode*>, int>> code_to_log;
+  std::vector<WasmCode*> code_to_log;
   {
     base::MutexGuard guard(&mutex_);
     DCHECK_EQ(1, isolates_.count(isolate));
@@ -1060,13 +1039,11 @@ void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
   if (!WasmCode::ShouldBeLogged(isolate)) return;
 
   TRACE_EVENT1("v8.wasm", "wasm.LogCode", "codeObjects", code_to_log.size());
-  for (auto& pair : code_to_log) {
-    int script_id = pair.second;
-    for (WasmCode* code : pair.first) {
-      code->LogCode(isolate, script_id);
-    }
-    WasmCode::DecrementRefCount(VectorOf(pair.first));
+  if (code_to_log.empty()) return;
+  for (WasmCode* code : code_to_log) {
+    code->LogCode(isolate);
   }
+  WasmCode::DecrementRefCount(VectorOf(code_to_log));
 }
 
 std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
@@ -1171,19 +1148,18 @@ void WasmEngine::FreeNativeModule(NativeModule* native_module) {
     // If there are {WasmCode} objects of the deleted {NativeModule}
     // outstanding to be logged in this isolate, remove them. Decrementing the
     // ref count is not needed, since the {NativeModule} dies anyway.
-    for (auto& pair : info->code_to_log) {
-      auto part_of_native_module = [native_module](WasmCode* code) {
-        return code->native_module() == native_module;
-      };
-      auto new_end = std::remove_if(pair.first.begin(), pair.first.end(),
-                                    part_of_native_module);
-      pair.first.erase(new_end, pair.first.end());
+    size_t remaining = info->code_to_log.size();
+    if (remaining > 0) {
+      for (size_t i = 0; i < remaining; ++i) {
+        while (i < remaining &&
+               info->code_to_log[i]->native_module() == native_module) {
+          // Move the last remaining item to this slot (this can be the same
+          // as {i}, which is OK).
+          info->code_to_log[i] = info->code_to_log[--remaining];
+        }
+      }
+      info->code_to_log.resize(remaining);
     }
-    // Now remove empty vectors in {code_to_log}.
-    auto new_end =
-        std::remove_if(info->code_to_log.begin(), info->code_to_log.end(),
-                       [](auto& pair) { return pair.first.empty(); });
-    info->code_to_log.erase(new_end, info->code_to_log.end());
   }
   // If there is a GC running which has references to code contained in the
   // deleted {NativeModule}, remove those references.

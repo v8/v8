@@ -830,6 +830,9 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     if (error) return {};
   }
 
+  // Log the code within the generated module for profiling.
+  shared_native_module->LogWasmCodes(isolate);
+
   Handle<FixedArray> export_wrappers;
   CompileJsToWasmWrappers(isolate, shared_native_module->module(),
                           &export_wrappers);
@@ -841,10 +844,6 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
 
   // Finish the Wasm script now and make it public to the debugger.
   isolate->debug()->OnAfterCompile(script);
-
-  // Log the code within the generated module for profiling.
-  shared_native_module->LogWasmCodes(isolate, script->id());
-
   return module_object;
 }
 

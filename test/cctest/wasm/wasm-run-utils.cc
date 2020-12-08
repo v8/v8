@@ -558,8 +558,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   WasmCode* code = native_module->PublishCode(
       native_module->AddCompiledCode(std::move(result)));
   DCHECK_NOT_NULL(code);
-  int script_id = builder_->instance_object()->module_object().script().id();
-  if (WasmCode::ShouldBeLogged(isolate())) code->LogCode(isolate(), script_id);
+  if (WasmCode::ShouldBeLogged(isolate())) code->LogCode(isolate());
 }
 
 WasmFunctionCompiler::WasmFunctionCompiler(Zone* zone, const FunctionSig* sig,
