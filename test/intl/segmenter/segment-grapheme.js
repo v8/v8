@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --harmony-intl-segmenter
+
 const seg = new Intl.Segmenter([], {granularity: "grapheme"})
 for (const text of [
     "Hello world!", // English
