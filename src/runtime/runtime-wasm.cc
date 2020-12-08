@@ -202,14 +202,15 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
 
   DCHECK(isolate->context().is_null());
   isolate->set_context(instance->native_context());
-  auto* native_module = instance->module_object().native_module();
-  bool success = wasm::CompileLazy(isolate, native_module, func_index);
+  Handle<WasmModuleObject> module_object{instance->module_object(), isolate};
+  bool success = wasm::CompileLazy(isolate, module_object, func_index);
   if (!success) {
     DCHECK(isolate->has_pending_exception());
     return ReadOnlyRoots(isolate).exception();
   }
 
-  Address entrypoint = native_module->GetCallTargetForFunction(func_index);
+  Address entrypoint =
+      module_object->native_module()->GetCallTargetForFunction(func_index);
 
   return Object(entrypoint);
 }
