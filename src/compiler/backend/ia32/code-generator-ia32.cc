@@ -2329,13 +2329,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 i.InputOperand(0));
       break;
     }
-    case kSSEF32x4Sqrt: {
-      __ sqrtps(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kAVXF32x4Sqrt: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vsqrtps(i.OutputSimd128Register(), i.InputOperand(0));
+    case kIA32F32x4Sqrt: {
+      __ Sqrtps(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kIA32F32x4RecipApprox: {
