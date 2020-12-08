@@ -1263,10 +1263,7 @@ class WasmDecoder : public Decoder {
         case kExprMemoryGrow:
         case kExprCallFunction:
         case kExprCallIndirect:
-        case kExprReturnCall:
-        case kExprReturnCallIndirect:
         case kExprCallRef:
-        case kExprReturnCallRef:
           // Add instance cache to the assigned set.
           assigned->Add(locals_count);
           break;
