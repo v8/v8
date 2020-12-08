@@ -1,5 +1,6 @@
 V8 JavaScript Engine
 =============
+[![deepcode](https://www.deepcode.ai/api/gh/badge?key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwbGF0Zm9ybTEiOiJnaCIsIm93bmVyMSI6InY4IiwicmVwbzEiOiJ2OCIsImluY2x1ZGVMaW50IjpmYWxzZSwiYXV0aG9ySWQiOjIxMTc2LCJpYXQiOjE2MDc0MzIzOTN9.jdtg2xgNbU6XOQc7ShOgKUhaBEs1M73f_s69UHIeOjM)](https://www.deepcode.ai/app/gh/v8/v8/_/dashboard?utm_content=gh%2Fv8%2Fv8)
 
 V8 is Google's open source JavaScript engine.
 
