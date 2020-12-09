@@ -319,6 +319,9 @@
 
   # BUG(v8:10035)
   'compiler/deopt-array-builtins': [SKIP],
+
+  # BUG(v8:11240)
+  'regress/regress-v8-9267-1': [SKIP],
 }],  # 'gc_stress'
 
 ##############################################################################
