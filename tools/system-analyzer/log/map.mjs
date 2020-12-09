@@ -48,8 +48,12 @@ class MapLogEntry extends LogEntry {
     this.deprecatedTargets = null;
     this.leftId = 0;
     this.rightId = 0;
-    this.filePosition = '';
+    this.entry = undefined;
     this.description = '';
+  }
+
+  get functionName() {
+    return this.entry?.functionName;
   }
 
   toString() {
@@ -188,7 +192,10 @@ class MapLogEntry extends LogEntry {
   }
 
   static get propertyNames() {
-    return ['id', 'type', 'reason', 'property', 'script', 'sourcePosition'];
+    return [
+      'type', 'reason', 'property', 'functionName', 'sourcePosition', 'script',
+      'id'
+    ];
   }
 }
 

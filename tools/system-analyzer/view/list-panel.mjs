@@ -101,31 +101,6 @@ DOM.defineCustomElement('view/list-panel',
     this.dispatchEvent(new FocusEvent(sourcePosition));
   }
 
-  _render(groups, table) {
-    let last;
-    new LazyTable(table, groups, group => {
-      if (last && last.count < group.count) {
-        console.log(last, group);
-      }
-      last = group;
-      const tr = DOM.tr();
-      tr.group = group;
-      const details = tr.appendChild(DOM.td('', 'toggle'));
-      details.onclick = this._detailsClickHandler;
-      tr.appendChild(DOM.td(`${group.percent.toFixed(2)}%`, 'percentage'));
-      tr.appendChild(DOM.td(group.count, 'count'));
-      const valueTd = tr.appendChild(DOM.td(`${group.key}`, 'key'));
-      if (group.key instanceof MapLogEntry) {
-        tr.onclick = this._mapClickHandler;
-        valueTd.classList.add('clickable');
-      } else if (group.key instanceof SourcePosition) {
-        valueTd.classList.add('clickable');
-        tr.onclick = this._fileClickHandler;
-      }
-      return tr;
-    }, 10);
-  }
-
   _handleDetailsClick(event) {
     event.stopPropagation();
     const tr = event.target.parentNode;
@@ -160,13 +135,38 @@ DOM.defineCustomElement('view/list-panel',
     previousSibling.parentNode.insertBefore(tr, previousSibling.nextSibling);
   }
 
-  renderDrilldownGroup(td, group, key) {
+  renderDrilldownGroup(td, groups, key) {
     const div = DOM.div('drilldown-group-title');
-    div.textContent = `Grouped by ${key}`;
+    div.textContent = `Grouped by ${key}: ${groups[0]?.parentTotal ?? 0}#`;
     td.appendChild(div);
     const table = DOM.table();
-    this._render(group, table, false)
+    this._render(groups, table, false)
     td.appendChild(table);
+  }
+
+  _render(groups, table) {
+    let last;
+    new LazyTable(table, groups, group => {
+      if (last && last.count < group.count) {
+        console.log(last, group);
+      }
+      last = group;
+      const tr = DOM.tr();
+      tr.group = group;
+      const details = tr.appendChild(DOM.td('', 'toggle'));
+      details.onclick = this._detailsClickHandler;
+      tr.appendChild(DOM.td(`${group.percent.toFixed(2)}%`, 'percentage'));
+      tr.appendChild(DOM.td(group.count, 'count'));
+      const valueTd = tr.appendChild(DOM.td(`${group.key}`, 'key'));
+      if (group.key instanceof MapLogEntry) {
+        tr.onclick = this._mapClickHandler;
+        valueTd.classList.add('clickable');
+      } else if (group.key instanceof SourcePosition) {
+        valueTd.classList.add('clickable');
+        tr.onclick = this._fileClickHandler;
+      }
+      return tr;
+    }, 10);
   }
 
   initGroupKeySelect() {

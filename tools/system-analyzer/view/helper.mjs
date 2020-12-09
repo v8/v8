@@ -13,7 +13,8 @@ class CSSColor {
     if (color === undefined) {
       throw new Error(`CSS color does not exist: ${name}`);
     }
-    this._cache.set(name, color.trim());
+    color = color.trim();
+    this._cache.set(name, color);
     return color;
   }
   static reset() {
@@ -68,15 +69,31 @@ class CSSColor {
   static get blue() {
     return this.get('blue');
   }
+
   static get orange() {
     return this.get('orange');
   }
+
   static get violet() {
     return this.get('violet');
   }
+
   static at(index) {
     return this.list[index % this.list.length];
   }
+
+  static darken(hexColorString, amount = -40) {
+    if (hexColorString[0] !== '#') {
+      throw new Error(`Unsupported color: ${hexColorString}`);
+    }
+    let color = parseInt(hexColorString.substring(1), 16);
+    let b = Math.min(Math.max((color & 0xFF) + amount, 0), 0xFF);
+    let g = Math.min(Math.max(((color >> 8) & 0xFF) + amount, 0), 0xFF);
+    let r = Math.min(Math.max(((color >> 16) & 0xFF) + amount, 0), 0xFF);
+    color = (r << 16) + (g << 8) + b;
+    return `#${color.toString(16).padStart(6, '0')}`;
+  }
+
   static get list() {
     if (!this._colors) {
       this._colors = [
@@ -89,6 +106,15 @@ class CSSColor {
         this.blue,
         this.yellow,
         this.secondaryColor,
+        this.darken(this.green),
+        this.darken(this.violet),
+        this.darken(this.orange),
+        this.darken(this.yellow),
+        this.darken(this.primaryColor),
+        this.darken(this.red),
+        this.darken(this.blue),
+        this.darken(this.yellow),
+        this.darken(this.secondaryColor),
       ];
     }
     return this._colors;
@@ -206,8 +232,8 @@ class Chunked {
     this._limit = limit;
   }
 
-  * next() {
-    for (let i = 0; i < this._limit; i++) {
+  * next(limit = undefined) {
+    for (let i = 0; i < (limit ?? this._limit); i++) {
       const {value, done} = this._iterator.next();
       if (done) {
         this._iterator = undefined;
@@ -234,25 +260,29 @@ class LazyTable {
     }
     if (!table.tFoot) {
       const td = table.appendChild(DOM.element('tfoot'))
-                     .appendChild(DOM.tr('clickable'))
-                     .appendChild(DOM.td(`Show more...`));
+                     .appendChild(DOM.tr())
+                     .appendChild(DOM.td());
+      for (let count of [10, 100]) {
+        const button = DOM.element('button');
+        button.innerText = `+${count}`;
+        button.onclick = (e) => this._addMoreRows(count);
+        td.appendChild(button);
+      }
       td.setAttribute('colspan', 100);
     }
-    this._clickHandler = this._addMoreRows.bind(this);
     table.tFoot.addEventListener('click', this._clickHandler);
     this._addMoreRows();
   }
 
-  _addMoreRows() {
+  _addMoreRows(count = undefined) {
     const fragment = new DocumentFragment();
-    for (let row of this._chunkedRowData.next()) {
+    for (let row of this._chunkedRowData.next(count)) {
       const tr = this._rowElementCreator(row);
       fragment.appendChild(tr);
     }
     this._table.tBodies[0].appendChild(fragment);
     if (!this._chunkedRowData.hasMore) {
-      this._table.tFoot.removeEventListener('click', this._clickHandler);
-      this._table.tFoot.style.display = 'none';
+      DOM.removeAllChildren(this._table.tFoot);
     }
   }
 }

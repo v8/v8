@@ -100,7 +100,7 @@ export class Script {
   }
 
   toString() {
-    return this.name;
+    return `Script(${this.id}): ${this.name}`;
   }
 
   toStringLong() {
@@ -685,6 +685,10 @@ class DynamicFuncCodeEntry extends CodeEntry {
     this.state = state;
   }
 
+  get functionName() {
+    return this.func.functionName;
+  }
+
   getSourceCode() {
     return this.source?.getSourceCode();
   }
@@ -728,6 +732,8 @@ class FunctionEntry extends CodeEntry {
 
   constructor(name) {
     super(0, name);
+    const index = name.lastIndexOf(' ');
+    this.functionName = 1 <= index ? name.substring(0, index) : '<anonymous>';
   }
 
   addDynamicCode(code) {
@@ -748,10 +754,10 @@ class FunctionEntry extends CodeEntry {
   getName() {
     let name = this.name;
     if (name.length == 0) {
-      name = '<anonymous>';
+       return '<anonymous>';
     } else if (name.charAt(0) == ' ') {
       // An anonymous function with location: " aaa.js:10".
-      name = `<anonymous>${name}`;
+      return `<anonymous>${name}`;
     }
     return name;
   }

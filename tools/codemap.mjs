@@ -285,6 +285,10 @@ export class CodeEntry {
   toString() {
     return this.name + ': ' + this.size.toString(16);
   }
+
+  getSourceCode() {
+    return '';
+  }
 }
 
 class NameGenerator {

@@ -33,7 +33,7 @@ export class DeoptLogEntry extends LogEntry {
   }
 
   static get propertyNames() {
-    return ['type', 'reason', 'location', 'script', 'sourcePosition'];
+    return ['type', 'reason', 'sourcePosition', 'script'];
   }
 }
 
@@ -48,6 +48,30 @@ export class CodeLogEntry extends LogEntry {
     return this._kind;
   }
 
+  get entry() {
+    return this._entry;
+  }
+
+  get functionName() {
+    return this._entry.functionName;
+  }
+
+  get size() {
+    return this._entry.size;
+  }
+
+  get script() {
+    return this.sourcePosition?.script;
+  }
+
+  get source() {
+    return this._entry?.getSourceCode() ?? '';
+  }
+
+  get disassemble() {
+    return this._entry?.source?.disassemble;
+  }
+
   toString() {
     return `Code(${this.type})`;
   }
@@ -56,11 +80,7 @@ export class CodeLogEntry extends LogEntry {
     return `Code(${this.type}): ${this._entry.toString()}`;
   }
 
-  get disassemble() {
-    return this._entry?.source?.disassemble;
-  }
-
   static get propertyNames() {
-    return ['type', 'kind', 'script', 'sourcePosition'];
+    return ['type', 'kind', 'functionName', 'sourcePosition', 'script'];
   }
 }

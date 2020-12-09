@@ -4,9 +4,18 @@
 import {LogEntry} from './log.mjs';
 
 export class ApiLogEntry extends LogEntry {
-  constructor(type, time, name) {
+  constructor(type, time, name, argument) {
     super(type, time);
     this._name = name;
+    this._argument = argument;
+  }
+
+  get name() {
+    return this._name;
+  }
+
+  get argument() {
+    return this._argument;
   }
 
   toString() {
@@ -18,6 +27,6 @@ export class ApiLogEntry extends LogEntry {
   }
 
   static get propertyNames() {
-    return ['type', 'name'];
+    return ['type', 'name', 'argument'];
   }
 }

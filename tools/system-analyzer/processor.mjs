@@ -334,7 +334,7 @@ export class Processor extends LogReader {
     // TODO: use SourcePosition directly.
     let edge = new Edge(type, name, reason, time, from_, to_);
     const profileEntry = this._profile.findEntry(pc)
-    to_.filePosition = this.formatProfileEntry(profileEntry, line, column);
+    to_.entry = profileEntry;
     let script = this.getProfileEntryScript(profileEntry);
     if (script) {
       to_.sourcePosition = script.addSourcePosition(line, column, to_)
@@ -391,14 +391,20 @@ export class Processor extends LogReader {
     return script;
   }
 
-  processApiEvent(name, varArgs) {
+  processApiEvent(type, varArgs) {
+    let name, arg1;
     if (varArgs.length == 0) {
-      varArgs = [name];
-      const index = name.indexOf(':');
-      if (index > 0) name = name.substr(0, index);
+      const index = type.indexOf(':');
+      if (index > 0) {
+        name = type;
+        type = type.substr(0, index);
+      }
+    } else {
+      name = varArgs[0];
+      arg1 = varArgs[1];
     }
     this._apiTimeline.push(
-        new ApiLogEntry(name, this._lastTimestamp, varArgs[0]));
+        new ApiLogEntry(type, this._lastTimestamp, name, arg1));
   }
 
   get icTimeline() {

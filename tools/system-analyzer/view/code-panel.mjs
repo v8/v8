@@ -5,7 +5,7 @@ import {IcLogEntry} from '../log/ic.mjs';
 import {MapLogEntry} from '../log/map.mjs';
 
 import {FocusEvent, SelectionEvent, ToolTipEvent} from './events.mjs';
-import {delay, DOM, formatBytes, V8CustomElement} from './helper.mjs';
+import {delay, DOM, formatBytes, formatMicroSeconds, V8CustomElement} from './helper.mjs';
 
 DOM.defineCustomElement(
     'view/code-panel',
@@ -16,6 +16,7 @@ DOM.defineCustomElement(
 
       constructor() {
         super(templateText);
+        this._codeSelectNode.onchange = this._handleSelectCode.bind(this);
       }
 
       set timeline(timeline) {
@@ -26,8 +27,8 @@ DOM.defineCustomElement(
       set selectedEntries(entries) {
         this._selectedEntries = entries;
         // TODO: add code selection dropdown
-        this._entry = entries.first();
-        this.update();
+        this._updateSelect();
+        this.entry = entries.first();
       }
 
       set entry(entry) {
@@ -35,11 +36,38 @@ DOM.defineCustomElement(
         this.update();
       }
 
-      get codeNode() {
-        return this.$('#code');
+      get _disassemblyNode() {
+        return this.$('#disassembly');
+      }
+
+      get _sourceNode() {
+        return this.$('#sourceCode');
+      }
+
+      get _codeSelectNode() {
+        return this.$('#codeSelect');
       }
 
       _update() {
-        this.codeNode.innerText = this._entry?.disassemble ?? '';
+        this._disassemblyNode.innerText = this._entry?.disassemble ?? '';
+        this._sourceNode.innerText = this._entry?.source ?? '';
+      }
+
+      _updateSelect() {
+        const select = this._codeSelectNode;
+        select.options.length = 0;
+        const sorted =
+            this._selectedEntries.slice().sort((a, b) => a.time - b.time);
+        for (const code of this._selectedEntries) {
+          const option = DOM.element('option');
+          option.text =
+              `${code.name}(...) t=${formatMicroSeconds(code.time)} size=${
+                  formatBytes(code.size)} script=${code.script?.toString()}`;
+          option.data = code;
+          select.add(option);
+        }
+      }
+      _handleSelectCode() {
+        this.entry = this._codeSelectNode.selectedOptions[0].data;
       }
     });

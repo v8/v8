@@ -5,7 +5,7 @@
 export const KB = 1024;
 export const MB = KB * KB;
 export const GB = MB * KB;
-export const kMillis2Seconds = 1 / 1000;
+export const kMicro2Milli = 1 / 1000;
 
 export function formatBytes(bytes) {
   const units = ['B', 'KiB', 'MiB', 'GiB'];
@@ -18,8 +18,8 @@ export function formatBytes(bytes) {
   return bytes.toFixed(2) + units[index];
 }
 
-export function formatSeconds(millis) {
-  return (millis * kMillis2Seconds).toFixed(2) + 's';
+export function formatMicroSeconds(millis) {
+  return (millis * kMicro2Milli).toFixed(1) + 'ms';
 }
 
 export function delay(time) {
