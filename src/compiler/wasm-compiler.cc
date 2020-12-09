@@ -6294,9 +6294,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // Invalid object wrappers (i.e. any other JS object that doesn't have the
     // magic hidden property) will return {undefined}. Map that to {null} or
     // {input}, depending on the value of {failure}.
-    Node* undefined = LOAD_FULL_POINTER(
-        BuildLoadIsolateRoot(),
-        IsolateData::root_slot_offset(RootIndex::kUndefinedValue));
+    Node* undefined = BuildLoadUndefinedValueFromInstance();
     Node* is_undefined = gasm_->WordEqual(obj, undefined);
     Diamond check(graph(), mcgraph()->common(), is_undefined,
                   BranchHint::kFalse);
