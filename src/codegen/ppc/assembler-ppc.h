@@ -1026,6 +1026,10 @@ class Assembler : public AssemblerBase {
   void lxsibzx(const Simd128Register rt, const MemOperand& src);
   void lxsihzx(const Simd128Register rt, const MemOperand& src);
   void lxsiwzx(const Simd128Register rt, const MemOperand& src);
+  void stxsdx(const Simd128Register rs, const MemOperand& src);
+  void stxsibx(const Simd128Register rs, const MemOperand& src);
+  void stxsihx(const Simd128Register rs, const MemOperand& src);
+  void stxsiwx(const Simd128Register rs, const MemOperand& src);
   void stxvd(const Simd128Register rt, const MemOperand& src);
   void xxspltib(const Simd128Register rt, const Operand& imm);
 

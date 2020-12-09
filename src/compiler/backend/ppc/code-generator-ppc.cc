@@ -3580,6 +3580,99 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef ASSEMBLE_LOAD_TRANSFORM
+    case kPPC_S128Load8Lane: {
+      Simd128Register dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      AddressingMode mode = kMode_None;
+      size_t index = 1;
+      MemOperand operand = i.MemoryOperand(&mode, &index);
+      DCHECK_EQ(mode, kMode_MRR);
+      __ lxsibzx(kScratchDoubleReg, operand);
+      __ vinsertb(dst, kScratchDoubleReg, Operand(15 - i.InputUint8(3)));
+      break;
+    }
+    case kPPC_S128Load16Lane: {
+      Simd128Register dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      constexpr int lane_width_in_bytes = 2;
+      AddressingMode mode = kMode_None;
+      size_t index = 1;
+      MemOperand operand = i.MemoryOperand(&mode, &index);
+      DCHECK_EQ(mode, kMode_MRR);
+      __ lxsihzx(kScratchDoubleReg, operand);
+      __ vinserth(dst, kScratchDoubleReg,
+                  Operand((7 - i.InputUint8(3)) * lane_width_in_bytes));
+      break;
+    }
+    case kPPC_S128Load32Lane: {
+      Simd128Register dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      constexpr int lane_width_in_bytes = 4;
+      AddressingMode mode = kMode_None;
+      size_t index = 1;
+      MemOperand operand = i.MemoryOperand(&mode, &index);
+      DCHECK_EQ(mode, kMode_MRR);
+      __ lxsiwzx(kScratchDoubleReg, operand);
+      __ vinsertw(dst, kScratchDoubleReg,
+                  Operand((3 - i.InputUint8(3)) * lane_width_in_bytes));
+      break;
+    }
+    case kPPC_S128Load64Lane: {
+      Simd128Register dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      constexpr int lane_width_in_bytes = 8;
+      AddressingMode mode = kMode_None;
+      size_t index = 1;
+      MemOperand operand = i.MemoryOperand(&mode, &index);
+      DCHECK_EQ(mode, kMode_MRR);
+      __ lxsdx(kScratchDoubleReg, operand);
+      __ vinsertd(dst, kScratchDoubleReg,
+                  Operand((1 - i.InputUint8(3)) * lane_width_in_bytes));
+      break;
+    }
+    case kPPC_S128Store8Lane: {
+      AddressingMode mode = kMode_None;
+      size_t index = 1;
+      MemOperand operand = i.MemoryOperand(&mode, &index);
+      DCHECK_EQ(mode, kMode_MRR);
+      __ vextractub(kScratchDoubleReg, i.InputSimd128Register(0),
+                    Operand(15 - i.InputInt8(3)));
+      __ stxsibx(kScratchDoubleReg, operand);
+      break;
+    }
+    case kPPC_S128Store16Lane: {
+      AddressingMode mode = kMode_None;
+      constexpr int lane_width_in_bytes = 2;
+      size_t index = 1;
+      MemOperand operand = i.MemoryOperand(&mode, &index);
+      DCHECK_EQ(mode, kMode_MRR);
+      __ vextractuh(kScratchDoubleReg, i.InputSimd128Register(0),
+                    Operand((7 - i.InputUint8(3)) * lane_width_in_bytes));
+      __ stxsihx(kScratchDoubleReg, operand);
+      break;
+    }
+    case kPPC_S128Store32Lane: {
+      AddressingMode mode = kMode_None;
+      constexpr int lane_width_in_bytes = 4;
+      size_t index = 1;
+      MemOperand operand = i.MemoryOperand(&mode, &index);
+      DCHECK_EQ(mode, kMode_MRR);
+      __ vextractuw(kScratchDoubleReg, i.InputSimd128Register(0),
+                    Operand((3 - i.InputUint8(3)) * lane_width_in_bytes));
+      __ stxsiwx(kScratchDoubleReg, operand);
+      break;
+    }
+    case kPPC_S128Store64Lane: {
+      AddressingMode mode = kMode_None;
+      constexpr int lane_width_in_bytes = 8;
+      size_t index = 1;
+      MemOperand operand = i.MemoryOperand(&mode, &index);
+      DCHECK_EQ(mode, kMode_MRR);
+      __ vextractd(kScratchDoubleReg, i.InputSimd128Register(0),
+                   Operand((1 - i.InputUint8(3)) * lane_width_in_bytes));
+      __ stxsdx(kScratchDoubleReg, operand);
+      break;
+    }
     case kPPC_StoreCompressTagged: {
       ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedFieldX);
       break;

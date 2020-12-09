@@ -335,6 +335,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_S128Load32x2U:
     case kPPC_S128Load32Zero:
     case kPPC_S128Load64Zero:
+    case kPPC_S128Load8Lane:
+    case kPPC_S128Load16Lane:
+    case kPPC_S128Load32Lane:
+    case kPPC_S128Load64Lane:
       return kIsLoadOperation;
 
     case kPPC_StoreWord8:
@@ -349,6 +353,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_PushFrame:
     case kPPC_StoreToStackSlot:
     case kPPC_Sync:
+    case kPPC_S128Store8Lane:
+    case kPPC_S128Store16Lane:
+    case kPPC_S128Store32Lane:
+    case kPPC_S128Store64Lane:
       return kHasSideEffect;
 
     case kPPC_AtomicStoreUint8:

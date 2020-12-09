@@ -1999,6 +1999,10 @@ using Instr = uint32_t;
   V(stxsdx, STXSDX, 0x7C000598)                            \
   /* Store VSX Scalar as Integer Word Indexed */           \
   V(stxsiwx, STXSIWX, 0x7C000118)                          \
+  /* Store VSX Scalar as Integer Halfword Indexed */       \
+  V(stxsihx, STXSIHX, 0x7C00075A)                          \
+  /* Store VSX Scalar as Integer Byte Indexed */           \
+  V(stxsibx, STXSIBX, 0x7C00071A)                          \
   /* Store VSR Scalar Word Indexed */                      \
   V(stxsspx, STXSSPX, 0x7C000518)                          \
   /* Store VSR Vector Doubleword*2 Indexed */              \
