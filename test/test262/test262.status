@@ -549,6 +549,8 @@
   # https://github.com/tc39/test262/pull/2903
   'intl402/Intl/getCanonicalLocales/canonicalized-tags': [FAIL],
   'intl402/Intl/getCanonicalLocales/preferred-variant': [FAIL],
+  'intl402/Intl/getCanonicalLocales/preferred-grandfathered': [FAIL],
+  'intl402/Locale/extensions-grandfathered': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9613
   'intl402/Locale/likely-subtags-grandfathered': [FAIL],
@@ -557,10 +559,6 @@
   'intl402/Locale/reject-duplicate-variants-in-tlang': [FAIL],
 
   # http://crbug/v8/10447
-  'intl402/Intl/getCanonicalLocales/transformed-ext-canonical': [FAIL],
-  'intl402/Intl/getCanonicalLocales/transformed-ext-invalid': [FAIL],
-  'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-region': [FAIL],
-  'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-subdivision': [FAIL],
   'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-yes-to-true': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9818
