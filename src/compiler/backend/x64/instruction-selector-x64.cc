@@ -8,6 +8,7 @@
 #include "src/base/logging.h"
 #include "src/base/overflowing-math.h"
 #include "src/base/platform/wrappers.h"
+#include "src/codegen/cpu-features.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/machine-operator.h"
@@ -3615,6 +3616,37 @@ void InstructionSelector::VisitF64x2Pmin(Node* node) {
 
 void InstructionSelector::VisitF64x2Pmax(Node* node) {
   VisitPminOrPmax(this, node, kX64F64x2Pmax);
+}
+
+void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8S(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand dst = CpuFeatures::IsSupported(AVX)
+                               ? g.DefineAsRegister(node)
+                               : g.DefineSameAsFirst(node);
+  Emit(kX64I32x4ExtAddPairwiseI16x8S, dst, g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8U(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand dst = CpuFeatures::IsSupported(AVX)
+                               ? g.DefineAsRegister(node)
+                               : g.DefineSameAsFirst(node);
+  Emit(kX64I32x4ExtAddPairwiseI16x8U, dst, g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16S(Node* node) {
+  X64OperandGenerator g(this);
+  // Codegen depends on dst != src.
+  Emit(kX64I16x8ExtAddPairwiseI8x16S, g.DefineAsRegister(node),
+       g.UseUniqueRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16U(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand dst = CpuFeatures::IsSupported(AVX)
+                               ? g.DefineAsRegister(node)
+                               : g.DefineSameAsFirst(node);
+  Emit(kX64I16x8ExtAddPairwiseI8x16U, dst, g.UseRegister(node->InputAt(0)));
 }
 
 // static

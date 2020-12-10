@@ -208,7 +208,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Psrlw, psrlw)
   AVX_OP(Psrld, psrld)
   AVX_OP(Psrlq, psrlq)
-  AVX_OP(Pmaddwd, pmaddwd)
   AVX_OP(Paddb, paddb)
   AVX_OP(Paddw, paddw)
   AVX_OP(Paddd, paddd)
@@ -522,6 +521,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Trap() override;
   void DebugBreak() override;
 
+  // Supports both AVX (dst != src1) and SSE (checks that dst == src1).
+  void Pmaddwd(XMMRegister dst, XMMRegister src1, XMMRegister src2);
+  void Pmaddubsw(XMMRegister dst, XMMRegister src1, XMMRegister src2);
+
   // Shufps that will mov src into dst if AVX is not supported.
   void Shufps(XMMRegister dst, XMMRegister src, byte imm8);
 
@@ -545,6 +548,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Psrlq(XMMRegister dst, byte imm8);
   void Pslld(XMMRegister dst, byte imm8);
   void Psrld(XMMRegister dst, byte imm8);
+
+  // Supports both AVX (dst != src1) and SSE (checks that dst == src1).
+  void Psrld(XMMRegister dst, XMMRegister src, byte imm8);
 
   void Pblendvb(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                 XMMRegister mask);

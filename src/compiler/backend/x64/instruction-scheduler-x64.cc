@@ -226,6 +226,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64I32x4ExtMulHighI16x8S:
     case kX64I32x4ExtMulLowI16x8U:
     case kX64I32x4ExtMulHighI16x8U:
+    case kX64I32x4ExtAddPairwiseI16x8S:
+    case kX64I32x4ExtAddPairwiseI16x8U:
     case kX64I16x8Splat:
     case kX64I16x8ExtractLaneS:
     case kX64I16x8SConvertI8x16Low:
@@ -264,6 +266,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64I16x8ExtMulHighI8x16S:
     case kX64I16x8ExtMulLowI8x16U:
     case kX64I16x8ExtMulHighI8x16U:
+    case kX64I16x8ExtAddPairwiseI8x16S:
+    case kX64I16x8ExtAddPairwiseI8x16U:
     case kX64I8x16Splat:
     case kX64I8x16ExtractLaneS:
     case kX64I8x16SConvertI16x8:

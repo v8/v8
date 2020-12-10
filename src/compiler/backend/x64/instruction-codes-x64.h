@@ -250,6 +250,8 @@ namespace compiler {
   V(X64I32x4ExtMulHighI16x8S)             \
   V(X64I32x4ExtMulLowI16x8U)              \
   V(X64I32x4ExtMulHighI16x8U)             \
+  V(X64I32x4ExtAddPairwiseI16x8S)         \
+  V(X64I32x4ExtAddPairwiseI16x8U)         \
   V(X64I16x8Splat)                        \
   V(X64I16x8ExtractLaneS)                 \
   V(X64I16x8SConvertI8x16Low)             \
@@ -288,6 +290,8 @@ namespace compiler {
   V(X64I16x8ExtMulHighI8x16S)             \
   V(X64I16x8ExtMulLowI8x16U)              \
   V(X64I16x8ExtMulHighI8x16U)             \
+  V(X64I16x8ExtAddPairwiseI8x16S)         \
+  V(X64I16x8ExtAddPairwiseI8x16U)         \
   V(X64I8x16Splat)                        \
   V(X64I8x16ExtractLaneS)                 \
   V(X64Pinsrb)                            \

@@ -9,6 +9,7 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/x64/assembler-x64.h"
+#include "src/codegen/x64/register-x64.h"
 #include "src/compiler/backend/code-generator-impl.h"
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/gap-resolver.h"
@@ -3085,6 +3086,35 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_BINOP(pmaddwd);
       break;
     }
+    case kX64I32x4ExtAddPairwiseI16x8S: {
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
+      // kScratchDoubleReg = |1|1|1|1|1|1|1|1|
+      __ Pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
+      __ Psrlw(kScratchDoubleReg, byte{15});
+      // pmaddwd multiplies signed words in kScratchDoubleReg and src, producing
+      // signed doublewords, then adds pairwise.
+      // src = |a|b|c|d|e|f|g|h|
+      // dst = | a*1 + b*1 | c*1 + d*1 | e*1 + f*1 | g*1 + h*1 |
+      __ Pmaddwd(dst, src, kScratchDoubleReg);
+      break;
+    }
+    case kX64I32x4ExtAddPairwiseI16x8U: {
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
+
+      // src = |a|b|c|d|e|f|g|h|
+      // kScratchDoubleReg = i32x4.splat(0x0000FFFF)
+      __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+      __ Psrld(kScratchDoubleReg, byte{16});
+      // kScratchDoubleReg =|0|b|0|d|0|f|0|h|
+      __ Pand(kScratchDoubleReg, src);
+      // dst = |0|a|0|c|0|e|0|g|
+      __ Psrld(dst, src, byte{16});
+      // dst = |a+b|c+d|e+f|g+h|
+      __ Paddd(dst, kScratchDoubleReg);
+      break;
+    }
     case kX64S128Const: {
       // Emit code for generic constants as all zeros, or ones cases will be
       // handled separately by the selector.
@@ -3295,6 +3325,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I16x8ExtMulHighI8x16U: {
       ASSEMBLE_SIMD_I16X8_EXT_MUL_HIGH(Pmovzxbw);
+      break;
+    }
+    case kX64I16x8ExtAddPairwiseI8x16S: {
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
+      DCHECK_NE(dst, src);
+      // dst = i8x16.splat(1)
+      __ Move(dst, uint32_t{0x01010101});
+      __ Pshufd(dst, dst, byte{0});
+      __ Pmaddubsw(dst, dst, src);
+      break;
+    }
+    case kX64I16x8ExtAddPairwiseI8x16U: {
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
+      // dst = i8x16.splat(1)
+      __ Move(kScratchDoubleReg, uint32_t{0x01010101});
+      __ Pshufd(kScratchDoubleReg, kScratchDoubleReg, byte{0});
+      __ Pmaddubsw(dst, src, kScratchDoubleReg);
       break;
     }
     case kX64I8x16Splat: {

@@ -133,9 +133,10 @@
   V(maxsd, F2, 0F, 5F)
 
 #define SSSE3_INSTRUCTION_LIST(V) \
-  V(phaddd, 66, 0F, 38, 02)       \
-  V(phaddw, 66, 0F, 38, 01)       \
   V(pshufb, 66, 0F, 38, 00)       \
+  V(phaddw, 66, 0F, 38, 01)       \
+  V(phaddd, 66, 0F, 38, 02)       \
+  V(pmaddubsw, 66, 0F, 38, 04)    \
   V(psignb, 66, 0F, 38, 08)       \
   V(psignw, 66, 0F, 38, 09)       \
   V(psignd, 66, 0F, 38, 0A)
