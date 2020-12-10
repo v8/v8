@@ -243,6 +243,9 @@ static const InstructionDesc cmov_instructions[16] = {
     {"cmovle", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
     {"cmovg", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false}};
 
+static const char* const cmp_pseudo_op[8] = {"eq",  "lt",  "le",  "unord",
+                                             "neq", "nlt", "nle", "ord"};
+
 namespace {
 int8_t Imm8(const uint8_t* data) {
   return *reinterpret_cast<const int8_t*>(data);
@@ -1463,9 +1466,7 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         AppendToBuffer("vcmpps %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
-        const char* const pseudo_op[] = {"eq",  "lt",  "le",  "unord",
-                                         "neq", "nlt", "nle", "ord"};
-        AppendToBuffer(", (%s)", pseudo_op[*current]);
+        AppendToBuffer(", (%s)", cmp_pseudo_op[*current]);
         current += 1;
         break;
       }
@@ -1500,10 +1501,6 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         AppendToBuffer("vmovapd ");
         current += PrintRightXMMOperand(current);
         AppendToBuffer(",%s", NameOfXMMRegister(regop));
-        break;
-      case 0x2E:
-        AppendToBuffer("vucomisd %s,", NameOfXMMRegister(regop));
-        current += PrintRightXMMOperand(current);
         break;
       case 0x50:
         AppendToBuffer("vmovmskpd %s,", NameOfCPURegister(regop));
@@ -1546,9 +1543,7 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         AppendToBuffer("vcmppd %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
-        const char* const pseudo_op[] = {"eq",  "lt",  "le",  "unord",
-                                         "neq", "nlt", "nle", "ord"};
-        AppendToBuffer(", (%s)", pseudo_op[*current]);
+        AppendToBuffer(", (%s)", cmp_pseudo_op[*current]);
         current += 1;
         break;
       }
@@ -1938,167 +1933,29 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       current += 1;
     } else if (opcode == 0xB1) {
       current += PrintOperands("cmpxchg", OPER_REG_OP_ORDER, current);
+    } else if (opcode == 0xC2) {
+      AppendToBuffer("cmppd %s,", NameOfXMMRegister(regop));
+      current += PrintRightXMMOperand(current);
+      AppendToBuffer(", (%s)", cmp_pseudo_op[*current++]);
     } else if (opcode == 0xC4) {
       current += PrintOperands("pinsrw", XMMREG_OPER_OP_ORDER, current);
       AppendToBuffer(",0x%x", (*current++) & 7);
+    } else if (opcode == 0xD7) {
+      current += PrintOperands("pmovmskb", OPER_XMMREG_OP_ORDER, current);
     } else {
       const char* mnemonic;
-      if (opcode == 0x51) {
-        mnemonic = "sqrtpd";
-      } else if (opcode == 0x54) {
-        mnemonic = "andpd";
-      } else if (opcode == 0x55) {
-        mnemonic = "andnpd";
-      } else if (opcode == 0x56) {
-        mnemonic = "orpd";
-      } else if (opcode == 0x57) {
-        mnemonic = "xorpd";
-      } else if (opcode == 0x58) {
-        mnemonic = "addpd";
-      } else if (opcode == 0x59) {
-        mnemonic = "mulpd";
-      } else if (opcode == 0x5B) {
-        mnemonic = "cvtps2dq";
-      } else if (opcode == 0x5C) {
-        mnemonic = "subpd";
-      } else if (opcode == 0x5D) {
-        mnemonic = "minpd";
-      } else if (opcode == 0x5E) {
-        mnemonic = "divpd";
-      } else if (opcode == 0x5F) {
-        mnemonic = "maxpd";
-      } else if (opcode == 0x60) {
-        mnemonic = "punpcklbw";
-      } else if (opcode == 0x61) {
-        mnemonic = "punpcklwd";
-      } else if (opcode == 0x62) {
-        mnemonic = "punpckldq";
-      } else if (opcode == 0x63) {
-        mnemonic = "packsswb";
-      } else if (opcode == 0x64) {
-        mnemonic = "pcmpgtb";
-      } else if (opcode == 0x65) {
-        mnemonic = "pcmpgtw";
-      } else if (opcode == 0x66) {
-        mnemonic = "pcmpgtd";
-      } else if (opcode == 0x67) {
-        mnemonic = "packuswb";
-      } else if (opcode == 0x68) {
-        mnemonic = "punpckhbw";
-      } else if (opcode == 0x69) {
-        mnemonic = "punpckhwd";
-      } else if (opcode == 0x6A) {
-        mnemonic = "punpckhdq";
-      } else if (opcode == 0x6B) {
-        mnemonic = "packssdw";
-      } else if (opcode == 0x6C) {
-        mnemonic = "punpcklqdq";
-      } else if (opcode == 0x6D) {
-        mnemonic = "punpckhqdq";
-      } else if (opcode == 0x2E) {
-        mnemonic = "ucomisd";
-      } else if (opcode == 0x2F) {
-        mnemonic = "comisd";
-      } else if (opcode == 0x74) {
-        mnemonic = "pcmpeqb";
-      } else if (opcode == 0x75) {
-        mnemonic = "pcmpeqw";
-      } else if (opcode == 0x76) {
-        mnemonic = "pcmpeqd";
-      } else if (opcode == 0xC2) {
-        mnemonic = "cmppd";
-      } else if (opcode == 0xD1) {
-        mnemonic = "psrlw";
-      } else if (opcode == 0xD2) {
-        mnemonic = "psrld";
-      } else if (opcode == 0xD3) {
-        mnemonic = "psrlq";
-      } else if (opcode == 0xD4) {
-        mnemonic = "paddq";
-      } else if (opcode == 0xD5) {
-        mnemonic = "pmullw";
-      } else if (opcode == 0xD7) {
-        mnemonic = "pmovmskb";
-      } else if (opcode == 0xD8) {
-        mnemonic = "psubusb";
-      } else if (opcode == 0xD9) {
-        mnemonic = "psubusw";
-      } else if (opcode == 0xDA) {
-        mnemonic = "pminub";
-      } else if (opcode == 0xDB) {
-        mnemonic = "pand";
-      } else if (opcode == 0xDC) {
-        mnemonic = "paddusb";
-      } else if (opcode == 0xDD) {
-        mnemonic = "paddusw";
-      } else if (opcode == 0xDE) {
-        mnemonic = "pmaxub";
-      } else if (opcode == 0xE0) {
-        mnemonic = "pavgb";
-      } else if (opcode == 0xE1) {
-        mnemonic = "psraw";
-      } else if (opcode == 0xE2) {
-        mnemonic = "psrad";
-      } else if (opcode == 0xE3) {
-        mnemonic = "pavgw";
-      } else if (opcode == 0xE4) {
-        mnemonic = "pmulhuw";
-      } else if (opcode == 0xE5) {
-        mnemonic = "pmulhw";
-      } else if (opcode == 0xE8) {
-        mnemonic = "psubsb";
-      } else if (opcode == 0xE9) {
-        mnemonic = "psubsw";
-      } else if (opcode == 0xEA) {
-        mnemonic = "pminsw";
-      } else if (opcode == 0xEB) {
-        mnemonic = "por";
-      } else if (opcode == 0xEC) {
-        mnemonic = "paddsb";
-      } else if (opcode == 0xED) {
-        mnemonic = "paddsw";
-      } else if (opcode == 0xEE) {
-        mnemonic = "pmaxsw";
-      } else if (opcode == 0xEF) {
-        mnemonic = "pxor";
-      } else if (opcode == 0xF1) {
-        mnemonic = "psllw";
-      } else if (opcode == 0xF2) {
-        mnemonic = "pslld";
-      } else if (opcode == 0xF3) {
-        mnemonic = "psllq";
-      } else if (opcode == 0xF4) {
-        mnemonic = "pmuludq";
-      } else if (opcode == 0xF5) {
-        mnemonic = "pmaddwd";
-      } else if (opcode == 0xF8) {
-        mnemonic = "psubb";
-      } else if (opcode == 0xF9) {
-        mnemonic = "psubw";
-      } else if (opcode == 0xFA) {
-        mnemonic = "psubd";
-      } else if (opcode == 0xFB) {
-        mnemonic = "psubq";
-      } else if (opcode == 0xFC) {
-        mnemonic = "paddb";
-      } else if (opcode == 0xFD) {
-        mnemonic = "paddw";
-      } else if (opcode == 0xFE) {
-        mnemonic = "paddd";
-      } else {
-        UnimplementedInstruction();
+#define SSE2_CASE(instruction, notUsed1, notUsed2, opcode) \
+  case 0x##opcode:                                         \
+    mnemonic = "" #instruction;                            \
+    break;
+
+      switch (opcode) {
+        SSE2_INSTRUCTION_LIST(SSE2_CASE)
+        SSE2_UNOP_INSTRUCTION_LIST(SSE2_CASE)
       }
-      // Not every opcode here has an XMM register as the dst operand.
-      const char* regop_reg =
-          opcode == 0xD7 ? NameOfCPURegister(regop) : NameOfXMMRegister(regop);
-      AppendToBuffer("%s %s,", mnemonic, regop_reg);
+#undef SSE2_CASE
+      AppendToBuffer("%s %s,", mnemonic, NameOfXMMRegister(regop));
       current += PrintRightXMMOperand(current);
-      if (opcode == 0xC2) {
-        const char* const pseudo_op[] = {"eq",  "lt",  "le",  "unord",
-                                         "neq", "nlt", "nle", "ord"};
-        AppendToBuffer(", (%s)", pseudo_op[*current]);
-        current += 1;
-      }
     }
   } else if (group_1_prefix_ == 0xF2) {
     // Beginning of instructions with prefix 0xF2.
@@ -2284,11 +2141,9 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     current += PrintOperands("xadd", OPER_REG_OP_ORDER, current);
   } else if (opcode == 0xC2) {
     // cmpps xmm, xmm/m128, imm8
-    const char* const pseudo_op[] = {"eq",  "lt",  "le",  "unord",
-                                     "neq", "nlt", "nle", "ord"};
     AppendToBuffer("cmpps %s, ", NameOfXMMRegister(regop));
     current += PrintRightXMMOperand(current);
-    AppendToBuffer(", %s", pseudo_op[*current]);
+    AppendToBuffer(", %s", cmp_pseudo_op[*current]);
     current += 1;
   } else if (opcode == 0xC6) {
     // shufps xmm, xmm/m128, imm8

@@ -1229,8 +1229,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void haddps(XMMRegister dst, XMMRegister src);
   void haddps(XMMRegister dst, Operand src);
 
-  void ucomisd(XMMRegister dst, XMMRegister src);
-  void ucomisd(XMMRegister dst, Operand src);
   void cmpltsd(XMMRegister dst, XMMRegister src);
 
   void movmskpd(Register dst, XMMRegister src);
@@ -1460,12 +1458,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vcvtsd2si(Register dst, XMMRegister src) {
     XMMRegister idst = XMMRegister::from_code(dst.code());
     vinstr(0x2d, idst, xmm0, src, kF2, k0F, kW0);
-  }
-  void vucomisd(XMMRegister dst, XMMRegister src) {
-    vinstr(0x2e, dst, xmm0, src, k66, k0F, kWIG);
-  }
-  void vucomisd(XMMRegister dst, Operand src) {
-    vinstr(0x2e, dst, xmm0, src, k66, k0F, kWIG);
   }
   void vroundss(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                 RoundingMode mode) {
