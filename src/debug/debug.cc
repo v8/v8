@@ -50,7 +50,10 @@ class Debug::TemporaryObjectsTracker : public HeapObjectAllocationTracker {
   TemporaryObjectsTracker(const TemporaryObjectsTracker&) = delete;
   TemporaryObjectsTracker& operator=(const TemporaryObjectsTracker&) = delete;
 
-  void AllocationEvent(Address addr, int) override { objects_.insert(addr); }
+  void AllocationEvent(Address addr, int) override {
+    if (disabled) return;
+    objects_.insert(addr);
+  }
 
   void MoveEvent(Address from, Address to, int) override {
     if (from == to) return;
@@ -78,6 +81,8 @@ class Debug::TemporaryObjectsTracker : public HeapObjectAllocationTracker {
     }
     return objects_.find(obj->address()) != objects_.end();
   }
+
+  bool disabled = false;
 
  private:
   std::unordered_set<Address> objects_;
@@ -2475,5 +2480,19 @@ bool Debug::PerformSideEffectCheckForObject(Handle<Object> object) {
   isolate_->TerminateExecution();
   return false;
 }
+
+void Debug::SetTemporaryObjectTrackingDisabled(bool disabled) {
+  if (temporary_objects_) {
+    temporary_objects_->disabled = disabled;
+  }
+}
+
+bool Debug::GetTemporaryObjectTrackingDisabled() const {
+  if (temporary_objects_) {
+    return temporary_objects_->disabled;
+  }
+  return false;
+}
+
 }  // namespace internal
 }  // namespace v8

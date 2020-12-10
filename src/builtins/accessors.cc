@@ -309,6 +309,12 @@ Handle<AccessorInfo> Accessors::MakeStringLengthInfo(Isolate* isolate) {
 static Handle<Object> GetFunctionPrototype(Isolate* isolate,
                                            Handle<JSFunction> function) {
   if (!function->has_prototype()) {
+    // We lazily allocate .prototype for functions, which confuses debug
+    // evaluate which assumes we can write to temporary objects we allocated
+    // during evaluation. We err on the side of caution here and prevent the
+    // newly allocated prototype from going into the temporary objects set,
+    // which means writes to it will be considered a side effect.
+    DisableTemporaryObjectTracking no_temp_tracking(isolate->debug());
     Handle<JSObject> proto = isolate->factory()->NewFunctionPrototype(function);
     JSFunction::SetPrototype(function, proto);
   }

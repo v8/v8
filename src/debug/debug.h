@@ -464,6 +464,9 @@ class V8_EXPORT_PRIVATE Debug {
                      DebugInfoListNode** curr);
   void FreeDebugInfoListNode(DebugInfoListNode* prev, DebugInfoListNode* node);
 
+  void SetTemporaryObjectTrackingDisabled(bool disabled);
+  bool GetTemporaryObjectTrackingDisabled() const;
+
   debug::DebugDelegate* debug_delegate_ = nullptr;
 
   // Debugger is active, i.e. there is a debug event listener attached.
@@ -556,6 +559,7 @@ class V8_EXPORT_PRIVATE Debug {
   friend class Isolate;
   friend class DebugScope;
   friend class DisableBreak;
+  friend class DisableTemporaryObjectTracking;
   friend class LiveEdit;
   friend class SuppressDebug;
 
@@ -611,6 +615,28 @@ class DisableBreak {
  private:
   Debug* debug_;
   bool previous_break_disabled_;
+};
+
+// Stack allocated class for disabling temporary object tracking.
+class DisableTemporaryObjectTracking {
+ public:
+  explicit DisableTemporaryObjectTracking(Debug* debug)
+      : debug_(debug),
+        previous_tracking_disabled_(
+            debug->GetTemporaryObjectTrackingDisabled()) {
+    debug_->SetTemporaryObjectTrackingDisabled(true);
+  }
+  ~DisableTemporaryObjectTracking() {
+    debug_->SetTemporaryObjectTrackingDisabled(previous_tracking_disabled_);
+  }
+  DisableTemporaryObjectTracking(const DisableTemporaryObjectTracking&) =
+      delete;
+  DisableTemporaryObjectTracking& operator=(
+      const DisableTemporaryObjectTracking&) = delete;
+
+ private:
+  Debug* debug_;
+  bool previous_tracking_disabled_;
 };
 
 class SuppressDebug {
