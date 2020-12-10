@@ -1967,6 +1967,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ insert_d(dst, 0, kScratchReg);
       break;
     }
+    case kMips64S128LoadLane: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      auto sz = static_cast<MSASize>(MiscField::decode(instr->opcode()));
+      __ LoadLane(sz, dst, i.InputUint8(1), i.MemoryOperand(2));
+      break;
+    }
+    case kMips64S128StoreLane: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register src = i.InputSimd128Register(0);
+      auto sz = static_cast<MSASize>(MiscField::decode(instr->opcode()));
+      __ StoreLane(sz, src, i.InputUint8(1), i.MemoryOperand(2));
+      break;
+    }
     case kWord32AtomicLoadInt8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Lb);
       break;

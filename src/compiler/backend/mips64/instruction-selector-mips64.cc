@@ -4,6 +4,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/platform/wrappers.h"
+#include "src/codegen/machine-type.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -374,12 +375,83 @@ void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
   } else {
     InstructionOperand addr_reg = g.TempRegister();
     selector->Emit(kMips64Dadd | AddressingModeField::encode(kMode_None),
-                   addr_reg, g.UseRegister(index), g.UseRegister(base));
+                   addr_reg, g.UseRegister(base), g.UseRegister(index));
     // Emit desired load opcode, using temp addr_reg.
     selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
                    g.DefineAsRegister(output == nullptr ? node : output),
                    addr_reg, g.TempImmediate(0));
   }
+}
+
+namespace {
+InstructionOperand EmitAddBeforeS128LoadStore(InstructionSelector* selector,
+                                              Node* node,
+                                              InstructionCode* opcode) {
+  Mips64OperandGenerator g(selector);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  InstructionOperand addr_reg = g.TempRegister();
+  selector->Emit(kMips64Dadd | AddressingModeField::encode(kMode_None),
+                 addr_reg, g.UseRegister(base), g.UseRegister(index));
+  *opcode |= AddressingModeField::encode(kMode_MRI);
+  return addr_reg;
+}
+
+// Helper struct for load lane and store lane to indicate what memory size
+// to be encoded in the opcode, and the new lane index.
+struct LoadStoreLaneParams {
+  MSASize sz;
+  uint8_t laneidx;
+  LoadStoreLaneParams(uint8_t laneidx, MSASize sz, int lanes)
+      : sz(sz), laneidx(laneidx % lanes) {}
+};
+
+LoadStoreLaneParams GetLoadStoreLaneParams(MachineRepresentation rep,
+                                           uint8_t laneidx) {
+  switch (rep) {
+    case MachineRepresentation::kWord8:
+      return LoadStoreLaneParams(laneidx, MSA_B, 16);
+    case MachineRepresentation::kWord16:
+      return LoadStoreLaneParams(laneidx, MSA_H, 8);
+    case MachineRepresentation::kWord32:
+      return LoadStoreLaneParams(laneidx, MSA_W, 4);
+    case MachineRepresentation::kWord64:
+      return LoadStoreLaneParams(laneidx, MSA_D, 2);
+    default:
+      break;
+  }
+  UNREACHABLE();
+}
+}  // namespace
+
+void InstructionSelector::VisitStoreLane(Node* node) {
+  StoreLaneParameters params = StoreLaneParametersOf(node->op());
+  LoadStoreLaneParams f = GetLoadStoreLaneParams(params.rep, params.laneidx);
+  InstructionCode opcode = kMips64S128StoreLane;
+  opcode |= MiscField::encode(f.sz);
+
+  Mips64OperandGenerator g(this);
+  InstructionOperand addr = EmitAddBeforeS128LoadStore(this, node, &opcode);
+  InstructionOperand inputs[4] = {
+      g.UseRegister(node->InputAt(2)),
+      g.UseImmediate(f.laneidx),
+      addr,
+      g.TempImmediate(0),
+  };
+  Emit(opcode, 0, nullptr, 4, inputs);
+}
+
+void InstructionSelector::VisitLoadLane(Node* node) {
+  LoadLaneParameters params = LoadLaneParametersOf(node->op());
+  LoadStoreLaneParams f =
+      GetLoadStoreLaneParams(params.rep.representation(), params.laneidx);
+  InstructionCode opcode = kMips64S128LoadLane;
+  opcode |= MiscField::encode(f.sz);
+
+  Mips64OperandGenerator g(this);
+  InstructionOperand addr = EmitAddBeforeS128LoadStore(this, node, &opcode);
+  Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(2)),
+       g.UseImmediate(f.laneidx), addr, g.TempImmediate(0));
 }
 
 void InstructionSelector::VisitLoadTransform(Node* node) {

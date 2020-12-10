@@ -240,6 +240,8 @@ class MSARegisters {
   static const RegisterAlias aliases_[];
 };
 
+enum MSASize { MSA_B = 0x0, MSA_H = 0x1, MSA_W = 0x2, MSA_D = 0x3 };
+
 // -----------------------------------------------------------------------------
 // Instructions encoding constants.
 

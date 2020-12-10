@@ -2621,6 +2621,64 @@ void TurboAssembler::Round_s_s(FPURegister dst, FPURegister src) {
              });
 }
 
+void TurboAssembler::LoadLane(MSASize sz, MSARegister dst, uint8_t laneidx,
+                              MemOperand src) {
+  switch (sz) {
+    case MSA_B:
+      Lbu(kScratchReg, src);
+      insert_b(dst, laneidx, kScratchReg);
+      break;
+    case MSA_H:
+      Lhu(kScratchReg, src);
+      insert_h(dst, laneidx, kScratchReg);
+      break;
+    case MSA_W:
+      Lwu(kScratchReg, src);
+      insert_w(dst, laneidx, kScratchReg);
+      break;
+    case MSA_D:
+      Ld(kScratchReg, src);
+      insert_d(dst, laneidx, kScratchReg);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+void TurboAssembler::StoreLane(MSASize sz, MSARegister src, uint8_t laneidx,
+                               MemOperand dst) {
+  switch (sz) {
+    case MSA_B:
+      copy_u_b(kScratchReg, src, laneidx);
+      Sb(kScratchReg, dst);
+      break;
+    case MSA_H:
+      copy_u_h(kScratchReg, src, laneidx);
+      Sh(kScratchReg, dst);
+      break;
+    case MSA_W:
+      if (laneidx == 0) {
+        FPURegister src_reg = FPURegister::from_code(src.code());
+        Swc1(src_reg, dst);
+      } else {
+        copy_u_w(kScratchReg, src, laneidx);
+        Sw(kScratchReg, dst);
+      }
+      break;
+    case MSA_D:
+      if (laneidx == 0) {
+        FPURegister src_reg = FPURegister::from_code(src.code());
+        Sdc1(src_reg, dst);
+      } else {
+        copy_s_d(kScratchReg, src, laneidx);
+        Sd(kScratchReg, dst);
+      }
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
 void TurboAssembler::MSARoundW(MSARegister dst, MSARegister src,
                                FPURoundingMode mode) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
