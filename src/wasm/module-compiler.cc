@@ -1140,7 +1140,13 @@ bool CompileLazy(Isolate* isolate, Handle<WasmModuleObject> module_object,
   DCHECK_EQ(func_index, code->index());
 
   if (WasmCode::ShouldBeLogged(isolate)) {
-    code->LogCode(isolate, module_object->script().id());
+    DisallowGarbageCollection no_gc;
+    Object source_url_obj = module_object->script().source_url();
+    DCHECK(source_url_obj.IsString() || source_url_obj.IsUndefined());
+    std::unique_ptr<char[]> source_url =
+        source_url_obj.IsString() ? String::cast(source_url_obj).ToCString()
+                                  : nullptr;
+    code->LogCode(isolate, source_url.get(), module_object->script().id());
   }
 
   counters->wasm_lazily_compiled_functions()->Increment();
@@ -1942,7 +1948,7 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
 
   // Finally, log all generated code (it does not matter if this happens
   // repeatedly in case the script is shared).
-  native_module_->LogWasmCodes(isolate_, script->id());
+  native_module_->LogWasmCodes(isolate_, module_object_->script());
 
   FinishModule();
 }

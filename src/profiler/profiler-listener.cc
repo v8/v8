@@ -193,15 +193,17 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
 
 void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
                                        const wasm::WasmCode* code,
-                                       wasm::WasmName name, int script_id) {
+                                       wasm::WasmName name,
+                                       const char* source_url, int code_offset,
+                                       int script_id) {
+  DCHECK_NOT_NULL(source_url);
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->instruction_start();
-  rec->entry =
-      new CodeEntry(tag, GetName(name), CodeEntry::kWasmResourceNamePrefix,
-                    CpuProfileNode::kNoLineNumberInfo,
-                    CpuProfileNode::kNoColumnNumberInfo, nullptr, true);
+  rec->entry = new CodeEntry(tag, GetName(name), GetName(source_url), 1,
+                             code_offset + 1, nullptr, true);
   rec->entry->set_script_id(script_id);
+  rec->entry->set_position(code_offset);
   rec->instruction_size = code->instructions().length();
   DispatchCodeEvent(evt_rec);
 }

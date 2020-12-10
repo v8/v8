@@ -333,7 +333,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   Handle<Script> GetOrCreateScript(Isolate*,
                                    const std::shared_ptr<NativeModule>&,
-                                   Vector<const char> source_url = {});
+                                   Vector<const char> source_url);
 
   // Returns a barrier allowing background compile operations if valid and
   // preventing this object from being destroyed.

@@ -141,7 +141,6 @@ class CodeEntry {
     return TagField::decode(bit_field_);
   }
 
-  static const char* const kWasmResourceNamePrefix;
   V8_EXPORT_PRIVATE static const char* const kEmptyResourceName;
   static const char* const kEmptyBailoutReason;
   static const char* const kNoDeoptReason;

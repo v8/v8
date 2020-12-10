@@ -336,8 +336,9 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   auto native_module = isolate_->wasm_engine()->NewNativeModule(
       isolate_, enabled_features_, test_module_, code_size_estimate);
   native_module->SetWireBytes(OwnedVector<const uint8_t>());
-  Handle<Script> script =
-      isolate_->wasm_engine()->GetOrCreateScript(isolate_, native_module);
+  constexpr Vector<const char> kNoSourceUrl{"", 0};
+  Handle<Script> script = isolate_->wasm_engine()->GetOrCreateScript(
+      isolate_, native_module, kNoSourceUrl);
 
   Handle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate_, std::move(native_module), script);
@@ -558,8 +559,13 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   WasmCode* code = native_module->PublishCode(
       native_module->AddCompiledCode(std::move(result)));
   DCHECK_NOT_NULL(code);
-  int script_id = builder_->instance_object()->module_object().script().id();
-  if (WasmCode::ShouldBeLogged(isolate())) code->LogCode(isolate(), script_id);
+  DisallowGarbageCollection no_gc;
+  Script script = builder_->instance_object()->module_object().script();
+  std::unique_ptr<char[]> source_url =
+      String::cast(script.source_url()).ToCString();
+  if (WasmCode::ShouldBeLogged(isolate())) {
+    code->LogCode(isolate(), source_url.get(), script.id());
+  }
 }
 
 WasmFunctionCompiler::WasmFunctionCompiler(Zone* zone, const FunctionSig* sig,
