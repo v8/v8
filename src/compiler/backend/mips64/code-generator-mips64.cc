@@ -2438,6 +2438,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ copy_u_b(dst, scratch0, 0);
       break;
     }
+    case kMips64I64x2Eq: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ ceq_d(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1));
+      break;
+    }
     case kMips64F32x4Splat: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ FmoveLow(kScratchReg, i.InputSingleRegister(0));

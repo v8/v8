@@ -168,6 +168,7 @@ namespace compiler {
   V(MipsI64x2ShrS)                 \
   V(MipsI64x2ShrU)                 \
   V(MipsI64x2BitMask)              \
+  V(MipsI64x2Eq)                   \
   V(MipsF32x4Splat)                \
   V(MipsF32x4ExtractLane)          \
   V(MipsF32x4ReplaceLane)          \

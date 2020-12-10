@@ -221,6 +221,7 @@ namespace compiler {
   V(Mips64I64x2ShrS)                         \
   V(Mips64I64x2ShrU)                         \
   V(Mips64I64x2BitMask)                      \
+  V(Mips64I64x2Eq)                           \
   V(Mips64F32x4Abs)                          \
   V(Mips64F32x4Neg)                          \
   V(Mips64F32x4Sqrt)                         \
