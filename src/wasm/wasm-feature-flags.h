@@ -27,7 +27,7 @@
                                                                                \
   /* Typed function references proposal. */                                    \
   /* Official proposal: https://github.com/WebAssembly/function-references */  \
-  /* V8 side owner: ahaas */                                                   \
+  /* V8 side owner: manoskouk */                                               \
   V(typed_funcref, "typed function references", false)                         \
                                                                                \
   /* Memory64 proposal. */                                                     \
