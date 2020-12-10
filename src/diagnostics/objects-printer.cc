@@ -2054,6 +2054,7 @@ void Script::ScriptPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "Script");
   os << "\n - source: " << Brief(source());
   os << "\n - name: " << Brief(name());
+  os << "\n - source_url: " << Brief(source_url());
   os << "\n - line_offset: " << line_offset();
   os << "\n - column_offset: " << column_offset();
   os << "\n - type: " << type();

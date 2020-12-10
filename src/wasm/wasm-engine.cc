@@ -733,7 +733,7 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
                                 std::shared_ptr<NativeModule> native_module,
                                 Vector<const char> source_url) {
   Handle<Script> script =
-      isolate->factory()->NewScript(isolate->factory()->empty_string());
+      isolate->factory()->NewScript(isolate->factory()->undefined_value());
   script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
   script->set_context_data(isolate->native_context()->debug_context_id());
   script->set_type(Script::TYPE_WASM);

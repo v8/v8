@@ -206,13 +206,15 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
 }
 
 template <typename Impl>
-Handle<Script> FactoryBase<Impl>::NewScript(Handle<String> source) {
+Handle<Script> FactoryBase<Impl>::NewScript(
+    Handle<PrimitiveHeapObject> source) {
   return NewScriptWithId(source, isolate()->GetNextScriptId());
 }
 
 template <typename Impl>
-Handle<Script> FactoryBase<Impl>::NewScriptWithId(Handle<String> source,
-                                                  int script_id) {
+Handle<Script> FactoryBase<Impl>::NewScriptWithId(
+    Handle<PrimitiveHeapObject> source, int script_id) {
+  DCHECK(source->IsString() || source->IsUndefined());
   // Create and initialize script object.
   ReadOnlyRoots roots = read_only_roots();
   Handle<Script> script =

@@ -141,8 +141,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
   Handle<TemplateObjectDescription> NewTemplateObjectDescription(
       Handle<FixedArray> raw_strings, Handle<FixedArray> cooked_strings);
 
-  Handle<Script> NewScript(Handle<String> source);
-  Handle<Script> NewScriptWithId(Handle<String> source, int script_id);
+  Handle<Script> NewScript(Handle<PrimitiveHeapObject> source);
+  Handle<Script> NewScriptWithId(Handle<PrimitiveHeapObject> source,
+                                 int script_id);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
       FunctionLiteral* literal, Handle<Script> script, bool is_toplevel);

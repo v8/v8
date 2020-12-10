@@ -579,11 +579,12 @@ Handle<Object> GetJSPositionInfo(Handle<Script> script, int position,
     return isolate->factory()->null_value();
   }
 
-  Handle<String> source = handle(String::cast(script->source()), isolate);
-  Handle<String> sourceText = script->type() == Script::TYPE_WASM
-                                  ? isolate->factory()->empty_string()
-                                  : isolate->factory()->NewSubString(
-                                        source, info.line_start, info.line_end);
+  Handle<String> sourceText =
+      script->type() == Script::TYPE_WASM
+          ? isolate->factory()->empty_string()
+          : isolate->factory()->NewSubString(
+                handle(String::cast(script->source()), isolate),
+                info.line_start, info.line_end);
 
   Handle<JSObject> jsinfo =
       isolate->factory()->NewJSObject(isolate->object_function());
