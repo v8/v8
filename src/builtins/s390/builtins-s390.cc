@@ -590,7 +590,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ Move(r7, js_entry_sp);
   __ LoadAndTestP(scrach, MemOperand(r7));
   __ bne(&non_outermost_js, Label::kNear);
-  __ StoreP(fp, MemOperand(r7));
+  __ StoreU64(fp, MemOperand(r7));
   __ Load(scrach, Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
   Label cont;
   __ b(&cont, Label::kNear);
@@ -598,7 +598,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ Load(scrach, Operand(StackFrame::INNER_JSENTRY_FRAME));
 
   __ bind(&cont);
-  __ StoreP(scrach, MemOperand(sp));  // frame-type
+  __ StoreU64(scrach, MemOperand(sp));  // frame-type
 
   // Jump to a faked try block that does the invoke, with a faked catch
   // block that sets the pending exception.
@@ -618,7 +618,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
           ExternalReference::Create(IsolateAddressId::kPendingExceptionAddress,
                                     masm->isolate()));
 
-  __ StoreP(r2, MemOperand(scrach));
+  __ StoreU64(r2, MemOperand(scrach));
   __ LoadRoot(r2, RootIndex::kException);
   __ b(&exit, Label::kNear);
 
@@ -653,14 +653,14 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ bne(&non_outermost_js_2, Label::kNear);
   __ mov(scrach, Operand::Zero());
   __ Move(r7, js_entry_sp);
-  __ StoreP(scrach, MemOperand(r7));
+  __ StoreU64(scrach, MemOperand(r7));
   __ bind(&non_outermost_js_2);
 
   // Restore the top frame descriptors from the stack.
   __ pop(r5);
   __ Move(scrach, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
                                             masm->isolate()));
-  __ StoreP(r5, MemOperand(scrach));
+  __ StoreU64(r5, MemOperand(scrach));
 
   // Reset the stack to the callee saved registers.
   __ lay(sp, MemOperand(sp, -EntryFrameConstants::kCallerFPOffset));
@@ -1125,8 +1125,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ LoadS32(r1, FieldMemOperand(feedback_vector,
                                FeedbackVector::kInvocationCountOffset));
   __ AddP(r1, r1, Operand(1));
-  __ StoreW(r1, FieldMemOperand(feedback_vector,
-                                FeedbackVector::kInvocationCountOffset));
+  __ StoreU32(r1, FieldMemOperand(feedback_vector,
+                                  FeedbackVector::kInvocationCountOffset));
 
   // Open a frame scope to indicate that there is a frame on the stack.  The
   // MANUAL indicates that the scope shouldn't actually generate code to set up
@@ -1142,10 +1142,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
                 BytecodeArray::kOsrNestingLevelOffset + kCharSize);
   STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
   __ lghi(r1, Operand(0));
-  __ StoreHalfWord(r1,
-                   FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                                   BytecodeArray::kOsrNestingLevelOffset),
-                   r0);
+  __ StoreU16(r1,
+              FieldMemOperand(kInterpreterBytecodeArrayRegister,
+                              BytecodeArray::kOsrNestingLevelOffset),
+              r0);
 
   // Load the initial bytecode offset.
   __ mov(kInterpreterBytecodeOffsetRegister,
@@ -1192,7 +1192,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ CmpP(r8, Operand::Zero());
   __ beq(&no_incoming_new_target_or_generator_register);
   __ ShiftLeftP(r8, r8, Operand(kSystemPointerSizeLog2));
-  __ StoreP(r5, MemOperand(fp, r8));
+  __ StoreU64(r5, MemOperand(fp, r8));
   __ bind(&no_incoming_new_target_or_generator_register);
 
   // Perform interrupt stack check.
@@ -1252,8 +1252,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ mov(kInterpreterBytecodeOffsetRegister,
          Operand(Smi::FromInt(BytecodeArray::kHeaderSize - kHeapObjectTag +
                               kFunctionEntryBytecodeOffset)));
-  __ StoreP(kInterpreterBytecodeOffsetRegister,
-            MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
+  __ StoreU64(kInterpreterBytecodeOffsetRegister,
+              MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
   __ CallRuntime(Runtime::kStackGuard);
 
   // After the call, restore the bytecode array, bytecode offset and accumulator
@@ -1266,8 +1266,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
 
   __ SmiTag(r0, kInterpreterBytecodeOffsetRegister);
-  __ StoreP(r0,
-            MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
+  __ StoreU64(r0,
+              MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
 
   __ jmp(&after_stack_check_interrupt);
 
@@ -1541,8 +1541,8 @@ void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
   __ bind(&enter_bytecode);
   // Convert new bytecode offset to a Smi and save in the stackframe.
   __ SmiTag(r4, kInterpreterBytecodeOffsetRegister);
-  __ StoreP(r4,
-            MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
+  __ StoreU64(r4,
+              MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
 
   Generate_InterpreterEnterBytecode(masm);
 
@@ -1577,7 +1577,7 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
     } else {
       // Overwrite the hole inserted by the deoptimizer with the return value
       // from the LAZY deopt point.
-      __ StoreP(
+      __ StoreU64(
           r2, MemOperand(
                   sp, config->num_allocatable_general_registers() *
                               kSystemPointerSize +
@@ -1598,7 +1598,7 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
     __ AddP(r2, r2,
             Operand(BuiltinContinuationFrameConstants::kFixedSlotCount));
     __ ShiftLeftP(r1, r2, Operand(kSystemPointerSizeLog2));
-    __ StoreP(scratch, MemOperand(sp, r1));
+    __ StoreU64(scratch, MemOperand(sp, r1));
     // Recover arguments count.
     __ SubP(r2, r2,
             Operand(BuiltinContinuationFrameConstants::kFixedSlotCount));
@@ -1716,7 +1716,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
     __ bind(&done);
     __ ShiftLeftP(r1, r2, Operand(kSystemPointerSizeLog2));
     __ lay(sp, MemOperand(sp, r1));
-    __ StoreP(r7, MemOperand(sp));
+    __ StoreU64(r7, MemOperand(sp));
   }
 
   // ----------- S t a t e -------------
@@ -1802,7 +1802,7 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ bind(&done);
     __ ShiftLeftP(r1, r2, Operand(kSystemPointerSizeLog2));
     __ lay(sp, MemOperand(sp, r1));
-    __ StoreP(r7, MemOperand(sp));
+    __ StoreU64(r7, MemOperand(sp));
   }
 
   // ----------- S t a t e -------------
@@ -1853,7 +1853,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ bind(&done);
     __ ShiftLeftP(r1, r2, Operand(kSystemPointerSizeLog2));
     __ lay(sp, MemOperand(sp, r1));
-    __ StoreP(r6, MemOperand(sp));
+    __ StoreU64(r6, MemOperand(sp));
   }
 
   // ----------- S t a t e -------------
@@ -1891,11 +1891,11 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
 
   // Cleanse the top nibble of 31-bit pointers.
   __ CleanseP(r14);
-  __ StoreP(r14, MemOperand(sp, 4 * kSystemPointerSize));
-  __ StoreP(fp, MemOperand(sp, 3 * kSystemPointerSize));
-  __ StoreP(r6, MemOperand(sp, 2 * kSystemPointerSize));
-  __ StoreP(r3, MemOperand(sp, 1 * kSystemPointerSize));
-  __ StoreP(r2, MemOperand(sp, 0 * kSystemPointerSize));
+  __ StoreU64(r14, MemOperand(sp, 4 * kSystemPointerSize));
+  __ StoreU64(fp, MemOperand(sp, 3 * kSystemPointerSize));
+  __ StoreU64(r6, MemOperand(sp, 2 * kSystemPointerSize));
+  __ StoreU64(r3, MemOperand(sp, 1 * kSystemPointerSize));
+  __ StoreU64(r2, MemOperand(sp, 0 * kSystemPointerSize));
   __ Push(Smi::zero());  // Padding.
   __ la(fp,
         MemOperand(sp, ArgumentsAdaptorFrameConstants::kFixedFrameSizeFromFp));
@@ -1967,7 +1967,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ bind(&copy);
     __ LoadP(r0, MemOperand(src));
     __ lay(src, MemOperand(src, kSystemPointerSize));
-    __ StoreP(r0, MemOperand(dest));
+    __ StoreU64(r0, MemOperand(dest));
     __ lay(dest, MemOperand(dest, kSystemPointerSize));
     __ SubP(num, num, Operand(1));
     __ bind(&check);
@@ -1989,7 +1989,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ bne(&skip, Label::kNear);
     __ LoadRoot(scratch, RootIndex::kUndefinedValue);
     __ bind(&skip);
-    __ StoreP(scratch, MemOperand(r7));
+    __ StoreU64(scratch, MemOperand(r7));
     __ lay(r7, MemOperand(r7, kSystemPointerSize));
     __ BranchOnCount(r1, &loop);
     __ bind(&no_args);
@@ -2109,7 +2109,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
       __ bind(&copy);
       __ LoadP(r0, MemOperand(src));
       __ lay(src, MemOperand(src, kSystemPointerSize));
-      __ StoreP(r0, MemOperand(dest));
+      __ StoreU64(r0, MemOperand(dest));
       __ lay(dest, MemOperand(dest, kSystemPointerSize));
       __ SubP(num, num, Operand(1));
       __ bind(&check);
@@ -2127,7 +2127,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
         __ SubP(r7, r7, Operand(1));
         __ ShiftLeftP(r1, r7, Operand(kSystemPointerSizeLog2));
         __ LoadP(scratch, MemOperand(r6, r1));
-        __ StoreP(scratch, MemOperand(r4, r1));
+        __ StoreU64(scratch, MemOperand(r4, r1));
         __ CmpP(r7, Operand::Zero());
         __ bne(&loop);
       }
@@ -2859,7 +2859,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   Label skip;
   __ CmpP(cp, Operand::Zero());
   __ beq(&skip, Label::kNear);
-  __ StoreP(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  __ StoreU64(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   __ bind(&skip);
 
   // Reset the masking register. This is done independent of the underlying
@@ -2980,7 +2980,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   argument_offset -= 2 * kSystemPointerSize;
 
   __ bind(&fastpath_done);
-  __ StoreP(result_reg, MemOperand(sp, argument_offset));
+  __ StoreU64(result_reg, MemOperand(sp, argument_offset));
   __ Pop(result_reg, scratch);
 
   __ Ret();
@@ -3052,7 +3052,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ LoadP(r7, MemOperand(r9, kLimitOffset));
   __ LoadU32(r8, MemOperand(r9, kLevelOffset));
   __ AddP(r8, Operand(1));
-  __ StoreW(r8, MemOperand(r9, kLevelOffset));
+  __ StoreU32(r8, MemOperand(r9, kLevelOffset));
 
   __ StoreReturnAddressAndCall(scratch);
 
@@ -3066,14 +3066,14 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ bind(&return_value_loaded);
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
-  __ StoreP(r6, MemOperand(r9, kNextOffset));
+  __ StoreU64(r6, MemOperand(r9, kNextOffset));
   if (__ emit_debug_code()) {
     __ LoadU32(r3, MemOperand(r9, kLevelOffset));
     __ CmpP(r3, r8);
     __ Check(eq, AbortReason::kUnexpectedLevelAfterReturnFromApiCall);
   }
   __ SubP(r8, Operand(1));
-  __ StoreW(r8, MemOperand(r9, kLevelOffset));
+  __ StoreU32(r8, MemOperand(r9, kLevelOffset));
   __ CmpP(r7, MemOperand(r9, kLimitOffset));
   __ bne(&delete_allocated_handles, Label::kNear);
 
@@ -3103,7 +3103,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 
   // HandleScope limit has changed. Delete allocated extensions.
   __ bind(&delete_allocated_handles);
-  __ StoreP(r7, MemOperand(r9, kLimitOffset));
+  __ StoreU64(r7, MemOperand(r9, kLimitOffset));
   __ LoadRR(r6, r2);
   __ PrepareCallCFunction(1, r7);
   __ Move(r2, ExternalReference::isolate_address(isolate));
@@ -3158,22 +3158,22 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   __ lay(sp, MemOperand(sp, -(FCA::kArgsLength * kSystemPointerSize)));
 
   // kHolder.
-  __ StoreP(holder, MemOperand(sp, 0 * kSystemPointerSize));
+  __ StoreU64(holder, MemOperand(sp, 0 * kSystemPointerSize));
 
   // kIsolate.
   __ Move(scratch, ExternalReference::isolate_address(masm->isolate()));
-  __ StoreP(scratch, MemOperand(sp, 1 * kSystemPointerSize));
+  __ StoreU64(scratch, MemOperand(sp, 1 * kSystemPointerSize));
 
   // kReturnValueDefaultValue and kReturnValue.
   __ LoadRoot(scratch, RootIndex::kUndefinedValue);
-  __ StoreP(scratch, MemOperand(sp, 2 * kSystemPointerSize));
-  __ StoreP(scratch, MemOperand(sp, 3 * kSystemPointerSize));
+  __ StoreU64(scratch, MemOperand(sp, 2 * kSystemPointerSize));
+  __ StoreU64(scratch, MemOperand(sp, 3 * kSystemPointerSize));
 
   // kData.
-  __ StoreP(call_data, MemOperand(sp, 4 * kSystemPointerSize));
+  __ StoreU64(call_data, MemOperand(sp, 4 * kSystemPointerSize));
 
   // kNewTarget.
-  __ StoreP(scratch, MemOperand(sp, 5 * kSystemPointerSize));
+  __ StoreU64(scratch, MemOperand(sp, 5 * kSystemPointerSize));
 
   // Keep a pointer to kHolder (= implicit_args) in a scratch register.
   // We use it below to set up the FunctionCallbackInfo object.
@@ -3195,19 +3195,19 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
 
   // FunctionCallbackInfo::implicit_args_ (points at kHolder as set up above).
   // Arguments are after the return address (pushed by EnterExitFrame()).
-  __ StoreP(scratch, MemOperand(sp, (kStackFrameExtraParamSlot + 1) *
-                                        kSystemPointerSize));
+  __ StoreU64(scratch, MemOperand(sp, (kStackFrameExtraParamSlot + 1) *
+                                          kSystemPointerSize));
 
   // FunctionCallbackInfo::values_ (points at the first varargs argument passed
   // on the stack).
   __ AddP(scratch, scratch,
           Operand((FCA::kArgsLength + 1) * kSystemPointerSize));
-  __ StoreP(scratch, MemOperand(sp, (kStackFrameExtraParamSlot + 2) *
-                                        kSystemPointerSize));
+  __ StoreU64(scratch, MemOperand(sp, (kStackFrameExtraParamSlot + 2) *
+                                          kSystemPointerSize));
 
   // FunctionCallbackInfo::length_.
-  __ StoreW(argc, MemOperand(sp, (kStackFrameExtraParamSlot + 3) *
-                                     kSystemPointerSize));
+  __ StoreU32(argc, MemOperand(sp, (kStackFrameExtraParamSlot + 3) *
+                                       kSystemPointerSize));
 
   // We also store the number of bytes to drop from the stack after returning
   // from the API function here.
@@ -3215,8 +3215,8 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
          Operand((FCA::kArgsLength + 1 /* receiver */) * kSystemPointerSize));
   __ ShiftLeftP(r1, argc, Operand(kSystemPointerSizeLog2));
   __ AddP(scratch, r1);
-  __ StoreP(scratch, MemOperand(sp, (kStackFrameExtraParamSlot + 4) *
-                                        kSystemPointerSize));
+  __ StoreU64(scratch, MemOperand(sp, (kStackFrameExtraParamSlot + 4) *
+                                          kSystemPointerSize));
 
   // v8::InvocationCallback's argument.
   __ lay(r2,
@@ -3310,13 +3310,13 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   if (!ABI_PASSES_HANDLES_IN_REGS) {
     // pass 1st arg by reference
-    __ StoreP(r2, MemOperand(sp, arg0Slot * kSystemPointerSize));
+    __ StoreU64(r2, MemOperand(sp, arg0Slot * kSystemPointerSize));
     __ AddP(r2, sp, Operand(arg0Slot * kSystemPointerSize));
   }
 
   // Create v8::PropertyCallbackInfo object on the stack and initialize
   // it's args_ field.
-  __ StoreP(r3, MemOperand(sp, accessorInfoSlot * kSystemPointerSize));
+  __ StoreU64(r3, MemOperand(sp, accessorInfoSlot * kSystemPointerSize));
   __ AddP(r3, sp, Operand(accessorInfoSlot * kSystemPointerSize));
   // r3 = v8::PropertyCallbackInfo&
 
@@ -3365,7 +3365,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     int code = config->GetAllocatableDoubleCode(i);
     const DoubleRegister dreg = DoubleRegister::from_code(code);
     int offset = code * kDoubleSize;
-    __ StoreDouble(dreg, MemOperand(sp, offset));
+    __ StoreF64(dreg, MemOperand(sp, offset));
   }
 
   // Push all GPRs onto the stack
@@ -3374,7 +3374,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
 
   __ Move(r1, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
                                         isolate));
-  __ StoreP(fp, MemOperand(r1));
+  __ StoreU64(fp, MemOperand(r1));
 
   static constexpr int kSavedRegistersAreaSize =
       (kNumberOfRegisters * kSystemPointerSize) + kDoubleRegsSize;
@@ -3404,7 +3404,8 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   // r6: Fp-to-sp delta.
   // Parm6: isolate is passed on the stack.
   __ Move(r7, ExternalReference::isolate_address(isolate));
-  __ StoreP(r7, MemOperand(sp, kStackFrameExtraParamSlot * kSystemPointerSize));
+  __ StoreU64(r7,
+              MemOperand(sp, kStackFrameExtraParamSlot * kSystemPointerSize));
 
   // Call Deoptimizer::New().
   {
@@ -3427,7 +3428,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     int offset =
         (i * kSystemPointerSize) + FrameDescription::registers_offset();
     __ LoadP(r4, MemOperand(sp, i * kSystemPointerSize));
-    __ StoreP(r4, MemOperand(r3, offset));
+    __ StoreU64(r4, MemOperand(r3, offset));
   }
 
   int double_regs_offset = FrameDescription::double_registers_offset();
@@ -3440,7 +3441,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
         code * kDoubleSize + kNumberOfRegisters * kSystemPointerSize;
     // TODO(joransiu): MVC opportunity
     __ LoadF64(d0, MemOperand(sp, src_offset));
-    __ StoreDouble(d0, MemOperand(r3, dst_offset));
+    __ StoreF64(d0, MemOperand(r3, dst_offset));
   }
 
   // Mark the stack as not iterable for the CPU profiler which won't be able to
@@ -3451,7 +3452,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     Register zero = r6;
     __ Move(is_iterable, ExternalReference::stack_is_iterable_address(isolate));
     __ lhi(zero, Operand(0));
-    __ StoreByte(zero, MemOperand(is_iterable));
+    __ StoreU8(zero, MemOperand(is_iterable));
   }
 
   // Remove the saved registers from the stack.
@@ -3471,7 +3472,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ b(&pop_loop_header, Label::kNear);
   __ bind(&pop_loop);
   __ pop(r6);
-  __ StoreP(r6, MemOperand(r5, 0));
+  __ StoreU64(r6, MemOperand(r5, 0));
   __ la(r5, MemOperand(r5, kSystemPointerSize));
   __ bind(&pop_loop_header);
   __ CmpP(r4, sp);
@@ -3551,7 +3552,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     Register one = r6;
     __ Move(is_iterable, ExternalReference::stack_is_iterable_address(isolate));
     __ lhi(one, Operand(1));
-    __ StoreByte(one, MemOperand(is_iterable));
+    __ StoreU8(one, MemOperand(is_iterable));
   }
 
   __ pop(ip);  // get continuation, leave pc on stack

@@ -295,11 +295,11 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     // instructions per slot.
     uint32_t remainder = size;
     for (; remainder >= kStackSlotSize; remainder -= kStackSlotSize) {
-      StoreP(r0, liftoff::GetStackSlot(start + remainder));
+      StoreU64(r0, liftoff::GetStackSlot(start + remainder));
     }
     DCHECK(remainder == 4 || remainder == 0);
     if (remainder) {
-      StoreW(r0, liftoff::GetStackSlot(start + remainder));
+      StoreU32(r0, liftoff::GetStackSlot(start + remainder));
     }
   } else {
     // General case for bigger counts (9 instructions).
@@ -311,7 +311,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
 
     Label loop;
     bind(&loop);
-    StoreP(r0, MemOperand(r0));
+    StoreU64(r0, MemOperand(r0));
     la(r0, MemOperand(r0, kSystemPointerSize));
     CmpLogicalP(r3, r4);
     bne(&loop);

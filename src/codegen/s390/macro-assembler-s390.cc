@@ -580,7 +580,7 @@ void TurboAssembler::MultiPush(RegList regs, Register location) {
   for (int16_t i = Register::kNumRegisters - 1; i >= 0; i--) {
     if ((regs & (1 << i)) != 0) {
       stack_offset -= kSystemPointerSize;
-      StoreP(ToRegister(i), MemOperand(location, stack_offset));
+      StoreU64(ToRegister(i), MemOperand(location, stack_offset));
     }
   }
 }
@@ -606,7 +606,7 @@ void TurboAssembler::MultiPushDoubles(RegList dregs, Register location) {
     if ((dregs & (1 << i)) != 0) {
       DoubleRegister dreg = DoubleRegister::from_code(i);
       stack_offset -= kDoubleSize;
-      StoreDouble(dreg, MemOperand(location, stack_offset));
+      StoreF64(dreg, MemOperand(location, stack_offset));
     }
   }
 }
@@ -668,10 +668,10 @@ void TurboAssembler::StoreTaggedField(const Register& value,
                                       const Register& scratch) {
   if (COMPRESS_POINTERS_BOOL) {
     RecordComment("[ StoreTagged");
-    StoreW(value, dst_field_operand);
+    StoreU32(value, dst_field_operand);
     RecordComment("]");
   } else {
-    StoreP(value, dst_field_operand, scratch);
+    StoreU64(value, dst_field_operand, scratch);
   }
 }
 
@@ -1317,16 +1317,17 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   lay(sp, MemOperand(fp, -ExitFrameConstants::kFixedFrameSizeFromFp));
 
   if (emit_debug_code()) {
-    StoreP(MemOperand(fp, ExitFrameConstants::kSPOffset), Operand::Zero(), r1);
+    StoreU64(MemOperand(fp, ExitFrameConstants::kSPOffset), Operand::Zero(),
+             r1);
   }
 
   // Save the frame pointer and the context in top.
   Move(r1, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
                                      isolate()));
-  StoreP(fp, MemOperand(r1));
+  StoreU64(fp, MemOperand(r1));
   Move(r1,
        ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
-  StoreP(cp, MemOperand(r1));
+  StoreU64(cp, MemOperand(r1));
 
   // Optionally save all volatile double registers.
   if (save_doubles) {
@@ -1348,11 +1349,11 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   }
 
   lay(sp, MemOperand(sp, -kNumRequiredStackFrameSlots * kSystemPointerSize));
-  StoreP(MemOperand(sp), Operand::Zero(), r0);
+  StoreU64(MemOperand(sp), Operand::Zero(), r0);
   // Set the exit frame sp value to point just before the return address
   // location.
   lay(r1, MemOperand(sp, kStackFrameSPSlot * kSystemPointerSize));
-  StoreP(r1, MemOperand(fp, ExitFrameConstants::kSPOffset));
+  StoreU64(r1, MemOperand(fp, ExitFrameConstants::kSPOffset));
 }
 
 int TurboAssembler::ActivationFrameAlignment() {
@@ -1385,7 +1386,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
   // Clear top frame.
   Move(ip, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
                                      isolate()));
-  StoreP(MemOperand(ip), Operand(0, RelocInfo::NONE), r0);
+  StoreU64(MemOperand(ip), Operand(0, RelocInfo::NONE), r0);
 
   // Restore current context from top and clear it in debug mode.
   Move(ip,
@@ -1396,7 +1397,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
   mov(r1, Operand(Context::kInvalidContext));
   Move(ip,
        ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
-  StoreP(r1, MemOperand(ip));
+  StoreU64(r1, MemOperand(ip));
 #endif
 
   // Tear down the exit frame, pop the arguments, and return.
@@ -1459,7 +1460,7 @@ void TurboAssembler::PrepareForTailCall(Register callee_args_count,
   LoadRR(r1, tmp_reg);
   bind(&loop);
   LoadP(tmp_reg, MemOperand(src_reg, -kSystemPointerSize));
-  StoreP(tmp_reg, MemOperand(dst_reg, -kSystemPointerSize));
+  StoreU64(tmp_reg, MemOperand(dst_reg, -kSystemPointerSize));
   lay(src_reg, MemOperand(src_reg, -kSystemPointerSize));
   lay(dst_reg, MemOperand(dst_reg, -kSystemPointerSize));
   BranchOnCount(r1, &loop);
@@ -1542,7 +1543,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     bind(&copy);
     LoadP(r0, MemOperand(src));
     lay(src, MemOperand(src, kSystemPointerSize));
-    StoreP(r0, MemOperand(dest));
+    StoreU64(r0, MemOperand(dest));
     lay(dest, MemOperand(dest, kSystemPointerSize));
     SubP(num, num, Operand(1));
     bind(&check);
@@ -1554,7 +1555,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
   {
     Label loop;
     bind(&loop);
-    StoreP(scratch, MemOperand(ip));
+    StoreU64(scratch, MemOperand(ip));
     lay(ip, MemOperand(ip, kSystemPointerSize));
     SubP(expected_parameter_count, expected_parameter_count, Operand(1));
     bgt(&loop);
@@ -1729,13 +1730,13 @@ void MacroAssembler::PushStackHandler() {
 
   // Store padding.
   lghi(r0, Operand::Zero());
-  StoreP(r0, MemOperand(sp));  // Padding.
+  StoreU64(r0, MemOperand(sp));  // Padding.
 
   // Copy the old handler into the next handler slot.
   MoveChar(MemOperand(sp, StackHandlerConstants::kNextOffset), MemOperand(r7),
            Operand(kSystemPointerSize));
   // Set this new handler as the current one.
-  StoreP(sp, MemOperand(r7));
+  StoreU64(sp, MemOperand(r7));
 }
 
 void MacroAssembler::PopStackHandler() {
@@ -1746,7 +1747,7 @@ void MacroAssembler::PopStackHandler() {
   Pop(r3);
   Move(ip,
        ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate()));
-  StoreP(r3, MemOperand(ip));
+  StoreU64(r3, MemOperand(ip));
 
   Drop(1);  // Drop padding.
 }
@@ -1801,7 +1802,7 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   push(r14);
   // Put input on stack.
   lay(sp, MemOperand(sp, -kDoubleSize));
-  StoreDouble(double_input, MemOperand(sp));
+  StoreF64(double_input, MemOperand(sp));
 
   if (stub_mode == StubCallMode::kCallWasmRuntimeStub) {
     Call(wasm::WasmCode::kDoubleToI, RelocInfo::WASM_STUB_CALL);
@@ -1889,7 +1890,7 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
     // @TODO(john.yan): can be optimized by asi()
     LoadS32(scratch1, MemOperand(scratch2));
     AddP(scratch1, Operand(value));
-    StoreW(scratch1, MemOperand(scratch2));
+    StoreU32(scratch1, MemOperand(scratch2));
   }
 }
 
@@ -1901,7 +1902,7 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
     // @TODO(john.yan): can be optimized by asi()
     LoadS32(scratch1, MemOperand(scratch2));
     AddP(scratch1, Operand(-value));
-    StoreW(scratch1, MemOperand(scratch2));
+    StoreU32(scratch1, MemOperand(scratch2));
   }
 }
 
@@ -2097,8 +2098,8 @@ void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
     DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     ClearRightImm(sp, sp,
                   Operand(base::bits::WhichPowerOfTwo(frame_alignment)));
-    StoreP(scratch,
-           MemOperand(sp, (stack_passed_arguments)*kSystemPointerSize));
+    StoreU64(scratch,
+             MemOperand(sp, (stack_passed_arguments)*kSystemPointerSize));
   } else {
     stack_space += stack_passed_arguments;
   }
@@ -2159,20 +2160,20 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   // See x64 code for reasoning about how to address the isolate data fields.
   if (root_array_available()) {
     LoadPC(r0);
-    StoreP(r0, MemOperand(kRootRegister,
-                          IsolateData::fast_c_call_caller_pc_offset()));
-    StoreP(fp, MemOperand(kRootRegister,
-                          IsolateData::fast_c_call_caller_fp_offset()));
+    StoreU64(r0, MemOperand(kRootRegister,
+                            IsolateData::fast_c_call_caller_pc_offset()));
+    StoreU64(fp, MemOperand(kRootRegister,
+                            IsolateData::fast_c_call_caller_fp_offset()));
   } else {
     DCHECK_NOT_NULL(isolate());
 
     Move(addr_scratch,
          ExternalReference::fast_c_call_caller_pc_address(isolate()));
     LoadPC(r0);
-    StoreP(r0, MemOperand(addr_scratch));
+    StoreU64(r0, MemOperand(addr_scratch));
     Move(addr_scratch,
          ExternalReference::fast_c_call_caller_fp_address(isolate()));
-    StoreP(fp, MemOperand(addr_scratch));
+    StoreU64(fp, MemOperand(addr_scratch));
   }
 
   // Just call directly. The function called cannot cause a GC, or
@@ -2191,14 +2192,14 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   lghi(zero_scratch, Operand::Zero());
 
   if (root_array_available()) {
-    StoreP(
+    StoreU64(
         zero_scratch,
         MemOperand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()));
   } else {
     DCHECK_NOT_NULL(isolate());
     Move(addr_scratch,
          ExternalReference::fast_c_call_caller_fp_address(isolate()));
-    StoreP(zero_scratch, MemOperand(addr_scratch));
+    StoreU64(zero_scratch, MemOperand(addr_scratch));
   }
 
   int stack_passed_arguments =
@@ -2876,25 +2877,6 @@ void TurboAssembler::AddLogicalP(Register dst, const MemOperand& opnd) {
 //----------------------------------------------------------------------------
 //  Subtract Instructions
 //----------------------------------------------------------------------------
-
-// Subtract Logical With Carry 32-bit (Register dst = Register src1 - Register
-// src2)
-void TurboAssembler::SubLogicalWithBorrow32(Register dst, Register src1,
-                                            Register src2) {
-  if (dst != src2 && dst != src1) {
-    lr(dst, src1);
-    slbr(dst, src2);
-  } else if (dst != src2) {
-    // dst == src1
-    DCHECK(dst == src1);
-    slbr(dst, src2);
-  } else {
-    // dst == src2
-    DCHECK(dst == src2);
-    lr(r0, dst);
-    SubLogicalWithBorrow32(dst, src1, r0);
-  }
-}
 
 // Subtract Logical 32-bit (Register dst = Register src1 - Register src2)
 void TurboAssembler::SubLogical32(Register dst, Register src1, Register src2) {
@@ -3732,8 +3714,8 @@ void TurboAssembler::LoadP(Register dst, const MemOperand& mem,
 }
 
 // Store a "pointer" sized value to the memory location
-void TurboAssembler::StoreP(Register src, const MemOperand& mem,
-                            Register scratch) {
+void TurboAssembler::StoreU64(Register src, const MemOperand& mem,
+                              Register scratch) {
   if (!is_int20(mem.offset())) {
     DCHECK(scratch != no_reg);
     DCHECK(scratch != r0);
@@ -3747,16 +3729,16 @@ void TurboAssembler::StoreP(Register src, const MemOperand& mem,
 #if V8_TARGET_ARCH_S390X
     stg(src, mem);
 #else
-    // StoreW will try to generate ST if offset fits, otherwise
+    // StoreU32 will try to generate ST if offset fits, otherwise
     // it'll generate STY.
-    StoreW(src, mem);
+    StoreU32(src, mem);
 #endif
   }
 }
 
 // Store a "pointer" sized constant to the memory location
-void TurboAssembler::StoreP(const MemOperand& mem, const Operand& opnd,
-                            Register scratch) {
+void TurboAssembler::StoreU64(const MemOperand& mem, const Operand& opnd,
+                              Register scratch) {
   // Relocations not supported
   DCHECK_EQ(opnd.rmode(), RelocInfo::NONE);
 
@@ -3770,7 +3752,7 @@ void TurboAssembler::StoreP(const MemOperand& mem, const Operand& opnd,
 #endif
   } else {
     LoadImmP(scratch, opnd);
-    StoreP(scratch, mem);
+    StoreU64(scratch, mem);
   }
 }
 
@@ -4041,16 +4023,8 @@ void TurboAssembler::LoadF32(DoubleRegister dst, const MemOperand& mem) {
   }
 }
 
-// Load Single Precision (32-bit) Floating Point number from memory,
-// and convert to Double Precision (64-bit)
-void TurboAssembler::LoadFloat32ConvertToDouble(DoubleRegister dst,
-                                                const MemOperand& mem) {
-  LoadF32(dst, mem);
-  ldebr(dst, dst);
-}
-
-void TurboAssembler::LoadSimd128(Simd128Register dst, const MemOperand& mem,
-                                 Register scratch) {
+void TurboAssembler::LoadV128(Simd128Register dst, const MemOperand& mem,
+                              Register scratch) {
   if (is_uint12(mem.offset())) {
     vl(dst, mem, Condition(0));
   } else {
@@ -4061,7 +4035,7 @@ void TurboAssembler::LoadSimd128(Simd128Register dst, const MemOperand& mem,
 }
 
 // Store Double Precision (64-bit) Floating Point number to memory
-void TurboAssembler::StoreDouble(DoubleRegister dst, const MemOperand& mem) {
+void TurboAssembler::StoreF64(DoubleRegister dst, const MemOperand& mem) {
   if (is_uint12(mem.offset())) {
     std(dst, mem);
   } else {
@@ -4070,7 +4044,7 @@ void TurboAssembler::StoreDouble(DoubleRegister dst, const MemOperand& mem) {
 }
 
 // Store Single Precision (32-bit) Floating Point number to memory
-void TurboAssembler::StoreFloat32(DoubleRegister src, const MemOperand& mem) {
+void TurboAssembler::StoreF32(DoubleRegister src, const MemOperand& mem) {
   if (is_uint12(mem.offset())) {
     ste(src, mem);
   } else {
@@ -4078,17 +4052,8 @@ void TurboAssembler::StoreFloat32(DoubleRegister src, const MemOperand& mem) {
   }
 }
 
-// Convert Double precision (64-bit) to Single Precision (32-bit)
-// and store resulting Float32 to memory
-void TurboAssembler::StoreDoubleAsFloat32(DoubleRegister src,
-                                          const MemOperand& mem,
-                                          DoubleRegister scratch) {
-  ledbr(scratch, src);
-  StoreFloat32(scratch, mem);
-}
-
-void TurboAssembler::StoreSimd128(Simd128Register src, const MemOperand& mem,
-                                  Register scratch) {
+void TurboAssembler::StoreV128(Simd128Register src, const MemOperand& mem,
+                               Register scratch) {
   if (is_uint12(mem.offset())) {
     vst(src, mem, Condition(0));
   } else {
@@ -4178,9 +4143,8 @@ void TurboAssembler::DivFloat64(DoubleRegister dst, const MemOperand& opnd,
   }
 }
 
-void TurboAssembler::LoadFloat32ToDouble(DoubleRegister dst,
-                                         const MemOperand& opnd,
-                                         DoubleRegister scratch) {
+void TurboAssembler::LoadF32AsF64(DoubleRegister dst, const MemOperand& opnd,
+                                  DoubleRegister scratch) {
   if (is_uint12(opnd.offset())) {
     ldeb(dst, opnd);
   } else {
@@ -4191,8 +4155,8 @@ void TurboAssembler::LoadFloat32ToDouble(DoubleRegister dst,
 
 // Variable length depending on whether offset fits into immediate field
 // MemOperand of RX or RXY format
-void TurboAssembler::StoreW(Register src, const MemOperand& mem,
-                            Register scratch) {
+void TurboAssembler::StoreU32(Register src, const MemOperand& mem,
+                              Register scratch) {
   Register base = mem.rb();
   int offset = mem.offset();
 
@@ -4218,7 +4182,7 @@ void TurboAssembler::StoreW(Register src, const MemOperand& mem,
   } else if (use_RXYform) {
     sty(src, mem);
   } else {
-    StoreW(src, MemOperand(base, scratch));
+    StoreU32(src, MemOperand(base, scratch));
   }
 }
 
@@ -4260,8 +4224,8 @@ void TurboAssembler::LoadS16(Register dst, const MemOperand& mem,
 
 // Variable length depending on whether offset fits into immediate field
 // MemOperand current only supports d-form
-void TurboAssembler::StoreHalfWord(Register src, const MemOperand& mem,
-                                   Register scratch) {
+void TurboAssembler::StoreU16(Register src, const MemOperand& mem,
+                              Register scratch) {
   Register base = mem.rb();
   int offset = mem.offset();
 
@@ -4278,8 +4242,8 @@ void TurboAssembler::StoreHalfWord(Register src, const MemOperand& mem,
 
 // Variable length depending on whether offset fits into immediate field
 // MemOperand current only supports d-form
-void TurboAssembler::StoreByte(Register src, const MemOperand& mem,
-                               Register scratch) {
+void TurboAssembler::StoreU8(Register src, const MemOperand& mem,
+                             Register scratch) {
   Register base = mem.rb();
   int offset = mem.offset();
 
@@ -4467,7 +4431,7 @@ void TurboAssembler::SwapP(Register src, MemOperand dst, Register scratch) {
   DCHECK(!AreAliased(src, scratch));
   LoadRR(scratch, src);
   LoadP(src, dst);
-  StoreP(scratch, dst);
+  StoreU64(scratch, dst);
 }
 
 void TurboAssembler::SwapP(MemOperand src, MemOperand dst, Register scratch_0,
@@ -4479,8 +4443,8 @@ void TurboAssembler::SwapP(MemOperand src, MemOperand dst, Register scratch_0,
   DCHECK(!AreAliased(scratch_0, scratch_1));
   LoadP(scratch_0, src);
   LoadP(scratch_1, dst);
-  StoreP(scratch_0, dst);
-  StoreP(scratch_1, src);
+  StoreU64(scratch_0, dst);
+  StoreU64(scratch_1, src);
 }
 
 void TurboAssembler::SwapFloat32(DoubleRegister src, DoubleRegister dst,
@@ -4497,18 +4461,18 @@ void TurboAssembler::SwapFloat32(DoubleRegister src, MemOperand dst,
   DCHECK(!AreAliased(src, scratch));
   ldr(scratch, src);
   LoadF32(src, dst);
-  StoreFloat32(scratch, dst);
+  StoreF32(scratch, dst);
 }
 
 void TurboAssembler::SwapFloat32(MemOperand src, MemOperand dst,
                                  DoubleRegister scratch) {
   // push d0, to be used as scratch
   lay(sp, MemOperand(sp, -kDoubleSize));
-  StoreDouble(d0, MemOperand(sp));
+  StoreF64(d0, MemOperand(sp));
   LoadF32(scratch, src);
   LoadF32(d0, dst);
-  StoreFloat32(scratch, dst);
-  StoreFloat32(d0, src);
+  StoreF32(scratch, dst);
+  StoreF32(d0, src);
   // restore d0
   LoadF64(d0, MemOperand(sp));
   lay(sp, MemOperand(sp, kDoubleSize));
@@ -4528,18 +4492,18 @@ void TurboAssembler::SwapDouble(DoubleRegister src, MemOperand dst,
   DCHECK(!AreAliased(src, scratch));
   ldr(scratch, src);
   LoadF64(src, dst);
-  StoreDouble(scratch, dst);
+  StoreF64(scratch, dst);
 }
 
 void TurboAssembler::SwapDouble(MemOperand src, MemOperand dst,
                                 DoubleRegister scratch) {
   // push d0, to be used as scratch
   lay(sp, MemOperand(sp, -kDoubleSize));
-  StoreDouble(d0, MemOperand(sp));
+  StoreF64(d0, MemOperand(sp));
   LoadF64(scratch, src);
   LoadF64(d0, dst);
-  StoreDouble(scratch, dst);
-  StoreDouble(d0, src);
+  StoreF64(scratch, dst);
+  StoreF64(d0, src);
   // restore d0
   LoadF64(d0, MemOperand(sp));
   lay(sp, MemOperand(sp, kDoubleSize));
@@ -4557,21 +4521,21 @@ void TurboAssembler::SwapSimd128(Simd128Register src, MemOperand dst,
                                  Simd128Register scratch) {
   DCHECK(!AreAliased(src, scratch));
   vlr(scratch, src, Condition(0), Condition(0), Condition(0));
-  LoadSimd128(src, dst, ip);
-  StoreSimd128(scratch, dst, ip);
+  LoadV128(src, dst, ip);
+  StoreV128(scratch, dst, ip);
 }
 
 void TurboAssembler::SwapSimd128(MemOperand src, MemOperand dst,
                                  Simd128Register scratch) {
   // push d0, to be used as scratch
   lay(sp, MemOperand(sp, -kSimd128Size));
-  StoreSimd128(d0, MemOperand(sp), ip);
-  LoadSimd128(scratch, src, ip);
-  LoadSimd128(d0, dst, ip);
-  StoreSimd128(scratch, dst, ip);
-  StoreSimd128(d0, src, ip);
+  StoreV128(d0, MemOperand(sp), ip);
+  LoadV128(scratch, src, ip);
+  LoadV128(d0, dst, ip);
+  StoreV128(scratch, dst, ip);
+  StoreV128(d0, src, ip);
   // restore d0
-  LoadSimd128(d0, MemOperand(sp), ip);
+  LoadV128(d0, MemOperand(sp), ip);
   lay(sp, MemOperand(sp, kSimd128Size));
 }
 
@@ -4688,7 +4652,7 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
 
   Label return_label;
   larl(r14, &return_label);  // Generate the return addr of call later.
-  StoreP(r14, MemOperand(sp, kStackFrameRASlot * kSystemPointerSize));
+  StoreU64(r14, MemOperand(sp, kStackFrameRASlot * kSystemPointerSize));
 
   // zLinux ABI requires caller's frame to have sufficient space for callee
   // preserved regsiter save area.

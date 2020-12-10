@@ -160,7 +160,7 @@ void RegExpMacroAssemblerS390::AdvanceRegister(int reg, int by) {
       __ LoadP(r2, register_location(reg), r0);
       __ mov(r0, Operand(by));
       __ AddRR(r2, r0);
-      __ StoreP(r2, register_location(reg));
+      __ StoreU64(r2, register_location(reg));
     }
   }
 }
@@ -171,7 +171,7 @@ void RegExpMacroAssemblerS390::Backtrack() {
     Label next;
     __ LoadP(r2, MemOperand(frame_pointer(), kBacktrackCount), r0);
     __ AddP(r2, r2, Operand(1));
-    __ StoreP(r2, MemOperand(frame_pointer(), kBacktrackCount), r0);
+    __ StoreU64(r2, MemOperand(frame_pointer(), kBacktrackCount), r0);
     __ CmpLogicalP(r2, Operand(backtrack_limit()));
     __ bne(&next);
 
@@ -733,7 +733,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
   }
   // Store this value in a local variable, for use when clearing
   // position registers.
-  __ StoreP(r1, MemOperand(frame_pointer(), kStringStartMinusOne));
+  __ StoreU64(r1, MemOperand(frame_pointer(), kStringStartMinusOne));
 
   // Initialize code pointer register
   __ mov(code_pointer(), Operand(masm_->CodeObject()));
@@ -761,12 +761,12 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
       __ Load(r4, Operand(num_saved_registers_));
       Label init_loop;
       __ bind(&init_loop);
-      __ StoreP(r1, MemOperand(r3, -kSystemPointerSize));
+      __ StoreU64(r1, MemOperand(r3, -kSystemPointerSize));
       __ lay(r3, MemOperand(r3, -kSystemPointerSize));
       __ BranchOnCount(r4, &init_loop);
     } else {
       for (int i = 0; i < num_saved_registers_; i++) {
-        __ StoreP(r1, register_location(i));
+        __ StoreU64(r1, register_location(i));
       }
     }
   }
@@ -814,13 +814,14 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
           __ AddP(r4, r0);
           __ AddP(r5, r0);
           __ AddP(r6, r0);
-          __ StoreW(r3,
-                    MemOperand(r2, -(num_saved_registers_ - i - 3) * kIntSize));
-          __ StoreW(r4,
-                    MemOperand(r2, -(num_saved_registers_ - i - 2) * kIntSize));
-          __ StoreW(r5,
-                    MemOperand(r2, -(num_saved_registers_ - i - 1) * kIntSize));
-          __ StoreW(r6, MemOperand(r2, -(num_saved_registers_ - i) * kIntSize));
+          __ StoreU32(
+              r3, MemOperand(r2, -(num_saved_registers_ - i - 3) * kIntSize));
+          __ StoreU32(
+              r4, MemOperand(r2, -(num_saved_registers_ - i - 2) * kIntSize));
+          __ StoreU32(
+              r5, MemOperand(r2, -(num_saved_registers_ - i - 1) * kIntSize));
+          __ StoreU32(r6,
+                      MemOperand(r2, -(num_saved_registers_ - i) * kIntSize));
           i += 4;
         } else {
           __ LoadMultipleP(r3, r4, register_location(i + 1));
@@ -830,9 +831,10 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
           }
           __ AddP(r3, r0);
           __ AddP(r4, r0);
-          __ StoreW(r3,
-                    MemOperand(r2, -(num_saved_registers_ - i - 1) * kIntSize));
-          __ StoreW(r4, MemOperand(r2, -(num_saved_registers_ - i) * kIntSize));
+          __ StoreU32(
+              r3, MemOperand(r2, -(num_saved_registers_ - i - 1) * kIntSize));
+          __ StoreU32(r4,
+                      MemOperand(r2, -(num_saved_registers_ - i) * kIntSize));
           i += 2;
         }
       }
@@ -849,7 +851,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
       __ LoadP(r4, MemOperand(frame_pointer(), kRegisterOutput));
       // Increment success counter.
       __ AddP(r2, Operand(1));
-      __ StoreP(r2, MemOperand(frame_pointer(), kSuccessfulCaptures));
+      __ StoreU64(r2, MemOperand(frame_pointer(), kSuccessfulCaptures));
       // Capture results have been stored, so the number of remaining global
       // output registers is reduced by the number of stored captures.
       __ SubP(r3, Operand(num_saved_registers_));
@@ -857,10 +859,10 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
       __ CmpP(r3, Operand(num_saved_registers_));
       __ blt(&return_r2);
 
-      __ StoreP(r3, MemOperand(frame_pointer(), kNumOutputRegisters));
+      __ StoreU64(r3, MemOperand(frame_pointer(), kNumOutputRegisters));
       // Advance the location for output.
       __ AddP(r4, Operand(num_saved_registers_ * kIntSize));
-      __ StoreP(r4, MemOperand(frame_pointer(), kRegisterOutput));
+      __ StoreU64(r4, MemOperand(frame_pointer(), kRegisterOutput));
 
       // Prepare r2 to initialize registers with its value in the next run.
       __ LoadP(r2, MemOperand(frame_pointer(), kStringStartMinusOne));
@@ -1005,7 +1007,7 @@ void RegExpMacroAssemblerS390::PopCurrentPosition() {
 
 void RegExpMacroAssemblerS390::PopRegister(int register_index) {
   Pop(r2);
-  __ StoreP(r2, register_location(register_index));
+  __ StoreU64(r2, register_location(register_index));
 }
 
 void RegExpMacroAssemblerS390::PushBacktrack(Label* label) {
@@ -1055,7 +1057,7 @@ void RegExpMacroAssemblerS390::SetCurrentPositionFromEnd(int by) {
 void RegExpMacroAssemblerS390::SetRegister(int register_index, int to) {
   DCHECK(register_index >= num_saved_registers_);  // Reserved for positions!
   __ mov(r2, Operand(to));
-  __ StoreP(r2, register_location(register_index));
+  __ StoreU64(r2, register_location(register_index));
 }
 
 bool RegExpMacroAssemblerS390::Succeed() {
@@ -1066,10 +1068,10 @@ bool RegExpMacroAssemblerS390::Succeed() {
 void RegExpMacroAssemblerS390::WriteCurrentPositionToRegister(int reg,
                                                               int cp_offset) {
   if (cp_offset == 0) {
-    __ StoreP(current_input_offset(), register_location(reg));
+    __ StoreU64(current_input_offset(), register_location(reg));
   } else {
     __ AddP(r2, current_input_offset(), Operand(cp_offset * char_size()));
-    __ StoreP(r2, register_location(reg));
+    __ StoreU64(r2, register_location(reg));
   }
 }
 
@@ -1077,14 +1079,14 @@ void RegExpMacroAssemblerS390::ClearRegisters(int reg_from, int reg_to) {
   DCHECK(reg_from <= reg_to);
   __ LoadP(r2, MemOperand(frame_pointer(), kStringStartMinusOne));
   for (int reg = reg_from; reg <= reg_to; reg++) {
-    __ StoreP(r2, register_location(reg));
+    __ StoreU64(r2, register_location(reg));
   }
 }
 
 void RegExpMacroAssemblerS390::WriteStackPointerToRegister(int reg) {
   __ LoadP(r3, MemOperand(frame_pointer(), kStackHighEnd));
   __ SubP(r2, backtrack_stackpointer(), r3);
-  __ StoreP(r2, register_location(reg));
+  __ StoreU64(r2, register_location(reg));
 }
 
 // Private methods:
@@ -1216,7 +1218,7 @@ void RegExpMacroAssemblerS390::Push(Register source) {
   DCHECK(source != backtrack_stackpointer());
   __ lay(backtrack_stackpointer(),
          MemOperand(backtrack_stackpointer(), -kSystemPointerSize));
-  __ StoreP(source, MemOperand(backtrack_stackpointer()));
+  __ StoreU64(source, MemOperand(backtrack_stackpointer()));
 }
 
 void RegExpMacroAssemblerS390::Pop(Register target) {
@@ -1250,7 +1252,7 @@ void RegExpMacroAssemblerS390::CallCFunctionUsingStub(
   __ mov(code_pointer(), Operand(function));
   Label ret;
   __ larl(r14, &ret);
-  __ StoreP(r14, MemOperand(sp, kStackFrameRASlot * kSystemPointerSize));
+  __ StoreU64(r14, MemOperand(sp, kStackFrameRASlot * kSystemPointerSize));
   __ b(code_pointer());
   __ bind(&ret);
   if (base::OS::ActivationFrameAlignment() > kSystemPointerSize) {
