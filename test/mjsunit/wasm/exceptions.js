@@ -803,3 +803,239 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   assertThrowsEquals(instance.exports.large_from_js, 1e+28);
   assertThrowsEquals(instance.exports.undefined_from_js, undefined);
 })();
+
+// Delegate with a try block that never throws.
+(function TestDelegateNoThrow() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except1 = builder.addException(kSig_v_v);
+  builder.addFunction('test', kSig_i_v)
+      .addBody([
+        kExprTry, kWasmI32,
+          kExprTry, kWasmI32,
+            kExprI32Const, 1,
+          kExprDelegate, 0,
+        kExprCatch, except1,
+          kExprI32Const, 2,
+        kExprEnd,
+      ]).exportFunc();
+  instance = builder.instantiate();
+  assertEquals(1, instance.exports.test());
+})();
+
+// Delegate exception handling to outer try/catch block.
+(function TestDelegateThrow() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except = builder.addException(kSig_v_v);
+  let throw_if = builder.addFunction('throw', kSig_v_i)
+      .addBody([
+          kExprLocalGet, 0,
+          kExprIf, kWasmStmt,
+            kExprThrow, except,
+          kExprEnd]).exportFunc();
+  builder.addFunction('test', kSig_i_i)
+      .addBody([
+        kExprTry, kWasmI32,
+          kExprTry, kWasmI32,
+            kExprLocalGet, 0,
+            kExprCallFunction, throw_if.index,
+            kExprI32Const, 1,
+          kExprDelegate, 0,
+        kExprCatch, except,
+          kExprI32Const, 2,
+        kExprEnd,
+      ]).exportFunc();
+  instance = builder.instantiate();
+  assertEquals(1, instance.exports.test(0));
+  assertEquals(2, instance.exports.test(1));
+})();
+
+// No catch block matching the exception in the delegate target.
+(function TestDelegateThrowNoCatch() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except1 = builder.addException(kSig_v_v);
+  let except2 = builder.addException(kSig_v_v);
+  let throw_fn = builder.addFunction('throw', kSig_v_v)
+                     .addBody([kExprThrow, except1])
+                     .exportFunc();
+  let throw_fn_2 = builder.addFunction('throw_2', kSig_v_v)
+                     .addBody([kExprThrow, except2])
+                     .exportFunc();
+  builder.addFunction('test', kSig_i_v)
+      .addBody([
+        kExprTry, kWasmI32,
+          kExprTry, kWasmI32,
+            kExprCallFunction, throw_fn.index,
+            kExprI32Const, 1,
+          kExprDelegate, 0,
+        kExprCatch, except2,
+          kExprI32Const, 2,
+        kExprEnd,
+      ]).exportFunc();
+  instance = builder.instantiate();
+  assertTraps(WebAssembly.RuntimeError, instance.exports.test);
+})();
+
+// Check that the exception is merged properly when both scopes can throw.
+(function TestDelegateMerge() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except1 = builder.addException(kSig_v_v);
+  let except2 = builder.addException(kSig_v_v);
+  // throw_fn: 0 -> returns
+  //           1 -> throw except1
+  //           2 -> throw except2
+  let throw_fn = builder.addFunction('throw', kSig_v_i)
+      .addBody([
+          kExprBlock, kWasmStmt,
+            kExprBlock, kWasmStmt,
+              kExprBlock, kWasmStmt,
+                kExprLocalGet, 0,
+                kExprBrTable, 2, 0, 1, 2,
+              kExprEnd,
+              kExprReturn,
+            kExprEnd,
+            kExprThrow, except1,
+          kExprEnd,
+          kExprThrow, except2])
+      .exportFunc();
+  builder.addFunction('test', kSig_i_ii)
+      .addBody([
+        kExprTry, kWasmI32,
+          kExprLocalGet, 0,
+          kExprCallFunction, throw_fn.index,
+          kExprTry, kWasmI32,
+            kExprLocalGet, 1,
+            kExprCallFunction, throw_fn.index,
+            kExprI32Const, 1,
+          kExprDelegate, 0,
+        kExprCatch, except1,
+          kExprI32Const, 2,
+        kExprEnd,
+      ]).exportFunc();
+  instance = builder.instantiate();
+  assertEquals(2, instance.exports.test(1, 0));
+  assertTraps(WebAssembly.RuntimeError, () => instance.exports.test(2, 0));
+  assertEquals(2, instance.exports.test(0, 1));
+  assertTraps(WebAssembly.RuntimeError, () => instance.exports.test(0, 2));
+  assertEquals(1, instance.exports.test(0, 0));
+})();
+
+// Delegating to a non-try block should delegate to the next try block down the
+// control stack.
+(function TestDelegateNonTryBlock() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except = builder.addException(kSig_v_v);
+  let throw_fn = builder.addFunction('throw', kSig_v_v)
+                     .addBody([kExprThrow, except])
+                     .exportFunc();
+  builder.addFunction('test', kSig_i_v)
+      .addBody([
+        kExprTry, kWasmI32,
+          kExprBlock, kWasmI32,
+            kExprTry, kWasmI32,
+              kExprCallFunction, throw_fn.index,
+              kExprI32Const, 1,
+            kExprDelegate, 0,
+          kExprEnd,
+        kExprCatch, except,
+          kExprI32Const, 2,
+        kExprEnd,
+      ]).exportFunc();
+  instance = builder.instantiate();
+  assertEquals(2, instance.exports.test());
+})();
+
+// Delegate to second enclosing try scope.
+(function TestDelegate1() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except = builder.addException(kSig_v_v);
+  let throw_fn = builder.addFunction('throw', kSig_v_v)
+                     .addBody([kExprThrow, except])
+                     .exportFunc();
+  builder.addFunction('test', kSig_i_v)
+      .addBody([
+        kExprTry, kWasmI32,
+          kExprTry, kWasmI32,
+            kExprTry, kWasmI32,
+              kExprCallFunction, throw_fn.index,
+              kExprI32Const, 1,
+            kExprDelegate, 1,
+          kExprCatch, except,
+            kExprI32Const, 2,
+          kExprEnd,
+        kExprCatch, except,
+          kExprI32Const, 3,
+        kExprEnd,
+      ]).exportFunc();
+  instance = builder.instantiate();
+  assertEquals(3, instance.exports.test());
+})();
+
+(function TestDelegateInCatch() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except1 = builder.addException(kSig_v_v);
+  let except2 = builder.addException(kSig_v_v);
+  // throw_fn: 0 -> returns
+  //           1 -> throw except1
+  //           2 -> throw except2
+  let throw_fn = builder.addFunction('throw', kSig_v_i)
+      .addBody([
+          kExprBlock, kWasmStmt,
+            kExprBlock, kWasmStmt,
+              kExprBlock, kWasmStmt,
+                kExprLocalGet, 0,
+                kExprBrTable, 2, 0, 1, 2,
+              kExprEnd,
+              kExprReturn,
+            kExprEnd,
+            kExprThrow, except1,
+          kExprEnd,
+          kExprThrow, except2])
+      .exportFunc();
+  builder.addFunction('test', kSig_i_i)
+      .addBody([
+        kExprTry, kWasmI32,
+          kExprThrow, except1,
+        kExprCatch, except1,
+          kExprTry, kWasmStmt,
+            kExprLocalGet, 0,
+            kExprCallFunction, throw_fn.index,
+          kExprDelegate, 0,
+          kExprI32Const, 1,
+        kExprCatch, except2,
+          kExprI32Const, 2,
+        kExprEnd,
+      ]).exportFunc();
+  instance = builder.instantiate();
+  assertEquals(1, instance.exports.test(0));
+  assertTraps(WebAssembly.RuntimeError, () => instance.exports.test(1));
+  assertEquals(2, instance.exports.test(2));
+})();
+
+(function TestDelegateUnreachable() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except1 = builder.addException(kSig_v_v);
+  let except2 = builder.addException(kSig_v_v);
+  builder.addFunction('test', kSig_i_v)
+      .addBody([
+        kExprTry, kWasmI32,
+          kExprTry, kWasmStmt,
+            kExprThrow, except1,
+          kExprDelegate, 0,
+          kExprI32Const, 1,
+        kExprCatch, except1,
+          kExprI32Const, 2,
+        kExprCatch, except2,
+          kExprI32Const, 3,
+        kExprEnd,
+      ]).exportFunc();
+  instance = builder.instantiate();
+  assertEquals(2, instance.exports.test());
+})();

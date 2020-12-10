@@ -932,6 +932,10 @@ class LiftoffCompiler {
     unsupported(decoder, kExceptionHandling, "catch");
   }
 
+  void Delegate(FullDecoder* decoder, uint32_t depth, Control* block) {
+    unsupported(decoder, kExceptionHandling, "delegate");
+  }
+
   void Rethrow(FullDecoder* decoder, Control* block) {
     unsupported(decoder, kExceptionHandling, "rethrow");
   }

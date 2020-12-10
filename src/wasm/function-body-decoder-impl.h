@@ -1055,6 +1055,7 @@ struct ControlBase : public PcForErrors<validate> {
   F(Rethrow, Control* block)                                                   \
   F(CatchException, const ExceptionIndexImmediate<validate>& imm,              \
     Control* block, Vector<Value> caught_values)                               \
+  F(Delegate, uint32_t depth, Control* block)                                  \
   F(CatchAll, Control* block)                                                  \
   F(AtomicOp, WasmOpcode opcode, Vector<Value> args,                           \
     const MemoryAccessImmediate<validate>& imm, Value* result)                 \
@@ -1634,7 +1635,8 @@ class WasmDecoder : public Decoder {
       case kExprRethrow:
       case kExprBr:
       case kExprBrIf:
-      case kExprBrOnNull: {
+      case kExprBrOnNull:
+      case kExprDelegate: {
         BranchDepthImmediate<validate> imm(decoder, pc + 1);
         return 1 + imm.length;
       }
@@ -2468,6 +2470,33 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return 1 + imm.length;
   }
 
+  DECODE(Delegate) {
+    BranchDepthImmediate<validate> imm(this, this->pc_ + 1);
+    // -1 because the current try block is not included in the count.
+    if (!this->Validate(this->pc_ + 1, imm, control_depth() - 1)) return 0;
+    Control* c = &control_.back();
+    if (!VALIDATE(c->is_incomplete_try())) {
+      this->DecodeError("delegate does not match a try");
+      return 0;
+    }
+    // +1 because the current try block is not included in the count.
+    uint32_t next_try = imm.depth + 1;
+    while (next_try < control_depth() && !control_at(next_try)->is_try()) {
+      next_try++;
+    }
+    if (next_try == control_depth()) {
+      this->DecodeError("delegate does not target a try-catch");
+      return 0;
+    }
+    FallThruTo(c);
+    CALL_INTERFACE_IF_PARENT_REACHABLE(Delegate, next_try, c);
+    current_code_reachable_ = this->ok() && control_.back().reachable();
+    EndControl();
+    PopControl(c);
+    c->reachability = control_at(1)->innerReachability();
+    return 1 + imm.length;
+  }
+
   DECODE(CatchAll) {
     if (!VALIDATE(!control_.empty())) {
       this->error("catch-all does not match any try");
@@ -3212,6 +3241,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     DECODE_IMPL(Throw);
     DECODE_IMPL(Try);
     DECODE_IMPL(Catch);
+    DECODE_IMPL(Delegate);
     DECODE_IMPL(CatchAll);
     DECODE_IMPL(BrOnNull);
     DECODE_IMPL(Let);

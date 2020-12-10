@@ -188,6 +188,8 @@
 #define WASM_TRY_CATCH_ALL_T(t, trystmt, catchstmt)                           \
   kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprCatchAll, \
       catchstmt, kExprEnd
+#define WASM_TRY_DELEGATE(trystmt, depth) \
+  kExprTry, kVoidCode, trystmt, kExprDelegate, depth
 
 #define WASM_SELECT(tval, fval, cond) tval, fval, cond, kExprSelect
 #define WASM_SELECT_I(tval, fval, cond) \

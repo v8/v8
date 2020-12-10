@@ -182,6 +182,7 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     // Exception handling opcodes.
     CASE_OP(Try, "try")
     CASE_OP(Catch, "catch")
+    CASE_OP(Delegate, "delegate")
     CASE_OP(Throw, "throw")
     CASE_OP(Rethrow, "rethrow")
     CASE_OP(CatchAll, "catch-all")

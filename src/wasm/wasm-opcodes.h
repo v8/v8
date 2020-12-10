@@ -44,6 +44,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(BrIf, 0x0d, _)                              \
   V(BrTable, 0x0e, _)                           \
   V(Return, 0x0f, _)                            \
+  V(Delegate, 0x16, _ /* eh_prototype */)       \
   V(Let, 0x17, _ /* typed_funcref prototype */) \
   V(BrOnNull, 0xd4, _ /* gc prototype */)
 

@@ -622,6 +622,29 @@ class WasmGraphBuildingInterface {
     }
   }
 
+  void Delegate(FullDecoder* decoder, uint32_t depth, Control* block) {
+    DCHECK_EQ(decoder->control_at(0), block);
+    DCHECK(block->is_incomplete_try());
+
+    if (block->try_info->might_throw()) {
+      // Merge the current env into the target handler's env.
+      SetEnv(block->try_info->catch_env);
+      TryInfo* target_try = decoder->control_at(depth)->try_info;
+      Goto(decoder, target_try->catch_env);
+
+      // Create or merge the exception.
+      if (target_try->catch_env->state == SsaEnv::kReached) {
+        target_try->exception = block->try_info->exception;
+      } else {
+        DCHECK_EQ(target_try->catch_env->state, SsaEnv::kMerged);
+        TFNode* inputs[] = {target_try->exception, block->try_info->exception,
+                            target_try->catch_env->control};
+        target_try->exception = builder_->Phi(kWasmExnRef, 2, inputs);
+      }
+    }
+    current_catch_ = block->previous_catch;
+  }
+
   void CatchAll(FullDecoder* decoder, Control* block) {
     DCHECK(block->is_try_catchall() || block->is_try_catch());
     DCHECK_EQ(decoder->control_at(0), block);

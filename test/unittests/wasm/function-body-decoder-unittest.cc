@@ -2889,6 +2889,35 @@ TEST_F(FunctionBodyDecoderTest, Rethrow) {
   ExpectFailure(sigs.v_v(), {kExprRethrow});
 }
 
+TEST_F(FunctionBodyDecoderTest, TryDelegate) {
+  WASM_FEATURE_SCOPE(eh);
+  byte ex = builder.AddException(sigs.v_v());
+
+  ExpectValidates(sigs.v_v(), {WASM_TRY_OP,
+                               WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 0),
+                               kExprCatch, ex, kExprEnd});
+  ExpectValidates(sigs.v_v(),
+                  {WASM_TRY_OP,
+                   WASM_BLOCK(WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 0)),
+                   kExprCatch, ex, kExprEnd});
+
+  // delegate after catch.
+  // delegate after catch_all.
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_BLOCK(WASM_TRY_OP, WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 1),
+                  kExprCatch, ex, kExprEnd)},
+      kAppendEnd, "delegate does not target a try-catch");
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_TRY_OP, WASM_TRY_OP, kExprCatch, ex, kExprDelegate, 0, kExprEnd},
+      kAppendEnd, "delegate does not match a try");
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_TRY_OP, WASM_TRY_OP, kExprCatchAll, kExprDelegate, 1, kExprEnd},
+      kAppendEnd, "delegate does not match a try");
+}
+
 #undef WASM_TRY_OP
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlock1) {
@@ -4504,6 +4533,7 @@ TEST_F(WasmOpcodeLengthTest, Statements) {
   ExpectLength(1, kExprEnd);
   ExpectLength(1, kExprSelect);
   ExpectLength(2, kExprCatch);
+  ExpectLength(2, kExprDelegate);
   ExpectLength(2, kExprRethrow);
   ExpectLength(2, kExprBr);
   ExpectLength(2, kExprBrIf);
