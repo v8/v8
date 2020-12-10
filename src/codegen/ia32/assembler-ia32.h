@@ -987,6 +987,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void movdqa(Operand dst, XMMRegister src);
   void movdqu(XMMRegister dst, Operand src);
   void movdqu(Operand dst, XMMRegister src);
+  void movdqu(XMMRegister dst, XMMRegister src);
   void movdq(bool aligned, XMMRegister dst, Operand src) {
     if (aligned) {
       movdqa(dst, src);

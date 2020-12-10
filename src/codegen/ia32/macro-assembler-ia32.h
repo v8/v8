@@ -360,6 +360,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP3_XO(Orps, orps)
   AVX_OP3_XO(Orpd, orpd)
   AVX_OP3_XO(Andnpd, andnpd)
+  AVX_OP3_XO(Pmullw, pmullw)
 
 #undef AVX_OP3_XO
 #undef AVX_OP3_WITH_TYPE

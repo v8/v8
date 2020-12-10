@@ -475,6 +475,7 @@ TEST(DisasmIa320) {
     __ movdqa(Operand(ebx, ecx, times_4, 10000), xmm0);
     __ movdqu(xmm0, Operand(ebx, ecx, times_4, 10000));
     __ movdqu(Operand(ebx, ecx, times_4, 10000), xmm0);
+    __ movdqu(xmm1, xmm0);
 
     __ movapd(xmm0, xmm1);
     __ movapd(xmm0, Operand(edx, 4));

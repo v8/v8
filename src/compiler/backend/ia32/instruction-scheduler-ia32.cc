@@ -129,6 +129,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I64x2BitMask:
     case kIA32I64x2Eq:
     case kIA32I64x2SignSelect:
+    case kIA32I64x2ExtMulLowI32x4S:
+    case kIA32I64x2ExtMulHighI32x4S:
+    case kIA32I64x2ExtMulLowI32x4U:
+    case kIA32I64x2ExtMulHighI32x4U:
     case kIA32F32x4Splat:
     case kSSEF32x4ExtractLane:
     case kAVXF32x4ExtractLane:
@@ -214,6 +218,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I32x4BitMask:
     case kIA32I32x4DotI16x8S:
     case kIA32I32x4SignSelect:
+    case kIA32I32x4ExtMulLowI16x8S:
+    case kIA32I32x4ExtMulHighI16x8S:
+    case kIA32I32x4ExtMulLowI16x8U:
+    case kIA32I32x4ExtMulHighI16x8U:
     case kIA32I16x8Splat:
     case kIA32I16x8ExtractLaneS:
     case kIA32I16x8SConvertI8x16Low:
@@ -268,6 +276,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I16x8Abs:
     case kIA32I16x8BitMask:
     case kIA32I16x8SignSelect:
+    case kIA32I16x8ExtMulLowI8x16S:
+    case kIA32I16x8ExtMulHighI8x16S:
+    case kIA32I16x8ExtMulLowI8x16U:
+    case kIA32I16x8ExtMulHighI8x16U:
     case kIA32I8x16Splat:
     case kIA32I8x16ExtractLaneS:
     case kIA32Pinsrb:

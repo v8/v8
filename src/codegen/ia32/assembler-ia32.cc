@@ -2474,6 +2474,14 @@ void Assembler::movdqu(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::movdqu(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xF3);
+  EMIT(0x0F);
+  EMIT(0x7F);
+  emit_sse_operand(src, dst);
+}
+
 void Assembler::prefetch(Operand src, int level) {
   DCHECK(is_uint2(level));
   EnsureSpace ensure_space(this);
