@@ -1117,6 +1117,12 @@ TEST(Neon) {
               "f3fbe742       vcvt.s32.f32 q15, q1");
       COMPARE(vcvt_u32_f32(q8, q9),
               "f3fb07e2       vcvt.u32.f32 q8, q9");
+      COMPARE(vclt(Neon8, q1, q3, 0),
+              "f3b12246       vclt.s8 q1, q3, #0");
+      COMPARE(vclt(Neon16, q1, q3, 0),
+              "f3b52246       vclt.s16 q1, q3, #0");
+      COMPARE(vclt(Neon32, q1, q3, 0),
+              "f3b92246       vclt.s32 q1, q3, #0");
       COMPARE(vabs(q0, q1),
               "f3b90742       vabs.f32 q0, q1");
       COMPARE(vabs(Neon8, q6, q7),

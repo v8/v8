@@ -3993,7 +3993,8 @@ enum UnaryOp {
   VRECPE,
   VRSQRTE,
   VPADDL_S,
-  VPADDL_U
+  VPADDL_U,
+  VCLT0,
 };
 
 // Encoding helper for "Advanced SIMD two registers misc" decode group. See ARM
@@ -4068,8 +4069,10 @@ static Instr EncodeNeonUnaryOp(UnaryOp op, NeonRegType reg_type, NeonSize size,
     case VPADDL_U:
       op_encoding = 0x5 * B7;
       break;
-    default:
-      UNREACHABLE();
+    case VCLT0:
+      // Only support signed integers.
+      op_encoding = 0x1 * B16 | 0x4 * B7;
+      break;
   }
   int vd, d;
   NeonSplitCode(reg_type, dst_code, &vd, &d, &op_encoding);
@@ -4822,6 +4825,15 @@ void Assembler::vcgt(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   // Qd = vcgt(Qn, Qm) SIMD integer compare greater than.
   // Instruction details available in ARM DDI 0406C.b, A8-852.
   emit(EncodeNeonBinOp(VCGT, dt, dst, src1, src2));
+}
+
+void Assembler::vclt(NeonSize size, QwNeonRegister dst, QwNeonRegister src,
+                     int value) {
+  DCHECK(IsEnabled(NEON));
+  DCHECK_EQ(0, value);
+  // vclt.<size>(Qn, Qm, #0) SIMD Vector Compare Less Than Zero.
+  // Instruction details available in ARM DDI 0487F.b, F6-5072.
+  emit(EncodeNeonUnaryOp(VCLT0, NEON_Q, size, dst.code(), src.code()));
 }
 
 void Assembler::vrhadd(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,

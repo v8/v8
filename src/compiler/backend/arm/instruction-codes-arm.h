@@ -282,6 +282,7 @@ namespace compiler {
   V(ArmI8x16RoundingAverageU)      \
   V(ArmI8x16Abs)                   \
   V(ArmI8x16BitMask)               \
+  V(ArmSignSelect)                 \
   V(ArmS128Const)                  \
   V(ArmS128Zero)                   \
   V(ArmS128AllOnes)                \

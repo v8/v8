@@ -2270,6 +2270,10 @@ void Decoder::DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr) {
       Format(instr, q ? "vswp 'Qd, 'Qm" : "vswp 'Dd, 'Dm");
     } else if (opc1 == 0 && opc2 == 0b1011) {
       Format(instr, "vmvn 'Qd, 'Qm");
+    } else if (opc1 == 0b01 && opc2 == 0b0100) {
+      DCHECK_NE(0b11, size);
+      Format(instr,
+             q ? "vclt.s'size2 'Qd, 'Qm, #0" : "vclt.s.'size2 'Dd, 'Dm, #0");
     } else if (opc1 == 0b01 && opc2 == 0b0110) {
       Format(instr, q ? "vabs.s'size2 'Qd, 'Qm" : "vabs.s.'size2 'Dd, 'Dm");
     } else if (opc1 == 0b01 && opc2 == 0b1110) {

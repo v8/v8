@@ -2863,6 +2863,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmov(NeonU16, dst, tmp2.low(), 0);
       break;
     }
+    case kArmSignSelect: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register mask = i.InputSimd128Register(2);
+      auto sz = static_cast<NeonSize>(MiscField::decode(instr->opcode()));
+      if (Neon64 == sz) {
+        // vclt does not support Neon64.
+        __ vshr(NeonS64, dst, mask, 63);
+      } else {
+        __ vclt(sz, dst, mask, 0);
+      }
+      __ vbsl(dst, i.InputSimd128Register(0), i.InputSimd128Register(1));
+      break;
+    }
     case kArmS128Const: {
       QwNeonRegister dst = i.OutputSimd128Register();
       uint64_t imm1 = make_uint64(i.InputUint32(1), i.InputUint32(0));

@@ -1274,6 +1274,7 @@ TEST(15) {
     float vcvt_f32_s32[4], vcvt_f32_u32[4];
     uint32_t vdup8[4], vdup16[4], vdup32[4];
     float vabsf[4], vnegf[4];
+    uint32_t vclt0_s8[4], vclt0_s16[4], vclt0_s32[4];
     uint32_t vabs_s8[4], vabs_s16[4], vabs_s32[4];
     uint32_t vneg_s8[4], vneg_s16[4], vneg_s32[4];
     uint32_t veor[4], vand[4], vorr[4];
@@ -1918,6 +1919,26 @@ TEST(15) {
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vcgt_s32))));
     __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
 
+    // vclt #0 (signed integer).
+    __ mov(r4, Operand(0x7F80807F));
+    __ mov(r5, Operand(0xFF01FF01));
+    __ vmov(d0, r4, r5);
+    __ mov(r4, Operand(0xFF0000FF));
+    __ mov(r5, Operand(0x00800080));
+    __ vmov(d1, r4, r5);
+
+    __ vclt(Neon8, q1, q0, 0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vclt0_s8))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+
+    __ vclt(Neon16, q1, q0, 0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vclt0_s16))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+
+    __ vclt(Neon32, q1, q0, 0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vclt0_s32))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+
     // vtst.
     __ mov(r4, Operand(0x03));
     __ vdup(Neon8, q0, r4);
@@ -2187,6 +2208,11 @@ TEST(15) {
     CHECK_EQ_32X4(vcvt_f32_u32, UINT32_TO_FLOAT(kMinInt),
                   UINT32_TO_FLOAT(kMaxInt), UINT32_TO_FLOAT(kMaxUInt32),
                   UINT32_TO_FLOAT(kMinInt + 1));
+
+    CHECK_EQ_32X4(vclt0_s8, 0x00FFFF00u, 0xFF00FF00u, 0xFF0000FFu, 0x00FF00FFu);
+    CHECK_EQ_32X4(vclt0_s16, 0x0000FFFF, 0xFFFFFFFFu, 0xFFFF0000u, 0x00000000u);
+    CHECK_EQ_32X4(vclt0_s32, 0x00000000u, 0xFFFFFFFFu, 0xFFFFFFFFu,
+                  0x00000000u);
 
     CHECK_EQ_32X4(vabsf, 1.0, 0.0, 0.0, 1.0);
     CHECK_EQ_32X4(vnegf, 1.0, 0.0, -0.0, -1.0);

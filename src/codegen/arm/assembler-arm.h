@@ -953,6 +953,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vcgt(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vcgt(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
             QwNeonRegister src2);
+  void vclt(NeonSize size, QwNeonRegister dst, QwNeonRegister src, int value);
   void vrhadd(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
               QwNeonRegister src2);
   void vext(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2,
