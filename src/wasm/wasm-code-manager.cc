@@ -801,15 +801,17 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
                            std::shared_ptr<const WasmModule> module,
                            std::shared_ptr<Counters> async_counters,
                            std::shared_ptr<NativeModule>* shared_this)
-    : code_allocator_(engine->code_manager(), std::move(code_space),
+    : engine_(engine),
+      engine_scope_(engine->GetBarrierForBackgroundCompile()->TryLock()),
+      code_allocator_(engine->code_manager(), std::move(code_space),
                       async_counters),
       enabled_features_(enabled),
       module_(std::move(module)),
       import_wrapper_cache_(std::unique_ptr<WasmImportWrapperCache>(
           new WasmImportWrapperCache())),
-      engine_(engine),
       use_trap_handler_(trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler
                                                              : kNoTrapHandler) {
+  DCHECK(engine_scope_);
   // We receive a pointer to an empty {std::shared_ptr}, and install ourselve
   // there.
   DCHECK_NOT_NULL(shared_this);

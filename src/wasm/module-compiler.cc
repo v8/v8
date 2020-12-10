@@ -20,7 +20,6 @@
 #include "src/logging/counters.h"
 #include "src/logging/metrics.h"
 #include "src/objects/property-descriptor.h"
-#include "src/tasks/operations-barrier.h"
 #include "src/tasks/task-utils.h"
 #include "src/tracing/trace-event.h"
 #include "src/trap-handler/trap-handler.h"
@@ -658,8 +657,6 @@ class CompilationStateImpl {
   std::weak_ptr<NativeModule> const native_module_weak_;
   const CompileMode compile_mode_;
   const std::shared_ptr<Counters> async_counters_;
-  // Keeps engine alive as long as this is alive.
-  OperationsBarrier::Token engine_scope_;
 
   // Compilation error, atomically updated. This flag can be updated and read
   // using relaxed semantics.
@@ -2751,12 +2748,7 @@ CompilationStateImpl::CompilationStateImpl(
                         ? CompileMode::kTiering
                         : CompileMode::kRegular),
       async_counters_(std::move(async_counters)),
-      engine_scope_(native_module_->engine()
-                        ->GetBarrierForBackgroundCompile()
-                        ->TryLock()),
-      compilation_unit_queues_(native_module->num_functions()) {
-  DCHECK(engine_scope_);
-}
+      compilation_unit_queues_(native_module->num_functions()) {}
 
 void CompilationStateImpl::CancelCompilation() {
   // std::memory_order_relaxed is sufficient because no other state is

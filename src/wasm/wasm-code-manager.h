@@ -19,6 +19,7 @@
 #include "src/base/optional.h"
 #include "src/builtins/builtins-definitions.h"
 #include "src/handles/handles.h"
+#include "src/tasks/operations-barrier.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils/vector.h"
 #include "src/wasm/compilation-environment.h"
@@ -718,6 +719,16 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Hold the {allocation_mutex_} when calling {PublishCodeLocked}.
   WasmCode* PublishCodeLocked(std::unique_ptr<WasmCode>);
 
+  // -- Fields of {NativeModule} start here.
+
+  WasmEngine* const engine_;
+  // Keep the engine alive as long as this NativeModule is alive. In its
+  // destructor, the NativeModule still communicates with the WasmCodeManager,
+  // owned by the engine. This fields comes before other fields which also still
+  // access the engine (like the code allocator), so that it's destructor runs
+  // last.
+  OperationsBarrier::Token engine_scope_;
+
   // {WasmCodeAllocator} manages all code reservations and allocations for this
   // {NativeModule}.
   WasmCodeAllocator code_allocator_;
@@ -790,7 +801,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // End of fields protected by {allocation_mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
-  WasmEngine* const engine_;
   int modification_scope_depth_ = 0;
   UseTrapHandler use_trap_handler_ = kNoTrapHandler;
   bool lazy_compile_frozen_ = false;
