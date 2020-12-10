@@ -206,16 +206,14 @@ ConcurrentMarkerBase::~ConcurrentMarkerBase() {
                 !concurrent_marking_handle_->IsValid());
 }
 
-bool ConcurrentMarkerBase::NotifyIncrementalMutatorStepCompleted() {
+void ConcurrentMarkerBase::NotifyIncrementalMutatorStepCompleted() {
   DCHECK(concurrent_marking_handle_);
   if (HasWorkForConcurrentMarking(marking_worklists_)) {
     // Notifies the scheduler that max concurrency might have increased.
     // This will adjust the number of markers if necessary.
     IncreaseMarkingPriorityIfNeeded();
     concurrent_marking_handle_->NotifyConcurrencyIncrease();
-    return false;
   }
-  return !concurrent_marking_handle_->IsActive();
 }
 
 void ConcurrentMarkerBase::IncreaseMarkingPriorityIfNeeded() {

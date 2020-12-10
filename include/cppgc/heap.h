@@ -57,6 +57,41 @@ class V8_EXPORT Heap {
   };
 
   /**
+   * Specifies supported marking types
+   */
+  enum class MarkingType : uint8_t {
+    /**
+     * Atomic stop-the-world marking. This option does not require any write
+     * barriers but is the most intrusive in terms of jank.
+     */
+    kAtomic,
+    /**
+     * Incremental marking, i.e. interleave marking is the rest of the
+     * application on the same thread.
+     */
+    kIncremental,
+    /**
+     * Incremental and concurrent marking.
+     */
+    kIncrementalAndConcurrent
+  };
+
+  /**
+   * Specifies supported sweeping types
+   */
+  enum class SweepingType : uint8_t {
+    /**
+     * Atomic stop-the-world sweeping. All of sweeping is performed at once.
+     */
+    kAtomic,
+    /**
+     * Incremental and concurrent sweeping. Sweeping is split and interleaved
+     * with the rest of the application.
+     */
+    kIncrementalAndConcurrent
+  };
+
+  /**
    * Constraints for a Heap setup.
    */
   struct ResourceConstraints {
@@ -97,6 +132,16 @@ class V8_EXPORT Heap {
      * the GC through `ForceGarbageCollectionSlow()`.
      */
     StackSupport stack_support = StackSupport::kSupportsConservativeStackScan;
+
+    /**
+     * Specifies which types of marking are supported by the heap.
+     */
+    MarkingType marking_support = MarkingType::kIncrementalAndConcurrent;
+
+    /**
+     * Specifies which types of sweeping are supported by the heap.
+     */
+    SweepingType sweeping_support = SweepingType::kIncrementalAndConcurrent;
 
     /**
      * Resource constraints specifying various properties that the internal

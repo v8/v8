@@ -199,7 +199,7 @@ void CppHeap::TracePrologue(TraceFlags flags) {
   const UnifiedHeapMarker::MarkingConfig marking_config{
       UnifiedHeapMarker::MarkingConfig::CollectionType::kMajor,
       cppgc::Heap::StackState::kNoHeapPointers,
-      UnifiedHeapMarker::MarkingConfig::MarkingType::kIncrementalAndConcurrent,
+      cppgc::Heap::MarkingType::kIncrementalAndConcurrent,
       flags == TraceFlags::kForced
           ? UnifiedHeapMarker::MarkingConfig::IsForcedGC::kForced
           : UnifiedHeapMarker::MarkingConfig::IsForcedGC::kNotForced};
@@ -234,9 +234,8 @@ void CppHeap::EnterFinalPause(EmbedderStackState stack_state) {
       AsBase(), cppgc::internal::StatsCollector::kAtomicMark);
   is_in_final_pause_ = true;
   marker_->EnterAtomicPause(stack_state);
-  if (compactor_.CancelIfShouldNotCompact(
-          UnifiedHeapMarker::MarkingConfig::MarkingType::kAtomic,
-          stack_state)) {
+  if (compactor_.CancelIfShouldNotCompact(cppgc::Heap::MarkingType::kAtomic,
+                                          stack_state)) {
     marker_->NotifyCompactionCancelled();
   }
 }

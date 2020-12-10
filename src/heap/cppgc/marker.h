@@ -44,11 +44,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
       kMajor,
     };
     using StackState = cppgc::Heap::StackState;
-    enum class MarkingType : uint8_t {
-      kAtomic,
-      kIncremental,
-      kIncrementalAndConcurrent
-    };
+    using MarkingType = cppgc::Heap::MarkingType;
     enum class IsForcedGC : uint8_t {
       kNotForced,
       kForced,
