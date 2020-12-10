@@ -251,7 +251,9 @@ void EnsureFlagLocalHeapsEnabled() {
 
 void GrowNewSpace(Heap* heap) {
   SafepointScope scope(heap);
-  heap->new_space()->Grow();
+  if (!heap->new_space()->IsAtMaximumCapacity()) {
+    heap->new_space()->Grow();
+  }
 }
 
 void GrowNewSpaceToMaximumCapacity(Heap* heap) {
