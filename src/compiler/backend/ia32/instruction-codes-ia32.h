@@ -159,8 +159,7 @@ namespace compiler {
   V(AVXF32x4ExtractLane)           \
   V(IA32Insertps)                  \
   V(IA32F32x4SConvertI32x4)        \
-  V(SSEF32x4UConvertI32x4)         \
-  V(AVXF32x4UConvertI32x4)         \
+  V(IA32F32x4UConvertI32x4)        \
   V(SSEF32x4Abs)                   \
   V(AVXF32x4Abs)                   \
   V(SSEF32x4Neg)                   \

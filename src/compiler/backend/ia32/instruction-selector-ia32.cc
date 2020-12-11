@@ -2,11 +2,43 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <stddef.h>
+#include <stdint.h>
+
+#include <limits>
+#include <type_traits>
+#include <vector>
+
+#include "src/base/flags.h"
 #include "src/base/iterator.h"
+#include "src/base/logging.h"
+#include "src/base/macros.h"
 #include "src/base/platform/wrappers.h"
+#include "src/codegen/cpu-features.h"
+#include "src/codegen/ia32/assembler-ia32.h"
+#include "src/codegen/ia32/register-ia32.h"
+#include "src/codegen/machine-type.h"
+#include "src/codegen/turbo-assembler.h"
+#include "src/common/globals.h"
+#include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
+#include "src/compiler/backend/instruction-selector.h"
+#include "src/compiler/backend/instruction.h"
+#include "src/compiler/common-operator.h"
+#include "src/compiler/frame.h"
+#include "src/compiler/globals.h"
+#include "src/compiler/linkage.h"
+#include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/node.h"
+#include "src/compiler/opcodes.h"
+#include "src/compiler/operator.h"
+#include "src/compiler/write-barrier-kind.h"
+#include "src/flags/flags.h"
+#include "src/utils/utils.h"
+#include "src/wasm/simd-shuffle.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -277,6 +309,10 @@ void VisitRRSimd(InstructionSelector* selector, Node* node,
   } else {
     selector->Emit(sse_opcode, g.DefineSameAsFirst(node), operand0);
   }
+}
+
+void VisitRRSimd(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
+  VisitRRSimd(selector, node, opcode, opcode);
 }
 
 // TODO(v8:9198): Like VisitRROFloat, but for SIMD. SSE requires operand1 to be
@@ -2399,7 +2435,7 @@ void InstructionSelector::VisitF32x4ExtractLane(Node* node) {
 }
 
 void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {
-  VisitRRSimd(this, node, kAVXF32x4UConvertI32x4, kSSEF32x4UConvertI32x4);
+  VisitRRSimd(this, node, kIA32F32x4UConvertI32x4);
 }
 
 void InstructionSelector::VisitI32x4SConvertF32x4(Node* node) {

@@ -9,13 +9,35 @@
 #ifndef V8_CODEGEN_IA32_MACRO_ASSEMBLER_IA32_H_
 #define V8_CODEGEN_IA32_MACRO_ASSEMBLER_IA32_H_
 
+#include <stdint.h>
+
+#include "include/v8-internal.h"
+#include "src/base/logging.h"
+#include "src/base/macros.h"
+#include "src/builtins/builtins.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/bailout-reason.h"
+#include "src/codegen/cpu-features.h"
 #include "src/codegen/ia32/assembler-ia32.h"
+#include "src/codegen/ia32/register-ia32.h"
+#include "src/codegen/label.h"
+#include "src/codegen/reglist.h"
+#include "src/codegen/reloc-info.h"
+#include "src/codegen/turbo-assembler.h"
 #include "src/common/globals.h"
+#include "src/execution/frames.h"
+#include "src/handles/handles.h"
+#include "src/objects/heap-object.h"
+#include "src/objects/smi.h"
+#include "src/roots/roots.h"
+#include "src/runtime/runtime.h"
 
 namespace v8 {
 namespace internal {
+
+class Code;
+class ExternalReference;
+class StatsCounter;
 
 // Convenience for platform-independent signatures.  We do not normally
 // distinguish memory operands from other operands on ia32.
@@ -408,6 +430,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_PACKED_OP3(Pmaddwd, pmaddwd)
   AVX_PACKED_OP3(Paddd, paddd)
   AVX_PACKED_OP3(Paddq, paddq)
+  AVX_PACKED_OP3(Psubd, psubd)
   AVX_PACKED_OP3(Psubq, psubq)
   AVX_PACKED_OP3(Pmuludq, pmuludq)
   AVX_PACKED_OP3(Pavgb, pavgb)
