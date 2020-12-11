@@ -5892,29 +5892,35 @@ EVALUATE(OILL) {
 }
 
 EVALUATE(LLIHH) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LLIHL);
+  DECODE_RI_A_INSTRUCTION(instr, r1, i2);
+  uint64_t imm = static_cast<uint64_t>(i2) & 0xffff;
+  set_register(r1, imm << 48);
+  return length;
 }
 
 EVALUATE(LLIHL) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LLIHL);
+  DECODE_RI_A_INSTRUCTION(instr, r1, i2);
+  uint64_t imm = static_cast<uint64_t>(i2) & 0xffff;
+  set_register(r1, imm << 32);
+  return length;
 }
 
 EVALUATE(LLILH) {
   DCHECK_OPCODE(LLILH);
   DECODE_RI_A_INSTRUCTION(instr, r1, i2);
-  uint64_t imm = static_cast<uint64_t>(i2);
-  set_register(r1, (imm << 48) >> 32);
+  uint64_t imm = static_cast<uint64_t>(i2) & 0xffff;
+  set_register(r1, imm << 16);
   return length;
 }
 
 EVALUATE(LLILL) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LLILL);
+  DECODE_RI_A_INSTRUCTION(instr, r1, i2);
+  uint64_t imm = static_cast<uint64_t>(i2) & 0xffff;
+  set_register(r1, imm);
+  return length;
 }
 
 inline static int TestUnderMask(uint16_t val, uint16_t mask,

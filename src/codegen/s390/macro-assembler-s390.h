@@ -73,9 +73,7 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2 = no_reg,
 #define XorP_RRR xgrk
 
 // Load / Store
-#define LoadRR lgr
 #define LoadAndTestRR ltgr
-#define LoadImmP lghi
 
 // Compare
 #define CmpPH cghi
@@ -110,9 +108,7 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2 = no_reg,
 #define XorP_RRR xrk
 
 // Load / Store
-#define LoadRR lr
 #define LoadAndTestRR ltr
-#define LoadImmP lhi
 
 // Compare
 #define CmpPH chi
@@ -504,6 +500,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #endif
 
   void mov(Register dst, const Operand& src);
+  void mov(Register dst, Register src);
 
   void CleanUInt32(Register x) {
 #ifdef V8_TARGET_ARCH_S390X
@@ -899,7 +896,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
       if (rangeEnd > 0)  // Don't need to shift if rangeEnd is zero.
         ShiftRightP(dst, src, Operand(rangeEnd));
       else if (dst != src)  // If we didn't shift, we might need to copy
-        LoadRR(dst, src);
+        mov(dst, src);
       int width = rangeStart - rangeEnd + 1;
 #if V8_TARGET_ARCH_S390X
       uint64_t mask = (static_cast<uint64_t>(1) << width) - 1;

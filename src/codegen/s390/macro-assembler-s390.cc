@@ -307,7 +307,7 @@ void TurboAssembler::LoadRootRelative(Register destination, int32_t offset) {
 void TurboAssembler::LoadRootRegisterOffset(Register destination,
                                             intptr_t offset) {
   if (offset == 0) {
-    LoadRR(destination, kRootRegister);
+    mov(destination, kRootRegister);
   } else if (is_uint12(offset)) {
     la(destination, MemOperand(kRootRegister, offset));
   } else {
@@ -485,7 +485,7 @@ void TurboAssembler::Move(Register dst, ExternalReference reference) {
 void TurboAssembler::Move(Register dst, Register src, Condition cond) {
   if (dst != src) {
     if (cond == al) {
-      LoadRR(dst, src);
+      mov(dst, src);
     } else {
       LoadOnConditionP(cond, dst, src);
     }
@@ -560,7 +560,7 @@ void TurboAssembler::PushArray(Register array, Register size, Register scratch,
     DCHECK_NE(scratch2, r0);
     ShiftLeftP(scratch, size, Operand(kSystemPointerSizeLog2));
     lay(scratch, MemOperand(array, scratch));
-    LoadRR(scratch2, array);
+    mov(scratch2, array);
     bind(&loop);
     CmpP(scratch2, scratch);
     bge(&done);
@@ -1270,7 +1270,7 @@ int TurboAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
          Operand(StandardFrameConstants::kCallerSPOffset + stack_adjustment));
   }
   LoadP(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  LoadRR(sp, r1);
+  mov(sp, r1);
   int frame_ends = pc_offset();
   return frame_ends;
 }
@@ -1457,7 +1457,7 @@ void TurboAssembler::PrepareForTailCall(Register callee_args_count,
   Register tmp_reg = scratch1;
   Label loop;
   AddP(tmp_reg, callee_args_count, Operand(1));  // +1 for receiver
-  LoadRR(r1, tmp_reg);
+  mov(r1, tmp_reg);
   bind(&loop);
   LoadP(tmp_reg, MemOperand(src_reg, -kSystemPointerSize));
   StoreU64(tmp_reg, MemOperand(dst_reg, -kSystemPointerSize));
@@ -1466,7 +1466,7 @@ void TurboAssembler::PrepareForTailCall(Register callee_args_count,
   BranchOnCount(r1, &loop);
 
   // Leave current frame.
-  LoadRR(sp, dst_reg);
+  mov(sp, dst_reg);
 }
 
 MemOperand MacroAssembler::StackLimitAsMemOperand(StackLimitKind kind) {
@@ -1532,12 +1532,12 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
   {
     Label copy, check;
     Register num = r7, src = r8, dest = ip;  // r7 and r8 are context and root.
-    LoadRR(src, sp);
+    mov(src, sp);
     // Update stack pointer.
     ShiftLeftP(scratch, expected_parameter_count,
                Operand(kSystemPointerSizeLog2));
     SubP(sp, sp, scratch);
-    LoadRR(dest, sp);
+    mov(dest, sp);
     ltgr(num, actual_parameter_count);
     b(&check);
     bind(&copy);
@@ -1781,7 +1781,7 @@ void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
                                      Label* on_in_range) {
   if (lower_limit != 0) {
     Register scratch = r0;
-    LoadRR(scratch, value);
+    mov(scratch, value);
     slgfi(scratch, Operand(lower_limit));
     CmpLogicalP(scratch, Operand(higher_limit - lower_limit));
   } else {
@@ -2093,7 +2093,7 @@ void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
   if (frame_alignment > kSystemPointerSize) {
     // Make stack end at alignment and make room for stack arguments
     // -- preserving original value of sp.
-    LoadRR(scratch, sp);
+    mov(scratch, sp);
     lay(sp, MemOperand(sp, -(stack_passed_arguments + 1) * kSystemPointerSize));
     DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     ClearRightImm(sp, sp,
@@ -2279,15 +2279,13 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2, Register reg3,
   UNREACHABLE();
 }
 
+void TurboAssembler::mov(Register dst, Register src) { lgr(dst, src); }
+
 void TurboAssembler::mov(Register dst, const Operand& src) {
-#if V8_TARGET_ARCH_S390X
-  int64_t value;
-#else
-  int value;
-#endif
+  int64_t value = 0;
+
   if (src.is_heap_object_request()) {
     RequestHeapObject(src.heap_object_request());
-    value = 0;
   } else {
     value = src.immediate();
   }
@@ -2297,15 +2295,35 @@ void TurboAssembler::mov(Register dst, const Operand& src) {
     RecordRelocInfo(src.rmode(), value);
   }
 
-#if V8_TARGET_ARCH_S390X
-  int32_t hi_32 = static_cast<int64_t>(value) >> 32;
+  int32_t hi_32 = static_cast<int32_t>(value >> 32);
   int32_t lo_32 = static_cast<int32_t>(value);
+
+  if (src.rmode() == RelocInfo::NONE) {
+    if (hi_32 == 0) {
+      if (is_uint16(lo_32)) {
+        llill(dst, Operand(lo_32));
+        return;
+      }
+      llilf(dst, Operand(lo_32));
+      return;
+    } else if (lo_32 == 0) {
+      if (is_uint16(hi_32)) {
+        llihl(dst, Operand(hi_32));
+        return;
+      }
+      llihf(dst, Operand(hi_32));
+      return;
+    } else if (is_int16(value)) {
+      lghi(dst, Operand(value));
+      return;
+    } else if (is_int32(value)) {
+      lgfi(dst, Operand(value));
+      return;
+    }
+  }
 
   iihf(dst, Operand(hi_32));
   iilf(dst, Operand(lo_32));
-#else
-  iilf(dst, Operand(value));
-#endif
 }
 
 void TurboAssembler::Mul32(Register dst, const MemOperand& src1) {
@@ -2691,7 +2709,7 @@ void TurboAssembler::AddP(Register dst, Register src, const Operand& opnd) {
       AddPImm_RRI(dst, src, opnd);
       return;
     }
-    LoadRR(dst, src);
+    mov(dst, src);
   }
   AddP(dst, opnd);
 }
@@ -2740,7 +2758,7 @@ void TurboAssembler::AddP(Register dst, Register src1, Register src2) {
       AddP_RRR(dst, src1, src2);
       return;
     } else {
-      LoadRR(dst, src1);
+      mov(dst, src1);
     }
   } else if (dst == src2) {
     src2 = src1;
@@ -2761,7 +2779,7 @@ void TurboAssembler::AddP_ExtendSrc(Register dst, Register src1,
     lgfr(dst, src2);
     agr(dst, src1);
   } else {
-    if (dst != src1) LoadRR(dst, src1);
+    if (dst != src1) mov(dst, src1);
     agfr(dst, src2);
   }
 #else
@@ -2960,7 +2978,7 @@ void TurboAssembler::SubP(Register dst, Register src1, Register src2) {
     SubP_RRR(dst, src1, src2);
     return;
   }
-  if (dst != src1 && dst != src2) LoadRR(dst, src1);
+  if (dst != src1 && dst != src2) mov(dst, src1);
   // In scenario where we have dst = src - dst, we need to swap and negate
   if (dst != src1 && dst == src2) {
     Label done;
@@ -2980,7 +2998,7 @@ void TurboAssembler::SubP(Register dst, Register src1, Register src2) {
 void TurboAssembler::SubP_ExtendSrc(Register dst, Register src1,
                                     Register src2) {
 #if V8_TARGET_ARCH_S390X
-  if (dst != src1 && dst != src2) LoadRR(dst, src1);
+  if (dst != src1 && dst != src2) mov(dst, src1);
 
   // In scenario where we have dst = src - dst, we need to swap and negate
   if (dst != src1 && dst == src2) {
@@ -3118,7 +3136,7 @@ void TurboAssembler::AndP(Register dst, Register src1, Register src2) {
       AndP_RRR(dst, src1, src2);
       return;
     } else {
-      LoadRR(dst, src1);
+      mov(dst, src1);
     }
   } else if (dst == src2) {
     src2 = src1;
@@ -3205,7 +3223,7 @@ void TurboAssembler::AndP(Register dst, Register src, const Operand& opnd) {
   }
 
   // If we are &'ing zero, we can just whack the dst register and skip copy
-  if (dst != src && (0 != value)) LoadRR(dst, src);
+  if (dst != src && (0 != value)) mov(dst, src);
   AndP(dst, opnd);
 }
 
@@ -3241,7 +3259,7 @@ void TurboAssembler::OrP(Register dst, Register src1, Register src2) {
       OrP_RRR(dst, src1, src2);
       return;
     } else {
-      LoadRR(dst, src1);
+      mov(dst, src1);
     }
   } else if (dst == src2) {
     src2 = src1;
@@ -3293,7 +3311,7 @@ void TurboAssembler::Or(Register dst, Register src, const Operand& opnd) {
 
 // OR Pointer Size - dst = src & imm
 void TurboAssembler::OrP(Register dst, Register src, const Operand& opnd) {
-  if (dst != src) LoadRR(dst, src);
+  if (dst != src) mov(dst, src);
   OrP(dst, opnd);
 }
 
@@ -3329,7 +3347,7 @@ void TurboAssembler::XorP(Register dst, Register src1, Register src2) {
       XorP_RRR(dst, src1, src2);
       return;
     } else {
-      LoadRR(dst, src1);
+      mov(dst, src1);
     }
   } else if (dst == src2) {
     src2 = src1;
@@ -3378,7 +3396,7 @@ void TurboAssembler::Xor(Register dst, Register src, const Operand& opnd) {
 
 // XOR Pointer Size - dst = src & imm
 void TurboAssembler::XorP(Register dst, Register src, const Operand& opnd) {
-  if (dst != src) LoadRR(dst, src);
+  if (dst != src) mov(dst, src);
   XorP(dst, opnd);
 }
 
@@ -3673,7 +3691,7 @@ void TurboAssembler::StoreU64(const MemOperand& mem, const Operand& opnd,
     mvhi(mem, opnd);
 #endif
   } else {
-    LoadImmP(scratch, opnd);
+    mov(scratch, opnd);
     StoreU64(scratch, mem);
   }
 }
@@ -4299,7 +4317,7 @@ void TurboAssembler::ClearRightImm(Register dst, Register src,
   uint64_t hexMask = ~((1L << numBitsToClear) - 1);
 
   // S390 AND instr clobbers source.  Make a copy if necessary
-  if (dst != src) LoadRR(dst, src);
+  if (dst != src) mov(dst, src);
 
   if (numBitsToClear <= 16) {
     nill(dst, Operand(static_cast<uint16_t>(hexMask)));
@@ -4342,16 +4360,16 @@ void TurboAssembler::Popcnt64(Register dst, Register src) {
 void TurboAssembler::SwapP(Register src, Register dst, Register scratch) {
   if (src == dst) return;
   DCHECK(!AreAliased(src, dst, scratch));
-  LoadRR(scratch, src);
-  LoadRR(src, dst);
-  LoadRR(dst, scratch);
+  mov(scratch, src);
+  mov(src, dst);
+  mov(dst, scratch);
 }
 
 void TurboAssembler::SwapP(Register src, MemOperand dst, Register scratch) {
   if (dst.rx() != r0) DCHECK(!AreAliased(src, dst.rx(), scratch));
   if (dst.rb() != r0) DCHECK(!AreAliased(src, dst.rb(), scratch));
   DCHECK(!AreAliased(src, scratch));
-  LoadRR(scratch, src);
+  mov(scratch, src);
   LoadP(src, dst);
   StoreU64(scratch, dst);
 }

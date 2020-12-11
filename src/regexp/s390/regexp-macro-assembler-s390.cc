@@ -121,7 +121,7 @@ RegExpMacroAssemblerS390::RegExpMacroAssemblerS390(Isolate* isolate, Zone* zone,
   // If the code gets too big or corrupted, an internal exception will be
   // raised, and we will exit right away.
   __ bind(&internal_failure_label_);
-  __ LoadImmP(r2, Operand(FAILURE));
+  __ mov(r2, Operand(FAILURE));
   __ Ret();
   __ bind(&start_label_);  // And then continue from here.
 }
@@ -338,9 +338,9 @@ void RegExpMacroAssemblerS390::CheckNotBackReferenceIgnoreCase(
     // Address of start of capture.
     __ AddP(r2, end_of_input_address());
     // Length of capture.
-    __ LoadRR(r4, r3);
+    __ mov(r4, r3);
     // Save length in callee-save register for use on return.
-    __ LoadRR(r6, r3);
+    __ mov(r6, r3);
     // Address of current input position.
     __ AddP(r3, current_input_offset(), end_of_input_address());
     if (read_backward) {
@@ -620,7 +620,7 @@ bool RegExpMacroAssemblerS390::CheckSpecialCharacterClass(uc16 type,
 }
 
 void RegExpMacroAssemblerS390::Fail() {
-  __ LoadImmP(r2, Operand(FAILURE));
+  __ mov(r2, Operand(FAILURE));
   __ b(&exit_label_);
 }
 
@@ -674,13 +674,13 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
   //
   // Set frame pointer in space for it if this is not a direct call
   // from generated code.
-  __ LoadRR(frame_pointer(), sp);
+  __ mov(frame_pointer(), sp);
   __ lay(sp, MemOperand(sp, -10 * kSystemPointerSize));
   STATIC_ASSERT(kSuccessfulCaptures == kInputString - kSystemPointerSize);
   __ mov(r1, Operand::Zero());  // success counter
   STATIC_ASSERT(kStringStartMinusOne ==
                 kSuccessfulCaptures - kSystemPointerSize);
-  __ LoadRR(r0, r1);            // offset of location
+  __ mov(r0, r1);  // offset of location
   __ StoreMultipleP(r0, r9, MemOperand(sp, 0));
   STATIC_ASSERT(kBacktrackCount == kStringStartMinusOne - kSystemPointerSize);
   __ Push(r1);  // The backtrack counter.
@@ -723,7 +723,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
   __ LoadP(r3, MemOperand(frame_pointer(), kStartIndex));
   // Set r1 to address of char before start of the input string
   // (effectively string position -1).
-  __ LoadRR(r1, r4);
+  __ mov(r1, r4);
   __ SubP(r1, current_input_offset(), Operand(char_size()));
   if (mode_ == UC16) {
     __ ShiftLeftP(r0, r3, Operand(1));
@@ -885,7 +885,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
 
       __ b(&load_char_start_regexp);
     } else {
-      __ LoadImmP(r2, Operand(SUCCESS));
+      __ mov(r2, Operand(SUCCESS));
     }
   }
 
@@ -897,7 +897,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
 
   __ bind(&return_r2);
   // Skip sp past regexp registers and local variables..
-  __ LoadRR(sp, frame_pointer());
+  __ mov(sp, frame_pointer());
   // Restore registers r6..r15.
   __ LoadMultipleP(r6, sp, MemOperand(sp, 6 * kSystemPointerSize));
 
@@ -934,7 +934,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
     // Call GrowStack(backtrack_stackpointer(), &stack_base)
     static const int num_arguments = 3;
     __ PrepareCallCFunction(num_arguments, r2);
-    __ LoadRR(r2, backtrack_stackpointer());
+    __ mov(r2, backtrack_stackpointer());
     __ AddP(r3, frame_pointer(), Operand(kStackHighEnd));
     __ mov(r4, Operand(ExternalReference::isolate_address(isolate())));
     ExternalReference grow_stack = ExternalReference::re_grow_stack(isolate());
@@ -944,7 +944,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
     __ CmpP(r2, Operand::Zero());
     __ beq(&exit_with_exception);
     // Otherwise use return value as new stack pointer.
-    __ LoadRR(backtrack_stackpointer(), r2);
+    __ mov(backtrack_stackpointer(), r2);
     // Restore saved registers and continue.
     SafeReturn();
   }
@@ -953,13 +953,13 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
     // If any of the code above needed to exit with an exception.
     __ bind(&exit_with_exception);
     // Exit with Result EXCEPTION(-1) to signal thrown exception.
-    __ LoadImmP(r2, Operand(EXCEPTION));
+    __ mov(r2, Operand(EXCEPTION));
     __ b(&return_r2);
   }
 
   if (fallback_label_.is_linked()) {
     __ bind(&fallback_label_);
-    __ LoadImmP(r2, Operand(FALLBACK_TO_EXPERIMENTAL));
+    __ mov(r2, Operand(FALLBACK_TO_EXPERIMENTAL));
     __ b(&return_r2);
   }
 
@@ -1098,7 +1098,7 @@ void RegExpMacroAssemblerS390::CallCheckStackGuardState(Register scratch) {
   static constexpr int num_arguments = 3;
   __ PrepareCallCFunction(num_arguments, scratch);
   // RegExp code frame pointer.
-  __ LoadRR(r4, frame_pointer());
+  __ mov(r4, frame_pointer());
   // Code of self.
   __ mov(r3, Operand(masm_->CodeObject()));
   // r2 becomes return address pointer.
@@ -1208,7 +1208,7 @@ void RegExpMacroAssemblerS390::SafeReturn() {
 void RegExpMacroAssemblerS390::SafeCallTarget(Label* name) {
   __ bind(name);
   __ CleanseP(r14);
-  __ LoadRR(r0, r14);
+  __ mov(r0, r14);
   __ mov(ip, Operand(masm_->CodeObject()));
   __ SubP(r0, r0, ip);
   __ push(r0);

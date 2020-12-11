@@ -602,10 +602,10 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
 // Copy remainder to output reg
 #define ASSEMBLE_MODULO(div_instr, shift_instr) \
   do {                                          \
-    __ LoadRR(r0, i.InputRegister(0));          \
+    __ mov(r0, i.InputRegister(0));             \
     __ shift_instr(r0, Operand(32));            \
     __ div_instr(r0, i.InputRegister(1));       \
-    __ LoadU32(i.OutputRegister(), r0);          \
+    __ LoadU32(i.OutputRegister(), r0);         \
   } while (0)
 
 #define ASSEMBLE_FLOAT_MODULO()                                             \
@@ -1169,8 +1169,8 @@ void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
 
   // Calculate a mask which has all bits set in the normal case, but has all
   // bits cleared if we are speculatively executing the wrong PC.
-  __ LoadImmP(kSpeculationPoisonRegister, Operand::Zero());
-  __ LoadImmP(r0, Operand(-1));
+  __ mov(kSpeculationPoisonRegister, Operand::Zero());
+  __ mov(r0, Operand(-1));
   __ CmpP(kJavaScriptCallCodeStartRegister, scratch);
   __ LoadOnConditionP(eq, kSpeculationPoisonRegister, r0);
 }
@@ -1417,13 +1417,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AssembleReturn(instr->InputAt(0));
       break;
     case kArchFramePointer:
-      __ LoadRR(i.OutputRegister(), fp);
+      __ mov(i.OutputRegister(), fp);
       break;
     case kArchParentFramePointer:
       if (frame_access_state()->has_frame()) {
         __ LoadP(i.OutputRegister(), MemOperand(fp, 0));
       } else {
-        __ LoadRR(i.OutputRegister(), fp);
+        __ mov(i.OutputRegister(), fp);
       }
       break;
     case kArchStackPointerGreaterThan: {
@@ -1930,7 +1930,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #if V8_TARGET_ARCH_S390X
     case kS390_Cntlz64: {
       __ flogr(r0, i.InputRegister(0));
-      __ LoadRR(i.OutputRegister(), r0);
+      __ mov(i.OutputRegister(), r0);
       break;
     }
 #endif
@@ -2122,7 +2122,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ConvertDoubleToInt32(i.OutputRegister(0), i.InputDoubleRegister(0),
                               kRoundToNearest);
       __ b(Condition(0xE), &done, Label::kNear);  // normal case
-      __ lghi(i.OutputRegister(0), Operand::Zero());
+      __ mov(i.OutputRegister(0), Operand::Zero());
       __ bind(&done);
       break;
     }
@@ -2131,21 +2131,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ConvertDoubleToUnsignedInt32(i.OutputRegister(0),
                                       i.InputDoubleRegister(0));
       __ b(Condition(0xE), &done, Label::kNear);  // normal case
-      __ lghi(i.OutputRegister(0), Operand::Zero());
+      __ mov(i.OutputRegister(0), Operand::Zero());
       __ bind(&done);
       break;
     }
     case kS390_DoubleToInt64: {
       Label done;
       if (i.OutputCount() > 1) {
-        __ lghi(i.OutputRegister(1), Operand(1));
+        __ mov(i.OutputRegister(1), Operand(1));
       }
       __ ConvertDoubleToInt64(i.OutputRegister(0), i.InputDoubleRegister(0));
       __ b(Condition(0xE), &done, Label::kNear);  // normal case
       if (i.OutputCount() > 1) {
-        __ lghi(i.OutputRegister(1), Operand::Zero());
+        __ mov(i.OutputRegister(1), Operand::Zero());
       } else {
-        __ lghi(i.OutputRegister(0), Operand::Zero());
+        __ mov(i.OutputRegister(0), Operand::Zero());
       }
       __ bind(&done);
       break;
@@ -2153,15 +2153,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_DoubleToUint64: {
       Label done;
       if (i.OutputCount() > 1) {
-        __ lghi(i.OutputRegister(1), Operand(1));
+        __ mov(i.OutputRegister(1), Operand(1));
       }
       __ ConvertDoubleToUnsignedInt64(i.OutputRegister(0),
                                       i.InputDoubleRegister(0));
       __ b(Condition(0xE), &done, Label::kNear);  // normal case
       if (i.OutputCount() > 1) {
-        __ lghi(i.OutputRegister(1), Operand::Zero());
+        __ mov(i.OutputRegister(1), Operand::Zero());
       } else {
-        __ lghi(i.OutputRegister(0), Operand::Zero());
+        __ mov(i.OutputRegister(0), Operand::Zero());
       }
       __ bind(&done);
       break;
@@ -2189,7 +2189,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // Avoid UINT32_MAX as an overflow indicator and use 0 instead,
         // because 0 allows easier out-of-bounds detection.
         __ b(Condition(0xE), &done, Label::kNear);  // normal case
-        __ lghi(i.OutputRegister(0), Operand::Zero());
+        __ mov(i.OutputRegister(0), Operand::Zero());
       }
       __ bind(&done);
       break;
@@ -2197,15 +2197,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_Float32ToUint64: {
       Label done;
       if (i.OutputCount() > 1) {
-        __ lghi(i.OutputRegister(1), Operand(1));
+        __ mov(i.OutputRegister(1), Operand(1));
       }
       __ ConvertFloat32ToUnsignedInt64(i.OutputRegister(0),
                                        i.InputDoubleRegister(0));
       __ b(Condition(0xE), &done, Label::kNear);  // normal case
       if (i.OutputCount() > 1) {
-        __ lghi(i.OutputRegister(1), Operand::Zero());
+        __ mov(i.OutputRegister(1), Operand::Zero());
       } else {
-        __ lghi(i.OutputRegister(0), Operand::Zero());
+        __ mov(i.OutputRegister(0), Operand::Zero());
       }
       __ bind(&done);
       break;
@@ -2213,14 +2213,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_Float32ToInt64: {
       Label done;
       if (i.OutputCount() > 1) {
-        __ lghi(i.OutputRegister(1), Operand(1));
+        __ mov(i.OutputRegister(1), Operand(1));
       }
       __ ConvertFloat32ToInt64(i.OutputRegister(0), i.InputDoubleRegister(0));
       __ b(Condition(0xE), &done, Label::kNear);  // normal case
       if (i.OutputCount() > 1) {
-        __ lghi(i.OutputRegister(1), Operand::Zero());
+        __ mov(i.OutputRegister(1), Operand::Zero());
       } else {
-        __ lghi(i.OutputRegister(0), Operand::Zero());
+        __ mov(i.OutputRegister(0), Operand::Zero());
       }
       __ bind(&done);
       break;
@@ -3500,7 +3500,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kS390_F32x4RecipApprox: {
-      __ lgfi(kScratchReg, Operand(1));
+      __ mov(kScratchReg, Operand(1));
       __ ConvertIntToFloat(kScratchDoubleReg, kScratchReg);
 #ifdef V8_TARGET_BIG_ENDIAN
       __ vrep(kScratchDoubleReg, kScratchDoubleReg, Operand(0), Condition(2));
@@ -3516,7 +3516,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DoubleRegister tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
       __ vfsq(tempFPReg1, i.InputSimd128Register(0), Condition(0), Condition(0),
               Condition(2));
-      __ lgfi(kScratchReg, Operand(1));
+      __ mov(kScratchReg, Operand(1));
       __ ConvertIntToFloat(kScratchDoubleReg, kScratchReg);
 #ifdef V8_TARGET_BIG_ENDIAN
       __ vrep(kScratchDoubleReg, kScratchDoubleReg, Operand(0), Condition(2));
@@ -3560,7 +3560,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src = i.InputSimd128Register(0);
       Register dst = i.OutputRegister();
       Register temp = i.TempRegister(0);
-      __ lgfi(dst, Operand(1));
+      __ mov(dst, Operand(1));
       __ xgr(temp, temp);
       __ vtm(src, src, Condition(0), Condition(0), Condition(0));
       __ locgr(Condition(8), dst, temp);
@@ -3570,7 +3570,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   Simd128Register src = i.InputSimd128Register(0);                             \
   Register dst = i.OutputRegister();                                           \
   Register temp = i.TempRegister(0);                                           \
-  __ lgfi(temp, Operand(1));                                                   \
+  __ mov(temp, Operand(1));                                                    \
   __ xgr(dst, dst);                                                            \
   __ vx(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg, Condition(0), \
         Condition(0), Condition(2));                                           \
@@ -3617,12 +3617,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_S128Const: {
 #ifdef V8_TARGET_BIG_ENDIAN
       for (int index = 0, j = 0; index < 2; index++, j = +2) {
-        __ lgfi(index < 1 ? ip : r0, Operand(i.InputInt32(j)));
+        __ mov(index < 1 ? ip : r0, Operand(i.InputInt32(j)));
         __ iihf(index < 1 ? ip : r0, Operand(i.InputInt32(j + 1)));
       }
 #else
       for (int index = 0, j = 0; index < 2; index++, j = +2) {
-        __ lgfi(index < 1 ? r0 : ip, Operand(i.InputInt32(j)));
+        __ mov(index < 1 ? r0 : ip, Operand(i.InputInt32(j)));
         __ iihf(index < 1 ? r0 : ip, Operand(i.InputInt32(j + 1)));
       }
 #endif
@@ -3932,10 +3932,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // create 2 * 8 byte inputs indicating new indices
       for (int i = 0, j = 0; i < 2; i++, j = +2) {
 #ifdef V8_TARGET_BIG_ENDIAN
-        __ lgfi(i < 1 ? ip : r0, Operand(k8x16_indices[j]));
+        __ mov(i < 1 ? ip : r0, Operand(k8x16_indices[j]));
         __ iihf(i < 1 ? ip : r0, Operand(k8x16_indices[j + 1]));
 #else
-        __ lgfi(i < 1 ? r0 : ip, Operand(k8x16_indices[j]));
+        __ mov(i < 1 ? r0 : ip, Operand(k8x16_indices[j]));
         __ iihf(i < 1 ? r0 : ip, Operand(k8x16_indices[j + 1]));
 #endif
       }
@@ -3975,10 +3975,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kS390_I64x2BitMask: {
 #ifdef V8_TARGET_BIG_ENDIAN
-      __ lgfi(kScratchReg, Operand(0x80800040));
+      __ mov(kScratchReg, Operand(0x80800040));
       __ iihf(kScratchReg, Operand(0x80808080));  // Zeroing the high bits.
 #else
-      __ lgfi(kScratchReg, Operand(0x80808080));
+      __ mov(kScratchReg, Operand(0x80808080));
       __ iihf(kScratchReg, Operand(0x40008080));
 #endif
       __ vlvg(kScratchDoubleReg, kScratchReg, MemOperand(r0, 1), Condition(3));
@@ -3990,10 +3990,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kS390_I32x4BitMask: {
 #ifdef V8_TARGET_BIG_ENDIAN
-      __ lgfi(kScratchReg, Operand(0x204060));
+      __ mov(kScratchReg, Operand(0x204060));
       __ iihf(kScratchReg, Operand(0x80808080));  // Zeroing the high bits.
 #else
-      __ lgfi(kScratchReg, Operand(0x80808080));
+      __ mov(kScratchReg, Operand(0x80808080));
       __ iihf(kScratchReg, Operand(0x60402000));
 #endif
       __ vlvg(kScratchDoubleReg, kScratchReg, MemOperand(r0, 1), Condition(3));
@@ -4005,10 +4005,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kS390_I16x8BitMask: {
 #ifdef V8_TARGET_BIG_ENDIAN
-      __ lgfi(kScratchReg, Operand(0x40506070));
+      __ mov(kScratchReg, Operand(0x40506070));
       __ iihf(kScratchReg, Operand(0x102030));
 #else
-      __ lgfi(kScratchReg, Operand(0x30201000));
+      __ mov(kScratchReg, Operand(0x30201000));
       __ iihf(kScratchReg, Operand(0x70605040));
 #endif
       __ vlvg(kScratchDoubleReg, kScratchReg, MemOperand(r0, 1), Condition(3));
@@ -4020,14 +4020,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kS390_I8x16BitMask: {
 #ifdef V8_TARGET_BIG_ENDIAN
-      __ lgfi(r0, Operand(0x60687078));
+      __ mov(r0, Operand(0x60687078));
       __ iihf(r0, Operand(0x40485058));
-      __ lgfi(ip, Operand(0x20283038));
+      __ mov(ip, Operand(0x20283038));
       __ iihf(ip, Operand(0x81018));
 #else
-      __ lgfi(ip, Operand(0x58504840));
+      __ mov(ip, Operand(0x58504840));
       __ iihf(ip, Operand(0x78706860));
-      __ lgfi(r0, Operand(0x18100800));
+      __ mov(r0, Operand(0x18100800));
       __ iihf(r0, Operand(0x38302820));
 #endif
       __ vlvgp(kScratchDoubleReg, ip, r0);
@@ -4173,7 +4173,7 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
   }
 
   condition = NegateFlagsCondition(condition);
-  __ LoadImmP(r0, Operand::Zero());
+  __ mov(r0, Operand::Zero());
   __ LoadOnConditionP(FlagsConditionToCondition(condition, kArchNop),
                       kSpeculationPoisonRegister, r0);
 }
@@ -4272,14 +4272,14 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   Condition cond = FlagsConditionToCondition(condition, op);
   Label done;
   if (check_unordered) {
-    __ LoadImmP(reg, (cond == eq || cond == le || cond == lt) ? Operand::Zero()
-                                                              : Operand(1));
+    __ mov(reg, (cond == eq || cond == le || cond == lt) ? Operand::Zero()
+                                                         : Operand(1));
     __ bunordered(&done);
   }
 
   // TODO(john.yan): use load imm high on condition here
-  __ LoadImmP(reg, Operand::Zero());
-  __ LoadImmP(kScratchReg, Operand(1));
+  __ mov(reg, Operand::Zero());
+  __ mov(kScratchReg, Operand(1));
   // locr is sufficient since reg's upper 32 is guarrantee to be 0
   __ locr(cond, reg, kScratchReg);
   __ bind(&done);
@@ -4346,7 +4346,7 @@ void CodeGenerator::AssembleConstructFrame() {
         __ lay(sp, MemOperand(sp, -kSystemPointerSize));
       } else {
         __ Push(r14, fp);
-        __ LoadRR(fp, sp);
+        __ mov(fp, sp);
       }
     } else if (call_descriptor->IsJSFunctionCall()) {
       __ Prologue(ip);
