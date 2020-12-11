@@ -3168,40 +3168,40 @@ void TurboAssembler::SwapSimd128(Simd128Register src, Simd128Register dst,
 
 void TurboAssembler::SwapSimd128(Simd128Register src, MemOperand dst,
                                  Simd128Register scratch) {
-  DCHECK(!AreAliased(src, scratch));
-  // push d0, to be used as scratch
+  DCHECK(src != scratch);
+  // push v0, to be used as scratch
   addi(sp, sp, Operand(-kSimd128Size));
-  StoreSimd128(d0, MemOperand(r0, sp), r0, scratch);
+  StoreSimd128(v0, MemOperand(r0, sp), r0, scratch);
   mov(ip, Operand(dst.offset()));
-  LoadSimd128(d0, MemOperand(dst.ra(), ip), r0, scratch);
+  LoadSimd128(v0, MemOperand(dst.ra(), ip), r0, scratch);
   StoreSimd128(src, MemOperand(dst.ra(), ip), r0, scratch);
-  vor(src, d0, d0);
-  // restore d0
-  LoadSimd128(d0, MemOperand(r0, sp), ip, scratch);
+  vor(src, v0, v0);
+  // restore v0
+  LoadSimd128(v0, MemOperand(r0, sp), ip, scratch);
   addi(sp, sp, Operand(kSimd128Size));
 }
 
 void TurboAssembler::SwapSimd128(MemOperand src, MemOperand dst,
                                  Simd128Register scratch) {
-  // push d0 and d1, to be used as scratch
+  // push v0 and v1, to be used as scratch
   addi(sp, sp, Operand(2 * -kSimd128Size));
-  StoreSimd128(d0, MemOperand(r0, sp), ip, scratch);
+  StoreSimd128(v0, MemOperand(r0, sp), ip, scratch);
   li(ip, Operand(kSimd128Size));
-  StoreSimd128(d1, MemOperand(ip, sp), r0, scratch);
+  StoreSimd128(v1, MemOperand(ip, sp), r0, scratch);
 
   mov(ip, Operand(src.offset()));
-  LoadSimd128(d0, MemOperand(src.ra(), ip), r0, scratch);
+  LoadSimd128(v0, MemOperand(src.ra(), ip), r0, scratch);
   mov(ip, Operand(dst.offset()));
-  LoadSimd128(d1, MemOperand(dst.ra(), ip), r0, scratch);
+  LoadSimd128(v1, MemOperand(dst.ra(), ip), r0, scratch);
 
-  StoreSimd128(d0, MemOperand(dst.ra(), ip), r0, scratch);
+  StoreSimd128(v0, MemOperand(dst.ra(), ip), r0, scratch);
   mov(ip, Operand(src.offset()));
-  StoreSimd128(d1, MemOperand(src.ra(), ip), r0, scratch);
+  StoreSimd128(v1, MemOperand(src.ra(), ip), r0, scratch);
 
-  // restore d0 and d1
-  LoadSimd128(d0, MemOperand(r0, sp), ip, scratch);
+  // restore v0 and v1
+  LoadSimd128(v0, MemOperand(r0, sp), ip, scratch);
   li(ip, Operand(kSimd128Size));
-  LoadSimd128(d1, MemOperand(ip, sp), r0, scratch);
+  LoadSimd128(v1, MemOperand(ip, sp), r0, scratch);
   addi(sp, sp, Operand(2 * kSimd128Size));
 }
 

@@ -444,14 +444,14 @@ class Assembler : public AssemblerBase {
   PPC_XX2_OPCODE_A_FORM_LIST(DECLARE_PPC_XX2_INSTRUCTIONS)
 #undef DECLARE_PPC_XX2_INSTRUCTIONS
 
-#define DECLARE_PPC_XX3_INSTRUCTIONS(name, instr_name, instr_value)  \
-  inline void name(const DoubleRegister rt, const DoubleRegister ra, \
-                   const DoubleRegister rb) {                        \
-    xx3_form(instr_name, rt, ra, rb);                                \
+#define DECLARE_PPC_XX3_INSTRUCTIONS(name, instr_name, instr_value)    \
+  inline void name(const Simd128Register rt, const Simd128Register ra, \
+                   const Simd128Register rb) {                         \
+    xx3_form(instr_name, rt, ra, rb);                                  \
   }
 
-  inline void xx3_form(Instr instr, DoubleRegister t, DoubleRegister a,
-                       DoubleRegister b) {
+  inline void xx3_form(Instr instr, Simd128Register t, Simd128Register a,
+                       Simd128Register b) {
     // Using VR (high VSR) registers.
     int AX = 1;
     int BX = 1;

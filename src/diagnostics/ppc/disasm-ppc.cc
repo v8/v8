@@ -120,7 +120,10 @@ void Decoder::PrintDRegister(int reg) {
   Print(RegisterName(DoubleRegister::from_code(reg)));
 }
 
-void Decoder::PrintVectorRegister(int reg) { Print(NameOfVectorRegister(reg)); }
+// Print the Simd128 register name according to the active name converter.
+void Decoder::PrintVectorRegister(int reg) {
+  Print(RegisterName(Simd128Register::from_code(reg)));
+}
 
 // Print SoftwareInterrupt codes. Factoring this out reduces the complexity of
 // the FormatOption method.
@@ -141,11 +144,6 @@ void Decoder::PrintSoftwareInterrupt(SoftwareInterruptCodes svc) {
       }
       return;
   }
-}
-
-const char* Decoder::NameOfVectorRegister(int reg) const {
-  if (0 <= reg && reg < 32) return Simd128Registers::names_[reg];
-  return "novectorreg";
 }
 
 // Handle all register based formatting in this function to reduce the

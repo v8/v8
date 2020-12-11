@@ -74,9 +74,6 @@ const int kNumRegisters = 32;
 // FP support.
 const int kNumDoubleRegisters = 32;
 
-// Vector support.
-const int kNumSimd128Registers = 32;
-
 const int kNoRegister = -1;
 
 // Used in embedded constant pool builder - max reach in bits for
@@ -3046,12 +3043,6 @@ class DoubleRegisters {
 
  private:
   static const char* names_[kNumDoubleRegisters];
-};
-
-// Helper functions for converting between Vector register names.
-class Simd128Registers {
- public:
-  static const char* names_[kNumSimd128Registers];
 };
 }  // namespace internal
 }  // namespace v8
