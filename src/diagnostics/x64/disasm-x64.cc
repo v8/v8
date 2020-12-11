@@ -1899,13 +1899,13 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     } else if (opcode == 0x29) {
       current += PrintOperands("movapd", XMMOPER_XMMREG_OP_ORDER, current);
     } else if (opcode == 0x6E) {
-      current += PrintOperands(rex_w() ? "movq" : "movd",
-                               XMMREG_XMMOPER_OP_ORDER, current);
+      current += PrintOperands(rex_w() ? "movq" : "movd", XMMREG_OPER_OP_ORDER,
+                               current);
     } else if (opcode == 0x6F) {
       current += PrintOperands("movdqa", XMMREG_XMMOPER_OP_ORDER, current);
     } else if (opcode == 0x7E) {
-      current += PrintOperands(rex_w() ? "movq" : "movd",
-                               XMMOPER_XMMREG_OP_ORDER, current);
+      current += PrintOperands(rex_w() ? "movq" : "movd", OPER_XMMREG_OP_ORDER,
+                               current);
     } else if (opcode == 0x7F) {
       current += PrintOperands("movdqa", XMMOPER_XMMREG_OP_ORDER, current);
     } else if (opcode == 0xD6) {
