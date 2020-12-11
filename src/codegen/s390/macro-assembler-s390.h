@@ -42,86 +42,6 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2 = no_reg,
                                    Register reg5 = no_reg,
                                    Register reg6 = no_reg);
 
-// These exist to provide portability between 32 and 64bit
-#if V8_TARGET_ARCH_S390X
-
-// The length of the arithmetic operation is the length
-// of the register.
-
-// Length:
-// H = halfword
-// W = word
-
-// arithmetics and bitwise
-#define AddMI agsi
-#define AddRR agr
-#define SubRR sgr
-#define AndRR ngr
-#define OrRR ogr
-#define XorRR xgr
-#define LoadComplementRR lcgr
-#define LoadNegativeRR lngr
-
-// Distinct Operands
-#define AddP_RRR agrk
-#define AddPImm_RRI aghik
-#define AddLogicalP_RRR algrk
-#define SubP_RRR sgrk
-#define SubLogicalP_RRR slgrk
-#define AndP_RRR ngrk
-#define OrP_RRR ogrk
-#define XorP_RRR xgrk
-
-// Load / Store
-#define LoadAndTestRR ltgr
-
-// Compare
-#define CmpPH cghi
-#define CmpLogicalPW clgfi
-
-// Shifts
-#define ShiftLeftP sllg
-#define ShiftRightP srlg
-#define ShiftLeftArithP slag
-#define ShiftRightArithP srag
-#else
-
-// arithmetics and bitwise
-// Reg2Reg
-#define AddMI asi
-#define AddRR ar
-#define SubRR sr
-#define AndRR nr
-#define OrRR or_z
-#define XorRR xr
-#define LoadComplementRR lcr
-#define LoadNegativeRR lnr
-
-// Distinct Operands
-#define AddP_RRR ark
-#define AddPImm_RRI ahik
-#define AddLogicalP_RRR alrk
-#define SubP_RRR srk
-#define SubLogicalP_RRR slrk
-#define AndP_RRR nrk
-#define OrP_RRR ork
-#define XorP_RRR xrk
-
-// Load / Store
-#define LoadAndTestRR ltr
-
-// Compare
-#define CmpPH chi
-#define CmpLogicalPW clfi
-
-// Shifts
-#define ShiftLeftP ShiftLeft
-#define ShiftRightP ShiftRight
-#define ShiftLeftArithP ShiftLeftArith
-#define ShiftRightArithP ShiftRightArith
-
-#endif
-
 class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
  public:
   using TurboAssemblerBase::TurboAssemblerBase;
@@ -448,14 +368,24 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void BranchOnCount(Register r1, Label* l);
 
   // Shifts
-  void ShiftLeft(Register dst, Register src, Register val);
-  void ShiftLeft(Register dst, Register src, const Operand& val);
-  void ShiftRight(Register dst, Register src, Register val);
-  void ShiftRight(Register dst, Register src, const Operand& val);
-  void ShiftLeftArith(Register dst, Register src, Register shift);
-  void ShiftLeftArith(Register dst, Register src, const Operand& val);
-  void ShiftRightArith(Register dst, Register src, Register shift);
-  void ShiftRightArith(Register dst, Register src, const Operand& val);
+  void ShiftLeftU32(Register dst, Register src, Register val,
+                    const Operand& val2 = Operand::Zero());
+  void ShiftLeftU32(Register dst, Register src, const Operand& val);
+  void ShiftLeftU64(Register dst, Register src, Register val,
+                    const Operand& val2 = Operand::Zero());
+  void ShiftLeftU64(Register dst, Register src, const Operand& val);
+  void ShiftRightU32(Register dst, Register src, Register val,
+                     const Operand& val2 = Operand::Zero());
+  void ShiftRightU32(Register dst, Register src, const Operand& val);
+  void ShiftRightU64(Register dst, Register src, Register val,
+                     const Operand& val2 = Operand::Zero());
+  void ShiftRightU64(Register dst, Register src, const Operand& val);
+  void ShiftRightS32(Register dst, Register src, Register shift,
+                     const Operand& val2 = Operand::Zero());
+  void ShiftRightS32(Register dst, Register src, const Operand& val);
+  void ShiftRightS64(Register dst, Register src, Register shift,
+                     const Operand& val2 = Operand::Zero());
+  void ShiftRightS64(Register dst, Register src, const Operand& val);
 
   void ClearRightImm(Register dst, Register src, const Operand& val);
 
@@ -894,7 +824,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                              Operand(shiftAmount), true);
     } else {
       if (rangeEnd > 0)  // Don't need to shift if rangeEnd is zero.
-        ShiftRightP(dst, src, Operand(rangeEnd));
+        ShiftRightU64(dst, src, Operand(rangeEnd));
       else if (dst != src)  // If we didn't shift, we might need to copy
         mov(dst, src);
       int width = rangeStart - rangeEnd + 1;
@@ -979,9 +909,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void SmiUntag(Register dst, const MemOperand& src);
   void SmiUntag(Register dst, Register src) {
     if (SmiValuesAre31Bits()) {
-      ShiftRightArith(dst, src, Operand(kSmiShift));
+      ShiftRightS32(dst, src, Operand(kSmiShift));
     } else {
-      ShiftRightArithP(dst, src, Operand(kSmiShift));
+      ShiftRightS64(dst, src, Operand(kSmiShift));
     }
     lgfr(dst, dst);
   }
@@ -1249,16 +1179,16 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Shift left by kSmiShift
   void SmiTag(Register reg) { SmiTag(reg, reg); }
   void SmiTag(Register dst, Register src) {
-    ShiftLeftP(dst, src, Operand(kSmiShift));
+    ShiftLeftU64(dst, src, Operand(kSmiShift));
   }
 
   void SmiToPtrArrayOffset(Register dst, Register src) {
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
     STATIC_ASSERT(kSmiTag == 0 && kSmiShift < kSystemPointerSizeLog2);
-    ShiftLeftP(dst, src, Operand(kSystemPointerSizeLog2 - kSmiShift));
+    ShiftLeftU64(dst, src, Operand(kSystemPointerSizeLog2 - kSmiShift));
 #else
     STATIC_ASSERT(kSmiTag == 0 && kSmiShift > kSystemPointerSizeLog2);
-    ShiftRightArithP(dst, src, Operand(kSmiShift - kSystemPointerSizeLog2));
+    ShiftRightS64(dst, src, Operand(kSmiShift - kSystemPointerSizeLog2));
 #endif
   }
 

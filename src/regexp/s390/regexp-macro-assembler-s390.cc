@@ -155,11 +155,11 @@ void RegExpMacroAssemblerS390::AdvanceRegister(int reg, int by) {
   DCHECK_GT(num_registers_, reg);
   if (by != 0) {
     if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT) && is_int8(by)) {
-      __ AddMI(register_location(reg), Operand(by));
+      __ agsi(register_location(reg), Operand(by));
     } else {
       __ LoadP(r2, register_location(reg), r0);
       __ mov(r0, Operand(by));
-      __ AddRR(r2, r0);
+      __ agr(r2, r0);
       __ StoreU64(r2, register_location(reg));
     }
   }
@@ -726,7 +726,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
   __ mov(r1, r4);
   __ SubP(r1, current_input_offset(), Operand(char_size()));
   if (mode_ == UC16) {
-    __ ShiftLeftP(r0, r3, Operand(1));
+    __ ShiftLeftU64(r0, r3, Operand(1));
     __ SubP(r1, r1, r0);
   } else {
     __ SubP(r1, r1, r3);
@@ -789,7 +789,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
       __ SubP(r0, end_of_input_address(), r0);
       // r0 is length of input in bytes.
       if (mode_ == UC16) {
-        __ ShiftRightP(r0, r0, Operand(1));
+        __ ShiftRightU64(r0, r0, Operand(1));
       }
       // r0 is length of input in characters.
       __ AddP(r0, r4);
@@ -805,10 +805,10 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
           // TODO(john.yan): Can be optimized by SIMD instructions
           __ LoadMultipleP(r3, r6, register_location(i + 3));
           if (mode_ == UC16) {
-            __ ShiftRightArithP(r3, r3, Operand(1));
-            __ ShiftRightArithP(r4, r4, Operand(1));
-            __ ShiftRightArithP(r5, r5, Operand(1));
-            __ ShiftRightArithP(r6, r6, Operand(1));
+            __ ShiftRightS64(r3, r3, Operand(1));
+            __ ShiftRightS64(r4, r4, Operand(1));
+            __ ShiftRightS64(r5, r5, Operand(1));
+            __ ShiftRightS64(r6, r6, Operand(1));
           }
           __ AddP(r3, r0);
           __ AddP(r4, r0);
@@ -826,8 +826,8 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
         } else {
           __ LoadMultipleP(r3, r4, register_location(i + 1));
           if (mode_ == UC16) {
-            __ ShiftRightArithP(r3, r3, Operand(1));
-            __ ShiftRightArithP(r4, r4, Operand(1));
+            __ ShiftRightS64(r3, r3, Operand(1));
+            __ ShiftRightS64(r4, r4, Operand(1));
           }
           __ AddP(r3, r0);
           __ AddP(r4, r0);

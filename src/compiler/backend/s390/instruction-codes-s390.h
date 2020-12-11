@@ -23,13 +23,10 @@ namespace compiler {
   V(S390_Xor64)                             \
   V(S390_ShiftLeft32)                       \
   V(S390_ShiftLeft64)                       \
-  V(S390_ShiftLeftPair)                     \
   V(S390_ShiftRight32)                      \
   V(S390_ShiftRight64)                      \
-  V(S390_ShiftRightPair)                    \
   V(S390_ShiftRightArith32)                 \
   V(S390_ShiftRightArith64)                 \
-  V(S390_ShiftRightArithPair)               \
   V(S390_RotRight32)                        \
   V(S390_RotRight64)                        \
   V(S390_Not32)                             \
@@ -40,15 +37,12 @@ namespace compiler {
   V(S390_Lay)                               \
   V(S390_Add32)                             \
   V(S390_Add64)                             \
-  V(S390_AddPair)                           \
   V(S390_AddFloat)                          \
   V(S390_AddDouble)                         \
   V(S390_Sub32)                             \
   V(S390_Sub64)                             \
   V(S390_SubFloat)                          \
   V(S390_SubDouble)                         \
-  V(S390_SubPair)                           \
-  V(S390_MulPair)                           \
   V(S390_Mul32)                             \
   V(S390_Mul32WithOverflow)                 \
   V(S390_Mul64)                             \

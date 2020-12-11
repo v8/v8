@@ -1569,7 +1569,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_ShiftLeft32:
       // zero-ext
       if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
-        ASSEMBLE_BIN32_OP(RRRInstr(ShiftLeft), nullInstr, RRIInstr(ShiftLeft));
+        ASSEMBLE_BIN32_OP(RRRInstr(ShiftLeftU32), nullInstr,
+                          RRIInstr(ShiftLeftU32));
       } else {
         ASSEMBLE_BIN32_OP(RRInstr(sll), nullInstr, RIInstr(sll));
       }
@@ -1602,7 +1603,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_RotRight32: {
       // zero-ext
       if (HasRegisterInput(instr, 1)) {
-        __ LoadComplementRR(kScratchReg, i.InputRegister(1));
+        __ lcgr(kScratchReg, i.InputRegister(1));
         __ rll(i.OutputRegister(), i.InputRegister(0), kScratchReg);
       } else {
         __ rll(i.OutputRegister(), i.InputRegister(0),
@@ -4308,7 +4309,7 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   __ CmpLogicalP(input, Operand(case_count));
   __ bge(GetLabel(i.InputRpo(1)));
   __ larl(kScratchReg, table);
-  __ ShiftLeftP(r1, input, Operand(kSystemPointerSizeLog2));
+  __ ShiftLeftU64(r1, input, Operand(kSystemPointerSizeLog2));
   __ LoadP(kScratchReg, MemOperand(kScratchReg, r1));
   __ Jump(kScratchReg);
 }

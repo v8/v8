@@ -533,7 +533,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
 #define DECLARE_S390_RS_SHIFT_FORMAT(name, opcode)                             \
   void name(Register r1, Register r2, const Operand& opnd = Operand::Zero()) { \
-    DCHECK(r2 != r0);                                                          \
     rs_format(opcode, r1.code(), r0.code(), r2.code(), opnd.immediate());      \
   }                                                                            \
   void name(Register r1, const Operand& opnd) {                                \
