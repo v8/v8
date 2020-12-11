@@ -4599,7 +4599,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
 #endif
             __ mov(dst, Operand(src.ToInt32(), src.rmode()));
           } else {
-            __ Load(dst, Operand(src.ToInt32()));
+            __ mov(dst, Operand(src.ToInt32()));
           }
           break;
         case Constant::kInt64:
@@ -4607,7 +4607,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           if (RelocInfo::IsWasmReference(src.rmode())) {
             __ mov(dst, Operand(src.ToInt64(), src.rmode()));
           } else {
-            __ Load(dst, Operand(src.ToInt64()));
+            __ mov(dst, Operand(src.ToInt64()));
           }
 #else
           __ mov(dst, Operand(src.ToInt64()));
@@ -4661,9 +4661,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
                          ? src.ToFloat32()
                          : src.ToFloat64().value();
       if (src.type() == Constant::kFloat32) {
-        __ LoadFloat32Literal(dst, src.ToFloat32(), kScratchReg);
+        __ LoadF32<float>(dst, src.ToFloat32(), kScratchReg);
       } else {
-        __ LoadDoubleLiteral(dst, value, kScratchReg);
+        __ LoadF64<double>(dst, value, kScratchReg);
       }
 
       if (destination->IsFloatStackSlot()) {

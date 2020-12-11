@@ -591,11 +591,11 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ LoadAndTestP(scrach, MemOperand(r7));
   __ bne(&non_outermost_js, Label::kNear);
   __ StoreU64(fp, MemOperand(r7));
-  __ Load(scrach, Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
+  __ mov(scrach, Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
   Label cont;
   __ b(&cont, Label::kNear);
   __ bind(&non_outermost_js);
-  __ Load(scrach, Operand(StackFrame::INNER_JSENTRY_FRAME));
+  __ mov(scrach, Operand(StackFrame::INNER_JSENTRY_FRAME));
 
   __ bind(&cont);
   __ StoreU64(scrach, MemOperand(sp));  // frame-type
@@ -1878,7 +1878,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
 
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ SmiTag(r2);
-  __ Load(r6, Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ mov(r6, Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   // Stack updated as such:
   //    old SP --->
   //                 R14 Return Addr
@@ -2927,7 +2927,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   // which we would need to shift right the high part of the mantissa.
   // Scratch contains exponent - 1.
   // Load scratch with 52 - exponent (load with 51 - (exponent - 1)).
-  __ Load(r0, Operand(51));
+  __ mov(r0, Operand(51));
   __ SubP(scratch, r0, scratch);
   __ CmpP(scratch, Operand::Zero());
   __ ble(&only_low, Label::kNear);
@@ -2937,12 +2937,12 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   // Scratch contains: 52 - exponent.
   // We needs: exponent - 20.
   // So we use: 32 - scratch = 32 - 52 + exponent = exponent - 20.
-  __ Load(r0, Operand(32));
+  __ mov(r0, Operand(32));
   __ SubP(scratch, r0, scratch);
   __ ExtractBitMask(result_reg, scratch_high, HeapNumber::kMantissaMask);
   // Set the implicit 1 before the mantissa part in scratch_high.
   STATIC_ASSERT(HeapNumber::kMantissaBitsInTopWord >= 16);
-  __ Load(r0, Operand(1 << ((HeapNumber::kMantissaBitsInTopWord)-16)));
+  __ mov(r0, Operand(1 << ((HeapNumber::kMantissaBitsInTopWord)-16)));
   __ ShiftLeftP(r0, r0, Operand(16));
   __ OrP(result_reg, result_reg, r0);
   __ ShiftLeft(r0, result_reg, scratch);

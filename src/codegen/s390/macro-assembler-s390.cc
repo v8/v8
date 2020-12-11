@@ -1235,7 +1235,7 @@ void TurboAssembler::StubPrologue(StackFrame::Type type, Register base,
                                   int prologue_offset) {
   {
     ConstantPoolUnavailableScope constant_pool_unavailable(this);
-    Load(r1, Operand(StackFrame::TypeToMarker(type)));
+    mov(r1, Operand(StackFrame::TypeToMarker(type)));
     PushCommonFrame(r1);
   }
 }
@@ -1254,7 +1254,7 @@ void TurboAssembler::EnterFrame(StackFrame::Type type,
   //    type
   //    CodeObject  <-- new sp
 
-  Load(ip, Operand(StackFrame::TypeToMarker(type)));
+  mov(ip, Operand(StackFrame::TypeToMarker(type)));
   PushCommonFrame(ip);
 }
 
@@ -1311,7 +1311,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   // all of the pushes that have happened inside of V8
   // since we were called from C code
   CleanseP(r14);
-  Load(r1, Operand(StackFrame::TypeToMarker(frame_type)));
+  mov(r1, Operand(StackFrame::TypeToMarker(frame_type)));
   PushCommonFrame(r1);
   // Reserve room for saved entry sp.
   lay(sp, MemOperand(fp, -ExitFrameConstants::kFixedFrameSizeFromFp));
@@ -3401,49 +3401,6 @@ void TurboAssembler::NotP(Register dst, Register src) {
 #endif
 }
 
-// works the same as mov
-void TurboAssembler::Load(Register dst, const Operand& opnd) {
-  intptr_t value = opnd.immediate();
-  if (is_int16(value)) {
-#if V8_TARGET_ARCH_S390X
-    lghi(dst, opnd);
-#else
-    lhi(dst, opnd);
-#endif
-  } else if (is_int32(value)) {
-#if V8_TARGET_ARCH_S390X
-    lgfi(dst, opnd);
-#else
-    iilf(dst, opnd);
-#endif
-  } else if (is_uint32(value)) {
-#if V8_TARGET_ARCH_S390X
-    llilf(dst, opnd);
-#else
-    iilf(dst, opnd);
-#endif
-  } else {
-    int32_t hi_32 = static_cast<int64_t>(value) >> 32;
-    int32_t lo_32 = static_cast<int32_t>(value);
-
-    iihf(dst, Operand(hi_32));
-    iilf(dst, Operand(lo_32));
-  }
-}
-
-void TurboAssembler::Load(Register dst, const MemOperand& opnd) {
-  DCHECK(is_int20(opnd.offset()));
-#if V8_TARGET_ARCH_S390X
-  lgf(dst, opnd);  // 64<-32
-#else
-  if (is_uint12(opnd.offset())) {
-    l(dst, opnd);
-  } else {
-    ly(dst, opnd);
-  }
-#endif
-}
-
 void TurboAssembler::LoadPositiveP(Register result, Register input) {
 #if V8_TARGET_ARCH_S390X
   lpgr(result, input);
@@ -3625,10 +3582,6 @@ void TurboAssembler::BranchOnCount(Register r1, Label* l) {
   }
 }
 
-void TurboAssembler::LoadIntLiteral(Register dst, int value) {
-  Load(dst, Operand(value));
-}
-
 void TurboAssembler::LoadSmiLiteral(Register dst, Smi smi) {
   intptr_t value = static_cast<intptr_t>(smi.ptr());
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
@@ -3638,37 +3591,6 @@ void TurboAssembler::LoadSmiLiteral(Register dst, Smi smi) {
   // The smi value is loaded in upper 32-bits.  Lower 32-bit are zeros.
   llihf(dst, Operand(value >> 32));
 #endif
-}
-
-void TurboAssembler::LoadDoubleLiteral(DoubleRegister result, uint64_t value,
-                                       Register scratch) {
-  uint32_t hi_32 = value >> 32;
-  uint32_t lo_32 = static_cast<uint32_t>(value);
-
-  // Load the 64-bit value into a GPR, then transfer it to FPR via LDGR
-  if (value == 0) {
-    lzdr(result);
-  } else if (lo_32 == 0) {
-    llihf(scratch, Operand(hi_32));
-    ldgr(result, scratch);
-  } else {
-    iihf(scratch, Operand(hi_32));
-    iilf(scratch, Operand(lo_32));
-    ldgr(result, scratch);
-  }
-}
-
-void TurboAssembler::LoadDoubleLiteral(DoubleRegister result, double value,
-                                       Register scratch) {
-  uint64_t int_val = bit_cast<uint64_t, double>(value);
-  LoadDoubleLiteral(result, int_val, scratch);
-}
-
-void TurboAssembler::LoadFloat32Literal(DoubleRegister result, float value,
-                                        Register scratch) {
-  uint64_t int_val = static_cast<uint64_t>(bit_cast<uint32_t, float>(value))
-                     << 32;
-  LoadDoubleLiteral(result, int_val, scratch);
 }
 
 void TurboAssembler::CmpSmiLiteral(Register src1, Smi smi, Register scratch) {
@@ -3695,7 +3617,7 @@ void TurboAssembler::LoadP(Register dst, const MemOperand& mem,
   if (!is_int20(offset)) {
     DCHECK(scratch != no_reg && scratch != r0 && mem.rx() == r0);
     DCHECK(scratch != mem.rb());
-    LoadIntLiteral(scratch, offset);
+    mov(scratch, Operand(offset));
     src = MemOperand(mem.rb(), scratch);
   }
   lg(dst, src);
@@ -3707,7 +3629,7 @@ void TurboAssembler::LoadP(Register dst, const MemOperand& mem,
   } else {
     DCHECK(scratch != no_reg && scratch != r0 && mem.rx() == r0);
     DCHECK(scratch != mem.rb());
-    LoadIntLiteral(scratch, offset);
+    mov(scratch, Operand(offset));
     l(dst, MemOperand(mem.rb(), scratch));
   }
 #endif
@@ -3719,7 +3641,7 @@ void TurboAssembler::StoreU64(Register src, const MemOperand& mem,
   if (!is_int20(mem.offset())) {
     DCHECK(scratch != no_reg);
     DCHECK(scratch != r0);
-    LoadIntLiteral(scratch, mem.offset());
+    mov(scratch, Operand(mem.offset()));
 #if V8_TARGET_ARCH_S390X
     stg(src, MemOperand(mem.rb(), scratch));
 #else
@@ -3822,7 +3744,7 @@ void TurboAssembler::LoadS32(Register dst, const MemOperand& mem,
 
   if (!is_int20(offset)) {
     DCHECK(scratch != no_reg);
-    LoadIntLiteral(scratch, offset);
+    mov(scratch, Operand(offset));
 #if V8_TARGET_ARCH_S390X
     lgf(dst, MemOperand(mem.rb(), scratch));
 #else
@@ -3862,7 +3784,7 @@ void TurboAssembler::LoadU32(Register dst, const MemOperand& mem,
     llgf(dst, mem);
   } else if (scratch != no_reg) {
     // Materialize offset into scratch register.
-    LoadIntLiteral(scratch, offset);
+    mov(scratch, Operand(offset));
     llgf(dst, MemOperand(base, scratch));
   } else {
     DCHECK(false);
@@ -3878,7 +3800,7 @@ void TurboAssembler::LoadU32(Register dst, const MemOperand& mem,
     use_RXYform = true;
   } else if (scratch != no_reg) {
     // Materialize offset into scratch register.
-    LoadIntLiteral(scratch, offset);
+    mov(scratch, Operand(offset));
   } else {
     DCHECK(false);
   }
@@ -4171,7 +4093,7 @@ void TurboAssembler::StoreU32(Register src, const MemOperand& mem,
     use_RXYform = true;
   } else if (scratch != no_reg) {
     // Materialize offset into scratch register.
-    LoadIntLiteral(scratch, offset);
+    mov(scratch, Operand(offset));
   } else {
     // scratch is no_reg
     DCHECK(false);
@@ -4203,7 +4125,7 @@ void TurboAssembler::LoadS16(Register dst, const MemOperand& mem,
 
   if (!is_int20(offset)) {
     DCHECK(scratch != no_reg);
-    LoadIntLiteral(scratch, offset);
+    mov(scratch, Operand(offset));
 #if V8_TARGET_ARCH_S390X
     lgh(dst, MemOperand(base, scratch));
 #else
@@ -4235,7 +4157,7 @@ void TurboAssembler::StoreU16(Register src, const MemOperand& mem,
     sthy(src, mem);
   } else {
     DCHECK(scratch != no_reg);
-    LoadIntLiteral(scratch, offset);
+    mov(scratch, Operand(offset));
     sth(src, MemOperand(base, scratch));
   }
 }
@@ -4253,7 +4175,7 @@ void TurboAssembler::StoreU8(Register src, const MemOperand& mem,
     stcy(src, mem);
   } else {
     DCHECK(scratch != no_reg);
-    LoadIntLiteral(scratch, offset);
+    mov(scratch, Operand(offset));
     stc(src, MemOperand(base, scratch));
   }
 }

@@ -391,8 +391,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CmpLogicalByte(const MemOperand& mem, const Operand& imm);
 
   // Load 32bit
-  void Load(Register dst, const MemOperand& opnd);
-  void Load(Register dst, const Operand& opnd);
   void LoadS32(Register dst, const MemOperand& opnd, Register scratch = no_reg);
   void LoadS32(Register dst, Register src);
   void LoadU32(Register dst, const MemOperand& opnd, Register scratch = no_reg);
@@ -721,18 +719,42 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // new S390 macro-assembler interfaces that are slightly higher level
   // than assembler-s390 and may generate variable length sequences
 
-  // load a literal signed int value <value> to GPR <dst>
-  void LoadIntLiteral(Register dst, int value);
-
   // load an SMI value <value> to GPR <dst>
   void LoadSmiLiteral(Register dst, Smi smi);
 
   // load a literal double value <value> to FPR <result>
-  void LoadDoubleLiteral(DoubleRegister result, double value, Register scratch);
-  void LoadDoubleLiteral(DoubleRegister result, uint64_t value,
-                         Register scratch);
+  template <class T>
+  void LoadF64(DoubleRegister result, T value, Register scratch) {
+    static_assert(sizeof(T) == kDoubleSize, "Expect input size to be 8");
+    uint64_t int_val = bit_cast<uint64_t, T>(value);
+    // Load the 64-bit value into a GPR, then transfer it to FPR via LDGR
+    uint32_t hi_32 = int_val >> 32;
+    uint32_t lo_32 = static_cast<uint32_t>(int_val);
 
-  void LoadFloat32Literal(DoubleRegister result, float value, Register scratch);
+    if (int_val == 0) {
+      lzdr(result);
+    } else if (lo_32 == 0) {
+      llihf(scratch, Operand(hi_32));
+      ldgr(result, scratch);
+    } else {
+      iihf(scratch, Operand(hi_32));
+      iilf(scratch, Operand(lo_32));
+      ldgr(result, scratch);
+    }
+  }
+
+  template <class T>
+  void LoadF32(DoubleRegister result, T value, Register scratch) {
+    static_assert(sizeof(T) == kFloatSize, "Expect input size to be 4");
+    uint32_t int_val = bit_cast<uint32_t, T>(value);
+    LoadF64(result, static_cast<uint64_t>(int_val) << 32, scratch);
+  }
+
+  // void LoadF64(DoubleRegister result, double value, Register scratch);
+  // void LoadF64(DoubleRegister result, uint64_t value,
+  //                        Register scratch);
+
+  // void LoadF32(DoubleRegister result, float value, Register scratch);
 
   void StoreU32(Register src, const MemOperand& mem, Register scratch = no_reg);
 

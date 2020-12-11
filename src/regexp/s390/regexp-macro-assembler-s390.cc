@@ -758,7 +758,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
       // One slot beyond address of register 0.
       __ lay(r3,
              MemOperand(frame_pointer(), kRegisterZero + kSystemPointerSize));
-      __ Load(r4, Operand(num_saved_registers_));
+      __ mov(r4, Operand(num_saved_registers_));
       Label init_loop;
       __ bind(&init_loop);
       __ StoreU64(r1, MemOperand(r3, -kSystemPointerSize));
