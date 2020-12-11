@@ -67,8 +67,11 @@ class Decoder {
   // Printing of common values.
   void PrintRegister(int reg);
   void PrintDRegister(int reg);
+  void PrintVectorRegister(int reg);
   int FormatFPRegister(Instruction* instr, const char* format);
+  int FormatVectorRegister(Instruction* instr, const char* format);
   void PrintSoftwareInterrupt(SoftwareInterruptCodes svc);
+  const char* NameOfVectorRegister(int reg) const;
 
   // Handle formatting of instructions and their options.
   int FormatRegister(Instruction* instr, const char* option);
@@ -117,6 +120,8 @@ void Decoder::PrintDRegister(int reg) {
   Print(RegisterName(DoubleRegister::from_code(reg)));
 }
 
+void Decoder::PrintVectorRegister(int reg) { Print(NameOfVectorRegister(reg)); }
+
 // Print SoftwareInterrupt codes. Factoring this out reduces the complexity of
 // the FormatOption method.
 void Decoder::PrintSoftwareInterrupt(SoftwareInterruptCodes svc) {
@@ -136,6 +141,11 @@ void Decoder::PrintSoftwareInterrupt(SoftwareInterruptCodes svc) {
       }
       return;
   }
+}
+
+const char* Decoder::NameOfVectorRegister(int reg) const {
+  if (0 <= reg && reg < 32) return Simd128Registers::names_[reg];
+  return "novectorreg";
 }
 
 // Handle all register based formatting in this function to reduce the
@@ -184,6 +194,26 @@ int Decoder::FormatFPRegister(Instruction* instr, const char* format) {
   return retval;
 }
 
+int Decoder::FormatVectorRegister(Instruction* instr, const char* format) {
+  int retval = 2;
+  int reg = -1;
+  if (format[1] == 't') {
+    reg = instr->RTValue();
+  } else if (format[1] == 'a') {
+    reg = instr->RAValue();
+  } else if (format[1] == 'b') {
+    reg = instr->RBValue();
+  } else if (format[1] == 'c') {
+    reg = instr->RCValue();
+  } else {
+    UNREACHABLE();
+  }
+
+  PrintVectorRegister(reg);
+
+  return retval;
+}
+
 // FormatOption takes a formatting string and interprets it based on
 // the current instructions. The format string points to the first
 // character of the option string (the option escape has already been
@@ -210,6 +240,17 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
     }
     case 'D': {
       return FormatFPRegister(instr, format);
+    }
+    case 'X': {
+      // Check the TX/SX value, if set then it's a Vector register.
+      if (instr->Bit(0) == 1) {
+        return FormatVectorRegister(instr, format);
+      }
+      // Double (VSX) register.
+      return FormatFPRegister(instr, format);
+    }
+    case 'V': {
+      return FormatVectorRegister(instr, format);
     }
     case 'i': {  // int16
       int32_t value = (instr->Bits(15, 0) << 16) >> 16;
