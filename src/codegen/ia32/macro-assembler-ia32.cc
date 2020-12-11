@@ -4,24 +4,58 @@
 
 #if V8_TARGET_ARCH_IA32
 
+#include <stdint.h>
+
+#include "include/v8-internal.h"
 #include "src/base/bits.h"
-#include "src/base/division-by-constant.h"
-#include "src/base/utils/random-number-generator.h"
-#include "src/codegen/callable.h"
+#include "src/base/logging.h"
+#include "src/base/macros.h"
+#include "src/base/platform/platform.h"
+#include "src/builtins/builtins.h"
+#include "src/codegen/assembler.h"
+#include "src/codegen/bailout-reason.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/cpu-features.h"
-#include "src/codegen/external-reference-table.h"
-#include "src/codegen/ia32/assembler-ia32-inl.h"
+#include "src/codegen/external-reference.h"
+#include "src/codegen/ia32/assembler-ia32.h"
+#include "src/codegen/ia32/register-ia32.h"
+#include "src/codegen/interface-descriptors.h"
+#include "src/codegen/label.h"
 #include "src/codegen/macro-assembler.h"
-#include "src/debug/debug.h"
+#include "src/codegen/register.h"
+#include "src/codegen/reglist.h"
+#include "src/codegen/reloc-info.h"
+#include "src/codegen/turbo-assembler.h"
+#include "src/common/globals.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frame-constants.h"
-#include "src/execution/frames-inl.h"
+#include "src/execution/frames.h"
+#include "src/execution/isolate-data.h"
+#include "src/execution/isolate.h"
+#include "src/flags/flags.h"
+#include "src/handles/handles-inl.h"
+#include "src/handles/handles.h"
+#include "src/heap/basic-memory-chunk.h"
+#include "src/heap/factory-inl.h"
+#include "src/heap/factory.h"
 #include "src/heap/memory-chunk.h"
-#include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
+#include "src/objects/code.h"
+#include "src/objects/contexts.h"
+#include "src/objects/fixed-array.h"
+#include "src/objects/heap-object.h"
+#include "src/objects/js-function.h"
+#include "src/objects/map.h"
+#include "src/objects/objects.h"
+#include "src/objects/oddball.h"
+#include "src/objects/shared-function-info.h"
+#include "src/objects/slots-inl.h"
+#include "src/objects/smi.h"
+#include "src/roots/roots-inl.h"
+#include "src/roots/roots.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/embedded/embedded-data.h"
-#include "src/snapshot/snapshot.h"
+#include "src/utils/utils.h"
 
 // Satisfy cpplint check, but don't include platform-specific header. It is
 // included recursively via macro-assembler.h.
@@ -1503,6 +1537,17 @@ void TurboAssembler::Move(XMMRegister dst, uint64_t src) {
       movsd(dst, Operand(esp, 0));
       add(esp, Immediate(kDoubleSize));
     }
+  }
+}
+
+void TurboAssembler::Cmpeqps(XMMRegister dst, XMMRegister src1,
+                             XMMRegister src2) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vcmpeqps(dst, src1, src2);
+  } else {
+    movaps(dst, src1);
+    cmpeqps(dst, src2);
   }
 }
 

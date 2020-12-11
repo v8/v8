@@ -194,8 +194,7 @@ namespace compiler {
   V(IA32F32x4Round)                \
   V(IA32I32x4Splat)                \
   V(IA32I32x4ExtractLane)          \
-  V(SSEI32x4SConvertF32x4)         \
-  V(AVXI32x4SConvertF32x4)         \
+  V(IA32I32x4SConvertF32x4)        \
   V(IA32I32x4SConvertI16x8Low)     \
   V(IA32I32x4SConvertI16x8High)    \
   V(IA32I32x4Neg)                  \

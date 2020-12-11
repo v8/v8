@@ -280,6 +280,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // may be bigger than 2^16 - 1.  Requires a scratch register.
   void Ret(int bytes_dropped, Register scratch);
 
+  // Three-operand cmpeqps that moves src1 to dst if AVX is not supported.
+  void Cmpeqps(XMMRegister dst, XMMRegister src1, XMMRegister src2);
+
   void Pshufhw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
     Pshufhw(dst, Operand(src), shuffle);
   }
@@ -435,6 +438,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_PACKED_OP3(Pmuludq, pmuludq)
   AVX_PACKED_OP3(Pavgb, pavgb)
   AVX_PACKED_OP3(Pavgw, pavgw)
+  AVX_PACKED_OP3(Pand, pand)
 #undef AVX_PACKED_OP3
 
   AVX_PACKED_OP3_WITH_TYPE(Psllw, psllw, XMMRegister, uint8_t)

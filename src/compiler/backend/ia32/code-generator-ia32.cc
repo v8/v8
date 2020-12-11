@@ -2640,40 +2640,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pextrd(i.OutputRegister(), i.InputSimd128Register(0), i.InputInt8(1));
       break;
     }
-    case kSSEI32x4SConvertF32x4: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      XMMRegister dst = i.OutputSimd128Register();
-      // NAN->0
-      __ movaps(kScratchDoubleReg, dst);
-      __ cmpeqps(kScratchDoubleReg, kScratchDoubleReg);
-      __ pand(dst, kScratchDoubleReg);
-      // Set top bit if >= 0 (but not -0.0!)
-      __ pxor(kScratchDoubleReg, dst);
-      // Convert
-      __ cvttps2dq(dst, dst);
-      // Set top bit if >=0 is now < 0
-      __ pand(kScratchDoubleReg, dst);
-      __ psrad(kScratchDoubleReg, 31);
-      // Set positive overflow lanes to 0x7FFFFFFF
-      __ pxor(dst, kScratchDoubleReg);
-      break;
-    }
-    case kAVXI32x4SConvertF32x4: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
+    case kIA32I32x4SConvertF32x4: {
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(0);
       // NAN->0
-      __ vcmpeqps(kScratchDoubleReg, src, src);
-      __ vpand(dst, src, kScratchDoubleReg);
+      __ Cmpeqps(kScratchDoubleReg, src, src);
+      __ Pand(dst, src, kScratchDoubleReg);
       // Set top bit if >= 0 (but not -0.0!)
-      __ vpxor(kScratchDoubleReg, kScratchDoubleReg, dst);
+      __ Pxor(kScratchDoubleReg, dst);
       // Convert
-      __ vcvttps2dq(dst, dst);
+      __ Cvttps2dq(dst, dst);
       // Set top bit if >=0 is now < 0
-      __ vpand(kScratchDoubleReg, kScratchDoubleReg, dst);
-      __ vpsrad(kScratchDoubleReg, kScratchDoubleReg, 31);
+      __ Pand(kScratchDoubleReg, dst);
+      __ Psrad(kScratchDoubleReg, kScratchDoubleReg, 31);
       // Set positive overflow lanes to 0x7FFFFFFF
-      __ vpxor(dst, dst, kScratchDoubleReg);
+      __ Pxor(dst, kScratchDoubleReg);
       break;
     }
     case kIA32I32x4SConvertI16x8Low: {

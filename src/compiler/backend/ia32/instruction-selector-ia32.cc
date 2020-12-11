@@ -2439,7 +2439,7 @@ void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {
 }
 
 void InstructionSelector::VisitI32x4SConvertF32x4(Node* node) {
-  VisitRRSimd(this, node, kAVXI32x4SConvertF32x4, kSSEI32x4SConvertF32x4);
+  VisitRRSimd(this, node, kIA32I32x4SConvertF32x4);
 }
 
 void InstructionSelector::VisitI32x4UConvertF32x4(Node* node) {
