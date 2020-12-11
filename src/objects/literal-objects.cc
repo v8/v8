@@ -502,9 +502,9 @@ class ObjectDescriptor {
   }
 
   void UpdateNextEnumerationIndex(int value_index) {
-    int next_index = ComputeEnumerationIndex(value_index);
-    DCHECK_LT(next_enumeration_index_, next_index);
-    next_enumeration_index_ = next_index;
+    int current_index = ComputeEnumerationIndex(value_index);
+    DCHECK_LE(next_enumeration_index_, current_index);
+    next_enumeration_index_ = current_index + 1;
   }
 
   void Finalize(LocalIsolate* isolate) {
