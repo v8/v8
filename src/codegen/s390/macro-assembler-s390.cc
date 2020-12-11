@@ -2720,18 +2720,6 @@ void TurboAssembler::Add32(Register dst, Register src) { ar(dst, src); }
 // Add Pointer Size (Register dst = Register dst + Register src)
 void TurboAssembler::AddP(Register dst, Register src) { agr(dst, src); }
 
-// Add Pointer Size with src extension
-//     (Register dst(ptr) = Register dst (ptr) + Register src (32 | 32->64))
-// src is treated as a 32-bit signed integer, which is sign extended to
-// 64-bit if necessary.
-void TurboAssembler::AddP_ExtendSrc(Register dst, Register src) {
-#if V8_TARGET_ARCH_S390X
-  agfr(dst, src);
-#else
-  ar(dst, src);
-#endif
-}
-
 // Add 32-bit (Register dst = Register src1 + Register src2)
 void TurboAssembler::Add32(Register dst, Register src1, Register src2) {
   if (dst != src1 && dst != src2) {
@@ -2766,27 +2754,6 @@ void TurboAssembler::AddP(Register dst, Register src1, Register src2) {
   agr(dst, src2);
 }
 
-// Add Pointer Size with src extension
-//      (Register dst (ptr) = Register dst (ptr) + Register src1 (ptr) +
-//                            Register src2 (32 | 32->64))
-// src is treated as a 32-bit signed integer, which is sign extended to
-// 64-bit if necessary.
-void TurboAssembler::AddP_ExtendSrc(Register dst, Register src1,
-                                    Register src2) {
-#if V8_TARGET_ARCH_S390X
-  if (dst == src2) {
-    // The source we need to sign extend is the same as result.
-    lgfr(dst, src2);
-    agr(dst, src1);
-  } else {
-    if (dst != src1) mov(dst, src1);
-    agfr(dst, src2);
-  }
-#else
-  AddP(dst, src1, src2);
-#endif
-}
-
 // Add 32-bit (Register-Memory)
 void TurboAssembler::Add32(Register dst, const MemOperand& opnd) {
   DCHECK(is_int20(opnd.offset()));
@@ -2801,19 +2768,6 @@ void TurboAssembler::AddP(Register dst, const MemOperand& opnd) {
 #if V8_TARGET_ARCH_S390X
   DCHECK(is_int20(opnd.offset()));
   ag(dst, opnd);
-#else
-  Add32(dst, opnd);
-#endif
-}
-
-// Add Pointer Size with src extension
-//      (Register dst (ptr) = Register dst (ptr) + Mem opnd (32 | 32->64))
-// src is treated as a 32-bit signed integer, which is sign extended to
-// 64-bit if necessary.
-void TurboAssembler::AddP_ExtendSrc(Register dst, const MemOperand& opnd) {
-#if V8_TARGET_ARCH_S390X
-  DCHECK(is_int20(opnd.offset()));
-  agf(dst, opnd);
 #else
   Add32(dst, opnd);
 #endif
@@ -2939,18 +2893,6 @@ void TurboAssembler::Sub32(Register dst, Register src) { sr(dst, src); }
 // Subtract Pointer Size (Register dst = Register dst - Register src)
 void TurboAssembler::SubP(Register dst, Register src) { sgr(dst, src); }
 
-// Subtract Pointer Size with src extension
-//     (Register dst(ptr) = Register dst (ptr) - Register src (32 | 32->64))
-// src is treated as a 32-bit signed integer, which is sign extended to
-// 64-bit if necessary.
-void TurboAssembler::SubP_ExtendSrc(Register dst, Register src) {
-#if V8_TARGET_ARCH_S390X
-  sgfr(dst, src);
-#else
-  sr(dst, src);
-#endif
-}
-
 // Subtract 32-bit (Register = Register - Register)
 void TurboAssembler::Sub32(Register dst, Register src1, Register src2) {
   // Use non-clobbering version if possible
@@ -2991,28 +2933,6 @@ void TurboAssembler::SubP(Register dst, Register src1, Register src2) {
   }
 }
 
-// Subtract Pointer Size with src extension
-//     (Register dst(ptr) = Register dst (ptr) - Register src (32 | 32->64))
-// src is treated as a 32-bit signed integer, which is sign extended to
-// 64-bit if necessary.
-void TurboAssembler::SubP_ExtendSrc(Register dst, Register src1,
-                                    Register src2) {
-#if V8_TARGET_ARCH_S390X
-  if (dst != src1 && dst != src2) mov(dst, src1);
-
-  // In scenario where we have dst = src - dst, we need to swap and negate
-  if (dst != src1 && dst == src2) {
-    lgfr(dst, dst);              // Sign extend this operand first.
-    lcgr(dst, dst);              // dst = -dst
-    AddP(dst, src1);             // dst = -dst + src
-  } else {
-    sgfr(dst, src2);
-  }
-#else
-  SubP(dst, src1, src2);
-#endif
-}
-
 // Subtract 32-bit (Register-Memory)
 void TurboAssembler::Sub32(Register dst, const MemOperand& opnd) {
   DCHECK(is_int20(opnd.offset()));
@@ -3039,15 +2959,6 @@ void TurboAssembler::MovIntToFloat(DoubleRegister dst, Register src) {
 void TurboAssembler::MovFloatToInt(Register dst, DoubleRegister src) {
   lgdr(dst, src);
   srlg(dst, dst, Operand(32));
-}
-
-void TurboAssembler::SubP_ExtendSrc(Register dst, const MemOperand& opnd) {
-#if V8_TARGET_ARCH_S390X
-  DCHECK(is_int20(opnd.offset()));
-  sgf(dst, opnd);
-#else
-  Sub32(dst, opnd);
-#endif
 }
 
 // Load And Subtract 32-bit (similar to laa/lan/lao/lax)
@@ -3080,20 +2991,6 @@ void TurboAssembler::SubLogical(Register dst, const MemOperand& opnd) {
 void TurboAssembler::SubLogicalP(Register dst, const MemOperand& opnd) {
   DCHECK(is_int20(opnd.offset()));
 #if V8_TARGET_ARCH_S390X
-  slgf(dst, opnd);
-#else
-  SubLogical(dst, opnd);
-#endif
-}
-
-// Subtract Logical Pointer Size with src extension
-//      (Register dst (ptr) = Register dst (ptr) - Mem opnd (32 | 32->64))
-// src is treated as a 32-bit signed integer, which is sign extended to
-// 64-bit if necessary.
-void TurboAssembler::SubLogicalP_ExtendSrc(Register dst,
-                                           const MemOperand& opnd) {
-#if V8_TARGET_ARCH_S390X
-  DCHECK(is_int20(opnd.offset()));
   slgf(dst, opnd);
 #else
   SubLogical(dst, opnd);
@@ -3896,18 +3793,6 @@ void TurboAssembler::LoadLogicalReversedHalfWordP(Register dst,
 // Load And Test (Reg <- Reg)
 void TurboAssembler::LoadAndTest32(Register dst, Register src) {
   ltr(dst, src);
-}
-
-// Load And Test
-//     (Register dst(ptr) = Register src (32 | 32->64))
-// src is treated as a 32-bit signed integer, which is sign extended to
-// 64-bit if necessary.
-void TurboAssembler::LoadAndTestP_ExtendSrc(Register dst, Register src) {
-#if V8_TARGET_ARCH_S390X
-  ltgfr(dst, src);
-#else
-  ltr(dst, src);
-#endif
 }
 
 // Load And Test Pointer Sized (Reg <- Reg)

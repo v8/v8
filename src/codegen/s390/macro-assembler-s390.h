@@ -183,15 +183,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Add (Register - Register)
   void Add32(Register dst, Register src);
   void AddP(Register dst, Register src);
-  void AddP_ExtendSrc(Register dst, Register src);
   void Add32(Register dst, Register src1, Register src2);
   void AddP(Register dst, Register src1, Register src2);
-  void AddP_ExtendSrc(Register dst, Register src1, Register src2);
 
   // Add (Register - Mem)
   void Add32(Register dst, const MemOperand& opnd);
   void AddP(Register dst, const MemOperand& opnd);
-  void AddP_ExtendSrc(Register dst, const MemOperand& opnd);
 
   // Add (Mem - Immediate)
   void Add32(const MemOperand& opnd, const Operand& imm);
@@ -217,22 +214,18 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Subtract (Register - Register)
   void Sub32(Register dst, Register src);
   void SubP(Register dst, Register src);
-  void SubP_ExtendSrc(Register dst, Register src);
   void Sub32(Register dst, Register src1, Register src2);
   void SubP(Register dst, Register src1, Register src2);
-  void SubP_ExtendSrc(Register dst, Register src1, Register src2);
 
   // Subtract (Register - Mem)
   void Sub32(Register dst, const MemOperand& opnd);
   void SubP(Register dst, const MemOperand& opnd);
-  void SubP_ExtendSrc(Register dst, const MemOperand& opnd);
   void LoadAndSub32(Register dst, Register src, const MemOperand& opnd);
   void LoadAndSub64(Register dst, Register src, const MemOperand& opnd);
 
   // Subtract Logical (Register - Mem)
   void SubLogical(Register dst, const MemOperand& opnd);
   void SubLogicalP(Register dst, const MemOperand& opnd);
-  void SubLogicalP_ExtendSrc(Register dst, const MemOperand& opnd);
   // Subtract Logical 32-bit
   void SubLogical32(Register dst, Register src1, Register src2);
 
@@ -323,7 +316,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Load And Test
   void LoadAndTest32(Register dst, Register src);
-  void LoadAndTestP_ExtendSrc(Register dst, Register src);
   void LoadAndTestP(Register dst, Register src);
 
   void LoadAndTest32(Register dst, const MemOperand& opnd);
