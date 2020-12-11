@@ -2957,7 +2957,7 @@ void TurboAssembler::LoadSimd128(Simd128Register dst, const MemOperand& mem,
       sp, sp,
       Operand(base::bits::WhichPowerOfTwo(16)));  // equivalent to &= -16
   addi(sp, sp, Operand(-16));
-  stxvd(kScratchDoubleReg, MemOperand(r0, sp));
+  stxvd(ScratchDoubleReg, MemOperand(r0, sp));
   // Load it with correct lane ordering.
   lvx(dst, MemOperand(r0, sp));
   mr(sp, ScratchReg);
