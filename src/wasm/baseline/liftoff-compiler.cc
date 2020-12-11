@@ -414,6 +414,10 @@ class LiftoffCompiler {
     decoder->errorf(decoder->pc_offset(), "unsupported liftoff operation: %s",
                     detail);
     UnuseLabels(decoder);
+    if (FLAG_liftoff_only) {
+      FATAL("--liftoff-only: treating bailout as fatal error. Cause: %s",
+            detail);
+    }
   }
 
   bool DidAssemblerBailout(FullDecoder* decoder) {
