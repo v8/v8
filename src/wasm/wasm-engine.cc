@@ -739,55 +739,56 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
   script->set_type(Script::TYPE_WASM);
 
   Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
-  int hash = StringHasher::HashSequentialString(
-      reinterpret_cast<const char*>(wire_bytes.begin()), wire_bytes.length(),
-      kZeroHashSeed);
 
-  const int kBufferSize = 32;
-  char buffer[kBufferSize];
-
-  // Script name is "<module_name>-hash" if name is available and "hash"
-  // otherwise.
+  // The source URL of the script is
+  // - the original source URL if available (from the streaming API),
+  // - wasm://wasm/<module name>-<hash> if a module name has been set, or
+  // - wasm://wasm/<hash> otherwise.
   const WasmModule* module = native_module->module();
-  Handle<String> name_str;
-  if (module->name.is_set()) {
-    int name_chars = SNPrintF(ArrayVector(buffer), "-%08x", hash);
-    DCHECK(name_chars >= 0 && name_chars < kBufferSize);
-    Handle<String> name_hash =
-        isolate->factory()
-            ->NewStringFromOneByte(
-                VectorOf(reinterpret_cast<uint8_t*>(buffer), name_chars),
-                AllocationType::kOld)
-            .ToHandleChecked();
-    Handle<String> module_name =
-        WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-            isolate, wire_bytes, module->name, kNoInternalize);
-    name_str = isolate->factory()
-                   ->NewConsString(module_name, name_hash)
-                   .ToHandleChecked();
-  } else {
-    int name_chars = SNPrintF(ArrayVector(buffer), "%08x", hash);
-    DCHECK(name_chars >= 0 && name_chars < kBufferSize);
-    name_str = isolate->factory()
-                   ->NewStringFromOneByte(
-                       VectorOf(reinterpret_cast<uint8_t*>(buffer), name_chars),
-                       AllocationType::kOld)
-                   .ToHandleChecked();
-  }
-  script->set_name(*name_str);
-  MaybeHandle<String> url_str;
+  Handle<String> url_str;
   if (!source_url.empty()) {
-    url_str =
-        isolate->factory()->NewStringFromUtf8(source_url, AllocationType::kOld);
+    url_str = isolate->factory()
+                  ->NewStringFromUtf8(source_url, AllocationType::kOld)
+                  .ToHandleChecked();
   } else {
-    Handle<String> url_prefix =
-        isolate->factory()->InternalizeString(StaticCharVector("wasm://wasm/"));
-    url_str = isolate->factory()->NewConsString(url_prefix, name_str);
-  }
-  script->set_source_url(*url_str.ToHandleChecked());
+    int hash = StringHasher::HashSequentialString(
+        reinterpret_cast<const char*>(wire_bytes.begin()), wire_bytes.length(),
+        kZeroHashSeed);
 
-  const WasmDebugSymbols& debug_symbols =
-      native_module->module()->debug_symbols;
+    EmbeddedVector<char, 32> buffer;
+    if (module->name.is_empty()) {
+      // Build the URL in the form "wasm://wasm/<hash>".
+      int url_len = SNPrintF(buffer, "wasm://wasm/%08x", hash);
+      DCHECK(url_len >= 0 && url_len < buffer.length());
+      url_str = isolate->factory()
+                    ->NewStringFromUtf8(buffer.SubVector(0, url_len),
+                                        AllocationType::kOld)
+                    .ToHandleChecked();
+    } else {
+      // Build the URL in the form "wasm://wasm/<module name>-<hash>".
+      int hash_len = SNPrintF(buffer, "-%08x", hash);
+      DCHECK(hash_len >= 0 && hash_len < buffer.length());
+      Handle<String> prefix =
+          isolate->factory()->NewStringFromStaticChars("wasm://wasm/");
+      Handle<String> module_name =
+          WasmModuleObject::ExtractUtf8StringFromModuleBytes(
+              isolate, wire_bytes, module->name, kNoInternalize);
+      Handle<String> hash_str =
+          isolate->factory()
+              ->NewStringFromUtf8(buffer.SubVector(0, hash_len))
+              .ToHandleChecked();
+      // Concatenate the three parts.
+      url_str = isolate->factory()
+                    ->NewConsString(prefix, module_name)
+                    .ToHandleChecked();
+      url_str = isolate->factory()
+                    ->NewConsString(url_str, hash_str)
+                    .ToHandleChecked();
+    }
+  }
+  script->set_source_url(*url_str);
+
+  const WasmDebugSymbols& debug_symbols = module->debug_symbols;
   if (debug_symbols.type == WasmDebugSymbols::Type::SourceMap &&
       !debug_symbols.external_url.is_empty()) {
     Vector<const char> external_url =
