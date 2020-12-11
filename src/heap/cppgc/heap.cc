@@ -105,6 +105,8 @@ Heap::~Heap() {
   sweeper_.FinishIfRunning();
 }
 
+bool Heap::IsMarking() const { return marker_.get(); }
+
 void Heap::CollectGarbage(Config config) {
   DCHECK_EQ(Config::MarkingType::kAtomic, config.marking_type);
   CheckConfig(config, marking_support_, sweeping_support_);
@@ -113,9 +115,9 @@ void Heap::CollectGarbage(Config config) {
 
   config_ = config;
 
-  if (!gc_in_progress_) StartGarbageCollection(config);
+  if (!IsMarking()) StartGarbageCollection(config);
 
-  DCHECK(marker_);
+  DCHECK(IsMarking());
 
   FinalizeGarbageCollection(config.stack_state);
 }
@@ -125,7 +127,7 @@ void Heap::StartIncrementalGarbageCollection(Config config) {
   DCHECK_NE(marking_support_, MarkingType::kAtomic);
   CheckConfig(config, marking_support_, sweeping_support_);
 
-  if (gc_in_progress_ || in_no_gc_scope()) return;
+  if (IsMarking() || in_no_gc_scope()) return;
 
   config_ = config;
 
@@ -136,7 +138,7 @@ void Heap::FinalizeIncrementalGarbageCollectionIfRunning(Config config) {
   DCHECK_NE(marking_support_, MarkingType::kAtomic);
   CheckConfig(config, marking_support_, sweeping_support_);
 
-  if (!gc_in_progress_) return;
+  if (!IsMarking()) return;
 
   DCHECK(!in_no_gc_scope());
 
@@ -146,14 +148,13 @@ void Heap::FinalizeIncrementalGarbageCollectionIfRunning(Config config) {
 }
 
 void Heap::StartGarbageCollection(Config config) {
-  DCHECK(!gc_in_progress_);
+  DCHECK(!IsMarking());
 
   DCHECK(!in_no_gc_scope());
 
   // Finish sweeping in case it is still running.
   sweeper_.FinishIfRunning();
 
-  gc_in_progress_ = true;
   epoch_++;
 
 #if defined(CPPGC_YOUNG_GENERATION)
@@ -169,10 +170,9 @@ void Heap::StartGarbageCollection(Config config) {
 }
 
 void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
-  DCHECK(gc_in_progress_);
+  DCHECK(IsMarking());
   DCHECK(!in_no_gc_scope());
   config_.stack_state = stack_state;
-  DCHECK(marker_);
   {
     // This guards atomic pause marking, meaning that no internal method or
     // external callbacks are allowed to allocate new objects.
@@ -199,7 +199,7 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
   sweeper_.NotifyDoneIfNeeded();
 }
 
-void Heap::PostGarbageCollection() { gc_in_progress_ = false; }
+void Heap::PostGarbageCollection() {}
 
 void Heap::DisableHeapGrowingForTesting() { growing_.DisableForTesting(); }
 
