@@ -68,6 +68,7 @@
       # TODO(machenbach): Remove after switching to x64 on infra side.
       'V8 Win64 ASAN': 'release_x64_asan_no_lsan',
       'V8 Win64': 'release_x64_minimal_symbols',
+      'V8 Win64 - dev image': 'release_x64_minimal_symbols',
       'V8 Win64 - debug': 'debug_x64_minimal_symbols',
       'V8 Win64 - msvc': 'release_x64_msvc',
       # Mac.
