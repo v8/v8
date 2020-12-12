@@ -728,8 +728,8 @@ static void VisitGeneralStore(
     InstructionOperand inputs[3];
     size_t input_count = 0;
     inputs[input_count++] = g.UseUniqueRegister(base);
-    // OutOfLineRecordWrite uses the offset in an 'AddP' instruction as well as
-    // for the store itself, so we must check compatibility with both.
+    // OutOfLineRecordWrite uses the offset in an 'AddS64' instruction as well
+    // as for the store itself, so we must check compatibility with both.
     if (g.CanBeImmediate(offset, OperandMode::kInt20Imm)) {
       inputs[input_count++] = g.UseImmediate(offset);
       addressing_mode = kMode_MRI;

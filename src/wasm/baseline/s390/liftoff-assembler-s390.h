@@ -306,8 +306,8 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     // Use r3 for start address (inclusive), r4 for end address (exclusive).
     push(r3);
     push(r4);
-    SubP(r3, fp, Operand(start + size));
-    SubP(r4, fp, Operand(start));
+    SubS64(r3, fp, Operand(start + size));
+    SubS64(r4, fp, Operand(start));
 
     Label loop;
     bind(&loop);

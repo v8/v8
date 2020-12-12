@@ -175,59 +175,59 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Arithmetic Operations
 
   // Add (Register - Immediate)
-  void Add32(Register dst, const Operand& imm);
-  void AddP(Register dst, const Operand& imm);
-  void Add32(Register dst, Register src, const Operand& imm);
-  void AddP(Register dst, Register src, const Operand& imm);
+  void AddS32(Register dst, const Operand& imm);
+  void AddS64(Register dst, const Operand& imm);
+  void AddS32(Register dst, Register src, const Operand& imm);
+  void AddS64(Register dst, Register src, const Operand& imm);
 
   // Add (Register - Register)
-  void Add32(Register dst, Register src);
-  void AddP(Register dst, Register src);
-  void Add32(Register dst, Register src1, Register src2);
-  void AddP(Register dst, Register src1, Register src2);
+  void AddS32(Register dst, Register src);
+  void AddS64(Register dst, Register src);
+  void AddS32(Register dst, Register src1, Register src2);
+  void AddS64(Register dst, Register src1, Register src2);
 
   // Add (Register - Mem)
-  void Add32(Register dst, const MemOperand& opnd);
-  void AddP(Register dst, const MemOperand& opnd);
+  void AddS32(Register dst, const MemOperand& opnd);
+  void AddS64(Register dst, const MemOperand& opnd);
 
   // Add (Mem - Immediate)
-  void Add32(const MemOperand& opnd, const Operand& imm);
-  void AddP(const MemOperand& opnd, const Operand& imm);
+  void AddS32(const MemOperand& opnd, const Operand& imm);
+  void AddS64(const MemOperand& opnd, const Operand& imm);
 
   // Add Logical (Register - Register)
-  void AddLogical32(Register dst, Register src1, Register src2);
+  void AddU32(Register dst, Register src1, Register src2);
 
   // Add Logical (Register - Immediate)
-  void AddLogical(Register dst, const Operand& imm);
-  void AddLogicalP(Register dst, const Operand& imm);
+  void AddU32(Register dst, const Operand& imm);
+  void AddU64(Register dst, const Operand& imm);
 
   // Add Logical (Register - Mem)
-  void AddLogical(Register dst, const MemOperand& opnd);
-  void AddLogicalP(Register dst, const MemOperand& opnd);
+  void AddU32(Register dst, const MemOperand& opnd);
+  void AddU64(Register dst, const MemOperand& opnd);
 
   // Subtract (Register - Immediate)
-  void Sub32(Register dst, const Operand& imm);
-  void SubP(Register dst, const Operand& imm);
-  void Sub32(Register dst, Register src, const Operand& imm);
-  void SubP(Register dst, Register src, const Operand& imm);
+  void SubS32(Register dst, const Operand& imm);
+  void SubS64(Register dst, const Operand& imm);
+  void SubS32(Register dst, Register src, const Operand& imm);
+  void SubS64(Register dst, Register src, const Operand& imm);
 
   // Subtract (Register - Register)
-  void Sub32(Register dst, Register src);
-  void SubP(Register dst, Register src);
-  void Sub32(Register dst, Register src1, Register src2);
-  void SubP(Register dst, Register src1, Register src2);
+  void SubS32(Register dst, Register src);
+  void SubS64(Register dst, Register src);
+  void SubS32(Register dst, Register src1, Register src2);
+  void SubS64(Register dst, Register src1, Register src2);
 
   // Subtract (Register - Mem)
-  void Sub32(Register dst, const MemOperand& opnd);
-  void SubP(Register dst, const MemOperand& opnd);
+  void SubS32(Register dst, const MemOperand& opnd);
+  void SubS64(Register dst, const MemOperand& opnd);
   void LoadAndSub32(Register dst, Register src, const MemOperand& opnd);
   void LoadAndSub64(Register dst, Register src, const MemOperand& opnd);
 
   // Subtract Logical (Register - Mem)
-  void SubLogical(Register dst, const MemOperand& opnd);
-  void SubLogicalP(Register dst, const MemOperand& opnd);
+  void SubU32(Register dst, const MemOperand& opnd);
+  void SubU64(Register dst, const MemOperand& opnd);
   // Subtract Logical 32-bit
-  void SubLogical32(Register dst, Register src1, Register src2);
+  void SubU32(Register dst, Register src1, Register src2);
 
   // Multiply
   void MulP(Register dst, const Operand& opnd);

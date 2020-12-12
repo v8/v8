@@ -431,14 +431,14 @@ void TurboAssembler::Drop(int count) {
     } else if (is_int20(total)) {
       lay(sp, MemOperand(sp, total));
     } else {
-      AddP(sp, Operand(total));
+      AddS64(sp, Operand(total));
     }
   }
 }
 
 void TurboAssembler::Drop(Register count, Register scratch) {
   ShiftLeftU64(scratch, count, Operand(kSystemPointerSizeLog2));
-  AddP(sp, sp, scratch);
+  AddS64(sp, sp, scratch);
 }
 
 void TurboAssembler::Call(Label* target) { b(r14, target); }
@@ -576,7 +576,7 @@ void TurboAssembler::MultiPush(RegList regs, Register location) {
   int16_t num_to_push = base::bits::CountPopulation(regs);
   int16_t stack_offset = num_to_push * kSystemPointerSize;
 
-  SubP(location, location, Operand(stack_offset));
+  SubS64(location, location, Operand(stack_offset));
   for (int16_t i = Register::kNumRegisters - 1; i >= 0; i--) {
     if ((regs & (1 << i)) != 0) {
       stack_offset -= kSystemPointerSize;
@@ -594,14 +594,14 @@ void TurboAssembler::MultiPop(RegList regs, Register location) {
       stack_offset += kSystemPointerSize;
     }
   }
-  AddP(location, location, Operand(stack_offset));
+  AddS64(location, location, Operand(stack_offset));
 }
 
 void TurboAssembler::MultiPushDoubles(RegList dregs, Register location) {
   int16_t num_to_push = base::bits::CountPopulation(dregs);
   int16_t stack_offset = num_to_push * kDoubleSize;
 
-  SubP(location, location, Operand(stack_offset));
+  SubS64(location, location, Operand(stack_offset));
   for (int16_t i = DoubleRegister::kNumRegisters - 1; i >= 0; i--) {
     if ((dregs & (1 << i)) != 0) {
       DoubleRegister dreg = DoubleRegister::from_code(i);
@@ -621,7 +621,7 @@ void TurboAssembler::MultiPopDoubles(RegList dregs, Register location) {
       stack_offset += kDoubleSize;
     }
   }
-  AddP(location, location, Operand(stack_offset));
+  AddS64(location, location, Operand(stack_offset));
 }
 
 void TurboAssembler::LoadRoot(Register destination, RootIndex index,
@@ -1266,8 +1266,8 @@ int TurboAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
     lay(r1, MemOperand(fp, StandardFrameConstants::kCallerSPOffset +
                                stack_adjustment));
   } else {
-    AddP(r1, fp,
-         Operand(StandardFrameConstants::kCallerSPOffset + stack_adjustment));
+    AddS64(r1, fp,
+           Operand(StandardFrameConstants::kCallerSPOffset + stack_adjustment));
   }
   LoadP(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   mov(sp, r1);
@@ -1426,19 +1426,19 @@ void TurboAssembler::PrepareForTailCall(Register callee_args_count,
   DCHECK(!AreAliased(callee_args_count, caller_args_count, scratch0, scratch1));
 
   // Calculate the end of destination area where we will put the arguments
-  // after we drop current frame. We AddP kSystemPointerSize to count the
+  // after we drop current frame. We AddS64 kSystemPointerSize to count the
   // receiver argument which is not included into formal parameters count.
   Register dst_reg = scratch0;
   ShiftLeftU64(dst_reg, caller_args_count, Operand(kSystemPointerSizeLog2));
-  AddP(dst_reg, fp, dst_reg);
-  AddP(dst_reg, dst_reg,
-       Operand(StandardFrameConstants::kCallerSPOffset + kSystemPointerSize));
+  AddS64(dst_reg, fp, dst_reg);
+  AddS64(dst_reg, dst_reg,
+         Operand(StandardFrameConstants::kCallerSPOffset + kSystemPointerSize));
 
   Register src_reg = caller_args_count;
   // Calculate the end of source area. +kSystemPointerSize is for the receiver.
   ShiftLeftU64(src_reg, callee_args_count, Operand(kSystemPointerSizeLog2));
-  AddP(src_reg, sp, src_reg);
-  AddP(src_reg, src_reg, Operand(kSystemPointerSize));
+  AddS64(src_reg, sp, src_reg);
+  AddS64(src_reg, src_reg, Operand(kSystemPointerSize));
 
   if (FLAG_debug_code) {
     CmpLogicalP(src_reg, dst_reg);
@@ -1456,7 +1456,7 @@ void TurboAssembler::PrepareForTailCall(Register callee_args_count,
   // so they must be pre-decremented in the loop.
   Register tmp_reg = scratch1;
   Label loop;
-  AddP(tmp_reg, callee_args_count, Operand(1));  // +1 for receiver
+  AddS64(tmp_reg, callee_args_count, Operand(1));  // +1 for receiver
   mov(r1, tmp_reg);
   bind(&loop);
   LoadP(tmp_reg, MemOperand(src_reg, -kSystemPointerSize));
@@ -1492,7 +1492,7 @@ void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch,
   LoadP(scratch, StackLimitAsMemOperand(StackLimitKind::kRealStackLimit));
   // Make scratch the space we have left. The stack might already be overflowed
   // here which will cause scratch to become negative.
-  SubP(scratch, sp, scratch);
+  SubS64(scratch, sp, scratch);
   // Check if the arguments will overflow the stack.
   ShiftLeftU64(r0, num_args, Operand(kSystemPointerSizeLog2));
   CmpP(scratch, r0);
@@ -1519,7 +1519,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
 
   // If overapplication or if the actual argument count is equal to the
   // formal parameter count, no need to push extra undefined values.
-  SubP(expected_parameter_count, expected_parameter_count,
+  SubS64(expected_parameter_count, expected_parameter_count,
        actual_parameter_count);
   ble(&regular_invoke);
 
@@ -1536,7 +1536,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     // Update stack pointer.
     ShiftLeftU64(scratch, expected_parameter_count,
                  Operand(kSystemPointerSizeLog2));
-    SubP(sp, sp, scratch);
+    SubS64(sp, sp, scratch);
     mov(dest, sp);
     ltgr(num, actual_parameter_count);
     b(&check);
@@ -1545,7 +1545,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     lay(src, MemOperand(src, kSystemPointerSize));
     StoreU64(r0, MemOperand(dest));
     lay(dest, MemOperand(dest, kSystemPointerSize));
-    SubP(num, num, Operand(1));
+    SubS64(num, num, Operand(1));
     bind(&check);
     b(ge, &copy);
   }
@@ -1557,7 +1557,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     bind(&loop);
     StoreU64(scratch, MemOperand(ip));
     lay(ip, MemOperand(ip, kSystemPointerSize));
-    SubP(expected_parameter_count, expected_parameter_count, Operand(1));
+    SubS64(expected_parameter_count, expected_parameter_count, Operand(1));
     bgt(&loop);
   }
   b(&regular_invoke);
@@ -1889,7 +1889,7 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
     Move(scratch2, ExternalReference::Create(counter));
     // @TODO(john.yan): can be optimized by asi()
     LoadS32(scratch1, MemOperand(scratch2));
-    AddP(scratch1, Operand(value));
+    AddS64(scratch1, Operand(value));
     StoreU32(scratch1, MemOperand(scratch2));
   }
 }
@@ -1901,7 +1901,7 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
     Move(scratch2, ExternalReference::Create(counter));
     // @TODO(john.yan): can be optimized by asi()
     LoadS32(scratch1, MemOperand(scratch2));
-    AddP(scratch1, Operand(-value));
+    AddS64(scratch1, Operand(-value));
     StoreU32(scratch1, MemOperand(scratch2));
   }
 }
@@ -2671,7 +2671,7 @@ void TurboAssembler::Sqrt(DoubleRegister result, const MemOperand& input) {
 //----------------------------------------------------------------------------
 
 // Add 32-bit (Register dst = Register dst + Immediate opnd)
-void TurboAssembler::Add32(Register dst, const Operand& opnd) {
+void TurboAssembler::AddS32(Register dst, const Operand& opnd) {
   if (is_int16(opnd.immediate()))
     ahi(dst, opnd);
   else
@@ -2679,19 +2679,15 @@ void TurboAssembler::Add32(Register dst, const Operand& opnd) {
 }
 
 // Add Pointer Size (Register dst = Register dst + Immediate opnd)
-void TurboAssembler::AddP(Register dst, const Operand& opnd) {
-#if V8_TARGET_ARCH_S390X
+void TurboAssembler::AddS64(Register dst, const Operand& opnd) {
   if (is_int16(opnd.immediate()))
     aghi(dst, opnd);
   else
     agfi(dst, opnd);
-#else
-  Add32(dst, opnd);
-#endif
 }
 
 // Add 32-bit (Register dst = Register src + Immediate opnd)
-void TurboAssembler::Add32(Register dst, Register src, const Operand& opnd) {
+void TurboAssembler::AddS32(Register dst, Register src, const Operand& opnd) {
   if (dst != src) {
     if (CpuFeatures::IsSupported(DISTINCT_OPS) && is_int16(opnd.immediate())) {
       ahik(dst, src, opnd);
@@ -2699,11 +2695,11 @@ void TurboAssembler::Add32(Register dst, Register src, const Operand& opnd) {
     }
     lr(dst, src);
   }
-  Add32(dst, opnd);
+  AddS32(dst, opnd);
 }
 
 // Add Pointer Size (Register dst = Register src + Immediate opnd)
-void TurboAssembler::AddP(Register dst, Register src, const Operand& opnd) {
+void TurboAssembler::AddS64(Register dst, Register src, const Operand& opnd) {
   if (dst != src) {
     if (CpuFeatures::IsSupported(DISTINCT_OPS) && is_int16(opnd.immediate())) {
       aghik(dst, src, opnd);
@@ -2711,17 +2707,17 @@ void TurboAssembler::AddP(Register dst, Register src, const Operand& opnd) {
     }
     mov(dst, src);
   }
-  AddP(dst, opnd);
+  AddS64(dst, opnd);
 }
 
 // Add 32-bit (Register dst = Register dst + Register src)
-void TurboAssembler::Add32(Register dst, Register src) { ar(dst, src); }
+void TurboAssembler::AddS32(Register dst, Register src) { ar(dst, src); }
 
 // Add Pointer Size (Register dst = Register dst + Register src)
-void TurboAssembler::AddP(Register dst, Register src) { agr(dst, src); }
+void TurboAssembler::AddS64(Register dst, Register src) { agr(dst, src); }
 
 // Add 32-bit (Register dst = Register src1 + Register src2)
-void TurboAssembler::Add32(Register dst, Register src1, Register src2) {
+void TurboAssembler::AddS32(Register dst, Register src1, Register src2) {
   if (dst != src1 && dst != src2) {
     // We prefer to generate AR/AGR, over the non clobbering ARK/AGRK
     // as AR is a smaller instruction
@@ -2738,7 +2734,7 @@ void TurboAssembler::Add32(Register dst, Register src1, Register src2) {
 }
 
 // Add Pointer Size (Register dst = Register src1 + Register src2)
-void TurboAssembler::AddP(Register dst, Register src1, Register src2) {
+void TurboAssembler::AddS64(Register dst, Register src1, Register src2) {
   if (dst != src1 && dst != src2) {
     // We prefer to generate AR/AGR, over the non clobbering ARK/AGRK
     // as AR is a smaller instruction
@@ -2755,7 +2751,7 @@ void TurboAssembler::AddP(Register dst, Register src1, Register src2) {
 }
 
 // Add 32-bit (Register-Memory)
-void TurboAssembler::Add32(Register dst, const MemOperand& opnd) {
+void TurboAssembler::AddS32(Register dst, const MemOperand& opnd) {
   DCHECK(is_int20(opnd.offset()));
   if (is_uint12(opnd.offset()))
     a(dst, opnd);
@@ -2764,17 +2760,13 @@ void TurboAssembler::Add32(Register dst, const MemOperand& opnd) {
 }
 
 // Add Pointer Size (Register-Memory)
-void TurboAssembler::AddP(Register dst, const MemOperand& opnd) {
-#if V8_TARGET_ARCH_S390X
+void TurboAssembler::AddS64(Register dst, const MemOperand& opnd) {
   DCHECK(is_int20(opnd.offset()));
   ag(dst, opnd);
-#else
-  Add32(dst, opnd);
-#endif
 }
 
 // Add 32-bit (Memory - Immediate)
-void TurboAssembler::Add32(const MemOperand& opnd, const Operand& imm) {
+void TurboAssembler::AddS32(const MemOperand& opnd, const Operand& imm) {
   DCHECK(is_int8(imm.immediate()));
   DCHECK(is_int20(opnd.offset()));
   DCHECK(CpuFeatures::IsSupported(GENERAL_INSTR_EXT));
@@ -2782,15 +2774,11 @@ void TurboAssembler::Add32(const MemOperand& opnd, const Operand& imm) {
 }
 
 // Add Pointer-sized (Memory - Immediate)
-void TurboAssembler::AddP(const MemOperand& opnd, const Operand& imm) {
+void TurboAssembler::AddS64(const MemOperand& opnd, const Operand& imm) {
   DCHECK(is_int8(imm.immediate()));
   DCHECK(is_int20(opnd.offset()));
   DCHECK(CpuFeatures::IsSupported(GENERAL_INSTR_EXT));
-#if V8_TARGET_ARCH_S390X
   agsi(opnd, imm);
-#else
-  asi(opnd, imm);
-#endif
 }
 
 //----------------------------------------------------------------------------
@@ -2798,7 +2786,7 @@ void TurboAssembler::AddP(const MemOperand& opnd, const Operand& imm) {
 //----------------------------------------------------------------------------
 
 // Add Logical 32-bit (Register dst = Register src1 + Register src2)
-void TurboAssembler::AddLogical32(Register dst, Register src1, Register src2) {
+void TurboAssembler::AddU32(Register dst, Register src1, Register src2) {
   if (dst != src2 && dst != src1) {
     lr(dst, src1);
     alr(dst, src2);
@@ -2814,21 +2802,17 @@ void TurboAssembler::AddLogical32(Register dst, Register src1, Register src2) {
 }
 
 // Add Logical 32-bit (Register dst = Register dst + Immediate opnd)
-void TurboAssembler::AddLogical(Register dst, const Operand& imm) {
+void TurboAssembler::AddU32(Register dst, const Operand& imm) {
   alfi(dst, imm);
 }
 
 // Add Logical Pointer Size (Register dst = Register dst + Immediate opnd)
-void TurboAssembler::AddLogicalP(Register dst, const Operand& imm) {
-#ifdef V8_TARGET_ARCH_S390X
+void TurboAssembler::AddU64(Register dst, const Operand& imm) {
   algfi(dst, imm);
-#else
-  AddLogical(dst, imm);
-#endif
 }
 
 // Add Logical 32-bit (Register-Memory)
-void TurboAssembler::AddLogical(Register dst, const MemOperand& opnd) {
+void TurboAssembler::AddU32(Register dst, const MemOperand& opnd) {
   DCHECK(is_int20(opnd.offset()));
   if (is_uint12(opnd.offset()))
     al_z(dst, opnd);
@@ -2837,13 +2821,9 @@ void TurboAssembler::AddLogical(Register dst, const MemOperand& opnd) {
 }
 
 // Add Logical Pointer Size (Register-Memory)
-void TurboAssembler::AddLogicalP(Register dst, const MemOperand& opnd) {
-#if V8_TARGET_ARCH_S390X
+void TurboAssembler::AddU64(Register dst, const MemOperand& opnd) {
   DCHECK(is_int20(opnd.offset()));
   alg(dst, opnd);
-#else
-  AddLogical(dst, opnd);
-#endif
 }
 
 //----------------------------------------------------------------------------
@@ -2851,7 +2831,7 @@ void TurboAssembler::AddLogicalP(Register dst, const MemOperand& opnd) {
 //----------------------------------------------------------------------------
 
 // Subtract Logical 32-bit (Register dst = Register src1 - Register src2)
-void TurboAssembler::SubLogical32(Register dst, Register src1, Register src2) {
+void TurboAssembler::SubU32(Register dst, Register src1, Register src2) {
   if (dst != src2 && dst != src1) {
     lr(dst, src1);
     slr(dst, src2);
@@ -2863,38 +2843,38 @@ void TurboAssembler::SubLogical32(Register dst, Register src1, Register src2) {
     // dst == src2
     DCHECK(dst == src2);
     lr(r0, dst);
-    SubLogical32(dst, src1, r0);
+    SubU32(dst, src1, r0);
   }
 }
 
 // Subtract 32-bit (Register dst = Register dst - Immediate opnd)
-void TurboAssembler::Sub32(Register dst, const Operand& imm) {
-  Add32(dst, Operand(-(imm.immediate())));
+void TurboAssembler::SubS32(Register dst, const Operand& imm) {
+  AddS32(dst, Operand(-(imm.immediate())));
 }
 
 // Subtract Pointer Size (Register dst = Register dst - Immediate opnd)
-void TurboAssembler::SubP(Register dst, const Operand& imm) {
-  AddP(dst, Operand(-(imm.immediate())));
+void TurboAssembler::SubS64(Register dst, const Operand& imm) {
+  AddS64(dst, Operand(-(imm.immediate())));
 }
 
 // Subtract 32-bit (Register dst = Register src - Immediate opnd)
-void TurboAssembler::Sub32(Register dst, Register src, const Operand& imm) {
-  Add32(dst, src, Operand(-(imm.immediate())));
+void TurboAssembler::SubS32(Register dst, Register src, const Operand& imm) {
+  AddS32(dst, src, Operand(-(imm.immediate())));
 }
 
 // Subtract Pointer Sized (Register dst = Register src - Immediate opnd)
-void TurboAssembler::SubP(Register dst, Register src, const Operand& imm) {
-  AddP(dst, src, Operand(-(imm.immediate())));
+void TurboAssembler::SubS64(Register dst, Register src, const Operand& imm) {
+  AddS64(dst, src, Operand(-(imm.immediate())));
 }
 
 // Subtract 32-bit (Register dst = Register dst - Register src)
-void TurboAssembler::Sub32(Register dst, Register src) { sr(dst, src); }
+void TurboAssembler::SubS32(Register dst, Register src) { sr(dst, src); }
 
 // Subtract Pointer Size (Register dst = Register dst - Register src)
-void TurboAssembler::SubP(Register dst, Register src) { sgr(dst, src); }
+void TurboAssembler::SubS64(Register dst, Register src) { sgr(dst, src); }
 
 // Subtract 32-bit (Register = Register - Register)
-void TurboAssembler::Sub32(Register dst, Register src1, Register src2) {
+void TurboAssembler::SubS32(Register dst, Register src1, Register src2) {
   // Use non-clobbering version if possible
   if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
     srk(dst, src1, src2);
@@ -2914,7 +2894,7 @@ void TurboAssembler::Sub32(Register dst, Register src1, Register src2) {
 }
 
 // Subtract Pointer Sized (Register = Register - Register)
-void TurboAssembler::SubP(Register dst, Register src1, Register src2) {
+void TurboAssembler::SubS64(Register dst, Register src1, Register src2) {
   // Use non-clobbering version if possible
   if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
     sgrk(dst, src1, src2);
@@ -2926,15 +2906,15 @@ void TurboAssembler::SubP(Register dst, Register src1, Register src2) {
     Label done;
     lcgr(dst, dst);  // dst = -dst
     b(overflow, &done);
-    AddP(dst, src1);  // dst = dst + src
+    AddS64(dst, src1);  // dst = dst + src
     bind(&done);
   } else {
-    SubP(dst, src2);
+    SubS64(dst, src2);
   }
 }
 
 // Subtract 32-bit (Register-Memory)
-void TurboAssembler::Sub32(Register dst, const MemOperand& opnd) {
+void TurboAssembler::SubS32(Register dst, const MemOperand& opnd) {
   DCHECK(is_int20(opnd.offset()));
   if (is_uint12(opnd.offset()))
     s(dst, opnd);
@@ -2943,11 +2923,11 @@ void TurboAssembler::Sub32(Register dst, const MemOperand& opnd) {
 }
 
 // Subtract Pointer Sized (Register - Memory)
-void TurboAssembler::SubP(Register dst, const MemOperand& opnd) {
+void TurboAssembler::SubS64(Register dst, const MemOperand& opnd) {
 #if V8_TARGET_ARCH_S390X
   sg(dst, opnd);
 #else
-  Sub32(dst, opnd);
+  SubS32(dst, opnd);
 #endif
 }
 
@@ -2979,7 +2959,7 @@ void TurboAssembler::LoadAndSub64(Register dst, Register src,
 //----------------------------------------------------------------------------
 
 // Subtract Logical 32-bit (Register - Memory)
-void TurboAssembler::SubLogical(Register dst, const MemOperand& opnd) {
+void TurboAssembler::SubU32(Register dst, const MemOperand& opnd) {
   DCHECK(is_int20(opnd.offset()));
   if (is_uint12(opnd.offset()))
     sl(dst, opnd);
@@ -2988,12 +2968,12 @@ void TurboAssembler::SubLogical(Register dst, const MemOperand& opnd) {
 }
 
 // Subtract Logical Pointer Sized (Register - Memory)
-void TurboAssembler::SubLogicalP(Register dst, const MemOperand& opnd) {
+void TurboAssembler::SubU64(Register dst, const MemOperand& opnd) {
   DCHECK(is_int20(opnd.offset()));
 #if V8_TARGET_ARCH_S390X
   slgf(dst, opnd);
 #else
-  SubLogical(dst, opnd);
+  SubU32(dst, opnd);
 #endif
 }
 
@@ -3492,7 +3472,7 @@ void TurboAssembler::BranchOnCount(Register r1, Label* l) {
     brct(r1, Operand(offset));
 #endif
   } else {
-    AddP(r1, Operand(-1));
+    AddS64(r1, Operand(-1));
     Branch(ne, Operand(offset));
   }
 }
@@ -4225,11 +4205,11 @@ void TurboAssembler::Popcnt64(Register dst, Register src) {
 
   popcnt(dst, src);
   ShiftRightU64(r0, dst, Operand(32));
-  AddP(dst, r0);
+  AddS64(dst, r0);
   ShiftRightU64(r0, dst, Operand(16));
-  AddP(dst, r0);
+  AddS64(dst, r0);
   ShiftRightU64(r0, dst, Operand(8));
-  AddP(dst, r0);
+  AddS64(dst, r0);
   LoadU8(dst, dst);
 }
 #endif
@@ -4431,7 +4411,8 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
 
     // Not an off-heap trampoline, the entry point is at
     // Code::raw_instruction_start().
-    AddP(destination, code_object, Operand(Code::kHeaderSize - kHeapObjectTag));
+    AddS64(destination, code_object,
+           Operand(Code::kHeaderSize - kHeapObjectTag));
     b(&out);
 
     // An off-heap trampoline, the entry point is loaded from the builtin entry
@@ -4439,13 +4420,14 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
     bind(&if_code_is_off_heap);
     LoadS32(scratch, FieldMemOperand(code_object, Code::kBuiltinIndexOffset));
     ShiftLeftU64(destination, scratch, Operand(kSystemPointerSizeLog2));
-    AddP(destination, destination, kRootRegister);
+    AddS64(destination, destination, kRootRegister);
     LoadP(destination,
           MemOperand(destination, IsolateData::builtin_entry_table_offset()));
 
     bind(&out);
   } else {
-    AddP(destination, code_object, Operand(Code::kHeaderSize - kHeapObjectTag));
+    AddS64(destination, code_object,
+           Operand(Code::kHeaderSize - kHeapObjectTag));
   }
 }
 

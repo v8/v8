@@ -210,10 +210,10 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
                      MemoryChunk::kPointersToHereAreInterestingMask, eq,
                      exit());
     if (offset_ == no_reg) {
-      __ AddP(scratch1_, object_, Operand(offset_immediate_));
+      __ AddS64(scratch1_, object_, Operand(offset_immediate_));
     } else {
       DCHECK_EQ(0, offset_immediate_);
-      __ AddP(scratch1_, object_, offset_);
+      __ AddS64(scratch1_, object_, offset_);
     }
     RememberedSetAction const remembered_set_action =
         mode_ > RecordWriteMode::kValueIsMap ? EMIT_REMEMBERED_SET
@@ -290,7 +290,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     case kSignedGreaterThan:
       return gt;
     case kOverflow:
-      // Overflow checked for AddP/SubP only.
+      // Overflow checked for AddS64/SubS64 only.
       switch (op) {
         case kS390_Add32:
         case kS390_Add64:
@@ -1064,13 +1064,13 @@ void AdjustStackPointerForTailCall(
     if (pending_pushes != nullptr) {
       FlushPendingPushRegisters(tasm, state, pending_pushes);
     }
-    tasm->AddP(sp, sp, Operand(-stack_slot_delta * kSystemPointerSize));
+    tasm->AddS64(sp, sp, Operand(-stack_slot_delta * kSystemPointerSize));
     state->IncreaseSPDelta(stack_slot_delta);
   } else if (allow_shrinkage && stack_slot_delta < 0) {
     if (pending_pushes != nullptr) {
       FlushPendingPushRegisters(tasm, state, pending_pushes);
     }
-    tasm->AddP(sp, sp, Operand(-stack_slot_delta * kSystemPointerSize));
+    tasm->AddS64(sp, sp, Operand(-stack_slot_delta * kSystemPointerSize));
     state->IncreaseSPDelta(stack_slot_delta);
   }
 }
@@ -1436,7 +1436,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       if (ShouldApplyOffsetToStackCheck(instr, &offset)) {
         lhs_register = i.TempRegister(0);
-        __ SubP(lhs_register, sp, Operand(offset));
+        __ SubS64(lhs_register, sp, Operand(offset));
       }
 
       constexpr size_t kValueIndex = 0;
@@ -1486,8 +1486,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchStackSlot: {
       FrameOffset offset =
           frame_access_state()->GetFrameOffset(i.InputInt32(0));
-      __ AddP(i.OutputRegister(), offset.from_stack_pointer() ? sp : fp,
-              Operand(offset.offset()));
+      __ AddS64(i.OutputRegister(), offset.from_stack_pointer() ? sp : fp,
+                Operand(offset.offset()));
       break;
     }
     case kArchWordPoisonOnSpeculation:
@@ -1676,15 +1676,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_Add32: {
       // zero-ext
       if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
-        ASSEMBLE_BIN32_OP(RRRInstr(ark), RM32Instr(Add32), RRIInstr(Add32));
+        ASSEMBLE_BIN32_OP(RRRInstr(ark), RM32Instr(AddS32), RRIInstr(AddS32));
       } else {
-        ASSEMBLE_BIN32_OP(RRInstr(ar), RM32Instr(Add32), RIInstr(Add32));
+        ASSEMBLE_BIN32_OP(RRInstr(ar), RM32Instr(AddS32), RIInstr(AddS32));
       }
       break;
     }
     case kS390_Add64:
       if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
-        ASSEMBLE_BIN_OP(RRRInstr(agrk), RM64Instr(ag), RRIInstr(AddP));
+        ASSEMBLE_BIN_OP(RRRInstr(agrk), RM64Instr(ag), RRIInstr(AddS64));
       } else {
         ASSEMBLE_BIN_OP(RRInstr(agr), RM64Instr(ag), RIInstr(agfi));
       }
@@ -1698,16 +1698,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_Sub32:
       // zero-ext
       if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
-        ASSEMBLE_BIN32_OP(RRRInstr(srk), RM32Instr(Sub32), RRIInstr(Sub32));
+        ASSEMBLE_BIN32_OP(RRRInstr(srk), RM32Instr(SubS32), RRIInstr(SubS32));
       } else {
-        ASSEMBLE_BIN32_OP(RRInstr(sr), RM32Instr(Sub32), RIInstr(Sub32));
+        ASSEMBLE_BIN32_OP(RRInstr(sr), RM32Instr(SubS32), RIInstr(SubS32));
       }
       break;
     case kS390_Sub64:
       if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
-        ASSEMBLE_BIN_OP(RRRInstr(sgrk), RM64Instr(sg), RRIInstr(SubP));
+        ASSEMBLE_BIN_OP(RRRInstr(sgrk), RM64Instr(sg), RRIInstr(SubS64));
       } else {
-        ASSEMBLE_BIN_OP(RRInstr(sgr), RM64Instr(sg), RIInstr(SubP));
+        ASSEMBLE_BIN_OP(RRInstr(sgr), RM64Instr(sg), RIInstr(SubS64));
       }
       break;
     case kS390_SubFloat:
@@ -1924,7 +1924,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_Cntlz32: {
       __ llgfr(i.OutputRegister(), i.InputRegister(0));
       __ flogr(r0, i.OutputRegister());
-      __ Add32(i.OutputRegister(), r0, Operand(-32));
+      __ AddS32(i.OutputRegister(), r0, Operand(-32));
       // No need to zero-ext b/c llgfr is done already
       break;
     }
@@ -2608,8 +2608,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                 true);                                       \
     });                                                                      \
     break;
-      ATOMIC_BINOP_CASE(Add, Add32)
-      ATOMIC_BINOP_CASE(Sub, Sub32)
+      ATOMIC_BINOP_CASE(Add, AddS32)
+      ATOMIC_BINOP_CASE(Sub, SubS32)
       ATOMIC_BINOP_CASE(And, And)
       ATOMIC_BINOP_CASE(Or, Or)
       ATOMIC_BINOP_CASE(Xor, Xor)
@@ -4417,7 +4417,8 @@ void CodeGenerator::AssembleConstructFrame() {
             FieldMemOperand(kWasmInstanceRegister,
                             WasmInstanceObject::kRealStackLimitAddressOffset));
         __ LoadP(scratch, MemOperand(scratch));
-        __ AddP(scratch, scratch, Operand(required_slots * kSystemPointerSize));
+        __ AddS64(scratch, scratch,
+                  Operand(required_slots * kSystemPointerSize));
         __ CmpLogicalP(sp, scratch);
         __ bge(&done);
       }
@@ -4536,7 +4537,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   if (drop_jsargs) {
     // We must pop all arguments from the stack (including the receiver). This
     // number of arguments is given by max(1 + argc_reg, parameter_count).
-    __ AddP(argc_reg, argc_reg, Operand(1));  // Also pop the receiver.
+    __ AddS64(argc_reg, argc_reg, Operand(1));  // Also pop the receiver.
     if (parameter_count > 1) {
       Label skip;
       __ CmpP(argc_reg, Operand(parameter_count));
