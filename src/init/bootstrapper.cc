@@ -2424,10 +2424,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate_, prototype, "then", Builtins::kPromisePrototypeThen, 2, true);
     native_context()->set_promise_then(*promise_then);
 
-    Handle<JSFunction> promise_catch =
-        InstallFunctionWithBuiltinId(isolate_, prototype, "catch",
-                                     Builtins::kPromisePrototypeCatch, 1, true);
-    native_context()->set_promise_catch(*promise_catch);
+    InstallFunctionWithBuiltinId(isolate_, prototype, "catch",
+                                 Builtins::kPromisePrototypeCatch, 1, true);
 
     InstallFunctionWithBuiltinId(isolate_, prototype, "finally",
                                  Builtins::kPromisePrototypeFinally, 1, true);

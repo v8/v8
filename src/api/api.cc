@@ -7381,10 +7381,14 @@ MaybeLocal<Promise> Promise::Catch(Local<Context> context,
                                    Local<Function> handler) {
   PREPARE_FOR_EXECUTION(context, Promise, Catch, Promise);
   auto self = Utils::OpenHandle(this);
-  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*handler)};
+  i::Handle<i::Object> argv[] = {isolate->factory()->undefined_value(),
+                                 Utils::OpenHandle(*handler)};
   i::Handle<i::Object> result;
+  // Do not call the built-in Promise.prototype.catch!
+  // v8::Promise should not call out to a monkeypatched Promise.prototype.then
+  // as the implementation of Promise.prototype.catch does.
   has_pending_exception =
-      !i::Execution::CallBuiltin(isolate, isolate->promise_catch(), self,
+      !i::Execution::CallBuiltin(isolate, isolate->promise_then(), self,
                                  arraysize(argv), argv)
            .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(Promise);

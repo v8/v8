@@ -22950,6 +22950,34 @@ TEST(PromiseThen2) {
                     .FromJust());
 }
 
+TEST(PromiseCatchCallsBuiltin) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Local<Object> global = context->Global();
+
+  v8::Local<v8::Promise::Resolver> resolver =
+      v8::Promise::Resolver::New(context.local()).ToLocalChecked();
+  v8::Local<v8::Promise> promise = resolver->GetPromise();
+
+  resolver->Reject(context.local(), v8::Integer::New(isolate, 1)).FromJust();
+
+  CompileRun(
+      "var x1 = 0;\n"
+      "function f(x) { x1 = x; }\n"
+      "Promise.prototype.then = function () { throw 'unreachable'; };\n");
+  Local<Function> f = Local<Function>::Cast(
+      global->Get(context.local(), v8_str("f")).ToLocalChecked());
+
+  // Catch should not call monkey-patched Promise.prototype.then.
+  promise->Catch(context.local(), f).ToLocalChecked();
+  isolate->PerformMicrotaskCheckpoint();
+  CHECK_EQ(1, global->Get(context.local(), v8_str("x1"))
+                  .ToLocalChecked()
+                  ->Int32Value(context.local())
+                  .FromJust());
+}
+
 TEST(PromiseStateAndValue) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
