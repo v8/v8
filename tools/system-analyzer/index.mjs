@@ -66,7 +66,7 @@ class App {
     document.addEventListener(
         SelectionEvent.name, e => this.handleShowEntries(e));
     document.addEventListener(
-        FocusEvent.name, e => this.handleShowEntryDetail(e));
+        FocusEvent.name, e => this.handleFocusLogEntryl(e));
     document.addEventListener(
         SelectTimeEvent.name, e => this.handleTimeRangeSelect(e));
     document.addEventListener(ToolTipEvent.name, e => this.handleToolTip(e));
@@ -96,27 +96,6 @@ class App {
         return this.showCodeEntries(entries);
       case DeoptLogEntry:
         return this.showDeoptEntries(entries);
-      default:
-        throw new Error('Unknown selection type!');
-    }
-  }
-
-  handleShowEntryDetail(e) {
-    e.stopPropagation();
-    const entry = e.entry;
-    switch (entry.constructor) {
-      case SourcePosition:
-        return this.selectSourcePosition(entry);
-      case MapLogEntry:
-        return this.selectMapLogEntry(entry);
-      case IcLogEntry:
-        return this.selectIcLogEntry(entry);
-      case ApiLogEntry:
-        return this.selectApiLogEntry(entry);
-      case CodeLogEntry:
-        return this.selectCodeLogEntry(entry);
-      case DeoptLogEntry:
-        return this.selectDeoptLogEntry(entry);
       default:
         throw new Error('Unknown selection type!');
     }
@@ -168,37 +147,57 @@ class App {
     this._view.timelinePanel.timeSelection = {start, end};
   }
 
-  selectMapLogEntry(entry) {
+  handleFocusLogEntryl(e) {
+    e.stopPropagation();
+    this.focusLogEntry(e.entry);
+  }
+
+  focusLogEntry(entry) {
+    switch (entry.constructor) {
+      case SourcePosition:
+        return this.focusSourcePosition(entry);
+      case MapLogEntry:
+        return this.focusMapLogEntry(entry);
+      case IcLogEntry:
+        return this.focusIcLogEntry(entry);
+      case ApiLogEntry:
+        return this.focusApiLogEntry(entry);
+      case CodeLogEntry:
+        return this.focusCodeLogEntry(entry);
+      case DeoptLogEntry:
+        return this.focusDeoptLogEntry(entry);
+      default:
+        throw new Error('Unknown selection type!');
+    }
+  }
+
+  focusMapLogEntry(entry) {
     this._state.map = entry;
-    this._view.mapTrack.selectedEntry = entry;
+    this._view.mapTrack.focusedEntry = entry;
     this._view.mapPanel.map = entry;
-    this._view.mapList.selectedLogEntry = entry;
   }
 
-  selectIcLogEntry(entry) {
+  focusIcLogEntry(entry) {
     this._state.ic = entry;
-    this._view.icList.selectedLogEntry = entry;
   }
 
-  selectCodeLogEntry(entry) {
+  focusCodeLogEntry(entry) {
     this._state.code = entry;
     this._view.codePanel.entry = entry;
-    this._view.codeList.selectedLogEntry = entry;
   }
 
-  selectDeoptLogEntry(entry) {
-    this._view.deoptList.selectedLogEntry = entry;
+  focusDeoptLogEntry(entry) {
+    this._view.deoptList.focusedLogEntry = entry;
   }
 
-  selectApiLogEntry(entry) {
+  focusApiLogEntry(entry) {
     this._state.apiLogEntry = entry;
-    this._view.apiTrack.selectedEntry = entry;
-    this._view.apiList.selectedLogEntry = entry;
+    this._view.apiTrack.focusedEntry = entry;
   }
 
-  selectSourcePosition(sourcePositions) {
+  focusSourcePosition(sourcePositions) {
     if (!sourcePositions.script) return;
-    this._view.sourcePanel.selectedSourcePositions = [sourcePositions];
+    this._view.sourcePanel.focusedSourcePositions = [sourcePositions];
   }
 
   handleToolTip(event) {

@@ -50,12 +50,51 @@ found in the LICENSE file. -->
     max-height: 800px;
     overflow-y: scroll;
   }
+
+  .selection {
+    display: flex;
+    margin: 0 -10px 0 -10px;
+  }
+  .selection input {
+    display: none;
+  }
+
+  .selection label {
+    flex: 1;
+    padding: 5px;
+    cursor: pointer;
+    background-color: var( --surface-color); 
+    font-weight: normal;
+    text-align: center;
+  }
+  .selection label ~ label {
+    border-left: 2px var(--border-color) solid;
+  }
+
+  .selection label:hover {
+    background-color: var(--primary-color);
+  }
+  .selection [type=radio]:checked + label {
+    background-color: var(--border-color);
+  }
+
+  .legend {
+    top: 40px;
+  }
 </style>
 <div class="panel">
   <h2 id="title"></h2>
-  <slot></slot>
+  <div class="selection">
+    <input type="radio" id="show-all" name="selectionType" value="all">
+    <label for="show-all">All</label>
+    <input type="radio" id="show-timerange" name="selectionType" value="timerange">
+    <label for="show-timerange">Time Range</label>
+    <input type="radio" id="show-selection" name="selectionType" value="selection">
+    <label for="show-selection">Last Selection</label>
+  </div>
   <select id="group-key"></select>
   <div id="content" class="panelBody">
+    <slot></slot>
     <table id="table" width="100%">
     </table>
   </div>

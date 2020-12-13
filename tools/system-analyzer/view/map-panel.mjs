@@ -43,6 +43,7 @@ DOM.defineCustomElement('view/map-panel',
 
   set timeline(timeline) {
     this._timeline = timeline;
+    this.$('.panel').style.display = timeline.isEmpty() ? 'none' : 'inherit';
     this.mapTransitionsPanel.timeline = timeline;
   }
 

@@ -14,7 +14,7 @@ DOM.defineCustomElement('view/list-panel',
                         (templateText) =>
                             class ListPanel extends V8CustomElement {
   _selectedLogEntries;
-  _selectedLogEntry;
+  _displayedLogEntries;
   _timeline;
 
   _detailsClickHandler = this._handleDetailsClick.bind(this);
@@ -24,6 +24,9 @@ DOM.defineCustomElement('view/list-panel',
   constructor() {
     super(templateText);
     this.groupKey.addEventListener('change', e => this.update());
+    this.showAllRadio.onclick = _ => this._show(this._timeline);
+    this.showTimerangeRadio.onclick = _ => this._show(this._timeline.selection);
+    this.showSelectionRadio.onclick = _ => this._show(this._selectedLogEntries);
   }
 
   static get observedAttributes() {
@@ -36,20 +39,22 @@ DOM.defineCustomElement('view/list-panel',
     }
   }
 
-  set timeline(value) {
-    console.assert(value !== undefined, 'timeline undefined!');
-    this._timeline = value;
-    this.selectedLogEntries = this._timeline.all;
-    this.initGroupKeySelect();
+  set timeline(timeline) {
+    console.assert(timeline !== undefined, 'timeline undefined!');
+    this._timeline = timeline;
+    this.$('.panel').style.display = timeline.isEmpty() ? 'none' : 'inherit';
+    this._initGroupKeySelect();
   }
 
   set selectedLogEntries(entries) {
-    this._selectedLogEntries = entries;
-    this.update();
-  }
-
-  set selectedLogEntry(entry) {
-    // TODO: show details
+    if (entries === this._timeline.selection) {
+      this.showTimerangeRadio.click();
+    } else if (entries == this._timeline) {
+      this.showAllRadio.click();
+    } else {
+      this._selectedLogEntries = entries;
+      this.showSelectionRadio.click();
+    }
   }
 
   get entryClass() {
@@ -64,19 +69,42 @@ DOM.defineCustomElement('view/list-panel',
     return this.$('#table');
   }
 
-  get spanSelectAll() {
-    return this.querySelectorAll('span');
+  get showAllRadio() {
+    return this.$('#show-all');
+  }
+  get showTimerangeRadio() {
+    return this.$('#show-timerange');
+  }
+  get showSelectionRadio() {
+    return this.$('#show-selection');
   }
 
   get _propertyNames() {
     return this.entryClass?.propertyNames ?? [];
   }
 
+  _initGroupKeySelect() {
+    const select = this.groupKey;
+    select.options.length = 0;
+    for (const propertyName of this._propertyNames) {
+      const option = DOM.element('option');
+      option.text = propertyName;
+      select.add(option);
+    }
+  }
+
+  _show(entries) {
+    this._displayedLogEntries = entries;
+    this.update();
+  }
+
   _update() {
+    if (this._timeline.isEmpty()) return;
     DOM.removeAllChildren(this.table);
+    if (this._displayedLogEntries.length == 0) return;
     const propertyName = this.groupKey.selectedOptions[0].text;
     const groups =
-        groupBy(this._selectedLogEntries, each => each[propertyName], true);
+        groupBy(this._displayedLogEntries, each => each[propertyName], true);
     this._render(groups, this.table);
   }
 
@@ -167,15 +195,5 @@ DOM.defineCustomElement('view/list-panel',
       }
       return tr;
     }, 10);
-  }
-
-  initGroupKeySelect() {
-    const select = this.groupKey;
-    select.options.length = 0;
-    for (const propertyName of this._propertyNames) {
-      const option = DOM.element('option');
-      option.text = propertyName;
-      select.add(option);
-    }
   }
 });
