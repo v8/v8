@@ -58,12 +58,7 @@ class MockPlatform final : public TestPlatform {
 
   bool IdleTasksEnabled(v8::Isolate* isolate) override { return false; }
 
-  void ExecuteTasks() {
-    for (auto* job_handle : job_handles_) {
-      if (job_handle->IsValid()) job_handle->Join();
-    }
-    task_runner_->ExecuteTasks();
-  }
+  void ExecuteTasks() { task_runner_->ExecuteTasks(); }
 
  private:
   class MockTaskRunner final : public TaskRunner {
@@ -97,14 +92,17 @@ class MockPlatform final : public TestPlatform {
 
     void ExecuteTasks() {
       std::queue<std::unique_ptr<v8::Task>> tasks;
-      {
-        base::MutexGuard lock_scope(&tasks_lock_);
-        tasks.swap(tasks_);
-      }
-      while (!tasks.empty()) {
-        std::unique_ptr<Task> task = std::move(tasks.front());
-        tasks.pop();
-        task->Run();
+      while (true) {
+        {
+          base::MutexGuard lock_scope(&tasks_lock_);
+          tasks.swap(tasks_);
+        }
+        if (tasks.empty()) break;
+        while (!tasks.empty()) {
+          std::unique_ptr<Task> task = std::move(tasks.front());
+          tasks.pop();
+          task->Run();
+        }
       }
     }
 

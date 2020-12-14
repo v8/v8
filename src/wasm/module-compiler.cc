@@ -531,12 +531,13 @@ class CompilationStateImpl {
   CompilationStateImpl(const std::shared_ptr<NativeModule>& native_module,
                        std::shared_ptr<Counters> async_counters);
   ~CompilationStateImpl() {
-    // It is safe to access current_compile_job_ without a lock since this is
-    // the last reference.
-    if (current_compile_job_ && current_compile_job_->IsValid()) {
-      current_compile_job_->CancelAndDetach();
-    }
+    DCHECK(compile_job_->IsValid());
+    compile_job_->CancelAndDetach();
   }
+
+  // Call right after the constructor, after the {compilation_state_} field in
+  // the {NativeModule} has been initialized.
+  void InitCompileJob(WasmEngine*);
 
   // Cancel all background compilation, without waiting for compile tasks to
   // finish.
@@ -592,9 +593,6 @@ class CompilationStateImpl {
   void PublishDetectedFeatures(Isolate*);
   void SchedulePublishCompilationResults(
       std::vector<std::unique_ptr<WasmCode>> unpublished_code);
-  // Ensure that a compilation job is running, and increase its concurrency if
-  // needed.
-  void ScheduleCompileJobForNewUnits();
 
   size_t NumOutstandingCompilations() const;
 
@@ -603,8 +601,8 @@ class CompilationStateImpl {
   void WaitForCompilationEvent(CompilationEvent event);
 
   void SetHighPriority() {
-    base::MutexGuard guard(&mutex_);
-    has_priority_ = true;
+    // TODO(wasm): Keep a lower priority for TurboFan-only jobs.
+    compile_job_->UpdatePriority(TaskPriority::kUserBlocking);
   }
 
   bool failed() const {
@@ -668,8 +666,9 @@ class CompilationStateImpl {
 
   CompilationUnitQueues compilation_unit_queues_;
 
-  // Index of the next wrapper to compile in {js_to_wasm_wrapper_units_}.
-  std::atomic<int> js_to_wasm_wrapper_id_{0};
+  // Number of wrappers to be compiled. Initialized once, counted down in
+  // {GetNextJSToWasmWrapperCompilationUnit}.
+  std::atomic<size_t> outstanding_js_to_wasm_wrappers_{0};
   // Wrapper compilation units are stored in shared_ptrs so that they are kept
   // alive by the tasks even if the NativeModule dies.
   std::vector<std::shared_ptr<JSToWasmWrapperCompilationUnit>>
@@ -679,12 +678,12 @@ class CompilationStateImpl {
   // being accessed concurrently.
   mutable base::Mutex mutex_;
 
+  // The compile job handle, initialized right after construction of
+  // {CompilationStateImpl}.
+  std::unique_ptr<JobHandle> compile_job_;
+
   //////////////////////////////////////////////////////////////////////////////
   // Protected by {mutex_}:
-
-  bool has_priority_ = false;
-
-  std::unique_ptr<JobHandle> current_compile_job_;
 
   // Features detected to be used in this module. Features can be detected
   // as a module is being compiled.
@@ -775,6 +774,10 @@ constexpr uint32_t CompilationEnv::kMaxMemoryPagesAtRuntime;
 // PIMPL implementation of {CompilationState}.
 
 CompilationState::~CompilationState() { Impl(this)->~CompilationStateImpl(); }
+
+void CompilationState::InitCompileJob(WasmEngine* engine) {
+  Impl(this)->InitCompileJob(engine);
+}
 
 void CompilationState::CancelCompilation() { Impl(this)->CancelCompilation(); }
 
@@ -2750,6 +2753,14 @@ CompilationStateImpl::CompilationStateImpl(
       async_counters_(std::move(async_counters)),
       compilation_unit_queues_(native_module->num_functions()) {}
 
+void CompilationStateImpl::InitCompileJob(WasmEngine* engine) {
+  DCHECK_NULL(compile_job_);
+  compile_job_ = V8::GetCurrentPlatform()->PostJob(
+      TaskPriority::kUserVisible,
+      std::make_unique<BackgroundCompileJob>(native_module_weak_, engine,
+                                             async_counters_));
+}
+
 void CompilationStateImpl::CancelCompilation() {
   // std::memory_order_relaxed is sufficient because no other state is
   // synchronized with |compile_cancelled_|.
@@ -2951,19 +2962,22 @@ void CompilationStateImpl::AddCompilationUnits(
     Vector<WasmCompilationUnit> top_tier_units,
     Vector<std::shared_ptr<JSToWasmWrapperCompilationUnit>>
         js_to_wasm_wrapper_units) {
+  if (!js_to_wasm_wrapper_units.empty()) {
+    // |js_to_wasm_wrapper_units_| will only be initialized once.
+    DCHECK_EQ(0, outstanding_js_to_wasm_wrappers_.load());
+    js_to_wasm_wrapper_units_.insert(js_to_wasm_wrapper_units_.end(),
+                                     js_to_wasm_wrapper_units.begin(),
+                                     js_to_wasm_wrapper_units.end());
+    // Use release semantics such that updates to {js_to_wasm_wrapper_units_}
+    // are available to other threads doing an acquire load.
+    outstanding_js_to_wasm_wrappers_.store(js_to_wasm_wrapper_units.size(),
+                                           std::memory_order_release);
+  }
   if (!baseline_units.empty() || !top_tier_units.empty()) {
     compilation_unit_queues_.AddUnits(baseline_units, top_tier_units,
                                       native_module_->module());
   }
-  if (!js_to_wasm_wrapper_units.empty()) {
-    // |js_to_wasm_wrapper_units_| can only be modified before background
-    // compilation started.
-    DCHECK(!current_compile_job_);
-    js_to_wasm_wrapper_units_.insert(js_to_wasm_wrapper_units_.end(),
-                                     js_to_wasm_wrapper_units.begin(),
-                                     js_to_wasm_wrapper_units.end());
-  }
-  ScheduleCompileJobForNewUnits();
+  compile_job_->NotifyConcurrencyIncrease();
 }
 
 void CompilationStateImpl::AddTopTierCompilationUnit(WasmCompilationUnit unit) {
@@ -2973,17 +2987,23 @@ void CompilationStateImpl::AddTopTierCompilationUnit(WasmCompilationUnit unit) {
 void CompilationStateImpl::AddTopTierPriorityCompilationUnit(
     WasmCompilationUnit unit, size_t priority) {
   compilation_unit_queues_.AddTopTierPriorityUnit(unit, priority);
-  ScheduleCompileJobForNewUnits();
+  compile_job_->NotifyConcurrencyIncrease();
 }
 
 std::shared_ptr<JSToWasmWrapperCompilationUnit>
 CompilationStateImpl::GetNextJSToWasmWrapperCompilationUnit() {
-  int wrapper_id =
-      js_to_wasm_wrapper_id_.fetch_add(1, std::memory_order_relaxed);
-  if (wrapper_id < static_cast<int>(js_to_wasm_wrapper_units_.size())) {
-    return js_to_wasm_wrapper_units_[wrapper_id];
+  size_t outstanding_units =
+      outstanding_js_to_wasm_wrappers_.load(std::memory_order_relaxed);
+  // Use acquire semantics such that initialization of
+  // {js_to_wasm_wrapper_units_} is available.
+  while (outstanding_units &&
+         !outstanding_js_to_wasm_wrappers_.compare_exchange_weak(
+             outstanding_units, outstanding_units - 1,
+             std::memory_order_acquire)) {
+    // Retry with updated {outstanding_units}.
   }
-  return nullptr;
+  if (outstanding_units == 0) return nullptr;
+  return js_to_wasm_wrapper_units_[outstanding_units - 1];
 }
 
 void CompilationStateImpl::FinalizeJSToWasmWrappers(
@@ -3257,39 +3277,9 @@ void CompilationStateImpl::SchedulePublishCompilationResults(
   }
 }
 
-void CompilationStateImpl::ScheduleCompileJobForNewUnits() {
-  if (failed()) return;
-
-  {
-    base::MutexGuard guard(&mutex_);
-    if (!current_compile_job_ || !current_compile_job_->IsValid()) {
-      WasmEngine* engine = native_module_->engine();
-      std::unique_ptr<JobTask> new_compile_job =
-          std::make_unique<BackgroundCompileJob>(native_module_weak_, engine,
-                                                 async_counters_);
-      // TODO(wasm): Lower priority for TurboFan-only jobs.
-      current_compile_job_ = V8::GetCurrentPlatform()->PostJob(
-          has_priority_ ? TaskPriority::kUserBlocking
-                        : TaskPriority::kUserVisible,
-          std::move(new_compile_job));
-
-      // Reset the priority. Later uses of the compilation state, e.g. for
-      // debugging, should compile with the default priority again.
-      has_priority_ = false;
-      return;
-    }
-  }
-  // Once initialized, |current_compile_job_| is never cleared (except in tests,
-  // where it's done synchronously).
-  current_compile_job_->NotifyConcurrencyIncrease();
-}
-
 size_t CompilationStateImpl::NumOutstandingCompilations() const {
-  size_t next_wrapper = js_to_wasm_wrapper_id_.load(std::memory_order_relaxed);
   size_t outstanding_wrappers =
-      next_wrapper >= js_to_wasm_wrapper_units_.size()
-          ? 0
-          : js_to_wasm_wrapper_units_.size() - next_wrapper;
+      outstanding_js_to_wasm_wrappers_.load(std::memory_order_relaxed);
   size_t outstanding_functions = compilation_unit_queues_.GetTotalSize();
   return outstanding_wrappers + outstanding_functions;
 }
