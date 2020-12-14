@@ -401,8 +401,10 @@ TEST(DisasmX64) {
     __ movdqu(xmm0, Operand(rsp, 12));
     __ movdqu(Operand(rsp, 12), xmm0);
     __ movdqu(xmm1, xmm0);
+    __ movhlps(xmm5, xmm1);
     __ movlps(xmm8, Operand(rbx, rcx, times_4, 10000));
     __ movlps(Operand(rbx, rcx, times_4, 10000), xmm9);
+    __ movlhps(xmm5, xmm1);
     __ movhps(xmm8, Operand(rbx, rcx, times_4, 10000));
     __ movhps(Operand(rbx, rcx, times_4, 10000), xmm9);
     __ shufps(xmm0, xmm9, 0x0);
@@ -577,7 +579,6 @@ TEST(DisasmX64) {
       __ movups(xmm5, xmm1);
       __ movups(xmm5, Operand(rdx, 4));
       __ movups(Operand(rdx, 4), xmm5);
-      __ movlhps(xmm5, xmm1);
       __ pmulld(xmm5, xmm1);
       __ pmulld(xmm5, Operand(rdx, 4));
       __ pmullw(xmm5, xmm1);
@@ -659,8 +660,10 @@ TEST(DisasmX64) {
       __ vmovdqu(xmm9, Operand(rbx, rcx, times_4, 10000));
       __ vmovdqu(Operand(rbx, rcx, times_4, 10000), xmm0);
 
+      __ vmovhlps(xmm1, xmm3, xmm5);
       __ vmovlps(xmm8, xmm9, Operand(rbx, rcx, times_4, 10000));
       __ vmovlps(Operand(rbx, rcx, times_4, 10000), xmm9);
+      __ vmovlhps(xmm1, xmm3, xmm5);
       __ vmovhps(xmm8, xmm9, Operand(rbx, rcx, times_4, 10000));
       __ vmovhps(Operand(rbx, rcx, times_4, 10000), xmm12);
 
@@ -693,7 +696,6 @@ TEST(DisasmX64) {
       __ vmovups(xmm5, xmm1);
       __ vmovups(xmm5, Operand(rdx, 4));
       __ vmovups(Operand(rdx, 4), xmm5);
-      __ vmovlhps(xmm1, xmm3, xmm5);
 
       __ vandps(xmm0, xmm9, xmm2);
       __ vandps(xmm9, xmm1, Operand(rbx, rcx, times_4, 10000));

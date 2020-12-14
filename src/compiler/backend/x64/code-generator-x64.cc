@@ -2453,8 +2453,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F64x2ExtractLane: {
-      __ Pextrq(kScratchRegister, i.InputSimd128Register(0), i.InputInt8(1));
-      __ Movq(i.OutputDoubleRegister(), kScratchRegister);
+      DoubleRegister dst = i.OutputDoubleRegister();
+      XMMRegister src = i.InputSimd128Register(0);
+      uint8_t lane = i.InputUint8(1);
+      if (lane == 0) {
+        __ Move(dst, src);
+      } else {
+        DCHECK_EQ(1, lane);
+        if (CpuFeatures::IsSupported(AVX)) {
+          CpuFeatureScope avx_scope(tasm(), AVX);
+          // Pass src as operand to avoid false-dependency on dst.
+          __ vmovhlps(dst, src, src);
+        } else {
+          __ movhlps(dst, src);
+        }
+      }
       break;
     }
     case kX64F64x2Sqrt: {

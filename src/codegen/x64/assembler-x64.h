@@ -1284,6 +1284,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void pshuflw(XMMRegister dst, XMMRegister src, uint8_t shuffle);
   void pshuflw(XMMRegister dst, Operand src, uint8_t shuffle);
 
+  void movhlps(XMMRegister dst, XMMRegister src) {
+    sse_instr(dst, src, 0x0F, 0x12);
+  }
   void movlhps(XMMRegister dst, XMMRegister src) {
     sse_instr(dst, src, 0x0F, 0x16);
   }
@@ -1385,6 +1388,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void vmovlhps(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
     vinstr(0x16, dst, src1, src2, kNone, k0F, kWIG);
+  }
+  void vmovhlps(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vinstr(0x12, dst, src1, src2, kNone, k0F, kWIG);
   }
   void vcvtss2sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
     vinstr(0x5a, dst, src1, src2, kF3, k0F, kWIG);

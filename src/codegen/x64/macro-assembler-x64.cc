@@ -1293,6 +1293,12 @@ void TurboAssembler::Move(Register dst, Register src) {
   }
 }
 
+void TurboAssembler::Move(XMMRegister dst, XMMRegister src) {
+  if (dst != src) {
+    movaps(dst, src);
+  }
+}
+
 void TurboAssembler::MovePair(Register dst0, Register src0, Register dst1,
                               Register src1) {
   if (dst0 != src1) {

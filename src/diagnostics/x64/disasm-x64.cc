@@ -1381,9 +1381,15 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         AppendToBuffer(",%s", NameOfXMMRegister(regop));
         break;
       case 0x12:
-        AppendToBuffer("vmovlps %s,%s,", NameOfXMMRegister(regop),
-                       NameOfXMMRegister(vvvv));
-        current += PrintRightXMMOperand(current);
+        if (mod == 0b11) {
+          AppendToBuffer("vmovhlps %s,%s,", NameOfXMMRegister(regop),
+                         NameOfXMMRegister(vvvv));
+          current += PrintRightXMMOperand(current);
+        } else {
+          AppendToBuffer("vmovlps %s,%s,", NameOfXMMRegister(regop),
+                         NameOfXMMRegister(vvvv));
+          current += PrintRightXMMOperand(current);
+        }
         break;
       case 0x13:
         AppendToBuffer("vmovlps ");
@@ -2065,8 +2071,13 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     // movups xmm/m128, xmm
     current += PrintOperands("movups", XMMOPER_XMMREG_OP_ORDER, current);
   } else if (opcode == 0x12) {
+    // movhlps xmm1, xmm2
     // movlps xmm1, m64
-    current += PrintOperands("movlps", XMMREG_OPER_OP_ORDER, current);
+    if (mod == 0b11) {
+      current += PrintOperands("movhlps", XMMREG_XMMOPER_OP_ORDER, current);
+    } else {
+      current += PrintOperands("movlps", XMMREG_OPER_OP_ORDER, current);
+    }
   } else if (opcode == 0x13) {
     // movlps m64, xmm1
     AppendToBuffer("movlps ");
