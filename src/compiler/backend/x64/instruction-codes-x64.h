@@ -350,6 +350,7 @@ namespace compiler {
   V(X64S128Load32x2U)                     \
   V(X64S128Store32Lane)                   \
   V(X64S128Store64Lane)                   \
+  V(X64S32x4Rotate)                       \
   V(X64S32x4Swizzle)                      \
   V(X64S32x4Shuffle)                      \
   V(X64S16x8Blend)                        \

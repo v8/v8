@@ -312,6 +312,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64V16x8AllTrue:
     case kX64I8x16Swizzle:
     case kX64I8x16Shuffle:
+    case kX64S32x4Rotate:
     case kX64S32x4Swizzle:
     case kX64S32x4Shuffle:
     case kX64S16x8Blend:
