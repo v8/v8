@@ -2431,7 +2431,11 @@ void InstructionSelector::VisitF32x4Splat(Node* node) {
 }
 
 void InstructionSelector::VisitF32x4ExtractLane(Node* node) {
-  VisitRRISimd(this, node, kAVXF32x4ExtractLane, kSSEF32x4ExtractLane);
+  IA32OperandGenerator g(this);
+  InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
+  InstructionOperand operand1 =
+      g.UseImmediate(OpParameter<int32_t>(node->op()));
+  Emit(kIA32F32x4ExtractLane, g.DefineAsRegister(node), operand0, operand1);
 }
 
 void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {

@@ -2343,26 +2343,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kSSEF32x4ExtractLane: {
-      DCHECK_EQ(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
-      XMMRegister dst = i.OutputFloatRegister();
-      int8_t lane = i.InputInt8(1);
-      if (lane != 0) {
-        DCHECK_LT(lane, 4);
-        __ shufps(dst, dst, lane);
-      }
-      break;
-    }
-    case kAVXF32x4ExtractLane: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
+    case kIA32F32x4ExtractLane: {
       XMMRegister dst = i.OutputFloatRegister();
       XMMRegister src = i.InputSimd128Register(0);
-      int8_t lane = i.InputInt8(1);
-      if (lane == 0) {
-        if (dst != src) __ vmovaps(dst, src);
+      uint8_t lane = i.InputUint8(1);
+      DCHECK_LT(lane, 4);
+      if (lane == 0 && dst == src) {
+        break;
+      }
+
+      uint8_t zmask = 0xE;  // Zero top 3 lanes.
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope avx_scope(tasm(), AVX);
+        // Use src for both operands to avoid false-dependency on dst.
+        __ vinsertps(dst, src, src, zmask | (lane << 6));
       } else {
-        DCHECK_LT(lane, 4);
-        __ vshufps(dst, src, src, lane);
+        CpuFeatureScope sse_scope(tasm(), SSE4_1);
+        __ insertps(dst, src, zmask | (lane << 6));
       }
       break;
     }
