@@ -2563,15 +2563,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F32x4ExtractLane: {
+      XMMRegister dst = i.OutputDoubleRegister();
+      XMMRegister src = i.InputSimd128Register(0);
+      uint8_t lane = i.InputUint8(1);
+      DCHECK_LT(lane, 4);
+      if (lane == 0 && dst == src) {
+        break;
+      }
+
+      uint8_t zmask = 0xE;  // Zero top 3 lanes.
       if (CpuFeatures::IsSupported(AVX)) {
         CpuFeatureScope avx_scope(tasm(), AVX);
-        XMMRegister src = i.InputSimd128Register(0);
-        // vshufps and leave junk in the 3 high lanes.
-        __ vshufps(i.OutputDoubleRegister(), src, src, i.InputInt8(1));
+        // Use src for both operands to avoid false-dependency on dst.
+        __ vinsertps(dst, src, src, zmask | (lane << 6));
       } else {
-        __ extractps(kScratchRegister, i.InputSimd128Register(0),
-                     i.InputUint8(1));
-        __ movd(i.OutputDoubleRegister(), kScratchRegister);
+        __ insertps(dst, src, zmask | (lane << 6));
       }
       break;
     }
