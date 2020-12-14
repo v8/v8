@@ -8422,6 +8422,20 @@ class V8_EXPORT Isolate {
      * This is an experimental feature and may still change significantly.
      */
     std::shared_ptr<CppHeapCreateParams> cpp_heap_params;
+
+    /**
+     * This list is provided by the embedder to indicate which import assertions
+     * they want to handle. Only import assertions whose keys are present in
+     * supported_import_assertions will be included in the import assertions
+     * lists of ModuleRequests that will be passed to the embedder. If
+     * supported_import_assertions is left empty, then the embedder will not
+     * receive any import assertions.
+     *
+     * This corresponds to the list returned by the HostGetSupportedAssertions
+     * host-defined abstract operation:
+     * https://tc39.es/proposal-import-assertions/#sec-hostgetsupportedimportassertions
+     */
+    std::vector<std::string> supported_import_assertions;
   };
 
   /**

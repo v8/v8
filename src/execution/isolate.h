@@ -1590,6 +1590,14 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void set_allow_atomics_wait(bool set) { allow_atomics_wait_ = set; }
   bool allow_atomics_wait() { return allow_atomics_wait_; }
 
+  void set_supported_import_assertions(
+      const std::vector<std::string>& supported_import_assertions) {
+    supported_import_assertions_ = supported_import_assertions;
+  }
+  const std::vector<std::string>& supported_import_assertions() const {
+    return supported_import_assertions_;
+  }
+
   // Register a finalizer to be called at isolate teardown.
   void RegisterManagedPtrDestructor(ManagedPtrDestructor* finalizer);
 
@@ -1823,6 +1831,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   PromiseHook promise_hook_ = nullptr;
   HostImportModuleDynamicallyCallback host_import_module_dynamically_callback_ =
       nullptr;
+  std::vector<std::string> supported_import_assertions_;
   HostInitializeImportMetaObjectCallback
       host_initialize_import_meta_object_callback_ = nullptr;
   base::Mutex rail_mutex_;

@@ -84,6 +84,10 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
 
   bool is_main_thread() const { return heap_.is_main_thread(); }
 
+  const std::vector<std::string>& supported_import_assertions() const {
+    return supported_import_assertions_;
+  }
+
  private:
   friend class v8::internal::LocalFactory;
 
@@ -96,6 +100,7 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   std::unique_ptr<LocalLogger> logger_;
   ThreadId const thread_id_;
   Address const stack_limit_;
+  std::vector<std::string> supported_import_assertions_;
 };
 
 }  // namespace internal

@@ -8557,6 +8557,9 @@ void Isolate::Initialize(Isolate* isolate,
   i_isolate->set_api_external_references(params.external_references);
   i_isolate->set_allow_atomics_wait(params.allow_atomics_wait);
 
+  i_isolate->set_supported_import_assertions(
+      params.supported_import_assertions);
+
   i_isolate->heap()->ConfigureHeap(params.constraints);
   if (params.cpp_heap_params) {
     i_isolate->heap()->ConfigureCppHeap(params.cpp_heap_params);
