@@ -1981,6 +1981,30 @@ void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
   Add(dst.fp().V2D(), dst.fp().V2D(), tmp1.V2D());
 }
 
+void LiftoffAssembler::emit_i64x2_extmul_low_i32x4_s(LiftoffRegister dst,
+                                                     LiftoffRegister src1,
+                                                     LiftoffRegister src2) {
+  Smull(dst.fp().V2D(), src1.fp().V2S(), src2.fp().V2S());
+}
+
+void LiftoffAssembler::emit_i64x2_extmul_low_i32x4_u(LiftoffRegister dst,
+                                                     LiftoffRegister src1,
+                                                     LiftoffRegister src2) {
+  Umull(dst.fp().V2D(), src1.fp().V2S(), src2.fp().V2S());
+}
+
+void LiftoffAssembler::emit_i64x2_extmul_high_i32x4_s(LiftoffRegister dst,
+                                                      LiftoffRegister src1,
+                                                      LiftoffRegister src2) {
+  Smull2(dst.fp().V2D(), src1.fp().V4S(), src2.fp().V4S());
+}
+
+void LiftoffAssembler::emit_i64x2_extmul_high_i32x4_u(LiftoffRegister dst,
+                                                      LiftoffRegister src1,
+                                                      LiftoffRegister src2) {
+  Umull2(dst.fp().V2D(), src1.fp().V4S(), src2.fp().V4S());
+}
+
 void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   Dup(dst.fp().V4S(), src.gp().W());
@@ -2120,6 +2144,30 @@ void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
   Smull(tmp1, lhs.fp().V4H(), rhs.fp().V4H());
   Smull2(tmp2, lhs.fp().V8H(), rhs.fp().V8H());
   Addp(dst.fp().V4S(), tmp1, tmp2);
+}
+
+void LiftoffAssembler::emit_i32x4_extmul_low_i16x8_s(LiftoffRegister dst,
+                                                     LiftoffRegister src1,
+                                                     LiftoffRegister src2) {
+  Smull(dst.fp().V4S(), src1.fp().V4H(), src2.fp().V4H());
+}
+
+void LiftoffAssembler::emit_i32x4_extmul_low_i16x8_u(LiftoffRegister dst,
+                                                     LiftoffRegister src1,
+                                                     LiftoffRegister src2) {
+  Umull(dst.fp().V4S(), src1.fp().V4H(), src2.fp().V4H());
+}
+
+void LiftoffAssembler::emit_i32x4_extmul_high_i16x8_s(LiftoffRegister dst,
+                                                      LiftoffRegister src1,
+                                                      LiftoffRegister src2) {
+  Smull2(dst.fp().V4S(), src1.fp().V8H(), src2.fp().V8H());
+}
+
+void LiftoffAssembler::emit_i32x4_extmul_high_i16x8_u(LiftoffRegister dst,
+                                                      LiftoffRegister src1,
+                                                      LiftoffRegister src2) {
+  Umull2(dst.fp().V4S(), src1.fp().V8H(), src2.fp().V8H());
 }
 
 void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
@@ -2798,6 +2846,30 @@ void LiftoffAssembler::emit_i8x16_abs(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
   Abs(dst.fp().V8H(), src.fp().V8H());
+}
+
+void LiftoffAssembler::emit_i16x8_extmul_low_i8x16_s(LiftoffRegister dst,
+                                                     LiftoffRegister src1,
+                                                     LiftoffRegister src2) {
+  Smull(dst.fp().V8H(), src1.fp().V8B(), src2.fp().V8B());
+}
+
+void LiftoffAssembler::emit_i16x8_extmul_low_i8x16_u(LiftoffRegister dst,
+                                                     LiftoffRegister src1,
+                                                     LiftoffRegister src2) {
+  Umull(dst.fp().V8H(), src1.fp().V8B(), src2.fp().V8B());
+}
+
+void LiftoffAssembler::emit_i16x8_extmul_high_i8x16_s(LiftoffRegister dst,
+                                                      LiftoffRegister src1,
+                                                      LiftoffRegister src2) {
+  Smull2(dst.fp().V8H(), src1.fp().V16B(), src2.fp().V16B());
+}
+
+void LiftoffAssembler::emit_i16x8_extmul_high_i8x16_u(LiftoffRegister dst,
+                                                      LiftoffRegister src1,
+                                                      LiftoffRegister src2) {
+  Umull2(dst.fp().V8H(), src1.fp().V16B(), src2.fp().V16B());
 }
 
 void LiftoffAssembler::emit_i32x4_abs(LiftoffRegister dst,

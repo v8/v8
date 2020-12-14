@@ -2876,6 +2876,18 @@ class LiftoffCompiler {
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_max_s);
       case wasm::kExprI16x8MaxU:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_max_u);
+      case wasm::kExprI16x8ExtMulLowI8x16S:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i16x8_extmul_low_i8x16_s);
+      case wasm::kExprI16x8ExtMulLowI8x16U:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i16x8_extmul_low_i8x16_u);
+      case wasm::kExprI16x8ExtMulHighI8x16S:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i16x8_extmul_high_i8x16_s);
+      case wasm::kExprI16x8ExtMulHighI8x16U:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i16x8_extmul_high_i8x16_u);
       case wasm::kExprI32x4Neg:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_neg);
       case wasm::kExprV32x4AnyTrue:
@@ -2910,6 +2922,18 @@ class LiftoffCompiler {
       case wasm::kExprI32x4DotI16x8S:
         return EmitBinOp<kS128, kS128>(
             &LiftoffAssembler::emit_i32x4_dot_i16x8_s);
+      case wasm::kExprI32x4ExtMulLowI16x8S:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i32x4_extmul_low_i16x8_s);
+      case wasm::kExprI32x4ExtMulLowI16x8U:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i32x4_extmul_low_i16x8_u);
+      case wasm::kExprI32x4ExtMulHighI16x8S:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i32x4_extmul_high_i16x8_s);
+      case wasm::kExprI32x4ExtMulHighI16x8U:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i32x4_extmul_high_i16x8_u);
       case wasm::kExprI64x2Neg:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i64x2_neg);
       case wasm::kExprI64x2Shl:
@@ -2927,6 +2951,18 @@ class LiftoffCompiler {
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i64x2_sub);
       case wasm::kExprI64x2Mul:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i64x2_mul);
+      case wasm::kExprI64x2ExtMulLowI32x4S:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i64x2_extmul_low_i32x4_s);
+      case wasm::kExprI64x2ExtMulLowI32x4U:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i64x2_extmul_low_i32x4_u);
+      case wasm::kExprI64x2ExtMulHighI32x4S:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i64x2_extmul_high_i32x4_s);
+      case wasm::kExprI64x2ExtMulHighI32x4U:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i64x2_extmul_high_i32x4_u);
       case wasm::kExprF32x4Abs:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_abs);
       case wasm::kExprF32x4Neg:
