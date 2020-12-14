@@ -2108,11 +2108,12 @@ class ModuleDecoderImpl : public Decoder {
     }
 
     // We know now that the flag is valid. Time to read the rest.
-    size_t num_globals = module_.get()->globals.size();
+    size_t num_globals = module_->globals.size();
+    ValueType expected_type = module_->is_memory64 ? kWasmI64 : kWasmI32;
     if (flag == SegmentFlags::kActiveNoIndex) {
       *is_active = true;
       *index = 0;
-      *offset = consume_init_expr(module_.get(), kWasmI32, num_globals);
+      *offset = consume_init_expr(module_.get(), expected_type, num_globals);
       return;
     }
     if (flag == SegmentFlags::kPassive) {
@@ -2122,7 +2123,7 @@ class ModuleDecoderImpl : public Decoder {
     if (flag == SegmentFlags::kActiveWithIndex) {
       *is_active = true;
       *index = consume_u32v("memory index");
-      *offset = consume_init_expr(module_.get(), kWasmI32, num_globals);
+      *offset = consume_init_expr(module_.get(), expected_type, num_globals);
     }
   }
 

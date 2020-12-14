@@ -3282,6 +3282,32 @@ TEST_F(WasmModuleVerifyTest, IllegalPackedFields) {
   EXPECT_NOT_OK(result, "invalid value type");
 }
 
+TEST_F(WasmModuleVerifyTest, Memory64DataSegment) {
+  WASM_FEATURE_SCOPE(memory64);
+  for (bool enable_memory64 : {false, true}) {
+    for (bool use_memory64 : {false, true}) {
+      byte const_opcode = use_memory64 ? kExprI64Const : kExprI32Const;
+      const byte data[] = {
+          SECTION(Memory, ENTRY_COUNT(1),
+                  enable_memory64 ? kMemory64WithMaximum : kWithMaximum, 28,
+                  28),
+          SECTION(Data, ENTRY_COUNT(1), LINEAR_MEMORY_INDEX_0,  // -
+                  const_opcode, 0, kExprEnd,                    // dest addr
+                  U32V_1(3),                                    // source size
+                  'a', 'b', 'c')                                // data bytes
+      };
+
+      if (enable_memory64 == use_memory64) {
+        EXPECT_VERIFIES(data);
+      } else if (enable_memory64) {
+        EXPECT_FAILURE_WITH_MSG(data, "expected i64, got i32");
+      } else {
+        EXPECT_FAILURE_WITH_MSG(data, "expected i32, got i64");
+      }
+    }
+  }
+}
+
 #undef EXPECT_INIT_EXPR
 #undef EXPECT_INIT_EXPR_FAIL
 #undef WASM_INIT_EXPR_I32V_1
