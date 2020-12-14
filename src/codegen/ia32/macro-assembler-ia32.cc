@@ -1647,6 +1647,17 @@ void TurboAssembler::Psignd(XMMRegister dst, Operand src) {
   FATAL("no AVX or SSE3 support");
 }
 
+void TurboAssembler::Haddps(XMMRegister dst, XMMRegister src1, Operand src2) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vhaddps(dst, src1, src2);
+  } else {
+    CpuFeatureScope scope(this, SSE3);
+    DCHECK_EQ(dst, src1);
+    haddps(dst, src2);
+  }
+}
+
 void TurboAssembler::Pcmpeqq(XMMRegister dst, XMMRegister src1,
                              XMMRegister src2) {
   if (CpuFeatures::IsSupported(AVX)) {

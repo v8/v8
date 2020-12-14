@@ -2437,60 +2437,29 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Rsqrtps(i.OutputSimd128Register(), i.InputOperand(0));
       break;
     }
-    case kSSEF32x4Add: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ addps(i.OutputSimd128Register(), i.InputOperand(1));
+    case kIA32F32x4Add: {
+      __ Addps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputOperand(1));
       break;
-    }
-    case kAVXF32x4Add: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vaddps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+    };
+    case kIA32F32x4AddHoriz: {
+      __ Haddps(i.OutputSimd128Register(), i.InputSimd128Register(0),
                 i.InputOperand(1));
       break;
     }
-    case kSSEF32x4AddHoriz: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      CpuFeatureScope sse_scope(tasm(), SSE3);
-      __ haddps(i.OutputSimd128Register(), i.InputOperand(1));
+    case kIA32F32x4Sub: {
+      __ Subps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputOperand(1));
       break;
     }
-    case kAVXF32x4AddHoriz: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vhaddps(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputOperand(1));
+    case kIA32F32x4Mul: {
+      __ Mulps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputOperand(1));
       break;
     }
-    case kSSEF32x4Sub: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ subps(i.OutputSimd128Register(), i.InputOperand(1));
-      break;
-    }
-    case kAVXF32x4Sub: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vsubps(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputOperand(1));
-      break;
-    }
-    case kSSEF32x4Mul: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ mulps(i.OutputSimd128Register(), i.InputOperand(1));
-      break;
-    }
-    case kAVXF32x4Mul: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vmulps(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputOperand(1));
-      break;
-    }
-    case kSSEF32x4Div: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ divps(i.OutputSimd128Register(), i.InputOperand(1));
-      break;
-    }
-    case kAVXF32x4Div: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vdivps(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputOperand(1));
+    case kIA32F32x4Div: {
+      __ Divps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputOperand(1));
       break;
     }
     case kSSEF32x4Min: {

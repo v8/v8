@@ -166,16 +166,11 @@ namespace compiler {
   V(IA32F32x4Sqrt)                 \
   V(IA32F32x4RecipApprox)          \
   V(IA32F32x4RecipSqrtApprox)      \
-  V(SSEF32x4Add)                   \
-  V(AVXF32x4Add)                   \
-  V(SSEF32x4AddHoriz)              \
-  V(AVXF32x4AddHoriz)              \
-  V(SSEF32x4Sub)                   \
-  V(AVXF32x4Sub)                   \
-  V(SSEF32x4Mul)                   \
-  V(AVXF32x4Mul)                   \
-  V(SSEF32x4Div)                   \
-  V(AVXF32x4Div)                   \
+  V(IA32F32x4Add)                  \
+  V(IA32F32x4AddHoriz)             \
+  V(IA32F32x4Sub)                  \
+  V(IA32F32x4Mul)                  \
+  V(IA32F32x4Div)                  \
   V(SSEF32x4Min)                   \
   V(AVXF32x4Min)                   \
   V(SSEF32x4Max)                   \

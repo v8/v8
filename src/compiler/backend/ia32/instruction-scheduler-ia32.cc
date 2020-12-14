@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/logging.h"
+#include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/backend/instruction-scheduler.h"
+#include "src/compiler/backend/instruction.h"
 
 namespace v8 {
 namespace internal {
@@ -145,16 +148,11 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32F32x4Sqrt:
     case kIA32F32x4RecipApprox:
     case kIA32F32x4RecipSqrtApprox:
-    case kSSEF32x4Add:
-    case kAVXF32x4Add:
-    case kSSEF32x4AddHoriz:
-    case kAVXF32x4AddHoriz:
-    case kSSEF32x4Sub:
-    case kAVXF32x4Sub:
-    case kSSEF32x4Mul:
-    case kAVXF32x4Mul:
-    case kSSEF32x4Div:
-    case kAVXF32x4Div:
+    case kIA32F32x4Add:
+    case kIA32F32x4AddHoriz:
+    case kIA32F32x4Sub:
+    case kIA32F32x4Mul:
+    case kIA32F32x4Div:
     case kSSEF32x4Min:
     case kAVXF32x4Min:
     case kSSEF32x4Max:
