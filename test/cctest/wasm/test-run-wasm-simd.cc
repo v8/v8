@@ -2351,7 +2351,6 @@ template <typename S, typename T, typename OpType = T (*)(S, S)>
 void RunExtMulTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                    WasmOpcode opcode, OpType expected_op, WasmOpcode splat,
                    MulHalf half) {
-  FLAG_SCOPE(wasm_simd_post_mvp);
   WasmRunner<int32_t, S, S> r(execution_tier, lower_simd);
   int lane_to_zero = half == MulHalf::kLow ? 1 : 0;
   T* g = r.builder().template AddGlobal<T>(kWasmS128);

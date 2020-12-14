@@ -401,6 +401,10 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I16x8MaxS, 0xfd98, s_ss)                 \
   V(I16x8MaxU, 0xfd99, s_ss)                 \
   V(I16x8RoundingAverageU, 0xfd9b, s_ss)     \
+  V(I16x8ExtMulLowI8x16S, 0xfd9a, s_ss)      \
+  V(I16x8ExtMulHighI8x16S, 0xfd9d, s_ss)     \
+  V(I16x8ExtMulLowI8x16U, 0xfd9e, s_ss)      \
+  V(I16x8ExtMulHighI8x16U, 0xfd9f, s_ss)     \
   V(I32x4Abs, 0xfda0, s_s)                   \
   V(I32x4Neg, 0xfda1, s_s)                   \
   V(V32x4AnyTrue, 0xfda2, i_s)               \
@@ -421,6 +425,10 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I32x4MaxS, 0xfdb8, s_ss)                 \
   V(I32x4MaxU, 0xfdb9, s_ss)                 \
   V(I32x4DotI16x8S, 0xfdba, s_ss)            \
+  V(I32x4ExtMulLowI16x8S, 0xfdbb, s_ss)      \
+  V(I32x4ExtMulHighI16x8S, 0xfdbd, s_ss)     \
+  V(I32x4ExtMulLowI16x8U, 0xfdbe, s_ss)      \
+  V(I32x4ExtMulHighI16x8U, 0xfdbf, s_ss)     \
   V(I64x2Neg, 0xfdc1, s_s)                   \
   V(I64x2Shl, 0xfdcb, s_si)                  \
   V(I64x2ShrS, 0xfdcc, s_si)                 \
@@ -428,6 +436,10 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I64x2Add, 0xfdce, s_ss)                  \
   V(I64x2Sub, 0xfdd1, s_ss)                  \
   V(I64x2Mul, 0xfdd5, s_ss)                  \
+  V(I64x2ExtMulLowI32x4S, 0xfdd2, s_ss)      \
+  V(I64x2ExtMulHighI32x4S, 0xfdd3, s_ss)     \
+  V(I64x2ExtMulLowI32x4U, 0xfdd6, s_ss)      \
+  V(I64x2ExtMulHighI32x4U, 0xfdd7, s_ss)     \
   V(F32x4Abs, 0xfde0, s_s)                   \
   V(F32x4Neg, 0xfde1, s_s)                   \
   V(F32x4Sqrt, 0xfde3, s_s)                  \
@@ -483,18 +495,6 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I32x4SignSelect, 0xfd7f, s_sss)         \
   V(I64x2SignSelect, 0xfd94, s_sss)         \
   V(I16x8Q15MulRSatS, 0xfd9c, s_ss)         \
-  V(I16x8ExtMulLowI8x16S, 0xfd9a, s_ss)     \
-  V(I16x8ExtMulHighI8x16S, 0xfd9d, s_ss)    \
-  V(I16x8ExtMulLowI8x16U, 0xfd9e, s_ss)     \
-  V(I16x8ExtMulHighI8x16U, 0xfd9f, s_ss)    \
-  V(I32x4ExtMulLowI16x8S, 0xfdbb, s_ss)     \
-  V(I32x4ExtMulHighI16x8S, 0xfdbd, s_ss)    \
-  V(I32x4ExtMulLowI16x8U, 0xfdbe, s_ss)     \
-  V(I32x4ExtMulHighI16x8U, 0xfdbf, s_ss)    \
-  V(I64x2ExtMulLowI32x4S, 0xfdd2, s_ss)     \
-  V(I64x2ExtMulHighI32x4S, 0xfdd3, s_ss)    \
-  V(I64x2ExtMulLowI32x4U, 0xfdd6, s_ss)     \
-  V(I64x2ExtMulHighI32x4U, 0xfdd7, s_ss)    \
   V(I32x4ExtAddPairwiseI16x8S, 0xfda5, s_s) \
   V(I32x4ExtAddPairwiseI16x8U, 0xfda6, s_s) \
   V(I16x8ExtAddPairwiseI8x16S, 0xfdc2, s_s) \
