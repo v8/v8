@@ -1999,7 +1999,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputDoubleRegister();
       int8_t lane = i.InputInt8(1);
       if (lane != 0) {
-        DCHECK_LT(lane, 4);
+        DCHECK_EQ(lane, 1);
         __ shufpd(dst, dst, lane);
       }
       break;
@@ -2012,7 +2012,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (lane == 0) {
         if (dst != src) __ vmovapd(dst, src);
       } else {
-        DCHECK_LT(lane, 4);
+        DCHECK_EQ(lane, 1);
         __ vshufpd(dst, src, src, lane);
       }
       break;
