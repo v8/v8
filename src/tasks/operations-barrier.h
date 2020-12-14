@@ -35,9 +35,7 @@ namespace internal {
 // }
 //
 // void MaybeRunOperation() {
-//   auto token = barrier_.TryLock();
-//   if (token)
-//     Process();
+//   if (token = barrier_.TryLock()) Process();
 // }
 //
 class V8_EXPORT_PRIVATE OperationsBarrier {
@@ -46,7 +44,7 @@ class V8_EXPORT_PRIVATE OperationsBarrier {
   // operation while being certain it happens-before CancelAndWait(). Releasing
   // this Token relinquishes this right.
   //
-  // This class is thread-safe
+  // This class is thread-safe.
   class Token {
    public:
     Token() = default;
@@ -54,9 +52,17 @@ class V8_EXPORT_PRIVATE OperationsBarrier {
       if (outer_) outer_->Release();
     }
     Token(const Token&) = delete;
-    Token(Token&& other) V8_NOEXCEPT {
-      this->outer_ = other.outer_;
+    Token(Token&& other) V8_NOEXCEPT : outer_(other.outer_) {
       other.outer_ = nullptr;
+    }
+
+    Token& operator=(const Token&) = delete;
+    Token& operator=(Token&& other) V8_NOEXCEPT {
+      DCHECK_NE(this, &other);
+      if (outer_) outer_->Release();
+      outer_ = other.outer_;
+      other.outer_ = nullptr;
+      return *this;
     }
 
     operator bool() const { return !!outer_; }
