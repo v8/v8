@@ -2268,6 +2268,9 @@ void Decoder::DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr) {
       Format(instr, q ? "vpaddl.u'size2 'Qd, 'Qm" : "vpaddl.u'size2 'Dd, 'Dm");
     } else if (size == 0 && opc1 == 0b10 && opc2 == 0) {
       Format(instr, q ? "vswp 'Qd, 'Qm" : "vswp 'Dd, 'Dm");
+    } else if (opc1 == 0 && opc2 == 0b1010) {
+      DCHECK_EQ(0, size);
+      Format(instr, q ? "vcnt.8 'Qd, 'Qm" : "vcnt.8 'Dd, 'Dm");
     } else if (opc1 == 0 && opc2 == 0b1011) {
       Format(instr, "vmvn 'Qd, 'Qm");
     } else if (opc1 == 0b01 && opc2 == 0b0100) {

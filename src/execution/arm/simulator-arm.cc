@@ -4510,6 +4510,17 @@ void Simulator::DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr) {
         set_neon_register(vm, dval);
         set_neon_register(vd, mval);
       }
+    } else if (opc1 == 0 && opc2 == 0b1010) {
+      // vcnt Qd, Qm.
+      DCHECK_EQ(0, size);
+      int vd = instr->VFPDRegValue(q ? kSimd128Precision : kDoublePrecision);
+      int vm = instr->VFPMRegValue(q ? kSimd128Precision : kDoublePrecision);
+      uint8_t q_data[16];
+      get_neon_register(vm, q_data);
+      for (int i = 0; i < 16; i++) {
+        q_data[i] = base::bits::CountPopulation(q_data[i]);
+      }
+      set_neon_register(vd, q_data);
     } else if (opc1 == 0 && opc2 == 0b1011) {
       // vmvn Qd, Qm.
       int vd = instr->VFPDRegValue(kSimd128Precision);
