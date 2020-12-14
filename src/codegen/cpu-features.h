@@ -20,6 +20,7 @@ enum CpuFeature {
   SSE3,
   SAHF,
   AVX,
+  AVX2,
   FMA3,
   BMI1,
   BMI2,

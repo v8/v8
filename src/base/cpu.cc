@@ -383,6 +383,7 @@ bool CPU::StarboardDetectCPU() {
       has_sse41_ = features.x86.has_sse41;
       has_sahf_ = features.x86.has_sahf;
       has_avx_ = features.x86.has_avx;
+      has_avx2_ = features.x86.has_avx2;
       has_fma3_ = features.x86.has_fma3;
       has_bmi1_ = features.x86.has_bmi1;
       has_bmi2_ = features.x86.has_bmi2;
@@ -427,6 +428,7 @@ CPU::CPU()
       is_atom_(false),
       has_osxsave_(false),
       has_avx_(false),
+      has_avx2_(false),
       has_fma3_(false),
       has_bmi1_(false),
       has_bmi2_(false),
@@ -469,6 +471,12 @@ CPU::CPU()
   // Interpret CPU feature information.
   if (num_ids > 0) {
     __cpuid(cpu_info, 1);
+
+    int cpu_info7[4] = {0};
+    if (num_ids >= 7) {
+      __cpuid(cpu_info7, 7);
+    }
+
     stepping_ = cpu_info[0] & 0xF;
     model_ = ((cpu_info[0] >> 4) & 0xF) + ((cpu_info[0] >> 12) & 0xF0);
     family_ = (cpu_info[0] >> 8) & 0xF;
@@ -487,6 +495,7 @@ CPU::CPU()
     has_popcnt_ = (cpu_info[2] & 0x00800000) != 0;
     has_osxsave_ = (cpu_info[2] & 0x08000000) != 0;
     has_avx_ = (cpu_info[2] & 0x10000000) != 0;
+    has_avx2_ = (cpu_info7[1] & 0x00000020) != 0;
     has_fma3_ = (cpu_info[2] & 0x00001000) != 0;
 
     if (family_ == 0x6) {
