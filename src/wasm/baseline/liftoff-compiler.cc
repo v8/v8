@@ -122,17 +122,6 @@ compiler::CallDescriptor* GetLoweredCallDescriptor(
              : call_desc;
 }
 
-constexpr ValueType kSupportedTypesArr[] = {
-    kWasmI32,  kWasmI64,       kWasmF32,    kWasmF64,
-    kWasmS128, kWasmExternRef, kWasmFuncRef};
-constexpr Vector<const ValueType> kSupportedTypes =
-    ArrayVector(kSupportedTypesArr);
-
-constexpr ValueType kSupportedTypesWithoutRefsArr[] = {
-    kWasmI32, kWasmI64, kWasmF32, kWasmF64, kWasmS128};
-constexpr Vector<const ValueType> kSupportedTypesWithoutRefs =
-    ArrayVector(kSupportedTypesWithoutRefsArr);
-
 constexpr LiftoffCondition GetCompareCondition(WasmOpcode opcode) {
   switch (opcode) {
     case kExprI32Eq:
@@ -444,17 +433,27 @@ class LiftoffCompiler {
     }
   }
 
-  bool CheckSupportedType(FullDecoder* decoder,
-                          Vector<const ValueType> supported_types,
-                          ValueType type, const char* context) {
-    // Special case for kWasm128 which requires specific hardware support.
-    if (type == kWasmS128 && (!CpuFeatures::SupportsWasmSimd128())) {
-      unsupported(decoder, kSimd, "simd");
-      return false;
-    }
-    // Check supported types.
-    for (ValueType supported : supported_types) {
-      if (type == supported) return true;
+  bool CheckSupportedType(FullDecoder* decoder, ValueType type,
+                          const char* context) {
+    switch (type.kind()) {
+      case ValueType::kI32:
+      case ValueType::kI64:
+      case ValueType::kF32:
+      case ValueType::kF64:
+        return true;
+      case ValueType::kS128:
+        if (CpuFeatures::SupportsWasmSimd128()) return true;
+        break;
+      case ValueType::kRef:
+      case ValueType::kOptRef:
+      case ValueType::kRtt:
+        if (FLAG_experimental_liftoff_extern_ref) return true;
+        break;
+      case ValueType::kBottom:
+      case ValueType::kI8:
+      case ValueType::kI16:
+      case ValueType::kStmt:
+        UNREACHABLE();
     }
     LiftoffBailoutReason bailout_reason = BailoutReasonForType(type);
     EmbeddedVector<char, 128> buffer;
@@ -587,12 +586,7 @@ class LiftoffCompiler {
 
   void StartFunctionBody(FullDecoder* decoder, Control* block) {
     for (uint32_t i = 0; i < __ num_locals(); ++i) {
-      if (!CheckSupportedType(decoder,
-                              FLAG_experimental_liftoff_extern_ref
-                                  ? kSupportedTypes
-                                  : kSupportedTypesWithoutRefs,
-                              __ local_type(i), "param"))
-        return;
+      if (!CheckSupportedType(decoder, __ local_type(i), "param")) return;
     }
 
     // Input 0 is the call target, the instance is at 1.
@@ -1880,11 +1874,7 @@ class LiftoffCompiler {
   void GlobalGet(FullDecoder* decoder, Value* result,
                  const GlobalIndexImmediate<validate>& imm) {
     const auto* global = &env_->module->globals[imm.index];
-    if (!CheckSupportedType(decoder,
-                            FLAG_experimental_liftoff_extern_ref
-                                ? kSupportedTypes
-                                : kSupportedTypesWithoutRefs,
-                            global->type, "global")) {
+    if (!CheckSupportedType(decoder, global->type, "global")) {
       return;
     }
 
@@ -1919,11 +1909,7 @@ class LiftoffCompiler {
   void GlobalSet(FullDecoder* decoder, const Value& value,
                  const GlobalIndexImmediate<validate>& imm) {
     auto* global = &env_->module->globals[imm.index];
-    if (!CheckSupportedType(decoder,
-                            FLAG_experimental_liftoff_extern_ref
-                                ? kSupportedTypes
-                                : kSupportedTypesWithoutRefs,
-                            global->type, "global")) {
+    if (!CheckSupportedType(decoder, global->type, "global")) {
       return;
     }
 
@@ -2397,8 +2383,7 @@ class LiftoffCompiler {
                const MemoryAccessImmediate<validate>& imm,
                const Value& index_val, Value* result) {
     ValueType value_type = type.value_type();
-    if (!CheckSupportedType(decoder, kSupportedTypes, value_type, "load"))
-      return;
+    if (!CheckSupportedType(decoder, value_type, "load")) return;
     LiftoffRegList pinned;
     Register index = pinned.set(__ PopToRegister()).gp();
     if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned,
@@ -2433,8 +2418,7 @@ class LiftoffCompiler {
                      const Value& index_val, Value* result) {
     // LoadTransform requires SIMD support, so check for it here. If
     // unsupported, bailout and let TurboFan lower the code.
-    if (!CheckSupportedType(decoder, kSupportedTypes, kWasmS128,
-                            "LoadTransform")) {
+    if (!CheckSupportedType(decoder, kWasmS128, "LoadTransform")) {
       return;
     }
 
@@ -2487,8 +2471,7 @@ class LiftoffCompiler {
                 const MemoryAccessImmediate<validate>& imm,
                 const Value& index_val, const Value& value_val) {
     ValueType value_type = type.value_type();
-    if (!CheckSupportedType(decoder, kSupportedTypes, value_type, "store"))
-      return;
+    if (!CheckSupportedType(decoder, value_type, "store")) return;
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
     Register index = pinned.set(__ PopToRegister(pinned)).gp();
@@ -3956,16 +3939,7 @@ class LiftoffCompiler {
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[], Value returns[], CallKind call_kind) {
     for (ValueType ret : imm.sig->returns()) {
-      if (!CheckSupportedType(decoder,
-                              FLAG_experimental_liftoff_extern_ref
-                                  ? kSupportedTypes
-                                  : kSupportedTypesWithoutRefs,
-                              ret, "return")) {
-        // TODO(7581): Remove this once reference-types are full supported.
-        if (!ret.is_reference_type()) {
-          return;
-        }
-      }
+      if (!CheckSupportedType(decoder, ret, "return")) return;
     }
 
     auto call_descriptor =
@@ -4038,13 +4012,7 @@ class LiftoffCompiler {
       return unsupported(decoder, kRefTypes, "table index != 0");
     }
     for (ValueType ret : imm.sig->returns()) {
-      if (!CheckSupportedType(decoder,
-                              FLAG_experimental_liftoff_extern_ref
-                                  ? kSupportedTypes
-                                  : kSupportedTypesWithoutRefs,
-                              ret, "return")) {
-        return;
-      }
+      if (!CheckSupportedType(decoder, ret, "return")) return;
     }
 
     // Pop the index.
