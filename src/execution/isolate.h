@@ -1638,6 +1638,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   LocalHeap* main_thread_local_heap();
+  LocalHeap* CurrentLocalHeap();
 
 #ifdef V8_HEAP_SANDBOX
   ExternalPointerTable& external_pointer_table() {
