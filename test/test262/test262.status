@@ -552,11 +552,8 @@
   'intl402/Intl/getCanonicalLocales/preferred-grandfathered': [FAIL],
   'intl402/Locale/extensions-grandfathered': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9613
+  # https://github.com/tc39/test262/pull/2904
   'intl402/Locale/likely-subtags-grandfathered': [FAIL],
-
-  # http://crbug/v8/11039
-  'intl402/Locale/reject-duplicate-variants-in-tlang': [FAIL],
 
   # http://crbug/v8/10447
   'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-yes-to-true': [FAIL],
