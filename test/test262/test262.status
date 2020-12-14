@@ -85,8 +85,6 @@
   'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/key-is-numericindex-desc-configurable': [FAIL],
   'built-ins/TypedArrayConstructors/internals/GetOwnProperty/BigInt/index-prop-desc': [FAIL],
   'built-ins/TypedArrayConstructors/internals/GetOwnProperty/index-prop-desc': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/tonumber-value-detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/BigInt/tonumber-value-detached-buffer': [FAIL],
   # Some TypedArray methods throw due to the same bug, from Get
   'built-ins/TypedArray/prototype/every/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/every/BigInt/callbackfn-detachbuffer': [FAIL],
@@ -122,8 +120,6 @@
   'built-ins/TypedArray/prototype/fill/coerced-value-detach': [FAIL],
   'built-ins/TypedArray/prototype/fill/coerced-end-detach': [FAIL],
   'built-ins/TypedArray/prototype/fill/coerced-start-detach': [FAIL],
-  # includes should also throw on detached buffers
-  'built-ins/TypedArray/prototype/includes/detached-buffer-tointeger': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4951
   'language/expressions/assignment/destructuring/iterator-destructuring-property-reference-target-evaluation-order': [FAIL],
@@ -495,14 +491,6 @@
   'language/statements/try/tco-finally': [SKIP],
   'language/statements/while/tco-body': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5327
-  'built-ins/TypedArrayConstructors/internals/Set/key-is-minus-zero': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-minus-zero': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/key-is-not-integer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-not-integer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/key-is-out-of-bounds': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-out-of-bounds': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=6049
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-caller': [FAIL_SLOPPY],
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-arguments': [FAIL_SLOPPY],
@@ -599,41 +587,6 @@
 
   # http://crbug/v8/10905
   'language/identifier-resolution/assign-to-global-undefined': [FAIL],
-
-  # http://crbug/v8/10961
-  'built-ins/Array/prototype/item/index-argument-tointeger': [FAIL],
-  'built-ins/Array/prototype/item/index-non-numeric-argument-tointeger': [FAIL],
-  'built-ins/Array/prototype/item/index-non-numeric-argument-tointeger-invalid': [FAIL],
-  'built-ins/Array/prototype/item/length': [FAIL],
-  'built-ins/Array/prototype/item/name': [FAIL],
-  'built-ins/Array/prototype/item/prop-desc': [FAIL],
-  'built-ins/Array/prototype/item/return-abrupt-from-this': [FAIL],
-  'built-ins/Array/prototype/item/returns-item': [FAIL],
-  'built-ins/Array/prototype/item/returns-item-relative-index': [FAIL],
-  'built-ins/Array/prototype/item/returns-undefined-for-holes-in-sparse-arrays': [FAIL],
-  'built-ins/Array/prototype/item/returns-undefined-for-out-of-range-index': [FAIL],
-  'built-ins/String/prototype/item/index-argument-tointeger': [FAIL],
-  'built-ins/String/prototype/item/index-non-numeric-argument-tointeger': [FAIL],
-  'built-ins/String/prototype/item/index-non-numeric-argument-tointeger-invalid': [FAIL],
-  'built-ins/String/prototype/item/length': [FAIL],
-  'built-ins/String/prototype/item/name': [FAIL],
-  'built-ins/String/prototype/item/prop-desc': [FAIL],
-  'built-ins/String/prototype/item/return-abrupt-from-this': [FAIL],
-  'built-ins/String/prototype/item/returns-code-unit': [FAIL],
-  'built-ins/String/prototype/item/returns-item': [FAIL],
-  'built-ins/String/prototype/item/returns-item-relative-index': [FAIL],
-  'built-ins/String/prototype/item/returns-undefined-for-out-of-range-index': [FAIL],
-  'built-ins/TypedArray/prototype/item/index-argument-tointeger': [FAIL],
-  'built-ins/TypedArray/prototype/item/index-non-numeric-argument-tointeger': [FAIL],
-  'built-ins/TypedArray/prototype/item/index-non-numeric-argument-tointeger-invalid': [FAIL],
-  'built-ins/TypedArray/prototype/item/length': [FAIL],
-  'built-ins/TypedArray/prototype/item/name': [FAIL],
-  'built-ins/TypedArray/prototype/item/prop-desc': [FAIL],
-  'built-ins/TypedArray/prototype/item/return-abrupt-from-this': [FAIL],
-  'built-ins/TypedArray/prototype/item/returns-item': [FAIL],
-  'built-ins/TypedArray/prototype/item/returns-item-relative-index': [FAIL],
-  'built-ins/TypedArray/prototype/item/returns-undefined-for-holes-in-sparse-arrays': [FAIL],
-  'built-ins/TypedArray/prototype/item/returns-undefined-for-out-of-range-index': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
