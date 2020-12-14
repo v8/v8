@@ -63,8 +63,6 @@ enum class OddballType : uint8_t {
   V(ScopeInfo)                                      \
   /* Subtypes of String */                          \
   V(InternalizedString)                             \
-  /* Subtypes of FixedArrayBase */                  \
-  V(BytecodeArray)                                  \
   /* Subtypes of Name */                            \
   V(Symbol)                                         \
   /* Subtypes of HeapObject */                      \
@@ -72,20 +70,7 @@ enum class OddballType : uint8_t {
   V(ArrayBoilerplateDescription)                    \
   V(CallHandlerInfo)                                \
   V(Cell)                                           \
-  V(SharedFunctionInfo)                             \
   V(TemplateObjectDescription)
-
-// This list is sorted such that subtypes appear before their supertypes.
-// DO NOT VIOLATE THIS PROPERTY!
-// Classes in this list behave like serialized classes, but they allow lazy
-// serialization from background threads where this is safe (e.g. for objects
-// that are immutable and fully initialized once visible). Pass
-// ObjectRef::BackgroundSerialization::kAllowed to the ObjectRef constructor
-// for objects where serialization from the background thread is safe.
-#define HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(V) \
-  /* Subtypes of HeapObject */                                    \
-  V(BigInt)                                                       \
-  V(HeapNumber)
 
 // This list is sorted such that subtypes appear before their supertypes.
 // DO NOT VIOLATE THIS PROPERTY!
@@ -105,6 +90,7 @@ enum class OddballType : uint8_t {
   V(Context)                                  \
   V(ScriptContextTable)                       \
   /* Subtypes of FixedArrayBase */            \
+  V(BytecodeArray)                            \
   V(FixedArray)                               \
   V(FixedDoubleArray)                         \
   /* Subtypes of Name */                      \
@@ -113,16 +99,19 @@ enum class OddballType : uint8_t {
   V(JSObject)                                 \
   /* Subtypes of HeapObject */                \
   V(AllocationSite)                           \
+  V(BigInt)                                   \
   V(Code)                                     \
   V(DescriptorArray)                          \
   V(FeedbackCell)                             \
   V(FeedbackVector)                           \
   V(FixedArrayBase)                           \
   V(FunctionTemplateInfo)                     \
+  V(HeapNumber)                               \
   V(JSReceiver)                               \
   V(Map)                                      \
   V(Name)                                     \
   V(PropertyCell)                             \
+  V(SharedFunctionInfo)                       \
   V(SourceTextModule)                         \
   /* Subtypes of Object */                    \
   V(HeapObject)
@@ -135,25 +124,18 @@ class PerIsolateCompilerCache;
 class PropertyAccessInfo;
 #define FORWARD_DECL(Name) class Name##Ref;
 HEAP_BROKER_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
-HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
 HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(FORWARD_DECL)
 #undef FORWARD_DECL
 
 class V8_EXPORT_PRIVATE ObjectRef {
  public:
-  enum class BackgroundSerialization {
-    kDisallowed,
-    kAllowed,
-  };
-
   ObjectRef(JSHeapBroker* broker, Handle<Object> object,
-            BackgroundSerialization background_serialization =
-                BackgroundSerialization::kDisallowed,
             bool check_type = true);
   ObjectRef(JSHeapBroker* broker, ObjectData* data, bool check_type = true)
       : data_(data), broker_(broker) {
     CHECK_NOT_NULL(data_);
   }
+
   Handle<Object> object() const;
 
   bool equals(const ObjectRef& other) const;
@@ -164,13 +146,11 @@ class V8_EXPORT_PRIVATE ObjectRef {
 
 #define HEAP_IS_METHOD_DECL(Name) bool Is##Name() const;
   HEAP_BROKER_SERIALIZED_OBJECT_LIST(HEAP_IS_METHOD_DECL)
-  HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(HEAP_IS_METHOD_DECL)
   HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(HEAP_IS_METHOD_DECL)
 #undef HEAP_IS_METHOD_DECL
 
 #define HEAP_AS_METHOD_DECL(Name) Name##Ref As##Name() const;
   HEAP_BROKER_SERIALIZED_OBJECT_LIST(HEAP_AS_METHOD_DECL)
-  HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(HEAP_AS_METHOD_DECL)
   HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(HEAP_AS_METHOD_DECL)
 #undef HEAP_AS_METHOD_DECL
 
@@ -261,10 +241,8 @@ class HeapObjectType {
 // the outermost Ref class in the inheritance chain only.
 #define DEFINE_REF_CONSTRUCTOR(name, base)                                  \
   name##Ref(JSHeapBroker* broker, Handle<Object> object,                    \
-            BackgroundSerialization background_serialization =              \
-                BackgroundSerialization::kDisallowed,                       \
             bool check_type = true)                                         \
-      : base(broker, object, background_serialization, false) {             \
+      : base(broker, object, false) {                                       \
     if (check_type) {                                                       \
       CHECK(Is##name());                                                    \
     }                                                                       \

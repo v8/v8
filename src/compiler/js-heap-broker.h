@@ -149,14 +149,9 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   Handle<Object> GetRootHandle(Object object);
 
   // Never returns nullptr.
-  ObjectData* GetOrCreateData(
-      Handle<Object>,
-      ObjectRef::BackgroundSerialization background_serialization =
-          ObjectRef::BackgroundSerialization::kDisallowed);
+  ObjectData* GetOrCreateData(Handle<Object>);
   // Like the previous but wraps argument in handle first (for convenience).
-  ObjectData* GetOrCreateData(
-      Object, ObjectRef::BackgroundSerialization background_serialization =
-                  ObjectRef::BackgroundSerialization::kDisallowed);
+  ObjectData* GetOrCreateData(Object);
 
   // Check if {object} is any native context's %ArrayPrototype% or
   // %ObjectPrototype%.

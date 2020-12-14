@@ -1529,14 +1529,10 @@ void SerializerForBackgroundCompilation::VisitInvokeIntrinsic(
 
 void SerializerForBackgroundCompilation::VisitLdaConstant(
     BytecodeArrayIterator* iterator) {
-  Handle<Object> constant =
-      iterator->GetConstantForIndexOperand(0, broker()->isolate());
-  // TODO(v8:7790): FixedArrays still need to be serialized until they are
-  // moved to kNeverSerialized.
-  if (!FLAG_turbo_direct_heap_access || constant->IsFixedArray()) {
-    ObjectRef(broker(), constant);
-  }
-  environment()->accumulator_hints() = Hints::SingleConstant(constant, zone());
+  ObjectRef object(
+      broker(), iterator->GetConstantForIndexOperand(0, broker()->isolate()));
+  environment()->accumulator_hints() =
+      Hints::SingleConstant(object.object(), zone());
 }
 
 void SerializerForBackgroundCompilation::VisitPushContext(
