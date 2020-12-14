@@ -727,7 +727,7 @@ struct LiveRangeOrdering {
 };
 class LiveRangeBundle : public ZoneObject {
  public:
-  void MergeSpillRanges();
+  void MergeSpillRangesAndClear();
 
   int id() { return id_; }
 

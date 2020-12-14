@@ -2680,7 +2680,7 @@ LiveRangeBundle* LiveRangeBundle::TryMerge(LiveRangeBundle* lhs,
   return lhs;
 }
 
-void LiveRangeBundle::MergeSpillRanges() {
+void LiveRangeBundle::MergeSpillRangesAndClear() {
   DCHECK_IMPLIES(ranges_.empty(), uses_.empty());
   SpillRange* target = nullptr;
   for (auto range : ranges_) {
@@ -2693,6 +2693,11 @@ void LiveRangeBundle::MergeSpillRanges() {
       }
     }
   }
+  // Clear the fields so that we don't try to merge the spill ranges again when
+  // we hit the same bundle from a different LiveRange in AssignSpillSlots.
+  // LiveRangeBundles are not used after this.
+  ranges_.clear();
+  uses_.clear();
 }
 
 RegisterAllocator::RegisterAllocator(TopTierRegisterAllocationData* data,
@@ -4493,7 +4498,7 @@ void OperandAssigner::AssignSpillSlots() {
   for (auto range : data()->live_ranges()) {
     data()->tick_counter()->TickAndMaybeEnterSafepoint();
     if (range != nullptr && range->get_bundle() != nullptr) {
-      range->get_bundle()->MergeSpillRanges();
+      range->get_bundle()->MergeSpillRangesAndClear();
     }
   }
   ZoneVector<SpillRange*>& spill_ranges = data()->spill_ranges();
