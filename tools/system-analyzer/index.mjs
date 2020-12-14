@@ -219,6 +219,7 @@ class App {
     await this._startupPromise;
     try {
       const processor = new Processor(e.detail);
+      this._state.profile = processor.profile;
       const mapTimeline = processor.mapTimeline;
       const icTimeline = processor.icTimeline;
       const deoptTimeline = processor.deoptTimeline;

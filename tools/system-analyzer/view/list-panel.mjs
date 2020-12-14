@@ -3,8 +3,7 @@
 // found in the LICENSE file.
 
 import {SourcePosition} from '../../profile.mjs';
-import {IcLogEntry} from '../log/ic.mjs';
-import {MapLogEntry} from '../log/map.mjs';
+import {LogEntry} from '../log/log.mjs';
 
 import {FocusEvent, SelectionEvent, SelectTimeEvent} from './events.mjs';
 import {groupBy, LazyTable} from './helper.mjs';
@@ -18,8 +17,7 @@ DOM.defineCustomElement('view/list-panel',
   _timeline;
 
   _detailsClickHandler = this._handleDetailsClick.bind(this);
-  _mapClickHandler = this._handleMapClick.bind(this);
-  _fileClickHandler = this._handleFilePositionClick.bind(this);
+  _logEntryClickHandler = this._handleLogEntryClick.bind(this);
 
   constructor() {
     super(templateText);
@@ -118,15 +116,9 @@ DOM.defineCustomElement('view/list-panel',
     return map;
   }
 
-  _handleMapClick(e) {
+  _handleLogEntryClick(e) {
     const group = e.currentTarget.group;
-    this.dispatchEvent(new FocusEvent(group.entries[0].map));
-  }
-
-  _handleFilePositionClick(e) {
-    const group = e.currentTarget.group;
-    const sourcePosition = group.entries[0].sourcePosition;
-    this.dispatchEvent(new FocusEvent(sourcePosition));
+    this.dispatchEvent(new FocusEvent(group.key));
   }
 
   _handleDetailsClick(event) {
@@ -186,14 +178,17 @@ DOM.defineCustomElement('view/list-panel',
       tr.appendChild(DOM.td(`${group.percent.toFixed(2)}%`, 'percentage'));
       tr.appendChild(DOM.td(group.count, 'count'));
       const valueTd = tr.appendChild(DOM.td(`${group.key}`, 'key'));
-      if (group.key instanceof MapLogEntry) {
-        tr.onclick = this._mapClickHandler;
+      if (this._isClickable(group.key)) {
+        tr.onclick = this._logEntryClickHandler;
         valueTd.classList.add('clickable');
-      } else if (group.key instanceof SourcePosition) {
-        valueTd.classList.add('clickable');
-        tr.onclick = this._fileClickHandler;
       }
       return tr;
     }, 10);
+  }
+
+  _isClickable(object) {
+    if (typeof object !== 'object') return false;
+    if (object instanceof LogEntry) return true;
+    return object instanceof SourcePosition;
   }
 });

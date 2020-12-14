@@ -225,11 +225,25 @@ export class Processor extends LogReader {
       timestamp, codeSize, instructionStart, inliningId, scriptOffset,
       deoptKind, deoptLocation, deoptReason) {
     this._lastTimestamp = timestamp;
+    const codeEntry = this._profile.findEntry(instructionStart);
     const logEntry = new DeoptLogEntry(
-        deoptKind, timestamp, deoptReason, deoptLocation, scriptOffset,
-        instructionStart, codeSize, inliningId);
+        deoptKind, timestamp, codeEntry, deoptReason, deoptLocation,
+        scriptOffset, instructionStart, codeSize, inliningId);
     this._deoptTimeline.push(logEntry);
-    this.addSourcePosition(this._profile.findEntry(instructionStart), logEntry);
+    this.addSourcePosition(codeEntry, logEntry);
+    logEntry.functionSourcePosition = logEntry.sourcePosition;
+    // custom parse deopt location
+    if (deoptLocation !== '<unknown>') {
+      const colSeparator = deoptLocation.lastIndexOf(':');
+      const rowSeparator = deoptLocation.lastIndexOf(':', colSeparator - 1);
+      const script = this.getScript(deoptLocation.substring(1, rowSeparator));
+      const line =
+          parseInt(deoptLocation.substring(rowSeparator + 1, colSeparator));
+      const column = parseInt(
+          deoptLocation.substring(colSeparator + 1, deoptLocation.length - 1));
+      logEntry.sourcePosition =
+          script.addSourcePosition(line, column, logEntry);
+    }
   }
 
   processScriptSource(scriptId, url, source) {
@@ -429,5 +443,9 @@ export class Processor extends LogReader {
 
   get scripts() {
     return this._profile.scripts_.filter(script => script !== undefined);
+  }
+
+  get profile() {
+    return this._profile;
   }
 }

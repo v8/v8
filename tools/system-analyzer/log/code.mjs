@@ -5,15 +5,17 @@ import {LogEntry} from './log.mjs';
 
 export class DeoptLogEntry extends LogEntry {
   constructor(
-      type, time, deoptReason, deoptLocation, scriptOffset, instructionStart,
-      codeSize, inliningId) {
+      type, time, entry, deoptReason, deoptLocation, scriptOffset,
+      instructionStart, codeSize, inliningId) {
     super(type, time);
+    this._entry = entry;
     this._reason = deoptReason;
     this._location = deoptLocation;
     this._scriptOffset = scriptOffset;
     this._instructionStart = instructionStart;
     this._codeSize = codeSize;
     this._inliningId = inliningId;
+    this.fileSourcePosition = undefined;
   }
 
   get reason() {
@@ -22,6 +24,14 @@ export class DeoptLogEntry extends LogEntry {
 
   get location() {
     return this._location;
+  }
+
+  get entry() {
+    return this._entry;
+  }
+
+  get functionName() {
+    return this._entry.functionName;
   }
 
   toString() {
@@ -33,7 +43,10 @@ export class DeoptLogEntry extends LogEntry {
   }
 
   static get propertyNames() {
-    return ['type', 'reason', 'sourcePosition', 'script'];
+    return [
+      'type', 'reason', 'functionName', 'sourcePosition',
+      'functionSourcePosition', 'script'
+    ];
   }
 }
 
@@ -58,10 +71,6 @@ export class CodeLogEntry extends LogEntry {
 
   get size() {
     return this._entry.size;
-  }
-
-  get script() {
-    return this.sourcePosition?.script;
   }
 
   get source() {
