@@ -231,3 +231,30 @@ button:hover {
 .legend h3 {
   margin-top: 10px;
 }
+
+
+.panelCloserLabel {
+  float: left;
+  cursor: zoom-out;
+  margin: 0 10px 0 0;
+  transition: transform 0.2s ease-out;
+  user-select: none;
+}
+.panelCloserInput {
+  display: none;
+}
+.panel .panelCloserInput:checked ~ .panelCloserLabel,
+.panelCloserInput:checked ~ .panelCloserLabel {
+  cursor: zoom-in;
+  transform: rotate(-90deg);
+  display: inherit;
+}
+.panel .panelCloserInput:checked ~ h2 {
+  display: inherit;
+  border-radius: 7px;
+  margin-bottom: -20px;
+  padding-bottom: 10px;
+}
+.panelCloserInput:checked ~ * {
+  display: none;
+}

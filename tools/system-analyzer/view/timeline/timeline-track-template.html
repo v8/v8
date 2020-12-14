@@ -63,17 +63,28 @@ found in the LICENSE file. -->
     font-size: 10px;
   }
 
-  #title {
+  .title {
     position: relative;
     float: left;
     width: 20px;
     writing-mode: vertical-rl;
     text-orientation: mixed;
-    margin: 0 0 0 -10px;
+    margin: 20px 0 0 -10px;
     padding: 5px 5px 0px 5px;
     overflow: hidden;
     border-radius: 7px;
     font-weight: 400;
+  }
+
+  .panelCloserInput:checked ~ h3 { 
+    display: inherit;
+    flex: 1;
+    writing-mode: unset;
+    text-orientation: unset;
+    background-color: var(--border-color);
+    border-radius: 0px;
+    padding: 5px;
+    margin: 0 -10px 0 20px;
   }
 
   .timelineLegend {
@@ -140,28 +151,55 @@ found in the LICENSE file. -->
     height: 100%;
     position: absolute;
   }
+
+
+  .content {
+    display: flex;
+    position: relative;
+  }
+  .panelCloserLabel {
+    position: absolute;
+    top: 5px;
+    left: 0px;
+  }
+  .title {
+    flex: initial;
+  }
+  #timeline {
+    flex: 1;
+  }
+  .legend {
+    flex: initial;
+  }
+
 </style>
 
-<h3 id="title"></h3>
-<div class="timelineLegend">
-  <table id="legendTable">
-    <thead>
-      <tr>
-        <td>Type</td>
-        <td>Count</td>
-        <td>Percent</td>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</div>
-<div id="timeline">
-  <div id="selection">
-    <div id="leftHandle"></div>
-    <div id="selectionBackground"></div>
-    <div id="rightHandle"></div>
+<div class="content">
+  <input type="checkbox" id="closer" class="panelCloserInput">
+  <label class="panelCloserLabel" for="closer">▼</label>
+  <h3 class="title" id="title"></h3>
+
+  <div id="timeline">
+    <div id="selection">
+      <div id="leftHandle"></div>
+      <div id="selectionBackground"></div>
+      <div id="rightHandle"></div>
+    </div>
+    <div id="timelineLabel">Frequency</div>
+    <div id="timelineChunks"></div>
+    <canvas id="timelineCanvas"></canvas>
   </div>
-  <div id="timelineLabel">Frequency</div>
-  <div id="timelineChunks"></div>
-  <canvas id="timelineCanvas"></canvas>
+
+  <div class="timelineLegend">
+    <table id="legendTable">
+      <thead>
+        <tr>
+          <td>Type</td>
+          <td>Count</td>
+          <td>Percent</td>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 </div>

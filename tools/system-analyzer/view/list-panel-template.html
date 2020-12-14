@@ -31,6 +31,7 @@ found in the LICENSE file. -->
     cursor: -webkit-zoom-in;
     color: rgba(var(--border-color), 1);
   }
+
   .toggle::before {
     content: "▶";
   }
@@ -82,7 +83,10 @@ found in the LICENSE file. -->
     top: 40px;
   }
 </style>
+
 <div class="panel">
+  <input type="checkbox" id="closer" class="panelCloserInput">
+  <label class="panelCloserLabel" for="closer">▼</label>
   <h2 id="title"></h2>
   <div class="selection">
     <input type="radio" id="show-all" name="selectionType" value="all">

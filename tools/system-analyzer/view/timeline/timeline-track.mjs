@@ -51,6 +51,7 @@ DOM.defineCustomElement('view/timeline/timeline-track',
   set data(timeline) {
     this._timeline = timeline;
     this._legend.timeline = timeline;
+    this.$('.content').style.display = timeline.isEmpty() ? 'none' : 'relative';
     this._updateChunks();
   }
 
