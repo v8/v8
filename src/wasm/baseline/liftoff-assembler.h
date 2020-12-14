@@ -730,6 +730,15 @@ class LiftoffAssembler : public TurboAssembler {
     }
   }
 
+  inline void emit_ptrsize_set_cond(LiftoffCondition condition, Register dst,
+                                    LiftoffRegister lhs, LiftoffRegister rhs) {
+    if (kSystemPointerSize == 8) {
+      emit_i64_set_cond(condition, dst, lhs, rhs);
+    } else {
+      emit_i32_set_cond(condition, dst, lhs.gp(), rhs.gp());
+    }
+  }
+
   inline void emit_ptrsize_zeroextend_i32(Register dst, Register src) {
     if (kSystemPointerSize == 8) {
       emit_type_conversion(kExprI64UConvertI32, LiftoffRegister(dst),

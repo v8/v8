@@ -30,11 +30,18 @@ using F = std::pair<ValueType, bool>;
 
 class WasmGCTester {
  public:
-  WasmGCTester()
+  explicit WasmGCTester(
+      TestExecutionTier execution_tier = TestExecutionTier::kTurbofan)
       : flag_gc(&v8::internal::FLAG_experimental_wasm_gc, true),
         flag_reftypes(&v8::internal::FLAG_experimental_wasm_reftypes, true),
         flag_typedfuns(&v8::internal::FLAG_experimental_wasm_typed_funcref,
                        true),
+        flag_liftoff(
+            &v8::internal::FLAG_liftoff,
+            execution_tier == TestExecutionTier::kTurbofan ? false : true),
+        flag_liftoff_only(
+            &v8::internal::FLAG_liftoff_only,
+            execution_tier == TestExecutionTier::kLiftoff ? true : false),
         zone(&allocator, ZONE_NAME),
         builder_(&zone),
         isolate_(CcTest::InitIsolateOnce()),
@@ -173,6 +180,8 @@ class WasmGCTester {
   const FlagScope<bool> flag_gc;
   const FlagScope<bool> flag_reftypes;
   const FlagScope<bool> flag_typedfuns;
+  const FlagScope<bool> flag_liftoff;
+  const FlagScope<bool> flag_liftoff_only;
 
   v8::internal::AccountingAllocator allocator;
   Zone zone;
@@ -191,9 +200,10 @@ ValueType optref(uint32_t type_index) {
   return ValueType::Ref(type_index, kNullable);
 }
 
-// TODO(7748): Use WASM_EXEC_TEST once interpreter and liftoff are supported.
-TEST(WasmBasicStruct) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(WasmBasicStruct) {
+  WasmGCTester tester(execution_tier);
+  FlagScope<bool> flag_liftoff_reftypes(
+      &v8::internal::FLAG_experimental_liftoff_extern_ref, true);
   const byte type_index =
       tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
   const byte empty_struct_index = tester.DefineStruct({});

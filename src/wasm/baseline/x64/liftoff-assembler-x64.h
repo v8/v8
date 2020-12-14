@@ -841,6 +841,7 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
     case ValueType::kI64:
     case ValueType::kOptRef:
     case ValueType::kRef:
+    case ValueType::kRtt:
       movq(dst, reg.gp());
       break;
     case ValueType::kF32:
@@ -2043,6 +2044,11 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
       case ValueType::kI32:
         cmpl(lhs, rhs);
         break;
+      case ValueType::kRef:
+      case ValueType::kOptRef:
+      case ValueType::kRtt:
+        DCHECK(liftoff_cond == kEqual || liftoff_cond == kUnequal);
+        V8_FALLTHROUGH;
       case ValueType::kI64:
         cmpq(lhs, rhs);
         break;
