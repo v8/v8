@@ -652,9 +652,16 @@ class LiftoffCompiler {
            ++param_idx) {
         ValueType type = decoder->local_type(param_idx);
         if (type.is_reference_type()) {
-          LiftoffRegister result = __ GetUnusedRegister(kGpReg, {});
-          LoadNullValue(result.gp(), {});
-          __ Spill(__ cache_state()->stack_state.back().offset(), result, type);
+          Register isolate_root = __ GetUnusedRegister(kGpReg, {}).gp();
+          // We can re-use the isolate_root register as result register.
+          Register result = isolate_root;
+
+          LOAD_INSTANCE_FIELD(isolate_root, IsolateRoot, kSystemPointerSize);
+          __ LoadTaggedPointer(
+              result, isolate_root, no_reg,
+              IsolateData::root_slot_offset(RootIndex::kNullValue), {});
+          __ Spill(__ cache_state()->stack_state.back().offset(),
+                   LiftoffRegister(result), type);
         }
       }
     }
@@ -1275,22 +1282,9 @@ class LiftoffCompiler {
               __ emit_type_conversion(kExprI64UConvertI32, dst, c_call_dst,
                                       nullptr);
             });
-      case kExprRefIsNull: {
-        if (!FLAG_experimental_liftoff_extern_ref) {
-          unsupported(decoder, kRefTypes, "ref_is_null");
-          return;
-        }
-        LiftoffRegList pinned;
-        LiftoffRegister ref = pinned.set(__ PopToRegister());
-        LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
-        LoadNullValue(null.gp(), pinned);
-        // Prefer to overwrite one of the input registers with the result
-        // of the comparison.
-        LiftoffRegister dst = __ GetUnusedRegister(kGpReg, {ref, null}, {});
-        __ emit_ptrsize_set_cond(kEqual, dst.gp(), ref, null);
-        __ PushRegister(kWasmI32, dst);
+      case kExprRefIsNull:
+        unsupported(decoder, kRefTypes, "ref_is_null");
         return;
-      }
       default:
         UNREACHABLE();
     }
@@ -1702,9 +1696,15 @@ class LiftoffCompiler {
       unsupported(decoder, kRefTypes, "ref_null");
       return;
     }
-    LiftoffRegister null = __ GetUnusedRegister(kGpReg, {});
-    LoadNullValue(null.gp(), {});
-    __ PushRegister(type, null);
+    Register isolate_root = __ GetUnusedRegister(kGpReg, {}).gp();
+    // We can re-use the isolate_root register as result register.
+    Register result = isolate_root;
+
+    LOAD_INSTANCE_FIELD(isolate_root, IsolateRoot, kSystemPointerSize);
+    __ LoadTaggedPointer(result, isolate_root, no_reg,
+                         IsolateData::root_slot_offset(RootIndex::kNullValue),
+                         {});
+    __ PushRegister(type, LiftoffRegister(result));
   }
 
   void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
@@ -3837,67 +3837,26 @@ class LiftoffCompiler {
   void StructNewWithRtt(FullDecoder* decoder,
                         const StructIndexImmediate<validate>& imm,
                         const Value& rtt, const Value args[], Value* result) {
-    ValueType struct_value_type = ValueType::Ref(imm.index, kNonNullable);
-    WasmCode::RuntimeStubId target = WasmCode::kWasmAllocateStructWithRtt;
-    compiler::CallDescriptor* call_descriptor =
-        GetBuiltinCallDescriptor<WasmAllocateStructWithRttDescriptor>(
-            compilation_zone_);
-    ValueType sig_reps[] = {struct_value_type, rtt.type};
-    FunctionSig sig(1, 1, sig_reps);
-    LiftoffAssembler::VarState rtt_value =
-        __ cache_state()->stack_state.end()[-1];
-    __ PrepareBuiltinCall(&sig, call_descriptor, {rtt_value});
-    __ CallRuntimeStub(target);
-    DefineSafepoint();
-    // Drop the RTT.
-    __ cache_state()->stack_state.pop_back(1);
-
-    LiftoffRegister obj(kReturnRegister0);
-    LiftoffRegList pinned = LiftoffRegList::ForRegs(obj);
-    for (uint32_t i = imm.struct_type->field_count(); i > 0;) {
-      i--;
-      int offset = StructFieldOffset(imm.struct_type, i);
-      LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
-      ValueType field_type = imm.struct_type->field(i);
-      StoreObjectField(obj.gp(), offset, value, pinned, field_type);
-      pinned.clear(value);
-    }
-    __ PushRegister(struct_value_type, obj);
+    // TODO(7748): Implement.
+    unsupported(decoder, kGC, "struct.new_with_rtt");
   }
-
   void StructNewDefault(FullDecoder* decoder,
                         const StructIndexImmediate<validate>& imm,
                         const Value& rtt, Value* result) {
     // TODO(7748): Implement.
     unsupported(decoder, kGC, "struct.new_default_with_rtt");
   }
-
   void StructGet(FullDecoder* decoder, const Value& struct_obj,
                  const FieldIndexImmediate<validate>& field, bool is_signed,
                  Value* result) {
-    const StructType* struct_type = field.struct_index.struct_type;
-    ValueType field_type = struct_type->field(field.index);
-    int offset = StructFieldOffset(struct_type, field.index);
-    LiftoffRegList pinned;
-    LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
-    MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_obj.type);
-    LiftoffRegister value =
-        pinned.set(__ GetUnusedRegister(reg_class_for(field_type), pinned));
-    LoadObjectField(value, obj.gp(), offset, field_type, is_signed, pinned);
-    __ PushRegister(field_type, value);
+    // TODO(7748): Implement.
+    unsupported(decoder, kGC, "struct.get");
   }
-
   void StructSet(FullDecoder* decoder, const Value& struct_obj,
                  const FieldIndexImmediate<validate>& field,
                  const Value& field_value) {
-    const StructType* struct_type = field.struct_index.struct_type;
-    ValueType field_type = struct_type->field(field.index);
-    int offset = StructFieldOffset(struct_type, field.index);
-    LiftoffRegList pinned;
-    LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
-    LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
-    MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_obj.type);
-    StoreObjectField(obj.gp(), offset, value, pinned, field_type);
+    // TODO(7748): Implement.
+    unsupported(decoder, kGC, "struct.set");
   }
 
   void ArrayNewWithRtt(FullDecoder* decoder,
@@ -3945,41 +3904,8 @@ class LiftoffCompiler {
 
   void RttCanon(FullDecoder* decoder, const HeapTypeImmediate<validate>& imm,
                 Value* result) {
-    LiftoffRegister rtt = __ GetUnusedRegister(kGpReg, {});
-    RootIndex index;
-    switch (imm.type.representation()) {
-      case wasm::HeapType::kEq:
-        index = RootIndex::kWasmRttEqrefMap;
-        break;
-      case wasm::HeapType::kExtern:
-        index = RootIndex::kWasmRttExternrefMap;
-        break;
-      case wasm::HeapType::kFunc:
-        index = RootIndex::kWasmRttFuncrefMap;
-        break;
-      case wasm::HeapType::kI31:
-        index = RootIndex::kWasmRttI31refMap;
-        break;
-      case wasm::HeapType::kAny:
-        index = RootIndex::kWasmRttAnyrefMap;
-        break;
-      case wasm::HeapType::kBottom:
-        UNREACHABLE();
-      default:
-        // User-defined type.
-        LOAD_TAGGED_PTR_INSTANCE_FIELD(rtt.gp(), ManagedObjectMaps);
-        __ LoadTaggedPointer(
-            rtt.gp(), rtt.gp(), no_reg,
-            wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
-                imm.type.ref_index()),
-            {});
-        __ PushRegister(ValueType::Rtt(imm.type, 1), rtt);
-        return;
-    }
-    LOAD_INSTANCE_FIELD(rtt.gp(), IsolateRoot, kSystemPointerSize);
-    __ LoadTaggedPointer(rtt.gp(), rtt.gp(), no_reg,
-                         IsolateData::root_slot_offset(index), {});
-    __ PushRegister(ValueType::Rtt(imm.type, 1), rtt);
+    // TODO(7748): Implement.
+    unsupported(decoder, kGC, "rtt.canon");
   }
   void RttSub(FullDecoder* decoder, const HeapTypeImmediate<validate>& imm,
               const Value& parent, Value* result) {
@@ -4213,51 +4139,6 @@ class LiftoffCompiler {
     RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
 
     __ FinishCall(imm.sig, call_descriptor);
-  }
-
-  void LoadNullValue(Register null, LiftoffRegList pinned) {
-    LOAD_INSTANCE_FIELD(null, IsolateRoot, kSystemPointerSize);
-    __ LoadTaggedPointer(null, null, no_reg,
-                         IsolateData::root_slot_offset(RootIndex::kNullValue),
-                         pinned);
-  }
-
-  void MaybeEmitNullCheck(FullDecoder* decoder, Register object,
-                          LiftoffRegList pinned, ValueType type) {
-    if (!type.is_nullable()) return;
-    Label* trap_label = AddOutOfLineTrap(
-        decoder->position(), WasmCode::kThrowWasmTrapNullDereference);
-    LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
-    LoadNullValue(null.gp(), pinned);
-    __ emit_cond_jump(LiftoffCondition::kEqual, trap_label, type, object,
-                      null.gp());
-  }
-
-  int StructFieldOffset(const StructType* struct_type, int field_index) {
-    return wasm::ObjectAccess::ToTagged(WasmStruct::kHeaderSize +
-                                        struct_type->field_offset(field_index));
-  }
-
-  void LoadObjectField(LiftoffRegister dst, Register src, int offset,
-                       ValueType type, bool is_signed, LiftoffRegList pinned) {
-    if (type.is_reference_type()) {
-      __ LoadTaggedPointer(dst.gp(), src, no_reg, offset, pinned);
-    } else {
-      // Primitive type.
-      LoadType load_type = LoadType::ForValueType(type, is_signed);
-      __ Load(dst, src, no_reg, offset, load_type, pinned);
-    }
-  }
-
-  void StoreObjectField(Register obj, int offset, LiftoffRegister value,
-                        LiftoffRegList pinned, ValueType type) {
-    if (type.is_reference_type()) {
-      __ StoreTaggedPointer(obj, offset, value, pinned);
-    } else {
-      // Primitive type.
-      StoreType store_type = StoreType::ForValueType(type);
-      __ Store(obj, no_reg, offset, value, store_type, pinned);
-    }
   }
 
   static constexpr WasmOpcode kNoOutstandingOp = kExprUnreachable;

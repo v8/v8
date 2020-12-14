@@ -303,7 +303,6 @@ inline void Store(LiftoffAssembler* assm, LiftoffRegister src, MemOperand dst,
     case ValueType::kI32:
     case ValueType::kOptRef:
     case ValueType::kRef:
-    case ValueType::kRtt:
       assm->str(src.gp(), dst);
       break;
     case ValueType::kI64:
@@ -337,7 +336,6 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
     case ValueType::kI32:
     case ValueType::kOptRef:
     case ValueType::kRef:
-    case ValueType::kRtt:
       assm->ldr(dst.gp(), src);
       break;
     case ValueType::kI64:
@@ -2157,14 +2155,10 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
                                       Label* label, ValueType type,
                                       Register lhs, Register rhs) {
   Condition cond = liftoff::ToCondition(liftoff_cond);
-
+  DCHECK_EQ(type, kWasmI32);
   if (rhs == no_reg) {
-    DCHECK_EQ(type, kWasmI32);
     cmp(lhs, Operand(0));
   } else {
-    DCHECK(type == kWasmI32 ||
-           (type.is_reference_type() &&
-            (liftoff_cond == kEqual || liftoff_cond == kUnequal)));
     cmp(lhs, rhs);
   }
   b(label, cond);

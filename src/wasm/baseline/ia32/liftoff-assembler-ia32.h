@@ -1121,7 +1121,6 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
     case ValueType::kI32:
     case ValueType::kOptRef:
     case ValueType::kRef:
-    case ValueType::kRtt:
       mov(dst, reg.gp());
       break;
     case ValueType::kI64:
@@ -2373,11 +2372,6 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
   Condition cond = liftoff::ToCondition(liftoff_cond);
   if (rhs != no_reg) {
     switch (type.kind()) {
-      case ValueType::kRef:
-      case ValueType::kOptRef:
-      case ValueType::kRtt:
-        DCHECK(liftoff_cond == kEqual || liftoff_cond == kUnequal);
-        V8_FALLTHROUGH;
       case ValueType::kI32:
         cmp(lhs, rhs);
         break;

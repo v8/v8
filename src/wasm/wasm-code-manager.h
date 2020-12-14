@@ -84,8 +84,7 @@ struct WasmModule;
   V(I32PairToBigInt)                     \
   V(I64ToBigInt)                         \
   V(RecordWrite)                         \
-  V(ToNumber)                            \
-  V(WasmAllocateStructWithRtt)
+  V(ToNumber)
 
 // Sorted, disjoint and non-overlapping memory regions. A region is of the
 // form [start, end). So there's no [start, end), [end, other_end),
