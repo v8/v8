@@ -1281,6 +1281,9 @@ base::Optional<ParseResult> MakeEnumDeclaration(
     NamingConventionError("Type", name, "UpperCamelCase");
   }
 
+  if (constexpr_generates_opt && *constexpr_generates_opt == name) {
+    Lint("Unnecessary 'constexpr' clause for enum ", name);
+  }
   auto constexpr_generates =
       constexpr_generates_opt ? *constexpr_generates_opt : name;
   const bool generate_nonconstexpr = base_type_expression.has_value();

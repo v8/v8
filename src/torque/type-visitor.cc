@@ -300,7 +300,12 @@ const ClassType* TypeVisitor::ComputeType(
   if (flags & ClassFlag::kExtern) {
     if (decl->generates) {
       bool enforce_tnode_type = true;
-      generates = ComputeGeneratesType(decl->generates, enforce_tnode_type);
+      std::string explicit_generates =
+          ComputeGeneratesType(decl->generates, enforce_tnode_type);
+      if (explicit_generates == generates) {
+        Lint("Unnecessary 'generates' clause for class ", decl->name->value);
+      }
+      generates = explicit_generates;
     }
     if (flags & ClassFlag::kExport) {
       Error("cannot export a class that is marked extern");
