@@ -2814,7 +2814,8 @@ void InstructionSelector::VisitPrefetchNonTemporal(Node* node) {
 void InstructionSelector::VisitI8x16Popcnt(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM
 
-#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64
+#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64 && \
+    !V8_TARGET_ARCH_IA32
 // TODO(v8:11086) Prototype extended pairwise add.
 void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8S(Node* node) {
   UNIMPLEMENTED();
@@ -2829,6 +2830,7 @@ void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16U(Node* node) {
   UNIMPLEMENTED();
 }
 #endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64
+        // && !V8_TARGET_ARCH_IA32
 
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64 && \
     !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS64

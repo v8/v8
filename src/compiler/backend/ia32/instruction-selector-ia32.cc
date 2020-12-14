@@ -2360,7 +2360,7 @@ void InstructionSelector::VisitF64x2Max(Node* node) {
 }
 
 void InstructionSelector::VisitF64x2Splat(Node* node) {
-  VisitRRSimd(this, node, kIA32F64x2Splat, kIA32F64x2Splat);
+  VisitRRSimd(this, node, kIA32F64x2Splat);
 }
 
 void InstructionSelector::VisitF64x2ExtractLane(Node* node) {
@@ -2427,7 +2427,7 @@ void InstructionSelector::VisitI64x2Mul(Node* node) {
 }
 
 void InstructionSelector::VisitF32x4Splat(Node* node) {
-  VisitRRSimd(this, node, kIA32F32x4Splat, kIA32F32x4Splat);
+  VisitRRSimd(this, node, kIA32F32x4Splat);
 }
 
 void InstructionSelector::VisitF32x4ExtractLane(Node* node) {
@@ -3081,6 +3081,24 @@ void InstructionSelector::VisitI32x4SignSelect(Node* node) {
 
 void InstructionSelector::VisitI64x2SignSelect(Node* node) {
   VisitSignSelect(this, node, kIA32I64x2SignSelect);
+}
+
+void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8S(Node* node) {
+  VisitRRSimd(this, node, kIA32I32x4ExtAddPairwiseI16x8S);
+}
+
+void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8U(Node* node) {
+  VisitRRSimd(this, node, kIA32I32x4ExtAddPairwiseI16x8U);
+}
+
+void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16S(Node* node) {
+  IA32OperandGenerator g(this);
+  Emit(kIA32I16x8ExtAddPairwiseI8x16S, g.DefineAsRegister(node),
+       g.UseUniqueRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16U(Node* node) {
+  VisitRRSimd(this, node, kIA32I16x8ExtAddPairwiseI8x16U);
 }
 
 // static

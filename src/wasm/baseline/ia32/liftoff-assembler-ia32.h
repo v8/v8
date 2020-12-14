@@ -4112,7 +4112,7 @@ void LiftoffAssembler::emit_i32x4_uconvert_f32x4(LiftoffRegister dst,
   Cvttps2dq(tmp, tmp);
   Pxor(tmp, liftoff::kScratchDoubleReg);
   Pxor(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
-  Pmaxsd(tmp, liftoff::kScratchDoubleReg);
+  Pmaxsd(tmp, tmp, liftoff::kScratchDoubleReg);
   // Convert to int. Overflow lanes above max_signed will be 0x80000000.
   Cvttps2dq(dst.fp(), dst.fp());
   // Add (src-max_signed) for overflow lanes.

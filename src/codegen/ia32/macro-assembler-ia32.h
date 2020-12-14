@@ -505,15 +505,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
 #define AVX_OP3_WITH_TYPE_SCOPE(macro_name, name, dst_type, src_type, \
                                 sse_scope)                            \
-  void macro_name(dst_type dst, src_type src) {                       \
+  void macro_name(dst_type dst, dst_type src1, src_type src2) {       \
     if (CpuFeatures::IsSupported(AVX)) {                              \
       CpuFeatureScope scope(this, AVX);                               \
-      v##name(dst, dst, src);                                         \
+      v##name(dst, src1, src2);                                       \
       return;                                                         \
     }                                                                 \
     if (CpuFeatures::IsSupported(sse_scope)) {                        \
       CpuFeatureScope scope(this, sse_scope);                         \
-      name(dst, src);                                                 \
+      DCHECK_EQ(dst, src1);                                           \
+      name(dst, src2);                                                \
       return;                                                         \
     }                                                                 \
     UNREACHABLE();                                                    \
@@ -523,6 +524,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP3_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, Operand, SSE4_1)
 
   AVX_OP3_XO_SSE4(Pmaxsd, pmaxsd)
+  AVX_OP3_WITH_TYPE_SCOPE(Pmaddubsw, pmaddubsw, XMMRegister, XMMRegister, SSSE3)
 
 #undef AVX_OP3_XO_SSE4
 #undef AVX_OP3_WITH_TYPE_SCOPE
