@@ -84,7 +84,7 @@ luci.builder(
     },
     execution_timeout = 7200 * time.second,
     build_numbers = True,
-    service_account = "v8-ci-builder@chops-service-accounts.iam.gserviceaccount.com",
+    service_account = "v8-ci-builder-dev@chops-service-accounts.iam.gserviceaccount.com",
     triggered_by = ["v8-trigger"],
 )
 
