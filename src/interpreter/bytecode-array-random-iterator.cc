@@ -11,12 +11,6 @@ namespace internal {
 namespace interpreter {
 
 BytecodeArrayRandomIterator::BytecodeArrayRandomIterator(
-    std::unique_ptr<AbstractBytecodeArray> bytecode_array, Zone* zone)
-    : BytecodeArrayAccessor(std::move(bytecode_array), 0), offsets_(zone) {
-  Initialize();
-}
-
-BytecodeArrayRandomIterator::BytecodeArrayRandomIterator(
     Handle<BytecodeArray> bytecode_array, Zone* zone)
     : BytecodeArrayAccessor(bytecode_array, 0), offsets_(zone) {
   Initialize();

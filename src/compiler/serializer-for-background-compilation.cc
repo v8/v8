@@ -549,8 +549,6 @@ class SerializerForBackgroundCompilation {
 
   Handle<FeedbackVector> feedback_vector() const;
   Handle<BytecodeArray> bytecode_array() const;
-  BytecodeAnalysis const& GetBytecodeAnalysis(
-      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
 
   JSHeapBroker* broker() const { return broker_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
@@ -558,6 +556,7 @@ class SerializerForBackgroundCompilation {
   Environment* environment() const { return environment_; }
   SerializerForBackgroundCompilationFlags flags() const { return flags_; }
   BailoutId osr_offset() const { return osr_offset_; }
+  const BytecodeAnalysis& bytecode_analysis() { return *bytecode_analysis_; }
 
   JSHeapBroker* const broker_;
   CompilationDependencies* const dependencies_;
@@ -567,6 +566,7 @@ class SerializerForBackgroundCompilation {
   // {closure_hints_} but that would be cumbersome.
   VirtualClosure const function_;
   BailoutId const osr_offset_;
+  base::Optional<BytecodeAnalysis> bytecode_analysis_;
   ZoneUnorderedMap<int, Environment*> jump_target_environments_;
   Environment* const environment_;
   HintsVector const arguments_;
@@ -1259,18 +1259,8 @@ Handle<BytecodeArray> SerializerForBackgroundCompilation::bytecode_array()
   return handle(function().shared()->GetBytecodeArray(), broker()->isolate());
 }
 
-BytecodeAnalysis const& SerializerForBackgroundCompilation::GetBytecodeAnalysis(
-    SerializationPolicy policy) {
-  return broker()->GetBytecodeAnalysis(
-      bytecode_array(), osr_offset(),
-      flags() &
-          SerializerForBackgroundCompilationFlag::kAnalyzeEnvironmentLiveness,
-      policy);
-}
-
 void SerializerForBackgroundCompilation::TraverseBytecode() {
-  BytecodeAnalysis const& bytecode_analysis =
-      GetBytecodeAnalysis(SerializationPolicy::kSerializeIfNeeded);
+  bytecode_analysis_.emplace(bytecode_array(), zone(), osr_offset(), false);
   BytecodeArrayRef(broker(), bytecode_array()).SerializeForCompilation();
 
   BytecodeArrayIterator iterator(bytecode_array());
@@ -1308,10 +1298,10 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
     try_start_matcher.HandlerOffsetForCurrentPosition(
         save_handler_environments);
 
-    if (bytecode_analysis.IsLoopHeader(current_offset)) {
+    if (bytecode_analysis().IsLoopHeader(current_offset)) {
       // Graph builder might insert jumps to resume targets in the loop body.
       LoopInfo const& loop_info =
-          bytecode_analysis.GetLoopInfoFor(current_offset);
+          bytecode_analysis().GetLoopInfoFor(current_offset);
       for (const auto& target : loop_info.resume_jump_targets()) {
         ContributeToJumpTargetEnvironment(target.target_offset());
       }
@@ -2782,7 +2772,7 @@ void SerializerForBackgroundCompilation::VisitSwitchOnSmiNoFeedback(
 
 void SerializerForBackgroundCompilation::VisitSwitchOnGeneratorState(
     interpreter::BytecodeArrayIterator* iterator) {
-  for (const auto& target : GetBytecodeAnalysis().resume_jump_targets()) {
+  for (const auto& target : bytecode_analysis().resume_jump_targets()) {
     ContributeToJumpTargetEnvironment(target.target_offset());
   }
 }

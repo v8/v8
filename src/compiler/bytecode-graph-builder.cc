@@ -430,7 +430,7 @@ class BytecodeGraphBuilder {
   const FrameStateFunctionInfo* const frame_state_function_info_;
   std::unique_ptr<SourcePositionTableIterator> source_position_iterator_;
   interpreter::BytecodeArrayIterator bytecode_iterator_;
-  BytecodeAnalysis const& bytecode_analysis_;
+  BytecodeAnalysis const bytecode_analysis_;
   Environment* environment_;
   bool const osr_;
   int currently_peeled_loop_offset_;
@@ -1012,12 +1012,9 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
           bytecode_array().SourcePositionTable())),
       bytecode_iterator_(
           std::make_unique<OffHeapBytecodeArray>(bytecode_array())),
-      bytecode_analysis_(broker_->GetBytecodeAnalysis(
-          bytecode_array().object(), osr_offset,
-          flags & BytecodeGraphBuilderFlag::kAnalyzeEnvironmentLiveness,
-          broker->is_concurrent_inlining()
-              ? SerializationPolicy::kAssumeSerialized
-              : SerializationPolicy::kSerializeIfNeeded)),
+      bytecode_analysis_(
+          bytecode_array().object(), local_zone, osr_offset,
+          flags & BytecodeGraphBuilderFlag::kAnalyzeEnvironmentLiveness),
       environment_(nullptr),
       osr_(!osr_offset.IsNone()),
       currently_peeled_loop_offset_(-1),

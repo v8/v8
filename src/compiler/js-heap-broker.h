@@ -33,7 +33,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class BytecodeAnalysis;
 class ObjectRef;
 
 std::ostream& operator<<(std::ostream& os, const ObjectRef& ref);
@@ -167,10 +166,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   ElementAccessFeedback const& ProcessFeedbackMapsForElementAccess(
       MapHandles const& maps, KeyedAccessMode const& keyed_mode,
       FeedbackSlotKind slot_kind);
-  BytecodeAnalysis const& GetBytecodeAnalysis(
-      Handle<BytecodeArray> bytecode_array, BailoutId osr_offset,
-      bool analyze_liveness,
-      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
 
   // Binary, comparison and for-in hints can be fully expressed via
   // an enum. Insufficient feedback is signaled by <Hint enum>::kNone.
@@ -383,7 +378,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   ZoneUnorderedMap<FeedbackSource, ProcessedFeedback const*,
                    FeedbackSource::Hash, FeedbackSource::Equal>
       feedback_;
-  ZoneUnorderedMap<ObjectData*, BytecodeAnalysis*> bytecode_analyses_;
   ZoneUnorderedMap<PropertyAccessTarget, PropertyAccessInfo,
                    PropertyAccessTarget::Hash, PropertyAccessTarget::Equal>
       property_access_infos_;
