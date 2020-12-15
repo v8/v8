@@ -414,7 +414,6 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       black_allocation_(false),
       have_code_to_deoptimize_(false),
       sweeper_(new Sweeper(heap, non_atomic_marking_state())) {
-  old_to_new_slots_ = -1;
 }
 
 MarkCompactCollector::~MarkCompactCollector() { delete sweeper_; }
@@ -3474,8 +3473,9 @@ class PointersUpdatingJob : public v8::JobTask {
  public:
   explicit PointersUpdatingJob(
       Isolate* isolate,
-      std::vector<std::unique_ptr<UpdatingItem>> updating_items, int slots,
-      GCTracer::Scope::ScopeId scope, GCTracer::Scope::ScopeId background_scope)
+      std::vector<std::unique_ptr<UpdatingItem>> updating_items,
+      base::Optional<size_t> slots, GCTracer::Scope::ScopeId scope,
+      GCTracer::Scope::ScopeId background_scope)
       : updating_items_(std::move(updating_items)),
         remaining_updating_items_(updating_items_.size()),
         generator_(updating_items_.size()),
@@ -3518,19 +3518,22 @@ class PointersUpdatingJob : public v8::JobTask {
     size_t wanted_tasks = items;
     // Limit the number of update tasks as task creation often dominates the
     // actual work that is being done.
-    if (slots_ >= 0) {
+    if (slots_ && *slots_ > 0) {
       // Round up to ensure enough workers for all items.
-      wanted_tasks =
-          std::min<size_t>(items, (slots_ + kSlotsPerTask - 1) / kSlotsPerTask);
+      wanted_tasks = std::min<size_t>(
+          items, (*slots_ + kSlotsPerTask - 1) / kSlotsPerTask);
     }
-    return std::min<size_t>(kMaxPointerUpdateTasks, wanted_tasks);
+    size_t max_concurrency =
+        std::min<size_t>(kMaxPointerUpdateTasks, wanted_tasks);
+    DCHECK_IMPLIES(items > 0, max_concurrency > 0);
+    return max_concurrency;
   }
 
  private:
   std::vector<std::unique_ptr<UpdatingItem>> updating_items_;
   std::atomic<size_t> remaining_updating_items_{0};
   IndexGenerator generator_;
-  const int slots_;
+  const base::Optional<size_t> slots_;
 
   GCTracer* tracer_;
   GCTracer::Scope::ScopeId scope_;
