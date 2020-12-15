@@ -236,8 +236,7 @@ builtin WasmAllocateRtt(implicit context: Context)(
   tail runtime::WasmAllocateRtt(context, typeIndex, parent);
 }
 
-builtin WasmAllocateStructWithRtt(implicit context: Context)(rtt: Map):
-    HeapObject {
+builtin WasmAllocateStructWithRtt(rtt: Map): HeapObject {
   const instanceSize: intptr =
       unsafe::TimesTaggedSize(Convert<intptr>(rtt.instance_size_in_words));
   const result: HeapObject = unsafe::Allocate(instanceSize);

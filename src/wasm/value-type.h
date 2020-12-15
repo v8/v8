@@ -558,7 +558,7 @@ class LoadType {
   constexpr ValueType value_type() const { return kValueType[val_]; }
   constexpr MachineType mem_type() const { return kMemType[val_]; }
 
-  static LoadType ForValueType(ValueType type) {
+  static LoadType ForValueType(ValueType type, bool is_signed = false) {
     switch (type.kind()) {
       case ValueType::kI32:
         return kI32Load;
@@ -570,6 +570,10 @@ class LoadType {
         return kF64Load;
       case ValueType::kS128:
         return kS128Load;
+      case ValueType::kI8:
+        return is_signed ? kI32Load8S : kI32Load8U;
+      case ValueType::kI16:
+        return is_signed ? kI32Load16S : kI32Load16U;
       default:
         UNREACHABLE();
     }
@@ -642,6 +646,10 @@ class StoreType {
         return kF64Store;
       case ValueType::kS128:
         return kS128Store;
+      case ValueType::kI8:
+        return kI32Store8;
+      case ValueType::kI16:
+        return kI32Store16;
       default:
         UNREACHABLE();
     }
