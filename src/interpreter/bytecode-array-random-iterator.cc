@@ -13,6 +13,7 @@ namespace interpreter {
 BytecodeArrayRandomIterator::BytecodeArrayRandomIterator(
     Handle<BytecodeArray> bytecode_array, Zone* zone)
     : BytecodeArrayAccessor(bytecode_array, 0), offsets_(zone) {
+  offsets_.reserve(bytecode_array->length() / 2);
   Initialize();
 }
 
