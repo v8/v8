@@ -4009,6 +4009,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pmovzxdq(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
+    case kIA32S32x4Rotate: {
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
+      uint8_t mask = i.InputUint8(1);
+      if (dst == src) {
+        // 1-byte shorter encoding than pshufd.
+        __ Shufps(dst, src, src, mask);
+      } else {
+        __ Pshufd(dst, src, mask);
+      }
+      break;
+    }
     case kIA32S32x4Swizzle: {
       DCHECK_EQ(2, instr->InputCount());
       __ Pshufd(i.OutputSimd128Register(), i.InputOperand(0), i.InputInt8(1));
