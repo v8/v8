@@ -35,7 +35,7 @@ extern runtime WasmAllocateRtt(Context, Smi, Map): Map;
 
 namespace unsafe {
 extern macro TimesTaggedSize(intptr): intptr;
-extern macro Allocate(intptr): HeapObject;
+extern macro Allocate(intptr, constexpr AllocationFlag): HeapObject;
 }
 
 namespace wasm {
@@ -239,8 +239,24 @@ builtin WasmAllocateRtt(implicit context: Context)(
 builtin WasmAllocateStructWithRtt(rtt: Map): HeapObject {
   const instanceSize: intptr =
       unsafe::TimesTaggedSize(Convert<intptr>(rtt.instance_size_in_words));
-  const result: HeapObject = unsafe::Allocate(instanceSize);
+  const result: HeapObject = unsafe::Allocate(
+      instanceSize, AllocationFlag::kAllowLargeObjectAllocation);
   *UnsafeConstCast(&result.map) = rtt;
+  return result;
+}
+
+builtin WasmAllocateArrayWithRtt(
+    rtt: Map, length: uint32, elementSize: uint32): HeapObject {
+  // instanceSize = RoundUp(elementSize * length, kObjectAlignment)
+  //              + WasmArray::kHeaderSize
+  const instanceSize: intptr =
+      torque_internal::AlignTagged(
+          Convert<intptr>(length) * Convert<intptr>(elementSize)) +
+      Convert<intptr>(kWasmArrayHeaderSize);
+  const result: HeapObject = unsafe::Allocate(
+      instanceSize, AllocationFlag::kAllowLargeObjectAllocation);
+  *UnsafeConstCast(&result.map) = rtt;
+  %RawDownCast<WasmArray>(result).length = length;
   return result;
 }
 

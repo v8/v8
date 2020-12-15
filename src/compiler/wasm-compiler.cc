@@ -5642,11 +5642,9 @@ Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
                   length, gasm_->Uint32Constant(wasm::kV8MaxWasmArrayLength)),
               position);
   wasm::ValueType element_type = type->element_type();
-  Node* a = CALL_BUILTIN(
-      WasmAllocateArrayWithRtt, rtt, BuildChangeUint31ToSmi(length),
-      graph()->NewNode(mcgraph()->common()->NumberConstant(
-          element_type.element_size_bytes())),
-      LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
+  Node* a = CALL_BUILTIN(WasmAllocateArrayWithRtt, rtt, length,
+                         graph()->NewNode(mcgraph()->common()->Int32Constant(
+                             element_type.element_size_bytes())));
   auto loop = gasm_->MakeLoopLabel(MachineRepresentation::kWord32);
   auto done = gasm_->MakeLabel();
   Node* start_offset = gasm_->Int32Constant(
