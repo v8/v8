@@ -23,6 +23,7 @@
 *~
 .#*
 .*.sw?
+.cache
 .ccls-cache
 .clangd
 .cpplint-cache
