@@ -958,6 +958,10 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         current += PrintRightXMMOperand(current);
         AppendToBuffer(",%s", NameOfXMMRegister(regop));
         break;
+      case 0x16:
+        AppendToBuffer("vmovshdup %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x51:
         AppendToBuffer("vsqrtss %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
@@ -1122,7 +1126,13 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         AppendToBuffer(",%s", NameOfXMMRegister(regop));
         break;
       case 0x12:
-        AppendToBuffer("vmovlps %s,", NameOfXMMRegister(regop));
+        if (mod == 0b11) {
+          AppendToBuffer("vmovhlps %s,%s,", NameOfXMMRegister(regop),
+                         NameOfXMMRegister(vvvv));
+        } else {
+          AppendToBuffer("vmovlps %s,%s,", NameOfXMMRegister(regop),
+                         NameOfXMMRegister(vvvv));
+        }
         current += PrintRightXMMOperand(current);
         break;
       case 0x13:
@@ -1863,7 +1873,11 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
         get_modrm(*(data + 2), &mod, &regop, &rm);
         if (f0byte == 0x12) {
           data += 2;
-          AppendToBuffer("movlps %s,", NameOfXMMRegister(regop));
+          if (mod == 0b11) {
+            AppendToBuffer("movhlps %s,", NameOfXMMRegister(regop));
+          } else {
+            AppendToBuffer("movlps %s,", NameOfXMMRegister(regop));
+          }
           data += PrintRightXMMOperand(data);
         } else if (f0byte == 0x13) {
           data += 2;
@@ -2666,6 +2680,12 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             int mod, regop, rm;
             get_modrm(*data, &mod, &regop, &rm);
             AppendToBuffer("movss %s,", NameOfXMMRegister(regop));
+            data += PrintRightXMMOperand(data);
+          } else if (b2 == 0x16) {
+            data += 3;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("movshdup %s,", NameOfXMMRegister(regop));
             data += PrintRightXMMOperand(data);
           } else if (b2 == 0x5A) {
             data += 3;

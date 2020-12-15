@@ -861,6 +861,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void shufps(XMMRegister dst, XMMRegister src, byte imm8);
   void shufpd(XMMRegister dst, XMMRegister src, byte imm8);
 
+  void movhlps(XMMRegister dst, XMMRegister src);
   void movlps(XMMRegister dst, Operand src);
   void movlps(Operand dst, XMMRegister src);
   void movhps(XMMRegister dst, Operand src);
@@ -1050,6 +1051,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // SSE3 instructions
   void movddup(XMMRegister dst, Operand src);
   void movddup(XMMRegister dst, XMMRegister src) { movddup(dst, Operand(src)); }
+  void movshdup(XMMRegister dst, XMMRegister src);
 
   // Use SSE4_1 encoding for pextrw reg, xmm, imm8 for consistency
   void pextrw(Register dst, XMMRegister src, uint8_t offset) {
@@ -1380,6 +1382,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   void vshufpd(XMMRegister dst, XMMRegister src1, Operand src2, byte imm8);
 
+  void vmovhlps(XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void vmovlps(XMMRegister dst, XMMRegister src1, Operand src2);
   void vmovlps(Operand dst, XMMRegister src);
   void vmovhps(XMMRegister dst, XMMRegister src1, Operand src2);
@@ -1482,6 +1485,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   void vmovddup(XMMRegister dst, XMMRegister src) {
     vmovddup(dst, Operand(src));
+  }
+  void vmovshdup(XMMRegister dst, XMMRegister src) {
+    vinstr(0x16, dst, xmm0, src, kF3, k0F, kWIG);
   }
   void vbroadcastss(XMMRegister dst, Operand src) {
     vinstr(0x18, dst, xmm0, src, k66, k0F38, kW0);

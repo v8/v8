@@ -1024,6 +1024,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void lddqu(XMMRegister dst, Operand src);
   void movddup(XMMRegister dst, Operand src);
   void movddup(XMMRegister dst, XMMRegister src);
+  void movshdup(XMMRegister dst, XMMRegister src);
 
   // SSSE3
   void ssse3_instr(XMMRegister dst, XMMRegister src, byte prefix, byte escape1,
@@ -1294,6 +1295,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // AVX instruction
   void vmovddup(XMMRegister dst, XMMRegister src);
   void vmovddup(XMMRegister dst, Operand src);
+  void vmovshdup(XMMRegister dst, XMMRegister src);
   void vbroadcastss(XMMRegister dst, Operand src);
 
   void fma_instr(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2,

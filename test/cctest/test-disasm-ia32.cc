@@ -396,6 +396,7 @@ TEST(DisasmIa320) {
     __ cvtsd2ss(xmm0, Operand(ebx, ecx, times_4, 10000));
     __ movq(xmm0, Operand(edx, 4));
 
+    __ movhlps(xmm0, xmm1);
     __ movlps(xmm0, Operand(ebx, ecx, times_4, 10000));
     __ movlps(Operand(ebx, ecx, times_4, 10000), xmm0);
     __ movhps(xmm0, Operand(ebx, ecx, times_4, 10000));
@@ -592,6 +593,7 @@ TEST(DisasmIa320) {
       __ haddps(xmm1, Operand(ebx, ecx, times_4, 10000));
       __ movddup(xmm1, Operand(eax, 5));
       __ movddup(xmm1, xmm2);
+      __ movshdup(xmm1, xmm2);
     }
   }
 
@@ -709,6 +711,7 @@ TEST(DisasmIa320) {
       __ vhaddps(xmm0, xmm1, xmm2);
       __ vhaddps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
 
+      __ vmovhlps(xmm0, xmm1, xmm2);
       __ vmovlps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vmovlps(Operand(ebx, ecx, times_4, 10000), xmm0);
       __ vmovhps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
@@ -802,6 +805,7 @@ TEST(DisasmIa320) {
 
       __ vmovddup(xmm1, xmm2);
       __ vmovddup(xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vmovshdup(xmm1, xmm2);
       __ vbroadcastss(xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vmovdqu(xmm0, Operand(ebx, ecx, times_4, 10000));
       __ vmovdqu(Operand(ebx, ecx, times_4, 10000), xmm0);

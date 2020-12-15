@@ -1093,6 +1093,10 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         }
         AppendToBuffer(",%s", NameOfXMMRegister(regop));
         break;
+      case 0x16:
+        AppendToBuffer("vmovshdup %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x2A:
         AppendToBuffer("%s %s,%s,", vex_w() ? "vcvtqsi2ss" : "vcvtlsi2ss",
                        NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
@@ -2020,6 +2024,8 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       current += PrintOperands("movss", XMMREG_OPER_OP_ORDER, current);
     } else if (opcode == 0x11) {
       current += PrintOperands("movss", OPER_XMMREG_OP_ORDER, current);
+    } else if (opcode == 0x16) {
+      current += PrintOperands("movshdup", XMMREG_XMMOPER_OP_ORDER, current);
     } else if (opcode == 0x2A) {
       // CVTSI2SS: integer to XMM single conversion.
       current += PrintOperands(mnemonic, XMMREG_OPER_OP_ORDER, current);

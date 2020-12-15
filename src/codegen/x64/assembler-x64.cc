@@ -3393,6 +3393,14 @@ void Assembler::vmovddup(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::vmovshdup(XMMRegister dst, XMMRegister src) {
+  DCHECK(IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(dst, xmm0, src, kL128, kF3, k0F, kWIG);
+  emit(0x16);
+  emit_sse_operand(dst, src);
+}
+
 void Assembler::vbroadcastss(XMMRegister dst, Operand src) {
   DCHECK(IsEnabled(AVX));
   EnsureSpace ensure_space(this);
@@ -4077,6 +4085,16 @@ void Assembler::movddup(XMMRegister dst, Operand src) {
   emit_optional_rex_32(dst, src);
   emit(0x0F);
   emit(0x12);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::movshdup(XMMRegister dst, XMMRegister src) {
+  DCHECK(IsEnabled(SSE3));
+  EnsureSpace ensure_space(this);
+  emit(0xF3);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x16);
   emit_sse_operand(dst, src);
 }
 

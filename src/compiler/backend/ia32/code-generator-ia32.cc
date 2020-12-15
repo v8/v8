@@ -2396,18 +2396,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister src = i.InputSimd128Register(0);
       uint8_t lane = i.InputUint8(1);
       DCHECK_LT(lane, 4);
-      if (lane == 0 && dst == src) {
-        break;
-      }
-
-      uint8_t zmask = 0xE;  // Zero top 3 lanes.
-      if (CpuFeatures::IsSupported(AVX)) {
-        CpuFeatureScope avx_scope(tasm(), AVX);
-        // Use src for both operands to avoid false-dependency on dst.
-        __ vinsertps(dst, src, src, zmask | (lane << 6));
+      // These instructions are shorter than insertps, but will leave junk in
+      // the top lanes of dst.
+      if (lane == 0) {
+        if (dst != src) {
+          __ Movaps(dst, src);
+        }
+      } else if (lane == 1) {
+        __ Movshdup(dst, src);
+      } else if (lane == 2 && dst == src) {
+        // Check dst == src to avoid false dependency on dst.
+        __ Movhlps(dst, src);
+      } else if (dst == src) {
+        __ Shufps(dst, src, src, lane);
       } else {
-        CpuFeatureScope sse_scope(tasm(), SSE4_1);
-        __ insertps(dst, src, zmask | (lane << 6));
+        __ Pshufd(dst, src, lane);
       }
       break;
     }

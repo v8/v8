@@ -2395,6 +2395,15 @@ void Assembler::movddup(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::movshdup(XMMRegister dst, XMMRegister src) {
+  DCHECK(IsEnabled(SSE3));
+  EnsureSpace ensure_space(this);
+  EMIT(0xF3);
+  EMIT(0x0F);
+  EMIT(0x16);
+  emit_sse_operand(dst, src);
+}
+
 void Assembler::shufps(XMMRegister dst, XMMRegister src, byte imm8) {
   DCHECK(is_uint8(imm8));
   EnsureSpace ensure_space(this);
@@ -2412,6 +2421,13 @@ void Assembler::shufpd(XMMRegister dst, XMMRegister src, byte imm8) {
   EMIT(0xC6);
   emit_sse_operand(dst, src);
   EMIT(imm8);
+}
+
+void Assembler::movhlps(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0x12);
+  emit_sse_operand(dst, src);
 }
 
 void Assembler::movlps(XMMRegister dst, Operand src) {
@@ -2881,6 +2897,10 @@ void Assembler::vshufpd(XMMRegister dst, XMMRegister src1, Operand src2,
   DCHECK(is_uint8(imm8));
   vpd(0xC6, dst, src1, src2);
   EMIT(imm8);
+}
+
+void Assembler::vmovhlps(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+  vinstr(0x12, dst, src1, src2, kNone, k0F, kWIG);
 }
 
 void Assembler::vmovlps(XMMRegister dst, XMMRegister src1, Operand src2) {

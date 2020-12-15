@@ -386,6 +386,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP3_XO(Orpd, orpd)
   AVX_OP3_XO(Andnpd, andnpd)
   AVX_OP3_XO(Pmullw, pmullw)
+  AVX_OP3_WITH_TYPE(Movhlps, movhlps, XMMRegister, XMMRegister)
 
 #undef AVX_OP3_XO
 #undef AVX_OP3_WITH_TYPE
@@ -476,6 +477,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, XMMRegister, SSE3) \
   AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, Operand, SSE3)
   AVX_OP2_XO_SSE3(Movddup, movddup)
+  AVX_OP2_WITH_TYPE_SCOPE(Movshdup, movshdup, XMMRegister, XMMRegister, SSE3)
 
 #undef AVX_OP2_XO_SSE3
 
@@ -575,6 +577,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Pinsrw(XMMRegister dst, Operand src, int8_t imm8);
   void Vbroadcastss(XMMRegister dst, Operand src);
   void Extractps(Operand dst, XMMRegister src, uint8_t imm8);
+
+  // Shufps that will mov src1 into dst if AVX is not supported.
+  void Shufps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+              uint8_t imm8);
 
   // Expression support
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
