@@ -273,8 +273,9 @@ WASM_COMPILED_EXEC_TEST(WasmBasicStruct) {
 
 // Test struct.set, ref.as_non_null,
 // struct refs types in globals and if-results.
-TEST(WasmRefAsNonNull) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(WasmRefAsNonNull) {
+  WasmGCTester tester(execution_tier);
+  FLAG_experimental_liftoff_extern_ref = true;
   const byte type_index =
       tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
   ValueType kRefTypes[] = {ref(type_index)};
@@ -303,8 +304,9 @@ TEST(WasmRefAsNonNull) {
   tester.CheckResult(kFunc, 55);
 }
 
-TEST(WasmBrOnNull) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(WasmBrOnNull) {
+  WasmGCTester tester(execution_tier);
+  FLAG_experimental_liftoff_extern_ref = true;
   const byte type_index =
       tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
   ValueType kRefTypes[] = {ref(type_index)};
@@ -340,8 +342,9 @@ TEST(WasmBrOnNull) {
   tester.CheckResult(kNotTaken, 52);
 }
 
-TEST(BrOnCast) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(BrOnCast) {
+  WasmGCTester tester(execution_tier);
+  FLAG_experimental_liftoff_extern_ref = true;
   const byte type_index = tester.DefineStruct({F(kWasmI32, true)});
   const byte rtt_index =
       tester.AddGlobal(ValueType::Rtt(type_index, 1), false,

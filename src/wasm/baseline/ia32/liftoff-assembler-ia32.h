@@ -1231,6 +1231,16 @@ void LiftoffAssembler::emit_i32_sub(Register dst, Register lhs, Register rhs) {
   }
 }
 
+void LiftoffAssembler::emit_i32_subi(Register dst, Register lhs, int32_t imm) {
+  if (dst != lhs) {
+    // We'll have to implement an UB-safe version if we need this corner case.
+    DCHECK_NE(imm, kMinInt);
+    lea(dst, Operand(lhs, -imm));
+  } else {
+    sub(dst, Immediate(imm));
+  }
+}
+
 namespace liftoff {
 template <void (Assembler::*op)(Register, Register)>
 void EmitCommutativeBinOp(LiftoffAssembler* assm, Register dst, Register lhs,
@@ -2392,6 +2402,14 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
   j(cond, label);
 }
 
+void LiftoffAssembler::emit_i32_cond_jumpi(LiftoffCondition liftoff_cond,
+                                           Label* label, Register lhs,
+                                           int imm) {
+  Condition cond = liftoff::ToCondition(liftoff_cond);
+  cmp(lhs, Immediate(imm));
+  j(cond, label);
+}
+
 namespace liftoff {
 
 // Setcc into dst register, given a scratch byte register (might be the same as
@@ -2531,6 +2549,13 @@ bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
                                    LiftoffRegister false_value,
                                    ValueType type) {
   return false;
+}
+
+void LiftoffAssembler::emit_smi_check(Register obj, Label* target,
+                                      SmiCheckMode mode) {
+  test_b(obj, Immediate(kSmiTagMask));
+  Condition condition = mode == kJumpOnSmi ? zero : not_zero;
+  j(condition, target);
 }
 
 namespace liftoff {

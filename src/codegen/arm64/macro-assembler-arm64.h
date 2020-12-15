@@ -931,6 +931,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void JumpIfEqual(Register x, int32_t y, Label* dest);
   inline void JumpIfLessThan(Register x, int32_t y, Label* dest);
 
+  void LoadMap(Register dst, Register object);
+
   inline void Fmov(VRegister fd, VRegister fn);
   inline void Fmov(VRegister fd, Register rn);
   // Provide explicit double and float interfaces for FP immediate moves, rather
@@ -1965,8 +1967,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   //  * The exit frame is dropped.
   void LeaveExitFrame(bool save_doubles, const Register& scratch,
                       const Register& scratch2);
-
-  void LoadMap(Register dst, Register object);
 
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst);

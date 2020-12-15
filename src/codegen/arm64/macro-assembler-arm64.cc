@@ -2669,7 +2669,7 @@ void MacroAssembler::CompareObjectType(Register object, Register map,
   CompareInstanceType(map, type_reg, type);
 }
 
-void MacroAssembler::LoadMap(Register dst, Register object) {
+void TurboAssembler::LoadMap(Register dst, Register object) {
   LoadTaggedPointerField(dst, FieldMemOperand(object, HeapObject::kMapOffset));
 }
 

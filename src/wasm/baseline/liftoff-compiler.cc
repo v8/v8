@@ -1716,7 +1716,10 @@ class LiftoffCompiler {
   }
 
   void RefAsNonNull(FullDecoder* decoder, const Value& arg, Value* result) {
-    unsupported(decoder, kRefTypes, "ref.as_non_null");
+    LiftoffRegList pinned;
+    LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
+    MaybeEmitNullCheck(decoder, obj.gp(), pinned, arg.type);
+    __ PushRegister(ValueType::Ref(arg.type.heap_type(), kNonNullable), obj);
   }
 
   void Drop(FullDecoder* decoder, const Value& value) {
@@ -2596,7 +2599,24 @@ class LiftoffCompiler {
   }
 
   void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth) {
-    unsupported(decoder, kRefTypes, "br_on_null");
+    // Before branching, materialize all constants. This avoids repeatedly
+    // materializing them for each conditional branch.
+    if (depth != decoder->control_depth() - 1) {
+      __ MaterializeMergedConstants(
+          decoder->control_at(depth)->br_merge()->arity);
+    }
+
+    Label cont_false;
+    LiftoffRegList pinned;
+    LiftoffRegister ref = pinned.set(__ PopToRegister(pinned));
+    Register null = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    LoadNullValue(null, pinned);
+    __ emit_cond_jump(kUnequal, &cont_false, ref_object.type, ref.gp(), null);
+
+    BrOrRet(decoder, depth);
+    __ bind(&cont_false);
+    __ PushRegister(ValueType::Ref(ref_object.type.heap_type(), kNonNullable),
+                    ref);
   }
 
   template <ValueType::Kind src_type, ValueType::Kind result_type,
@@ -3935,9 +3955,20 @@ class LiftoffCompiler {
   }
 
   void I31New(FullDecoder* decoder, const Value& input, Value* result) {
-    // TODO(7748): Implement.
-    unsupported(decoder, kGC, "i31.new");
+    LiftoffRegister src = __ PopToRegister();
+    LiftoffRegister dst = __ GetUnusedRegister(kGpReg, {src}, {});
+    if (SmiValuesAre31Bits()) {
+      STATIC_ASSERT(kSmiTag == 0);
+      __ emit_i32_shli(dst.gp(), src.gp(), kSmiTagSize);
+    } else {
+      DCHECK(SmiValuesAre32Bits());
+      // 1 bit Smi tag, 31 bits Smi shift, 1 bit i31ref high-bit truncation.
+      constexpr int kI31To32BitSmiShift = 33;
+      __ emit_i64_shli(dst, src, kI31To32BitSmiShift);
+    }
+    __ PushRegister(kWasmI31Ref, dst);
   }
+
   void I31GetS(FullDecoder* decoder, const Value& input, Value* result) {
     // TODO(7748): Implement.
     unsupported(decoder, kGC, "i31.get_s");
@@ -4003,13 +4034,95 @@ class LiftoffCompiler {
   }
   void BrOnCast(FullDecoder* decoder, const Value& obj, const Value& rtt,
                 Value* result_on_branch, uint32_t depth) {
-    // TODO(7748): Implement.
-    unsupported(decoder, kGC, "br_on_cast");
+    // Before branching, materialize all constants. This avoids repeatedly
+    // materializing them for each conditional branch.
+    if (depth != decoder->control_depth() - 1) {
+      __ MaterializeMergedConstants(
+          decoder->control_at(depth)->br_merge()->arity);
+    }
+
+    Label branch, cont_false;
+    LiftoffRegList pinned;
+    LiftoffRegister rtt_reg = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister obj_reg = pinned.set(__ PopToRegister(pinned));
+
+    bool obj_can_be_i31 = IsSubtypeOf(kWasmI31Ref, obj.type, decoder->module_);
+    bool rtt_is_i31 = rtt.type.heap_representation() == HeapType::kI31;
+    bool i31_check_only = obj_can_be_i31 && rtt_is_i31;
+    if (i31_check_only) {
+      __ emit_smi_check(obj_reg.gp(), &cont_false,
+                        LiftoffAssembler::kJumpOnNotSmi);
+      // Emit no further code, just fall through to taking the branch.
+    } else {
+      // Reserve all temporary registers up front, so that the cache state
+      // tracking doesn't get confused by the following conditional jumps.
+      LiftoffRegister tmp1 = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      LiftoffRegister tmp2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      if (obj_can_be_i31) {
+        DCHECK(!rtt_is_i31);
+        __ emit_smi_check(obj_reg.gp(), &cont_false,
+                          LiftoffAssembler::kJumpOnSmi);
+      }
+      if (obj.type.is_nullable()) {
+        LoadNullValue(tmp1.gp(), pinned);
+        __ emit_cond_jump(kEqual, &cont_false, obj.type, obj_reg.gp(),
+                          tmp1.gp());
+      }
+
+      // At this point, the object is neither null nor an i31ref. Perform
+      // a regular type check. Check for exact match first.
+      __ LoadMap(tmp1.gp(), obj_reg.gp());
+      // {tmp1} now holds the object's map.
+      __ emit_cond_jump(kEqual, &branch, rtt.type, tmp1.gp(), rtt_reg.gp());
+
+      // If the object isn't guaranteed to be an array or struct, check that.
+      // Subsequent code wouldn't handle e.g. funcrefs.
+      if (!is_data_ref_type(obj.type, decoder->module_)) {
+        EmitDataRefCheck(tmp1.gp(), &cont_false, tmp2, pinned);
+      }
+
+      // Constant-time subtyping check: load exactly one candidate RTT from the
+      // supertypes list.
+      // Step 1: load the WasmTypeInfo into {tmp1}.
+      constexpr int kTypeInfoOffset = wasm::ObjectAccess::ToTagged(
+          Map::kConstructorOrBackPointerOrNativeContextOffset);
+      __ LoadTaggedPointer(tmp1.gp(), tmp1.gp(), no_reg, kTypeInfoOffset,
+                           pinned);
+      // Step 2: load the super types list into {tmp1}.
+      constexpr int kSuperTypesOffset =
+          wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset);
+      __ LoadTaggedPointer(tmp1.gp(), tmp1.gp(), no_reg, kSuperTypesOffset,
+                           pinned);
+      // Step 3: check the list's length.
+      LiftoffRegister list_length = tmp2;
+      __ LoadFixedArrayLengthAsInt32(list_length, tmp1.gp(), pinned);
+      __ emit_i32_cond_jumpi(kUnsignedLessEqual, &cont_false, list_length.gp(),
+                             rtt.type.depth());
+      // Step 4: load the candidate list slot into {tmp1}, and compare it.
+      __ LoadTaggedPointer(
+          tmp1.gp(), tmp1.gp(), no_reg,
+          wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(rtt.type.depth()),
+          pinned);
+      __ emit_cond_jump(kUnequal, &cont_false, rtt.type, tmp1.gp(),
+                        rtt_reg.gp());
+      // Fall through to taking the branch.
+    }
+
+    __ bind(&branch);
+    __ PushRegister(rtt.type.is_bottom()
+                        ? kWasmBottom
+                        : ValueType::Ref(rtt.type.heap_type(), kNonNullable),
+                    obj_reg);
+    BrOrRet(decoder, depth);
+
+    __ bind(&cont_false);
+    // Drop the branch's value, restore original value.
+    Drop(decoder, obj);
+    __ PushRegister(obj.type, obj_reg);
   }
 
   void PassThrough(FullDecoder* decoder, const Value& from, Value* to) {
-    // TODO(7748): Implement.
-    unsupported(decoder, kGC, "");
+    // Nothing to do here.
   }
 
  private:
@@ -4262,6 +4375,32 @@ class LiftoffCompiler {
       StoreType store_type = StoreType::ForValueType(type);
       __ Store(obj, no_reg, offset, value, store_type, pinned);
     }
+  }
+
+  void EmitDataRefCheck(Register map, Label* not_data_ref, LiftoffRegister tmp,
+                        LiftoffRegList pinned) {
+    constexpr int kInstanceTypeOffset =
+        wasm::ObjectAccess::ToTagged(Map::kInstanceTypeOffset);
+    __ Load(tmp, map, no_reg, kInstanceTypeOffset, LoadType::kI32Load16U,
+            pinned);
+    // We're going to test a range of instance types with a single unsigned
+    // comparison. Statically assert that this is safe, i.e. that there are
+    // no instance types between array and struct types that might possibly
+    // occur (i.e. internal types are OK, types of Wasm objects are not).
+    // At the time of this writing:
+    // WASM_ARRAY_TYPE = 180
+    // WASM_CAPI_FUNCTION_DATA_TYPE = 181
+    // WASM_STRUCT_TYPE = 182
+    // The specific values don't matter; the relative order does.
+    static_assert(
+        WASM_STRUCT_TYPE == static_cast<InstanceType>(WASM_ARRAY_TYPE + 2),
+        "Relying on specific InstanceType values here");
+    static_assert(WASM_CAPI_FUNCTION_DATA_TYPE ==
+                      static_cast<InstanceType>(WASM_ARRAY_TYPE + 1),
+                  "Relying on specific InstanceType values here");
+    __ emit_i32_subi(tmp.gp(), tmp.gp(), WASM_ARRAY_TYPE);
+    __ emit_i32_cond_jumpi(kUnsignedGreaterThan, not_data_ref, tmp.gp(),
+                           WASM_STRUCT_TYPE - WASM_ARRAY_TYPE);
   }
 
   static constexpr WasmOpcode kNoOutstandingOp = kExprUnreachable;

@@ -1497,7 +1497,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   }
 
 I32_BINOP_I(i32_add, add)
-I32_BINOP(i32_sub, sub)
+I32_BINOP_I(i32_sub, sub)
 I32_BINOP(i32_mul, mul)
 I32_BINOP_I(i32_and, and_)
 I32_BINOP_I(i32_or, orr)
@@ -2170,6 +2170,14 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
   b(label, cond);
 }
 
+void LiftoffAssembler::emit_i32_cond_jumpi(LiftoffCondition liftoff_cond,
+                                           Label* label, Register lhs,
+                                           int32_t imm) {
+  Condition cond = liftoff::ToCondition(liftoff_cond);
+  cmp(lhs, Operand(imm));
+  b(label, cond);
+}
+
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
   clz(dst, src);
   mov(dst, Operand(dst, LSR, kRegSizeInBitsLog2));
@@ -2266,6 +2274,13 @@ bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
                                    LiftoffRegister false_value,
                                    ValueType type) {
   return false;
+}
+
+void LiftoffAssembler::emit_smi_check(Register obj, Label* target,
+                                      SmiCheckMode mode) {
+  tst(obj, Operand(kSmiTagMask));
+  Condition condition = mode == kJumpOnSmi ? eq : ne;
+  b(condition, target);
 }
 
 void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,

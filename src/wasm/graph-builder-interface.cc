@@ -846,16 +846,8 @@ class WasmGraphBuildingInterface {
                                          const WasmModule* module) {
     StaticKnowledge result;
     result.object_can_be_null = object_type.is_nullable();
-    result.object_must_be_data_ref = false;
     DCHECK(object_type.is_object_reference_type());  // Checked by validation.
-    if (object_type.has_index()) {
-      uint32_t reftype = object_type.ref_index();
-      // TODO(7748): When we implement dataref (=any struct or array), add it
-      // to this list.
-      if (module->has_struct(reftype) || module->has_array(reftype)) {
-        result.object_must_be_data_ref = true;
-      }
-    }
+    result.object_must_be_data_ref = is_data_ref_type(object_type, module);
     result.object_can_be_i31 = IsSubtypeOf(kWasmI31Ref, object_type, module);
     result.rtt_is_i31 = rtt_type.heap_representation() == HeapType::kI31;
     result.rtt_depth = rtt_type.depth();

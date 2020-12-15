@@ -958,6 +958,16 @@ void LiftoffAssembler::emit_i32_sub(Register dst, Register lhs, Register rhs) {
   }
 }
 
+void LiftoffAssembler::emit_i32_subi(Register dst, Register lhs, int32_t imm) {
+  if (dst != lhs) {
+    // We'll have to implement an UB-safe version if we need this corner case.
+    DCHECK_NE(imm, kMinInt);
+    leal(dst, Operand(lhs, -imm));
+  } else {
+    subl(dst, Immediate(imm));
+  }
+}
+
 namespace liftoff {
 template <void (Assembler::*op)(Register, Register),
           void (Assembler::*mov)(Register, Register)>
@@ -2063,6 +2073,14 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
   j(cond, label);
 }
 
+void LiftoffAssembler::emit_i32_cond_jumpi(LiftoffCondition liftoff_cond,
+                                           Label* label, Register lhs,
+                                           int imm) {
+  Condition cond = liftoff::ToCondition(liftoff_cond);
+  cmpl(lhs, Immediate(imm));
+  j(cond, label);
+}
+
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
   testl(src, src);
   setcc(equal, dst);
@@ -2159,6 +2177,13 @@ bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
   }
 
   return true;
+}
+
+void LiftoffAssembler::emit_smi_check(Register obj, Label* target,
+                                      SmiCheckMode mode) {
+  testb(obj, Immediate(kSmiTagMask));
+  Condition condition = mode == kJumpOnSmi ? zero : not_zero;
+  j(condition, target);
 }
 
 // TODO(fanchenk): Distinguish mov* if data bypass delay matter.

@@ -541,6 +541,21 @@ class LiftoffAssembler : public TurboAssembler {
                                 LiftoffRegList pinned);
   inline void StoreTaggedPointer(Register dst_addr, int32_t offset_imm,
                                  LiftoffRegister src, LiftoffRegList pinned);
+  inline void LoadFixedArrayLengthAsInt32(LiftoffRegister dst, Register array,
+                                          LiftoffRegList pinned) {
+    int offset = FixedArray::kLengthOffset - kHeapObjectTag;
+    if (SmiValuesAre32Bits()) {
+#if V8_TARGET_LITTLE_ENDIAN
+      DCHECK_EQ(kSmiShiftSize + kSmiTagSize, 4 * kBitsPerByte);
+      offset += 4;
+#endif
+      Load(dst, array, no_reg, offset, LoadType::kI32Load, pinned);
+    } else {
+      DCHECK(SmiValuesAre31Bits());
+      Load(dst, array, no_reg, offset, LoadType::kI32Load, pinned);
+      emit_i32_sari(dst.gp(), dst.gp(), kSmiTagSize);
+    }
+  }
   inline void Load(LiftoffRegister dst, Register src_addr, Register offset_reg,
                    uintptr_t offset_imm, LoadType type, LiftoffRegList pinned,
                    uint32_t* protected_load_pc = nullptr,
@@ -612,6 +627,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_i32_add(Register dst, Register lhs, Register rhs);
   inline void emit_i32_addi(Register dst, Register lhs, int32_t imm);
   inline void emit_i32_sub(Register dst, Register lhs, Register rhs);
+  inline void emit_i32_subi(Register dst, Register lhs, int32_t imm);
   inline void emit_i32_mul(Register dst, Register lhs, Register rhs);
   inline void emit_i32_divs(Register dst, Register lhs, Register rhs,
                             Label* trap_div_by_zero,
@@ -812,6 +828,8 @@ class LiftoffAssembler : public TurboAssembler {
 
   inline void emit_cond_jump(LiftoffCondition, Label*, ValueType value,
                              Register lhs, Register rhs = no_reg);
+  inline void emit_i32_cond_jumpi(LiftoffCondition liftoff_cond, Label* label,
+                                  Register lhs, int imm);
   // Set {dst} to 1 if condition holds, 0 otherwise.
   inline void emit_i32_eqz(Register dst, Register src);
   inline void emit_i32_set_cond(LiftoffCondition, Register dst, Register lhs,
@@ -829,6 +847,9 @@ class LiftoffAssembler : public TurboAssembler {
   inline bool emit_select(LiftoffRegister dst, Register condition,
                           LiftoffRegister true_value,
                           LiftoffRegister false_value, ValueType type);
+
+  enum SmiCheckMode { kJumpOnSmi, kJumpOnNotSmi };
+  inline void emit_smi_check(Register obj, Label* target, SmiCheckMode mode);
 
   inline void LoadTransform(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uintptr_t offset_imm,
