@@ -26,7 +26,8 @@ class StackFrame {
   ~StackFrame() = default;
 
   const String16& functionName() const;
-  const String16& scriptId() const;
+  int scriptId() const;
+  const String16& scriptIdAsString() const;
   const String16& sourceURL() const;
   int lineNumber() const;    // 0-based.
   int columnNumber() const;  // 0-based.
@@ -36,7 +37,8 @@ class StackFrame {
 
  private:
   String16 m_functionName;
-  String16 m_scriptId;
+  int m_scriptId;
+  String16 m_scriptIdAsString;
   String16 m_sourceURL;
   int m_lineNumber;    // 0-based.
   int m_columnNumber;  // 0-based.
@@ -74,6 +76,7 @@ class V8StackTraceImpl : public V8StackTrace {
   int topLineNumber() const override;    // 1-based.
   int topColumnNumber() const override;  // 1-based.
   StringView topScriptId() const override;
+  int topScriptIdAsInteger() const override;
   StringView topFunctionName() const override;
   std::unique_ptr<protocol::Runtime::API::StackTrace> buildInspectorObject()
       const override;

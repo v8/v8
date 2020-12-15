@@ -106,6 +106,7 @@ class V8_EXPORT V8StackTrace {
   virtual int topLineNumber() const = 0;
   virtual int topColumnNumber() const = 0;
   virtual StringView topScriptId() const = 0;
+  virtual int topScriptIdAsInteger() const = 0;
   virtual StringView topFunctionName() const = 0;
 
   virtual ~V8StackTrace() = default;
