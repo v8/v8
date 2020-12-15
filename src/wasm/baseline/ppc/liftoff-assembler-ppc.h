@@ -335,7 +335,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   }
 
 UNIMPLEMENTED_I32_BINOP_I(i32_add)
-UNIMPLEMENTED_I32_BINOP(i32_sub)
+UNIMPLEMENTED_I32_BINOP_I(i32_sub)
 UNIMPLEMENTED_I32_BINOP(i32_mul)
 UNIMPLEMENTED_I32_BINOP_I(i32_and)
 UNIMPLEMENTED_I32_BINOP_I(i32_or)
@@ -522,6 +522,12 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
   bailout(kUnsupportedArchitecture, "emit_cond_jump");
 }
 
+void LiftoffAssembler::emit_i32_cond_jumpi(LiftoffCondition liftoff_cond,
+                                           Label* label, Register lhs,
+                                           int32_t imm) {
+  bailout(kUnsupportedArchitecture, "emit_i32_cond_jumpi");
+}
+
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
   bailout(kUnsupportedArchitecture, "emit_i32_eqz");
 }
@@ -567,6 +573,11 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
                                      LoadTransformationKind transform,
                                      uint32_t* protected_load_pc) {
   bailout(kSimd, "Load transform unimplemented");
+}
+
+void LiftoffAssembler::emit_smi_check(Register obj, Label* target,
+                                      SmiCheckMode mode) {
+  bailout(kUnsupportedArchitecture, "emit_smi_check");
 }
 
 void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
