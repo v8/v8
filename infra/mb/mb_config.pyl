@@ -74,6 +74,8 @@
       # Mac.
       'V8 Mac64': 'release_x64',
       'V8 Mac64 - debug': 'debug_x64',
+      'V8 Official Mac ARM64': 'release_arm64',
+      'V8 Official Mac ARM64 Debug': 'debug_arm64',
       'V8 Mac64 GC Stress': 'debug_x64',
       'V8 Mac64 ASAN': 'release_x64_asan_no_lsan',
       'V8 Mac - arm64 - release builder': 'release_arm64',
