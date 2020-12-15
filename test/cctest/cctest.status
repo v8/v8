@@ -253,6 +253,7 @@
 
   # BUG(10107): Failing flakily
   'test-cpu-profiler/Inlining2': ['arch == ia32 and mode == debug', SKIP],
+  'test-cpu-profiler/CrossScriptInliningCallerLineNumbers': ['arch == ia32 and mode == debug', SKIP],
   'test-cpu-profiler/CrossScriptInliningCallerLineNumbers2': ['arch == ia32 and mode == debug', SKIP],
 
   # BUG(v8:10996): Flaky on Win32
