@@ -1207,7 +1207,7 @@ class ParserBase {
                                 bool name_is_strict_reserved,
                                 int class_token_pos);
   ExpressionT ParseTemplateLiteral(ExpressionT tag, int start, bool tagged);
-  ExpressionT ParseSuperExpression(bool is_new);
+  ExpressionT ParseSuperExpression();
   ExpressionT ParseImportExpressions();
   ExpressionT ParseNewTargetExpression();
 
@@ -1849,8 +1849,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       return ParseFunctionExpression();
 
     case Token::SUPER: {
-      const bool is_new = false;
-      return ParseSuperExpression(is_new);
+      return ParseSuperExpression();
     }
     case Token::IMPORT:
       return ParseImportExpressions();
@@ -3431,16 +3430,14 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression() {
   // new new foo means new (new foo)
   // new new foo() means new (new foo())
   // new new foo().bar().baz means (new (new foo()).bar()).baz
+  // new super.x means new (super.x)
   Consume(Token::NEW);
   int new_pos = position();
   ExpressionT result;
 
   CheckStackOverflow();
 
-  if (peek() == Token::SUPER) {
-    const bool is_new = true;
-    result = ParseSuperExpression(is_new);
-  } else if (peek() == Token::IMPORT && PeekAhead() == Token::LPAREN) {
+  if (peek() == Token::IMPORT && PeekAhead() == Token::LPAREN) {
     impl()->ReportMessageAt(scanner()->peek_location(),
                             MessageTemplate::kImportCallNotNewExpression);
     return impl()->FailureExpression();
@@ -3449,6 +3446,12 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression() {
     return ParseMemberExpressionContinuation(result);
   } else {
     result = ParseMemberExpression();
+    if (result->IsSuperCallReference()) {
+      // new super() is never allowed
+      impl()->ReportMessageAt(scanner()->location(),
+                              MessageTemplate::kUnexpectedSuper);
+      return impl()->FailureExpression();
+    }
   }
   if (peek() == Token::LPAREN) {
     // NewExpression with arguments.
@@ -3576,8 +3579,8 @@ ParserBase<Impl>::ParseImportExpressions() {
 }
 
 template <typename Impl>
-typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseSuperExpression(
-    bool is_new) {
+typename ParserBase<Impl>::ExpressionT
+ParserBase<Impl>::ParseSuperExpression() {
   Consume(Token::SUPER);
   int pos = position();
 
@@ -3602,9 +3605,10 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseSuperExpression(
       UseThis();
       return impl()->NewSuperPropertyReference(pos);
     }
-    // new super() is never allowed.
-    // super() is only allowed in derived constructor
-    if (!is_new && peek() == Token::LPAREN && IsDerivedConstructor(kind)) {
+    // super() is only allowed in derived constructor. new super() is never
+    // allowed; it's reported as an error by
+    // ParseMemberWithPresentNewPrefixesExpression.
+    if (peek() == Token::LPAREN && IsDerivedConstructor(kind)) {
       // TODO(rossberg): This might not be the correct FunctionState for the
       // method here.
       expression_scope()->RecordThisUse();
