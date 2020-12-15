@@ -178,8 +178,10 @@ void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
       static_cast<int>(gc_reason));
   HistogramTimerScope incremental_marking_scope(
       counters->gc_incremental_marking_start());
-  TRACE_EVENT0("v8", "V8.GCIncrementalMarkingStart");
-  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_START);
+  TRACE_EVENT1("v8", "V8.GCIncrementalMarkingStart", "epoch",
+               heap_->epoch_full());
+  TRACE_GC_EPOCH(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_START,
+                 ThreadKind::kMain);
   heap_->tracer()->NotifyIncrementalMarkingStart();
 
   start_time_ms_ = heap()->MonotonicallyIncreasingTimeInMs();
@@ -779,8 +781,9 @@ StepResult IncrementalMarking::AdvanceWithDeadline(
     StepOrigin step_origin) {
   HistogramTimerScope incremental_marking_scope(
       heap_->isolate()->counters()->gc_incremental_marking());
-  TRACE_EVENT0("v8", "V8.GCIncrementalMarking");
-  TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL);
+  TRACE_EVENT1("v8", "V8.GCIncrementalMarking", "epoch", heap_->epoch_full());
+  TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL,
+                 ThreadKind::kMain);
   DCHECK(!IsStopped());
 
   ScheduleBytesToMarkBasedOnTime(heap()->MonotonicallyIncreasingTimeInMs());
