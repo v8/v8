@@ -2572,7 +2572,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F32x4Splat: {
-      __ Shufps(i.OutputSimd128Register(), i.InputDoubleRegister(0), 0);
+      __ Shufps(i.OutputSimd128Register(), i.InputDoubleRegister(0),
+                i.InputDoubleRegister(0), 0);
       break;
     }
     case kX64F32x4ExtractLane: {
@@ -3912,7 +3913,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       uint8_t mask = i.InputUint8(1);
       if (dst == src) {
         // 1-byte shorter encoding than pshufd.
-        __ Shufps(dst, src, mask);
+        __ Shufps(dst, src, src, mask);
       } else {
         __ Pshufd(dst, src, mask);
       }
