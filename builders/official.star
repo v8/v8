@@ -209,4 +209,42 @@ in_category(
         ],
         use_goma = GOMA.DEFAULT,
     ),
+    v8_builder(
+        name = "V8 Official Mac ARM64",
+        bucket = "ci",
+        triggered_by = ["v8-trigger-official"],
+        triggering_policy = scheduler.policy(
+            kind = scheduler.GREEDY_BATCHING_KIND,
+            max_batch_size = 1,
+        ),
+        executable = "recipe:v8/archive",
+        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
+        properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64},
+        caches = [
+            swarming.cache(
+                path = "osx_sdk",
+                name = "osx_sdk",
+            ),
+        ],
+        use_goma = GOMA.DEFAULT,
+    ),
+    v8_builder(
+        name = "V8 Official Mac ARM64 Debug",
+        bucket = "ci",
+        triggered_by = ["v8-trigger-official"],
+        triggering_policy = scheduler.policy(
+            kind = scheduler.GREEDY_BATCHING_KIND,
+            max_batch_size = 1,
+        ),
+        executable = "recipe:v8/archive",
+        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
+        properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 64},
+        caches = [
+            swarming.cache(
+                path = "osx_sdk",
+                name = "osx_sdk",
+            ),
+        ],
+        use_goma = GOMA.DEFAULT,
+    ),
 )
