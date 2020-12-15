@@ -68,7 +68,7 @@ luci.builder(
     name = "V8 Win64 - dev image",
     swarming_host = "chromium-swarm-dev.appspot.com",
     swarming_tags = ["vpython:native-python-wrapper"],
-    dimensions = {"cpu": "x86-64", "host_class": "default", "os": "Windows-10", "pool": "luci.chromium.ci"},
+    dimensions = {"cpu": "x86-64", "os": "Windows-10", "pool": "luci.chromium.ci"},
     executable = "recipe:v8",
     properties = {
         "$build/goma": {
