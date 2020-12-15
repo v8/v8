@@ -388,6 +388,15 @@ class WasmRunnerBase : public InitializedHandleScope {
                  runtime_exception_support, lower_simd),
         wrapper_(&zone_, num_params) {}
 
+  static void SetUpTrapCallback() {
+    WasmRunnerBase::trap_happened = false;
+    auto trap_callback = []() -> void {
+      WasmRunnerBase::trap_happened = true;
+      set_trap_callback_for_testing(nullptr);
+    };
+    set_trap_callback_for_testing(trap_callback);
+  }
+
   // Builds a graph from the given Wasm code and generates the machine
   // code and call wrapper for that graph. This method must not be called
   // more than once.
@@ -447,11 +456,49 @@ class WasmRunnerBase : public InitializedHandleScope {
     return CreateSig(zone, MachineTypeForC<ReturnType>(), param_vec);
   }
 
+  void CheckCallApplyViaJS(double expected, uint32_t function_index,
+                           Handle<Object>* buffer, int count) {
+    Isolate* isolate = builder_.isolate();
+    SetUpTrapCallback();
+    if (jsfuncs_.size() <= function_index) {
+      jsfuncs_.resize(function_index + 1);
+    }
+    if (jsfuncs_[function_index].is_null()) {
+      jsfuncs_[function_index] = builder_.WrapCode(function_index);
+    }
+    Handle<JSFunction> jsfunc = jsfuncs_[function_index];
+    Handle<Object> global(isolate->context().global_object(), isolate);
+    MaybeHandle<Object> retval =
+        Execution::TryCall(isolate, jsfunc, global, count, buffer,
+                           Execution::MessageHandling::kReport, nullptr);
+
+    if (retval.is_null() || WasmRunnerBase::trap_happened) {
+      CHECK_EQ(expected, static_cast<double>(0xDEADBEEF));
+    } else {
+      Handle<Object> result = retval.ToHandleChecked();
+      if (result->IsSmi()) {
+        CHECK_EQ(expected, Smi::ToInt(*result));
+      } else {
+        CHECK(result->IsHeapNumber());
+        CHECK_DOUBLE_EQ(expected, HeapNumber::cast(*result).value());
+      }
+    }
+
+    if (builder_.interpret()) {
+      CHECK_GT(builder_.interpreter()->NumInterpretedCalls(), 0);
+    }
+  }
+
+  Handle<Code> GetWrapperCode() { return wrapper_.GetWrapperCode(); }
+
  private:
   static FunctionSig* CreateSig(Zone* zone, MachineType return_type,
                                 Vector<MachineType> param_types);
 
  protected:
+  wasm::WasmCodeRefScope code_ref_scope_;
+  std::vector<Handle<JSFunction>> jsfuncs_;
+
   v8::internal::AccountingAllocator allocator_;
   Zone zone_;
   TestingModuleBuilder builder_;
@@ -460,6 +507,16 @@ class WasmRunnerBase : public InitializedHandleScope {
   bool compiled_ = false;
   bool possible_nondeterminism_ = false;
   int32_t main_fn_index_ = 0;
+
+  static void SetThreadInWasmFlag() {
+    *reinterpret_cast<int*>(trap_handler::GetThreadInWasmThreadLocalAddress()) =
+        true;
+  }
+
+  static void ClearThreadInWasmFlag() {
+    *reinterpret_cast<int*>(trap_handler::GetThreadInWasmThreadLocalAddress()) =
+        false;
+  }
 
  public:
   // This field has to be static. Otherwise, gcc complains about the use in
@@ -491,15 +548,6 @@ class WasmRunner : public WasmRunnerBase {
   WasmRunner(TestExecutionTier execution_tier, LowerSimd lower_simd)
       : WasmRunner(execution_tier, nullptr, "main", kNoRuntimeExceptionSupport,
                    lower_simd) {}
-
-  void SetUpTrapCallback() {
-    WasmRunnerBase::trap_happened = false;
-    auto trap_callback = []() -> void {
-      WasmRunnerBase::trap_happened = true;
-      set_trap_callback_for_testing(nullptr);
-    };
-    set_trap_callback_for_testing(trap_callback);
-  }
 
   ReturnType Call(ParamTypes... p) {
     DCHECK(compiled_);
@@ -549,39 +597,6 @@ class WasmRunner : public WasmRunnerBase {
     }
   }
 
-  void CheckCallApplyViaJS(double expected, uint32_t function_index,
-                           Handle<Object>* buffer, int count) {
-    Isolate* isolate = builder_.isolate();
-    SetUpTrapCallback();
-    if (jsfuncs_.size() <= function_index) {
-      jsfuncs_.resize(function_index + 1);
-    }
-    if (jsfuncs_[function_index].is_null()) {
-      jsfuncs_[function_index] = builder_.WrapCode(function_index);
-    }
-    Handle<JSFunction> jsfunc = jsfuncs_[function_index];
-    Handle<Object> global(isolate->context().global_object(), isolate);
-    MaybeHandle<Object> retval =
-        Execution::TryCall(isolate, jsfunc, global, count, buffer,
-                           Execution::MessageHandling::kReport, nullptr);
-
-    if (retval.is_null() || WasmRunnerBase::trap_happened) {
-      CHECK_EQ(expected, static_cast<double>(0xDEADBEEF));
-    } else {
-      Handle<Object> result = retval.ToHandleChecked();
-      if (result->IsSmi()) {
-        CHECK_EQ(expected, Smi::ToInt(*result));
-      } else {
-        CHECK(result->IsHeapNumber());
-        CHECK_DOUBLE_EQ(expected, HeapNumber::cast(*result).value());
-      }
-    }
-
-    if (builder_.interpret()) {
-      CHECK_GT(builder_.interpreter()->NumInterpretedCalls(), 0);
-    }
-  }
-
   void CheckCallViaJS(double expected, ParamTypes... p) {
     Isolate* isolate = builder_.isolate();
     // MSVC doesn't allow empty arrays, so include a dummy at the end.
@@ -592,29 +607,6 @@ class WasmRunner : public WasmRunnerBase {
 
   void CheckCallViaJSTraps(ParamTypes... p) {
     CheckCallViaJS(static_cast<double>(0xDEADBEEF), p...);
-  }
-
-  void CheckUsedExecutionTier(TestExecutionTier expected_tier) {
-    // Liftoff can fail and fallback to Turbofan, so check that the function
-    // gets compiled by the tier requested, to guard against accidental success.
-    CHECK(compiled_);
-    CHECK_EQ(expected_tier, builder_.GetFunctionCode(0)->tier());
-  }
-
-  Handle<Code> GetWrapperCode() { return wrapper_.GetWrapperCode(); }
-
- private:
-  wasm::WasmCodeRefScope code_ref_scope_;
-  std::vector<Handle<JSFunction>> jsfuncs_;
-
-  void SetThreadInWasmFlag() {
-    *reinterpret_cast<int*>(trap_handler::GetThreadInWasmThreadLocalAddress()) =
-        true;
-  }
-
-  void ClearThreadInWasmFlag() {
-    *reinterpret_cast<int*>(trap_handler::GetThreadInWasmThreadLocalAddress()) =
-        false;
   }
 };
 
