@@ -224,7 +224,7 @@ void PerfJitLogger::LogRecordedBuffer(
 
   // Debug info has to be emitted first.
   Handle<SharedFunctionInfo> shared;
-  if (FLAG_perf_prof && !maybe_shared.ToHandle(&shared)) {
+  if (FLAG_perf_prof && maybe_shared.ToHandle(&shared)) {
     // TODO(herhut): This currently breaks for js2wasm/wasm2js functions.
     if (code->kind() != CodeKind::JS_TO_WASM_FUNCTION &&
         code->kind() != CodeKind::WASM_TO_JS_FUNCTION) {
