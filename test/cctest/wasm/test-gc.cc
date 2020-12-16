@@ -745,8 +745,9 @@ WASM_COMPILED_EXEC_TEST(WasmPackedArrayS) {
   tester.CheckResult(kF, static_cast<int16_t>(expected_outputs[3]), 3);
 }
 
-TEST(NewDefault) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(NewDefault) {
+  WasmGCTester tester(execution_tier);
+  FLAG_experimental_liftoff_extern_ref = true;
   const byte struct_type = tester.DefineStruct(
       {F(wasm::kWasmI32, true), F(wasm::kWasmF64, true), F(optref(0), true)});
   const byte array_type = tester.DefineArray(wasm::kWasmI32, true);
@@ -873,8 +874,9 @@ TEST(BasicRTT) {
   tester.CheckResult(kRefCast, 43);
 }
 
-TEST(AnyRefRtt) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(AnyRefRtt) {
+  WasmGCTester tester(execution_tier);
+  FLAG_experimental_liftoff_extern_ref = true;
 
   ValueType any_rtt_0_type = ValueType::Rtt(HeapType::kAny, 0);
   FunctionSig sig_any_canon(1, 0, &any_rtt_0_type);
@@ -947,8 +949,10 @@ TEST(AnyRefRtt) {
   tester.CheckResult(kCheckAnyAgainstAny, 1);
 }
 
-TEST(ArrayNewMap) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(ArrayNewMap) {
+  WasmGCTester tester(execution_tier);
+  FLAG_experimental_liftoff_extern_ref = true;
+
   const byte type_index = tester.DefineArray(kWasmI32, true);
 
   ValueType array_type = ValueType::Ref(type_index, kNonNullable);
@@ -1065,8 +1069,9 @@ TEST(CallRef) {
   tester.CheckResult(caller, 47, 5);
 }
 
-TEST(RefTestCastNull) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(RefTestCastNull) {
+  WasmGCTester tester(execution_tier);
+  FLAG_experimental_liftoff_extern_ref = true;
   byte type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
 
   const byte kRefTestNull = tester.DefineFunction(
@@ -1266,8 +1271,9 @@ TEST(CastsBenchmark) {
   tester.CheckResult(Main, (kListLength * (kListLength - 1) / 2) * kLoops);
 }
 
-TEST(GlobalInitReferencingGlobal) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(GlobalInitReferencingGlobal) {
+  WasmGCTester tester(execution_tier);
+  FLAG_experimental_liftoff_extern_ref = true;
   const byte from = tester.AddGlobal(kWasmI32, false, WasmInitExpr(42));
   const byte to =
       tester.AddGlobal(kWasmI32, false, WasmInitExpr::GlobalGet(from));
@@ -1280,8 +1286,9 @@ TEST(GlobalInitReferencingGlobal) {
   tester.CheckResult(func, 42);
 }
 
-TEST(IndirectNullSetManually) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(IndirectNullSetManually) {
+  WasmGCTester tester(execution_tier);
+  FLAG_experimental_liftoff_extern_ref = true;
   byte sig_index = tester.DefineSignature(tester.sigs.i_i());
   tester.DefineTable(ValueType::Ref(sig_index, kNullable), 1, 1);
   byte func_index = tester.DefineFunction(

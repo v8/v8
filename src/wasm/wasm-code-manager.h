@@ -86,6 +86,7 @@ struct WasmModule;
   V(RecordWrite)                         \
   V(ToNumber)                            \
   V(WasmAllocateArrayWithRtt)            \
+  V(WasmAllocateRtt)                     \
   V(WasmAllocateStructWithRtt)
 
 // Sorted, disjoint and non-overlapping memory regions. A region is of the
