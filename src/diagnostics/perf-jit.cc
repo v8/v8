@@ -111,6 +111,8 @@ const char PerfJitLogger::kFilenameFormatString[] = "./jit-%d.dump";
 // Extra padding for the PID in the filename
 const int PerfJitLogger::kFilenameBufferPadding = 16;
 
+static const char kStringTerminator[] = "\0";
+
 base::LazyRecursiveMutex PerfJitLogger::file_mutex_;
 // The following static variables are protected by PerfJitLogger::file_mutex_.
 uint64_t PerfJitLogger::reference_count_ = 0;
@@ -259,8 +261,6 @@ void PerfJitLogger::LogRecordedBuffer(const wasm::WasmCode* code,
 void PerfJitLogger::WriteJitCodeLoadEntry(const uint8_t* code_pointer,
                                           uint32_t code_size, const char* name,
                                           int name_length) {
-  static const char string_terminator[] = "\0";
-
   PerfJitCodeLoad code_load;
   code_load.event_ = PerfJitCodeLoad::kLoad;
   code_load.size_ = sizeof(code_load) + name_length + 1 + code_size;
@@ -277,7 +277,7 @@ void PerfJitLogger::WriteJitCodeLoadEntry(const uint8_t* code_pointer,
 
   LogWriteBytes(reinterpret_cast<const char*>(&code_load), sizeof(code_load));
   LogWriteBytes(name, name_length);
-  LogWriteBytes(string_terminator, 1);
+  LogWriteBytes(kStringTerminator, 1);
   LogWriteBytes(reinterpret_cast<const char*>(code_pointer), code_size);
 }
 
@@ -388,7 +388,8 @@ void PerfJitLogger::LogWriteDebugInfo(Handle<Code> code,
     std::unique_ptr<char[]> name_storage;
     Vector<const char> name_string = GetScriptName(info, &name_storage, no_gc);
     LogWriteBytes(name_string.begin(),
-                  static_cast<uint32_t>(name_string.size()) + 1);
+                  static_cast<uint32_t>(name_string.size()));
+    LogWriteBytes(kStringTerminator, 1);
   }
   char padding_bytes[8] = {0};
   LogWriteBytes(padding_bytes, padding);
@@ -453,8 +454,8 @@ void PerfJitLogger::LogWriteDebugInfo(const wasm::WasmCode* code) {
     entry.column_ = 1;
     LogWriteBytes(reinterpret_cast<const char*>(&entry), sizeof(entry));
     std::string name_string = source_map->GetFilename(offset);
-    LogWriteBytes(name_string.c_str(),
-                  static_cast<int>(name_string.size() + 1));
+    LogWriteBytes(name_string.c_str(), static_cast<int>(name_string.size()));
+    LogWriteBytes(kStringTerminator, 1);
   }
 
   char padding_bytes[8] = {0};
