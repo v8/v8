@@ -703,11 +703,13 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           LiftoffRegister src,
                                           LiftoffRegList pinned) {
   STATIC_ASSERT(kTaggedSize == kInt32Size);
-  // Store the value.
-  UseScratchRegisterScope temps(this);
-  MemOperand dst_op =
-      liftoff::GetMemOp(this, &temps, dst_addr, offset_reg, offset_imm);
-  str(src.gp(), dst_op);
+  {
+    // Store the value.
+    UseScratchRegisterScope temps(this);
+    MemOperand dst_op =
+        liftoff::GetMemOp(this, &temps, dst_addr, offset_reg, offset_imm);
+    str(src.gp(), dst_op);
+  }
   // The write barrier.
   Label write_barrier;
   Label exit;

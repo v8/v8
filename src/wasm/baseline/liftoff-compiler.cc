@@ -4063,6 +4063,9 @@ class LiftoffCompiler {
     __ PushRegister(kWasmI32, len);
   }
 
+  // 1 bit Smi tag, 31 bits Smi shift, 1 bit i31ref high-bit truncation.
+  constexpr static int kI31To32BitSmiShift = 33;
+
   void I31New(FullDecoder* decoder, const Value& input, Value* result) {
     LiftoffRegister src = __ PopToRegister();
     LiftoffRegister dst = __ GetUnusedRegister(kGpReg, {src}, {});
@@ -4071,20 +4074,33 @@ class LiftoffCompiler {
       __ emit_i32_shli(dst.gp(), src.gp(), kSmiTagSize);
     } else {
       DCHECK(SmiValuesAre32Bits());
-      // 1 bit Smi tag, 31 bits Smi shift, 1 bit i31ref high-bit truncation.
-      constexpr int kI31To32BitSmiShift = 33;
       __ emit_i64_shli(dst, src, kI31To32BitSmiShift);
     }
     __ PushRegister(kWasmI31Ref, dst);
   }
 
   void I31GetS(FullDecoder* decoder, const Value& input, Value* result) {
-    // TODO(7748): Implement.
-    unsupported(decoder, kGC, "i31.get_s");
+    LiftoffRegister src = __ PopToRegister();
+    LiftoffRegister dst = __ GetUnusedRegister(kGpReg, {src}, {});
+    if (SmiValuesAre31Bits()) {
+      __ emit_i32_sari(dst.gp(), src.gp(), kSmiTagSize);
+    } else {
+      DCHECK(SmiValuesAre32Bits());
+      __ emit_i64_sari(dst, src, kI31To32BitSmiShift);
+    }
+    __ PushRegister(kWasmI32, dst);
   }
+
   void I31GetU(FullDecoder* decoder, const Value& input, Value* result) {
-    // TODO(7748): Implement.
-    unsupported(decoder, kGC, "i31.get_u");
+    LiftoffRegister src = __ PopToRegister();
+    LiftoffRegister dst = __ GetUnusedRegister(kGpReg, {src}, {});
+    if (SmiValuesAre31Bits()) {
+      __ emit_i32_shri(dst.gp(), src.gp(), kSmiTagSize);
+    } else {
+      DCHECK(SmiValuesAre32Bits());
+      __ emit_i64_shri(dst, src, kI31To32BitSmiShift);
+    }
+    __ PushRegister(kWasmI32, dst);
   }
 
   void RttCanon(FullDecoder* decoder, const HeapTypeImmediate<validate>& imm,
