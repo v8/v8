@@ -14,8 +14,10 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames.h"
 #include "src/utils/ostreams.h"
+#include "src/wasm/value-type.h"
 
 namespace v8 {
 namespace internal {
@@ -1017,6 +1019,7 @@ size_t GetConservativeFrameSizeInBytes(FrameStateType type,
       return info.frame_size_in_bytes();
     }
     case FrameStateType::kBuiltinContinuation:
+    case FrameStateType::kJSToWasmBuiltinContinuation:
     case FrameStateType::kJavaScriptBuiltinContinuation:
     case FrameStateType::kJavaScriptBuiltinContinuationWithCatch: {
       const RegisterConfiguration* config = RegisterConfiguration::Default();
@@ -1071,6 +1074,7 @@ size_t FrameStateDescriptor::GetHeight() const {
     case FrameStateType::kInterpretedFunction:
       return locals_count();  // The accumulator is *not* included.
     case FrameStateType::kBuiltinContinuation:
+    case FrameStateType::kJSToWasmBuiltinContinuation:
       // Custom, non-JS calling convention (that does not have a notion of
       // a receiver or context).
       return parameters_count();
@@ -1121,6 +1125,17 @@ size_t FrameStateDescriptor::GetJSFrameCount() const {
   }
   return count;
 }
+
+JSToWasmFrameStateDescriptor::JSToWasmFrameStateDescriptor(
+    Zone* zone, FrameStateType type, BailoutId bailout_id,
+    OutputFrameStateCombine state_combine, size_t parameters_count,
+    size_t locals_count, size_t stack_count,
+    MaybeHandle<SharedFunctionInfo> shared_info,
+    FrameStateDescriptor* outer_state, const wasm::FunctionSig* wasm_signature)
+    : FrameStateDescriptor(zone, type, bailout_id, state_combine,
+                           parameters_count, locals_count, stack_count,
+                           shared_info, outer_state),
+      return_type_(wasm::WasmReturnTypeFromSignature(wasm_signature)) {}
 
 std::ostream& operator<<(std::ostream& os, const RpoNumber& rpo) {
   return os << rpo.ToSize();

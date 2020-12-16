@@ -3339,6 +3339,15 @@ FrameStateDescriptor* GetFrameStateDescriptorInternal(Zone* zone, Node* state) {
     outer_state = GetFrameStateDescriptorInternal(zone, outer_node);
   }
 
+  if (state_info.type() == FrameStateType::kJSToWasmBuiltinContinuation) {
+    auto function_info = static_cast<const JSToWasmFrameStateFunctionInfo*>(
+        state_info.function_info());
+    return zone->New<JSToWasmFrameStateDescriptor>(
+        zone, state_info.type(), state_info.bailout_id(),
+        state_info.state_combine(), parameters, locals, stack,
+        state_info.shared_info(), outer_state, function_info->signature());
+  }
+
   return zone->New<FrameStateDescriptor>(
       zone, state_info.type(), state_info.bailout_id(),
       state_info.state_combine(), parameters, locals, stack,

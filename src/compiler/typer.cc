@@ -992,6 +992,15 @@ Type Typer::Visitor::TypeCall(Node* node) { return Type::Any(); }
 
 Type Typer::Visitor::TypeFastApiCall(Node* node) { return Type::Any(); }
 
+Type Typer::Visitor::TypeJSWasmCall(Node* node) {
+  const JSWasmCallParameters& op_params = JSWasmCallParametersOf(node->op());
+  const wasm::FunctionSig* wasm_signature = op_params.signature();
+  if (wasm_signature->return_count() > 0) {
+    return JSWasmCallNode::TypeForWasmReturnType(wasm_signature->GetReturn());
+  }
+  return Type::Any();
+}
+
 Type Typer::Visitor::TypeProjection(Node* node) {
   Type const type = Operand(node, 0);
   if (type.Is(Type::None())) return Type::None();

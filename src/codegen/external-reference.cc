@@ -485,6 +485,11 @@ ExternalReference::address_of_enable_experimental_regexp_engine() {
   return ExternalReference(&FLAG_enable_experimental_regexp_engine);
 }
 
+ExternalReference ExternalReference::thread_in_wasm_flag_address_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->thread_in_wasm_flag_address_address());
+}
+
 ExternalReference ExternalReference::is_profiling_address(Isolate* isolate) {
   return ExternalReference(isolate->is_profiling_address());
 }

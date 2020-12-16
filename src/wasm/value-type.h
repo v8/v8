@@ -6,6 +6,7 @@
 #define V8_WASM_VALUE_TYPE_H_
 
 #include "src/base/bit-field.h"
+#include "src/base/optional.h"
 #include "src/codegen/machine-type.h"
 #include "src/wasm/wasm-constants.h"
 
@@ -678,6 +679,9 @@ class StoreType {
 #undef MEMREP
   };
 };
+
+base::Optional<wasm::ValueType::Kind> WasmReturnTypeFromSignature(
+    const FunctionSig* wasm_signature);
 
 }  // namespace wasm
 }  // namespace internal
