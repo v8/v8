@@ -3754,12 +3754,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64S128Select: {
-      // Mask used here is stored in dst.
+      // v128.select = v128.or(v128.and(v1, c), v128.andnot(v2, c)).
+      // pandn(x, y) = !x & y, so we have to flip the mask and input.
       XMMRegister dst = i.OutputSimd128Register();
-      __ Movaps(kScratchDoubleReg, i.InputSimd128Register(1));
-      __ Xorps(kScratchDoubleReg, i.InputSimd128Register(2));
-      __ Andps(dst, kScratchDoubleReg);
-      __ Xorps(dst, i.InputSimd128Register(2));
+      XMMRegister mask = i.InputSimd128Register(0);
+      XMMRegister src1 = i.InputSimd128Register(1);
+      XMMRegister src2 = i.InputSimd128Register(2);
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope avx_scope(tasm(), AVX);
+        __ vpandn(kScratchDoubleReg, mask, src2);
+        __ vpand(dst, src1, mask);
+        __ vpor(dst, dst, kScratchDoubleReg);
+      } else {
+        DCHECK_EQ(dst, mask);
+        // Use float ops as they are 1 byte shorter than int ops.
+        __ movaps(kScratchDoubleReg, mask);
+        __ andnps(kScratchDoubleReg, src2);
+        __ andps(dst, src1);
+        __ orps(dst, kScratchDoubleReg);
+      }
       break;
     }
     case kX64S128AndNot: {

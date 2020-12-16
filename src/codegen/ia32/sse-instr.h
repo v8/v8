@@ -19,6 +19,7 @@
   V(paddusb, 66, 0F, DC)         \
   V(paddusw, 66, 0F, DD)         \
   V(pand, 66, 0F, DB)            \
+  V(pandn, 66, 0F, DF)           \
   V(pcmpeqb, 66, 0F, 74)         \
   V(pcmpeqw, 66, 0F, 75)         \
   V(pcmpeqd, 66, 0F, 76)         \

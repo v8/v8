@@ -76,6 +76,7 @@
   V(paddusb, 66, 0F, DC)         \
   V(paddusw, 66, 0F, DD)         \
   V(pmaxub, 66, 0F, DE)          \
+  V(pandn, 66, 0F, DF)           \
   V(pavgb, 66, 0F, E0)           \
   V(psraw, 66, 0F, E1)           \
   V(psrad, 66, 0F, E2)           \

@@ -3883,19 +3883,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       // Mask used here is stored in dst.
       XMMRegister dst = i.OutputSimd128Register();
-      __ movaps(kScratchDoubleReg, i.InputSimd128Register(1));
-      __ xorps(kScratchDoubleReg, i.InputSimd128Register(2));
-      __ andps(dst, kScratchDoubleReg);
-      __ xorps(dst, i.InputSimd128Register(2));
+      // Use float ops as they are 1 byte shorter than int ops.
+      __ movaps(kScratchDoubleReg, i.InputSimd128Register(0));
+      __ andnps(kScratchDoubleReg, i.InputSimd128Register(2));
+      __ andps(dst, i.InputSimd128Register(1));
+      __ orps(dst, kScratchDoubleReg);
       break;
     }
     case kAVXS128Select: {
       CpuFeatureScope avx_scope(tasm(), AVX);
       XMMRegister dst = i.OutputSimd128Register();
-      __ vxorps(kScratchDoubleReg, i.InputSimd128Register(2),
-                i.InputOperand(1));
-      __ vandps(kScratchDoubleReg, kScratchDoubleReg, i.InputOperand(0));
-      __ vxorps(dst, kScratchDoubleReg, i.InputSimd128Register(2));
+      XMMRegister mask = i.InputSimd128Register(0);
+      __ vpandn(kScratchDoubleReg, mask, i.InputSimd128Register(2));
+      __ vpand(dst, i.InputSimd128Register(1), mask);
+      __ vpor(dst, dst, kScratchDoubleReg);
       break;
     }
     case kIA32S128AndNot: {

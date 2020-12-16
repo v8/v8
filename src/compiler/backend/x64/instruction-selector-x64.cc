@@ -3161,9 +3161,10 @@ SIMD_ALLTRUE_LIST(VISIT_SIMD_ALLTRUE)
 
 void InstructionSelector::VisitS128Select(Node* node) {
   X64OperandGenerator g(this);
-  Emit(kX64S128Select, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
-       g.UseRegister(node->InputAt(2)));
+  InstructionOperand dst =
+      IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
+  Emit(kX64S128Select, dst, g.UseRegister(node->InputAt(0)),
+       g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
 }
 
 namespace {
