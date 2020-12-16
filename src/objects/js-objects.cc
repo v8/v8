@@ -2173,9 +2173,18 @@ void JSObject::EnsureWritableFastElements(Handle<JSObject> object) {
 int JSObject::GetHeaderSize(InstanceType type,
                             bool function_has_prototype_slot) {
   switch (type) {
-    case JS_OBJECT_TYPE:
     case JS_API_OBJECT_TYPE:
+    case JS_ITERATOR_PROTOTYPE_TYPE:
+    case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
+    case JS_OBJECT_PROTOTYPE_TYPE:
+    case JS_OBJECT_TYPE:
+    case JS_PROMISE_PROTOTYPE_TYPE:
+    case JS_REG_EXP_PROTOTYPE_TYPE:
+    case JS_SET_ITERATOR_PROTOTYPE_TYPE:
+    case JS_SET_PROTOTYPE_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
+    case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
+    case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:
       return JSObject::kHeaderSize;
     case JS_GENERATOR_OBJECT_TYPE:
       return JSGeneratorObject::kHeaderSize;

@@ -274,7 +274,17 @@ class ZoneForwardList;
   V(ModuleContext)                           \
   V(NonNullForeign)                          \
   V(ScriptContext)                           \
-  V(WithContext)
+  V(WithContext)                             \
+  V(JSPrototype)                             \
+  V(JSObjectPrototype)                       \
+  V(JSRegExpPrototype)                       \
+  V(JSPromisePrototype)                      \
+  V(JSSetPrototype)                          \
+  V(JSIteratorPrototype)                     \
+  V(JSArrayIteratorPrototype)                \
+  V(JSMapIteratorPrototype)                  \
+  V(JSSetIteratorPrototype)                  \
+  V(JSStringIteratorPrototype)
 
 #define HEAP_OBJECT_TYPE_LIST(V)    \
   HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \

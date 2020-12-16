@@ -530,7 +530,16 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
   switch (instance_type) {
     case JS_ARRAY_TYPE:
       return WriteJSArray(Handle<JSArray>::cast(receiver));
+    case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:
+    case JS_ITERATOR_PROTOTYPE_TYPE:
+    case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
+    case JS_OBJECT_PROTOTYPE_TYPE:
     case JS_OBJECT_TYPE:
+    case JS_PROMISE_PROTOTYPE_TYPE:
+    case JS_REG_EXP_PROTOTYPE_TYPE:
+    case JS_SET_ITERATOR_PROTOTYPE_TYPE:
+    case JS_SET_PROTOTYPE_TYPE:
+    case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
     case JS_API_OBJECT_TYPE: {
       Handle<JSObject> js_object = Handle<JSObject>::cast(receiver);
       if (JSObject::GetEmbedderFieldCount(js_object->map())) {

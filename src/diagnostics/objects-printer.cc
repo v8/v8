@@ -159,11 +159,20 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case FILLER_TYPE:
       os << "filler";
       break;
-    case JS_OBJECT_TYPE:  // fall through
     case JS_API_OBJECT_TYPE:
-    case JS_SPECIAL_API_OBJECT_TYPE:
+    case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_ERROR_TYPE:
+    case JS_ITERATOR_PROTOTYPE_TYPE:
+    case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
+    case JS_OBJECT_PROTOTYPE_TYPE:
+    case JS_OBJECT_TYPE:
+    case JS_PROMISE_PROTOTYPE_TYPE:
+    case JS_REG_EXP_PROTOTYPE_TYPE:
+    case JS_SET_ITERATOR_PROTOTYPE_TYPE:
+    case JS_SET_PROTOTYPE_TYPE:
+    case JS_SPECIAL_API_OBJECT_TYPE:
+    case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
       JSObject::cast(*this).JSObjectPrint(os);
       break;
     case WASM_INSTANCE_OBJECT_TYPE:

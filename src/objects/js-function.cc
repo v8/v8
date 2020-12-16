@@ -504,6 +504,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
   switch (instance_type) {
     case JS_API_OBJECT_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
+    case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:
     case JS_ARRAY_TYPE:
     case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
@@ -511,6 +512,14 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_DATE_TYPE:
     case JS_FUNCTION_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
+    case JS_ITERATOR_PROTOTYPE_TYPE:
+    case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
+    case JS_OBJECT_PROTOTYPE_TYPE:
+    case JS_PROMISE_PROTOTYPE_TYPE:
+    case JS_REG_EXP_PROTOTYPE_TYPE:
+    case JS_SET_ITERATOR_PROTOTYPE_TYPE:
+    case JS_SET_PROTOTYPE_TYPE:
+    case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
 #ifdef V8_INTL_SUPPORT
     case JS_COLLATOR_TYPE:
     case JS_DATE_TIME_FORMAT_TYPE:

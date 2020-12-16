@@ -856,7 +856,7 @@ void Genesis::CreateObjectFunction(Handle<JSFunction> empty_function) {
 
   native_context()->set_initial_object_prototype(*object_function_prototype);
   JSFunction::SetPrototype(object_fun, object_function_prototype);
-
+  object_function_prototype->map().set_instance_type(JS_OBJECT_PROTOTYPE_TYPE);
   {
     // Set up slow map for Object.create(null) instances without in-object
     // properties.
@@ -907,6 +907,9 @@ void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
                           factory()->iterator_symbol(), "[Symbol.iterator]",
                           Builtins::kReturnReceiver, 0, true);
   native_context()->set_initial_iterator_prototype(*iterator_prototype);
+  CHECK_NE(iterator_prototype->map().ptr(),
+           isolate_->initial_object_prototype()->map().ptr());
+  iterator_prototype->map().set_instance_type(JS_ITERATOR_PROTOTYPE_TYPE);
 
   Handle<JSObject> generator_object_prototype = factory()->NewJSObject(
       isolate()->object_function(), AllocationType::kOld);
@@ -1855,6 +1858,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSObject> array_iterator_prototype =
         factory->NewJSObject(isolate_->object_function(), AllocationType::kOld);
     JSObject::ForceSetPrototype(array_iterator_prototype, iterator_prototype);
+    CHECK_NE(array_iterator_prototype->map().ptr(),
+             isolate_->initial_object_prototype()->map().ptr());
+    array_iterator_prototype->map().set_instance_type(
+        JS_ARRAY_ITERATOR_PROTOTYPE_TYPE);
 
     InstallToStringTag(isolate_, array_iterator_prototype,
                        factory->ArrayIterator_string());
@@ -2165,7 +2172,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSObject> string_iterator_prototype =
         factory->NewJSObject(isolate_->object_function(), AllocationType::kOld);
     JSObject::ForceSetPrototype(string_iterator_prototype, iterator_prototype);
-
+    CHECK_NE(string_iterator_prototype->map().ptr(),
+             isolate_->initial_object_prototype()->map().ptr());
+    string_iterator_prototype->map().set_instance_type(
+        JS_STRING_ITERATOR_PROTOTYPE_TYPE);
     InstallToStringTag(isolate_, string_iterator_prototype, "String Iterator");
 
     InstallFunctionWithBuiltinId(isolate_, string_iterator_prototype, "next",
@@ -2434,6 +2444,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     Handle<Map> prototype_map(prototype->map(), isolate());
     Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate_);
+    CHECK_NE(prototype->map().ptr(),
+             isolate_->initial_object_prototype()->map().ptr());
+    prototype->map().set_instance_type(JS_PROMISE_PROTOTYPE_TYPE);
 
     DCHECK(promise_fun->HasFastProperties());
   }
@@ -2538,6 +2551,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
       Handle<Map> prototype_map(prototype->map(), isolate());
       Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate_);
+      CHECK_NE((*prototype_map).ptr(),
+               isolate_->initial_object_prototype()->map().ptr());
+      prototype_map->set_instance_type(JS_REG_EXP_PROTOTYPE_TYPE);
 
       // Store the initial RegExp.prototype map. This is used in fast-path
       // checks. Do not alter the prototype after this point.
@@ -3650,6 +3666,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     DCHECK(js_set_fun->HasFastProperties());
 
     native_context()->set_js_set_map(js_set_fun->initial_map());
+    CHECK_NE(prototype->map().ptr(),
+             isolate_->initial_object_prototype()->map().ptr());
+    prototype->map().set_instance_type(JS_SET_PROTOTYPE_TYPE);
   }
 
   {  // -- J S M o d u l e N a m e s p a c e
@@ -4164,6 +4183,9 @@ void Genesis::InitializeIteratorFunctions() {
     InstallFunctionWithBuiltinId(isolate, prototype, "next",
                                  Builtins::kSetIteratorPrototypeNext, 0, true);
     native_context->set_initial_set_iterator_prototype(*prototype);
+    CHECK_NE(prototype->map().ptr(),
+             isolate_->initial_object_prototype()->map().ptr());
+    prototype->map().set_instance_type(JS_SET_ITERATOR_PROTOTYPE_TYPE);
 
     // Setup SetIterator constructor.
     Handle<JSFunction> set_iterator_function = CreateFunction(
@@ -4194,6 +4216,9 @@ void Genesis::InitializeIteratorFunctions() {
     InstallFunctionWithBuiltinId(isolate, prototype, "next",
                                  Builtins::kMapIteratorPrototypeNext, 0, true);
     native_context->set_initial_map_iterator_prototype(*prototype);
+    CHECK_NE(prototype->map().ptr(),
+             isolate_->initial_object_prototype()->map().ptr());
+    prototype->map().set_instance_type(JS_MAP_ITERATOR_PROTOTYPE_TYPE);
 
     // Setup MapIterator constructor.
     Handle<JSFunction> map_iterator_function = CreateFunction(

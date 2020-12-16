@@ -136,6 +136,37 @@ struct float64_or_hole {
 }
 const kDoubleHole: float64_or_hole = float64_or_hole{is_hole: true, value: 0};
 
+@doNotGenerateCast
+@abstract
+extern class JSPrototype extends JSObject generates 'TNode<JSObject>';
+@doNotGenerateCast
+extern class JSObjectPrototype extends JSPrototype
+    generates 'TNode<JSObject>';
+@doNotGenerateCast
+extern class JSRegExpPrototype extends JSPrototype
+    generates 'TNode<JSObject>';
+@doNotGenerateCast
+extern class JSPromisePrototype extends JSPrototype
+    generates 'TNode<JSObject>';
+@doNotGenerateCast
+extern class JSSetPrototype extends JSPrototype
+    generates 'TNode<JSObject>';
+@doNotGenerateCast
+extern class JSIteratorPrototype extends JSPrototype
+    generates 'TNode<JSObject>';
+@doNotGenerateCast
+extern class JSArrayIteratorPrototype extends JSPrototype
+    generates 'TNode<JSObject>';
+@doNotGenerateCast
+extern class JSMapIteratorPrototype extends JSPrototype
+    generates 'TNode<JSObject>';
+@doNotGenerateCast
+extern class JSSetIteratorPrototype extends JSPrototype
+    generates 'TNode<JSObject>';
+@doNotGenerateCast
+extern class JSStringIteratorPrototype extends JSPrototype
+    generates 'TNode<JSObject>';
+
 // The HashTable inheritance hierarchy doesn't actually look like this in C++
 // because it uses some class templates that we can't yet (and may never)
 // express in Torque, but this is the expected organization of instance types.
