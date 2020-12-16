@@ -168,6 +168,9 @@ V8_EXPORT_PRIVATE size_t ProjectionIndexOf(const Operator* const)
     V8_WARN_UNUSED_RESULT;
 
 V8_EXPORT_PRIVATE MachineRepresentation
+LoopExitValueRepresentationOf(const Operator* const) V8_WARN_UNUSED_RESULT;
+
+V8_EXPORT_PRIVATE MachineRepresentation
 PhiRepresentationOf(const Operator* const) V8_WARN_UNUSED_RESULT;
 
 // The {IrOpcode::kParameter} opcode represents an incoming parameter to the
@@ -527,7 +530,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* EffectPhi(int effect_input_count);
   const Operator* InductionVariablePhi(int value_input_count);
   const Operator* LoopExit();
-  const Operator* LoopExitValue();
+  const Operator* LoopExitValue(MachineRepresentation rep);
   const Operator* LoopExitEffect();
   const Operator* Checkpoint();
   const Operator* BeginRegion(RegionObservability);

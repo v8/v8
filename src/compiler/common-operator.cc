@@ -193,6 +193,10 @@ MachineRepresentation PhiRepresentationOf(const Operator* const op) {
   return OpParameter<MachineRepresentation>(op);
 }
 
+MachineRepresentation LoopExitValueRepresentationOf(const Operator* const op) {
+  DCHECK_EQ(IrOpcode::kLoopExitValue, op->opcode());
+  return OpParameter<MachineRepresentation>(op);
+}
 
 int ParameterIndexOf(const Operator* const op) {
   DCHECK_EQ(IrOpcode::kParameter, op->opcode());
@@ -466,11 +470,12 @@ IfValueParameters const& IfValueParametersOf(const Operator* op) {
   V(Throw, Operator::kKontrol, 0, 1, 1, 0, 0, 1)          \
   V(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)      \
   V(LoopExit, Operator::kKontrol, 0, 0, 2, 0, 0, 1)       \
-  V(LoopExitValue, Operator::kPure, 1, 0, 1, 1, 0, 0)     \
   V(LoopExitEffect, Operator::kNoThrow, 0, 1, 1, 0, 1, 0) \
   V(Checkpoint, Operator::kKontrol, 0, 1, 1, 0, 1, 0)     \
   V(FinishRegion, Operator::kKontrol, 1, 1, 0, 1, 1, 0)   \
   V(Retain, Operator::kKontrol, 1, 1, 0, 0, 1, 0)
+
+#define CACHED_LOOP_EXIT_VALUE_LIST(V) V(kTagged)
 
 #define CACHED_BRANCH_LIST(V)   \
   V(None, CriticalSafetyCheck)  \
@@ -725,6 +730,19 @@ struct CommonOperatorGlobalCache final {
   MergeOperator<input_count> kMerge##input_count##Operator;
   CACHED_MERGE_LIST(CACHED_MERGE)
 #undef CACHED_MERGE
+
+  template <MachineRepresentation kRep>
+  struct LoopExitValueOperator final : public Operator1<MachineRepresentation> {
+    LoopExitValueOperator()
+        : Operator1<MachineRepresentation>(IrOpcode::kLoopExitValue,
+                                           Operator::kPure, "LoopExitValue", 1,
+                                           0, 1, 1, 0, 0, kRep) {}
+  };
+#define CACHED_LOOP_EXIT_VALUE(rep)                 \
+  LoopExitValueOperator<MachineRepresentation::rep> \
+      kLoopExitValue##rep##Operator;
+  CACHED_LOOP_EXIT_VALUE_LIST(CACHED_LOOP_EXIT_VALUE)
+#undef CACHED_LOOP_EXIT_VALUE
 
   template <DeoptimizeKind kKind, DeoptimizeReason kReason>
   struct DeoptimizeOperator final : public Operator1<DeoptimizeParameters> {
@@ -1144,6 +1162,24 @@ const Operator* CommonOperatorBuilder::Merge(int control_input_count) {
       0, 0, control_input_count, 0, 0, 1);   // counts
 }
 
+const Operator* CommonOperatorBuilder::LoopExitValue(
+    MachineRepresentation rep) {
+  switch (rep) {
+#define CACHED_LOOP_EXIT_VALUE(kRep) \
+  case MachineRepresentation::kRep:  \
+    return &cache_.kLoopExitValue##kRep##Operator;
+
+    CACHED_LOOP_EXIT_VALUE_LIST(CACHED_LOOP_EXIT_VALUE)
+#undef CACHED_LOOP_EXIT_VALUE
+    default:
+      // Uncached.
+      return zone()->New<Operator1<MachineRepresentation>>(  // --
+          IrOpcode::kLoopExitValue, Operator::kPure,         // opcode
+          "LoopExitValue",                                   // name
+          1, 0, 1, 1, 0, 0,                                  // counts
+          rep);                                              // parameter
+  }
+}
 
 const Operator* CommonOperatorBuilder::Parameter(int index,
                                                  const char* debug_name) {

@@ -569,8 +569,9 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
                              *loop_headers_.back()));
     AddNode(graph()->NewNode(common()->LoopExitEffect(), effect(), control()));
     for (size_t i = 0; i < kVarCount; i++) {
-      var_array[i] = AddNode(
-          graph()->NewNode(common()->LoopExitValue(), var_array[i], control()));
+      var_array[i] = AddNode(graph()->NewNode(
+          common()->LoopExitValue(MachineRepresentation::kTagged), var_array[i],
+          control()));
     }
   }
 
