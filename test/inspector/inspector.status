@@ -163,6 +163,9 @@
   'cpu-profiler/coverage-block': [SKIP],
   'runtime/internal-properties-entries': [SKIP],
   'runtime-call-stats/collection': [SKIP],
+
+  # Skip tests that might fail with concurrent allocation
+  'debugger/pause-on-oom-wide': [SKIP],
 }], # stress_concurrent_allocation
 
 ##############################################################################
