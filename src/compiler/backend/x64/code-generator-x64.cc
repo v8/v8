@@ -3778,6 +3778,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64I8x16Shuffle: {
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister tmp_simd = i.TempSimd128Register(0);
+      DCHECK_NE(tmp_simd, i.InputSimd128Register(0));
       if (instr->InputCount() == 5) {  // only one input operand
         uint32_t mask[4] = {};
         DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
@@ -3788,6 +3789,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         SetupSimdImmediateInRegister(tasm(), mask, tmp_simd);
         __ Pshufb(dst, tmp_simd);
       } else {  // two input operands
+        DCHECK_NE(tmp_simd, i.InputSimd128Register(1));
         DCHECK_EQ(6, instr->InputCount());
         ASSEMBLE_SIMD_INSTR(Movups, kScratchDoubleReg, 0);
         uint32_t mask1[4] = {};

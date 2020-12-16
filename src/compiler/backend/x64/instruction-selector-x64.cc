@@ -3571,7 +3571,9 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
   InstructionOperand dst =
       no_same_as_first ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
   // TODO(v8:9198): Use src0_needs_reg when we have memory alignment for SIMD.
-  InstructionOperand src0 = g.UseUniqueRegister(input0);
+  // We only need a unique register for input0 if we use temp registers.
+  InstructionOperand src0 =
+      temp_count ? g.UseUniqueRegister(input0) : g.UseRegister(input0);
   USE(src0_needs_reg);
 
   int input_count = 0;
@@ -3580,7 +3582,9 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
   if (!is_swizzle) {
     Node* input1 = node->InputAt(1);
     // TODO(v8:9198): Use src1_needs_reg when we have memory alignment for SIMD.
-    inputs[input_count++] = g.UseUniqueRegister(input1);
+    // We only need a unique register for input1 if we use temp registers.
+    inputs[input_count++] =
+        temp_count ? g.UseUniqueRegister(input1) : g.UseRegister(input1);
     USE(src1_needs_reg);
   }
   for (int i = 0; i < imm_count; ++i) {
