@@ -313,6 +313,8 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
   Pop(ra, fp);
 }
 
+void LiftoffAssembler::AlignFrameSize() {}
+
 void LiftoffAssembler::PatchPrepareStackFrame(int offset) {
   // The frame_size includes the frame marker. The frame marker has already been
   // pushed on the stack though, so we don't need to allocate memory for it
@@ -2835,6 +2837,13 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
     gp_offset += kSystemPointerSize;
   }
   daddiu(sp, sp, gp_offset);
+}
+
+void LiftoffAssembler::RecordSpillsInSafepoint(Safepoint& safepoint,
+                                               LiftoffRegList all_spills,
+                                               LiftoffRegList ref_spills,
+                                               int spill_offset) {
+  bailout(kRefTypes, "RecordSpillsInSafepoint");
 }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {

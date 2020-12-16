@@ -246,18 +246,33 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   const builder = new WasmModuleBuilder();
 
   const gc_sig = builder.addType(kSig_v_v);
-  const func_sig = builder.addType(kSig_v_r);
+  const mysig = makeSig(
+      [
+        kWasmExternRef, kWasmI32, kWasmExternRef, kWasmExternRef, kWasmExternRef
+      ],
+      []);
+  const func_sig = builder.addType(mysig);
   const triggerGC_index = builder.addImport('q', 'triggerGC', gc_sig);
   const func_index = builder.addImport('q', 'func', func_sig);
 
-  const foo = builder.addFunction('foo', kSig_v_r).addBody([
-    kExprLocalGet, 0, kExprCallFunction, func_index
+  const foo = builder.addFunction('foo', func_sig).addBody([
+    kExprLocalGet, 0, // --
+    kExprLocalGet, 1, // --
+    kExprLocalGet, 2, // --
+    kExprLocalGet, 3, // --
+    kExprLocalGet, 4, // --
+    kExprCallFunction, func_index
   ]);
 
-  builder.addFunction('main', kSig_v_r)
+  builder.addFunction('main', func_sig)
       .addBody([
-        kExprCallFunction, triggerGC_index, kExprLocalGet, 0, kExprCallFunction,
-        foo.index
+        kExprCallFunction, triggerGC_index,  // --
+        kExprLocalGet, 0,                    // --
+        kExprLocalGet, 1,                    // --
+        kExprLocalGet, 2,                    // --
+        kExprLocalGet, 3,                    // --
+        kExprLocalGet, 4,                    // --
+        kExprCallFunction, foo.index
       ])
       .exportFunc();
 
@@ -268,5 +283,5 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     }
   });
 
-  instance.exports.main({hello: 4});
+  instance.exports.main({hello: 4}, 5, {world: 6}, null, {bar: 7});
 })();

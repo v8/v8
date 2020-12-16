@@ -185,6 +185,7 @@ class LiftoffAssembler : public TurboAssembler {
     void GetTaggedSlotsForOOLCode(/*out*/ ZoneVector<int>* slots,
                                   /*out*/ LiftoffRegList* spills,
                                   SpillLocation spill_location);
+
     void DefineSafepoint(Safepoint& safepoint);
 
     base::SmallVector<VarState, 8> stack_state;
@@ -523,6 +524,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline int PrepareStackFrame();
   inline void PrepareTailCall(int num_callee_stack_params,
                               int stack_param_delta);
+  inline void AlignFrameSize();
   inline void PatchPrepareStackFrame(int offset);
   inline void FinishCode();
   inline void AbortCompilation();
@@ -1195,6 +1197,11 @@ class LiftoffAssembler : public TurboAssembler {
 
   inline void PushRegisters(LiftoffRegList);
   inline void PopRegisters(LiftoffRegList);
+
+  inline void RecordSpillsInSafepoint(Safepoint& safepoint,
+                                      LiftoffRegList all_spills,
+                                      LiftoffRegList ref_spills,
+                                      int spill_offset);
 
   inline void DropStackSlotsAndRet(uint32_t num_stack_slots);
 

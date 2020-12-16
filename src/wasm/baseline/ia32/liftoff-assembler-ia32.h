@@ -119,6 +119,8 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
 inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
   switch (type.kind()) {
     case ValueType::kI32:
+    case ValueType::kRef:
+    case ValueType::kOptRef:
       assm->push(reg.gp());
       break;
     case ValueType::kI64:
@@ -213,6 +215,8 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
   lea(esp, Operand(ebp, -stack_param_delta * 4));
   pop(ebp);
 }
+
+void LiftoffAssembler::AlignFrameSize() {}
 
 void LiftoffAssembler::PatchPrepareStackFrame(int offset) {
   // The frame_size includes the frame marker. The frame marker has already been
@@ -4502,6 +4506,24 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
     pop(reg.gp());
     gp_regs.clear(reg);
   }
+}
+
+void LiftoffAssembler::RecordSpillsInSafepoint(Safepoint& safepoint,
+                                               LiftoffRegList all_spills,
+                                               LiftoffRegList ref_spills,
+                                               int spill_offset) {
+  int spill_space_size = 0;
+  while (!all_spills.is_empty()) {
+    LiftoffRegister reg = all_spills.GetFirstRegSet();
+    if (ref_spills.has(reg)) {
+      safepoint.DefinePointerSlot(spill_offset);
+    }
+    all_spills.clear(reg);
+    ++spill_offset;
+    spill_space_size += kSystemPointerSize;
+  }
+  // Record the number of additional spill slots.
+  RecordOolSpillSpaceSize(spill_space_size);
 }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {

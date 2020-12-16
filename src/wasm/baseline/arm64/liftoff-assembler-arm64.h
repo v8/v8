@@ -251,11 +251,12 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
   Sub(sp, x16, stack_param_delta * 8);
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(int offset) {
+void LiftoffAssembler::AlignFrameSize() {
   // The frame_size includes the frame marker. The frame marker has already been
   // pushed on the stack though, so we don't need to allocate memory for it
   // anymore.
-  int frame_size = GetTotalFrameSize() - kSystemPointerSize;
+  int initial_frame_size = GetTotalFrameSize() - 2 * kSystemPointerSize;
+  int frame_size = initial_frame_size;
 
   static_assert(kStackSlotSize == kXRegSize,
                 "kStackSlotSize must equal kXRegSize");
@@ -272,6 +273,23 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset) {
       return;
     }
   }
+  if (frame_size > initial_frame_size) {
+    // Record the padding, as it is needed for GC offsets later.
+    max_used_spill_offset_ += (frame_size - initial_frame_size);
+  }
+}
+
+void LiftoffAssembler::PatchPrepareStackFrame(int offset) {
+  // The frame_size includes the frame marker. The frame marker has already been
+  // pushed on the stack though, so we don't need to allocate memory for it
+  // anymore.
+  int frame_size = GetTotalFrameSize() - 2 * kSystemPointerSize;
+
+  // The stack pointer is required to be quadword aligned.
+  // Misalignment will cause a stack alignment fault.
+  DCHECK_EQ(frame_size, RoundUp(frame_size, kQuadWordSizeInBytes));
+  DCHECK(IsImmAddSub(frame_size));
+
 #ifdef USE_SIMULATOR
   // When using the simulator, deal with Liftoff which allocates the stack
   // before checking it.
@@ -2806,6 +2824,30 @@ void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
 void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
   PopCPURegList(liftoff::PadVRegList(regs.GetFpList()));
   PopCPURegList(liftoff::PadRegList(regs.GetGpList()));
+}
+
+void LiftoffAssembler::RecordSpillsInSafepoint(Safepoint& safepoint,
+                                               LiftoffRegList all_spills,
+                                               LiftoffRegList ref_spills,
+                                               int spill_offset) {
+  int spill_space_size = 0;
+  bool needs_padding =
+      (base::bits::CountPopulation(all_spills.GetGpList()) & 1) != 0;
+  if (needs_padding) {
+    spill_space_size += kSystemPointerSize;
+    ++spill_offset;
+  }
+  while (!all_spills.is_empty()) {
+    LiftoffRegister reg = all_spills.GetLastRegSet();
+    if (ref_spills.has(reg)) {
+      safepoint.DefinePointerSlot(spill_offset);
+    }
+    all_spills.clear(reg);
+    ++spill_offset;
+    spill_space_size += kSystemPointerSize;
+  }
+  // Record the number of additional spill slots.
+  RecordOolSpillSpaceSize(spill_space_size);
 }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {

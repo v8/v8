@@ -768,19 +768,9 @@ class LiftoffCompiler {
       // {-kSystemPointerSize}). Therefore we have to add another '+ 1' to the
       // index of the first spill slot.
       int index = (total_frame_size / kSystemPointerSize) + 2;
-      // The size of the stack frame in addition to {total_frame_size} that may
-      // contain references.
-      int spill_space_size = 0;
-      while (!gp_regs.is_empty()) {
-        LiftoffRegister reg = gp_regs.GetFirstRegSet();
-        if (ool->safepoint_info->spills.has(reg)) {
-          safepoint.DefinePointerSlot(index);
-        }
-        gp_regs.clear(reg);
-        ++index;
-        spill_space_size += kSystemPointerSize;
-      }
-      __ RecordOolSpillSpaceSize(spill_space_size);
+
+      __ RecordSpillsInSafepoint(safepoint, gp_regs,
+                                 ool->safepoint_info->spills, index);
     }
 
     DCHECK_EQ(!debug_sidetable_builder_, !ool->debug_sidetable_entry_builder);
@@ -804,9 +794,14 @@ class LiftoffCompiler {
 
   void FinishFunction(FullDecoder* decoder) {
     if (DidAssemblerBailout(decoder)) return;
+    __ AlignFrameSize();
+#if DEBUG
+    int frame_size = __ GetTotalFrameSize();
+#endif
     for (OutOfLineCode& ool : out_of_line_code_) {
       GenerateOutOfLineCode(&ool);
     }
+    DCHECK_EQ(frame_size, __ GetTotalFrameSize());
     __ PatchPrepareStackFrame(pc_offset_stack_frame_construction_);
     __ FinishCode();
     safepoint_table_builder_.Emit(&asm_, __ GetTotalFrameSlotCountForGC());
@@ -2184,6 +2179,7 @@ class LiftoffCompiler {
       if (!slot.is_reg()) continue;
       spilled->entries.push_back(SpilledRegistersForInspection::Entry{
           slot.offset(), slot.reg(), slot.type()});
+      __ RecordUsedSpillOffset(slot.offset());
     }
     return spilled;
   }

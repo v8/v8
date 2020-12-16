@@ -57,6 +57,8 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
   bailout(kUnsupportedArchitecture, "PrepareTailCall");
 }
 
+void LiftoffAssembler::AlignFrameSize() {}
+
 void LiftoffAssembler::PatchPrepareStackFrame(int offset) {
   bailout(kUnsupportedArchitecture, "PatchPrepareStackFrame");
 }
@@ -1547,6 +1549,13 @@ void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
 
 void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
   bailout(kUnsupportedArchitecture, "PopRegisters");
+}
+
+void LiftoffAssembler::RecordSpillsInSafepoint(Safepoint& safepoint,
+                                               LiftoffRegList all_spills,
+                                               LiftoffRegList ref_spills,
+                                               int spill_offset) {
+  bailout(kRefTypes, "RecordSpillsInSafepoint");
 }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
