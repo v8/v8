@@ -2418,7 +2418,10 @@ const char* GetBranchDeoptReason(v8::Local<v8::Context> context,
   v8::CpuProfile* profile = reinterpret_cast<v8::CpuProfile*>(iprofile);
   const ProfileNode* iopt_function = nullptr;
   iopt_function = GetSimpleBranch(context, profile, branch, length);
-  CHECK_EQ(1U, iopt_function->deopt_infos().size());
+  if (iopt_function->deopt_infos().size() == 0) {
+    iopt_function = iopt_function->parent();
+  }
+  CHECK_LE(1U, iopt_function->deopt_infos().size());
   return iopt_function->deopt_infos()[0].deopt_reason;
 }
 
@@ -2492,7 +2495,8 @@ TEST(CollectDeoptEvents) {
       .ToLocalChecked();
   i::CpuProfile* iprofile = iprofiler->GetProfile(0);
   iprofile->Print();
-  /* The expected profile
+  /* The expected profile. Note that the deopt reasons can hang off either of
+     the two nodes for each function, depending on the exact timing at runtime.
   [Top down]:
       0  (root) 0 #1
      23     32 #2
