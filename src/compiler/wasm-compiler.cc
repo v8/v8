@@ -3804,13 +3804,13 @@ Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
   //    - checking that {index < effective_size}.
 
   Node* mem_size = instance_cache_->mem_size;
-  if (end_offset >= env_->min_memory_size) {
+  if (end_offset > env_->min_memory_size) {
     // The end offset is larger than the smallest memory.
     // Dynamically check the end offset against the dynamic memory size.
     Node* cond = gasm_->UintLessThan(end_offset_node, mem_size);
     TrapIfFalse(wasm::kTrapMemOutOfBounds, cond, position);
   } else {
-    // The end offset is smaller than the smallest memory, so only one check is
+    // The end offset is <= the smallest memory, so only one check is
     // required. Check to see if the index is also a constant.
     UintPtrMatcher match(index);
     if (match.HasResolvedValue()) {
@@ -3823,7 +3823,7 @@ Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
     }
   }
 
-  // This produces a positive number, since {end_offset < min_size <= mem_size}.
+  // This produces a positive number since {end_offset <= min_size <= mem_size}.
   Node* effective_size = gasm_->IntSub(mem_size, end_offset_node);
 
   // Introduce the actual bounds check.

@@ -2257,13 +2257,14 @@ class LiftoffCompiler {
 
     __ LoadConstant(end_offset_reg, WasmValue::ForUintPtr(end_offset));
 
-    if (end_offset >= env_->min_memory_size) {
+    if (end_offset > env_->min_memory_size) {
       __ emit_cond_jump(kUnsignedGreaterEqual, trap_label,
                         LiftoffAssembler::kWasmIntPtr, end_offset_reg.gp(),
                         mem_size);
     }
 
-    // Just reuse the end_offset register for computing the effective size.
+    // Just reuse the end_offset register for computing the effective size
+    // (which is >= 0 because of the check above).
     LiftoffRegister effective_size_reg = end_offset_reg;
     __ emit_ptrsize_sub(effective_size_reg.gp(), mem_size, end_offset_reg.gp());
 
