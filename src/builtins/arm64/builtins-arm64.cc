@@ -3936,6 +3936,32 @@ void Builtins::Generate_DynamicCheckMapsTrampoline(MacroAssembler* masm) {
   if (FLAG_debug_code) registers |= kCallerSaved.list();
   __ SaveRegisters(registers);
 
+  // Load the immediate arguments from the deopt exit to pass to the builtin.
+  Register slot_arg =
+      descriptor.GetRegisterParameter(DynamicCheckMapsDescriptor::kSlot);
+  Register handler_arg =
+      descriptor.GetRegisterParameter(DynamicCheckMapsDescriptor::kHandler);
+
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  // Make sure we can use x16 and x17, and add slot_arg as a temp reg if needed.
+  UseScratchRegisterScope temps(masm);
+  temps.Exclude(x16, x17);
+  temps.Include(slot_arg);
+  // Load return address into x17 and decode into handler_arg.
+  __ Add(x16, fp, CommonFrameConstants::kCallerSPOffset);
+  __ Ldr(x17, MemOperand(fp, CommonFrameConstants::kCallerPCOffset));
+  __ Autib1716();
+  __ Mov(handler_arg, x17);
+#else
+  __ Ldr(handler_arg, MemOperand(fp, CommonFrameConstants::kCallerPCOffset));
+#endif
+
+  __ Ldr(slot_arg, MemOperand(handler_arg,
+                              Deoptimizer::kEagerWithResumeImmedArgs1PcOffset));
+  __ Ldr(
+      handler_arg,
+      MemOperand(handler_arg, Deoptimizer::kEagerWithResumeImmedArgs2PcOffset));
+
   __ Call(BUILTIN_CODE(masm->isolate(), DynamicCheckMaps),
           RelocInfo::CODE_TARGET);
 

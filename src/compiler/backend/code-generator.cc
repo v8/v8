@@ -152,6 +152,52 @@ uint32_t CodeGenerator::GetStackCheckOffset() {
   return std::max(frame_height_delta, max_pushed_argument_bytes);
 }
 
+void CodeGenerator::AssembleDeoptImmediateArgs(
+    const ZoneVector<ImmediateOperand*>* immediate_args, Label* deopt_exit) {
+  // EagerWithResume deopts should have immdiate args, and to ensure fixed
+  // deopt exit sizes, currently always have two immediate arguments in the
+  // deopt exit.
+  constexpr int kImmediateArgCount = 2;
+  DCHECK_NOT_NULL(immediate_args);
+  DCHECK_EQ(kImmediateArgCount, immediate_args->size());
+  const int expected_offsets[] = {
+      Deoptimizer::kEagerWithResumeImmedArgs1PcOffset,
+      Deoptimizer::kEagerWithResumeImmedArgs2PcOffset};
+  for (int i = 0; i < kImmediateArgCount; i++) {
+    ImmediateOperand* op = immediate_args->at(i);
+    Constant constant = instructions()->GetImmediate(op);
+    uintptr_t value;
+    switch (constant.type()) {
+      case Constant::kInt32:
+        value = constant.ToInt32();
+        break;
+#ifdef V8_TARGET_ARCH_64_BIT
+      case Constant::kInt64:
+        value = constant.ToInt64();
+        break;
+#endif
+      case Constant::kFloat64: {
+        int smi;
+        CHECK(DoubleToSmiInteger(constant.ToFloat64().value(), &smi));
+        value = Smi::FromInt(smi).ptr();
+        break;
+      }
+      default:
+        // Currently only Smis and Ints are supported, but other immediate
+        // constants can be added when required.
+        UNREACHABLE();
+    }
+
+    DCHECK_EQ(tasm()->SizeOfCodeGeneratedSince(deopt_exit),
+              expected_offsets[i] + Deoptimizer::kNonLazyDeoptExitSize);
+    USE(expected_offsets);
+    tasm()->dp(value);
+  }
+
+  DCHECK_EQ(tasm()->SizeOfCodeGeneratedSince(deopt_exit),
+            Deoptimizer::kEagerWithResumeDeoptExitSize);
+}
+
 CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
     DeoptimizationExit* exit) {
   int deoptimization_id = exit->deoptimization_id();
@@ -184,6 +230,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   tasm()->CallForDeoptimization(target, deoptimization_id, exit->label(),
                                 deopt_kind, exit->continue_label(),
                                 jump_deoptimization_entry_label);
+
+  if (deopt_kind == DeoptimizeKind::kEagerWithResume) {
+    AssembleDeoptImmediateArgs(exit->immediate_args(), exit->label());
+  }
   exit->set_emitted();
 
   return kSuccess;
@@ -794,9 +844,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
     case kFlags_deoptimize_and_poison: {
       // Assemble a conditional eager deoptimization after this instruction.
       InstructionOperandConverter i(this, instr);
-      size_t frame_state_offset = MiscField::decode(instr->opcode());
-      DeoptimizationExit* const exit =
-          AddDeoptimizationExit(instr, frame_state_offset);
+      size_t frame_state_offset =
+          DeoptFrameStateOffsetField::decode(instr->opcode());
+      size_t immediate_args_count =
+          DeoptImmedArgsCountField::decode(instr->opcode());
+      DeoptimizationExit* const exit = AddDeoptimizationExit(
+          instr, frame_state_offset, immediate_args_count);
       BranchInfo branch;
       branch.condition = condition;
       branch.true_label = exit->label();
@@ -1010,7 +1063,7 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
     FrameStateDescriptor* descriptor =
         GetDeoptimizationEntry(instr, frame_state_offset).descriptor();
     int pc_offset = tasm()->pc_offset_for_safepoint();
-    BuildTranslation(instr, pc_offset, frame_state_offset,
+    BuildTranslation(instr, pc_offset, frame_state_offset, 0,
                      descriptor->state_combine());
   }
 }
@@ -1152,7 +1205,7 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
 
 DeoptimizationExit* CodeGenerator::BuildTranslation(
     Instruction* instr, int pc_offset, size_t frame_state_offset,
-    OutputFrameStateCombine state_combine) {
+    size_t immediate_args_count, OutputFrameStateCombine state_combine) {
   DeoptimizationEntry const& entry =
       GetDeoptimizationEntry(instr, frame_state_offset);
   FrameStateDescriptor* const descriptor = entry.descriptor();
@@ -1179,6 +1232,15 @@ DeoptimizationExit* CodeGenerator::BuildTranslation(
 
   if (!Deoptimizer::kSupportsFixedDeoptExitSizes) {
     exit->set_deoptimization_id(next_deoptimization_id_++);
+  }
+  if (immediate_args_count != 0) {
+    auto immediate_args = zone()->New<ZoneVector<ImmediateOperand*>>(zone());
+    InstructionOperandIterator iter(
+        instr, frame_state_offset - immediate_args_count - 1);
+    for (size_t i = 0; i < immediate_args_count; i++) {
+      immediate_args->emplace_back(ImmediateOperand::cast(iter.Advance()));
+    }
+    exit->set_immediate_args(immediate_args);
   }
 
   deoptimization_exits_.push_back(exit);
@@ -1335,8 +1397,9 @@ void CodeGenerator::MarkLazyDeoptSite() {
 }
 
 DeoptimizationExit* CodeGenerator::AddDeoptimizationExit(
-    Instruction* instr, size_t frame_state_offset) {
-  return BuildTranslation(instr, -1, frame_state_offset,
+    Instruction* instr, size_t frame_state_offset,
+    size_t immediate_args_count) {
+  return BuildTranslation(instr, -1, frame_state_offset, immediate_args_count,
                           OutputFrameStateCombine::Ignore());
 }
 
