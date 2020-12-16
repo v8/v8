@@ -6,7 +6,6 @@
 
 #include "src/codegen/compilation-cache.h"
 #include "src/execution/vm-state-inl.h"
-#include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/gc-idle-time-handler.h"
@@ -22,7 +21,6 @@
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/safepoint.h"
-#include "src/heap/sweeper.h"
 #include "src/init/v8.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/data-handler-inl.h"
@@ -148,6 +146,8 @@ bool IncrementalMarking::IsBelowActivationThresholds() const {
 }
 
 void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
+  DCHECK(!collector_->sweeping_in_progress());
+
   if (FLAG_trace_incremental_marking) {
     const size_t old_generation_size_mb =
         heap()->OldGenerationSizeOfObjects() / MB;
@@ -194,17 +194,6 @@ void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
   bytes_marked_concurrently_ = 0;
   was_activated_ = true;
 
-  {
-    TRACE_GC(heap()->tracer(),
-             GCTracer::Scope::MC_INCREMENTAL_SWEEP_ARRAY_BUFFERS);
-    heap_->array_buffer_sweeper()->EnsureFinished();
-  }
-
-  collector_->EnsureSweepingCompleted();
-  DCHECK(!collector_->sweeping_in_progress());
-#ifdef DEBUG
-  heap_->VerifyCountersAfterSweeping();
-#endif
   StartMarking();
 
   heap_->AddAllocationObserversToAllSpaces(&old_generation_observer_,

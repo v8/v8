@@ -837,15 +837,7 @@ void MarkCompactCollector::Prepare() {
 #endif
 
   DCHECK(!FLAG_never_compact || !FLAG_always_compact);
-
-  // Instead of waiting we could also abort the sweeper threads here.
-  EnsureSweepingCompleted();
-
-  {
-    TRACE_GC(heap()->tracer(),
-             GCTracer::Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS);
-    heap_->array_buffer_sweeper()->EnsureFinished();
-  }
+  DCHECK(!sweeping_in_progress());
 
   if (!was_marked_incrementally_) {
     {

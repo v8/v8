@@ -1742,13 +1742,36 @@ void Heap::StartIncrementalMarking(int gc_flags,
                                    GCCallbackFlags gc_callback_flags) {
   DCHECK(incremental_marking()->IsStopped());
 
-  // The next GC cycle begins here.
-  UpdateEpochFull();
+  // Sweeping needs to be completed such that markbits are all cleared before
+  // starting marking again.
+  CompleteSweepingFull();
 
   SafepointScope safepoint(this);
+
+#ifdef DEBUG
+  VerifyCountersAfterSweeping();
+#endif
+
+  // Now that sweeping is completed, we can update the current epoch for the new
+  // full collection.
+  UpdateEpochFull();
+
   set_current_gc_flags(gc_flags);
   current_gc_callback_flags_ = gc_callback_flags;
   incremental_marking()->Start(gc_reason);
+}
+
+void Heap::CompleteSweepingFull() {
+  TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MC_COMPLETE_SWEEPING,
+                 ThreadKind::kMain);
+
+  {
+    TRACE_GC(tracer(), GCTracer::Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS);
+    array_buffer_sweeper()->EnsureFinished();
+  }
+
+  mark_compact_collector()->EnsureSweepingCompleted();
+  DCHECK(!mark_compact_collector()->sweeping_in_progress());
 }
 
 void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
@@ -1977,6 +2000,15 @@ size_t Heap::PerformGarbageCollection(
   DisallowJavascriptExecution no_js(isolate());
   base::Optional<SafepointScope> optional_safepoint_scope;
 
+  if (IsYoungGenerationCollector(collector)) {
+    CompleteSweepingYoung(collector);
+  } else {
+    DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
+    CompleteSweepingFull();
+  }
+
+  // The last GC cycle is done after completing sweeping. Start the next GC
+  // cycle.
   UpdateCurrentEpoch(collector);
 
   // Stop time-to-collection timer before safepoint - we do not want to measure
@@ -2072,6 +2104,24 @@ size_t Heap::PerformGarbageCollection(
   tracer()->StopInSafepoint();
 
   return freed_global_handles;
+}
+
+void Heap::CompleteSweepingYoung(GarbageCollector collector) {
+  GCTracer::Scope::ScopeId scope_id;
+
+  switch (collector) {
+    case GarbageCollector::MINOR_MARK_COMPACTOR:
+      scope_id = GCTracer::Scope::MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS;
+      break;
+    case GarbageCollector::SCAVENGER:
+      scope_id = GCTracer::Scope::SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS;
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  TRACE_GC_EPOCH(tracer(), scope_id, ThreadKind::kMain);
+  array_buffer_sweeper()->EnsureFinished();
 }
 
 void Heap::UpdateCurrentEpoch(GarbageCollector collector) {

@@ -514,7 +514,6 @@ class Heap {
   void NotifyOldGenerationExpansion(AllocationSpace space, MemoryChunk* chunk);
 
   void UpdateCurrentEpoch(GarbageCollector collector);
-  void UpdateEpochFull();
 
   inline Address* NewSpaceAllocationTopAddress();
   inline Address* NewSpaceAllocationLimitAddress();
@@ -1073,6 +1072,9 @@ class Heap {
   V8_EXPORT_PRIVATE void FinalizeIncrementalMarkingAtomically(
       GarbageCollectionReason gc_reason);
 
+  void CompleteSweepingFull();
+  void CompleteSweepingYoung(GarbageCollector collector);
+
   IncrementalMarking* incremental_marking() {
     return incremental_marking_.get();
   }
@@ -1565,6 +1567,8 @@ class Heap {
 
   CollectionEpoch epoch_young() { return epoch_young_; }
   CollectionEpoch epoch_full() { return epoch_full_; }
+
+  void UpdateEpochFull();
 
  private:
   using ExternalStringTableUpdaterCallback = String (*)(Heap* heap,

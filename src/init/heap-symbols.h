@@ -403,7 +403,6 @@
   F(MC_INCREMENTAL_FINALIZE_BODY)                                  \
   F(MC_INCREMENTAL_LAYOUT_CHANGE)                                  \
   F(MC_INCREMENTAL_START)                                          \
-  F(MC_INCREMENTAL_SWEEP_ARRAY_BUFFERS)                            \
   F(MC_INCREMENTAL_SWEEPING)
 
 #define TOP_MC_SCOPES(F) \
@@ -438,6 +437,7 @@
   F(MC_CLEAR_WEAK_LISTS)                             \
   F(MC_CLEAR_WEAK_REFERENCES)                        \
   F(MC_COMPLETE_SWEEP_ARRAY_BUFFERS)                 \
+  F(MC_COMPLETE_SWEEPING)                            \
   F(MC_EVACUATE_CANDIDATES)                          \
   F(MC_EVACUATE_CLEAN_UP)                            \
   F(MC_EVACUATE_COPY)                                \
@@ -473,6 +473,7 @@
   F(MINOR_MC_CLEAR)                                  \
   F(MINOR_MC_CLEAR_STRING_TABLE)                     \
   F(MINOR_MC_CLEAR_WEAK_LISTS)                       \
+  F(MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS)           \
   F(MINOR_MC_EVACUATE)                               \
   F(MINOR_MC_EVACUATE_CLEAN_UP)                      \
   F(MINOR_MC_EVACUATE_COPY)                          \
@@ -524,10 +525,12 @@
   F(MINOR_MC_BACKGROUND_MARKING)                  \
   F(SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL)
 
-#define TRACER_YOUNG_EPOCH_SCOPES(F)     \
-  F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP) \
-  F(MINOR_MARK_COMPACTOR)                \
-  F(SCAVENGER)                           \
-  F(SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL)
+#define TRACER_YOUNG_EPOCH_SCOPES(F)        \
+  F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP)    \
+  F(MINOR_MARK_COMPACTOR)                   \
+  F(MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS)  \
+  F(SCAVENGER)                              \
+  F(SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL) \
+  F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)
 
 #endif  // V8_INIT_HEAP_SYMBOLS_H_

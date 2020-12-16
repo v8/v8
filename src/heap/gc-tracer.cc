@@ -768,7 +768,6 @@ void GCTracer::PrintNVP() const {
           "incremental.finalize.external.prologue=%.1f "
           "incremental.finalize.external.epilogue=%.1f "
           "incremental.layout_change=%.1f "
-          "incremental.start=%.1f "
           "incremental.sweep_array_buffers=%.1f "
           "incremental.sweeping=%.1f "
           "incremental.embedder_prologue=%.1f "
@@ -860,7 +859,6 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE],
           current_.scopes[Scope::MC_INCREMENTAL_LAYOUT_CHANGE],
           current_.scopes[Scope::MC_INCREMENTAL_START],
-          current_.scopes[Scope::MC_INCREMENTAL_SWEEP_ARRAY_BUFFERS],
           current_.scopes[Scope::MC_INCREMENTAL_SWEEPING],
           current_.scopes[Scope::MC_INCREMENTAL_EMBEDDER_PROLOGUE],
           current_.scopes[Scope::MC_INCREMENTAL_EMBEDDER_TRACING],
