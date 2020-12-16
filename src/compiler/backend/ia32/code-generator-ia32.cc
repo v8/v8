@@ -1046,7 +1046,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchDeoptimize: {
       DeoptimizationExit* exit =
-          BuildTranslation(instr, -1, 0, 0, OutputFrameStateCombine::Ignore());
+          BuildTranslation(instr, -1, 0, OutputFrameStateCombine::Ignore());
       __ jmp(exit->label());
       break;
     }

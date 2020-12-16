@@ -785,22 +785,13 @@ Instruction* InstructionSelector::EmitWithContinuation(
     continuation_inputs_.push_back(g.Label(cont->true_block()));
     continuation_inputs_.push_back(g.Label(cont->false_block()));
   } else if (cont->IsDeoptimize()) {
-    int immediate_args_count = 0;
     if (cont->has_extra_args()) {
       for (int i = 0; i < cont->extra_args_count(); i++) {
-        InstructionOperand op = cont->extra_args()[i];
-        continuation_inputs_.push_back(op);
+        continuation_inputs_.push_back(cont->extra_args()[i]);
         input_count++;
-        if (op.IsImmediate()) {
-          immediate_args_count++;
-        } else {
-          // All immediate args should be added last.
-          DCHECK_EQ(immediate_args_count, 0);
-        }
       }
     }
-    opcode |= DeoptImmedArgsCountField::encode(immediate_args_count) |
-              DeoptFrameStateOffsetField::encode(static_cast<int>(input_count));
+    opcode |= MiscField::encode(static_cast<int>(input_count));
     AppendDeoptimizeArguments(&continuation_inputs_, cont->kind(),
                               cont->reason(), cont->feedback(),
                               cont->frame_state());
@@ -3214,9 +3205,13 @@ void InstructionSelector::VisitDynamicCheckMapsWithDeoptUnless(Node* node) {
   CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), descriptor, descriptor.GetStackParameterCount(),
       CallDescriptor::kNoFlags, Operator::kNoDeopt | Operator::kNoThrow);
+  // TODO(rmcilroy): Pass the constant values as immediates and move them into
+  // the correct location out of the fast-path (e.g., at deopt or in trampoline)
   InstructionOperand dynamic_check_args[] = {
-      g.UseLocation(n.map(), call_descriptor->GetInputLocation(1)),
-      g.UseImmediate(n.slot()), g.UseImmediate(n.handler())};
+      g.UseLocation(n.slot(), call_descriptor->GetInputLocation(1)),
+      g.UseLocation(n.map(), call_descriptor->GetInputLocation(2)),
+      g.UseLocation(n.handler(), call_descriptor->GetInputLocation(3)),
+  };
 
   if (NeedsPoisoning(IsSafetyCheck::kCriticalSafetyCheck)) {
     FlagsContinuation cont = FlagsContinuation::ForDeoptimizeAndPoison(

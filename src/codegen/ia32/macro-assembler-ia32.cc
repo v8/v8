@@ -2316,7 +2316,7 @@ void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,
 
     jmp(ret);
     DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
-              Deoptimizer::kEagerWithResumeBeforeArgsSize);
+              Deoptimizer::kEagerWithResumeDeoptExitSize);
     set_predictable_code_size(old_predictable_code_size);
   }
 }

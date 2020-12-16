@@ -2026,7 +2026,7 @@ void TurboAssembler::CallForDeoptimization(
   if (kind == DeoptimizeKind::kEagerWithResume) {
     b(ret);
     DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
-              Deoptimizer::kEagerWithResumeBeforeArgsSize);
+              Deoptimizer::kEagerWithResumeDeoptExitSize);
   }
 }
 

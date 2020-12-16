@@ -547,10 +547,7 @@ class Deoptimizer : public Malloced {
   // kSupportsFixedDeoptExitSizes is true.
   V8_EXPORT_PRIVATE static const int kNonLazyDeoptExitSize;
   V8_EXPORT_PRIVATE static const int kLazyDeoptExitSize;
-  V8_EXPORT_PRIVATE static const int kEagerWithResumeBeforeArgsSize;
   V8_EXPORT_PRIVATE static const int kEagerWithResumeDeoptExitSize;
-  V8_EXPORT_PRIVATE static const int kEagerWithResumeImmedArgs1PcOffset;
-  V8_EXPORT_PRIVATE static const int kEagerWithResumeImmedArgs2PcOffset;
 
   // Tracing.
   static void TraceMarkForDeoptimization(Code code, const char* reason);

@@ -12,12 +12,7 @@ namespace internal {
 const bool Deoptimizer::kSupportsFixedDeoptExitSizes = true;
 const int Deoptimizer::kNonLazyDeoptExitSize = 5;
 const int Deoptimizer::kLazyDeoptExitSize = 5;
-const int Deoptimizer::kEagerWithResumeBeforeArgsSize = 10;
-const int Deoptimizer::kEagerWithResumeDeoptExitSize =
-    kEagerWithResumeBeforeArgsSize + 2 * kSystemPointerSize;
-const int Deoptimizer::kEagerWithResumeImmedArgs1PcOffset = 5;
-const int Deoptimizer::kEagerWithResumeImmedArgs2PcOffset =
-    5 + kSystemPointerSize;
+const int Deoptimizer::kEagerWithResumeDeoptExitSize = 10;
 
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {
   return Float32::FromBits(
