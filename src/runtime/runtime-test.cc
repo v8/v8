@@ -1338,6 +1338,34 @@ TYPED_ARRAYS(FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION)
 
 #undef FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION
 
+RUNTIME_FUNCTION(Runtime_IsConcatSpreadableProtector) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return isolate->heap()->ToBoolean(
+      Protectors::IsIsConcatSpreadableLookupChainIntact(isolate));
+}
+
+RUNTIME_FUNCTION(Runtime_TypedArraySpeciesProtector) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return isolate->heap()->ToBoolean(
+      Protectors::IsTypedArraySpeciesLookupChainIntact(isolate));
+}
+
+RUNTIME_FUNCTION(Runtime_RegExpSpeciesProtector) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return isolate->heap()->ToBoolean(
+      Protectors::IsRegExpSpeciesLookupChainIntact(isolate));
+}
+
+RUNTIME_FUNCTION(Runtime_PromiseSpeciesProtector) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return isolate->heap()->ToBoolean(
+      Protectors::IsPromiseSpeciesLookupChainIntact(isolate));
+}
+
 RUNTIME_FUNCTION(Runtime_ArraySpeciesProtector) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
@@ -1366,6 +1394,12 @@ RUNTIME_FUNCTION(Runtime_StringIteratorProtector) {
       Protectors::IsStringIteratorLookupChainIntact(isolate));
 }
 
+RUNTIME_FUNCTION(Runtime_ArrayIteratorProtector) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return isolate->heap()->ToBoolean(
+      Protectors::IsArrayIteratorLookupChainIntact(isolate));
+}
 // For use by tests and fuzzers. It
 //
 // 1. serializes a snapshot of the current isolate,

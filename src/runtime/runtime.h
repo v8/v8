@@ -520,6 +520,7 @@ namespace internal {
   F(RegexpTypeTag, 1, 1)                      \
   F(RegexpIsUnmodified, 1, 1)                 \
   F(MapIteratorProtector, 0, 1)               \
+  F(ArrayIteratorProtector, 0, 1)             \
   F(NeverOptimizeFunction, 1, 1)              \
   F(NotifyContextDisposed, 0, 1)              \
   F(OptimizeFunctionOnNextCall, -1, 1)        \
@@ -544,6 +545,7 @@ namespace internal {
   F(TraceEnter, 0, 1)                         \
   F(TraceExit, 1, 1)                          \
   F(TurbofanStaticAssert, 1, 1)               \
+  F(TypedArraySpeciesProtector, 0, 1)         \
   F(UnblockConcurrentRecompilation, 0, 1)     \
   F(WasmGetNumberOfInstances, 1, 1)           \
   F(WasmNumCodeSpaces, 1, 1)                  \
@@ -553,7 +555,10 @@ namespace internal {
   F(WasmTraceEnter, 0, 1)                     \
   F(WasmTraceExit, 1, 1)                      \
   F(WasmTraceMemory, 1, 1)                    \
-  I(DeoptimizeNow, 0, 1)
+  I(DeoptimizeNow, 0, 1)                      \
+  F(PromiseSpeciesProtector, 0, 1)            \
+  F(IsConcatSpreadableProtector, 0, 1)        \
+  F(RegExpSpeciesProtector, 0, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F, I) \
   F(ArrayBufferDetach, 1, 1)                \
