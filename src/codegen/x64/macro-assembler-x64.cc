@@ -1298,7 +1298,7 @@ void TurboAssembler::Move(Register dst, Register src) {
 
 void TurboAssembler::Move(XMMRegister dst, XMMRegister src) {
   if (dst != src) {
-    movaps(dst, src);
+    Movaps(dst, src);
   }
 }
 
