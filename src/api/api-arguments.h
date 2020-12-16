@@ -177,7 +177,7 @@ class FunctionCallbackArguments
   inline Handle<Object> Call(CallHandlerInfo handler);
 
  private:
-  inline JSObject holder();
+  inline JSReceiver holder();
 
   internal::Address* argv_;
   int argc_;

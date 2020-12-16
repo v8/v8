@@ -1136,7 +1136,7 @@ void Logger::ApiIndexedPropertyAccess(const char* tag, JSObject holder,
   msg.WriteToLogFile();
 }
 
-void Logger::ApiObjectAccess(const char* tag, JSObject object) {
+void Logger::ApiObjectAccess(const char* tag, JSReceiver object) {
   if (!FLAG_log_api) return;
   MSG_BUILDER();
   msg << "api" << kNext << tag << kNext << object.class_name();
