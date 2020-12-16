@@ -342,6 +342,19 @@ class LiftoffAssembler : public TurboAssembler {
     return LoadToRegister(slot, pinned);
   }
 
+  // Use this to pop a value into a register that has no other uses, so it
+  // can be modified.
+  LiftoffRegister PopToModifiableRegister(LiftoffRegList pinned = {}) {
+    ValueType type = cache_state_.stack_state.back().type();
+    LiftoffRegister reg = PopToRegister(pinned);
+    if (cache_state()->is_free(reg)) return reg;
+
+    pinned.set(reg);
+    LiftoffRegister new_reg = GetUnusedRegister(reg.reg_class(), pinned);
+    Move(new_reg, reg, type);
+    return new_reg;
+  }
+
   // Returns the register which holds the value of stack slot {index}. If the
   // value is not stored in a register yet, a register is allocated for it. The
   // register is then assigned to the stack slot. The value stack height is not
@@ -541,8 +554,9 @@ class LiftoffAssembler : public TurboAssembler {
   inline void LoadTaggedPointer(Register dst, Register src_addr,
                                 Register offset_reg, int32_t offset_imm,
                                 LiftoffRegList pinned);
-  inline void StoreTaggedPointer(Register dst_addr, int32_t offset_imm,
-                                 LiftoffRegister src, LiftoffRegList pinned);
+  inline void StoreTaggedPointer(Register dst_addr, Register offset_reg,
+                                 int32_t offset_imm, LiftoffRegister src,
+                                 LiftoffRegList pinned);
   inline void LoadFixedArrayLengthAsInt32(LiftoffRegister dst, Register array,
                                           LiftoffRegList pinned) {
     int offset = FixedArray::kLengthOffset - kHeapObjectTag;

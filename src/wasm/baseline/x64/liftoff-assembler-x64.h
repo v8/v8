@@ -311,12 +311,13 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
 }
 
 void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
+                                          Register offset_reg,
                                           int32_t offset_imm,
                                           LiftoffRegister src,
                                           LiftoffRegList pinned) {
   DCHECK_GE(offset_imm, 0);
   Register scratch = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
-  Operand dst_op = liftoff::GetMemOp(this, dst_addr, no_reg,
+  Operand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg,
                                      static_cast<uint32_t>(offset_imm));
   StoreTaggedField(dst_op, src.gp());
 

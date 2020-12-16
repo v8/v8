@@ -421,8 +421,9 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
   tester.CheckResult(kTypedAfterBranch, 42);
 }
 
-TEST(WasmRefEq) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(WasmRefEq) {
+  WasmGCTester tester(execution_tier);
+  FLAG_experimental_liftoff_extern_ref = true;
   byte type_index = tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
   ValueType kRefTypes[] = {ref(type_index)};
   ValueType kOptRefType = optref(type_index);
@@ -460,8 +461,9 @@ TEST(WasmRefEq) {
   tester.CheckResult(kFunc, 0b1001);
 }
 
-TEST(WasmPackedStructU) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(WasmPackedStructU) {
+  WasmGCTester tester(execution_tier);
+  FLAG_experimental_liftoff_extern_ref = true;
 
   const byte type_index = tester.DefineStruct(
       {F(kWasmI8, true), F(kWasmI16, true), F(kWasmI32, true)});
@@ -497,8 +499,9 @@ TEST(WasmPackedStructU) {
   tester.CheckResult(kF1, static_cast<uint16_t>(expected_output_1));
 }
 
-TEST(WasmPackedStructS) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(WasmPackedStructS) {
+  WasmGCTester tester(execution_tier);
+  FLAG_experimental_liftoff_extern_ref = true;
 
   const byte type_index = tester.DefineStruct(
       {F(kWasmI8, true), F(kWasmI16, true), F(kWasmI32, true)});
@@ -594,8 +597,10 @@ TEST(WasmLetInstruction) {
   tester.CheckResult(kLetTestErase, 0);
 }
 
-TEST(WasmBasicArray) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
+  WasmGCTester tester(execution_tier);
+  FLAG_experimental_liftoff_extern_ref = true;
+
   const byte type_index = tester.DefineArray(wasm::kWasmI32, true);
   ValueType kRefTypes[] = {ref(type_index)};
   FunctionSig sig_q_v(1, 0, kRefTypes);
@@ -668,8 +673,9 @@ TEST(WasmBasicArray) {
   tester.CheckHasThrown(kAllocateTooLarge);
 }
 
-TEST(WasmPackedArrayU) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(WasmPackedArrayU) {
+  WasmGCTester tester(execution_tier);
+  FLAG_experimental_liftoff_extern_ref = true;
   const byte array_index = tester.DefineArray(kWasmI8, true);
   ValueType array_type = optref(array_index);
 
@@ -703,8 +709,9 @@ TEST(WasmPackedArrayU) {
   tester.CheckResult(kF, static_cast<uint8_t>(expected_output_3), 3);
 }
 
-TEST(WasmPackedArrayS) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(WasmPackedArrayS) {
+  WasmGCTester tester(execution_tier);
+  FLAG_experimental_liftoff_extern_ref = true;
   const byte array_index = tester.DefineArray(kWasmI16, true);
   ValueType array_type = optref(array_index);
 

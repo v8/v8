@@ -58,6 +58,8 @@ static inline constexpr RegClass reg_class_for(ValueType::Kind kind) {
     case ValueType::kF32:
     case ValueType::kF64:
       return kFpReg;
+    case ValueType::kI8:
+    case ValueType::kI16:
     case ValueType::kI32:
       return kGpReg;
     case ValueType::kI64:

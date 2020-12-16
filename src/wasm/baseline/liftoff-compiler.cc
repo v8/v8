@@ -447,11 +447,11 @@ class LiftoffCompiler {
       case ValueType::kRef:
       case ValueType::kOptRef:
       case ValueType::kRtt:
+      case ValueType::kI8:
+      case ValueType::kI16:
         if (FLAG_experimental_liftoff_extern_ref) return true;
         break;
       case ValueType::kBottom:
-      case ValueType::kI8:
-      case ValueType::kI16:
       case ValueType::kStmt:
         UNREACHABLE();
     }
@@ -1658,6 +1658,11 @@ class LiftoffCompiler {
             EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, rem_by_zero);
           }
         });
+      case kExprRefEq: {
+        return EmitBinOp<ValueType::kOptRef, kI32>(
+            BindFirst(&LiftoffAssembler::emit_ptrsize_set_cond, kEqual));
+      }
+
       default:
         UNREACHABLE();
     }
@@ -1926,7 +1931,7 @@ class LiftoffCompiler {
           pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
       LOAD_TAGGED_PTR_INSTANCE_FIELD(globals_buffer, TaggedGlobalsBuffer);
       LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
-      __ StoreTaggedPointer(globals_buffer,
+      __ StoreTaggedPointer(globals_buffer, no_reg,
                             wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
                                 imm.global->offset),
                             value, pinned);
@@ -3879,7 +3884,7 @@ class LiftoffCompiler {
       int offset = StructFieldOffset(imm.struct_type, i);
       LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
       ValueType field_type = imm.struct_type->field(i);
-      StoreObjectField(obj.gp(), offset, value, pinned, field_type);
+      StoreObjectField(obj.gp(), no_reg, offset, value, pinned, field_type);
       pinned.clear(value);
     }
     __ PushRegister(struct_value_type, obj);
@@ -3897,14 +3902,16 @@ class LiftoffCompiler {
                  Value* result) {
     const StructType* struct_type = field.struct_index.struct_type;
     ValueType field_type = struct_type->field(field.index);
+    if (!CheckSupportedType(decoder, field_type, "field load")) return;
     int offset = StructFieldOffset(struct_type, field.index);
     LiftoffRegList pinned;
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
     MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_obj.type);
     LiftoffRegister value =
         pinned.set(__ GetUnusedRegister(reg_class_for(field_type), pinned));
-    LoadObjectField(value, obj.gp(), offset, field_type, is_signed, pinned);
-    __ PushRegister(field_type, value);
+    LoadObjectField(value, obj.gp(), no_reg, offset, field_type, is_signed,
+                    pinned);
+    __ PushRegister(field_type.Unpacked(), value);
   }
 
   void StructSet(FullDecoder* decoder, const Value& struct_obj,
@@ -3917,37 +3924,143 @@ class LiftoffCompiler {
     LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
     MaybeEmitNullCheck(decoder, obj.gp(), pinned, struct_obj.type);
-    StoreObjectField(obj.gp(), offset, value, pinned, field_type);
+    StoreObjectField(obj.gp(), no_reg, offset, value, pinned, field_type);
+  }
+
+  void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
+                ValueType rtt_type, bool initial_value_on_stack) {
+    // Max length check.
+    {
+      LiftoffRegister length =
+          __ LoadToRegister(__ cache_state()->stack_state.end()[-2], {});
+      Label* trap_label = AddOutOfLineTrap(
+          decoder->position(), WasmCode::kThrowWasmTrapArrayOutOfBounds);
+      __ emit_i32_cond_jumpi(kUnsignedGreaterThan, trap_label, length.gp(),
+                             static_cast<int>(wasm::kV8MaxWasmArrayLength));
+    }
+    ValueType array_value_type = ValueType::Ref(imm.index, kNonNullable);
+    ValueType elem_type = imm.array_type->element_type();
+    int elem_size = elem_type.element_size_bytes();
+    // Allocate the array.
+    {
+      WasmCode::RuntimeStubId target = WasmCode::kWasmAllocateArrayWithRtt;
+      compiler::CallDescriptor* call_descriptor =
+          GetBuiltinCallDescriptor<WasmAllocateArrayWithRttDescriptor>(
+              compilation_zone_);
+      ValueType sig_reps[] = {array_value_type, rtt_type, kWasmI32, kWasmI32};
+      FunctionSig sig(1, 3, sig_reps);
+      LiftoffAssembler::VarState rtt_var =
+          __ cache_state()->stack_state.end()[-1];
+      LiftoffAssembler::VarState length_var =
+          __ cache_state()->stack_state.end()[-2];
+      LiftoffRegister elem_size_reg = __ GetUnusedRegister(kGpReg, {});
+      __ LoadConstant(elem_size_reg, WasmValue(elem_size));
+      LiftoffAssembler::VarState elem_size_var(kWasmI32, elem_size_reg, 0);
+      __ PrepareBuiltinCall(&sig, call_descriptor,
+                            {rtt_var, length_var, elem_size_var});
+      __ CallRuntimeStub(target);
+      DefineSafepoint();
+      // Drop the RTT.
+      __ cache_state()->stack_state.pop_back(1);
+    }
+
+    LiftoffRegister obj(kReturnRegister0);
+    LiftoffRegList pinned = LiftoffRegList::ForRegs(obj);
+    LiftoffRegister length = pinned.set(__ PopToModifiableRegister(pinned));
+    LiftoffRegister value = initial_value_on_stack
+                                ? pinned.set(__ PopToRegister(pinned))
+                                : pinned.set(__ GetUnusedRegister(
+                                      reg_class_for(elem_type), pinned));
+    if (!initial_value_on_stack) {
+      if (!CheckSupportedType(decoder, elem_type, "default value")) return;
+      SetDefaultValue(value, elem_type, pinned);
+    }
+
+    // Initialize the array's elements.
+    LiftoffRegister offset = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    __ LoadConstant(
+        offset,
+        WasmValue(wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize)));
+    LiftoffRegister end_offset = length;
+    if (elem_type.element_size_log2() != 0) {
+      __ emit_i32_shli(end_offset.gp(), length.gp(),
+                       elem_type.element_size_log2());
+    }
+    __ emit_i32_add(end_offset.gp(), end_offset.gp(), offset.gp());
+    Label loop, done;
+    __ bind(&loop);
+    __ emit_cond_jump(kUnsignedGreaterEqual, &done, kWasmI32, offset.gp(),
+                      end_offset.gp());
+    StoreObjectField(obj.gp(), offset.gp(), 0, value, pinned, elem_type);
+    __ emit_i32_addi(offset.gp(), offset.gp(), elem_size);
+    __ emit_jump(&loop);
+
+    __ bind(&done);
+    __ PushRegister(array_value_type, obj);
   }
 
   void ArrayNewWithRtt(FullDecoder* decoder,
                        const ArrayIndexImmediate<validate>& imm,
-                       const Value& length, const Value& initial_value,
+                       const Value& length_value, const Value& initial_value,
                        const Value& rtt, Value* result) {
-    // TODO(7748): Implement.
-    unsupported(decoder, kGC, "array.new_with_rtt");
+    ArrayNew(decoder, imm, rtt.type, true);
   }
+
   void ArrayNewDefault(FullDecoder* decoder,
                        const ArrayIndexImmediate<validate>& imm,
                        const Value& length, const Value& rtt, Value* result) {
-    // TODO(7748): Implement.
-    unsupported(decoder, kGC, "array.new_default_with_rtt");
+    ArrayNew(decoder, imm, rtt.type, false);
   }
+
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,
-                const ArrayIndexImmediate<validate>& imm, const Value& index,
-                bool is_signed, Value* result) {
-    // TODO(7748): Implement.
-    unsupported(decoder, kGC, "array.get");
+                const ArrayIndexImmediate<validate>& imm,
+                const Value& index_val, bool is_signed, Value* result) {
+    LiftoffRegList pinned;
+    LiftoffRegister index = pinned.set(__ PopToModifiableRegister(pinned));
+    LiftoffRegister array = pinned.set(__ PopToRegister(pinned));
+    MaybeEmitNullCheck(decoder, array.gp(), pinned, array_obj.type);
+    BoundsCheck(decoder, array, index, pinned);
+    ValueType elem_type = imm.array_type->element_type();
+    if (!CheckSupportedType(decoder, elem_type, "array load")) return;
+    int elem_size_shift = elem_type.element_size_log2();
+    if (elem_size_shift != 0) {
+      __ emit_i32_shli(index.gp(), index.gp(), elem_size_shift);
+    }
+    LiftoffRegister value = __ GetUnusedRegister(kGpReg, {array}, pinned);
+    LoadObjectField(value, array.gp(), index.gp(),
+                    wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize),
+                    elem_type, is_signed, pinned);
+    __ PushRegister(elem_type.Unpacked(), value);
   }
+
   void ArraySet(FullDecoder* decoder, const Value& array_obj,
-                const ArrayIndexImmediate<validate>& imm, const Value& index,
-                const Value& value) {
-    // TODO(7748): Implement.
-    unsupported(decoder, kGC, "array.set");
+                const ArrayIndexImmediate<validate>& imm,
+                const Value& index_val, const Value& value_val) {
+    LiftoffRegList pinned;
+    LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister index = pinned.set(__ PopToModifiableRegister(pinned));
+    LiftoffRegister array = pinned.set(__ PopToRegister(pinned));
+    MaybeEmitNullCheck(decoder, array.gp(), pinned, array_obj.type);
+    BoundsCheck(decoder, array, index, pinned);
+    ValueType elem_type = imm.array_type->element_type();
+    int elem_size_shift = elem_type.element_size_log2();
+    if (elem_size_shift != 0) {
+      __ emit_i32_shli(index.gp(), index.gp(), elem_size_shift);
+    }
+    StoreObjectField(array.gp(), index.gp(),
+                     wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize),
+                     value, pinned, elem_type);
   }
+
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
-    // TODO(7748): Implement.
-    unsupported(decoder, kGC, "array.len");
+    LiftoffRegList pinned;
+    LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
+    MaybeEmitNullCheck(decoder, obj.gp(), pinned, array_obj.type);
+    LiftoffRegister len = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    int kLengthOffset = wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset);
+    LoadObjectField(len, obj.gp(), no_reg, kLengthOffset, kWasmI32, false,
+                    pinned);
+    __ PushRegister(kWasmI32, len);
   }
 
   void I31New(FullDecoder* decoder, const Value& input, Value* result) {
@@ -4202,16 +4315,8 @@ class LiftoffCompiler {
       if (!CheckSupportedType(decoder, ret, "return")) return;
     }
 
-    // Pop the index.
-    Register index = __ PopToRegister().gp();
-    // If that register is still being used after popping, we move it to another
-    // register, because we want to modify that register.
-    if (__ cache_state()->is_used(LiftoffRegister(index))) {
-      Register new_index =
-          __ GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(index)).gp();
-      __ Move(new_index, index, kWasmI32);
-      index = new_index;
-    }
+    // Pop the index. We'll modify the register's contents later.
+    Register index = __ PopToModifiableRegister().gp();
 
     LiftoffRegList pinned = LiftoffRegList::ForRegs(index);
     // Get three temporary registers.
@@ -4346,30 +4451,72 @@ class LiftoffCompiler {
                       null.gp());
   }
 
+  void BoundsCheck(FullDecoder* decoder, LiftoffRegister array,
+                   LiftoffRegister index, LiftoffRegList pinned) {
+    Label* trap_label = AddOutOfLineTrap(
+        decoder->position(), WasmCode::kThrowWasmTrapArrayOutOfBounds);
+    LiftoffRegister length = __ GetUnusedRegister(kGpReg, pinned);
+    constexpr int kLengthOffset =
+        wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset);
+    __ Load(length, array.gp(), no_reg, kLengthOffset, LoadType::kI32Load,
+            pinned);
+    __ emit_cond_jump(LiftoffCondition::kUnsignedGreaterEqual, trap_label,
+                      kWasmI32, index.gp(), length.gp());
+  }
+
   int StructFieldOffset(const StructType* struct_type, int field_index) {
     return wasm::ObjectAccess::ToTagged(WasmStruct::kHeaderSize +
                                         struct_type->field_offset(field_index));
   }
 
-  void LoadObjectField(LiftoffRegister dst, Register src, int offset,
-                       ValueType type, bool is_signed, LiftoffRegList pinned) {
+  void LoadObjectField(LiftoffRegister dst, Register src, Register offset_reg,
+                       int offset, ValueType type, bool is_signed,
+                       LiftoffRegList pinned) {
     if (type.is_reference_type()) {
-      __ LoadTaggedPointer(dst.gp(), src, no_reg, offset, pinned);
+      __ LoadTaggedPointer(dst.gp(), src, offset_reg, offset, pinned);
     } else {
       // Primitive type.
       LoadType load_type = LoadType::ForValueType(type, is_signed);
-      __ Load(dst, src, no_reg, offset, load_type, pinned);
+      __ Load(dst, src, offset_reg, offset, load_type, pinned);
     }
   }
 
-  void StoreObjectField(Register obj, int offset, LiftoffRegister value,
-                        LiftoffRegList pinned, ValueType type) {
+  void StoreObjectField(Register obj, Register offset_reg, int offset,
+                        LiftoffRegister value, LiftoffRegList pinned,
+                        ValueType type) {
     if (type.is_reference_type()) {
-      __ StoreTaggedPointer(obj, offset, value, pinned);
+      __ StoreTaggedPointer(obj, offset_reg, offset, value, pinned);
     } else {
       // Primitive type.
       StoreType store_type = StoreType::ForValueType(type);
-      __ Store(obj, no_reg, offset, value, store_type, pinned);
+      __ Store(obj, offset_reg, offset, value, store_type, pinned);
+    }
+  }
+
+  void SetDefaultValue(LiftoffRegister reg, ValueType type,
+                       LiftoffRegList pinned) {
+    DCHECK(type.is_defaultable());
+    switch (type.kind()) {
+      case ValueType::kI8:
+      case ValueType::kI16:
+      case ValueType::kI32:
+        return __ LoadConstant(reg, WasmValue(int32_t{0}));
+      case ValueType::kI64:
+        return __ LoadConstant(reg, WasmValue(int64_t{0}));
+      case ValueType::kF32:
+        return __ LoadConstant(reg, WasmValue(float{0.0}));
+      case ValueType::kF64:
+        return __ LoadConstant(reg, WasmValue(double{0.0}));
+      case ValueType::kS128:
+        DCHECK(CpuFeatures::SupportsWasmSimd128());
+        return __ emit_s128_xor(reg, reg, reg);
+      case ValueType::kOptRef:
+        return LoadNullValue(reg.gp(), pinned);
+      case ValueType::kRtt:
+      case ValueType::kStmt:
+      case ValueType::kBottom:
+      case ValueType::kRef:
+        UNREACHABLE();
     }
   }
 
