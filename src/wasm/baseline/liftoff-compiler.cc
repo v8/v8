@@ -1722,7 +1722,7 @@ class LiftoffCompiler {
     __ PushRegister(ValueType::Ref(arg.type.heap_type(), kNonNullable), obj);
   }
 
-  void Drop(FullDecoder* decoder, const Value& value) {
+  void Drop(FullDecoder* decoder) {
     auto& slot = __ cache_state()->stack_state.back();
     // If the dropped slot contains a register, decrement it's use count.
     if (slot.is_reg()) __ cache_state()->dec_used(slot.reg());
@@ -4117,7 +4117,7 @@ class LiftoffCompiler {
 
     __ bind(&cont_false);
     // Drop the branch's value, restore original value.
-    Drop(decoder, obj);
+    Drop(decoder);
     __ PushRegister(obj.type, obj_reg);
   }
 

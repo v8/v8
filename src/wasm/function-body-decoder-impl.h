@@ -993,7 +993,7 @@ struct ControlBase : public PcForErrors<validate> {
   F(RefNull, ValueType type, Value* result)                                    \
   F(RefFunc, uint32_t function_index, Value* result)                           \
   F(RefAsNonNull, const Value& arg, Value* result)                             \
-  F(Drop, const Value& value)                                                  \
+  F(Drop)                                                                      \
   F(DoReturn, Vector<Value> values)                                            \
   F(LocalGet, Value* result, const LocalIndexImmediate<validate>& imm)         \
   F(LocalSet, const Value& value, const LocalIndexImmediate<validate>& imm)    \
@@ -2953,8 +2953,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   DECODE(Drop) {
-    Value value = Pop(0);
-    CALL_INTERFACE_IF_REACHABLE(Drop, value);
+    Pop(0);
+    CALL_INTERFACE_IF_REACHABLE(Drop);
     return 1;
   }
 

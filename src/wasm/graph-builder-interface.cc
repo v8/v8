@@ -277,7 +277,7 @@ class WasmGraphBuildingInterface {
     result->node = BUILD(RefAsNonNull, arg.node, decoder->position());
   }
 
-  void Drop(FullDecoder* decoder, const Value& value) {}
+  void Drop(FullDecoder* decoder) {}
 
   void DoReturn(FullDecoder* decoder, Vector<Value> values) {
     base::SmallVector<TFNode*, 8> nodes(values.size());
