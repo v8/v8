@@ -2382,6 +2382,7 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
   // immediately with a larger-capacity one.  It doesn't seem to affect the
   // performance in a noticeable way though.
   TRACE(this, "Constructing heap broker");
+  DCHECK_IMPLIES(is_concurrent_inlining_, FLAG_turbo_direct_heap_access);
 }
 
 JSHeapBroker::~JSHeapBroker() { DCHECK_NULL(local_isolate_); }

@@ -551,6 +551,7 @@ DEFINE_BOOL(trace_generalization, false, "trace map generalization")
 
 // Flags for TurboProp.
 DEFINE_BOOL(turboprop, false, "enable experimental turboprop mid-tier compiler")
+DEFINE_IMPLICATION(turboprop, turbo_direct_heap_access)
 DEFINE_BOOL(turboprop_mid_tier_reg_alloc, true,
             "enable mid-tier register allocator for turboprop")
 DEFINE_BOOL(turboprop_as_midtier, false,
