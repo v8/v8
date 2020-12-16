@@ -42,6 +42,7 @@ class WasmGCTester {
         flag_liftoff_only(
             &v8::internal::FLAG_liftoff_only,
             execution_tier == TestExecutionTier::kLiftoff ? true : false),
+        flag_tierup(&v8::internal::FLAG_wasm_tier_up, false),
         zone(&allocator, ZONE_NAME),
         builder_(&zone),
         isolate_(CcTest::InitIsolateOnce()),
@@ -182,6 +183,7 @@ class WasmGCTester {
   const FlagScope<bool> flag_typedfuns;
   const FlagScope<bool> flag_liftoff;
   const FlagScope<bool> flag_liftoff_only;
+  const FlagScope<bool> flag_tierup;
 
   v8::internal::AccountingAllocator allocator;
   Zone zone;
@@ -1091,8 +1093,9 @@ WASM_COMPILED_EXEC_TEST(RefTestCastNull) {
   tester.CheckHasThrown(kRefCastNull, 0);
 }
 
-TEST(BasicI31) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(BasicI31) {
+  WasmGCTester tester(execution_tier);
+  FLAG_experimental_liftoff_extern_ref = true;
   const byte kSigned = tester.DefineFunction(
       tester.sigs.i_i(), {},
       {WASM_I31_GET_S(WASM_I31_NEW(WASM_LOCAL_GET(0))), kExprEnd});
@@ -1112,8 +1115,9 @@ TEST(BasicI31) {
   tester.CheckResult(kUnsigned, 0x7FFFFFFF, 0x7FFFFFFF);
 }
 
-TEST(I31Casts) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(I31Casts) {
+  WasmGCTester tester(execution_tier);
+  FLAG_experimental_liftoff_extern_ref = true;
   const byte struct_type = tester.DefineStruct({F(wasm::kWasmI32, true)});
   const byte i31_rtt =
       tester.AddGlobal(ValueType::Rtt(HeapType::kI31, 1), false,
@@ -1173,8 +1177,9 @@ TEST(I31Casts) {
 
 // This flushed out a few bugs, so it serves as a regression test. It can also
 // be modified (made to run longer) to measure performance of casts.
-TEST(CastsBenchmark) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(CastsBenchmark) {
+  WasmGCTester tester(execution_tier);
+  FLAG_experimental_liftoff_extern_ref = true;
   const byte SuperType = tester.DefineStruct({F(wasm::kWasmI32, true)});
   const byte SubType =
       tester.DefineStruct({F(wasm::kWasmI32, true), F(wasm::kWasmI32, true)});
