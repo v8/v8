@@ -296,6 +296,7 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
   }
 
   Register GetRegisterParameter(int index) const {
+    DCHECK_LT(index, data()->register_param_count());
     return data()->register_param(index);
   }
 
