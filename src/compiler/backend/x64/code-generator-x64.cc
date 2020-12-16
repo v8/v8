@@ -6,6 +6,7 @@
 
 #include "src/base/overflowing-math.h"
 #include "src/codegen/assembler.h"
+#include "src/codegen/cpu-features.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/x64/assembler-x64.h"
@@ -600,12 +601,19 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     }                                                             \
   } while (false)
 
-#define ASSEMBLE_SIMD_PUNPCK_SHUFFLE(opcode)             \
-  do {                                                   \
-    XMMRegister dst = i.OutputSimd128Register();         \
-    DCHECK_EQ(dst, i.InputSimd128Register(0));           \
-    byte input_index = instr->InputCount() == 2 ? 1 : 0; \
-    ASSEMBLE_SIMD_INSTR(opcode, dst, input_index);       \
+#define ASSEMBLE_SIMD_PUNPCK_SHUFFLE(opcode)                    \
+  do {                                                          \
+    XMMRegister dst = i.OutputSimd128Register();                \
+    byte input_index = instr->InputCount() == 2 ? 1 : 0;        \
+    if (CpuFeatures::IsSupported(AVX)) {                        \
+      CpuFeatureScope avx_scope(tasm(), AVX);                   \
+      DCHECK(instr->InputAt(input_index)->IsSimd128Register()); \
+      __ v##opcode(dst, i.InputSimd128Register(0),              \
+                   i.InputSimd128Register(input_index));        \
+    } else {                                                    \
+      DCHECK_EQ(dst, i.InputSimd128Register(0));                \
+      ASSEMBLE_SIMD_INSTR(opcode, dst, input_index);            \
+    }                                                           \
   } while (false)
 
 #define ASSEMBLE_SIMD_IMM_SHUFFLE(opcode, imm)                              \
@@ -3997,28 +4005,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64S64x2UnpackHigh:
-      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(Punpckhqdq);
+      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpckhqdq);
       break;
     case kX64S32x4UnpackHigh:
-      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(Punpckhdq);
+      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpckhdq);
       break;
     case kX64S16x8UnpackHigh:
-      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(Punpckhwd);
+      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpckhwd);
       break;
     case kX64S8x16UnpackHigh:
-      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(Punpckhbw);
+      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpckhbw);
       break;
     case kX64S64x2UnpackLow:
-      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(Punpcklqdq);
+      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpcklqdq);
       break;
     case kX64S32x4UnpackLow:
-      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(Punpckldq);
+      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpckldq);
       break;
     case kX64S16x8UnpackLow:
-      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(Punpcklwd);
+      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpcklwd);
       break;
     case kX64S8x16UnpackLow:
-      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(Punpcklbw);
+      ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpcklbw);
       break;
     case kX64S16x8UnzipHigh: {
       XMMRegister dst = i.OutputSimd128Register();
