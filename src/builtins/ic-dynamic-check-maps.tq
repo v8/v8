@@ -82,7 +82,7 @@ macro PerformMonomorphicCheck(
 // the map, but the associated handler check fails then we return kDeopt status.
 @export
 macro DynamicCheckMaps(
-    slotIndex: intptr, actualMap: Map, actualHandler: Smi|DataHandler): int32 {
+    actualMap: Map, slotIndex: intptr, actualHandler: Smi|DataHandler): int32 {
   const feedbackVector = LoadFeedbackVectorForStubWithTrampoline();
   const feedback = feedbackVector[slotIndex];
   try {

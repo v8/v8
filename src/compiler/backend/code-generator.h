@@ -247,6 +247,9 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
 
   CodeGenResult AssembleDeoptimizerCall(DeoptimizationExit* exit);
 
+  void AssembleDeoptImmediateArgs(
+      const ZoneVector<ImmediateOperand*>* immediate_args, Label* deopt_exit);
+
   // ===========================================================================
   // ============= Architecture-specific code generation methods. ==============
   // ===========================================================================
@@ -391,6 +394,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
                                                     size_t frame_state_offset);
   DeoptimizationExit* BuildTranslation(Instruction* instr, int pc_offset,
                                        size_t frame_state_offset,
+                                       size_t immediate_args_count,
                                        OutputFrameStateCombine state_combine);
   void BuildTranslationForFrameStateDescriptor(
       FrameStateDescriptor* descriptor, InstructionOperandIterator* iter,
@@ -408,7 +412,8 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
 
   void PrepareForDeoptimizationExits(ZoneDeque<DeoptimizationExit*>* exits);
   DeoptimizationExit* AddDeoptimizationExit(Instruction* instr,
-                                            size_t frame_state_offset);
+                                            size_t frame_state_offset,
+                                            size_t immediate_args_count);
 
   // ===========================================================================
 
