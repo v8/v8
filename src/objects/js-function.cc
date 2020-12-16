@@ -520,6 +520,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_SET_ITERATOR_PROTOTYPE_TYPE:
     case JS_SET_PROTOTYPE_TYPE:
     case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
+    case JS_TYPED_ARRAY_PROTOTYPE_TYPE:
 #ifdef V8_INTL_SUPPORT
     case JS_COLLATOR_TYPE:
     case JS_DATE_TIME_FORMAT_TYPE:

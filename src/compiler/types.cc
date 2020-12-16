@@ -198,6 +198,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_GLOBAL_PROXY_TYPE:
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
+    case JS_TYPED_ARRAY_PROTOTYPE_TYPE:
       if (map.is_undetectable()) {
         // Currently we assume that every undetectable receiver is also
         // callable, which is what we need to support document.all.  We

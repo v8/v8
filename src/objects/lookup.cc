@@ -234,9 +234,6 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
       DisallowGarbageCollection no_gc;
       // Setting the constructor of any prototype with the @@species protector
       // (of any realm) also needs to invalidate the protector.
-      // For typed arrays, we check a prototype of this receiver since
-      // TypedArrays have different prototypes for each type, and their parent
-      // prototype is pointing the same TYPED_ARRAY_PROTOTYPE.
       if (isolate->IsInAnyContext(*receiver,
                                   Context::INITIAL_ARRAY_PROTOTYPE_INDEX)) {
         if (!Protectors::IsArraySpeciesLookupChainIntact(isolate)) return;
@@ -251,9 +248,7 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
                                          Context::REGEXP_PROTOTYPE_INDEX)) {
         if (!Protectors::IsRegExpSpeciesLookupChainIntact(isolate)) return;
         Protectors::InvalidateRegExpSpeciesLookupChain(isolate);
-      } else if (isolate->IsInAnyContext(
-                     receiver->map(isolate).prototype(isolate),
-                     Context::TYPED_ARRAY_PROTOTYPE_INDEX)) {
+      } else if (receiver->IsJSTypedArrayPrototype()) {
         if (!Protectors::IsTypedArraySpeciesLookupChainIntact(isolate)) return;
         Protectors::InvalidateTypedArraySpeciesLookupChain(isolate);
       }

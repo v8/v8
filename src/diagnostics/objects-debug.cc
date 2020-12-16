@@ -228,6 +228,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case JS_SET_PROTOTYPE_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
+    case JS_TYPED_ARRAY_PROTOTYPE_TYPE:
       JSObject::cast(*this).JSObjectVerify(isolate);
       break;
     case WASM_INSTANCE_OBJECT_TYPE:

@@ -149,6 +149,9 @@ extern class JSRegExpPrototype extends JSPrototype
 extern class JSPromisePrototype extends JSPrototype
     generates 'TNode<JSObject>';
 @doNotGenerateCast
+extern class JSTypedArrayPrototype extends JSPrototype
+    generates 'TNode<JSObject>';
+@doNotGenerateCast
 extern class JSSetPrototype extends JSPrototype
     generates 'TNode<JSObject>';
 @doNotGenerateCast

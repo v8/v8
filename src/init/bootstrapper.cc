@@ -4044,6 +4044,10 @@ Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
                                kDontThrow)
             .FromJust());
 
+  CHECK_NE(prototype->map().ptr(),
+           isolate_->initial_object_prototype()->map().ptr());
+  prototype->map().set_instance_type(JS_TYPED_ARRAY_PROTOTYPE_TYPE);
+
   InstallConstant(isolate(), prototype, "BYTES_PER_ELEMENT", bytes_per_element);
   return result;
 }

@@ -283,6 +283,7 @@ class ZoneForwardList;
   V(JSIteratorPrototype)                     \
   V(JSArrayIteratorPrototype)                \
   V(JSMapIteratorPrototype)                  \
+  V(JSTypedArrayPrototype)                   \
   V(JSSetIteratorPrototype)                  \
   V(JSStringIteratorPrototype)
 
