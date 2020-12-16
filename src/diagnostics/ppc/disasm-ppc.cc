@@ -171,11 +171,11 @@ int Decoder::FormatRegister(Instruction* instr, const char* format) {
 // Handle all FP register based formatting in this function to reduce the
 // complexity of FormatOption.
 int Decoder::FormatFPRegister(Instruction* instr, const char* format) {
-  DCHECK_EQ(format[0], 'D');
+  DCHECK(format[0] == 'D' || format[0] == 'X');
 
   int retval = 2;
   int reg = -1;
-  if (format[1] == 't') {
+  if (format[1] == 't' || format[1] == 's') {
     reg = instr->RTValue();
   } else if (format[1] == 'a') {
     reg = instr->RAValue();
