@@ -741,6 +741,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadRoot(Register destination, RootIndex index, Condition cond,
                 Register src1, const Operand& src2);
 
+  void LoadMap(Register destination, Register object);
+
   // If the value is a NaN, canonicalize the value else, do nothing.
   void FPUCanonicalizeNaN(const DoubleRegister dst, const DoubleRegister src);
 
@@ -1031,8 +1033,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void LeaveExitFrame(bool save_doubles, Register arg_count,
                       bool do_return = NO_EMIT_RETURN,
                       bool argument_count_is_length = false);
-
-  void LoadMap(Register destination, Register object);
 
   // Make sure the stack is aligned. Only emits code in debug mode.
   void AssertStackIsAligned();

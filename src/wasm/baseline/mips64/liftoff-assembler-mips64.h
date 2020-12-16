@@ -829,6 +829,7 @@ I32_BINOP(xor, xor_)
 
 // clang-format off
 I32_BINOP_I(add, Addu)
+I32_BINOP_I(sub, Subu)
 I32_BINOP_I(and, And)
 I32_BINOP_I(or, Or)
 I32_BINOP_I(xor, Xor)
@@ -1344,6 +1345,13 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
   }
 }
 
+void LiftoffAssembler::emit_i32_cond_jumpi(LiftoffCondition liftoff_cond,
+                                           Label* label, Register lhs,
+                                           int32_t imm) {
+  Condition cond = liftoff::ToCondition(liftoff_cond);
+  TurboAssembler::Branch(label, cond, lhs, Operand(imm));
+}
+
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
   sltiu(dst, src, 1);
 }
@@ -1510,6 +1518,15 @@ bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
                                    LiftoffRegister false_value,
                                    ValueType type) {
   return false;
+}
+
+void LiftoffAssembler::emit_smi_check(Register obj, Label* target,
+                                      SmiCheckMode mode) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  And(scratch, obj, Operand(kSmiTagMask));
+  Condition condition = mode == kJumpOnSmi ? eq : ne;
+  Branch(target, condition, scratch, Operand(zero_reg));
 }
 
 void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,

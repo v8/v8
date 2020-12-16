@@ -5214,7 +5214,7 @@ void TurboAssembler::Abort(AbortReason reason) {
   }
 }
 
-void MacroAssembler::LoadMap(Register destination, Register object) {
+void TurboAssembler::LoadMap(Register destination, Register object) {
   Ld(destination, FieldMemOperand(object, HeapObject::kMapOffset));
 }
 
