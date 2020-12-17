@@ -2613,10 +2613,10 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
     }
 
     // Check for consistency among the {receiver_maps}.
-    STATIC_ASSERT(LAST_TYPE == LAST_FUNCTION_TYPE);
     if (!receiver_map.prototype().equals(prototype) ||
         receiver_map.is_constructor() != is_constructor ||
-        receiver_map.instance_type() < FIRST_FUNCTION_TYPE) {
+        !base::IsInRange(receiver_map.instance_type(), FIRST_FUNCTION_TYPE,
+                         LAST_FUNCTION_TYPE)) {
       return inference.NoChange();
     }
 
