@@ -511,6 +511,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_DATA_VIEW_TYPE:
     case JS_DATE_TYPE:
     case JS_FUNCTION_TYPE:
+    case JS_PROMISE_CONSTRUCTOR_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
     case JS_ITERATOR_PROTOTYPE_TYPE:
     case JS_MAP_ITERATOR_PROTOTYPE_TYPE:

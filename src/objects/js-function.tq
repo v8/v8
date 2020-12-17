@@ -30,4 +30,8 @@ extern class JSFunction extends JSFunctionOrBoundFunction {
   @noVerifier weak prototype_or_initial_map: JSReceiver|Map;
 }
 
+@doNotGenerateCast
+extern class JSPromiseConstructor extends JSFunction
+    generates 'TNode<JSFunction>';
+
 type JSFunctionWithPrototypeSlot extends JSFunction;

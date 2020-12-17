@@ -2422,6 +2422,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     InstallFunctionWithBuiltinId(isolate_, promise_fun, "reject",
                                  Builtins::kPromiseReject, 1, true);
+    promise_fun->map().set_instance_type(JS_PROMISE_CONSTRUCTOR_TYPE);
 
     // Setup %PromisePrototype%.
     Handle<JSObject> prototype(

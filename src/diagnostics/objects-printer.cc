@@ -228,6 +228,10 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case WEAK_FIXED_ARRAY_TYPE:
       WeakFixedArray::cast(*this).WeakFixedArrayPrint(os);
       break;
+    case JS_FUNCTION_TYPE:
+    case JS_PROMISE_CONSTRUCTOR_TYPE:
+      JSFunction::cast(*this).JSFunctionPrint(os);
+      break;
     case INTERNALIZED_STRING_TYPE:
     case EXTERNAL_INTERNALIZED_STRING_TYPE:
     case ONE_BYTE_INTERNALIZED_STRING_TYPE:

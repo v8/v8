@@ -1010,6 +1010,7 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case JS_TYPED_ARRAY_TYPE:
       return Op::template apply<JSTypedArray::BodyDescriptor>(p1, p2, p3, p4);
     case JS_FUNCTION_TYPE:
+    case JS_PROMISE_CONSTRUCTOR_TYPE:
       return Op::template apply<JSFunction::BodyDescriptor>(p1, p2, p3, p4);
     case WEAK_CELL_TYPE:
       return Op::template apply<WeakCell::BodyDescriptor>(p1, p2, p3, p4);

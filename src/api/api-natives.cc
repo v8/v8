@@ -688,8 +688,8 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
     immutable_proto = GetInstanceTemplate->immutable_proto();
   }
 
-  // JS_FUNCTION_TYPE requires information about the prototype slot.
-  DCHECK_NE(JS_FUNCTION_TYPE, type);
+  // JSFunction requires information about the prototype slot.
+  DCHECK(!InstanceTypeChecker::IsJSFunction(type));
   int instance_size = JSObject::GetHeaderSize(type) +
                       kEmbedderDataSlotSize * embedder_field_count;
 

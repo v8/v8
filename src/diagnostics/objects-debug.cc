@@ -276,6 +276,11 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case STORE_HANDLER_TYPE:
       StoreHandler::cast(*this).StoreHandlerVerify(isolate);
       break;
+
+    case JS_FUNCTION_TYPE:
+    case JS_PROMISE_CONSTRUCTOR_TYPE:
+      JSFunction::cast(*this).JSFunctionVerify(isolate);
+      break;
   }
 }
 
@@ -493,7 +498,8 @@ void Map::MapVerify(Isolate* isolate) {
               layout_descriptor(kAcquireLoad).IsConsistentWithMap(*this));
   // Only JSFunction maps have has_prototype_slot() bit set and constructible
   // JSFunction objects must have prototype slot.
-  CHECK_IMPLIES(has_prototype_slot(), instance_type() == JS_FUNCTION_TYPE);
+  CHECK_IMPLIES(has_prototype_slot(),
+                InstanceTypeChecker::IsJSFunction(instance_type()));
   if (!may_have_interesting_symbols()) {
     CHECK(!has_named_interceptor());
     CHECK(!is_dictionary_map());

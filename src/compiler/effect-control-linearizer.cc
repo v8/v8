@@ -1773,6 +1773,7 @@ Node* EffectControlLinearizer::LowerCheckClosure(Node* node,
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* value_instance_type =
       __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
+  // TOOD(gsathya): Does this need a range check?
   Node* check_instance_type =
       __ Word32Equal(value_instance_type, __ Int32Constant(JS_FUNCTION_TYPE));
   __ DeoptimizeIfNot(DeoptimizeReason::kWrongCallTarget, FeedbackSource(),

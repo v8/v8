@@ -265,6 +265,7 @@ class ZoneForwardList;
   V(FreeSpaceOrFiller)                       \
   V(FunctionContext)                         \
   V(JSApiObject)                             \
+  V(JSPromiseConstructor)                    \
   V(JSMapKeyIterator)                        \
   V(JSMapKeyValueIterator)                   \
   V(JSMapValueIterator)                      \

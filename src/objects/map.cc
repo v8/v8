@@ -222,6 +222,7 @@ VisitorId Map::GetVisitorId(Map map) {
       return kVisitJSDataView;
 
     case JS_FUNCTION_TYPE:
+    case JS_PROMISE_CONSTRUCTOR_TYPE:
       return kVisitJSFunction;
 
     case JS_TYPED_ARRAY_TYPE:
@@ -1911,7 +1912,7 @@ Handle<Map> Map::CopyAsElementsKind(Isolate* isolate, Handle<Map> map,
 
 Handle<Map> Map::AsLanguageMode(Isolate* isolate, Handle<Map> initial_map,
                                 Handle<SharedFunctionInfo> shared_info) {
-  DCHECK_EQ(JS_FUNCTION_TYPE, initial_map->instance_type());
+  DCHECK(InstanceTypeChecker::IsJSFunction(initial_map->instance_type()));
   // Initial map for sloppy mode function is stored in the function
   // constructor. Initial maps for strict mode are cached as special transitions
   // using |strict_function_transition_symbol| as a key.
@@ -2482,7 +2483,7 @@ bool Map::EquivalentToForTransition(const Map other) const {
   if (bit_field() != other.bit_field()) return false;
   if (new_target_is_base() != other.new_target_is_base()) return false;
   if (prototype() != other.prototype()) return false;
-  if (instance_type() == JS_FUNCTION_TYPE) {
+  if (InstanceTypeChecker::IsJSFunction(instance_type())) {
     // JSFunctions require more checks to ensure that sloppy function is
     // not equivalent to strict function.
     int nof =

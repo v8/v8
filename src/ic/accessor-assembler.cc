@@ -2890,8 +2890,7 @@ void AccessorAssembler::LoadIC_NoFeedback(const LoadICParameters* p,
     // Special case for Function.prototype load, because it's very common
     // for ICs that are only executed once (MyFunc.prototype.foo = ...).
     Label not_function_prototype(this, Label::kDeferred);
-    GotoIfNot(InstanceTypeEqual(instance_type, JS_FUNCTION_TYPE),
-              &not_function_prototype);
+    GotoIfNot(IsJSFunctionInstanceType(instance_type), &not_function_prototype);
     GotoIfNot(IsPrototypeString(p->name()), &not_function_prototype);
 
     GotoIfPrototypeRequiresRuntimeLookup(CAST(lookup_start_object),

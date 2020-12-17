@@ -929,8 +929,8 @@ TNode<Object> InterpreterAssembler::ConstructWithSpread(
         TNode<Uint16T> current_instance_type = LoadInstanceType(current);
         GotoIf(InstanceTypeEqual(current_instance_type, JS_BOUND_FUNCTION_TYPE),
                &if_boundfunction);
-        Branch(InstanceTypeEqual(current_instance_type, JS_FUNCTION_TYPE),
-               &if_function, &mark_megamorphic);
+        Branch(IsJSFunctionInstanceType(current_instance_type), &if_function,
+               &mark_megamorphic);
 
         BIND(&if_function);
         {

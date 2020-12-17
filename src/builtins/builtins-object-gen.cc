@@ -743,6 +743,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
   } kJumpTable[] = {{JS_OBJECT_TYPE, &if_object},
                     {JS_ARRAY_TYPE, &if_array},
                     {JS_FUNCTION_TYPE, &if_function},
+                    {JS_PROMISE_CONSTRUCTOR_TYPE, &if_function},
                     {JS_REG_EXP_TYPE, &if_regexp},
                     {JS_ARGUMENTS_OBJECT_TYPE, &if_arguments},
                     {JS_DATE_TYPE, &if_date},

@@ -2202,6 +2202,15 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
   cmpw(FieldOperand(map, Map::kInstanceTypeOffset), Immediate(type));
 }
 
+void MacroAssembler::CmpInstanceTypeRange(Register map, InstanceType low,
+                                          InstanceType high) {
+  movzxwl(kScratchRegister, FieldOperand(map, Map::kInstanceTypeOffset));
+  leal(kScratchRegister,
+       Operand(kScratchRegister, 0u - static_cast<unsigned>(low)));
+  cmpl(kScratchRegister,
+       Immediate(static_cast<unsigned>(high) - static_cast<unsigned>(low)));
+}
+
 void MacroAssembler::AssertNotSmi(Register object) {
   if (emit_debug_code()) {
     Condition is_smi = CheckSmi(object);
@@ -2250,9 +2259,10 @@ void MacroAssembler::AssertFunction(Register object) {
     testb(object, Immediate(kSmiTagMask));
     Check(not_equal, AbortReason::kOperandIsASmiAndNotAFunction);
     Push(object);
-    CmpObjectType(object, JS_FUNCTION_TYPE, object);
+    LoadMap(object, object);
+    CmpInstanceTypeRange(object, FIRST_JS_FUNCTION_TYPE, LAST_JS_FUNCTION_TYPE);
     Pop(object);
-    Check(equal, AbortReason::kOperandIsNotAFunction);
+    Check(below_equal, AbortReason::kOperandIsNotAFunction);
   }
 }
 

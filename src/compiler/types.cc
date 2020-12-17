@@ -271,6 +271,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
       DCHECK(!map.is_undetectable());
       return kBoundFunction;
     case JS_FUNCTION_TYPE:
+    case JS_PROMISE_CONSTRUCTOR_TYPE:
       DCHECK(!map.is_undetectable());
       return kFunction;
     case JS_PROXY_TYPE:
