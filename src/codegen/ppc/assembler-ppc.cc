@@ -71,17 +71,20 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
     supported_ |= (1u << MODULO);
   }
 #if V8_TARGET_ARCH_PPC64
-  if (cpu.part() == base::CPU::PPC_POWER8) {
+  if (cpu.part() == base::CPU::PPC_POWER8 ||
+      cpu.part() == base::CPU::PPC_POWER9) {
     supported_ |= (1u << FPR_GPR_MOV);
   }
 #endif
   if (cpu.part() == base::CPU::PPC_POWER6 ||
       cpu.part() == base::CPU::PPC_POWER7 ||
-      cpu.part() == base::CPU::PPC_POWER8) {
+      cpu.part() == base::CPU::PPC_POWER8 ||
+      cpu.part() == base::CPU::PPC_POWER9) {
     supported_ |= (1u << LWSYNC);
   }
   if (cpu.part() == base::CPU::PPC_POWER7 ||
-      cpu.part() == base::CPU::PPC_POWER8) {
+      cpu.part() == base::CPU::PPC_POWER8 ||
+      cpu.part() == base::CPU::PPC_POWER9) {
     supported_ |= (1u << ISELECT);
     supported_ |= (1u << VSX);
   }
