@@ -71,7 +71,6 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
     case ValueType::kI32:
     case ValueType::kOptRef:
     case ValueType::kRef:
-    case ValueType::kRtt:
       assm->mov(dst.gp(), src);
       break;
     case ValueType::kI64:
