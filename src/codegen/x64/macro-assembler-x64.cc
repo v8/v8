@@ -14,6 +14,7 @@
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/string-constants.h"
 #include "src/codegen/x64/assembler-x64.h"
+#include "src/codegen/x64/register-x64.h"
 #include "src/common/external-pointer.h"
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
@@ -1985,6 +1986,88 @@ void TurboAssembler::Pshufb(XMMRegister dst, XMMRegister src,
     }
     CpuFeatureScope sse_scope(this, SSSE3);
     pshufb(dst, mask);
+  }
+}
+
+void TurboAssembler::I32x4SConvertI16x8High(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    // Copy top half (64-bit) of src into both halves of dst.
+    vpunpckhqdq(dst, src, src);
+    vpmovsxwd(dst, dst);
+  } else {
+    if (dst == src) {
+      // 2 bytes shorter than pshufd, but has depdency on dst.
+      movhlps(dst, src);
+      pmovsxwd(dst, dst);
+    } else {
+      // No dependency on dst.
+      pshufd(dst, src, 0xEE);
+      pmovsxwd(dst, dst);
+    }
+  }
+}
+
+void TurboAssembler::I32x4UConvertI16x8High(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    // scratch = |0|0|0|0|0|0|0|0|
+    // src     = |a|b|c|d|e|f|g|h|
+    // dst     = |0|a|0|b|0|c|0|d|
+    XMMRegister scratch = dst == src ? kScratchDoubleReg : dst;
+    vpxor(scratch, scratch, scratch);
+    vpunpckhwd(dst, src, scratch);
+  } else {
+    if (dst == src) {
+      // xorps can be executed on more ports than pshufd.
+      xorps(kScratchDoubleReg, kScratchDoubleReg);
+      punpckhwd(dst, kScratchDoubleReg);
+    } else {
+      // No dependency on dst.
+      pshufd(dst, src, 0xEE);
+      pmovzxwd(dst, dst);
+    }
+  }
+}
+
+void TurboAssembler::I16x8SConvertI8x16High(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    // Copy top half (64-bit) of src into both halves of dst.
+    vpunpckhqdq(dst, src, src);
+    vpmovsxbw(dst, dst);
+  } else {
+    if (dst == src) {
+      // 2 bytes shorter than pshufd, but has depdency on dst.
+      movhlps(dst, src);
+      pmovsxbw(dst, dst);
+    } else {
+      // No dependency on dst.
+      pshufd(dst, src, 0xEE);
+      pmovsxbw(dst, dst);
+    }
+  }
+}
+
+void TurboAssembler::I16x8UConvertI8x16High(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    // scratch = |0|0|0|0|0|0|0|0 | 0|0|0|0|0|0|0|0|
+    // src     = |a|b|c|d|e|f|g|h | i|j|k|l|m|n|o|p|
+    // dst     = |0|a|0|b|0|c|0|d | 0|e|0|f|0|g|0|h|
+    XMMRegister scratch = dst == src ? kScratchDoubleReg : dst;
+    vpxor(scratch, scratch, scratch);
+    vpunpckhbw(dst, src, scratch);
+  } else {
+    if (dst == src) {
+      // xorps can be executed on more ports than pshufd.
+      xorps(kScratchDoubleReg, kScratchDoubleReg);
+      punpckhbw(dst, kScratchDoubleReg);
+    } else {
+      // No dependency on dst.
+      pshufd(dst, src, 0xEE);
+      pmovzxbw(dst, dst);
+    }
   }
 }
 

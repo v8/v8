@@ -565,6 +565,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Supports both SSE and AVX. Move src1 to dst if they are not equal on SSE.
   void Pshufb(XMMRegister dst, XMMRegister src1, XMMRegister src2);
 
+  // These Wasm SIMD ops do not have direct lowerings on x64. These
+  // helpers are optimized to produce the fastest and smallest codegen.
+  void I16x8SConvertI8x16High(XMMRegister dst, XMMRegister src);
+  void I16x8UConvertI8x16High(XMMRegister dst, XMMRegister src);
+  void I32x4SConvertI16x8High(XMMRegister dst, XMMRegister src);
+  void I32x4UConvertI16x8High(XMMRegister dst, XMMRegister src);
+
   void CompareRoot(Register with, RootIndex index);
   void CompareRoot(Operand with, RootIndex index);
 
