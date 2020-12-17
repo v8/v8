@@ -1856,7 +1856,8 @@ void MacroAssembler::CompareInstanceType(Register map, Register type_reg,
 }
 
 void MacroAssembler::CompareInstanceTypeRange(Register map, Register type_reg,
-                                              InstanceType low, InstanceType high) {
+                                              InstanceType low,
+                                              InstanceType high) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   ldrh(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
