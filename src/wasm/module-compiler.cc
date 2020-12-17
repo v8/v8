@@ -3331,8 +3331,7 @@ using JSToWasmWrapperUnitMap =
 class CompileJSToWasmWrapperJob final : public JobTask {
  public:
   CompileJSToWasmWrapperJob(JSToWasmWrapperQueue* queue,
-                            JSToWasmWrapperUnitMap* compilation_units,
-                            size_t max_concurrency)
+                            JSToWasmWrapperUnitMap* compilation_units)
       : queue_(queue),
         compilation_units_(compilation_units),
         outstanding_units_(queue->size()) {}
@@ -3386,12 +3385,8 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
     }
   }
 
-  // Execute wrapper compilation in the background.
-  int flag_value = FLAG_wasm_num_compilation_tasks;
-  size_t max_concurrency = flag_value < 1 ? std::numeric_limits<size_t>::max()
-                                          : static_cast<size_t>(flag_value);
-  auto job = std::make_unique<CompileJSToWasmWrapperJob>(
-      &queue, &compilation_units, max_concurrency);
+  auto job =
+      std::make_unique<CompileJSToWasmWrapperJob>(&queue, &compilation_units);
   auto job_handle = V8::GetCurrentPlatform()->PostJob(
       TaskPriority::kUserVisible, std::move(job));
 
