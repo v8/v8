@@ -616,14 +616,22 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     }                                                           \
   } while (false)
 
-#define ASSEMBLE_SIMD_IMM_SHUFFLE(opcode, imm)                              \
-  do {                                                                      \
-    DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));        \
-    if (instr->InputAt(1)->IsSimd128Register()) {                           \
-      __ opcode(i.OutputSimd128Register(), i.InputSimd128Register(1), imm); \
-    } else {                                                                \
-      __ opcode(i.OutputSimd128Register(), i.InputOperand(1), imm);         \
-    }                                                                       \
+#define ASSEMBLE_SIMD_IMM_SHUFFLE(opcode, imm)                \
+  do {                                                        \
+    XMMRegister dst = i.OutputSimd128Register();              \
+    XMMRegister src = i.InputSimd128Register(0);              \
+    if (CpuFeatures::IsSupported(AVX)) {                      \
+      CpuFeatureScope avx_scope(tasm(), AVX);                 \
+      DCHECK(instr->InputAt(1)->IsSimd128Register());         \
+      __ v##opcode(dst, src, i.InputSimd128Register(1), imm); \
+    } else {                                                  \
+      DCHECK_EQ(dst, src);                                    \
+      if (instr->InputAt(1)->IsSimd128Register()) {           \
+        __ opcode(dst, i.InputSimd128Register(1), imm);       \
+      } else {                                                \
+        __ opcode(dst, i.InputOperand(1), imm);               \
+      }                                                       \
+    }                                                         \
   } while (false)
 
 #define ASSEMBLE_SIMD_ALL_TRUE(opcode)          \
@@ -3956,7 +3964,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64S16x8Blend: {
-      ASSEMBLE_SIMD_IMM_SHUFFLE(Pblendw, i.InputUint8(2));
+      ASSEMBLE_SIMD_IMM_SHUFFLE(pblendw, i.InputUint8(2));
       break;
     }
     case kX64S16x8HalfShuffle1: {
@@ -3975,7 +3983,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64S8x16Alignr: {
-      ASSEMBLE_SIMD_IMM_SHUFFLE(Palignr, i.InputUint8(2));
+      ASSEMBLE_SIMD_IMM_SHUFFLE(palignr, i.InputUint8(2));
       break;
     }
     case kX64S16x8Dup: {

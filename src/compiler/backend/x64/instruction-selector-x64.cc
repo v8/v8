@@ -3487,7 +3487,7 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
       // Swap inputs from the normal order for (v)palignr.
       SwapShuffleInputs(node);
       is_swizzle = false;  // It's simpler to just handle the general case.
-      no_same_as_first = false;  // SSE requires same-as-first.
+      no_same_as_first = CpuFeatures::IsSupported(AVX);
       // TODO(v8:9608): also see v8:9083
       src1_needs_reg = true;
       opcode = kX64S8x16Alignr;
@@ -3528,6 +3528,7 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
         opcode = kX64S16x8Blend;
         uint8_t blend_mask = wasm::SimdShuffle::PackBlend4(shuffle32x4);
         imms[imm_count++] = blend_mask;
+        no_same_as_first = CpuFeatures::IsSupported(AVX);
       } else {
         opcode = kX64S32x4Shuffle;
         no_same_as_first = true;
@@ -3547,6 +3548,7 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
       opcode = kX64S16x8Blend;
       blend_mask = wasm::SimdShuffle::PackBlend8(shuffle16x8);
       imms[imm_count++] = blend_mask;
+      no_same_as_first = CpuFeatures::IsSupported(AVX);
     } else if (wasm::SimdShuffle::TryMatchSplat<8>(shuffle, &index)) {
       opcode = kX64S16x8Dup;
       src0_needs_reg = false;
