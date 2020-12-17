@@ -4,7 +4,6 @@
 
 #include 'src/builtins/builtins-string-gen.h'
 
-namespace string {
 extern macro ReplaceSymbolConstant(): Symbol;
 
 extern macro StringBuiltinsAssembler::GetSubstitution(
@@ -25,6 +24,17 @@ macro AbstractStringIndexOf<A: type, B: type>(
   return -1;
 }
 
+struct AbstractStringIndexOfFunctor {
+  fromIndex: Smi;
+}
+// Ideally, this would be a method of AbstractStringIndexOfFunctor, but
+// currently methods don't support templates.
+macro Call<A: type, B: type>(
+    self: AbstractStringIndexOfFunctor, string: ConstSlice<A>,
+    searchStr: ConstSlice<B>): Smi {
+  return AbstractStringIndexOf(string, searchStr, self.fromIndex);
+}
+
 macro AbstractStringIndexOf(implicit context: Context)(
     string: String, searchString: String, fromIndex: Smi): Smi {
   // Special case the empty string.
@@ -41,25 +51,8 @@ macro AbstractStringIndexOf(implicit context: Context)(
     return -1;
   }
 
-  try {
-    GetStringData(string) otherwise FirstOneByte, FirstTwoByte;
-  } label FirstOneByte(stringData: ConstSlice<char8>) {
-    try {
-      GetStringData(searchString) otherwise SecondOneByte, SecondTwoByte;
-    } label SecondOneByte(searchStringData: ConstSlice<char8>) {
-      return AbstractStringIndexOf(stringData, searchStringData, fromIndex);
-    } label SecondTwoByte(searchStringData: ConstSlice<char16>) {
-      return AbstractStringIndexOf(stringData, searchStringData, fromIndex);
-    }
-  } label FirstTwoByte(stringData: ConstSlice<char16>) {
-    try {
-      GetStringData(searchString) otherwise SecondOneByte, SecondTwoByte;
-    } label SecondOneByte(searchStringData: ConstSlice<char8>) {
-      return AbstractStringIndexOf(stringData, searchStringData, fromIndex);
-    } label SecondTwoByte(searchStringData: ConstSlice<char16>) {
-      return AbstractStringIndexOf(stringData, searchStringData, fromIndex);
-    }
-  }
+  return TwoStringsToSlices<Smi>(
+      string, searchString, AbstractStringIndexOfFunctor{fromIndex: fromIndex});
 }
 
 transitioning macro
@@ -209,5 +202,4 @@ transitioning javascript builtin StringPrototypeReplaceAll(
 
   // 16. Return result.
   return result;
-}
 }

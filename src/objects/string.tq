@@ -242,7 +242,7 @@ macro Flatten(cons: ConsString): String {
 }
 
 // Get a slice to the string data, flatten only if unavoidable for this.
-macro GetStringData(string: String): never labels OneByte(ConstSlice<char8>),
+macro StringToSlice(string: String): never labels OneByte(ConstSlice<char8>),
     TwoByte(ConstSlice<char16>) {
   let string = string;
   let offset: intptr = 0;
@@ -281,4 +281,28 @@ macro GetStringData(string: String): never labels OneByte(ConstSlice<char8>),
     }
   }
   VerifiedUnreachable();
+}
+
+// Dispatch on the slice type of two different strings.
+macro TwoStringsToSlices<Result: type, Functor: type>(
+    s1: String, s2: String, f: Functor): Result {
+  try {
+    StringToSlice(s1) otherwise FirstOneByte, FirstTwoByte;
+  } label FirstOneByte(s1Slice: ConstSlice<char8>) {
+    try {
+      StringToSlice(s2) otherwise SecondOneByte, SecondTwoByte;
+    } label SecondOneByte(s2Slice: ConstSlice<char8>) {
+      return Call(f, s1Slice, s2Slice);
+    } label SecondTwoByte(s2Slice: ConstSlice<char16>) {
+      return Call(f, s1Slice, s2Slice);
+    }
+  } label FirstTwoByte(s1Slice: ConstSlice<char16>) {
+    try {
+      StringToSlice(s2) otherwise SecondOneByte, SecondTwoByte;
+    } label SecondOneByte(s2Slice: ConstSlice<char8>) {
+      return Call(f, s1Slice, s2Slice);
+    } label SecondTwoByte(s2Slice: ConstSlice<char16>) {
+      return Call(f, s1Slice, s2Slice);
+    }
+  }
 }
