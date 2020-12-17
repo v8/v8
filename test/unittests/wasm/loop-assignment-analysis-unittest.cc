@@ -18,7 +18,7 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-#define WASM_SET_ZERO(i) WASM_SET_LOCAL(i, WASM_ZERO)
+#define WASM_SET_ZERO(i) WASM_LOCAL_SET(i, WASM_ZERO)
 
 class WasmLoopAssignmentAnalyzerTest : public TestWithZone {
  public:
@@ -62,7 +62,7 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, One) {
 TEST_F(WasmLoopAssignmentAnalyzerTest, TeeOne) {
   num_locals = 5;
   for (int i = 0; i < 5; i++) {
-    byte code[] = {WASM_LOOP(WASM_TEE_LOCAL(i, WASM_ZERO))};
+    byte code[] = {WASM_LOOP(WASM_LOCAL_TEE(i, WASM_ZERO))};
     BitVector* assigned = Analyze(code, code + arraysize(code));
     for (int j = 0; j < assigned->length(); j++) {
       EXPECT_EQ(j == i, assigned->Contains(j));
@@ -124,7 +124,7 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, BigLocal) {
 TEST_F(WasmLoopAssignmentAnalyzerTest, Break) {
   num_locals = 3;
   byte code[] = {
-      WASM_LOOP(WASM_IF(WASM_GET_LOCAL(0), WASM_BRV(1, WASM_SET_ZERO(1)))),
+      WASM_LOOP(WASM_IF(WASM_LOCAL_GET(0), WASM_BRV(1, WASM_SET_ZERO(1)))),
       WASM_SET_ZERO(0)};
 
   BitVector* assigned = Analyze(code, code + arraysize(code));
@@ -138,10 +138,10 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Loop1) {
   num_locals = 5;
   byte code[] = {
       WASM_LOOP(WASM_IF(
-          WASM_GET_LOCAL(0),
-          WASM_BRV(0, WASM_SET_LOCAL(3, WASM_I32_SUB(WASM_GET_LOCAL(0),
+          WASM_LOCAL_GET(0),
+          WASM_BRV(0, WASM_LOCAL_SET(3, WASM_I32_SUB(WASM_LOCAL_GET(0),
                                                      WASM_I32V_1(1)))))),
-      WASM_GET_LOCAL(0)};
+      WASM_LOCAL_GET(0)};
 
   BitVector* assigned = Analyze(code, code + arraysize(code));
   for (int j = 0; j < assigned->length(); j++) {
@@ -157,16 +157,16 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Loop2) {
 
   byte code[] = {WASM_BLOCK(
       WASM_WHILE(
-          WASM_GET_LOCAL(kIter),
+          WASM_LOCAL_GET(kIter),
           WASM_BLOCK(
-              WASM_SET_LOCAL(
-                  kSum, WASM_F32_ADD(WASM_GET_LOCAL(kSum),
+              WASM_LOCAL_SET(
+                  kSum, WASM_F32_ADD(WASM_LOCAL_GET(kSum),
                                      WASM_LOAD_MEM(MachineType::Float32(),
-                                                   WASM_GET_LOCAL(kIter)))),
-              WASM_SET_LOCAL(
-                  kIter, WASM_I32_SUB(WASM_GET_LOCAL(kIter), WASM_I32V_1(4))))),
-      WASM_STORE_MEM(MachineType::Float32(), WASM_ZERO, WASM_GET_LOCAL(kSum)),
-      WASM_GET_LOCAL(kIter))};
+                                                   WASM_LOCAL_GET(kIter)))),
+              WASM_LOCAL_SET(
+                  kIter, WASM_I32_SUB(WASM_LOCAL_GET(kIter), WASM_I32V_1(4))))),
+      WASM_STORE_MEM(MachineType::Float32(), WASM_ZERO, WASM_LOCAL_GET(kSum)),
+      WASM_LOCAL_GET(kIter))};
 
   BitVector* assigned = Analyze(code + 2, code + arraysize(code));
   for (int j = 0; j < assigned->length(); j++) {

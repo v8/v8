@@ -41,7 +41,7 @@ class WasmSerializationTest {
     TestSignatures sigs;
 
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
-    byte code[] = {WASM_GET_LOCAL(0), kExprI32Const, 1, kExprI32Add, kExprEnd};
+    byte code[] = {WASM_LOCAL_GET(0), kExprI32Const, 1, kExprI32Add, kExprEnd};
     f->EmitCode(code, sizeof(code));
     builder->AddExport(CStrVector(kFunctionName), f);
 

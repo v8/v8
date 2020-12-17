@@ -23,7 +23,7 @@ WASM_COMPILED_EXEC_TEST(TryCatchThrow) {
   // Build the main test function.
   BUILD(r, WASM_TRY_CATCH_T(kWasmI32,
                             WASM_STMTS(WASM_I32V(kResult1),
-                                       WASM_IF(WASM_I32_EQZ(WASM_GET_LOCAL(0)),
+                                       WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
                                                WASM_THROW(except))),
                             WASM_STMTS(WASM_I32V(kResult0)), except));
 
@@ -48,7 +48,7 @@ WASM_COMPILED_EXEC_TEST(TryCatchCallDirect) {
   BUILD(r, WASM_TRY_CATCH_T(
                kWasmI32,
                WASM_STMTS(WASM_I32V(kResult1),
-                          WASM_IF(WASM_I32_EQZ(WASM_GET_LOCAL(0)),
+                          WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
                                   WASM_STMTS(WASM_CALL_FUNCTION(
                                                  throw_func.function_index(),
                                                  WASM_I32V(7), WASM_I32V(9)),
@@ -85,10 +85,10 @@ WASM_COMPILED_EXEC_TEST(TryCatchCallIndirect) {
         WASM_TRY_CATCH_T(
             kWasmI32,
             WASM_STMTS(WASM_I32V(kResult1),
-                       WASM_IF(WASM_I32_EQZ(WASM_GET_LOCAL(0)),
+                       WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
                                WASM_STMTS(WASM_CALL_INDIRECT(
                                               sig_index, WASM_I32V(7),
-                                              WASM_I32V(9), WASM_GET_LOCAL(0)),
+                                              WASM_I32V(9), WASM_LOCAL_GET(0)),
                                           WASM_DROP))),
             WASM_STMTS(WASM_I32V(kResult0)), except));
 
@@ -116,7 +116,7 @@ WASM_COMPILED_EXEC_TEST(TryCatchCallExternal) {
                kWasmI32,
                WASM_STMTS(
                    WASM_I32V(kResult1),
-                   WASM_IF(WASM_I32_EQZ(WASM_GET_LOCAL(0)),
+                   WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
                            WASM_STMTS(WASM_CALL_FUNCTION(kJSFunc, WASM_I32V(7),
                                                          WASM_I32V(9)),
                                       WASM_DROP))),
@@ -169,12 +169,12 @@ WASM_COMPILED_EXEC_TEST(TryCatchTrapMemOutOfBounds) {
 }
 
 WASM_COMPILED_EXEC_TEST(TryCatchTrapDivByZero) {
-  byte code[] = {WASM_I32_DIVS(WASM_GET_LOCAL(0), WASM_I32V_1(0))};
+  byte code[] = {WASM_I32_DIVS(WASM_LOCAL_GET(0), WASM_I32V_1(0))};
   TestTrapNotCaught(code, arraysize(code), execution_tier);
 }
 
 WASM_COMPILED_EXEC_TEST(TryCatchTrapRemByZero) {
-  byte code[] = {WASM_I32_REMS(WASM_GET_LOCAL(0), WASM_I32V_1(0))};
+  byte code[] = {WASM_I32_REMS(WASM_LOCAL_GET(0), WASM_I32V_1(0))};
   TestTrapNotCaught(code, arraysize(code), execution_tier);
 }
 

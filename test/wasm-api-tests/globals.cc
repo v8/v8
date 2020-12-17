@@ -76,16 +76,16 @@ TEST_F(WasmCapiTest, Globals) {
   // Define functions for manipulating globals.
   FunctionSig param_f32(0, 1, f32_type);
   FunctionSig param_i64(0, 1, i64_type);
-  byte svfi[] = {WASM_SET_GLOBAL(vfi_index, WASM_GET_LOCAL(0))};
+  byte svfi[] = {WASM_SET_GLOBAL(vfi_index, WASM_LOCAL_GET(0))};
   AddExportedFunction(CStrVector("set var f32 import"), svfi, sizeof(svfi),
                       &param_f32);
-  byte svii[] = {WASM_SET_GLOBAL(vii_index, WASM_GET_LOCAL(0))};
+  byte svii[] = {WASM_SET_GLOBAL(vii_index, WASM_LOCAL_GET(0))};
   AddExportedFunction(CStrVector("set var i64 import"), svii, sizeof(svii),
                       &param_i64);
-  byte svfe[] = {WASM_SET_GLOBAL(vfe_index, WASM_GET_LOCAL(0))};
+  byte svfe[] = {WASM_SET_GLOBAL(vfe_index, WASM_LOCAL_GET(0))};
   AddExportedFunction(CStrVector("set var f32 export"), svfe, sizeof(svfe),
                       &param_f32);
-  byte svie[] = {WASM_SET_GLOBAL(vie_index, WASM_GET_LOCAL(0))};
+  byte svie[] = {WASM_SET_GLOBAL(vie_index, WASM_LOCAL_GET(0))};
   AddExportedFunction(CStrVector("set var i64 export"), svie, sizeof(svie),
                       &param_i64);
 

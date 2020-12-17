@@ -450,7 +450,7 @@ WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_Locals) {
 
   TestCode<int> code(
       &runner,
-      {WASM_SET_LOCAL(0, WASM_I32V_2('A')), WASM_RETURN1(WASM_GET_LOCAL(0))},
+      {WASM_LOCAL_SET(0, WASM_I32V_2('A')), WASM_RETURN1(WASM_LOCAL_GET(0))},
       {ValueType::kI32});
   code.BreakOnReturn(&runner);
 
@@ -500,7 +500,7 @@ WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_Operands) {
   runner.builder().AddMemoryElems<int32_t>(64);
 
   TestCode<int> code(&runner,
-                     {WASM_SET_LOCAL(0, WASM_I32V_1('4')), WASM_GET_LOCAL(0),
+                     {WASM_LOCAL_SET(0, WASM_I32V_1('4')), WASM_LOCAL_GET(0),
                       WASM_RETURN1(WASM_I32V_1('5'))},
                      {ValueType::kI32});
   code.BreakOnReturn(&runner);
@@ -530,7 +530,7 @@ WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_JavaScript) {
   TestCode<int64_t> code(
       &runner,
       {WASM_SET_GLOBAL(0, WASM_I32V_2('B')),
-       WASM_SET_LOCAL(0, WASM_I64V_2('A')), WASM_RETURN1(WASM_GET_LOCAL(0))},
+       WASM_LOCAL_SET(0, WASM_I64V_2('A')), WASM_RETURN1(WASM_LOCAL_GET(0))},
       {ValueType::kI64});
   code.BreakOnReturn(&runner);
 
