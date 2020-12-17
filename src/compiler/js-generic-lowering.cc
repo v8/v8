@@ -1251,9 +1251,6 @@ void JSGenericLowering::LowerJSCallRuntime(Node* node) {
   ReplaceWithRuntimeCall(node, p.id(), static_cast<int>(p.arity()));
 }
 
-// Will be lowered in SimplifiedLowering.
-void JSGenericLowering::LowerJSWasmCall(Node* node) {}
-
 void JSGenericLowering::LowerJSForInPrepare(Node* node) {
   JSForInPrepareNode n(node);
   Effect effect(node);            // {node} is kept in the effect chain.

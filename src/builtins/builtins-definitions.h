@@ -202,7 +202,7 @@ namespace internal {
   TFC(I32PairToBigInt, I32PairToBigInt)                                        \
                                                                                \
   /* Type conversions continuations */                                         \
-  TFC(ToBooleanLazyDeoptContinuation, SingleParameterOnStack)                  \
+  TFC(ToBooleanLazyDeoptContinuation, TypeConversionStackParameter)            \
                                                                                \
   /* Handlers */                                                               \
   TFH(KeyedLoadIC_PolymorphicName, LoadWithVector)                             \
@@ -817,7 +817,6 @@ namespace internal {
   TFC(WasmI32AtomicWait32, WasmI32AtomicWait32)                                \
   TFC(WasmI64AtomicWait32, WasmI64AtomicWait32)                                \
   TFS(WasmAllocatePair, kValue1, kValue2)                                      \
-  TFC(JSToWasmLazyDeoptContinuation, SingleParameterOnStack)                   \
                                                                                \
   /* WeakMap */                                                                \
   TFJ(WeakMapConstructor, kDontAdaptArgumentsSentinel)                         \

@@ -25,11 +25,9 @@
 #include "src/compiler/representation-change.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
-#include "src/compiler/wasm-compiler.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/objects.h"
 #include "src/utils/address-map.h"
-#include "src/wasm/value-type.h"
 
 namespace v8 {
 namespace internal {
@@ -1807,120 +1805,6 @@ class RepresentationSelector {
     MachineType return_type =
         MachineTypeFor(c_signature->ReturnInfo().GetType());
     SetOutput<T>(node, return_type.representation());
-  }
-
-  static MachineType MachineTypeForWasmReturnType(wasm::ValueType type) {
-    switch (type.kind()) {
-      case wasm::ValueType::kI32:
-        return MachineType::Int32();
-      case wasm::ValueType::kF32:
-        return MachineType::Float32();
-      case wasm::ValueType::kF64:
-        return MachineType::Float64();
-      case wasm::ValueType::kI64:
-        // Not used for i64, see VisitJSWasmCall().
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  UseInfo UseInfoForJSWasmCallArgument(Node* input, wasm::ValueType type,
-                                       FeedbackSource const& feedback) {
-    // If the input type is a Number or Oddball, we can directly convert the
-    // input into the Wasm native type of the argument. If not, we return
-    // UseInfo::AnyTagged to signal that WasmWrapperGraphBuilder will need to
-    // add Nodes to perform the conversion (in WasmWrapperGraphBuilder::FromJS).
-    switch (type.kind()) {
-      case wasm::ValueType::kI32:
-        return UseInfo::CheckedNumberOrOddballAsWord32(feedback);
-      case wasm::ValueType::kI64:
-        return UseInfo::AnyTagged();
-      case wasm::ValueType::kF32:
-      case wasm::ValueType::kF64:
-        // For Float32, TruncateFloat64ToFloat32 will be inserted later in
-        // WasmWrapperGraphBuilder::BuildJSToWasmWrapper.
-        return UseInfo::CheckedNumberOrOddballAsFloat64(kDistinguishZeros,
-                                                        feedback);
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  template <Phase T>
-  void VisitJSWasmCall(Node* node, SimplifiedLowering* lowering) {
-    DCHECK_EQ(JSWasmCallNode::TargetIndex(), 0);
-    DCHECK_EQ(JSWasmCallNode::ReceiverIndex(), 1);
-    DCHECK_EQ(JSWasmCallNode::FirstArgumentIndex(), 2);
-
-    JSWasmCallNode n(node);
-
-    JSWasmCallParameters const& params = n.Parameters();
-    const wasm::FunctionSig* wasm_signature = params.signature();
-    int wasm_arg_count = static_cast<int>(wasm_signature->parameter_count());
-    DCHECK_EQ(wasm_arg_count, n.ArgumentCount());
-
-    base::SmallVector<UseInfo, kInitialArgumentsCount> arg_use_info(
-        wasm_arg_count);
-
-    // Visit JSFunction and Receiver nodes.
-    ProcessInput<T>(node, JSWasmCallNode::TargetIndex(), UseInfo::Any());
-    ProcessInput<T>(node, JSWasmCallNode::ReceiverIndex(), UseInfo::Any());
-
-    JSWasmCallData js_wasm_call_data;
-
-    // Propagate representation information from TypeInfo.
-    for (int i = 0; i < wasm_arg_count; i++) {
-      TNode<Object> input = n.Argument(i);
-      DCHECK_NOT_NULL(input);
-      wasm::ValueType value = wasm_signature->GetParam(i);
-      arg_use_info[i] =
-          UseInfoForJSWasmCallArgument(input, value, params.feedback());
-
-      bool need_type_conversion =
-          arg_use_info[i].representation() == MachineRepresentation::kTagged;
-      // UseInfo should be AnyTagged
-      DCHECK(!need_type_conversion ||
-             (arg_use_info[i].truncation() == Truncation::Any() &&
-              arg_use_info[i].type_check() == TypeCheckKind::kNone));
-
-      js_wasm_call_data.set_arg_needs_conversion(i, need_type_conversion);
-
-      ProcessInput<T>(node, JSWasmCallNode::ArgumentIndex(i), arg_use_info[i]);
-    }
-
-    // Visit value, context and frame state inputs as tagged.
-    int first_effect_index = NodeProperties::FirstEffectIndex(node);
-    DCHECK(first_effect_index >
-           JSWasmCallNode::FirstArgumentIndex() + wasm_arg_count);
-    for (int i = JSWasmCallNode::FirstArgumentIndex() + wasm_arg_count;
-         i < first_effect_index; i++) {
-      ProcessInput<T>(node, i, UseInfo::AnyTagged());
-    }
-
-    // Effect and Control.
-    ProcessRemainingInputs<T>(node, NodeProperties::FirstEffectIndex(node));
-
-    if (wasm_signature->return_count() == 1) {
-      if (wasm_signature->GetReturn().kind() == wasm::ValueType::kI64) {
-        // Conversion between negative int64 and BigInt not supported yet.
-        // Do not bypass the type conversion when the result type is i64.
-        js_wasm_call_data.set_result_needs_conversion(true);
-        SetOutput<T>(node, MachineRepresentation::kTagged);
-      } else {
-        MachineType return_type =
-            MachineTypeForWasmReturnType(wasm_signature->GetReturn());
-        SetOutput<T>(
-            node, return_type.representation(),
-            JSWasmCallNode::TypeForWasmReturnType(wasm_signature->GetReturn()));
-      }
-    } else {
-      DCHECK_EQ(wasm_signature->return_count(), 0);
-      SetOutput<T>(node, MachineRepresentation::kTagged);
-    }
-
-    if (lower<T>()) {
-      LowerJSWasmCall(jsgraph_, node, js_wasm_call_data);
-    }
   }
 
   // Dispatching routine for visiting the node {node} with the usage {use}.
@@ -3848,8 +3732,7 @@ class RepresentationSelector {
       case IrOpcode::kArgumentsLengthState:
       case IrOpcode::kUnreachable:
       case IrOpcode::kRuntimeAbort:
-// All JavaScript operators except JSToNumber, JSToNumberConvertBigInt,
-// kJSToNumeric and JSWasmCall have uniform handling.
+// All JavaScript operators except JSToNumber have uniform handling.
 #define OPCODE_CASE(name, ...) case IrOpcode::k##name:
         JS_SIMPLE_BINOP_LIST(OPCODE_CASE)
         JS_OBJECT_OP_LIST(OPCODE_CASE)
@@ -3865,9 +3748,6 @@ class RepresentationSelector {
       case IrOpcode::kJSToObject:
       case IrOpcode::kJSToString:
       case IrOpcode::kJSParseInt:
-        if (node->opcode() == IrOpcode::kJSWasmCall) {
-          return VisitJSWasmCall<T>(node, lowering);
-        }
         VisitInputs<T>(node);
         // Assume the output is tagged.
         return SetOutput<T>(node, MachineRepresentation::kTagged);
@@ -3929,12 +3809,6 @@ class RepresentationSelector {
     node->NullAllInputs();  // The {node} is now dead.
   }
 
-  // Used for kJSWasmCall
-  void InlineWasmCall(Node* call, const wasm::FunctionSig* sig, Node* start,
-                      Node* end);
-  void LowerJSWasmCall(JSGraph* jsgraph, Node* node,
-                       const JSWasmCallData& js_wasm_call_data);
-
  private:
   JSGraph* jsgraph_;
   Zone* zone_;                      // Temporary zone.
@@ -3975,154 +3849,6 @@ class RepresentationSelector {
   Zone* graph_zone() { return jsgraph_->zone(); }
   Linkage* linkage() { return linkage_; }
 };
-
-void RepresentationSelector::InlineWasmCall(Node* call,
-                                            const wasm::FunctionSig* sig,
-                                            Node* start, Node* end) {
-  DCHECK(FLAG_turbo_inline_js_wasm_calls);
-  DCHECK_NOT_NULL(start);
-  DCHECK_NOT_NULL(end);
-
-  Node* context = NodeProperties::GetContextInput(call);
-  Node* frame_state = NodeProperties::GetFrameStateInput(call);
-
-  // The scheduler is smart enough to place our code; we just ensure {control}
-  // becomes the control input of the start of the inlinee, and {effect} becomes
-  // the effect input of the start of the inlinee.
-  Node* control = NodeProperties::GetControlInput(call);
-  Node* effect = NodeProperties::GetEffectInput(call);
-
-  DCHECK_GE(start->op()->ValueOutputCount(), 3);
-  int const inlinee_new_target_index =
-      static_cast<int>(start->op()->ValueOutputCount()) - 3;
-  int const inlinee_arity_index =
-      static_cast<int>(start->op()->ValueOutputCount()) - 2;
-  int const inlinee_context_index =
-      static_cast<int>(start->op()->ValueOutputCount()) - 1;
-  // Counts the target, receiver/new_target, and arguments; but
-  // not feedback vector, context, effect, frame state or control.
-  DCHECK_EQ(static_cast<int>(sig->parameter_count()) +
-                JSCallOrConstructNode::kExtraInputCount -
-                JSCallOrConstructNode::kFeedbackVectorInputCount,
-            inlinee_new_target_index);
-
-  // Iterate over all uses of the start node.
-  for (Edge edge : start->use_edges()) {
-    Node* use = edge.from();
-    if (use->opcode() == IrOpcode::kParameter) {
-      int index = 1 + ParameterIndexOf(use->op());
-      DCHECK_LE(index, inlinee_context_index);
-      if (index < inlinee_new_target_index) {
-        // There is an input from the call, and the index is a value
-        // projection but not the context, so rewire the input.
-        DeferReplacement(use, call->InputAt(index));
-      } else if (index == inlinee_new_target_index) {
-        // The projection is requesting the new target value.
-        // This shouldn't happen, the call to a JSToWasm wrapper doesn't have
-        // a receiver or new_target.
-        UNREACHABLE();
-      } else if (index == inlinee_arity_index) {
-        // The projection is requesting the number of arguments.
-        // This should not happen in a JSToWasm subgraph
-        UNREACHABLE();
-      } else if (index == inlinee_context_index) {
-        // The projection is requesting the inlinee function context.
-        DeferReplacement(use, context);
-      } else {
-        // A JSWasmCall should have all the required arguments.
-        UNREACHABLE();
-      }
-    } else {
-      if (NodeProperties::IsEffectEdge(edge)) {
-        edge.UpdateTo(effect);
-      } else if (NodeProperties::IsControlEdge(edge)) {
-        edge.UpdateTo(control);
-      } else if (NodeProperties::IsFrameStateEdge(edge)) {
-        edge.UpdateTo(frame_state);
-      } else {
-        UNREACHABLE();
-      }
-    }
-  }
-
-  using NodeVector = ZoneVector<Node*>;
-  Zone* const local_zone = graph()->zone();
-
-  NodeVector values(local_zone);
-  NodeVector effects(local_zone);
-  NodeVector controls(local_zone);
-  for (Node* const input : end->inputs()) {
-    switch (input->opcode()) {
-      case IrOpcode::kReturn:
-        values.push_back(NodeProperties::GetValueInput(input, 1));
-        effects.push_back(NodeProperties::GetEffectInput(input));
-        controls.push_back(NodeProperties::GetControlInput(input));
-        break;
-      case IrOpcode::kDeoptimize:
-      case IrOpcode::kTerminate:
-      case IrOpcode::kThrow:
-        NodeProperties::MergeControlToEnd(graph(), common(), input);
-        break;
-      default:
-        UNREACHABLE();
-        break;
-    }
-  }
-  DCHECK_EQ(values.size(), effects.size());
-  DCHECK_EQ(values.size(), controls.size());
-
-  // The JSWasmCall always produces one value, Undefined if the Wasm function
-  // has no return value.
-  DCHECK_GT(values.size(), 0);
-  int const input_count = static_cast<int>(controls.size());
-  Node* control_output = graph()->NewNode(common()->Merge(input_count),
-                                          input_count, &controls.front());
-  values.push_back(control_output);
-  effects.push_back(control_output);
-  Node* value_output = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kTagged, input_count),
-      static_cast<int>(values.size()), &values.front());
-
-  Node* effect_output =
-      graph()->NewNode(common()->EffectPhi(input_count),
-                       static_cast<int>(effects.size()), &effects.front());
-  ReplaceEffectControlUses(call, effect_output, control_output);
-  DeferReplacement(call, value_output);
-}
-
-void RepresentationSelector::LowerJSWasmCall(
-    JSGraph* jsgraph, Node* node, const JSWasmCallData& js_wasm_call_data) {
-  DCHECK(FLAG_turbo_inline_js_wasm_calls);
-  Graph* graph = this->graph();
-
-  JSWasmCallNode n(node);
-  const JSWasmCallParameters& wasm_call_params = n.Parameters();
-
-  // Create a nested frame state inside the frame state attached to the call;
-  // this will ensure that lazy deoptimizations at this point will still return
-  // the result of the Wasm function call.
-  Node* continuation_frame_state =
-      CreateJSWasmCallBuiltinContinuationFrameState(
-          jsgraph, n.context(), n.frame_state(), wasm_call_params.signature());
-
-  Node* start;
-  Node* end;
-  {
-    Graph::SubgraphScope scope(graph);
-    graph->SetEnd(nullptr);
-
-    BuildInlinedJSToWasmWrapper(
-        graph->zone(), jsgraph, wasm_call_params.signature(),
-        wasm_call_params.module(), source_positions_,
-        StubCallMode::kCallBuiltinPointer, wasm::WasmFeatures::FromFlags(),
-        &js_wasm_call_data, continuation_frame_state);
-
-    // Extract the inlinee start/end nodes.
-    start = graph->start();
-    end = graph->end();
-  }
-  InlineWasmCall(node, wasm_call_params.signature(), start, end);
-}
 
 // Template specializations
 

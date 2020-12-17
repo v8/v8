@@ -31,13 +31,6 @@ class JSRegExp;
 class JSTypedArray;
 class NativeContext;
 class ScriptContextTable;
-template <typename>
-class Signature;
-
-namespace wasm {
-class ValueType;
-struct WasmModule;
-}  // namespace wasm
 
 namespace compiler {
 
@@ -794,22 +787,20 @@ class ScopeInfoRef : public HeapObjectRef {
   void SerializeScopeInfoChain();
 };
 
-#define BROKER_SFI_FIELDS(V)              \
-  V(int, internal_formal_parameter_count) \
-  V(bool, has_duplicate_parameters)       \
-  V(int, function_map_index)              \
-  V(FunctionKind, kind)                   \
-  V(LanguageMode, language_mode)          \
-  V(bool, native)                         \
-  V(bool, HasBreakInfo)                   \
-  V(bool, HasBuiltinId)                   \
-  V(bool, construct_as_builtin)           \
-  V(bool, HasBytecodeArray)               \
-  V(int, StartPosition)                   \
-  V(bool, is_compiled)                    \
-  V(bool, IsUserJavaScript)               \
-  V(const wasm::WasmModule*, wasm_module) \
-  V(const wasm::FunctionSig*, wasm_function_signature)
+#define BROKER_SFI_FIELDS(V)                             \
+  V(int, internal_formal_parameter_count)                \
+  V(bool, has_duplicate_parameters)                      \
+  V(int, function_map_index)                             \
+  V(FunctionKind, kind)                                  \
+  V(LanguageMode, language_mode)                         \
+  V(bool, native)                                        \
+  V(bool, HasBreakInfo)                                  \
+  V(bool, HasBuiltinId)                                  \
+  V(bool, construct_as_builtin)                          \
+  V(bool, HasBytecodeArray)                              \
+  V(int, StartPosition)                                  \
+  V(bool, is_compiled)                                   \
+  V(bool, IsUserJavaScript)
 
 class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
  public:

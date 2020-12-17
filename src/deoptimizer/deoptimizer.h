@@ -63,14 +63,12 @@ class TranslatedValue {
  private:
   friend class TranslatedState;
   friend class TranslatedFrame;
-  friend class Deoptimizer;
 
   enum Kind : uint8_t {
     kInvalid,
     kTagged,
     kInt32,
     kInt64,
-    kInt64ToBigInt,
     kUInt32,
     kBoolBit,
     kFloat,
@@ -107,8 +105,6 @@ class TranslatedValue {
   static TranslatedValue NewDouble(TranslatedState* container, Float64 value);
   static TranslatedValue NewInt32(TranslatedState* container, int32_t value);
   static TranslatedValue NewInt64(TranslatedState* container, int64_t value);
-  static TranslatedValue NewInt64ToBigInt(TranslatedState* container,
-                                          int64_t value);
   static TranslatedValue NewUInt32(TranslatedState* container, uint32_t value);
   static TranslatedValue NewBool(TranslatedState* container, uint32_t value);
   static TranslatedValue NewTagged(TranslatedState* container, Object literal);
@@ -176,7 +172,6 @@ class TranslatedFrame {
     kArgumentsAdaptor,
     kConstructStub,
     kBuiltinContinuation,
-    kJSToWasmBuiltinContinuation,
     kJavaScriptBuiltinContinuation,
     kJavaScriptBuiltinContinuationWithCatch,
     kInvalid
@@ -251,15 +246,8 @@ class TranslatedFrame {
   reference front() { return values_.front(); }
   const_reference front() const { return values_.front(); }
 
-  // Only for Kind == kJSToWasmBuiltinContinuation
-  base::Optional<wasm::ValueType::Kind> wasm_call_return_type() const {
-    DCHECK_EQ(kind(), kJSToWasmBuiltinContinuation);
-    return return_type_;
-  }
-
  private:
   friend class TranslatedState;
-  friend class Deoptimizer;
 
   // Constructor static methods.
   static TranslatedFrame InterpretedFrame(BailoutId bytecode_offset,
@@ -275,9 +263,6 @@ class TranslatedFrame {
                                             int height);
   static TranslatedFrame BuiltinContinuationFrame(
       BailoutId bailout_id, SharedFunctionInfo shared_info, int height);
-  static TranslatedFrame JSToWasmBuiltinContinuationFrame(
-      BailoutId bailout_id, SharedFunctionInfo shared_info, int height,
-      base::Optional<wasm::ValueType::Kind> return_type);
   static TranslatedFrame JavaScriptBuiltinContinuationFrame(
       BailoutId bailout_id, SharedFunctionInfo shared_info, int height);
   static TranslatedFrame JavaScriptBuiltinContinuationWithCatchFrame(
@@ -314,9 +299,6 @@ class TranslatedFrame {
   using ValuesContainer = std::deque<TranslatedValue>;
 
   ValuesContainer values_;
-
-  // Only for Kind == kJSToWasmBuiltinContinuation
-  base::Optional<wasm::ValueType::Kind> return_type_;
 };
 
 // Auxiliary class for translating deoptimization values.
@@ -595,9 +577,6 @@ class Deoptimizer : public Malloced {
 
   static Builtins::Name TrampolineForBuiltinContinuation(
       BuiltinContinuationMode mode, bool must_handle_result);
-
-  TranslatedValue TranslatedValueForWasmReturnType(
-      base::Optional<wasm::ValueType::Kind> wasm_call_return_type);
 
   void DoComputeBuiltinContinuation(TranslatedFrame* translated_frame,
                                     int frame_index,
@@ -897,7 +876,6 @@ class TranslationIterator {
   V(BEGIN)                                             \
   V(INTERPRETED_FRAME)                                 \
   V(BUILTIN_CONTINUATION_FRAME)                        \
-  V(JS_TO_WASM_BUILTIN_CONTINUATION_FRAME)             \
   V(JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME)            \
   V(JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME) \
   V(CONSTRUCT_STUB_FRAME)                              \
@@ -951,9 +929,6 @@ class Translation {
                                unsigned height);
   void BeginBuiltinContinuationFrame(BailoutId bailout_id, int literal_id,
                                      unsigned height);
-  void BeginJSToWasmBuiltinContinuationFrame(
-      BailoutId bailout_id, int literal_id, unsigned height,
-      base::Optional<wasm::ValueType::Kind> return_type);
   void BeginJavaScriptBuiltinContinuationFrame(BailoutId bailout_id,
                                                int literal_id, unsigned height);
   void BeginJavaScriptBuiltinContinuationWithCatchFrame(BailoutId bailout_id,
