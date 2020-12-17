@@ -27,10 +27,6 @@ build_recipe = _recipe_for_package(
     "infra/recipe_bundles/chromium.googlesource.com/chromium/tools/build",
 )
 
-infra_recipe = _recipe_for_package(
-    "infra/recipe_bundles/chromium.googlesource.com/infra/infra",
-)
-
 build_recipe(
     name = "recipe:chromium",
 )
@@ -97,6 +93,6 @@ build_recipe(
     name = "recipe:v8/presubmit",
 )
 
-infra_recipe(
+build_recipe(
     name = "recipe:lkgr_finder",
 )
