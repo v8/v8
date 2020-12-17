@@ -3341,17 +3341,16 @@ class CompileJSToWasmWrapperJob final : public JobTask {
       JSToWasmWrapperCompilationUnit* unit = (*compilation_units_)[*key].get();
       unit->Execute();
       outstanding_units_.fetch_sub(1, std::memory_order_relaxed);
-      if (delegate->ShouldYield()) return;
+      if (delegate && delegate->ShouldYield()) return;
     }
   }
 
   size_t GetMaxConcurrency(size_t /* worker_count */) const override {
+    DCHECK_GE(FLAG_wasm_num_compilation_tasks, 1);
     // {outstanding_units_} includes the units that other workers are currently
     // working on, so we can safely ignore the {worker_count} and just return
     // the current number of outstanding units.
-    size_t flag_limit =
-        static_cast<size_t>(std::max(1, FLAG_wasm_num_compilation_tasks));
-    return std::min(flag_limit,
+    return std::min(static_cast<size_t>(FLAG_wasm_num_compilation_tasks),
                     outstanding_units_.load(std::memory_order_relaxed));
   }
 
@@ -3387,11 +3386,15 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
 
   auto job =
       std::make_unique<CompileJSToWasmWrapperJob>(&queue, &compilation_units);
-  auto job_handle = V8::GetCurrentPlatform()->PostJob(
-      TaskPriority::kUserVisible, std::move(job));
+  if (FLAG_wasm_num_compilation_tasks > 0) {
+    auto job_handle = V8::GetCurrentPlatform()->PostJob(
+        TaskPriority::kUserVisible, std::move(job));
 
-  // Wait for completion, while contributing to the work.
-  job_handle->Join();
+    // Wait for completion, while contributing to the work.
+    job_handle->Join();
+  } else {
+    job->Run(nullptr);
+  }
 
   // Finalize compilation jobs in the main thread.
   // TODO(6792): Wrappers below are allocated with {Factory::NewCode}. As an
