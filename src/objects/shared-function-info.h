@@ -175,7 +175,8 @@ class SharedFunctionInfo
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
-  inline AbstractCode abstract_code();
+  template <typename LocalIsolate>
+  inline AbstractCode abstract_code(LocalIsolate* isolate);
 
   // Tells whether or not this shared function info has an attached
   // BytecodeArray.
@@ -284,7 +285,9 @@ class SharedFunctionInfo
   inline FunctionTemplateInfo get_api_func_data() const;
   inline void set_api_func_data(FunctionTemplateInfo data);
   inline bool HasBytecodeArray() const;
-  inline BytecodeArray GetBytecodeArray() const;
+  template <typename LocalIsolate>
+  inline BytecodeArray GetBytecodeArray(LocalIsolate* isolate) const;
+
   inline void set_bytecode_array(BytecodeArray bytecode);
   inline Code InterpreterTrampoline() const;
   inline bool HasInterpreterData() const;
@@ -529,7 +532,8 @@ class SharedFunctionInfo
     kExceedsBytecodeLimit,
     kMayContainBreakPoints,
   };
-  Inlineability GetInlineability() const;
+  template <typename LocalIsolate>
+  Inlineability GetInlineability(LocalIsolate* isolate) const;
 
   // Source size of this function.
   int SourceSize();
@@ -558,7 +562,8 @@ class SharedFunctionInfo
   static void EnsureSourcePositionsAvailable(
       Isolate* isolate, Handle<SharedFunctionInfo> shared_info);
 
-  V8_EXPORT_PRIVATE bool AreSourcePositionsAvailable() const;
+  template <typename LocalIsolate>
+  bool AreSourcePositionsAvailable(LocalIsolate* isolate) const;
 
   // Hash based on function literal id and script id.
   V8_EXPORT_PRIVATE uint32_t Hash();

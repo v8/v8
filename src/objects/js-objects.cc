@@ -5274,7 +5274,7 @@ void JSMessageObject::EnsureSourcePositionsAvailable(
         SharedFunctionInfo::cast(message->shared_info()), isolate);
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);
     DCHECK(shared_info->HasBytecodeArray());
-    int position = shared_info->abstract_code().SourcePosition(
+    int position = shared_info->abstract_code(isolate).SourcePosition(
         message->bytecode_offset().value());
     DCHECK_GE(position, 0);
     message->set_start_position(position);

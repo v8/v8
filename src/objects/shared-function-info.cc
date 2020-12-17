@@ -375,36 +375,6 @@ Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony(
   return builder.Finish().ToHandleChecked();
 }
 
-SharedFunctionInfo::Inlineability SharedFunctionInfo::GetInlineability() const {
-  if (!script().IsScript()) return kHasNoScript;
-
-  if (GetIsolate()->is_precise_binary_code_coverage() &&
-      !has_reported_binary_coverage()) {
-    // We may miss invocations if this function is inlined.
-    return kNeedsBinaryCoverage;
-  }
-
-  if (optimization_disabled()) return kHasOptimizationDisabled;
-
-  // Built-in functions are handled by the JSCallReducer.
-  if (HasBuiltinId()) return kIsBuiltin;
-
-  if (!IsUserJavaScript()) return kIsNotUserCode;
-
-  // If there is no bytecode array, it is either not compiled or it is compiled
-  // with WebAssembly for the asm.js pipeline. In either case we don't want to
-  // inline.
-  if (!HasBytecodeArray()) return kHasNoBytecode;
-
-  if (GetBytecodeArray().length() > FLAG_max_inlined_bytecode_size) {
-    return kExceedsBytecodeLimit;
-  }
-
-  if (HasBreakInfo()) return kMayContainBreakPoints;
-
-  return kIsInlineable;
-}
-
 int SharedFunctionInfo::SourceSize() { return EndPosition() - StartPosition(); }
 
 // Output the source code without any allocation in the heap.
@@ -451,13 +421,13 @@ void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
 
   set_flags(DisabledOptimizationReasonBits::update(flags(), reason));
   // Code should be the lazy compilation stub or else interpreted.
-  DCHECK(abstract_code().kind() == CodeKind::INTERPRETED_FUNCTION ||
-         abstract_code().kind() == CodeKind::BUILTIN);
-  PROFILE(GetIsolate(),
-          CodeDisableOptEvent(handle(abstract_code(), GetIsolate()),
-                              handle(*this, GetIsolate())));
+  Isolate* isolate = GetIsolate();
+  DCHECK(abstract_code(isolate).kind() == CodeKind::INTERPRETED_FUNCTION ||
+         abstract_code(isolate).kind() == CodeKind::BUILTIN);
+  PROFILE(isolate, CodeDisableOptEvent(handle(abstract_code(isolate), isolate),
+                                       handle(*this, isolate)));
   if (FLAG_trace_opt) {
-    CodeTracer::Scope scope(GetIsolate()->GetCodeTracer());
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintF(scope.file(), "[disabled optimization for ");
     ShortPrint(scope.file());
     PrintF(scope.file(), ", reason: %s]\n", GetBailoutReason(reason));
@@ -678,18 +648,11 @@ void SharedFunctionInfo::SetPosition(int start_position, int end_position) {
   }
 }
 
-bool SharedFunctionInfo::AreSourcePositionsAvailable() const {
-  if (FLAG_enable_lazy_source_positions) {
-    return !HasBytecodeArray() || GetBytecodeArray().HasSourcePositionTable();
-  }
-  return true;
-}
-
 // static
 void SharedFunctionInfo::EnsureSourcePositionsAvailable(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info) {
   if (FLAG_enable_lazy_source_positions && shared_info->HasBytecodeArray() &&
-      !shared_info->GetBytecodeArray().HasSourcePositionTable()) {
+      !shared_info->GetBytecodeArray(isolate).HasSourcePositionTable()) {
     Compiler::CollectSourcePositions(isolate, shared_info);
   }
 }
@@ -698,8 +661,8 @@ void SharedFunctionInfo::EnsureSourcePositionsAvailable(
 void SharedFunctionInfo::InstallDebugBytecode(Handle<SharedFunctionInfo> shared,
                                               Isolate* isolate) {
   DCHECK(shared->HasBytecodeArray());
-  Handle<BytecodeArray> original_bytecode_array(shared->GetBytecodeArray(),
-                                                isolate);
+  Handle<BytecodeArray> original_bytecode_array(
+      shared->GetBytecodeArray(isolate), isolate);
   Handle<BytecodeArray> debug_bytecode_array =
       isolate->factory()->CopyBytecodeArray(original_bytecode_array);
 

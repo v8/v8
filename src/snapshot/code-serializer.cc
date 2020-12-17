@@ -242,7 +242,7 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
         Handle<InterpreterData>::cast(isolate->factory()->NewStruct(
             INTERPRETER_DATA_TYPE, AllocationType::kOld));
 
-    interpreter_data->set_bytecode_array(info->GetBytecodeArray());
+    interpreter_data->set_bytecode_array(info->GetBytecodeArray(isolate));
     interpreter_data->set_interpreter_trampoline(*code);
 
     info->set_interpreter_data(*interpreter_data);
@@ -386,9 +386,10 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
           int column_num =
               script->GetColumnNumber(shared_info->StartPosition()) + 1;
           PROFILE(isolate,
-                  CodeCreateEvent(CodeEventListener::SCRIPT_TAG,
-                                  handle(shared_info->abstract_code(), isolate),
-                                  shared_info, name, line_num, column_num));
+                  CodeCreateEvent(
+                      CodeEventListener::SCRIPT_TAG,
+                      handle(shared_info->abstract_code(isolate), isolate),
+                      shared_info, name, line_num, column_num));
         }
       }
     }

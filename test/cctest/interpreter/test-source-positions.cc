@@ -173,7 +173,7 @@ Handle<BytecodeArray> OptimizedBytecodeSourcePositionTester::MakeBytecode(
           .As<Function>();
   Handle<JSFunction> function =
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(*api_function));
-  return handle(function->shared().GetBytecodeArray(), isolate_);
+  return handle(function->shared().GetBytecodeArray(isolate_), isolate_);
 }
 
 void OptimizedBytecodeSourcePositionTester::SetOptimizationFlags(

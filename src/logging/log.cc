@@ -1820,7 +1820,7 @@ EnumerateCompiledFunctions(Heap* heap) {
       if (sfi.is_compiled() && !sfi.IsInterpreted()) {
         compiled_funcs.emplace_back(
             handle(sfi, isolate),
-            handle(AbstractCode::cast(sfi.abstract_code()), isolate));
+            handle(AbstractCode::cast(sfi.abstract_code(isolate)), isolate));
       }
     } else if (obj.IsJSFunction()) {
       // Given that we no longer iterate over all optimized JSFunctions, we need
@@ -1849,7 +1849,7 @@ EnumerateCompiledFunctions(Heap* heap) {
       if (sfi.is_compiled()) {
         compiled_funcs.emplace_back(
             handle(sfi, isolate),
-            handle(AbstractCode::cast(sfi.abstract_code()), isolate));
+            handle(AbstractCode::cast(sfi.abstract_code(isolate)), isolate));
       }
     }
   }

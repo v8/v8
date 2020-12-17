@@ -26,7 +26,7 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
       optimization_id_(isolate->NextOptimizationId()) {
   DCHECK_EQ(*shared, closure->shared());
   DCHECK(shared->is_compiled());
-  bytecode_array_ = handle(shared->GetBytecodeArray(), isolate);
+  bytecode_array_ = handle(shared->GetBytecodeArray(isolate), isolate);
   shared_info_ = shared;
   closure_ = closure;
 

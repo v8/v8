@@ -447,7 +447,8 @@ class Deoptimizer : public Malloced {
 
   static DeoptInfo GetDeoptInfo(Code code, Address from);
 
-  static int ComputeSourcePositionFromBytecodeArray(SharedFunctionInfo shared,
+  static int ComputeSourcePositionFromBytecodeArray(Isolate* isolate,
+                                                    SharedFunctionInfo shared,
                                                     BailoutId node_id);
 
   static const char* MessageFor(DeoptimizeKind kind, bool reuse_code);

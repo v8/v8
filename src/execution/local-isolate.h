@@ -6,6 +6,7 @@
 #define V8_EXECUTION_LOCAL_ISOLATE_H_
 
 #include "src/base/macros.h"
+#include "src/execution/shared-mutex-guard-if-off-thread.h"
 #include "src/execution/thread-id.h"
 #include "src/handles/handles.h"
 #include "src/handles/local-handles.h"
@@ -101,6 +102,24 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   ThreadId const thread_id_;
   Address const stack_limit_;
   std::vector<std::string> supported_import_assertions_;
+};
+
+template <base::MutexSharedType kIsShared>
+class V8_NODISCARD SharedMutexGuardIfOffThread<LocalIsolate, kIsShared> final {
+ public:
+  SharedMutexGuardIfOffThread(base::SharedMutex* mutex, LocalIsolate* isolate) {
+    DCHECK_NOT_NULL(mutex);
+    DCHECK_NOT_NULL(isolate);
+    DCHECK(!isolate->is_main_thread());
+    mutex_guard_.emplace(mutex);
+  }
+
+  SharedMutexGuardIfOffThread(const SharedMutexGuardIfOffThread&) = delete;
+  SharedMutexGuardIfOffThread& operator=(const SharedMutexGuardIfOffThread&) =
+      delete;
+
+ private:
+  base::Optional<base::SharedMutexGuard<kIsShared>> mutex_guard_;
 };
 
 }  // namespace internal

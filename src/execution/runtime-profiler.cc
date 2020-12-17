@@ -189,7 +189,7 @@ void RuntimeProfiler::MaybeOptimizeFrame(JSFunction function,
   }
 
   OptimizationReason reason =
-      ShouldOptimize(function, function.shared().GetBytecodeArray());
+      ShouldOptimize(function, function.shared().GetBytecodeArray(isolate_));
 
   if (reason != OptimizationReason::kDoNotOptimize) {
     Optimize(function, reason, code_kind);
@@ -224,7 +224,7 @@ bool RuntimeProfiler::MaybeOSR(JSFunction function, InterpretedFrame* frame) {
     int64_t scaled_ticks = static_cast<int64_t>(ticks) / scale_factor;
     int64_t allowance = kOSRBytecodeSizeAllowanceBase +
                         scaled_ticks * kOSRBytecodeSizeAllowancePerTick;
-    if (function.shared().GetBytecodeArray().length() <= allowance) {
+    if (function.shared().GetBytecodeArray(isolate_).length() <= allowance) {
       AttemptOnStackReplacement(frame);
     }
     return true;

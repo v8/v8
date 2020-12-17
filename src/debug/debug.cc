@@ -2441,7 +2441,7 @@ bool Debug::PerformSideEffectCheckAtBytecode(InterpretedFrame* frame) {
 
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
   SharedFunctionInfo shared = frame->function().shared();
-  BytecodeArray bytecode_array = shared.GetBytecodeArray();
+  BytecodeArray bytecode_array = shared.GetBytecodeArray(isolate_);
   int offset = frame->GetBytecodeOffset();
   interpreter::BytecodeArrayAccessor bytecode_accessor(
       handle(bytecode_array, isolate_), offset);

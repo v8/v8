@@ -160,9 +160,10 @@ bool SharedFunctionInfo::needs_script_context() const {
   return is_script() && scope_info().ContextLocalCount() > 0;
 }
 
-AbstractCode SharedFunctionInfo::abstract_code() {
+template <typename LocalIsolate>
+AbstractCode SharedFunctionInfo::abstract_code(LocalIsolate* isolate) {
   if (HasBytecodeArray()) {
-    return AbstractCode::cast(GetBytecodeArray());
+    return AbstractCode::cast(GetBytecodeArray(isolate));
   } else {
     return AbstractCode::cast(GetCode());
   }
@@ -175,6 +176,48 @@ int SharedFunctionInfo::function_token_position() const {
   } else {
     return StartPosition() - offset;
   }
+}
+
+template <typename LocalIsolate>
+bool SharedFunctionInfo::AreSourcePositionsAvailable(
+    LocalIsolate* isolate) const {
+  if (FLAG_enable_lazy_source_positions) {
+    return !HasBytecodeArray() ||
+           GetBytecodeArray(isolate).HasSourcePositionTable();
+  }
+  return true;
+}
+
+template <typename LocalIsolate>
+SharedFunctionInfo::Inlineability SharedFunctionInfo::GetInlineability(
+    LocalIsolate* isolate) const {
+  if (!script().IsScript()) return kHasNoScript;
+
+  if (GetIsolate()->is_precise_binary_code_coverage() &&
+      !has_reported_binary_coverage()) {
+    // We may miss invocations if this function is inlined.
+    return kNeedsBinaryCoverage;
+  }
+
+  if (optimization_disabled()) return kHasOptimizationDisabled;
+
+  // Built-in functions are handled by the JSCallReducer.
+  if (HasBuiltinId()) return kIsBuiltin;
+
+  if (!IsUserJavaScript()) return kIsNotUserCode;
+
+  // If there is no bytecode array, it is either not compiled or it is compiled
+  // with WebAssembly for the asm.js pipeline. In either case we don't want to
+  // inline.
+  if (!HasBytecodeArray()) return kHasNoBytecode;
+
+  if (GetBytecodeArray(isolate).length() > FLAG_max_inlined_bytecode_size) {
+    return kExceedsBytecodeLimit;
+  }
+
+  if (HasBreakInfo()) return kMayContainBreakPoints;
+
+  return kIsInlineable;
 }
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, class_scope_has_private_brand,
@@ -421,7 +464,7 @@ IsCompiledScope SharedFunctionInfo::is_compiled_scope(
 IsCompiledScope::IsCompiledScope(const SharedFunctionInfo shared,
                                  Isolate* isolate)
     : retain_bytecode_(shared.HasBytecodeArray()
-                           ? handle(shared.GetBytecodeArray(), isolate)
+                           ? handle(shared.GetBytecodeArray(isolate), isolate)
                            : MaybeHandle<BytecodeArray>()),
       is_compiled_(shared.is_compiled()) {
   DCHECK_IMPLIES(!retain_bytecode_.is_null(), is_compiled());
@@ -429,10 +472,10 @@ IsCompiledScope::IsCompiledScope(const SharedFunctionInfo shared,
 
 IsCompiledScope::IsCompiledScope(const SharedFunctionInfo shared,
                                  LocalIsolate* isolate)
-    : retain_bytecode_(
-          shared.HasBytecodeArray()
-              ? isolate->heap()->NewPersistentHandle(shared.GetBytecodeArray())
-              : MaybeHandle<BytecodeArray>()),
+    : retain_bytecode_(shared.HasBytecodeArray()
+                           ? isolate->heap()->NewPersistentHandle(
+                                 shared.GetBytecodeArray(isolate))
+                           : MaybeHandle<BytecodeArray>()),
       is_compiled_(shared.is_compiled()) {
   DCHECK_IMPLIES(!retain_bytecode_.is_null(), is_compiled());
 }
@@ -455,9 +498,12 @@ bool SharedFunctionInfo::HasBytecodeArray() const {
   return data.IsBytecodeArray() || data.IsInterpreterData();
 }
 
-BytecodeArray SharedFunctionInfo::GetBytecodeArray() const {
-  base::SharedMutexGuard<base::kShared> mutex_guard(
-      GetIsolate()->shared_function_info_access());
+template <typename LocalIsolate>
+BytecodeArray SharedFunctionInfo::GetBytecodeArray(
+    LocalIsolate* isolate) const {
+  SharedMutexGuardIfOffThread<LocalIsolate, base::kShared> mutex_guard(
+      GetIsolate()->shared_function_info_access(), isolate);
+
   DCHECK(HasBytecodeArray());
   if (HasDebugInfo() && GetDebugInfo().HasInstrumentedBytecodeArray()) {
     return GetDebugInfo().OriginalBytecodeArray();

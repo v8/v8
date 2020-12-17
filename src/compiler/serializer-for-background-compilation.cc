@@ -839,7 +839,7 @@ void Hints::Reset(Hints* other, Zone* zone) {
 
 class SerializerForBackgroundCompilation::Environment : public ZoneObject {
  public:
-  Environment(Zone* zone, CompilationSubject function);
+  Environment(Zone* zone, Isolate* isolate, CompilationSubject function);
   Environment(Zone* zone, Isolate* isolate, CompilationSubject function,
               base::Optional<Hints> new_target, const HintsVector& arguments,
               MissingArgumentsPolicy padding);
@@ -881,15 +881,15 @@ class SerializerForBackgroundCompilation::Environment : public ZoneObject {
 };
 
 SerializerForBackgroundCompilation::Environment::Environment(
-    Zone* zone, CompilationSubject function)
+    Zone* zone, Isolate* isolate, CompilationSubject function)
     : parameters_hints_(function.virtual_closure()
                             .shared()
-                            ->GetBytecodeArray()
+                            ->GetBytecodeArray(isolate)
                             .parameter_count(),
                         Hints(), zone),
       locals_hints_(function.virtual_closure()
                         .shared()
-                        ->GetBytecodeArray()
+                        ->GetBytecodeArray(isolate)
                         .register_count(),
                     Hints(), zone) {
   // Consume the virtual_closure's context hint information.
@@ -900,7 +900,7 @@ SerializerForBackgroundCompilation::Environment::Environment(
     Zone* zone, Isolate* isolate, CompilationSubject function,
     base::Optional<Hints> new_target, const HintsVector& arguments,
     MissingArgumentsPolicy padding)
-    : Environment(zone, function) {
+    : Environment(zone, isolate, function) {
   // Set the hints for the actually passed arguments, at most up to
   // the parameter_count.
   for (size_t i = 0; i < std::min(arguments.size(), parameters_hints_.size());
@@ -922,7 +922,7 @@ SerializerForBackgroundCompilation::Environment::Environment(
   interpreter::Register new_target_reg =
       function.virtual_closure()
           .shared()
-          ->GetBytecodeArray()
+          ->GetBytecodeArray(isolate)
           .incoming_new_target_or_generator_register();
   if (new_target_reg.is_valid()) {
     Hints& hints = register_hints(new_target_reg);
@@ -1065,7 +1065,8 @@ SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
       osr_offset_(osr_offset),
       jump_target_environments_(zone()),
       environment_(zone()->New<Environment>(
-          zone(), CompilationSubject(closure, broker_->isolate(), zone()))),
+          zone(), broker_->isolate(),
+          CompilationSubject(closure, broker_->isolate(), zone()))),
       arguments_(zone()) {
   closure_hints_.AddConstant(closure, zone(), broker_);
   JSFunctionRef(broker, closure).Serialize();
@@ -1256,7 +1257,8 @@ Handle<FeedbackVector> SerializerForBackgroundCompilation::feedback_vector()
 
 Handle<BytecodeArray> SerializerForBackgroundCompilation::bytecode_array()
     const {
-  return handle(function().shared()->GetBytecodeArray(), broker()->isolate());
+  return handle(function().shared()->GetBytecodeArray(broker()->isolate()),
+                broker()->isolate());
 }
 
 void SerializerForBackgroundCompilation::TraverseBytecode() {
@@ -2026,14 +2028,17 @@ void SerializerForBackgroundCompilation::ProcessCalleeForCallOrConstruct(
   Handle<SharedFunctionInfo> shared = callee.shared(broker()->isolate());
   if (shared->IsApiFunction()) {
     ProcessApiCall(shared, arguments);
-    DCHECK_NE(shared->GetInlineability(), SharedFunctionInfo::kIsInlineable);
+    DCHECK_NE(shared->GetInlineability(broker()->isolate()),
+              SharedFunctionInfo::kIsInlineable);
   } else if (shared->HasBuiltinId()) {
     ProcessBuiltinCall(shared, new_target, arguments, speculation_mode, padding,
                        result_hints);
-    DCHECK_NE(shared->GetInlineability(), SharedFunctionInfo::kIsInlineable);
+    DCHECK_NE(shared->GetInlineability(broker()->isolate()),
+              SharedFunctionInfo::kIsInlineable);
   } else if ((flags() &
               SerializerForBackgroundCompilationFlag::kEnableTurboInlining) &&
-             shared->GetInlineability() == SharedFunctionInfo::kIsInlineable &&
+             shared->GetInlineability(broker()->isolate()) ==
+                 SharedFunctionInfo::kIsInlineable &&
              callee.HasFeedbackVector()) {
     CompilationSubject subject =
         callee.ToCompilationSubject(broker()->isolate(), zone());

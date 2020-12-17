@@ -911,7 +911,8 @@ DebugInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
   DCHECK(!info->needs_script_context());
   if (info->HasBytecodeArray()) {
     // Check bytecodes against allowlist.
-    Handle<BytecodeArray> bytecode_array(info->GetBytecodeArray(), isolate);
+    Handle<BytecodeArray> bytecode_array(info->GetBytecodeArray(isolate),
+                                         isolate);
     if (FLAG_trace_side_effect_free_debug_evaluate) {
       bytecode_array->Print();
     }

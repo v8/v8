@@ -27,6 +27,7 @@
 #include "src/execution/futex-emulation.h"
 #include "src/execution/isolate-data.h"
 #include "src/execution/messages.h"
+#include "src/execution/shared-mutex-guard-if-off-thread.h"
 #include "src/execution/stack-guard.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"
@@ -2173,6 +2174,20 @@ class StackTraceFailureMessage {
   void* code_objects_[4];
   char js_stack_trace_[kStacktraceBufferSize];
   uintptr_t end_marker_ = kEndMarker;
+};
+
+template <base::MutexSharedType kIsShared>
+class V8_NODISCARD SharedMutexGuardIfOffThread<Isolate, kIsShared> final {
+ public:
+  SharedMutexGuardIfOffThread(base::SharedMutex* mutex, Isolate* isolate) {
+    DCHECK_NOT_NULL(mutex);
+    DCHECK_NOT_NULL(isolate);
+    DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  }
+
+  SharedMutexGuardIfOffThread(const SharedMutexGuardIfOffThread&) = delete;
+  SharedMutexGuardIfOffThread& operator=(const SharedMutexGuardIfOffThread&) =
+      delete;
 };
 
 }  // namespace internal

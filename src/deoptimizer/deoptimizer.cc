@@ -708,12 +708,13 @@ int Deoptimizer::GetDeoptimizedCodeCount(Isolate* isolate) {
 
 namespace {
 
-int LookupCatchHandler(TranslatedFrame* translated_frame, int* data_out) {
+int LookupCatchHandler(Isolate* isolate, TranslatedFrame* translated_frame,
+                       int* data_out) {
   switch (translated_frame->kind()) {
     case TranslatedFrame::kInterpretedFunction: {
       int bytecode_offset = translated_frame->node_id().ToInt();
       HandlerTable table(
-          translated_frame->raw_shared_info().GetBytecodeArray());
+          translated_frame->raw_shared_info().GetBytecodeArray(isolate));
       return table.LookupRange(bytecode_offset, data_out, nullptr);
     }
     case TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch: {
@@ -900,7 +901,7 @@ void Deoptimizer::DoComputeOutputFrames() {
     size_t catch_handler_frame_index = count;
     for (size_t i = count; i-- > 0;) {
       catch_handler_pc_offset_ = LookupCatchHandler(
-          &(translated_state_.frames()[i]), &catch_handler_data_);
+          isolate(), &(translated_state_.frames()[i]), &catch_handler_data_);
       if (catch_handler_pc_offset_ >= 0) {
         catch_handler_frame_index = i;
         break;
@@ -1138,7 +1139,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   // Set the bytecode array pointer.
   Object bytecode_array = shared.HasBreakInfo()
                               ? shared.GetDebugInfo().DebugBytecodeArray()
-                              : shared.GetBytecodeArray();
+                              : shared.GetBytecodeArray(isolate());
   frame_writer.PushRawObject(bytecode_array, "bytecode array\n");
 
   // The bytecode offset was mentioned explicitly in the BEGIN_FRAME.
@@ -2460,7 +2461,7 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(TranslatedState* state,
 
   DCHECK_EQ(TranslatedFrame::kInterpretedFunction, frame_it->kind());
   source_position_ = Deoptimizer::ComputeSourcePositionFromBytecodeArray(
-      *frame_it->shared_info(), frame_it->node_id());
+      isolate, *frame_it->shared_info(), frame_it->node_id());
 
   DCHECK_EQ(parameter_count,
             function_->shared().internal_formal_parameter_count());
@@ -2522,9 +2523,9 @@ Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code code, Address pc) {
 
 // static
 int Deoptimizer::ComputeSourcePositionFromBytecodeArray(
-    SharedFunctionInfo shared, BailoutId node_id) {
+    Isolate* isolate, SharedFunctionInfo shared, BailoutId node_id) {
   DCHECK(shared.HasBytecodeArray());
-  return AbstractCode::cast(shared.GetBytecodeArray())
+  return AbstractCode::cast(shared.GetBytecodeArray(isolate))
       .SourcePosition(node_id.ToInt());
 }
 

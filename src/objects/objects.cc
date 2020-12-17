@@ -4762,7 +4762,7 @@ int Script::GetEvalPosition(Isolate* isolate, Handle<Script> script) {
       Handle<SharedFunctionInfo> shared =
           handle(script->eval_from_shared(), isolate);
       SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
-      position = shared->abstract_code().SourcePosition(-position);
+      position = shared->abstract_code(isolate).SourcePosition(-position);
     }
     DCHECK_GE(position, 0);
     script->set_eval_from_position(position);
@@ -6484,7 +6484,9 @@ void PropertyCell::SetValueWithInvalidation(Isolate* isolate,
 int JSGeneratorObject::source_position() const {
   CHECK(is_suspended());
   DCHECK(function().shared().HasBytecodeArray());
-  DCHECK(function().shared().GetBytecodeArray().HasSourcePositionTable());
+  Isolate* isolate = GetIsolate();
+  DCHECK(
+      function().shared().GetBytecodeArray(isolate).HasSourcePositionTable());
 
   int code_offset = Smi::ToInt(input_or_debug_pos());
 
@@ -6492,7 +6494,7 @@ int JSGeneratorObject::source_position() const {
   // is used in the source position table, hence the subtraction.
   code_offset -= BytecodeArray::kHeaderSize - kHeapObjectTag;
   AbstractCode code =
-      AbstractCode::cast(function().shared().GetBytecodeArray());
+      AbstractCode::cast(function().shared().GetBytecodeArray(isolate));
   return code.SourcePosition(code_offset);
 }
 

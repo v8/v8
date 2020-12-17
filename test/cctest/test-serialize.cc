@@ -1622,7 +1622,7 @@ TEST(CodeSerializerWithProfiler) {
       isolate, orig_source, Handle<String>(), &cache,
       v8::ScriptCompiler::kNoCompileOptions);
 
-  CHECK(!orig->GetBytecodeArray().HasSourcePositionTable());
+  CHECK(!orig->GetBytecodeArray(isolate).HasSourcePositionTable());
 
   isolate->set_is_profiling(true);
 
@@ -1634,7 +1634,7 @@ TEST(CodeSerializerWithProfiler) {
 
   // Since the profiler is now enabled, source positions should be collected
   // after deserialization.
-  CHECK(copy->GetBytecodeArray().HasSourcePositionTable());
+  CHECK(copy->GetBytecodeArray(isolate).HasSourcePositionTable());
 
   delete cache;
 }
@@ -1824,7 +1824,7 @@ TEST(CodeSerializerLargeCodeObject) {
       isolate, source_str, Handle<String>(), &cache,
       v8::ScriptCompiler::kNoCompileOptions);
 
-  CHECK(isolate->heap()->InSpace(orig->abstract_code(), LO_SPACE));
+  CHECK(isolate->heap()->InSpace(orig->abstract_code(isolate), LO_SPACE));
 
   Handle<SharedFunctionInfo> copy;
   {
@@ -1890,7 +1890,7 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
       isolate, source_str, Handle<String>(), &cache,
       v8::ScriptCompiler::kNoCompileOptions);
 
-  CHECK(heap->InSpace(orig->abstract_code(), LO_SPACE));
+  CHECK(heap->InSpace(orig->abstract_code(isolate), LO_SPACE));
 
   // Pretend that incremental marking is on when deserialization begins.
   heap::ForceEvacuationCandidate(ec_page);
@@ -2447,6 +2447,7 @@ TEST(CodeSerializerAfterExecute) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate2 = v8::Isolate::New(create_params);
+  Isolate* i_isolate2 = reinterpret_cast<Isolate*>(isolate2);
 
   {
     v8::Isolate::Scope iscope(isolate2);
@@ -2459,8 +2460,7 @@ TEST(CodeSerializerAfterExecute) {
     v8::ScriptCompiler::Source source(source_str, origin, cache);
     v8::Local<v8::UnboundScript> script;
     {
-      DisallowCompilation no_compile_expected(
-          reinterpret_cast<Isolate*>(isolate2));
+      DisallowCompilation no_compile_expected(i_isolate2);
       script = v8::ScriptCompiler::CompileUnboundScript(
                    isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache)
                    .ToLocalChecked();
@@ -2469,12 +2469,11 @@ TEST(CodeSerializerAfterExecute) {
 
     Handle<SharedFunctionInfo> sfi = v8::Utils::OpenHandle(*script);
     CHECK(sfi->HasBytecodeArray());
-    BytecodeArray bytecode = sfi->GetBytecodeArray();
+    BytecodeArray bytecode = sfi->GetBytecodeArray(i_isolate2);
     CHECK_EQ(bytecode.osr_loop_nesting_level(), 0);
 
     {
-      DisallowCompilation no_compile_expected(
-          reinterpret_cast<Isolate*>(isolate2));
+      DisallowCompilation no_compile_expected(i_isolate2);
       v8::Local<v8::Value> result = script->BindToCurrentContext()
                                         ->Run(isolate2->GetCurrentContext())
                                         .ToLocalChecked();

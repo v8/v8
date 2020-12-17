@@ -491,8 +491,8 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   if (!function_object->IsJSFunction()) return CrashUnlessFuzzing(isolate);
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
   SharedFunctionInfo sfi = function->shared();
-  if (sfi.abstract_code().kind() != CodeKind::INTERPRETED_FUNCTION &&
-      sfi.abstract_code().kind() != CodeKind::BUILTIN) {
+  if (sfi.abstract_code(isolate).kind() != CodeKind::INTERPRETED_FUNCTION &&
+      sfi.abstract_code(isolate).kind() != CodeKind::BUILTIN) {
     return CrashUnlessFuzzing(isolate);
   }
   sfi.DisableOptimization(BailoutReason::kNeverOptimize);

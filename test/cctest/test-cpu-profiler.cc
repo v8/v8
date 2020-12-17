@@ -134,7 +134,7 @@ class TestSetup {
 
 }  // namespace
 
-i::AbstractCode CreateCode(LocalContext* env) {
+i::AbstractCode CreateCode(i::Isolate* isolate, LocalContext* env) {
   static int counter = 0;
   i::EmbeddedVector<char, 256> script;
   i::EmbeddedVector<char, 32> name;
@@ -153,7 +153,7 @@ i::AbstractCode CreateCode(LocalContext* env) {
 
   i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*GetFunction(env->local(), name_start)));
-  return fun->abstract_code();
+  return fun->abstract_code(isolate);
 }
 
 TEST(CodeEvents) {
@@ -165,10 +165,10 @@ TEST(CodeEvents) {
 
   i::HandleScope scope(isolate);
 
-  i::Handle<i::AbstractCode> aaa_code(CreateCode(&env), isolate);
-  i::Handle<i::AbstractCode> comment_code(CreateCode(&env), isolate);
-  i::Handle<i::AbstractCode> comment2_code(CreateCode(&env), isolate);
-  i::Handle<i::AbstractCode> moved_code(CreateCode(&env), isolate);
+  i::Handle<i::AbstractCode> aaa_code(CreateCode(isolate, &env), isolate);
+  i::Handle<i::AbstractCode> comment_code(CreateCode(isolate, &env), isolate);
+  i::Handle<i::AbstractCode> comment2_code(CreateCode(isolate, &env), isolate);
+  i::Handle<i::AbstractCode> moved_code(CreateCode(isolate, &env), isolate);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfilerCodeObserver code_observer(isolate);
@@ -227,9 +227,9 @@ TEST(TickEvents) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
-  i::Handle<i::AbstractCode> frame1_code(CreateCode(&env), isolate);
-  i::Handle<i::AbstractCode> frame2_code(CreateCode(&env), isolate);
-  i::Handle<i::AbstractCode> frame3_code(CreateCode(&env), isolate);
+  i::Handle<i::AbstractCode> frame1_code(CreateCode(isolate, &env), isolate);
+  i::Handle<i::AbstractCode> frame2_code(CreateCode(isolate, &env), isolate);
+  i::Handle<i::AbstractCode> frame3_code(CreateCode(isolate, &env), isolate);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfilerCodeObserver code_observer(isolate);
@@ -288,7 +288,7 @@ TEST(CodeMapClearedBetweenProfilesWithLazyLogging) {
   i::HandleScope scope(isolate);
 
   // This gets logged when the profiler starts up and scans the heap.
-  i::Handle<i::AbstractCode> code1(CreateCode(&env), isolate);
+  i::Handle<i::AbstractCode> code1(CreateCode(isolate, &env), isolate);
 
   CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging);
   profiler.StartProfiling("");
@@ -308,7 +308,7 @@ TEST(CodeMapClearedBetweenProfilesWithLazyLogging) {
   CHECK(!code_map->FindEntry(code1->InstructionStart()));
 
   // Create code between profiles. This should not be logged yet.
-  i::Handle<i::AbstractCode> code2(CreateCode(&env), isolate);
+  i::Handle<i::AbstractCode> code2(CreateCode(isolate, &env), isolate);
 
   CHECK(!code_map->FindEntry(code2->InstructionStart()));
 }
@@ -320,7 +320,7 @@ TEST(CodeMapNotClearedBetweenProfilesWithEagerLogging) {
   i::HandleScope scope(isolate);
 
   // This gets logged when the profiler starts up and scans the heap.
-  i::Handle<i::AbstractCode> code1(CreateCode(&env), isolate);
+  i::Handle<i::AbstractCode> code1(CreateCode(isolate, &env), isolate);
 
   CpuProfiler profiler(isolate, kDebugNaming, kEagerLogging);
   profiler.StartProfiling("");
@@ -342,7 +342,7 @@ TEST(CodeMapNotClearedBetweenProfilesWithEagerLogging) {
   CHECK_EQ(0, strcmp("function_1", code1_entry->name()));
 
   // Create code between profiles. This should be logged too.
-  i::Handle<i::AbstractCode> code2(CreateCode(&env), isolate);
+  i::Handle<i::AbstractCode> code2(CreateCode(isolate, &env), isolate);
   CHECK(code_map->FindEntry(code2->InstructionStart()));
 
   profiler.StartProfiling("");
@@ -389,7 +389,7 @@ TEST(Issue1398) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
-  i::Handle<i::AbstractCode> code(CreateCode(&env), isolate);
+  i::Handle<i::AbstractCode> code(CreateCode(isolate, &env), isolate);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfilerCodeObserver code_observer(isolate);
@@ -1236,10 +1236,10 @@ static void TickLines(bool optimize) {
   i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*GetFunction(env.local(), func_name)));
   CHECK(!func->shared().is_null());
-  CHECK(!func->shared().abstract_code().is_null());
+  CHECK(!func->shared().abstract_code(isolate).is_null());
   CHECK(!optimize || func->HasAttachedOptimizedCode() ||
         !CcTest::i_isolate()->use_optimizer());
-  i::Handle<i::AbstractCode> code(func->abstract_code(), isolate);
+  i::Handle<i::AbstractCode> code(func->abstract_code(isolate), isolate);
   CHECK(!code->is_null());
   i::Address code_address = code->raw_instruction_start();
   CHECK_NE(code_address, kNullAddress);
@@ -3173,7 +3173,7 @@ TEST(CrashReusedProfiler) {
   profiler->StopProfiling("1");
 
   profiler->StartProfiling("2");
-  CreateCode(&env);
+  CreateCode(isolate, &env);
   profiler->StopProfiling("2");
 }
 

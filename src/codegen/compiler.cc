@@ -300,7 +300,7 @@ void RecordUnoptimizedCompilationStats(Isolate* isolate,
                                        Handle<SharedFunctionInfo> shared_info) {
   int code_size;
   if (shared_info->HasBytecodeArray()) {
-    code_size = shared_info->GetBytecodeArray().SizeIncludingMetadata();
+    code_size = shared_info->GetBytecodeArray(isolate).SizeIncludingMetadata();
   } else {
     code_size = shared_info->asm_wasm_data().Size();
   }
@@ -321,7 +321,7 @@ void RecordUnoptimizedFunctionCompilation(
   Handle<AbstractCode> abstract_code;
   if (shared->HasBytecodeArray()) {
     abstract_code =
-        handle(AbstractCode::cast(shared->GetBytecodeArray()), isolate);
+        handle(AbstractCode::cast(shared->GetBytecodeArray(isolate)), isolate);
   } else {
     DCHECK(shared->HasAsmWasmData());
     abstract_code =
@@ -498,7 +498,7 @@ void InstallInterpreterTrampolineCopy(Isolate* isolate,
     DCHECK(!shared_info->HasBytecodeArray());
     return;
   }
-  Handle<BytecodeArray> bytecode_array(shared_info->GetBytecodeArray(),
+  Handle<BytecodeArray> bytecode_array(shared_info->GetBytecodeArray(isolate),
                                        isolate);
 
   Handle<Code> code = isolate->factory()->CopyCode(Handle<Code>::cast(
@@ -1656,7 +1656,7 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
                                       Handle<SharedFunctionInfo> shared_info) {
   DCHECK(shared_info->is_compiled());
   DCHECK(shared_info->HasBytecodeArray());
-  DCHECK(!shared_info->GetBytecodeArray().HasSourcePositionTable());
+  DCHECK(!shared_info->GetBytecodeArray(isolate).HasSourcePositionTable());
 
   // Source position collection should be context independent.
   NullContextScope null_context_scope(isolate);
@@ -1666,7 +1666,7 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   DCHECK(AllowHeapAllocation::IsAllowed());
 
   Handle<BytecodeArray> bytecode =
-      handle(shared_info->GetBytecodeArray(), isolate);
+      handle(shared_info->GetBytecodeArray(isolate), isolate);
 
   // TODO(v8:8510): Push the CLEAR_EXCEPTION flag or something like it down into
   // the parser so it aborts without setting a pending exception, which then

@@ -2588,6 +2588,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/execution/protectors.h",
     "src/execution/runtime-profiler.cc",
     "src/execution/runtime-profiler.h",
+    "src/execution/shared-mutex-guard-if-off-thread.h",
     "src/execution/simulator-base.cc",
     "src/execution/simulator-base.h",
     "src/execution/simulator.h",

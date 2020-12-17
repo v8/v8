@@ -1747,15 +1747,15 @@ SharedFunctionInfoData::SharedFunctionInfoData(
       builtin_id_(object->HasBuiltinId() ? object->builtin_id()
                                          : Builtins::kNoBuiltinId),
       context_header_size_(object->scope_info().ContextHeaderLength()),
-      GetBytecodeArray_(
-          object->HasBytecodeArray()
-              ? broker->GetOrCreateData(object->GetBytecodeArray())
-              : nullptr)
+      GetBytecodeArray_(object->HasBytecodeArray()
+                            ? broker->GetOrCreateData(
+                                  object->GetBytecodeArray(broker->isolate()))
+                            : nullptr)
 #define INIT_MEMBER(type, name) , name##_(object->name())
           BROKER_SFI_FIELDS(INIT_MEMBER)
 #undef INIT_MEMBER
       ,
-      inlineability_(object->GetInlineability()),
+      inlineability_(object->GetInlineability(broker->isolate())),
       function_template_info_(nullptr),
       template_objects_(broker->zone()),
       scope_info_(nullptr) {
@@ -3415,13 +3415,36 @@ BIMODAL_ACCESSOR_C(ScopeInfo, bool, HasOuterScopeInfo)
 BIMODAL_ACCESSOR(ScopeInfo, ScopeInfo, OuterScopeInfo)
 
 BIMODAL_ACCESSOR_C(SharedFunctionInfo, int, builtin_id)
-BIMODAL_ACCESSOR_WITH_FLAG(SharedFunctionInfo, BytecodeArray, GetBytecodeArray)
+BytecodeArrayRef SharedFunctionInfoRef::GetBytecodeArray() const {
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+    BytecodeArray bytecode_array;
+    LocalIsolate* local_isolate = broker()->local_isolate();
+    if (local_isolate && !local_isolate->is_main_thread()) {
+      bytecode_array = object()->GetBytecodeArray(local_isolate);
+    } else {
+      bytecode_array = object()->GetBytecodeArray(broker()->isolate());
+    }
+    return BytecodeArrayRef(
+        broker(), broker()->CanonicalPersistentHandle(bytecode_array));
+  }
+  return BytecodeArrayRef(
+      broker(), ObjectRef ::data()->AsSharedFunctionInfo()->GetBytecodeArray());
+}
 #define DEF_SFI_ACCESSOR(type, name) \
   BIMODAL_ACCESSOR_WITH_FLAG_C(SharedFunctionInfo, type, name)
 BROKER_SFI_FIELDS(DEF_SFI_ACCESSOR)
 #undef DEF_SFI_ACCESSOR
-BIMODAL_ACCESSOR_C(SharedFunctionInfo, SharedFunctionInfo::Inlineability,
-                   GetInlineability)
+SharedFunctionInfo::Inlineability SharedFunctionInfoRef::GetInlineability()
+    const {
+  if (data_->should_access_heap()) {
+    if (LocalIsolate* local_isolate = broker()->local_isolate()) {
+      return object()->GetInlineability(local_isolate);
+    } else {
+      return object()->GetInlineability(broker()->isolate());
+    }
+  }
+  return ObjectRef ::data()->AsSharedFunctionInfo()->GetInlineability();
+}
 
 BIMODAL_ACCESSOR(FeedbackCell, HeapObject, value)
 

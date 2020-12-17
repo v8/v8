@@ -629,8 +629,9 @@ void JSGeneratorObject::JSGeneratorObjectPrint(std::ostream& os) {  // NOLINT
       os << "\n - source position: ";
       // Can't collect source positions here if not available as that would
       // allocate memory.
+      Isolate* isolate = GetIsolate();
       if (fun_info.HasBytecodeArray() &&
-          fun_info.GetBytecodeArray().HasSourcePositionTable()) {
+          fun_info.GetBytecodeArray(isolate).HasSourcePositionTable()) {
         os << source_position();
         os << " (";
         script_name.PrintUC16(os);
@@ -1408,7 +1409,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
   } else if (ActiveTierIsIgnition()) {
     os << "\n - interpreted";
     if (shared().HasBytecodeArray()) {
-      os << "\n - bytecode: " << shared().GetBytecodeArray();
+      os << "\n - bytecode: " << shared().GetBytecodeArray(isolate);
     }
   }
   if (WasmExportedFunction::IsWasmExportedFunction(*this)) {

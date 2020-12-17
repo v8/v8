@@ -77,7 +77,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
   // Make sure to only access these objects after the side effect check, as the
   // check can allocate on failure.
   SharedFunctionInfo shared = interpreted_frame->function().shared();
-  BytecodeArray bytecode_array = shared.GetBytecodeArray();
+  BytecodeArray bytecode_array = shared.GetBytecodeArray(isolate);
   int bytecode_offset = interpreted_frame->GetBytecodeOffset();
   Bytecode bytecode = Bytecodes::FromByte(bytecode_array.get(bytecode_offset));
 

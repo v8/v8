@@ -697,13 +697,13 @@ static const char* line_number_test_source_profile_time_functions =
 "function lazy_func_at_6th_line() {}";
 
 int GetFunctionLineNumber(CpuProfiler* profiler, LocalContext* env,
-                          const char* name) {
+                          i::Isolate* isolate, const char* name) {
   CodeMap* code_map = profiler->symbolizer()->code_map();
   i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           (*env)->Global()->Get(env->local(), v8_str(name)).ToLocalChecked())));
   CodeEntry* func_entry =
-      code_map->FindEntry(func->abstract_code().InstructionStart());
+      code_map->FindEntry(func->abstract_code(isolate).InstructionStart());
   if (!func_entry) FATAL("%s", name);
   return func_entry->line_number();
 }
@@ -726,12 +726,14 @@ TEST(LineNumber) {
   profiler.processor()->StopSynchronously();
 
   bool is_lazy = i::FLAG_lazy;
-  CHECK_EQ(1, GetFunctionLineNumber(&profiler, &env, "foo_at_the_first_line"));
-  CHECK_EQ(is_lazy ? 0 : 4,
-           GetFunctionLineNumber(&profiler, &env, "lazy_func_at_forth_line"));
-  CHECK_EQ(2, GetFunctionLineNumber(&profiler, &env, "bar_at_the_second_line"));
-  CHECK_EQ(is_lazy ? 0 : 6,
-           GetFunctionLineNumber(&profiler, &env, "lazy_func_at_6th_line"));
+  CHECK_EQ(1, GetFunctionLineNumber(&profiler, &env, isolate,
+                                    "foo_at_the_first_line"));
+  CHECK_EQ(is_lazy ? 0 : 4, GetFunctionLineNumber(&profiler, &env, isolate,
+                                                  "lazy_func_at_forth_line"));
+  CHECK_EQ(2, GetFunctionLineNumber(&profiler, &env, isolate,
+                                    "bar_at_the_second_line"));
+  CHECK_EQ(is_lazy ? 0 : 6, GetFunctionLineNumber(&profiler, &env, isolate,
+                                                  "lazy_func_at_6th_line"));
 
   profiler.StopProfiling("LineNumber");
 }

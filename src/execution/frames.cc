@@ -1232,8 +1232,8 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
         Code code = frame->unchecked_code();
         code_offset = static_cast<int>(frame->pc() - code.InstructionStart());
       }
-      PrintFunctionAndOffset(function, function.abstract_code(), code_offset,
-                             file, print_line_number);
+      PrintFunctionAndOffset(function, function.abstract_code(isolate),
+                             code_offset, file, print_line_number);
       if (print_args) {
         // function arguments
         // (we are intentionally only printing the actually
@@ -1378,8 +1378,10 @@ void FrameSummary::JavaScriptFrameSummary::EnsureSourcePositionsAvailable() {
 }
 
 bool FrameSummary::JavaScriptFrameSummary::AreSourcePositionsAvailable() const {
-  return !FLAG_enable_lazy_source_positions ||
-         function()->shared().GetBytecodeArray().HasSourcePositionTable();
+  return !FLAG_enable_lazy_source_positions || function()
+                                                   ->shared()
+                                                   .GetBytecodeArray(isolate())
+                                                   .HasSourcePositionTable();
 }
 
 bool FrameSummary::JavaScriptFrameSummary::is_subject_to_debugging() const {
@@ -1574,7 +1576,8 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
       } else {
         DCHECK_EQ(it->kind(), TranslatedFrame::kInterpretedFunction);
         code_offset = it->node_id().ToInt();  // Points to current bytecode.
-        abstract_code = handle(shared_info->abstract_code(), isolate());
+        abstract_code =
+            handle(shared_info->abstract_code(isolate()), isolate());
       }
 
       // Append full summary of the encountered JS frame.

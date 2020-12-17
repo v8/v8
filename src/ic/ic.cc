@@ -141,7 +141,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
         static_cast<int>(frame->pc() - function.code().InstructionStart());
   }
   JavaScriptFrame::CollectFunctionAndOffsetForICStats(
-      function, function.abstract_code(), code_offset);
+      function, function.abstract_code(isolate_), code_offset);
 
   // Reserve enough space for IC transition state, the longest length is 17.
   ic_info.state.reserve(17);

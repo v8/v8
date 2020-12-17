@@ -1101,7 +1101,8 @@ TEST(ProfilerEnabledDuringBackgroundCompile) {
           .ToLocalChecked();
 
   i::Handle<i::Object> obj = Utils::OpenHandle(*script);
-  CHECK(i::JSFunction::cast(*obj).shared().AreSourcePositionsAvailable());
+  CHECK(i::JSFunction::cast(*obj).shared().AreSourcePositionsAvailable(
+      CcTest::i_isolate()));
 
   cpu_profiler->StopProfiling(profile);
 }

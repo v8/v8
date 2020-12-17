@@ -650,7 +650,8 @@ class FrameArrayBuilder {
 
     Handle<Object> receiver(generator_object->receiver(), isolate_);
     Handle<AbstractCode> code(
-        AbstractCode::cast(function->shared().GetBytecodeArray()), isolate_);
+        AbstractCode::cast(function->shared().GetBytecodeArray(isolate_)),
+        isolate_);
     int offset = Smi::ToInt(generator_object->input_or_debug_pos());
     // The stored bytecode offset is relative to a different base than what
     // is used in the source position table, hence the subtraction.
@@ -2232,7 +2233,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
       const int code_offset = elements->Offset(i).value();
       Handle<Script> casted_script(Script::cast(script), this);
       if (shared->HasBytecodeArray() &&
-          shared->GetBytecodeArray().HasSourcePositionTable()) {
+          shared->GetBytecodeArray(this).HasSourcePositionTable()) {
         int pos = abstract_code.SourcePosition(code_offset);
         *target = MessageLocation(casted_script, pos, pos + 1, shared);
       } else {
