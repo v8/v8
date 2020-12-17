@@ -231,9 +231,9 @@ builtin WasmAllocateJSArray(implicit context: Context)(size: Smi): JSArray {
   return AllocateJSArray(ElementsKind::PACKED_ELEMENTS, map, size, size);
 }
 
-builtin WasmAllocateRtt(implicit context: Context)(
-    typeIndex: Smi, parent: Map): Map {
-  tail runtime::WasmAllocateRtt(context, typeIndex, parent);
+builtin WasmAllocateRtt(typeIndex: intptr, parent: Map): Map {
+  tail runtime::WasmAllocateRtt(
+      LoadContextFromFrame(), SmiTag(typeIndex), parent);
 }
 
 builtin WasmAllocateStructWithRtt(rtt: Map): HeapObject {

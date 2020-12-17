@@ -403,7 +403,10 @@ class LiftoffCompiler {
     decoder->errorf(decoder->pc_offset(), "unsupported liftoff operation: %s",
                     detail);
     UnuseLabels(decoder);
-    if (FLAG_liftoff_only) {
+    // --liftoff-only ensures that tests actually exercise the Liftoff path
+    // without bailing out. Bailing out due to (simulated) lack of CPU support
+    // is okay though.
+    if (FLAG_liftoff_only && reason != kMissingCPUFeature) {
       FATAL("--liftoff-only: treating bailout as fatal error. Cause: %s",
             detail);
     }
@@ -415,26 +418,9 @@ class LiftoffCompiler {
     return true;
   }
 
-  LiftoffBailoutReason BailoutReasonForType(ValueType type) {
-    switch (type.kind()) {
-      case ValueType::kS128:
-        return kSimd;
-      case ValueType::kOptRef:
-      case ValueType::kRef:
-        if (type.is_reference_to(HeapType::kExn)) {
-          return kExceptionHandling;
-        } else {
-          return kRefTypes;
-        }
-      case ValueType::kBottom:
-        return kMultiValue;
-      default:
-        return kOtherReason;
-    }
-  }
-
   bool CheckSupportedType(FullDecoder* decoder, ValueType type,
                           const char* context) {
+    LiftoffBailoutReason bailout_reason = kOtherReason;
     switch (type.kind()) {
       case ValueType::kI32:
       case ValueType::kI64:
@@ -443,6 +429,7 @@ class LiftoffCompiler {
         return true;
       case ValueType::kS128:
         if (CpuFeatures::SupportsWasmSimd128()) return true;
+        bailout_reason = kMissingCPUFeature;
         break;
       case ValueType::kRef:
       case ValueType::kOptRef:
@@ -450,12 +437,16 @@ class LiftoffCompiler {
       case ValueType::kI8:
       case ValueType::kI16:
         if (FLAG_experimental_liftoff_extern_ref) return true;
+        if (type.is_reference_to(HeapType::kExn)) {
+          bailout_reason = kExceptionHandling;
+        } else {
+          bailout_reason = kRefTypes;
+        }
         break;
       case ValueType::kBottom:
       case ValueType::kStmt:
         UNREACHABLE();
     }
-    LiftoffBailoutReason bailout_reason = BailoutReasonForType(type);
     EmbeddedVector<char, 128> buffer;
     SNPrintF(buffer, "%s %s", type.name().c_str(), context);
     unsupported(decoder, bailout_reason, buffer.begin());
@@ -3860,9 +3851,9 @@ class LiftoffCompiler {
     unsupported(decoder, kRefTypes, "table.fill");
   }
 
-  void StructNewWithRtt(FullDecoder* decoder,
-                        const StructIndexImmediate<validate>& imm,
-                        const Value& rtt, const Value args[], Value* result) {
+  void StructNew(FullDecoder* decoder,
+                 const StructIndexImmediate<validate>& imm, const Value& rtt,
+                 bool initial_values_on_stack) {
     ValueType struct_value_type = ValueType::Ref(imm.index, kNonNullable);
     WasmCode::RuntimeStubId target = WasmCode::kWasmAllocateStructWithRtt;
     compiler::CallDescriptor* call_descriptor =
@@ -3883,19 +3874,31 @@ class LiftoffCompiler {
     for (uint32_t i = imm.struct_type->field_count(); i > 0;) {
       i--;
       int offset = StructFieldOffset(imm.struct_type, i);
-      LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
       ValueType field_type = imm.struct_type->field(i);
+      LiftoffRegister value = initial_values_on_stack
+                                  ? pinned.set(__ PopToRegister(pinned))
+                                  : pinned.set(__ GetUnusedRegister(
+                                        reg_class_for(field_type), pinned));
+      if (!initial_values_on_stack) {
+        if (!CheckSupportedType(decoder, field_type, "default value")) return;
+        SetDefaultValue(value, field_type, pinned);
+      }
       StoreObjectField(obj.gp(), no_reg, offset, value, pinned, field_type);
       pinned.clear(value);
     }
     __ PushRegister(struct_value_type, obj);
   }
 
+  void StructNewWithRtt(FullDecoder* decoder,
+                        const StructIndexImmediate<validate>& imm,
+                        const Value& rtt, const Value args[], Value* result) {
+    StructNew(decoder, imm, rtt, true);
+  }
+
   void StructNewDefault(FullDecoder* decoder,
                         const StructIndexImmediate<validate>& imm,
                         const Value& rtt, Value* result) {
-    // TODO(7748): Implement.
-    unsupported(decoder, kGC, "struct.new_default_with_rtt");
+    StructNew(decoder, imm, rtt, false);
   }
 
   void StructGet(FullDecoder* decoder, const Value& struct_obj,
@@ -4126,33 +4129,37 @@ class LiftoffCompiler {
                          IsolateData::root_slot_offset(index), {});
     __ PushRegister(ValueType::Rtt(imm.type, 1), rtt);
   }
+
   void RttSub(FullDecoder* decoder, const HeapTypeImmediate<validate>& imm,
               const Value& parent, Value* result) {
-    // TODO(7748): Implement.
-    unsupported(decoder, kGC, "rtt.sub");
+    ValueType parent_value_type = parent.type;
+    ValueType rtt_value_type =
+        ValueType::Rtt(imm.type, parent_value_type.depth() + 1);
+    WasmCode::RuntimeStubId target = WasmCode::kWasmAllocateRtt;
+    compiler::CallDescriptor* call_descriptor =
+        GetBuiltinCallDescriptor<WasmAllocateRttDescriptor>(compilation_zone_);
+    ValueType sig_reps[] = {rtt_value_type, kWasmI32, parent_value_type};
+    FunctionSig sig(1, 2, sig_reps);
+    LiftoffAssembler::VarState parent_var =
+        __ cache_state()->stack_state.end()[-1];
+    LiftoffRegister type_reg = __ GetUnusedRegister(kGpReg, {});
+    __ LoadConstant(type_reg, WasmValue(imm.type.representation()));
+    LiftoffAssembler::VarState type_var(kWasmI32, type_reg, 0);
+    __ PrepareBuiltinCall(&sig, call_descriptor, {type_var, parent_var});
+    __ CallRuntimeStub(target);
+    DefineSafepoint();
+    // Drop the parent RTT.
+    __ cache_state()->stack_state.pop_back(1);
+    __ PushRegister(rtt_value_type, LiftoffRegister(kReturnRegister0));
   }
 
-  void RefTest(FullDecoder* decoder, const Value& obj, const Value& rtt,
-               Value* result) {
-    // TODO(7748): Implement.
-    unsupported(decoder, kGC, "ref.test");
-  }
-  void RefCast(FullDecoder* decoder, const Value& obj, const Value& rtt,
-               Value* result) {
-    // TODO(7748): Implement.
-    unsupported(decoder, kGC, "ref.cast");
-  }
-  void BrOnCast(FullDecoder* decoder, const Value& obj, const Value& rtt,
-                Value* result_on_branch, uint32_t depth) {
-    // Before branching, materialize all constants. This avoids repeatedly
-    // materializing them for each conditional branch.
-    if (depth != decoder->control_depth() - 1) {
-      __ MaterializeMergedConstants(
-          decoder->control_at(depth)->br_merge()->arity);
-    }
-
-    Label branch, cont_false;
-    LiftoffRegList pinned;
+  // Falls through on match (=successful type check).
+  // Returns the register containing the object.
+  LiftoffRegister SubtypeCheck(FullDecoder* decoder, const Value& obj,
+                               const Value& rtt, Label* no_match,
+                               LiftoffRegList pinned = {},
+                               Register opt_scratch = no_reg) {
+    Label match;
     LiftoffRegister rtt_reg = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister obj_reg = pinned.set(__ PopToRegister(pinned));
 
@@ -4160,35 +4167,36 @@ class LiftoffCompiler {
     bool rtt_is_i31 = rtt.type.heap_representation() == HeapType::kI31;
     bool i31_check_only = obj_can_be_i31 && rtt_is_i31;
     if (i31_check_only) {
-      __ emit_smi_check(obj_reg.gp(), &cont_false,
+      __ emit_smi_check(obj_reg.gp(), no_match,
                         LiftoffAssembler::kJumpOnNotSmi);
-      // Emit no further code, just fall through to taking the branch.
+      // Emit no further code, just fall through to {match}.
     } else {
       // Reserve all temporary registers up front, so that the cache state
       // tracking doesn't get confused by the following conditional jumps.
-      LiftoffRegister tmp1 = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      LiftoffRegister tmp1 =
+          opt_scratch != no_reg
+              ? LiftoffRegister(opt_scratch)
+              : pinned.set(__ GetUnusedRegister(kGpReg, pinned));
       LiftoffRegister tmp2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
       if (obj_can_be_i31) {
         DCHECK(!rtt_is_i31);
-        __ emit_smi_check(obj_reg.gp(), &cont_false,
-                          LiftoffAssembler::kJumpOnSmi);
+        __ emit_smi_check(obj_reg.gp(), no_match, LiftoffAssembler::kJumpOnSmi);
       }
       if (obj.type.is_nullable()) {
         LoadNullValue(tmp1.gp(), pinned);
-        __ emit_cond_jump(kEqual, &cont_false, obj.type, obj_reg.gp(),
-                          tmp1.gp());
+        __ emit_cond_jump(kEqual, no_match, obj.type, obj_reg.gp(), tmp1.gp());
       }
 
       // At this point, the object is neither null nor an i31ref. Perform
       // a regular type check. Check for exact match first.
       __ LoadMap(tmp1.gp(), obj_reg.gp());
       // {tmp1} now holds the object's map.
-      __ emit_cond_jump(kEqual, &branch, rtt.type, tmp1.gp(), rtt_reg.gp());
+      __ emit_cond_jump(kEqual, &match, rtt.type, tmp1.gp(), rtt_reg.gp());
 
       // If the object isn't guaranteed to be an array or struct, check that.
       // Subsequent code wouldn't handle e.g. funcrefs.
       if (!is_data_ref_type(obj.type, decoder->module_)) {
-        EmitDataRefCheck(tmp1.gp(), &cont_false, tmp2, pinned);
+        EmitDataRefCheck(tmp1.gp(), no_match, tmp2, pinned);
       }
 
       // Constant-time subtyping check: load exactly one candidate RTT from the
@@ -4206,19 +4214,59 @@ class LiftoffCompiler {
       // Step 3: check the list's length.
       LiftoffRegister list_length = tmp2;
       __ LoadFixedArrayLengthAsInt32(list_length, tmp1.gp(), pinned);
-      __ emit_i32_cond_jumpi(kUnsignedLessEqual, &cont_false, list_length.gp(),
+      __ emit_i32_cond_jumpi(kUnsignedLessEqual, no_match, list_length.gp(),
                              rtt.type.depth());
       // Step 4: load the candidate list slot into {tmp1}, and compare it.
       __ LoadTaggedPointer(
           tmp1.gp(), tmp1.gp(), no_reg,
           wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(rtt.type.depth()),
           pinned);
-      __ emit_cond_jump(kUnequal, &cont_false, rtt.type, tmp1.gp(),
-                        rtt_reg.gp());
-      // Fall through to taking the branch.
+      __ emit_cond_jump(kUnequal, no_match, rtt.type, tmp1.gp(), rtt_reg.gp());
+      // Fall through to {match}.
+    }
+    __ bind(&match);
+    return obj_reg;
+  }
+
+  void RefTest(FullDecoder* decoder, const Value& obj, const Value& rtt,
+               Value* result_val) {
+    Label return_false, done;
+    LiftoffRegList pinned;
+    LiftoffRegister result = pinned.set(__ GetUnusedRegister(kGpReg, {}));
+
+    SubtypeCheck(decoder, obj, rtt, &return_false, pinned, result.gp());
+
+    __ LoadConstant(result, WasmValue(1));
+    // TODO(jkummerow): Emit near jumps on platforms where it's more efficient.
+    __ emit_jump(&done);
+
+    __ bind(&return_false);
+    __ LoadConstant(result, WasmValue(0));
+    __ bind(&done);
+    __ PushRegister(kWasmI32, result);
+  }
+
+  void RefCast(FullDecoder* decoder, const Value& obj, const Value& rtt,
+               Value* result) {
+    Label* trap_label = AddOutOfLineTrap(decoder->position(),
+                                         WasmCode::kThrowWasmTrapIllegalCast);
+    LiftoffRegister obj_reg = SubtypeCheck(decoder, obj, rtt, trap_label);
+    __ PushRegister(ValueType::Ref(rtt.type.heap_type(), kNonNullable),
+                    obj_reg);
+  }
+
+  void BrOnCast(FullDecoder* decoder, const Value& obj, const Value& rtt,
+                Value* result_on_branch, uint32_t depth) {
+    // Before branching, materialize all constants. This avoids repeatedly
+    // materializing them for each conditional branch.
+    if (depth != decoder->control_depth() - 1) {
+      __ MaterializeMergedConstants(
+          decoder->control_at(depth)->br_merge()->arity);
     }
 
-    __ bind(&branch);
+    Label cont_false;
+    LiftoffRegister obj_reg = SubtypeCheck(decoder, obj, rtt, &cont_false);
+
     __ PushRegister(rtt.type.is_bottom()
                         ? kWasmBottom
                         : ValueType::Ref(rtt.type.heap_type(), kNonNullable),

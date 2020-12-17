@@ -196,9 +196,6 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
                                            func_body, func_index_,
                                            for_debugging_, counters, detected);
         if (result.succeeded()) break;
-        // In --liftoff-only mode, we should have aborted the process
-        // on bailout, i.e. before getting here.
-        DCHECK(!FLAG_liftoff_only);
       }
 
       // If Liftoff failed, fall back to turbofan.

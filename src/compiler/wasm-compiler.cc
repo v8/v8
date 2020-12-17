@@ -5701,12 +5701,10 @@ Node* WasmGraphBuilder::RttCanon(wasm::HeapType type) {
 }
 
 Node* WasmGraphBuilder::RttSub(wasm::HeapType type, Node* parent_rtt) {
-  return CALL_BUILTIN(
-      WasmAllocateRtt,
-      graph()->NewNode(
-          mcgraph()->common()->NumberConstant(type.representation())),
-      parent_rtt,
-      LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
+  return CALL_BUILTIN(WasmAllocateRtt,
+                      graph()->NewNode(mcgraph()->common()->Int32Constant(
+                          type.representation())),
+                      parent_rtt);
 }
 
 void AssertFalse(MachineGraph* mcgraph, GraphAssembler* gasm, Node* condition) {
