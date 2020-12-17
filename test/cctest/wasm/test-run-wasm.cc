@@ -735,7 +735,7 @@ WASM_EXEC_TEST(Select_s128_parameters) {
     WriteLittleEndianValue<int32_t>(&g1[i], i + 4);
   }
   BUILD(r,
-        WASM_SET_GLOBAL(2, WASM_SELECT(WASM_GET_GLOBAL(0), WASM_GET_GLOBAL(1),
+        WASM_GLOBAL_SET(2, WASM_SELECT(WASM_GLOBAL_GET(0), WASM_GLOBAL_GET(1),
                                        WASM_LOCAL_GET(0))),
         WASM_ONE);
   r.Call(1);
@@ -2120,7 +2120,7 @@ WASM_EXEC_TEST(Int32Global) {
   int32_t* global = r.builder().AddGlobal<int32_t>();
   // global = global + p0
   BUILD(r,
-        WASM_SET_GLOBAL(0, WASM_I32_ADD(WASM_GET_GLOBAL(0), WASM_LOCAL_GET(0))),
+        WASM_GLOBAL_SET(0, WASM_I32_ADD(WASM_GLOBAL_GET(0), WASM_LOCAL_GET(0))),
         WASM_ZERO);
 
   WriteLittleEndianValue<int32_t>(global, 116);
@@ -2142,8 +2142,8 @@ WASM_EXEC_TEST(Int32Globals_DontAlias) {
 
     BUILD(
         r,
-        WASM_SET_GLOBAL(g, WASM_I32_ADD(WASM_GET_GLOBAL(g), WASM_LOCAL_GET(0))),
-        WASM_GET_GLOBAL(g));
+        WASM_GLOBAL_SET(g, WASM_I32_ADD(WASM_GLOBAL_GET(g), WASM_LOCAL_GET(0))),
+        WASM_GLOBAL_GET(g));
 
     // Check that reading/writing global number {g} doesn't alter the others.
     WriteLittleEndianValue<int32_t>(globals[g], 116 * g);
@@ -2167,8 +2167,8 @@ WASM_EXEC_TEST(Float32Global) {
   float* global = r.builder().AddGlobal<float>();
   // global = global + p0
   BUILD(r,
-        WASM_SET_GLOBAL(0,
-                        WASM_F32_ADD(WASM_GET_GLOBAL(0),
+        WASM_GLOBAL_SET(0,
+                        WASM_F32_ADD(WASM_GLOBAL_GET(0),
                                      WASM_F32_SCONVERT_I32(WASM_LOCAL_GET(0)))),
         WASM_ZERO);
 
@@ -2185,8 +2185,8 @@ WASM_EXEC_TEST(Float64Global) {
   double* global = r.builder().AddGlobal<double>();
   // global = global + p0
   BUILD(r,
-        WASM_SET_GLOBAL(0,
-                        WASM_F64_ADD(WASM_GET_GLOBAL(0),
+        WASM_GLOBAL_SET(0,
+                        WASM_F64_ADD(WASM_GLOBAL_GET(0),
                                      WASM_F64_SCONVERT_I32(WASM_LOCAL_GET(0)))),
         WASM_ZERO);
 
@@ -2209,10 +2209,10 @@ WASM_EXEC_TEST(MixedGlobals) {
   float* var_float = r.builder().AddGlobal<float>();
   double* var_double = r.builder().AddGlobal<double>();
 
-  BUILD(r, WASM_SET_GLOBAL(1, WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO)),
-        WASM_SET_GLOBAL(2, WASM_LOAD_MEM(MachineType::Uint32(), WASM_ZERO)),
-        WASM_SET_GLOBAL(3, WASM_LOAD_MEM(MachineType::Float32(), WASM_ZERO)),
-        WASM_SET_GLOBAL(4, WASM_LOAD_MEM(MachineType::Float64(), WASM_ZERO)),
+  BUILD(r, WASM_GLOBAL_SET(1, WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO)),
+        WASM_GLOBAL_SET(2, WASM_LOAD_MEM(MachineType::Uint32(), WASM_ZERO)),
+        WASM_GLOBAL_SET(3, WASM_LOAD_MEM(MachineType::Float32(), WASM_ZERO)),
+        WASM_GLOBAL_SET(4, WASM_LOAD_MEM(MachineType::Float64(), WASM_ZERO)),
         WASM_ZERO);
 
   memory[0] = 0xAA;

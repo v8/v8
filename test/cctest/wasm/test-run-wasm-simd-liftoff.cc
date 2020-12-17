@@ -41,7 +41,7 @@ WASM_SIMD_LIFTOFF_TEST(S128Global) {
 
   int32_t* g0 = r.builder().AddGlobal<int32_t>(kWasmS128);
   int32_t* g1 = r.builder().AddGlobal<int32_t>(kWasmS128);
-  BUILD(r, WASM_SET_GLOBAL(1, WASM_GET_GLOBAL(0)), WASM_ONE);
+  BUILD(r, WASM_GLOBAL_SET(1, WASM_GLOBAL_GET(0)), WASM_ONE);
 
   int32_t expected = 0x1234;
   for (int i = 0; i < 4; i++) {
@@ -133,11 +133,11 @@ WASM_SIMD_LIFTOFF_TEST(I8x16Shuffle) {
       {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 31}};
 
   // Set up locals so shuffle is called with non-adjacent registers v2 and v0.
-  BUILD(r, WASM_LOCAL_SET(local0, WASM_GET_GLOBAL(1)),  // local0 is in v0
-        WASM_LOCAL_SET(local1, WASM_GET_GLOBAL(0)),     // local1 is in v1
-        WASM_GET_GLOBAL(0),                             // global0 is in v2
+  BUILD(r, WASM_LOCAL_SET(local0, WASM_GLOBAL_GET(1)),  // local0 is in v0
+        WASM_LOCAL_SET(local1, WASM_GLOBAL_GET(0)),     // local1 is in v1
+        WASM_GLOBAL_GET(0),                             // global0 is in v2
         WASM_LOCAL_GET(local0),                         // local0 is in v0
-        WASM_SET_GLOBAL(2, WASM_SIMD_I8x16_SHUFFLE_OP(
+        WASM_GLOBAL_SET(2, WASM_SIMD_I8x16_SHUFFLE_OP(
                                kExprI8x16Shuffle, pattern, WASM_NOP, WASM_NOP)),
         WASM_ONE);
 
@@ -171,9 +171,9 @@ WASM_SIMD_LIFTOFF_TEST(I8x16Shuffle_SingleOperand) {
       {31, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0}};
 
   // Set up locals so shuffle is called with non-adjacent registers v2 and v0.
-  BUILD(r, WASM_LOCAL_SET(local0, WASM_GET_GLOBAL(0)), WASM_LOCAL_GET(local0),
+  BUILD(r, WASM_LOCAL_SET(local0, WASM_GLOBAL_GET(0)), WASM_LOCAL_GET(local0),
         WASM_LOCAL_GET(local0),
-        WASM_SET_GLOBAL(1, WASM_SIMD_I8x16_SHUFFLE_OP(
+        WASM_GLOBAL_SET(1, WASM_SIMD_I8x16_SHUFFLE_OP(
                                kExprI8x16Shuffle, pattern, WASM_NOP, WASM_NOP)),
         WASM_ONE);
 

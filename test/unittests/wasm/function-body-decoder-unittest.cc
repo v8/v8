@@ -1990,9 +1990,9 @@ TEST_F(FunctionBodyDecoderTest, Int32Globals) {
 
   builder.AddGlobal(kWasmI32);
 
-  ExpectValidates(sig, {WASM_GET_GLOBAL(0)});
-  ExpectFailure(sig, {WASM_SET_GLOBAL(0, WASM_LOCAL_GET(0))});
-  ExpectValidates(sig, {WASM_SET_GLOBAL(0, WASM_LOCAL_GET(0)), WASM_ZERO});
+  ExpectValidates(sig, {WASM_GLOBAL_GET(0)});
+  ExpectFailure(sig, {WASM_GLOBAL_SET(0, WASM_LOCAL_GET(0))});
+  ExpectValidates(sig, {WASM_GLOBAL_SET(0, WASM_LOCAL_GET(0)), WASM_ZERO});
 }
 
 TEST_F(FunctionBodyDecoderTest, ImmutableGlobal) {
@@ -2001,8 +2001,8 @@ TEST_F(FunctionBodyDecoderTest, ImmutableGlobal) {
   uint32_t g0 = builder.AddGlobal(kWasmI32, true);
   uint32_t g1 = builder.AddGlobal(kWasmI32, false);
 
-  ExpectValidates(sig, {WASM_SET_GLOBAL(g0, WASM_ZERO)});
-  ExpectFailure(sig, {WASM_SET_GLOBAL(g1, WASM_ZERO)});
+  ExpectValidates(sig, {WASM_GLOBAL_SET(g0, WASM_ZERO)});
+  ExpectFailure(sig, {WASM_GLOBAL_SET(g1, WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, Int32Globals_fail) {
@@ -2013,15 +2013,15 @@ TEST_F(FunctionBodyDecoderTest, Int32Globals_fail) {
   builder.AddGlobal(kWasmF32);
   builder.AddGlobal(kWasmF64);
 
-  ExpectFailure(sig, {WASM_GET_GLOBAL(0)});
-  ExpectFailure(sig, {WASM_GET_GLOBAL(1)});
-  ExpectFailure(sig, {WASM_GET_GLOBAL(2)});
-  ExpectFailure(sig, {WASM_GET_GLOBAL(3)});
+  ExpectFailure(sig, {WASM_GLOBAL_GET(0)});
+  ExpectFailure(sig, {WASM_GLOBAL_GET(1)});
+  ExpectFailure(sig, {WASM_GLOBAL_GET(2)});
+  ExpectFailure(sig, {WASM_GLOBAL_GET(3)});
 
-  ExpectFailure(sig, {WASM_SET_GLOBAL(0, WASM_LOCAL_GET(0)), WASM_ZERO});
-  ExpectFailure(sig, {WASM_SET_GLOBAL(1, WASM_LOCAL_GET(0)), WASM_ZERO});
-  ExpectFailure(sig, {WASM_SET_GLOBAL(2, WASM_LOCAL_GET(0)), WASM_ZERO});
-  ExpectFailure(sig, {WASM_SET_GLOBAL(3, WASM_LOCAL_GET(0)), WASM_ZERO});
+  ExpectFailure(sig, {WASM_GLOBAL_SET(0, WASM_LOCAL_GET(0)), WASM_ZERO});
+  ExpectFailure(sig, {WASM_GLOBAL_SET(1, WASM_LOCAL_GET(0)), WASM_ZERO});
+  ExpectFailure(sig, {WASM_GLOBAL_SET(2, WASM_LOCAL_GET(0)), WASM_ZERO});
+  ExpectFailure(sig, {WASM_GLOBAL_SET(3, WASM_LOCAL_GET(0)), WASM_ZERO});
 }
 
 TEST_F(FunctionBodyDecoderTest, Int64Globals) {
@@ -2030,13 +2030,13 @@ TEST_F(FunctionBodyDecoderTest, Int64Globals) {
   builder.AddGlobal(kWasmI64);
   builder.AddGlobal(kWasmI64);
 
-  ExpectValidates(sig, {WASM_GET_GLOBAL(0)});
-  ExpectValidates(sig, {WASM_GET_GLOBAL(1)});
+  ExpectValidates(sig, {WASM_GLOBAL_GET(0)});
+  ExpectValidates(sig, {WASM_GLOBAL_GET(1)});
 
   ExpectValidates(sig,
-                  {WASM_SET_GLOBAL(0, WASM_LOCAL_GET(0)), WASM_LOCAL_GET(0)});
+                  {WASM_GLOBAL_SET(0, WASM_LOCAL_GET(0)), WASM_LOCAL_GET(0)});
   ExpectValidates(sig,
-                  {WASM_SET_GLOBAL(1, WASM_LOCAL_GET(0)), WASM_LOCAL_GET(0)});
+                  {WASM_GLOBAL_SET(1, WASM_LOCAL_GET(0)), WASM_LOCAL_GET(0)});
 }
 
 TEST_F(FunctionBodyDecoderTest, Float32Globals) {
@@ -2044,9 +2044,9 @@ TEST_F(FunctionBodyDecoderTest, Float32Globals) {
 
   builder.AddGlobal(kWasmF32);
 
-  ExpectValidates(sig, {WASM_GET_GLOBAL(0)});
+  ExpectValidates(sig, {WASM_GLOBAL_GET(0)});
   ExpectValidates(sig,
-                  {WASM_SET_GLOBAL(0, WASM_LOCAL_GET(0)), WASM_LOCAL_GET(0)});
+                  {WASM_GLOBAL_SET(0, WASM_LOCAL_GET(0)), WASM_LOCAL_GET(0)});
 }
 
 TEST_F(FunctionBodyDecoderTest, Float64Globals) {
@@ -2054,9 +2054,9 @@ TEST_F(FunctionBodyDecoderTest, Float64Globals) {
 
   builder.AddGlobal(kWasmF64);
 
-  ExpectValidates(sig, {WASM_GET_GLOBAL(0)});
+  ExpectValidates(sig, {WASM_GLOBAL_GET(0)});
   ExpectValidates(sig,
-                  {WASM_SET_GLOBAL(0, WASM_LOCAL_GET(0)), WASM_LOCAL_GET(0)});
+                  {WASM_GLOBAL_SET(0, WASM_LOCAL_GET(0)), WASM_LOCAL_GET(0)});
 }
 
 TEST_F(FunctionBodyDecoderTest, AllGetGlobalCombinations) {
@@ -2069,7 +2069,7 @@ TEST_F(FunctionBodyDecoderTest, AllGetGlobalCombinations) {
       module = builder.module();
       builder.AddGlobal(global_type);
       Validate(IsSubtypeOf(global_type, local_type, module), &sig,
-               {WASM_GET_GLOBAL(0)});
+               {WASM_GLOBAL_GET(0)});
     }
   }
 }
@@ -2084,7 +2084,7 @@ TEST_F(FunctionBodyDecoderTest, AllSetGlobalCombinations) {
       module = builder.module();
       builder.AddGlobal(global_type);
       Validate(IsSubtypeOf(local_type, global_type, module), &sig,
-               {WASM_SET_GLOBAL(0, WASM_LOCAL_GET(0))});
+               {WASM_GLOBAL_SET(0, WASM_LOCAL_GET(0))});
     }
   }
 }

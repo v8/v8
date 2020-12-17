@@ -475,8 +475,8 @@ WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_Globals) {
   runner.builder().AddGlobal<int32_t>();
 
   TestCode<void> code(&runner,
-                      {WASM_SET_GLOBAL(0, WASM_I32V_1('4')),
-                       WASM_SET_GLOBAL(1, WASM_I32V_1('5')), WASM_RETURN0},
+                      {WASM_GLOBAL_SET(0, WASM_I32V_1('4')),
+                       WASM_GLOBAL_SET(1, WASM_I32V_1('5')), WASM_RETURN0},
                       {});
   code.BreakOnReturn(&runner);
 
@@ -529,7 +529,7 @@ WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_JavaScript) {
 
   TestCode<int64_t> code(
       &runner,
-      {WASM_SET_GLOBAL(0, WASM_I32V_2('B')),
+      {WASM_GLOBAL_SET(0, WASM_I32V_2('B')),
        WASM_LOCAL_SET(0, WASM_I64V_2('A')), WASM_RETURN1(WASM_LOCAL_GET(0))},
       {ValueType::kI64});
   code.BreakOnReturn(&runner);
@@ -578,7 +578,7 @@ WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_JavaScript_Caching) {
 
   TestCode<int32_t> code(
       &runner,
-      {WASM_SET_GLOBAL(0, WASM_I32V_2('B')), WASM_RETURN1(WASM_GET_GLOBAL(0))},
+      {WASM_GLOBAL_SET(0, WASM_I32V_2('B')), WASM_RETURN1(WASM_GLOBAL_GET(0))},
       {});
   code.BreakOnReturn(&runner);
 

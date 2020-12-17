@@ -39,10 +39,10 @@ TEST_F(WasmCapiTest, HostRef) {
       CStrVector("global"));
   uint32_t table_index = builder()->AddTable(kWasmExternRef, 10);
   builder()->AddExport(CStrVector("table"), kExternalTable, table_index);
-  byte global_set_code[] = {WASM_SET_GLOBAL(global_index, WASM_LOCAL_GET(0))};
+  byte global_set_code[] = {WASM_GLOBAL_SET(global_index, WASM_LOCAL_GET(0))};
   AddExportedFunction(CStrVector("global.set"), global_set_code,
                       sizeof(global_set_code), &v_r_sig);
-  byte global_get_code[] = {WASM_GET_GLOBAL(global_index)};
+  byte global_get_code[] = {WASM_GLOBAL_GET(global_index)};
   AddExportedFunction(CStrVector("global.get"), global_get_code,
                       sizeof(global_get_code), &r_v_sig);
   byte table_set_code[] = {

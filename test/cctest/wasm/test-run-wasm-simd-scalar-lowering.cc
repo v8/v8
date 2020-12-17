@@ -30,7 +30,7 @@ WASM_SIMD_TEST(I8x16ToF32x4) {
   float* g = r.builder().AddGlobal<float>(kWasmS128);
   byte param1 = 0;
   BUILD(r,
-        WASM_SET_GLOBAL(
+        WASM_GLOBAL_SET(
             0, WASM_SIMD_UNOP(kExprF32x4Sqrt,
                               WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(param1)))),
         WASM_ONE);

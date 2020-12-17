@@ -32,7 +32,7 @@ namespace module_decoder_unittest {
 #define WASM_INIT_EXPR_EXTERN_REF_NULL WASM_REF_NULL(kExternRefCode), kExprEnd
 #define WASM_INIT_EXPR_FUNC_REF_NULL WASM_REF_NULL(kFuncRefCode), kExprEnd
 #define WASM_INIT_EXPR_REF_FUNC(val) WASM_REF_FUNC(val), kExprEnd
-#define WASM_INIT_EXPR_GLOBAL(index) WASM_GET_GLOBAL(index), kExprEnd
+#define WASM_INIT_EXPR_GLOBAL(index) WASM_GLOBAL_GET(index), kExprEnd
 
 #define REF_NULL_ELEMENT kExprRefNull, kFuncRefCode, kExprEnd
 #define REF_FUNC_ELEMENT(v) kExprRefFunc, U32V_1(v), kExprEnd
@@ -540,7 +540,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
       SECTION(Global, ENTRY_COUNT(1),         // --
               kI32Code,                       // type
               1,                              // mutable
-              WASM_GET_GLOBAL(42), kExprEnd)  // init value
+              WASM_GLOBAL_GET(42), kExprEnd)  // init value
   };
   EXPECT_FAILURE_WITH_MSG(referencing_out_of_bounds_global,
                           "global index is out of bounds");
@@ -549,7 +549,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
       SECTION(Global, ENTRY_COUNT(2),        // --
               kI32Code,                      // type
               0,                             // mutable
-              WASM_GET_GLOBAL(1), kExprEnd,  // init value
+              WASM_GLOBAL_GET(1), kExprEnd,  // init value
               kI32Code,                      // type
               0,                             // mutable
               WASM_I32V(0), kExprEnd)        // init value
@@ -566,7 +566,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
                 WASM_RTT(2, kFuncRefCode),               // type
                 0,                                       // mutable
                 WASM_RTT_SUB(kFuncRefCode,               // init value
-                             WASM_GET_GLOBAL(1)),        // --
+                             WASM_GLOBAL_GET(1)),        // --
                 kExprEnd,                                // --
                 WASM_RTT(1, kFuncRefCode),               // type
                 0,                                       // mutable
@@ -583,7 +583,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
               WASM_I32V(1), kExprEnd,        // init value
               kI32Code,                      // type
               0,                             // mutable
-              WASM_GET_GLOBAL(0), kExprEnd)  // init value
+              WASM_GLOBAL_GET(0), kExprEnd)  // init value
   };
   EXPECT_FAILURE_WITH_MSG(
       referencing_mutable_global,
@@ -598,7 +598,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
       SECTION(Global, ENTRY_COUNT(1),          // --
               kI32Code,                        // type
               0,                               // mutable
-              WASM_GET_GLOBAL(0), kExprEnd)    // init value
+              WASM_GLOBAL_GET(0), kExprEnd)    // init value
   };
   EXPECT_FAILURE_WITH_MSG(
       referencing_mutable_imported_global,
@@ -613,7 +613,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
       SECTION(Global, ENTRY_COUNT(1),          // --
               kI32Code,                        // type
               0,                               // mutable
-              WASM_GET_GLOBAL(0), kExprEnd)    // init value
+              WASM_GLOBAL_GET(0), kExprEnd)    // init value
   };
   EXPECT_VERIFIES(referencing_immutable_imported_global);
 
@@ -624,7 +624,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
               WASM_I32V(1), kExprEnd,        // init value
               kI32Code,                      // type
               0,                             // mutable
-              WASM_GET_GLOBAL(0), kExprEnd)  // init value
+              WASM_GLOBAL_GET(0), kExprEnd)  // init value
   };
   EXPECT_FAILURE_WITH_MSG(
       referencing_local_global,
@@ -864,7 +864,7 @@ TEST_F(WasmModuleVerifyTest, GlobalRttSubOfGlobal) {
               WASM_RTT(1, kEqRefCode),  // type
               0),                       // mutability
       SECTION(Global, ENTRY_COUNT(1), WASM_RTT(2, kI31RefCode), 1,
-              WASM_RTT_SUB(kI31RefCode, WASM_GET_GLOBAL(0)), kExprEnd)};
+              WASM_RTT_SUB(kI31RefCode, WASM_GLOBAL_GET(0)), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   WasmInitExpr expected =
       WasmInitExpr::RttSub(HeapType::kI31, WasmInitExpr::GlobalGet(0));
@@ -885,7 +885,7 @@ TEST_F(WasmModuleVerifyTest, GlobalRttSubOfGlobalTypeError) {
               kI32Code,         // type
               0),               // mutability
       SECTION(Global, ENTRY_COUNT(1), WASM_RTT(2, kExternRefCode), 1,
-              WASM_RTT_SUB(kExternRefCode, WASM_GET_GLOBAL(0)), kExprEnd)};
+              WASM_RTT_SUB(kExternRefCode, WASM_GLOBAL_GET(0)), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result, "rtt.sub requires a supertype rtt on stack");
 }

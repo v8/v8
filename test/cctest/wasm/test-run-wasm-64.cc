@@ -1356,8 +1356,8 @@ WASM_EXEC_TEST(I64Global) {
   int64_t* global = r.builder().AddGlobal<int64_t>();
   // global = global + p0
   BUILD(r,
-        WASM_SET_GLOBAL(0,
-                        WASM_I64_AND(WASM_GET_GLOBAL(0),
+        WASM_GLOBAL_SET(0,
+                        WASM_I64_AND(WASM_GLOBAL_GET(0),
                                      WASM_I64_SCONVERT_I32(WASM_LOCAL_GET(0)))),
         WASM_ZERO);
 
