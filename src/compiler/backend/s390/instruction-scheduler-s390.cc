@@ -202,6 +202,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_I64x2ExtractLane:
     case kS390_I64x2Eq:
     case kS390_I64x2BitMask:
+    case kS390_I64x2ExtMulLowI32x4S:
+    case kS390_I64x2ExtMulHighI32x4S:
+    case kS390_I64x2ExtMulLowI32x4U:
+    case kS390_I64x2ExtMulHighI32x4U:
     case kS390_I32x4Splat:
     case kS390_I32x4ExtractLane:
     case kS390_I32x4ReplaceLane:
@@ -232,6 +236,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_I32x4Abs:
     case kS390_I32x4BitMask:
     case kS390_I32x4DotI16x8S:
+    case kS390_I32x4ExtMulLowI16x8S:
+    case kS390_I32x4ExtMulHighI16x8S:
+    case kS390_I32x4ExtMulLowI16x8U:
+    case kS390_I32x4ExtMulHighI16x8U:
     case kS390_I16x8Splat:
     case kS390_I16x8ExtractLaneU:
     case kS390_I16x8ExtractLaneS:
@@ -267,6 +275,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_I16x8RoundingAverageU:
     case kS390_I16x8Abs:
     case kS390_I16x8BitMask:
+    case kS390_I16x8ExtMulLowI8x16S:
+    case kS390_I16x8ExtMulHighI8x16S:
+    case kS390_I16x8ExtMulLowI8x16U:
+    case kS390_I16x8ExtMulHighI8x16U:
     case kS390_I8x16Splat:
     case kS390_I8x16ExtractLaneU:
     case kS390_I8x16ExtractLaneS:

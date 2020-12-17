@@ -4113,6 +4113,80 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             Condition(0), Condition(0), Condition(2));
       break;
     }
+#define ASSEMBLE_SIMD_I64X2_EXT_MUL(UNPACK_INSTR)                              \
+  __ UNPACK_INSTR(kScratchDoubleReg, i.InputSimd128Register(0), Condition(0),  \
+                  Condition(0), Condition(2));                                 \
+  __ UNPACK_INSTR(i.OutputSimd128Register(), i.InputSimd128Register(1),        \
+                  Condition(0), Condition(0), Condition(2));                   \
+  Register scratch_0 = r0;                                                     \
+  Register scratch_1 = r1;                                                     \
+  for (int lane = 0; lane < 2; lane++) {                                       \
+    __ vlgv(scratch_0, kScratchDoubleReg, MemOperand(r0, lane), Condition(3)); \
+    __ vlgv(scratch_1, i.OutputSimd128Register(), MemOperand(r0, lane),        \
+            Condition(3));                                                     \
+    __ Mul64(scratch_0, scratch_1);                                            \
+    scratch_0 = r1;                                                            \
+    scratch_1 = ip;                                                            \
+  }                                                                            \
+  __ vlvgp(i.OutputSimd128Register(), r0, r1);
+    case kS390_I64x2ExtMulLowI32x4S: {
+      ASSEMBLE_SIMD_I64X2_EXT_MUL(vupl)
+      break;
+    }
+    case kS390_I64x2ExtMulHighI32x4S: {
+      ASSEMBLE_SIMD_I64X2_EXT_MUL(vuph)
+      break;
+    }
+    case kS390_I64x2ExtMulLowI32x4U: {
+      ASSEMBLE_SIMD_I64X2_EXT_MUL(vupll)
+      break;
+    }
+    case kS390_I64x2ExtMulHighI32x4U: {
+      ASSEMBLE_SIMD_I64X2_EXT_MUL(vuplh)
+      break;
+    }
+#undef ASSEMBLE_SIMD_I64X2_EXT_MUL
+#define ASSEMBLE_SIMD_I32X4_I16X8_EXT_MUL(UNPACK_INSTR, MODE)                 \
+  __ UNPACK_INSTR(kScratchDoubleReg, i.InputSimd128Register(0), Condition(0), \
+                  Condition(0), Condition(MODE));                             \
+  __ UNPACK_INSTR(i.OutputSimd128Register(), i.InputSimd128Register(1),       \
+                  Condition(0), Condition(0), Condition(MODE));               \
+  __ vml(i.OutputSimd128Register(), kScratchDoubleReg,                        \
+         i.OutputSimd128Register(), Condition(0), Condition(0),               \
+         Condition(MODE + 1));
+    case kS390_I32x4ExtMulLowI16x8S: {
+      ASSEMBLE_SIMD_I32X4_I16X8_EXT_MUL(vupl, 1)
+      break;
+    }
+    case kS390_I32x4ExtMulHighI16x8S: {
+      ASSEMBLE_SIMD_I32X4_I16X8_EXT_MUL(vuph, 1)
+      break;
+    }
+    case kS390_I32x4ExtMulLowI16x8U: {
+      ASSEMBLE_SIMD_I32X4_I16X8_EXT_MUL(vupll, 1)
+      break;
+    }
+    case kS390_I32x4ExtMulHighI16x8U: {
+      ASSEMBLE_SIMD_I32X4_I16X8_EXT_MUL(vuplh, 1)
+      break;
+    }
+    case kS390_I16x8ExtMulLowI8x16S: {
+      ASSEMBLE_SIMD_I32X4_I16X8_EXT_MUL(vupl, 0)
+      break;
+    }
+    case kS390_I16x8ExtMulHighI8x16S: {
+      ASSEMBLE_SIMD_I32X4_I16X8_EXT_MUL(vuph, 0)
+      break;
+    }
+    case kS390_I16x8ExtMulLowI8x16U: {
+      ASSEMBLE_SIMD_I32X4_I16X8_EXT_MUL(vupll, 0)
+      break;
+    }
+    case kS390_I16x8ExtMulHighI8x16U: {
+      ASSEMBLE_SIMD_I32X4_I16X8_EXT_MUL(vuplh, 0)
+      break;
+    }
+#undef ASSEMBLE_SIMD_I32X4_I16X8_EXT_MUL
     case kS390_StoreCompressTagged: {
       CHECK(!instr->HasOutput());
       size_t index = 0;

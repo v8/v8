@@ -2458,6 +2458,43 @@ void InstructionSelector::VisitS128Const(Node* node) {
   }
 }
 
+void InstructionSelector::VisitI64x2ExtMulLowI32x4S(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI64x2ExtMulHighI32x4S(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI64x2ExtMulLowI32x4U(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI64x2ExtMulHighI32x4U(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI32x4ExtMulLowI16x8S(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI32x4ExtMulHighI16x8S(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI32x4ExtMulLowI16x8U(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI32x4ExtMulHighI16x8U(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI16x8ExtMulLowI8x16S(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI16x8ExtMulHighI8x16S(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI16x8ExtMulLowI8x16U(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI16x8ExtMulHighI8x16U(Node* node) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,
     Node* node) {

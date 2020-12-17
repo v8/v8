@@ -2446,6 +2446,10 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I64x2Sub)              \
   V(I64x2Mul)              \
   V(I64x2Eq)               \
+  V(I64x2ExtMulLowI32x4S)  \
+  V(I64x2ExtMulHighI32x4S) \
+  V(I64x2ExtMulLowI32x4U)  \
+  V(I64x2ExtMulHighI32x4U) \
   V(I32x4Add)              \
   V(I32x4AddHoriz)         \
   V(I32x4Sub)              \
@@ -2461,6 +2465,10 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I32x4GtU)              \
   V(I32x4GeU)              \
   V(I32x4DotI16x8S)        \
+  V(I32x4ExtMulLowI16x8S)  \
+  V(I32x4ExtMulHighI16x8S) \
+  V(I32x4ExtMulLowI16x8U)  \
+  V(I32x4ExtMulHighI16x8U) \
   V(I16x8Add)              \
   V(I16x8AddHoriz)         \
   V(I16x8Sub)              \
@@ -2482,6 +2490,10 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I16x8AddSatU)          \
   V(I16x8SubSatU)          \
   V(I16x8RoundingAverageU) \
+  V(I16x8ExtMulLowI8x16S)  \
+  V(I16x8ExtMulHighI8x16S) \
+  V(I16x8ExtMulLowI8x16U)  \
+  V(I16x8ExtMulHighI8x16U) \
   V(I8x16Add)              \
   V(I8x16Sub)              \
   V(I8x16Mul)              \

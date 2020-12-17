@@ -256,6 +256,10 @@ namespace compiler {
   V(S390_I64x2ExtractLane)                  \
   V(S390_I64x2Eq)                           \
   V(S390_I64x2BitMask)                      \
+  V(S390_I64x2ExtMulLowI32x4S)              \
+  V(S390_I64x2ExtMulHighI32x4S)             \
+  V(S390_I64x2ExtMulLowI32x4U)              \
+  V(S390_I64x2ExtMulHighI32x4U)             \
   V(S390_I32x4Splat)                        \
   V(S390_I32x4ExtractLane)                  \
   V(S390_I32x4ReplaceLane)                  \
@@ -286,6 +290,10 @@ namespace compiler {
   V(S390_I32x4Abs)                          \
   V(S390_I32x4BitMask)                      \
   V(S390_I32x4DotI16x8S)                    \
+  V(S390_I32x4ExtMulLowI16x8S)              \
+  V(S390_I32x4ExtMulHighI16x8S)             \
+  V(S390_I32x4ExtMulLowI16x8U)              \
+  V(S390_I32x4ExtMulHighI16x8U)             \
   V(S390_I16x8Splat)                        \
   V(S390_I16x8ExtractLaneU)                 \
   V(S390_I16x8ExtractLaneS)                 \
@@ -321,6 +329,10 @@ namespace compiler {
   V(S390_I16x8RoundingAverageU)             \
   V(S390_I16x8Abs)                          \
   V(S390_I16x8BitMask)                      \
+  V(S390_I16x8ExtMulLowI8x16S)              \
+  V(S390_I16x8ExtMulHighI8x16S)             \
+  V(S390_I16x8ExtMulLowI8x16U)              \
+  V(S390_I16x8ExtMulHighI8x16U)             \
   V(S390_I8x16Splat)                        \
   V(S390_I8x16ExtractLaneU)                 \
   V(S390_I8x16ExtractLaneS)                 \
