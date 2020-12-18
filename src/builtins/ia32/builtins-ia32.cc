@@ -1379,7 +1379,7 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
     __ Pop(kJavaScriptCallTargetRegister);
     __ PushReturnAddressFrom(eax);
 
-    __ AssertFunction(kJavaScriptCallTargetRegister);
+    __ AssertFunction(kJavaScriptCallTargetRegister, eax);
     __ AssertUndefinedOrAllocationSite(kJavaScriptCallExtraArg1Register, eax);
 
     __ movd(eax, xmm0);  // Reload number of arguments.
@@ -2175,7 +2175,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   //  -- edi : the function to call (checked to be a JSFunction)
   // -----------------------------------
   StackArgumentsAccessor args(eax);
-  __ AssertFunction(edi);
+  __ AssertFunction(edi, ebx);
 
   // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
   // Check that the function is not a "classConstructor".
@@ -2385,13 +2385,16 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   //  -- edi : the target to call (can be any Object).
   // -----------------------------------
   StackArgumentsAccessor args(eax);
+  const Register scratch = ebx;
 
   Label non_callable, non_function, non_smi, non_jsfunction,
       non_jsboundfunction;
   __ JumpIfSmi(edi, &non_callable);
   __ bind(&non_smi);
-  __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
-  __ j(not_equal, &non_jsfunction);
+  __ LoadMap(ecx, edi);
+  __ CmpInstanceTypeRange(ecx, scratch, FIRST_JS_FUNCTION_TYPE,
+                          LAST_JS_FUNCTION_TYPE);
+  __ j(above, &non_jsfunction);
   __ Jump(masm->isolate()->builtins()->CallFunction(mode),
           RelocInfo::CODE_TARGET);
 
@@ -2440,7 +2443,7 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
   //  -- edi : the constructor to call (checked to be a JSFunction)
   // -----------------------------------
   __ AssertConstructor(edi);
-  __ AssertFunction(edi);
+  __ AssertFunction(edi, ebx);
 
   Label call_generic_stub;
 
@@ -2500,6 +2503,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   //  -- edi : the constructor to call (can be any Object)
   // -----------------------------------
   StackArgumentsAccessor args(eax);
+  const Register scratch = ebx;
 
   // Check if target is a Smi.
   Label non_constructor, non_proxy, non_jsfunction, non_jsboundfunction;
@@ -2512,8 +2516,9 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   __ j(zero, &non_constructor);
 
   // Dispatch based on instance type.
-  __ CmpInstanceType(ecx, JS_FUNCTION_TYPE);
-  __ j(not_equal, &non_jsfunction);
+  __ CmpInstanceTypeRange(ecx, scratch, FIRST_JS_FUNCTION_TYPE,
+                          LAST_JS_FUNCTION_TYPE);
+  __ j(above, &non_jsfunction);
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructFunction),
           RelocInfo::CODE_TARGET);
 

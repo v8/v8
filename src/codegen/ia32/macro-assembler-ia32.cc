@@ -733,6 +733,17 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
   cmpw(FieldOperand(map, Map::kInstanceTypeOffset), Immediate(type));
 }
 
+void MacroAssembler::CmpInstanceTypeRange(Register map, Register scratch,
+                                          InstanceType lower_limit,
+                                          InstanceType higher_limit) {
+  //TODO(gsathya): is there a better way to do this without pushing and popping?                                            
+  Push(scratch);
+  movzx_w(scratch, FieldOperand(map, Map::kInstanceTypeOffset));
+  lea(scratch, Operand(scratch, 0u - lower_limit));
+  cmp(scratch, Immediate(higher_limit - lower_limit));
+  Pop(scratch);
+}
+
 void MacroAssembler::AssertSmi(Register object) {
   if (emit_debug_code()) {
     test(object, Immediate(kSmiTagMask));
@@ -753,14 +764,18 @@ void MacroAssembler::AssertConstructor(Register object) {
   }
 }
 
-void MacroAssembler::AssertFunction(Register object) {
+void MacroAssembler::AssertFunction(Register object, Register scratch) {
   if (emit_debug_code()) {
     test(object, Immediate(kSmiTagMask));
     Check(not_equal, AbortReason::kOperandIsASmiAndNotAFunction);
     Push(object);
-    CmpObjectType(object, JS_FUNCTION_TYPE, object);
+    LoadMap(object, object);
+    Push(scratch);
+    CmpInstanceTypeRange(object, scratch, FIRST_JS_FUNCTION_TYPE,
+                         LAST_JS_FUNCTION_TYPE);
+    Pop(scratch);
     Pop(object);
-    Check(equal, AbortReason::kOperandIsNotAFunction);
+    Check(below_equal, AbortReason::kOperandIsNotAFunction);
   }
 }
 

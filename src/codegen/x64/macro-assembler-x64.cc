@@ -2202,13 +2202,13 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
   cmpw(FieldOperand(map, Map::kInstanceTypeOffset), Immediate(type));
 }
 
-void MacroAssembler::CmpInstanceTypeRange(Register map, InstanceType low,
-                                          InstanceType high) {
+void MacroAssembler::CmpInstanceTypeRange(Register map,
+                                          InstanceType lower_limit,
+                                          InstanceType higher_limit) {
   movzxwl(kScratchRegister, FieldOperand(map, Map::kInstanceTypeOffset));
-  leal(kScratchRegister,
-       Operand(kScratchRegister, 0u - static_cast<unsigned>(low)));
+  leal(kScratchRegister, Operand(kScratchRegister, 0u - lower_limit));
   cmpl(kScratchRegister,
-       Immediate(static_cast<unsigned>(high) - static_cast<unsigned>(low)));
+       Immediate(higher_limit - lower_limit);
 }
 
 void MacroAssembler::AssertNotSmi(Register object) {
