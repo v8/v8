@@ -230,6 +230,12 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       break;
     case JS_FUNCTION_TYPE:
     case JS_PROMISE_CONSTRUCTOR_TYPE:
+    case JS_REG_EXP_CONSTRUCTOR_TYPE:
+    case JS_ARRAY_CONSTRUCTOR_TYPE:
+#define TYPED_ARRAY_CONSTRUCTORS_SWITCH(Type, type, TYPE, Ctype) \
+  case TYPE##_TYPED_ARRAY_CONSTRUCTOR_TYPE:
+      TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTORS_SWITCH)
+#undef TYPED_ARRAY_CONSTRUCTORS_SWITCH
       JSFunction::cast(*this).JSFunctionPrint(os);
       break;
     case INTERNALIZED_STRING_TYPE:

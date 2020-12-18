@@ -239,7 +239,8 @@ class Genesis {
   bool InstallExtrasBindings();
 
   Handle<JSFunction> InstallTypedArray(const char* name,
-                                       ElementsKind elements_kind);
+                                       ElementsKind elements_kind,
+                                       InstanceType type);
   void InitializeNormalizedMapCaches();
 
   enum ExtensionTraversalState { UNVISITED, VISITED, INSTALLED };
@@ -3433,12 +3434,12 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {// -- T y p e d A r r a y s
-#define INSTALL_TYPED_ARRAY(Type, type, TYPE, ctype)                   \
-  {                                                                    \
-    Handle<JSFunction> fun =                                           \
-        InstallTypedArray(#Type "Array", TYPE##_ELEMENTS);             \
-    InstallWithIntrinsicDefaultProto(isolate_, fun,                    \
-                                     Context::TYPE##_ARRAY_FUN_INDEX); \
+#define INSTALL_TYPED_ARRAY(Type, type, TYPE, ctype)                          \
+  {                                                                           \
+    Handle<JSFunction> fun = InstallTypedArray(                               \
+        #Type "Array", TYPE##_ELEMENTS, TYPE##_TYPED_ARRAY_CONSTRUCTOR_TYPE); \
+    InstallWithIntrinsicDefaultProto(isolate_, fun,                           \
+                                     Context::TYPE##_ARRAY_FUN_INDEX);        \
   }
   TYPED_ARRAYS(INSTALL_TYPED_ARRAY)
 #undef INSTALL_TYPED_ARRAY
@@ -4013,7 +4014,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 }  // NOLINT(readability/fn_size)
 
 Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
-                                              ElementsKind elements_kind) {
+                                              ElementsKind elements_kind,
+                                              InstanceType type) {
   Handle<JSObject> global =
       Handle<JSObject>(native_context()->global_object(), isolate());
 
@@ -4036,6 +4038,7 @@ Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
       Smi::FromInt(1 << ElementsKindToShiftSize(elements_kind)), isolate());
 
   InstallConstant(isolate(), result, "BYTES_PER_ELEMENT", bytes_per_element);
+  result->map().set_instance_type(type);
 
   // Setup prototype object.
   DCHECK(result->prototype().IsJSObject());

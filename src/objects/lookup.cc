@@ -174,26 +174,6 @@ void LookupIterator::ReloadPropertyInformation() {
   DCHECK(IsFound() || !holder_->HasFastProperties(isolate_));
 }
 
-namespace {
-
-bool IsTypedArrayFunctionInAnyContext(Isolate* isolate, HeapObject object) {
-  static uint32_t context_slots[] = {
-#define TYPED_ARRAY_CONTEXT_SLOTS(Type, type, TYPE, ctype) \
-  Context::TYPE##_ARRAY_FUN_INDEX,
-
-      TYPED_ARRAYS(TYPED_ARRAY_CONTEXT_SLOTS)
-#undef TYPED_ARRAY_CONTEXT_SLOTS
-  };
-
-  if (!object.IsJSFunction(isolate)) return false;
-
-  return std::any_of(
-      std::begin(context_slots), std::end(context_slots),
-      [=](uint32_t slot) { return isolate->IsInAnyContext(object, slot); });
-}
-
-}  // namespace
-
 // static
 void LookupIterator::InternalUpdateProtector(Isolate* isolate,
                                              Handle<Object> receiver_generic,
@@ -295,7 +275,8 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
                                        Context::REGEXP_FUNCTION_INDEX)) {
       if (!Protectors::IsRegExpSpeciesLookupChainIntact(isolate)) return;
       Protectors::InvalidateRegExpSpeciesLookupChain(isolate);
-    } else if (IsTypedArrayFunctionInAnyContext(isolate, *receiver)) {
+    } else if (InstanceTypeChecker::IsTypedArrayConstructor(
+                   receiver->map().instance_type())) {
       if (!Protectors::IsTypedArraySpeciesLookupChainIntact(isolate)) return;
       Protectors::InvalidateTypedArraySpeciesLookupChain(isolate);
     }

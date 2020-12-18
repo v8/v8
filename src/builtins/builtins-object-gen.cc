@@ -744,6 +744,8 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
                     {JS_ARRAY_TYPE, &if_array},
                     {JS_FUNCTION_TYPE, &if_function},
                     {JS_PROMISE_CONSTRUCTOR_TYPE, &if_function},
+                    {JS_REG_EXP_CONSTRUCTOR_TYPE, &if_function},
+                    {JS_ARRAY_CONSTRUCTOR_TYPE, &if_function},
                     {JS_REG_EXP_TYPE, &if_regexp},
                     {JS_ARGUMENTS_OBJECT_TYPE, &if_arguments},
                     {JS_DATE_TYPE, &if_date},
@@ -752,7 +754,11 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
                     {JS_SPECIAL_API_OBJECT_TYPE, &if_object},
                     {JS_PROXY_TYPE, &if_proxy},
                     {JS_ERROR_TYPE, &if_error},
-                    {JS_PRIMITIVE_WRAPPER_TYPE, &if_value}};
+#define TYPED_ARRAY_CONSTRUCTORS_JUMP_TABLE(Type, type, TYPE, Ctype) \
+  {TYPE##_TYPED_ARRAY_CONSTRUCTOR_TYPE, &if_function},
+                    TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTORS_JUMP_TABLE)
+#undef TYPED_ARRAY_CONSTRUCTORS_JUMP_TABLE
+                        {JS_PRIMITIVE_WRAPPER_TYPE, &if_value}};
   size_t const kNumCases = arraysize(kJumpTable);
   Label* case_labels[kNumCases];
   int32_t case_values[kNumCases];
