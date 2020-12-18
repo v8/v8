@@ -363,7 +363,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   __ Move(scratch, debug_suspended_generator);
   __ LoadP(scratch, MemOperand(scratch));
-  __ CmpP(scratch, r3);
+  __ CmpS64(scratch, r3);
   __ beq(&prepare_step_in_suspended_generator);
   __ bind(&stepping_prepared);
 
@@ -371,7 +371,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // (i.e. debug break and preemption) here, so check the "real stack limit".
   Label stack_overflow;
   __ LoadP(scratch, __ StackLimitAsMemOperand(StackLimitKind::kRealStackLimit));
-  __ CmpLogicalP(sp, scratch);
+  __ CmpU64(sp, scratch);
   __ blt(&stack_overflow);
 
   // ----------- S t a t e -------------
@@ -649,7 +649,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // Check if the current stack frame is marked as the outermost JS frame.
   Label non_outermost_js_2;
   __ pop(r7);
-  __ CmpP(r7, Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
+  __ CmpS64(r7, Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ bne(&non_outermost_js_2, Label::kNear);
   __ mov(scrach, Operand::Zero());
   __ Move(r7, js_entry_sp);
@@ -872,7 +872,7 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   // If actual is bigger than formal, then we should use it to free up the stack
   // arguments.
   Label corrected_args_count;
-  __ CmpP(params_size, actual_params_size);
+  __ CmpS64(params_size, actual_params_size);
   __ bge(&corrected_args_count);
   __ mov(params_size, actual_params_size);
   __ bind(&corrected_args_count);
@@ -890,7 +890,7 @@ static void TailCallRuntimeIfMarkerEquals(MacroAssembler* masm,
                                           OptimizationMarker expected_marker,
                                           Runtime::FunctionId function_id) {
   Label no_match;
-  __ CmpP(actual_marker, Operand(expected_marker));
+  __ CmpS64(actual_marker, Operand(expected_marker));
   __ bne(&no_match);
   GenerateTailCallToReturnedCode(masm, function_id);
   __ bind(&no_match);
@@ -1003,7 +1003,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   STATIC_ASSERT(2 == static_cast<int>(interpreter::Bytecode::kDebugBreakWide));
   STATIC_ASSERT(3 ==
                 static_cast<int>(interpreter::Bytecode::kDebugBreakExtraWide));
-  __ CmpP(bytecode, Operand(0x3));
+  __ CmpS64(bytecode, Operand(0x3));
   __ bgt(&process_bytecode);
   __ tmll(bytecode, Operand(0x1));
   __ bne(&extra_wide);
@@ -1026,9 +1026,9 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   __ bind(&process_bytecode);
 
   // Bailout to the return label if this is a return bytecode.
-#define JUMP_IF_EQUAL(NAME)                                           \
-  __ CmpP(bytecode,                                                   \
-          Operand(static_cast<int>(interpreter::Bytecode::k##NAME))); \
+#define JUMP_IF_EQUAL(NAME)                                             \
+  __ CmpS64(bytecode,                                                   \
+            Operand(static_cast<int>(interpreter::Bytecode::k##NAME))); \
   __ beq(if_return);
   RETURN_BYTECODE_LIST(JUMP_IF_EQUAL)
 #undef JUMP_IF_EQUAL
@@ -1036,8 +1036,8 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   // If this is a JumpLoop, re-execute it to perform the jump to the beginning
   // of the loop.
   Label end, not_jump_loop;
-  __ CmpP(bytecode,
-          Operand(static_cast<int>(interpreter::Bytecode::kJumpLoop)));
+  __ CmpS64(bytecode,
+            Operand(static_cast<int>(interpreter::Bytecode::kJumpLoop)));
   __ bne(&not_jump_loop);
   // We need to restore the original bytecode_offset since we might have
   // increased it to skip the wide / extra-wide prefix bytecode.
@@ -1103,7 +1103,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ LoadTaggedPointerField(
       r6, FieldMemOperand(feedback_vector, HeapObject::kMapOffset));
   __ LoadU16(r6, FieldMemOperand(r6, Map::kInstanceTypeOffset));
-  __ CmpP(r6, Operand(FEEDBACK_VECTOR_TYPE));
+  __ CmpS64(r6, Operand(FEEDBACK_VECTOR_TYPE));
   __ bne(&push_stack_frame);
 
   Register optimization_state = r6;
@@ -1165,8 +1165,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
     // Do a stack check to ensure we don't go over the limit.
     __ SubS64(r8, sp, r4);
-    __ CmpLogicalP(r8,
-                   __ StackLimitAsMemOperand(StackLimitKind::kRealStackLimit));
+    __ CmpU64(r8, __ StackLimitAsMemOperand(StackLimitKind::kRealStackLimit));
     __ blt(&stack_overflow);
 
     // If ok, push undefined as the initial value for all register file entries.
@@ -1190,7 +1189,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ LoadS32(r8, FieldMemOperand(
                    kInterpreterBytecodeArrayRegister,
                    BytecodeArray::kIncomingNewTargetOrGeneratorRegisterOffset));
-  __ CmpP(r8, Operand::Zero());
+  __ CmpS64(r8, Operand::Zero());
   __ beq(&no_incoming_new_target_or_generator_register);
   __ ShiftLeftU64(r8, r8, Operand(kSystemPointerSizeLog2));
   __ StoreU64(r5, MemOperand(fp, r8));
@@ -1200,7 +1199,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // TODO(solanes): Merge with the real stack limit check above.
   Label stack_check_interrupt, after_stack_check_interrupt;
   __ LoadP(r0, __ StackLimitAsMemOperand(StackLimitKind::kInterruptStackLimit));
-  __ CmpLogicalP(sp, r0);
+  __ CmpU64(sp, r0);
   __ blt(&stack_check_interrupt);
   __ bind(&after_stack_check_interrupt);
 
@@ -1497,8 +1496,8 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 
   if (FLAG_debug_code) {
     Label okay;
-    __ CmpP(kInterpreterBytecodeOffsetRegister,
-            Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
+    __ CmpS64(kInterpreterBytecodeOffsetRegister,
+              Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
     __ bge(&okay);
     __ bkpt(0);
     __ bind(&okay);
@@ -1524,9 +1523,9 @@ void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
   __ SmiUntag(kInterpreterBytecodeOffsetRegister);
 
   Label enter_bytecode, function_entry_bytecode;
-  __ CmpP(kInterpreterBytecodeOffsetRegister,
-          Operand(BytecodeArray::kHeaderSize - kHeapObjectTag +
-                  kFunctionEntryBytecodeOffset));
+  __ CmpS64(kInterpreterBytecodeOffsetRegister,
+            Operand(BytecodeArray::kHeaderSize - kHeapObjectTag +
+                    kFunctionEntryBytecodeOffset));
   __ beq(&function_entry_bytecode);
 
   // Load the current bytecode.
@@ -1936,11 +1935,11 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
                               FieldMemOperand(r4, HeapObject::kMapOffset));
     __ LoadS16(scratch,
                      FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-    __ CmpP(scratch, Operand(FIXED_ARRAY_TYPE));
+    __ CmpS64(scratch, Operand(FIXED_ARRAY_TYPE));
     __ beq(&ok);
-    __ CmpP(scratch, Operand(FIXED_DOUBLE_ARRAY_TYPE));
+    __ CmpS64(scratch, Operand(FIXED_DOUBLE_ARRAY_TYPE));
     __ bne(&fail);
-    __ CmpP(r6, Operand::Zero());
+    __ CmpS64(r6, Operand::Zero());
     __ beq(&ok);
     // Fall through.
     __ bind(&fail);
@@ -1978,7 +1977,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   // Push arguments onto the stack (thisArgument is already on the stack).
   {
     Label loop, no_args, skip;
-    __ CmpP(r6, Operand::Zero());
+    __ CmpS64(r6, Operand::Zero());
     __ beq(&no_args);
     __ AddS64(r4, r4,
               Operand(FixedArray::kHeaderSize - kHeapObjectTag - kTaggedSize));
@@ -2046,8 +2045,8 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   __ LoadP(r6, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ LoadP(scratch,
            MemOperand(r6, CommonFrameConstants::kContextOrFrameTypeOffset));
-  __ CmpP(scratch,
-          Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ CmpS64(scratch,
+            Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ beq(&arguments_adaptor);
   {
     __ LoadP(r7, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
@@ -2129,7 +2128,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
         __ ShiftLeftU64(r1, r7, Operand(kSystemPointerSizeLog2));
         __ LoadP(scratch, MemOperand(r6, r1));
         __ StoreU64(scratch, MemOperand(r4, r1));
-        __ CmpP(r7, Operand::Zero());
+        __ CmpS64(r7, Operand::Zero());
         __ bne(&loop);
       }
     }
@@ -2280,8 +2279,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       // Check the stack for overflow. We are not trying to catch interruptions
       // (i.e. debug break and preemption) here, so check the "real stack
       // limit".
-      __ CmpLogicalP(
-          r1, __ StackLimitAsMemOperand(StackLimitKind::kRealStackLimit));
+      __ CmpU64(r1, __ StackLimitAsMemOperand(StackLimitKind::kRealStackLimit));
       __ bgt(&done);  // Signed comparison.
       // Restore the stack pointer.
       {
@@ -2355,7 +2353,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   __ CompareObjectType(r3, r6, r7, JS_FUNCTION_TYPE);
   __ Jump(masm->isolate()->builtins()->CallFunction(mode),
           RelocInfo::CODE_TARGET, eq);
-  __ CmpP(r7, Operand(JS_BOUND_FUNCTION_TYPE));
+  __ CmpS64(r7, Operand(JS_BOUND_FUNCTION_TYPE));
   __ Jump(BUILTIN_CODE(masm->isolate(), CallBoundFunction),
           RelocInfo::CODE_TARGET, eq);
 
@@ -2365,7 +2363,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   __ beq(&non_callable);
 
   // Check if target is a proxy and call CallProxy external builtin
-  __ CmpP(r7, Operand(JS_PROXY_TYPE));
+  __ CmpS64(r7, Operand(JS_PROXY_TYPE));
   __ Jump(BUILTIN_CODE(masm->isolate(), CallProxy), RelocInfo::CODE_TARGET, eq);
 
   // 2. Call to something else, which might have a [[Call]] internal method (if
@@ -2471,12 +2469,12 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 
   // Only dispatch to bound functions after checking whether they are
   // constructors.
-  __ CmpP(r7, Operand(JS_BOUND_FUNCTION_TYPE));
+  __ CmpS64(r7, Operand(JS_BOUND_FUNCTION_TYPE));
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructBoundFunction),
           RelocInfo::CODE_TARGET, eq);
 
   // Only dispatch to proxies after checking whether they are constructors.
-  __ CmpP(r7, Operand(JS_PROXY_TYPE));
+  __ CmpS64(r7, Operand(JS_PROXY_TYPE));
   __ bne(&non_proxy);
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructProxy),
           RelocInfo::CODE_TARGET);
@@ -2519,7 +2517,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // -------------------------------------------
   {
     Label under_application, over_application, invoke;
-    __ CmpP(r2, r4);
+    __ CmpS64(r2, r4);
     __ blt(&under_application);
 
     // Enough parameters: actual >= expected
@@ -2551,7 +2549,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
       __ bind(&copy);
       __ LoadP(r0, MemOperand(r2, 0));
       __ push(r0);
-      __ CmpP(r2, r6);  // Compare before moving to next argument.
+      __ CmpS64(r2, r6);  // Compare before moving to next argument.
       __ lay(r2, MemOperand(r2, -kSystemPointerSize));
       __ bne(&copy);
 
@@ -2582,7 +2580,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
       Label fill;
       __ bind(&fill);
       __ push(r7);
-      __ CmpP(sp, r6);
+      __ CmpS64(sp, r6);
       __ b(ne, &fill);
 
       // Calculate copy start address into r0 and copy end address is fp.
@@ -2605,7 +2603,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
       __ LoadP(r7, MemOperand(r2, 2 * kSystemPointerSize));
       __ push(r7);
 
-      __ CmpP(r2, fp);  // Compare before moving to next argument.
+      __ CmpS64(r2, fp);  // Compare before moving to next argument.
       __ lay(r2, MemOperand(r2, -kSystemPointerSize));
       __ b(ne, &copy);
     }
@@ -2858,7 +2856,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // If the handler is a JS frame, restore the context to the frame. Note that
   // the context will be set to (cp == 0) for non-JS frames.
   Label skip;
-  __ CmpP(cp, Operand::Zero());
+  __ CmpS64(cp, Operand::Zero());
   __ beq(&skip, Label::kNear);
   __ StoreU64(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   __ bind(&skip);
@@ -2920,7 +2918,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   // bits are 0s (2^84 = 1, 52 significant bits, 32 uncoded bits),
   // the result is 0.
   // Compare exponent with 84 (compare exponent - 1 with 83).
-  __ CmpP(scratch, Operand(83));
+  __ CmpS64(scratch, Operand(83));
   __ bge(&out_of_range, Label::kNear);
 
   // If we reach this code, 31 <= exponent <= 83.
@@ -2930,7 +2928,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   // Load scratch with 52 - exponent (load with 51 - (exponent - 1)).
   __ mov(r0, Operand(51));
   __ SubS64(scratch, r0, scratch);
-  __ CmpP(scratch, Operand::Zero());
+  __ CmpS64(scratch, Operand::Zero());
   __ ble(&only_low, Label::kNear);
   // 21 <= exponent <= 51, shift scratch_low and scratch_high
   // to generate the result.
@@ -3023,13 +3021,13 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 
   __ Move(scratch, ExternalReference::is_profiling_address(isolate));
   __ LoadU8(scratch, MemOperand(scratch, 0));
-  __ CmpP(scratch, Operand::Zero());
+  __ CmpS64(scratch, Operand::Zero());
 
   Label profiler_enabled, end_profiler_check;
   __ bne(&profiler_enabled, Label::kNear);
   __ Move(scratch, ExternalReference::address_of_runtime_stats_flag());
   __ LoadU32(scratch, MemOperand(scratch, 0));
-  __ CmpP(scratch, Operand::Zero());
+  __ CmpS64(scratch, Operand::Zero());
   __ bne(&profiler_enabled, Label::kNear);
   {
     // Call the api function directly.
@@ -3070,12 +3068,12 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ StoreU64(r6, MemOperand(r9, kNextOffset));
   if (__ emit_debug_code()) {
     __ LoadU32(r3, MemOperand(r9, kLevelOffset));
-    __ CmpP(r3, r8);
+    __ CmpS64(r3, r8);
     __ Check(eq, AbortReason::kUnexpectedLevelAfterReturnFromApiCall);
   }
   __ SubS64(r8, Operand(1));
   __ StoreU32(r8, MemOperand(r9, kLevelOffset));
-  __ CmpP(r7, MemOperand(r9, kLimitOffset));
+  __ CmpS64(r7, MemOperand(r9, kLimitOffset));
   __ bne(&delete_allocated_handles, Label::kNear);
 
   // Leave the API exit frame.
@@ -3476,7 +3474,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ StoreU64(r6, MemOperand(r5, 0));
   __ la(r5, MemOperand(r5, kSystemPointerSize));
   __ bind(&pop_loop_header);
-  __ CmpP(r4, sp);
+  __ CmpS64(r4, sp);
   __ bne(&pop_loop);
 
   // Compute the output frame in the deoptimizer.
@@ -3515,12 +3513,12 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ push(r8);
 
   __ bind(&inner_loop_header);
-  __ CmpP(r5, Operand::Zero());
+  __ CmpS64(r5, Operand::Zero());
   __ bne(&inner_push_loop);  // test for gt?
 
   __ AddS64(r6, r6, Operand(kSystemPointerSize));
   __ bind(&outer_loop_header);
-  __ CmpP(r6, r3);
+  __ CmpS64(r6, r3);
   __ blt(&outer_push_loop);
 
   __ LoadP(r3, MemOperand(r2, Deoptimizer::input_offset()));
@@ -3610,7 +3608,7 @@ void Builtins::Generate_DynamicCheckMapsTrampoline(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
 
   Label deopt, bailout;
-  __ CmpP(r2, Operand(static_cast<int>(DynamicCheckMapsStatus::kSuccess)));
+  __ CmpS64(r2, Operand(static_cast<int>(DynamicCheckMapsStatus::kSuccess)));
   __ bne(&deopt);
 
   __ RestoreRegisters(registers);
@@ -3618,11 +3616,11 @@ void Builtins::Generate_DynamicCheckMapsTrampoline(MacroAssembler* masm) {
   __ Ret();
 
   __ bind(&deopt);
-  __ CmpP(r2, Operand(static_cast<int>(DynamicCheckMapsStatus::kBailout)));
+  __ CmpS64(r2, Operand(static_cast<int>(DynamicCheckMapsStatus::kBailout)));
   __ beq(&bailout);
 
   if (FLAG_debug_code) {
-    __ CmpP(r2, Operand(static_cast<int>(DynamicCheckMapsStatus::kDeopt)));
+    __ CmpS64(r2, Operand(static_cast<int>(DynamicCheckMapsStatus::kDeopt)));
     __ Assert(eq, AbortReason::kUnexpectedDynamicCheckMapsStatus);
   }
   __ RestoreRegisters(registers);

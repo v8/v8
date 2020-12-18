@@ -316,7 +316,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     bind(&loop);
     StoreU64(r0, MemOperand(r0));
     la(r0, MemOperand(r0, kSystemPointerSize));
-    CmpLogicalP(r3, r4);
+    CmpU64(r3, r4);
     bne(&loop);
 
     pop(r4);
@@ -604,30 +604,30 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
   if (type.kind() == ValueType::kI32) {
     if (rhs == no_reg) {
       if (use_signed) {
-        Cmp32(lhs, Operand::Zero());
+        CmpS32(lhs, Operand::Zero());
       } else {
-        CmpLogical32(lhs, Operand::Zero());
+        CmpU32(lhs, Operand::Zero());
       }
     } else {
       if (use_signed) {
-        Cmp32(lhs, rhs);
+        CmpS32(lhs, rhs);
       } else {
-        CmpLogical32(lhs, rhs);
+        CmpU32(lhs, rhs);
       }
     }
   } else {
     CHECK_EQ(type.kind(), ValueType::kI64);
     if (rhs == no_reg) {
       if (use_signed) {
-        CmpP(lhs, Operand::Zero());
+        CmpS64(lhs, Operand::Zero());
       } else {
-        CmpLogicalP(lhs, Operand::Zero());
+        CmpU64(lhs, Operand::Zero());
       }
     } else {
       if (use_signed) {
-        CmpP(lhs, rhs);
+        CmpS64(lhs, rhs);
       } else {
-        CmpLogicalP(lhs, rhs);
+        CmpU64(lhs, rhs);
       }
     }
   }
@@ -658,9 +658,9 @@ void LiftoffAssembler::emit_i32_set_cond(LiftoffCondition liftoff_cond,
                                          Register rhs) {
   bool use_signed = liftoff::UseSignedOp(liftoff_cond);
   if (use_signed) {
-    Cmp32(lhs, rhs);
+    CmpS32(lhs, rhs);
   } else {
-    CmpLogical32(lhs, rhs);
+    CmpU32(lhs, rhs);
   }
 
   EMIT_SET_CONDITION(dst, liftoff::ToCondition(liftoff_cond));
@@ -675,9 +675,9 @@ void LiftoffAssembler::emit_i64_set_cond(LiftoffCondition liftoff_cond,
                                          LiftoffRegister rhs) {
   bool use_signed = liftoff::UseSignedOp(liftoff_cond);
   if (use_signed) {
-    CmpP(lhs.gp(), rhs.gp());
+    CmpS64(lhs.gp(), rhs.gp());
   } else {
-    CmpLogicalP(lhs.gp(), rhs.gp());
+    CmpU64(lhs.gp(), rhs.gp());
   }
 
   EMIT_SET_CONDITION(dst, liftoff::ToCondition(liftoff_cond));

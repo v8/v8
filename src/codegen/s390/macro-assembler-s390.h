@@ -304,25 +304,27 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Sqrt(DoubleRegister result, const MemOperand& input);
 
   // Compare
-  void Cmp32(Register src1, Register src2);
-  void CmpP(Register src1, Register src2);
-  void Cmp32(Register dst, const Operand& opnd);
-  void CmpP(Register dst, const Operand& opnd);
-  void Cmp32(Register dst, const MemOperand& opnd);
-  void CmpP(Register dst, const MemOperand& opnd);
+  void CmpS32(Register src1, Register src2);
+  void CmpS64(Register src1, Register src2);
+  void CmpS32(Register dst, const Operand& opnd);
+  void CmpS64(Register dst, const Operand& opnd);
+  void CmpS32(Register dst, const MemOperand& opnd);
+  void CmpS64(Register dst, const MemOperand& opnd);
   void CmpAndSwap(Register old_val, Register new_val, const MemOperand& opnd);
   void CmpAndSwap64(Register old_val, Register new_val, const MemOperand& opnd);
+  // TODO(john.yan): remove this
+  template <class T>
+  void CmpP(Register src1, T src2) {
+    CmpS64(src1, src2);
+  }
 
   // Compare Logical
-  void CmpLogical32(Register src1, Register src2);
-  void CmpLogicalP(Register src1, Register src2);
-  void CmpLogical32(Register src1, const Operand& opnd);
-  void CmpLogicalP(Register src1, const Operand& opnd);
-  void CmpLogical32(Register dst, const MemOperand& opnd);
-  void CmpLogicalP(Register dst, const MemOperand& opnd);
-
-  // Compare Logical Byte (CLI/CLIY)
-  void CmpLogicalByte(const MemOperand& mem, const Operand& imm);
+  void CmpU32(Register src1, Register src2);
+  void CmpU64(Register src1, Register src2);
+  void CmpU32(Register src1, const Operand& opnd);
+  void CmpU64(Register src1, const Operand& opnd);
+  void CmpU32(Register dst, const MemOperand& opnd);
+  void CmpU64(Register dst, const MemOperand& opnd);
 
   // Load 32bit
   void LoadS32(Register dst, const MemOperand& opnd, Register scratch = no_reg);
@@ -1080,9 +1082,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   template <class T>
   void CompareTagged(Register src1, T src2) {
     if (COMPRESS_POINTERS_BOOL) {
-      Cmp32(src1, src2);
+      CmpS32(src1, src2);
     } else {
-      CmpP(src1, src2);
+      CmpS64(src1, src2);
     }
   }
 

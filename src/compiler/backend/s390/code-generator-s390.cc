@@ -1013,8 +1013,8 @@ void CodeGenerator::AssemblePopArgumentsAdaptorFrame(Register args_reg,
 
   // Check if current frame is an arguments adaptor frame.
   __ LoadP(scratch1, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  __ CmpP(scratch1,
-          Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ CmpS64(scratch1,
+            Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ bne(&done);
 
   // Load arguments count from current arguments adaptor frame (note, it
@@ -1133,7 +1133,7 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 void CodeGenerator::AssembleCodeStartRegisterCheck() {
   Register scratch = r1;
   __ ComputeCodeStartAddress(scratch);
-  __ CmpP(scratch, kJavaScriptCallCodeStartRegister);
+  __ CmpS64(scratch, kJavaScriptCallCodeStartRegister);
   __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
 }
 
@@ -1148,7 +1148,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   if (FLAG_debug_code) {
     // Check that {kJavaScriptCallCodeStartRegister} is correct.
     __ ComputeCodeStartAddress(ip);
-    __ CmpP(ip, kJavaScriptCallCodeStartRegister);
+    __ CmpS64(ip, kJavaScriptCallCodeStartRegister);
     __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
   }
 
@@ -1171,7 +1171,7 @@ void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
   // bits cleared if we are speculatively executing the wrong PC.
   __ mov(kSpeculationPoisonRegister, Operand::Zero());
   __ mov(r0, Operand(-1));
-  __ CmpP(kJavaScriptCallCodeStartRegister, scratch);
+  __ CmpS64(kJavaScriptCallCodeStartRegister, scratch);
   __ LoadOnConditionP(eq, kSpeculationPoisonRegister, r0);
 }
 
@@ -1293,7 +1293,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // Check the function's context matches the context argument.
         __ LoadTaggedPointerField(
             kScratchReg, FieldMemOperand(func, JSFunction::kContextOffset));
-        __ CmpP(cp, kScratchReg);
+        __ CmpS64(cp, kScratchReg);
         __ Assert(eq, AbortReason::kWrongFunctionContext);
       }
       static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
@@ -1441,7 +1441,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       constexpr size_t kValueIndex = 0;
       DCHECK(instr->InputAt(kValueIndex)->IsRegister());
-      __ CmpLogicalP(lhs_register, i.InputRegister(kValueIndex));
+      __ CmpU64(lhs_register, i.InputRegister(kValueIndex));
       break;
     }
     case kArchStackCheckOffset:
@@ -1944,11 +1944,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #endif
     case kS390_Cmp32:
-      ASSEMBLE_COMPARE32(Cmp32, CmpLogical32);
+      ASSEMBLE_COMPARE32(CmpS32, CmpU32);
       break;
 #if V8_TARGET_ARCH_S390X
     case kS390_Cmp64:
-      ASSEMBLE_COMPARE(CmpP, CmpLogicalP);
+      ASSEMBLE_COMPARE(CmpS64, CmpU64);
       break;
 #endif
     case kS390_CmpFloat:
@@ -4380,7 +4380,7 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
     cases[index] = GetLabel(i.InputRpo(index + 2));
   }
   Label* const table = AddJumpTable(cases, case_count);
-  __ CmpLogicalP(input, Operand(case_count));
+  __ CmpU64(input, Operand(case_count));
   __ bge(GetLabel(i.InputRpo(1)));
   __ larl(kScratchReg, table);
   __ ShiftLeftU64(r1, input, Operand(kSystemPointerSizeLog2));
@@ -4493,7 +4493,7 @@ void CodeGenerator::AssembleConstructFrame() {
         __ LoadP(scratch, MemOperand(scratch));
         __ AddS64(scratch, scratch,
                   Operand(required_slots * kSystemPointerSize));
-        __ CmpLogicalP(sp, scratch);
+        __ CmpU64(sp, scratch);
         __ bge(&done);
       }
 
@@ -4570,7 +4570,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     if (additional_pop_count->IsImmediate()) {
       DCHECK_EQ(g.ToConstant(additional_pop_count).ToInt32(), 0);
     } else if (__ emit_debug_code()) {
-      __ CmpP(g.ToRegister(additional_pop_count), Operand(0));
+      __ CmpS64(g.ToRegister(additional_pop_count), Operand(0));
       __ Assert(eq, AbortReason::kUnexpectedAdditionalPopValue);
     }
   }
@@ -4614,7 +4614,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     __ AddS64(argc_reg, argc_reg, Operand(1));  // Also pop the receiver.
     if (parameter_count > 1) {
       Label skip;
-      __ CmpP(argc_reg, Operand(parameter_count));
+      __ CmpS64(argc_reg, Operand(parameter_count));
       __ bgt(&skip);
       __ mov(argc_reg, Operand(parameter_count));
       __ bind(&skip);

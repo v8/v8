@@ -549,7 +549,7 @@ void TurboAssembler::PushArray(Register array, Register size, Register scratch,
     ShiftLeftU64(scratch, size, Operand(kSystemPointerSizeLog2));
     lay(scratch, MemOperand(array, scratch));
     bind(&loop);
-    CmpP(array, scratch);
+    CmpS64(array, scratch);
     bge(&done);
     lay(scratch, MemOperand(scratch, -kSystemPointerSize));
     lay(sp, MemOperand(sp, -kSystemPointerSize));
@@ -562,7 +562,7 @@ void TurboAssembler::PushArray(Register array, Register size, Register scratch,
     lay(scratch, MemOperand(array, scratch));
     mov(scratch2, array);
     bind(&loop);
-    CmpP(scratch2, scratch);
+    CmpS64(scratch2, scratch);
     bge(&done);
     lay(sp, MemOperand(sp, -kSystemPointerSize));
     MoveChar(MemOperand(sp), MemOperand(scratch2), Operand(kSystemPointerSize));
@@ -885,7 +885,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
   DCHECK(object != value);
   if (emit_debug_code()) {
     LoadTaggedPointerField(r0, MemOperand(address));
-    CmpP(value, r0);
+    CmpS64(value, r0);
     Check(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite);
   }
 
@@ -1449,7 +1449,7 @@ void TurboAssembler::PrepareForTailCall(Register callee_args_count,
   AddS64(src_reg, src_reg, Operand(kSystemPointerSize));
 
   if (FLAG_debug_code) {
-    CmpLogicalP(src_reg, dst_reg);
+    CmpU64(src_reg, dst_reg);
     Check(lt, AbortReason::kStackAccessBelowStackPointer);
   }
 
@@ -1503,7 +1503,7 @@ void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch,
   SubS64(scratch, sp, scratch);
   // Check if the arguments will overflow the stack.
   ShiftLeftU64(r0, num_args, Operand(kSystemPointerSizeLog2));
-  CmpP(scratch, r0);
+  CmpS64(scratch, r0);
   ble(stack_overflow);  // Signed comparison.
 }
 
@@ -1522,7 +1522,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
 #ifdef V8_NO_ARGUMENTS_ADAPTOR
   // If the expected parameter count is equal to the adaptor sentinel, no need
   // to push undefined value as arguments.
-  CmpP(expected_parameter_count, Operand(kDontAdaptArgumentsSentinel));
+  CmpS64(expected_parameter_count, Operand(kDontAdaptArgumentsSentinel));
   beq(&regular_invoke);
 
   // If overapplication or if the actual argument count is equal to the
@@ -1579,7 +1579,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
 #else
   // Check whether the expected and actual arguments count match. If not,
   // setup registers according to contract with ArgumentsAdaptorTrampoline.
-  CmpP(expected_parameter_count, actual_parameter_count);
+  CmpS64(expected_parameter_count, actual_parameter_count);
   beq(&regular_invoke);
 
   Handle<Code> adaptor = BUILTIN_CODE(isolate(), ArgumentsAdaptorTrampoline);
@@ -1719,7 +1719,7 @@ void MacroAssembler::MaybeDropFrames() {
       ExternalReference::debug_restart_fp_address(isolate());
   Move(r3, restart_fp);
   LoadP(r3, MemOperand(r3));
-  CmpP(r3, Operand::Zero());
+  CmpS64(r3, Operand::Zero());
   Jump(BUILTIN_CODE(isolate(), FrameDropperTrampoline), RelocInfo::CODE_TARGET,
        ne);
 }
@@ -1773,7 +1773,7 @@ void MacroAssembler::CompareInstanceType(Register map, Register type_reg,
   STATIC_ASSERT(Map::kInstanceTypeOffset < 4096);
   STATIC_ASSERT(LAST_TYPE <= 0xFFFF);
   LoadS16(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  CmpP(type_reg, Operand(type));
+  CmpS64(type_reg, Operand(type));
 }
 
 void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
@@ -1791,9 +1791,9 @@ void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
     Register scratch = r0;
     mov(scratch, value);
     slgfi(scratch, Operand(lower_limit));
-    CmpLogicalP(scratch, Operand(higher_limit - lower_limit));
+    CmpU64(scratch, Operand(higher_limit - lower_limit));
   } else {
-    CmpLogicalP(value, Operand(higher_limit));
+    CmpU64(value, Operand(higher_limit));
   }
   ble(on_in_range);
 }
@@ -1884,7 +1884,7 @@ void MacroAssembler::JumpToInstructionStream(Address entry) {
 
 void MacroAssembler::LoadWeakValue(Register out, Register in,
                                    Label* target_if_cleared) {
-  Cmp32(in, Operand(kClearedWeakHeapObjectLower32));
+  CmpS32(in, Operand(kClearedWeakHeapObjectLower32));
   beq(target_if_cleared);
 
   AndP(out, in, Operand(~kWeakHeapObjectMask));
@@ -2053,11 +2053,11 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   beq(&do_check);
 
   // Check if JSAsyncFunctionObject (See MacroAssembler::CompareInstanceType)
-  CmpP(instance_type, Operand(JS_ASYNC_FUNCTION_OBJECT_TYPE));
+  CmpS64(instance_type, Operand(JS_ASYNC_FUNCTION_OBJECT_TYPE));
   beq(&do_check);
 
   // Check if JSAsyncGeneratorObject (See MacroAssembler::CompareInstanceType)
-  CmpP(instance_type, Operand(JS_ASYNC_GENERATOR_OBJECT_TYPE));
+  CmpS64(instance_type, Operand(JS_ASYNC_GENERATOR_OBJECT_TYPE));
 
   bind(&do_check);
   // Restore generator object to register and perform assertion
@@ -3253,20 +3253,14 @@ void TurboAssembler::LoadPositive32(Register result, Register input) {
 //-----------------------------------------------------------------------------
 
 // Compare 32-bit Register vs Register
-void TurboAssembler::Cmp32(Register src1, Register src2) { cr_z(src1, src2); }
+void TurboAssembler::CmpS32(Register src1, Register src2) { cr_z(src1, src2); }
 
 // Compare Pointer Sized Register vs Register
-void TurboAssembler::CmpP(Register src1, Register src2) {
-#if V8_TARGET_ARCH_S390X
-  cgr(src1, src2);
-#else
-  Cmp32(src1, src2);
-#endif
-}
+void TurboAssembler::CmpS64(Register src1, Register src2) { cgr(src1, src2); }
 
 // Compare 32-bit Register vs Immediate
 // This helper will set up proper relocation entries if required.
-void TurboAssembler::Cmp32(Register dst, const Operand& opnd) {
+void TurboAssembler::CmpS32(Register dst, const Operand& opnd) {
   if (opnd.rmode() == RelocInfo::NONE) {
     intptr_t value = opnd.immediate();
     if (is_int16(value))
@@ -3282,21 +3276,17 @@ void TurboAssembler::Cmp32(Register dst, const Operand& opnd) {
 
 // Compare Pointer Sized  Register vs Immediate
 // This helper will set up proper relocation entries if required.
-void TurboAssembler::CmpP(Register dst, const Operand& opnd) {
-#if V8_TARGET_ARCH_S390X
+void TurboAssembler::CmpS64(Register dst, const Operand& opnd) {
   if (opnd.rmode() == RelocInfo::NONE) {
     cgfi(dst, opnd);
   } else {
     mov(r0, opnd);  // Need to generate 64-bit relocation
     cgr(dst, r0);
   }
-#else
-  Cmp32(dst, opnd);
-#endif
 }
 
 // Compare 32-bit Register vs Memory
-void TurboAssembler::Cmp32(Register dst, const MemOperand& opnd) {
+void TurboAssembler::CmpS32(Register dst, const MemOperand& opnd) {
   // make sure offset is within 20 bit range
   DCHECK(is_int20(opnd.offset()));
   if (is_uint12(opnd.offset()))
@@ -3306,14 +3296,10 @@ void TurboAssembler::Cmp32(Register dst, const MemOperand& opnd) {
 }
 
 // Compare Pointer Size Register vs Memory
-void TurboAssembler::CmpP(Register dst, const MemOperand& opnd) {
+void TurboAssembler::CmpS64(Register dst, const MemOperand& opnd) {
   // make sure offset is within 20 bit range
   DCHECK(is_int20(opnd.offset()));
-#if V8_TARGET_ARCH_S390X
   cg(dst, opnd);
-#else
-  Cmp32(dst, opnd);
-#endif
 }
 
 // Using cs or scy based on the offset
@@ -3337,34 +3323,34 @@ void TurboAssembler::CmpAndSwap64(Register old_val, Register new_val,
 //-----------------------------------------------------------------------------
 
 // Compare Logical 32-bit Register vs Register
-void TurboAssembler::CmpLogical32(Register dst, Register src) { clr(dst, src); }
+void TurboAssembler::CmpU32(Register dst, Register src) { clr(dst, src); }
 
 // Compare Logical Pointer Sized Register vs Register
-void TurboAssembler::CmpLogicalP(Register dst, Register src) {
+void TurboAssembler::CmpU64(Register dst, Register src) {
 #ifdef V8_TARGET_ARCH_S390X
   clgr(dst, src);
 #else
-  CmpLogical32(dst, src);
+  CmpU32(dst, src);
 #endif
 }
 
 // Compare Logical 32-bit Register vs Immediate
-void TurboAssembler::CmpLogical32(Register dst, const Operand& opnd) {
+void TurboAssembler::CmpU32(Register dst, const Operand& opnd) {
   clfi(dst, opnd);
 }
 
 // Compare Logical Pointer Sized Register vs Immediate
-void TurboAssembler::CmpLogicalP(Register dst, const Operand& opnd) {
+void TurboAssembler::CmpU64(Register dst, const Operand& opnd) {
 #if V8_TARGET_ARCH_S390X
   DCHECK_EQ(static_cast<uint32_t>(opnd.immediate() >> 32), 0);
   clgfi(dst, opnd);
 #else
-  CmpLogical32(dst, opnd);
+  CmpU32(dst, opnd);
 #endif
 }
 
 // Compare Logical 32-bit Register vs Memory
-void TurboAssembler::CmpLogical32(Register dst, const MemOperand& opnd) {
+void TurboAssembler::CmpU32(Register dst, const MemOperand& opnd) {
   // make sure offset is within 20 bit range
   DCHECK(is_int20(opnd.offset()));
   if (is_uint12(opnd.offset()))
@@ -3374,23 +3360,14 @@ void TurboAssembler::CmpLogical32(Register dst, const MemOperand& opnd) {
 }
 
 // Compare Logical Pointer Sized Register vs Memory
-void TurboAssembler::CmpLogicalP(Register dst, const MemOperand& opnd) {
+void TurboAssembler::CmpU64(Register dst, const MemOperand& opnd) {
   // make sure offset is within 20 bit range
   DCHECK(is_int20(opnd.offset()));
 #if V8_TARGET_ARCH_S390X
   clg(dst, opnd);
 #else
-  CmpLogical32(dst, opnd);
+  CmpU32(dst, opnd);
 #endif
-}
-
-// Compare Logical Byte (Mem - Imm)
-void TurboAssembler::CmpLogicalByte(const MemOperand& mem, const Operand& imm) {
-  DCHECK(is_uint8(imm.immediate()));
-  if (is_uint12(mem.offset()))
-    cli(mem, imm);
-  else
-    cliy(mem, imm);
 }
 
 void TurboAssembler::Branch(Condition c, const Operand& opnd) {
@@ -4290,12 +4267,12 @@ void TurboAssembler::LoadPC(Register dst) {
 }
 
 void TurboAssembler::JumpIfEqual(Register x, int32_t y, Label* dest) {
-  Cmp32(x, Operand(y));
+  CmpS32(x, Operand(y));
   beq(dest);
 }
 
 void TurboAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
-  Cmp32(x, Operand(y));
+  CmpS32(x, Operand(y));
   blt(dest);
 }
 
