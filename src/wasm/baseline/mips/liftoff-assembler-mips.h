@@ -5,6 +5,8 @@
 #ifndef V8_WASM_BASELINE_MIPS_LIFTOFF_ASSEMBLER_MIPS_H_
 #define V8_WASM_BASELINE_MIPS_LIFTOFF_ASSEMBLER_MIPS_H_
 
+#include "src/base/platform/wrappers.h"
+#include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 
 namespace v8 {
@@ -146,6 +148,9 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
     case ValueType::kF64:
       assm->addiu(sp, sp, -sizeof(double));
       assm->Sdc1(reg.fp(), MemOperand(sp, 0));
+      break;
+    case ValueType::kOptRef:
+      assm->push(reg.gp());
       break;
     default:
       UNREACHABLE();
@@ -423,10 +428,35 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
 }
 
 void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
+                                          Register offset_reg,
                                           int32_t offset_imm,
                                           LiftoffRegister src,
                                           LiftoffRegList pinned) {
-  bailout(kRefTypes, "GlobalSet");
+  STATIC_ASSERT(kTaggedSize == kInt32Size);
+  Register dst = no_reg;
+  if (offset_reg != no_reg) {
+    dst = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+    emit_ptrsize_add(dst, dst_addr, offset_reg);
+  }
+  MemOperand dst_op = (offset_reg != no_reg) ? MemOperand(dst, offset_imm)
+                                             : MemOperand(dst_addr, offset_imm);
+  Sw(src.gp(), dst_op);
+  // The write barrier.
+  Label write_barrier;
+  Label exit;
+  Register scratch = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  CheckPageFlag(dst_addr, scratch,
+                MemoryChunk::kPointersFromHereAreInterestingMask, ne,
+                &write_barrier);
+  Branch(USE_DELAY_SLOT, &exit);
+  bind(&write_barrier);
+  JumpIfSmi(src.gp(), &exit);
+  CheckPageFlag(src.gp(), scratch,
+                MemoryChunk::kPointersToHereAreInterestingMask, eq, &exit);
+  Addu(scratch, dst_addr, offset_imm);
+  CallRecordWriteStub(dst_addr, scratch, EMIT_REMEMBERED_SET, kSaveFPRegs,
+                      wasm::WasmCode::kRecordWrite);
+  bind(&exit);
 }
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
@@ -2687,7 +2717,18 @@ void LiftoffAssembler::RecordSpillsInSafepoint(Safepoint& safepoint,
                                                LiftoffRegList all_spills,
                                                LiftoffRegList ref_spills,
                                                int spill_offset) {
-  bailout(kRefTypes, "RecordSpillsInSafepoint");
+  int spill_space_size = 0;
+  while (!all_spills.is_empty()) {
+    LiftoffRegister reg = all_spills.GetLastRegSet();
+    if (ref_spills.has(reg)) {
+      safepoint.DefinePointerSlot(spill_offset);
+    }
+    all_spills.clear(reg);
+    ++spill_offset;
+    spill_space_size += kSystemPointerSize;
+  }
+  // Record the number of additional spill slots.
+  RecordOolSpillSpaceSize(spill_space_size);
 }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {

@@ -410,19 +410,21 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
 }
 
 void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
+                                          Register offset_reg,
                                           int32_t offset_imm,
                                           LiftoffRegister src,
                                           LiftoffRegList pinned) {
   STATIC_ASSERT(kTaggedSize == kInt64Size);
   Register scratch = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
-  Sd(src.gp(), MemOperand(dst_addr, offset_imm));
+  MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
+  Sd(src.gp(), dst_op);
 
   Label write_barrier;
   Label exit;
   CheckPageFlag(dst_addr, scratch,
                 MemoryChunk::kPointersFromHereAreInterestingMask, ne,
                 &write_barrier);
-  b(&exit);
+  Branch(USE_DELAY_SLOT, &exit);
   bind(&write_barrier);
   JumpIfSmi(src.gp(), &exit);
   CheckPageFlag(src.gp(), scratch,
@@ -2860,7 +2862,24 @@ void LiftoffAssembler::RecordSpillsInSafepoint(Safepoint& safepoint,
                                                LiftoffRegList all_spills,
                                                LiftoffRegList ref_spills,
                                                int spill_offset) {
-  bailout(kRefTypes, "RecordSpillsInSafepoint");
+  int spill_space_size = 0;
+  bool needs_padding =
+      (base::bits::CountPopulation(all_spills.GetGpList()) & 1) != 0;
+  if (needs_padding) {
+    spill_space_size += kSystemPointerSize;
+    ++spill_offset;
+  }
+  while (!all_spills.is_empty()) {
+    LiftoffRegister reg = all_spills.GetLastRegSet();
+    if (ref_spills.has(reg)) {
+      safepoint.DefinePointerSlot(spill_offset);
+    }
+    all_spills.clear(reg);
+    ++spill_offset;
+    spill_space_size += kSystemPointerSize;
+  }
+  // Record the number of additional spill slots.
+  RecordOolSpillSpaceSize(spill_space_size);
 }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
