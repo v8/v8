@@ -98,6 +98,7 @@ struct ModuleVariable {
 }
 
 @generateCppClass
+@generateBodyDescriptor
 extern class ScopeInfo extends FixedArrayBase {
   const flags: SmiTagged<ScopeFlags>;
 

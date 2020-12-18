@@ -189,9 +189,6 @@ VisitorId Map::GetVisitorId(Map map) {
     case MAP_TYPE:
       return kVisitMap;
 
-    case SCOPE_INFO_TYPE:
-      return kVisitScopeInfo;
-
     case CODE_TYPE:
       return kVisitCode;
 

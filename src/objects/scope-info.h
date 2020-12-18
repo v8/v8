@@ -58,7 +58,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, FixedArrayBase> {
                            int src_index, int len, WriteBarrierMode mode);
   inline ObjectSlot RawFieldOfElementAt(int index);
 
-  using BodyDescriptor = FlexibleBodyDescriptor<kHeaderSize>;
+  class BodyDescriptor;
 
   // Return the type of this scope.
   ScopeType scope_type() const;

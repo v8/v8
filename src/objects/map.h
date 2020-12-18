@@ -58,7 +58,6 @@ enum InstanceType : uint16_t;
   V(PropertyArray)                 \
   V(PropertyCell)                  \
   V(PrototypeInfo)                 \
-  V(ScopeInfo)                     \
   V(ShortcutCandidate)             \
   V(SmallOrderedHashMap)           \
   V(SmallOrderedHashSet)           \
