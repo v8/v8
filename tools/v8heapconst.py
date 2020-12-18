@@ -370,7 +370,7 @@ KNOWN_MAPS = {
   ("read_only_space", 0x05d2d): (78, "StoreHandler2Map"),
   ("read_only_space", 0x05d55): (78, "StoreHandler3Map"),
   ("map_space", 0x02115): (1057, "ExternalMap"),
-  ("map_space", 0x0213d): (1084, "JSMessageObjectMap"),
+  ("map_space", 0x0213d): (1085, "JSMessageObjectMap"),
   ("map_space", 0x02165): (182, "WasmRttEqrefMap"),
   ("map_space", 0x0218d): (182, "WasmRttAnyrefMap"),
   ("map_space", 0x021b5): (182, "WasmRttExternrefMap"),
