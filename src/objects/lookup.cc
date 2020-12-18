@@ -275,8 +275,7 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
                                        Context::REGEXP_FUNCTION_INDEX)) {
       if (!Protectors::IsRegExpSpeciesLookupChainIntact(isolate)) return;
       Protectors::InvalidateRegExpSpeciesLookupChain(isolate);
-    } else if (InstanceTypeChecker::IsTypedArrayConstructor(
-                   receiver->map().instance_type())) {
+    } else if (receiver->IsTypedArrayConstructor()) {
       if (!Protectors::IsTypedArraySpeciesLookupChainIntact(isolate)) return;
       Protectors::InvalidateTypedArraySpeciesLookupChain(isolate);
     }
