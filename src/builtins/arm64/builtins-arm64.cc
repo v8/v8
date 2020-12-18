@@ -2586,7 +2586,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   __ Bind(&non_smi);
   __ LoadMap(x4, x1);
   __ CompareInstanceTypeRange(x4, x5, FIRST_JS_FUNCTION_TYPE,
-                               LAST_JS_FUNCTION_TYPE);
+                              LAST_JS_FUNCTION_TYPE);
   __ Jump(masm->isolate()->builtins()->CallFunction(mode),
           RelocInfo::CODE_TARGET, ls);
   __ Cmp(x5, JS_BOUND_FUNCTION_TYPE);
