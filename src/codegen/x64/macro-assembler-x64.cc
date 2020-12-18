@@ -2208,7 +2208,7 @@ void MacroAssembler::CmpInstanceTypeRange(Register map,
   movzxwl(kScratchRegister, FieldOperand(map, Map::kInstanceTypeOffset));
   leal(kScratchRegister, Operand(kScratchRegister, 0u - lower_limit));
   cmpl(kScratchRegister,
-       Immediate(higher_limit - lower_limit);
+       Immediate(higher_limit - lower_limit));
 }
 
 void MacroAssembler::AssertNotSmi(Register object) {
