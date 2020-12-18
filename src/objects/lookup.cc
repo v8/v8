@@ -262,17 +262,15 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
     }
     // Setting the Symbol.species property of any Array, Promise or TypedArray
     // constructor invalidates the @@species protector
-    if (isolate->IsInAnyContext(*receiver, Context::ARRAY_FUNCTION_INDEX)) {
+    if (receiver->IsJSArrayConstructor()) {
       if (!Protectors::IsArraySpeciesLookupChainIntact(isolate)) return;
       isolate->CountUsage(
           v8::Isolate::UseCounterFeature::kArraySpeciesModified);
       Protectors::InvalidateArraySpeciesLookupChain(isolate);
-    } else if (isolate->IsInAnyContext(*receiver,
-                                       Context::PROMISE_FUNCTION_INDEX)) {
+    } else if (receiver->IsJSPromiseConstructor()) {
       if (!Protectors::IsPromiseSpeciesLookupChainIntact(isolate)) return;
       Protectors::InvalidatePromiseSpeciesLookupChain(isolate);
-    } else if (isolate->IsInAnyContext(*receiver,
-                                       Context::REGEXP_FUNCTION_INDEX)) {
+    } else if (receiver->IsJSRegExpConstructor()) {
       if (!Protectors::IsRegExpSpeciesLookupChainIntact(isolate)) return;
       Protectors::InvalidateRegExpSpeciesLookupChain(isolate);
     } else if (receiver->IsTypedArrayConstructor()) {
@@ -317,7 +315,7 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
     if (!Protectors::IsPromiseResolveLookupChainIntact(isolate)) return;
     // Setting the "resolve" property on any %Promise% intrinsic object
     // invalidates the Promise.resolve protector.
-    if (isolate->IsInAnyContext(*receiver, Context::PROMISE_FUNCTION_INDEX)) {
+    if (receiver->IsJSPromiseConstructor()) {
       Protectors::InvalidatePromiseResolveLookupChain(isolate);
     }
   } else if (*name == roots.then_string()) {

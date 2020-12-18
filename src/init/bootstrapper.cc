@@ -1735,6 +1735,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     // Cache the array maps, needed by ArrayConstructorStub
     CacheInitialJSArrayMaps(isolate_, native_context(), initial_map);
+    array_function->map().set_instance_type(JS_ARRAY_CONSTRUCTOR_TYPE);
 
     // Set up %ArrayPrototype%.
     // The %ArrayPrototype% has TERMINAL_FAST_ELEMENTS_KIND in order to ensure
@@ -2462,7 +2463,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         Builtins::kRegExpConstructor);
     InstallWithIntrinsicDefaultProto(isolate_, regexp_fun,
                                      Context::REGEXP_FUNCTION_INDEX);
-
+    regexp_fun->map().set_instance_type(JS_REG_EXP_CONSTRUCTOR_TYPE);
     Handle<SharedFunctionInfo> shared(regexp_fun->shared(), isolate_);
     shared->set_internal_formal_parameter_count(2);
     shared->set_length(2);
