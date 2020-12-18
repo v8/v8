@@ -1856,8 +1856,8 @@ void MacroAssembler::CompareInstanceType(Register map, Register type_reg,
 }
 
 void MacroAssembler::CompareInstanceTypeRange(Register map, Register type_reg,
-                                              InstanceType low,
-                                              InstanceType high) {
+                                              InstanceType lower_limit,
+                                              InstanceType higher_limit) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   ldrh(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
@@ -2165,9 +2165,11 @@ void MacroAssembler::AssertFunction(Register object) {
     tst(object, Operand(kSmiTagMask));
     Check(ne, AbortReason::kOperandIsASmiAndNotAFunction);
     push(object);
-    CompareObjectType(object, object, object, JS_FUNCTION_TYPE);
+    LoadMap(object, object);
+    CompareInstanceTypeRange(object, object, FIRST_JS_FUNCTION_TYPE,
+                             LAST_JS_FUNCTION_TYPE);
     pop(object);
-    Check(eq, AbortReason::kOperandIsNotAFunction);
+    Check(ls, AbortReason::kOperandIsNotAFunction);
   }
 }
 
@@ -2177,9 +2179,7 @@ void MacroAssembler::AssertBoundFunction(Register object) {
     tst(object, Operand(kSmiTagMask));
     Check(ne, AbortReason::kOperandIsASmiAndNotABoundFunction);
     push(object);
-    Register map = object;
-    LoadMap(map);
-    CompareObjectType(map, map, map, JS_BOUND_FUNCTION_TYPE);
+    CompareObjectType(object, object, object, JS_BOUND_FUNCTION_TYPE);
     pop(object);
     Check(eq, AbortReason::kOperandIsNotABoundFunction);
   }
