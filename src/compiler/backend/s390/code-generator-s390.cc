@@ -1719,9 +1719,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_Mul32:
       // zero-ext
       if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
-        ASSEMBLE_BIN32_OP(RRRInstr(msrkc), RM32Instr(msc), RIInstr(Mul32));
+        ASSEMBLE_BIN32_OP(RRRInstr(msrkc), RM32Instr(msc), RIInstr(MulS32));
       } else {
-        ASSEMBLE_BIN32_OP(RRInstr(Mul32), RM32Instr(Mul32), RIInstr(Mul32));
+        ASSEMBLE_BIN32_OP(RRInstr(MulS32), RM32Instr(MulS32), RIInstr(MulS32));
       }
       break;
     case kS390_Mul32WithOverflow:
@@ -1731,12 +1731,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                         RRIInstr(Mul32WithOverflowIfCCUnequal));
       break;
     case kS390_Mul64:
-      ASSEMBLE_BIN_OP(RRInstr(Mul64), RM64Instr(Mul64), RIInstr(Mul64));
+      ASSEMBLE_BIN_OP(RRInstr(MulS64), RM64Instr(MulS64), RIInstr(MulS64));
       break;
     case kS390_MulHigh32:
       // zero-ext
-      ASSEMBLE_BIN_OP(RRRInstr(MulHigh32), RRM32Instr(MulHigh32),
-                      RRIInstr(MulHigh32));
+      ASSEMBLE_BIN_OP(RRRInstr(MulHighS32), RRM32Instr(MulHighS32),
+                      RRIInstr(MulHighS32));
       break;
     case kS390_MulHighU32:
       // zero-ext
@@ -1750,11 +1750,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_BIN_OP(DDInstr(mdbr), DMTInstr(MulFloat64), nullInstr);
       break;
     case kS390_Div64:
-      ASSEMBLE_BIN_OP(RRRInstr(Div64), RRM64Instr(Div64), nullInstr);
+      ASSEMBLE_BIN_OP(RRRInstr(DivS64), RRM64Instr(DivS64), nullInstr);
       break;
     case kS390_Div32: {
       // zero-ext
-      ASSEMBLE_BIN_OP(RRRInstr(Div32), RRM32Instr(Div32), nullInstr);
+      ASSEMBLE_BIN_OP(RRRInstr(DivS32), RRM32Instr(DivS32), nullInstr);
       break;
     }
     case kS390_DivU64:
@@ -1773,14 +1773,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kS390_Mod32:
       // zero-ext
-      ASSEMBLE_BIN_OP(RRRInstr(Mod32), RRM32Instr(Mod32), nullInstr);
+      ASSEMBLE_BIN_OP(RRRInstr(ModS32), RRM32Instr(ModS32), nullInstr);
       break;
     case kS390_ModU32:
       // zero-ext
       ASSEMBLE_BIN_OP(RRRInstr(ModU32), RRM32Instr(ModU32), nullInstr);
       break;
     case kS390_Mod64:
-      ASSEMBLE_BIN_OP(RRRInstr(Mod64), RRM64Instr(Mod64), nullInstr);
+      ASSEMBLE_BIN_OP(RRRInstr(ModS64), RRM64Instr(ModS64), nullInstr);
       break;
     case kS390_ModU64:
       ASSEMBLE_BIN_OP(RRRInstr(ModU64), RRM64Instr(ModU64), nullInstr);
@@ -3032,7 +3032,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       for (int i = 0; i < 2; i++) {
         __ vlgv(scratch_0, src0, MemOperand(r0, i), Condition(3));
         __ vlgv(scratch_1, src1, MemOperand(r0, i), Condition(3));
-        __ Mul64(scratch_0, scratch_1);
+        __ MulS64(scratch_0, scratch_1);
         scratch_0 = r1;
         scratch_1 = ip;
       }
@@ -4124,7 +4124,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     __ vlgv(scratch_0, kScratchDoubleReg, MemOperand(r0, lane), Condition(3)); \
     __ vlgv(scratch_1, i.OutputSimd128Register(), MemOperand(r0, lane),        \
             Condition(3));                                                     \
-    __ Mul64(scratch_0, scratch_1);                                            \
+    __ MulS64(scratch_0, scratch_1);                                           \
     scratch_0 = r1;                                                            \
     scratch_1 = ip;                                                            \
   }                                                                            \

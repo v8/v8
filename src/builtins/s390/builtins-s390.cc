@@ -1602,7 +1602,7 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
     __ StoreU64(scratch, MemOperand(sp, r1));
     // Recover arguments count.
     __ SubS64(r2, r2,
-            Operand(BuiltinContinuationFrameConstants::kFixedSlotCount));
+              Operand(BuiltinContinuationFrameConstants::kFixedSlotCount));
   }
   __ LoadP(
       fp,
@@ -2576,8 +2576,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
       __ SubS64(r6, fp, r1);
       // Adjust for frame.
       __ SubS64(r6, r6,
-              Operand(ArgumentsAdaptorFrameConstants::kFixedFrameSizeFromFp +
-                      kSystemPointerSize));
+                Operand(ArgumentsAdaptorFrameConstants::kFixedFrameSizeFromFp +
+                        kSystemPointerSize));
 
       Label fill;
       __ bind(&fill);

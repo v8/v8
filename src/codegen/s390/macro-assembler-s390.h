@@ -232,16 +232,45 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void SubU32(Register dst, Register src1, Register src2);
 
   // Multiply
-  void MulP(Register dst, const Operand& opnd);
-  void MulP(Register dst, Register src);
-  void MulP(Register dst, const MemOperand& opnd);
-  void Mul(Register dst, Register src1, Register src2);
-  void Mul32(Register dst, const MemOperand& src1);
-  void Mul32(Register dst, Register src1);
-  void Mul32(Register dst, const Operand& src1);
-  void MulHigh32(Register dst, Register src1, const MemOperand& src2);
-  void MulHigh32(Register dst, Register src1, Register src2);
-  void MulHigh32(Register dst, Register src1, const Operand& src2);
+  void MulS64(Register dst, const Operand& opnd);
+  void MulS64(Register dst, Register src);
+  void MulS64(Register dst, const MemOperand& opnd);
+  void MulS64(Register dst, Register src1, Register src2) {
+    if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
+      msgrkc(dst, src1, src2);
+    } else {
+      if (dst == src2) {
+        MulS64(dst, src1);
+      } else if (dst == src1) {
+        MulS64(dst, src2);
+      } else {
+        mov(dst, src1);
+        MulS64(dst, src2);
+      }
+    }
+  }
+
+  void MulS32(Register dst, const MemOperand& src1);
+  void MulS32(Register dst, Register src1);
+  void MulS32(Register dst, const Operand& src1);
+  void MulS32(Register dst, Register src1, Register src2) {
+    if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
+      msrkc(dst, src1, src2);
+    } else {
+      if (dst == src2) {
+        MulS32(dst, src1);
+      } else if (dst == src1) {
+        MulS32(dst, src2);
+      } else {
+        mov(dst, src1);
+        MulS32(dst, src2);
+      }
+    }
+  }
+
+  void MulHighS32(Register dst, Register src1, const MemOperand& src2);
+  void MulHighS32(Register dst, Register src1, Register src2);
+  void MulHighS32(Register dst, Register src1, const Operand& src2);
   void MulHighU32(Register dst, Register src1, const MemOperand& src2);
   void MulHighU32(Register dst, Register src1, Register src2);
   void MulHighU32(Register dst, Register src1, const Operand& src2);
@@ -250,29 +279,23 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Mul32WithOverflowIfCCUnequal(Register dst, Register src1, Register src2);
   void Mul32WithOverflowIfCCUnequal(Register dst, Register src1,
                                     const Operand& src2);
-  void Mul64(Register dst, const MemOperand& src1);
-  void Mul64(Register dst, Register src1);
-  void Mul64(Register dst, const Operand& src1);
-  void MulPWithCondition(Register dst, Register src1, Register src2);
-
   // Divide
-  void DivP(Register dividend, Register divider);
-  void Div32(Register dst, Register src1, const MemOperand& src2);
-  void Div32(Register dst, Register src1, Register src2);
+  void DivS32(Register dst, Register src1, const MemOperand& src2);
+  void DivS32(Register dst, Register src1, Register src2);
   void DivU32(Register dst, Register src1, const MemOperand& src2);
   void DivU32(Register dst, Register src1, Register src2);
-  void Div64(Register dst, Register src1, const MemOperand& src2);
-  void Div64(Register dst, Register src1, Register src2);
+  void DivS64(Register dst, Register src1, const MemOperand& src2);
+  void DivS64(Register dst, Register src1, Register src2);
   void DivU64(Register dst, Register src1, const MemOperand& src2);
   void DivU64(Register dst, Register src1, Register src2);
 
   // Mod
-  void Mod32(Register dst, Register src1, const MemOperand& src2);
-  void Mod32(Register dst, Register src1, Register src2);
+  void ModS32(Register dst, Register src1, const MemOperand& src2);
+  void ModS32(Register dst, Register src1, Register src2);
   void ModU32(Register dst, Register src1, const MemOperand& src2);
   void ModU32(Register dst, Register src1, Register src2);
-  void Mod64(Register dst, Register src1, const MemOperand& src2);
-  void Mod64(Register dst, Register src1, Register src2);
+  void ModS64(Register dst, Register src1, const MemOperand& src2);
+  void ModS64(Register dst, Register src1, Register src2);
   void ModU64(Register dst, Register src1, const MemOperand& src2);
   void ModU64(Register dst, Register src1, Register src2);
 
@@ -790,6 +813,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Calls Abort(msg) if the condition cond is not satisfied.
   // Use --debug_code to enable.
   void Assert(Condition cond, AbortReason reason, CRegister cr = cr7);
+
+  // Like Assert(), but without condition.
+  // Use --debug-code to enable.
+  void AssertUnreachable(AbortReason reason);
 
   // Like Assert(), but always enabled.
   void Check(Condition cond, AbortReason reason, CRegister cr = cr7);

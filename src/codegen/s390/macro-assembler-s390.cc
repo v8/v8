@@ -1528,7 +1528,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
   // If overapplication or if the actual argument count is equal to the
   // formal parameter count, no need to push extra undefined values.
   SubS64(expected_parameter_count, expected_parameter_count,
-       actual_parameter_count);
+         actual_parameter_count);
   ble(&regular_invoke);
 
   Label stack_overflow;
@@ -1916,6 +1916,10 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
 
 void TurboAssembler::Assert(Condition cond, AbortReason reason, CRegister cr) {
   if (emit_debug_code()) Check(cond, reason, cr);
+}
+
+void TurboAssembler::AssertUnreachable(AbortReason reason) {
+  if (emit_debug_code()) Abort(reason);
 }
 
 void TurboAssembler::Check(Condition cond, AbortReason reason, CRegister cr) {
@@ -2334,7 +2338,7 @@ void TurboAssembler::mov(Register dst, const Operand& src) {
   iilf(dst, Operand(lo_32));
 }
 
-void TurboAssembler::Mul32(Register dst, const MemOperand& src1) {
+void TurboAssembler::MulS32(Register dst, const MemOperand& src1) {
   if (is_uint12(src1.offset())) {
     ms(dst, src1);
   } else if (is_int20(src1.offset())) {
@@ -2344,9 +2348,9 @@ void TurboAssembler::Mul32(Register dst, const MemOperand& src1) {
   }
 }
 
-void TurboAssembler::Mul32(Register dst, Register src1) { msr(dst, src1); }
+void TurboAssembler::MulS32(Register dst, Register src1) { msr(dst, src1); }
 
-void TurboAssembler::Mul32(Register dst, const Operand& src1) {
+void TurboAssembler::MulS32(Register dst, const Operand& src1) {
   msfi(dst, src1);
 }
 
@@ -2357,20 +2361,20 @@ void TurboAssembler::Mul32(Register dst, const Operand& src1) {
     srlg(dst, dst, Operand(32));  \
   }
 
-void TurboAssembler::MulHigh32(Register dst, Register src1,
-                               const MemOperand& src2) {
+void TurboAssembler::MulHighS32(Register dst, Register src1,
+                                const MemOperand& src2) {
   Generate_MulHigh32(msgf);
 }
 
-void TurboAssembler::MulHigh32(Register dst, Register src1, Register src2) {
+void TurboAssembler::MulHighS32(Register dst, Register src1, Register src2) {
   if (dst == src2) {
     std::swap(src1, src2);
   }
   Generate_MulHigh32(msgfr);
 }
 
-void TurboAssembler::MulHigh32(Register dst, Register src1,
-                               const Operand& src2) {
+void TurboAssembler::MulHighS32(Register dst, Register src1,
+                                const Operand& src2) {
   Generate_MulHigh32(msgfi);
 }
 
@@ -2432,45 +2436,6 @@ void TurboAssembler::Mul32WithOverflowIfCCUnequal(Register dst, Register src1,
 
 #undef Generate_Mul32WithOverflowIfCCUnequal
 
-void TurboAssembler::Mul64(Register dst, const MemOperand& src1) {
-  if (is_int20(src1.offset())) {
-    msg(dst, src1);
-  } else {
-    UNIMPLEMENTED();
-  }
-}
-
-void TurboAssembler::Mul64(Register dst, Register src1) { msgr(dst, src1); }
-
-void TurboAssembler::Mul64(Register dst, const Operand& src1) {
-  msgfi(dst, src1);
-}
-
-void TurboAssembler::Mul(Register dst, Register src1, Register src2) {
-  if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
-    MulPWithCondition(dst, src1, src2);
-  } else {
-    if (dst == src2) {
-      MulP(dst, src1);
-    } else if (dst == src1) {
-      MulP(dst, src2);
-    } else {
-      Move(dst, src1);
-      MulP(dst, src2);
-    }
-  }
-}
-
-void TurboAssembler::DivP(Register dividend, Register divider) {
-  // have to make sure the src and dst are reg pairs
-  DCHECK_EQ(dividend.code() % 2, 0);
-#if V8_TARGET_ARCH_S390X
-  dsgr(dividend, divider);
-#else
-  dr(dividend, divider);
-#endif
-}
-
 #define Generate_Div32(instr) \
   {                           \
     lgfr(r1, src1);           \
@@ -2478,12 +2443,12 @@ void TurboAssembler::DivP(Register dividend, Register divider) {
     LoadU32(dst, r1);          \
   }
 
-void TurboAssembler::Div32(Register dst, Register src1,
-                           const MemOperand& src2) {
+void TurboAssembler::DivS32(Register dst, Register src1,
+                            const MemOperand& src2) {
   Generate_Div32(dsgf);
 }
 
-void TurboAssembler::Div32(Register dst, Register src1, Register src2) {
+void TurboAssembler::DivS32(Register dst, Register src1, Register src2) {
   Generate_Div32(dsgfr);
 }
 
@@ -2515,12 +2480,12 @@ void TurboAssembler::DivU32(Register dst, Register src1, Register src2) {
     lgr(dst, r1);             \
   }
 
-void TurboAssembler::Div64(Register dst, Register src1,
-                           const MemOperand& src2) {
+void TurboAssembler::DivS64(Register dst, Register src1,
+                            const MemOperand& src2) {
   Generate_Div64(dsg);
 }
 
-void TurboAssembler::Div64(Register dst, Register src1, Register src2) {
+void TurboAssembler::DivS64(Register dst, Register src1, Register src2) {
   Generate_Div64(dsgr);
 }
 
@@ -2552,12 +2517,12 @@ void TurboAssembler::DivU64(Register dst, Register src1, Register src2) {
     LoadU32(dst, r0);          \
   }
 
-void TurboAssembler::Mod32(Register dst, Register src1,
-                           const MemOperand& src2) {
+void TurboAssembler::ModS32(Register dst, Register src1,
+                            const MemOperand& src2) {
   Generate_Mod32(dsgf);
 }
 
-void TurboAssembler::Mod32(Register dst, Register src1, Register src2) {
+void TurboAssembler::ModS32(Register dst, Register src1, Register src2) {
   Generate_Mod32(dsgfr);
 }
 
@@ -2589,12 +2554,12 @@ void TurboAssembler::ModU32(Register dst, Register src1, Register src2) {
     lgr(dst, r0);             \
   }
 
-void TurboAssembler::Mod64(Register dst, Register src1,
-                           const MemOperand& src2) {
+void TurboAssembler::ModS64(Register dst, Register src1,
+                            const MemOperand& src2) {
   Generate_Mod64(dsg);
 }
 
-void TurboAssembler::Mod64(Register dst, Register src1, Register src2) {
+void TurboAssembler::ModS64(Register dst, Register src1, Register src2) {
   Generate_Mod64(dsgr);
 }
 
@@ -2619,34 +2584,13 @@ void TurboAssembler::ModU64(Register dst, Register src1, Register src2) {
 
 #undef Generate_ModU64
 
-void TurboAssembler::MulP(Register dst, const Operand& opnd) {
-#if V8_TARGET_ARCH_S390X
+void TurboAssembler::MulS64(Register dst, const Operand& opnd) {
   msgfi(dst, opnd);
-#else
-  msfi(dst, opnd);
-#endif
 }
 
-void TurboAssembler::MulP(Register dst, Register src) {
-#if V8_TARGET_ARCH_S390X
-  msgr(dst, src);
-#else
-  msr(dst, src);
-#endif
-}
+void TurboAssembler::MulS64(Register dst, Register src) { msgr(dst, src); }
 
-void TurboAssembler::MulPWithCondition(Register dst, Register src1,
-                                       Register src2) {
-  CHECK(CpuFeatures::IsSupported(MISC_INSTR_EXT2));
-#if V8_TARGET_ARCH_S390X
-  msgrkc(dst, src1, src2);
-#else
-  msrkc(dst, src1, src2);
-#endif
-}
-
-void TurboAssembler::MulP(Register dst, const MemOperand& opnd) {
-#if V8_TARGET_ARCH_S390X
+void TurboAssembler::MulS64(Register dst, const MemOperand& opnd) {
   if (is_uint16(opnd.offset())) {
     ms(dst, opnd);
   } else if (is_int20(opnd.offset())) {
@@ -2654,13 +2598,6 @@ void TurboAssembler::MulP(Register dst, const MemOperand& opnd) {
   } else {
     UNIMPLEMENTED();
   }
-#else
-  if (is_int20(opnd.offset())) {
-    msg(dst, opnd);
-  } else {
-    UNIMPLEMENTED();
-  }
-#endif
 }
 
 void TurboAssembler::Sqrt(DoubleRegister result, DoubleRegister input) {
