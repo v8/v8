@@ -3420,6 +3420,18 @@ void Builtins::Generate_DynamicCheckMapsTrampoline(MacroAssembler* masm) {
   // to save all CallerSaved registers too.
   if (FLAG_debug_code) registers |= kJSCallerSaved;
   __ SaveRegisters(registers);
+
+  // Load the immediate arguments from the deopt exit to pass to the builtin.
+  Register slot_arg =
+      descriptor.GetRegisterParameter(DynamicCheckMapsDescriptor::kSlot);
+  Register handler_arg =
+      descriptor.GetRegisterParameter(DynamicCheckMapsDescriptor::kHandler);
+  __ Ld(handler_arg, MemOperand(fp, CommonFrameConstants::kCallerPCOffset));
+  __ Uld(slot_arg, MemOperand(handler_arg,
+                              Deoptimizer::kEagerWithResumeImmedArgs1PcOffset));
+  __ Uld(
+      handler_arg,
+      MemOperand(handler_arg, Deoptimizer::kEagerWithResumeImmedArgs2PcOffset));
   __ Call(BUILTIN_CODE(masm->isolate(), DynamicCheckMaps),
           RelocInfo::CODE_TARGET);
 

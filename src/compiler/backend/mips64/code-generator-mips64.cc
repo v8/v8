@@ -846,7 +846,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchDeoptimize: {
       DeoptimizationExit* exit =
-          BuildTranslation(instr, -1, 0, OutputFrameStateCombine::Ignore());
+          BuildTranslation(instr, -1, 0, 0, OutputFrameStateCombine::Ignore());
       __ Branch(exit->label());
       break;
     }
@@ -1602,7 +1602,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       bool set_overflow_to_min_i64 = MiscField::decode(instr->opcode());
       bool load_status = instr->OutputCount() > 1;
-      DCHECK_IMPLIES(set_overflow_to_min_i64, i.OutputCount() == 1);
+      DCHECK_IMPLIES(set_overflow_to_min_i64, instr->OutputCount() == 1);
       if (load_status) {
         // Save FCSR.
         __ cfc1(tmp_fcsr, FCSR);

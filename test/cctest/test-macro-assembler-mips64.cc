@@ -1706,7 +1706,7 @@ TEST(DeoptExitSizeIsFixed) {
       masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
                                  nullptr);
       CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
-               Deoptimizer::kEagerWithResumeDeoptExitSize);
+               Deoptimizer::kEagerWithResumeBeforeArgsSize);
     } else {
       Builtins::Name target = Deoptimizer::GetDeoptimizationEntry(kind);
       masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
