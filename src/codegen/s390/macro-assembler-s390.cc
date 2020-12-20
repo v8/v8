@@ -2591,13 +2591,7 @@ void TurboAssembler::MulS64(Register dst, const Operand& opnd) {
 void TurboAssembler::MulS64(Register dst, Register src) { msgr(dst, src); }
 
 void TurboAssembler::MulS64(Register dst, const MemOperand& opnd) {
-  if (is_uint16(opnd.offset())) {
-    ms(dst, opnd);
-  } else if (is_int20(opnd.offset())) {
-    msy(dst, opnd);
-  } else {
-    UNIMPLEMENTED();
-  }
+  msg(dst, opnd);
 }
 
 void TurboAssembler::Sqrt(DoubleRegister result, DoubleRegister input) {
