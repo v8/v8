@@ -2951,6 +2951,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I64x2Add, kMips64I64x2Add)                           \
   V(I64x2Sub, kMips64I64x2Sub)                           \
   V(I64x2Mul, kMips64I64x2Mul)                           \
+  V(I64x2ExtMulLowI32x4S, kMips64I64x2ExtMulLowI32x4S)   \
+  V(I64x2ExtMulHighI32x4S, kMips64I64x2ExtMulHighI32x4S) \
+  V(I64x2ExtMulLowI32x4U, kMips64I64x2ExtMulLowI32x4U)   \
+  V(I64x2ExtMulHighI32x4U, kMips64I64x2ExtMulHighI32x4U) \
   V(F32x4Add, kMips64F32x4Add)                           \
   V(F32x4AddHoriz, kMips64F32x4AddHoriz)                 \
   V(F32x4Sub, kMips64F32x4Sub)                           \
@@ -2977,6 +2981,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I32x4GtU, kMips64I32x4GtU)                           \
   V(I32x4GeU, kMips64I32x4GeU)                           \
   V(I32x4DotI16x8S, kMips64I32x4DotI16x8S)               \
+  V(I32x4ExtMulLowI16x8S, kMips64I32x4ExtMulLowI16x8S)   \
+  V(I32x4ExtMulHighI16x8S, kMips64I32x4ExtMulHighI16x8S) \
+  V(I32x4ExtMulLowI16x8U, kMips64I32x4ExtMulLowI16x8U)   \
+  V(I32x4ExtMulHighI16x8U, kMips64I32x4ExtMulHighI16x8U) \
   V(I16x8Add, kMips64I16x8Add)                           \
   V(I16x8AddSatS, kMips64I16x8AddSatS)                   \
   V(I16x8AddSatU, kMips64I16x8AddSatU)                   \
@@ -2998,6 +3006,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8RoundingAverageU, kMips64I16x8RoundingAverageU) \
   V(I16x8SConvertI32x4, kMips64I16x8SConvertI32x4)       \
   V(I16x8UConvertI32x4, kMips64I16x8UConvertI32x4)       \
+  V(I16x8ExtMulLowI8x16S, kMips64I16x8ExtMulLowI8x16S)   \
+  V(I16x8ExtMulHighI8x16S, kMips64I16x8ExtMulHighI8x16S) \
+  V(I16x8ExtMulLowI8x16U, kMips64I16x8ExtMulLowI8x16U)   \
+  V(I16x8ExtMulHighI8x16U, kMips64I16x8ExtMulHighI8x16U) \
   V(I8x16Add, kMips64I8x16Add)                           \
   V(I8x16AddSatS, kMips64I8x16AddSatS)                   \
   V(I8x16AddSatU, kMips64I8x16AddSatU)                   \

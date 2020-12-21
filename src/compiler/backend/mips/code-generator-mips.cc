@@ -525,6 +525,15 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
           i.InputSimd128Register(1));                           \
   } while (0)
 
+#define ASSEMBLE_SIMD_EXTENDED_MULTIPLY(op0, op1)                           \
+  do {                                                                      \
+    CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);                           \
+    __ xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);            \
+    __ op0(kSimd128ScratchReg, kSimd128RegZero, i.InputSimd128Register(0)); \
+    __ op0(kSimd128RegZero, kSimd128RegZero, i.InputSimd128Register(1));    \
+    __ op1(i.OutputSimd128Register(), kSimd128ScratchReg, kSimd128RegZero); \
+  } while (0)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ mov(sp, fp);
   __ Pop(ra, fp);
@@ -2286,6 +2295,42 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputSimd128Register(1));
       break;
     }
+    case kMipsI64x2ExtMulLowI32x4S:
+      ASSEMBLE_SIMD_EXTENDED_MULTIPLY(ilvr_w, dotp_s_d);
+      break;
+    case kMipsI64x2ExtMulHighI32x4S:
+      ASSEMBLE_SIMD_EXTENDED_MULTIPLY(ilvl_w, dotp_s_d);
+      break;
+    case kMipsI64x2ExtMulLowI32x4U:
+      ASSEMBLE_SIMD_EXTENDED_MULTIPLY(ilvr_w, dotp_u_d);
+      break;
+    case kMipsI64x2ExtMulHighI32x4U:
+      ASSEMBLE_SIMD_EXTENDED_MULTIPLY(ilvl_w, dotp_u_d);
+      break;
+    case kMipsI32x4ExtMulLowI16x8S:
+      ASSEMBLE_SIMD_EXTENDED_MULTIPLY(ilvr_h, dotp_s_w);
+      break;
+    case kMipsI32x4ExtMulHighI16x8S:
+      ASSEMBLE_SIMD_EXTENDED_MULTIPLY(ilvl_h, dotp_s_w);
+      break;
+    case kMipsI32x4ExtMulLowI16x8U:
+      ASSEMBLE_SIMD_EXTENDED_MULTIPLY(ilvr_h, dotp_u_w);
+      break;
+    case kMipsI32x4ExtMulHighI16x8U:
+      ASSEMBLE_SIMD_EXTENDED_MULTIPLY(ilvl_h, dotp_u_w);
+      break;
+    case kMipsI16x8ExtMulLowI8x16S:
+      ASSEMBLE_SIMD_EXTENDED_MULTIPLY(ilvr_b, dotp_s_h);
+      break;
+    case kMipsI16x8ExtMulHighI8x16S:
+      ASSEMBLE_SIMD_EXTENDED_MULTIPLY(ilvl_b, dotp_s_h);
+      break;
+    case kMipsI16x8ExtMulLowI8x16U:
+      ASSEMBLE_SIMD_EXTENDED_MULTIPLY(ilvr_b, dotp_u_h);
+      break;
+    case kMipsI16x8ExtMulHighI8x16U:
+      ASSEMBLE_SIMD_EXTENDED_MULTIPLY(ilvl_b, dotp_u_h);
+      break;
     case kMipsF32x4Splat: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ FmoveLow(kScratchReg, i.InputSingleRegister(0));
@@ -4430,6 +4475,8 @@ void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
 }
 
 #undef __
+#undef ASSEMBLE_F64X2_ARITHMETIC_BINOP
+#undef ASSEMBLE_SIMD_EXTENDED_MULTIPLY
 
 }  // namespace compiler
 }  // namespace internal

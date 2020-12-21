@@ -100,6 +100,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64I64x2ShrU:
     case kMips64I64x2BitMask:
     case kMips64I64x2Eq:
+    case kMips64I64x2ExtMulLowI32x4S:
+    case kMips64I64x2ExtMulHighI32x4S:
+    case kMips64I64x2ExtMulLowI32x4U:
+    case kMips64I64x2ExtMulHighI32x4U:
     case kMips64F32x4Abs:
     case kMips64F32x4Add:
     case kMips64F32x4AddHoriz:
@@ -186,6 +190,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64I16x8RoundingAverageU:
     case kMips64I16x8Abs:
     case kMips64I16x8BitMask:
+    case kMips64I16x8ExtMulLowI8x16S:
+    case kMips64I16x8ExtMulHighI8x16S:
+    case kMips64I16x8ExtMulLowI8x16U:
+    case kMips64I16x8ExtMulHighI8x16U:
     case kMips64I32x4Add:
     case kMips64I32x4AddHoriz:
     case kMips64I32x4Eq:
@@ -216,6 +224,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64I32x4Abs:
     case kMips64I32x4BitMask:
     case kMips64I32x4DotI16x8S:
+    case kMips64I32x4ExtMulLowI16x8S:
+    case kMips64I32x4ExtMulHighI16x8S:
+    case kMips64I32x4ExtMulLowI16x8U:
+    case kMips64I32x4ExtMulHighI16x8U:
     case kMips64I8x16Add:
     case kMips64I8x16AddSatS:
     case kMips64I8x16AddSatU:

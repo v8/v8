@@ -2187,6 +2187,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I64x2Add, kMipsI64x2Add)                           \
   V(I64x2Sub, kMipsI64x2Sub)                           \
   V(I64x2Mul, kMipsI64x2Mul)                           \
+  V(I64x2ExtMulLowI32x4S, kMipsI64x2ExtMulLowI32x4S)   \
+  V(I64x2ExtMulHighI32x4S, kMipsI64x2ExtMulHighI32x4S) \
+  V(I64x2ExtMulLowI32x4U, kMipsI64x2ExtMulLowI32x4U)   \
+  V(I64x2ExtMulHighI32x4U, kMipsI64x2ExtMulHighI32x4U) \
   V(F32x4Add, kMipsF32x4Add)                           \
   V(F32x4AddHoriz, kMipsF32x4AddHoriz)                 \
   V(F32x4Sub, kMipsF32x4Sub)                           \
@@ -2214,6 +2218,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I32x4GeU, kMipsI32x4GeU)                           \
   V(I32x4Abs, kMipsI32x4Abs)                           \
   V(I32x4DotI16x8S, kMipsI32x4DotI16x8S)               \
+  V(I32x4ExtMulLowI16x8S, kMipsI32x4ExtMulLowI16x8S)   \
+  V(I32x4ExtMulHighI16x8S, kMipsI32x4ExtMulHighI16x8S) \
+  V(I32x4ExtMulLowI16x8U, kMipsI32x4ExtMulLowI16x8U)   \
+  V(I32x4ExtMulHighI16x8U, kMipsI32x4ExtMulHighI16x8U) \
   V(I16x8Add, kMipsI16x8Add)                           \
   V(I16x8AddSatS, kMipsI16x8AddSatS)                   \
   V(I16x8AddSatU, kMipsI16x8AddSatU)                   \
@@ -2234,6 +2242,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8GeU, kMipsI16x8GeU)                           \
   V(I16x8SConvertI32x4, kMipsI16x8SConvertI32x4)       \
   V(I16x8UConvertI32x4, kMipsI16x8UConvertI32x4)       \
+  V(I16x8ExtMulLowI8x16S, kMipsI16x8ExtMulLowI8x16S)   \
+  V(I16x8ExtMulHighI8x16S, kMipsI16x8ExtMulHighI8x16S) \
+  V(I16x8ExtMulLowI8x16U, kMipsI16x8ExtMulLowI8x16U)   \
+  V(I16x8ExtMulHighI8x16U, kMipsI16x8ExtMulHighI8x16U) \
   V(I16x8RoundingAverageU, kMipsI16x8RoundingAverageU) \
   V(I16x8Abs, kMipsI16x8Abs)                           \
   V(I8x16Add, kMipsI8x16Add)                           \
