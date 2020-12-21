@@ -6369,6 +6369,11 @@ TNode<BoolT> CodeStubAssembler::IsJSGeneratorObject(TNode<HeapObject> object) {
   return HasInstanceType(object, JS_GENERATOR_OBJECT_TYPE);
 }
 
+TNode<BoolT> CodeStubAssembler::IsFunctionInstanceType(
+    SloppyTNode<Int32T> instance_type) {
+  return IsInRange(instance_type, FIRST_JS_FUNCTION_OR_BOUND_FUNCTION_TYPE,
+                   LAST_JS_FUNCTION_OR_BOUND_FUNCTION_TYPE);
+}
 TNode<BoolT> CodeStubAssembler::IsJSFunctionInstanceType(
     SloppyTNode<Int32T> instance_type) {
   return IsInRange(instance_type, FIRST_JS_FUNCTION_TYPE,

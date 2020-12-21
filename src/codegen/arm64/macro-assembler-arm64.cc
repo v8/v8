@@ -2677,6 +2677,7 @@ void TurboAssembler::LoadMap(Register dst, Register object) {
 // Sets condition flags based on comparison, and returns type in type_reg.
 void MacroAssembler::CompareInstanceType(Register map, Register type_reg,
                                          InstanceType type) {
+  DCHECK_LT(lower_limit, higher_limit);
   Ldrh(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
   Cmp(type_reg, type);
 }

@@ -2205,6 +2205,7 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
 void MacroAssembler::CmpInstanceTypeRange(Register map,
                                           InstanceType lower_limit,
                                           InstanceType higher_limit) {
+  DCHECK_LT(lower_limit, higher_limit);
   movzxwl(kScratchRegister, FieldOperand(map, Map::kInstanceTypeOffset));
   leal(kScratchRegister, Operand(kScratchRegister, 0u - lower_limit));
   cmpl(kScratchRegister, Immediate(higher_limit - lower_limit));

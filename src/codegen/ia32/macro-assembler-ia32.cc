@@ -736,6 +736,7 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
 void MacroAssembler::CmpInstanceTypeRange(Register map, Register scratch,
                                           InstanceType lower_limit,
                                           InstanceType higher_limit) {
+  DCHECK_LT(lower_limit, higher_limit);
   // TODO(gsathya): is there a better way to do this without pushing and
   // popping?
   Push(scratch);

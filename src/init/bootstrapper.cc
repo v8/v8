@@ -519,6 +519,22 @@ V8_NOINLINE Handle<JSFunction> InstallFunction(
                          instance_size, inobject_properties, prototype, call);
 }
 
+// This install an instance type (|constructor_type|) on the constructor map
+// which will be used for protector cell checks -- this is separate from |type|
+// which is used to set the instance type of the object created by this
+// constructor. If protector cell checks are not required, continue to use the
+// default JS_FUNCTION_TYPE by directly calling InstallFunction. 
+V8_NOINLINE Handle<JSFunction> InstallConstructor(
+    Isolate* isolate, Handle<JSObject> target, const char* name,
+    InstanceType type, int instance_size, int inobject_properties,
+    Handle<HeapObject> prototype, Builtins::Name call, InstanceType constructor_type) {
+  Handle<JSFunction> function = InstallFunction(isolate, target,
+                         isolate->factory()->InternalizeUtf8String(name), type,
+                         instance_size, inobject_properties, prototype, call);
+  function->map().set_instance_type(constructor_type);
+  return function;
+}
+
 V8_NOINLINE Handle<JSFunction> SimpleCreateFunction(Isolate* isolate,
                                                     Handle<String> name,
                                                     Builtins::Name call,
@@ -1703,9 +1719,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   Handle<JSFunction> array_prototype_to_string_fun;
   {  // --- A r r a y ---
-    Handle<JSFunction> array_function = InstallFunction(
+    Handle<JSFunction> array_function = InstallConstructor(
         isolate_, global, "Array", JS_ARRAY_TYPE, JSArray::kHeaderSize, 0,
-        isolate_->initial_object_prototype(), Builtins::kArrayConstructor);
+        isolate_->initial_object_prototype(), Builtins::kArrayConstructor, 
+        JS_ARRAY_CONSTRUCTOR_TYPE);
     array_function->shared().DontAdaptArguments();
 
     // This seems a bit hackish, but we need to make sure Array.length
@@ -1735,7 +1752,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     // Cache the array maps, needed by ArrayConstructorStub
     CacheInitialJSArrayMaps(isolate_, native_context(), initial_map);
-    array_function->map().set_instance_type(JS_ARRAY_CONSTRUCTOR_TYPE);
 
     // Set up %ArrayPrototype%.
     // The %ArrayPrototype% has TERMINAL_FAST_ELEMENTS_KIND in order to ensure
@@ -2392,10 +2408,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // -- P r o m i s e
-    Handle<JSFunction> promise_fun = InstallFunction(
+    Handle<JSFunction> promise_fun = InstallConstructor(
         isolate_, global, "Promise", JS_PROMISE_TYPE,
         JSPromise::kSizeWithEmbedderFields, 0, factory->the_hole_value(),
-        Builtins::kPromiseConstructor);
+        Builtins::kPromiseConstructor, JS_PROMISE_CONSTRUCTOR_TYPE);
     InstallWithIntrinsicDefaultProto(isolate_, promise_fun,
                                      Context::PROMISE_FUNCTION_INDEX);
 
@@ -2424,7 +2440,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     InstallFunctionWithBuiltinId(isolate_, promise_fun, "reject",
                                  Builtins::kPromiseReject, 1, true);
-    promise_fun->map().set_instance_type(JS_PROMISE_CONSTRUCTOR_TYPE);
 
     // Setup %PromisePrototype%.
     Handle<JSObject> prototype(
@@ -2456,14 +2471,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // -- R e g E x p
     // Builtin functions for RegExp.prototype.
-    Handle<JSFunction> regexp_fun = InstallFunction(
+    Handle<JSFunction> regexp_fun = InstallConstructor(
         isolate_, global, "RegExp", JS_REG_EXP_TYPE,
         JSRegExp::kHeaderSize + JSRegExp::kInObjectFieldCount * kTaggedSize,
         JSRegExp::kInObjectFieldCount, factory->the_hole_value(),
-        Builtins::kRegExpConstructor);
+        Builtins::kRegExpConstructor, JS_REG_EXP_CONSTRUCTOR_TYPE);
     InstallWithIntrinsicDefaultProto(isolate_, regexp_fun,
                                      Context::REGEXP_FUNCTION_INDEX);
-    regexp_fun->map().set_instance_type(JS_REG_EXP_CONSTRUCTOR_TYPE);
     Handle<SharedFunctionInfo> shared(regexp_fun->shared(), isolate_);
     shared->set_internal_formal_parameter_count(2);
     shared->set_length(2);
@@ -4023,10 +4037,10 @@ Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
   Handle<JSObject> typed_array_prototype = isolate()->typed_array_prototype();
   Handle<JSFunction> typed_array_function = isolate()->typed_array_function();
 
-  Handle<JSFunction> result = InstallFunction(
+  Handle<JSFunction> result = InstallConstructor(
       isolate(), global, name, JS_TYPED_ARRAY_TYPE,
       JSTypedArray::kSizeWithEmbedderFields, 0, factory()->the_hole_value(),
-      Builtins::kTypedArrayConstructor);
+      Builtins::kTypedArrayConstructor, type);
   result->initial_map().set_elements_kind(elements_kind);
 
   result->shared().DontAdaptArguments();
@@ -4039,7 +4053,6 @@ Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
       Smi::FromInt(1 << ElementsKindToShiftSize(elements_kind)), isolate());
 
   InstallConstant(isolate(), result, "BYTES_PER_ELEMENT", bytes_per_element);
-  result->map().set_instance_type(type);
 
   // Setup prototype object.
   DCHECK(result->prototype().IsJSObject());

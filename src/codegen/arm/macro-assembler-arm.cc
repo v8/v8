@@ -1858,6 +1858,7 @@ void MacroAssembler::CompareInstanceType(Register map, Register type_reg,
 void MacroAssembler::CompareInstanceTypeRange(Register map, Register type_reg,
                                               InstanceType lower_limit,
                                               InstanceType higher_limit) {
+  DCHECK_LT(lower_limit, higher_limit);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   ldrh(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
