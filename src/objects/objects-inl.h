@@ -154,8 +154,7 @@ DEF_GETTER(HeapObject, IsUniqueName, bool) {
 }
 
 DEF_GETTER(HeapObject, IsFunction, bool) {
-  return base::IsInRange(map(isolate).instance_type(), FIRST_FUNCTION_TYPE,
-                         LAST_FUNCTION_TYPE);
+  return IsJSFunctionOrBoundFunction();
 }
 
 DEF_GETTER(HeapObject, IsCallable, bool) { return map(isolate).is_callable(); }

@@ -2615,8 +2615,8 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
     // Check for consistency among the {receiver_maps}.
     if (!receiver_map.prototype().equals(prototype) ||
         receiver_map.is_constructor() != is_constructor ||
-        !base::IsInRange(receiver_map.instance_type(), FIRST_FUNCTION_TYPE,
-                         LAST_FUNCTION_TYPE)) {
+        !InstanceTypeChecker::IsJSFunctionOrBoundFunction(
+            receiver_map.instance_type())) {
       return inference.NoChange();
     }
 
