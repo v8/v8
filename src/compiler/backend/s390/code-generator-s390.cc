@@ -1012,7 +1012,7 @@ void CodeGenerator::AssemblePopArgumentsAdaptorFrame(Register args_reg,
   Label done;
 
   // Check if current frame is an arguments adaptor frame.
-  __ LoadP(scratch1, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  __ LoadU64(scratch1, MemOperand(fp, StandardFrameConstants::kContextOffset));
   __ CmpS64(scratch1,
             Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ bne(&done);
@@ -1020,8 +1020,8 @@ void CodeGenerator::AssemblePopArgumentsAdaptorFrame(Register args_reg,
   // Load arguments count from current arguments adaptor frame (note, it
   // does not include receiver).
   Register caller_args_count_reg = scratch1;
-  __ LoadP(caller_args_count_reg,
-           MemOperand(fp, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ LoadU64(caller_args_count_reg,
+             MemOperand(fp, ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ SmiUntag(caller_args_count_reg);
 
   __ PrepareForTailCall(args_reg, caller_args_count_reg, scratch2, scratch3);
@@ -1421,7 +1421,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchParentFramePointer:
       if (frame_access_state()->has_frame()) {
-        __ LoadP(i.OutputRegister(), MemOperand(fp, 0));
+        __ LoadU64(i.OutputRegister(), MemOperand(fp, 0));
       } else {
         __ mov(i.OutputRegister(), fp);
       }
@@ -1510,7 +1510,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                       kScratchReg);
         }
       } else {
-        __ LoadP(i.OutputRegister(), MemOperand(fp, offset));
+        __ LoadU64(i.OutputRegister(), MemOperand(fp, offset));
       }
       break;
     }
@@ -4384,7 +4384,7 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   __ bge(GetLabel(i.InputRpo(1)));
   __ larl(kScratchReg, table);
   __ ShiftLeftU64(r1, input, Operand(kSystemPointerSizeLog2));
-  __ LoadP(kScratchReg, MemOperand(kScratchReg, r1));
+  __ LoadU64(kScratchReg, MemOperand(kScratchReg, r1));
   __ Jump(kScratchReg);
 }
 
@@ -4486,11 +4486,11 @@ void CodeGenerator::AssembleConstructFrame() {
       // check in the condition code.
       if ((required_slots * kSystemPointerSize) < (FLAG_stack_size * 1024)) {
         Register scratch = r1;
-        __ LoadP(
+        __ LoadU64(
             scratch,
             FieldMemOperand(kWasmInstanceRegister,
                             WasmInstanceObject::kRealStackLimitAddressOffset));
-        __ LoadP(scratch, MemOperand(scratch));
+        __ LoadU64(scratch, MemOperand(scratch));
         __ AddS64(scratch, scratch,
                   Operand(required_slots * kSystemPointerSize));
         __ CmpU64(sp, scratch);
@@ -4603,7 +4603,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     }
     if (drop_jsargs) {
       // Get the actual argument count.
-      __ LoadP(argc_reg, MemOperand(fp, StandardFrameConstants::kArgCOffset));
+      __ LoadU64(argc_reg, MemOperand(fp, StandardFrameConstants::kArgCOffset));
     }
     AssembleDeconstructFrame();
   }
@@ -4655,10 +4655,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     DCHECK(destination->IsRegister() || destination->IsStackSlot());
     MemOperand src = g.ToMemOperand(source);
     if (destination->IsRegister()) {
-      __ LoadP(g.ToRegister(destination), src);
+      __ LoadU64(g.ToRegister(destination), src);
     } else {
       Register temp = kScratchReg;
-      __ LoadP(temp, src, r0);
+      __ LoadU64(temp, src, r0);
       __ StoreU64(temp, g.ToMemOperand(destination));
     }
   } else if (source->IsConstant()) {
