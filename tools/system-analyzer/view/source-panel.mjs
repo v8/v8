@@ -2,17 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import {groupBy} from '../helper.mjs';
-import {IcLogEntry} from '../log/ic.mjs';
-import {MapLogEntry} from '../log/map.mjs';
 
-import {FocusEvent, SelectionEvent, ToolTipEvent} from './events.mjs';
+import {SelectRelatedEvent, ToolTipEvent} from './events.mjs';
 import {delay, DOM, formatBytes, V8CustomElement} from './helper.mjs';
 
 DOM.defineCustomElement('view/source-panel',
                         (templateText) =>
                             class SourcePanel extends V8CustomElement {
   _selectedSourcePositions = [];
-  _sourcePositionsToMarkNodes;
+  _sourcePositionsToMarkNodes = [];
   _scripts = [];
   _script;
 
@@ -20,6 +18,11 @@ DOM.defineCustomElement('view/source-panel',
     super(templateText);
     this.scriptDropdown.addEventListener(
         'change', e => this._handleSelectScript(e));
+    this.$('#selectedRelatedButton').onclick = (e) => {
+      if (this._script) {
+        this.dispatchEvent(new SelectRelatedEvent(this._script));
+      }
+    }
   }
 
   get script() {
@@ -44,7 +47,11 @@ DOM.defineCustomElement('view/source-panel',
     this._focusSelectedMarkers();
   }
 
-  set data(scripts) {
+  set focusedSourcePositions(sourcePositions) {
+    this.selectedSourcePositions = sourcePositions;
+  }
+
+  set scripts(scripts) {
     this._scripts = scripts;
     this._initializeScriptDropdown();
   }
@@ -74,13 +81,13 @@ DOM.defineCustomElement('view/source-panel',
     let scriptNode;
     if (this._script) {
       await delay(1);
-      const builder =
-          new LineBuilder(this, this._script, this._selectedSourcePositions);
+      const builder = new LineBuilder(this, this._script);
       scriptNode = builder.createScriptNode();
       this._sourcePositionsToMarkNodes = builder.sourcePositionToMarkers;
     } else {
       scriptNode = DOM.div();
       this._selectedMarkNodes = undefined;
+      this._sourcePositionsToMarkNodes = new Map();
     }
     const oldScriptNode = this.script.childNodes[1];
     this.script.replaceChild(scriptNode, oldScriptNode);
@@ -93,9 +100,15 @@ DOM.defineCustomElement('view/source-panel',
       markNode.className = '';
     }
     for (let sourcePosition of this._selectedSourcePositions) {
+      if (sourcePosition.script !== this._script) continue;
       this._sourcePositionsToMarkNodes.get(sourcePosition).className = 'marked';
     }
-    const sourcePosition = this._selectedSourcePositions[0];
+    this._scrollToFirstSourcePosition()
+  }
+
+  _scrollToFirstSourcePosition() {
+    const sourcePosition = this._selectedSourcePositions.find(
+        each => each.script === this._script);
     if (!sourcePosition) return;
     const markNode = this._sourcePositionsToMarkNodes.get(sourcePosition);
     markNode.scrollIntoView(
@@ -106,13 +119,11 @@ DOM.defineCustomElement('view/source-panel',
     const option =
         this.scriptDropdown.options[this.scriptDropdown.selectedIndex];
     this.script = option.script;
-    this.selectLogEntries(this._script.entries);
   }
 
   handleSourcePositionClick(e) {
     const sourcePosition = e.target.sourcePosition;
-    this.selectLogEntries(sourcePosition.entries);
-    this.dispatchEvent(new SelectionEvent([sourcePosition]));
+    this.dispatchEvent(new SelectRelatedEvent(sourcePosition));
   }
 
   handleSourcePositionMouseOver(e) {
@@ -129,10 +140,6 @@ DOM.defineCustomElement('view/source-panel',
                    })
                    .join('\n');
     this.dispatchEvent(new ToolTipEvent(text, e.target));
-  }
-
-  selectLogEntries(logEntries) {
-    this.dispatchEvent(new SelectionEvent(logEntries));
   }
 });
 
@@ -188,12 +195,10 @@ class LineBuilder {
   _clickHandler;
   _mouseoverHandler;
   _sourcePositions;
-  _selection;
   _sourcePositionToMarkers = new Map();
 
-  constructor(panel, script, highlightPositions) {
+  constructor(panel, script) {
     this._script = script;
-    this._selection = new Set(highlightPositions);
     this._clickHandler = panel.handleSourcePositionClick.bind(panel);
     this._mouseoverHandler = panel.handleSourcePositionMouseOver.bind(panel);
     // TODO: sort on script finalization.

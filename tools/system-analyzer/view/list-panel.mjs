@@ -2,18 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {SourcePosition} from '../../profile.mjs';
+import {Script, SourcePosition} from '../../profile.mjs';
 import {LogEntry} from '../log/log.mjs';
 
-import {FocusEvent, SelectionEvent, SelectTimeEvent} from './events.mjs';
+import {FocusEvent} from './events.mjs';
 import {groupBy, LazyTable} from './helper.mjs';
 import {DOM, V8CustomElement} from './helper.mjs';
 
 DOM.defineCustomElement('view/list-panel',
                         (templateText) =>
                             class ListPanel extends V8CustomElement {
-  _selectedLogEntries;
-  _displayedLogEntries;
+  _selectedLogEntries = [];
+  _displayedLogEntries = [];
   _timeline;
 
   _detailsClickHandler = this._handleDetailsClick.bind(this);
@@ -22,9 +22,11 @@ DOM.defineCustomElement('view/list-panel',
   constructor() {
     super(templateText);
     this.groupKey.addEventListener('change', e => this.update());
-    this.showAllRadio.onclick = _ => this._show(this._timeline);
-    this.showTimerangeRadio.onclick = _ => this._show(this._timeline.selection);
-    this.showSelectionRadio.onclick = _ => this._show(this._selectedLogEntries);
+    this.showAllRadio.onclick = _ => this._showEntries(this._timeline);
+    this.showTimerangeRadio.onclick = _ =>
+        this._showEntries(this._timeline.selectionOrSelf);
+    this.showSelectionRadio.onclick = _ =>
+        this._showEntries(this._selectedLogEntries);
   }
 
   static get observedAttributes() {
@@ -45,10 +47,10 @@ DOM.defineCustomElement('view/list-panel',
   }
 
   set selectedLogEntries(entries) {
-    if (entries === this._timeline.selection) {
-      this.showTimerangeRadio.click();
-    } else if (entries == this._timeline) {
+    if (entries === this._timeline) {
       this.showAllRadio.click();
+    } else if (entries === this._timeline.selection) {
+      this.showTimerangeRadio.click();
     } else {
       this._selectedLogEntries = entries;
       this.showSelectionRadio.click();
@@ -91,7 +93,7 @@ DOM.defineCustomElement('view/list-panel',
     }
   }
 
-  _show(entries) {
+  _showEntries(entries) {
     this._displayedLogEntries = entries;
     this.update();
   }
@@ -189,6 +191,8 @@ DOM.defineCustomElement('view/list-panel',
   _isClickable(object) {
     if (typeof object !== 'object') return false;
     if (object instanceof LogEntry) return true;
-    return object instanceof SourcePosition;
+    if (object instanceof SourcePosition) return true;
+    if (object instanceof Script) return true;
+    return false;
   }
 });

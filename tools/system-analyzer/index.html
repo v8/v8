@@ -24,16 +24,12 @@ found in the LICENSE file. -->
 
   <link rel="stylesheet" type="text/css" href="./index.css">
   <style>
-    .theme-switch-wrapper {
-      display: inline-block;
-      align-items: center;
-    }
-
     .theme-switch {
       display: inline-block;
       height: 16px;
       position: relative;
       width: 38px;
+      vertical-align: middle;
     }
 
     .theme-switch input {
@@ -140,10 +136,10 @@ found in the LICENSE file. -->
   <div class="panels">
     <section id="settings" class="panel">
       <h2>Settings</h2>
-      <span>Theme:</span>
-      <div class="theme-switch-wrapper">
+      <div class="panelBody">
+        <span>Theme:</span>
         <label class="theme-switch" for="theme-switch-input">
-          <input type="checkbox" id="theme-switch-input" />
+          <input type="checkbox" id="theme-switch-input" >
           <div class="slider"></div>
         </label>
       </div>
@@ -151,94 +147,96 @@ found in the LICENSE file. -->
 
     <section id="instructions" class="panel">
       <h2>Instructions</h2>
-      <p>
-        Unified web interface to analyse runtime information stored in the v8 log.
-      </p>
-      For generating a v8.log file from <a href="https://v8.dev/docs/build">d8</a>:
-      <ul>
-        <li>
-          <code>/path/do/d8 $LOG_FLAGS $FILE</code>
-        </li>
-      </ul>
-      For generating a v8.log file from Chrome:
-      <ul>
-        <li>
-          <code>/path/to/chrome --user-data-dir=/var/tmp/chr$RANDOM --no-sandbox
-          --js-flags='$LOG_FLAGS’
-          $WEBSITE_URL</code>
-        </li>
-      </ul>
+      <div class="panelBody">
+        <p>
+          Unified web interface to analyse runtime information stored in the v8 log.
+        </p>
+        For generating a v8.log file from <a href="https://v8.dev/docs/build">d8</a>:
+        <ul>
+          <li>
+            <code>/path/do/d8 $LOG_FLAGS $FILE</code>
+          </li>
+        </ul>
+        For generating a v8.log file from Chrome:
+        <ul>
+          <li>
+            <code>/path/to/chrome --user-data-dir=/var/tmp/chr$RANDOM --no-sandbox
+            --js-flags='$LOG_FLAGS’
+            $WEBSITE_URL</code>
+          </li>
+        </ul>
 
-      <h3><code>LOG_FLAGS</code>:</h3>
-      <dl class="d8-options">
-        <dt>
-          <a href="https://source.chromium.org/search?q=FLAG_log_all">
-            <code>--log-all</code>
-          </a>
-        </dt>
-        <dd>Enable all V8 logging options.</dd>
-        <dt>
-          <a href="https://source.chromium.org/search?q=FLAG_trace_maps">
-            <code>--trace-maps</code>
-          </a>
-        </dt>
-        <dd>
-            Log<a href="https://v8.dev/blog/fast-properties">Maps</a>
-        </dd>
-        <dt>
-          <a href="https://source.chromium.org/search?q=FLAG_trace_ic">
-            <code>--trace-ic</code>
-          </a>
-        </dt>
-        <dd>
-          Log <a href="https://mathiasbynens.be/notes/shapes-ics">ICs</a>
-        </dd>
-        <dt>
-          <a href="https://source.chromium.org/search?q=FLAG_log_source_code">
-            <code>--log-source-code</code>
-          </a>
-        </dt>
-        <dd>Log source code</dd>
-        <dt>
-          <a href="https://source.chromium.org/search?q=FLAG_log_code_disassemble">
-            <code>--log-code-disassemble</code>
-          </a>
-        </dt>
-        <dd>Log detailed generated generated code</dd>
-        <dt>
-          <a href="https://source.chromium.org/search?q=FLAG_log_api">
-            <code>--log-api</code>
-          </a>
-        </dt>
-        <dd>Log various API uses.</dd>
-      </dl>
+        <h3><code>LOG_FLAGS</code>:</h3>
+        <dl class="d8-options">
+          <dt>
+            <a href="https://source.chromium.org/search?q=FLAG_log_all">
+              <code>--log-all</code>
+            </a>
+          </dt>
+          <dd>Enable all V8 logging options.</dd>
+          <dt>
+            <a href="https://source.chromium.org/search?q=FLAG_trace_maps">
+              <code>--trace-maps</code>
+            </a>
+          </dt>
+          <dd>
+              Log<a href="https://v8.dev/blog/fast-properties">Maps</a>
+          </dd>
+          <dt>
+            <a href="https://source.chromium.org/search?q=FLAG_trace_ic">
+              <code>--trace-ic</code>
+            </a>
+          </dt>
+          <dd>
+            Log <a href="https://mathiasbynens.be/notes/shapes-ics">ICs</a>
+          </dd>
+          <dt>
+            <a href="https://source.chromium.org/search?q=FLAG_log_source_code">
+              <code>--log-source-code</code>
+            </a>
+          </dt>
+          <dd>Log source code</dd>
+          <dt>
+            <a href="https://source.chromium.org/search?q=FLAG_log_code_disassemble">
+              <code>--log-code-disassemble</code>
+            </a>
+          </dt>
+          <dd>Log detailed generated generated code</dd>
+          <dt>
+            <a href="https://source.chromium.org/search?q=FLAG_log_api">
+              <code>--log-api</code>
+            </a>
+          </dt>
+          <dd>Log various API uses.</dd>
+        </dl>
 
-      <h3>Keyboard Shortcuts for Navigation</h3>
-      <dl>
-        <dt><kbd>SHIFT</kbd> + <kbd>Arrow Up</kbd></dt>
-        <dd>Follow Map transition forward (first child)</dd>
+        <h3>Keyboard Shortcuts for Navigation</h3>
+        <dl>
+          <dt><kbd>SHIFT</kbd> + <kbd>Arrow Up</kbd></dt>
+          <dd>Follow Map transition forward (first child)</dd>
 
-        <dt><kbd>SHIFT</kbd> + <kbd>Arrow Down</kbd></dt>
-        <dd>Follow Map transition backwards</dd>
+          <dt><kbd>SHIFT</kbd> + <kbd>Arrow Down</kbd></dt>
+          <dd>Follow Map transition backwards</dd>
 
-        <dt><kbd>Arrow Up</kbd></dt>
-        <dd>Go to previous Map chunk</dd>
+          <dt><kbd>Arrow Up</kbd></dt>
+          <dd>Go to previous Map chunk</dd>
 
-        <dt><kbd>Arrow Down</kbd></dt>
-        <dd>Go to next Map in chunk</dd>
+          <dt><kbd>Arrow Down</kbd></dt>
+          <dd>Go to next Map in chunk</dd>
 
-        <dt><kbd>Arrow Left</kbd></dt>
-        <dd>Go to previous chunk</dd>
+          <dt><kbd>Arrow Left</kbd></dt>
+          <dd>Go to previous chunk</dd>
 
-        <dt><kbd>Arrow Right</kbd></dt>
-        <dd>Go to next chunk</dd>
+          <dt><kbd>Arrow Right</kbd></dt>
+          <dd>Go to next chunk</dd>
 
-        <dt><kbd>+</kbd></dt>
-        <dd>Timeline zoom in</dd>
+          <dt><kbd>+</kbd></dt>
+          <dd>Timeline zoom in</dd>
 
-        <dt><kbd>-</kbd></dt>
-        <dd>Timeline zoom out</dd>
-      </dl>
+          <dt><kbd>-</kbd></dt>
+          <dd>Timeline zoom out</dd>
+        </dl>
+      </div>
     </section>
   </div>
 </body>

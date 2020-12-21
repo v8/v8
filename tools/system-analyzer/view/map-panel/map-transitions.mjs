@@ -1,7 +1,7 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import {FocusEvent, ToolTipEvent} from '../events.mjs';
+import {FocusEvent, SelectRelatedEvent, ToolTipEvent} from '../events.mjs';
 import {CSSColor} from '../helper.mjs';
 import {DOM, V8CustomElement} from '../helper.mjs';
 
@@ -14,13 +14,12 @@ DOM.defineCustomElement(
       _selectedLogEntries;
       _displayedMapsInTree;
       _toggleSubtreeHandler = this._handleToggleSubtree.bind(this);
-      _selectMapHandler = this._handleSelectMap.bind(this);
+      _mapClickHandler = this._handleMapClick.bind(this);
+      _mapDoubleClickHandler = this._handleMapDoubleClick.bind(this);
       _mouseoverMapHandler = this._handleMouseoverMap.bind(this);
 
       constructor() {
         super(templateText);
-        this.transitionView.addEventListener(
-            'mousemove', (e) => this._handleTransitionViewChange(e));
         this.currentNode = this.transitionView;
       }
 
@@ -28,24 +27,11 @@ DOM.defineCustomElement(
         return this.$('#transitionView');
       }
 
-      get tooltip() {
-        return this.$('#tooltip');
-      }
-
-      get tooltipContents() {
-        return this.$('#tooltipContents');
-      }
-
-      set map(map) {
-        this._map = map;
-        this._showMap();
-      }
-
       set timeline(timeline) {
         this._timeline = timeline;
         this._edgeToColor.clear();
         timeline.getBreakdown().forEach(breakdown => {
-          this._edgeToColor.set(breakdown.type, CSSColor.at(breakdown.id));
+          this._edgeToColor.set(breakdown.key, CSSColor.at(breakdown.id));
         });
       }
 
@@ -54,33 +40,13 @@ DOM.defineCustomElement(
         this.update();
       }
 
-      get selectedLogEntries() {
-        return this._selectedLogEntries;
-      }
-
-      _handleTransitionViewChange(e) {
-        this.tooltip.style.left = e.pageX + 'px';
-        this.tooltip.style.top = e.pageY + 'px';
-        const map = e.target.map;
-        if (map) {
-          this.tooltipContents.innerText = map.description;
-        }
-      }
-
-      _selectMap(map) {
-        this.dispatchEvent(new FocusEvent(map));
-      }
-
-      _showMap() {
-        // TODO: highlight current map
-      }
-
       _update() {
         this.transitionView.style.display = 'none';
         DOM.removeAllChildren(this.transitionView);
+        if (this._selectedLogEntries.length == 0) return;
         this._displayedMapsInTree = new Set();
         // Limit view to 200 maps for performance reasons.
-        this.selectedLogEntries.slice(0, 200).forEach(
+        this._selectedLogEntries.slice(0, 200).forEach(
             (map) => this._addMapAndParentTransitions(map));
         this._displayedMapsInTree = undefined;
         this.transitionView.style.display = '';
@@ -156,7 +122,8 @@ DOM.defineCustomElement(
         if (map.edge)
           node.style.backgroundColor = this._edgeToColor.get(map.edge.type);
         node.map = map;
-        node.onclick = this._selectMapHandler
+        node.onclick = this._mapClickHandler
+        node.ondblclick = this._mapDoubleClickHandler
         node.onmouseover = this._mouseoverMapHandler
         if (map.children.length > 1) {
           node.innerText = map.children.length;
@@ -171,8 +138,13 @@ DOM.defineCustomElement(
         return node;
       }
 
-      _handleSelectMap(event) {
-        this._selectMap(event.currentTarget.map)
+      _handleMapClick(event) {
+        const map = event.currentTarget.map;
+        this.dispatchEvent(new FocusEvent(map));
+      }
+
+      _handleMapDoubleClick(event) {
+        this.dispatchEvent(new SelectRelatedEvent(event.currentTarget.map));
       }
 
       _handleMouseoverMap(event) {

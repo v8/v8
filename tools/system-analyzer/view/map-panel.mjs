@@ -9,69 +9,98 @@ import {MapLogEntry} from '../log/map.mjs';
 import {FocusEvent} from './events.mjs';
 import {DOM, V8CustomElement} from './helper.mjs';
 
-DOM.defineCustomElement('view/map-panel',
-                        (templateText) =>
-                            class MapPanel extends V8CustomElement {
-  _map;
-  constructor() {
-    super(templateText);
-    this.searchBarBtn.addEventListener('click', e => this.handleSearchBar(e));
-    this.addEventListener(FocusEvent.name, e => this.handleUpdateMapDetails(e));
-  }
+DOM.defineCustomElement(
+    'view/map-panel', (templateText) => class MapPanel extends V8CustomElement {
+      _map;
+      _timeline;
+      _selectedLogEntries = [];
+      _displayedLogEntries = [];
 
-  handleUpdateMapDetails(e) {
-    if (e.entry instanceof MapLogEntry) {
-      this.mapDetailsPanel.map = e.entry;
-    }
-  }
+      constructor() {
+        super(templateText);
+        this.searchBarBtn.addEventListener('click', e => this._handleSearch(e));
+        this.showAllRadio.onclick = _ => this._showEntries(this._timeline);
+        this.showTimerangeRadio.onclick = _ =>
+            this._showEntries(this._timeline.selectionOrSelf);
+        this.showSelectionRadio.onclick = _ =>
+            this._showEntries(this._selectedLogEntries);
+      }
 
-  get mapTransitionsPanel() {
-    return this.$('#map-transitions');
-  }
+      get showAllRadio() {
+        return this.$('#show-all');
+      }
+      get showTimerangeRadio() {
+        return this.$('#show-timerange');
+      }
+      get showSelectionRadio() {
+        return this.$('#show-selection');
+      }
 
-  get mapDetailsPanel() {
-    return this.$('#map-details');
-  }
+      get mapTransitionsPanel() {
+        return this.$('#map-transitions');
+      }
 
-  get searchBarBtn() {
-    return this.$('#searchBarBtn');
-  }
+      get mapDetailsTransitionsPanel() {
+        return this.$('#map-details-transitions');
+      }
 
-  get searchBar() {
-    return this.$('#searchBar');
-  }
+      get mapDetailsPanel() {
+        return this.$('#map-details');
+      }
 
-  set timeline(timeline) {
-    this._timeline = timeline;
-    this.$('.panel').style.display = timeline.isEmpty() ? 'none' : 'inherit';
-    this.mapTransitionsPanel.timeline = timeline;
-  }
+      get searchBarBtn() {
+        return this.$('#searchBarBtn');
+      }
 
-  set map(map) {
-    this._map = map;
-    this.mapTransitionsPanel.map = map;
-    this.mapDetailsPanel.map = map;
-  }
+      get searchBar() {
+        return this.$('#searchBar');
+      }
 
-  handleSearchBar(e) {
-    let searchBar = this.$('#searchBarInput');
-    let searchBarInput = searchBar.value;
-    // access the map from model cache
-    let selectedMap = MapLogEntry.get(searchBarInput);
-    if (selectedMap) {
-      searchBar.className = 'success';
-      this.dispatchEvent(new FocusEvent(selectedMap));
-    } else {
-      searchBar.className = 'failure';
-    }
-  }
+      set timeline(timeline) {
+        console.assert(timeline !== undefined, 'timeline undefined!');
+        this._timeline = timeline;
+        this.$('.panel').style.display =
+            timeline.isEmpty() ? 'none' : 'inherit';
+        this.mapTransitionsPanel.timeline = timeline;
+        this.mapDetailsTransitionsPanel.timeline = timeline;
+      }
 
-  set selectedLogEntries(list) {
-    this.mapTransitionsPanel.selectedLogEntries = list;
-    if (list.length === 1) this.mapDetailsPanel.map = list.first();
-  }
+      set selectedLogEntries(entries) {
+        if (entries === this._timeline.selection) {
+          this.showTimerangeRadio.click();
+        } else if (entries == this._timeline) {
+          this.showAllRadio.click();
+        } else {
+          this._selectedLogEntries = entries;
+          this.showSelectionRadio.click();
+        }
+      }
 
-  get selectedLogEntries() {
-    return this.mapTransitionsPanel.selectedLogEntries;
-  }
-});
+      set map(map) {
+        this._map = map;
+        this.mapDetailsTransitionsPanel.selectedLogEntries = [map];
+        this.mapDetailsPanel.map = map;
+      }
+
+      _showEntries(entries) {
+        this._displayedLogEntries = entries;
+        this.mapTransitionsPanel.selectedLogEntries = entries;
+      }
+
+      update() {
+        // nothing to do
+      }
+
+      _handleSearch(e) {
+        let searchBar = this.$('#searchBarInput');
+        let searchBarInput = searchBar.value;
+        // access the map from model cache
+        let selectedMap = MapLogEntry.get(searchBarInput);
+        if (selectedMap) {
+          searchBar.className = 'success';
+          this.dispatchEvent(new FocusEvent(selectedMap));
+        } else {
+          searchBar.className = 'failure';
+        }
+      }
+    });

@@ -8,16 +8,12 @@ found in the LICENSE file. -->
 <style>
   #mapDetails,
   #filePositionNode {
-    overflow-x: scroll;
+    overflow: scroll;
   }
-
-  #mapDetails::-webkit-scrollbar {
-    width: 0;
-    background-color: transparent;
+  #mapDetails {
+    font-family: monospace;
+    white-space: pre;
   }
 </style>
-<div class="panel">
-  <h4>Map Details</h4>
-  <section id="filePositionNode"></section>
-  <section id="mapDetails"></section>
-</div>
+<section id="filePositionNode"></section>
+<section id="mapDetails"></section>

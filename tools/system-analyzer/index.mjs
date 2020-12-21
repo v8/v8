@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {SourcePosition} from '../profile.mjs';
+import {Script, SourcePosition} from '../profile.mjs';
 
 import {State} from './app-model.mjs';
 import {ApiLogEntry} from './log/api.mjs';
@@ -11,7 +11,7 @@ import {CodeLogEntry} from './log/code.mjs';
 import {IcLogEntry} from './log/ic.mjs';
 import {MapLogEntry} from './log/map.mjs';
 import {Processor} from './processor.mjs';
-import {FocusEvent, SelectionEvent, SelectTimeEvent, ToolTipEvent,} from './view/events.mjs';
+import {FocusEvent, SelectionEvent, SelectRelatedEvent, SelectTimeEvent, ToolTipEvent,} from './view/events.mjs';
 import {$, CSSColor, groupBy} from './view/helper.mjs';
 
 class App {
@@ -64,7 +64,9 @@ class App {
     document.addEventListener(
         'keydown', e => this._navigation?.handleKeyDown(e));
     document.addEventListener(
-        SelectionEvent.name, e => this.handleShowEntries(e));
+        SelectRelatedEvent.name, e => this.handleSelectRelatedEntries(e));
+    document.addEventListener(
+        SelectionEvent.name, e => this.handleSelectEntries(e))
     document.addEventListener(
         FocusEvent.name, e => this.handleFocusLogEntryl(e));
     document.addEventListener(
@@ -72,18 +74,63 @@ class App {
     document.addEventListener(ToolTipEvent.name, e => this.handleToolTip(e));
   }
 
-  handleShowEntries(e) {
-    e.stopPropagation();
+  handleSelectRelatedEntries(e) {
+    e.stopImmediatePropagation();
+    this.selectRelatedEntries(e.entry);
+  }
+
+  selectRelatedEntries(entry) {
+    let entries = [entry];
+    switch (entry.constructor) {
+      case SourcePosition:
+        entries = entries.concat(entry.entries);
+        break;
+      case MapLogEntry:
+        entries = this._state.icTimeline.filter(each => each.map === entry);
+        break;
+      case IcLogEntry:
+        if (entry.map) entries.push(entry.map);
+        break;
+      case ApiLogEntry:
+        break;
+      case CodeLogEntry:
+        break;
+      case DeoptLogEntry:
+        // TODO select map + code entries
+        if (entry.fileSourcePosition) entries.push(entry.fileSourcePosition);
+        break;
+      case Script:
+        entries = entry.entries.concat(entry.sourcePositions);
+        break;
+      default:
+        throw new Error('Unknown selection type!');
+    }
+    if (entry.sourcePosition) {
+      entries.push(entry.sourcePosition);
+      // TODO: find the matching Code log entries.
+    }
+    this.selectEntries(entries);
+  }
+
+  handleSelectEntries(e) {
+    e.stopImmediatePropagation();
     this.showEntries(e.entries);
   }
 
-  showEntries(entries) {
-    groupBy(entries, each => each.constructor, true)
-        .forEach(group => this.showEntriesOfSingleType(group.entries));
+  selectEntries(entries) {
+    const missingTypes = new Set([
+      SourcePosition, MapLogEntry, IcLogEntry, ApiLogEntry, CodeLogEntry,
+      DeoptLogEntry
+    ]);
+    groupBy(entries, each => each.constructor, true).forEach(group => {
+      this.selectEntriesOfSingleType(group.entries);
+      missingTypes.delete(group.key);
+    });
+    missingTypes.forEach(type => this.selectEntriesOfSingleType([], type));
   }
 
-  showEntriesOfSingleType(entries) {
-    switch (entries[0].constructor) {
+  selectEntriesOfSingleType(entries, type) {
+    switch (entries[0]?.constructor ?? type) {
       case SourcePosition:
         return this.showSourcePositions(entries);
       case MapLogEntry:
@@ -133,8 +180,8 @@ class App {
   }
 
   handleTimeRangeSelect(e) {
+    e.stopImmediatePropagation();
     this.selectTimeRange(e.start, e.end);
-    e.stopPropagation();
   }
 
   selectTimeRange(start, end) {
@@ -148,7 +195,7 @@ class App {
   }
 
   handleFocusLogEntryl(e) {
-    e.stopPropagation();
+    e.stopImmediatePropagation();
     this.focusLogEntry(e.entry);
   }
 
@@ -195,9 +242,9 @@ class App {
     this._view.apiTrack.focusedEntry = entry;
   }
 
-  focusSourcePosition(sourcePositions) {
-    if (!sourcePositions.script) return;
-    this._view.sourcePanel.focusedSourcePositions = [sourcePositions];
+  focusSourcePosition(sourcePosition) {
+    if (!sourcePosition) return;
+    this._view.sourcePanel.focusedSourcePositions = [sourcePosition];
   }
 
   handleToolTip(event) {
@@ -233,7 +280,7 @@ class App {
       this._view.deoptList.timeline = deoptTimeline;
       this._view.codeList.timeline = codeTimeline;
       this._view.apiList.timeline = apiTimeline;
-      this._view.sourcePanel.data = processor.scripts;
+      this._view.sourcePanel.scripts = processor.scripts;
       this._view.codePanel.timeline = codeTimeline;
       this.refreshTimelineTrackView();
     } catch (e) {

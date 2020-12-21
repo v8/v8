@@ -132,10 +132,36 @@ dd {
   font-weight: 400;
 }
 
-
 .panel > select{
   width: calc(100% + 20px);
   margin: 0 -10px 10px -10px;
+}
+
+.panel > .selection {
+  display: flex;
+  margin: 0 -10px 0 -10px;
+}
+.panel > .selection input {
+  display: none;
+}
+
+.panel > .selection label {
+  flex: 1;
+  padding: 5px;
+  cursor: pointer;
+  background-color: var( --surface-color);
+  font-weight: normal;
+  text-align: center;
+}
+.panel > .selection label ~ label {
+  border-left: 2px var(--border-color) solid;
+}
+
+.panel > .selection label:hover {
+  background-color: var(--primary-color);
+}
+.panel > .selection [type=radio]:checked + label {
+  background-color: var(--border-color);
 }
 
 button {
@@ -206,6 +232,8 @@ button:hover {
   background-color: var(--primary-color);
   color: var(--on-primary-color);
 }
+
+button:hover,
 .clickable:hover,
 .mark:hover,
 .clickable:active,
