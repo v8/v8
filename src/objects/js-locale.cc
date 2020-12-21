@@ -110,17 +110,9 @@ Handle<Object> UnicodeKeywordValue(Isolate* isolate, Handle<JSLocale> locale,
   return isolate->factory()->NewStringFromAsciiChecked(value.c_str());
 }
 
-bool InRange(size_t value, size_t start, size_t end) {
-  return (start <= value) && (value <= end);
-}
-
-bool InRange(char value, char start, char end) {
-  return (start <= value) && (value <= end);
-}
-
 bool IsCheckRange(const std::string& str, size_t min, size_t max,
                   bool(range_check_func)(char)) {
-  if (!InRange(str.length(), min, max)) return false;
+  if (!base::IsInRange(str.length(), min, max)) return false;
   for (size_t i = 0; i < str.length(); i++) {
     if (!range_check_func(str[i])) return false;
   }
@@ -128,18 +120,20 @@ bool IsCheckRange(const std::string& str, size_t min, size_t max,
 }
 bool IsAlpha(const std::string& str, size_t min, size_t max) {
   return IsCheckRange(str, min, max, [](char c) -> bool {
-    return InRange(c, 'a', 'z') || InRange(c, 'A', 'Z');
+    return base::IsInRange(c, 'a', 'z') || base::IsInRange(c, 'A', 'Z');
   });
 }
 
 bool IsDigit(const std::string& str, size_t min, size_t max) {
-  return IsCheckRange(str, min, max,
-                      [](char c) -> bool { return InRange(c, '0', '9'); });
+  return IsCheckRange(str, min, max, [](char c) -> bool {
+    return base::IsInRange(c, '0', '9');
+  });
 }
 
 bool IsAlphanum(const std::string& str, size_t min, size_t max) {
   return IsCheckRange(str, min, max, [](char c) -> bool {
-    return InRange(c, 'a', 'z') || InRange(c, 'A', 'Z') || InRange(c, '0', '9');
+    return base::IsInRange(c, 'a', 'z') || base::IsInRange(c, 'A', 'Z') ||
+           base::IsInRange(c, '0', '9');
   });
 }
 
@@ -159,7 +153,7 @@ bool IsUnicodeRegionSubtag(const std::string& value) {
 }
 
 bool IsDigitAlphanum3(const std::string& value) {
-  return value.length() == 4 && InRange(value[0], '0', '9') &&
+  return value.length() == 4 && base::IsInRange(value[0], '0', '9') &&
          IsAlphanum(value.substr(1), 3, 3);
 }
 
