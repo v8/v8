@@ -1592,7 +1592,10 @@ void Shell::LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   std::string raw_log;
   FILE* log_file = i_isolate->logger()->TearDownAndGetLogFile();
-  CHECK_NOT_NULL(log_file);
+  if (!log_file) {
+    Throw(isolate, "Log file does not exist.");
+    return;
+  }
 
   bool exists = false;
   raw_log = i::ReadFile(log_file, &exists, true);
