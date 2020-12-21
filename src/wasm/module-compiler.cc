@@ -1611,10 +1611,8 @@ class BackgroundCompileJob final : public JobTask {
     if (compile_scope.cancelled()) return 0;
     // NumOutstandingCompilations() does not reflect the units that running
     // workers are processing, thus add the current worker count to that number.
-    size_t flag_limit =
-        static_cast<size_t>(std::max(1, FLAG_wasm_num_compilation_tasks));
     return std::min(
-        flag_limit,
+        static_cast<size_t>(FLAG_wasm_num_compilation_tasks),
         worker_count +
             compile_scope.compilation_state()->NumOutstandingCompilations());
   }
@@ -2319,6 +2317,13 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 
       // Add compilation units and kick off compilation.
       InitializeCompilationUnits(job->isolate(), job->native_module_.get());
+      // We are in single-threaded mode, so there are no worker tasks that will
+      // do the compilation. We call {WaitForCompilationEvent} here so that the
+      // main thread paticipates and finishes the compilation.
+      if (FLAG_wasm_num_compilation_tasks == 0) {
+        compilation_state->WaitForCompilationEvent(
+            CompilationEvent::kFinishedBaselineCompilation);
+      }
     }
   }
 };
