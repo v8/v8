@@ -221,6 +221,25 @@ CodeEntry::RareData* CodeEntry::EnsureRareData() {
   return rare_data_.get();
 }
 
+void CodeEntry::ReleaseStrings(StringsStorage& strings) {
+  if (name_) {
+    strings.Release(name_);
+    name_ = nullptr;
+  }
+  if (resource_name_) {
+    strings.Release(resource_name_);
+    resource_name_ = nullptr;
+  }
+
+  if (rare_data_) {
+    // All inline entries are exclusively owned by the CodeEntry. They'll be
+    // deallocated when the CodeEntry is deallocated.
+    for (auto& entry : rare_data_->inline_entries_) {
+      entry->ReleaseStrings(strings);
+    }
+  }
+}
+
 void CodeEntry::print() const {
   base::OS::Print("CodeEntry: at %p\n", this);
 
@@ -641,7 +660,8 @@ void CpuProfile::Print() const {
   ProfilerStats::Instance()->Clear();
 }
 
-CodeMap::CodeMap() = default;
+CodeMap::CodeMap(StringsStorage& function_and_resource_names)
+    : function_and_resource_names_(function_and_resource_names) {}
 
 CodeMap::~CodeMap() { Clear(); }
 
@@ -654,7 +674,12 @@ void CodeMap::Clear() {
     code_entries_[free_slot].entry = nullptr;
     free_slot = next_slot;
   }
-  for (auto slot : code_entries_) delete slot.entry;
+  for (auto slot : code_entries_) {
+    if (slot.entry) {
+      slot.entry->ReleaseStrings(function_and_resource_names_);
+      delete slot.entry;
+    }
+  }
 
   code_entries_.clear();
   code_map_.clear();
@@ -717,7 +742,10 @@ unsigned CodeMap::AddCodeEntry(Address start, CodeEntry* entry) {
 }
 
 void CodeMap::DeleteCodeEntry(unsigned index) {
-  delete code_entries_[index].entry;
+  auto* entry = code_entries_[index].entry;
+  entry->ReleaseStrings(function_and_resource_names_);
+  delete entry;
+
   code_entries_[index].next_free_slot = free_list_head_;
   free_list_head_ = index;
 }

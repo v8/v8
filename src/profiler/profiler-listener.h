@@ -27,6 +27,7 @@ class CodeEventObserver {
 class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener {
  public:
   ProfilerListener(Isolate*, CodeEventObserver*,
+                   StringsStorage& function_and_resource_names,
                    CpuProfilingNamingMode mode = kDebugNaming);
   ~ProfilerListener() override;
   ProfilerListener(const ProfilerListener&) = delete;
@@ -89,7 +90,7 @@ class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener {
 
   Isolate* isolate_;
   CodeEventObserver* observer_;
-  StringsStorage function_and_resource_names_;
+  StringsStorage& function_and_resource_names_;
   const CpuProfilingNamingMode naming_mode_;
 };
 

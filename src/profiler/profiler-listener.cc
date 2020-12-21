@@ -25,8 +25,12 @@ namespace internal {
 
 ProfilerListener::ProfilerListener(Isolate* isolate,
                                    CodeEventObserver* observer,
+                                   StringsStorage& function_and_resource_names,
                                    CpuProfilingNamingMode naming_mode)
-    : isolate_(isolate), observer_(observer), naming_mode_(naming_mode) {}
+    : isolate_(isolate),
+      observer_(observer),
+      function_and_resource_names_(function_and_resource_names),
+      naming_mode_(naming_mode) {}
 
 ProfilerListener::~ProfilerListener() = default;
 
@@ -78,9 +82,12 @@ namespace {
 CodeEntry* GetOrInsertCachedEntry(
     std::unordered_set<std::unique_ptr<CodeEntry>, CodeEntry::Hasher,
                        CodeEntry::Equals>* entries,
-    std::unique_ptr<CodeEntry> search_value) {
+    std::unique_ptr<CodeEntry> search_value, StringsStorage& strings) {
   auto it = entries->find(search_value);
-  if (it != entries->end()) return it->get();
+  if (it != entries->end()) {
+    search_value->ReleaseStrings(strings);
+    return it->get();
+  }
   CodeEntry* ret = search_value.get();
   entries->insert(std::move(search_value));
   return ret;
@@ -168,7 +175,8 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
           // Create a canonical CodeEntry for each inlined frame and then re-use
           // them for subsequent inline stacks to avoid a lot of duplication.
           CodeEntry* cached_entry = GetOrInsertCachedEntry(
-              &cached_inline_entries, std::move(inline_entry));
+              &cached_inline_entries, std::move(inline_entry),
+              function_and_resource_names_);
 
           inline_stack.push_back({cached_entry, line_number});
         }
