@@ -60,7 +60,7 @@ extern class JSDataView extends JSArrayBufferView {
 }
 
 @abstract
-@doNotGenerateCast extern class TypedArrayConstructor extends JSFunction 
+@doNotGenerateCast extern class TypedArrayConstructor extends JSFunction
     generates 'TNode<JSFunction>';
 @doNotGenerateCast
 extern class Uint8TypedArrayConstructor extends TypedArrayConstructor
