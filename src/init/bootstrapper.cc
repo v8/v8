@@ -523,14 +523,15 @@ V8_NOINLINE Handle<JSFunction> InstallFunction(
 // which will be used for protector cell checks -- this is separate from |type|
 // which is used to set the instance type of the object created by this
 // constructor. If protector cell checks are not required, continue to use the
-// default JS_FUNCTION_TYPE by directly calling InstallFunction. 
+// default JS_FUNCTION_TYPE by directly calling InstallFunction.
 V8_NOINLINE Handle<JSFunction> InstallConstructor(
     Isolate* isolate, Handle<JSObject> target, const char* name,
     InstanceType type, int instance_size, int inobject_properties,
-    Handle<HeapObject> prototype, Builtins::Name call, InstanceType constructor_type) {
-  Handle<JSFunction> function = InstallFunction(isolate, target,
-                         isolate->factory()->InternalizeUtf8String(name), type,
-                         instance_size, inobject_properties, prototype, call);
+    Handle<HeapObject> prototype, Builtins::Name call,
+    InstanceType constructor_type) {
+  Handle<JSFunction> function = InstallFunction(
+      isolate, target, isolate->factory()->InternalizeUtf8String(name), type,
+      instance_size, inobject_properties, prototype, call);
   function->map().set_instance_type(constructor_type);
   return function;
 }
@@ -1721,7 +1722,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // --- A r r a y ---
     Handle<JSFunction> array_function = InstallConstructor(
         isolate_, global, "Array", JS_ARRAY_TYPE, JSArray::kHeaderSize, 0,
-        isolate_->initial_object_prototype(), Builtins::kArrayConstructor, 
+        isolate_->initial_object_prototype(), Builtins::kArrayConstructor,
         JS_ARRAY_CONSTRUCTOR_TYPE);
     array_function->shared().DontAdaptArguments();
 
