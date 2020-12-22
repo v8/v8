@@ -2003,11 +2003,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       current += PrintOperands("pshuflw", XMMREG_XMMOPER_OP_ORDER, current);
       AppendToBuffer(",%d", (*current++) & 7);
     } else if (opcode == 0xC2) {
-      // Intel manual 2A, Table 3-18.
-      const char* const pseudo_op[] = {"cmpeqsd",    "cmpltsd",  "cmplesd",
-                                       "cmpunordsd", "cmpneqsd", "cmpnltsd",
-                                       "cmpnlesd",   "cmpordsd"};
-      AppendToBuffer("%s %s,%s", pseudo_op[current[1]],
+      AppendToBuffer("cmp%ssd %s,%s", cmp_pseudo_op[current[1]],
                      NameOfXMMRegister(regop), NameOfXMMRegister(rm));
       current += 2;
     } else if (opcode == 0xF0) {
@@ -2060,11 +2056,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
                      NameOfCPURegister(regop));
       current += PrintRightOperand(current);
     } else if (opcode == 0xC2) {
-      // Intel manual 2A, Table 3-18.
-      const char* const pseudo_op[] = {"cmpeqss",    "cmpltss",  "cmpless",
-                                       "cmpunordss", "cmpneqss", "cmpnltss",
-                                       "cmpnless",   "cmpordss"};
-      AppendToBuffer("%s %s,%s", pseudo_op[current[1]],
+      AppendToBuffer("cmp%sss %s,%s", cmp_pseudo_op[current[1]],
                      NameOfXMMRegister(regop), NameOfXMMRegister(rm));
       current += 2;
     } else {
