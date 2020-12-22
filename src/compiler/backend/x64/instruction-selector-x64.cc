@@ -1795,29 +1795,33 @@ void InstructionSelector::EmitPrepareArguments(
   } else {
     // Push any stack arguments.
     int effect_level = GetEffectLevel(node);
+    int stack_decrement = 0;
     for (PushParameter input : base::Reversed(*arguments)) {
-      // Skip any alignment holes in pushed nodes. We may have one in case of a
-      // Simd128 stack argument.
+      stack_decrement += kSystemPointerSize;
+      // Skip holes in the param array. These represent both extra slots for
+      // multi-slot values and padding slots for alignment.
       if (input.node == nullptr) continue;
+      InstructionOperand decrement = g.UseImmediate(stack_decrement);
+      stack_decrement = 0;
       if (g.CanBeImmediate(input.node)) {
-        Emit(kX64Push, g.NoOutput(), g.UseImmediate(input.node));
+        Emit(kX64Push, g.NoOutput(), decrement, g.UseImmediate(input.node));
       } else if (IsSupported(ATOM) ||
                  sequence()->IsFP(GetVirtualRegister(input.node))) {
         // TODO(titzer): X64Push cannot handle stack->stack double moves
         // because there is no way to encode fixed double slots.
-        Emit(kX64Push, g.NoOutput(), g.UseRegister(input.node));
+        Emit(kX64Push, g.NoOutput(), decrement, g.UseRegister(input.node));
       } else if (g.CanBeMemoryOperand(kX64Push, node, input.node,
                                       effect_level)) {
         InstructionOperand outputs[1];
-        InstructionOperand inputs[4];
+        InstructionOperand inputs[5];
         size_t input_count = 0;
-        InstructionCode opcode = kX64Push;
+        inputs[input_count++] = decrement;
         AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
             input.node, inputs, &input_count);
-        opcode |= AddressingModeField::encode(mode);
+        InstructionCode opcode = kX64Push | AddressingModeField::encode(mode);
         Emit(opcode, 0, outputs, input_count, inputs);
       } else {
-        Emit(kX64Push, g.NoOutput(), g.UseAny(input.node));
+        Emit(kX64Push, g.NoOutput(), decrement, g.UseAny(input.node));
       }
     }
   }

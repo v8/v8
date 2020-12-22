@@ -1353,17 +1353,22 @@ void InstructionSelector::EmitPrepareArguments(
   } else {
     // Push any stack arguments.
     int effect_level = GetEffectLevel(node);
+    int stack_decrement = 0;
     for (PushParameter input : base::Reversed(*arguments)) {
-      // Skip any alignment holes in pushed nodes.
+      stack_decrement += kSystemPointerSize;
+      // Skip holes in the param array. These represent both extra slots for
+      // multi-slot values and padding slots for alignment.
       if (input.node == nullptr) continue;
+      InstructionOperand decrement = g.UseImmediate(stack_decrement);
+      stack_decrement = 0;
       if (g.CanBeMemoryOperand(kIA32Push, node, input.node, effect_level)) {
         InstructionOperand outputs[1];
-        InstructionOperand inputs[4];
+        InstructionOperand inputs[5];
         size_t input_count = 0;
-        InstructionCode opcode = kIA32Push;
+        inputs[input_count++] = decrement;
         AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
             input.node, inputs, &input_count);
-        opcode |= AddressingModeField::encode(mode);
+        InstructionCode opcode = kIA32Push | AddressingModeField::encode(mode);
         Emit(opcode, 0, outputs, input_count, inputs);
       } else {
         InstructionOperand value =
@@ -1374,13 +1379,13 @@ void InstructionSelector::EmitPrepareArguments(
                       ? g.UseRegister(input.node)
                       : g.Use(input.node);
         if (input.location.GetType() == MachineType::Float32()) {
-          Emit(kIA32PushFloat32, g.NoOutput(), value);
+          Emit(kIA32PushFloat32, g.NoOutput(), decrement, value);
         } else if (input.location.GetType() == MachineType::Float64()) {
-          Emit(kIA32PushFloat64, g.NoOutput(), value);
+          Emit(kIA32PushFloat64, g.NoOutput(), decrement, value);
         } else if (input.location.GetType() == MachineType::Simd128()) {
-          Emit(kIA32PushSimd128, g.NoOutput(), value);
+          Emit(kIA32PushSimd128, g.NoOutput(), decrement, value);
         } else {
-          Emit(kIA32Push, g.NoOutput(), value);
+          Emit(kIA32Push, g.NoOutput(), decrement, value);
         }
       }
     }

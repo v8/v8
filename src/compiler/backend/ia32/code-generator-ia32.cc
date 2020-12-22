@@ -1824,69 +1824,80 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kIA32PushFloat32:
-      if (instr->InputAt(0)->IsFPRegister()) {
+    case kIA32PushFloat32: {
+      // 1 slot values are never padded.
+      DCHECK_EQ(i.InputInt32(0), kFloatSize);
+      if (instr->InputAt(1)->IsFPRegister()) {
         __ AllocateStackSpace(kFloatSize);
-        __ Movss(Operand(esp, 0), i.InputDoubleRegister(0));
-        frame_access_state()->IncreaseSPDelta(kFloatSize / kSystemPointerSize);
-      } else if (HasImmediateInput(instr, 0)) {
-        __ Move(kScratchDoubleReg, i.InputFloat32(0));
+        __ Movss(Operand(esp, 0), i.InputDoubleRegister(1));
+      } else if (HasImmediateInput(instr, 1)) {
+        __ AllocateStackSpace(kFloatSize);
+        __ Move(kScratchDoubleReg, i.InputFloat32(1));
+        __ Movss(Operand(esp, 0), kScratchDoubleReg);
+      } else {
+        __ Movss(kScratchDoubleReg, i.InputOperand(1));
         __ AllocateStackSpace(kFloatSize);
         __ Movss(Operand(esp, 0), kScratchDoubleReg);
-        frame_access_state()->IncreaseSPDelta(kFloatSize / kSystemPointerSize);
-      } else {
-        __ Movss(kScratchDoubleReg, i.InputOperand(0));
-        __ AllocateStackSpace(kFloatSize);
-        __ Movss(Operand(esp, 0), kScratchDoubleReg);
-        frame_access_state()->IncreaseSPDelta(kFloatSize / kSystemPointerSize);
       }
+      int slots = kFloatSize / kSystemPointerSize;
+      frame_access_state()->IncreaseSPDelta(slots);
       break;
-    case kIA32PushFloat64:
-      if (instr->InputAt(0)->IsFPRegister()) {
-        __ AllocateStackSpace(kDoubleSize);
-        __ Movsd(Operand(esp, 0), i.InputDoubleRegister(0));
-        frame_access_state()->IncreaseSPDelta(kDoubleSize / kSystemPointerSize);
-      } else if (HasImmediateInput(instr, 0)) {
-        __ Move(kScratchDoubleReg, i.InputDouble(0));
-        __ AllocateStackSpace(kDoubleSize);
+    }
+    case kIA32PushFloat64: {
+      int stack_decrement = i.InputInt32(0);
+      // 2 slot values have up to 1 slot of padding.
+      DCHECK_GE(stack_decrement, kDoubleSize);
+      if (instr->InputAt(1)->IsFPRegister()) {
+        __ AllocateStackSpace(stack_decrement);
+        __ Movsd(Operand(esp, 0), i.InputDoubleRegister(1));
+      } else if (HasImmediateInput(instr, 1)) {
+        __ Move(kScratchDoubleReg, i.InputDouble(1));
+        __ AllocateStackSpace(stack_decrement);
         __ Movsd(Operand(esp, 0), kScratchDoubleReg);
-        frame_access_state()->IncreaseSPDelta(kDoubleSize / kSystemPointerSize);
       } else {
-        __ Movsd(kScratchDoubleReg, i.InputOperand(0));
-        __ AllocateStackSpace(kDoubleSize);
+        __ Movsd(kScratchDoubleReg, i.InputOperand(1));
+        __ AllocateStackSpace(stack_decrement);
         __ Movsd(Operand(esp, 0), kScratchDoubleReg);
-        frame_access_state()->IncreaseSPDelta(kDoubleSize / kSystemPointerSize);
       }
+      int slots = stack_decrement / kSystemPointerSize;
+      frame_access_state()->IncreaseSPDelta(slots);
       break;
-    case kIA32PushSimd128:
-      if (instr->InputAt(0)->IsFPRegister()) {
-        __ AllocateStackSpace(kSimd128Size);
-        __ Movups(Operand(esp, 0), i.InputSimd128Register(0));
+    }
+    case kIA32PushSimd128: {
+      int stack_decrement = i.InputInt32(0);
+      // 4 slot values have up to 3 slots of padding.
+      DCHECK_GE(stack_decrement, kSimd128Size);
+      if (instr->InputAt(1)->IsFPRegister()) {
+        __ AllocateStackSpace(stack_decrement);
+        __ Movups(Operand(esp, 0), i.InputSimd128Register(1));
       } else {
-        __ Movups(kScratchDoubleReg, i.InputOperand(0));
-        __ AllocateStackSpace(kSimd128Size);
+        __ Movups(kScratchDoubleReg, i.InputOperand(1));
+        __ AllocateStackSpace(stack_decrement);
         __ Movups(Operand(esp, 0), kScratchDoubleReg);
       }
-      frame_access_state()->IncreaseSPDelta(kSimd128Size / kSystemPointerSize);
+      int slots = stack_decrement / kSystemPointerSize;
+      frame_access_state()->IncreaseSPDelta(slots);
       break;
-    case kIA32Push:
+    }
+    case kIA32Push: {
+      // TODO(bbudge) Merge the push opcodes into a single one, as on x64.
+      // 1 slot values are never padded.
+      DCHECK_EQ(i.InputInt32(0), kSystemPointerSize);
       if (HasAddressingMode(instr)) {
-        size_t index = 0;
+        size_t index = 1;
         Operand operand = i.MemoryOperand(&index);
         __ push(operand);
-        frame_access_state()->IncreaseSPDelta(kFloatSize / kSystemPointerSize);
-      } else if (instr->InputAt(0)->IsFPRegister()) {
-        __ AllocateStackSpace(kFloatSize);
-        __ Movsd(Operand(esp, 0), i.InputDoubleRegister(0));
-        frame_access_state()->IncreaseSPDelta(kFloatSize / kSystemPointerSize);
-      } else if (HasImmediateInput(instr, 0)) {
-        __ push(i.InputImmediate(0));
-        frame_access_state()->IncreaseSPDelta(1);
+      } else if (instr->InputAt(1)->IsFPRegister()) {
+        __ AllocateStackSpace(kSystemPointerSize);
+        __ Movsd(Operand(esp, 0), i.InputDoubleRegister(1));
+      } else if (HasImmediateInput(instr, 1)) {
+        __ push(i.InputImmediate(1));
       } else {
-        __ push(i.InputOperand(0));
-        frame_access_state()->IncreaseSPDelta(1);
+        __ push(i.InputOperand(1));
       }
+      frame_access_state()->IncreaseSPDelta(1);
       break;
+    }
     case kIA32Poke: {
       int slot = MiscField::decode(instr->opcode());
       if (HasImmediateInput(instr, 0)) {

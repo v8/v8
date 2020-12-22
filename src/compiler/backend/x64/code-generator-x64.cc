@@ -2294,59 +2294,55 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64Inc32:
       __ incl(i.OutputRegister());
       break;
-    case kX64Push:
+    case kX64Push: {
+      int stack_decrement = i.InputInt32(0);
       if (HasAddressingMode(instr)) {
-        size_t index = 0;
+        // 1 slot values are never padded.
+        DCHECK_EQ(stack_decrement, kSystemPointerSize);
+        size_t index = 1;
         Operand operand = i.MemoryOperand(&index);
         __ pushq(operand);
-        frame_access_state()->IncreaseSPDelta(1);
-        unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         kSystemPointerSize);
-      } else if (HasImmediateInput(instr, 0)) {
-        __ pushq(i.InputImmediate(0));
-        frame_access_state()->IncreaseSPDelta(1);
-        unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         kSystemPointerSize);
-      } else if (HasRegisterInput(instr, 0)) {
-        __ pushq(i.InputRegister(0));
-        frame_access_state()->IncreaseSPDelta(1);
-        unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         kSystemPointerSize);
-      } else if (instr->InputAt(0)->IsFloatRegister() ||
-                 instr->InputAt(0)->IsDoubleRegister()) {
-        // TODO(titzer): use another machine instruction?
-        __ AllocateStackSpace(kDoubleSize);
-        frame_access_state()->IncreaseSPDelta(kDoubleSize / kSystemPointerSize);
-        unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         kDoubleSize);
-        __ Movsd(Operand(rsp, 0), i.InputDoubleRegister(0));
-      } else if (instr->InputAt(0)->IsSimd128Register()) {
-        // TODO(titzer): use another machine instruction?
-        __ AllocateStackSpace(kSimd128Size);
-        frame_access_state()->IncreaseSPDelta(kSimd128Size /
-                                              kSystemPointerSize);
-        unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         kSimd128Size);
-        __ Movups(Operand(rsp, 0), i.InputSimd128Register(0));
-      } else if (instr->InputAt(0)->IsStackSlot() ||
-                 instr->InputAt(0)->IsFloatStackSlot() ||
-                 instr->InputAt(0)->IsDoubleStackSlot()) {
-        __ pushq(i.InputOperand(0));
-        frame_access_state()->IncreaseSPDelta(1);
-        unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         kSystemPointerSize);
+      } else if (HasImmediateInput(instr, 1)) {
+        // 1 slot values are never padded.
+        DCHECK_EQ(stack_decrement, kSystemPointerSize);
+        __ pushq(i.InputImmediate(1));
+      } else if (HasRegisterInput(instr, 1)) {
+        // 1 slot values are never padded.
+        DCHECK_EQ(stack_decrement, kSystemPointerSize);
+        __ pushq(i.InputRegister(1));
+      } else if (instr->InputAt(1)->IsFloatRegister() ||
+                 instr->InputAt(1)->IsDoubleRegister()) {
+        // 1 slot values are never padded.
+        DCHECK_EQ(stack_decrement, kSystemPointerSize);
+        __ AllocateStackSpace(kSystemPointerSize);
+        __ Movsd(Operand(rsp, 0), i.InputDoubleRegister(1));
+      } else if (instr->InputAt(1)->IsSimd128Register()) {
+        // 2 slot values have up to 1 slot of padding.
+        DCHECK_GE(stack_decrement, kSimd128Size);
+        __ AllocateStackSpace(stack_decrement);
+        // TODO(bbudge) Use Movaps when slots are aligned.
+        __ Movups(Operand(rsp, 0), i.InputSimd128Register(1));
+      } else if (instr->InputAt(1)->IsStackSlot() ||
+                 instr->InputAt(1)->IsFloatStackSlot() ||
+                 instr->InputAt(1)->IsDoubleStackSlot()) {
+        // 1 slot values are never padded.
+        DCHECK_EQ(stack_decrement, kSystemPointerSize);
+        __ pushq(i.InputOperand(1));
       } else {
-        DCHECK(instr->InputAt(0)->IsSimd128StackSlot());
-        __ Movups(kScratchDoubleReg, i.InputOperand(0));
-        // TODO(titzer): use another machine instruction?
-        __ AllocateStackSpace(kSimd128Size);
-        frame_access_state()->IncreaseSPDelta(kSimd128Size /
-                                              kSystemPointerSize);
-        unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         kSimd128Size);
+        DCHECK(instr->InputAt(1)->IsSimd128StackSlot());
+        // 2 slot values have up to 1 slot of padding.
+        DCHECK_GE(stack_decrement, kSimd128Size);
+        // TODO(bbudge) Use Movaps when slots are aligned.
+        __ Movups(kScratchDoubleReg, i.InputOperand(1));
+        __ AllocateStackSpace(stack_decrement);
         __ Movups(Operand(rsp, 0), kScratchDoubleReg);
       }
+      int slots = stack_decrement / kSystemPointerSize;
+      frame_access_state()->IncreaseSPDelta(slots);
+      unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                       stack_decrement);
       break;
+    }
     case kX64Poke: {
       int slot = MiscField::decode(instr->opcode());
       if (HasImmediateInput(instr, 0)) {

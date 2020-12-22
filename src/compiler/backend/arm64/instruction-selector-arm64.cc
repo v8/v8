@@ -2091,20 +2091,23 @@ void InstructionSelector::EmitPrepareArguments(
   // Poke the arguments into the stack.
   while (slot >= 0) {
     PushParameter input0 = (*arguments)[slot];
+    // Skip holes in the param array. These represent both extra slots for
+    // multi-slot values and padding slots for alignment.
+    if (input0.node == nullptr) {
+      slot--;
+      continue;
+    }
     PushParameter input1 = slot > 0 ? (*arguments)[slot - 1] : PushParameter();
     // Emit a poke-pair if consecutive parameters have the same type.
     // TODO(arm): Support consecutive Simd128 parameters.
-    if (input0.node != nullptr && input1.node != nullptr &&
+    if (input1.node != nullptr &&
         input0.location.GetType() == input1.location.GetType()) {
       Emit(kArm64PokePair, g.NoOutput(), g.UseRegister(input0.node),
            g.UseRegister(input1.node), g.TempImmediate(slot));
       slot -= 2;
-    } else if (input0.node != nullptr) {
+    } else {
       Emit(kArm64Poke, g.NoOutput(), g.UseRegister(input0.node),
            g.TempImmediate(slot));
-      slot--;
-    } else {
-      // Skip any alignment holes in pushed nodes.
       slot--;
     }
   }
