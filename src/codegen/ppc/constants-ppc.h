@@ -526,7 +526,9 @@ using Instr = uint32_t;
   /* VSX Vector Test for software Square Root Double-Precision */            \
   V(xvtsqrtdp, XVTSQRTDP, 0xF00003A8)                                        \
   /* VSX Vector Test for software Square Root Single-Precision */            \
-  V(xvtsqrtsp, XVTSQRTSP, 0xF00002A8)
+  V(xvtsqrtsp, XVTSQRTSP, 0xF00002A8)                                        \
+  /* Vector Splat Immediate Byte */                                          \
+  V(xxspltib, XXSPLTIB, 0xF00002D0)
 
 #define PPC_XX2_OPCODE_LIST(V)  \
   PPC_XX2_OPCODE_A_FORM_LIST(V) \
@@ -2008,9 +2010,7 @@ using Instr = uint32_t;
   /* Store VSR Vector Doubleword*2 Indexed */              \
   V(stxvd, STXVD, 0x7C000798)                              \
   /* Store VSR Vector Word*4 Indexed */                    \
-  V(stxvw, STXVW, 0x7C000718)                              \
-  /* Vector Splat Immediate Byte */                        \
-  V(xxspltib, XXSPLTIB, 0xF00002D1)
+  V(stxvw, STXVW, 0x7C000718)
 
 #define PPC_B_OPCODE_LIST(V) \
   /* Branch Conditional */   \

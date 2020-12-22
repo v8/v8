@@ -255,6 +255,11 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
       return 5;
     }
+    case 'I': {  // IMM8
+      int8_t value = instr->Bits(18, 11);
+      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+      return 4;
+    }
     case 'u': {  // uint16
       int32_t value = instr->Bits(15, 0);
       out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
@@ -400,104 +405,29 @@ void Decoder::UnknownFormat(Instruction* instr, const char* name) {
 void Decoder::DecodeExt0(Instruction* instr) {
   // Some encodings are 5-0 bits, handle those first
   switch (EXT0 | (instr->BitField(5, 0))) {
-    case VPERM: {
-      Format(instr, "vperm   'Vt, 'Va, 'Vb, 'Vc");
-      return;
-    }
-    case VMLADDUHM: {
-      Format(instr, "vmladduhm 'Vt, 'Va, 'Vb, 'Vc");
-      return;
-    }
+#define DECODE_VA_A_FORM__INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name: {                                                   \
+    Format(instr, #name " 'Vt, 'Va, 'Vb, 'Vc");                         \
+    return;                                                             \
+  }
+    PPC_VA_OPCODE_A_FORM_LIST(DECODE_VA_A_FORM__INSTRUCTIONS)
+#undef DECODE_VA_A_FORM__INSTRUCTIONS
   }
   switch (EXT0 | (instr->BitField(10, 0))) {
-    case VSPLTB: {
-      Format(instr, "vspltb  'Vt, 'Vb, 'UIM");
-      break;
-    }
-    case VSPLTW: {
-      Format(instr, "vspltw  'Vt, 'Vb, 'UIM");
-      break;
-    }
-    case VSPLTH: {
-      Format(instr, "vsplth  'Vt, 'Vb, 'UIM");
-      break;
-    }
-    case VSRO: {
-      Format(instr, "vsro    'Vt, 'Va, 'Vb");
-      break;
-    }
-    case VOR: {
-      Format(instr, "vor     'Vt, 'Va, 'Vb");
-      break;
-    }
-    case VXOR: {
-      Format(instr, "vxor    'Vt, 'Va, 'Vb");
-      break;
-    }
-    case VNOR: {
-      Format(instr, "vnor    'Vt, 'Va, 'Vb");
-      break;
-    }
-    case VSLO: {
-      Format(instr, "vslo    'Vt, 'Va, 'Vb");
-      break;
-    }
-    case VADDUDM: {
-      Format(instr, "vaddudm    'Vt, 'Va, 'Vb");
-      break;
-    }
-    case VADDUWM: {
-      Format(instr, "vadduwm    'Vt, 'Va, 'Vb");
-      break;
-    }
-    case VADDUHM: {
-      Format(instr, "vadduhm    'Vt, 'Va, 'Vb");
-      break;
-    }
-    case VADDUBM: {
-      Format(instr, "vaddubm    'Vt, 'Va, 'Vb");
-      break;
-    }
-    case VADDFP: {
-      Format(instr, "vaddfp    'Vt, 'Va, 'Vb");
-      break;
-    }
-    case VSUBFP: {
-      Format(instr, "vsubfp    'Vt, 'Va, 'Vb");
-      break;
-    }
-    case VSUBUDM: {
-      Format(instr, "vsubudm    'Vt, 'Va, 'Vb");
-      break;
-    }
-    case VSUBUWM: {
-      Format(instr, "vsubuwm    'Vt, 'Va, 'Vb");
-      break;
-    }
-    case VSUBUHM: {
-      Format(instr, "vsubuhm    'Vt, 'Va, 'Vb");
-      break;
-    }
-    case VSUBUBM: {
-      Format(instr, "vsububm    'Vt, 'Va, 'Vb");
-      break;
-    }
-    case VMULUWM: {
-      Format(instr, "vmuluwm    'Vt, 'Va, 'Vb");
-      break;
-    }
-    case VPKUHUM: {
-      Format(instr, "vpkuhum    'Vt, 'Va, 'Vb");
-      break;
-    }
-    case VMULEUB: {
-      Format(instr, "vmuleub    'Vt, 'Va, 'Vb");
-      break;
-    }
-    case VMULOUB: {
-      Format(instr, "vmuloub    'Vt, 'Va, 'Vb");
-      break;
-    }
+#define DECODE_VX_A_FORM__INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name: {                                                   \
+    Format(instr, #name " 'Vt, 'Vb, 'UIM");                             \
+    return;                                                             \
+  }
+    PPC_VX_OPCODE_A_FORM_LIST(DECODE_VX_A_FORM__INSTRUCTIONS)
+#undef DECODE_VX_A_FORM__INSTRUCTIONS
+#define DECODE_VX_B_FORM__INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name: {                                                   \
+    Format(instr, #name " 'Vt, 'Va, 'Vb");                              \
+    return;                                                             \
+  }
+    PPC_VX_OPCODE_B_FORM_LIST(DECODE_VX_B_FORM__INSTRUCTIONS)
+#undef DECODE_VX_B_FORM__INSTRUCTIONS
   }
 }
 
@@ -686,8 +616,40 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "lxvd    'Xt, 'ra, 'rb");
       return;
     }
+    case LXSDX: {
+      Format(instr, "lxsdx    'Xt, 'ra, 'rb");
+      return;
+    }
+    case LXSIBZX: {
+      Format(instr, "lxsibzx  'Xt, 'ra, 'rb");
+      return;
+    }
+    case LXSIHZX: {
+      Format(instr, "lxsihzx  'Xt, 'ra, 'rb");
+      return;
+    }
+    case LXSIWZX: {
+      Format(instr, "lxsiwzx  'Xt, 'ra, 'rb");
+      return;
+    }
     case STXVD: {
       Format(instr, "stxvd   'Xs, 'ra, 'rb");
+      return;
+    }
+    case STXSDX: {
+      Format(instr, "stxsdx  'Xs, 'ra, 'rb");
+      return;
+    }
+    case STXSIBX: {
+      Format(instr, "stxsibx 'Xs, 'ra, 'rb");
+      return;
+    }
+    case STXSIHX: {
+      Format(instr, "stxsihx 'Xs, 'ra, 'rb");
+      return;
+    }
+    case STXSIWX: {
+      Format(instr, "stxsiwx 'Xs, 'ra, 'rb");
       return;
     }
     case SRWX: {
@@ -1083,6 +1045,10 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "mtfprwz 'Dt, 'ra");
       return;
     }
+    case MTVSRDD: {
+      Format(instr, "mtvsrwz 'Xt, 'ra");
+      return;
+    }
 #endif
   }
 
@@ -1281,24 +1247,30 @@ void Decoder::DecodeExt5(Instruction* instr) {
 }
 
 void Decoder::DecodeExt6(Instruction* instr) {
+  switch (EXT6 | (instr->BitField(10, 1))) {
+    case XXSPLTIB: {
+      Format(instr, "xxspltib  'Xt, 'IMM8");
+      return;
+    }
+  }
   switch (EXT6 | (instr->BitField(10, 3))) {
 #define DECODE_XX3_INSTRUCTIONS(name, opcode_name, opcode_value) \
   case opcode_name: {                                            \
-    Format(instr, #name " 'Dt, 'Da, 'Db");                       \
+    Format(instr, #name " 'Xt, 'Xa, 'Xb");                       \
     return;                                                      \
   }
     PPC_XX3_OPCODE_LIST(DECODE_XX3_INSTRUCTIONS)
 #undef DECODE_XX3_INSTRUCTIONS
   }
   switch (EXT6 | (instr->BitField(10, 2))) {
-#define DECODE_XX2_INSTRUCTIONS(name, opcode_name, opcode_value) \
-  case opcode_name: {                                            \
-    Format(instr, #name " 'Dt, 'Db");                            \
-    return;                                                      \
+#define DECODE_XX2_A_INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name: {                                              \
+    Format(instr, #name " 'Xt, 'Xb");                              \
+    return;                                                        \
   }
-    PPC_XX2_OPCODE_LIST(DECODE_XX2_INSTRUCTIONS)
+    PPC_XX2_OPCODE_A_FORM_LIST(DECODE_XX2_A_INSTRUCTIONS)
   }
-#undef DECODE_XX2_INSTRUCTIONS
+#undef DECODE_XX2_A_INSTRUCTIONS
   Unknown(instr);  // not used by V8
 }
 
