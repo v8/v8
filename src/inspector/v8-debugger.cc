@@ -68,12 +68,9 @@ V8DebuggerId::V8DebuggerId(std::pair<int64_t, int64_t> pair)
     : m_first(pair.first), m_second(pair.second) {}
 
 // static
-V8DebuggerId V8DebuggerId::generate(v8::Isolate* isolate) {
-  V8DebuggerId debuggerId;
-  debuggerId.m_first = v8::debug::GetNextRandomInt64(isolate);
-  debuggerId.m_second = v8::debug::GetNextRandomInt64(isolate);
-  if (!debuggerId.m_first && !debuggerId.m_second) ++debuggerId.m_first;
-  return debuggerId;
+V8DebuggerId V8DebuggerId::generate(V8InspectorImpl* inspector) {
+  return V8DebuggerId(std::make_pair(inspector->generateUniqueId(),
+                                     inspector->generateUniqueId()));
 }
 
 V8DebuggerId::V8DebuggerId(const String16& debuggerId) {
@@ -1114,7 +1111,7 @@ void V8Debugger::setMaxAsyncTaskStacksForTest(int limit) {
 V8DebuggerId V8Debugger::debuggerIdFor(int contextGroupId) {
   auto it = m_contextGroupIdToDebuggerId.find(contextGroupId);
   if (it != m_contextGroupIdToDebuggerId.end()) return it->second;
-  V8DebuggerId debuggerId = V8DebuggerId::generate(m_isolate);
+  V8DebuggerId debuggerId = V8DebuggerId::generate(m_inspector);
   m_contextGroupIdToDebuggerId.insert(
       it, std::make_pair(contextGroupId, debuggerId));
   return debuggerId;

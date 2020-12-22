@@ -129,6 +129,7 @@ class V8InspectorImpl : public V8Inspector {
   void forEachSession(
       int contextGroupId,
       const std::function<void(V8InspectorSessionImpl*)>& callback);
+  int64_t generateUniqueId();
 
   class EvaluateScope {
    public:

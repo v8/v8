@@ -50,7 +50,7 @@ class V8DebuggerId {
   V8DebuggerId(const V8DebuggerId&) V8_NOEXCEPT = default;
   ~V8DebuggerId() = default;
 
-  static V8DebuggerId generate(v8::Isolate*);
+  static V8DebuggerId generate(V8InspectorImpl*);
 
   String16 toString() const;
   bool isValid() const;

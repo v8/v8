@@ -62,7 +62,7 @@ V8InspectorImpl::V8InspectorImpl(v8::Isolate* isolate,
       m_capturingStackTracesCount(0),
       m_lastExceptionId(0),
       m_lastContextId(0),
-      m_isolateId(v8::debug::GetNextRandomInt64(m_isolate)) {
+      m_isolateId(generateUniqueId()) {
   v8::debug::SetInspector(m_isolate, this);
   v8::debug::SetConsoleDelegate(m_isolate, console());
 }
@@ -414,6 +414,13 @@ void V8InspectorImpl::forEachSession(
     auto sessionIt = it->second.find(sessionId);
     if (sessionIt != it->second.end()) callback(sessionIt->second);
   }
+}
+
+int64_t V8InspectorImpl::generateUniqueId() {
+  int64_t id = m_client->generateUniqueId();
+  if (!id) id = v8::debug::GetNextRandomInt64(m_isolate);
+  if (!id) id = 1;
+  return id;
 }
 
 V8InspectorImpl::EvaluateScope::EvaluateScope(

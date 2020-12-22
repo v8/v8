@@ -487,5 +487,11 @@ std::unique_ptr<v8_inspector::StringBuffer> IsolateData::resourceNameToUrl(
   return std::make_unique<StringBufferImpl>(isolate(), url);
 }
 
+int64_t IsolateData::generateUniqueId() {
+  static int64_t last_unique_id = 0L;
+  // Keep it not too random for tests.
+  return ++last_unique_id;
+}
+
 }  // namespace internal
 }  // namespace v8

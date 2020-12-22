@@ -130,6 +130,7 @@ class IsolateData : public v8_inspector::V8InspectorClient {
   void maxAsyncCallStackDepthChanged(int depth) override;
   std::unique_ptr<v8_inspector::StringBuffer> resourceNameToUrl(
       const v8_inspector::StringView& resourceName) override;
+  int64_t generateUniqueId() override;
 
   // The isolate gets deleted by its {Dispose} method, not by the default
   // deleter. Therefore we have to define a custom deleter for the unique_ptr to

@@ -229,6 +229,10 @@ class V8_EXPORT V8InspectorClient {
       const StringView& resourceName) {
     return nullptr;
   }
+
+  // The caller would defer to generating a random 64 bit integer if
+  // this method returns 0.
+  virtual int64_t generateUniqueId() { return 0; }
 };
 
 // These stack trace ids are intended to be passed between debuggers and be
