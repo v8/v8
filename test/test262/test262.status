@@ -120,6 +120,8 @@
   'built-ins/TypedArray/prototype/fill/coerced-value-detach': [FAIL],
   'built-ins/TypedArray/prototype/fill/coerced-end-detach': [FAIL],
   'built-ins/TypedArray/prototype/fill/coerced-start-detach': [FAIL],
+  'built-ins/TypedArray/prototype/includes/detached-buffer-during-fromIndex-returns-true-for-undefined': [FAIL],
+  'built-ins/TypedArray/prototype/includes/BigInt/detached-buffer-during-fromIndex-returns-true-for-undefined': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4951
   'language/expressions/assignment/destructuring/iterator-destructuring-property-reference-target-evaluation-order': [FAIL],
@@ -533,15 +535,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9049
   'language/comments/hashbang/use-strict': [SKIP],
-
-  # https://github.com/tc39/test262/pull/2903
-  'intl402/Intl/getCanonicalLocales/canonicalized-tags': [FAIL],
-  'intl402/Intl/getCanonicalLocales/preferred-variant': [FAIL],
-  'intl402/Intl/getCanonicalLocales/preferred-grandfathered': [FAIL],
-  'intl402/Locale/extensions-grandfathered': [FAIL],
-
-  # https://github.com/tc39/test262/pull/2904
-  'intl402/Locale/likely-subtags-grandfathered': [FAIL],
 
   # http://crbug/v8/10447
   'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-yes-to-true': [FAIL],
