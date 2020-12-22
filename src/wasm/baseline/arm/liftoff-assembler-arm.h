@@ -2854,25 +2854,29 @@ void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i64x2_extmul_low_i32x4_s(LiftoffRegister dst,
                                                      LiftoffRegister src1,
                                                      LiftoffRegister src2) {
-  bailout(kSimd, "i64x2_extmul_low_i32x4_s unsupported");
+  vmull(NeonS32, liftoff::GetSimd128Register(dst), src1.low_fp(),
+        src2.low_fp());
 }
 
 void LiftoffAssembler::emit_i64x2_extmul_low_i32x4_u(LiftoffRegister dst,
                                                      LiftoffRegister src1,
                                                      LiftoffRegister src2) {
-  bailout(kSimd, "i64x2_extmul_low_i32x4_u unsupported");
+  vmull(NeonU32, liftoff::GetSimd128Register(dst), src1.low_fp(),
+        src2.low_fp());
 }
 
 void LiftoffAssembler::emit_i64x2_extmul_high_i32x4_s(LiftoffRegister dst,
                                                       LiftoffRegister src1,
                                                       LiftoffRegister src2) {
-  bailout(kSimd, "i64x2_extmul_high_i32x4_s unsupported");
+  vmull(NeonS32, liftoff::GetSimd128Register(dst), src1.high_fp(),
+        src2.high_fp());
 }
 
 void LiftoffAssembler::emit_i64x2_extmul_high_i32x4_u(LiftoffRegister dst,
                                                       LiftoffRegister src1,
                                                       LiftoffRegister src2) {
-  bailout(kSimd, "i64x2_extmul_high_i32x4_u unsupported");
+  vmull(NeonU32, liftoff::GetSimd128Register(dst), src1.high_fp(),
+        src2.high_fp());
 }
 
 void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
@@ -3043,25 +3047,29 @@ void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
 void LiftoffAssembler::emit_i32x4_extmul_low_i16x8_s(LiftoffRegister dst,
                                                      LiftoffRegister src1,
                                                      LiftoffRegister src2) {
-  bailout(kSimd, "i32x4_extmul_low_i16x8_s unsupported");
+  vmull(NeonS16, liftoff::GetSimd128Register(dst), src1.low_fp(),
+        src2.low_fp());
 }
 
 void LiftoffAssembler::emit_i32x4_extmul_low_i16x8_u(LiftoffRegister dst,
                                                      LiftoffRegister src1,
                                                      LiftoffRegister src2) {
-  bailout(kSimd, "i32x4_extmul_low_i16x8_u unsupported");
+  vmull(NeonU16, liftoff::GetSimd128Register(dst), src1.low_fp(),
+        src2.low_fp());
 }
 
 void LiftoffAssembler::emit_i32x4_extmul_high_i16x8_s(LiftoffRegister dst,
                                                       LiftoffRegister src1,
                                                       LiftoffRegister src2) {
-  bailout(kSimd, "i32x4_extmul_high_i16x8_s unsupported");
+  vmull(NeonS16, liftoff::GetSimd128Register(dst), src1.high_fp(),
+        src2.high_fp());
 }
 
 void LiftoffAssembler::emit_i32x4_extmul_high_i16x8_u(LiftoffRegister dst,
                                                       LiftoffRegister src1,
                                                       LiftoffRegister src2) {
-  bailout(kSimd, "i32x4_extmul_high_i16x8_u unsupported");
+  vmull(NeonU16, liftoff::GetSimd128Register(dst), src1.high_fp(),
+        src2.high_fp());
 }
 
 void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
@@ -3252,25 +3260,27 @@ void LiftoffAssembler::emit_i16x8_replace_lane(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_extmul_low_i8x16_s(LiftoffRegister dst,
                                                      LiftoffRegister src1,
                                                      LiftoffRegister src2) {
-  bailout(kSimd, "i16x8.extmul_low_i8x16_s unsupported");
+  vmull(NeonS8, liftoff::GetSimd128Register(dst), src1.low_fp(), src2.low_fp());
 }
 
 void LiftoffAssembler::emit_i16x8_extmul_low_i8x16_u(LiftoffRegister dst,
                                                      LiftoffRegister src1,
                                                      LiftoffRegister src2) {
-  bailout(kSimd, "i16x8.extmul_low_i8x16_u unsupported");
+  vmull(NeonU8, liftoff::GetSimd128Register(dst), src1.low_fp(), src2.low_fp());
 }
 
 void LiftoffAssembler::emit_i16x8_extmul_high_i8x16_s(LiftoffRegister dst,
                                                       LiftoffRegister src1,
                                                       LiftoffRegister src2) {
-  bailout(kSimd, "i16x8.extmul_high_i8x16_s unsupported");
+  vmull(NeonS8, liftoff::GetSimd128Register(dst), src1.high_fp(),
+        src2.high_fp());
 }
 
 void LiftoffAssembler::emit_i16x8_extmul_high_i8x16_u(LiftoffRegister dst,
                                                       LiftoffRegister src1,
                                                       LiftoffRegister src2) {
-  bailout(kSimd, "i16x8_extmul_high_i8x16_u unsupported");
+  vmull(NeonU8, liftoff::GetSimd128Register(dst), src1.high_fp(),
+        src2.high_fp());
 }
 
 void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
