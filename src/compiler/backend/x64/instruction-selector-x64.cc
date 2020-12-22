@@ -3447,6 +3447,15 @@ bool TryMatchArchShuffle(const uint8_t* shuffle, const ShuffleEntry* table,
   return false;
 }
 
+bool TryMatchShufps(const uint8_t* shuffle32x4) {
+  DCHECK_GT(8, shuffle32x4[2]);
+  DCHECK_GT(8, shuffle32x4[3]);
+  // shufps can be used if the first 2 indices select the first input [0-3], and
+  // the other 2 indices select the second input [4-7].
+  return shuffle32x4[0] < 4 && shuffle32x4[1] < 4 && shuffle32x4[2] > 3 &&
+         shuffle32x4[3] > 3;
+}
+
 }  // namespace
 
 void InstructionSelector::VisitI8x16Shuffle(Node* node) {
@@ -3529,6 +3538,12 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
         uint8_t blend_mask = wasm::SimdShuffle::PackBlend4(shuffle32x4);
         imms[imm_count++] = blend_mask;
         no_same_as_first = CpuFeatures::IsSupported(AVX);
+      } else if (TryMatchShufps(shuffle32x4)) {
+        opcode = kX64Shufps;
+        uint8_t mask = wasm::SimdShuffle::PackShuffle4(shuffle32x4);
+        imms[imm_count++] = mask;
+        src1_needs_reg = true;
+        no_same_as_first = IsSupported(AVX);
       } else {
         opcode = kX64S32x4Shuffle;
         no_same_as_first = true;

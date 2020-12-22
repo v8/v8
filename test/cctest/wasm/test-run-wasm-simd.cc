@@ -3082,6 +3082,28 @@ WASM_SIMD_TEST(S8x16Concat) {
   }
 }
 
+WASM_SIMD_TEST(ShuffleShufps) {
+  // We reverse engineer the shufps immediates into 8x16 shuffles.
+  std::array<int8_t, kSimd128Size> expected;
+  for (int mask = 0; mask < 256; mask++) {
+    // Each iteration of this loop sets byte[i] of the 32x4 lanes.
+    // Low 2 lanes (2-bits each) select from first input.
+    uint8_t index0 = (mask & 3) * 4;
+    uint8_t index1 = ((mask >> 2) & 3) * 4;
+    // Next 2 bits select from src2, so add 16 to the index.
+    uint8_t index2 = ((mask >> 4) & 3) * 4 + 16;
+    uint8_t index3 = ((mask >> 6) & 3) * 4 + 16;
+
+    for (int i = 0; i < 4; i++) {
+      expected[0 + i] = index0 + i;
+      expected[4 + i] = index1 + i;
+      expected[8 + i] = index2 + i;
+      expected[12 + i] = index3 + i;
+    }
+    RunShuffleOpTest(execution_tier, lower_simd, kExprI8x16Shuffle, expected);
+  }
+}
+
 struct SwizzleTestArgs {
   const Shuffle input;
   const Shuffle indices;

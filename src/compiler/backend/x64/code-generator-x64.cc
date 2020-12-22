@@ -3936,6 +3936,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kX64Shufps: {
+      __ Shufps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputSimd128Register(1), i.InputUint8(2));
+      break;
+    }
     case kX64S32x4Rotate: {
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(0);
