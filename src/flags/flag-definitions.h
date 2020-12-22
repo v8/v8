@@ -907,6 +907,7 @@ DEFINE_BOOL(wasm_grow_shared_memory, true,
 DEFINE_BOOL(wasm_simd_post_mvp, false,
             "allow experimental SIMD operations for prototyping that are not "
             "included in the current proposal")
+DEFINE_BOOL(wasm_simd_ssse3_codegen, false, "allow wasm SIMD SSSE3 codegen")
 DEFINE_IMPLICATION(wasm_simd_post_mvp, experimental_wasm_simd)
 
 DEFINE_BOOL(wasm_code_gc, true, "enable garbage collection of wasm code")
