@@ -1680,6 +1680,32 @@ void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
   fill_d(dst.fp().toW(), kScratchReg);
 }
 
+#define SIMD_BINOP(name, ilv_instr, dotp_instr)                          \
+  void LiftoffAssembler::emit_##name(                                    \
+      LiftoffRegister dst, LiftoffRegister src1, LiftoffRegister src2) { \
+    xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);            \
+    ilv_instr(kSimd128ScratchReg, kSimd128RegZero, src1.fp().toW());     \
+    ilv_instr(kSimd128RegZero, kSimd128RegZero, src2.fp().toW());        \
+    dotp_instr(dst.fp().toW(), kSimd128ScratchReg, kSimd128RegZero);     \
+  }
+
+SIMD_BINOP(i16x8_extmul_low_i8x16_s, ilvr_b, dotp_s_h)
+SIMD_BINOP(i16x8_extmul_high_i8x16_s, ilvl_b, dotp_s_h)
+SIMD_BINOP(i16x8_extmul_low_i8x16_u, ilvr_b, dotp_u_h)
+SIMD_BINOP(i16x8_extmul_high_i8x16_u, ilvl_b, dotp_u_h)
+
+SIMD_BINOP(i32x4_extmul_low_i16x8_s, ilvr_h, dotp_s_w)
+SIMD_BINOP(i32x4_extmul_high_i16x8_s, ilvl_h, dotp_s_w)
+SIMD_BINOP(i32x4_extmul_low_i16x8_u, ilvr_h, dotp_u_w)
+SIMD_BINOP(i32x4_extmul_high_i16x8_u, ilvl_h, dotp_u_w)
+
+SIMD_BINOP(i64x2_extmul_low_i32x4_s, ilvr_w, dotp_s_d)
+SIMD_BINOP(i64x2_extmul_high_i32x4_s, ilvl_w, dotp_s_d)
+SIMD_BINOP(i64x2_extmul_low_i32x4_u, ilvr_w, dotp_u_d)
+SIMD_BINOP(i64x2_extmul_high_i32x4_u, ilvl_w, dotp_u_d)
+
+#undef SIMD_BINOP
+
 void LiftoffAssembler::emit_i8x16_eq(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
   ceq_b(dst.fp().toW(), lhs.fp().toW(), rhs.fp().toW());
