@@ -428,6 +428,13 @@ void Decoder::DecodeExt0(Instruction* instr) {
   }
     PPC_VX_OPCODE_B_FORM_LIST(DECODE_VX_B_FORM__INSTRUCTIONS)
 #undef DECODE_VX_B_FORM__INSTRUCTIONS
+#define DECODE_VX_C_FORM__INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name: {                                                   \
+    Format(instr, #name " 'Vt, 'Vb");                                   \
+    return;                                                             \
+  }
+    PPC_VX_OPCODE_C_FORM_LIST(DECODE_VX_C_FORM__INSTRUCTIONS)
+#undef DECODE_VX_C_FORM__INSTRUCTIONS
   }
 }
 
