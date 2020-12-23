@@ -11,14 +11,14 @@
 #include <unordered_set>
 #include <vector>
 
+#include "include/v8-inspector.h"
 #include "src/base/macros.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Debugger.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
+#include "src/inspector/v8-debugger-id.h"
 #include "src/inspector/v8-debugger-script.h"
-
-#include "include/v8-inspector.h"
 
 namespace v8_inspector {
 
@@ -35,31 +35,6 @@ enum class WrapMode { kForceValue, kNoPreview, kWithPreview };
 using protocol::Response;
 using TerminateExecutionCallback =
     protocol::Runtime::Backend::TerminateExecutionCallback;
-
-// This debugger id tries to be unique by generating two random
-// numbers, which should most likely avoid collisions.
-// Debugger id has a 1:1 mapping to context group. It is used to
-// attribute stack traces to a particular debugging, when doing any
-// cross-debugger operations (e.g. async step in).
-// See also Runtime.UniqueDebuggerId in the protocol.
-class V8DebuggerId {
- public:
-  V8DebuggerId() = default;
-  explicit V8DebuggerId(std::pair<int64_t, int64_t>);
-  explicit V8DebuggerId(const String16&);
-  V8DebuggerId(const V8DebuggerId&) V8_NOEXCEPT = default;
-  ~V8DebuggerId() = default;
-
-  static V8DebuggerId generate(V8InspectorImpl*);
-
-  String16 toString() const;
-  bool isValid() const;
-  std::pair<int64_t, int64_t> pair() const;
-
- private:
-  int64_t m_first = 0;
-  int64_t m_second = 0;
-};
 
 class V8Debugger : public v8::debug::DebugDelegate,
                    public v8::debug::AsyncEventDelegate {

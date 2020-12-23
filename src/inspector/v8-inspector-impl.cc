@@ -81,6 +81,11 @@ int V8InspectorImpl::contextGroupId(int contextId) const {
   return it != m_contextIdToGroupIdMap.end() ? it->second : 0;
 }
 
+int V8InspectorImpl::resolveUniqueContextId(V8DebuggerId uniqueId) const {
+  auto it = m_uniqueIdToContextId.find(uniqueId.pair());
+  return it == m_uniqueIdToContextId.end() ? 0 : it->second;
+}
+
 v8::MaybeLocal<v8::Value> V8InspectorImpl::compileAndRunInternalScript(
     v8::Local<v8::Context> context, v8::Local<v8::String> source) {
   v8::Local<v8::UnboundScript> unboundScript;
@@ -190,6 +195,11 @@ void V8InspectorImpl::contextCreated(const V8ContextInfo& info) {
   auto* context = new InspectedContext(this, info, contextId);
   m_contextIdToGroupIdMap[contextId] = info.contextGroupId;
 
+  DCHECK(m_uniqueIdToContextId.find(context->uniqueId().pair()) ==
+         m_uniqueIdToContextId.end());
+  m_uniqueIdToContextId.insert(
+      std::make_pair(context->uniqueId().pair(), contextId));
+
   auto contextIt = m_contexts.find(info.contextGroupId);
   if (contextIt == m_contexts.end())
     contextIt = m_contexts
@@ -233,14 +243,15 @@ void V8InspectorImpl::contextCollected(int groupId, int contextId) {
 void V8InspectorImpl::resetContextGroup(int contextGroupId) {
   m_consoleStorageMap.erase(contextGroupId);
   m_muteExceptionsMap.erase(contextGroupId);
-  std::vector<int> contextIdsToClear;
-  forEachContext(contextGroupId,
-                 [&contextIdsToClear](InspectedContext* context) {
-                   contextIdsToClear.push_back(context->contextId());
-                 });
+  auto contextsIt = m_contexts.find(contextGroupId);
+  // Context might have been removed already by discardContextScript()
+  if (contextsIt != m_contexts.end()) {
+    for (const auto& map_entry : *contextsIt->second)
+      m_uniqueIdToContextId.erase(map_entry.second->uniqueId().pair());
+    m_contexts.erase(contextsIt);
+  }
   forEachSession(contextGroupId,
                  [](V8InspectorSessionImpl* session) { session->reset(); });
-  m_contexts.erase(contextGroupId);
 }
 
 void V8InspectorImpl::idleStarted() { m_isolate->SetIdle(true); }
@@ -362,7 +373,9 @@ v8::Local<v8::Context> V8InspectorImpl::regexContext() {
 
 void V8InspectorImpl::discardInspectedContext(int contextGroupId,
                                               int contextId) {
-  if (!getContext(contextGroupId, contextId)) return;
+  auto* context = getContext(contextGroupId, contextId);
+  if (!context) return;
+  m_uniqueIdToContextId.erase(context->uniqueId().pair());
   m_contexts[contextGroupId]->erase(contextId);
   if (m_contexts[contextGroupId]->empty()) m_contexts.erase(contextGroupId);
 }

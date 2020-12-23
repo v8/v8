@@ -68,6 +68,7 @@ class V8InspectorImpl : public V8Inspector {
   int contextGroupId(v8::Local<v8::Context>) const;
   int contextGroupId(int contextId) const;
   uint64_t isolateId() const { return m_isolateId; }
+  int resolveUniqueContextId(V8DebuggerId uniqueId) const;
 
   v8::MaybeLocal<v8::Value> compileAndRunInternalScript(v8::Local<v8::Context>,
                                                         v8::Local<v8::String>);
@@ -178,6 +179,7 @@ class V8InspectorImpl : public V8Inspector {
   ConsoleStorageMap m_consoleStorageMap;
 
   std::unordered_map<int, int> m_contextIdToGroupIdMap;
+  std::map<std::pair<int64_t, int64_t>, int> m_uniqueIdToContextId;
 
   std::unique_ptr<V8Console> m_console;
 
