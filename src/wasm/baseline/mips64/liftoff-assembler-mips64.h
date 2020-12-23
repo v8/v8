@@ -100,6 +100,7 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
     case ValueType::kI64:
     case ValueType::kRef:
     case ValueType::kOptRef:
+    case ValueType::kRtt:
       assm->Ld(dst.gp(), src);
       break;
     case ValueType::kF32:
@@ -124,6 +125,9 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
       assm->Usw(src.gp(), dst);
       break;
     case ValueType::kI64:
+    case ValueType::kOptRef:
+    case ValueType::kRef:
+    case ValueType::kRtt:
       assm->Usd(src.gp(), dst);
       break;
     case ValueType::kF32:
@@ -652,6 +656,7 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
     case ValueType::kI64:
     case ValueType::kRef:
     case ValueType::kOptRef:
+    case ValueType::kRtt:
       Sd(reg.gp(), dst);
       break;
     case ValueType::kF32:
@@ -1340,10 +1345,14 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
                                       Label* label, ValueType type,
                                       Register lhs, Register rhs) {
   Condition cond = liftoff::ToCondition(liftoff_cond);
-  if (rhs != no_reg) {
-    TurboAssembler::Branch(label, cond, lhs, Operand(rhs));
-  } else {
+  if (rhs == no_reg) {
+    DCHECK(type == kWasmI32 || type == kWasmI64);
     TurboAssembler::Branch(label, cond, lhs, Operand(zero_reg));
+  } else {
+    DCHECK((type == kWasmI32 || type == kWasmI64) ||
+           (type.is_reference_type() &&
+            (liftoff_cond == kEqual || liftoff_cond == kUnequal)));
+    TurboAssembler::Branch(label, cond, lhs, Operand(rhs));
   }
 }
 
