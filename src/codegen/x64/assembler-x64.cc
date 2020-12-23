@@ -3535,9 +3535,10 @@ void Assembler::vmovhps(Operand dst, XMMRegister src) {
 }
 
 void Assembler::vinstr(byte op, XMMRegister dst, XMMRegister src1,
-                       XMMRegister src2, SIMDPrefix pp, LeadingOpcode m,
-                       VexW w) {
-  DCHECK(IsEnabled(AVX));
+                       XMMRegister src2, SIMDPrefix pp, LeadingOpcode m, VexW w,
+                       CpuFeature feature) {
+  DCHECK(IsEnabled(feature));
+  DCHECK(feature == AVX || feature == AVX2);
   EnsureSpace ensure_space(this);
   emit_vex_prefix(dst, src1, src2, kLIG, pp, m, w);
   emit(op);
@@ -3545,8 +3546,10 @@ void Assembler::vinstr(byte op, XMMRegister dst, XMMRegister src1,
 }
 
 void Assembler::vinstr(byte op, XMMRegister dst, XMMRegister src1, Operand src2,
-                       SIMDPrefix pp, LeadingOpcode m, VexW w) {
-  DCHECK(IsEnabled(AVX));
+                       SIMDPrefix pp, LeadingOpcode m, VexW w,
+                       CpuFeature feature) {
+  DCHECK(IsEnabled(feature));
+  DCHECK(feature == AVX || feature == AVX2);
   EnsureSpace ensure_space(this);
   emit_vex_prefix(dst, src1, src2, kLIG, pp, m, w);
   emit(op);

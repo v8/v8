@@ -43,6 +43,7 @@
 #include <vector>
 
 #include "src/codegen/assembler.h"
+#include "src/codegen/cpu-features.h"
 #include "src/codegen/label.h"
 #include "src/codegen/x64/constants-x64.h"
 #include "src/codegen/x64/fma-instr.h"
@@ -945,9 +946,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void movmskps(Register dst, XMMRegister src);
 
   void vinstr(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2,
-              SIMDPrefix pp, LeadingOpcode m, VexW w);
+              SIMDPrefix pp, LeadingOpcode m, VexW w, CpuFeature feature = AVX);
   void vinstr(byte op, XMMRegister dst, XMMRegister src1, Operand src2,
-              SIMDPrefix pp, LeadingOpcode m, VexW w);
+              SIMDPrefix pp, LeadingOpcode m, VexW w, CpuFeature feature = AVX);
 
   // SSE instructions
   void sse_instr(XMMRegister dst, XMMRegister src, byte escape, byte opcode);
@@ -1668,6 +1669,19 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
            byte imm8);
   void vpd(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void vpd(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
+
+  // AVX2 instructions
+#define AVX2_INSTRUCTION(instr, prefix, escape1, escape2, opcode)           \
+  void instr(XMMRegister dst, XMMRegister src) {                            \
+    vinstr(0x##opcode, dst, xmm0, src, k##prefix, k##escape1##escape2, kW0, \
+           AVX2);                                                           \
+  }                                                                         \
+  void instr(XMMRegister dst, Operand src) {                                \
+    vinstr(0x##opcode, dst, xmm0, src, k##prefix, k##escape1##escape2, kW0, \
+           AVX2);                                                           \
+  }
+  AVX2_BROADCAST_LIST(AVX2_INSTRUCTION)
+#undef AVX2_INSTRUCTION
 
   // BMI instruction
   void andnq(Register dst, Register src1, Register src2) {

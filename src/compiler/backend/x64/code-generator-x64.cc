@@ -3850,17 +3850,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64S128Load8Splat: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       XMMRegister dst = i.OutputSimd128Register();
-      __ Pinsrb(dst, dst, i.MemoryOperand(), 0);
-      __ Pxor(kScratchDoubleReg, kScratchDoubleReg);
-      __ Pshufb(dst, kScratchDoubleReg);
+      if (CpuFeatures::IsSupported(AVX2)) {
+        CpuFeatureScope avx2_scope(tasm(), AVX2);
+        __ vpbroadcastb(dst, i.MemoryOperand());
+      } else {
+        __ Pinsrb(dst, dst, i.MemoryOperand(), 0);
+        __ Pxor(kScratchDoubleReg, kScratchDoubleReg);
+        __ Pshufb(dst, kScratchDoubleReg);
+      }
       break;
     }
     case kX64S128Load16Splat: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       XMMRegister dst = i.OutputSimd128Register();
-      __ Pinsrw(dst, dst, i.MemoryOperand(), 0);
-      __ Pshuflw(dst, dst, uint8_t{0});
-      __ Punpcklqdq(dst, dst);
+      if (CpuFeatures::IsSupported(AVX2)) {
+        CpuFeatureScope avx2_scope(tasm(), AVX2);
+        __ vpbroadcastw(dst, i.MemoryOperand());
+      } else {
+        __ Pinsrw(dst, dst, i.MemoryOperand(), 0);
+        __ Pshuflw(dst, dst, uint8_t{0});
+        __ Punpcklqdq(dst, dst);
+      }
       break;
     }
     case kX64S128Load32Splat: {

@@ -180,4 +180,9 @@
 
 #define SSE4_2_INSTRUCTION_LIST(V) V(pcmpgtq, 66, 0F, 38, 37)
 
+// These require AVX2, and we only define the VEX-128 versions.
+#define AVX2_BROADCAST_LIST(V)    \
+  V(vpbroadcastb, 66, 0F, 38, 78) \
+  V(vpbroadcastw, 66, 0F, 38, 79)
+
 #endif  // V8_CODEGEN_X64_SSE_INSTR_H_
