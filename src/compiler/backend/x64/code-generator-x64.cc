@@ -2522,8 +2522,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F32x4Splat: {
-      __ Shufps(i.OutputSimd128Register(), i.InputDoubleRegister(0),
-                i.InputDoubleRegister(0), 0);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputDoubleRegister(0);
+      if (CpuFeatures::IsSupported(AVX2)) {
+        CpuFeatureScope avx2_scope(tasm(), AVX2);
+        __ vbroadcastss(dst, src);
+      } else if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope avx_scope(tasm(), AVX);
+        __ vshufps(dst, src, src, 0);
+      } else {
+        if (dst == src) {
+          // 1 byte shorter than pshufd.
+          __ shufps(dst, src, 0);
+        } else {
+          __ pshufd(dst, src, 0);
+        }
+      }
       break;
     }
     case kX64F32x4ExtractLane: {

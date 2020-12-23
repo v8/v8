@@ -851,6 +851,14 @@ TEST(DisasmX64) {
     }
   }
 
+  // AVX2 instruction
+  {
+    if (CpuFeatures::IsSupported(AVX2)) {
+      CpuFeatureScope scope(&assm, AVX2);
+      __ vbroadcastss(xmm1, xmm2);
+    }
+  }
+
   // AVX2 instructions.
   {
     if (CpuFeatures::IsSupported(AVX2)) {

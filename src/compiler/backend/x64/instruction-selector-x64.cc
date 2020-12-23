@@ -3010,9 +3010,8 @@ void InstructionSelector::VisitF64x2Splat(Node* node) {
 
 void InstructionSelector::VisitF32x4Splat(Node* node) {
   X64OperandGenerator g(this);
-  InstructionOperand dst =
-      IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
-  Emit(kX64F32x4Splat, dst, g.UseRegister(node->InputAt(0)));
+  Emit(kX64F32x4Splat, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
 }
 
 #define SIMD_VISIT_EXTRACT_LANE(Type, Sign, Op)                               \
