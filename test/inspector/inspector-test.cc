@@ -100,6 +100,9 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
     utils->Set(isolate, "sendMessageToBackend",
                v8::FunctionTemplate::New(
                    isolate, &UtilsExtension::SendMessageToBackend));
+    utils->Set(isolate, "interruptForMessages",
+               v8::FunctionTemplate::New(
+                   isolate, &UtilsExtension::InterruptForMessages));
     global->Set(isolate, "utils", utils);
   }
 
@@ -386,6 +389,11 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
     backend_runner_->Append(std::make_unique<SendMessageToBackendTask>(
         args[0].As<v8::Int32>()->Value(),
         ToVector(args.GetIsolate(), args[1].As<v8::String>())));
+  }
+
+  static void InterruptForMessages(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    backend_runner_->InterruptForMessages();
   }
 
   static std::map<int, std::unique_ptr<FrontendChannelImpl>> channels_;

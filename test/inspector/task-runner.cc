@@ -95,6 +95,15 @@ void TaskRunner::RunMessageLoop(bool only_protocol) {
   }
 }
 
+static void RunMessageLoopInInterrupt(v8::Isolate* isolate, void* task_runner) {
+  TaskRunner* runner = reinterpret_cast<TaskRunner*>(task_runner);
+  runner->RunMessageLoop(true);
+}
+
+void TaskRunner::InterruptForMessages() {
+  isolate()->RequestInterrupt(&RunMessageLoopInInterrupt, this);
+}
+
 void TaskRunner::QuitMessageLoop() {
   DCHECK_LT(0, nested_loop_count_);
   --nested_loop_count_;

@@ -110,7 +110,7 @@ V8_EXPORT_PRIVATE void BreakRightNow(Isolate* isolate);
 // the isolate to be entered for further JavaScript execution.
 V8_EXPORT_PRIVATE void SetTerminateOnResume(Isolate* isolate);
 
-bool AllFramesOnStackAreBlackboxed(Isolate* isolate);
+bool CanBreakProgram(Isolate* isolate);
 
 class Script;
 

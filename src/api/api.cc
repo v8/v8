@@ -101,6 +101,7 @@
 #include "src/profiler/heap-snapshot-generator-inl.h"
 #include "src/profiler/profile-generator-inl.h"
 #include "src/profiler/tick-sample.h"
+#include "src/regexp/regexp-stack.h"
 #include "src/regexp/regexp-utils.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/code-serializer.h"
@@ -9765,10 +9766,13 @@ void debug::SetTerminateOnResume(Isolate* v8_isolate) {
   isolate->debug()->SetTerminateOnResume();
 }
 
-bool debug::AllFramesOnStackAreBlackboxed(Isolate* v8_isolate) {
+bool debug::CanBreakProgram(Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8_DO_NOT_USE(isolate);
-  return isolate->debug()->AllFramesOnStackAreBlackboxed();
+  // We cannot break a program if we are currently running a regexp.
+  // TODO(yangguo): fix this exception.
+  return !isolate->regexp_stack()->is_in_use() &&
+         isolate->debug()->AllFramesOnStackAreBlackboxed();
 }
 
 v8::Isolate* debug::Script::GetIsolate() const {

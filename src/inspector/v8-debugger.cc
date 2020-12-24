@@ -189,7 +189,7 @@ void V8Debugger::setPauseOnNextCall(bool pause, int targetContextGroupId) {
 }
 
 bool V8Debugger::canBreakProgram() {
-  return !v8::debug::AllFramesOnStackAreBlackboxed(m_isolate);
+  return !v8::debug::CanBreakProgram(m_isolate);
 }
 
 void V8Debugger::breakProgram(int targetContextGroupId) {
