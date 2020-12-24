@@ -2277,6 +2277,10 @@ using Instr = uint32_t;
   V(vmuleub, VMULEUB, 0x10000208)                          \
   /* Vector Multiply Odd Unsigned Byte */                  \
   V(vmuloub, VMULOUB, 0x10000008)                          \
+  /* Vector Multiply Even Unsigned Halfword */             \
+  V(vmuleuh, VMULEUH, 0x10000248)                          \
+  /* Vector Multiply Odd Unsigned Halfword */              \
+  V(vmulouh, VMULOUH, 0x10000048)                          \
   /* Vector Sum across Quarter Signed Halfword Saturate */ \
   V(vsum4shs, VSUM4SHS, 0x10000648)                        \
   /* Vector Pack Unsigned Word Unsigned Saturate */        \
@@ -2463,8 +2467,6 @@ using Instr = uint32_t;
   V(vmulesh, VMULESH, 0x10000348)                                         \
   /* Vector Multiply Even Signed Word */                                  \
   V(vmulesw, VMULESW, 0x10000388)                                         \
-  /* Vector Multiply Even Unsigned Halfword */                            \
-  V(vmuleuh, VMULEUH, 0x10000248)                                         \
   /* Vector Multiply Even Unsigned Word */                                \
   V(vmuleuw, VMULEUW, 0x10000288)                                         \
   /* Vector Multiply Odd Signed Byte */                                   \
@@ -2473,8 +2475,6 @@ using Instr = uint32_t;
   V(vmulosh, VMULOSH, 0x10000148)                                         \
   /* Vector Multiply Odd Signed Word */                                   \
   V(vmulosw, VMULOSW, 0x10000188)                                         \
-  /* Vector Multiply Odd Unsigned Halfword */                             \
-  V(vmulouh, VMULOUH, 0x10000048)                                         \
   /* Vector Multiply Odd Unsigned Word */                                 \
   V(vmulouw, VMULOUW, 0x10000088)                                         \
   /* Vector NAND */                                                       \
