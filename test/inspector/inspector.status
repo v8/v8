@@ -80,6 +80,7 @@
 ['(arch == ppc64) and simulator_run', {
   # Slow test: https://crbug.com/v8/10965
   'runtime/console-messages-limits': [PASS, SLOW],
+  'debugger/regress-1125934': [PASS, SLOW],
 }],  # (arch == ppc64) and simulator_run
 
 ##############################################################################
