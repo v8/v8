@@ -418,7 +418,6 @@
   # Liftoff is not currently supported on ppc and s390
   'test-liftoff-*': [SKIP],
   'test-wasm-breakpoints/*' : [SKIP],
-  'test-wasm-debug-evaluate/*': [SKIP],
   'test-run-wasm-module/Run_WasmModule_CompilationHintsNoTiering': [SKIP],
   'test-wasm-serialization/TierDownAfterDeserialization': [SKIP],
   'test-gc/RunWasmLiftoff*': [SKIP],
@@ -514,7 +513,6 @@
   'test-streaming-compilation/*': [SKIP],
   'test-wasm-breakpoints/*': [SKIP],
   'test-wasm-codegen/*': [SKIP],
-  'test-wasm-debug-evaluate/*': [SKIP],
   'test-wasm-import-wrapper-cache/*': [SKIP],
   'test-wasm-metrics/*': [SKIP],
   'test-wasm-serialization/*': [SKIP],

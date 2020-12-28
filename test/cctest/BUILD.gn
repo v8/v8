@@ -317,8 +317,6 @@ v8_source_set("cctest_sources") {
     "wasm/test-streaming-compilation.cc",
     "wasm/test-wasm-breakpoints.cc",
     "wasm/test-wasm-codegen.cc",
-    "wasm/test-wasm-debug-evaluate.cc",
-    "wasm/test-wasm-debug-evaluate.h",
     "wasm/test-wasm-import-wrapper-cache.cc",
     "wasm/test-wasm-metrics.cc",
     "wasm/test-wasm-serialization.cc",
