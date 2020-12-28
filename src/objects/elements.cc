@@ -3066,12 +3066,12 @@ class TypedElementsAccessor
   }
 
   static PropertyDetails GetDetailsImpl(JSObject holder, InternalIndex entry) {
-    return PropertyDetails(kData, DONT_DELETE, PropertyCellType::kNoCell);
+    return PropertyDetails(kData, NONE, PropertyCellType::kNoCell);
   }
 
   static PropertyDetails GetDetailsImpl(FixedArrayBase backing_store,
                                         InternalIndex entry) {
-    return PropertyDetails(kData, DONT_DELETE, PropertyCellType::kNoCell);
+    return PropertyDetails(kData, NONE, PropertyCellType::kNoCell);
   }
 
   static bool HasElementImpl(Isolate* isolate, JSObject holder, size_t index,
@@ -3092,7 +3092,10 @@ class TypedElementsAccessor
   }
 
   static void DeleteImpl(Handle<JSObject> obj, InternalIndex entry) {
-    UNREACHABLE();
+    // Do nothing.
+    //
+    // TypedArray elements are configurable to explain detaching, but cannot be
+    // deleted otherwise.
   }
 
   static InternalIndex GetEntryForIndexImpl(Isolate* isolate, JSObject holder,

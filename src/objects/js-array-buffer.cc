@@ -227,12 +227,12 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
                        NewTypeError(MessageTemplate::kRedefineDisallowed, key));
       }
       // 3b vii. If Desc has a [[Configurable]] field and if
-      //         Desc.[[Configurable]] is true, return false.
+      //         Desc.[[Configurable]] is false, return false.
       // 3b viii. If Desc has an [[Enumerable]] field and if Desc.[[Enumerable]]
       //          is false, return false.
       // 3b ix. If Desc has a [[Writable]] field and if Desc.[[Writable]] is
       //        false, return false.
-      if ((desc->has_configurable() && desc->configurable()) ||
+      if ((desc->has_configurable() && !desc->configurable()) ||
           (desc->has_enumerable() && !desc->enumerable()) ||
           (desc->has_writable() && !desc->writable())) {
         RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
@@ -242,7 +242,7 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
       //   3b x 1. Let value be Desc.[[Value]].
       //   3b x 2. Return ? IntegerIndexedElementSet(O, numericIndex, value).
       if (desc->has_value()) {
-        if (!desc->has_configurable()) desc->set_configurable(false);
+        if (!desc->has_configurable()) desc->set_configurable(true);
         if (!desc->has_enumerable()) desc->set_enumerable(true);
         if (!desc->has_writable()) desc->set_writable(true);
         Handle<Object> value = desc->value();
