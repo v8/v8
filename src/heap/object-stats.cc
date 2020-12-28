@@ -1092,7 +1092,7 @@ class ObjectStatsVisitor {
             heap->mark_compact_collector()->non_atomic_marking_state()),
         phase_(phase) {}
 
-  bool Visit(HeapObject obj, int size) {
+  void Visit(HeapObject obj) {
     if (marking_state_->IsBlack(obj)) {
       live_collector_->CollectStatistics(
           obj, phase_, ObjectStatsCollectorImpl::CollectFieldStats::kYes);
@@ -1101,7 +1101,6 @@ class ObjectStatsVisitor {
       dead_collector_->CollectStatistics(
           obj, phase_, ObjectStatsCollectorImpl::CollectFieldStats::kNo);
     }
-    return true;
   }
 
  private:
@@ -1117,7 +1116,7 @@ void IterateHeap(Heap* heap, ObjectStatsVisitor* visitor) {
   CombinedHeapObjectIterator iterator(heap);
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    visitor->Visit(obj, obj.Size());
+    visitor->Visit(obj);
   }
 }
 
