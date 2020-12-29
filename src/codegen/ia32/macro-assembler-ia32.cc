@@ -650,6 +650,76 @@ void TurboAssembler::Roundpd(XMMRegister dst, XMMRegister src,
   }
 }
 
+// 1. Unpack src0, src1 into even-number elements of scratch.
+// 2. Unpack src1, src0 into even-number elements of dst.
+// 3. Multiply 1. with 2.
+// For non-AVX, use non-destructive pshufd instead of punpckldq/punpckhdq.
+void TurboAssembler::I64x2ExtMul(XMMRegister dst, XMMRegister src1,
+                                 XMMRegister src2, XMMRegister scratch,
+                                 bool low, bool is_signed) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    if (low) {
+      vpunpckldq(scratch, src1, src1);
+      vpunpckldq(dst, src2, src2);
+    } else {
+      vpunpckhdq(scratch, src1, src1);
+      vpunpckhdq(dst, src2, src2);
+    }
+    if (is_signed) {
+      vpmuldq(dst, scratch, dst);
+    } else {
+      vpmuludq(dst, scratch, dst);
+    }
+  } else {
+    uint8_t mask = low ? 0x50 : 0xFA;
+    pshufd(scratch, src1, mask);
+    pshufd(dst, src2, mask);
+    if (is_signed) {
+      CpuFeatureScope sse4_scope(this, SSE4_1);
+      pmuldq(dst, scratch);
+    } else {
+      pmuludq(dst, scratch);
+    }
+  }
+}
+
+// 1. Multiply low word into scratch.
+// 2. Multiply high word (can be signed or unsigned) into dst.
+// 3. Unpack and interleave scratch and dst into dst.
+void TurboAssembler::I32x4ExtMul(XMMRegister dst, XMMRegister src1,
+                                 XMMRegister src2, XMMRegister scratch,
+                                 bool low, bool is_signed) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpmullw(scratch, src1, src2);
+    is_signed ? vpmulhw(dst, src1, src2) : vpmulhuw(dst, src1, src2);
+    low ? vpunpcklwd(dst, scratch, dst) : vpunpckhwd(dst, scratch, dst);
+  } else {
+    DCHECK_EQ(dst, src1);
+    movdqu(scratch, src1);
+    pmullw(dst, src2);
+    is_signed ? pmulhw(scratch, src2) : pmulhuw(scratch, src2);
+    low ? punpcklwd(dst, scratch) : punpckhwd(dst, scratch);
+  }
+}
+
+void TurboAssembler::I16x8ExtMul(XMMRegister dst, XMMRegister src1,
+                                 XMMRegister src2, XMMRegister scratch,
+                                 bool low, bool is_signed) {
+  if (low) {
+    is_signed ? Pmovsxbw(scratch, src1) : Pmovzxbw(scratch, src1);
+    is_signed ? Pmovsxbw(dst, src2) : Pmovzxbw(dst, src2);
+    Pmullw(dst, scratch);
+  } else {
+    Palignr(scratch, src1, uint8_t{8});
+    is_signed ? Pmovsxbw(scratch, scratch) : Pmovzxbw(scratch, scratch);
+    Palignr(dst, src2, uint8_t{8});
+    is_signed ? Pmovsxbw(dst, dst) : Pmovzxbw(dst, dst);
+    Pmullw(dst, scratch);
+  }
+}
+
 void TurboAssembler::ShlPair(Register high, Register low, uint8_t shift) {
   DCHECK_GE(63, shift);
   if (shift >= 32) {

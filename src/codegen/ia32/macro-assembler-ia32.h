@@ -611,6 +611,17 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Roundps(XMMRegister dst, XMMRegister src, RoundingMode mode);
   void Roundpd(XMMRegister dst, XMMRegister src, RoundingMode mode);
 
+  // These Wasm SIMD ops do not have direct lowerings on IA32. These
+  // helpers are optimized to produce the fastest and smallest codegen.
+  // Defined here to allow usage on both TurboFan and Liftoff.
+  void I64x2ExtMul(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                   XMMRegister scratch, bool low, bool is_signed);
+  // Requires that dst == src1 if AVX is not supported.
+  void I32x4ExtMul(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                   XMMRegister scratch, bool low, bool is_signed);
+  void I16x8ExtMul(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                   XMMRegister scratch, bool low, bool is_signed);
+
   void Push(Register src) { push(src); }
   void Push(Operand src) { push(src); }
   void Push(Immediate value);
