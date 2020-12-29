@@ -2898,14 +2898,8 @@ void LiftoffAssembler::RecordSpillsInSafepoint(Safepoint& safepoint,
                                                LiftoffRegList ref_spills,
                                                int spill_offset) {
   int spill_space_size = 0;
-  bool needs_padding =
-      (base::bits::CountPopulation(all_spills.GetGpList()) & 1) != 0;
-  if (needs_padding) {
-    spill_space_size += kSystemPointerSize;
-    ++spill_offset;
-  }
   while (!all_spills.is_empty()) {
-    LiftoffRegister reg = all_spills.GetLastRegSet();
+    LiftoffRegister reg = all_spills.GetFirstRegSet();
     if (ref_spills.has(reg)) {
       safepoint.DefinePointerSlot(spill_offset);
     }

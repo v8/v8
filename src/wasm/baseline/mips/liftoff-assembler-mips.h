@@ -1333,25 +1333,25 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       return true;
     }
     case kExprI32SConvertF64: {
-      if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
-          IsFp64Mode()) {
-        LiftoffRegister rounded =
-            GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src));
-        LiftoffRegister converted_back =
-            GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src, rounded));
+      LiftoffRegister scratch =
+          GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(dst));
+      LiftoffRegister scratch2 =
+          GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(dst, scratch));
 
-        // Real conversion.
-        TurboAssembler::Trunc_d_d(rounded.fp(), src.fp());
-        TurboAssembler::Trunc_w_d(kScratchDoubleReg, rounded.fp());
-        mfc1(dst.gp(), kScratchDoubleReg);
-
-        // Checking if trap.
-        cvt_d_w(converted_back.fp(), kScratchDoubleReg);
-        TurboAssembler::CompareF64(EQ, rounded.fp(), converted_back.fp());
-        TurboAssembler::BranchFalseF(trap);
-        return true;
-      }
-      bailout(kUnsupportedArchitecture, "kExprI32SConvertF64");
+      // Clear cumulative exception flags and save the FCSR.
+      cfc1(scratch2.gp(), FCSR);
+      ctc1(zero_reg, FCSR);
+      // Try a conversion to a signed integer.
+      trunc_w_d(kScratchDoubleReg, src.fp());
+      mfc1(dst.gp(), kScratchDoubleReg);
+      // Retrieve and restore the FCSR.
+      cfc1(scratch.gp(), FCSR);
+      ctc1(scratch2.gp(), FCSR);
+      // Check for overflow and NaNs.
+      And(scratch.gp(), scratch.gp(),
+          kFCSROverflowFlagMask | kFCSRUnderflowFlagMask |
+              kFCSRInvalidOpFlagMask);
+      Branch(trap, ne, scratch.gp(), Operand(zero_reg));
       return true;
     }
     case kExprI32UConvertF64: {
@@ -2757,7 +2757,7 @@ void LiftoffAssembler::RecordSpillsInSafepoint(Safepoint& safepoint,
                                                int spill_offset) {
   int spill_space_size = 0;
   while (!all_spills.is_empty()) {
-    LiftoffRegister reg = all_spills.GetLastRegSet();
+    LiftoffRegister reg = all_spills.GetFirstRegSet();
     if (ref_spills.has(reg)) {
       safepoint.DefinePointerSlot(spill_offset);
     }
