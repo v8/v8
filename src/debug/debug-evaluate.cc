@@ -78,58 +78,37 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
 
   // Get the frame where the debugging is performed.
   StackTraceFrameIterator it(isolate, frame_id);
-  if (!it.is_javascript()) return isolate->factory()->undefined_value();
-  JavaScriptFrame* frame = it.javascript_frame();
+  if (it.is_javascript()) {
+    JavaScriptFrame* frame = it.javascript_frame();
+    // This is not a lot different than DebugEvaluate::Global, except that
+    // variables accessible by the function we are evaluating from are
+    // materialized and included on top of the native context. Changes to
+    // the materialized object are written back afterwards.
+    // Note that the native context is taken from the original context chain,
+    // which may not be the current native context of the isolate.
+    ContextBuilder context_builder(isolate, frame, inlined_jsframe_index);
+    if (isolate->has_pending_exception()) return {};
 
-  // This is not a lot different than DebugEvaluate::Global, except that
-  // variables accessible by the function we are evaluating from are
-  // materialized and included on top of the native context. Changes to
-  // the materialized object are written back afterwards.
-  // Note that the native context is taken from the original context chain,
-  // which may not be the current native context of the isolate.
-  ContextBuilder context_builder(isolate, frame, inlined_jsframe_index);
-  if (isolate->has_pending_exception()) return MaybeHandle<Object>();
-
-  Handle<Context> context = context_builder.evaluation_context();
-  Handle<JSObject> receiver(context->global_proxy(), isolate);
-  MaybeHandle<Object> maybe_result =
-      Evaluate(isolate, context_builder.outer_info(), context, receiver, source,
-               throw_on_side_effect);
-  if (!maybe_result.is_null()) context_builder.UpdateValues();
-  return maybe_result;
-}
-
-V8_EXPORT MaybeHandle<Object> DebugEvaluate::WebAssembly(
-    Handle<WasmInstanceObject> instance, StackFrameId frame_id,
-    Handle<String> source, bool throw_on_side_effect) {
-  Isolate* isolate = instance->GetIsolate();
-
-  StackTraceFrameIterator it(isolate, frame_id);
-  if (!it.is_wasm()) return isolate->factory()->undefined_value();
-  WasmFrame* frame = WasmFrame::cast(it.frame());
-
-  Handle<JSProxy> context_extension = WasmJs::GetJSDebugProxy(frame);
-
-  DisableBreak disable_break_scope(isolate->debug(), /*disable=*/true);
-
-  Handle<SharedFunctionInfo> shared_info;
-  if (!GetFunctionInfo(isolate, source, REPLMode::kNo).ToHandle(&shared_info)) {
-    return {};
+    Handle<Context> context = context_builder.evaluation_context();
+    Handle<JSObject> receiver(context->global_proxy(), isolate);
+    MaybeHandle<Object> maybe_result =
+        Evaluate(isolate, context_builder.outer_info(), context, receiver,
+                 source, throw_on_side_effect);
+    if (!maybe_result.is_null()) context_builder.UpdateValues();
+    return maybe_result;
+  } else {
+    CHECK(it.is_wasm());
+    WasmFrame* frame = WasmFrame::cast(it.frame());
+    Handle<SharedFunctionInfo> outer_info(
+        isolate->native_context()->empty_function().shared(), isolate);
+    Handle<JSProxy> context_extension = WasmJs::GetJSDebugProxy(frame);
+    Handle<ScopeInfo> scope_info =
+        ScopeInfo::CreateForWithScope(isolate, Handle<ScopeInfo>::null());
+    Handle<Context> context = isolate->factory()->NewWithContext(
+        isolate->native_context(), scope_info, context_extension);
+    return Evaluate(isolate, outer_info, context, context_extension, source,
+                    throw_on_side_effect);
   }
-
-  Handle<ScopeInfo> scope_info =
-      ScopeInfo::CreateForWithScope(isolate, Handle<ScopeInfo>::null());
-  Handle<Context> context = isolate->factory()->NewWithContext(
-      isolate->native_context(), scope_info, context_extension);
-
-  Handle<Object> result;
-  if (!DebugEvaluate::Evaluate(isolate, shared_info, context, context_extension,
-                               source, throw_on_side_effect)
-           .ToHandle(&result)) {
-    return {};
-  }
-
-  return result;
 }
 
 MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,

@@ -178,23 +178,10 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::Evaluate(
   Handle<Object> value;
 
   i::SafeForInterruptsScope safe_for_interrupt_scope(isolate_);
-  bool success = false;
-  if (iterator_.is_wasm()) {
-    FrameSummary summary = FrameSummary::Get(iterator_.frame(), 0);
-    const FrameSummary::WasmFrameSummary& wasmSummary = summary.AsWasm();
-    Handle<WasmInstanceObject> instance = wasmSummary.wasm_instance();
-
-    success = DebugEvaluate::WebAssembly(instance, iterator_.frame()->id(),
-                                         Utils::OpenHandle(*source),
-                                         throw_on_side_effect)
-                  .ToHandle(&value);
-  } else {
-    success = DebugEvaluate::Local(
-                  isolate_, iterator_.frame()->id(), inlined_frame_index_,
-                  Utils::OpenHandle(*source), throw_on_side_effect)
-                  .ToHandle(&value);
-  }
-  if (!success) {
+  if (!DebugEvaluate::Local(isolate_, iterator_.frame()->id(),
+                            inlined_frame_index_, Utils::OpenHandle(*source),
+                            throw_on_side_effect)
+           .ToHandle(&value)) {
     isolate_->OptionalRescheduleException(false);
     return v8::MaybeLocal<v8::Value>();
   }
