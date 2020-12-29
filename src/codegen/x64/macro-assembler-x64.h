@@ -141,14 +141,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Movd, movd)
   AVX_OP(Movq, movq)
   AVX_OP(Movaps, movaps)
-  AVX_OP(Movapd, movapd)
   AVX_OP(Movups, movups)
   AVX_OP(Movmskps, movmskps)
   AVX_OP(Movmskpd, movmskpd)
   AVX_OP(Pmovmskb, pmovmskb)
   AVX_OP(Movss, movss)
   AVX_OP(Movsd, movsd)
-  AVX_OP(Movdqu, movdqu)
   AVX_OP(Movhlps, movhlps)
   AVX_OP(Movlps, movlps)
   AVX_OP(Movhps, movhps)
@@ -354,6 +352,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met,
                      Label::Distance condition_met_distance = Label::kFar);
+
+  void Movapd(XMMRegister dst, XMMRegister src);
+  void Movdqa(XMMRegister dst, XMMRegister src);
+
+  template <typename Dst, typename Src>
+  void Movdqu(Dst dst, Src src);
 
   void Cvtss2sd(XMMRegister dst, XMMRegister src);
   void Cvtss2sd(XMMRegister dst, Operand src);

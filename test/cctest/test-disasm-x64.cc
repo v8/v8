@@ -450,6 +450,7 @@ TEST(DisasmX64) {
     __ movupd(Operand(rbx, rcx, times_4, 10000), xmm0);
     __ movdqa(xmm0, Operand(rbx, rcx, times_4, 10000));
     __ movdqa(Operand(rbx, rcx, times_4, 10000), xmm0);
+    __ movdqa(xmm0, xmm1);
 
     __ ucomisd(xmm0, xmm1);
     __ ucomisd(xmm8, Operand(rbx, rdx, times_4, 10000));
@@ -658,8 +659,11 @@ TEST(DisasmX64) {
       __ vmovsd(xmm9, Operand(rbx, rcx, times_4, 10000));
       __ vmovsd(Operand(rbx, rcx, times_4, 10000), xmm0);
 
+      __ vmovdqa(xmm4, xmm5);
+
       __ vmovdqu(xmm9, Operand(rbx, rcx, times_4, 10000));
       __ vmovdqu(Operand(rbx, rcx, times_4, 10000), xmm0);
+      __ vmovdqu(xmm4, xmm5);
 
       __ vmovhlps(xmm1, xmm3, xmm5);
       __ vmovlps(xmm8, xmm9, Operand(rbx, rcx, times_4, 10000));

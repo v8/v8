@@ -2839,7 +2839,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(0);
       if (dst == src) {
-        __ Movapd(kScratchDoubleReg, src);
+        __ Movdqa(kScratchDoubleReg, src);
         src = kScratchDoubleReg;
       }
       __ Pxor(dst, dst);
@@ -2889,8 +2889,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister tmp1 = i.TempSimd128Register(0);
       XMMRegister tmp2 = i.TempSimd128Register(1);
 
-      __ Movaps(tmp1, left);
-      __ Movaps(tmp2, right);
+      __ Movdqa(tmp1, left);
+      __ Movdqa(tmp2, right);
 
       // Multiply high dword of each qword of left with right.
       __ Psrlq(tmp1, 32);
@@ -3546,8 +3546,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // right= BBbb BBbb ... BBbb BBbb
       // t = 00AA 00AA ... 00AA 00AA
       // s = 00BB 00BB ... 00BB 00BB
-      __ Movaps(tmp, dst);
-      __ Movaps(kScratchDoubleReg, right);
+      __ Movdqa(tmp, dst);
+      __ Movdqa(kScratchDoubleReg, right);
       __ Psrlw(tmp, byte{8});
       __ Psrlw(kScratchDoubleReg, byte{8});
       // dst = left * 256
@@ -3696,12 +3696,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
         XMMRegister mask = i.InputSimd128Register(2);
         DCHECK_EQ(xmm0, mask);
-        __ movapd(kScratchDoubleReg, mask);
-        __ pxor(mask, mask);
+        __ movaps(kScratchDoubleReg, mask);
+        __ xorps(mask, mask);
         __ pcmpgtw(mask, kScratchDoubleReg);
         __ pblendvb(i.OutputSimd128Register(), i.InputSimd128Register(1));
         // Restore mask.
-        __ movapd(mask, kScratchDoubleReg);
+        __ movaps(mask, kScratchDoubleReg);
       }
       break;
     }
@@ -3747,7 +3747,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(0);
       if (dst == src) {
-        __ Movaps(kScratchDoubleReg, dst);
+        __ Movdqa(kScratchDoubleReg, dst);
         __ Pcmpeqd(dst, dst);
         __ Pxor(dst, kScratchDoubleReg);
       } else {
@@ -3816,7 +3816,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {  // two input operands
         DCHECK_NE(tmp_simd, i.InputSimd128Register(1));
         DCHECK_EQ(6, instr->InputCount());
-        ASSEMBLE_SIMD_INSTR(Movups, kScratchDoubleReg, 0);
+        ASSEMBLE_SIMD_INSTR(Movdqu, kScratchDoubleReg, 0);
         uint32_t mask1[4] = {};
         for (int j = 5; j > 1; j--) {
           uint32_t lanes = i.InputUint32(j);
@@ -3830,9 +3830,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         uint32_t mask2[4] = {};
         if (instr->InputAt(1)->IsSimd128Register()) {
           XMMRegister src1 = i.InputSimd128Register(1);
-          if (src1 != dst) __ movups(dst, src1);
+          if (src1 != dst) __ Movdqa(dst, src1);
         } else {
-          __ Movups(dst, i.InputOperand(1));
+          __ Movdqu(dst, i.InputOperand(1));
         }
         for (int j = 5; j > 1; j--) {
           uint32_t lanes = i.InputUint32(j);
@@ -4065,7 +4065,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister src2 = dst;
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       if (instr->InputCount() == 2) {
-        ASSEMBLE_SIMD_INSTR(Movups, kScratchDoubleReg, 1);
+        ASSEMBLE_SIMD_INSTR(Movdqu, kScratchDoubleReg, 1);
         __ Psrld(kScratchDoubleReg, byte{16});
         src2 = kScratchDoubleReg;
       }
@@ -4091,7 +4091,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister src2 = dst;
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       if (instr->InputCount() == 2) {
-        ASSEMBLE_SIMD_INSTR(Movups, kScratchDoubleReg, 1);
+        ASSEMBLE_SIMD_INSTR(Movdqu, kScratchDoubleReg, 1);
         __ Psrlw(kScratchDoubleReg, byte{8});
         src2 = kScratchDoubleReg;
       }
@@ -4104,7 +4104,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister src2 = dst;
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       if (instr->InputCount() == 2) {
-        ASSEMBLE_SIMD_INSTR(Movups, kScratchDoubleReg, 1);
+        ASSEMBLE_SIMD_INSTR(Movdqu, kScratchDoubleReg, 1);
         __ Psllw(kScratchDoubleReg, byte{8});
         __ Psrlw(kScratchDoubleReg, byte{8});
         src2 = kScratchDoubleReg;
@@ -4119,10 +4119,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       __ Psllw(dst, byte{8});
       if (instr->InputCount() == 1) {
-        __ Movups(kScratchDoubleReg, dst);
+        __ Movdqa(kScratchDoubleReg, dst);
       } else {
         DCHECK_EQ(2, instr->InputCount());
-        ASSEMBLE_SIMD_INSTR(Movups, kScratchDoubleReg, 1);
+        ASSEMBLE_SIMD_INSTR(Movdqu, kScratchDoubleReg, 1);
         __ Psllw(kScratchDoubleReg, byte{8});
       }
       __ Psrlw(dst, byte{8});
@@ -4134,10 +4134,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       __ Psrlw(dst, byte{8});
       if (instr->InputCount() == 1) {
-        __ Movups(kScratchDoubleReg, dst);
+        __ Movdqa(kScratchDoubleReg, dst);
       } else {
         DCHECK_EQ(2, instr->InputCount());
-        ASSEMBLE_SIMD_INSTR(Movups, kScratchDoubleReg, 1);
+        ASSEMBLE_SIMD_INSTR(Movdqu, kScratchDoubleReg, 1);
         __ Psrlw(kScratchDoubleReg, byte{8});
       }
       __ Psllw(kScratchDoubleReg, byte{8});
@@ -4156,7 +4156,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Pshuflw(dst, dst, shuffle_mask);
         __ Pshufhw(dst, dst, shuffle_mask);
       }
-      __ Movaps(kScratchDoubleReg, dst);
+      __ Movdqa(kScratchDoubleReg, dst);
       __ Psrlw(kScratchDoubleReg, byte{8});
       __ Psllw(dst, byte{8});
       __ Por(dst, kScratchDoubleReg);
