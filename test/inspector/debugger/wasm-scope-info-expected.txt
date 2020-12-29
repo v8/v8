@@ -23,6 +23,7 @@ at func (0:147):
    var7: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at call_func (0:132):
@@ -32,6 +33,7 @@ at call_func (0:132):
    var1: 7.199999809265137 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at (anonymous) (0:17):
@@ -54,6 +56,7 @@ at func (0:149):
    var7: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at call_func (0:132):
@@ -63,6 +66,7 @@ at call_func (0:132):
    var1: 7.199999809265137 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at (anonymous) (0:17):
@@ -84,6 +88,7 @@ at func (0:151):
    var7: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at call_func (0:132):
@@ -93,6 +98,7 @@ at call_func (0:132):
    var1: 7.199999809265137 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at (anonymous) (0:17):
@@ -115,6 +121,7 @@ at func (0:153):
    var7: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at call_func (0:132):
@@ -124,6 +131,7 @@ at call_func (0:132):
    var1: 7.199999809265137 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at (anonymous) (0:17):
@@ -145,6 +153,7 @@ at func (0:155):
    var7: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at call_func (0:132):
@@ -154,6 +163,7 @@ at call_func (0:132):
    var1: 7.199999809265137 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at (anonymous) (0:17):
@@ -176,6 +186,7 @@ at func (0:166):
    var7: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at call_func (0:132):
@@ -185,6 +196,7 @@ at call_func (0:132):
    var1: 7.199999809265137 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at (anonymous) (0:17):
@@ -206,6 +218,7 @@ at func (0:168):
    var7: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at call_func (0:132):
@@ -215,6 +228,7 @@ at call_func (0:132):
    var1: 7.199999809265137 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at (anonymous) (0:17):
@@ -237,6 +251,7 @@ at func (0:179):
    var7: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at call_func (0:132):
@@ -246,6 +261,7 @@ at call_func (0:132):
    var1: 7.199999809265137 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at (anonymous) (0:17):
@@ -267,6 +283,7 @@ at func (0:181):
    var7: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at call_func (0:132):
@@ -276,6 +293,7 @@ at call_func (0:132):
    var1: 7.199999809265137 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at (anonymous) (0:17):
@@ -298,6 +316,7 @@ at func (0:183):
    var7: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at call_func (0:132):
@@ -307,6 +326,7 @@ at call_func (0:132):
    var1: 7.199999809265137 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at (anonymous) (0:17):
@@ -329,6 +349,7 @@ at func (0:184):
    var7: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at call_func (0:132):
@@ -338,6 +359,7 @@ at call_func (0:132):
    var1: 7.199999809265137 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at (anonymous) (0:17):
@@ -361,6 +383,7 @@ at func (0:186):
    var7: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at call_func (0:132):
@@ -370,6 +393,7 @@ at call_func (0:132):
    var1: 7.199999809265137 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at (anonymous) (0:17):
@@ -393,6 +417,7 @@ at func (0:187):
    var7: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at call_func (0:132):
@@ -402,6 +427,7 @@ at call_func (0:132):
    var1: 7.199999809265137 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at (anonymous) (0:17):
@@ -424,6 +450,7 @@ at func (0:188):
    var7: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at call_func (0:132):
@@ -433,6 +460,7 @@ at call_func (0:132):
    var1: 7.199999809265137 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at (anonymous) (0:17):
@@ -454,6 +482,7 @@ at func (0:190):
    var7: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at call_func (0:132):
@@ -463,6 +492,7 @@ at call_func (0:132):
    var1: 7.199999809265137 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at (anonymous) (0:17):
@@ -485,6 +515,7 @@ at func (0:192):
    var7: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at call_func (0:132):
@@ -494,6 +525,7 @@ at call_func (0:132):
    var1: 7.199999809265137 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at (anonymous) (0:17):
@@ -516,6 +548,7 @@ at func (0:194):
    var7: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at call_func (0:132):
@@ -525,6 +558,7 @@ at call_func (0:132):
    var1: 7.199999809265137 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at (anonymous) (0:17):
@@ -546,6 +580,7 @@ at func (0:196):
    var7: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at call_func (0:132):
@@ -555,6 +590,7 @@ at call_func (0:132):
    var1: 7.199999809265137 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at (anonymous) (0:17):
@@ -577,6 +613,7 @@ at func (0:198):
    var7: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at call_func (0:132):
@@ -586,6 +623,7 @@ at call_func (0:132):
    var1: 7.199999809265137 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at (anonymous) (0:17):
@@ -608,6 +646,7 @@ at func (0:199):
    var7: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at call_func (0:132):
@@ -617,6 +656,7 @@ at call_func (0:132):
    var1: 7.199999809265137 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at (anonymous) (0:17):
@@ -638,6 +678,7 @@ at func (0:201):
    var7: 21 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at call_func (0:132):
@@ -647,6 +688,7 @@ at call_func (0:132):
    var1: 7.199999809265137 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at (anonymous) (0:17):
@@ -669,6 +711,7 @@ at func (0:203):
    var7: 21 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at call_func (0:132):
@@ -678,6 +721,7 @@ at call_func (0:132):
    var1: 7.199999809265137 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at (anonymous) (0:17):
@@ -699,6 +743,7 @@ at func (0:205):
    var7: 21 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 15 (i32)
 at call_func (0:132):
@@ -708,6 +753,7 @@ at call_func (0:132):
    var1: 7.199999809265137 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 15 (i32)
 at (anonymous) (0:17):
@@ -724,6 +770,7 @@ at call_func (0:134):
    var1: 7.199999809265137 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 15 (i32)
 at (anonymous) (0:17):

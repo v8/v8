@@ -347,6 +347,20 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
       }
     }
     return factory->NewJSArrayWithElements(result, PACKED_ELEMENTS, index);
+  } else if (object->IsWasmModuleObject()) {
+    auto module_object = Handle<WasmModuleObject>::cast(object);
+    Handle<FixedArray> result = factory->NewFixedArray(2 * 2);
+    Handle<String> exports_str =
+        factory->NewStringFromStaticChars("[[Exports]]");
+    Handle<JSArray> exports_obj = wasm::GetExports(isolate, module_object);
+    result->set(0, *exports_str);
+    result->set(1, *exports_obj);
+    Handle<String> imports_str =
+        factory->NewStringFromStaticChars("[[Imports]]");
+    Handle<JSArray> imports_obj = wasm::GetImports(isolate, module_object);
+    result->set(2, *imports_str);
+    result->set(3, *imports_obj);
+    return factory->NewJSArrayWithElements(result, PACKED_ELEMENTS);
   }
   return factory->NewJSArray(0);
 }

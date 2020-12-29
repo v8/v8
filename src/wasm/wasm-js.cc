@@ -2496,27 +2496,6 @@ Handle<JSMap> GetFunctionNames(Handle<WasmInstanceObject> instance) {
   return names;
 }
 
-// Generate names for the imports.
-Handle<JSMap> GetImportNames(Handle<WasmInstanceObject> instance) {
-  Isolate* isolate = instance->GetIsolate();
-  const wasm::WasmModule* module = instance->module();
-  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
-  size_t num_imports = module->import_table.size();
-
-  Handle<JSMap> names = isolate->factory()->NewJSMap();
-  for (size_t index = 0; index < num_imports; ++index) {
-    HandleScope scope(isolate);
-
-    const wasm::WasmImport& import = module->import_table[index];
-    SetMapValue(isolate, names,
-                WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-                    isolate, module_object, import.field_name, kInternalize),
-                isolate->factory()->NewNumberFromSize(index));
-  }
-
-  return names;
-}
-
 // Generate names for the memories.
 Handle<JSMap> GetMemoryNames(Handle<WasmInstanceObject> instance) {
   Isolate* isolate = instance->GetIsolate();
@@ -2552,24 +2531,6 @@ Handle<JSMap> GetTableNames(Handle<WasmInstanceObject> instance) {
                                      isolate, instance, table_index),
                                  "$table", table_index),
                 isolate->factory()->NewNumberFromInt(table_index));
-  }
-  return names;
-}
-
-// Generate names for the exports
-Handle<JSMap> GetExportNames(Handle<WasmInstanceObject> instance) {
-  Isolate* isolate = instance->GetIsolate();
-  const wasm::WasmModule* module = instance->module();
-  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
-  size_t num_exports = module->export_table.size();
-
-  Handle<JSMap> names = isolate->factory()->NewJSMap();
-  for (size_t index = 0; index < num_exports; ++index) {
-    const wasm::WasmExport& exp = module->export_table[index];
-    SetMapValue(isolate, names,
-                WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-                    isolate, module_object, exp.name, kInternalize),
-                isolate->factory()->NewNumberFromSize(index));
   }
   return names;
 }
@@ -2778,86 +2739,6 @@ Handle<Object> GetTableImpl(Isolate* isolate, Handle<Name> property,
   return func_table;
 }
 
-base::Optional<int> HasImportImpl(Isolate* isolate, Handle<Name> property,
-                                  Handle<JSObject> handler,
-                                  bool enable_index_lookup) {
-  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
-  base::Optional<int> index =
-      ResolveValueSelector(isolate, property, handler, enable_index_lookup,
-                           "imports", GetImportNames);
-  if (!index) return index;
-  const wasm::WasmModule* module = instance->module();
-  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
-  int num_imports = static_cast<int>(module->import_table.size());
-  if (0 <= *index && *index < num_imports) return index;
-  return {};
-}
-
-Handle<JSObject> GetExternalObject(Isolate* isolate,
-                                   wasm::ImportExportKindCode kind,
-                                   uint32_t index) {
-  Handle<JSObject> result = isolate->factory()->NewJSObjectWithNullProto();
-  Handle<Object> value = isolate->factory()->NewNumberFromUint(index);
-  switch (kind) {
-    case wasm::kExternalFunction:
-      JSObject::AddProperty(isolate, result, "func", value, NONE);
-      break;
-    case wasm::kExternalGlobal:
-      JSObject::AddProperty(isolate, result, "global", value, NONE);
-      break;
-    case wasm::kExternalTable:
-      JSObject::AddProperty(isolate, result, "table", value, NONE);
-      break;
-    case wasm::kExternalMemory:
-      JSObject::AddProperty(isolate, result, "mem", value, NONE);
-      break;
-    case wasm::kExternalException:
-      JSObject::AddProperty(isolate, result, "exn", value, NONE);
-      break;
-  }
-  return result;
-}
-
-Handle<Object> GetImportImpl(Isolate* isolate, Handle<Name> property,
-                             Handle<JSObject> handler,
-                             bool enable_index_lookup) {
-  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
-  base::Optional<int> index =
-      HasImportImpl(isolate, property, handler, enable_index_lookup);
-  if (!index) return isolate->factory()->undefined_value();
-
-  const wasm::WasmImport& imp = instance->module()->import_table[*index];
-  return GetExternalObject(isolate, imp.kind, imp.index);
-}
-
-base::Optional<int> HasExportImpl(Isolate* isolate, Handle<Name> property,
-                                  Handle<JSObject> handler,
-                                  bool enable_index_lookup) {
-  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
-  base::Optional<int> index =
-      ResolveValueSelector(isolate, property, handler, enable_index_lookup,
-                           "exports", GetExportNames);
-  if (!index) return index;
-
-  const wasm::WasmModule* module = instance->module();
-  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
-  int num_exports = static_cast<int>(module->export_table.size());
-  if (0 <= *index && *index < num_exports) return index;
-  return {};
-}
-
-Handle<Object> GetExportImpl(Isolate* isolate, Handle<Name> property,
-                             Handle<JSObject> handler,
-                             bool enable_index_lookup) {
-  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
-  base::Optional<int> index =
-      HasExportImpl(isolate, property, handler, enable_index_lookup);
-  if (!index) return isolate->factory()->undefined_value();
-
-  const wasm::WasmExport& exp = instance->module()->export_table[*index];
-  return GetExternalObject(isolate, exp.kind, exp.index);
-}
-
 // Generic has trap callback for the index space proxies.
 template <base::Optional<int> Impl(Isolate*, Handle<Name>, Handle<JSObject>,
                                    bool)>
@@ -3052,22 +2933,19 @@ Handle<JSObject> GetStackObject(WasmFrame* frame) {
 // type WasmSimdValue = Uint8Array;
 // type WasmValue = number | bigint | object | WasmSimdValue;
 // type WasmFunction = (... args : WasmValue[]) = > WasmValue;
-// type WasmExport = {name : string} & ({func : number} | {table : number} |
-//                                      {mem : number} | {global : number});
-// type WasmImport = {name : string, module : string} &
-//                   ({func : number} | {table : number} | {mem : number} |
-//                    {global : number});
 // interface WasmInterface {
 //   $globalX: WasmValue;
 //   $varX: WasmValue;
 //   $funcX(a : WasmValue /*, ...*/) : WasmValue;
 //   readonly $memoryX : WebAssembly.Memory;
 //   readonly $tableX : WebAssembly.Table;
+//
+//   readonly instance : WebAssembly.Instance;
+//   readonly module : WebAssembly.Module;
+//
 //   readonly memories : {[nameOrIndex:string | number] : WebAssembly.Memory};
 //   readonly tables : {[nameOrIndex:string | number] : WebAssembly.Table};
 //   readonly stack : WasmValue[];
-//   readonly imports : {[nameOrIndex:string | number] : WasmImport};
-//   readonly exports : {[nameOrIndex:string | number] : WasmExport};
 //   readonly globals : {[nameOrIndex:string | number] : WasmValue};
 //   readonly locals : {[nameOrIndex:string | number] : WasmValue};
 //   readonly functions : {[nameOrIndex:string | number] : WasmFunction};
@@ -3077,12 +2955,12 @@ Handle<JSObject> GetStackObject(WasmFrame* frame) {
 // functions are JSProxies that lazily produce values either by index or by
 // name. A top level JSProxy is wrapped around those for top-level lookup of
 // names in the disambiguation order  memory, local, table, function, global.
-// Import and export names are not globally resolved.
 
 Handle<JSProxy> WasmJs::GetJSDebugProxy(WasmFrame* frame) {
   Isolate* isolate = frame->isolate();
   Factory* factory = isolate->factory();
   Handle<WasmInstanceObject> instance(frame->wasm_instance(), isolate);
+  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
 
   // The top level proxy delegates lookups to the index space proxies.
   Handle<JSObject> handler = factory->NewJSObjectWithNullProto();
@@ -3092,6 +2970,10 @@ Handle<JSProxy> WasmJs::GetJSDebugProxy(WasmFrame* frame) {
               READ_ONLY, SideEffectType::kHasNoSideEffect);
 
   Handle<JSObject> target = factory->NewJSObjectWithNullProto();
+
+  // Expose "instance" and "module" on the target.
+  JSObject::AddProperty(isolate, target, "instance", instance, READ_ONLY);
+  JSObject::AddProperty(isolate, target, "module", module_object, READ_ONLY);
 
   // Generate JSMaps per index space for name->index lookup. Every index space
   // proxy is associated with its table for local name lookup.
@@ -3118,14 +3000,6 @@ Handle<JSProxy> WasmJs::GetJSDebugProxy(WasmFrame* frame) {
   auto tables = GetJSProxy(frame, {}, GetTrapCallback<GetTableImpl>,
                            HasTrapCallback<HasTableImpl>);
   JSObject::AddProperty(isolate, target, "tables", tables, READ_ONLY);
-
-  auto imports = GetJSProxy(frame, {}, GetTrapCallback<GetImportImpl>,
-                            HasTrapCallback<HasImportImpl>);
-  JSObject::AddProperty(isolate, target, "imports", imports, READ_ONLY);
-
-  auto exports = GetJSProxy(frame, {}, GetTrapCallback<GetExportImpl>,
-                            HasTrapCallback<HasExportImpl>);
-  JSObject::AddProperty(isolate, target, "exports", exports, READ_ONLY);
 
   auto stack = GetStackObject(frame);
   JSObject::AddProperty(isolate, target, "stack", stack, READ_ONLY);

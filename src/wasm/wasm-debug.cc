@@ -201,6 +201,12 @@ Handle<JSObject> GetModuleScopeObject(Handle<WasmInstanceObject> instance) {
   JSObject::AddProperty(isolate, module_scope_object, instance_name, instance,
                         NONE);
 
+  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
+  Handle<String> module_name =
+      isolate->factory()->InternalizeString(StaticCharVector("module"));
+  JSObject::AddProperty(isolate, module_scope_object, module_name,
+                        module_object, NONE);
+
   if (instance->has_memory_object()) {
     Handle<String> name;
     // TODO(duongn): extend the logic when multiple memories are supported.

@@ -19,6 +19,7 @@ at C (interpreted) (0:169):
    var2: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at B (liftoff) (0:158):
@@ -34,6 +35,7 @@ at B (liftoff) (0:158):
    v128_local: 17 00 00 00 17 00 00 00 17 00 00 00 17 00 00 00  (v128)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at A (liftoff) (0:128):
@@ -42,6 +44,7 @@ at A (liftoff) (0:128):
    var0: 42 (i32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at (anonymous) (0:17):
@@ -60,6 +63,7 @@ at C (interpreted) (0:171):
    var2: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at B (liftoff) (0:158):
@@ -75,6 +79,7 @@ at B (liftoff) (0:158):
    v128_local: 17 00 00 00 17 00 00 00 17 00 00 00 17 00 00 00  (v128)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at A (liftoff) (0:128):
@@ -83,6 +88,7 @@ at A (liftoff) (0:128):
    var0: 42 (i32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 0 (i32)
 at (anonymous) (0:17):
@@ -100,6 +106,7 @@ at C (interpreted) (0:173):
    var2: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 42 (i32)
 at B (liftoff) (0:158):
@@ -115,6 +122,7 @@ at B (liftoff) (0:158):
    v128_local: 17 00 00 00 17 00 00 00 17 00 00 00 17 00 00 00  (v128)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 42 (i32)
 at A (liftoff) (0:128):
@@ -123,6 +131,7 @@ at A (liftoff) (0:128):
    var0: 42 (i32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 42 (i32)
 at (anonymous) (0:17):
@@ -141,6 +150,7 @@ at C (interpreted) (0:175):
    var2: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 42 (i32)
 at B (liftoff) (0:158):
@@ -156,6 +166,7 @@ at B (liftoff) (0:158):
    v128_local: 17 00 00 00 17 00 00 00 17 00 00 00 17 00 00 00  (v128)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 42 (i32)
 at A (liftoff) (0:128):
@@ -164,6 +175,7 @@ at A (liftoff) (0:128):
    var0: 42 (i32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 42 (i32)
 at (anonymous) (0:17):
@@ -181,6 +193,7 @@ at C (interpreted) (0:177):
    var2: 0 (f32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 42 (i32)
 at B (liftoff) (0:158):
@@ -196,6 +209,7 @@ at B (liftoff) (0:158):
    v128_local: 17 00 00 00 17 00 00 00 17 00 00 00 17 00 00 00  (v128)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 42 (i32)
 at A (liftoff) (0:128):
@@ -204,6 +218,7 @@ at A (liftoff) (0:128):
    var0: 42 (i32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 42 (i32)
 at (anonymous) (0:17):
@@ -226,6 +241,7 @@ at B (liftoff) (0:160):
    v128_local: 17 00 00 00 17 00 00 00 17 00 00 00 17 00 00 00  (v128)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 42 (i32)
 at A (liftoff) (0:128):
@@ -234,6 +250,7 @@ at A (liftoff) (0:128):
    var0: 42 (i32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 42 (i32)
 at (anonymous) (0:17):
@@ -255,6 +272,7 @@ at B (liftoff) (0:161):
    v128_local: 17 00 00 00 17 00 00 00 17 00 00 00 17 00 00 00  (v128)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 42 (i32)
 at A (liftoff) (0:128):
@@ -263,6 +281,7 @@ at A (liftoff) (0:128):
    var0: 42 (i32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 42 (i32)
 at (anonymous) (0:17):
@@ -283,6 +302,7 @@ at B (liftoff) (0:162):
    v128_local: 17 00 00 00 17 00 00 00 17 00 00 00 17 00 00 00  (v128)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 42 (i32)
 at A (liftoff) (0:128):
@@ -291,6 +311,7 @@ at A (liftoff) (0:128):
    var0: 42 (i32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 42 (i32)
 at (anonymous) (0:17):
@@ -306,6 +327,7 @@ at A (liftoff) (0:130):
    var0: 42 (i32)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
    exported_memory: Memory(1)
    globals: "exported_global": 42 (i32)
 at (anonymous) (0:17):

@@ -11,12 +11,14 @@ at wasm_A (0:38):
  - scope (local):
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
    var0: 3 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Setting breakpoint at offset 39 on script v8://test/runWasm
@@ -36,12 +38,14 @@ at wasm_A (0:39):
  - scope (local):
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
    var0: 3 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -53,6 +57,7 @@ at wasm_B (0:45):
    var0: 3 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -65,6 +70,7 @@ at wasm_B (0:47):
    var0: 3 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -76,6 +82,7 @@ at wasm_B (0:49):
    var0: 3 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -88,6 +95,7 @@ at wasm_B (0:51):
    var0: 3 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -101,6 +109,7 @@ at wasm_B (0:53):
    var0: 3 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -113,6 +122,7 @@ at wasm_B (0:54):
    var0: 3 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -123,12 +133,14 @@ at wasm_A (0:38):
  - scope (local):
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
    var0: 2 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -139,12 +151,14 @@ at wasm_A (0:39):
  - scope (local):
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
    var0: 2 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -156,6 +170,7 @@ at wasm_B (0:45):
    var0: 2 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -168,6 +183,7 @@ at wasm_B (0:47):
    var0: 2 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -179,6 +195,7 @@ at wasm_B (0:49):
    var0: 2 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -191,6 +208,7 @@ at wasm_B (0:51):
    var0: 2 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -204,6 +222,7 @@ at wasm_B (0:53):
    var0: 2 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -216,6 +235,7 @@ at wasm_B (0:54):
    var0: 2 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -226,12 +246,14 @@ at wasm_A (0:38):
  - scope (local):
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
    var0: 1 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -242,12 +264,14 @@ at wasm_A (0:39):
  - scope (local):
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
    var0: 1 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -259,6 +283,7 @@ at wasm_B (0:45):
    var0: 1 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -271,6 +296,7 @@ at wasm_B (0:47):
    var0: 1 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -282,6 +308,7 @@ at wasm_B (0:49):
    var0: 1 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -294,6 +321,7 @@ at wasm_B (0:51):
    var0: 1 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -307,6 +335,7 @@ at wasm_B (0:53):
    var0: 1 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -319,6 +348,7 @@ at wasm_B (0:54):
    var0: 1 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -329,12 +359,14 @@ at wasm_A (0:38):
  - scope (local):
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
    var0: 0 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -345,12 +377,14 @@ at wasm_A (0:39):
  - scope (local):
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
    var0: 0 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -362,6 +396,7 @@ at wasm_B (0:45):
    var0: 0 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -374,6 +409,7 @@ at wasm_B (0:47):
    var0: 0 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -385,6 +421,7 @@ at wasm_B (0:61):
    var0: 0 (i32)
  - scope (module):
    instance: exports: "main" (Function)
+   module: Module
 at (anonymous) (0:17):
    -- skipped
 exports.main returned!
