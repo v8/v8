@@ -216,6 +216,10 @@ namespace compiler {
   V(X64I64x2ExtMulHighI32x4S)             \
   V(X64I64x2ExtMulLowI32x4U)              \
   V(X64I64x2ExtMulHighI32x4U)             \
+  V(X64I64x2SConvertI32x4Low)             \
+  V(X64I64x2SConvertI32x4High)            \
+  V(X64I64x2UConvertI32x4Low)             \
+  V(X64I64x2UConvertI32x4High)            \
   V(X64I32x4Splat)                        \
   V(X64I32x4ExtractLane)                  \
   V(X64I32x4SConvertF32x4)                \

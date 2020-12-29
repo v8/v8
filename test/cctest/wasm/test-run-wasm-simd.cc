@@ -1812,7 +1812,7 @@ WASM_SIMD_TEST(I32x4ConvertI16x8) {
 
 // TODO(v8:10972) Prototyping i64x2 convert from i32x4.
 // Tests both signed and unsigned conversion from I32x4 (unpacking).
-#if V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
 WASM_SIMD_TEST_NO_LOWERING(I64x2ConvertI32x4) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
@@ -1847,7 +1847,7 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2ConvertI32x4) {
     }
   }
 }
-#endif  // V8_TARGET_ARCH_ARM64
+#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
 
 void RunI32x4UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                       WasmOpcode opcode, Int32UnOp expected_op) {

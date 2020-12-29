@@ -2874,6 +2874,39 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                      /*is_signed=*/false);
       break;
     }
+    case kX64I64x2SConvertI32x4Low: {
+      __ Pmovsxdq(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kX64I64x2SConvertI32x4High: {
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope avx_scope(tasm(), AVX);
+        __ vpunpckhqdq(dst, src, src);
+      } else {
+        __ pshufd(dst, src, 0xEE);
+      }
+      __ Pmovsxdq(dst, dst);
+      break;
+    }
+    case kX64I64x2UConvertI32x4Low: {
+      __ Pmovzxdq(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kX64I64x2UConvertI32x4High: {
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope avx_scope(tasm(), AVX);
+        __ vpxor(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+        __ vpunpckhdq(dst, src, kScratchDoubleReg);
+      } else {
+        __ pshufd(dst, src, 0xEE);
+        __ pmovzxdq(dst, dst);
+      }
+      break;
+    }
     case kX64I32x4Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       if (HasRegisterInput(instr, 0)) {

@@ -192,6 +192,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64I64x2ExtMulHighI32x4S:
     case kX64I64x2ExtMulLowI32x4U:
     case kX64I64x2ExtMulHighI32x4U:
+    case kX64I64x2SConvertI32x4Low:
+    case kX64I64x2SConvertI32x4High:
+    case kX64I64x2UConvertI32x4Low:
+    case kX64I64x2UConvertI32x4High:
     case kX64I32x4Splat:
     case kX64I32x4ExtractLane:
     case kX64I32x4SConvertF32x4:
