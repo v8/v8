@@ -1366,45 +1366,7 @@ bool doesAttributeHaveObservableSideEffectOnGet(v8::Local<v8::Context> context,
   }
   return false;
 }
-template <typename ArrayView, typename ArrayBuffer>
-void addTypedArrayView(v8::Local<v8::Context> context,
-                       v8::Local<ArrayBuffer> buffer, size_t length,
-                       const char* name,
-                       ValueMirror::PropertyAccumulator* accumulator) {
-  accumulator->Add(PropertyMirror{
-      String16(name), false, false, false, true, false,
-      ValueMirror::create(context, ArrayView::New(buffer, 0, length)), nullptr,
-      nullptr, nullptr, nullptr});
-}
 
-template <typename ArrayBuffer>
-void addTypedArrayViews(v8::Local<v8::Context> context,
-                        v8::Local<ArrayBuffer> buffer,
-                        ValueMirror::PropertyAccumulator* accumulator) {
-  // TODO(alph): these should be internal properties.
-  // TODO(v8:9308): Reconsider how large arrays are previewed.
-  const size_t byte_length = buffer->ByteLength();
-
-  size_t length = byte_length;
-  if (length > v8::TypedArray::kMaxLength) return;
-
-  addTypedArrayView<v8::Int8Array>(context, buffer, length, "[[Int8Array]]",
-                                   accumulator);
-  addTypedArrayView<v8::Uint8Array>(context, buffer, length, "[[Uint8Array]]",
-                                    accumulator);
-
-  length = byte_length / 2;
-  if (length > v8::TypedArray::kMaxLength || (byte_length % 2) != 0) return;
-
-  addTypedArrayView<v8::Int16Array>(context, buffer, length, "[[Int16Array]]",
-                                    accumulator);
-
-  length = byte_length / 4;
-  if (length > v8::TypedArray::kMaxLength || (byte_length % 4) != 0) return;
-
-  addTypedArrayView<v8::Int32Array>(context, buffer, length, "[[Int32Array]]",
-                                    accumulator);
-}
 }  // anonymous namespace
 
 ValueMirror::~ValueMirror() = default;
@@ -1439,15 +1401,6 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
 
   bool formatAccessorsAsProperties =
       clientFor(context)->formatAccessorsAsProperties(object);
-
-  if (object->IsArrayBuffer()) {
-    addTypedArrayViews(context, object.As<v8::ArrayBuffer>(), accumulator);
-  }
-  if (object->IsSharedArrayBuffer()) {
-    addTypedArrayViews(context, object.As<v8::SharedArrayBuffer>(),
-                       accumulator);
-  }
-
   for (auto iterator = v8::debug::PropertyIterator::Create(object);
        !iterator->Done(); iterator->Advance()) {
     bool isOwn = iterator->is_own();

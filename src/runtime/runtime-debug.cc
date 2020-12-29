@@ -306,13 +306,47 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     return factory->NewJSArrayWithElements(result);
   } else if (object->IsJSArrayBuffer()) {
     Handle<JSArrayBuffer> js_array_buffer = Handle<JSArrayBuffer>::cast(object);
-    Handle<FixedArray> result = factory->NewFixedArray(1 * 2);
-
-    Handle<String> is_detached_str =
-        factory->NewStringFromAsciiChecked("[[IsDetached]]");
-    result->set(0, *is_detached_str);
-    result->set(1, isolate->heap()->ToBoolean(js_array_buffer->was_detached()));
-    return factory->NewJSArrayWithElements(result);
+    if (js_array_buffer->was_detached()) {
+      // Mark a detached JSArrayBuffer and such and don't even try to
+      // create views for it, since the TypedArray constructors will
+      // throw a TypeError when the underlying buffer is detached.
+      Handle<FixedArray> result = factory->NewFixedArray(1 * 2);
+      Handle<String> is_detached_str =
+          factory->NewStringFromAsciiChecked("[[IsDetached]]");
+      result->set(0, *is_detached_str);
+      result->set(1, isolate->heap()->ToBoolean(true));
+      return factory->NewJSArrayWithElements(result, PACKED_ELEMENTS);
+    }
+    const size_t byte_length = js_array_buffer->byte_length();
+    static const ExternalArrayType kTypes[] = {
+        kExternalInt8Array,
+        kExternalUint8Array,
+        kExternalInt16Array,
+        kExternalInt32Array,
+    };
+    Handle<FixedArray> result = factory->NewFixedArray(arraysize(kTypes) * 2);
+    int index = 0;
+    for (auto type : kTypes) {
+      switch (type) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                            \
+  case kExternal##Type##Array: {                                             \
+    if ((byte_length % sizeof(ctype)) != 0) continue;                        \
+    Handle<String> typed_array_str =                                         \
+        factory->NewStringFromStaticChars("[[" #Type "Array]]");             \
+    Handle<JSTypedArray> js_typed_array =                                    \
+        factory->NewJSTypedArray(kExternal##Type##Array, js_array_buffer, 0, \
+                                 byte_length / sizeof(ctype));               \
+    result->set(index++, *typed_array_str);                                  \
+    result->set(index++, *js_typed_array);                                   \
+    break;                                                                   \
+  }
+        TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+        default:
+          UNREACHABLE();
+      }
+    }
+    return factory->NewJSArrayWithElements(result, PACKED_ELEMENTS, index);
   }
   return factory->NewJSArray(0);
 }
