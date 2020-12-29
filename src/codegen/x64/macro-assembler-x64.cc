@@ -2032,6 +2032,20 @@ void TurboAssembler::Pshufb(XMMRegister dst, XMMRegister src,
   }
 }
 
+void TurboAssembler::Pmulhrsw(XMMRegister dst, XMMRegister src1,
+                              XMMRegister src2) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpmulhrsw(dst, src1, src2);
+  } else {
+    if (dst != src1) {
+      Movdqa(dst, src1);
+    }
+    CpuFeatureScope sse_scope(this, SSSE3);
+    pmulhrsw(dst, src2);
+  }
+}
+
 void TurboAssembler::I32x4SConvertI16x8High(XMMRegister dst, XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope avx_scope(this, AVX);

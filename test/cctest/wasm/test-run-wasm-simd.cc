@@ -2328,14 +2328,14 @@ WASM_SIMD_TEST(I16x8RoundingAverageU) {
                               base::RoundingAverageUnsigned);
 }
 
-#if V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
 // TODO(v8:10971) Prototype i16x8.q15mulr_sat_s
 WASM_SIMD_TEST_NO_LOWERING(I16x8Q15MulRSatS) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   RunI16x8BinOpTest<int16_t>(execution_tier, lower_simd, kExprI16x8Q15MulRSatS,
                              SaturateRoundingQMul<int16_t>);
 }
-#endif  // V8_TARGET_ARCH_ARM64
+#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
 
 namespace {
 enum class MulHalf { kLow, kHigh };
