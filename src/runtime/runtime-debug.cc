@@ -486,18 +486,6 @@ RUNTIME_FUNCTION(Runtime_CollectGarbage) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-
-// Gets the current heap usage.
-RUNTIME_FUNCTION(Runtime_GetHeapUsage) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(0, args.length());
-  int usage = static_cast<int>(isolate->heap()->SizeOfObjects());
-  if (!Smi::IsValid(usage)) {
-    return *isolate->factory()->NewNumberFromInt(usage);
-  }
-  return Smi::FromInt(usage);
-}
-
 namespace {
 
 int ScriptLinePosition(Handle<Script> script, int line) {

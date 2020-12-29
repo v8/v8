@@ -137,7 +137,6 @@ namespace internal {
   F(GetBreakLocations, 1, 1)                    \
   F(GetGeneratorScopeCount, 1, 1)               \
   F(GetGeneratorScopeDetails, 2, 1)             \
-  F(GetHeapUsage, 0, 1)                         \
   F(HandleDebuggerStatement, 0, 1)              \
   F(IsBreakOnException, 1, 1)                   \
   F(LiveEditPatchScript, 2, 1)                  \
