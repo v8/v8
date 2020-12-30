@@ -2713,22 +2713,17 @@ void TurboAssembler::TryInlineTruncateDoubleToI(Register result,
                                                 Label* done) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   DoubleRegister single_scratch = kScratchDoubleReg.low();
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  Register scratch2 = t9;
+  Register scratch = t9;
 
-  // Clear cumulative exception flags and save the FCSR.
-  cfc1(scratch2, FCSR);
-  ctc1(zero_reg, FCSR);
   // Try a conversion to a signed integer.
   trunc_w_d(single_scratch, double_input);
   mfc1(result, single_scratch);
-  // Retrieve and restore the FCSR.
+  // Retrieve the FCSR.
   cfc1(scratch, FCSR);
-  ctc1(scratch2, FCSR);
   // Check for overflow and NaNs.
   And(scratch, scratch,
-      kFCSROverflowFlagMask | kFCSRUnderflowFlagMask | kFCSRInvalidOpFlagMask);
+      kFCSROverflowCauseMask | kFCSRUnderflowCauseMask |
+          kFCSRInvalidOpCauseMask);
   // If we had no exceptions we are done.
   Branch(done, eq, scratch, Operand(zero_reg));
 }

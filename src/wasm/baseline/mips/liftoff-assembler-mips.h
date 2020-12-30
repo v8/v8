@@ -1335,22 +1335,17 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     case kExprI32SConvertF64: {
       LiftoffRegister scratch =
           GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(dst));
-      LiftoffRegister scratch2 =
-          GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(dst, scratch));
 
-      // Clear cumulative exception flags and save the FCSR.
-      cfc1(scratch2.gp(), FCSR);
-      ctc1(zero_reg, FCSR);
       // Try a conversion to a signed integer.
       trunc_w_d(kScratchDoubleReg, src.fp());
       mfc1(dst.gp(), kScratchDoubleReg);
-      // Retrieve and restore the FCSR.
+      // Retrieve the FCSR.
       cfc1(scratch.gp(), FCSR);
-      ctc1(scratch2.gp(), FCSR);
       // Check for overflow and NaNs.
       And(scratch.gp(), scratch.gp(),
-          kFCSROverflowFlagMask | kFCSRUnderflowFlagMask |
-              kFCSRInvalidOpFlagMask);
+          kFCSROverflowCauseMask | kFCSRUnderflowCauseMask |
+              kFCSRInvalidOpCauseMask);
+      // If we had exceptions we are trap.
       Branch(trap, ne, scratch.gp(), Operand(zero_reg));
       return true;
     }

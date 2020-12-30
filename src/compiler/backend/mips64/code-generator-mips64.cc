@@ -1578,59 +1578,41 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kMips64TruncLS: {
       FPURegister scratch = kScratchDoubleReg;
-      Register tmp_fcsr = kScratchReg;
-      Register result = kScratchReg2;
+      Register result = kScratchReg;
 
       bool load_status = instr->OutputCount() > 1;
-      if (load_status) {
-        // Save FCSR.
-        __ cfc1(tmp_fcsr, FCSR);
-        // Clear FPU flags.
-        __ ctc1(zero_reg, FCSR);
-      }
       // Other arches use round to zero here, so we follow.
       __ trunc_l_s(scratch, i.InputDoubleRegister(0));
       __ dmfc1(i.OutputRegister(), scratch);
       if (load_status) {
         __ cfc1(result, FCSR);
         // Check for overflow and NaNs.
-        __ andi(result, result,
-                (kFCSROverflowFlagMask | kFCSRInvalidOpFlagMask));
+        __ And(result, result,
+               (kFCSROverflowCauseMask | kFCSRInvalidOpCauseMask));
         __ Slt(result, zero_reg, result);
         __ xori(result, result, 1);
         __ mov(i.OutputRegister(1), result);
-        // Restore FCSR
-        __ ctc1(tmp_fcsr, FCSR);
       }
       break;
     }
     case kMips64TruncLD: {
       FPURegister scratch = kScratchDoubleReg;
-      Register tmp_fcsr = kScratchReg;
-      Register result = kScratchReg2;
+      Register result = kScratchReg;
 
       bool set_overflow_to_min_i64 = MiscField::decode(instr->opcode());
       bool load_status = instr->OutputCount() > 1;
       DCHECK_IMPLIES(set_overflow_to_min_i64, instr->OutputCount() == 1);
-      if (load_status) {
-        // Save FCSR.
-        __ cfc1(tmp_fcsr, FCSR);
-        // Clear FPU flags.
-        __ ctc1(zero_reg, FCSR);
-      }
       // Other arches use round to zero here, so we follow.
       __ trunc_l_d(scratch, i.InputDoubleRegister(0));
       __ dmfc1(i.OutputRegister(0), scratch);
       if (load_status) {
         __ cfc1(result, FCSR);
         // Check for overflow and NaNs.
-        __ andi(result, result,
-                (kFCSROverflowFlagMask | kFCSRInvalidOpFlagMask));
+        __ And(result, result,
+               (kFCSROverflowCauseMask | kFCSRInvalidOpCauseMask));
         __ Slt(result, zero_reg, result);
         __ xori(result, result, 1);
         __ mov(i.OutputRegister(1), result);
-        // Restore FCSR
-        __ ctc1(tmp_fcsr, FCSR);
       }
       if (set_overflow_to_min_i64) {
         // Avoid INT64_MAX as an overflow indicator and use INT64_MIN instead,

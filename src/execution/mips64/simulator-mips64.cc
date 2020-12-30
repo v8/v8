@@ -1034,6 +1034,10 @@ void Simulator::set_fcsr_bit(uint32_t cc, bool value) {
 
 bool Simulator::test_fcsr_bit(uint32_t cc) { return FCSR_ & (1 << cc); }
 
+void Simulator::clear_fcsr_cause() {
+  FCSR_ &= ~kFCSRCauseMask;
+}
+
 void Simulator::set_fcsr_rounding_mode(FPURoundingMode mode) {
   FCSR_ |= mode & kFPURoundingModeMask;
 }
@@ -1057,24 +1061,31 @@ bool Simulator::set_fcsr_round_error(double original, double rounded) {
   double max_int32 = std::numeric_limits<int32_t>::max();
   double min_int32 = std::numeric_limits<int32_t>::min();
 
+  clear_fcsr_cause();
+
   if (!std::isfinite(original) || !std::isfinite(rounded)) {
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    set_fcsr_bit(kFCSRInvalidOpCauseBit, true);
     ret = true;
   }
 
   if (original != rounded) {
     set_fcsr_bit(kFCSRInexactFlagBit, true);
+    set_fcsr_bit(kFCSRInexactCauseBit, true);
   }
 
   if (rounded < DBL_MIN && rounded > -DBL_MIN && rounded != 0) {
     set_fcsr_bit(kFCSRUnderflowFlagBit, true);
+    set_fcsr_bit(kFCSRUnderflowCauseBit, true);
     ret = true;
   }
 
   if (rounded > max_int32 || rounded < min_int32) {
     set_fcsr_bit(kFCSROverflowFlagBit, true);
+    set_fcsr_bit(kFCSROverflowCauseBit, true);
     // The reference is not really clear but it seems this is required:
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    set_fcsr_bit(kFCSRInvalidOpCauseBit, true);
     ret = true;
   }
 
@@ -1090,24 +1101,31 @@ bool Simulator::set_fcsr_round64_error(double original, double rounded) {
   double max_int64 = std::numeric_limits<int64_t>::max();
   double min_int64 = std::numeric_limits<int64_t>::min();
 
+  clear_fcsr_cause();
+
   if (!std::isfinite(original) || !std::isfinite(rounded)) {
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    set_fcsr_bit(kFCSRInvalidOpCauseBit, true);
     ret = true;
   }
 
   if (original != rounded) {
     set_fcsr_bit(kFCSRInexactFlagBit, true);
+    set_fcsr_bit(kFCSRInexactCauseBit, true);
   }
 
   if (rounded < DBL_MIN && rounded > -DBL_MIN && rounded != 0) {
     set_fcsr_bit(kFCSRUnderflowFlagBit, true);
+    set_fcsr_bit(kFCSRUnderflowCauseBit, true);
     ret = true;
   }
 
   if (rounded >= max_int64 || rounded < min_int64) {
     set_fcsr_bit(kFCSROverflowFlagBit, true);
+    set_fcsr_bit(kFCSROverflowCauseBit, true);
     // The reference is not really clear but it seems this is required:
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    set_fcsr_bit(kFCSRInvalidOpCauseBit, true);
     ret = true;
   }
 
@@ -1121,24 +1139,31 @@ bool Simulator::set_fcsr_round_error(float original, float rounded) {
   double max_int32 = std::numeric_limits<int32_t>::max();
   double min_int32 = std::numeric_limits<int32_t>::min();
 
+  clear_fcsr_cause();
+
   if (!std::isfinite(original) || !std::isfinite(rounded)) {
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    set_fcsr_bit(kFCSRInvalidOpCauseBit, true);
     ret = true;
   }
 
   if (original != rounded) {
     set_fcsr_bit(kFCSRInexactFlagBit, true);
+    set_fcsr_bit(kFCSRInexactCauseBit, true);
   }
 
   if (rounded < FLT_MIN && rounded > -FLT_MIN && rounded != 0) {
     set_fcsr_bit(kFCSRUnderflowFlagBit, true);
+    set_fcsr_bit(kFCSRUnderflowCauseBit, true);
     ret = true;
   }
 
   if (rounded > max_int32 || rounded < min_int32) {
     set_fcsr_bit(kFCSROverflowFlagBit, true);
+    set_fcsr_bit(kFCSROverflowCauseBit, true);
     // The reference is not really clear but it seems this is required:
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    set_fcsr_bit(kFCSRInvalidOpCauseBit, true);
     ret = true;
   }
 
@@ -1271,24 +1296,31 @@ bool Simulator::set_fcsr_round64_error(float original, float rounded) {
   double max_int64 = std::numeric_limits<int64_t>::max();
   double min_int64 = std::numeric_limits<int64_t>::min();
 
+  clear_fcsr_cause();
+
   if (!std::isfinite(original) || !std::isfinite(rounded)) {
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    set_fcsr_bit(kFCSRInvalidOpCauseBit, true);
     ret = true;
   }
 
   if (original != rounded) {
     set_fcsr_bit(kFCSRInexactFlagBit, true);
+    set_fcsr_bit(kFCSRInexactCauseBit, true);
   }
 
   if (rounded < FLT_MIN && rounded > -FLT_MIN && rounded != 0) {
     set_fcsr_bit(kFCSRUnderflowFlagBit, true);
+    set_fcsr_bit(kFCSRUnderflowCauseBit, true);
     ret = true;
   }
 
   if (rounded >= max_int64 || rounded < min_int64) {
     set_fcsr_bit(kFCSROverflowFlagBit, true);
+    set_fcsr_bit(kFCSROverflowCauseBit, true);
     // The reference is not really clear but it seems this is required:
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    set_fcsr_bit(kFCSRInvalidOpCauseBit, true);
     ret = true;
   }
 
