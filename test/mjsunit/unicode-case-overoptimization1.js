@@ -27,7 +27,8 @@
 
 // Test all non-ASCII characters individually to ensure that our optimizations
 // didn't break anything.
-for (var i = 0x80; i <= 0xfffe; i++) {
+// Part 2 of 2.
+for (var i = 0x8040; i <= 0xfffe; i++) {
   var c = String.fromCharCode(i);
   var c2 = String.fromCharCode(i + 1);
   var re = new RegExp("[" + c + "-" + c2 + "]", "i");

@@ -155,7 +155,8 @@
   'wasm/compare-exchange64-stress': [PASS, SLOW, NO_VARIANTS],
 
   # Very slow on ARM and MIPS, contains no architecture dependent code.
-  'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips64, mips)', SKIP]],
+  'unicode-case-overoptimization0': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips64, mips)', SKIP]],
+  'unicode-case-overoptimization1': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips64, mips)', SKIP]],
   'regress/regress-3976': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips64, mips)', SKIP]],
   'regress/regress-crbug-482998': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips)', SKIP]],
   'regress/regress-740784': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips)', SKIP]],
