@@ -4599,8 +4599,9 @@ Handle<JSFunction> Genesis::CreateArrayBuffer(
 bool Genesis::InstallABunchOfRandomThings() {
   HandleScope scope(isolate());
 
-  auto fast_template_instantiations_cache = isolate()->factory()->NewFixedArray(
-      TemplateInfo::kFastTemplateInstantiationsCacheSize);
+  auto fast_template_instantiations_cache =
+      isolate()->factory()->NewFixedArrayWithHoles(
+          TemplateInfo::kFastTemplateInstantiationsCacheSize);
   native_context()->set_fast_template_instantiations_cache(
       *fast_template_instantiations_cache);
 

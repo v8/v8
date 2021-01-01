@@ -293,7 +293,7 @@ MaybeHandle<JSObject> ProbeInstantiationsCache(
     FixedArray fast_cache =
         native_context->fast_template_instantiations_cache();
     Handle<Object> object{fast_cache.get(serial_number - 1), isolate};
-    if (object->IsUndefined(isolate)) return {};
+    if (object->IsTheHole(isolate)) return {};
     return Handle<JSObject>::cast(object);
   }
   if (caching_mode == CachingMode::kUnlimited ||
