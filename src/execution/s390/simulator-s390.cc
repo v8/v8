@@ -3711,11 +3711,11 @@ EVALUATE(VBPERM) {
   USE(m5);
   USE(m6);
   uint16_t result_bits = 0;
+  unsigned __int128 src_bits =
+      *(reinterpret_cast<__int128*>(get_simd_register(r2).int8));
   for (int i = 0; i < kSimd128Size; i++) {
     result_bits <<= 1;
     uint8_t selected_bit_index = get_simd_register_by_lane<uint8_t>(r3, i);
-    unsigned __int128 src_bits =
-        *(reinterpret_cast<__int128*>(get_simd_register(r2).int8));
     if (selected_bit_index < (kSimd128Size * kBitsPerByte)) {
       unsigned __int128 bit_value =
           (src_bits << selected_bit_index) >> (kSimd128Size * kBitsPerByte - 1);
