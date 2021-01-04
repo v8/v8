@@ -1352,6 +1352,8 @@ DEFINE_BOOL(heap_profiler_use_embedder_graph, true,
             "Use the new EmbedderGraph API to get embedder nodes")
 DEFINE_INT(heap_snapshot_string_limit, 1024,
            "truncate strings to this length in the heap snapshot")
+DEFINE_BOOL(heap_profiler_show_hidden_objects, false,
+            "use 'native' rather than 'hidden' node type in snapshot")
 
 // sampling-heap-profiler.cc
 DEFINE_BOOL(sampling_heap_profiler_suppress_randomness, false,

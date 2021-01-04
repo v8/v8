@@ -182,7 +182,6 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case NUMBER_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
     case EPHEMERON_HASH_TABLE_TYPE:
-    case FIXED_ARRAY_TYPE:
     case SCOPE_INFO_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
       FixedArray::cast(*this).FixedArrayVerify(isolate);
@@ -201,9 +200,6 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case NATIVE_CONTEXT_TYPE:
       NativeContext::cast(*this).NativeContextVerify(isolate);
       break;
-    case WEAK_FIXED_ARRAY_TYPE:
-      WeakFixedArray::cast(*this).WeakFixedArrayVerify(isolate);
-      break;
     case FEEDBACK_METADATA_TYPE:
       FeedbackMetadata::cast(*this).FeedbackMetadataVerify(isolate);
       break;
@@ -221,7 +217,6 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case JS_ITERATOR_PROTOTYPE_TYPE:
     case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
     case JS_OBJECT_PROTOTYPE_TYPE:
-    case JS_OBJECT_TYPE:
     case JS_PROMISE_PROTOTYPE_TYPE:
     case JS_REG_EXP_PROTOTYPE_TYPE:
     case JS_SET_ITERATOR_PROTOTYPE_TYPE:
@@ -233,9 +228,6 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       break;
     case WASM_INSTANCE_OBJECT_TYPE:
       WasmInstanceObject::cast(*this).WasmInstanceObjectVerify(isolate);
-      break;
-    case JS_GENERATOR_OBJECT_TYPE:
-      JSGeneratorObject::cast(*this).JSGeneratorObjectVerify(isolate);
       break;
     case JS_SET_KEY_VALUE_ITERATOR_TYPE:
     case JS_SET_VALUE_ITERATOR_TYPE:
@@ -261,9 +253,6 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
       TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
 #undef MAKE_TORQUE_CASE
-
-    case FOREIGN_TYPE:
-      break;  // No interesting fields.
 
     case ALLOCATION_SITE_TYPE:
       AllocationSite::cast(*this).AllocationSiteVerify(isolate);

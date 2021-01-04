@@ -100,9 +100,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
   }
 
   switch (instance_type) {
-    case FIXED_ARRAY_TYPE:
-      FixedArray::cast(*this).FixedArrayPrint(os);
-      break;
     case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
@@ -166,7 +163,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_ITERATOR_PROTOTYPE_TYPE:
     case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
     case JS_OBJECT_PROTOTYPE_TYPE:
-    case JS_OBJECT_TYPE:
     case JS_PROMISE_PROTOTYPE_TYPE:
     case JS_REG_EXP_PROTOTYPE_TYPE:
     case JS_SET_ITERATOR_PROTOTYPE_TYPE:
@@ -178,9 +174,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       break;
     case WASM_INSTANCE_OBJECT_TYPE:
       WasmInstanceObject::cast(*this).WasmInstanceObjectPrint(os);
-      break;
-    case JS_GENERATOR_OBJECT_TYPE:
-      JSGeneratorObject::cast(*this).JSGeneratorObjectPrint(os);
       break;
     case CODE_TYPE:
       Code::cast(*this).CodePrint(os);
@@ -207,9 +200,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
 #undef MAKE_TORQUE_CASE
 
-    case FOREIGN_TYPE:
-      Foreign::cast(*this).ForeignPrint(os);
-      break;
     case ALLOCATION_SITE_TYPE:
       AllocationSite::cast(*this).AllocationSitePrint(os);
       break;
@@ -224,9 +214,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       break;
     case FEEDBACK_METADATA_TYPE:
       FeedbackMetadata::cast(*this).FeedbackMetadataPrint(os);
-      break;
-    case WEAK_FIXED_ARRAY_TYPE:
-      WeakFixedArray::cast(*this).WeakFixedArrayPrint(os);
       break;
     case INTERNALIZED_STRING_TYPE:
     case EXTERNAL_INTERNALIZED_STRING_TYPE:
