@@ -3350,9 +3350,9 @@ EVALUATE(VPK) {
   USE(m6);
   USE(m5);
   switch (m4) {
-    CASE(1, int16_t, int8_t, false, 0, 0);
-    CASE(2, int32_t, int16_t, false, 0, 0);
-    CASE(3, int64_t, int32_t, false, 0, 0);
+    CASE(1, uint16_t, uint8_t, false, 0, 0);
+    CASE(2, uint32_t, uint16_t, false, 0, 0);
+    CASE(3, uint64_t, uint32_t, false, 0, 0);
     default:
       UNREACHABLE();
   }
