@@ -2913,7 +2913,7 @@ EVALUATE(VST) {
 }
 
 EVALUATE(VL) {
-  DCHECK(VL);
+  DCHECK_OPCODE(VL);
   DECODE_VRX_INSTRUCTION(r1, x2, b2, d2, m3);
   USE(m3);
   intptr_t addr = GET_ADDRESS(x2, b2, d2);
@@ -2930,7 +2930,7 @@ EVALUATE(VL) {
         r1, i, abs(get_simd_register_by_lane<type>(r2, i)));            \
   }
 EVALUATE(VLP) {
-  DCHECK(VL);
+  DCHECK_OPCODE(VLP);
   DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
   USE(m5);
   USE(m4);
@@ -2967,7 +2967,7 @@ EVALUATE(VLP) {
         r1, i, (static_cast<type>(src0) + static_cast<type>(src1) + 1) >> 1); \
   }
 EVALUATE(VAVGL) {
-  DCHECK(VL);
+  DCHECK_OPCODE(VAVGL);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
   USE(m6);
   USE(m5);
@@ -3181,7 +3181,7 @@ inline static void VectorBinaryOp(Simulator* sim, int dst, int src1, int src2,
   }
 
 EVALUATE(VA) {
-  DCHECK(VA);
+  DCHECK_OPCODE(VA);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
   USE(m5);
   USE(m6);
@@ -3258,7 +3258,7 @@ EVALUATE(VMO) {
 #undef VECTOR_MULTIPLY_EVEN_ODD_TYPE
 
 EVALUATE(VNC) {
-  DCHECK(VNC);
+  DCHECK_OPCODE(VNC);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
   USE(m6);
   USE(m5);
@@ -3626,7 +3626,7 @@ EVALUATE(VX) {
     set_simd_register_by_lane<type>(r1, i, ~(src0 | src1));             \
   }
 EVALUATE(VNO) {
-  DCHECK(VL);
+  DCHECK_OPCODE(VNO);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
   USE(m6);
   USE(m5);
