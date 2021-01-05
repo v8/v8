@@ -1040,6 +1040,7 @@ class RuntimeCallTimer final {
   V(PrototypeMap_TransitionToDataProperty)     \
   V(PrototypeObject_DeleteProperty)            \
   V(ReconfigureToDataProperty)                 \
+  V(UpdateProtector)                           \
   V(StringLengthGetter)                        \
   V(TestCounter1)                              \
   V(TestCounter2)                              \
