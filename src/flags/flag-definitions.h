@@ -823,10 +823,8 @@ DEFINE_NEG_IMPLICATION(fuzzing, liftoff_only)
 DEFINE_BOOL(experimental_liftoff_extern_ref, false,
             "enable support for externref in Liftoff")
 // We can't tier up (from Liftoff to TurboFan) in single-threaded mode, hence
-// disable Liftoff in that configuration for now. The alternative is disabling
-// TurboFan, which would reduce peak performance considerably.
-// Note that for debugging, Liftoff will still be used.
-DEFINE_NEG_IMPLICATION(single_threaded, liftoff)
+// disable tier up in that configuration for now.
+DEFINE_NEG_IMPLICATION(single_threaded, wasm_tier_up)
 DEFINE_DEBUG_BOOL(trace_liftoff, false,
                   "trace Liftoff, the baseline compiler for WebAssembly")
 DEFINE_BOOL(trace_wasm_memory, false,
