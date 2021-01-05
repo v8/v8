@@ -3645,6 +3645,12 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--fuzzy-module-file-extensions") == 0) {
       options.fuzzy_module_file_extensions = true;
       argv[i] = nullptr;
+#ifdef V8_ENABLE_SYSTEM_INSTRUMENTATION
+    } else if (strcmp(argv[i], "--enable-system-instrumentation") == 0) {
+      options.enable_system_instrumentation = true;
+      options.trace_enabled = true;
+      argv[i] = nullptr;
+#endif
     }
   }
 
@@ -4216,8 +4222,8 @@ int Shell::Main(int argc, char* argv[]) {
           ? v8::platform::InProcessStackDumping::kDisabled
           : v8::platform::InProcessStackDumping::kEnabled;
 
-  std::unique_ptr<platform::tracing::TracingController> tracing;
   std::ofstream trace_file;
+  std::unique_ptr<platform::tracing::TracingController> tracing;
   if (options.trace_enabled && !i::FLAG_verify_predictable) {
     tracing = std::make_unique<platform::tracing::TracingController>();
     const char* trace_path =
@@ -4238,10 +4244,23 @@ int Shell::Main(int argc, char* argv[]) {
 
     tracing->InitializeForPerfetto(&trace_file);
 #else
-    platform::tracing::TraceBuffer* trace_buffer =
-        platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(
-            platform::tracing::TraceBuffer::kRingBufferChunks,
-            platform::tracing::TraceWriter::CreateJSONTraceWriter(trace_file));
+    platform::tracing::TraceBuffer* trace_buffer = nullptr;
+#if defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+    if (options.enable_system_instrumentation) {
+      trace_buffer =
+          platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(
+              platform::tracing::TraceBuffer::kRingBufferChunks,
+              platform::tracing::TraceWriter::
+                  CreateSystemInstrumentationTraceWriter());
+    }
+#endif  // V8_ENABLE_SYSTEM_INSTRUMENTATION
+    if (!trace_buffer) {
+      trace_buffer =
+          platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(
+              platform::tracing::TraceBuffer::kRingBufferChunks,
+              platform::tracing::TraceWriter::CreateJSONTraceWriter(
+                  trace_file));
+    }
     tracing->Initialize(trace_buffer);
 #endif  // V8_USE_PERFETTO
   }
@@ -4358,6 +4377,9 @@ int Shell::Main(int argc, char* argv[]) {
         } else {
           trace_config =
               platform::tracing::TraceConfig::CreateDefaultTraceConfig();
+          if (options.enable_system_instrumentation) {
+            trace_config->AddIncludedCategory("disabled-by-default-v8.compile");
+          }
         }
         tracing_controller->StartTracing(trace_config);
       }

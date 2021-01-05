@@ -387,6 +387,8 @@ class ShellOptions {
   DisallowReassignment<bool> cpu_profiler_print = {"cpu-profiler-print", false};
   DisallowReassignment<bool> fuzzy_module_file_extensions = {
       "fuzzy-module-file-extensions", true};
+  DisallowReassignment<bool> enable_system_instrumentation = {
+      "enable-system-instrumentation", false};
 };
 
 class Shell : public i::AllStatic {

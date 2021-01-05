@@ -45,6 +45,12 @@ declare_args() {
   # Sets --DV8_LITE_MODE.
   v8_enable_lite_mode = false
 
+  # Sets -DSYSTEM_INSTRUMENTATION. Enables OS-dependent event tracing
+  v8_enable_system_instrumentation = false
+
+  # Sets the GUID for the ETW provider
+  v8_etw_guid = ""
+
   # Sets -DVERIFY_HEAP.
   v8_enable_verify_heap = ""
 
@@ -694,6 +700,12 @@ config("features") {
   }
   if (v8_dict_mode_prototypes) {
     defines += [ "V8_DICT_MODE_PROTOTYPES" ]
+  }
+  if (v8_enable_system_instrumentation) {
+    defines += [ "V8_ENABLE_SYSTEM_INSTRUMENTATION" ]
+  }
+  if (v8_etw_guid != "") {
+    defines += [ "V8_ETW_GUID=\"$v8_etw_guid\"" ]
   }
 }
 
@@ -4262,6 +4274,10 @@ v8_component("v8_libbase") {
       "ws2_32.lib",
     ]
 
+    if (v8_enable_system_instrumentation) {
+      libs += [ "advapi32.lib" ]  # Needed for TraceLoggingProvider.h
+    }
+
     data_deps += [ "//build/win:runtime_libs" ]
   }
 
@@ -4304,6 +4320,8 @@ v8_component("v8_libplatform") {
     "src/libplatform/delayed-task-queue.h",
     "src/libplatform/task-queue.cc",
     "src/libplatform/task-queue.h",
+    "src/libplatform/tracing/recorder-default.cc",
+    "src/libplatform/tracing/recorder.h",
     "src/libplatform/tracing/trace-buffer.cc",
     "src/libplatform/tracing/trace-buffer.h",
     "src/libplatform/tracing/trace-config.cc",
@@ -4335,6 +4353,7 @@ v8_component("v8_libplatform") {
   if (v8_use_perfetto) {
     sources -= [
       "//base/trace_event/common/trace_event_common.h",
+      "src/libplatform/tracing/recorder-default.cc",
       "src/libplatform/tracing/trace-buffer.cc",
       "src/libplatform/tracing/trace-buffer.h",
       "src/libplatform/tracing/trace-object.cc",
@@ -4349,6 +4368,9 @@ v8_component("v8_libplatform") {
       # TODO(skyostil): Switch TraceEventListener to protozero.
       "//third_party/perfetto/protos/perfetto/trace:lite",
     ]
+  } else if (is_win) {
+    sources -= [ "src/libplatform/tracing/recorder-default.cc" ]
+    sources += [ "src/libplatform/tracing/recorder-win.cc" ]
   }
 }
 
