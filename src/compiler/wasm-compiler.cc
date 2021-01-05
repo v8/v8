@@ -6222,7 +6222,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::ValueType::kS128:
         UNREACHABLE();
       case wasm::ValueType::kI64: {
-        DCHECK(enabled_features_.has_bigint());
         return BuildChangeInt64ToBigInt(node);
       }
       case wasm::ValueType::kF32:
@@ -6412,7 +6411,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
       case wasm::ValueType::kI64:
         // i64 values can only come from BigInt.
-        DCHECK(enabled_features_.has_bigint());
         return BuildChangeBigIntToInt64(input, js_context);
 
       case wasm::ValueType::kRtt:  // TODO(7748): Implement.

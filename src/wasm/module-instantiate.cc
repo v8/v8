@@ -1344,18 +1344,6 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
   // global in the {imported_mutable_globals_} array.
   const WasmGlobal& global = module_->globals[global_index];
 
-  // The mutable-global proposal allows importing i64 values, but only if
-  // they are passed as a WebAssembly.Global object.
-  //
-  // However, the bigint proposal allows importing constant i64 values,
-  // as non WebAssembly.Global object.
-  if (global.type == kWasmI64 && !enabled_.has_bigint() &&
-      !value->IsWasmGlobalObject()) {
-    ReportLinkError("global import cannot have type i64", import_index,
-                    module_name, import_name);
-    return false;
-  }
-
   // SIMD proposal allows modules to define an imported v128 global, and only
   // supports importing a WebAssembly.Global object for this global, but also
   // defines constructing a WebAssembly.Global of v128 to be a TypeError.
@@ -1413,7 +1401,7 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
     return true;
   }
 
-  if (enabled_.has_bigint() && global.type == kWasmI64 && value->IsBigInt()) {
+  if (global.type == kWasmI64 && value->IsBigInt()) {
     WriteGlobalValue(global, BigInt::cast(*value).AsInt64());
     return true;
   }

@@ -1312,11 +1312,6 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
     case i::wasm::ValueType::kI64: {
       int64_t i64_value = 0;
       if (!value->IsUndefined()) {
-        if (!enabled_features.has_bigint()) {
-          thrower.TypeError("Can't set the value of i64 WebAssembly.Global");
-          return;
-        }
-
         v8::Local<v8::BigInt> bigint_value;
         if (!value->ToBigInt(context).ToLocal(&bigint_value)) return;
         i64_value = bigint_value->Int64Value();
@@ -1827,13 +1822,8 @@ void WebAssemblyGlobalGetValueCommon(
       return_value.Set(receiver->GetI32());
       break;
     case i::wasm::ValueType::kI64: {
-      auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
-      if (enabled_features.has_bigint()) {
-        Local<BigInt> value = BigInt::New(isolate, receiver->GetI64());
-        return_value.Set(value);
-      } else {
-        thrower.TypeError("Can't get the value of i64 WebAssembly.Global");
-      }
+      Local<BigInt> value = BigInt::New(isolate, receiver->GetI64());
+      return_value.Set(value);
       break;
     }
     case i::wasm::ValueType::kF32:
@@ -1910,14 +1900,9 @@ void WebAssemblyGlobalSetValue(
       break;
     }
     case i::wasm::ValueType::kI64: {
-      auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
-      if (enabled_features.has_bigint()) {
-        v8::Local<v8::BigInt> bigint_value;
-        if (!args[0]->ToBigInt(context).ToLocal(&bigint_value)) return;
-        receiver->SetI64(bigint_value->Int64Value());
-      } else {
-        thrower.TypeError("Can't set the value of i64 WebAssembly.Global");
-      }
+      v8::Local<v8::BigInt> bigint_value;
+      if (!args[0]->ToBigInt(context).ToLocal(&bigint_value)) return;
+      receiver->SetI64(bigint_value->Int64Value());
       break;
     }
     case i::wasm::ValueType::kF32: {
