@@ -2222,18 +2222,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
 #endif  // V8_TARGET_ARCH_PPC64
     case kPPC_F64x2Splat: {
+      constexpr int lane_width_in_bytes = 8;
       Simd128Register dst = i.OutputSimd128Register();
-      __ MovDoubleToInt64(ip, i.InputDoubleRegister(0));
-      // Need to maintain 16 byte alignment for lvx.
-      __ mr(kScratchReg, sp);
-      __ ClearRightImm(
-          sp, sp,
-          Operand(base::bits::WhichPowerOfTwo(16)));  // equivalent to &= -16
-      __ addi(sp, sp, Operand(-16));
-      __ StoreP(ip, MemOperand(sp, 0));
-      __ StoreP(ip, MemOperand(sp, 8));
-      __ lvx(dst, MemOperand(r0, sp));
-      __ mr(sp, kScratchReg);
+      __ MovDoubleToInt64(kScratchReg, i.InputDoubleRegister(0));
+      __ mtvsrd(dst, kScratchReg);
+      __ vinsertd(dst, dst, Operand(1 * lane_width_in_bytes));
       break;
     }
     case kPPC_F32x4Splat: {
@@ -2244,18 +2237,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I64x2Splat: {
-      Register src = i.InputRegister(0);
+      constexpr int lane_width_in_bytes = 8;
       Simd128Register dst = i.OutputSimd128Register();
-      // Need to maintain 16 byte alignment for lvx.
-      __ mr(kScratchReg, sp);
-      __ ClearRightImm(
-          sp, sp,
-          Operand(base::bits::WhichPowerOfTwo(16)));  // equivalent to &= -16
-      __ addi(sp, sp, Operand(-16));
-      __ StoreP(src, MemOperand(sp, 0));
-      __ StoreP(src, MemOperand(sp, 8));
-      __ lvx(dst, MemOperand(r0, sp));
-      __ mr(sp, kScratchReg);
+      __ mtvsrd(dst, i.InputRegister(0));
+      __ vinsertd(dst, dst, Operand(1 * lane_width_in_bytes));
       break;
     }
     case kPPC_I32x4Splat: {
