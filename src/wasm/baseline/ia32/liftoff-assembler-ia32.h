@@ -3542,25 +3542,29 @@ void LiftoffAssembler::emit_i16x8_max_u(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_extmul_low_i8x16_s(LiftoffRegister dst,
                                                      LiftoffRegister src1,
                                                      LiftoffRegister src2) {
-  bailout(kSimd, "i16x8.extmul_low_i8x16_s unsupported");
+  I16x8ExtMul(dst.fp(), src1.fp(), src2.fp(), liftoff::kScratchDoubleReg,
+              /*low=*/true, /*is_signed=*/true);
 }
 
 void LiftoffAssembler::emit_i16x8_extmul_low_i8x16_u(LiftoffRegister dst,
                                                      LiftoffRegister src1,
                                                      LiftoffRegister src2) {
-  bailout(kSimd, "i16x8.extmul_low_i8x16_u unsupported");
+  I16x8ExtMul(dst.fp(), src1.fp(), src2.fp(), liftoff::kScratchDoubleReg,
+              /*low=*/true, /*is_signed=*/false);
 }
 
 void LiftoffAssembler::emit_i16x8_extmul_high_i8x16_s(LiftoffRegister dst,
                                                       LiftoffRegister src1,
                                                       LiftoffRegister src2) {
-  bailout(kSimd, "i16x8.extmul_high_i8x16_s unsupported");
+  I16x8ExtMul(dst.fp(), src1.fp(), src2.fp(), liftoff::kScratchDoubleReg,
+              /*low=*/false, /*is_signed=*/true);
 }
 
 void LiftoffAssembler::emit_i16x8_extmul_high_i8x16_u(LiftoffRegister dst,
                                                       LiftoffRegister src1,
                                                       LiftoffRegister src2) {
-  bailout(kSimd, "i16x8_extmul_high_i8x16_u unsupported");
+  I16x8ExtMul(dst.fp(), src1.fp(), src2.fp(), liftoff::kScratchDoubleReg,
+              /*low=*/false, /*is_signed=*/false);
 }
 
 void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
@@ -3680,28 +3684,59 @@ void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
       this, dst, lhs, rhs);
 }
 
+namespace liftoff {
+// Helper function to check for register aliasing, AVX support, and moves
+// registers around before calling the actual macro-assembler function.
+inline void I32x4ExtMulHelper(LiftoffAssembler* assm, XMMRegister dst,
+                              XMMRegister src1, XMMRegister src2, bool low,
+                              bool is_signed) {
+  // I32x4ExtMul requires dst == src1 if AVX is not supported.
+  if (CpuFeatures::IsSupported(AVX) || dst == src1) {
+    assm->I32x4ExtMul(dst, src1, src2, liftoff::kScratchDoubleReg, low,
+                      is_signed);
+  } else if (dst != src2) {
+    // dst != src1 && dst != src2
+    assm->movaps(dst, src1);
+    assm->I32x4ExtMul(dst, dst, src2, liftoff::kScratchDoubleReg, low,
+                      is_signed);
+  } else {
+    // dst == src2
+    // Extended multiplication is commutative,
+    assm->movaps(dst, src2);
+    assm->I32x4ExtMul(dst, dst, src1, liftoff::kScratchDoubleReg, low,
+                      is_signed);
+  }
+}
+}  // namespace liftoff
+
 void LiftoffAssembler::emit_i32x4_extmul_low_i16x8_s(LiftoffRegister dst,
                                                      LiftoffRegister src1,
                                                      LiftoffRegister src2) {
-  bailout(kSimd, "i32x4_extmul_low_i16x8_s unsupported");
+  liftoff::I32x4ExtMulHelper(this, dst.fp(), src1.fp(), src2.fp(), /*low=*/true,
+                             /*is_signed=*/true);
 }
 
 void LiftoffAssembler::emit_i32x4_extmul_low_i16x8_u(LiftoffRegister dst,
                                                      LiftoffRegister src1,
                                                      LiftoffRegister src2) {
-  bailout(kSimd, "i32x4_extmul_low_i16x8_u unsupported");
+  liftoff::I32x4ExtMulHelper(this, dst.fp(), src1.fp(), src2.fp(), /*low=*/true,
+                             /*is_signed=*/false);
 }
 
 void LiftoffAssembler::emit_i32x4_extmul_high_i16x8_s(LiftoffRegister dst,
                                                       LiftoffRegister src1,
                                                       LiftoffRegister src2) {
-  bailout(kSimd, "i32x4_extmul_high_i16x8_s unsupported");
+  liftoff::I32x4ExtMulHelper(this, dst.fp(), src1.fp(), src2.fp(),
+                             /*low=*/false,
+                             /*is_signed=*/true);
 }
 
 void LiftoffAssembler::emit_i32x4_extmul_high_i16x8_u(LiftoffRegister dst,
                                                       LiftoffRegister src1,
                                                       LiftoffRegister src2) {
-  bailout(kSimd, "i32x4_extmul_high_i16x8_u unsupported");
+  liftoff::I32x4ExtMulHelper(this, dst.fp(), src1.fp(), src2.fp(),
+                             /*low=*/false,
+                             /*is_signed=*/false);
 }
 
 void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
@@ -3831,25 +3866,29 @@ void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i64x2_extmul_low_i32x4_s(LiftoffRegister dst,
                                                      LiftoffRegister src1,
                                                      LiftoffRegister src2) {
-  bailout(kSimd, "i64x2_extmul_low_i32x4_s unsupported");
+  I64x2ExtMul(dst.fp(), src1.fp(), src2.fp(), liftoff::kScratchDoubleReg,
+              /*low=*/true, /*is_signed=*/true);
 }
 
 void LiftoffAssembler::emit_i64x2_extmul_low_i32x4_u(LiftoffRegister dst,
                                                      LiftoffRegister src1,
                                                      LiftoffRegister src2) {
-  bailout(kSimd, "i64x2_extmul_low_i32x4_u unsupported");
+  I64x2ExtMul(dst.fp(), src1.fp(), src2.fp(), liftoff::kScratchDoubleReg,
+              /*low=*/true, /*is_signed=*/false);
 }
 
 void LiftoffAssembler::emit_i64x2_extmul_high_i32x4_s(LiftoffRegister dst,
                                                       LiftoffRegister src1,
                                                       LiftoffRegister src2) {
-  bailout(kSimd, "i64x2_extmul_high_i32x4_s unsupported");
+  I64x2ExtMul(dst.fp(), src1.fp(), src2.fp(), liftoff::kScratchDoubleReg,
+              /*low=*/false, /*is_signed=*/true);
 }
 
 void LiftoffAssembler::emit_i64x2_extmul_high_i32x4_u(LiftoffRegister dst,
                                                       LiftoffRegister src1,
                                                       LiftoffRegister src2) {
-  bailout(kSimd, "i64x2_extmul_high_i32x4_u unsupported");
+  I64x2ExtMul(dst.fp(), src1.fp(), src2.fp(), liftoff::kScratchDoubleReg,
+              /*low=*/false, /*is_signed=*/false);
 }
 
 void LiftoffAssembler::emit_f32x4_abs(LiftoffRegister dst,
