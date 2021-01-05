@@ -1,4 +1,6 @@
 Test inspecting register values in Liftoff.
+
+Running test: test
 Testing i32.
 Waiting for wasm script.
 Setting 20 breakpoints.
@@ -99,4 +101,3 @@ Paused at offset 75; wasm-expression-stack: [0, 1, 44]; local: [0, 1, 2, 3, 4, 5
 Paused at offset 76; wasm-expression-stack: [0, 45]; local: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 Paused at offset 77; wasm-expression-stack: [45]; local: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 main returned.
-Finished!

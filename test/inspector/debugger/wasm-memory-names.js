@@ -102,17 +102,11 @@ contextGroup.addScript(`
   let instance;
   ${createInstance.toString()}`);
 
-(async function test() {
-  try {
+InspectorTest.runAsyncTestSuite([
+  async function test() {
     Protocol.Debugger.enable();
-
     await check(createModuleBytesUnnamedMemory());
     await check(createModuleBytesExportedMemory());
     await check(createModuleBytesImportedMemory());
-
-  } catch (exc) {
-    InspectorTest.log(`Failed with exception: ${exc}.`);
-  } finally {
-    InspectorTest.completeTest();
   }
-})();
+]);

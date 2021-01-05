@@ -1,4 +1,6 @@
 Test scope inspection and stepping after a trap.
+
+Running test: test
 Instantiating.
 Calling div function.
 Paused at:
@@ -61,4 +63,3 @@ Paused at:
 
 -------------
 -> resume
-Finished.

@@ -107,37 +107,37 @@ function compileAsync(bytes) {
 contextGroup.addScript(
     `${compileSync}${compileAsync}`, 0, 0, 'v8://test/compileFunctions');
 
-(async function test() {
-  Protocol.Debugger.enable();
-  let script_ids = new Map();
-  let generators = [
-    createModuleWithNoCodeSection, createModuleWithEmptyCodeSection,
-    createModuleWithFiveByteSectionLength, createModuleWithFiveBytePayload
-  ];
-  for (let generator of generators) {
-    session.Protocol.Runtime.evaluate({
-      'expression': `
-        compileSync([${generator()}]);
-        compileAsync([${generator()}]);
-      `
-    });
+InspectorTest.runAsyncTestSuite([
+  async function test() {
+    Protocol.Debugger.enable();
+    let script_ids = new Map();
+    let generators = [
+      createModuleWithNoCodeSection, createModuleWithEmptyCodeSection,
+      createModuleWithFiveByteSectionLength, createModuleWithFiveBytePayload
+    ];
+    for (let generator of generators) {
+      session.Protocol.Runtime.evaluate({
+        'expression': `
+          compileSync([${generator()}]);
+          compileAsync([${generator()}]);
+        `
+      });
 
-    // Wait for both wasm scripts to be there and print their information.
-    for (let wasm_scripts = 0; wasm_scripts < 2;) {
-      ({params} = await Protocol.Debugger.onceScriptParsed());
-      if (!params.url.startsWith('wasm://')) continue;
-      if (!script_ids.has(params.scriptId)) {
-        script_ids.set(params.scriptId, script_ids.size);
+      // Wait for both wasm scripts to be there and print their information.
+      for (let wasm_scripts = 0; wasm_scripts < 2;) {
+        ({params} = await Protocol.Debugger.onceScriptParsed());
+        if (!params.url.startsWith('wasm://')) continue;
+        if (!script_ids.has(params.scriptId)) {
+          script_ids.set(params.scriptId, script_ids.size);
+        }
+        // Print script IDs to ensure that script are not deduplicated (via
+        // cache).
+        let stable_id = script_ids.get(params.scriptId);
+        InspectorTest.log(`Wasm script parsed: ID ${stable_id}, startColumn: ${
+            params.startColumn}, endColumn: ${params.endColumn}, codeOffset: ${
+            params.codeOffset}`);
+        ++wasm_scripts;
       }
-      // Print script IDs to ensure that script are not deduplicated (via
-      // cache).
-      let stable_id = script_ids.get(params.scriptId);
-      InspectorTest.log(`Wasm script parsed: ID ${stable_id}, startColumn: ${
-          params.startColumn}, endColumn: ${params.endColumn}, codeOffset: ${
-          params.codeOffset}`);
-      ++wasm_scripts;
     }
   }
-
-  InspectorTest.completeTest();
-})();
+]);

@@ -16,24 +16,25 @@ Protocol.Debugger.onPaused(printPauseLocationsAndContinue);
 
 let breakpointLocation = -1;
 
-(async function test() {
-  // Instantiate wasm and wait for three wasm scripts for the three functions.
-  instantiateWasm();
-  let scriptIds = await waitForWasmScripts();
+InspectorTest.runAsyncTestSuite([
+  async function test() {
+    // Instantiate wasm and wait for three wasm scripts for the three functions.
+    instantiateWasm();
+    let scriptIds = await waitForWasmScripts();
 
-  // Set a breakpoint.
-  InspectorTest.log(
-      'Setting breakpoint on line 2 (first instruction) of third function');
-  let breakpoint = await Protocol.Debugger.setBreakpoint(
-      {'location': {'scriptId': scriptIds[0], 'lineNumber': 0, 'columnNumber': breakpointLocation}});
-  printIfFailure(breakpoint);
-  InspectorTest.logMessage(breakpoint.result.actualLocation);
+    // Set a breakpoint.
+    InspectorTest.log(
+        'Setting breakpoint on line 2 (first instruction) of third function');
+    let breakpoint = await Protocol.Debugger.setBreakpoint(
+        {'location': {'scriptId': scriptIds[0], 'lineNumber': 0, 'columnNumber': breakpointLocation}});
+    printIfFailure(breakpoint);
+    InspectorTest.logMessage(breakpoint.result.actualLocation);
 
-  // Now run the wasm code.
-  await WasmInspectorTest.evalWithUrl('instance.exports.main(42)', 'runWasm');
-  InspectorTest.log('exports.main returned. Test finished.');
-  InspectorTest.completeTest();
-})();
+    // Now run the wasm code.
+    await WasmInspectorTest.evalWithUrl('instance.exports.main(42)', 'runWasm');
+    InspectorTest.log('exports.main returned. Test finished.');
+  }
+]);
 
 async function printPauseLocationsAndContinue(msg) {
   let loc = msg.params.callFrames[0].location;

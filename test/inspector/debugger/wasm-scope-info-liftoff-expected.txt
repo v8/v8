@@ -1,4 +1,6 @@
 Test retrieving scope information from compiled Liftoff frames
+
+Running test: test
 Calling instantiate function.
 Waiting for wasm script to be parsed.
 Got wasm script!

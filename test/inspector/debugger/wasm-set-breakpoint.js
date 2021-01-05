@@ -53,21 +53,21 @@ Protocol.Debugger.onPaused(pause_msg => {
   Protocol.Debugger.resume();
 });
 
-(async function test() {
-  await Protocol.Debugger.enable();
-  InspectorTest.log('Instantiating.');
-  // Spawn asynchronously:
-  WasmInspectorTest.instantiate(module_bytes);
-  InspectorTest.log(
-      'Waiting for wasm script (ignoring first non-wasm script).');
-  // Ignore javascript and full module wasm script, get scripts for functions.
-  const [, {params: wasm_script}] = await Protocol.Debugger.onceScriptParsed(2);
-  for (offset of [11, 10, 8, 6, 2, 4]) {
-    await setBreakpoint(func_b.body_offset + offset, wasm_script);
+InspectorTest.runAsyncTestSuite([
+  async function test() {
+    await Protocol.Debugger.enable();
+    InspectorTest.log('Instantiating.');
+    // Spawn asynchronously:
+    WasmInspectorTest.instantiate(module_bytes);
+    InspectorTest.log(
+        'Waiting for wasm script (ignoring first non-wasm script).');
+    // Ignore javascript and full module wasm script, get scripts for functions.
+    const [, {params: wasm_script}] = await Protocol.Debugger.onceScriptParsed(2);
+    for (offset of [11, 10, 8, 6, 2, 4]) {
+      await setBreakpoint(func_b.body_offset + offset, wasm_script);
+    }
+    InspectorTest.log('Calling main(4)');
+    await WasmInspectorTest.evalWithUrl('instance.exports.main(4)', 'runWasm');
+    InspectorTest.log('exports.main returned!');
   }
-  InspectorTest.log('Calling main(4)');
-  await WasmInspectorTest.evalWithUrl('instance.exports.main(4)', 'runWasm');
-  InspectorTest.log('exports.main returned!');
-  InspectorTest.log('Finished!');
-  InspectorTest.completeTest();
-})();
+]);

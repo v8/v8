@@ -32,30 +32,30 @@ function pauseAlternating() {
 }
 `);
 
-(async function Test() {
-  await Protocol.Debugger.enable();
-  InspectorTest.log('Instantiating.');
-  const instantiate_code =
-      `const instance = (${WasmInspectorTest.instantiateFromBuffer})(${
-          JSON.stringify(module_bytes)}, {imp: {pause: pauseAlternating}});`;
-  WasmInspectorTest.evalWithUrl(instantiate_code, 'instantiate');
-  const [, {params: wasmScript}] = await Protocol.Debugger.onceScriptParsed(2);
-  const scriptId = wasmScript.scriptId;
+InspectorTest.runAsyncTestSuite([
+  async function test() {
+    await Protocol.Debugger.enable();
+    InspectorTest.log('Instantiating.');
+    const instantiate_code =
+        `const instance = (${WasmInspectorTest.instantiateFromBuffer})(${
+            JSON.stringify(module_bytes)}, {imp: {pause: pauseAlternating}});`;
+    WasmInspectorTest.evalWithUrl(instantiate_code, 'instantiate');
+    const [, {params: wasmScript}] = await Protocol.Debugger.onceScriptParsed(2);
+    const scriptId = wasmScript.scriptId;
 
-  InspectorTest.log('Running exports.main.');
-  InspectorTest.log('>>> First round');
-  await Protocol.Runtime.evaluate({expression: 'instance.exports.main()'});
-  InspectorTest.log('exports.main returned.');
+    InspectorTest.log('Running exports.main.');
+    InspectorTest.log('>>> First round');
+    await Protocol.Runtime.evaluate({expression: 'instance.exports.main()'});
+    InspectorTest.log('exports.main returned.');
 
-  InspectorTest.log('After stepping out of the last script, we should stop right at the beginning of the next script.');
-  InspectorTest.log('>>> Second round');
-  await Protocol.Runtime.evaluate({expression: 'instance.exports.main()'});
-  InspectorTest.log('exports.main returned.');
+    InspectorTest.log('After stepping out of the last script, we should stop right at the beginning of the next script.');
+    InspectorTest.log('>>> Second round');
+    await Protocol.Runtime.evaluate({expression: 'instance.exports.main()'});
+    InspectorTest.log('exports.main returned.');
 
-  InspectorTest.log('The next cycle should work as before (stopping at the "debugger" statement), after stopping at script entry.');
-  InspectorTest.log('>>> Third round');
-  await Protocol.Runtime.evaluate({expression: 'instance.exports.main()'});
-  InspectorTest.log('exports.main returned.');
-
-  InspectorTest.completeTest();
-})();
+    InspectorTest.log('The next cycle should work as before (stopping at the "debugger" statement), after stopping at script entry.');
+    InspectorTest.log('>>> Third round');
+    await Protocol.Runtime.evaluate({expression: 'instance.exports.main()'});
+    InspectorTest.log('exports.main returned.');
+  }
+]);

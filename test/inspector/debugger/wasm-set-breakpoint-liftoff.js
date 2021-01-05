@@ -84,21 +84,21 @@ Protocol.Debugger.onPaused(async msg => {
   Protocol.Debugger.resume();
 });
 
-(async function test() {
-  await Protocol.Debugger.enable();
-  InspectorTest.log('Instantiating.');
-  // Spawn asynchronously:
-  WasmInspectorTest.instantiate(module_bytes);
-  InspectorTest.log(
-      'Waiting for wasm script (ignoring first non-wasm script).');
-  // Ignore javascript and full module wasm script, get scripts for functions.
-  const [, {params: wasm_script}] = await Protocol.Debugger.onceScriptParsed(2);
-  // Set a breakpoint in function A at offset 0. When the debugger hits this
-  // breakpoint, new ones will be added.
-  await setBreakpoint(func_a.body_offset, wasm_script.scriptId, wasm_script.url);
-  InspectorTest.log('Calling main(4)');
-  await WasmInspectorTest.evalWithUrl('instance.exports.main(4)', 'runWasm');
-  InspectorTest.log('exports.main returned!');
-  InspectorTest.log('Finished!');
-  InspectorTest.completeTest();
-})();
+InspectorTest.runAsyncTestSuite([
+  async function test() {
+    await Protocol.Debugger.enable();
+    InspectorTest.log('Instantiating.');
+    // Spawn asynchronously:
+    WasmInspectorTest.instantiate(module_bytes);
+    InspectorTest.log(
+        'Waiting for wasm script (ignoring first non-wasm script).');
+    // Ignore javascript and full module wasm script, get scripts for functions.
+    const [, {params: wasm_script}] = await Protocol.Debugger.onceScriptParsed(2);
+    // Set a breakpoint in function A at offset 0. When the debugger hits this
+    // breakpoint, new ones will be added.
+    await setBreakpoint(func_a.body_offset, wasm_script.scriptId, wasm_script.url);
+    InspectorTest.log('Calling main(4)');
+    await WasmInspectorTest.evalWithUrl('instance.exports.main(4)', 'runWasm');
+    InspectorTest.log('exports.main returned!');
+  }
+]);

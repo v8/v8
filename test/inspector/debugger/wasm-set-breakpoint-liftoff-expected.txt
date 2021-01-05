@@ -1,4 +1,6 @@
 Tests stepping through wasm scripts.
+
+Running test: test
 Instantiating.
 Waiting for wasm script (ignoring first non-wasm script).
 Setting breakpoint at offset 38 on script wasm://wasm/0c10a5fe
@@ -425,4 +427,3 @@ at wasm_B (0:61):
 at (anonymous) (0:17):
    -- skipped
 exports.main returned!
-Finished!
