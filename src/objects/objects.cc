@@ -1312,6 +1312,8 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
 }
 
 bool FunctionTemplateInfo::IsTemplateFor(Map map) {
+  RuntimeCallTimerScope timer(GetIsolate(),
+                              RuntimeCallCounterId::kIsTemplateFor);
   // There is a constraint on the object; check.
   if (!map.IsJSObjectMap()) return false;
   // Fetch the constructor function of the object.

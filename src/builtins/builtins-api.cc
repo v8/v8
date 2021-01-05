@@ -23,6 +23,8 @@ namespace {
 // TODO(dcarney): CallOptimization duplicates this logic, merge.
 JSReceiver GetCompatibleReceiver(Isolate* isolate, FunctionTemplateInfo info,
                                  JSReceiver receiver) {
+  RuntimeCallTimerScope timer(isolate,
+                              RuntimeCallCounterId::kGetCompatibleReceiver);
   Object recv_type = info.signature();
   // No signature, return holder.
   if (!recv_type.IsFunctionTemplateInfo()) return receiver;

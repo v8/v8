@@ -977,6 +977,8 @@ class RuntimeCallTimer final {
   V(CompilePublishBackgroundFinalization)      \
   V(CompileSerialize)                          \
   V(CompileWaitForDispatcher)                  \
+  V(ConfigureInstance)                         \
+  V(CreateApiFunction)                         \
   V(DeoptimizeCode)                            \
   V(DeserializeContext)                        \
   V(DeserializeIsolate)                        \
@@ -991,6 +993,7 @@ class RuntimeCallTimer final {
   V(GCEpilogueCallback)                        \
   V(GCPrologueCallback)                        \
   V(Genesis)                                   \
+  V(GetCompatibleReceiver)                     \
   V(GetMoreDataCallback)                       \
   V(IndexedDefinerCallback)                    \
   V(IndexedDeleterCallback)                    \
@@ -999,9 +1002,14 @@ class RuntimeCallTimer final {
   V(IndexedGetterCallback)                     \
   V(IndexedQueryCallback)                      \
   V(IndexedSetterCallback)                     \
+  V(InstantiateFunction)                       \
+  V(InstantiateObject)                         \
   V(Invoke)                                    \
   V(InvokeApiFunction)                         \
   V(InvokeApiInterruptCallbacks)               \
+  V(IsCompatibleReceiver)                      \
+  V(IsCompatibleReceiverMap)                   \
+  V(IsTemplateFor)                             \
   V(JS_Execution)                              \
   V(Map_SetPrototype)                          \
   V(Map_TransitionToAccessorProperty)          \
@@ -1018,8 +1026,8 @@ class RuntimeCallTimer final {
   V(ObjectVerify)                              \
   V(OptimizeBackgroundDispatcherJob)           \
   V(OptimizeCode)                              \
-  V(OptimizeConcurrentPrepare)                 \
   V(OptimizeConcurrentFinalize)                \
+  V(OptimizeConcurrentPrepare)                 \
   V(OptimizeFinalizePipelineJob)               \
   V(OptimizeHeapBrokerInitialization)          \
   V(OptimizeNonConcurrent)                     \

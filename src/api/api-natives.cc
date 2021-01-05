@@ -186,6 +186,8 @@ Object GetIntrinsic(Isolate* isolate, v8::Intrinsic intrinsic) {
 template <typename TemplateInfoT>
 MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
                                         Handle<TemplateInfoT> data) {
+  RuntimeCallTimerScope timer(isolate,
+                              RuntimeCallCounterId::kConfigureInstance);
   HandleScope scope(isolate);
   // Disable access checks while instantiating the object.
   AccessCheckDisableScope access_check_scope(isolate, obj);
@@ -371,6 +373,8 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
                                         Handle<ObjectTemplateInfo> info,
                                         Handle<JSReceiver> new_target,
                                         bool is_prototype) {
+  RuntimeCallTimerScope timer(isolate,
+                              RuntimeCallCounterId::kInstantiateObject);
   Handle<JSFunction> constructor;
   int serial_number = info->serial_number();
   if (!new_target.is_null()) {
@@ -463,6 +467,8 @@ MaybeHandle<Object> GetInstancePrototype(Isolate* isolate,
 MaybeHandle<JSFunction> InstantiateFunction(
     Isolate* isolate, Handle<NativeContext> native_context,
     Handle<FunctionTemplateInfo> data, MaybeHandle<Name> maybe_name) {
+  RuntimeCallTimerScope timer(isolate,
+                              RuntimeCallCounterId::kInstantiateFunction);
   int serial_number = data->serial_number();
   if (serial_number) {
     Handle<JSObject> result;
@@ -646,6 +652,8 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
     Isolate* isolate, Handle<NativeContext> native_context,
     Handle<FunctionTemplateInfo> obj, Handle<Object> prototype,
     InstanceType type, MaybeHandle<Name> maybe_name) {
+  RuntimeCallTimerScope timer(isolate,
+                              RuntimeCallCounterId::kCreateApiFunction);
   Handle<SharedFunctionInfo> shared =
       FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(isolate, obj,
                                                           maybe_name);
