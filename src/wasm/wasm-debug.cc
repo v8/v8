@@ -241,7 +241,9 @@ Handle<JSObject> GetModuleScopeObject(Handle<WasmInstanceObject> instance) {
       WasmValue value =
           WasmInstanceObject::GetGlobalValue(instance, globals[i]);
       Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
-      JSObject::AddProperty(isolate, globals_obj, name, value_obj, NONE);
+      LookupIterator it(isolate, globals_obj, name, globals_obj,
+                        LookupIterator::OWN_SKIP_INTERCEPTOR);
+      JSObject::CreateDataProperty(&it, value_obj).Check();
     }
   }
   return module_scope_object;
