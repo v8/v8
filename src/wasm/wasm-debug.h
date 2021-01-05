@@ -21,6 +21,7 @@ namespace internal {
 template <typename T>
 class Handle;
 class JSObject;
+class JSProxy;
 template <typename T>
 class Vector;
 class WasmFrame;
@@ -193,6 +194,8 @@ class V8_EXPORT_PRIVATE DebugInfo {
  private:
   std::unique_ptr<DebugInfoImpl> impl_;
 };
+
+Handle<JSProxy> GetJSDebugProxy(WasmFrame* frame);
 
 }  // namespace wasm
 }  // namespace internal
