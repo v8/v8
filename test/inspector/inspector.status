@@ -152,7 +152,7 @@
   # Skip tests that fail with GC stress: https://crbug.com/v8/10748
   'debugger/wasm-debug-command': [SKIP],
   'debugger/wasm-global-names': [SKIP],
-  'debugger/wasm-set-breakpoint-liftoff': [SKIP],
+  'debugger/wasm-set-breakpoint': [SKIP],
   'debugger/wasm-source': [SKIP],
   'debugger/wasm-stepping-with-skiplist': [SKIP],
 }], # stress_js_bg_compile_wasm_code_gc
