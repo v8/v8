@@ -2476,14 +2476,14 @@ void InstructionSelector::VisitS128Zero(Node* node) {
 
 void InstructionSelector::VisitS128Select(Node* node) {
   IA32OperandGenerator g(this);
+  InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
+  InstructionOperand operand1 = g.UseRegister(node->InputAt(1));
   InstructionOperand operand2 = g.UseRegister(node->InputAt(2));
   if (IsSupported(AVX)) {
-    // AVX supports unaligned memory operands, so Use here is okay.
-    Emit(kAVXS128Select, g.DefineAsRegister(node), g.Use(node->InputAt(0)),
-         g.Use(node->InputAt(1)), operand2);
+    Emit(kAVXS128Select, g.DefineAsRegister(node), operand0, operand1,
+         operand2);
   } else {
-    Emit(kSSES128Select, g.DefineSameAsFirst(node),
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
+    Emit(kSSES128Select, g.DefineSameAsFirst(node), operand0, operand1,
          operand2);
   }
 }
