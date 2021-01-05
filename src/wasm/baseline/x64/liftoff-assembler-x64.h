@@ -7,6 +7,7 @@
 
 #include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler.h"
+#include "src/codegen/cpu-features.h"
 #include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/simd-shuffle.h"
@@ -2756,18 +2757,13 @@ void LiftoffAssembler::emit_s128_select(LiftoffRegister dst,
                                         LiftoffRegister src1,
                                         LiftoffRegister src2,
                                         LiftoffRegister mask) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vxorps(kScratchDoubleReg, src1.fp(), src2.fp());
-    vandps(kScratchDoubleReg, kScratchDoubleReg, mask.fp());
-    vxorps(dst.fp(), kScratchDoubleReg, src2.fp());
-  } else {
-    movaps(kScratchDoubleReg, src1.fp());
-    xorps(kScratchDoubleReg, src2.fp());
-    andps(kScratchDoubleReg, mask.fp());
-    if (dst.fp() != src2.fp()) movaps(dst.fp(), src2.fp());
-    xorps(dst.fp(), kScratchDoubleReg);
+  // src1 and src2 are pinned when getting a register for dst.
+  DCHECK_NE(dst, src1);
+  DCHECK_NE(dst, src2);
+  if (!CpuFeatures::IsSupported(AVX) && dst != mask) {
+    movdqu(dst.fp(), mask.fp());
   }
+  S128Select(dst.fp(), mask.fp(), src1.fp(), src2.fp());
 }
 
 void LiftoffAssembler::emit_i8x16_neg(LiftoffRegister dst,
