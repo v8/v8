@@ -166,32 +166,38 @@ void CodeGenerator::AssembleDeoptImmediateArgs(
   for (int i = 0; i < kImmediateArgCount; i++) {
     ImmediateOperand* op = immediate_args->at(i);
     Constant constant = instructions()->GetImmediate(op);
-    uintptr_t value;
+
+    DCHECK_EQ(tasm()->SizeOfCodeGeneratedSince(deopt_exit),
+              expected_offsets[i] + Deoptimizer::kNonLazyDeoptExitSize);
+    USE(expected_offsets);
+
     switch (constant.type()) {
       case Constant::kInt32:
-        value = constant.ToInt32();
+        tasm()->dp(constant.ToInt32());
         break;
 #ifdef V8_TARGET_ARCH_64_BIT
       case Constant::kInt64:
-        value = constant.ToInt64();
+        tasm()->dp(constant.ToInt64());
         break;
 #endif
       case Constant::kFloat64: {
         int smi;
         CHECK(DoubleToSmiInteger(constant.ToFloat64().value(), &smi));
-        value = Smi::FromInt(smi).ptr();
+        tasm()->dp(Smi::FromInt(smi).ptr());
         break;
       }
+      case Constant::kCompressedHeapObject:
+      case Constant::kHeapObject:
+        // Emit as a DATA_EMBEDDED_OBJECT to specify that this is a raw full
+        // pointer that is fixed size.
+        tasm()->dp(constant.ToHeapObject().address(),
+                   RelocInfo::DATA_EMBEDDED_OBJECT);
+        break;
       default:
         // Currently only Smis and Ints are supported, but other immediate
         // constants can be added when required.
         UNREACHABLE();
     }
-
-    DCHECK_EQ(tasm()->SizeOfCodeGeneratedSince(deopt_exit),
-              expected_offsets[i] + Deoptimizer::kNonLazyDeoptExitSize);
-    USE(expected_offsets);
-    tasm()->dp(value);
   }
 
   DCHECK_EQ(tasm()->SizeOfCodeGeneratedSince(deopt_exit),

@@ -2066,10 +2066,31 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void debug(const char* message, uint32_t code, Instr params = BREAK);
 
   // Required by V8.
-  void dd(uint32_t data) { dc32(data); }
   void db(uint8_t data) { dc8(data); }
-  void dq(uint64_t data) { dc64(data); }
-  void dp(uintptr_t data) { dc64(data); }
+  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+    BlockPoolsScope no_pool_scope(this);
+    if (!RelocInfo::IsNone(rmode)) {
+      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+      RecordRelocInfo(rmode);
+    }
+    dc32(data);
+  }
+  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+    BlockPoolsScope no_pool_scope(this);
+    if (!RelocInfo::IsNone(rmode)) {
+      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+      RecordRelocInfo(rmode);
+    }
+    dc64(data);
+  }
+  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+    BlockPoolsScope no_pool_scope(this);
+    if (!RelocInfo::IsNone(rmode)) {
+      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+      RecordRelocInfo(rmode);
+    }
+    dc64(data);
+  }
 
   // Code generation helpers --------------------------------------------------
 

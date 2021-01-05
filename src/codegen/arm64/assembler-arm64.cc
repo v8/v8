@@ -4339,6 +4339,7 @@ void Assembler::GrowBuffer() {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
                                 ConstantPoolMode constant_pool_mode) {
   if ((rmode == RelocInfo::INTERNAL_REFERENCE) ||
+      (rmode == RelocInfo::DATA_EMBEDDED_OBJECT) ||
       (rmode == RelocInfo::CONST_POOL) || (rmode == RelocInfo::VENEER_POOL) ||
       (rmode == RelocInfo::DEOPT_SCRIPT_OFFSET) ||
       (rmode == RelocInfo::DEOPT_INLINING_ID) ||
@@ -4347,6 +4348,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
     DCHECK(RelocInfo::IsDeoptReason(rmode) || RelocInfo::IsDeoptId(rmode) ||
            RelocInfo::IsDeoptPosition(rmode) ||
            RelocInfo::IsInternalReference(rmode) ||
+           RelocInfo::IsDataEmbeddedObject(rmode) ||
            RelocInfo::IsConstPool(rmode) || RelocInfo::IsVeneerPool(rmode));
     // These modes do not need an entry in the constant pool.
   } else if (constant_pool_mode == NEEDS_POOL_ENTRY) {

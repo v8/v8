@@ -250,6 +250,7 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
                  RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |
                  RelocInfo::ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
                  RelocInfo::ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
+                 RelocInfo::ModeMask(RelocInfo::DATA_EMBEDDED_OBJECT) |
                  RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
@@ -305,6 +306,7 @@ bool Code::IsNativeContextIndependent(Isolate* isolate) {
                  RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |
                  RelocInfo::ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
                  RelocInfo::ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
+                 RelocInfo::ModeMask(RelocInfo::DATA_EMBEDDED_OBJECT) |
                  RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
                  RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL)));
 

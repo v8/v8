@@ -4179,6 +4179,7 @@ class SlotVerifyingVisitor : public ObjectVisitor {
       CHECK(
           InTypedSet(FULL_EMBEDDED_OBJECT_SLOT, rinfo->pc()) ||
           InTypedSet(COMPRESSED_EMBEDDED_OBJECT_SLOT, rinfo->pc()) ||
+          InTypedSet(DATA_EMBEDDED_OBJECT_SLOT, rinfo->pc()) ||
           (rinfo->IsInConstantPool() &&
            InTypedSet(COMPRESSED_OBJECT_SLOT,
                       rinfo->constant_pool_entry_address())) ||

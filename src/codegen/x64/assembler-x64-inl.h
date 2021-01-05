@@ -320,6 +320,7 @@ HeapObject RelocInfo::target_object() {
         host_.ptr(), ReadUnalignedValue<Tagged_t>(pc_)));
     return HeapObject::cast(o);
   }
+  DCHECK(IsFullEmbeddedObject(rmode_) || IsDataEmbeddedObject(rmode_));
   return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
 }
 
@@ -331,6 +332,7 @@ HeapObject RelocInfo::target_object_no_host(Isolate* isolate) {
     Object obj(DecompressTaggedPointer(isolate, compressed));
     return HeapObject::cast(obj);
   }
+  DCHECK(IsFullEmbeddedObject(rmode_) || IsDataEmbeddedObject(rmode_));
   return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
 }
 
@@ -342,6 +344,7 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
     if (IsCompressedEmbeddedObject(rmode_)) {
       return origin->compressed_embedded_object_handle_at(pc_);
     }
+    DCHECK(IsFullEmbeddedObject(rmode_) || IsDataEmbeddedObject(rmode_));
     return Handle<HeapObject>::cast(ReadUnalignedValue<Handle<Object>>(pc_));
   }
 }
@@ -379,6 +382,7 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
     Tagged_t tagged = CompressTagged(target.ptr());
     WriteUnalignedValue(pc_, tagged);
   } else {
+    DCHECK(IsFullEmbeddedObject(rmode_) || IsDataEmbeddedObject(rmode_));
     WriteUnalignedValue(pc_, target.ptr());
   }
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
