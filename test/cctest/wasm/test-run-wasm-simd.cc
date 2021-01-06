@@ -2375,73 +2375,73 @@ void RunExtMulTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
 }
 }  // namespace
 
-WASM_SIMD_TEST(I16x8ExtMulLowI8x16S) {
+WASM_SIMD_TEST_NO_LOWERING(I16x8ExtMulLowI8x16S) {
   RunExtMulTest<int8_t, int16_t>(execution_tier, lower_simd,
                                  kExprI16x8ExtMulLowI8x16S, MultiplyLong,
                                  kExprI8x16Splat, MulHalf::kLow);
 }
 
-WASM_SIMD_TEST(I16x8ExtMulHighI8x16S) {
+WASM_SIMD_TEST_NO_LOWERING(I16x8ExtMulHighI8x16S) {
   RunExtMulTest<int8_t, int16_t>(execution_tier, lower_simd,
                                  kExprI16x8ExtMulHighI8x16S, MultiplyLong,
                                  kExprI8x16Splat, MulHalf::kHigh);
 }
 
-WASM_SIMD_TEST(I16x8ExtMulLowI8x16U) {
+WASM_SIMD_TEST_NO_LOWERING(I16x8ExtMulLowI8x16U) {
   RunExtMulTest<uint8_t, uint16_t>(execution_tier, lower_simd,
                                    kExprI16x8ExtMulLowI8x16U, MultiplyLong,
                                    kExprI8x16Splat, MulHalf::kLow);
 }
 
-WASM_SIMD_TEST(I16x8ExtMulHighI8x16U) {
+WASM_SIMD_TEST_NO_LOWERING(I16x8ExtMulHighI8x16U) {
   RunExtMulTest<uint8_t, uint16_t>(execution_tier, lower_simd,
                                    kExprI16x8ExtMulHighI8x16U, MultiplyLong,
                                    kExprI8x16Splat, MulHalf::kHigh);
 }
 
-WASM_SIMD_TEST(I32x4ExtMulLowI16x8S) {
+WASM_SIMD_TEST_NO_LOWERING(I32x4ExtMulLowI16x8S) {
   RunExtMulTest<int16_t, int32_t>(execution_tier, lower_simd,
                                   kExprI32x4ExtMulLowI16x8S, MultiplyLong,
                                   kExprI16x8Splat, MulHalf::kLow);
 }
 
-WASM_SIMD_TEST(I32x4ExtMulHighI16x8S) {
+WASM_SIMD_TEST_NO_LOWERING(I32x4ExtMulHighI16x8S) {
   RunExtMulTest<int16_t, int32_t>(execution_tier, lower_simd,
                                   kExprI32x4ExtMulHighI16x8S, MultiplyLong,
                                   kExprI16x8Splat, MulHalf::kHigh);
 }
 
-WASM_SIMD_TEST(I32x4ExtMulLowI16x8U) {
+WASM_SIMD_TEST_NO_LOWERING(I32x4ExtMulLowI16x8U) {
   RunExtMulTest<uint16_t, uint32_t>(execution_tier, lower_simd,
                                     kExprI32x4ExtMulLowI16x8U, MultiplyLong,
                                     kExprI16x8Splat, MulHalf::kLow);
 }
 
-WASM_SIMD_TEST(I32x4ExtMulHighI16x8U) {
+WASM_SIMD_TEST_NO_LOWERING(I32x4ExtMulHighI16x8U) {
   RunExtMulTest<uint16_t, uint32_t>(execution_tier, lower_simd,
                                     kExprI32x4ExtMulHighI16x8U, MultiplyLong,
                                     kExprI16x8Splat, MulHalf::kHigh);
 }
 
-WASM_SIMD_TEST(I64x2ExtMulLowI32x4S) {
+WASM_SIMD_TEST_NO_LOWERING(I64x2ExtMulLowI32x4S) {
   RunExtMulTest<int32_t, int64_t>(execution_tier, lower_simd,
                                   kExprI64x2ExtMulLowI32x4S, MultiplyLong,
                                   kExprI32x4Splat, MulHalf::kLow);
 }
 
-WASM_SIMD_TEST(I64x2ExtMulHighI32x4S) {
+WASM_SIMD_TEST_NO_LOWERING(I64x2ExtMulHighI32x4S) {
   RunExtMulTest<int32_t, int64_t>(execution_tier, lower_simd,
                                   kExprI64x2ExtMulHighI32x4S, MultiplyLong,
                                   kExprI32x4Splat, MulHalf::kHigh);
 }
 
-WASM_SIMD_TEST(I64x2ExtMulLowI32x4U) {
+WASM_SIMD_TEST_NO_LOWERING(I64x2ExtMulLowI32x4U) {
   RunExtMulTest<uint32_t, uint64_t>(execution_tier, lower_simd,
                                     kExprI64x2ExtMulLowI32x4U, MultiplyLong,
                                     kExprI32x4Splat, MulHalf::kLow);
 }
 
-WASM_SIMD_TEST(I64x2ExtMulHighI32x4U) {
+WASM_SIMD_TEST_NO_LOWERING(I64x2ExtMulHighI32x4U) {
   RunExtMulTest<uint32_t, uint64_t>(execution_tier, lower_simd,
                                     kExprI64x2ExtMulHighI32x4U, MultiplyLong,
                                     kExprI32x4Splat, MulHalf::kHigh);
