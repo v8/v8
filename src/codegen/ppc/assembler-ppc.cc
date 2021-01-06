@@ -1860,6 +1860,7 @@ void Assembler::stxvd(const Simd128Register rt, const MemOperand& dst) {
 
 void Assembler::xxspltib(const Simd128Register rt, const Operand& imm) {
   int TX = 1;
+  CHECK(is_uint8(imm.immediate()));
   emit(XXSPLTIB | rt.code() * B21 | imm.immediate() * B11 | TX);
 }
 
