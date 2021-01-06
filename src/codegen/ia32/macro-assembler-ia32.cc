@@ -1751,17 +1751,14 @@ void TurboAssembler::Pshufb(XMMRegister dst, XMMRegister src, Operand mask) {
     vpshufb(dst, src, mask);
     return;
   }
-  if (CpuFeatures::IsSupported(SSSE3)) {
-    // Make sure these are different so that we won't overwrite mask.
-    DCHECK(!mask.is_reg(dst));
-    CpuFeatureScope sse_scope(this, SSSE3);
-    if (dst != src) {
-      movapd(dst, src);
-    }
-    pshufb(dst, mask);
-    return;
+
+  // Make sure these are different so that we won't overwrite mask.
+  DCHECK(!mask.is_reg(dst));
+  CpuFeatureScope sse_scope(this, SSSE3);
+  if (dst != src) {
+    movaps(dst, src);
   }
-  FATAL("no AVX or SSE3 support");
+  pshufb(dst, mask);
 }
 
 void TurboAssembler::Pblendw(XMMRegister dst, Operand src, uint8_t imm8) {

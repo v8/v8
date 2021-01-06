@@ -1117,7 +1117,7 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
     movsd(dst, src);
   } else {
     DCHECK_EQ(kWasmS128, type);
-    movapd(dst, src);
+    Movaps(dst, src);
   }
 }
 
@@ -3749,7 +3749,7 @@ void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
     vpsubq(dst.fp(), reg, src.fp());
   } else {
     psubq(reg, src.fp());
-    if (dst.fp() != reg) movapd(dst.fp(), reg);
+    if (dst.fp() != reg) movaps(dst.fp(), reg);
   }
 }
 
@@ -4140,13 +4140,13 @@ void LiftoffAssembler::emit_f64x2_min(LiftoffRegister dst, LiftoffRegister lhs,
     vminpd(dst.fp(), rhs.fp(), lhs.fp());
   } else if (dst.fp() == lhs.fp() || dst.fp() == rhs.fp()) {
     XMMRegister src = dst.fp() == lhs.fp() ? rhs.fp() : lhs.fp();
-    movapd(liftoff::kScratchDoubleReg, src);
+    movaps(liftoff::kScratchDoubleReg, src);
     minpd(liftoff::kScratchDoubleReg, dst.fp());
     minpd(dst.fp(), src);
   } else {
-    movapd(liftoff::kScratchDoubleReg, lhs.fp());
+    movaps(liftoff::kScratchDoubleReg, lhs.fp());
     minpd(liftoff::kScratchDoubleReg, rhs.fp());
-    movapd(dst.fp(), rhs.fp());
+    movaps(dst.fp(), rhs.fp());
     minpd(dst.fp(), lhs.fp());
   }
   // propagate -0's and NaNs, which may be non-canonical.
@@ -4168,13 +4168,13 @@ void LiftoffAssembler::emit_f64x2_max(LiftoffRegister dst, LiftoffRegister lhs,
     vmaxpd(dst.fp(), rhs.fp(), lhs.fp());
   } else if (dst.fp() == lhs.fp() || dst.fp() == rhs.fp()) {
     XMMRegister src = dst.fp() == lhs.fp() ? rhs.fp() : lhs.fp();
-    movapd(liftoff::kScratchDoubleReg, src);
+    movaps(liftoff::kScratchDoubleReg, src);
     maxpd(liftoff::kScratchDoubleReg, dst.fp());
     maxpd(dst.fp(), src);
   } else {
-    movapd(liftoff::kScratchDoubleReg, lhs.fp());
+    movaps(liftoff::kScratchDoubleReg, lhs.fp());
     maxpd(liftoff::kScratchDoubleReg, rhs.fp());
-    movapd(dst.fp(), rhs.fp());
+    movaps(dst.fp(), rhs.fp());
     maxpd(dst.fp(), lhs.fp());
   }
   // Find discrepancies.
