@@ -720,6 +720,24 @@ void TurboAssembler::I16x8ExtMul(XMMRegister dst, XMMRegister src1,
   }
 }
 
+void TurboAssembler::S128Select(XMMRegister dst, XMMRegister mask,
+                                XMMRegister src1, XMMRegister src2,
+                                XMMRegister scratch) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpandn(scratch, mask, src2);
+    vpand(dst, src1, mask);
+    vpor(dst, dst, scratch);
+  } else {
+    DCHECK_EQ(dst, mask);
+    // Use float ops as they are 1 byte shorter than int ops.
+    movaps(scratch, dst);
+    andnps(scratch, src2);
+    andps(dst, src1);
+    orps(dst, scratch);
+  }
+}
+
 void TurboAssembler::ShlPair(Register high, Register low, uint8_t shift) {
   DCHECK_GE(63, shift);
   if (shift >= 32) {

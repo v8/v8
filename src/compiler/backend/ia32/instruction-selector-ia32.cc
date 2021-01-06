@@ -2476,16 +2476,10 @@ void InstructionSelector::VisitS128Zero(Node* node) {
 
 void InstructionSelector::VisitS128Select(Node* node) {
   IA32OperandGenerator g(this);
-  InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
-  InstructionOperand operand1 = g.UseRegister(node->InputAt(1));
-  InstructionOperand operand2 = g.UseRegister(node->InputAt(2));
-  if (IsSupported(AVX)) {
-    Emit(kAVXS128Select, g.DefineAsRegister(node), operand0, operand1,
-         operand2);
-  } else {
-    Emit(kSSES128Select, g.DefineSameAsFirst(node), operand0, operand1,
-         operand2);
-  }
+  InstructionOperand dst =
+      IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
+  Emit(kIA32S128Select, dst, g.UseRegister(node->InputAt(0)),
+       g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
 }
 
 void InstructionSelector::VisitS128AndNot(Node* node) {

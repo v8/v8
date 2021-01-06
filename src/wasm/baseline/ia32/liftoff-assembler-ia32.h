@@ -3147,17 +3147,16 @@ void LiftoffAssembler::emit_s128_select(LiftoffRegister dst,
                                         LiftoffRegister src1,
                                         LiftoffRegister src2,
                                         LiftoffRegister mask) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vxorps(liftoff::kScratchDoubleReg, src1.fp(), src2.fp());
-    vandps(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, mask.fp());
-    vxorps(dst.fp(), liftoff::kScratchDoubleReg, src2.fp());
+  // Ensure that we don't overwrite any inputs with the movdqu below.
+  DCHECK_NE(dst, src1);
+  DCHECK_NE(dst, src2);
+  if (!CpuFeatures::IsSupported(AVX) && dst != mask) {
+    movdqu(dst.fp(), mask.fp());
+    S128Select(dst.fp(), dst.fp(), src1.fp(), src2.fp(),
+               liftoff::kScratchDoubleReg);
   } else {
-    movaps(liftoff::kScratchDoubleReg, src1.fp());
-    xorps(liftoff::kScratchDoubleReg, src2.fp());
-    andps(liftoff::kScratchDoubleReg, mask.fp());
-    if (dst.fp() != src2.fp()) movaps(dst.fp(), src2.fp());
-    xorps(dst.fp(), liftoff::kScratchDoubleReg);
+    S128Select(dst.fp(), mask.fp(), src1.fp(), src2.fp(),
+               liftoff::kScratchDoubleReg);
   }
 }
 

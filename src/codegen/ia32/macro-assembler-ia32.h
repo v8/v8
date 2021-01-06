@@ -621,6 +621,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                    XMMRegister scratch, bool low, bool is_signed);
   void I16x8ExtMul(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                    XMMRegister scratch, bool low, bool is_signed);
+  // Requires dst == mask when AVX is not supported.
+  void S128Select(XMMRegister dst, XMMRegister mask, XMMRegister src1,
+                  XMMRegister src2, XMMRegister scratch);
 
   void Push(Register src) { push(src); }
   void Push(Operand src) { push(src); }

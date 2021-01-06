@@ -6,6 +6,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/callable.h"
 #include "src/codegen/ia32/assembler-ia32.h"
+#include "src/codegen/ia32/register-ia32.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/code-generator-impl.h"
@@ -3835,24 +3836,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputOperand(1));
       break;
     }
-    case kSSES128Select: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      // Mask used here is stored in dst.
-      XMMRegister dst = i.OutputSimd128Register();
-      // Use float ops as they are 1 byte shorter than int ops.
-      __ movaps(kScratchDoubleReg, i.InputSimd128Register(0));
-      __ andnps(kScratchDoubleReg, i.InputSimd128Register(2));
-      __ andps(dst, i.InputSimd128Register(1));
-      __ orps(dst, kScratchDoubleReg);
-      break;
-    }
-    case kAVXS128Select: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister mask = i.InputSimd128Register(0);
-      __ vpandn(kScratchDoubleReg, mask, i.InputSimd128Register(2));
-      __ vpand(dst, i.InputSimd128Register(1), mask);
-      __ vpor(dst, dst, kScratchDoubleReg);
+    case kIA32S128Select: {
+      __ S128Select(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                    i.InputSimd128Register(1), i.InputSimd128Register(2),
+                    kScratchDoubleReg);
       break;
     }
     case kIA32S128AndNot: {
