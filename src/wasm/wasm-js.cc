@@ -1979,9 +1979,11 @@ static i::Handle<i::FunctionTemplateInfo> NewFunctionTemplate(
     i::Isolate* i_isolate, FunctionCallback func, bool has_prototype,
     SideEffectType side_effect_type = SideEffectType::kHasSideEffect) {
   Isolate* isolate = reinterpret_cast<Isolate*>(i_isolate);
+  ConstructorBehavior behavior =
+      has_prototype ? ConstructorBehavior::kAllow : ConstructorBehavior::kThrow;
   Local<FunctionTemplate> templ = FunctionTemplate::New(
-      isolate, func, {}, {}, 0, ConstructorBehavior::kAllow, side_effect_type);
-  has_prototype ? templ->ReadOnlyPrototype() : templ->RemovePrototype();
+      isolate, func, {}, {}, 0, behavior, side_effect_type);
+  if (has_prototype) templ->ReadOnlyPrototype();
   return v8::Utils::OpenHandle(*templ);
 }
 
