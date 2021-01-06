@@ -88,9 +88,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'dc0b854645847007ec570f6a5c7e0b937b88b84b',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '834e584b7466708e90872cb0828c2e248787ebee',
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '81098e59adfcb81e94b0f8584f5bdbfdb0554573',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ac96016abc4038e297884b7e37bfd4d1187e30ef',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '899e18383fd732b47e6978db2b960a1b2a80179b',
   'third_party/instrumented_libraries':
@@ -184,7 +184,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '3f5c581d3b045f00847989a9611912e022021343',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '6c876045de14333d460a9256ac6d700d94fcd0aa',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -239,7 +239,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'eNKL3iFnDydKoCyqA9rVhylE7ud5a_9wRt0b0HFtLvIC'
+              'version': '9zubYTHwbH6DlxoyH3dV8sX48bSr3IkL8MkHYKlEtVkC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
@@ -256,7 +256,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '1283870fa32612951b487e0a4b17145ff62ed1e6',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'e8d041d67901b25f45edf798a074ceef529c7d5b',
   'tools/luci-go': {
       'packages': [
         {
