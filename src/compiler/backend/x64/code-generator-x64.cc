@@ -3762,25 +3762,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64S128Select: {
-      // v128.select = v128.or(v128.and(v1, c), v128.andnot(v2, c)).
-      // pandn(x, y) = !x & y, so we have to flip the mask and input.
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister mask = i.InputSimd128Register(0);
-      XMMRegister src1 = i.InputSimd128Register(1);
-      XMMRegister src2 = i.InputSimd128Register(2);
-      if (CpuFeatures::IsSupported(AVX)) {
-        CpuFeatureScope avx_scope(tasm(), AVX);
-        __ vpandn(kScratchDoubleReg, mask, src2);
-        __ vpand(dst, src1, mask);
-        __ vpor(dst, dst, kScratchDoubleReg);
-      } else {
-        DCHECK_EQ(dst, mask);
-        // Use float ops as they are 1 byte shorter than int ops.
-        __ movaps(kScratchDoubleReg, mask);
-        __ andnps(kScratchDoubleReg, src2);
-        __ andps(dst, src1);
-        __ orps(dst, kScratchDoubleReg);
-      }
+      __ S128Select(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                    i.InputSimd128Register(1), i.InputSimd128Register(2));
       break;
     }
     case kX64S128AndNot: {
