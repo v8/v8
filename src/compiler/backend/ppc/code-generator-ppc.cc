@@ -2434,23 +2434,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I64x2Mul: {
-      // Need to maintain 16 byte alignment for stvx and lvx.
-      __ mr(kScratchReg, sp);
-      __ ClearRightImm(
-          sp, sp,
-          Operand(base::bits::WhichPowerOfTwo(16)));  // equivalent to &= -16
-      __ addi(sp, sp, Operand(-32));
-      __ stvx(i.InputSimd128Register(0), MemOperand(r0, sp));
-      __ li(ip, Operand(16));
-      __ stvx(i.InputSimd128Register(1), MemOperand(ip, sp));
+      constexpr int lane_width_in_bytes = 8;
+      Simd128Register src0 = i.InputSimd128Register(0);
+      Simd128Register src1 = i.InputSimd128Register(1);
+      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      Simd128Register dst = i.OutputSimd128Register();
       for (int i = 0; i < 2; i++) {
-        __ LoadP(r0, MemOperand(sp, kBitsPerByte * i));
-        __ LoadP(ip, MemOperand(sp, (kBitsPerByte * i) + kSimd128Size));
+        if (i > 0) {
+          __ vextractd(kScratchSimd128Reg, src0,
+                       Operand(1 * lane_width_in_bytes));
+          __ vextractd(tempFPReg1, src1, Operand(1 * lane_width_in_bytes));
+          src0 = kScratchSimd128Reg;
+          src1 = tempFPReg1;
+        }
+        __ mfvsrd(r0, src0);
+        __ mfvsrd(ip, src1);
         __ mulld(r0, r0, ip);
-        __ StoreP(r0, MemOperand(sp, i * kBitsPerByte));
+        if (i <= 0) {
+          __ mtvsrd(dst, r0);
+        } else {
+          __ mtvsrd(kScratchSimd128Reg, r0);
+          __ vinsertd(dst, kScratchSimd128Reg,
+                      Operand(1 * lane_width_in_bytes));
+        }
       }
-      __ lvx(i.OutputSimd128Register(), MemOperand(r0, sp));
-      __ mr(sp, kScratchReg);
       break;
     }
     case kPPC_I32x4Add: {
@@ -2965,18 +2972,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I64x2Neg: {
+      constexpr int lane_width_in_bytes = 8;
       Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
-      __ li(ip, Operand(1));
-      // Need to maintain 16 byte alignment for lvx.
-      __ mr(kScratchReg, sp);
-      __ ClearRightImm(
-          sp, sp,
-          Operand(base::bits::WhichPowerOfTwo(16)));  // equivalent to &= -16
-      __ addi(sp, sp, Operand(-16));
-      __ StoreP(ip, MemOperand(sp, 0));
-      __ StoreP(ip, MemOperand(sp, 8));
-      __ lvx(kScratchSimd128Reg, MemOperand(r0, sp));
-      __ mr(sp, kScratchReg);
+      __ li(kScratchReg, Operand(1));
+      __ mtvsrd(kScratchSimd128Reg, kScratchReg);
+      __ vinsertd(kScratchSimd128Reg, kScratchSimd128Reg,
+                  Operand(1 * lane_width_in_bytes));
       // Perform negation.
       __ vnor(tempFPReg1, i.InputSimd128Register(0), i.InputSimd128Register(0));
       __ vaddudm(i.OutputSimd128Register(), tempFPReg1, kScratchSimd128Reg);
@@ -3188,22 +3189,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I8x16Shuffle: {
+      constexpr int lane_width_in_bytes = 8;
       Simd128Register dst = i.OutputSimd128Register(),
                       src0 = i.InputSimd128Register(0),
                       src1 = i.InputSimd128Register(1);
       __ mov(r0, Operand(make_uint64(i.InputUint32(3), i.InputUint32(2))));
       __ mov(ip, Operand(make_uint64(i.InputUint32(5), i.InputUint32(4))));
-      // Need to maintain 16 byte alignment for lvx.
-      __ mr(kScratchReg, sp);
-      __ ClearRightImm(
-          sp, sp,
-          Operand(base::bits::WhichPowerOfTwo(16)));  // equivalent to &= -16
-      __ addi(sp, sp, Operand(-16));
-      __ StoreP(r0, MemOperand(sp, 0));
-      __ StoreP(ip, MemOperand(sp, 8));
-      __ lvx(kScratchSimd128Reg, MemOperand(r0, sp));
-      __ mr(sp, kScratchReg);
-      __ vperm(dst, src0, src1, kScratchSimd128Reg);
+      __ mtvsrd(kScratchSimd128Reg, r0);
+      __ mtvsrd(dst, ip);
+      __ vinsertd(dst, kScratchSimd128Reg, Operand(1 * lane_width_in_bytes));
+      __ vperm(dst, src0, src1, dst);
       break;
     }
     case kPPC_I16x8AddSatS: {
