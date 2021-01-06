@@ -4925,9 +4925,6 @@ TEST(ImportExpressionErrors) {
     // clang-format on
     RunParserSyncTest(context_data, data, kError);
     RunModuleParserSyncTest(context_data, data, kError);
-
-    RunParserSyncTest(context_data, data, kError);
-    RunModuleParserSyncTest(context_data, data, kError);
   }
 
   // Import statements as arrow function params and destructuring targets.
@@ -4953,9 +4950,6 @@ TEST(ImportExpressionErrors) {
     };
 
     // clang-format on
-    RunParserSyncTest(context_data, data, kError);
-    RunModuleParserSyncTest(context_data, data, kError);
-
     RunParserSyncTest(context_data, data, kError);
     RunModuleParserSyncTest(context_data, data, kError);
   }
