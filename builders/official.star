@@ -219,7 +219,7 @@ in_category(
         ),
         executable = "recipe:v8/archive",
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-        properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64},
+        properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64, "target_arch": "arm"},
         caches = [
             swarming.cache(
                 path = "osx_sdk",
@@ -238,7 +238,7 @@ in_category(
         ),
         executable = "recipe:v8/archive",
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-        properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 64},
+        properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 64, "target_arch": "arm"},
         caches = [
             swarming.cache(
                 path = "osx_sdk",
