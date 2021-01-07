@@ -375,6 +375,9 @@
 ['system != android and arch in [arm, arm64] and not simulator_run', {
   # Consumes too much memory on ODROIDs in debug mode and optimize_for_size.
   'test-code-generator/FuzzAssemble*': [PASS, ['(mode == debug) and optimize_for_size', SKIP]],
+
+  # BUG(chromium:1163847): Seems to break on ODROIDs with recent Clang rolls.
+  'test-loop-analysis/LaEdgeMatrix2_0': [PASS, FAIL]
 }],  # 'system != android and arch in [arm, arm64] and not simulator_run'
 
 ##############################################################################
