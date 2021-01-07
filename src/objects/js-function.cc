@@ -321,6 +321,12 @@ void JSFunction::InitializeFeedbackCell(Handle<JSFunction> function,
     return;
   }
 
+  if (function->has_closure_feedback_cell_array()) {
+    CHECK_EQ(
+        function->closure_feedback_cell_array().length(),
+        function->shared().feedback_metadata().create_closure_slot_count());
+  }
+
   const bool needs_feedback_vector =
       !FLAG_lazy_feedback_allocation || FLAG_always_opt ||
       function->shared().may_have_cached_code() ||
