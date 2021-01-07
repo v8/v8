@@ -792,6 +792,12 @@ class PreParserFactory {
     return PreParserExpression::Default();
   }
 
+  PreParserExpression NewImportCallExpression(
+      const PreParserExpression& specifier,
+      const PreParserExpression& import_assertions, int pos) {
+    return PreParserExpression::Default();
+  }
+
  private:
   // For creating VariableProxy objects to track unresolved variables.
   AstNodeFactory ast_node_factory_;

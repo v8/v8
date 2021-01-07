@@ -5621,7 +5621,7 @@ void BytecodeGenerator::VisitEmptyParentheses(EmptyParentheses* expr) {
 
 void BytecodeGenerator::VisitImportCallExpression(ImportCallExpression* expr) {
   RegisterList args = register_allocator()->NewRegisterList(2);
-  VisitForRegisterValue(expr->argument(), args[1]);
+  VisitForRegisterValue(expr->specifier(), args[1]);
   builder()
       ->MoveRegister(Register::function_closure(), args[0])
       .CallRuntime(Runtime::kDynamicImportCall, args);

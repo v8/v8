@@ -4854,6 +4854,35 @@ TEST(ImportExpressionSuccess) {
   RunModuleParserSyncTest(context_data, data, kSuccess);
 }
 
+TEST(ImportExpressionWithImportAssertionSuccess) {
+  i::FLAG_harmony_import_assertions = true;
+
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {nullptr, nullptr}
+  };
+
+  const char* data[] = {
+    "import(x,)",
+    "import(x,1)",
+    "import(x,y)",
+    "import(x,y,)",
+    "import(x, { 'a': 'b' })",
+    "import(x, { a: 'b', 'c': 'd' },)",
+    "import(x, { 'a': { b: 'c' }, 'd': 'e' },)",
+    "import(x,import(y))",
+    "import(x,y=z)",
+    "import(x,[y, z])",
+    "import(x,undefined)",
+    nullptr
+  };
+
+  // clang-format on
+  RunParserSyncTest(context_data, data, kSuccess);
+  RunModuleParserSyncTest(context_data, data, kSuccess);
+}
+
 TEST(ImportExpressionErrors) {
   {
     // clang-format off
@@ -4946,6 +4975,83 @@ TEST(ImportExpressionErrors) {
       "import(y=x)",
       "import(import(x))",
       "import(x).then()",
+      nullptr
+    };
+
+    // clang-format on
+    RunParserSyncTest(context_data, data, kError);
+    RunModuleParserSyncTest(context_data, data, kError);
+  }
+}
+
+TEST(ImportExpressionWithImportAssertionErrors) {
+  {
+    i::FLAG_harmony_import_assertions = true;
+
+    // clang-format off
+    const char* context_data[][2] = {
+      {"", ""},
+      {"var ", ""},
+      {"let ", ""},
+      {"new ", ""},
+      {nullptr, nullptr}
+    };
+
+    const char* data[] = {
+      "import(x,,)",
+      "import(x))",
+      "import(x,))",
+      "import(x,())",
+      "import(x,y,,)",
+      "import(x,y,z)",
+      "import(x,y",
+      "import(x,y,",
+      "import(x,y(",
+      nullptr
+    };
+
+    // clang-format on
+    RunParserSyncTest(context_data, data, kError);
+    RunModuleParserSyncTest(context_data, data, kError);
+  }
+
+  {
+    // clang-format off
+    const char* context_data[][2] = {
+      {"var ", ""},
+      {"let ", ""},
+      {nullptr, nullptr}
+    };
+
+    const char* data[] = {
+      "import('x',y)",
+      nullptr
+    };
+
+    // clang-format on
+    RunParserSyncTest(context_data, data, kError);
+    RunModuleParserSyncTest(context_data, data, kError);
+  }
+
+  // Import statements as arrow function params and destructuring targets.
+  {
+    // clang-format off
+    const char* context_data[][2] = {
+      {"(", ") => {}"},
+      {"(a, ", ") => {}"},
+      {"(1, ", ") => {}"},
+      {"let f = ", " => {}"},
+      {"[", "] = [1];"},
+      {"{", "} = {'a': 1};"},
+      {nullptr, nullptr}
+    };
+
+    const char* data[] = {
+      "import(foo,y)",
+      "import(1,y)",
+      "import(y=x,z)",
+      "import(import(x),y)",
+      "import(x,y).then()",
       nullptr
     };
 

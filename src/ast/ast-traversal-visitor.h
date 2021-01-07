@@ -536,7 +536,10 @@ template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitImportCallExpression(
     ImportCallExpression* expr) {
   PROCESS_EXPRESSION(expr);
-  RECURSE_EXPRESSION(Visit(expr->argument()));
+  RECURSE_EXPRESSION(Visit(expr->specifier()));
+  if (expr->import_assertions()) {
+    RECURSE_EXPRESSION(Visit(expr->import_assertions()));
+  }
 }
 
 template <class Subclass>

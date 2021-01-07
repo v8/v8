@@ -3574,11 +3574,26 @@ ParserBase<Impl>::ParseImportExpressions() {
                             MessageTemplate::kImportMissingSpecifier);
     return impl()->FailureExpression();
   }
-  AcceptINScope scope(this, true);
-  ExpressionT arg = ParseAssignmentExpressionCoverGrammar();
-  Expect(Token::RPAREN);
 
-  return factory()->NewImportCallExpression(arg, pos);
+  AcceptINScope scope(this, true);
+  ExpressionT specifier = ParseAssignmentExpressionCoverGrammar();
+
+  if (FLAG_harmony_import_assertions && Check(Token::COMMA)) {
+    if (Check(Token::RPAREN)) {
+      // A trailing comma allowed after the specifier.
+      return factory()->NewImportCallExpression(specifier, pos);
+    } else {
+      ExpressionT import_assertions = ParseAssignmentExpressionCoverGrammar();
+      Check(Token::COMMA);  // A trailing comma is allowed after the import
+                            // assertions.
+      Expect(Token::RPAREN);
+      return factory()->NewImportCallExpression(specifier, import_assertions,
+                                                pos);
+    }
+  }
+
+  Expect(Token::RPAREN);
+  return factory()->NewImportCallExpression(specifier, pos);
 }
 
 template <typename Impl>

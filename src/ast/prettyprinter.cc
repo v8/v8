@@ -551,7 +551,10 @@ void CallPrinter::VisitTemplateLiteral(TemplateLiteral* node) {
 
 void CallPrinter::VisitImportCallExpression(ImportCallExpression* node) {
   Print("ImportCall(");
-  Find(node->argument(), true);
+  Find(node->specifier(), true);
+  if (node->import_assertions()) {
+    Find(node->import_assertions(), true);
+  }
   Print(")");
 }
 
@@ -1434,7 +1437,10 @@ void AstPrinter::VisitTemplateLiteral(TemplateLiteral* node) {
 
 void AstPrinter::VisitImportCallExpression(ImportCallExpression* node) {
   IndentedScope indent(this, "IMPORT-CALL", node->position());
-  Visit(node->argument());
+  Visit(node->specifier());
+  if (node->import_assertions()) {
+    Visit(node->import_assertions());
+  }
 }
 
 void AstPrinter::VisitThisExpression(ThisExpression* node) {
