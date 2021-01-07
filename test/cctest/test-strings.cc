@@ -1948,9 +1948,10 @@ TEST(Regress876759) {
   CHECK(String::IsOneByteRepresentationUnderneath(*sliced));
 }
 
-// Show failure when trying to create and internal, external and uncached string
-// through MakeExternal. One byte version.
+// Show that small internal strings are not externalizable since it would make
+// them external and uncached through MakeExternal. One byte version.
 TEST(MakeExternalCreationFailureOneByte) {
+  CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 // Due to different size restrictions the string needs to be small but not too
@@ -1971,9 +1972,10 @@ TEST(MakeExternalCreationFailureOneByte) {
   CHECK(!one_byte_string->SupportsExternalization());
 }
 
-// Show failure when trying to create and internal, external and uncached string
-// through MakeExternal. Two byte version.
+// Show that small internal strings are not externalizable since it would make
+// them external and uncached through MakeExternal. Two byte version.
 TEST(MakeExternalCreationFailureTwoByte) {
+  CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   // Due to different size restrictions the string needs to be small but not too
