@@ -2000,6 +2000,9 @@ void NativeObjectsExplorer::MergeNodeIntoEntry(
   entry->set_name(MergeNames(
       names_, EmbedderGraphNodeName(names_, original_node), entry->name()));
   entry->set_type(EmbedderGraphNodeType(original_node));
+  DCHECK_GE(entry->self_size() + original_node->SizeInBytes(),
+            entry->self_size());
+  entry->add_self_size(original_node->SizeInBytes());
 }
 
 HeapEntry* NativeObjectsExplorer::EntryForEmbedderGraphNode(

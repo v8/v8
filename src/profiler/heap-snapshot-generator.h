@@ -126,6 +126,7 @@ class HeapEntry {
   void set_name(const char* name) { name_ = name; }
   SnapshotObjectId id() const { return id_; }
   size_t self_size() const { return self_size_; }
+  void add_self_size(size_t size) { self_size_ += size; }
   unsigned trace_node_id() const { return trace_node_id_; }
   int index() const { return index_; }
   V8_INLINE int children_count() const;
