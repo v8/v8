@@ -441,7 +441,7 @@ ZoneVector<MachineType> const* MachineTypesOf(Operator const* op) {
 V8_EXPORT_PRIVATE bool operator==(IfValueParameters const& l,
                                   IfValueParameters const& r) {
   return l.value() == r.value() &&
-         r.comparison_order() == r.comparison_order() && l.hint() == r.hint();
+         l.comparison_order() == r.comparison_order() && l.hint() == r.hint();
 }
 
 size_t hash_value(IfValueParameters const& p) {
