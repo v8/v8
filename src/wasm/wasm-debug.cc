@@ -55,55 +55,43 @@ Handle<String> PrintFToOneByteString(Isolate* isolate, const char* format,
              : isolate->factory()->NewStringFromOneByte(name).ToHandleChecked();
 }
 
-Handle<Object> WasmValueToValueObject(Isolate* isolate, WasmValue value) {
-  Handle<ByteArray> bytes;
+// Convert a WasmValue to an appropriate JS representation.
+Handle<Object> WasmValueToObject(Isolate* isolate, wasm::WasmValue value) {
+  auto* factory = isolate->factory();
   switch (value.type().kind()) {
-    case ValueType::kI32: {
-      int32_t val = value.to_i32();
-      bytes = isolate->factory()->NewByteArray(sizeof(val));
-      base::Memcpy(bytes->GetDataStartAddress(), &val, sizeof(val));
-      break;
-    }
-    case ValueType::kI64: {
-      int64_t val = value.to_i64();
-      bytes = isolate->factory()->NewByteArray(sizeof(val));
-      base::Memcpy(bytes->GetDataStartAddress(), &val, sizeof(val));
-      break;
-    }
-    case ValueType::kF32: {
-      float val = value.to_f32();
-      bytes = isolate->factory()->NewByteArray(sizeof(val));
-      base::Memcpy(bytes->GetDataStartAddress(), &val, sizeof(val));
-      break;
-    }
-    case ValueType::kF64: {
-      double val = value.to_f64();
-      bytes = isolate->factory()->NewByteArray(sizeof(val));
-      base::Memcpy(bytes->GetDataStartAddress(), &val, sizeof(val));
-      break;
-    }
-    case ValueType::kS128: {
-      Simd128 s128 = value.to_s128();
-      bytes = isolate->factory()->NewByteArray(kSimd128Size);
-      base::Memcpy(bytes->GetDataStartAddress(), s128.bytes(), kSimd128Size);
-      break;
-    }
-    case ValueType::kOptRef: {
-      if (value.type().is_reference_to(HeapType::kExtern)) {
-        return isolate->factory()->NewWasmValue(
-            static_cast<int32_t>(HeapType::kExtern), value.to_externref());
-      } else {
-        // TODO(7748): Implement.
-        UNIMPLEMENTED();
+    case wasm::ValueType::kI32:
+      return factory->NewNumberFromInt(value.to_i32());
+    case wasm::ValueType::kI64:
+      return BigInt::FromInt64(isolate, value.to_i64());
+    case wasm::ValueType::kF32:
+      return factory->NewNumber(value.to_f32());
+    case wasm::ValueType::kF64:
+      return factory->NewNumber(value.to_f64());
+    case wasm::ValueType::kS128: {
+      wasm::Simd128 s128 = value.to_s128();
+      Handle<JSArrayBuffer> buffer;
+      if (!factory
+               ->NewJSArrayBufferAndBackingStore(
+                   kSimd128Size, InitializedFlag::kUninitialized)
+               .ToHandle(&buffer)) {
+        isolate->FatalProcessOutOfHeapMemory(
+            "failed to allocate backing store");
       }
+
+      base::Memcpy(buffer->allocation_base(), s128.bytes(),
+                   buffer->byte_length());
+      auto array = factory->NewJSTypedArray(kExternalUint8Array, buffer, 0,
+                                            kSimd128Size);
+      JSObject::SetPrototype(array, factory->null_value(), false, kDontThrow)
+          .Check();
+      return array;
     }
-    default: {
-      // TODO(7748): Implement.
-      UNIMPLEMENTED();
-    }
+    case wasm::ValueType::kRef:
+      return value.to_externref();
+    default:
+      break;
   }
-  return isolate->factory()->NewWasmValue(
-      static_cast<int32_t>(value.type().kind()), bytes);
+  return factory->undefined_value();
 }
 
 MaybeHandle<String> GetLocalNameString(Isolate* isolate,
@@ -243,7 +231,7 @@ Handle<JSObject> GetModuleScopeObject(Handle<WasmInstanceObject> instance) {
       }
       WasmValue value =
           WasmInstanceObject::GetGlobalValue(instance, globals[i]);
-      Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
+      Handle<Object> value_obj = WasmValueToObject(isolate, value);
       LookupIterator it(isolate, globals_obj, name, globals_obj,
                         LookupIterator::OWN_SKIP_INTERCEPTOR);
       JSObject::CreateDataProperty(&it, value_obj).Check();
@@ -318,7 +306,7 @@ class DebugInfoImpl {
       }
       WasmValue value =
           GetValue(scope.debug_side_table_entry, i, fp, debug_break_fp);
-      Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
+      Handle<Object> value_obj = WasmValueToObject(isolate, value);
       // {name} can be a string representation of an element index.
       LookupIterator::Key lookup_key{isolate, name};
       LookupIterator it(isolate, local_scope_object, lookup_key,
@@ -350,7 +338,7 @@ class DebugInfoImpl {
     for (int i = num_locals; i < value_count; ++i) {
       WasmValue value =
           GetValue(scope.debug_side_table_entry, i, fp, debug_break_fp);
-      Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
+      Handle<Object> value_obj = WasmValueToObject(isolate, value);
       JSObject::AddDataElement(stack_scope_obj,
                                static_cast<uint32_t>(i - num_locals), value_obj,
                                NONE);
@@ -1512,43 +1500,6 @@ Address GetCalleeFP(Isolate* isolate, Handle<JSObject> handler) {
       JSObject::GetProperty(isolate, handler, "callee_fp").ToHandleChecked();
   DCHECK(callee_fp->IsBigInt());
   return Handle<BigInt>::cast(callee_fp)->AsUint64();
-}
-
-// Convert a WasmValue to an appropriate JS representation.
-static Handle<Object> WasmValueToObject(Isolate* isolate,
-                                        wasm::WasmValue value) {
-  auto* factory = isolate->factory();
-  switch (value.type().kind()) {
-    case wasm::ValueType::kI32:
-      return factory->NewNumberFromInt(value.to_i32());
-    case wasm::ValueType::kI64:
-      return BigInt::FromInt64(isolate, value.to_i64());
-    case wasm::ValueType::kF32:
-      return factory->NewNumber(value.to_f32());
-    case wasm::ValueType::kF64:
-      return factory->NewNumber(value.to_f64());
-    case wasm::ValueType::kS128: {
-      wasm::Simd128 s128 = value.to_s128();
-      Handle<JSArrayBuffer> buffer;
-      if (!isolate->factory()
-               ->NewJSArrayBufferAndBackingStore(
-                   kSimd128Size, InitializedFlag::kUninitialized)
-               .ToHandle(&buffer)) {
-        isolate->FatalProcessOutOfHeapMemory(
-            "failed to allocate backing store");
-      }
-
-      base::Memcpy(buffer->allocation_base(), s128.bytes(),
-                   buffer->byte_length());
-      return isolate->factory()->NewJSTypedArray(kExternalUint8Array, buffer, 0,
-                                                 buffer->byte_length());
-    }
-    case wasm::ValueType::kRef:
-      return value.to_externref();
-    default:
-      break;
-  }
-  return factory->undefined_value();
 }
 
 base::Optional<int> HasLocalImpl(Isolate* isolate, Handle<Name> property,

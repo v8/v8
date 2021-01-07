@@ -3921,12 +3921,6 @@ void v8::debug::AccessorPair::CheckCast(Value* that) {
                   "Value is not a debug::AccessorPair");
 }
 
-void v8::debug::WasmValue::CheckCast(Value* that) {
-  i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  Utils::ApiCheck(obj->IsWasmValue(), "v8::WasmValue::Cast",
-                  "Value is not a debug::WasmValue");
-}
-
 v8::BackingStore::~BackingStore() {
   auto i_this = reinterpret_cast<const i::BackingStore*>(this);
   i_this->~BackingStore();  // manually call internal destructor
@@ -10687,52 +10681,6 @@ Local<Value> debug::AccessorPair::setter() {
 bool debug::AccessorPair::IsAccessorPair(Local<Value> that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(*that);
   return obj->IsAccessorPair();
-}
-
-int debug::WasmValue::value_type() {
-  i::Handle<i::WasmValue> obj = Utils::OpenHandle(this);
-  return obj->value_type();
-}
-
-v8::Local<v8::Array> debug::WasmValue::bytes() {
-  i::Handle<i::WasmValue> obj = Utils::OpenHandle(this);
-  DCHECK(i::wasm::ValueType::Kind::kI32 == obj->value_type() ||
-         i::wasm::ValueType::Kind::kI64 == obj->value_type() ||
-         i::wasm::ValueType::Kind::kF32 == obj->value_type() ||
-         i::wasm::ValueType::Kind::kF64 == obj->value_type() ||
-         i::wasm::ValueType::Kind::kS128 == obj->value_type());
-
-  i::Isolate* isolate = obj->GetIsolate();
-  i::Handle<i::Object> bytes_or_ref(obj->bytes_or_ref(), isolate);
-  i::Handle<i::ByteArray> bytes(i::Handle<i::ByteArray>::cast(bytes_or_ref));
-
-  int length = bytes->length();
-
-  i::Handle<i::FixedArray> fa = isolate->factory()->NewFixedArray(length);
-  i::Handle<i::JSArray> arr = obj->GetIsolate()->factory()->NewJSArray(
-      i::PACKED_SMI_ELEMENTS, length, length);
-  i::JSArray::SetContent(arr, fa);
-
-  for (int i = 0; i < length; i++) {
-    fa->set(i, i::Smi::FromInt(bytes->get(i)));
-  }
-
-  return Utils::ToLocal(arr);
-}
-
-v8::Local<v8::Value> debug::WasmValue::ref() {
-  i::Handle<i::WasmValue> obj = Utils::OpenHandle(this);
-  DCHECK_EQ(i::wasm::HeapType::kExtern, obj->value_type());
-
-  i::Isolate* isolate = obj->GetIsolate();
-  i::Handle<i::Object> bytes_or_ref(obj->bytes_or_ref(), isolate);
-
-  return Utils::ToLocal(bytes_or_ref);
-}
-
-bool debug::WasmValue::IsWasmValue(Local<Value> that) {
-  i::Handle<i::Object> obj = Utils::OpenHandle(*that);
-  return obj->IsWasmValue();
 }
 
 MaybeLocal<Message> debug::GetMessageFromPromise(Local<Promise> p) {

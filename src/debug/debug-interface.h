@@ -611,35 +611,11 @@ class PropertyIterator {
   virtual bool is_array_index() = 0;
 };
 
-// Wrapper around v8::internal::WasmValue.
-class V8_EXPORT_PRIVATE WasmValue : public v8::Value {
- public:
-  WasmValue() = delete;
-  static bool IsWasmValue(v8::Local<v8::Value> obj);
-  V8_INLINE static WasmValue* Cast(v8::Value* obj);
-  int value_type();
-  // Get the underlying values as a byte array, this is only valid if value_type
-  // is i32, i64, f32, f64, or s128.
-  v8::Local<v8::Array> bytes();
-  // Get the underlying externref, only valid if value_type is externref.
-  v8::Local<v8::Value> ref();
-
- private:
-  static void CheckCast(v8::Value* obj);
-};
-
 AccessorPair* AccessorPair::Cast(v8::Value* value) {
 #ifdef V8_ENABLE_CHECKS
   CheckCast(value);
 #endif
   return static_cast<AccessorPair*>(value);
-}
-
-WasmValue* WasmValue::Cast(v8::Value* value) {
-#ifdef V8_ENABLE_CHECKS
-  CheckCast(value);
-#endif
-  return static_cast<WasmValue*>(value);
 }
 
 MaybeLocal<Message> GetMessageFromPromise(Local<Promise> promise);

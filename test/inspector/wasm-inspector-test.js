@@ -35,10 +35,8 @@ WasmInspectorTest.dumpScopeProperties = async function(message) {
   }
 }
 
-WasmInspectorTest.getWasmValue = function(wasmValue) {
-  return typeof (wasmValue.value) === 'undefined' ?
-      wasmValue.unserializableValue :
-      wasmValue.value;
+WasmInspectorTest.getWasmValue = value => {
+  return value.unserializableValue ?? value.value;
 }
 
 function printIfFailure(message) {
@@ -56,13 +54,12 @@ async function getScopeValues(name, value) {
 
     let msg = await Protocol.Runtime.getProperties({objectId: value.objectId});
     printIfFailure(msg);
-    const printProperty = function(elem) {
-      const wasmValue = WasmInspectorTest.getWasmValue(elem.value);
-      return `"${elem.name}": ${wasmValue} (${elem.value.subtype})`;
+    const printProperty = function({name, value}) {
+      return `"${name}": ${WasmInspectorTest.getWasmValue(value)} (${value.subtype ?? value.type})`;
     }
     return msg.result.result.map(printProperty).join(', ');
   }
-  return WasmInspectorTest.getWasmValue(value) + ' (' + value.subtype + ')';
+  return `${WasmInspectorTest.getWasmValue(value)} (${value.subtype ?? value.type})`;
 }
 
 function recursiveGetPropertiesWrapper(value, depth) {

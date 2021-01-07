@@ -58,15 +58,6 @@ ResultType unpackWasmValue(v8::Local<v8::Context> context,
   return result;
 }
 
-String16 descriptionForWasmS128(std::array<uint8_t, 16> arr) {
-  String16Builder builder;
-  for (int i = 0; i < 16; i++) {
-    builder.appendUnsignedAsHex(arr.at(i));
-    builder.append(" ");
-  }
-  return builder.toString();
-}
-
 // Partial list of Wasm's ValueType, copied here to avoid including internal
 // header. Using an unscoped enumeration here to allow implicit conversions from
 // int. Keep in sync with ValueType::Kind in wasm/value-type.h.
@@ -159,56 +150,6 @@ Response toProtocolValue(v8::Local<v8::Context> context,
           std::move(propertyValue));
     }
     *result = std::move(jsonObject);
-    return Response::Success();
-  }
-
-  if (v8::debug::WasmValue::IsWasmValue(value)) {
-    auto wasmValue = value.As<v8::debug::WasmValue>();
-
-    // Convert serializable Wasm values (i32, f32, f64) into protocol values.
-    // Not all i64 values are representable by double, so always represent it as
-    // a String here.
-    switch (wasmValue->value_type()) {
-      case kI32: {
-        *result = protocol::FundamentalValue::create(
-            unpackWasmValue<int32_t>(context, wasmValue->bytes()));
-        break;
-      }
-      case kI64: {
-        *result = protocol::StringValue::create(String16::fromInteger64(
-            unpackWasmValue<int64_t>(context, wasmValue->bytes())));
-        break;
-      }
-      case kF32: {
-        *result = protocol::FundamentalValue::create(
-            unpackWasmValue<float>(context, wasmValue->bytes()));
-        break;
-      }
-      case kF64: {
-        *result = protocol::FundamentalValue::create(
-            unpackWasmValue<double>(context, wasmValue->bytes()));
-        break;
-      }
-      case kS128: {
-        auto bytes = wasmValue->bytes();
-        DCHECK_EQ(16, bytes->Length());
-        auto s128 = unpackWasmValue<std::array<uint8_t, 16>>(context, bytes);
-        String16 desc = descriptionForWasmS128(s128);
-        *result = protocol::StringValue::create(desc);
-        break;
-      }
-      case kExternRef: {
-        std::unique_ptr<protocol::Value> externrefValue;
-        Response response = toProtocolValue(context, wasmValue->ref(), maxDepth,
-                                            &externrefValue);
-        if (!response.IsSuccess()) return response;
-        *result = std::move(externrefValue);
-        break;
-      }
-      default: {
-        UNIMPLEMENTED();
-      }
-    }
     return Response::Success();
   }
 
@@ -487,121 +428,6 @@ class PrimitiveValueMirror final : public ValueMirror {
   v8::Local<v8::Value> m_value;
   String16 m_type;
   String16 m_subtype;
-};
-
-class WasmValueMirror final : public ValueMirror {
- public:
-  explicit WasmValueMirror(v8::Local<v8::debug::WasmValue> value)
-      : m_value(value) {}
-
-  v8::Local<v8::Value> v8Value() const override { return m_value; }
-
-  Response buildRemoteObject(
-      v8::Local<v8::Context> context, WrapMode mode,
-      std::unique_ptr<RemoteObject>* result) const override {
-    bool serializable;
-    String16 descriptionValue = description(context, &serializable);
-    *result = RemoteObject::create()
-                  .setType(RemoteObject::TypeEnum::Wasm)
-                  .setSubtype(subtype())
-                  .setDescription(descriptionValue)
-                  .build();
-    if (serializable) {
-      std::unique_ptr<protocol::Value> protocolValue;
-      toProtocolValue(context, m_value, &protocolValue);
-      (*result)->setValue(std::move(protocolValue));
-    } else {
-      (*result)->setUnserializableValue(descriptionValue);
-    }
-    return Response::Success();
-  }
-
-  void buildPropertyPreview(
-      v8::Local<v8::Context> context, const String16& name,
-      std::unique_ptr<PropertyPreview>* result) const override {
-    bool serializable;
-    *result = PropertyPreview::create()
-                  .setName(name)
-                  .setType(RemoteObject::TypeEnum::Wasm)
-                  .setSubtype(subtype())
-                  .setValue(description(context, &serializable))
-                  .build();
-  }
-
-  void buildEntryPreview(
-      v8::Local<v8::Context> context, int* nameLimit, int* indexLimit,
-      std::unique_ptr<ObjectPreview>* preview) const override {
-    bool serializable;
-    *preview =
-        ObjectPreview::create()
-            .setType(RemoteObject::TypeEnum::Wasm)
-            .setSubtype(subtype())
-            .setDescription(description(context, &serializable))
-            .setOverflow(false)
-            .setProperties(std::make_unique<protocol::Array<PropertyPreview>>())
-            .build();
-  }
-
- private:
-  String16 subtype() const {
-    switch (m_value->value_type()) {
-      case kI32:
-        return RemoteObject::SubtypeEnum::I32;
-      case kI64:
-        return RemoteObject::SubtypeEnum::I64;
-      case kF32:
-        return RemoteObject::SubtypeEnum::F32;
-      case kF64:
-        return RemoteObject::SubtypeEnum::F64;
-      case kS128:
-        return RemoteObject::SubtypeEnum::V128;
-      case kExternRef:
-        return RemoteObject::SubtypeEnum::Externref;
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  String16 description(v8::Local<v8::Context> context,
-                       bool* serializable) const {
-    *serializable = true;
-    switch (m_value->value_type()) {
-      case kI32: {
-        return String16::fromInteger(
-            unpackWasmValue<int32_t>(context, m_value->bytes()));
-      }
-      case kI64: {
-        *serializable = false;
-        return String16::fromInteger64(
-            unpackWasmValue<int64_t>(context, m_value->bytes()));
-      }
-      case kF32: {
-        return String16::fromDouble(
-            unpackWasmValue<float>(context, m_value->bytes()));
-      }
-      case kF64: {
-        return String16::fromDouble(
-            unpackWasmValue<double>(context, m_value->bytes()));
-      }
-      case kS128: {
-        *serializable = false;
-        auto bytes = m_value->bytes();
-        DCHECK_EQ(16, bytes->Length());
-        auto s128 = unpackWasmValue<std::array<uint8_t, 16>>(context, bytes);
-        return descriptionForWasmS128(s128);
-      }
-      case kExternRef: {
-        return descriptionForObject(context->GetIsolate(),
-                                    m_value->ref().As<v8::Object>());
-      }
-      default: {
-        *serializable = false;
-        return String16("Unknown");
-      }
-    }
-  }
-
-  v8::Local<v8::debug::WasmValue> m_value;
 };
 
 class NumberMirror final : public ValueMirror {
@@ -1765,9 +1591,6 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
   }
   if (value->IsSymbol()) {
     return std::make_unique<SymbolMirror>(value.As<v8::Symbol>());
-  }
-  if (v8::debug::WasmValue::IsWasmValue(value)) {
-    return std::make_unique<WasmValueMirror>(value.As<v8::debug::WasmValue>());
   }
   auto clientSubtype = (value->IsUndefined() || value->IsObject())
                            ? clientFor(context)->valueSubtype(value)

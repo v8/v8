@@ -1008,8 +1008,7 @@ domain Runtime
         boolean
         symbol
         bigint
-        wasm
-      # Object subtype hint. Specified for `object` or `wasm` type values only.
+      # Object subtype hint. Specified for `object` type values only.
       # NOTE: If you change anything here, make sure to also update
       # `subtype` in `ObjectPreview` and `PropertyPreview` below.
       optional enum subtype
@@ -1031,12 +1030,6 @@ domain Runtime
         arraybuffer
         dataview
         webassemblymemory
-        i32
-        i64
-        f32
-        f64
-        v128
-        externref
       # Object class (constructor) name. Specified for `object` type values only.
       optional string className
       # Remote object value in case of primitive values or JSON values (if it was requested).
