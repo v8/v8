@@ -1010,6 +1010,8 @@ domain Runtime
         bigint
         wasm
       # Object subtype hint. Specified for `object` or `wasm` type values only.
+      # NOTE: If you change anything here, make sure to also update
+      # `subtype` in `ObjectPreview` and `PropertyPreview` below.
       optional enum subtype
         array
         null
@@ -1087,6 +1089,12 @@ domain Runtime
         iterator
         generator
         error
+        proxy
+        promise
+        typedarray
+        arraybuffer
+        dataview
+        webassemblymemory
       # String representation of the object.
       optional string description
       # True iff some of the properties or entries of the original object did not fit.
@@ -1129,6 +1137,12 @@ domain Runtime
         iterator
         generator
         error
+        proxy
+        promise
+        typedarray
+        arraybuffer
+        dataview
+        webassemblymemory
 
   experimental type EntryPreview extends object
     properties
