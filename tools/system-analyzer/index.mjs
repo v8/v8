@@ -39,7 +39,7 @@ class App {
 
       mapPanel: $('#map-panel'),
       codePanel: $('#code-panel'),
-      sourcePanel: $('#source-panel'),
+      scriptPanel: $('#script-panel'),
 
       toolTip: $('#tool-tip'),
     };
@@ -57,7 +57,7 @@ class App {
       import('./view/list-panel.mjs'),
       import('./view/timeline-panel.mjs'),
       import('./view/map-panel.mjs'),
-      import('./view/source-panel.mjs'),
+      import('./view/script-panel.mjs'),
       import('./view/code-panel.mjs'),
       import('./view/tool-tip.mjs'),
     ]);
@@ -176,7 +176,7 @@ class App {
   }
 
   showSourcePositions(entries) {
-    this._view.sourcePanel.selectedSourcePositions = entries
+    this._view.scriptPanel.selectedSourcePositions = entries
   }
 
   handleTimeRangeSelect(e) {
@@ -280,7 +280,7 @@ class App {
       this._view.deoptList.timeline = deoptTimeline;
       this._view.codeList.timeline = codeTimeline;
       this._view.apiList.timeline = apiTimeline;
-      this._view.sourcePanel.scripts = processor.scripts;
+      this._view.scriptPanel.scripts = processor.scripts;
       this._view.codePanel.timeline = codeTimeline;
       this.refreshTimelineTrackView();
     } catch (e) {

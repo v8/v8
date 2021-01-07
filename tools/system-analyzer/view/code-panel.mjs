@@ -17,6 +17,8 @@ DOM.defineCustomElement('view/code-panel',
   constructor() {
     super(templateText);
     this._codeSelectNode.onchange = this._handleSelectCode.bind(this);
+    this.$('#selectedRelatedButton').onclick =
+        this._handleSelectRelated.bind(this)
   }
 
   set timeline(timeline) {
@@ -68,7 +70,13 @@ DOM.defineCustomElement('view/code-panel',
       select.add(option);
     }
   }
+
   _handleSelectCode() {
     this.entry = this._codeSelectNode.selectedOptions[0].data;
+  }
+
+  _handleSelectRelated(e) {
+    if (!this._entry) return;
+    this.dispatchEvent(new SelectRelatedEvent(this._entry));
   }
 });

@@ -6,7 +6,7 @@ import {groupBy} from '../helper.mjs';
 import {SelectRelatedEvent, ToolTipEvent} from './events.mjs';
 import {delay, DOM, formatBytes, V8CustomElement} from './helper.mjs';
 
-DOM.defineCustomElement('view/source-panel',
+DOM.defineCustomElement('view/script-panel',
                         (templateText) =>
                             class SourcePanel extends V8CustomElement {
   _selectedSourcePositions = [];
@@ -18,11 +18,8 @@ DOM.defineCustomElement('view/source-panel',
     super(templateText);
     this.scriptDropdown.addEventListener(
         'change', e => this._handleSelectScript(e));
-    this.$('#selectedRelatedButton').onclick = (e) => {
-      if (this._script) {
-        this.dispatchEvent(new SelectRelatedEvent(this._script));
-      }
-    }
+    this.$('#selectedRelatedButton').onclick =
+        this._handleSelectRelated.bind(this);
   }
 
   get script() {
@@ -119,6 +116,11 @@ DOM.defineCustomElement('view/source-panel',
     const option =
         this.scriptDropdown.options[this.scriptDropdown.selectedIndex];
     this.script = option.script;
+  }
+
+  _handleSelectRelated(e) {
+    if (!this._script) return;
+    this.dispatchEvent(new SelectRelatedEvent(this._script));
   }
 
   handleSourcePositionClick(e) {

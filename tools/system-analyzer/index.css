@@ -164,6 +164,11 @@ dd {
   background-color: var(--border-color);
 }
 
+.panel > .selection  select {
+  flex: 1;
+  width: 50%;
+}
+
 button {
   cursor: pointer;
 }

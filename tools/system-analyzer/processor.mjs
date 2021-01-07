@@ -202,9 +202,6 @@ export class Processor extends LogReader {
 
   processCodeCreation(type, kind, timestamp, start, size, name, maybe_func) {
     this._lastTimestamp = timestamp;
-    if (timestamp == 5724567) {
-      console.log(start);
-    }
     let entry;
     let stateName = '';
     if (maybe_func.length) {
