@@ -409,7 +409,7 @@ void ConcurrentMarking::Run(JobDelegate* delegate, unsigned mark_compact_epoch,
   MarkingWorklists::Local local_marking_worklists(marking_worklists_);
   ConcurrentMarkingVisitor visitor(
       task_id, &local_marking_worklists, weak_objects_, heap_,
-      mark_compact_epoch, Heap::GetBytecodeFlushMode(),
+      mark_compact_epoch, Heap::GetBytecodeFlushMode(heap_->isolate()),
       heap_->local_embedder_heap_tracer()->InUse(), is_forced_gc,
       &task_state->memory_chunk_data);
   NativeContextInferrer& native_context_inferrer =

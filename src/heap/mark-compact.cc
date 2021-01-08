@@ -499,7 +499,7 @@ void MarkCompactCollector::StartMarking() {
       std::make_unique<MarkingWorklists::Local>(marking_worklists());
   marking_visitor_ = std::make_unique<MarkingVisitor>(
       marking_state(), local_marking_worklists(), weak_objects(), heap_,
-      epoch(), Heap::GetBytecodeFlushMode(),
+      epoch(), Heap::GetBytecodeFlushMode(heap()->isolate()),
       heap_->local_embedder_heap_tracer()->InUse(),
       heap_->is_current_gc_forced());
 // Marking bits are cleared by the sweeper.
