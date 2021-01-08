@@ -3102,6 +3102,14 @@ base::Optional<uint16_t> StringRef::GetFirstChar() {
 
 base::Optional<double> StringRef::ToNumber() {
   if (data_->should_access_heap()) {
+    if (data_->kind() == kNeverSerializedHeapObject &&
+        !this->IsInternalizedString()) {
+      TRACE_BROKER_MISSING(
+          broker(),
+          "number for kNeverSerialized non-internalized string " << *this);
+      return base::nullopt;
+    }
+
     return TryStringToDouble(broker()->local_isolate(), object());
   }
   return data()->AsString()->to_number();
