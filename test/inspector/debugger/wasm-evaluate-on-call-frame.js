@@ -127,7 +127,9 @@ InspectorTest.runAsyncTestSuite([
       objectId: instance.objectId
     });
     let callFrameId = await waitForDebuggerPaused();
+    await dumpOnCallFrame(callFrameId, `globals`);
     await dumpOnCallFrame(callFrameId, `typeof globals`);
+    await dumpOnCallFrame(callFrameId, `Object.keys(globals)`);
     await dumpKeysOnCallFrame(callFrameId, "globals", KEYS);
 
     InspectorTest.log(`Stepping twice in main.`)
@@ -183,7 +185,9 @@ InspectorTest.runAsyncTestSuite([
       objectId: instance.objectId
     });
     let callFrameId = await waitForDebuggerPaused();
+    await dumpOnCallFrame(callFrameId, `functions`);
     await dumpOnCallFrame(callFrameId, `typeof functions`);
+    await dumpOnCallFrame(callFrameId, `Object.keys(functions)`);
     await dumpKeysOnCallFrame(callFrameId, "functions", KEYS);
     await Protocol.Debugger.resume();
     await callMainPromise;
@@ -216,7 +220,9 @@ InspectorTest.runAsyncTestSuite([
       objectId: instance.objectId
     });
     let callFrameId = await waitForDebuggerPaused();
+    await dumpOnCallFrame(callFrameId, `locals`);
     await dumpOnCallFrame(callFrameId, `typeof locals`);
+    await dumpOnCallFrame(callFrameId, `Object.keys(locals)`);
     await dumpKeysOnCallFrame(callFrameId, "locals", KEYS);
 
     InspectorTest.log(`Stepping twice in main.`)
@@ -252,7 +258,9 @@ InspectorTest.runAsyncTestSuite([
       objectId: instance.objectId
     });
     let callFrameId = await waitForDebuggerPaused();
+    await dumpOnCallFrame(callFrameId, `memories`);
     await dumpOnCallFrame(callFrameId, `typeof memories`);
+    await dumpOnCallFrame(callFrameId, `Object.keys(memories)`);
     await dumpKeysOnCallFrame(callFrameId, "memories", KEYS);
     await Protocol.Debugger.resume();
     await callMainPromise;
@@ -282,8 +290,51 @@ InspectorTest.runAsyncTestSuite([
       objectId: instance.objectId
     });
     let callFrameId = await waitForDebuggerPaused();
+    await dumpOnCallFrame(callFrameId, `tables`);
     await dumpOnCallFrame(callFrameId, `typeof tables`);
+    await dumpOnCallFrame(callFrameId, `Object.keys(tables)`);
     await dumpKeysOnCallFrame(callFrameId, "tables", KEYS);
+    await Protocol.Debugger.resume();
+    await callMainPromise;
+  },
+
+  async function testStack() {
+    const builder = new WasmModuleBuilder();
+    const main = builder.addFunction('main', kSig_i_i)
+                        .addBody([
+                          kExprLocalGet, 0,
+                          kExprI32Const, 42,
+                          kExprI32Add,
+                        ]).exportFunc();
+
+    InspectorTest.log('Compile module.');
+    const [module, scriptId] = await compileModule(builder);
+
+    InspectorTest.log('Set breakpoint in main.');
+    await Protocol.Debugger.setBreakpoint({
+      location: {scriptId, lineNumber: 0, columnNumber: main.body_offset}
+    });
+
+    InspectorTest.log('Instantiate module.');
+    const instance = await instantiateModule(module);
+
+    InspectorTest.log('Call main.');
+    const callMainPromise = Protocol.Runtime.callFunctionOn({
+      functionDeclaration: `function() { return this.exports.main(5); }`,
+      objectId: instance.objectId
+    });
+    let callFrameId = await waitForDebuggerPaused();
+    await dumpOnCallFrame(callFrameId, `stack`);
+    await dumpOnCallFrame(callFrameId, `typeof stack`);
+    await dumpOnCallFrame(callFrameId, `Object.keys(stack)`);
+
+    InspectorTest.log(`Stepping twice in main.`)
+    await Protocol.Debugger.stepOver();  // local.get $var0
+    await Protocol.Debugger.stepOver();  // i32.const 42
+    callFrameId = await waitForDebuggerPaused();
+    await dumpOnCallFrame(callFrameId, `stack`);
+    await dumpOnCallFrame(callFrameId, `Object.keys(stack)`);
+    await dumpKeysOnCallFrame(callFrameId, "stack", [0, 1]);
     await Protocol.Debugger.resume();
     await callMainPromise;
   }

@@ -100,7 +100,7 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
     WasmFrame* frame = WasmFrame::cast(it.frame());
     Handle<SharedFunctionInfo> outer_info(
         isolate->native_context()->empty_function().shared(), isolate);
-    Handle<JSProxy> context_extension = wasm::GetJSDebugProxy(frame);
+    Handle<JSObject> context_extension = wasm::GetJSDebugProxy(frame);
     Handle<ScopeInfo> scope_info =
         ScopeInfo::CreateForWithScope(isolate, Handle<ScopeInfo>::null());
     Handle<Context> context = isolate->factory()->NewWithContext(

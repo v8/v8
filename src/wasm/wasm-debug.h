@@ -195,7 +195,7 @@ class V8_EXPORT_PRIVATE DebugInfo {
   std::unique_ptr<DebugInfoImpl> impl_;
 };
 
-Handle<JSProxy> GetJSDebugProxy(WasmFrame* frame);
+Handle<JSObject> GetJSDebugProxy(WasmFrame* frame);
 
 }  // namespace wasm
 }  // namespace internal
