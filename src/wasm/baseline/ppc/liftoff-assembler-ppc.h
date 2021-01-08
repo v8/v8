@@ -583,6 +583,13 @@ void LiftoffAssembler::emit_smi_check(Register obj, Label* target,
   bailout(kUnsupportedArchitecture, "emit_smi_check");
 }
 
+void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
+                                Register addr, Register offset_reg,
+                                uintptr_t offset_imm, LoadType type,
+                                uint8_t laneidx, uint32_t* protected_load_pc) {
+  bailout(kSimd, "loadlane");
+}
+
 void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
                                           LiftoffRegister lhs,
                                           LiftoffRegister rhs) {
