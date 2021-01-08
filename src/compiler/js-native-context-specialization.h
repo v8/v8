@@ -129,7 +129,8 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
 
   Reduction ReduceJSLoadPropertyWithEnumeratedKey(Node* node);
 
-  const StringConstantBase* CreateDelayedStringConstant(Node* node);
+  base::Optional<const StringConstantBase*> CreateDelayedStringConstant(
+      Node* node);
 
   // A triple of nodes that represents a continuation.
   class ValueEffectControl final {

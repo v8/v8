@@ -176,7 +176,7 @@ Reduction JSNativeContextSpecialization::ReduceJSToString(Node* node) {
   return NoChange();
 }
 
-const StringConstantBase*
+base::Optional<const StringConstantBase*>
 JSNativeContextSpecialization::CreateDelayedStringConstant(Node* node) {
   if (node->opcode() == IrOpcode::kDelayedStringConstant) {
     return StringConstantBaseOf(node->op());
@@ -189,8 +189,9 @@ JSNativeContextSpecialization::CreateDelayedStringConstant(Node* node) {
       HeapObjectMatcher matcher(node);
       if (matcher.HasResolvedValue() && matcher.Ref(broker()).IsString()) {
         StringRef s = matcher.Ref(broker()).AsString();
+        if (!s.length().has_value()) return base::nullopt;
         return shared_zone()->New<StringLiteral>(
-            s.object(), static_cast<size_t>(s.length()));
+            s.object(), static_cast<size_t>(s.length().value()));
       } else {
         UNREACHABLE();
       }
@@ -329,10 +330,14 @@ Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {
   // string constant and the addition won't throw due to too long result.
   if (*lhs_len + *rhs_len <= String::kMaxLength &&
       (IsStringConstant(broker(), lhs) || IsStringConstant(broker(), rhs))) {
-    const StringConstantBase* left = CreateDelayedStringConstant(lhs);
-    const StringConstantBase* right = CreateDelayedStringConstant(rhs);
+    base::Optional<const StringConstantBase*> left =
+        CreateDelayedStringConstant(lhs);
+    if (!left.has_value()) return NoChange();
+    base::Optional<const StringConstantBase*> right =
+        CreateDelayedStringConstant(rhs);
+    if (!right.has_value()) return NoChange();
     const StringConstantBase* cons =
-        shared_zone()->New<StringCons>(left, right);
+        shared_zone()->New<StringCons>(left.value(), right.value());
 
     Node* reduced = graph()->NewNode(common()->DelayedStringConstant(cons));
     ReplaceWithValue(node, reduced);
@@ -1480,7 +1485,8 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
     } else if (object.IsString() &&
                name.equals(ObjectRef(broker(), factory()->length_string()))) {
       // Constant-fold "length" property on constant strings.
-      Node* value = jsgraph()->Constant(object.AsString().length());
+      if (!object.AsString().length().has_value()) return NoChange();
+      Node* value = jsgraph()->Constant(object.AsString().length().value());
       ReplaceWithValue(node, value);
       return Replace(value);
     }
@@ -1978,7 +1984,9 @@ Reduction JSNativeContextSpecialization::ReduceElementLoadFromHeapConstant(
   if (receiver_ref.IsString()) {
     DCHECK_NE(access_mode, AccessMode::kHas);
     // Ensure that {key} is less than {receiver} length.
-    Node* length = jsgraph()->Constant(receiver_ref.AsString().length());
+    if (!receiver_ref.AsString().length().has_value()) return NoChange();
+    Node* length =
+        jsgraph()->Constant(receiver_ref.AsString().length().value());
 
     // Load the single character string from {receiver} or yield
     // undefined if the {key} is out of bounds (depending on the

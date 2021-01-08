@@ -3064,9 +3064,17 @@ bool MapRef::IsUnboxedDoubleField(InternalIndex descriptor_index) const {
       .is_unboxed_double_field;
 }
 
-int StringRef::length() const {
+base::Optional<int> StringRef::length() const {
   if (data_->should_access_heap()) {
-    return object()->synchronized_length();
+    if (data_->kind() == kNeverSerializedHeapObject &&
+        !this->IsInternalizedString()) {
+      TRACE_BROKER_MISSING(
+          broker(),
+          "length for kNeverSerialized non-internalized string " << *this);
+      return base::nullopt;
+    } else {
+      return object()->synchronized_length();
+    }
   }
   return data()->AsString()->length();
 }

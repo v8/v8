@@ -6009,7 +6009,7 @@ Reduction JSCallReducer::ReduceStringPrototypeStartsWith(Node* node) {
     ObjectRef target_ref = m.Ref(broker());
     if (target_ref.IsString()) {
       StringRef str = target_ref.AsString();
-      if (str.length() == 1) {
+      if (str.length().has_value() && str.length().value() == 1) {
         receiver = effect = graph()->NewNode(
             simplified()->CheckString(p.feedback()), receiver, effect, control);
 
