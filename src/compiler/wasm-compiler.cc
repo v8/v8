@@ -3794,6 +3794,16 @@ Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
   uintptr_t end_offset = offset + access_size - 1u;
   Node* end_offset_node = mcgraph_->UintPtrConstant(end_offset);
 
+  // In memory64 mode on 32-bit systems, the upper 32 bits need to be zero to
+  // succeed the bounds check.
+  if (kSystemPointerSize == kInt32Size && env_->module->is_memory64) {
+    Node* high_word = gasm_->TruncateInt64ToInt32(
+        gasm_->Word64Shr(index, gasm_->Int32Constant(32)));
+    TrapIfTrue(wasm::kTrapMemOutOfBounds, high_word, position);
+    // Only use the low word for the following bounds check.
+    index = gasm_->TruncateInt64ToInt32(index);
+  }
+
   // The accessed memory is [index + offset, index + end_offset].
   // Check that the last read byte (at {index + end_offset}) is in bounds.
   // 1) Check that {end_offset < mem_size}. This also ensures that we can safely

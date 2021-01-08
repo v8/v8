@@ -26,12 +26,6 @@ WASM_EXEC_TEST(Load) {
   // TODO(clemensb): Implement memory64 in the interpreter.
   if (execution_tier == TestExecutionTier::kInterpreter) return;
 
-  // TODO(clemensb): Fix memory64 in Turbofan on 32-bit systems.
-  if (execution_tier == TestExecutionTier::kTurbofan &&
-      kSystemPointerSize == 4) {
-    return;
-  }
-
   Memory64Runner<uint32_t, uint64_t> r(execution_tier);
   uint32_t* memory =
       r.builder().AddMemoryElems<uint32_t>(kWasmPageSize / sizeof(int32_t));
