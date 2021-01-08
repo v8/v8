@@ -6040,7 +6040,7 @@ Reduction JSCallReducer::ReduceStringPrototypeStartsWith(Node* node) {
               graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
                                masked_position, etrue, if_true);
 
-          Node* search_first = jsgraph()->Constant(str.GetFirstChar());
+          Node* search_first = jsgraph()->Constant(str.GetFirstChar().value());
           vtrue = graph()->NewNode(simplified()->NumberEqual(), string_first,
                                    search_first);
         }

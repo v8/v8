@@ -482,7 +482,8 @@ TypedOptimization::TryReduceStringComparisonOfStringFromSingleCharCode(
         simplified()->NumberBitwiseAnd(), from_char_code_repl,
         jsgraph()->Constant(std::numeric_limits<uint16_t>::max()));
   }
-  Node* constant_repl = jsgraph()->Constant(string.GetFirstChar());
+  if (!string.GetFirstChar().has_value()) return NoChange();
+  Node* constant_repl = jsgraph()->Constant(string.GetFirstChar().value());
 
   Node* number_comparison = nullptr;
   if (inverted) {
