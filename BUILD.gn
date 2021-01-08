@@ -3858,7 +3858,6 @@ v8_source_set("v8_base_without_compiler") {
   ]
 
   deps = [
-    ":cppgc_base",
     ":torque_generated_definitions",
     ":v8_cppgc_shared",
     ":v8_headers",
@@ -3872,6 +3871,7 @@ v8_source_set("v8_base_without_compiler") {
   ]
 
   public_deps = [
+    ":cppgc_base",
     ":generate_bytecode_builtins_list",
     ":run_torque",
     ":v8_maybe_icu",
