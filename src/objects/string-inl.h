@@ -154,6 +154,10 @@ bool StringShape::IsSequential() {
   return (type_ & kStringRepresentationMask) == kSeqStringTag;
 }
 
+bool StringShape::IsUncachedExternal() {
+  return (type_ & kUncachedExternalStringMask) == kUncachedExternalStringTag;
+}
+
 StringRepresentationTag StringShape::representation_tag() {
   uint32_t tag = (type_ & kStringRepresentationMask);
   return static_cast<StringRepresentationTag>(tag);

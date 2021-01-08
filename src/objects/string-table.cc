@@ -372,11 +372,12 @@ class InternalizedStringKey final : public StringTableKey {
     }
     if (FLAG_thin_strings) {
       // External strings get special treatment, to avoid copying their
-      // contents.
-      if (string_->IsExternalOneByteString()) {
+      // contents as long as they are not uncached.
+      StringShape shape(*string_);
+      if (shape.IsExternalOneByte() && !shape.IsUncachedExternal()) {
         return isolate->factory()
             ->InternalizeExternalString<ExternalOneByteString>(string_);
-      } else if (string_->IsExternalTwoByteString()) {
+      } else if (shape.IsExternalTwoByte() && !shape.IsUncachedExternal()) {
         return isolate->factory()
             ->InternalizeExternalString<ExternalTwoByteString>(string_);
       }

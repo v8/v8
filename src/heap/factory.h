@@ -993,7 +993,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   void InitializeJSObjectBody(Handle<JSObject> obj, Handle<Map> map,
                               int start_offset);
 
- private:
   Handle<WeakArrayList> NewUninitializedWeakArrayList(
       int capacity, AllocationType allocation = AllocationType::kYoung);
 };

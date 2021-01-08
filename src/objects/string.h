@@ -50,6 +50,7 @@ class StringShape {
   inline bool IsSliced();
   inline bool IsThin();
   inline bool IsIndirect();
+  inline bool IsUncachedExternal();
   inline bool IsExternalOneByte();
   inline bool IsExternalTwoByte();
   inline bool IsSequentialOneByte();

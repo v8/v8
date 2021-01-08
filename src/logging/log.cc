@@ -2227,8 +2227,9 @@ void ExistingCodeLogger::LogExistingFunction(
     }
   } else if (shared->IsApiFunction()) {
     // API function.
-    FunctionTemplateInfo fun_data = shared->get_api_func_data();
-    Object raw_call_data = fun_data.call_code(kAcquireLoad);
+    Handle<FunctionTemplateInfo> fun_data =
+        handle(shared->get_api_func_data(), isolate_);
+    Object raw_call_data = fun_data->call_code(kAcquireLoad);
     if (!raw_call_data.IsUndefined(isolate_)) {
       CallHandlerInfo call_data = CallHandlerInfo::cast(raw_call_data);
       Object callback_obj = call_data.callback();
@@ -2240,7 +2241,7 @@ void ExistingCodeLogger::LogExistingFunction(
       CALL_CODE_EVENT_HANDLER(CallbackEvent(fun_name, entry_point))
 
       // Fast API function.
-      Address c_function = v8::ToCData<Address>(fun_data.GetCFunction());
+      Address c_function = v8::ToCData<Address>(fun_data->GetCFunction());
       if (c_function != kNullAddress) {
         CALL_CODE_EVENT_HANDLER(CallbackEvent(fun_name, c_function))
       }

@@ -797,10 +797,6 @@ MaybeHandle<Map> GetInternalizedStringMap(Factory* f, Handle<String> string) {
       return f->external_internalized_string_map();
     case EXTERNAL_ONE_BYTE_STRING_TYPE:
       return f->external_one_byte_internalized_string_map();
-    case UNCACHED_EXTERNAL_STRING_TYPE:
-      return f->uncached_external_internalized_string_map();
-    case UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
-      return f->uncached_external_one_byte_internalized_string_map();
     default:
       return MaybeHandle<Map>();  // No match found.
   }
