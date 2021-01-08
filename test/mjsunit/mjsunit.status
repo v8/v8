@@ -77,6 +77,10 @@
   # https://crbug.com/1129854
   'tools/log': ['arch == arm or arch == arm64', SKIP],
 
+  # crbug.com/1161357
+  # TODO(solanes): Remove this entry once the underlying issue is fixed.
+  'regress/regress-1161357': [PASS, FAIL],
+
   ##############################################################################
   # Tests where variants make no sense.
   'd8/enable-tracing': [PASS, NO_VARIANTS],
