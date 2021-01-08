@@ -591,12 +591,32 @@ TEST(WasmLetInstruction) {
   // The result should be 0 and not 1, as local_get(0) refers to the original
   // local.
 
+  const byte kLetInLoop = tester.DefineFunction(
+      tester.sigs.i_i(), {},
+      {WASM_LOOP(WASM_LET_1_V(
+           kI32Code, WASM_I32V(10),  // --
+           WASM_LOCAL_SET(1, WASM_I32_SUB(WASM_LOCAL_GET(1), WASM_I32V(10))),
+           WASM_BR_IF(1, WASM_I32_GES(WASM_LOCAL_GET(1), WASM_LOCAL_GET(0))))),
+       WASM_LOCAL_GET(0), WASM_END});
+
+  const byte kLetInBlock = tester.DefineFunction(
+      tester.sigs.i_i(), {},
+      {WASM_BLOCK(WASM_LET_1_V(
+           kI32Code, WASM_I32V(10),  // --
+           WASM_BR_IF(1, WASM_I32_GES(WASM_LOCAL_GET(1), WASM_LOCAL_GET(0))),
+           WASM_LOCAL_SET(1, WASM_I32V(30)))),
+       WASM_LOCAL_GET(0), WASM_END});
+
   tester.CompileModule();
 
   tester.CheckResult(kLetTest1, 42);
   tester.CheckResult(kLetTest2, 420);
   tester.CheckResult(kLetTestLocals, 891, 1000);
   tester.CheckResult(kLetTestErase, 0);
+  tester.CheckResult(kLetInLoop, 2, 52);
+  tester.CheckResult(kLetInLoop, -11, -1);
+  tester.CheckResult(kLetInBlock, 15, 15);
+  tester.CheckResult(kLetInBlock, 30, 5);
 }
 
 WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
