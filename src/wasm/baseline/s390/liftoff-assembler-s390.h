@@ -92,8 +92,9 @@ inline MemOperand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
 }  // namespace liftoff
 
 int LiftoffAssembler::PrepareStackFrame() {
-  bailout(kUnsupportedArchitecture, "PrepareStackFrame");
-  return 0;
+  int offset = pc_offset();
+  lay(sp, MemOperand(sp));
+  return offset;
 }
 
 void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
@@ -104,12 +105,29 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
 void LiftoffAssembler::AlignFrameSize() {}
 
 void LiftoffAssembler::PatchPrepareStackFrame(int offset) {
-  bailout(kUnsupportedArchitecture, "PatchPrepareStackFrame");
+  int frame_size = GetTotalFrameSize() - kSystemPointerSize;
+
+  constexpr int LayInstrSize = 6;
+
+#ifdef USE_SIMULATOR
+  // When using the simulator, deal with Liftoff which allocates the stack
+  // before checking it.
+  // TODO(arm): Remove this when the stack check mechanism will be updated.
+  if (frame_size > KB / 2) {
+    bailout(kOtherReason,
+            "Stack limited to 512 bytes to avoid a bug in StackCheck");
+    return;
+  }
+#endif
+  Assembler patching_assembler(
+      AssemblerOptions{},
+      ExternalAssemblerBuffer(buffer_start_ + offset, LayInstrSize + kGap));
+  patching_assembler.lay(sp, MemOperand(sp, -frame_size));
 }
 
 void LiftoffAssembler::FinishCode() {}
 
-void LiftoffAssembler::AbortCompilation() {}
+void LiftoffAssembler::AbortCompilation() { AbortedCodeGeneration(); }
 
 // static
 constexpr int LiftoffAssembler::StaticStackFrameSize() {

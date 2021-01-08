@@ -1358,6 +1358,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
  public:
   byte* buffer_pos() const { return buffer_start_; }
 
+
+  // Code generation
+  // The relocation writer's position is at least kGap bytes below the end of
+  // the generated instructions. This is so that multi-instruction sequences do
+  // not have to check for overflow. The same is true for writes of large
+  // relocation info entries.
+  static constexpr int kGap = 32;
+  STATIC_ASSERT(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
+
  protected:
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
 
@@ -1374,14 +1383,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
  private:
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512 * MB;
-
-  // Code generation
-  // The relocation writer's position is at least kGap bytes below the end of
-  // the generated instructions. This is so that multi-instruction sequences do
-  // not have to check for overflow. The same is true for writes of large
-  // relocation info entries.
-  static constexpr int kGap = 32;
-  STATIC_ASSERT(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
 
   // Relocation info generation
   // Each relocation is encoded as a variable size value
