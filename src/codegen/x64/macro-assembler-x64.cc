@@ -1436,16 +1436,6 @@ void MacroAssembler::Negps(XMMRegister dst) {
                  ExternalReference::address_of_float_neg_constant()));
 }
 
-void MacroAssembler::Abspd(XMMRegister dst) {
-  Andps(dst, ExternalReferenceAsOperand(
-                 ExternalReference::address_of_double_abs_constant()));
-}
-
-void MacroAssembler::Negpd(XMMRegister dst) {
-  Xorps(dst, ExternalReferenceAsOperand(
-                 ExternalReference::address_of_double_neg_constant()));
-}
-
 void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
   if (source->IsSmi()) {
     Cmp(dst, Smi::cast(*source));
@@ -2197,6 +2187,16 @@ void TurboAssembler::I16x8ExtMul(XMMRegister dst, XMMRegister src1,
     is_signed ? Pmovsxbw(dst, dst) : Pmovzxbw(dst, dst);
     Pmullw(dst, kScratchDoubleReg);
   }
+}
+
+void TurboAssembler::Abspd(XMMRegister dst) {
+  Andps(dst, ExternalReferenceAsOperand(
+                 ExternalReference::address_of_double_abs_constant()));
+}
+
+void TurboAssembler::Negpd(XMMRegister dst) {
+  Xorps(dst, ExternalReferenceAsOperand(
+                 ExternalReference::address_of_double_neg_constant()));
 }
 
 void TurboAssembler::Psrld(XMMRegister dst, byte imm8) {

@@ -590,6 +590,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void I16x8ExtMul(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                    bool low, bool is_signed);
 
+  void Abspd(XMMRegister dst);
+  void Negpd(XMMRegister dst);
+
   void CompareRoot(Register with, RootIndex index);
   void CompareRoot(Operand with, RootIndex index);
 
@@ -966,8 +969,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // SIMD macros.
   void Absps(XMMRegister dst);
   void Negps(XMMRegister dst);
-  void Abspd(XMMRegister dst);
-  void Negpd(XMMRegister dst);
   // Generates a trampoline to jump to the off-heap instruction stream.
   void JumpToInstructionStream(Address entry);
 

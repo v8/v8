@@ -3214,16 +3214,14 @@ void InstructionSelector::VisitS128AndNot(Node* node) {
 
 void InstructionSelector::VisitF64x2Abs(Node* node) {
   X64OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempDoubleRegister()};
-  Emit(kX64F64x2Abs, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
-       arraysize(temps), temps);
+  Emit(kX64F64x2Abs, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)));
 }
 
 void InstructionSelector::VisitF64x2Neg(Node* node) {
   X64OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempDoubleRegister()};
-  Emit(kX64F64x2Neg, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
-       arraysize(temps), temps);
+  Emit(kX64F64x2Neg, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)));
 }
 
 void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {
