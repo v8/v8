@@ -2206,11 +2206,12 @@ class LiftoffCompiler {
 
   enum ForceCheck : bool { kDoForceCheck = true, kDontForceCheck = false };
 
-  // Returns true if the memory access is statically known to be out of bounds
-  // (a jump to the trap was generated then); return false otherwise.
-  bool BoundsCheckMem(FullDecoder* decoder, uint32_t access_size,
-                      uint64_t offset, Register index, LiftoffRegList pinned,
-                      ForceCheck force_check) {
+  // Returns {no_reg} if the memory access is statically known to be out of
+  // bounds (a jump to the trap was generated then); return the GP {index}
+  // register otherwise (holding the ptrsized index).
+  Register BoundsCheckMem(FullDecoder* decoder, uint32_t access_size,
+                          uint64_t offset, LiftoffRegister index,
+                          LiftoffRegList pinned, ForceCheck force_check) {
     // If the offset does not fit in a uintptr_t, this can never succeed on this
     // machine.
     const bool statically_oob =
@@ -2218,10 +2219,21 @@ class LiftoffCompiler {
         !base::IsInBounds<uintptr_t>(offset, access_size,
                                      env_->max_memory_size);
 
+    // After bounds checking, we know that the index must be ptrsize, hence only
+    // look at the lower word on 32-bit systems (the high word is bounds-checked
+    // further down).
+    Register index_ptrsize =
+        kNeedI64RegPair && index.is_gp_pair() ? index.low_gp() : index.gp();
+
     if (!force_check && !statically_oob &&
         (!FLAG_wasm_bounds_checks || env_->use_trap_handler)) {
-      return false;
+      // With trap handlers we should not have a register pair as input (we
+      // would only return the lower half).
+      DCHECK_IMPLIES(env_->use_trap_handler, index.is_gp());
+      return index_ptrsize;
     }
+
+    DEBUG_CODE_COMMENT("bounds check memory");
 
     // TODO(wasm): This adds protected instruction information for the jump
     // instruction we are about to generate. It would be better to just not add
@@ -2233,38 +2245,46 @@ class LiftoffCompiler {
     if (statically_oob) {
       __ emit_jump(trap_label);
       decoder->SetSucceedingCodeDynamicallyUnreachable();
-      return true;
+      return no_reg;
+    }
+
+    // Convert the index to ptrsize, bounds-checking the high word on 32-bit
+    // systems for memory64.
+    if (!env_->module->is_memory64) {
+      __ emit_u32_to_intptr(index_ptrsize, index_ptrsize);
+    } else if (kSystemPointerSize == kInt32Size) {
+      DCHECK_GE(kMaxUInt32, env_->max_memory_size);
+      // Unary "unequal" means "not equals zero".
+      __ emit_cond_jump(kUnequal, trap_label, kWasmI32, index.high_gp());
     }
 
     uintptr_t end_offset = offset + access_size - 1u;
 
-    // If the end offset is larger than the smallest memory, dynamically check
-    // the end offset against the actual memory size, which is not known at
-    // compile time. Otherwise, only one check is required (see below).
+    pinned.set(index_ptrsize);
     LiftoffRegister end_offset_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    Register mem_size = __ GetUnusedRegister(kGpReg, pinned).gp();
-    LOAD_INSTANCE_FIELD(mem_size, MemorySize, kSystemPointerSize);
+    LiftoffRegister mem_size = __ GetUnusedRegister(kGpReg, pinned);
+    LOAD_INSTANCE_FIELD(mem_size.gp(), MemorySize, kSystemPointerSize);
 
     __ LoadConstant(end_offset_reg, WasmValue::ForUintPtr(end_offset));
 
+    // If the end offset is larger than the smallest memory, dynamically check
+    // the end offset against the actual memory size, which is not known at
+    // compile time. Otherwise, only one check is required (see below).
     if (end_offset > env_->min_memory_size) {
-      __ emit_cond_jump(kUnsignedGreaterEqual, trap_label,
-                        LiftoffAssembler::kWasmIntPtr, end_offset_reg.gp(),
-                        mem_size);
+      __ emit_cond_jump(kUnsignedGreaterEqual, trap_label, kPointerValueType,
+                        end_offset_reg.gp(), mem_size.gp());
     }
 
     // Just reuse the end_offset register for computing the effective size
     // (which is >= 0 because of the check above).
     LiftoffRegister effective_size_reg = end_offset_reg;
-    __ emit_ptrsize_sub(effective_size_reg.gp(), mem_size, end_offset_reg.gp());
+    __ emit_ptrsize_sub(effective_size_reg.gp(), mem_size.gp(),
+                        end_offset_reg.gp());
 
-    __ emit_u32_to_intptr(index, index);
-
-    __ emit_cond_jump(kUnsignedGreaterEqual, trap_label,
-                      LiftoffAssembler::kWasmIntPtr, index,
-                      effective_size_reg.gp());
-    return false;
+    __ emit_cond_jump(kUnsignedGreaterEqual, trap_label, kPointerValueType,
+                      index_ptrsize, effective_size_reg.gp());
+    return index_ptrsize;
   }
 
   void AlignmentCheckMem(FullDecoder* decoder, uint32_t access_size,
@@ -2358,17 +2378,16 @@ class LiftoffCompiler {
     // Make sure that we can overwrite {index}.
     if (__ cache_state()->is_used(LiftoffRegister(index))) {
       Register old_index = index;
-      pinned->clear(LiftoffRegister(old_index));
+      pinned->clear(LiftoffRegister{old_index});
       index = pinned->set(__ GetUnusedRegister(kGpReg, *pinned)).gp();
-      // TODO(clemensb): Use kWasmI64 if memory64 is used.
-      if (index != old_index) __ Move(index, old_index, kWasmI32);
+      if (index != old_index) {
+        __ Move(index, old_index, kPointerValueType);
+      }
     }
     Register tmp = __ GetUnusedRegister(kGpReg, *pinned).gp();
-    // TODO(clemensb): Use 64-bit operations if memory64 is used.
-    DCHECK_GE(kMaxUInt32, *offset);
-    if (*offset) __ emit_i32_addi(index, index, static_cast<uint32_t>(*offset));
     LOAD_INSTANCE_FIELD(tmp, MemoryMask, kSystemPointerSize);
-    __ emit_i32_and(index, index, tmp);
+    if (*offset) __ emit_ptrsize_addi(index, index, *offset);
+    __ emit_ptrsize_and(index, index, tmp);
     *offset = 0;
     return index;
   }
@@ -2384,13 +2403,13 @@ class LiftoffCompiler {
                const Value& index_val, Value* result) {
     ValueType value_type = type.value_type();
     if (!CheckSupportedType(decoder, value_type, "load")) return;
-    LiftoffRegList pinned;
-    Register index = pinned.set(__ PopToRegister()).gp();
-    if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned,
-                       kDontForceCheck)) {
-      return;
-    }
+    LiftoffRegister full_index = __ PopToRegister();
+    Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
+                                    full_index, {}, kDontForceCheck);
+    if (index == no_reg) return;
+
     uintptr_t offset = imm.offset;
+    LiftoffRegList pinned = LiftoffRegList::ForRegs(index);
     index = AddMemoryMasking(index, &offset, &pinned);
     DEBUG_CODE_COMMENT("load from memory");
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
@@ -2422,19 +2441,18 @@ class LiftoffCompiler {
       return;
     }
 
-    LiftoffRegList pinned;
-    Register index = pinned.set(__ PopToRegister()).gp();
+    LiftoffRegister full_index = __ PopToRegister();
     // For load splats and load zero, LoadType is the size of the load, and for
     // load extends, LoadType is the size of the lane, and it always loads 8
     // bytes.
     uint32_t access_size =
         transform == LoadTransformationKind::kExtend ? 8 : type.size();
-    if (BoundsCheckMem(decoder, access_size, imm.offset, index, pinned,
-                       kDontForceCheck)) {
-      return;
-    }
+    Register index = BoundsCheckMem(decoder, access_size, imm.offset,
+                                    full_index, {}, kDontForceCheck);
+    if (index == no_reg) return;
 
     uintptr_t offset = imm.offset;
+    LiftoffRegList pinned = LiftoffRegList::ForRegs(index);
     index = AddMemoryMasking(index, &offset, &pinned);
     DEBUG_CODE_COMMENT("load with transformation");
     Register addr = __ GetUnusedRegister(kGpReg, pinned).gp();
@@ -2470,13 +2488,13 @@ class LiftoffCompiler {
 
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
-    Register index = pinned.set(__ PopToRegister()).gp();
-    if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned,
-                       kDontForceCheck)) {
-      return;
-    }
+    LiftoffRegister full_index = __ PopToRegister();
+    Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
+                                    full_index, pinned, kDontForceCheck);
+    if (index == no_reg) return;
 
     uintptr_t offset = imm.offset;
+    pinned.set(index);
     index = AddMemoryMasking(index, &offset, &pinned);
     DEBUG_CODE_COMMENT("load lane");
     Register addr = __ GetUnusedRegister(kGpReg, pinned).gp();
@@ -2507,12 +2525,13 @@ class LiftoffCompiler {
     if (!CheckSupportedType(decoder, value_type, "store")) return;
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
-    Register index = pinned.set(__ PopToRegister(pinned)).gp();
-    if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned,
-                       kDontForceCheck)) {
-      return;
-    }
+    LiftoffRegister full_index = __ PopToRegister(pinned);
+    Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
+                                    full_index, pinned, kDontForceCheck);
+    if (index == no_reg) return;
+
     uintptr_t offset = imm.offset;
+    pinned.set(index);
     index = AddMemoryMasking(index, &offset, &pinned);
     DEBUG_CODE_COMMENT("store to memory");
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
@@ -3282,11 +3301,12 @@ class LiftoffCompiler {
                       const MemoryAccessImmediate<validate>& imm) {
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
-    Register index = pinned.set(__ PopToRegister(pinned)).gp();
-    if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned,
-                       kDoForceCheck)) {
-      return;
-    }
+    LiftoffRegister full_index = __ PopToRegister(pinned);
+    Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
+                                    full_index, pinned, kDoForceCheck);
+    if (index == no_reg) return;
+
+    pinned.set(index);
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
     uintptr_t offset = imm.offset;
     index = AddMemoryMasking(index, &offset, &pinned);
@@ -3305,12 +3325,12 @@ class LiftoffCompiler {
   void AtomicLoadMem(FullDecoder* decoder, LoadType type,
                      const MemoryAccessImmediate<validate>& imm) {
     ValueType value_type = type.value_type();
-    LiftoffRegList pinned;
-    Register index = pinned.set(__ PopToRegister()).gp();
-    if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned,
-                       kDoForceCheck)) {
-      return;
-    }
+    LiftoffRegister full_index = __ PopToRegister();
+    Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
+                                    full_index, {}, kDoForceCheck);
+    if (index == no_reg) return;
+
+    LiftoffRegList pinned = LiftoffRegList::ForRegs(index);
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
     uintptr_t offset = imm.offset;
     index = AddMemoryMasking(index, &offset, &pinned);
@@ -3353,11 +3373,12 @@ class LiftoffCompiler {
     LiftoffRegister result =
         pinned.set(__ GetUnusedRegister(value.reg_class(), pinned));
 #endif
-    Register index = pinned.set(__ PopToRegister(pinned)).gp();
-    if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned,
-                       kDoForceCheck)) {
-      return;
-    }
+    LiftoffRegister full_index = __ PopToRegister(pinned);
+    Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
+                                    full_index, pinned, kDoForceCheck);
+    if (index == no_reg) return;
+
+    pinned.set(index);
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
 
     uintptr_t offset = imm.offset;
@@ -3377,20 +3398,19 @@ class LiftoffCompiler {
     // complete address calculation first, so that the address only needs a
     // single register. Afterwards we load all remaining values into the
     // other registers.
-    LiftoffRegList pinned;
-    Register index_reg = pinned.set(__ PeekToRegister(2, pinned)).gp();
-    if (BoundsCheckMem(decoder, type.size(), imm.offset, index_reg, pinned,
-                       kDoForceCheck)) {
-      return;
-    }
-    AlignmentCheckMem(decoder, type.size(), imm.offset, index_reg, pinned);
+    LiftoffRegister full_index = __ PeekToRegister(2, {});
+    Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
+                                    full_index, {}, kDoForceCheck);
+    if (index == no_reg) return;
+    LiftoffRegList pinned = LiftoffRegList::ForRegs(index);
+    AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
 
     uintptr_t offset = imm.offset;
-    index_reg = AddMemoryMasking(index_reg, &offset, &pinned);
+    index = AddMemoryMasking(index, &offset, &pinned);
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize);
-    __ emit_i32_add(addr, addr, index_reg);
-    pinned.clear(LiftoffRegister(index_reg));
+    __ emit_i32_add(addr, addr, index);
+    pinned.clear(LiftoffRegister(index));
     LiftoffRegister new_value = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister expected = pinned.set(__ PopToRegister(pinned));
 
@@ -3410,11 +3430,11 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister new_value = pinned.set(__ PopToRegister());
     LiftoffRegister expected = pinned.set(__ PopToRegister(pinned));
-    Register index = pinned.set(__ PopToRegister(pinned)).gp();
-    if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned,
-                       kDoForceCheck)) {
-      return;
-    }
+    LiftoffRegister full_index = __ PopToRegister(pinned);
+    Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
+                                    full_index, pinned, kDoForceCheck);
+    if (index == no_reg) return;
+    pinned.set(index);
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
 
     uintptr_t offset = imm.offset;
@@ -3444,12 +3464,12 @@ class LiftoffCompiler {
 
   void AtomicWait(FullDecoder* decoder, ValueType type,
                   const MemoryAccessImmediate<validate>& imm) {
-    LiftoffRegList pinned;
-    Register index_reg = pinned.set(__ PeekToRegister(2, pinned)).gp();
-    if (BoundsCheckMem(decoder, type.element_size_bytes(), imm.offset,
-                       index_reg, pinned, kDoForceCheck)) {
-      return;
-    }
+    LiftoffRegister full_index = __ PeekToRegister(2, {});
+    Register index_reg =
+        BoundsCheckMem(decoder, type.element_size_bytes(), imm.offset,
+                       full_index, {}, kDoForceCheck);
+    if (index_reg == no_reg) return;
+    LiftoffRegList pinned = LiftoffRegList::ForRegs(index_reg);
     AlignmentCheckMem(decoder, type.element_size_bytes(), imm.offset, index_reg,
                       pinned);
 
@@ -3520,12 +3540,12 @@ class LiftoffCompiler {
 
   void AtomicNotify(FullDecoder* decoder,
                     const MemoryAccessImmediate<validate>& imm) {
-    LiftoffRegList pinned;
-    Register index_reg = pinned.set(__ PeekToRegister(1, pinned)).gp();
-    if (BoundsCheckMem(decoder, kWasmI32.element_size_bytes(), imm.offset,
-                       index_reg, pinned, kDoForceCheck)) {
-      return;
-    }
+    LiftoffRegister full_index = __ PeekToRegister(1, {});
+    Register index_reg =
+        BoundsCheckMem(decoder, kWasmI32.element_size_bytes(), imm.offset,
+                       full_index, {}, kDoForceCheck);
+    if (index_reg == no_reg) return;
+    LiftoffRegList pinned = LiftoffRegList::ForRegs(index_reg);
     AlignmentCheckMem(decoder, kWasmI32.element_size_bytes(), imm.offset,
                       index_reg, pinned);
 

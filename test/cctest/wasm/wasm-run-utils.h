@@ -187,6 +187,8 @@ class TestingModuleBuilder {
 
   void SetHasSharedMemory() { test_module_->has_shared_memory = true; }
 
+  void SetMemory64() { test_module_->is_memory64 = true; }
+
   enum FunctionType { kImport, kWasm };
   uint32_t AddFunction(const FunctionSig* sig, const char* name,
                        FunctionType type);
@@ -253,6 +255,8 @@ class TestingModuleBuilder {
   RuntimeExceptionSupport runtime_exception_support() const {
     return runtime_exception_support_;
   }
+
+  void EnableFeature(WasmFeature feature) { enabled_features_.Add(feature); }
 
  private:
   std::shared_ptr<WasmModule> test_module_;

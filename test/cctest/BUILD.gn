@@ -307,6 +307,7 @@ v8_source_set("cctest_sources") {
     "wasm/test-run-wasm-exceptions.cc",
     "wasm/test-run-wasm-interpreter.cc",
     "wasm/test-run-wasm-js.cc",
+    "wasm/test-run-wasm-memory64.cc",
     "wasm/test-run-wasm-module.cc",
     "wasm/test-run-wasm-sign-extension.cc",
     "wasm/test-run-wasm-simd-liftoff.cc",
