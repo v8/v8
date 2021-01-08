@@ -2401,6 +2401,29 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
   }
 }
 
+void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
+                                Register addr, Register offset_reg,
+                                uintptr_t offset_imm, LoadType type,
+                                uint8_t laneidx, uint32_t* protected_load_pc) {
+  if (emit_debug_code() && offset_reg != no_reg) {
+    AssertZeroExtended(offset_reg);
+  }
+  Operand src_op = liftoff::GetMemOp(this, addr, offset_reg, offset_imm);
+  *protected_load_pc = pc_offset();
+
+  MachineType mem_type = type.mem_type();
+  if (mem_type == MachineType::Int8()) {
+    Pinsrb(dst.fp(), src.fp(), src_op, laneidx);
+  } else if (mem_type == MachineType::Int16()) {
+    Pinsrw(dst.fp(), src.fp(), src_op, laneidx);
+  } else if (mem_type == MachineType::Int32()) {
+    Pinsrd(dst.fp(), src.fp(), src_op, laneidx);
+  } else {
+    DCHECK_EQ(MachineType::Int64(), mem_type);
+    Pinsrq(dst.fp(), src.fp(), src_op, laneidx);
+  }
+}
+
 void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
                                           LiftoffRegister lhs,
                                           LiftoffRegister rhs,

@@ -2461,10 +2461,43 @@ class LiftoffCompiler {
     }
   }
 
-  void LoadLane(FullDecoder* decoder, LoadType type, const Value& value,
-                const Value& index, const MemoryAccessImmediate<validate>& imm,
-                const uint8_t laneidx, Value* result) {
-    unsupported(decoder, kSimd, "simd load lane");
+  void LoadLane(FullDecoder* decoder, LoadType type, const Value& _value,
+                const Value& _index, const MemoryAccessImmediate<validate>& imm,
+                const uint8_t laneidx, Value* _result) {
+    if (!CheckSupportedType(decoder, kWasmS128, "LoadLane")) {
+      return;
+    }
+
+    LiftoffRegList pinned;
+    LiftoffRegister value = pinned.set(__ PopToRegister());
+    Register index = pinned.set(__ PopToRegister()).gp();
+    if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned,
+                       kDontForceCheck)) {
+      return;
+    }
+
+    uintptr_t offset = imm.offset;
+    index = AddMemoryMasking(index, &offset, &pinned);
+    DEBUG_CODE_COMMENT("load lane");
+    Register addr = __ GetUnusedRegister(kGpReg, pinned).gp();
+    LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize);
+    LiftoffRegister result = __ GetUnusedRegister(reg_class_for(kS128), {});
+    uint32_t protected_load_pc = 0;
+
+    __ LoadLane(result, value, addr, index, offset, type, laneidx,
+                &protected_load_pc);
+    if (env_->use_trap_handler) {
+      AddOutOfLineTrap(decoder->position(),
+                       WasmCode::kThrowWasmTrapMemOutOfBounds,
+                       protected_load_pc);
+    }
+
+    __ PushRegister(ValueType::Primitive(kS128), result);
+
+    if (FLAG_trace_wasm_memory) {
+      TraceMemoryOperation(false, type.mem_type().representation(), index,
+                           offset, decoder->position());
+    }
   }
 
   void StoreMem(FullDecoder* decoder, StoreType type,

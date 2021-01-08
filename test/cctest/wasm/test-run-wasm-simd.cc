@@ -4009,11 +4009,6 @@ template <typename T>
 void RunLoadLaneTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                      WasmOpcode load_op, WasmOpcode splat_op) {
   FLAG_SCOPE(wasm_simd_post_mvp);
-  if (execution_tier == TestExecutionTier::kLiftoff) {
-    // Not yet implemented.
-    return;
-  }
-
   WasmOpcode const_op =
       splat_op == kExprI64x2Splat ? kExprI64Const : kExprI32Const;
 
