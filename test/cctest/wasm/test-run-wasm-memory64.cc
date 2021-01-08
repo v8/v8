@@ -41,7 +41,11 @@ WASM_EXEC_TEST(Load) {
   CHECK_EQ(0x12, r.Call(3));
   CHECK_EQ(0x0, r.Call(4));
 
-  // TODO(clemensb): Check traps.
+  CHECK_TRAP(r.Call(-1));
+  CHECK_TRAP(r.Call(kWasmPageSize));
+  CHECK_TRAP(r.Call(kWasmPageSize - 3));
+  CHECK_EQ(0x0, r.Call(kWasmPageSize - 4));
+  CHECK_TRAP(r.Call(uint64_t{1} << 32));
 }
 
 // TODO(clemensb): Test atomic instructions.

@@ -3793,7 +3793,7 @@ Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
                                        wasm::WasmCodePosition position,
                                        EnforceBoundsCheck enforce_check) {
   DCHECK_LE(1, access_size);
-  index = Uint32ToUintptr(index);
+  if (!env_->module->is_memory64) index = Uint32ToUintptr(index);
   if (!FLAG_wasm_bounds_checks) return index;
 
   if (use_trap_handler() && enforce_check == kCanOmitBoundsCheck) {
