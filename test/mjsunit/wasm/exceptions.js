@@ -1039,3 +1039,20 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   instance = builder.instantiate();
   assertEquals(2, instance.exports.test());
 })();
+
+(function TestDelegateToCaller() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except = builder.addException(kSig_v_v);
+  builder.addFunction('test', kSig_v_v)
+      .addBody([
+        kExprTry, kWasmStmt,
+          kExprTry, kWasmStmt,
+            kExprThrow, except,
+          kExprDelegate, 1,
+        kExprCatchAll,
+        kExprEnd
+      ]).exportFunc();
+  instance = builder.instantiate();
+  assertTraps(WebAssembly.RuntimeError, () => instance.exports.test());
+})();

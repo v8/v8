@@ -2900,14 +2900,16 @@ TEST_F(FunctionBodyDecoderTest, TryDelegate) {
                   {WASM_TRY_OP,
                    WASM_BLOCK(WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 0)),
                    kExprCatch, ex, kExprEnd});
+  ExpectValidates(
+      sigs.v_v(),
+      {WASM_BLOCK(WASM_TRY_OP, WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 2),
+                  kExprCatch, ex, kExprEnd)});
 
-  // delegate after catch.
-  // delegate after catch_all.
   ExpectFailure(
       sigs.v_v(),
-      {WASM_BLOCK(WASM_TRY_OP, WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 1),
+      {WASM_BLOCK(WASM_TRY_OP, WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 3),
                   kExprCatch, ex, kExprEnd)},
-      kAppendEnd, "delegate does not target a try-catch");
+      kAppendEnd, "invalid branch depth: 3");
   ExpectFailure(
       sigs.v_v(),
       {WASM_TRY_OP, WASM_TRY_OP, kExprCatch, ex, kExprDelegate, 0, kExprEnd},

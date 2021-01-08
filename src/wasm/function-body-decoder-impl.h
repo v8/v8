@@ -2484,16 +2484,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     while (next_try < control_depth() && !control_at(next_try)->is_try()) {
       next_try++;
     }
-    if (next_try == control_depth()) {
-      this->DecodeError("delegate does not target a try-catch");
-      return 0;
-    }
     FallThruTo(c);
     CALL_INTERFACE_IF_PARENT_REACHABLE(Delegate, next_try, c);
     current_code_reachable_ = this->ok() && control_.back().reachable();
     EndControl();
     PopControl(c);
-    c->reachability = control_at(1)->innerReachability();
     return 1 + imm.length;
   }
 
