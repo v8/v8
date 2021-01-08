@@ -287,6 +287,23 @@ class LazyTable {
   }
 }
 
+export function gradientStopsFromGroups(
+    totalLength, maxHeight, groups, colorFn) {
+  const kMaxHeight = maxHeight === '%' ? 100 : maxHeight;
+  const kUnit = maxHeight === '%' ? '%' : 'px';
+  let increment = 0;
+  let lastHeight = 0.0;
+  const stops = [];
+  for (let group of groups) {
+    const color = colorFn(group.key);
+    increment += group.count;
+    let height = (increment / totalLength * kMaxHeight) | 0;
+    stops.push(`${color} ${lastHeight}${kUnit} ${height}${kUnit}`)
+    lastHeight = height;
+  }
+  return stops;
+}
+
 export * from '../helper.mjs';
 export {
   DOM,

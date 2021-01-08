@@ -5,7 +5,7 @@
 import {kChunkHeight, kChunkWidth} from '../../log/map.mjs';
 import {MapLogEntry} from '../../log/map.mjs';
 import {FocusEvent, SelectionEvent, SelectTimeEvent, SynchronizeSelectionEvent, ToolTipEvent,} from '../events.mjs';
-import {CSSColor, DOM, V8CustomElement} from '../helper.mjs';
+import {CSSColor, DOM, gradientStopsFromGroups, V8CustomElement} from '../helper.mjs';
 
 DOM.defineCustomElement('view/timeline/timeline-track',
                         (templateText) =>
@@ -147,19 +147,9 @@ DOM.defineCustomElement('view/timeline/timeline-track',
   }
 
   _createBackgroundImage(chunk) {
-    // Render the types of transitions as bar charts
-    const kHeight = chunk.height;
-    const total = chunk.size();
-    let increment = 0;
-    let lastHeight = 0.0;
-    const stops = [];
-    for (let group of chunk.getBreakdown(map => map.type)) {
-      const color = this._legend.colorForType(group.key);
-      increment += group.count;
-      let height = (increment / total * kHeight) | 0;
-      stops.push(`${color} ${lastHeight}px ${height}px`)
-      lastHeight = height;
-    }
+    const stops = gradientStopsFromGroups(
+        chunk.length, chunk.height, chunk.getBreakdown(event => event.type),
+        type => this._legend.colorForType(type));
     return `linear-gradient(0deg,${stops.join(',')})`;
   }
 

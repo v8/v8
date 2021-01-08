@@ -233,6 +233,10 @@ class Chunk {
     return this.items.length;
   }
 
+  get length() {
+    return this.items.length;
+  }
+
   yOffset(event) {
     // items[0]   == oldest event, displayed at the top of the chunk
     // items[n-1] == youngest event, displayed at the bottom of the chunk

@@ -52,6 +52,13 @@ class App {
     this._startupPromise = this.runAsyncInitialize();
   }
 
+  static get allEventTypes() {
+    return new Set([
+      SourcePosition, MapLogEntry, IcLogEntry, ApiLogEntry, CodeLogEntry,
+      DeoptLogEntry
+    ]);
+  }
+
   async runAsyncInitialize() {
     await Promise.all([
       import('./view/list-panel.mjs'),
@@ -118,10 +125,7 @@ class App {
   }
 
   selectEntries(entries) {
-    const missingTypes = new Set([
-      SourcePosition, MapLogEntry, IcLogEntry, ApiLogEntry, CodeLogEntry,
-      DeoptLogEntry
-    ]);
+    const missingTypes = App.allEventTypes;
     groupBy(entries, each => each.constructor, true).forEach(group => {
       this.selectEntriesOfSingleType(group.entries);
       missingTypes.delete(group.key);
