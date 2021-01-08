@@ -765,7 +765,9 @@ void Simulator::EvalTableInit() {
   V(vs, VS, 0xE7F7)       /* type = VRR_C VECTOR SUBTRACT  */                  \
   V(vml, VML, 0xE7A2)     /* type = VRR_C VECTOR MULTIPLY LOW  */              \
   V(vme, VME, 0xE7A6)     /* type = VRR_C VECTOR MULTIPLY EVEN  */             \
+  V(vmle, VMLE, 0xE7A4)   /* type = VRR_C VECTOR MULTIPLY EVEN LOGICAL */      \
   V(vmo, VMO, 0xE7A7)     /* type = VRR_C VECTOR MULTIPLY ODD  */              \
+  V(vmlo, VMLO, 0xE7A75)  /* type = VRR_C VECTOR MULTIPLY LOGICAL ODD */       \
   V(vnc, VNC, 0xE769)     /* type = VRR_C VECTOR AND WITH COMPLEMENT */        \
   V(vsum, VSUM, 0xE764)   /* type = VRR_C VECTOR SUM ACROSS WORD  */           \
   V(vsumg, VSUMG, 0xE765) /* type = VRR_C VECTOR SUM ACROSS DOUBLEWORD  */     \
@@ -3220,29 +3222,32 @@ EVALUATE(VML) {
     input_type src1 = get_simd_register_by_lane<input_type>(r3, i);        \
     set_simd_register_by_lane<result_type>(r1, k, src0 * src1);            \
   }
-#define VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, is_odd)                      \
-  switch (m4) {                                                           \
-    case 0: {                                                             \
-      VECTOR_MULTIPLY_EVEN_ODD_TYPE(r1, r2, r3, int8_t, int16_t, is_odd)  \
-      break;                                                              \
-    }                                                                     \
-    case 1: {                                                             \
-      VECTOR_MULTIPLY_EVEN_ODD_TYPE(r1, r2, r3, int16_t, int32_t, is_odd) \
-      break;                                                              \
-    }                                                                     \
-    case 2: {                                                             \
-      VECTOR_MULTIPLY_EVEN_ODD_TYPE(r1, r2, r3, int32_t, int64_t, is_odd) \
-      break;                                                              \
-    }                                                                     \
-    default:                                                              \
-      UNREACHABLE();                                                      \
+#define VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, is_odd, sign)                    \
+  switch (m4) {                                                               \
+    case 0: {                                                                 \
+      VECTOR_MULTIPLY_EVEN_ODD_TYPE(r1, r2, r3, sign##int8_t, sign##int16_t,  \
+                                    is_odd)                                   \
+      break;                                                                  \
+    }                                                                         \
+    case 1: {                                                                 \
+      VECTOR_MULTIPLY_EVEN_ODD_TYPE(r1, r2, r3, sign##int16_t, sign##int32_t, \
+                                    is_odd)                                   \
+      break;                                                                  \
+    }                                                                         \
+    case 2: {                                                                 \
+      VECTOR_MULTIPLY_EVEN_ODD_TYPE(r1, r2, r3, sign##int32_t, sign##int64_t, \
+                                    is_odd)                                   \
+      break;                                                                  \
+    }                                                                         \
+    default:                                                                  \
+      UNREACHABLE();                                                          \
   }
 EVALUATE(VME) {
   DCHECK_OPCODE(VME);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
   USE(m5);
   USE(m6);
-  VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, false)
+  VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, false, )
   return length;
 }
 
@@ -3251,7 +3256,24 @@ EVALUATE(VMO) {
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
   USE(m5);
   USE(m6);
-  VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, true)
+  VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, true, )
+  return length;
+}
+EVALUATE(VMLE) {
+  DCHECK_OPCODE(VMLE);
+  DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
+  USE(m5);
+  USE(m6);
+  VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, false, u)
+  return length;
+}
+
+EVALUATE(VMLO) {
+  DCHECK_OPCODE(VMLO);
+  DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
+  USE(m5);
+  USE(m6);
+  VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, true, u)
   return length;
 }
 #undef VECTOR_MULTIPLY_EVEN_ODD
@@ -3295,8 +3317,8 @@ EVALUATE(VSUM) {
   USE(m6);
   USE(m5);
   switch (m4) {
-    CASE(1, int8_t, int32_t);
-    CASE(2, int16_t, int32_t);
+    CASE(0, uint8_t, uint32_t);
+    CASE(1, uint16_t, uint32_t);
     default:
       UNREACHABLE();
   }
@@ -3309,8 +3331,8 @@ EVALUATE(VSUMG) {
   USE(m6);
   USE(m5);
   switch (m4) {
-    CASE(1, int16_t, int64_t);
-    CASE(2, int32_t, int64_t);
+    CASE(1, uint16_t, uint64_t);
+    CASE(2, uint32_t, uint64_t);
     default:
       UNREACHABLE();
   }

@@ -4187,6 +4187,40 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef ASSEMBLE_SIMD_I32X4_I16X8_EXT_MUL
+#define EXT_ADD_PAIRWISE(lane_size, mul_even, mul_odd)                        \
+  Simd128Register src = i.InputSimd128Register(0);                            \
+  Simd128Register dst = i.OutputSimd128Register();                            \
+  Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));         \
+  __ vrepi(kScratchDoubleReg, Operand(1), Condition(lane_size));              \
+  __ mul_even(tempFPReg1, src, kScratchDoubleReg, Condition(0), Condition(0), \
+              Condition(lane_size));                                          \
+  __ mul_odd(kScratchDoubleReg, src, kScratchDoubleReg, Condition(0),         \
+             Condition(0), Condition(lane_size));                             \
+  __ va(dst, tempFPReg1, kScratchDoubleReg, Condition(0), Condition(0),       \
+        Condition(lane_size + 1));
+    case kS390_I32x4ExtAddPairwiseI16x8S: {
+      EXT_ADD_PAIRWISE(1, vme, vmo)
+      break;
+    }
+    case kS390_I32x4ExtAddPairwiseI16x8U: {
+      Simd128Register src0 = i.InputSimd128Register(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vx(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg,
+            Condition(0), Condition(0), Condition(3));
+      __ vsum(dst, src0, kScratchDoubleReg, Condition(0), Condition(0),
+              Condition(1));
+
+      break;
+    }
+    case kS390_I16x8ExtAddPairwiseI8x16S: {
+      EXT_ADD_PAIRWISE(0, vme, vmo)
+      break;
+    }
+    case kS390_I16x8ExtAddPairwiseI8x16U: {
+      EXT_ADD_PAIRWISE(0, vmle, vmlo)
+      break;
+    }
+#undef EXT_ADD_PAIRWISE
     case kS390_StoreCompressTagged: {
       CHECK(!instr->HasOutput());
       size_t index = 0;
