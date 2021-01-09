@@ -666,30 +666,30 @@ CodeMap::CodeMap(StringsStorage& function_and_resource_names)
 CodeMap::~CodeMap() { Clear(); }
 
 void CodeMap::Clear() {
-  // First clean the free list as it's otherwise impossible to tell
-  // the slot type.
-  unsigned free_slot = free_list_head_;
-  while (free_slot != kNoFreeSlot) {
-    unsigned next_slot = code_entries_[free_slot].next_free_slot;
-    code_entries_[free_slot].entry = nullptr;
-    free_slot = next_slot;
-  }
-  for (auto slot : code_entries_) {
-    if (slot.entry) {
-      slot.entry->ReleaseStrings(function_and_resource_names_);
-      delete slot.entry;
+  for (auto& slot : code_map_) {
+    if (CodeEntry* entry = slot.second.entry) {
+      entry->ReleaseStrings(function_and_resource_names_);
+      delete entry;
+    } else {
+      // We expect all entries in the code mapping to contain a CodeEntry.
+      UNREACHABLE();
     }
   }
 
-  code_entries_.clear();
+  // Free all CodeEntry objects that are no longer in the map, but in a profile.
+  // TODO(acomminos): Remove this deque after we refcount CodeEntry objects.
+  for (CodeEntry* entry : used_entries_) {
+    DCHECK(entry->used());
+    DeleteCodeEntry(entry);
+  }
+
   code_map_.clear();
-  free_list_head_ = kNoFreeSlot;
+  used_entries_.clear();
 }
 
 void CodeMap::AddCode(Address addr, CodeEntry* entry, unsigned size) {
   ClearCodesInRange(addr, addr + size);
-  unsigned index = AddCodeEntry(addr, entry);
-  code_map_.emplace(addr, CodeEntryMapInfo{index, size});
+  code_map_.emplace(addr, CodeEntryMapInfo{entry, size});
 }
 
 void CodeMap::ClearCodesInRange(Address start, Address end) {
@@ -700,8 +700,10 @@ void CodeMap::ClearCodesInRange(Address start, Address end) {
   }
   auto right = left;
   for (; right != code_map_.end() && right->first < end; ++right) {
-    if (!entry(right->second.index)->used()) {
-      DeleteCodeEntry(right->second.index);
+    if (!right->second.entry->used()) {
+      DeleteCodeEntry(right->second.entry);
+    } else {
+      used_entries_.push_back(right->second.entry);
     }
   }
   code_map_.erase(left, right);
@@ -713,7 +715,7 @@ CodeEntry* CodeMap::FindEntry(Address addr, Address* out_instruction_start) {
   --it;
   Address start_address = it->first;
   Address end_address = start_address + it->second.size;
-  CodeEntry* ret = addr < end_address ? entry(it->second.index) : nullptr;
+  CodeEntry* ret = addr < end_address ? it->second.entry : nullptr;
   DCHECK(!ret || (addr >= start_address && addr < end_address));
   if (ret && out_instruction_start) *out_instruction_start = start_address;
   return ret;
@@ -730,30 +732,15 @@ void CodeMap::MoveCode(Address from, Address to) {
   code_map_.emplace(to, info);
 }
 
-unsigned CodeMap::AddCodeEntry(Address start, CodeEntry* entry) {
-  if (free_list_head_ == kNoFreeSlot) {
-    code_entries_.push_back(CodeEntrySlotInfo{entry});
-    return static_cast<unsigned>(code_entries_.size()) - 1;
-  }
-  unsigned index = free_list_head_;
-  free_list_head_ = code_entries_[index].next_free_slot;
-  code_entries_[index].entry = entry;
-  return index;
-}
-
-void CodeMap::DeleteCodeEntry(unsigned index) {
-  auto* entry = code_entries_[index].entry;
+void CodeMap::DeleteCodeEntry(CodeEntry* entry) {
   entry->ReleaseStrings(function_and_resource_names_);
   delete entry;
-
-  code_entries_[index].next_free_slot = free_list_head_;
-  free_list_head_ = index;
 }
 
 void CodeMap::Print() {
   for (const auto& pair : code_map_) {
     base::OS::Print("%p %5d %s\n", reinterpret_cast<void*>(pair.first),
-                    pair.second.size, entry(pair.second.index)->name());
+                    pair.second.size, pair.second.entry->name());
   }
 }
 

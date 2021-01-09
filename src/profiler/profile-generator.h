@@ -427,27 +427,16 @@ class V8_EXPORT_PRIVATE CodeMap {
 
  private:
   struct CodeEntryMapInfo {
-    unsigned index;
+    CodeEntry* entry;
     unsigned size;
   };
 
-  union CodeEntrySlotInfo {
-    CodeEntry* entry;
-    unsigned next_free_slot;
-  };
-
-  static constexpr unsigned kNoFreeSlot = std::numeric_limits<unsigned>::max();
-
   void ClearCodesInRange(Address start, Address end);
-  unsigned AddCodeEntry(Address start, CodeEntry*);
-  void DeleteCodeEntry(unsigned index);
+  void DeleteCodeEntry(CodeEntry*);
 
-  CodeEntry* entry(unsigned index) { return code_entries_[index].entry; }
-
-  // Added state here needs to be dealt with in Clear() as well.
-  std::deque<CodeEntrySlotInfo> code_entries_;
   std::map<Address, CodeEntryMapInfo> code_map_;
-  unsigned free_list_head_ = kNoFreeSlot;
+  std::deque<CodeEntry*> used_entries_;  // Entries that are no longer in the
+                                         // map, but used by a profile.
   StringsStorage& function_and_resource_names_;
 };
 
