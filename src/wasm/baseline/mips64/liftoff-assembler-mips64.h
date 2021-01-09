@@ -1608,6 +1608,13 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
   }
 }
 
+void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
+                                Register addr, Register offset_reg,
+                                uintptr_t offset_imm, LoadType type,
+                                uint8_t laneidx, uint32_t* protected_load_pc) {
+  bailout(kSimd, "loadlane");
+}
+
 void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
                                           LiftoffRegister lhs,
                                           LiftoffRegister rhs,
