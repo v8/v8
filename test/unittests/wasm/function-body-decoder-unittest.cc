@@ -1167,7 +1167,7 @@ TEST_F(FunctionBodyDecoderTest, UnreachableRefTypes) {
   ExpectFailure(
       sigs.v_v(), {WASM_UNREACHABLE, WASM_I32V(42), kExprBrOnNull, 0},
       kAppendEnd,
-      "br_on_null[0]: Expected object reference, found i32.const of type i32");
+      "br_on_null[0] expected object reference, found i32.const of type i32");
 }
 
 TEST_F(FunctionBodyDecoderTest, If1) {
@@ -3706,8 +3706,7 @@ TEST_F(FunctionBodyDecoderTest, RefAsNonNull) {
     FunctionSig sig(0, 1, &type);
     ExpectFailure(
         &sig, {WASM_REF_AS_NON_NULL(WASM_LOCAL_GET(0)), kExprDrop}, kAppendEnd,
-        "invalid agrument type to ref.as_non_null: Expected reference type, "
-        "got");
+        "ref.as_non_null[0] expected reference type, found local.get of type");
   }
 }
 
@@ -3745,7 +3744,7 @@ TEST_F(FunctionBodyDecoderTest, RefIsNull) {
                   {WASM_REF_IS_NULL(WASM_REF_NULL(kExternRefCode))});
   ExpectFailure(
       sigs.i_i(), {WASM_REF_IS_NULL(WASM_LOCAL_GET(0))}, kAppendEnd,
-      "invalid argument type to ref.is_null. Expected reference type, got i32");
+      "ref.is_null[0] expected reference type, found local.get of type i32");
 
   TestModuleBuilder builder;
   module = builder.module();
@@ -3768,7 +3767,7 @@ TEST_F(FunctionBodyDecoderTest, RefIsNull) {
   // It fails if the argument type is not a reference type.
   ExpectFailure(
       sigs.v_v(), {WASM_REF_IS_NULL(WASM_I32V(0)), kExprDrop}, kAppendEnd,
-      "invalid argument type to ref.is_null. Expected reference type, got ");
+      "ref.is_null[0] expected reference type, found i32.const of type i32");
 }
 
 TEST_F(FunctionBodyDecoderTest, BrOnNull) {
@@ -3845,13 +3844,13 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
                  kExprDrop},
                 kAppendEnd, "invalid struct index: 1");
   // Wrongly typed rtt.
-  ExpectFailure(
-      sigs.v_v(),
-      {WASM_STRUCT_NEW_WITH_RTT(struct_type_index, WASM_I32V(0),
-                                WASM_RTT_CANON(array_type_index)),
-       kExprDrop},
-      kAppendEnd,
-      "struct.new_with_rtt expected rtt for type 0, found rtt for type 1");
+  ExpectFailure(sigs.v_v(),
+                {WASM_STRUCT_NEW_WITH_RTT(struct_type_index, WASM_I32V(0),
+                                          WASM_RTT_CANON(array_type_index)),
+                 kExprDrop},
+                kAppendEnd,
+                "struct.new_with_rtt[1] expected rtt for type 0, found "
+                "rtt.canon of type (rtt 1 1)");
   // Out-of-bounds index.
   ExpectFailure(sigs.v_v(),
                 {WASM_STRUCT_NEW_WITH_RTT(42, WASM_I32V(0),
@@ -3911,21 +3910,22 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
           WASM_STRUCT_NEW_WITH_RTT(immutable_struct_type_index, WASM_I32V(42),
                                    WASM_RTT_CANON(immutable_struct_type_index)),
           WASM_I32V(0))},
-      kAppendEnd, "setting immutable struct field");
+      kAppendEnd, "struct.set: Field 0 of type 2 is immutable.");
 
   // struct.get_s/u fail
   ExpectFailure(
       &sig_i_r,
       {WASM_STRUCT_GET_S(struct_type_index, field_index, WASM_LOCAL_GET(0))},
       kAppendEnd,
-      "struct.get_s is only valid for packed struct fields. Use struct.get "
-      "instead.");
+      "struct.get_s: Immediate field 0 of type 0 has non-packed type i32. Use "
+      "struct.get instead.");
+
   ExpectFailure(
       &sig_i_r,
       {WASM_STRUCT_GET_U(struct_type_index, field_index, WASM_LOCAL_GET(0))},
       kAppendEnd,
-      "struct.get_u is only valid for packed struct fields. Use struct.get "
-      "instead.");
+      "struct.get_u: Immediate field 0 of type 0 has non-packed type i32. Use "
+      "struct.get instead.");
 }
 
 TEST_F(FunctionBodyDecoderTest, GCArray) {
@@ -3977,13 +3977,13 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
       kAppendEnd,
       "array.new_with_rtt[1] expected type i32, found i64.const of type i64");
   // Mistyped rtt.
-  ExpectFailure(
-      &sig_r_v,
-      {WASM_ARRAY_NEW_WITH_RTT(array_type_index, WASM_REF_NULL(kFuncRefCode),
-                               WASM_I32V(5),
-                               WASM_RTT_CANON(struct_type_index))},
-      kAppendEnd,
-      "array.new_with_rtt expected rtt for type 0, found rtt for type 1");
+  ExpectFailure(&sig_r_v,
+                {WASM_ARRAY_NEW_WITH_RTT(
+                    array_type_index, WASM_REF_NULL(kFuncRefCode), WASM_I32V(5),
+                    WASM_RTT_CANON(struct_type_index))},
+                kAppendEnd,
+                "array.new_with_rtt[2] expected rtt for type 0, found "
+                "rtt.canon of type (rtt 1 1)");
   // Wrong type index.
   ExpectFailure(
       sigs.v_v(),
@@ -4018,12 +4018,14 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
       &sig_c_r,
       {WASM_ARRAY_GET_S(array_type_index, WASM_LOCAL_GET(0), WASM_I32V(5))},
       kAppendEnd,
-      "array.get_s is only valid for packed arrays. Use array.get instead.");
+      "array.get_s: Immediate array type 0 has non-packed type funcref. Use "
+      "array.get instead.");
   ExpectFailure(
       &sig_c_r,
       {WASM_ARRAY_GET_U(array_type_index, WASM_LOCAL_GET(0), WASM_I32V(5))},
       kAppendEnd,
-      "array.get_u is only valid for packed arrays. Use array.get instead.");
+      "array.get_u: Immediate array type 0 has non-packed type funcref. Use "
+      "array.get instead.");
 
   /** array.set **/
   ExpectValidates(&sig_v_r,
@@ -4142,14 +4144,14 @@ TEST_F(FunctionBodyDecoderTest, PackedFields) {
                 {WASM_ARRAY_GET(array_type_index,
                                 WASM_REF_NULL(array_type_index), WASM_I32V(0))},
                 kAppendEnd,
-                "array.get used with a field of packed type. Use array.get_s "
-                "or array.get_u instead.");
+                "array.get: Immediate array type 0 has packed type i8. Use "
+                "array.get_s or array.get_u instead.");
   ExpectFailure(sigs.i_v(),
                 {WASM_STRUCT_GET(struct_type_index, field_index,
                                  WASM_REF_NULL(struct_type_index))},
                 kAppendEnd,
-                "struct.get used with a field of packed type. Use struct.get_s "
-                "or struct.get_u instead.");
+                "struct.get: Immediate field 0 of type 1 has packed type i16. "
+                "Use struct.get_s or struct.get_u instead.");
 }
 
 TEST_F(FunctionBodyDecoderTest, PackedTypesAsLocals) {
@@ -4242,15 +4244,15 @@ TEST_F(FunctionBodyDecoderTest, RttSub) {
   {
     ValueType type = ValueType::Rtt(HeapType::kFunc, 2);
     FunctionSig sig(1, 0, &type);
-    ExpectFailure(&sig,
-                  {WASM_RTT_SUB(kFuncRefCode, WASM_RTT_CANON(kI31RefCode))},
-                  kAppendEnd, "rtt.sub requires a supertype rtt on stack");
+    ExpectFailure(
+        &sig, {WASM_RTT_SUB(kFuncRefCode, WASM_RTT_CANON(kI31RefCode))},
+        kAppendEnd, "rtt.sub[0] expected rtt for a supertype of type func");
   }
 
   // Trivial type error.
-  ExpectFailure(sigs.v_v(),
-                {WASM_RTT_SUB(kFuncRefCode, WASM_I32V(42)), kExprDrop},
-                kAppendEnd, "rtt.sub requires a supertype rtt on stack");
+  ExpectFailure(
+      sigs.v_v(), {WASM_RTT_SUB(kFuncRefCode, WASM_I32V(42)), kExprDrop},
+      kAppendEnd, "rtt.sub[0] expected rtt for a supertype of type func");
 
   {
     ValueType type = ValueType::Rtt(array_type_index, 2);
@@ -4265,7 +4267,7 @@ TEST_F(FunctionBodyDecoderTest, RttSub) {
     ExpectFailure(
         sigs.v_v(),
         {WASM_RTT_SUB(kEqRefCode, WASM_RTT_CANON(array_type_index)), kExprDrop},
-        kAppendEnd, "rtt.sub requires a supertype rtt on stack");
+        kAppendEnd, "rtt.sub[0] expected rtt for a supertype of type eq");
   }
 
   {
@@ -4282,11 +4284,13 @@ TEST_F(FunctionBodyDecoderTest, RttSub) {
     ExpectFailure(sigs.v_v(),
                   {WASM_RTT_SUB(super_struct_type_index,
                                 WASM_RTT_CANON(array_type_index))},
-                  kAppendEnd, "rtt.sub requires a supertype rtt on stack");
+                  kAppendEnd,
+                  "rtt.sub[0] expected rtt for a supertype of type 1");
     ExpectFailure(sigs.v_v(),
                   {WASM_RTT_SUB(super_struct_type_index,
                                 WASM_RTT_CANON(sub_struct_type_index))},
-                  kAppendEnd, "rtt.sub requires a supertype rtt on stack");
+                  kAppendEnd,
+                  "rtt.sub[0] expected rtt for a supertype of type 1");
   }
 
   {
@@ -4361,14 +4365,12 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
                   {WASM_REF_TEST(WASM_HEAP_TYPE(from_heap),
                                  WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
                                  WASM_RTT_CANON(WASM_HEAP_TYPE(to_heap)))},
-                  kAppendEnd,
-                  "ref.test: rtt type must be subtype of object type");
+                  kAppendEnd, "is not a subtype of immediate object type");
     ExpectFailure(&cast_sig,
                   {WASM_REF_CAST(WASM_HEAP_TYPE(from_heap),
                                  WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
                                  WASM_RTT_CANON(WASM_HEAP_TYPE(to_heap)))},
-                  kAppendEnd,
-                  "ref.cast: rtt type must be subtype of object type");
+                  kAppendEnd, "is not a subtype of immediate object type");
   }
 
   // Trivial type error.
@@ -4394,13 +4396,17 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
         {WASM_REF_TEST(kEqRefCode, static_cast<byte>(array_heap),
                        WASM_LOCAL_GET(0), WASM_RTT_CANON(kI31RefCode)),
          kExprDrop},
-        kAppendEnd, "ref.test: expected rtt for type 0 but got (rtt 1 i31)");
+        kAppendEnd,
+        "ref.test[1] expected rtt for type 0, found rtt.canon of type (rtt 1 "
+        "i31)");
     ExpectFailure(
         &sig,
         {WASM_REF_CAST(kEqRefCode, static_cast<byte>(array_heap),
                        WASM_LOCAL_GET(0), WASM_RTT_CANON(kI31RefCode)),
          kExprDrop},
-        kAppendEnd, "ref.cast: expected rtt for type 0 but got (rtt 1 i31)");
+        kAppendEnd,
+        "ref.cast[1] expected rtt for type 0, found rtt.canon of type (rtt 1 "
+        "i31)");
   }
 }
 
