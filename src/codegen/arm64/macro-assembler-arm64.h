@@ -1371,6 +1371,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void StoreReturnAddressInWasmExitFrame(Label* return_location);
 
+  // Wasm SIMD helpers. These instructions don't have direct lowering to native
+  // instructions. These helpers allow us to define the optimal code sequence,
+  // and be used in both TurboFan and Liftoff.
+  void I64x2BitMask(Register dst, VRegister src);
+
  protected:
   // The actual Push and Pop implementations. These don't generate any code
   // other than that required for the push or pop. This allows

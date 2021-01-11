@@ -2014,7 +2014,7 @@ void LiftoffAssembler::emit_i64x2_extmul_high_i32x4_u(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i64x2_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "i64x2_bitmask");
+  I64x2BitMask(dst.gp(), src.fp());
 }
 
 void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,

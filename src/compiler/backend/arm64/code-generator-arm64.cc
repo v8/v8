@@ -2222,15 +2222,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArm64I64x2BitMask: {
-      UseScratchRegisterScope scope(tasm());
-      Register dst = i.OutputRegister32();
-      VRegister src = i.InputSimd128Register(0);
-      VRegister tmp1 = scope.AcquireV(kFormat2D);
-      Register tmp2 = scope.AcquireX();
-      __ Ushr(tmp1.V2D(), src.V2D(), 63);
-      __ Mov(dst.X(), tmp1.D(), 0);
-      __ Mov(tmp2.X(), tmp1.D(), 1);
-      __ Add(dst.W(), dst.W(), Operand(tmp2.W(), LSL, 1));
+      __ I64x2BitMask(i.OutputRegister32(), i.InputSimd128Register(0));
       break;
     }
     case kArm64I32x4Splat: {

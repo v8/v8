@@ -3408,6 +3408,16 @@ void TurboAssembler::StoreReturnAddressInWasmExitFrame(Label* return_location) {
   Str(x17, MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
 }
 
+void TurboAssembler::I64x2BitMask(Register dst, VRegister src) {
+  UseScratchRegisterScope scope(this);
+  VRegister tmp1 = scope.AcquireV(kFormat2D);
+  Register tmp2 = scope.AcquireX();
+  Ushr(tmp1.V2D(), src.V2D(), 63);
+  Mov(dst.X(), tmp1.D(), 0);
+  Mov(tmp2.X(), tmp1.D(), 1);
+  Add(dst.W(), dst.W(), Operand(tmp2.W(), LSL, 1));
+}
+
 }  // namespace internal
 }  // namespace v8
 
