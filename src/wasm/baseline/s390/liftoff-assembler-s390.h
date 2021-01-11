@@ -92,6 +92,7 @@ inline MemOperand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
 }  // namespace liftoff
 
 int LiftoffAssembler::PrepareStackFrame() {
+  bailout(kUnsupportedArchitecture, "PrepareStackFrame");
   int offset = pc_offset();
   lay(sp, MemOperand(sp));
   return offset;
