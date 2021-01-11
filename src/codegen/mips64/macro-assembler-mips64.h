@@ -795,6 +795,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void LoadLane(MSASize sz, MSARegister dst, uint8_t laneidx, MemOperand src);
   void StoreLane(MSASize sz, MSARegister src, uint8_t laneidx, MemOperand dst);
+  void ExtMulLow(MSADataType type, MSARegister dst, MSARegister src1,
+                 MSARegister src2);
+  void ExtMulHigh(MSADataType type, MSARegister dst, MSARegister src1,
+                  MSARegister src2);
   void MSARoundW(MSARegister dst, MSARegister src, FPURoundingMode mode);
   void MSARoundD(MSARegister dst, MSARegister src, FPURoundingMode mode);
 

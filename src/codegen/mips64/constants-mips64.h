@@ -260,7 +260,20 @@ class MSARegisters {
   static const RegisterAlias aliases_[];
 };
 
+// MSA sizes.
 enum MSASize { MSA_B = 0x0, MSA_H = 0x1, MSA_W = 0x2, MSA_D = 0x3 };
+
+// MSA data type, top bit set for unsigned data types.
+enum MSADataType {
+  MSAS8 = 0,
+  MSAS16 = 1,
+  MSAS32 = 2,
+  MSAS64 = 3,
+  MSAU8 = 4,
+  MSAU16 = 5,
+  MSAU32 = 6,
+  MSAU64 = 7
+};
 
 // -----------------------------------------------------------------------------
 // Instructions encoding constants.
