@@ -604,12 +604,23 @@ LiftoffRegister LiftoffAssembler::PeekToRegister(int index,
   DCHECK_LT(index, cache_state_.stack_state.size());
   VarState& slot = cache_state_.stack_state.end()[-1 - index];
   if (slot.is_reg()) {
-    cache_state_.dec_used(slot.reg());
     return slot.reg();
   }
   LiftoffRegister reg = LoadToRegister(slot, pinned);
+  cache_state_.inc_used(reg);
   slot.MakeRegister(reg);
   return reg;
+}
+
+void LiftoffAssembler::DropValues(int count) {
+  for (int i = 0; i < count; ++i) {
+    DCHECK(!cache_state_.stack_state.empty());
+    VarState slot = cache_state_.stack_state.back();
+    cache_state_.stack_state.pop_back();
+    if (slot.is_reg()) {
+      cache_state_.dec_used(slot.reg());
+    }
+  }
 }
 
 void LiftoffAssembler::PrepareLoopArgs(int num) {

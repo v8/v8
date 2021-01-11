@@ -1713,12 +1713,7 @@ class LiftoffCompiler {
     __ PushRegister(ValueType::Ref(arg.type.heap_type(), kNonNullable), obj);
   }
 
-  void Drop(FullDecoder* decoder) {
-    auto& slot = __ cache_state()->stack_state.back();
-    // If the dropped slot contains a register, decrement it's use count.
-    if (slot.is_reg()) __ cache_state()->dec_used(slot.reg());
-    __ cache_state()->stack_state.pop_back();
-  }
+  void Drop(FullDecoder* decoder) { __ DropValues(1); }
 
   void TraceFunctionExit(FullDecoder* decoder) {
     DEBUG_CODE_COMMENT("trace function exit");
@@ -3415,7 +3410,7 @@ class LiftoffCompiler {
     LiftoffRegister expected = pinned.set(__ PopToRegister(pinned));
 
     // Pop the index from the stack.
-    __ cache_state()->stack_state.pop_back(1);
+    __ DropValues(1);
 
     LiftoffRegister result = expected;
 
@@ -3531,7 +3526,7 @@ class LiftoffCompiler {
     __ CallRuntimeStub(target);
     DefineSafepoint();
     // Pop parameters from the value stack.
-    __ cache_state()->stack_state.pop_back(3);
+    __ DropValues(3);
 
     RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
 
@@ -3574,7 +3569,7 @@ class LiftoffCompiler {
     __ CallRuntimeStub(WasmCode::kWasmAtomicNotify);
     DefineSafepoint();
     // Pop parameters from the value stack.
-    __ cache_state()->stack_state.pop_back(2);
+    __ DropValues(2);
 
     RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
 
