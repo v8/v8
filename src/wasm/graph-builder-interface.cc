@@ -1183,7 +1183,7 @@ class WasmGraphBuildingInterface {
     }
     SsaEnv* result = zone->New<SsaEnv>(std::move(*from));
     // Restore the length of {from->locals} after applying move-constructor.
-    from->locals = ZoneVector<TFNode*>(result->locals.size(), zone);
+    from->locals.resize(result->locals.size());
     result->state = SsaEnv::kReached;
     return result;
   }
