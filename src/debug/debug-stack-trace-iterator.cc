@@ -7,6 +7,7 @@
 #include "src/api/api-inl.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-scope-iterator.h"
+#include "src/debug/debug-wasm-support.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
 #include "src/execution/frames-inl.h"
@@ -160,8 +161,7 @@ DebugStackTraceIterator::GetScopeIterator() const {
   DCHECK(!Done());
   CommonFrame* frame = iterator_.frame();
   if (frame->is_wasm()) {
-    return std::make_unique<DebugWasmScopeIterator>(isolate_,
-                                                    WasmFrame::cast(frame));
+    return GetWasmScopeIterator(WasmFrame::cast(frame));
   }
   return std::make_unique<DebugScopeIterator>(isolate_, frame_inspector_.get());
 }

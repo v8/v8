@@ -16,39 +16,39 @@ Scope:
 at C (interpreted) (0:169):
  - scope (wasm-expression-stack):
  - scope (local):
-   i32_arg: 42 (number)
-   i32_local: 0 (number)
-   var2: 0 (number)
+   $i32_arg: 42 (number)
+   $i32_local: 0 (number)
+   $var2: 0 (number)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   exported_memory: Memory(1)
-   globals: "exported_global": 0 (number)
+   $exported_memory: Memory(1)
+   globals: "$exported_global": 0 (number)
 at B (liftoff) (0:158):
  - scope (wasm-expression-stack):
    0: 42 (number)
    1: 3 (number)
  - scope (local):
-   0: 0 (number)
-   i32_arg: 42 (number)
-   i32_local: 0 (number)
-   f32_local: 7.199999809265137 (number)
-   var5: 0 (number)
-   v128_local: Uint8Array(16)
+   $i32_arg: 42 (number)
+   $i32_local: 0 (number)
+   $f32_local: 7.199999809265137 (number)
+   $0: 0 (number)
+   $var5: 0 (number)
+   $v128_local: Uint8Array(16)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   exported_memory: Memory(1)
-   globals: "exported_global": 0 (number)
+   $exported_memory: Memory(1)
+   globals: "$exported_global": 0 (number)
 at A (liftoff) (0:128):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 42 (number)
+   $var0: 42 (number)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   exported_memory: Memory(1)
-   globals: "exported_global": 0 (number)
+   $exported_memory: Memory(1)
+   globals: "$exported_global": 0 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -60,39 +60,39 @@ at C (interpreted) (0:171):
  - scope (wasm-expression-stack):
    0: 42 (number)
  - scope (local):
-   i32_arg: 42 (number)
-   i32_local: 0 (number)
-   var2: 0 (number)
+   $i32_arg: 42 (number)
+   $i32_local: 0 (number)
+   $var2: 0 (number)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   exported_memory: Memory(1)
-   globals: "exported_global": 0 (number)
+   $exported_memory: Memory(1)
+   globals: "$exported_global": 0 (number)
 at B (liftoff) (0:158):
  - scope (wasm-expression-stack):
    0: 42 (number)
    1: 3 (number)
  - scope (local):
-   0: 0 (number)
-   i32_arg: 42 (number)
-   i32_local: 0 (number)
-   f32_local: 7.199999809265137 (number)
-   var5: 0 (number)
-   v128_local: Uint8Array(16)
+   $i32_arg: 42 (number)
+   $i32_local: 0 (number)
+   $f32_local: 7.199999809265137 (number)
+   $0: 0 (number)
+   $var5: 0 (number)
+   $v128_local: Uint8Array(16)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   exported_memory: Memory(1)
-   globals: "exported_global": 0 (number)
+   $exported_memory: Memory(1)
+   globals: "$exported_global": 0 (number)
 at A (liftoff) (0:128):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 42 (number)
+   $var0: 42 (number)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   exported_memory: Memory(1)
-   globals: "exported_global": 0 (number)
+   $exported_memory: Memory(1)
+   globals: "$exported_global": 0 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -103,39 +103,39 @@ Scope:
 at C (interpreted) (0:173):
  - scope (wasm-expression-stack):
  - scope (local):
-   i32_arg: 42 (number)
-   i32_local: 0 (number)
-   var2: 0 (number)
+   $i32_arg: 42 (number)
+   $i32_local: 0 (number)
+   $var2: 0 (number)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   exported_memory: Memory(1)
-   globals: "exported_global": 42 (number)
+   $exported_memory: Memory(1)
+   globals: "$exported_global": 42 (number)
 at B (liftoff) (0:158):
  - scope (wasm-expression-stack):
    0: 42 (number)
    1: 3 (number)
  - scope (local):
-   0: 0 (number)
-   i32_arg: 42 (number)
-   i32_local: 0 (number)
-   f32_local: 7.199999809265137 (number)
-   var5: 0 (number)
-   v128_local: Uint8Array(16)
+   $i32_arg: 42 (number)
+   $i32_local: 0 (number)
+   $f32_local: 7.199999809265137 (number)
+   $0: 0 (number)
+   $var5: 0 (number)
+   $v128_local: Uint8Array(16)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   exported_memory: Memory(1)
-   globals: "exported_global": 42 (number)
+   $exported_memory: Memory(1)
+   globals: "$exported_global": 42 (number)
 at A (liftoff) (0:128):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 42 (number)
+   $var0: 42 (number)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   exported_memory: Memory(1)
-   globals: "exported_global": 42 (number)
+   $exported_memory: Memory(1)
+   globals: "$exported_global": 42 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -147,39 +147,39 @@ at C (interpreted) (0:175):
  - scope (wasm-expression-stack):
    0: 47 (number)
  - scope (local):
-   i32_arg: 42 (number)
-   i32_local: 0 (number)
-   var2: 0 (number)
+   $i32_arg: 42 (number)
+   $i32_local: 0 (number)
+   $var2: 0 (number)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   exported_memory: Memory(1)
-   globals: "exported_global": 42 (number)
+   $exported_memory: Memory(1)
+   globals: "$exported_global": 42 (number)
 at B (liftoff) (0:158):
  - scope (wasm-expression-stack):
    0: 42 (number)
    1: 3 (number)
  - scope (local):
-   0: 0 (number)
-   i32_arg: 42 (number)
-   i32_local: 0 (number)
-   f32_local: 7.199999809265137 (number)
-   var5: 0 (number)
-   v128_local: Uint8Array(16)
+   $i32_arg: 42 (number)
+   $i32_local: 0 (number)
+   $f32_local: 7.199999809265137 (number)
+   $0: 0 (number)
+   $var5: 0 (number)
+   $v128_local: Uint8Array(16)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   exported_memory: Memory(1)
-   globals: "exported_global": 42 (number)
+   $exported_memory: Memory(1)
+   globals: "$exported_global": 42 (number)
 at A (liftoff) (0:128):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 42 (number)
+   $var0: 42 (number)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   exported_memory: Memory(1)
-   globals: "exported_global": 42 (number)
+   $exported_memory: Memory(1)
+   globals: "$exported_global": 42 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -190,39 +190,39 @@ Scope:
 at C (interpreted) (0:177):
  - scope (wasm-expression-stack):
  - scope (local):
-   i32_arg: 42 (number)
-   i32_local: 47 (number)
-   var2: 0 (number)
+   $i32_arg: 42 (number)
+   $i32_local: 47 (number)
+   $var2: 0 (number)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   exported_memory: Memory(1)
-   globals: "exported_global": 42 (number)
+   $exported_memory: Memory(1)
+   globals: "$exported_global": 42 (number)
 at B (liftoff) (0:158):
  - scope (wasm-expression-stack):
    0: 42 (number)
    1: 3 (number)
  - scope (local):
-   0: 0 (number)
-   i32_arg: 42 (number)
-   i32_local: 0 (number)
-   f32_local: 7.199999809265137 (number)
-   var5: 0 (number)
-   v128_local: Uint8Array(16)
+   $i32_arg: 42 (number)
+   $i32_local: 0 (number)
+   $f32_local: 7.199999809265137 (number)
+   $0: 0 (number)
+   $var5: 0 (number)
+   $v128_local: Uint8Array(16)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   exported_memory: Memory(1)
-   globals: "exported_global": 42 (number)
+   $exported_memory: Memory(1)
+   globals: "$exported_global": 42 (number)
 at A (liftoff) (0:128):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 42 (number)
+   $var0: 42 (number)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   exported_memory: Memory(1)
-   globals: "exported_global": 42 (number)
+   $exported_memory: Memory(1)
+   globals: "$exported_global": 42 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -235,26 +235,26 @@ at B (liftoff) (0:160):
    0: 42 (number)
    1: 3 (number)
  - scope (local):
-   0: 0 (number)
-   i32_arg: 42 (number)
-   i32_local: 0 (number)
-   f32_local: 7.199999809265137 (number)
-   var5: 0 (number)
-   v128_local: Uint8Array(16)
+   $i32_arg: 42 (number)
+   $i32_local: 0 (number)
+   $f32_local: 7.199999809265137 (number)
+   $0: 0 (number)
+   $var5: 0 (number)
+   $v128_local: Uint8Array(16)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   exported_memory: Memory(1)
-   globals: "exported_global": 42 (number)
+   $exported_memory: Memory(1)
+   globals: "$exported_global": 42 (number)
 at A (liftoff) (0:128):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 42 (number)
+   $var0: 42 (number)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   exported_memory: Memory(1)
-   globals: "exported_global": 42 (number)
+   $exported_memory: Memory(1)
+   globals: "$exported_global": 42 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -266,26 +266,26 @@ at B (liftoff) (0:161):
  - scope (wasm-expression-stack):
    0: 42 (number)
  - scope (local):
-   0: 0 (number)
-   i32_arg: 42 (number)
-   i32_local: 0 (number)
-   f32_local: 7.199999809265137 (number)
-   var5: 0 (number)
-   v128_local: Uint8Array(16)
+   $i32_arg: 42 (number)
+   $i32_local: 0 (number)
+   $f32_local: 7.199999809265137 (number)
+   $0: 0 (number)
+   $var5: 0 (number)
+   $v128_local: Uint8Array(16)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   exported_memory: Memory(1)
-   globals: "exported_global": 42 (number)
+   $exported_memory: Memory(1)
+   globals: "$exported_global": 42 (number)
 at A (liftoff) (0:128):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 42 (number)
+   $var0: 42 (number)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   exported_memory: Memory(1)
-   globals: "exported_global": 42 (number)
+   $exported_memory: Memory(1)
+   globals: "$exported_global": 42 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -296,26 +296,26 @@ Scope:
 at B (liftoff) (0:162):
  - scope (wasm-expression-stack):
  - scope (local):
-   0: 0 (number)
-   i32_arg: 42 (number)
-   i32_local: 0 (number)
-   f32_local: 7.199999809265137 (number)
-   var5: 0 (number)
-   v128_local: Uint8Array(16)
+   $i32_arg: 42 (number)
+   $i32_local: 0 (number)
+   $f32_local: 7.199999809265137 (number)
+   $0: 0 (number)
+   $var5: 0 (number)
+   $v128_local: Uint8Array(16)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   exported_memory: Memory(1)
-   globals: "exported_global": 42 (number)
+   $exported_memory: Memory(1)
+   globals: "$exported_global": 42 (number)
 at A (liftoff) (0:128):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 42 (number)
+   $var0: 42 (number)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   exported_memory: Memory(1)
-   globals: "exported_global": 42 (number)
+   $exported_memory: Memory(1)
+   globals: "$exported_global": 42 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -326,12 +326,12 @@ Scope:
 at A (liftoff) (0:130):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 42 (number)
+   $var0: 42 (number)
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   exported_memory: Memory(1)
-   globals: "exported_global": 42 (number)
+   $exported_memory: Memory(1)
+   globals: "$exported_global": 42 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals

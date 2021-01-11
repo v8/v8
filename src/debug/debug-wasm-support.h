@@ -5,19 +5,23 @@
 #ifndef V8_DEBUG_DEBUG_WASM_SUPPORT_H_
 #define V8_DEBUG_DEBUG_WASM_SUPPORT_H_
 
+#include <memory>
+
 namespace v8 {
+namespace debug {
+class ScopeIterator;
+}  // namespace debug
+
 namespace internal {
 
 template <typename T>
 class Handle;
 class JSObject;
 class WasmFrame;
-class WasmInstanceObject;
 
-Handle<JSObject> GetModuleScopeObject(Handle<WasmInstanceObject> instance);
-Handle<JSObject> GetLocalScopeObject(WasmFrame* frame);
-Handle<JSObject> GetStackScopeObject(WasmFrame* frame);
-Handle<JSObject> GetJSDebugProxy(WasmFrame* frame);
+Handle<JSObject> GetWasmDebugProxy(WasmFrame* frame);
+
+std::unique_ptr<debug::ScopeIterator> GetWasmScopeIterator(WasmFrame* frame);
 
 }  // namespace internal
 }  // namespace v8

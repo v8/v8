@@ -16,22 +16,6 @@ namespace v8 {
 namespace internal {
 namespace {
 
-template <bool internal, typename... Args>
-Handle<String> PrintFToOneByteString(Isolate* isolate, const char* format,
-                                     Args... args) {
-  // Maximum length of a formatted value name ("arg#%d", "local#%d",
-  // "global#%d", i32 constants, i64 constants), including null character.
-  static constexpr int kMaxStrLen = 21;
-  EmbeddedVector<char, kMaxStrLen> value;
-  int len = SNPrintF(value, format, args...);
-  CHECK(len > 0 && len < value.length());
-  Vector<const uint8_t> name =
-      Vector<const uint8_t>::cast(value.SubVector(0, len));
-  return internal
-             ? isolate->factory()->InternalizeString(name)
-             : isolate->factory()->NewStringFromOneByte(name).ToHandleChecked();
-}
-
 // Convert a WasmValue to an appropriate JS representation.
 Handle<Object> WasmValueToObject(Isolate* isolate, wasm::WasmValue value) {
   auto* factory = isolate->factory();
@@ -71,132 +55,7 @@ Handle<Object> WasmValueToObject(Isolate* isolate, wasm::WasmValue value) {
   return factory->undefined_value();
 }
 
-MaybeHandle<String> GetLocalNameString(Isolate* isolate,
-                                       wasm::NativeModule* native_module,
-                                       int func_index, int local_index) {
-  wasm::WireBytesRef name_ref =
-      native_module->GetDebugInfo()->GetLocalName(func_index, local_index);
-  wasm::ModuleWireBytes wire_bytes{native_module->wire_bytes()};
-  // Bounds were checked during decoding.
-  DCHECK(wire_bytes.BoundsCheck(name_ref));
-  wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
-  if (name.size() == 0) return {};
-  return isolate->factory()->NewStringFromUtf8(name);
-}
-
 }  // namespace
-
-Handle<JSObject> GetModuleScopeObject(Handle<WasmInstanceObject> instance) {
-  Isolate* isolate = instance->GetIsolate();
-  Handle<JSObject> module_scope_object =
-      isolate->factory()->NewJSObjectWithNullProto();
-
-  Handle<String> instance_name =
-      isolate->factory()->InternalizeString(StaticCharVector("instance"));
-  JSObject::AddProperty(isolate, module_scope_object, instance_name, instance,
-                        NONE);
-
-  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
-  Handle<String> module_name =
-      isolate->factory()->InternalizeString(StaticCharVector("module"));
-  JSObject::AddProperty(isolate, module_scope_object, module_name,
-                        module_object, NONE);
-
-  if (instance->has_memory_object()) {
-    Handle<String> name;
-    // TODO(duongn): extend the logic when multiple memories are supported.
-    const uint32_t memory_index = 0;
-    if (!WasmInstanceObject::GetMemoryNameOrNull(isolate, instance,
-                                                 memory_index)
-             .ToHandle(&name)) {
-      const char* label = "memory%d";
-      name = PrintFToOneByteString<true>(isolate, label, memory_index);
-    }
-    Handle<WasmMemoryObject> memory_object(instance->memory_object(), isolate);
-    JSObject::AddProperty(isolate, module_scope_object, name, memory_object,
-                          NONE);
-  }
-
-  auto& globals = instance->module()->globals;
-  if (globals.size() > 0) {
-    Handle<JSObject> globals_obj =
-        isolate->factory()->NewJSObjectWithNullProto();
-    Handle<String> globals_name =
-        isolate->factory()->InternalizeString(StaticCharVector("globals"));
-    JSObject::AddProperty(isolate, module_scope_object, globals_name,
-                          globals_obj, NONE);
-
-    for (uint32_t i = 0; i < globals.size(); ++i) {
-      Handle<String> name;
-      if (!WasmInstanceObject::GetGlobalNameOrNull(isolate, instance, i)
-               .ToHandle(&name)) {
-        const char* label = "global%d";
-        name = PrintFToOneByteString<true>(isolate, label, i);
-      }
-      wasm::WasmValue value =
-          WasmInstanceObject::GetGlobalValue(instance, globals[i]);
-      Handle<Object> value_obj = WasmValueToObject(isolate, value);
-      LookupIterator it(isolate, globals_obj, name, globals_obj,
-                        LookupIterator::OWN_SKIP_INTERCEPTOR);
-      JSObject::CreateDataProperty(&it, value_obj).Check();
-    }
-  }
-  return module_scope_object;
-}
-
-Handle<JSObject> GetLocalScopeObject(WasmFrame* frame) {
-  Isolate* isolate = frame->isolate();
-  auto native_module = frame->native_module();
-  auto debug_info = native_module->GetDebugInfo();
-  auto function = debug_info->GetFunctionAtAddress(frame->pc());
-  Handle<JSObject> local_scope_object =
-      isolate->factory()->NewJSObjectWithNullProto();
-
-  // Fill parameters and locals.
-  int num_locals = debug_info->GetNumLocals(frame->pc());
-  DCHECK_LE(static_cast<int>(function.sig->parameter_count()), num_locals);
-  for (int i = 0; i < num_locals; ++i) {
-    Handle<Name> name;
-    if (!GetLocalNameString(isolate, native_module, function.func_index, i)
-             .ToHandle(&name)) {
-      name = PrintFToOneByteString<true>(isolate, "var%d", i);
-    }
-    wasm::WasmValue value = debug_info->GetLocalValue(
-        i, frame->pc(), frame->fp(), frame->callee_fp());
-    Handle<Object> value_obj = WasmValueToObject(isolate, value);
-    // {name} can be a string representation of an element index.
-    LookupIterator::Key lookup_key{isolate, name};
-    LookupIterator it(isolate, local_scope_object, lookup_key,
-                      local_scope_object, LookupIterator::OWN_SKIP_INTERCEPTOR);
-    if (it.IsFound()) continue;
-    Object::AddDataProperty(&it, value_obj, NONE,
-                            Just(ShouldThrow::kThrowOnError),
-                            StoreOrigin::kNamed)
-        .Check();
-  }
-  return local_scope_object;
-}
-
-Handle<JSObject> GetStackScopeObject(WasmFrame* frame) {
-  Isolate* isolate = frame->isolate();
-  auto native_module = frame->native_module();
-  auto debug_info = native_module->GetDebugInfo();
-  Handle<JSObject> stack_scope_obj =
-      isolate->factory()->NewJSObjectWithNullProto();
-
-  // Fill stack values.
-  // Use an object without prototype instead of an Array, for nicer displaying
-  // in DevTools. For Arrays, the length field and prototype is displayed,
-  // which does not make too much sense here.
-  int value_count = debug_info->GetStackDepth(frame->pc());
-  for (int i = 0; i < value_count; ++i) {
-    wasm::WasmValue value = debug_info->GetStackValue(
-        i, frame->pc(), frame->fp(), frame->callee_fp());
-    Handle<Object> value_obj = WasmValueToObject(isolate, value);
-    JSObject::AddDataElement(stack_scope_obj, i, value_obj, NONE);
-  }
-  return stack_scope_obj;
-}
 
 namespace {
 
@@ -574,7 +433,8 @@ struct TablesProxy : NamedDebugProxy<TablesProxy, kTablesProxy> {
 struct LocalsProxy : NamedDebugProxy<LocalsProxy, kLocalsProxy, FixedArray> {
   static constexpr char const* kClassName = "Locals";
 
-  static Handle<JSObject> Create(Isolate* isolate, WasmFrame* frame) {
+  static Handle<JSObject> Create(WasmFrame* frame) {
+    auto isolate = frame->isolate();
     auto debug_info = frame->native_module()->GetDebugInfo();
     // TODO(bmeurer): Check if pc is inspectable.
     int count = debug_info->GetNumLocals(frame->pc());
@@ -621,7 +481,8 @@ struct LocalsProxy : NamedDebugProxy<LocalsProxy, kLocalsProxy, FixedArray> {
 struct StackProxy : IndexedDebugProxy<StackProxy, kStackProxy, FixedArray> {
   static constexpr char const* kClassName = "Stack";
 
-  static Handle<JSObject> Create(Isolate* isolate, WasmFrame* frame) {
+  static Handle<JSObject> Create(WasmFrame* frame) {
+    auto isolate = frame->isolate();
     auto debug_info =
         frame->wasm_instance().module_object().native_module()->GetDebugInfo();
     int count = debug_info->GetStackDepth(frame->pc());
@@ -709,9 +570,9 @@ class ContextProxy {
     auto object = isolate->factory()->NewJSObjectFromMap(object_map);
     Handle<WasmInstanceObject> instance(frame->wasm_instance(), isolate);
     object->SetEmbedderField(kInstanceField, *instance);
-    Handle<JSObject> locals = LocalsProxy::Create(isolate, frame);
+    Handle<JSObject> locals = LocalsProxy::Create(frame);
     object->SetEmbedderField(kLocalsField, *locals);
-    Handle<JSObject> stack = StackProxy::Create(isolate, frame);
+    Handle<JSObject> stack = StackProxy::Create(frame);
     object->SetEmbedderField(kStackField, *stack);
     return object;
   }
@@ -800,10 +661,126 @@ class ContextProxy {
   }
 };
 
+Handle<JSObject> GetModuleScopeObject(Handle<WasmInstanceObject> instance) {
+  Isolate* isolate = instance->GetIsolate();
+  Handle<JSObject> module_scope_object =
+      isolate->factory()->NewJSObjectWithNullProto();
+
+  Handle<String> instance_name =
+      isolate->factory()->InternalizeString(StaticCharVector("instance"));
+  JSObject::AddProperty(isolate, module_scope_object, instance_name, instance,
+                        NONE);
+
+  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
+  Handle<String> module_name =
+      isolate->factory()->InternalizeString(StaticCharVector("module"));
+  JSObject::AddProperty(isolate, module_scope_object, module_name,
+                        module_object, NONE);
+
+  uint32_t memory_count = MemoriesProxy::Count(isolate, instance);
+  for (uint32_t memory_index = 0; memory_index < memory_count; ++memory_index) {
+    auto memory_name = MemoriesProxy::GetName(isolate, instance, memory_index);
+    auto memory_value = MemoriesProxy::Get(isolate, instance, memory_index);
+    JSObject::AddProperty(isolate, module_scope_object, memory_name,
+                          memory_value, NONE);
+  }
+
+  if (GlobalsProxy::Count(isolate, instance) != 0) {
+    Handle<JSObject> globals_obj =
+        GetOrCreateInstanceProxy<GlobalsProxy>(isolate, instance);
+    Handle<String> globals_name =
+        isolate->factory()->InternalizeString(StaticCharVector("globals"));
+    JSObject::AddProperty(isolate, module_scope_object, globals_name,
+                          globals_obj, NONE);
+  }
+
+  return module_scope_object;
+}
+
+class DebugWasmScopeIterator final : public debug::ScopeIterator {
+ public:
+  explicit DebugWasmScopeIterator(WasmFrame* frame)
+      : frame_(frame),
+        type_(debug::ScopeIterator::ScopeTypeWasmExpressionStack) {
+    // Skip local scope and expression stack scope if the frame is not
+    // inspectable.
+    if (!frame->is_inspectable()) {
+      type_ = debug::ScopeIterator::ScopeTypeModule;
+    }
+  }
+
+  bool Done() override { return type_ == ScopeTypeWith; }
+
+  void Advance() override {
+    DCHECK(!Done());
+    switch (type_) {
+      case ScopeTypeWasmExpressionStack:
+        type_ = debug::ScopeIterator::ScopeTypeLocal;
+        break;
+      case ScopeTypeLocal:
+        type_ = debug::ScopeIterator::ScopeTypeModule;
+        break;
+      case ScopeTypeModule:
+        // We use ScopeTypeWith type as marker for done.
+        type_ = debug::ScopeIterator::ScopeTypeWith;
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  ScopeType GetType() override { return type_; }
+
+  v8::Local<v8::Object> GetObject() override {
+    DCHECK(!Done());
+    switch (type_) {
+      case debug::ScopeIterator::ScopeTypeModule: {
+        Handle<WasmInstanceObject> instance =
+            FrameSummary::GetTop(frame_).AsWasm().wasm_instance();
+        return Utils::ToLocal(GetModuleScopeObject(instance));
+      }
+      case debug::ScopeIterator::ScopeTypeLocal: {
+        DCHECK(frame_->is_inspectable());
+        return Utils::ToLocal(LocalsProxy::Create(frame_));
+      }
+      case debug::ScopeIterator::ScopeTypeWasmExpressionStack: {
+        DCHECK(frame_->is_inspectable());
+        return Utils::ToLocal(StackProxy::Create(frame_));
+      }
+      default:
+        return {};
+    }
+  }
+  v8::Local<v8::Value> GetFunctionDebugName() override {
+    return Utils::ToLocal(frame_->isolate()->factory()->empty_string());
+  }
+
+  int GetScriptId() override { return -1; }
+
+  bool HasLocationInfo() override { return false; }
+
+  debug::Location GetStartLocation() override { return {}; }
+
+  debug::Location GetEndLocation() override { return {}; }
+
+  bool SetVariableValue(v8::Local<v8::String> name,
+                        v8::Local<v8::Value> value) override {
+    return false;
+  }
+
+ private:
+  WasmFrame* const frame_;
+  ScopeType type_;
+};
+
 }  // namespace
 
-Handle<JSObject> GetJSDebugProxy(WasmFrame* frame) {
+Handle<JSObject> GetWasmDebugProxy(WasmFrame* frame) {
   return ContextProxy::Create(frame);
+}
+
+std::unique_ptr<debug::ScopeIterator> GetWasmScopeIterator(WasmFrame* frame) {
+  return std::make_unique<DebugWasmScopeIterator>(frame);
 }
 
 }  // namespace internal

@@ -5,14 +5,11 @@
 #include "src/debug/debug-scope-iterator.h"
 
 #include "src/api/api-inl.h"
-#include "src/debug/debug-wasm-support.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate.h"
 #include "src/objects/js-generator-inl.h"
-#include "src/wasm/wasm-debug.h"
-#include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
 
@@ -129,92 +126,5 @@ bool DebugScopeIterator::SetVariableValue(v8::Local<v8::String> name,
                                     Utils::OpenHandle(*value));
 }
 
-DebugWasmScopeIterator::DebugWasmScopeIterator(Isolate* isolate,
-                                               WasmFrame* frame)
-    : isolate_(isolate),
-      frame_(frame),
-      type_(debug::ScopeIterator::ScopeTypeWasmExpressionStack) {
-  // Skip local scope and expression stack scope if the frame is not
-  // inspectable.
-  if (!frame->is_inspectable()) {
-    type_ = debug::ScopeIterator::ScopeTypeModule;
-  }
-}
-
-bool DebugWasmScopeIterator::Done() {
-  return type_ == debug::ScopeIterator::ScopeTypeWith;
-}
-
-void DebugWasmScopeIterator::Advance() {
-  DCHECK(!Done());
-  switch (type_) {
-    case ScopeTypeWasmExpressionStack:
-      type_ = debug::ScopeIterator::ScopeTypeLocal;
-      break;
-    case ScopeTypeLocal:
-      type_ = debug::ScopeIterator::ScopeTypeModule;
-      break;
-    case ScopeTypeModule:
-      // We use ScopeTypeWith type as marker for done.
-      type_ = debug::ScopeIterator::ScopeTypeWith;
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-v8::debug::ScopeIterator::ScopeType DebugWasmScopeIterator::GetType() {
-  DCHECK(!Done());
-  return type_;
-}
-
-v8::Local<v8::Object> DebugWasmScopeIterator::GetObject() {
-  DCHECK(!Done());
-  switch (type_) {
-    case debug::ScopeIterator::ScopeTypeModule: {
-      Handle<WasmInstanceObject> instance =
-          FrameSummary::GetTop(frame_).AsWasm().wasm_instance();
-      return Utils::ToLocal(GetModuleScopeObject(instance));
-    }
-    case debug::ScopeIterator::ScopeTypeLocal: {
-      DCHECK(frame_->is_inspectable());
-      return Utils::ToLocal(GetLocalScopeObject(frame_));
-    }
-    case debug::ScopeIterator::ScopeTypeWasmExpressionStack: {
-      DCHECK(frame_->is_inspectable());
-      return Utils::ToLocal(GetStackScopeObject(frame_));
-    }
-    default:
-      return {};
-  }
-}
-
-int DebugWasmScopeIterator::GetScriptId() {
-  DCHECK(!Done());
-  return -1;
-}
-
-v8::Local<v8::Value> DebugWasmScopeIterator::GetFunctionDebugName() {
-  DCHECK(!Done());
-  return Utils::ToLocal(isolate_->factory()->empty_string());
-}
-
-bool DebugWasmScopeIterator::HasLocationInfo() { return false; }
-
-debug::Location DebugWasmScopeIterator::GetStartLocation() {
-  DCHECK(!Done());
-  return debug::Location();
-}
-
-debug::Location DebugWasmScopeIterator::GetEndLocation() {
-  DCHECK(!Done());
-  return debug::Location();
-}
-
-bool DebugWasmScopeIterator::SetVariableValue(v8::Local<v8::String> name,
-                                              v8::Local<v8::Value> value) {
-  DCHECK(!Done());
-  return false;
-}
 }  // namespace internal
 }  // namespace v8

@@ -17,7 +17,7 @@ at wasm_A (0:38):
 at wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 3 (number)
+   $var0: 3 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -44,7 +44,7 @@ at wasm_A (0:39):
 at wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 3 (number)
+   $var0: 3 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -56,7 +56,7 @@ Scope:
 at wasm_B (0:45):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 3 (number)
+   $var0: 3 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -69,7 +69,7 @@ at wasm_B (0:47):
  - scope (wasm-expression-stack):
    0: 3 (number)
  - scope (local):
-   var0: 3 (number)
+   $var0: 3 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -81,7 +81,7 @@ Scope:
 at wasm_B (0:49):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 3 (number)
+   $var0: 3 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -94,7 +94,7 @@ at wasm_B (0:51):
  - scope (wasm-expression-stack):
    0: 3 (number)
  - scope (local):
-   var0: 3 (number)
+   $var0: 3 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -108,7 +108,7 @@ at wasm_B (0:53):
    0: 3 (number)
    1: 1 (number)
  - scope (local):
-   var0: 3 (number)
+   $var0: 3 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -121,7 +121,7 @@ at wasm_B (0:54):
  - scope (wasm-expression-stack):
    0: 2 (number)
  - scope (local):
-   var0: 3 (number)
+   $var0: 3 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -139,7 +139,7 @@ at wasm_A (0:38):
 at wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 2 (number)
+   $var0: 2 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -157,7 +157,7 @@ at wasm_A (0:39):
 at wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 2 (number)
+   $var0: 2 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -169,7 +169,7 @@ Scope:
 at wasm_B (0:45):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 2 (number)
+   $var0: 2 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -182,7 +182,7 @@ at wasm_B (0:47):
  - scope (wasm-expression-stack):
    0: 2 (number)
  - scope (local):
-   var0: 2 (number)
+   $var0: 2 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -194,7 +194,7 @@ Scope:
 at wasm_B (0:49):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 2 (number)
+   $var0: 2 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -207,7 +207,7 @@ at wasm_B (0:51):
  - scope (wasm-expression-stack):
    0: 2 (number)
  - scope (local):
-   var0: 2 (number)
+   $var0: 2 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -221,7 +221,7 @@ at wasm_B (0:53):
    0: 2 (number)
    1: 1 (number)
  - scope (local):
-   var0: 2 (number)
+   $var0: 2 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -234,7 +234,7 @@ at wasm_B (0:54):
  - scope (wasm-expression-stack):
    0: 1 (number)
  - scope (local):
-   var0: 2 (number)
+   $var0: 2 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -252,7 +252,7 @@ at wasm_A (0:38):
 at wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 1 (number)
+   $var0: 1 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -270,7 +270,7 @@ at wasm_A (0:39):
 at wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 1 (number)
+   $var0: 1 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -282,7 +282,7 @@ Scope:
 at wasm_B (0:45):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 1 (number)
+   $var0: 1 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -295,7 +295,7 @@ at wasm_B (0:47):
  - scope (wasm-expression-stack):
    0: 1 (number)
  - scope (local):
-   var0: 1 (number)
+   $var0: 1 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -307,7 +307,7 @@ Scope:
 at wasm_B (0:49):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 1 (number)
+   $var0: 1 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -320,7 +320,7 @@ at wasm_B (0:51):
  - scope (wasm-expression-stack):
    0: 1 (number)
  - scope (local):
-   var0: 1 (number)
+   $var0: 1 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -334,7 +334,7 @@ at wasm_B (0:53):
    0: 1 (number)
    1: 1 (number)
  - scope (local):
-   var0: 1 (number)
+   $var0: 1 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -347,7 +347,7 @@ at wasm_B (0:54):
  - scope (wasm-expression-stack):
    0: 0 (number)
  - scope (local):
-   var0: 1 (number)
+   $var0: 1 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -365,7 +365,7 @@ at wasm_A (0:38):
 at wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 0 (number)
+   $var0: 0 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -383,7 +383,7 @@ at wasm_A (0:39):
 at wasm_B (0:56):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 0 (number)
+   $var0: 0 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -395,7 +395,7 @@ Scope:
 at wasm_B (0:45):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 0 (number)
+   $var0: 0 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -408,7 +408,7 @@ at wasm_B (0:47):
  - scope (wasm-expression-stack):
    0: 0 (number)
  - scope (local):
-   var0: 0 (number)
+   $var0: 0 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module
@@ -420,7 +420,7 @@ Scope:
 at wasm_B (0:61):
  - scope (wasm-expression-stack):
  - scope (local):
-   var0: 0 (number)
+   $var0: 0 (number)
  - scope (module):
    instance: exports: "main" (Function)
    module: Module

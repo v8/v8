@@ -91,14 +91,15 @@ async function waitForPauseAndStep(stepAction) {
       if (scope.type === 'global' || scope.type === 'module') {
         InspectorTest.logObject('   -- skipped');
       } else {
-        const {result: {result: {value}}} =
-            await Protocol.Runtime.callFunctionOn({
-              objectId: scope.object.objectId,
-              functionDeclaration: 'function() { return this; }',
-              returnByValue: true
+        const object = {};
+        const {result: {result: properties}} =
+            await Protocol.Runtime.getProperties({
+              objectId: scope.object.objectId
             });
-
-        InspectorTest.log(`   ${JSON.stringify(value)}`);
+        for (const {name, value: {value}} of properties) {
+          object[name] = value;
+        }
+        InspectorTest.log(`   ${JSON.stringify(object)}`);
       }
     }
   }
