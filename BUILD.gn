@@ -540,6 +540,9 @@ config("v8_header_features") {
   if (v8_disable_arguments_adaptor) {
     defines += [ "V8_NO_ARGUMENTS_ADAPTOR" ]
   }
+  if (v8_use_perfetto) {
+    defines += [ "V8_USE_PERFETTO" ]
+  }
 }
 
 config("cppgc_header_features") {
@@ -673,9 +676,6 @@ config("features") {
   }
   if (v8_enable_shared_ro_heap) {
     defines += [ "V8_SHARED_RO_HEAP" ]
-  }
-  if (v8_use_perfetto) {
-    defines += [ "V8_USE_PERFETTO" ]
   }
   if (v8_win64_unwinding_info) {
     defines += [ "V8_WIN64_UNWINDING_INFO" ]
