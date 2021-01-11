@@ -403,6 +403,23 @@ Node* WasmGraphBuilder::TerminateLoop(Node* effect, Node* control) {
   return terminate;
 }
 
+Node* WasmGraphBuilder::LoopExit(Node* loop_node) {
+  DCHECK(loop_node->opcode() == IrOpcode::kLoop);
+  Node* loop_exit =
+      graph()->NewNode(mcgraph()->common()->LoopExit(), control(), loop_node);
+  Node* loop_exit_effect = graph()->NewNode(
+      mcgraph()->common()->LoopExitEffect(), effect(), loop_exit);
+  SetEffectControl(loop_exit_effect, loop_exit);
+  return loop_exit;
+}
+
+Node* WasmGraphBuilder::LoopExitValue(Node* value,
+                                      MachineRepresentation representation) {
+  DCHECK(control()->opcode() == IrOpcode::kLoopExit);
+  return graph()->NewNode(mcgraph()->common()->LoopExitValue(representation),
+                          value, control());
+}
+
 Node* WasmGraphBuilder::TerminateThrow(Node* effect, Node* control) {
   Node* terminate =
       graph()->NewNode(mcgraph()->common()->Throw(), effect, control);

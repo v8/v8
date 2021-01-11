@@ -196,6 +196,9 @@ class WasmGraphBuilder {
   Node* Param(unsigned index);
   Node* Loop(Node* entry);
   Node* TerminateLoop(Node* effect, Node* control);
+  Node* LoopExit(Node* loop_node);
+  // Assumes current control() is the corresponding loop exit.
+  Node* LoopExitValue(Node* value, MachineRepresentation representation);
   Node* TerminateThrow(Node* effect, Node* control);
   Node* Merge(unsigned count, Node** controls);
   Node* Phi(wasm::ValueType type, unsigned count, Node** vals_and_control);

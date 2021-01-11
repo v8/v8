@@ -1577,6 +1577,19 @@ void SimdScalarLowering::LowerNode(Node* node) {
       }
       break;
     }
+    case IrOpcode::kLoopExitValue: {
+      if (!HasReplacement(0, node->InputAt(0))) break;
+      Node* control = node->InputAt(NodeProperties::FirstControlIndex(node));
+      Node** inputs = GetReplacementsWithType(node->InputAt(0), rep_type);
+      Node** rep_nodes = zone()->NewArray<Node*>(num_lanes);
+      for (int i = 0; i < num_lanes; i++) {
+        auto op =
+            common()->LoopExitValue(MachineTypeFrom(rep_type).representation());
+        rep_nodes[i] = graph()->NewNode(op, inputs[i], control);
+      }
+      ReplaceNode(node, rep_nodes, num_lanes);
+      break;
+    }
     case IrOpcode::kI64x2Add: {
       LowerBinaryOp(node, rep_type, machine()->Int64Add());
       break;
