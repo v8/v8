@@ -2748,10 +2748,12 @@ void InstructionSelector::VisitI64x2Eq(Node* node) { UNIMPLEMENTED(); }
         // && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM
         // && !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_MIPS
 
-#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64
+#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32
 // TODO(v8:10971) Prototype i16x8.q15mulr_sat_s
 void InstructionSelector::VisitI16x8Q15MulRSatS(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32
 
+#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64
 // TODO(v8:10972) Prototype i64x2 widen i32x4.
 void InstructionSelector::VisitI64x2SConvertI32x4Low(Node* node) {
   UNIMPLEMENTED();

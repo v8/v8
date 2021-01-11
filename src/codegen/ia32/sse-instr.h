@@ -70,7 +70,8 @@
   V(pmaddubsw, 66, 0F, 38, 04)    \
   V(psignb, 66, 0F, 38, 08)       \
   V(psignw, 66, 0F, 38, 09)       \
-  V(psignd, 66, 0F, 38, 0A)
+  V(psignd, 66, 0F, 38, 0A)       \
+  V(pmulhrsw, 66, 0F, 38, 0B)
 
 // SSSE3 instructions whose AVX version has two operands.
 #define SSSE3_UNOP_INSTRUCTION_LIST(V) \

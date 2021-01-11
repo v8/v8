@@ -2328,6 +2328,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pmaddubsw(dst, i.InputSimd128Register(0), kScratchDoubleReg);
       break;
     }
+    case kIA32I16x8Q15MulRSatS: {
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src0 = i.InputSimd128Register(0);
+      XMMRegister src1 = i.InputSimd128Register(1);
+      // k = i16x8.splat(0x8000)
+      __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+      __ Psllw(kScratchDoubleReg, kScratchDoubleReg, byte{15});
+
+      __ Pmulhrsw(dst, src0, src1);
+      __ Pcmpeqw(kScratchDoubleReg, dst);
+      __ Pxor(dst, kScratchDoubleReg);
+      break;
+    }
     case kIA32I32x4SignSelect: {
       ASSEMBLE_SIMD_SIGN_SELECT(blendvps);
       break;
