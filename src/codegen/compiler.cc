@@ -3108,14 +3108,20 @@ void Compiler::PostInstantiation(Handle<JSFunction> function) {
   if (is_compiled_scope.is_compiled() && shared->HasBytecodeArray()) {
     JSFunction::InitializeFeedbackCell(function, &is_compiled_scope);
 
-    Code code = function->has_feedback_vector()
-                    ? function->feedback_vector().optimized_code()
-                    : Code();
-    if (!code.is_null()) {
-      // Caching of optimized code enabled and optimized code found.
-      DCHECK(!code.marked_for_deoptimization());
-      DCHECK(function->shared().is_compiled());
-      function->set_code(code);
+    if (function->has_feedback_vector()) {
+      // Evict any deoptimized code on feedback vector. We need to do this after
+      // creating the closure, since any heap allocations could trigger a GC and
+      // deoptimized the code on the feedback vector. So check for any
+      // deoptimized code just before installing it on the funciton.
+      function->feedback_vector().EvictOptimizedCodeMarkedForDeoptimization(
+          *shared, "new function from shared function info");
+      Code code = function->feedback_vector().optimized_code();
+      if (!code.is_null()) {
+        // Caching of optimized code enabled and optimized code found.
+        DCHECK(!code.marked_for_deoptimization());
+        DCHECK(function->shared().is_compiled());
+        function->set_code(code);
+      }
     }
 
     if (FLAG_always_opt && shared->allows_lazy_compilation() &&

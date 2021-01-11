@@ -3547,15 +3547,8 @@ void Factory::JSFunctionBuilder::PrepareMap() {
 void Factory::JSFunctionBuilder::PrepareFeedbackCell() {
   Handle<FeedbackCell> feedback_cell;
   if (maybe_feedback_cell_.ToHandle(&feedback_cell)) {
-    // Track the newly-created closure, and check that the optimized code in
-    // the feedback cell wasn't marked for deoptimization while not pointed to
-    // by any live JSFunction.
+    // Track the newly-created closure.
     feedback_cell->IncrementClosureCount(isolate_);
-    if (feedback_cell->value().IsFeedbackVector()) {
-      FeedbackVector::cast(feedback_cell->value())
-          .EvictOptimizedCodeMarkedForDeoptimization(
-              *sfi_, "new function from shared function info");
-    }
   } else {
     // Fall back to the many_closures_cell.
     maybe_feedback_cell_ = isolate_->factory()->many_closures_cell();
