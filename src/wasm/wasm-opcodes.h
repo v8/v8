@@ -430,6 +430,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I32x4ExtMulLowI16x8U, 0xfdbe, s_ss)      \
   V(I32x4ExtMulHighI16x8U, 0xfdbf, s_ss)     \
   V(I64x2Neg, 0xfdc1, s_s)                   \
+  V(I64x2BitMask, 0xfdc4, i_s)               \
   V(I64x2Shl, 0xfdcb, s_si)                  \
   V(I64x2ShrS, 0xfdcc, s_si)                 \
   V(I64x2ShrU, 0xfdcd, s_si)                 \
@@ -501,7 +502,6 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I16x8ExtAddPairwiseI8x16U, 0xfdc3, s_s) \
   V(I64x2Eq, 0xfdc0, s_ss)                  \
   V(F32x4Qfma, 0xfdb4, s_sss)               \
-  V(I64x2BitMask, 0xfdc4, i_s)              \
   V(I64x2SConvertI32x4Low, 0xfdc7, s_s)     \
   V(I64x2SConvertI32x4High, 0xfdc8, s_s)    \
   V(I64x2UConvertI32x4Low, 0xfdc9, s_s)     \
