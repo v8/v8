@@ -324,7 +324,8 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
         kExternalInt16Array,
         kExternalInt32Array,
     };
-    Handle<FixedArray> result = factory->NewFixedArray(arraysize(kTypes) * 2);
+    Handle<FixedArray> result =
+        factory->NewFixedArray((2 + arraysize(kTypes)) * 2);
     int index = 0;
     for (auto type : kTypes) {
       switch (type) {
@@ -346,6 +347,23 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
           UNREACHABLE();
       }
     }
+    Handle<String> byte_length_str =
+        factory->NewStringFromAsciiChecked("[[ArrayBufferByteLength]]");
+    result->set(index++, *byte_length_str);
+    Handle<Object> byte_length_obj = factory->NewNumberFromSize(byte_length);
+    result->set(index++, *byte_length_obj);
+    Handle<String> buffer_data_str =
+        factory->NewStringFromAsciiChecked("[[ArrayBufferData]]");
+    result->set(index++, *buffer_data_str);
+    // Use the backing store pointer as a unique ID
+    EmbeddedVector<char, 32> buffer_data_vec;
+    int len =
+        SNPrintF(buffer_data_vec, V8PRIxPTR_FMT,
+                 reinterpret_cast<Address>(js_array_buffer->backing_store()));
+    Handle<String> buffer_id =
+        factory->InternalizeUtf8String(buffer_data_vec.SubVector(0, len));
+    result->set(index++, *buffer_id);
+
     return factory->NewJSArrayWithElements(result, PACKED_ELEMENTS, index);
   } else if (object->IsWasmModuleObject()) {
     auto module_object = Handle<WasmModuleObject>::cast(object);

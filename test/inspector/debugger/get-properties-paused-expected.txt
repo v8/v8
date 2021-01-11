@@ -56,5 +56,7 @@ Running test: testArrayBuffer
 Running test: testArrayBufferWithBrokenUintCtor
   __proto__ own object undefined
 Internal properties
+  [[ArrayBufferByteLength]] number 7
+  [[ArrayBufferData]] string 0x...
   [[Int8Array]] object undefined
   [[Uint8Array]] object undefined
