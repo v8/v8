@@ -1111,6 +1111,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_i64x2_extmul_high_i32x4_u(LiftoffRegister dst,
                                              LiftoffRegister src1,
                                              LiftoffRegister src2);
+  inline void emit_i64x2_bitmask(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f32x4_abs(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f32x4_neg(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_f32x4_sqrt(LiftoffRegister dst, LiftoffRegister src);

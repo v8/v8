@@ -2012,6 +2012,11 @@ void LiftoffAssembler::emit_i64x2_extmul_high_i32x4_u(LiftoffRegister dst,
   Umull2(dst.fp().V2D(), src1.fp().V4S(), src2.fp().V4S());
 }
 
+void LiftoffAssembler::emit_i64x2_bitmask(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  bailout(kSimd, "i64x2_bitmask");
+}
+
 void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   Dup(dst.fp().V4S(), src.gp().W());

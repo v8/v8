@@ -3010,6 +3010,8 @@ class LiftoffCompiler {
       case wasm::kExprI64x2ExtMulHighI32x4U:
         return EmitBinOp<kS128, kS128>(
             &LiftoffAssembler::emit_i64x2_extmul_high_i32x4_u);
+      case wasm::kExprI64x2BitMask:
+        return EmitUnOp<kS128, kI32>(&LiftoffAssembler::emit_i64x2_bitmask);
       case wasm::kExprF32x4Abs:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_abs);
       case wasm::kExprF32x4Neg:
