@@ -812,7 +812,9 @@ StringData::StringData(JSHeapBroker* broker, ObjectData** storage,
       to_number_(TryStringToDouble(broker->local_isolate(), object)),
       is_external_string_(object->IsExternalString()),
       is_seq_string_(object->IsSeqString()),
-      chars_as_strings_(broker->zone()) {}
+      chars_as_strings_(broker->zone()) {
+  DCHECK(!FLAG_turbo_direct_heap_access);
+}
 
 class InternalizedStringData : public StringData {
  public:
