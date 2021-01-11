@@ -3672,6 +3672,48 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ stxsdx(kScratchSimd128Reg, operand);
       break;
     }
+#define EXT_ADD_PAIRWISE(mul_even, mul_odd, add)           \
+  __ mul_even(tempFPReg1, src, kScratchSimd128Reg);        \
+  __ mul_odd(kScratchSimd128Reg, src, kScratchSimd128Reg); \
+  __ add(dst, tempFPReg1, kScratchSimd128Reg);
+    case kPPC_I32x4ExtAddPairwiseI16x8S: {
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      __ li(kScratchReg, Operand(1));
+      __ mtvsrd(kScratchSimd128Reg, kScratchReg);
+      __ vsplth(kScratchSimd128Reg, kScratchSimd128Reg, Operand(3));
+      EXT_ADD_PAIRWISE(vmulesh, vmulesh, vadduwm)
+      break;
+    }
+    case kPPC_I32x4ExtAddPairwiseI16x8U: {
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      __ li(kScratchReg, Operand(1));
+      __ mtvsrd(kScratchSimd128Reg, kScratchReg);
+      __ vsplth(kScratchSimd128Reg, kScratchSimd128Reg, Operand(3));
+      EXT_ADD_PAIRWISE(vmuleuh, vmuleuh, vadduwm)
+      break;
+    }
+
+    case kPPC_I16x8ExtAddPairwiseI8x16S: {
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      __ xxspltib(kScratchSimd128Reg, Operand(1));
+      EXT_ADD_PAIRWISE(vmulesb, vmulesb, vadduhm)
+      break;
+    }
+    case kPPC_I16x8ExtAddPairwiseI8x16U: {
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      __ xxspltib(kScratchSimd128Reg, Operand(1));
+      EXT_ADD_PAIRWISE(vmuleub, vmuleub, vadduhm)
+      break;
+    }
+#undef EXT_ADD_PAIRWISE
     case kPPC_StoreCompressTagged: {
       ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedFieldX);
       break;

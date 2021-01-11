@@ -219,6 +219,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I32x4UConvertI16x8High:
     case kPPC_I32x4BitMask:
     case kPPC_I32x4DotI16x8S:
+    case kPPC_I32x4ExtAddPairwiseI16x8S:
+    case kPPC_I32x4ExtAddPairwiseI16x8U:
     case kPPC_I16x8Splat:
     case kPPC_I16x8ExtractLaneU:
     case kPPC_I16x8ExtractLaneS:
@@ -254,6 +256,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I16x8SubSatU:
     case kPPC_I16x8RoundingAverageU:
     case kPPC_I16x8BitMask:
+    case kPPC_I16x8ExtAddPairwiseI8x16S:
+    case kPPC_I16x8ExtAddPairwiseI8x16U:
     case kPPC_I8x16Splat:
     case kPPC_I8x16ExtractLaneU:
     case kPPC_I8x16ExtractLaneS:

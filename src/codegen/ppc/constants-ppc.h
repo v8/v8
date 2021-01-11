@@ -2273,14 +2273,22 @@ using Instr = uint32_t;
   V(vmuluwm, VMULUWM, 0x10000089)                          \
   /* Vector Pack Unsigned Halfword Unsigned Modulo */      \
   V(vpkuhum, VPKUHUM, 0x1000000E)                          \
+  /* Vector Multiply Even Signed Byte */                   \
+  V(vmulesb, VMULESB, 0x10000308)                          \
   /* Vector Multiply Even Unsigned Byte */                 \
   V(vmuleub, VMULEUB, 0x10000208)                          \
+  /* Vector Multiply Odd Signed Byte */                    \
+  V(vmulosb, VMULOSB, 0x10000108)                          \
   /* Vector Multiply Odd Unsigned Byte */                  \
   V(vmuloub, VMULOUB, 0x10000008)                          \
   /* Vector Multiply Even Unsigned Halfword */             \
   V(vmuleuh, VMULEUH, 0x10000248)                          \
+  /* Vector Multiply Even Signed Halfword */               \
+  V(vmulesh, VMULESH, 0x10000348)                          \
   /* Vector Multiply Odd Unsigned Halfword */              \
   V(vmulouh, VMULOUH, 0x10000048)                          \
+  /* Vector Multiply Odd Signed Halfword */                \
+  V(vmulosh, VMULOSH, 0x10000148)                          \
   /* Vector Sum across Quarter Signed Halfword Saturate */ \
   V(vsum4shs, VSUM4SHS, 0x10000648)                        \
   /* Vector Pack Unsigned Word Unsigned Saturate */        \
@@ -2461,18 +2469,10 @@ using Instr = uint32_t;
   V(vmrglh, VMRGLH, 0x1000014C)                                           \
   /* Vector Merge Low Word */                                             \
   V(vmrglw, VMRGLW, 0x1000018C)                                           \
-  /* Vector Multiply Even Signed Byte */                                  \
-  V(vmulesb, VMULESB, 0x10000308)                                         \
-  /* Vector Multiply Even Signed Halfword */                              \
-  V(vmulesh, VMULESH, 0x10000348)                                         \
   /* Vector Multiply Even Signed Word */                                  \
   V(vmulesw, VMULESW, 0x10000388)                                         \
   /* Vector Multiply Even Unsigned Word */                                \
   V(vmuleuw, VMULEUW, 0x10000288)                                         \
-  /* Vector Multiply Odd Signed Byte */                                   \
-  V(vmulosb, VMULOSB, 0x10000108)                                         \
-  /* Vector Multiply Odd Signed Halfword */                               \
-  V(vmulosh, VMULOSH, 0x10000148)                                         \
   /* Vector Multiply Odd Signed Word */                                   \
   V(vmulosw, VMULOSW, 0x10000188)                                         \
   /* Vector Multiply Odd Unsigned Word */                                 \
