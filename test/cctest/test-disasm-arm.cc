@@ -1226,6 +1226,11 @@ TEST(Neon) {
       COMPARE(vmul(Neon32, q15, q0, q8),
               "f260e970       vmul.i32 q15, q0, q8");
 
+      COMPARE(vqrdmulh(NeonS16, q0, q1, q8),
+              "f3120b60       vqrdmulh.s16 q0, q1, q8");
+      COMPARE(vqrdmulh(NeonS32, q15, q0, q8),
+              "f360eb60       vqrdmulh.s32 q15, q0, q8");
+
       COMPARE(vmull(NeonU8, q15, d0, d8),
               "f3c0ec08       vmull.u8 q15, d0, d8");
       COMPARE(vmull(NeonS16, q15, d0, d8),

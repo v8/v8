@@ -4308,7 +4308,8 @@ enum IntegerBinOp {
   VCEQ,
   VCGE,
   VCGT,
-  VRHADD
+  VRHADD,
+  VQRDMULH
 };
 
 static Instr EncodeNeonBinOp(IntegerBinOp op, NeonDataType dt,
@@ -4351,6 +4352,9 @@ static Instr EncodeNeonBinOp(IntegerBinOp op, NeonDataType dt,
       break;
     case VRHADD:
       op_encoding = B8;
+      break;
+    case VQRDMULH:
+      op_encoding = B24 | 0xB * B8;
       break;
     default:
       UNREACHABLE();
@@ -4941,6 +4945,13 @@ void Assembler::vpaddl(NeonDataType dt, QwNeonRegister dst,
   // vpaddl.<dt>(Qd, Qm) SIMD Vector Pairwise Add Long.
   emit(EncodeNeonUnaryOp(NeonU(dt) ? VPADDL_U : VPADDL_S, NEON_Q,
                          NeonDataTypeToSize(dt), dst.code(), src.code()));
+}
+
+void Assembler::vqrdmulh(NeonDataType dt, QwNeonRegister dst,
+                         QwNeonRegister src1, QwNeonRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  DCHECK(dt == NeonS16 || dt == NeonS32);
+  emit(EncodeNeonBinOp(VQRDMULH, dt, dst, src1, src2));
 }
 
 void Assembler::vcnt(QwNeonRegister dst, QwNeonRegister src) {

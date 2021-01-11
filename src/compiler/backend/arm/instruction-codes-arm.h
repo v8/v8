@@ -253,6 +253,7 @@ namespace compiler {
   V(ArmI16x8RoundingAverageU)      \
   V(ArmI16x8Abs)                   \
   V(ArmI16x8BitMask)               \
+  V(ArmI16x8Q15MulRSatS)           \
   V(ArmI8x16Splat)                 \
   V(ArmI8x16ExtractLaneS)          \
   V(ArmI8x16ReplaceLane)           \

@@ -2077,6 +2077,8 @@ void Decoder::DecodeAdvancedSIMDDataProcessing(Instruction* instr) {
       Format(instr, "vpmin.s'size3 'Dd, 'Dn, 'Dm");
     } else if (!u && opc == 0xA && !op1) {
       Format(instr, "vpmax.s'size3 'Dd, 'Dn, 'Dm");
+    } else if (u && opc == 0XB) {
+      Format(instr, "vqrdmulh.s'size3 'Qd, 'Qn, 'Qm");
     } else if (!u && opc == 0xB) {
       Format(instr, "vpadd.i'size3 'Dd, 'Dn, 'Dm");
     } else if (!u && !(sz >> 1) && opc == 0xD && !op1) {

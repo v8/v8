@@ -5485,6 +5485,15 @@ void Simulator::DecodeAdvancedSIMDDataProcessing(Instruction* instr) {
         }
       }
       set_neon_register(Vd, dst);
+    } else if (u && opc == 0xB) {
+      // vqrdmulh.<dt> Qd, Qm, Qn
+      NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+      if (size == Neon16) {
+        Binop<int16_t>(this, Vd, Vm, Vn, SaturateRoundingQMul<int16_t>);
+      } else {
+        DCHECK_EQ(Neon32, size);
+        Binop<int32_t>(this, Vd, Vm, Vn, SaturateRoundingQMul<int32_t>);
+      }
     } else {
       UNIMPLEMENTED();
     }

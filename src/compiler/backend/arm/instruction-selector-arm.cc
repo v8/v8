@@ -2703,6 +2703,7 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I16x8GtU, kArmI16x8GtU)                           \
   V(I16x8GeU, kArmI16x8GeU)                           \
   V(I16x8RoundingAverageU, kArmI16x8RoundingAverageU) \
+  V(I16x8Q15MulRSatS, kArmI16x8Q15MulRSatS)           \
   V(I8x16SConvertI16x8, kArmI8x16SConvertI16x8)       \
   V(I8x16Add, kArmI8x16Add)                           \
   V(I8x16AddSatS, kArmI8x16AddSatS)                   \
