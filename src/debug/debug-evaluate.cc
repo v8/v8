@@ -10,6 +10,7 @@
 #include "src/common/globals.h"
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
+#include "src/debug/debug-wasm-support.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
@@ -17,7 +18,6 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/objects/contexts.h"
 #include "src/snapshot/snapshot.h"
-#include "src/wasm/wasm-debug.h"
 
 namespace v8 {
 namespace internal {
@@ -100,7 +100,7 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
     WasmFrame* frame = WasmFrame::cast(it.frame());
     Handle<SharedFunctionInfo> outer_info(
         isolate->native_context()->empty_function().shared(), isolate);
-    Handle<JSObject> context_extension = wasm::GetJSDebugProxy(frame);
+    Handle<JSObject> context_extension = GetJSDebugProxy(frame);
     Handle<ScopeInfo> scope_info =
         ScopeInfo::CreateForWithScope(isolate, Handle<ScopeInfo>::null());
     Handle<Context> context = isolate->factory()->NewWithContext(

@@ -5,6 +5,7 @@
 #include "src/debug/debug-scope-iterator.h"
 
 #include "src/api/api-inl.h"
+#include "src/debug/debug-wasm-support.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
 #include "src/execution/frames-inl.h"
@@ -173,19 +174,15 @@ v8::Local<v8::Object> DebugWasmScopeIterator::GetObject() {
     case debug::ScopeIterator::ScopeTypeModule: {
       Handle<WasmInstanceObject> instance =
           FrameSummary::GetTop(frame_).AsWasm().wasm_instance();
-      return Utils::ToLocal(wasm::GetModuleScopeObject(instance));
+      return Utils::ToLocal(GetModuleScopeObject(instance));
     }
     case debug::ScopeIterator::ScopeTypeLocal: {
       DCHECK(frame_->is_inspectable());
-      wasm::DebugInfo* debug_info = frame_->native_module()->GetDebugInfo();
-      return Utils::ToLocal(debug_info->GetLocalScopeObject(
-          isolate_, frame_->pc(), frame_->fp(), frame_->callee_fp()));
+      return Utils::ToLocal(GetLocalScopeObject(frame_));
     }
     case debug::ScopeIterator::ScopeTypeWasmExpressionStack: {
       DCHECK(frame_->is_inspectable());
-      wasm::DebugInfo* debug_info = frame_->native_module()->GetDebugInfo();
-      return Utils::ToLocal(debug_info->GetStackScopeObject(
-          isolate_, frame_->pc(), frame_->fp(), frame_->callee_fp()));
+      return Utils::ToLocal(GetStackScopeObject(frame_));
     }
     default:
       return {};
