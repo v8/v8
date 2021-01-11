@@ -947,8 +947,6 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
   return module;
 }
 
-namespace {
-
 struct DynamicImportData {
   DynamicImportData(Isolate* isolate_, Local<String> referrer_,
                     Local<String> specifier_,
@@ -965,6 +963,7 @@ struct DynamicImportData {
   Global<Promise::Resolver> resolver;
 };
 
+namespace {
 struct ModuleResolutionData {
   ModuleResolutionData(Isolate* isolate_, Local<Value> module_namespace_,
                        Local<Promise::Resolver> resolver_)
@@ -1030,6 +1029,7 @@ MaybeLocal<Promise> Shell::HostImportModuleDynamically(
   if (maybe_resolver.ToLocal(&resolver)) {
     DynamicImportData* data = new DynamicImportData(
         isolate, referrer->GetResourceName().As<String>(), specifier, resolver);
+    PerIsolateData::Get(isolate)->AddDynamicImportData(data);
     isolate->EnqueueMicrotask(Shell::DoHostImportModuleDynamically, data);
     return resolver->GetPromise();
   }
@@ -1056,8 +1056,9 @@ void Shell::HostInitializeImportMetaObject(Local<Context> context,
 }
 
 void Shell::DoHostImportModuleDynamically(void* import_data) {
-  std::unique_ptr<DynamicImportData> import_data_(
-      static_cast<DynamicImportData*>(import_data));
+  DynamicImportData* import_data_ =
+      static_cast<DynamicImportData*>(import_data);
+
   Isolate* isolate(import_data_->isolate);
   HandleScope handle_scope(isolate);
 
@@ -1066,6 +1067,8 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
   Local<Promise::Resolver> resolver(import_data_->resolver.Get(isolate));
 
   PerIsolateData* data = PerIsolateData::Get(isolate);
+  PerIsolateData::Get(isolate)->DeleteDynamicImportData(import_data_);
+
   Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
   Context::Scope context_scope(realm);
 
@@ -1213,6 +1216,11 @@ PerIsolateData::~PerIsolateData() {
   if (i::FLAG_expose_async_hooks) {
     delete async_hooks_wrapper_;  // This uses the isolate
   }
+#if defined(LEAK_SANITIZER)
+  for (DynamicImportData* data : import_data_) {
+    delete data;
+  }
+#endif
 }
 
 void PerIsolateData::SetTimeout(Local<Function> callback,
@@ -1274,6 +1282,18 @@ int PerIsolateData::HandleUnhandledPromiseRejections() {
   unhandled_promises_.clear();
   ignore_unhandled_promises_ = false;
   return static_cast<int>(i);
+}
+
+void PerIsolateData::AddDynamicImportData(DynamicImportData* data) {
+#if defined(LEAK_SANITIZER)
+  import_data_.insert(data);
+#endif
+}
+void PerIsolateData::DeleteDynamicImportData(DynamicImportData* data) {
+#if defined(LEAK_SANITIZER)
+  import_data_.erase(data);
+#endif
+  delete data;
 }
 
 PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
@@ -2402,13 +2422,10 @@ void Shell::PromiseRejectCallback(v8::PromiseRejectMessage data) {
   }
   if (!exception->IsNativeError() &&
       (message.IsEmpty() || message->GetStackTrace().IsEmpty())) {
-    // If there is no real Error object, manually throw and catch a stack trace.
-    v8::TryCatch try_catch(isolate);
-    try_catch.SetVerbose(true);
-    isolate->ThrowException(v8::Exception::Error(
-        v8::String::NewFromUtf8Literal(isolate, "Unhandled Promise.")));
-    message = try_catch.Message();
-    exception = try_catch.Exception();
+    // If there is no real Error object, manually create a stack trace.
+    exception = v8::Exception::Error(
+        v8::String::NewFromUtf8Literal(isolate, "Unhandled Promise."));
+    message = Exception::CreateMessage(isolate, exception);
   }
   isolate->SetCaptureStackTraceForUncaughtExceptions(capture_exceptions);
 

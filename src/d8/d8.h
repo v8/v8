@@ -30,6 +30,8 @@ namespace internal {
 class CancelableTaskManager;
 }  // namespace internal
 
+struct DynamicImportData;
+
 // A single counter in a counter collection.
 class Counter {
  public:
@@ -262,6 +264,11 @@ class PerIsolateData {
                            Local<Value> exception);
   int HandleUnhandledPromiseRejections();
 
+  // Keep track of DynamicImportData so we can properly free it on shutdown
+  // when LEAK_SANITIZER is active.
+  void AddDynamicImportData(DynamicImportData*);
+  void DeleteDynamicImportData(DynamicImportData*);
+
  private:
   friend class Shell;
   friend class RealmScope;
@@ -277,6 +284,9 @@ class PerIsolateData {
   std::vector<std::tuple<Global<Promise>, Global<Message>, Global<Value>>>
       unhandled_promises_;
   AsyncHooks* async_hooks_wrapper_;
+#if defined(LEAK_SANITIZER)
+  std::unordered_set<DynamicImportData*> import_data_;
+#endif
 
   int RealmIndexOrThrow(const v8::FunctionCallbackInfo<v8::Value>& args,
                         int arg_offset);
