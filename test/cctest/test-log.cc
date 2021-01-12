@@ -504,6 +504,7 @@ UNINITIALIZED_TEST(Issue539892) {
 UNINITIALIZED_TEST(LogAll) {
   SETUP_FLAGS();
   i::FLAG_log_all = true;
+  i::FLAG_log_deopt = true;
   i::FLAG_log_api = true;
   i::FLAG_turbo_inlining = false;
   i::FLAG_log_internal_timer_events = true;
@@ -802,7 +803,7 @@ UNINITIALIZED_TEST(ExternalCodeEventListenerWithInterpretedFramesNativeStack) {
 
 UNINITIALIZED_TEST(TraceMaps) {
   SETUP_FLAGS();
-  i::FLAG_trace_maps = true;
+  i::FLAG_log_maps = true;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -837,7 +838,7 @@ UNINITIALIZED_TEST(TraceMaps) {
     CHECK(logger.ContainsLine({"map,Transition", ",0x"}));
     CHECK(logger.ContainsLine({"map-details", ",0x"}));
   }
-  i::FLAG_trace_maps = false;
+  i::FLAG_log_maps = false;
   isolate->Dispose();
 }
 
@@ -895,7 +896,7 @@ UNINITIALIZED_TEST(LogMapsDetailsStartup) {
   }
   // Test that all Map details from Maps in the snapshot are logged properly.
   SETUP_FLAGS();
-  i::FLAG_trace_maps = true;
+  i::FLAG_log_maps = true;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -917,7 +918,7 @@ UNINITIALIZED_TEST(LogMapsDetailsCode) {
   }
   SETUP_FLAGS();
   i::FLAG_retain_maps_for_n_gc = 0xFFFFFFF;
-  i::FLAG_trace_maps = true;
+  i::FLAG_log_maps = true;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -1014,7 +1015,7 @@ UNINITIALIZED_TEST(LogMapsDetailsContexts) {
   }
   // Test that all Map details from Maps in the snapshot are logged properly.
   SETUP_FLAGS();
-  i::FLAG_trace_maps = true;
+  i::FLAG_log_maps = true;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);

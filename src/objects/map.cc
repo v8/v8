@@ -613,7 +613,7 @@ void Map::DeprecateTransitionTree(Isolate* isolate) {
   DCHECK(!constructor_or_backpointer().IsFunctionTemplateInfo());
   DCHECK(CanBeDeprecated());
   set_is_deprecated(true);
-  if (FLAG_trace_maps) {
+  if (FLAG_log_maps) {
     LOG(isolate, MapEvent("Deprecate", handle(*this, isolate), Handle<Map>()));
   }
   dependent_code().DeoptimizeDependentCodeGroup(
@@ -1537,7 +1537,7 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
                           Map::kSize - offset));
     }
 #endif
-    if (FLAG_trace_maps) {
+    if (FLAG_log_maps) {
       LOG(isolate, MapEvent("NormalizeCached", fast_map, new_map, reason));
     }
   } else {
@@ -1547,7 +1547,7 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
       cache->Set(fast_map, new_map);
       isolate->counters()->maps_normalized()->Increment();
     }
-    if (FLAG_trace_maps) {
+    if (FLAG_log_maps) {
       LOG(isolate, MapEvent("Normalize", fast_map, new_map, reason));
     }
   }
@@ -1729,12 +1729,12 @@ void Map::ConnectTransition(Isolate* isolate, Handle<Map> parent,
   }
   if (parent->IsDetached(isolate)) {
     DCHECK(child->IsDetached(isolate));
-    if (FLAG_trace_maps) {
+    if (FLAG_log_maps) {
       LOG(isolate, MapEvent("Transition", parent, child, "prototype", name));
     }
   } else {
     TransitionsAccessor(isolate, parent).Insert(name, child, flag);
-    if (FLAG_trace_maps) {
+    if (FLAG_log_maps) {
       LOG(isolate, MapEvent("Transition", parent, child, "", name));
     }
   }
@@ -1772,7 +1772,7 @@ Handle<Map> Map::CopyReplaceDescriptors(
                                     LayoutDescriptor::FastPointerLayout());
     }
   }
-  if (FLAG_trace_maps && !is_connected) {
+  if (FLAG_log_maps && !is_connected) {
     LOG(isolate, MapEvent("ReplaceDescriptors", map, result, reason,
                           maybe_name.is_null() ? Handle<HeapObject>() : name));
   }
@@ -2198,7 +2198,7 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
     const char* reason = "TooManyFastProperties";
 #if V8_TRACE_MAPS
     std::unique_ptr<ScopedVector<char>> buffer;
-    if (FLAG_trace_maps) {
+    if (FLAG_log_maps) {
       ScopedVector<char> name_buffer(100);
       name->NameShortPrint(name_buffer);
       buffer.reset(new ScopedVector<char>(128));

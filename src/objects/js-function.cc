@@ -450,7 +450,7 @@ void JSFunction::SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
   }
   function->set_prototype_or_initial_map(*map);
   map->SetConstructor(*function);
-  if (FLAG_trace_maps) {
+  if (FLAG_log_maps) {
     LOG(isolate, MapEvent("InitialMap", Handle<Map>(), map, "",
                           SharedFunctionInfo::DebugName(
                               handle(function->shared(), isolate))));

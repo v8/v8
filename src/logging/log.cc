@@ -1030,10 +1030,7 @@ void Logger::UncheckedStringEvent(const char* name, const char* value) {
 }
 
 void Logger::IntPtrTEvent(const char* name, intptr_t value) {
-  if (FLAG_log) UncheckedIntPtrTEvent(name, value);
-}
-
-void Logger::UncheckedIntPtrTEvent(const char* name, intptr_t value) {
+  if (!FLAG_log) return;
   MSG_BUILDER();
   msg << name << kNext;
   msg.AppendFormatString("%" V8PRIdPTR, value);
@@ -1470,7 +1467,7 @@ void Logger::ProcessDeoptEvent(Handle<Code> code, SourcePosition position,
 
 void Logger::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
                             int fp_to_sp_delta, bool reuse_code) {
-  if (!is_logging()) return;
+  if (!is_logging() || !FLAG_log_deopt) return;
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(*code, pc);
   ProcessDeoptEvent(code, info.position,
                     Deoptimizer::MessageFor(kind, reuse_code),
@@ -1480,7 +1477,7 @@ void Logger::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
 void Logger::CodeDependencyChangeEvent(Handle<Code> code,
                                        Handle<SharedFunctionInfo> sfi,
                                        const char* reason) {
-  if (!is_logging()) return;
+  if (!is_logging() || !FLAG_log_deopt) return;
   SourcePosition position(sfi->StartPosition(), -1);
   ProcessDeoptEvent(code, position, "dependency-change", reason);
 }
@@ -1488,41 +1485,41 @@ void Logger::CodeDependencyChangeEvent(Handle<Code> code,
 namespace {
 
 void CodeLinePosEvent(
-    JitLogger* jit_logger, Address code_start,
+    JitLogger& jit_logger, Address code_start,
     SourcePositionTableIterator& iter) {  // NOLINT(runtime/references)
-  if (jit_logger) {
-    void* jit_handler_data = jit_logger->StartCodePosInfoEvent();
-    for (; !iter.done(); iter.Advance()) {
-      if (iter.is_statement()) {
-        jit_logger->AddCodeLinePosInfoEvent(
-            jit_handler_data, iter.code_offset(),
-            iter.source_position().ScriptOffset(),
-            JitCodeEvent::STATEMENT_POSITION);
-      }
-      jit_logger->AddCodeLinePosInfoEvent(jit_handler_data, iter.code_offset(),
-                                          iter.source_position().ScriptOffset(),
-                                          JitCodeEvent::POSITION);
+  void* jit_handler_data = jit_logger.StartCodePosInfoEvent();
+  for (; !iter.done(); iter.Advance()) {
+    if (iter.is_statement()) {
+      jit_logger.AddCodeLinePosInfoEvent(jit_handler_data, iter.code_offset(),
+                                         iter.source_position().ScriptOffset(),
+                                         JitCodeEvent::STATEMENT_POSITION);
     }
-    jit_logger->EndCodePosInfoEvent(code_start, jit_handler_data);
+    jit_logger.AddCodeLinePosInfoEvent(jit_handler_data, iter.code_offset(),
+                                       iter.source_position().ScriptOffset(),
+                                       JitCodeEvent::POSITION);
   }
+  jit_logger.EndCodePosInfoEvent(code_start, jit_handler_data);
 }
 
 }  // namespace
 
 void Logger::CodeLinePosInfoRecordEvent(Address code_start,
                                         ByteArray source_position_table) {
+  if (!jit_logger_) return;
   SourcePositionTableIterator iter(source_position_table);
-  CodeLinePosEvent(jit_logger_.get(), code_start, iter);
+  CodeLinePosEvent(*jit_logger_, code_start, iter);
 }
 
 void Logger::CodeLinePosInfoRecordEvent(
     Address code_start, Vector<const byte> source_position_table) {
+  if (!jit_logger_) return;
   SourcePositionTableIterator iter(source_position_table);
-  CodeLinePosEvent(jit_logger_.get(), code_start, iter);
+  CodeLinePosEvent(*jit_logger_, code_start, iter);
 }
 
 void Logger::CodeNameEvent(Address addr, int pos, const char* code_name) {
   if (code_name == nullptr) return;  // Not a code object.
+  if (!is_listening_to_code_events()) return;
   MSG_BUILDER();
   msg << kLogEventsNames[CodeEventListener::SNAPSHOT_CODE_NAME_EVENT] << kNext
       << pos << kNext << code_name;
@@ -1727,7 +1724,7 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
 void Logger::ICEvent(const char* type, bool keyed, Handle<Map> map,
                      Handle<Object> key, char old_state, char new_state,
                      const char* modifier, const char* slow_stub_reason) {
-  if (!FLAG_trace_ic) return;
+  if (!FLAG_log_ic) return;
   MSG_BUILDER();
   if (keyed) msg << "Keyed";
   int line;
@@ -1753,7 +1750,7 @@ void Logger::ICEvent(const char* type, bool keyed, Handle<Map> map,
 
 void Logger::MapEvent(const char* type, Handle<Map> from, Handle<Map> to,
                       const char* reason, Handle<HeapObject> name_or_sfi) {
-  if (!FLAG_trace_maps) return;
+  if (!FLAG_log_maps) return;
   if (!to.is_null()) MapDetails(*to);
   int line = -1;
   int column = -1;
@@ -1784,7 +1781,7 @@ void Logger::MapEvent(const char* type, Handle<Map> from, Handle<Map> to,
 }
 
 void Logger::MapCreate(Map map) {
-  if (!FLAG_trace_maps) return;
+  if (!FLAG_log_maps) return;
   DisallowGarbageCollection no_gc;
   MSG_BUILDER();
   msg << "map-create" << kNext << Time() << kNext << AsHex::Address(map.ptr());
@@ -1792,12 +1789,12 @@ void Logger::MapCreate(Map map) {
 }
 
 void Logger::MapDetails(Map map) {
-  if (!FLAG_trace_maps) return;
+  if (!FLAG_log_maps) return;
   DisallowGarbageCollection no_gc;
   MSG_BUILDER();
   msg << "map-details" << kNext << Time() << kNext << AsHex::Address(map.ptr())
       << kNext;
-  if (FLAG_trace_maps_details) {
+  if (FLAG_log_maps_details) {
     std::ostringstream buffer;
     map.PrintMapDetails(buffer);
     msg << buffer.str().c_str();
@@ -2008,21 +2005,16 @@ bool Logger::SetUp(Isolate* isolate) {
         std::make_unique<LowLevelLogger>(isolate, log_file_name.str().c_str());
     AddCodeEventListener(ll_logger_.get());
   }
-
   ticker_ = std::make_unique<Ticker>(isolate, FLAG_prof_sampling_interval);
-
-  if (Log::InitLogAtStart()) UpdateIsLogging(true);
-
+  if (FLAG_log) UpdateIsLogging(true);
   timer_.Start();
-
   if (FLAG_prof_cpp) {
-    UpdateIsLogging(true);
+    CHECK(FLAG_log);
+    CHECK(is_logging());
     profiler_ = std::make_unique<Profiler>(isolate);
     profiler_->Engage();
   }
-
   if (is_logging_) AddCodeEventListener(this);
-
   return true;
 }
 

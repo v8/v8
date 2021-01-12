@@ -660,7 +660,7 @@ MaybeHandle<Object> DefineClass(
     DCHECK(isolate->has_pending_exception());
     return MaybeHandle<Object>();
   }
-  if (FLAG_trace_maps) {
+  if (FLAG_log_maps) {
     Handle<Map> empty_map;
     LOG(isolate,
         MapEvent("InitialMap", empty_map, handle(constructor->map(), isolate),

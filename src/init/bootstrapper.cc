@@ -346,7 +346,7 @@ Handle<JSGlobalProxy> Bootstrapper::NewRemoteContext(
 }
 
 void Bootstrapper::LogAllMaps() {
-  if (!FLAG_trace_maps || isolate_->initialized_from_snapshot()) return;
+  if (!FLAG_log_maps || isolate_->initialized_from_snapshot()) return;
   // Log all created Map objects that are on the heap. For snapshots the Map
   // logging happens during deserialization in order to avoid printing Maps
   // multiple times during partial deserialization.

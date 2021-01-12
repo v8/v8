@@ -3541,7 +3541,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
     object->SetProperties(ReadOnlyRoots(isolate).empty_fixed_array());
     // Check that it really works.
     DCHECK(object->HasFastProperties());
-    if (FLAG_trace_maps) {
+    if (FLAG_log_maps) {
       LOG(isolate, MapEvent("SlowToFast", old_map, new_map, reason));
     }
     return;
@@ -3650,7 +3650,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
     new_map->SetOutOfObjectUnusedPropertyFields(unused_property_fields);
   }
 
-  if (FLAG_trace_maps) {
+  if (FLAG_log_maps) {
     LOG(isolate, MapEvent("SlowToFast", old_map, new_map, reason));
   }
   // Transform the object.

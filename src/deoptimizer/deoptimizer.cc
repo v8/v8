@@ -528,7 +528,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
       input_frame_context_(0),
       actual_argument_count_(0),
       stack_fp_(0),
-      trace_scope_(FLAG_trace_deopt
+      trace_scope_(FLAG_trace_deopt || FLAG_log_deopt
                        ? new CodeTracer::Scope(isolate->GetCodeTracer())
                        : nullptr) {
   if (isolate->deoptimizer_lazy_throw()) {
@@ -783,7 +783,7 @@ void Deoptimizer::TraceDeoptEnd(double deopt_duration) {
 
 // static
 void Deoptimizer::TraceMarkForDeoptimization(Code code, const char* reason) {
-  if (!FLAG_trace_deopt) return;
+  if (!FLAG_trace_deopt && !FLAG_log_deopt) return;
 
   DisallowGarbageCollection no_gc;
   Isolate* isolate = code.GetIsolate();
@@ -792,12 +792,14 @@ void Deoptimizer::TraceMarkForDeoptimization(Code code, const char* reason) {
 
   DeoptimizationData deopt_data = DeoptimizationData::cast(maybe_data);
   CodeTracer::Scope scope(isolate->GetCodeTracer());
-  PrintF(scope.file(), "[marking dependent code " V8PRIxPTR_FMT " (",
-         code.ptr());
-  deopt_data.SharedFunctionInfo().ShortPrint(scope.file());
-  PrintF(") (opt id %d) for deoptimization, reason: %s]\n",
-         deopt_data.OptimizationId().value(), reason);
-
+  if (FLAG_trace_deopt) {
+    PrintF(scope.file(), "[marking dependent code " V8PRIxPTR_FMT " (",
+           code.ptr());
+    deopt_data.SharedFunctionInfo().ShortPrint(scope.file());
+    PrintF(") (opt id %d) for deoptimization, reason: %s]\n",
+           deopt_data.OptimizationId().value(), reason);
+  }
+  if (!FLAG_log_deopt) return;
   no_gc.Release();
   {
     HandleScope scope(isolate);

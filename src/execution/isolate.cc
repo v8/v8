@@ -3885,7 +3885,8 @@ bool Isolate::NeedsDetailedOptimizedCodeLineInfo() const {
 bool Isolate::NeedsSourcePositionsForProfiling() const {
   return FLAG_trace_deopt || FLAG_trace_turbo || FLAG_trace_turbo_graph ||
          FLAG_turbo_profiling || FLAG_perf_prof || is_profiling() ||
-         debug_->is_active() || logger_->is_logging() || FLAG_trace_maps;
+         debug_->is_active() || logger_->is_logging() || FLAG_log_maps ||
+         FLAG_log_ic;
 }
 
 void Isolate::SetFeedbackVectorsForProfilingTools(Object value) {

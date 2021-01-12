@@ -1482,7 +1482,7 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
   map.clear_padding();
   map.set_elements_kind(elements_kind);
   isolate()->counters()->maps_created()->Increment();
-  if (FLAG_trace_maps) LOG(isolate(), MapCreate(map));
+  if (FLAG_log_maps) LOG(isolate(), MapCreate(map));
   return map;
 }
 

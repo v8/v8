@@ -72,10 +72,9 @@ class SourcePosition;
 class Ticker;
 
 #undef LOG
-#define LOG(isolate, Call)                  \
-  do {                                      \
-    auto&& logger = (isolate)->logger();    \
-    if (logger->is_logging()) logger->Call; \
+#define LOG(isolate, Call)                                 \
+  do {                                                     \
+    if (v8::internal::FLAG_log) (isolate)->logger()->Call; \
   } while (false)
 
 #define LOG_CODE_EVENT(isolate, Call)                        \
@@ -304,9 +303,6 @@ class Logger : public CodeEventListener {
 
   // Logs a StringEvent regardless of whether FLAG_log is true.
   void UncheckedStringEvent(const char* name, const char* value);
-
-  // Logs an IntPtrTEvent regardless of whether FLAG_log is true.
-  void UncheckedIntPtrTEvent(const char* name, intptr_t value);
 
   // Logs a scripts sources. Keeps track of all logged scripts to ensure that
   // each script is logged only once.
