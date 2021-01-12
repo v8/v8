@@ -4,6 +4,7 @@
 
 #include "src/regexp/experimental/experimental.h"
 
+#include "src/common/assert-scope.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/regexp/experimental/experimental-compiler.h"
 #include "src/regexp/experimental/experimental-interpreter.h"
@@ -145,6 +146,8 @@ int32_t ExecRawImpl(Isolate* isolate, RegExp::CallOrigin call_origin,
                     int32_t* output_registers, int32_t output_register_count,
                     int32_t subject_index) {
   DisallowGarbageCollection no_gc;
+  // TODO(cbruni): remove once gcmole is fixed.
+  DisableGCMole no_gc_mole;
 
   int register_count_per_match =
       JSRegExp::RegistersForCaptureCount(capture_count);

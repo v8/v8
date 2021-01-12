@@ -26,7 +26,9 @@ enum PerThreadAssertType {
   HANDLE_ALLOCATION_ASSERT,
   HANDLE_DEREFERENCE_ASSERT,
   CODE_DEPENDENCY_CHANGE_ASSERT,
-  CODE_ALLOCATION_ASSERT
+  CODE_ALLOCATION_ASSERT,
+  // Dummy type for disabling GC mole.
+  GC_MOLE,
 };
 
 enum PerIsolateAssertType {
@@ -35,7 +37,7 @@ enum PerIsolateAssertType {
   JAVASCRIPT_EXECUTION_DUMP,
   DEOPTIMIZATION_ASSERT,
   COMPILATION_ASSERT,
-  NO_EXCEPTION_ASSERT
+  NO_EXCEPTION_ASSERT,
 };
 
 template <PerThreadAssertType kType, bool kAllow>
@@ -191,6 +193,11 @@ using AllowCodeAllocation =
 // DisallowHeapAllocation by also forbidding safepoints.
 using DisallowGarbageCollection =
     CombinationAssertScope<DisallowSafepoints, DisallowHeapAllocation>;
+
+// Scope to skip gc mole verification in places where we do tricky raw
+// work.
+using DisableGCMole = PerThreadAssertScopeDebugOnly<GC_MOLE, false>;
+
 // The DISALLOW_GARBAGE_COLLECTION macro can be used to define a
 // DisallowGarbageCollection field in classes that isn't present in release
 // builds.
@@ -214,15 +221,6 @@ using DisallowHeapAccess =
 using AllowHeapAccess =
     CombinationAssertScope<AllowCodeDependencyChange, AllowHandleDereference,
                            AllowHandleAllocation, AllowHeapAllocation>;
-
-// The DISALLOW_GARBAGE_COLLECTION macro can be used to define a
-// DisallowSafepoints field in classes that isn't present in release
-// builds.
-#ifdef DEBUG
-#define DISALLOW_GARBAGE_COLLECTION(name) DisallowGarbageCollection name;
-#else
-#define DISALLOW_GARBAGE_COLLECTION(name)
-#endif
 
 class DisallowHeapAccessIf {
  public:
@@ -328,6 +326,7 @@ extern template class PerThreadAssertScope<CODE_DEPENDENCY_CHANGE_ASSERT,
 extern template class PerThreadAssertScope<CODE_DEPENDENCY_CHANGE_ASSERT, true>;
 extern template class PerThreadAssertScope<CODE_ALLOCATION_ASSERT, false>;
 extern template class PerThreadAssertScope<CODE_ALLOCATION_ASSERT, true>;
+extern template class PerThreadAssertScope<GC_MOLE, false>;
 
 extern template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, false>;
 extern template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, true>;

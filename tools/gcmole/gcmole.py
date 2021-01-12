@@ -474,6 +474,7 @@ def CheckCorrectnessForArch(arch, for_test, flags, clang_bin_dir,
 
 
 def TestRun(flags, clang_bin_dir, clang_plugins_dir):
+  log("** Test Run")
   errors_found, output = CheckCorrectnessForArch("x64", True, flags,
                                                  clang_bin_dir,
                                                  clang_plugins_dir)
@@ -489,7 +490,7 @@ def TestRun(flags, clang_bin_dir, clang_plugins_dir):
   if output != expectations:
     log("** Output mismatch from running tests. Please run them manually.")
 
-    for line in difflib.context_diff(
+    for line in difflib.unified_diff(
         expectations.splitlines(),
         output.splitlines(),
         fromfile=filename,
@@ -498,6 +499,7 @@ def TestRun(flags, clang_bin_dir, clang_plugins_dir):
     ):
       log("{}", line)
 
+    log("------")
     log("--- Full output ---")
     log(output)
     log("------")
@@ -526,7 +528,7 @@ def main(args):
       #:n't use parallel python runner.
       "sequential": False,
       # Print commands to console before executing them.
-      "verbose": False,
+      "verbose": True,
       # Perform dead variable analysis.
       "dead_vars": True,
       # Enable verbose tracing from the plugin itself.

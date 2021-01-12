@@ -6,6 +6,7 @@
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-factory.h"
+#include "src/common/assert-scope.h"
 #include "src/debug/debug.h"
 #include "src/execution/isolate.h"
 #include "src/execution/protectors-inl.h"
@@ -969,6 +970,7 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS: {
       DisallowGarbageCollection no_gc;
+      DisableGCMole no_gc_mole;
       FixedArrayBase elements = object->elements();
       JSObject raw_object = *object;
       ElementsAccessor* accessor = object->GetElementsAccessor();

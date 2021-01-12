@@ -83,34 +83,40 @@ set -x
 
 NUM_JOBS=3
 if [[ "${OS}" = "Linux" ]]; then
-  NUM_JOBS="$(grep -c "^processor" /proc/cpuinfo)"
+  if [[ -e "/proc/cpuinfo" ]]; then
+    NUM_JOBS="$(grep -c "^processor" /proc/cpuinfo)"
+  else
+    # Hack when running in chroot
+    NUM_JOBS="32"
+  fi
 elif [ "${OS}" = "Darwin" ]; then
   NUM_JOBS="$(sysctl -n hw.ncpu)"
 fi
 
 # Build clang.
-if [ ! -e "${BUILD_DIR}" ]; then
-  mkdir "${BUILD_DIR}"
-fi
-cd "${BUILD_DIR}"
-cmake -GNinja -DCMAKE_CXX_FLAGS="-static-libstdc++" -DLLVM_ENABLE_TERMINFO=OFF \
-    -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS=clang \
-    -DLLVM_ENABLE_Z3_SOLVER=OFF "${LLVM_PROJECT_DIR}/llvm"
-MACOSX_DEPLOYMENT_TARGET=10.5 ninja -j"${NUM_JOBS}"
-
-# Strip the clang binary.
-STRIP_FLAGS=
-if [ "${OS}" = "Darwin" ]; then
-  # See http://crbug.com/256342
-  STRIP_FLAGS=-x
-fi
-strip ${STRIP_FLAGS} bin/clang
-cd -
+# if [ ! -e "${BUILD_DIR}" ]; then
+#   mkdir "${BUILD_DIR}"
+# fi
+# cd "${BUILD_DIR}"
+# cmake -GNinja -DCMAKE_CXX_FLAGS="-static-libstdc++" -DLLVM_ENABLE_TERMINFO=OFF \
+#     -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS=clang \
+#     -DLLVM_ENABLE_Z3_SOLVER=OFF "${LLVM_PROJECT_DIR}/llvm"
+# MACOSX_DEPLOYMENT_TARGET=10.5 ninja -j"${NUM_JOBS}"
+# 
+# # Strip the clang binary.
+# STRIP_FLAGS=
+# if [ "${OS}" = "Darwin" ]; then
+#   # See http://crbug.com/256342
+#   STRIP_FLAGS=-x
+# fi
+# strip ${STRIP_FLAGS} bin/clang
+# cd -
 
 # Build libgcmole.so
 make -C "${THIS_DIR}" clean
 make -C "${THIS_DIR}" LLVM_SRC_ROOT="${LLVM_PROJECT_DIR}/llvm" \
-    CLANG_SRC_ROOT="${LLVM_PROJECT_DIR}/clang" BUILD_ROOT="${BUILD_DIR}" libgcmole.so
+    CLANG_SRC_ROOT="${LLVM_PROJECT_DIR}/clang" \
+    BUILD_ROOT="${BUILD_DIR}" libgcmole.so
 
 set +x
 

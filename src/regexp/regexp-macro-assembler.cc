@@ -204,22 +204,25 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(*subject_handle);
   int return_value = 0;
 
-  if (js_has_overflowed) {
-    AllowGarbageCollection yes_gc;
-    isolate->StackOverflow();
-    return_value = EXCEPTION;
-  } else if (check.InterruptRequested()) {
-    AllowGarbageCollection yes_gc;
-    Object result = isolate->stack_guard()->HandleInterrupts();
-    if (result.IsException(isolate)) return_value = EXCEPTION;
-  }
+  {
+    DisableGCMole no_gc_mole;
+    if (js_has_overflowed) {
+      AllowGarbageCollection yes_gc;
+      isolate->StackOverflow();
+      return_value = EXCEPTION;
+    } else if (check.InterruptRequested()) {
+      AllowGarbageCollection yes_gc;
+      Object result = isolate->stack_guard()->HandleInterrupts();
+      if (result.IsException(isolate)) return_value = EXCEPTION;
+    }
 
-  if (*code_handle != re_code) {  // Return address no longer valid
-    // Overwrite the return address on the stack.
-    intptr_t delta = code_handle->address() - re_code.address();
-    Address new_pc = old_pc + delta;
-    // TODO(v8:10026): avoid replacing a signed pointer.
-    PointerAuthentication::ReplacePC(return_address, new_pc, 0);
+    if (*code_handle != re_code) {  // Return address no longer valid
+      // Overwrite the return address on the stack.
+      intptr_t delta = code_handle->address() - re_code.address();
+      Address new_pc = old_pc + delta;
+      // TODO(v8:10026): avoid replacing a signed pointer.
+      PointerAuthentication::ReplacePC(return_address, new_pc, 0);
+    }
   }
 
   // If we continue, we need to update the subject string addresses.
