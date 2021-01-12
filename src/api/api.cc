@@ -1314,9 +1314,9 @@ void Context::SetAlignedPointerInEmbedderData(int index, void* value) {
 
 // --- T e m p l a t e ---
 
-static void InitializeTemplate(i::Handle<i::TemplateInfo> that, int type) {
-  that->set_number_of_properties(0);
-  that->set_tag(type);
+static void InitializeTemplate(i::TemplateInfo that, int type) {
+  that.set_number_of_properties(0);
+  that.set_tag(type);
 }
 
 void Template::Set(v8::Local<Name> name, v8::Local<Data> value,
@@ -1364,10 +1364,9 @@ void Template::SetAccessorProperty(v8::Local<v8::Name> name,
 }
 
 // --- F u n c t i o n   T e m p l a t e ---
-static void InitializeFunctionTemplate(
-    i::Handle<i::FunctionTemplateInfo> info) {
+static void InitializeFunctionTemplate(i::FunctionTemplateInfo info) {
   InitializeTemplate(info, Consts::FUNCTION_TEMPLATE);
-  info->set_flag(0);
+  info.set_flag(0);
 }
 
 static Local<ObjectTemplate> ObjectTemplateNew(
@@ -1419,7 +1418,8 @@ void FunctionTemplate::Inherit(v8::Local<FunctionTemplate> value) {
 
 static Local<FunctionTemplate> FunctionTemplateNew(
     i::Isolate* isolate, FunctionCallback callback, v8::Local<Value> data,
-    v8::Local<Signature> signature, int length, bool do_not_cache,
+    v8::Local<Signature> signature, int length, ConstructorBehavior behavior,
+    bool do_not_cache,
     v8::Local<Private> cached_property_name = v8::Local<Private>(),
     SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
     const CFunction* c_function = nullptr) {
@@ -1430,29 +1430,31 @@ static Local<FunctionTemplate> FunctionTemplateNew(
   {
     // Disallow GC until all fields of obj have acceptable types.
     i::DisallowGarbageCollection no_gc;
-    InitializeFunctionTemplate(obj);
-    obj->set_length(length);
-    obj->set_do_not_cache(do_not_cache);
+    i::FunctionTemplateInfo raw = *obj;
+    InitializeFunctionTemplate(raw);
+    raw.set_length(length);
+    raw.set_do_not_cache(do_not_cache);
     int next_serial_number = i::FunctionTemplateInfo::kInvalidSerialNumber;
     if (!do_not_cache) {
       next_serial_number = isolate->heap()->GetNextTemplateSerialNumber();
     }
-    obj->set_serial_number(next_serial_number);
+    raw.set_serial_number(next_serial_number);
+    raw.set_undetectable(false);
+    raw.set_needs_access_check(false);
+    raw.set_accept_any_receiver(true);
+    if (!signature.IsEmpty()) {
+      raw.set_signature(*Utils::OpenHandle(*signature));
+    }
+    raw.set_cached_property_name(
+        cached_property_name.IsEmpty()
+            ? i::ReadOnlyRoots(isolate).the_hole_value()
+            : *Utils::OpenHandle(*cached_property_name));
+    if (behavior == ConstructorBehavior::kThrow) raw.set_remove_prototype(true);
   }
   if (callback != nullptr) {
     Utils::ToLocal(obj)->SetCallHandler(callback, data, side_effect_type,
                                         c_function);
   }
-  obj->set_undetectable(false);
-  obj->set_needs_access_check(false);
-  obj->set_accept_any_receiver(true);
-  if (!signature.IsEmpty()) {
-    obj->set_signature(*Utils::OpenHandle(*signature));
-  }
-  obj->set_cached_property_name(
-      cached_property_name.IsEmpty()
-          ? i::ReadOnlyRoots(isolate).the_hole_value()
-          : *Utils::OpenHandle(*cached_property_name));
   return Utils::ToLocal(obj);
 }
 
@@ -1465,10 +1467,9 @@ Local<FunctionTemplate> FunctionTemplate::New(
   // function templates when the isolate is created for serialization.
   LOG_API(i_isolate, FunctionTemplate, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  auto templ =
-      FunctionTemplateNew(i_isolate, callback, data, signature, length, false,
-                          Local<Private>(), side_effect_type, c_function);
-  if (behavior == ConstructorBehavior::kThrow) templ->RemovePrototype();
+  auto templ = FunctionTemplateNew(i_isolate, callback, data, signature, length,
+                                   behavior, false, Local<Private>(),
+                                   side_effect_type, c_function);
   return templ;
 }
 
@@ -1480,7 +1481,8 @@ Local<FunctionTemplate> FunctionTemplate::NewWithCache(
   LOG_API(i_isolate, FunctionTemplate, NewWithCache);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   return FunctionTemplateNew(i_isolate, callback, data, signature, length,
-                             false, cache_property, side_effect_type);
+                             ConstructorBehavior::kAllow, false, cache_property,
+                             side_effect_type);
 }
 
 Local<Signature> Signature::New(Isolate* isolate,
@@ -1651,16 +1653,18 @@ static Local<ObjectTemplate> ObjectTemplateNew(
   {
     // Disallow GC until all fields of obj have acceptable types.
     i::DisallowGarbageCollection no_gc;
-    InitializeTemplate(obj, Consts::OBJECT_TEMPLATE);
+    i::ObjectTemplateInfo raw = *obj;
+    InitializeTemplate(raw, Consts::OBJECT_TEMPLATE);
+    raw.set_data(0);
     int next_serial_number = 0;
     if (!do_not_cache) {
       next_serial_number = isolate->heap()->GetNextTemplateSerialNumber();
     }
-    obj->set_serial_number(next_serial_number);
-    obj->set_data(0);
+    raw.set_serial_number(next_serial_number);
+    if (!constructor.IsEmpty()) {
+      raw.set_constructor(*Utils::OpenHandle(*constructor));
+    }
   }
-  if (!constructor.IsEmpty())
-    obj->set_constructor(*Utils::OpenHandle(*constructor));
   return Utils::ToLocal(obj);
 }
 
@@ -5034,8 +5038,7 @@ MaybeLocal<Function> Function::New(Local<Context> context,
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   auto templ =
       FunctionTemplateNew(isolate, callback, data, Local<Signature>(), length,
-                          true, Local<Private>(), side_effect_type);
-  if (behavior == ConstructorBehavior::kThrow) templ->RemovePrototype();
+                          behavior, true, Local<Private>(), side_effect_type);
   return templ->GetFunction(context);
 }
 

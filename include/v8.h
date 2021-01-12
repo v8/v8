@@ -47,11 +47,12 @@ class BigIntObject;
 class Boolean;
 class BooleanObject;
 class CFunction;
+class CallHandlerHelper;
 class Context;
 class CppHeap;
-struct CppHeapCreateParams;
 class Data;
 class Date;
+class EscapableHandleScope;
 class External;
 class Function;
 class FunctionTemplate;
@@ -60,8 +61,7 @@ class ImplementationUtilities;
 class Int32;
 class Integer;
 class Isolate;
-template <class T>
-class Maybe;
+class Isolate;
 class MicrotaskQueue;
 class Name;
 class Number;
@@ -71,6 +71,8 @@ class ObjectOperationDescriptor;
 class ObjectTemplate;
 class Platform;
 class Primitive;
+class PrimitiveArray;
+class Private;
 class Promise;
 class PropertyDescriptor;
 class Proxy;
@@ -78,75 +80,73 @@ class RawOperationDescriptor;
 class Script;
 class SharedArrayBuffer;
 class Signature;
-class StartupData;
 class StackFrame;
 class StackTrace;
+class StartupData;
 class String;
 class StringObject;
 class Symbol;
 class SymbolObject;
 class TracedReferenceBase;
-class PrimitiveArray;
-class Private;
 class Uint32;
 class Utils;
 class Value;
 class WasmMemoryObject;
 class WasmModuleObject;
-template <class T> class Local;
-template <class T>
-class MaybeLocal;
-template <class T> class Eternal;
+struct CppHeapCreateParams;
+template <class K, class V, class T>
+class GlobalValueMap;
+template <class K, class V, class T>
+class PersistentValueMapBase;
 template<class T> class NonCopyablePersistentTraits;
-template<class T> class PersistentBase;
-template <class T, class M = NonCopyablePersistentTraits<T> >
+template <class T, class M = NonCopyablePersistentTraits<T>>
 class Persistent;
 template <class T>
+class BasicTracedReference;
+template <class T>
+class Eternal;
+template <class T>
 class Global;
+template <class T>
+class Local;
+template <class T>
+class Maybe;
+template <class T>
+class MaybeLocal;
 template <class T>
 class TracedGlobal;
 template <class T>
 class TracedReference;
-template <class T>
-class BasicTracedReference;
 template<class K, class V, class T> class PersistentValueMap;
-template <class K, class V, class T>
-class PersistentValueMapBase;
-template <class K, class V, class T>
-class GlobalValueMap;
-template<class V, class T> class PersistentValueVector;
 template<class T, class P> class WeakCallbackObject;
-class FunctionTemplate;
-class ObjectTemplate;
+template <class T>
+class PersistentBase;
+template <class V, class T>
+class PersistentValueVector;
 template<typename T> class FunctionCallbackInfo;
 template<typename T> class PropertyCallbackInfo;
-class StackTrace;
-class StackFrame;
-class Isolate;
-class CallHandlerHelper;
-class EscapableHandleScope;
 template<typename T> class ReturnValue;
 
 namespace internal {
-enum class ArgumentsType;
-template <ArgumentsType>
-class Arguments;
 class BasicTracedReferenceExtractor;
-template <typename T>
-class CustomArguments;
+class ExternalString;
 class FunctionCallbackArguments;
 class GlobalHandles;
 class Heap;
 class HeapObject;
-class ExternalString;
 class Isolate;
 class LocalEmbedderHeapTracer;
 class MicrotaskQueue;
 class PropertyCallbackArguments;
 class ReadOnlyHeap;
 class ScopedExternalStringLock;
-struct ScriptStreamingData;
 class ThreadLocalTop;
+struct ScriptStreamingData;
+enum class ArgumentsType;
+template <ArgumentsType>
+class Arguments;
+template <typename T>
+class CustomArguments;
 
 namespace wasm {
 class NativeModule;
