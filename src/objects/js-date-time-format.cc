@@ -510,7 +510,11 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
   // and
   // http://www.unicode.org/repos/cldr/tags/latest/common/bcp47/calendar.xml
   if (calendar_str == "gregorian") {
-    calendar_str = "gregory";
+    if (date_time_format->iso8601()) {
+      calendar_str = "iso8601";
+    } else {
+      calendar_str = "gregory";
+    }
   } else if (calendar_str == "ethiopic-amete-alem") {
     calendar_str = "ethioaa";
   }
@@ -1563,6 +1567,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     icu_locale.setUnicodeKeywordValue("ca", calendar_str.get(), status);
     DCHECK(U_SUCCESS(status));
   }
+  bool iso8601 = strstr(icu_locale.getName(), "calendar=iso8601") != nullptr;
 
   if (numbering_system_str != nullptr &&
       Intl::IsValidNumberingSystem(numbering_system_str.get())) {
@@ -1870,6 +1875,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     date_time_format->set_time_style(time_style);
   }
   date_time_format->set_hour_cycle(dateTimeFormatHourCycle);
+  date_time_format->set_iso8601(iso8601);
   date_time_format->set_locale(*locale_str);
   date_time_format->set_icu_locale(*managed_locale);
   date_time_format->set_icu_simple_date_format(*managed_format);
