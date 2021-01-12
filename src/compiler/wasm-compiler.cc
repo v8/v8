@@ -3122,6 +3122,7 @@ Node* WasmGraphBuilder::BuildLoadJumpTableOffsetFromExportedFunctionData(
   return BuildChangeSmiToIntPtr(jump_table_offset_smi);
 }
 
+// TODO(9495): Support CAPI function refs.
 Node* WasmGraphBuilder::BuildCallRef(uint32_t sig_index, Vector<Node*> args,
                                      Vector<Node*> rets,
                                      CheckForNull null_check,

@@ -4381,7 +4381,7 @@ class LiftoffCompiler {
     __ PushRegister(obj.type, obj_reg);
   }
 
-  void PassThrough(FullDecoder* decoder, const Value& from, Value* to) {
+  void Forward(FullDecoder* decoder, const Value& from, Value* to) {
     // Nothing to do here.
   }
 

@@ -1122,8 +1122,6 @@ WASM_COMPILED_EXEC_TEST(BasicI31) {
   const byte kUnsigned = tester.DefineFunction(
       tester.sigs.i_i(), {},
       {WASM_I31_GET_U(WASM_I31_NEW(WASM_LOCAL_GET(0))), kExprEnd});
-  // TODO(7748): Support (rtt.canon i31), and add a test like:
-  // (ref.test (i31.new ...) (rtt.canon i31)).
   tester.CompileModule();
   tester.CheckResult(kSigned, 123, 123);
   tester.CheckResult(kUnsigned, 123, 123);

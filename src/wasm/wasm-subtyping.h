@@ -69,6 +69,14 @@ V8_INLINE bool IsSubtypeOf(ValueType subtype, ValueType supertype,
   return IsSubtypeOfImpl(subtype, supertype, module, module);
 }
 
+// We have this function call IsSubtypeOf instead of the opposite because type
+// checks are much more common than heap type checks.
+V8_INLINE bool IsHeapSubtypeOf(HeapType subtype, HeapType supertype,
+                               const WasmModule* module) {
+  return IsSubtypeOf(ValueType::Ref(subtype, kNonNullable),
+                     ValueType::Ref(supertype, kNonNullable), module);
+}
+
 // Returns the weakest type that is a subtype of both a and b
 // (which is currently always one of a, b, or kWasmBottom).
 // TODO(manoskouk): Update this once we have settled on a type system for

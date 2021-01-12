@@ -1105,7 +1105,7 @@ struct ControlBase : public PcForErrors<validate> {
   F(RefCast, const Value& obj, const Value& rtt, Value* result)                \
   F(BrOnCast, const Value& obj, const Value& rtt, Value* result_on_branch,     \
     uint32_t depth)                                                            \
-  F(PassThrough, const Value& from, Value* to)
+  F(Forward, const Value& from, Value* to)
 
 // Generic Wasm bytecode decoder with utilities for decoding immediates,
 // lengths, etc.
@@ -2523,30 +2523,32 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     Control* c = control_at(imm.depth);
     TypeCheckBranchResult check_result = TypeCheckBranch(c, true);
     switch (ref_object.type.kind()) {
-      // For bottom and non-nullable reference, simply forward the popped
-      // argument to the result.
       case ValueType::kBottom:
+        // We are in a polymorphic stack. No need to push an additional bottom
+        // value.
         DCHECK(check_result != kReachableBranch);
-        V8_FALLTHROUGH;
+        break;
       case ValueType::kRef: {
+        // Simply forward the popped argument to the result.
         Value* result = Push(ref_object.type);
         if (V8_LIKELY(check_result == kReachableBranch)) {
-          CALL_INTERFACE(PassThrough, ref_object, result);
+          CALL_INTERFACE(Forward, ref_object, result);
         }
         break;
       }
       case ValueType::kOptRef: {
-        // We need to Push the result value after calling BrOnNull on
-        // the interface. Therefore we must sync the ref_object and
-        // result nodes afterwards (in PassThrough).
         if (V8_LIKELY(check_result == kReachableBranch)) {
           CALL_INTERFACE_IF_REACHABLE(BrOnNull, ref_object, imm.depth);
-        }
-        Value* result =
-            Push(ValueType::Ref(ref_object.type.heap_type(), kNonNullable));
-        if (V8_LIKELY(check_result == kReachableBranch)) {
-          CALL_INTERFACE(PassThrough, ref_object, result);
+          Value* result =
+              Push(ValueType::Ref(ref_object.type.heap_type(), kNonNullable));
+          // The result of br_on_null has the same value as the argument (but a
+          // non-nullable type).
+          CALL_INTERFACE(Forward, ref_object, result);
           c->br_merge()->reached = true;
+        } else {
+          // Even in non-reachable code, we need to push a value of the correct
+          // type to the stack.
+          Push(ValueType::Ref(ref_object.type.heap_type(), kNonNullable));
         }
         break;
       }
@@ -2897,7 +2899,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         // We are in unreachable code. Forward the bottom value.
       case ValueType::kRef: {
         Value* result = Push(value.type);
-        CALL_INTERFACE_IF_REACHABLE(PassThrough, value, result);
+        CALL_INTERFACE_IF_REACHABLE(Forward, value, result);
         return 1;
       }
       case ValueType::kOptRef: {
@@ -4006,13 +4008,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         if (parent.type.is_bottom()) {
           Push(kWasmBottom);
         } else {
-          // TODO(7748): Consider exposing "IsSubtypeOfHeap(HeapType t1, t2)" so
-          // we can avoid creating (ref heaptype) wrappers here.
           if (!VALIDATE(parent.type.is_rtt() &&
-                        IsSubtypeOf(ValueType::Ref(imm.type, kNonNullable),
-                                    ValueType::Ref(parent.type.heap_type(),
-                                                   kNonNullable),
-                                    this->module_))) {
+                        IsHeapSubtypeOf(imm.type, parent.type.heap_type(),
+                                        this->module_))) {
             PopTypeError(0, parent,
                          "rtt for a supertype of type " + imm.type.name());
             return 0;
@@ -4043,9 +4041,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         if (!VALIDATE(this->ok())) return 0;
 
         // The static type of {obj} must be a supertype of the {rtt}'s type.
-        if (!VALIDATE(IsSubtypeOf(ValueType::Ref(rtt_type.type, kNonNullable),
-                                  ValueType::Ref(obj_type.type, kNonNullable),
-                                  this->module_))) {
+        if (!VALIDATE(
+                IsHeapSubtypeOf(rtt_type.type, obj_type.type, this->module_))) {
           this->DecodeError(
               "ref.test: immediate rtt type %s is not a subtype of immediate "
               "object type %s",
@@ -4073,9 +4070,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         len += rtt_type.length;
         if (!VALIDATE(this->ok())) return 0;
 
-        if (!VALIDATE(IsSubtypeOf(ValueType::Ref(rtt_type.type, kNonNullable),
-                                  ValueType::Ref(obj_type.type, kNonNullable),
-                                  this->module_))) {
+        if (!VALIDATE(
+                IsHeapSubtypeOf(rtt_type.type, obj_type.type, this->module_))) {
           this->DecodeError(
               "ref.test: immediate rtt type %s is not a subtype of immediate "
               "object type %s",
@@ -4115,11 +4111,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           return 0;
         }
         // The static type of {obj} must be a supertype of {rtt}'s type.
-        if (!VALIDATE(
-                rtt.type.is_bottom() || obj.type.is_bottom() ||
-                IsSubtypeOf(ValueType::Ref(rtt.type.heap_type(), kNonNullable),
-                            ValueType::Ref(obj.type.heap_type(), kNonNullable),
-                            this->module_))) {
+        if (!VALIDATE(rtt.type.is_bottom() || obj.type.is_bottom() ||
+                      IsHeapSubtypeOf(rtt.type.heap_type(),
+                                      obj.type.heap_type(), this->module_))) {
           PopTypeError(1, rtt, obj.type);
           return 0;
         }

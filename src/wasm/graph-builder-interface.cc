@@ -894,7 +894,7 @@ class WasmGraphBuildingInterface {
     SetEnv(no_match_env);
   }
 
-  void PassThrough(FullDecoder* decoder, const Value& from, Value* to) {
+  void Forward(FullDecoder* decoder, const Value& from, Value* to) {
     to->node = from.node;
   }
 
@@ -1139,6 +1139,8 @@ class WasmGraphBuildingInterface {
     TFNode* effect_inputs[] = {effect(), control()};
     builder_->SetEffect(builder_->EffectPhi(1, effect_inputs));
     builder_->TerminateLoop(effect(), control());
+    // Doing a preprocessing pass to analyze loop assignments seems to pay off
+    // compared to reallocating Nodes when rearranging Phis in Goto.
     BitVector* assigned = WasmDecoder<validate>::AnalyzeLoopAssignment(
         decoder, decoder->pc(), decoder->num_locals(), decoder->zone());
     if (decoder->failed()) return;
