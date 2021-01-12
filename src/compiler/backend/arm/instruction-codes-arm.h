@@ -188,6 +188,10 @@ namespace compiler {
   V(ArmI64x2ShrU)                  \
   V(ArmI64x2BitMask)               \
   V(ArmI64x2Eq)                    \
+  V(ArmI64x2SConvertI32x4Low)      \
+  V(ArmI64x2SConvertI32x4High)     \
+  V(ArmI64x2UConvertI32x4Low)      \
+  V(ArmI64x2UConvertI32x4High)     \
   V(ArmI32x4Splat)                 \
   V(ArmI32x4ExtractLane)           \
   V(ArmI32x4ReplaceLane)           \

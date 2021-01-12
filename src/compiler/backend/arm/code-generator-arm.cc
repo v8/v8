@@ -2202,6 +2202,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ add(dst, dst, Operand(tmp, LSL, 1));
       break;
     }
+    case kArmI64x2SConvertI32x4Low: {
+      __ vmovl(NeonS32, i.OutputSimd128Register(),
+               i.InputSimd128Register(0).low());
+      break;
+    }
+    case kArmI64x2SConvertI32x4High: {
+      __ vmovl(NeonS32, i.OutputSimd128Register(),
+               i.InputSimd128Register(0).high());
+      break;
+    }
+    case kArmI64x2UConvertI32x4Low: {
+      __ vmovl(NeonU32, i.OutputSimd128Register(),
+               i.InputSimd128Register(0).low());
+      break;
+    }
+    case kArmI64x2UConvertI32x4High: {
+      __ vmovl(NeonU32, i.OutputSimd128Register(),
+               i.InputSimd128Register(0).high());
+      break;
+    }
     case kArmF32x4Splat: {
       int src_code = i.InputFloatRegister(0).code();
       __ vdup(Neon32, i.OutputSimd128Register(),
