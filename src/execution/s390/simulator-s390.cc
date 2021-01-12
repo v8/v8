@@ -3346,6 +3346,8 @@ void VectorPack(Simulator* sim, int dst, int src1, int src2, bool saturate,
   int src = src1;
   int count = 0;
   S value = 0;
+  // Setup a temp array to avoid overwriting dst mid loop.
+  D temps[kSimd128Size / sizeof(D)] = {0};
   for (size_t i = 0; i < kSimd128Size / sizeof(D); i++, count++) {
     if (count == kSimd128Size / sizeof(S)) {
       src = src2;
@@ -3358,8 +3360,9 @@ void VectorPack(Simulator* sim, int dst, int src1, int src2, bool saturate,
       else if (value < min)
         value = min;
     }
-    sim->set_simd_register_by_lane<D>(dst, i, value);
+    temps[i] = value;
   }
+  FOR_EACH_LANE(i, D) { sim->set_simd_register_by_lane<D>(dst, i, temps[i]); }
 }
 
 #define CASE(i, S, D, SAT, MAX, MIN)                   \
