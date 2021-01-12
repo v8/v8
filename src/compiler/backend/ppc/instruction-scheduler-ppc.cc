@@ -258,6 +258,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I16x8BitMask:
     case kPPC_I16x8ExtAddPairwiseI8x16S:
     case kPPC_I16x8ExtAddPairwiseI8x16U:
+    case kPPC_I16x8Q15MulRSatS:
     case kPPC_I8x16Splat:
     case kPPC_I8x16ExtractLaneU:
     case kPPC_I8x16ExtractLaneS:

@@ -335,6 +335,7 @@ namespace compiler {
   V(PPC_I16x8BitMask)                \
   V(PPC_I16x8ExtAddPairwiseI8x16S)   \
   V(PPC_I16x8ExtAddPairwiseI8x16U)   \
+  V(PPC_I16x8Q15MulRSatS)            \
   V(PPC_I8x16Splat)                  \
   V(PPC_I8x16ExtractLaneU)           \
   V(PPC_I8x16ExtractLaneS)           \

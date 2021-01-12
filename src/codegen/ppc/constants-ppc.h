@@ -1928,15 +1928,17 @@ using Instr = uint32_t;
   /* Floating Reciprocal Square Root Estimate Single */ \
   V(frsqrtes, FRSQRTES, 0xEC000034)
 
-#define PPC_VA_OPCODE_A_FORM_LIST(V)                     \
-  /* Vector Permute */                                   \
-  V(vperm, VPERM, 0x1000002B)                            \
-  /* Vector Multiply-Low-Add Unsigned Halfword Modulo */ \
-  V(vmladduhm, VMLADDUHM, 0x10000022)                    \
-  /* Vector Select */                                    \
-  V(vsel, VSEL, 0x1000002A)                              \
-  /* Vector Multiply-Sum Signed Halfword Modulo */       \
-  V(vmsumshm, VMSUMSHM, 0x10000028)
+#define PPC_VA_OPCODE_A_FORM_LIST(V)                            \
+  /* Vector Permute */                                          \
+  V(vperm, VPERM, 0x1000002B)                                   \
+  /* Vector Multiply-Low-Add Unsigned Halfword Modulo */        \
+  V(vmladduhm, VMLADDUHM, 0x10000022)                           \
+  /* Vector Select */                                           \
+  V(vsel, VSEL, 0x1000002A)                                     \
+  /* Vector Multiply-Sum Signed Halfword Modulo */              \
+  V(vmsumshm, VMSUMSHM, 0x10000028)                             \
+  /* Vector Multiply-High-Round-Add Signed Halfword Saturate */ \
+  V(vmhraddshs, VMHRADDSHS, 0x10000021)
 
 #define PPC_VA_OPCODE_UNUSED_LIST(V)                             \
   /* Vector Add Extended & write Carry Unsigned Quadword */      \
@@ -1947,8 +1949,6 @@ using Instr = uint32_t;
   V(vmaddfp, VMADDFP, 0x1000002E)                                \
   /* Vector Multiply-High-Add Signed Halfword Saturate */        \
   V(vmhaddshs, VMHADDSHS, 0x10000020)                            \
-  /* Vector Multiply-High-Round-Add Signed Halfword Saturate */  \
-  V(vmhraddshs, VMHRADDSHS, 0x10000021)                          \
   /* Vector Multiply-Sum Mixed Byte Modulo */                    \
   V(vmsummbm, VMSUMMBM, 0x10000025)                              \
   /* Vector Multiply-Sum Signed Halfword Saturate */             \

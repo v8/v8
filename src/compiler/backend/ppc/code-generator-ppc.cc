@@ -3714,6 +3714,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef EXT_ADD_PAIRWISE
+    case kPPC_I16x8Q15MulRSatS: {
+      __ vxor(kScratchSimd128Reg, kScratchSimd128Reg, kScratchSimd128Reg);
+      __ vmhraddshs(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                    i.InputSimd128Register(1), kScratchSimd128Reg);
+      break;
+    }
     case kPPC_StoreCompressTagged: {
       ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedFieldX);
       break;
