@@ -592,6 +592,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void I16x8ExtMul(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                    bool low, bool is_signed);
 
+  void I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1, XMMRegister src2);
+
   void Abspd(XMMRegister dst);
   void Negpd(XMMRegister dst);
 

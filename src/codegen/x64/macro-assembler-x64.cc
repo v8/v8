@@ -2211,6 +2211,17 @@ void TurboAssembler::I16x8ExtMul(XMMRegister dst, XMMRegister src1,
   }
 }
 
+void TurboAssembler::I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1,
+                                      XMMRegister src2) {
+  // k = i16x8.splat(0x8000)
+  Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+  Psllw(kScratchDoubleReg, byte{15});
+
+  Pmulhrsw(dst, src1, src2);
+  Pcmpeqw(kScratchDoubleReg, dst);
+  Pxor(dst, kScratchDoubleReg);
+}
+
 void TurboAssembler::Abspd(XMMRegister dst) {
   Andps(dst, ExternalReferenceAsOperand(
                  ExternalReference::address_of_double_abs_constant()));
