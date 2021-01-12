@@ -154,6 +154,10 @@ namespace compiler {
   V(IA32I64x2ExtMulHighI32x4S)     \
   V(IA32I64x2ExtMulLowI32x4U)      \
   V(IA32I64x2ExtMulHighI32x4U)     \
+  V(IA32I64x2SConvertI32x4Low)     \
+  V(IA32I64x2SConvertI32x4High)    \
+  V(IA32I64x2UConvertI32x4Low)     \
+  V(IA32I64x2UConvertI32x4High)    \
   V(IA32F32x4Splat)                \
   V(IA32F32x4ExtractLane)          \
   V(IA32Insertps)                  \

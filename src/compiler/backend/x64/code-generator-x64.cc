@@ -2908,6 +2908,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ vpxor(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
         __ vpunpckhdq(dst, src, kScratchDoubleReg);
       } else {
+        CpuFeatureScope sse_scope(tasm(), SSE4_1);
         __ pshufd(dst, src, 0xEE);
         __ pmovzxdq(dst, dst);
       }
