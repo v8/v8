@@ -2276,6 +2276,15 @@ void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
   subv_d(dst.fp().toW(), kSimd128RegZero, src.fp().toW());
 }
 
+void LiftoffAssembler::emit_i64x2_bitmask(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  srli_d(kSimd128RegZero, src.fp().toW(), 63);
+  shf_w(kSimd128ScratchReg, kSimd128RegZero, 0x02);
+  slli_d(kSimd128ScratchReg, kSimd128ScratchReg, 1);
+  or_v(kSimd128RegZero, kSimd128RegZero, kSimd128ScratchReg);
+  copy_u_b(dst.gp(), kSimd128RegZero, 0);
+}
+
 void LiftoffAssembler::emit_i64x2_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   fill_d(kSimd128ScratchReg, rhs.gp());
