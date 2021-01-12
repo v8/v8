@@ -3171,9 +3171,6 @@ TEST_F(FunctionBodyDecoderTest, MemoryInit) {
   builder.InitializeMemory();
   builder.SetDataSegmentCount(1);
 
-  ExpectFailure(sigs.v_v(),
-                {WASM_MEMORY_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
-  WASM_FEATURE_SCOPE(bulk_memory);
   ExpectValidates(sigs.v_v(),
                   {WASM_MEMORY_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
   ExpectFailure(sigs.v_v(),
@@ -3184,7 +3181,6 @@ TEST_F(FunctionBodyDecoderTest, MemoryInitInvalid) {
   builder.InitializeMemory();
   builder.SetDataSegmentCount(1);
 
-  WASM_FEATURE_SCOPE(bulk_memory);
   byte code[] = {WASM_MEMORY_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO),
                  WASM_END};
   for (size_t i = 0; i <= arraysize(code); ++i) {
@@ -3196,8 +3192,6 @@ TEST_F(FunctionBodyDecoderTest, DataDrop) {
   builder.InitializeMemory();
   builder.SetDataSegmentCount(1);
 
-  ExpectFailure(sigs.v_v(), {WASM_DATA_DROP(0)});
-  WASM_FEATURE_SCOPE(bulk_memory);
   ExpectValidates(sigs.v_v(), {WASM_DATA_DROP(0)});
   ExpectFailure(sigs.v_v(), {WASM_DATA_DROP(1)});
 }
@@ -3206,7 +3200,6 @@ TEST_F(FunctionBodyDecoderTest, DataSegmentIndexUnsigned) {
   builder.InitializeMemory();
   builder.SetDataSegmentCount(65);
 
-  WASM_FEATURE_SCOPE(bulk_memory);
   // Make sure that the index is interpreted as an unsigned number; 64 is
   // interpreted as -64 when decoded as a signed LEB.
   ExpectValidates(sigs.v_v(),
@@ -3217,9 +3210,6 @@ TEST_F(FunctionBodyDecoderTest, DataSegmentIndexUnsigned) {
 TEST_F(FunctionBodyDecoderTest, MemoryCopy) {
   builder.InitializeMemory();
 
-  ExpectFailure(sigs.v_v(),
-                {WASM_MEMORY_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO)});
-  WASM_FEATURE_SCOPE(bulk_memory);
   ExpectValidates(sigs.v_v(),
                   {WASM_MEMORY_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO)});
 }
@@ -3227,15 +3217,11 @@ TEST_F(FunctionBodyDecoderTest, MemoryCopy) {
 TEST_F(FunctionBodyDecoderTest, MemoryFill) {
   builder.InitializeMemory();
 
-  ExpectFailure(sigs.v_v(),
-                {WASM_MEMORY_FILL(WASM_ZERO, WASM_ZERO, WASM_ZERO)});
-  WASM_FEATURE_SCOPE(bulk_memory);
   ExpectValidates(sigs.v_v(),
                   {WASM_MEMORY_FILL(WASM_ZERO, WASM_ZERO, WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, BulkMemoryOpsWithoutMemory) {
-  WASM_FEATURE_SCOPE(bulk_memory);
   ExpectFailure(sigs.v_v(),
                 {WASM_MEMORY_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
   ExpectFailure(sigs.v_v(),
@@ -3248,9 +3234,6 @@ TEST_F(FunctionBodyDecoderTest, TableInit) {
   builder.InitializeTable(wasm::kWasmFuncRef);
   builder.AddPassiveElementSegment(wasm::kWasmFuncRef);
 
-  ExpectFailure(sigs.v_v(),
-                {WASM_TABLE_INIT(0, 0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
-  WASM_FEATURE_SCOPE(bulk_memory);
   ExpectValidates(sigs.v_v(),
                   {WASM_TABLE_INIT(0, 0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
   ExpectFailure(sigs.v_v(),
@@ -3262,7 +3245,6 @@ TEST_F(FunctionBodyDecoderTest, TableInitWrongType) {
   uint32_t element_index =
       builder.AddPassiveElementSegment(wasm::kWasmExternRef);
 
-  WASM_FEATURE_SCOPE(bulk_memory);
   WASM_FEATURE_SCOPE(reftypes);
   ExpectFailure(sigs.v_v(), {WASM_TABLE_INIT(table_index, element_index,
                                              WASM_ZERO, WASM_ZERO, WASM_ZERO)});
@@ -3272,7 +3254,6 @@ TEST_F(FunctionBodyDecoderTest, TableInitInvalid) {
   builder.InitializeTable(wasm::kWasmFuncRef);
   builder.AddPassiveElementSegment(wasm::kWasmFuncRef);
 
-  WASM_FEATURE_SCOPE(bulk_memory);
   byte code[] = {WASM_TABLE_INIT(0, 0, WASM_ZERO, WASM_ZERO, WASM_ZERO),
                  WASM_END};
   for (size_t i = 0; i <= arraysize(code); ++i) {
@@ -3284,8 +3265,6 @@ TEST_F(FunctionBodyDecoderTest, ElemDrop) {
   builder.InitializeTable(wasm::kWasmFuncRef);
   builder.AddPassiveElementSegment(wasm::kWasmFuncRef);
 
-  ExpectFailure(sigs.v_v(), {WASM_ELEM_DROP(0)});
-  WASM_FEATURE_SCOPE(bulk_memory);
   ExpectValidates(sigs.v_v(), {WASM_ELEM_DROP(0)});
   ExpectFailure(sigs.v_v(), {WASM_ELEM_DROP(1)});
 }
@@ -3294,7 +3273,6 @@ TEST_F(FunctionBodyDecoderTest, TableInitDeclarativeElem) {
   builder.InitializeTable(wasm::kWasmFuncRef);
   builder.AddDeclarativeElementSegment();
 
-  WASM_FEATURE_SCOPE(bulk_memory);
   WASM_FEATURE_SCOPE(reftypes);
   byte code[] = {WASM_TABLE_INIT(0, 0, WASM_ZERO, WASM_ZERO, WASM_ZERO),
                  WASM_END};
@@ -3307,8 +3285,6 @@ TEST_F(FunctionBodyDecoderTest, DeclarativeElemDrop) {
   builder.InitializeTable(wasm::kWasmFuncRef);
   builder.AddDeclarativeElementSegment();
 
-  ExpectFailure(sigs.v_v(), {WASM_ELEM_DROP(0)});
-  WASM_FEATURE_SCOPE(bulk_memory);
   WASM_FEATURE_SCOPE(reftypes);
   ExpectValidates(sigs.v_v(), {WASM_ELEM_DROP(0)});
   ExpectFailure(sigs.v_v(), {WASM_ELEM_DROP(1)});
@@ -3319,7 +3295,6 @@ TEST_F(FunctionBodyDecoderTest, RefFuncDeclared) {
   byte function_index = builder.AddFunction(sigs.v_i());
 
   ExpectFailure(sigs.a_v(), {WASM_REF_FUNC(function_index)});
-  WASM_FEATURE_SCOPE(bulk_memory);
   WASM_FEATURE_SCOPE(reftypes);
   ExpectValidates(sigs.a_v(), {WASM_REF_FUNC(function_index)});
 }
@@ -3328,7 +3303,6 @@ TEST_F(FunctionBodyDecoderTest, RefFuncUndeclared) {
   builder.InitializeTable(wasm::kWasmStmt);
   byte function_index = builder.AddFunction(sigs.v_i(), false);
 
-  WASM_FEATURE_SCOPE(bulk_memory);
   WASM_FEATURE_SCOPE(reftypes);
   ExpectFailure(sigs.a_v(), {WASM_REF_FUNC(function_index)});
 }
@@ -3339,7 +3313,6 @@ TEST_F(FunctionBodyDecoderTest, ElemSegmentIndexUnsigned) {
     builder.AddPassiveElementSegment(wasm::kWasmFuncRef);
   }
 
-  WASM_FEATURE_SCOPE(bulk_memory);
   // Make sure that the index is interpreted as an unsigned number; 64 is
   // interpreted as -64 when decoded as a signed LEB.
   ExpectValidates(sigs.v_v(),
@@ -3350,9 +3323,6 @@ TEST_F(FunctionBodyDecoderTest, ElemSegmentIndexUnsigned) {
 TEST_F(FunctionBodyDecoderTest, TableCopy) {
   builder.InitializeTable(wasm::kWasmStmt);
 
-  ExpectFailure(sigs.v_v(),
-                {WASM_TABLE_COPY(0, 0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
-  WASM_FEATURE_SCOPE(bulk_memory);
   ExpectValidates(sigs.v_v(),
                   {WASM_TABLE_COPY(0, 0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
 }
@@ -3361,7 +3331,6 @@ TEST_F(FunctionBodyDecoderTest, TableCopyWrongType) {
   uint32_t dst_table_index = builder.InitializeTable(wasm::kWasmFuncRef);
   uint32_t src_table_index = builder.InitializeTable(wasm::kWasmExternRef);
 
-  WASM_FEATURE_SCOPE(bulk_memory);
   WASM_FEATURE_SCOPE(reftypes);
   ExpectFailure(sigs.v_v(), {WASM_TABLE_COPY(dst_table_index, src_table_index,
                                              WASM_ZERO, WASM_ZERO, WASM_ZERO)});
@@ -3438,18 +3407,14 @@ TEST_F(FunctionBodyDecoderTest, TableOpsWithoutTable) {
                   {WASM_TABLE_FILL(0, WASM_ONE, WASM_REF_NULL(kExternRefCode),
                                    WASM_ONE)});
   }
-  {
-    WASM_FEATURE_SCOPE(bulk_memory);
-    builder.AddPassiveElementSegment(wasm::kWasmFuncRef);
-    ExpectFailure(sigs.v_v(),
-                  {WASM_TABLE_INIT(0, 0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
-    ExpectFailure(sigs.v_v(),
-                  {WASM_TABLE_COPY(0, 0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
-  }
+  builder.AddPassiveElementSegment(wasm::kWasmFuncRef);
+  ExpectFailure(sigs.v_v(),
+                {WASM_TABLE_INIT(0, 0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
+  ExpectFailure(sigs.v_v(),
+                {WASM_TABLE_COPY(0, 0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, TableCopyMultiTable) {
-  WASM_FEATURE_SCOPE(bulk_memory);
   WASM_FEATURE_SCOPE(reftypes);
   {
     TestModuleBuilder builder;
@@ -3499,7 +3464,6 @@ TEST_F(FunctionBodyDecoderTest, TableCopyMultiTable) {
 }
 
 TEST_F(FunctionBodyDecoderTest, TableInitMultiTable) {
-  WASM_FEATURE_SCOPE(bulk_memory);
   WASM_FEATURE_SCOPE(reftypes);
   {
     TestModuleBuilder builder;

@@ -755,7 +755,6 @@ void UpdateFeatureUseCounts(Isolate* isolate, const WasmFeatures& detected) {
   using Feature = v8::Isolate::UseCounterFeature;
   constexpr static std::pair<WasmFeature, Feature> kUseCounters[] = {
       {kFeature_reftypes, Feature::kWasmRefTypes},
-      {kFeature_bulk_memory, Feature::kWasmBulkMemory},
       {kFeature_mv, Feature::kWasmMultiValue},
       {kFeature_simd, Feature::kWasmSimdOpcodes},
       {kFeature_threads, Feature::kWasmThreadOpcodes}};

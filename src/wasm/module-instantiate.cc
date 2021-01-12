@@ -655,45 +655,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     InitializeExceptions(instance);
   }
 
-  // The bulk memory proposal changes the MVP behavior here; the segments are
-  // written as if `memory.init` and `table.init` are executed directly, and
-  // not bounds checked ahead of time.
-  if (!enabled_.has_bulk_memory()) {
-    //--------------------------------------------------------------------------
-    // Check that indirect function table segments are within bounds.
-    //--------------------------------------------------------------------------
-    for (const WasmElemSegment& elem_segment : module_->elem_segments) {
-      if (elem_segment.status != WasmElemSegment::kStatusActive) continue;
-      DCHECK_LT(elem_segment.table_index, table_count);
-      uint32_t base = EvalUint32InitExpr(instance, elem_segment.offset);
-      // Because of imported tables, {table_size} has to come from the table
-      // object itself.
-      auto table_object = handle(WasmTableObject::cast(instance->tables().get(
-                                     elem_segment.table_index)),
-                                 isolate_);
-      uint32_t table_size = table_object->current_length();
-      if (!base::IsInBounds<uint32_t>(
-              base, static_cast<uint32_t>(elem_segment.entries.size()),
-              table_size)) {
-        thrower_->LinkError("table initializer is out of bounds");
-        return {};
-      }
-    }
-
-    //--------------------------------------------------------------------------
-    // Check that memory segments are within bounds.
-    //--------------------------------------------------------------------------
-    for (const WasmDataSegment& seg : module_->data_segments) {
-      if (!seg.active) continue;
-      uint32_t base = EvalUint32InitExpr(instance, seg.dest_addr);
-      if (!base::IsInBounds<uint64_t>(base, seg.source.length(),
-                                      instance->memory_size())) {
-        thrower_->LinkError("data segment is out of bounds");
-        return {};
-      }
-    }
-  }
-
   //--------------------------------------------------------------------------
   // Set up the exports object for the new instance.
   //--------------------------------------------------------------------------
@@ -862,33 +823,20 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
   for (const WasmDataSegment& segment : module_->data_segments) {
     uint32_t size = segment.source.length();
 
-    if (enabled_.has_bulk_memory()) {
-      // Passive segments are not copied during instantiation.
-      if (!segment.active) continue;
+    // Passive segments are not copied during instantiation.
+    if (!segment.active) continue;
 
-      uint32_t dest_offset = EvalUint32InitExpr(instance, segment.dest_addr);
-      bool ok = base::ClampToBounds(
-          dest_offset, &size, static_cast<uint32_t>(instance->memory_size()));
-      if (!ok) {
-        thrower_->RuntimeError("data segment is out of bounds");
-        return;
-      }
-      // No need to copy empty segments.
-      if (size == 0) continue;
-      std::memcpy(instance->memory_start() + dest_offset,
-                  wire_bytes.begin() + segment.source.offset(), size);
-    } else {
-      DCHECK(segment.active);
-      // Segments of size == 0 are just nops.
-      if (size == 0) continue;
-
-      uint32_t dest_offset = EvalUint32InitExpr(instance, segment.dest_addr);
-      DCHECK(base::IsInBounds<uint64_t>(dest_offset, size,
-                                        instance->memory_size()));
-      byte* dest = instance->memory_start() + dest_offset;
-      const byte* src = wire_bytes.begin() + segment.source.offset();
-      base::Memcpy(dest, src, size);
+    uint32_t dest_offset = EvalUint32InitExpr(instance, segment.dest_addr);
+    bool ok = base::ClampToBounds(
+        dest_offset, &size, static_cast<uint32_t>(instance->memory_size()));
+    if (!ok) {
+      thrower_->RuntimeError("data segment is out of bounds");
+      return;
     }
+    // No need to copy empty segments.
+    if (size == 0) continue;
+    std::memcpy(instance->memory_start() + dest_offset,
+                wire_bytes.begin() + segment.source.offset(), size);
   }
 }
 
@@ -1994,16 +1942,12 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
     // a dropped passive segment and an active segment have the same
     // behavior.
     instance->dropped_elem_segments()[segment_index] = 1;
-    if (enabled_.has_bulk_memory()) {
-      if (!success) {
-        thrower_->RuntimeError("table initializer is out of bounds");
-        // Break out instead of returning; we don't want to continue to
-        // initialize any further element segments, but still need to add
-        // dispatch tables below.
-        break;
-      }
-    } else {
-      CHECK(success);
+    if (!success) {
+      thrower_->RuntimeError("table initializer is out of bounds");
+      // Break out instead of returning; we don't want to continue to
+      // initialize any further element segments, but still need to add
+      // dispatch tables below.
+      break;
     }
   }
 

@@ -499,11 +499,7 @@ class ModuleDecoderImpl : public Decoder {
         }
         break;
       case kDataCountSectionCode:
-        if (enabled_features_.has_bulk_memory()) {
-          DecodeDataCountSection();
-        } else {
-          errorf(pc(), "unexpected section <%s>", SectionName(section_code));
-        }
+        DecodeDataCountSection();
         break;
       case kExceptionSectionCode:
         if (enabled_features_.has_eh()) {
@@ -1972,21 +1968,7 @@ class ModuleDecoderImpl : public Decoder {
                                       ValueType* type, uint32_t* table_index,
                                       WasmInitExpr* offset) {
     const byte* pos = pc();
-    uint32_t flag;
-    if (enabled_features_.has_bulk_memory() ||
-        enabled_features_.has_reftypes()) {
-      flag = consume_u32v("flag");
-    } else {
-      uint32_t table_index = consume_u32v("table index");
-      // The only valid flag value without bulk_memory or externref is '0'.
-      if (table_index != 0) {
-        error(
-            "Element segments with table indices require "
-            "--experimental-wasm-bulk-memory or --experimental-wasm-reftypes");
-        return;
-      }
-      flag = 0;
-    }
+    uint32_t flag = consume_u32v("flag");
 
     // The mask for the bit in the flag which indicates if the segment is
     // active or not.
@@ -2020,24 +2002,6 @@ class ModuleDecoderImpl : public Decoder {
         !enabled_features_.has_reftypes()) {
       error(
           "Declarative element segments require --experimental-wasm-reftypes");
-      return;
-    }
-    if (*status == WasmElemSegment::kStatusPassive &&
-        !enabled_features_.has_bulk_memory()) {
-      error("Passive element segments require --experimental-wasm-bulk-memory");
-      return;
-    }
-    if (*functions_as_elements && !enabled_features_.has_bulk_memory()) {
-      error(
-          "Illegal segment flag. Did you forget "
-          "--experimental-wasm-bulk-memory?");
-      return;
-    }
-    if (flag != 0 && !enabled_features_.has_bulk_memory() &&
-        !enabled_features_.has_reftypes()) {
-      error(
-          "Invalid segment flag. Enable with --experimental-wasm-bulk-memory "
-          "or --experimental-wasm-reftypes");
       return;
     }
     if ((flag & kFullMask) != flag) {
@@ -2088,21 +2052,9 @@ class ModuleDecoderImpl : public Decoder {
     uint32_t flag = consume_u32v("flag");
 
     // Some flag values are only valid for specific proposals.
-    if (flag == SegmentFlags::kPassive) {
-      if (!enabled_features_.has_bulk_memory()) {
-        error(
-            "Passive element segments require --experimental-wasm-bulk-memory");
-        return;
-      }
-    } else if (flag == SegmentFlags::kActiveWithIndex) {
-      if (!(enabled_features_.has_bulk_memory() ||
-            enabled_features_.has_reftypes())) {
-        error(
-            "Element segments with table indices require "
-            "--experimental-wasm-bulk-memory or --experimental-wasm-reftypes");
-        return;
-      }
-    } else if (flag != SegmentFlags::kActiveNoIndex) {
+    if (flag != SegmentFlags::kActiveNoIndex &&
+        flag != SegmentFlags::kPassive &&
+        flag != SegmentFlags::kActiveWithIndex) {
       errorf(pos, "illegal flag value %u. Must be 0, 1, or 2", flag);
       return;
     }

@@ -3146,8 +3146,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (full_opcode == kExprTableGrow || full_opcode == kExprTableSize ||
         full_opcode == kExprTableFill) {
       CHECK_PROTOTYPE_OPCODE(reftypes);
-    } else if (full_opcode >= kExprMemoryInit) {
-      CHECK_PROTOTYPE_OPCODE(bulk_memory);
     }
     trace_msg->AppendOpcode(full_opcode);
     return DecodeNumericOpcode(full_opcode, opcode_length);

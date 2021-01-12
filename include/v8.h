@@ -8665,7 +8665,7 @@ class V8_EXPORT Isolate {
     kWasmSimdOpcodes = 106,
     kVarRedeclaredCatchBinding = 107,
     kWasmRefTypes = 108,
-    kWasmBulkMemory = 109,
+    kWasmBulkMemory = 109,  // Unused.
     kWasmMultiValue = 110,
 
     // If you add new values here, you'll also need to update Chromium's:
