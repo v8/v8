@@ -377,8 +377,9 @@ static ScriptOrigin GetScriptOriginForScript(i::Isolate* isolate,
                                                 isolate);
   ScriptOriginOptions options(script->origin_options());
   v8::ScriptOrigin origin(
-      Utils::ToLocal(scriptName), script->line_offset(),
-      script->column_offset(), options.IsSharedCrossOrigin(), script->id(),
+      reinterpret_cast<v8::Isolate*>(isolate), Utils::ToLocal(scriptName),
+      script->line_offset(), script->column_offset(),
+      options.IsSharedCrossOrigin(), script->id(),
       Utils::ToLocal(source_map_url), options.IsOpaque(),
       script->type() == i::Script::TYPE_WASM, options.IsModule(),
       Utils::PrimitiveArrayToLocal(host_defined_options));
@@ -5187,14 +5188,15 @@ Local<Value> Function::GetDisplayName() const {
 
 ScriptOrigin Function::GetScriptOrigin() const {
   auto self = Utils::OpenHandle(this);
-  if (!self->IsJSFunction()) return v8::ScriptOrigin(Local<Value>());
+  auto isolate = reinterpret_cast<v8::Isolate*>(self->GetIsolate());
+  if (!self->IsJSFunction()) return v8::ScriptOrigin(isolate, Local<Value>());
   auto func = i::Handle<i::JSFunction>::cast(self);
   if (func->shared().script().IsScript()) {
     i::Handle<i::Script> script(i::Script::cast(func->shared().script()),
                                 func->GetIsolate());
     return GetScriptOriginForScript(func->GetIsolate(), script);
   }
-  return v8::ScriptOrigin(Local<Value>());
+  return v8::ScriptOrigin(isolate, Local<Value>());
 }
 
 const int Function::kLineOffsetNotFound = -1;
