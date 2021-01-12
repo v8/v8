@@ -2291,6 +2291,11 @@ void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
   bailout(kSimd, "emit_i64x2_neg");
 }
 
+void LiftoffAssembler::emit_i64x2_bitmask(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  bailout(kSimd, "emit_i64x2_bitmask");
+}
+
 void LiftoffAssembler::emit_i64x2_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   bailout(kSimd, "emit_i64x2_shl");
