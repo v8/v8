@@ -22,8 +22,10 @@ at C (interpreted) (0:169):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   $exported_memory: Memory(1)
+   functions: "$A (liftoff)" (Function), "$B (liftoff)" (Function), "$C (interpreted)" (Function)
    globals: "$exported_global": 0 (number)
+   memories: "$exported_memory" (Memory)
+   tables: "$exported_table" (Table)
 at B (liftoff) (0:158):
  - scope (wasm-expression-stack):
    0: 42 (number)
@@ -38,8 +40,10 @@ at B (liftoff) (0:158):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   $exported_memory: Memory(1)
+   functions: "$A (liftoff)" (Function), "$B (liftoff)" (Function), "$C (interpreted)" (Function)
    globals: "$exported_global": 0 (number)
+   memories: "$exported_memory" (Memory)
+   tables: "$exported_table" (Table)
 at A (liftoff) (0:128):
  - scope (wasm-expression-stack):
  - scope (local):
@@ -47,8 +51,10 @@ at A (liftoff) (0:128):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   $exported_memory: Memory(1)
+   functions: "$A (liftoff)" (Function), "$B (liftoff)" (Function), "$C (interpreted)" (Function)
    globals: "$exported_global": 0 (number)
+   memories: "$exported_memory" (Memory)
+   tables: "$exported_table" (Table)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -66,8 +72,10 @@ at C (interpreted) (0:171):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   $exported_memory: Memory(1)
+   functions: "$A (liftoff)" (Function), "$B (liftoff)" (Function), "$C (interpreted)" (Function)
    globals: "$exported_global": 0 (number)
+   memories: "$exported_memory" (Memory)
+   tables: "$exported_table" (Table)
 at B (liftoff) (0:158):
  - scope (wasm-expression-stack):
    0: 42 (number)
@@ -82,8 +90,10 @@ at B (liftoff) (0:158):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   $exported_memory: Memory(1)
+   functions: "$A (liftoff)" (Function), "$B (liftoff)" (Function), "$C (interpreted)" (Function)
    globals: "$exported_global": 0 (number)
+   memories: "$exported_memory" (Memory)
+   tables: "$exported_table" (Table)
 at A (liftoff) (0:128):
  - scope (wasm-expression-stack):
  - scope (local):
@@ -91,8 +101,10 @@ at A (liftoff) (0:128):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   $exported_memory: Memory(1)
+   functions: "$A (liftoff)" (Function), "$B (liftoff)" (Function), "$C (interpreted)" (Function)
    globals: "$exported_global": 0 (number)
+   memories: "$exported_memory" (Memory)
+   tables: "$exported_table" (Table)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -109,8 +121,10 @@ at C (interpreted) (0:173):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   $exported_memory: Memory(1)
+   functions: "$A (liftoff)" (Function), "$B (liftoff)" (Function), "$C (interpreted)" (Function)
    globals: "$exported_global": 42 (number)
+   memories: "$exported_memory" (Memory)
+   tables: "$exported_table" (Table)
 at B (liftoff) (0:158):
  - scope (wasm-expression-stack):
    0: 42 (number)
@@ -125,8 +139,10 @@ at B (liftoff) (0:158):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   $exported_memory: Memory(1)
+   functions: "$A (liftoff)" (Function), "$B (liftoff)" (Function), "$C (interpreted)" (Function)
    globals: "$exported_global": 42 (number)
+   memories: "$exported_memory" (Memory)
+   tables: "$exported_table" (Table)
 at A (liftoff) (0:128):
  - scope (wasm-expression-stack):
  - scope (local):
@@ -134,8 +150,10 @@ at A (liftoff) (0:128):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   $exported_memory: Memory(1)
+   functions: "$A (liftoff)" (Function), "$B (liftoff)" (Function), "$C (interpreted)" (Function)
    globals: "$exported_global": 42 (number)
+   memories: "$exported_memory" (Memory)
+   tables: "$exported_table" (Table)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -153,8 +171,10 @@ at C (interpreted) (0:175):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   $exported_memory: Memory(1)
+   functions: "$A (liftoff)" (Function), "$B (liftoff)" (Function), "$C (interpreted)" (Function)
    globals: "$exported_global": 42 (number)
+   memories: "$exported_memory" (Memory)
+   tables: "$exported_table" (Table)
 at B (liftoff) (0:158):
  - scope (wasm-expression-stack):
    0: 42 (number)
@@ -169,8 +189,10 @@ at B (liftoff) (0:158):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   $exported_memory: Memory(1)
+   functions: "$A (liftoff)" (Function), "$B (liftoff)" (Function), "$C (interpreted)" (Function)
    globals: "$exported_global": 42 (number)
+   memories: "$exported_memory" (Memory)
+   tables: "$exported_table" (Table)
 at A (liftoff) (0:128):
  - scope (wasm-expression-stack):
  - scope (local):
@@ -178,8 +200,10 @@ at A (liftoff) (0:128):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   $exported_memory: Memory(1)
+   functions: "$A (liftoff)" (Function), "$B (liftoff)" (Function), "$C (interpreted)" (Function)
    globals: "$exported_global": 42 (number)
+   memories: "$exported_memory" (Memory)
+   tables: "$exported_table" (Table)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -196,8 +220,10 @@ at C (interpreted) (0:177):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   $exported_memory: Memory(1)
+   functions: "$A (liftoff)" (Function), "$B (liftoff)" (Function), "$C (interpreted)" (Function)
    globals: "$exported_global": 42 (number)
+   memories: "$exported_memory" (Memory)
+   tables: "$exported_table" (Table)
 at B (liftoff) (0:158):
  - scope (wasm-expression-stack):
    0: 42 (number)
@@ -212,8 +238,10 @@ at B (liftoff) (0:158):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   $exported_memory: Memory(1)
+   functions: "$A (liftoff)" (Function), "$B (liftoff)" (Function), "$C (interpreted)" (Function)
    globals: "$exported_global": 42 (number)
+   memories: "$exported_memory" (Memory)
+   tables: "$exported_table" (Table)
 at A (liftoff) (0:128):
  - scope (wasm-expression-stack):
  - scope (local):
@@ -221,8 +249,10 @@ at A (liftoff) (0:128):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   $exported_memory: Memory(1)
+   functions: "$A (liftoff)" (Function), "$B (liftoff)" (Function), "$C (interpreted)" (Function)
    globals: "$exported_global": 42 (number)
+   memories: "$exported_memory" (Memory)
+   tables: "$exported_table" (Table)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -244,8 +274,10 @@ at B (liftoff) (0:160):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   $exported_memory: Memory(1)
+   functions: "$A (liftoff)" (Function), "$B (liftoff)" (Function), "$C (interpreted)" (Function)
    globals: "$exported_global": 42 (number)
+   memories: "$exported_memory" (Memory)
+   tables: "$exported_table" (Table)
 at A (liftoff) (0:128):
  - scope (wasm-expression-stack):
  - scope (local):
@@ -253,8 +285,10 @@ at A (liftoff) (0:128):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   $exported_memory: Memory(1)
+   functions: "$A (liftoff)" (Function), "$B (liftoff)" (Function), "$C (interpreted)" (Function)
    globals: "$exported_global": 42 (number)
+   memories: "$exported_memory" (Memory)
+   tables: "$exported_table" (Table)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -275,8 +309,10 @@ at B (liftoff) (0:161):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   $exported_memory: Memory(1)
+   functions: "$A (liftoff)" (Function), "$B (liftoff)" (Function), "$C (interpreted)" (Function)
    globals: "$exported_global": 42 (number)
+   memories: "$exported_memory" (Memory)
+   tables: "$exported_table" (Table)
 at A (liftoff) (0:128):
  - scope (wasm-expression-stack):
  - scope (local):
@@ -284,8 +320,10 @@ at A (liftoff) (0:128):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   $exported_memory: Memory(1)
+   functions: "$A (liftoff)" (Function), "$B (liftoff)" (Function), "$C (interpreted)" (Function)
    globals: "$exported_global": 42 (number)
+   memories: "$exported_memory" (Memory)
+   tables: "$exported_table" (Table)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -305,8 +343,10 @@ at B (liftoff) (0:162):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   $exported_memory: Memory(1)
+   functions: "$A (liftoff)" (Function), "$B (liftoff)" (Function), "$C (interpreted)" (Function)
    globals: "$exported_global": 42 (number)
+   memories: "$exported_memory" (Memory)
+   tables: "$exported_table" (Table)
 at A (liftoff) (0:128):
  - scope (wasm-expression-stack):
  - scope (local):
@@ -314,8 +354,10 @@ at A (liftoff) (0:128):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   $exported_memory: Memory(1)
+   functions: "$A (liftoff)" (Function), "$B (liftoff)" (Function), "$C (interpreted)" (Function)
    globals: "$exported_global": 42 (number)
+   memories: "$exported_memory" (Memory)
+   tables: "$exported_table" (Table)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -330,8 +372,10 @@ at A (liftoff) (0:130):
  - scope (module):
    instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
    module: Module
-   $exported_memory: Memory(1)
+   functions: "$A (liftoff)" (Function), "$B (liftoff)" (Function), "$C (interpreted)" (Function)
    globals: "$exported_global": 42 (number)
+   memories: "$exported_memory" (Memory)
+   tables: "$exported_table" (Table)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals

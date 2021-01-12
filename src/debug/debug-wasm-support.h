@@ -16,12 +16,20 @@ namespace internal {
 
 template <typename T>
 class Handle;
+class JSArray;
 class JSObject;
 class WasmFrame;
+class WasmInstanceObject;
+class WasmModuleObject;
 
 Handle<JSObject> GetWasmDebugProxy(WasmFrame* frame);
 
 std::unique_ptr<debug::ScopeIterator> GetWasmScopeIterator(WasmFrame* frame);
+
+Handle<JSArray> GetWasmInstanceObjectInternalProperties(
+    Handle<WasmInstanceObject> instance);
+Handle<JSArray> GetWasmModuleObjectInternalProperties(
+    Handle<WasmModuleObject> module_object);
 
 }  // namespace internal
 }  // namespace v8

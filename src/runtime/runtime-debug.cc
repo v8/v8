@@ -10,6 +10,7 @@
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
+#include "src/debug/debug-wasm-support.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
 #include "src/execution/arguments-inl.h"
@@ -365,20 +366,12 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     result->set(index++, *buffer_id);
 
     return factory->NewJSArrayWithElements(result, PACKED_ELEMENTS, index);
+  } else if (object->IsWasmInstanceObject()) {
+    return GetWasmInstanceObjectInternalProperties(
+        Handle<WasmInstanceObject>::cast(object));
   } else if (object->IsWasmModuleObject()) {
-    auto module_object = Handle<WasmModuleObject>::cast(object);
-    Handle<FixedArray> result = factory->NewFixedArray(2 * 2);
-    Handle<String> exports_str =
-        factory->NewStringFromStaticChars("[[Exports]]");
-    Handle<JSArray> exports_obj = wasm::GetExports(isolate, module_object);
-    result->set(0, *exports_str);
-    result->set(1, *exports_obj);
-    Handle<String> imports_str =
-        factory->NewStringFromStaticChars("[[Imports]]");
-    Handle<JSArray> imports_obj = wasm::GetImports(isolate, module_object);
-    result->set(2, *imports_str);
-    result->set(3, *imports_obj);
-    return factory->NewJSArrayWithElements(result, PACKED_ELEMENTS);
+    return GetWasmModuleObjectInternalProperties(
+        Handle<WasmModuleObject>::cast(object));
   }
   return factory->NewJSArray(0);
 }

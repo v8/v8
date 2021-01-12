@@ -661,42 +661,6 @@ class ContextProxy {
   }
 };
 
-Handle<JSObject> GetModuleScopeObject(Handle<WasmInstanceObject> instance) {
-  Isolate* isolate = instance->GetIsolate();
-  Handle<JSObject> module_scope_object =
-      isolate->factory()->NewJSObjectWithNullProto();
-
-  Handle<String> instance_name =
-      isolate->factory()->InternalizeString(StaticCharVector("instance"));
-  JSObject::AddProperty(isolate, module_scope_object, instance_name, instance,
-                        NONE);
-
-  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
-  Handle<String> module_name =
-      isolate->factory()->InternalizeString(StaticCharVector("module"));
-  JSObject::AddProperty(isolate, module_scope_object, module_name,
-                        module_object, NONE);
-
-  uint32_t memory_count = MemoriesProxy::Count(isolate, instance);
-  for (uint32_t memory_index = 0; memory_index < memory_count; ++memory_index) {
-    auto memory_name = MemoriesProxy::GetName(isolate, instance, memory_index);
-    auto memory_value = MemoriesProxy::Get(isolate, instance, memory_index);
-    JSObject::AddProperty(isolate, module_scope_object, memory_name,
-                          memory_value, NONE);
-  }
-
-  if (GlobalsProxy::Count(isolate, instance) != 0) {
-    Handle<JSObject> globals_obj =
-        GetOrCreateInstanceProxy<GlobalsProxy>(isolate, instance);
-    Handle<String> globals_name =
-        isolate->factory()->InternalizeString(StaticCharVector("globals"));
-    JSObject::AddProperty(isolate, module_scope_object, globals_name,
-                          globals_obj, NONE);
-  }
-
-  return module_scope_object;
-}
-
 class DebugWasmScopeIterator final : public debug::ScopeIterator {
  public:
   explicit DebugWasmScopeIterator(WasmFrame* frame)
@@ -732,23 +696,48 @@ class DebugWasmScopeIterator final : public debug::ScopeIterator {
   ScopeType GetType() override { return type_; }
 
   v8::Local<v8::Object> GetObject() override {
-    DCHECK(!Done());
+    Isolate* isolate = frame_->isolate();
     switch (type_) {
       case debug::ScopeIterator::ScopeTypeModule: {
-        Handle<WasmInstanceObject> instance =
-            FrameSummary::GetTop(frame_).AsWasm().wasm_instance();
-        return Utils::ToLocal(GetModuleScopeObject(instance));
+        Handle<WasmInstanceObject> instance(frame_->wasm_instance(), isolate);
+        Handle<JSObject> object =
+            isolate->factory()->NewJSObjectWithNullProto();
+        JSObject::AddProperty(isolate, object, "instance", instance, FROZEN);
+        Handle<JSObject> module_object(instance->module_object(), isolate);
+        JSObject::AddProperty(isolate, object, "module", module_object, FROZEN);
+        if (FunctionsProxy::Count(isolate, instance) != 0) {
+          JSObject::AddProperty(
+              isolate, object, "functions",
+              GetOrCreateInstanceProxy<FunctionsProxy>(isolate, instance),
+              FROZEN);
+        }
+        if (GlobalsProxy::Count(isolate, instance) != 0) {
+          JSObject::AddProperty(
+              isolate, object, "globals",
+              GetOrCreateInstanceProxy<GlobalsProxy>(isolate, instance),
+              FROZEN);
+        }
+        if (MemoriesProxy::Count(isolate, instance) != 0) {
+          JSObject::AddProperty(
+              isolate, object, "memories",
+              GetOrCreateInstanceProxy<MemoriesProxy>(isolate, instance),
+              FROZEN);
+        }
+        if (TablesProxy::Count(isolate, instance) != 0) {
+          JSObject::AddProperty(
+              isolate, object, "tables",
+              GetOrCreateInstanceProxy<TablesProxy>(isolate, instance), FROZEN);
+        }
+        return Utils::ToLocal(object);
       }
       case debug::ScopeIterator::ScopeTypeLocal: {
-        DCHECK(frame_->is_inspectable());
         return Utils::ToLocal(LocalsProxy::Create(frame_));
       }
       case debug::ScopeIterator::ScopeTypeWasmExpressionStack: {
-        DCHECK(frame_->is_inspectable());
         return Utils::ToLocal(StackProxy::Create(frame_));
       }
       default:
-        return {};
+        UNREACHABLE();
     }
   }
   v8::Local<v8::Value> GetFunctionDebugName() override {
@@ -781,6 +770,80 @@ Handle<JSObject> GetWasmDebugProxy(WasmFrame* frame) {
 
 std::unique_ptr<debug::ScopeIterator> GetWasmScopeIterator(WasmFrame* frame) {
   return std::make_unique<DebugWasmScopeIterator>(frame);
+}
+
+Handle<JSArray> GetWasmInstanceObjectInternalProperties(
+    Handle<WasmInstanceObject> instance) {
+  Isolate* isolate = instance->GetIsolate();
+  Handle<FixedArray> result = isolate->factory()->NewFixedArray(2 * 5);
+  int length = 0;
+
+  Handle<String> module_str =
+      isolate->factory()->NewStringFromAsciiChecked("[[Module]]");
+  Handle<Object> module_obj = handle(instance->module_object(), isolate);
+  result->set(length++, *module_str);
+  result->set(length++, *module_obj);
+
+  if (FunctionsProxy::Count(isolate, instance) != 0) {
+    Handle<String> functions_str =
+        isolate->factory()->NewStringFromAsciiChecked("[[Functions]]");
+    Handle<Object> functions_obj =
+        GetOrCreateInstanceProxy<FunctionsProxy>(isolate, instance);
+    result->set(length++, *functions_str);
+    result->set(length++, *functions_obj);
+  }
+
+  if (GlobalsProxy::Count(isolate, instance) != 0) {
+    Handle<String> globals_str =
+        isolate->factory()->NewStringFromAsciiChecked("[[Globals]]");
+    Handle<Object> globals_obj =
+        GetOrCreateInstanceProxy<GlobalsProxy>(isolate, instance);
+    result->set(length++, *globals_str);
+    result->set(length++, *globals_obj);
+  }
+
+  if (MemoriesProxy::Count(isolate, instance) != 0) {
+    Handle<String> memories_str =
+        isolate->factory()->NewStringFromAsciiChecked("[[Memories]]");
+    Handle<Object> memories_obj =
+        GetOrCreateInstanceProxy<MemoriesProxy>(isolate, instance);
+    result->set(length++, *memories_str);
+    result->set(length++, *memories_obj);
+  }
+
+  if (TablesProxy::Count(isolate, instance) != 0) {
+    Handle<String> tables_str =
+        isolate->factory()->NewStringFromAsciiChecked("[[Tables]]");
+    Handle<Object> tables_obj =
+        GetOrCreateInstanceProxy<TablesProxy>(isolate, instance);
+    result->set(length++, *tables_str);
+    result->set(length++, *tables_obj);
+  }
+
+  return isolate->factory()->NewJSArrayWithElements(result, PACKED_ELEMENTS,
+                                                    length);
+}
+
+Handle<JSArray> GetWasmModuleObjectInternalProperties(
+    Handle<WasmModuleObject> module_object) {
+  Isolate* isolate = module_object->GetIsolate();
+  Handle<FixedArray> result = isolate->factory()->NewFixedArray(2 * 2);
+  int length = 0;
+
+  Handle<String> exports_str =
+      isolate->factory()->NewStringFromStaticChars("[[Exports]]");
+  Handle<JSArray> exports_obj = wasm::GetExports(isolate, module_object);
+  result->set(length++, *exports_str);
+  result->set(length++, *exports_obj);
+
+  Handle<String> imports_str =
+      isolate->factory()->NewStringFromStaticChars("[[Imports]]");
+  Handle<JSArray> imports_obj = wasm::GetImports(isolate, module_object);
+  result->set(length++, *imports_str);
+  result->set(length++, *imports_obj);
+
+  return isolate->factory()->NewJSArrayWithElements(result, PACKED_ELEMENTS,
+                                                    length);
 }
 
 }  // namespace internal
