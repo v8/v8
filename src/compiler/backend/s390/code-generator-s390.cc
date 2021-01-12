@@ -2004,6 +2004,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           case MachineRepresentation::kFloat32:
             __ lay(sp, MemOperand(sp, -kSystemPointerSize));
             __ StoreF32(i.InputDoubleRegister(0), MemOperand(sp));
+            frame_access_state()->IncreaseSPDelta(1);
             break;
           case MachineRepresentation::kFloat64:
             __ lay(sp, MemOperand(sp, -kDoubleSize));
