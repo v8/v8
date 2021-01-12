@@ -413,7 +413,7 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
       table.PrintEntry(i, os);
       os << " (sp -> fp)";
       SafepointEntry entry = table.GetEntry(i);
-      if (entry.trampoline_pc() != -1) {
+      if (entry.trampoline_pc() != SafepointEntry::kNoTrampolinePC) {
         os << " trampoline: " << std::hex << entry.trampoline_pc() << std::dec;
       }
       if (entry.has_deoptimization_index()) {

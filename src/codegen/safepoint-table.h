@@ -21,7 +21,8 @@ class WasmCode;
 
 class SafepointEntry {
  public:
-  SafepointEntry() : deopt_index_(0), bits_(nullptr), trampoline_pc_(-1) {}
+  SafepointEntry()
+      : deopt_index_(0), bits_(nullptr), trampoline_pc_(kNoTrampolinePC) {}
 
   SafepointEntry(unsigned deopt_index, uint8_t* bits, int trampoline_pc)
       : deopt_index_(deopt_index), bits_(bits), trampoline_pc_(trampoline_pc) {
@@ -42,6 +43,7 @@ class SafepointEntry {
   int trampoline_pc() { return trampoline_pc_; }
 
   static const unsigned kNoDeoptIndex = kMaxUInt32;
+  static constexpr int kNoTrampolinePC = -1;
 
   int deoptimization_index() const {
     DCHECK(is_valid() && has_deoptimization_index());
@@ -96,8 +98,9 @@ class SafepointTable {
     unsigned deopt_index =
         base::Memory<uint32_t>(GetEncodedInfoLocation(index));
     uint8_t* bits = &base::Memory<uint8_t>(entries() + (index * entry_size_));
-    int trampoline_pc =
-        has_deopt_ ? base::Memory<int>(GetTrampolineLocation(index)) : -1;
+    int trampoline_pc = has_deopt_
+                            ? base::Memory<int>(GetTrampolineLocation(index))
+                            : SafepointEntry::kNoTrampolinePC;
     return SafepointEntry(deopt_index, bits, trampoline_pc);
   }
 
