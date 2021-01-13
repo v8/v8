@@ -3076,7 +3076,7 @@ void InstructionSelector::VisitTailCall(Node* node) {
   // instruction. This is used by backends that need to pad arguments for stack
   // alignment, in order to store an optional slot of padding above the
   // arguments.
-  const int optional_padding_slot = callee->GetOffsetToReturns();
+  const int optional_padding_slot = callee->GetFirstUnusedStackSlot();
   buffer.instruction_args.push_back(g.TempImmediate(optional_padding_slot));
 
   const int first_unused_stack_slot =
