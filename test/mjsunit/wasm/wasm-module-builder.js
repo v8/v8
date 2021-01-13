@@ -693,6 +693,7 @@ let kExprI64x2ShrU = 0xcd;
 let kExprI64x2Add = 0xce;
 let kExprI64x2Sub = 0xd1;
 let kExprI64x2Mul = 0xd5;
+let kExprI64x2ExtMulHighI32x4U = 0xd7;
 let kExprF32x4Abs = 0xe0;
 let kExprF32x4Neg = 0xe1;
 let kExprF32x4Sqrt = 0xe3;
