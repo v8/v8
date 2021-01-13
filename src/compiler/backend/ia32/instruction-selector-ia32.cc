@@ -331,6 +331,16 @@ void VisitRROSimd(InstructionSelector* selector, Node* node,
                    g.UseRegister(node->InputAt(1)));
   }
 }
+void VisitRRRSimd(InstructionSelector* selector, Node* node,
+                  ArchOpcode opcode) {
+  IA32OperandGenerator g(selector);
+  InstructionOperand dst = selector->IsSupported(AVX)
+                               ? g.DefineAsRegister(node)
+                               : g.DefineSameAsFirst(node);
+  InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
+  InstructionOperand operand1 = g.UseRegister(node->InputAt(1));
+  selector->Emit(opcode, dst, operand0, operand1);
+}
 
 void VisitRRISimd(InstructionSelector* selector, Node* node,
                   ArchOpcode opcode) {
@@ -2242,22 +2252,26 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I64x2Add)                              \
   V(I64x2Sub)                              \
   V(I64x2Eq)                               \
-  V(I64x2ExtMulLowI32x4S)                  \
-  V(I64x2ExtMulHighI32x4S)                 \
-  V(I64x2ExtMulLowI32x4U)                  \
-  V(I64x2ExtMulHighI32x4U)                 \
   V(I32x4DotI16x8S)                        \
-  V(I32x4ExtMulLowI16x8S)                  \
-  V(I32x4ExtMulHighI16x8S)                 \
-  V(I32x4ExtMulLowI16x8U)                  \
-  V(I32x4ExtMulHighI16x8U)                 \
   V(I16x8RoundingAverageU)                 \
-  V(I16x8ExtMulLowI8x16S)                  \
-  V(I16x8ExtMulHighI8x16S)                 \
-  V(I16x8ExtMulLowI8x16U)                  \
-  V(I16x8ExtMulHighI8x16U)                 \
   V(I16x8Q15MulRSatS)                      \
   V(I8x16RoundingAverageU)
+
+// These opcodes require all inputs to be registers because the codegen is
+// simpler with all registers.
+#define SIMD_BINOP_RRR(V)  \
+  V(I64x2ExtMulLowI32x4S)  \
+  V(I64x2ExtMulHighI32x4S) \
+  V(I64x2ExtMulLowI32x4U)  \
+  V(I64x2ExtMulHighI32x4U) \
+  V(I32x4ExtMulLowI16x8S)  \
+  V(I32x4ExtMulHighI16x8S) \
+  V(I32x4ExtMulLowI16x8U)  \
+  V(I32x4ExtMulHighI16x8U) \
+  V(I16x8ExtMulLowI8x16S)  \
+  V(I16x8ExtMulHighI8x16S) \
+  V(I16x8ExtMulLowI8x16U)  \
+  V(I16x8ExtMulHighI8x16U)
 
 #define SIMD_UNOP_LIST(V)   \
   V(F32x4Sqrt)              \
@@ -2650,6 +2664,14 @@ SIMD_BINOP_LIST(VISIT_SIMD_BINOP)
 SIMD_BINOP_UNIFIED_SSE_AVX_LIST(VISIT_SIMD_BINOP_UNIFIED_SSE_AVX)
 #undef VISIT_SIMD_BINOP_UNIFIED_SSE_AVX
 #undef SIMD_BINOP_UNIFIED_SSE_AVX_LIST
+
+#define VISIT_SIMD_BINOP_RRR(OPCODE)                    \
+  void InstructionSelector::Visit##OPCODE(Node* node) { \
+    VisitRRRSimd(this, node, kIA32##OPCODE);            \
+  }
+SIMD_BINOP_RRR(VISIT_SIMD_BINOP_RRR)
+#undef VISIT_SIMD_BINOP_RRR
+#undef SIMD_BINOP_RRR
 
 // TODO(v8:9198): SSE requires operand1 to be a register as we don't have memory
 // alignment yet. For AVX, memory operands are fine, but can have performance
