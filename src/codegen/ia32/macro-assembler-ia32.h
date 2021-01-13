@@ -625,6 +625,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Requires dst == mask when AVX is not supported.
   void S128Select(XMMRegister dst, XMMRegister mask, XMMRegister src1,
                   XMMRegister src2, XMMRegister scratch);
+  void I64x2SConvertI32x4High(XMMRegister dst, XMMRegister src);
+  void I64x2UConvertI32x4High(XMMRegister dst, XMMRegister src,
+                              XMMRegister scratch);
 
   void Push(Register src) { push(src); }
   void Push(Operand src) { push(src); }

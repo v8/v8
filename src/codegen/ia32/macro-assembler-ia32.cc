@@ -738,6 +738,31 @@ void TurboAssembler::S128Select(XMMRegister dst, XMMRegister mask,
   }
 }
 
+void TurboAssembler::I64x2SConvertI32x4High(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpunpckhqdq(dst, src, src);
+    vpmovsxdq(dst, dst);
+  } else {
+    CpuFeatureScope sse_scope(this, SSE4_1);
+    pshufd(dst, src, 0xEE);
+    pmovsxdq(dst, dst);
+  }
+}
+
+void TurboAssembler::I64x2UConvertI32x4High(XMMRegister dst, XMMRegister src,
+                                            XMMRegister scratch) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpxor(scratch, scratch, scratch);
+    vpunpckhdq(dst, src, scratch);
+  } else {
+    CpuFeatureScope sse_scope(this, SSE4_1);
+    pshufd(dst, src, 0xEE);
+    pmovzxdq(dst, dst);
+  }
+}
+
 void TurboAssembler::ShlPair(Register high, Register low, uint8_t shift) {
   DCHECK_GE(63, shift);
   if (shift >= 32) {

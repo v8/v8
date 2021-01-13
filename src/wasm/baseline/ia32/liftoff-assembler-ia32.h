@@ -3911,22 +3911,22 @@ void LiftoffAssembler::emit_i64x2_bitmask(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i64x2_sconvert_i32x4_low(LiftoffRegister dst,
                                                      LiftoffRegister src) {
-  bailout(kSimd, "i64x2_sconvert_i32x4_low");
+  Pmovsxdq(dst.fp(), src.fp());
 }
 
 void LiftoffAssembler::emit_i64x2_sconvert_i32x4_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  bailout(kSimd, "i64x2_sconvert_i32x4_high");
+  I64x2SConvertI32x4High(dst.fp(), src.fp());
 }
 
 void LiftoffAssembler::emit_i64x2_uconvert_i32x4_low(LiftoffRegister dst,
                                                      LiftoffRegister src) {
-  bailout(kSimd, "i64x2_uconvert_i32x4_low");
+  Pmovzxdq(dst.fp(), src.fp());
 }
 
 void LiftoffAssembler::emit_i64x2_uconvert_i32x4_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  bailout(kSimd, "i64x2_uconvert_i32x4_high");
+  I64x2UConvertI32x4High(dst.fp(), src.fp(), liftoff::kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_f32x4_abs(LiftoffRegister dst,
