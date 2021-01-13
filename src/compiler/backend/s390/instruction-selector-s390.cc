@@ -2119,36 +2119,11 @@ void InstructionSelector::EmitPrepareArguments(
     }
   } else {
     // Push any stack arguments.
-    int num_slots = 0;
-    int slot = 0;
-
-#define INPUT_SWITCH(param)                            \
-  switch (input.location.GetType().representation()) { \
-    case MachineRepresentation::kSimd128:              \
-      param += kSimd128Size / kSystemPointerSize;      \
-      break;                                           \
-    case MachineRepresentation::kFloat64:              \
-      param += kDoubleSize / kSystemPointerSize;       \
-      break;                                           \
-    default:                                           \
-      param += 1;                                      \
-      break;                                           \
-  }
-    for (PushParameter input : *arguments) {
-      if (input.node == nullptr) continue;
-      INPUT_SWITCH(num_slots)
-    }
-    Emit(kS390_StackClaim, g.NoOutput(), g.TempImmediate(num_slots));
-    for (PushParameter input : *arguments) {
+    for (PushParameter input : base::Reversed(*arguments)) {
       // Skip any alignment holes in pushed nodes.
-      if (input.node) {
-        Emit(kS390_StoreToStackSlot, g.NoOutput(), g.UseRegister(input.node),
-             g.TempImmediate(slot));
-        INPUT_SWITCH(slot)
-      }
+      if (input.node == nullptr) continue;
+      Emit(kS390_Push, g.NoOutput(), g.UseRegister(input.node));
     }
-#undef INPUT_SWITCH
-    DCHECK(num_slots == slot);
   }
 }
 

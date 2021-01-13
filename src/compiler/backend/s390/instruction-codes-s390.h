@@ -92,7 +92,6 @@ namespace compiler {
   V(S390_Tst64)                             \
   V(S390_Push)                              \
   V(S390_PushFrame)                         \
-  V(S390_StackClaim)                        \
   V(S390_StoreToStackSlot)                  \
   V(S390_SignExtendWord8ToInt32)            \
   V(S390_SignExtendWord16ToInt32)           \

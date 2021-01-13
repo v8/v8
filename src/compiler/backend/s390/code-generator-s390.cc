@@ -1991,12 +1991,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ CanonicalizeNaN(result, value);
       break;
     }
-    case kS390_StackClaim: {
-      int num_slots = i.InputInt32(0);
-      __ lay(sp, MemOperand(sp, -num_slots * kSystemPointerSize));
-      frame_access_state()->IncreaseSPDelta(num_slots);
-      break;
-    }
     case kS390_Push:
       if (instr->InputAt(0)->IsFPRegister()) {
         LocationOperand* op = LocationOperand::cast(instr->InputAt(0));
