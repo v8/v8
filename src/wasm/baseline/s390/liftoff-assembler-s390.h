@@ -175,19 +175,28 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
 }
 
 void LiftoffAssembler::LoadFromInstance(Register dst, int offset, int size) {
-  bailout(kUnsupportedArchitecture, "LoadFromInstance");
+  DCHECK_LE(offset, kMaxInt);
+  LoadU64(dst, liftoff::GetInstanceOperand());
+  DCHECK(size == 4 || size == 8);
+  if (size == 4) {
+    LoadS32(dst, MemOperand(dst, offset));
+  } else {
+    LoadU64(dst, MemOperand(dst, offset));
+  }
 }
 
 void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst, int offset) {
-  bailout(kUnsupportedArchitecture, "LoadTaggedPointerFromInstance");
+  DCHECK_LE(0, offset);
+  LoadU64(dst, liftoff::GetInstanceOperand());
+  LoadTaggedPointerField(dst, MemOperand(dst, offset));
 }
 
 void LiftoffAssembler::SpillInstance(Register instance) {
-  bailout(kUnsupportedArchitecture, "SpillInstance");
+  StoreU64(instance, liftoff::GetInstanceOperand());
 }
 
 void LiftoffAssembler::FillInstanceInto(Register dst) {
-  bailout(kUnsupportedArchitecture, "FillInstanceInto");
+  LoadU64(dst, liftoff::GetInstanceOperand());
 }
 
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
