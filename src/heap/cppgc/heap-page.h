@@ -33,8 +33,7 @@ class V8_EXPORT_PRIVATE BasePage {
   BasePage(const BasePage&) = delete;
   BasePage& operator=(const BasePage&) = delete;
 
-  HeapBase* heap() { return heap_; }
-  const HeapBase* heap() const { return heap_; }
+  HeapBase* heap() const { return heap_; }
 
   BaseSpace* space() { return space_; }
   const BaseSpace* space() const { return space_; }

@@ -135,7 +135,7 @@ void NullStateCtor(cppgc::Heap* heap) {
   }
   {
     // Runtime null must not allocated associated node.
-    PersistentType<GCed> empty = static_cast<GCed*>(0);
+    PersistentType<GCed> empty = static_cast<GCed*>(nullptr);
     EXPECT_EQ(nullptr, empty.Get());
     EXPECT_EQ(nullptr, empty.Release());
     EXPECT_EQ(0u, GetRegion<Persistent>(heap).NodesInUse());
@@ -163,6 +163,12 @@ void RawCtor(cppgc::Heap* heap) {
   EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
   {
     PersistentType<GCed> p = *gced;
+    EXPECT_EQ(gced, p.Get());
+    EXPECT_EQ(1u, GetRegion<PersistentType>(heap).NodesInUse());
+  }
+  EXPECT_EQ(0u, GetRegion<PersistentType>(heap).NodesInUse());
+  {
+    PersistentType<const GCed> p = gced;
     EXPECT_EQ(gced, p.Get());
     EXPECT_EQ(1u, GetRegion<PersistentType>(heap).NodesInUse());
   }
