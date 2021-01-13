@@ -603,12 +603,11 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     NoRootArrayScope no_root_array(masm);
 
 #if defined(V8_OS_WIN)
-    // Windows ARM64 relies on a frame pointer (fp/x29 which are aliases to each
-    // other) chain to do stack unwinding, but JSEntry breaks that by setting fp
-    // to point to bad_frame_pointer below. To fix unwind information for this
-    // case, JSEntry registers the offset (from current fp to the caller's fp
-    // saved by PushCalleeSavedRegisters on stack) to xdata_encoder which then
-    // emits the offset value as part of result unwind data accordingly.
+    // In order to allow Windows debugging tools to reconstruct a call stack, we
+    // must generate information describing how to recover at least fp, sp, and
+    // pc for the calling frame. Here, JSEntry registers offsets to
+    // xdata_encoder which then emits the offset values as part of the unwind
+    // data accordingly.
     win64_unwindinfo::XdataEncoder* xdata_encoder = masm->GetXdataEncoder();
     if (xdata_encoder) {
       xdata_encoder->onFramePointerAdjustment(
@@ -627,49 +626,52 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     __ Mov(kRootRegister, x0);
   }
 
+  // Set up fp. It points to the {fp, lr} pair pushed as the last step in
+  // PushCalleeSavedRegisters.
+  STATIC_ASSERT(
+      EntryFrameConstants::kCalleeSavedRegisterBytesPushedAfterFpLrPair == 0);
+  STATIC_ASSERT(EntryFrameConstants::kOffsetToCalleeSavedRegisters == 0);
+  __ Mov(fp, sp);
+
   // Build an entry frame (see layout below).
-  int64_t bad_frame_pointer = -1L;  // Bad frame pointer to fail if it is used.
-  __ Mov(x13, bad_frame_pointer);
+
+  // Push frame type markers.
   __ Mov(x12, StackFrame::TypeToMarker(type));
+  __ Push(x12, xzr);
+
   __ Mov(x11, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
                                         masm->isolate()));
-  __ Ldr(x10, MemOperand(x11));
+  __ Ldr(x10, MemOperand(x11));  // x10 = C entry FP.
 
-  // x13 (the bad frame pointer) is the first item pushed.
-  STATIC_ASSERT(EntryFrameConstants::kOffsetToCalleeSavedRegisters ==
-                1 * kSystemPointerSize);
-
-  __ Push(x13, x12, xzr, x10);
-  // Set up fp.
-  __ Sub(fp, sp, EntryFrameConstants::kCallerFPOffset);
-
-  // Push the JS entry frame marker. Also set js_entry_sp if this is the
-  // outermost JS call.
+  // Set js_entry_sp if this is the outermost JS call.
   Label done;
   ExternalReference js_entry_sp = ExternalReference::Create(
       IsolateAddressId::kJSEntrySPAddress, masm->isolate());
-  __ Mov(x10, js_entry_sp);
-  __ Ldr(x11, MemOperand(x10));
+  __ Mov(x12, js_entry_sp);
+  __ Ldr(x11, MemOperand(x12));  // x11 = previous JS entry SP.
 
   // Select between the inner and outermost frame marker, based on the JS entry
   // sp. We assert that the inner marker is zero, so we can use xzr to save a
   // move instruction.
   DCHECK_EQ(StackFrame::INNER_JSENTRY_FRAME, 0);
   __ Cmp(x11, 0);  // If x11 is zero, this is the outermost frame.
-  __ Csel(x12, xzr, StackFrame::OUTERMOST_JSENTRY_FRAME, ne);
+  // x11 = JS entry frame marker.
+  __ Csel(x11, xzr, StackFrame::OUTERMOST_JSENTRY_FRAME, ne);
   __ B(ne, &done);
-  __ Str(fp, MemOperand(x10));
+  __ Str(fp, MemOperand(x12));
 
   __ Bind(&done);
-  __ Push(x12, padreg);
+
+  __ Push(x10, x11);
 
   // The frame set up looks like this:
-  // sp[0] : padding.
-  // sp[1] : JS entry frame marker.
-  // sp[2] : C entry FP.
-  // sp[3] : stack frame marker.
-  // sp[4] : stack frame marker.
-  // sp[5] : bad frame pointer 0xFFF...FF   <- fp points here.
+  // sp[0] : JS entry frame marker.
+  // sp[1] : C entry FP.
+  // sp[2] : stack frame marker (0).
+  // sp[3] : stack frame marker (type).
+  // sp[4] : saved fp   <- fp points here.
+  // sp[5] : saved lr
+  // sp[6,24) : other saved registers
 
   // Jump to a faked try block that does the invoke, with a faked catch
   // block that sets the pending exception.
@@ -690,7 +692,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
     // Caught exception: Store result (exception) in the pending exception
     // field in the JSEnv and return a failure sentinel. Coming in here the
-    // fp will be invalid because the PushTryHandler below sets it to 0 to
+    // fp will be invalid because UnwindAndFindHandler sets it to 0 to
     // signal the existence of the JSEntry frame.
     __ Mov(x10,
            ExternalReference::Create(IsolateAddressId::kPendingExceptionAddress,
@@ -747,18 +749,19 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // x0 holds the result.
   // The stack pointer points to the top of the entry frame pushed on entry from
   // C++ (at the beginning of this stub):
-  // sp[0] : padding.
-  // sp[1] : JS entry frame marker.
-  // sp[2] : C entry FP.
-  // sp[3] : stack frame marker.
-  // sp[4] : stack frame marker.
-  // sp[5] : bad frame pointer 0xFFF...FF   <- fp points here.
+  // sp[0] : JS entry frame marker.
+  // sp[1] : C entry FP.
+  // sp[2] : stack frame marker (0).
+  // sp[3] : stack frame marker (type).
+  // sp[4] : saved fp   <- fp might point here, or might be zero.
+  // sp[5] : saved lr
+  // sp[6,24) : other saved registers
 
   // Check if the current stack frame is marked as the outermost JS frame.
   Label non_outermost_js_2;
   {
     Register c_entry_fp = x11;
-    __ PeekPair(x10, c_entry_fp, 1 * kSystemPointerSize);
+    __ PeekPair(x10, c_entry_fp, 0);
     __ Cmp(x10, StackFrame::OUTERMOST_JSENTRY_FRAME);
     __ B(ne, &non_outermost_js_2);
     __ Mov(x12, js_entry_sp);

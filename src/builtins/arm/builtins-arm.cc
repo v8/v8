@@ -464,10 +464,10 @@ namespace {
 // Total size of the stack space pushed by JSEntryVariant.
 // JSEntryTrampoline uses this to access on stack arguments passed to
 // JSEntryVariant.
-constexpr int kPushedStackSpace = kNumCalleeSaved * kPointerSize +
-                                  kPointerSize /* LR */ +
+constexpr int kPushedStackSpace = kNumCalleeSaved * kPointerSize -
+                                  kPointerSize /* FP */ +
                                   kNumDoubleCalleeSaved * kDoubleSize +
-                                  4 * kPointerSize /* r5, r6, r7, scratch */ +
+                                  5 * kPointerSize /* r5, r6, r7, fp, lr */ +
                                   EntryFrameConstants::kCallerFPOffset;
 
 // Assert that the EntryFrameConstants are in sync with the builtin.
@@ -500,6 +500,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   //   r1: microtask_queue
   // Preserve all but r0 and pass them to entry_trampoline.
   Label invoke, handler_entry, exit;
+  const RegList kCalleeSavedWithoutFp = kCalleeSaved & ~fp.bit();
 
   // Update |pushed_stack_space| when we manipulate the stack.
   int pushed_stack_space = EntryFrameConstants::kCallerFPOffset;
@@ -508,10 +509,10 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
     // Called from C, so do not pop argc and args on exit (preserve sp)
     // No need to save register-passed args
-    // Save callee-saved registers (incl. cp and fp), sp, and lr
-    __ stm(db_w, sp, kCalleeSaved | lr.bit());
+    // Save callee-saved registers (incl. cp), but without fp
+    __ stm(db_w, sp, kCalleeSavedWithoutFp);
     pushed_stack_space +=
-        kNumCalleeSaved * kPointerSize + kPointerSize /* LR */;
+        kNumCalleeSaved * kPointerSize - kPointerSize /* FP */;
 
     // Save callee-saved vfp registers.
     __ vstm(db_w, sp, kFirstCalleeSavedDoubleReg, kLastCalleeSavedDoubleReg);
@@ -532,15 +533,9 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ Move(r5, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
                                         masm->isolate()));
   __ ldr(r5, MemOperand(r5));
-  {
-    UseScratchRegisterScope temps(masm);
-    Register scratch = temps.Acquire();
 
-    // Push a bad frame pointer to fail if it is used.
-    __ mov(scratch, Operand(-1));
-    __ stm(db_w, sp, r5.bit() | r6.bit() | r7.bit() | scratch.bit());
-    pushed_stack_space += 4 * kPointerSize /* r5, r6, r7, scratch */;
-  }
+  __ stm(db_w, sp, r5.bit() | r6.bit() | r7.bit() | fp.bit() | lr.bit());
+  pushed_stack_space += 5 * kPointerSize /* r5, r6, r7, fp, lr */;
 
   Register scratch = r6;
 
@@ -628,19 +623,21 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ str(r3, MemOperand(scratch));
 
   // Reset the stack to the callee saved registers.
-  __ add(sp, sp, Operand(-EntryFrameConstants::kCallerFPOffset));
+  __ add(sp, sp,
+         Operand(-EntryFrameConstants::kCallerFPOffset -
+                 kSystemPointerSize /* already popped one */));
 
-  // Restore callee-saved registers and return.
-#ifdef DEBUG
-  if (FLAG_debug_code) {
-    __ mov(lr, Operand(pc));
-  }
-#endif
+  __ ldm(ia_w, sp, fp.bit() | lr.bit());
 
   // Restore callee-saved vfp registers.
   __ vldm(ia_w, sp, kFirstCalleeSavedDoubleReg, kLastCalleeSavedDoubleReg);
 
-  __ ldm(ia_w, sp, kCalleeSaved | pc.bit());
+  __ ldm(ia_w, sp, kCalleeSavedWithoutFp);
+
+  __ mov(pc, lr);
+
+  // Emit constant pool.
+  __ CheckConstPool(true, false);
 }
 
 }  // namespace
