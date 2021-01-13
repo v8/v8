@@ -822,7 +822,7 @@ DEFINE_BOOL(liftoff_only, false,
 DEFINE_IMPLICATION(liftoff_only, liftoff)
 DEFINE_NEG_IMPLICATION(liftoff_only, wasm_tier_up)
 DEFINE_NEG_IMPLICATION(fuzzing, liftoff_only)
-DEFINE_BOOL(experimental_liftoff_extern_ref, false,
+DEFINE_BOOL(experimental_liftoff_extern_ref, true,
             "enable support for externref in Liftoff")
 DEFINE_DEBUG_BOOL(
     enable_testing_opcode_in_wasm, false,
