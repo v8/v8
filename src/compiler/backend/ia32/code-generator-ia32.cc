@@ -2358,16 +2358,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32I16x8Q15MulRSatS: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src0 = i.InputSimd128Register(0);
-      XMMRegister src1 = i.InputSimd128Register(1);
-      // k = i16x8.splat(0x8000)
-      __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ Psllw(kScratchDoubleReg, kScratchDoubleReg, byte{15});
-
-      __ Pmulhrsw(dst, src0, src1);
-      __ Pcmpeqw(kScratchDoubleReg, dst);
-      __ Pxor(dst, kScratchDoubleReg);
+      __ I16x8Q15MulRSatS(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                          i.InputSimd128Register(1), kScratchDoubleReg);
       break;
     }
     case kIA32I32x4SignSelect: {

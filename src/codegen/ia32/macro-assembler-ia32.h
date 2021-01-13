@@ -527,7 +527,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   AVX_OP3_XO_SSE4(Pmaxsd, pmaxsd)
   AVX_OP3_WITH_TYPE_SCOPE(Pmaddubsw, pmaddubsw, XMMRegister, XMMRegister, SSSE3)
-  AVX_OP3_WITH_TYPE_SCOPE(Pmulhrsw, pmulhrsw, XMMRegister, XMMRegister, SSSE3)
 
 #undef AVX_OP3_XO_SSE4
 #undef AVX_OP3_WITH_TYPE_SCOPE
@@ -612,6 +611,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Roundps(XMMRegister dst, XMMRegister src, RoundingMode mode);
   void Roundpd(XMMRegister dst, XMMRegister src, RoundingMode mode);
 
+  // Handles SSE and AVX. On SSE, moves src to dst if they are not equal.
+  void Pmulhrsw(XMMRegister dst, XMMRegister src1, XMMRegister src2);
+
   // These Wasm SIMD ops do not have direct lowerings on IA32. These
   // helpers are optimized to produce the fastest and smallest codegen.
   // Defined here to allow usage on both TurboFan and Liftoff.
@@ -628,6 +630,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void I64x2SConvertI32x4High(XMMRegister dst, XMMRegister src);
   void I64x2UConvertI32x4High(XMMRegister dst, XMMRegister src,
                               XMMRegister scratch);
+  void I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                        XMMRegister scratch);
 
   void Push(Register src) { push(src); }
   void Push(Operand src) { push(src); }
