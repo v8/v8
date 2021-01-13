@@ -2019,22 +2019,22 @@ void LiftoffAssembler::emit_i64x2_bitmask(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i64x2_sconvert_i32x4_low(LiftoffRegister dst,
                                                      LiftoffRegister src) {
-  bailout(kSimd, "i64x2_sconvert_i32x4_low");
+  Sxtl(dst.fp().V2D(), src.fp().V2S());
 }
 
 void LiftoffAssembler::emit_i64x2_sconvert_i32x4_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  bailout(kSimd, "i64x2_sconvert_i32x4_high");
+  Sxtl2(dst.fp().V2D(), src.fp().V4S());
 }
 
 void LiftoffAssembler::emit_i64x2_uconvert_i32x4_low(LiftoffRegister dst,
                                                      LiftoffRegister src) {
-  bailout(kSimd, "i64x2_uconvert_i32x4_low");
+  Uxtl(dst.fp().V2D(), src.fp().V2S());
 }
 
 void LiftoffAssembler::emit_i64x2_uconvert_i32x4_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  bailout(kSimd, "i64x2_uconvert_i32x4_high");
+  Uxtl2(dst.fp().V2D(), src.fp().V4S());
 }
 
 void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,

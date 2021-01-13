@@ -1814,8 +1814,8 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2ConvertI32x4) {
   // Create four output vectors to hold signed and unsigned results.
   int64_t* g0 = r.builder().AddGlobal<int64_t>(kWasmS128);
   int64_t* g1 = r.builder().AddGlobal<int64_t>(kWasmS128);
-  int64_t* g2 = r.builder().AddGlobal<int64_t>(kWasmS128);
-  int64_t* g3 = r.builder().AddGlobal<int64_t>(kWasmS128);
+  uint64_t* g2 = r.builder().AddGlobal<uint64_t>(kWasmS128);
+  uint64_t* g3 = r.builder().AddGlobal<uint64_t>(kWasmS128);
   // Build fn to splat test value, perform conversions, and write the results.
   byte value = 0;
   byte temp1 = r.AllocateLocal(kWasmS128);
@@ -1833,12 +1833,13 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2ConvertI32x4) {
   FOR_INT32_INPUTS(x) {
     r.Call(x);
     int64_t expected_signed = static_cast<int64_t>(x);
-    int64_t expected_unsigned = static_cast<int64_t>(static_cast<uint32_t>(x));
+    uint64_t expected_unsigned =
+        static_cast<uint64_t>(static_cast<uint32_t>(x));
     for (int i = 0; i < 2; i++) {
       CHECK_EQ(expected_signed, ReadLittleEndianValue<int64_t>(&g0[i]));
       CHECK_EQ(expected_signed, ReadLittleEndianValue<int64_t>(&g1[i]));
-      CHECK_EQ(expected_unsigned, ReadLittleEndianValue<int64_t>(&g2[i]));
-      CHECK_EQ(expected_unsigned, ReadLittleEndianValue<int64_t>(&g3[i]));
+      CHECK_EQ(expected_unsigned, ReadLittleEndianValue<uint64_t>(&g2[i]));
+      CHECK_EQ(expected_unsigned, ReadLittleEndianValue<uint64_t>(&g3[i]));
     }
   }
 }

@@ -2895,22 +2895,22 @@ void LiftoffAssembler::emit_i64x2_bitmask(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i64x2_sconvert_i32x4_low(LiftoffRegister dst,
                                                      LiftoffRegister src) {
-  bailout(kSimd, "i64x2_sconvert_i32x4_low");
+  vmovl(NeonS32, liftoff::GetSimd128Register(dst), src.low_fp());
 }
 
 void LiftoffAssembler::emit_i64x2_sconvert_i32x4_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  bailout(kSimd, "i64x2_sconvert_i32x4_high");
+  vmovl(NeonS32, liftoff::GetSimd128Register(dst), src.high_fp());
 }
 
 void LiftoffAssembler::emit_i64x2_uconvert_i32x4_low(LiftoffRegister dst,
                                                      LiftoffRegister src) {
-  bailout(kSimd, "i64x2_uconvert_i32x4_low");
+  vmovl(NeonU32, liftoff::GetSimd128Register(dst), src.low_fp());
 }
 
 void LiftoffAssembler::emit_i64x2_uconvert_i32x4_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  bailout(kSimd, "i64x2_uconvert_i32x4_high");
+  vmovl(NeonU32, liftoff::GetSimd128Register(dst), src.high_fp());
 }
 
 void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
