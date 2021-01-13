@@ -150,7 +150,28 @@ bool LiftoffAssembler::NeedsAlignment(ValueType type) {
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
-  bailout(kUnsupportedArchitecture, "LoadConstant");
+  switch (value.type().kind()) {
+    case ValueType::kI32:
+      mov(reg.gp(), Operand(value.to_i32(), rmode));
+      break;
+    case ValueType::kI64:
+      mov(reg.gp(), Operand(value.to_i64(), rmode));
+      break;
+    case ValueType::kF32: {
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      LoadF32(reg.fp(), value.to_f32_boxed().get_scalar(), scratch);
+      break;
+    }
+    case ValueType::kF64: {
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      LoadF64(reg.fp(), value.to_f64_boxed().get_bits(), scratch);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::LoadFromInstance(Register dst, int offset, int size) {
