@@ -494,12 +494,13 @@ void MarkCompactCollector::StartMarking() {
       contexts.push_back(context->ptr());
     }
   }
+  bytecode_flush_mode_ = Heap::GetBytecodeFlushMode(isolate());
   marking_worklists()->CreateContextWorklists(contexts);
   local_marking_worklists_ =
       std::make_unique<MarkingWorklists::Local>(marking_worklists());
   marking_visitor_ = std::make_unique<MarkingVisitor>(
       marking_state(), local_marking_worklists(), weak_objects(), heap_,
-      epoch(), Heap::GetBytecodeFlushMode(),
+      epoch(), bytecode_flush_mode(),
       heap_->local_embedder_heap_tracer()->InUse(),
       heap_->is_current_gc_forced());
 // Marking bits are cleared by the sweeper.
