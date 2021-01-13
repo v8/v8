@@ -78,6 +78,36 @@ Handle<String> GetNameOrDefault(Isolate* isolate,
   return isolate->factory()->InternalizeString(value.SubVector(0, len));
 }
 
+MaybeHandle<String> GetNameFromImportsAndExportsOrNull(
+    Isolate* isolate, Handle<WasmInstanceObject> instance,
+    wasm::ImportExportKindCode kind, uint32_t index) {
+  auto debug_info = instance->module_object().native_module()->GetDebugInfo();
+  wasm::ModuleWireBytes wire_bytes(
+      instance->module_object().native_module()->wire_bytes());
+
+  auto import_name_ref = debug_info->GetImportName(kind, index);
+  if (!import_name_ref.first.is_empty()) {
+    ScopedVector<char> name(import_name_ref.first.length() + 1 +
+                            import_name_ref.second.length());
+    auto name_begin = &name.first(), name_end = name_begin;
+    auto module_name = wire_bytes.GetNameOrNull(import_name_ref.first);
+    name_end = std::copy(module_name.begin(), module_name.end(), name_end);
+    *name_end++ = '.';
+    auto field_name = wire_bytes.GetNameOrNull(import_name_ref.second);
+    name_end = std::copy(field_name.begin(), field_name.end(), name_end);
+    return isolate->factory()->NewStringFromUtf8(
+        VectorOf(name_begin, name_end - name_begin));
+  }
+
+  auto export_name_ref = debug_info->GetExportName(kind, index);
+  if (!export_name_ref.is_empty()) {
+    auto name = wire_bytes.GetNameOrNull(export_name_ref);
+    return isolate->factory()->NewStringFromUtf8(name);
+  }
+
+  return {};
+}
+
 enum DebugProxyId {
   kFunctionsProxy,
   kGlobalsProxy,
@@ -340,18 +370,15 @@ struct FunctionsProxy : NamedDebugProxy<FunctionsProxy, kFunctionsProxy> {
   static Handle<String> GetName(Isolate* isolate,
                                 Handle<WasmInstanceObject> instance,
                                 uint32_t index) {
-    wasm::ModuleWireBytes wire_bytes(
-        instance->module_object().native_module()->wire_bytes());
-    auto* module = instance->module();
-    wasm::WireBytesRef name_ref =
-        module->lazily_generated_names.LookupFunctionName(
-            wire_bytes, index, VectorOf(module->export_table));
-    Vector<const char> name_vec = wire_bytes.GetNameOrNull(name_ref);
-    return GetNameOrDefault(
-        isolate,
-        name_vec.empty() ? MaybeHandle<String>()
-                         : isolate->factory()->NewStringFromUtf8(name_vec),
-        "$func", index);
+    Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
+    MaybeHandle<String> name =
+        WasmModuleObject::GetFunctionNameOrNull(isolate, module_object, index);
+    if (name.is_null()) {
+      name = GetNameFromImportsAndExportsOrNull(
+          isolate, instance, wasm::ImportExportKindCode::kExternalFunction,
+          index);
+    }
+    return GetNameOrDefault(isolate, name, "$func", index);
   }
 };
 
@@ -376,7 +403,9 @@ struct GlobalsProxy : NamedDebugProxy<GlobalsProxy, kGlobalsProxy> {
                                 uint32_t index) {
     return GetNameOrDefault(
         isolate,
-        WasmInstanceObject::GetGlobalNameOrNull(isolate, instance, index),
+        GetNameFromImportsAndExportsOrNull(
+            isolate, instance, wasm::ImportExportKindCode::kExternalGlobal,
+            index),
         "$global", index);
   }
 };
@@ -400,7 +429,9 @@ struct MemoriesProxy : NamedDebugProxy<MemoriesProxy, kMemoriesProxy> {
                                 uint32_t index) {
     return GetNameOrDefault(
         isolate,
-        WasmInstanceObject::GetMemoryNameOrNull(isolate, instance, index),
+        GetNameFromImportsAndExportsOrNull(
+            isolate, instance, wasm::ImportExportKindCode::kExternalMemory,
+            index),
         "$memory", index);
   }
 };
@@ -424,7 +455,9 @@ struct TablesProxy : NamedDebugProxy<TablesProxy, kTablesProxy> {
                                 uint32_t index) {
     return GetNameOrDefault(
         isolate,
-        WasmInstanceObject::GetTableNameOrNull(isolate, instance, index),
+        GetNameFromImportsAndExportsOrNull(
+            isolate, instance, wasm::ImportExportKindCode::kExternalTable,
+            index),
         "$table", index);
   }
 };

@@ -33,6 +33,8 @@ namespace wasm {
 
 namespace {
 
+using ImportExportKey = std::pair<ImportExportKindCode, uint32_t>;
+
 enum ReturnLocation { kAfterBreakpoint, kAfterWasmCall };
 
 Address FindNewPC(WasmFrame* frame, WasmCode* wasm_code, int byte_offset,
@@ -149,6 +151,39 @@ class DebugInfoImpl {
     FrameInspectionScope scope(this, pc);
     auto* module = native_module_->module();
     return module->functions[scope.code->index()];
+  }
+
+  WireBytesRef GetExportName(ImportExportKindCode kind, uint32_t index) {
+    base::MutexGuard guard(&mutex_);
+    if (!export_names_) {
+      export_names_ =
+          std::make_unique<std::map<ImportExportKey, WireBytesRef>>();
+      for (auto exp : native_module_->module()->export_table) {
+        auto exp_key = std::make_pair(exp.kind, exp.index);
+        if (export_names_->find(exp_key) != export_names_->end()) continue;
+        export_names_->insert(std::make_pair(exp_key, exp.name));
+      }
+    }
+    auto it = export_names_->find(std::make_pair(kind, index));
+    if (it != export_names_->end()) return it->second;
+    return {};
+  }
+
+  std::pair<WireBytesRef, WireBytesRef> GetImportName(ImportExportKindCode kind,
+                                                      uint32_t index) {
+    base::MutexGuard guard(&mutex_);
+    if (!import_names_) {
+      import_names_ = std::make_unique<
+          std::map<ImportExportKey, std::pair<WireBytesRef, WireBytesRef>>>();
+      for (auto imp : native_module_->module()->import_table) {
+        import_names_->insert(
+            std::make_pair(std::make_pair(imp.kind, imp.index),
+                           std::make_pair(imp.module_name, imp.field_name)));
+      }
+    }
+    auto it = import_names_->find(std::make_pair(kind, index));
+    if (it != import_names_->end()) return it->second;
+    return {};
   }
 
   WireBytesRef GetLocalName(int func_index, int local_index) {
@@ -621,6 +656,14 @@ class DebugInfoImpl {
   // {mutex_} protects all fields below.
   mutable base::Mutex mutex_;
 
+  // Names of exports, lazily derived from the exports table.
+  std::unique_ptr<std::map<ImportExportKey, wasm::WireBytesRef>> export_names_;
+
+  // Names of imports, lazily derived from the imports table.
+  std::unique_ptr<std::map<ImportExportKey,
+                           std::pair<wasm::WireBytesRef, wasm::WireBytesRef>>>
+      import_names_;
+
   // Names of locals, lazily decoded from the wire bytes.
   std::unique_ptr<LocalNames> local_names_;
 
@@ -649,6 +692,16 @@ WasmValue DebugInfo::GetStackValue(int index, Address pc, Address fp,
 
 const wasm::WasmFunction& DebugInfo::GetFunctionAtAddress(Address pc) {
   return impl_->GetFunctionAtAddress(pc);
+}
+
+WireBytesRef DebugInfo::GetExportName(ImportExportKindCode code,
+                                      uint32_t index) {
+  return impl_->GetExportName(code, index);
+}
+
+std::pair<WireBytesRef, WireBytesRef> DebugInfo::GetImportName(
+    ImportExportKindCode code, uint32_t index) {
+  return impl_->GetImportName(code, index);
 }
 
 WireBytesRef DebugInfo::GetLocalName(int func_index, int local_index) {

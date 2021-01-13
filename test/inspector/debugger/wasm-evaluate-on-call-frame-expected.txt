@@ -54,17 +54,19 @@ Call main.
 Debugger paused in main.
 > functions = Functions
 > typeof functions = "object"
-> Object.keys(functions) = Array(3)
+> Object.keys(functions) = Array(4)
 > functions[0] = function 0() { [native code] }
 > functions[1] = function 1() { [native code] }
 > functions[2] = function 2() { [native code] }
 > functions[3] = function 3() { [native code] }
-> functions["$main"] = function 0() { [native code] }
-> $main = function 0() { [native code] }
-> functions["$func1"] = function 1() { [native code] }
-> $func1 = function 1() { [native code] }
-> functions["$func3"] = function 3() { [native code] }
-> $func3 = function 3() { [native code] }
+> functions[4] = function 4() { [native code] }
+> functions["$foo.bar"] = function 0() { [native code] }
+> functions["$main"] = function 1() { [native code] }
+> $main = function 1() { [native code] }
+> functions["$func2"] = function 2() { [native code] }
+> $func2 = function 2() { [native code] }
+> functions["$func4"] = function 4() { [native code] }
+> $func4 = function 4() { [native code] }
 
 Running test: testLocals
 Compile module.
