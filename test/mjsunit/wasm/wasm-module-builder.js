@@ -76,10 +76,12 @@ let kWasmFunctionTypeForm = 0x60;
 let kWasmStructTypeForm = 0x5f;
 let kWasmArrayTypeForm = 0x5e;
 
-let kLimitsNoMaximum = 0
-let kLimitsHasMaximum = 1;
-let kLimitsSharedNoMaximum = 2;
-let kLimitsSharedHasMaximum = 3;
+let kLimitsNoMaximum = 0x00;
+let kLimitsWithMaximum = 0x01;
+let kLimitsSharedNoMaximum = 0x02;
+let kLimitsSharedWithMaximum = 0x03;
+let kLimitsMemory64NoMaximum = 0x04;
+let kLimitsMemory64WithMaximum = 0x05;
 
 // Segment flags
 let kActiveNoIndex = 0;
@@ -1024,7 +1026,24 @@ class WasmModuleBuilder {
   }
 
   addMemory(min, max, exported, shared) {
-    this.memory = {min: min, max: max, exported: exported, shared: shared};
+    this.memory = {
+      min: min,
+      max: max,
+      exported: exported,
+      shared: shared || false,
+      is_memory64: false
+    };
+    return this;
+  }
+
+  addMemory64(min, max, exported) {
+    this.memory = {
+      min: min,
+      max: max,
+      exported: exported,
+      shared: false,
+      is_memory64: true
+    };
     return this;
   }
 
@@ -1363,12 +1382,22 @@ class WasmModuleBuilder {
       binary.emit_section(kMemorySectionCode, section => {
         section.emit_u8(1);  // one memory entry
         const has_max = wasm.memory.max !== undefined;
-        const is_shared = wasm.memory.shared !== undefined;
-        section.emit_u8(is_shared
-          ? (has_max ? kLimitsSharedHasMaximum : kLimitsSharedNoMaximum)
-          : (has_max ? kLimitsHasMaximum : kLimitsNoMaximum));
-        section.emit_u32v(wasm.memory.min);
-        if (has_max) section.emit_u32v(wasm.memory.max);
+        if (wasm.memory.is_memory64) {
+          assertFalse(
+              wasm.memory.shared, 'sharing memory64 is not supported (yet)');
+          section.emit_u8(
+              has_max ? kLimitsMemory64WithMaximum : kLimitsMemory64NoMaximum);
+          section.emit_u64v(wasm.memory.min);
+          if (has_max) section.emit_u64v(wasm.memory.max);
+        } else {
+          section.emit_u8(
+              wasm.memory.shared ?
+                  (has_max ? kLimitsSharedWithMaximum :
+                             kLimitsSharedNoMaximum) :
+                  (has_max ? kLimitsWithMaximum : kLimitsNoMaximum));
+          section.emit_u32v(wasm.memory.min);
+          if (has_max) section.emit_u32v(wasm.memory.max);
+        }
       });
     }
 
