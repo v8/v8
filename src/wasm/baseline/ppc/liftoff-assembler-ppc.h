@@ -1185,6 +1185,12 @@ void LiftoffAssembler::emit_i16x8_extmul_high_i8x16_s(LiftoffRegister dst,
   bailout(kSimd, "i16x8.extmul_high_i8x16_s unsupported");
 }
 
+void LiftoffAssembler::emit_i16x8_q15mulr_sat_s(LiftoffRegister dst,
+                                                LiftoffRegister src1,
+                                                LiftoffRegister src2) {
+  bailout(kSimd, "i16x8_q15mulr_sat_s");
+}
+
 void LiftoffAssembler::emit_i16x8_extmul_high_i8x16_u(LiftoffRegister dst,
                                                       LiftoffRegister src1,
                                                       LiftoffRegister src2) {
