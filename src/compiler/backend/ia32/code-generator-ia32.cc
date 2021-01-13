@@ -2435,36 +2435,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Addps(dst, dst, kScratchDoubleReg);  // add hi and lo, may round.
       break;
     }
-    case kSSEF32x4Abs: {
+    case kIA32F32x4Abs: {
       XMMRegister dst = i.OutputSimd128Register();
-      DCHECK_EQ(i.InputSimd128Register(0), dst);
-      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ psrld(kScratchDoubleReg, 1);
-      __ andps(dst, kScratchDoubleReg);
+      XMMRegister src = i.InputSimd128Register(0);
+      if (dst == src) {
+        __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+        __ Psrld(kScratchDoubleReg, kScratchDoubleReg, 1);
+        __ Andps(dst, kScratchDoubleReg);
+      } else {
+        __ Pcmpeqd(dst, dst);
+        __ Psrld(dst, dst, 1);
+        __ Andps(dst, src);
+      }
       break;
     }
-    case kAVXF32x4Abs: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vpcmpeqd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
-      __ vpsrld(kScratchDoubleReg, kScratchDoubleReg, 1);
-      __ vandps(i.OutputSimd128Register(), kScratchDoubleReg,
-                i.InputOperand(0));
-      break;
-    }
-    case kSSEF32x4Neg: {
+    case kIA32F32x4Neg: {
       XMMRegister dst = i.OutputSimd128Register();
-      DCHECK_EQ(dst, i.InputSimd128Register(0));
-      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ pslld(kScratchDoubleReg, 31);
-      __ xorps(dst, kScratchDoubleReg);
-      break;
-    }
-    case kAVXF32x4Neg: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vpcmpeqd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
-      __ vpslld(kScratchDoubleReg, kScratchDoubleReg, 31);
-      __ vxorps(i.OutputSimd128Register(), kScratchDoubleReg,
-                i.InputOperand(0));
+      XMMRegister src = i.InputSimd128Register(0);
+      if (dst == src) {
+        __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+        __ Pslld(kScratchDoubleReg, kScratchDoubleReg, 31);
+        __ Xorps(dst, kScratchDoubleReg);
+      } else {
+        __ Pcmpeqd(dst, dst);
+        __ Pslld(dst, dst, 31);
+        __ Xorps(dst, src);
+      }
       break;
     }
     case kIA32F32x4Sqrt: {
@@ -3824,17 +3820,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pcmpeqd(dst, dst);
       break;
     }
-    case kSSES128Not: {
+    case kIA32S128Not: {
       XMMRegister dst = i.OutputSimd128Register();
-      DCHECK_EQ(dst, i.InputSimd128Register(0));
-      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ pxor(dst, kScratchDoubleReg);
-      break;
-    }
-    case kAVXS128Not: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vpcmpeqd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
-      __ vpxor(i.OutputSimd128Register(), kScratchDoubleReg, i.InputOperand(0));
+      XMMRegister src = i.InputSimd128Register(0);
+      if (dst == src) {
+        __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+        __ Pxor(dst, kScratchDoubleReg);
+      } else {
+        __ Pcmpeqd(dst, dst);
+        __ Pxor(dst, src);
+      }
       break;
     }
     case kSSES128And: {

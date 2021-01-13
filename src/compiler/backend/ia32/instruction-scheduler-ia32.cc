@@ -145,10 +145,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32Insertps:
     case kIA32F32x4SConvertI32x4:
     case kIA32F32x4UConvertI32x4:
-    case kSSEF32x4Abs:
-    case kAVXF32x4Abs:
-    case kSSEF32x4Neg:
-    case kAVXF32x4Neg:
+    case kIA32F32x4Abs:
+    case kIA32F32x4Neg:
     case kIA32F32x4Sqrt:
     case kIA32F32x4RecipApprox:
     case kIA32F32x4RecipSqrtApprox:
@@ -341,8 +339,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32S128Const:
     case kIA32S128Zero:
     case kIA32S128AllOnes:
-    case kSSES128Not:
-    case kAVXS128Not:
+    case kIA32S128Not:
     case kSSES128And:
     case kAVXS128And:
     case kSSES128Or:

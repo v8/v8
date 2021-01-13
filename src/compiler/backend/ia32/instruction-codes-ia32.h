@@ -163,10 +163,8 @@ namespace compiler {
   V(IA32Insertps)                  \
   V(IA32F32x4SConvertI32x4)        \
   V(IA32F32x4UConvertI32x4)        \
-  V(SSEF32x4Abs)                   \
-  V(AVXF32x4Abs)                   \
-  V(SSEF32x4Neg)                   \
-  V(AVXF32x4Neg)                   \
+  V(IA32F32x4Abs)                  \
+  V(IA32F32x4Neg)                  \
   V(IA32F32x4Sqrt)                 \
   V(IA32F32x4RecipApprox)          \
   V(IA32F32x4RecipSqrtApprox)      \
@@ -359,8 +357,7 @@ namespace compiler {
   V(IA32S128Const)                 \
   V(IA32S128Zero)                  \
   V(IA32S128AllOnes)               \
-  V(SSES128Not)                    \
-  V(AVXS128Not)                    \
+  V(IA32S128Not)                   \
   V(SSES128And)                    \
   V(AVXS128And)                    \
   V(SSES128Or)                     \

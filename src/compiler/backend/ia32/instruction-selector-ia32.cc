@@ -2279,6 +2279,8 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I16x8ExtMulHighI8x16U)
 
 #define SIMD_UNOP_LIST(V)   \
+  V(F32x4Abs)               \
+  V(F32x4Neg)               \
   V(F32x4Sqrt)              \
   V(F32x4SConvertI32x4)     \
   V(F32x4RecipApprox)       \
@@ -2303,11 +2305,7 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I16x8Abs)               \
   V(I8x16Neg)               \
   V(I8x16Abs)               \
-  V(I8x16BitMask)
-
-#define SIMD_UNOP_PREFIX_LIST(V) \
-  V(F32x4Abs)                    \
-  V(F32x4Neg)                    \
+  V(I8x16BitMask)           \
   V(S128Not)
 
 #define SIMD_ANYTRUE_LIST(V) \
@@ -2611,25 +2609,6 @@ SIMD_SHIFT_OPCODES_UNIFED_SSE_AVX(VISIT_SIMD_SHIFT_UNIFIED_SSE_AVX)
 SIMD_UNOP_LIST(VISIT_SIMD_UNOP)
 #undef VISIT_SIMD_UNOP
 #undef SIMD_UNOP_LIST
-
-// TODO(v8:9198): SSE instructions that read 16 bytes from memory require the
-// operand to be 16-byte aligned. AVX instructions relax this requirement, but
-// might have reduced performance if the memory crosses cache line. But since we
-// have limited xmm registers, this might be okay to alleviate register
-// pressure.
-#define VISIT_SIMD_UNOP_PREFIX(Opcode)                                       \
-  void InstructionSelector::Visit##Opcode(Node* node) {                      \
-    IA32OperandGenerator g(this);                                            \
-    if (IsSupported(AVX)) {                                                  \
-      Emit(kAVX##Opcode, g.DefineAsRegister(node), g.Use(node->InputAt(0))); \
-    } else {                                                                 \
-      Emit(kSSE##Opcode, g.DefineSameAsFirst(node),                          \
-           g.UseRegister(node->InputAt(0)));                                 \
-    }                                                                        \
-  }
-SIMD_UNOP_PREFIX_LIST(VISIT_SIMD_UNOP_PREFIX)
-#undef VISIT_SIMD_UNOP_PREFIX
-#undef SIMD_UNOP_PREFIX_LIST
 
 // The implementation of AnyTrue is the same for all shapes.
 #define VISIT_SIMD_ANYTRUE(Opcode)                                  \
