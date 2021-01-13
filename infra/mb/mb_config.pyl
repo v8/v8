@@ -7,7 +7,7 @@
   # config names (where each config name is a key in the 'configs' dict,
   # below). MB uses this dict to look up which config to use for a given bot.
   # Bots are ordered by appearance on waterfall.
-  'masters': {
+  'builder_groups': {
     'developer_default': {
       'android.arm.debug': 'default_debug_android_arm',
       'android.arm.optdebug': 'default_optdebug_android_arm',
