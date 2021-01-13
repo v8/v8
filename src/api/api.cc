@@ -1183,6 +1183,8 @@ bool Data::IsFunctionTemplate() const {
   return Utils::OpenHandle(this)->IsFunctionTemplateInfo();
 }
 
+bool Data::IsContext() const { return Utils::OpenHandle(this)->IsContext(); }
+
 void Context::Enter() {
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   i::Isolate* isolate = env->GetIsolate();
@@ -3879,6 +3881,12 @@ void v8::Uint32::CheckCast(v8::Data* that) {
 void v8::BigInt::CheckCast(v8::Data* that) {
   Utils::ApiCheck(Value::Cast(that)->IsBigInt(), "v8::BigInt::Cast",
                   "Value is not a BigInt");
+}
+
+void v8::Context::CheckCast(v8::Data* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  Utils::ApiCheck(obj->IsContext(), "v8::Context::Cast",
+                  "Value is not a Context");
 }
 
 void v8::Array::CheckCast(Value* that) {

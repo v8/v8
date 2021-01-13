@@ -1343,6 +1343,11 @@ class V8_EXPORT Data {
    */
   bool IsFunctionTemplate() const;
 
+  /**
+   * Returns true if this data is a |v8::Context|.
+   */
+  bool IsContext() const;
+
  private:
   Data();
 };
@@ -10439,7 +10444,7 @@ class V8_EXPORT ExtensionConfiguration {
  * A sandboxed execution context with its own set of built-in objects
  * and functions.
  */
-class V8_EXPORT Context {
+class V8_EXPORT Context : public Data {
  public:
   /**
    * Returns the global proxy object.
@@ -10716,17 +10721,20 @@ class V8_EXPORT Context {
     const BackupIncumbentScope* prev_ = nullptr;
   };
 
+  V8_INLINE static Context* Cast(Data* data);
+
  private:
   friend class Value;
   friend class Script;
   friend class Object;
   friend class Function;
 
+  static void CheckCast(Data* obj);
+
   internal::Address* GetDataFromSnapshotOnce(size_t index);
   Local<Value> SlowGetEmbedderData(int index);
   void* SlowGetAlignedPointerFromEmbedderData(int index);
 };
-
 
 /**
  * Multiple threads in V8 are allowed, but only one thread at a time is allowed
@@ -11894,6 +11902,13 @@ BigInt* BigInt::Cast(v8::Data* data) {
   CheckCast(data);
 #endif
   return static_cast<BigInt*>(data);
+}
+
+Context* Context::Cast(v8::Data* data) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(data);
+#endif
+  return static_cast<Context*>(data);
 }
 
 Date* Date::Cast(v8::Value* value) {
