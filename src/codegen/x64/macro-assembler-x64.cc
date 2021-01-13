@@ -2118,6 +2118,28 @@ void TurboAssembler::I16x8UConvertI8x16High(XMMRegister dst, XMMRegister src) {
   }
 }
 
+void TurboAssembler::I64x2SConvertI32x4High(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpunpckhqdq(dst, src, src);
+    vpmovsxdq(dst, dst);
+  } else {
+    pshufd(dst, src, 0xEE);
+    pmovsxdq(dst, dst);
+  }
+}
+
+void TurboAssembler::I64x2UConvertI32x4High(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpxor(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+    vpunpckhdq(dst, src, kScratchDoubleReg);
+  } else {
+    pshufd(dst, src, 0xEE);
+    pmovzxdq(dst, dst);
+  }
+}
+
 // 1. Unpack src0, src0 into even-number elements of scratch.
 // 2. Unpack src1, src1 into even-number elements of dst.
 // 3. Multiply 1. with 2.

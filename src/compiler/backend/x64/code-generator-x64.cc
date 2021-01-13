@@ -2881,15 +2881,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I64x2SConvertI32x4High: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      if (CpuFeatures::IsSupported(AVX)) {
-        CpuFeatureScope avx_scope(tasm(), AVX);
-        __ vpunpckhqdq(dst, src, src);
-      } else {
-        __ pshufd(dst, src, 0xEE);
-      }
-      __ Pmovsxdq(dst, dst);
+      __ I64x2SConvertI32x4High(i.OutputSimd128Register(),
+                                i.InputSimd128Register(0));
       break;
     }
     case kX64I64x2UConvertI32x4Low: {
@@ -2897,17 +2890,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I64x2UConvertI32x4High: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      if (CpuFeatures::IsSupported(AVX)) {
-        CpuFeatureScope avx_scope(tasm(), AVX);
-        __ vpxor(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
-        __ vpunpckhdq(dst, src, kScratchDoubleReg);
-      } else {
-        CpuFeatureScope sse_scope(tasm(), SSE4_1);
-        __ pshufd(dst, src, 0xEE);
-        __ pmovzxdq(dst, dst);
-      }
+      __ I64x2UConvertI32x4High(i.OutputSimd128Register(),
+                                i.InputSimd128Register(0));
       break;
     }
     case kX64I32x4Splat: {

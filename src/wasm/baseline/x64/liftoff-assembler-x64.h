@@ -3465,6 +3465,26 @@ void LiftoffAssembler::emit_i64x2_bitmask(LiftoffRegister dst,
   Movmskpd(dst.gp(), src.fp());
 }
 
+void LiftoffAssembler::emit_i64x2_sconvert_i32x4_low(LiftoffRegister dst,
+                                                     LiftoffRegister src) {
+  Pmovsxdq(dst.fp(), src.fp());
+}
+
+void LiftoffAssembler::emit_i64x2_sconvert_i32x4_high(LiftoffRegister dst,
+                                                      LiftoffRegister src) {
+  I64x2SConvertI32x4High(dst.fp(), src.fp());
+}
+
+void LiftoffAssembler::emit_i64x2_uconvert_i32x4_low(LiftoffRegister dst,
+                                                     LiftoffRegister src) {
+  Pmovzxdq(dst.fp(), src.fp());
+}
+
+void LiftoffAssembler::emit_i64x2_uconvert_i32x4_high(LiftoffRegister dst,
+                                                      LiftoffRegister src) {
+  I64x2UConvertI32x4High(dst.fp(), src.fp());
+}
+
 void LiftoffAssembler::emit_f32x4_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
   if (dst.fp() == src.fp()) {
