@@ -766,9 +766,7 @@ class NativeContextData : public ContextData {
 class NameData : public HeapObjectData {
  public:
   NameData(JSHeapBroker* broker, ObjectData** storage, Handle<Name> object)
-      : HeapObjectData(broker, storage, object) {
-    DCHECK(!FLAG_turbo_direct_heap_access);
-  }
+      : HeapObjectData(broker, storage, object) {}
 };
 
 class StringData : public NameData {
