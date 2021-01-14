@@ -1997,6 +1997,10 @@ class LiftoffCompiler {
     __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
   }
 
+  void NopForTestingUnsupportedInLiftoff(FullDecoder* decoder) {
+    unsupported(decoder, kOtherReason, "testing opcode");
+  }
+
   void Select(FullDecoder* decoder, const Value& cond, const Value& fval,
               const Value& tval, Value* result) {
     LiftoffRegList pinned;

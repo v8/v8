@@ -1008,6 +1008,7 @@ struct ControlBase : public PcForErrors<validate> {
   F(TableSet, const Value& index, const Value& value,                          \
     const TableIndexImmediate<validate>& imm)                                  \
   F(Unreachable)                                                               \
+  F(NopForTestingUnsupportedInLiftoff)                                         \
   F(Select, const Value& cond, const Value& fval, const Value& tval,           \
     Value* result)                                                             \
   F(BrOrRet, uint32_t depth)                                                   \
@@ -1620,6 +1621,7 @@ class WasmDecoder : public Decoder {
       /********** Control opcodes **********/
       case kExprUnreachable:
       case kExprNop:
+      case kExprNopForTestingUnsupportedInLiftoff:
       case kExprElse:
       case kExprEnd:
       case kExprReturn:
@@ -2016,6 +2018,7 @@ class WasmDecoder : public Decoder {
       case kExprTry:
       case kExprCatch:
       case kExprNop:
+      case kExprNopForTestingUnsupportedInLiftoff:
       case kExprReturn:
       case kExprReturnCall:
       case kExprReturnCallIndirect:
@@ -2383,6 +2386,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   V8_INLINE int Decode##name##Impl(TraceLine* trace_msg, WasmOpcode opcode)
 
   DECODE(Nop) { return 1; }
+
+  DECODE(NopForTestingUnsupportedInLiftoff) {
+    if (!VALIDATE(FLAG_enable_testing_opcode_in_wasm)) {
+      this->DecodeError("Invalid opcode 0x%x", opcode);
+      return 0;
+    }
+    CALL_INTERFACE_IF_REACHABLE(NopForTestingUnsupportedInLiftoff);
+    return 1;
+  }
 
 #define BUILD_SIMPLE_OPCODE(op, _, sig) \
   DECODE(op) { return BuildSimpleOperator_##sig(kExpr##op); }
@@ -3237,6 +3249,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     DECODE_IMPL(BrTable);
     DECODE_IMPL(Return);
     DECODE_IMPL(Unreachable);
+    DECODE_IMPL(NopForTestingUnsupportedInLiftoff);
     DECODE_IMPL(I32Const);
     DECODE_IMPL(I64Const);
     DECODE_IMPL(F32Const);

@@ -824,6 +824,9 @@ DEFINE_NEG_IMPLICATION(liftoff_only, wasm_tier_up)
 DEFINE_NEG_IMPLICATION(fuzzing, liftoff_only)
 DEFINE_BOOL(experimental_liftoff_extern_ref, false,
             "enable support for externref in Liftoff")
+DEFINE_DEBUG_BOOL(
+    enable_testing_opcode_in_wasm, false,
+    "enables a testing opcode in wasm that is only implemented in TurboFan")
 // We can't tier up (from Liftoff to TurboFan) in single-threaded mode, hence
 // disable tier up in that configuration for now.
 DEFINE_NEG_IMPLICATION(single_threaded, wasm_tier_up)

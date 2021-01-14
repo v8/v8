@@ -138,6 +138,7 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_I64_OP(SExtendI32, "extend32_s")
     CASE_OP(Unreachable, "unreachable")
     CASE_OP(Nop, "nop")
+    CASE_OP(NopForTestingUnsupportedInLiftoff, "nop_for_testing")
     CASE_OP(Block, "block")
     CASE_OP(Loop, "loop")
     CASE_OP(If, "if")

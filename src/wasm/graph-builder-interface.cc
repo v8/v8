@@ -439,6 +439,8 @@ class WasmGraphBuildingInterface {
     BUILD(Trap, wasm::TrapReason::kTrapUnreachable, decoder->position());
   }
 
+  void NopForTestingUnsupportedInLiftoff(FullDecoder* decoder) {}
+
   void Select(FullDecoder* decoder, const Value& cond, const Value& fval,
               const Value& tval, Value* result) {
     TFNode* controls[2];
