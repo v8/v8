@@ -43,6 +43,7 @@
 #include "src/base/overflowing-math.h"
 #include "src/codegen/arm/assembler-arm-inl.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/string-constants.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -5395,6 +5396,21 @@ Register UseScratchRegisterScope::Acquire() {
   Register reg = Register::from_code(index);
   *available &= ~reg.bit();
   return reg;
+}
+
+LoadStoreLaneParams::LoadStoreLaneParams(MachineRepresentation rep,
+                                         uint8_t laneidx) {
+  if (rep == MachineRepresentation::kWord8) {
+    *this = LoadStoreLaneParams(laneidx, Neon8, 8);
+  } else if (rep == MachineRepresentation::kWord16) {
+    *this = LoadStoreLaneParams(laneidx, Neon16, 4);
+  } else if (rep == MachineRepresentation::kWord32) {
+    *this = LoadStoreLaneParams(laneidx, Neon32, 2);
+  } else if (rep == MachineRepresentation::kWord64) {
+    *this = LoadStoreLaneParams(laneidx, Neon64, 1);
+  } else {
+    UNREACHABLE();
+  }
 }
 
 }  // namespace internal

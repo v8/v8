@@ -2362,7 +2362,17 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
                                 Register addr, Register offset_reg,
                                 uintptr_t offset_imm, LoadType type,
                                 uint8_t laneidx, uint32_t* protected_load_pc) {
-  bailout(kSimd, "loadlane");
+  UseScratchRegisterScope temps(this);
+  Register actual_src_addr = liftoff::CalculateActualAddress(
+      this, &temps, addr, offset_reg, offset_imm);
+  TurboAssembler::Move(liftoff::GetSimd128Register(dst),
+                       liftoff::GetSimd128Register(src));
+  *protected_load_pc = pc_offset();
+  LoadStoreLaneParams load_params(type.mem_type().representation(), laneidx);
+  NeonListOperand dst_op =
+      NeonListOperand(load_params.low_op ? dst.low_fp() : dst.high_fp());
+  TurboAssembler::LoadLane(load_params.sz, dst_op, load_params.laneidx,
+                           NeonMemOperand(actual_src_addr));
 }
 
 void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
