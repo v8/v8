@@ -129,6 +129,10 @@ class Symbol;
   V(Map, external_internalized_string_map, ExternalInternalizedStringMap)      \
   V(Map, external_one_byte_internalized_string_map,                            \
     ExternalOneByteInternalizedStringMap)                                      \
+  V(Map, uncached_external_internalized_string_map,                            \
+    UncachedExternalInternalizedStringMap)                                     \
+  V(Map, uncached_external_one_byte_internalized_string_map,                   \
+    UncachedExternalOneByteInternalizedStringMap)                              \
   V(Map, uncached_external_one_byte_string_map,                                \
     UncachedExternalOneByteStringMap)                                          \
   /* Oddball maps */                                                           \

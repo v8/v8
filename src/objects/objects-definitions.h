@@ -36,6 +36,8 @@ namespace internal {
   V(EXTERNAL_INTERNALIZED_STRING_TYPE)                   \
   V(ONE_BYTE_INTERNALIZED_STRING_TYPE)                   \
   V(EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE)          \
+  V(UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE)          \
+  V(UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE) \
   V(STRING_TYPE)                                         \
   V(CONS_STRING_TYPE)                                    \
   V(EXTERNAL_STRING_TYPE)                                \
@@ -83,6 +85,13 @@ namespace internal {
     external_internalized_string, ExternalInternalizedString)                  \
   V(EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE, ExternalOneByteString::kSize,  \
     external_one_byte_internalized_string, ExternalOneByteInternalizedString)  \
+  V(UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE,                                \
+    ExternalTwoByteString::kUncachedSize,                                      \
+    uncached_external_internalized_string, UncachedExternalInternalizedString) \
+  V(UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE,                       \
+    ExternalOneByteString::kUncachedSize,                                      \
+    uncached_external_one_byte_internalized_string,                            \
+    UncachedExternalOneByteInternalizedString)                                 \
   V(THIN_STRING_TYPE, ThinString::kSize, thin_string, ThinString)              \
   V(THIN_ONE_BYTE_STRING_TYPE, ThinString::kSize, thin_one_byte_string,        \
     ThinOneByteString)

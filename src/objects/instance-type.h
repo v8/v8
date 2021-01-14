@@ -87,6 +87,12 @@ enum InstanceType : uint16_t {
       kTwoByteStringTag | kExternalStringTag | kInternalizedTag,
   EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE =
       kOneByteStringTag | kExternalStringTag | kInternalizedTag,
+  UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE =
+      EXTERNAL_INTERNALIZED_STRING_TYPE | kUncachedExternalStringTag |
+      kInternalizedTag,
+  UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE =
+      EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE | kUncachedExternalStringTag |
+      kInternalizedTag,
   STRING_TYPE = INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
   ONE_BYTE_STRING_TYPE =
       ONE_BYTE_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
@@ -101,12 +107,10 @@ enum InstanceType : uint16_t {
       EXTERNAL_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
   EXTERNAL_ONE_BYTE_STRING_TYPE =
       EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
-  UNCACHED_EXTERNAL_STRING_TYPE = kTwoByteStringTag | kExternalStringTag |
-                                  kUncachedExternalStringTag |
-                                  kNotInternalizedTag,
+  UNCACHED_EXTERNAL_STRING_TYPE =
+      UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
   UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE =
-      kOneByteStringTag | kExternalStringTag | kUncachedExternalStringTag |
-      kNotInternalizedTag,
+      UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
   THIN_STRING_TYPE = kTwoByteStringTag | kThinStringTag | kNotInternalizedTag,
   THIN_ONE_BYTE_STRING_TYPE =
       kOneByteStringTag | kThinStringTag | kNotInternalizedTag,
