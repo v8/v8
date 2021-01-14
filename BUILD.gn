@@ -484,21 +484,29 @@ config("libsampler_config") {
   include_dirs = [ "include" ]
 }
 
-# This config should only be applied to code using V8 and not any V8 code
-# itself.
-config("external_config") {
+# This config is only applied to v8_headers and is the basis for external_config
+# but without setting the USING_V8_SHARED define, which means v8_headers can be
+# used inside v8 itself.
+config("headers_config") {
   defines = []
   configs = [
     ":v8_header_features",
     ":cppgc_header_features",
   ]
-  if (is_component_build) {
-    defines += [ "USING_V8_SHARED" ]
-  }
   include_dirs = [
     "include",
     "$target_gen_dir/include",
   ]
+}
+
+# This config should only be applied to code using V8 and not any V8 code
+# itself.
+config("external_config") {
+  configs = [ ":headers_config" ]
+  defines = []
+  if (is_component_build) {
+    defines += [ "USING_V8_SHARED" ]
+  }
 }
 
 # This config should only be applied to code that needs to be explicitly
@@ -1997,10 +2005,7 @@ v8_header_set("v8_version") {
 # can depend upon to get basic v8 types.
 v8_header_set("v8_headers") {
   configs = [ ":internal_config" ]
-  public_configs = [
-    ":v8_header_features",
-    ":cppgc_header_features",
-  ]
+  public_configs = [ ":headers_config" ]
 
   sources = [
     "include/v8-cppgc.h",
