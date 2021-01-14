@@ -1048,8 +1048,8 @@ Handle<Code> ContinuationForConcurrentOptimization(
     // Tiering up to Turbofan and cached optimized code exists. Continue
     // execution there until TF optimization has finished.
     return cached_code;
-  } else if (FLAG_turboprop_as_midtier &&
-             function->HasAvailableOptimizedCode()) {
+  } else if (FLAG_turboprop && function->HasAvailableOptimizedCode()) {
+    DCHECK(!FLAG_turboprop_as_toptier);
     DCHECK(function->NextTier() == CodeKind::TURBOFAN);
     // It is possible that we have marked a closure for TurboFan optimization
     // but the marker is processed by another closure that doesn't have

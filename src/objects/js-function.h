@@ -114,6 +114,7 @@ class JSFunction : public JSFunctionOrBoundFunction {
 
   bool HasAvailableCodeKind(CodeKind kind) const;
 
+  CodeKind GetActiveTier() const;
   V8_EXPORT_PRIVATE bool ActiveTierIsIgnition() const;
   bool ActiveTierIsTurbofan() const;
   bool ActiveTierIsNCI() const;

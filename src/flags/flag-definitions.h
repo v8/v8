@@ -554,9 +554,10 @@ DEFINE_BOOL(turboprop, false, "enable experimental turboprop mid-tier compiler")
 DEFINE_IMPLICATION(turboprop, turbo_direct_heap_access)
 DEFINE_BOOL(turboprop_mid_tier_reg_alloc, true,
             "enable mid-tier register allocator for turboprop")
-DEFINE_BOOL(turboprop_as_midtier, false,
-            "enable experimental turboprop mid-tier compiler")
-DEFINE_IMPLICATION(turboprop_as_midtier, turboprop)
+DEFINE_BOOL(
+    turboprop_as_toptier, false,
+    "enable experimental turboprop compiler without further tierup to turbofan")
+DEFINE_IMPLICATION(turboprop_as_toptier, turboprop)
 DEFINE_VALUE_IMPLICATION(turboprop, interrupt_budget, 15 * KB)
 DEFINE_VALUE_IMPLICATION(turboprop, reuse_opt_code_count, 2)
 DEFINE_UINT_READONLY(max_minimorphic_map_checks, 4,
