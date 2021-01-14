@@ -178,7 +178,6 @@ void RuntimeProfiler::MaybeOptimizeFrame(JSFunction function,
   // Note: We currently do not trigger OSR compilation from NCI or TP code.
   // TODO(jgruber,v8:8888): But we should.
   if (frame->is_interpreted()) {
-    DCHECK_EQ(code_kind, CodeKind::INTERPRETED_FUNCTION);
     if (FLAG_always_osr) {
       AttemptOnStackReplacement(InterpretedFrame::cast(frame),
                                 AbstractCode::kMaxLoopNestingMarker);
@@ -308,8 +307,11 @@ void RuntimeProfiler::MarkCandidatesForOptimization(JavaScriptFrame* frame) {
   MarkCandidatesForOptimizationScope scope(this);
 
   JSFunction function = frame->function();
-  CodeKind code_kind = frame->is_interpreted() ? CodeKind::INTERPRETED_FUNCTION
-                                               : function.code().kind();
+  CodeKind code_kind = function.GetActiveTier();
+  // For recursive functions it could happen that we have some frames
+  // still executing mid-tier code even after the function had higher tier code.
+  // In such cases, ignore any interrupts from the mid-tier code.
+  if (!CodeKindCanTierUp(code_kind)) return;
 
   DCHECK(function.shared().is_compiled());
   DCHECK(function.shared().IsInterpreted());
