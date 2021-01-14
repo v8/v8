@@ -7325,6 +7325,23 @@ TEST(Regress10900) {
   CcTest::CollectAllAvailableGarbage();
 }
 
+TEST(Regress11181) {
+  FLAG_always_compact = true;
+  CcTest::InitializeVM();
+  TracingFlags::runtime_stats.store(
+      v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE,
+      std::memory_order_relaxed);
+  v8::HandleScope scope(CcTest::isolate());
+  const char* source =
+      "let roots = [];"
+      "for (let i = 0; i < 100; i++) roots.push(new Array(1000).fill(0));"
+      "roots.push(new Array(1000000).fill(0));"
+      "roots;";
+  CompileRun(source);
+  CcTest::CollectAllAvailableGarbage();
+  TracingFlags::runtime_stats.store(0, std::memory_order_relaxed);
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

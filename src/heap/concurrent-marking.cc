@@ -370,8 +370,17 @@ class ConcurrentMarking::JobTask : public v8::JobTask {
 
   // v8::JobTask overrides.
   void Run(JobDelegate* delegate) override {
-    concurrent_marking_->Run(delegate, bytecode_flush_mode_,
-                             mark_compact_epoch_, is_forced_gc_);
+    if (delegate->IsJoiningThread()) {
+      // TRACE_GC is not needed here because the caller opens the right scope.
+      concurrent_marking_->Run(delegate, bytecode_flush_mode_,
+                               mark_compact_epoch_, is_forced_gc_);
+    } else {
+      TRACE_GC1(concurrent_marking_->heap_->tracer(),
+                GCTracer::Scope::MC_BACKGROUND_MARKING,
+                ThreadKind::kBackground);
+      concurrent_marking_->Run(delegate, bytecode_flush_mode_,
+                               mark_compact_epoch_, is_forced_gc_);
+    }
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
@@ -404,8 +413,6 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap,
 void ConcurrentMarking::Run(JobDelegate* delegate,
                             BytecodeFlushMode bytecode_flush_mode,
                             unsigned mark_compact_epoch, bool is_forced_gc) {
-  TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_BACKGROUND_MARKING,
-                 ThreadKind::kBackground);
   size_t kBytesUntilInterruptCheck = 64 * KB;
   int kObjectsUntilInterrupCheck = 1000;
   uint8_t task_id = delegate->GetTaskId() + 1;
