@@ -225,6 +225,13 @@ TEST_F(WasmModuleVerifyTest, WrongVersion) {
   }
 }
 
+TEST_F(WasmModuleVerifyTest, WrongSection) {
+  constexpr byte kInvalidSection = 0x1c;
+  const byte data[] = {kInvalidSection, 0};
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_FALSE(result.ok());
+}
+
 TEST_F(WasmModuleVerifyTest, DecodeEmpty) {
   ModuleResult result = DecodeModule(nullptr, nullptr);
   EXPECT_TRUE(result.ok());
