@@ -994,7 +994,7 @@ struct ControlBase : public PcForErrors<validate> {
   F(RefFunc, uint32_t function_index, Value* result)                           \
   F(RefAsNonNull, const Value& arg, Value* result)                             \
   F(Drop)                                                                      \
-  F(DoReturn, Vector<Value> values)                                            \
+  F(DoReturn)                                                                  \
   F(LocalGet, Value* result, const LocalIndexImmediate<validate>& imm)         \
   F(LocalSet, const Value& value, const LocalIndexImmediate<validate>& imm)    \
   F(LocalTee, const Value& value, Value* result,                               \
@@ -3346,6 +3346,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     }
   }
 
+  // Initializes start- and end-merges of {c} with values according to the
+  // in- and out-types of {c} respectively.
   void SetBlockType(Control* c, BlockTypeImmediate<validate>& imm,
                     Value* args) {
     const byte* pc = this->pc_;
@@ -4295,12 +4297,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   void DoReturn() {
-    size_t return_count = this->sig_->return_count();
-    DCHECK_GE(stack_size(), return_count);
-    Vector<Value> return_values =
-        Vector<Value>{stack_end_ - return_count, return_count};
-
-    CALL_INTERFACE_IF_REACHABLE(DoReturn, return_values);
+    DCHECK_GE(stack_size(), this->sig_->return_count());
+    CALL_INTERFACE_IF_REACHABLE(DoReturn);
   }
 
   V8_INLINE void EnsureStackSpace(int slots_needed) {
@@ -4428,10 +4426,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   void FallThruTo(Control* c) {
     DCHECK_EQ(c, &control_.back());
+    DCHECK_NE(c->kind, kControlLoop);
     if (!TypeCheckFallThru()) return;
     if (!c->reachable()) return;
-
-    if (!c->is_loop()) CALL_INTERFACE(FallThruTo, c);
+    CALL_INTERFACE(FallThruTo, c);
     c->end_merge.reached = true;
   }
 

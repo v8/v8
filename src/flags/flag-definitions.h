@@ -878,6 +878,9 @@ DEFINE_BOOL(wasm_stack_checks, true,
 DEFINE_BOOL(wasm_math_intrinsics, true,
             "intrinsify some Math imports into wasm")
 
+DEFINE_BOOL(wasm_loop_unrolling, false,
+            "generate and then remove loop exits in wasm turbofan code "
+            "(placeholder for future loop unrolling feature)")
 DEFINE_BOOL(wasm_trap_handler, true,
             "use signal handlers to catch out of bounds memory access in wasm"
             " (currently Linux x86_64 only)")

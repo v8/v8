@@ -1751,7 +1751,7 @@ class LiftoffCompiler {
     __ DeallocateStackSlot(sizeof(int64_t));
   }
 
-  void ReturnImpl(FullDecoder* decoder) {
+  void DoReturn(FullDecoder* decoder) {
     if (FLAG_trace_wasm) TraceFunctionExit(decoder);
     size_t num_returns = decoder->sig_->return_count();
     if (num_returns > 0) __ MoveToReturnLocations(decoder->sig_, descriptor_);
@@ -1759,10 +1759,6 @@ class LiftoffCompiler {
     __ LeaveFrame(StackFrame::WASM);
     __ DropStackSlotsAndRet(
         static_cast<uint32_t>(descriptor_->StackParameterCount()));
-  }
-
-  void DoReturn(FullDecoder* decoder, Vector<Value> /*values*/) {
-    ReturnImpl(decoder);
   }
 
   void LocalGet(FullDecoder* decoder, Value* result,
@@ -2038,7 +2034,7 @@ class LiftoffCompiler {
 
   void BrOrRet(FullDecoder* decoder, uint32_t depth) {
     if (depth == decoder->control_depth() - 1) {
-      ReturnImpl(decoder);
+      DoReturn(decoder);
     } else {
       BrImpl(decoder->control_at(depth));
     }

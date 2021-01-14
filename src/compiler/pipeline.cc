@@ -3155,6 +3155,11 @@ void Pipeline::GenerateCodeForWasmFunction(
 
   pipeline.RunPrintAndVerify("V8.WasmMachineCode", true);
 
+  if (FLAG_wasm_loop_unrolling) {
+    pipeline.Run<LoopExitEliminationPhase>();
+    pipeline.RunPrintAndVerify("V8.LoopExitEliminationPhase", true);
+  }
+
   data.BeginPhaseKind("V8.WasmOptimization");
   const bool is_asm_js = is_asmjs_module(module);
   if (FLAG_turbo_splitting && !is_asm_js) {
