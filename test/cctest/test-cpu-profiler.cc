@@ -589,6 +589,15 @@ static unsigned TotalHitCount(const v8::CpuProfileNode* node) {
   return hit_count;
 }
 
+static unsigned TotalHitCount(const v8::CpuProfileNode* node,
+                              const std::string& name) {
+  if (name.compare(node->GetFunctionNameStr()) == 0) return TotalHitCount(node);
+  unsigned hit_count = 0;
+  for (int i = 0, count = node->GetChildrenCount(); i < count; ++i)
+    hit_count += TotalHitCount(node->GetChild(i), name);
+  return hit_count;
+}
+
 static const v8::CpuProfileNode* FindChild(v8::Local<v8::Context> context,
                                            const v8::CpuProfileNode* node,
                                            const char* name) {
@@ -3269,22 +3278,31 @@ TEST(MultipleIsolates) {
 // wrong if sampling an unlocked frame. We also prevent optimization to prevent
 // inlining so each function call has its own frame.
 const char* varying_frame_size_script = R"(
-    %NeverOptimizeFunction(maybeYield);
+    %NeverOptimizeFunction(maybeYield0);
+    %NeverOptimizeFunction(maybeYield1);
+    %NeverOptimizeFunction(maybeYield2);
     %NeverOptimizeFunction(bar);
     %NeverOptimizeFunction(foo);
-    function maybeYield(n) {
+    function maybeYield0(n) {
       YieldIsolate(Math.random() > yieldLimit);
     }
-    function bar(a, b, c, d) {
-      maybeYield(Math.random());
+    function maybeYield1(n) {
+      YieldIsolate(Math.random() > yieldLimit);
+    }
+    function maybeYield2(n) {
+      YieldIsolate(Math.random() > yieldLimit);
+    }
+    maybeYield = [maybeYield0 ,maybeYield1, maybeYield2];
+    function bar(threadNumber, a, b, c, d) {
+      maybeYield[threadNumber](Math.random());
       return a.length + b.length + c.length + d.length;
     }
-    function foo(timeLimit, yieldProbability) {
+    function foo(timeLimit, yieldProbability, threadNumber) {
       yieldLimit = 1 - yieldProbability;
       const startTime = Date.now();
       for (let i = 0; i < 1e6; i++) {
-        maybeYield(1);
-        bar("Hickory", "Dickory", "Doc", "Mouse");
+        maybeYield[threadNumber](1);
+        bar(threadNumber, "Hickory", "Dickory", "Doc", "Mouse");
         YieldIsolate(Math.random() > 0.999);
         if ((Date.now() - startTime) > timeLimit) break;
       }
@@ -3293,8 +3311,10 @@ const char* varying_frame_size_script = R"(
 
 class UnlockingThread : public v8::base::Thread {
  public:
-  explicit UnlockingThread(v8::Local<v8::Context> env)
-      : Thread(Options("UnlockingThread")), env_(CcTest::isolate(), env) {}
+  explicit UnlockingThread(v8::Local<v8::Context> env, int32_t threadNumber)
+      : Thread(Options("UnlockingThread")),
+        env_(CcTest::isolate(), env),
+        threadNumber_(threadNumber) {}
 
   void Run() override {
     v8::Isolate* isolate = CcTest::isolate();
@@ -3302,10 +3322,11 @@ class UnlockingThread : public v8::base::Thread {
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope scope(isolate);
     v8::Local<v8::Context> env = v8::Local<v8::Context>::New(isolate, env_);
-    Profile(env);
+    Profile(env, threadNumber_);
   }
 
-  static void Profile(v8::Local<v8::Context> env) {
+  static void Profile(v8::Local<v8::Context> env, int32_t threadNumber) {
+    CHECK_LT(threadNumber, maxThreads_);
     v8::Isolate* isolate = CcTest::isolate();
     v8::Context::Scope context_scope(env);
     v8::CpuProfiler* profiler = v8::CpuProfiler::New(isolate);
@@ -3315,15 +3336,24 @@ class UnlockingThread : public v8::base::Thread {
     int32_t time_limit = 200;
     double yield_probability = 0.001;
     v8::Local<v8::Value> args[] = {v8::Integer::New(isolate, time_limit),
-                                   v8::Number::New(isolate, yield_probability)};
+                                   v8::Number::New(isolate, yield_probability),
+                                   v8::Integer::New(isolate, threadNumber)};
     v8::Local<v8::Function> function = GetFunction(env, "foo");
     function->Call(env, env->Global(), arraysize(args), args).ToLocalChecked();
-    profiler->StopProfiling(profile_name);
+    const v8::CpuProfile* profile = profiler->StopProfiling(profile_name);
+    const CpuProfileNode* root = profile->GetTopDownRoot();
+    for (int32_t number = 0; number < maxThreads_; number++) {
+      std::string maybeYield = "maybeYield" + std::to_string(number);
+      unsigned hit_count = TotalHitCount(root, maybeYield);
+      if (hit_count) CHECK_EQ(number, threadNumber);
+    }
     profiler->Dispose();
   }
 
  private:
   v8::Persistent<v8::Context> env_;
+  int32_t threadNumber_;
+  static const int32_t maxThreads_ = 3;
 };
 
 // Checking for crashes with multiple thread/single Isolate profiling.
@@ -3343,14 +3373,14 @@ TEST(MultipleThreadsSingleIsolate) {
       });
 
   CompileRun(varying_frame_size_script);
-  UnlockingThread thread1(env);
-  UnlockingThread thread2(env);
+  UnlockingThread thread1(env, 1);
+  UnlockingThread thread2(env, 2);
 
   CHECK(thread1.Start());
   CHECK(thread2.Start());
 
   // For good measure, profile on our own thread
-  UnlockingThread::Profile(env);
+  UnlockingThread::Profile(env, 0);
   {
     v8::Unlocker unlocker(isolate);
     thread1.Join();
