@@ -256,6 +256,7 @@ namespace compiler {
   V(MipsI16x8RoundingAverageU)     \
   V(MipsI16x8Abs)                  \
   V(MipsI16x8BitMask)              \
+  V(MipsI16x8Q15MulRSatS)          \
   V(MipsI16x8ExtMulLowI8x16S)      \
   V(MipsI16x8ExtMulHighI8x16S)     \
   V(MipsI16x8ExtMulLowI8x16U)      \
