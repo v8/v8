@@ -2119,10 +2119,14 @@ void InstructionSelector::EmitPrepareArguments(
     }
   } else {
     // Push any stack arguments.
+    int stack_decrement = 0;
     for (PushParameter input : base::Reversed(*arguments)) {
+      stack_decrement += kSystemPointerSize;
       // Skip any alignment holes in pushed nodes.
       if (input.node == nullptr) continue;
-      Emit(kS390_Push, g.NoOutput(), g.UseRegister(input.node));
+      InstructionOperand decrement = g.UseImmediate(stack_decrement);
+      stack_decrement = 0;
+      Emit(kS390_Push, g.NoOutput(), decrement, g.UseRegister(input.node));
     }
   }
 }

@@ -1741,26 +1741,42 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ CanonicalizeNaN(result, value);
       break;
     }
-    case kPPC_Push:
-      if (instr->InputAt(0)->IsFPRegister()) {
-        LocationOperand* op = LocationOperand::cast(instr->InputAt(0));
+    case kPPC_Push: {
+      int stack_decrement = i.InputInt32(0);
+      if (instr->InputAt(1)->IsFPRegister()) {
+        LocationOperand* op = LocationOperand::cast(instr->InputAt(1));
         switch (op->representation()) {
           case MachineRepresentation::kFloat32:
-            __ StoreSingleU(i.InputDoubleRegister(0),
+            // 1 slot values are never padded.
+            DCHECK_EQ(stack_decrement, kSystemPointerSize);
+            __ StoreSingleU(i.InputDoubleRegister(1),
                             MemOperand(sp, -kSystemPointerSize), r0);
             frame_access_state()->IncreaseSPDelta(1);
             break;
           case MachineRepresentation::kFloat64:
-            __ StoreDoubleU(i.InputDoubleRegister(0),
+            // 2 slot values have up to 1 slot of padding.
+            DCHECK_GE(stack_decrement, kDoubleSize);
+            if (stack_decrement > kDoubleSize) {
+              DCHECK_EQ(stack_decrement, kDoubleSize + kSystemPointerSize);
+              __ addi(sp, sp, Operand(-kSystemPointerSize));
+            }
+            __ StoreDoubleU(i.InputDoubleRegister(1),
                             MemOperand(sp, -kDoubleSize), r0);
-            frame_access_state()->IncreaseSPDelta(kDoubleSize /
+            frame_access_state()->IncreaseSPDelta(stack_decrement /
                                                   kSystemPointerSize);
             break;
           case MachineRepresentation::kSimd128: {
+            // 4 slot values have up to 3 slots of padding.
+            DCHECK_GE(stack_decrement, kSimd128Size);
+            if (stack_decrement > kSimd128Size) {
+              int padding = stack_decrement - kSimd128Size;
+              DCHECK_LT(padding, kSimd128Size);
+              __ addi(sp, sp, Operand(-padding));
+            }
             __ addi(sp, sp, Operand(-kSimd128Size));
-            __ StoreSimd128(i.InputSimd128Register(0), MemOperand(r0, sp), r0,
+            __ StoreSimd128(i.InputSimd128Register(1), MemOperand(r0, sp), r0,
                             kScratchSimd128Reg);
-            frame_access_state()->IncreaseSPDelta(kSimd128Size /
+            frame_access_state()->IncreaseSPDelta(stack_decrement /
                                                   kSystemPointerSize);
             break;
           }
@@ -1769,11 +1785,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             break;
         }
       } else {
-        __ StorePU(i.InputRegister(0), MemOperand(sp, -kSystemPointerSize), r0);
+        DCHECK_EQ(stack_decrement, kSystemPointerSize);
+        __ StorePU(i.InputRegister(1), MemOperand(sp, -kSystemPointerSize), r0);
         frame_access_state()->IncreaseSPDelta(1);
       }
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
+    }
     case kPPC_PushFrame: {
       int num_slots = i.InputInt32(1);
       if (instr->InputAt(0)->IsFPRegister()) {

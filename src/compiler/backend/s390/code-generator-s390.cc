@@ -1991,25 +1991,41 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ CanonicalizeNaN(result, value);
       break;
     }
-    case kS390_Push:
-      if (instr->InputAt(0)->IsFPRegister()) {
-        LocationOperand* op = LocationOperand::cast(instr->InputAt(0));
+    case kS390_Push: {
+      int stack_decrement = i.InputInt32(0);
+      if (instr->InputAt(1)->IsFPRegister()) {
+        LocationOperand* op = LocationOperand::cast(instr->InputAt(1));
         switch (op->representation()) {
           case MachineRepresentation::kFloat32:
+            // 1 slot values are never padded.
+            DCHECK_EQ(stack_decrement, kSystemPointerSize);
             __ lay(sp, MemOperand(sp, -kSystemPointerSize));
-            __ StoreF32(i.InputDoubleRegister(0), MemOperand(sp));
+            __ StoreF32(i.InputDoubleRegister(1), MemOperand(sp));
             frame_access_state()->IncreaseSPDelta(1);
             break;
           case MachineRepresentation::kFloat64:
+            // 2 slot values have up to 1 slot of padding.
+            DCHECK_GE(stack_decrement, kDoubleSize);
+            if (stack_decrement > kDoubleSize) {
+              DCHECK_EQ(stack_decrement, kDoubleSize + kSystemPointerSize);
+              __ lay(sp, MemOperand(sp, -kSystemPointerSize));
+            }
             __ lay(sp, MemOperand(sp, -kDoubleSize));
-            __ StoreF64(i.InputDoubleRegister(0), MemOperand(sp));
-            frame_access_state()->IncreaseSPDelta(kDoubleSize /
+            __ StoreF64(i.InputDoubleRegister(1), MemOperand(sp));
+            frame_access_state()->IncreaseSPDelta(stack_decrement /
                                                   kSystemPointerSize);
             break;
           case MachineRepresentation::kSimd128: {
+            // 4 slot values have up to 3 slots of padding.
+            DCHECK_GE(stack_decrement, kSimd128Size);
+            if (stack_decrement > kSimd128Size) {
+              int padding = stack_decrement - kSimd128Size;
+              DCHECK_LT(padding, kSimd128Size);
+              __ lay(sp, MemOperand(sp, -padding));
+            }
             __ lay(sp, MemOperand(sp, -kSimd128Size));
-            __ StoreV128(i.InputDoubleRegister(0), MemOperand(sp), kScratchReg);
-            frame_access_state()->IncreaseSPDelta(kSimd128Size /
+            __ StoreV128(i.InputDoubleRegister(1), MemOperand(sp), kScratchReg);
+            frame_access_state()->IncreaseSPDelta(stack_decrement /
                                                   kSystemPointerSize);
             break;
           }
@@ -2018,10 +2034,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             break;
         }
       } else {
-        __ Push(i.InputRegister(0));
+        DCHECK_EQ(stack_decrement, kSystemPointerSize);
+        __ Push(i.InputRegister(1));
         frame_access_state()->IncreaseSPDelta(1);
       }
-      break;
+    } break;
     case kS390_PushFrame: {
       int num_slots = i.InputInt32(1);
       __ lay(sp, MemOperand(sp, -num_slots * kSystemPointerSize));
