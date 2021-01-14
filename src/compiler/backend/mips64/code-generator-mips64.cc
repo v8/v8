@@ -3017,6 +3017,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ copy_u_b(dst, scratch0, 0);
       break;
     }
+    case kMips64I16x8Q15MulRSatS: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ mulr_q_h(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      break;
+    }
     case kMips64I8x16Splat: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ fill_b(i.OutputSimd128Register(), i.InputRegister(0));
