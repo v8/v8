@@ -52,12 +52,14 @@ CodeKinds JSFunction::GetAvailableCodeKinds() const {
     }
   }
 
-  // Check the optimized code cache.
-  if (has_feedback_vector() && feedback_vector().has_optimized_code() &&
-      !feedback_vector().optimized_code().marked_for_deoptimization()) {
-    Code code = feedback_vector().optimized_code();
-    DCHECK(CodeKindIsOptimizedJSFunction(code.kind()));
-    result |= CodeKindToCodeKindFlag(code.kind());
+  if ((result & kOptimizedJSFunctionCodeKindsMask) == 0) {
+    // Check the optimized code cache.
+    if (has_feedback_vector() && feedback_vector().has_optimized_code() &&
+        !feedback_vector().optimized_code().marked_for_deoptimization()) {
+      Code code = feedback_vector().optimized_code();
+      DCHECK(CodeKindIsOptimizedJSFunction(code.kind()));
+      result |= CodeKindToCodeKindFlag(code.kind());
+    }
   }
 
   DCHECK_EQ((result & ~kJSFunctionCodeKindsMask), 0);
@@ -105,8 +107,9 @@ bool HighestTierOf(CodeKinds kinds, CodeKind* highest_tier) {
 }  // namespace
 
 bool JSFunction::ActiveTierIsIgnition() const {
-  if (!shared().HasBytecodeArray()) return false;
-  bool result = (GetActiveTier() == CodeKind::INTERPRETED_FUNCTION);
+  CodeKind highest_tier;
+  if (!HighestTierOf(GetAvailableCodeKinds(), &highest_tier)) return false;
+  bool result = (highest_tier == CodeKind::INTERPRETED_FUNCTION);
   DCHECK_IMPLIES(result,
                  code().is_interpreter_trampoline_builtin() ||
                      (CodeKindIsOptimizedJSFunction(code().kind()) &&
@@ -116,37 +119,30 @@ bool JSFunction::ActiveTierIsIgnition() const {
   return result;
 }
 
-CodeKind JSFunction::GetActiveTier() const {
-  CodeKind highest_tier;
-  DCHECK(shared().is_compiled());
-  HighestTierOf(GetAvailableCodeKinds(), &highest_tier);
-  DCHECK(highest_tier == CodeKind::TURBOFAN ||
-         highest_tier == CodeKind::TURBOPROP ||
-         highest_tier == CodeKind::NATIVE_CONTEXT_INDEPENDENT ||
-         highest_tier == CodeKind::INTERPRETED_FUNCTION);
-  return highest_tier;
-}
-
 bool JSFunction::ActiveTierIsTurbofan() const {
-  if (!shared().HasBytecodeArray()) return false;
-  return GetActiveTier() == CodeKind::TURBOFAN;
+  CodeKind highest_tier;
+  if (!HighestTierOf(GetAvailableCodeKinds(), &highest_tier)) return false;
+  return highest_tier == CodeKind::TURBOFAN;
 }
 
 bool JSFunction::ActiveTierIsNCI() const {
-  if (!shared().HasBytecodeArray()) return false;
-  return GetActiveTier() == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
+  CodeKind highest_tier;
+  if (!HighestTierOf(GetAvailableCodeKinds(), &highest_tier)) return false;
+  return highest_tier == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
 }
 
 bool JSFunction::ActiveTierIsToptierTurboprop() const {
-  if (!FLAG_turboprop_as_toptier) return false;
-  if (!shared().HasBytecodeArray()) return false;
-  return GetActiveTier() == CodeKind::TURBOPROP && FLAG_turboprop_as_toptier;
+  CodeKind highest_tier;
+  if (!FLAG_turboprop) return false;
+  if (!HighestTierOf(GetAvailableCodeKinds(), &highest_tier)) return false;
+  return highest_tier == CodeKind::TURBOPROP && !FLAG_turboprop_as_midtier;
 }
 
 bool JSFunction::ActiveTierIsMidtierTurboprop() const {
-  if (!FLAG_turboprop) return false;
-  if (!shared().HasBytecodeArray()) return false;
-  return GetActiveTier() == CodeKind::TURBOPROP && !FLAG_turboprop_as_toptier;
+  CodeKind highest_tier;
+  if (!FLAG_turboprop_as_midtier) return false;
+  if (!HighestTierOf(GetAvailableCodeKinds(), &highest_tier)) return false;
+  return highest_tier == CodeKind::TURBOPROP && FLAG_turboprop_as_midtier;
 }
 
 CodeKind JSFunction::NextTier() const {
