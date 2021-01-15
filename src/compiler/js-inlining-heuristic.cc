@@ -44,7 +44,6 @@ bool CanConsiderForInlining(JSHeapBroker* broker,
                              << feedback_vector << " (missing data)");
     return false;
   }
-
   TRACE("Considering " << shared << " for inlining with " << feedback_vector);
   return true;
 }
@@ -57,12 +56,13 @@ bool CanConsiderForInlining(JSHeapBroker* broker,
     return false;
   }
 
-  if (!function.serialized()) {
+  if (!function.serialized() || !function.serialized_code_and_feedback()) {
     TRACE_BROKER_MISSING(
         broker, "data for " << function << " (cannot consider for inlining)");
     TRACE("Cannot consider " << function << " for inlining (missing data)");
     return false;
   }
+
   return CanConsiderForInlining(broker, function.shared(),
                                 function.feedback_vector());
 }

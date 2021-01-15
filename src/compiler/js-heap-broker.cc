@@ -607,14 +607,28 @@ class JSFunctionData : public JSObjectData {
   void Serialize(JSHeapBroker* broker);
   bool serialized() const { return serialized_; }
 
+  void SerializeCodeAndFeedback(JSHeapBroker* broker);
+  bool serialized_code_and_feedback() const {
+    return serialized_code_and_feedback_;
+  }
+
   ObjectData* context() const { return context_; }
   ObjectData* native_context() const { return native_context_; }
   ObjectData* initial_map() const { return initial_map_; }
   ObjectData* prototype() const { return prototype_; }
   ObjectData* shared() const { return shared_; }
-  ObjectData* raw_feedback_cell() const { return feedback_cell_; }
-  ObjectData* feedback_vector() const { return feedback_vector_; }
-  ObjectData* code() const { return code_; }
+  ObjectData* raw_feedback_cell() const {
+    DCHECK(serialized_code_and_feedback());
+    return feedback_cell_;
+  }
+  ObjectData* feedback_vector() const {
+    DCHECK(serialized_code_and_feedback());
+    return feedback_vector_;
+  }
+  ObjectData* code() const {
+    DCHECK(serialized_code_and_feedback());
+    return code_;
+  }
   int initial_map_instance_size_with_min_slack() const {
     CHECK(serialized_);
     return initial_map_instance_size_with_min_slack_;
@@ -628,6 +642,7 @@ class JSFunctionData : public JSObjectData {
   bool PrototypeRequiresRuntimeLookup_;
 
   bool serialized_ = false;
+  bool serialized_code_and_feedback_ = false;
 
   ObjectData* context_ = nullptr;
   ObjectData* native_context_ = nullptr;
@@ -1250,18 +1265,11 @@ void JSFunctionData::Serialize(JSHeapBroker* broker) {
   DCHECK_NULL(initial_map_);
   DCHECK_NULL(prototype_);
   DCHECK_NULL(shared_);
-  DCHECK_NULL(feedback_cell_);
-  DCHECK_NULL(feedback_vector_);
-  DCHECK_NULL(code_);
 
   context_ = broker->GetOrCreateData(function->context());
   native_context_ = broker->GetOrCreateData(function->native_context());
   shared_ = broker->GetOrCreateData(function->shared());
-  feedback_cell_ = broker->GetOrCreateData(function->raw_feedback_cell());
-  feedback_vector_ = has_feedback_vector()
-                         ? broker->GetOrCreateData(function->feedback_vector())
-                         : nullptr;
-  code_ = broker->GetOrCreateData(function->code());
+
   initial_map_ = has_initial_map()
                      ? broker->GetOrCreateData(function->initial_map())
                      : nullptr;
@@ -1282,6 +1290,24 @@ void JSFunctionData::Serialize(JSHeapBroker* broker) {
     // show up, we should move this into NativeContextData::Serialize.
     initial_map_->AsMap()->SerializePrototype(broker);
   }
+}
+
+void JSFunctionData::SerializeCodeAndFeedback(JSHeapBroker* broker) {
+  DCHECK(serialized_);
+  if (serialized_code_and_feedback_) return;
+  serialized_code_and_feedback_ = true;
+
+  TraceScope tracer(broker, this, "JSFunctionData::SerializeCodeAndFeedback");
+  Handle<JSFunction> function = Handle<JSFunction>::cast(object());
+
+  DCHECK_NULL(feedback_cell_);
+  DCHECK_NULL(feedback_vector_);
+  DCHECK_NULL(code_);
+  code_ = broker->GetOrCreateData(function->code());
+  feedback_cell_ = broker->GetOrCreateData(function->raw_feedback_cell());
+  feedback_vector_ = has_feedback_vector()
+                         ? broker->GetOrCreateData(function->feedback_vector())
+                         : nullptr;
 }
 
 void MapData::SerializeElementsKindGeneralizations(JSHeapBroker* broker) {
@@ -4061,6 +4087,12 @@ void JSFunctionRef::Serialize() {
   data()->AsJSFunction()->Serialize(broker());
 }
 
+void JSFunctionRef::SerializeCodeAndFeedback() {
+  if (data_->should_access_heap()) return;
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  data()->AsJSFunction()->SerializeCodeAndFeedback(broker());
+}
+
 bool JSBoundFunctionRef::serialized() const {
   if (data_->should_access_heap()) return true;
   return data()->AsJSBoundFunction()->serialized();
@@ -4069,6 +4101,11 @@ bool JSBoundFunctionRef::serialized() const {
 bool JSFunctionRef::serialized() const {
   if (data_->should_access_heap()) return true;
   return data()->AsJSFunction()->serialized();
+}
+
+bool JSFunctionRef::serialized_code_and_feedback() const {
+  if (data_->should_access_heap()) return true;
+  return data()->AsJSFunction()->serialized_code_and_feedback();
 }
 
 void SharedFunctionInfoRef::SerializeFunctionTemplateInfo() {

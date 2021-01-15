@@ -355,10 +355,15 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   ContextRef context() const;
   NativeContextRef native_context() const;
   SharedFunctionInfoRef shared() const;
+  int InitialMapInstanceSizeWithMinSlack() const;
+
+  void SerializeCodeAndFeedback();
+  bool serialized_code_and_feedback() const;
+
+  // The following are available only after calling SerializeCodeAndFeedback().
   FeedbackVectorRef feedback_vector() const;
   FeedbackCellRef raw_feedback_cell() const;
   CodeRef code() const;
-  int InitialMapInstanceSizeWithMinSlack() const;
 };
 
 class JSRegExpRef : public JSObjectRef {

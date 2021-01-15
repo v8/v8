@@ -1070,6 +1070,7 @@ SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
       arguments_(zone()) {
   closure_hints_.AddConstant(closure, zone(), broker_);
   JSFunctionRef(broker, closure).Serialize();
+  JSFunctionRef(broker, closure).SerializeCodeAndFeedback();
 
   TRACE_BROKER(broker_, "Hints for <closure>: " << closure_hints_);
   TRACE_BROKER(broker_, "Initial environment:\n" << *environment_);
@@ -1097,6 +1098,7 @@ SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
   if (function.closure().ToHandle(&closure)) {
     closure_hints_.AddConstant(closure, zone(), broker);
     JSFunctionRef(broker, closure).Serialize();
+    JSFunctionRef(broker, closure).SerializeCodeAndFeedback();
   } else {
     closure_hints_.AddVirtualClosure(function.virtual_closure(), zone(),
                                      broker);
