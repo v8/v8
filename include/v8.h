@@ -8600,8 +8600,8 @@ class V8_EXPORT Isolate {
     kArrayInstanceProtoModified = 27,
     kArrayInstanceConstructorModified = 28,
     kLegacyFunctionDeclaration = 29,
-    kRegExpPrototypeSourceGetter = 30,
-    kRegExpPrototypeOldFlagGetter = 31,
+    kRegExpPrototypeSourceGetter = 30,   // Unused.
+    kRegExpPrototypeOldFlagGetter = 31,  // Unused.
     kDecimalWithLeadingZeroInStrictMode = 32,
     kLegacyDateParser = 33,
     kDefineGetterOrSetterWouldThrow = 34,
