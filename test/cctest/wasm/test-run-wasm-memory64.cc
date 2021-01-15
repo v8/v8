@@ -34,7 +34,11 @@ WASM_EXEC_TEST(Load) {
 
   CHECK_EQ(0, r.Call(0));
 
+#if V8_TARGET_BIG_ENDIAN
+  memory[0] = 0x78563412;
+#else
   memory[0] = 0x12345678;
+#endif
   CHECK_EQ(0x12345678, r.Call(0));
   CHECK_EQ(0x123456, r.Call(1));
   CHECK_EQ(0x1234, r.Call(2));
