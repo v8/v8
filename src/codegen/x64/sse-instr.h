@@ -183,6 +183,7 @@
 
 // These require AVX2, and we only define the VEX-128 versions.
 #define AVX2_BROADCAST_LIST(V)    \
+  V(vpbroadcastd, 66, 0F, 38, 58) \
   V(vpbroadcastb, 66, 0F, 38, 78) \
   V(vpbroadcastw, 66, 0F, 38, 79)
 

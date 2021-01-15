@@ -343,6 +343,7 @@ namespace compiler {
   V(X64S128AndNot)                        \
   V(X64I8x16Swizzle)                      \
   V(X64I8x16Shuffle)                      \
+  V(X64I8x16Popcnt)                       \
   V(X64S128Load8Splat)                    \
   V(X64S128Load16Splat)                   \
   V(X64S128Load32Splat)                   \

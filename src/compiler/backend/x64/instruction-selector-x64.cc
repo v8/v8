@@ -3695,6 +3695,16 @@ void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16U(Node* node) {
   Emit(kX64I16x8ExtAddPairwiseI8x16U, dst, g.UseRegister(node->InputAt(0)));
 }
 
+void InstructionSelector::VisitI8x16Popcnt(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand dst = CpuFeatures::IsSupported(AVX)
+                               ? g.DefineAsRegister(node)
+                               : g.DefineAsRegister(node);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  Emit(kX64I8x16Popcnt, dst, g.UseUniqueRegister(node->InputAt(0)),
+       arraysize(temps), temps);
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

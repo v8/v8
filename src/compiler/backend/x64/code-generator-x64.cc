@@ -3786,6 +3786,43 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kX64I8x16Popcnt: {
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
+      XMMRegister tmp = i.TempSimd128Register(0);
+
+      // tmp = wasm_i8x16_splat(0x0F)
+      __ Move(tmp, uint32_t{0x0F0F0F0F});
+
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope avx_scope(tasm(), AVX);
+        if (CpuFeatures::IsSupported(AVX2)) {
+          CpuFeatureScope avx2_scope(tasm(), AVX2);
+          __ vpbroadcastd(tmp, tmp);
+        } else {
+          __ vpshufd(tmp, tmp, 0);
+        }
+        __ vpandn(kScratchDoubleReg, tmp, src);
+        __ vpand(dst, tmp, src);
+        __ Move(tmp, 0x04030302'03020201, 0x03020201'02010100);
+        __ vpsrlw(kScratchDoubleReg, kScratchDoubleReg, 4);
+        __ vpshufb(dst, tmp, dst);
+        __ vpshufb(kScratchDoubleReg, tmp, kScratchDoubleReg);
+        __ vpaddb(dst, dst, kScratchDoubleReg);
+      } else {
+        __ shufps(tmp, tmp, 0);
+        __ Move(kScratchDoubleReg, src);
+        __ andps(kScratchDoubleReg, tmp);
+        __ andnps(tmp, src);
+        __ Move(dst, 0x04030302'03020201, 0x03020201'02010100);
+        __ psrlw(tmp, 4);
+        __ pshufb(dst, kScratchDoubleReg);
+        __ Move(kScratchDoubleReg, 0x04030302'03020201, 0x03020201'02010100);
+        __ pshufb(kScratchDoubleReg, tmp);
+        __ paddb(dst, kScratchDoubleReg);
+      }
+      break;
+    }
     case kX64S128Load8Splat: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       XMMRegister dst = i.OutputSimd128Register();
