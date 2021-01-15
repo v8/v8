@@ -5008,6 +5008,16 @@ TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, 64BitOffset) {
 #undef ZERO_FOR_TYPE
 }
 
+TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, MemorySize) {
+  builder.InitializeMemory(GetParam());
+  // memory.size returns i32 on memory32.
+  Validate(!is_memory64(), sigs.v_v(),
+           {WASM_MEMORY_SIZE, kExprI32Eqz, kExprDrop});
+  // memory.size returns i64 on memory64.
+  Validate(is_memory64(), sigs.v_v(),
+           {WASM_MEMORY_SIZE, kExprI64Eqz, kExprDrop});
+}
+
 #undef B1
 #undef B2
 #undef B3

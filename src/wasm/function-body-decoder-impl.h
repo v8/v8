@@ -3045,7 +3045,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   DECODE(MemorySize) {
     if (!CheckHasMemory()) return 0;
     MemoryIndexImmediate<validate> imm(this, this->pc_ + 1);
-    Value* result = Push(kWasmI32);
+    ValueType result_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+    Value* result = Push(result_type);
     CALL_INTERFACE_IF_REACHABLE(CurrentMemoryPages, result);
     return 1 + imm.length;
   }
