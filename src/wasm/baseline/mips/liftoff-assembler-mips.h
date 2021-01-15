@@ -1792,6 +1792,12 @@ SIMD_BINOP(i64x2_extmul_high_i32x4_u, ilvl_w, dotp_u_d)
 
 #undef SIMD_BINOP
 
+void LiftoffAssembler::emit_i16x8_q15mulr_sat_s(LiftoffRegister dst,
+                                                LiftoffRegister src1,
+                                                LiftoffRegister src2) {
+  bailout(kSimd, "i16x8_q15mulr_sat_s");
+}
+
 void LiftoffAssembler::emit_i8x16_eq(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
   bailout(kSimd, "emit_i8x16_eq");
@@ -2575,6 +2581,26 @@ void LiftoffAssembler::emit_i32x4_uconvert_i16x8_low(LiftoffRegister dst,
 void LiftoffAssembler::emit_i32x4_uconvert_i16x8_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
   bailout(kSimd, "emit_i32x4_uconvert_i16x8_high");
+}
+
+void LiftoffAssembler::emit_i64x2_sconvert_i32x4_low(LiftoffRegister dst,
+                                                     LiftoffRegister src) {
+  bailout(kSimd, "emit_i64x2_sconvert_i32x4_low");
+}
+
+void LiftoffAssembler::emit_i64x2_sconvert_i32x4_high(LiftoffRegister dst,
+                                                      LiftoffRegister src) {
+  bailout(kSimd, "emit_i64x2_sconvert_i32x4_high");
+}
+
+void LiftoffAssembler::emit_i64x2_uconvert_i32x4_low(LiftoffRegister dst,
+                                                     LiftoffRegister src) {
+  bailout(kSimd, "emit_i64x2_uconvert_i32x4_low");
+}
+
+void LiftoffAssembler::emit_i64x2_uconvert_i32x4_high(LiftoffRegister dst,
+                                                      LiftoffRegister src) {
+  bailout(kSimd, "emit_i64x2_uconvert_i32x4_high");
 }
 
 void LiftoffAssembler::emit_i8x16_rounding_average_u(LiftoffRegister dst,

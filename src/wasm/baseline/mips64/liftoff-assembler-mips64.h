@@ -1719,6 +1719,12 @@ SIMD_BINOP(i64x2, i32x4_u, MSAU32)
 
 #undef SIMD_BINOP
 
+void LiftoffAssembler::emit_i16x8_q15mulr_sat_s(LiftoffRegister dst,
+                                                LiftoffRegister src1,
+                                                LiftoffRegister src2) {
+  mulr_q_h(dst.fp().toW(), src1.fp().toW(), src2.fp().toW());
+}
+
 void LiftoffAssembler::emit_i8x16_eq(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
   ceq_b(dst.fp().toW(), lhs.fp().toW(), rhs.fp().toW());
@@ -2689,6 +2695,32 @@ void LiftoffAssembler::emit_i32x4_uconvert_i16x8_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
   xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
   ilvl_h(dst.fp().toW(), kSimd128RegZero, src.fp().toW());
+}
+
+void LiftoffAssembler::emit_i64x2_sconvert_i32x4_low(LiftoffRegister dst,
+                                                     LiftoffRegister src) {
+  ilvr_w(kSimd128ScratchReg, src.fp().toW(), src.fp().toW());
+  slli_d(dst.fp().toW(), kSimd128ScratchReg, 32);
+  srai_d(dst.fp().toW(), dst.fp().toW(), 32);
+}
+
+void LiftoffAssembler::emit_i64x2_sconvert_i32x4_high(LiftoffRegister dst,
+                                                      LiftoffRegister src) {
+  ilvl_w(kSimd128ScratchReg, src.fp().toW(), src.fp().toW());
+  slli_d(dst.fp().toW(), kSimd128ScratchReg, 32);
+  srai_d(dst.fp().toW(), dst.fp().toW(), 32);
+}
+
+void LiftoffAssembler::emit_i64x2_uconvert_i32x4_low(LiftoffRegister dst,
+                                                     LiftoffRegister src) {
+  xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
+  ilvr_w(dst.fp().toW(), kSimd128RegZero, src.fp().toW());
+}
+
+void LiftoffAssembler::emit_i64x2_uconvert_i32x4_high(LiftoffRegister dst,
+                                                      LiftoffRegister src) {
+  xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
+  ilvl_w(dst.fp().toW(), kSimd128RegZero, src.fp().toW());
 }
 
 void LiftoffAssembler::emit_i8x16_rounding_average_u(LiftoffRegister dst,
