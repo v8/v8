@@ -567,14 +567,20 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     Pinsrb(dst, Operand(src), imm8);
   }
   void Pinsrb(XMMRegister dst, Operand src, int8_t imm8);
+  // Moves src1 to dst if AVX is not supported.
+  void Pinsrb(XMMRegister dst, XMMRegister src1, Operand src2, int8_t imm8);
   void Pinsrd(XMMRegister dst, Register src, uint8_t imm8) {
     Pinsrd(dst, Operand(src), imm8);
   }
   void Pinsrd(XMMRegister dst, Operand src, uint8_t imm8);
+  // Moves src1 to dst if AVX is not supported.
+  void Pinsrd(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8);
   void Pinsrw(XMMRegister dst, Register src, int8_t imm8) {
     Pinsrw(dst, Operand(src), imm8);
   }
   void Pinsrw(XMMRegister dst, Operand src, int8_t imm8);
+  // Moves src1 to dst if AVX is not supported.
+  void Pinsrw(XMMRegister dst, XMMRegister src1, Operand src2, int8_t imm8);
   void Vbroadcastss(XMMRegister dst, Operand src);
   void Extractps(Operand dst, XMMRegister src, uint8_t imm8);
 

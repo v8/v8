@@ -2763,7 +2763,26 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
                                 Register addr, Register offset_reg,
                                 uintptr_t offset_imm, LoadType type,
                                 uint8_t laneidx, uint32_t* protected_load_pc) {
-  bailout(kSimd, "loadlane");
+  DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
+  Operand src_op{addr, offset_reg, times_1, static_cast<int32_t>(offset_imm)};
+  *protected_load_pc = pc_offset();
+
+  MachineType mem_type = type.mem_type();
+  if (mem_type == MachineType::Int8()) {
+    Pinsrb(dst.fp(), src.fp(), src_op, laneidx);
+  } else if (mem_type == MachineType::Int16()) {
+    Pinsrw(dst.fp(), src.fp(), src_op, laneidx);
+  } else if (mem_type == MachineType::Int32()) {
+    Pinsrd(dst.fp(), src.fp(), src_op, laneidx);
+  } else {
+    DCHECK_EQ(MachineType::Int64(), mem_type);
+    if (laneidx == 0) {
+      Movlps(dst.fp(), src.fp(), src_op);
+    } else {
+      DCHECK_EQ(1, laneidx);
+      Movhps(dst.fp(), src.fp(), src_op);
+    }
+  }
 }
 
 void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
