@@ -169,6 +169,10 @@ namespace compiler {
   V(MipsI64x2ShrU)                 \
   V(MipsI64x2BitMask)              \
   V(MipsI64x2Eq)                   \
+  V(MipsI64x2SConvertI32x4Low)     \
+  V(MipsI64x2SConvertI32x4High)    \
+  V(MipsI64x2UConvertI32x4Low)     \
+  V(MipsI64x2UConvertI32x4High)    \
   V(MipsI64x2ExtMulLowI32x4S)      \
   V(MipsI64x2ExtMulHighI32x4S)     \
   V(MipsI64x2ExtMulLowI32x4U)      \

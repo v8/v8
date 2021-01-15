@@ -2441,6 +2441,38 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputSimd128Register(1));
       break;
     }
+    case kMips64I64x2SConvertI32x4Low: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register src = i.InputSimd128Register(0);
+      __ ilvr_w(kSimd128ScratchReg, src, src);
+      __ slli_d(dst, kSimd128ScratchReg, 32);
+      __ srai_d(dst, dst, 32);
+      break;
+    }
+    case kMips64I64x2SConvertI32x4High: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register src = i.InputSimd128Register(0);
+      __ ilvl_w(kSimd128ScratchReg, src, src);
+      __ slli_d(dst, kSimd128ScratchReg, 32);
+      __ srai_d(dst, dst, 32);
+      break;
+    }
+    case kMips64I64x2UConvertI32x4Low: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
+      __ ilvr_w(i.OutputSimd128Register(), kSimd128RegZero,
+                i.InputSimd128Register(0));
+      break;
+    }
+    case kMips64I64x2UConvertI32x4High: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
+      __ ilvl_w(i.OutputSimd128Register(), kSimd128RegZero,
+                i.InputSimd128Register(0));
+      break;
+    }
     case kMips64ExtMulLow: {
       auto dt = static_cast<MSADataType>(MiscField::decode(instr->opcode()));
       __ ExtMulLow(dt, i.OutputSimd128Register(), i.InputSimd128Register(0),
