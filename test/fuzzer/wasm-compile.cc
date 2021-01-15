@@ -1366,6 +1366,8 @@ void WasmGenerator::Generate<ValueType::kS128>(DataRange* data) {
                                      ValueType::kS128, ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprI16x8ExtMulHighI8x16U,
                                      ValueType::kS128, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprI16x8Q15MulRSatS, ValueType::kS128,
+                                     ValueType::kS128>,
 
       &WasmGenerator::op_with_prefix<kExprI32x4Splat, ValueType::kI32>,
       &WasmGenerator::op_with_prefix<kExprI32x4Eq, ValueType::kS128,
