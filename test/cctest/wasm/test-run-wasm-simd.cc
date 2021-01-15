@@ -2406,7 +2406,6 @@ WASM_SIMD_TEST(I16x8RoundingAverageU) {
 }
 
 WASM_SIMD_TEST_NO_LOWERING(I16x8Q15MulRSatS) {
-  FLAG_SCOPE(wasm_simd_post_mvp);
   RunI16x8BinOpTest<int16_t>(execution_tier, lower_simd, kExprI16x8Q15MulRSatS,
                              SaturateRoundingQMul<int16_t>);
 }
