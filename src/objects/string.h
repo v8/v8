@@ -361,7 +361,7 @@ class String : public TorqueGeneratedString<String, Name> {
       v8::String::ExternalStringResource* resource);
   V8_EXPORT_PRIVATE bool MakeExternal(
       v8::String::ExternalOneByteStringResource* resource);
-  V8_EXPORT_PRIVATE bool SupportsExternalization();
+  bool SupportsExternalization();
 
   // Conversion.
   // "array index": an index allowed by the ES spec for JSArrays.

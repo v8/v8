@@ -16877,7 +16877,7 @@ TEST(VisitExternalStrings) {
   v8::Isolate* isolate = CcTest::isolate();
   LocalContext env;
   v8::HandleScope scope(isolate);
-  const char string[] = "Some string that's long";
+  const char string[] = "Some string";
   uint16_t* two_byte_string = AsciiToTwoByteString(string);
   TestResource* resource[4];
   resource[0] = new TestResource(two_byte_string);
@@ -16957,7 +16957,7 @@ TEST(ExternalInternalizedStringCollectedAtTearDown) {
     v8::Local<v8::String> ring =
         CompileRun("ring")->ToString(env.local()).ToLocalChecked();
     CHECK(v8::Utils::OpenHandle(*ring)->IsInternalizedString());
-    CHECK(ring->MakeExternal(inscription));
+    ring->MakeExternal(inscription);
     // Ring is still alive.  Orcs are roaming freely across our lands.
     CHECK_EQ(0, destroyed);
     USE(ring);
@@ -16979,7 +16979,7 @@ TEST(ExternalInternalizedStringCollectedAtGC) {
         new TestOneByteResource(i::StrDup(s), &destroyed);
     v8::Local<v8::String> ring = CompileRun("ring").As<v8::String>();
     CHECK(v8::Utils::OpenHandle(*ring)->IsInternalizedString());
-    CHECK(ring->MakeExternal(inscription));
+    ring->MakeExternal(inscription);
     // Ring is still alive.  Orcs are roaming freely across our lands.
     CHECK_EQ(0, destroyed);
     USE(ring);
@@ -18091,7 +18091,7 @@ THREADED_TEST(TwoByteStringInOneByteCons) {
 
   TestResource resource(uc16_buffer);
 
-  CHECK(flat_string->MakeExternal(&resource));
+  flat_string->MakeExternal(&resource);
 
   CHECK(flat_string->IsTwoByteRepresentation());
 
@@ -21442,7 +21442,7 @@ class RegExpInterruptTest {
     v8::Local<v8::String> string =
         v8::Local<v8::String>::New(isolate, instance->string_handle_);
     CHECK(string->CanMakeExternal());
-    CHECK(string->MakeExternal(&one_byte_string_resource));
+    string->MakeExternal(&one_byte_string_resource);
   }
 
   static void MakeSubjectTwoByteExternal(v8::Isolate* isolate, void* data) {
@@ -21452,7 +21452,7 @@ class RegExpInterruptTest {
     v8::Local<v8::String> string =
         v8::Local<v8::String>::New(isolate, instance->string_handle_);
     CHECK(string->CanMakeExternal());
-    CHECK(string->MakeExternal(&two_byte_string_resource));
+    string->MakeExternal(&two_byte_string_resource);
   }
 
   static void ReenterIrregexp(v8::Isolate* isolate, void* data) {
