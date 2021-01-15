@@ -28,6 +28,7 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
+#include "src/wasm/wasm-opcodes.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone-containers.h"
 
@@ -2098,6 +2099,25 @@ class WasmInterpreterInternals {
   bool ExecuteSimdOp(WasmOpcode opcode, Decoder* decoder, InterpreterCode* code,
                      pc_t pc, int* const len) {
     switch (opcode) {
+#define WIDEN_CASE(op, expr)                                                   \
+  case op: {                                                                   \
+    uint8_t lane =                                                             \
+        decoder->read_u8<Decoder::kNoValidation>(code->at(pc + *len), "lane"); \
+    *len += 1;                                                                 \
+    int16 s = Pop().to_s128().to_i8x16();                                      \
+    int4 r;                                                                    \
+    for (int i = 0; i < 4; i++) {                                              \
+      auto x = s.val[LANE(lane * 4 + i, s)];                                   \
+      r.val[LANE(i, r)] = expr;                                                \
+    }                                                                          \
+    Push(WasmValue(Simd128(r)));                                               \
+    return true;                                                               \
+  }
+      WIDEN_CASE(kExprI32x4WidenI8x16S, static_cast<int32_t>(x))
+      WIDEN_CASE(kExprI32x4WidenI8x16U,
+                 static_cast<int32_t>(bit_cast<uint8_t>(x)))
+#undef WIDEN_CASE
+
 #define SPLAT_CASE(format, sType, valType, num) \
   case kExpr##format##Splat: {                  \
     WasmValue val = Pop();                      \

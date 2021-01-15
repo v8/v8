@@ -1453,6 +1453,8 @@ class WasmDecoder : public Decoder {
       case kExprI32x4ReplaceLane:
       case kExprS128Load32Lane:
       case kExprS128Store32Lane:
+      case kExprI32x4WidenI8x16S:
+      case kExprI32x4WidenI8x16U:
         num_lanes = 4;
         break;
       case kExprI16x8ExtractLaneS:
@@ -2029,6 +2031,7 @@ class WasmDecoder : public Decoder {
         opcode = this->read_prefixed_opcode<validate>(pc);
         switch (opcode) {
           FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(DECLARE_OPCODE_CASE)
+          FOREACH_SIMD_POST_MVP_ONE_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
             return {1, 1};
           FOREACH_SIMD_1_OPERAND_2_PARAM_OPCODE(DECLARE_OPCODE_CASE)
           FOREACH_SIMD_MASK_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
@@ -3745,6 +3748,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       }
       case kExprPrefetchNT: {
         return SimdPrefetch(opcode_length, /*temporal=*/false);
+      }
+      case kExprI32x4WidenI8x16S:
+      case kExprI32x4WidenI8x16U: {
+        return SimdExtractLane(opcode, kWasmS128, opcode_length);
       }
       default: {
         const FunctionSig* sig = WasmOpcodes::Signature(opcode);
