@@ -988,6 +988,15 @@
 
   # BUG(v8:9975).
   'es6/typedarray-copywithin': [SKIP],
+
+  # BUG(v8:11319): Predictable crashes with --wasm-tier-up.
+  'wasm/compiled-module-serialization': [SKIP],
+  'wasm/graceful_shutdown_during_tierup': [SKIP],
+  'wasm/print-code': [SKIP],
+  'regress/wasm/regress-11024': [SKIP],
+  'regress/wasm/regress-7785': [SKIP],
+  'regress/wasm/regress-808848': [SKIP],
+  'regress/wasm/regress-808980': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################
