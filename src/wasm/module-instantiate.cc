@@ -39,12 +39,30 @@ uint32_t EvalUint32InitExpr(Handle<WasmInstanceObject> instance,
     case WasmInitExpr::kI32Const:
       return expr.immediate().i32_const;
     case WasmInitExpr::kGlobalGet: {
-      uint32_t offset =
-          instance->module()->globals[expr.immediate().index].offset;
+      const auto& global = instance->module()->globals[expr.immediate().index];
+      DCHECK_EQ(kWasmI32, global.type);
       auto raw_addr = reinterpret_cast<Address>(
                           instance->untagged_globals_buffer().backing_store()) +
-                      offset;
+                      global.offset;
       return ReadLittleEndianValue<uint32_t>(raw_addr);
+    }
+    default:
+      UNREACHABLE();
+  }
+}
+
+uint64_t EvalUint64InitExpr(Handle<WasmInstanceObject> instance,
+                            const WasmInitExpr& expr) {
+  switch (expr.kind()) {
+    case WasmInitExpr::kI64Const:
+      return expr.immediate().i64_const;
+    case WasmInitExpr::kGlobalGet: {
+      const auto& global = instance->module()->globals[expr.immediate().index];
+      DCHECK_EQ(kWasmI64, global.type);
+      auto raw_addr = reinterpret_cast<Address>(
+                          instance->untagged_globals_buffer().backing_store()) +
+                      global.offset;
+      return ReadLittleEndianValue<uint64_t>(raw_addr);
     }
     default:
       UNREACHABLE();
@@ -826,15 +844,23 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
     // Passive segments are not copied during instantiation.
     if (!segment.active) continue;
 
-    uint32_t dest_offset = EvalUint32InitExpr(instance, segment.dest_addr);
-    bool ok = base::ClampToBounds(
-        dest_offset, &size, static_cast<uint32_t>(instance->memory_size()));
-    if (!ok) {
+    size_t dest_offset;
+    if (module_->is_memory64) {
+      uint64_t dest_offset_64 = EvalUint64InitExpr(instance, segment.dest_addr);
+      // Clamp to {std::numeric_limits<size_t>::max()}, which is always an
+      // invalid offset.
+      DCHECK_GT(std::numeric_limits<size_t>::max(), instance->memory_size());
+      dest_offset = static_cast<size_t>(std::min(
+          dest_offset_64, uint64_t{std::numeric_limits<size_t>::max()}));
+    } else {
+      dest_offset = EvalUint32InitExpr(instance, segment.dest_addr);
+    }
+
+    if (!base::IsInBounds<size_t>(dest_offset, size, instance->memory_size())) {
       thrower_->RuntimeError("data segment is out of bounds");
       return;
     }
-    // No need to copy empty segments.
-    if (size == 0) continue;
+
     std::memcpy(instance->memory_start() + dest_offset,
                 wire_bytes.begin() + segment.source.offset(), size);
   }
