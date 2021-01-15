@@ -878,6 +878,11 @@ void LiftoffAssembler::emit_i64x2_extmul_high_i32x4_s(LiftoffRegister dst,
   bailout(kSimd, "i64x2_extmul_high_i32x4_s unsupported");
 }
 
+void LiftoffAssembler::emit_i64x2_bitmask(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  bailout(kSimd, "i64x2_bitmask");
+}
+
 void LiftoffAssembler::emit_i64x2_extmul_high_i32x4_u(LiftoffRegister dst,
                                                       LiftoffRegister src1,
                                                       LiftoffRegister src2) {
