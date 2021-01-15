@@ -44,10 +44,10 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(BrIf, 0x0d, _)                              \
   V(BrTable, 0x0e, _)                           \
   V(Return, 0x0f, _)                            \
-  V(Delegate, 0x16, _ /* eh_prototype */)       \
   V(Let, 0x17, _ /* typed_funcref prototype */) \
+  V(Delegate, 0x18, _ /* eh_prototype */)       \
   V(BrOnNull, 0xd4, _ /* gc prototype */)       \
-  V(NopForTestingUnsupportedInLiftoff, 0x18, _)
+  V(NopForTestingUnsupportedInLiftoff, 0x19, _)
 
 // Constants, locals, globals, and calls.
 #define FOREACH_MISC_OPCODE(V)                            \
