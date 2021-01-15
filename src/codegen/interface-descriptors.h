@@ -547,7 +547,7 @@ class V8_EXPORT_PRIVATE VoidDescriptor : public CallInterfaceDescriptor {
 };
 
 // This class is subclassed by Torque-generated call interface descriptors.
-template <int parameter_count, bool has_context_parameter>
+template <int return_count, int parameter_count, bool has_context_parameter>
 class TorqueInterfaceDescriptor : public CallInterfaceDescriptor {
  public:
   static constexpr int kDescriptorFlags =
@@ -560,7 +560,7 @@ class TorqueInterfaceDescriptor : public CallInterfaceDescriptor {
     STATIC_ASSERT(0 <= i && i < kParameterCount);
     return static_cast<ParameterIndices>(i);
   }
-  static constexpr int kReturnCount = 1;
+  static constexpr int kReturnCount = return_count;
 
   using CallInterfaceDescriptor::CallInterfaceDescriptor;
 
@@ -570,14 +570,15 @@ class TorqueInterfaceDescriptor : public CallInterfaceDescriptor {
           ? kMaxTFSBuiltinRegisterParams
           : kParameterCount;
   static const int kStackParams = kParameterCount - kRegisterParams;
-  virtual MachineType ReturnType() = 0;
+  virtual std::vector<MachineType> ReturnType() = 0;
   virtual std::array<MachineType, kParameterCount> ParameterTypes() = 0;
   void InitializePlatformSpecific(CallInterfaceDescriptorData* data) override {
     DefaultInitializePlatformSpecific(data, kRegisterParams);
   }
   void InitializePlatformIndependent(
       CallInterfaceDescriptorData* data) override {
-    std::vector<MachineType> machine_types = {ReturnType()};
+    std::vector<MachineType> machine_types = ReturnType();
+    DCHECK_EQ(kReturnCount, machine_types.size());
     auto parameter_types = ParameterTypes();
     machine_types.insert(machine_types.end(), parameter_types.begin(),
                          parameter_types.end());

@@ -1256,7 +1256,8 @@ const Type* ImplementationVisitor::Visit(ReturnStatement* stmt) {
         SetReturnValue(return_result);
       }
     } else if (current_callable->IsBuiltin()) {
-      assembler().Emit(ReturnInstruction{});
+      assembler().Emit(ReturnInstruction{
+          LoweredSlotCount(current_callable->signature().return_type)});
     } else {
       UNREACHABLE();
     }
@@ -2713,9 +2714,21 @@ VisitResult ImplementationVisitor::GenerateCall(
       return VisitResult::NeverResult();
     } else {
       size_t slot_count = LoweredSlotCount(return_type);
-      DCHECK_LE(slot_count, 1);
-      // TODO(tebbi): Actually, builtins have to return a value, so we should
-      // assert slot_count == 1 here.
+      if (builtin->IsStub()) {
+        if (slot_count < 1 || slot_count > 2) {
+          ReportError(
+              "Builtin with stub linkage is expected to return one or two "
+              "values but returns ",
+              slot_count);
+        }
+      } else {
+        if (slot_count != 1) {
+          ReportError(
+              "Builtin with JS linkage is expected to return one value but "
+              "returns ",
+              slot_count);
+        }
+      }
       return VisitResult(return_type, assembler().TopRange(slot_count));
     }
   } else if (auto* macro = Macro::DynamicCast(callable)) {
@@ -3328,19 +3341,23 @@ void ImplementationVisitor::GenerateBuiltinDefinitionsAndInterfaceDescriptors(
         size_t kFirstNonContextParameter = has_context_parameter ? 1 : 0;
         size_t parameter_count =
             builtin->parameter_names().size() - kFirstNonContextParameter;
+        TypeVector return_types = LowerType(builtin->signature().return_type);
 
         interface_descriptors
             << "class " << descriptor_name
-            << " : public TorqueInterfaceDescriptor<" << parameter_count << ", "
+            << " : public TorqueInterfaceDescriptor<" << return_types.size()
+            << ", " << parameter_count << ", "
             << (has_context_parameter ? "true" : "false") << "> {\n";
         interface_descriptors << "  DECLARE_DESCRIPTOR_WITH_BASE("
                               << descriptor_name
                               << ", TorqueInterfaceDescriptor)\n";
 
-        interface_descriptors << "  MachineType ReturnType() override {\n";
         interface_descriptors
-            << "    return "
-            << MachineTypeString(builtin->signature().return_type) << ";\n";
+            << "  std::vector<MachineType> ReturnType() override {\n";
+        interface_descriptors << "    return {{";
+        PrintCommaSeparatedList(interface_descriptors, return_types,
+                                MachineTypeString);
+        interface_descriptors << "}};\n";
         interface_descriptors << "  }\n";
 
         interface_descriptors << "  std::array<MachineType, " << parameter_count

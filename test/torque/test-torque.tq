@@ -1350,4 +1350,21 @@ macro TestOffHeapSlice(ptr: RawPtr<char8>, length: intptr) {
     check(*onHeapSlice.AtIndex(i) == *offHeapSlice.AtIndex(i));
   }
 }
+
+struct TwoValues {
+  a: Smi;
+  b: Map;
+}
+
+builtin ReturnTwoValues(implicit context: Context)(
+    value: Smi, obj: HeapObject): TwoValues {
+  return TwoValues{a: value + 1, b: obj.map};
+}
+
+@export
+macro TestCallMultiReturnBuiltin(implicit context: Context)() {
+  const result = ReturnTwoValues(444, FromConstexpr<String>('hi'));
+  check(result.a == 445);
+  check(result.b == FromConstexpr<String>('hi').map);
+}
 }

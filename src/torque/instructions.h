@@ -578,7 +578,10 @@ struct GotoExternalInstruction : InstructionBase {
 
 struct ReturnInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
+  explicit ReturnInstruction(size_t count) : count(count) {}
   bool IsBlockTerminator() const override { return true; }
+
+  size_t count;  // How many values to return.
 };
 
 struct PrintConstantStringInstruction : InstructionBase {

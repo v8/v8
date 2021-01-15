@@ -881,6 +881,23 @@ TEST(TestOffHeapSlice) {
   ft.Call();
 }
 
+TEST(TestCallMultiReturnBuiltin) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  CodeAssemblerTester asm_tester(isolate, 1);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    Handle<Context> context =
+        Utils::OpenHandle(*v8::Isolate::GetCurrent()->GetCurrentContext());
+    m.TestCallMultiReturnBuiltin(
+        m.UncheckedCast<Context>(m.HeapConstant(context)));
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
