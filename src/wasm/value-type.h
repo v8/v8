@@ -55,7 +55,6 @@ class HeapType {
     kFunc = kV8MaxWasmTypes,  // shorthand: c
     kExtern,                  // shorthand: e
     kEq,                      // shorthand: q
-    kExn,                     // shorthand: x
     kI31,                     // shorthand: j
     kAny,                     // shorthand: a
     // This value is used to represent failures in the parsing of heap types and
@@ -75,8 +74,6 @@ class HeapType {
         return HeapType(kExtern);
       case ValueTypeCode::kEqRefCode:
         return HeapType(kEq);
-      case ValueTypeCode::kExnRefCode:
-        return HeapType(kExn);
       case ValueTypeCode::kI31RefCode:
         return HeapType(kI31);
       case ValueTypeCode::kAnyRefCode:
@@ -129,8 +126,6 @@ class HeapType {
         return std::string("extern");
       case kEq:
         return std::string("eq");
-      case kExn:
-        return std::string("exn");
       case kI31:
         return std::string("i31");
       case kAny:
@@ -148,8 +143,6 @@ class HeapType {
     switch (representation_) {
       case kFunc:
         return mask | kFuncRefCode;
-      case kExn:
-        return mask | kExnRefCode;
       case kExtern:
         return mask | kExternRefCode;
       case kEq:
@@ -371,8 +364,6 @@ class ValueType {
             return kExternRefCode;
           case HeapType::kEq:
             return kEqRefCode;
-          case HeapType::kExn:
-            return kExnRefCode;
           case HeapType::kAny:
             return kAnyRefCode;
           default:
@@ -507,7 +498,6 @@ constexpr ValueType kWasmStmt = ValueType::Primitive(ValueType::kStmt);
 constexpr ValueType kWasmBottom = ValueType::Primitive(ValueType::kBottom);
 // Established wasm shorthands:
 constexpr ValueType kWasmFuncRef = ValueType::Ref(HeapType::kFunc, kNullable);
-constexpr ValueType kWasmExnRef = ValueType::Ref(HeapType::kExn, kNullable);
 constexpr ValueType kWasmExternRef =
     ValueType::Ref(HeapType::kExtern, kNullable);
 constexpr ValueType kWasmEqRef = ValueType::Ref(HeapType::kEq, kNullable);

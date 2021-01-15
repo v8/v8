@@ -183,8 +183,6 @@ V8_INLINE WasmFeature feature_for_heap_type(HeapType heap_type) {
     case HeapType::kFunc:
     case HeapType::kExtern:
       return WasmFeature::kFeature_reftypes;
-    case HeapType::kExn:
-      return WasmFeature::kFeature_eh;
     case HeapType::kEq:
     case HeapType::kI31:
     case HeapType::kAny:
@@ -213,7 +211,6 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
     uint8_t code = static_cast<ValueTypeCode>(heap_index) & uint_7_mask;
     switch (code) {
       case kFuncRefCode:
-      case kExnRefCode:
       case kEqRefCode:
       case kExternRefCode:
       case kI31RefCode:
@@ -279,7 +276,6 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
   ValueTypeCode code = static_cast<ValueTypeCode>(val);
   switch (code) {
     case kFuncRefCode:
-    case kExnRefCode:
     case kEqRefCode:
     case kExternRefCode:
     case kI31RefCode:

@@ -131,8 +131,6 @@ const char* ValueTypeToConstantName(ValueType type) {
           return "kWasmExternRef";
         case HeapType::kFunc:
           return "kWasmFuncRef";
-        case HeapType::kExn:
-          return "kWasmExnRef";
         case HeapType::kAny:
         case HeapType::kI31:
         case HeapType::kBottom:

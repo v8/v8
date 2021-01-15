@@ -120,7 +120,6 @@ let kWasmRtt = 0x69;
 function wasmRtt(index, depth) {
   return {opcode: kWasmRtt, index: index, depth: depth};
 }
-let kWasmExnRef = 0x68;
 
 let kExternalFunction = 0;
 let kExternalTable = 1;
@@ -170,17 +169,14 @@ let kSig_f_d = makeSig([kWasmF64], [kWasmF32]);
 let kSig_d_d = makeSig([kWasmF64], [kWasmF64]);
 let kSig_r_r = makeSig([kWasmExternRef], [kWasmExternRef]);
 let kSig_a_a = makeSig([kWasmAnyFunc], [kWasmAnyFunc]);
-let kSig_e_e = makeSig([kWasmExnRef], [kWasmExnRef]);
 let kSig_i_r = makeSig([kWasmExternRef], [kWasmI32]);
 let kSig_v_r = makeSig([kWasmExternRef], []);
 let kSig_v_a = makeSig([kWasmAnyFunc], []);
-let kSig_v_e = makeSig([kWasmExnRef], []);
 let kSig_v_rr = makeSig([kWasmExternRef, kWasmExternRef], []);
 let kSig_v_aa = makeSig([kWasmAnyFunc, kWasmAnyFunc], []);
 let kSig_r_v = makeSig([], [kWasmExternRef]);
 let kSig_a_v = makeSig([], [kWasmAnyFunc]);
 let kSig_a_i = makeSig([kWasmI32], [kWasmAnyFunc]);
-let kSig_e_v = makeSig([], [kWasmExnRef]);
 let kSig_s_i = makeSig([kWasmI32], [kWasmS128]);
 let kSig_i_s = makeSig([kWasmS128], [kWasmI32]);
 
@@ -1454,10 +1450,6 @@ class WasmModuleBuilder {
                 section.emit_u8(kExprRefNull);
                 section.emit_u8(kWasmAnyFunc);
               }
-              break;
-            case kWasmExnRef:
-              section.emit_u8(kExprRefNull);
-              section.emit_u8(kWasmExnRef);
               break;
             default:
               if (global.function_index !== undefined) {

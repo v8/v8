@@ -1993,9 +1993,10 @@ TEST_F(WasmModuleVerifyTest, IllegalTableTypes) {
 
     auto result = DecodeModule(data.data(), data.data() + data.size());
 
-    EXPECT_NOT_OK(result,
-                  "Currently, only nullable exnref, externref, and "
-                  "function references are allowed as table types");
+    EXPECT_NOT_OK(
+        result,
+        "Currently, only externref and function references are allowed "
+        "as table types");
   }
 }
 

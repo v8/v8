@@ -3602,11 +3602,9 @@ TEST_F(FunctionBodyDecoderTest, RefEq) {
       kWasmF32,
       kWasmF64,
       kWasmS128,
-      kWasmExnRef,
       kWasmExternRef,
       kWasmFuncRef,
       kWasmAnyRef,
-      ValueType::Ref(HeapType::kExn, kNonNullable),
       ValueType::Ref(HeapType::kExtern, kNonNullable),
       ValueType::Ref(HeapType::kFunc, kNonNullable)};
 
@@ -3643,8 +3641,8 @@ TEST_F(FunctionBodyDecoderTest, RefAsNonNull) {
   byte struct_type_index = builder.AddStruct({F(kWasmI32, true)});
   byte array_type_index = builder.AddArray(kWasmI32, true);
   uint32_t heap_types[] = {
-      struct_type_index, array_type_index,  HeapType::kExn, HeapType::kFunc,
-      HeapType::kEq,     HeapType::kExtern, HeapType::kI31, HeapType::kAny};
+      struct_type_index, array_type_index, HeapType::kFunc, HeapType::kEq,
+      HeapType::kExtern, HeapType::kI31,   HeapType::kAny};
 
   ValueType non_compatible_types[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64,
                                       kWasmS128};
@@ -3685,8 +3683,8 @@ TEST_F(FunctionBodyDecoderTest, RefNull) {
   byte struct_type_index = builder.AddStruct({F(kWasmI32, true)});
   byte array_type_index = builder.AddArray(kWasmI32, true);
   uint32_t type_reprs[] = {
-      struct_type_index, array_type_index,  HeapType::kExn, HeapType::kFunc,
-      HeapType::kEq,     HeapType::kExtern, HeapType::kI31, HeapType::kAny};
+      struct_type_index, array_type_index, HeapType::kFunc, HeapType::kEq,
+      HeapType::kExtern, HeapType::kI31,   HeapType::kAny};
   // It works with heap types.
   for (uint32_t type_repr : type_reprs) {
     const ValueType type = ValueType::Ref(type_repr, kNullable);
@@ -3715,8 +3713,8 @@ TEST_F(FunctionBodyDecoderTest, RefIsNull) {
   byte struct_type_index = builder.AddStruct({F(kWasmI32, true)});
   byte array_type_index = builder.AddArray(kWasmI32, true);
   uint32_t heap_types[] = {
-      struct_type_index, array_type_index,  HeapType::kExn, HeapType::kFunc,
-      HeapType::kEq,     HeapType::kExtern, HeapType::kI31, HeapType::kAny};
+      struct_type_index, array_type_index, HeapType::kFunc, HeapType::kEq,
+      HeapType::kExtern, HeapType::kI31,   HeapType::kAny};
 
   for (uint32_t heap_type : heap_types) {
     const ValueType types[] = {kWasmI32, ValueType::Ref(heap_type, kNullable)};
@@ -4138,8 +4136,8 @@ TEST_F(FunctionBodyDecoderTest, RttCanon) {
   uint8_t struct_type_index = builder.AddStruct({F(kWasmI64, true)});
 
   for (HeapType::Representation heap :
-       {HeapType::kExtern, HeapType::kEq, HeapType::kExn, HeapType::kI31,
-        HeapType::kAny, static_cast<HeapType::Representation>(array_type_index),
+       {HeapType::kExtern, HeapType::kEq, HeapType::kI31, HeapType::kAny,
+        static_cast<HeapType::Representation>(array_type_index),
         static_cast<HeapType::Representation>(struct_type_index)}) {
     ValueType rtt1 =
         ValueType::Rtt(HeapType(heap), heap == HeapType::kAny ? 0 : 1);
@@ -4312,10 +4310,11 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
   }
 
   std::pair<HeapType::Representation, HeapType::Representation>
-      invalid_pairs[] = {
-          {array_heap, HeapType::kAny},    {HeapType::kEq, HeapType::kAny},
-          {HeapType::kI31, HeapType::kEq}, {array_heap, super_struct_heap},
-          {array_heap, HeapType::kEq},     {HeapType::kExtern, HeapType::kExn}};
+      invalid_pairs[] = {{array_heap, HeapType::kAny},
+                         {HeapType::kEq, HeapType::kAny},
+                         {HeapType::kI31, HeapType::kEq},
+                         {array_heap, super_struct_heap},
+                         {array_heap, HeapType::kEq}};
 
   for (auto pair : invalid_pairs) {
     HeapType from_heap = HeapType(pair.first);
@@ -4859,19 +4858,6 @@ TEST_F(LocalDeclDecoderTest, UseEncoder) {
   pos = ExpectRun(map, pos, kWasmF32, 5);
   pos = ExpectRun(map, pos, kWasmI32, 1337);
   pos = ExpectRun(map, pos, kWasmI64, 212);
-}
-
-TEST_F(LocalDeclDecoderTest, ExnRef) {
-  WASM_FEATURE_SCOPE(eh);
-  ValueType type = kWasmExnRef;
-  const byte data[] = {1, 1, static_cast<byte>(type.value_type_code())};
-  BodyLocalDecls decls(zone());
-  bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
-  EXPECT_TRUE(result);
-  EXPECT_EQ(1u, decls.type_list.size());
-
-  TypesOfLocals map = decls.type_list;
-  EXPECT_EQ(type, map[0]);
 }
 
 TEST_F(LocalDeclDecoderTest, InvalidTypeIndex) {

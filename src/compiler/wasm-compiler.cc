@@ -6260,7 +6260,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::ValueType::kOptRef: {
         uint32_t representation = type.heap_representation();
         if (representation == wasm::HeapType::kExtern ||
-            representation == wasm::HeapType::kExn ||
             representation == wasm::HeapType::kFunc) {
           return node;
         }
@@ -6399,7 +6398,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::ValueType::kOptRef: {
         switch (type.heap_representation()) {
           case wasm::HeapType::kExtern:
-          case wasm::HeapType::kExn:
             return input;
           case wasm::HeapType::kAny:
             // If this is a wrapper for arrays/structs, unpack it.

@@ -57,9 +57,9 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 
   ValueType numeric_types[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64,
                                kWasmS128};
-  ValueType ref_types[] = {
-      kWasmExternRef, kWasmFuncRef, kWasmExnRef, kWasmEqRef, kWasmI31Ref,
-      kWasmAnyRef,    optRef(0),    ref(0),      optRef(2),  ref(2)};
+  ValueType ref_types[] = {kWasmExternRef, kWasmFuncRef, kWasmEqRef,
+                           kWasmI31Ref,    kWasmAnyRef,  optRef(0),
+                           ref(0),         optRef(2),    ref(2)};
 
   // Type judgements across modules should work the same as within one module.
   for (WasmModule* module : {module1, module2}) {
@@ -81,10 +81,10 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 
     for (ValueType ref_type : ref_types) {
       // Concrete reference types and i31ref are subtypes of eqref,
-      // exnref/externref/funcref/anyref are not.
+      // externref/funcref/anyref are not.
       CHECK_EQ(IsSubtypeOf(ref_type, kWasmEqRef, module1, module),
                ref_type != kWasmFuncRef && ref_type != kWasmExternRef &&
-                   ref_type != kWasmExnRef && ref_type != kWasmAnyRef);
+                   ref_type != kWasmAnyRef);
       // Each reference type is a subtype of itself.
       CHECK(IsSubtypeOf(ref_type, ref_type, module1, module));
       // Each reference type is a subtype of anyref.
@@ -95,10 +95,8 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     }
 
     // The rest of ref. types are unrelated.
-    for (ValueType type_1 :
-         {kWasmExternRef, kWasmFuncRef, kWasmExnRef, kWasmI31Ref}) {
-      for (ValueType type_2 :
-           {kWasmExternRef, kWasmFuncRef, kWasmExnRef, kWasmI31Ref}) {
+    for (ValueType type_1 : {kWasmExternRef, kWasmFuncRef, kWasmI31Ref}) {
+      for (ValueType type_2 : {kWasmExternRef, kWasmFuncRef, kWasmI31Ref}) {
         CHECK_EQ(IsSubtypeOf(type_1, type_2, module1, module),
                  type_1 == type_2);
       }
@@ -133,8 +131,6 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     // Identical rtts are subtypes of each other.
     CHECK(IsSubtypeOf(ValueType::Rtt(5, 3), ValueType::Rtt(5, 3), module1,
                       module2));
-    CHECK(IsSubtypeOf(ValueType::Rtt(HeapType::kExn, 3),
-                      ValueType::Rtt(HeapType::kExn, 3), module1, module2));
     // Rtts of different depth are unrelated.
     CHECK(!IsSubtypeOf(ValueType::Rtt(5, 1), ValueType::Rtt(5, 3), module1,
                        module2));

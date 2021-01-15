@@ -615,9 +615,10 @@ class ModuleDecoderImpl : public Decoder {
           const byte* type_position = pc();
           ValueType type = consume_reference_type();
           if (!WasmTable::IsValidTableType(type, module_.get())) {
-            error(type_position,
-                  "Currently, only nullable exnref, externref, and "
-                  "function references are allowed as table types");
+            error(
+                type_position,
+                "Currently, only externref and function references are allowed "
+                "as table types");
             break;
           }
           table->type = type;
@@ -715,8 +716,8 @@ class ModuleDecoderImpl : public Decoder {
       ValueType table_type = consume_reference_type();
       if (!WasmTable::IsValidTableType(table_type, module_.get())) {
         error(type_position,
-              "Currently, only nullable exnref, externref, and "
-              "function references are allowed as table types");
+              "Currently, only externref and function references are allowed "
+              "as table types");
         continue;
       }
       table->type = table_type;

@@ -445,7 +445,6 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
 
   switch (table->type().heap_representation()) {
     case wasm::HeapType::kExtern:
-    case wasm::HeapType::kExn:
     case wasm::HeapType::kAny:
       entries->set(entry_index, *entry);
       return;
@@ -490,7 +489,6 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
 
   switch (table->type().heap_representation()) {
     case wasm::HeapType::kExtern:
-    case wasm::HeapType::kExn:
       return entry;
     case wasm::HeapType::kFunc:
       if (WasmExportedFunction::IsWasmExportedFunction(*entry) ||
@@ -2110,7 +2108,6 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
           return true;
         }
         case HeapType::kExtern:
-        case HeapType::kExn:
         case HeapType::kAny:
           return true;
         case HeapType::kEq: {

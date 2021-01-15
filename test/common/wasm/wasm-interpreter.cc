@@ -3043,7 +3043,6 @@ class WasmInterpreterInternals {
         case ValueType::kOptRef: {
           switch (sig->GetParam(i).heap_representation()) {
             case HeapType::kExtern:
-            case HeapType::kExn:
             case HeapType::kFunc:
             case HeapType::kAny: {
               Handle<Object> externref = value.to_externref();
@@ -3161,7 +3160,6 @@ class WasmInterpreterInternals {
         case ValueType::kOptRef: {
           switch (sig->GetParam(i).heap_representation()) {
             case HeapType::kExtern:
-            case HeapType::kExn:
             case HeapType::kFunc:
             case HeapType::kAny: {
               Handle<Object> externref(encoded_values->get(encoded_index++),

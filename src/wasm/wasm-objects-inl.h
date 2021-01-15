@@ -167,7 +167,7 @@ double WasmGlobalObject::GetF64() {
 }
 
 Handle<Object> WasmGlobalObject::GetRef() {
-  // We use this getter for externref, funcref, and exnref.
+  // We use this getter for externref and funcref.
   DCHECK(type().is_reference_type());
   return handle(tagged_buffer().get(offset()), GetIsolate());
 }
@@ -190,7 +190,6 @@ void WasmGlobalObject::SetF64(double value) {
 
 void WasmGlobalObject::SetExternRef(Handle<Object> value) {
   DCHECK(type().is_reference_to(wasm::HeapType::kExtern) ||
-         type().is_reference_to(wasm::HeapType::kExn) ||
          type().is_reference_to(wasm::HeapType::kAny));
   tagged_buffer().set(offset(), *value);
 }

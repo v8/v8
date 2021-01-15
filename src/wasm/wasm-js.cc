@@ -1223,9 +1223,6 @@ bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
              string->StringEquals(v8_str(isolate, "anyfunc"))) {
     // The JS api spec uses 'anyfunc' instead of 'funcref'.
     *type = i::wasm::kWasmFuncRef;
-  } else if (enabled_features.has_eh() &&
-             string->StringEquals(v8_str(isolate, "exnref"))) {
-    *type = i::wasm::kWasmExnRef;
   } else if (enabled_features.has_gc() &&
              string->StringEquals(v8_str(isolate, "eqref"))) {
     *type = i::wasm::kWasmEqRef;
@@ -1345,7 +1342,6 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
     case i::wasm::ValueType::kOptRef: {
       switch (type.heap_representation()) {
         case i::wasm::HeapType::kExtern:
-        case i::wasm::HeapType::kExn:
         case i::wasm::HeapType::kAny: {
           if (args.Length() < 2) {
             // When no initial value is provided, we have to use the WebAssembly
@@ -1840,7 +1836,6 @@ void WebAssemblyGlobalGetValueCommon(
       switch (receiver->type().heap_representation()) {
         case i::wasm::HeapType::kExtern:
         case i::wasm::HeapType::kFunc:
-        case i::wasm::HeapType::kExn:
         case i::wasm::HeapType::kAny:
           return_value.Set(Utils::ToLocal(receiver->GetRef()));
           break;
@@ -1924,7 +1919,6 @@ void WebAssemblyGlobalSetValue(
     case i::wasm::ValueType::kOptRef:
       switch (receiver->type().heap_representation()) {
         case i::wasm::HeapType::kExtern:
-        case i::wasm::HeapType::kExn:
         case i::wasm::HeapType::kAny:
           receiver->SetExternRef(Utils::OpenHandle(*args[0]));
           break;

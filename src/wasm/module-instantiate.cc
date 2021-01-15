@@ -1538,8 +1538,6 @@ Handle<Object> InstanceBuilder::RecursivelyEvaluateGlobalInitializer(
           return isolate_->root_handle(RootIndex::kWasmRttI31refMap);
         case wasm::HeapType::kAny:
           return isolate_->root_handle(RootIndex::kWasmRttAnyrefMap);
-        case wasm::HeapType::kExn:
-          UNIMPLEMENTED();  // TODO(jkummerow): This is going away?
         case wasm::HeapType::kBottom:
           UNREACHABLE();
       }
@@ -1609,7 +1607,7 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
             module_->globals[global.init.immediate().index].offset;
         TRACE("init [globals+%u] = [globals+%d]\n", global.offset, old_offset);
         if (global.type.is_reference_type()) {
-          DCHECK(enabled_.has_reftypes() || enabled_.has_eh());
+          DCHECK(enabled_.has_reftypes());
           tagged_globals_->set(new_offset, tagged_globals_->get(old_offset));
         } else {
           size_t size = (global.type == kWasmI64 || global.type == kWasmF64)

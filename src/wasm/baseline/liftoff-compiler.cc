@@ -437,11 +437,7 @@ class LiftoffCompiler {
       case ValueType::kI8:
       case ValueType::kI16:
         if (FLAG_experimental_liftoff_extern_ref) return true;
-        if (type.is_reference_to(HeapType::kExn)) {
-          bailout_reason = kExceptionHandling;
-        } else {
-          bailout_reason = kRefTypes;
-        }
+        bailout_reason = kRefTypes;
         break;
       case ValueType::kBottom:
       case ValueType::kStmt:

@@ -781,7 +781,7 @@ class WasmGraphBuildingInterface {
         DCHECK_EQ(target_try->catch_env->state, SsaEnv::kMerged);
         TFNode* inputs[] = {target_try->exception, block->try_info->exception,
                             target_try->catch_env->control};
-        target_try->exception = builder_->Phi(kWasmExnRef, 2, inputs);
+        target_try->exception = builder_->Phi(kWasmAnyRef, 2, inputs);
       }
     }
     current_catch_ = block->previous_catch;
