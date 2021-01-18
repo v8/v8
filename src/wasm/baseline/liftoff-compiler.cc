@@ -245,6 +245,72 @@ class DebugSideTableBuilder {
   std::list<EntryBuilder> entries_;
 };
 
+void CheckBailoutAllowed(LiftoffBailoutReason reason, const char* detail,
+                         const CompilationEnv* env) {
+  // Decode errors are ok.
+  if (reason == kDecodeError) return;
+
+  // Missing CPU features are also generally OK for now.
+  if (reason == kMissingCPUFeature) return;
+
+  // --liftoff-only ensures that tests actually exercise the Liftoff path
+  // without bailing out. Bailing out due to (simulated) lack of CPU support
+  // is okay though (see above).
+  if (FLAG_liftoff_only) {
+    FATAL("--liftoff-only: treating bailout as fatal error. Cause: %s", detail);
+  }
+
+  // If --enable-testing-opcode-in-wasm is set, we are expected to bailout with
+  // "testing opcode".
+  if (FLAG_enable_testing_opcode_in_wasm &&
+      strcmp(detail, "testing opcode") == 0) {
+    return;
+  }
+
+  // Some externally maintained architectures don't fully implement Liftoff yet.
+#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_S390X || \
+    V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+  return;
+#endif
+
+  // TODO(11235): On arm and arm64 there is still a limit on the size of
+  // supported stack frames.
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
+  if (strstr(detail, "Stack limited to 512 bytes")) return;
+#endif
+
+#define LIST_FEATURE(name, ...) kFeature_##name,
+  constexpr WasmFeatures kExperimentalFeatures{
+      FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(LIST_FEATURE)};
+  constexpr WasmFeatures kStagedFeatures{
+      FOREACH_WASM_STAGING_FEATURE_FLAG(LIST_FEATURE)};
+#undef LIST_FEATURE
+
+  // Bailout is allowed if any experimental feature is enabled.
+  if (env->enabled_features.contains_any(kExperimentalFeatures)) return;
+
+  // Staged features should be feature complete in Liftoff according to
+  // https://v8.dev/docs/wasm-shipping-checklist. Some are not though. They are
+  // listed here explicitly, with a bug assigned to each of them.
+
+  // TODO(6020): Fully implement SIMD in Liftoff.
+  STATIC_ASSERT(kStagedFeatures.has_simd());
+  if (reason == kSimd) {
+    DCHECK(env->enabled_features.has_simd());
+    return;
+  }
+
+  // TODO(7581): Fully implement reftypes in Liftoff.
+  STATIC_ASSERT(kStagedFeatures.has_reftypes());
+  if (reason == kRefTypes) {
+    DCHECK(env->enabled_features.has_reftypes());
+    return;
+  }
+
+  // Otherwise, bailout is not allowed.
+  FATAL("Liftoff bailout should not happen. Cause: %s\n", detail);
+}
+
 class LiftoffCompiler {
  public:
   // TODO(clemensb): Make this a template parameter.
@@ -403,13 +469,7 @@ class LiftoffCompiler {
     decoder->errorf(decoder->pc_offset(), "unsupported liftoff operation: %s",
                     detail);
     UnuseLabels(decoder);
-    // --liftoff-only ensures that tests actually exercise the Liftoff path
-    // without bailing out. Bailing out due to (simulated) lack of CPU support
-    // is okay though.
-    if (FLAG_liftoff_only && reason != kMissingCPUFeature) {
-      FATAL("--liftoff-only: treating bailout as fatal error. Cause: %s",
-            detail);
-    }
+    CheckBailoutAllowed(reason, detail, env_);
   }
 
   bool DidAssemblerBailout(FullDecoder* decoder) {
