@@ -3654,31 +3654,30 @@ void TurboAssembler::LoadU64LE(Register dst, const MemOperand& mem,
 
 void TurboAssembler::LoadS32LE(Register dst, const MemOperand& opnd,
                                Register scratch) {
-  lrv(dst, mem);
+  lrv(dst, opnd);
   LoadS32(dst, dst);
 }
 
 void TurboAssembler::LoadU32LE(Register dst, const MemOperand& opnd,
                                Register scratch) {
-  lrv(dst, mem);
+  lrv(dst, opnd);
   LoadU32(dst, dst);
 }
 
 void TurboAssembler::LoadU16LE(Register dst, const MemOperand& opnd) {
-  lrvh(dst, mem);
+  lrvh(dst, opnd);
   LoadU16(dst, dst);
 }
 
 void TurboAssembler::LoadS16LE(Register dst, const MemOperand& opnd) {
-  lrvh(dst, mem);
+  lrvh(dst, opnd);
   LoadS16(dst, dst);
 }
 
 void TurboAssembler::LoadV128LE(DoubleRegister dst, const MemOperand& opnd,
                                 Register scratch0, Register scratch1) {
-  constexpr bool use_vlbr =
-      CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2) &&
-      is_uint12(opnd.offset());
+  bool use_vlbr = CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2) &&
+                  is_uint12(opnd.offset());
   if (use_vlbr) {
     vlbr(dst, opnd, Condition(4));
   } else {
@@ -3692,14 +3691,14 @@ void TurboAssembler::LoadV128LE(DoubleRegister dst, const MemOperand& opnd,
 void TurboAssembler::LoadF64LE(DoubleRegister dst, const MemOperand& opnd,
                                Register scratch) {
   lrvg(scratch, opnd);
-  ldgr(dst.fp(), scratch);
+  ldgr(dst, scratch);
 }
 
 void TurboAssembler::LoadF32LE(DoubleRegister dst, const MemOperand& opnd,
                                Register scratch) {
   lrv(scratch, opnd);
-  ShiftLeftU64(scratch, Operand(32));
-  ldgr(dst.fp(), scratch);
+  ShiftLeftU64(scratch, scratch, Operand(32));
+  ldgr(dst, scratch);
 }
 
 #else
