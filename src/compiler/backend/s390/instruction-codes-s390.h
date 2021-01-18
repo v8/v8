@@ -259,6 +259,10 @@ namespace compiler {
   V(S390_I64x2ExtMulHighI32x4S)             \
   V(S390_I64x2ExtMulLowI32x4U)              \
   V(S390_I64x2ExtMulHighI32x4U)             \
+  V(S390_I64x2SConvertI32x4Low)             \
+  V(S390_I64x2SConvertI32x4High)            \
+  V(S390_I64x2UConvertI32x4Low)             \
+  V(S390_I64x2UConvertI32x4High)            \
   V(S390_I32x4Splat)                        \
   V(S390_I32x4ExtractLane)                  \
   V(S390_I32x4ReplaceLane)                  \

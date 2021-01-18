@@ -3702,6 +3702,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #define VECTOR_UNPACK(op, mode)                                             \
   __ op(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(0), \
         Condition(0), Condition(mode));
+    case kS390_I64x2SConvertI32x4Low: {
+      VECTOR_UNPACK(vupl, 2)
+      break;
+    }
+    case kS390_I64x2SConvertI32x4High: {
+      VECTOR_UNPACK(vuph, 2)
+      break;
+    }
+    case kS390_I64x2UConvertI32x4Low: {
+      VECTOR_UNPACK(vupll, 2)
+      break;
+    }
+    case kS390_I64x2UConvertI32x4High: {
+      VECTOR_UNPACK(vuplh, 2)
+      break;
+    }
     case kS390_I32x4SConvertI16x8Low: {
       VECTOR_UNPACK(vupl, 1)
       break;

@@ -206,6 +206,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_I64x2ExtMulHighI32x4S:
     case kS390_I64x2ExtMulLowI32x4U:
     case kS390_I64x2ExtMulHighI32x4U:
+    case kS390_I64x2SConvertI32x4Low:
+    case kS390_I64x2SConvertI32x4High:
+    case kS390_I64x2UConvertI32x4Low:
+    case kS390_I64x2UConvertI32x4High:
     case kS390_I32x4Splat:
     case kS390_I32x4ExtractLane:
     case kS390_I32x4ReplaceLane:
