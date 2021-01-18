@@ -1523,10 +1523,14 @@ void SerializerForBackgroundCompilation::VisitInvokeIntrinsic(
 
 void SerializerForBackgroundCompilation::VisitLdaConstant(
     BytecodeArrayIterator* iterator) {
-  ObjectRef object(
-      broker(), iterator->GetConstantForIndexOperand(0, broker()->isolate()));
-  environment()->accumulator_hints() =
-      Hints::SingleConstant(object.object(), zone());
+  Handle<Object> constant =
+      iterator->GetConstantForIndexOperand(0, broker()->isolate());
+  // TODO(v8:7790): FixedArrays still need to be serialized until they are
+  // moved to kNeverSerialized.
+  if (!FLAG_turbo_direct_heap_access || constant->IsFixedArray()) {
+    ObjectRef(broker(), constant);
+  }
+  environment()->accumulator_hints() = Hints::SingleConstant(constant, zone());
 }
 
 void SerializerForBackgroundCompilation::VisitPushContext(
@@ -2257,7 +2261,7 @@ void SerializerForBackgroundCompilation::ProcessApiCall(
 
   FunctionTemplateInfoRef target_template_info(
       broker(),
-      handle(target->function_data(kAcquireLoad), broker()->isolate()));
+      broker()->CanonicalPersistentHandle(target->function_data(kAcquireLoad)));
   if (!target_template_info.has_call_code()) return;
   target_template_info.SerializeCallCode();
 

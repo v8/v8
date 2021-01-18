@@ -1526,8 +1526,9 @@ void BytecodeGraphBuilder::VisitLdaSmi() {
 }
 
 void BytecodeGraphBuilder::VisitLdaConstant() {
-  ObjectRef object(
-      broker(), bytecode_iterator().GetConstantForIndexOperand(0, isolate()));
+  ObjectRef object(broker(),
+                   bytecode_iterator().GetConstantForIndexOperand(0, isolate()),
+                   ObjectRef::BackgroundSerialization::kAllowed);
   Node* node = jsgraph()->Constant(object);
   environment()->BindAccumulator(node);
 }

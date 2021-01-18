@@ -110,8 +110,7 @@ class V8_NODISCARD SharedMutexGuardIfOffThread<LocalIsolate, kIsShared> final {
   SharedMutexGuardIfOffThread(base::SharedMutex* mutex, LocalIsolate* isolate) {
     DCHECK_NOT_NULL(mutex);
     DCHECK_NOT_NULL(isolate);
-    DCHECK(!isolate->is_main_thread());
-    mutex_guard_.emplace(mutex);
+    if (!isolate->is_main_thread()) mutex_guard_.emplace(mutex);
   }
 
   SharedMutexGuardIfOffThread(const SharedMutexGuardIfOffThread&) = delete;
