@@ -5104,10 +5104,14 @@ bool Genesis::InstallExtension(Isolate* isolate,
       return false;
     }
   }
-  // We do not expect this to throw an exception. Change this if it does.
   bool result = CompileExtension(isolate, extension);
-  DCHECK(isolate->has_pending_exception() != result);
   if (!result) {
+    // If this failed, it either threw an exception, or the isolate is
+    // terminating.
+    DCHECK(isolate->has_pending_exception() ||
+           (isolate->has_scheduled_exception() &&
+            isolate->scheduled_exception() ==
+                ReadOnlyRoots(isolate).termination_exception()));
     // We print out the name of the extension that fail to install.
     // When an error is thrown during bootstrapping we automatically print
     // the line number at which this happened to the console in the isolate
