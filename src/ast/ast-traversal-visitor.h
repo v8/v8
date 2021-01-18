@@ -546,7 +546,6 @@ template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitSuperPropertyReference(
     SuperPropertyReference* expr) {
   PROCESS_EXPRESSION(expr);
-  RECURSE_EXPRESSION(Visit(expr->home_object()));
 }
 
 template <class Subclass>

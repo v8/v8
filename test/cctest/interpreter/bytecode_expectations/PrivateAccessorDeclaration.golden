@@ -276,11 +276,12 @@ bytecodes: [
                 B(Mov), R(3), R(6),
                 B(Mov), R(0), R(7),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(5), U8(3),
+                B(StaCurrentContextSlot), U8(4),
                 B(Star), R(5),
+                B(Ldar), R(6),
+                B(StaCurrentContextSlot), U8(5),
                 B(CreateClosure), U8(8), U8(3), U8(2),
                 B(Star), R(6),
-                B(Ldar), R(5),
-                B(StaNamedProperty), R(6), U8(9), U8(0),
                 B(LdaNull),
                 B(Star), R(7),
                 B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(6), U8(2),
@@ -288,7 +289,7 @@ bytecodes: [
                 B(PopContext), R(2),
                 B(Mov), R(3), R(1),
   /*  122 S> */ B(Ldar), R(1),
-  /*  122 E> */ B(Construct), R(1), R(0), U8(0), U8(2),
+  /*  122 E> */ B(Construct), R(1), R(0), U8(0), U8(0),
                 B(LdaUndefined),
   /*  133 S> */ B(Return),
 ]
@@ -302,7 +303,6 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["C"],
   SHARED_FUNCTION_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
-  SYMBOL_TYPE,
 ]
 handlers: [
 ]
@@ -349,19 +349,20 @@ bytecodes: [
                 B(Mov), R(3), R(6),
                 B(Mov), R(0), R(7),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(5), U8(3),
+                B(StaCurrentContextSlot), U8(4),
                 B(Star), R(5),
+                B(Ldar), R(6),
+                B(StaCurrentContextSlot), U8(5),
                 B(LdaNull),
                 B(Star), R(6),
                 B(CreateClosure), U8(8), U8(3), U8(2),
                 B(Star), R(7),
-                B(Ldar), R(5),
-                B(StaNamedProperty), R(7), U8(9), U8(0),
                 B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(6), U8(2),
                 B(StaCurrentContextSlot), U8(2),
                 B(PopContext), R(2),
                 B(Mov), R(3), R(1),
   /*  126 S> */ B(Ldar), R(1),
-  /*  126 E> */ B(Construct), R(1), R(0), U8(0), U8(2),
+  /*  126 E> */ B(Construct), R(1), R(0), U8(0), U8(0),
                 B(LdaUndefined),
   /*  137 S> */ B(Return),
 ]
@@ -375,7 +376,6 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["C"],
   SHARED_FUNCTION_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
-  SYMBOL_TYPE,
 ]
 handlers: [
 ]

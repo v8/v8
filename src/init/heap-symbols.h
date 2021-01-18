@@ -175,8 +175,10 @@
   V(_, dot_default_string, ".default")                               \
   V(_, dot_for_string, ".for")                                       \
   V(_, dot_generator_object_string, ".generator_object")             \
+  V(_, dot_home_object_string, ".home_object")                       \
   V(_, dot_result_string, ".result")                                 \
   V(_, dot_repl_result_string, ".repl_result")                       \
+  V(_, dot_static_home_object_string, "._static_home_object")        \
   V(_, dot_string, ".")                                              \
   V(_, dot_switch_tag_string, ".switch_tag")                         \
   V(_, dotAll_string, "dotAll")                                      \
@@ -346,7 +348,6 @@
   V(_, error_script_symbol)                           \
   V(_, error_start_pos_symbol)                        \
   V(_, frozen_symbol)                                 \
-  V(_, home_object_symbol)                            \
   V(_, interpreter_trampoline_symbol)                 \
   V(_, megamorphic_symbol)                            \
   V(_, native_context_index_symbol)                   \

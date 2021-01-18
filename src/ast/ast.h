@@ -919,7 +919,6 @@ class Literal final : public Expression {
     kHeapNumber,
     kBigInt,
     kString,
-    kSymbol,
     kBoolean,
     kUndefined,
     kNull,
@@ -974,11 +973,6 @@ class Literal final : public Expression {
     return string_;
   }
 
-  AstSymbol AsSymbol() {
-    DCHECK_EQ(type(), kSymbol);
-    return symbol_;
-  }
-
   V8_EXPORT_PRIVATE bool ToBooleanIsTrue() const;
   bool ToBooleanIsFalse() const { return !ToBooleanIsTrue(); }
 
@@ -1019,11 +1013,6 @@ class Literal final : public Expression {
     bit_field_ = TypeField::update(bit_field_, kString);
   }
 
-  Literal(AstSymbol symbol, int position)
-      : Expression(position, kLiteral), symbol_(symbol) {
-    bit_field_ = TypeField::update(bit_field_, kSymbol);
-  }
-
   Literal(bool boolean, int position)
       : Expression(position, kLiteral), boolean_(boolean) {
     bit_field_ = TypeField::update(bit_field_, kBoolean);
@@ -1038,7 +1027,6 @@ class Literal final : public Expression {
     const AstRawString* string_;
     int smi_;
     double number_;
-    AstSymbol symbol_;
     AstBigInt bigint_;
     bool boolean_;
   };
@@ -1307,6 +1295,8 @@ class ObjectLiteral final : public AggregateLiteral {
     return flags;
   }
 
+  Variable* home_object() const { return home_object_; }
+
   enum Flags {
     kFastElements = 1 << 3,
     kHasNullPrototype = 1 << 4,
@@ -1321,10 +1311,11 @@ class ObjectLiteral final : public AggregateLiteral {
 
   ObjectLiteral(Zone* zone, const ScopedPtrList<Property>& properties,
                 uint32_t boilerplate_properties, int pos,
-                bool has_rest_property)
+                bool has_rest_property, Variable* home_object)
       : AggregateLiteral(pos, kObjectLiteral),
         boilerplate_properties_(boilerplate_properties),
-        properties_(properties.ToConstVector(), zone) {
+        properties_(properties.ToConstVector(), zone),
+        home_object_(home_object) {
     bit_field_ |= HasElementsField::encode(false) |
                   HasRestPropertyField::encode(has_rest_property) |
                   FastElementsField::encode(false) |
@@ -1345,6 +1336,7 @@ class ObjectLiteral final : public AggregateLiteral {
   uint32_t boilerplate_properties_;
   Handle<ObjectBoilerplateDescription> boilerplate_description_;
   ZoneList<Property*> properties_;
+  Variable* home_object_;
 
   using HasElementsField = AggregateLiteral::NextBitField<bool, 1>;
   using HasRestPropertyField = HasElementsField::Next<bool, 1>;
@@ -2141,8 +2133,6 @@ class FunctionLiteral final : public Expression {
   }
   V8_EXPORT_PRIVATE LanguageMode language_mode() const;
 
-  static bool NeedsHomeObject(Expression* expr);
-
   void add_expected_properties(int number_properties) {
     expected_property_count_ += number_properties;
   }
@@ -2363,11 +2353,6 @@ class ClassLiteralProperty final : public LiteralProperty {
     return private_or_computed_name_var_;
   }
 
-  bool NeedsHomeObjectOnClassPrototype() const {
-    return is_private() && kind_ == METHOD &&
-           FunctionLiteral::NeedsHomeObject(value_);
-  }
-
  private:
   friend class AstNodeFactory;
   friend Zone;
@@ -2433,6 +2418,10 @@ class ClassLiteral final : public Expression {
     return instance_members_initializer_function_;
   }
 
+  Variable* home_object() const { return home_object_; }
+
+  Variable* static_home_object() const { return static_home_object_; }
+
  private:
   friend class AstNodeFactory;
   friend Zone;
@@ -2445,7 +2434,8 @@ class ClassLiteral final : public Expression {
                FunctionLiteral* instance_members_initializer_function,
                int start_position, int end_position,
                bool has_name_static_property, bool has_static_computed_names,
-               bool is_anonymous, bool has_private_methods)
+               bool is_anonymous, bool has_private_methods,
+               Variable* home_object, Variable* static_home_object)
       : Expression(start_position, kClassLiteral),
         end_position_(end_position),
         scope_(scope),
@@ -2455,7 +2445,9 @@ class ClassLiteral final : public Expression {
         private_members_(private_members),
         static_fields_initializer_(static_fields_initializer),
         instance_members_initializer_function_(
-            instance_members_initializer_function) {
+            instance_members_initializer_function),
+        home_object_(home_object),
+        static_home_object_(static_home_object) {
     bit_field_ |= HasNameStaticProperty::encode(has_name_static_property) |
                   HasStaticComputedNames::encode(has_static_computed_names) |
                   IsAnonymousExpression::encode(is_anonymous) |
@@ -2474,6 +2466,8 @@ class ClassLiteral final : public Expression {
   using HasStaticComputedNames = HasNameStaticProperty::Next<bool, 1>;
   using IsAnonymousExpression = HasStaticComputedNames::Next<bool, 1>;
   using HasPrivateMethods = IsAnonymousExpression::Next<bool, 1>;
+  Variable* home_object_;
+  Variable* static_home_object_;
 };
 
 
@@ -2500,19 +2494,16 @@ class NativeFunctionLiteral final : public Expression {
 
 class SuperPropertyReference final : public Expression {
  public:
-  Expression* home_object() const { return home_object_; }
+  VariableProxy* home_object() const { return home_object_; }
 
  private:
   friend class AstNodeFactory;
   friend Zone;
 
-  // We take in ThisExpression* only as a proof that it was accessed.
-  SuperPropertyReference(Expression* home_object, int pos)
-      : Expression(pos, kSuperPropertyReference), home_object_(home_object) {
-    DCHECK(home_object->IsProperty());
-  }
+  explicit SuperPropertyReference(VariableProxy* home_object, int pos)
+      : Expression(pos, kSuperPropertyReference), home_object_(home_object) {}
 
-  Expression* home_object_;
+  VariableProxy* home_object_;
 };
 
 
@@ -2926,11 +2917,6 @@ class AstNodeFactory final {
     return zone_->New<Literal>(string, pos);
   }
 
-  // A JavaScript symbol (ECMA-262 edition 6).
-  Literal* NewSymbolLiteral(AstSymbol symbol, int pos) {
-    return zone_->New<Literal>(symbol, pos);
-  }
-
   Literal* NewNumberLiteral(double number, int pos);
 
   Literal* NewSmiLiteral(int number, int pos) {
@@ -2959,9 +2945,10 @@ class AstNodeFactory final {
 
   ObjectLiteral* NewObjectLiteral(
       const ScopedPtrList<ObjectLiteral::Property>& properties,
-      uint32_t boilerplate_properties, int pos, bool has_rest_property) {
+      uint32_t boilerplate_properties, int pos, bool has_rest_property,
+      Variable* home_object = nullptr) {
     return zone_->New<ObjectLiteral>(zone_, properties, boilerplate_properties,
-                                     pos, has_rest_property);
+                                     pos, has_rest_property, home_object);
   }
 
   ObjectLiteral::Property* NewObjectLiteralProperty(
@@ -3195,12 +3182,14 @@ class AstNodeFactory final {
       FunctionLiteral* instance_members_initializer_function,
       int start_position, int end_position, bool has_name_static_property,
       bool has_static_computed_names, bool is_anonymous,
-      bool has_private_methods) {
+      bool has_private_methods, Variable* home_object,
+      Variable* static_home_object) {
     return zone_->New<ClassLiteral>(
         scope, extends, constructor, public_members, private_members,
         static_fields_initializer, instance_members_initializer_function,
         start_position, end_position, has_name_static_property,
-        has_static_computed_names, is_anonymous, has_private_methods);
+        has_static_computed_names, is_anonymous, has_private_methods,
+        home_object, static_home_object);
   }
 
   NativeFunctionLiteral* NewNativeFunctionLiteral(const AstRawString* name,
@@ -3209,9 +3198,9 @@ class AstNodeFactory final {
     return zone_->New<NativeFunctionLiteral>(name, extension, pos);
   }
 
-  SuperPropertyReference* NewSuperPropertyReference(Expression* home_object,
-                                                    int pos) {
-    return zone_->New<SuperPropertyReference>(home_object, pos);
+  SuperPropertyReference* NewSuperPropertyReference(
+      VariableProxy* home_object_var, int pos) {
+    return zone_->New<SuperPropertyReference>(home_object_var, pos);
   }
 
   SuperCallReference* NewSuperCallReference(VariableProxy* new_target_var,

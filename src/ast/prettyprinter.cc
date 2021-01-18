@@ -662,14 +662,6 @@ void AstPrinter::PrintLiteral(Literal* literal, bool quote) {
     case Literal::kString:
       PrintLiteral(literal->AsRawString(), quote);
       break;
-    case Literal::kSymbol:
-      const char* symbol;
-      switch (literal->AsSymbol()) {
-        case AstSymbol::kHomeObjectSymbol:
-          symbol = "HomeObjectSymbol";
-      }
-      Print("%s", symbol);
-      break;
     case Literal::kSmi:
       Print("%d", Smi::ToInt(literal->AsSmiLiteral()));
       break;

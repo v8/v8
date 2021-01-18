@@ -90,7 +90,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& LoadLiteral(const AstRawString* raw_string);
   BytecodeArrayBuilder& LoadLiteral(const Scope* scope);
   BytecodeArrayBuilder& LoadLiteral(AstBigInt bigint);
-  BytecodeArrayBuilder& LoadLiteral(AstSymbol symbol);
   BytecodeArrayBuilder& LoadUndefined();
   BytecodeArrayBuilder& LoadNull();
   BytecodeArrayBuilder& LoadTheHole();
@@ -200,11 +199,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // in the accumulator.
   BytecodeArrayBuilder& StoreInArrayLiteral(Register array, Register index,
                                             int feedback_slot);
-  // Store the home object property. The value to be stored should be in the
-  // accumulator.
-  BytecodeArrayBuilder& StoreHomeObjectProperty(Register object,
-                                                int feedback_slot,
-                                                LanguageMode language_mode);
 
   // Store the class fields property. The initializer to be stored should
   // be in the accumulator.

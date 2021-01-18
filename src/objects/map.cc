@@ -1599,13 +1599,9 @@ void EnsureInitialMap(Isolate* isolate, Handle<Map> map) {
          // Same holds for GeneratorFunction and its initial map.
          *map == *isolate->generator_function_map() ||
          *map == *isolate->generator_function_with_name_map() ||
-         *map == *isolate->generator_function_with_home_object_map() ||
-         *map == *isolate->generator_function_with_name_and_home_object_map() ||
          // AsyncFunction has Null as a constructor.
          *map == *isolate->async_function_map() ||
-         *map == *isolate->async_function_with_name_map() ||
-         *map == *isolate->async_function_with_home_object_map() ||
-         *map == *isolate->async_function_with_name_and_home_object_map());
+         *map == *isolate->async_function_with_name_map());
 #endif
   // Initial maps must not contain descriptors in the descriptors array
   // that do not belong to the map.

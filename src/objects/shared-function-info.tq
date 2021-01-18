@@ -27,7 +27,6 @@ bitfield struct SharedFunctionInfoFlags extends uint32 {
   is_class_constructor: bool: 1 bit;
   has_duplicate_parameters: bool: 1 bit;
   allow_lazy_compilation: bool: 1 bit;
-  needs_home_object: bool: 1 bit;
   is_asm_wasm_broken: bool: 1 bit;
   function_map_index: uint32: 5 bit;
   disabled_optimization_reason: BailoutReason: 4 bit;
