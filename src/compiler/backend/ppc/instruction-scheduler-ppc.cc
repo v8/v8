@@ -189,6 +189,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I64x2ShrU:
     case kPPC_I64x2Neg:
     case kPPC_I64x2BitMask:
+    case kPPC_I64x2SConvertI32x4Low:
+    case kPPC_I64x2SConvertI32x4High:
+    case kPPC_I64x2UConvertI32x4Low:
+    case kPPC_I64x2UConvertI32x4High:
     case kPPC_I32x4Splat:
     case kPPC_I32x4ExtractLane:
     case kPPC_I32x4ReplaceLane:

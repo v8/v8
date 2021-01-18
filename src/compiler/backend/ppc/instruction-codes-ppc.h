@@ -264,6 +264,10 @@ namespace compiler {
   V(PPC_I64x2ShrU)                   \
   V(PPC_I64x2Neg)                    \
   V(PPC_I64x2BitMask)                \
+  V(PPC_I64x2SConvertI32x4Low)       \
+  V(PPC_I64x2SConvertI32x4High)      \
+  V(PPC_I64x2UConvertI32x4Low)       \
+  V(PPC_I64x2UConvertI32x4High)      \
   V(PPC_I32x4Splat)                  \
   V(PPC_I32x4ExtractLane)            \
   V(PPC_I32x4ReplaceLane)            \

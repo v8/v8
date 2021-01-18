@@ -3100,6 +3100,40 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ xvcvuxwsp(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
+
+    case kPPC_I64x2SConvertI32x4Low: {
+      __ vupklsw(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kPPC_I64x2SConvertI32x4High: {
+      __ vupkhsw(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kPPC_I64x2UConvertI32x4Low: {
+      constexpr int lane_width_in_bytes = 8;
+      __ vupklsw(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      // Zero extend.
+      __ mov(ip, Operand(0xFFFFFFFF));
+      __ mtvsrd(kScratchSimd128Reg, ip);
+      __ vinsertd(kScratchSimd128Reg, kScratchSimd128Reg,
+                  Operand(1 * lane_width_in_bytes));
+      __ vand(i.OutputSimd128Register(), kScratchSimd128Reg,
+              i.OutputSimd128Register());
+      break;
+    }
+    case kPPC_I64x2UConvertI32x4High: {
+      constexpr int lane_width_in_bytes = 8;
+      __ vupkhsw(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      // Zero extend.
+      __ mov(ip, Operand(0xFFFFFFFF));
+      __ mtvsrd(kScratchSimd128Reg, ip);
+      __ vinsertd(kScratchSimd128Reg, kScratchSimd128Reg,
+                  Operand(1 * lane_width_in_bytes));
+      __ vand(i.OutputSimd128Register(), kScratchSimd128Reg,
+              i.OutputSimd128Register());
+      break;
+    }
+
     case kPPC_I32x4SConvertI16x8Low: {
       __ vupklsh(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
