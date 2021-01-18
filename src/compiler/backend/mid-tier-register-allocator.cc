@@ -1498,6 +1498,7 @@ class SinglePassRegisterAllocator final {
   RegisterBitVector in_use_at_instr_start_bits_;
   RegisterBitVector in_use_at_instr_end_bits_;
   RegisterBitVector allocated_registers_bits_;
+  RegisterBitVector same_input_output_registers_bits_;
 
   // These fields are only used when kSimpleFPAliasing == false.
   base::Optional<ZoneVector<RegisterIndex>> float32_reg_code_to_index_;
@@ -1523,7 +1524,8 @@ SinglePassRegisterAllocator::SinglePassRegisterAllocator(
       data_(data),
       in_use_at_instr_start_bits_(),
       in_use_at_instr_end_bits_(),
-      allocated_registers_bits_() {
+      allocated_registers_bits_(),
+      same_input_output_registers_bits_() {
   for (int i = 0; i < num_allocatable_registers_; i++) {
     int reg_code = index_to_reg_code_[i];
     reg_code_to_index_[reg_code] = RegisterIndex(i);
@@ -1591,6 +1593,7 @@ void SinglePassRegisterAllocator::UpdateForDeferredBlock(int instr_index) {
 void SinglePassRegisterAllocator::EndInstruction() {
   in_use_at_instr_end_bits_.Reset();
   in_use_at_instr_start_bits_.Reset();
+  same_input_output_registers_bits_.Reset();
 }
 
 void SinglePassRegisterAllocator::StartBlock(const InstructionBlock* block) {
@@ -1599,6 +1602,7 @@ void SinglePassRegisterAllocator::StartBlock(const InstructionBlock* block) {
   DCHECK(in_use_at_instr_start_bits_.IsEmpty());
   DCHECK(in_use_at_instr_end_bits_.IsEmpty());
   DCHECK(allocated_registers_bits_.IsEmpty());
+  DCHECK(same_input_output_registers_bits_.IsEmpty());
 
   // Update the current block we are processing.
   current_block_ = block;
@@ -1617,6 +1621,7 @@ void SinglePassRegisterAllocator::StartBlock(const InstructionBlock* block) {
 void SinglePassRegisterAllocator::EndBlock(const InstructionBlock* block) {
   DCHECK(in_use_at_instr_start_bits_.IsEmpty());
   DCHECK(in_use_at_instr_end_bits_.IsEmpty());
+  DCHECK(same_input_output_registers_bits_.IsEmpty());
 
   // If we didn't allocate any registers of this kind, or we have reached the
   // start, nothing to do here.
@@ -1903,6 +1908,9 @@ void SinglePassRegisterAllocator::FreeRegister(RegisterIndex reg,
 RegisterIndex SinglePassRegisterAllocator::ChooseRegisterFor(
     VirtualRegisterData& virtual_register, int instr_index, UsePosition pos,
     bool must_use_register) {
+  DCHECK_NE(pos, UsePosition::kNone);
+  MachineRepresentation rep = RepresentationFor(virtual_register.vreg());
+
   // If register is already allocated to the virtual register, use that.
   RegisterIndex reg = RegisterForVirtualRegister(virtual_register.vreg());
 
@@ -1910,14 +1918,24 @@ RegisterIndex SinglePassRegisterAllocator::ChooseRegisterFor(
   // register hasn't yet been spilled, to try to avoid spilling it.
   if (!reg.is_valid() && (must_use_register ||
                           !virtual_register.IsSpilledAt(instr_index, data()))) {
-    reg = ChooseRegisterFor(RepresentationFor(virtual_register.vreg()), pos,
-                            must_use_register);
+    reg = ChooseRegisterFor(rep, pos, must_use_register);
+  } else if (reg.is_valid() &&
+             same_input_output_registers_bits_.Contains(reg, rep) &&
+             pos != UsePosition::kStart) {
+    // If we are trying to allocate a register that was used as a
+    // same_input_output operand, then we can't use it for an input that expands
+    // past UsePosition::kStart. This should only happen for REGISTER_OR_SLOT
+    // operands that are used for the deopt state, so we can just use a spill
+    // slot.
+    CHECK(!must_use_register);
+    return RegisterIndex::Invalid();
   }
   return reg;
 }
 
 RegisterIndex SinglePassRegisterAllocator::ChooseRegisterFor(
     MachineRepresentation rep, UsePosition pos, bool must_use_register) {
+  DCHECK_NE(pos, UsePosition::kNone);
   RegisterIndex reg = ChooseFreeRegister(rep, pos);
   if (!reg.is_valid() && must_use_register) {
     reg = ChooseRegisterToSpill(rep, pos);
@@ -2323,6 +2341,7 @@ void SinglePassRegisterAllocator::AllocateSameInputOutput(
     MachineRepresentation rep = RepresentationFor(input_vreg);
     UnallocatedOperand fixed_input(policy, ToRegCode(reg, rep), input_vreg);
     InstructionOperand::ReplaceWith(input, &fixed_input);
+    same_input_output_registers_bits_.Add(reg, rep);
   } else {
     // Output was spilled. Due to the SameAsInput allocation policy, we need to
     // make the input operand the same as the output, i.e., the output virtual
