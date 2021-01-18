@@ -85,6 +85,19 @@ WASM_EXEC_TEST(InitExpression) {
   }
 }
 
+WASM_EXEC_TEST(MemorySize) {
+  // TODO(clemensb): Implement memory64 in the interpreter.
+  if (execution_tier == TestExecutionTier::kInterpreter) return;
+
+  Memory64Runner<uint64_t> r(execution_tier);
+  constexpr int kNumPages = 13;
+  r.builder().AddMemoryElems<uint8_t>(kNumPages * kWasmPageSize);
+
+  BUILD(r, WASM_MEMORY_SIZE);
+
+  CHECK_EQ(kNumPages, r.Call());
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

@@ -2613,11 +2613,19 @@ class LiftoffCompiler {
     unsupported(decoder, kSimd, "simd load lane");
   }
 
-  void CurrentMemoryPages(FullDecoder* decoder, Value* result) {
+  void CurrentMemoryPages(FullDecoder* /* decoder */, Value* /* result */) {
     Register mem_size = __ GetUnusedRegister(kGpReg, {}).gp();
     LOAD_INSTANCE_FIELD(mem_size, MemorySize, kSystemPointerSize);
     __ emit_ptrsize_shri(mem_size, mem_size, kWasmPageSizeLog2);
-    __ PushRegister(kWasmI32, LiftoffRegister(mem_size));
+    LiftoffRegister result{mem_size};
+    if (env_->module->is_memory64 && kNeedI64RegPair) {
+      LiftoffRegister high_word =
+          __ GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(mem_size));
+      // The high word is always 0 on 32-bit systems.
+      __ LoadConstant(high_word, WasmValue{uint32_t{0}});
+      result = LiftoffRegister::ForPair(mem_size, high_word.gp());
+    }
+    __ PushRegister(env_->module->is_memory64 ? kWasmI64 : kWasmI32, result);
   }
 
   void MemoryGrow(FullDecoder* decoder, const Value& value, Value* result_val) {
