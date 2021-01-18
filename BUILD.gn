@@ -285,6 +285,10 @@ declare_args() {
   # Experimental feature for always keeping prototypes in dict/"slow" mode
   # Sets -DV8_DICT_MODE_PROTOTYPES
   v8_dict_mode_prototypes = false
+
+  # If enabled then macro definitions that are used in externally visible
+  # header files are placed in a separate header file v8-gn.h.
+  v8_generate_external_defines_header = false
 }
 
 # Derived defaults.
@@ -409,6 +413,7 @@ config("internal_config_base") {
     ".",
     "include",
     "$target_gen_dir",
+    "$target_gen_dir/include",
   ]
 }
 
@@ -458,6 +463,7 @@ config("libbase_config") {
   if (is_android && current_toolchain != host_toolchain) {
     libs += [ "log" ]
   }
+  include_dirs = [ "$target_gen_dir/include" ]
 }
 
 # Standalone cppgc cannot be built within chrome or with perfetto.
@@ -510,54 +516,98 @@ config("external_startup_data") {
   }
 }
 
+# List of defines that can appear in externally visible header files and that
+# are controlled by args.gn.
+external_v8_defines = [
+  "V8_ENABLE_CHECKS",
+  "V8_COMPRESS_POINTERS",
+  "V8_31BIT_SMIS_ON_64BIT_ARCH",
+  "V8_COMPRESS_ZONES",
+  "V8_HEAP_SANDBOX",
+  "V8_DEPRECATION_WARNINGS",
+  "V8_IMMINENT_DEPRECATION_WARNINGS",
+  "V8_NO_ARGUMENTS_ADAPTOR",
+  "V8_USE_PERFETTO",
+]
+
+enabled_external_v8_defines = []
+
+if (v8_enable_v8_checks) {
+  enabled_external_v8_defines += [ "V8_ENABLE_CHECKS" ]
+}
+if (v8_enable_pointer_compression) {
+  enabled_external_v8_defines += [ "V8_COMPRESS_POINTERS" ]
+}
+if (v8_enable_pointer_compression || v8_enable_31bit_smis_on_64bit_arch) {
+  enabled_external_v8_defines += [ "V8_31BIT_SMIS_ON_64BIT_ARCH" ]
+}
+if (v8_enable_zone_compression) {
+  enabled_external_v8_defines += [ "V8_COMPRESS_ZONES" ]
+}
+if (v8_enable_heap_sandbox) {
+  enabled_external_v8_defines += [ "V8_HEAP_SANDBOX" ]
+}
+if (v8_deprecation_warnings) {
+  enabled_external_v8_defines += [ "V8_DEPRECATION_WARNINGS" ]
+}
+if (v8_imminent_deprecation_warnings) {
+  enabled_external_v8_defines += [ "V8_IMMINENT_DEPRECATION_WARNINGS" ]
+}
+if (v8_use_perfetto) {
+  enabled_external_v8_defines += [ "V8_USE_PERFETTO" ]
+}
+
+disabled_external_v8_defines = external_v8_defines - enabled_external_v8_defines
+
 # Put defines that are used in public headers here; public headers are
 # defined in "v8_headers" and are included by embedders of V8.
 config("v8_header_features") {
   visibility = [ ":*" ]
 
-  defines = []
-
-  if (v8_enable_v8_checks) {
-    defines += [ "V8_ENABLE_CHECKS" ]  # Used in "include/v8.h".
-  }
-  if (v8_enable_pointer_compression) {
-    defines += [ "V8_COMPRESS_POINTERS" ]
-  }
-  if (v8_enable_pointer_compression || v8_enable_31bit_smis_on_64bit_arch) {
-    defines += [ "V8_31BIT_SMIS_ON_64BIT_ARCH" ]
-  }
-  if (v8_enable_zone_compression) {
-    defines += [ "V8_COMPRESS_ZONES" ]
-  }
-  if (v8_enable_heap_sandbox) {
-    defines += [ "V8_HEAP_SANDBOX" ]
-  }
-  if (v8_deprecation_warnings) {
-    defines += [ "V8_DEPRECATION_WARNINGS" ]
-  }
-  if (v8_imminent_deprecation_warnings) {
-    defines += [ "V8_IMMINENT_DEPRECATION_WARNINGS" ]
-  }
-  if (v8_use_perfetto) {
-    defines += [ "V8_USE_PERFETTO" ]
+  if (v8_generate_external_defines_header) {
+    defines = [ "V8_GN_HEADER" ]
+  } else {
+    defines = enabled_external_v8_defines
   }
 }
+
+# List of defines that can appear in externally visible cppgc header files and
+# that are controlled by args.gn.
+external_cppgc_defines = [
+  "CPPGC_SUPPORTS_OBJECT_NAMES",
+  "CPPGC_CAGED_HEAP",
+  "CPPGC_YOUNG_GENERATION",
+]
+
+enabled_external_cppgc_defines = []
+
+if (cppgc_enable_object_names) {
+  enabled_external_cppgc_defines += [ "CPPGC_SUPPORTS_OBJECT_NAMES" ]
+}
+if (cppgc_enable_caged_heap) {
+  enabled_external_cppgc_defines += [ "CPPGC_CAGED_HEAP" ]
+}
+if (cppgc_enable_young_generation) {
+  enabled_external_cppgc_defines += [ "CPPGC_YOUNG_GENERATION" ]
+}
+
+disabled_external_cppgc_defines =
+    external_cppgc_defines - enabled_external_cppgc_defines
 
 config("cppgc_header_features") {
   visibility = [ ":*" ]
 
-  defines = []
-
-  if (cppgc_enable_object_names) {
-    defines += [ "CPPGC_SUPPORTS_OBJECT_NAMES" ]
-  }
-  if (cppgc_enable_caged_heap) {
-    defines += [ "CPPGC_CAGED_HEAP" ]
-  }
-  if (cppgc_enable_young_generation) {
-    defines += [ "CPPGC_YOUNG_GENERATION" ]
+  if (v8_generate_external_defines_header) {
+    defines = [ "V8_GN_HEADER" ]
+  } else {
+    defines = enabled_external_cppgc_defines
   }
 }
+
+enabled_external_defines =
+    enabled_external_v8_defines + enabled_external_cppgc_defines
+disabled_external_defines =
+    disabled_external_v8_defines + disabled_external_cppgc_defines
 
 # Put defines here that are only used in our internal files and NEVER in
 # external headers that embedders (such as chromium and node) might include.
@@ -1991,6 +2041,18 @@ v8_header_set("v8_version") {
   ]
 }
 
+v8_header_set("v8_config_headers") {
+  configs = [ ":internal_config" ]
+
+  sources = [ "include/v8config.h" ]
+  deps = []
+
+  if (v8_generate_external_defines_header) {
+    sources += [ "$target_gen_dir/include/v8-gn.h" ]
+    deps += [ ":gen_v8_gn" ]
+  }
+}
+
 # This is split out to be a non-code containing target that the Chromium browser
 # can depend upon to get basic v8 types.
 v8_header_set("v8_headers") {
@@ -2002,7 +2064,6 @@ v8_header_set("v8_headers") {
     "include/v8-fast-api-calls.h",
     "include/v8-internal.h",
     "include/v8.h",
-    "include/v8config.h",
   ]
 
   sources += [
@@ -2013,7 +2074,35 @@ v8_header_set("v8_headers") {
     "include/v8-wasm-trap-handler-win.h",
   ]
 
+  public_deps = [ ":v8_config_headers" ]
+
   deps = [ ":v8_version" ]
+}
+
+if (v8_generate_external_defines_header) {
+  action("gen_v8_gn") {
+    visibility = [ ":*" ]
+
+    script = "tools/gen-v8-gn.py"
+    outputs = [ "$target_gen_dir/include/v8-gn.h" ]
+
+    args = [
+      "-o",
+      rebase_path("$target_gen_dir/include/v8-gn.h", root_build_dir),
+    ]
+    foreach(define, enabled_external_defines) {
+      args += [
+        "-p",
+        define,
+      ]
+    }
+    foreach(define, disabled_external_defines) {
+      args += [
+        "-n",
+        define,
+      ]
+    }
+  }
 }
 
 v8_header_set("v8_wrappers") {
@@ -2346,19 +2435,14 @@ v8_source_set("v8_base_without_compiler") {
     ### gcmole(all) ###
     "$target_gen_dir/builtins-generated/bytecodes-builtins-list.h",
     "include/cppgc/common.h",
-    "include/v8-cppgc.h",
-    "include/v8-fast-api-calls.h",
     "include/v8-inspector-protocol.h",
     "include/v8-inspector.h",
-    "include/v8-internal.h",
     "include/v8-metrics.h",
     "include/v8-platform.h",
     "include/v8-profiler.h",
     "include/v8-unwinder-state.h",
     "include/v8-util.h",
     "include/v8-wasm-trap-handler-posix.h",
-    "include/v8.h",
-    "include/v8config.h",
     "src/api/api-arguments-inl.h",
     "src/api/api-arguments.cc",
     "src/api/api-arguments.h",
@@ -3878,6 +3962,7 @@ v8_source_set("v8_base_without_compiler") {
     ":cppgc_base",
     ":generate_bytecode_builtins_list",
     ":run_torque",
+    ":v8_headers",
     ":v8_maybe_icu",
   ]
 
@@ -4504,7 +4589,6 @@ v8_source_set("cppgc_base") {
     "include/cppgc/trace-trait.h",
     "include/cppgc/type-traits.h",
     "include/cppgc/visitor.h",
-    "include/v8config.h",
     "src/heap/cppgc/allocation.cc",
     "src/heap/cppgc/compaction-worklists.cc",
     "src/heap/cppgc/compaction-worklists.h",
@@ -4600,6 +4684,7 @@ v8_source_set("cppgc_base") {
   ]
 
   public_deps = [
+    ":v8_config_headers",
     ":v8_cppgc_shared",
     ":v8_libbase",
     ":v8_libplatform",

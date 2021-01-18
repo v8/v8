@@ -10,6 +10,7 @@
 #include "cppgc/internal/api-constants.h"
 #include "cppgc/internal/logging.h"
 #include "cppgc/platform.h"
+#include "v8config.h"  // NOLINT(build/include_directory)
 
 namespace cppgc {
 namespace internal {

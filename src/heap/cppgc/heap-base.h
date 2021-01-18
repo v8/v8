@@ -17,6 +17,7 @@
 #include "src/heap/cppgc/object-allocator.h"
 #include "src/heap/cppgc/raw-heap.h"
 #include "src/heap/cppgc/sweeper.h"
+#include "v8config.h"  // NOLINT(build/include_directory)
 
 #if defined(CPPGC_CAGED_HEAP)
 #include "src/heap/cppgc/caged-heap.h"
