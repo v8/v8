@@ -528,6 +528,19 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
           break;
         }
 
+        case Translation::JS_TO_WASM_BUILTIN_CONTINUATION_FRAME: {
+          int bailout_id = iterator.Next();
+          int shared_info_id = iterator.Next();
+          Object shared_info = LiteralArray().get(shared_info_id);
+          unsigned height = iterator.Next();
+          int wasm_return_type = iterator.Next();
+          os << "{bailout_id=" << bailout_id << ", function="
+             << SharedFunctionInfo::cast(shared_info).DebugNameCStr().get()
+             << ", height=" << height
+             << ", wasm_return_type=" << wasm_return_type << "}";
+          break;
+        }
+
         case Translation::ARGUMENTS_ADAPTOR_FRAME: {
           int shared_info_id = iterator.Next();
           Object shared_info = LiteralArray().get(shared_info_id);

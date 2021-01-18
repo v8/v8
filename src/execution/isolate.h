@@ -1090,6 +1090,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
         isolate_root_bias());
   }
 
+  THREAD_LOCAL_TOP_ADDRESS(Address, thread_in_wasm_flag_address)
+
   MaterializedObjectStore* materialized_object_store() {
     return materialized_object_store_;
   }

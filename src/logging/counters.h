@@ -923,6 +923,7 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, GenericLowering)                 \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BytecodeGraphBuilder)            \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Inlining)                        \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmInlining)                    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, JumpThreading)                   \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LateGraphTrimming)               \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LateOptimization)                \

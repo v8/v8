@@ -66,6 +66,8 @@ enum class FrameStateType {
   kArgumentsAdaptor,               // Represents an ArgumentsAdaptorFrame.
   kConstructStub,                  // Represents a ConstructStubFrame.
   kBuiltinContinuation,            // Represents a continuation to a stub.
+  kJSToWasmBuiltinContinuation,    // Represents a lazy deopt continuation for a
+                                   // JS to Wasm call.
   kJavaScriptBuiltinContinuation,  // Represents a continuation to a JavaScipt
                                    // builtin.
   kJavaScriptBuiltinContinuationWithCatch  // Represents a continuation to a
@@ -101,6 +103,22 @@ class FrameStateFunctionInfo {
   Handle<SharedFunctionInfo> const shared_info_;
 };
 
+class JSToWasmFrameStateFunctionInfo : public FrameStateFunctionInfo {
+ public:
+  JSToWasmFrameStateFunctionInfo(FrameStateType type, int parameter_count,
+                                 int local_count,
+                                 Handle<SharedFunctionInfo> shared_info,
+                                 const wasm::FunctionSig* signature)
+      : FrameStateFunctionInfo(type, parameter_count, local_count, shared_info),
+        signature_(signature) {
+    DCHECK_NOT_NULL(signature);
+  }
+
+  const wasm::FunctionSig* signature() const { return signature_; }
+
+ private:
+  const wasm::FunctionSig* const signature_;
+};
 
 class FrameStateInfo final {
  public:
@@ -154,7 +172,12 @@ enum class ContinuationFrameStateMode { EAGER, LAZY, LAZY_WITH_CATCH };
 FrameState CreateStubBuiltinContinuationFrameState(
     JSGraph* graph, Builtins::Name name, Node* context, Node* const* parameters,
     int parameter_count, Node* outer_frame_state,
-    ContinuationFrameStateMode mode);
+    ContinuationFrameStateMode mode,
+    const wasm::FunctionSig* signature = nullptr);
+
+FrameState CreateJSWasmCallBuiltinContinuationFrameState(
+    JSGraph* jsgraph, Node* context, Node* outer_frame_state,
+    const wasm::FunctionSig* signature);
 
 FrameState CreateJavaScriptBuiltinContinuationFrameState(
     JSGraph* graph, const SharedFunctionInfoRef& shared, Builtins::Name name,
