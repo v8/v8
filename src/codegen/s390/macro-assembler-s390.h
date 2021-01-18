@@ -326,20 +326,36 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CmpU32(Register dst, const MemOperand& opnd);
   void CmpU64(Register dst, const MemOperand& opnd);
 
-  // Load 32bit
+  // Load
+  void LoadU64(Register dst, const MemOperand& mem, Register scratch = no_reg);
   void LoadS32(Register dst, const MemOperand& opnd, Register scratch = no_reg);
   void LoadS32(Register dst, Register src);
   void LoadU32(Register dst, const MemOperand& opnd, Register scratch = no_reg);
   void LoadU32(Register dst, Register src);
   void LoadU16(Register dst, const MemOperand& opnd);
   void LoadU16(Register dst, Register src);
+  void LoadS16(Register dst, Register src);
+  void LoadS16(Register dst, const MemOperand& mem, Register scratch = no_reg);
   void LoadS8(Register dst, const MemOperand& opnd);
   void LoadS8(Register dst, Register src);
   void LoadU8(Register dst, const MemOperand& opnd);
   void LoadU8(Register dst, Register src);
-
-  void LoadLogicalReversedWordP(Register dst, const MemOperand& opnd);
-  void LoadLogicalReversedHalfWordP(Register dst, const MemOperand& opnd);
+  void LoadV128(Simd128Register dst, const MemOperand& mem, Register scratch);
+  void LoadF64(DoubleRegister dst, const MemOperand& opnd);
+  void LoadF32(DoubleRegister dst, const MemOperand& opnd);
+  // LE Load
+  void LoadU64LE(Register dst, const MemOperand& mem,
+                 Register scratch = no_reg);
+  void LoadS32LE(Register dst, const MemOperand& opnd,
+                 Register scratch = no_reg);
+  void LoadU32LE(Register dst, const MemOperand& opnd,
+                 Register scratch = no_reg);
+  void LoadU16LE(Register dst, const MemOperand& opnd);
+  void LoadS16LE(Register dst, const MemOperand& opnd);
+  void LoadV128LE(DoubleRegister dst, const MemOperand& mem, Register scratch0,
+                  Register scratch1);
+  void LoadF64LE(DoubleRegister dst, const MemOperand& opnd, Register scratch);
+  void LoadF32LE(DoubleRegister dst, const MemOperand& opnd, Register scratch);
 
   // Load And Test
   void LoadAndTest32(Register dst, Register src);
@@ -348,10 +364,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadAndTest32(Register dst, const MemOperand& opnd);
   void LoadAndTestP(Register dst, const MemOperand& opnd);
 
-  // Load Floating Point
-  void LoadF64(DoubleRegister dst, const MemOperand& opnd);
-  void LoadF32(DoubleRegister dst, const MemOperand& opnd);
-  void LoadV128(Simd128Register dst, const MemOperand& mem, Register scratch);
 
   void AddFloat32(DoubleRegister dst, const MemOperand& opnd,
                   DoubleRegister scratch);
@@ -378,7 +390,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadPositiveP(Register result, Register input);
   void LoadPositive32(Register result, Register input);
 
-  // Store Floating Point
+  // Store
+  void StoreU64(Register src, const MemOperand& mem, Register scratch = no_reg);
+  void StoreU64(const MemOperand& mem, const Operand& opnd,
+                Register scratch = no_reg);
+  void StoreU32(Register src, const MemOperand& mem, Register scratch = no_reg);
+
+  void StoreU16(Register src, const MemOperand& mem, Register scratch = r0);
+  void StoreU8(Register src, const MemOperand& mem, Register scratch = r0);
   void StoreF64(DoubleRegister dst, const MemOperand& opnd);
   void StoreF32(DoubleRegister dst, const MemOperand& opnd);
   void StoreV128(Simd128Register src, const MemOperand& mem, Register scratch);
@@ -696,21 +715,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     LoadF64(result, static_cast<uint64_t>(int_val) << 32, scratch);
   }
 
-  // void LoadF64(DoubleRegister result, double value, Register scratch);
-  // void LoadF64(DoubleRegister result, uint64_t value,
-  //                        Register scratch);
-
-  // void LoadF32(DoubleRegister result, float value, Register scratch);
-
-  void StoreU32(Register src, const MemOperand& mem, Register scratch = no_reg);
-
-  void LoadS16(Register dst, Register src);
-
-  void LoadS16(Register dst, const MemOperand& mem,
-                     Register scratch = no_reg);
-
-  void StoreU16(Register src, const MemOperand& mem, Register scratch = r0);
-  void StoreU8(Register src, const MemOperand& mem, Register scratch = r0);
   void CmpSmiLiteral(Register src1, Smi smi, Register scratch);
 
   // Set new rounding mode RN to FPSCR
@@ -723,10 +727,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadP(Register dst, const MemOperand& mem, Register scratch = no_reg) {
     LoadU64(dst, mem, scratch);
   }
-  void LoadU64(Register dst, const MemOperand& mem, Register scratch = no_reg);
-  void StoreU64(Register src, const MemOperand& mem, Register scratch = no_reg);
-  void StoreU64(const MemOperand& mem, const Operand& opnd,
-                Register scratch = no_reg);
   void LoadMultipleP(Register dst1, Register dst2, const MemOperand& mem);
   void StoreMultipleP(Register dst1, Register dst2, const MemOperand& mem);
   void LoadMultipleW(Register dst1, Register dst2, const MemOperand& mem);
