@@ -695,13 +695,17 @@ class LiftoffCompiler {
 
     if (FLAG_experimental_liftoff_extern_ref) {
       // Initialize all reference type locals with ref.null.
-      for (uint32_t param_idx = num_params; param_idx < __ num_locals();
-           ++param_idx) {
-        ValueType type = decoder->local_type(param_idx);
+      Register null_ref_reg = no_reg;
+      for (uint32_t local_index = num_params; local_index < __ num_locals();
+           ++local_index) {
+        ValueType type = decoder->local_type(local_index);
         if (type.is_reference_type()) {
-          LiftoffRegister result = __ GetUnusedRegister(kGpReg, {});
-          LoadNullValue(result.gp(), {});
-          __ Spill(__ cache_state()->stack_state.back().offset(), result, type);
+          if (null_ref_reg == no_reg) {
+            null_ref_reg = __ GetUnusedRegister(kGpReg, {}).gp();
+            LoadNullValue(null_ref_reg, {});
+          }
+          __ Spill(__ cache_state()->stack_state[local_index].offset(),
+                   LiftoffRegister(null_ref_reg), type);
         }
       }
     }
