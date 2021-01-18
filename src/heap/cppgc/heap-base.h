@@ -156,11 +156,18 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   // Notifies the heap that a GC is done.
   virtual void PostGarbageCollection() = 0;
 
+  // Termination drops all roots (clears them out) and runs garbage collections
+  // in a bounded fixed point loop  until no new objects are created in
+  // destructors. Exceeding the loop bound results in a crash.
+  void Terminate();
+
  protected:
   virtual void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) = 0;
 
   bool in_no_gc_scope() const { return no_gc_scope_ > 0; }
+
+  bool IsMarking() const { return marker_.get(); }
 
   RawHeap raw_heap_;
   std::shared_ptr<cppgc::Platform> platform_;

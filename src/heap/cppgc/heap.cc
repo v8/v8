@@ -105,8 +105,6 @@ Heap::~Heap() {
   sweeper_.FinishIfRunning();
 }
 
-bool Heap::IsMarking() const { return marker_.get(); }
-
 void Heap::CollectGarbage(Config config) {
   DCHECK_EQ(Config::MarkingType::kAtomic, config.marking_type);
   CheckConfig(config, marking_support_, sweeping_support_);
@@ -149,7 +147,6 @@ void Heap::FinalizeIncrementalGarbageCollectionIfRunning(Config config) {
 
 void Heap::StartGarbageCollection(Config config) {
   DCHECK(!IsMarking());
-
   DCHECK(!in_no_gc_scope());
 
   // Finish sweeping in case it is still running.

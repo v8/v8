@@ -56,6 +56,9 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
 
   void ResetLinearAllocationBuffers();
 
+  // Terminate the allocator. Subsequent allocation calls result in a crash.
+  void Terminate();
+
  private:
   // Returns the initially tried SpaceType to allocate an object of |size| bytes
   // on. Returns the largest regular object size bucket for large objects.

@@ -9,6 +9,7 @@
 #include <numeric>
 
 #include "include/cppgc/allocation.h"
+#include "include/cppgc/persistent.h"
 #include "src/heap/cppgc/globals.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -29,6 +30,8 @@ class GCHeapTest : public testing::TestWithHeap {
         Heap::Config::PreciseAtomicConfig());
   }
 };
+
+class GCHeapDeathTest : public GCHeapTest {};
 
 class Foo : public GarbageCollected<Foo> {
  public:
@@ -151,6 +154,80 @@ TEST_F(GCHeapTest, AllocatedSizeDependOnAdditionalBytes) {
             HeapObjectHeader::FromPayload(object_with_bytes).GetSize());
   EXPECT_LT(HeapObjectHeader::FromPayload(object_with_bytes).GetSize(),
             HeapObjectHeader::FromPayload(object_with_more_bytes).GetSize());
+}
+
+TEST_F(GCHeapTest, TerminateEmptyHeap) { Heap::From(GetHeap())->Terminate(); }
+
+TEST_F(GCHeapTest, TerminateClearsPersistent) {
+  Persistent<Foo> foo = MakeGarbageCollected<Foo>(GetAllocationHandle());
+  EXPECT_TRUE(foo.Get());
+  Heap::From(GetHeap())->Terminate();
+  EXPECT_FALSE(foo.Get());
+}
+
+TEST_F(GCHeapTest, TerminateInvokesDestructor) {
+  Persistent<Foo> foo = MakeGarbageCollected<Foo>(GetAllocationHandle());
+  EXPECT_EQ(0u, Foo::destructor_callcount);
+  Heap::From(GetHeap())->Terminate();
+  EXPECT_EQ(1u, Foo::destructor_callcount);
+}
+
+namespace {
+
+class Cloner final : public GarbageCollected<Cloner> {
+ public:
+  static size_t destructor_count;
+
+  Cloner(cppgc::AllocationHandle& handle, size_t count)
+      : handle_(handle), count_(count) {}
+
+  ~Cloner() {
+    EXPECT_FALSE(new_instance_);
+    destructor_count++;
+    if (count_) {
+      new_instance_ =
+          MakeGarbageCollected<Cloner>(handle_, handle_, count_ - 1);
+    }
+  }
+
+  void Trace(Visitor*) const {}
+
+ private:
+  static Persistent<Cloner> new_instance_;
+
+  cppgc::AllocationHandle& handle_;
+  size_t count_;
+};
+
+Persistent<Cloner> Cloner::new_instance_;
+size_t Cloner::destructor_count;
+
+}  // namespace
+
+TEST_F(GCHeapTest, TerminateReclaimsNewState) {
+  Persistent<Cloner> cloner = MakeGarbageCollected<Cloner>(
+      GetAllocationHandle(), GetAllocationHandle(), 1);
+  Cloner::destructor_count = 0;
+  EXPECT_TRUE(cloner.Get());
+  Heap::From(GetHeap())->Terminate();
+  EXPECT_FALSE(cloner.Get());
+  EXPECT_EQ(2u, Cloner::destructor_count);
+}
+
+TEST_F(GCHeapDeathTest, TerminateProhibitsAllocation) {
+  Heap::From(GetHeap())->Terminate();
+  EXPECT_DEATH_IF_SUPPORTED(MakeGarbageCollected<Foo>(GetAllocationHandle()),
+                            "");
+}
+
+TEST_F(GCHeapDeathTest, LargeChainOfNewStates) {
+  Persistent<Cloner> cloner = MakeGarbageCollected<Cloner>(
+      GetAllocationHandle(), GetAllocationHandle(), 1000);
+  Cloner::destructor_count = 0;
+  EXPECT_TRUE(cloner.Get());
+  // Terminate() requires destructors to stop creating new state within a few
+  // garbage collections.
+  EXPECT_DEATH_IF_SUPPORTED(Heap::From(GetHeap())->Terminate(), "");
 }
 
 }  // namespace internal

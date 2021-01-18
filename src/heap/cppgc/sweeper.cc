@@ -525,6 +525,10 @@ class Sweeper::SweeperImpl final {
   void FinishIfRunning() {
     if (!is_in_progress_) return;
 
+    // Bail out for recursive sweeping calls. This can happen when finalizers
+    // allocate new memory.
+    if (is_sweeping_on_mutator_thread_) return;
+
     {
       StatsCollector::EnabledScope stats_scope(
           *heap_->heap(), StatsCollector::kIncrementalSweep);
@@ -542,6 +546,8 @@ class Sweeper::SweeperImpl final {
 
   void Finish() {
     DCHECK(is_in_progress_);
+
+    MutatorThreadSweepingScope sweeping_in_progresss(*this);
 
     // First, call finalizers on the mutator thread.
     SweepFinalizer finalizer(platform_);
@@ -580,6 +586,25 @@ class Sweeper::SweeperImpl final {
   }
 
  private:
+  class MutatorThreadSweepingScope final {
+   public:
+    explicit MutatorThreadSweepingScope(SweeperImpl& sweeper)
+        : sweeper_(sweeper) {
+      DCHECK(!sweeper_.is_sweeping_on_mutator_thread_);
+      sweeper_.is_sweeping_on_mutator_thread_ = true;
+    }
+    ~MutatorThreadSweepingScope() {
+      sweeper_.is_sweeping_on_mutator_thread_ = false;
+    }
+
+    MutatorThreadSweepingScope(const MutatorThreadSweepingScope&) = delete;
+    MutatorThreadSweepingScope& operator=(const MutatorThreadSweepingScope&) =
+        delete;
+
+   private:
+    SweeperImpl& sweeper_;
+  };
+
   class IncrementalSweepTask : public cppgc::IdleTask {
    public:
     using Handle = SingleThreadedHandle;
@@ -597,6 +622,8 @@ class Sweeper::SweeperImpl final {
    private:
     void Run(double deadline_in_seconds) override {
       if (handle_.IsCanceled() || !sweeper_->is_in_progress_) return;
+
+      MutatorThreadSweepingScope sweeping_in_progresss(*sweeper_);
 
       bool sweep_complete;
       {
@@ -668,8 +695,12 @@ class Sweeper::SweeperImpl final {
   std::shared_ptr<cppgc::TaskRunner> foreground_task_runner_;
   IncrementalSweepTask::Handle incremental_sweeper_handle_;
   std::unique_ptr<cppgc::JobHandle> concurrent_sweeper_handle_;
+  // Indicates whether the sweeping phase is in progress.
   bool is_in_progress_ = false;
   bool notify_done_pending_ = false;
+  // Indicates whether whether the sweeper (or its finalization) is currently
+  // running on the main thread.
+  bool is_sweeping_on_mutator_thread_ = false;
 };
 
 Sweeper::Sweeper(RawHeap* heap, cppgc::Platform* platform,

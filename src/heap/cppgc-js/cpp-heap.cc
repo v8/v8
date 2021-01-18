@@ -42,6 +42,8 @@ cppgc::HeapHandle& CppHeap::GetHeapHandle() {
   return *internal::CppHeap::From(this);
 }
 
+void CppHeap::Terminate() { internal::CppHeap::From(this)->Terminate(); }
+
 void JSHeapConsistency::DijkstraMarkingBarrierSlow(
     cppgc::HeapHandle& heap_handle, const TracedReferenceBase& ref) {
   auto& heap_base = cppgc::internal::HeapBase::From(heap_handle);
@@ -179,6 +181,15 @@ CppHeap::~CppHeap() {
     isolate_.heap_profiler()->RemoveBuildEmbedderGraphCallback(
         &CppGraphBuilder::Run, this);
   }
+}
+
+void CppHeap::Terminate() {
+  FinalizeIncrementalGarbageCollectionIfNeeded(
+      cppgc::Heap::StackState::kNoHeapPointers);
+  // Any future garbage collections will ignore the V8->C++ references.
+  isolate()->SetEmbedderHeapTracer(nullptr);
+  // Gracefully terminate the C++ heap invoking destructors.
+  HeapBase::Terminate();
 }
 
 void CppHeap::RegisterV8References(

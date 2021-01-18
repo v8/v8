@@ -93,5 +93,34 @@ void HeapBase::AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded() {
   if (marker_) marker_->AdvanceMarkingOnAllocation();
 }
 
+void HeapBase::Terminate() {
+  DCHECK(!IsMarking());
+  DCHECK(!in_no_gc_scope());
+
+  sweeper().FinishIfRunning();
+
+  constexpr size_t kMaxTerminationGCs = 20;
+  size_t gc_count = 0;
+  do {
+    CHECK_LT(gc_count++, kMaxTerminationGCs);
+
+    // Clear root sets.
+    strong_persistent_region_.ClearAllUsedNodes();
+    strong_cross_thread_persistent_region_.ClearAllUsedNodes();
+
+    stats_collector()->NotifyMarkingStarted(
+        GarbageCollector::Config::CollectionType::kMajor,
+        GarbageCollector::Config::IsForcedGC::kForced);
+    stats_collector()->NotifyMarkingCompleted(0);
+    object_allocator().ResetLinearAllocationBuffers();
+    sweeper().Start(
+        {Sweeper::SweepingConfig::SweepingType::kAtomic,
+         Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep});
+    sweeper().NotifyDoneIfNeeded();
+  } while (strong_persistent_region_.NodesInUse() > 0);
+
+  object_allocator().Terminate();
+}
+
 }  // namespace internal
 }  // namespace cppgc

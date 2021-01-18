@@ -47,6 +47,8 @@ class V8_EXPORT_PRIVATE CppHeap final : public cppgc::internal::HeapBase,
   void TraceEpilogue(TraceSummary* trace_summary) final;
   void EnterFinalPause(EmbedderStackState stack_state) final;
 
+  void Terminate();
+
  private:
   void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) final {

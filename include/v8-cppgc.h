@@ -48,6 +48,14 @@ class V8_EXPORT CppHeap {
    */
   cppgc::HeapHandle& GetHeapHandle();
 
+  /**
+   * Terminate clears all roots and performs multiple garbage collections to
+   * reclaim potentially newly created objects in destructors.
+   *
+   * After this call, object allocation is prohibited.
+   */
+  void Terminate();
+
  private:
   CppHeap() = default;
 
