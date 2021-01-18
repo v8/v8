@@ -240,7 +240,50 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uintptr_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
                             uint32_t* protected_load_pc, bool is_load_mem) {
-  bailout(kUnsupportedArchitecture, "Load");
+  UseScratchRegisterScope temps(this);
+  CHECK(is_int20(offset_imm));
+  MemOperand src_op =
+      MemOperand(src_addr, offset_reg == no_reg ? r0 : offset_reg, offset_imm);
+  if (protected_load_pc) *protected_load_pc = pc_offset();
+  switch (type.value()) {
+    case LoadType::kI32Load8U:
+    case LoadType::kI64Load8U:
+      LoadU8(dst.gp(), src_op);
+      break;
+    case LoadType::kI32Load8S:
+    case LoadType::kI64Load8S:
+      LoadS8(dst.gp(), src_op);
+      break;
+    case LoadType::kI32Load16U:
+    case LoadType::kI64Load16U:
+      LoadU16LE(dst.gp(), src_op);
+      break;
+    case LoadType::kI32Load16S:
+    case LoadType::kI64Load16S:
+      LoadS16LE(dst.gp(), src_op);
+      break;
+    case LoadType::kI64Load32U:
+      LoadU32LE(dst.gp(), src_op);
+      break;
+    case LoadType::kI32Load:
+    case LoadType::kI64Load32S:
+      LoadS32LE(dst.gp(), src_op);
+      break;
+    case LoadType::kI64Load:
+      LoadU64LE(dst.gp(), src_op);
+      break;
+    case LoadType::kF32Load:
+      LoadF32LE(dst.fp(), src_op, r0);
+      break;
+    case LoadType::kF64Load:
+      LoadF64LE(dst.fp(), src_op, r0);
+      break;
+    case LoadType::kS128Load:
+      LoadV128LE(dst.fp(), src_op, r0, r1);
+      break;
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
