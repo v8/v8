@@ -6871,7 +6871,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                                 args.begin());
         break;
       }
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
       // =======================================================================
       // === JS Functions with mismatching arity ===============================
       // =======================================================================
@@ -6906,51 +6905,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                                 args.begin());
         break;
       }
-#else
-      // =======================================================================
-      // === JS Functions with mismatching arity ===============================
-      // =======================================================================
-      case WasmImportCallKind::kJSFunctionArityMismatch: {
-        base::SmallVector<Node*, 16> args(wasm_count + 9);
-        int pos = 0;
-        Node* function_context =
-            gasm_->LoadContextFromJSFunction(callable_node);
-        args[pos++] =
-            GetBuiltinPointerTarget(Builtins::kArgumentsAdaptorTrampoline);
-        args[pos++] = callable_node;                         // target callable
-        args[pos++] = undefined_node;                        // new target
-        args[pos++] = mcgraph()->Int32Constant(wasm_count);  // argument count
-
-        // Load shared function info, and then the formal parameter count.
-        Node* shared_function_info =
-            gasm_->LoadSharedFunctionInfo(callable_node);
-        Node* formal_param_count =
-            gasm_->Load(MachineType::Uint16(), shared_function_info,
-                        wasm::ObjectAccess::
-                            FormalParameterCountOffsetInSharedFunctionInfo());
-        args[pos++] = formal_param_count;
-
-        // Determine receiver at runtime.
-        args[pos++] =
-            BuildReceiverNode(callable_node, native_context, undefined_node);
-
-        auto call_descriptor = Linkage::GetStubCallDescriptor(
-            mcgraph()->zone(), ArgumentsAdaptorDescriptor{}, 1 + wasm_count,
-            CallDescriptor::kNoFlags, Operator::kNoProperties,
-            StubCallMode::kCallBuiltinPointer);
-
-        // Convert wasm numbers to JS values.
-        pos = AddArgumentNodes(VectorOf(args), pos, wasm_count, sig_);
-        args[pos++] = function_context;
-        args[pos++] = effect();
-        args[pos++] = control();
-
-        DCHECK_EQ(pos, args.size());
-        call = graph()->NewNode(mcgraph()->common()->Call(call_descriptor), pos,
-                                args.begin());
-        break;
-      }
-#endif
       // =======================================================================
       // === General case of unknown callable ==================================
       // =======================================================================

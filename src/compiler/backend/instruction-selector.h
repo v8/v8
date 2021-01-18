@@ -561,7 +561,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
                             CallBufferFlags flags, bool is_tail_call,
                             int stack_slot_delta = 0);
   bool IsTailCallAddressImmediate();
-  int GetTempsCountForTailCallFromJSFunction();
 
   void UpdateMaxPushedArgumentCount(size_t count);
 

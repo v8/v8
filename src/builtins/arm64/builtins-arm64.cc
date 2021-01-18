@@ -950,7 +950,6 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ Ldr(params_size.W(),
          FieldMemOperand(params_size, BytecodeArray::kParameterSizeOffset));
 
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
   Register actual_params_size = scratch2;
   // Compute the size of the actual parameters + receiver (in bytes).
   __ Ldr(actual_params_size,
@@ -965,7 +964,6 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ B(ge, &corrected_args_count);
   __ Mov(params_size, actual_params_size);
   __ Bind(&corrected_args_count);
-#endif
 
   // Leave the frame (also dropping the register file).
   __ LeaveFrame(StackFrame::INTERPRETED);
@@ -2074,30 +2072,6 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
 
 namespace {
 
-void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
-  __ Push<TurboAssembler::kSignLR>(lr, fp);
-  __ Mov(x11, StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR));
-  __ Push(x11, x1);  // x1: function
-  __ SmiTag(x11, x0);  // x0: number of arguments.
-  __ Push(x11, padreg);
-  __ Add(fp, sp, ArgumentsAdaptorFrameConstants::kFixedFrameSizeFromFp);
-}
-
-void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- x0 : result being passed through
-  // -----------------------------------
-  // Get the number of arguments passed (as a smi), tear down the frame and
-  // then drop the parameters and the receiver.
-  __ Ldr(x10, MemOperand(fp, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ Mov(sp, fp);
-  __ Pop<TurboAssembler::kAuthLR>(fp, lr);
-
-  // Drop actual parameters and receiver.
-  __ SmiUntag(x10);
-  __ DropArguments(x10, TurboAssembler::kCountExcludesReceiver);
-}
-
 // Prepares the stack for copying the varargs. First we claim the necessary
 // slots, taking care of potential padding. Then we copy the existing arguments
 // one slot up or one slot down, as needed.
@@ -2249,45 +2223,10 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
 
   Register args_fp = x5;
   Register len = x6;
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
   // TODO(victorgomes): Remove this copy when all the arguments adaptor frame
   // code is erased.
   __ Mov(args_fp, fp);
   __ Ldr(len, MemOperand(fp, StandardFrameConstants::kArgCOffset));
-#else
-  // Check if we have an arguments adaptor frame below the function frame.
-  // args_fp will point to the frame that contains the actual arguments, which
-  // will be the current frame unless we have an arguments adaptor frame, in
-  // which case args_fp points to the arguments adaptor frame.
-  {
-    Label arguments_adaptor, arguments_done;
-    Register scratch = x10;
-    __ Ldr(args_fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-    __ Ldr(x4, MemOperand(args_fp,
-                          CommonFrameConstants::kContextOrFrameTypeOffset));
-    __ CmpTagged(x4, StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR));
-    __ B(eq, &arguments_adaptor);
-    {
-      __ Ldr(scratch, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
-      __ LoadTaggedPointerField(
-          scratch,
-          FieldMemOperand(scratch, JSFunction::kSharedFunctionInfoOffset));
-      __ Ldrh(len,
-              FieldMemOperand(scratch,
-                              SharedFunctionInfo::kFormalParameterCountOffset));
-      __ Mov(args_fp, fp);
-    }
-    __ B(&arguments_done);
-    __ Bind(&arguments_adaptor);
-    {
-      // Just load the length from ArgumentsAdaptorFrame.
-      __ SmiUntag(
-          len,
-          MemOperand(args_fp, ArgumentsAdaptorFrameConstants::kLengthOffset));
-    }
-    __ Bind(&arguments_done);
-  }
-#endif
 
   Label stack_done, stack_overflow;
   __ Subs(len, len, start_index);
@@ -2733,188 +2672,6 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   __ bind(&non_constructor);
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructedNonConstructable),
           RelocInfo::CODE_TARGET);
-}
-
-void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
-  ASM_LOCATION("Builtins::Generate_ArgumentsAdaptorTrampoline");
-  // ----------- S t a t e -------------
-  //  -- x0 : actual number of arguments
-  //  -- x1 : function (passed through to callee)
-  //  -- x2 : expected number of arguments
-  //  -- x3 : new target (passed through to callee)
-  // -----------------------------------
-
-  // The frame we are about to construct will look like:
-  //
-  //  slot      Adaptor frame
-  //       +-----------------+--------------------------------
-  //  -n-1 |    receiver     |                            ^
-  //       |  (parameter 0)  |                            |
-  //       |- - - - - - - - -|                            |
-  //  -n   |                 |                          Caller
-  //  ...  |       ...       |                       frame slots --> actual args
-  //  -2   |  parameter n-1  |                            |
-  //       |- - - - - - - - -|                            |
-  //  -1   |   parameter n   |                            v
-  //  -----+-----------------+--------------------------------
-  //   0   |   return addr   |                            ^
-  //       |- - - - - - - - -|                            |
-  //   1   | saved frame ptr | <-- frame ptr              |
-  //       |- - - - - - - - -|                            |
-  //   2   |Frame Type Marker|                            |
-  //       |- - - - - - - - -|                            |
-  //   3   |    function     |                          Callee
-  //       |- - - - - - - - -|                        frame slots
-  //   4   |     num of      |                            |
-  //       |   actual args   |                            |
-  //       |- - - - - - - - -|                            |
-  //   5   |     padding     |                            |
-  //       |-----------------+----                        |
-  //  [6]  |    [padding]    |   ^                        |
-  //       |- - - - - - - - -|   |                        |
-  // 6+pad |    receiver     |   |                        |
-  //       |  (parameter 0)  |   |                        |
-  //       |- - - - - - - - -|   |                        |
-  // 7+pad |   parameter 1   |   |                        |
-  //       |- - - - - - - - -| Frame slots ----> expected args
-  // 8+pad |   parameter 2   |   |                        |
-  //       |- - - - - - - - -|   |                        |
-  //       |                 |   |                        |
-  //  ...  |       ...       |   |                        |
-  //       |   parameter m   |   |                        |
-  //       |- - - - - - - - -|   |                        |
-  //       |   [undefined]   |   |                        |
-  //       |- - - - - - - - -|   |                        |
-  //       |                 |   |                        |
-  //       |       ...       |   |                        |
-  //       |   [undefined]   |   v   <-- stack ptr        v
-  //  -----+-----------------+---------------------------------
-  //
-  // There is an optional slot of padding above the receiver to ensure stack
-  // alignment of the arguments.
-  // If the number of expected arguments is larger than the number of actual
-  // arguments, the remaining expected slots will be filled with undefined.
-  // TODO(v8:10201) update comment once reversed arguments order sticks
-
-  Register argc_actual = x0;    // Excluding the receiver.
-  Register argc_expected = x2;  // Excluding the receiver.
-  Register function = x1;
-
-  Label create_adaptor_frame, dont_adapt_arguments, stack_overflow;
-
-  __ Cmp(argc_expected, kDontAdaptArgumentsSentinel);
-  __ B(eq, &dont_adapt_arguments);
-
-  // -------------------------------------------
-  // Create an arguments adaptor frame.
-  // -------------------------------------------
-  __ Bind(&create_adaptor_frame);
-  {
-    __ RecordComment("-- Adapt arguments --");
-    EnterArgumentsAdaptorFrame(masm);
-
-    Register copy_from = x10;
-    Register copy_to = x12;
-    Register copy_end = x11;
-    Register argc_to_copy = x13;
-    Register scratch1 = x15;
-
-    // We need slots for the expected arguments, with one extra slot for the
-    // receiver.
-    __ RecordComment("-- Stack check --");
-    __ Add(scratch1, argc_expected, 1);
-    __ StackOverflowCheck(scratch1, &stack_overflow);
-
-    // Round up number of slots to be even, to maintain stack alignment.
-    __ RecordComment("-- Allocate callee frame slots --");
-    __ Add(scratch1, scratch1, 1);
-    __ Bic(scratch1, scratch1, 1);
-    __ Claim(scratch1, kSystemPointerSize);
-
-    // If we don't have enough arguments, fill the remaining expected
-    // arguments with undefined, otherwise skip this step.
-    Label enough_arguments;
-    __ Cmp(argc_actual, argc_expected);
-    __ Csel(argc_to_copy, argc_expected, argc_actual, ge);
-    __ Add(argc_to_copy, argc_to_copy, 1);  // Include receiver.
-    __ B(ge, &enough_arguments);
-
-    // Fill the remaining expected arguments with undefined.
-    __ RecordComment("-- Fill slots with undefined --");
-    Label fill;
-    // scratch1 still contains the size of the claimed area,
-    // which is RoundUp(argc_expected + 1, 2).
-    __ SlotAddress(copy_to, scratch1);
-    __ SlotAddress(copy_end, argc_to_copy);
-    __ LoadRoot(scratch1, RootIndex::kUndefinedValue);
-    // Now we can write pairs of undefineds, potentially overwriting one word
-    // below copy_end, but that's ok because that slot is still within claimed
-    // region. This loop will execute at least once because at this point we
-    // know that there's at least one undefined to be pushed and
-    // argc_to_copy >= 1.
-    __ Bind(&fill);
-    __ Stp(scratch1, scratch1,
-           MemOperand(copy_to, -2 * kSystemPointerSize, PreIndex));
-    __ Cmp(copy_to, copy_end);
-    __ B(hi, &fill);
-
-    // Enough arguments.
-    __ Bind(&enough_arguments);
-
-    // Store padding if needed, when expected arguments is even.
-    __ RecordComment("-- Store padding --");
-    Label skip_padding;
-    __ Tbnz(argc_expected, 0, &skip_padding);
-    __ SlotAddress(scratch1, argc_expected);
-    __ Str(padreg, MemOperand(scratch1, kSystemPointerSize));
-    __ bind(&skip_padding);
-
-    // Copy arguments.
-    __ RecordComment("-- Copy actual arguments --");
-    __ Mov(copy_to, sp);
-    __ Add(copy_from, fp, 2 * kSystemPointerSize);
-    __ CopyDoubleWords(copy_to, copy_from, argc_to_copy);
-
-    // Arguments have been adapted. Now call the entry point.
-    __ RecordComment("-- Call entry point --");
-    __ Mov(argc_actual, argc_expected);
-    // x0 : expected number of arguments
-    // x1 : function (passed through to callee)
-    // x3 : new target (passed through to callee)
-    static_assert(kJavaScriptCallCodeStartRegister == x2, "ABI mismatch");
-    __ LoadTaggedPointerField(
-        x2, FieldMemOperand(function, JSFunction::kCodeOffset));
-    __ CallCodeObject(x2);
-
-    // Store offset of return address for deoptimizer.
-    masm->isolate()->heap()->SetArgumentsAdaptorDeoptPCOffset(
-        masm->pc_offset());
-
-    // Exit frame and return.
-    LeaveArgumentsAdaptorFrame(masm);
-    __ Ret();
-  }
-
-  // -------------------------------------------
-  // Dont adapt arguments.
-  // -------------------------------------------
-  __ Bind(&dont_adapt_arguments);
-  {
-    // Call the entry point without adapting the arguments.
-    __ RecordComment("-- Call without adapting args --");
-    static_assert(kJavaScriptCallCodeStartRegister == x2, "ABI mismatch");
-    __ LoadTaggedPointerField(
-        x2, FieldMemOperand(function, JSFunction::kCodeOffset));
-    __ JumpCodeObject(x2);
-  }
-
-  __ Bind(&stack_overflow);
-  __ RecordComment("-- Stack overflow --");
-  {
-    FrameScope frame(masm, StackFrame::MANUAL);
-    __ CallRuntime(Runtime::kThrowStackOverflow);
-    __ Unreachable();
-  }
 }
 
 void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
@@ -3818,12 +3575,10 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ Lsr(unwind_limit, unwind_limit, kSystemPointerSizeLog2);
   __ Mov(x5, unwind_limit);
   __ CopyDoubleWords(x3, x1, x5);
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
   // Since {unwind_limit} is the frame size up to the parameter count, we might
   // end up with a unaligned stack pointer. This is later recovered when
   // setting the stack pointer to {caller_frame_top_offset}.
   __ Bic(unwind_limit, unwind_limit, 1);
-#endif
   __ Drop(unwind_limit);
 
   // Compute the output frame in the deoptimizer.

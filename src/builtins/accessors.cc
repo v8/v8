@@ -469,20 +469,9 @@ Handle<JSObject> GetFrameArguments(Isolate* isolate,
     return ArgumentsForInlinedFunction(frame, function_index);
   }
 
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
-  const int length = frame->GetActualArgumentCount();
-#else
-  // Find the frame that holds the actual arguments passed to the function.
-  if (it->frame()->has_adapted_arguments()) {
-    it->AdvanceOneFrame();
-    DCHECK(it->frame()->is_arguments_adaptor());
-  }
-  frame = it->frame();
-  const int length = frame->ComputeParametersCount();
-#endif
-
   // Construct an arguments object mirror for the right frame and the underlying
   // function.
+  const int length = frame->GetActualArgumentCount();
   Handle<JSFunction> function(frame->function(), isolate);
   Handle<JSObject> arguments =
       isolate->factory()->NewArgumentsObject(function, length);

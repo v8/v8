@@ -483,7 +483,6 @@ bool Builtins::CodeObjectIsExecutable(int builtin_index) {
     case Builtins::kCall_ReceiverIsNullOrUndefined:
     case Builtins::kCall_ReceiverIsNotNullOrUndefined:
     case Builtins::kCall_ReceiverIsAny:
-    case Builtins::kArgumentsAdaptorTrampoline:
     case Builtins::kHandleApiCall:
     case Builtins::kInstantiateAsmJs:
     case Builtins::kGenericJSToWasmWrapper:

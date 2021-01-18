@@ -750,7 +750,6 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, CodeStubAssembler) {
 
   TVARIABLE(Int32T, pushed_argc, actual_argc);
 
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
   TNode<SharedFunctionInfo> shared = LoadJSFunctionSharedFunctionInfo(target);
 
   TNode<Int32T> formal_count =
@@ -770,7 +769,6 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, CodeStubAssembler) {
   pushed_argc = formal_count;
   Goto(&done_argc);
   BIND(&done_argc);
-#endif
 
   // Update arguments count for CEntry to contain the number of arguments
   // including the receiver and the extra arguments.
@@ -1089,7 +1087,6 @@ TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {
       Runtime::kInstantiateAsmJs, context, function, stdlib, foreign, heap);
   GotoIf(TaggedIsSmi(maybe_result_or_smi_zero), &tailcall_to_function);
 
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
   TNode<SharedFunctionInfo> shared = LoadJSFunctionSharedFunctionInfo(function);
   TNode<Int32T> parameter_count =
       UncheckedCast<Int32T>(LoadSharedFunctionInfoFormalParameterCount(shared));
@@ -1103,7 +1100,6 @@ TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {
   PopAndReturn(Int32Add(parameter_count, Int32Constant(1)),
                maybe_result_or_smi_zero);
   BIND(&argc_ge_param_count);
-#endif
   args.PopAndReturn(maybe_result_or_smi_zero);
 
   BIND(&tailcall_to_function);

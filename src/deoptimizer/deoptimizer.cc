@@ -998,7 +998,6 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
 
   const int parameters_count = InternalFormalParameterCountWithReceiver(shared);
 
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
   // If this is the bottom most frame or the previous frame was the arguments
   // adaptor fake frame, then we already have extra arguments in the stack
   // (including any extra padding). Therefore we should not try to add any
@@ -1006,9 +1005,6 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   bool should_pad_arguments =
       !is_bottommost && (translated_state_.frames()[frame_index - 1]).kind() !=
                             TranslatedFrame::kArgumentsAdaptor;
-#else
-  bool should_pad_arguments = true;
-#endif
 
   const int locals_count = translated_frame->height();
   InterpretedFrameInfo frame_info = InterpretedFrameInfo::Precise(
@@ -1286,12 +1282,12 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   CHECK_GT(frame_index, 0);
   CHECK_NULL(output_[frame_index]);
 
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
   // During execution, V8 does not understand arguments adaptor frames anymore,
   // so during deoptimization we only push the extra arguments (arguments with
   // index greater than the formal parameter count). Therefore we call this
-  // TranslatedFrame the fake adaptor frame. For more info, see the design
-  // document shorturl.at/fKT49.
+  // TranslatedFrame the fake adaptor frame.
+  // For more info, see the design document:
+  // https://docs.google.com/document/d/150wGaUREaZI6YWqOQFD5l2mWQXaPbbZjcAIJLOFrzMs
 
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
   const int argument_count_without_receiver = translated_frame->height() - 1;
@@ -1342,104 +1338,6 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
     for (int i = 0; i < formal_parameter_count; i++) value_iterator++;
     frame_writer.PushStackJSArguments(value_iterator, extra_argument_count);
   }
-#else
-  TranslatedFrame::iterator value_iterator = translated_frame->begin();
-  const bool is_bottommost = (0 == frame_index);
-
-  const int parameters_count = translated_frame->height();
-  ArgumentsAdaptorFrameInfo frame_info =
-      ArgumentsAdaptorFrameInfo::Precise(parameters_count);
-  const uint32_t output_frame_size = frame_info.frame_size_in_bytes();
-
-  TranslatedFrame::iterator function_iterator = value_iterator++;
-  if (verbose_tracing_enabled()) {
-    PrintF(trace_scope()->file(),
-           "  translating arguments adaptor => variable_frame_size=%d, "
-           "frame_size=%d\n",
-           frame_info.frame_size_in_bytes_without_fixed(), output_frame_size);
-  }
-
-  // Allocate and store the output frame description.
-  FrameDescription* output_frame = new (output_frame_size)
-      FrameDescription(output_frame_size, parameters_count);
-  FrameWriter frame_writer(this, output_frame, verbose_trace_scope());
-
-  // Arguments adaptor can not be topmost.
-  CHECK(frame_index < output_count_ - 1);
-  CHECK_NULL(output_[frame_index]);
-  output_[frame_index] = output_frame;
-
-  // The top address of the frame is computed from the previous frame's top and
-  // this frame's size.
-  const intptr_t top_address =
-      is_bottommost ? caller_frame_top_ - output_frame_size
-                    : output_[frame_index - 1]->GetTop() - output_frame_size;
-  output_frame->SetTop(top_address);
-
-  ReadOnlyRoots roots(isolate());
-  if (ShouldPadArguments(parameters_count)) {
-    frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
-  }
-
-  // Compute the incoming parameter translation.
-  frame_writer.PushStackJSArguments(value_iterator, parameters_count);
-
-  DCHECK_EQ(output_frame->GetLastArgumentSlotOffset(),
-            frame_writer.top_offset());
-
-  // Read caller's PC from the previous frame.
-  if (is_bottommost) {
-    frame_writer.PushBottommostCallerPc(caller_pc_);
-  } else {
-    frame_writer.PushApprovedCallerPc(output_[frame_index - 1]->GetPc());
-  }
-
-  // Read caller's FP from the previous frame, and set this frame's FP.
-  const intptr_t caller_fp =
-      is_bottommost ? caller_fp_ : output_[frame_index - 1]->GetFp();
-  frame_writer.PushCallerFp(caller_fp);
-
-  intptr_t fp_value = top_address + frame_writer.top_offset();
-  output_frame->SetFp(fp_value);
-
-  if (FLAG_enable_embedded_constant_pool) {
-    // Read the caller's constant pool from the previous frame.
-    const intptr_t caller_cp =
-        is_bottommost ? caller_constant_pool_
-                      : output_[frame_index - 1]->GetConstantPool();
-    frame_writer.PushCallerConstantPool(caller_cp);
-  }
-
-  // A marker value is used in place of the context.
-  intptr_t marker = StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR);
-  frame_writer.PushRawValue(marker, "context (adaptor sentinel)\n");
-
-  // The function was mentioned explicitly in the ARGUMENTS_ADAPTOR_FRAME.
-  frame_writer.PushTranslatedValue(function_iterator, "function\n");
-
-  // Number of incoming arguments.
-  const uint32_t parameters_count_without_receiver = parameters_count - 1;
-  frame_writer.PushRawObject(Smi::FromInt(parameters_count_without_receiver),
-                             "argc\n");
-
-  frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
-
-  CHECK_EQ(translated_frame->end(), value_iterator);
-  DCHECK_EQ(0, frame_writer.top_offset());
-
-  Builtins* builtins = isolate_->builtins();
-  Code adaptor_trampoline =
-      builtins->builtin(Builtins::kArgumentsAdaptorTrampoline);
-  intptr_t pc_value = static_cast<intptr_t>(
-      adaptor_trampoline.InstructionStart() +
-      isolate_->heap()->arguments_adaptor_deopt_pc_offset().value());
-  output_frame->SetPc(pc_value);
-  if (FLAG_enable_embedded_constant_pool) {
-    intptr_t constant_pool_value =
-        static_cast<intptr_t>(adaptor_trampoline.constant_pool());
-    output_frame->SetConstantPool(constant_pool_value);
-  }
-#endif
 }
 
 void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
@@ -2068,9 +1966,6 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
 // static
 unsigned Deoptimizer::ComputeIncomingArgumentSize(SharedFunctionInfo shared) {
   int parameter_slots = InternalFormalParameterCountWithReceiver(shared);
-#ifndef V8_NO_ARGUMENTS_ADAPTOR
-  if (ShouldPadArguments(parameter_slots)) parameter_slots++;
-#endif
   return parameter_slots * kSystemPointerSize;
 }
 
@@ -3087,30 +2982,6 @@ void TranslatedFrame::AdvanceIterator(
   }
 }
 
-Address TranslatedState::ComputeArgumentsPosition(Address input_frame_pointer,
-                                                  int* length) {
-  Address parent_frame_pointer = *reinterpret_cast<Address*>(
-      input_frame_pointer + StandardFrameConstants::kCallerFPOffset);
-  intptr_t parent_frame_type = Memory<intptr_t>(
-      parent_frame_pointer + CommonFrameConstants::kContextOrFrameTypeOffset);
-
-  Address arguments_frame;
-  if (parent_frame_type ==
-      StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)) {
-    if (length)
-      *length = Smi::cast(*FullObjectSlot(
-                              parent_frame_pointer +
-                              ArgumentsAdaptorFrameConstants::kLengthOffset))
-                    .value();
-    arguments_frame = parent_frame_pointer;
-  } else {
-    if (length) *length = formal_parameter_count_;
-    arguments_frame = input_frame_pointer;
-  }
-
-  return arguments_frame;
-}
-
 // Creates translated values for an arguments backing store, or the backing
 // store for rest parameters depending on the given {type}. The TranslatedValue
 // objects for the fields are not read from the TranslationIterator, but instead
@@ -3119,19 +2990,10 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
     int frame_index, Address input_frame_pointer, CreateArgumentsType type,
     FILE* trace_file) {
   TranslatedFrame& frame = frames_[frame_index];
-
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
-  int arguments_length = actual_argument_count_;
-#else
-  int arguments_length;
-  Address arguments_frame =
-      ComputeArgumentsPosition(input_frame_pointer, &arguments_length);
-#endif
-
-  int length = type == CreateArgumentsType::kRestParameter
-                   ? std::max(0, arguments_length - formal_parameter_count_)
-                   : arguments_length;
-
+  int length =
+      type == CreateArgumentsType::kRestParameter
+          ? std::max(0, actual_argument_count_ - formal_parameter_count_)
+          : actual_argument_count_;
   int object_index = static_cast<int>(object_positions_.size());
   int value_index = static_cast<int>(frame.values_.size());
   if (trace_file != nullptr) {
@@ -3164,11 +3026,9 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
   for (int i = 0; i < argc; i++) {
     // Skip the receiver.
     int offset = i + start_index + 1;
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
     Address arguments_frame = offset > formal_parameter_count_
                                   ? stack_frame_pointer_
                                   : input_frame_pointer;
-#endif
     Address argument_slot = arguments_frame +
                             CommonFrameConstants::kFixedFrameSizeAboveFp +
                             offset * kSystemPointerSize;
@@ -3229,17 +3089,11 @@ int TranslatedState::CreateNextTranslatedValue(
     }
 
     case Translation::ARGUMENTS_LENGTH: {
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
-      int arguments_length = actual_argument_count_;
-#else
-      int arguments_length;
-      ComputeArgumentsPosition(fp, &arguments_length);
-#endif
       if (trace_file != nullptr) {
         PrintF(trace_file, "arguments length field (length = %d)",
-               arguments_length);
+               actual_argument_count_);
       }
-      frame.Add(TranslatedValue::NewInt32(this, arguments_length));
+      frame.Add(TranslatedValue::NewInt32(this, actual_argument_count_));
       return 0;
     }
 
@@ -3519,11 +3373,7 @@ TranslatedState::TranslatedState(const JavaScriptFrame* frame) {
   DCHECK(!data.is_null() && deopt_index != Safepoint::kNoDeoptimizationIndex);
   TranslationIterator it(data.TranslationByteArray(),
                          data.TranslationIndex(deopt_index).value());
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
   int actual_argc = frame->GetActualArgumentCount();
-#else
-  int actual_argc = 0;
-#endif
   Init(frame->isolate(), frame->fp(), frame->fp(), &it, data.LiteralArray(),
        nullptr /* registers */, nullptr /* trace file */,
        frame->function().shared().internal_formal_parameter_count(),

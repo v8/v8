@@ -4257,8 +4257,7 @@ void Isolate::PrepareBuiltinLabelInfoMap() {
   if (embedded_file_writer_ != nullptr) {
     embedded_file_writer_->PrepareBuiltinLabelInfoMap(
         heap()->construct_stub_create_deopt_pc_offset().value(),
-        heap()->construct_stub_invoke_deopt_pc_offset().value(),
-        heap()->arguments_adaptor_deopt_pc_offset().value());
+        heap()->construct_stub_invoke_deopt_pc_offset().value());
   }
 }
 

@@ -1876,8 +1876,6 @@ void InstructionSelector::EmitPrepareArguments(
 
 bool InstructionSelector::IsTailCallAddressImmediate() { return false; }
 
-int InstructionSelector::GetTempsCountForTailCallFromJSFunction() { return 3; }
-
 void InstructionSelector::VisitFloat64ExtractLowWord32(Node* node) {
   PPCOperandGenerator g(this);
   Emit(kPPC_DoubleExtractLowWord32, g.DefineAsRegister(node),

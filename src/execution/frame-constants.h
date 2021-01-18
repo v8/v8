@@ -196,15 +196,6 @@ class TypedFrameConstants : public CommonFrameConstants {
 #define DEFINE_TYPED_FRAME_SIZES(count) \
   DEFINE_FRAME_SIZES(TypedFrameConstants, count)
 
-class ArgumentsAdaptorFrameConstants : public TypedFrameConstants {
- public:
-  // FP-relative.
-  static constexpr int kFunctionOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
-  static constexpr int kLengthOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
-  static constexpr int kPaddingOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
-  DEFINE_TYPED_FRAME_SIZES(3);
-};
-
 class BuiltinFrameConstants : public TypedFrameConstants {
  public:
   // FP-relative.

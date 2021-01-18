@@ -219,17 +219,6 @@ void BinaryOpDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void ArgumentsAdaptorDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {
-      edi,  // JSFunction
-      edx,  // the new target
-      eax,  // actual number of arguments
-      ecx,  // expected number of arguments
-  };
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
 void ApiCallbackDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {

@@ -1336,7 +1336,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     DCHECK_EQ(actual_parameter_count, eax);
     DCHECK_EQ(expected_parameter_count, ecx);
     Label regular_invoke;
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
+
     // If the expected parameter count is equal to the adaptor sentinel, no need
     // to push undefined value as arguments.
     cmp(expected_parameter_count, Immediate(kDontAdaptArgumentsSentinel));
@@ -1408,17 +1408,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
       CallRuntime(Runtime::kThrowStackOverflow);
       int3();  // This should be unreachable.
     }
-#else
-    cmp(expected_parameter_count, actual_parameter_count);
-    j(equal, &regular_invoke);
-    Handle<Code> adaptor = BUILTIN_CODE(isolate(), ArgumentsAdaptorTrampoline);
-    if (flag == CALL_FUNCTION) {
-      Call(adaptor, RelocInfo::CODE_TARGET);
-      jmp(done, Label::kNear);
-    } else {
-      Jump(adaptor, RelocInfo::CODE_TARGET);
-    }
-#endif
+
     bind(&regular_invoke);
   }
 }

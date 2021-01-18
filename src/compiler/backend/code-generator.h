@@ -298,10 +298,6 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   // Generates code to manipulate the stack in preparation for a tail call.
   void AssemblePrepareTailCall();
 
-  // Generates code to pop current frame if it is an arguments adaptor frame.
-  void AssemblePopArgumentsAdaptorFrame(Register args_reg, Register scratch1,
-                                        Register scratch2, Register scratch3);
-
   enum PushTypeFlag {
     kImmediatePush = 0x1,
     kRegisterPush = 0x2,

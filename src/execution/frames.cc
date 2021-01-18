@@ -434,15 +434,6 @@ bool SafeStackFrameIterator::IsValidCaller(StackFrame* frame) {
     Address caller_fp =
         Memory<Address>(frame->fp() + EntryFrameConstants::kCallerFPOffset);
     if (!IsValidExitFrame(caller_fp)) return false;
-  } else if (frame->is_arguments_adaptor()) {
-    // See ArgumentsAdaptorFrame::GetCallerStackPointer. It assumes that
-    // the number of arguments is stored on stack as Smi. We need to check
-    // that it really an Smi.
-    Object number_of_args =
-        reinterpret_cast<ArgumentsAdaptorFrame*>(frame)->GetExpression(0);
-    if (!number_of_args.IsSmi()) {
-      return false;
-    }
   }
   frame->ComputeCallerState(&state);
   return IsValidStackAddress(state.sp) && IsValidStackAddress(state.fp) &&
@@ -636,7 +627,6 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     case STUB:
     case INTERNAL:
     case CONSTRUCT:
-    case ARGUMENTS_ADAPTOR:
     case WASM_TO_JS:
     case WASM:
     case WASM_COMPILE_LAZY:
@@ -957,7 +947,6 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
       case JAVA_SCRIPT_BUILTIN_CONTINUATION:
       case JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
       case BUILTIN_EXIT:
-      case ARGUMENTS_ADAPTOR:
       case STUB:
       case INTERNAL:
       case CONSTRUCT:
@@ -1086,12 +1075,7 @@ void JavaScriptFrame::SetParameterValue(int index, Object value) const {
 }
 
 bool JavaScriptFrame::IsConstructor() const {
-  Address fp = caller_fp();
-  if (has_adapted_arguments()) {
-    // Skip the arguments adaptor frame and look at the real caller.
-    fp = Memory<Address>(fp + StandardFrameConstants::kCallerFPOffset);
-  }
-  return IsConstructFrame(fp);
+  return IsConstructFrame(caller_fp());
 }
 
 bool JavaScriptFrame::HasInlinedFrames() const {
@@ -1283,12 +1267,10 @@ int CommonFrameWithJSLinkage::ComputeParametersCount() const {
   return function().shared().internal_formal_parameter_count();
 }
 
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
 int JavaScriptFrame::GetActualArgumentCount() const {
   return static_cast<int>(
       Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset));
 }
-#endif
 
 Handle<FixedArray> CommonFrameWithJSLinkage::GetParameters() const {
   if (V8_LIKELY(!FLAG_detailed_error_stack_trace)) {
@@ -1786,15 +1768,6 @@ void InterpretedFrame::Summarize(std::vector<FrameSummary>* functions) const {
   functions->push_back(summary);
 }
 
-int ArgumentsAdaptorFrame::ComputeParametersCount() const {
-  const int offset = ArgumentsAdaptorFrameConstants::kLengthOffset;
-  return Smi::ToInt(Object(base::Memory<Address>(fp() + offset)));
-}
-
-Code ArgumentsAdaptorFrame::unchecked_code() const {
-  return isolate()->builtins()->builtin(Builtins::kArgumentsAdaptorTrampoline);
-}
-
 JSFunction BuiltinFrame::function() const {
   const int offset = BuiltinFrameConstants::kFunctionOffset;
   return JSFunction::cast(Object(base::Memory<Address>(fp() + offset)));
@@ -2116,34 +2089,6 @@ void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
   accumulator->Add("}\n\n");
 }
 
-void ArgumentsAdaptorFrame::Print(StringStream* accumulator, PrintMode mode,
-                                  int index) const {
-  int actual = ComputeParametersCount();
-  int expected = -1;
-  JSFunction function = this->function();
-  expected = function.shared().internal_formal_parameter_count();
-
-  PrintIndex(accumulator, mode, index);
-  accumulator->Add("arguments adaptor frame: %d->%d", actual, expected);
-  if (mode == OVERVIEW) {
-    accumulator->Add("\n");
-    return;
-  }
-  accumulator->Add(" {\n");
-
-  // Print actual arguments.
-  if (actual > 0) accumulator->Add("  // actual arguments\n");
-  for (int i = 0; i < actual; i++) {
-    accumulator->Add("  [%02d] : %o", i, GetParameter(i));
-    if (expected != -1 && i >= expected) {
-      accumulator->Add("  // not passed to callee");
-    }
-    accumulator->Add("\n");
-  }
-
-  accumulator->Add("}\n\n");
-}
-
 void EntryFrame::Iterate(RootVisitor* v) const {
   IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
 }
@@ -2287,8 +2232,7 @@ ArgumentsAdaptorFrameInfo::ArgumentsAdaptorFrameInfo(int translation_height) {
   frame_size_in_bytes_without_fixed_ =
       (parameters_count + ArgumentPaddingSlots(parameters_count)) *
       kSystemPointerSize;
-  frame_size_in_bytes_ = frame_size_in_bytes_without_fixed_ +
-                         ArgumentsAdaptorFrameConstants::kFixedFrameSize;
+  frame_size_in_bytes_ = frame_size_in_bytes_without_fixed_;
 }
 
 ConstructStubFrameInfo::ConstructStubFrameInfo(int translation_height,

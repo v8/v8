@@ -820,7 +820,6 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ movl(params_size,
           FieldOperand(params_size, BytecodeArray::kParameterSizeOffset));
 
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
   Register actual_params_size = scratch2;
   // Compute the size of the actual parameters + receiver (in bytes).
   __ movq(actual_params_size,
@@ -836,7 +835,6 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ j(greater_equal, &corrected_args_count, Label::kNear);
   __ movq(params_size, actual_params_size);
   __ bind(&corrected_args_count);
-#endif
 
   // Leave the frame (also dropping the register file).
   __ leave();
@@ -1835,147 +1833,6 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
 }
 
-static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
-  __ pushq(rbp);
-  __ movq(rbp, rsp);
-
-  // Store the arguments adaptor context sentinel.
-  __ Push(Immediate(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
-
-  // Push the function on the stack.
-  __ Push(rdi);
-
-  // Preserve the number of arguments on the stack. Must preserve rax,
-  // rbx and rcx because these registers are used when copying the
-  // arguments and the receiver.
-  __ SmiTag(r8, rax);
-  __ Push(r8);
-
-  __ Push(Immediate(0));  // Padding.
-}
-
-static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
-  // Retrieve the number of arguments from the stack. Number is a Smi.
-  __ movq(rbx, Operand(rbp, ArgumentsAdaptorFrameConstants::kLengthOffset));
-
-  // Leave the frame.
-  __ movq(rsp, rbp);
-  __ popq(rbp);
-
-  // Remove caller arguments from the stack.
-  __ PopReturnAddressTo(rcx);
-  SmiIndex index = masm->SmiToIndex(rbx, rbx, kSystemPointerSizeLog2);
-  __ leaq(rsp, Operand(rsp, index.reg, index.scale, 1 * kSystemPointerSize));
-  __ PushReturnAddressFrom(rcx);
-}
-
-void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- rax : actual number of arguments
-  //  -- rbx : expected number of arguments
-  //  -- rdx : new target (passed through to callee)
-  //  -- rdi : function (passed through to callee)
-  // -----------------------------------
-
-  Label dont_adapt_arguments, stack_overflow;
-  __ cmpq(rbx, Immediate(kDontAdaptArgumentsSentinel));
-  __ j(equal, &dont_adapt_arguments);
-  __ LoadTaggedPointerField(
-      rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-
-  // -------------------------------------------
-  // Adapt arguments.
-  // -------------------------------------------
-  {
-    EnterArgumentsAdaptorFrame(masm);
-    __ StackOverflowCheck(rbx, rcx, &stack_overflow);
-
-    Label under_application, over_application, invoke;
-    __ cmpq(rax, rbx);
-    __ j(less, &under_application, Label::kNear);
-
-    // Enough parameters: Actual >= expected.
-    __ bind(&over_application);
-    {
-      // Copy receiver and all expected arguments.
-      const int offset = StandardFrameConstants::kCallerSPOffset;
-      __ leaq(r8, Operand(rbp, rbx, times_system_pointer_size, offset));
-      __ Set(rax, -1);  // account for receiver
-
-      Label copy;
-      __ bind(&copy);
-      __ incq(rax);
-      __ Push(Operand(r8, 0));
-      __ subq(r8, Immediate(kSystemPointerSize));
-      __ cmpq(rax, rbx);
-      __ j(less, &copy);
-      __ jmp(&invoke, Label::kNear);
-    }
-
-    // Too few parameters: Actual < expected.
-    __ bind(&under_application);
-    {
-      // Fill remaining expected arguments with undefined values.
-      Label fill;
-      __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
-      __ movq(r8, rbx);
-      __ subq(r8, rax);
-      __ bind(&fill);
-      __ Push(kScratchRegister);
-      __ decq(r8);
-      __ j(greater, &fill);
-
-      // Copy receiver and all actual arguments.
-      const int offset = StandardFrameConstants::kCallerSPOffset;
-      __ leaq(r9, Operand(rbp, rax, times_system_pointer_size, offset));
-      __ Set(r8, -1);  // account for receiver
-
-      Label copy;
-      __ bind(&copy);
-      __ incq(r8);
-      __ Push(Operand(r9, 0));
-      __ subq(r9, Immediate(kSystemPointerSize));
-      __ cmpq(r8, rax);
-      __ j(less, &copy);
-
-      // Update actual number of arguments.
-      __ movq(rax, rbx);
-    }
-
-    // Call the entry point.
-    __ bind(&invoke);
-    // rax : expected number of arguments
-    // rdx : new target (passed through to callee)
-    // rdi : function (passed through to callee)
-    static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-    __ LoadTaggedPointerField(rcx, FieldOperand(rdi, JSFunction::kCodeOffset));
-    __ CallCodeObject(rcx);
-
-    // Store offset of return address for deoptimizer.
-    masm->isolate()->heap()->SetArgumentsAdaptorDeoptPCOffset(
-        masm->pc_offset());
-
-    // Leave frame and return.
-    LeaveArgumentsAdaptorFrame(masm);
-    __ ret(0);
-  }
-
-  // -------------------------------------------
-  // Don't adapt arguments.
-  // -------------------------------------------
-  __ bind(&dont_adapt_arguments);
-  static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-  __ LoadTaggedPointerField(rcx, FieldOperand(rdi, JSFunction::kCodeOffset));
-  __ JumpCodeObject(rcx);
-
-  __ bind(&stack_overflow);
-  {
-    FrameScope frame(masm, StackFrame::MANUAL);
-    __ CallRuntime(Runtime::kThrowStackOverflow);
-    __ int3();
-  }
-}
-
 // static
 void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
                                                Handle<Code> code) {
@@ -2095,34 +1952,10 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     __ bind(&new_target_constructor);
   }
 
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
   // TODO(victorgomes): Remove this copy when all the arguments adaptor frame
   // code is erased.
   __ movq(rbx, rbp);
   __ movq(r8, Operand(rbp, StandardFrameConstants::kArgCOffset));
-#else
-  // Check if we have an arguments adaptor frame below the function frame.
-  Label arguments_adaptor, arguments_done;
-  __ movq(rbx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-  __ cmpq(Operand(rbx, CommonFrameConstants::kContextOrFrameTypeOffset),
-          Immediate(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ j(equal, &arguments_adaptor, Label::kNear);
-  {
-    __ movq(r8, Operand(rbp, StandardFrameConstants::kFunctionOffset));
-    __ LoadTaggedPointerField(
-        r8, FieldOperand(r8, JSFunction::kSharedFunctionInfoOffset));
-    __ movzxwq(
-        r8, FieldOperand(r8, SharedFunctionInfo::kFormalParameterCountOffset));
-    __ movq(rbx, rbp);
-  }
-  __ jmp(&arguments_done, Label::kNear);
-  __ bind(&arguments_adaptor);
-  {
-    __ SmiUntag(r8,
-                Operand(rbx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  }
-  __ bind(&arguments_done);
-#endif
 
   Label stack_done, stack_overflow;
   __ subl(r8, rcx);

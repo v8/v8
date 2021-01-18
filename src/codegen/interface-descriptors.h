@@ -25,7 +25,6 @@ namespace internal {
   V(Allocate)                            \
   V(ApiCallback)                         \
   V(ApiGetter)                           \
-  V(ArgumentsAdaptor)                    \
   V(ArrayConstructor)                    \
   V(ArrayNArgumentsConstructor)          \
   V(ArrayNoArgumentConstructor)          \
@@ -1236,13 +1235,6 @@ class StringSubstringDescriptor final : public CallInterfaceDescriptor {
 
   // TODO(turbofan): Allow builtins to return untagged values.
   DECLARE_DESCRIPTOR(StringSubstringDescriptor, CallInterfaceDescriptor)
-};
-
-class ArgumentsAdaptorDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_JS_PARAMETERS(kExpectedArgumentsCount)
-  DEFINE_JS_PARAMETER_TYPES(MachineType::Int32())
-  DECLARE_DESCRIPTOR(ArgumentsAdaptorDescriptor, CallInterfaceDescriptor)
 };
 
 class CppBuiltinAdaptorDescriptor : public CallInterfaceDescriptor {

@@ -60,7 +60,6 @@ class FrameInspector {
   int source_position_ = -1;
   bool is_optimized_ = false;
   bool is_interpreted_ = false;
-  bool has_adapted_arguments_ = false;
   bool is_constructor_ = false;
 };
 

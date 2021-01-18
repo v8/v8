@@ -803,7 +803,6 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ lwz(params_size,
          FieldMemOperand(params_size, BytecodeArray::kParameterSizeOffset));
 
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
   Register actual_params_size = scratch2;
   // Compute the size of the actual parameters + receiver (in bytes).
   __ LoadP(actual_params_size,
@@ -819,7 +818,6 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ bge(&corrected_args_count);
   __ mr(params_size, actual_params_size);
   __ bind(&corrected_args_count);
-#endif
   // Leave the frame (also dropping the register file).
   __ LeaveFrame(StackFrame::INTERPRETED);
 
@@ -1834,34 +1832,6 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
 }
 
-static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
-  __ SmiTag(r3);
-  __ mov(r7, Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ mflr(r0);
-  __ push(r0);
-  if (FLAG_enable_embedded_constant_pool) {
-    __ Push(fp, kConstantPoolRegister, r7, r4, r3);
-  } else {
-    __ Push(fp, r7, r4, r3);
-  }
-  __ Push(Smi::zero());  // Padding.
-  __ addi(fp, sp,
-          Operand(ArgumentsAdaptorFrameConstants::kFixedFrameSizeFromFp));
-}
-
-static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- r3 : result being passed through
-  // -----------------------------------
-  // Get the number of arguments passed (as a smi), tear down the frame and
-  // then tear down the parameters.
-  __ LoadP(r4, MemOperand(fp, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  int stack_adjustment = kSystemPointerSize;  // adjust for receiver
-  __ LeaveFrame(StackFrame::ARGUMENTS_ADAPTOR, stack_adjustment);
-  __ SmiToPtrArrayOffset(r0, r4);
-  __ add(sp, sp, r0);
-}
-
 // static
 void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
                                                Handle<Code> code) {
@@ -1978,38 +1948,10 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     __ bind(&new_target_constructor);
   }
 
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
   // TODO(victorgomes): Remove this copy when all the arguments adaptor frame
   // code is erased.
   __ mr(r7, fp);
   __ LoadP(r8, MemOperand(fp, StandardFrameConstants::kArgCOffset));
-#else
-  // Check if we have an arguments adaptor frame below the function frame.
-  Label arguments_adaptor, arguments_done;
-  __ LoadP(r7, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ LoadP(scratch,
-           MemOperand(r7, CommonFrameConstants::kContextOrFrameTypeOffset));
-  __ cmpi(scratch,
-          Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ beq(&arguments_adaptor);
-  {
-    __ LoadP(r8, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
-    __ LoadTaggedPointerField(
-        r8, FieldMemOperand(r8, JSFunction::kSharedFunctionInfoOffset));
-    __ LoadHalfWord(
-        r8,
-        FieldMemOperand(r8, SharedFunctionInfo::kFormalParameterCountOffset));
-    __ mr(r7, fp);
-  }
-  __ b(&arguments_done);
-  __ bind(&arguments_adaptor);
-  {
-    // Load the length from the ArgumentsAdaptorFrame.
-    __ LoadP(r8, MemOperand(r7, ArgumentsAdaptorFrameConstants::kLengthOffset));
-    __ SmiUntag(r8);
-  }
-  __ bind(&arguments_done);
-#endif
 
   Label stack_done, stack_overflow;
   __ sub(r8, r8, r5, LeaveOE, SetRC);
@@ -2437,153 +2379,6 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   __ bind(&non_constructor);
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructedNonConstructable),
           RelocInfo::CODE_TARGET);
-}
-
-void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- r3 : actual number of arguments
-  //  -- r4 : function (passed through to callee)
-  //  -- r5 : expected number of arguments
-  //  -- r6 : new target (passed through to callee)
-  // -----------------------------------
-
-  Label dont_adapt_arguments, stack_overflow;
-  __ cmpli(r5, Operand(kDontAdaptArgumentsSentinel));
-  __ beq(&dont_adapt_arguments);
-  __ LoadTaggedPointerField(
-      r7, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
-  __ lwz(r7, FieldMemOperand(r7, SharedFunctionInfo::kFlagsOffset));
-
-  // -------------------------------------------
-  // Adapt arguments.
-  // -------------------------------------------
-  {
-    Label under_application, over_application, invoke;
-    __ cmp(r3, r5);
-    __ blt(&under_application);
-
-    // Enough parameters: actual >= expected
-    __ bind(&over_application);
-    {
-      EnterArgumentsAdaptorFrame(masm);
-      __ StackOverflowCheck(r5, r8, &stack_overflow);
-
-      // Calculate copy start address into r3 and copy end address into r7.
-      // r3: actual number of arguments as a smi
-      // r4: function
-      // r5: expected number of arguments
-      // r6: new target (passed through to callee)
-      __ ShiftLeftImm(r3, r5, Operand(kSystemPointerSizeLog2));
-      __ add(r3, r3, fp);
-      // adjust for return address and receiver
-      __ addi(r3, r3, Operand(2 * kSystemPointerSize));
-      __ ShiftLeftImm(r7, r5, Operand(kSystemPointerSizeLog2));
-      __ sub(r7, r3, r7);
-
-      // Copy the arguments (including the receiver) to the new stack frame.
-      // r3: copy start address
-      // r4: function
-      // r5: expected number of arguments
-      // r6: new target (passed through to callee)
-      // r7: copy end address
-
-      Label copy;
-      __ bind(&copy);
-      __ LoadP(r0, MemOperand(r3, 0));
-      __ push(r0);
-      __ cmp(r3, r7);  // Compare before moving to next argument.
-      __ subi(r3, r3, Operand(kSystemPointerSize));
-      __ bne(&copy);
-
-      __ b(&invoke);
-    }
-
-    // Too few parameters: Actual < expected
-    __ bind(&under_application);
-    {
-      EnterArgumentsAdaptorFrame(masm);
-      __ StackOverflowCheck(r5, r8, &stack_overflow);
-
-      // Fill the remaining expected arguments with undefined.
-      // r0: actual number of arguments as a smi
-      // r1: function
-      // r2: expected number of arguments
-      // r3: new target (passed through to callee)
-      __ LoadRoot(r8, RootIndex::kUndefinedValue);
-      __ SmiUntag(r0, r3);
-      __ sub(r9, r5, r0);
-      __ ShiftLeftImm(r7, r9, Operand(kSystemPointerSizeLog2));
-      __ sub(r7, fp, r7);
-      // Adjust for frame.
-      __ subi(r7, r7,
-              Operand(ArgumentsAdaptorFrameConstants::kFixedFrameSizeFromFp +
-                      kSystemPointerSize));
-
-      Label fill;
-      __ bind(&fill);
-      __ push(r8);
-      __ cmp(sp, r7);
-      __ b(ne, &fill);
-
-      // Calculate copy start address into r0 and copy end address is fp.
-      // r0: actual number of arguments as a smi
-      // r1: function
-      // r2: expected number of arguments
-      // r3: new target (passed through to callee)
-      __ SmiToPtrArrayOffset(r3, r3);
-      __ add(r3, r3, fp);
-
-      // Copy the arguments (including the receiver) to the new stack frame.
-      // r0: copy start address
-      // r1: function
-      // r2: expected number of arguments
-      // r3: new target (passed through to callee)
-      Label copy;
-      __ bind(&copy);
-
-      // Adjust load for return address and receiver.
-      __ LoadP(r8, MemOperand(r3, 2 * kSystemPointerSize));
-      __ push(r8);
-
-      __ cmp(r3, fp);  // Compare before moving to next argument.
-      __ subi(r3, r3, Operand(kSystemPointerSize));
-      __ b(ne, &copy);
-    }
-
-    // Call the entry point.
-    __ bind(&invoke);
-    __ mr(r3, r5);
-    // r3 : expected number of arguments
-    // r4 : function (passed through to callee)
-    // r6 : new target (passed through to callee)
-    static_assert(kJavaScriptCallCodeStartRegister == r5, "ABI mismatch");
-    __ LoadTaggedPointerField(r5, FieldMemOperand(r4, JSFunction::kCodeOffset));
-    __ CallCodeObject(r5);
-
-    // Store offset of return address for deoptimizer.
-    masm->isolate()->heap()->SetArgumentsAdaptorDeoptPCOffset(
-        masm->pc_offset());
-
-    // Exit frame and return.
-    LeaveArgumentsAdaptorFrame(masm);
-    __ blr();
-  }
-
-  // -------------------------------------------
-  // Dont adapt arguments.
-  // -------------------------------------------
-  __ bind(&dont_adapt_arguments);
-  __ RecordComment("-- Call without adapting args --");
-  static_assert(kJavaScriptCallCodeStartRegister == r5, "ABI mismatch");
-  __ LoadTaggedPointerField(r5, FieldMemOperand(r4, JSFunction::kCodeOffset));
-  __ JumpCodeObject(r5);
-
-  __ bind(&stack_overflow);
-  {
-    FrameScope frame(masm, StackFrame::MANUAL);
-    __ CallRuntime(Runtime::kThrowStackOverflow);
-    __ bkpt(0);
-  }
 }
 
 void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {

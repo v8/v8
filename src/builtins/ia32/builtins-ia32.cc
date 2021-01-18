@@ -714,7 +714,6 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ mov(params_size,
          FieldOperand(params_size, BytecodeArray::kParameterSizeOffset));
 
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
   Register actual_params_size = scratch2;
   // Compute the size of the actual parameters + receiver (in bytes).
   __ mov(actual_params_size, Operand(ebp, StandardFrameConstants::kArgCOffset));
@@ -729,7 +728,6 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ j(greater_equal, &corrected_args_count, Label::kNear);
   __ mov(params_size, actual_params_size);
   __ bind(&corrected_args_count);
-#endif
 
   // Leave the frame (also dropping the register file).
   __ leave();
@@ -1863,41 +1861,6 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
 }
 
-static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
-  __ push(ebp);
-  __ mov(ebp, esp);
-
-  // Store the arguments adaptor context sentinel.
-  __ push(Immediate(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
-
-  // Push the function on the stack.
-  __ push(edi);
-
-  // Preserve the number of arguments on the stack. Must preserve eax,
-  // ebx and ecx because these registers are used when copying the
-  // arguments and the receiver.
-  STATIC_ASSERT(kSmiTagSize == 1);
-  __ lea(edi, Operand(eax, eax, times_1, kSmiTag));
-  __ push(edi);
-
-  __ Push(Immediate(0));  // Padding.
-}
-
-static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
-  // Retrieve the number of arguments from the stack.
-  __ mov(edi, Operand(ebp, ArgumentsAdaptorFrameConstants::kLengthOffset));
-
-  // Leave the frame.
-  __ leave();
-
-  // Remove caller arguments from the stack.
-  STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-  __ PopReturnAddressTo(ecx);
-  __ lea(esp, Operand(esp, edi, times_half_system_pointer_size,
-                      1 * kSystemPointerSize));  // 1 ~ receiver
-  __ PushReturnAddressFrom(ecx);
-}
-
 // static
 void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
                                                Handle<Code> code) {
@@ -2051,35 +2014,10 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
 
   __ movd(xmm1, edx);  // Preserve new.target (in case of [[Construct]]).
 
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
   // TODO(victorgomes): Remove this copy when all the arguments adaptor frame
   // code is erased.
   __ mov(scratch, ebp);
   __ mov(edx, Operand(ebp, StandardFrameConstants::kArgCOffset));
-#else
-  // Check if we have an arguments adaptor frame below the function frame.
-  Label arguments_adaptor, arguments_done;
-  __ mov(scratch, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-  __ cmp(Operand(scratch, CommonFrameConstants::kContextOrFrameTypeOffset),
-         Immediate(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ j(equal, &arguments_adaptor, Label::kNear);
-  {
-    __ mov(edx, Operand(ebp, StandardFrameConstants::kFunctionOffset));
-    __ mov(edx, FieldOperand(edx, JSFunction::kSharedFunctionInfoOffset));
-    __ movzx_w(edx, FieldOperand(
-                        edx, SharedFunctionInfo::kFormalParameterCountOffset));
-    __ mov(scratch, ebp);
-  }
-  __ jmp(&arguments_done, Label::kNear);
-  __ bind(&arguments_adaptor);
-  {
-    // Just load the length from the ArgumentsAdaptorFrame.
-    __ mov(edx,
-           Operand(scratch, ArgumentsAdaptorFrameConstants::kLengthOffset));
-    __ SmiUntag(edx);
-  }
-  __ bind(&arguments_done);
-#endif
 
   Label stack_done, stack_overflow;
   __ sub(edx, ecx);
@@ -2548,123 +2486,6 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   __ bind(&non_constructor);
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructedNonConstructable),
           RelocInfo::CODE_TARGET);
-}
-
-void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- eax : actual number of arguments
-  //  -- ecx : expected number of arguments
-  //  -- edx : new target (passed through to callee)
-  //  -- edi : function (passed through to callee)
-  // -----------------------------------
-
-  const Register kExpectedNumberOfArgumentsRegister = ecx;
-
-  Label invoke, dont_adapt_arguments, stack_overflow, enough, too_few;
-  __ cmp(kExpectedNumberOfArgumentsRegister, kDontAdaptArgumentsSentinel);
-  __ j(equal, &dont_adapt_arguments);
-  __ cmp(eax, kExpectedNumberOfArgumentsRegister);
-  __ j(less, &too_few);
-
-  {  // Enough parameters: Actual >= expected.
-    __ bind(&enough);
-    EnterArgumentsAdaptorFrame(masm);
-    // edi is used as a scratch register. It should be restored from the frame
-    // when needed.
-    __ StackOverflowCheck(kExpectedNumberOfArgumentsRegister, edi,
-                          &stack_overflow);
-
-    // Copy receiver and all expected arguments.
-    const int offset = StandardFrameConstants::kCallerSPOffset;
-    __ lea(edi, Operand(ebp, ecx, times_system_pointer_size, offset));
-    __ mov(eax, -1);  // account for receiver
-
-    Label copy;
-    __ bind(&copy);
-    __ inc(eax);
-    __ push(Operand(edi, 0));
-    __ sub(edi, Immediate(kSystemPointerSize));
-    __ cmp(eax, kExpectedNumberOfArgumentsRegister);
-    __ j(less, &copy);
-    // eax now contains the expected number of arguments.
-    __ jmp(&invoke);
-  }
-
-  {  // Too few parameters: Actual < expected.
-    __ bind(&too_few);
-    EnterArgumentsAdaptorFrame(masm);
-    // edi is used as a scratch register. It should be restored from the frame
-    // when needed.
-    __ StackOverflowCheck(kExpectedNumberOfArgumentsRegister, edi,
-                          &stack_overflow);
-
-    // Remember expected arguments in xmm0.
-    __ movd(xmm0, kExpectedNumberOfArgumentsRegister);
-
-    // Remember new target.
-    __ movd(xmm1, edx);
-
-    // Fill remaining expected arguments with undefined values.
-    Label fill;
-    __ mov(edx, ecx);
-    __ sub(edx, eax);
-    __ bind(&fill);
-    __ Push(Immediate(masm->isolate()->factory()->undefined_value()));
-    __ dec(edx);
-    __ j(greater, &fill);
-
-    // Copy receiver and all actual arguments.
-    const int offset = StandardFrameConstants::kCallerSPOffset;
-    __ lea(edi, Operand(ebp, eax, times_system_pointer_size, offset));
-    __ mov(edx, Immediate(-1));
-
-    Label copy;
-    __ bind(&copy);
-    __ inc(edx);
-    __ push(Operand(edi, 0));
-    __ sub(edi, Immediate(kSystemPointerSize));
-    __ cmp(edx, eax);
-    __ j(less, &copy);
-
-    // Restore new.target
-    __ movd(edx, xmm1);
-
-    // Restore expected arguments.
-    __ movd(eax, xmm0);
-  }
-
-  // Call the entry point.
-  __ bind(&invoke);
-  // Restore function pointer.
-  __ mov(edi, Operand(ebp, ArgumentsAdaptorFrameConstants::kFunctionOffset));
-  // eax : expected number of arguments
-  // edx : new target (passed through to callee)
-  // edi : function (passed through to callee)
-  static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
-  __ mov(ecx, FieldOperand(edi, JSFunction::kCodeOffset));
-  __ CallCodeObject(ecx);
-
-  // Store offset of return address for deoptimizer.
-  masm->isolate()->heap()->SetArgumentsAdaptorDeoptPCOffset(masm->pc_offset());
-
-  // Leave frame and return.
-  LeaveArgumentsAdaptorFrame(masm);
-  __ ret(0);
-
-  // -------------------------------------------
-  // Dont adapt arguments.
-  // -------------------------------------------
-  __ bind(&dont_adapt_arguments);
-  static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
-  __ mov(ecx, FieldOperand(edi, JSFunction::kCodeOffset));
-  __ JumpCodeObject(ecx);
-
-  __ bind(&stack_overflow);
-  {
-    FrameScope frame(masm, StackFrame::MANUAL);
-    __ CallRuntime(Runtime::kThrowStackOverflow);
-    __ int3();
-  }
 }
 
 void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {

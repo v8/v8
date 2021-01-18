@@ -1569,15 +1569,6 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, int builtin_index, int arity,
 
   NodeProperties::ChangeOp(node, jsgraph->common()->Call(call_descriptor));
 }
-
-#ifndef V8_NO_ARGUMENTS_ADAPTOR
-bool NeedsArgumentAdaptorFrame(SharedFunctionInfoRef shared, int arity) {
-  static const int sentinel = kDontAdaptArgumentsSentinel;
-  const int num_decl_parms = shared.internal_formal_parameter_count();
-  return (num_decl_parms != arity && num_decl_parms != sentinel);
-}
-#endif
-
 }  // namespace
 
 Reduction JSTypedLowering::ReduceJSConstructForwardVarargs(Node* node) {
@@ -1762,7 +1753,6 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     Node* new_target = jsgraph()->UndefinedConstant();
 
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
     int formal_count = shared->internal_formal_parameter_count();
     if (formal_count != kDontAdaptArgumentsSentinel && formal_count > arity) {
       node->RemoveInput(n.FeedbackVectorIndex());
@@ -1781,22 +1771,6 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
                                common()->Call(Linkage::GetJSCallDescriptor(
                                    graph()->zone(), false, 1 + formal_count,
                                    flags | CallDescriptor::kCanUseRoots)));
-#else
-    if (NeedsArgumentAdaptorFrame(*shared, arity)) {
-      node->RemoveInput(n.FeedbackVectorIndex());
-      // Patch {node} to an indirect call via the ArgumentsAdaptorTrampoline.
-      Callable callable = CodeFactory::ArgumentAdaptor(isolate());
-      node->InsertInput(graph()->zone(), 0,
-                        jsgraph()->HeapConstant(callable.code()));
-      node->InsertInput(graph()->zone(), 2, new_target);
-      node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
-      node->InsertInput(
-          graph()->zone(), 4,
-          jsgraph()->Constant(shared->internal_formal_parameter_count()));
-      NodeProperties::ChangeOp(
-          node, common()->Call(Linkage::GetStubCallDescriptor(
-                    graph()->zone(), callable.descriptor(), 1 + arity, flags)));
-#endif
     } else if (shared->HasBuiltinId() &&
                Builtins::IsCpp(shared->builtin_id())) {
       // Patch {node} to a direct CEntry call.

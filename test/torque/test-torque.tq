@@ -711,9 +711,6 @@ macro TestFrame1(implicit context: Context)() {
     case (_f: StandardFrame): {
       unreachable;
     }
-    case (_f: ArgumentsAdaptorFrame): {
-      unreachable;
-    }
     case (_f: StubFrame): {
     }
   }

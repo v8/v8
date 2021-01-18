@@ -2786,7 +2786,6 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
                                     Label* done, InvokeFlag flag) {
   if (expected_parameter_count != actual_parameter_count) {
     Label regular_invoke;
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
     // If the expected parameter count is equal to the adaptor sentinel, no need
     // to push undefined value as arguments.
     cmpl(expected_parameter_count, Immediate(kDontAdaptArgumentsSentinel));
@@ -2844,22 +2843,6 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
       CallRuntime(Runtime::kThrowStackOverflow);
       int3();  // This should be unreachable.
     }
-#else
-    // Both expected and actual are in (different) registers. This
-    // is the case when we invoke functions using call and apply.
-    cmpq(expected_parameter_count, actual_parameter_count);
-    j(equal, &regular_invoke, Label::kNear);
-    DCHECK_EQ(actual_parameter_count, rax);
-    DCHECK_EQ(expected_parameter_count, rbx);
-    Handle<Code> adaptor = BUILTIN_CODE(isolate(), ArgumentsAdaptorTrampoline);
-    if (flag == CALL_FUNCTION) {
-      Call(adaptor, RelocInfo::CODE_TARGET);
-      jmp(done, Label::kNear);
-    } else {
-      Jump(adaptor, RelocInfo::CODE_TARGET);
-    }
-#endif
-
     bind(&regular_invoke);
   } else {
     Move(rax, actual_parameter_count);

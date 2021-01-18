@@ -2128,7 +2128,6 @@ void MacroAssembler::InvokePrologue(Register formal_parameter_count,
   DCHECK_EQ(actual_argument_count, x0);
   DCHECK_EQ(formal_parameter_count, x2);
 
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
   // If the formal parameter count is equal to the adaptor sentinel, no need
   // to push undefined value as arguments.
   Cmp(formal_parameter_count, Operand(kDontAdaptArgumentsSentinel));
@@ -2222,24 +2221,6 @@ void MacroAssembler::InvokePrologue(Register formal_parameter_count,
     CallRuntime(Runtime::kThrowStackOverflow);
     Unreachable();
   }
-#else
-  // Check whether the expected and actual arguments count match. The registers
-  // are set up according to contract with ArgumentsAdaptorTrampoline.ct.
-  // If actual == expected perform a regular invocation.
-  Cmp(formal_parameter_count, actual_argument_count);
-  B(eq, &regular_invoke);
-
-  // The argument counts mismatch, generate a call to the argument adaptor.
-  Handle<Code> adaptor = BUILTIN_CODE(isolate(), ArgumentsAdaptorTrampoline);
-  if (flag == CALL_FUNCTION) {
-    Call(adaptor);
-    // If the arg counts don't match, no extra code is emitted by
-    // MAsm::InvokeFunctionCode and we can just fall through.
-    B(done);
-  } else {
-    Jump(adaptor, RelocInfo::CODE_TARGET);
-  }
-#endif
 
   Bind(&regular_invoke);
 }

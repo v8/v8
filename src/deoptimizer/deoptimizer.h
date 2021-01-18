@@ -360,7 +360,6 @@ class TranslatedState {
                                 FixedArray literal_array, Address fp,
                                 RegisterValues* registers, FILE* trace_file);
   Address DecompressIfNeeded(intptr_t value);
-  Address ComputeArgumentsPosition(Address input_frame_pointer, int* length);
   void CreateArgumentsElementsTranslatedValues(int frame_index,
                                                Address input_frame_pointer,
                                                CreateArgumentsType type,
@@ -732,14 +731,10 @@ class FrameDescription {
   }
 
   Address GetFramePointerAddress() {
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
     // We should not pad arguments in the bottom frame, since this
     // already contain a padding if necessary and it might contain
     // extra arguments (actual argument count > parameter count).
     const bool pad_arguments_bottom_frame = false;
-#else
-    const bool pad_arguments_bottom_frame = true;
-#endif
     int fp_offset = GetLastArgumentSlotOffset(pad_arguments_bottom_frame) -
                     StandardFrameConstants::kCallerSPOffset;
     return reinterpret_cast<Address>(GetFrameSlotPointer(fp_offset));

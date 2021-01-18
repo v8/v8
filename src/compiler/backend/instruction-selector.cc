@@ -3049,10 +3049,6 @@ void InstructionSelector::VisitTailCall(Node* node) {
       default:
         UNREACHABLE();
     }
-    int temps_count = GetTempsCountForTailCallFromJSFunction();
-    for (int i = 0; i < temps_count; i++) {
-      temps.push_back(g.TempRegister());
-    }
   } else {
     switch (call_descriptor->kind()) {
       case CallDescriptor::kCallCodeObject:
