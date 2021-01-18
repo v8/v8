@@ -160,7 +160,6 @@ void RuntimeProfiler::AttemptOnStackReplacement(InterpretedFrame* frame,
 void RuntimeProfiler::MaybeOptimizeFrame(JSFunction function,
                                          JavaScriptFrame* frame,
                                          CodeKind code_kind) {
-  DCHECK(CodeKindCanTierUp(code_kind));
   if (function.IsInOptimizationQueue()) {
     TraceInOptimizationQueue(function);
     return;
@@ -308,10 +307,6 @@ void RuntimeProfiler::MarkCandidatesForOptimization(JavaScriptFrame* frame) {
 
   JSFunction function = frame->function();
   CodeKind code_kind = function.GetActiveTier();
-  // For recursive functions it could happen that we have some frames
-  // still executing mid-tier code even after the function had higher tier code.
-  // In such cases, ignore any interrupts from the mid-tier code.
-  if (!CodeKindCanTierUp(code_kind)) return;
 
   DCHECK(function.shared().is_compiled());
   DCHECK(function.shared().IsInterpreted());
