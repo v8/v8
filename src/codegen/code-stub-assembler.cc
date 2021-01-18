@@ -6369,9 +6369,15 @@ TNode<BoolT> CodeStubAssembler::IsJSGeneratorObject(TNode<HeapObject> object) {
   return HasInstanceType(object, JS_GENERATOR_OBJECT_TYPE);
 }
 
+TNode<BoolT> CodeStubAssembler::IsFunctionInstanceType(
+    TNode<Int32T> instance_type) {
+  return IsInRange(instance_type, FIRST_JS_FUNCTION_OR_BOUND_FUNCTION_TYPE,
+                   LAST_JS_FUNCTION_OR_BOUND_FUNCTION_TYPE);
+}
 TNode<BoolT> CodeStubAssembler::IsJSFunctionInstanceType(
     SloppyTNode<Int32T> instance_type) {
-  return InstanceTypeEqual(instance_type, JS_FUNCTION_TYPE);
+  return IsInRange(instance_type, FIRST_JS_FUNCTION_TYPE,
+                   LAST_JS_FUNCTION_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSFunction(TNode<HeapObject> object) {
@@ -9429,7 +9435,7 @@ TNode<Oddball> CodeStubAssembler::OrdinaryHasInstance(
 
     // Goto runtime if {callable} is not a JSFunction.
     TNode<Uint16T> callable_instance_type = LoadMapInstanceType(callable_map);
-    GotoIfNot(InstanceTypeEqual(callable_instance_type, JS_FUNCTION_TYPE),
+    GotoIfNot(IsJSFunctionInstanceType(callable_instance_type),
               &return_runtime);
 
     GotoIfPrototypeRequiresRuntimeLookup(CAST(callable), callable_map,

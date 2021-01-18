@@ -2125,7 +2125,7 @@ Handle<JSObject> Factory::NewJSObjectFromMap(
     Handle<AllocationSite> allocation_site) {
   // JSFunctions should be allocated using AllocateFunction to be
   // properly initialized.
-  DCHECK(map->instance_type() != JS_FUNCTION_TYPE);
+  DCHECK(!InstanceTypeChecker::IsJSFunction((map->instance_type())));
 
   // Both types of global objects should be allocated using
   // AllocateGlobalObject to be properly initialized.
@@ -3510,7 +3510,7 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(Handle<Code> code) {
   Handle<Map> map = maybe_map_.ToHandleChecked();
   Handle<FeedbackCell> feedback_cell = maybe_feedback_cell_.ToHandleChecked();
 
-  DCHECK_EQ(JS_FUNCTION_TYPE, map->instance_type());
+  DCHECK(InstanceTypeChecker::IsJSFunction(map->instance_type()));
 
   // Allocation.
   Handle<JSFunction> function(

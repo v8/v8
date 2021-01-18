@@ -2523,9 +2523,11 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   Label non_callable, non_smi;
   __ JumpIfSmi(x1, &non_callable);
   __ Bind(&non_smi);
-  __ CompareObjectType(x1, x4, x5, JS_FUNCTION_TYPE);
+  __ LoadMap(x4, x1);
+  __ CompareInstanceTypeRange(x4, x5, FIRST_JS_FUNCTION_TYPE,
+                              LAST_JS_FUNCTION_TYPE);
   __ Jump(masm->isolate()->builtins()->CallFunction(mode),
-          RelocInfo::CODE_TARGET, eq);
+          RelocInfo::CODE_TARGET, ls);
   __ Cmp(x5, JS_BOUND_FUNCTION_TYPE);
   __ Jump(BUILTIN_CODE(masm->isolate(), CallBoundFunction),
           RelocInfo::CODE_TARGET, eq);
@@ -2639,9 +2641,10 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
                              &non_constructor);
 
   // Dispatch based on instance type.
-  __ CompareInstanceType(x4, x5, JS_FUNCTION_TYPE);
+  __ CompareInstanceTypeRange(x4, x5, FIRST_JS_FUNCTION_TYPE,
+                              LAST_JS_FUNCTION_TYPE);
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructFunction),
-          RelocInfo::CODE_TARGET, eq);
+          RelocInfo::CODE_TARGET, ls);
 
   // Only dispatch to bound functions after checking whether they are
   // constructors.

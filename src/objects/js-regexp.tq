@@ -48,6 +48,10 @@ extern shape JSRegExpResult extends JSArray {
   regexp_last_index: Smi;
 }
 
+@doNotGenerateCast
+extern class JSRegExpConstructor extends JSFunction
+    generates 'TNode<JSFunction>';
+
 extern shape JSRegExpResultIndices extends JSArray {
   // In-object properties:
   // The groups field is externally exposed.

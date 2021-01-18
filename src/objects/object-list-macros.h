@@ -265,6 +265,9 @@ class ZoneForwardList;
   V(FreeSpaceOrFiller)                       \
   V(FunctionContext)                         \
   V(JSApiObject)                             \
+  V(JSPromiseConstructor)                    \
+  V(JSArrayConstructor)                      \
+  V(JSRegExpConstructor)                     \
   V(JSMapKeyIterator)                        \
   V(JSMapKeyValueIterator)                   \
   V(JSMapValueIterator)                      \
@@ -285,7 +288,19 @@ class ZoneForwardList;
   V(JSMapIteratorPrototype)                  \
   V(JSTypedArrayPrototype)                   \
   V(JSSetIteratorPrototype)                  \
-  V(JSStringIteratorPrototype)
+  V(JSStringIteratorPrototype)               \
+  V(TypedArrayConstructor)                   \
+  V(Uint8TypedArrayConstructor)              \
+  V(Int8TypedArrayConstructor)               \
+  V(Uint16TypedArrayConstructor)             \
+  V(Int16TypedArrayConstructor)              \
+  V(Uint32TypedArrayConstructor)             \
+  V(Int32TypedArrayConstructor)              \
+  V(Float32TypedArrayConstructor)            \
+  V(Float64TypedArrayConstructor)            \
+  V(Uint8ClampedTypedArrayConstructor)       \
+  V(Biguint64TypedArrayConstructor)          \
+  V(Bigint64TypedArrayConstructor)
 
 #define HEAP_OBJECT_TYPE_LIST(V)    \
   HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \

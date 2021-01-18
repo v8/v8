@@ -986,6 +986,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Always use unsigned comparisons: above and below, not less and greater.
   void CmpInstanceType(Register map, InstanceType type);
 
+  // Compare instance type ranges for a map (low and high inclusive)
+  // Always use unsigned comparisons: below_equal for a positive result.
+  void CmpInstanceTypeRange(Register map, InstanceType low, InstanceType high);
+
   template <typename Field>
   void DecodeField(Register reg) {
     static const int shift = Field::kShift;
