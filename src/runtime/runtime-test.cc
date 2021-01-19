@@ -1571,25 +1571,17 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_WasmTierDownModule) {
+RUNTIME_FUNCTION(Runtime_WasmTierDown) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
-  auto* native_module = instance->module_object().native_module();
-  native_module->SetTieringState(wasm::kTieredDown);
-  native_module->RecompileForTiering();
-  CHECK(!native_module->compilation_state()->failed());
+  DCHECK_EQ(0, args.length());
+  isolate->wasm_engine()->TierDownAllModulesPerIsolate(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_WasmTierUpModule) {
+RUNTIME_FUNCTION(Runtime_WasmTierUp) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
-  auto* native_module = instance->module_object().native_module();
-  native_module->SetTieringState(wasm::kTieredUp);
-  native_module->RecompileForTiering();
-  CHECK(!native_module->compilation_state()->failed());
+  DCHECK_EQ(0, args.length());
+  isolate->wasm_engine()->TierUpAllModulesPerIsolate(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

@@ -846,10 +846,6 @@
   # isolates.
   'wasm/lazy-compilation': [SKIP],
 
-  # Tier down/up Wasm NativeModule in debugging is non-deterministic with
-  # multiple isolates (https://crbug.com/v8/10099).
-  'wasm/tier-down-to-liftoff': [SKIP],
-
   # Tier down/up Wasm functions is non-deterministic with
   # multiple isolates, as dynamic tiering relies on a array shared
   # in the module, that can be modified by all instances.
