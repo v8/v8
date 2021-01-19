@@ -4630,6 +4630,9 @@ bool Genesis::InstallABunchOfRandomThings() {
   native_context()->set_slow_template_instantiations_cache(
       *slow_template_instantiations_cache);
 
+  auto wasm_debug_proxy_maps = isolate()->factory()->empty_fixed_array();
+  native_context()->set_wasm_debug_proxy_maps(*wasm_debug_proxy_maps);
+
   // Store the map for the %ObjectPrototype% after the natives has been compiled
   // and the Object function has been set up.
   {

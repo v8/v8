@@ -124,26 +124,6 @@ enum DebugProxyId {
   kNumInstanceProxies = kLastInstanceProxyId + 1
 };
 
-// Creates a FixedArray with the given |length| as cache on-demand on
-// the |object|, stored under the |wasm_debug_proxy_cache_symbol|.
-// This is currently used to cache the debug proxy object maps on the
-// JSGlobalObject (per native context), and various debug proxy objects
-// (functions, globals, tables, and memories) on the WasmInstanceObject.
-Handle<FixedArray> GetOrCreateDebugProxyCache(Isolate* isolate,
-                                              Handle<Object> object,
-                                              int length) {
-  Handle<Object> cache;
-  Handle<Symbol> symbol = isolate->factory()->wasm_debug_proxy_cache_symbol();
-  if (!Object::GetProperty(isolate, object, symbol).ToHandle(&cache) ||
-      cache->IsUndefined(isolate)) {
-    cache = isolate->factory()->NewFixedArrayWithHoles(length);
-    Object::SetProperty(isolate, object, symbol, cache).Check();
-  } else {
-    DCHECK_EQ(length, Handle<FixedArray>::cast(cache)->length());
-  }
-  return Handle<FixedArray>::cast(cache);
-}
-
 // Creates a Map for the given debug proxy |id| using the |create_template_fn|
 // on-demand and caches this map in the global object. The map is derived from
 // the FunctionTemplate returned by |create_template_fn| and has it's prototype
@@ -151,8 +131,12 @@ Handle<FixedArray> GetOrCreateDebugProxyCache(Isolate* isolate,
 Handle<Map> GetOrCreateDebugProxyMap(
     Isolate* isolate, DebugProxyId id,
     v8::Local<v8::FunctionTemplate> (*create_template_fn)(v8::Isolate*)) {
-  Handle<FixedArray> maps = GetOrCreateDebugProxyCache(
-      isolate, isolate->global_object(), kNumProxies);
+  Handle<FixedArray> maps = isolate->wasm_debug_proxy_maps();
+  if (maps->length() == 0) {
+    maps = isolate->factory()->NewFixedArrayWithHoles(kNumProxies);
+    isolate->native_context()->set_wasm_debug_proxy_maps(*maps);
+  }
+  CHECK_EQ(kNumProxies, maps->length());
   if (!maps->is_the_hole(isolate, id)) {
     return handle(Map::cast(maps->get(id)), isolate);
   }
@@ -539,14 +523,29 @@ struct StackProxy : IndexedDebugProxy<StackProxy, kStackProxy, FixedArray> {
   }
 };
 
+// Creates FixedArray with size |kNumInstanceProxies| as cache on-demand
+// on the |instance|, stored under the |wasm_debug_proxy_cache_symbol|.
+// This is used to cache the various instance debug proxies (functions,
+// globals, tables, and memories) on the WasmInstanceObject.
+Handle<FixedArray> GetOrCreateInstanceProxyCache(
+    Isolate* isolate, Handle<WasmInstanceObject> instance) {
+  Handle<Object> cache;
+  Handle<Symbol> symbol = isolate->factory()->wasm_debug_proxy_cache_symbol();
+  if (!Object::GetProperty(isolate, instance, symbol).ToHandle(&cache) ||
+      cache->IsUndefined(isolate)) {
+    cache = isolate->factory()->NewFixedArrayWithHoles(kNumInstanceProxies);
+    Object::SetProperty(isolate, instance, symbol, cache).Check();
+  }
+  return Handle<FixedArray>::cast(cache);
+}
+
 // Creates an instance of the |Proxy| on-demand and caches that on the
 // |instance|.
 template <typename Proxy>
 Handle<JSObject> GetOrCreateInstanceProxy(Isolate* isolate,
                                           Handle<WasmInstanceObject> instance) {
   STATIC_ASSERT(Proxy::kId < kNumInstanceProxies);
-  Handle<FixedArray> proxies =
-      GetOrCreateDebugProxyCache(isolate, instance, kNumInstanceProxies);
+  Handle<FixedArray> proxies = GetOrCreateInstanceProxyCache(isolate, instance);
   if (!proxies->is_the_hole(isolate, Proxy::kId)) {
     return handle(JSObject::cast(proxies->get(Proxy::kId)), isolate);
   }
