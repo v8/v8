@@ -646,6 +646,10 @@ class CompilationStateImpl {
     compilation_id_ = compilation_id;
   }
 
+  std::weak_ptr<NativeModule> const native_module_weak() const {
+    return native_module_weak_;
+  }
+
  private:
   // Trigger callbacks according to the internal counters below
   // (outstanding_...), plus the given events.
@@ -1713,8 +1717,10 @@ void RecompileNativeModule(NativeModule* native_module,
         }
       });
 
-  // Now wait until all compilation units finished.
-  // TODO(clemensb): Contribute to compilation while waiting.
+  constexpr JobDelegate* kNoDelegate = nullptr;
+  ExecuteCompilationUnits(
+      compilation_state->native_module_weak(), native_module->engine(),
+      compilation_state->counters(), kNoDelegate, kBaselineOnly);
   recompilation_finished_semaphore->Wait();
   DCHECK(!compilation_state->failed());
 }
