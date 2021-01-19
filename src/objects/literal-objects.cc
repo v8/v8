@@ -626,14 +626,6 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
     static_desc.AddConstant(isolate, factory->prototype_string(),
                             factory->function_prototype_accessor(), attribs);
   }
-  if (FunctionLiteral::NeedsHomeObject(expr->constructor())) {
-    PropertyAttributes attribs =
-        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-    Handle<Object> value(
-        Smi::FromInt(ClassBoilerplate::kPrototypeArgumentIndex), isolate);
-    static_desc.AddConstant(isolate, factory->home_object_symbol(), value,
-                            attribs);
-  }
   {
     Handle<ClassPositions> class_positions = factory->NewClassPositions(
         expr->start_position(), expr->end_position());

@@ -305,17 +305,6 @@ bool SharedFunctionInfo::is_wrapped() const {
   return syntax_kind() == FunctionSyntaxKind::kWrapped;
 }
 
-bool SharedFunctionInfo::needs_home_object() const {
-  return NeedsHomeObjectBit::decode(flags());
-}
-
-void SharedFunctionInfo::set_needs_home_object(bool value) {
-  int hints = flags();
-  hints = NeedsHomeObjectBit::update(hints, value);
-  set_flags(hints);
-  UpdateFunctionMapIndex();
-}
-
 bool SharedFunctionInfo::construct_as_builtin() const {
   return ConstructAsBuiltinBit::decode(flags());
 }
@@ -359,8 +348,8 @@ void SharedFunctionInfo::clear_padding() {
 }
 
 void SharedFunctionInfo::UpdateFunctionMapIndex() {
-  int map_index = Context::FunctionMapIndex(
-      language_mode(), kind(), HasSharedName(), needs_home_object());
+  int map_index =
+      Context::FunctionMapIndex(language_mode(), kind(), HasSharedName());
   set_function_map_index(map_index);
 }
 

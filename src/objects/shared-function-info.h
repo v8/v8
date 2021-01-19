@@ -632,11 +632,6 @@ class SharedFunctionInfo
   STATIC_ASSERT(FunctionSyntaxKind::kLastFunctionSyntaxKind <=
                 FunctionSyntaxKindBits::kMax);
 
-  // Indicates that this function uses a super property (or an eval that may
-  // use a super property).
-  // This is needed to set up the [[HomeObject]] on the function instance.
-  inline bool needs_home_object() const;
-
   // Sets the bytecode in {shared}'s DebugInfo as the bytecode to
   // be returned by following calls to GetActiveBytecodeArray. Stores a
   // reference to the original bytecode in the DebugInfo.
@@ -669,8 +664,6 @@ class SharedFunctionInfo
   DECL_BOOLEAN_ACCESSORS(is_oneshot_iife_or_properties_are_final)
 
   inline void set_kind(FunctionKind kind);
-
-  inline void set_needs_home_object(bool value);
 
   inline uint16_t get_property_estimate_from_literal(FunctionLiteral* literal);
 

@@ -623,6 +623,8 @@ class ParserBase {
     DeclarationScope* static_fields_scope;
     DeclarationScope* instance_members_scope;
     int computed_field_count;
+    Variable* home_object_variable = nullptr;
+    Variable* static_home_object_variable = nullptr;
   };
 
   enum class PropertyPosition { kObjectLiteral, kClassLiteral };
@@ -779,6 +781,12 @@ class ParserBase {
 
   ClassScope* NewClassScope(Scope* parent, bool is_anonymous) const {
     return zone()->template New<ClassScope>(zone(), parent, is_anonymous);
+  }
+
+  Scope* NewBlockScopeForObjectLiteral() {
+    Scope* scope = NewScope(BLOCK_SCOPE);
+    scope->set_is_block_scope_for_object_literal();
+    return scope;
   }
 
   Scope* NewScope(ScopeType scope_type) const {
@@ -1371,10 +1379,13 @@ class ParserBase {
     return true;
   }
 
-  FunctionKind FunctionKindForImpl(bool is_method, ParseFunctionFlags flags) {
+  enum SubFunctionKind { kFunction, kNonStaticMethod, kStaticMethod };
+
+  FunctionKind FunctionKindForImpl(SubFunctionKind sub_function_kind,
+                                   ParseFunctionFlags flags) {
     static const FunctionKind kFunctionKinds[][2][2] = {
         {
-            // is_method=false
+            // SubFunctionKind::kNormalFunction
             {// is_generator=false
              FunctionKind::kNormalFunction, FunctionKind::kAsyncFunction},
             {// is_generator=true
@@ -1382,26 +1393,35 @@ class ParserBase {
              FunctionKind::kAsyncGeneratorFunction},
         },
         {
-            // is_method=true
+            // SubFunctionKind::kNonStaticMethod
             {// is_generator=false
              FunctionKind::kConciseMethod, FunctionKind::kAsyncConciseMethod},
             {// is_generator=true
              FunctionKind::kConciseGeneratorMethod,
              FunctionKind::kAsyncConciseGeneratorMethod},
+        },
+        {
+            // SubFunctionKind::kStaticMethod
+            {// is_generator=false
+             FunctionKind::kStaticConciseMethod,
+             FunctionKind::kStaticAsyncConciseMethod},
+            {// is_generator=true
+             FunctionKind::kStaticConciseGeneratorMethod,
+             FunctionKind::kStaticAsyncConciseGeneratorMethod},
         }};
-    return kFunctionKinds[is_method]
+    return kFunctionKinds[sub_function_kind]
                          [(flags & ParseFunctionFlag::kIsGenerator) != 0]
                          [(flags & ParseFunctionFlag::kIsAsync) != 0];
   }
 
   inline FunctionKind FunctionKindFor(ParseFunctionFlags flags) {
-    const bool kIsMethod = false;
-    return FunctionKindForImpl(kIsMethod, flags);
+    return FunctionKindForImpl(SubFunctionKind::kFunction, flags);
   }
 
-  inline FunctionKind MethodKindFor(ParseFunctionFlags flags) {
-    const bool kIsMethod = true;
-    return FunctionKindForImpl(kIsMethod, flags);
+  inline FunctionKind MethodKindFor(bool is_static, ParseFunctionFlags flags) {
+    return FunctionKindForImpl(is_static ? SubFunctionKind::kStaticMethod
+                                         : SubFunctionKind::kNonStaticMethod,
+                               flags);
   }
 
   // Keep track of eval() calls since they disable all local variable
@@ -1505,6 +1525,8 @@ class ParserBase {
   // Parser base's protected field members.
 
   Scope* scope_;                   // Scope stack.
+  // Stack of scopes for object literals we're currently parsing.
+  Scope* object_literal_scope_ = nullptr;
   Scope* original_scope_;  // The top scope for the current parsing item.
   FunctionState* function_state_;  // Function state stack.
   v8::Extension* extension_;
@@ -2332,7 +2354,8 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
                              &class_info->has_seen_constructor);
       }
 
-      FunctionKind kind = MethodKindFor(prop_info->function_flags);
+      FunctionKind kind =
+          MethodKindFor(prop_info->is_static, prop_info->function_flags);
 
       if (!prop_info->is_static && impl()->IsConstructor(prop_info->name)) {
         class_info->has_seen_constructor = true;
@@ -2369,8 +2392,14 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
             prop_info->name, name_expression->position());
       }
 
-      FunctionKind kind = is_get ? FunctionKind::kGetterFunction
-                                 : FunctionKind::kSetterFunction;
+      FunctionKind kind;
+      if (prop_info->is_static) {
+        kind = is_get ? FunctionKind::kStaticGetterFunction
+                      : FunctionKind::kStaticSetterFunction;
+      } else {
+        kind = is_get ? FunctionKind::kGetterFunction
+                      : FunctionKind::kSetterFunction;
+      }
 
       FunctionLiteralT value = impl()->ParseFunctionLiteral(
           prop_info->name, scanner()->location(), kSkipFunctionNameCheck, kind,
@@ -2406,10 +2435,12 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberInitializer(
   DeclarationScope* initializer_scope =
       is_static ? class_info->static_fields_scope
                 : class_info->instance_members_scope;
+  FunctionKind function_kind =
+      is_static ? FunctionKind::kStaticClassMembersInitializerFunction
+                : FunctionKind::kClassMembersInitializerFunction;
 
   if (initializer_scope == nullptr) {
-    initializer_scope =
-        NewFunctionScope(FunctionKind::kClassMembersInitializerFunction);
+    initializer_scope = NewFunctionScope(function_kind);
     // TODO(gsathya): Make scopes be non contiguous.
     initializer_scope->set_start_position(beg_pos);
     initializer_scope->SetLanguageMode(LanguageMode::kStrict);
@@ -2553,7 +2584,13 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ParsePropertyInfo* prop_info,
           Scanner::Location(next_loc.beg_pos, end_position()),
           MessageTemplate::kInvalidDestructuringTarget);
 
-      FunctionKind kind = MethodKindFor(function_flags);
+      std::unique_ptr<BlockState> block_state;
+      if (object_literal_scope_ != nullptr) {
+        DCHECK_EQ(object_literal_scope_->outer_scope(), scope_);
+        block_state.reset(new BlockState(&scope_, object_literal_scope_));
+      }
+      constexpr bool kIsStatic = false;
+      FunctionKind kind = MethodKindFor(kIsStatic, function_flags);
 
       ExpressionT value = impl()->ParseFunctionLiteral(
           name, scanner()->location(), kSkipFunctionNameCheck, kind,
@@ -2582,6 +2619,12 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ParsePropertyInfo* prop_info,
         // this statically we can skip the extra runtime check.
         name_expression =
             factory()->NewStringLiteral(name, name_expression->position());
+      }
+
+      std::unique_ptr<BlockState> block_state;
+      if (object_literal_scope_ != nullptr) {
+        DCHECK_EQ(object_literal_scope_->outer_scope(), scope_);
+        block_state.reset(new BlockState(&scope_, object_literal_scope_));
       }
 
       FunctionKind kind = is_get ? FunctionKind::kGetterFunction
@@ -2628,6 +2671,11 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral() {
   Consume(Token::LBRACE);
   AccumulationScope accumulation_scope(expression_scope());
 
+  // If methods appear inside the object literal, we'll enter this scope.
+  Scope* block_scope = NewBlockScopeForObjectLiteral();
+  block_scope->set_start_position(pos);
+  BlockState object_literal_scope_state(&object_literal_scope_, block_scope);
+
   while (!Check(Token::RBRACE)) {
     FuncNameInferrerState fni_state(&fni_);
 
@@ -2660,6 +2708,15 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral() {
     fni_.Infer();
   }
 
+  Variable* home_object = nullptr;
+  if (block_scope->NeedsHomeObject()) {
+    home_object = block_scope->DeclareHomeObjectVariable(ast_value_factory());
+    block_scope->set_end_position(end_position());
+  } else {
+    block_scope = block_scope->FinalizeBlockScope();
+    DCHECK_NULL(block_scope);
+  }
+
   // In pattern rewriter, we rewrite rest property to call out to a
   // runtime function passing all the other properties as arguments to
   // this runtime function. Here, we make sure that the number of
@@ -2670,8 +2727,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral() {
                                            MessageTemplate::kTooManyArguments);
   }
 
-  return impl()->InitializeObjectLiteral(factory()->NewObjectLiteral(
-      properties, number_of_boilerplate_properties, pos, has_rest_property));
+  return impl()->InitializeObjectLiteral(
+      factory()->NewObjectLiteral(properties, number_of_boilerplate_properties,
+                                  pos, has_rest_property, home_object));
 }
 
 template <typename Impl>
@@ -4533,6 +4591,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
   BlockState block_state(&scope_, class_scope);
   RaiseLanguageMode(LanguageMode::kStrict);
 
+  BlockState object_literal_scope_state(&object_literal_scope_, nullptr);
+
   ClassInfo class_info(this);
   class_info.is_anonymous = is_anonymous;
 
@@ -4617,6 +4677,13 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
   if (class_info.requires_brand) {
     class_scope->DeclareBrandVariable(
         ast_value_factory(), IsStaticFlag::kNotStatic, kNoSourcePosition);
+  }
+
+  if (class_scope->NeedsHomeObject()) {
+    class_info.home_object_variable =
+        class_scope->DeclareHomeObjectVariable(ast_value_factory());
+    class_info.static_home_object_variable =
+        class_scope->DeclareStaticHomeObjectVariable(ast_value_factory());
   }
 
   bool should_save_class_variable_index =

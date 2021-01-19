@@ -71,6 +71,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   class ExpressionResultScope;
   class FeedbackSlotCache;
   class IteratorRecord;
+  class MultipleEntryBlockContextScope;
   class LoopScope;
   class NaryCodeCoverageSlots;
   class OptionalChainNullLabelScope;
@@ -325,10 +326,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                          Register instance);
   void BuildGeneratorObjectVariableInitialization();
   void VisitBlockDeclarationsAndStatements(Block* stmt);
-  void VisitSetHomeObject(Register value, Register home_object,
-                          LiteralProperty* property);
-  void VisitLiteralAccessor(Register home_object, LiteralProperty* property,
-                            Register value_out);
+  void VisitLiteralAccessor(LiteralProperty* property, Register value_out);
   void VisitForInAssignment(Expression* expr);
   void VisitModuleNamespaceImports();
 
