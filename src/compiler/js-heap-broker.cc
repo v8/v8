@@ -769,21 +769,27 @@ class NativeContextData : public ContextData {
 #undef DECL_ACCESSOR
 
   const ZoneVector<ObjectData*>& function_maps() const {
-    CHECK(serialized_);
+    CHECK_NE(state_, State::kUnserialized);
     return function_maps_;
   }
 
   ObjectData* scope_info() const {
-    CHECK(serialized_);
+    CHECK_NE(state_, State::kUnserialized);
     return scope_info_;
   }
 
   NativeContextData(JSHeapBroker* broker, ObjectData** storage,
                     Handle<NativeContext> object);
   void Serialize(JSHeapBroker* broker);
+  void SerializeOnBackground(JSHeapBroker* broker);
 
  private:
-  bool serialized_ = false;
+  // After Serialize is called the class is partially serialized and it the
+  // kSerializedOnMainThread state. It then becomes kFullySerialized once
+  // SerializeOnBackground is called.
+  enum class State { kUnserialized, kSerializedOnMainThread, kFullySerialized };
+  State state_;
+
 #define DECL_MEMBER(type, name) ObjectData* name##_ = nullptr;
   BROKER_NATIVE_CONTEXT_FIELDS(DECL_MEMBER)
 #undef DECL_MEMBER
@@ -1232,7 +1238,8 @@ bool SupportsFastArrayResize(Isolate* isolate, Handle<Map> map) {
 }  // namespace
 
 MapData::MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object)
-    : HeapObjectData(broker, storage, object),
+    : HeapObjectData(broker, storage, object,
+                     ObjectDataKind::kPossiblyBackgroundSerializedHeapObject),
       instance_type_(object->instance_type()),
       instance_size_(object->instance_size()),
       bit_field_(object->bit_field()),
@@ -2423,6 +2430,7 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
       array_and_object_prototypes_(zone()),
       tracing_enabled_(tracing_enabled),
       is_concurrent_inlining_(is_concurrent_inlining),
+      is_isolate_bootstrapping_(isolate->bootstrapper()->IsActive()),
       code_kind_(code_kind),
       feedback_(zone()),
       property_access_infos_(zone()),
@@ -2476,6 +2484,12 @@ void JSHeapBroker::AttachLocalIsolate(OptimizedCompilationInfo* info,
   DCHECK_NOT_NULL(local_isolate_);
   local_isolate_->heap()->AttachPersistentHandles(
       info->DetachPersistentHandles());
+
+  if (FLAG_turbo_direct_heap_access) {
+    // Ensure any serialization that happens on the background has been
+    // performed.
+    target_native_context().SerializeOnBackground();
+  }
 }
 
 void JSHeapBroker::DetachLocalIsolate(OptimizedCompilationInfo* info) {
@@ -2596,7 +2610,8 @@ void JSHeapBroker::SetTargetNativeContextRef(
          (mode() == kSerializing &&
           target_native_context_->object().equals(native_context) &&
           target_native_context_->data_->kind() == kUnserializedHeapObject));
-  target_native_context_ = NativeContextRef(this, native_context);
+  target_native_context_ =
+      NativeContextRef(this, CanonicalPersistentHandle(*native_context));
 }
 
 void JSHeapBroker::CollectArrayAndObjectPrototypes() {
@@ -2693,6 +2708,11 @@ void JSHeapBroker::InitializeAndStartSerializing(
 
   SetTargetNativeContextRef(native_context);
   target_native_context().Serialize();
+  if (!FLAG_turbo_direct_heap_access) {
+    // Perform full native context serialization now if we can't do it later on
+    // the background thread.
+    target_native_context().SerializeOnBackground();
+  }
 
   CollectArrayAndObjectPrototypes();
 
@@ -4082,11 +4102,13 @@ Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
 
 NativeContextData::NativeContextData(JSHeapBroker* broker, ObjectData** storage,
                                      Handle<NativeContext> object)
-    : ContextData(broker, storage, object), function_maps_(broker->zone()) {}
+    : ContextData(broker, storage, object),
+      state_(State::kUnserialized),
+      function_maps_(broker->zone()) {}
 
 void NativeContextData::Serialize(JSHeapBroker* broker) {
-  if (serialized_) return;
-  serialized_ = true;
+  if (state_ != State::kUnserialized) return;
+  state_ = State::kSerializedOnMainThread;
 
   TraceScope tracer(broker, this, "NativeContextData::Serialize");
   Handle<NativeContext> context = Handle<NativeContext>::cast(object());
@@ -4095,14 +4117,16 @@ void NativeContextData::Serialize(JSHeapBroker* broker) {
   DCHECK_NULL(name##_);                                                       \
   name##_ = broker->GetOrCreateData(context->name());                         \
   if (!name##_->should_access_heap()) {                                       \
-    if (name##_->IsJSFunction()) name##_->AsJSFunction()->Serialize(broker);  \
     if (name##_->IsMap() &&                                                   \
         !InstanceTypeChecker::IsContext(name##_->AsMap()->instance_type())) { \
       name##_->AsMap()->SerializeConstructor(broker);                         \
     }                                                                         \
+    if (name##_->IsJSFunction()) {                                            \
+      name##_->AsJSFunction()->Serialize(broker);                             \
+    }                                                                         \
   }
   BROKER_COMPULSORY_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
-  if (!broker->isolate()->bootstrapper()->IsActive()) {
+  if (!broker->is_isolate_bootstrapping()) {
     BROKER_OPTIONAL_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
   }
 #undef SERIALIZE_MEMBER
@@ -4115,15 +4139,39 @@ void NativeContextData::Serialize(JSHeapBroker* broker) {
         broker);
   }
 
+  scope_info_ = broker->GetOrCreateData(context->scope_info());
+}
+
+void NativeContextData::SerializeOnBackground(JSHeapBroker* broker) {
+  if (state_ == State::kFullySerialized) return;
+  DCHECK_EQ(state_, State::kSerializedOnMainThread);
+  state_ = State::kSerializedOnMainThread;
+
+  UnparkedScopeIfNeeded unparked_scope(broker);
+  TraceScope tracer(broker, this, "NativeContextData::SerializeOnBackground");
+  Handle<NativeContext> context = Handle<NativeContext>::cast(object());
+
+  constexpr auto kAllowed = ObjectRef::BackgroundSerialization::kAllowed;
+#define SERIALIZE_MEMBER(type, name)                            \
+  DCHECK_NULL(name##_);                                         \
+  name##_ = broker->GetOrCreateData(context->name(), kAllowed); \
+  if (!name##_->should_access_heap()) {                         \
+    DCHECK(!name##_->IsJSFunction());                           \
+  }
+  BROKER_COMPULSORY_BACKGROUND_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
+  if (!broker->is_isolate_bootstrapping()) {
+    BROKER_OPTIONAL_BACKGROUND_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
+  }
+#undef SERIALIZE_MEMBER
+
   DCHECK(function_maps_.empty());
   int const first = Context::FIRST_FUNCTION_MAP_INDEX;
   int const last = Context::LAST_FUNCTION_MAP_INDEX;
   function_maps_.reserve(last + 1 - first);
   for (int i = first; i <= last; ++i) {
-    function_maps_.push_back(broker->GetOrCreateData(context->get(i)));
+    function_maps_.push_back(
+        broker->GetOrCreateData(context->get(i), kAllowed));
   }
-
-  scope_info_ = broker->GetOrCreateData(context->scope_info());
 }
 
 void JSFunctionRef::Serialize() {
@@ -4245,6 +4293,13 @@ void NativeContextRef::Serialize() {
   if (data_->should_access_heap()) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsNativeContext()->Serialize(broker());
+}
+
+void NativeContextRef::SerializeOnBackground() {
+  if (data_->should_access_heap()) return;
+  CHECK(broker()->mode() == JSHeapBroker::kSerializing ||
+        broker()->mode() == JSHeapBroker::kSerialized);
+  data()->AsNativeContext()->SerializeOnBackground(broker());
 }
 
 void JSTypedArrayRef::Serialize() {

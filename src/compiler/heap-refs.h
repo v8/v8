@@ -92,7 +92,8 @@ enum class OddballType : uint8_t {
 #define HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(V) \
   /* Subtypes of HeapObject */                                    \
   V(BigInt)                                                       \
-  V(HeapNumber)
+  V(HeapNumber)                                                   \
+  V(Map)
 
 // This list is sorted such that subtypes appear before their supertypes.
 // DO NOT VIOLATE THIS PROPERTY!
@@ -127,7 +128,6 @@ enum class OddballType : uint8_t {
   V(FixedArrayBase)                           \
   V(FunctionTemplateInfo)                     \
   V(JSReceiver)                               \
-  V(Map)                                      \
   V(Name)                                     \
   V(PropertyCell)                             \
   V(SourceTextModule)                         \
@@ -460,42 +460,48 @@ class ContextRef : public HeapObjectRef {
   V(JSGlobalObject, global_object)                 \
   V(JSGlobalProxy, global_proxy_object)            \
   V(JSObject, promise_prototype)                   \
-  V(Map, block_context_map)                        \
   V(Map, bound_function_with_constructor_map)      \
   V(Map, bound_function_without_constructor_map)   \
-  V(Map, catch_context_map)                        \
-  V(Map, eval_context_map)                         \
-  V(Map, fast_aliased_arguments_map)               \
-  V(Map, function_context_map)                     \
-  V(Map, initial_array_iterator_map)               \
-  V(Map, initial_string_iterator_map)              \
-  V(Map, iterator_result_map)                      \
   V(Map, js_array_holey_double_elements_map)       \
   V(Map, js_array_holey_elements_map)              \
   V(Map, js_array_holey_smi_elements_map)          \
   V(Map, js_array_packed_double_elements_map)      \
   V(Map, js_array_packed_elements_map)             \
   V(Map, js_array_packed_smi_elements_map)         \
-  V(Map, sloppy_arguments_map)                     \
-  V(Map, slow_object_with_null_prototype_map)      \
-  V(Map, strict_arguments_map)                     \
-  V(Map, with_context_map)                         \
   V(ScriptContextTable, script_context_table)
+
+#define BROKER_OPTIONAL_NATIVE_CONTEXT_FIELDS(V) \
+  V(JSFunction, regexp_exec_function)
+
+#define BROKER_COMPULSORY_BACKGROUND_NATIVE_CONTEXT_FIELDS(V) \
+  V(Map, block_context_map)                                   \
+  V(Map, catch_context_map)                                   \
+  V(Map, eval_context_map)                                    \
+  V(Map, fast_aliased_arguments_map)                          \
+  V(Map, function_context_map)                                \
+  V(Map, initial_array_iterator_map)                          \
+  V(Map, initial_string_iterator_map)                         \
+  V(Map, iterator_result_map)                                 \
+  V(Map, sloppy_arguments_map)                                \
+  V(Map, slow_object_with_null_prototype_map)                 \
+  V(Map, strict_arguments_map)                                \
+  V(Map, with_context_map)
 
 // Those are set by Bootstrapper::ExportFromRuntime, which may not yet have
 // happened when Turbofan is invoked via --always-opt.
-#define BROKER_OPTIONAL_NATIVE_CONTEXT_FIELDS(V) \
-  V(Map, async_function_object_map)              \
-  V(Map, map_key_iterator_map)                   \
-  V(Map, map_key_value_iterator_map)             \
-  V(Map, map_value_iterator_map)                 \
-  V(JSFunction, regexp_exec_function)            \
-  V(Map, set_key_value_iterator_map)             \
+#define BROKER_OPTIONAL_BACKGROUND_NATIVE_CONTEXT_FIELDS(V) \
+  V(Map, async_function_object_map)                         \
+  V(Map, map_key_iterator_map)                              \
+  V(Map, map_key_value_iterator_map)                        \
+  V(Map, map_value_iterator_map)                            \
+  V(Map, set_key_value_iterator_map)                        \
   V(Map, set_value_iterator_map)
 
-#define BROKER_NATIVE_CONTEXT_FIELDS(V)      \
-  BROKER_COMPULSORY_NATIVE_CONTEXT_FIELDS(V) \
-  BROKER_OPTIONAL_NATIVE_CONTEXT_FIELDS(V)
+#define BROKER_NATIVE_CONTEXT_FIELDS(V)                 \
+  BROKER_COMPULSORY_NATIVE_CONTEXT_FIELDS(V)            \
+  BROKER_OPTIONAL_NATIVE_CONTEXT_FIELDS(V)              \
+  BROKER_COMPULSORY_BACKGROUND_NATIVE_CONTEXT_FIELDS(V) \
+  BROKER_OPTIONAL_BACKGROUND_NATIVE_CONTEXT_FIELDS(V)
 
 class NativeContextRef : public ContextRef {
  public:
@@ -504,6 +510,7 @@ class NativeContextRef : public ContextRef {
   Handle<NativeContext> object() const;
 
   void Serialize();
+  void SerializeOnBackground();
 
 #define DECL_ACCESSOR(type, name) type##Ref name() const;
   BROKER_NATIVE_CONTEXT_FIELDS(DECL_ACCESSOR)
