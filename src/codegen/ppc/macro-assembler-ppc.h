@@ -873,6 +873,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // sets the flags and leaves the object type in the type_reg register.
   void CompareInstanceType(Register map, Register type_reg, InstanceType type);
 
+  // Compare instance type ranges for a map (lower_limit and higher_limit
+  // inclusive).
+  //
+  // Always use unsigned comparisons: ls for a positive result.
+  void CompareInstanceTypeRange(Register map, Register type_reg,
+                                InstanceType lower_limit,
+                                InstanceType higher_limit);
+
   // Compare the object in a register to a value from the root list.
   // Uses the ip register as scratch.
   void CompareRoot(Register obj, RootIndex index);

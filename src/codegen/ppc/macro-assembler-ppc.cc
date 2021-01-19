@@ -1627,6 +1627,18 @@ void MacroAssembler::CompareInstanceType(Register map, Register type_reg,
   cmpi(type_reg, Operand(type));
 }
 
+void MacroAssembler::CompareInstanceTypeRange(Register map, Register type_reg,
+                                              InstanceType lower_limit,
+                                              InstanceType higher_limit) {
+  DCHECK_LT(lower_limit, higher_limit);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  LoadHalfWord(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  mov(scratch, Operand(lower_limit));
+  sub(scratch, type_reg, scratch);
+  cmpli(scratch, Operand(higher_limit - lower_limit));
+}
+
 void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
   DCHECK(obj != r0);
   LoadRoot(r0, index);
@@ -1969,9 +1981,11 @@ void MacroAssembler::AssertFunction(Register object) {
     TestIfSmi(object, r0);
     Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, cr0);
     push(object);
-    CompareObjectType(object, object, object, JS_FUNCTION_TYPE);
+    LoadMap(object, object);
+    CompareInstanceTypeRange(object, object, FIRST_JS_FUNCTION_TYPE,
+                             LAST_JS_FUNCTION_TYPE);
     pop(object);
-    Check(eq, AbortReason::kOperandIsNotAFunction);
+    Check(le, AbortReason::kOperandIsNotAFunction);
   }
 }
 

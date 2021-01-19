@@ -1762,6 +1762,18 @@ void MacroAssembler::CompareInstanceType(Register map, Register type_reg,
   CmpS64(type_reg, Operand(type));
 }
 
+void MacroAssembler::CompareInstanceTypeRange(Register map, Register type_reg,
+                                              InstanceType lower_limit,
+                                              InstanceType higher_limit) {
+  DCHECK_LT(lower_limit, higher_limit);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  LoadU16(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  mov(scratch, type_reg);
+  slgfi(scratch, Operand(lower_limit));
+  CmpU64(scratch, Operand(higher_limit - lower_limit));
+}
+
 void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
   int32_t offset = RootRegisterOffsetForRootIndex(index);
 #ifdef V8_TARGET_BIG_ENDIAN
@@ -2004,9 +2016,11 @@ void MacroAssembler::AssertFunction(Register object) {
     TestIfSmi(object);
     Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, cr0);
     push(object);
-    CompareObjectType(object, object, object, JS_FUNCTION_TYPE);
+    LoadMap(object, object);
+    CompareInstanceTypeRange(object, object, FIRST_JS_FUNCTION_TYPE,
+                             LAST_JS_FUNCTION_TYPE);
     pop(object);
-    Check(eq, AbortReason::kOperandIsNotAFunction);
+    Check(le, AbortReason::kOperandIsNotAFunction);
   }
 }
 
