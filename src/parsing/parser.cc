@@ -281,14 +281,14 @@ Expression* Parser::NewThrowError(Runtime::FunctionId id,
 }
 
 Expression* Parser::NewSuperPropertyReference(int pos) {
-  const AstRawString* home_object_name;
-  if (IsStatic(scope()->GetReceiverScope()->function_kind())) {
-    home_object_name = ast_value_factory_->dot_static_home_object_string();
-  } else {
-    home_object_name = ast_value_factory_->dot_home_object_string();
-  }
-  return factory()->NewSuperPropertyReference(
-      NewUnresolved(home_object_name, pos), pos);
+  // this_function[home_object_symbol]
+  VariableProxy* this_function_proxy =
+      NewUnresolved(ast_value_factory()->this_function_string(), pos);
+  Expression* home_object_symbol_literal = factory()->NewSymbolLiteral(
+      AstSymbol::kHomeObjectSymbol, kNoSourcePosition);
+  Expression* home_object = factory()->NewProperty(
+      this_function_proxy, home_object_symbol_literal, pos);
+  return factory()->NewSuperPropertyReference(home_object, pos);
 }
 
 Expression* Parser::NewSuperCallReference(int pos) {
@@ -2728,7 +2728,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
     Expect(Token::RBRACE);
     SetLanguageMode(function_scope, language_mode);
     if (uses_super_property) {
-      function_scope->GetHomeObjectScope()->set_needs_home_object();
+      function_scope->RecordSuperPropertyUsage();
     }
     SkipFunctionLiterals(num_inner_functions);
     function_scope->ResetAfterPreparsing(ast_value_factory_, false);
@@ -3092,7 +3092,8 @@ void Parser::DeclarePublicClassMethod(const AstRawString* class_name,
 FunctionLiteral* Parser::CreateInitializerFunction(
     const char* name, DeclarationScope* scope,
     ZonePtrList<ClassLiteral::Property>* fields) {
-  DCHECK(IsClassMembersInitializerFunction(scope->function_kind()));
+  DCHECK_EQ(scope->function_kind(),
+            FunctionKind::kClassMembersInitializerFunction);
   // function() { .. class fields initializer .. }
   ScopedPtrList<Statement> statements(pointer_buffer());
   InitializeClassMembersStatement* stmt =
@@ -3167,8 +3168,7 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
       static_fields_initializer, instance_members_initializer_function, pos,
       end_pos, class_info->has_name_static_property,
       class_info->has_static_computed_names, class_info->is_anonymous,
-      class_info->has_private_methods, class_info->home_object_variable,
-      class_info->static_home_object_variable);
+      class_info->has_private_methods);
 
   AddFunctionForNameInference(class_info->constructor);
   return class_literal;

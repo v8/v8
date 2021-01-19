@@ -849,8 +849,8 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(ReadOnlyRoots roots) {
     CHECK(feedback_metadata().IsFeedbackMetadata());
   }
 
-  int expected_map_index =
-      Context::FunctionMapIndex(language_mode(), kind(), HasSharedName());
+  int expected_map_index = Context::FunctionMapIndex(
+      language_mode(), kind(), HasSharedName(), needs_home_object());
   CHECK_EQ(expected_map_index, function_map_index());
 
   if (!scope_info().IsEmpty()) {

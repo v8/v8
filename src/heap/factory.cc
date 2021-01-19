@@ -3325,6 +3325,7 @@ Handle<Map> Factory::CreateStrictFunctionMap(
   } else {
     ++descriptors_count;  // name accessor.
   }
+  if (IsFunctionModeWithHomeObject(function_mode)) ++inobject_properties_count;
   descriptors_count += inobject_properties_count;
 
   Handle<Map> map = NewMap(
@@ -3367,6 +3368,15 @@ Handle<Map> Factory::CreateStrictFunctionMap(
     // Add name accessor.
     Descriptor d = Descriptor::AccessorConstant(
         name_string(), function_name_accessor(), roc_attribs);
+    map->AppendDescriptor(isolate(), &d);
+  }
+
+  STATIC_ASSERT(JSFunction::kMaybeHomeObjectDescriptorIndex == 2);
+  if (IsFunctionModeWithHomeObject(function_mode)) {
+    // Add home object field.
+    Handle<Name> name = isolate()->factory()->home_object_symbol();
+    Descriptor d = Descriptor::DataField(isolate(), name, field_index++,
+                                         DONT_ENUM, Representation::Tagged());
     map->AppendDescriptor(isolate(), &d);
   }
 

@@ -75,18 +75,25 @@ enum class InitializedFlag : uint8_t;
 
 enum FunctionMode {
   kWithNameBit = 1 << 0,
-  kWithWritablePrototypeBit = 1 << 1,
-  kWithReadonlyPrototypeBit = 1 << 2,
+  kWithHomeObjectBit = 1 << 1,
+  kWithWritablePrototypeBit = 1 << 2,
+  kWithReadonlyPrototypeBit = 1 << 3,
   kWithPrototypeBits = kWithWritablePrototypeBit | kWithReadonlyPrototypeBit,
 
   // Without prototype.
   FUNCTION_WITHOUT_PROTOTYPE = 0,
   METHOD_WITH_NAME = kWithNameBit,
+  METHOD_WITH_HOME_OBJECT = kWithHomeObjectBit,
+  METHOD_WITH_NAME_AND_HOME_OBJECT = kWithNameBit | kWithHomeObjectBit,
 
   // With writable prototype.
   FUNCTION_WITH_WRITEABLE_PROTOTYPE = kWithWritablePrototypeBit,
   FUNCTION_WITH_NAME_AND_WRITEABLE_PROTOTYPE =
       kWithWritablePrototypeBit | kWithNameBit,
+  FUNCTION_WITH_HOME_OBJECT_AND_WRITEABLE_PROTOTYPE =
+      kWithWritablePrototypeBit | kWithHomeObjectBit,
+  FUNCTION_WITH_NAME_AND_HOME_OBJECT_AND_WRITEABLE_PROTOTYPE =
+      kWithWritablePrototypeBit | kWithNameBit | kWithHomeObjectBit,
 
   // With readonly prototype.
   FUNCTION_WITH_READONLY_PROTOTYPE = kWithReadonlyPrototypeBit,
@@ -696,6 +703,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   static bool IsFunctionModeWithName(FunctionMode function_mode) {
     return (function_mode & kWithNameBit) != 0;
+  }
+
+  static bool IsFunctionModeWithHomeObject(FunctionMode function_mode) {
+    return (function_mode & kWithHomeObjectBit) != 0;
   }
 
   Handle<Map> CreateSloppyFunctionMap(
