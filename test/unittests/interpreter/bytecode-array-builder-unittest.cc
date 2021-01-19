@@ -446,7 +446,13 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.Return();
 
   // Generate BytecodeArray.
-  scope.SetScriptScopeInfo(factory->NewScopeInfo(1));
+  Handle<ScopeInfo> scope_info =
+      factory->NewScopeInfo(ScopeInfo::kVariablePartIndex);
+  scope_info->set_flags(0);
+  scope_info->set_context_local_count(0);
+  scope_info->set_parameter_count(0);
+  scope.SetScriptScopeInfo(scope_info);
+
   ast_factory.Internalize(isolate());
   Handle<BytecodeArray> the_array = builder.ToBytecodeArray(isolate());
   CHECK_EQ(the_array->frame_size(),

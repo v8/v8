@@ -34,7 +34,7 @@
 #include "src/objects/property-details.h"
 #include "src/objects/property.h"
 #include "src/objects/regexp-match-info.h"
-#include "src/objects/scope-info.h"
+#include "src/objects/scope-info-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/smi-inl.h"
@@ -450,7 +450,6 @@ bool Object::IsMinusZero() const {
 }
 
 OBJECT_CONSTRUCTORS_IMPL(RegExpMatchInfo, FixedArray)
-OBJECT_CONSTRUCTORS_IMPL(ScopeInfo, FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(BigIntBase, PrimitiveHeapObject)
 OBJECT_CONSTRUCTORS_IMPL(BigInt, BigIntBase)
 OBJECT_CONSTRUCTORS_IMPL(FreshlyAllocatedBigInt, BigIntBase)
@@ -461,7 +460,6 @@ OBJECT_CONSTRUCTORS_IMPL(FreshlyAllocatedBigInt, BigIntBase)
 CAST_ACCESSOR(BigIntBase)
 CAST_ACCESSOR(BigInt)
 CAST_ACCESSOR(RegExpMatchInfo)
-CAST_ACCESSOR(ScopeInfo)
 
 bool Object::HasValidElements() {
   // Dictionary is covered under FixedArray. ByteArray is used
@@ -1118,21 +1116,6 @@ static inline Handle<Object> MakeEntryPair(Isolate* isolate, Handle<Object> key,
   return isolate->factory()->NewJSArrayWithElements(entry_storage,
                                                     PACKED_ELEMENTS, 2);
 }
-
-bool ScopeInfo::IsAsmModule() const { return IsAsmModuleBit::decode(Flags()); }
-
-bool ScopeInfo::HasSimpleParameters() const {
-  return HasSimpleParametersBit::decode(Flags());
-}
-
-#define FIELD_ACCESSORS(name)                                                 \
-  void ScopeInfo::Set##name(int value) { set(k##name, Smi::FromInt(value)); } \
-  int ScopeInfo::name() const {                                               \
-    DCHECK_GE(length(), kVariablePartIndex);                                  \
-    return Smi::ToInt(get(k##name));                                          \
-  }
-FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(FIELD_ACCESSORS)
-#undef FIELD_ACCESSORS
 
 FreshlyAllocatedBigInt FreshlyAllocatedBigInt::cast(Object object) {
   SLOW_DCHECK(object.IsBigInt());

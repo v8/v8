@@ -21,22 +21,6 @@ base::Optional<Stack<std::string>> CCGenerator::EmitGraph(
                           parameters.Peek(i));
   }
 
-  // C++ doesn't have parameterized labels like CSA, so we must pre-declare all
-  // phi values so they're in scope for both the blocks that define them and the
-  // blocks that read them.
-  for (Block* block : cfg_.blocks()) {
-    if (block->IsDead()) continue;
-
-    DCHECK_EQ(block->InputTypes().Size(), block->InputDefinitions().Size());
-    for (BottomOffset i = {0}; i < block->InputTypes().AboveTop(); ++i) {
-      DefinitionLocation input_def = block->InputDefinitions().Peek(i);
-      if (block->InputDefinitions().Peek(i).IsPhiFromBlock(block)) {
-        out() << "  " << block->InputTypes().Peek(i)->GetRuntimeType() << " "
-              << DefinitionToVariable(input_def) << ";\n";
-      }
-    }
-  }
-
   // Redirect the output of non-declarations into a buffer and only output
   // declarations right away.
   std::stringstream out_buffer;
@@ -198,7 +182,16 @@ void CCGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
     if (return_type->IsConstexpr()) {
       ReportError("%FromConstexpr must return a non-constexpr type");
     }
-    // Nothing to do here; constexpr expressions are already valid C++.
+    if (return_type->IsSubtypeOf(TypeOracle::GetSmiType())) {
+      if (is_cc_debug_) {
+        out() << "Internals::IntToSmi";
+      } else {
+        out() << "Smi::FromInt";
+      }
+    }
+    // Wrap the raw constexpr value in a static_cast to ensure that
+    // enums get properly casted to their backing integral value.
+    out() << "(CastToUnderlyingTypeIfEnum";
   } else {
     ReportError("no built in intrinsic with name " +
                 instruction.intrinsic->ExternalName());
@@ -206,6 +199,9 @@ void CCGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
 
   out() << "(";
   PrintCommaSeparatedList(out(), args);
+  if (instruction.intrinsic->ExternalName() == "%FromConstexpr") {
+    out() << ")";
+  }
   out() << ");\n";
 }
 
@@ -247,10 +243,10 @@ void CCGenerator::EmitInstruction(const CallCsaMacroInstruction& instruction,
 
   if (is_cc_debug_) {
     out() << instruction.macro->CCDebugName() << "(accessor";
+    if (!args.empty()) out() << ", ";
   } else {
-    out() << instruction.macro->CCName() << "(isolate";
+    out() << instruction.macro->CCName() << "(";
   }
-  if (!args.empty()) out() << ", ";
   PrintCommaSeparatedList(out(), args);
   if (is_cc_debug_) {
     out() << "));\n";
@@ -384,8 +380,23 @@ void CCGenerator::EmitInstruction(const LoadReferenceInstruction& instruction,
             << result_name << ");\n";
     out() << "  " << result_name << " = ";
     if (instruction.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-      out() << "TaggedField<" << result_type << ">::load(isolate, " << object
-            << ", static_cast<int>(" << offset << "));\n";
+      // Currently, all of the tagged loads we emit are for smi values, so there
+      // is no point in providing an IsolateRoot. If at some point we start
+      // emitting loads for tagged fields which might be HeapObjects, then we
+      // should plumb an IsolateRoot through the generated functions that need
+      // it.
+      if (!instruction.type->IsSubtypeOf(TypeOracle::GetSmiType())) {
+        Error(
+            "Not supported in C++ output: LoadReference on non-smi tagged "
+            "value");
+      }
+
+      // References and slices can cause some values to have the Torque type
+      // HeapObject|TaggedZeroPattern, which is output as "Object". TaggedField
+      // requires HeapObject, so we need a cast.
+      out() << "TaggedField<" << result_type
+            << ">::load(*static_cast<HeapObject*>(&" << object
+            << "), static_cast<int>(" << offset << "));\n";
     } else {
       out() << "(" << object << ").ReadField<" << result_type << ">(" << offset
             << ");\n";
@@ -438,13 +449,17 @@ void CCGenerator::EmitInstruction(const LoadBitFieldInstruction& instruction,
       Type::MatchUnaryGeneric(struct_type, TypeOracle::GetSmiTaggedGeneric());
   if (smi_tagged_type) {
     // Get the untagged value and its type.
-    bit_field_struct = bit_field_struct + ".value()";
+    if (is_cc_debug_) {
+      bit_field_struct = "Internals::SmiValue(" + bit_field_struct + ")";
+    } else {
+      bit_field_struct = bit_field_struct + ".value()";
+    }
     struct_type = *smi_tagged_type;
   }
 
-  out() << "  " << result_name << " = "
+  out() << "  " << result_name << " = CastToUnderlyingTypeIfEnum("
         << GetBitFieldSpecialization(struct_type, instruction.bit_field)
-        << "::decode(" << bit_field_struct << ");\n";
+        << "::decode(" << bit_field_struct << "));\n";
 }
 
 void CCGenerator::EmitInstruction(const StoreBitFieldInstruction& instruction,

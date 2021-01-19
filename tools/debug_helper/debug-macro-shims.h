@@ -47,6 +47,9 @@ namespace debug_helper_internal {
 namespace TorqueDebugMacroShims {
 namespace CodeStubAssembler {
 
+inline Value<bool> BoolConstant(d::MemoryAccessor accessor, bool b) {
+  return {d::MemoryAccessResult::kOk, b};
+}
 inline Value<intptr_t> ChangeInt32ToIntPtr(d::MemoryAccessor accessor,
                                            int32_t i) {
   return {d::MemoryAccessResult::kOk, i};
@@ -69,6 +72,26 @@ inline Value<intptr_t> Signed(d::MemoryAccessor accessor, uintptr_t u) {
 inline Value<int32_t> SmiUntag(d::MemoryAccessor accessor, uintptr_t s_t) {
   Smi s(s_t);
   return {d::MemoryAccessResult::kOk, s.value()};
+}
+inline Value<bool> UintPtrLessThan(d::MemoryAccessor accessor, uintptr_t a,
+                                   uintptr_t b) {
+  return {d::MemoryAccessResult::kOk, a < b};
+}
+inline Value<uint32_t> Unsigned(d::MemoryAccessor accessor, int32_t s) {
+  return {d::MemoryAccessResult::kOk, static_cast<uint32_t>(s)};
+}
+#if V8_HOST_ARCH_64_BIT
+inline Value<uintptr_t> Unsigned(d::MemoryAccessor accessor, intptr_t s) {
+  return {d::MemoryAccessResult::kOk, static_cast<uintptr_t>(s)};
+}
+#endif
+inline Value<bool> Word32Equal(d::MemoryAccessor accessor, uint32_t a,
+                               uint32_t b) {
+  return {d::MemoryAccessResult::kOk, a == b};
+}
+inline Value<bool> Word32NotEqual(d::MemoryAccessor accessor, uint32_t a,
+                                  uint32_t b) {
+  return {d::MemoryAccessResult::kOk, a != b};
 }
 
 }  // namespace CodeStubAssembler

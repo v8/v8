@@ -68,6 +68,7 @@
 #include "src/objects/property-cell-inl.h"
 #include "src/objects/property-descriptor-object-inl.h"
 #include "src/objects/prototype-info-inl.h"
+#include "src/objects/scope-info-inl.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/slots-atomic-inl.h"

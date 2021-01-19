@@ -2298,6 +2298,9 @@ int HeapObject::SizeFromMap(Map map) const {
     return FeedbackVector::SizeFor(
         FeedbackVector::unchecked_cast(*this).length());
   }
+  if (instance_type == SCOPE_INFO_TYPE) {
+    return FixedArray::SizeFor(ScopeInfo::unchecked_cast(*this).length());
+  }
   if (instance_type == BIGINT_TYPE) {
     return BigInt::SizeFor(BigInt::unchecked_cast(*this).length());
   }

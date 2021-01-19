@@ -532,16 +532,16 @@ bool Heap::CreateInitialMaps() {
                     AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
     obj.set_map_after_allocation(roots.scope_info_map(), SKIP_WRITE_BARRIER);
-    FixedArray::cast(obj).set_length(ScopeInfo::kVariablePartIndex);
+    ScopeInfo::cast(obj).set_length(ScopeInfo::kVariablePartIndex);
     int flags = ScopeInfo::IsEmptyBit::encode(true);
     DCHECK_EQ(ScopeInfo::LanguageModeBit::decode(flags), LanguageMode::kSloppy);
     DCHECK_EQ(ScopeInfo::ReceiverVariableBits::decode(flags),
               VariableAllocationInfo::NONE);
     DCHECK_EQ(ScopeInfo::FunctionVariableBits::decode(flags),
               VariableAllocationInfo::NONE);
-    ScopeInfo::cast(obj).SetFlags(flags);
-    ScopeInfo::cast(obj).SetContextLocalCount(0);
-    ScopeInfo::cast(obj).SetParameterCount(0);
+    ScopeInfo::cast(obj).set_flags(flags);
+    ScopeInfo::cast(obj).set_context_local_count(0);
+    ScopeInfo::cast(obj).set_parameter_count(0);
   }
   set_empty_scope_info(ScopeInfo::cast(obj));
 

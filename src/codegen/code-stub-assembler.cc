@@ -2013,6 +2013,11 @@ TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(
   return LoadAndUntagWeakFixedArrayLength(array);
 }
 
+template <>
+TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(TNode<ScopeInfo> array) {
+  return LoadAndUntagFixedArrayBaseLength(array);
+}
+
 template <typename Array, typename TIndex, typename TValue>
 TNode<TValue> CodeStubAssembler::LoadArrayElement(
     TNode<Array> array, int array_header_size, TNode<TIndex> index_node,
@@ -2043,6 +2048,10 @@ TNode<TValue> CodeStubAssembler::LoadArrayElement(
 template V8_EXPORT_PRIVATE TNode<MaybeObject>
 CodeStubAssembler::LoadArrayElement<TransitionArray, IntPtrT>(
     TNode<TransitionArray>, int, TNode<IntPtrT>, int, LoadSensitivity);
+template V8_EXPORT_PRIVATE TNode<MaybeObject>
+CodeStubAssembler::LoadArrayElement<ScopeInfo, IntPtrT>(TNode<ScopeInfo>, int,
+                                                        TNode<IntPtrT>, int,
+                                                        LoadSensitivity);
 
 template <typename TIndex>
 TNode<Object> CodeStubAssembler::LoadFixedArrayElement(

@@ -898,7 +898,6 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
-    case SCOPE_INFO_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
       return Op::template apply<FixedArray::BodyDescriptor>(p1, p2, p3, p4);
     case EPHEMERON_HASH_TABLE_TYPE:
@@ -997,6 +996,8 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case WASM_MODULE_OBJECT_TYPE:
     case WASM_TABLE_OBJECT_TYPE:
       return Op::template apply<JSObject::BodyDescriptor>(p1, p2, p3, p4);
+    case SCOPE_INFO_TYPE:
+      return Op::template apply<ScopeInfo::BodyDescriptor>(p1, p2, p3, p4);
     case WASM_INSTANCE_OBJECT_TYPE:
       return Op::template apply<WasmInstanceObject::BodyDescriptor>(p1, p2, p3,
                                                                     p4);

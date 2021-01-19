@@ -576,6 +576,16 @@ class AggregateType : public Type {
     return {{name_, ""}};
   }
 
+  const Field& LastField() const {
+    for (base::Optional<const AggregateType*> current = this;
+         current.has_value();
+         current = (*current)->parent()->AggregateSupertype()) {
+      const std::vector<Field>& fields = (*current)->fields_;
+      if (!fields.empty()) return fields[fields.size() - 1];
+    }
+    ReportError("Can't get last field of empty aggregate type");
+  }
+
  protected:
   AggregateType(Kind kind, const Type* parent, Namespace* nspace,
                 const std::string& name,

@@ -154,7 +154,6 @@ VisitorId Map::GetVisitorId(Map map) {
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
-    case SCOPE_INFO_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
       return kVisitFixedArray;
 
@@ -189,6 +188,9 @@ VisitorId Map::GetVisitorId(Map map) {
 
     case MAP_TYPE:
       return kVisitMap;
+
+    case SCOPE_INFO_TYPE:
+      return kVisitScopeInfo;
 
     case CODE_TYPE:
       return kVisitCode;

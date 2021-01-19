@@ -63,12 +63,7 @@ std::string ComputeGeneratesType(base::Optional<std::string> opt_gen,
   if (!opt_gen) return "";
   const std::string& generates = *opt_gen;
   if (enforce_tnode_type) {
-    if (generates.length() < 7 || generates.substr(0, 6) != "TNode<" ||
-        generates.substr(generates.length() - 1, 1) != ">") {
-      ReportError("generated type \"", generates,
-                  "\" should be of the form \"TNode<...>\"");
-    }
-    return generates.substr(6, generates.length() - 7);
+    return UnwrapTNodeTypeName(generates);
   }
   return generates;
 }

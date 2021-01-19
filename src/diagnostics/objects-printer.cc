@@ -209,9 +209,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case STORE_HANDLER_TYPE:
       StoreHandler::cast(*this).StoreHandlerPrint(os);
       break;
-    case SCOPE_INFO_TYPE:
-      ScopeInfo::cast(*this).ScopeInfoPrint(os);
-      break;
     case FEEDBACK_METADATA_TYPE:
       FeedbackMetadata::cast(*this).FeedbackMetadataPrint(os);
       break;

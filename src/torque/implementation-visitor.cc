@@ -1774,13 +1774,10 @@ std::vector<std::string> ImplementationVisitor::GenerateFunctionDeclaration(
   o << " " << macro_prefix << name << "(";
 
   bool first = true;
-  if (output_type_ == OutputType::kCC) {
-    first = false;
-    o << "Isolate* isolate";
-  } else if (output_type_ == OutputType::kCCDebug) {
+  if (output_type_ == OutputType::kCCDebug) {
     first = false;
     o << "d::MemoryAccessor accessor";
-  } else if (pass_code_assembler_state) {
+  } else if (output_type_ == OutputType::kCSA && pass_code_assembler_state) {
     first = false;
     o << "compiler::CodeAssemblerState* state_";
   }
@@ -3459,6 +3456,7 @@ class FieldOffsetsGenerator {
   explicit FieldOffsetsGenerator(const ClassType* type) : type_(type) {}
 
   virtual void WriteField(const Field& f, const std::string& size_string) = 0;
+  virtual void WriteFieldOffsetGetter(const Field& f) = 0;
   virtual void WriteMarker(const std::string& marker) = 0;
 
   virtual ~FieldOffsetsGenerator() { CHECK(is_finished_); }
@@ -3480,7 +3478,11 @@ class FieldOffsetsGenerator {
       size_t field_size;
       std::tie(field_size, size_string) = f.GetFieldSizeInformation();
     }
-    WriteField(f, size_string);
+    if (f.offset.has_value()) {
+      WriteField(f, size_string);
+    } else {
+      WriteFieldOffsetGetter(f);
+    }
   }
 
   void Finish() {
@@ -3585,6 +3587,9 @@ class MacroFieldOffsetsGenerator : public FieldOffsetsGenerator {
   void WriteField(const Field& f, const std::string& size_string) override {
     out_ << "V(k" << CamelifyString(f.name_and_type.name) << "Offset, "
          << size_string << ") \\\n";
+  }
+  void WriteFieldOffsetGetter(const Field& f) override {
+    // Can't do anything here.
   }
   void WriteMarker(const std::string& marker) override {
     out_ << "V(" << marker << ", 0) \\\n";
@@ -3713,10 +3718,13 @@ namespace {
 
 class ClassFieldOffsetGenerator : public FieldOffsetsGenerator {
  public:
-  ClassFieldOffsetGenerator(std::ostream& header, const ClassType* type)
+  ClassFieldOffsetGenerator(std::ostream& header, std::ostream& inline_header,
+                            const ClassType* type, std::string gen_name_T)
       : FieldOffsetsGenerator(type),
         hdr_(header),
-        previous_field_end_("P::kHeaderSize") {}
+        inl_(inline_header),
+        previous_field_end_("P::kHeaderSize"),
+        gen_name_T_(gen_name_T) {}
   void WriteField(const Field& f, const std::string& size_string) override {
     std::string field = "k" + CamelifyString(f.name_and_type.name) + "Offset";
     std::string field_end = field + "End";
@@ -3726,6 +3734,22 @@ class ClassFieldOffsetGenerator : public FieldOffsetsGenerator {
          << size_string << " - 1;\n";
     previous_field_end_ = field_end + " + 1";
   }
+  void WriteFieldOffsetGetter(const Field& f) override {
+    // A static constexpr int is more convenient than a getter if the offset is
+    // known.
+    DCHECK(!f.offset.has_value());
+
+    std::string function_name = CamelifyString(f.name_and_type.name) + "Offset";
+
+    hdr_ << "  inline int " << function_name << "() const;\n";
+    inl_ << "template <class D, class P>\n";
+    inl_ << "int " << gen_name_T_ << "::" << function_name << "() const {\n";
+    // Item 1 in a flattened slice is the offset.
+    inl_ << "  return static_cast<int>(std::get<1>("
+         << Callable::PrefixNameForCCOutput(type_->GetSliceMacroName(f))
+         << "(*static_cast<const D*>(this))));\n";
+    inl_ << "}\n\n";
+  }
   void WriteMarker(const std::string& marker) override {
     hdr_ << "  static constexpr int " << marker << " = " << previous_field_end_
          << ";\n";
@@ -3733,7 +3757,9 @@ class ClassFieldOffsetGenerator : public FieldOffsetsGenerator {
 
  private:
   std::ostream& hdr_;
+  std::ostream& inl_;
   std::string previous_field_end_;
+  std::string gen_name_T_;
 };
 
 class CppClassGenerator {
@@ -3763,6 +3789,8 @@ class CppClassGenerator {
   void GenerateFieldAccessorForTagged(const Field& f);
 
   void GenerateClassCasts();
+
+  std::string GetFieldOffsetForAccessor(const Field& f);
 
   const ClassType* type_;
   const ClassType* super_;
@@ -3852,7 +3880,7 @@ void CppClassGenerator::GenerateClass() {
   }
 
   hdr_ << "\n";
-  ClassFieldOffsetGenerator g(hdr_, type_);
+  ClassFieldOffsetGenerator g(hdr_, inl_, type_, gen_name_T_);
   for (auto f : type_->fields()) {
     CurrentSourcePosition::Scope scope(f.pos);
     g.RecordOffsetFor(f);
@@ -3865,6 +3893,21 @@ void CppClassGenerator::GenerateClass() {
   if (!index_fields.has_value()) {
     hdr_ << "  // SizeFor implementations not generated due to complex array "
             "lengths\n\n";
+
+    const Field& last_field = type_->LastField();
+    std::string last_field_item_size =
+        std::get<1>(*SizeOf(last_field.name_and_type.type));
+    hdr_ << "  inline int AllocatedSize();\n\n";
+    inl_ << "template <class D, class P>\n";
+    inl_ << "int " << gen_name_T_ << "::AllocatedSize() {\n";
+    inl_ << "  auto slice = "
+         << Callable::PrefixNameForCCOutput(
+                type_->GetSliceMacroName(last_field))
+         << "(*static_cast<const D*>(this));\n";
+    inl_ << "  return static_cast<int>(std::get<1>(slice)) + "
+         << last_field_item_size
+         << " * static_cast<int>(std::get<2>(slice));\n";
+    inl_ << "}\n\n";
   } else if (type_->ShouldGenerateBodyDescriptor() ||
              (!type_->IsAbstract() &&
               !type_->IsSubtypeOf(TypeOracle::GetJSObjectType()))) {
@@ -4001,11 +4044,18 @@ std::string GenerateRuntimeTypeCheck(const Type* type,
 void GenerateBoundsDCheck(std::ostream& os, const std::string& index,
                           const ClassType* type, const Field& f) {
   os << "  DCHECK_GE(" << index << ", 0);\n";
+  std::string length_expression;
   if (base::Optional<NameAndType> array_length =
           ExtractSimpleFieldArraySize(*type, *f.index)) {
-    os << "  DCHECK_LT(" << index << ", this->" << array_length->name
-       << "());\n";
+    length_expression = "this ->" + array_length->name + "()";
+  } else {
+    // The length is element 2 in the flattened field slice.
+    length_expression =
+        "static_cast<int>(std::get<2>(" +
+        Callable::PrefixNameForCCOutput(type->GetSliceMacroName(f)) +
+        "(*static_cast<const D*>(this))))";
   }
+  os << "  DCHECK_LT(" << index << ", " << length_expression << ");\n";
 }
 }  // namespace
 
@@ -4038,6 +4088,13 @@ void CppClassGenerator::GenerateFieldAccessor(const Field& f) {
       .Position(f.pos);
 }
 
+std::string CppClassGenerator::GetFieldOffsetForAccessor(const Field& f) {
+  if (f.offset.has_value()) {
+    return "k" + CamelifyString(f.name_and_type.name) + "Offset";
+  }
+  return CamelifyString(f.name_and_type.name) + "Offset()";
+}
+
 void CppClassGenerator::GenerateFieldAccessorForUntagged(const Field& f) {
   DCHECK(!f.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType()));
   const Type* field_type = f.name_and_type.type;
@@ -4053,7 +4110,7 @@ void CppClassGenerator::GenerateFieldAccessorForUntagged(const Field& f) {
   }
   const std::string& name = f.name_and_type.name;
   const std::string type = constexpr_version->GetGeneratedTypeName();
-  std::string offset = "k" + CamelifyString(name) + "Offset";
+  std::string offset = GetFieldOffsetForAccessor(f);
 
   // Generate declarations in header.
   if (f.index) {
@@ -4110,7 +4167,7 @@ void CppClassGenerator::GenerateFieldAccessorForSmi(const Field& f) {
   // Follow the convention to create Smi accessors with type int.
   const std::string type = "int";
   const std::string& name = f.name_and_type.name;
-  const std::string offset = "k" + CamelifyString(name) + "Offset";
+  const std::string offset = GetFieldOffsetForAccessor(f);
 
   // Generate declarations in header.
   if (f.index) {
@@ -4131,7 +4188,7 @@ void CppClassGenerator::GenerateFieldAccessorForSmi(const Field& f) {
   if (f.index) {
     GenerateBoundsDCheck(inl_, "i", type_, f);
     inl_ << "  int offset = " << offset << " + i * kTaggedSize;\n";
-    inl_ << "  return this->template ReadField<Smi>(offset).value();\n";
+    inl_ << "  return TaggedField<Smi>::load(*this, offset).value();\n";
     inl_ << "}\n";
   } else {
     inl_ << "  return TaggedField<Smi, " << offset
@@ -4162,7 +4219,7 @@ void CppClassGenerator::GenerateFieldAccessorForTagged(const Field& f) {
   const Type* field_type = f.name_and_type.type;
   DCHECK(field_type->IsSubtypeOf(TypeOracle::GetTaggedType()));
   const std::string& name = f.name_and_type.name;
-  std::string offset = "k" + CamelifyString(name) + "Offset";
+  std::string offset = GetFieldOffsetForAccessor(f);
   bool strong_pointer = field_type->IsSubtypeOf(TypeOracle::GetObjectType());
 
   std::string type = field_type->UnhandlifiedCppTypeName();
@@ -4710,7 +4767,7 @@ void GenerateClassFieldVerifier(const std::string& class_name,
                 << length << ") = "
                 << Callable::PrefixNameForCCOutput(
                        class_type.GetSliceMacroName(f))
-                << "(isolate, o);\n";
+                << "(o);\n";
 
     // Slices use intptr, but TaggedField<T>.load() uses int, so verify that
     // such a cast is valid.

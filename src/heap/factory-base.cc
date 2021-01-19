@@ -676,8 +676,11 @@ template <typename Impl>
 Handle<ScopeInfo> FactoryBase<Impl>::NewScopeInfo(int length,
                                                   AllocationType type) {
   DCHECK(type == AllocationType::kOld || type == AllocationType::kReadOnly);
-  return Handle<ScopeInfo>::cast(NewFixedArrayWithMap(
-      read_only_roots().scope_info_map_handle(), length, type));
+  Handle<HeapObject> result =
+      Handle<HeapObject>::cast(NewFixedArray(length, type));
+  result->set_map_after_allocation(*read_only_roots().scope_info_map_handle(),
+                                   SKIP_WRITE_BARRIER);
+  return Handle<ScopeInfo>::cast(result);
 }
 
 template <typename Impl>

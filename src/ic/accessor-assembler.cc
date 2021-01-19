@@ -3067,13 +3067,11 @@ void AccessorAssembler::ScriptContextTableLookup(
         ScriptContextTable::kFirstContextSlotIndex * kTaggedSize));
     TNode<ScopeInfo> scope_info =
         CAST(LoadContextElement(script_context, Context::SCOPE_INFO_INDEX));
-    TNode<IntPtrT> length = LoadAndUntagFixedArrayBaseLength(scope_info);
-    GotoIf(IntPtrLessThanOrEqual(length, IntPtrConstant(0)), &loop);
 
     TVARIABLE(IntPtrT, scope_var_index,
               IntPtrConstant(ScopeInfo::kVariablePartIndex - 1));
-    TNode<IntPtrT> num_scope_vars = SmiUntag(CAST(LoadFixedArrayElement(
-        scope_info, IntPtrConstant(ScopeInfo::Fields::kContextLocalCount))));
+    TNode<IntPtrT> num_scope_vars = SmiUntag(
+        CAST(LoadObjectField(scope_info, ScopeInfo::kContextLocalCountOffset)));
     TNode<IntPtrT> end_index = IntPtrAdd(
         num_scope_vars, IntPtrConstant(ScopeInfo::kVariablePartIndex));
     Label loop_scope_info(this, &scope_var_index);
@@ -3085,8 +3083,9 @@ void AccessorAssembler::ScriptContextTableLookup(
       GotoIf(IntPtrGreaterThanOrEqual(scope_var_index.value(), end_index),
              &loop);
 
-      TNode<Object> var_name =
-          LoadFixedArrayElement(scope_info, scope_var_index.value(), 0);
+      FixedArrayBoundsCheck(scope_info, scope_var_index.value(), 0);
+      TNode<Object> var_name = CAST(LoadArrayElement(
+          scope_info, FixedArray::kHeaderSize, scope_var_index.value()));
       GotoIf(TaggedNotEqual(var_name, name), &loop_scope_info);
 
       TNode<IntPtrT> var_index =
