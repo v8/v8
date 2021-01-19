@@ -17,6 +17,7 @@
 #include "src/base/macros.h"
 #include "src/base/memory.h"
 #include "src/base/overflowing-math.h"
+#include "src/base/safe_conversions.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/cpu-features.h"
@@ -1280,6 +1281,140 @@ WASM_SIMD_TEST(F64x2Trunc) {
 WASM_SIMD_TEST(F64x2NearestInt) {
   RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2NearestInt, nearbyint,
                    true);
+}
+
+// TODO(v8:11265): Prototyping double precision conversions.
+template <typename SrcType>
+void RunF64x2ConvertLowI32x4Test(TestExecutionTier execution_tier,
+                                 LowerSimd lower_simd, WasmOpcode opcode) {
+  if (TestExecutionTier::kInterpreter != execution_tier) {
+    return;
+  }
+  FLAG_SCOPE(wasm_simd_post_mvp);
+
+  WasmRunner<int32_t, SrcType> r(execution_tier, lower_simd);
+  double* g = r.builder().template AddGlobal<double>(kWasmS128);
+  // TODO(zhin): set top lanes to 0 to assert conversion happens on low lanes.
+  BUILD(
+      r,
+      WASM_GLOBAL_SET(
+          0, WASM_SIMD_UNOP(opcode, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(0)))),
+      WASM_ONE);
+
+  for (SrcType x : compiler::ValueHelper::GetVector<SrcType>()) {
+    r.Call(x);
+    double expected = static_cast<double>(x);
+    for (int i = 0; i < 2; i++) {
+      double actual = ReadLittleEndianValue<double>(&g[i]);
+      CheckDoubleResult(x, x, expected, actual, true);
+    }
+  }
+}
+
+WASM_SIMD_TEST_NO_LOWERING(F64x2ConvertLowI32x4S) {
+  RunF64x2ConvertLowI32x4Test<int32_t>(execution_tier, lower_simd,
+                                       kExprF64x2ConvertLowI32x4S);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(F64x2ConvertLowI32x4U) {
+  RunF64x2ConvertLowI32x4Test<uint32_t>(execution_tier, lower_simd,
+                                        kExprF64x2ConvertLowI32x4U);
+}
+
+template <typename SrcType>
+void RunI32x4TruncSatF64x2Test(TestExecutionTier execution_tier,
+                               LowerSimd lower_simd, WasmOpcode opcode) {
+  if (TestExecutionTier::kInterpreter != execution_tier) {
+    return;
+  }
+  FLAG_SCOPE(wasm_simd_post_mvp);
+
+  WasmRunner<int32_t, double> r(execution_tier, lower_simd);
+  SrcType* g = r.builder().AddGlobal<SrcType>(kWasmS128);
+  BUILD(
+      r,
+      WASM_GLOBAL_SET(
+          0, WASM_SIMD_UNOP(opcode, WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(0)))),
+      WASM_ONE);
+
+  FOR_FLOAT64_INPUTS(x) {
+    r.Call(x);
+    SrcType expected = base::saturated_cast<SrcType>(x);
+    for (int i = 0; i < 2; i++) {
+      SrcType actual = ReadLittleEndianValue<SrcType>(&g[i]);
+      CHECK_EQ(expected, actual);
+    }
+    // Top lanes are zero-ed.
+    for (int i = 2; i < 4; i++) {
+      CHECK_EQ(0, ReadLittleEndianValue<SrcType>(&g[i]));
+    }
+  }
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I32x4TruncSatF64x2SZero) {
+  RunI32x4TruncSatF64x2Test<int32_t>(execution_tier, lower_simd,
+                                     kExprI32x4TruncSatF64x2SZero);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I32x4TruncSatF64x2UZero) {
+  RunI32x4TruncSatF64x2Test<uint32_t>(execution_tier, lower_simd,
+                                      kExprI32x4TruncSatF64x2UZero);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(F32x4DemoteF64x2Zero) {
+  if (TestExecutionTier::kInterpreter != execution_tier) {
+    return;
+  }
+  FLAG_SCOPE(wasm_simd_post_mvp);
+
+  WasmRunner<int32_t, double> r(execution_tier, lower_simd);
+  float* g = r.builder().AddGlobal<float>(kWasmS128);
+  BUILD(r,
+        WASM_GLOBAL_SET(
+            0, WASM_SIMD_UNOP(kExprF32x4DemoteF64x2Zero,
+                              WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(0)))),
+        WASM_ONE);
+
+  FOR_FLOAT64_INPUTS(x) {
+    r.Call(x);
+    float expected = DoubleToFloat32(x);
+    for (int i = 0; i < 2; i++) {
+      float actual = ReadLittleEndianValue<float>(&g[i]);
+      CheckFloatResult(x, x, expected, actual, true);
+    }
+    for (int i = 2; i < 4; i++) {
+      float actual = ReadLittleEndianValue<float>(&g[i]);
+      CheckFloatResult(x, x, 0, actual, true);
+    }
+  }
+}
+
+WASM_SIMD_TEST_NO_LOWERING(F64x2PromoteLowF32x4) {
+  if (TestExecutionTier::kInterpreter != execution_tier) {
+    return;
+  }
+  FLAG_SCOPE(wasm_simd_post_mvp);
+
+  WasmRunner<int32_t, float> r(execution_tier, lower_simd);
+  double* g = r.builder().AddGlobal<double>(kWasmS128);
+  BUILD(r,
+        WASM_GLOBAL_SET(
+            0, WASM_SIMD_UNOP(kExprF64x2PromoteLowF32x4,
+                              WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(0)))),
+        WASM_ONE);
+
+  FOR_FLOAT32_INPUTS(x) {
+    r.Call(x);
+    double expected = static_cast<double>(x);
+    for (int i = 0; i < 2; i++) {
+      double actual = ReadLittleEndianValue<double>(&g[i]);
+      CheckDoubleResult(x, x, expected, actual, true);
+    }
+    for (int i = 2; i < 4; i++) {
+      double actual = ReadLittleEndianValue<double>(&g[i]);
+      CheckDoubleResult(x, x, 0, actual, true);
+    }
+  }
 }
 
 void RunF64x2BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,

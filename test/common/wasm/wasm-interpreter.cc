@@ -8,6 +8,7 @@
 #include <type_traits>
 
 #include "src/base/overflowing-math.h"
+#include "src/base/safe_conversions.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/compiler/wasm-compiler.h"
@@ -2509,7 +2510,7 @@ class WasmInterpreterInternals {
   case kExpr##op: {                                                           \
     WasmValue v = Pop();                                                      \
     src_type s = v.to_s128().to_##name();                                     \
-    dst_type res;                                                             \
+    dst_type res = {0};                                                       \
     for (size_t i = 0; i < count; ++i) {                                      \
       ctype a = s.val[LANE(start_index + i, s)];                              \
       auto result = expr;                                                     \
@@ -2554,6 +2555,18 @@ class WasmInterpreterInternals {
         CONVERT_CASE(I16x8SConvertI8x16Low, int16, i8x16, int8, 8, 0, int8_t, a)
         CONVERT_CASE(I16x8UConvertI8x16Low, int16, i8x16, int8, 8, 0, uint8_t,
                      a)
+        CONVERT_CASE(F64x2ConvertLowI32x4S, int4, i32x4, float2, 2, 0, int32_t,
+                     static_cast<double>(a))
+        CONVERT_CASE(F64x2ConvertLowI32x4U, int4, i32x4, float2, 2, 0, uint32_t,
+                     static_cast<double>(a))
+        CONVERT_CASE(I32x4TruncSatF64x2SZero, float2, f64x2, int4, 2, 0, double,
+                     base::saturated_cast<int32_t>(a))
+        CONVERT_CASE(I32x4TruncSatF64x2UZero, float2, f64x2, int4, 2, 0, double,
+                     base::saturated_cast<uint32_t>(a))
+        CONVERT_CASE(F32x4DemoteF64x2Zero, float2, f64x2, float4, 2, 0, float,
+                     DoubleToFloat32(a))
+        CONVERT_CASE(F64x2PromoteLowF32x4, float4, f32x4, float2, 2, 0, float,
+                     static_cast<double>(a))
 #undef CONVERT_CASE
 #define PACK_CASE(op, src_type, name, dst_type, count, ctype, dst_ctype) \
   case kExpr##op: {                                                      \

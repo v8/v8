@@ -514,7 +514,13 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I32x4AddHoriz, 0xfdb0, s_ss)            \
   V(F32x4AddHoriz, 0xfdb2, s_ss)            \
   V(F32x4RecipApprox, 0xfdb3, s_s)          \
-  V(F32x4RecipSqrtApprox, 0xfdbc, s_s)
+  V(F32x4RecipSqrtApprox, 0xfdbc, s_s)      \
+  V(F64x2ConvertLowI32x4S, 0xfd53, s_s)     \
+  V(F64x2ConvertLowI32x4U, 0xfd54, s_s)     \
+  V(I32x4TruncSatF64x2SZero, 0xfd55, s_s)   \
+  V(I32x4TruncSatF64x2UZero, 0xfd56, s_s)   \
+  V(F32x4DemoteF64x2Zero, 0xfd57, s_s)      \
+  V(F64x2PromoteLowF32x4, 0xfd69, s_s)
 
 #define FOREACH_SIMD_POST_MVP_ONE_OPERAND_OPCODE(V) \
   V(I32x4WidenI8x16S, 0xfd67, s_s)                  \
