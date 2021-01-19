@@ -145,6 +145,19 @@ class Word64Adapter {
   MachineOperatorReducer* r_;
 };
 
+namespace {
+
+// TODO(jgruber): Consider replacing all uses of this function by
+// std::numeric_limits<T>::quiet_NaN().
+template <class T>
+T SilenceNaN(T x) {
+  DCHECK(std::isnan(x));
+  // Do some calculation to make a signalling NaN quiet.
+  return x - x;
+}
+
+}  // namespace
+
 MachineOperatorReducer::MachineOperatorReducer(Editor* editor,
                                                MachineGraph* mcgraph,
                                                bool allow_signalling_nan)
@@ -465,14 +478,10 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         return Replace(m.left().node());  // x - 0 => x
       }
       if (m.right().IsNaN()) {  // x - NaN => NaN
-        // Do some calculation to make a signalling NaN quiet.
-        return ReplaceFloat32(m.right().ResolvedValue() -
-                              m.right().ResolvedValue());
+        return ReplaceFloat32(SilenceNaN(m.right().ResolvedValue()));
       }
       if (m.left().IsNaN()) {  // NaN - x => NaN
-        // Do some calculation to make a signalling NaN quiet.
-        return ReplaceFloat32(m.left().ResolvedValue() -
-                              m.left().ResolvedValue());
+        return ReplaceFloat32(SilenceNaN(m.left().ResolvedValue()));
       }
       if (m.IsFoldable()) {  // L - R => (L - R)
         return ReplaceFloat32(m.left().ResolvedValue() -
@@ -512,14 +521,10 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         return Replace(m.left().node());  // x - 0 => x
       }
       if (m.right().IsNaN()) {  // x - NaN => NaN
-        // Do some calculation to make a signalling NaN quiet.
-        return ReplaceFloat64(m.right().ResolvedValue() -
-                              m.right().ResolvedValue());
+        return ReplaceFloat64(SilenceNaN(m.right().ResolvedValue()));
       }
       if (m.left().IsNaN()) {  // NaN - x => NaN
-        // Do some calculation to make a signalling NaN quiet.
-        return ReplaceFloat64(m.left().ResolvedValue() -
-                              m.left().ResolvedValue());
+        return ReplaceFloat64(SilenceNaN(m.left().ResolvedValue()));
       }
       if (m.IsFoldable()) {  // L - R => (L - R)
         return ReplaceFloat64(m.left().ResolvedValue() -
@@ -555,9 +560,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         return Changed(node);
       }
       if (m.right().IsNaN()) {                               // x * NaN => NaN
-        // Do some calculation to make a signalling NaN quiet.
-        return ReplaceFloat64(m.right().ResolvedValue() -
-                              m.right().ResolvedValue());
+        return ReplaceFloat64(SilenceNaN(m.right().ResolvedValue()));
       }
       if (m.IsFoldable()) {  // K * K => K  (K stands for arbitrary constants)
         return ReplaceFloat64(m.left().ResolvedValue() *
@@ -576,14 +579,10 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         return Replace(m.left().node());  // x / 1.0 => x
       // TODO(ahaas): We could do x / 1.0 = x if we knew that x is not an sNaN.
       if (m.right().IsNaN()) {                               // x / NaN => NaN
-        // Do some calculation to make a signalling NaN quiet.
-        return ReplaceFloat64(m.right().ResolvedValue() -
-                              m.right().ResolvedValue());
+        return ReplaceFloat64(SilenceNaN(m.right().ResolvedValue()));
       }
       if (m.left().IsNaN()) {  // NaN / x => NaN
-        // Do some calculation to make a signalling NaN quiet.
-        return ReplaceFloat64(m.left().ResolvedValue() -
-                              m.left().ResolvedValue());
+        return ReplaceFloat64(SilenceNaN(m.left().ResolvedValue()));
       }
       if (m.IsFoldable()) {  // K / K => K  (K stands for arbitrary constants)
         return ReplaceFloat64(
@@ -781,8 +780,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       Float32Matcher m(node->InputAt(0));
       if (m.HasResolvedValue()) {
         if (!allow_signalling_nan_ && std::isnan(m.ResolvedValue())) {
-          // Do some calculation to make guarantee the value is a quiet NaN.
-          return ReplaceFloat64(m.ResolvedValue() + m.ResolvedValue());
+          return ReplaceFloat64(SilenceNaN(m.ResolvedValue()));
         }
         return ReplaceFloat64(m.ResolvedValue());
       }
@@ -856,10 +854,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kTruncateFloat64ToFloat32: {
       Float64Matcher m(node->InputAt(0));
       if (m.HasResolvedValue()) {
-        if (!allow_signalling_nan_ && std::isnan(m.ResolvedValue())) {
-          // Do some calculation to make guarantee the value is a quiet NaN.
-          return ReplaceFloat32(
-              DoubleToFloat32(m.ResolvedValue() + m.ResolvedValue()));
+        if (!allow_signalling_nan_ && m.IsNaN()) {
+          return ReplaceFloat32(DoubleToFloat32(SilenceNaN(m.ResolvedValue())));
         }
         return ReplaceFloat32(DoubleToFloat32(m.ResolvedValue()));
       }
