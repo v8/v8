@@ -375,74 +375,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
   UNREACHABLE();
 }
 
-class WasmOutOfLineTrap : public OutOfLineCode {
- public:
-  WasmOutOfLineTrap(CodeGenerator* gen, Instruction* instr)
-      : OutOfLineCode(gen), gen_(gen), instr_(instr) {}
-  void Generate() override {
-    Arm64OperandConverter i(gen_, instr_);
-    TrapId trap_id =
-        static_cast<TrapId>(i.InputInt32(instr_->InputCount() - 1));
-    GenerateCallToTrap(trap_id);
-  }
-
- protected:
-  CodeGenerator* gen_;
-
-  void GenerateWithTrapId(TrapId trap_id) { GenerateCallToTrap(trap_id); }
-
- private:
-  void GenerateCallToTrap(TrapId trap_id) {
-    if (trap_id == TrapId::kInvalid) {
-      // We cannot test calls to the runtime in cctest/test-run-wasm.
-      // Therefore we emit a call to C here instead of a call to the runtime.
-      __ CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(),
-                       0);
-      __ LeaveFrame(StackFrame::WASM);
-      auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
-      int pop_count = static_cast<int>(call_descriptor->StackParameterCount());
-      pop_count += (pop_count & 1);  // align
-      __ Drop(pop_count);
-      __ Ret();
-    } else {
-      gen_->AssembleSourcePosition(instr_);
-      // A direct call to a wasm runtime stub defined in this module.
-      // Just encode the stub index. This will be patched when the code
-      // is added to the native module and copied into wasm code space.
-      __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
-      ReferenceMap* reference_map =
-          gen_->zone()->New<ReferenceMap>(gen_->zone());
-      gen_->RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
-      __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
-    }
-  }
-
-  Instruction* instr_;
-};
-
-class WasmProtectedInstructionTrap final : public WasmOutOfLineTrap {
- public:
-  WasmProtectedInstructionTrap(CodeGenerator* gen, int pc, Instruction* instr)
-      : WasmOutOfLineTrap(gen, instr), pc_(pc) {}
-
-  void Generate() override {
-    gen_->AddProtectedInstructionLanding(pc_, __ pc_offset());
-    GenerateWithTrapId(TrapId::kTrapMemOutOfBounds);
-  }
-
- private:
-  int pc_;
-};
-
-void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
-                         InstructionCode opcode, Instruction* instr, int pc) {
-  const MemoryAccessMode access_mode =
-      static_cast<MemoryAccessMode>(MiscField::decode(opcode));
-  if (access_mode == kMemoryAccessProtected) {
-    zone->New<WasmProtectedInstructionTrap>(codegen, pc, instr);
-  }
-}
-
 void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
                                    InstructionCode opcode, Instruction* instr,
                                    Arm64OperandConverter const& i) {
@@ -1768,49 +1700,39 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Fmov(i.OutputRegister(), i.InputDoubleRegister(0));
       break;
     case kArm64Ldrb:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldrb(i.OutputRegister(), i.MemoryOperand());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArm64Ldrsb:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldrsb(i.OutputRegister(), i.MemoryOperand());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArm64Strb:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Strb(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
       break;
     case kArm64Ldrh:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldrh(i.OutputRegister(), i.MemoryOperand());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArm64Ldrsh:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldrsh(i.OutputRegister(), i.MemoryOperand());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArm64Strh:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Strh(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
       break;
     case kArm64Ldrsw:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldrsw(i.OutputRegister(), i.MemoryOperand());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArm64LdrW:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldr(i.OutputRegister32(), i.MemoryOperand());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArm64StrW:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Str(i.InputOrZeroRegister32(0), i.MemoryOperand(1));
       break;
     case kArm64Ldr:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldr(i.OutputRegister(), i.MemoryOperand());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
@@ -1827,34 +1749,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArm64Str:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Str(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
       break;
     case kArm64StrCompressTagged:
       __ StoreTaggedField(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
       break;
     case kArm64LdrS:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       EmitMaybePoisonedFPLoad(this, opcode, &i, i.OutputDoubleRegister().S());
       break;
     case kArm64StrS:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Str(i.InputFloat32OrZeroRegister(0), i.MemoryOperand(1));
       break;
     case kArm64LdrD:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       EmitMaybePoisonedFPLoad(this, opcode, &i, i.OutputDoubleRegister());
       break;
     case kArm64StrD:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Str(i.InputFloat64OrZeroRegister(0), i.MemoryOperand(1));
       break;
     case kArm64LdrQ:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldr(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     case kArm64StrQ:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Str(i.InputSimd128Register(0), i.MemoryOperand(1));
       break;
     case kArm64DmbIsh:
@@ -2886,7 +2801,50 @@ void CodeGenerator::AssembleArchJump(RpoNumber target) {
 
 void CodeGenerator::AssembleArchTrap(Instruction* instr,
                                      FlagsCondition condition) {
-  auto ool = zone()->New<WasmOutOfLineTrap>(this, instr);
+  class OutOfLineTrap final : public OutOfLineCode {
+   public:
+    OutOfLineTrap(CodeGenerator* gen, Instruction* instr)
+        : OutOfLineCode(gen), instr_(instr), gen_(gen) {}
+    void Generate() final {
+      Arm64OperandConverter i(gen_, instr_);
+      TrapId trap_id =
+          static_cast<TrapId>(i.InputInt32(instr_->InputCount() - 1));
+      GenerateCallToTrap(trap_id);
+    }
+
+   private:
+    void GenerateCallToTrap(TrapId trap_id) {
+      if (trap_id == TrapId::kInvalid) {
+        // We cannot test calls to the runtime in cctest/test-run-wasm.
+        // Therefore we emit a call to C here instead of a call to the runtime.
+        __ CallCFunction(
+            ExternalReference::wasm_call_trap_callback_for_testing(), 0);
+        __ LeaveFrame(StackFrame::WASM);
+        auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
+        int pop_count =
+            static_cast<int>(call_descriptor->StackParameterCount());
+        pop_count += (pop_count & 1);  // align
+        __ Drop(pop_count);
+        __ Ret();
+      } else {
+        gen_->AssembleSourcePosition(instr_);
+        // A direct call to a wasm runtime stub defined in this module.
+        // Just encode the stub index. This will be patched when the code
+        // is added to the native module and copied into wasm code space.
+        __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
+        ReferenceMap* reference_map =
+            gen_->zone()->New<ReferenceMap>(gen_->zone());
+        gen_->RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
+        if (FLAG_debug_code) {
+          // The trap code should never return.
+          __ Brk(0);
+        }
+      }
+    }
+    Instruction* instr_;
+    CodeGenerator* gen_;
+  };
+  auto ool = zone()->New<OutOfLineTrap>(this, instr);
   Label* tlabel = ool->entry();
   Condition cc = FlagsConditionToCondition(condition);
   __ B(cc, tlabel);
