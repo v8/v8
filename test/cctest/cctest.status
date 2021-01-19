@@ -625,7 +625,7 @@
 }], # variant == jitless
 
 ##############################################################################
-['variant == turboprop', {
+['variant == turboprop or variant == turboprop_as_toptier', {
   # Require inlining.
   'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [SKIP],
   'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [SKIP],
@@ -636,7 +636,7 @@
   'serializer-tester/BoundFunctionArguments': [SKIP],
   'serializer-tester/BoundFunctionTarget': [SKIP],
   'test-js-to-wasm/*': [SKIP],
-}],  # variant == turboprop
+}],  # variant == turboprop or variant == turboprop_as_toptier
 
 ##############################################################################
 ['no_i18n == True', {

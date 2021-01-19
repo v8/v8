@@ -1156,7 +1156,7 @@
 }],
 
 ##############################################################################
-['variant == turboprop', {
+['variant == turboprop or variant == turboprop_as_toptier', {
   # Deopts differently than TurboFan.
   'compiler/native-context-specialization-hole-check': [SKIP],
   'compiler/number-comparison-truncations': [SKIP],
@@ -1212,7 +1212,7 @@
   'compiler/abstract-equal-receiver': [FAIL],
   'compiler/constant-fold-cow-array': [FAIL],
   'compiler/promise-resolve-stable-maps': [FAIL],
-}],  # variant == turboprop
+}],  # variant == turboprop or variant = turboprop_as_toptier
 
 ##############################################################################
 ['variant == top_level_await', {
