@@ -62,8 +62,6 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
   }
 #endif
 
-  static bool IsNeeded(Isolate* isolate) { return false; }
-
   static bool IsNeeded(LocalIsolate* local_isolate) {
     // TODO(leszeks): Remove the nullptr check for local_isolate.
     return local_isolate && !local_isolate->heap()->is_main_thread();
