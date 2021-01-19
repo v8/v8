@@ -52,6 +52,9 @@ class ScopeInfo : public FixedArray {
   // True if this scope is a (var) declaration scope.
   bool is_declaration_scope() const;
 
+  // True if this scope is a class scope.
+  bool is_class_scope() const;
+
   // Does this scope make a sloppy eval call?
   bool SloppyEvalCanExtendVars() const;
 
@@ -77,7 +80,7 @@ class ScopeInfo : public FixedArray {
   // Does this scope has class brand (for private methods)?
   bool HasClassBrand() const;
 
-  // Does this scope contain a saved class variable context local slot index
+  // Does this scope contains a saved class variable context local slot index
   // for checking receivers of static private methods?
   bool HasSavedClassVariableIndex() const;
 

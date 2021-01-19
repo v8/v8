@@ -39,7 +39,7 @@ using LengthEqualsParametersField = HasDataField::Next<bool, 1>;
 using NumberOfParametersField = LengthEqualsParametersField::Next<uint16_t, 16>;
 
 using LanguageField = base::BitField8<LanguageMode, 0, 1>;
-using MaybeUsesSuperField = LanguageField::Next<bool, 1>;
+using UsesSuperField = LanguageField::Next<bool, 1>;
 STATIC_ASSERT(LanguageModeSize <= LanguageField::kNumValues);
 
 }  // namespace
@@ -304,13 +304,9 @@ bool PreparseDataBuilder::SaveDataForSkippableFunction(
   }
   byte_data_.WriteVarint32(builder->num_inner_functions_);
 
-  Scope* home_object_scope = function_scope->GetHomeObjectScope();
-  bool maybe_uses_super =
-      home_object_scope != nullptr && home_object_scope->NeedsHomeObject();
-
   uint8_t language_and_super =
       LanguageField::encode(function_scope->language_mode()) |
-      MaybeUsesSuperField::encode(maybe_uses_super);
+      UsesSuperField::encode(function_scope->NeedsHomeObject());
   byte_data_.WriteQuarter(language_and_super);
   return has_data;
 }
@@ -365,7 +361,7 @@ void PreparseDataBuilder::SaveDataForScope(Scope* scope) {
   byte_data_.WriteUint8(scope->scope_type());
 #endif
 
-  uint8_t scope_data_flags =
+  uint8_t eval_and_private_recalc =
       ScopeSloppyEvalCanExtendVarsBit::encode(
           scope->is_declaration_scope() &&
           scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) |
@@ -378,7 +374,7 @@ void PreparseDataBuilder::SaveDataForScope(Scope* scope) {
           scope->is_class_scope() &&
           scope->AsClassScope()->should_save_class_variable_index());
   byte_data_.Reserve(kUint8Size);
-  byte_data_.WriteUint8(scope_data_flags);
+  byte_data_.WriteUint8(eval_and_private_recalc);
 
   if (scope->is_function_scope()) {
     Variable* function = scope->AsDeclarationScope()->function_var();
@@ -582,8 +578,8 @@ template <class Data>
 ProducedPreparseData*
 BaseConsumedPreparseData<Data>::GetDataForSkippableFunction(
     Zone* zone, int start_position, int* end_position, int* num_parameters,
-    int* function_length, int* num_inner_functions,
-    bool* maybe_uses_super_property, LanguageMode* language_mode) {
+    int* function_length, int* num_inner_functions, bool* uses_super_property,
+    LanguageMode* language_mode) {
   // The skippable function *must* be the next function in the data. Use the
   // start position as a sanity check.
   typename ByteData::ReadingScope reading_scope(this);
@@ -609,7 +605,7 @@ BaseConsumedPreparseData<Data>::GetDataForSkippableFunction(
 
   uint8_t language_and_super = scope_data_->ReadQuarter();
   *language_mode = LanguageMode(LanguageField::decode(language_and_super));
-  *maybe_uses_super_property = MaybeUsesSuperField::decode(language_and_super);
+  *uses_super_property = UsesSuperField::decode(language_and_super);
 
   if (!has_data) return nullptr;
 

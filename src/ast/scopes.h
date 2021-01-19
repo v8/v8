@@ -225,9 +225,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
                                 VariableKind kind = NORMAL_VARIABLE);
   Variable* DeclareCatchVariableName(const AstRawString* name);
 
-  Variable* DeclareHomeObjectVariable(AstValueFactory* ast_value_factory);
-  Variable* DeclareStaticHomeObjectVariable(AstValueFactory* ast_value_factory);
-
   // Declarations list.
   base::ThreadedList<Declaration>* declarations() { return &decls_; }
 
@@ -372,18 +369,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool is_with_scope() const { return scope_type_ == WITH_SCOPE; }
   bool is_declaration_scope() const { return is_declaration_scope_; }
   bool is_class_scope() const { return scope_type_ == CLASS_SCOPE; }
-  bool is_home_object_scope() const {
-    return is_class_scope() ||
-           (is_block_scope() && is_block_scope_for_object_literal_);
-  }
-  bool is_block_scope_for_object_literal() const {
-    DCHECK_IMPLIES(is_block_scope_for_object_literal_, is_block_scope());
-    return is_block_scope_for_object_literal_;
-  }
-  void set_is_block_scope_for_object_literal() {
-    DCHECK(is_block_scope());
-    is_block_scope_for_object_literal_ = true;
-  }
 
   bool inner_scope_calls_eval() const { return inner_scope_calls_eval_; }
   bool private_name_lookup_skips_outer_class() const {
@@ -540,10 +525,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // 'this' is bound, and what determines the function kind.
   DeclarationScope* GetReceiverScope();
 
-  // Find the first class scope or object literal block scope. This is where
-  // 'super' is bound.
-  Scope* GetHomeObjectScope();
-
   DeclarationScope* GetScriptScope();
 
   // Find the innermost outer scope that needs a context.
@@ -587,16 +568,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   }
   bool deserialized_scope_uses_external_cache() const {
     return deserialized_scope_uses_external_cache_;
-  }
-
-  bool NeedsHomeObject() const {
-    return is_home_object_scope() &&
-           (needs_home_object_ || inner_scope_calls_eval_);
-  }
-
-  void set_needs_home_object() {
-    DCHECK(is_home_object_scope());
-    needs_home_object_ = true;
   }
 
   bool RemoveInnerScope(Scope* inner_scope) {
@@ -720,8 +691,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
                                   MaybeHandle<ScopeInfo> outer_scope);
 
   // Construct a scope based on the scope info.
-  Scope(Zone* zone, ScopeType type, AstValueFactory* ast_value_factory,
-        Handle<ScopeInfo> scope_info);
+  Scope(Zone* zone, ScopeType type, Handle<ScopeInfo> scope_info);
 
   // Construct a catch scope with a binding for the name.
   Scope(Zone* zone, const AstRawString* catch_variable_name,
@@ -838,9 +808,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // the compilation of the eval will have the "with" scope as the first scope
   // with this flag enabled.
   bool deserialized_scope_uses_external_cache_ : 1;
-
-  bool needs_home_object_ : 1;
-  bool is_block_scope_for_object_literal_ : 1;
 };
 
 class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
@@ -848,7 +815,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   DeclarationScope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
                    FunctionKind function_kind = kNormalFunction);
   DeclarationScope(Zone* zone, ScopeType scope_type,
-                   AstValueFactory* ast_value_factory,
                    Handle<ScopeInfo> scope_info);
   // Creates a script scope.
   DeclarationScope(Zone* zone, AstValueFactory* ast_value_factory,
@@ -858,6 +824,22 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   bool is_arrow_scope() const {
     return is_function_scope() && IsArrowFunction(function_kind_);
+  }
+
+  // Inform the scope that the corresponding code uses "super".
+  void RecordSuperPropertyUsage() {
+    DCHECK(IsConciseMethod(function_kind()) ||
+           IsAccessorFunction(function_kind()) ||
+           IsClassConstructor(function_kind()));
+    scope_uses_super_property_ = true;
+  }
+
+  // Does this scope access "super" property (super.foo).
+  bool NeedsHomeObject() const {
+    return scope_uses_super_property_ ||
+           (inner_scope_calls_eval_ && (IsConciseMethod(function_kind()) ||
+                                        IsAccessorFunction(function_kind()) ||
+                                        IsClassConstructor(function_kind())));
   }
 
   // Inform the scope and outer scopes that the corresponding code contains an
@@ -1236,6 +1218,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   bool has_rest_ : 1;
   // This scope has a parameter called "arguments".
   bool has_arguments_parameter_ : 1;
+  // This scope uses "super" property ('super.foo').
+  bool scope_uses_super_property_ : 1;
   bool should_eager_compile_ : 1;
   // Set to true after we have finished lazy parsing the scope.
   bool was_lazily_parsed_ : 1;

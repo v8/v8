@@ -1451,6 +1451,9 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   }
   os << "\n - kind: " << kind();
   os << "\n - syntax kind: " << syntax_kind();
+  if (needs_home_object()) {
+    os << "\n - needs_home_object";
+  }
   os << "\n - function_map_index: " << function_map_index();
   os << "\n - formal_parameter_count: " << internal_formal_parameter_count();
   os << "\n - expected_nof_properties: " << expected_nof_properties();
