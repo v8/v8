@@ -819,6 +819,12 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
                                                             kIncludeLiftoff);
     shared_native_module = wasm_engine->NewNativeModule(
         isolate, enabled_features, std::move(module), code_size_estimate);
+    // We have to assign a compilation ID here, as it is required for a
+    // potential re-compilation, e.g. triggered by
+    // {TierDownAllModulesPerIsolate}. The value is -2 so that it is different
+    // than the compilation ID of actual compilations, and also different than
+    // the sentinel value of the CompilationState.
+    shared_native_module->compilation_state()->set_compilation_id(-2);
     shared_native_module->SetWireBytes(
         OwnedVector<uint8_t>::Of(wire_bytes_vec));
 

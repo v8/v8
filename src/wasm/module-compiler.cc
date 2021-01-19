@@ -641,6 +641,11 @@ class CompilationStateImpl {
     return wire_bytes_storage_;
   }
 
+  void set_compilation_id(int compilation_id) {
+    DCHECK_EQ(compilation_id_, kInvalidCompilationID);
+    compilation_id_ = compilation_id;
+  }
+
  private:
   // Trigger callbacks according to the internal counters below
   // (outstanding_...), plus the given events.
@@ -681,6 +686,10 @@ class CompilationStateImpl {
   // The compile job handle, initialized right after construction of
   // {CompilationStateImpl}.
   std::unique_ptr<JobHandle> compile_job_;
+
+  // The compilation id to identify trace events linked to this compilation.
+  static constexpr int kInvalidCompilationID = -1;
+  int compilation_id_ = kInvalidCompilationID;
 
   //////////////////////////////////////////////////////////////////////////////
   // Protected by {mutex_}:
@@ -826,6 +835,10 @@ bool CompilationState::top_tier_compilation_finished() const {
 
 bool CompilationState::recompilation_finished() const {
   return Impl(this)->recompilation_finished();
+}
+
+void CompilationState::set_compilation_id(int compilation_id) {
+  Impl(this)->set_compilation_id(compilation_id);
 }
 
 // static
@@ -1628,7 +1641,7 @@ class BackgroundCompileJob final : public JobTask {
 std::shared_ptr<NativeModule> CompileToNativeModule(
     Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
     std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
-    Handle<FixedArray>* export_wrappers_out) {
+    Handle<FixedArray>* export_wrappers_out, int compilation_id) {
   const WasmModule* wasm_module = module.get();
   OwnedVector<uint8_t> wire_bytes_copy =
       OwnedVector<uint8_t>::Of(wire_bytes.module_bytes());
@@ -1661,6 +1674,7 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   native_module = isolate->wasm_engine()->NewNativeModule(
       isolate, enabled, module, code_size_estimate);
   native_module->SetWireBytes(std::move(wire_bytes_copy));
+  native_module->compilation_state()->set_compilation_id(compilation_id);
   // Sync compilation is user blocking, so we increase the priority.
   native_module->compilation_state()->SetHighPriority();
 
@@ -1709,7 +1723,7 @@ AsyncCompileJob::AsyncCompileJob(
     Isolate* isolate, const WasmFeatures& enabled,
     std::unique_ptr<byte[]> bytes_copy, size_t length, Handle<Context> context,
     Handle<Context> incumbent_context, const char* api_method_name,
-    std::shared_ptr<CompilationResultResolver> resolver)
+    std::shared_ptr<CompilationResultResolver> resolver, int compilation_id)
     : isolate_(isolate),
       api_method_name_(api_method_name),
       enabled_features_(enabled),
@@ -1717,7 +1731,8 @@ AsyncCompileJob::AsyncCompileJob(
       start_time_(base::TimeTicks::Now()),
       bytes_copy_(std::move(bytes_copy)),
       wire_bytes_(bytes_copy_.get(), bytes_copy_.get() + length),
-      resolver_(std::move(resolver)) {
+      resolver_(std::move(resolver)),
+      compilation_id_(compilation_id) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.AsyncCompileJob");
   CHECK(FLAG_wasm_async_compilation);
@@ -1845,6 +1860,7 @@ void AsyncCompileJob::CreateNativeModule(
   native_module_ = isolate_->wasm_engine()->NewNativeModule(
       isolate_, enabled_features_, std::move(module), code_size_estimate);
   native_module_->SetWireBytes({std::move(bytes_copy_), wire_bytes_.length()});
+  native_module_->compilation_state()->set_compilation_id(compilation_id_);
 }
 
 bool AsyncCompileJob::GetOrCreateNativeModule(
@@ -3185,7 +3201,8 @@ void CompilationStateImpl::TriggerCallbacks(
         std::make_pair(CompilationEvent::kFinishedRecompilation,
                        "wasm.RecompilationFinished")}) {
     if (!triggered_events.contains(event.first)) continue;
-    TRACE_EVENT0("v8.wasm", event.second);
+    DCHECK_NE(compilation_id_, kInvalidCompilationID);
+    TRACE_EVENT1("v8.wasm", event.second, "id", compilation_id_);
     for (auto& callback : callbacks_) {
       callback(event.first);
     }

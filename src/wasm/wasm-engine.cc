@@ -453,7 +453,9 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
     Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
     Vector<const byte> asm_js_offset_table_bytes,
     Handle<HeapNumber> uses_bitset, LanguageMode language_mode) {
-  TRACE_EVENT0("v8.wasm", "wasm.SyncCompileTranslatedAsmJs");
+  int compilation_id = next_compilation_id_.fetch_add(1);
+  TRACE_EVENT1("v8.wasm", "wasm.SyncCompileTranslatedAsmJs", "id",
+               compilation_id);
   ModuleOrigin origin = language_mode == LanguageMode::kSloppy
                             ? kAsmJsSloppyOrigin
                             : kAsmJsStrictOrigin;
@@ -475,9 +477,9 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToNativeModule}.
   Handle<FixedArray> export_wrappers;
-  std::shared_ptr<NativeModule> native_module =
-      CompileToNativeModule(isolate, WasmFeatures::ForAsmjs(), thrower,
-                            std::move(result).value(), bytes, &export_wrappers);
+  std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
+      isolate, WasmFeatures::ForAsmjs(), thrower, std::move(result).value(),
+      bytes, &export_wrappers, compilation_id);
   if (!native_module) return {};
 
   return AsmWasmData::New(isolate, std::move(native_module), export_wrappers,
@@ -499,7 +501,8 @@ Handle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
 MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
     Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
     const ModuleWireBytes& bytes) {
-  TRACE_EVENT0("v8.wasm", "wasm.SyncCompile");
+  int compilation_id = next_compilation_id_.fetch_add(1);
+  TRACE_EVENT1("v8.wasm", "wasm.SyncCompile", "id", compilation_id);
   ModuleResult result = DecodeWasmModule(
       enabled, bytes.start(), bytes.end(), false, kWasmOrigin,
       isolate->counters(), isolate->metrics_recorder(),
@@ -513,9 +516,9 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToNativeModule}.
   Handle<FixedArray> export_wrappers;
-  std::shared_ptr<NativeModule> native_module =
-      CompileToNativeModule(isolate, enabled, thrower,
-                            std::move(result).value(), bytes, &export_wrappers);
+  std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
+      isolate, enabled, thrower, std::move(result).value(), bytes,
+      &export_wrappers, compilation_id);
   if (!native_module) return {};
 
 #ifdef DEBUG
@@ -596,7 +599,8 @@ void WasmEngine::AsyncCompile(
     std::shared_ptr<CompilationResultResolver> resolver,
     const ModuleWireBytes& bytes, bool is_shared,
     const char* api_method_name_for_errors) {
-  TRACE_EVENT0("v8.wasm", "wasm.AsyncCompile");
+  int compilation_id = next_compilation_id_.fetch_add(1);
+  TRACE_EVENT1("v8.wasm", "wasm.AsyncCompile", "id", compilation_id);
   if (!FLAG_wasm_async_compilation) {
     // Asynchronous compilation disabled; fall back on synchronous compilation.
     ErrorThrower thrower(isolate, api_method_name_for_errors);
@@ -634,10 +638,10 @@ void WasmEngine::AsyncCompile(
   std::unique_ptr<byte[]> copy(new byte[bytes.length()]);
   base::Memcpy(copy.get(), bytes.start(), bytes.length());
 
-  AsyncCompileJob* job =
-      CreateAsyncCompileJob(isolate, enabled, std::move(copy), bytes.length(),
-                            handle(isolate->context(), isolate),
-                            api_method_name_for_errors, std::move(resolver));
+  AsyncCompileJob* job = CreateAsyncCompileJob(
+      isolate, enabled, std::move(copy), bytes.length(),
+      handle(isolate->context(), isolate), api_method_name_for_errors,
+      std::move(resolver), compilation_id);
   job->Start();
 }
 
@@ -645,11 +649,13 @@ std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
     Isolate* isolate, const WasmFeatures& enabled, Handle<Context> context,
     const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver) {
-  TRACE_EVENT0("v8.wasm", "wasm.StartStreamingCompilation");
+  int compilation_id = next_compilation_id_.fetch_add(1);
+  TRACE_EVENT1("v8.wasm", "wasm.StartStreamingCompilation", "id",
+               compilation_id);
   if (FLAG_wasm_async_compilation) {
     AsyncCompileJob* job = CreateAsyncCompileJob(
         isolate, enabled, std::unique_ptr<byte[]>(nullptr), 0, context,
-        api_method_name, std::move(resolver));
+        api_method_name, std::move(resolver), compilation_id);
     return job->CreateStreamingDecoder();
   }
   return StreamingDecoder::CreateSyncStreamingDecoder(
@@ -867,11 +873,11 @@ AsyncCompileJob* WasmEngine::CreateAsyncCompileJob(
     Isolate* isolate, const WasmFeatures& enabled,
     std::unique_ptr<byte[]> bytes_copy, size_t length, Handle<Context> context,
     const char* api_method_name,
-    std::shared_ptr<CompilationResultResolver> resolver) {
+    std::shared_ptr<CompilationResultResolver> resolver, int compilation_id) {
   Handle<Context> incumbent_context = isolate->GetIncumbentContext();
   AsyncCompileJob* job = new AsyncCompileJob(
       isolate, enabled, std::move(bytes_copy), length, context,
-      incumbent_context, api_method_name, std::move(resolver));
+      incumbent_context, api_method_name, std::move(resolver), compilation_id);
   // Pass ownership to the unique_ptr in {async_compile_jobs_}.
   base::MutexGuard guard(&mutex_);
   async_compile_jobs_[job] = std::unique_ptr<AsyncCompileJob>(job);
