@@ -184,12 +184,6 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
 
   ReadOnlyRoots roots(isolate);
   if (*name == roots.constructor_string()) {
-    if (!Protectors::IsArraySpeciesLookupChainIntact(isolate) &&
-        !Protectors::IsPromiseSpeciesLookupChainIntact(isolate) &&
-        !Protectors::IsRegExpSpeciesLookupChainIntact(isolate) &&
-        !Protectors::IsTypedArraySpeciesLookupChainIntact(isolate)) {
-      return;
-    }
     // Setting the constructor property could change an instance's @@species
     if (receiver->IsJSArray(isolate)) {
       if (!Protectors::IsArraySpeciesLookupChainIntact(isolate)) return;
@@ -254,12 +248,6 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
       Protectors::InvalidateStringIteratorLookupChain(isolate);
     }
   } else if (*name == roots.species_symbol()) {
-    if (!Protectors::IsArraySpeciesLookupChainIntact(isolate) &&
-        !Protectors::IsPromiseSpeciesLookupChainIntact(isolate) &&
-        !Protectors::IsRegExpSpeciesLookupChainIntact(isolate) &&
-        !Protectors::IsTypedArraySpeciesLookupChainIntact(isolate)) {
-      return;
-    }
     // Setting the Symbol.species property of any Array, Promise or TypedArray
     // constructor invalidates the @@species protector
     if (receiver->IsJSArrayConstructor()) {
