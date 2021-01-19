@@ -1302,6 +1302,26 @@ std::string Type::GetRuntimeType() const {
   return ConstexprVersion()->GetGeneratedTypeName();
 }
 
+std::string Type::GetDebugType() const {
+  if (IsSubtypeOf(TypeOracle::GetSmiType())) return "uintptr_t";
+  if (IsSubtypeOf(TypeOracle::GetTaggedType())) {
+    return "uintptr_t";
+  }
+  if (base::Optional<const StructType*> struct_type = StructSupertype()) {
+    std::stringstream result;
+    result << "std::tuple<";
+    bool first = true;
+    for (const Type* field_type : LowerType(*struct_type)) {
+      if (!first) result << ", ";
+      first = false;
+      result << field_type->GetDebugType();
+    }
+    result << ">";
+    return result.str();
+  }
+  return ConstexprVersion()->GetGeneratedTypeName();
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8

@@ -142,6 +142,7 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   base::Optional<const AggregateType*> AggregateSupertype() const;
   virtual std::vector<TypeChecker> GetTypeCheckers() const { return {}; }
   virtual std::string GetRuntimeType() const;
+  virtual std::string GetDebugType() const;
   static const Type* CommonSupertype(const Type* a, const Type* b);
   void AddAlias(std::string alias) const { aliases_.insert(std::move(alias)); }
   size_t id() const { return id_; }
@@ -398,6 +399,7 @@ class V8_EXPORT_PRIVATE UnionType final : public Type {
   std::string GetRuntimeType() const override {
     return parent()->GetRuntimeType();
   }
+  std::string GetDebugType() const override { return parent()->GetDebugType(); }
 
   friend size_t hash_value(const UnionType& p) {
     size_t result = 0;

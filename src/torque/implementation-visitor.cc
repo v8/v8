@@ -149,6 +149,49 @@ void ImplementationVisitor::EndGeneratedFiles() {
   }
 }
 
+void ImplementationVisitor::BeginDebugMacrosFile() {
+  std::ostream& source = debug_macros_cc_;
+  std::ostream& header = debug_macros_h_;
+
+  source << "#include \"torque-generated/debug-macros.h\"\n\n";
+  source << "#include \"tools/debug_helper/debug-macro-shims.h\"\n";
+  source << "#include \"include/v8-internal.h\"\n";
+  source << "\n";
+
+  source << "namespace v8 {\n"
+         << "namespace internal {\n"
+         << "namespace debug_helper_internal {\n"
+         << "\n";
+
+  const char* kHeaderDefine = "V8_GEN_TORQUE_GENERATED_DEBUG_MACROS_H_";
+  header << "#ifndef " << kHeaderDefine << "\n";
+  header << "#define " << kHeaderDefine << "\n\n";
+  header << "#include \"src/builtins/torque-csa-header-includes.h\"\n";
+  header << "#include \"tools/debug_helper/debug-helper-internal.h\"\n";
+  header << "\n";
+
+  header << "namespace v8 {\n"
+         << "namespace internal {\n"
+         << "namespace debug_helper_internal{\n"
+         << "\n";
+}
+
+void ImplementationVisitor::EndDebugMacrosFile() {
+  std::ostream& source = debug_macros_cc_;
+  std::ostream& header = debug_macros_h_;
+
+  source << "}  // namespace internal\n"
+         << "}  // namespace v8\n"
+         << "}  // namespace debug_helper_internal\n"
+         << "\n";
+
+  header << "\n}  // namespace internal\n"
+         << "}  // namespace v8\n"
+         << "}  // namespace debug_helper_internal\n"
+         << "\n";
+  header << "#endif  // V8_GEN_TORQUE_GENERATED_DEBUG_MACROS_H_\n";
+}
+
 void ImplementationVisitor::Visit(NamespaceConstant* decl) {
   Signature signature{{}, base::nullopt, {{}, false}, 0, decl->type(),
                       {}, false};
@@ -322,6 +365,11 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
   if (output_type_ == OutputType::kCC) {
     csa_ccfile() << "#ifndef V8_INTERNAL_DEFINED_" << macro->CCName() << "\n";
     csa_ccfile() << "#define V8_INTERNAL_DEFINED_" << macro->CCName() << "\n";
+  } else if (output_type_ == OutputType::kCCDebug) {
+    csa_ccfile() << "#ifndef V8_INTERNAL_DEFINED_" << macro->CCDebugName()
+                 << "\n";
+    csa_ccfile() << "#define V8_INTERNAL_DEFINED_" << macro->CCDebugName()
+                 << "\n";
   }
 
   GenerateMacroFunctionDeclaration(csa_ccfile(), macro);
@@ -331,7 +379,7 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
     // For now, generated C++ is only for field offset computations. If we ever
     // generate C++ code that can allocate, then it should be handlified.
     csa_ccfile() << "  DisallowGarbageCollection no_gc;\n";
-  } else {
+  } else if (output_type_ == OutputType::kCSA) {
     csa_ccfile() << "  compiler::CodeAssembler ca_(state_);\n";
     csa_ccfile()
         << "  compiler::CodeAssembler::SourcePositionScope pos_scope(&ca_);\n";
@@ -421,6 +469,9 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
   if (output_type_ == OutputType::kCC) {
     CCGenerator cc_generator{assembler().Result(), csa_ccfile()};
     values = cc_generator.EmitGraph(lowered_parameters);
+  } else if (output_type_ == OutputType::kCCDebug) {
+    CCGenerator cc_generator{assembler().Result(), csa_ccfile(), true};
+    values = cc_generator.EmitGraph(lowered_parameters);
   } else {
     CSAGenerator csa_generator{assembler().Result(), csa_ccfile()};
     values = csa_generator.EmitGraph(lowered_parameters);
@@ -430,7 +481,11 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
 
   if (has_return_value) {
     csa_ccfile() << "  return ";
-    if (output_type_ == OutputType::kCC) {
+    if (output_type_ == OutputType::kCCDebug) {
+      csa_ccfile() << "{d::MemoryAccessResult::kOk, ";
+      CCGenerator::EmitCCValue(return_value, *values, csa_ccfile());
+      csa_ccfile() << "}";
+    } else if (output_type_ == OutputType::kCC) {
       CCGenerator::EmitCCValue(return_value, *values, csa_ccfile());
     } else {
       CSAGenerator::EmitCSAValue(return_value, *values, csa_ccfile());
@@ -440,6 +495,9 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
   csa_ccfile() << "}\n";
   if (output_type_ == OutputType::kCC) {
     csa_ccfile() << "#endif //  V8_INTERNAL_DEFINED_" << macro->CCName()
+                 << "\n";
+  } else if (output_type_ == OutputType::kCCDebug) {
+    csa_ccfile() << "#endif //  V8_INTERNAL_DEFINED_" << macro->CCDebugName()
                  << "\n";
   }
   csa_ccfile() << "\n";
@@ -1677,14 +1735,20 @@ void ImplementationVisitor::GenerateImplementation(const std::string& dir) {
             streams.class_definition_inline_headerfile.str());
     WriteFile(base_filename + "-tq.cc", streams.class_definition_ccfile.str());
   }
+
+  WriteFile(dir + "/debug-macros.h", debug_macros_h_.str());
+  WriteFile(dir + "/debug-macros.cc", debug_macros_cc_.str());
 }
 
 void ImplementationVisitor::GenerateMacroFunctionDeclaration(std::ostream& o,
                                                              Macro* macro) {
-  GenerateFunctionDeclaration(
-      o, "",
-      output_type_ == OutputType::kCC ? macro->CCName() : macro->ExternalName(),
-      macro->signature(), macro->parameter_names());
+  GenerateFunctionDeclaration(o, "",
+                              output_type_ == OutputType::kCC
+                                  ? macro->CCName()
+                                  : output_type_ == OutputType::kCCDebug
+                                        ? macro->CCDebugName()
+                                        : macro->ExternalName(),
+                              macro->signature(), macro->parameter_names());
 }
 
 std::vector<std::string> ImplementationVisitor::GenerateFunctionDeclaration(
@@ -1698,9 +1762,13 @@ std::vector<std::string> ImplementationVisitor::GenerateFunctionDeclaration(
   if (signature.return_type->IsVoidOrNever()) {
     o << "void";
   } else {
-    o << (output_type_ == OutputType::kCC
-              ? signature.return_type->GetRuntimeType()
-              : signature.return_type->GetGeneratedTypeName());
+    if (output_type_ == OutputType::kCCDebug) {
+      o << "Value<" << signature.return_type->GetDebugType() << ">";
+    } else {
+      o << (output_type_ == OutputType::kCC
+                ? signature.return_type->GetRuntimeType()
+                : signature.return_type->GetGeneratedTypeName());
+    }
   }
   o << " " << macro_prefix << name << "(";
 
@@ -1708,6 +1776,9 @@ std::vector<std::string> ImplementationVisitor::GenerateFunctionDeclaration(
   if (output_type_ == OutputType::kCC) {
     first = false;
     o << "Isolate* isolate";
+  } else if (output_type_ == OutputType::kCCDebug) {
+    first = false;
+    o << "d::MemoryAccessor accessor";
   } else if (pass_code_assembler_state) {
     first = false;
     o << "compiler::CodeAssemblerState* state_";
@@ -1721,7 +1792,9 @@ std::vector<std::string> ImplementationVisitor::GenerateFunctionDeclaration(
     const std::string& generated_type_name =
         output_type_ == OutputType::kCC
             ? parameter_type->GetRuntimeType()
-            : parameter_type->GetGeneratedTypeName();
+            : output_type_ == OutputType::kCCDebug
+                  ? parameter_type->GetDebugType()
+                  : parameter_type->GetGeneratedTypeName();
 
     generated_parameter_names.push_back(ExternalParameterName(
         i < parameter_names.size() ? parameter_names[i]->value
@@ -1730,7 +1803,8 @@ std::vector<std::string> ImplementationVisitor::GenerateFunctionDeclaration(
   }
 
   for (const LabelDeclaration& label_info : signature.labels) {
-    if (output_type_ == OutputType::kCC) {
+    if (output_type_ == OutputType::kCC ||
+        output_type_ == OutputType::kCCDebug) {
       ReportError("Macros that generate runtime code can't have label exits");
     }
     if (!first) o << ", ";
@@ -3156,6 +3230,17 @@ void ImplementationVisitor::VisitAllDeclarables() {
   output_type_ = OutputType::kCC;
   const std::vector<std::pair<TorqueMacro*, SourceId>>& cc_macros =
       GlobalContext::AllMacrosForCCOutput();
+  for (size_t i = 0; i < cc_macros.size(); ++i) {
+    try {
+      Visit(static_cast<Declarable*>(cc_macros[i].first), cc_macros[i].second);
+    } catch (TorqueAbortCompilation&) {
+      // Recover from compile errors here. The error is recorded already.
+    }
+  }
+
+  // Do the same for macros which generate C++ debug code.
+  // The set of macros is the same as C++ macros.
+  output_type_ = OutputType::kCCDebug;
   for (size_t i = 0; i < cc_macros.size(); ++i) {
     try {
       Visit(static_cast<Declarable*>(cc_macros[i].first), cc_macros[i].second);

@@ -74,8 +74,10 @@ Stack<std::string> CCGenerator::EmitBlock(const Block* block) {
     const auto& def = block->InputDefinitions().Peek(i);
     stack.Push(DefinitionToVariable(def));
     if (def.IsPhiFromBlock(block)) {
-      decls() << "  " << block->InputTypes().Peek(i)->GetRuntimeType() << " "
-              << stack.Top() << "{}; USE(" << stack.Top() << ");\n";
+      decls() << "  "
+              << (is_cc_debug_ ? block->InputTypes().Peek(i)->GetDebugType()
+                               : block->InputTypes().Peek(i)->GetRuntimeType())
+              << " " << stack.Top() << "{}; USE(" << stack.Top() << ");\n";
     }
   }
 
@@ -151,8 +153,10 @@ void CCGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
   for (std::size_t i = 0; i < lowered.size(); ++i) {
     results.push_back(DefinitionToVariable(instruction.GetValueDefinition(i)));
     stack->Push(results.back());
-    decls() << "  " << lowered[i]->GetRuntimeType() << " " << stack->Top()
-            << "{}; USE(" << stack->Top() << ");\n";
+    decls() << "  "
+            << (is_cc_debug_ ? lowered[i]->GetDebugType()
+                             : lowered[i]->GetRuntimeType())
+            << " " << stack->Top() << "{}; USE(" << stack->Top() << ");\n";
   }
 
   out() << "  ";
@@ -220,29 +224,39 @@ void CCGenerator::EmitInstruction(const CallCsaMacroInstruction& instruction,
   for (std::size_t i = 0; i < lowered.size(); ++i) {
     results.push_back(DefinitionToVariable(instruction.GetValueDefinition(i)));
     stack->Push(results.back());
-    decls() << "  " << lowered[i]->GetRuntimeType() << " " << stack->Top()
-            << "{}; USE(" << stack->Top() << ");\n";
+    decls() << "  "
+            << (is_cc_debug_ ? lowered[i]->GetDebugType()
+                             : lowered[i]->GetRuntimeType())
+            << " " << stack->Top() << "{}; USE(" << stack->Top() << ");\n";
   }
 
   // We should have inlined any calls requiring complex control flow.
   CHECK(!instruction.catch_block);
-  out() << "  ";
+  out() << (is_cc_debug_ ? "  ASSIGN_OR_RETURN(" : "  ");
   if (return_type->StructSupertype().has_value()) {
     out() << "std::tie(";
     PrintCommaSeparatedList(out(), results);
-    out() << ") = ";
+    out() << (is_cc_debug_ ? "), " : ") = ");
   } else {
     if (results.size() == 1) {
-      out() << results[0] << " = ";
+      out() << results[0] << (is_cc_debug_ ? ", " : " = ");
     } else {
       DCHECK_EQ(0, results.size());
     }
   }
 
-  out() << instruction.macro->CCName() << "(isolate";
+  if (is_cc_debug_) {
+    out() << instruction.macro->CCDebugName() << "(accessor";
+  } else {
+    out() << instruction.macro->CCName() << "(isolate";
+  }
   if (!args.empty()) out() << ", ";
   PrintCommaSeparatedList(out(), args);
-  out() << ");\n";
+  if (is_cc_debug_) {
+    out() << "));\n";
+  } else {
+    out() << ");\n";
+  }
 }
 
 void CCGenerator::EmitInstruction(
@@ -364,16 +378,29 @@ void CCGenerator::EmitInstruction(const LoadReferenceInstruction& instruction,
   std::string object = stack->Pop();
   stack->Push(result_name);
 
-  std::string result_type = instruction.type->GetRuntimeType();
-  decls() << "  " << result_type << " " << result_name << "{}; USE("
-          << result_name << ");\n";
-  out() << "  " << result_name << " = ";
-  if (instruction.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-    out() << "TaggedField<" << result_type << ">::load(isolate, " << object
-          << ", static_cast<int>(" << offset << "));\n";
+  if (!is_cc_debug_) {
+    std::string result_type = instruction.type->GetRuntimeType();
+    decls() << "  " << result_type << " " << result_name << "{}; USE("
+            << result_name << ");\n";
+    out() << "  " << result_name << " = ";
+    if (instruction.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+      out() << "TaggedField<" << result_type << ">::load(isolate, " << object
+            << ", static_cast<int>(" << offset << "));\n";
+    } else {
+      out() << "(" << object << ").ReadField<" << result_type << ">(" << offset
+            << ");\n";
+    }
   } else {
-    out() << "(" << object << ").ReadField<" << result_type << ">(" << offset
-          << ");\n";
+    std::string result_type = instruction.type->GetDebugType();
+    decls() << "  " << result_type << " " << result_name << "{}; USE("
+            << result_name << ");\n";
+    if (instruction.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+      out() << "  READ_TAGGED_FIELD_OR_FAIL(" << result_name << ", accessor, "
+            << object << ", static_cast<int>(" << offset << "));\n";
+    } else {
+      out() << "  READ_FIELD_OR_FAIL(" << result_type << ", " << result_name
+            << ", accessor, " << object << ", " << offset << ");\n";
+    }
   }
 }
 
