@@ -1253,9 +1253,8 @@ const char* GetCompilationEventName(const WasmCompilationUnit& unit,
 
 // Run by the {BackgroundCompileJob} (on any thread).
 CompilationExecutionResult ExecuteCompilationUnits(
-    std::weak_ptr<NativeModule> native_module, WasmEngine* wasm_engine,
-    Counters* counters, JobDelegate* delegate,
-    CompileBaselineOnly baseline_only) {
+    std::weak_ptr<NativeModule> native_module, Counters* counters,
+    JobDelegate* delegate, CompileBaselineOnly baseline_only) {
   TRACE_EVENT0("v8.wasm", "wasm.ExecuteCompilationUnits");
 
   // Execute JS to Wasm wrapper units first, so that they are ready to be
@@ -1268,6 +1267,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
 
   // These fields are initialized in a {BackgroundCompileScope} before
   // starting compilation.
+  WasmEngine* engine;
   base::Optional<CompilationEnv> env;
   std::shared_ptr<WireBytesStorage> wire_bytes;
   std::shared_ptr<const WasmModule> module;
@@ -1285,6 +1285,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
   {
     BackgroundCompileScope compile_scope(native_module);
     if (compile_scope.cancelled()) return kYield;
+    engine = compile_scope.native_module()->engine();
     env.emplace(compile_scope.native_module()->CreateCompilationEnv());
     wire_bytes = compile_scope.compilation_state()->GetWireBytesStorage();
     module = compile_scope.native_module()->shared_module();
@@ -1303,7 +1304,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
     while (unit->tier() == current_tier) {
       // (asynchronous): Execute the compilation.
       WasmCompilationResult result = unit->ExecuteCompilation(
-          wasm_engine, &env.value(), wire_bytes, counters, &detected_features);
+          engine, &env.value(), wire_bytes, counters, &detected_features);
       results_to_publish.emplace_back(std::move(result));
 
       bool yield = delegate && delegate->ShouldYield();
@@ -1611,15 +1612,14 @@ class BackgroundCompileJob final : public JobTask {
                                 WasmEngine* engine,
                                 std::shared_ptr<Counters> async_counters)
       : native_module_(std::move(native_module)),
-        engine_(engine),
-        engine_barrier_(engine_->GetBarrierForBackgroundCompile()),
+        engine_barrier_(engine->GetBarrierForBackgroundCompile()),
         async_counters_(std::move(async_counters)) {}
 
   void Run(JobDelegate* delegate) override {
     auto engine_scope = engine_barrier_->TryLock();
     if (!engine_scope) return;
-    ExecuteCompilationUnits(native_module_, engine_, async_counters_.get(),
-                            delegate, kBaselineOrTopTier);
+    ExecuteCompilationUnits(native_module_, async_counters_.get(), delegate,
+                            kBaselineOrTopTier);
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
@@ -1635,7 +1635,6 @@ class BackgroundCompileJob final : public JobTask {
 
  private:
   std::weak_ptr<NativeModule> native_module_;
-  WasmEngine* engine_;
   std::shared_ptr<OperationsBarrier> engine_barrier_;
   const std::shared_ptr<Counters> async_counters_;
 };
@@ -1718,9 +1717,9 @@ void RecompileNativeModule(NativeModule* native_module,
       });
 
   constexpr JobDelegate* kNoDelegate = nullptr;
-  ExecuteCompilationUnits(
-      compilation_state->native_module_weak(), native_module->engine(),
-      compilation_state->counters(), kNoDelegate, kBaselineOnly);
+  ExecuteCompilationUnits(compilation_state->native_module_weak(),
+                          compilation_state->counters(), kNoDelegate,
+                          kBaselineOnly);
   recompilation_finished_semaphore->Wait();
   DCHECK(!compilation_state->failed());
 }
@@ -3337,8 +3336,8 @@ void CompilationStateImpl::WaitForCompilationEvent(
   }
 
   constexpr JobDelegate* kNoDelegate = nullptr;
-  ExecuteCompilationUnits(native_module_weak_, native_module_->engine(),
-                          async_counters_.get(), kNoDelegate, kBaselineOnly);
+  ExecuteCompilationUnits(native_module_weak_, async_counters_.get(),
+                          kNoDelegate, kBaselineOnly);
   compilation_event_semaphore->Wait();
 }
 
