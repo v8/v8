@@ -3876,28 +3876,32 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
     frame_state = outer_state;
   }
   // Add the actual parameters to the {node}, skipping the receiver.
-  Node* const parameters = frame_state->InputAt(kFrameStateParametersInput);
-  StateValuesAccess parameters_access(parameters);
-  auto parameters_it = ++parameters_access.begin();  // Skip the receiver.
-  for (int i = 0; i < start_index; i++) {
-    // A non-zero start_index implies that there are rest arguments. Skip them.
-    ++parameters_it;
+  const int argument_count =
+      FrameStateInfoOf(frame_state->op()).parameter_count() -
+      1;  // Minus receiver.
+  if (start_index < argument_count) {
+    Node* const parameters = frame_state->InputAt(kFrameStateParametersInput);
+    StateValuesAccess parameters_access(parameters);
+    auto parameters_it = ++parameters_access.begin();  // Skip the receiver.
+    for (int i = 0; i < start_index; i++) {
+      // A non-zero start_index implies that there are rest arguments. Skip
+      // them.
+      ++parameters_it;
+    }
+    for (int i = start_index; i < argument_count; ++i, ++parameters_it) {
+      Node* parameter_node = parameters_it.node();
+      DCHECK_NOT_NULL(parameter_node);
+      node->InsertInput(graph()->zone(),
+                        JSCallOrConstructNode::ArgumentIndex(argc++),
+                        parameter_node);
+    }
+    // TODO(jgruber): Currently, each use-site does the awkward dance above,
+    // iterating based on the FrameStateInfo's parameter count minus one, and
+    // manually advancing the iterator past the receiver. Consider wrapping all
+    // this in an understandable iterator s.t. one only needs to iterate from
+    // the beginning until done().
+    DCHECK(parameters_it.done());
   }
-  int argument_count = FrameStateInfoOf(frame_state->op()).parameter_count() -
-                       1;  // Minus receiver.
-  for (int i = start_index; i < argument_count; ++i, ++parameters_it) {
-    Node* parameter_node = parameters_it.node();
-    DCHECK_NOT_NULL(parameter_node);
-    node->InsertInput(graph()->zone(),
-                      JSCallOrConstructNode::ArgumentIndex(argc++),
-                      parameter_node);
-  }
-  // TODO(jgruber): Currently, each use-site does the awkward dance above,
-  // iterating based on the FrameStateInfo's parameter count minus one, and
-  // manually advancing the iterator past the receiver. Consider wrapping all
-  // this in an understandable iterator s.t. one only needs to iterate from the
-  // beginning until done().
-  DCHECK(parameters_it.done());
 
   if (IsCallWithArrayLikeOrSpread(node)) {
     NodeProperties::ChangeOp(
