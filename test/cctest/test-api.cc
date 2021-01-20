@@ -27504,10 +27504,13 @@ template <typename Value, typename Impl>
 struct BasicApiChecker {
   static void FastCallback(v8::ApiObject receiver, Value argument,
                            v8::FastApiCallbackOptions& options) {
+    const v8::Value* data = reinterpret_cast<const v8::Value*>(&options.data);
+    CHECK(data->IsNumber());
+    CHECK_EQ(reinterpret_cast<const v8::Number*>(data)->Value(), 42.0);
     Impl::FastCallback(receiver, argument, options);
   }
   static void FastCallbackNoFallback(v8::ApiObject receiver, Value argument) {
-    v8::FastApiCallbackOptions options;
+    v8::FastApiCallbackOptions options = {false, {0}};
     Impl::FastCallback(receiver, argument, options);
   }
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -27629,8 +27632,7 @@ bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
 
   v8::CFunction c_func;
   if (supports_fallback) {
-    c_func = v8::CFunction::MakeWithFallbackSupport(
-        BasicApiChecker<Value, Impl>::FastCallback);
+    c_func = v8::CFunction::Make(BasicApiChecker<Value, Impl>::FastCallback);
   } else {
     c_func = v8::CFunction::Make(
         BasicApiChecker<Value, Impl>::FastCallbackNoFallback);
@@ -27639,7 +27641,7 @@ bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
 
   Local<v8::FunctionTemplate> checker_templ = v8::FunctionTemplate::New(
       isolate, BasicApiChecker<Value, Impl>::SlowCallback,
-      v8::Local<v8::Value>(), v8::Local<v8::Signature>(), 1,
+      v8::Number::New(isolate, 42), v8::Local<v8::Signature>(), 1,
       v8::ConstructorBehavior::kAllow, v8::SideEffectType::kHasSideEffect,
       &c_func);
   if (!accept_any_receiver) {
@@ -27877,6 +27879,8 @@ class TestCFunctionInfo : public v8::CFunctionInfo {
         UNREACHABLE();
     }
   }
+
+  bool HasOptions() const override { return false; }
 };
 
 void CheckDynamicTypeInfo() {

@@ -1134,18 +1134,21 @@ class FastApiCallNode final : public SimplifiedNodeWrapperBase {
   static constexpr int kExtraInputCount =
       kFastTargetInputCount + kFastReceiverInputCount;
 
-  static constexpr int kHasErrorInputCount = 1;
+  static constexpr int kHasOptionsInputCount = 1;
   static constexpr int kArityInputCount = 1;
   static constexpr int kNewTargetInputCount = 1;
   static constexpr int kHolderInputCount = 1;
   static constexpr int kContextAndFrameStateInputCount = 2;
   static constexpr int kEffectAndControlInputCount = 2;
-  static constexpr int kFastCallExtraInputCount =
-      kFastTargetInputCount + kHasErrorInputCount + kEffectAndControlInputCount;
+  static constexpr int kFastCallExtraInputCount = kFastTargetInputCount +
+                                                  kHasOptionsInputCount +
+                                                  kEffectAndControlInputCount;
   static constexpr int kSlowCallExtraInputCount =
       kSlowTargetInputCount + kArityInputCount + kNewTargetInputCount +
       kSlowReceiverInputCount + kHolderInputCount +
       kContextAndFrameStateInputCount + kEffectAndControlInputCount;
+
+  static constexpr int kSlowCallDataArgumentIndex = 3;
 
   // This is the arity fed into FastApiCallArguments.
   static constexpr int ArityForArgc(int c_arg_count, int js_arg_count) {
