@@ -8674,21 +8674,20 @@ void Isolate::SetPrepareStackTraceCallback(PrepareStackTraceCallback callback) {
 Isolate::DisallowJavascriptExecutionScope::DisallowJavascriptExecutionScope(
     Isolate* isolate,
     Isolate::DisallowJavascriptExecutionScope::OnFailure on_failure)
-    : on_failure_(on_failure) {
+    : on_failure_(on_failure), isolate_(isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   switch (on_failure_) {
     case CRASH_ON_FAILURE:
-      internal_ = reinterpret_cast<void*>(
-          new i::DisallowJavascriptExecution(i_isolate));
+      i::DisallowJavascriptExecution::Open(i_isolate,
+                                           &was_execution_allowed_assert_);
       break;
     case THROW_ON_FAILURE:
-      DCHECK_EQ(THROW_ON_FAILURE, on_failure);
-      internal_ =
-          reinterpret_cast<void*>(new i::ThrowOnJavascriptExecution(i_isolate));
+      i::ThrowOnJavascriptExecution::Open(i_isolate,
+                                          &was_execution_allowed_throws_);
       break;
     case DUMP_ON_FAILURE:
-      internal_ =
-          reinterpret_cast<void*>(new i::DumpOnJavascriptExecution(i_isolate));
+      i::DumpOnJavascriptExecution::Open(i_isolate,
+                                         &was_execution_allowed_dump_);
       break;
     default:
       UNREACHABLE();
@@ -8696,15 +8695,19 @@ Isolate::DisallowJavascriptExecutionScope::DisallowJavascriptExecutionScope(
 }
 
 Isolate::DisallowJavascriptExecutionScope::~DisallowJavascriptExecutionScope() {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
   switch (on_failure_) {
     case CRASH_ON_FAILURE:
-      delete reinterpret_cast<i::DisallowJavascriptExecution*>(internal_);
+      i::DisallowJavascriptExecution::Close(i_isolate,
+                                            was_execution_allowed_assert_);
       break;
     case THROW_ON_FAILURE:
-      delete reinterpret_cast<i::ThrowOnJavascriptExecution*>(internal_);
+      i::ThrowOnJavascriptExecution::Close(i_isolate,
+                                           was_execution_allowed_throws_);
       break;
     case DUMP_ON_FAILURE:
-      delete reinterpret_cast<i::DumpOnJavascriptExecution*>(internal_);
+      i::DumpOnJavascriptExecution::Close(i_isolate,
+                                          was_execution_allowed_dump_);
       break;
     default:
       UNREACHABLE();
@@ -8712,20 +8715,21 @@ Isolate::DisallowJavascriptExecutionScope::~DisallowJavascriptExecutionScope() {
 }
 
 Isolate::AllowJavascriptExecutionScope::AllowJavascriptExecutionScope(
-    Isolate* isolate) {
+    Isolate* isolate)
+    : isolate_(isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  internal_assert_ =
-      reinterpret_cast<void*>(new i::AllowJavascriptExecution(i_isolate));
-  internal_throws_ =
-      reinterpret_cast<void*>(new i::NoThrowOnJavascriptExecution(i_isolate));
-  internal_dump_ =
-      reinterpret_cast<void*>(new i::NoDumpOnJavascriptExecution(i_isolate));
+  i::AllowJavascriptExecution::Open(i_isolate, &was_execution_allowed_assert_);
+  i::NoThrowOnJavascriptExecution::Open(i_isolate,
+                                        &was_execution_allowed_throws_);
+  i::NoDumpOnJavascriptExecution::Open(i_isolate, &was_execution_allowed_dump_);
 }
 
 Isolate::AllowJavascriptExecutionScope::~AllowJavascriptExecutionScope() {
-  delete reinterpret_cast<i::AllowJavascriptExecution*>(internal_assert_);
-  delete reinterpret_cast<i::NoThrowOnJavascriptExecution*>(internal_throws_);
-  delete reinterpret_cast<i::NoDumpOnJavascriptExecution*>(internal_dump_);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
+  i::AllowJavascriptExecution::Close(i_isolate, was_execution_allowed_assert_);
+  i::NoThrowOnJavascriptExecution::Close(i_isolate,
+                                         was_execution_allowed_throws_);
+  i::NoDumpOnJavascriptExecution::Close(i_isolate, was_execution_allowed_dump_);
 }
 
 Isolate::SuppressMicrotaskExecutionScope::SuppressMicrotaskExecutionScope(

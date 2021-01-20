@@ -8490,7 +8490,11 @@ class V8_EXPORT Isolate {
 
    private:
     OnFailure on_failure_;
-    void* internal_;
+    Isolate* isolate_;
+
+    bool was_execution_allowed_assert_;
+    bool was_execution_allowed_throws_;
+    bool was_execution_allowed_dump_;
   };
 
   /**
@@ -8508,9 +8512,10 @@ class V8_EXPORT Isolate {
         const AllowJavascriptExecutionScope&) = delete;
 
    private:
-    void* internal_throws_;
-    void* internal_assert_;
-    void* internal_dump_;
+    Isolate* isolate_;
+    bool was_execution_allowed_assert_;
+    bool was_execution_allowed_throws_;
+    bool was_execution_allowed_dump_;
   };
 
   /**
