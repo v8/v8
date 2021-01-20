@@ -1432,7 +1432,7 @@ Node* JSCreateLowering::AllocateArguments(Node* effect, Node* control,
   // Prepare an iterator over argument values recorded in the frame state.
   Node* const parameters = frame_state.parameters();
   StateValuesAccess parameters_access(parameters);
-  auto parameters_it = ++parameters_access.begin();
+  auto parameters_it = parameters_access.begin_without_receiver();
 
   // Actually allocate the backing store.
   AllocationBuilder a(jsgraph(), effect, control);
@@ -1459,12 +1459,8 @@ Node* JSCreateLowering::AllocateRestArguments(Node* effect, Node* control,
   // Prepare an iterator over argument values recorded in the frame state.
   Node* const parameters = frame_state.parameters();
   StateValuesAccess parameters_access(parameters);
-  auto parameters_it = ++parameters_access.begin();
-
-  // Skip unused arguments.
-  for (int i = 0; i < start_index; i++) {
-    ++parameters_it;
-  }
+  auto parameters_it =
+      parameters_access.begin_without_receiver_and_skip(start_index);
 
   // Actually allocate the backing store.
   AllocationBuilder a(jsgraph(), effect, control);
@@ -1501,7 +1497,8 @@ Node* JSCreateLowering::AllocateAliasedArguments(
   // Prepare an iterator over argument values recorded in the frame state.
   Node* const parameters = frame_state.parameters();
   StateValuesAccess parameters_access(parameters);
-  auto parameters_it = ++parameters_access.begin();
+  auto parameters_it =
+      parameters_access.begin_without_receiver_and_skip(mapped_count);
 
   // The unmapped argument values recorded in the frame state are stored yet
   // another indirection away and then linked into the parameter map below,
@@ -1509,7 +1506,7 @@ Node* JSCreateLowering::AllocateAliasedArguments(
   AllocationBuilder aa(jsgraph(), effect, control);
   aa.AllocateArray(argument_count,
                    MapRef(broker(), factory()->fixed_array_map()));
-  for (int i = 0; i < mapped_count; ++i, ++parameters_it) {
+  for (int i = 0; i < mapped_count; ++i) {
     aa.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i),
              jsgraph()->TheHoleConstant());
   }
