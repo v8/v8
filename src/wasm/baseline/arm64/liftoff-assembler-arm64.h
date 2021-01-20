@@ -450,8 +450,11 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   }
   CheckPageFlag(src.gp(), MemoryChunk::kPointersToHereAreInterestingMask, ne,
                 &exit);
-  CallRecordWriteStub(dst_addr, Operand(offset_imm), EMIT_REMEMBERED_SET,
-                      kSaveFPRegs, wasm::WasmCode::kRecordWrite);
+  CallRecordWriteStub(
+      dst_addr,
+      dst_op.IsRegisterOffset() ? Operand(dst_op.regoffset().X())
+                                : Operand(dst_op.offset()),
+      EMIT_REMEMBERED_SET, kSaveFPRegs, wasm::WasmCode::kRecordWrite);
   bind(&exit);
 }
 
