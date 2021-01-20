@@ -7,6 +7,8 @@
 #include "src/base/memory.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/register-configuration.h"
+#include "src/deoptimizer/deoptimized-frame-info.h"
+#include "src/deoptimizer/materialized-object-store.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate.h"
 #include "src/execution/pointer-authentication.h"
@@ -881,7 +883,7 @@ void Deoptimizer::DoComputeOutputFrames() {
 
   FILE* trace_file =
       verbose_tracing_enabled() ? trace_scope()->file() : nullptr;
-  TranslationIterator state_iterator(translations, translation_index);
+  TranslationArrayIterator state_iterator(translations, translation_index);
   translated_state_.Init(
       isolate_, input_->GetFramePointerAddress(), stack_fp_, &state_iterator,
       input_data.LiteralArray(), input_->GetRegisterValues(), trace_file,

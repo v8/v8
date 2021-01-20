@@ -7,7 +7,7 @@
 
 #include <memory>
 
-#include "src/deoptimizer/deoptimizer.h"
+#include "src/deoptimizer/deoptimized-frame-info.h"
 #include "src/execution/isolate.h"
 #include "src/execution/v8threads.h"
 #include "src/objects/objects.h"

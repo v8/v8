@@ -469,7 +469,8 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
 
     // Print details of the frame translation.
     int translation_index = TranslationIndex(i).value();
-    TranslationIterator iterator(TranslationByteArray(), translation_index);
+    TranslationArrayIterator iterator(TranslationByteArray(),
+                                      translation_index);
     Translation::Opcode opcode =
         static_cast<Translation::Opcode>(iterator.Next());
     DCHECK(Translation::BEGIN == opcode);

@@ -1642,8 +1642,8 @@ void OptimizedFrame::GetFunctions(
   DCHECK_NE(Safepoint::kNoDeoptimizationIndex, deopt_index);
   FixedArray const literal_array = data.LiteralArray();
 
-  TranslationIterator it(data.TranslationByteArray(),
-                         data.TranslationIndex(deopt_index).value());
+  TranslationArrayIterator it(data.TranslationByteArray(),
+                              data.TranslationIndex(deopt_index).value());
   Translation::Opcode opcode = static_cast<Translation::Opcode>(it.Next());
   DCHECK_EQ(Translation::BEGIN, opcode);
   it.Next();  // Skip frame count.

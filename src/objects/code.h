@@ -7,6 +7,7 @@
 
 #include "src/base/bit-field.h"
 #include "src/codegen/handler-table.h"
+#include "src/deoptimizer/translation-array.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/contexts.h"
 #include "src/objects/fixed-array.h"
@@ -865,7 +866,7 @@ class DeoptimizationData : public FixedArray {
   inline type name() const;                \
   inline void Set##name(type value);
 
-  DECL_ELEMENT_ACCESSORS(TranslationByteArray, ByteArray)
+  DECL_ELEMENT_ACCESSORS(TranslationByteArray, TranslationArray)
   DECL_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
   DECL_ELEMENT_ACCESSORS(LiteralArray, FixedArray)
   DECL_ELEMENT_ACCESSORS(OsrBytecodeOffset, Smi)
