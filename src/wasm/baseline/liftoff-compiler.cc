@@ -1920,6 +1920,37 @@ class LiftoffCompiler {
     return addr;
   }
 
+  void GetBaseAndOffsetForImportedMutableExternRefGlobal(
+      const WasmGlobal* global, LiftoffRegList* pinned, Register* base,
+      Register* offset) {
+    Register globals_buffer =
+        pinned->set(__ GetUnusedRegister(kGpReg, *pinned)).gp();
+    LOAD_TAGGED_PTR_INSTANCE_FIELD(globals_buffer,
+                                   ImportedMutableGlobalsBuffers);
+    *base = globals_buffer;
+    __ LoadTaggedPointer(
+        *base, globals_buffer, no_reg,
+        wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(global->offset),
+        *pinned);
+
+    // For the offset we need the index of the global in the buffer, and
+    // then calculate the actual offset from the index. Load the index from
+    // the ImportedMutableGlobals array of the instance.
+    Register imported_mutable_globals =
+        pinned->set(__ GetUnusedRegister(kGpReg, *pinned)).gp();
+
+    LOAD_INSTANCE_FIELD(imported_mutable_globals, ImportedMutableGlobals,
+                        kSystemPointerSize);
+    *offset = imported_mutable_globals;
+    __ Load(LiftoffRegister(*offset), imported_mutable_globals, no_reg,
+            global->index * sizeof(Address),
+            kSystemPointerSize == 4 ? LoadType::kI32Load : LoadType::kI64Load,
+            *pinned);
+    __ emit_i32_shli(*offset, *offset, kTaggedSizeLog2);
+    __ emit_i32_addi(*offset, *offset,
+                     wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0));
+  }
+
   void GlobalGet(FullDecoder* decoder, Value* result,
                  const GlobalIndexImmediate<validate>& imm) {
     const auto* global = &env_->module->globals[imm.index];
@@ -1929,7 +1960,13 @@ class LiftoffCompiler {
 
     if (global->type.is_reference_type()) {
       if (global->mutability && global->imported) {
-        unsupported(decoder, kRefTypes, "imported mutable globals");
+        LiftoffRegList pinned;
+        Register base = no_reg;
+        Register offset = no_reg;
+        GetBaseAndOffsetForImportedMutableExternRefGlobal(global, &pinned,
+                                                          &base, &offset);
+        __ LoadTaggedPointer(base, base, offset, 0, pinned);
+        __ PushRegister(global->type, LiftoffRegister(base));
         return;
       }
 
@@ -1964,7 +2001,13 @@ class LiftoffCompiler {
 
     if (global->type.is_reference_type()) {
       if (global->mutability && global->imported) {
-        unsupported(decoder, kRefTypes, "imported mutable globals");
+        LiftoffRegList pinned;
+        LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
+        Register base = no_reg;
+        Register offset = no_reg;
+        GetBaseAndOffsetForImportedMutableExternRefGlobal(global, &pinned,
+                                                          &base, &offset);
+        __ StoreTaggedPointer(base, offset, 0, value, pinned);
         return;
       }
 
