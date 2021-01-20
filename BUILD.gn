@@ -4384,6 +4384,8 @@ v8_component("v8_libbase") {
 
   if (is_tsan && !build_with_chromium) {
     data += [ "tools/sanitizers/tsan_suppressions.txt" ]
+    # llvm-symbolizer uses libstdc++ from the clang package.
+    data += [ "//third_party/llvm-build/Release+Asserts/lib/libstdc++.so.6" ]
   }
 
   # TODO(jochen): Add support for qnx, freebsd, openbsd, netbsd, and solaris.
