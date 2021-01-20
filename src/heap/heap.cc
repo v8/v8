@@ -1793,12 +1793,8 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReachedBackground() {
   }
 
   const size_t old_generation_space_available = OldGenerationSpaceAvailable();
-  const base::Optional<size_t> global_memory_available =
-      GlobalMemoryAvailable();
 
-  if (old_generation_space_available < new_space_->Capacity() ||
-      (global_memory_available &&
-       *global_memory_available < new_space_->Capacity())) {
+  if (old_generation_space_available < new_space_->Capacity()) {
     incremental_marking()->incremental_marking_job()->ScheduleTask(this);
   }
 }
