@@ -2678,9 +2678,7 @@ class WasmInterpreterInternals {
         Push(WasmValue(Simd128(res)));
         return true;
       }
-      case kExprV32x4AnyTrue:
-      case kExprV16x8AnyTrue:
-      case kExprV8x16AnyTrue: {
+      case kExprV128AnyTrue: {
         int4 s = Pop().to_s128().to_i32x4();
         bool res = s.val[LANE(0, s)] | s.val[LANE(1, s)] | s.val[LANE(2, s)] |
                    s.val[LANE(3, s)];

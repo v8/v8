@@ -35,6 +35,10 @@
 
   # This test requires the reftypes flag to be disabled.
   'proposals/bulk-memory-operations/imports': [FAIL],
+
+  # TODO(v8:11331): Remove once spec tests are updated with v128.any_true.
+  'proposals/simd/simd_boolean': [FAIL],
+  'proposals/simd/simd_lane': [FAIL],
 }],  # ALWAYS
 
 ['arch == arm and not simulator_run', {
