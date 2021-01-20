@@ -26,7 +26,7 @@ def generate_positive_definition(out, define):
 #define {define} 1
 #else
 #if {define} != 1
-#error {define} defined but not set to 1
+#error "{define} defined but not set to 1"
 #endif
 #endif  // {define}
 '''.format(define=define))
@@ -34,12 +34,12 @@ def generate_positive_definition(out, define):
 def generate_negative_definition(out, define):
   out.write('''
 #ifdef {define}
-#error {define} is defined but is disabled by V8's GN build arguments
+#error "{define} is defined but is disabled by V8's GN build arguments"
 #endif  // {define}
 '''.format(define=define))
 
 def generate_header(out):
-  out.write('''// AUTOMATICALLY GENERATED. DO NOT EDIT.\n
+  out.write('''// AUTOMATICALLY GENERATED. DO NOT EDIT.
 
 // The following definitions were used when V8 itself was built, but also appear
 // in the externally-visible header files and so must be included by any
