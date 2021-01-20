@@ -1293,14 +1293,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kArchCallCodeObject:
     case kArchCallWasmFunction:
       return CallLatency();
-    case kArchTailCallCodeObjectFromJSFunction:
-    case kArchTailCallCodeObject: {
-      int latency = 0;
-      if (instr->arch_opcode() == kArchTailCallCodeObjectFromJSFunction) {
-        latency = AssemblePopArgumentsAdoptFrameLatency();
-      }
-      return latency + JumpLatency();
-    }
+    case kArchTailCallCodeObject:
     case kArchTailCallWasm:
     case kArchTailCallAddress:
       return JumpLatency();

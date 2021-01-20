@@ -3042,28 +3042,20 @@ void InstructionSelector::VisitTailCall(Node* node) {
   // Select the appropriate opcode based on the call type.
   InstructionCode opcode;
   InstructionOperandVector temps(zone());
-  if (caller->IsJSFunctionCall()) {
-    switch (call_descriptor->kind()) {
-      case CallDescriptor::kCallCodeObject:
-        opcode = kArchTailCallCodeObjectFromJSFunction;
-        break;
-      default:
-        UNREACHABLE();
-    }
-  } else {
-    switch (call_descriptor->kind()) {
-      case CallDescriptor::kCallCodeObject:
-        opcode = kArchTailCallCodeObject;
-        break;
-      case CallDescriptor::kCallAddress:
-        opcode = kArchTailCallAddress;
-        break;
-      case CallDescriptor::kCallWasmFunction:
-        opcode = kArchTailCallWasm;
-        break;
-      default:
-        UNREACHABLE();
-    }
+  switch (call_descriptor->kind()) {
+    case CallDescriptor::kCallCodeObject:
+      opcode = kArchTailCallCodeObject;
+      break;
+    case CallDescriptor::kCallAddress:
+      DCHECK(!caller->IsJSFunctionCall());
+      opcode = kArchTailCallAddress;
+      break;
+    case CallDescriptor::kCallWasmFunction:
+      DCHECK(!caller->IsJSFunctionCall());
+      opcode = kArchTailCallWasm;
+      break;
+    default:
+      UNREACHABLE();
   }
   opcode = EncodeCallDescriptorFlags(opcode, call_descriptor->flags());
 

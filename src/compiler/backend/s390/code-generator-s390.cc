@@ -1211,7 +1211,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       frame_access_state()->ClearSPDelta();
       break;
     }
-    case kArchTailCallCodeObjectFromJSFunction:
     case kArchTailCallCodeObject: {
       if (HasRegisterInput(instr, 0)) {
         Register reg = i.InputRegister(0);

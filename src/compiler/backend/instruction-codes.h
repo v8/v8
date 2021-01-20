@@ -67,7 +67,6 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   /* Tail call opcodes are grouped together to make IsTailCall fast */     \
   /* and Arch call opcodes are grouped together to make */                 \
   /* IsCallWithDescriptorFlags fast */                                     \
-  V(ArchTailCallCodeObjectFromJSFunction)                                  \
   V(ArchTailCallCodeObject)                                                \
   V(ArchTailCallAddress)                                                   \
   V(ArchTailCallWasm)                                                      \
