@@ -1318,30 +1318,6 @@ class InterpretedFrameInfo {
   uint32_t frame_size_in_bytes_;
 };
 
-// TODO(v8:11312): Now that we don't have arguments adaptor frames anymore, we
-// might be able to remove this class.
-class ArgumentsAdaptorFrameInfo {
- public:
-  static ArgumentsAdaptorFrameInfo Precise(int translation_height) {
-    return ArgumentsAdaptorFrameInfo{translation_height};
-  }
-
-  static ArgumentsAdaptorFrameInfo Conservative(int parameters_count) {
-    return ArgumentsAdaptorFrameInfo{parameters_count};
-  }
-
-  uint32_t frame_size_in_bytes_without_fixed() const {
-    return frame_size_in_bytes_without_fixed_;
-  }
-  uint32_t frame_size_in_bytes() const { return frame_size_in_bytes_; }
-
- private:
-  explicit ArgumentsAdaptorFrameInfo(int translation_height);
-
-  uint32_t frame_size_in_bytes_without_fixed_;
-  uint32_t frame_size_in_bytes_;
-};
-
 class ConstructStubFrameInfo {
  public:
   static ConstructStubFrameInfo Precise(int translation_height,

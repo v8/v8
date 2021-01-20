@@ -2225,16 +2225,6 @@ InterpretedFrameInfo::InterpretedFrameInfo(int parameters_count_with_receiver,
   frame_size_in_bytes_ = frame_size_in_bytes_without_fixed_ + fixed_frame_size;
 }
 
-ArgumentsAdaptorFrameInfo::ArgumentsAdaptorFrameInfo(int translation_height) {
-  // Note: This is according to the Translation's notion of 'parameters' which
-  // differs to that of the SharedFunctionInfo, e.g. by including the receiver.
-  const int parameters_count = translation_height;
-  frame_size_in_bytes_without_fixed_ =
-      (parameters_count + ArgumentPaddingSlots(parameters_count)) *
-      kSystemPointerSize;
-  frame_size_in_bytes_ = frame_size_in_bytes_without_fixed_;
-}
-
 ConstructStubFrameInfo::ConstructStubFrameInfo(int translation_height,
                                                bool is_topmost,
                                                FrameInfoKind frame_info_kind) {

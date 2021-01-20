@@ -1008,11 +1008,11 @@ size_t GetConservativeFrameSizeInBytes(FrameStateType type,
           static_cast<int>(parameters_count), static_cast<int>(locals_count));
       return info.frame_size_in_bytes();
     }
-    case FrameStateType::kArgumentsAdaptor: {
-      auto info = ArgumentsAdaptorFrameInfo::Conservative(
-          static_cast<int>(parameters_count));
-      return info.frame_size_in_bytes();
-    }
+    case FrameStateType::kArgumentsAdaptor:
+      // The arguments adaptor frame state is only used in the deoptimizer and
+      // does not occupy any extra space in the stack. Check out the design doc:
+      // https://docs.google.com/document/d/150wGaUREaZI6YWqOQFD5l2mWQXaPbbZjcAIJLOFrzMs/edit
+      return 0;
     case FrameStateType::kConstructStub: {
       auto info = ConstructStubFrameInfo::Conservative(
           static_cast<int>(parameters_count));
