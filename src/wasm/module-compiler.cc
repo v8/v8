@@ -810,15 +810,8 @@ void CompilationState::AddCallback(CompilationState::callback_t callback) {
 }
 
 void CompilationState::WaitForTopTierFinished() {
-  // TODO(clemensb): Contribute to compilation while waiting.
-  auto top_tier_finished_semaphore = std::make_shared<base::Semaphore>(0);
-  AddCallback([top_tier_finished_semaphore](CompilationEvent event) {
-    if (event == CompilationEvent::kFailedCompilation ||
-        event == CompilationEvent::kFinishedTopTierCompilation) {
-      top_tier_finished_semaphore->Signal();
-    }
-  });
-  top_tier_finished_semaphore->Wait();
+  Impl(this)->WaitForCompilationEvent(
+      CompilationEvent::kFinishedTopTierCompilation);
 }
 
 void CompilationState::SetHighPriority() { Impl(this)->SetHighPriority(); }
@@ -1251,6 +1244,8 @@ const char* GetCompilationEventName(const WasmCompilationUnit& unit,
 }
 }  // namespace
 
+constexpr uint8_t kMainTaskId = 0;
+
 // Run by the {BackgroundCompileJob} (on any thread).
 CompilationExecutionResult ExecuteCompilationUnits(
     std::weak_ptr<NativeModule> native_module, Counters* counters,
@@ -1273,7 +1268,8 @@ CompilationExecutionResult ExecuteCompilationUnits(
   std::shared_ptr<const WasmModule> module;
   // Task 0 is any main thread (there might be multiple from multiple isolates),
   // worker threads start at 1 (thus the "+ 1").
-  int task_id = delegate ? (int{delegate->GetTaskId()} + 1) : 0;
+  STATIC_ASSERT(kMainTaskId == 0);
+  int task_id = delegate ? (int{delegate->GetTaskId()} + 1) : kMainTaskId;
   DCHECK_LE(0, task_id);
   CompilationUnitQueues::Queue* queue;
   base::Optional<WasmCompilationUnit> unit;
@@ -3322,22 +3318,48 @@ void CompilationStateImpl::SetError() {
 
 void CompilationStateImpl::WaitForCompilationEvent(
     CompilationEvent expect_event) {
-  auto compilation_event_semaphore = std::make_shared<base::Semaphore>(0);
+  auto semaphore = std::make_shared<base::Semaphore>(0);
+  auto done = std::make_shared<std::atomic<bool>>(false);
   base::EnumSet<CompilationEvent> events{expect_event,
                                          CompilationEvent::kFailedCompilation};
   {
     base::MutexGuard callbacks_guard(&callbacks_mutex_);
     if (finished_events_.contains_any(events)) return;
-    callbacks_.emplace_back(
-        [compilation_event_semaphore, events](CompilationEvent event) {
-          if (events.contains(event)) compilation_event_semaphore->Signal();
-        });
+    callbacks_.emplace_back([semaphore, events, done](CompilationEvent event) {
+      if (!events.contains(event)) return;
+      done->store(true, std::memory_order_relaxed);
+      semaphore->Signal();
+    });
   }
 
-  constexpr JobDelegate* kNoDelegate = nullptr;
-  ExecuteCompilationUnits(native_module_weak_, async_counters_.get(),
-                          kNoDelegate, kBaselineOnly);
-  compilation_event_semaphore->Wait();
+  class WaitForEventDelegate final : public JobDelegate {
+   public:
+    explicit WaitForEventDelegate(std::shared_ptr<std::atomic<bool>> done)
+        : done_(std::move(done)) {}
+
+    bool ShouldYield() override {
+      return done_->load(std::memory_order_relaxed);
+    }
+
+    void NotifyConcurrencyIncrease() override { UNIMPLEMENTED(); }
+
+    uint8_t GetTaskId() override { return kMainTaskId; }
+
+   private:
+    std::shared_ptr<std::atomic<bool>> done_;
+  };
+
+  WaitForEventDelegate delegate{done};
+  // Everything except for top-tier units will be processed with kBaselineOnly
+  // (including wrappers). Hence we choose this for any event except
+  // {kFinishedTopTierCompilation}.
+  auto compile_tiers =
+      expect_event == CompilationEvent::kFinishedTopTierCompilation
+          ? kBaselineOrTopTier
+          : kBaselineOnly;
+  ExecuteCompilationUnits(native_module_weak_, async_counters_.get(), &delegate,
+                          compile_tiers);
+  semaphore->Wait();
 }
 
 namespace {
