@@ -16,9 +16,10 @@ CodeEntry::CodeEntry(CodeEventListener::LogEventsAndTags tag, const char* name,
                      const char* resource_name, int line_number,
                      int column_number,
                      std::unique_ptr<SourcePositionTable> line_info,
-                     bool is_shared_cross_origin)
+                     bool is_shared_cross_origin, CodeType code_type)
     : bit_field_(TagField::encode(tag) |
                  BuiltinIdField::encode(Builtins::builtin_count) |
+                 CodeTypeField::encode(code_type) |
                  SharedCrossOriginField::encode(is_shared_cross_origin)),
       name_(name),
       resource_name_(resource_name),

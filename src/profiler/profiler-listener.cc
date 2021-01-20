@@ -208,8 +208,9 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->instruction_start();
-  rec->entry = new CodeEntry(tag, GetName(name), GetName(source_url), 1,
-                             code_offset + 1, nullptr, true);
+  rec->entry =
+      new CodeEntry(tag, GetName(name), GetName(source_url), 1, code_offset + 1,
+                    nullptr, true, CodeEntry::CodeType::WASM);
   rec->entry->set_script_id(script_id);
   rec->entry->set_position(code_offset);
   rec->instruction_size = code->instructions().length();

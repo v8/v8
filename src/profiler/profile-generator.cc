@@ -98,28 +98,43 @@ base::LazyDynamicInstance<CodeEntry, CodeEntry::RootEntryCreateTrait>::type
     CodeEntry::kRootEntry = LAZY_DYNAMIC_INSTANCE_INITIALIZER;
 
 CodeEntry* CodeEntry::ProgramEntryCreateTrait::Create() {
-  return new CodeEntry(CodeEventListener::FUNCTION_TAG,
-                       CodeEntry::kProgramEntryName);
+  return new CodeEntry(
+      CodeEventListener::FUNCTION_TAG, CodeEntry::kProgramEntryName,
+      CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
+      v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
+      CodeEntry::CodeType::OTHER);
 }
 
 CodeEntry* CodeEntry::IdleEntryCreateTrait::Create() {
   return new CodeEntry(CodeEventListener::FUNCTION_TAG,
-                       CodeEntry::kIdleEntryName);
+                       CodeEntry::kIdleEntryName, CodeEntry::kEmptyResourceName,
+                       v8::CpuProfileNode::kNoLineNumberInfo,
+                       v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
+                       CodeEntry::CodeType::OTHER);
 }
 
 CodeEntry* CodeEntry::GCEntryCreateTrait::Create() {
-  return new CodeEntry(CodeEventListener::BUILTIN_TAG,
-                       CodeEntry::kGarbageCollectorEntryName);
+  return new CodeEntry(
+      CodeEventListener::BUILTIN_TAG, CodeEntry::kGarbageCollectorEntryName,
+      CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
+      v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
+      CodeEntry::CodeType::OTHER);
 }
 
 CodeEntry* CodeEntry::UnresolvedEntryCreateTrait::Create() {
-  return new CodeEntry(CodeEventListener::FUNCTION_TAG,
-                       CodeEntry::kUnresolvedFunctionName);
+  return new CodeEntry(
+      CodeEventListener::FUNCTION_TAG, CodeEntry::kUnresolvedFunctionName,
+      CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
+      v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
+      CodeEntry::CodeType::OTHER);
 }
 
 CodeEntry* CodeEntry::RootEntryCreateTrait::Create() {
   return new CodeEntry(CodeEventListener::FUNCTION_TAG,
-                       CodeEntry::kRootEntryName);
+                       CodeEntry::kRootEntryName, CodeEntry::kEmptyResourceName,
+                       v8::CpuProfileNode::kNoLineNumberInfo,
+                       v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
+                       CodeEntry::CodeType::OTHER);
 }
 
 uint32_t CodeEntry::GetHash() const {
@@ -562,6 +577,7 @@ void BuildNodeValue(const ProfileNode* node, TracedValue* value) {
   if (entry->column_number()) {
     value->SetInteger("columnNumber", entry->column_number() - 1);
   }
+  value->SetString("codeType", entry->code_type_string());
   value->EndDictionary();
   value->SetInteger("id", node->id());
   if (node->parent()) {

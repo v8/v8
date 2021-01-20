@@ -59,6 +59,8 @@ struct CodeEntryAndLineNumber;
 
 class CodeEntry {
  public:
+  enum class CodeType { JS, WASM, OTHER };
+
   // CodeEntry may reference strings (|name|, |resource_name|) managed by a
   // StringsStorage instance. These must be freed via ReleaseStrings.
   inline CodeEntry(CodeEventListener::LogEventsAndTags tag, const char* name,
@@ -66,7 +68,8 @@ class CodeEntry {
                    int line_number = v8::CpuProfileNode::kNoLineNumberInfo,
                    int column_number = v8::CpuProfileNode::kNoColumnNumberInfo,
                    std::unique_ptr<SourcePositionTable> line_info = nullptr,
-                   bool is_shared_cross_origin = false);
+                   bool is_shared_cross_origin = false,
+                   CodeType code_type = CodeType::JS);
   CodeEntry(const CodeEntry&) = delete;
   CodeEntry& operator=(const CodeEntry&) = delete;
 
@@ -101,6 +104,17 @@ class CodeEntry {
   }
   void mark_used() { bit_field_ = UsedField::update(bit_field_, true); }
   bool used() const { return UsedField::decode(bit_field_); }
+
+  const char* code_type_string() const {
+    switch (CodeTypeField::decode(bit_field_)) {
+      case CodeType::JS:
+        return "JS";
+      case CodeType::WASM:
+        return "wasm";
+      case CodeType::OTHER:
+        return "other";
+    }
+  }
 
   void FillFunctionInfo(SharedFunctionInfo shared);
 
@@ -213,13 +227,16 @@ class CodeEntry {
       CodeEntry, RootEntryCreateTrait>::type kRootEntry;
 
   using TagField = base::BitField<CodeEventListener::LogEventsAndTags, 0, 8>;
-  using BuiltinIdField = base::BitField<Builtins::Name, 8, 22>;
+  using BuiltinIdField = base::BitField<Builtins::Name, 8, 20>;
   static_assert(Builtins::builtin_count <= BuiltinIdField::kNumValues,
                 "builtin_count exceeds size of bitfield");
+  using CodeTypeField = base::BitField<CodeType, 28, 2>;
   using UsedField = base::BitField<bool, 30, 1>;
   using SharedCrossOriginField = base::BitField<bool, 31, 1>;
 
-  uint32_t bit_field_;
+  // Atomic because Used is written from the profiler thread while CodeType is
+  // read from the main thread.
+  std::atomic<std::uint32_t> bit_field_;
   const char* name_;
   const char* resource_name_;
   int line_number_;
