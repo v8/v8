@@ -4519,11 +4519,9 @@ void OperandAssigner::AssignSpillSlots() {
   for (SpillRange* range : spill_ranges) {
     data()->tick_counter()->TickAndMaybeEnterSafepoint();
     if (range == nullptr || range->IsEmpty()) continue;
+    // Allocate a new operand referring to the spill slot.
     if (!range->HasSlot()) {
-      // Allocate a new operand referring to the spill slot, aligned to the
-      // operand size.
-      int width = range->byte_width();
-      int index = data()->frame()->AllocateSpillSlot(width, width);
+      int index = data()->frame()->AllocateSpillSlot(range->byte_width());
       range->set_assigned_slot(index);
     }
   }
