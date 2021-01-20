@@ -703,13 +703,17 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           LiftoffRegister src,
                                           LiftoffRegList pinned) {
   STATIC_ASSERT(kTaggedSize == kInt32Size);
-  {
-    // Store the value.
-    UseScratchRegisterScope temps(this);
-    MemOperand dst_op =
-        liftoff::GetMemOp(this, &temps, dst_addr, offset_reg, offset_imm);
-    str(src.gp(), dst_op);
+  Register actual_offset_reg = offset_reg;
+  if (offset_reg != no_reg && offset_imm != 0) {
+    if (cache_state()->is_used(LiftoffRegister(offset_reg))) {
+      actual_offset_reg = GetUnusedRegister(kGpReg, pinned).gp();
+    }
+    add(actual_offset_reg, offset_reg, Operand(offset_imm));
   }
+  MemOperand dst_op = actual_offset_reg == no_reg
+                          ? MemOperand(dst_addr, offset_imm)
+                          : MemOperand(dst_addr, actual_offset_reg);
+  str(src.gp(), dst_op);
   // The write barrier.
   Label write_barrier;
   Label exit;
@@ -720,8 +724,11 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   JumpIfSmi(src.gp(), &exit);
   CheckPageFlag(src.gp(), MemoryChunk::kPointersToHereAreInterestingMask, eq,
                 &exit);
-  CallRecordWriteStub(dst_addr, Operand(offset_imm), EMIT_REMEMBERED_SET,
-                      kSaveFPRegs, wasm::WasmCode::kRecordWrite);
+  CallRecordWriteStub(dst_addr,
+                      actual_offset_reg == no_reg ? Operand(offset_imm)
+                                                  : Operand(actual_offset_reg),
+                      EMIT_REMEMBERED_SET, kSaveFPRegs,
+                      wasm::WasmCode::kRecordWrite);
   bind(&exit);
 }
 
