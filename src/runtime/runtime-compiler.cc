@@ -322,8 +322,8 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
 
   // Determine the entry point for which this OSR request has been fired and
   // also disarm all back edges in the calling code to stop new requests.
-  BytecodeOffset ast_id = DetermineEntryAndDisarmOSRForInterpreter(frame);
-  DCHECK(!ast_id.IsNone());
+  BytecodeOffset osr_offset = DetermineEntryAndDisarmOSRForInterpreter(frame);
+  DCHECK(!osr_offset.IsNone());
 
   MaybeHandle<Code> maybe_result;
   Handle<JSFunction> function(frame->function(), isolate);
@@ -332,9 +332,10 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
       CodeTracer::Scope scope(isolate->GetCodeTracer());
       PrintF(scope.file(), "[OSR - Compiling: ");
       function->PrintName(scope.file());
-      PrintF(scope.file(), " at AST id %d]\n", ast_id.ToInt());
+      PrintF(scope.file(), " at OSR bytecode offset %d]\n", osr_offset.ToInt());
     }
-    maybe_result = Compiler::GetOptimizedCodeForOSR(function, ast_id, frame);
+    maybe_result =
+        Compiler::GetOptimizedCodeForOSR(function, osr_offset, frame);
 
     // Possibly compile for NCI caching.
     if (!MaybeSpawnNativeContextIndependentCompilationJob(
@@ -353,12 +354,13 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
         DeoptimizationData::cast(result->deoptimization_data());
 
     if (data.OsrPcOffset().value() >= 0) {
-      DCHECK(BytecodeOffset(data.OsrBytecodeOffset().value()) == ast_id);
+      DCHECK(BytecodeOffset(data.OsrBytecodeOffset().value()) == osr_offset);
       if (FLAG_trace_osr) {
         CodeTracer::Scope scope(isolate->GetCodeTracer());
         PrintF(scope.file(),
-               "[OSR - Entry at AST id %d, offset %d in optimized code]\n",
-               ast_id.ToInt(), data.OsrPcOffset().value());
+               "[OSR - Entry at OSR bytecode offset %d, offset %d in optimized "
+               "code]\n",
+               osr_offset.ToInt(), data.OsrPcOffset().value());
       }
 
       DCHECK(result->is_turbofanned());
@@ -402,7 +404,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintF(scope.file(), "[OSR - Failed: ");
     function->PrintName(scope.file());
-    PrintF(scope.file(), " at AST id %d]\n", ast_id.ToInt());
+    PrintF(scope.file(), " at OSR bytecode offset %d]\n", osr_offset.ToInt());
   }
 
   if (!function->HasAttachedOptimizedCode()) {

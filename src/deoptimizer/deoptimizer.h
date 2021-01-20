@@ -185,7 +185,7 @@ class TranslatedFrame {
   int GetValueCount();
 
   Kind kind() const { return kind_; }
-  BytecodeOffset node_id() const { return node_id_; }
+  BytecodeOffset bytecode_offset() const { return bytecode_offset_; }
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
 
   // TODO(jgruber): Simplify/clarify the semantics of this field. The name
@@ -293,7 +293,7 @@ class TranslatedFrame {
                   int height = 0, int return_value_offset = 0,
                   int return_value_count = 0)
       : kind_(kind),
-        node_id_(BytecodeOffset::None()),
+        bytecode_offset_(BytecodeOffset::None()),
         raw_shared_info_(shared_info),
         height_(height),
         return_value_offset_(return_value_offset),
@@ -304,7 +304,7 @@ class TranslatedFrame {
   void Handlify();
 
   Kind kind_;
-  BytecodeOffset node_id_;
+  BytecodeOffset bytecode_offset_;
   SharedFunctionInfo raw_shared_info_;
   Handle<SharedFunctionInfo> shared_info_;
   int height_;
@@ -442,12 +442,6 @@ class TranslatedState {
   FeedbackSlot feedback_slot_;
 };
 
-class OptimizedFunctionVisitor {
- public:
-  virtual ~OptimizedFunctionVisitor() = default;
-  virtual void VisitFunction(JSFunction function) = 0;
-};
-
 class Deoptimizer : public Malloced {
  public:
   struct DeoptInfo {
@@ -464,9 +458,9 @@ class Deoptimizer : public Malloced {
 
   static DeoptInfo GetDeoptInfo(Code code, Address from);
 
-  static int ComputeSourcePositionFromBytecodeArray(Isolate* isolate,
-                                                    SharedFunctionInfo shared,
-                                                    BytecodeOffset node_id);
+  static int ComputeSourcePositionFromBytecodeArray(
+      Isolate* isolate, SharedFunctionInfo shared,
+      BytecodeOffset bytecode_offset);
 
   static const char* MessageFor(DeoptimizeKind kind, bool reuse_code);
 
@@ -482,8 +476,8 @@ class Deoptimizer : public Malloced {
   bool should_reuse_code() const;
 
   static Deoptimizer* New(Address raw_function, DeoptimizeKind kind,
-                          unsigned bailout_id, Address from, int fp_to_sp_delta,
-                          Isolate* isolate);
+                          unsigned deopt_exit_index, Address from,
+                          int fp_to_sp_delta, Isolate* isolate);
   static Deoptimizer* Grab(Isolate* isolate);
 
   // The returned object with information on the optimized frame needs to be
@@ -549,9 +543,10 @@ class Deoptimizer : public Malloced {
 
   static constexpr int kMaxNumberOfEntries = 16384;
 
-  // This marker is passed to Deoptimizer::New as {bailout_id} on platforms
-  // that have fixed deopt sizes (see also kSupportsFixedDeoptExitSizes). The
-  // actual deoptimization id is then calculated from the return address.
+  // This marker is passed to Deoptimizer::New as {deopt_exit_index} on
+  // platforms that have fixed deopt sizes (see also
+  // kSupportsFixedDeoptExitSizes). The actual deoptimization id is then
+  // calculated from the return address.
   static constexpr unsigned kFixedExitSizeMarker = kMaxUInt32;
 
   // Set to true when the architecture supports deoptimization exit sequences
@@ -581,7 +576,7 @@ class Deoptimizer : public Malloced {
                                     const TranslatedFrame::iterator& iterator);
 
   Deoptimizer(Isolate* isolate, JSFunction function, DeoptimizeKind kind,
-              unsigned bailout_id, Address from, int fp_to_sp_delta);
+              unsigned deopt_exit_index, Address from, int fp_to_sp_delta);
   Code FindOptimizedCode();
   void DeleteFrameDescriptions();
 
@@ -607,7 +602,6 @@ class Deoptimizer : public Malloced {
   unsigned ComputeInputFrameSize() const;
 
   static unsigned ComputeIncomingArgumentSize(SharedFunctionInfo shared);
-  static unsigned ComputeOutgoingArgumentSize(Code code, unsigned bailout_id);
 
   static void MarkAllCodeForContext(NativeContext native_context);
   static void DeoptimizeMarkedCodeForContext(NativeContext native_context);
@@ -625,7 +619,7 @@ class Deoptimizer : public Malloced {
   CodeTracer::Scope* verbose_trace_scope() const {
     return FLAG_trace_deopt_verbose ? trace_scope() : nullptr;
   }
-  void TraceDeoptBegin(int optimization_id, int node_id);
+  void TraceDeoptBegin(int optimization_id, BytecodeOffset bytecode_offset);
   void TraceDeoptEnd(double deopt_duration);
 #ifdef DEBUG
   static void TraceFoundActivation(Isolate* isolate, JSFunction function);
@@ -636,7 +630,7 @@ class Deoptimizer : public Malloced {
   Isolate* isolate_;
   JSFunction function_;
   Code compiled_code_;
-  unsigned bailout_id_;
+  unsigned deopt_exit_index_;
   DeoptimizeKind deopt_kind_;
   Address from_;
   int fp_to_sp_delta_;

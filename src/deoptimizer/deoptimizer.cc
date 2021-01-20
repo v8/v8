@@ -194,11 +194,11 @@ Code Deoptimizer::FindDeoptimizingCode(Address addr) {
 // We rely on this function not causing a GC. It is called from generated code
 // without having a real stack frame in place.
 Deoptimizer* Deoptimizer::New(Address raw_function, DeoptimizeKind kind,
-                              unsigned bailout_id, Address from,
+                              unsigned deopt_exit_index, Address from,
                               int fp_to_sp_delta, Isolate* isolate) {
   JSFunction function = JSFunction::cast(Object(raw_function));
-  Deoptimizer* deoptimizer = new Deoptimizer(isolate, function, kind,
-                                             bailout_id, from, fp_to_sp_delta);
+  Deoptimizer* deoptimizer = new Deoptimizer(
+      isolate, function, kind, deopt_exit_index, from, fp_to_sp_delta);
   isolate->set_current_deoptimizer(deoptimizer);
   return deoptimizer;
 }
@@ -506,11 +506,11 @@ base::Optional<wasm::ValueType::Kind> DecodeWasmReturnType(int code) {
 }  // namespace
 
 Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
-                         DeoptimizeKind kind, unsigned bailout_id, Address from,
-                         int fp_to_sp_delta)
+                         DeoptimizeKind kind, unsigned deopt_exit_index,
+                         Address from, int fp_to_sp_delta)
     : isolate_(isolate),
       function_(function),
-      bailout_id_(bailout_id),
+      deopt_exit_index_(deopt_exit_index),
       deopt_kind_(kind),
       from_(from),
       fp_to_sp_delta_(fp_to_sp_delta),
@@ -536,8 +536,8 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
     deoptimizing_throw_ = true;
   }
 
-  DCHECK(bailout_id_ == kFixedExitSizeMarker ||
-         bailout_id_ < kMaxNumberOfEntries);
+  DCHECK(deopt_exit_index_ == kFixedExitSizeMarker ||
+         deopt_exit_index_ < kMaxNumberOfEntries);
 
   DCHECK_NE(from, kNullAddress);
   compiled_code_ = FindOptimizedCode();
@@ -566,8 +566,8 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
   input_ = new (size) FrameDescription(size, parameter_count);
 
   if (kSupportsFixedDeoptExitSizes) {
-    DCHECK_EQ(bailout_id_, kFixedExitSizeMarker);
-    // Calculate bailout id from return address.
+    DCHECK_EQ(deopt_exit_index_, kFixedExitSizeMarker);
+    // Calculate the deopt exit index from return address.
     DCHECK_GT(kNonLazyDeoptExitSize, 0);
     DCHECK_GT(kLazyDeoptExitSize, 0);
     DeoptimizationData deopt_data =
@@ -597,19 +597,20 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
       int offset =
           static_cast<int>(from_ - kNonLazyDeoptExitSize - deopt_start);
       DCHECK_EQ(0, offset % kNonLazyDeoptExitSize);
-      bailout_id_ = offset / kNonLazyDeoptExitSize;
+      deopt_exit_index_ = offset / kNonLazyDeoptExitSize;
     } else if (from_ <= eager_with_resume_deopt_start) {
       int offset =
           static_cast<int>(from_ - kLazyDeoptExitSize - lazy_deopt_start);
       DCHECK_EQ(0, offset % kLazyDeoptExitSize);
-      bailout_id_ =
+      deopt_exit_index_ =
           eager_soft_and_bailout_deopt_count + (offset / kLazyDeoptExitSize);
     } else {
       int offset = static_cast<int>(from_ - kNonLazyDeoptExitSize -
                                     eager_with_resume_deopt_start);
       DCHECK_EQ(0, offset % kEagerWithResumeDeoptExitSize);
-      bailout_id_ = eager_soft_and_bailout_deopt_count + lazy_deopt_count +
-                    (offset / kEagerWithResumeDeoptExitSize);
+      deopt_exit_index_ = eager_soft_and_bailout_deopt_count +
+                          lazy_deopt_count +
+                          (offset / kEagerWithResumeDeoptExitSize);
     }
   }
 }
@@ -733,7 +734,7 @@ int LookupCatchHandler(Isolate* isolate, TranslatedFrame* translated_frame,
                        int* data_out) {
   switch (translated_frame->kind()) {
     case TranslatedFrame::kInterpretedFunction: {
-      int bytecode_offset = translated_frame->node_id().ToInt();
+      int bytecode_offset = translated_frame->bytecode_offset().ToInt();
       HandlerTable table(
           translated_frame->raw_shared_info().GetBytecodeArray(isolate));
       return table.LookupRange(bytecode_offset, data_out, nullptr);
@@ -749,7 +750,8 @@ int LookupCatchHandler(Isolate* isolate, TranslatedFrame* translated_frame,
 
 }  // namespace
 
-void Deoptimizer::TraceDeoptBegin(int optimization_id, int node_id) {
+void Deoptimizer::TraceDeoptBegin(int optimization_id,
+                                  BytecodeOffset bytecode_offset) {
   DCHECK(tracing_enabled());
   FILE* file = trace_scope()->file();
   Deoptimizer::DeoptInfo info =
@@ -763,10 +765,11 @@ void Deoptimizer::TraceDeoptBegin(int optimization_id, int node_id) {
     PrintF(file, "%s", CodeKindToString(compiled_code_.kind()));
   }
   PrintF(file,
-         ", opt id %d, node id %d, bailout id %d, FP to SP delta %d, "
+         ", opt id %d, bytecode offset %d, deopt exit %d, FP to SP delta %d, "
          "caller SP " V8PRIxPTR_FMT ", pc " V8PRIxPTR_FMT "]\n",
-         optimization_id, node_id, bailout_id_, fp_to_sp_delta_,
-         caller_frame_top_, PointerAuthentication::StripPAC(from_));
+         optimization_id, bytecode_offset.ToInt(), deopt_exit_index_,
+         fp_to_sp_delta_, caller_frame_top_,
+         PointerAuthentication::StripPAC(from_));
   if (verbose_tracing_enabled() && deopt_kind_ != DeoptimizeKind::kLazy) {
     PrintF(file, "            ;;; deoptimize at ");
     OFStream outstr(file);
@@ -896,13 +899,15 @@ void Deoptimizer::DoComputeOutputFrames() {
   CHECK_GT(static_cast<uintptr_t>(caller_frame_top_),
            stack_guard->real_jslimit());
 
-  BytecodeOffset node_id = input_data.GetBytecodeOffset(bailout_id_);
+  BytecodeOffset bytecode_offset =
+      input_data.GetBytecodeOffset(deopt_exit_index_);
   ByteArray translations = input_data.TranslationByteArray();
-  unsigned translation_index = input_data.TranslationIndex(bailout_id_).value();
+  unsigned translation_index =
+      input_data.TranslationIndex(deopt_exit_index_).value();
 
   if (tracing_enabled()) {
     timer.Start();
-    TraceDeoptBegin(input_data.OptimizationId().value(), node_id.ToInt());
+    TraceDeoptBegin(input_data.OptimizationId().value(), bytecode_offset);
   }
 
   FILE* trace_file =
@@ -942,12 +947,11 @@ void Deoptimizer::DoComputeOutputFrames() {
   output_count_ = static_cast<int>(count);
 
   // Translate each output frame.
-  int frame_index = 0;  // output_frame_index
+  int frame_index = 0;
   size_t total_output_frame_size = 0;
   for (size_t i = 0; i < count; ++i, ++frame_index) {
-    // Read the ast node id, function, and frame height for this output frame.
     TranslatedFrame* translated_frame = &(translated_state_.frames()[i]);
-    bool handle_exception = deoptimizing_throw_ && i == count - 1;
+    const bool handle_exception = deoptimizing_throw_ && i == count - 1;
     switch (translated_frame->kind()) {
       case TranslatedFrame::kInterpretedFunction:
         DoComputeInterpretedFrame(translated_frame, frame_index,
@@ -1014,7 +1018,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   const bool is_bottommost = (0 == frame_index);
   const bool is_topmost = (output_count_ - 1 == frame_index);
 
-  const int real_bytecode_offset = translated_frame->node_id().ToInt();
+  const int real_bytecode_offset = translated_frame->bytecode_offset().ToInt();
   const int bytecode_offset =
       goto_catch_handler ? catch_handler_pc_offset_ : real_bytecode_offset;
 
@@ -1087,9 +1091,9 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   // explicitly.
   //
   // The caller's pc for the bottommost output frame is the same as in the
-  // input frame.  For all subsequent output frames, it can be read from the
-  // previous one.  This frame's pc can be computed from the non-optimized
-  // function code and AST id of the bailout.
+  // input frame. For all subsequent output frames, it can be read from the
+  // previous one. This frame's pc can be computed from the non-optimized
+  // function code and bytecode offset of the bailout.
   if (is_bottommost) {
     frame_writer.PushBottommostCallerPc(caller_pc_);
   } else {
@@ -1373,7 +1377,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
 
   Builtins* builtins = isolate_->builtins();
   Code construct_stub = builtins->builtin(Builtins::kJSConstructStubGeneric);
-  BytecodeOffset bailout_id = translated_frame->node_id();
+  BytecodeOffset bytecode_offset = translated_frame->bytecode_offset();
 
   const int parameters_count = translated_frame->height();
   ConstructStubFrameInfo frame_info =
@@ -1383,11 +1387,11 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   TranslatedFrame::iterator function_iterator = value_iterator++;
   if (verbose_tracing_enabled()) {
     PrintF(trace_scope()->file(),
-           "  translating construct stub => bailout_id=%d (%s), "
+           "  translating construct stub => bytecode_offset=%d (%s), "
            "variable_frame_size=%d, frame_size=%d\n",
-           bailout_id.ToInt(),
-           bailout_id == BytecodeOffset::ConstructStubCreate() ? "create"
-                                                               : "invoke",
+           bytecode_offset.ToInt(),
+           bytecode_offset == BytecodeOffset::ConstructStubCreate() ? "create"
+                                                                    : "invoke",
            frame_info.frame_size_in_bytes_without_fixed(), output_frame_size);
   }
 
@@ -1465,11 +1469,12 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
 
   frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
 
-  CHECK(bailout_id == BytecodeOffset::ConstructStubCreate() ||
-        bailout_id == BytecodeOffset::ConstructStubInvoke());
-  const char* debug_hint = bailout_id == BytecodeOffset::ConstructStubCreate()
-                               ? "new target\n"
-                               : "allocated receiver\n";
+  CHECK(bytecode_offset == BytecodeOffset::ConstructStubCreate() ||
+        bytecode_offset == BytecodeOffset::ConstructStubInvoke());
+  const char* debug_hint =
+      bytecode_offset == BytecodeOffset::ConstructStubCreate()
+          ? "new target\n"
+          : "allocated receiver\n";
   frame_writer.PushTranslatedValue(receiver_iterator, debug_hint);
 
   if (is_topmost) {
@@ -1486,10 +1491,10 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   CHECK_EQ(0u, frame_writer.top_offset());
 
   // Compute this frame's PC.
-  DCHECK(bailout_id.IsValidForConstructStub());
+  DCHECK(bytecode_offset.IsValidForConstructStub());
   Address start = construct_stub.InstructionStart();
   const int pc_offset =
-      bailout_id == BytecodeOffset::ConstructStubCreate()
+      bytecode_offset == BytecodeOffset::ConstructStubCreate()
           ? isolate_->heap()->construct_stub_create_deopt_pc_offset().value()
           : isolate_->heap()->construct_stub_invoke_deopt_pc_offset().value();
   intptr_t pc_value = static_cast<intptr_t>(start + pc_offset);
@@ -1688,9 +1693,9 @@ void Deoptimizer::DoComputeBuiltinContinuation(
 
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
 
-  const BytecodeOffset bailout_id = translated_frame->node_id();
+  const BytecodeOffset bytecode_offset = translated_frame->bytecode_offset();
   Builtins::Name builtin_name =
-      Builtins::GetBuiltinFromBytecodeOffset(bailout_id);
+      Builtins::GetBuiltinFromBytecodeOffset(bytecode_offset);
   CallInterfaceDescriptor continuation_descriptor =
       Builtins::CallInterfaceDescriptorFor(builtin_name);
 
@@ -2034,7 +2039,6 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
   DCHECK(CodeKindCanDeoptimize(compiled_code_.kind()));
   unsigned stack_slots = compiled_code_.stack_slots();
   unsigned outgoing_size = 0;
-  //        ComputeOutgoingArgumentSize(compiled_code_, bailout_id_);
   CHECK_EQ(fixed_size_above_fp + (stack_slots * kSystemPointerSize) -
                CommonFrameConstants::kFixedFrameSizeAboveFp + outgoing_size,
            result);
@@ -2123,45 +2127,45 @@ Handle<ByteArray> TranslationBuffer::CreateByteArray(Factory* factory) {
   return result;
 }
 
-void Translation::BeginBuiltinContinuationFrame(BytecodeOffset bailout_id,
+void Translation::BeginBuiltinContinuationFrame(BytecodeOffset bytecode_offset,
                                                 int literal_id,
                                                 unsigned height) {
   buffer_->Add(BUILTIN_CONTINUATION_FRAME);
-  buffer_->Add(bailout_id.ToInt());
+  buffer_->Add(bytecode_offset.ToInt());
   buffer_->Add(literal_id);
   buffer_->Add(height);
 }
 
 void Translation::BeginJSToWasmBuiltinContinuationFrame(
-    BytecodeOffset bailout_id, int literal_id, unsigned height,
+    BytecodeOffset bytecode_offset, int literal_id, unsigned height,
     base::Optional<wasm::ValueType::Kind> return_type) {
   buffer_->Add(JS_TO_WASM_BUILTIN_CONTINUATION_FRAME);
-  buffer_->Add(bailout_id.ToInt());
+  buffer_->Add(bytecode_offset.ToInt());
   buffer_->Add(literal_id);
   buffer_->Add(height);
   buffer_->Add(EncodeWasmReturnType(return_type));
 }
 
 void Translation::BeginJavaScriptBuiltinContinuationFrame(
-    BytecodeOffset bailout_id, int literal_id, unsigned height) {
+    BytecodeOffset bytecode_offset, int literal_id, unsigned height) {
   buffer_->Add(JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME);
-  buffer_->Add(bailout_id.ToInt());
+  buffer_->Add(bytecode_offset.ToInt());
   buffer_->Add(literal_id);
   buffer_->Add(height);
 }
 
 void Translation::BeginJavaScriptBuiltinContinuationWithCatchFrame(
-    BytecodeOffset bailout_id, int literal_id, unsigned height) {
+    BytecodeOffset bytecode_offset, int literal_id, unsigned height) {
   buffer_->Add(JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME);
-  buffer_->Add(bailout_id.ToInt());
+  buffer_->Add(bytecode_offset.ToInt());
   buffer_->Add(literal_id);
   buffer_->Add(height);
 }
 
-void Translation::BeginConstructStubFrame(BytecodeOffset bailout_id,
+void Translation::BeginConstructStubFrame(BytecodeOffset bytecode_offset,
                                           int literal_id, unsigned height) {
   buffer_->Add(CONSTRUCT_STUB_FRAME);
-  buffer_->Add(bailout_id.ToInt());
+  buffer_->Add(bytecode_offset.ToInt());
   buffer_->Add(literal_id);
   buffer_->Add(height);
 }
@@ -2446,7 +2450,7 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(TranslatedState* state,
 
   DCHECK_EQ(TranslatedFrame::kInterpretedFunction, frame_it->kind());
   source_position_ = Deoptimizer::ComputeSourcePositionFromBytecodeArray(
-      isolate, *frame_it->shared_info(), frame_it->node_id());
+      isolate, *frame_it->shared_info(), frame_it->bytecode_offset());
 
   DCHECK_EQ(parameter_count,
             function_->shared().internal_formal_parameter_count());
@@ -2508,10 +2512,11 @@ Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code code, Address pc) {
 
 // static
 int Deoptimizer::ComputeSourcePositionFromBytecodeArray(
-    Isolate* isolate, SharedFunctionInfo shared, BytecodeOffset node_id) {
+    Isolate* isolate, SharedFunctionInfo shared,
+    BytecodeOffset bytecode_offset) {
   DCHECK(shared.HasBytecodeArray());
   return AbstractCode::cast(shared.GetBytecodeArray(isolate))
-      .SourcePosition(node_id.ToInt());
+      .SourcePosition(bytecode_offset.ToInt());
 }
 
 // static
@@ -2867,7 +2872,7 @@ TranslatedFrame TranslatedFrame::InterpretedFrame(
     int return_value_offset, int return_value_count) {
   TranslatedFrame frame(kInterpretedFunction, shared_info, height,
                         return_value_offset, return_value_count);
-  frame.node_id_ = bytecode_offset;
+  frame.bytecode_offset_ = bytecode_offset;
   return frame;
 }
 
@@ -2877,40 +2882,44 @@ TranslatedFrame TranslatedFrame::ArgumentsAdaptorFrame(
 }
 
 TranslatedFrame TranslatedFrame::ConstructStubFrame(
-    BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height) {
+    BytecodeOffset bytecode_offset, SharedFunctionInfo shared_info,
+    int height) {
   TranslatedFrame frame(kConstructStub, shared_info, height);
-  frame.node_id_ = bailout_id;
+  frame.bytecode_offset_ = bytecode_offset;
   return frame;
 }
 
 TranslatedFrame TranslatedFrame::BuiltinContinuationFrame(
-    BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height) {
+    BytecodeOffset bytecode_offset, SharedFunctionInfo shared_info,
+    int height) {
   TranslatedFrame frame(kBuiltinContinuation, shared_info, height);
-  frame.node_id_ = bailout_id;
+  frame.bytecode_offset_ = bytecode_offset;
   return frame;
 }
 
 TranslatedFrame TranslatedFrame::JSToWasmBuiltinContinuationFrame(
-    BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height,
+    BytecodeOffset bytecode_offset, SharedFunctionInfo shared_info, int height,
     base::Optional<wasm::ValueType::Kind> return_type) {
   TranslatedFrame frame(kJSToWasmBuiltinContinuation, shared_info, height);
-  frame.node_id_ = bailout_id;
+  frame.bytecode_offset_ = bytecode_offset;
   frame.return_type_ = return_type;
   return frame;
 }
 
 TranslatedFrame TranslatedFrame::JavaScriptBuiltinContinuationFrame(
-    BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height) {
+    BytecodeOffset bytecode_offset, SharedFunctionInfo shared_info,
+    int height) {
   TranslatedFrame frame(kJavaScriptBuiltinContinuation, shared_info, height);
-  frame.node_id_ = bailout_id;
+  frame.bytecode_offset_ = bytecode_offset;
   return frame;
 }
 
 TranslatedFrame TranslatedFrame::JavaScriptBuiltinContinuationWithCatchFrame(
-    BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height) {
+    BytecodeOffset bytecode_offset, SharedFunctionInfo shared_info,
+    int height) {
   TranslatedFrame frame(kJavaScriptBuiltinContinuationWithCatch, shared_info,
                         height);
-  frame.node_id_ = bailout_id;
+  frame.bytecode_offset_ = bytecode_offset;
   return frame;
 }
 
@@ -2999,22 +3008,22 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     }
 
     case Translation::CONSTRUCT_STUB_FRAME: {
-      BytecodeOffset bailout_id = BytecodeOffset(iterator->Next());
+      BytecodeOffset bytecode_offset = BytecodeOffset(iterator->Next());
       SharedFunctionInfo shared_info =
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
         std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
         PrintF(trace_file, "  reading construct stub frame %s", name.get());
-        PrintF(trace_file, " => bailout_id=%d, height=%d; inputs:\n",
-               bailout_id.ToInt(), height);
+        PrintF(trace_file, " => bytecode_offset=%d, height=%d; inputs:\n",
+               bytecode_offset.ToInt(), height);
       }
-      return TranslatedFrame::ConstructStubFrame(bailout_id, shared_info,
+      return TranslatedFrame::ConstructStubFrame(bytecode_offset, shared_info,
                                                  height);
     }
 
     case Translation::BUILTIN_CONTINUATION_FRAME: {
-      BytecodeOffset bailout_id = BytecodeOffset(iterator->Next());
+      BytecodeOffset bytecode_offset = BytecodeOffset(iterator->Next());
       SharedFunctionInfo shared_info =
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();
@@ -3022,15 +3031,15 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
         std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
         PrintF(trace_file, "  reading builtin continuation frame %s",
                name.get());
-        PrintF(trace_file, " => bailout_id=%d, height=%d; inputs:\n",
-               bailout_id.ToInt(), height);
+        PrintF(trace_file, " => bytecode_offset=%d, height=%d; inputs:\n",
+               bytecode_offset.ToInt(), height);
       }
-      return TranslatedFrame::BuiltinContinuationFrame(bailout_id, shared_info,
-                                                       height);
+      return TranslatedFrame::BuiltinContinuationFrame(bytecode_offset,
+                                                       shared_info, height);
     }
 
     case Translation::JS_TO_WASM_BUILTIN_CONTINUATION_FRAME: {
-      BytecodeOffset bailout_id = BytecodeOffset(iterator->Next());
+      BytecodeOffset bytecode_offset = BytecodeOffset(iterator->Next());
       SharedFunctionInfo shared_info =
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();
@@ -3041,16 +3050,16 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
         PrintF(trace_file, "  reading JS to Wasm builtin continuation frame %s",
                name.get());
         PrintF(trace_file,
-               " => bailout_id=%d, height=%d return_type=%d; inputs:\n",
-               bailout_id.ToInt(), height,
+               " => bytecode_offset=%d, height=%d return_type=%d; inputs:\n",
+               bytecode_offset.ToInt(), height,
                return_type.has_value() ? return_type.value() : -1);
       }
       return TranslatedFrame::JSToWasmBuiltinContinuationFrame(
-          bailout_id, shared_info, height, return_type);
+          bytecode_offset, shared_info, height, return_type);
     }
 
     case Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME: {
-      BytecodeOffset bailout_id = BytecodeOffset(iterator->Next());
+      BytecodeOffset bytecode_offset = BytecodeOffset(iterator->Next());
       SharedFunctionInfo shared_info =
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();
@@ -3058,14 +3067,14 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
         std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
         PrintF(trace_file, "  reading JavaScript builtin continuation frame %s",
                name.get());
-        PrintF(trace_file, " => bailout_id=%d, height=%d; inputs:\n",
-               bailout_id.ToInt(), height);
+        PrintF(trace_file, " => bytecode_offset=%d, height=%d; inputs:\n",
+               bytecode_offset.ToInt(), height);
       }
       return TranslatedFrame::JavaScriptBuiltinContinuationFrame(
-          bailout_id, shared_info, height);
+          bytecode_offset, shared_info, height);
     }
     case Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME: {
-      BytecodeOffset bailout_id = BytecodeOffset(iterator->Next());
+      BytecodeOffset bytecode_offset = BytecodeOffset(iterator->Next());
       SharedFunctionInfo shared_info =
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();
@@ -3074,11 +3083,11 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
         PrintF(trace_file,
                "  reading JavaScript builtin continuation frame with catch %s",
                name.get());
-        PrintF(trace_file, " => bailout_id=%d, height=%d; inputs:\n",
-               bailout_id.ToInt(), height);
+        PrintF(trace_file, " => bytecode_offset=%d, height=%d; inputs:\n",
+               bytecode_offset.ToInt(), height);
       }
       return TranslatedFrame::JavaScriptBuiltinContinuationWithCatchFrame(
-          bailout_id, shared_info, height);
+          bytecode_offset, shared_info, height);
     }
     case Translation::UPDATE_FEEDBACK:
     case Translation::BEGIN:

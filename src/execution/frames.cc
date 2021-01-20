@@ -1551,13 +1551,13 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
           it->kind() ==
               TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch) {
         code_offset = 0;
-        abstract_code =
-            handle(AbstractCode::cast(isolate()->builtins()->builtin(
-                       Builtins::GetBuiltinFromBytecodeOffset(it->node_id()))),
-                   isolate());
+        abstract_code = handle(
+            AbstractCode::cast(isolate()->builtins()->builtin(
+                Builtins::GetBuiltinFromBytecodeOffset(it->bytecode_offset()))),
+            isolate());
       } else {
         DCHECK_EQ(it->kind(), TranslatedFrame::kInterpretedFunction);
-        code_offset = it->node_id().ToInt();  // Points to current bytecode.
+        code_offset = it->bytecode_offset().ToInt();
         abstract_code =
             handle(shared_info->abstract_code(isolate()), isolate());
       }

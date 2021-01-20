@@ -158,7 +158,7 @@ class CompilerTracer : public AllStatic {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintTracePrefix(scope, "found optimized code for", function, code_kind);
     if (!osr_offset.IsNone()) {
-      PrintF(scope.file(), " at OSR AST id %d", osr_offset.ToInt());
+      PrintF(scope.file(), " at OSR bytecode offset %d", osr_offset.ToInt());
     }
     PrintTraceSuffix(scope);
   }
