@@ -334,8 +334,8 @@ v8::Platform* g_default_platform;
 std::unique_ptr<v8::Platform> g_platform;
 
 static Local<Value> Throw(Isolate* isolate, const char* message) {
-  return isolate->ThrowException(
-      String::NewFromUtf8(isolate, message).ToLocalChecked());
+  return isolate->ThrowException(v8::Exception::Error(
+      String::NewFromUtf8(isolate, message).ToLocalChecked()));
 }
 
 static MaybeLocal<Value> TryGetValue(v8::Isolate* isolate,
