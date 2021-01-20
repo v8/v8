@@ -2635,6 +2635,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/deoptimizer/deoptimize-reason.h",
     "src/deoptimizer/deoptimizer.cc",
     "src/deoptimizer/deoptimizer.h",
+    "src/deoptimizer/translations.cc",
+    "src/deoptimizer/translations.h",
     "src/diagnostics/basic-block-profiler.cc",
     "src/diagnostics/basic-block-profiler.h",
     "src/diagnostics/code-tracer.h",
