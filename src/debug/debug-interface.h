@@ -592,12 +592,17 @@ struct PropertyDescriptor {
 
 class PropertyIterator {
  public:
-  static std::unique_ptr<PropertyIterator> Create(v8::Local<v8::Object> object);
+  // Creating a PropertyIterator can potentially throw an exception.
+  // The returned std::unique_ptr is empty iff that happens.
+  V8_WARN_UNUSED_RESULT static std::unique_ptr<PropertyIterator> Create(
+      v8::Local<v8::Context> context, v8::Local<v8::Object> object);
 
   virtual ~PropertyIterator() = default;
 
   virtual bool Done() const = 0;
-  virtual void Advance() = 0;
+  // Returns |Nothing| should |Advance| throw an exception,
+  // |true| otherwise.
+  V8_WARN_UNUSED_RESULT virtual Maybe<bool> Advance() = 0;
 
   virtual v8::Local<v8::Name> name() const = 0;
 

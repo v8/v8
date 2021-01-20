@@ -36,6 +36,7 @@
 #include "src/date/date.h"
 #include "src/debug/debug-coverage.h"
 #include "src/debug/debug-evaluate.h"
+#include "src/debug/debug-property-iterator.h"
 #include "src/debug/debug-type-profile.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
@@ -11333,6 +11334,24 @@ RegisterState& RegisterState::operator=(const RegisterState& other)
   return *this;
 }
 
+std::unique_ptr<debug::PropertyIterator> debug::PropertyIterator::Create(
+    Local<Context> context, Local<Object> object) {
+  internal::Isolate* isolate =
+      reinterpret_cast<internal::Isolate*>(object->GetIsolate());
+  if (IsExecutionTerminatingCheck(isolate)) {
+    return nullptr;
+  }
+  CallDepthScope<false> call_depth_scope(isolate, context);
+
+  auto result = internal::DebugPropertyIterator::Create(
+      isolate, Utils::OpenHandle(*object));
+  if (!result) {
+    DCHECK(isolate->has_pending_exception());
+    call_depth_scope.Escape();
+  }
+  return result;
+}
+
 namespace internal {
 
 const size_t HandleScopeImplementer::kEnteredContextsOffset =
@@ -11511,6 +11530,22 @@ void InvokeFinalizationRegistryCleanupFromTask(
           .is_null()) {
     call_depth_scope.Escape();
   }
+}
+
+Maybe<bool> DebugPropertyIterator::Advance() {
+  if (IsExecutionTerminatingCheck(isolate_)) {
+    return Nothing<bool>();
+  }
+  Local<v8::Context> context =
+      Utils::ToLocal(handle(isolate_->context(), isolate_));
+  CallDepthScope<false> call_depth_scope(isolate_, context);
+
+  if (!AdvanceInternal()) {
+    DCHECK(isolate_->has_pending_exception());
+    call_depth_scope.Escape();
+    return Nothing<bool>();
+  }
+  return Just(true);
 }
 
 // Undefine macros for jumbo build.

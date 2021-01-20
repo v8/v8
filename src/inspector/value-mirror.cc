@@ -1227,14 +1227,24 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
 
   bool formatAccessorsAsProperties =
       clientFor(context)->formatAccessorsAsProperties(object);
-  for (auto iterator = v8::debug::PropertyIterator::Create(object);
-       !iterator->Done(); iterator->Advance()) {
+  auto iterator = v8::debug::PropertyIterator::Create(context, object);
+  if (!iterator) {
+    CHECK(tryCatch.HasCaught());
+    return false;
+  }
+  while (!iterator->Done()) {
     bool isOwn = iterator->is_own();
     if (!isOwn && ownProperties) break;
     v8::Local<v8::Name> v8Name = iterator->name();
     v8::Maybe<bool> result = set->Has(context, v8Name);
     if (result.IsNothing()) return false;
-    if (result.FromJust()) continue;
+    if (result.FromJust()) {
+      if (!iterator->Advance().FromMaybe(false)) {
+        CHECK(tryCatch.HasCaught());
+        return false;
+      }
+      continue;
+    }
     if (!set->Add(context, v8Name).ToLocal(&set)) return false;
 
     String16 name;
@@ -1330,6 +1340,11 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
                                  std::move(symbolMirror),
                                  std::move(exceptionMirror)};
     if (!accumulator->Add(std::move(mirror))) return true;
+
+    if (!iterator->Advance().FromMaybe(false)) {
+      CHECK(tryCatch.HasCaught());
+      return false;
+    }
   }
   if (!shouldSkipProto && ownProperties && !object->IsProxy() &&
       !accessorPropertiesOnly) {
