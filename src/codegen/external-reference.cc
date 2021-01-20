@@ -679,9 +679,21 @@ void StringWriteToFlatTwoByte(Address source, uint16_t* sink, int32_t from,
 }
 
 const uint8_t* ExternalOneByteStringGetChars(Address string) {
+  // The following CHECK is a workaround to prevent a CFI bug where
+  // ExternalOneByteStringGetChars() and ExternalTwoByteStringGetChars() are
+  // merged by the linker, resulting in one of the input type's vtable address
+  // failing the address range check.
+  // TODO(chromium:1160961): Consider removing the CHECK when CFI is fixed.
+  CHECK(Object(string).IsExternalOneByteString());
   return ExternalOneByteString::cast(Object(string)).GetChars();
 }
 const uint16_t* ExternalTwoByteStringGetChars(Address string) {
+  // The following CHECK is a workaround to prevent a CFI bug where
+  // ExternalOneByteStringGetChars() and ExternalTwoByteStringGetChars() are
+  // merged by the linker, resulting in one of the input type's vtable address
+  // failing the address range check.
+  // TODO(chromium:1160961): Consider removing the CHECK when CFI is fixed.
+  CHECK(Object(string).IsExternalTwoByteString());
   return ExternalTwoByteString::cast(Object(string)).GetChars();
 }
 
