@@ -1528,7 +1528,7 @@ MachineRepresentation DeadValueRepresentationOf(Operator const* op) {
 }
 
 const Operator* CommonOperatorBuilder::FrameState(
-    BailoutId bailout_id, OutputFrameStateCombine state_combine,
+    BytecodeOffset bailout_id, OutputFrameStateCombine state_combine,
     const FrameStateFunctionInfo* function_info) {
   FrameStateInfo state_info(bailout_id, state_combine, function_info);
   return zone()->New<Operator1<FrameStateInfo>>(  // --

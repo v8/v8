@@ -1553,7 +1553,7 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
         code_offset = 0;
         abstract_code =
             handle(AbstractCode::cast(isolate()->builtins()->builtin(
-                       Builtins::GetBuiltinFromBailoutId(it->node_id()))),
+                       Builtins::GetBuiltinFromBytecodeOffset(it->node_id()))),
                    isolate());
       } else {
         DCHECK_EQ(it->kind(), TranslatedFrame::kInterpretedFunction);

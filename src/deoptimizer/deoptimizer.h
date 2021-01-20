@@ -185,7 +185,7 @@ class TranslatedFrame {
   int GetValueCount();
 
   Kind kind() const { return kind_; }
-  BailoutId node_id() const { return node_id_; }
+  BytecodeOffset node_id() const { return node_id_; }
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
 
   // TODO(jgruber): Simplify/clarify the semantics of this field. The name
@@ -262,7 +262,7 @@ class TranslatedFrame {
   friend class Deoptimizer;
 
   // Constructor static methods.
-  static TranslatedFrame InterpretedFrame(BailoutId bytecode_offset,
+  static TranslatedFrame InterpretedFrame(BytecodeOffset bytecode_offset,
                                           SharedFunctionInfo shared_info,
                                           int height, int return_value_offset,
                                           int return_value_count);
@@ -270,18 +270,18 @@ class TranslatedFrame {
                                        SharedFunctionInfo shared_info);
   static TranslatedFrame ArgumentsAdaptorFrame(SharedFunctionInfo shared_info,
                                                int height);
-  static TranslatedFrame ConstructStubFrame(BailoutId bailout_id,
+  static TranslatedFrame ConstructStubFrame(BytecodeOffset bailout_id,
                                             SharedFunctionInfo shared_info,
                                             int height);
   static TranslatedFrame BuiltinContinuationFrame(
-      BailoutId bailout_id, SharedFunctionInfo shared_info, int height);
+      BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height);
   static TranslatedFrame JSToWasmBuiltinContinuationFrame(
-      BailoutId bailout_id, SharedFunctionInfo shared_info, int height,
+      BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height,
       base::Optional<wasm::ValueType::Kind> return_type);
   static TranslatedFrame JavaScriptBuiltinContinuationFrame(
-      BailoutId bailout_id, SharedFunctionInfo shared_info, int height);
+      BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height);
   static TranslatedFrame JavaScriptBuiltinContinuationWithCatchFrame(
-      BailoutId bailout_id, SharedFunctionInfo shared_info, int height);
+      BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height);
   static TranslatedFrame InvalidFrame() {
     return TranslatedFrame(kInvalid, SharedFunctionInfo());
   }
@@ -293,7 +293,7 @@ class TranslatedFrame {
                   int height = 0, int return_value_offset = 0,
                   int return_value_count = 0)
       : kind_(kind),
-        node_id_(BailoutId::None()),
+        node_id_(BytecodeOffset::None()),
         raw_shared_info_(shared_info),
         height_(height),
         return_value_offset_(return_value_offset),
@@ -304,7 +304,7 @@ class TranslatedFrame {
   void Handlify();
 
   Kind kind_;
-  BailoutId node_id_;
+  BytecodeOffset node_id_;
   SharedFunctionInfo raw_shared_info_;
   Handle<SharedFunctionInfo> shared_info_;
   int height_;
@@ -466,7 +466,7 @@ class Deoptimizer : public Malloced {
 
   static int ComputeSourcePositionFromBytecodeArray(Isolate* isolate,
                                                     SharedFunctionInfo shared,
-                                                    BailoutId node_id);
+                                                    BytecodeOffset node_id);
 
   static const char* MessageFor(DeoptimizeKind kind, bool reuse_code);
 
@@ -939,22 +939,21 @@ class Translation {
   int index() const { return index_; }
 
   // Commands.
-  void BeginInterpretedFrame(BailoutId bytecode_offset, int literal_id,
+  void BeginInterpretedFrame(BytecodeOffset bytecode_offset, int literal_id,
                              unsigned height, int return_value_offset,
                              int return_value_count);
   void BeginArgumentsAdaptorFrame(int literal_id, unsigned height);
-  void BeginConstructStubFrame(BailoutId bailout_id, int literal_id,
+  void BeginConstructStubFrame(BytecodeOffset bailout_id, int literal_id,
                                unsigned height);
-  void BeginBuiltinContinuationFrame(BailoutId bailout_id, int literal_id,
+  void BeginBuiltinContinuationFrame(BytecodeOffset bailout_id, int literal_id,
                                      unsigned height);
   void BeginJSToWasmBuiltinContinuationFrame(
-      BailoutId bailout_id, int literal_id, unsigned height,
+      BytecodeOffset bailout_id, int literal_id, unsigned height,
       base::Optional<wasm::ValueType::Kind> return_type);
-  void BeginJavaScriptBuiltinContinuationFrame(BailoutId bailout_id,
+  void BeginJavaScriptBuiltinContinuationFrame(BytecodeOffset bailout_id,
                                                int literal_id, unsigned height);
-  void BeginJavaScriptBuiltinContinuationWithCatchFrame(BailoutId bailout_id,
-                                                        int literal_id,
-                                                        unsigned height);
+  void BeginJavaScriptBuiltinContinuationWithCatchFrame(
+      BytecodeOffset bailout_id, int literal_id, unsigned height);
   void ArgumentsElements(CreateArgumentsType type);
   void ArgumentsLength();
   void BeginCapturedObject(int length);

@@ -42,7 +42,7 @@ using BytecodeGraphBuilderFlags = base::Flags<BytecodeGraphBuilderFlag>;
 void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
                             SharedFunctionInfoRef const& shared_info,
                             FeedbackCellRef const& feedback_cell,
-                            BailoutId osr_offset, JSGraph* jsgraph,
+                            BytecodeOffset osr_offset, JSGraph* jsgraph,
                             CallFrequency const& invocation_frequency,
                             SourcePositionTable* source_positions,
                             int inlining_id, CodeKind code_kind,

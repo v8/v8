@@ -2049,13 +2049,11 @@ struct PromiseCtorFrameStateParams {
 
 // Remnant of old-style JSCallReducer code. Could be ported to graph assembler,
 // but probably not worth the effort.
-FrameState CreateArtificialFrameState(Node* node, Node* outer_frame_state,
-                                      int parameter_count, BailoutId bailout_id,
-                                      FrameStateType frame_state_type,
-                                      const SharedFunctionInfoRef& shared,
-                                      Node* context,
-                                      CommonOperatorBuilder* common,
-                                      Graph* graph) {
+FrameState CreateArtificialFrameState(
+    Node* node, Node* outer_frame_state, int parameter_count,
+    BytecodeOffset bailout_id, FrameStateType frame_state_type,
+    const SharedFunctionInfoRef& shared, Node* context,
+    CommonOperatorBuilder* common, Graph* graph) {
   const FrameStateFunctionInfo* state_info =
       common->CreateFrameStateFunctionInfo(
           frame_state_type, parameter_count + 1, 0, shared.object());
@@ -2089,7 +2087,7 @@ FrameState PromiseConstructorFrameState(
   DCHECK_EQ(1, params.shared.internal_formal_parameter_count());
   return CreateArtificialFrameState(
       params.node_ptr, params.outer_frame_state, 1,
-      BailoutId::ConstructStubInvoke(), FrameStateType::kConstructStub,
+      BytecodeOffset::ConstructStubInvoke(), FrameStateType::kConstructStub,
       params.shared, params.context, common, graph);
 }
 
@@ -6740,7 +6738,7 @@ Reduction JSCallReducer::ReduceTypedArrayConstructor(
   // Insert a construct stub frame into the chain of frame states. This will
   // reconstruct the proper frame when deoptimizing within the constructor.
   frame_state = CreateArtificialFrameState(
-      node, frame_state, arity, BailoutId::ConstructStubInvoke(),
+      node, frame_state, arity, BytecodeOffset::ConstructStubInvoke(),
       FrameStateType::kConstructStub, shared, context, common(), graph());
 
   // This continuation just returns the newly created JSTypedArray. We

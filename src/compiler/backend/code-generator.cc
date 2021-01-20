@@ -1022,7 +1022,7 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
     data->SetOsrBytecodeOffset(Smi::FromInt(info_->osr_offset().ToInt()));
     data->SetOsrPcOffset(Smi::FromInt(osr_pc_offset_));
   } else {
-    BailoutId osr_offset = BailoutId::None();
+    BytecodeOffset osr_offset = BytecodeOffset::None();
     data->SetOsrBytecodeOffset(Smi::FromInt(osr_offset.ToInt()));
     data->SetOsrPcOffset(Smi::FromInt(-1));
   }
@@ -1164,7 +1164,7 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
     shared_info = info()->shared_info();
   }
 
-  const BailoutId bailout_id = descriptor->bailout_id();
+  const BytecodeOffset bailout_id = descriptor->bailout_id();
   const int shared_info_id =
       DefineDeoptimizationLiteral(DeoptimizationLiteral(shared_info));
   const unsigned int height =

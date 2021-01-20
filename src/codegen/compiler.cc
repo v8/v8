@@ -152,7 +152,7 @@ class CompilerTracer : public AllStatic {
 
   static void TraceOptimizedCodeCacheHit(Isolate* isolate,
                                          Handle<JSFunction> function,
-                                         BailoutId osr_offset,
+                                         BytecodeOffset osr_offset,
                                          CodeKind code_kind) {
     if (!FLAG_trace_opt) return;
     CodeTracer::Scope scope(isolate->GetCodeTracer());
@@ -834,7 +834,8 @@ bool FinalizeDeferredUnoptimizedCompilationJobs(
 }
 
 V8_WARN_UNUSED_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeCache(
-    Handle<JSFunction> function, BailoutId osr_offset, CodeKind code_kind) {
+    Handle<JSFunction> function, BytecodeOffset osr_offset,
+    CodeKind code_kind) {
   RuntimeCallTimerScope runtimeTimer(
       function->GetIsolate(),
       RuntimeCallCounterId::kCompileGetFromOptimizedCodeMap);
@@ -1064,10 +1065,10 @@ Handle<Code> ContinuationForConcurrentOptimization(
   return BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
 }
 
-MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
-                                   ConcurrencyMode mode, CodeKind code_kind,
-                                   BailoutId osr_offset = BailoutId::None(),
-                                   JavaScriptFrame* osr_frame = nullptr) {
+MaybeHandle<Code> GetOptimizedCode(
+    Handle<JSFunction> function, ConcurrencyMode mode, CodeKind code_kind,
+    BytecodeOffset osr_offset = BytecodeOffset::None(),
+    JavaScriptFrame* osr_frame = nullptr) {
   DCHECK(CodeKindIsOptimizedJSFunction(code_kind));
 
   Isolate* isolate = function->GetIsolate();
@@ -3029,7 +3030,7 @@ template Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
 
 // static
 MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(Handle<JSFunction> function,
-                                                   BailoutId osr_offset,
+                                                   BytecodeOffset osr_offset,
                                                    JavaScriptFrame* osr_frame) {
   DCHECK(!osr_offset.IsNone());
   DCHECK_NOT_NULL(osr_frame);

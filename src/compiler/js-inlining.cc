@@ -247,7 +247,7 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
 
 Node* JSInliner::CreateArtificialFrameState(Node* node, Node* outer_frame_state,
                                             int parameter_count,
-                                            BailoutId bailout_id,
+                                            BytecodeOffset bailout_id,
                                             FrameStateType frame_state_type,
                                             SharedFunctionInfoRef shared,
                                             Node* context) {
@@ -545,7 +545,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     {
       CallFrequency frequency = call.frequency();
       BuildGraphFromBytecode(broker(), zone(), *shared_info, feedback_cell,
-                             BailoutId::None(), jsgraph(), frequency,
+                             BytecodeOffset::None(), jsgraph(), frequency,
                              source_positions_, inlining_id, info_->code_kind(),
                              flags, &info_->tick_counter());
     }
@@ -598,7 +598,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       Control control = n.control();
       Node* frame_state_inside = CreateArtificialFrameState(
           node, frame_state, n.ArgumentCount(),
-          BailoutId::ConstructStubCreate(), FrameStateType::kConstructStub,
+          BytecodeOffset::ConstructStubCreate(), FrameStateType::kConstructStub,
           *shared_info, context);
       Node* create =
           graph()->NewNode(javascript()->Create(), call.target(), new_target,
@@ -652,8 +652,9 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     // Insert a construct stub frame into the chain of frame states. This will
     // reconstruct the proper frame when deoptimizing within the constructor.
     frame_state = CreateArtificialFrameState(
-        node, frame_state, n.ArgumentCount(), BailoutId::ConstructStubInvoke(),
-        FrameStateType::kConstructStub, *shared_info, context);
+        node, frame_state, n.ArgumentCount(),
+        BytecodeOffset::ConstructStubInvoke(), FrameStateType::kConstructStub,
+        *shared_info, context);
   }
 
   // Insert a JSConvertReceiver node for sloppy callees. Note that the context
@@ -682,7 +683,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   DCHECK_EQ(parameter_count, start->op()->ValueOutputCount() - 5);
   if (call.argument_count() != parameter_count) {
     frame_state = CreateArtificialFrameState(
-        node, frame_state, call.argument_count(), BailoutId::None(),
+        node, frame_state, call.argument_count(), BytecodeOffset::None(),
         FrameStateType::kArgumentsAdaptor, *shared_info);
   }
 

@@ -11,7 +11,7 @@
 namespace v8 {
 namespace internal {
 
-class BailoutId;
+class BytecodeOffset;
 class OptimizedCompilationInfo;
 
 namespace compiler {
@@ -64,7 +64,8 @@ class JSInliner final : public AdvancedReducer {
   FeedbackCellRef DetermineCallContext(Node* node, Node** context_out);
 
   Node* CreateArtificialFrameState(Node* node, Node* outer_frame_state,
-                                   int parameter_count, BailoutId bailout_id,
+                                   int parameter_count,
+                                   BytecodeOffset bailout_id,
                                    FrameStateType frame_state_type,
                                    SharedFunctionInfoRef shared,
                                    Node* context = nullptr);

@@ -890,9 +890,9 @@ class DeoptimizationData : public FixedArray {
 
 #undef DECL_ENTRY_ACCESSORS
 
-  inline BailoutId BytecodeOffset(int i);
+  inline BytecodeOffset GetBytecodeOffset(int i);
 
-  inline void SetBytecodeOffset(int i, BailoutId value);
+  inline void SetBytecodeOffset(int i, BytecodeOffset value);
 
   inline int DeoptCount();
 

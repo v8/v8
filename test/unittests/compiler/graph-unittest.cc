@@ -96,8 +96,8 @@ Node* GraphTest::EmptyFrameState() {
           FrameStateType::kInterpretedFunction, 0, 0,
           Handle<SharedFunctionInfo>());
   return graph()->NewNode(
-      common()->FrameState(BailoutId::None(), OutputFrameStateCombine::Ignore(),
-                           function_info),
+      common()->FrameState(BytecodeOffset::None(),
+                           OutputFrameStateCombine::Ignore(), function_info),
       state_values, state_values, state_values, NumberConstant(0),
       UndefinedConstant(), graph()->start());
 }

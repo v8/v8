@@ -123,7 +123,7 @@ FrameState CreateBuiltinContinuationFrameStateCommon(
       common->StateValues(parameter_count, SparseInputMask::Dense());
   Node* params_node = graph->NewNode(op_param, parameter_count, parameters);
 
-  BailoutId bailout_id = Builtins::GetContinuationBailoutId(name);
+  BytecodeOffset bailout_id = Builtins::GetContinuationBytecodeOffset(name);
   const FrameStateFunctionInfo* state_info =
       common->CreateFrameStateFunctionInfo(frame_type, parameter_count, 0,
                                            shared, signature);

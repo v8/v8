@@ -543,7 +543,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* ObjectState(uint32_t object_id, int pointer_slots);
   const Operator* TypedObjectState(uint32_t object_id,
                                    const ZoneVector<MachineType>* types);
-  const Operator* FrameState(BailoutId bailout_id,
+  const Operator* FrameState(BytecodeOffset bailout_id,
                              OutputFrameStateCombine state_combine,
                              const FrameStateFunctionInfo* function_info);
   const Operator* Call(const CallDescriptor* call_descriptor);

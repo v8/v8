@@ -333,7 +333,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
   StreamBuilder m(this, MachineType::AnyTagged(), MachineType::AnyTagged(),
                   MachineType::AnyTagged(), MachineType::AnyTagged());
 
-  BailoutId bailout_id(42);
+  BytecodeOffset bailout_id(42);
 
   Node* function_node = m.Parameter(0);
   Node* receiver = m.Parameter(1);
@@ -389,7 +389,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
   StreamBuilder m(this, MachineType::AnyTagged(), MachineType::AnyTagged(),
                   MachineType::AnyTagged(), MachineType::AnyTagged());
 
-  BailoutId bailout_id_before(42);
+  BytecodeOffset bailout_id_before(42);
 
   // Some arguments for the call node.
   Node* function_node = m.Parameter(0);
@@ -481,8 +481,8 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
   StreamBuilder m(this, MachineType::AnyTagged(), MachineType::AnyTagged(),
                   MachineType::AnyTagged(), MachineType::AnyTagged());
 
-  BailoutId bailout_id_before(42);
-  BailoutId bailout_id_parent(62);
+  BytecodeOffset bailout_id_before(42);
+  BytecodeOffset bailout_id_parent(62);
 
   // Some arguments for the call node.
   Node* function_node = m.Parameter(0);

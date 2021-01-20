@@ -777,11 +777,11 @@ DEFINE_DEOPT_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(TranslationIndex, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(Pc, Smi)
 
-BailoutId DeoptimizationData::BytecodeOffset(int i) {
-  return BailoutId(BytecodeOffsetRaw(i).value());
+BytecodeOffset DeoptimizationData::GetBytecodeOffset(int i) {
+  return BytecodeOffset(BytecodeOffsetRaw(i).value());
 }
 
-void DeoptimizationData::SetBytecodeOffset(int i, BailoutId value) {
+void DeoptimizationData::SetBytecodeOffset(int i, BytecodeOffset value) {
   SetBytecodeOffsetRaw(i, Smi::FromInt(value.ToInt()));
 }
 

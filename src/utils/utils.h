@@ -569,29 +569,34 @@ class FeedbackSlot {
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, FeedbackSlot);
 
-class BailoutId {
+class BytecodeOffset {
  public:
-  explicit BailoutId(int id) : id_(id) {}
+  explicit BytecodeOffset(int id) : id_(id) {}
   int ToInt() const { return id_; }
 
-  static BailoutId None() { return BailoutId(kNoneId); }
+  static BytecodeOffset None() { return BytecodeOffset(kNoneId); }
 
   // Special bailout id support for deopting into the {JSConstructStub} stub.
   // The following hard-coded deoptimization points are supported by the stub:
   //  - {ConstructStubCreate} maps to {construct_stub_create_deopt_pc_offset}.
   //  - {ConstructStubInvoke} maps to {construct_stub_invoke_deopt_pc_offset}.
-  static BailoutId ConstructStubCreate() { return BailoutId(1); }
-  static BailoutId ConstructStubInvoke() { return BailoutId(2); }
+  static BytecodeOffset ConstructStubCreate() { return BytecodeOffset(1); }
+  static BytecodeOffset ConstructStubInvoke() { return BytecodeOffset(2); }
   bool IsValidForConstructStub() const {
     return id_ == ConstructStubCreate().ToInt() ||
            id_ == ConstructStubInvoke().ToInt();
   }
 
   bool IsNone() const { return id_ == kNoneId; }
-  bool operator==(const BailoutId& other) const { return id_ == other.id_; }
-  bool operator!=(const BailoutId& other) const { return id_ != other.id_; }
-  friend size_t hash_value(BailoutId);
-  V8_EXPORT_PRIVATE friend std::ostream& operator<<(std::ostream&, BailoutId);
+  bool operator==(const BytecodeOffset& other) const {
+    return id_ == other.id_;
+  }
+  bool operator!=(const BytecodeOffset& other) const {
+    return id_ != other.id_;
+  }
+  friend size_t hash_value(BytecodeOffset);
+  V8_EXPORT_PRIVATE friend std::ostream& operator<<(std::ostream&,
+                                                    BytecodeOffset);
 
  private:
   friend class Builtins;
@@ -600,7 +605,7 @@ class BailoutId {
 
   // Using 0 could disguise errors.
   // Builtin continuations bailout ids start here. If you need to add a
-  // non-builtin BailoutId, add it before this id so that this Id has the
+  // non-builtin BytecodeOffset, add it before this id so that this Id has the
   // highest number.
   static const int kFirstBuiltinContinuationId = 1;
 

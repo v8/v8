@@ -896,7 +896,7 @@ void Deoptimizer::DoComputeOutputFrames() {
   CHECK_GT(static_cast<uintptr_t>(caller_frame_top_),
            stack_guard->real_jslimit());
 
-  BailoutId node_id = input_data.BytecodeOffset(bailout_id_);
+  BytecodeOffset node_id = input_data.GetBytecodeOffset(bailout_id_);
   ByteArray translations = input_data.TranslationByteArray();
   unsigned translation_index = input_data.TranslationIndex(bailout_id_).value();
 
@@ -1373,7 +1373,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
 
   Builtins* builtins = isolate_->builtins();
   Code construct_stub = builtins->builtin(Builtins::kJSConstructStubGeneric);
-  BailoutId bailout_id = translated_frame->node_id();
+  BytecodeOffset bailout_id = translated_frame->node_id();
 
   const int parameters_count = translated_frame->height();
   ConstructStubFrameInfo frame_info =
@@ -1386,7 +1386,8 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
            "  translating construct stub => bailout_id=%d (%s), "
            "variable_frame_size=%d, frame_size=%d\n",
            bailout_id.ToInt(),
-           bailout_id == BailoutId::ConstructStubCreate() ? "create" : "invoke",
+           bailout_id == BytecodeOffset::ConstructStubCreate() ? "create"
+                                                               : "invoke",
            frame_info.frame_size_in_bytes_without_fixed(), output_frame_size);
   }
 
@@ -1464,9 +1465,9 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
 
   frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
 
-  CHECK(bailout_id == BailoutId::ConstructStubCreate() ||
-        bailout_id == BailoutId::ConstructStubInvoke());
-  const char* debug_hint = bailout_id == BailoutId::ConstructStubCreate()
+  CHECK(bailout_id == BytecodeOffset::ConstructStubCreate() ||
+        bailout_id == BytecodeOffset::ConstructStubInvoke());
+  const char* debug_hint = bailout_id == BytecodeOffset::ConstructStubCreate()
                                ? "new target\n"
                                : "allocated receiver\n";
   frame_writer.PushTranslatedValue(receiver_iterator, debug_hint);
@@ -1488,7 +1489,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   DCHECK(bailout_id.IsValidForConstructStub());
   Address start = construct_stub.InstructionStart();
   const int pc_offset =
-      bailout_id == BailoutId::ConstructStubCreate()
+      bailout_id == BytecodeOffset::ConstructStubCreate()
           ? isolate_->heap()->construct_stub_create_deopt_pc_offset().value()
           : isolate_->heap()->construct_stub_invoke_deopt_pc_offset().value();
   intptr_t pc_value = static_cast<intptr_t>(start + pc_offset);
@@ -1687,8 +1688,9 @@ void Deoptimizer::DoComputeBuiltinContinuation(
 
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
 
-  const BailoutId bailout_id = translated_frame->node_id();
-  Builtins::Name builtin_name = Builtins::GetBuiltinFromBailoutId(bailout_id);
+  const BytecodeOffset bailout_id = translated_frame->node_id();
+  Builtins::Name builtin_name =
+      Builtins::GetBuiltinFromBytecodeOffset(bailout_id);
   CallInterfaceDescriptor continuation_descriptor =
       Builtins::CallInterfaceDescriptorFor(builtin_name);
 
@@ -2121,7 +2123,7 @@ Handle<ByteArray> TranslationBuffer::CreateByteArray(Factory* factory) {
   return result;
 }
 
-void Translation::BeginBuiltinContinuationFrame(BailoutId bailout_id,
+void Translation::BeginBuiltinContinuationFrame(BytecodeOffset bailout_id,
                                                 int literal_id,
                                                 unsigned height) {
   buffer_->Add(BUILTIN_CONTINUATION_FRAME);
@@ -2131,7 +2133,7 @@ void Translation::BeginBuiltinContinuationFrame(BailoutId bailout_id,
 }
 
 void Translation::BeginJSToWasmBuiltinContinuationFrame(
-    BailoutId bailout_id, int literal_id, unsigned height,
+    BytecodeOffset bailout_id, int literal_id, unsigned height,
     base::Optional<wasm::ValueType::Kind> return_type) {
   buffer_->Add(JS_TO_WASM_BUILTIN_CONTINUATION_FRAME);
   buffer_->Add(bailout_id.ToInt());
@@ -2140,9 +2142,8 @@ void Translation::BeginJSToWasmBuiltinContinuationFrame(
   buffer_->Add(EncodeWasmReturnType(return_type));
 }
 
-void Translation::BeginJavaScriptBuiltinContinuationFrame(BailoutId bailout_id,
-                                                          int literal_id,
-                                                          unsigned height) {
+void Translation::BeginJavaScriptBuiltinContinuationFrame(
+    BytecodeOffset bailout_id, int literal_id, unsigned height) {
   buffer_->Add(JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME);
   buffer_->Add(bailout_id.ToInt());
   buffer_->Add(literal_id);
@@ -2150,15 +2151,15 @@ void Translation::BeginJavaScriptBuiltinContinuationFrame(BailoutId bailout_id,
 }
 
 void Translation::BeginJavaScriptBuiltinContinuationWithCatchFrame(
-    BailoutId bailout_id, int literal_id, unsigned height) {
+    BytecodeOffset bailout_id, int literal_id, unsigned height) {
   buffer_->Add(JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME);
   buffer_->Add(bailout_id.ToInt());
   buffer_->Add(literal_id);
   buffer_->Add(height);
 }
 
-void Translation::BeginConstructStubFrame(BailoutId bailout_id, int literal_id,
-                                          unsigned height) {
+void Translation::BeginConstructStubFrame(BytecodeOffset bailout_id,
+                                          int literal_id, unsigned height) {
   buffer_->Add(CONSTRUCT_STUB_FRAME);
   buffer_->Add(bailout_id.ToInt());
   buffer_->Add(literal_id);
@@ -2171,7 +2172,7 @@ void Translation::BeginArgumentsAdaptorFrame(int literal_id, unsigned height) {
   buffer_->Add(height);
 }
 
-void Translation::BeginInterpretedFrame(BailoutId bytecode_offset,
+void Translation::BeginInterpretedFrame(BytecodeOffset bytecode_offset,
                                         int literal_id, unsigned height,
                                         int return_value_offset,
                                         int return_value_count) {
@@ -2507,7 +2508,7 @@ Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code code, Address pc) {
 
 // static
 int Deoptimizer::ComputeSourcePositionFromBytecodeArray(
-    Isolate* isolate, SharedFunctionInfo shared, BailoutId node_id) {
+    Isolate* isolate, SharedFunctionInfo shared, BytecodeOffset node_id) {
   DCHECK(shared.HasBytecodeArray());
   return AbstractCode::cast(shared.GetBytecodeArray(isolate))
       .SourcePosition(node_id.ToInt());
@@ -2862,7 +2863,7 @@ void TranslatedValue::Handlify() {
 }
 
 TranslatedFrame TranslatedFrame::InterpretedFrame(
-    BailoutId bytecode_offset, SharedFunctionInfo shared_info, int height,
+    BytecodeOffset bytecode_offset, SharedFunctionInfo shared_info, int height,
     int return_value_offset, int return_value_count) {
   TranslatedFrame frame(kInterpretedFunction, shared_info, height,
                         return_value_offset, return_value_count);
@@ -2876,21 +2877,21 @@ TranslatedFrame TranslatedFrame::ArgumentsAdaptorFrame(
 }
 
 TranslatedFrame TranslatedFrame::ConstructStubFrame(
-    BailoutId bailout_id, SharedFunctionInfo shared_info, int height) {
+    BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height) {
   TranslatedFrame frame(kConstructStub, shared_info, height);
   frame.node_id_ = bailout_id;
   return frame;
 }
 
 TranslatedFrame TranslatedFrame::BuiltinContinuationFrame(
-    BailoutId bailout_id, SharedFunctionInfo shared_info, int height) {
+    BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height) {
   TranslatedFrame frame(kBuiltinContinuation, shared_info, height);
   frame.node_id_ = bailout_id;
   return frame;
 }
 
 TranslatedFrame TranslatedFrame::JSToWasmBuiltinContinuationFrame(
-    BailoutId bailout_id, SharedFunctionInfo shared_info, int height,
+    BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height,
     base::Optional<wasm::ValueType::Kind> return_type) {
   TranslatedFrame frame(kJSToWasmBuiltinContinuation, shared_info, height);
   frame.node_id_ = bailout_id;
@@ -2899,14 +2900,14 @@ TranslatedFrame TranslatedFrame::JSToWasmBuiltinContinuationFrame(
 }
 
 TranslatedFrame TranslatedFrame::JavaScriptBuiltinContinuationFrame(
-    BailoutId bailout_id, SharedFunctionInfo shared_info, int height) {
+    BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height) {
   TranslatedFrame frame(kJavaScriptBuiltinContinuation, shared_info, height);
   frame.node_id_ = bailout_id;
   return frame;
 }
 
 TranslatedFrame TranslatedFrame::JavaScriptBuiltinContinuationWithCatchFrame(
-    BailoutId bailout_id, SharedFunctionInfo shared_info, int height) {
+    BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height) {
   TranslatedFrame frame(kJavaScriptBuiltinContinuationWithCatch, shared_info,
                         height);
   frame.node_id_ = bailout_id;
@@ -2964,7 +2965,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       static_cast<Translation::Opcode>(iterator->Next());
   switch (opcode) {
     case Translation::INTERPRETED_FRAME: {
-      BailoutId bytecode_offset = BailoutId(iterator->Next());
+      BytecodeOffset bytecode_offset = BytecodeOffset(iterator->Next());
       SharedFunctionInfo shared_info =
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();
@@ -2998,7 +2999,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     }
 
     case Translation::CONSTRUCT_STUB_FRAME: {
-      BailoutId bailout_id = BailoutId(iterator->Next());
+      BytecodeOffset bailout_id = BytecodeOffset(iterator->Next());
       SharedFunctionInfo shared_info =
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();
@@ -3013,7 +3014,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     }
 
     case Translation::BUILTIN_CONTINUATION_FRAME: {
-      BailoutId bailout_id = BailoutId(iterator->Next());
+      BytecodeOffset bailout_id = BytecodeOffset(iterator->Next());
       SharedFunctionInfo shared_info =
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();
@@ -3029,7 +3030,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     }
 
     case Translation::JS_TO_WASM_BUILTIN_CONTINUATION_FRAME: {
-      BailoutId bailout_id = BailoutId(iterator->Next());
+      BytecodeOffset bailout_id = BytecodeOffset(iterator->Next());
       SharedFunctionInfo shared_info =
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();
@@ -3049,7 +3050,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     }
 
     case Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME: {
-      BailoutId bailout_id = BailoutId(iterator->Next());
+      BytecodeOffset bailout_id = BytecodeOffset(iterator->Next());
       SharedFunctionInfo shared_info =
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();
@@ -3064,7 +3065,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
           bailout_id, shared_info, height);
     }
     case Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME: {
-      BailoutId bailout_id = BailoutId(iterator->Next());
+      BytecodeOffset bailout_id = BytecodeOffset(iterator->Next());
       SharedFunctionInfo shared_info =
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();

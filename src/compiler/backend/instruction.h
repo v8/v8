@@ -1300,7 +1300,8 @@ class StateValueList {
 
 class FrameStateDescriptor : public ZoneObject {
  public:
-  FrameStateDescriptor(Zone* zone, FrameStateType type, BailoutId bailout_id,
+  FrameStateDescriptor(Zone* zone, FrameStateType type,
+                       BytecodeOffset bailout_id,
                        OutputFrameStateCombine state_combine,
                        size_t parameters_count, size_t locals_count,
                        size_t stack_count,
@@ -1308,7 +1309,7 @@ class FrameStateDescriptor : public ZoneObject {
                        FrameStateDescriptor* outer_state = nullptr);
 
   FrameStateType type() const { return type_; }
-  BailoutId bailout_id() const { return bailout_id_; }
+  BytecodeOffset bailout_id() const { return bailout_id_; }
   OutputFrameStateCombine state_combine() const { return frame_state_combine_; }
   size_t parameters_count() const { return parameters_count_; }
   size_t locals_count() const { return locals_count_; }
@@ -1347,7 +1348,7 @@ class FrameStateDescriptor : public ZoneObject {
 
  private:
   FrameStateType type_;
-  BailoutId bailout_id_;
+  BytecodeOffset bailout_id_;
   OutputFrameStateCombine frame_state_combine_;
   const size_t parameters_count_;
   const size_t locals_count_;
@@ -1361,7 +1362,7 @@ class FrameStateDescriptor : public ZoneObject {
 class JSToWasmFrameStateDescriptor : public FrameStateDescriptor {
  public:
   JSToWasmFrameStateDescriptor(Zone* zone, FrameStateType type,
-                               BailoutId bailout_id,
+                               BytecodeOffset bailout_id,
                                OutputFrameStateCombine state_combine,
                                size_t parameters_count, size_t locals_count,
                                size_t stack_count,

@@ -232,7 +232,8 @@ bool Code::CanDeoptAt(Address pc) {
   for (int i = 0; i < deopt_data.DeoptCount(); i++) {
     if (deopt_data.Pc(i).value() == -1) continue;
     Address address = code_start_address + deopt_data.Pc(i).value();
-    if (address == pc && deopt_data.BytecodeOffset(i) != BailoutId::None()) {
+    if (address == pc &&
+        deopt_data.GetBytecodeOffset(i) != BytecodeOffset::None()) {
       return true;
     }
   }
@@ -457,7 +458,7 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
   }
   for (int i = 0; i < deopt_count; i++) {
     os << std::setw(6) << i << "  " << std::setw(15)
-       << BytecodeOffset(i).ToInt() << "  " << std::setw(4);
+       << GetBytecodeOffset(i).ToInt() << "  " << std::setw(4);
     print_pc(os, Pc(i).value());
     os << std::setw(2);
 

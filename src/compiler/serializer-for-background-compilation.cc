@@ -382,7 +382,7 @@ class SerializerForBackgroundCompilation {
   SerializerForBackgroundCompilation(
       ZoneStats* zone_stats, JSHeapBroker* broker,
       CompilationDependencies* dependencies, Handle<JSFunction> closure,
-      SerializerForBackgroundCompilationFlags flags, BailoutId osr_offset);
+      SerializerForBackgroundCompilationFlags flags, BytecodeOffset osr_offset);
   Hints Run();  // NOTE: Returns empty for an
                 // already-serialized function.
 
@@ -555,7 +555,7 @@ class SerializerForBackgroundCompilation {
   Zone* zone() { return zone_scope_.zone(); }
   Environment* environment() const { return environment_; }
   SerializerForBackgroundCompilationFlags flags() const { return flags_; }
-  BailoutId osr_offset() const { return osr_offset_; }
+  BytecodeOffset osr_offset() const { return osr_offset_; }
   const BytecodeAnalysis& bytecode_analysis() { return *bytecode_analysis_; }
 
   JSHeapBroker* const broker_;
@@ -565,7 +565,7 @@ class SerializerForBackgroundCompilation {
   // Instead of storing the virtual_closure here, we could extract it from the
   // {closure_hints_} but that would be cumbersome.
   VirtualClosure const function_;
-  BailoutId const osr_offset_;
+  BytecodeOffset const osr_offset_;
   base::Optional<BytecodeAnalysis> bytecode_analysis_;
   ZoneUnorderedMap<int, Environment*> jump_target_environments_;
   Environment* const environment_;
@@ -579,7 +579,7 @@ class SerializerForBackgroundCompilation {
 void RunSerializerForBackgroundCompilation(
     ZoneStats* zone_stats, JSHeapBroker* broker,
     CompilationDependencies* dependencies, Handle<JSFunction> closure,
-    SerializerForBackgroundCompilationFlags flags, BailoutId osr_offset) {
+    SerializerForBackgroundCompilationFlags flags, BytecodeOffset osr_offset) {
   SerializerForBackgroundCompilation serializer(
       zone_stats, broker, dependencies, closure, flags, osr_offset);
   serializer.Run();
@@ -1056,7 +1056,7 @@ std::ostream& operator<<(
 SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
     ZoneStats* zone_stats, JSHeapBroker* broker,
     CompilationDependencies* dependencies, Handle<JSFunction> closure,
-    SerializerForBackgroundCompilationFlags flags, BailoutId osr_offset)
+    SerializerForBackgroundCompilationFlags flags, BytecodeOffset osr_offset)
     : broker_(broker),
       dependencies_(dependencies),
       zone_scope_(zone_stats, ZONE_NAME),
@@ -1087,7 +1087,7 @@ SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
       zone_scope_(zone_stats, ZONE_NAME),
       flags_(flags),
       function_(function.virtual_closure()),
-      osr_offset_(BailoutId::None()),
+      osr_offset_(BytecodeOffset::None()),
       jump_target_environments_(zone()),
       environment_(zone()->New<Environment>(zone(), broker_->isolate(),
                                             function, new_target, arguments,

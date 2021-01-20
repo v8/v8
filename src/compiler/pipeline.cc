@@ -1037,7 +1037,7 @@ class PipelineCompilationJob final : public OptimizedCompilationJob {
  public:
   PipelineCompilationJob(Isolate* isolate,
                          Handle<SharedFunctionInfo> shared_info,
-                         Handle<JSFunction> function, BailoutId osr_offset,
+                         Handle<JSFunction> function, BytecodeOffset osr_offset,
                          JavaScriptFrame* osr_frame, CodeKind code_kind);
   ~PipelineCompilationJob() final;
   PipelineCompilationJob(const PipelineCompilationJob&) = delete;
@@ -1075,7 +1075,7 @@ bool ShouldUseConcurrentInlining(CodeKind code_kind, bool is_osr) {
 
 PipelineCompilationJob::PipelineCompilationJob(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
-    Handle<JSFunction> function, BailoutId osr_offset,
+    Handle<JSFunction> function, BytecodeOffset osr_offset,
     JavaScriptFrame* osr_frame, CodeKind code_kind)
     // Note that the OptimizedCompilationInfo is not initialized at the time
     // we pass it to the CompilationJob constructor, but it is not
@@ -3175,7 +3175,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
 // static
 std::unique_ptr<OptimizedCompilationJob> Pipeline::NewCompilationJob(
     Isolate* isolate, Handle<JSFunction> function, CodeKind code_kind,
-    bool has_script, BailoutId osr_offset, JavaScriptFrame* osr_frame) {
+    bool has_script, BytecodeOffset osr_offset, JavaScriptFrame* osr_frame) {
   Handle<SharedFunctionInfo> shared =
       handle(function->shared(), function->GetIsolate());
   return std::make_unique<PipelineCompilationJob>(

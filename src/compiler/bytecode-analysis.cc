@@ -79,7 +79,7 @@ ResumeJumpTarget ResumeJumpTarget::AtLoopHeader(int loop_header_offset,
 }
 
 BytecodeAnalysis::BytecodeAnalysis(Handle<BytecodeArray> bytecode_array,
-                                   Zone* zone, BailoutId osr_bailout_id,
+                                   Zone* zone, BytecodeOffset osr_bailout_id,
                                    bool analyze_liveness)
     : bytecode_array_(bytecode_array),
       zone_(zone),

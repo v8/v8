@@ -54,7 +54,7 @@ class JSCreateLoweringTest : public TypedGraphTest {
         graph()->NewNode(common()->StateValues(0, SparseInputMask::Dense()));
     return graph()->NewNode(
         common()->FrameState(
-            BailoutId::None(), OutputFrameStateCombine::Ignore(),
+            BytecodeOffset::None(), OutputFrameStateCombine::Ignore(),
             common()->CreateFrameStateFunctionInfo(
                 FrameStateType::kInterpretedFunction, 1, 0, shared)),
         state_values, state_values, state_values, NumberConstant(0),

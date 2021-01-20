@@ -38,7 +38,7 @@ class BytecodeGraphBuilder {
                        NativeContextRef const& native_context,
                        SharedFunctionInfoRef const& shared_info,
                        FeedbackCellRef const& feedback_cell,
-                       BailoutId osr_offset, JSGraph* jsgraph,
+                       BytecodeOffset osr_offset, JSGraph* jsgraph,
                        CallFrequency const& invocation_frequency,
                        SourcePositionTable* source_positions, int inlining_id,
                        CodeKind code_kind, BytecodeGraphBuilderFlags flags,
@@ -210,7 +210,7 @@ class BytecodeGraphBuilder {
   //
   // The low-level chokepoint - use the variants below instead.
   void PrepareFrameState(Node* node, OutputFrameStateCombine combine,
-                         BailoutId bailout_id,
+                         BytecodeOffset bailout_id,
                          const BytecodeLivenessState* liveness);
 
   // In the common case, frame states are conceptually "after" a given
@@ -218,7 +218,7 @@ class BytecodeGraphBuilder {
   void PrepareFrameState(Node* node, OutputFrameStateCombine combine) {
     if (!OperatorProperties::HasFrameStateInput(node->op())) return;
     const int offset = bytecode_iterator().current_offset();
-    return PrepareFrameState(node, combine, BailoutId(offset),
+    return PrepareFrameState(node, combine, BytecodeOffset(offset),
                              bytecode_analysis().GetOutLivenessFor(offset));
   }
 
@@ -232,7 +232,7 @@ class BytecodeGraphBuilder {
     DCHECK(OperatorProperties::HasFrameStateInput(node->op()));
     DCHECK(node->opcode() == IrOpcode::kJSStackCheck);
     return PrepareFrameState(node, OutputFrameStateCombine::Ignore(),
-                             BailoutId(kFunctionEntryBytecodeOffset),
+                             BytecodeOffset(kFunctionEntryBytecodeOffset),
                              bytecode_analysis().GetInLivenessFor(0));
   }
 
@@ -252,7 +252,7 @@ class BytecodeGraphBuilder {
     DCHECK(node->opcode() == IrOpcode::kJSStackCheck);
     const int offset = bytecode_analysis().osr_bailout_id().ToInt();
     return PrepareFrameState(node, OutputFrameStateCombine::Ignore(),
-                             BailoutId(offset),
+                             BytecodeOffset(offset),
                              bytecode_analysis().GetOutLivenessFor(offset));
   }
 
@@ -578,7 +578,8 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
 
   // Preserve a checkpoint of the environment for the IR graph. Any
   // further mutation of the environment will not affect checkpoints.
-  Node* Checkpoint(BailoutId bytecode_offset, OutputFrameStateCombine combine,
+  Node* Checkpoint(BytecodeOffset bytecode_offset,
+                   OutputFrameStateCombine combine,
                    const BytecodeLivenessState* liveness);
 
   // Control dependency tracked by this environment.
@@ -1001,7 +1002,7 @@ Node* BytecodeGraphBuilder::Environment::GetStateValuesFromCache(
 }
 
 Node* BytecodeGraphBuilder::Environment::Checkpoint(
-    BailoutId bailout_id, OutputFrameStateCombine combine,
+    BytecodeOffset bailout_id, OutputFrameStateCombine combine,
     const BytecodeLivenessState* liveness) {
   if (parameter_count() == register_count()) {
     // Re-use the state-value cache if the number of local registers happens
@@ -1037,7 +1038,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
     JSHeapBroker* broker, Zone* local_zone,
     NativeContextRef const& native_context,
     SharedFunctionInfoRef const& shared_info,
-    FeedbackCellRef const& feedback_cell, BailoutId osr_offset,
+    FeedbackCellRef const& feedback_cell, BytecodeOffset osr_offset,
     JSGraph* jsgraph, CallFrequency const& invocation_frequency,
     SourcePositionTable* source_positions, int inlining_id, CodeKind code_kind,
     BytecodeGraphBuilderFlags flags, TickCounter* tick_counter)
@@ -1260,7 +1261,7 @@ void BytecodeGraphBuilder::PrepareEagerCheckpoint() {
     DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
     DCHECK_EQ(IrOpcode::kDead,
               NodeProperties::GetFrameStateInput(node)->opcode());
-    BailoutId bailout_id(bytecode_iterator().current_offset());
+    BytecodeOffset bailout_id(bytecode_iterator().current_offset());
 
     const BytecodeLivenessState* liveness_before =
         bytecode_analysis().GetInLivenessFor(
@@ -1287,7 +1288,7 @@ void BytecodeGraphBuilder::PrepareEagerCheckpoint() {
 }
 
 void BytecodeGraphBuilder::PrepareFrameState(
-    Node* node, OutputFrameStateCombine combine, BailoutId bailout_id,
+    Node* node, OutputFrameStateCombine combine, BytecodeOffset bailout_id,
     const BytecodeLivenessState* liveness) {
   if (OperatorProperties::HasFrameStateInput(node->op())) {
     // Add the frame state for after the operation. The node in question has
@@ -4553,7 +4554,7 @@ void BytecodeGraphBuilder::UpdateSourcePosition(int offset) {
 void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
                             SharedFunctionInfoRef const& shared_info,
                             FeedbackCellRef const& feedback_cell,
-                            BailoutId osr_offset, JSGraph* jsgraph,
+                            BytecodeOffset osr_offset, JSGraph* jsgraph,
                             CallFrequency const& invocation_frequency,
                             SourcePositionTable* source_positions,
                             int inlining_id, CodeKind code_kind,
