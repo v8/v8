@@ -63,12 +63,10 @@ class JSInliner final : public AdvancedReducer {
   base::Optional<SharedFunctionInfoRef> DetermineCallTarget(Node* node);
   FeedbackCellRef DetermineCallContext(Node* node, Node** context_out);
 
-  Node* CreateArtificialFrameState(Node* node, Node* outer_frame_state,
-                                   int parameter_count,
-                                   BytecodeOffset bailout_id,
-                                   FrameStateType frame_state_type,
-                                   SharedFunctionInfoRef shared,
-                                   Node* context = nullptr);
+  FrameState CreateArtificialFrameState(
+      Node* node, FrameState outer_frame_state, int parameter_count,
+      BytecodeOffset bailout_id, FrameStateType frame_state_type,
+      SharedFunctionInfoRef shared, Node* context = nullptr);
 
   Reduction InlineCall(Node* call, Node* new_target, Node* context,
                        Node* frame_state, Node* start, Node* end,

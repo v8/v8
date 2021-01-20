@@ -536,28 +536,24 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CHECK_EQ(0, control_count);
       CHECK_EQ(0, effect_count);
       CHECK_EQ(6, input_count);
-      // Check that the parameters and registers are kStateValues or
-      // kTypedStateValues.
-      for (int i = 0; i < 2; ++i) {
-        CHECK(NodeProperties::GetValueInput(node, i)->opcode() ==
-                  IrOpcode::kStateValues ||
-              NodeProperties::GetValueInput(node, i)->opcode() ==
-                  IrOpcode::kTypedStateValues);
-      }
+
+      FrameState state{node};
+      CHECK(state.parameters()->opcode() == IrOpcode::kStateValues ||
+            state.parameters()->opcode() == IrOpcode::kTypedStateValues);
+      CHECK(state.locals()->opcode() == IrOpcode::kStateValues ||
+            state.locals()->opcode() == IrOpcode::kTypedStateValues);
 
       // Checks that the state input is empty for all but kInterpretedFunction
       // frames, where it should have size one.
       {
-        const FrameStateInfo& state_info = FrameStateInfoOf(node->op());
-        const FrameStateFunctionInfo* func_info = state_info.function_info();
+        const FrameStateFunctionInfo* func_info =
+            state.frame_state_info().function_info();
         CHECK_EQ(func_info->parameter_count(),
-                 StateValuesAccess(node->InputAt(kFrameStateParametersInput))
-                     .size());
-        CHECK_EQ(
-            func_info->local_count(),
-            StateValuesAccess(node->InputAt(kFrameStateLocalsInput)).size());
+                 StateValuesAccess(state.parameters()).size());
+        CHECK_EQ(func_info->local_count(),
+                 StateValuesAccess(state.locals()).size());
 
-        Node* accumulator = node->InputAt(kFrameStateStackInput);
+        Node* accumulator = state.stack();
         if (func_info->type() == FrameStateType::kInterpretedFunction) {
           // The accumulator (InputAt(2)) cannot be kStateValues.
           // It can be kTypedStateValues (to signal the type) and it can have

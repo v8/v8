@@ -36,10 +36,10 @@ namespace compiler {
 namespace {
 
 // Retrieves the frame state holding actual argument values.
-Node* GetArgumentsFrameState(Node* frame_state) {
-  Node* const outer_state = NodeProperties::GetFrameStateInput(frame_state);
-  FrameStateInfo outer_state_info = FrameStateInfoOf(outer_state->op());
-  return outer_state_info.type() == FrameStateType::kArgumentsAdaptor
+FrameState GetArgumentsFrameState(FrameState frame_state) {
+  FrameState outer_state{NodeProperties::GetFrameStateInput(frame_state)};
+  return outer_state.frame_state_info().type() ==
+                 FrameStateType::kArgumentsAdaptor
              ? outer_state
              : frame_state;
 }
@@ -148,16 +148,15 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
 Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateArguments, node->opcode());
   CreateArgumentsType type = CreateArgumentsTypeOf(node->op());
-  Node* const frame_state = NodeProperties::GetFrameStateInput(node);
-  Node* const outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
+  FrameState frame_state{NodeProperties::GetFrameStateInput(node)};
   Node* const control = graph()->start();
-  FrameStateInfo state_info = FrameStateInfoOf(frame_state->op());
+  FrameStateInfo state_info = frame_state.frame_state_info();
   SharedFunctionInfoRef shared(broker(),
                                state_info.shared_info().ToHandleChecked());
 
   // Use the ArgumentsAccessStub for materializing both mapped and unmapped
   // arguments object, but only for non-inlined (i.e. outermost) frames.
-  if (outer_state->opcode() != IrOpcode::kFrameState) {
+  if (!frame_state.has_outer_frame_state()) {
     switch (type) {
       case CreateArgumentsType::kMappedArguments: {
         // TODO(turbofan): Duplicate parameters are not handled yet.
@@ -263,7 +262,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
   }
   // Use inline allocation for all mapped arguments objects within inlined
   // (i.e. non-outermost) frames, independent of the object size.
-  DCHECK_EQ(outer_state->opcode(), IrOpcode::kFrameState);
+  DCHECK_EQ(frame_state.outer_frame_state()->opcode(), IrOpcode::kFrameState);
   switch (type) {
     case CreateArgumentsType::kMappedArguments: {
       Node* const callee = NodeProperties::GetValueInput(node, 0);
@@ -274,15 +273,14 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       // Choose the correct frame state and frame state info depending on
       // whether there conceptually is an arguments adaptor frame in the call
       // chain.
-      Node* const args_state = GetArgumentsFrameState(frame_state);
-      if (args_state->InputAt(kFrameStateParametersInput)->opcode() ==
-          IrOpcode::kDeadValue) {
+      FrameState args_state = GetArgumentsFrameState(frame_state);
+      if (args_state.parameters()->opcode() == IrOpcode::kDeadValue) {
         // This protects against an incompletely propagated DeadValue node.
         // If the FrameState has a DeadValue input, then this node will be
         // pruned anyway.
         return NoChange();
       }
-      FrameStateInfo args_state_info = FrameStateInfoOf(args_state->op());
+      FrameStateInfo args_state_info = args_state.frame_state_info();
       int length = args_state_info.parameter_count() - 1;  // Minus receiver.
       // Check that the array allocated for arguments is not "large".
       {
@@ -319,15 +317,14 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       // Choose the correct frame state and frame state info depending on
       // whether there conceptually is an arguments adaptor frame in the call
       // chain.
-      Node* const args_state = GetArgumentsFrameState(frame_state);
-      if (args_state->InputAt(kFrameStateParametersInput)->opcode() ==
-          IrOpcode::kDeadValue) {
+      FrameState args_state = GetArgumentsFrameState(frame_state);
+      if (args_state.parameters()->opcode() == IrOpcode::kDeadValue) {
         // This protects against an incompletely propagated DeadValue node.
         // If the FrameState has a DeadValue input, then this node will be
         // pruned anyway.
         return NoChange();
       }
-      FrameStateInfo args_state_info = FrameStateInfoOf(args_state->op());
+      FrameStateInfo args_state_info = args_state.frame_state_info();
       int length = args_state_info.parameter_count() - 1;  // Minus receiver.
       // Check that the array allocated for arguments is not "large".
       {
@@ -361,15 +358,14 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       // Choose the correct frame state and frame state info depending on
       // whether there conceptually is an arguments adaptor frame in the call
       // chain.
-      Node* const args_state = GetArgumentsFrameState(frame_state);
-      if (args_state->InputAt(kFrameStateParametersInput)->opcode() ==
-          IrOpcode::kDeadValue) {
+      FrameState args_state = GetArgumentsFrameState(frame_state);
+      if (args_state.parameters()->opcode() == IrOpcode::kDeadValue) {
         // This protects against an incompletely propagated DeadValue node.
         // If the FrameState has a DeadValue input, then this node will be
         // pruned anyway.
         return NoChange();
       }
-      FrameStateInfo args_state_info = FrameStateInfoOf(args_state->op());
+      FrameStateInfo args_state_info = args_state.frame_state_info();
       // Prepare element backing store to be used by the rest array.
       Node* const elements =
           AllocateRestArguments(effect, control, args_state, start_index);
@@ -1428,13 +1424,13 @@ Reduction JSCreateLowering::ReduceJSCreateObject(Node* node) {
 // Helper that allocates a FixedArray holding argument values recorded in the
 // given {frame_state}. Serves as backing store for JSCreateArguments nodes.
 Node* JSCreateLowering::AllocateArguments(Node* effect, Node* control,
-                                          Node* frame_state) {
-  FrameStateInfo state_info = FrameStateInfoOf(frame_state->op());
+                                          FrameState frame_state) {
+  FrameStateInfo state_info = frame_state.frame_state_info();
   int argument_count = state_info.parameter_count() - 1;  // Minus receiver.
   if (argument_count == 0) return jsgraph()->EmptyFixedArrayConstant();
 
   // Prepare an iterator over argument values recorded in the frame state.
-  Node* const parameters = frame_state->InputAt(kFrameStateParametersInput);
+  Node* const parameters = frame_state.parameters();
   StateValuesAccess parameters_access(parameters);
   auto parameters_it = ++parameters_access.begin();
 
@@ -1453,15 +1449,15 @@ Node* JSCreateLowering::AllocateArguments(Node* effect, Node* control,
 // Helper that allocates a FixedArray holding argument values recorded in the
 // given {frame_state}. Serves as backing store for JSCreateArguments nodes.
 Node* JSCreateLowering::AllocateRestArguments(Node* effect, Node* control,
-                                              Node* frame_state,
+                                              FrameState frame_state,
                                               int start_index) {
-  FrameStateInfo state_info = FrameStateInfoOf(frame_state->op());
+  FrameStateInfo state_info = frame_state.frame_state_info();
   int argument_count = state_info.parameter_count() - 1;  // Minus receiver.
   int num_elements = std::max(0, argument_count - start_index);
   if (num_elements == 0) return jsgraph()->EmptyFixedArrayConstant();
 
   // Prepare an iterator over argument values recorded in the frame state.
-  Node* const parameters = frame_state->InputAt(kFrameStateParametersInput);
+  Node* const parameters = frame_state.parameters();
   StateValuesAccess parameters_access(parameters);
   auto parameters_it = ++parameters_access.begin();
 
@@ -1485,9 +1481,9 @@ Node* JSCreateLowering::AllocateRestArguments(Node* effect, Node* control,
 // recorded in the given {frame_state}. Some elements map to slots within the
 // given {context}. Serves as backing store for JSCreateArguments nodes.
 Node* JSCreateLowering::AllocateAliasedArguments(
-    Node* effect, Node* control, Node* frame_state, Node* context,
+    Node* effect, Node* control, FrameState frame_state, Node* context,
     const SharedFunctionInfoRef& shared, bool* has_aliased_arguments) {
-  FrameStateInfo state_info = FrameStateInfoOf(frame_state->op());
+  FrameStateInfo state_info = frame_state.frame_state_info();
   int argument_count = state_info.parameter_count() - 1;  // Minus receiver.
   if (argument_count == 0) return jsgraph()->EmptyFixedArrayConstant();
 
@@ -1503,7 +1499,7 @@ Node* JSCreateLowering::AllocateAliasedArguments(
   *has_aliased_arguments = true;
 
   // Prepare an iterator over argument values recorded in the frame state.
-  Node* const parameters = frame_state->InputAt(kFrameStateParametersInput);
+  Node* const parameters = frame_state.parameters();
   StateValuesAccess parameters_access(parameters);
   auto parameters_it = ++parameters_access.begin();
 

@@ -671,7 +671,7 @@ size_t InstructionSelector::AddInputsToFrameStateDescriptor(
 
 // Returns the number of instruction operands added to inputs.
 size_t InstructionSelector::AddInputsToFrameStateDescriptor(
-    FrameStateDescriptor* descriptor, Node* state, OperandGenerator* g,
+    FrameStateDescriptor* descriptor, FrameState state, OperandGenerator* g,
     StateObjectDeduplicator* deduplicator, InstructionOperandVector* inputs,
     FrameStateInputKind kind, Zone* zone) {
   DCHECK_EQ(IrOpcode::kFrameState, state->op()->opcode());
@@ -682,15 +682,15 @@ size_t InstructionSelector::AddInputsToFrameStateDescriptor(
 
   if (descriptor->outer_state()) {
     entries += AddInputsToFrameStateDescriptor(
-        descriptor->outer_state(), state->InputAt(kFrameStateOuterStateInput),
-        g, deduplicator, inputs, kind, zone);
+        descriptor->outer_state(), state.outer_frame_state(), g, deduplicator,
+        inputs, kind, zone);
   }
 
-  Node* parameters = state->InputAt(kFrameStateParametersInput);
-  Node* locals = state->InputAt(kFrameStateLocalsInput);
-  Node* stack = state->InputAt(kFrameStateStackInput);
-  Node* context = state->InputAt(kFrameStateContextInput);
-  Node* function = state->InputAt(kFrameStateFunctionInput);
+  Node* parameters = state.parameters();
+  Node* locals = state.locals();
+  Node* stack = state.stack();
+  Node* context = state.context();
+  Node* function = state.function();
 
   DCHECK_EQ(descriptor->parameters_count(),
             StateValuesAccess(parameters).size());
@@ -803,7 +803,7 @@ Instruction* InstructionSelector::EmitWithContinuation(
               DeoptFrameStateOffsetField::encode(static_cast<int>(input_count));
     AppendDeoptimizeArguments(&continuation_inputs_, cont->kind(),
                               cont->reason(), cont->feedback(),
-                              cont->frame_state());
+                              FrameState{cont->frame_state()});
   } else if (cont->IsSet()) {
     continuation_outputs_.push_back(g.DefineAsRegister(cont->result()));
   } else if (cont->IsTrap()) {
@@ -828,7 +828,7 @@ Instruction* InstructionSelector::EmitWithContinuation(
 void InstructionSelector::AppendDeoptimizeArguments(
     InstructionOperandVector* args, DeoptimizeKind kind,
     DeoptimizeReason reason, FeedbackSource const& feedback,
-    Node* frame_state) {
+    FrameState frame_state) {
   OperandGenerator g(this);
   FrameStateDescriptor* const descriptor = GetFrameStateDescriptor(frame_state);
   DCHECK_NE(DeoptimizeKind::kLazy, kind);
@@ -1015,20 +1015,21 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   size_t frame_state_entries = 0;
   USE(frame_state_entries);  // frame_state_entries is only used for debug.
   if (buffer->frame_state_descriptor != nullptr) {
-    Node* frame_state =
-        call->InputAt(static_cast<int>(buffer->descriptor->InputCount()));
+    FrameState frame_state{
+        call->InputAt(static_cast<int>(buffer->descriptor->InputCount()))};
 
     // If it was a syntactic tail call we need to drop the current frame and
     // all the frames on top of it that are either an arguments adaptor frame
     // or a tail caller frame.
     if (is_tail_call) {
-      frame_state = NodeProperties::GetFrameStateInput(frame_state);
+      frame_state = FrameState{NodeProperties::GetFrameStateInput(frame_state)};
       buffer->frame_state_descriptor =
           buffer->frame_state_descriptor->outer_state();
       while (buffer->frame_state_descriptor != nullptr &&
              buffer->frame_state_descriptor->type() ==
                  FrameStateType::kArgumentsAdaptor) {
-        frame_state = NodeProperties::GetFrameStateInput(frame_state);
+        frame_state =
+            FrameState{NodeProperties::GetFrameStateInput(frame_state)};
         buffer->frame_state_descriptor =
             buffer->frame_state_descriptor->outer_state();
       }
@@ -1288,7 +1289,7 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
     }
     case BasicBlock::kDeoptimize: {
       DeoptimizeParameters p = DeoptimizeParametersOf(input->op());
-      Node* value = input->InputAt(0);
+      FrameState value{input->InputAt(0)};
       VisitDeoptimize(p.kind(), p.reason(), p.feedback(), value);
       break;
     }
@@ -2939,8 +2940,8 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
 
   FrameStateDescriptor* frame_state_descriptor = nullptr;
   if (call_descriptor->NeedsFrameState()) {
-    frame_state_descriptor = GetFrameStateDescriptor(
-        node->InputAt(static_cast<int>(call_descriptor->InputCount())));
+    frame_state_descriptor = GetFrameStateDescriptor(FrameState{
+        node->InputAt(static_cast<int>(call_descriptor->InputCount()))});
   }
 
   CallBuffer buffer(zone(), call_descriptor, frame_state_descriptor);
@@ -3199,7 +3200,7 @@ void InstructionSelector::EmitIdentity(Node* node) {
 void InstructionSelector::VisitDeoptimize(DeoptimizeKind kind,
                                           DeoptimizeReason reason,
                                           FeedbackSource const& feedback,
-                                          Node* frame_state) {
+                                          FrameState frame_state) {
   InstructionOperandVector args(instruction_zone());
   AppendDeoptimizeArguments(&args, kind, reason, feedback, frame_state);
   Emit(kArchDeoptimize, 0, nullptr, args.size(), &args.front(), 0, nullptr);
@@ -3315,18 +3316,19 @@ bool InstructionSelector::ZeroExtendsWord32ToWord64(Node* node,
 
 namespace {
 
-FrameStateDescriptor* GetFrameStateDescriptorInternal(Zone* zone, Node* state) {
+FrameStateDescriptor* GetFrameStateDescriptorInternal(Zone* zone,
+                                                      FrameState state) {
   DCHECK_EQ(IrOpcode::kFrameState, state->opcode());
-  DCHECK_EQ(kFrameStateInputCount, state->InputCount());
+  DCHECK_EQ(FrameState::kFrameStateInputCount, state->InputCount());
   const FrameStateInfo& state_info = FrameStateInfoOf(state->op());
   int parameters = state_info.parameter_count();
   int locals = state_info.local_count();
   int stack = state_info.type() == FrameStateType::kInterpretedFunction ? 1 : 0;
 
   FrameStateDescriptor* outer_state = nullptr;
-  Node* outer_node = state->InputAt(kFrameStateOuterStateInput);
-  if (outer_node->opcode() == IrOpcode::kFrameState) {
-    outer_state = GetFrameStateDescriptorInternal(zone, outer_node);
+  if (state.has_outer_frame_state()) {
+    outer_state =
+        GetFrameStateDescriptorInternal(zone, state.outer_frame_state());
   }
 
   if (state_info.type() == FrameStateType::kJSToWasmBuiltinContinuation) {
@@ -3347,7 +3349,7 @@ FrameStateDescriptor* GetFrameStateDescriptorInternal(Zone* zone, Node* state) {
 }  // namespace
 
 FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
-    Node* state) {
+    FrameState state) {
   auto* desc = GetFrameStateDescriptorInternal(instruction_zone(), state);
   *max_unoptimized_frame_height_ =
       std::max(*max_unoptimized_frame_height_,

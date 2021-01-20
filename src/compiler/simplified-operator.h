@@ -11,6 +11,7 @@
 #include "src/codegen/machine-type.h"
 #include "src/codegen/tnode.h"
 #include "src/common/globals.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator.h"

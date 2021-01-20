@@ -601,6 +601,65 @@ class CommonNodeWrapperBase : public NodeWrapper {
         NodeProperties::GetValueInput(node(), TheIndex));  \
   }
 
+// TODO(jgruber): This class doesn't match the usual OpcodeNode naming
+// convention for historical reasons (it was originally a very basic typed node
+// wrapper similar to Effect and Control). Consider updating the name, with low
+// priority.
+class FrameState : public CommonNodeWrapperBase {
+ public:
+  explicit constexpr FrameState(Node* node) : CommonNodeWrapperBase(node) {
+    // TODO(jgruber): Disallow kStart (needed for PromiseConstructorBasic unit
+    // test, among others). Also, outer_frame_state points at the start node
+    // for non-inlined functions. This could be avoided by checking
+    // has_outer_frame_state() before casting to FrameState.
+    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kFrameState ||
+                     node->opcode() == IrOpcode::kStart);
+  }
+
+  FrameStateInfo frame_state_info() const {
+    return FrameStateInfoOf(node()->op());
+  }
+
+  static constexpr int kFrameStateParametersInput = 0;
+  static constexpr int kFrameStateLocalsInput = 1;
+  static constexpr int kFrameStateStackInput = 2;
+  static constexpr int kFrameStateContextInput = 3;
+  static constexpr int kFrameStateFunctionInput = 4;
+  static constexpr int kFrameStateOuterStateInput = 5;
+  static constexpr int kFrameStateInputCount = 6;
+
+  // Note: The parameters should be accessed through StateValuesAccess.
+  Node* parameters() const {
+    Node* n = node()->InputAt(kFrameStateParametersInput);
+    DCHECK(n->opcode() == IrOpcode::kStateValues ||
+           n->opcode() == IrOpcode::kTypedStateValues);
+    return n;
+  }
+  Node* locals() const {
+    Node* n = node()->InputAt(kFrameStateLocalsInput);
+    DCHECK(n->opcode() == IrOpcode::kStateValues ||
+           n->opcode() == IrOpcode::kTypedStateValues);
+    return n;
+  }
+  // TODO(jgruber): Consider renaming this to the more meaningful
+  // 'accumulator'.
+  Node* stack() const { return node()->InputAt(kFrameStateStackInput); }
+  Node* context() const { return node()->InputAt(kFrameStateContextInput); }
+  Node* function() const { return node()->InputAt(kFrameStateFunctionInput); }
+
+  // An outer frame state exists for inlined functions; otherwise it points at
+  // the start node.
+  bool has_outer_frame_state() const {
+    Node* maybe_outer_frame_state = node()->InputAt(kFrameStateOuterStateInput);
+    DCHECK(maybe_outer_frame_state->opcode() == IrOpcode::kFrameState ||
+           maybe_outer_frame_state->opcode() == IrOpcode::kStart);
+    return maybe_outer_frame_state->opcode() == IrOpcode::kFrameState;
+  }
+  FrameState outer_frame_state() const {
+    return FrameState{node()->InputAt(kFrameStateOuterStateInput)};
+  }
+};
+
 class StartNode final : public CommonNodeWrapperBase {
  public:
   explicit constexpr StartNode(Node* node) : CommonNodeWrapperBase(node) {

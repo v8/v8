@@ -361,7 +361,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
       m.common()->FrameState(bailout_id, OutputFrameStateCombine::PokeAt(0),
                              m.GetFrameStateFunctionInfo(1, 0)),
       parameters, locals, stack, context_sentinel, function_node,
-      m.UndefinedConstant());
+      m.graph()->start());
 
   // Build the call.
   Node* nodes[] = {function_node,      receiver, m.UndefinedConstant(),
@@ -421,7 +421,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
                                        OutputFrameStateCombine::PokeAt(0),
                                        m.GetFrameStateFunctionInfo(1, 1)),
                 parameters, locals, stack, context_sentinel, function_node,
-                m.UndefinedConstant());
+                m.graph()->start());
 
   // Build the call.
   Node* stub_code = m.HeapConstant(callable.code());
@@ -512,7 +512,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
       m.common()->FrameState(bailout_id_parent,
                              OutputFrameStateCombine::Ignore(),
                              m.GetFrameStateFunctionInfo(1, 1)),
-      parameters, locals, stack, context, function_node, m.UndefinedConstant());
+      parameters, locals, stack, context, function_node, m.graph()->start());
 
   Node* parameters2 = m.AddNode(
       m.common()->TypedStateValues(&int32_type, SparseInputMask::Dense()),

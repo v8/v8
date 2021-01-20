@@ -61,8 +61,8 @@ class JSCallAccessor {
 
   Node* new_target() const { return JSConstructNode{call_}.new_target(); }
 
-  Node* frame_state() const {
-    return NodeProperties::GetFrameStateInput(call_);
+  FrameState frame_state() const {
+    return FrameState{NodeProperties::GetFrameStateInput(call_)};
   }
 
   int argument_count() const {
@@ -245,12 +245,10 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
   }
 }
 
-Node* JSInliner::CreateArtificialFrameState(Node* node, Node* outer_frame_state,
-                                            int parameter_count,
-                                            BytecodeOffset bailout_id,
-                                            FrameStateType frame_state_type,
-                                            SharedFunctionInfoRef shared,
-                                            Node* context) {
+FrameState JSInliner::CreateArtificialFrameState(
+    Node* node, FrameState outer_frame_state, int parameter_count,
+    BytecodeOffset bailout_id, FrameStateType frame_state_type,
+    SharedFunctionInfoRef shared, Node* context) {
   const int parameter_count_with_receiver =
       parameter_count + JSCallOrConstructNode::kReceiverOrNewTargetInputCount;
   const FrameStateFunctionInfo* state_info =
@@ -273,9 +271,9 @@ Node* JSInliner::CreateArtificialFrameState(Node* node, Node* outer_frame_state,
   Node* params_node = graph()->NewNode(
       op_param, static_cast<int>(params.size()), &params.front());
   if (context == nullptr) context = jsgraph()->UndefinedConstant();
-  return graph()->NewNode(op, params_node, node0, node0, context,
-                          node->InputAt(JSCallOrConstructNode::TargetIndex()),
-                          outer_frame_state);
+  return FrameState{graph()->NewNode(
+      op, params_node, node0, node0, context,
+      node->InputAt(JSCallOrConstructNode::TargetIndex()), outer_frame_state)};
 }
 
 namespace {
@@ -480,9 +478,9 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // To ensure inlining always terminates, we have an upper limit on inlining
   // the nested calls.
   int nesting_level = 0;
-  for (Node* frame_state = call.frame_state();
+  for (FrameState frame_state = FrameState{call.frame_state()};
        frame_state->opcode() == IrOpcode::kFrameState;
-       frame_state = frame_state->InputAt(kFrameStateOuterStateInput)) {
+       frame_state = frame_state.outer_frame_state()) {
     nesting_level++;
     if (nesting_level > kMaxDepthForInlining) {
       TRACE("Not inlining "
@@ -573,7 +571,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     }
   }
 
-  Node* frame_state = call.frame_state();
+  FrameState frame_state = call.frame_state();
   Node* new_target = jsgraph()->UndefinedConstant();
 
   // Inline {JSConstruct} requires some additional magic.

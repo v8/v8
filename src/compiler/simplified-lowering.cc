@@ -1224,34 +1224,41 @@ class RepresentationSelector {
   }
 
   template <Phase T>
-  void VisitFrameState(Node* node) {
+  void VisitFrameState(FrameState node) {
     DCHECK_EQ(5, node->op()->ValueInputCount());
     DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
+    DCHECK_EQ(FrameState::kFrameStateInputCount, node->InputCount());
 
-    ProcessInput<T>(node, 0, UseInfo::AnyTagged());  // Parameters.
-    ProcessInput<T>(node, 1, UseInfo::AnyTagged());  // Registers.
+    ProcessInput<T>(node, FrameState::kFrameStateParametersInput,
+                    UseInfo::AnyTagged());
+    ProcessInput<T>(node, FrameState::kFrameStateLocalsInput,
+                    UseInfo::AnyTagged());
 
     // Accumulator is a special flower - we need to remember its type in
     // a singleton typed-state-values node (as if it was a singleton
     // state-values node).
-    Node* accumulator = node->InputAt(2);
+    Node* accumulator = node.stack();
     if (propagate<T>()) {
       // TODO(nicohartmann): Remove, once the deoptimizer can rematerialize
       // truncated BigInts.
       if (TypeOf(accumulator).Is(Type::BigInt())) {
-        EnqueueInput<T>(node, 2, UseInfo::AnyTagged());
+        EnqueueInput<T>(node, FrameState::kFrameStateStackInput,
+                        UseInfo::AnyTagged());
       } else {
-        EnqueueInput<T>(node, 2, UseInfo::Any());
+        EnqueueInput<T>(node, FrameState::kFrameStateStackInput,
+                        UseInfo::Any());
       }
     } else if (lower<T>()) {
       // TODO(nicohartmann): Remove, once the deoptimizer can rematerialize
       // truncated BigInts.
       if (TypeOf(accumulator).Is(Type::BigInt())) {
-        ConvertInput(node, 2, UseInfo::AnyTagged());
+        ConvertInput(node, FrameState::kFrameStateStackInput,
+                     UseInfo::AnyTagged());
       }
       Zone* zone = jsgraph_->zone();
       if (accumulator == jsgraph_->OptimizedOutConstant()) {
-        node->ReplaceInput(2, jsgraph_->SingleDeadTypedStateValues());
+        node->ReplaceInput(FrameState::kFrameStateStackInput,
+                           jsgraph_->SingleDeadTypedStateValues());
       } else {
         ZoneVector<MachineType>* types =
             zone->New<ZoneVector<MachineType>>(1, zone);
@@ -1259,15 +1266,19 @@ class RepresentationSelector {
                                          TypeOf(accumulator));
 
         node->ReplaceInput(
-            2, jsgraph_->graph()->NewNode(jsgraph_->common()->TypedStateValues(
-                                              types, SparseInputMask::Dense()),
-                                          node->InputAt(2)));
+            FrameState::kFrameStateStackInput,
+            jsgraph_->graph()->NewNode(jsgraph_->common()->TypedStateValues(
+                                           types, SparseInputMask::Dense()),
+                                       node.stack()));
       }
     }
 
-    ProcessInput<T>(node, 3, UseInfo::AnyTagged());  // Context.
-    ProcessInput<T>(node, 4, UseInfo::AnyTagged());  // Closure.
-    ProcessInput<T>(node, 5, UseInfo::AnyTagged());  // Outer frame state.
+    ProcessInput<T>(node, FrameState::kFrameStateContextInput,
+                    UseInfo::AnyTagged());
+    ProcessInput<T>(node, FrameState::kFrameStateFunctionInput,
+                    UseInfo::AnyTagged());
+    ProcessInput<T>(node, FrameState::kFrameStateOuterStateInput,
+                    UseInfo::AnyTagged());
     return SetOutput<T>(node, MachineRepresentation::kTagged);
   }
 
@@ -3745,7 +3756,7 @@ class RepresentationSelector {
         VisitInputs<T>(node);
         return SetOutput<T>(node, MachineRepresentation::kTaggedPointer);
       case IrOpcode::kFrameState:
-        return VisitFrameState<T>(node);
+        return VisitFrameState<T>(FrameState{node});
       case IrOpcode::kStateValues:
         return VisitStateValues<T>(node);
       case IrOpcode::kObjectState:

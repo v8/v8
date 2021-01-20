@@ -159,9 +159,12 @@ Node* EscapeAnalysisReducer::ReduceDeoptState(Node* node, Node* effect,
     // This input order is important to match the DFS traversal used in the
     // instruction selector. Otherwise, the instruction selector might find a
     // duplicate node before the original one.
-    for (int input_id : {kFrameStateOuterStateInput, kFrameStateFunctionInput,
-                         kFrameStateParametersInput, kFrameStateContextInput,
-                         kFrameStateLocalsInput, kFrameStateStackInput}) {
+    for (int input_id : {FrameState::kFrameStateOuterStateInput,
+                         FrameState::kFrameStateFunctionInput,
+                         FrameState::kFrameStateParametersInput,
+                         FrameState::kFrameStateContextInput,
+                         FrameState::kFrameStateLocalsInput,
+                         FrameState::kFrameStateStackInput}) {
       Node* input = node->InputAt(input_id);
       new_node.ReplaceInput(ReduceDeoptState(input, effect, deduplicator),
                             input_id);

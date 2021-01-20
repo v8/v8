@@ -7,6 +7,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/codegen/tnode.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/node-properties.h"

@@ -3879,13 +3879,14 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   // we can only optimize this in case the {node} was already inlined into
   // some other function (and same for the {arguments_list}).
   CreateArgumentsType const type = CreateArgumentsTypeOf(arguments_list->op());
-  Node* frame_state = NodeProperties::GetFrameStateInput(arguments_list);
+  FrameState frame_state =
+      FrameState{NodeProperties::GetFrameStateInput(arguments_list)};
   int start_index = 0;
 
   int formal_parameter_count;
   {
     Handle<SharedFunctionInfo> shared;
-    if (!FrameStateInfoOf(frame_state->op()).shared_info().ToHandle(&shared)) {
+    if (!frame_state.frame_state_info().shared_info().ToHandle(&shared)) {
       return NoChange();
     }
     formal_parameter_count = SharedFunctionInfoRef(broker(), shared)
@@ -3926,8 +3927,7 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
       arraylike_or_spread_index - JSCallOrConstructNode::FirstArgumentIndex();
   // Check if are spreading to inlined arguments or to the arguments of
   // the outermost function.
-  Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
-  if (outer_state->opcode() != IrOpcode::kFrameState) {
+  if (!frame_state.has_outer_frame_state()) {
     Operator const* op;
     if (IsCallWithArrayLikeOrSpread(node)) {
       static constexpr int kTargetAndReceiver = 2;
@@ -3942,21 +3942,20 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
     NodeProperties::ChangeOp(node, op);
     return Changed(node);
   }
+  FrameState outer_state = frame_state.outer_frame_state();
   // Get to the actual frame state from which to extract the arguments;
   // we can only optimize this in case the {node} was already inlined into
   // some other function (and same for the {arg_array}).
-  FrameStateInfo outer_info = FrameStateInfoOf(outer_state->op());
+  FrameStateInfo outer_info = outer_state.frame_state_info();
   if (outer_info.type() == FrameStateType::kArgumentsAdaptor) {
     // Need to take the parameters from the arguments adaptor.
     frame_state = outer_state;
   }
   // Add the actual parameters to the {node}, skipping the receiver.
   const int argument_count =
-      FrameStateInfoOf(frame_state->op()).parameter_count() -
-      1;  // Minus receiver.
+      frame_state.frame_state_info().parameter_count() - 1;  // Minus receiver.
   if (start_index < argument_count) {
-    Node* const parameters = frame_state->InputAt(kFrameStateParametersInput);
-    StateValuesAccess parameters_access(parameters);
+    StateValuesAccess parameters_access(frame_state.parameters());
     auto parameters_it = ++parameters_access.begin();  // Skip the receiver.
     for (int i = 0; i < start_index; i++) {
       // A non-zero start_index implies that there are rest arguments. Skip

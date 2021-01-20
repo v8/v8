@@ -171,8 +171,8 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
 
   bool can_inline_candidate = false, candidate_is_small = true;
   candidate.total_size = 0;
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
-  FrameStateInfo const& frame_info = FrameStateInfoOf(frame_state->op());
+  FrameState frame_state{NodeProperties::GetFrameStateInput(node)};
+  FrameStateInfo const& frame_info = frame_state.frame_state_info();
   Handle<SharedFunctionInfo> frame_shared_info;
   for (int i = 0; i < candidate.num_functions; ++i) {
     if (!candidate.bytecode[i].has_value()) {
@@ -341,19 +341,18 @@ Node* JSInliningHeuristic::DuplicateStateValuesAndRename(Node* state_values,
 
 namespace {
 
-bool CollectFrameStateUniqueUses(Node* node, Node* frame_state,
+bool CollectFrameStateUniqueUses(Node* node, FrameState frame_state,
                                  NodeAndIndex* uses_buffer, size_t* use_count,
                                  size_t max_uses) {
   // Only accumulate states that are not shared with other users.
   if (frame_state->UseCount() > 1) return true;
-  if (frame_state->InputAt(kFrameStateStackInput) == node) {
+  if (frame_state.stack() == node) {
     if (*use_count >= max_uses) return false;
-    uses_buffer[*use_count] = {frame_state, kFrameStateStackInput};
+    uses_buffer[*use_count] = {frame_state, FrameState::kFrameStateStackInput};
     (*use_count)++;
   }
-  if (!CollectStateValuesOwnedUses(node,
-                                   frame_state->InputAt(kFrameStateLocalsInput),
-                                   uses_buffer, use_count, max_uses)) {
+  if (!CollectStateValuesOwnedUses(node, frame_state.locals(), uses_buffer,
+                                   use_count, max_uses)) {
     return false;
   }
   return true;
@@ -361,28 +360,28 @@ bool CollectFrameStateUniqueUses(Node* node, Node* frame_state,
 
 }  // namespace
 
-Node* JSInliningHeuristic::DuplicateFrameStateAndRename(Node* frame_state,
-                                                        Node* from, Node* to,
-                                                        StateCloneMode mode) {
+FrameState JSInliningHeuristic::DuplicateFrameStateAndRename(
+    FrameState frame_state, Node* from, Node* to, StateCloneMode mode) {
   // Only rename in states that are not shared with other users. This needs to
   // be in sync with the condition in {DuplicateFrameStateAndRename}.
   if (frame_state->UseCount() > 1) return frame_state;
-  Node* copy = mode == kChangeInPlace ? frame_state : nullptr;
-  if (frame_state->InputAt(kFrameStateStackInput) == from) {
+  Node* copy =
+      mode == kChangeInPlace ? static_cast<Node*>(frame_state) : nullptr;
+  if (frame_state.stack() == from) {
     if (!copy) {
       copy = graph()->CloneNode(frame_state);
     }
-    copy->ReplaceInput(kFrameStateStackInput, to);
+    copy->ReplaceInput(FrameState::kFrameStateStackInput, to);
   }
-  Node* locals = frame_state->InputAt(kFrameStateLocalsInput);
+  Node* locals = frame_state.locals();
   Node* new_locals = DuplicateStateValuesAndRename(locals, from, to, mode);
   if (new_locals != locals) {
     if (!copy) {
       copy = graph()->CloneNode(frame_state);
     }
-    copy->ReplaceInput(kFrameStateLocalsInput, new_locals);
+    copy->ReplaceInput(FrameState::kFrameStateLocalsInput, new_locals);
   }
-  return copy ? copy : frame_state;
+  return copy != nullptr ? FrameState{copy} : frame_state;
 }
 
 bool JSInliningHeuristic::TryReuseDispatch(Node* node, Node* callee,
@@ -544,14 +543,15 @@ bool JSInliningHeuristic::TryReuseDispatch(Node* node, Node* callee,
   Node* checkpoint_state = nullptr;
   if (checkpoint) {
     checkpoint_state = checkpoint->InputAt(0);
-    if (!CollectFrameStateUniqueUses(callee, checkpoint_state, replaceable_uses,
-                                     &replaceable_uses_count, kMaxUses)) {
+    if (!CollectFrameStateUniqueUses(callee, FrameState{checkpoint_state},
+                                     replaceable_uses, &replaceable_uses_count,
+                                     kMaxUses)) {
       return false;
     }
   }
 
   // Collect the uses to check case 3.
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  FrameState frame_state{NodeProperties::GetFrameStateInput(node)};
   if (!CollectFrameStateUniqueUses(callee, frame_state, replaceable_uses,
                                    &replaceable_uses_count, kMaxUses)) {
     return false;
@@ -588,15 +588,15 @@ bool JSInliningHeuristic::TryReuseDispatch(Node* node, Node* callee,
 
     if (checkpoint) {
       // Duplicate the checkpoint.
-      Node* new_checkpoint_state = DuplicateFrameStateAndRename(
-          checkpoint_state, callee, target,
+      FrameState new_checkpoint_state = DuplicateFrameStateAndRename(
+          FrameState{checkpoint_state}, callee, target,
           (i == num_calls - 1) ? kChangeInPlace : kCloneState);
       effect = graph()->NewNode(checkpoint->op(), new_checkpoint_state, effect,
                                 control);
     }
 
     // Duplicate the call.
-    Node* new_lazy_frame_state = DuplicateFrameStateAndRename(
+    FrameState new_lazy_frame_state = DuplicateFrameStateAndRename(
         frame_state, callee, target,
         (i == num_calls - 1) ? kChangeInPlace : kCloneState);
     inputs[0] = target;
