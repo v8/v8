@@ -145,11 +145,6 @@ void Heap_GenerationalEphemeronKeyBarrierSlow(Heap* heap,
   heap->RecordEphemeronKeyWrite(table, slot);
 }
 
-void Heap::SetArgumentsAdaptorDeoptPCOffset(int pc_offset) {
-  DCHECK_EQ(Smi::zero(), arguments_adaptor_deopt_pc_offset());
-  set_arguments_adaptor_deopt_pc_offset(Smi::FromInt(pc_offset));
-}
-
 void Heap::SetConstructStubCreateDeoptPCOffset(int pc_offset) {
   DCHECK_EQ(Smi::zero(), construct_stub_create_deopt_pc_offset());
   set_construct_stub_create_deopt_pc_offset(Smi::FromInt(pc_offset));
