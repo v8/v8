@@ -364,6 +364,29 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadAndTest32(Register dst, const MemOperand& opnd);
   void LoadAndTestP(Register dst, const MemOperand& opnd);
 
+  // Store
+  void StoreU64(const MemOperand& mem, const Operand& opnd,
+                Register scratch = no_reg);
+  void StoreU64(Register src, const MemOperand& mem, Register scratch = no_reg);
+  void StoreU32(Register src, const MemOperand& mem, Register scratch = no_reg);
+
+  void StoreU16(Register src, const MemOperand& mem, Register scratch = r0);
+  void StoreU8(Register src, const MemOperand& mem, Register scratch = r0);
+  void StoreF64(DoubleRegister dst, const MemOperand& opnd);
+  void StoreF32(DoubleRegister dst, const MemOperand& opnd);
+  void StoreV128(Simd128Register src, const MemOperand& mem, Register scratch);
+
+  // Store LE
+  void StoreU64LE(Register src, const MemOperand& mem,
+                  Register scratch = no_reg);
+  void StoreU32LE(Register src, const MemOperand& mem,
+                  Register scratch = no_reg);
+
+  void StoreU16LE(Register src, const MemOperand& mem, Register scratch = r0);
+  void StoreF64LE(DoubleRegister src, const MemOperand& opnd, Register scratch);
+  void StoreF32LE(DoubleRegister src, const MemOperand& opnd, Register scratch);
+  void StoreV128LE(Simd128Register src, const MemOperand& mem,
+                   Register scratch1, Register scratch2);
 
   void AddFloat32(DoubleRegister dst, const MemOperand& opnd,
                   DoubleRegister scratch);
@@ -389,18 +412,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void LoadPositiveP(Register result, Register input);
   void LoadPositive32(Register result, Register input);
-
-  // Store
-  void StoreU64(Register src, const MemOperand& mem, Register scratch = no_reg);
-  void StoreU64(const MemOperand& mem, const Operand& opnd,
-                Register scratch = no_reg);
-  void StoreU32(Register src, const MemOperand& mem, Register scratch = no_reg);
-
-  void StoreU16(Register src, const MemOperand& mem, Register scratch = r0);
-  void StoreU8(Register src, const MemOperand& mem, Register scratch = r0);
-  void StoreF64(DoubleRegister dst, const MemOperand& opnd);
-  void StoreF32(DoubleRegister dst, const MemOperand& opnd);
-  void StoreV128(Simd128Register src, const MemOperand& mem, Register scratch);
 
   void Branch(Condition c, const Operand& opnd);
   void BranchOnCount(Register r1, Label* l);
