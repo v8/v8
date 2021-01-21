@@ -1328,6 +1328,10 @@ DEFINE_BOOL(
     "print debug messages for side-effect-free debug-evaluate for testing")
 DEFINE_BOOL(hard_abort, true, "abort by crashing")
 
+// disassembler
+DEFINE_BOOL(log_colour, ENABLE_LOG_COLOUR,
+            "When logging, try to use coloured output.")
+
 // inspector
 DEFINE_BOOL(expose_inspector_scripts, false,
             "expose injected-script-source.js for debugging")
@@ -1403,6 +1407,7 @@ DEFINE_IMPLICATION(allow_natives_for_differential_fuzzing, fuzzing)
 DEFINE_BOOL(parse_only, false, "only parse the sources")
 
 // simulator-arm.cc, simulator-arm64.cc and simulator-mips.cc
+#ifdef USE_SIMULATOR
 DEFINE_BOOL(trace_sim, false, "Trace simulator execution")
 DEFINE_BOOL(debug_sim, false, "Enable debugging the simulator")
 DEFINE_BOOL(check_icache, false,
@@ -1420,10 +1425,9 @@ DEFINE_INT(sim_stack_alignment, 8,
 DEFINE_INT(sim_stack_size, 2 * MB / KB,
            "Stack size of the ARM64, MIPS, MIPS64 and PPC64 simulator "
            "in kBytes (default is 2 MB)")
-DEFINE_BOOL(log_colour, ENABLE_LOG_COLOUR,
-            "When logging, try to use coloured output.")
 DEFINE_BOOL(trace_sim_messages, false,
             "Trace simulator debug messages. Implied by --trace-sim.")
+#endif  // USE_SIMULATOR
 
 #if defined V8_TARGET_ARCH_ARM64
 // pointer-auth-arm64.cc
