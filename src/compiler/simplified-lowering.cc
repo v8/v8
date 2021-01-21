@@ -764,7 +764,7 @@ class RepresentationSelector {
     DCHECK(TypeOf(node).IsNone());
     // If the node is unreachable, insert an Unreachable node and mark the
     // value dead.
-    // TODO(jarin,tebbi) Find a way to unify/merge this insertion with
+    // TODO(jarin,turbofan) Find a way to unify/merge this insertion with
     // InsertUnreachableIfNecessary.
     Node* unreachable = effect =
         graph()->NewNode(jsgraph_->common()->Unreachable(), effect, control);

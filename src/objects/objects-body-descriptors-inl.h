@@ -1092,7 +1092,8 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case SYNTHETIC_MODULE_TYPE:
       return Op::template apply<SyntheticModule::BodyDescriptor>(p1, p2, p3,
                                                                  p4);
-// TODO(tebbi): Avoid duplicated cases when the body descriptors are identical.
+// TODO(turbofan): Avoid duplicated cases when the body descriptors are
+// identical.
 #define MAKE_TORQUE_BODY_DESCRIPTOR_APPLY(TYPE, TypeName) \
   case TYPE:                                              \
     return Op::template apply<TypeName::BodyDescriptor>(p1, p2, p3, p4);

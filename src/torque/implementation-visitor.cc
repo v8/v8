@@ -2848,7 +2848,7 @@ VisitResult ImplementationVisitor::GenerateCall(
     } else {
       size_t slot_count = LoweredSlotCount(return_type);
       DCHECK_LE(slot_count, 1);
-      // TODO(tebbi): Actually, runtime functions have to return a value, so
+      // TODO(turbofan): Actually, runtime functions have to return a value, so
       // we should assert slot_count == 1 here.
       return VisitResult(return_type, assembler().TopRange(slot_count));
     }
@@ -4479,7 +4479,7 @@ void GeneratePrintDefinitionsForClass(std::ostream& impl, const ClassType* type,
             !f.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
           impl << "  os << \"\\n - " << f.name_and_type.name << ": \" << ";
           if (f.name_and_type.type->StructSupertype()) {
-            // TODO(tebbi): Print struct fields too.
+            // TODO(turbofan): Print struct fields too.
             impl << "\" <struct field printing still unimplemented>\";\n";
           } else {
             impl << "this->" << f.name_and_type.name << "();\n";

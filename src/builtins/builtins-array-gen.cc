@@ -178,7 +178,7 @@ void ArrayBuiltinsAssembler::GenerateIteratingTypedArrayBuiltinBody(
     BIND(&*it);
     Label done(this);
     source_elements_kind_ = static_cast<ElementsKind>(elements_kinds[i]);
-    // TODO(tebbi): Silently cancelling the loop on buffer detachment is a
+    // TODO(turbofan): Silently cancelling the loop on buffer detachment is a
     // spec violation. Should go to &throw_detached and throw a TypeError
     // instead.
     VisitAllTypedArrayElements(array_buffer, processor, &done, direction,

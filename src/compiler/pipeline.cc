@@ -1698,7 +1698,8 @@ struct EscapeAnalysisPhase {
     UnparkedScopeIfNeeded scope(data->broker());
 
     reducer.ReduceGraph();
-    // TODO(tebbi): Turn this into a debug mode check once we have confidence.
+    // TODO(turbofan): Turn this into a debug mode check once we have
+    // confidence.
     escape_reducer.VerifyReplacement();
   }
 };

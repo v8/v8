@@ -102,7 +102,7 @@ void CSAGenerator::EmitSourcePosition(SourcePosition pos, bool always_emit) {
 void CSAGenerator::EmitInstruction(
     const PushUninitializedInstruction& instruction,
     Stack<std::string>* stack) {
-  // TODO(tebbi): This can trigger an error in CSA if it is used. Instead, we
+  // TODO(turbofan): This can trigger an error in CSA if it is used. Instead, we
   // should prevent usage of uninitialized in the type system. This
   // requires "if constexpr" being evaluated at Torque time.
   const std::string str = "ca_.Uninitialized<" +

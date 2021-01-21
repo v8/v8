@@ -12,7 +12,7 @@ extern macro StringBuiltinsAssembler::GetSubstitution(
 extern builtin
 StringIndexOf(implicit context: Context)(String, String, Smi): Smi;
 
-// TODO(tebbi): This could be replaced with a fast C-call to StringSearchRaw.
+// TODO(turbofan): This could be replaced with a fast C-call to StringSearchRaw.
 macro AbstractStringIndexOf<A: type, B: type>(
     string: ConstSlice<A>, searchString: ConstSlice<B>, fromIndex: Smi): Smi {
   for (let i: intptr = SmiUntag(fromIndex);

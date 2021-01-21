@@ -119,7 +119,8 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
       CodeAssembler::LoadRoot(RootIndex::kUndefinedValue));
 
   StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kIndexOffset, index);
-  // TODO(jgruber,tebbi): Could skip barrier but the MemoryOptimizer complains.
+  // TODO(jgruber,turbofan): Could skip barrier but the MemoryOptimizer
+  // complains.
   StoreObjectField(result, JSRegExpResult::kInputOffset, input);
   StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kGroupsOffset,
                                  undefined_value);

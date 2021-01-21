@@ -423,8 +423,8 @@ void CallBuiltinPointerInstruction::TypeInstruction(
     ReportError("wrong argument types");
   }
   DCHECK_EQ(type, f);
-  // TODO(tebbi): Only invalidate transient types if the function pointer type
-  // is transitioning.
+  // TODO(turbofan): Only invalidate transient types if the function pointer
+  // type is transitioning.
   InvalidateTransientTypes(stack);
   stack->PushMany(LowerType(f->return_type()));
 }

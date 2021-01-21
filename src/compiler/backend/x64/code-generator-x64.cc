@@ -1048,7 +1048,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             __ RequiredStackSizeForCallerSaved(fp_mode_, kReturnRegister0);
         frame_access_state()->IncreaseSPDelta(bytes / kSystemPointerSize);
       }
-      // TODO(tebbi): Do we need an lfence here?
+      // TODO(turbofan): Do we need an lfence here?
       break;
     }
     case kArchJmp:

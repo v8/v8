@@ -912,18 +912,18 @@ void GlobalDictionary::GlobalDictionaryPrint(std::ostream& os) {
 
 void SmallOrderedHashSet::SmallOrderedHashSetPrint(std::ostream& os) {
   PrintHeader(os, "SmallOrderedHashSet");
-  // TODO(tebbi): Print all fields.
+  // TODO(turbofan): Print all fields.
 }
 
 void SmallOrderedHashMap::SmallOrderedHashMapPrint(std::ostream& os) {
   PrintHeader(os, "SmallOrderedHashMap");
-  // TODO(tebbi): Print all fields.
+  // TODO(turbofan): Print all fields.
 }
 
 void SmallOrderedNameDictionary::SmallOrderedNameDictionaryPrint(
     std::ostream& os) {
   PrintHeader(os, "SmallOrderedNameDictionary");
-  // TODO(tebbi): Print all fields.
+  // TODO(turbofan): Print all fields.
 }
 
 void OrderedHashSet::OrderedHashSetPrint(std::ostream& os) {

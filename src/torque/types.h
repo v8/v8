@@ -757,7 +757,7 @@ class ClassType final : public AggregateType {
   SourcePosition GetPosition() const { return decl_->pos; }
   SourceId AttributedToFile() const;
 
-  // TODO(tebbi): We should no longer pass around types as const pointers, so
+  // TODO(turbofan): We should no longer pass around types as const pointers, so
   // that we can avoid mutable fields and const initializers for
   // late-initialized portions of types like this one.
   void InitializeInstanceTypes(base::Optional<int> own,
