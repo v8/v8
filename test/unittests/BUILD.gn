@@ -134,8 +134,13 @@ v8_source_set("cppgc_unittests_sources") {
     "//testing/gtest",
   ]
 
-  if (!cppgc_is_standalone) {
-    deps += [ "../..:v8_tracing" ]
+  if (cppgc_is_standalone) {
+    deps += [ "../..:cppgc_for_testing" ]
+  } else {
+    deps += [
+      "../..:v8_for_testing",
+      "../..:v8_tracing",
+    ]
   }
 }
 
