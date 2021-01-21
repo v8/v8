@@ -203,7 +203,6 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          Register offset_reg,
                                          int32_t offset_imm,
                                          LiftoffRegList pinned) {
-  STATIC_ASSERT(kTaggedSize == kInt64Size);
   CHECK(is_int20(offset_imm));
   LoadTaggedPointerField(
       dst,
