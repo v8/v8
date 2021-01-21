@@ -1188,6 +1188,16 @@ void Assembler::cpuid() {
   emit(0xA2);
 }
 
+void Assembler::prefetch(Operand src, int level) {
+  DCHECK(is_uint2(level));
+  EnsureSpace ensure_space(this);
+  emit(0x0F);
+  emit(0x18);
+  // Emit hint number in Reg position of RegR/M.
+  XMMRegister code = XMMRegister::from_code(level);
+  emit_sse_operand(code, src);
+}
+
 void Assembler::cqo() {
   EnsureSpace ensure_space(this);
   emit_rex_64();

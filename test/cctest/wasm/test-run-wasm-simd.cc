@@ -3805,7 +3805,7 @@ WASM_SIMD_TEST(SimdF32x4SetGlobal) {
   CHECK_EQ(GetScalar(global, 3), 65.0f);
 }
 
-#if V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
 // TODO(v8:11168): Prototyping prefetch.
 WASM_SIMD_TEST(SimdPrefetch) {
   FLAG_SCOPE(wasm_simd_post_mvp);
@@ -3857,7 +3857,7 @@ WASM_SIMD_TEST(SimdPrefetch) {
     }
   }
 }
-#endif  // V8_TARGET_ARCH_ARM64
+#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
 
 WASM_SIMD_TEST(SimdLoadStoreLoad) {
   WasmRunner<int32_t> r(execution_tier, lower_simd);

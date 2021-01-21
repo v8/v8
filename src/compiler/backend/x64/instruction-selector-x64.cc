@@ -575,6 +575,30 @@ void InstructionSelector::VisitStoreLane(Node* node) {
   Emit(opcode, 0, nullptr, input_count, inputs);
 }
 
+void InstructionSelector::VisitPrefetchTemporal(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand inputs[2];
+  size_t input_count = 0;
+  InstructionCode opcode = kX64Prefetch;
+  AddressingMode addressing_mode =
+      g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
+  DCHECK_LE(input_count, 2);
+  opcode |= AddressingModeField::encode(addressing_mode);
+  Emit(opcode, 0, nullptr, input_count, inputs);
+}
+
+void InstructionSelector::VisitPrefetchNonTemporal(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand inputs[2];
+  size_t input_count = 0;
+  InstructionCode opcode = kX64PrefetchNta;
+  AddressingMode addressing_mode =
+      g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
+  DCHECK_LE(input_count, 2);
+  opcode |= AddressingModeField::encode(addressing_mode);
+  Emit(opcode, 0, nullptr, input_count, inputs);
+}
+
 // Shared routine for multiple binary operations.
 static void VisitBinop(InstructionSelector* selector, Node* node,
                        InstructionCode opcode, FlagsContinuation* cont) {
