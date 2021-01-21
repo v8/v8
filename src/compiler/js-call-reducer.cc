@@ -25,6 +25,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/property-access-builder.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/state-values-utils.h"
 #include "src/compiler/type-cache.h"
 #include "src/ic/call-optimization.h"
 #include "src/logging/counters.h"
@@ -3804,13 +3805,14 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   // some other function (and same for the {arguments_list}).
   CreateArgumentsType const type = CreateArgumentsTypeOf(arguments_list->op());
   Node* frame_state = NodeProperties::GetFrameStateInput(arguments_list);
-  FrameStateInfo state_info = FrameStateInfoOf(frame_state->op());
   int start_index = 0;
 
   int formal_parameter_count;
   {
     Handle<SharedFunctionInfo> shared;
-    if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
+    if (!FrameStateInfoOf(frame_state->op()).shared_info().ToHandle(&shared)) {
+      return NoChange();
+    }
     formal_parameter_count = SharedFunctionInfoRef(broker(), shared)
                                  .internal_formal_parameter_count();
   }
@@ -3874,11 +3876,31 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
     frame_state = outer_state;
   }
   // Add the actual parameters to the {node}, skipping the receiver.
-  Node* const parameters = frame_state->InputAt(kFrameStateParametersInput);
-  for (int i = start_index + 1; i < parameters->InputCount(); ++i) {
-    node->InsertInput(graph()->zone(),
-                      JSCallOrConstructNode::ArgumentIndex(argc++),
-                      parameters->InputAt(i));
+  const int argument_count =
+      FrameStateInfoOf(frame_state->op()).parameter_count() -
+      1;  // Minus receiver.
+  if (start_index < argument_count) {
+    Node* const parameters = frame_state->InputAt(kFrameStateParametersInput);
+    StateValuesAccess parameters_access(parameters);
+    auto parameters_it = ++parameters_access.begin();  // Skip the receiver.
+    for (int i = 0; i < start_index; i++) {
+      // A non-zero start_index implies that there are rest arguments. Skip
+      // them.
+      ++parameters_it;
+    }
+    for (int i = start_index; i < argument_count; ++i, ++parameters_it) {
+      Node* parameter_node = parameters_it.node();
+      DCHECK_NOT_NULL(parameter_node);
+      node->InsertInput(graph()->zone(),
+                        JSCallOrConstructNode::ArgumentIndex(argc++),
+                        parameter_node);
+    }
+    // TODO(jgruber): Currently, each use-site does the awkward dance above,
+    // iterating based on the FrameStateInfo's parameter count minus one, and
+    // manually advancing the iterator past the receiver. Consider wrapping all
+    // this in an understandable iterator s.t. one only needs to iterate from
+    // the beginning until done().
+    DCHECK(parameters_it.done());
   }
 
   if (IsCallWithArrayLikeOrSpread(node)) {
