@@ -1041,6 +1041,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   void GetObjectType(Register function, Register map, Register type_reg);
 
+  void GetInstanceTypeRange(Register map, Register type_reg,
+                            InstanceType lower_limit, Register range);
+
   // -------------------------------------------------------------------------
   // Runtime calls.
 
