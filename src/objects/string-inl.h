@@ -42,23 +42,19 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
     }
   }
 
+  // Slow version which gets the isolate from the String.
+  explicit SharedStringAccessGuardIfNeeded(String str) {
+    Isolate* isolate = GetIsolateIfNeeded(str);
+    if (isolate != nullptr) mutex_guard.emplace(isolate->string_access());
+  }
+
   static SharedStringAccessGuardIfNeeded NotNeeded() {
     return SharedStringAccessGuardIfNeeded();
   }
 
 #ifdef DEBUG
   static bool IsNeeded(String str) {
-    LocalHeap* local_heap = LocalHeap::Current();
-    // Don't acquire the lock for the main thread.
-    if (!local_heap || local_heap->is_main_thread()) return false;
-
-    Isolate* isolate;
-    if (!GetIsolateFromHeapObject(str, &isolate)) {
-      // If we can't get the isolate from the String, it must be read-only.
-      DCHECK(ReadOnlyHeap::Contains(str));
-      return false;
-    }
-    return true;
+    return GetIsolateIfNeeded(str) != nullptr;
   }
 #endif
 
@@ -74,6 +70,21 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
   constexpr SharedStringAccessGuardIfNeeded(SharedStringAccessGuardIfNeeded&&)
       V8_NOEXCEPT {
     DCHECK(!mutex_guard.has_value());
+  }
+
+  // Returns the Isolate from the String if we need it for the lock.
+  static Isolate* GetIsolateIfNeeded(String str) {
+    LocalHeap* local_heap = LocalHeap::Current();
+    // Don't acquire the lock for the main thread.
+    if (!local_heap || local_heap->is_main_thread()) return nullptr;
+
+    Isolate* isolate;
+    if (!GetIsolateFromHeapObject(str, &isolate)) {
+      // If we can't get the isolate from the String, it must be read-only.
+      DCHECK(ReadOnlyHeap::Contains(str));
+      return nullptr;
+    }
+    return isolate;
   }
 
   base::Optional<base::SharedMutexGuard<base::kShared>> mutex_guard;
@@ -628,6 +639,15 @@ String String::GetUnderlying() {
 template <class Visitor>
 ConsString String::VisitFlat(Visitor* visitor, String string,
                              const int offset) {
+  DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(string));
+  return VisitFlat(visitor, string, offset,
+                   SharedStringAccessGuardIfNeeded::NotNeeded());
+}
+
+template <class Visitor>
+ConsString String::VisitFlat(
+    Visitor* visitor, String string, const int offset,
+    const SharedStringAccessGuardIfNeeded& access_guard) {
   DisallowGarbageCollection no_gc;
   int slice_offset = offset;
   const int length = string.length();
@@ -637,13 +657,15 @@ ConsString String::VisitFlat(Visitor* visitor, String string,
     switch (type & (kStringRepresentationMask | kStringEncodingMask)) {
       case kSeqStringTag | kOneByteStringTag:
         visitor->VisitOneByteString(
-            SeqOneByteString::cast(string).GetChars(no_gc) + slice_offset,
+            SeqOneByteString::cast(string).GetChars(no_gc, access_guard) +
+                slice_offset,
             length - offset);
         return ConsString();
 
       case kSeqStringTag | kTwoByteStringTag:
         visitor->VisitTwoByteString(
-            SeqTwoByteString::cast(string).GetChars(no_gc) + slice_offset,
+            SeqTwoByteString::cast(string).GetChars(no_gc, access_guard) +
+                slice_offset,
             length - offset);
         return ConsString();
 
@@ -946,6 +968,28 @@ void ConsStringIterator::Pop() {
   depth_--;
 }
 
+class StringCharacterStream {
+ public:
+  inline explicit StringCharacterStream(String string, int offset = 0);
+  StringCharacterStream(const StringCharacterStream&) = delete;
+  StringCharacterStream& operator=(const StringCharacterStream&) = delete;
+  inline uint16_t GetNext();
+  inline bool HasMore();
+  inline void Reset(String string, int offset = 0);
+  inline void VisitOneByteString(const uint8_t* chars, int length);
+  inline void VisitTwoByteString(const uint16_t* chars, int length);
+
+ private:
+  ConsStringIterator iter_;
+  bool is_one_byte_;
+  union {
+    const uint8_t* buffer8_;
+    const uint16_t* buffer16_;
+  };
+  const uint8_t* end_;
+  SharedStringAccessGuardIfNeeded access_guard_;
+};
+
 uint16_t StringCharacterStream::GetNext() {
   DCHECK(buffer8_ != nullptr && end_ != nullptr);
   // Advance cursor if needed.
@@ -954,19 +998,25 @@ uint16_t StringCharacterStream::GetNext() {
   return is_one_byte_ ? *buffer8_++ : *buffer16_++;
 }
 
+// TODO(solanes, v8:7790, chromium:1166095): Assess if we need to use
+// Isolate/LocalIsolate and pipe them through, instead of using the slow
+// version of the SharedStringAccessGuardIfNeeded.
 StringCharacterStream::StringCharacterStream(String string, int offset)
-    : is_one_byte_(false) {
+    : is_one_byte_(false), access_guard_(string) {
   Reset(string, offset);
 }
 
 void StringCharacterStream::Reset(String string, int offset) {
   buffer8_ = nullptr;
   end_ = nullptr;
-  ConsString cons_string = String::VisitFlat(this, string, offset);
+
+  ConsString cons_string =
+      String::VisitFlat(this, string, offset, access_guard_);
   iter_.Reset(cons_string, offset);
   if (!cons_string.is_null()) {
     string = iter_.Next(&offset);
-    if (!string.is_null()) String::VisitFlat(this, string, offset);
+    if (!string.is_null())
+      String::VisitFlat(this, string, offset, access_guard_);
   }
 }
 
@@ -976,7 +1026,7 @@ bool StringCharacterStream::HasMore() {
   String string = iter_.Next(&offset);
   DCHECK_EQ(offset, 0);
   if (string.is_null()) return false;
-  String::VisitFlat(this, string);
+  String::VisitFlat(this, string, 0, access_guard_);
   DCHECK(buffer8_ != end_);
   return true;
 }
