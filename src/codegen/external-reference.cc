@@ -75,6 +75,12 @@ constexpr struct alignas(16) {
 } double_negate_constant = {uint64_t{0x8000000000000000},
                             uint64_t{0x8000000000000000}};
 
+constexpr struct alignas(16) {
+  uint64_t a;
+  uint64_t b;
+} wasm_i8x16_popcnt_mask = {uint64_t{0x03020201'02010100},
+                            uint64_t{0x04030302'03020201}};
+
 // Implementation of ExternalReference
 
 static ExternalReference::Type BuiltinCallTypeForResultSize(int result_size) {
@@ -478,6 +484,10 @@ ExternalReference ExternalReference::address_of_double_abs_constant() {
 
 ExternalReference ExternalReference::address_of_double_neg_constant() {
   return ExternalReference(reinterpret_cast<Address>(&double_negate_constant));
+}
+
+ExternalReference ExternalReference::address_of_wasm_i8x16_popcnt_mask() {
+  return ExternalReference(reinterpret_cast<Address>(&wasm_i8x16_popcnt_mask));
 }
 
 ExternalReference

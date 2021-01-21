@@ -3808,16 +3808,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ vpshufb(kScratchDoubleReg, tmp, kScratchDoubleReg);
         __ vpaddb(dst, dst, kScratchDoubleReg);
       } else {
+        Operand mask = __ ExternalReferenceAsOperand(
+            ExternalReference::address_of_wasm_i8x16_popcnt_mask());
         __ shufps(tmp, tmp, 0);
-        __ Move(kScratchDoubleReg, src);
-        __ andps(kScratchDoubleReg, tmp);
-        __ andnps(tmp, src);
-        __ Move(dst, 0x04030302'03020201, 0x03020201'02010100);
-        __ psrlw(tmp, 4);
-        __ pshufb(dst, kScratchDoubleReg);
-        __ Move(kScratchDoubleReg, 0x04030302'03020201, 0x03020201'02010100);
-        __ pshufb(kScratchDoubleReg, tmp);
-        __ paddb(dst, kScratchDoubleReg);
+        __ Move(kScratchDoubleReg, tmp);
+        __ andps(tmp, src);
+        __ andnps(kScratchDoubleReg, src);
+        __ psrlw(kScratchDoubleReg, 4);
+        __ movups(dst, mask);
+        __ pshufb(dst, tmp);
+        __ movups(tmp, mask);
+        __ pshufb(tmp, kScratchDoubleReg);
+        __ paddb(dst, tmp);
       }
       break;
     }
