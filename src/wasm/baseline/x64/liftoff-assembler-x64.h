@@ -135,6 +135,8 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
   switch (type.kind()) {
     case ValueType::kI32:
     case ValueType::kI64:
+    case ValueType::kRef:
+    case ValueType::kOptRef:
       assm->pushq(reg.gp());
       break;
     case ValueType::kF32:
