@@ -19,8 +19,11 @@ class UnifiedHeapTest : public TestWithHeapInternals {
   UnifiedHeapTest();
   ~UnifiedHeapTest() override = default;
 
-  void CollectGarbageWithEmbedderStack();
-  void CollectGarbageWithoutEmbedderStack();
+  void CollectGarbageWithEmbedderStack(cppgc::Heap::SweepingType sweeping_type =
+                                           cppgc::Heap::SweepingType::kAtomic);
+  void CollectGarbageWithoutEmbedderStack(
+      cppgc::Heap::SweepingType sweeping_type =
+          cppgc::Heap::SweepingType::kAtomic);
 
   CppHeap& cpp_heap() const;
   cppgc::AllocationHandle& allocation_handle();

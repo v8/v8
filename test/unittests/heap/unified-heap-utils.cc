@@ -18,16 +18,24 @@ UnifiedHeapTest::UnifiedHeapTest() {
   isolate()->heap()->ConfigureCppHeap(std::make_unique<CppHeapCreateParams>());
 }
 
-void UnifiedHeapTest::CollectGarbageWithEmbedderStack() {
+void UnifiedHeapTest::CollectGarbageWithEmbedderStack(
+    cppgc::Heap::SweepingType sweeping_type) {
   heap()->SetEmbedderStackStateForNextFinalization(
       EmbedderHeapTracer::EmbedderStackState::kMayContainHeapPointers);
   CollectGarbage(OLD_SPACE);
+  if (sweeping_type == cppgc::Heap::SweepingType::kAtomic) {
+    cpp_heap().AsBase().sweeper().FinishIfRunning();
+  }
 }
 
-void UnifiedHeapTest::CollectGarbageWithoutEmbedderStack() {
+void UnifiedHeapTest::CollectGarbageWithoutEmbedderStack(
+    cppgc::Heap::SweepingType sweeping_type) {
   heap()->SetEmbedderStackStateForNextFinalization(
       EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers);
   CollectGarbage(OLD_SPACE);
+  if (sweeping_type == cppgc::Heap::SweepingType::kAtomic) {
+    cpp_heap().AsBase().sweeper().FinishIfRunning();
+  }
 }
 
 CppHeap& UnifiedHeapTest::cpp_heap() const {
