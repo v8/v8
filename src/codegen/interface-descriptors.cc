@@ -23,7 +23,13 @@ void CallInterfaceDescriptorData::InitializePlatformSpecific(
   for (int i = 0; i < register_parameter_count; i++) {
     // The value of the root register must be reserved, thus any uses
     // within the calling convention are disallowed.
-    DCHECK_NE(registers[i], kRootRegister);
+#ifdef DEBUG
+    CHECK_NE(registers[i], kRootRegister);
+    // Check for duplicated registers.
+    for (int j = i + 1; j < register_parameter_count; j++) {
+      CHECK_NE(registers[i], registers[j]);
+    }
+#endif
     register_params_[i] = registers[i];
   }
 }
