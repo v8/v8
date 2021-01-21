@@ -417,6 +417,8 @@ namespace compiler {
   V(IA32V32x4AllTrue)              \
   V(IA32V16x8AllTrue)              \
   V(IA32V8x16AllTrue)              \
+  V(IA32Prefetch)                  \
+  V(IA32PrefetchNta)               \
   V(IA32Word32AtomicPairLoad)      \
   V(IA32Word32AtomicPairStore)     \
   V(IA32Word32AtomicPairAdd)       \
