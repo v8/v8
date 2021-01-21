@@ -14,14 +14,8 @@
 namespace v8 {
 namespace internal {
 
-UnifiedHeapTest::UnifiedHeapTest()
-    : saved_incremental_marking_wrappers_(FLAG_incremental_marking_wrappers) {
-  FLAG_incremental_marking_wrappers = false;
+UnifiedHeapTest::UnifiedHeapTest() {
   isolate()->heap()->ConfigureCppHeap(std::make_unique<CppHeapCreateParams>());
-}
-
-UnifiedHeapTest::~UnifiedHeapTest() {
-  FLAG_incremental_marking_wrappers = saved_incremental_marking_wrappers_;
 }
 
 void UnifiedHeapTest::CollectGarbageWithEmbedderStack() {
@@ -74,6 +68,13 @@ v8::Local<v8::Object> WrapperHelper::CreateWrapper(
 void WrapperHelper::ResetWrappableConnection(v8::Local<v8::Object> api_object) {
   api_object->SetAlignedPointerInInternalField(0, nullptr);
   api_object->SetAlignedPointerInInternalField(1, nullptr);
+}
+
+// static
+void WrapperHelper::SetWrappableConnection(v8::Local<v8::Object> api_object,
+                                           void* field1, void* field2) {
+  api_object->SetAlignedPointerInInternalField(0, field1);
+  api_object->SetAlignedPointerInInternalField(1, field2);
 }
 
 }  // namespace internal

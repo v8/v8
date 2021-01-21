@@ -50,6 +50,12 @@ void JSHeapConsistency::DijkstraMarkingBarrierSlow(
   static_cast<JSVisitor*>(&heap_base.marker()->Visitor())->Trace(ref);
 }
 
+void JSHeapConsistency::CheckWrapper(v8::Local<v8::Object>& wrapper,
+                                     int wrapper_index, const void* wrappable) {
+  CHECK_EQ(wrappable,
+           wrapper->GetAlignedPointerFromInternalField(wrapper_index));
+}
+
 namespace internal {
 
 namespace {
@@ -169,7 +175,6 @@ CppHeap::CppHeap(
                                 cppgc::internal::HeapBase::StackSupport::
                                     kSupportsConservativeStackScan),
       isolate_(*reinterpret_cast<Isolate*>(isolate)) {
-  CHECK(!FLAG_incremental_marking_wrappers);
   if (isolate_.heap_profiler()) {
     isolate_.heap_profiler()->AddBuildEmbedderGraphCallback(
         &CppGraphBuilder::Run, this);

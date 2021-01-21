@@ -83,13 +83,15 @@ class JSVisitor : public cppgc::Visitor {
  * Consistency helpers that aid in maintaining a consistent internal state of
  * the garbage collector.
  */
-class JSHeapConsistency final {
+class V8_EXPORT JSHeapConsistency final {
  public:
   using WriteBarrierParams = cppgc::internal::WriteBarrier::Params;
   using WriteBarrierType = cppgc::internal::WriteBarrier::Type;
 
   /**
    * Gets the required write barrier type for a specific write.
+   *
+   * Note: Handling for C++ to JS references.
    *
    * \param ref The reference being written to.
    * \param params Parameters that may be used for actual write barrier calls.
@@ -101,6 +103,30 @@ class JSHeapConsistency final {
       const TracedReferenceBase& ref, WriteBarrierParams& params) {
     if (ref.IsEmpty()) return WriteBarrierType::kNone;
     return cppgc::internal::WriteBarrier::GetWriteBarrierType(&ref, params);
+  }
+
+  /**
+   * Gets the required write barrier type for a specific write.
+   *
+   * Note: Handling for JS to C++ references.
+   *
+   * \param wrapper The wrapper that has been written into.
+   * \param wrapper_index The wrapper index in `wrapper` that has been written
+   *   into.
+   * \param wrappable The value that was written.
+   * \param params Parameters that may be used for actual write barrier calls.
+   *   Only filled if return value indicates that a write barrier is needed. The
+   *   contents of the `params` are an implementation detail.
+   * \returns whether a write barrier is needed and which barrier to invoke.
+   */
+  static V8_INLINE WriteBarrierType
+  GetWriteBarrierType(v8::Local<v8::Object>& wrapper, int wrapper_index,
+                      const void* wrappable, WriteBarrierParams& params) {
+#if V8_ENABLE_CHECKS
+    CheckWrapper(wrapper, wrapper_index, wrappable);
+#endif  // V8_ENABLE_CHECKS
+    return cppgc::internal::WriteBarrier::
+        GetWriteBarrierTypeForExternallyReferencedObject(wrappable, params);
   }
 
   /**
@@ -119,6 +145,20 @@ class JSHeapConsistency final {
   }
 
   /**
+   * Conservative Dijkstra-style write barrier that processes an object if it
+   * has not yet been processed.
+   *
+   * \param params The parameters retrieved from `GetWriteBarrierType()`.
+   * \param object The pointer to the object. May be an interior pointer to a
+   *   an interface of the actual object.
+   */
+  static V8_INLINE void DijkstraMarkingBarrier(const WriteBarrierParams& params,
+                                               cppgc::HeapHandle& heap_handle,
+                                               const void* object) {
+    cppgc::internal::WriteBarrier::DijkstraMarkingBarrier(params, object);
+  }
+
+  /**
    * Generational barrier for maintaining consistency when running with multiple
    * generations.
    *
@@ -130,6 +170,8 @@ class JSHeapConsistency final {
 
  private:
   JSHeapConsistency() = delete;
+
+  static void CheckWrapper(v8::Local<v8::Object>&, int, const void*);
 
   static void DijkstraMarkingBarrierSlow(cppgc::HeapHandle&,
                                          const TracedReferenceBase& ref);

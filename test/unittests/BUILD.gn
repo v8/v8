@@ -300,6 +300,7 @@ v8_source_set("unittests_sources") {
     "heap/gc-tracer-unittest.cc",
     "heap/heap-controller-unittest.cc",
     "heap/heap-unittest.cc",
+    "heap/heap-utils.cc",
     "heap/heap-utils.h",
     "heap/index-generator-unittest.cc",
     "heap/item-parallel-job-unittest.cc",

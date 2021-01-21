@@ -57,6 +57,9 @@ class V8_EXPORT WriteBarrier final {
   // Returns the required write barrier for a given `slot`.
   static V8_INLINE Type GetWriteBarrierType(const void* slot, Params& params);
 
+  static V8_INLINE Type GetWriteBarrierTypeForExternallyReferencedObject(
+      const void* value, Params& params);
+
   static V8_INLINE void DijkstraMarkingBarrier(const Params& params,
                                                const void* object);
   static V8_INLINE void DijkstraMarkingBarrierRange(
@@ -140,6 +143,20 @@ class WriteBarrierTypeForCagedHeapPolicy final {
 #endif  // !CPPGC_YOUNG_GENERATION
   }
 
+  static V8_INLINE WriteBarrier::Type GetForExternallyReferenced(
+      const void* value, WriteBarrier::Params& params) {
+    if (!TryGetCagedHeap(value, value, params)) {
+      return WriteBarrier::Type::kNone;
+    }
+    if (V8_UNLIKELY(params.caged_heap().is_marking_in_progress)) {
+#if V8_ENABLE_CHECKS
+      params.type = WriteBarrier::Type::kMarking;
+#endif  // !V8_ENABLE_CHECKS
+      return WriteBarrier::Type::kMarking;
+    }
+    return WriteBarrier::Type::kNone;
+  }
+
  private:
   WriteBarrierTypeForCagedHeapPolicy() = delete;
 
@@ -164,6 +181,17 @@ class WriteBarrierTypeForNonCagedHeapPolicy final {
   template <WriteBarrier::ValueMode value_mode>
   static V8_INLINE WriteBarrier::Type Get(const void* slot, const void* value,
                                           WriteBarrier::Params& params) {
+    return GetInternal(params);
+  }
+
+  static V8_INLINE WriteBarrier::Type GetForExternallyReferenced(
+      const void* value, WriteBarrier::Params& params) {
+    return GetInternal(params);
+  }
+
+ private:
+  static V8_INLINE WriteBarrier::Type GetInternal(
+      WriteBarrier::Params& params) {
     WriteBarrier::Type type =
         V8_LIKELY(!ProcessHeap::IsAnyIncrementalOrConcurrentMarking())
             ? WriteBarrier::Type::kNone
@@ -174,7 +202,6 @@ class WriteBarrierTypeForNonCagedHeapPolicy final {
     return type;
   }
 
- private:
   WriteBarrierTypeForNonCagedHeapPolicy() = delete;
 };
 
@@ -190,6 +217,13 @@ WriteBarrier::Type WriteBarrier::GetWriteBarrierType(
     const void* slot, WriteBarrier::Params& params) {
   return WriteBarrierTypePolicy::Get<ValueMode::kNoValuePresent>(slot, nullptr,
                                                                  params);
+}
+
+// static
+WriteBarrier::Type
+WriteBarrier::GetWriteBarrierTypeForExternallyReferencedObject(
+    const void* value, Params& params) {
+  return WriteBarrierTypePolicy::GetForExternallyReferenced(value, params);
 }
 
 // static
