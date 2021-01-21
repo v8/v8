@@ -1386,7 +1386,7 @@ DEFINE_INT(max_valid_polymorphic_map_count, 4,
 DEFINE_BOOL(native_code_counters, DEBUG_BOOL,
             "generate extra code for manipulating stats counters")
 
-DEFINE_BOOL(super_ic, false, "use an IC for super property loads")
+DEFINE_BOOL(super_ic, true, "use an IC for super property loads")
 
 // objects.cc
 DEFINE_BOOL(thin_strings, true, "Enable ThinString support")
