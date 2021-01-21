@@ -14,11 +14,6 @@ namespace cppgc {
 enum class EmbedderStackState {
   kMayContainHeapPointers,
   kNoHeapPointers,
-  kUnknown V8_ENUM_DEPRECATED("Use kMayContainHeapPointers") =
-      kMayContainHeapPointers,
-  kNonEmpty V8_ENUM_DEPRECATED("Use kMayContainHeapPointers") =
-      kMayContainHeapPointers,
-  kEmpty V8_ENUM_DEPRECATED("Use kNoHeapPointers") = kNoHeapPointers,
 };
 
 }  // namespace cppgc
