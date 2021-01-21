@@ -81,6 +81,62 @@ const char* const CodeEntry::kGarbageCollectorEntryName = "(garbage collector)";
 const char* const CodeEntry::kUnresolvedFunctionName = "(unresolved function)";
 const char* const CodeEntry::kRootEntryName = "(root)";
 
+base::LazyDynamicInstance<CodeEntry, CodeEntry::ProgramEntryCreateTrait>::type
+    CodeEntry::kProgramEntry = LAZY_DYNAMIC_INSTANCE_INITIALIZER;
+
+base::LazyDynamicInstance<CodeEntry, CodeEntry::IdleEntryCreateTrait>::type
+    CodeEntry::kIdleEntry = LAZY_DYNAMIC_INSTANCE_INITIALIZER;
+
+base::LazyDynamicInstance<CodeEntry, CodeEntry::GCEntryCreateTrait>::type
+    CodeEntry::kGCEntry = LAZY_DYNAMIC_INSTANCE_INITIALIZER;
+
+base::LazyDynamicInstance<CodeEntry,
+                          CodeEntry::UnresolvedEntryCreateTrait>::type
+    CodeEntry::kUnresolvedEntry = LAZY_DYNAMIC_INSTANCE_INITIALIZER;
+
+base::LazyDynamicInstance<CodeEntry, CodeEntry::RootEntryCreateTrait>::type
+    CodeEntry::kRootEntry = LAZY_DYNAMIC_INSTANCE_INITIALIZER;
+
+CodeEntry* CodeEntry::ProgramEntryCreateTrait::Create() {
+  return new CodeEntry(
+      CodeEventListener::FUNCTION_TAG, CodeEntry::kProgramEntryName,
+      CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
+      v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
+      CodeEntry::CodeType::OTHER);
+}
+
+CodeEntry* CodeEntry::IdleEntryCreateTrait::Create() {
+  return new CodeEntry(CodeEventListener::FUNCTION_TAG,
+                       CodeEntry::kIdleEntryName, CodeEntry::kEmptyResourceName,
+                       v8::CpuProfileNode::kNoLineNumberInfo,
+                       v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
+                       CodeEntry::CodeType::OTHER);
+}
+
+CodeEntry* CodeEntry::GCEntryCreateTrait::Create() {
+  return new CodeEntry(
+      CodeEventListener::BUILTIN_TAG, CodeEntry::kGarbageCollectorEntryName,
+      CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
+      v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
+      CodeEntry::CodeType::OTHER);
+}
+
+CodeEntry* CodeEntry::UnresolvedEntryCreateTrait::Create() {
+  return new CodeEntry(
+      CodeEventListener::FUNCTION_TAG, CodeEntry::kUnresolvedFunctionName,
+      CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
+      v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
+      CodeEntry::CodeType::OTHER);
+}
+
+CodeEntry* CodeEntry::RootEntryCreateTrait::Create() {
+  return new CodeEntry(CodeEventListener::FUNCTION_TAG,
+                       CodeEntry::kRootEntryName, CodeEntry::kEmptyResourceName,
+                       v8::CpuProfileNode::kNoLineNumberInfo,
+                       v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
+                       CodeEntry::CodeType::OTHER);
+}
+
 uint32_t CodeEntry::GetHash() const {
   uint32_t hash = ComputeUnseededHash(tag());
   if (script_id_ != v8::UnboundScript::kNoScriptId) {

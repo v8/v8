@@ -5,7 +5,7 @@
 #include "src/profiler/symbolizer.h"
 
 #include "src/execution/vm-state.h"
-#include "src/profiler/profile-generator-inl.h"
+#include "src/profiler/profile-generator.h"
 #include "src/profiler/profiler-stats.h"
 #include "src/profiler/tick-sample.h"
 
