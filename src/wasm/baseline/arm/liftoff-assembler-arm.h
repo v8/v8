@@ -2384,9 +2384,18 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
 
 void LiftoffAssembler::StoreLane(Register dst, Register offset,
                                  uintptr_t offset_imm, LiftoffRegister src,
-                                 StoreType type, uint8_t lane,
+                                 StoreType type, uint8_t laneidx,
                                  uint32_t* protected_store_pc) {
-  bailout(kSimd, "store lane");
+  UseScratchRegisterScope temps(this);
+  Register actual_dst_addr =
+      liftoff::CalculateActualAddress(this, &temps, dst, offset, offset_imm);
+  *protected_store_pc = pc_offset();
+
+  LoadStoreLaneParams store_params(type.mem_rep(), laneidx);
+  NeonListOperand src_op =
+      NeonListOperand(store_params.low_op ? src.low_fp() : src.high_fp());
+  TurboAssembler::StoreLane(store_params.sz, src_op, store_params.laneidx,
+                            NeonMemOperand(actual_dst_addr));
 }
 
 void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
