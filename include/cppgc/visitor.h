@@ -62,6 +62,22 @@ class V8_EXPORT Visitor {
   virtual ~Visitor() = default;
 
   /**
+   * Trace method for raw pointers. Prefer the versions for managed pointers.
+   *
+   * \param member Reference retaining an object.
+   */
+  template <typename T>
+  void Trace(const T* t) {
+    static_assert(sizeof(T), "Pointee type must be fully defined.");
+    static_assert(internal::IsGarbageCollectedType<T>::value,
+                  "T must be GarbageCollected or GarbageCollectedMixin type");
+    if (!t) {
+      return;
+    }
+    Visit(t, TraceTrait<T>::GetTraceDescriptor(t));
+  }
+
+  /**
    * Trace method for Member.
    *
    * \param member Member reference retaining an object.
@@ -285,17 +301,6 @@ class V8_EXPORT Visitor {
                   "Weak references to compactable objects are not allowed");
     VisitWeakRoot(p.Get(), TraceTrait<PointeeType>::GetTraceDescriptor(p.Get()),
                   &HandleWeak<WeakPersistent>, &p, loc);
-  }
-
-  template <typename T>
-  void Trace(const T* t) {
-    static_assert(sizeof(T), "Pointee type must be fully defined.");
-    static_assert(internal::IsGarbageCollectedType<T>::value,
-                  "T must be GarbageCollected or GarbageCollectedMixin type");
-    if (!t) {
-      return;
-    }
-    Visit(t, TraceTrait<T>::GetTraceDescriptor(t));
   }
 
 #if V8_ENABLE_CHECKS
