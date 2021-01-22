@@ -106,6 +106,7 @@ v8_source_set("cppgc_unittests_sources") {
     "heap/cppgc/metric-recorder-unittest.cc",
     "heap/cppgc/minor-gc-unittest.cc",
     "heap/cppgc/name-trait-unittest.cc",
+    "heap/cppgc/object-size-trait-unittest.cc",
     "heap/cppgc/object-start-bitmap-unittest.cc",
     "heap/cppgc/page-memory-unittest.cc",
     "heap/cppgc/persistent-family-unittest.cc",
