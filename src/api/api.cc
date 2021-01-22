@@ -10823,6 +10823,9 @@ const CpuProfileNode* CpuProfile::GetSample(int index) const {
   return reinterpret_cast<const CpuProfileNode*>(profile->sample(index).node);
 }
 
+const int CpuProfileNode::kNoLineNumberInfo;
+const int CpuProfileNode::kNoColumnNumberInfo;
+
 int64_t CpuProfile::GetSampleTimestamp(int index) const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
   return profile->sample(index).timestamp.since_origin().InMicroseconds();

@@ -162,21 +162,17 @@ class CodeEntry {
 
   V8_EXPORT_PRIVATE static const char* const kProgramEntryName;
   V8_EXPORT_PRIVATE static const char* const kIdleEntryName;
-  static const char* const kGarbageCollectorEntryName;
+  V8_EXPORT_PRIVATE static const char* const kGarbageCollectorEntryName;
   // Used to represent frames for which we have no reliable way to
   // detect function.
   V8_EXPORT_PRIVATE static const char* const kUnresolvedFunctionName;
   V8_EXPORT_PRIVATE static const char* const kRootEntryName;
 
-  V8_INLINE static CodeEntry* program_entry() {
-    return kProgramEntry.Pointer();
-  }
-  V8_INLINE static CodeEntry* idle_entry() { return kIdleEntry.Pointer(); }
-  V8_INLINE static CodeEntry* gc_entry() { return kGCEntry.Pointer(); }
-  V8_INLINE static CodeEntry* unresolved_entry() {
-    return kUnresolvedEntry.Pointer();
-  }
-  V8_INLINE static CodeEntry* root_entry() { return kRootEntry.Pointer(); }
+  V8_EXPORT_PRIVATE static CodeEntry* program_entry();
+  V8_EXPORT_PRIVATE static CodeEntry* idle_entry();
+  V8_EXPORT_PRIVATE static CodeEntry* gc_entry();
+  V8_EXPORT_PRIVATE static CodeEntry* unresolved_entry();
+  V8_EXPORT_PRIVATE static CodeEntry* root_entry();
 
   // Releases strings owned by this CodeEntry, which may be allocated in the
   // provided StringsStorage instance. This instance is not stored directly
@@ -198,33 +194,6 @@ class CodeEntry {
   };
 
   RareData* EnsureRareData();
-
-  struct V8_EXPORT_PRIVATE ProgramEntryCreateTrait {
-    static CodeEntry* Create();
-  };
-  struct V8_EXPORT_PRIVATE IdleEntryCreateTrait {
-    static CodeEntry* Create();
-  };
-  struct V8_EXPORT_PRIVATE GCEntryCreateTrait {
-    static CodeEntry* Create();
-  };
-  struct V8_EXPORT_PRIVATE UnresolvedEntryCreateTrait {
-    static CodeEntry* Create();
-  };
-  struct V8_EXPORT_PRIVATE RootEntryCreateTrait {
-    static CodeEntry* Create();
-  };
-
-  V8_EXPORT_PRIVATE static base::LazyDynamicInstance<
-      CodeEntry, ProgramEntryCreateTrait>::type kProgramEntry;
-  V8_EXPORT_PRIVATE static base::LazyDynamicInstance<
-      CodeEntry, IdleEntryCreateTrait>::type kIdleEntry;
-  V8_EXPORT_PRIVATE static base::LazyDynamicInstance<
-      CodeEntry, GCEntryCreateTrait>::type kGCEntry;
-  V8_EXPORT_PRIVATE static base::LazyDynamicInstance<
-      CodeEntry, UnresolvedEntryCreateTrait>::type kUnresolvedEntry;
-  V8_EXPORT_PRIVATE static base::LazyDynamicInstance<
-      CodeEntry, RootEntryCreateTrait>::type kRootEntry;
 
   using TagField = base::BitField<CodeEventListener::LogEventsAndTags, 0, 8>;
   using BuiltinIdField = base::BitField<Builtins::Name, 8, 20>;

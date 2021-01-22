@@ -6,6 +6,8 @@
 
 #include <algorithm>
 
+#include "include/v8-profiler.h"
+#include "src/base/lazy-instance.h"
 #include "src/codegen/source-position.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/profiler/cpu-profiler.h"
@@ -81,60 +83,54 @@ const char* const CodeEntry::kGarbageCollectorEntryName = "(garbage collector)";
 const char* const CodeEntry::kUnresolvedFunctionName = "(unresolved function)";
 const char* const CodeEntry::kRootEntryName = "(root)";
 
-base::LazyDynamicInstance<CodeEntry, CodeEntry::ProgramEntryCreateTrait>::type
-    CodeEntry::kProgramEntry = LAZY_DYNAMIC_INSTANCE_INITIALIZER;
-
-base::LazyDynamicInstance<CodeEntry, CodeEntry::IdleEntryCreateTrait>::type
-    CodeEntry::kIdleEntry = LAZY_DYNAMIC_INSTANCE_INITIALIZER;
-
-base::LazyDynamicInstance<CodeEntry, CodeEntry::GCEntryCreateTrait>::type
-    CodeEntry::kGCEntry = LAZY_DYNAMIC_INSTANCE_INITIALIZER;
-
-base::LazyDynamicInstance<CodeEntry,
-                          CodeEntry::UnresolvedEntryCreateTrait>::type
-    CodeEntry::kUnresolvedEntry = LAZY_DYNAMIC_INSTANCE_INITIALIZER;
-
-base::LazyDynamicInstance<CodeEntry, CodeEntry::RootEntryCreateTrait>::type
-    CodeEntry::kRootEntry = LAZY_DYNAMIC_INSTANCE_INITIALIZER;
-
-CodeEntry* CodeEntry::ProgramEntryCreateTrait::Create() {
-  return new CodeEntry(
+// static
+CodeEntry* CodeEntry::program_entry() {
+  static base::LeakyObject<CodeEntry> kProgramEntry(
       CodeEventListener::FUNCTION_TAG, CodeEntry::kProgramEntryName,
       CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
       v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
       CodeEntry::CodeType::OTHER);
+  return kProgramEntry.get();
 }
 
-CodeEntry* CodeEntry::IdleEntryCreateTrait::Create() {
-  return new CodeEntry(CodeEventListener::FUNCTION_TAG,
-                       CodeEntry::kIdleEntryName, CodeEntry::kEmptyResourceName,
-                       v8::CpuProfileNode::kNoLineNumberInfo,
-                       v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
-                       CodeEntry::CodeType::OTHER);
+// static
+CodeEntry* CodeEntry::idle_entry() {
+  static base::LeakyObject<CodeEntry> kIdleEntry(
+      CodeEventListener::FUNCTION_TAG, CodeEntry::kIdleEntryName,
+      CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
+      v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
+      CodeEntry::CodeType::OTHER);
+  return kIdleEntry.get();
 }
 
-CodeEntry* CodeEntry::GCEntryCreateTrait::Create() {
-  return new CodeEntry(
+// static
+CodeEntry* CodeEntry::gc_entry() {
+  static base::LeakyObject<CodeEntry> kGcEntry(
       CodeEventListener::BUILTIN_TAG, CodeEntry::kGarbageCollectorEntryName,
       CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
       v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
       CodeEntry::CodeType::OTHER);
+  return kGcEntry.get();
 }
 
-CodeEntry* CodeEntry::UnresolvedEntryCreateTrait::Create() {
-  return new CodeEntry(
+// static
+CodeEntry* CodeEntry::unresolved_entry() {
+  static base::LeakyObject<CodeEntry> kUnresolvedEntry(
       CodeEventListener::FUNCTION_TAG, CodeEntry::kUnresolvedFunctionName,
       CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
       v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
       CodeEntry::CodeType::OTHER);
+  return kUnresolvedEntry.get();
 }
 
-CodeEntry* CodeEntry::RootEntryCreateTrait::Create() {
-  return new CodeEntry(CodeEventListener::FUNCTION_TAG,
-                       CodeEntry::kRootEntryName, CodeEntry::kEmptyResourceName,
-                       v8::CpuProfileNode::kNoLineNumberInfo,
-                       v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
-                       CodeEntry::CodeType::OTHER);
+// static
+CodeEntry* CodeEntry::root_entry() {
+  static base::LeakyObject<CodeEntry> kRootEntry(
+      CodeEventListener::FUNCTION_TAG, CodeEntry::kRootEntryName,
+      CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
+      v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
+      CodeEntry::CodeType::OTHER);
+  return kRootEntry.get();
 }
 
 uint32_t CodeEntry::GetHash() const {
@@ -300,6 +296,48 @@ void CodeEntry::print() const {
     }
   }
   base::OS::Print("\n");
+}
+
+CpuProfileNode::SourceType ProfileNode::source_type() const {
+  // Handle metadata and VM state code entry types.
+  if (entry_ == CodeEntry::program_entry() ||
+      entry_ == CodeEntry::idle_entry() || entry_ == CodeEntry::gc_entry() ||
+      entry_ == CodeEntry::root_entry()) {
+    return CpuProfileNode::kInternal;
+  }
+  if (entry_ == CodeEntry::unresolved_entry())
+    return CpuProfileNode::kUnresolved;
+
+  // Otherwise, resolve based on logger tag.
+  switch (entry_->tag()) {
+    case CodeEventListener::EVAL_TAG:
+    case CodeEventListener::SCRIPT_TAG:
+    case CodeEventListener::LAZY_COMPILE_TAG:
+    case CodeEventListener::FUNCTION_TAG:
+    case CodeEventListener::INTERPRETED_FUNCTION_TAG:
+      return CpuProfileNode::kScript;
+    case CodeEventListener::BUILTIN_TAG:
+    case CodeEventListener::HANDLER_TAG:
+    case CodeEventListener::BYTECODE_HANDLER_TAG:
+    case CodeEventListener::NATIVE_FUNCTION_TAG:
+    case CodeEventListener::NATIVE_SCRIPT_TAG:
+    case CodeEventListener::NATIVE_LAZY_COMPILE_TAG:
+      return CpuProfileNode::kBuiltin;
+    case CodeEventListener::CALLBACK_TAG:
+      return CpuProfileNode::kCallback;
+    case CodeEventListener::REG_EXP_TAG:
+    case CodeEventListener::STUB_TAG:
+    case CodeEventListener::CODE_CREATION_EVENT:
+    case CodeEventListener::CODE_DISABLE_OPT_EVENT:
+    case CodeEventListener::CODE_MOVE_EVENT:
+    case CodeEventListener::CODE_DELETE_EVENT:
+    case CodeEventListener::CODE_MOVING_GC:
+    case CodeEventListener::SHARED_FUNC_MOVE_EVENT:
+    case CodeEventListener::SNAPSHOT_CODE_NAME_EVENT:
+    case CodeEventListener::TICK_EVENT:
+    case CodeEventListener::NUMBER_OF_LOG_EVENTS:
+      return CpuProfileNode::kInternal;
+  }
 }
 
 void ProfileNode::CollectDeoptInfo(CodeEntry* entry) {
