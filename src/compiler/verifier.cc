@@ -1228,11 +1228,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
     case IrOpcode::kArgumentsLength:
     case IrOpcode::kRestLength:
-      CheckValueInputIs(node, 0, Type::ExternalPointer());
       CheckTypeIs(node, TypeCache::Get()->kArgumentsLengthType);
-      break;
-    case IrOpcode::kArgumentsFrame:
-      CheckTypeIs(node, Type::ExternalPointer());
       break;
     case IrOpcode::kNewDoubleElements:
     case IrOpcode::kNewSmiOrObjectElements:
@@ -1241,8 +1237,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::OtherInternal());
       break;
     case IrOpcode::kNewArgumentsElements:
-      CheckValueInputIs(node, 0, Type::ExternalPointer());
-      CheckValueInputIs(node, 1,
+      CheckValueInputIs(node, 0,
                         Type::Range(0.0, FixedArray::kMaxLength, zone));
       CheckTypeIs(node, Type::OtherInternal());
       break;

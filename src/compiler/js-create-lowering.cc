@@ -164,17 +164,13 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
         Node* const callee = NodeProperties::GetValueInput(node, 0);
         Node* const context = NodeProperties::GetContextInput(node);
         Node* effect = NodeProperties::GetEffectInput(node);
-        Node* const arguments_frame =
-            graph()->NewNode(simplified()->ArgumentsFrame());
         Node* const arguments_length =
-            graph()->NewNode(simplified()->ArgumentsLength(
-                                 shared.internal_formal_parameter_count()),
-                             arguments_frame);
+            graph()->NewNode(simplified()->ArgumentsLength());
         // Allocate the elements backing store.
         bool has_aliased_arguments = false;
-        Node* const elements = effect = AllocateAliasedArguments(
-            effect, control, context, arguments_frame, arguments_length, shared,
-            &has_aliased_arguments);
+        Node* const elements = effect =
+            AllocateAliasedArguments(effect, control, context, arguments_length,
+                                     shared, &has_aliased_arguments);
         // Load the arguments object map.
         Node* const arguments_map = jsgraph()->Constant(
             has_aliased_arguments
@@ -196,18 +192,14 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       }
       case CreateArgumentsType::kUnmappedArguments: {
         Node* effect = NodeProperties::GetEffectInput(node);
-        Node* const arguments_frame =
-            graph()->NewNode(simplified()->ArgumentsFrame());
         Node* const arguments_length =
-            graph()->NewNode(simplified()->ArgumentsLength(
-                                 shared.internal_formal_parameter_count()),
-                             arguments_frame);
+            graph()->NewNode(simplified()->ArgumentsLength());
         // Allocate the elements backing store.
         Node* const elements = effect =
             graph()->NewNode(simplified()->NewArgumentsElements(
                                  CreateArgumentsType::kUnmappedArguments,
                                  shared.internal_formal_parameter_count()),
-                             arguments_frame, arguments_length, effect);
+                             arguments_length, effect);
         // Load the arguments object map.
         Node* const arguments_map =
             jsgraph()->Constant(native_context().strict_arguments_map());
@@ -226,21 +218,16 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       }
       case CreateArgumentsType::kRestParameter: {
         Node* effect = NodeProperties::GetEffectInput(node);
-        Node* const arguments_frame =
-            graph()->NewNode(simplified()->ArgumentsFrame());
         Node* const arguments_length =
-            graph()->NewNode(simplified()->ArgumentsLength(
-                                 shared.internal_formal_parameter_count()),
-                             arguments_frame);
+            graph()->NewNode(simplified()->ArgumentsLength());
         Node* const rest_length = graph()->NewNode(
-            simplified()->RestLength(shared.internal_formal_parameter_count()),
-            arguments_frame);
+            simplified()->RestLength(shared.internal_formal_parameter_count()));
         // Allocate the elements backing store.
         Node* const elements = effect =
             graph()->NewNode(simplified()->NewArgumentsElements(
                                  CreateArgumentsType::kRestParameter,
                                  shared.internal_formal_parameter_count()),
-                             arguments_frame, arguments_length, effect);
+                             arguments_length, effect);
         // Load the JSArray object map.
         Node* const jsarray_map = jsgraph()->Constant(
             native_context().js_array_packed_elements_map());
@@ -1537,9 +1524,8 @@ Node* JSCreateLowering::AllocateAliasedArguments(
 // values can only be determined dynamically at run-time and are provided.
 // Serves as backing store for JSCreateArguments nodes.
 Node* JSCreateLowering::AllocateAliasedArguments(
-    Node* effect, Node* control, Node* context, Node* arguments_frame,
-    Node* arguments_length, const SharedFunctionInfoRef& shared,
-    bool* has_aliased_arguments) {
+    Node* effect, Node* control, Node* context, Node* arguments_length,
+    const SharedFunctionInfoRef& shared, bool* has_aliased_arguments) {
   // If there is no aliasing, the arguments object elements are not
   // special in any way, we can just return an unmapped backing store.
   int parameter_count = shared.internal_formal_parameter_count();
@@ -1547,7 +1533,7 @@ Node* JSCreateLowering::AllocateAliasedArguments(
     return graph()->NewNode(
         simplified()->NewArgumentsElements(
             CreateArgumentsType::kUnmappedArguments, parameter_count),
-        arguments_frame, arguments_length, effect);
+        arguments_length, effect);
   }
 
   // From here on we are going to allocate a mapped (aka. aliased) elements
@@ -1563,7 +1549,7 @@ Node* JSCreateLowering::AllocateAliasedArguments(
   Node* arguments = effect =
       graph()->NewNode(simplified()->NewArgumentsElements(
                            CreateArgumentsType::kMappedArguments, mapped_count),
-                       arguments_frame, arguments_length, effect);
+                       arguments_length, effect);
 
   // Actually allocate the backing store.
   AllocationBuilder a(jsgraph(), effect, control);

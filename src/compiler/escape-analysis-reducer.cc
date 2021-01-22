@@ -229,9 +229,7 @@ void EscapeAnalysisReducer::Finalize() {
                            ? params.formal_parameter_count()
                            : 0;
 
-    Node* arguments_frame = NodeProperties::GetValueInput(node, 0);
-    if (arguments_frame->opcode() != IrOpcode::kArgumentsFrame) continue;
-    Node* arguments_length = NodeProperties::GetValueInput(node, 1);
+    Node* arguments_length = NodeProperties::GetValueInput(node, 0);
     if (arguments_length->opcode() != IrOpcode::kArgumentsLength) continue;
 
     Node* arguments_length_state = nullptr;
@@ -331,7 +329,10 @@ void EscapeAnalysisReducer::Finalize() {
             }
             NodeProperties::SetType(offset,
                                     TypeCache::Get()->kArgumentsLengthType);
-            NodeProperties::ReplaceValueInput(load, arguments_frame, 0);
+            Node* frame = jsgraph()->graph()->NewNode(
+                jsgraph()->machine()->LoadFramePointer());
+            NodeProperties::SetType(frame, Type::ExternalPointer());
+            NodeProperties::ReplaceValueInput(load, frame, 0);
             NodeProperties::ReplaceValueInput(load, offset, 1);
             NodeProperties::ChangeOp(
                 load, jsgraph()->simplified()->LoadStackArgument());
@@ -340,7 +341,7 @@ void EscapeAnalysisReducer::Finalize() {
           case IrOpcode::kLoadField: {
             DCHECK_EQ(FieldAccessOf(load->op()).offset,
                       FixedArray::kLengthOffset);
-            Node* length = NodeProperties::GetValueInput(node, 1);
+            Node* length = NodeProperties::GetValueInput(node, 0);
             ReplaceWithValue(load, length);
             break;
           }

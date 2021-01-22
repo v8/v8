@@ -972,14 +972,13 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* NumberIsSafeInteger();
   const Operator* ObjectIsInteger();
 
-  const Operator* ArgumentsFrame();
-  const Operator* ArgumentsLength(int formal_parameter_count);
+  const Operator* ArgumentsLength();
   const Operator* RestLength(int formal_parameter_count);
 
   const Operator* NewDoubleElements(AllocationType);
   const Operator* NewSmiOrObjectElements(AllocationType);
 
-  // new-arguments-elements frame, arguments count
+  // new-arguments-elements arguments-length
   const Operator* NewArgumentsElements(CreateArgumentsType type,
                                        int formal_parameter_count);
 

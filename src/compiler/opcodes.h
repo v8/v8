@@ -393,7 +393,6 @@
 #define SIMPLIFIED_OTHER_OP_LIST(V)     \
   V(Allocate)                           \
   V(AllocateRaw)                        \
-  V(ArgumentsFrame)                     \
   V(ArgumentsLength)                    \
   V(AssertType)                         \
   V(BooleanNot)                         \

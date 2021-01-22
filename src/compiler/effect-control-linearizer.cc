@@ -148,7 +148,6 @@ class EffectControlLinearizer {
   Node* LowerObjectIsInteger(Node* node);
   Node* LowerNumberIsSafeInteger(Node* node);
   Node* LowerObjectIsSafeInteger(Node* node);
-  Node* LowerArgumentsFrame(Node* node);
   Node* LowerArgumentsLength(Node* node);
   Node* LowerRestLength(Node* node);
   Node* LowerNewDoubleElements(Node* node);
@@ -1124,9 +1123,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kObjectIsUndetectable:
       result = LowerObjectIsUndetectable(node);
-      break;
-    case IrOpcode::kArgumentsFrame:
-      result = LowerArgumentsFrame(node);
       break;
     case IrOpcode::kArgumentsLength:
       result = LowerArgumentsLength(node);
@@ -3703,10 +3699,6 @@ Node* EffectControlLinearizer::LowerRestLength(Node* node) {
   return done.PhiAt(0);
 }
 
-Node* EffectControlLinearizer::LowerArgumentsFrame(Node* node) {
-  return __ LoadFramePointer();
-}
-
 Node* EffectControlLinearizer::LowerNewDoubleElements(Node* node) {
   AllocationType const allocation = AllocationTypeOf(node->op());
   Node* length = node->InputAt(0);
@@ -3806,8 +3798,8 @@ Node* EffectControlLinearizer::LowerNewArgumentsElements(Node* node) {
   CreateArgumentsType type = parameters.arguments_type();
   Operator::Properties const properties = node->op()->properties();
   CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
-  Node* frame = NodeProperties::GetValueInput(node, 0);
-  Node* arguments_count = NodeProperties::GetValueInput(node, 1);
+  Node* frame = __ LoadFramePointer();
+  Node* arguments_count = NodeProperties::GetValueInput(node, 0);
   Builtins::Name builtin_name;
   switch (type) {
     case CreateArgumentsType::kMappedArguments:

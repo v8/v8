@@ -3075,6 +3075,10 @@ class RepresentationSelector {
         SetOutput<T>(node, MachineRepresentation::kTaggedPointer);
         return;
       }
+      case IrOpcode::kLoadFramePointer: {
+        SetOutput<T>(node, MachineType::PointerRepresentation());
+        return;
+      }
       case IrOpcode::kLoadMessage: {
         if (truncation.IsUnused()) return VisitUnused<T>(node);
         VisitUnop<T>(node, UseInfo::Word(), MachineRepresentation::kTagged);
@@ -3531,14 +3535,9 @@ class RepresentationSelector {
         VisitObjectIs<T>(node, Type::Undetectable(), lowering);
         return;
       }
-      case IrOpcode::kArgumentsFrame: {
-        SetOutput<T>(node, MachineType::PointerRepresentation());
-        return;
-      }
       case IrOpcode::kArgumentsLength:
       case IrOpcode::kRestLength: {
-        VisitUnop<T>(node, UseInfo::Word(),
-                     MachineRepresentation::kTaggedSigned);
+        SetOutput<T>(node, MachineRepresentation::kTaggedSigned);
         return;
       }
       case IrOpcode::kNewDoubleElements:
@@ -3548,8 +3547,8 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kNewArgumentsElements: {
-        VisitBinop<T>(node, UseInfo::Word(), UseInfo::TaggedSigned(),
-                      MachineRepresentation::kTaggedPointer);
+        VisitUnop<T>(node, UseInfo::TaggedSigned(),
+                     MachineRepresentation::kTaggedPointer);
         return;
       }
       case IrOpcode::kCheckFloat64Hole: {

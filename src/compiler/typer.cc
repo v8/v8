@@ -2323,10 +2323,6 @@ Type Typer::Visitor::TypeRestLength(Node* node) {
   return TypeCache::Get()->kArgumentsLengthType;
 }
 
-Type Typer::Visitor::TypeArgumentsFrame(Node* node) {
-  return Type::ExternalPointer();
-}
-
 Type Typer::Visitor::TypeNewDoubleElements(Node* node) {
   return Type::OtherInternal();
 }

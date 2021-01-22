@@ -91,7 +91,7 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
                                  const SharedFunctionInfoRef& shared,
                                  bool* has_aliased_arguments);
   Node* AllocateAliasedArguments(Node* effect, Node* control, Node* context,
-                                 Node* arguments_frame, Node* arguments_length,
+                                 Node* arguments_length,
                                  const SharedFunctionInfoRef& shared,
                                  bool* has_aliased_arguments);
   Node* AllocateElements(Node* effect, Node* control,
