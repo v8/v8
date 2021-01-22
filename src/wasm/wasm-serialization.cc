@@ -482,6 +482,7 @@ bool WasmSerializer::SerializeNativeModule(Vector<byte> buffer) const {
 struct DeserializationUnit {
   Vector<const byte> src_code_buffer;
   std::unique_ptr<WasmCode> code;
+  NativeModule::JumpTablesRef jump_tables;
 };
 
 class DeserializationQueue {
@@ -548,6 +549,7 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
   // Updated in {ReadCode}.
   size_t remaining_code_size_ = 0;
   Vector<byte> current_code_space_;
+  NativeModule::JumpTablesRef current_jump_tables_;
 };
 
 class CopyAndRelocTask : public JobTask {
@@ -687,7 +689,7 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
     DCHECK(FLAG_wasm_lazy_compilation ||
            native_module_->enabled_features().has_compilation_hints());
     native_module_->UseLazyStub(fn_index);
-    return {{}, nullptr};
+    return {};
   }
   int constant_pool_offset = reader->Read<int>();
   int safepoint_table_offset = reader->Read<int>();
@@ -714,6 +716,9 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
     current_code_space_ =
         native_module_->AllocateForDeserializedCode(code_space_size);
     DCHECK_EQ(current_code_space_.size(), code_space_size);
+    current_jump_tables_ = native_module_->FindJumpTablesForRegion(
+        base::AddressRegionOf(current_code_space_));
+    DCHECK(current_jump_tables_.is_valid());
   }
 
   DeserializationUnit unit;
@@ -732,6 +737,7 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
       safepoint_table_offset, handler_table_offset, constant_pool_offset,
       code_comment_offset, unpadded_binary_size, protected_instructions,
       reloc_info, source_pos, kind, tier);
+  unit.jump_tables = current_jump_tables_;
   return unit;
 }
 
@@ -746,8 +752,6 @@ void NativeModuleDeserializer::CopyAndRelocate(
              RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
              RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
              RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-  auto jump_tables_ref = native_module_->FindJumpTablesForRegion(
-      base::AddressRegionOf(unit.code->instructions()));
   for (RelocIterator iter(unit.code->instructions(), unit.code->reloc_info(),
                           unit.code->constant_pool(), mask);
        !iter.done(); iter.next()) {
@@ -756,7 +760,7 @@ void NativeModuleDeserializer::CopyAndRelocate(
       case RelocInfo::WASM_CALL: {
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());
         Address target =
-            native_module_->GetNearCallTargetForFunction(tag, jump_tables_ref);
+            native_module_->GetNearCallTargetForFunction(tag, unit.jump_tables);
         iter.rinfo()->set_wasm_call_address(target, SKIP_ICACHE_FLUSH);
         break;
       }
@@ -764,7 +768,7 @@ void NativeModuleDeserializer::CopyAndRelocate(
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());
         DCHECK_LT(tag, WasmCode::kRuntimeStubCount);
         Address target = native_module_->GetNearRuntimeStubEntry(
-            static_cast<WasmCode::RuntimeStubId>(tag), jump_tables_ref);
+            static_cast<WasmCode::RuntimeStubId>(tag), unit.jump_tables);
         iter.rinfo()->set_wasm_stub_call_address(target, SKIP_ICACHE_FLUSH);
         break;
       }

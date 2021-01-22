@@ -541,8 +541,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   Address GetCallTargetForFunction(uint32_t func_index) const;
 
   struct JumpTablesRef {
-    const Address jump_table_start = kNullAddress;
-    const Address far_jump_table_start = kNullAddress;
+    Address jump_table_start = kNullAddress;
+    Address far_jump_table_start = kNullAddress;
 
     bool is_valid() const { return far_jump_table_start != kNullAddress; }
   };
