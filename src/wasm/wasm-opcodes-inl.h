@@ -590,7 +590,8 @@ constexpr WasmOpcodeSig GetAsmJsOpcodeSigIndex(byte opcode) {
 constexpr WasmOpcodeSig GetSimdOpcodeSigIndex(byte opcode) {
 #define CASE(name, opc, sig) opcode == (opc & 0xFF) ? kSigEnum_##sig:
   return FOREACH_SIMD_0_OPERAND_OPCODE(CASE) FOREACH_SIMD_MEM_OPCODE(CASE)
-      FOREACH_SIMD_POST_MVP_MEM_OPCODE(CASE) kSigEnum_None;
+      FOREACH_SIMD_MEM_1_OPERAND_OPCODE(CASE)
+          FOREACH_SIMD_POST_MVP_MEM_OPCODE(CASE) kSigEnum_None;
 #undef CASE
 }
 

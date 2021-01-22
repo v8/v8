@@ -1839,7 +1839,6 @@ class WasmDecoder : public Decoder {
             return length;
           FOREACH_SIMD_1_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
             return length + 1;
-          // clang-format on
           FOREACH_SIMD_MEM_OPCODE(DECLARE_OPCODE_CASE)
           case kExprPrefetchT:
           case kExprPrefetchNT: {
@@ -1848,20 +1847,14 @@ class WasmDecoder : public Decoder {
                                                 kConservativelyAssumeMemory64);
             return length + imm.length;
           }
-          case kExprS128Load8Lane:
-          case kExprS128Load16Lane:
-          case kExprS128Load32Lane:
-          case kExprS128Load64Lane:
-          case kExprS128Store8Lane:
-          case kExprS128Store16Lane:
-          case kExprS128Store32Lane:
-          case kExprS128Store64Lane: {
-            MemoryAccessImmediate<validate> imm(decoder, pc + length,
-                                                UINT32_MAX,
-                                                kConservativelyAssumeMemory64);
+          FOREACH_SIMD_MEM_1_OPERAND_OPCODE(DECLARE_OPCODE_CASE) {
+            MemoryAccessImmediate<validate> imm(
+                decoder, pc + length, UINT32_MAX,
+                kConservativelyAssumeMemory64);
             // 1 more byte for lane index immediate.
             return length + imm.length + 1;
           }
+          // clang-format on
           // Shuffles require a byte per lane, or 16 immediate bytes.
           case kExprS128Const:
           case kExprI8x16Shuffle:

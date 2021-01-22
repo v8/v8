@@ -295,6 +295,16 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(S128Load32Zero, 0xfdfc, s_i)   \
   V(S128Load64Zero, 0xfdfd, s_i)
 
+#define FOREACH_SIMD_MEM_1_OPERAND_OPCODE(V) \
+  V(S128Load8Lane, 0xfd58, s_is)             \
+  V(S128Load16Lane, 0xfd59, s_is)            \
+  V(S128Load32Lane, 0xfd5a, s_is)            \
+  V(S128Load64Lane, 0xfd5b, s_is)            \
+  V(S128Store8Lane, 0xfd5c, v_is)            \
+  V(S128Store16Lane, 0xfd5d, v_is)           \
+  V(S128Store32Lane, 0xfd5e, v_is)           \
+  V(S128Store64Lane, 0xfd5f, v_is)
+
 #define FOREACH_SIMD_CONST_OPCODE(V) V(S128Const, 0xfd0c, _)
 
 #define FOREACH_SIMD_MASK_OPERAND_OPCODE(V) V(I8x16Shuffle, 0xfd0d, s_ss)
@@ -484,14 +494,6 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(F64x2NearestInt, 0xfddf, s_s)
 
 #define FOREACH_SIMD_POST_MVP_MEM_OPCODE(V) \
-  V(S128Load8Lane, 0xfd58, s_is)            \
-  V(S128Load16Lane, 0xfd59, s_is)           \
-  V(S128Load32Lane, 0xfd5a, s_is)           \
-  V(S128Load64Lane, 0xfd5b, s_is)           \
-  V(S128Store8Lane, 0xfd5c, v_is)           \
-  V(S128Store16Lane, 0xfd5d, v_is)          \
-  V(S128Store32Lane, 0xfd5e, v_is)          \
-  V(S128Store64Lane, 0xfd5f, v_is)          \
   V(PrefetchT, 0xfdc5, v_i)                 \
   V(PrefetchNT, 0xfdc6, v_i)
 
@@ -553,12 +555,13 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   FOREACH_SIMD_1_OPERAND_2_PARAM_OPCODE(V) \
   FOREACH_SIMD_POST_MVP_ONE_OPERAND_OPCODE(V)
 
-#define FOREACH_SIMD_OPCODE(V)        \
-  FOREACH_SIMD_0_OPERAND_OPCODE(V)    \
-  FOREACH_SIMD_1_OPERAND_OPCODE(V)    \
-  FOREACH_SIMD_MASK_OPERAND_OPCODE(V) \
-  FOREACH_SIMD_MEM_OPCODE(V)          \
-  FOREACH_SIMD_POST_MVP_MEM_OPCODE(V) \
+#define FOREACH_SIMD_OPCODE(V)         \
+  FOREACH_SIMD_0_OPERAND_OPCODE(V)     \
+  FOREACH_SIMD_1_OPERAND_OPCODE(V)     \
+  FOREACH_SIMD_MASK_OPERAND_OPCODE(V)  \
+  FOREACH_SIMD_MEM_OPCODE(V)           \
+  FOREACH_SIMD_MEM_1_OPERAND_OPCODE(V) \
+  FOREACH_SIMD_POST_MVP_MEM_OPCODE(V)  \
   FOREACH_SIMD_CONST_OPCODE(V)
 
 #define FOREACH_NUMERIC_OPCODE(V)                         \

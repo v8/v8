@@ -4175,13 +4175,9 @@ WASM_SIMD_TEST(S128Load64Zero) {
   RunLoadZeroTest<int64_t>(execution_tier, lower_simd, kExprS128Load64Zero);
 }
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 || \
-    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_MIPS64
-// TODO(v8:10975): Prototyping load lane and store lane.
 template <typename T>
 void RunLoadLaneTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                      WasmOpcode load_op, WasmOpcode splat_op) {
-  FLAG_SCOPE(wasm_simd_post_mvp);
   WasmOpcode const_op =
       splat_op == kExprI64x2Splat ? kExprI64Const : kExprI32Const;
 
@@ -4280,8 +4276,6 @@ WASM_SIMD_TEST_NO_LOWERING(S128Load64Lane) {
 template <typename T>
 void RunStoreLaneTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                       WasmOpcode store_op, WasmOpcode splat_op) {
-  FLAG_SCOPE(wasm_simd_post_mvp);
-
   constexpr int lanes = kSimd128Size / sizeof(T);
   constexpr int mem_index = 16;  // Store to mem index 16 (bytes).
   constexpr int splat_value = 33;
@@ -4371,9 +4365,6 @@ WASM_SIMD_TEST_NO_LOWERING(S128Store64Lane) {
   RunStoreLaneTest<int64_t>(execution_tier, lower_simd, kExprS128Store64Lane,
                             kExprI64x2Splat);
 }
-
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 ||
-        // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_MIPS64
 
 #define WASM_SIMD_ANYTRUE_TEST(format, lanes, max, param_type)                \
   WASM_SIMD_TEST(S##format##AnyTrue) {                                        \
