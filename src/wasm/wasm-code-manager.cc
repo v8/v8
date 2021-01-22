@@ -1208,6 +1208,9 @@ std::vector<WasmCode*> NativeModule::SnapshotCodeTable() const {
   base::MutexGuard lock(&allocation_mutex_);
   WasmCode** start = code_table_.get();
   WasmCode** end = start + module_->num_declared_functions;
+  for (WasmCode* code : VectorOf(start, end - start)) {
+    if (code) WasmCodeRefScope::AddRef(code);
+  }
   return std::vector<WasmCode*>{start, end};
 }
 
