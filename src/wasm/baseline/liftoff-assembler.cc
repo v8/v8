@@ -90,8 +90,24 @@ class StackTransferRecipe {
     DCHECK(load_dst_regs_.is_empty());
   }
 
+#if DEBUG
+  bool CheckCompatibleStackSlotTypes(ValueType dst, ValueType src) {
+    if (dst.is_object_reference_type()) {
+      // Since Liftoff doesn't do accurate type tracking (e.g. on loop back
+      // edges), we only care that pointer types stay amongst pointer types.
+      // It's fine if ref/optref overwrite each other.
+      DCHECK(src.is_object_reference_type());
+      // TODO(7748): Check that one type is subtype of the other?
+    } else {
+      // All other types (primitive numbers, RTTs, bottom/stmt) must be equal.
+      DCHECK_EQ(dst, src);
+    }
+    return true;  // Dummy so this can be called via DCHECK.
+  }
+#endif
+
   V8_INLINE void TransferStackSlot(const VarState& dst, const VarState& src) {
-    DCHECK_EQ(dst.type(), src.type());
+    DCHECK(CheckCompatibleStackSlotTypes(dst.type(), src.type()));
     if (dst.is_reg()) {
       LoadIntoRegister(dst.reg(), src, src.offset());
       return;

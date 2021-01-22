@@ -1763,7 +1763,23 @@ class LiftoffCompiler {
   }
 
   void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
-    unsupported(decoder, kRefTypes, "func");
+    WasmCode::RuntimeStubId target = WasmCode::kWasmRefFunc;
+    compiler::CallDescriptor* call_descriptor =
+        GetBuiltinCallDescriptor<WasmRefFuncDescriptor>(compilation_zone_);
+    HeapType heap_type(
+        decoder->enabled_.has_typed_funcref()
+            ? decoder->module_->functions[function_index].sig_index
+            : HeapType::kFunc);
+    ValueType func_type = ValueType::Ref(heap_type, kNonNullable);
+    ValueType sig_reps[] = {func_type, kWasmI32};
+    FunctionSig sig(1, 1, sig_reps);
+    LiftoffRegister func_index_reg = __ GetUnusedRegister(kGpReg, {});
+    __ LoadConstant(func_index_reg, WasmValue(function_index));
+    LiftoffAssembler::VarState func_index_var(kWasmI32, func_index_reg, 0);
+    __ PrepareBuiltinCall(&sig, call_descriptor, {func_index_var});
+    __ CallRuntimeStub(target);
+    DefineSafepoint();
+    __ PushRegister(func_type, LiftoffRegister(kReturnRegister0));
   }
 
   void RefAsNonNull(FullDecoder* decoder, const Value& arg, Value* result) {
@@ -2728,7 +2744,7 @@ class LiftoffCompiler {
   void CallRef(FullDecoder* decoder, const Value& func_ref,
                const FunctionSig* sig, uint32_t sig_index, const Value args[],
                Value returns[]) {
-    unsupported(decoder, kRefTypes, "call_ref");
+    CallRef(decoder, func_ref.type, sig, kNoReturnCall);
   }
 
   void ReturnCall(FullDecoder* decoder,
@@ -2746,7 +2762,7 @@ class LiftoffCompiler {
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
                      const FunctionSig* sig, uint32_t sig_index,
                      const Value args[]) {
-    unsupported(decoder, kRefTypes, "call_ref");
+    CallRef(decoder, func_ref.type, sig, kReturnCall);
   }
 
   void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth) {
@@ -4708,6 +4724,213 @@ class LiftoffCompiler {
     RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
 
     __ FinishCall(imm.sig, call_descriptor);
+  }
+
+  void CallRef(FullDecoder* decoder, ValueType func_ref_type,
+               const FunctionSig* sig, CallKind call_kind) {
+    for (ValueType ret : sig->returns()) {
+      if (!CheckSupportedType(decoder, ret, "return")) return;
+    }
+    compiler::CallDescriptor* call_descriptor =
+        compiler::GetWasmCallDescriptor(compilation_zone_, sig);
+    call_descriptor =
+        GetLoweredCallDescriptor(compilation_zone_, call_descriptor);
+
+    // Since this is a call instruction, we'll have to spill everything later
+    // anyway; do it right away so that the register state tracking doesn't
+    // get confused by the conditional builtin call below.
+    __ SpillAllRegisters();
+
+    // We limit ourselves to four registers:
+    // (1) func_data, initially reused for func_ref.
+    // (2) instance, initially used as temp.
+    // (3) target, initially used as temp.
+    // (4) temp.
+    LiftoffRegList pinned;
+    LiftoffRegister func_ref = pinned.set(__ PopToModifiableRegister(pinned));
+    MaybeEmitNullCheck(decoder, func_ref.gp(), pinned, func_ref_type);
+    LiftoffRegister instance = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LiftoffRegister target = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LiftoffRegister temp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+
+    LiftoffRegister func_data = func_ref;
+    __ LoadTaggedPointer(
+        func_data.gp(), func_ref.gp(), no_reg,
+        wasm::ObjectAccess::ToTagged(JSFunction::kSharedFunctionInfoOffset),
+        pinned);
+    __ LoadTaggedPointer(
+        func_data.gp(), func_data.gp(), no_reg,
+        wasm::ObjectAccess::ToTagged(SharedFunctionInfo::kFunctionDataOffset),
+        pinned);
+
+    LiftoffRegister data_type = instance;
+    __ LoadMap(data_type.gp(), func_data.gp());
+    __ Load(data_type, data_type.gp(), no_reg,
+            wasm::ObjectAccess::ToTagged(Map::kInstanceTypeOffset),
+            LoadType::kI32Load16U, pinned);
+
+    Label is_js_function, perform_call;
+    __ emit_i32_cond_jumpi(kEqual, &is_js_function, data_type.gp(),
+                           WASM_JS_FUNCTION_DATA_TYPE);
+    // End of {data_type}'s live range.
+
+    {
+      // Call to a WasmExportedFunction.
+
+      LiftoffRegister callee_instance = instance;
+      __ LoadTaggedPointer(callee_instance.gp(), func_data.gp(), no_reg,
+                           wasm::ObjectAccess::ToTagged(
+                               WasmExportedFunctionData::kInstanceOffset),
+                           pinned);
+      LiftoffRegister func_index = target;
+      __ LoadTaggedSignedAsInt32(
+          func_index, func_data.gp(),
+          wasm::ObjectAccess::ToTagged(
+              WasmExportedFunctionData::kFunctionIndexOffset),
+          pinned);
+      LiftoffRegister imported_function_refs = temp;
+      __ LoadTaggedPointer(imported_function_refs.gp(), callee_instance.gp(),
+                           no_reg,
+                           wasm::ObjectAccess::ToTagged(
+                               WasmInstanceObject::kImportedFunctionRefsOffset),
+                           pinned);
+      // We overwrite {imported_function_refs} here, at the cost of having
+      // to reload it later, because we don't have more registers on ia32.
+      LiftoffRegister imported_functions_num = imported_function_refs;
+      __ LoadFixedArrayLengthAsInt32(imported_functions_num,
+                                     imported_function_refs.gp(), pinned);
+
+      Label imported;
+      __ emit_cond_jump(kSignedLessThan, &imported, kWasmI32, func_index.gp(),
+                        imported_functions_num.gp());
+
+      {
+        // Function locally defined in module.
+
+        // {func_index} is invalid from here on.
+        LiftoffRegister jump_table_start = target;
+        __ Load(jump_table_start, callee_instance.gp(), no_reg,
+                wasm::ObjectAccess::ToTagged(
+                    WasmInstanceObject::kJumpTableStartOffset),
+                kPointerLoadType, pinned);
+        LiftoffRegister jump_table_offset = temp;
+        __ LoadTaggedSignedAsInt32(
+            jump_table_offset, func_data.gp(),
+            wasm::ObjectAccess::ToTagged(
+                WasmExportedFunctionData::kJumpTableOffsetOffset),
+            pinned);
+        __ emit_ptrsize_add(target.gp(), jump_table_start.gp(),
+                            jump_table_offset.gp());
+        __ emit_jump(&perform_call);
+      }
+
+      {
+        // Function imported to module.
+        __ bind(&imported);
+
+        LiftoffRegister imported_function_targets = temp;
+        __ Load(imported_function_targets, callee_instance.gp(), no_reg,
+                wasm::ObjectAccess::ToTagged(
+                    WasmInstanceObject::kImportedFunctionTargetsOffset),
+                kPointerLoadType, pinned);
+        // {callee_instance} is invalid from here on.
+        LiftoffRegister imported_instance = instance;
+        // Scale {func_index} to kTaggedSize.
+        __ emit_i32_shli(func_index.gp(), func_index.gp(), kTaggedSizeLog2);
+        // {func_data} is invalid from here on.
+        imported_function_refs = func_data;
+        __ LoadTaggedPointer(
+            imported_function_refs.gp(), callee_instance.gp(), no_reg,
+            wasm::ObjectAccess::ToTagged(
+                WasmInstanceObject::kImportedFunctionRefsOffset),
+            pinned);
+        __ LoadTaggedPointer(
+            imported_instance.gp(), imported_function_refs.gp(),
+            func_index.gp(),
+            wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0), pinned);
+        // Scale {func_index} to kSystemPointerSize.
+        if (kSystemPointerSize == kTaggedSize * 2) {
+          __ emit_i32_add(func_index.gp(), func_index.gp(), func_index.gp());
+        } else {
+          DCHECK_EQ(kSystemPointerSize, kTaggedSize);
+        }
+        // This overwrites the contents of {func_index}, which we don't need
+        // any more.
+        __ Load(target, imported_function_targets.gp(), func_index.gp(), 0,
+                kPointerLoadType, pinned);
+        __ emit_jump(&perform_call);
+      }
+    }
+
+    {
+      // Call to a WasmJSFunction. The call target is
+      // function_data->wasm_to_js_wrapper_code()->instruction_start().
+      // The instance_node is the pair
+      // (current WasmInstanceObject, function_data->callable()).
+      __ bind(&is_js_function);
+
+      LiftoffRegister callable = temp;
+      __ LoadTaggedPointer(
+          callable.gp(), func_data.gp(), no_reg,
+          wasm::ObjectAccess::ToTagged(WasmJSFunctionData::kCallableOffset),
+          pinned);
+
+      // Preserve {func_data} across the call.
+      LiftoffRegList saved_regs = LiftoffRegList::ForRegs(func_data);
+      __ PushRegisters(saved_regs);
+
+      WasmCode::RuntimeStubId builtin = WasmCode::kWasmAllocatePair;
+      compiler::CallDescriptor* builtin_call_descriptor =
+          GetBuiltinCallDescriptor<WasmAllocatePairDescriptor>(
+              compilation_zone_);
+      ValueType sig_reps[] = {kWasmAnyRef, kWasmAnyRef, kWasmAnyRef};
+      FunctionSig builtin_sig(1, 2, sig_reps);
+      LiftoffRegister current_instance = instance;
+      __ FillInstanceInto(current_instance.gp());
+      LiftoffAssembler::VarState instance_var(kWasmAnyRef, current_instance, 0);
+      LiftoffAssembler::VarState callable_var(kWasmFuncRef, callable, 0);
+      __ PrepareBuiltinCall(&builtin_sig, builtin_call_descriptor,
+                            {instance_var, callable_var});
+
+      __ CallRuntimeStub(builtin);
+      DefineSafepoint();
+      if (instance.gp() != kReturnRegister0) {
+        __ Move(instance.gp(), kReturnRegister0, LiftoffAssembler::kWasmIntPtr);
+      }
+
+      // Restore {func_data}, which we saved across the call.
+      __ PopRegisters(saved_regs);
+
+      LiftoffRegister wrapper_code = target;
+      __ LoadTaggedPointer(wrapper_code.gp(), func_data.gp(), no_reg,
+                           wasm::ObjectAccess::ToTagged(
+                               WasmJSFunctionData::kWasmToJsWrapperCodeOffset),
+                           pinned);
+      __ emit_ptrsize_addi(target.gp(), wrapper_code.gp(),
+                           wasm::ObjectAccess::ToTagged(Code::kHeaderSize));
+      // Fall through to {perform_call}.
+    }
+
+    __ bind(&perform_call);
+    // Now the call target is in {target}, and the right instance object
+    // is in {instance}.
+    Register target_reg = target.gp();
+    Register instance_reg = instance.gp();
+    __ PrepareCall(sig, call_descriptor, &target_reg, &instance_reg);
+    if (call_kind == kReturnCall) {
+      __ PrepareTailCall(
+          static_cast<int>(call_descriptor->StackParameterCount()),
+          static_cast<int>(
+              call_descriptor->GetStackParameterDelta(descriptor_)));
+      __ TailCallIndirect(target_reg);
+    } else {
+      source_position_table_builder_.AddPosition(
+          __ pc_offset(), SourcePosition(decoder->position()), true);
+      __ CallIndirect(sig, call_descriptor, target_reg);
+    }
+    DefineSafepoint();
+    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    __ FinishCall(sig, call_descriptor);
   }
 
   void LoadNullValue(Register null, LiftoffRegList pinned) {

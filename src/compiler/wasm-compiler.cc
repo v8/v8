@@ -3221,9 +3221,8 @@ Node* WasmGraphBuilder::BuildCallRef(uint32_t sig_index, Vector<Node*> args,
         wasm::ObjectAccess::ToTagged(WasmJSFunctionData::kCallableOffset));
     // TODO(manoskouk): Find an elegant way to avoid allocating this pair for
     // every call.
-    Node* function_instance_node = CALL_BUILTIN(
-        WasmAllocatePair, instance_node_.get(), callable,
-        LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
+    Node* function_instance_node =
+        CALL_BUILTIN(WasmAllocatePair, instance_node_.get(), callable);
 
     gasm_->Goto(&end_label, call_target, function_instance_node);
   }

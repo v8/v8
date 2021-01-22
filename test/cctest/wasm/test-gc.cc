@@ -1000,8 +1000,9 @@ WASM_COMPILED_EXEC_TEST(ArrayNewMap) {
   CHECK_EQ(Handle<WasmArray>::cast(result)->map(), *map);
 }
 
-TEST(FunctionRefs) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(FunctionRefs) {
+  WasmGCTester tester(execution_tier);
+  FLAG_experimental_liftoff_extern_ref = true;
   const byte func_index =
       tester.DefineFunction(tester.sigs.i_v(), {}, {WASM_I32V(42), kExprEnd});
   const byte sig_index = 0;
@@ -1072,8 +1073,9 @@ TEST(FunctionRefs) {
   tester.CheckResult(test, 0);
 }
 
-TEST(CallRef) {
-  WasmGCTester tester;
+WASM_COMPILED_EXEC_TEST(CallRef) {
+  WasmGCTester tester(execution_tier);
+  FLAG_experimental_liftoff_extern_ref = true;
   byte callee = tester.DefineFunction(
       tester.sigs.i_ii(), {},
       {WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), kExprEnd});

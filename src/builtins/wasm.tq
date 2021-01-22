@@ -231,6 +231,11 @@ builtin WasmAllocateJSArray(implicit context: Context)(size: Smi): JSArray {
   return AllocateJSArray(ElementsKind::PACKED_ELEMENTS, map, size, size);
 }
 
+builtin WasmAllocatePair(first: Object, second: Object): Tuple2 {
+  const tuple2Map: Map = %GetClassMapConstant<Tuple2>();
+  return new Tuple2{map: tuple2Map, value1: first, value2: second};
+}
+
 builtin WasmAllocateRtt(typeIndex: intptr, parent: Map): Map {
   tail runtime::WasmAllocateRtt(
       LoadContextFromFrame(), SmiTag(typeIndex), parent);
