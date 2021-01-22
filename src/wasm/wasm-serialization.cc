@@ -186,10 +186,7 @@ uint32_t GetWasmCalleeTag(RelocInfo* rinfo) {
 #endif
 }
 
-constexpr size_t kHeaderSize =
-    sizeof(uint32_t) +  // total wasm function count
-    sizeof(uint32_t) +  // imported functions (index of first wasm function)
-    sizeof(size_t);     // total code size
+constexpr size_t kHeaderSize = sizeof(size_t);  // total code size
 
 constexpr size_t kCodeHeaderSize = sizeof(bool) +  // whether code is present
                                    sizeof(int) +   // offset of constant pool
@@ -327,8 +324,6 @@ void NativeModuleSerializer::WriteHeader(Writer* writer,
   // TODO(eholk): We need to properly preserve the flag whether the trap
   // handler was used or not when serializing.
 
-  writer->Write(native_module_->num_functions());
-  writer->Write(native_module_->num_imported_functions());
   writer->Write(total_code_size);
 }
 
@@ -527,7 +522,7 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
   friend class CopyAndRelocTask;
   friend class PublishTask;
 
-  bool ReadHeader(Reader* reader);
+  void ReadHeader(Reader* reader);
   DeserializationUnit ReadCode(int fn_index, Reader* reader);
   void CopyAndRelocate(const DeserializationUnit& unit);
   void Publish(std::vector<DeserializationUnit> batch);
@@ -616,7 +611,7 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
   read_called_ = true;
 #endif
 
-  if (!ReadHeader(reader)) return false;
+  ReadHeader(reader);
   uint32_t total_fns = native_module_->num_functions();
   uint32_t first_wasm_fn = native_module_->num_imported_functions();
 
@@ -668,12 +663,8 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
   return reader->current_size() == 0;
 }
 
-bool NativeModuleDeserializer::ReadHeader(Reader* reader) {
-  uint32_t functions = reader->Read<uint32_t>();
-  uint32_t imports = reader->Read<uint32_t>();
+void NativeModuleDeserializer::ReadHeader(Reader* reader) {
   remaining_code_size_ = reader->Read<size_t>();
-  return functions == native_module_->num_functions() &&
-         imports == native_module_->num_imported_functions();
 }
 
 DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
