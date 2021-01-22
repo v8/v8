@@ -234,6 +234,14 @@ void CppHeap::TracePrologue(TraceFlags flags) {
 }
 
 bool CppHeap::AdvanceTracing(double deadline_in_ms) {
+  // TODO(chromium:1154636): The kAtomicMark/kIncrementalMark scope below is
+  // needed for recording all cpp marking time. Note that it can lead to double
+  // accounting since this scope is also accounted under an outer v8 scope.
+  // Make sure to only account this scope once.
+  cppgc::internal::StatsCollector::EnabledScope stats_scope(
+      AsBase(), is_in_final_pause_
+                    ? cppgc::internal::StatsCollector::kAtomicMark
+                    : cppgc::internal::StatsCollector::kIncrementalMark);
   v8::base::TimeDelta deadline =
       is_in_final_pause_
           ? v8::base::TimeDelta::Max()
