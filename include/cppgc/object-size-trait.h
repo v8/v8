@@ -5,6 +5,8 @@
 #ifndef INCLUDE_CPPGC_OBJECT_SIZE_TRAIT_H_
 #define INCLUDE_CPPGC_OBJECT_SIZE_TRAIT_H_
 
+#include <cstddef>
+
 #include "cppgc/type-traits.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
