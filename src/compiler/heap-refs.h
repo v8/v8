@@ -31,13 +31,6 @@ class JSRegExp;
 class JSTypedArray;
 class NativeContext;
 class ScriptContextTable;
-template <typename>
-class Signature;
-
-namespace wasm {
-class ValueType;
-struct WasmModule;
-}  // namespace wasm
 
 namespace compiler {
 
@@ -841,9 +834,7 @@ class ScopeInfoRef : public HeapObjectRef {
   V(bool, HasBytecodeArray)               \
   V(int, StartPosition)                   \
   V(bool, is_compiled)                    \
-  V(bool, IsUserJavaScript)               \
-  V(const wasm::WasmModule*, wasm_module) \
-  V(const wasm::FunctionSig*, wasm_function_signature)
+  V(bool, IsUserJavaScript)
 
 class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
  public:

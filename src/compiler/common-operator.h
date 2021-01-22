@@ -560,8 +560,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   // Constructs function info for frame state construction.
   const FrameStateFunctionInfo* CreateFrameStateFunctionInfo(
       FrameStateType type, int parameter_count, int local_count,
-      Handle<SharedFunctionInfo> shared_info,
-      const wasm::FunctionSig* signature = nullptr);
+      Handle<SharedFunctionInfo> shared_info);
 
   const Operator* MarkAsSafetyCheck(const Operator* op,
                                     IsSafetyCheck safety_check);

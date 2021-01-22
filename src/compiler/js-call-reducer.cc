@@ -3428,83 +3428,6 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
   return ReplaceWithSubgraph(&a, subgraph);
 }
 
-namespace {
-
-bool CanInlineJSToWasmCall(const wasm::FunctionSig* wasm_signature) {
-  DCHECK(FLAG_turbo_inline_js_wasm_calls);
-  if (wasm_signature->return_count() > 1) {
-    return false;
-  }
-
-  for (auto type : wasm_signature->all()) {
-#if defined(V8_TARGET_ARCH_32_BIT)
-    if (type == wasm::kWasmI64) return false;
-#endif
-    if (type != wasm::kWasmI32 && type != wasm::kWasmI64 &&
-        type != wasm::kWasmF32 && type != wasm::kWasmF64) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-}  // namespace
-
-Reduction JSCallReducer::ReduceCallWasmFunction(
-    Node* node, const SharedFunctionInfoRef& shared) {
-  JSCallNode n(node);
-  const CallParameters& p = n.Parameters();
-
-  // Avoid deoptimization loops
-  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
-    return NoChange();
-  }
-
-  // TODO(paolosev@microsoft.com): Enable inlining for calls in try/catch.
-  if (NodeProperties::IsExceptionalCall(node)) {
-    return NoChange();
-  }
-
-  const wasm::FunctionSig* wasm_signature = shared.wasm_function_signature();
-  if (!CanInlineJSToWasmCall(wasm_signature)) {
-    return NoChange();
-  }
-
-  // Signal TurboFan that it should run the 'wasm-inlining' phase.
-  has_wasm_calls_ = true;
-
-  const wasm::WasmModule* wasm_module = shared.wasm_module();
-  const Operator* op =
-      javascript()->CallWasm(wasm_module, wasm_signature, p.feedback());
-
-  // Remove additional inputs
-  size_t actual_arity = n.ArgumentCount();
-  DCHECK(JSCallNode::kFeedbackVectorIsLastInput);
-  DCHECK_EQ(actual_arity + JSWasmCallNode::kExtraInputCount - 1,
-            n.FeedbackVectorIndex());
-  size_t expected_arity = wasm_signature->parameter_count();
-
-  while (actual_arity > expected_arity) {
-    int removal_index =
-        static_cast<int>(n.FirstArgumentIndex() + expected_arity);
-    DCHECK_LT(removal_index, static_cast<int>(node->InputCount()));
-    node->RemoveInput(removal_index);
-    actual_arity--;
-  }
-
-  // Add missing inputs
-  while (actual_arity < expected_arity) {
-    int insertion_index = n.ArgumentIndex(n.ArgumentCount());
-    node->InsertInput(graph()->zone(), insertion_index,
-                      jsgraph()->UndefinedConstant());
-    actual_arity++;
-  }
-
-  NodeProperties::ChangeOp(node, op);
-  return Changed(node);
-}
-
 #ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
 namespace {
 bool HasFPParamsInSignature(const CFunctionInfo* c_signature) {
@@ -4616,11 +4539,6 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
   if (shared.function_template_info().has_value()) {
     return ReduceCallApiFunction(node, shared);
   }
-
-  if ((flags() & kInlineJSToWasmCalls) && shared.wasm_function_signature()) {
-    return ReduceCallWasmFunction(node, shared);
-  }
-
   return NoChange();
 }
 

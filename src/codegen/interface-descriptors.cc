@@ -299,7 +299,7 @@ void TypeConversionNoContextDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void SingleParameterOnStackDescriptor::InitializePlatformSpecific(
+void TypeConversionStackParameterDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   data->InitializePlatformSpecific(0, nullptr);
 }

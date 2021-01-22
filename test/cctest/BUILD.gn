@@ -247,7 +247,6 @@ v8_source_set("cctest_sources") {
     "test-inobject-slack-tracking.cc",
     "test-inspector.cc",
     "test-intl.cc",
-    "test-js-to-wasm.cc",
     "test-js-weak-refs.cc",
     "test-liveedit.cc",
     "test-local-handles.cc",

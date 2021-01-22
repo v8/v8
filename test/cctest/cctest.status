@@ -490,7 +490,6 @@
   'test-jump-table-assembler/*': [SKIP],
   'test-gc/*': [SKIP],
   'test-grow-memory/*': [SKIP],
-  'test-js-to-wasm/*': [SKIP],
   'test-liftoff-inspection/*': [SKIP],
   'test-run-wasm*': [SKIP],
   'test-streaming-compilation/*': [SKIP],
@@ -591,7 +590,6 @@
   'test-api/TurboAsmDisablesDetach': [SKIP],
   'test-cpu-profiler/TickLinesOptimized': [SKIP],
   'test-heap/TestOptimizeAfterBytecodeFlushingCandidate': [SKIP],
-  'test-js-to-wasm/*': [SKIP],
   'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchCallDirect': [SKIP],
   'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchCallExternal': [SKIP],
   'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchCallIndirect': [SKIP],
@@ -635,7 +633,6 @@
   'test-cpu-profiler/DetailedSourcePositionAPI_Inlining': [SKIP],
   'serializer-tester/BoundFunctionArguments': [SKIP],
   'serializer-tester/BoundFunctionTarget': [SKIP],
-  'test-js-to-wasm/*': [SKIP],
 }],  # variant == turboprop or variant == turboprop_as_toptier
 
 ##############################################################################

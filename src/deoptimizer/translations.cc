@@ -12,16 +12,6 @@
 
 namespace v8 {
 namespace internal {
-namespace {
-
-// Encodes the return type of a Wasm function as the integer value of
-// wasm::ValueType::Kind, or -1 if the function returns void.
-
-int EncodeWasmReturnType(base::Optional<wasm::ValueType::Kind> return_type) {
-  return return_type ? static_cast<int>(return_type.value()) : -1;
-}
-
-}  // namespace
 
 void TranslationBuffer::Add(int32_t value) {
   // This wouldn't handle kMinInt correctly if it ever encountered it.
@@ -53,16 +43,6 @@ void Translation::BeginBuiltinContinuationFrame(BytecodeOffset bytecode_offset,
   buffer_->Add(bytecode_offset.ToInt());
   buffer_->Add(literal_id);
   buffer_->Add(height);
-}
-
-void Translation::BeginJSToWasmBuiltinContinuationFrame(
-    BytecodeOffset bytecode_offset, int literal_id, unsigned height,
-    base::Optional<wasm::ValueType::Kind> return_type) {
-  buffer_->Add(JS_TO_WASM_BUILTIN_CONTINUATION_FRAME);
-  buffer_->Add(bytecode_offset.ToInt());
-  buffer_->Add(literal_id);
-  buffer_->Add(height);
-  buffer_->Add(EncodeWasmReturnType(return_type));
 }
 
 void Translation::BeginJavaScriptBuiltinContinuationFrame(
@@ -240,7 +220,6 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case BEGIN:
     case CONSTRUCT_STUB_FRAME:
     case BUILTIN_CONTINUATION_FRAME:
-    case JS_TO_WASM_BUILTIN_CONTINUATION_FRAME:
     case JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME:
     case JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME:
       return 3;

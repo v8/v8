@@ -567,12 +567,6 @@ class PipelineData {
     runtime_call_stats_ = stats;
   }
 
-  // Used to skip the "wasm-inlining" phase when there are no JS-to-Wasm calls.
-  bool has_js_wasm_calls() const { return has_js_wasm_calls_; }
-  void set_has_js_wasm_calls(bool has_js_wasm_calls) {
-    has_js_wasm_calls_ = has_js_wasm_calls;
-  }
-
  private:
   Isolate* const isolate_;
   wasm::WasmEngine* const wasm_engine_ = nullptr;
@@ -645,8 +639,6 @@ class PipelineData {
 
   RuntimeCallStats* runtime_call_stats_ = nullptr;
   const ProfileDataFromFile* profile_data_ = nullptr;
-
-  bool has_js_wasm_calls_ = false;
 };
 
 class PipelineImpl final {
@@ -1451,9 +1443,6 @@ struct InliningPhase {
     if (data->info()->bailout_on_uninitialized()) {
       call_reducer_flags |= JSCallReducer::kBailoutOnUninitialized;
     }
-    if (FLAG_turbo_inline_js_wasm_calls && data->info()->inlining()) {
-      call_reducer_flags |= JSCallReducer::kInlineJSToWasmCalls;
-    }
     JSCallReducer call_reducer(&graph_reducer, data->jsgraph(), data->broker(),
                                temp_zone, call_reducer_flags,
                                data->dependencies());
@@ -1474,9 +1463,9 @@ struct InliningPhase {
     JSNativeContextSpecialization native_context_specialization(
         &graph_reducer, data->jsgraph(), data->broker(), flags,
         data->dependencies(), temp_zone, info->zone());
-    JSInliningHeuristic inlining(
-        &graph_reducer, temp_zone, data->info(), data->jsgraph(),
-        data->broker(), data->source_positions(), JSInliningHeuristic::kJSOnly);
+    JSInliningHeuristic inlining(&graph_reducer, temp_zone, data->info(),
+                                 data->jsgraph(), data->broker(),
+                                 data->source_positions());
 
     JSIntrinsicLowering intrinsic_lowering(&graph_reducer, data->jsgraph(),
                                            data->broker());
@@ -1494,37 +1483,9 @@ struct InliningPhase {
     }
     graph_reducer.ReduceGraph();
     info->set_inlined_bytecode_size(inlining.total_inlined_bytecode_size());
-
-    // Skip the "wasm-inlining" phase if there are no Wasm functions calls.
-    if (call_reducer.has_wasm_calls()) {
-      data->set_has_js_wasm_calls(true);
-    }
   }
 };
 
-struct WasmInliningPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(WasmInlining)
-  void Run(PipelineData* data, Zone* temp_zone) {
-    DCHECK(data->has_js_wasm_calls());
-
-    OptimizedCompilationInfo* info = data->info();
-    GraphReducer graph_reducer(temp_zone, data->graph(), &info->tick_counter(),
-                               data->broker(), data->jsgraph()->Dead());
-    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
-                                              data->common(), temp_zone);
-    CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
-                                         data->broker(), data->common(),
-                                         data->machine(), temp_zone);
-    JSInliningHeuristic inlining(&graph_reducer, temp_zone, data->info(),
-                                 data->jsgraph(), data->broker(),
-                                 data->source_positions(),
-                                 JSInliningHeuristic::kWasmOnly);
-    AddReducer(data, &graph_reducer, &dead_code_elimination);
-    AddReducer(data, &graph_reducer, &common_reducer);
-    AddReducer(data, &graph_reducer, &inlining);
-    graph_reducer.ReduceGraph();
-  }
-};
 
 struct TyperPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(Typer)
@@ -2637,12 +2598,6 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   // might even conflict with the representation/truncation logic.
   Run<SimplifiedLoweringPhase>(linkage);
   RunPrintAndVerify(SimplifiedLoweringPhase::phase_name(), true);
-
-  if (data->has_js_wasm_calls()) {
-    DCHECK(FLAG_turbo_inline_js_wasm_calls);
-    Run<WasmInliningPhase>();
-    RunPrintAndVerify(WasmInliningPhase::phase_name(), true);
-  }
 
   // From now on it is invalid to look at types on the nodes, because the types
   // on the nodes might not make sense after representation selection due to the

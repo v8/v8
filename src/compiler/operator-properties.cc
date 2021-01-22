@@ -224,7 +224,6 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSCall:
     case IrOpcode::kJSCallWithArrayLike:
     case IrOpcode::kJSCallWithSpread:
-    case IrOpcode::kJSWasmCall:
 
     // Misc operations
     case IrOpcode::kJSAsyncFunctionEnter:

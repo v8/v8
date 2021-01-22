@@ -11,7 +11,6 @@
 #include "src/compiler/node.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/wasm/value-type.h"
 
 namespace v8 {
 namespace internal {
@@ -61,9 +60,6 @@ std::ostream& operator<<(std::ostream& os, FrameStateType type) {
     case FrameStateType::kBuiltinContinuation:
       os << "BUILTIN_CONTINUATION_FRAME";
       break;
-    case FrameStateType::kJSToWasmBuiltinContinuation:
-      os << "JS_TO_WASM_BUILTIN_CONTINUATION_FRAME";
-      break;
     case FrameStateType::kJavaScriptBuiltinContinuation:
       os << "JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME";
       break;
@@ -87,7 +83,7 @@ std::ostream& operator<<(std::ostream& os, FrameStateInfo const& info) {
 
 namespace {
 
-// Lazy deopt points where the frame state is associated with a call get an
+// Lazy deopt points where the frame state is assocated with a call get an
 // additional parameter for the return result from the call. The return result
 // is added by the deoptimizer and not explicitly specified in the frame state.
 // Lazy deopt points which can catch exceptions further get an additional
@@ -109,8 +105,7 @@ FrameState CreateBuiltinContinuationFrameStateCommon(
     JSGraph* jsgraph, FrameStateType frame_type, Builtins::Name name,
     Node* closure, Node* context, Node** parameters, int parameter_count,
     Node* outer_frame_state,
-    Handle<SharedFunctionInfo> shared = Handle<SharedFunctionInfo>(),
-    const wasm::FunctionSig* signature = nullptr) {
+    Handle<SharedFunctionInfo> shared = Handle<SharedFunctionInfo>()) {
   Graph* const graph = jsgraph->graph();
   CommonOperatorBuilder* const common = jsgraph->common();
 
@@ -121,7 +116,7 @@ FrameState CreateBuiltinContinuationFrameStateCommon(
   BytecodeOffset bailout_id = Builtins::GetContinuationBytecodeOffset(name);
   const FrameStateFunctionInfo* state_info =
       common->CreateFrameStateFunctionInfo(frame_type, parameter_count, 0,
-                                           shared, signature);
+                                           shared);
   const Operator* op = common->FrameState(
       bailout_id, OutputFrameStateCombine::Ignore(), state_info);
   return FrameState(graph->NewNode(op, params_node, jsgraph->EmptyStateValues(),
@@ -134,7 +129,7 @@ FrameState CreateBuiltinContinuationFrameStateCommon(
 FrameState CreateStubBuiltinContinuationFrameState(
     JSGraph* jsgraph, Builtins::Name name, Node* context,
     Node* const* parameters, int parameter_count, Node* outer_frame_state,
-    ContinuationFrameStateMode mode, const wasm::FunctionSig* signature) {
+    ContinuationFrameStateMode mode) {
   Callable callable = Builtins::CallableFor(jsgraph->isolate(), name);
   CallInterfaceDescriptor descriptor = callable.descriptor();
 
@@ -163,29 +158,10 @@ FrameState CreateStubBuiltinContinuationFrameState(
     actual_parameters.push_back(parameters[i]);
   }
 
-  FrameStateType frame_state_type = FrameStateType::kBuiltinContinuation;
-  if (name == Builtins::kJSToWasmLazyDeoptContinuation) {
-    CHECK_NOT_NULL(signature);
-    frame_state_type = FrameStateType::kJSToWasmBuiltinContinuation;
-  }
   return CreateBuiltinContinuationFrameStateCommon(
-      jsgraph, frame_state_type, name, jsgraph->UndefinedConstant(), context,
-      actual_parameters.data(), static_cast<int>(actual_parameters.size()),
-      outer_frame_state, Handle<SharedFunctionInfo>(), signature);
-}
-
-FrameState CreateJSWasmCallBuiltinContinuationFrameState(
-    JSGraph* jsgraph, Node* context, Node* outer_frame_state,
-    const wasm::FunctionSig* signature) {
-  base::Optional<wasm::ValueType::Kind> wasm_return_type =
-      wasm::WasmReturnTypeFromSignature(signature);
-  Node* node_return_type =
-      jsgraph->SmiConstant(wasm_return_type ? wasm_return_type.value() : -1);
-  Node* lazy_deopt_parameters[] = {node_return_type};
-  return CreateStubBuiltinContinuationFrameState(
-      jsgraph, Builtins::kJSToWasmLazyDeoptContinuation, context,
-      lazy_deopt_parameters, arraysize(lazy_deopt_parameters),
-      outer_frame_state, ContinuationFrameStateMode::LAZY, signature);
+      jsgraph, FrameStateType::kBuiltinContinuation, name,
+      jsgraph->UndefinedConstant(), context, actual_parameters.data(),
+      static_cast<int>(actual_parameters.size()), outer_frame_state);
 }
 
 FrameState CreateJavaScriptBuiltinContinuationFrameState(

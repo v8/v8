@@ -18,7 +18,6 @@
 #include "src/objects/smi.h"
 #include "src/objects/struct.h"
 #include "src/roots/roots.h"
-#include "src/wasm/value-type.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 #include "torque-generated/bit-fields.h"
 #include "torque-generated/field-offsets.h"
@@ -35,15 +34,9 @@ class BytecodeArray;
 class CoverageInfo;
 class DebugInfo;
 class IsCompiledScope;
-template <typename>
-class Signature;
 class WasmCapiFunctionData;
 class WasmExportedFunctionData;
 class WasmJSFunctionData;
-
-namespace wasm {
-struct WasmModule;
-}  // namespace wasm
 
 #include "torque-generated/src/objects/shared-function-info-tq.inc"
 
@@ -326,9 +319,6 @@ class SharedFunctionInfo
   WasmJSFunctionData wasm_js_function_data() const;
   inline bool HasWasmCapiFunctionData() const;
   WasmCapiFunctionData wasm_capi_function_data() const;
-
-  inline const wasm::WasmModule* wasm_module() const;
-  inline const wasm::FunctionSig* wasm_function_signature() const;
 
   // Clear out pre-parsed scope data from UncompiledDataWithPreparseData,
   // turning it into UncompiledDataWithoutPreparseData.

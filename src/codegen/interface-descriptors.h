@@ -80,7 +80,6 @@ namespace internal {
   V(LoadWithVector)                      \
   V(LoadWithReceiverAndVector)           \
   V(NoContext)                           \
-  V(SingleParameterOnStack)              \
   V(RecordWrite)                         \
   V(ResumeGenerator)                     \
   V(RunMicrotasks)                       \
@@ -95,6 +94,7 @@ namespace internal {
   V(StringSubstring)                     \
   V(TypeConversion)                      \
   V(TypeConversionNoContext)             \
+  V(TypeConversionStackParameter)        \
   V(Typeof)                              \
   V(UnaryOp_WithFeedback)                \
   V(Void)                                \
@@ -935,11 +935,13 @@ class TypeConversionNoContextDescriptor final : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(TypeConversionNoContextDescriptor, CallInterfaceDescriptor)
 };
 
-class SingleParameterOnStackDescriptor final : public CallInterfaceDescriptor {
+class TypeConversionStackParameterDescriptor final
+    : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kArgument)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
-  DECLARE_DESCRIPTOR(SingleParameterOnStackDescriptor, CallInterfaceDescriptor)
+  DECLARE_DESCRIPTOR(TypeConversionStackParameterDescriptor,
+                     CallInterfaceDescriptor)
 };
 
 class AsyncFunctionStackParameterDescriptor final

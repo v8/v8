@@ -37,7 +37,6 @@ class TranslationBuffer {
   V(BEGIN)                                             \
   V(INTERPRETED_FRAME)                                 \
   V(BUILTIN_CONTINUATION_FRAME)                        \
-  V(JS_TO_WASM_BUILTIN_CONTINUATION_FRAME)             \
   V(JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME)            \
   V(JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME) \
   V(CONSTRUCT_STUB_FRAME)                              \
@@ -91,9 +90,6 @@ class Translation {
                                unsigned height);
   void BeginBuiltinContinuationFrame(BytecodeOffset bailout_id, int literal_id,
                                      unsigned height);
-  void BeginJSToWasmBuiltinContinuationFrame(
-      BytecodeOffset bailout_id, int literal_id, unsigned height,
-      base::Optional<wasm::ValueType::Kind> return_type);
   void BeginJavaScriptBuiltinContinuationFrame(BytecodeOffset bailout_id,
                                                int literal_id, unsigned height);
   void BeginJavaScriptBuiltinContinuationWithCatchFrame(

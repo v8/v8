@@ -43,7 +43,6 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   enum Flag {
     kNoFlags = 0u,
     kBailoutOnUninitialized = 1u << 0,
-    kInlineJSToWasmCalls = 1u << 1,
   };
   using Flags = base::Flags<Flag>;
 
@@ -70,14 +69,10 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Zone* ZoneForGraphAssembler() const { return temp_zone(); }
   JSGraph* JSGraphForGraphAssembler() const { return jsgraph(); }
 
-  bool has_wasm_calls() const { return has_wasm_calls_; }
-
  private:
   Reduction ReduceBooleanConstructor(Node* node);
   Reduction ReduceCallApiFunction(Node* node,
                                   const SharedFunctionInfoRef& shared);
-  Reduction ReduceCallWasmFunction(Node* node,
-                                   const SharedFunctionInfoRef& shared);
   Reduction ReduceFunctionPrototypeApply(Node* node);
   Reduction ReduceFunctionPrototypeBind(Node* node);
   Reduction ReduceFunctionPrototypeCall(Node* node);
@@ -250,8 +245,6 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Flags const flags_;
   CompilationDependencies* const dependencies_;
   std::set<Node*> waitlist_;
-
-  bool has_wasm_calls_ = false;
 };
 
 }  // namespace compiler

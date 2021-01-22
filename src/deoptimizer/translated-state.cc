@@ -25,19 +25,6 @@ using base::Memory;
 using base::ReadUnalignedValue;
 
 namespace internal {
-namespace {
-
-// Decodes the return type of a Wasm function as the integer value of
-// wasm::ValueType::Kind, or -1 if the function returns void.
-
-base::Optional<wasm::ValueType::Kind> DecodeWasmReturnType(int code) {
-  if (code >= 0) {
-    return {static_cast<wasm::ValueType::Kind>(code)};
-  }
-  return {};
-}
-
-}  // namespace
 
 // static
 TranslatedValue TranslatedValue::NewDeferredObject(TranslatedState* container,
@@ -89,14 +76,6 @@ TranslatedValue TranslatedValue::NewInt64(TranslatedState* container,
 }
 
 // static
-TranslatedValue TranslatedValue::NewInt64ToBigInt(TranslatedState* container,
-                                                  int64_t value) {
-  TranslatedValue slot(container, kInt64ToBigInt);
-  slot.int64_value_ = value;
-  return slot;
-}
-
-// static
 TranslatedValue TranslatedValue::NewUInt32(TranslatedState* container,
                                            uint32_t value) {
   TranslatedValue slot(container, kUInt32);
@@ -138,7 +117,7 @@ int32_t TranslatedValue::int32_value() const {
 }
 
 int64_t TranslatedValue::int64_value() const {
-  DCHECK(kInt64 == kind() || kInt64ToBigInt == kind());
+  DCHECK_EQ(kInt64, kind());
   return int64_value_;
 }
 
@@ -199,10 +178,6 @@ Object TranslatedValue::GetRawValue() const {
       }
       break;
     }
-
-    case kInt64ToBigInt:
-      // Return the arguments marker.
-      break;
 
     case kUInt32: {
       bool is_smi = (uint32_value() <= static_cast<uintptr_t>(Smi::kMaxValue));
@@ -293,37 +268,28 @@ Handle<Object> TranslatedValue::GetValue() {
     return container_->InitializeObjectAt(this);
   }
 
-  double number = 0;
-  Handle<HeapObject> heap_object;
+  double number;
   switch (kind()) {
     case TranslatedValue::kInt32:
       number = int32_value();
-      heap_object = isolate()->factory()->NewHeapNumber(number);
       break;
     case TranslatedValue::kInt64:
       number = int64_value();
-      heap_object = isolate()->factory()->NewHeapNumber(number);
-      break;
-    case TranslatedValue::kInt64ToBigInt:
-      heap_object = BigInt::FromInt64(isolate(), int64_value());
       break;
     case TranslatedValue::kUInt32:
       number = uint32_value();
-      heap_object = isolate()->factory()->NewHeapNumber(number);
       break;
     case TranslatedValue::kFloat:
       number = float_value().get_scalar();
-      heap_object = isolate()->factory()->NewHeapNumber(number);
       break;
     case TranslatedValue::kDouble:
       number = double_value().get_scalar();
-      heap_object = isolate()->factory()->NewHeapNumber(number);
       break;
     default:
       UNREACHABLE();
   }
-  DCHECK(!IsSmiDouble(number) || kind() == TranslatedValue::kInt64ToBigInt);
-  set_initialized_storage(heap_object);
+  DCHECK(!IsSmiDouble(number));
+  set_initialized_storage(isolate()->factory()->NewHeapNumber(number));
   return storage_;
 }
 
@@ -417,15 +383,6 @@ TranslatedFrame TranslatedFrame::BuiltinContinuationFrame(
   return frame;
 }
 
-TranslatedFrame TranslatedFrame::JSToWasmBuiltinContinuationFrame(
-    BytecodeOffset bytecode_offset, SharedFunctionInfo shared_info, int height,
-    base::Optional<wasm::ValueType::Kind> return_type) {
-  TranslatedFrame frame(kJSToWasmBuiltinContinuation, shared_info, height);
-  frame.bytecode_offset_ = bytecode_offset;
-  frame.return_type_ = return_type;
-  return frame;
-}
-
 TranslatedFrame TranslatedFrame::JavaScriptBuiltinContinuationFrame(
     BytecodeOffset bytecode_offset, SharedFunctionInfo shared_info,
     int height) {
@@ -472,7 +429,6 @@ int TranslatedFrame::GetValueCount() {
 
     case kConstructStub:
     case kBuiltinContinuation:
-    case kJSToWasmBuiltinContinuation:
     case kJavaScriptBuiltinContinuation:
     case kJavaScriptBuiltinContinuationWithCatch: {
       static constexpr int kTheContext = 1;
@@ -565,26 +521,6 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       }
       return TranslatedFrame::BuiltinContinuationFrame(bytecode_offset,
                                                        shared_info, height);
-    }
-
-    case Translation::JS_TO_WASM_BUILTIN_CONTINUATION_FRAME: {
-      BytecodeOffset bytecode_offset = BytecodeOffset(iterator->Next());
-      SharedFunctionInfo shared_info =
-          SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
-      int height = iterator->Next();
-      base::Optional<wasm::ValueType::Kind> return_type =
-          DecodeWasmReturnType(iterator->Next());
-      if (trace_file != nullptr) {
-        std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
-        PrintF(trace_file, "  reading JS to Wasm builtin continuation frame %s",
-               name.get());
-        PrintF(trace_file,
-               " => bytecode_offset=%d, height=%d return_type=%d; inputs:\n",
-               bytecode_offset.ToInt(), height,
-               return_type.has_value() ? return_type.value() : -1);
-      }
-      return TranslatedFrame::JSToWasmBuiltinContinuationFrame(
-          bytecode_offset, shared_info, height, return_type);
     }
 
     case Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME: {
@@ -743,7 +679,6 @@ int TranslatedState::CreateNextTranslatedValue(
     case Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME:
     case Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME:
     case Translation::BUILTIN_CONTINUATION_FRAME:
-    case Translation::JS_TO_WASM_BUILTIN_CONTINUATION_FRAME:
     case Translation::UPDATE_FEEDBACK:
       // Peeled off before getting here.
       break;
