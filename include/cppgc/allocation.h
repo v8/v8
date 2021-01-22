@@ -156,7 +156,7 @@ class MakeGarbageCollectedTrait : public MakeGarbageCollectedTraitBase<T> {
     static_assert(internal::IsGarbageCollectedType<T>::value,
                   "T needs to be a garbage collected object");
     static_assert(
-        !internal::IsGarbageCollectedMixinType<T>::value ||
+        !IsGarbageCollectedWithMixinTypeV<T> ||
             sizeof(T) <= internal::api_constants::kLargeObjectSizeThreshold,
         "GarbageCollectedMixin may not be a large object");
     void* memory =
@@ -172,7 +172,7 @@ class MakeGarbageCollectedTrait : public MakeGarbageCollectedTraitBase<T> {
     static_assert(internal::IsGarbageCollectedType<T>::value,
                   "T needs to be a garbage collected object");
     static_assert(
-        !internal::IsGarbageCollectedMixinType<T>::value ||
+        !IsGarbageCollectedWithMixinTypeV<T> ||
             sizeof(T) <= internal::api_constants::kLargeObjectSizeThreshold,
         "GarbageCollectedMixin may not be a large object");
     void* memory = MakeGarbageCollectedTraitBase<T>::Allocate(
