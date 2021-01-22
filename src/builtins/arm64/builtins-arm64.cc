@@ -2224,14 +2224,9 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     __ Bind(&new_target_constructor);
   }
 
-  Register args_fp = x5;
   Register len = x6;
-  // TODO(victorgomes): Remove this copy when all the arguments adaptor frame
-  // code is erased.
-  __ Mov(args_fp, fp);
-  __ Ldr(len, MemOperand(fp, StandardFrameConstants::kArgCOffset));
-
   Label stack_done, stack_overflow;
+  __ Ldr(len, MemOperand(fp, StandardFrameConstants::kArgCOffset));
   __ Subs(len, len, start_index);
   __ B(le, &stack_done);
   // Check for stack overflow.
@@ -2241,9 +2236,10 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
 
   // Push varargs.
   {
+    Register args_fp = x5;
     Register dst = x13;
     // Point to the fist argument to copy from (skipping receiver).
-    __ Add(args_fp, args_fp,
+    __ Add(args_fp, fp,
            CommonFrameConstants::kFixedFrameSizeAboveFp + kSystemPointerSize);
     __ lsl(start_index, start_index, kSystemPointerSizeLog2);
     __ Add(args_fp, args_fp, start_index);

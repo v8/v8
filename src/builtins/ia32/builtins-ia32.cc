@@ -2014,12 +2014,8 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
 
   __ movd(xmm1, edx);  // Preserve new.target (in case of [[Construct]]).
 
-  // TODO(victorgomes): Remove this copy when all the arguments adaptor frame
-  // code is erased.
-  __ mov(scratch, ebp);
-  __ mov(edx, Operand(ebp, StandardFrameConstants::kArgCOffset));
-
   Label stack_done, stack_overflow;
+  __ mov(edx, Operand(ebp, StandardFrameConstants::kArgCOffset));
   __ sub(edx, ecx);
   __ j(less_equal, &stack_done);
   {
@@ -2029,7 +2025,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     //  -- ecx : start index (to support rest parameters)
     //  -- edx : number of arguments to copy, i.e. arguments count - start index
     //  -- edi : the target to call (can be any Object)
-    //  -- esi : point to the caller stack frame
+    //  -- ebp : point to the caller stack frame
     //  -- xmm0 : context for the Call / Construct builtin
     //  -- xmm1 : the new target (for [[Construct]] calls)
     // -----------------------------------
@@ -2041,17 +2037,11 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
 
     Register scratch = ebx;
 
-    // Point to the first argument to copy (skipping receiver).
-    __ lea(ecx, Operand(ecx, times_system_pointer_size,
-                        CommonFrameConstants::kFixedFrameSizeAboveFp +
-                            kSystemPointerSize));
-    __ add(esi, ecx);
-
     // Move the arguments already in the stack,
     // including the receiver and the return address.
     {
       Label copy, check;
-      Register src = ecx, current = edi;
+      Register src = esi, current = edi;
       // Update stack pointer.
       __ mov(src, esp);
       __ lea(scratch, Operand(edx, times_system_pointer_size, 0));
@@ -2068,18 +2058,24 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
       __ bind(&check);
       __ cmp(current, eax);
       __ j(less, &copy);
-      __ lea(ecx, Operand(esp, eax, times_system_pointer_size, 0));
+      __ lea(esi, Operand(esp, eax, times_system_pointer_size, 0));
     }
 
     // Update total number of arguments.
     __ sub(eax, Immediate(2));
     __ add(eax, edx);
 
+    // Point to the first argument to copy (skipping receiver).
+    __ lea(ecx, Operand(ecx, times_system_pointer_size,
+                        CommonFrameConstants::kFixedFrameSizeAboveFp +
+                            kSystemPointerSize));
+    __ add(ecx, ebp);
+
     // Copy the additional caller arguments onto the stack.
     // TODO(victorgomes): Consider using forward order as potentially more cache
     // friendly.
     {
-      Register src = esi, dest = ecx, num = edx;
+      Register src = ecx, dest = esi, num = edx;
       Label loop;
       __ bind(&loop);
       __ dec(num);

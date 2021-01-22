@@ -1874,12 +1874,8 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     __ bind(&new_target_constructor);
   }
 
-  // TODO(victorgomes): Remove this copy when all the arguments adaptor frame
-  // code is erased.
-  __ mov(r4, fp);
-  __ ldr(r5, MemOperand(fp, StandardFrameConstants::kArgCOffset));
-
   Label stack_done, stack_overflow;
+  __ ldr(r5, MemOperand(fp, StandardFrameConstants::kArgCOffset));
   __ sub(r5, r5, r2, SetCC);
   __ b(le, &stack_done);
   {
@@ -1889,7 +1885,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     //  -- r1 : the target to call (can be any Object)
     //  -- r2 : start index (to support rest parameters)
     //  -- r3 : the new.target (for [[Construct]] calls)
-    //  -- r4 : point to the caller stack frame
+    //  -- fp : point to the caller stack frame
     //  -- r5 : number of arguments to copy, i.e. arguments count - start index
     // -----------------------------------
 
@@ -1898,7 +1894,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
 
     // Forward the arguments from the caller frame.
     // Point to the first argument to copy (skipping the receiver).
-    __ add(r4, r4,
+    __ add(r4, fp,
            Operand(CommonFrameConstants::kFixedFrameSizeAboveFp +
                    kSystemPointerSize));
     __ add(r4, r4, Operand(r2, LSL, kSystemPointerSizeLog2));

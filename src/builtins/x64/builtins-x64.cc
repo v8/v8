@@ -1952,19 +1952,15 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     __ bind(&new_target_constructor);
   }
 
-  // TODO(victorgomes): Remove this copy when all the arguments adaptor frame
-  // code is erased.
-  __ movq(rbx, rbp);
-  __ movq(r8, Operand(rbp, StandardFrameConstants::kArgCOffset));
-
   Label stack_done, stack_overflow;
+  __ movq(r8, Operand(rbp, StandardFrameConstants::kArgCOffset));
   __ subl(r8, rcx);
   __ j(less_equal, &stack_done);
   {
     // ----------- S t a t e -------------
     //  -- rax : the number of arguments already in the stack (not including the
     //  receiver)
-    //  -- rbx : point to the caller stack frame
+    //  -- rbp : point to the caller stack frame
     //  -- rcx : start index (to support rest parameters)
     //  -- rdx : the new target (for [[Construct]] calls)
     //  -- rdi : the target to call (can be any Object)
@@ -2005,13 +2001,13 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     __ leaq(rcx, Operand(rcx, times_system_pointer_size,
                          CommonFrameConstants::kFixedFrameSizeAboveFp +
                              kSystemPointerSize));
-    __ addq(rbx, rcx);
+    __ addq(rcx, rbp);
 
     // Copy the additional caller arguments onto the stack.
     // TODO(victorgomes): Consider using forward order as potentially more cache
     // friendly.
     {
-      Register src = rbx, dest = r9, num = r8;
+      Register src = rcx, dest = r9, num = r8;
       Label loop;
       __ bind(&loop);
       __ decq(num);
