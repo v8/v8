@@ -559,6 +559,8 @@ bool InitClassConstructor(
     // Set map's prototype without enabling prototype setup mode for superclass
     // because it does not make sense.
     Map::SetPrototype(isolate, map, constructor_parent, false);
+    // Ensure that setup mode will never be enabled for superclass.
+    JSObject::MakePrototypesFast(constructor_parent, kStartAtReceiver, isolate);
   }
 
   Handle<NumberDictionary> elements_dictionary_template(
