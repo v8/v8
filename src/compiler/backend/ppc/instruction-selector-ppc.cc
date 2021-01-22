@@ -2259,6 +2259,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F32x4Trunc)             \
   V(F32x4NearestInt)        \
   V(I64x2Neg)               \
+  V(I64x2SConvertI32x4Low)  \
+  V(I64x2SConvertI32x4High) \
+  V(I64x2UConvertI32x4Low)  \
+  V(I64x2UConvertI32x4High) \
   V(I32x4Neg)               \
   V(I32x4Abs)               \
   V(I32x4SConvertF32x4)     \

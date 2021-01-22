@@ -2515,14 +2515,18 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(F32x4Trunc)             \
   V(F32x4NearestInt)        \
   V(I64x2Neg)               \
-  V(I16x8Abs)               \
+  V(I64x2SConvertI32x4Low)  \
+  V(I64x2SConvertI32x4High) \
+  V(I64x2UConvertI32x4Low)  \
+  V(I64x2UConvertI32x4High) \
   V(I32x4Neg)               \
+  V(I32x4Abs)               \
   V(I32x4SConvertI16x8Low)  \
   V(I32x4SConvertI16x8High) \
   V(I32x4UConvertI16x8Low)  \
   V(I32x4UConvertI16x8High) \
-  V(I32x4Abs)               \
   V(I16x8Neg)               \
+  V(I16x8Abs)               \
   V(I16x8SConvertI8x16Low)  \
   V(I16x8SConvertI8x16High) \
   V(I16x8UConvertI8x16Low)  \
