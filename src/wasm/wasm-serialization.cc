@@ -576,11 +576,8 @@ class CopyAndRelocTask : public JobTask {
     } while (!delegate->ShouldYield());
   }
 
-  size_t GetMaxConcurrency(size_t worker_count) const override {
-    // Run the CopyAndRelocTask in a single thread for now. We can later bump
-    // this to see if it improves performance.
-    if (worker_count > 0) return 0;
-    return std::min(size_t{1}, from_queue_->NumBatches());
+  size_t GetMaxConcurrency(size_t /* worker_count */) const override {
+    return from_queue_->NumBatches();
   }
 
  private:
