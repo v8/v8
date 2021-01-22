@@ -65,12 +65,12 @@ template <typename T>
 constexpr bool IsTraceableV = IsTraceable<T>::value;
 
 template <typename T, typename = void>
-struct IsGarbageCollectedMixinType : std::false_type {
+struct HasGarbageCollectedMixinTypeMarker : std::false_type {
   static_assert(sizeof(T), "T must be fully defined");
 };
 
 template <typename T>
-struct IsGarbageCollectedMixinType<
+struct HasGarbageCollectedMixinTypeMarker<
     T,
     void_t<typename std::remove_const_t<T>::IsGarbageCollectedMixinTypeMarker>>
     : std::true_type {
@@ -78,14 +78,42 @@ struct IsGarbageCollectedMixinType<
 };
 
 template <typename T, typename = void>
-struct IsGarbageCollectedType : IsGarbageCollectedMixinType<T> {
+struct HasGarbageCollectedTypeMarker : std::false_type {
   static_assert(sizeof(T), "T must be fully defined");
 };
 
 template <typename T>
-struct IsGarbageCollectedType<
+struct HasGarbageCollectedTypeMarker<
     T, void_t<typename std::remove_const_t<T>::IsGarbageCollectedTypeMarker>>
     : std::true_type {
+  static_assert(sizeof(T), "T must be fully defined");
+};
+
+template <typename T, bool = HasGarbageCollectedTypeMarker<T>::value,
+          bool = HasGarbageCollectedMixinTypeMarker<T>::value>
+struct IsGarbageCollectedMixinType : std::false_type {
+  static_assert(sizeof(T), "T must be fully defined");
+};
+
+template <typename T>
+struct IsGarbageCollectedMixinType<T, false, true> : std::true_type {
+  static_assert(sizeof(T), "T must be fully defined");
+};
+
+template <typename T, bool = HasGarbageCollectedTypeMarker<T>::value>
+struct IsGarbageCollectedType : std::false_type {
+  static_assert(sizeof(T), "T must be fully defined");
+};
+
+template <typename T>
+struct IsGarbageCollectedType<T, true> : std::true_type {
+  static_assert(sizeof(T), "T must be fully defined");
+};
+
+template <typename T>
+struct IsGarbageCollectedOrMixinType
+    : std::integral_constant<bool, IsGarbageCollectedType<T>::value ||
+                                       IsGarbageCollectedMixinType<T>::value> {
   static_assert(sizeof(T), "T must be fully defined");
 };
 
@@ -133,6 +161,9 @@ constexpr bool IsGarbageCollectedMixinTypeV =
 template <typename T>
 constexpr bool IsGarbageCollectedTypeV =
     internal::IsGarbageCollectedType<T>::value;
+template <typename T>
+constexpr bool IsGarbageCollectedOrMixinTypeV =
+    internal::IsGarbageCollectedOrMixinType<T>::value;
 template <typename T>
 constexpr bool IsMemberTypeV = internal::IsMemberType<T>::value;
 template <typename T>

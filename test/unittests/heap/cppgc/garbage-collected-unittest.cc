@@ -47,9 +47,9 @@ TEST(GarbageCollectedTest, GarbageCollectedTrait) {
   STATIC_ASSERT(!IsGarbageCollectedType<int>::value);
   STATIC_ASSERT(!IsGarbageCollectedType<NotGCed>::value);
   STATIC_ASSERT(IsGarbageCollectedType<GCed>::value);
-  STATIC_ASSERT(IsGarbageCollectedType<Mixin>::value);
+  STATIC_ASSERT(!IsGarbageCollectedType<Mixin>::value);
   STATIC_ASSERT(IsGarbageCollectedType<GCedWithMixin>::value);
-  STATIC_ASSERT(IsGarbageCollectedType<MergedMixins>::value);
+  STATIC_ASSERT(!IsGarbageCollectedType<MergedMixins>::value);
   STATIC_ASSERT(IsGarbageCollectedType<GCWithMergedMixins>::value);
 }
 
@@ -58,9 +58,19 @@ TEST(GarbageCollectedTest, GarbageCollectedMixinTrait) {
   STATIC_ASSERT(!IsGarbageCollectedMixinType<GCed>::value);
   STATIC_ASSERT(!IsGarbageCollectedMixinType<NotGCed>::value);
   STATIC_ASSERT(IsGarbageCollectedMixinType<Mixin>::value);
-  STATIC_ASSERT(IsGarbageCollectedMixinType<GCedWithMixin>::value);
+  STATIC_ASSERT(!IsGarbageCollectedMixinType<GCedWithMixin>::value);
   STATIC_ASSERT(IsGarbageCollectedMixinType<MergedMixins>::value);
-  STATIC_ASSERT(IsGarbageCollectedMixinType<GCWithMergedMixins>::value);
+  STATIC_ASSERT(!IsGarbageCollectedMixinType<GCWithMergedMixins>::value);
+}
+
+TEST(GarbageCollectedTest, GarbageCollectedOrMixinTrait) {
+  STATIC_ASSERT(!IsGarbageCollectedOrMixinType<int>::value);
+  STATIC_ASSERT(IsGarbageCollectedOrMixinType<GCed>::value);
+  STATIC_ASSERT(!IsGarbageCollectedOrMixinType<NotGCed>::value);
+  STATIC_ASSERT(IsGarbageCollectedOrMixinType<Mixin>::value);
+  STATIC_ASSERT(IsGarbageCollectedOrMixinType<GCedWithMixin>::value);
+  STATIC_ASSERT(IsGarbageCollectedOrMixinType<MergedMixins>::value);
+  STATIC_ASSERT(IsGarbageCollectedOrMixinType<GCWithMergedMixins>::value);
 }
 
 TEST_F(GarbageCollectedTestWithHeap, GetObjectStartReturnsCurrentAddress) {
