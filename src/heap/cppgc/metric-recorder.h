@@ -29,6 +29,11 @@ class MetricRecorder {
     int64_t incremental_sweep_ms;
     int64_t concurrent_mark_ms;
     int64_t concurrent_sweep_ms;
+
+    int64_t objects_before_bytes;
+    int64_t objects_after_bytes;
+    int64_t objects_freed_bytes;
+    int64_t memory_freed_bytes;
   };
 
   struct CppGCIncrementalMarkMetricSample {

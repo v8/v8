@@ -134,7 +134,7 @@ TEST_F(MetricRecorderTest, AtomicScopesNotReportedImmediately) {
   EndGC(0);
 }
 
-TEST_F(MetricRecorderTest, CycleEndHistogramReportedOnGcEnd) {
+TEST_F(MetricRecorderTest, CycleEndMetricsReportedOnGcEnd) {
   MetricRecorderImpl::CppGCCycleEndMetricSamples_callcount = 0u;
   MetricRecorderImpl::CppGCIncrementalMarkMetricSample_callcount = 0u;
   MetricRecorderImpl::CppGCIncrementalSweepMetricSample_callcount = 0u;
@@ -362,6 +362,51 @@ TEST_F(MetricRecorderTest, ConcurrentSamplesAreReported) {
     EXPECT_LT(0u, MetricRecorderImpl::CppGCCycleEndMetricSamples_event
                       .concurrent_sweep_ms);
   }
+}
+
+TEST_F(MetricRecorderTest, ObjectSizeMetricsNoAllocations) {
+  // Populate previous event.
+  StartGC();
+  EndGC(1000);
+  // Populate current event.
+  StartGC();
+  EndGC(800);
+  EXPECT_EQ(1000u, MetricRecorderImpl::CppGCCycleEndMetricSamples_event
+                       .objects_before_bytes);
+  EXPECT_EQ(
+      800u,
+      MetricRecorderImpl::CppGCCycleEndMetricSamples_event.objects_after_bytes);
+  EXPECT_EQ(
+      200u,
+      MetricRecorderImpl::CppGCCycleEndMetricSamples_event.objects_freed_bytes);
+  EXPECT_EQ(
+      0u,
+      MetricRecorderImpl::CppGCCycleEndMetricSamples_event.memory_freed_bytes);
+}
+
+TEST_F(MetricRecorderTest, ObjectSizeMetricsWithAllocations) {
+  // Populate previous event.
+  StartGC();
+  EndGC(1000);
+  // Populate current event.
+  StartGC();
+  stats->NotifyAllocation(300);
+  stats->NotifyFreedMemory(700);
+  stats->NotifyMarkingCompleted(800);
+  stats->NotifyAllocation(150);
+  stats->NotifyFreedMemory(400);
+  stats->NotifySweepingCompleted();
+  EXPECT_EQ(1300u, MetricRecorderImpl::CppGCCycleEndMetricSamples_event
+                       .objects_before_bytes);
+  EXPECT_EQ(
+      800,
+      MetricRecorderImpl::CppGCCycleEndMetricSamples_event.objects_after_bytes);
+  EXPECT_EQ(
+      500u,
+      MetricRecorderImpl::CppGCCycleEndMetricSamples_event.objects_freed_bytes);
+  EXPECT_EQ(
+      400u,
+      MetricRecorderImpl::CppGCCycleEndMetricSamples_event.memory_freed_bytes);
 }
 
 }  // namespace internal
