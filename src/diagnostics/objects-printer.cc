@@ -1054,6 +1054,8 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
   os << "\n - optimization tier: " << optimization_tier();
   os << "\n - invocation count: " << invocation_count();
   os << "\n - profiler ticks: " << profiler_ticks();
+  os << "\n - closure feedback cell array: ";
+  closure_feedback_cell_array().ClosureFeedbackCellArrayPrint(os);
 
   FeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {
@@ -1421,6 +1423,9 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
     os << "feedback metadata is not available in SFI\n";
   } else if (has_feedback_vector()) {
     feedback_vector().FeedbackVectorPrint(os);
+  } else if (has_closure_feedback_cell_array()) {
+    os << "No feedback vector, but we have a closure feedback cell array\n";
+    closure_feedback_cell_array().ClosureFeedbackCellArrayPrint(os);
   } else {
     os << "not available\n";
   }

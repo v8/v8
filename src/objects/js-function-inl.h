@@ -29,6 +29,8 @@ OBJECT_CONSTRUCTORS_IMPL(JSFunction, JSFunctionOrBoundFunction)
 CAST_ACCESSOR(JSFunction)
 
 ACCESSORS(JSFunction, raw_feedback_cell, FeedbackCell, kFeedbackCellOffset)
+RELEASE_ACQUIRE_ACCESSORS(JSFunction, raw_feedback_cell, FeedbackCell,
+                          kFeedbackCellOffset)
 
 FeedbackVector JSFunction::feedback_vector() const {
   DCHECK(has_feedback_vector());

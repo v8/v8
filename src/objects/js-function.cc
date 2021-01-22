@@ -282,9 +282,10 @@ void JSFunction::EnsureClosureFeedbackCellArray(Handle<JSFunction> function) {
   if (function->raw_feedback_cell() == isolate->heap()->many_closures_cell()) {
     Handle<FeedbackCell> feedback_cell =
         isolate->factory()->NewOneClosureCell(feedback_cell_array);
-    function->set_raw_feedback_cell(*feedback_cell);
+    function->set_raw_feedback_cell(*feedback_cell, kReleaseStore);
   } else {
-    function->raw_feedback_cell().set_value(*feedback_cell_array);
+    function->raw_feedback_cell().set_value(*feedback_cell_array,
+                                            kReleaseStore);
   }
 }
 
@@ -310,7 +311,7 @@ void JSFunction::EnsureFeedbackVector(Handle<JSFunction> function,
   // for more details.
   DCHECK(function->raw_feedback_cell() !=
          isolate->heap()->many_closures_cell());
-  function->raw_feedback_cell().set_value(*feedback_vector);
+  function->raw_feedback_cell().set_value(*feedback_vector, kReleaseStore);
   function->raw_feedback_cell().SetInterruptBudget();
 }
 

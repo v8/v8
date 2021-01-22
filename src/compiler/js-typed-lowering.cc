@@ -1713,7 +1713,10 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     shared = SharedFunctionInfoRef(broker(), ccp.shared_info());
   } else if (target->opcode() == IrOpcode::kCheckClosure) {
     FeedbackCellRef cell(broker(), FeedbackCellOf(target->op()));
-    shared = cell.value().AsFeedbackVector().shared_function_info();
+    base::Optional<FeedbackVectorRef> feedback_vector = cell.value();
+    if (feedback_vector.has_value()) {
+      shared = feedback_vector->shared_function_info();
+    }
   }
 
   if (shared.has_value()) {

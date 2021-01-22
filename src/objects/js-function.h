@@ -165,6 +165,11 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // the JSFunction's bytecode being flushed.
   DECL_ACCESSORS(raw_feedback_cell, FeedbackCell)
 
+  // [raw_feedback_cell] (synchronized version) When this is initialized from a
+  // newly allocated object (instead of a root sentinel), it should
+  // be written with release store semantics.
+  DECL_RELEASE_ACQUIRE_ACCESSORS(raw_feedback_cell, FeedbackCell)
+
   // Functions related to feedback vector. feedback_vector() can be used once
   // the function has feedback vectors allocated. feedback vectors may not be
   // available after compile when lazily allocating feedback vectors.

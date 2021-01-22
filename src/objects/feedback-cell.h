@@ -28,6 +28,11 @@ class FeedbackCell : public TorqueGeneratedFeedbackCell<FeedbackCell, Struct> {
   static const int kUnalignedSize = kSize;
   static const int kAlignedSize = RoundUp<kObjectAlignment>(int{kSize});
 
+  using TorqueGeneratedFeedbackCell<FeedbackCell, Struct>::value;
+  using TorqueGeneratedFeedbackCell<FeedbackCell, Struct>::set_value;
+
+  DECL_RELEASE_ACQUIRE_ACCESSORS(value, HeapObject)
+
   inline void clear_padding();
   inline void reset_feedback_vector(
       base::Optional<std::function<void(HeapObject object, ObjectSlot slot,

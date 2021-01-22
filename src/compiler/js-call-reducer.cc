@@ -4073,8 +4073,13 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     return ReduceJSCall(node, SharedFunctionInfoRef(broker(), p.shared_info()));
   } else if (target->opcode() == IrOpcode::kCheckClosure) {
     FeedbackCellRef cell(broker(), FeedbackCellOf(target->op()));
-    return ReduceJSCall(node,
-                        cell.value().AsFeedbackVector().shared_function_info());
+    if (cell.shared_function_info().has_value()) {
+      return ReduceJSCall(node, *cell.shared_function_info());
+    } else {
+      TRACE_BROKER_MISSING(broker(), "Unable to reduce JSCall. FeedbackCell "
+                                         << cell << " has no FeedbackVector");
+      return NoChange();
+    }
   }
 
   // If {target} is the result of a JSCreateBoundFunction operation,
@@ -4153,11 +4158,10 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
   } else if (feedback_target.has_value() && feedback_target->IsFeedbackCell()) {
     FeedbackCellRef feedback_cell(
         broker(), feedback_target.value().AsFeedbackCell().object());
-    if (feedback_cell.value().IsFeedbackVector()) {
+    if (feedback_cell.value().has_value()) {
       // Check that {target} is a closure with given {feedback_cell},
       // which uniquely identifies a given function inside a native context.
-      FeedbackVectorRef feedback_vector =
-          feedback_cell.value().AsFeedbackVector();
+      FeedbackVectorRef feedback_vector = *feedback_cell.value();
       if (!feedback_vector.serialized()) {
         TRACE_BROKER_MISSING(
             broker(), "feedback vector, not serialized: " << feedback_vector);

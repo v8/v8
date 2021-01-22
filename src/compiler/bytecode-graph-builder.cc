@@ -1048,7 +1048,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       native_context_(native_context),
       shared_info_(shared_info),
       feedback_cell_(feedback_cell),
-      feedback_vector_(feedback_cell.value().AsFeedbackVector()),
+      feedback_vector_(feedback_cell.value()->AsFeedbackVector()),
       invocation_frequency_(invocation_frequency),
       type_hint_lowering_(
           broker, jsgraph, feedback_vector_,
@@ -4561,7 +4561,8 @@ void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
                             BytecodeGraphBuilderFlags flags,
                             TickCounter* tick_counter) {
   DCHECK(broker->IsSerializedForCompilation(
-      shared_info, feedback_cell.value().AsFeedbackVector()));
+      shared_info, feedback_cell.value()->AsFeedbackVector()));
+  DCHECK(feedback_cell.value()->AsFeedbackVector().serialized());
   BytecodeGraphBuilder builder(
       broker, local_zone, broker->target_native_context(), shared_info,
       feedback_cell, osr_offset, jsgraph, invocation_frequency,

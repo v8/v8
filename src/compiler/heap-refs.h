@@ -72,6 +72,7 @@ enum class OddballType : uint8_t {
   V(ArrayBoilerplateDescription)                    \
   V(CallHandlerInfo)                                \
   V(Cell)                                           \
+  V(FeedbackCell)                                   \
   V(SharedFunctionInfo)                             \
   V(TemplateObjectDescription)
 
@@ -116,7 +117,6 @@ enum class OddballType : uint8_t {
   V(AllocationSite)                           \
   V(Code)                                     \
   V(DescriptorArray)                          \
-  V(FeedbackCell)                             \
   V(FeedbackVector)                           \
   V(FixedArrayBase)                           \
   V(FunctionTemplateInfo)                     \
@@ -544,7 +544,7 @@ class FeedbackCellRef : public HeapObjectRef {
 
   Handle<FeedbackCell> object() const;
   base::Optional<SharedFunctionInfoRef> shared_function_info() const;
-  HeapObjectRef value() const;
+  base::Optional<FeedbackVectorRef> value() const;
 };
 
 class FeedbackVectorRef : public HeapObjectRef {

@@ -158,6 +158,13 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       Object, ObjectRef::BackgroundSerialization background_serialization =
                   ObjectRef::BackgroundSerialization::kDisallowed);
 
+  // Gets data only if we have it. However, thin wrappers will be created for
+  // smis, read-only objects and never-serialized objects.
+  ObjectData* TryGetOrCreateData(
+      Handle<Object>, bool crash_on_error,
+      ObjectRef::BackgroundSerialization background_serialization =
+          ObjectRef::BackgroundSerialization::kDisallowed);
+
   // Check if {object} is any native context's %ArrayPrototype% or
   // %ObjectPrototype%.
   bool IsArrayOrObjectPrototype(const JSObjectRef& object) const;

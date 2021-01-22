@@ -2142,10 +2142,8 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
           callee.AddConstant(target->object(), zone(), broker());
         } else {
           // Call; target is feedback cell or callee.
-          if (target->IsFeedbackCell() &&
-              target->AsFeedbackCell().value().IsFeedbackVector()) {
-            FeedbackVectorRef vector =
-                target->AsFeedbackCell().value().AsFeedbackVector();
+          if (target->IsFeedbackCell() && target->AsFeedbackCell().value()) {
+            FeedbackVectorRef vector = *target->AsFeedbackCell().value();
             vector.Serialize();
             VirtualClosure virtual_closure(
                 vector.shared_function_info().object(), vector.object(),

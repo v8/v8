@@ -1451,7 +1451,11 @@ class FeedbackCellData : public HeapObjectData {
 FeedbackCellData::FeedbackCellData(JSHeapBroker* broker, ObjectData** storage,
                                    Handle<FeedbackCell> object)
     : HeapObjectData(broker, storage, object),
-      value_(broker->GetOrCreateData(object->value())) {}
+      value_(object->value().IsFeedbackVector()
+                 ? broker->GetOrCreateData(object->value())
+                 : nullptr) {
+  DCHECK(!FLAG_turbo_direct_heap_access);
+}
 
 class FeedbackVectorData : public HeapObjectData {
  public:
@@ -2776,62 +2780,93 @@ void JSHeapBroker::InitializeAndStartSerializing(
   TRACE(this, "Finished serializing standard objects");
 }
 
-// clang-format off
 ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object,
     ObjectRef::BackgroundSerialization background_serialization) {
-  RefsMap::Entry* entry = refs_->LookupOrInsert(object.address());
-  ObjectData* object_data = entry->value;
+  ObjectData* return_value =
+      TryGetOrCreateData(object, true, background_serialization);
+  DCHECK_NOT_NULL(return_value);
+  return return_value;
+}
 
-  if (object_data == nullptr) {
-    ObjectData** data_storage = &(entry->value);
-    // TODO(neis): Remove these Allow* once we serialize everything upfront.
-    AllowHandleDereference handle_dereference;
-    if (object->IsSmi()) {
-      object_data = zone()->New<ObjectData>(this, data_storage, object, kSmi);
-    } else if (IsReadOnlyHeapObject(*object)) {
-      object_data = zone()->New<ObjectData>(this, data_storage, object,
-                                            kUnserializedReadOnlyHeapObject);
+// clang-format off
+ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
+    bool crash_on_error,
+    ObjectRef::BackgroundSerialization background_serialization) {
+  RefsMap::Entry* entry = refs_->Lookup(object.address());
+  if (entry != nullptr) return entry->value;
+
+  if (mode() == JSHeapBroker::kDisabled) {
+    entry = refs_->LookupOrInsert(object.address());
+    ObjectData** storage = &(entry->value);
+    if (*storage == nullptr) {
+      entry->value = zone()->New<ObjectData>(
+          this, storage, object,
+          object->IsSmi() ? kSmi : kUnserializedHeapObject);
+    }
+    return *storage;
+  }
+
+  ObjectData* object_data;
+  if (object->IsSmi()) {
+    entry = refs_->LookupOrInsert(object.address());
+    object_data = zone()->New<ObjectData>(this, &(entry->value), object, kSmi);
+  } else if (IsReadOnlyHeapObject(*object)) {
+    entry = refs_->LookupOrInsert(object.address());
+    object_data = zone()->New<ObjectData>(this, &(entry->value), object,
+                                          kUnserializedReadOnlyHeapObject);
 // TODO(solanes, v8:10866): Remove the if/else in this macro once we remove the
 // FLAG_turbo_direct_heap_access.
-#define CREATE_DATA_FOR_DIRECT_READ(name)                                  \
-    } else if (object->Is##name()) {                                       \
-      if (FLAG_turbo_direct_heap_access) {                                 \
-        object_data = zone()->New<ObjectData>(                             \
-          this, data_storage, object, kNeverSerializedHeapObject);         \
-      } else {                                                             \
-        CHECK_EQ(mode(), kSerializing);                                    \
-        AllowHandleAllocation handle_allocation;                           \
-        object_data = zone()->New<name##Data>(this, data_storage,          \
-                                              Handle<name>::cast(object)); \
-      }
-    HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(CREATE_DATA_FOR_DIRECT_READ)
+#define CREATE_DATA_FOR_DIRECT_READ(name)                                 \
+  } else if (object->Is##name()) {                                        \
+    if (FLAG_turbo_direct_heap_access) {                                  \
+      entry = refs_->LookupOrInsert(object.address());                    \
+      object_data = zone()->New<ObjectData>(                              \
+        this, &(entry->value), object, kNeverSerializedHeapObject);       \
+    } else if (mode() == kSerializing) {                                  \
+      AllowHandleAllocation handle_allocation;                            \
+      entry = refs_->LookupOrInsert(object.address());                    \
+      object_data = zone()->New<name##Data>(this, &(entry->value),        \
+                                            Handle<name>::cast(object));  \
+    } else {                                                              \
+      CHECK(!crash_on_error);                                             \
+      return nullptr;                                                     \
+    }
+  HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(CREATE_DATA_FOR_DIRECT_READ)
 #undef CREATE_DATA_FOR_DIRECT_READ
-#define CREATE_DATA_FOR_POSSIBLE_SERIALIZATION(name)                         \
-    } else if (object->Is##name()) {                                         \
-      CHECK_IMPLIES(mode() == kSerialized,                                   \
-                    background_serialization                                 \
-                      == ObjectRef::BackgroundSerialization::kAllowed);      \
-      AllowHandleAllocation handle_allocation;                               \
-      object_data = zone()->New<name##Data>(this, data_storage,              \
-                                            Handle<name>::cast(object));
+#define CREATE_DATA_FOR_POSSIBLE_SERIALIZATION(name)                      \
+    } else if (object->Is##name()) {                                      \
+      if (mode() == kSerialized &&                                        \
+          background_serialization !=                                     \
+            ObjectRef::BackgroundSerialization::kAllowed) {               \
+        CHECK(!crash_on_error);                                           \
+        return nullptr;                                                   \
+      }                                                                   \
+      AllowHandleAllocation handle_allocation;                            \
+      entry = refs_->LookupOrInsert(object.address());                    \
+      object_data = zone()->New<name##Data>(this, &(entry->value),        \
+                                              Handle<name>::cast(object));
     HEAP_BROKER_POSSIBLY_BACKGROUND_SERIALIZED_OBJECT_LIST(
       CREATE_DATA_FOR_POSSIBLE_SERIALIZATION)
 #undef CREATE_DATA_FOR_POSSIBLE_SERIALIZATION
-#define CREATE_DATA_FOR_SERIALIZATION(name)                     \
-    } else if (object->Is##name()) {                            \
-      CHECK_EQ(mode(), kSerializing);                           \
-      AllowHandleAllocation handle_allocation;                  \
-      object_data = zone()->New<name##Data>(this, data_storage, \
-                                            Handle<name>::cast(object));
-    HEAP_BROKER_SERIALIZED_OBJECT_LIST(CREATE_DATA_FOR_SERIALIZATION)
-#undef CREATE_DATA_FOR_SERIALIZATION
-    } else {
-      UNREACHABLE();
+#define CREATE_DATA_FOR_SERIALIZATION(name)                               \
+  } else if (object->Is##name()) {                                        \
+    if (mode() == kSerializing) {                                         \
+      entry = refs_->LookupOrInsert(object.address());                    \
+      AllowHandleAllocation handle_allocation;                            \
+      object_data = zone()->New<name##Data>(this, &(entry->value),        \
+                                            Handle<name>::cast(object));  \
+    } else {                                                              \
+      CHECK(!crash_on_error);                                             \
+      return nullptr;                                                     \
     }
-    // At this point the entry pointer is not guaranteed to be valid as
-    // the refs_ hash hable could be resized by one of the constructors above.
-    DCHECK_EQ(object_data, refs_->Lookup(object.address())->value);
+  HEAP_BROKER_SERIALIZED_OBJECT_LIST(CREATE_DATA_FOR_SERIALIZATION)
+#undef CREATE_DATA_FOR_SERIALIZATION
+  } else {
+    UNREACHABLE();
   }
+  // At this point the entry pointer is not guaranteed to be valid as
+  // the refs_ hash hable could be resized by one of the constructors above.
+  DCHECK_EQ(object_data, refs_->Lookup(object.address())->value);
   return object_data;
 }
 // clang-format on
@@ -3583,7 +3618,24 @@ SharedFunctionInfo::Inlineability SharedFunctionInfoRef::GetInlineability()
   return ObjectRef ::data()->AsSharedFunctionInfo()->GetInlineability();
 }
 
-BIMODAL_ACCESSOR(FeedbackCell, HeapObject, value)
+base::Optional<FeedbackVectorRef> FeedbackCellRef::value() const {
+  if (data_->should_access_heap()) {
+    // Note that we use the synchronized accessor.
+    Object value = object()->value(kAcquireLoad);
+    if (!value.IsFeedbackVector()) return base::nullopt;
+    auto vector_handle = broker()->CanonicalPersistentHandle(value);
+    ObjectData* vector = broker()->TryGetOrCreateData(vector_handle, false);
+    if (vector) {
+      return FeedbackVectorRef(broker(), vector);
+    }
+    TRACE_BROKER_MISSING(
+        broker(),
+        "Unable to retrieve FeedbackVector from FeedbackCellRef " << *this);
+    return base::nullopt;
+  }
+  ObjectData* vector = ObjectRef::data()->AsFeedbackCell()->value();
+  return FeedbackVectorRef(broker(), vector->AsFeedbackVector());
+}
 
 base::Optional<ObjectRef> MapRef::GetStrongValue(
     InternalIndex descriptor_index) const {
@@ -3900,28 +3952,9 @@ ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object,
                      BackgroundSerialization background_serialization,
                      bool check_type)
     : broker_(broker) {
-  switch (broker->mode()) {
-    // We may have to create data in JSHeapBroker::kSerialized as well since we
-    // read the data from read only heap objects directly instead of serializing
-    // them.
-    case JSHeapBroker::kSerialized:
-    case JSHeapBroker::kSerializing:
-      data_ = broker->GetOrCreateData(object, background_serialization);
-      break;
-    case JSHeapBroker::kDisabled: {
-      RefsMap::Entry* entry = broker->refs_->LookupOrInsert(object.address());
-      ObjectData** storage = &(entry->value);
-      if (*storage == nullptr) {
-        entry->value = broker->zone()->New<ObjectData>(
-            broker, storage, object,
-            object->IsSmi() ? kSmi : kUnserializedHeapObject);
-      }
-      data_ = *storage;
-      break;
-    }
-    case JSHeapBroker::kRetired:
-      UNREACHABLE();
-  }
+  CHECK_NE(broker->mode(), JSHeapBroker::kRetired);
+
+  data_ = broker->GetOrCreateData(object, background_serialization);
   if (!data_) {  // TODO(mslekova): Remove once we're on the background thread.
     object->Print();
   }
@@ -4013,10 +4046,10 @@ Float64 FixedDoubleArrayData::Get(int i) const {
 
 base::Optional<SharedFunctionInfoRef> FeedbackCellRef::shared_function_info()
     const {
-  if (value().IsFeedbackVector()) {
-    FeedbackVectorRef vector = value().AsFeedbackVector();
+  if (value()) {
+    FeedbackVectorRef vector = *value();
     if (vector.serialized()) {
-      return value().AsFeedbackVector().shared_function_info();
+      return vector.shared_function_info();
     }
   }
   return base::nullopt;
