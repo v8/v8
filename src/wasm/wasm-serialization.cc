@@ -500,6 +500,19 @@ class DeserializationQueue {
     return batch;
   }
 
+  std::vector<DeserializationUnit> PopAll() {
+    base::MutexGuard guard(&mutex_);
+    if (queue_.empty()) return {};
+    auto units = std::move(queue_.front());
+    queue_.pop();
+    while (!queue_.empty()) {
+      units.insert(units.end(), std::make_move_iterator(queue_.front().begin()),
+                   std::make_move_iterator(queue_.front().end()));
+      queue_.pop();
+    }
+    return units;
+  }
+
   size_t NumBatches() {
     base::MutexGuard guard(&mutex_);
     return queue_.size();
@@ -584,9 +597,9 @@ class PublishTask : public JobTask {
   void Run(JobDelegate* delegate) override {
     WasmCodeRefScope code_scope;
     do {
-      auto batch = from_queue_->Pop();
-      if (batch.empty()) break;
-      deserializer_->Publish(std::move(batch));
+      auto to_publish = from_queue_->PopAll();
+      if (to_publish.empty()) break;
+      deserializer_->Publish(std::move(to_publish));
     } while (!delegate->ShouldYield());
   }
 
