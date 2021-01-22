@@ -2789,7 +2789,26 @@ void LiftoffAssembler::StoreLane(Register dst, Register offset,
                                  uintptr_t offset_imm, LiftoffRegister src,
                                  StoreType type, uint8_t lane,
                                  uint32_t* protected_store_pc) {
-  bailout(kSimd, "store lane");
+  DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
+  Operand dst_op = Operand(dst, offset, times_1, offset_imm);
+  if (protected_store_pc) *protected_store_pc = pc_offset();
+
+  MachineRepresentation rep = type.mem_rep();
+  if (rep == MachineRepresentation::kWord8) {
+    Pextrb(dst_op, src.fp(), lane);
+  } else if (rep == MachineRepresentation::kWord16) {
+    Pextrw(dst_op, src.fp(), lane);
+  } else if (rep == MachineRepresentation::kWord32) {
+    S128Store32Lane(dst_op, src.fp(), lane);
+  } else {
+    DCHECK_EQ(MachineRepresentation::kWord64, rep);
+    if (lane == 0) {
+      Movlps(dst_op, src.fp());
+    } else {
+      DCHECK_EQ(1, lane);
+      Movhps(dst_op, src.fp());
+    }
+  }
 }
 
 void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,

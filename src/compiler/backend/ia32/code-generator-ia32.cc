@@ -3320,12 +3320,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       uint8_t laneidx = i.InputUint8(index + 1);
-      if (laneidx == 0) {
-        __ Movss(operand, i.InputSimd128Register(index));
-      } else {
-        DCHECK_GE(3, laneidx);
-        __ Extractps(operand, i.InputSimd128Register(index), 1);
-      }
+      __ S128Store32Lane(operand, i.InputSimd128Register(index), laneidx);
       break;
     }
     case kSSEI8x16SConvertI16x8: {
