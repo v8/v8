@@ -287,8 +287,8 @@ void MarkerBase::FinishMarking(MarkingConfig::StackState stack_state) {
 void MarkerBase::ProcessWeakness() {
   DCHECK_EQ(MarkingConfig::MarkingType::kAtomic, config_.marking_type);
 
-  StatsCollector::DisabledScope stats_scope(
-      heap(), StatsCollector::kWeakInvokeCallbacks);
+  StatsCollector::DisabledScope stats_scope(heap(),
+                                            StatsCollector::kAtomicWeak);
 
   heap().GetWeakPersistentRegion().Trace(&visitor());
   // Processing cross-thread handles requires taking the process lock.

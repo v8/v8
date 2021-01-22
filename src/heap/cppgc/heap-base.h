@@ -14,6 +14,7 @@
 #include "src/base/macros.h"
 #include "src/heap/cppgc/compactor.h"
 #include "src/heap/cppgc/marker.h"
+#include "src/heap/cppgc/metric-recorder.h"
 #include "src/heap/cppgc/object-allocator.h"
 #include "src/heap/cppgc/raw-heap.h"
 #include "src/heap/cppgc/sweeper.h"
@@ -79,7 +80,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   HeapBase(std::shared_ptr<cppgc::Platform> platform,
            const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,
-           StackSupport stack_support);
+           StackSupport stack_support,
+           std::unique_ptr<MetricRecorder> histogram_recorder);
   virtual ~HeapBase();
 
   HeapBase(const HeapBase&) = delete;
@@ -152,9 +154,6 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   StackSupport stack_support() const { return stack_support_; }
 
   void AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded();
-
-  // Notifies the heap that a GC is done.
-  virtual void PostGarbageCollection() = 0;
 
   // Termination drops all roots (clears them out) and runs garbage collections
   // in a bounded fixed point loop  until no new objects are created in

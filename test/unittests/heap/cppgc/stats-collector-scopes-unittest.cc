@@ -227,16 +227,17 @@ TEST_F(CppgcTracingScopesTest, InitalScopesAreZero) {
   stats_collector->NotifySweepingCompleted();
   const StatsCollector::Event& event =
       stats_collector->GetPreviousEventForTesting();
-  for (int i = 0; i < StatsCollector::kNumScopeIds; ++i) {
+  for (int i = 0; i < StatsCollector::kNumHistogramScopeIds; ++i) {
     EXPECT_TRUE(event.scope_data[i].IsZero());
   }
-  for (int i = 0; i < StatsCollector::kNumConcurrentScopeIds; ++i) {
+  for (int i = 0; i < StatsCollector::kNumHistogramConcurrentScopeIds; ++i) {
     EXPECT_EQ(0, event.concurrent_scope_data[i]);
   }
 }
 
 TEST_F(CppgcTracingScopesTest, TestIndividualScopes) {
-  for (int scope_id = 0; scope_id < StatsCollector::kNumScopeIds; ++scope_id) {
+  for (int scope_id = 0; scope_id < StatsCollector::kNumHistogramScopeIds;
+       ++scope_id) {
     StatsCollector* stats_collector = Heap::From(GetHeap())->stats_collector();
     stats_collector->NotifyMarkingStarted(
         GarbageCollector::Config::CollectionType::kMajor,
@@ -255,21 +256,21 @@ TEST_F(CppgcTracingScopesTest, TestIndividualScopes) {
     stats_collector->NotifySweepingCompleted();
     const StatsCollector::Event& event =
         stats_collector->GetPreviousEventForTesting();
-    for (int i = 0; i < StatsCollector::kNumScopeIds; ++i) {
+    for (int i = 0; i < StatsCollector::kNumHistogramScopeIds; ++i) {
       if (i == scope_id)
         EXPECT_LT(v8::base::TimeDelta(), event.scope_data[i]);
       else
         EXPECT_TRUE(event.scope_data[i].IsZero());
     }
-    for (int i = 0; i < StatsCollector::kNumConcurrentScopeIds; ++i) {
+    for (int i = 0; i < StatsCollector::kNumHistogramConcurrentScopeIds; ++i) {
       EXPECT_EQ(0, event.concurrent_scope_data[i]);
     }
   }
 }
 
 TEST_F(CppgcTracingScopesTest, TestIndividualConcurrentScopes) {
-  for (int scope_id = 0; scope_id < StatsCollector::kNumConcurrentScopeIds;
-       ++scope_id) {
+  for (int scope_id = 0;
+       scope_id < StatsCollector::kNumHistogramConcurrentScopeIds; ++scope_id) {
     StatsCollector* stats_collector = Heap::From(GetHeap())->stats_collector();
     stats_collector->NotifyMarkingStarted(
         GarbageCollector::Config::CollectionType::kMajor,
@@ -288,10 +289,10 @@ TEST_F(CppgcTracingScopesTest, TestIndividualConcurrentScopes) {
     stats_collector->NotifySweepingCompleted();
     const StatsCollector::Event& event =
         stats_collector->GetPreviousEventForTesting();
-    for (int i = 0; i < StatsCollector::kNumScopeIds; ++i) {
+    for (int i = 0; i < StatsCollector::kNumHistogramScopeIds; ++i) {
       EXPECT_TRUE(event.scope_data[i].IsZero());
     }
-    for (int i = 0; i < StatsCollector::kNumConcurrentScopeIds; ++i) {
+    for (int i = 0; i < StatsCollector::kNumHistogramConcurrentScopeIds; ++i) {
       if (i == scope_id)
         EXPECT_LT(0, event.concurrent_scope_data[i]);
       else

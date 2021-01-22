@@ -28,9 +28,11 @@ class V8_EXPORT_PRIVATE CppHeap final : public cppgc::internal::HeapBase,
     return static_cast<const CppHeap*>(heap);
   }
 
-  CppHeap(v8::Isolate* isolate,
-          const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>&
-              custom_spaces);
+  CppHeap(
+      v8::Isolate* isolate,
+      const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>& custom_spaces,
+      std::unique_ptr<cppgc::internal::MetricRecorder> metric_recorder =
+          nullptr);
   ~CppHeap() final;
 
   CppHeap(const CppHeap&) = delete;
@@ -55,8 +57,6 @@ class V8_EXPORT_PRIVATE CppHeap final : public cppgc::internal::HeapBase,
     // For unified heap, CppHeap shouldn't finalize independently (i.e.
     // finalization is not needed) thus this method is left empty.
   }
-
-  void PostGarbageCollection() final {}
 
   Isolate& isolate_;
   bool marking_done_ = false;

@@ -169,11 +169,13 @@ void UnifiedHeapMarker::AddObject(void* object) {
 
 CppHeap::CppHeap(
     v8::Isolate* isolate,
-    const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>& custom_spaces)
+    const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>& custom_spaces,
+    std::unique_ptr<cppgc::internal::MetricRecorder> metric_recorder)
     : cppgc::internal::HeapBase(std::make_shared<CppgcPlatformAdapter>(isolate),
                                 custom_spaces,
                                 cppgc::internal::HeapBase::StackSupport::
-                                    kSupportsConservativeStackScan),
+                                    kSupportsConservativeStackScan,
+                                std::move(metric_recorder)),
       isolate_(*reinterpret_cast<Isolate*>(isolate)) {
   if (isolate_.heap_profiler()) {
     isolate_.heap_profiler()->AddBuildEmbedderGraphCallback(

@@ -572,8 +572,6 @@ class Sweeper::SweeperImpl final {
     DCHECK(notify_done_pending_);
     notify_done_pending_ = false;
     stats_collector_->NotifySweepingCompleted();
-    // Notify the heap that GC is finished.
-    heap_->heap()->PostGarbageCollection();
   }
 
   void NotifyDoneIfNeeded() {

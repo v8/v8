@@ -56,7 +56,8 @@ class ObjectSizeCounter : private HeapVisitor<ObjectSizeCounter> {
 HeapBase::HeapBase(
     std::shared_ptr<cppgc::Platform> platform,
     const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,
-    StackSupport stack_support)
+    StackSupport stack_support,
+    std::unique_ptr<MetricRecorder> histogram_recorder)
     : raw_heap_(this, custom_spaces),
       platform_(std::move(platform)),
 #if defined(CPPGC_CAGED_HEAP)
@@ -66,7 +67,8 @@ HeapBase::HeapBase(
       page_backend_(
           std::make_unique<PageBackend>(platform_->GetPageAllocator())),
 #endif
-      stats_collector_(std::make_unique<StatsCollector>()),
+      stats_collector_(
+          std::make_unique<StatsCollector>(std::move(histogram_recorder))),
       stack_(std::make_unique<heap::base::Stack>(
           v8::base::Stack::GetStackStart())),
       prefinalizer_handler_(std::make_unique<PreFinalizerHandler>(*this)),

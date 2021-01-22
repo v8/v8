@@ -8,12 +8,17 @@
 #include <cmath>
 
 #include "src/base/logging.h"
+#include "src/heap/cppgc/metric-recorder.h"
 
 namespace cppgc {
 namespace internal {
 
 // static
 constexpr size_t StatsCollector::kAllocationThresholdBytes;
+
+StatsCollector::StatsCollector(
+    std::unique_ptr<MetricRecorder> histogram_recorder)
+    : metric_recorder_(std::move(histogram_recorder)) {}
 
 void StatsCollector::RegisterObserver(AllocationObserver* observer) {
   DCHECK_EQ(allocation_observers_.end(),
@@ -114,6 +119,18 @@ void StatsCollector::NotifySweepingCompleted() {
   gc_state_ = GarbageCollectionState::kNotRunning;
   previous_ = std::move(current_);
   current_ = Event();
+  if (metric_recorder_) {
+    MetricRecorder::CppGCCycleEndMetricSamples event{
+        previous_.scope_data[kAtomicMark].InMilliseconds(),
+        previous_.scope_data[kAtomicWeak].InMilliseconds(),
+        previous_.scope_data[kAtomicCompact].InMilliseconds(),
+        previous_.scope_data[kAtomicSweep].InMilliseconds(),
+        previous_.scope_data[kIncrementalMark].InMilliseconds(),
+        previous_.scope_data[kIncrementalSweep].InMilliseconds(),
+        previous_.concurrent_scope_data[kConcurrentMark],
+        previous_.concurrent_scope_data[kConcurrentSweep]};
+    metric_recorder_->AddMainThreadEvent(event);
+  }
 }
 
 size_t StatsCollector::allocated_object_size() const {
@@ -127,6 +144,26 @@ size_t StatsCollector::allocated_object_size() const {
             0);
   return static_cast<size_t>(static_cast<int64_t>(event.marked_bytes) +
                              allocated_bytes_since_end_of_marking_);
+}
+
+void StatsCollector::RecordHistogramSample(ScopeId scope_id_,
+                                           v8::base::TimeDelta time) {
+  switch (scope_id_) {
+    case kIncrementalMark: {
+      MetricRecorder::CppGCIncrementalMarkMetricSample event{
+          time.InMilliseconds()};
+      metric_recorder_->AddMainThreadEvent(event);
+      break;
+    }
+    case kIncrementalSweep: {
+      MetricRecorder::CppGCIncrementalSweepMetricSample event{
+          time.InMilliseconds()};
+      metric_recorder_->AddMainThreadEvent(event);
+      break;
+    }
+    default:
+      break;
+  }
 }
 
 }  // namespace internal
