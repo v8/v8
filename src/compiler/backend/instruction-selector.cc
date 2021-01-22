@@ -1946,6 +1946,12 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitF64x2Trunc(node);
     case IrOpcode::kF64x2NearestInt:
       return MarkAsSimd128(node), VisitF64x2NearestInt(node);
+    case IrOpcode::kF64x2ConvertLowI32x4S:
+      return MarkAsSimd128(node), VisitF64x2ConvertLowI32x4S(node);
+    case IrOpcode::kF64x2ConvertLowI32x4U:
+      return MarkAsSimd128(node), VisitF64x2ConvertLowI32x4U(node);
+    case IrOpcode::kF64x2PromoteLowF32x4:
+      return MarkAsSimd128(node), VisitF64x2PromoteLowF32x4(node);
     case IrOpcode::kF32x4Splat:
       return MarkAsSimd128(node), VisitF32x4Splat(node);
     case IrOpcode::kF32x4ExtractLane:
@@ -2004,6 +2010,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitF32x4Trunc(node);
     case IrOpcode::kF32x4NearestInt:
       return MarkAsSimd128(node), VisitF32x4NearestInt(node);
+    case IrOpcode::kF32x4DemoteF64x2Zero:
+      return MarkAsSimd128(node), VisitF32x4DemoteF64x2Zero(node);
     case IrOpcode::kI64x2Splat:
       return MarkAsSimd128(node), VisitI64x2Splat(node);
     case IrOpcode::kI64x2SplatI32Pair:
@@ -2124,6 +2132,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI32x4ExtAddPairwiseI16x8S(node);
     case IrOpcode::kI32x4ExtAddPairwiseI16x8U:
       return MarkAsSimd128(node), VisitI32x4ExtAddPairwiseI16x8U(node);
+    case IrOpcode::kI32x4TruncSatF64x2SZero:
+      return MarkAsSimd128(node), VisitI32x4TruncSatF64x2SZero(node);
+    case IrOpcode::kI32x4TruncSatF64x2UZero:
+      return MarkAsSimd128(node), VisitI32x4TruncSatF64x2UZero(node);
     case IrOpcode::kI16x8Splat:
       return MarkAsSimd128(node), VisitI16x8Splat(node);
     case IrOpcode::kI16x8ExtractLaneU:
@@ -2797,6 +2809,27 @@ void InstructionSelector::VisitI32x4SignSelect(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2SignSelect(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64
         // && !V8_TARGET_ARCH_ARM
+
+#if !V8_TARGET_ARCH_X64
+void InstructionSelector::VisitF64x2ConvertLowI32x4S(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitF64x2ConvertLowI32x4U(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitF64x2PromoteLowF32x4(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitF32x4DemoteF64x2Zero(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI32x4TruncSatF64x2SZero(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI32x4TruncSatF64x2UZero(Node* node) {
+  UNIMPLEMENTED();
+}
+#endif  //! V8_TARGET_ARCH_X64
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 

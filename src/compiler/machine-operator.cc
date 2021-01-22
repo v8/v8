@@ -382,6 +382,9 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(F64x2Floor, Operator::kNoProperties, 1, 0, 1)                          \
   V(F64x2Trunc, Operator::kNoProperties, 1, 0, 1)                          \
   V(F64x2NearestInt, Operator::kNoProperties, 1, 0, 1)                     \
+  V(F64x2ConvertLowI32x4S, Operator::kNoProperties, 1, 0, 1)               \
+  V(F64x2ConvertLowI32x4U, Operator::kNoProperties, 1, 0, 1)               \
+  V(F64x2PromoteLowF32x4, Operator::kNoProperties, 1, 0, 1)                \
   V(F32x4Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(F32x4SConvertI32x4, Operator::kNoProperties, 1, 0, 1)                  \
   V(F32x4UConvertI32x4, Operator::kNoProperties, 1, 0, 1)                  \
@@ -409,6 +412,7 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(F32x4Floor, Operator::kNoProperties, 1, 0, 1)                          \
   V(F32x4Trunc, Operator::kNoProperties, 1, 0, 1)                          \
   V(F32x4NearestInt, Operator::kNoProperties, 1, 0, 1)                     \
+  V(F32x4DemoteF64x2Zero, Operator::kNoProperties, 1, 0, 1)                \
   V(I64x2Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(I64x2SplatI32Pair, Operator::kNoProperties, 2, 0, 1)                   \
   V(I64x2Neg, Operator::kNoProperties, 1, 0, 1)                            \
@@ -464,6 +468,8 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(I32x4SignSelect, Operator::kNoProperties, 3, 0, 1)                     \
   V(I32x4ExtAddPairwiseI16x8S, Operator::kNoProperties, 1, 0, 1)           \
   V(I32x4ExtAddPairwiseI16x8U, Operator::kNoProperties, 1, 0, 1)           \
+  V(I32x4TruncSatF64x2SZero, Operator::kNoProperties, 1, 0, 1)             \
+  V(I32x4TruncSatF64x2UZero, Operator::kNoProperties, 1, 0, 1)             \
   V(I16x8Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(I16x8SConvertI8x16Low, Operator::kNoProperties, 1, 0, 1)               \
   V(I16x8SConvertI8x16High, Operator::kNoProperties, 1, 0, 1)              \

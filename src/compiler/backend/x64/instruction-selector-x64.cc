@@ -2929,12 +2929,16 @@ VISIT_ATOMIC_BINOP(Xor)
 
 #define SIMD_UNOP_LIST(V)   \
   V(F64x2Sqrt)              \
+  V(F64x2ConvertLowI32x4S)  \
+  V(F64x2ConvertLowI32x4U)  \
+  V(F64x2PromoteLowF32x4)   \
   V(F32x4SConvertI32x4)     \
   V(F32x4Abs)               \
   V(F32x4Neg)               \
   V(F32x4Sqrt)              \
   V(F32x4RecipApprox)       \
   V(F32x4RecipSqrtApprox)   \
+  V(F32x4DemoteF64x2Zero)   \
   V(I64x2Neg)               \
   V(I64x2BitMask)           \
   V(I64x2SConvertI32x4Low)  \
@@ -3727,6 +3731,26 @@ void InstructionSelector::VisitI8x16Popcnt(Node* node) {
   InstructionOperand temps[] = {g.TempSimd128Register()};
   Emit(kX64I8x16Popcnt, dst, g.UseUniqueRegister(node->InputAt(0)),
        arraysize(temps), temps);
+}
+
+void InstructionSelector::VisitI32x4TruncSatF64x2SZero(Node* node) {
+  X64OperandGenerator g(this);
+  if (CpuFeatures::IsSupported(AVX)) {
+    // Requires dst != src.
+    Emit(kX64I32x4TruncSatF64x2SZero, g.DefineAsRegister(node),
+         g.UseUniqueRegister(node->InputAt(0)));
+  } else {
+    Emit(kX64I32x4TruncSatF64x2SZero, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)));
+  }
+}
+
+void InstructionSelector::VisitI32x4TruncSatF64x2UZero(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand dst = CpuFeatures::IsSupported(AVX)
+                               ? g.DefineAsRegister(node)
+                               : g.DefineSameAsFirst(node);
+  Emit(kX64I32x4TruncSatF64x2UZero, dst, g.UseRegister(node->InputAt(0)));
 }
 
 // static

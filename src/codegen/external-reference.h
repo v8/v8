@@ -234,6 +234,11 @@ class StatsCounter;
   V(wasm_memory_init, "wasm::memory_init")                                     \
   V(wasm_memory_copy, "wasm::memory_copy")                                     \
   V(wasm_memory_fill, "wasm::memory_fill")                                     \
+  V(address_of_wasm_f64x2_convert_low_i32x4_u_int_mask,                        \
+    "wasm_f64x2_convert_low_i32x4_u_int_mask")                                 \
+  V(address_of_wasm_double_2_power_52, "wasm_double_2_power_52")               \
+  V(address_of_wasm_int32_max_as_double, "wasm_int32_max_as_double")           \
+  V(address_of_wasm_uint32_max_as_double, "wasm_uint32_max_as_double")         \
   V(write_barrier_marking_from_code_function, "WriteBarrier::MarkingFromCode") \
   V(call_enqueue_microtask_function, "MicrotaskQueue::CallEnqueueMicrotask")   \
   V(call_enter_context_function, "call_enter_context_function")                \
@@ -254,7 +259,6 @@ class StatsCounter;
     "ExperimentalRegExp::MatchForCallFromJs")                                  \
   EXTERNAL_REFERENCE_LIST_INTL(V)                                              \
   EXTERNAL_REFERENCE_LIST_HEAP_SANDBOX(V)
-
 #ifdef V8_INTL_SUPPORT
 #define EXTERNAL_REFERENCE_LIST_INTL(V)                               \
   V(intl_convert_one_byte_to_lower, "intl_convert_one_byte_to_lower") \

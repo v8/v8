@@ -81,6 +81,30 @@ constexpr struct alignas(16) {
 } wasm_i8x16_popcnt_mask = {uint64_t{0x03020201'02010100},
                             uint64_t{0x04030302'03020201}};
 
+constexpr struct alignas(16) {
+  uint64_t a;
+  uint64_t b;
+} wasm_f64x2_convert_low_i32x4_u_int_mask = {uint64_t{0x4330000043300000},
+                                             uint64_t{0x4330000043300000}};
+
+constexpr struct alignas(16) {
+  uint64_t a;
+  uint64_t b;
+} wasm_double_2_power_52 = {uint64_t{0x4330000000000000},
+                            uint64_t{0x4330000000000000}};
+
+constexpr struct alignas(16) {
+  uint64_t a;
+  uint64_t b;
+} wasm_int32_max_as_double = {uint64_t{0x41dfffffffc00000},
+                              uint64_t{0x41dfffffffc00000}};
+
+constexpr struct alignas(16) {
+  uint64_t a;
+  uint64_t b;
+} wasm_uint32_max_as_double = {uint64_t{0x41efffffffe00000},
+                               uint64_t{0x41efffffffe00000}};
+
 // Implementation of ExternalReference
 
 static ExternalReference::Type BuiltinCallTypeForResultSize(int result_size) {
@@ -488,6 +512,26 @@ ExternalReference ExternalReference::address_of_double_neg_constant() {
 
 ExternalReference ExternalReference::address_of_wasm_i8x16_popcnt_mask() {
   return ExternalReference(reinterpret_cast<Address>(&wasm_i8x16_popcnt_mask));
+}
+
+ExternalReference
+ExternalReference::address_of_wasm_f64x2_convert_low_i32x4_u_int_mask() {
+  return ExternalReference(
+      reinterpret_cast<Address>(&wasm_f64x2_convert_low_i32x4_u_int_mask));
+}
+
+ExternalReference ExternalReference::address_of_wasm_double_2_power_52() {
+  return ExternalReference(reinterpret_cast<Address>(&wasm_double_2_power_52));
+}
+
+ExternalReference ExternalReference::address_of_wasm_int32_max_as_double() {
+  return ExternalReference(
+      reinterpret_cast<Address>(&wasm_int32_max_as_double));
+}
+
+ExternalReference ExternalReference::address_of_wasm_uint32_max_as_double() {
+  return ExternalReference(
+      reinterpret_cast<Address>(&wasm_uint32_max_as_double));
 }
 
 ExternalReference

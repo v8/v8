@@ -1173,6 +1173,10 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         current += PrintRightXMMOperand(current);
         AppendToBuffer(",%s", NameOfXMMRegister(regop));
         break;
+      case 0xE6:
+        AppendToBuffer("vcvtdq2pd %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
       default:
         UnimplementedInstruction();
     }
@@ -1407,6 +1411,11 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         AppendToBuffer("vmovlps ");
         current += PrintRightXMMOperand(current);
         AppendToBuffer(",%s", NameOfXMMRegister(regop));
+        break;
+      case 0x14:
+        AppendToBuffer("vunpcklps %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
         break;
       case 0x16:
         if (mod == 0b11) {
@@ -2071,6 +2080,8 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       AppendToBuffer("cmp%sss %s,%s", cmp_pseudo_op[current[1]],
                      NameOfXMMRegister(regop), NameOfXMMRegister(rm));
       current += 2;
+    } else if (opcode == 0xE6) {
+      current += PrintOperands("cvtdq2pd", XMMREG_XMMOPER_OP_ORDER, current);
     } else {
       UnimplementedInstruction();
     }
@@ -2091,6 +2102,9 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
   } else if (opcode == 0x13) {
     // movlps m64, xmm1
     current += PrintOperands("movlps", XMMOPER_XMMREG_OP_ORDER, current);
+  } else if (opcode == 0x14) {
+    // unpcklps xmm1, xmm2/m128
+    current += PrintOperands("unpcklps", XMMREG_XMMOPER_OP_ORDER, current);
   } else if (opcode == 0x16) {
     if (mod == 0b11) {
       current += PrintOperands("movlhps", XMMREG_XMMOPER_OP_ORDER, current);

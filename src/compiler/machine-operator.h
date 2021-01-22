@@ -625,6 +625,9 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F64x2Floor();
   const Operator* F64x2Trunc();
   const Operator* F64x2NearestInt();
+  const Operator* F64x2ConvertLowI32x4S();
+  const Operator* F64x2ConvertLowI32x4U();
+  const Operator* F64x2PromoteLowF32x4();
 
   const Operator* F32x4Splat();
   const Operator* F32x4ExtractLane(int32_t);
@@ -655,6 +658,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F32x4Floor();
   const Operator* F32x4Trunc();
   const Operator* F32x4NearestInt();
+  const Operator* F32x4DemoteF64x2Zero();
 
   const Operator* I64x2Splat();
   const Operator* I64x2SplatI32Pair();
@@ -718,6 +722,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I32x4SignSelect();
   const Operator* I32x4ExtAddPairwiseI16x8S();
   const Operator* I32x4ExtAddPairwiseI16x8U();
+  const Operator* I32x4TruncSatF64x2SZero();
+  const Operator* I32x4TruncSatF64x2UZero();
 
   const Operator* I16x8Splat();
   const Operator* I16x8ExtractLaneU(int32_t);

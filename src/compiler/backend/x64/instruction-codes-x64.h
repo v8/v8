@@ -174,6 +174,9 @@ namespace compiler {
   V(X64F64x2Pmin)                         \
   V(X64F64x2Pmax)                         \
   V(X64F64x2Round)                        \
+  V(X64F64x2ConvertLowI32x4S)             \
+  V(X64F64x2ConvertLowI32x4U)             \
+  V(X64F64x2PromoteLowF32x4)              \
   V(X64F32x4Splat)                        \
   V(X64F32x4ExtractLane)                  \
   V(X64F32x4ReplaceLane)                  \
@@ -200,6 +203,7 @@ namespace compiler {
   V(X64F32x4Pmin)                         \
   V(X64F32x4Pmax)                         \
   V(X64F32x4Round)                        \
+  V(X64F32x4DemoteF64x2Zero)              \
   V(X64I64x2Splat)                        \
   V(X64I64x2ExtractLane)                  \
   V(X64I64x2Neg)                          \
@@ -256,6 +260,8 @@ namespace compiler {
   V(X64I32x4ExtMulHighI16x8U)             \
   V(X64I32x4ExtAddPairwiseI16x8S)         \
   V(X64I32x4ExtAddPairwiseI16x8U)         \
+  V(X64I32x4TruncSatF64x2SZero)           \
+  V(X64I32x4TruncSatF64x2UZero)           \
   V(X64I16x8Splat)                        \
   V(X64I16x8ExtractLaneS)                 \
   V(X64I16x8SConvertI8x16Low)             \
