@@ -2697,7 +2697,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     constexpr RegList fp_regs =
         Register::ListOf(d0, d1, d2, d3, d4, d5, d6, d7);
     __ PushXRegList(gp_regs);
-    __ PushDRegList(fp_regs);
+    __ PushQRegList(fp_regs);
 
     // Pass instance and function index as explicit arguments to the runtime
     // function.
@@ -2714,7 +2714,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ Mov(x17, kReturnRegister0);
 
     // Restore registers.
-    __ PopDRegList(fp_regs);
+    __ PopQRegList(fp_regs);
     __ PopXRegList(gp_regs);
   }
   // Finally, jump to the entrypoint.
