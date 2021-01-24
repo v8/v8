@@ -35,7 +35,7 @@ struct TickSample;
 //
 // --log-all
 // Log all events to the file, default is off.  This is the same as combining
-// --log-api, --log-code, and --log-regexp.
+// --log-api and --log-code.
 //
 // --log-api
 // Log API events to the logfile, default is off.  --log-api implies --log.
@@ -43,10 +43,6 @@ struct TickSample;
 // --log-code
 // Log code (create, move, and delete) events to the logfile, default is off.
 // --log-code implies --log.
-//
-// --log-regexp
-// Log creation and use of regular expressions, Default is off.
-// --log-regexp implies --log.
 //
 // --logfile <filename>
 // Specify the name of the logfile, default is "v8.log".
