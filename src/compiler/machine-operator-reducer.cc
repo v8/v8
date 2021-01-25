@@ -615,10 +615,10 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         return ReplaceFloat64(std::numeric_limits<double>::quiet_NaN());
       }
       if (m.right().IsNaN()) {  // x % NaN => NaN
-        return Replace(m.right().node());
+        return ReplaceFloat64(SilenceNaN(m.right().ResolvedValue()));
       }
       if (m.left().IsNaN()) {  // NaN % x => NaN
-        return Replace(m.left().node());
+        return ReplaceFloat64(SilenceNaN(m.left().ResolvedValue()));
       }
       if (m.IsFoldable()) {  // K % K => K  (K stands for arbitrary constants)
         return ReplaceFloat64(
@@ -665,10 +665,10 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kFloat64Atan2: {
       Float64BinopMatcher m(node);
       if (m.right().IsNaN()) {
-        return Replace(m.right().node());
+        return ReplaceFloat64(SilenceNaN(m.right().ResolvedValue()));
       }
       if (m.left().IsNaN()) {
-        return Replace(m.left().node());
+        return ReplaceFloat64(SilenceNaN(m.left().ResolvedValue()));
       }
       if (m.IsFoldable()) {
         return ReplaceFloat64(base::ieee754::atan2(m.left().ResolvedValue(),
