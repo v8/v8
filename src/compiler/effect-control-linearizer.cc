@@ -5014,7 +5014,7 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
         fast_api_call_stack_slot_,
         static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)),
         jsgraph()->ZeroConstant());
-    __ Store(StoreRepresentation(MachineRepresentation::kTaggedPointer,
+    __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                  kNoWriteBarrier),
              fast_api_call_stack_slot_,
              static_cast<int>(offsetof(v8::FastApiCallbackOptions, data)),
