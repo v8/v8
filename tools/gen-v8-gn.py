@@ -5,9 +5,14 @@
 # found in the LICENSE file.
 
 import argparse
-from io import BytesIO
 import os
 import sys
+
+if (sys.version_info >= (3, 0)):
+  from io import StringIO
+else:
+  from io import BytesIO as StringIO
+
 
 def parse_args():
   global args
@@ -60,7 +65,7 @@ def generate_header(out):
 
 def main():
   parse_args()
-  header_stream = BytesIO("")
+  header_stream = StringIO("")
   generate_header(header_stream)
   contents = header_stream.getvalue()
   if args.output:
