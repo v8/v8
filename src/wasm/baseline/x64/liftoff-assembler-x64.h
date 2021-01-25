@@ -190,7 +190,9 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
   popq(rbp);
 }
 
-void LiftoffAssembler::AlignFrameSize() {}
+void LiftoffAssembler::AlignFrameSize() {
+  max_used_spill_offset_ = RoundUp(max_used_spill_offset_, kSystemPointerSize);
+}
 
 void LiftoffAssembler::PatchPrepareStackFrame(int offset) {
   // The frame_size includes the frame marker. The frame marker has already been
@@ -198,7 +200,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset) {
   // anymore.
   int frame_size = GetTotalFrameSize() - kSystemPointerSize;
   // Need to align sp to system pointer size.
-  frame_size = RoundUp(frame_size, kSystemPointerSize);
+  DCHECK_EQ(frame_size, RoundUp(frame_size, kSystemPointerSize));
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.
   constexpr int kAvailableSpace = 64;
