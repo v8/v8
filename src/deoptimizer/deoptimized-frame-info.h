@@ -7,7 +7,7 @@
 
 #include <vector>
 
-#include "src/deoptimizer/translations.h"
+#include "src/deoptimizer/translated-state.h"
 
 namespace v8 {
 namespace internal {

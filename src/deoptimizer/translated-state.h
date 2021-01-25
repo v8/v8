@@ -8,6 +8,7 @@
 #include <stack>
 #include <vector>
 
+#include "src/deoptimizer/translation-array.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/shared-function-info.h"
@@ -19,7 +20,14 @@ namespace internal {
 
 class RegisterValues;
 class TranslatedState;
-class TranslationArrayIterator;
+
+// TODO(jgruber): This duplicates decoding logic already present in
+// TranslatedState/TranslatedFrame. Deduplicate into one class, e.g. by basing
+// printing off TranslatedFrame.
+void TranslationArrayPrintSingleFrame(std::ostream& os,
+                                      TranslationArray translation_array,
+                                      int translation_index,
+                                      FixedArray literal_array);
 
 // The Translated{Value,Frame,State} class hierarchy are a set of utility
 // functions to work with the combination of translations (built from a

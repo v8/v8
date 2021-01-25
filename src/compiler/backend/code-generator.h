@@ -394,16 +394,14 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
                                        OutputFrameStateCombine state_combine);
   void BuildTranslationForFrameStateDescriptor(
       FrameStateDescriptor* descriptor, InstructionOperandIterator* iter,
-      Translation* translation, OutputFrameStateCombine state_combine);
+      OutputFrameStateCombine state_combine);
   void TranslateStateValueDescriptor(StateValueDescriptor* desc,
                                      StateValueList* nested,
-                                     Translation* translation,
                                      InstructionOperandIterator* iter);
   void TranslateFrameStateDescriptorOperands(FrameStateDescriptor* desc,
-                                             InstructionOperandIterator* iter,
-                                             Translation* translation);
-  void AddTranslationForOperand(Translation* translation, Instruction* instr,
-                                InstructionOperand* op, MachineType type);
+                                             InstructionOperandIterator* iter);
+  void AddTranslationForOperand(Instruction* instr, InstructionOperand* op,
+                                MachineType type);
   void MarkLazyDeoptSite();
 
   void PrepareForDeoptimizationExits(ZoneDeque<DeoptimizationExit*>* exits);
@@ -444,7 +442,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   ZoneDeque<DeoptimizationExit*> deoptimization_exits_;
   ZoneDeque<DeoptimizationLiteral> deoptimization_literals_;
   size_t inlined_function_count_ = 0;
-  TranslationBuffer translations_;
+  TranslationArrayBuilder translations_;
   int handler_table_offset_ = 0;
   int last_lazy_deopt_pc_ = 0;
 
