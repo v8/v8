@@ -289,6 +289,11 @@ declare_args() {
   # If enabled then macro definitions that are used in externally visible
   # header files are placed in a separate header file v8-gn.h.
   v8_generate_external_defines_header = false
+
+  # Include support for WebAssembly. If disabled, the 'WebAssembly' global
+  # will not be available, and embedder APIs to generate WebAssembly modules
+  # will fail.
+  v8_enable_webassembly = true
 }
 
 # Derived defaults.
@@ -754,6 +759,9 @@ config("features") {
   }
   if (v8_etw_guid != "") {
     defines += [ "V8_ETW_GUID=\"$v8_etw_guid\"" ]
+  }
+  if (v8_enable_webassembly) {
+    defines += [ "V8_ENABLE_WEBASSEMBLY" ]
   }
 }
 

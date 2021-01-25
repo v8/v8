@@ -782,7 +782,11 @@ DEFINE_BOOL(untrusted_code_mitigations, V8_DEFAULT_UNTRUSTED_CODE_MITIGATIONS,
 DEFINE_BOOL(wasm_generic_wrapper, true,
             "allow use of the generic js-to-wasm wrapper instead of "
             "per-signature wrappers")
+#ifdef V8_ENABLE_WEBASSEMBLY
 DEFINE_BOOL(expose_wasm, true, "expose wasm interface to JavaScript")
+#else
+DEFINE_BOOL(expose_wasm, false, "expose wasm interface to JavaScript")
+#endif
 DEFINE_INT(wasm_num_compilation_tasks, 128,
            "maximum number of parallel compilation tasks for wasm")
 DEFINE_DEBUG_BOOL(trace_wasm_native_heap, false,
