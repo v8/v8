@@ -285,11 +285,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP_SSE4_1(Pblendw, pblendw)
   AVX_OP_SSE4_1(Ptest, ptest)
   AVX_OP_SSE4_1(Pmovsxbw, pmovsxbw)
-  AVX_OP_SSE4_1(Pmovsxbd, pmovsxbd)
   AVX_OP_SSE4_1(Pmovsxwd, pmovsxwd)
   AVX_OP_SSE4_1(Pmovsxdq, pmovsxdq)
   AVX_OP_SSE4_1(Pmovzxbw, pmovzxbw)
-  AVX_OP_SSE4_1(Pmovzxbd, pmovzxbd)
   AVX_OP_SSE4_1(Pmovzxwd, pmovzxwd)
   AVX_OP_SSE4_1(Pmovzxdq, pmovzxdq)
   AVX_OP_SSE4_1(Pextrb, pextrb)
@@ -575,7 +573,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Supports both SSE and AVX. Move src1 to dst if they are not equal on SSE.
   void Pshufb(XMMRegister dst, XMMRegister src1, XMMRegister src2);
-  void Pshufb(XMMRegister dst, XMMRegister src1, Operand src2);
   void Pmulhrsw(XMMRegister dst, XMMRegister src1, XMMRegister src2);
 
   // These Wasm SIMD ops do not have direct lowerings on x64. These

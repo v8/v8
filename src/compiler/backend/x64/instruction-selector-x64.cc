@@ -3753,26 +3753,6 @@ void InstructionSelector::VisitI32x4TruncSatF64x2UZero(Node* node) {
   Emit(kX64I32x4TruncSatF64x2UZero, dst, g.UseRegister(node->InputAt(0)));
 }
 
-namespace {
-void VisitWiden(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
-  X64OperandGenerator g(selector);
-  uint8_t laneidx = OpParameter<int8_t>(node->op());
-  InstructionOperand dst = CpuFeatures::IsSupported(AVX)
-                               ? g.DefineAsRegister(node)
-                               : g.DefineSameAsFirst(node);
-  selector->Emit(opcode | MiscField::encode(laneidx), dst,
-                 g.UseRegister(node->InputAt(0)));
-}
-}  // namespace
-
-void InstructionSelector::VisitI32x4WidenI8x16S(Node* node) {
-  VisitWiden(this, node, kX64I32x4WidenI8x16S);
-}
-
-void InstructionSelector::VisitI32x4WidenI8x16U(Node* node) {
-  VisitWiden(this, node, kX64I32x4WidenI8x16U);
-}
-
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

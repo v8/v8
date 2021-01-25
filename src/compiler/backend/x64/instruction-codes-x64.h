@@ -262,8 +262,6 @@ namespace compiler {
   V(X64I32x4ExtAddPairwiseI16x8U)         \
   V(X64I32x4TruncSatF64x2SZero)           \
   V(X64I32x4TruncSatF64x2UZero)           \
-  V(X64I32x4WidenI8x16S)                  \
-  V(X64I32x4WidenI8x16U)                  \
   V(X64I16x8Splat)                        \
   V(X64I16x8ExtractLaneS)                 \
   V(X64I16x8SConvertI8x16Low)             \
