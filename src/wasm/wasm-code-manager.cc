@@ -2106,10 +2106,7 @@ WasmCodeRefScope::WasmCodeRefScope()
 WasmCodeRefScope::~WasmCodeRefScope() {
   DCHECK_EQ(this, current_code_refs_scope);
   current_code_refs_scope = previous_scope_;
-  std::vector<WasmCode*> code_ptrs;
-  code_ptrs.reserve(code_ptrs_.size());
-  code_ptrs.assign(code_ptrs_.begin(), code_ptrs_.end());
-  WasmCode::DecrementRefCount(VectorOf(code_ptrs));
+  WasmCode::DecrementRefCount(VectorOf(code_ptrs_));
 }
 
 // static
@@ -2117,9 +2114,8 @@ void WasmCodeRefScope::AddRef(WasmCode* code) {
   DCHECK_NOT_NULL(code);
   WasmCodeRefScope* current_scope = current_code_refs_scope;
   DCHECK_NOT_NULL(current_scope);
-  auto entry = current_scope->code_ptrs_.insert(code);
-  // If we added a new entry, increment the ref counter.
-  if (entry.second) code->IncRef();
+  current_scope->code_ptrs_.push_back(code);
+  code->IncRef();
 }
 
 const char* GetRuntimeStubName(WasmCode::RuntimeStubId stub_id) {

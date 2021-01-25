@@ -9,7 +9,6 @@
 #include <map>
 #include <memory>
 #include <set>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -926,7 +925,7 @@ class V8_EXPORT_PRIVATE V8_NODISCARD WasmCodeRefScope {
 
  private:
   WasmCodeRefScope* const previous_scope_;
-  std::unordered_set<WasmCode*> code_ptrs_;
+  std::vector<WasmCode*> code_ptrs_;
 };
 
 // Similarly to a global handle, a {GlobalWasmCodeRef} stores a single
