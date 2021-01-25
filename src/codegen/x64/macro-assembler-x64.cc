@@ -2022,6 +2022,19 @@ void TurboAssembler::Pshufb(XMMRegister dst, XMMRegister src,
   }
 }
 
+void TurboAssembler::Pshufb(XMMRegister dst, XMMRegister src, Operand mask) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpshufb(dst, src, mask);
+  } else {
+    if (dst != src) {
+      movapd(dst, src);
+    }
+    CpuFeatureScope sse_scope(this, SSSE3);
+    pshufb(dst, mask);
+  }
+}
+
 void TurboAssembler::Pmulhrsw(XMMRegister dst, XMMRegister src1,
                               XMMRegister src2) {
   if (CpuFeatures::IsSupported(AVX)) {

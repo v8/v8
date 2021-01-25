@@ -883,6 +883,8 @@
   V(I32x4ExtAddPairwiseI16x8U)  \
   V(I32x4TruncSatF64x2SZero)    \
   V(I32x4TruncSatF64x2UZero)    \
+  V(I32x4WidenI8x16S)           \
+  V(I32x4WidenI8x16U)           \
   V(I16x8Splat)                 \
   V(I16x8ExtractLaneU)          \
   V(I16x8ExtractLaneS)          \

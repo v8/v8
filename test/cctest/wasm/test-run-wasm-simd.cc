@@ -2225,8 +2225,6 @@ WASM_SIMD_TEST(I32x4ShrU) {
 #if V8_TARGET_ARCH_X64
 // TODO(v8:11297) Prototype i32x4.widen_i8x16_{u,s}
 WASM_SIMD_TEST_NO_LOWERING(I32x4WidenI8x16U) {
-  // TODO(zhin): Add TurboFan support.
-  if (execution_tier != TestExecutionTier::kInterpreter) return;
   FLAG_SCOPE(wasm_simd_post_mvp);
 
   WasmRunner<uint32_t, uint32_t> r(execution_tier, lower_simd);
@@ -2264,8 +2262,6 @@ WASM_SIMD_TEST_NO_LOWERING(I32x4WidenI8x16U) {
 }
 
 WASM_SIMD_TEST_NO_LOWERING(I32x4WidenI8x16S) {
-  // TODO(zhin): Add TurboFan support.
-  if (execution_tier != TestExecutionTier::kInterpreter) return;
   FLAG_SCOPE(wasm_simd_post_mvp);
 
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
