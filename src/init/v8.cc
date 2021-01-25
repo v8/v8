@@ -84,7 +84,9 @@ void V8::InitializeOncePerProcessImpl() {
       FLAG_log = true;
       break;
     }
-    FLAG_log |= FLAG_perf_basic_prof || FLAG_prof || FLAG_prof_cpp;
+    // Profiling flags depend on logging.
+    FLAG_log |= FLAG_perf_prof || FLAG_perf_basic_prof || FLAG_ll_prof ||
+                FLAG_prof || FLAG_prof_cpp;
   }
 
   FlagList::EnforceFlagImplications();
