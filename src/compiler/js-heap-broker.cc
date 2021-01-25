@@ -4291,9 +4291,12 @@ base::Optional<FunctionTemplateInfoRef>
 SharedFunctionInfoRef::function_template_info() const {
   if (data_->should_access_heap()) {
     if (object()->IsApiFunction()) {
-      return FunctionTemplateInfoRef(
-          broker(), broker()->CanonicalPersistentHandle(
-                        object()->function_data(kAcquireLoad)));
+      ObjectData* data = broker()->TryGetOrCreateData(
+          broker()->CanonicalPersistentHandle(
+              object()->function_data(kAcquireLoad)),
+          false);
+      if (data == nullptr) return base::nullopt;
+      return FunctionTemplateInfoRef(broker(), data, true);
     }
     return base::nullopt;
   }

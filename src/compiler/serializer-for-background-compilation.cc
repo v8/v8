@@ -3021,7 +3021,8 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
         Handle<SharedFunctionInfo> sfi = function.shared().object();
         if (sfi->IsApiFunction()) {
           FunctionTemplateInfoRef fti_ref(
-              broker(), handle(sfi->get_api_func_data(), broker()->isolate()));
+              broker(),
+              broker()->CanonicalPersistentHandle(sfi->get_api_func_data()));
           if (fti_ref.has_call_code()) {
             fti_ref.SerializeCallCode();
             ProcessReceiverMapForApiCall(fti_ref, receiver_map->object());
@@ -3034,7 +3035,8 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
       // For JSCallReducer::ReduceJSCall.
       function.Serialize();
     } else {
-      FunctionTemplateInfoRef fti(broker(), access_info.constant());
+      FunctionTemplateInfoRef fti(broker(), broker()->CanonicalPersistentHandle(
+                                                access_info.constant()));
       if (fti.has_call_code()) fti.SerializeCallCode();
     }
   } else if (access_info.IsModuleExport()) {
