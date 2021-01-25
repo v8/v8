@@ -2227,9 +2227,11 @@ void MapData::SerializeOwnDescriptor(JSHeapBroker* broker,
         broker->GetOrCreateData(map->instance_descriptors(kRelaxedLoad));
   }
 
-  DescriptorArrayData* descriptor_array =
-      instance_descriptors()->AsDescriptorArray();
-  descriptor_array->SerializeDescriptor(broker, map, descriptor_index);
+  if (!instance_descriptors()->should_access_heap()) {
+    DescriptorArrayData* descriptors =
+        instance_descriptors()->AsDescriptorArray();
+    descriptors->SerializeDescriptor(broker, map, descriptor_index);
+  }
 }
 
 void MapData::SerializeRootMap(JSHeapBroker* broker) {
@@ -3145,14 +3147,7 @@ int MapRef::GetInObjectPropertyOffset(int i) const {
 
 PropertyDetails MapRef::GetPropertyDetails(
     InternalIndex descriptor_index) const {
-  if (data_->should_access_heap()) {
-    return object()
-        ->instance_descriptors(kRelaxedLoad)
-        .GetDetails(descriptor_index);
-  }
-  DescriptorArrayData* descriptors =
-      data()->AsMap()->instance_descriptors()->AsDescriptorArray();
-  return descriptors->GetPropertyDetails(descriptor_index);
+  return instance_descriptors().GetPropertyDetails(descriptor_index);
 }
 
 NameRef MapRef::GetPropertyKey(InternalIndex descriptor_index) const {
@@ -3659,6 +3654,16 @@ base::Optional<ObjectRef> MapRef::GetStrongValue(
   return ObjectRef(broker(), value);
 }
 
+DescriptorArrayRef MapRef::instance_descriptors() const {
+  if (data_->should_access_heap()) {
+    return DescriptorArrayRef(
+        broker(), broker()->CanonicalPersistentHandle(
+                      object()->instance_descriptors(kRelaxedLoad)));
+  }
+
+  return DescriptorArrayRef(broker(), data()->AsMap()->instance_descriptors());
+}
+
 void MapRef::SerializeRootMap() {
   if (data_->should_access_heap()) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
@@ -4044,6 +4049,14 @@ Float64 FixedDoubleArrayData::Get(int i) const {
   return contents_[i];
 }
 
+PropertyDetails DescriptorArrayRef::GetPropertyDetails(
+    InternalIndex descriptor_index) const {
+  if (data_->should_access_heap() || FLAG_turbo_direct_heap_access) {
+    return object()->GetDetails(descriptor_index);
+  }
+  return data()->AsDescriptorArray()->GetPropertyDetails(descriptor_index);
+}
+
 base::Optional<SharedFunctionInfoRef> FeedbackCellRef::shared_function_info()
     const {
   if (value()) {
@@ -4310,6 +4323,7 @@ void JSObjectRef::SerializeObjectCreateMap() {
 }
 
 void MapRef::SerializeOwnDescriptor(InternalIndex descriptor_index) {
+  CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
   if (data_->should_access_heap()) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsMap()->SerializeOwnDescriptor(broker(), descriptor_index);
@@ -4320,6 +4334,7 @@ bool MapRef::serialized_own_descriptor(InternalIndex descriptor_index) const {
   if (data_->should_access_heap()) return true;
   ObjectData* maybe_desc_array_data = data()->AsMap()->instance_descriptors();
   if (!maybe_desc_array_data) return false;
+  if (maybe_desc_array_data->should_access_heap()) return true;
   DescriptorArrayData* desc_array_data =
       maybe_desc_array_data->AsDescriptorArray();
   return desc_array_data->serialized_descriptor(descriptor_index);
