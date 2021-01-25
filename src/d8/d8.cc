@@ -1928,51 +1928,141 @@ void Shell::SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& args) {
   PerIsolateData::Get(isolate)->SetTimeout(callback, context);
 }
 
-void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-  HandleScope handle_scope(isolate);
-  if (args.Length() < 1 || !args[0]->IsString()) {
-    Throw(args.GetIsolate(), "1st argument must be string");
-    return;
-  }
+enum WorkerType { kClassic, kString, kFunction, kInvalid, kNone };
 
-  // d8 honors `options={type: string}`, which means the first argument is
-  // not a filename but string of script to be run.
-  bool load_from_file = true;
+void ReadWorkerTypeAndArguments(const v8::FunctionCallbackInfo<v8::Value>& args,
+                                WorkerType* worker_type,
+                                Local<Value>* arguments = nullptr) {
+  Isolate* isolate = args.GetIsolate();
   if (args.Length() > 1 && args[1]->IsObject()) {
     Local<Object> object = args[1].As<Object>();
     Local<Context> context = isolate->GetCurrentContext();
     Local<Value> value;
-    if (TryGetValue(args.GetIsolate(), context, object, "type")
-            .ToLocal(&value) &&
-        value->IsString()) {
-      Local<String> worker_type = value->ToString(context).ToLocalChecked();
-      String::Utf8Value str(isolate, worker_type);
-      if (strcmp("string", *str) == 0) {
-        load_from_file = false;
-      } else if (strcmp("classic", *str) == 0) {
-        load_from_file = true;
-      } else {
-        Throw(args.GetIsolate(), "Unsupported worker type");
-        return;
+    if (!TryGetValue(isolate, context, object, "type").ToLocal(&value)) {
+      *worker_type = WorkerType::kNone;
+      return;
+    }
+    if (!value->IsString()) {
+      *worker_type = WorkerType::kInvalid;
+      return;
+    }
+    Local<String> worker_type_string =
+        value->ToString(context).ToLocalChecked();
+    String::Utf8Value str(isolate, worker_type_string);
+    if (strcmp("string", *str) == 0) {
+      *worker_type = WorkerType::kString;
+    } else if (strcmp("classic", *str) == 0) {
+      *worker_type = WorkerType::kClassic;
+    } else if (strcmp("function", *str) == 0) {
+      *worker_type = WorkerType::kFunction;
+    } else {
+      *worker_type = WorkerType::kInvalid;
+    }
+    if (arguments != nullptr) {
+      bool got_arguments =
+          TryGetValue(isolate, context, object, "arguments").ToLocal(arguments);
+      USE(got_arguments);
+    }
+  } else {
+    *worker_type = WorkerType::kNone;
+  }
+}
+
+bool FunctionAndArgumentsToString(Local<Function> function,
+                                  Local<Value> arguments, Local<String>* source,
+                                  Isolate* isolate) {
+  Local<Context> context = isolate->GetCurrentContext();
+  MaybeLocal<String> maybe_function_string =
+      function->FunctionProtoToString(context);
+  Local<String> function_string;
+  if (!maybe_function_string.ToLocal(&function_string)) {
+    Throw(isolate, "Failed to convert function to string");
+    return false;
+  }
+  *source = String::NewFromUtf8Literal(isolate, "(");
+  *source = String::Concat(isolate, *source, function_string);
+  Local<String> middle = String::NewFromUtf8Literal(isolate, ")(");
+  *source = String::Concat(isolate, *source, middle);
+  if (!arguments.IsEmpty() && !arguments->IsUndefined()) {
+    if (!arguments->IsArray()) {
+      Throw(isolate, "'arguments' must be an array");
+      return false;
+    }
+    Local<String> comma = String::NewFromUtf8Literal(isolate, ",");
+    Local<Array> array = arguments.As<Array>();
+    for (uint32_t i = 0; i < array->Length(); ++i) {
+      if (i > 0) {
+        *source = String::Concat(isolate, *source, comma);
       }
+      Local<Value> argument = array->Get(context, i).ToLocalChecked();
+      Local<String> argument_string;
+      if (!JSON::Stringify(context, argument).ToLocal(&argument_string)) {
+        Throw(isolate, "Failed to convert argument to string");
+        return false;
+      }
+      *source = String::Concat(isolate, *source, argument_string);
     }
   }
+  Local<String> suffix = String::NewFromUtf8Literal(isolate, ")");
+  *source = String::Concat(isolate, *source, suffix);
+  return true;
+}
 
-  Local<Value> source;
-  if (load_from_file) {
-    String::Utf8Value filename(args.GetIsolate(), args[0]);
-    source = ReadFile(args.GetIsolate(), *filename);
-    if (source.IsEmpty()) {
-      Throw(args.GetIsolate(), "Error loading worker script");
+void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HandleScope handle_scope(isolate);
+  if (args.Length() < 1 || (!args[0]->IsString() && !args[0]->IsFunction())) {
+    Throw(isolate, "1st argument must be a string or a function");
+    return;
+  }
+
+  Local<String> source;
+  if (args[0]->IsFunction()) {
+    // d8 supports `options={type: 'function', arguments:[...]}`, which means
+    // the first argument is a function with the code to be ran. Restrictions
+    // apply; in particular the function will be converted to a string and the
+    // Worker constructed based on it.
+    WorkerType worker_type;
+    Local<Value> arguments;
+    ReadWorkerTypeAndArguments(args, &worker_type, &arguments);
+    if (worker_type != WorkerType::kFunction) {
+      Throw(isolate, "Invalid or missing worker type");
+      return;
+    }
+
+    // Source: ( function_to_string )( params )
+    if (!FunctionAndArgumentsToString(args[0].As<Function>(), arguments,
+                                      &source, isolate)) {
       return;
     }
   } else {
-    source = args[0];
+    // d8 honors `options={type: 'string'}`, which means the first argument is
+    // not a filename but string of script to be run.
+    bool load_from_file = true;
+    WorkerType worker_type;
+    ReadWorkerTypeAndArguments(args, &worker_type);
+    if (worker_type == WorkerType::kString) {
+      load_from_file = false;
+    } else if (worker_type != WorkerType::kNone &&
+               worker_type != WorkerType::kClassic) {
+      Throw(isolate, "Invalid worker type");
+      return;
+    }
+
+    if (load_from_file) {
+      String::Utf8Value filename(isolate, args[0]);
+      source = ReadFile(isolate, *filename);
+      if (source.IsEmpty()) {
+        Throw(args.GetIsolate(), "Error loading worker script");
+        return;
+      }
+    } else {
+      source = args[0].As<String>();
+    }
   }
 
   if (!args.IsConstructCall()) {
-    Throw(args.GetIsolate(), "Worker must be constructed with new");
+    Throw(isolate, "Worker must be constructed with new");
     return;
   }
 
@@ -1987,9 +2077,9 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
     base::MutexGuard lock_guard(workers_mutex_.Pointer());
     if (!allow_new_workers_) return;
 
-    String::Utf8Value script(args.GetIsolate(), source);
+    String::Utf8Value script(isolate, source);
     if (!*script) {
-      Throw(args.GetIsolate(), "Can't get worker script");
+      Throw(isolate, "Can't get worker script");
       return;
     }
 
@@ -2003,7 +2093,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
         i_isolate, kWorkerSizeEstimate, worker);
     args.Holder()->SetInternalField(0, Utils::ToLocal(managed));
     if (!Worker::StartWorkerThread(std::move(worker))) {
-      Throw(args.GetIsolate(), "Can't start thread");
+      Throw(isolate, "Can't start thread");
       return;
     }
   }
