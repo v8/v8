@@ -264,8 +264,9 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
 #endif
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED_BASE(V) \
-  V(harmony_top_level_await, "harmony top level await")
+#define HARMONY_STAGED_BASE(V)                          \
+  V(harmony_top_level_await, "harmony top level await") \
+  V(harmony_relative_indexing_methods, "harmony relative indexing methods")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)               \
@@ -283,8 +284,7 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
   V(harmony_weak_refs, "harmony weak references")                     \
   V(harmony_string_replaceall, "harmony String.prototype.replaceAll") \
   V(harmony_logical_assignment, "harmony logical assignment")         \
-  V(harmony_atomics_waitasync, "harmony Atomics.waitAsync")           \
-  V(harmony_relative_indexing_methods, "harmony relative indexing methods")
+  V(harmony_atomics_waitasync, "harmony Atomics.waitAsync")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
