@@ -9,8 +9,11 @@
 
 namespace cppgc {
 
+/**
+ * Index identifying a custom space.
+ */
 struct CustomSpaceIndex {
-  CustomSpaceIndex(size_t value) : value(value) {}  // NOLINT
+  constexpr CustomSpaceIndex(size_t value) : value(value) {}  // NOLINT
   size_t value;
 };
 
