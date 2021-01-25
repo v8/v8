@@ -48,6 +48,19 @@ static const int kMaxBytecodeSizeForEarlyOpt = 90;
 // FLAG_ticks_scale_factor_for_top_tier.
 static const int kProfilerTicksForTurboPropOSR = 4 * 10;
 
+// These are used to decide when we tiering up to Turboprop.
+// The number of ticks required for tiering up to Turboprop is based on how
+// "soon" the function becomes hot. We use kMidTierGlobalTicksScaleFactor to
+// scale the difference in global ticks since the last time a function saw a
+// tick. The scaled difference is used to to increase the number of ticks
+// required for tiering up to Turboprop.
+static const int kMidTierGlobalTicksScaleFactor = 100;
+
+// This is used to limit the number of additional ticks that the
+// kMidTierGlobalTicksScaleFactor can increase threshold for mid-tier tier
+// tierup.
+static const int kMaxAdditionalMidTierGlobalTicks = 10;
+
 #define OPTIMIZATION_REASON_LIST(V)   \
   V(DoNotOptimize, "do not optimize") \
   V(HotAndStable, "hot and stable")   \
@@ -121,7 +134,7 @@ void TraceRecompile(JSFunction function, OptimizationReason reason,
 }  // namespace
 
 RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
-    : isolate_(isolate), any_ic_changed_(false) {}
+    : isolate_(isolate), any_ic_changed_(false), current_global_ticks_(0) {}
 
 void RuntimeProfiler::Optimize(JSFunction function, OptimizationReason reason,
                                CodeKind code_kind) {
@@ -192,6 +205,9 @@ void RuntimeProfiler::MaybeOptimizeFrame(JSFunction function,
   if (reason != OptimizationReason::kDoNotOptimize) {
     Optimize(function, reason, code_kind);
   }
+  function.feedback_vector()
+      .set_global_ticks_at_last_runtime_profiler_interrupt(
+          current_global_ticks_);
 }
 
 bool RuntimeProfiler::MaybeOSR(JSFunction function, InterpretedFrame* frame) {
@@ -266,6 +282,17 @@ OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
   int ticks_for_optimization =
       kProfilerTicksBeforeOptimization +
       (bytecode.length() / kBytecodeSizeAllowancePerTick);
+  if (FLAG_turboprop && !active_tier_is_turboprop) {
+    DCHECK_EQ(function.NextTier(), CodeKind::TURBOPROP);
+    int global_ticks_diff =
+        (current_global_ticks_ -
+         function.feedback_vector()
+             .global_ticks_at_last_runtime_profiler_interrupt());
+    ticks_for_optimization =
+        ticks_for_optimization +
+        std::min(global_ticks_diff / kMidTierGlobalTicksScaleFactor,
+                 kMaxAdditionalMidTierGlobalTicks);
+  }
   ticks_for_optimization *= scale_factor;
   if (ticks >= ticks_for_optimization) {
     return OptimizationReason::kHotAndStable;
@@ -294,6 +321,10 @@ RuntimeProfiler::MarkCandidatesForOptimizationScope::
     : handle_scope_(profiler->isolate_), profiler_(profiler) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.MarkCandidatesForOptimization");
+  if (profiler_->current_global_ticks_ <
+      FeedbackVector::GlobalTicksAtLastRuntimeProfilerInterruptBits::kMax - 1) {
+    profiler_->current_global_ticks_ += 1;
+  }
 }
 
 RuntimeProfiler::MarkCandidatesForOptimizationScope::
