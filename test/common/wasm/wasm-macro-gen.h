@@ -501,10 +501,10 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_REF_IS_NULL(val) val, kExprRefIsNull
 #define WASM_REF_AS_NON_NULL(val) val, kExprRefAsNonNull
 #define WASM_REF_EQ(lhs, rhs) lhs, rhs, kExprRefEq
-#define WASM_REF_TEST(obj_type, rtt_type, ref, rtt) \
-  ref, rtt, WASM_GC_OP(kExprRefTest), obj_type, rtt_type
-#define WASM_REF_CAST(obj_type, rtt_type, ref, rtt) \
-  ref, rtt, WASM_GC_OP(kExprRefCast), obj_type, rtt_type
+#define WASM_REF_TEST(rtt_type, ref, rtt) \
+  ref, rtt, WASM_GC_OP(kExprRefTest), rtt_type
+#define WASM_REF_CAST(rtt_type, ref, rtt) \
+  ref, rtt, WASM_GC_OP(kExprRefCast), rtt_type
 // Takes a reference value from the value stack to allow sequences of
 // conditional branches.
 #define WASM_BR_ON_CAST(depth, rtt) \

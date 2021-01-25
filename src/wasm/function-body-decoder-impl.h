@@ -1909,11 +1909,9 @@ class WasmDecoder : public Decoder {
             return length;
           case kExprRefTest:
           case kExprRefCast: {
-            HeapTypeImmediate<validate> ht1(WasmFeatures::All(), decoder,
-                                            pc + length, nullptr);
-            HeapTypeImmediate<validate> ht2(WasmFeatures::All(), decoder,
-                                            pc + length + ht1.length, nullptr);
-            return length + ht1.length + ht2.length;
+            HeapTypeImmediate<validate> ht(WasmFeatures::All(), decoder,
+                                           pc + length, nullptr);
+            return length + ht.length;
           }
           default:
             // This is unreachable except for malformed modules.
@@ -4012,12 +4010,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         return opcode_length + imm.length;
       }
       case kExprRttSub: {
-        // TODO(7748): The proposal currently includes additional immediates
-        // here: the subtyping depth <n> and the "parent type", see:
-        // https://github.com/WebAssembly/gc/commit/20a80e34 .
-        // If these immediates don't get dropped (in the spirit of
-        // https://github.com/WebAssembly/function-references/pull/31 ),
-        // implement them here.
         HeapTypeImmediate<validate> imm(
             this->enabled_, this, this->pc_ + opcode_length, this->module_);
         if (!VALIDATE(this->ok())) return 0;
@@ -4049,23 +4041,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       }
       case kExprRefTest: {
         // "Tests whether {obj}'s runtime type is a runtime subtype of {rtt}."
-        HeapTypeImmediate<validate> obj_type(
+        HeapTypeImmediate<validate> rtt_type(
             this->enabled_, this, this->pc_ + opcode_length, this->module_);
-        int len = opcode_length + obj_type.length;
-        HeapTypeImmediate<validate> rtt_type(this->enabled_, this,
-                                             this->pc_ + len, this->module_);
-        len += rtt_type.length;
         if (!VALIDATE(this->ok())) return 0;
-
-        // The static type of {obj} must be a supertype of the {rtt}'s type.
-        if (!VALIDATE(
-                IsHeapSubtypeOf(rtt_type.type, obj_type.type, this->module_))) {
-          this->DecodeError(
-              "ref.test: immediate rtt type %s is not a subtype of immediate "
-              "object type %s",
-              rtt_type.type.name().c_str(), obj_type.type.name().c_str());
-          return 0;
-        }
         Value rtt = Pop(1);
         if (!VALIDATE(
                 (rtt.type.is_rtt() && rtt.type.heap_type() == rtt_type.type) ||
@@ -4073,28 +4051,22 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           PopTypeError(1, rtt, "rtt for type " + rtt_type.type.name());
           return 0;
         }
-        Value obj = Pop(0, ValueType::Ref(obj_type.type, kNullable));
+        Value obj = Pop(0, kWasmAnyRef);
         Value* value = Push(kWasmI32);
-        CALL_INTERFACE_IF_REACHABLE(RefTest, obj, rtt, value);
-        return len;
+        if (obj.type != kWasmBottom) {
+          if (!VALIDATE(IsSubtypeOf(ValueType::Ref(rtt_type.type, kNonNullable),
+                                    obj.type, this->module_))) {
+            PopTypeError(0, obj, "supertype of type " + rtt_type.type.name());
+            return 0;
+          }
+          CALL_INTERFACE_IF_REACHABLE(RefTest, obj, rtt, value);
+        }
+        return opcode_length + rtt_type.length;
       }
       case kExprRefCast: {
-        HeapTypeImmediate<validate> obj_type(
+        HeapTypeImmediate<validate> rtt_type(
             this->enabled_, this, this->pc_ + opcode_length, this->module_);
-        int len = opcode_length + obj_type.length;
-        HeapTypeImmediate<validate> rtt_type(this->enabled_, this,
-                                             this->pc_ + len, this->module_);
-        len += rtt_type.length;
         if (!VALIDATE(this->ok())) return 0;
-
-        if (!VALIDATE(
-                IsHeapSubtypeOf(rtt_type.type, obj_type.type, this->module_))) {
-          this->DecodeError(
-              "ref.test: immediate rtt type %s is not a subtype of immediate "
-              "object type %s",
-              rtt_type.type.name().c_str(), obj_type.type.name().c_str());
-          return 0;
-        }
         Value rtt = Pop(1);
         if (!VALIDATE(
                 (rtt.type.is_rtt() && rtt.type.heap_type() == rtt_type.type) ||
@@ -4102,10 +4074,17 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           PopTypeError(1, rtt, "rtt for type " + rtt_type.type.name());
           return 0;
         }
-        Value obj = Pop(0, ValueType::Ref(obj_type.type, kNullable));
+        Value obj = Pop(0, kWasmAnyRef);
         Value* value = Push(ValueType::Ref(rtt_type.type, kNonNullable));
-        CALL_INTERFACE_IF_REACHABLE(RefCast, obj, rtt, value);
-        return len;
+        if (obj.type != kWasmBottom) {
+          if (!VALIDATE(IsSubtypeOf(ValueType::Ref(rtt_type.type, kNonNullable),
+                                    obj.type, this->module_))) {
+            PopTypeError(0, obj, "supertype of type " + rtt_type.type.name());
+            return 0;
+          }
+          CALL_INTERFACE_IF_REACHABLE(RefCast, obj, rtt, value);
+        }
+        return opcode_length + rtt_type.length;
       }
       case kExprBrOnCast: {
         BranchDepthImmediate<validate> branch_depth(this,

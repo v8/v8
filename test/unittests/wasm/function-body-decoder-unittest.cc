@@ -4300,12 +4300,10 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
                              ValueType::Ref(from_heap, kNullable)};
     FunctionSig cast_sig(1, 1, cast_reps);
     ExpectValidates(&test_sig,
-                    {WASM_REF_TEST(WASM_HEAP_TYPE(from_heap),
-                                   WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
+                    {WASM_REF_TEST(WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
                                    WASM_RTT_CANON(WASM_HEAP_TYPE(to_heap)))});
     ExpectValidates(&cast_sig,
-                    {WASM_REF_CAST(WASM_HEAP_TYPE(from_heap),
-                                   WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
+                    {WASM_REF_CAST(WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
                                    WASM_RTT_CANON(WASM_HEAP_TYPE(to_heap)))});
   }
 
@@ -4324,31 +4322,33 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
     ValueType cast_reps[] = {ValueType::Ref(to_heap, kNonNullable),
                              ValueType::Ref(from_heap, kNullable)};
     FunctionSig cast_sig(1, 1, cast_reps);
+
+    std::string error_message = "[0] expected supertype of type " +
+                                to_heap.name() + ", found local.get of type " +
+                                test_reps[1].name();
     ExpectFailure(&test_sig,
-                  {WASM_REF_TEST(WASM_HEAP_TYPE(from_heap),
-                                 WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
+                  {WASM_REF_TEST(WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
                                  WASM_RTT_CANON(WASM_HEAP_TYPE(to_heap)))},
-                  kAppendEnd, "is not a subtype of immediate object type");
+                  kAppendEnd, ("ref.test" + error_message).c_str());
     ExpectFailure(&cast_sig,
-                  {WASM_REF_CAST(WASM_HEAP_TYPE(from_heap),
-                                 WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
+                  {WASM_REF_CAST(WASM_HEAP_TYPE(to_heap), WASM_LOCAL_GET(0),
                                  WASM_RTT_CANON(WASM_HEAP_TYPE(to_heap)))},
-                  kAppendEnd, "is not a subtype of immediate object type");
+                  kAppendEnd, ("ref.cast" + error_message).c_str());
   }
 
   // Trivial type error.
-  ExpectFailure(sigs.v_v(),
-                {WASM_REF_TEST(kEqRefCode, kI31RefCode, WASM_I32V(1),
-                               WASM_RTT_CANON(kI31RefCode)),
-                 kExprDrop},
-                kAppendEnd,
-                "ref.test[0] expected type eqref, found i32.const of type i32");
-  ExpectFailure(sigs.v_v(),
-                {WASM_REF_CAST(kEqRefCode, kI31RefCode, WASM_I32V(1),
-                               WASM_RTT_CANON(kI31RefCode)),
-                 kExprDrop},
-                kAppendEnd,
-                "ref.cast[0] expected type eqref, found i32.const of type i32");
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_REF_TEST(kI31RefCode, WASM_I32V(1), WASM_RTT_CANON(kI31RefCode)),
+       kExprDrop},
+      kAppendEnd,
+      "ref.test[0] expected type anyref, found i32.const of type i32");
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_REF_CAST(kI31RefCode, WASM_I32V(1), WASM_RTT_CANON(kI31RefCode)),
+       kExprDrop},
+      kAppendEnd,
+      "ref.cast[0] expected type anyref, found i32.const of type i32");
 
   // Mismached object heap immediate.
   {
@@ -4356,16 +4356,16 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
     FunctionSig sig(0, 1, &arg_type);
     ExpectFailure(
         &sig,
-        {WASM_REF_TEST(kEqRefCode, static_cast<byte>(array_heap),
-                       WASM_LOCAL_GET(0), WASM_RTT_CANON(kI31RefCode)),
+        {WASM_REF_TEST(static_cast<byte>(array_heap), WASM_LOCAL_GET(0),
+                       WASM_RTT_CANON(kI31RefCode)),
          kExprDrop},
         kAppendEnd,
         "ref.test[1] expected rtt for type 0, found rtt.canon of type (rtt 1 "
         "i31)");
     ExpectFailure(
         &sig,
-        {WASM_REF_CAST(kEqRefCode, static_cast<byte>(array_heap),
-                       WASM_LOCAL_GET(0), WASM_RTT_CANON(kI31RefCode)),
+        {WASM_REF_CAST(static_cast<byte>(array_heap), WASM_LOCAL_GET(0),
+                       WASM_RTT_CANON(kI31RefCode)),
          kExprDrop},
         kAppendEnd,
         "ref.cast[1] expected rtt for type 0, found rtt.canon of type (rtt 1 "
