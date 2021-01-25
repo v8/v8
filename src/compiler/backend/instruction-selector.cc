@@ -2751,14 +2751,6 @@ void InstructionSelector::VisitF32x4Qfms(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM64
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X
 
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_ARM64 && \
-    !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS64 && \
-    !V8_TARGET_ARCH_MIPS
-void InstructionSelector::VisitI64x2Eq(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_ARM64
-        // && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM
-        // && !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_MIPS
-
 #if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32
 // TODO(v8:11168): Prototyping prefetch.
 void InstructionSelector::VisitPrefetchTemporal(Node* node) { UNIMPLEMENTED(); }
