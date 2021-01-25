@@ -3776,6 +3776,49 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                      /*is_signed=*/false);
       break;
     }
+    case kX64I32x4WidenI8x16S: {
+      uint8_t laneidx = static_cast<uint8_t>(MiscField::decode(opcode));
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
+      if (laneidx == 0) {
+        __ Pmovsxbd(dst, src);
+        break;
+      }
+
+      ExternalReference mask;
+      if (laneidx == 1) {
+        mask = ExternalReference::address_of_i32x4_widen_i8x16_s1_mask();
+      } else if (laneidx == 2) {
+        mask = ExternalReference::address_of_i32x4_widen_i8x16_s2_mask();
+      } else {
+        DCHECK_EQ(3, laneidx);
+        mask = ExternalReference::address_of_i32x4_widen_i8x16_s3_mask();
+      }
+      __ Pshufb(dst, src, __ ExternalReferenceAsOperand(mask));
+      __ Psrad(dst, byte{24});
+      break;
+    }
+    case kX64I32x4WidenI8x16U: {
+      uint8_t laneidx = static_cast<uint8_t>(MiscField::decode(opcode));
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
+      if (laneidx == 0) {
+        __ Pmovzxbd(dst, src);
+        break;
+      }
+
+      ExternalReference mask;
+      if (laneidx == 1) {
+        mask = ExternalReference::address_of_i32x4_widen_i8x16_u1_mask();
+      } else if (laneidx == 2) {
+        mask = ExternalReference::address_of_i32x4_widen_i8x16_u2_mask();
+      } else {
+        DCHECK_EQ(3, laneidx);
+        mask = ExternalReference::address_of_i32x4_widen_i8x16_u3_mask();
+      }
+      __ Pshufb(dst, src, __ ExternalReferenceAsOperand(mask));
+      break;
+    }
     case kX64I64x2SignSelect: {
       __ Blendvpd(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1), i.InputSimd128Register(2));

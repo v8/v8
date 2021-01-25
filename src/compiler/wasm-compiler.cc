@@ -5235,6 +5235,12 @@ Node* WasmGraphBuilder::SimdLaneOp(wasm::WasmOpcode opcode, uint8_t lane,
                                    Node* const* inputs) {
   has_simd_ = true;
   switch (opcode) {
+    case wasm::kExprI32x4WidenI8x16S:
+      return graph()->NewNode(mcgraph()->machine()->I32x4WidenI8x16S(lane),
+                              inputs[0]);
+    case wasm::kExprI32x4WidenI8x16U:
+      return graph()->NewNode(mcgraph()->machine()->I32x4WidenI8x16U(lane),
+                              inputs[0]);
     case wasm::kExprF64x2ExtractLane:
       return graph()->NewNode(mcgraph()->machine()->F64x2ExtractLane(lane),
                               inputs[0]);

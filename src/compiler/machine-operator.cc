@@ -1707,6 +1707,18 @@ const Operator* MachineOperatorBuilder::Word64PoisonOnSpeculation() {
   return GetCachedOperator<Word64PoisonOnSpeculationOperator>();
 }
 
+const Operator* MachineOperatorBuilder::I32x4WidenI8x16S(uint8_t laneidx) {
+  return zone_->New<Operator1<uint8_t>>(IrOpcode::kI32x4WidenI8x16S,
+                                        Operator::kPure, "I32x4WidenI8x16S", 1,
+                                        0, 0, 1, 0, 0, laneidx);
+}
+
+const Operator* MachineOperatorBuilder::I32x4WidenI8x16U(uint8_t laneidx) {
+  return zone_->New<Operator1<uint8_t>>(IrOpcode::kI32x4WidenI8x16U,
+                                        Operator::kPure, "I32x4WidenI8x16U", 1,
+                                        0, 0, 1, 0, 0, laneidx);
+}
+
 #define EXTRACT_LANE_OP(Type, Sign, lane_count)                      \
   const Operator* MachineOperatorBuilder::Type##ExtractLane##Sign(   \
       int32_t lane_index) {                                          \
