@@ -801,26 +801,22 @@ WASM_SIMD_TEST_NO_LOWERING(I8x16SignSelect) {
 }
 
 WASM_SIMD_TEST_NO_LOWERING(I16x8SignSelect) {
-  std::array<int16_t, kSimd128Size / 2> selection = {0x8000, 0, -1, 0,
-                                                     0x8000, 0, -1, 0};
-  std::array<int8_t, kSimd128Size> mask;
-  memcpy(mask.data(), selection.data(), kSimd128Size);
+  std::array<int8_t, kSimd128Size> mask = {0, 0x80, 0, 0, -1, -1, 0, 0,
+                                           0, 0x80, 0, 0, -1, -1, 0, 0};
   RunSignSelect<int16_t>(execution_tier, lower_simd, kExprI16x8SignSelect,
                          kExprI16x8Splat, mask);
 }
 
 WASM_SIMD_TEST_NO_LOWERING(I32x4SignSelect) {
-  std::array<int32_t, kSimd128Size / 4> selection = {0x80000000, 0, -1, 0};
-  std::array<int8_t, kSimd128Size> mask;
-  memcpy(mask.data(), selection.data(), kSimd128Size);
+  std::array<int8_t, kSimd128Size> mask = {0,  0,  0,  0x80, 0, 0, 0, 0,
+                                           -1, -1, -1, -1,   0, 0, 0, 0};
   RunSignSelect<int32_t>(execution_tier, lower_simd, kExprI32x4SignSelect,
                          kExprI32x4Splat, mask);
 }
 
 WASM_SIMD_TEST_NO_LOWERING(I64x2SignSelect) {
-  std::array<int64_t, kSimd128Size / 8> selection = {0x8000000000000000, 0};
-  std::array<int8_t, kSimd128Size> mask;
-  memcpy(mask.data(), selection.data(), kSimd128Size);
+  std::array<int8_t, kSimd128Size> mask = {0, 0, 0, 0, 0, 0, 0, 0x80,
+                                           0, 0, 0, 0, 0, 0, 0, 0};
   RunSignSelect<int64_t>(execution_tier, lower_simd, kExprI64x2SignSelect,
                          kExprI64x2Splat, mask);
 }
