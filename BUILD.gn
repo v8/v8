@@ -288,7 +288,7 @@ declare_args() {
 
   # If enabled then macro definitions that are used in externally visible
   # header files are placed in a separate header file v8-gn.h.
-  v8_generate_external_defines_header = true
+  v8_generate_external_defines_header = false
 }
 
 # Derived defaults.
